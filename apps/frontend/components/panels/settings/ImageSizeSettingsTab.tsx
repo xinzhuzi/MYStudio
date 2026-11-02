@@ -10,6 +10,7 @@ import {
   getImageSizeLabel,
 } from "@/lib/ai/image-size-presets";
 import type { ImageGenerationSettings } from "@/stores/app/app-settings-store";
+import { LOCAL_ENGINE_FAMILIES } from "@/lib/studio/engine-line/engine-options";
 
 type ImageSizeSettingsTabProps = {
   settings: ImageGenerationSettings;
@@ -18,15 +19,19 @@ type ImageSizeSettingsTabProps = {
 
 /**
  * 生图引擎候选(09-12 生图路由设置,Q1a 裁定=默认模型下拉):
- * 空串=跟随渠道链(现状,链首本地 Krea2);本地模型免费走内置 sidecar,
- * 云端模型走「接口配置」里认领它的渠道(未配会在生成时报错指路,Q3a)。
+ * 空串=跟随渠道链;本地模型免费走内置 sidecar,云端模型走「接口配置」里认领
+ * 它的渠道(未配会在生成时报错指路,Q3a)。
+ * 1102 控制中心役(G1):本地段改吃共享单源(lib/studio/engine-line,控制中心
+ * 族下拉同源;qi21 补位——现役主力曾缺席此表);云端段仍留本页(控制中心族
+ * 下拉本地纯净化,G2 裁定)。blocked/stopped 族在此页不列(本页只给可选项)。
  */
 const IMAGE_ENGINE_OPTIONS: { value: string; label: string; hint: string }[] = [
   { value: "", label: "自动", hint: "跟随渠道链(现状)" },
-  { value: "krea2-turbo", label: "Krea2 Turbo", hint: "本地 · 免费" },
-  { value: "flux2-klein-9b", label: "FLUX.2 Klein 9B", hint: "本地 · 免费" },
-  { value: "z-image-turbo", label: "Z-Image Turbo", hint: "本地 · 免费" },
-  { value: "qwen-image-edit-2511", label: "Qwen 图像编辑", hint: "本地 · 免费" },
+  ...LOCAL_ENGINE_FAMILIES.filter((family) => family.status === "ready").map((family) => ({
+    value: family.value,
+    label: family.label,
+    hint: family.hint,
+  })),
   { value: "gpt-image-2", label: "GPT Image 2", hint: "云端 · 付费" },
   { value: "gpt-image-1.5", label: "GPT Image 1.5", hint: "云端 · 付费" },
   { value: "gemini-3-pro-image-preview", label: "Nano Banana Pro", hint: "云端 · 付费" },

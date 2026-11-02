@@ -19,6 +19,7 @@ import {
   withActiveVisualManualStoryboardStyleTokens,
 } from "@/lib/studio/visual-manual-style-tokens";
 import { useProjectStore } from "@/stores/project/project-store";
+import { resolveBoundTemplateForGeneration } from "@/stores/settings/workflow-bindings-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { buildStoryboardReferenceSheet } from "./storyboard-reference-sheet";
 import type {
@@ -90,7 +91,15 @@ export async function runImageWorkflowNodeGeneration(
 
   const request = buildImageWorkflowGenerationRequest(graph, targetNodeId);
   const isStoryboard = graph.target.kind === "storyboard";
-  const finalModel = isStoryboard ? DEFAULT_LOCAL_IMAGE_MODEL : request.model;
+  const finalModel = isStoryboard ? DEFAULT_LOCAL_IMAGE_MODEL : (request.model ?? DEFAULT_LOCAL_IMAGE_MODEL);
+  // S3 工作流绑定注入(11-02-engine-model-workflow-hus):本地模型+非分镜时,按
+  // 有无参考图取绑定件(文生图/图生图位)注入 extraParams.template——经
+  // ai-sdk-bridge Object.assign 透传进 sidecar body(server.py→pipeline template=),
+  // 出图实走绑定件;未绑=undefined=引擎按类型自动选(道劫默认零迁移)。
+  // 分镜批量恒 qi21 走既有裁定模板,不绑(验收回归项)。
+  const boundTemplate = isStoryboard
+    ? undefined
+    : resolveBoundTemplateForGeneration(finalModel, request.referenceImages.length > 0);
   if (!request.prompt.trim()) {
     throw new Error("成图是生图的最后一步,不能单独生图——请把提示词节点(或无衣物/NSFW破限节点)连到它的输入口再生成");
   }
@@ -182,8 +191,12 @@ export async function runImageWorkflowNodeGeneration(
     promptPolicy: (compiledFrame ? "raw" : undefined) as "raw" | undefined,
     referenceImages: transportReferenceImages,
     // NSFW破限链(09-07):use_lora 经 extraParams 进请求体,引擎层与全局
-    // 专业流开关或关系合并(ai-sdk-bridge Object.assign 透传)
-    extraParams: request.nsfwPro ? { use_lora: true } : undefined,
+    // 专业流开关或关系合并(ai-sdk-bridge Object.assign 透传);
+    // S3 绑定注入(11-02):template 同路透传,绑了=出图实走绑定工作流
+    extraParams: {
+      ...(request.nsfwPro ? { use_lora: true } : undefined),
+      ...(boundTemplate ? { template: boundTemplate } : undefined),
+    },
     transport,
     // 分镜/工作流成图自存项目真源(projectFiles.saveImage),跳过媒体库副本双写
     persistMedia: false,

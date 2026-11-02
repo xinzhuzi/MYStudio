@@ -29,11 +29,13 @@ describe("ImageSizeSettingsTab 生图引擎行(09-12)", () => {
   it("渲染引擎候选(自动/本地/云端)且选中态跟随设置值", () => {
     render(<ImageSizeSettingsTab settings={baseSettings} onChange={() => {}} />);
     expect(engineOption("auto")).toBeTruthy();
-    expect(engineOption("krea2-turbo")).toBeTruthy();
+    // 1102 G1:qi21 现役主力补位;krea2 缺件(10-19 定谳)按 blocked 降级不在本页
+    expect(engineOption("qwen-image-2-1")).toBeTruthy();
+    expect(engineOption("flux2-klein-9b")).toBeTruthy();
     expect(engineOption("gpt-image-2")).toBeTruthy();
     // 默认空串=「自动」选中(default variant 带 backdrop-blur;未选=outline 的 bg-transparent)
     expect(engineOption("auto")?.className).toContain("backdrop-blur");
-    expect(engineOption("krea2-turbo")?.className).toContain("bg-transparent");
+    expect(engineOption("qwen-image-2-1")?.className).toContain("bg-transparent");
   });
 
   it("点击候选回调 defaultImageModel;选中云端模型后对应按钮高亮", () => {

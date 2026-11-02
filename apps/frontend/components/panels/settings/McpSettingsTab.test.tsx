@@ -6,6 +6,9 @@ import { afterEach } from "vitest";
 import { McpSettingsTab } from "./McpSettingsTab";
 import { useMcpServersStore } from "@/stores/mcp/mcp-servers-store";
 import { useEnginePresetsStore } from "@/stores/settings/engine-presets-store";
+import { setComfySidecarLivenessProbeForTests } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { useWorkflowBindingsStore, resolveBoundTemplateForGeneration } from "@/stores/settings/workflow-bindings-store";
 
 const toastMocks = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 // sonner mock(照 VideoQcSettingsSection.test 范式):⭐存为常用合法分支要断言 toast
@@ -157,68 +160,8 @@ describe("McpSettingsTab", () => {
   });
 });
 
-describe("McpSettingsTab service connections (ComfyUI 桥移此)", () => {
-  afterEach(() => {
-    cleanup();
-    delete (window as unknown as { imageGenRuntime?: unknown }).imageGenRuntime;
-  });
-
-  it("shows the ComfyUI bridge card with ready status when the service is up", async () => {
-    (window as unknown as { imageGenRuntime: unknown }).imageGenRuntime = {
-      status: vi.fn().mockResolvedValue({
-        models: [{ modelName: "comfyui-bridge", downloaded: true, comfyuiVersion: "0.34.0" }],
-      }),
-    };
-    render(<McpSettingsTab />);
-    await waitFor(() => {
-      expect(screen.getByTestId("comfyui-bridge-ready").textContent).toContain("ComfyUI 0.34.0");
-    });
-  });
-
-  it("bridge 就绪文案带上 GPU 名(10-29 T15/G3,inventory 透传 gpuName 时)", async () => {
-    (window as unknown as { imageGenRuntime: unknown }).imageGenRuntime = {
-      status: vi.fn().mockResolvedValue({
-        models: [{ modelName: "comfyui-bridge", downloaded: true, comfyuiVersion: "0.34.0", gpuName: "Apple M3 Max" }],
-      }),
-    };
-    render(<McpSettingsTab />);
-    await waitFor(() => {
-      expect(screen.getByTestId("comfyui-bridge-ready").textContent).toContain("ComfyUI 0.34.0 · Apple M3 Max");
-    });
-  });
-
-  it("shows the not-ready hint when ComfyUI is not running", async () => {
-    (window as unknown as { imageGenRuntime: unknown }).imageGenRuntime = {
-      status: vi.fn().mockResolvedValue({
-        models: [{ modelName: "comfyui-bridge", downloaded: false, comfyuiVersion: null }],
-      }),
-    };
-    render(<McpSettingsTab />);
-    await waitFor(() => {
-      expect(screen.getByTestId("comfyui-bridge-not-ready").textContent).toContain("需 ComfyUI 正在运行");
-    });
-  });
-
-  it("settles to not-ready when the inventory is unscanned (empty models) instead of probing forever", async () => {
-    // 回归锚:models 空列表(未跑 python inventory)时旧行为=bridge 恒 null,永挂「探测中…」
-    (window as unknown as { imageGenRuntime: unknown }).imageGenRuntime = {
-      status: vi.fn().mockResolvedValue({ models: [] }),
-    };
-    render(<McpSettingsTab />);
-    await waitFor(() => {
-      expect(screen.getByTestId("comfyui-bridge-not-ready").textContent).toContain("需 ComfyUI 正在运行");
-    });
-  });
-
-  it("settles to not-ready when the preload bridge is absent (非桌面环境不永挂「探测中」)", async () => {
-    render(<McpSettingsTab />);
-    await waitFor(() => {
-      expect(screen.getByTestId("comfyui-bridge-not-ready").textContent).toContain("需 ComfyUI 正在运行");
-    });
-  });
-});
-
-import { setComfySidecarLivenessProbeForTests } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+// (1102 控制中心役)原桥接状态灯五测随灯收编退役:桥行撤状态段,能力随当前
+// 生效引擎(双卡统一探活);专业流/道劫型设置仍在该行,由设置类测试覆盖。
 
 describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
   afterEach(() => {
@@ -240,7 +183,8 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     render(<McpSettingsTab />);
     expect(screen.getByText("ComfyUI 引擎地址（远程）")).toBeTruthy();
     expect(screen.getByTestId("remote-engine-url")).toBeTruthy();
-    expect(screen.queryByText(/当前生效/)).toBeNull();
+    // 1102 控制中心:双卡徽标「当前生效」恒恰一张卡(旧尾注已撤,此断言改口径)
+    expect(screen.getAllByText(/当前生效/)).toHaveLength(1);
   });
 
   it("保存即测:写 URL 走 POST /comfy/engine/remote,回读生效+system_stats 直探显示版本/GPU(10-29 T17/问题#2)", async () => {
@@ -304,7 +248,8 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     expect(screen.queryByTestId("remote-engine-ok")).toBeNull();
     expect(screen.getByTestId("remote-engine-ok-dialog").textContent).not.toContain("0.42.0");
     // 11-02 用户令:「当前生效」尾注撤展示——保存成功后也不再现
-    expect(screen.queryByText(/当前生效/)).toBeNull();
+    // 1102 控制中心:双卡徽标「当前生效」恒恰一张卡(旧尾注已撤,此断言改口径)
+    expect(screen.getAllByText(/当前生效/)).toHaveLength(1);
     const post = fetchMock.mock.calls.find((c) => String(c[0]).includes("/comfy/engine/remote") && c[1]?.method === "POST");
     expect(post?.[1]?.body).toContain("192.168.0.101");
     const probe = fetchMock.mock.calls.find((c) => String(c[0]).includes("/comfy/engine/probe"));
@@ -674,5 +619,113 @@ describe("McpSettingsTab·引擎地址常用条目(11-02 R1)", () => {
     // 唯一条目删空后标签行整行消失
     expect(screen.queryByTestId("remote-engine-presets-chips")).toBeNull();
     expect(useEnginePresetsStore.getState().presets).toHaveLength(0);
+  });
+});
+
+describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
+  beforeEach(() => {
+    useAppSettingsStore.setState({ imageGenerationSettings: { ...useAppSettingsStore.getState().imageGenerationSettings, defaultImageModel: "" } });
+    useWorkflowBindingsStore.setState({ t2iWorkflowId: null, i2iWorkflowId: null });
+    setComfySidecarLivenessProbeForTests(async () => true);
+  });
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    setComfySidecarLivenessProbeForTests(null);
+    useWorkflowBindingsStore.setState({ t2iWorkflowId: null, i2iWorkflowId: null });
+    useAppSettingsStore.setState({ imageGenerationSettings: { ...useAppSettingsStore.getState().imageGenerationSettings, defaultImageModel: "" } });
+    localStorage.clear();
+  });
+
+  it("R1 双卡:恒恰一张卡带「当前生效」徽标(远端配置时远端卡)", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      const u = String(url);
+      if (u.includes("/comfy/engine/remote")) {
+        return Promise.resolve({
+          ok: true, status: 200,
+          json: () => Promise.resolve({ url: "http://192.168.0.101:17000", effective: "http://192.168.0.101:17000", source: "settings" }),
+        } as unknown as Response);
+      }
+      if (u.includes("/comfy/workflows")) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ engineOnline: true, workflows: [] }) } as unknown as Response);
+      }
+      return Promise.reject(new Error("unexpected " + u));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-card-remote").className).toContain("border-primary");
+      expect(screen.getByTestId("engine-card-local").className).toContain("opacity-70");
+    });
+    expect(screen.getAllByText(/当前生效/)).toHaveLength(1);
+  });
+
+  it("R2 族横幅:默认空=自动回落 qi21 展示;组名=引擎与产线", () => {
+    render(<McpSettingsTab />);
+    expect(screen.getByText("引擎与产线")).toBeTruthy();
+    expect(screen.getByTestId("engine-family-current").textContent).toContain("Qwen-Image-2.1");
+  });
+
+  it("R2 族切换:下拉选中写 defaultImageModel 真源", async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ engineOnline: false, workflows: [] }) } as unknown as Response),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    // ui/select 测试替身范式:选项=option-{value} 常驻按钮,点击即 onValueChange
+    fireEvent.click(screen.getByTestId("option-flux2-klein-9b"));
+    await waitFor(() => {
+      expect(useAppSettingsStore.getState().imageGenerationSettings.defaultImageModel).toBe("flux2-klein-9b");
+    });
+  });
+
+  it("R3 工作流列表+绑定:qi21 域拉列,绑 t2i 件写 store,「在用」高亮", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      const u = String(url);
+      if (u.includes("/comfy/workflows")) {
+        return Promise.resolve({
+          ok: true, status: 200,
+          json: () => Promise.resolve({
+            engineOnline: true,
+            workflows: [
+              { id: "1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json", name: "qi21-道劫-t2i" },
+              { id: "1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json", name: "qi21-道劫-i2i" },
+            ],
+          }),
+        } as unknown as Response);
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) } as unknown as Response);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByText("qi21-道劫-t2i")).toBeTruthy();
+    });
+    fireEvent.click(screen.getAllByTestId("engine-workflow-bind-t2i")[0]);
+    await waitFor(() => {
+      expect(useWorkflowBindingsStore.getState().t2iWorkflowId).toBe("1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json");
+    });
+    expect(screen.getByText("在用")).toBeTruthy();
+    // 再点=解绑回 null(零迁移默认)
+    fireEvent.click(screen.getAllByTestId("engine-workflow-bind-t2i")[0]);
+    await waitFor(() => {
+      expect(useWorkflowBindingsStore.getState().t2iWorkflowId).toBeNull();
+    });
+  });
+});
+
+describe("S3 绑定注入(11-02 hub:resolveBoundTemplateForGeneration)", () => {
+  it("本地模型按参考图有无取对应绑定;未绑/云端模型=undefined(现行为)", () => {
+    expect(resolveBoundTemplateForGeneration("qwen-image-2-1", false)).toBeUndefined();
+    useWorkflowBindingsStore.setState({
+      t2iWorkflowId: "1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
+      i2iWorkflowId: "1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
+    });
+    expect(resolveBoundTemplateForGeneration("qwen-image-2-1", false)).toBe("1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json");
+    expect(resolveBoundTemplateForGeneration("qwen-image-2-1", true)).toBe("1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json");
+    // 云端模型不绑(返回 undefined=不注入)
+    expect(resolveBoundTemplateForGeneration("gpt-image-2", false)).toBeUndefined();
+    useWorkflowBindingsStore.setState({ t2iWorkflowId: null, i2iWorkflowId: null });
   });
 });

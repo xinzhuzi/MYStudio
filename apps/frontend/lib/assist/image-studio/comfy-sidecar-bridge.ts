@@ -137,7 +137,7 @@ async function sidecarLikelyUp(): Promise<boolean> {
 }
 
 /** sidecar 统一 JSON 请求:探活门禁 + Bearer 令牌 + 超时 + 错误翻译成大白话。 */
-async function comfySidecarRequest<T>(
+export async function comfySidecarRequest<T>(
   method: "GET" | "POST" | "DELETE",
   path: string,
   options: ComfySidecarRequestOptions = {},

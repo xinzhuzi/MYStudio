@@ -45,10 +45,14 @@ import {
   normalizeEngineUrl,
   useEnginePresetsStore,
 } from "@/stores/settings/engine-presets-store";
+import { useWorkflowBindingsStore, type BoundWorkflowKind } from "@/stores/settings/workflow-bindings-store";
+import { engineFamilyMeta } from "@/lib/studio/engine-line/family-catalog";
+import { ALL_ENGINE_FAMILIES } from "@/lib/studio/engine-line/engine-options";
 import {
   getRemoteEngine,
   setRemoteEngine,
   probeEngineUrl,
+  comfySidecarRequest,
   SIDECAR_DOWN_GUIDANCE,
   isSidecarDownError,
   type ComfyRemoteEngineStatus,
@@ -82,7 +86,7 @@ const emptyDraft: DraftForm = {
 };
 
 const COLLAPSED_STORAGE_KEY = "mystudio.settings.mcp.collapsedSections";
-type SectionId = "bridge" | "remote-engine" | "servers" | "json";
+type SectionId = "bridge" | "remote-engine" | "family" | "workflows" | "servers" | "json";
 type PillState = "ready" | "needs-runtime" | "neutral";
 
 const PILL_LABELS: Record<PillState, string> = {
@@ -210,7 +214,6 @@ export function McpSettingsTab() {
   const [draft, setDraft] = useState<DraftForm>(emptyDraft);
   const [formError, setFormError] = useState<string | null>(null);
   const [tests, setTests] = useState<Record<string, TestState>>({});
-  const [bridge, setBridge] = useState<{ ready: boolean; version?: string; gpu?: string } | null>(null);
   // 远程引擎地址(10-29 D1 终裁):配置态回显/草稿/保存与连通测试进行态。
   const [remoteEngine, setRemoteEngineState] = useState<ComfyRemoteEngineStatus | null>(null);
   const [remoteDraft, setRemoteDraft] = useState("");
@@ -255,32 +258,8 @@ export function McpSettingsTab() {
 
   useEffect(() => () => setTests({}), []);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const runtime = (window as unknown as { imageGenRuntime?: { status: () => Promise<{ models?: { modelName: string; downloaded: boolean; comfyuiVersion?: string | null; gpuName?: string | null }[] }> } }).imageGenRuntime;
-        if (!runtime) {
-          // 非桌面环境无 preload 桥:同样落定未就绪,避免永挂「探测中…」
-          if (!cancelled) setBridge({ ready: false });
-          return;
-        }
-        const s = await runtime.status();
-        if (cancelled) return;
-        const row = (s.models ?? []).find((m) => m.modelName === "comfyui-bridge");
-        // inventory 未扫过(models 空列表)时同样落定为未就绪——否则界面永挂「探测中…」
-        setBridge(
-          row
-            ? { ready: Boolean(row.downloaded), version: row.comfyuiVersion ?? undefined, gpu: row.gpuName ?? undefined }
-            : { ready: false },
-        );
-      } catch {
-        // 拉取失败按未就绪落定(胶囊「需准备」),避免永挂「探测中…」
-        if (!cancelled) setBridge({ ready: false });
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  // (1102 控制中心役)原桥接状态探活已撤:灯收编进引擎双卡(统一 probeEngineUrl
+  // 一个口径,本地/远端不再两套探活);bridge state 一并退役。
 
   // 远程引擎配置回显(sidecar 未运行时静默空态——首开设置页不弹错)。
   useEffect(() => {
@@ -425,6 +404,49 @@ export function McpSettingsTab() {
   // 当前生效打勾位:settings.url 为 null=本机;否则归一 url 匹配条目
   const activePresetKey =
     remoteEngine?.url == null ? LOCAL_ENGINE_PRESET_KEY : normalizeEngineUrl(remoteEngine.url);
+  // R1 双卡生效判定(1102 控制中心):地址指向远端=远端卡生效,否则本机卡
+  const remoteActive = remoteEngine?.source === "settings" && Boolean(remoteEngine.url);
+
+  // ── R2 模型族(1102 控制中心):真源=defaultImageModel;切换即切产线(Q1) ──
+  const defaultImageModel = useAppSettingsStore((s) => s.imageGenerationSettings.defaultImageModel);
+  const currentFamily = engineFamilyMeta(defaultImageModel);
+  const handleFamilySwitch = (value: string) => {
+    useAppSettingsStore.getState().setImageGenerationSettings({ defaultImageModel: value });
+    toast.success(`产线已切换:${value === "" ? "自动(本地即 Qwen-Image-2.1)" : value}`);
+  };
+
+  // ── R3 工作流(1102):当前族域前缀拉清单(prefix+light),双类型绑定(Q3) ──
+  const bindings = useWorkflowBindingsStore();
+  const [familyWorkflows, setFamilyWorkflows] = useState<{ id: string; name: string }[]>([]);
+  const [workflowsLoading, setWorkflowsLoading] = useState(false);
+  const [workflowsError, setWorkflowsError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!currentFamily.workflowPrefix) {
+      setFamilyWorkflows([]);
+      return;
+    }
+    let cancelled = false;
+    setWorkflowsLoading(true);
+    setWorkflowsError(null);
+    comfySidecarRequest<{ engineOnline: boolean; workflows: { id: string; name: string }[] }>(
+      "GET",
+      `/comfy/workflows?prefix=${encodeURIComponent(currentFamily.workflowPrefix)}&light=true`,
+    )
+      .then((res) => {
+        if (!cancelled) setFamilyWorkflows(res.workflows ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setWorkflowsError("清单拉取失败(sidecar 未运行或引擎未启动)");
+      })
+      .finally(() => {
+        if (!cancelled) setWorkflowsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentFamily.workflowPrefix]);
+  const t2iCandidates = familyWorkflows.filter((w) => w.id.includes("1_文生图"));
+  const i2iCandidates = familyWorkflows.filter((w) => w.id.includes("2_图生图"));
 
   // 一键切换(Q1 裁定):key 即归一 url;本机=清空保存(回本地发现)。
   // 坑①必传 urlOverride:setRemoteDraft 异步落帧,闭包里 remoteDraft 还是旧值。
@@ -547,30 +569,20 @@ export function McpSettingsTab() {
         </div>
       </header>
 
-      {/* ── 服务连接:ComfyUI 桥状态 + 专业流开关(自「本地图片生成」迁此) ── */}
-      <McpGroup label="服务连接">
+      {/* ── 引擎与产线(11-02 控制中心役):本地生图增强+引擎双卡+模型族+工作流绑定 ── */}
+      <McpGroup label="引擎与产线">
         <McpRow
           sectionId="bridge"
           icon={Plug}
-          title="ComfyUI 桥接（多参考编辑）"
-          pill={bridge?.ready ? "ready" : "needs-runtime"}
+          title="本地生图增强（专业流 · 道劫型）"
+          pill="neutral"
           collapsed={collapsedSections.has("bridge")}
           onToggle={toggleSectionCollapsed}
         >
           <div className="space-y-4 px-5 py-4">
-            <div>
-              {bridge === null ? (
-                <p className="text-xs text-muted-foreground">探测中…</p>
-              ) : bridge.ready ? (
-                <p className="text-xs text-success" data-testid="comfyui-bridge-ready">
-                  已就绪（{comfyVersionLabel(bridge.version, bridge.gpu)}）——连接本机正在运行的 ComfyUI 出图，支持多张参考图编辑。在生图引擎选择里选用，无需下载模型。
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground" data-testid="comfyui-bridge-not-ready">
-                  未就绪（需 ComfyUI 正在运行）——打开 ComfyUI 后即可连上。
-                </p>
-              )}
-            </div>
+            {/* 1102 控制中心役:桥接状态灯收编进下方引擎双卡(统一探活,一个口径);
+                此行只留真设置(专业流增强+道劫型选择)。多参考编辑能力随引擎生效:
+                当前生效引擎(本机/远端)在跑即用,状态看引擎卡探活。 */}
             <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
               <div className="min-w-0">
                 <div className="text-sm font-medium">专业流增强（本地）</div>
@@ -631,7 +643,22 @@ export function McpSettingsTab() {
           collapsed={collapsedSections.has("remote-engine")}
           onToggle={toggleSectionCollapsed}
         >
-          <div className="space-y-2 px-5 py-3" data-testid="remote-engine-section">
+          <div className="space-y-3 px-5 py-3" data-testid="remote-engine-section">
+            {/* R1 双卡(1102 控制中心役):远端卡=当前控件+生效徽标;本机卡=托管引擎
+                摘要+启用条件;互斥联动——地址指向远端则远端卡生效,留空则本机卡生效 */}
+            <div className="grid gap-3 md:grid-cols-2">
+              <div
+                className={`rounded-xl border p-3.5 ${remoteActive ? "border-primary/60 bg-primary/5" : "border-border opacity-70"}`}
+                data-testid="engine-card-remote"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-medium">远端引擎</span>
+                  {remoteActive && (
+                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
+                      当前生效
+                    </span>
+                  )}
+                </div>
             <div className="flex items-center gap-2">
               {/* 常用快选(11-02 R1.4 一键切换):选中即填入+自动「保存并测试」立即生效 */}
               <Select value={activePresetKey} onValueChange={handlePresetSwitch}>
@@ -689,6 +716,26 @@ export function McpSettingsTab() {
               >
                 {remoteSaving ? "保存中…" : "保存并测试"}
               </Button>
+              </div>
+              </div>
+              {/* 本机卡:留空引擎地址即启用;管理入口在本地配置页(引擎启停/模型) */}
+              <div
+                className={`rounded-xl border p-3.5 ${!remoteActive ? "border-primary/60 bg-primary/5" : "border-border opacity-70"}`}
+                data-testid="engine-card-local"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-medium">本机引擎(Mac 托管)</span>
+                  {!remoteActive && (
+                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
+                      当前生效
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  引擎地址留空即走本机引擎出图;启停/模型下载/引擎卡在「设置 → 本地配置」。
+                  引擎状态看本卡高亮态连通探活(测试连接)。
+                </p>
+              </div>
             </div>
             {/* 标签行(G2):仅当有已存条目时;删除当前生效条目只删条目不动引擎 */}
             {enginePresets.length > 0 && (
@@ -731,6 +778,116 @@ export function McpSettingsTab() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+          </div>
+        </McpRow>
+
+        {/* ── R2 模型族(1102 控制中心):切换=写 defaultImageModel 真源,出图即走新族 ── */}
+        <McpRow
+          sectionId="family"
+          icon={Server}
+          title="模型族（产线）"
+          pill={currentFamily.status === "ready" ? "ready" : "needs-runtime"}
+          collapsed={collapsedSections.has("family")}
+          onToggle={toggleSectionCollapsed}
+        >
+          <div className="space-y-3 px-5 py-3" data-testid="engine-family-section">
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+              <div className="min-w-0">
+                <div className="text-sm font-medium" data-testid="engine-family-current">
+                  当前产线:{currentFamily.label}
+                </div>
+                <div className="mt-0.5 text-xs text-muted-foreground">
+                  {currentFamily.hint}——切换即改全局默认出图模型,canvas 出图立即走新族;分镜批量恒走 Qwen-Image-2.1(既有裁定)。
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={defaultImageModel} onValueChange={handleFamilySwitch}>
+                <SelectTrigger className="w-[240px]" aria-label="模型族选择" data-testid="engine-family-select">
+                  <SelectValue placeholder="选择模型族" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ALL_ENGINE_FAMILIES.map((family) => (
+                    <SelectItem key={family.value} value={family.value} disabled={family.status !== "ready"}>
+                      {family.label}
+                      {family.status !== "ready" ? `(${family.hint})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </McpRow>
+
+        {/* ── R3 工作流(1102):当前族多列展示+文生图/图生图绑定;出图实走绑定件 ── */}
+        <McpRow
+          sectionId="workflows"
+          icon={Server}
+          title="工作流（文生图 / 图生图绑定）"
+          pill={familyWorkflows.length > 0 ? "ready" : "neutral"}
+          collapsed={collapsedSections.has("workflows")}
+          onToggle={toggleSectionCollapsed}
+        >
+          <div className="space-y-3 px-5 py-3" data-testid="engine-workflows-section">
+            {!currentFamily.workflowPrefix ? (
+              <p className="text-xs text-muted-foreground">
+                当前族工作流为引擎内置模板,库内暂无域目录——绑定待该族入库后开放。
+              </p>
+            ) : workflowsLoading ? (
+              <p className="text-xs text-muted-foreground">清单拉取中…</p>
+            ) : workflowsError ? (
+              <p className="text-xs text-destructive" data-testid="engine-workflows-error">{workflowsError}</p>
+            ) : (
+              <>
+                {([
+                  ["t2i", "文生图", t2iCandidates],
+                  ["i2i", "图生图(含编辑)", i2iCandidates],
+                ] as const).map(([kind, kindLabel, candidates]) => (
+                  <div key={kind} className="space-y-1.5">
+                    <div className="text-xs font-medium text-muted-foreground">{kindLabel}</div>
+                    {candidates.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">(该类型暂无库内件)</p>
+                    ) : (
+                      candidates.map((workflow) => {
+                        const bound = bindings[`${kind}WorkflowId` as const] === workflow.id;
+                        return (
+                          <div
+                            key={workflow.id}
+                            className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${bound ? "border-primary/60 bg-primary/5" : "border-border"}`}
+                            data-testid={`engine-workflow-row-${kind}`}
+                          >
+                            <div className="min-w-0">
+                              <div className="truncate text-sm">{workflow.name}</div>
+                              <div className="truncate text-[11px] text-muted-foreground" title={workflow.id}>
+                                {workflow.id}
+                              </div>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              {bound && (
+                                <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
+                                  在用
+                                </span>
+                              )}
+                              <Button
+                                size="sm"
+                                variant={bound ? "default" : "outline"}
+                                onClick={() => bindings.setBinding(kind as BoundWorkflowKind, bound ? null : workflow.id)}
+                                data-testid={`engine-workflow-bind-${kind}`}
+                              >
+                                {bound ? "解绑" : `设为${kindLabel}用`}
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                ))}
+                <p className="text-xs text-muted-foreground">
+                  绑定后出图实走该工作流;不绑=引擎按类型自动选默认模板(零迁移)。
+                </p>
+              </>
+            )}
           </div>
         </McpRow>
       </McpGroup>
