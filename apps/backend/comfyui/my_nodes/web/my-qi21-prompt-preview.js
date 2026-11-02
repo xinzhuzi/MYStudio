@@ -13,6 +13,7 @@
 // element 懒 materialize 无可靠可见渲染(三方案试毕全败)——显示位已撤到
 // py 端,勿再走 JS 自建 widget 路线。
 import { app } from "../../scripts/app.js";
+import { api } from "../../scripts/api.js"; // 1102 拉起进度事件监听
 
 // 显示框钉只读展示面板:readOnly+占位文案+钉高(两框各半,合计≈原单框高;
 // onConfigure 载入预填后同样保持只读态)。
@@ -234,5 +235,32 @@ app.registerExtension({
         w.options.serialize = false;
         el.addEventListener("change", () => post(el.value));
         el.addEventListener("blur", () => post(el.value));
+    },
+});
+
+// ── 1102 按需拉起进度上画布(用户令「全部做完」)────────────────────────
+// py 侧 my_qi21_api_pe._lm_progress 按节点 send_sync("my_lm_pull_progress"),
+// 此处把消息临时挂到 MyQi21ApiPE 节点 title(15s 无新消息恢复原标题)——
+// 首次扩写现场拉起最长 ~7 分钟,画布上可见"等待服务就绪 x/120s/装载中…"。
+// 零改 ComfyUI 本体;事件缺席(旧引擎/直投)时本段纯闲置。
+app.registerExtension({
+    name: "MY.Qi21ApiPEPullProgress",
+    async setup() {
+        const timers = new Map();
+        // eslint-disable-next-line no-undef
+        api.addEventListener("my_lm_pull_progress", ({ detail }) => {
+            const node = app.graph?._nodes_by_id?.[detail?.node_id];
+            if (!node || node.comfyClass !== "MyQi21ApiPE") return;
+            if (node._lmPullBaseTitle === undefined) {
+                node._lmPullBaseTitle = node.title;
+            }
+            node.title = `${node._lmPullBaseTitle} · ${detail.msg}`;
+            const prev = timers.get(node.id);
+            if (prev) clearTimeout(prev);
+            timers.set(node.id, setTimeout(() => {
+                node.title = node._lmPullBaseTitle;
+                timers.delete(node.id);
+            }, 15000));
+        });
     },
 });

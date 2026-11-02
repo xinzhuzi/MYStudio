@@ -321,12 +321,42 @@ def _lm_any_loaded() -> bool:
         return False
 
 
-def _ensure_lm_service(base: str, model: str) -> bool:
+def _lm_progress(msg: str, node_id) -> None:
+    """拉起进度上画布(1102 用户令「全部做完」):send_sync 自定义事件,
+    JS(my-qi21-prompt-preview.js MY.Qi21ApiPEPullProgress)把消息临时挂到
+    节点 title。测试环境/无 server 上下文静默跳过,零影响主链。"""
+    if not node_id:
+        return
+    try:
+        from server import PromptServer
+        PromptServer.instance.send_sync(
+            "my_lm_pull_progress", {"node_id": str(node_id), "msg": msg})
+    except Exception:
+        pass
+
+
+def _disable_lm_block_rules() -> None:
+    """防火墙 Block 自愈(1102 用户令「全部做完」;退役看门狗救③配方搬入):
+    LM Studio 授权框被取消时会自动生成程序级 Block 规则,压过端口放行=跨机
+    1234 假死真凶(1007 定谳)。按需拉起长时间起不来时禁用之;引擎 SYSTEM
+    态有权限,失败静默(日志明示)。"""
+    try:
+        subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "Get-NetFirewallRule -DisplayName 'LM Studio' -ErrorAction "
+             "SilentlyContinue | Where-Object { $_.Action -eq 'Block' -and "
+             "$_.Enabled -eq 'True' } | Disable-NetFirewallRule; 'OK'"],
+            capture_output=True, timeout=20)
+    except Exception:
+        pass
+
+
+def _ensure_lm_service(base: str, model: str, node_id=None) -> bool:
     """按需拉起本机 LM Studio(服务 start+9B 装载),就绪=True。
 
-    全程同步阻塞(服务就绪≤120s+装载≤300s),日志逐段可见;扩写开着时引擎
-    队列本来就被本节点阻塞着,拉起只是把「看门狗 7×24 预先保活占显存」换成
-    「用时现场拉」,等待进的是真实需要它的那一发。"""
+    全程同步阻塞(服务就绪≤120s+装载≤300s),日志逐段可见+进度上画布;
+    扩写开着时引擎队列本来就被本节点阻塞着,拉起只是把「看门狗 7×24 预先
+    保活占显存」换成「用时现场拉」,等待进的是真实需要它的那一发。"""
     if not _is_local_win_target(base):
         return False
     if not os.path.exists(_LMS_EXE):
@@ -337,6 +367,7 @@ def _ensure_lm_service(base: str, model: str) -> bool:
     try:
         print("[漫影 API扩写PE] 按需拉起:服务不在,启动中"
               "(lms server start --bind 0.0.0.0)…")
+        _lm_progress("按需拉起:服务启动中…", node_id)
         subprocess.Popen(
             [_LMS_EXE, "server", "start", "--bind", "0.0.0.0"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -349,20 +380,35 @@ def _ensure_lm_service(base: str, model: str) -> bool:
         print(f"[漫影 API扩写PE] 按需拉起:server start 失败({exc})")
         return False
     _t0 = time.time()
+    _fw_healed = False
+    _last_report = 0
     while time.time() - _t0 < _LM_ENSURE_SERVER_BUDGET:
         _check_interrupt()
         if _lm_greeting():
             break
+        _el = int(time.time() - _t0)
+        if _el - _last_report >= 15:
+            _last_report = _el
+            _lm_progress(f"等待服务就绪 {_el}/{_LM_ENSURE_SERVER_BUDGET}s…", node_id)
+        if not _fw_healed and _el >= 60:
+            # 60s 仍不通 → 疑 1007 假死案(Block 规则压端口放行),自愈一次
+            _fw_healed = True
+            print("[漫影 API扩写PE] 按需拉起:60s 未通,尝试禁用 LM Studio "
+                  "防火墙 Block 规则(1007 假死案自愈)…")
+            _lm_progress("服务迟迟未通,清理防火墙 Block 规则…", node_id)
+            _disable_lm_block_rules()
         time.sleep(3)
     else:
         print(f"[漫影 API扩写PE] 按需拉起:服务 {_LM_ENSURE_SERVER_BUDGET}s 未就绪——放弃本轮")
         return False
     if _lm_any_loaded():
         print("[漫影 API扩写PE] 按需拉起:服务已就绪且模型在位")
+        _lm_progress("服务就绪,模型在位", node_id)
         return True
     _mid = (model or "").strip() or _NINE_B_ID
     print(f"[漫影 API扩写PE] 按需拉起:装载 {_mid}"
           f"(gpu max/parallel 1/ctx 32768,≤{_LM_ENSURE_LOAD_BUDGET}s)…")
+    _lm_progress(f"装载 {_mid}(≤{_LM_ENSURE_LOAD_BUDGET}s)…", node_id)
     try:
         _r = subprocess.run(
             [_LMS_EXE, "load", "--gpu", "max", "--parallel", "1",
@@ -376,6 +422,7 @@ def _ensure_lm_service(base: str, model: str) -> bool:
     except Exception as exc:
         print(f"[漫影 API扩写PE] 按需拉起:装载失败({exc})——仍试发请求,不成走降级")
     print("[漫影 API扩写PE] 按需拉起:完成,复探目标")
+    _lm_progress("拉起完成,继续扩写", node_id)
     return True
 
 # ── 数据真源(与 my_qi21_base 同款四层候选链,零 import——勿 import 化禁令) ──
@@ -1064,6 +1111,8 @@ class MyQi21ApiPE:
             # 旧工作流不带此键=整图拒收——故入 optional(组装用途同款),缺键=并入兜底。
             "optional": {**ctx, "底座档位": (["并入", "裸测"], {"default": "并入",
                 "tooltip": "并入=默认三层,用接线值;[4032] 旁路/未接线=底座正负自动离场;裸测=接线在场时强制离场(A/B 用);透明模式同样遵循底座档位,英文透明头尾由最终输出节点包裹"})},
+            # 1102 按需拉起进度上画布:引擎注入本节点 id,send_sync 供 JS 挂 title。
+            "hidden": {"unique_id": "UNIQUE_ID"},
         }
 
     RETURN_TYPES = ("STRING", "STRING", "BOOLEAN", "INT", "INT")
@@ -1304,7 +1353,8 @@ class MyQi21ApiPE:
                 # 1102 用户令「在用的时候,本项目拉起来」:本机 Windows 目标先
                 # 按需拉起(看门狗计划任务已退役),拉起+复探通过才继续发;
                 # 非本机/云端目标 _ensure_lm_service 直接 False,照旧跳过。
-                if not (_ensure_lm_service(_u, _m) and _alive(_u)):
+                if not (_ensure_lm_service(_u, _m, node_id=kw.get("unique_id"))
+                        and _alive(_u)):
                     print(f"[漫影 API扩写PE] {_u} 探活不通(3s)——跳过"
                           "(服务不在或防火墙拦;排查:docs/comfyui-kb/LMStudio-Windows远程排查.md)")
                     _errs.append(f"{_m}:探活不通")

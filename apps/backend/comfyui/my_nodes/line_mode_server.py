@@ -75,7 +75,9 @@ _LM_STUDIO_BASE = "http://127.0.0.1:1234"
 # 超时/节奏表(秒)。
 ACTOR_PS_TIMEOUT = 30        # 单次 schtasks /Run /Query 等子进程硬超时
 LM_UNLOAD_TIMEOUT = 120      # 单模型卸载 actor 预算
-LM_LOAD_9B_TIMEOUT = 300     # 9B 首装 actor 预算(实弹回调基线)
+LM_LOAD_9B_TIMEOUT = 300     # 9B 首装 actor 预算(1102 懒加载后切换器不再预载,
+                             # 动作保留供手动/诊断调用;节点侧 _ensure_lm_service
+                             # 同值预算=300s)
 GRACE_WATCHDOG = 30          # 看门狗步事后验证宽限
 GRACE_LM_LOAD = 300          # load 后宽限轮询上限
 GRACE_LM_UNLOAD = 120        # unload 后宽限轮询上限
@@ -729,6 +731,12 @@ class _Switcher(threading.Thread):
         if _disabled():
             raise StepFailed("急停标记出现,中止序列")
         self._wait_queue_empty("lm")
+        # 1102 懒加载总门:image 档且 LM 服务全关(引擎直读 1234 空)→ 整步
+        # 零触碰零 actor 调用直接过(下方 D1 busy 检查的 lms ps 同样会把
+        # LM Studio service 进程栈拉起,一并短路;9B 归扩写节点用时拉)。
+        if target != "video" and not _probe_models():
+            _log("LM 服务不在 → image 档 lm 步零触碰(1102 懒加载)")
+            return
         # D1:LM busy(任一模型 status≠idle)→立即降级,零等待零轮询
         try:
             models = self._actor_lm_ps()
@@ -742,10 +750,9 @@ class _Switcher(threading.Thread):
                 for mid in models:
                     _actor_exec("unload", {"identifier": mid}, budget=LM_UNLOAD_TIMEOUT)
             else:
-                # D4b:image 档 9B 由切换器直接 lms load,不等 5 分钟 tick;
-                # 幂等:lms ps 只列已装载模型——9B 在列表即已在位,跳过。
-                if NINE_B_ID not in models:
-                    _actor_exec("load9b", {}, budget=LM_LOAD_9B_TIMEOUT)
+                # 1102 懒加载:image 档 9B 预载退役(D4b 就此退役),归扩写节点
+                # _ensure_lm_service 用时拉;此处只清非 9B 杂模型给图像模型腾
+                # 显存(9B 已在位=合法占用不卸)。LM 全关的零触碰门在步首。
                 for mid, st in models.items():
                     if mid != NINE_B_ID and st == "idle":
                         _actor_exec("unload", {"identifier": mid}, budget=LM_UNLOAD_TIMEOUT)
@@ -757,11 +764,8 @@ class _Switcher(threading.Thread):
                 lambda: not [m for m, s in (_probe_models() or {}).items() if s == "loaded"],
                 interval=10.0, deadline=GRACE_LM_UNLOAD, what="LM 卸空",
             )
-        else:
-            self._verify_grace(
-                lambda: NINE_B_ID in (_probe_models() or {}),
-                interval=10.0, deadline=GRACE_LM_LOAD, what="9B 装载",
-            )
+        # image 方向不再验证(1102 懒加载:无装载动作即无验证对象;GRACE_LM_LOAD
+        # 常量随之退役,留名注释防回潮)。
 
     def _actor_lm_ps(self) -> dict:
         """经 actor 只读 lms ps --json → {identifier: status}。

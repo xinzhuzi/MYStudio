@@ -121,3 +121,59 @@ class TestIsLocalWinTarget(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestFirewallSelfHealAndProgress(unittest.TestCase):
+    """1102 增补:防火墙 Block 自愈(60s 触发一次)与进度上报载荷。"""
+
+    def setUp(self):
+        patches = [
+            mock.patch.object(pe, '_is_local_win_target', return_value=True),
+            mock.patch.object(pe.os.path, 'exists', return_value=True),
+            mock.patch.object(pe.subprocess, 'Popen', mock.Mock(return_value=None)),
+        ]
+        for p in patches:
+            p.start()
+            self.addCleanup(p.stop)
+
+    def test_firewall_heal_fires_once_after_60s_then_gives_up(self):
+        import itertools
+        clock = itertools.count(start=0, step=8)  # 每轮两取=+16s/轮
+        with mock.patch.object(pe, '_LM_ENSURE_SERVER_BUDGET', 120), \
+             mock.patch.object(pe.time, 'time', side_effect=lambda: next(clock)), \
+             mock.patch.object(pe.time, 'sleep'), \
+             mock.patch.object(pe, '_lm_greeting', return_value=False), \
+             mock.patch.object(pe, '_disable_lm_block_rules',
+                               side_effect=lambda: None) as fw:
+            self.assertFalse(pe._ensure_lm_service('http://127.0.0.1:1234', 'm'))
+            fw.assert_called_once()  # 恰一次(60s 后),不重复触发
+
+    def test_firewall_heal_skipped_when_server_up_fast(self):
+        with mock.patch.object(pe, '_lm_greeting', return_value=True), \
+             mock.patch.object(pe, '_lm_any_loaded', return_value=True), \
+             mock.patch.object(pe, '_disable_lm_block_rules') as fw:
+            self.assertTrue(pe._ensure_lm_service('http://127.0.0.1:1234', 'm'))
+            fw.assert_not_called()
+
+    def test_progress_payload_and_none_node_id_short_circuit(self):
+        import sys as real_sys
+        sink = mock.Mock()
+        fake_server = mock.Mock()
+        # 访问链对齐真实形态:from server import PromptServer → PromptServer.instance.send_sync
+        fake_server.PromptServer.instance.send_sync = sink
+        with mock.patch.dict(real_sys.modules, {'server': fake_server}):
+            pe._lm_progress('msg-A', '42')
+            sink.assert_called_once_with(
+                'my_lm_pull_progress', {'node_id': '42', 'msg': 'msg-A'})
+        # node_id 缺席(旧引擎/直投无 hidden)→零发送零异常
+        sink.reset_mock()
+        pe._lm_progress('msg-B', None)
+        sink.assert_not_called()
+
+    def test_disable_block_rules_powershell_argv(self):
+        with mock.patch.object(pe.subprocess, 'run') as run:
+            pe._disable_lm_block_rules()
+            argv = run.call_args[0][0]
+            self.assertEqual(argv[:3], ['powershell', '-NoProfile', '-Command'])
+            self.assertIn("Disable-NetFirewallRule", argv[3])
+            self.assertIn("'LM Studio'", argv[3])
