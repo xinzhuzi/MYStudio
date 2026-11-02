@@ -39,7 +39,7 @@ ssh -o BatchMode=yes zbj@192.168.0.101 "tasklist | findstr /i \"studio\""       
 ## 二、四层卡点与修法(复发按此查)
 
 1. **绑定**:LM Studio 默认只绑 127.0.0.1 → 官方路 `lms server start --bind 0.0.0.0`(手改 http-server-config.json 会被守护进程**覆写回**,勿走此路)
-2. **守护进程随 SSH 会话死**:已建计划任务 `LMStudio-LAN-Server`(登入自启)——`ssh zbj@… 'schtasks /Run /TN "LMStudio-LAN-Server"'` 随时拉起
+2. **守护进程随 SSH 会话死**:1102 起 `LMStudio-LAN-Server` 计划任务已退役(见第六节)——手动拉起直接跑 `ssh zbj@… 'C:\Users\ZBJ\.lmstudio\bin\lms.exe server start --bind 0.0.0.0'`(项目内按需拉起=qi21 节点 `_ensure_lm_service` 自动做同一件事)
 3. **防火墙画像/端口**:规则 `LMStudio-LAN-1234`(TCP 1234 入站,RemoteAddress=192.168.0.0/24,Profile=Any 已硬化,画像弹回 Public 不再影响)。确认:`Get-NetConnectionProfile`(WLAN 须 Private)+ `netsh advfirewall firewall show rule name="LMStudio-LAN-1234" verbose`
 4. **程序级 Block 假死(1007 定谳)**:
    - 现象:外部 1234 全超时,但 ping/SSH/RDP 通、Windows 本机 curl 通、`0.0.0.0:1234 LISTENING`、模型满血 loaded——**服务从没死**
@@ -81,29 +81,24 @@ ssh -o BatchMode=yes zbj@192.168.0.101 "tasklist | findstr /i \"studio\""       
 - **无效路(勿再试)**:`chat_template_kwargs.enable_thinking:false` 被 LM Studio 层整个丢弃(52/52 无视);`/no_think` 文本尾被 aggressive finetune 无视;**`"low"` 档经 1234 无衰减**(两测 1565/1696 思考 tok)——直连 llama-server 内部口(1997,随装载漂移)曾见 low 简短思考,勿作常链
 - 产线接法:[4013] MyQi21ApiPE「思考档位」下拉两档(**默认=关闭**/思考(xhigh);「低」无效已移除);手动验证=`lmstudio-win-remote.sh chat "…" 9b off`
 
-## 六、看门狗(1007 立,常驻自愈)
+## 六、LM Studio 生命周期(1102 裁定:按需拉起,看门狗退役)
 
-Windows 计划任务 **LMStudio-Watchdog**(每 5 分钟,最高权限)跑 `%USERPROFILE%\.lmstudio\lmstudio-watchdog.ps1`,三查三救:
+**2026-11-02 用户终裁:LM Studio 不能由脚本周期性拉起——在用的时候,由本项目拉起来。** 1007 立的常驻保活链(看门狗每 5 分钟翻案+开机自启)整体退役:
 
-| 查 | 救 |
-|---|---|
-| ① 本机 127.0.0.1:1234 greeting 不通 | `schtasks /Run LMStudio-LAN-Server` 重拉服务(20s 后复验) |
-| ② 无任何模型装载(TTL 闲置卸载后) | 调优装载 9B(gpu max/parallel 1/ctx 32768;**仅当全无装载才装**,27B 试验在用时不抢显存) |
-| ③ 启用中的 LM Studio 程序级 Block 规则 | `Disable-NetFirewallRule`(卡点 4 假死自动清除) |
-
-- 日志:`C:\Users\ZBJ\.lmstudio\watchdog.log`(每轮一行 tick,>100KB 自清);查:`ssh zbj@192.168.0.101 "powershell Get-Content $env:USERPROFILE\.lmstudio\watchdog.log -Tail 5"`
-- 停用/移除:`schtasks /Change /TN LMStudio-Watchdog /DISABLE`(或 `/Delete /TN LMStudio-Watchdog /F`)
-- **与产线档位互操作(2026-11-01 1101 自动化改版)**:看门狗**恒开**——video 档仅停「补装 9B」一救,由档位感知补丁承担(读 MODE 文件,见下节),其余三救恒活;手动切档 `win-line-switch.sh` 已于 1101 退役删除(备份在 `apps/output/line-mode-retired/`),档位由引擎侧 line_mode_server 自动切换;LM 治理忙时立即降级不强拆(D1),在途渲染由队列守卫保护。**看门狗 Disabled 在任何档位都是故障**(历史遗留 Disabled 用 `schtasks /Change /TN LMStudio-Watchdog /ENABLE` 恢复,部署脚本会自动核账)。
-- 局限:计划任务跑在用户会话(与 LAN-Server 同约束),Windows 重启后未登入则两者都不跑;登入即恢复
-- Mac/节点侧配套(同日落地):[4013] MyQi21ApiPE 发前 3s 探活+无代理 opener+透传时 ui 状态字段 `api_pe_status`(JS 把节点标红+标题警示)——Windows 真死时产线 3 秒切本地 27B 不死等,画布一眼可辨透传
+- **已拆除(三计划任务)**:`LMStudio-Watchdog`(每 5 分钟四查四救)、`LMStudio-LAN-Server`(登录自启 `lms server start`)、`lmsapp2`(历史遗留)。远端脚本留档 `C:\Users\ZBJ\.lmstudio\lmstudio-watchdog.ps1.retired-1102`;部署器 `line-mode-actor-deploy.py` 每次装机主动核账删除三任务(幂等防复燃);引擎侧自愈步 `_step_watchdog` 与 actor 的 watchdog 动作同步 no-op 退役。
+- **现行机制:节点按需拉起**(`my_qi21_api_pe._ensure_lm_service`):扩写开关开的 [4013] MyQi21ApiPE 执行时发前 3s 探活,不通且目标是本机 Windows → 节点内 subprocess 拉 `lms server start --bind 0.0.0.0`(≤120s 等 greeting)→ 无装载则 `lms load --gpu max --parallel 1 -c 32768 -y 9B`(≤300s,与退役看门狗同一配方)→ 复探发请求。**拉不起/非本机(云端、Mac)→跳过换目标,全挂透传三层装配(恒有输出)——不卡产线。**
+- **新语义注意**:服务平时不在=**正常状态不是故障**;首次扩写要现场拉起最长 ~7 分钟(该等待进的是真实需要它的那一发)。用完不自动关——LM Studio 自身 TTL 1h 闲置自动卸载模型(显存自然还),服务进程留下次复用;**想长时间关闭随时手动关,退役后无人翻案**。
+- 遗留风险(可接受):看门狗救③(防火墙程序级 Block 规则自动禁用)随之退役——Block 冒头(授权框被取消时生成,低频)时按需拉起会失败并降级透传,日志指路本档,手动 `Disable-NetFirewallRule -DisplayName 'LM Studio'` 即恢复。
+- Mac/节点侧配套(1007 落地沿用):[4013] MyQi21ApiPE 发前 3s 探活+无代理 opener+透传时 ui 状态字段 `api_pe_status`(JS 把节点标红+标题警示)——服务不在且拉不起时画布一眼可辨透传
+- 单测:`apps/backend/comfyui/tests/test_qi21_lm_ensure_service.py`(11 例:非本机不拉/起服务参数/env 注入 DETACHED/装载配方/超时放弃/装载超时仍放行)
 
 ---
 
 ## 产线档位自动切换(2026-11-01,1101 自动化改版)
 
 - **引擎身份事实与 actor 通道选型(D3)**:质询轮实查引擎曾以 SYSTEM 跑(pid 25032);1101 施工轮实查当前引擎由漫影 App 托管(`manying-studio.exe` 父进程,owner=ZBJ\ZBJ)——身份随部署形态漂移,故 LM 治理通路定为 actor 模式:引擎只发指令(原子写 `C:\Users\ZBJ\.lmstudio\line-mode-action.json` → `schtasks /Run MY-LineMode-actor` → 轮询 `line-mode-result.json`),执行件以 **ZBJ + S4U**(Service for User,无密码、不要求交互登入)计划任务跑,解无人登入触发;**attempt_id 握手协议**防旧 result 串话(每次发指令生成新 uuid,只认当前 id 的回读)。
-- **lms.exe 用户级安装与 actor 部署件**:`C:\Users\ZBJ\.lmstudio\bin\lms.exe`(引擎侧 LMS_ENV 注入表把 USERPROFILE/APPDATA/LOCALAPPDATA 指向 ZBJ);部署件=`apps/build/scripts/win/line-mode-actor.ps1`(部署位 `C:\Users\ZBJ\.lmstudio\`)+计划任务 `MY-LineMode-actor`+部署脚本 `apps/build/scripts/win/line-mode-actor-deploy.py`(Mac 上跑,持 win-control-lock L2;备份原 GBK 看门狗为 `.bak-<date>`、S4U 注册需提升会话——未提升打印手动指引退出非零、看门狗 ENABLE 核账、actor 只读自检全链;幂等可重跑)。
-- **看门狗 ps1 档位感知语义(F8,评审#4/#6 加修 mode+state 连判)**:救②补装 9B 前读 `C:\Users\ZBJ\.win-line-mode.json`——`mode=video`(任何 state)跳过补装;`mode=image` 且 state∈{active,legacy,无state}→照常补装;`mode=image` 且 state∈{switching,degraded,failed,none}→**跳过+日志**(切换器序列/自愈进行中,此刻补装会绕过队列守卫在 H3 在途时抢显存、并与切换器经 actor 的 load9b 并发产生 :2 重复实例);**解析失败/文件损坏/mode 字段缺失同样保守跳过+告警(无自动回退)**;文件不存在=未部署/初始态→原生补装照旧。其余三救恒活。
+- **lms.exe 用户级安装与 actor 部署件**:`C:\Users\ZBJ\.lmstudio\bin\lms.exe`(引擎侧 LMS_ENV 注入表把 USERPROFILE/APPDATA/LOCALAPPDATA 指向 ZBJ);部署件=`apps/build/scripts/win/line-mode-actor.ps1`(部署位 `C:\Users\ZBJ\.lmstudio\`)+计划任务 `MY-LineMode-actor`+部署脚本 `apps/build/scripts/win/line-mode-actor-deploy.py`(Mac 上跑,持 win-control-lock L2;1102 起不再部署看门狗,改为**看门狗退役核账**——三任务存在即删+远端 ps1 改名留档;S4U 注册需提升会话——未提升打印手动指引退出非零、actor 只读自检全链;幂等可重跑)。
+- **看门狗档位感知补丁(F8)已于 1102 随看门狗整体退役**(脚本留档 `.retired-1102` 可考古):补装 9B 的显存让位改由「qi21 节点只在图像链执行」天然保证——视频链不用 qi21,H3 在途时扩写节点不会跑,不存在抢显存窗口;切换器经 actor 的 load9b(D4b 幂等)仍保留,与节点内按需拉起配方一致互不冲突(:2 重复实例由 lms ps 先探的幂等设计防)。
 - **GET /my-nodes/line-mode 限源**:只应引擎本机环回(127.0.0.1/::1,其余 403)——远程查询须经 **ssh 隧道**(如 `ssh -L 17001:127.0.0.1:<引擎口>` 后 curl 本地);App 层展示若要直连,留待展示役放宽预案,本轮不开。
 - **D1 降级语义与自愈闭环(评审#1 修)**:LM 忙(status≠idle)时切换器**立即降级零等待**——目标档位即刻到手(state=degraded,degraded_steps=[lm]+告警),LM 生成不被打断;后续同档提交在 ≤5min 限频窗外触发**轻探测**(LM 形态已被外部修好→零动作覆写 active)或**补跑治理序列**(补全被推迟的 lm/free 步)→active。队列守卫(在途渲染红线)超时 15min 同样降级——那是红线不是 LM busy。
 - **/free 语义(评审#9 修)**:引擎 /free 是**全局**清模型缓存(unload_models+free_memory 无选择性),两向档位切换共用;发送前**等引擎队列完全空**(触发提交自身渲染完成后)才执行,永不落在途渲染中辙——队列 15min 不空则 free 步降级留告警等自愈补跑。

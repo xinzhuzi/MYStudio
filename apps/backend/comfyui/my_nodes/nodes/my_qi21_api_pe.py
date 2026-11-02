@@ -28,8 +28,10 @@ thinking_effort 档位 → 顶层 reasoning_effort 参数(none=硬关,不发=模
     (_LAN_OPENER,防 Clash 系统代理截流局域网——1007);
   - 服务不可达/超时/HTTP 错/JSON 解析失败 → 透传 (prompt,"","","",False)
     +中文 print 警告 +ui.api_pe_status 状态字段(JS 上画布标红警示,1007);
-  - LM Studio 须常驻(单飞资源,+16GB);本节点同步阻塞引擎队列(实测
-    ~70s/发,冷首发与长思考更慢——耐心或加 timeout_sec)。
+  - 1102 起服务**无常驻要求**(看门狗保活退役):探活不通且目标是本机
+    Windows 时节点内按需拉起(server start+装载 9B,见 _ensure_lm_service;
+    首次最长 ~7 分钟),拉不起/非本机→跳过换目标,全挂透传;本节点同步
+    阻塞引擎队列(实测 ~70s/发,冷首发与长思考更慢——耐心或加 timeout_sec)。
   - 云端开关=api_key 控件(1007 用户令「填写apikey就是走云端,不填写走本地」):
     填→_CLOUD_URL/_CLOUD_MODEL 内置(bigmodel v4+glm-5.3-flash)key=填的值;
     留空→api_url/model 原样(本地),key 永不查。云端失败→回落本地列表逐个
@@ -59,6 +61,7 @@ import re
 import subprocess
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 # 1008 用户令「自定义节点不能打断吗?」:ComfyUI 官方打断机制接入
@@ -256,6 +259,124 @@ def _alive(base: str, timeout: float = 3.0) -> bool:
         return True
     except Exception:
         return False
+
+
+# ── 1102 按需拉起(用户令「在用的时候,本项目拉起来」;看门狗计划任务同日退役)──
+# 节点=消费点=拉起点:探活不通且目标指向本机 Windows 时,现场拉 LM Studio
+# 无头服务+装载 9B(与退役看门狗救①救②同一配方,触发者从「每 5 分钟计划
+# 任务轮询保活」换成「本节点真实扩写请求」)。拉起失败不阻塞产线——调用方
+# 照旧跳过该目标,全挂走透传三层装配(恒有输出)。Mac 引擎/云端目标不拉。
+# 不做「用完自动关」:LM Studio 自身 TTL 1h 闲置自动卸载模型,服务进程留给
+# 下一次按需复用;用户想关随时手动关,退役后无人翻案。
+_LMS_EXE = r"C:\Users\ZBJ\.lmstudio\bin\lms.exe"   # 与 line_mode_server.LMS_EXE 同源
+_LMS_ENV = {  # 引擎以 SYSTEM 跑时 USERPROFILE 指 systemprofile,须注入 ZBJ 态
+    # (同 line_mode_server.LMS_ENV 工艺;节点内直调不走 actor/S4U 用户态)
+    "USERPROFILE": r"C:\Users\ZBJ",
+    "APPDATA": r"C:\Users\ZBJ\AppData\Roaming",
+    "LOCALAPPDATA": r"C:\Users\ZBJ\AppData\Local",
+}
+_NINE_B_ID = "qwen3.5-9b-uncensored-hauhaucs-aggressive"  # 与看门狗/line_mode_server 同 id
+_LM_ENSURE_SERVER_BUDGET = 120  # server start 后 greeting 就绪轮询上限(秒)
+_LM_ENSURE_LOAD_BUDGET = 300    # 9B 装载上限(秒)=line_mode_server.LM_LOAD_9B_TIMEOUT
+
+
+def _is_local_win_target(base: str) -> bool:
+    """拉起门:仅当本节点就跑在 LM Studio 同一台 Windows 上才拉——非 Windows
+    (Mac 引擎)或远端 url(云端/别的机器)不拉,照旧跳过换下一目标。"""
+    if os.name != "nt":
+        return False
+    try:
+        host = (urllib.parse.urlparse(base).hostname or "").lower()
+    except Exception:
+        return False
+    if host in ("127.0.0.1", "localhost", "::1"):
+        return True
+    try:
+        import socket
+        return host in set(socket.gethostbyname_ex(socket.gethostname())[2])
+    except Exception:
+        return False
+
+
+def _lm_greeting(timeout: float = 3.0) -> bool:
+    """LM Studio 服务级探活(同退役看门狗探针 /lmstudio-greeting,本机直探)。"""
+    try:
+        with _LAN_OPENER.open("http://127.0.0.1:1234/lmstudio-greeting",
+                              timeout=timeout) as _r:
+            _r.read(1)
+        return True
+    except Exception:
+        return False
+
+
+def _lm_any_loaded() -> bool:
+    """/api/v0/models 有非 :2 重复实例的已装载模型=在位(同看门狗判据)。"""
+    try:
+        with _LAN_OPENER.open("http://127.0.0.1:1234/api/v0/models",
+                              timeout=5) as _r:
+            data = json.loads(_r.read()).get("data") or []
+        return any(m.get("state") == "loaded" and ":2" not in str(m.get("id", ""))
+                   for m in data)
+    except Exception:
+        return False
+
+
+def _ensure_lm_service(base: str, model: str) -> bool:
+    """按需拉起本机 LM Studio(服务 start+9B 装载),就绪=True。
+
+    全程同步阻塞(服务就绪≤120s+装载≤300s),日志逐段可见;扩写开着时引擎
+    队列本来就被本节点阻塞着,拉起只是把「看门狗 7×24 预先保活占显存」换成
+    「用时现场拉」,等待进的是真实需要它的那一发。"""
+    if not _is_local_win_target(base):
+        return False
+    if not os.path.exists(_LMS_EXE):
+        print(f"[漫影 API扩写PE] 按需拉起:找不到 lms.exe({_LMS_EXE})——跳过")
+        return False
+    env = dict(os.environ)
+    env.update(_LMS_ENV)
+    try:
+        print("[漫影 API扩写PE] 按需拉起:服务不在,启动中"
+              "(lms server start --bind 0.0.0.0)…")
+        subprocess.Popen(
+            [_LMS_EXE, "server", "start", "--bind", "0.0.0.0"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL, env=env, close_fds=True,
+            # DETACHED_PROCESS|CREATE_NEW_PROCESS_GROUP:脱离引擎进程组,
+            # 引擎退出/重启不带垮服务(数字常量=Windows-only 属性在非 Win 导入期不可用)
+            creationflags=0x00000008 | 0x00000200,
+        )
+    except Exception as exc:
+        print(f"[漫影 API扩写PE] 按需拉起:server start 失败({exc})")
+        return False
+    _t0 = time.time()
+    while time.time() - _t0 < _LM_ENSURE_SERVER_BUDGET:
+        _check_interrupt()
+        if _lm_greeting():
+            break
+        time.sleep(3)
+    else:
+        print(f"[漫影 API扩写PE] 按需拉起:服务 {_LM_ENSURE_SERVER_BUDGET}s 未就绪——放弃本轮")
+        return False
+    if _lm_any_loaded():
+        print("[漫影 API扩写PE] 按需拉起:服务已就绪且模型在位")
+        return True
+    _mid = (model or "").strip() or _NINE_B_ID
+    print(f"[漫影 API扩写PE] 按需拉起:装载 {_mid}"
+          f"(gpu max/parallel 1/ctx 32768,≤{_LM_ENSURE_LOAD_BUDGET}s)…")
+    try:
+        _r = subprocess.run(
+            [_LMS_EXE, "load", "--gpu", "max", "--parallel", "1",
+             "-c", "32768", "-y", _mid],
+            capture_output=True, timeout=_LM_ENSURE_LOAD_BUDGET, env=env)
+        if _r.returncode != 0:
+            print(f"[漫影 API扩写PE] 按需拉起:装载退出码 {_r.returncode}——"
+                  f"{(_r.stderr or b'').decode('utf-8', 'replace')[:120]}")
+    except subprocess.TimeoutExpired:
+        print("[漫影 API扩写PE] 按需拉起:装载超时——仍试发请求,不成走降级")
+    except Exception as exc:
+        print(f"[漫影 API扩写PE] 按需拉起:装载失败({exc})——仍试发请求,不成走降级")
+    print("[漫影 API扩写PE] 按需拉起:完成,复探目标")
+    return True
 
 # ── 数据真源(与 my_qi21_base 同款四层候选链,零 import——勿 import 化禁令) ──
 def _daojie_data(fn: str) -> Path:
@@ -1180,10 +1301,14 @@ class MyQi21ApiPE:
                     }},
                 }
             if not _alive(_u):
-                print(f"[漫影 API扩写PE] {_u} 探活不通(3s)——跳过"
-                      "(服务不在或防火墙拦;排查:docs/comfyui-kb/LMStudio-Windows远程排查.md)")
-                _errs.append(f"{_m}:探活不通")
-                continue
+                # 1102 用户令「在用的时候,本项目拉起来」:本机 Windows 目标先
+                # 按需拉起(看门狗计划任务已退役),拉起+复探通过才继续发;
+                # 非本机/云端目标 _ensure_lm_service 直接 False,照旧跳过。
+                if not (_ensure_lm_service(_u, _m) and _alive(_u)):
+                    print(f"[漫影 API扩写PE] {_u} 探活不通(3s)——跳过"
+                          "(服务不在或防火墙拦;排查:docs/comfyui-kb/LMStudio-Windows远程排查.md)")
+                    _errs.append(f"{_m}:探活不通")
+                    continue
             url = _chat_url(_u)
             payload["model"] = _m
             try:

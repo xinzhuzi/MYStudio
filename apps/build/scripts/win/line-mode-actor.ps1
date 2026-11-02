@@ -10,9 +10,10 @@
 #        lms_ps            -> lms ps --json            (read-only)
 #        lms_status        -> lms status               (read-only)
 #        schtasks_query    -> schtasks /Query /TN <task> /FO CSV /NH
-#        watchdog          -> schtasks /Change /TN LMStudio-Watchdog /ENABLE
-#                             (D4a: watchdog stays ALWAYS-ENABLED in both line
-#                              modes; the disable branch was removed on review#2)
+#        watchdog          -> RETIRED 2026-11-02: LMStudio-Watchdog task was
+#                             deleted; LM Studio is started on demand by
+#                             my_qi21_api_pe._ensure_lm_service. Returns a
+#                             done receipt (supersedes 1101 D4a).
 #        load9b            -> lms load --gpu max --parallel 1 -c 32768 -y
 #                             qwen3.5-9b-uncensored-hauhaucs-aggressive
 #                             (idempotent: lms ps probe first, skip if loaded)
@@ -69,8 +70,15 @@ try {
     'lms_ps'     { $argv = @($LmsExe, 'ps', '--json') }
     'lms_status' { $argv = @($LmsExe, 'status') }
     'watchdog' {
-      # D4a: watchdog stays ALWAYS-ENABLED (disable branch removed, review#2).
-      $argv = @('schtasks', '/Change', '/TN', 'LMStudio-Watchdog', '/ENABLE')
+      # 1102 retired: LMStudio-Watchdog scheduled task was deleted (LM Studio
+      # is now started on demand by my_qi21_api_pe._ensure_lm_service);
+      # enabling a nonexistent task would always fail. Soft-retire the action
+      # (done receipt) so unknown callers degrade gracefully. Supersedes the
+      # 1101 D4a always-enabled ruling.
+      Write-Result @{ attempt_id = $attemptId; status = 'done'; exit_code = 0;
+                      stdout = 'watchdog retired (1102): LM Studio on-demand via qi21 node' }
+      Log "watchdog action retired (1102)"
+      exit 0
     }
     'load9b' {
       $budget = 300

@@ -690,26 +690,18 @@ class _Switcher(threading.Thread):
 
     # -- 三步骤法 --
     def _step_watchdog(self) -> None:
-        """看门狗步(D4a 拍板:看门狗**恒开**——两向都确保 ENABLE,Disabled
-        才是故障;video 档"停补装 9B 一救"由看门狗 ps1 档位感知读 MODE 承担,
-        本步不再 DISABLE 计划任务——评审#2 修正,与协议文本/部署脚本核账对齐)。
+        """看门狗步——1102 退役(用户令:LM Studio 不得由脚本周期拉起,改
+        my_qi21_api_pe._ensure_lm_service 用时按需拉起;LMStudio-Watchdog
+        计划任务已删,ENABLE 一个不存在的任务必失败——本步 no-op 化防复燃,
+        亦推翻 1101 D4a「看门狗恒开」裁定)。
 
-        actor 通路不通→StepDegraded(D4c:接受降级档位+留告警,不挡任务)。
+        方法保留为 no-op:切换/自愈序列的步序与 steps_done 标记不动(最小
+        侵入);急停检查保留(序列中止语义不随步退役丢失)。
         """
         if _disabled():
             raise StepFailed("急停标记出现,中止序列")
-        try:
-            _actor_exec("watchdog", {"enable": True}, budget=ACTOR_PS_TIMEOUT)
-        except StepFailed as error:
-            raise StepDegraded("watchdog", f"actor 通路不通(D4c):{error}") from error
-        try:
-            self._verify_grace(
-                lambda: self._watchdog_state() == "Ready",
-                interval=5.0, deadline=GRACE_WATCHDOG,
-                what="看门狗 ENABLE",
-            )
-        except StepFailed as error:
-            raise StepDegraded("watchdog", str(error)) from error
+        _log("看门狗步已退役(1102:LM Studio 改扩写节点按需拉起)——跳过")
+        return
 
     def _watchdog_state(self) -> str | None:
         """看门狗任务态(评审#5 修正:Get-ScheduledTask .State 是 .NET 枚举,

@@ -1,29 +1,34 @@
 #!/usr/bin/env python3
-"""line-mode-actor 部署/升级脚本(2026-11-01,1101 自动化改版;Mac 上跑)。
+"""line-mode-actor 部署/升级脚本(2026-11-01,1101 自动化改版;Mac 上跑;
+1102 改版:看门狗退役——不再推送/ENABLE lmstudio-watchdog.ps1)。
 
-目标:Win 产线机(zbj@192.168.0.101)部署 actor 执行件+档位感知看门狗,
-并注册计划任务 MY-LineMode-actor(ZBJ + S4U,解无人登入触发,D3 拍板)。
+目标:Win 产线机(zbj@192.168.0.101)部署 actor 执行件并注册计划任务
+MY-LineMode-actor(ZBJ + S4U,解无人登入触发,D3 拍板)。
 
-步骤(蓝图 F7,幂等可重跑):
+1102 裁定(用户令「LM Studio 不能由脚本拉起,在用的时候由本项目拉起」):
+LM Studio 常驻保活链整体退役——看门狗 ps1 不再部署,LMStudio-Watchdog /
+LMStudio-LAN-Server 计划任务部署时主动核账删除(幂等);LM 服务改由
+my_qi21_api_pe._ensure_lm_service 在扩写节点内按需拉起。
+
+步骤(幂等可重跑):
   0. 全程持 win-control-lock.sh L2(渲染类观察级部署,不碰引擎进程);
-  1. 推送 line-mode-actor.ps1 与 lmstudio-watchdog.ps1——远端 PowerShell 一律
-     UTF-16-LE base64 -EncodedCommand(退役 win-line-switch 的 ps_enc 同款工艺,
-     零引号嵌套);文件本体走 stdin(scp/cat 管道)落盘后本地校验行数;
-  2. 部署看门狗前备份原 GBK 件为 lmstudio-watchdog.ps1.bak-<date>(回滚唯一
-     源——原件不在仓库);幂等:已有当日备份不重复盖;
-  3. 注册计划任务 MY-LineMode-actor:Register-ScheduledTask -User ZBJ
+  1. 推送 line-mode-actor.ps1——远端 PowerShell 一律 UTF-16-LE base64
+     -EncodedCommand(退役 win-line-switch 的 ps_enc 同款工艺,零引号嵌套);
+     文件本体走 stdin(scp/cat 管道)落盘后本地校验行数;
+  2. 注册计划任务 MY-LineMode-actor:Register-ScheduledTask -User ZBJ
      -LogonType S4U;已存在则先 Unregister 再注册(幂等)。需提升会话——
      ssh 会话非管理员则打印手动提升指引并以非零退出(G0d 前置);
-  4. 看门狗核账:LMStudio-Watchdog 现值 State=Disabled(2026-11-01 勘察实测)
-     → schtasks /Change /ENABLE 恢复,输出立账(实弹窗口外也恒开);
-  5. actor 通路自检(=G0a 定谳):写一发只读 action(lms ps,attempt_id
+  3. 看门狗退役核账(1102):LMStudio-Watchdog / LMStudio-LAN-Server /
+     lmsapp2 三任务存在即删;远端 lmstudio-watchdog.ps1 存在即改名
+     .retired-1102 留档(幂等);
+  4. actor 通路自检(=G0a 定谳):写一发只读 action(lms ps,attempt_id
      握手)→ schtasks /Run MY-LineMode-actor → 轮询 line-mode-result.json
      回读 done 且 attempt_id 匹配;
-  6. 打印部署摘要(SHA256 与回滚指引)。
+  5. 打印部署摘要(SHA256 与回滚指引)。
 
 用法:
   python3 apps/build/scripts/win/line-mode-actor-deploy.py [--host zbj@192.168.0.101]
-      [--skip-selftest]   # 跳过步骤⑤(仅观察部署时用)
+      [--skip-selftest]   # 跳过步骤④(仅观察部署时用)
 退出码:0 成功;1 参数/前置失败;3 锁被持;4 ssh 不可达;5 自检失败。
 """
 from __future__ import annotations
@@ -39,7 +44,6 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ACTOR_PS1 = HERE / "line-mode-actor.ps1"
-WATCHDOG_PS1 = HERE / "lmstudio-watchdog.ps1"
 LOCK_SH = HERE.parent / "win-control-lock.sh"
 
 SSH_BASE_OPTS = ["-o", "BatchMode=yes", "-o", "ConnectTimeout=8"]
@@ -92,14 +96,14 @@ def main() -> None:
     ap.add_argument("--skip-selftest", action="store_true")
     args = ap.parse_args()
     host = args.host
-    for f in (ACTOR_PS1, WATCHDOG_PS1, LOCK_SH):
+    for f in (ACTOR_PS1, LOCK_SH):
         if not f.is_file():
             die(1, f"缺件:{f}")
 
     # ── 0. 持锁 L2(部署全程;渲染类观察级) ──────────────────────────────
     owner = f"line-mode-actor-deploy-{time.strftime('%m%d%H%M')}-{os_pid()}"
     lock = sh(["bash", str(LOCK_SH), "lock", "--owner", owner,
-               "--purpose", "line-mode-actor 部署(ps1 两件+S4U 注册+看门狗核账)",
+               "--purpose", "line-mode-actor 部署(ps1+S4U 注册+看门狗退役核账)",
                "--level", "L2", "--ttl-min", "30"])
     if lock.returncode == 4:
         die(4, "ssh 不可达(win-control-lock exit 4)")
@@ -146,8 +150,7 @@ def push_file(host: str, local: Path, remote: str) -> None:
 
 
 def deploy(host: str, skip_selftest: bool) -> None:
-    today = time.strftime("%Y%m%d")
-    print(f"== 1. 提升态前置(G0d:非管理员则只告警,S4U 注册会失败)==")
+    print("== 1. 提升态前置(G0d:非管理员则只告警,S4U 注册会失败)==")
     rc, out = ssh(host, ps_out(
         "$id=[System.Security.Principal.WindowsIdentity]::GetCurrent();"
         "(New-Object System.Security.Principal.WindowsPrincipal($id))"
@@ -165,15 +168,8 @@ def deploy(host: str, skip_selftest: bool) -> None:
 
     print("== 2. 推送执行件 ==")
     push_file(host, ACTOR_PS1, REMOTE_DIR + r"\line-mode-actor.ps1")
-    print("== 3. 备份原 GBK 看门狗(回滚唯一源)后覆盖 ==")
-    rc, out = ssh(host, ps_out(
-        f"$bak='{REMOTE_DIR}\\lmstudio-watchdog.ps1.bak-{today}';"
-        f"if ((Test-Path $bak) -eq $false -and (Test-Path '{REMOTE_DIR}\\lmstudio-watchdog.ps1')) "
-        f"{{ Copy-Item '{REMOTE_DIR}\\lmstudio-watchdog.ps1' $bak; 'BACKED-UP' }} else {{ 'SKIP' }}"))
-    print(f"  原件备份: {out.strip()}")
-    push_file(host, WATCHDOG_PS1, REMOTE_DIR + r"\lmstudio-watchdog.ps1")
 
-    print("== 4. 注册计划任务 MY-LineMode-actor(ZBJ + S4U;幂等:先删后注)==")
+    print("== 3. 注册计划任务 MY-LineMode-actor(ZBJ + S4U;幂等:先删后注)==")
     # MultipleInstances=Parallel(评审#7 第二道网):挂死的旧实例不再静默吞掉
     # 后续 /Run(attempt_id 握手天然丢弃旧实例的过期 result)。
     rc, out = ssh(host, ps_out(
@@ -192,20 +188,23 @@ def deploy(host: str, skip_selftest: bool) -> None:
         "(Get-ScheduledTask -TaskName 'MY-LineMode-actor').State"))
     print(f"  任务状态: {out.strip() or '(查询为空——注册可能失败,自检会暴露)'}")
 
-    print("== 5. 看门狗核账(Disabled→ENABLE 恢复并立账)==")
+    print("== 4. 看门狗退役核账(1102:三任务存在即删,脚本存在即改名留档;幂等)==")
     rc, out = ssh(host, ps_out(
-        "$s=(Get-ScheduledTask -TaskName 'LMStudio-Watchdog' -ErrorAction SilentlyContinue).State;"
-        "'before=' + $s;"
-        "if ($s -eq 'Disabled') { schtasks /Change /TN LMStudio-Watchdog /ENABLE | Out-Null;"
-        "'after=' + (Get-ScheduledTask -TaskName 'LMStudio-Watchdog').State } else { 'after=' + $s }"))
+        "foreach ($tn in 'LMStudio-Watchdog','LMStudio-LAN-Server','lmsapp2') {"
+        "  if (Get-ScheduledTask -TaskName $tn -ErrorAction SilentlyContinue) {"
+        "    schtasks /Delete /TN $tn /F | Out-Null; \"deleted: $tn\""
+        "  } else { \"absent: $tn\" } };"
+        f"$wd='{REMOTE_DIR}\\lmstudio-watchdog.ps1';"
+        f"if ((Test-Path $wd) -and -not (Test-Path ($wd + '.retired-1102'))) {{ Rename-Item $wd ($wd + '.retired-1102'); 'renamed: watchdog ps1 -> .retired-1102' }}"
+        f"elseif (Test-Path ($wd + '.retired-1102')) {{ 'archived: .retired-1102 already in place' }} else {{ 'absent: watchdog ps1' }}"))
     print(f"  {out.strip()}")
 
     if skip_selftest:
-        print("== 6. 自检跳过(--skip-selftest)== ")
+        print("== 5. 自检跳过(--skip-selftest)== ")
         summary()
         return
 
-    print("== 6. actor 通路自检(=G0a:只读 lms ps 全链)==")
+    print("== 5. actor 通路自检(=G0a:只读 lms ps 全链)==")
     attempt = uuid.uuid4().hex
     action = {"attempt_id": attempt, "action": "lms_ps", "params": {}, "ts": int(time.time())}
     # action 原子写(远端 PowerShell)
@@ -242,13 +241,13 @@ def deploy(host: str, skip_selftest: bool) -> None:
 
 def summary() -> None:
     print("\n== 部署摘要 ==")
-    for f in (ACTOR_PS1, WATCHDOG_PS1):
+    for f in (ACTOR_PS1,):
         import hashlib
         digest = hashlib.sha256(f.read_bytes()).hexdigest()
         print(f"  {f.name}: sha256={digest[:16]}…")
     print("  回滚:actor 任务停用 = schtasks /Change /TN MY-LineMode-actor /DISABLE;"
-          "看门狗恢复 = 部署备份 lmstudio-watchdog.ps1.bak-<date> 覆盖回 "
-          f"{REMOTE_DIR}\\lmstudio-watchdog.ps1")
+          "看门狗恢复(不建议,1102 已退役)= 从仓库 git 历史 1007 版恢复 ps1"
+          "并手工 schtasks /Create 三任务")
     print("  完整回滚三档见蓝图 rollback 节(线上急停标记文件/功能回滚/git revert)。")
 
 
