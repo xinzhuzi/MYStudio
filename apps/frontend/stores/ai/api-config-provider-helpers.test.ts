@@ -29,9 +29,11 @@ describe("api config provider helpers", () => {
     expect(source).toEqual({ kept: "one", removed: "two" });
   });
 
-  it("keeps only qwen-image-2-1 as the local image channel", () => {
-    expect([...LOCAL_IMAGE_MODELS]).toEqual(["qwen-image-2-1"]);
-    expect(createDefaultLocalImageProvider().model).toEqual(["qwen-image-2-1"]);
+  it("keeps the 1102 unlocked local channel models (qi21 + flux2/edit)", () => {
+    // 1010 清场(只留 qi21)→ 1102 控制中心 G1/Q1 解锁 flux2/edit(模型在库+模板在);
+    // krea2(缺件)/z-image(模板待建)维持不放开——裁定链注记在源文件。
+    expect([...LOCAL_IMAGE_MODELS]).toEqual(["qwen-image-2-1", "flux2-klein-9b", "qwen-image-edit-2511"]);
+    expect(createDefaultLocalImageProvider().model).toEqual(["qwen-image-2-1", "flux2-klein-9b", "qwen-image-edit-2511"]);
   });
 
   it("trims retired local image models and backfills the new one in a single pass", () => {
@@ -44,7 +46,7 @@ describe("api config provider helpers", () => {
     const next = ensureDefaultLocalImageProvider([remote, stale]);
     const healed = next.find((provider) => provider.id === DEFAULT_LOCAL_IMAGE_PROVIDER_ID);
     if (!healed) throw new Error("local image provider missing");
-    expect(healed.model).toEqual(["qwen-image-2-1"]);
+    expect(healed.model).toEqual(["qwen-image-2-1", "flux2-klein-9b", "qwen-image-edit-2511"]);
     expect(healed.apiKey).toBe("user-edited");
     // 幂等:已收口的列表再跑一遍零变化
     expect(ensureDefaultLocalImageProvider(next)).toEqual(next);

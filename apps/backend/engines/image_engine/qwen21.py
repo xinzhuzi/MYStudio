@@ -280,6 +280,11 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
         raise _pipeline_error("bridge-unreachable", "ComfyUI 没在运行，请先打开它再试")
     # 参考图分族(与 comfyui_bridge 同款约定):ctx 显式列表优先,否则单张 positional
     references = list(ctx.get("reference_images_b64") or ([] if not reference_b64 else [reference_b64]))
+    # 指定模板(1102 控制中心 S3 绑定注入;照 comfyui_bridge.py:452-454 同款先例):
+    # 调用方显式点名 ctx["template"] 时优先于自动路由(值=引擎 API 模板键,前端映射层
+    # 已把道劫绑定件转成 qwen21_道劫_{t2i,i2i}_api;缺省 None=自动路由现行为零迁移)
+    forced_template = ctx.get("template") if isinstance(ctx.get("template"), str) else None
+
     if references:
         # 10-19 图生图·道劫美术风格转换(D3/D4):恒单参考;模板快照=画布现值,仅运行时
         # 覆写组装用途=道劫美术风格转换(底座由装配层追加);seed 每次随机(fire 铁令)
@@ -288,8 +293,8 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
                 "reference-unsupported",
                 "Qwen-Image-2.1 本地渠道图生图仅支持单参考图(道劫美术风格转换)。",
             )
-        template_key = TEMPLATE_NAME_I2I
-        template = load_template(TEMPLATE_NAME_I2I)
+        template_key = forced_template or TEMPLATE_NAME_I2I
+        template = load_template(template_key)
         _warn_if_version_below_min(stats, template)
         check_cancelled()
         upload_name = _upload_image(
@@ -345,8 +350,8 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
         # 4022 型画幅路由保持不动)
         apply_manual_size(graph, ctx.get("manual_width"), ctx.get("manual_height"))
     else:
-        template_key = TEMPLATE_NAME
-        template = load_template(TEMPLATE_NAME)
+        template_key = forced_template or TEMPLATE_NAME
+        template = load_template(template_key)
         _warn_if_version_below_min(stats, template)
         graph = instantiate_template(template, prompt, negative_prompt, steps, seed, aspect_ratio, [])
         apply_base_type(graph, ctx.get("base_type"))

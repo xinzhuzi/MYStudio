@@ -8,7 +8,7 @@ import { useMcpServersStore } from "@/stores/mcp/mcp-servers-store";
 import { useEnginePresetsStore } from "@/stores/settings/engine-presets-store";
 import { setComfySidecarLivenessProbeForTests } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
-import { useWorkflowBindingsStore, resolveBoundTemplateForGeneration } from "@/stores/settings/workflow-bindings-store";
+import { useWorkflowBindingsStore, resolveBoundTemplateForGeneration, isBindableWorkflow } from "@/stores/settings/workflow-bindings-store";
 
 const toastMocks = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 // sonner mock(照 VideoQcSettingsSection.test 范式):⭐存为常用合法分支要断言 toast
@@ -715,17 +715,29 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
   });
 });
 
-describe("S3 绑定注入(11-02 hub:resolveBoundTemplateForGeneration)", () => {
-  it("本地模型按参考图有无取对应绑定;未绑/云端模型=undefined(现行为)", () => {
+describe("S3 绑定注入(11-02 hub:resolveBoundTemplateForGeneration;收口轮映射语义)", () => {
+  it("本地模型按参考图有无取对应绑定,经映射层转引擎 API 模板键;未绑/云端=undefined(现行为)", () => {
     expect(resolveBoundTemplateForGeneration("qwen-image-2-1", false)).toBeUndefined();
     useWorkflowBindingsStore.setState({
       t2iWorkflowId: "1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
       i2iWorkflowId: "1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
     });
-    expect(resolveBoundTemplateForGeneration("qwen-image-2-1", false)).toBe("1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json");
-    expect(resolveBoundTemplateForGeneration("qwen-image-2-1", true)).toBe("1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json");
+    // 1102 收口轮修复:绑定 id(库内画布路径)→ 引擎 API 模板键(load_template 只吃后者)
+    expect(resolveBoundTemplateForGeneration("qwen-image-2-1", false)).toBe("qwen21_道劫_t2i_api");
+    expect(resolveBoundTemplateForGeneration("qwen-image-2-1", true)).toBe("qwen21_道劫_i2i_api");
     // 云端模型不绑(返回 undefined=不注入)
     expect(resolveBoundTemplateForGeneration("gpt-image-2", false)).toBeUndefined();
+    useWorkflowBindingsStore.setState({ t2iWorkflowId: null, i2iWorkflowId: null });
+  });
+
+  it("edit 绑定件映射到 i2i 模板;无引擎模板的库内件(修复超分等)返回 undefined=回落现行为", () => {
+    useWorkflowBindingsStore.setState({ t2iWorkflowId: null, i2iWorkflowId: "1_图片/Q2-1图像/2_图生图/qi21-edit.json" });
+    expect(resolveBoundTemplateForGeneration("qwen-image-2-1", true)).toBe("qwen21_道劫_i2i_api");
+    expect(isBindableWorkflow("1_图片/Q2-1图像/2_图生图/qi21-edit.json")).toBe(true);
+    // 修复超分等非道劫件:不可绑(UI 亦不 给绑定钮),即便误注入也回落 undefined
+    useWorkflowBindingsStore.setState({ t2iWorkflowId: "1_图片/Q2-1图像/6_修复超分/xxx.json", i2iWorkflowId: null });
+    expect(isBindableWorkflow("1_图片/Q2-1图像/6_修复超分/xxx.json")).toBe(false);
+    expect(resolveBoundTemplateForGeneration("qwen-image-2-1", false)).toBeUndefined();
     useWorkflowBindingsStore.setState({ t2iWorkflowId: null, i2iWorkflowId: null });
   });
 });

@@ -45,7 +45,7 @@ import {
   normalizeEngineUrl,
   useEnginePresetsStore,
 } from "@/stores/settings/engine-presets-store";
-import { useWorkflowBindingsStore, type BoundWorkflowKind } from "@/stores/settings/workflow-bindings-store";
+import { useWorkflowBindingsStore, isBindableWorkflow, type BoundWorkflowKind } from "@/stores/settings/workflow-bindings-store";
 import { engineFamilyMeta } from "@/lib/studio/engine-line/family-catalog";
 import { ALL_ENGINE_FAMILIES } from "@/lib/studio/engine-line/engine-options";
 import {
@@ -868,14 +868,20 @@ export function McpSettingsTab() {
                                   在用
                                 </span>
                               )}
-                              <Button
-                                size="sm"
-                                variant={bound ? "default" : "outline"}
-                                onClick={() => bindings.setBinding(kind as BoundWorkflowKind, bound ? null : workflow.id)}
-                                data-testid={`engine-workflow-bind-${kind}`}
-                              >
-                                {bound ? "解绑" : `设为${kindLabel}用`}
-                              </Button>
+                              {isBindableWorkflow(workflow.id) ? (
+                                <Button
+                                  size="sm"
+                                  variant={bound ? "default" : "outline"}
+                                  onClick={() => bindings.setBinding(kind as BoundWorkflowKind, bound ? null : workflow.id)}
+                                  data-testid={`engine-workflow-bind-${kind}`}
+                                >
+                                  {bound ? "解绑" : `设为${kindLabel}用`}
+                                </Button>
+                              ) : (
+                                // 1102 收口轮:引擎 load_template 只吃 API 模板名,非道劫件
+                                // 无同源模板——诚实标注不给绑定钮(防绑了不生效的假绑定)
+                                <span className="text-[10px] text-muted-foreground">暂无引擎模板</span>
+                              )}
                             </div>
                           </div>
                         );
