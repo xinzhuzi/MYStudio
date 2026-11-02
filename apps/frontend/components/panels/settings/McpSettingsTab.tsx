@@ -189,6 +189,17 @@ const LOCAL_IMAGE_BASE_TYPES = [
 // T15/G3+T17:探活成功文案「ComfyUI x.y · GPU名」。桥行(挂载探测)由
 // comfyui_bridge.resolve_big_files → inventory gpuName 透传;保存即测(T17)
 // 则直探引擎 /system_stats devices[0].name。引擎没给时只显示版本段。
+// 引擎地址归一(11-02 实弹:中文输入法打出的全角 ：／ 肉眼与 OCR 均不可辨,
+// 前缀/ urlparse 校验恒炸「引擎地址须为 http(s)…」)——全角冒号斜杠归半角+去
+// 首尾空白与尾斜杠。合法 URL 不含全角件,归一无损。
+function normalizeEngineUrl(raw: string): string {
+  return raw
+    .replace(/：/g, ":")
+    .replace(/／/g, "/")
+    .trim()
+    .replace(/\/+$/, "");
+}
+
 function comfyVersionLabel(version?: string | null, gpu?: string | null): string {
   return `ComfyUI ${version ?? ""}${gpu ? ` · ${gpu}` : ""}`;
 }
@@ -300,13 +311,17 @@ export function McpSettingsTab() {
   // /system_stats;与 MCP 服务器卡片「测试连接」同范式;结果共用 remoteTest 展示位。
   const [remoteProbing, setRemoteProbing] = useState(false);
   const testRemoteConnection = async () => {
-    const base =
-      remoteDraft.trim().replace(/\/+$/, "") ||
-      (remoteEngine?.effective ?? "").replace(/\/+$/, "");
+    const base = normalizeEngineUrl(remoteDraft) || normalizeEngineUrl(remoteEngine?.effective ?? "");
+    if (!base) {
+      setRemoteTest({ status: "error", message: "先填引擎地址再测试(留空=本机引擎)" });
+      return;
+    }
     if (!/^https?:\/\//.test(base)) {
       setRemoteTest({
         status: "error",
-        message: "引擎地址须为 http(s)://主机[:端口] 形态(如 http://192.168.0.101:17000)",
+        message: `引擎地址须为 http(s)://主机[:端口] 形态(如 http://192.168.0.101:17000;当前值:${JSON.stringify(
+          remoteDraft.trim(),
+        )}——若是中文输入法打出的全角冒号/斜杠,已自动归一仍不过请检查其余字符)`,
       });
       return;
     }
@@ -341,7 +356,7 @@ export function McpSettingsTab() {
   };
 
   const saveRemoteEngine = async () => {
-    const url = remoteDraft.trim();
+    const url = normalizeEngineUrl(remoteDraft);
     setRemoteSaving(true);
     setRemoteTest({ status: "idle" });
     try {

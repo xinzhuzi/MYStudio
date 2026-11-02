@@ -324,6 +324,40 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     });
   });
 
+  it("全角冒号/斜杠自动归一(11-02 实弹:中文输入法输入肉眼不可辨,前缀校验恒炸格式错)", async () => {
+    setComfySidecarLivenessProbeForTests(async () => true);
+    let probedUrl = "";
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      const u = String(url);
+      if (u.includes("/comfy/engine/probe")) {
+        probedUrl = u;
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({
+            ok: true,
+            url: "http://192.168.0.101:17000",
+            comfyui_version: "0.42.0",
+            device: "NVIDIA RTX PRO 4000",
+          }),
+        } as unknown as Response);
+      }
+      return Promise.reject(new Error("unexpected fetch " + u));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    // 全角冒号+全角斜杠+尾全角斜杠混输(中文输入法典型产物)
+    fireEvent.change(screen.getByTestId("remote-engine-url"), {
+      target: { value: "http：／／192.168.0.101：17000／" },
+    });
+    fireEvent.click(screen.getByTestId("remote-engine-test"));
+    await waitFor(() => {
+      expect(screen.getByTestId("remote-engine-ok").textContent).toContain("连接成功(ComfyUI 0.42.0");
+    });
+    // 探活请求带出的已是归一后的半角 URL
+    expect(probedUrl).toContain("url=http%3A%2F%2F192.168.0.101%3A17000");
+  });
+
   it("非法 URL 保存失败给大白话", async () => {
     setComfySidecarLivenessProbeForTests(async () => true);
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
