@@ -1692,14 +1692,14 @@
       "required": {
         "mode": [
           [
+            "3 · 混动 40步+缓存",
             "0 · Turbo 8步",
             "1 · 原生出图",
             "2 · viggle",
-            "3 · 混动 40步+缓存",
             "自动 · 按型"
           ],
           {
-            "default": "0 · Turbo 8步"
+            "default": "3 · 混动 40步+缓存"
           }
         ]
       },
@@ -3936,6 +3936,46 @@
       "render latent"
     ]
   },
+  "VAEEncode": {
+    "input": {
+      "required": {
+        "pixels": [
+          "IMAGE"
+        ],
+        "vae": [
+          "VAE"
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "pixels",
+        "vae"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "LATENT"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "LATENT"
+    ],
+    "name": "VAEEncode",
+    "display_name": "VAE Encode",
+    "description": "",
+    "python_module": "nodes",
+    "category": "model/latent",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": [
+      "encode",
+      "encode image",
+      "image to latent"
+    ]
+  },
   "VAELoader": {
     "input": {
       "required": {
@@ -4444,5 +4484,539 @@
     "output_node": false,
     "has_intermediate_output": false,
     "search_aliases": []
+  },
+  "GetImageSize": {
+    "input": {
+      "required": {
+        "image": [
+          "IMAGE",
+          {}
+        ]
+      },
+      "hidden": {
+        "unique_id": [
+          "UNIQUE_ID"
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "image"
+      ],
+      "hidden": [
+        "unique_id"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "INT",
+      "INT",
+      "INT"
+    ],
+    "output_is_list": [
+      false,
+      false,
+      false
+    ],
+    "output_name": [
+      "width",
+      "height",
+      "batch_size"
+    ],
+    "output_tooltips": [
+      null,
+      null,
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "GetImageSize",
+    "display_name": "Get Image Size",
+    "description": "Returns the width, height, and batch size of the image.",
+    "python_module": "comfy_extras.nodes_images",
+    "category": "image",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "dimensions",
+      "resolution",
+      "image info"
+    ],
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "EmptyImage": {
+    "input": {
+      "required": {
+        "width": [
+          "INT",
+          {
+            "default": 512,
+            "min": 1,
+            "max": 16384,
+            "step": 1
+          }
+        ],
+        "height": [
+          "INT",
+          {
+            "default": 512,
+            "min": 1,
+            "max": 16384,
+            "step": 1
+          }
+        ],
+        "batch_size": [
+          "INT",
+          {
+            "default": 1,
+            "min": 1,
+            "max": 4096
+          }
+        ],
+        "color": [
+          "INT",
+          {
+            "default": 0,
+            "min": 0,
+            "max": 16777215,
+            "step": 1,
+            "display": "color"
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "width",
+        "height",
+        "batch_size",
+        "color"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "IMAGE"
+    ],
+    "name": "EmptyImage",
+    "display_name": "Empty Image",
+    "description": "",
+    "python_module": "nodes",
+    "category": "image",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "InvertMask": {
+    "input": {
+      "required": {
+        "mask": [
+          "MASK",
+          {}
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "mask"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "MASK"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "MASK"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "InvertMask",
+    "display_name": "Invert Mask",
+    "description": "",
+    "python_module": "comfy_extras.nodes_mask",
+    "category": "image/mask",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "reverse mask",
+      "flip mask"
+    ],
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "CreateShapeMask": {
+    "input": {
+      "required": {
+        "shape": [
+          [
+            "circle",
+            "square",
+            "triangle"
+          ],
+          {
+            "default": "circle"
+          }
+        ],
+        "frames": [
+          "INT",
+          {
+            "default": 1,
+            "min": 1,
+            "max": 4096,
+            "step": 1
+          }
+        ],
+        "location_x": [
+          "INT",
+          {
+            "default": 256,
+            "min": 0,
+            "max": 4096,
+            "step": 1
+          }
+        ],
+        "location_y": [
+          "INT",
+          {
+            "default": 256,
+            "min": 0,
+            "max": 4096,
+            "step": 1
+          }
+        ],
+        "grow": [
+          "INT",
+          {
+            "default": 0,
+            "min": -512,
+            "max": 512,
+            "step": 1
+          }
+        ],
+        "frame_width": [
+          "INT",
+          {
+            "default": 512,
+            "min": 16,
+            "max": 4096,
+            "step": 1
+          }
+        ],
+        "frame_height": [
+          "INT",
+          {
+            "default": 512,
+            "min": 16,
+            "max": 4096,
+            "step": 1
+          }
+        ],
+        "shape_width": [
+          "INT",
+          {
+            "default": 128,
+            "min": 8,
+            "max": 4096,
+            "step": 1
+          }
+        ],
+        "shape_height": [
+          "INT",
+          {
+            "default": 128,
+            "min": 8,
+            "max": 4096,
+            "step": 1
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "shape",
+        "frames",
+        "location_x",
+        "location_y",
+        "grow",
+        "frame_width",
+        "frame_height",
+        "shape_width",
+        "shape_height"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "MASK",
+      "MASK"
+    ],
+    "output_is_list": [
+      false,
+      false
+    ],
+    "output_name": [
+      "mask",
+      "mask_inverted"
+    ],
+    "name": "CreateShapeMask",
+    "display_name": "Create Shape Mask",
+    "description": "\nCreates a mask or batch of masks with the specified shape.  \nLocations are center locations.  \nGrow value is the amount to grow the shape on each frame, creating animated masks.\n",
+    "python_module": "custom_nodes.comfyui-kjnodes",
+    "category": "KJNodes/masking/generate",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "GrowMaskWithBlur": {
+    "input": {
+      "required": {
+        "mask": [
+          "MASK"
+        ],
+        "expand": [
+          "INT",
+          {
+            "default": 0,
+            "min": -16384,
+            "max": 16384,
+            "step": 1
+          }
+        ],
+        "incremental_expandrate": [
+          "FLOAT",
+          {
+            "default": 0.0,
+            "min": 0.0,
+            "max": 100.0,
+            "step": 0.1
+          }
+        ],
+        "tapered_corners": [
+          "BOOLEAN",
+          {
+            "default": true
+          }
+        ],
+        "flip_input": [
+          "BOOLEAN",
+          {
+            "default": false
+          }
+        ],
+        "blur_radius": [
+          "FLOAT",
+          {
+            "default": 0.0,
+            "min": 0.0,
+            "max": 100,
+            "step": 0.1
+          }
+        ],
+        "lerp_alpha": [
+          "FLOAT",
+          {
+            "default": 1.0,
+            "min": 0.0,
+            "max": 1.0,
+            "step": 0.01
+          }
+        ],
+        "decay_factor": [
+          "FLOAT",
+          {
+            "default": 1.0,
+            "min": 0.0,
+            "max": 1.0,
+            "step": 0.01
+          }
+        ]
+      },
+      "optional": {
+        "fill_holes": [
+          "BOOLEAN",
+          {
+            "default": false
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "mask",
+        "expand",
+        "incremental_expandrate",
+        "tapered_corners",
+        "flip_input",
+        "blur_radius",
+        "lerp_alpha",
+        "decay_factor"
+      ],
+      "optional": [
+        "fill_holes"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "MASK",
+      "MASK"
+    ],
+    "output_is_list": [
+      false,
+      false
+    ],
+    "output_name": [
+      "mask",
+      "mask_inverted"
+    ],
+    "name": "GrowMaskWithBlur",
+    "display_name": "Grow Mask With Blur",
+    "description": "\n# GrowMaskWithBlur\n- mask: Input mask or mask batch\n- expand: Expand or contract mask or mask batch by a given amount\n- incremental_expandrate: increase expand rate by a given amount per frame\n- tapered_corners: use tapered corners\n- flip_input: flip input mask\n- blur_radius: value higher than 0 will blur the mask\n- lerp_alpha: alpha value for interpolation between frames\n- decay_factor: decay value for interpolation between frames\n- fill_holes: fill holes in the mask (slow)",
+    "python_module": "custom_nodes.comfyui-kjnodes",
+    "category": "KJNodes/masking",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "SetLatentNoiseMask": {
+    "input": {
+      "required": {
+        "samples": [
+          "LATENT"
+        ],
+        "mask": [
+          "MASK"
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "samples",
+        "mask"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "LATENT"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "LATENT"
+    ],
+    "name": "SetLatentNoiseMask",
+    "display_name": "Set Latent Noise Mask",
+    "description": "",
+    "python_module": "nodes",
+    "category": "model/latent",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "ImageCompositeMasked": {
+    "input": {
+      "required": {
+        "destination": [
+          "IMAGE",
+          {}
+        ],
+        "source": [
+          "IMAGE",
+          {}
+        ],
+        "x": [
+          "INT",
+          {
+            "default": 0,
+            "min": 0,
+            "max": 16384,
+            "step": 1
+          }
+        ],
+        "y": [
+          "INT",
+          {
+            "default": 0,
+            "min": 0,
+            "max": 16384,
+            "step": 1
+          }
+        ],
+        "resize_source": [
+          "BOOLEAN",
+          {
+            "default": false
+          }
+        ]
+      },
+      "optional": {
+        "mask": [
+          "MASK",
+          {}
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "destination",
+        "source",
+        "x",
+        "y",
+        "resize_source"
+      ],
+      "optional": [
+        "mask"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "IMAGE"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "ImageCompositeMasked",
+    "display_name": "Image Composite Masked",
+    "description": "",
+    "python_module": "comfy_extras.nodes_mask",
+    "category": "image/compositing",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "overlay",
+      "layer",
+      "paste image",
+      "images composition"
+    ],
+    "essentials_category": null,
+    "has_intermediate_output": false
   }
 }

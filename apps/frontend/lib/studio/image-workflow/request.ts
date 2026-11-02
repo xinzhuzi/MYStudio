@@ -212,7 +212,40 @@ function mergeReferenceNegativePrompt(
   return parts.length ? [...new Set(parts)].join(", ") : undefined;
 }
 
-export function assertImageWorkflowContinuityCapability(request: ImageWorkflowGenerationRequest) {
+/** 分镜编排已将全部有序参考投影为一张图；不代表模型支持原生多参考。 */
+export interface StoryboardSingleImageTransport {
+  kind: "storyboard-single-image";
+  imageUrl: string;
+  sourceReferenceImages: string[];
+  mappings: { order: number; imageUrl: string }[];
+}
+
+export function assertImageWorkflowContinuityCapability(
+  request: ImageWorkflowGenerationRequest,
+  transport?: StoryboardSingleImageTransport,
+) {
+  if (transport) {
+    // 窄例外只消费真实 Qwen 最终请求，实际传输图与完整投影收据必须相符。
+    if (request.model !== "qwen-image-2-1" || transport.kind !== "storyboard-single-image"
+      || request.referenceImages.length !== 1 || !transport.imageUrl
+      || request.referenceImages[0] !== transport.imageUrl) {
+      throw new Error("分镜单图传输契约与实际模型/传输图不一致");
+    }
+    const manifest = request.orderedReferenceManifest;
+    if (!manifest.length || transport.sourceReferenceImages.length !== manifest.length
+      || transport.mappings.length !== manifest.length) {
+      throw new Error("分镜单图传输参考数量或映射数量不一致");
+    }
+    // 来源 order 是排序键（上游成图使用 MAX_SAFE_INTEGER），格位才是 1..N。
+    if (manifest.some((reference, index) => !Number.isInteger(reference.order)
+      || (index > 0 && reference.order <= manifest[index - 1].order)
+      || !reference.imageUrl || transport.sourceReferenceImages[index] !== reference.imageUrl
+      || transport.mappings[index]?.order !== index + 1
+      || transport.mappings[index]?.imageUrl !== reference.imageUrl)) {
+      throw new Error("分镜单图传输参考顺序或映射不一致");
+    }
+    return;
+  }
   if (!request.continuityRequired) return;
   // 多参考连续性放行:云端 gpt-image + 本地 ComfyUI 桥(仓内白名单工作流,
   // 多参考槽位真正生效,08-31 D4 裁定其余本地引擎维持拒绝并指路)。

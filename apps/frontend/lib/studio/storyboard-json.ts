@@ -1,4 +1,4 @@
-import type { StoryboardItem } from "@/types/studio";
+import type { StoryboardItem, StoryboardSourceEvidence } from "@/types/studio";
 import type { CinematicStoryboardItem } from "./cinematic-preset";
 import { validateStoryboardCinematic } from "./cinematic-preset";
 
@@ -13,6 +13,7 @@ const STORYBOARD_STATES = new Set<StoryboardItem["state"]>([
 const CANONICAL_STORYBOARD_FIELDS = [
   "id",
   "sourceId",
+  "sourceEvidence",
   "revision",
   "episodeId",
   "index",
@@ -56,6 +57,11 @@ const CANONICAL_STORYBOARD_FIELDS = [
 ] as const;
 
 type CanonicalStoryboardField = (typeof CANONICAL_STORYBOARD_FIELDS)[number];
+
+const SOURCE_EVIDENCE_FIELDS = [
+  "source", "scene", "sourceProjectId", "sourceEpisodeId", "sourceStoryboardId",
+  "sourcePath", "sourceTable", "promptHash", "note",
+] as const satisfies readonly (keyof StoryboardSourceEvidence)[];
 
 export function formatStoryboardJson(items: StoryboardItem[]): string {
   return JSON.stringify(items.map(projectCanonicalStoryboardItem), null, 2);
@@ -132,6 +138,15 @@ function projectCanonicalStoryboardItem(item: StoryboardItem): Record<string, un
       ? (item as CinematicStoryboardItem).cinematic
       : item[field as keyof StoryboardItem];
     if (value === undefined) continue;
+    if (field === "sourceEvidence") {
+      const evidence = value as StoryboardSourceEvidence;
+      projected[field] = Object.fromEntries(SOURCE_EVIDENCE_FIELDS
+        .filter((key) => evidence[key] !== undefined)
+        .map((key) => [key, key === "scene" && evidence.scene
+          ? { index: evidence.scene.index, name: evidence.scene.name }
+          : evidence[key]]));
+      continue;
+    }
     if (field === "mediaRef" || field === "audioRef") {
       const media = serializeCanonicalMediaRef(value as StoryboardItem["mediaRef"] | StoryboardItem["audioRef"]);
       if (media) projected[field] = media;
@@ -223,6 +238,34 @@ export function validateStoryboardJson(raw: string, episodeId: string, projectId
     if (unknownFields.length) return { error: `分镜存在不可编辑字段: ${unknownFields.join(", ")}` };
     const shot = item as Partial<StoryboardItem>;
     if (typeof shot.id !== "string" || !shot.id) return { error: "分镜 id 必须存在" };
+    if (shot.sourceEvidence !== undefined) {
+      const evidence = shot.sourceEvidence;
+      if (!evidence || typeof evidence !== "object" || Array.isArray(evidence)
+        || Object.keys(evidence).some((key) => !SOURCE_EVIDENCE_FIELDS.includes(key as keyof StoryboardSourceEvidence))
+        || typeof evidence.source !== "string" || !evidence.source.trim()) {
+        return { error: `分镜 ${shot.id} sourceEvidence 无效或存在不可编辑字段` };
+      }
+      if (evidence.scene !== undefined) {
+        const scene = evidence.scene;
+        if (!scene || typeof scene !== "object" || Array.isArray(scene)
+          || Object.keys(scene).some((key) => key !== "index" && key !== "name")
+          || !Number.isInteger(scene.index) || scene.index < 1
+          || typeof scene.name !== "string" || !scene.name.trim()) {
+          return { error: `分镜 ${shot.id} sourceEvidence.scene 无效` };
+        }
+      }
+      for (const key of ["sourceProjectId", "sourceEpisodeId", "sourceStoryboardId"] as const) {
+        const id = evidence[key];
+        if (id !== undefined && typeof id !== "string" && (typeof id !== "number" || !Number.isFinite(id))) {
+          return { error: `分镜 ${shot.id} sourceEvidence.${key} 类型无效` };
+        }
+      }
+      for (const key of ["sourcePath", "sourceTable", "promptHash", "note"] as const) {
+        if (evidence[key] !== undefined && typeof evidence[key] !== "string") {
+          return { error: `分镜 ${shot.id} sourceEvidence.${key} 类型无效` };
+        }
+      }
+    }
     if (shot.sourceId !== undefined && (typeof shot.sourceId !== "string" || !shot.sourceId.trim())) {
       return { error: `分镜 ${shot.id} sourceId 无效` };
     }

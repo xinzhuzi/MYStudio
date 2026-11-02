@@ -48,14 +48,11 @@ import {
   type FamilyImageEntry,
 } from "@/lib/studio/asset-family-images";
 import { classifyAssetImage } from "@/lib/studio/asset-image-kind";
-import { clusterAssetStages } from "@/lib/studio/asset-stage-prompts";
-import { parseWorkflowPrompt } from "@/lib/studio/workflow-prompt-parser";
 import { parsePromptOverrides } from "@/lib/studio/asset-prompt-layers";
 import {
   buildFinalDraftCandidates,
   resolvePromptOwnerNote,
   type PromptInspectCandidate,
-  type PromptTextFailReason,
 } from "@/lib/studio/asset-prompt-inspect";
 import { getAssetTypeShotProfile } from "@/lib/studio/asset-type-shot";
 import { StudioAssetDetailPreviewPane } from "./studio-asset-detail-preview-pane";
@@ -183,22 +180,6 @@ const FINAL_DRAFT_NOTE_BY_STATUS: Record<FinalDraftProbe["status"], string> = {
   ready: "来自该型最近产物的引擎实收,非本次预演",
 };
 
-/**
- * 阶段提示词子区·单型懒读结果(10-25 阶段矩阵 T2,PRD §3.2):ready=该阶段该型
- * 组最新一张 tEXt 解构出的正向终稿+字数;failed=桥缺席/B-1 reason/键位漂移
- * (parse-drift 单列文案,禁把原始 JSON 当终稿展示)。按 `阶段__型` 键缓存组件态,
- * 弹窗关/切资产清零。
- */
-type StagePromptTextEntry =
-  | { status: "probing" }
-  | { status: "ready"; finalText: string; charCount: number }
-  | { status: "failed"; reason: PromptTextFailReason | "bridge-missing" | "parse-drift" };
-
-/** 阶段缓存键(PRD §3.2 钉「按 stage+kind 缓存」;切资产/关弹窗整表清零)。 */
-function stagePromptCacheKey(stage: string, kind: AssetImageKind): string {
-  return `${stage}__${kind}`;
-}
-
 /** T3「阶段」选择器「无」哨兵值(Radix Select 值域须字符串;null 语义映射到此)。 */
 
 export function StudioAssetDetailDialog({
@@ -283,23 +264,8 @@ export function StudioAssetDetailDialog({
   const [generationOutcome, setGenerationOutcome] = useState<GenerationOutcome | null>(null);
   // R5 队列逐发累积池(fromQueue 记录;队列收口一次取走汇总,跨会话恒清零)
   const queueRecordsRef = useRef<GenerationOutcomeRecord[]>([]);
-  // 10-25 阶段矩阵(T2/T3 共用,PRD §3.2/§3.3):生成路「阶段」选择与子区聚焦共用;
-  // null=「无」(T3 默认);子区展示位回落聚类末位(最高境界,§3.2)。随弹窗关/切资产重置。
+  // 保留生成路的阶段选择语义，null=「无」；随弹窗关/切资产重置。
   const [selectedStage, setSelectedStage] = useState<string | null>(null);
-  // T2 阶段子区懒读缓存(阶段__型→终稿/降级态;PRD 钉组件态,弹窗关清)+在飞去重集
-  // (值位随构成区砍除退役:读取走 ref,本态仅作缓存写入的重渲染触发)
-  const [, setStageTextCache] = useState<Record<string, StagePromptTextEntry>>({});
-  const stageTextCacheRef = useRef<Record<string, StagePromptTextEntry>>({});
-  const stageReadInFlightRef = useRef<Set<string>>(new Set());
-  // 会话代(10-25 复审竞态修):复位点(关弹窗/切资产 resetStageState)递增——在飞读取的
-  // 迟到写入按代隔离,旧代全弃防污染下一会话;同会话内依赖重跑(images 异步回填/重开弹窗
-  // bridge.get 回填/生成完成,凡换 displayImages→activeStageCluster 身份)不换代,在飞
-  // 结果照常落缓存。取代旧 cancelled 旗:cancelled 在依赖重跑时也置位,在飞结果被整批
-  // 丢弃+重跑轮 pending 又滤掉在飞键→作业完成后无人再触发,该阶段型卡正文区静默空白。
-  const stageSessionRef = useRef(0);
-  // T2 型卡全文折叠态(仅展开渲染长文;键=阶段__型;置焦/切阶段不强制收,关弹窗清;
-  // 值位随构成区砍除退役,复位走 resetStageState)
-  const [, setStageKindExpanded] = useState<Record<string, boolean>>({});
 
   // 获取当前项目的视觉手册 ID
   const visualManualId = useStudioStore((s) => s.workflowConfig?.visualManualId);
@@ -340,11 +306,6 @@ export function StudioAssetDetailDialog({
   const displayImagesRef = useRef<AssetImage[]>(displayImages);
   displayImagesRef.current = displayImages;
 
-  // 10-25 阶段矩阵(T2/T3 同源):displayImages 聚类→阶梯序阶段数组(clusterAssetStages
-  // 内嵌显示守卫,<2 阶段恒 []=子区与「阶段」选择器整段不渲染,配角弹窗零变化);
-  // activeStage=T3 选中值优先,缺省回落聚类末位(最高境界,§3.2「默认=末位」)。
-  const stageClusters = useMemo(() => clusterAssetStages(displayImages), [displayImages]);
-  const stageOptions = useMemo(() => stageClusters.map((cluster) => cluster.stage), [stageClusters]);
   // 角色真源 JSON(10-26):按资产名解析 art_skills/<包>/json/<角色名>.json;模块级
   // 缓存,无真源角色恒 null(按钮整段不渲染,配角弹窗零变化)
   const characterJsonInfo = getCharacterJsonInfo(asset?.name);
@@ -417,26 +378,9 @@ export function StudioAssetDetailDialog({
   const effectiveSubjectPrompt = characterSubjectMirror !== null && Boolean(characterJsonInfo)
     ? characterSubjectMirror
     : draftPrompt;
-  const activeStage = selectedStage && stageOptions.includes(selectedStage)
-    ? selectedStage
-    : (stageOptions[stageOptions.length - 1] ?? null);
-  const activeStageCluster = activeStage
-    ? (stageClusters.find((cluster) => cluster.stage === activeStage) ?? null)
-    : null;
-  /** 阶段懒读缓存写入(ref+state 同步;effect 读 ref 免缓存写入引发的重跑/在飞对撞)。 */
-  const writeStageTextCache = (key: string, entry: StagePromptTextEntry) => {
-    stageTextCacheRef.current = { ...stageTextCacheRef.current, [key]: entry };
-    setStageTextCache(stageTextCacheRef.current);
-  };
-  /** 阶段态整清(关弹窗/切资产复位点;selectedStage/缓存/折叠态一并归零)。
-   * 会话代随每次复位递增(复审竞态修):旧会话在飞读取的迟到写入按代全弃。 */
+  /** 关弹窗/切资产时清理生成路的阶段选择；退役阶段子区不再维护读取缓存。 */
   const resetStageState = () => {
-    stageSessionRef.current += 1;
-    stageTextCacheRef.current = {};
-    setStageTextCache({});
-    stageReadInFlightRef.current.clear();
     setSelectedStage(null);
-    setStageKindExpanded({});
   };
 
   useEffect(() => {
@@ -503,98 +447,7 @@ export function StudioAssetDetailDialog({
     };
   }, [open, focusKind, displayImages]);
 
-  // T2 阶段提示词懒读(10-25 阶段矩阵,PRD §3.2):「提示词构成」展开且阶段矩阵在场
-  // 才对当前阶段每型 latest 各发一发 readImagePromptText(简单池并发≤3;不展开零调用);
-  // 结果按 `阶段__型` 缓存组件态(命中不重读,切换阶段只读新阶段未缓存键);失败走
-  // §4.4 降级文案(no-texr/not-png/file-missing 等复用既有矩阵;键位漂移单列)。
-  // 缓存读走 ref(写入不触发本 effect 重跑,防在飞读被取消重启=IPC 重复);关弹窗/切资产
-  // 后的迟到写入污染由会话代隔离(复位点 resetStageState 递增,旧代写入全弃;同会话
-  // 依赖重跑不换代,在飞结果照常落缓存——复审竞态修)。
-  useEffect(() => {
-    if (!open || !activeStageCluster) return;
-    const stage = activeStageCluster.stage;
-    const bridge = getStudioAssetsBridge();
-    if (!bridge?.readImagePromptText) {
-      // 桥缺席:未缓存各型落 bridge-missing 占位(已缓存结果不覆盖)
-      for (const [kind, group] of activeStageCluster.byKind) {
-        if (!group.latest.filePath) continue;
-        const key = stagePromptCacheKey(stage, kind);
-        if (stageTextCacheRef.current[key] === undefined) {
-          writeStageTextCache(key, { status: "failed", reason: "bridge-missing" });
-        }
-      }
-      return;
-    }
-    const pending = [...activeStageCluster.byKind.entries()]
-      .filter(([kind, group]) => {
-        if (!group.latest.filePath) return false;
-        const key = stagePromptCacheKey(stage, kind);
-        return stageTextCacheRef.current[key] === undefined && !stageReadInFlightRef.current.has(key);
-      })
-      .map(([kind, group]) => ({ key: stagePromptCacheKey(stage, kind), filePath: group.latest.filePath }));
-    if (pending.length === 0) return;
-    for (const job of pending) {
-      stageReadInFlightRef.current.add(job.key);
-      // 复审#3 补(亲读证实):派发即写 probing——否则在飞期间 entry===undefined
-      // 三分支皆不渲染,型卡正文区无加载反馈(probing 分支原为死码)
-      writeStageTextCache(job.key, { status: "probing" });
-    }
-    // 会话代快照(复审竞态修):同会话依赖重跑不换代→在飞结果照常落缓存;只有复位点
-    // (关弹窗/切资产 resetStageState)换代→迟到写入全弃,防污染下一会话。
-    const session = stageSessionRef.current;
-    const runJob = async (job: { key: string; filePath: string }) => {
-      try {
-        const result = await bridge.readImagePromptText!({ filePath: job.filePath });
-        // 复审修:此处不再因依赖重跑丢弃在飞结果——重跑轮的 pending 已把在飞键滤掉
-        // (在飞集互斥,同键无并发双读),本写入幂等;仅复位点换代后弃(旧会话缓存已整清)。
-        if (stageSessionRef.current !== session) return;
-        if (!result.ok) {
-          writeStageTextCache(job.key, { status: "failed", reason: result.reason });
-          return;
-        }
-        try {
-          const breakdown = parseWorkflowPrompt(result.text);
-          if (stageSessionRef.current !== session) return;
-          writeStageTextCache(job.key, {
-            status: "ready",
-            finalText: breakdown.finalText,
-            charCount: breakdown.finalText.length,
-          });
-        } catch {
-          // tEXt 在但键位漂移:不把原始 JSON 当终稿,降级注明(查词弹层可看原文)
-          if (stageSessionRef.current === session) {
-            writeStageTextCache(job.key, { status: "failed", reason: "parse-drift" });
-          }
-        }
-      } catch {
-        if (stageSessionRef.current === session) {
-          writeStageTextCache(job.key, { status: "failed", reason: "read-failed" });
-        }
-      } finally {
-        // 同代才清在飞键:跨代时该键可能已被复位点清空后由新会话作业重新占用,
-        // 误删会让下一轮 effect 对同图重复发 IPC。
-        if (stageSessionRef.current === session) {
-          stageReadInFlightRef.current.delete(job.key);
-        }
-      }
-    };
-    // 简单并发池≤3(§七风险表:只读当前阶段每型一发,不预读全量)
-    const queue = [...pending];
-    const workers = Array.from({ length: Math.min(3, queue.length) }, async () => {
-      while (queue.length > 0) {
-        const job = queue.shift();
-        if (!job) return;
-        await runJob(job);
-      }
-    });
-    void Promise.all(workers);
-    // 复审修:不设 cleanup cancelled 旗——依赖重跑(images 刷新换 activeStageCluster
-    // 身份)时取消在飞读取并整批丢弃结果,恰是「型卡正文区静默空白」竞态根因(重跑轮
-    // pending 把仍在飞的键滤掉,作业完成后无人再触发 effect);迟到写入的污染防线移交
-    // 会话代(复位点递增,旧代写入全弃)。
-    // stageTextCache 刻意不入依赖(读 ref):缓存写入不触发本 effect 重跑;activeStageCluster
-    // 身份变化触发的重跑靠在飞集去重,同图零重复 IPC(懒读计数测试钉此约束)。
-  }, [open, activeStageCluster]);
+  // 阶段提示词子区已退役；PNG 元数据仅由仍在使用的终稿探针和查词入口读取。
 
   // 10-19 双弹勘误:弹窗关(无论因)=预览关——previewIndex 不清零→下次开弹窗时
   // open&&previewIndex 条件双真→Lightbox 与 Dialog 同时弹出
@@ -608,7 +461,7 @@ export function StudioAssetDetailDialog({
       // R5 结果弹窗随主弹窗关整清(「宿主关时已弹」时序;「关后才弹」由回调守卫拦)
       setGenerationOutcome(null);
       queueRecordsRef.current = [];
-      // 10-25 阶段矩阵:阶段选择/懒读缓存/折叠态随弹窗关整清(PRD §四生命周期)
+      // 生成路阶段选择随弹窗关清理。
       resetStageState();
     }
   }, [open]);
@@ -638,7 +491,7 @@ export function StudioAssetDetailDialog({
     // 切资产也清(同弹窗内换资产时 previewIndex 可能指向旧资产图序;族过滤
     // 路径属旧资产会话,直换 A→B 时同样清——10-25 深审修,与注释「切资产即清」对齐;
     // focusKind 同理属旧资产会话的聚焦态,随切重置;A-3 润色快照/查词弹层目标同理;
-    // 阶段矩阵(T2/T3)同理:selectedStage/懒读缓存/折叠态随切资产重置)
+    // 生成路 selectedStage 同样随切资产重置。
     setPreviewIndex(null);
     setRemovedFamilyPaths([]);
     setFocusKind(null);

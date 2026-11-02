@@ -1,3 +1,6 @@
+import { isDaojieAdaptation } from "./daojie-generation-audit";
+import { DAOJIE_STRICT_DURATION_SECONDS } from "./daojie-duration-policy";
+
 interface StudioRendererApi {
   probeMedia: (filePath: string) => Promise<{
     path: string;
@@ -18,8 +21,12 @@ function resolveStudioRenderer(renderer?: Partial<StudioRendererApi>) {
 export async function probeProductionMedia({
   filePath,
   renderer,
+  directorManualId,
+  sourceText,
 }: {
   filePath: string;
+  directorManualId?: string;
+  sourceText?: string;
   renderer?: Pick<StudioRendererApi, "probeMedia">;
 }) {
   const api = resolveStudioRenderer(renderer);
@@ -32,8 +39,9 @@ export async function probeProductionMedia({
   }
   if (!(evidence.sizeBytes > 0)) throw new Error("最终媒体文件为空");
   if (!(evidence.mtimeMs > 0)) throw new Error("最终媒体修改时间证据非法");
-  if (!(evidence.duration > 0) || evidence.duration > 180) {
-    throw new Error(`最终媒体时长不符合 180 秒上限: ${evidence.duration}`);
+  const durationLimit = isDaojieAdaptation(directorManualId, sourceText) ? DAOJIE_STRICT_DURATION_SECONDS : 180;
+  if (!Number.isFinite(evidence.duration) || !(evidence.duration > 0) || evidence.duration > durationLimit) {
+    throw new Error(`最终媒体时长不符合 ${durationLimit} 秒上限: ${evidence.duration}`);
   }
   if (!/^[a-f0-9]{64}$/.test(evidence.sha256)) {
     throw new Error("最终媒体 SHA-256 证据非法");

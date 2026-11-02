@@ -1,10 +1,16 @@
 /**
- * L2 ffmpeg 逐帧扫描层:黑场/卡帧/死寂/响度 + 语音挤压(实际侧)+ 音画同步。
+ * L2 ffmpeg 逐帧扫描层:黑场/卡帧/死寂/响度 + 语音挤压(实际侧)+ 音画同步
+ * + 逐帧信号统计(运动/曝光/切换/清晰度)。
  * 全部 finding 经 L1 时间轴映射归镜;黑场判定场景感知(整镜暗不告警,
  * 防道劫暗戏误伤——08-19-chapter-video-qc L2 design)。
  *
- * 已知局限(接受):BGM 大声时 silencedetect(-35dB)可能全程不触发,
- * 语音挤压/音画同步子项自动退化为不报;L1 的计划侧挤压信号兜底。
+ * 逐帧统计(1030 单镜分析门口径,见 docs/comfyui-kb/分镜H3视频产线.md §九.六)
+ * 一律 severity=info:**阈值先记不判**——本层只把数字落到报告里攒基线,
+ * 未攒够样本前任何一条都不构成闸门。
+ *
+ * 语音段口径(1031 吸收件②):Silero VAD 到位时吃 VAD 段;VAD 不可用才退回
+ * silencedetect 补集——BGM 大声时 -35dB 全程不触发,补集会退化成不报,
+ * 退化原因恒写进 notes,三态板把 speech-integrity 记 unverified(不许静默当通过)。
  */
 
 import { execFile } from "node:child_process";
@@ -14,10 +20,17 @@ import type { ChapterQcFindingV1 } from "./chapter-qc-types";
 import { resolveQcFfTool, type QcCommandRunner } from "./chapter-qc-fftools";
 import {
   parseBlackSegments,
+  parseBlurMean,
+  parseFrameMetrics,
   parseFreezeSegments,
   parseLoudness,
   parseSilenceSegments,
   speechSegmentsFromSilences,
+  summarizeClarity,
+  summarizeCuts,
+  summarizeExposure,
+  summarizeMotion,
+  type FrameMetricPoint,
 } from "./parse-ffmpeg-probe";
 import { mapRangeToShot, type ChapterQcShotSpan } from "./chapter-qc-timeline";
 
@@ -26,12 +39,18 @@ export interface ChapterQcFfmpegScanInput {
   spans: ChapterQcShotSpan[];
   /** L1 探测到的总时长(秒);缺省时静音补集按未知时长退化 */
   durationS?: number;
+  /** L1 探测到的视频帧率;缺省按 24fps 估总帧数定抽帧步长 */
+  fps?: number;
   /** 计划旁白总时长(秒);>0 才跑语音挤压实际侧 */
   plannedVoiceS?: number;
   /** 每镜取首 cue 做音画同步抽查 */
   cues?: VideoUseSubtitleCueV1[];
   /** 暗戏白名单(整镜暗属预期,完全 suppress) */
   darkShotIds?: string[];
+  /** Silero VAD 语音段(chapter-qc-vad 出数);缺省=退回 silencedetect 补集口径 */
+  vadSpeech?: { segments: Array<{ startS: number; endS: number }>; model?: string };
+  /** VAD 不可用的原因(落 notes,让「退化」看得见) */
+  vadReason?: string;
   runner?: QcCommandRunner;
 }
 
@@ -43,8 +62,20 @@ export interface ChapterQcFfmpegScanResult {
     silences: number;
     loudnessInputI?: number;
     speechSeconds?: number;
+    blurMean?: number;
+    /** 逐帧统计实际打印的采样点数 */
+    frameSampleCount?: number;
+    /** select 抽帧步长(1=逐帧全采) */
+    frameSampleStep: number;
+    /** 语音段口径来源:VAD 到位时才可能是 silero-vad */
+    speechSource?: "silero-vad" | "silencedetect-complement";
   };
   notes: string[];
+  /**
+   * 逐帧采样点(未落报告,只在内存里传递)。
+   * L4 代表帧择帧吃这份数——同一次 ffmpeg 趟出两套结论,不另开一趟。
+   */
+  framePoints: FrameMetricPoint[];
 }
 
 /** 整镜暗的覆盖度阈值:黑段覆盖某镜 ≥85% 视为整镜暗。 */
@@ -54,15 +85,35 @@ const CUE_SYNC_TOLERANCE_S = 0.3;
 /** 响度 sanity 窗(LUFS);v1 不做目标响度,只报离群。 */
 const LOUDNESS_RANGE: readonly [number, number] = [-30, -10];
 
+/** 逐帧 metadata 最多打印多少个采样点(控 maxBuffer:4000 点 ≈ 7MB)。 */
+const FRAME_STATS_PRINT_LIMIT = 4000;
+/** TI 低于此值视作静止帧(与 shot_signal_probe_1030.py 同口径)。 */
+const STATIC_TI_GUARD = 0.5;
+/** 采样点太少时比例数字没意义,少于这个数不出镜级结论。 */
+const MIN_SHOT_SAMPLE_POINTS = 3;
+/** 静止帧占比超此值记一条伪动态线索(不判)。 */
+const STATIC_RATIO_NOTE = 0.5;
+/** 亮度窗(8bit YAVG),暗/爆帧占比超半数才记。择帧剔近黑/过曝共用此窗(chapter-qc-frame-select)。 */
+export const EXPOSURE_LOW_YAVG = 20;
+export const EXPOSURE_HIGH_YAVG = 245;
+/** scdet 切换分:≥8 视作硬切,≥4 视作软切(实测 H3 单镜 max≈1.7)。 */
+const HARD_CUT_SCORE = 8;
+const SOFT_CUT_SCORE = 4;
+/** blurdetect 均值(越大越糊):基线 H3 480P=4.72 / 成片=5.18,超此值记一条。 */
+const BLUR_MEAN_NOTE = 8;
+/** 镜边界内缩窗(秒):落在窗内的切换属镜间切,不算镜内意外切换。 */
+const CUT_BOUNDARY_MARGIN_S = 0.5;
+
 export async function runFfmpegScanLayer(input: ChapterQcFfmpegScanInput): Promise<ChapterQcFfmpegScanResult> {
   const findings: ChapterQcFindingV1[] = [];
   const notes: string[] = [];
   const darkShotIds = new Set(input.darkShotIds ?? []);
-  const { stdout: silenced } = await runProbe(input);
+  const sampleStep = computeSampleStep(input.durationS, input.fps);
+  const { stdout: silenced } = await runProbe(input, sampleStep);
 
   const totalDurationS = input.durationS ?? Number.NaN;
   const blacks = parseBlackSegments(silenced);
-  const freezes = parseFreezeSegments(silenced);
+  const freezes = parseFreezeSegments(silenced, totalDurationS);
   const silences = Number.isFinite(totalDurationS) ? parseSilenceSegments(silenced, totalDurationS) : [];
   const loudness = parseLoudness(silenced);
 
@@ -155,33 +206,48 @@ export async function runFfmpegScanLayer(input: ChapterQcFfmpegScanInput): Promi
     }
   }
 
-  // ---- 语音挤压(实际侧) ----
-  let speechSeconds: number | undefined;
-  if (Number.isFinite(totalDurationS)) {
-    const speech = speechSegmentsFromSilences(silences, totalDurationS);
-    speechSeconds = speech.reduce((sum, segment) => sum + (segment.endS - segment.startS), 0);
-    if (input.plannedVoiceS && input.plannedVoiceS > 0 && silences.length > 0) {
-      const ratio = speechSeconds / input.plannedVoiceS;
-      if (ratio < 0.98) {
-        findings.push({
-          code: "chapter-qc.audio.speech-compressed",
-          layer: "ffmpegScan",
-          severity: "warn",
-          message: `实际语音 ${speechSeconds.toFixed(2)}s 比计划旁白 ${input.plannedVoiceS.toFixed(2)}s 少 ${((1 - ratio) * 100).toFixed(1)}%,疑似语音被挤压/裁切`,
-          evidence: {
-            speechSeconds: Number(speechSeconds.toFixed(3)),
-            plannedVoiceS: Number(input.plannedVoiceS.toFixed(3)),
-          },
-        });
-      }
-    }
-  } else {
+  // ---- 语音段口径(VAD 优先,silencedetect 补集兜底)----
+  // 带 BGM 成片里 silencedetect(-35dB) 看不见语音间隙(1031 实测差 50.09s),
+  // 挤压与音画同步两条子项会静默退化成不报;Silero VAD 到位时直接吃它的段。
+  const vadSegments = input.vadSpeech && input.vadSpeech.segments.length > 0 ? input.vadSpeech.segments : undefined;
+  const speech = vadSegments
+    ?? (Number.isFinite(totalDurationS) ? speechSegmentsFromSilences(silences, totalDurationS) : []);
+  // 补集口径只在真看见死寂段时可用:一段死寂都没有 = BGM 掩盖,补集等于全片,拿去比计划只会自欺
+  const complementUsable = silences.length > 0 && Number.isFinite(totalDurationS);
+  const speechUsable = vadSegments ? vadSegments.length > 0 : complementUsable;
+  const speechSource = vadSegments ? "silero-vad" : complementUsable ? "silencedetect-complement" : undefined;
+  const speechSeconds = speech.length > 0
+    ? speech.reduce((sum, segment) => sum + (segment.endS - segment.startS), 0)
+    : undefined;
+  if (vadSegments) {
+    notes.push(`语音段口径=Silero VAD(${vadSegments.length} 段,模型 ${input.vadSpeech?.model ?? "silero-vad"})`);
+  } else if (input.vadReason) {
+    notes.push(`语音段口径=silencedetect 补集(VAD 不可用:${input.vadReason})`);
+  }
+  if (!vadSegments && !Number.isFinite(totalDurationS)) {
     notes.push("no-duration: 语音补集/挤压实际侧跳过");
   }
 
-  // ---- 音画同步(每镜首 cue 抽查) ----
-  if (input.cues && input.cues.length > 0 && Number.isFinite(totalDurationS) && silences.length > 0) {
-    const speech = speechSegmentsFromSilences(silences, totalDurationS);
+  // ---- 语音挤压(实际侧)----
+  if (input.plannedVoiceS && input.plannedVoiceS > 0 && speechUsable && speechSeconds !== undefined) {
+    const ratio = speechSeconds / input.plannedVoiceS;
+    if (ratio < 0.98) {
+      findings.push({
+        code: "chapter-qc.audio.speech-compressed",
+        layer: "ffmpegScan",
+        severity: "warn",
+        message: `实际语音 ${speechSeconds.toFixed(2)}s 比计划旁白 ${input.plannedVoiceS.toFixed(2)}s 少 ${((1 - ratio) * 100).toFixed(1)}%,疑似语音被挤压/裁切`,
+        evidence: {
+          speechSeconds: Number(speechSeconds.toFixed(3)),
+          plannedVoiceS: Number(input.plannedVoiceS.toFixed(3)),
+          ...(speechSource ? { speechSource } : {}),
+        },
+      });
+    }
+  }
+
+  // ---- 音画同步(每镜首 cue 抽查)----
+  if (input.cues && input.cues.length > 0 && speechUsable) {
     const firstCueByShot = new Map<string, VideoUseSubtitleCueV1>();
     for (const cue of [...input.cues].sort((left, right) => left.startUs - right.startUs)) {
       if (!firstCueByShot.has(cue.shotId)) firstCueByShot.set(cue.shotId, cue);
@@ -218,6 +284,9 @@ export async function runFfmpegScanLayer(input: ChapterQcFfmpegScanInput): Promi
     notes.push("no-cues: 音画同步跳过");
   }
 
+  const frameStats = collectFrameStatFindings(silenced, input, sampleStep);
+  findings.push(...frameStats.findings);
+
   return {
     findings,
     raw: {
@@ -226,20 +295,25 @@ export async function runFfmpegScanLayer(input: ChapterQcFfmpegScanInput): Promi
       silences: silences.length,
       loudnessInputI: loudness?.inputI,
       speechSeconds: speechSeconds !== undefined ? Number(speechSeconds.toFixed(3)) : undefined,
+      blurMean: frameStats.blurMean !== undefined ? round3(frameStats.blurMean) : undefined,
+      frameSampleCount: frameStats.sampleCount,
+      frameSampleStep: sampleStep,
+      speechSource,
     },
     notes,
+    framePoints: frameStats.points,
   };
 }
 
-async function runProbe(input: ChapterQcFfmpegScanInput): Promise<{ stdout: string; stderr: string }> {
-  const runner = input.runner ?? defaultRunner;
+async function runProbe(input: ChapterQcFfmpegScanInput, sampleStep: number): Promise<{ stdout: string; stderr: string }> {
+  const runner = input.runner ?? scanRunner(scanTimeoutMsFor(input.durationS ?? 0));
   const result = await runner(resolveQcFfTool("ffmpeg"), [
     "-hide_banner",
     "-nostats",
     "-i",
     input.videoPath,
     "-vf",
-    "blackdetect=d=0.08:pix_th=0.10,freezedetect=n=-60dB:d=0.5",
+    buildScanFilterGraph(sampleStep),
     "-af",
     "silencedetect=noise=-35dB:d=0.8,loudnorm=print_format=json",
     "-f",
@@ -250,7 +324,197 @@ async function runProbe(input: ChapterQcFfmpegScanInput): Promise<{ stdout: stri
   return { stdout: result.stderr || result.stdout, stderr: "" };
 }
 
+/**
+ * 抽帧步长:总帧数超过打印上限时按 select 等间隔采样,单镜片(≤ 上限)恒 1=逐帧。
+ * `select` 放在所有全帧分析件之后、`metadata=print` 之前——drop 的只是打印,
+ * siti/scdet/signalstats/blurdetect/blackdetect/freezedetect 仍吃全帧。
+ */
+export function computeSampleStep(durationS: number | undefined, fps: number | undefined): number {
+  if (!Number.isFinite(durationS ?? Number.NaN) || (durationS as number) <= 0) return 1;
+  const frames = (durationS as number) * (Number.isFinite(fps ?? Number.NaN) && (fps as number) > 0 ? (fps as number) : 24);
+  return Math.max(1, Math.ceil(frames / FRAME_STATS_PRINT_LIMIT));
+}
+
+export function buildScanFilterGraph(sampleStep: number): string {
+  const parts = [
+    "blackdetect=d=0.08:pix_th=0.10",
+    "freezedetect=n=-60dB:d=0.5",
+    "blurdetect",
+    "siti",
+    "scdet",
+    "signalstats",
+  ];
+  if (sampleStep > 1) parts.push(`select='not(mod(n\\,${sampleStep}))'`);
+  parts.push("metadata=print");
+  return parts.join(",");
+}
+
+function pointsWithinSpan(points: readonly FrameMetricPoint[], span: ChapterQcShotSpan): FrameMetricPoint[] {
+  return points.filter((point) => point.tS >= span.startS && point.tS < span.endS);
+}
+
+function round3(value: number): number {
+  return Number(value.toFixed(3));
+}
+
+/**
+ * 逐帧统计 → 全片一条汇总(info)+ 离群镜各一条线索(info)。
+ * 数字全落 evidence,供攒基线;判据本批不启用。
+ */
+function collectFrameStatFindings(
+  stderr: string,
+  input: ChapterQcFfmpegScanInput,
+  sampleStep: number,
+): { findings: ChapterQcFindingV1[]; blurMean?: number; sampleCount: number; points: FrameMetricPoint[] } {
+  const findings: ChapterQcFindingV1[] = [];
+  const points = parseFrameMetrics(stderr);
+  const blurMean = parseBlurMean(stderr);
+  if (points.length === 0) return { findings, blurMean, sampleCount: 0, points: [] };
+
+  const whole = summarizeMotion(points, STATIC_TI_GUARD);
+  const exposure = summarizeExposure(points, EXPOSURE_LOW_YAVG, EXPOSURE_HIGH_YAVG);
+  const cuts = summarizeCuts(points, HARD_CUT_SCORE, SOFT_CUT_SCORE);
+  const clarity = summarizeClarity(points);
+  findings.push({
+    code: "chapter-qc.motion.summary",
+    layer: "ffmpegScan",
+    severity: "info",
+    message: `逐帧信号统计:TI 均值 ${whole?.tiMean.toFixed(2) ?? "NA"} / 静止帧占比 ${
+      whole ? `${(whole.staticFrameRatio * 100).toFixed(1)}%` : "NA"
+    } / blur ${clarity?.blurMean.toFixed(2) ?? blurMean?.toFixed(2) ?? "NA"} / scdet max ${
+      cuts?.scoreMax.toFixed(1) ?? "NA"
+    }(采样步长 ${sampleStep},只记录不判)`,
+    evidence: {
+      sampleStep,
+      samplePoints: points.length,
+      tiMean: whole ? round3(whole.tiMean) : undefined,
+      tiP95: whole ? round3(whole.tiP95) : undefined,
+      tiMax: whole ? round3(whole.tiMax) : undefined,
+      siMean: whole && Number.isFinite(whole.siMean) ? round3(whole.siMean) : undefined,
+      staticFrameRatio: whole ? round3(whole.staticFrameRatio) : undefined,
+      tiSampleCount: whole?.tiSampleCount,
+      yavgMin: exposure ? round3(exposure.yavgMin) : undefined,
+      yavgMax: exposure ? round3(exposure.yavgMax) : undefined,
+      yavgMean: exposure ? round3(exposure.yavgMean) : undefined,
+      satavgMax: exposure && Number.isFinite(exposure.satavgMax) ? round3(exposure.satavgMax) : undefined,
+      blurMean: clarity ? round3(clarity.blurMean) : blurMean !== undefined ? round3(blurMean) : undefined,
+      blurP95: clarity ? round3(clarity.blurP95) : undefined,
+      blurMax: clarity ? round3(clarity.blurMax) : undefined,
+      blurMeanWhole: blurMean !== undefined ? round3(blurMean) : undefined,
+      scdetMax: cuts ? round3(cuts.scoreMax) : undefined,
+      hardCutCount: cuts?.hardCutCount,
+      softCutCount: cuts?.softCutCount,
+    },
+  });
+
+  if (blurMean !== undefined && blurMean > BLUR_MEAN_NOTE) {
+    findings.push({
+      code: "chapter-qc.blur.mean-high",
+      layer: "ffmpegScan",
+      severity: "info",
+      message: `全片清晰度均值 ${blurMean.toFixed(2)} 高于记录线 ${BLUR_MEAN_NOTE}(越大越糊;记录不判)`,
+      evidence: { blurMean: round3(blurMean), noteThreshold: BLUR_MEAN_NOTE },
+    });
+  }
+
+  for (const span of input.spans) {
+    const shotPoints = pointsWithinSpan(points, span);
+    if (shotPoints.length < MIN_SHOT_SAMPLE_POINTS) continue;
+    const motion = summarizeMotion(shotPoints, STATIC_TI_GUARD);
+    if (motion && motion.staticFrameRatio > STATIC_RATIO_NOTE) {
+      findings.push({
+        code: "chapter-qc.motion.static-heavy",
+        layer: "ffmpegScan",
+        severity: "info",
+        shotId: span.shotId,
+        shotOrdinal: span.ordinal,
+        message: `第 ${span.ordinal} 镜静止帧占比 ${(motion.staticFrameRatio * 100).toFixed(1)}%(TI 均值 ${
+          motion.tiMean.toFixed(2)
+        }),疑似伪动态/静态图放大(记录不判)`,
+        evidence: {
+          staticFrameRatio: round3(motion.staticFrameRatio),
+          tiMean: round3(motion.tiMean),
+          tiP95: round3(motion.tiP95),
+          sampleCount: motion.tiSampleCount,
+        },
+      });
+    }
+    const shotExposure = summarizeExposure(shotPoints, EXPOSURE_LOW_YAVG, EXPOSURE_HIGH_YAVG);
+    if (shotExposure && (shotExposure.darkFrameRatio > 0.5 || shotExposure.blownFrameRatio > 0.5)) {
+      const blown = shotExposure.blownFrameRatio > 0.5;
+      findings.push({
+        code: blown ? "chapter-qc.exposure.blown-heavy" : "chapter-qc.exposure.dark-heavy",
+        layer: "ffmpegScan",
+        severity: "info",
+        shotId: span.shotId,
+        shotOrdinal: span.ordinal,
+        message: `第 ${span.ordinal} 镜${blown ? "过曝" : "欠曝"}帧占比过半(YAVG ${shotExposure.yavgMean.toFixed(
+          1,
+        )};记录不判)`,
+        evidence: {
+          darkFrameRatio: round3(shotExposure.darkFrameRatio),
+          blownFrameRatio: round3(shotExposure.blownFrameRatio),
+          yavgMean: round3(shotExposure.yavgMean),
+        },
+      });
+    }
+    const shotClarity = summarizeClarity(shotPoints);
+    if (shotClarity && shotClarity.blurMean > BLUR_MEAN_NOTE) {
+      findings.push({
+        code: "chapter-qc.blur.shot-blurry",
+        layer: "ffmpegScan",
+        severity: "info",
+        shotId: span.shotId,
+        shotOrdinal: span.ordinal,
+        message: `第 ${span.ordinal} 镜清晰度均值 ${shotClarity.blurMean.toFixed(2)} 高于记录线 ${BLUR_MEAN_NOTE}(越大越糊;记录不判)`,
+        evidence: {
+          blurMean: round3(shotClarity.blurMean),
+          blurP95: round3(shotClarity.blurP95),
+          blurMax: round3(shotClarity.blurMax),
+          sampleCount: shotClarity.blurSampleCount,
+        },
+      });
+    }
+    const interior = shotPoints.filter(
+      (point) => point.tS > span.startS + CUT_BOUNDARY_MARGIN_S && point.tS < span.endS - CUT_BOUNDARY_MARGIN_S,
+    );
+    const interiorCuts = summarizeCuts(interior, HARD_CUT_SCORE, SOFT_CUT_SCORE);
+    if (interiorCuts && interiorCuts.softCutCount > 0) {
+      findings.push({
+        code: "chapter-qc.cut.unplanned",
+        layer: "ffmpegScan",
+        severity: "info",
+        shotId: span.shotId,
+        shotOrdinal: span.ordinal,
+        message: `第 ${span.ordinal} 镜镜内出现 ${interiorCuts.softCutCount} 个软切以上信号(max ${
+          interiorCuts.scoreMax.toFixed(1)
+        };采样口径为下界,记录不判)`,
+        evidence: {
+          scdetMax: round3(interiorCuts.scoreMax),
+          hardCutCount: interiorCuts.hardCutCount,
+          softCutCount: interiorCuts.softCutCount,
+          sampleStep,
+        },
+      });
+    }
+  }
+  return { findings, blurMean, sampleCount: points.length, points };
+}
+
 const execFileAsync = promisify(execFile);
 
-const defaultRunner: QcCommandRunner = (file, args) =>
-  execFileAsync(file, args, { timeout: 180_000, maxBuffer: 32 * 1024 * 1024 });
+/**
+ * L2 一趟的超时(毫秒),按时长放宽。
+ * 本机实测:1920×1080/30fps/197.12s 成片跑全帧分析链(blackdetect+freezedetect+
+ * blurdetect+siti+scdet+signalstats,select 抽打印)用时 391s ≈ 2× 实时。
+ * 固定 180s 会把 90s 以上的整章**一律误杀**成扫描失败(且失败长得像工具坏了),
+ * 故按 4× 实时 + 120s 底留余量;短片仍走 180s 下限。
+ */
+export function scanTimeoutMsFor(durationS: number): number {
+  const scaled = Number.isFinite(durationS) && durationS > 0 ? durationS * 4_000 + 120_000 : 0;
+  return Math.max(180_000, Math.round(scaled));
+}
+
+function scanRunner(timeoutMs: number): QcCommandRunner {
+  return (file, args) => execFileAsync(file, args, { timeout: timeoutMs, maxBuffer: 32 * 1024 * 1024 });
+}

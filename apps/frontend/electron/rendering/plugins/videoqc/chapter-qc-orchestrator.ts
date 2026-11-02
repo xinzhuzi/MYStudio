@@ -15,12 +15,16 @@ import { readLatestVideoWorkflowChapterArtifacts } from "../video-workflow/video
 import type { VideoUseEdlEntryV1, VideoUseSubtitleCueV1 } from "../../contracts/video-workflow";
 import type { VideoQcRuntimeController } from "./dover-runtime-controller";
 import { extractShotKeyframes } from "./chapter-qc-fftools";
+import { describeFrameChoices, pickShotFrameTimes } from "./chapter-qc-frame-select";
 import { runFfmpegScanLayer } from "./chapter-qc-ffmpeg-scan";
 import { readChapterQcReport, writeChapterQcReport, chapterQcReportDir } from "./chapter-qc-report-store";
 import { runStructuralLayer } from "./chapter-qc-structural";
 import { buildShotSpans, buildShotSpansFromRenderPlan, type ChapterQcRenderPlanSpans } from "./chapter-qc-timeline";
 import { buildVisionDecisions, runVisionLayer } from "./chapter-qc-vision";
-import type { ChapterQcVisionResultV1 } from "./chapter-qc-types";
+import { resolveVadPythonExecutable, runChapterQcVad } from "./chapter-qc-vad";
+import { applyChapterQcRequirements } from "./chapter-qc-verdicts";
+import type { ChapterQcScanSignalsV1, ChapterQcVisionResultV1 } from "./chapter-qc-types";
+import type { FrameMetricPoint } from "./parse-ffmpeg-probe";
 import {
   CHAPTER_QC_SCHEMA_VERSION,
   summarizeChapterQcFindings,
@@ -38,6 +42,11 @@ export interface ChapterQcOrchestratorDeps {
   dataRoot: string;
   /** L3 控制器;缺省=观感层 skipped-no-controller */
   videoQc?: Pick<VideoQcRuntimeController, "runVideoQcScore" | "readBaselines" | "status">;
+  /**
+   * L2 语音段口径(Silero VAD,跑在 managed Python 上)。缺省=不跑 VAD,
+   * 语音挤压/音画同步退回 silencedetect 补集并在 notes 里写明退化原因。
+   */
+  vadRuntime?: { storageBasePath: () => string; backendRoot: string };
   now?: () => number;
 }
 
@@ -205,6 +214,7 @@ export async function runChapterQc(
 
   // ---- L1 结构比对 ----
   let probeDurationS: number | undefined;
+  let probeFps: number | undefined;
   try {
     const structural = await runStructuralLayer({
       videoPath: outputPath,
@@ -216,6 +226,7 @@ export async function runChapterQc(
     findings.push(...structural.findings);
     notes.push(...structural.notes);
     probeDurationS = structural.probe?.durationS;
+    probeFps = structural.probe?.fps;
     layers.structural = { status: structural.findings.some((f) => f.severity === "blocker") ? "failed" : "passed", finishedAt: now() };
   } catch (error) {
     layers.structural = { status: "failed", reason: error instanceof Error ? error.message : String(error), finishedAt: now() };
@@ -223,38 +234,79 @@ export async function runChapterQc(
 
   const structuralBlocked = layers.structural.status === "failed";
 
-  // ---- 代表帧提取(L4 消费;L1 过了才抽,省 CPU) ----
+  // ---- L2 ffmpeg 逐帧 ----
+  let scanFramePoints: FrameMetricPoint[] = [];
+  let scanSignals: ChapterQcScanSignalsV1 | undefined;
+  if (structuralBlocked) {
+    layers.ffmpegScan = { status: "skipped", reason: "structural blocker 短路" };
+  } else {
+    // 语音段先取 VAD(带 BGM 成片里 silencedetect 看不见语音间隙,L2 的挤压/同步子项会静默退化)
+    let vadSpeech: { segments: Array<{ startS: number; endS: number }>; model?: string } | undefined;
+    let vadReason: string | undefined;
+    if (!deps.vadRuntime) {
+      vadReason = "未配置 vadRuntime";
+    } else {
+      const vad = await runChapterQcVad({
+        videoPath: outputPath,
+        pythonExecutable: resolveVadPythonExecutable(deps.vadRuntime.storageBasePath()),
+        backendRoot: deps.vadRuntime.backendRoot,
+      });
+      if (vad.available) {
+        vadSpeech = { segments: vad.segments, ...(vad.model ? { model: vad.model } : {}) };
+      } else {
+        vadReason = vad.reason ?? "VAD 不可用";
+      }
+    }
+    try {
+      const scan = await runFfmpegScanLayer({
+        videoPath: outputPath,
+        spans,
+        durationS: probeDurationS,
+        fps: probeFps,
+        plannedVoiceS: plannedVoiceDurationUs ? plannedVoiceDurationUs / 1e6 : undefined,
+        cues,
+        ...(vadSpeech ? { vadSpeech } : {}),
+        ...(vadReason ? { vadReason } : {}),
+      });
+      findings.push(...scan.findings);
+      notes.push(...scan.notes);
+      scanFramePoints = scan.framePoints;
+      scanSignals = scan.raw;
+      layers.ffmpegScan = { status: "passed", finishedAt: now() };
+    } catch (error) {
+      layers.ffmpegScan = { status: "failed", reason: error instanceof Error ? error.message : String(error), finishedAt: now() };
+    }
+  }
+
+  // ---- 代表帧提取(L4 消费;L1 过了才抽,省 CPU)----
+  // 择帧吃 L2 同一趟的逐帧 blur/YAVG(清晰度优先、剔近黑过曝),挑不成的镜回退中点并留痕。
   let extractedFrames: Array<{ shotId: string; ordinal: number; framePath: string }> = [];
   if (!structuralBlocked && spans.length > 0) {
     const framesDir = path.join(chapterQcReportDir(workspaceRoot, input.chapterId), "frames");
+    const choices = pickShotFrameTimes(spans, scanFramePoints);
+    const stats = describeFrameChoices(choices);
+    if (scanFramePoints.length === 0) {
+      notes.push("代表帧全部走镜中点(L2 逐帧统计无采样点,未做清晰度择帧)");
+    } else {
+      notes.push(
+        `代表帧按清晰度择帧 ${stats.picked}/${stats.total} 镜(出曝光窗剔 ${stats.rejected} 帧候选,中点兜底 ${stats.fallback} 镜)`,
+      );
+    }
     try {
-      const extraction = await extractShotKeyframes({ videoPath: outputPath, spans, outDir: framesDir });
+      const extraction = await extractShotKeyframes({
+        videoPath: outputPath,
+        spans,
+        outDir: framesDir,
+        preferredTimesByShotId: new Map(
+          [...choices.values()].map((choice) => [choice.shotId, choice.tS] as const),
+        ),
+      });
       extractedFrames = extraction.frames;
       if (extraction.errors.length > 0) {
         notes.push(`代表帧提取失败 ${extraction.errors.length}/${spans.length} 镜`);
       }
     } catch (error) {
       notes.push(`代表帧提取异常: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  // ---- L2 ffmpeg 逐帧 ----
-  if (structuralBlocked) {
-    layers.ffmpegScan = { status: "skipped", reason: "structural blocker 短路" };
-  } else {
-    try {
-      const scan = await runFfmpegScanLayer({
-        videoPath: outputPath,
-        spans,
-        durationS: probeDurationS,
-        plannedVoiceS: plannedVoiceDurationUs ? plannedVoiceDurationUs / 1e6 : undefined,
-        cues,
-      });
-      findings.push(...scan.findings);
-      notes.push(...scan.notes);
-      layers.ffmpegScan = { status: "passed", finishedAt: now() };
-    } catch (error) {
-      layers.ffmpegScan = { status: "failed", reason: error instanceof Error ? error.message : String(error), finishedAt: now() };
     }
   }
 
@@ -391,7 +443,9 @@ export async function runChapterQc(
       : {}),
     ...(aesthetic ? { aesthetic } : {}),
     ...(vision ? { vision } : {}),
+    ...(scanSignals ? { scanSignals } : {}),
   };
+  applyChapterQcRequirements(report);
   await writeChapterQcReport(workspaceRoot, input.chapterId, report);
   return report;
 }

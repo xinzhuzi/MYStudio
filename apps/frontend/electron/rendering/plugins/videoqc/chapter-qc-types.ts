@@ -116,6 +116,85 @@ export interface ChapterQcVisionResultV1 {
   preflight?: ChapterQcVisionPreflightResultV1;
 }
 
+/**
+ * 三态验收(1030 单镜分析门口径):`unverified` 永不计为通过。
+ * pass=客观信号越限为零;fail=任一客观门越限;unverified=层没跑到/物料缺/阈值未标定/
+ * 缺人工复核——「查不出来」不得冒充「查过没问题」。
+ */
+export type ChapterQcRequirementVerdict = "pass" | "fail" | "unverified";
+
+export interface ChapterQcRequirementV1 {
+  /** 稳定需求 id,UI 与回执按此对账 */
+  requirementId: string;
+  label: string;
+  verdict: ChapterQcRequirementVerdict;
+  /** 本条盯的 finding code(unverified 时为期望但拿不到的证据) */
+  watchedCodes: string[];
+  /** 实际命中的 finding code(pass 恒空) */
+  evidenceCodes: string[];
+  /** 缺什么证据(仅 unverified;逐条写明,便于直接列待办) */
+  missing?: string[];
+  /** 数字回执:已记录的均值/占比等,不改变 verdict */
+  note?: string;
+}
+
+/**
+ * L2 实测台账(1030 三态验收需要):区分「测到了且没越限」和「压根没测出来」。
+ * 缺这一份数,响度/语音一类需求只能恒判 unverified——那正是本板要防的假绿。
+ */
+export interface ChapterQcScanSignalsV1 {
+  blacks: number;
+  freezes: number;
+  silences: number;
+  /** loudnorm 未出数时缺省(=响度这条测不了,不许当通过) */
+  loudnessInputI?: number;
+  /** 语音补集秒数(无时长口径时缺省) */
+  speechSeconds?: number;
+  /** 语音段口径:VAD 到位= silero-vad;否则 silencedetect 补集(带 BGM 会退化) */
+  speechSource?: "silero-vad" | "silencedetect-complement";
+  /** blurdetect 全片均值(越大越糊) */
+  blurMean?: number;
+  frameSampleCount?: number;
+  frameSampleStep: number;
+}
+
+/**
+ * 人工复核回写(1031 吸收件 C 组补齐):三态板里 pass 的第二半。
+ * 机器全绿不顶替人眼——`fullWatched`/`audioListened` 必须分列,只勾一个不算看全片;
+ * `reviewer` 必填,匿名确认不留证据(与 L4/L5 回写留 model 同一口径)。
+ * 重跑 QC 会重建报告,本字段随之清空——片子换了就得重看。
+ */
+export interface ChapterQcHumanReviewV1 {
+  /** 人眼全速看完全片(非抽帧、非倍速) */
+  fullWatched: boolean;
+  /** 人耳听完全轨 */
+  audioListened: boolean;
+  reviewer: string;
+  /** 复核时刻 */
+  at: number;
+  /** 复核备注(看到了什么、仍存什么疑) */
+  notes?: string;
+}
+
+/**
+ * 人工复核回写(1031 补 C 组缺口)。
+ * pass 的第二半不是「层都绿了」,而是「有人全速看过、有人耳听过」——
+ * 所以两问必须分列勾选,且署名留痕;缺省(未提交)= 无证据,三态板记 unverified。
+ * 重跑 QC 会重建报告,本字段随之清空:片子或口径变了,上一次签字不再算数。
+ */
+export interface ChapterQcHumanReviewV1 {
+  /** 人眼全速看完全片(非抽帧、非倍速) */
+  fullWatched: boolean;
+  /** 人耳听完全轨 */
+  audioListened: boolean;
+  /** 复核人署名,留审计(不接受匿名放行) */
+  reviewer: string;
+  /** 复核时刻 */
+  at: number;
+  /** 复核人备注(看到的问题、听出的问题);IPC 侧截 500 字 */
+  notes?: string;
+}
+
 export interface ChapterQcReportV1 {
   schemaVersion: typeof CHAPTER_QC_SCHEMA_VERSION;
   projectId: string;
@@ -134,6 +213,12 @@ export interface ChapterQcReportV1 {
   aesthetic?: ChapterQcAestheticResultV1;
   semantic?: ChapterQcSemanticResultV1;
   vision?: ChapterQcVisionResultV1;
+  /** 三态需求板(由五层结果派生,任何层回写后整体重算;缺省=旧报告未带) */
+  requirements?: ChapterQcRequirementV1[];
+  /** L2 实测台账,供需求板区分「没越限」与「没测出来」 */
+  scanSignals?: ChapterQcScanSignalsV1;
+  /** 人工复核回写(缺省=尚未复核;重跑 QC 即失效) */
+  humanReview?: ChapterQcHumanReviewV1;
 }
 
 export function summarizeChapterQcFindings(findings: ChapterQcFindingV1[]): ChapterQcReportV1["summary"] {

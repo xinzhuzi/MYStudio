@@ -144,6 +144,53 @@ describe("studio skills storage", () => {
     await expect(readStoredStudioSkillText(storageRoot, "production_skills/storyboard_table_techniques.md")).resolves.toBe("new seed\n");
   });
 
+  it.each(["pristine", "customized", "deleted", "unmanaged"] as const)(
+    "propagates the real Daojie narrative seed while protecting %s storage",
+    async (state) => {
+      const relativePath = "story_skills/Daojie_xianxia/script_narrative.md";
+      const currentSeed = await fs.readFile(new URL(`../../assets/studio-manuals/${relativePath}`, import.meta.url), "utf-8");
+      const previousSeed = "原文叙述性心理不能改成新旁白；例外对象仅限原文明文，且只走旁白，不得借道 OS。\n";
+      const userText = `${previousSeed}\n用户保留的叙事规则\n`;
+      expect(currentSeed).toContain("原文明示叙述可转画面、V.S.或有当时知情依据的 OS");
+      expect(currentSeed).not.toContain("且只走旁白，不得借道 OS");
+      const root = await createTempRoot();
+      const sourceRoot = path.join(root, "source");
+      const storageRoot = getStudioSkillStorageRoot(path.join(root, "storage"));
+      const options = { sourceRoot, storageRoot };
+      await writeText(path.join(sourceRoot, relativePath), previousSeed);
+      if (state === "unmanaged") {
+        await writeStoredStudioSkillText(storageRoot, relativePath, userText);
+      }
+      await ensureStudioSkillsSynced(options);
+      await expect(readStoredStudioSkillText(storageRoot, relativePath)).resolves.toBe(
+        state === "unmanaged" ? userText : previousSeed,
+      );
+      if (state === "customized") {
+        await writeStoredStudioSkillText(storageRoot, relativePath, userText);
+      }
+      if (state === "deleted") {
+        expect(await deleteStoredStudioSkillFile(storageRoot, relativePath)).toBe(true);
+      }
+      await writeText(path.join(sourceRoot, relativePath), currentSeed);
+      resetStudioSkillsSyncState();
+      await ensureStudioSkillsSynced(options);
+      if (state === "deleted") {
+        await expect(readStoredStudioSkillText(storageRoot, relativePath)).rejects.toThrow();
+      } else {
+        await expect(readStoredStudioSkillText(storageRoot, relativePath)).resolves.toBe(
+          state === "pristine" ? currentSeed : userText,
+        );
+      }
+      const files = await listStoredStudioSkillFiles(options);
+      expect(files.find((file) => file.relativePath === relativePath)).toMatchObject({
+        sourceExists: true,
+        isDeleted: state === "deleted",
+        isCustomized: state === "customized" || state === "unmanaged",
+      });
+      await expect(fs.readFile(path.join(sourceRoot, relativePath), "utf-8")).resolves.toBe(currentSeed);
+    },
+  );
+
   it("propagates external-source (personal asset) edits to pristine copies but not customized ones", async () => {
     const root = await createTempRoot();
     const sourceRoot = path.join(root, "source");

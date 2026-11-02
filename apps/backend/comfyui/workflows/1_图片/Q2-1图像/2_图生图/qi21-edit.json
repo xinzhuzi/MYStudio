@@ -840,12 +840,12 @@
         "previewExposures": []
       },
       "widgets_values": [
-        "0 · Turbo 8步",
+        "3 · 混动 40步+缓存",
         0,
         "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       ],
       "widgets_values_named": {
-        "速度档位": "0 · Turbo 8步",
+        "速度档位": "3 · 混动 40步+缓存",
         "seed": 0,
         "σ表": "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       }
@@ -2470,8 +2470,8 @@
         "revision": 1,
         "state": {
           "lastGroupId": 15,
-          "lastNodeId": 7034,
-          "lastLinkId": 4413,
+          "lastNodeId": 7045,
+          "lastLinkId": 7527,
           "lastRerouteId": 2
         },
         "config": {
@@ -2529,7 +2529,8 @@
             "name": "negative",
             "type": "CONDITIONING",
             "linkIds": [
-              249
+              249,
+              7524
             ],
             "pos": [
               -86,
@@ -2543,7 +2544,8 @@
             "linkIds": [
               256,
               264,
-              4401
+              4401,
+              7523
             ],
             "pos": [
               -86,
@@ -2558,7 +2560,8 @@
               250,
               251,
               259,
-              4402
+              4402,
+              7525
             ],
             "pos": [
               -86,
@@ -2611,13 +2614,13 @@
               253
             ],
             "pos": [
-              2900,
+              5300,
               980
             ]
           }
         ],
         "widgets": [
-          "0 · Turbo 8步",
+          "3 · 混动 40步+缓存",
           0,
           "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
         ],
@@ -2748,8 +2751,8 @@
             "id": 7010,
             "type": "KSampler",
             "pos": [
-              400,
-              1900
+              550.0,
+              1900.0
             ],
             "size": [
               330,
@@ -2763,7 +2766,7 @@
                 "localized_name": "模型",
                 "name": "model",
                 "type": "MODEL",
-                "link": 247
+                "link": 7521
               },
               {
                 "localized_name": "正面条件",
@@ -2863,7 +2866,8 @@
                 "type": "INT",
                 "links": [
                   16,
-                  254
+                  254,
+                  7526
                 ]
               }
             ],
@@ -2929,6 +2933,13 @@
                   "name": "mode"
                 },
                 "link": 252
+              },
+              {
+                "localized_name": "latent_e",
+                "name": "latent_e",
+                "shape": 7,
+                "type": "LATENT",
+                "link": 7527
               }
             ],
             "outputs": [
@@ -2951,10 +2962,10 @@
               }
             },
             "widgets_values": [
-              "0 · Turbo 8步"
+              "3 · 混动 40步+缓存"
             ],
             "widgets_values_named": {
-              "mode": "0 · Turbo 8步"
+              "mode": "3 · 混动 40步+缓存"
             }
           },
           {
@@ -3623,10 +3634,10 @@
                 "name": "MODEL",
                 "type": "MODEL",
                 "links": [
-                  247,
                   263,
                   4410,
-                  4400
+                  4400,
+                  7520
                 ]
               }
             ],
@@ -3647,6 +3658,192 @@
               "strength_model": 0.8
             },
             "title": "[7034] 风格LoRA·mikkoani(×0.8)"
+          },
+          {
+            "id": 7040,
+            "type": "LazyCache",
+            "pos": [
+              2880.0,
+              1950.0
+            ],
+            "size": [
+              270,
+              170
+            ],
+            "flags": {},
+            "order": 24,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": 7510
+              }
+            ],
+            "outputs": [
+              {
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  7522
+                ],
+                "slot_index": 0
+              }
+            ],
+            "title": "[7040] E混动·LazyCache步跳缓存",
+            "properties": {
+              "Node name for S&R": "LazyCache"
+            },
+            "widgets_values": [
+              0.2,
+              0.15,
+              0.95,
+              false
+            ],
+            "widgets_values_named": {
+              "reuse_threshold": 0.2,
+              "start_percent": 0.15,
+              "end_percent": 0.95,
+              "verbose": false
+            }
+          },
+          {
+            "id": 7044,
+            "type": "LoraLoaderModelOnly",
+            "pos": [
+              100.0,
+              1900.0
+            ],
+            "size": [
+              270,
+              130
+            ],
+            "flags": {},
+            "order": 25,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "localized_name": "模型",
+                "link": 7520
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "模型",
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  7510,
+                  7521
+                ]
+              }
+            ],
+            "title": "[7044] E臂Fix",
+            "properties": {
+              "Node name for S&R": "LoraLoaderModelOnly",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              "qwen2.1-detail-fix-2.0.safetensors",
+              1
+            ],
+            "widgets_values_named": {
+              "lora_name": "qwen2.1-detail-fix-2.0.safetensors",
+              "strength_model": 1
+            }
+          },
+          {
+            "id": 7045,
+            "type": "KSampler",
+            "pos": [
+              3330.0,
+              1950.0
+            ],
+            "size": [
+              330,
+              262
+            ],
+            "flags": {},
+            "order": 26,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "模型",
+                "name": "model",
+                "type": "MODEL",
+                "link": 7522
+              },
+              {
+                "localized_name": "正面条件",
+                "name": "positive",
+                "type": "CONDITIONING",
+                "link": 7523
+              },
+              {
+                "localized_name": "负面条件",
+                "name": "negative",
+                "type": "CONDITIONING",
+                "link": 7524
+              },
+              {
+                "localized_name": "Latent图像",
+                "name": "latent_image",
+                "type": "LATENT",
+                "link": 7525
+              },
+              {
+                "localized_name": "种子",
+                "name": "seed",
+                "type": "INT",
+                "widget": {
+                  "name": "seed"
+                },
+                "link": 7526
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "Latent",
+                "name": "LATENT",
+                "type": "LATENT",
+                "links": [
+                  7527
+                ]
+              }
+            ],
+            "title": "[7045] E混动·KSampler cfg4",
+            "properties": {
+              "Node name for S&R": "KSampler",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              0,
+              "fixed",
+              40,
+              4.0,
+              "euler",
+              "simple",
+              1
+            ],
+            "widgets_values_named": {
+              "seed": 0,
+              "control_after_generate": "fixed",
+              "steps": 40,
+              "cfg": 4.0,
+              "sampler_name": "euler",
+              "scheduler": "simple",
+              "denoise": 1
+            }
           }
         ],
         "groups": [
@@ -3680,7 +3877,7 @@
             "bounding": [
               40,
               1850,
-              720,
+              2400,
               650
             ],
             "color": "#88A",
@@ -3709,17 +3906,21 @@
             ],
             "color": "#3f78d3",
             "flags": {}
+          },
+          {
+            "id": 16,
+            "title": "⑤混动 40步+缓存",
+            "bounding": [
+              2830,
+              1840,
+              1000,
+              618
+            ],
+            "color": "#8c466a",
+            "flags": {}
           }
         ],
         "links": [
-          {
-            "id": 247,
-            "origin_id": 7034,
-            "origin_slot": 0,
-            "target_id": 7010,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
           {
             "id": 248,
             "origin_id": -10,
@@ -4023,11 +4224,83 @@
             "target_id": 7034,
             "target_slot": 0,
             "type": "MODEL"
+          },
+          {
+            "id": 7510,
+            "origin_id": 7044,
+            "origin_slot": 0,
+            "target_id": 7040,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7520,
+            "origin_id": 7034,
+            "origin_slot": 0,
+            "target_id": 7044,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7522,
+            "origin_id": 7040,
+            "origin_slot": 0,
+            "target_id": 7045,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7523,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 7045,
+            "target_slot": 1,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 7524,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 7045,
+            "target_slot": 2,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 7525,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 7045,
+            "target_slot": 3,
+            "type": "LATENT"
+          },
+          {
+            "id": 7526,
+            "origin_id": 7014,
+            "origin_slot": 0,
+            "target_id": 7045,
+            "target_slot": 4,
+            "type": "INT"
+          },
+          {
+            "id": 7527,
+            "origin_id": 7045,
+            "origin_slot": 0,
+            "target_id": 7015,
+            "target_slot": 4,
+            "type": "LATENT"
+          },
+          {
+            "id": 7521,
+            "origin_id": 7044,
+            "origin_slot": 0,
+            "target_id": 7010,
+            "target_slot": 0,
+            "type": "MODEL"
           }
         ]
       }
     ]
   },
-  "last_node_id": 7034,
-  "last_link_id": 4413
+  "last_node_id": 7045,
+  "last_link_id": 7527
 }

@@ -1137,6 +1137,54 @@ describe("R8 裸 N秒/N分N秒/N分+(40s) 片段非空+标题去约/左右(Q3 �
   });
 });
 
+describe("小数场时长：秒数与标题使用同一完整数值", () => {
+  const HEAD = "# 已确定要求：x/16:9/y";
+  const mk = (tail: string) => [HEAD, "", `1-1 码头 晨/外 ${tail}`, "人物：甲", "", "甲：好。"].join("\n");
+
+  it.each([
+    ["·约50.0秒", 50],
+    ["·约61.5秒", 61.5],
+    ["·约32.5秒左右", 32.5],
+    ["约32.5s", 32.5],
+    ["(32.5s)", 32.5],
+    ["32.5s", 32.5],
+    ["32.5秒", 32.5],
+    ["1分1.5秒", 61.5],
+    ["1:01.5", 61.5],
+  ])("%s 完整解析并剥除标题后缀", (tail, seconds) => {
+    const m = analyzeScriptDraft(mk(tail), { durationMin: 1 });
+    expect(m.scenes[0]?.seconds).toBe(seconds);
+    expect(m.scenes[0]?.title).toBe("码头 晨/外");
+    expect(m.flags.some((f) => f.includes("时长写法不识别"))).toBe(false);
+  });
+
+  it("第二章五场 50.0/18/61.5/33/32.5 秒合计 195 秒", () => {
+    const durations = ["50.0", "18", "61.5", "33", "32.5"];
+    const fixture = [HEAD, ...durations.map((seconds, i) => `\n2-${i + 1} 码头 晨/外 ·约${seconds}秒\n人物：甲\n\n甲：好。`)].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 3.25 });
+    expect(m.scenes.map((scene) => scene.seconds)).toEqual([50, 18, 61.5, 33, 32.5]);
+    expect(m.totalSeconds).toBe(195);
+    expect(m.flags.some((f) => f.includes("场秒合计"))).toBe(false);
+  });
+
+  it.each(["·约61..5秒", "约61.秒", "约.5秒", "61.5.0s", "(61..5s)"])(
+    "%s 不截取小数片段充作时长",
+    (tail) => {
+      const m = analyzeScriptDraft(mk(tail), { durationMin: 1 });
+      expect(m.scenes[0]?.seconds).toBeNull();
+      expect(m.scenes[0]?.title).toBe(`码头 晨/外 ${tail}`);
+      expect(m.flags.some((f) => f.includes("时长写法不识别"))).toBe(true);
+    },
+  );
+
+  it("畸形小数时间码不截取前半段", () => {
+    const fixture = [HEAD, "", "1-1 场 晨/外 1:2.5.0", "人物：甲", "", "甲：好。"].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.scenes[0]?.seconds).toBeNull();
+    expect(m.scenes[0]?.title).toBe("场 晨/外 1:2.5.0");
+  });
+});
+
 describe("R9 语音行变体:无标点短叙述(道:)/OS （甲）/小写 os/裸旁白：(M2/M5 残项)", () => {
   const HEAD = "# 已确定要求：x/16:9/y";
   const mk = (line: string) => [HEAD, "", "1-1 场 晨/外 ·约30秒", "人物：甲", "", line].join("\n");

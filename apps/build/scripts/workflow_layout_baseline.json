@@ -14,8 +14,9 @@
           "occlusion": 0
         },
         "sub:道劫·加速子图": {
-          "crossings": 16,
-          "occlusion": 0
+          "crossings": 24,
+          "occlusion": 4,
+          "_note": "1101 Phase1 SCA→KSampler+③⑤收口拓扑重立(坐标=PRD钦定:⑤新位 7040/7045 落 viggle 扇线 4305/4315 航路、7014→7010 线过③ fix 7026=结构性互交;bbox内微移位探测 0 遮挡案 crossings 反升至 26,两害取轻): 23/0→24/4"
         },
         "sub:道劫·超分·SeedVR2": {
           "crossings": 0,
@@ -38,8 +39,9 @@
           "occlusion": 0
         },
         "sub:道劫·加速子图": {
-          "crossings": 18,
-          "occlusion": 0
+          "crossings": 25,
+          "occlusion": 1,
+          "_note": "1101 Phase2 i2i SCA→KSampler+③⑤收口拓扑重立(坐标=PRD钦定:⑤新位 7040/7045 落 viggle 扇线航路、7014→7010 线过③ fix 7044=结构性互交;bbox内微移位探测 0 遮挡案 crossings 反升 27,两害取轻;t2i 同款先例=本文件 1101 Phase1 条目): 20/0→25/1"
         },
         "sub:道劫·超分·SeedVR2": {
           "crossings": 0,
@@ -62,10 +64,12 @@
           "occlusion": 0
         },
         "sub:道劫·加速子图": {
-          "crossings": 24,
-          "occlusion": 3
+          "crossings": 31,
+          "occlusion": 7,
+          "_note": "1101 Phase2 edit SCA→KSampler+③扩+Q1补挂拓扑重立(坐标=PRD钦定:edit ③⑤同横带,fix→LazyCache 走廊必过③ 7010、7014→7045 对角线穿 viggle 扇与⑤ LazyCache=结构性互交;⑤bbox 96 组合探测最小仍 31/7,如实重锚;先例=本文件 t2i/i2i Phase1/2 条目): 24/3→31/7"
         }
       }
     }
-  }
+  },
+  "note_1101": "1101晚 E臂撤turbo役:t2i主图摘孤儿Reroute#4204;加速子图拓扑变更(E改吃共享7026/i2i自有7044)交叉重立;布局治理=消线遮(7473穿7020)+组框按原几何归属重建+零死线零孤儿Reroute"
 }

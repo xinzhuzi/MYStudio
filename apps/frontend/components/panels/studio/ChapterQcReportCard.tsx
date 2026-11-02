@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Loader2, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { isFeatureReady } from "@/lib/ai/feature-router";
 import { callFeatureMultimodalAPI } from "@/lib/ai/feature-router";
@@ -20,6 +22,23 @@ interface ChapterQcFinding {
   shotId?: string;
   shotOrdinal?: number;
   message: string;
+}
+
+interface ChapterQcRequirement {
+  requirementId: string;
+  label: string;
+  verdict: "pass" | "fail" | "unverified";
+  evidenceCodes: string[];
+  missing?: string[];
+  note?: string;
+}
+
+interface ChapterQcHumanReview {
+  fullWatched: boolean;
+  audioListened: boolean;
+  reviewer: string;
+  at: number;
+  notes?: string;
 }
 
 interface ChapterQcReport {
@@ -49,6 +68,8 @@ interface ChapterQcReport {
       finishedAt: number;
     };
   };
+  requirements?: ChapterQcRequirement[];
+  humanReview?: ChapterQcHumanReview;
 }
 
 interface ChapterQcBridge {
@@ -68,6 +89,16 @@ interface ChapterQcBridge {
     model?: string;
     stats: { checked: number; passed: number; failed: number; skipped: number };
     findings: unknown[];
+  }) => Promise<{ success: boolean; message?: string }>;
+  /** 人工复核回写:勾选只看主进程派生三态,不在渲染端算 verdict。 */
+  submitHumanReview?: (payload: {
+    projectId: string;
+    chapterId: string;
+    expectedCreatedAt: number;
+    fullWatched: boolean;
+    audioListened: boolean;
+    reviewer: string;
+    notes?: string;
   }) => Promise<{ success: boolean; message?: string }>;
   onReportUpdated: (listener: (payload: { projectId: string; chapterId: string }) => void) => () => void;
 }
@@ -96,6 +127,12 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
   const [semanticRunning, setSemanticRunning] = useState(false);
   const [visionRunning, setVisionRunning] = useState(false);
   const [visionError, setVisionError] = useState<string | null>(null);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [fullWatched, setFullWatched] = useState(false);
+  const [audioListened, setAudioListened] = useState(false);
+  const [reviewerName, setReviewerName] = useState("");
+  const reviewIds = useId();
   const bridge = typeof window !== "undefined" ? window.chapterQc : undefined;
   const semanticStartedFor = useRef<string | null>(null);
   const visionStartedFor = useRef<string | null>(null);
@@ -140,7 +177,20 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
   useEffect(() => {
     setVisionRunning(false);
     setVisionError(null);
+    setReviewError(null);
   }, [activeReportKey]);
+
+  // 复核勾选只在报告版本切换时对齐报告;同一份报告的回写不清空正在填的表单。
+  const reviewSyncedFor = useRef("");
+  useEffect(() => {
+    const review = report?.humanReview;
+    const key = report ? `${report.projectId}:${report.chapterId}:${report.createdAt}` : "";
+    if (!key || reviewSyncedFor.current === key) return;
+    reviewSyncedFor.current = key;
+    setFullWatched(review?.fullWatched ?? false);
+    setAudioListened(review?.audioListened ?? false);
+    setReviewerName((current) => current || review?.reviewer || "");
+  }, [report]);
 
   const runSemantic = useCallback(async (current: ChapterQcReport) => {
     if (!bridge || !props.projectId || semanticRunning) return;
@@ -246,6 +296,33 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
     if (report?.vision && !report.vision.preflight) void runVision(report);
   }, [report, runVision]);
 
+  const submitReview = useCallback(async () => {
+    if (!bridge?.submitHumanReview || !props.projectId || !report || reviewSubmitting) return;
+    const name = reviewerName.trim();
+    if (!name) {
+      setReviewError("请先填写复核人");
+      return;
+    }
+    setReviewSubmitting(true);
+    setReviewError(null);
+    try {
+      const submitted = await bridge.submitHumanReview({
+        projectId: props.projectId,
+        chapterId: report.chapterId,
+        expectedCreatedAt: report.createdAt,
+        fullWatched,
+        audioListened,
+        reviewer: name,
+      });
+      if (!submitted.success) setReviewError(submitted.message?.trim() || "人工复核回写失败");
+      await load();
+    } catch {
+      setReviewError("人工复核回写失败");
+    } finally {
+      setReviewSubmitting(false);
+    }
+  }, [bridge, props.projectId, report, reviewSubmitting, reviewerName, fullWatched, audioListened, load]);
+
   const rerun = async () => {
     if (!bridge || !props.projectId || running) return;
     setRunning(true);
@@ -269,6 +346,12 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
           ? "border-border bg-muted/50 text-muted-foreground"
           : "border-border bg-muted/50 text-muted-foreground";
   const visionPreflight = report?.vision?.preflight;
+  const requirements = report?.requirements ?? [];
+  const passedCount = requirements.filter((item) => item.verdict === "pass").length;
+  const failedCount = requirements.filter((item) => item.verdict === "fail").length;
+  const unverifiedCount = requirements.length - passedCount - failedCount;
+  const releasable = requirements.length > 0 && failedCount === 0 && unverifiedCount === 0;
+  const humanReview = report?.humanReview;
   const visionChipStatus = visionPreflight
     ? visionPreflight.failed > 0
       ? "failed"
@@ -353,6 +436,53 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
             <p className="text-xs text-muted-foreground">四层检查无异常发现。</p>
           )}
 
+          {requirements.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="font-medium text-foreground">三态验收</span>
+                <span
+                  className={cn(
+                    "rounded-full border px-2 py-0.5 font-medium",
+                    releasable
+                      ? "border-success/30 bg-success/10 text-success"
+                      : "border-warning/30 bg-warning/10 text-warning",
+                  )}
+                >
+                  {releasable ? "可放行" : "不放行"}
+                </span>
+                <span className="text-muted-foreground">
+                  通过 {passedCount} · 越限 {failedCount} · 缺证 {unverifiedCount}(缺证不计通过)
+                </span>
+              </div>
+              <ul className="space-y-1 max-h-56 overflow-y-auto">
+                {requirements.map((item) => (
+                  <li key={item.requirementId} className="flex items-start gap-2 text-xs">
+                    <span
+                      className={cn(
+                        "mt-0.5 w-9 shrink-0 rounded-full border px-1.5 py-0.5 text-center font-medium",
+                        item.verdict === "pass"
+                          ? "border-success/30 bg-success/10 text-success"
+                          : item.verdict === "fail"
+                            ? "border-destructive/30 bg-destructive/10 text-destructive"
+                            : "border-warning/30 bg-warning/10 text-warning",
+                      )}
+                    >
+                      {item.verdict === "pass" ? "通过" : item.verdict === "fail" ? "越限" : "缺证"}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="text-foreground">{item.label}</span>
+                      {item.missing?.length ? (
+                        <span className="block text-muted-foreground">缺:{item.missing.join("；")}</span>
+                      ) : item.note ? (
+                        <span className="block text-muted-foreground">{item.note}</span>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {report.findings.length > 0 && (
             <ul className="space-y-1.5 max-h-56 overflow-y-auto">
               {report.findings.map((finding, index) => (
@@ -398,6 +528,50 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
           ) : visionRunning ? (
             <p className="text-xs text-muted-foreground">审片预审运行中；人工确认不受阻塞。</p>
           ) : null}
+
+          {requirements.length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border pt-2">
+              <label className="flex items-center gap-1.5 text-xs" htmlFor={`${reviewIds}-watch`}>
+                <Checkbox
+                  id={`${reviewIds}-watch`}
+                  checked={fullWatched}
+                  onCheckedChange={(checked) => setFullWatched(checked === true)}
+                />
+                人眼全速看全片
+              </label>
+              <label className="flex items-center gap-1.5 text-xs" htmlFor={`${reviewIds}-listen`}>
+                <Checkbox
+                  id={`${reviewIds}-listen`}
+                  checked={audioListened}
+                  onCheckedChange={(checked) => setAudioListened(checked === true)}
+                />
+                人耳听全轨
+              </label>
+              <Input
+                aria-label="复核人"
+                value={reviewerName}
+                onChange={(event) => setReviewerName(event.target.value)}
+                placeholder="复核人"
+                className="h-7 w-28 text-xs"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={submitReview}
+                disabled={reviewSubmitting || !props.projectId || !bridge.submitHumanReview}
+              >
+                {reviewSubmitting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+                提交复核
+              </Button>
+              {reviewError ? (
+                <span className="text-xs text-destructive">{reviewError}</span>
+              ) : humanReview ? (
+                <span className="text-xs text-muted-foreground">
+                  已记:{humanReview.reviewer} · {new Date(humanReview.at).toLocaleString()}
+                </span>
+              ) : null}
+            </div>
+          )}
         </>
       )}
     </div>

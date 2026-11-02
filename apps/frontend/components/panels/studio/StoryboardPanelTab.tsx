@@ -22,6 +22,11 @@ import type {
 import type { StoryboardH3VideoBatchState } from "./image-workflow/use-storyboard-h3-video-batch";
 import { planStoryboardH3VideoBatch } from "./image-workflow/use-storyboard-h3-video-batch";
 import { batchDispatchableH3Recipes } from "@/lib/assist/image-studio/h3-workflow-recipes";
+import {
+  importH3OrphanVideos,
+  scanH3OrphanVideos,
+  type H3OrphanFile,
+} from "@/lib/assist/image-studio/h3-orphan-importer";
 import type { StoryboardBindingRunView } from "./storyboard-asset-binding";
 import type { ChapterPipelineRunView } from "./chapter-pipeline";
 import { ChapterAcceptanceBanner } from "./ChapterAcceptanceBanner";
@@ -78,7 +83,8 @@ export function StoryboardPanelTab({
   /** H3 出片批量(10-27 双通道 P2b:通道B 实生成,挂载点 useStoryboardH3VideoBatch 注入) */
   h3Batch?: {
     state: StoryboardH3VideoBatchState;
-    start: (opts?: { tier?: "480p" | "960p" }) => void;
+    /** skipShotIds=发车前孤儿对拍「先导入并跳过」的本轮排除清单(§14.3.2) */
+    start: (opts?: { tier?: "480p" | "960p"; skipShotIds?: string[] }) => void;
     stop: () => void;
     resumable?: { shotIndex: number; remaining: number } | null;
   };
@@ -120,6 +126,11 @@ export function StoryboardPanelTab({
   const [h3Tier, setH3Tier] = useState<"480p" | "960p">("960p");
   const h3Plan = useMemo(() => planStoryboardH3VideoBatch(ordered), [ordered]);
   const h3ReadyRecipes = useMemo(() => batchDispatchableH3Recipes(), []);
+  // 孤儿对拍(10-27 件三,§14.3.2):发车确认展开时扫盘上未挂载 H3 片(有→确认条
+  // 增行+双择;扫描失败/无孤儿零打扰);「导入盘上 H3 片」小按钮为独立入口。
+  const [h3Orphans, setH3Orphans] = useState<{ shotIds: string[]; files: H3OrphanFile[] } | null>(null);
+  const [h3ImportBusy, setH3ImportBusy] = useState(false);
+  const [h3ImportPending, setH3ImportPending] = useState<{ shotIds: string[]; files: H3OrphanFile[] } | null>(null);
   // 截帧回灌(09-15 P1a):弹窗关联镜+busy 态;两动作落在视频查看操作条
   const [videoShotId, setVideoShotId] = useState<string | null>(null);
   const [keyframeBusy, setKeyframeBusy] = useState(false);
@@ -189,6 +200,95 @@ export function StoryboardPanelTab({
     });
   };
 
+  /** 发车确认展开即扫孤儿(异步);失败零打扰——确认条照常,仅无孤儿行。 */
+  const openH3Confirm = () => {
+    setH3ConfirmOpen(true);
+    setH3Orphans(null);
+    const projectId = activeProjectId;
+    if (!projectId) return;
+    void scanH3OrphanVideos({ projectId, storyboards: ordered })
+      .then((result) => {
+        setH3Orphans({
+          shotIds: result.reports.map((report) => report.shotId),
+          files: result.reports.flatMap((report) => report.orphans),
+        });
+        if (result.unmatched.length > 0) {
+          toast.info(`另有 ${result.unmatched.length} 组盘上片不属于本章分镜,未计入`);
+        }
+      })
+      .catch(() => undefined);
+  };
+
+  /** 双择一「先导入并跳过这些镜」(§14.3.2):导入挂候选→本轮 queue 排除该镜;
+   *  导入失败不派发(跳过却未挂载=白跳);skip 不持久不自动(O3)。 */
+  const confirmH3StartWithOrphanImport = async () => {
+    const orphans = h3Orphans;
+    if (!orphans || orphans.files.length === 0) return;
+    const projectId = activeProjectId;
+    setH3ConfirmOpen(false);
+    if (!projectId) {
+      toast.error("请先打开回写目标项目");
+      return;
+    }
+    try {
+      const { imported } = await importH3OrphanVideos({ projectId, storyboards: ordered, files: orphans.files });
+      toast.success(`已导入 ${imported} 片盘上 H3 片为候选(未逐一验播),本轮出片跳过这些镜`);
+    } catch (error) {
+      toast.error(`盘上 H3 片导入失败,本轮未出片:${error instanceof Error ? error.message : String(error)}`);
+      return;
+    }
+    h3Batch?.start({ tier: h3Tier, skipShotIds: orphans.shotIds });
+  };
+
+  /** 「导入盘上 H3 片」小按钮:扫描→0 孤儿 toast.info;有→内联确认→导入。 */
+  const runH3OrphanImportScan = async () => {
+    if (h3ImportBusy || h3ImportPending) return;
+    const projectId = activeProjectId;
+    if (!projectId) {
+      toast.error("请先打开回写目标项目");
+      return;
+    }
+    setH3ImportBusy(true);
+    try {
+      const result = await scanH3OrphanVideos({ projectId, storyboards: ordered });
+      if (result.unmatched.length > 0) {
+        toast.info(`另有 ${result.unmatched.length} 组盘上片不属于本章分镜,未导入`);
+      }
+      const files = result.reports.flatMap((report) => report.orphans);
+      if (files.length === 0) {
+        toast.info("盘上没有未挂载的 H3 片");
+        return;
+      }
+      setH3ImportPending({ shotIds: result.reports.map((report) => report.shotId), files });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setH3ImportBusy(false);
+    }
+  };
+
+  const confirmH3OrphanImport = async () => {
+    const pending = h3ImportPending;
+    if (!pending || h3ImportBusy) return;
+    const projectId = activeProjectId;
+    if (!projectId) {
+      setH3ImportPending(null);
+      return;
+    }
+    setH3ImportBusy(true);
+    try {
+      const { imported, skipped } = await importH3OrphanVideos({ projectId, storyboards: ordered, files: pending.files });
+      toast.success(
+        `已导入 ${imported} 片 H3 视频为候选(未逐一验播)` + (skipped > 0 ? `,跳过 ${skipped} 片` : ""),
+      );
+      setH3ImportPending(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setH3ImportBusy(false);
+    }
+  };
+
   return (
     <>
       <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col" data-storyboard-panel-tab>
@@ -239,79 +339,148 @@ export function StoryboardPanelTab({
             )
           ) : null}
           {h3Batch ? (
-            h3Batch.state.running ? (
-              <span className="inline-flex items-center gap-2" data-storyboard-panel-h3-running>
-                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  H3 出片 {h3Batch.state.done}/{h3Batch.state.total}
-                  {h3Batch.state.currentShotIndex != null ? ` · S${String(h3Batch.state.currentShotIndex).padStart(2, "0")}` : ""}
-                  {h3Batch.state.failed > 0 ? ` · 失败 ${h3Batch.state.failed}` : ""}
-                </span>
-                <Button size="sm" variant="ghost" data-storyboard-panel-h3-stop onClick={h3Batch.stop} title="当前镜完成后停止(已提交的生成不浪费)">
-                  <Square className="h-3.5 w-3.5" />
-                  停止
+            <>
+              {/* 孤儿导入小按钮(10-27 件三):非运行/非确认态在场,独立于发车确认条 */}
+              {!h3Batch.state.running && !h3ConfirmOpen ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  data-storyboard-panel-h3-import
+                  disabled={h3ImportBusy}
+                  onClick={() => void runH3OrphanImportScan()}
+                  title="扫描项目盘上 remotion/outputs/shots 未挂载的 H3 片并导入为候选(只挂候选不动当前视频,未逐一验播)"
+                >
+                  {h3ImportBusy ? "扫描中…" : "导入盘上 H3 片"}
                 </Button>
-              </span>
-            ) : h3Batch.resumable ? (
-              <Button
-                size="sm"
-                variant="outline"
-                data-storyboard-panel-h3-resume
-                title={`从第 ${h3Batch.resumable.shotIndex} 镜继续 H3 出片`}
-                onClick={() => h3Batch.start({ tier: h3Tier })}
-              >
-                <Play className="h-3.5 w-3.5" />
-                继续出片
-              </Button>
-            ) : h3ConfirmOpen ? (
-              <span className="inline-flex items-center gap-2" data-storyboard-panel-h3-confirm>
-                <span className="text-xs text-muted-foreground">
-                  {h3Plan.candidates.length} 镜可出片
-                  {h3Plan.missingFrameCount > 0 ? ` · ${h3Plan.missingFrameCount} 镜缺首帧跳过` : ""}
-                  {h3Plan.truncatedShotIndexes.length > 0 ? " · 超15s封顶截断" : ""}
-                  {` · 预计≈${Math.round((h3Tier === "960p" ? 18 : 6) * h3Plan.candidates.length)} 分钟 · 过夜批请勿合盖`}
-                </span>
-                {(["960p", "480p"] as const).map((tier) => (
+              ) : null}
+              {h3ImportPending ? (
+                <span className="inline-flex items-center gap-2" data-storyboard-panel-h3-import-confirm>
+                  <span className="text-xs text-muted-foreground">
+                    {`发现 ${h3ImportPending.shotIds.length} 镜共 ${h3ImportPending.files.length} 片盘上已有未挂载 H3 视频,导入为候选?`}
+                  </span>
                   <Button
-                    key={tier}
                     size="sm"
-                    variant={h3Tier === tier ? "default" : "ghost"}
-                    data-storyboard-panel-h3-tier={tier}
-                    onClick={() => setH3Tier(tier)}
-                    title={tier === "960p" ? "生产档(1344×768,约18分钟/镜)" : "草稿档(608×352,约6分钟/镜,验动效用)"}
+                    variant="outline"
+                    data-storyboard-panel-h3-import-confirm-accept
+                    disabled={h3ImportBusy}
+                    onClick={() => void confirmH3OrphanImport()}
                   >
-                    {tier === "960p" ? "960P 生产" : "480P 草稿"}
+                    导入
                   </Button>
-                ))}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    data-storyboard-panel-h3-import-confirm-cancel
+                    onClick={() => setH3ImportPending(null)}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </span>
+              ) : null}
+              {h3Batch.state.running ? (
+                <span className="inline-flex items-center gap-2" data-storyboard-panel-h3-running>
+                  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    H3 出片 {h3Batch.state.done}/{h3Batch.state.total}
+                    {h3Batch.state.currentShotIndex != null ? ` · S${String(h3Batch.state.currentShotIndex).padStart(2, "0")}` : ""}
+                    {h3Batch.state.failed > 0 ? ` · 失败 ${h3Batch.state.failed}` : ""}
+                  </span>
+                  <Button size="sm" variant="ghost" data-storyboard-panel-h3-stop onClick={h3Batch.stop} title="立即取消当前镜(已回收部分保留)">
+                    <Square className="h-3.5 w-3.5" />
+                    停止
+                  </Button>
+                </span>
+              ) : h3Batch.resumable ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  data-storyboard-panel-h3-resume
+                  title={`从第 ${h3Batch.resumable.shotIndex} 镜继续 H3 出片`}
+                  onClick={() => h3Batch.start({ tier: h3Tier })}
+                >
+                  <Play className="h-3.5 w-3.5" />
+                  继续出片
+                </Button>
+              ) : h3ConfirmOpen ? (
+                <span className="inline-flex items-center gap-2" data-storyboard-panel-h3-confirm>
+                  <span className="text-xs text-muted-foreground">
+                    {h3Plan.candidates.length} 镜可出片
+                    {h3Plan.missingFrameCount > 0 ? ` · ${h3Plan.missingFrameCount} 镜缺首帧跳过` : ""}
+                    {h3Plan.truncatedShotIndexes.length > 0 ? " · 超15s封顶截断" : ""}
+                    {` · 预计≈${Math.round((h3Tier === "960p" ? 18 : 6) * h3Plan.candidates.length)} 分钟 · 过夜批请勿合盖`}
+                  </span>
+                  {h3Orphans && h3Orphans.files.length > 0 ? (
+                    <span className="text-xs text-warning" data-storyboard-panel-h3-orphan>
+                      {`${h3Orphans.shotIds.length} 镜盘上已有未挂载 H3 片`}
+                    </span>
+                  ) : null}
+                  {(["960p", "480p"] as const).map((tier) => (
+                    <Button
+                      key={tier}
+                      size="sm"
+                      variant={h3Tier === tier ? "default" : "ghost"}
+                      data-storyboard-panel-h3-tier={tier}
+                      onClick={() => setH3Tier(tier)}
+                      title={tier === "960p" ? "生产档(1344×768,约18分钟/镜)" : "草稿档(608×352,约6分钟/镜,验动效用)"}
+                    >
+                      {tier === "960p" ? "960P 生产" : "480P 草稿"}
+                    </Button>
+                  ))}
+                  {h3Orphans && h3Orphans.files.length > 0 ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        data-storyboard-panel-h3-orphan-import-skip
+                        onClick={() => void confirmH3StartWithOrphanImport()}
+                        title="导入这些盘上片为候选,本轮出片跳过这些镜(防重复烧 GPU;跳过仅本轮,不持久)"
+                      >
+                        先导入并跳过这些镜
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="paid"
+                        data-storyboard-panel-h3-confirm-start
+                        onClick={() => {
+                          setH3ConfirmOpen(false);
+                          h3Batch.start({ tier: h3Tier });
+                        }}
+                      >
+                        仍直接出片
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="paid"
+                      data-storyboard-panel-h3-confirm-start
+                      disabled={h3Plan.candidates.length === 0 || h3ReadyRecipes.length === 0}
+                      onClick={() => {
+                        setH3ConfirmOpen(false);
+                        h3Batch.start({ tier: h3Tier });
+                      }}
+                    >
+                      确认出片
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" data-storyboard-panel-h3-confirm-cancel onClick={() => setH3ConfirmOpen(false)}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </span>
+              ) : (
                 <Button
                   size="sm"
                   variant="paid"
-                  data-storyboard-panel-h3-confirm-start
+                  data-storyboard-panel-h3-start
                   disabled={h3Plan.candidates.length === 0 || h3ReadyRecipes.length === 0}
-                  onClick={() => {
-                    setH3ConfirmOpen(false);
-                    h3Batch.start({ tier: h3Tier });
-                  }}
+                  title="通道B 实生成:MiniMax H3 逐镜真视频(串行,960P≈18分钟/镜)——先预看收敛再出片"
+                  onClick={openH3Confirm}
                 >
-                  确认出片
+                  <Play className="h-3.5 w-3.5" />
+                  H3 出片
                 </Button>
-                <Button size="sm" variant="ghost" data-storyboard-panel-h3-confirm-cancel onClick={() => setH3ConfirmOpen(false)}>
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </span>
-            ) : (
-              <Button
-                size="sm"
-                variant="paid"
-                data-storyboard-panel-h3-start
-                disabled={h3Plan.candidates.length === 0 || h3ReadyRecipes.length === 0}
-                title="通道B 实生成:MiniMax H3 逐镜真视频(串行,960P≈18分钟/镜)——先预看收敛再出片"
-                onClick={() => setH3ConfirmOpen(true)}
-              >
-                <Play className="h-3.5 w-3.5" />
-                H3 出片
-              </Button>
-            )
+              )}
+            </>
           ) : null}
           {pipeline ? (
             <Button

@@ -379,6 +379,72 @@ class ImageGenerateRouteTests(unittest.TestCase):
         self.assertIn("无需下载", handler.response[0]["message"])
 
 
+class ComfyJobCancelRouteTests(unittest.TestCase):
+    """POST /comfy/jobs/{id}/cancel(10-27 H3 双通道硬取消 Q2,PRD §14.2.2):
+    四态降级,取消永不 5xx——停止是清理性操作,失败只降级不报红。"""
+
+    def _cancel(self, job_id: str):
+        handler = _ComfyHandler.__new__(_ComfyHandler)
+        handler._comfy("POST", f"/comfy/jobs/{job_id}/cancel", {}, {})
+        return handler.response
+
+    def test_unknown_job_returns_404_job_not_found(self):
+        self.assertEqual(self._cancel("no-such-job")[1], HTTPStatus.NOT_FOUND)
+        self.assertEqual(self._cancel("no-such-job")[0]["error"]["code"], "job-not-found")
+
+    def test_terminal_job_degrades_to_cancelled_false_terminal(self):
+        from comfyui.engine_manager import jobs
+
+        for terminal in ("complete", "error"):
+            with self.subTest(terminal=terminal), patch("comfyui.execute.forward_engine_job_cancel") as forward:
+                job_id = jobs.create("comfy-execute")
+                if terminal == "complete":
+                    jobs.update(job_id, result={"promptId": "p-1"})
+                else:
+                    jobs.update(job_id, error="ComfyUI 执行失败")
+                self.assertEqual(
+                    self._cancel(job_id),
+                    ({"cancelled": False, "reason": "terminal"}, HTTPStatus.OK),
+                )
+                forward.assert_not_called()
+
+    def test_running_job_without_prompt_id_degrades_to_not_submitted(self):
+        from comfyui.engine_manager import jobs
+
+        job_id = jobs.create("comfy-execute")  # running + result=None(上传段未提交引擎)
+        with patch("comfyui.execute.forward_engine_job_cancel") as forward:
+            self.assertEqual(
+                self._cancel(job_id),
+                ({"cancelled": False, "reason": "not-submitted"}, HTTPStatus.OK),
+            )
+            forward.assert_not_called()
+
+    def test_running_job_with_prompt_id_forwards_and_passes_cancelled_through(self):
+        from comfyui.engine_manager import jobs
+
+        job_id = jobs.create("comfy-execute")
+        # 提交段已过:result 带 promptId 且 job 仍 running(complete=False,JobRegistry 实读形状)
+        jobs.update(job_id, result={"promptId": "p-run", "nodeErrors": {}, "warnings": []}, complete=False)
+        with patch("comfyui.execute.forward_engine_job_cancel", return_value={"cancelled": True}) as forward:
+            self.assertEqual(
+                self._cancel(job_id),
+                ({"cancelled": True, "reason": "forwarded"}, HTTPStatus.OK),
+            )
+            forward.assert_called_once_with("p-run")
+
+    def test_forward_failure_degrades_to_200_engine_unreachable_never_5xx(self):
+        from comfyui.engine_manager import EngineOpError, jobs
+
+        job_id = jobs.create("comfy-execute")
+        jobs.update(job_id, result={"promptId": "p-down"}, complete=False)
+        with patch("comfyui.execute.forward_engine_job_cancel", side_effect=EngineOpError("引擎没在运行")) as forward:
+            self.assertEqual(
+                self._cancel(job_id),
+                ({"cancelled": False, "reason": "engine-unreachable"}, HTTPStatus.OK),
+            )
+            forward.assert_called_once_with("p-down")
+
+
 class ShutdownSequenceTests(unittest.TestCase):
     """退出收摊顺序契约(09-14 生命周期审计 P3):放端口 → 停引擎 → 释放锁。"""
 

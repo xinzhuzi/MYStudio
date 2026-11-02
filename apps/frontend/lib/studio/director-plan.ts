@@ -1,4 +1,5 @@
 import { daojieFidelityBoundary } from "./daojie-generation-audit";
+import { daojieCharacterExpressionGuidance } from "./daojie-character-expression";
 import { getAgentSkillPreset } from "@/lib/studio/manuals";
 import type { ScriptPlan, StudioSourceIdentity } from "@/types/studio";
 
@@ -126,8 +127,9 @@ export function stripLightingTerms(text: string): string {
 
 export function buildDirectorPlanMessages(input: BuildDirectorPlanInput): DirectorPlanMessages {
   const skill = getAgentSkillPreset("production_execution_director_plan")?.content ?? "";
+  const strict = Boolean(input.strictDaojieAdaptation && input.sourceText?.trim());
   return {
-    system: [skill, input.bibleContext, input.manualContext, input.strictDaojieAdaptation && input.sourceText?.trim() ? daojieFidelityBoundary("planning") : ""].filter(Boolean).join("\n\n---\n\n"),
+    system: [skill, input.bibleContext, input.manualContext, strict ? daojieCharacterExpressionGuidance("planning") : "", strict ? daojieFidelityBoundary("planning") : ""].filter(Boolean).join("\n\n---\n\n"),
     user: [
       `当前集ID：${input.episodeId}`,
       ...(input.strictDaojieAdaptation && input.sourceText?.trim() ? [`本章原文（事实/时序核对真源）：\n${input.sourceText}`] : []),

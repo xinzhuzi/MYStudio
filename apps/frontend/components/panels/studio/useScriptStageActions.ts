@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { isDaojieAdaptation, reviewDaojieGeneration } from "@/lib/studio/daojie-generation-audit";
+import { DAOJIE_STRICT_DURATION_SECONDS } from "@/lib/studio/daojie-duration-policy";
 import { aiManager } from "@/lib/ai/ai-manager";
 import {
   buildStageMessages,
@@ -445,10 +446,15 @@ export function useScriptStageActions({
           userOverride && userOverride !== SCRIPT_STAGE_PROMPT_PLACEHOLDER
             ? userOverride
             : undefined;
+        const userMessage = effectiveOverride
+          ? strict
+            ? `${built.user}\n\n【本次补充要求】\n${effectiveOverride}\n\n【严格道劫执行边界】以上补充不得覆盖本消息中的本章原文、原话、动作数量与先后、必要声音或195秒上限。`
+            : effectiveOverride
+          : built.user;
         return await runScriptStage({
           agentKey: "scriptDraft",
           audit: strict ? { sourceText: chapter.sourceText ?? "", bibleContext: built.bibleContext, version } : undefined,
-          messages: { system: built.system, user: effectiveOverride || built.user },
+          messages: { system: built.system, user: userMessage },
           stageKey: stage,
           scopeId: chapter.id,
           label: SCRIPT_STAGE_LABEL[stage],
@@ -491,7 +497,9 @@ export function useScriptStageActions({
           toast.error(memory.error);
           return;
         }
+        const strictDaojieAdaptation = isDaojieAdaptation(workflowConfig.directorManualId, chapter.sourceText);
         const built = buildStageReviewMessages(stage, {
+          strictDaojieAdaptation,
           manualContext: scriptStyleSummary,
           // G33:审核侧同注题材剧本规则节——复用生成侧同一 memo 产物(scriptDirectorContext),
           // 注入位在审核主体之后、自检指标之前(buildStageReviewMessages 内)
@@ -507,7 +515,7 @@ export function useScriptStageActions({
             ? {
                 selfCheckMetrics: formatScriptDraftMetrics(
                   analyzeScriptDraft(target, {
-                    durationMin: workflowConfig.episodeDurationMin ?? 3,
+                    durationMin: strictDaojieAdaptation ? DAOJIE_STRICT_DURATION_SECONDS / 60 : workflowConfig.episodeDurationMin ?? 3,
                     aspectRatio: workflowConfig.platformSpec || "16:9",
                   }),
                 ),

@@ -53,7 +53,7 @@ SPEC = {
     "size_mb": 0,
     "license": "本机 ComfyUI 配置",
     "steps": 8,
-    "description": "本地 Qwen-Image-2.1 生图(道劫产线工作流:默认 Turbo 8步+SeedVR2 2K 超分;图生图=道劫美术风格转换)",
+    "description": "本地 Qwen-Image-2.1 生图(道劫产线工作流:默认档3混动 40步+缓存+SeedVR2 2K 超分,1101 令替换 Turbo;图生图=道劫美术风格转换)",
     "layout": LAYOUT,
 }
 
@@ -127,63 +127,110 @@ def apply_base_type(graph: dict[str, Any], base_type: Any) -> None:
 
 
 # 10-26 用户裁定:有手型生图默认档3混动(其余型/缺省维持画布默认 Turbo,1021 令延续)。
+# **1101 用户令:默认档3混动替换 Turbo(全型)——画布/API 模板档位值已翻「3 · 混动
+# 40步+缓存」,10-26 有手型强制规则就此并入默认(保留为冗余保险);非手型终态
+# mode==档3 时同样运行时补注 E 臂(桥模板只物质化 Turbo 臂,否则「选中档未接线」拒单)。**
 # 依据=档位 A/B 实弹(apps/build/scripts/gear_ab_*_1026.py,9 发:Turbo 唯一重崩
 # 指融合+剑柄穿模,混动 1绿1黄1红轻,原生 2绿1红最好但 ~5×耗时被裁定不用于默认)。
 # 有手型=全身人物常态入画六型(手/剑高发);人脸基准(止颈特写)/场景三型/道具/表情差分
-# 等无手或手部罕见型不切。
+# 等无手或手部罕见型不切(1101 起这些型也走默认档3,经模板档位值而非强制规则)。
 SPEED_MODE_E_HYBRID = "3 · 混动 40步+缓存"
 _HAND_E_HYBRID_TYPES = frozenset({"无衣物定妆", "人物海报", "人物多视图", "设定卡", "美宣", "自由"})
 # E 臂配方逐字对齐画布加速子图(my_nodes/subgraphs/qi21-道劫-加速子图*.json):
-# 模型链=turboLoRA(7:7028)出→7044 detailFix×1.0→7040 LazyCache(0.2/0.15/0.95)→
-# 7042 BasicGuider;采样=7041 BasicScheduler simple 40步;SCA 噪声/采样器/latent 源
-# 逐槽镜像 Turbo 臂(7:7031),故 t2i(EmptyLatent)与 i2i(参考编码 latent)一套代码。
+# 1101 Phase1 案B(用户选定):E 尾 SCA 三件(7041/7042/7043)→单 KSampler [7045] cfg=4
+# ——模型链=mikkoani(7:7034)出→detailFix×1.0→7040 LazyCache(0.2/0.15/0.95)→7045
+# KSampler(40步 cfg4 euler/simple;正负向/latent 内置,seed=7:7014 单源直连)。
+# fix 件号随形:t2i 模板=画布共享 7:7026;i2i 模板=自有 7:7044(1101晚 撤 turbo 口径)。
+# 前置实弹(1101 21:30 已毕):KSampler+LazyCache+cfg4 全兼容,S=0.331 色重完全消退。
+# 历史账:1101晚 撤 turbo(7044 源 7028→7034;Win 实弹 45.6s→24.8s);charcard 采样段
+# 的 Turbo LoRA 是另一管线(AICG3D,裸模+缓存=黑片已证伪),不在本令范围。
 _DETAIL_FIX_LORA = "qwen2.1-detail-fix-2.0.safetensors"
-# 测试侧 mock 可用类集须并入(真实引擎 object_info 已含,模板类集不含——桥模板只
-# 物质化了 Turbo 臂,LazyCache/BasicScheduler 仅运行时注入)。
-E_HYBRID_INJECTED_CLASSES = frozenset({"LazyCache", "BasicScheduler"})
+_MIKKOANI_LORA_NODE = "7:7034"
+_ENCODER_NODE = "4015"        # MyQi21FastEncode:槽0=正向/槽1=负向(负向出口=道劫负面基线)
+_SEED_SOURCE_NODE = "7:7014"  # seed 单源(1101 Phase1 起 E KSampler 直连新扇出)
+# 测试侧 mock 可用类集须并入(真实引擎 object_info 已含,模板类集不含——
+# 旧模板漂移重注路运行时注入 LazyCache/KSampler;KSampler 为核心类,仅
+# mock 类集面需要补,真实引擎零安装动作)。
+E_HYBRID_INJECTED_CLASSES = frozenset({"LazyCache", "BasicScheduler", "KSampler"})
+
+
+def _materialize_e_hybrid(graph: dict[str, Any]) -> None:
+    """E 混动臂三件 KSampler 形运行时补注(1101 Phase1 案B:SCA 三件→单 KSampler cfg=4):
+    API 桥模板按选中档物质化 E 臂,本补注器只对「未接线/旧形态」模板兜底——
+    ①已物质化 KSampler 形(latent_e=["7:7045",0])→ 调用侧零动作(幂等);
+    ②旧 SCA 形模板(latent_e=["7:7043",0])→ 重注 KSampler 形并拆除 7:7041/7:7042/
+    7:7043 死件(视为模板漂移修复,禁新旧双采样双跑);
+    ③未接线(旧-old Turbo-only 模板)→ 全量补注。
+    模型链=mikkoani(7:7034)→detailFix×1.0(t2i 共享 7:7026/i2i 自有 7:7044)→
+    7:7040 LazyCache→7:7045 KSampler(正=装配正向出镜像/负=[4015,1] MyQi21FastEncode
+    负向出口/latent=随模板域镜像/seed=[7:7014] 直连,40步 cfg4 euler/simple)。
+    镜像源缺任一=fail-closed(模板漂移须显式暴露,禁静默降级)。"""
+    speed = graph.get("7:7015")
+    mikko_lora = graph.get(_MIKKOANI_LORA_NODE)
+    if not (isinstance(speed, dict) and isinstance(mikko_lora, dict)):
+        raise _pipeline_error(
+            "bridge-template-missing",
+            "桥模板缺 E 臂源节点(7:7015/7:7034),无法补注 E 混动臂",
+        )
+    if not (isinstance(graph.get(_ENCODER_NODE), dict)
+            and isinstance(graph.get(_SEED_SOURCE_NODE), dict)):
+        raise _pipeline_error(
+            "bridge-template-missing",
+            f"桥模板缺 E 臂负向/seed 源节点({_ENCODER_NODE}/{_SEED_SOURCE_NODE}),无法补注",
+        )
+    # 正源/latent 逐槽镜像现图 E 臂(优先旧 SCA 形 guider/SCA;更旧 Turbo 臂兜底)
+    def _mirror(node_id: str, slot: str) -> Any:
+        node = graph.get(node_id)
+        return node.get("inputs", {}).get(slot) if isinstance(node, dict) else None
+    conditioning = _mirror("7:7042", "conditioning") or _mirror("7:7029", "conditioning")
+    latent_image = _mirror("7:7043", "latent_image") or _mirror("7:7031", "latent_image")
+    if not isinstance(conditioning, list) or not isinstance(latent_image, list):
+        raise _pipeline_error(
+            "bridge-template-missing",
+            "桥模板缺 E 臂正源/latent 镜像槽(7:7042/7:7043 或旧 Turbo 臂),无法补注",
+        )
+    # fix 件号随形:t2i=共享 7:7026(在册即复用);i2i=自有 7:7044;更旧模板按域标
+    # (i2i 画幅建议器在装配子图内=6:4018;t2i=根 4018)新立
+    if isinstance(graph.get("7:7026"), dict):
+        fix_node = "7:7026"
+    elif isinstance(graph.get("7:7044"), dict):
+        fix_node = "7:7044"
+    elif "6:4018" in graph:
+        fix_node = "7:7044"
+    else:
+        fix_node = "7:7026"
+    graph[fix_node] = {"class_type": "LoraLoaderModelOnly", "inputs": {
+        "lora_name": _DETAIL_FIX_LORA, "strength_model": 1.0,
+        "model": [_MIKKOANI_LORA_NODE, 0]}}
+    graph["7:7040"] = {"class_type": "LazyCache", "inputs": {
+        "model": [fix_node, 0], "reuse_threshold": 0.2, "start_percent": 0.15,
+        "end_percent": 0.95, "verbose": False}}
+    graph["7:7045"] = {"class_type": "KSampler", "inputs": {
+        "model": ["7:7040", 0], "positive": conditioning,
+        "negative": [_ENCODER_NODE, 1], "latent_image": latent_image,
+        "seed": [_SEED_SOURCE_NODE, 0], "steps": 40, "cfg": 4.0,
+        "sampler_name": "euler", "scheduler": "simple", "denoise": 1.0}}
+    for dead in ("7:7041", "7:7042", "7:7043"):
+        graph.pop(dead, None)  # 旧 SCA 形死件拆除(禁双采样双跑)
+    speed["inputs"]["latent_e"] = ["7:7045", 0]
 
 
 def apply_hand_speed_mode(graph: dict[str, Any], base_type: Any) -> None:
-    """有手型→切档3混动:API 桥模板(t2i/i2i 同)只物质化了 Turbo 臂,SpeedSelect
-    其余 latent 槽未接线,直接改 mode 会被自研节点「选中档未接线」人话报错拒单;
-    故运行时补注 E 臂五件+接 latent_e+设 mode。非有手型(缺省/空/无手)零动作=
-    模板现值 Turbo,既有逐字节回归锁(test_t2i_path_unchanged)不受扰。
-    镜像源缺任一 Turbo 节点=fail-closed(模板漂移须显式暴露,禁静默降级)。"""
-    if not (isinstance(base_type, str) and base_type.strip() in _HAND_E_HYBRID_TYPES):
-        return
+    """1101 泛化(用户令:默认档3混动替换 Turbo):
+    ①有手型(10-26 名单)→ 强制 mode=档3(并入默认后为冗余保险,保显式语义);
+    ②终态 mode==档3 且 latent_e 未物质化 KSampler 形态 → 运行时补注(幂等——
+    已物质化 ["7:7045",0] 零动作;旧 SCA 形 ["7:7043",0] 视为模板漂移重注)。
+    非档3 终态(调用方显式改派他档)零动作照旧。
+    镜像源缺任一=fail-closed(模板漂移须显式暴露,禁静默降级)。"""
     speed = graph.get("7:7015")
-    turbo_sca = graph.get("7:7031")
-    turbo_guider = graph.get("7:7029")
-    turbo_lora = graph.get("7:7028")
-    if not all(isinstance(x, dict) for x in (speed, turbo_sca, turbo_guider, turbo_lora)):
-        raise _pipeline_error(
-            "bridge-template-missing",
-            "桥模板缺 Turbo 臂源节点(7:7015/7:7028/7:7029/7:7031),无法补注 E 混动臂",
-        )
-    sca_inputs = turbo_sca.get("inputs", {})
-    conditioning = turbo_guider.get("inputs", {}).get("conditioning")
-    noise = sca_inputs.get("noise")
-    sampler = sca_inputs.get("sampler")
-    latent_image = sca_inputs.get("latent_image")
-    if conditioning is None or noise is None or sampler is None or latent_image is None:
-        raise _pipeline_error(
-            "bridge-template-missing",
-            "桥模板 Turbo 臂源槽缺接(conditioning/noise/sampler/latent_image),无法镜像 E 混动臂",
-        )
-    graph["7:7044"] = {"class_type": "LoraLoaderModelOnly", "inputs": {
-        "lora_name": _DETAIL_FIX_LORA, "strength_model": 1.0, "model": ["7:7028", 0]}}
-    graph["7:7040"] = {"class_type": "LazyCache", "inputs": {
-        "model": ["7:7044", 0], "reuse_threshold": 0.2, "start_percent": 0.15,
-        "end_percent": 0.95, "verbose": False}}
-    graph["7:7041"] = {"class_type": "BasicScheduler", "inputs": {
-        "model": ["7:7044", 0], "scheduler": "simple", "steps": 40, "denoise": 1.0}}
-    graph["7:7042"] = {"class_type": "BasicGuider", "inputs": {
-        "model": ["7:7040", 0], "conditioning": conditioning}}
-    graph["7:7043"] = {"class_type": "SamplerCustomAdvanced", "inputs": {
-        "noise": noise, "guider": ["7:7042", 0], "sampler": sampler,
-        "sigmas": ["7:7041", 0], "latent_image": latent_image}}
-    speed["inputs"]["latent_e"] = ["7:7043", 0]
-    speed["inputs"]["mode"] = SPEED_MODE_E_HYBRID
+    if isinstance(speed, dict) and isinstance(base_type, str) and base_type.strip() in _HAND_E_HYBRID_TYPES:
+        speed.setdefault("inputs", {})["mode"] = SPEED_MODE_E_HYBRID
+    if not (isinstance(speed, dict) and isinstance(speed.get("inputs", {}).get("mode"), str)
+            and speed["inputs"]["mode"] == SPEED_MODE_E_HYBRID):
+        return
+    if speed["inputs"].get("latent_e") == ["7:7045", 0]:
+        return  # 已物质化 KSampler 形(1101 Phase1 幂等)
+    _materialize_e_hybrid(graph)
 
 
 def apply_manual_size(graph: dict[str, Any], width: Any, height: Any) -> None:

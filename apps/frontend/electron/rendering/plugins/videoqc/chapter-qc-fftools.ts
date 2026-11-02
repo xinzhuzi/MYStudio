@@ -115,12 +115,17 @@ export interface ExtractKeyframesOptions {
   outDir: string;
   /** 代表帧宽度上限(L4 语义层 token 控制) */
   maxWidth?: number;
+  /**
+   * 择帧时间点覆盖(shotId → 秒),来自 chapter-qc-frame-select 的清晰度/曝光打分;
+   * 缺该镜或时间点越界时退回镜中点。
+   */
+  preferredTimesByShotId?: ReadonlyMap<string, number>;
   runner?: QcCommandRunner;
 }
 
 /**
- * 每镜中点抽 1 帧到 outDir/shot-<ordinal>.jpg。失败单镜跳过并记录在返回的
- * errors 里(不整体失败——缺帧镜在 L4 里按 skipped 处理)。
+ * 每镜抽 1 帧到 outDir/shot-<ordinal>.jpg(优先调用方给的择帧点,否则镜中点)。
+ * 失败单镜跳过并记录在返回的 errors 里(不整体失败——缺帧镜在 L4 里按 skipped 处理)。
  */
 export async function extractShotKeyframes(
   options: ExtractKeyframesOptions,
@@ -134,12 +139,15 @@ export async function extractShotKeyframes(
   const tool = resolveQcFfTool("ffmpeg");
   for (const span of spans) {
     const midS = span.startS + span.durationS / 2;
+    const preferred = options.preferredTimesByShotId?.get(span.shotId);
+    const inSpan = preferred !== undefined && preferred >= span.startS && preferred < span.endS;
+    const sampleS = inSpan ? (preferred as number) : midS;
     const framePath = path.join(outDir, `shot-${String(span.ordinal).padStart(3, "0")}.jpg`);
     try {
       await runner(tool, [
         "-y",
         "-ss",
-        midS.toFixed(3),
+        sampleS.toFixed(3),
         "-i",
         videoPath,
         "-frames:v",

@@ -5,6 +5,7 @@ import {
   buildImageWorkflowGenerationRequest,
 } from "@/lib/studio/image-workflow/request";
 import type { ImageWorkflowGraph, ImageWorkflowGeneratedNode, ImageWorkflowPromptNode } from "@/types/studio";
+import type { ImageWorkflowGenerationRequest, StoryboardSingleImageTransport } from "./request";
 
 /** 08-30 功能转移裁定的回归锁:参数权威归成图节点,存量图回落提示词节点。 */
 
@@ -103,6 +104,82 @@ describe("assertImageWorkflowContinuityCapability 模型白名单", () => {
     expect(() => assertImageWorkflowContinuityCapability(request("gpt-image-2-malicious") as never)).toThrow(
       /未通过多参考图连续性能力门禁/,
     );
+  });
+});
+
+describe("Qwen 显式单图传输契约", () => {
+  function projected(count = 2) {
+    const sources = Array.from({ length: count }, (_, index) => `source-${index + 1}`);
+    const mappings = sources.map((imageUrl, index) => ({ order: index + 1, imageUrl }));
+    const request: ImageWorkflowGenerationRequest = {
+      prompt: "剧情", model: "qwen-image-2-1", aspectRatio: "16:9",
+      referenceImages: [count === 1 ? sources[0] : "data:image/png;base64,sheet"],
+      orderedReferenceManifest: mappings.map((entry) => ({ ...entry, versionId: "v1" })),
+      continuityRequired: true, previousApprovedFrameIncluded: false,
+    };
+    const transport: StoryboardSingleImageTransport = {
+      kind: "storyboard-single-image", imageUrl: request.referenceImages[0],
+      sourceReferenceImages: sources, mappings,
+    };
+    return { request, transport };
+  }
+
+  it.each([1, 2])("完整 %i 参考投影允许真实 Qwen 单图传输", (count) => {
+    const { request, transport } = projected(count);
+    expect(() => assertImageWorkflowContinuityCapability(request, transport)).not.toThrow();
+  });
+
+  it.each([[1, Number.MAX_SAFE_INTEGER], [7, 23]])("来源原始排序 %j 保留，拼板格位按数组位置核验", (...orders) => {
+    const { request, transport } = projected();
+    request.orderedReferenceManifest.forEach((entry, index) => { entry.order = orders[index]; });
+    request.orderedReferenceManifest[1].referenceRole = "previous-approved-frame";
+    const before = structuredClone({ request, transport });
+    expect(() => assertImageWorkflowContinuityCapability(request, transport)).not.toThrow();
+    expect({ request, transport }).toEqual(before);
+  });
+
+  it.each([[1, 1], [2, 1], [1, NaN], [1, Infinity], [1, 1.5]])("拒绝非严格递增有限整数来源排序 %j", (...orders) => {
+    const { request, transport } = projected();
+    request.orderedReferenceManifest.forEach((entry, index) => { entry.order = orders[index]; });
+    expect(() => assertImageWorkflowContinuityCapability(request, transport)).toThrow();
+  });
+
+  it("来源顺序含上游成图时仍拒绝原始排序号冒充拼板格位", () => {
+    const { request, transport } = projected();
+    request.orderedReferenceManifest[1].order = Number.MAX_SAFE_INTEGER;
+    transport.mappings[1].order = Number.MAX_SAFE_INTEGER;
+    expect(() => assertImageWorkflowContinuityCapability(request, transport)).toThrow();
+  });
+
+  it.each([1, 2])("Qwen 的 %i 张版本参考未提供契约时仍拒绝", (count) => {
+    expect(() => assertImageWorkflowContinuityCapability(projected(count).request)).toThrow("未通过多参考图连续性能力门禁");
+  });
+
+  it.each(["实际传输数量", "实际传输URL", "原参考数量", "manifest数量", "manifest顺序", "原参考顺序", "缺映射", "映射顺序", "映射URL"])("拒绝%s错误", (fault) => {
+    const { request, transport } = projected();
+    if (fault === "实际传输数量") request.referenceImages.push("extra");
+    if (fault === "实际传输URL") request.referenceImages[0] = "different-sheet";
+    if (fault === "原参考数量") transport.sourceReferenceImages.pop();
+    if (fault === "manifest数量") request.orderedReferenceManifest.pop();
+    if (fault === "manifest顺序") request.orderedReferenceManifest[1].order = 1;
+    if (fault === "原参考顺序") transport.sourceReferenceImages.reverse();
+    if (fault === "缺映射") transport.mappings.pop();
+    if (fault === "映射顺序") transport.mappings.reverse();
+    if (fault === "映射URL") transport.mappings[1].imageUrl = "missing";
+    expect(() => assertImageWorkflowContinuityCapability(request, transport)).toThrow();
+  });
+
+  it("契约不可授权其他模型", () => {
+    const { request, transport } = projected(); request.model = "local-qwen";
+    expect(() => assertImageWorkflowContinuityCapability(request, transport)).toThrow();
+  });
+
+  it.each(["gpt-image-2", "comfyui-bridge"])("%s 原始多参考兼容，无契约且仍核连续顺序", (model) => {
+    const { request, transport } = projected(); request.model = model;
+    request.referenceImages = transport.sourceReferenceImages;
+    expect(() => assertImageWorkflowContinuityCapability(request)).not.toThrow();
+    request.orderedReferenceManifest[1].order = 3;
+    expect(() => assertImageWorkflowContinuityCapability(request)).toThrow("顺序不连续");
   });
 });
 

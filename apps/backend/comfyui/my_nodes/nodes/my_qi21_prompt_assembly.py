@@ -316,7 +316,7 @@ class MyQi21PromptAssembly:
                  主体句负面: str | None = None,
                  锁层A全文: str = _STYLE_BASE,
                  组装用途: str = "道劫美术类型") -> tuple[str, str]:
-        """装配:装配全文=主体句+\\n+BASE+\\n+美术风格底座;负面词=merge(BASE负面,
+        """装配:装配全文=美术风格底座+\\n+BASE+\\n+主体句;负面词=merge(BASE负面,
         美术风格底座负面现读)(返回元组序=RETURN_NAMES 序)。
 
         形参序=⑭ 槽序(BASE/BASE负面 两连线槽前置);引擎按名投递与形参序无关,
@@ -324,7 +324,7 @@ class MyQi21PromptAssembly:
         缺键=default 兜底(签名恒有值,可选槽缺投不炸 TypeError)。
 
         BASE None(未接线)或空串/纯空白(BASE 空即无底座层)=两段降级拼
-        (主体句+\\n+美术风格底座)+中文 print 警告(裁定 A 规格② optional 缺键语义
+        (美术风格底座+\\n+主体句)+中文 print 警告(裁定 A 规格② optional 缺键语义
         +1001 S8 L-1 空串补;判空家法=my_daojie_base (x or "").strip();
         实弹日志可查,与选择器件空串语义同款)。BASE负面缺键/空串=merge 侧
         裸输出美术风格底座负面(1005 案B:型负面缺席=美术风格底座兜底,负向链不断,不警告)。
@@ -385,18 +385,18 @@ class MyQi21PromptAssembly:
             # 1001 用户测试批 P1 中性化:自由型(BASE 空串)此为正常态;非自由型
             # BASE 空=缺整个型底座层,请检查连线——双关文案,逻辑零改(design §2.2)
             print("[MyQi21PromptAssembly] BASE 输入未接线或为空串/纯空白:"
-                  "装配全文降级为「主体句+美术风格底座」两段拼——自由型此为正常态"
+                  "装配全文降级为「美术风格底座+主体句」两段拼——自由型此为正常态"
                   "(自由型无型底座层);非自由型请检查连线:把 [150] "
                   "MyQi21DaojieBase 的 BASE 输出连到本节点 BASE 输入,"
                   "已接线时请检查该连线是否被改动、[150] BASE 产文是否为空")
             # 1009 用户令:段前加标签(类型句:/主体句:)——模型对段角色的显式信号
             return (f"{锁层A全文}\n主体句:{主体句}", negative)
         # 1017 用户令:装配序反转——底座前置、主体句殿后(标签随内容走)
-        # 1017 设定卡主体锚役:型旗 subject_first 例外=主体句置首(身份锚优先);
-        # 条件预解析=确定描述进终稿(模板句在真源不动)
+        # 1022 三层统一令:历史 subject_first 旗只触发设定卡条件预解析，
+        # 确定描述进类型句，仍保持美术风格底座→类型句→主体句(模板真源不动)。
         if _type_subject_first(BASE):
-            _out = (f"主体句:{主体句}\n{style_out}\n类型句:"
-                    f"{_resolve_card_conditionals(base_out, 主体句)}", negative)
+            _out = (f"{style_out}\n类型句:{_resolve_card_conditionals(base_out, 主体句)}"
+                    f"\n主体句:{主体句}", negative)
         else:
             _out = (f"{style_out}\n类型句:{base_out}\n主体句:{主体句}", negative)
         assert_prompt_gates(_out[0], is_subject=False, context="[终稿·道劫美术类型]")

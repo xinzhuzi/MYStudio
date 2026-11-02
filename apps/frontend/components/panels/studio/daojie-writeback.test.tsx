@@ -11,8 +11,17 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 const initialStudio = useStudioStore.getState();
 const initialProject = useProjectStore.getState();
 const chapter = { id: "c1", index: 1, title: "章", sourceText: "原话：等我问完，铃声才停。", importedAt: 1, revision: 1 };
-const output = "# 道劫 EP1：问铃\n# 范围与目标：问铃 | 时长：0.5分钟\n# 已确定要求：未设\n\n## 剧情梗概\n问铃。\n\n1 山门 未定/外 ·约30秒\n人物：玄清子\n镜头1：铃声停了。\n\n## 改编追踪\n| 原文位置 | 是否采用 | 视听表达 | 待确认 |";
-const pass = JSON.stringify({ stage: "script", passed: true, checks: { facts: true, chronology: true, dialogue: true, stageBoundary: true, visibleCharacters: true }, findings: [] });
+const output = "# 道劫 EP1：问铃\n# 范围与目标：问铃 | 时长：0.5分钟\n# 已确定要求：未设\n\n## 剧情梗概\n保留问铃原话。\n\n1 地点未定 时段未定/内外未定 ·约30秒\n人物：未署名说话者\n镜头1：未署名说话者：等我问完，铃声才停。\n\n## 改编追踪\n| 原文位置 | 是否采用 | 视听表达 | 待确认 |\n| 原话 | 是 | 保留原句，不另演停铃 | 说话者身份未定 |";
+const checks = { facts: true, chronology: true, dialogue: true, stageBoundary: true, visibleCharacters: true };
+const anchor = { outputQuote: "等我问完，铃声才停。", sourceQuote: chapter.sourceText, sourceKind: "chapter", kind: "physical_fact", supported: true };
+const evidence = {
+  facts: [{ ...anchor, reason: "只呈现原话，未新增问完或停铃的实际动作" }],
+  chronology: [{ ...anchor, reason: "保留原话问完后才停铃的关系，未提前演出停铃" }],
+  dialogue: [{ ...anchor, reason: "原话逐字保留，无新增OS或改写" }],
+  stageBoundary: [{ ...anchor, outputQuote: "镜头1：未署名说话者：等我问完，铃声才停。", reason: "剧本把原话落实为可拍的说话场景" }],
+  visibleCharacters: [{ ...anchor, outputQuote: "人物：未署名说话者", kind: "identity", reason: "原文未署名，保留说话者身份待定，不擅自指定玄清子" }],
+};
+const pass = JSON.stringify({ stage: "script", passed: true, checks, evidence, findings: [] });
 const save = vi.fn<(...args: unknown[]) => string>(() => "work1");
 function renderActions() {
   return renderHook(() => useScriptStageActions({ workflowConfig: useStudioStore.getState().workflowConfig, manualCatalog: {}, projectName: "测试", novelChapterCount: 1, novelChapters: [chapter], agentWorkData: [], saveAgentWorkData: save }));
@@ -28,6 +37,35 @@ describe("道劫剧本真实hook写回边界", () => {
     vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: output }).mockResolvedValueOnce({ success: true, text });
     const { result } = renderActions();
     await act(async () => { await result.current.handleScriptStage("scriptDraft", chapter); });
+    expect(save.mock.calls.some(([key]) => key === "scriptDraft")).toBe(false);
+    expect(save).toHaveBeenCalledWith("supervisionReport", expect.stringContaining(output), "c1", expect.anything());
+  });
+  it("完整协议的时序拒绝保留语义理由，不能只因schema无效拒写", async () => {
+    const outputQuote = "铃声先停，随后才问。";
+    const rejectedOutput = output.replace("## 改编追踪", `镜头2：${outputQuote}\n\n## 改编追踪`);
+    const reason = "原话要求问完才停铃，新增动作把停铃提前";
+    const rejection = JSON.stringify({
+      stage: "script", passed: false, checks: { ...checks, chronology: false },
+      evidence: { ...evidence, chronology: [...evidence.chronology, { ...anchor, outputQuote, supported: false, reason }] },
+      findings: [{ dimension: "chronology", outputQuote, sourceQuote: chapter.sourceText, reason }],
+    });
+    vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: rejectedOutput }).mockResolvedValueOnce({ success: true, text: rejection });
+    const { result } = renderActions();
+    await act(async () => { await result.current.handleScriptStage("scriptDraft", chapter); });
+    expect(aiManager.textStream).toHaveBeenCalledTimes(2);
+    expect(save.mock.calls.some(([key]) => key === "scriptDraft")).toBe(false);
+    const report = save.mock.calls.find(([key]) => key === "supervisionReport")?.[1] as string;
+    expect(report.split("\n\n")[1]).toContain(reason);
+    expect(report).toContain(rejectedOutput);
+  });
+  it.each(["failure", "throw"])("审核传输%s保留上一有效稿且不重试", async (failure) => {
+    vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: output }).mockImplementationOnce(async () => {
+      if (failure === "throw") throw new Error("超时");
+      return { success: false, error: "断网" };
+    });
+    const { result } = renderActions();
+    await act(async () => { await result.current.handleScriptStage("scriptDraft", chapter); });
+    expect(aiManager.textStream).toHaveBeenCalledTimes(2);
     expect(save.mock.calls.some(([key]) => key === "scriptDraft")).toBe(false);
     expect(save).toHaveBeenCalledWith("supervisionReport", expect.stringContaining(output), "c1", expect.anything());
   });

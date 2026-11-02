@@ -6,6 +6,8 @@ import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import { buildStoryboardImageWorkflowPatch } from "@/lib/studio/image-workflow";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useProjectStore } from "@/stores/project/project-store";
+import { storyboardSourceFingerprint } from "@/stores/studio/studio-store-continuity-helpers";
+import { visualReviewInputFingerprint } from "@/lib/studio/visual-continuity";
 import {
   createStoryboardBatchSessionId,
   useStoryboardBatchSessionStore,
@@ -129,11 +131,14 @@ export function useStoryboardBatchGeneration(input: {
       ? persisted
       : null;
     const fromShotIndex = resumeRecord ? resumeRecord.cursorShotIndex : 1;
-    const frameQueue = storyboards
-      .filter((item) => item.index >= fromShotIndex)
+    const eligible = storyboards.filter((item) => item.index >= fromShotIndex)
+      .map((item) => useStudioStore.getState().storyboards.find((current) => current.id === item.id) ?? item);
+    for (const shot of eligible) finalizeRecoveredShot(shot);
+    const frameQueue = eligible
       .map((item) => ({ shot: item, missingFrames: countMissingFrames(item) }))
       .filter((entry) => entry.missingFrames > 0)
       .sort((a, b) => a.shot.index - b.shot.index);
+    const guards = createBatchSourceGuards(frameQueue.map(({ shot }) => shot));
     const priorDone = resumeRecord ? resumeRecord.doneFrames : 0;
     const totalFrames = priorDone + frameQueue.reduce((sum, entry) => sum + entry.missingFrames, 0);
     if (frameQueue.length === 0) {
@@ -207,12 +212,15 @@ export function useStoryboardBatchGeneration(input: {
           shouldAbort: () => stopRequestedRef.current,
           attempt: async (stage) => {
             try {
+              guards.get(shot.id)!.assertCurrent();
               await withPromptIdCapture(queueChannel, promptIdTracker, () =>
                 generateOneShot(shot, projectName, {
+                  guard: guards.get(shot.id)!,
                   onFrameStart: (label) => setState((previous) => ({ ...previous, currentFrameLabel: label })),
                   degradedResolution: stage === "degraded" ? STORYBOARD_BATCH_DEGRADED_RESOLUTION : undefined,
                 }));
             } catch (error) {
+              if (error instanceof BatchSourceChangedError) stopRequestedRef.current = true;
               // 阶梯段失败入诊断日志(重试不出声打扰用户,但排障要可见)
               void logEvent({
                 level: "warn",
@@ -257,7 +265,9 @@ export function useStoryboardBatchGeneration(input: {
           }
         }
         // 游标推进:下一队列镜(尾镜后=本镜+1,续跑即空→清会话)
-        const nextCursor = frameQueue[queuePosition + 1]?.shot.index ?? shot.index + 1;
+        const nextCursor = ladder.aborted && !ladder.ok
+          ? shot.index
+          : frameQueue[queuePosition + 1]?.shot.index ?? shot.index + 1;
         useStoryboardBatchSessionStore.getState().advanceStoryboardBatchSession({
           cursorShotIndex: nextCursor,
           doneFrames: done,
@@ -365,11 +375,99 @@ async function withPromptIdCapture(
 /** M3a:缺帧计数——单帧镜无图=1;多帧镜=空槽帧数(mediaRef 缺图视为首帧空) */
 function countMissingFrames(shot: StoryboardItem): number {
   if (!shot.keyframes?.length) {
-    return shot.mediaRef?.kind === "image" && shot.mediaRef.path ? 0 : 1;
+    return !shot.stale && shot.mediaRef?.kind === "image" && shot.mediaRef.path ? 0 : 1;
   }
-  return shot.keyframes.filter((frame) => !frame.mediaRef?.path).length;
+  return shot.keyframes.filter((frame) => frameNeedsGeneration(shot, frame)).length;
 }
 
+/** stale 的旧 URI 不算完成;同一失效时点之后、同源工作流的已落帧可续跑。 */
+function frameNeedsGeneration(shot: StoryboardItem, frame: NonNullable<StoryboardItem["keyframes"]>[number]): boolean {
+  if (!frame.mediaRef?.path) return true;
+  if (!shot.stale) return false;
+  if (!shot.staleSince) return true;
+  const graph = useStudioStore.getState().imageWorkflows.find((item) => item.id === frame.mediaRef.imageWorkflowId);
+  const node = graph?.nodes.find((item) => item.id === frame.mediaRef.imageWorkflowNodeId);
+  return !(graph?.target.kind === "storyboard" && graph.target.id === shot.id
+    && graph.targetSourceFingerprint === (shot.sourceFingerprint ?? storyboardSourceFingerprint(shot))
+    && node?.type === "generated" && node.resultUrl === frame.mediaRef.path
+    && typeof node.generatedAt === "number" && node.generatedAt >= shot.staleSince
+    && frame.origin?.kind === "generated");
+}
+
+/** 恢复后零缺帧也必须收敛失效标记；生成来源证据不代表人工批准。 */
+function finalizeRecoveredShot(shot: StoryboardItem) {
+  const current = useStudioStore.getState().storyboards.find((item) => item.id === shot.id);
+  if (current?.stale && current.keyframes?.length && countMissingFrames(current) === 0) {
+    useStudioStore.getState().updateStoryboard(current.id, {
+      stale: false, staleSince: undefined, staleReason: undefined,
+    });
+  }
+}
+
+class BatchSourceChangedError extends Error {}
+
+/** 只有本批次明确包裹的同步写入才能推进预期；异步生成/审核期间绝不重置快照。 */
+function createBatchSourceGuards(shots: StoryboardItem[]) {
+  const guards = new Map<string, ReturnType<typeof createBatchSourceGuard>>();
+  const write = (run: () => void) => {
+    for (const guard of guards.values()) guard.assertCurrent();
+    run();
+    for (const guard of guards.values()) guard.acceptSynchronousWrite();
+  };
+  for (const shot of shots) guards.set(shot.id, createBatchSourceGuard(shot, write));
+  return guards;
+}
+
+function createBatchSourceGuard(shot: StoryboardItem, write: (run: () => void) => void) {
+  const projectId = useProjectStore.getState().activeProjectId;
+  const initial = useStudioStore.getState();
+  const chapterId = initial.activeChapterId;
+  const upstream = () => {
+    const store = useStudioStore.getState();
+    return JSON.stringify([
+      store.novelChapters.find((chapter) => chapter.id === shot.episodeId),
+      store.scriptPlans.filter((plan) => plan.episodeId === shot.episodeId),
+      store.agentWorkData.filter((work) => work.episodeId === shot.episodeId),
+      store.sourceBible, store.seriesBible, store.continuityAssetVersions,
+    ]);
+  };
+  const upstreamVersion = upstream();
+  const fingerprint = (item: StoryboardItem) => JSON.stringify([
+    storyboardSourceFingerprint(item), item.sourceRunId, item.sourceId, item.revision,
+    item.stale, item.staleSince, item.staleReason, visualReviewInputFingerprint(item),
+    item.keyframes?.map(({ frameId, inUs, momentDescription }) => ({ frameId, inUs, momentDescription })),
+  ]);
+  const dependencies = () => {
+    const store = useStudioStore.getState();
+    const current = store.storyboards.find((item) => item.id === shot.id);
+    return JSON.stringify(store.storyboards.filter((item) => item.episodeId === shot.episodeId
+      && (item.id === current?.continuityState?.previousStoryboardId
+        || (current?.continuityState?.groupId && item.index < current.index
+          && item.continuityState?.groupId === current.continuityState.groupId)))
+      .map((item) => [item.id, fingerprint(item)]));
+  };
+  let expected = fingerprint(shot);
+  let expectedDependencies = dependencies();
+  return {
+    write,
+    assertCurrent() {
+      const store = useStudioStore.getState();
+      const current = store.storyboards.find((item) => item.id === shot.id);
+      if (useProjectStore.getState().activeProjectId !== projectId
+        || store.activeChapterId !== chapterId || store.chapterSwitchLoading
+        || !current || current.episodeId !== shot.episodeId || fingerprint(current) !== expected
+        || dependencies() !== expectedDependencies
+        || upstream() !== upstreamVersion) {
+        throw new BatchSourceChangedError(`项目、章节或分镜来源已变化，已停止旧批次写回 (${!current ? "missing" : fingerprint(current) !== expected ? "shot" : upstream() !== upstreamVersion ? "upstream" : "scope"})`);
+      }
+    },
+    acceptSynchronousWrite() {
+      const current = useStudioStore.getState().storyboards.find((item) => item.id === shot.id);
+      if (current) expected = fingerprint(current);
+      expectedDependencies = dependencies();
+    },
+  };
+}
 
 /** VLM 视觉一致性审核:成图 vs 资产参考图(fail-open,模型未装=null 跳过)。 */
 async function reviewFrame(
@@ -433,15 +531,29 @@ async function generateWithVlmReview(
     addMaterial: ReturnType<typeof useStudioStore.getState>["addMaterial"];
     /** 失败回退阶梯第三段:降载降分辨率(缺省=不降)。 */
     degradedResolution?: string;
+    guard: ReturnType<typeof createBatchSourceGuard>;
   },
 ): Promise<{ imageUrl: string; vlmStatus: string | null; vlmArtifact?: VlmReviewArtifactV1 }> {
   for (let attempt = 0; attempt <= VLM_MAX_RETRIES; attempt++) {
-    const { imageUrl } = await runImageWorkflowNodeGeneration(graph, targetNodeId, {
-      addMaterial: opts.addMaterial,
+    opts.guard.assertCurrent();
+    const staleSelfReferences = new Set(shot.stale ? graph.nodes
+      .filter((node) => node.type === "reference" && node.source?.kind === "storyboard" && node.source.id === shot.id)
+      .map((node) => node.id) : []);
+    const generationGraph = staleSelfReferences.size
+      ? { ...graph, edges: graph.edges.filter((edge) => !staleSelfReferences.has(edge.source)) }
+      : graph;
+    const { imageUrl } = await runImageWorkflowNodeGeneration(generationGraph, targetNodeId, {
+      addMaterial: (material) => {
+        opts.guard.assertCurrent();
+        return opts.addMaterial(material);
+      },
       degradedResolution: opts.degradedResolution,
+      assertStillCurrent: opts.guard.assertCurrent,
     });
+    opts.guard.assertCurrent();
     if (!imageUrl) throw new Error("生成结果为空");
     const artifact = await reviewFrame(imageUrl, shot);
+    opts.guard.assertCurrent();
     if (!artifact || artifact.status !== "rejected") {
       return { imageUrl, vlmStatus: artifact?.status ?? null, vlmArtifact: artifact ?? undefined };
     }
@@ -464,9 +576,22 @@ async function generateOneShot(
     onFrameStart?: (label: string) => void;
     /** 失败回退阶梯第三段:降载降分辨率(缺省=不降)。 */
     degradedResolution?: string;
+    guard: ReturnType<typeof createBatchSourceGuard>;
   },
 ): Promise<void> {
-  const context = buildStoryboardItemOpenContext(shot);
+  const guard = hooks!.guard;
+  guard.assertCurrent();
+  shot = useStudioStore.getState().storyboards.find((item) => item.id === shot.id)!;
+  const emptyFrames = (shot.keyframes ?? []).filter((frame) => frameNeedsGeneration(shot, frame));
+  if (shot.keyframes?.length && emptyFrames.length === 0) {
+    guard.write(() => finalizeRecoveredShot(shot));
+    return;
+  }
+  if (shot.stale && !shot.staleSince) {
+    guard.write(() => useStudioStore.getState().updateStoryboard(shot.id, { staleSince: Date.now() }));
+    shot = useStudioStore.getState().storyboards.find((item) => item.id === shot.id)!;
+  }
+  const context = buildStoryboardItemOpenContext({ ...shot, mediaRef: shot.stale ? undefined : shot.mediaRef });
   const store = useStudioStore.getState();
   // 身份防线:择优复用(有参考节点的旧代/新代并存时优先带参考者),
   // 选中者无参考而分镜带资产清单→重解析补挂(S08 实证:空参考会让
@@ -474,6 +599,7 @@ async function generateOneShot(
   let graph = findStoryboardWorkflowForContext(store.imageWorkflows, context);
   if (!graph) {
     const assetReferences = await resolveStoryboardAssetReferences(shot).catch(() => []);
+    guard.assertCurrent();
     graph = createOpenImageWorkflowGraph({ ...context, assetReferences }, projectName);
     useStudioStore.getState().upsertImageWorkflow(graph);
   } else {
@@ -490,6 +616,7 @@ async function generateOneShot(
     }
     if (!graph.nodes.some((node) => node.type === "reference")) {
       const references = await resolveStoryboardAssetReferences(shot).catch(() => []);
+      guard.assertCurrent();
       const ensured = ensureStoryboardAssetReferences(graph, references);
       if (ensured !== graph) {
         useStudioStore.getState().upsertImageWorkflow(ensured);
@@ -503,17 +630,17 @@ async function generateOneShot(
     throw new Error("工作流缺少成图节点");
   }
   // M3a 多帧:按帧串行生成并逐帧回写;帧间链要求顺序执行,中途失败抛错由批次层记录
-  const emptyFrames = (shot.keyframes ?? []).filter((frame) => !frame.mediaRef?.path);
   if (emptyFrames.length > 0) {
     for (const frame of emptyFrames) {
       hooks?.onFrameStart?.(`S${String(shot.index).padStart(2, "0")}-${frame.frameId.slice(-3)}`);
       const frameNodeId = graph.nodes.find(
         (node) => node.type === "generated" && (node as { frameId?: string }).frameId === frame.frameId,
-      )?.id;
+      )?.id ?? (shot.keyframes?.length === 1 ? targetNodeId : undefined);
       if (!frameNodeId) {
         throw new Error(`工作流缺少帧节点 ${frame.frameId}(请重新进入该镜图片工作流建流)`);
       }
-      await runFrameGenerationAndWriteback(graph, shot, frame, frameNodeId, hooks?.degradedResolution);
+      await runFrameGenerationAndWriteback(graph, shot, frame, frameNodeId, guard, hooks?.degradedResolution);
+      graph = useStudioStore.getState().imageWorkflows.find((item) => item.id === graph!.id) ?? graph;
     }
     return;
   }
@@ -539,19 +666,23 @@ async function generateOneShot(
   const { imageUrl, vlmArtifact } = await generateWithVlmReview(graph, targetNodeId, shot, {
     addMaterial: useStudioStore.getState().addMaterial,
     degradedResolution: hooks?.degradedResolution,
+    guard,
   });
   if (!imageUrl) throw new Error("生成结果为空");
+  guard.assertCurrent();
   // 分镜回写:核心函数已 upsert 含 resultUrl 的最新代图,直接组 patch
   const latest = useStudioStore.getState().imageWorkflows.find((item) => item.id === graph.id) ?? graph;
   // 连续性接线(方案 2):媒体落库前先落三件套,图的 freshWrite 会顺带清
   // sourceChanged 的 stale 标记;前置不满足时静默跳过,不阻塞生图主链
-  landStoryboardContinuity(shot.id, latest.id, targetNodeId);
-  const patch = buildStoryboardImageWorkflowPatch(latest, targetNodeId);
-  useStudioStore.getState().updateStoryboard(shot.id, patch);
-  if (vlmArtifact) useStudioStore.getState().writeStoryboardVlmReview(shot.id, {
-    ...vlmArtifact,
-    generatedAt: vlmArtifact.generatedAt || Date.now(),
-  }, imageUrl);
+  guard.write(() => {
+    landStoryboardContinuity(shot.id, latest.id, targetNodeId);
+    const patch = buildStoryboardImageWorkflowPatch(latest, targetNodeId);
+    useStudioStore.getState().updateStoryboard(shot.id, patch);
+    if (vlmArtifact) useStudioStore.getState().writeStoryboardVlmReview(shot.id, {
+      ...vlmArtifact,
+      generatedAt: vlmArtifact.generatedAt || Date.now(),
+    }, imageUrl);
+  });
 }
 
 
@@ -561,36 +692,68 @@ async function runFrameGenerationAndWriteback(
   shot: StoryboardItem,
   frame: NonNullable<StoryboardItem["keyframes"]>[number],
   frameNodeId: string,
+  guard: ReturnType<typeof createBatchSourceGuard>,
   degradedResolution?: string,
 ): Promise<void> {
   const { imageUrl, vlmArtifact } = await generateWithVlmReview(graph, frameNodeId, shot, {
     addMaterial: useStudioStore.getState().addMaterial,
     degradedResolution,
+    guard,
   });
   if (!imageUrl) throw new Error("生成结果为空");
+  guard.assertCurrent();
   const latest = useStudioStore.getState().imageWorkflows.find((item) => item.id === graph.id) ?? graph;
-  landStoryboardContinuity(shot.id, latest.id, frameNodeId);
-  const node = latest.nodes.find((item) => item.id === frameNodeId);
-  const frameMediaRef = {
-    kind: "image" as const,
-    path: imageUrl,
-    imageWorkflowId: latest.id,
-    imageWorkflowNodeId: frameNodeId,
-  };
-  // 增量回写必须以 store 现势为基(批次快照里的 shot.keyframes 是旧值,
-  // 直接在其上映射会丢掉前几帧已落的写入——多帧串行实测坑)
-  const liveFrames = useStudioStore.getState().storyboards.find((item) => item.id === shot.id)?.keyframes
-    ?? shot.keyframes
-    ?? [];
-  const updatedFrames = liveFrames.map((candidate) =>
-    candidate.frameId === frame.frameId
-      ? { ...candidate, mediaRef: frameMediaRef }
-      : candidate,
-  );
-  useStudioStore.getState().setStoryboardKeyframes(shot.id, updatedFrames, "generate");
-  if (vlmArtifact) useStudioStore.getState().writeStoryboardVlmReview(shot.id, {
-    ...vlmArtifact,
-    generatedAt: vlmArtifact.generatedAt || Date.now(),
-  }, imageUrl);
-  void node;
+  guard.write(() => {
+    landStoryboardContinuity(shot.id, latest.id, frameNodeId);
+    const node = latest.nodes.find((item) => item.id === frameNodeId);
+    const frameMediaRef = {
+      kind: "image" as const,
+      path: imageUrl,
+      imageWorkflowId: latest.id,
+      imageWorkflowNodeId: frameNodeId,
+    };
+    // 增量回写必须以 store 现势为基(批次快照里的 shot.keyframes 是旧值,
+    // 直接在其上映射会丢掉前几帧已落的写入——多帧串行实测坑)
+    const liveFrames = useStudioStore.getState().storyboards.find((item) => item.id === shot.id)?.keyframes
+      ?? shot.keyframes
+      ?? [];
+    const updatedFrames = liveFrames.map((candidate) =>
+      candidate.frameId === frame.frameId
+        ? { ...candidate, mediaRef: frameMediaRef, origin: { kind: "generated" as const } }
+        : candidate,
+    );
+    useStudioStore.getState().setStoryboardKeyframes(shot.id, updatedFrames, "generate");
+    const written = useStudioStore.getState().storyboards.find((item) => item.id === shot.id)!;
+    const liveGraph = useStudioStore.getState().imageWorkflows.find((item) => item.id === graph.id) ?? latest;
+    useStudioStore.getState().upsertImageWorkflow({ ...liveGraph, targetSourceFingerprint: written.sourceFingerprint });
+    if (shot.stale) {
+      const stillStale = updatedFrames.some((item) => frameNeedsGeneration({ ...written, stale: true, staleSince: shot.staleSince }, item));
+      useStudioStore.getState().updateStoryboard(shot.id, {
+        stale: stillStale,
+        staleSince: stillStale ? shot.staleSince : undefined,
+        staleReason: stillStale ? shot.staleReason : undefined,
+      });
+    }
+    if (vlmArtifact) useStudioStore.getState().writeStoryboardVlmReview(shot.id, {
+      ...vlmArtifact,
+      generatedAt: vlmArtifact.generatedAt || Date.now(),
+    }, imageUrl);
+    void node;
+  });
+}
+
+/** Execute one shot through the same source guards and frame finalization as batch.
+ * Does not enter the batch retry ladder or queue lifecycle. Per-frame production
+ * review/retry gates remain intact; callers enforce any narrower request budget.
+ */
+export async function runStoryboardSingleShotOnce(shot: StoryboardItem, projectName: string): Promise<void> {
+  if (liveBatchRunning) throw new Error("分镜生成正在执行");
+  const guard = createBatchSourceGuards([shot]).get(shot.id)!;
+  guard.assertCurrent();
+  liveBatchRunning = true;
+  try {
+    await generateOneShot(shot, projectName, { guard });
+  } finally {
+    liveBatchRunning = false;
+  }
 }

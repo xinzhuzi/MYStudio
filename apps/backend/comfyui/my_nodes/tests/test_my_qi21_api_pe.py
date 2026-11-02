@@ -318,6 +318,38 @@ def test_direct_and_fallback_keep_style_type_subject_order(monkeypatch, type_nam
     assert out["result"][0] == out["ui"]["api_pe_pos"][0] == expected
 
 
+
+@pytest.mark.parametrize("transparent", [False, True])
+def test_ai_request_context_keeps_style_type_subject_order(monkeypatch, transparent):
+    """AI开启时发送的正文与上下文顺序一致，失败回退也保留同一正稿。"""
+    import json
+
+    subject = "青年男修立于山门。"
+    style = "美术风格底座：国风二维动漫手绘插画。"
+    type_text = "单一角色的正面头颈特写。"
+    sent = []
+
+    def capture_request(request, **kwargs):
+        sent.append(json.loads(request.data.decode("utf-8")))
+        raise ConnectionError("offline request capture")
+
+    monkeypatch.setattr(api_pe, "_RUNTIME_KEY", "")
+    monkeypatch.setattr(api_pe, "_alive", lambda *args, **kwargs: True)
+    monkeypatch.setattr(api_pe._LAN_OPENER, "open", capture_request)
+    out = api_pe.MyQi21ApiPE().rewrite(
+        正向提示词=subject, 类型句正向=type_text,
+        透明模式=transparent, AI扩写开关=True,
+        **{"美术风格底座-正向": style},
+    )
+    expected = f"{style}\n类型句:{type_text}\n主体句:{subject}"
+    assert len(sent) == 1
+    message = sent[0]["messages"][-1]["content"]
+    assert message.startswith(expected + "\n\n")
+    assert "[正稿结构] 美术风格底座\n类型句\n主体句 三层(基底即上文)" in message
+    assert "[正稿结构] 主体句\n型底座\n美术风格底座" not in message
+    assert out["result"][0] == out["ui"]["api_pe_pos"][0] == expected
+
+
 def test_resolve_card_conditionals_definite_output_and_canon_untouched():
     """1017 官方对拍役:设定卡条件句按主体预解析成确定描述,canon 模板不动。
 

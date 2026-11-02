@@ -31,6 +31,18 @@ function storyboard(updates: Partial<StoryboardItem> = {}): StoryboardItem {
 }
 
 describe("studio continuity helper contracts", () => {
+  it("preserves the exact legacy fingerprint when source scene evidence is absent", () => {
+    const legacy = '{"assetIds":["asset-1"],"duration":4,"episodeId":"episode-1","index":1,"orderedReferenceManifest":[],"prompt":"prompt","trackKey":"track-1","videoDesc":"video"}';
+
+    expect(storyboardSourceFingerprint(storyboard())).toBe(legacy);
+    expect(storyboardSourceFingerprint(storyboard({
+      sourceEvidence: { source: "storyboard-table", sourcePath: "source.md" },
+    }))).toBe(legacy);
+    expect(storyboardSourceFingerprint(storyboard({
+      sourceEvidence: { source: "storyboard-table", scene: undefined },
+    }))).toBe(legacy);
+  });
+
   it("builds stable asset, storyboard, track, and candidate fingerprints", () => {
     expect(continuityAssetVersionKey({ assetId: "asset-1", versionId: "v2" })).toBe("asset-1:v2");
     expect(storyboardSourceFingerprint(storyboard())).toBe(storyboardSourceFingerprint(storyboard()));
@@ -59,6 +71,30 @@ describe("studio continuity helper contracts", () => {
     ));
     expect(videoCandidateFingerprint({ trackId: "track-1", provider: "model-placeholder", filePath: "/a.mp4" }))
       .not.toBe(videoCandidateFingerprint({ trackId: "track-1", provider: "model-placeholder", filePath: "/b.mp4" }));
+  });
+
+  it.each([
+    { index: 5, name: "room entry" },
+    { index: 4, name: "room inspection" },
+    undefined,
+  ])("invalidates existing media after a source scene change to %j", (scene) => {
+    const previous = storyboard({
+      sourceEvidence: { source: "storyboard-table", scene: { index: 4, name: "room entry" } },
+      mediaRef: { kind: "image", path: "/same.png" },
+      outputVersion: 4,
+    });
+    previous.sourceFingerprint = storyboardSourceFingerprint(previous);
+    const next = { ...previous, sourceEvidence: { source: "storyboard-table", scene } };
+
+    expect(storyboardSourceFingerprint(next)).not.toBe(previous.sourceFingerprint);
+    expect(mergeStoryboardReplacement(previous, next, "scene changed")).toMatchObject({
+      stale: true,
+      staleReason: "scene changed",
+      sourceEvidence: next.sourceEvidence,
+      sourceFingerprint: storyboardSourceFingerprint(next),
+      outputVersion: 4,
+      mediaRef: previous.mediaRef,
+    });
   });
 
   it("increments output and resets visual review on a fresh visual write", () => {

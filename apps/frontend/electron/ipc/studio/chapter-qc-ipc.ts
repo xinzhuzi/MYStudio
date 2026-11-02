@@ -1,4 +1,4 @@
-// Chapter QC IPC — QC 报告读取/手动重跑/L4 语义回写 + 报告更新事件广播。
+// Chapter QC IPC — QC 报告读取/手动重跑/L4 语义、AC4 视觉预审与人工复核回写 + 报告更新事件广播。
 // 通道字面量(契约测试扫描);语义回写做 schema 校验(渲染端不可信输入)。
 
 import { ipcMain, type BrowserWindow } from "electron";
@@ -8,6 +8,7 @@ import {
   type ChapterQcReportV1,
   type ChapterQcFindingV1,
 } from "@rendering/plugins/videoqc/chapter-qc-types";
+import { applyChapterQcRequirements } from "@rendering/plugins/videoqc/chapter-qc-verdicts";
 import type { runChapterQc, ChapterQcOrchestratorDeps } from "@rendering/plugins/videoqc/chapter-qc-orchestrator";
 
 export interface RegisterChapterQcIpcOptions {
@@ -32,6 +33,17 @@ interface SemanticSubmitPayload {
 
 interface VisionPreflightSubmitPayload extends SemanticSubmitPayload {
   expectedCreatedAt?: unknown;
+}
+
+/** 人工复核回写:渲染端只报「看没看完/听没听完/谁签的」,三态判定恒在主进程派生。 */
+interface HumanReviewSubmitPayload {
+  projectId?: unknown;
+  chapterId?: unknown;
+  expectedCreatedAt?: unknown;
+  fullWatched?: unknown;
+  audioListened?: unknown;
+  reviewer?: unknown;
+  notes?: unknown;
 }
 
 function readPreflightStats(value: unknown): { checked: number; passed: number; failed: number; skipped: number } | null {
@@ -139,6 +151,7 @@ export function registerChapterQcIpcHandlers(options: RegisterChapterQcIpcOption
       infos: report.findings.filter((f) => f.severity === "info").length,
     };
     report.layers.semantic = { status: semanticFindings.some((f) => f.severity === "blocker") ? "failed" : "passed", finishedAt: Date.now() };
+    applyChapterQcRequirements(report);
 
     const { writeChapterQcReport } = await import("@rendering/plugins/videoqc/chapter-qc-report-store");
     await writeChapterQcReport(deps.remotionWorkspaceRootForProject(identity.projectId), identity.chapterId, report);
@@ -203,6 +216,46 @@ export function registerChapterQcIpcHandlers(options: RegisterChapterQcIpcOption
       ...preflightFindings,
     ];
     report.summary = summarizeChapterQcFindings(report.findings);
+    applyChapterQcRequirements(report);
+
+    const { writeChapterQcReport } = await import("@rendering/plugins/videoqc/chapter-qc-report-store");
+    await writeChapterQcReport(deps.remotionWorkspaceRootForProject(identity.projectId), identity.chapterId, report);
+    broadcast(identity.projectId, identity.chapterId);
+    return { success: true };
+  });
+
+  ipcMain.handle("chapter-qc-submit-human-review", async (_event, payload: unknown): Promise<{ success: boolean; message?: string }> => {
+    const submit = payload as HumanReviewSubmitPayload;
+    const identity = readIdentity(payload);
+    if (!identity.projectId || !identity.chapterId) {
+      return { success: false, message: "projectId/chapterId 必填" };
+    }
+    if (typeof submit.expectedCreatedAt !== "number" || !Number.isFinite(submit.expectedCreatedAt)) {
+      return { success: false, message: "expectedCreatedAt 必填" };
+    }
+    const reviewer = typeof submit.reviewer === "string" ? submit.reviewer.trim() : "";
+    if (!reviewer || reviewer.length > 80) return { success: false, message: "复核人必填(≤80 字)" };
+    if (typeof submit.fullWatched !== "boolean" || typeof submit.audioListened !== "boolean") {
+      return { success: false, message: "fullWatched/audioListened 必须是布尔" };
+    }
+    const notes = typeof submit.notes === "string" ? submit.notes.trim().slice(0, 500) : "";
+
+    const request = identity as { projectId: string; chapterId: string };
+    const { readReport } = await import("@rendering/plugins/videoqc/chapter-qc-orchestrator");
+    const report: ChapterQcReportV1 | null = await readReport(deps, request);
+    if (!report) return { success: false, message: "QC 报告不存在,无法回写人工复核" };
+    if (report.createdAt !== submit.expectedCreatedAt) {
+      return { success: false, message: "QC 报告已更新(片子或分层结果重跑过),请重新看一遍再确认" };
+    }
+
+    report.humanReview = {
+      fullWatched: submit.fullWatched,
+      audioListened: submit.audioListened,
+      reviewer,
+      at: Date.now(),
+      ...(notes ? { notes } : {}),
+    };
+    applyChapterQcRequirements(report);
 
     const { writeChapterQcReport } = await import("@rendering/plugins/videoqc/chapter-qc-report-store");
     await writeChapterQcReport(deps.remotionWorkspaceRootForProject(identity.projectId), identity.chapterId, report);
@@ -216,6 +269,7 @@ export function registerChapterQcIpcHandlers(options: RegisterChapterQcIpcOption
       ipcMain.removeHandler("chapter-qc-run");
       ipcMain.removeHandler("chapter-qc-submit-semantic");
       ipcMain.removeHandler("chapter-qc-submit-vision-preflight");
+      ipcMain.removeHandler("chapter-qc-submit-human-review");
     },
   };
 }

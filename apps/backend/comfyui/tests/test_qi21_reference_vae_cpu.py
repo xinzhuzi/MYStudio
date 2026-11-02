@@ -7,7 +7,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[4]
 COMFY = ROOT / 'apps/backend/comfyui'
-NAMES = ('qi21-道劫-i2i.json', 'qi21-edit.json')
+NAMES = ('qi21-道劫-i2i.json', 'qi21-edit.json', 'qi21-道劫-img2img.json')
 VAE = 'texture_fix_vae_for_qwen_image_2.1_bf16.safetensors'
 sys.path.insert(0, str(ROOT / 'apps/build/scripts'))
 from qwen21_bridge_template_build import flatten_canvas

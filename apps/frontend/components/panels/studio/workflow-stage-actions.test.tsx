@@ -3112,7 +3112,8 @@ describe("workflow stage action surfaces", () => {
     expect(screen.getByRole("button", { name: "运行 video-use 预览" })).toBeTruthy();
     expect(screen.queryByText("ffmpeg-local")).toBeNull();
     expect(screen.queryByText("track-candidate")).toBeNull();
-    expect(screen.queryByRole("button", { name: /生成视频/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^生成视频$/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "重生成视频(H3)" }).hasAttribute("data-shot-h3-regen")).toBe(true);
     expect(screen.queryByRole("button", { name: /选择/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /删除/ })).toBeNull();
   });

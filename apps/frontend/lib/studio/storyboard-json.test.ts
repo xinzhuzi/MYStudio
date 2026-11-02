@@ -54,9 +54,9 @@ describe("storyboard JSON contracts", () => {
     expect(json).toContain("generated-shot.png");
     expect(json).toContain("image-sha");
     expect(json).toContain('"ttsEmotionCapability": "metadata-only"');
-    expect(json).not.toContain("private-source.md");
+    expect(json).toContain("private-source.md");
     expect(json).not.toContain("private-voice.wav");
-    expect(json).not.toContain("sourceEvidence");
+    expect(json).toContain("sourceEvidence");
   });
 
   it("accepts a valid current-chapter array", () => {
@@ -112,9 +112,59 @@ describe("storyboard JSON contracts", () => {
   it("rejects runtime metadata fields instead of writing them back", () => {
     const raw = JSON.stringify([{
       ...makeShot(),
-      sourceEvidence: { source: "runtime" },
+      runtimeMetadata: { source: "runtime" },
     }]);
     expect(validateStoryboardJson(raw, "episode-1").error).toContain("不可编辑字段");
+  });
+
+  it.each([
+    { source: "storyboard-table", scene: { index: 5, name: "金水塾馆点验" } },
+    {
+      source: "legacy-import", sourceProjectId: 1, sourceEpisodeId: "chapter-001",
+      sourceStoryboardId: 0, sourcePath: "/archive/source.md", sourceTable: "原表",
+      promptHash: "sha256", note: "来源说明",
+    },
+  ])("round-trips typed source evidence without inventing fields: %j", (sourceEvidence) => {
+    const raw = formatStoryboardJson([makeShot({ sourceEvidence })]);
+    expect(validateStoryboardJson(raw, "episode-1")).toMatchObject({
+      items: [{ sourceEvidence }],
+    });
+    expect(JSON.parse(raw)[0].sourceEvidence).toEqual(sourceEvidence);
+  });
+
+  it("projects only typed source evidence and scene fields", () => {
+    const shot = makeShot({ sourceEvidence: {
+      source: "storyboard-table", scene: { index: 4, name: "金水塾馆", token: "secret" },
+      paragraphId: "invented", token: "secret",
+    } as unknown as NonNullable<StoryboardItem["sourceEvidence"]> });
+    expect(JSON.parse(formatStoryboardJson([shot]))[0].sourceEvidence).toEqual({
+      source: "storyboard-table", scene: { index: 4, name: "金水塾馆" },
+    });
+  });
+
+  it.each([
+    null, [], "bad", {}, { source: 1 }, { source: " " },
+    { source: "table", scene: null }, { source: "table", scene: [] },
+    { source: "table", scene: "bad" },
+    ...[0, -1, 1.5, "4", null].map(index => ({ source: "table", scene: { index, name: "塾馆" } })),
+    ...["", " ", 1, null].map(name => ({ source: "table", scene: { index: 4, name } })),
+    { source: "table", scene: { index: 4 } },
+    { source: "table", scene: { index: 4, name: "塾馆", paragraphId: "unknown" } },
+    { source: "table", paragraphId: "unknown" },
+    ...["sourceProjectId", "sourceEpisodeId", "sourceStoryboardId"].map(field => ({ source: "table", [field]: {} })),
+    ...["sourcePath", "sourceTable", "promptHash", "note"].map(field => ({ source: "table", [field]: 1 })),
+  ])("rejects malformed or unknown source evidence: %j", sourceEvidence => {
+    const result = validateStoryboardJson(JSON.stringify([{ ...makeShot(), sourceEvidence }]), "episode-1");
+    expect(result.error).toContain("sourceEvidence");
+    expect(result.items).toBeUndefined();
+  });
+
+  it.each([
+    { index: "4", name: "塾馆" },
+    { index: 4, name: " " },
+  ])("validates scene fields at the nested boundary: %j", scene => {
+    const raw = JSON.stringify([{ ...makeShot(), sourceEvidence: { source: "table", scene } }]);
+    expect(validateStoryboardJson(raw, "episode-1").error).toContain("sourceEvidence.scene 无效");
   });
 
   it("creates a read-only Remotion manifest without leaking absolute paths", () => {

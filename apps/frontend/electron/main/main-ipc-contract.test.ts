@@ -49,6 +49,7 @@ audio-gen-runtime-setup
 audio-gen-runtime-status
 chapter-qc-get-report
 chapter-qc-run
+chapter-qc-submit-human-review
 chapter-qc-submit-semantic
 chapter-qc-submit-vision-preflight
 comfy-cloud-relay-response
@@ -68,6 +69,8 @@ file-storage-rename
 file-storage-set
 get-absolute-path
 get-image-path
+h3-power-save-start
+h3-power-save-stop
 hy-registry-deps-check
 hy-registry-deps-download
 image-gen-runtime-download-model

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -167,5 +167,121 @@ describe("ChapterQcReportCard AC4 vision preflight", () => {
     render(<ChapterQcReportCard projectId="p1" chapterId="c1" />);
     expect(await screen.findByText("审片预审：3/4 项通过，1 项需人工复核")).toBeTruthy();
     expect(mocks.runVisionPreflight).not.toHaveBeenCalled();
+  });
+});
+
+function boardReport(humanReview?: { fullWatched: boolean; audioListened: boolean; reviewer: string; at: number }) {
+  const rows = [
+    { requirementId: "no-blackout", label: "无异常黑场", verdict: "pass" as const, watchedCodes: [], evidenceCodes: [] },
+    {
+      requirementId: "real-motion",
+      label: "画面有真动态(伪动态门)",
+      verdict: "unverified" as const,
+      watchedCodes: [],
+      evidenceCodes: [],
+      missing: ["阈值未标定(先记不判)"],
+      note: "已记录 TI 均值 9.9",
+    },
+    humanReview
+      ? {
+          requirementId: "human-full-watch",
+          label: "人眼全速看全片 + 人耳听全轨",
+          verdict: humanReview.fullWatched && humanReview.audioListened ? ("pass" as const) : ("unverified" as const),
+          watchedCodes: [],
+          evidenceCodes: [],
+          ...(humanReview.fullWatched && humanReview.audioListened
+            ? { note: `复核人 ${humanReview.reviewer}` }
+            : { missing: ["世事 的复核未确认「人耳听完全轨」"] }),
+        }
+      : {
+          requirementId: "human-full-watch",
+          label: "人眼全速看全片 + 人耳听全轨",
+          verdict: "unverified" as const,
+          watchedCodes: [],
+          evidenceCodes: [],
+          missing: ["尚无人工复核回写:须人眼全速看全片 + 人耳听全轨"],
+        },
+  ];
+  return { ...report(undefined, { createdAt: 100 }), requirements: rows, ...(humanReview ? { humanReview } : {}) };
+}
+
+describe("ChapterQcReportCard 三态验收板与人工复核", () => {
+  it("逐行渲染 pass/缺证并写明缺什么,未放行列不算通过", async () => {
+    Object.defineProperty(window, "chapterQc", {
+      configurable: true,
+      value: { getReport: vi.fn(async () => boardReport()), run: vi.fn(), submitSemantic: vi.fn(), submitVisionPreflight: vi.fn(), onReportUpdated: vi.fn(() => vi.fn()) },
+    });
+    render(<ChapterQcReportCard projectId="p1" chapterId="c1" />);
+
+    expect(await screen.findByText("三态验收")).toBeTruthy();
+    expect(screen.getByText("不放行")).toBeTruthy();
+    expect(screen.getByText("通过 1 · 越限 0 · 缺证 2(缺证不计通过)")).toBeTruthy();
+    expect(screen.getByText("缺:阈值未标定(先记不判)")).toBeTruthy();
+    expect(screen.getByText("缺:尚无人工复核回写:须人眼全速看全片 + 人耳听全轨")).toBeTruthy();
+    expect(screen.getAllByText("通过").length).toBeGreaterThan(0);
+  });
+
+  it("两问分列勾选 + 署名回写,主进程派生通过后显示复核人", async () => {
+    const signed = boardReport({ fullWatched: true, audioListened: true, reviewer: "世事", at: 1_700_000_000_000 });
+    const submitHumanReview = vi.fn(async () => ({ success: true }));
+    Object.defineProperty(window, "chapterQc", {
+      configurable: true,
+      value: {
+        getReport: vi.fn(async () => (submitHumanReview.mock.calls.length === 0 ? boardReport() : signed)),
+        run: vi.fn(),
+        submitSemantic: vi.fn(),
+        submitVisionPreflight: vi.fn(),
+        submitHumanReview,
+        onReportUpdated: vi.fn(() => vi.fn()),
+      },
+    });
+    render(<ChapterQcReportCard projectId="p1" chapterId="c1" />);
+
+    fireEvent.click(await screen.findByLabelText("人眼全速看全片"));
+    fireEvent.click(screen.getByLabelText("人耳听全轨"));
+    fireEvent.change(screen.getByLabelText("复核人"), { target: { value: "世事" } });
+    fireEvent.click(screen.getByRole("button", { name: "提交复核" }));
+
+    await waitFor(() => expect(submitHumanReview).toHaveBeenCalledWith(expect.objectContaining({
+      projectId: "p1",
+      chapterId: "c1",
+      expectedCreatedAt: 100,
+      fullWatched: true,
+      audioListened: true,
+      reviewer: "世事",
+    })));
+    expect(await screen.findByText(/^已记:世事/)).toBeTruthy();
+    expect(screen.getByText("不放行")).toBeTruthy();
+  });
+
+  it("未署名时本地拦下,不打 IPC;报告版本已变时回显主进程的陈旧提示", async () => {
+    const submitHumanReview = vi.fn();
+    Object.defineProperty(window, "chapterQc", {
+      configurable: true,
+      value: { getReport: vi.fn(async () => boardReport()), run: vi.fn(), submitSemantic: vi.fn(), submitVisionPreflight: vi.fn(), submitHumanReview, onReportUpdated: vi.fn(() => vi.fn()) },
+    });
+    render(<ChapterQcReportCard projectId="p1" chapterId="c1" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "提交复核" }));
+    expect(await screen.findByText("请先填写复核人")).toBeTruthy();
+    expect(submitHumanReview).not.toHaveBeenCalled();
+
+    submitHumanReview.mockResolvedValueOnce({ success: false, message: "QC 报告已更新(片子或分层结果重跑过),请重新看一遍再确认" });
+    fireEvent.change(screen.getByLabelText("复核人"), { target: { value: "世事" } });
+    fireEvent.click(screen.getByRole("button", { name: "提交复核" }));
+    expect(
+      await screen.findByText("QC 报告已更新(片子或分层结果重跑过),请重新看一遍再确认"),
+    ).toBeTruthy();
+  });
+
+  it("旧报告未带验收板时不渲染空板,也不显示复核表单", async () => {
+    Object.defineProperty(window, "chapterQc", {
+      configurable: true,
+      value: { getReport: vi.fn(async () => report()), run: vi.fn(), submitSemantic: vi.fn(), submitVisionPreflight: vi.fn(), submitHumanReview: vi.fn(), onReportUpdated: vi.fn(() => vi.fn()) },
+    });
+    render(<ChapterQcReportCard projectId="p1" chapterId="c1" />);
+    await screen.findByText("四层检查无异常发现。");
+    expect(screen.queryByText("三态验收")).toBeNull();
+    expect(screen.queryByRole("button", { name: "提交复核" })).toBeNull();
   });
 });

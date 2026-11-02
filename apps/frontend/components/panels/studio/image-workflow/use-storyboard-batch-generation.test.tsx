@@ -3,6 +3,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { VlmReviewArtifactV1 } from "@/types/contracts/vlm-review-workflow";
 import type { ImageWorkflowGraph, StoryboardItem } from "@/types/studio";
+import { storyboardSourceFingerprint } from "@/stores/studio/studio-store-continuity-helpers";
+import { updateImageWorkflowNodePosition } from "@/lib/studio/image-workflow/graph-build-mutations";
 
 const generateImageMock = vi.hoisted(() => vi.fn());
 const saveImage = vi.hoisted(() => vi.fn());
@@ -11,7 +13,7 @@ const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), info: vi.fn(
 vi.mock("@/lib/ai/ai-manager", () => ({ aiManager: { generateImage: generateImageMock } }));
 vi.mock("sonner", () => ({ toast }));
 vi.mock("@/lib/bridge/project-files", () => ({
-  getProjectFilesBridge: () => ({ saveImage }),
+  getProjectFilesBridge: () => ({ saveImage, readAsBase64: async () => ({ success: true, base64: "QQ==", mimeType: "image/png" }) }),
 }));
 const assetsBridge = vi.hoisted(() => ({ readImageDataUrl: null as null | ((id: string) => Promise<string>) }));
 vi.mock("@/lib/bridge/studio-assets", () => ({ getStudioAssetsBridge: () => (assetsBridge.readImageDataUrl ? { readImageDataUrl: assetsBridge.readImageDataUrl } : null) }));
@@ -31,6 +33,9 @@ const resolvedReferences = vi.hoisted(() => ({ value: [] as Array<{ imageUrl: st
 vi.mock("./storyboard-asset-references", () => ({
   resolveStoryboardAssetReferences: async () => resolvedReferences.value,
 }));
+// jsdom 没有 Canvas；仅替换排版边界，保留真实请求装配、来源围栏和落库。
+const referenceSheet = vi.hoisted(() => vi.fn());
+vi.mock("./storyboard-reference-sheet", () => ({ buildStoryboardReferenceSheet: referenceSheet }));
 
 import { useStoryboardBatchGeneration } from "./use-storyboard-batch-generation";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -65,6 +70,16 @@ function resetStore(storyboards: StoryboardItem[]) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  referenceSheet.mockImplementation(async ({ referenceImages, graph }: {
+    referenceImages: string[]; graph: ImageWorkflowGraph;
+  }) => ({
+    imageUrl: "data:image/png;base64,U0hFRVQ=",
+    mappings: referenceImages.map((imageUrl, index) => ({ order: index + 1, imageUrl })),
+    prompt: referenceImages.map((url, index) => {
+      const node = graph.nodes.find((item) => item.type === "reference" && item.imageUrl === url);
+      return `图${index + 1}对应拼板第${index + 1}格：${node?.title ?? "上游成图"}`;
+    }).join("；"),
+  }));
   useProjectStore.setState({ ...initialProjectState, activeProjectId: "proj" });
   // 断点续跑会话隔离:逐用例清空持久化会话
   useStoryboardBatchSessionStore.setState({ session: null });
@@ -104,6 +119,189 @@ function createBareStoryboardGraph(storyboardId: string, workflowId: string) {
     updatedAt: now,
   } as unknown as ImageWorkflowGraph;
 }
+
+describe("useStoryboardBatchGeneration(stale 完整性与来源隔离)", () => {
+  beforeEach(() => { resolvedReferences.value = []; generateImageMock.mockReset(); });
+
+  it("真实双帧图共享版本资产，次帧完整承接首帧成图", async () => {
+    const sourceUrl = "file://assets/check-scene.png";
+    const sb = shot({ duration: 12, assetIds: ["scene"], associateAssetsNames: ["场景"], keyframes: [
+      { frameId: "sb-1-kf-1", inUs: 0, mediaRef: { kind: "image", path: "" } },
+      { frameId: "sb-1-kf-2", inUs: 6_000_000, mediaRef: { kind: "image", path: "" } },
+    ] });
+    sb.sourceFingerprint = storyboardSourceFingerprint(sb);
+    resetStore([sb]);
+    const { createOpenImageWorkflowGraph } = await import("./image-workflow-graph-utils");
+    const { buildStoryboardItemOpenContext } = await import("../storyboard-open-context");
+    const { buildImageWorkflowGenerationRequest } = await import("@/lib/studio/image-workflow/request");
+    const graph = createOpenImageWorkflowGraph({
+      ...buildStoryboardItemOpenContext(sb),
+      assetReferences: [{ title: "场景", imageUrl: sourceUrl, assetType: "scene", assetId: "scene" }],
+    }, "check");
+    graph.nodes = graph.nodes.map((node) => node.type === "reference" ? { ...node, continuityVersionId: "scene-v1" } : node);
+    useStudioStore.setState({ imageWorkflows: [graph] });
+    const frameUrls = ["project-file://proj/workflow/first.png", "project-file://proj/workflow/second.png"];
+    saveImage.mockResolvedValueOnce({ success: true, url: frameUrls[0], size: 10 })
+      .mockResolvedValueOnce({ success: true, url: frameUrls[1], size: 10 });
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/ok.png" });
+    const { result } = renderHook(() => useStoryboardBatchGeneration({
+      storyboards: useStudioStore.getState().storyboards, projectName: "check", submitIntervalMs: 0,
+    }));
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false));
+    expect(generateImageMock).toHaveBeenCalledTimes(2);
+    expect(result.current.state.failed).toBe(0);
+    expect(saveImage).toHaveBeenCalledTimes(2);
+    expect(useStudioStore.getState().storyboards[0].keyframes?.map((frame) => frame.mediaRef.path)).toEqual(frameUrls);
+    expect(generateImageMock.mock.calls.map(([params]) => params.model)).toEqual(["qwen-image-2-1", "qwen-image-2-1"]);
+    expect(generateImageMock.mock.calls[1][0].referenceImages).toEqual(["data:image/png;base64,U0hFRVQ="]);
+    expect(referenceSheet).toHaveBeenCalledTimes(2);
+    expect(referenceSheet.mock.calls[0][0].referenceImages).toEqual([sourceUrl]);
+    expect(referenceSheet.mock.calls[0][0].aspectRatio).toBe("16:9");
+    expect(referenceSheet.mock.calls[1][0].referenceImages).toEqual([sourceUrl, frameUrls[0]]);
+    expect(referenceSheet.mock.calls[1][0].aspectRatio).toBe("16:9");
+    const finalGraph = useStudioStore.getState().imageWorkflows[0];
+    const second = finalGraph.nodes.find((node) => node.type === "generated" && node.frameId === "sb-1-kf-2")!;
+    const request = buildImageWorkflowGenerationRequest(finalGraph, second.id);
+    expect(request.referenceImages).toEqual([sourceUrl, frameUrls[0]]);
+    expect(request.orderedReferenceManifest.map((ref) => ref.order)).toEqual([1, Number.MAX_SAFE_INTEGER]);
+    expect(request.orderedReferenceManifest[0].versionId).toBe("scene-v1");
+    expect(request.orderedReferenceManifest[1].referenceRole).toBe("previous-approved-frame");
+    expect(request.continuityRequired).toBe(true);
+    expect(request.previousApprovedFrameIncluded).toBe(true);
+  });
+
+  it("regenerates a stale single image even when its old URI is nonempty", async () => {
+    resetStore([shot({ stale: true, mediaRef: { kind: "image", path: "project-file://old.png" } })]);
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/new.png" });
+    const { result } = renderHook(() => useStoryboardBatchGeneration({
+      storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0,
+    }));
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false));
+    expect(generateImageMock).toHaveBeenCalledTimes(1);
+    expect(useStudioStore.getState().storyboards[0]?.mediaRef?.path).toContain("gen-out.png");
+    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toEqual([]);
+    expect(toast.info).not.toHaveBeenCalledWith("所有分镜画面均已齐备");
+  });
+
+  it("keeps a successfully rebuilt stale frame across ladder retries and later recovery", async () => {
+    resetStore([shot({ stale: true, staleSince: 10, duration: 12, keyframes: [
+      { frameId: "sb-1-kf-1", inUs: 0, mediaRef: { kind: "image", path: "project-file://old-1.png" } },
+      { frameId: "sb-1-kf-2", inUs: 6_000_000, mediaRef: { kind: "image", path: "project-file://old-2.png" } },
+    ] })]);
+    generateImageMock.mockResolvedValueOnce({ url: "https://provider.test/new.png" })
+      .mockRejectedValue(new Error("second frame unavailable"));
+    const { result, unmount } = renderHook(() => useStoryboardBatchGeneration({
+      storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0,
+    }));
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false));
+    const partial = useStudioStore.getState().storyboards[0]!;
+    expect(generateImageMock).toHaveBeenCalledTimes(4);
+    expect(partial.keyframes?.[0]?.mediaRef.path).toContain("gen-out.png");
+    expect(partial.keyframes?.[1]?.mediaRef.path).toBe("project-file://old-2.png");
+    expect(partial.stale).toBe(true);
+    unmount();
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/recovery.png" });
+    const resumed = renderHook(() => useStoryboardBatchGeneration({
+      storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0,
+    }));
+    act(() => resumed.result.current.start());
+    await waitFor(() => expect(resumed.result.current.state.running).toBe(false));
+    expect(generateImageMock).toHaveBeenCalledTimes(5);
+    expect(useStudioStore.getState().storyboards[0]?.stale).toBe(false);
+    expect(useStudioStore.getState().storyboards[0]?.visualReview?.status).not.toBe("approved");
+  });
+
+  it("rebuilds a stale one-slot keyframe through the single generated node", async () => {
+    resetStore([shot({ stale: true, keyframes: [
+      { frameId: "sb-1-kf-1", inUs: 0, mediaRef: { kind: "image", path: "project-file://old.png" } },
+    ] })]);
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/new.png" });
+    const { result } = renderHook(() => useStoryboardBatchGeneration({
+      storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0,
+    }));
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false));
+    expect(generateImageMock).toHaveBeenCalledTimes(1);
+    expect(useStudioStore.getState().storyboards[0]?.keyframes?.[0]?.mediaRef.path).toContain("gen-out.png");
+    expect(useStudioStore.getState().storyboards[0]?.stale).toBe(false);
+  });
+
+  it("does not regenerate an already completed frame when a non-stale second frame retries", async () => {
+    resetStore([shot({ duration: 12, keyframes: [
+      { frameId: "sb-1-kf-1", inUs: 0, mediaRef: { kind: "image", path: "" } },
+      { frameId: "sb-1-kf-2", inUs: 6_000_000, mediaRef: { kind: "image", path: "" } },
+    ] })]);
+    generateImageMock.mockResolvedValueOnce({ url: "https://provider.test/first.png" })
+      .mockRejectedValueOnce(new Error("transient second frame"))
+      .mockResolvedValue({ url: "https://provider.test/second.png" });
+    const { result } = renderHook(() => useStoryboardBatchGeneration({
+      storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0,
+    }));
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false));
+    expect(generateImageMock).toHaveBeenCalledTimes(3);
+    expect(useStudioStore.getState().storyboards[0]?.keyframes?.every((frame) => frame.mediaRef.path)).toBe(true);
+  });
+
+  it.each([
+    { index: 5, name: "room entry" },
+    { index: 4, name: "room inspection" },
+  ])("rejects late image save after only the source scene changes to %j", async (scene) => {
+    resetStore([shot({
+      sourceEvidence: { source: "storyboard-table", scene: { index: 4, name: "room entry" } },
+    })]);
+    let resolve!: (value: { url: string }) => void;
+    generateImageMock.mockImplementation(() => new Promise<{ url: string }>((done) => { resolve = done; }));
+    const { result } = renderHook(() => useStoryboardBatchGeneration({
+      storyboards: useStudioStore.getState().storyboards, projectName: "check", submitIntervalMs: 0,
+    }));
+    act(() => result.current.start());
+    await waitFor(() => expect(generateImageMock).toHaveBeenCalledTimes(1));
+    const pendingShot = useStudioStore.getState().storyboards[0];
+    const sourceEvidence = { ...pendingShot.sourceEvidence!, scene };
+    act(() => useStudioStore.getState().updateStoryboard(pendingShot.id, { sourceEvidence }));
+    expect(useStudioStore.getState().storyboards[0]).toEqual({
+      ...pendingShot,
+      sourceEvidence,
+      sourceFingerprint: storyboardSourceFingerprint({ ...pendingShot, sourceEvidence }),
+    });
+
+    await act(async () => { resolve({ url: "https://provider.test/late.png" }); });
+    await waitFor(() => expect(result.current.state.running).toBe(false));
+
+    expect(generateImageMock).toHaveBeenCalledTimes(1);
+    expect(saveImage).not.toHaveBeenCalled();
+    expect(result.current.state.failed).toBe(1);
+    expect(useStudioStore.getState().storyboards[0]?.mediaRef).toBeUndefined();
+    expect(useStudioStore.getState().materials).toHaveLength(0);
+    expect(useStudioStore.getState().imageWorkflows.flatMap((graph) => graph.nodes)
+      .filter((node) => node.type === "generated" && node.resultUrl)).toEqual([]);
+  });
+
+  it.each(["project", "chapter", "source"])("rejects late writeback after %s changes", async (change) => {
+    resetStore([shot({})]);
+    let resolve!: (value: { url: string }) => void;
+    generateImageMock.mockImplementation(() => new Promise<{ url: string }>((done) => { resolve = done; }));
+    const { result } = renderHook(() => useStoryboardBatchGeneration({
+      storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0,
+    }));
+    act(() => result.current.start());
+    await waitFor(() => expect(generateImageMock).toHaveBeenCalledTimes(1));
+    act(() => {
+      if (change === "project") useProjectStore.setState({ activeProjectId: "other-project" });
+      if (change === "chapter") useStudioStore.setState({ activeChapterId: "chapter-002" });
+      if (change === "source") useStudioStore.getState().updateStoryboard("sb-1", { prompt: "上游已变更" });
+    });
+    await act(async () => { resolve({ url: "https://provider.test/late.png" }); });
+    await waitFor(() => expect(result.current.state.running).toBe(false));
+    expect(generateImageMock).toHaveBeenCalledTimes(1);
+    expect(useStudioStore.getState().storyboards[0]?.mediaRef).toBeUndefined();
+    expect(useStudioStore.getState().materials).toHaveLength(0);
+  });
+});
 
 describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
   it("retries once via chat transport when the images endpoint succeeds but the URL download fails (504 类丢图根修)", async () => {
@@ -312,7 +510,9 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
 
     // 择优:生成走了带参考的 wf-rich(其既有参考直接生效)
-    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toContain("file://assets/ref-zhaosi.png");
+    expect(referenceSheet.mock.calls[0]?.[0]?.referenceImages).toEqual(["file://assets/ref-zhaosi.png"]);
+    expect(referenceSheet.mock.calls[0]?.[0]?.aspectRatio).toBe("16:9");
+    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toEqual(["data:image/png;base64,U0hFRVQ="]);
     // 空壳 wf-bare 未被补挂(未被选中)
     const bareInStore = useStudioStore.getState().imageWorkflows.find((g) => g.id === "wf-bare");
     expect(bareInStore?.nodes.some((n) => n.type === "reference")).toBe(false);
@@ -336,8 +536,11 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     const stored = useStudioStore.getState().imageWorkflows.find((g) => g.id === "wf-bare");
     const refTitles = stored?.nodes.filter((n) => n.type === "reference").map((n) => n.title);
     expect(refTitles).toEqual(["金水河码头", "监工赵四"]);
-    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toContain("file://assets/ref-scene.png");
-    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toContain("file://assets/ref-zhaosi.png");
+    expect(referenceSheet.mock.calls[0]?.[0]?.referenceImages).toEqual([
+      "file://assets/ref-scene.png", "file://assets/ref-zhaosi.png",
+    ]);
+    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toEqual(["data:image/png;base64,U0hFRVQ="]);
+    expect(generateImageMock.mock.calls[0]?.[0]?.prompt).toContain("图1对应拼板第1格：金水河码头；图2对应拼板第2格：监工赵四");
     // 补挂的参考连向成图节点
     const genId = stored?.nodes.find((n) => n.type === "generated")?.id;
     expect(stored?.edges.some((e) => e.source === "existing-ref" || (e.target === genId && e.source !== "existing-ref"))).toBe(true);
@@ -384,7 +587,9 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     );
     act(() => result.current.start());
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
-    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toContain("file://assets/ref-zhaosi.png");
+    expect(referenceSheet.mock.calls[0]?.[0]?.referenceImages).toEqual(["file://assets/ref-zhaosi.png"]);
+    expect(referenceSheet.mock.calls[0]?.[0]?.aspectRatio).toBe("16:9");
+    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toEqual(["data:image/png;base64,U0hFRVQ="]);
   });
   it("rejects a fingerprintless cross-generation workflow whose references are outside the current shot list (S20 形态)", async () => {
     resetStore([shot({ id: "sb-1", index: 1, sourceFingerprint: "fp-real", associateAssetsNames: ["道口镇街巷", "独孤剑尘"] })]);
@@ -412,9 +617,13 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
 
     // 跨代流被拒→不选它→走参考补挂?补挂在选中图上——选中集为空时建新流:
     // 断言生成参考=当前清单解析出的街巷(而非客栈)
+    const sheetInput = referenceSheet.mock.calls[0]?.[0];
+    expect(sheetInput?.referenceImages).toEqual(["file://assets/street.png"]);
+    expect(sheetInput?.referenceImages).not.toContain("file://assets/inn.png");
+    expect(sheetInput?.aspectRatio).toBe("16:9");
     const call = generateImageMock.mock.calls[0]?.[0];
-    expect(call?.referenceImages).toContain("file://assets/street.png");
-    expect(call?.referenceImages).not.toContain("file://assets/inn.png");
+    expect(call?.referenceImages).toEqual(["data:image/png;base64,U0hFRVQ="]);
+    expect(call?.aspectRatio).toBe("16:9");
   });
   it("backfilled references regenerate a matching @图 binding head (S15 装配门禁)", async () => {
     resetStore([shot({ id: "sb-1", index: 1 })]);
@@ -813,3 +1022,236 @@ describe("useStoryboardBatchGeneration(批量四协议)", () => {
   });
 });
 
+
+function continuityState(groupId: string, previousStoryboardId?: string): NonNullable<StoryboardItem['continuityState']> {
+  return {
+    groupId, previousStoryboardId, sceneVersionId: 'v1', sceneViewpointId: 'wide',
+    lighting: '', palette: '', actionIn: 'enter', actionOut: 'leave', characters: [], inputFingerprint: 'check',
+  };
+}
+
+// Six independent reviewer cases, now permanent hook regressions.
+describe('independent check', () => {
+  beforeEach(() => { resolvedReferences.value = []; generateImageMock.mockReset(); });
+  function restoredFrame(generatedAt: number) {
+    const mediaRef: StoryboardItem['mediaRef'] = { kind: 'image', path: 'project-file://proj/old.png', imageWorkflowId: 'wf-check', imageWorkflowNodeId: 'gen-x' };
+    const sb = shot({ stale: true, staleSince: 10, staleReason: '旧连续镜失效', mediaRef, keyframes: [
+      { frameId: 'sb-1-kf-1', inUs: 0, mediaRef, origin: { kind: 'generated' } },
+    ] });
+    const fp = storyboardSourceFingerprint(sb);
+    sb.sourceFingerprint = fp;
+    const graph = createBareStoryboardGraph(sb.id, 'wf-check');
+    graph.targetSourceFingerprint = fp;
+    graph.nodes = graph.nodes.map(n => n.type === 'generated' ? { ...n, resultUrl: mediaRef.path, generatedAt, updatedAt: generatedAt, status: 'ready' } : n);
+    resetStore([sb]);
+    useStudioStore.setState({ imageWorkflows: [graph] });
+    return { sb, graph };
+  }
+  it('old frame must still regenerate after only moving its node', async () => {
+    const { graph } = restoredFrame(1);
+    useStudioStore.getState().upsertImageWorkflow(updateImageWorkflowNodePosition(graph, 'gen-x', { x: 700, y: 200 }, 20));
+    generateImageMock.mockResolvedValue({ url: 'https://provider.test/new.png' });
+    const { result } = renderHook(() => useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: 'check', submitIntervalMs: 0 }));
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false));
+    expect(generateImageMock).toHaveBeenCalledTimes(1);
+  });
+  it('all recovered fresh frames must clear stale', async () => {
+    restoredFrame(20);
+    generateImageMock.mockResolvedValue({ url: 'https://provider.test/new.png' });
+    const { result } = renderHook(() => useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: 'check', submitIntervalMs: 0 }));
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false));
+    expect(generateImageMock).toHaveBeenCalledTimes(0);
+    expect(useStudioStore.getState().storyboards[0]?.stale).toBe(false);
+    expect(useStudioStore.getState().storyboards[0]?.staleSince).toBeUndefined();
+    expect(useStudioStore.getState().storyboards[0]?.staleReason).toBeUndefined();
+    expect(useStudioStore.getState().storyboards[0]?.visualReview?.status).not.toBe('approved');
+  });
+  it.each(['generatedAt', 'fingerprint', 'resultUrl', 'origin'])(
+    'does not finalize recovered frames without matching %s evidence', async (missing) => {
+      const { graph, sb } = restoredFrame(20);
+      if (missing === 'generatedAt') {
+        graph.nodes = graph.nodes.map(node => node.type === 'generated' ? { ...node, generatedAt: undefined } : node);
+      }
+      if (missing === 'fingerprint') graph.targetSourceFingerprint = 'other-source';
+      if (missing === 'resultUrl') {
+        graph.nodes = graph.nodes.map(node => node.type === 'generated' ? { ...node, resultUrl: 'project-file://other.png' } : node);
+      }
+      if (missing === 'origin') {
+        useStudioStore.setState({ storyboards: [{ ...sb, keyframes: sb.keyframes?.map(frame => ({ ...frame, origin: undefined })) }] });
+      }
+      useStudioStore.setState({ imageWorkflows: [graph] });
+      generateImageMock.mockRejectedValue(new Error('unavailable'));
+      const { result } = renderHook(() => useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: 'check', submitIntervalMs: 0 }));
+      act(() => result.current.start());
+      await waitFor(() => expect(result.current.state.running).toBe(false));
+      expect(generateImageMock).toHaveBeenCalledTimes(3);
+      expect(useStudioStore.getState().storyboards[0]?.stale).toBe(true);
+    },
+  );
+  it('normal continuity landing must allow two successive shots', async () => {
+    const semantics = { sceneViewpointId: 'wide', personFree: true, visibleCharacters: [], visibleProps: [], actionIn: 'enter', actionOut: 'leave' };
+    resetStore([shot({ id: 'sb-1', index: 1, shotSemantics: semantics }), shot({ id: 'sb-2', index: 2, shotSemantics: semantics })]);
+    resolvedReferences.value = [{ imageUrl: 'file://assets/check-scene.png', title: 'check-scene', assetType: 'scene', assetId: 'check-scene' }];
+    useStudioStore.setState({ continuityAssetVersions: [{ assetId: 'check-scene', versionId: 'v1', assetKind: 'scene', label: 'check-scene', structurallyComplete: true, source: 'test', referenceImagePaths: ['file://assets/check-scene.png'], contentFingerprint: 'scene-fp', approved: false }] });
+    generateImageMock.mockResolvedValue({ url: 'https://provider.test/new.png' });
+    const { result } = renderHook(() => useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: 'check', submitIntervalMs: 0 }));
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false));
+    expect(generateImageMock).toHaveBeenCalledTimes(2);
+    expect(result.current.state.failed).toBe(0);
+    expect(useStudioStore.getState().storyboards[1]?.continuityState?.previousStoryboardId).toBe('sb-1');
+  });
+  it('missing staleSince must not lose a completed frame on retry', async () => {
+    resetStore([shot({ stale: true, duration: 12, keyframes: [
+      { frameId: 'sb-1-kf-1', inUs: 0, mediaRef: { kind: 'image', path: 'project-file://old-1.png' } },
+      { frameId: 'sb-1-kf-2', inUs: 6000000, mediaRef: { kind: 'image', path: 'project-file://old-2.png' } },
+    ] })]);
+    generateImageMock.mockResolvedValueOnce({ url: 'https://provider.test/one.png' }).mockRejectedValueOnce(new Error('temporary')).mockResolvedValue({ url: 'https://provider.test/two.png' });
+    const { result } = renderHook(() => useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: 'check', submitIntervalMs: 0 }));
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false));
+    expect(generateImageMock).toHaveBeenCalledTimes(3);
+    expect(useStudioStore.getState().storyboards[0]?.stale).toBe(false);
+  });
+});
+
+
+describe('independent check continuous source', () => {
+  beforeEach(() => { resolvedReferences.value = []; generateImageMock.mockReset(); });
+  it.each(['mediaRef', 'previous invalidation', 'current invalidation'])(
+    'changing %s in flight must reject the current old result', async (change) => {
+    const prior = shot({ id: 'sb-prev', index: 1, mediaRef: { kind: 'image', path: 'project-file://proj/prior-old.png' }, continuityState: continuityState('chapter-001:scene:s') });
+    const current = shot({ id: 'sb-current', index: 2, stale: true, staleSince: 10, continuityState: continuityState('chapter-001:scene:s', 'sb-prev'), visualReview: { status: 'pending', reasons: [], characterChecks: [], sceneChecks: [], propChecks: [], transitionChecks: [], textWatermarkCheck: { passed: true }, reviewer: 'human', evidencePaths: [], inputFingerprint: 'check' } });
+    resetStore([prior, current]);
+    let resolve!: (value: { url: string }) => void;
+    generateImageMock.mockImplementation(() => new Promise<{ url: string }>(done => { resolve = done; }));
+    const { result } = renderHook(() => useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: 'check', submitIntervalMs: 0 }));
+    act(() => result.current.start());
+    await waitFor(() => expect(generateImageMock).toHaveBeenCalledTimes(1));
+    act(() => {
+      if (change === 'mediaRef') {
+        useStudioStore.getState().updateStoryboard('sb-prev', { mediaRef: { kind: 'image', path: 'project-file://proj/prior-new.png' } });
+      } else {
+        useStudioStore.getState().updateStoryboard(change === 'previous invalidation' ? 'sb-prev' : 'sb-current', {
+          stale: true, staleSince: 25, staleReason: '外部重新作废',
+        });
+      }
+    });
+    if (change !== 'previous invalidation') expect(useStudioStore.getState().storyboards[1]?.stale).toBe(true);
+    await act(async () => { resolve({ url: 'https://provider.test/late.png' }); });
+    await waitFor(() => expect(result.current.state.running).toBe(false));
+    expect(useStudioStore.getState().storyboards[1]?.mediaRef).toBeUndefined();
+    expect(useStudioStore.getState().materials).toHaveLength(0);
+    expect(saveImage).not.toHaveBeenCalled();
+    expect(generateImageMock).toHaveBeenCalledTimes(1);
+    expect(useStoryboardBatchSessionStore.getState().session).toMatchObject({ status: 'interrupted', cursorShotIndex: 2 });
+  });
+});
+
+
+describe('independent check continuity retries', () => {
+  beforeEach(() => { resolvedReferences.value = []; generateImageMock.mockReset(); });
+  it('rejects an external previous-shot write after accepting its own earlier landing', async () => {
+    resetStore([
+      shot({ id: 'sb-1', index: 1, continuityState: continuityState('chapter-001:scene:s') }),
+      shot({ id: 'sb-2', index: 2, continuityState: continuityState('chapter-001:scene:s', 'sb-1') }),
+    ]);
+    let resolve!: (value: { url: string }) => void;
+    generateImageMock.mockResolvedValueOnce({ url: 'https://provider.test/first.png' })
+      .mockImplementation(() => new Promise<{ url: string }>(done => { resolve = done; }));
+    const { result } = renderHook(() => useStoryboardBatchGeneration({
+      storyboards: useStudioStore.getState().storyboards, projectName: 'check', submitIntervalMs: 0,
+    }));
+    act(() => result.current.start());
+    await waitFor(() => expect(generateImageMock).toHaveBeenCalledTimes(2));
+    expect(useStudioStore.getState().storyboards[0]?.mediaRef?.path).toContain('gen-out.png');
+    act(() => useStudioStore.getState().updateStoryboard('sb-1', {
+      mediaRef: { kind: 'image', path: 'project-file://external.png' },
+    }));
+    await act(async () => { resolve({ url: 'https://provider.test/late.png' }); });
+    await waitFor(() => expect(result.current.state.running).toBe(false));
+    expect(generateImageMock).toHaveBeenCalledTimes(2);
+    expect(saveImage).toHaveBeenCalledTimes(1);
+    expect(useStudioStore.getState().materials).toHaveLength(1);
+    expect(useStudioStore.getState().storyboards[1]?.mediaRef).toBeUndefined();
+    expect(useStudioStore.getState().storyboards[0]?.mediaRef?.path).toBe('project-file://external.png');
+  });
+  it.each([false, true])('two stale multiframe shots continue after real continuity landing and one frame retry (reviewed=%s)', async (reviewed) => {
+    const make = (id: string, index: number) => shot({ id, index, stale: true, staleSince: 10, duration: 12,
+      shotSemantics: { sceneViewpointId: 'wide', personFree: true, visibleCharacters: [], visibleProps: [], actionIn: 'enter', actionOut: 'leave' },
+      keyframes: [
+        { frameId: id + '-kf-1', inUs: 0, mediaRef: { kind: 'image', path: 'project-file://old-1.png' } },
+        { frameId: id + '-kf-2', inUs: 6000000, mediaRef: { kind: 'image', path: 'project-file://old-2.png' } },
+      ],
+    });
+    const shots = [make('sb-1', 1), make('sb-2', 2)];
+    if (reviewed) {
+      for (const item of shots) {
+        item.continuityState = continuityState('chapter-001:scene:check-scene');
+        item.visualReview = { status: 'pending', reasons: [], characterChecks: [], sceneChecks: [], propChecks: [], transitionChecks: [], textWatermarkCheck: { passed: true }, reviewer: 'human', evidencePaths: [], inputFingerprint: 'check' };
+      }
+    }
+    resetStore(shots);
+    resolvedReferences.value = [{ imageUrl: 'file://assets/check-scene.png', title: 'check-scene', assetType: 'scene', assetId: 'check-scene' }];
+    useStudioStore.setState({ continuityAssetVersions: [{ assetId: 'check-scene', versionId: 'v1', assetKind: 'scene', label: 'check-scene', structurallyComplete: true, source: 'test', referenceImagePaths: ['file://assets/check-scene.png'], contentFingerprint: 'scene-fp', approved: false }] });
+    generateImageMock.mockResolvedValueOnce({ url: 'https://provider.test/one.png' }).mockRejectedValueOnce(new Error('temporary')).mockResolvedValue({ url: 'https://provider.test/rest.png' });
+    const { result } = renderHook(() => useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: 'check', submitIntervalMs: 0 }));
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false));
+    expect(generateImageMock).toHaveBeenCalledTimes(5);
+    expect(result.current.state.failed).toBe(0);
+    expect(useStudioStore.getState().storyboards.map(sb => sb.stale)).toEqual([false, false]);
+    expect(useStudioStore.getState().storyboards[1]?.continuityState?.previousStoryboardId).toBe('sb-1');
+  });
+});
+
+describe("runStoryboardSingleShotOnce", () => {
+  beforeEach(() => { resolvedReferences.value = []; generateImageMock.mockReset(); });
+  const run = async (board: StoryboardItem) => {
+    const module = await import("./use-storyboard-batch-generation");
+    return module.runStoryboardSingleShotOnce(board, "check");
+  };
+  it("finalizes real stale multi-frame slots without entering the batch ladder", async () => {
+    const board = shot({ stale: true, staleSince: 10, duration: 12, keyframes: [
+      { frameId: "sb-1-kf-1", inUs: 0, mediaRef: { kind: "image", path: "project-file://old-1.png" } },
+      { frameId: "sb-1-kf-2", inUs: 6000000, mediaRef: { kind: "image", path: "project-file://old-2.png" } },
+    ] });
+    resetStore([board]);
+    saveImage.mockResolvedValueOnce({ success: true, url: "project-file://proj/one.png", size: 10 })
+      .mockResolvedValueOnce({ success: true, url: "project-file://proj/two.png", size: 10 });
+    generateImageMock.mockResolvedValue({ url: "data:image/png;base64,QQ==" });
+    await run(board);
+    const written = useStudioStore.getState().storyboards[0];
+    expect(written.keyframes?.map(frame => frame.mediaRef.path)).toEqual(["project-file://proj/one.png", "project-file://proj/two.png"]);
+    expect(written.keyframes?.every(frame => frame.origin?.kind === "generated")).toBe(true);
+    expect(written.stale).toBe(false);
+    expect(written.visualReview?.status).not.toBe("approved");
+    expect(generateImageMock).toHaveBeenCalledTimes(2);
+    expect(useStoryboardBatchSessionStore.getState().session).toBeNull();
+  });
+  it("rejects a stale caller snapshot before generation", async () => {
+    const board = shot({}); resetStore([board]);
+    useStudioStore.getState().updateStoryboard(board.id, { prompt: "changed source" });
+    await expect(run(board)).rejects.toThrow("来源已变化");
+    expect(generateImageMock).not.toHaveBeenCalled();
+  });
+  it("rejects late source changes before save and frame finalization", async () => {
+    const board = shot({}); resetStore([board]);
+    generateImageMock.mockImplementation(async () => {
+      useStudioStore.getState().updateStoryboard(board.id, { prompt: "changed source" });
+      return { url: "data:image/png;base64,QQ==" };
+    });
+    await expect(run(board)).rejects.toThrow("来源已变化");
+    expect(saveImage).not.toHaveBeenCalled();
+    expect(useStudioStore.getState().materials).toHaveLength(0);
+  });
+  it("keeps prior frame output on failure and does not run the batch retry ladder", async () => {
+    const board = shot({ stale: true, mediaRef: { kind: "image", path: "project-file://old.png" } });
+    resetStore([board]); generateImageMock.mockRejectedValue(new Error("provider unavailable"));
+    await expect(run(board)).rejects.toThrow("provider unavailable");
+    expect(generateImageMock).toHaveBeenCalledTimes(1);
+    expect(useStudioStore.getState().storyboards[0].mediaRef?.path).toBe("project-file://old.png");
+  });
+});

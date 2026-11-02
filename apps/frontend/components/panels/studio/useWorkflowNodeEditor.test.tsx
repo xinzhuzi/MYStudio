@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { useStudioStore } from "@/stores/studio/studio-store";
-import { serializeStoryboardTable } from "@/lib/studio/storyboard-table";
+import { parseStoryboardTable, serializeStoryboardTable, toStoryboardItems } from "@/lib/studio/storyboard-table";
 import { formatStoryboardJson } from "@/lib/studio/storyboard-json";
 import type { StoryboardItem } from "@/types/studio";
 import { useWorkflowNodeEditor } from "./useWorkflowNodeEditor";
@@ -293,5 +293,41 @@ describe("useWorkflowNodeEditor", () => {
     expect(saved.stale).toBe(true);
     expect(saved.outputVersion).toBe(2);
     expect(result.current.editingWorkflowNodeId).toBeNull();
+  });
+
+  it("preserves production scene evidence after JSON edit, Markdown save and canonical reparse", async () => {
+    const parsed = parseStoryboardTable([
+      "## 场4：金水塾馆入馆",
+      "| 1 | 空房 | 金水塾馆 | [] | 10 | 中景 | 静止 | 静止 | — | — | 平静 | 无台词 | 无 | [] | {\"sceneViewpointId\":\"room\",\"personFree\":true,\"visibleCharacters\":[],\"visibleProps\":[],\"actionIn\":\"静止\",\"actionOut\":\"静止\"} |",
+      "## 场5：金水塾馆点验",
+      "| 2 | 空房 | 金水塾馆 | [] | 10 | 中景 | 静止 | 静止 | — | — | 平静 | 无台词 | 无 | [] | {\"sceneViewpointId\":\"room\",\"personFree\":true,\"visibleCharacters\":[],\"visibleProps\":[],\"actionIn\":\"静止\",\"actionOut\":\"静止\"} |",
+    ].join("\n"), "chapter-001", { requireShotSemantics: true });
+    expect(parsed.errors).toEqual([]);
+    const original = toStoryboardItems(parsed.rows, "chapter-001", []);
+    useStudioStore.setState({ storyboards: original });
+    const saveAgentWorkData = vi.fn();
+    const { result } = renderHook(() => useWorkflowNodeEditor({
+      productionFlowModel: storyboardFlowModel,
+      projectId: "project-1",
+      productionEpisodeId: "chapter-001",
+      saveAgentWorkData,
+      saveScriptPlan: vi.fn(),
+    }));
+
+    act(() => result.current.openNodeJson("storyboardTable"));
+    const draft = JSON.parse(result.current.workflowNodeDraft) as StoryboardItem[];
+    draft[0]!.prompt = "空房，门框入画";
+    act(() => result.current.setWorkflowNodeDraft(JSON.stringify(draft)));
+    await act(async () => { await result.current.saveWorkflowNodeEdit(); });
+
+    expect(result.current.editingWorkflowNodeId).toBeNull();
+    expect(saveAgentWorkData).toHaveBeenCalledOnce();
+    const savedMarkdown = saveAgentWorkData.mock.calls[0]![1] as string;
+    const reparsed = parseStoryboardTable(savedMarkdown, "chapter-001", { requireShotSemantics: true });
+    expect(reparsed.errors).toEqual([]);
+    const restored = toStoryboardItems(reparsed.rows, "chapter-001", []);
+    expect(restored[0]?.prompt).toBe(draft[0]?.prompt);
+    expect(restored.map(item => item.sourceEvidence)).toEqual(original.map(item => item.sourceEvidence));
+    expect(reparsed.rows.map(item => item.sceneIndex)).toEqual([4, 5]);
   });
 });

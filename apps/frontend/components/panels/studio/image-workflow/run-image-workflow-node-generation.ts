@@ -20,6 +20,7 @@ import {
 } from "@/lib/studio/visual-manual-style-tokens";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import { buildStoryboardReferenceSheet } from "./storyboard-reference-sheet";
 import type {
   ImageWorkflowNode, ImageWorkflowGraph } from "@/types/studio";
 import {
@@ -60,6 +61,8 @@ export async function runImageWorkflowNodeGeneration(
      * (最低档 1K,降显存降时长)。缺省=不降,行为零变化。
      */
     degradedResolution?: string;
+    /** 同步核验调用方冻结的项目/章节/上游来源；过期时抛错拒写。 */
+    assertStillCurrent?: () => void;
   },
 ): Promise<{ imageUrl: string }> {
   // 无衣物链分流(09-04 通用化,与图片工作室同源):成图有 uncloth 上游且
@@ -68,7 +71,9 @@ export async function runImageWorkflowNodeGeneration(
   // 链输入缺位(错误分支)由调用方 hook 阻断并指路。
   const unclothRequest = buildUnclothChainRequest(graph, targetNodeId);
   if (!("error" in unclothRequest)) {
-    const result = await runUnclothChain(unclothRequest);
+    input.assertStillCurrent?.();
+    const result = await runUnclothChain(unclothRequest, input.assertStillCurrent);
+    input.assertStillCurrent?.();
     // 回写须基于 store 最新代(与普通链同纪律;旁路操作可能已推进图)
     const latest =
       useStudioStore.getState().imageWorkflows.find((item) => item.id === graph.id) ?? graph;
@@ -84,6 +89,8 @@ export async function runImageWorkflowNodeGeneration(
   }
 
   const request = buildImageWorkflowGenerationRequest(graph, targetNodeId);
+  const isStoryboard = graph.target.kind === "storyboard";
+  const finalModel = isStoryboard ? DEFAULT_LOCAL_IMAGE_MODEL : request.model;
   if (!request.prompt.trim()) {
     throw new Error("成图是生图的最后一步,不能单独生图——请把提示词节点(或无衣物/NSFW破限节点)连到它的输入口再生成");
   }
@@ -93,7 +100,7 @@ export async function runImageWorkflowNodeGeneration(
   if (request.nsfwPro && !isNsfwProModel(request.model)) {
     throw new Error("NSFW破限链仅支持本地 Krea2(或 ComfyUI桥):把成图的模型切到 Krea2,或断开破限连线后再生成");
   }
-  assertImageWorkflowContinuityCapability(request);
+  if (!isStoryboard) assertImageWorkflowContinuityCapability(request);
 
   const projectId = useProjectStore.getState().activeProjectId;
   if (!projectId) throw new Error("请先选择项目");
@@ -119,6 +126,21 @@ export async function runImageWorkflowNodeGeneration(
     return await assetBridge.readImageDataUrl(assetId).catch(() => null) ?? url;
   }));
   const referenceImages = await prepareReferenceImages(resolvedReferenceUrls);
+  const referenceSheet = isStoryboard && request.referenceImages.length > 0
+    ? await buildStoryboardReferenceSheet({ graph, targetNodeId,
+        referenceImages: request.referenceImages, preparedReferenceImages: referenceImages,
+        aspectRatio: request.aspectRatio })
+    : null;
+  const transportReferenceImages = referenceSheet ? [referenceSheet.imageUrl] : referenceImages;
+  if (isStoryboard) {
+    assertImageWorkflowContinuityCapability({ ...request, model: finalModel, referenceImages: transportReferenceImages },
+      request.continuityRequired && request.referenceImages.length ? {
+        kind: "storyboard-single-image",
+        imageUrl: transportReferenceImages[0],
+        sourceReferenceImages: request.referenceImages,
+        mappings: referenceSheet?.mappings ?? request.referenceImages.map((imageUrl, index) => ({ order: index + 1, imageUrl })),
+      } : undefined);
+  }
   // 分镜帧生图接入所选视觉手册风格锁(扩展手册: sanitize+水墨 token);
   // 仅限 storyboard 工作流,自由/资产工作流提示词不做覆盖。
   const styledPrompt = graph.target.kind === "storyboard"
@@ -150,16 +172,15 @@ export async function runImageWorkflowNodeGeneration(
   // (10-19-daojie-krea2-style-align);现转正,K2 道劫模板转档案(件保留清单标注)。
   // 参考图随请求透传(与既往回落形态一致);NSFW 破限 use_lora 在 qi21 侧静默忽略
   // (同既往回落)。自由/资产工作流保留节点自选模型。
-  const isStoryboard = graph.target.kind === "storyboard";
   const buildRequest = (transport?: "chat") => ({
-    prompt: compiledFrame?.positive ?? styledPrompt,
-    model: isStoryboard ? DEFAULT_LOCAL_IMAGE_MODEL : request.model,
+    prompt: [compiledFrame?.positive ?? styledPrompt, referenceSheet?.prompt].filter(Boolean).join("\n"),
+    model: finalModel,
     aspectRatio: request.aspectRatio,
     // 降载重试(09-15 P3 阶梯第三段):显式降档覆盖;缺省保持图内档位
     resolution: input.degradedResolution ?? request.resolution,
     negativePrompt: compiledFrame?.negative ?? request.negativePrompt,
     promptPolicy: (compiledFrame ? "raw" : undefined) as "raw" | undefined,
-    referenceImages,
+    referenceImages: transportReferenceImages,
     // NSFW破限链(09-07):use_lora 经 extraParams 进请求体,引擎层与全局
     // 专业流开关或关系合并(ai-sdk-bridge Object.assign 透传)
     extraParams: request.nsfwPro ? { use_lora: true } : undefined,
@@ -227,10 +248,12 @@ export async function runImageWorkflowNodeGeneration(
   };
 
   const generateAndSave = async (transport?: "chat") => {
+    input.assertStillCurrent?.();
     const generated = await aiManager.generateImage(buildRequest(transport));
     // 生图落库自动去噪(噪点治理 08-29):开关开启时,成图在写入项目
     // workflow-images 前先过轻度双边滤波;失败原样保存(fail-open)。
     const denoisedSource = await maybeAutoDenoiseUrl(generated.url);
+    input.assertStillCurrent?.();
     const saved = await getProjectFilesBridge()?.saveImage({
       projectId,
       relativePath: workflowImageRelativePath(
@@ -240,6 +263,7 @@ export async function runImageWorkflowNodeGeneration(
       ),
       source: denoisedSource,
     });
+    input.assertStillCurrent?.();
     return { generated, saved };
   };
   const generateAndGate = async (transport?: "chat") => {
@@ -277,6 +301,7 @@ export async function runImageWorkflowNodeGeneration(
   if (!saved?.success || !saved.url) {
     throw new Error(saved?.error || "项目内图片保存失败");
   }
+  input.assertStillCurrent?.();
   const materialId = input.addMaterial({
     name: `${node?.title || "workflow-image"}.png`,
     localPath: saved.url,
@@ -288,6 +313,7 @@ export async function runImageWorkflowNodeGeneration(
     imageUrl: saved.url,
     mediaId: materialId ?? result.mediaId,
   });
+  input.assertStillCurrent?.();
   useStudioStore.getState().upsertImageWorkflow(updated);
   return { imageUrl: saved.url };
 }

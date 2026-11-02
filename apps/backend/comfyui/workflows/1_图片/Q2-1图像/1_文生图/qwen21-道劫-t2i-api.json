@@ -89,6 +89,16 @@
         ]
       }
     },
+    "8": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "QI21道劫文生图_",
+        "images": [
+          "7500:7510",
+          0
+        ]
+      }
+    },
     "504": {
       "class_type": "SaveImage",
       "inputs": {
@@ -238,14 +248,14 @@
     "7:7015": {
       "class_type": "MyQi21SpeedSelect",
       "inputs": {
-        "mode": "0 · Turbo 8步",
-        "latent_turbo": [
-          "7:7031",
-          0
-        ],
+        "mode": "3 · 混动 40步+缓存",
         "型名": [
           "6:4010",
           5
+        ],
+        "latent_e": [
+          "7:7045",
+          0
         ]
       }
     },
@@ -255,72 +265,13 @@
         "value": 0
       }
     },
-    "7:7017": {
-      "class_type": "RandomNoise",
-      "inputs": {
-        "noise_seed": [
-          "7:7014",
-          0
-        ]
-      }
-    },
-    "7:7018": {
-      "class_type": "KSamplerSelect",
-      "inputs": {
-        "sampler_name": "euler"
-      }
-    },
-    "7:7028": {
+    "7:7026": {
       "class_type": "LoraLoaderModelOnly",
       "inputs": {
-        "lora_name": "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
-        "strength_model": 1.0,
+        "lora_name": "qwen2.1-detail-fix-2.0.safetensors",
+        "strength_model": 1,
         "model": [
           "7:7034",
-          0
-        ]
-      }
-    },
-    "7:7029": {
-      "class_type": "BasicGuider",
-      "inputs": {
-        "model": [
-          "7:7028",
-          0
-        ],
-        "conditioning": [
-          "4015",
-          0
-        ]
-      }
-    },
-    "7:7030": {
-      "class_type": "ManualSigmas",
-      "inputs": {
-        "sigmas": "1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0"
-      }
-    },
-    "7:7031": {
-      "class_type": "SamplerCustomAdvanced",
-      "inputs": {
-        "noise": [
-          "7:7017",
-          0
-        ],
-        "guider": [
-          "7:7029",
-          0
-        ],
-        "sampler": [
-          "7:7018",
-          0
-        ],
-        "sigmas": [
-          "7:7030",
-          0
-        ],
-        "latent_image": [
-          "4",
           0
         ]
       }
@@ -332,6 +283,49 @@
         "strength_model": 0.8,
         "model": [
           "1",
+          0
+        ]
+      }
+    },
+    "7:7040": {
+      "class_type": "LazyCache",
+      "inputs": {
+        "reuse_threshold": 0.2,
+        "start_percent": 0.15,
+        "end_percent": 0.95,
+        "verbose": false,
+        "model": [
+          "7:7026",
+          0
+        ]
+      }
+    },
+    "7:7045": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": [
+          "7:7014",
+          0
+        ],
+        "steps": 40,
+        "cfg": 4.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1,
+        "model": [
+          "7:7040",
+          0
+        ],
+        "positive": [
+          "4015",
+          0
+        ],
+        "negative": [
+          "4015",
+          1
+        ],
+        "latent_image": [
+          "4",
           0
         ]
       }

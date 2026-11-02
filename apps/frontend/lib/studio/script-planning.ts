@@ -1,5 +1,7 @@
+import { DAOJIE_STRICT_DURATION_SECONDS } from "./daojie-duration-policy";
 import { getAgentSkillPreset } from "@/lib/studio/manuals";
 import { daojieFidelityBoundary } from "./daojie-generation-audit";
+import { daojieCharacterExpressionGuidance } from "./daojie-character-expression";
 import type { AgentWorkKey, StudioReviewTarget } from "@/types/studio";
 
 /** 逐章编剧链（1 章 = 1 集，B+ 单次生成）：剧本(含规划) → 审核。 */
@@ -121,9 +123,9 @@ const MD_FMT =
 const DAOJIE_ADAPTATION_FORMAT = [
   "你是道劫原文改编编剧。把给定片段转成可拍剧本，只沿用原文已有事实；不执行通用自由创作方法。",
   "头部三行固定：# {作品名} EP{集序}：{集标题}；# 范围与目标：{本次范围} | 时长：{分钟}分钟；# 已确定要求：{项目信息中的画风/画幅/语言/配音要求，未知写未设}。其后依次为## 剧情梗概、场次正文、## 改编追踪。",
-  "场头：{场号} {场景名} {时间}/{内外} ·约{秒数}秒；时间原文未定写未定。下一行人物：{本场实际人物}。场内镜头N：{原文支持的环境/动作/状态}，每场从1编号。对白用人物名：原话。场间用---分隔。",
-  "改编追踪用表格：原文位置 | 是否采用 | 视听表达 | 待确认。按原文顺序逐段核对数量/动作/原话，未发生的事不得先写进剧本。不得把原文叙述转成OS/旁白，原文没有发声的地方就保持无台词。",
-  "场次和总时长据原文内容估算，单集上限180秒，可短于目标。头部必须用分钟，各场必须用秒；头部换算秒数与逐场秒数合计四舍五入到整数秒后须一致，不得用目标时长冒充合计。原文未给光源/天象/声源/空间方位/身体反应，不必补齐；不以氛围、镜头细节为由新增。既有声音不能改为无声，数量及序数保留。",
+  "场头严格使用阿拉伯数字起始：1 {场景名} {时间}/{内外} ·约{秒数}秒（下一场递增为2、3）；场号前不得加“场”或Markdown标题符号。时间原文未定写未定。下一行人物：{本场实际人物}。场内镜头N：{原文支持的环境/动作/状态}，每场从1编号。对白用人物名：原话。场间用---分隔。",
+  "改编追踪用表格：原文位置 | 是否采用 | 视听表达 | 待确认。按原文顺序逐段核对数量/动作/原话，未发生的事不得先写进剧本。允许原文明示叙述按受控通道转为 V.S.（旁白），也可用画面或有当时知情依据的 OS：遵守题材规则四·附的原文有据、意义等价、不加评价、不补信息约束，不因原文没有当场发声者而删除动机、因果、设定或代价。已有画面足以传达原信息时不强加旁白；咽血、腕疤等动作或痕迹不自动等价于具体年限、机制、来历或代价已保留。重要信息的删减、后置或知情归属变化须列清单报用户逐项裁定，待确认不是正式批准；不新增对白轮次或现场声源。",
+  `场次和总时长据原文内容估算，单集上限${DAOJIE_STRICT_DURATION_SECONDS}秒，可短于目标。头部必须用分钟，各场必须用秒；头部换算秒数与逐场秒数合计四舍五入到整数秒后须一致，不得用目标时长冒充合计。原文未给光源/天象/声源/空间方位/身体反应，不必补齐；不以氛围、镜头细节为由新增。既有声音不能改为无声，数量及序数保留。`,
 ].join("\n\n");
 
 /** 取某阶段 skill 手册全文（供 UI 展示）。 */
@@ -195,7 +197,7 @@ export function buildStageMessages(stage: ScriptStageKey, ctx: ScriptStageContex
       : null;
   const methodDoc = methodDocId ? (getAgentSkillPreset(methodDocId)?.content ?? "") : "";
   const strict = stage === "scriptDraft" && ctx.strictDaojieAdaptation && ctx.chapterText.trim();
-  const system = [strict ? DAOJIE_ADAPTATION_FORMAT : skill, strict ? ctx.directorContext : methodDoc, MD_FMT, strict ? daojieFidelityBoundary("script") : ""].filter(Boolean).join("\n\n---\n\n");
+  const system = [strict ? DAOJIE_ADAPTATION_FORMAT : skill, strict ? ctx.directorContext : methodDoc, MD_FMT, strict ? daojieCharacterExpressionGuidance("script") : "", strict ? daojieFidelityBoundary("script") : ""].filter(Boolean).join("\n\n---\n\n");
   const lines: string[] = [];
   if (ctx.manualContext) lines.push(ctx.manualContext);
   if (ctx.originalBibleContext) lines.push(ctx.originalBibleContext);
@@ -235,7 +237,10 @@ export function buildStageMessages(stage: ScriptStageKey, ctx: ScriptStageContex
 /** 构建剧本阶段的「审核」消息：supervision skill 作 system，审核主体=新格式剧本（B+ 收口后单主体）。 */
 export function buildStageReviewMessages(_stage: ReviewableStage, ctx: ScriptStageContext): ScriptStageMessages {
   const skill = getAgentSkillPreset("script_agent_supervision")?.content ?? "";
-  const system = [skill, MD_FMT].filter(Boolean).join("\n\n---\n\n");
+  const strictReviewNote = ctx.strictDaojieAdaptation && ctx.chapterText.trim()
+    ? `## 道劫 D5 叙述转译审核注记\n本次单集时长上限${DAOJIE_STRICT_DURATION_SECONDS}秒，允许短于目标；头部分钟换算与逐场秒数合计须一致，以此覆盖通用参考时长±10秒判定；视觉预算以195秒上限为时基，每10秒一镜，最多19镜，不套用项目旧配置的180秒/18镜。通用自检指标保留原始计数，不识别原文有据转译。须逐段对照本章原文及题材规则四·附确认；仅符合该通道、原文有据的转译旁白适用镜级与场级 4.6 字/秒判定线，且豁免 OS/旁白占比≤40%、连续不超过2段与旁白不得替场景做事的限制。普通对白、无原文依据的 OS 仍按 4 字/秒；OS 不自动获得转译旁白例外；非转译旁白也守4字/秒及通用占比、连续段限制。不得仅凭通用自检数值判违规，也不得把知情依据未知的内容计入例外。时长估算保守端与台词完整承载要求不变。`
+    : "";
+  const system = [skill, MD_FMT, strictReviewNote].filter(Boolean).join("\n\n---\n\n");
   const lines: string[] = [];
   if (ctx.manualContext) lines.push(ctx.manualContext);
   if (ctx.originalBibleContext) lines.push(ctx.originalBibleContext);
@@ -250,6 +255,7 @@ export function buildStageReviewMessages(_stage: ReviewableStage, ctx: ScriptSta
   if (ctx.directorNarrative) lines.push(ctx.directorNarrative);
   // R4/G9:确定性自检指标紧随审核主体——审核以其数值为准,不自行计数(v3 审核手册同口径)
   if (ctx.selfCheckMetrics) lines.push(ctx.selfCheckMetrics);
+  if (strictReviewNote) lines.push(strictReviewNote);
   lines.push(
     "请执行「剧本审核」：以上方【剧本】为审核主体（新格式：头部三行+剧情梗概+场次正文+改编追踪表[如为小说改编章]），对照【本章事件分析】与【本章正文（如注入；原创章无此节）】，审核对象已随文提供、无需调用工具，按输出格式返回审核报告。",
   );

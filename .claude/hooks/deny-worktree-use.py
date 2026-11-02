@@ -79,7 +79,34 @@ def _has_nonempty_isolation(tool_input: dict[str, Any]) -> bool:
     return True
 
 
+def _review_command_text(command: str) -> str:
+    """Separate literal stdin only for a deliberately small CLI grammar."""
+    header, newline, remaining = command.partition("\n")
+    if not newline:
+        return command
+    match = re.fullmatch(r"([A-Za-z0-9_./: \t&-]+) <<'([A-Z][A-Z0-9_]*)'", header)
+    if not match:
+        return command
+    commands = match[1].split("&&")
+    if any(not re.fullmatch(r"[A-Za-z0-9_./: \t-]+", part) for part in commands):
+        return command
+    prefixes = commands[:-1]
+    if any(not re.fullmatch(r"trellis channel (?:create|spawn) [A-Za-z0-9_./: \t-]+",
+                            part.strip()) for part in prefixes):
+        return command
+    name = r"[A-Za-z0-9_][A-Za-z0-9_.-]*"
+    send = rf"trellis channel send {name} --as {name} --to {name} --stdin"
+    if not re.fullmatch(send, commands[-1].strip()):
+        return command
+    lines = remaining.splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        if line.rstrip("\n") == match[2]:
+            return header + "\n" + "".join(lines[index:])
+    return command
+
+
 def _forbidden_bash_reason(command: str) -> str | None:
+    command = _review_command_text(command)
     if re.search(r"\bgit\b[^\n;&|]*\bworktree\b", command, re.IGNORECASE):
         return "MYStudio forbids Claude Bash from invoking git worktree."
 

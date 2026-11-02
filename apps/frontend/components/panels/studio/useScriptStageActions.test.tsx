@@ -2,10 +2,17 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { textStreamMock, saveAgentWorkDataMock, loadWorkspaceMock } = vi.hoisted(() => ({
+const { textStreamMock, saveAgentWorkDataMock, loadWorkspaceMock, studioState } = vi.hoisted(() => ({
   textStreamMock: vi.fn(),
   saveAgentWorkDataMock: vi.fn(),
   loadWorkspaceMock: vi.fn(),
+  studioState: {
+    workflowConfig: {} as { directorManualId?: string },
+    novelChapters: [] as unknown[],
+    agentWorkData: [] as unknown[],
+    entityExtractions: {},
+    seriesBible: null,
+  },
 }));
 
 vi.mock("@/lib/storage/project-storage", async (importOriginal) => {
@@ -63,7 +70,7 @@ vi.mock("@/stores/studio/studio-store", () => {
   // G1:ScriptTab 渲染期以选择器形态订阅 activeChapterId——mock 须可调用(getState 之外
   // 补 hook 调用形态,纯对象会在渲染期炸「useStudioStore is not a function」);
   // mockState 无 activeChapterId → ScriptTab 回退首章,与该文件既有断言口径一致
-  const mockState = { novelChapters: [], entityExtractions: {}, seriesBible: null };
+  const mockState = studioState;
   return {
     useStudioStore: Object.assign(
       (selector?: (state: typeof mockState) => unknown) => (selector ? selector(mockState) : mockState),
@@ -96,10 +103,12 @@ const chapter = {
   importedAt: 1,
 } as unknown as NovelChapter;
 
-function renderActions() {
+function renderActions(workflowConfig: { directorManualId?: string } = {}) {
+  studioState.workflowConfig = workflowConfig;
+  studioState.novelChapters = [chapter];
   return renderHook(() =>
     useScriptStageActions({
-      workflowConfig: {} as never,
+      workflowConfig: workflowConfig as never,
       manualCatalog: {} as never,
       projectName: "测试项目",
       novelChapterCount: 1,
@@ -211,21 +220,21 @@ describe("useScriptStageActions stage review self-check metrics", () => {
   });
 
   // R4/G9 回归锁:审核 prompt 必带确定性自检指标节(父 I5)——审核以其数值为准,不自行计数
-  it("injects the self-check metrics section into the review user message", async () => {
+  it.each(["Daojie_xianxia", "other"])("injects self-check metrics and scopes the D5 review note to %s", async (directorManualId) => {
     const scriptData = [
       "# 测试 EP01：x",
-      "# 范围与目标：x | 时长：3分钟",
+      "# 范围与目标：x | 时长：3.25分钟",
       "# 已确定要求：x/16:9横屏/x",
       "",
-      "1-1 场 晨/外 ·约30秒",
+      "1 场 晨/外 ·约195秒",
       "人物：甲",
       "",
-      "△动作。",
+      ...Array.from({ length: 19 }, (_, index) => `镜头${index + 1}：动作。`),
       "甲：好。",
     ].join("\n");
     const { result } = renderHook(() =>
       useScriptStageActions({
-        workflowConfig: {} as never,
+        workflowConfig: { directorManualId, episodeDurationMin: 3 } as never,
         manualCatalog: {} as never,
         projectName: "测试项目",
         novelChapterCount: 1,
@@ -259,7 +268,17 @@ describe("useScriptStageActions stage review self-check metrics", () => {
     expect(userMessage.indexOf("## 自检指标（代码计算，以此为准）")).toBeGreaterThan(
       userMessage.indexOf("剧本（审核主体）"),
     );
-    expect(userMessage).toContain("场秒合计：30s");
+    expect(userMessage).toContain("场秒合计：195s");
+    if (directorManualId === "Daojie_xianxia") {
+      expect(userMessage).toContain("镜头 19 个（上限 19");
+      expect(userMessage).not.toContain("镜头 19 个超上限 18");
+      expect(userMessage).toContain("## 道劫 D5 叙述转译审核注记");
+      expect(userMessage.indexOf("## 道劫 D5")).toBeGreaterThan(userMessage.indexOf("## 自检指标（代码计算，以此为准）"));
+    } else {
+      expect(userMessage).toContain("镜头 19 个（上限 18");
+      expect(userMessage).toContain("镜头 19 个超上限 18");
+      expect(userMessage).not.toContain("## 道劫 D5");
+    }
     // G33 行为锁:审核 user 同注题材剧本规则节——mock 的 buildScriptManualContext 产物经
     // hook memo(scriptDirectorContext)→ handleStageReview directorNarrative 接线;若丢线此处必红。
     // 次序:审核主体 < 题材剧本规则节 < 自检指标
@@ -278,6 +297,9 @@ describe("useScriptStageActions review freshness (F3)", () => {
   beforeEach(() => {
     textStreamMock.mockReset();
     saveAgentWorkDataMock.mockReset();
+    studioState.workflowConfig = {};
+    studioState.novelChapters = [chapter];
+    studioState.agentWorkData = [];
     textStreamMock.mockResolvedValue({ success: true, text: "剧本产出" });
   });
 
@@ -646,6 +668,30 @@ describe("useScriptStageActions 占位串守卫(G5)", () => {
     // 守卫后回落 built.user(完整组装产物,含本集信息节)
     expect(userMessage).not.toContain("（正在组装提示词…）");
     expect(userMessage).toContain("## 本集信息（1 章 = 1 集）");
+  });
+
+  it("严格道劫的自定义补充要求不得替换已组装原文；通用 userOverride 仍保持覆盖语义", async () => {
+    const strict = renderActions({ directorManualId: "Daojie_xianxia" });
+    await act(async () => {
+      await strict.result.current.handleScriptStage("scriptDraft", chapter, "请只写一段关于断剑的戏。");
+    });
+
+    const strictUserMessage = lastUserMessage();
+    expect(strictUserMessage).toContain("本章正文（重点原文）");
+    expect(strictUserMessage).toContain("本章正文内容。");
+    expect(strictUserMessage).toContain("请只写一段关于断剑的戏。");
+    expect(strictUserMessage).toContain("本次补充要求");
+    expect(strictUserMessage).toContain("不得覆盖本消息中的本章原文、原话、动作数量与先后、必要声音或195秒上限");
+    expect(strictUserMessage.lastIndexOf("严格道劫执行边界")).toBeGreaterThan(strictUserMessage.lastIndexOf("请只写一段关于断剑的戏。"));
+    expect(textStreamMock.mock.calls[0]?.[0].messages[0]?.content).toContain("角色眼下要达到什么具体目的");
+
+    textStreamMock.mockReset();
+    textStreamMock.mockResolvedValue({ success: true, text: "剧本产出" });
+    const generic = renderActions();
+    await act(async () => {
+      await generic.result.current.handleScriptStage("scriptDraft", chapter, "只返回自定义内容");
+    });
+    expect(lastUserMessage()).toBe("只返回自定义内容");
   });
 });
 

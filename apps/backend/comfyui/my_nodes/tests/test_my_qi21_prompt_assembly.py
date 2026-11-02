@@ -44,6 +44,8 @@ import importlib.util
 import json
 from pathlib import Path
 
+import pytest
+
 # 1001 用户测试批 P1 例起 import 用包路径(历史例 importlib 直载并存,同目录
 # test_my_qi21_base/wh_suggest 惯例;1005 案B:_LOCK_A_NEG 已退役,包路径只取类)
 from comfyui.my_nodes.nodes.my_qi21_prompt_assembly import (
@@ -260,3 +262,33 @@ def test_8_lock_negative_mtime_hot_read(tmp_path):
     got2 = MyQi21PromptAssembly().assemble(主体句="S", BASE="B",
                                            锁层A全文="L")[1]
     assert got2 == _lock_neg()
+
+
+@pytest.mark.parametrize("kind", ["人物海报", "人脸基准", "设定卡"])
+def test_type_assembly_keeps_style_type_subject_order(kind):
+    """普通、透明与设定卡直写路统一三层顺序，设定卡仍解析主体条件。"""
+    data = json.loads(assembly._BASES_FILE.read_text(encoding="utf-8"))
+    entry = next(item for item in data["types"] if item["zh"] == kind)
+    subject = "青年男性刀修，玄色劲装束袖束腰，短刀完整收在鞘中。名号「玄刀客」。"
+    style = data["art_style_base"]["positive_text"]
+    before_entry = json.dumps(entry, ensure_ascii=False, sort_keys=True)
+    result, _ = MyQi21PromptAssembly().assemble(
+        BASE=entry["positive_text"], 主体句=subject, 锁层A全文=style,
+        组装用途="道劫美术类型",
+    )
+    style_part, type_marker, remainder = result.partition("\n类型句:")
+    type_part, subject_marker, subject_part = remainder.rpartition("\n主体句:")
+    assert style_part == style
+    assert type_marker and subject_marker and subject_part == subject
+    if kind == "设定卡":
+        assert entry["subject_first"] is True
+        assert "标题栏中央逐字放置角色名号「玄刀客」" in type_part
+        assert "服装呈束袖束腰上衣与分开的双腿裤装" in type_part
+        assert "完整图与所有局部图均保持收鞘态" in type_part
+        assert "该区保留净空，仅标注“能力未设定”" in type_part
+        assert "主体明确提供名号时" not in type_part
+    else:
+        expected_type = (assembly.strip_rgba_decl(entry["positive_text"])
+                         if entry["rgba_default"] else entry["positive_text"])
+        assert type_part == expected_type
+    assert json.dumps(entry, ensure_ascii=False, sort_keys=True) == before_entry

@@ -171,6 +171,8 @@ export interface StoryboardKeyframe {
 
 export interface StoryboardSourceEvidence {
   source: string;
+  /** Explicit production scene heading, distinct from a location asset or source paragraph. */
+  scene?: { index: number; name: string };
   sourceProjectId?: string | number;
   sourceEpisodeId?: string | number;
   sourceStoryboardId?: string | number;

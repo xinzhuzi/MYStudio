@@ -494,7 +494,7 @@ contextBridge.exposeInMainWorld('videoQcRuntime', {
     ipcRenderer.invoke('video-qc-runtime-delete-model', model),
 })
 
-// Chapter QC(成片体检单)API — 报告读取/手动重跑/L4 语义与 AC4 视觉预审回写。
+// Chapter QC(成片体检单)API — 报告读取/手动重跑/L4 语义、AC4 视觉预审与人工复核回写。
 contextBridge.exposeInMainWorld('chapterQc', {
   getReport: (payload: { projectId: string; chapterId: string }): Promise<unknown> =>
     ipcRenderer.invoke('chapter-qc-get-report', payload),
@@ -517,6 +517,16 @@ contextBridge.exposeInMainWorld('chapterQc', {
     findings: unknown[]
   }): Promise<{ success: boolean; message?: string }> =>
     ipcRenderer.invoke('chapter-qc-submit-vision-preflight', payload),
+  submitHumanReview: (payload: {
+    projectId: string
+    chapterId: string
+    expectedCreatedAt: number
+    fullWatched: boolean
+    audioListened: boolean
+    reviewer: string
+    notes?: string
+  }): Promise<{ success: boolean; message?: string }> =>
+    ipcRenderer.invoke('chapter-qc-submit-human-review', payload),
   onReportUpdated: (listener: (payload: { projectId: string; chapterId: string }) => void): (() => void) => {
     const handler = (_event: unknown, payload: { projectId: string; chapterId: string }) => listener(payload)
     ipcRenderer.on('chapter-qc-report-updated', handler)

@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { buildScriptManualContext, buildStudioManualContext, buildStoryboardTableManualContext, buildStudioManualsFromSkillFiles } from "./manuals";
+import { buildDirectorPlanMessages } from "./director-plan";
+import { buildStoryboardTableMessages } from "./storyboard-table";
 import {
   buildStageMessages,
   buildStageReviewMessages,
@@ -14,6 +17,122 @@ import {
 } from "./script-planning";
 
 describe("studio script-planning 逐章编剧链（Markdown，B+ 单次生成）", () => {
+  it("真实道劫手册经存储目录注入严格剧本请求时，叙述层旁白通道不被全面禁令抵消", () => {
+    const relativePath = "story_skills/Daojie_xianxia/script_narrative.md";
+    const narrative = readFileSync(join(process.cwd(), "frontend/assets/studio-manuals", relativePath), "utf8");
+    const director = buildStudioManualsFromSkillFiles("director", [
+      { relativePath: "story_skills/Daojie_xianxia/README.md", content: "# 道劫" },
+      { relativePath, content: narrative },
+    ]);
+    const directorContext = buildScriptManualContext({ directorManualId: "Daojie_xianxia" }, { director });
+    const messages = buildStageMessages("scriptDraft", {
+      strictDaojieAdaptation: true,
+      chapterTitle: "测试章",
+      chapterText: "他逃亡十年，只因不愿交出断剑。",
+      directorContext,
+    });
+
+    expect(directorContext).toContain(narrative.trim());
+    expect(messages.system).toContain("四·附：叙述层转译通道");
+    expect(messages.system).toContain("允许原文明示叙述按受控通道转为 V.S.（旁白）");
+    expect(messages.system).not.toContain("不得把原文叙述转成OS/旁白");
+    expect(messages.system).not.toContain("原文没有发声的地方就保持无台词");
+    expect(messages.system).toContain("单集上限195秒，可短于目标");
+    expect(messages.system).toContain("既有声音不能改为无声，数量及序数保留");
+    expect(messages.system).toContain("全知叙述不自动变角色心声");
+    expect(messages.system).not.toContain("不得借道 OS");
+  });
+
+  it("真实题材目录的三阶段请求允许有知情依据的转译，保留防越知与时序边界", () => {
+    const root = "story_skills/Daojie_xianxia/";
+    const files = ["README.md", "script_narrative.md", "driector_skills/director_planning_narrative.md", "driector_skills/director_storyboard_table_narrative.md"].map((name) => ({
+      relativePath: `${root}${name}`,
+      content: readFileSync(join(process.cwd(), "frontend/assets/studio-manuals", root, name), "utf8"),
+    }));
+    const catalog = { director: buildStudioManualsFromSkillFiles("director", files) };
+    const config = { directorManualId: "Daojie_xianxia" };
+    const common = { episodeId: "c1", scriptText: "候审剧本", sourceText: "他知道断剑是母亲留下的，因此不肯交出。", strictDaojieAdaptation: true };
+    const requests = [
+      buildStageMessages("scriptDraft", { chapterTitle: "测试章", chapterText: common.sourceText, strictDaojieAdaptation: true, directorContext: buildScriptManualContext(config, catalog) }),
+      buildDirectorPlanMessages({ ...common, manualContext: buildStudioManualContext(config, catalog, { moduleCharCap: 0 }) }),
+      buildStoryboardTableMessages({ ...common, manualContext: buildStoryboardTableManualContext(config, catalog) }),
+    ];
+
+    for (const request of requests) {
+      expect(request.system).toContain("载体转换不等于新增事实");
+      expect(request.system).toContain("原文明示叙述可转画面、V.S.或有当时知情依据的 OS");
+      expect(request.system).toContain("全知叙述不自动变角色心声");
+      expect(request.system).toContain("不得提前揭示");
+      expect(request.system).toContain("过去事件不得伪装成当前动作");
+      expect(request.system).toContain("比喻不能落实为新物理事实");
+      expect(request.system).toContain("不新增对白轮次或现场声源");
+      expect(request.system).toContain("画面已充分表达时不强加声音");
+      expect(request.system).not.toContain("不得借道 OS");
+      expect(request.system).not.toContain("且只走旁白");
+      expect(request.user).toContain(common.sourceText);
+    }
+
+    expect(requests[0]!.system).toContain("角色眼下要达到什么具体目的");
+    expect(requests[0]!.system).toContain("对谁说、想让对方做什么");
+    expect(requests[1]!.system).toContain("每场写清人物目标、阻碍与结果");
+    expect(requests[1]!.system).toContain("镜头意图写关键画面组的叙事目的");
+    expect(requests[2]!.system).toContain("把行动、触发它的台词和可见反应按原文顺序落到镜头");
+    expect(requests[2]!.system).toContain("不改写剧本原话");
+
+    const review = buildStageReviewMessages("scriptDraft", {
+      chapterTitle: "测试章",
+      chapterText: common.sourceText,
+      strictDaojieAdaptation: true,
+    });
+    expect(review.system).not.toContain("## 人物目标、对白目的与可见反应");
+  });
+
+  it("人物表达方法只进入有真实原文的严格道劫请求", () => {
+    const strict = buildStageMessages("scriptDraft", {
+      strictDaojieAdaptation: true,
+      chapterTitle: "测试章",
+      chapterText: "原文",
+    });
+    const generic = buildStageMessages("scriptDraft", {
+      strictDaojieAdaptation: false,
+      chapterTitle: "原创章",
+      chapterText: "原创输入",
+    });
+    const blankSource = buildStageMessages("scriptDraft", {
+      strictDaojieAdaptation: true,
+      chapterTitle: "空原文",
+      chapterText: "  ",
+    });
+
+    expect(strict.system).toContain("角色眼下要达到什么具体目的");
+    expect(generic.system).not.toContain("角色眼下要达到什么具体目的");
+    expect(blankSource.system).not.toContain("角色眼下要达到什么具体目的");
+    expect(buildDirectorPlanMessages({ episodeId: "c1", scriptText: "剧本", sourceText: "原文", strictDaojieAdaptation: false }).system)
+      .not.toContain("## 人物目标、对白目的与可见反应");
+    expect(buildStoryboardTableMessages({ episodeId: "c1", scriptText: "剧本", sourceText: "原文", strictDaojieAdaptation: false }).system)
+      .not.toContain("## 人物目标、对白目的与可见反应");
+  });
+
+  it("仅有真实原文的道劫审核在通用指标之后解释 D5 转译例外", () => {
+    const common = { chapterTitle: "章", chapterText: "他逃亡十年。", selfCheckMetrics: "SELF-CHECK" };
+    const strict = buildStageReviewMessages("scriptDraft", { ...common, strictDaojieAdaptation: true });
+    expect(strict.user).toContain("## 道劫 D5 叙述转译审核注记");
+    expect(strict.user.indexOf("## 道劫 D5")).toBeGreaterThan(strict.user.indexOf("SELF-CHECK"));
+    expect(strict.user).toContain("4.6");
+    expect(strict.user).toContain("本次单集时长上限195秒，允许短于目标");
+    expect(strict.user).toContain("OS 不自动获得转译旁白例外");
+    expect(strict.user).toContain("普通对白、无原文依据的 OS 仍按 4 字/秒");
+    expect(strict.user).toContain("不得仅凭通用自检数值判违规");
+    expect(strict.system).toContain("本次单集时长上限195秒，允许短于目标");
+    expect(strict.system).toContain("以此覆盖通用参考时长±10秒判定");
+    expect(strict.system.indexOf("## 道劫 D5")).toBeGreaterThan(strict.system.lastIndexOf("±10 秒"));
+    expect(strict.system).toContain("OS 不自动获得转译旁白例外");
+    expect(buildStageReviewMessages("scriptDraft", common).user).not.toContain("## 道劫 D5");
+    expect(buildStageReviewMessages("scriptDraft", common).system).not.toContain("## 道劫 D5");
+    expect(buildStageReviewMessages("scriptDraft", { ...common, chapterText: " ", strictDaojieAdaptation: true }).user).not.toContain("## 道劫 D5");
+    expect(buildStageReviewMessages("scriptDraft", { ...common, chapterText: " ", strictDaojieAdaptation: true }).system).not.toContain("## 道劫 D5");
+  });
+
   it("parseStageOutput：去整篇代码围栏并 trim，Markdown 原样返回", () => {
     expect(parseStageOutput("# 剧本\n正文")).toBe("# 剧本\n正文");
     expect(parseStageOutput("```markdown\n# 剧本\n正文\n```")).toBe("# 剧本\n正文");

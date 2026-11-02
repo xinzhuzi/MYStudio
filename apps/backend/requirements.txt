@@ -18,3 +18,8 @@ qwen-tts; sys_platform != "darwin"
 
 # ─── macOS Apple Silicon: PyTorch 推理（深度估计等本地模型；无 CUDA，官方 arm64 CPU/MPS 构建） ───
 torch>=2.5.1; sys_platform == "darwin" and platform_machine == "arm64"
+
+# ─── 章节成片 QC：Silero VAD 语音段口径（吸收件②） ───
+# silero-vad 依赖 torch，所以只在已经声明 torch 的平台装；Intel Mac 无 torch 档，
+# 留空让 QC 侧走 silencedetect 补集并把 speech-integrity 记 unverified，而不是为它多拉一份 torch。
+silero-vad==6.2.3; sys_platform != "darwin" or platform_machine == "arm64"

@@ -1,7 +1,7 @@
 {
   "revision": 1,
-  "last_node_id": 7044,
-  "last_link_id": 7520,
+  "last_node_id": 7045,
+  "last_link_id": 7527,
   "nodes": [
     {
       "id": 1,
@@ -85,13 +85,13 @@
         }
       ],
       "widgets_values": [
-        "0 · Turbo 8步",
+        "3 · 混动 40步+缓存",
         0,
         "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       ],
       "title": "[7] 加速子图",
       "widgets_values_named": {
-        "速度档位": "0 · Turbo 8步",
+        "速度档位": "3 · 混动 40步+缓存",
         "seed": 0,
         "σ表": "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       }
@@ -110,8 +110,8 @@
         "version": 1,
         "state": {
           "lastGroupId": 16,
-          "lastNodeId": 7043,
-          "lastLinkId": 7519,
+          "lastNodeId": 7045,
+          "lastLinkId": 7527,
           "lastRerouteId": 2
         },
         "revision": 1,
@@ -167,7 +167,8 @@
             "name": "negative",
             "type": "CONDITIONING",
             "linkIds": [
-              249
+              249,
+              7524
             ],
             "pos": [
               80.0,
@@ -182,7 +183,7 @@
               256,
               264,
               4401,
-              7512
+              7523
             ],
             "pos": [
               80.0,
@@ -198,7 +199,7 @@
               251,
               259,
               4402,
-              7517
+              7525
             ],
             "pos": [
               80.0,
@@ -269,7 +270,7 @@
           }
         ],
         "widgets": [
-          "0 · Turbo 8步",
+          "3 · 混动 40步+缓存",
           0,
           "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
         ],
@@ -278,8 +279,8 @@
             "id": 7011,
             "type": "ViggleTurboLora",
             "pos": [
-              1940.0,
-              4180.3
+              1740,
+              3060
             ],
             "size": [
               270,
@@ -328,8 +329,8 @@
             "id": 7012,
             "type": "SamplerCustomAdvanced",
             "pos": [
-              3540.0,
-              4137.2
+              3940,
+              3160
             ],
             "size": [
               330,
@@ -400,8 +401,8 @@
             "id": 7010,
             "type": "KSampler",
             "pos": [
-              5477.2,
-              6781.3
+              2250.0,
+              4160.0
             ],
             "size": [
               330,
@@ -415,7 +416,7 @@
                 "localized_name": "模型",
                 "name": "model",
                 "type": "MODEL",
-                "link": 247
+                "link": 7521
               },
               {
                 "localized_name": "正面条件",
@@ -487,8 +488,8 @@
             "id": 7014,
             "type": "PrimitiveInt",
             "pos": [
-              140,
-              2820
+              300,
+              3620
             ],
             "size": [
               270,
@@ -515,7 +516,8 @@
                 "type": "INT",
                 "links": [
                   16,
-                  254
+                  254,
+                  7526
                 ]
               }
             ],
@@ -541,8 +543,8 @@
             "id": 7015,
             "type": "MyQi21SpeedSelect",
             "pos": [
-              7940.0,
-              2296.9
+              6160,
+              3040
             ],
             "size": [
               360,
@@ -594,7 +596,7 @@
                 "name": "latent_e",
                 "shape": 7,
                 "type": "LATENT",
-                "link": 7518
+                "link": 7527
               }
             ],
             "outputs": [
@@ -617,18 +619,18 @@
               }
             },
             "widgets_values": [
-              "0 · Turbo 8步"
+              "3 · 混动 40步+缓存"
             ],
             "widgets_values_named": {
-              "mode": "0 · Turbo 8步"
+              "mode": "3 · 混动 40步+缓存"
             }
           },
           {
             "id": 7017,
             "type": "RandomNoise",
             "pos": [
-              601.1,
-              1066.3
+              310,
+              1060
             ],
             "size": [
               270,
@@ -655,8 +657,7 @@
                 "type": "NOISE",
                 "links": [
                   257,
-                  4405,
-                  7515
+                  4405
                 ]
               }
             ],
@@ -683,8 +684,8 @@
             "id": 7018,
             "type": "KSamplerSelect",
             "pos": [
-              260.20000000000005,
-              2472.1
+              550,
+              1520
             ],
             "size": [
               270,
@@ -702,8 +703,7 @@
                 "links": [
                   27,
                   266,
-                  4406,
-                  7516
+                  4406
                 ]
               }
             ],
@@ -728,8 +728,8 @@
             "id": 7019,
             "type": "BasicGuider",
             "pos": [
-              2627.2,
-              3839.1
+              3280,
+              3020
             ],
             "size": [
               270,
@@ -777,8 +777,8 @@
             "id": 7020,
             "type": "ViggleTurboSigmas",
             "pos": [
-              1900,
-              5276
+              3060,
+              3390
             ],
             "size": [
               331.505712890625,
@@ -834,8 +834,8 @@
             "id": 7021,
             "type": "SplitSigmas",
             "pos": [
-              2606.8,
-              4917.5
+              3660,
+              3450
             ],
             "size": [
               270.036962890625,
@@ -891,8 +891,8 @@
             "id": 7022,
             "type": "BasicGuider",
             "pos": [
-              3862.0,
-              3391.9
+              2530,
+              2700
             ],
             "size": [
               309.3453125,
@@ -940,8 +940,8 @@
             "id": 7023,
             "type": "DisableNoise",
             "pos": [
-              5378.9,
-              2408.8
+              4150,
+              2640
             ],
             "size": [
               281.3111328125,
@@ -976,8 +976,8 @@
             "id": 7024,
             "type": "SamplerCustomAdvanced",
             "pos": [
-              5850.1,
-              4634.5
+              4880,
+              3140
             ],
             "size": [
               336.77109375,
@@ -1049,8 +1049,8 @@
             "id": 7028,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              2250,
-              1158
+              1700,
+              1480
             ],
             "size": [
               270,
@@ -1073,8 +1073,7 @@
                 "name": "MODEL",
                 "type": "MODEL",
                 "links": [
-                  4403,
-                  7520
+                  4403
                 ]
               }
             ],
@@ -1100,8 +1099,8 @@
             "id": 7029,
             "type": "BasicGuider",
             "pos": [
-              3060.0,
-              1209.2
+              4080,
+              1300
             ],
             "size": [
               270,
@@ -1151,8 +1150,8 @@
             "id": 7030,
             "type": "ManualSigmas",
             "pos": [
-              2598.1,
-              1731.6
+              4960,
+              1590
             ],
             "size": [
               270,
@@ -1193,8 +1192,8 @@
             "id": 7031,
             "type": "SamplerCustomAdvanced",
             "pos": [
-              3738.9,
-              1123.0
+              5700,
+              1060
             ],
             "size": [
               330,
@@ -1268,7 +1267,7 @@
             "id": 7016,
             "type": "Note",
             "pos": [
-              300,
+              2720,
               80
             ],
             "size": [
@@ -1281,18 +1280,18 @@
             "properties": {},
             "title": "[7016] 加速档位说明",
             "widgets_values": [
-              "\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7010] 原生出图·KSampler\n[7014] seed单源·PrimitiveInt\n[7015] 出图速度选择·自研\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n①Turbo 支路(官方8步 cfg1)\n②viggle 9步双段\n③原生出图(40步)\n④seed 单源\n⑤档位选择\nσ表仅影响 viggle；Turbo 使用内部固定官方8步σ表，原生档不使用该控件。\nviggle 7+2步\n原生40步\n[7034] 风格LoRA·mikkoani ×0.8(1019 用户令「默认改×0.8」,原×1.0=1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)\n[7040-7043] E混动支路·档3「混动 40步+缓存」(1023 LazyCache役,t2i 同款入列):[7028 Turbo LoRA 出]→[7044 Fix v2.0×1.0(1024令:E臂也吃细节件)]→[7040 LazyCache 重用阈值0.2/窗15-95%(引擎核心步跳缓存)]→[7042 BasicGuider cfg1(正源=positive_single 单参考域,同 Turbo)]→[7043 SamplerCustomAdvanced]+[7041 BasicScheduler simple 40步;混动=turbo LoRA×40步长调度,实弹341→142s(2.41×)跳24/40步,漂移=换相近图;默认档仍=档0 Turbo 8步,本档手选)\n[7044] E臂Fix·detail-fix v2.0×1.0(1024 用户令「档3混动也要吃细节」:挂 [7028] turbo LoRA 后、[7040] LazyCache 前=补丁链整段入缓存;官方域 cfg>1 之外,效果以实弹对拍为准,强度热调在本件)"
+              "\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7010] 原生出图·KSampler\n[7014] seed单源·PrimitiveInt\n[7015] 出图速度选择·自研\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n①Turbo 支路(官方8步 cfg1)\n②viggle 9步双段\n③原生出图(40步)\n④seed 单源\n⑤档位选择\nσ表仅影响 viggle；Turbo 使用内部固定官方8步σ表，原生档不使用该控件。\nviggle 7+2步\n原生40步\n[7034] 风格LoRA·mikkoani ×0.8(1019 用户令「默认改×0.8」,原×1.0=1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)\n[7040-7045] E混动支路·档3「混动 40步+缓存」(1101 Phase1 案B 收口:SCA 三件→KSampler 四合一):[7034 mikkoani]→[7044 Fix v2.0×1.0(1101晚 撤 turbo→mikkoani 直连;1101 原生臂补挂同件)]→[7040 LazyCache 重用阈值0.2/窗15-95%(引擎核心步跳缓存)]→[7045 KSampler cfg=4.0 40步 euler/simple——正向=边界positive_single槽(单参考域,同 Turbo)/负向=边界negative槽(Q2/Q5:负向真实生效,首版=道劫负面基线)/latent=边界槽/seed=[7014] 单源直连;实弹 LazyCache×cfg4 兼容(S=0.331 色重消退 vs B fix×1.0 cfg1 0.602);三件同形(t2i fix=共享7026/i2i·edit=自有7044);默认档=档3(1101 令),三件齐装]\n[7045] E混动·KSampler cfg4(1101 案B:SCA[7041/7042/7043]三件退役,scheduler/seed/正负向四合一入本件;cfg 1→4=fix 官方域生效前提,色重消退 S=0.331;seed=[7014] 新增扇出直连;[7017]/[7018] 仅 viggle/Turbo 臂消费(Q4 保留);σ表面板控 viggle 臂,与本件无关)"
             ],
             "widgets_values_named": {
-              "内容": "\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7010] 原生出图·KSampler\n[7014] seed单源·PrimitiveInt\n[7015] 出图速度选择·自研\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n①Turbo 支路(官方8步 cfg1)\n②viggle 9步双段\n③原生出图(40步)\n④seed 单源\n⑤档位选择\nσ表仅影响 viggle；Turbo 使用内部固定官方8步σ表，原生档不使用该控件。\nviggle 7+2步\n原生40步\n[7034] 风格LoRA·mikkoani ×0.8(1019 用户令「默认改×0.8」,原×1.0=1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)\n[7040-7043] E混动支路·档3「混动 40步+缓存」(1023 LazyCache役,t2i 同款入列):[7028 Turbo LoRA 出]→[7040 LazyCache 重用阈值0.2/窗15-95%(引擎核心步跳缓存)]→[7042 BasicGuider cfg1(正源=positive_single 单参考域,同 Turbo)]→[7043 SamplerCustomAdvanced]+[7041 BasicScheduler simple 40步;混动=turbo LoRA×40步长调度,实弹341→142s(2.41×)跳24/40步,漂移=换相近图;默认档仍=档0 Turbo 8步,本档手选)"
+              "内容": "\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7010] 原生出图·KSampler\n[7014] seed单源·PrimitiveInt\n[7015] 出图速度选择·自研\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n①Turbo 支路(官方8步 cfg1)\n②viggle 9步双段\n③原生出图(40步)\n④seed 单源\n⑤档位选择\nσ表仅影响 viggle；Turbo 使用内部固定官方8步σ表，原生档不使用该控件。\nviggle 7+2步\n原生40步\n[7034] 风格LoRA·mikkoani ×0.8(1019 用户令「默认改×0.8」,原×1.0=1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)\n[7040-7045] E混动支路·档3「混动 40步+缓存」(1101 Phase1 案B 收口:SCA 三件→KSampler 四合一):[7034 mikkoani]→[7044 Fix v2.0×1.0(1101晚 撤 turbo→mikkoani 直连;1101 原生臂补挂同件)]→[7040 LazyCache 重用阈值0.2/窗15-95%(引擎核心步跳缓存)]→[7045 KSampler cfg=4.0 40步 euler/simple——正向=边界positive_single槽(单参考域,同 Turbo)/负向=边界negative槽(Q2/Q5:负向真实生效,首版=道劫负面基线)/latent=边界槽/seed=[7014] 单源直连;实弹 LazyCache×cfg4 兼容(S=0.331 色重消退 vs B fix×1.0 cfg1 0.602);三件同形(t2i fix=共享7026/i2i·edit=自有7044);默认档=档3(1101 令),三件齐装]\n[7045] E混动·KSampler cfg4(1101 案B:SCA[7041/7042/7043]三件退役,scheduler/seed/正负向四合一入本件;cfg 1→4=fix 官方域生效前提,色重消退 S=0.331;seed=[7014] 新增扇出直连;[7017]/[7018] 仅 viggle/Turbo 臂消费(Q4 保留);σ表面板控 viggle 臂,与本件无关)"
             }
           },
           {
             "id": 7034,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              1920,
-              1935
+              570,
+              2520
             ],
             "size": [
               270,
@@ -1315,10 +1314,10 @@
                 "name": "MODEL",
                 "type": "MODEL",
                 "links": [
-                  247,
                   263,
                   284,
-                  4400
+                  4400,
+                  7520
                 ]
               }
             ],
@@ -1344,8 +1343,8 @@
             "id": 7040,
             "type": "LazyCache",
             "pos": [
-              3420,
-              1330
+              2200.0,
+              1950.0
             ],
             "size": [
               270,
@@ -1366,7 +1365,7 @@
                 "name": "MODEL",
                 "type": "MODEL",
                 "links": [
-                  7511
+                  7522
                 ],
                 "slot_index": 0
               }
@@ -1389,164 +1388,11 @@
             }
           },
           {
-            "id": 7041,
-            "type": "BasicScheduler",
-            "pos": [
-              2880,
-              1590
-            ],
-            "size": [
-              270,
-              100
-            ],
-            "flags": {},
-            "order": 24,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "model",
-                "type": "MODEL",
-                "link": 7513
-              }
-            ],
-            "outputs": [
-              {
-                "name": "SIGMAS",
-                "type": "SIGMAS",
-                "links": [
-                  7514
-                ],
-                "slot_index": 0
-              }
-            ],
-            "title": "[7041] E混动σ·simple40步",
-            "properties": {
-              "Node name for S&R": "BasicScheduler"
-            },
-            "widgets_values": [
-              "simple",
-              40,
-              1.0
-            ],
-            "widgets_values_named": {
-              "scheduler": "simple",
-              "steps": 40,
-              "denoise": 1.0
-            }
-          },
-          {
-            "id": 7042,
-            "type": "BasicGuider",
-            "pos": [
-              4100,
-              1458
-            ],
-            "size": [
-              270,
-              110
-            ],
-            "flags": {},
-            "order": 24,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "model",
-                "type": "MODEL",
-                "link": 7511
-              },
-              {
-                "name": "conditioning",
-                "type": "CONDITIONING",
-                "link": 7512
-              }
-            ],
-            "outputs": [
-              {
-                "name": "GUIDER",
-                "type": "GUIDER",
-                "links": [
-                  7519
-                ],
-                "slot_index": 0
-              }
-            ],
-            "title": "[7042] E混动引导",
-            "properties": {
-              "Node name for S&R": "BasicGuider"
-            },
-            "widgets_values": [],
-            "widgets_values_named": {}
-          },
-          {
-            "id": 7043,
-            "type": "SamplerCustomAdvanced",
-            "pos": [
-              4520,
-              1832
-            ],
-            "size": [
-              330,
-              200
-            ],
-            "flags": {},
-            "order": 24,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "noise",
-                "type": "NOISE",
-                "link": 7515
-              },
-              {
-                "name": "guider",
-                "type": "GUIDER",
-                "link": 7519
-              },
-              {
-                "name": "sampler",
-                "type": "SAMPLER",
-                "link": 7516
-              },
-              {
-                "name": "sigmas",
-                "type": "SIGMAS",
-                "link": 7514
-              },
-              {
-                "name": "latent_image",
-                "type": "LATENT",
-                "link": 7517
-              }
-            ],
-            "outputs": [
-              {
-                "name": "output",
-                "type": "LATENT",
-                "links": [
-                  7518
-                ],
-                "slot_index": 0
-              },
-              {
-                "name": "denoised_output",
-                "type": "LATENT",
-                "links": [],
-                "slot_index": 1
-              }
-            ],
-            "title": "[7043] E混动采样",
-            "properties": {
-              "Node name for S&R": "SamplerCustomAdvanced"
-            },
-            "widgets_values": [],
-            "widgets_values_named": {}
-          },
-          {
             "id": 7044,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              2600,
-              1208
+              1750.0,
+              4160.0
             ],
             "size": [
               270,
@@ -1570,7 +1416,7 @@
                 "type": "MODEL",
                 "links": [
                   7510,
-                  7513
+                  7521
                 ]
               }
             ],
@@ -1591,91 +1437,170 @@
               "lora_name": "qwen2.1-detail-fix-2.0.safetensors",
               "strength_model": 1
             }
+          },
+          {
+            "id": 7045,
+            "type": "KSampler",
+            "pos": [
+              2650.0,
+              1950.0
+            ],
+            "size": [
+              330,
+              262
+            ],
+            "flags": {},
+            "order": 26,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "模型",
+                "name": "model",
+                "type": "MODEL",
+                "link": 7522
+              },
+              {
+                "localized_name": "正面条件",
+                "name": "positive",
+                "type": "CONDITIONING",
+                "link": 7523
+              },
+              {
+                "localized_name": "负面条件",
+                "name": "negative",
+                "type": "CONDITIONING",
+                "link": 7524
+              },
+              {
+                "localized_name": "Latent图像",
+                "name": "latent_image",
+                "type": "LATENT",
+                "link": 7525
+              },
+              {
+                "localized_name": "种子",
+                "name": "seed",
+                "type": "INT",
+                "widget": {
+                  "name": "seed"
+                },
+                "link": 7526
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "Latent",
+                "name": "LATENT",
+                "type": "LATENT",
+                "links": [
+                  7527
+                ]
+              }
+            ],
+            "title": "[7045] E混动·KSampler cfg4",
+            "properties": {
+              "Node name for S&R": "KSampler",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              0,
+              "fixed",
+              40,
+              4.0,
+              "euler",
+              "simple",
+              1
+            ],
+            "widgets_values_named": {
+              "seed": 0,
+              "control_after_generate": "fixed",
+              "steps": 40,
+              "cfg": 4.0,
+              "sampler_name": "euler",
+              "scheduler": "simple",
+              "denoise": 1
+            }
           }
         ],
         "groups": [
           {
-            "id": 11,
             "title": "共享输入",
             "bounding": [
-              56,
-              2766,
-              378,
-              168
+              270.0,
+              1010.0,
+              600.0,
+              2788.0
             ],
-            "color": "#a1309b",
-            "flags": {}
+            "color": "#3f789e",
+            "id": 100,
+            "locked": false
           },
           {
-            "id": 12,
             "title": "Turbo 8步",
             "bounding": [
-              276,
-              56,
-              3816.9,
-              1291.0
+              1670.0,
+              30.0,
+              4390.0,
+              1708.0
             ],
-            "color": "#3f78d3",
-            "flags": {}
+            "color": "#3f789e",
+            "id": 101,
+            "locked": false
           },
           {
-            "id": 13,
             "title": "viggle",
             "bounding": [
-              236.20000000000005,
-              2408.8,
-              5950.900000000001,
-              3067.2
+              1710.0,
+              2590.0,
+              3537.0,
+              1032.0
             ],
-            "color": "#88A",
-            "flags": {}
+            "color": "#3f789e",
+            "id": 102,
+            "locked": false
           },
           {
-            "id": 14,
-            "title": "档位选择",
-            "bounding": [
-              7940.0,
-              2145.0,
-              950.0,
-              365.9000000000001
-            ],
-            "color": "#a1309b",
-            "flags": {}
-          },
-          {
-            "id": 15,
             "title": "原生",
             "bounding": [
-              5437.2,
-              6741.3,
-              410.0,
-              342.0
+              1700.0,
+              4110.0,
+              3300.0,
+              474.0
             ],
-            "color": "#d3a130",
-            "flags": {}
+            "color": "#3f789e",
+            "id": 103,
+            "locked": false
           },
           {
-            "id": 16,
             "title": "⑤混动 40步+缓存",
             "bounding": [
-              1896,
-              1154,
-              2994,
-              935
+              2150.0,
+              1840.0,
+              1000.0,
+              618.0
             ],
-            "color": "#8c466a",
-            "flags": {}
+            "color": "#3f789e",
+            "id": 104,
+            "locked": false
+          },
+          {
+            "title": "档位选择",
+            "bounding": [
+              6130.0,
+              2990.0,
+              420.0,
+              318.0
+            ],
+            "color": "#3f789e",
+            "id": 105,
+            "locked": false
           }
         ],
         "links": [
-          {
-            "id": 247,
-            "origin_id": 7034,
-            "origin_slot": 0,
-            "target_id": 7010,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
           {
             "id": 248,
             "origin_id": -10,
@@ -1997,84 +1922,68 @@
             "type": "MODEL"
           },
           {
-            "id": 7511,
-            "origin_id": 7040,
-            "origin_slot": 0,
-            "target_id": 7042,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
-          {
-            "id": 7512,
-            "origin_id": -10,
-            "origin_slot": 3,
-            "target_id": 7042,
-            "target_slot": 1,
-            "type": "CONDITIONING"
-          },
-          {
-            "id": 7513,
-            "origin_id": 7044,
-            "origin_slot": 0,
-            "target_id": 7041,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
-          {
-            "id": 7514,
-            "origin_id": 7041,
-            "origin_slot": 0,
-            "target_id": 7043,
-            "target_slot": 3,
-            "type": "SIGMAS"
-          },
-          {
-            "id": 7515,
-            "origin_id": 7017,
-            "origin_slot": 0,
-            "target_id": 7043,
-            "target_slot": 0,
-            "type": "NOISE"
-          },
-          {
-            "id": 7516,
-            "origin_id": 7018,
-            "origin_slot": 0,
-            "target_id": 7043,
-            "target_slot": 2,
-            "type": "SAMPLER"
-          },
-          {
-            "id": 7517,
-            "origin_id": -10,
-            "origin_slot": 4,
-            "target_id": 7043,
-            "target_slot": 4,
-            "type": "LATENT"
-          },
-          {
-            "id": 7518,
-            "origin_id": 7043,
-            "origin_slot": 0,
-            "target_id": 7015,
-            "target_slot": 5,
-            "type": "LATENT"
-          },
-          {
-            "id": 7519,
-            "origin_id": 7042,
-            "origin_slot": 0,
-            "target_id": 7043,
-            "target_slot": 1,
-            "type": "GUIDER"
-          },
-          {
             "id": 7520,
-            "origin_id": 7028,
+            "origin_id": 7034,
             "origin_slot": 0,
             "target_id": 7044,
             "target_slot": 0,
             "type": "MODEL"
+          },
+          {
+            "id": 7521,
+            "origin_id": 7044,
+            "origin_slot": 0,
+            "target_id": 7010,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7522,
+            "origin_id": 7040,
+            "origin_slot": 0,
+            "target_id": 7045,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7523,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 7045,
+            "target_slot": 1,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 7524,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 7045,
+            "target_slot": 2,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 7525,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 7045,
+            "target_slot": 3,
+            "type": "LATENT"
+          },
+          {
+            "id": 7526,
+            "origin_id": 7014,
+            "origin_slot": 0,
+            "target_id": 7045,
+            "target_slot": 4,
+            "type": "INT"
+          },
+          {
+            "id": 7527,
+            "origin_id": 7045,
+            "origin_slot": 0,
+            "target_id": 7015,
+            "target_slot": 5,
+            "type": "LATENT"
           }
         ],
         "extra": {

@@ -1,4 +1,6 @@
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   adaptTemplateBriefToCastCount,
@@ -34,6 +36,62 @@ const MANUAL_SAMPLE = [
   "## 提示词质量增强",
   "后续内容不应进入模板。",
 ].join("\n");
+
+// Import only the production pure-Python gate; no engine, model or workflow runtime.
+const FULL_SUBJECT_GATE_PROBE = `
+import importlib.util, json, sys
+spec = importlib.util.spec_from_file_location("offline_gate", sys.argv[1])
+gate = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(gate)
+gate.assert_prompt_gates(json.load(sys.stdin), is_subject=True, negation_only=False)
+`;
+
+describe("repository template briefs through the full subject gate", () => {
+  const manual = readFileSync(new URL(
+    "../../assets/studio-manuals/art_skills/daojie_ink_guofeng/art_prompt/art_storyboard_video.md",
+    import.meta.url,
+  ), "utf8");
+  const templates = parseStoryboardFrameTemplates(manual);
+  const gatePath = fileURLToPath(new URL(
+    "../../../backend/comfyui/my_nodes/nodes/_gongbi_gate.py", import.meta.url,
+  ));
+
+  it("retains the twelve template identifiers and order", () => {
+    expect(templates.map(({ id }) => id)).toEqual([
+      "02", "03", "07", "09", "13", "21", "24", "25", "26", "28", "30", "31",
+    ]);
+  });
+
+  it.each([
+    ["07", "石台位于庭院中央。"],
+    ["09", "雨夜，石台位于庭院中央。"],
+    ["26", "两人隔桌谈判。"],
+  ])("selected template %s builds a full-gate-compatible prompt", (id, selectionText) => {
+    const template = selectStoryboardFrameTemplate(selectionText, templates);
+    expect(template?.id).toBe(id);
+    const prompt = buildStoryboardFramePrompt({
+      description: "石台位于庭院中央。", template,
+    });
+    const result = spawnSync("python3", ["-I", "-B", "-c", FULL_SUBJECT_GATE_PROBE, gatePath], {
+      input: JSON.stringify(prompt), encoding: "utf8", timeout: 5000,
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+  });
+
+  it.each(["深不见底", "听不见"])("preserves factual wording %s for a separate gate policy", (fact) => {
+    const prompt = buildStoryboardFramePrompt({
+      description: fact, template: templates.find(({ id }) => id === "07") ?? null,
+    });
+    expect(prompt).toContain(`【画面】${fact}`);
+    const result = spawnSync("python3", ["-I", "-B", "-c", FULL_SUBJECT_GATE_PROBE, gatePath], {
+      input: JSON.stringify(prompt), encoding: "utf8", timeout: 5000,
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("否定式「不见」");
+  });
+});
 
 describe("storyboard frame template parsing", () => {
   it("parses ### NN. sections with brief paragraphs only", () => {

@@ -1,12 +1,37 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { StoryboardPanelTab } from "./StoryboardPanelTab";
+import { toast } from "sonner"; // vi.mock 工厂替换后,此处 toast 即 mock 实体(断言用)
 import type { StoryboardItem } from "@/types/studio";
 import { __resetImageResolutionCacheForTests } from "@/components/ui/image-resolution-badge";
 import { useProjectStore } from "@/stores/project/project-store";
 
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { info: vi.fn(), success: vi.fn(), error: vi.fn(), warning: vi.fn() }) }));
+
+// 孤儿导入器 mock(10-27 件三):默认实现恒返回空结果——既有确认条测试零孤儿路径照常
+const h3ScanMock = vi.hoisted(() =>
+  vi.fn(
+    async (
+      _input: { projectId: string; storyboards: Array<{ id: string }> },
+    ): Promise<import("@/lib/assist/image-studio/h3-orphan-importer").H3OrphanScanResult> => ({
+      reports: [],
+      unmatched: [],
+      skippedFilenames: 0,
+    }),
+  ),
+);
+const h3ImportMock = vi.hoisted(() =>
+  vi.fn(
+    async (
+      _input: { projectId: string; storyboards: Array<{ id: string }>; files: unknown[] },
+    ): Promise<{ imported: number; skipped: number }> => ({ imported: 0, skipped: 0 }),
+  ),
+);
+vi.mock("@/lib/assist/image-studio/h3-orphan-importer", () => ({
+  scanH3OrphanVideos: h3ScanMock,
+  importH3OrphanVideos: h3ImportMock,
+}));
 
 function shot(index: number, path: string | undefined): StoryboardItem {
   return {
@@ -205,5 +230,181 @@ describe("StoryboardPanelTab 截帧回灌接线(09-15 P1a)", () => {
     expect(running!.textContent).toContain("S08");
     expect(running!.textContent).toContain("失败 2");
     expect(document.querySelector("[data-storyboard-panel-h3-stop]")).toBeTruthy();
+  });
+});
+
+describe("StoryboardPanelTab 孤儿导入入口(10-27 件三,§14.3.2/§14.3.4)", () => {
+  function orphanFile(shotId: string, policy: string, version: number, timestamp: number) {
+    const filename = `${policy}_v${version}_${timestamp}.mp4`;
+    return {
+      relativePath: `remotion/outputs/shots/chapter-001/${shotId}/h3/${filename}`,
+      filename,
+      policy,
+      version,
+      timestamp,
+    };
+  }
+
+  function idleH3Batch(start: (opts?: { tier?: "480p" | "960p"; skipShotIds?: string[] }) => void) {
+    return {
+      state: { running: false, total: 0, done: 0, failed: 0, currentShotIndex: null },
+      start,
+      stop: vi.fn(),
+      resumable: null,
+    };
+  }
+
+  beforeEach(() => {
+    h3ScanMock.mockReset();
+    h3ScanMock.mockResolvedValue({ reports: [], unmatched: [], skippedFilenames: 0 });
+    h3ImportMock.mockReset();
+    h3ImportMock.mockResolvedValue({ imported: 0, skipped: 0 });
+    useProjectStore.setState({ activeProjectId: "p1" });
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("「导入盘上 H3 片」按钮在场;0 孤儿→toast.info 不起确认条", async () => {
+    render(
+      <StoryboardPanelTab
+        storyboards={[shot(1, "/p/1.png")]}
+        onOpenImageWorkflow={() => undefined}
+        h3Batch={idleH3Batch(vi.fn())}
+      />,
+    );
+    fireEvent.click(screen.getByText("导入盘上 H3 片"));
+    await vi.waitFor(() => {
+      expect(toast.info).toHaveBeenCalledWith("盘上没有未挂载的 H3 片");
+    });
+    expect(h3ScanMock).toHaveBeenCalledTimes(1);
+    expect(h3ScanMock.mock.calls[0]?.[0]).toMatchObject({ projectId: "p1" });
+    expect(document.querySelector("[data-storyboard-panel-h3-import-confirm]")).toBeNull();
+  });
+
+  it("有孤儿:确认条「发现 N 镜共 M 片…导入为候选?」;确认后 importH3OrphanVideos 被调+toast.success(未逐一验播)", async () => {
+    h3ScanMock.mockResolvedValue({
+      reports: [
+        {
+          shotId: "sb-1",
+          episodeId: "chapter-001",
+          orphans: [orphanFile("sb-1", "ambient", 1, 1000), orphanFile("sb-1", "ambient", 2, 2000)],
+        },
+      ],
+      unmatched: [],
+      skippedFilenames: 0,
+    });
+    render(
+      <StoryboardPanelTab
+        storyboards={[shot(1, "/p/1.png")]}
+        onOpenImageWorkflow={() => undefined}
+        h3Batch={idleH3Batch(vi.fn())}
+      />,
+    );
+    fireEvent.click(screen.getByText("导入盘上 H3 片"));
+    await vi.waitFor(() => {
+      expect(document.querySelector("[data-storyboard-panel-h3-import-confirm]")).toBeTruthy();
+    });
+    const strip = document.querySelector("[data-storyboard-panel-h3-import-confirm]")!;
+    expect(strip.textContent).toContain("发现 1 镜共 2 片盘上已有未挂载 H3 视频,导入为候选?");
+    h3ImportMock.mockResolvedValue({ imported: 2, skipped: 0 });
+    fireEvent.click(screen.getByText("导入"));
+    await vi.waitFor(() => {
+      expect(h3ImportMock).toHaveBeenCalledTimes(1);
+    });
+    const importArg = h3ImportMock.mock.calls[0]![0]!;
+    expect(importArg.projectId).toBe("p1");
+    expect(importArg.files).toHaveLength(2);
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining("已导入 2 片"));
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining("未逐一验播"));
+    await vi.waitFor(() => {
+      expect(document.querySelector("[data-storyboard-panel-h3-import-confirm]")).toBeNull();
+    });
+  });
+
+  it("发车确认条:展开即扫描;有孤儿→孤儿行+双择;「先导入并跳过」→导入后 start 带 skipShotIds", async () => {
+    h3ScanMock.mockResolvedValue({
+      reports: [
+        { shotId: "sb-1", episodeId: "chapter-001", orphans: [orphanFile("sb-1", "ambient", 1, 1000)] },
+        { shotId: "sb-3", episodeId: "chapter-001", orphans: [orphanFile("sb-3", "ambient", 1, 1000)] },
+      ],
+      unmatched: [],
+      skippedFilenames: 0,
+    });
+    const start = vi.fn();
+    render(
+      <StoryboardPanelTab
+        storyboards={[shot(1, "/p/1.png"), shot(2, undefined), shot(3, "/p/3.png")]}
+        onOpenImageWorkflow={() => undefined}
+        h3Batch={idleH3Batch(start)}
+      />,
+    );
+    fireEvent.click(screen.getByText("H3 出片"));
+    await vi.waitFor(() => {
+      expect(h3ScanMock).toHaveBeenCalledTimes(1);
+    });
+    await vi.waitFor(() => {
+      expect(document.querySelector("[data-storyboard-panel-h3-orphan]")).toBeTruthy();
+    });
+    const confirmBar = document.querySelector("[data-storyboard-panel-h3-confirm]")!;
+    expect(confirmBar.textContent).toContain("2 镜可出片");
+    expect(confirmBar.textContent).toContain("2 镜盘上已有未挂载 H3 片");
+    expect(screen.getByText("先导入并跳过这些镜")).toBeTruthy();
+    expect(screen.getByText("仍直接出片")).toBeTruthy();
+    h3ImportMock.mockResolvedValue({ imported: 2, skipped: 0 });
+    fireEvent.click(screen.getByText("先导入并跳过这些镜"));
+    await vi.waitFor(() => {
+      expect(start).toHaveBeenCalledWith({ tier: "960p", skipShotIds: ["sb-1", "sb-3"] });
+    });
+    expect(h3ImportMock).toHaveBeenCalledTimes(1);
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining("已导入 2 片"));
+  });
+
+  it("「仍直接出片」:不导入,全量派发(start 无 skipShotIds)", async () => {
+    h3ScanMock.mockResolvedValue({
+      reports: [{ shotId: "sb-1", episodeId: "chapter-001", orphans: [orphanFile("sb-1", "ambient", 1, 1000)] }],
+      unmatched: [],
+      skippedFilenames: 0,
+    });
+    const start = vi.fn();
+    render(
+      <StoryboardPanelTab
+        storyboards={[shot(1, "/p/1.png")]}
+        onOpenImageWorkflow={() => undefined}
+        h3Batch={idleH3Batch(start)}
+      />,
+    );
+    fireEvent.click(screen.getByText("H3 出片"));
+    await vi.waitFor(() => {
+      expect(document.querySelector("[data-storyboard-panel-h3-orphan]")).toBeTruthy();
+    });
+    fireEvent.click(screen.getByText("仍直接出片"));
+    expect(start).toHaveBeenCalledWith({ tier: "960p" });
+    expect(h3ImportMock).not.toHaveBeenCalled();
+  });
+
+  it("无孤儿零打扰:确认条无孤儿行/无双择,单一「确认出片」", async () => {
+    const start = vi.fn();
+    render(
+      <StoryboardPanelTab
+        storyboards={[shot(1, "/p/1.png")]}
+        onOpenImageWorkflow={() => undefined}
+        h3Batch={idleH3Batch(start)}
+      />,
+    );
+    fireEvent.click(screen.getByText("H3 出片"));
+    await vi.waitFor(() => {
+      expect(h3ScanMock).toHaveBeenCalledTimes(1);
+    });
+    // 扫描已回空结果:确认条照常,孤儿行/双择均不在场
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(document.querySelector("[data-storyboard-panel-h3-orphan]")).toBeNull();
+    expect(screen.queryByText("先导入并跳过这些镜")).toBeNull();
+    expect(screen.queryByText("仍直接出片")).toBeNull();
+    fireEvent.click(screen.getByText("确认出片"));
+    expect(start).toHaveBeenCalledWith({ tier: "960p" });
   });
 });

@@ -25,7 +25,18 @@ export interface RunUnclothResult {
 
 export async function runUnclothChain(
   request: UnclothChainRequest,
+  assertStillCurrent?: () => void,
 ): Promise<RunUnclothResult> {
+  // 在首个异步边界前冻结项目；调用方可沿用现有来源/请求版本守卫。
+  const projectId = useProjectStore.getState().activeProjectId;
+  if (!projectId) throw new Error("请先选择项目(处理结果落项目内存储)");
+  const assertCurrent = () => {
+    assertStillCurrent?.();
+    if (useProjectStore.getState().activeProjectId !== projectId) {
+      throw new Error("项目已切换,已丢弃过期处理结果");
+    }
+  };
+  assertCurrent();
   // sidecar 自愈(普通生成链同款):缺席/僵尸时先拉起,裸 fetch 会连接拒绝
   const { ensureLocalImageSidecarRunning } = await import("@/lib/ai/image-generation-engine");
   if (!(await ensureLocalImageSidecarRunning())) {
@@ -60,9 +71,8 @@ export async function runUnclothChain(
   const dataUrl = `data:image/png;base64,${json.data[0].b64_json}`;
 
   // 落盘:项目内 media/ai-image/(与生成链同款纪律;无活动项目=禁落盘)
-  const projectId = useProjectStore.getState().activeProjectId;
+  assertCurrent();
   const bridge = getProjectFilesBridge();
-  if (!projectId) throw new Error("请先选择项目(处理结果落项目内存储)");
   if (!bridge?.saveImage) throw new Error("项目文件桥不可用,无法落盘");
   const now = new Date();
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -76,6 +86,8 @@ export async function runUnclothChain(
       source: dataUrl,
     })
     .catch(() => undefined);
+  // saveImage 已发往冻结项目；等待期间过期则禁止媒体库/台账及成功提示。
+  assertCurrent();
   const imageUrl =
     saved?.success && saved.url ? saved.url : throwRuntimeError("处理结果落盘失败,请重试");
   const mediaId = saveToMediaLibrary(imageUrl, request.prompt, "ai-image");

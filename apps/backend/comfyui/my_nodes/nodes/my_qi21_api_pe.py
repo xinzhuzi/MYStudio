@@ -1055,7 +1055,7 @@ class MyQi21ApiPE:
                     "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
         ctx = ["--- 画面上下文(色卡用词与画风基调参考) ---"]
         if style:
-            ctx.append("[正稿结构] 主体句\n型底座\n美术风格底座 三层(基底即上文)")
+            ctx.append("[正稿结构] 美术风格底座\n类型句\n主体句 三层(基底即上文)")
         if 画幅宽 and 画幅高:
             ctx.append(f"[画幅] {画幅宽}×{画幅高}(按此纵横比组织画面描述)")
         ctx.append(f"[透明] {'开:本图为透明素材图,勿虚构繁杂背景' if 透明模式 else '关:常规成图'}")

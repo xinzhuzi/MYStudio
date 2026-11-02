@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chapterQcReportPath, readChapterQcReport, writeChapterQcReport } from "./chapter-qc-report-store";
+import { applyChapterQcRequirements } from "./chapter-qc-verdicts";
 import type { ChapterQcReportV1 } from "./chapter-qc-types";
 
 function report(chapterId: string, createdAt: number): ChapterQcReportV1 {
@@ -37,6 +38,20 @@ describe("chapter-qc-report-store", () => {
     expect(second?.createdAt).toBe(2000);
     const previous = JSON.parse(readFileSync(join(dir, "qc", "chapters", chapterId, "previous.json"), "utf-8"));
     expect(previous.createdAt).toBe(1000);
+  });
+
+  it("三态板与人工复核随报告落盘,回读后仍可对账", async () => {
+    const chapterId = "chapter-004";
+    const signed = report(chapterId, 3000);
+    signed.humanReview = { fullWatched: true, audioListened: true, reviewer: "世事", at: 3100 };
+    applyChapterQcRequirements(signed);
+    await writeChapterQcReport(dir, chapterId, signed);
+
+    const readBack = await readChapterQcReport(dir, chapterId);
+    expect(readBack?.humanReview).toEqual(signed.humanReview);
+    const row = readBack?.requirements?.find((item) => item.requirementId === "human-full-watch");
+    expect(row?.verdict).toBe("pass");
+    expect(row?.note).toContain("复核人 世事");
   });
 
   it("无报告返回 null;坏 JSON 返回 null", async () => {

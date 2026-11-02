@@ -133,3 +133,59 @@ describe("chapter QC vision preflight IPC", () => {
     expect(state.removed).toContain("chapter-qc-submit-vision-preflight");
   });
 });
+
+describe("chapter QC human review IPC", () => {
+  it("签全两问才把 human-full-watch 从缺证翻成通过,缺项/署名/陈旧报告一律拒收", async () => {
+    const registration = registerChapterQcIpcHandlers({
+      deps: {
+        remotionWorkspaceRootForProject: () => "/tmp/remotion",
+        videoUseWorkspaceRootForProject: () => "/tmp/video-use",
+        dataRoot: "/tmp/data",
+      },
+      runQc: vi.fn(),
+      getWindow: () => ({ webContents: { send: state.send } }) as never,
+    });
+    const handler = state.handlers.get("chapter-qc-submit-human-review");
+    expect(handler).toBeTypeOf("function");
+
+    await expect(handler!({}, { projectId: "p1", chapterId: "c1", expectedCreatedAt: 100, fullWatched: true, audioListened: true }))
+      .resolves.toEqual({ success: false, message: "复核人必填(≤80 字)" });
+    await expect(handler!({}, { projectId: "p1", chapterId: "c1", expectedCreatedAt: 100, fullWatched: "yes", audioListened: true, reviewer: "世事" }))
+      .resolves.toEqual({ success: false, message: "fullWatched/audioListened 必须是布尔" });
+    await expect(handler!({}, { projectId: "p1", chapterId: "c1", expectedCreatedAt: 99, fullWatched: true, audioListened: true, reviewer: "世事" }))
+      .resolves.toEqual({ success: false, message: "QC 报告已更新(片子或分层结果重跑过),请重新看一遍再确认" });
+    expect(state.write).not.toHaveBeenCalled();
+
+    await expect(handler!({}, {
+      projectId: "p1",
+      chapterId: "c1",
+      expectedCreatedAt: 100,
+      fullWatched: true,
+      audioListened: false,
+      reviewer: " 世事 ",
+      notes: "口型在 #4 镜偏半拍",
+    })).resolves.toEqual({ success: true });
+
+    expect(state.report?.humanReview).toMatchObject({ fullWatched: true, audioListened: false, reviewer: "世事" });
+    const half = state.report?.requirements?.find((item) => item.requirementId === "human-full-watch");
+    expect(half?.verdict).toBe("unverified");
+    expect(half?.missing).toEqual(["世事 的复核未确认「人耳听完全轨」"]);
+
+    await handler!({}, {
+      projectId: "p1",
+      chapterId: "c1",
+      expectedCreatedAt: 100,
+      fullWatched: true,
+      audioListened: true,
+      reviewer: "世事",
+    });
+    const signed = state.report?.requirements?.find((item) => item.requirementId === "human-full-watch");
+    expect(signed?.verdict).toBe("pass");
+    expect(signed?.note).toContain("复核人 世事");
+    expect(state.write).toHaveBeenCalledTimes(2);
+    expect(state.send).toHaveBeenLastCalledWith("chapter-qc-report-updated", { projectId: "p1", chapterId: "c1" });
+
+    registration.dispose();
+    expect(state.removed).toContain("chapter-qc-submit-human-review");
+  });
+});

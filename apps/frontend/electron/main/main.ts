@@ -433,6 +433,8 @@ const chapterQcOrchestratorDeps: ChapterQcOrchestratorDeps = {
   videoUseWorkspaceRootForProject: (projectId) => path.join(projectRootFor(projectId), 'video-use'),
   dataRoot: getDataDir(),
   videoQc: videoQcRuntimeController,
+  // L2 语音段口径:Silero VAD 跑在 managed Python(requirements.txt 里的 silero-vad),缺依赖时 L2 自动退回 silencedetect 补集
+  vadRuntime: { storageBasePath: getStorageBasePath, backendRoot: videoWorkflowBackendRoot },
 }
 const chapterQcIpc = registerChapterQcIpcHandlers({
   deps: chapterQcOrchestratorDeps,

@@ -60,35 +60,56 @@ class Qwen21TemplateContractTests(unittest.TestCase):
             self.assertIn(binding["field"], node["inputs"], key)
 
     def test_runs_daojie_production_graph(self) -> None:
-        # 现行 GUI/API 契约:ApiPE 装配、Turbo 8步官方采样、SeedVR2 2K 超分在场;
-        # 7034 mikkoani×0.8→7028 Turbo×1.0,底模为1;1016 拆除的7027 Fix×0.5不得回灌。
+        # 现行 GUI/API 契约:ApiPE 装配、E 臂 40 步+LazyCache、SeedVR2 2K 超分在场;
+        # 1101晚 用户令「混动不需要 turbo×1.0」:E 臂=mikkoani×0.8→7026 detail-fix×1.0,
+        # 7:7028 turbo 装载件自 E-only 模板删除;1016 拆除的7027 Fix×0.5不得回灌。
+        # 1101 Phase1 案B:E 尾 SCA 三件→单 KSampler [7:7045] cfg=4(模板随画布再生成)。
         classes = {node["class_type"] for node in self.template["graph"].values()}
         self.assertIn("MyQi21ApiPE", classes)
         self.assertIn("MyQi21DaojieBase", classes)
-        self.assertIn("ManualSigmas", classes)
-        self.assertIn("SamplerCustomAdvanced", classes)
+        self.assertIn("LazyCache", classes)  # 1101 默认档3:E 臂随模板物质化(Turbo 臂死枝被裁)
+        self.assertIn("KSampler", classes)   # 1101 Phase1:E 尾=单 KSampler cfg4
+        self.assertNotIn("BasicScheduler", classes)      # SCA σ表件随案B 退役
+        self.assertNotIn("SamplerCustomAdvanced", classes)  # E-only 模板 SCA 已删
         self.assertNotIn("ViggleTurboLora", classes)
         self.assertNotIn("ViggleTurboSigmas", classes)
         self.assertIn("SeedVR2VideoUpscaler", classes)
         self.assertNotIn("7:7027", self.template["graph"])
+        self.assertNotIn("7:7028", self.template["graph"])  # 1101晚 E 臂撤 turbo
+        self.assertNotIn("7:7044", self.template["graph"])  # t2i 模板吃画布共享 7:7026
+        for gone in ("7:7041", "7:7042", "7:7043", "7:7017", "7:7018"):
+            self.assertNotIn(gone, self.template["graph"])  # SCA 三件/共享噪声采样件出 E-only 模板
         self.assertEqual(self.template["graph"]["7:7034"]["class_type"], "LoraLoaderModelOnly")
         style = self.template["graph"]["7:7034"]["inputs"]
         self.assertEqual(style["lora_name"], "qi21-mikkoani.safetensors")
         self.assertEqual(style["strength_model"], 0.8)
         self.assertEqual(style["model"], ["1", 0])
-        self.assertEqual(self.template["graph"]["7:7028"]["class_type"], "LoraLoaderModelOnly")
-        turbo = self.template["graph"]["7:7028"]["inputs"]
-        self.assertEqual(turbo["lora_name"], "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors")
-        self.assertEqual(turbo["strength_model"], 1.0)
-        self.assertEqual(turbo["model"], ["7:7034", 0])
-        speed = self.template["graph"]["7:7015"]["inputs"]["mode"]
-        self.assertEqual(speed, "0 · Turbo 8步")
+        self.assertEqual(self.template["graph"]["7:7026"]["class_type"], "LoraLoaderModelOnly")
+        fix = self.template["graph"]["7:7026"]["inputs"]
+        self.assertEqual(fix["lora_name"], "qwen2.1-detail-fix-2.0.safetensors")
+        self.assertEqual(fix["strength_model"], 1.0)
+        self.assertEqual(fix["model"], ["7:7034", 0])  # 1101晚 源自 mikkoani 直连(共享件随E入模)
+        speed = self.template["graph"]["7:7015"]["inputs"]
+        self.assertEqual(speed["mode"], "3 · 混动 40步+缓存")  # 1101 默认档3混动替换 Turbo
+        self.assertEqual(speed["latent_e"], ["7:7045", 0])     # 1101 Phase1:E 尾 KSampler
+        e_ks = self.template["graph"]["7:7045"]
+        self.assertEqual(e_ks["class_type"], "KSampler")
+        ks = e_ks["inputs"]
+        self.assertEqual(ks["model"], ["7:7040", 0])
+        self.assertEqual(ks["positive"], ["4015", 0])   # 装配正向出(t2i 域)
+        self.assertEqual(ks["negative"], ["4015", 1])   # MyQi21FastEncode 负向出口(Q2/Q5)
+        self.assertEqual(ks["latent_image"], ["4", 0])  # EmptyLatentImage(t2i 域)
+        self.assertEqual(ks["seed"], ["7:7014", 0])     # seed 单源直连(1101 新增扇出)
+        self.assertEqual((ks["steps"], ks["cfg"], ks["sampler_name"], ks["scheduler"], ks["denoise"]),
+                         (40, 4.0, "euler", "simple", 1.0))
         self.assertIs(self.template['graph']['6:4013']['inputs']['AI扩写开关'], False)
 
     def test_seed_single_source(self) -> None:
-        # seed 单源=PrimitiveInt(7:7014) 扇出 RandomNoise;绑定必须指它
-        noise = self.template["graph"]["7:7017"]["inputs"]["noise_seed"]
-        self.assertEqual(noise, ["7:7014", 0])
+        # seed 单源=PrimitiveInt(7:7014);1101 Phase1 起 E KSampler seed 直连它
+        # (旧 7:7017 RandomNoise 消费线随 SCA 删出 E-only 模板);绑定必须指它
+        self.assertNotIn("7:7017", self.template["graph"])
+        e_seed = self.template["graph"]["7:7045"]["inputs"]["seed"]
+        self.assertEqual(e_seed, ["7:7014", 0])
         binding = self.template["inputs"]["seed"]
         self.assertEqual((binding["node"], binding["field"]), ("7:7014", "value"))
 
@@ -96,9 +117,12 @@ class Qwen21TemplateContractTests(unittest.TestCase):
         # 幽灵文件名回归锁(int8_convrot/r128 从未安装,见 1005 记忆)
         self.assertEqual(self.template["graph"]["1"]["inputs"]["unet_name"], "qwen_image_2.1_bf16.safetensors")
         self.assertEqual(self.template["graph"]["2"]["inputs"]["clip_name"], "qwen3vl_8b_bf16_heretic.safetensors")
-        lora = self.template["graph"]["7:7028"]["inputs"]["lora_name"]
-        self.assertEqual(lora, "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors")
-        self.assertEqual(self.template['graph']['7:7028']['inputs']['strength_model'], 1.0)
+        lora = self.template["graph"]["7:7034"]["inputs"]["lora_name"]
+        self.assertEqual(lora, "qi21-mikkoani.safetensors")
+        self.assertEqual(
+            self.template["graph"]["7:7026"]["inputs"]["lora_name"],
+            "qwen2.1-detail-fix-2.0.safetensors",
+        )
 
     def test_small_pieces_ready_when_template_loadable(self) -> None:
         status = qwen21.small_pieces_status()
@@ -180,8 +204,8 @@ class Qwen21I2iTemplateContractTests(unittest.TestCase):
         self.assertEqual(self.graph["6:4022"]["inputs"]["组装用途"], "自由出图")
         self.assertEqual(self.graph["6:4010"]["inputs"]["base"], "人物海报")
         self.assertEqual(self.graph["6:180"]["inputs"]["rgba_hint"], ["6:4010", 4])
-        # 档位快照=Turbo 8 步
-        self.assertEqual(self.graph["7:7015"]["inputs"]["mode"], "0 · Turbo 8步")
+        # 档位快照=档3混动(1101 默认替换 Turbo)
+        self.assertEqual(self.graph["7:7015"]["inputs"]["mode"], "3 · 混动 40步+缓存")
         # 指令择文直接持有 PE 开关；关闭时 selected_graph 不保留 PE 依赖。
         self.assertNotIn("6:4012", self.graph)
         self.assertEqual(self.graph["6:4014"]["class_type"], "MyQi21InstructionSelect")
@@ -192,8 +216,13 @@ class Qwen21I2iTemplateContractTests(unittest.TestCase):
         self.assertEqual(self.graph["6:153"]["class_type"], "MyQi21FinalOutput")
         self.assertEqual(self.graph["6:153"]["inputs"]["正向提示词"], ["6:4011", 0])
         self.assertEqual(self.graph["6:153"]["inputs"]["负向提示词"], ["6:4011", 1])
-        # seed 单源=PrimitiveInt(7:7014) 扇出 RandomNoise
-        self.assertEqual(self.graph["7:7017"]["inputs"]["noise_seed"], ["7:7014", 0])
+        # seed 单源=PrimitiveInt(7:7014);1101 Phase2 起 E 尾=KSampler cfg4(seed 直连
+        # 单源,旧 7:7017 RandomNoise 消费线随 SCA 删出 E-only 模板)
+        self.assertNotIn("7:7017", self.graph)
+        self.assertEqual(self.graph["7:7045"]["inputs"]["seed"], ["7:7014", 0])
+        self.assertEqual(self.graph["7:7015"]["inputs"]["latent_e"], ["7:7045", 0])
+        self.assertEqual(self.graph["7:7045"]["class_type"], "KSampler")
+        self.assertEqual(self.graph["7:7045"]["inputs"]["cfg"], 4.0)
 
 
 class Qwen21I2iGenerateTests(unittest.TestCase):
@@ -292,7 +321,8 @@ class Qwen21I2iGenerateTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, "reference-unsupported")
 
     def test_t2i_path_unchanged_without_reference(self) -> None:
-        # 回归锁:无参考图走原 t2i 路逐字节不变(t2i 模板实例化原样提交,不上传参考图)
+        # 回归锁:无参考图走原 t2i 路(t2i 模板实例化+E 臂默认补注后原样提交,不上传参考图;
+        # 1101 默认档3后,E 臂补注并入确定性路径,逐字节可复现)
         submitted, _, upload_mock = self._run_generate(
             prompt="t2i 回归", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
         )
@@ -300,57 +330,71 @@ class Qwen21I2iGenerateTests(unittest.TestCase):
         expected = qwen21.instantiate_template(
             qwen21.load_template(qwen21.TEMPLATE_NAME), "t2i 回归", None, 8, 42, "1:1", [],
         )
+        qwen21.apply_hand_speed_mode(expected, None)  # 1101:默认档3→E 臂补注(与产线同路)
         self.assertEqual(submitted, expected)
         self.assertNotIn("10", submitted)
 
     def test_hand_type_t2i_defaults_e_hybrid(self) -> None:
-        # 10-26 用户裁定:有手型默认档3混动——t2i 路带 base_type=有手型 →
-        # E 臂五件运行时补注+latent_e 接线+mode 切档3;SCA 源槽逐槽镜像 Turbo 臂
+        # 1101 用户令:默认档3混动替换 Turbo——有手型与默认合一(E 臂随模板
+        # 物质化,运行时补注=幂等零动作);1101 Phase1 案B:E 尾=单 KSampler cfg4
         graph, _, _ = self._run_generate(
             prompt="人物海报主体句", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
             base_type="人物海报",
         )
         self.assertEqual(graph["7:7015"]["inputs"]["mode"], qwen21.SPEED_MODE_E_HYBRID)
-        self.assertEqual(graph["7:7015"]["inputs"]["latent_e"], ["7:7043", 0])
-        self.assertEqual(graph["7:7044"]["inputs"]["model"], ["7:7028", 0])
-        self.assertEqual(graph["7:7044"]["inputs"]["lora_name"], "qwen2.1-detail-fix-2.0.safetensors")
+        self.assertEqual(graph["7:7015"]["inputs"]["latent_e"], ["7:7045", 0])
+        self.assertEqual(graph["7:7026"]["inputs"]["model"], ["7:7034", 0])  # 1101晚 撤 turbo→mikkoani 直连(共享件)
+        self.assertEqual(graph["7:7026"]["inputs"]["lora_name"], "qwen2.1-detail-fix-2.0.safetensors")
         self.assertEqual(graph["7:7040"]["class_type"], "LazyCache")
         self.assertEqual(graph["7:7040"]["inputs"]["reuse_threshold"], 0.2)
         self.assertEqual(graph["7:7040"]["inputs"]["start_percent"], 0.15)
         self.assertEqual(graph["7:7040"]["inputs"]["end_percent"], 0.95)
-        self.assertEqual(graph["7:7041"]["inputs"]["steps"], 40)
-        self.assertEqual(graph["7:7041"]["inputs"]["scheduler"], "simple")
-        # 镜像源:噪声/采样器/latent 与 Turbo 臂逐槽同源(t2i latent=EmptyLatent[4])
-        turbo = graph["7:7031"]["inputs"]
-        e_sca = graph["7:7043"]["inputs"]
-        self.assertEqual(e_sca["noise"], turbo["noise"])
-        self.assertEqual(e_sca["sampler"], turbo["sampler"])
-        self.assertEqual(e_sca["latent_image"], turbo["latent_image"])
-        self.assertEqual(e_sca["sigmas"], ["7:7041", 0])
-        self.assertEqual(graph["7:7042"]["inputs"]["conditioning"], graph["7:7029"]["inputs"]["conditioning"])
+        self.assertEqual(graph["7:7040"]["inputs"]["model"], ["7:7026", 0])
+        self.assertEqual(graph["7:7045"]["class_type"], "KSampler")  # 1101 Phase1 案B
+        ks = graph["7:7045"]["inputs"]
+        self.assertEqual(ks["model"], ["7:7040", 0])
+        self.assertEqual(ks["positive"], ["4015", 0])   # 装配正向出(t2i 域)
+        self.assertEqual(ks["negative"], ["4015", 1])   # MyQi21FastEncode 负向出口
+        self.assertEqual(ks["latent_image"], ["4", 0])  # t2i=EmptyLatentImage
+        self.assertEqual(ks["seed"], ["7:7014", 0])     # seed 单源直连(新扇出)
+        self.assertEqual((ks["steps"], ks["cfg"], ks["sampler_name"], ks["scheduler"], ks["denoise"]),
+                         (40, 4.0, "euler", "simple", 1.0))
+        for gone in ("7:7041", "7:7042", "7:7043"):
+            self.assertNotIn(gone, graph)  # SCA 三件随案B 退役
 
     def test_hand_type_i2i_defaults_e_hybrid(self) -> None:
-        # i2i 路(带参考图)同切:E 臂镜像注入,latent 源自动跟 i2i 模板参考编码链
+        # i2i 路(带参考图)同切:1101 Phase2 起 E 尾 KSampler 形随模板物质化
+        # (运行时补注=幂等零动作);fix=i2i 自有 7044,正源=positive_single 单参考域
         graph, _, _ = self._run_generate(
             prompt="人物海报指令", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
             reference_b64="aWlpcmVmaW9uZQ==", base_type="人物海报",
         )
         self.assertEqual(graph["7:7015"]["inputs"]["mode"], qwen21.SPEED_MODE_E_HYBRID)
-        self.assertEqual(graph["7:7015"]["inputs"]["latent_e"], ["7:7043", 0])
-        self.assertIn("7:7043", graph)
-        self.assertEqual(
-            graph["7:7043"]["inputs"]["latent_image"], graph["7:7031"]["inputs"]["latent_image"]
-        )
+        self.assertEqual(graph["7:7015"]["inputs"]["latent_e"], ["7:7045", 0])
+        self.assertEqual(graph["7:7045"]["class_type"], "KSampler")
+        self.assertEqual(graph["7:7045"]["inputs"]["negative"], ["4015", 1])   # MyQi21FastEncode 负向出口
+        self.assertEqual(graph["7:7045"]["inputs"]["positive"], ["171", 0])    # 单参考编码域(positive_single)
+        self.assertEqual(graph["7:7045"]["inputs"]["model"], ["7:7040", 0])
+        self.assertEqual(graph["7:7040"]["inputs"]["model"], ["7:7044", 0])    # i2i 自有 fix 件
+        self.assertEqual(graph["7:7045"]["inputs"]["latent_image"], ["20", 0])  # 参考编码 latent 域([20] 画幅开关)
+        self.assertEqual(graph["7:7045"]["inputs"]["seed"], ["7:7014", 0])     # seed 单源直连(新扇出)
+        self.assertEqual((graph["7:7045"]["inputs"]["steps"], graph["7:7045"]["inputs"]["cfg"],
+                          graph["7:7045"]["inputs"]["sampler_name"], graph["7:7045"]["inputs"]["scheduler"],
+                          graph["7:7045"]["inputs"]["denoise"]), (40, 4.0, "euler", "simple", 1.0))
+        for gone in ("7:7041", "7:7042", "7:7043", "7:7017", "7:7018"):
+            self.assertNotIn(gone, graph)  # SCA 三件+共享噪声采样件出 E-only 模板
 
-    def test_non_hand_types_keep_turbo_default(self) -> None:
-        # 非有手型零动作=模板现值 Turbo(逐字节回归锁的语义延续)
+    def test_non_hand_types_default_e_hybrid(self) -> None:
+        # 1101 用户令:默认档3混动替换 Turbo——非有手型走模板默认档3,
+        # E 臂随模板物质化(运行时补注=幂等零动作;t2i 模板=KSampler 形)
         for base_type in ("道具", "人脸基准", "场景", None, "  "):
             graph, _, _ = self._run_generate(
                 prompt=f"主体句{base_type}", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
                 base_type=base_type,
             )
-            self.assertNotIn("7:7043", graph, base_type)
-            self.assertEqual(graph["7:7015"]["inputs"]["mode"], "0 · Turbo 8步", base_type)
+            self.assertEqual(graph["7:7015"]["inputs"]["mode"], "3 · 混动 40步+缓存", base_type)
+            self.assertEqual(graph["7:7015"]["inputs"]["latent_e"], ["7:7045", 0], base_type)
+            self.assertIn("7:7040", graph, base_type)  # LazyCache 臂在场
 
     def test_hand_speed_mode_fail_closed_on_missing_turbo_source(self) -> None:
         # 模板漂移防线:镜像源缺失→显式 bridge-template-missing,禁静默降级直出

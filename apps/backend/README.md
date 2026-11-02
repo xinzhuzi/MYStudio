@@ -112,7 +112,9 @@ Electron 会先从开发时的 `apps/backend` 或打包后的 `Resources/backend
 
 ## video-use 依赖边界
 
-`apps/backend/requirements.txt` 当前只服务 TTS；现有安装器读取一个清单、生成一个 `.deps-hash`，不会按“用户是否点击 video-use”拆分依赖。因此不能把 `librosa`、`matplotlib`、`pillow` 等 video-use 依赖直接追加到该文件后再期待安装器按功能判断，这会让 TTS 配置时无条件安装并把两套升级/回滚绑定在一起。
+`apps/backend/requirements.txt` 服务的功能面是 TTS 加上按平台标记收敛的本地推理与质检测试依赖(`torch`、`mlx`、`silero-vad`)；现有安装器读取一个清单、生成一个 `.deps-hash`，不会按“用户是否点击 video-use”拆分依赖。因此不能把 `librosa`、`matplotlib`、`pillow` 等 video-use 依赖直接追加到该文件后再期待安装器按功能判断，这会让 TTS 配置时无条件安装并把两套升级/回滚绑定在一起。
+
+QC 侧要新增 Python 依赖时的合规落法(1031 已按此接 Silero VAD)：带平台标记进这一份清单、复用设置页下载的同一 managed 解释器、不为该功能单独建 venv(装机时那个 venv 无人创建，只会永久停在“查不出”)；依赖缺位时由功能侧回报 `needs-runtime` 并让验收板记 `unverified`，不在运行期静默补装。
 
 video-use 运行时必须复用设置页下载的 `<storageBasePath>/python` 解释器来源。默认方案是在 video-use 准备时复用该 managed Python 3.12 的同一 site-packages，并使用独立 `requirements-video-use.lock`、profile marker、`pip check`/import/fixture smoke、TTS 全量回归和整套 runtime 回滚；禁止创建 `video-use-runtime` venv。用户仍只通过 MYStudio UI 操作，安装动作由 Electron 后台 worker 完成，不要求用户打开终端。共享依赖发生硬冲突时，必须恢复最近一次已验证组合并将当前章节置为 `blocked`，不得静默换环境或继续正式渲染。
 

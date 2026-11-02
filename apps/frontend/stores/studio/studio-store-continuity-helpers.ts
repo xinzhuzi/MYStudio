@@ -134,6 +134,7 @@ export function storyboardSourceFingerprint(item: Partial<StoryboardItem>) {
     assetIds: item.assetIds ?? [],
     shouldGenerateImage: item.shouldGenerateImage,
     orderedReferenceManifest: item.orderedReferenceManifest ?? [],
+    ...(item.sourceEvidence?.scene ? { sourceScene: item.sourceEvidence.scene } : {}),
     shotSemantics: item.shotSemantics,
     cinematic: (item as { cinematic?: unknown }).cinematic,
     continuityState: item.continuityState
