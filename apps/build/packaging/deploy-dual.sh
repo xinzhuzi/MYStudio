@@ -122,39 +122,70 @@ phase_b() {
   # B2: 构建(写 .bat → 后台执行 → 轮询)
   if ! dry "Windows build-desktop.mjs --win"; then
     log "Building Windows app..."
-    # 写 batch 脚本
-    local bat_content="@echo off\r\ncd /d $WIN_REPO\\apps\r\necho [%date% %time%] build start > $BAT_LOG\r\nif not exist node_modules\\electron (\r\n  echo npm install... >> $BAT_LOG\r\n  call npm install >> $BAT_LOG 2>&1\r\n)\r\necho building... >> $BAT_LOG\r\ncall node ./build/packaging/build-desktop.mjs --win >> $BAT_LOG 2>&1\r\nif %errorlevel% equ 0 (\r\n  echo BUILD_OK > $BAT_DONE\r\n) else (\r\n  echo BUILD_FAIL > $BAT_DONE\r\n)\r\necho [%date% %time%] build end >> $BAT_LOG"
+    # 写 batch 脚本(printf %s 逐行——勿用 echo -e:它把路径里的 \t \a 吞成 TAB/BEL 控制字符,
+    # 11-02 实测 E:\IP\tmp→E:\IP<TAB>p、\apps→<BEL>pps,bat 秒死且零日志)
     # 清旧标记
     ssh_win "del /f $BAT_DONE 2>nul & del /f $BAT_LOG 2>nul" || true
-    # 写 bat 并启动
-    echo -e "$bat_content" > /tmp/deploy-dual-build.bat
+    {
+      printf '%s\r\n' '@echo off'
+      printf '%s\r\n' "cd /d $WIN_REPO\\apps"
+      printf '%s\r\n' "echo [%date% %time%] build start > $BAT_LOG"
+      # 1102 教训×2:①勿用「if not exist node_modules\electron」做条件——electron 在≠依赖齐,
+      # package.json 后加的 @remotion/* 系恒缺,构建 verify-versions 必挂;②本仓库是 pnpm catalog 店,
+      # 裸 npm install 必报 EUNSUPPORTEDPROTOCOL "catalog:"——恒跑增量 pnpm install(满足时 ~1min)
+      printf '%s\r\n' "echo pnpm install (incremental)... >> $BAT_LOG"
+      printf '%s\r\n' "call pnpm install >> $BAT_LOG 2>&1"
+      printf '%s\r\n' "echo building... >> $BAT_LOG"
+      printf '%s\r\n' "call node ./build/packaging/build-desktop.mjs --win >> $BAT_LOG 2>&1"
+      printf '%s\r\n' 'if %errorlevel% equ 0 ('
+      printf '%s\r\n' "  echo BUILD_OK > $BAT_DONE"
+      printf '%s\r\n' ') else ('
+      printf '%s\r\n' "  echo BUILD_FAIL > $BAT_DONE"
+      printf '%s\r\n' ')'
+      printf '%s\r\n' "echo [%date% %time%] build end >> $BAT_LOG"
+    } > /tmp/deploy-dual-build.bat
     scp -o ConnectTimeout=5 /tmp/deploy-dual-build.bat "$WIN_HOST:E:/IP/tmp/" >/dev/null
-    ssh_win "start /b cmd /c E:\\IP\\tmp\\deploy-dual-build.bat" || true
-    log " 构建已后台启动,轮询完成(最长 10 分钟)..."
+    # ⚠️ 勿用 `start /b` / PowerShell Start-Process 起后台任务:本机 Windows OpenSSH 会话带
+    # Job 对象,会话一断即清杀 detached 子进程(11-02 实测 start /b 连 bat 第一行都没跑;
+    # 仓内 apps/build/scripts/win-engine/engine_task.py 文档串同款结论)。
+    # 逃生路=WMI 域:Invoke-CimMethod Win32_Process::Create 由 WmiPrvSE(系统服务)拉起,
+    # 不在 ssh Job 内——实测子进程跨会话完整存活,且该域内 node/npm 在 PATH 可用。
+    local launch_rv
+    launch_rv=$(ssh_win "powershell -NoProfile -Command \"(Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine='cmd /c E:\\IP\\tmp\\deploy-dual-build.bat'}).ReturnValue\"" | tr -d '\r\n ')
+    if [ "$launch_rv" != "0" ]; then
+      die "构建进程拉起失败(WMI ReturnValue=$launch_rv)"
+    fi
+    log " 构建已后台启动(WMI 域),轮询完成(最长 20 分钟;首次 Windows 构建含下载)..."
     local elapsed=0
-    while [ $elapsed -lt 600 ]; do
+    while [ $elapsed -lt 1200 ]; do
       local done_content
       done_content=$(ssh_win "type $BAT_DONE 2>nul" || echo "")
       if echo "$done_content" | grep -q "BUILD_OK"; then
         log "✅ Windows 构建成功(${elapsed}s)"
         break
       elif echo "$done_content" | grep -q "BUILD_FAIL"; then
-        local log_tail
-        log_tail=$(ssh_win "type $BAT_LOG 2>nul" | tail -20)
-        die "Windows 构建失败——日志尾:\n$log_tail"
+        log "❌ 构建失败,日志尾(全文在 $BAT_LOG):"
+        ssh_win "type $BAT_LOG 2>nul" 2>/dev/null | tail -20 || true
+        die "Windows 构建失败"
       fi
       sleep 10
       elapsed=$((elapsed + 10))
       [ $((elapsed % 60)) -eq 0 ] && log " ...等待中 ${elapsed}s"
     done
-    [ $elapsed -ge 600 ] && die "Windows 构建超时(10min)"
+    if [ $elapsed -ge 1200 ]; then
+      log "⏱️  超时,日志尾(全文在 $BAT_LOG):"
+      ssh_win "type $BAT_LOG 2>nul" 2>/dev/null | tail -20 || true
+      die "Windows 构建超时(20min)"
+    fi
   fi
 
   # B3: 停旧引擎
   if ! dry "停旧引擎进程"; then
     log "Stopping engine..."
+    # wmic 已从新版 Windows 移除(本机实测 'wmic' 不是内部或外部命令)→ PowerShell CIM 等价查询
+    # (实测命中全部 main.py+17000 引擎进程,含端口持有者与 venv 僵尸副本两个 PID)
     local pids
-    pids=$(ssh_win "wmic process where \"commandline like '%%main.py%% and %%port $WIN_ENGINE_PORT%%'\" get processid /format:csv 2>nul" | grep -o '[0-9]*$' | head -5)
+    pids=$(ssh_win "powershell -NoProfile -Command \"(Get-CimInstance Win32_Process -Filter \\\"Name='python.exe' or Name='pythonw.exe'\\\").Where({\$_.CommandLine -match 'main.py'}).Where({\$_.CommandLine -match '$WIN_ENGINE_PORT'}) | Select-Object -ExpandProperty ProcessId\"" | tr -d '\r' | grep -E '^[0-9]+$' | head -5)
     if [ -n "$pids" ]; then
       for pid in $pids; do
         ssh_win "taskkill /F /PID $pid" >/dev/null 2>&1 || true
@@ -173,11 +204,11 @@ phase_b() {
     if ! ssh_win "if exist \"$WIN_REPO\\$WIN_BUILD_OUT\\resources\" (echo OUT_OK) else (echo OUT_MISSING)" 2>/dev/null | grep -q "OUT_OK"; then
       die "构建产物不存在: $WIN_REPO\\$WIN_BUILD_OUT\\resources(B2 构建是否真成功?)"
     fi
-    local rc_result
-    rc_result=$(ssh_win "robocopy \"$WIN_REPO\\$WIN_BUILD_OUT\" \"$WIN_INSTALL\" /MIR /R:2 /W:2 /NFL /NDL /NJH /NJS 2>&1; echo EXIT:%errorlevel%")
-    local rc_code
-    rc_code=$(echo "$rc_result" | grep -o 'EXIT:[0-9]*' | cut -d: -f2)
-    # robocopy exit code 0-7 = success(0=无变化 1=已拷贝 2=额外 4=不匹配;8+=真失败), 8+ = failure
+    # 旧写法 `... 2>&1; echo EXIT:%errorlevel%` 双坑:cmd 的 `;` 不是命令分隔符(实测整段静默失效),
+    # 且同一行 %errorlevel% 在 robocopy 执行前就展开(恒为旧值)→ 改用 ssh 退出码透传(实测 robocopy 16 可透传)
+    local rc_code=0
+    ssh_win "robocopy \"$WIN_REPO\\$WIN_BUILD_OUT\" \"$WIN_INSTALL\" /MIR /R:2 /W:2 /NFL /NDL /NJH /NJS" >/dev/null || rc_code=$?
+    # robocopy exit code 0-7 = success(0=无变化 1=已拷贝 2=额外 4=不匹配;8+=真失败)
     if [ "$rc_code" -le 7 ] 2>/dev/null; then
       log "✅ robocopy 安装成功(exit=$rc_code)"
     else
@@ -188,11 +219,9 @@ phase_b() {
   # B4.5: 同步 my-nodes 到引擎(Grill Q1=A:脚本直接复制;/E 仅增不删——引擎侧特有文件不能删)
   if ! dry "同步 my-nodes → 引擎"; then
     log "Syncing my-nodes to engine..."
-    local mn_result
-    mn_result=$(ssh_win "robocopy \"$WIN_INSTALL\\resources\\backend\\comfyui\\my_nodes\" \"$WIN_ENGINE_HOME\\ComfyUI\\custom_nodes\\my-nodes\" /E /R:2 /W:2 /XF __pycache__ *.pyc /NFL /NDL /NJH /NJS 2>&1; echo EXIT:%errorlevel%")
-    local mn_code
-    mn_code=$(echo "$mn_result" | grep -o 'EXIT:[0-9]*' | cut -d: -f2)
-    # robocopy 0-7 = success; /E 不删引擎侧文件
+    local mn_code=0
+    ssh_win "robocopy \"$WIN_INSTALL\\resources\\backend\\comfyui\\my_nodes\" \"$WIN_ENGINE_HOME\\ComfyUI\\custom_nodes\\my-nodes\" /E /R:2 /W:2 /XF __pycache__ *.pyc /NFL /NDL /NJH /NJS" >/dev/null || mn_code=$?
+    # robocopy 0-7 = success; /E 不删引擎侧文件;退出码经 ssh 透传(同 B4)
     if [ "$mn_code" -le 7 ] 2>/dev/null; then
       log "✅ my-nodes 已同步到引擎 custom_nodes(exit=$mn_code)"
     else
@@ -200,13 +229,19 @@ phase_b() {
     fi
   fi
 
-  # B5: 重启引擎(重试探测 /system_stats,最长 60s 每 5s——冷启动加载模型可能超 15s)
+  # B5: 重启引擎(schtasks 调度域拉起 + 重试探测 /system_stats,最长 120s 每 5s——冷启动加载模型慢)
   if ! dry "重启引擎"; then
     log "Starting engine..."
-    ssh_win "start /b \"$WIN_ENGINE_HOME\\venv\\Scripts\\pythonw.exe\" \"$WIN_ENGINE_HOME\\ComfyUI\\main.py\" --listen 0.0.0.0 --port $WIN_ENGINE_PORT --lowvram --enable-manager --use-pytorch-cross-attention --output-directory \"$WIN_ENGINE_HOME\\output\"" || true
-    log " 等待引擎启动(重试探测,最长 60s)..."
+    # 勿用 start /b 起引擎:同 B2 的 ssh Job 清杀;且会丢 engine_task.py 的调度域环境补丁
+    # (TEMP/TMP/USERPROFILE/LOCALAPPDATA——调度域缺这些 torch 报 [Errno 22])与 bridge 令牌注入。
+    # 规范入口=计划任务 EngineDurable(engine_task.py 调度域实体;一次性已跑完 State=Ready,
+    # 非常驻看门狗——B3 杀掉引擎不会触发自动复活,无竞态)。
+    if ! ssh_win "schtasks /Run /TN EngineDurable"; then
+      die "schtasks /Run EngineDurable 失败(任务缺失?见 apps/build/scripts/win-engine/engine_task.py 文档串)"
+    fi
+    log " 等待引擎启动(重试探测,最长 120s)..."
     local engine_up=false engine_wait=0
-    while [ $engine_wait -lt 60 ]; do
+    while [ $engine_wait -lt 120 ]; do
       sleep 5
       engine_wait=$((engine_wait + 5))
       if ssh_win "curl.exe -s --max-time 5 http://127.0.0.1:$WIN_ENGINE_PORT/system_stats" 2>/dev/null | grep -q "comfyui_version\|system"; then
@@ -215,7 +250,7 @@ phase_b() {
         break
       fi
     done
-    $engine_up || die "引擎 60s 内未就绪(查引擎日志: $WIN_ENGINE_HOME\\ComfyUI\\user\\comfyui.log 或手动跑 python main.py 看报错)"
+    $engine_up || die "引擎 120s 内未就绪(查引擎日志: $WIN_ENGINE_HOME\\logs\\engine.log——engine_task.py 的落点)"
   fi
 
   # B6: Smoke
@@ -225,7 +260,7 @@ phase_b() {
     stats=$(ssh_win "curl.exe -s --max-time 10 http://127.0.0.1:$WIN_ENGINE_PORT/system_stats" 2>/dev/null)
     if echo "$stats" | grep -q "comfyui_version\|system"; then
       local ver
-      ver=$(echo "$stats" | grep -o '"comfyui_version":"[^"]*"' | head -1)
+      ver=$(echo "$stats" | grep -o '"comfyui_version" *: *"[^"]*"' | head -1)
       log "✅ 引擎在跑 $ver"
     else
       die "引擎 /system_stats 无响应"
@@ -257,7 +292,7 @@ phase_c() {
   local mac_ver win_ver win_engine
   mac_ver=$(git -C "$REPO_ROOT" log --oneline -1)
   win_ver=$(ssh_win "cd /d $WIN_REPO && git log --oneline -1" 2>/dev/null || echo "N/A")
-  win_engine=$(ssh_win "curl.exe -s --max-time 5 http://127.0.0.1:$WIN_ENGINE_PORT/system_stats" 2>/dev/null | grep -o '"comfyui_version":"[^"]*"' || echo "引擎未跑")
+  win_engine=$(ssh_win "curl.exe -s --max-time 5 http://127.0.0.1:$WIN_ENGINE_PORT/system_stats" 2>/dev/null | grep -o '"comfyui_version" *: *"[^"]*"' || echo "引擎未跑")
 
   echo ""
   echo "┌──────────────────────────────────────────────┐"
