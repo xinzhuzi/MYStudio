@@ -307,6 +307,8 @@ export function McpSettingsTab() {
   // 测试连接(仅探活不保存,11-02 用户令):直连输入框地址(空则当前生效地址)的
   // /system_stats;与 MCP 服务器卡片「测试连接」同范式;结果共用 remoteTest 展示位。
   const [remoteProbing, setRemoteProbing] = useState(false);
+  // 1102 F4:探活成功详情弹窗(headline=实机版本/显卡,note=保存态说明);null=关
+  const [engineOkDialog, setEngineOkDialog] = useState<{ headline: string; note: string } | null>(null);
   const testRemoteConnection = async () => {
     const base = normalizeEngineUrl(remoteDraft) || normalizeEngineUrl(remoteEngine?.effective ?? "");
     if (!base) {
@@ -329,13 +331,12 @@ export function McpSettingsTab() {
       // IP,直连 fetch 恒被拦——引擎明明在跑也报「连接失败」)。
       const probe = await probeEngineUrl(base);
       if (probe.ok) {
-        setRemoteTest({
-          status: "ok",
-          text: `连接成功(${comfyVersionLabel(
-            probe.comfyui_version ?? "未知版本",
-            probe.device ?? null,
-          )})——未保存,点「保存并测试」生效`,
+        // 1102 F4:成功详情改弹窗(实机 probe 数据);行内只留短确认
+        setEngineOkDialog({
+          headline: `连接成功(${comfyVersionLabel(probe.comfyui_version ?? "未知版本", probe.device ?? null)})`,
+          note: "未保存,点「保存并测试」生效",
         });
+        setRemoteTest({ status: "ok", text: "连接成功 ✓(详情见弹窗)" });
       } else {
         setRemoteTest({
           status: "error",
@@ -382,13 +383,12 @@ export function McpSettingsTab() {
         try {
           const probe = await probeEngineUrl(status.effective);
           if (probe.ok) {
-            setRemoteTest({
-              status: "ok",
-              text: `已连通远端引擎(${comfyVersionLabel(
-                probe.comfyui_version ?? "未知版本",
-                probe.device ?? null,
-              )})——产物将自动取回`,
+            // 1102 F4:成功详情改弹窗(实机 probe 数据);行内只留短确认
+            setEngineOkDialog({
+              headline: `已连通远端引擎(${comfyVersionLabel(probe.comfyui_version ?? "未知版本", probe.device ?? null)})`,
+              note: "产物将自动取回",
             });
+            setRemoteTest({ status: "ok", text: `已保存并生效(${status.effective}) ✓(详情见弹窗)` });
           } else {
             setRemoteTest({
               status: "ok",
@@ -654,7 +654,7 @@ export function McpSettingsTab() {
               <Input
                 value={remoteDraft}
                 onChange={(e) => setRemoteDraft(e.target.value)}
-                placeholder="http://192.168.0.101:17000(留空=本机引擎)"
+                placeholder="为空是本地引擎启动,填写URL为远端引擎启动"
                 containerClassName="flex-1"
                 data-testid="remote-engine-url"
                 spellCheck={false}
@@ -718,6 +718,19 @@ export function McpSettingsTab() {
             {remoteTest.status === "error" && (
               <p className="text-xs text-destructive" data-testid="remote-engine-error">{remoteTest.message}</p>
             )}
+            {/* 1102 F4:探活成功详情弹窗(实机数据:版本/显卡来自 probe 实时取数) */}
+            <Dialog open={engineOkDialog !== null} onOpenChange={(open) => !open && setEngineOkDialog(null)}>
+              <DialogContent className="max-w-sm" data-testid="remote-engine-ok-dialog">
+                <DialogHeader>
+                  <DialogTitle>引擎连接</DialogTitle>
+                  <DialogDescription>{engineOkDialog?.headline}</DialogDescription>
+                </DialogHeader>
+                <p className="text-sm text-muted-foreground">{engineOkDialog?.note}</p>
+                <DialogFooter>
+                  <Button size="sm" onClick={() => setEngineOkDialog(null)}>知道了</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </McpRow>
       </McpGroup>

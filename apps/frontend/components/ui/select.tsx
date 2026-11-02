@@ -21,8 +21,12 @@ const selectItemVariants = cva(
   {
     variants: {
       variant: {
-        default: "focus:opacity-65 focus:text-accent-foreground",
-        destructive: "text-destructive focus:text-destructive/80",
+        // 1102 F2 实弹:旧高亮态仅降透明度无背景变化——纸面主题下深字变
+        // 淡黑与底相融不可辨;改真背景高亮(accent 实底显式直连变量)+全不透明文字。
+        default:
+          "text-popover-foreground data-[highlighted]:bg-[hsl(var(--accent))] data-[highlighted]:text-accent-foreground data-[highlighted]:opacity-100",
+        destructive:
+          "text-destructive data-[highlighted]:bg-[hsl(var(--accent))] data-[highlighted]:text-destructive/90",
       },
     },
     defaultVariants: {
@@ -94,7 +98,10 @@ const SelectContent = React.forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        "relative z-[300] max-h-96 min-w-32 overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+        // 1102 F1 实弹:bg-popover 令牌链在实机断点(弹层透明底)——显式任意值直连
+        // hsl(var(--popover)),绕开 TW4 令牌生成环节;变量本体仍在 index.css 主题块,
+        // 深/浅与各皮肤定义照常生效。组件层修复=全 App 下拉一起受益。
+        "relative z-[300] max-h-96 min-w-32 overflow-hidden rounded-md border bg-[hsl(var(--popover))] text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
         position === "popper" &&
           "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
         className

@@ -295,11 +295,14 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     fireEvent.change(input, { target: { value: "http://192.168.0.101:17000" } });
     fireEvent.click(screen.getByTestId("remote-engine-save"));
     await waitFor(() => {
-      expect(screen.getByTestId("remote-engine-ok").textContent).toContain(
-        "已连通远端引擎(ComfyUI 0.45.1 · NVIDIA GeForce RTX 5090)——产物将自动取回",
+      // 1102 F4:成功详情入弹窗(实机 probe 数据);行内只留短确认
+      expect(screen.getByTestId("remote-engine-ok").textContent).toContain("已保存并生效");
+      expect(screen.getByTestId("remote-engine-ok-dialog").textContent).toContain(
+        "已连通远端引擎(ComfyUI 0.45.1 · NVIDIA GeForce RTX 5090)",
       );
+      expect(screen.getByTestId("remote-engine-ok-dialog").textContent).toContain("产物将自动取回");
     });
-    expect(screen.getByTestId("remote-engine-ok").textContent).not.toContain("0.42.0");
+    expect(screen.getByTestId("remote-engine-ok-dialog").textContent).not.toContain("0.42.0");
     // 11-02 用户令:「当前生效」尾注撤展示——保存成功后也不再现
     expect(screen.queryByText(/当前生效/)).toBeNull();
     const post = fetchMock.mock.calls.find((c) => String(c[0]).includes("/comfy/engine/remote") && c[1]?.method === "POST");
@@ -333,11 +336,13 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.101:17000" } });
     fireEvent.click(screen.getByTestId("remote-engine-test"));
     await waitFor(() => {
-      expect(screen.getByTestId("remote-engine-ok").textContent).toContain(
+      // 1102 F4:成功详情入弹窗;行内短确认
+      expect(screen.getByTestId("remote-engine-ok").textContent).toContain("连接成功");
+      expect(screen.getByTestId("remote-engine-ok-dialog").textContent).toContain(
         "连接成功(ComfyUI 0.42.0 · NVIDIA RTX PRO 4000)",
       );
     });
-    expect(screen.getByTestId("remote-engine-ok").textContent).toContain("未保存");
+    expect(screen.getByTestId("remote-engine-ok-dialog").textContent).toContain("未保存");
     // 仅探活:绝不触发保存 POST
     const post = fetchMock.mock.calls.find(
       (c) => String(c[0]).includes("/comfy/engine/remote") && c[1]?.method === "POST",
@@ -394,8 +399,12 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     });
     fireEvent.click(screen.getByTestId("remote-engine-test"));
     await waitFor(() => {
-      expect(screen.getByTestId("remote-engine-ok").textContent).toContain("连接成功(ComfyUI 0.42.0");
+      expect(screen.getByTestId("remote-engine-ok-dialog").textContent).toContain("连接成功(ComfyUI 0.42.0");
     });
+    // F3 占位符逐字锁(用户令原文)
+    expect(screen.getByTestId("remote-engine-url").getAttribute("placeholder")).toBe(
+      "为空是本地引擎启动,填写URL为远端引擎启动",
+    );
     // 探活请求带出的已是归一后的半角 URL
     expect(probedUrl).toContain("url=http%3A%2F%2F192.168.0.101%3A17000");
   });
