@@ -129,6 +129,15 @@ phase_b() {
     {
       printf '%s\r\n' '@echo off'
       printf '%s\r\n' "cd /d $WIN_REPO\\apps"
+      # 1102 事故:Windows 机出不了网到 github(B1 git pull reset + 打包期 ETIMEDOUT
+      # 20.205.243.166:443),而 electron-builder 打包要从 GitHub releases 拉 electron
+      # win32 dist zip 与 nsis/winCodeSign 工具链(win target=nsis 见 electron-builder.yml)。
+      # 双镜像走 npmmirror(实测 200):@electron/get 认 ELECTRON_MIRROR,工具链认
+      # ELECTRON_BUILDER_BINARIES_MIRROR;build-desktop.mjs 的 env 是 ...process.env
+      # 展开,此处 set 会透传到 electron-builder。放在 pnpm install 前——electron 包
+      # postinstall 的二进制下载也同享镜像(GitHub 通的网络用 npmmirror 亦通,恒设无害)。
+      printf '%s\r\n' 'set ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/'
+      printf '%s\r\n' 'set ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/'
       printf '%s\r\n' "echo [%date% %time%] build start > $BAT_LOG"
       # 1102 教训×2:①勿用「if not exist node_modules\electron」做条件——electron 在≠依赖齐,
       # package.json 后加的 @remotion/* 系恒缺,构建 verify-versions 必挂;②本仓库是 pnpm catalog 店,
