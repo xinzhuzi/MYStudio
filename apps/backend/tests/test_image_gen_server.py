@@ -536,5 +536,90 @@ class CancelRouteTests(unittest.TestCase):
             pipeline._CANCEL_EVENT.clear()
 
 
+class EngineProbeRouteTests(unittest.TestCase):
+    """GET /comfy/engine/probe(11-02「测试连接」:sidecar 服务端代理探引擎,绕渲染层
+    CSP connect-src 不放行 http+局域网 IP 的限制)。"""
+
+    def _probe(self, query: dict) -> None:
+        handler = _ComfyHandler.__new__(_ComfyHandler)
+        handler._comfy("GET", "/comfy/engine/probe", {}, query)
+        return handler  # type: ignore[return-value]
+
+    def test_default_probes_effective_engine_and_reports_version_device(self) -> None:
+        import json as _json
+
+        class _Resp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return _json.dumps({
+                    "comfyui_version": "0.42.0",
+                    "devices": [{"name": "NVIDIA RTX PRO 4000"}],
+                }).encode()
+
+        with patch("comfyui.engine_manager.engine_manager") as em, patch(
+            "urllib.request.urlopen", return_value=_Resp()
+        ) as urlopen:
+            em.return_value.remote_engine_status.return_value = {
+                "url": "http://192.168.0.101:17000",
+                "effective": "http://192.168.0.101:17000",
+                "source": "settings",
+            }
+            handler = self._probe({})
+        urlopen.assert_called_once_with("http://192.168.0.101:17000/system_stats", timeout=10)
+        payload, status = handler.response
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["comfyui_version"], "0.42.0")
+        self.assertEqual(payload["device"], "NVIDIA RTX PRO 4000")
+
+    def test_explicit_url_param_wins_over_effective(self) -> None:
+        import json as _json
+
+        class _Resp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return _json.dumps({"comfyui_version": "0.42.0", "devices": []}).encode()
+
+        with patch("comfyui.engine_manager.engine_manager") as em, patch(
+            "urllib.request.urlopen", return_value=_Resp()
+        ) as urlopen:
+            em.return_value.remote_engine_status.return_value = {"effective": "http://127.0.0.1:17000", "source": "managed"}
+            handler = self._probe({"url": ["http://192.168.0.101:17000/"]})
+        urlopen.assert_called_once_with("http://192.168.0.101:17000/system_stats", timeout=10)
+        self.assertEqual(handler.response[0]["url"], "http://192.168.0.101:17000/")
+        self.assertTrue(handler.response[0]["ok"])
+
+    def test_bad_scheme_is_rejected_without_probe(self) -> None:
+        with patch("urllib.request.urlopen") as urlopen:
+            handler = self._probe({"url": ["ftp://192.168.0.101:17000"]})
+        urlopen.assert_not_called()
+        payload, _ = handler.response
+        self.assertFalse(payload["ok"])
+        self.assertIn("http(s)", payload["error"])
+
+    def test_engine_unreachable_reports_ok_false_with_error(self) -> None:
+        from urllib import error as urllib_error
+
+        with patch("comfyui.engine_manager.engine_manager") as em, patch(
+            "urllib.request.urlopen", side_effect=urllib_error.URLError("Connection refused")
+        ):
+            em.return_value.remote_engine_status.return_value = {"effective": "http://192.168.0.101:17000", "source": "settings"}
+            handler = self._probe({})
+        payload, status = handler.response
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertFalse(payload["ok"])
+        self.assertIn("Connection refused", payload["error"])
+
+
 if __name__ == "__main__":
     unittest.main()

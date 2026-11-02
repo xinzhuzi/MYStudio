@@ -43,6 +43,7 @@ import {
 import {
   getRemoteEngine,
   setRemoteEngine,
+  probeEngineUrl,
   SIDECAR_DOWN_GUIDANCE,
   isSidecarDownError,
   type ComfyRemoteEngineStatus,
@@ -312,26 +313,28 @@ export function McpSettingsTab() {
     setRemoteProbing(true);
     setRemoteTest({ status: "idle" });
     try {
-      const stats = (await fetch(`${base}/system_stats`, {
-        signal: AbortSignal.timeout(10_000),
-      }).then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json() as Promise<
-          { comfyui_version?: string | null; devices?: { name?: string | null }[] } | null
-        >;
-      })) ?? {};
-      setRemoteTest({
-        status: "ok",
-        text: `连接成功(${comfyVersionLabel(
-          stats.comfyui_version ?? "未知版本",
-          stats.devices?.[0]?.name ?? null,
-        )})——未保存,点「保存并测试」生效`,
-      });
-    } catch {
-      setRemoteTest({
-        status: "error",
-        message: `连接失败(${base})——引擎可能未启动或地址不可达`,
-      });
+      // 走 sidecar 服务端代理探活(11-02:渲染层 CSP connect-src 不放行 http+局域网
+      // IP,直连 fetch 恒被拦——引擎明明在跑也报「连接失败」)。
+      const probe = await probeEngineUrl(base);
+      if (probe.ok) {
+        setRemoteTest({
+          status: "ok",
+          text: `连接成功(${comfyVersionLabel(
+            probe.comfyui_version ?? "未知版本",
+            probe.device ?? null,
+          )})——未保存,点「保存并测试」生效`,
+        });
+      } else {
+        setRemoteTest({
+          status: "error",
+          message: `连接失败(${base})——引擎可能未启动或地址不可达`,
+        });
+      }
+    } catch (error) {
+      const message = isSidecarDownError(error)
+        ? SIDECAR_DOWN_GUIDANCE
+        : `连接失败(${base})——引擎可能未启动或地址不可达`;
+      setRemoteTest({ status: "error", message });
     } finally {
       setRemoteProbing(false);
     }
@@ -356,23 +359,24 @@ export function McpSettingsTab() {
           );
         }
         setRemoteTest({ status: "ok", text: `已保存并生效(${status.effective}),引擎探活中…` });
-        // ②引擎直探:fetch 生效引擎的 /system_stats(超时 10s)。
+        // ②引擎直探:改走 sidecar 代理 /comfy/engine/probe(11-02:渲染层 CSP 不放行
+        // http+局域网 IP,直连 fetch 恒被拦,T17 成功分支从未真正可达)。
         try {
-          const stats = (await fetch(`${status.effective.replace(/\/+$/, "")}/system_stats`, {
-            signal: AbortSignal.timeout(10_000),
-          }).then((r) => {
-            if (!r.ok) throw new Error(`HTTP ${r.status}`);
-            return r.json() as Promise<
-              { comfyui_version?: string | null; devices?: { name?: string | null }[] } | null
-            >;
-          })) ?? {};
-          setRemoteTest({
-            status: "ok",
-            text: `已连通远端引擎(${comfyVersionLabel(
-              stats.comfyui_version ?? "未知版本",
-              stats.devices?.[0]?.name ?? null,
-            )})——产物将自动取回`,
-          });
+          const probe = await probeEngineUrl(status.effective);
+          if (probe.ok) {
+            setRemoteTest({
+              status: "ok",
+              text: `已连通远端引擎(${comfyVersionLabel(
+                probe.comfyui_version ?? "未知版本",
+                probe.device ?? null,
+              )})——产物将自动取回`,
+            });
+          } else {
+            setRemoteTest({
+              status: "ok",
+              text: `已保存并生效(${status.effective}),引擎探活暂不可达(引擎可能未启动)`,
+            });
+          }
         } catch {
           setRemoteTest({
             status: "ok",

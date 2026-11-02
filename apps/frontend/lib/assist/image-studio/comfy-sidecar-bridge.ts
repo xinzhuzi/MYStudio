@@ -1062,3 +1062,21 @@ export async function setRemoteEngine(url: string): Promise<{ url: string | null
     { body: { url } },
   );
 }
+
+// GET /comfy/engine/probe?url=…(11-02「测试连接」):引擎探活走 sidecar 服务端代理——
+// 渲染层 CSP connect-src 不放行 http+局域网 IP,直连 fetch 恒被拦(T17 成功分支
+// 因此从未真正可达);url 缺省=当前生效引擎。
+export interface ComfyEngineProbe {
+  /** true=引擎应答 system_stats。 */
+  ok: boolean;
+  /** 实际探测的 base。 */
+  url: string;
+  comfyui_version?: string | null;
+  device?: string | null;
+  error?: string;
+}
+
+export async function probeEngineUrl(url?: string): Promise<ComfyEngineProbe> {
+  const suffix = url ? `?url=${encodeURIComponent(url)}` : "";
+  return comfySidecarRequest<ComfyEngineProbe>("GET", `/comfy/engine/probe${suffix}`);
+}

@@ -784,6 +784,31 @@ class Handler(BaseHTTPRequestHandler):
                 # 设置页「ComfyUI 引擎地址」写入(空串=恢复本地发现)
                 self._send_json(engine_manager().set_remote_engine(payload))
                 return
+            if method == "GET" and path == "/comfy/engine/probe":
+                # 引擎连通探测代理(11-02「测试连接」):渲染层 CSP connect-src 不放行
+                # http+局域网 IP,引擎直探改由 sidecar 服务端代理;?url= 可选(缺省=
+                # 当前生效引擎)。恒 200,结果看 ok 字段。
+                target = (q("url") or "").strip() or engine_manager().remote_engine_status().get("effective", "")
+                if not re.match(r"^https?://", target):
+                    self._send_json({"ok": False, "url": target, "error": "引擎地址须为 http(s)://主机[:端口] 形态"})
+                    return
+                try:
+                    import urllib.request
+
+                    with urllib.request.urlopen(f"{target.rstrip('/')}/system_stats", timeout=10) as resp:
+                        stats = json.loads(resp.read().decode("utf-8", "replace"))
+                    devices = (stats or {}).get("devices") or [{}]
+                    self._send_json(
+                        {
+                            "ok": True,
+                            "url": target,
+                            "comfyui_version": (stats or {}).get("comfyui_version"),
+                            "device": (devices[0] or {}).get("name") if devices else None,
+                        }
+                    )
+                except (OSError, urllib_error.URLError, json.JSONDecodeError) as exc:
+                    self._send_json({"ok": False, "url": target, "error": str(exc)})
+                return
 
             # ── 存储位置(09-09 comfyui-frontend-swap 0a:四目录配置/校验/迁移) ──
             if method == "GET" and path == "/comfy/paths":

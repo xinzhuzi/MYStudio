@@ -225,14 +225,16 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
           }),
         } as unknown as Response);
       }
-      if (u.includes("/system_stats")) {
-        // ②引擎原生 API 直探(不走 controller IPC)
+      if (u.includes("/comfy/engine/probe")) {
+        // ②引擎探活走 sidecar 服务端代理(11-02:渲染层 CSP 不放行 http+局域网 IP)
         return Promise.resolve({
           ok: true,
           status: 200,
           json: () => Promise.resolve({
+            ok: true,
+            url: "http://192.168.0.101:17000",
             comfyui_version: "0.45.1",
-            devices: [{ name: "NVIDIA GeForce RTX 5090" }],
+            device: "NVIDIA GeForce RTX 5090",
           }),
         } as unknown as Response);
       }
@@ -262,20 +264,23 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     expect(screen.queryByText(/当前生效/)).toBeNull();
     const post = fetchMock.mock.calls.find((c) => String(c[0]).includes("/comfy/engine/remote") && c[1]?.method === "POST");
     expect(post?.[1]?.body).toContain("192.168.0.101");
-    const probe = fetchMock.mock.calls.find((c) => String(c[0]).includes("/system_stats"));
-    expect(String(probe?.[0])).toBe("http://192.168.0.101:17000/system_stats");
+    const probe = fetchMock.mock.calls.find((c) => String(c[0]).includes("/comfy/engine/probe"));
+    // 探活走 sidecar 代理(127.0.0.1:17595),不再直连引擎 IP
+    expect(probe).toBeTruthy();
   });
 
-  it("测试连接(仅探活不保存):直探 system_stats 报版本/GPU,不发 POST,文案点明未保存(11-02 用户令)", async () => {
+  it("测试连接(仅探活不保存):经 sidecar 代理探引擎报版本/GPU,不发 POST,文案点明未保存(11-02 用户令)", async () => {
     setComfySidecarLivenessProbeForTests(async () => true);
     const fetchMock = vi.fn().mockImplementation((url: string) => {
-      if (String(url).includes("/system_stats")) {
+      if (String(url).includes("/comfy/engine/probe")) {
         return Promise.resolve({
           ok: true,
           status: 200,
           json: () => Promise.resolve({
+            ok: true,
+            url: "http://192.168.0.101:17000",
             comfyui_version: "0.42.0",
-            devices: [{ name: "NVIDIA RTX PRO 4000" }],
+            device: "NVIDIA RTX PRO 4000",
           }),
         } as unknown as Response);
       }
@@ -300,9 +305,16 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
 
   it("测试连接失败给直白文案(引擎未启动/地址不可达)", async () => {
     setComfySidecarLivenessProbeForTests(async () => true);
-    const fetchMock = vi.fn().mockImplementation((url: string) =>
-      Promise.reject(new Error("network down " + String(url))),
-    );
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (String(url).includes("/comfy/engine/probe")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ ok: false, url: "http://192.168.0.101:17000", error: "Connection refused" }),
+        } as unknown as Response);
+      }
+      return Promise.reject(new Error("unexpected fetch " + String(url)));
+    });
     vi.stubGlobal("fetch", fetchMock);
     render(<McpSettingsTab />);
     fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.101:17000" } });
@@ -372,9 +384,17 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
           }),
         } as unknown as Response);
       }
-      if (u.includes("/system_stats")) {
-        // ②引擎未启动:连接拒绝(fetch reject)——保存本身已成功
-        return Promise.reject(new TypeError("fetch failed"));
+      if (u.includes("/comfy/engine/probe")) {
+        // ②引擎未启动:sidecar 代理探活不通(ok:false)——保存本身已成功
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({
+            ok: false,
+            url: "http://192.168.0.101:17000",
+            error: "<urlopen error [Errno 61] Connection refused>",
+          }),
+        } as unknown as Response);
       }
       return Promise.reject(new Error("unexpected fetch " + u));
     });
