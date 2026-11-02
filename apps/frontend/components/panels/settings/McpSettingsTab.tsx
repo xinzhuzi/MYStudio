@@ -48,6 +48,7 @@ import {
 import { useWorkflowBindingsStore, isBindableWorkflow, type BoundWorkflowKind } from "@/stores/settings/workflow-bindings-store";
 import { engineFamilyMeta } from "@/lib/studio/engine-line/family-catalog";
 import { ALL_ENGINE_FAMILIES } from "@/lib/studio/engine-line/engine-options";
+import { notifyRemoteEngineChanged } from "@/lib/studio/engine-line/resolve-engine-base-url";
 import {
   getRemoteEngine,
   setRemoteEngine,
@@ -342,6 +343,8 @@ export function McpSettingsTab() {
       await setRemoteEngine(url);
       const status = await getRemoteEngine();
       setRemoteEngineState(status);
+      // 引擎地址变更广播(1102 R1):画布 src/配置页提示条等跟随视图零重启刷新。
+      notifyRemoteEngineChanged();
       toast.success(url ? "引擎地址已保存,即时生效" : "已恢复本机引擎");
       if (url) {
         // ①回读校验:保存的 url 已生效且来源=设置页(远程真正接管;

@@ -139,7 +139,12 @@ class ImageStatusRouteTests(unittest.TestCase):
         handler = _StatusHandler.__new__(_StatusHandler)
         handler.path = "/models/status"
 
-        with patch("image_gen.model_inventory.build_model_status", return_value=rows) as build_status:
+        # 11-02 S4 起本路由先判远端 sidecar 代理;钉死「未配远端」保本机路径
+        # 密封(机器级 remote-engine.json 真值不得渗入契约测)。
+        with patch(
+            "engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+            return_value=None,
+        ), patch("image_gen.model_inventory.build_model_status", return_value=rows) as build_status:
             handler.do_GET()
 
         build_status.assert_called_once_with()
@@ -619,6 +624,268 @@ class EngineProbeRouteTests(unittest.TestCase):
         self.assertEqual(status, HTTPStatus.OK)
         self.assertFalse(payload["ok"])
         self.assertIn("Connection refused", payload["error"])
+
+
+class RemoteSidecarProxyRouteTests(unittest.TestCase):
+    """远端 sidecar 代理契约(11-02 S4;C4 修正:远端引擎≠远端 sidecar——代理
+    目标=远端引擎 URL 的主机名+固定 sidecar 端口 17595,引擎端口不作数):
+    GET /comfy/workflows(H3)与 GET /models/status(H4)远端生效时转发远端
+    sidecar 并透传应答;未配远端=本机行为零迁移;远端断=诚实错
+    (remote-sidecar-unreachable),绝不静默回落本机库/本机 inventory。
+    11-02 S4 复核修:①代理须携带凭据(远端 sidecar 非 /health 全令牌闸且装机
+    令牌双机各异——MANYING_REMOTE_IMAGE_TOKEN 优先,缺省转发入站凭据);
+    ②远端 401/403=鉴权失败诚实分报(remote-sidecar-auth),不得被 URLError
+    兜底误诊成「未运行或不可达」。"""
+
+    REMOTE_ENGINE = "http://192.168.0.101:17000"
+    REMOTE_SIDECAR = "http://192.168.0.101:17595"
+
+    class _Resp:
+        def __init__(self, payload: dict) -> None:
+            import json as _json
+
+            self._body = _json.dumps(payload, ensure_ascii=False).encode()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return self._body
+
+    def _workflows(self, query: dict | None = None, headers: dict | None = None):
+        handler = _ComfyHandler.__new__(_ComfyHandler)
+        handler.headers = Message()
+        for key, value in (headers or {}).items():
+            handler.headers[key] = value
+        handler._comfy("GET", "/comfy/workflows", {}, query or {})
+        return handler
+
+    def _models_status(self, headers: dict | None = None):
+        handler = _StatusHandler.__new__(_StatusHandler)
+        handler.headers = Message()
+        for key, value in (headers or {}).items():
+            handler.headers[key] = value
+        handler.path = "/models/status"
+        handler.do_GET()
+        return handler
+
+    @staticmethod
+    def _proxied_request(urlopen):
+        """断言面:代理恒以 (urllib Request, timeout=10) 单次调用 urlopen。"""
+        urlopen.assert_called_once()
+        args, kwargs = urlopen.call_args
+        assert kwargs == {"timeout": 10}
+        return args[0]
+
+    @staticmethod
+    def _request_headers(request) -> dict:
+        """Request 自定义头小写化快照(urllib 存储键名经 capitalize,比小写键稳)。"""
+        return {key.lower(): value for key, value in request.header_items()}
+
+    def test_sidecar_base_takes_remote_host_with_fixed_sidecar_port(self) -> None:
+        # C4 核心契约:主机名跟远端引擎走,端口恒 sidecar 17595(≠引擎 17000)
+        with patch(
+            "engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+            return_value=self.REMOTE_ENGINE,
+        ):
+            self.assertEqual(server._remote_sidecar_base_url(), self.REMOTE_SIDECAR)
+        with patch(
+            "engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+            return_value=None,
+        ):
+            self.assertIsNone(server._remote_sidecar_base_url())
+
+    def test_remote_workflows_forwards_to_remote_sidecar_and_passes_reply_through(self) -> None:
+        from urllib.parse import urlencode
+
+        reply = {"workflows": [{"id": "1_图片/krea2-daojie-t2i.json", "nodeCount": 12}]}
+        with patch(
+            "engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+            return_value=self.REMOTE_ENGINE,
+        ), patch.dict("os.environ", {server.REMOTE_TOKEN_ENV: ""}), patch(
+            "urllib.request.urlopen", return_value=self._Resp(reply)
+        ) as urlopen, patch("comfyui.plugin_manager.list_workflows") as list_local:
+            handler = self._workflows({"prefix": ["1_图片"], "light": ["1"]})
+        expected_query = urlencode({"prefix": ["1_图片"], "light": ["1"]}, doseq=True)
+        request = self._proxied_request(urlopen)
+        self.assertEqual(
+            request.full_url, f"{self.REMOTE_SIDECAR}/comfy/workflows?{expected_query}"
+        )
+        # 远端令牌未配+入站无凭据=裸请求(403 由远端诚实分报,见专项用例)
+        self.assertEqual(self._request_headers(request), {})
+        list_local.assert_not_called()  # 远端生效=列表以引擎侧库为准,不读本机库
+        self.assertEqual(handler.response, (reply, HTTPStatus.OK))
+
+    def test_local_workflows_unchanged_without_remote_engine(self) -> None:
+        reply = {"workflows": [{"id": "1_图片/krea2-daojie-t2i.json"}]}
+        with patch(
+            "engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+            return_value=None,
+        ), patch("urllib.request.urlopen") as urlopen, patch(
+            "comfyui.plugin_manager.list_workflows", return_value=reply
+        ) as list_local:
+            handler = self._workflows({"prefix": ["1_图片"], "light": ["1"]})
+        urlopen.assert_not_called()
+        list_local.assert_called_once_with(prefix="1_图片", light=True)
+        self.assertEqual(handler.response, (reply, HTTPStatus.OK))
+
+    def test_remote_workflows_unreachable_reports_honest_error_without_local_fallback(self) -> None:
+        from urllib import error as urllib_error
+
+        with patch(
+            "engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+            return_value=self.REMOTE_ENGINE,
+        ), patch(
+            "urllib.request.urlopen", side_effect=urllib_error.URLError("Connection refused")
+        ) as urlopen, patch("comfyui.plugin_manager.list_workflows") as list_local:
+            handler = self._workflows({})
+        request = self._proxied_request(urlopen)
+        self.assertEqual(request.full_url, f"{self.REMOTE_SIDECAR}/comfy/workflows")
+        list_local.assert_not_called()  # 不静默回落本机
+        payload, status = handler.response
+        self.assertEqual(status, HTTPStatus.BAD_GATEWAY)
+        self.assertEqual(payload["error"]["code"], "remote-sidecar-unreachable")
+        self.assertIn("远端引擎管理服务未运行", payload["error"]["message"])
+
+    def test_remote_models_status_forwards_to_remote_sidecar(self) -> None:
+        reply = {"models": [{"modelName": "qwen-image-edit-2511", "bigFilesSource": "comfyui"}]}
+        with patch(
+            "engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+            return_value=self.REMOTE_ENGINE,
+        ), patch("urllib.request.urlopen", return_value=self._Resp(reply)) as urlopen, patch(
+            "image_gen.model_inventory.build_model_status"
+        ) as build_local:
+            handler = self._models_status()
+        request = self._proxied_request(urlopen)
+        self.assertEqual(request.full_url, f"{self.REMOTE_SIDECAR}/models/status")
+        build_local.assert_not_called()  # 库存以引擎侧实况为准
+        self.assertEqual(handler.response, (reply, HTTPStatus.OK))
+
+    def test_local_models_status_unchanged_without_remote_engine(self) -> None:
+        rows = [
+            {
+                "modelName": "qwen-image-edit-2511",
+                "bigFilesSource": "comfyui",
+                "pointedFiles": [],
+                "smallPiecesReady": True,
+            }
+        ]
+        with patch(
+            "engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+            return_value=None,
+        ), patch("urllib.request.urlopen") as urlopen, patch(
+            "image_gen.model_inventory.build_model_status", return_value=rows
+        ) as build_local:
+            handler = self._models_status()
+        urlopen.assert_not_called()
+        build_local.assert_called_once_with()
+        self.assertEqual(handler.response, ({"models": rows}, HTTPStatus.OK))
+
+    def test_remote_models_status_unreachable_reports_honest_error(self) -> None:
+        from urllib import error as urllib_error
+
+        with patch(
+            "engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+            return_value=self.REMOTE_ENGINE,
+        ), patch(
+            "urllib.request.urlopen", side_effect=urllib_error.URLError("timed out")
+        ), patch("image_gen.model_inventory.build_model_status") as build_local:
+            handler = self._models_status()
+        build_local.assert_not_called()  # 不静默回落本机 inventory
+        payload, status = handler.response
+        self.assertEqual(status, HTTPStatus.BAD_GATEWAY)
+        self.assertEqual(payload["error"]["code"], "remote-sidecar-unreachable")
+        self.assertIn("远端引擎管理服务未运行", payload["error"]["message"])
+
+    # ── 11-02 S4 复核修:凭据携带与 403 诚实分报 ──────────────────────
+
+    def test_remote_proxy_carries_remote_token_env_credential(self) -> None:
+        # 装机令牌双机各异:转发入站(本机)令牌对远端必 403——远端令牌经
+        # MANYING_REMOTE_IMAGE_TOKEN 配到 Mac(electron spawn env 透传),优先携带
+        reply = {"workflows": []}
+        with patch(
+            "engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+            return_value=self.REMOTE_ENGINE,
+        ), patch.dict("os.environ", {server.REMOTE_TOKEN_ENV: "win-side-token"}), patch(
+            "urllib.request.urlopen", return_value=self._Resp(reply)
+        ) as urlopen:
+            handler = self._workflows({}, headers={"X-Manying-Image-Token": "mac-local-token"})
+        request = self._proxied_request(urlopen)
+        self.assertEqual(
+            self._request_headers(request),
+            {"x-manying-image-token": "win-side-token"},  # env 优先,不吃本机入站令牌
+        )
+        self.assertEqual(handler.response, (reply, HTTPStatus.OK))
+
+    def test_remote_proxy_forwards_inbound_credentials_without_env(self) -> None:
+        # env 未配(空串)=回落转发入站凭据(双机手工对齐令牌的部署可用)
+        reply = {"models": []}
+        with patch(
+            "engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+            return_value=self.REMOTE_ENGINE,
+        ), patch.dict("os.environ", {server.REMOTE_TOKEN_ENV: ""}), patch(
+            "urllib.request.urlopen", return_value=self._Resp(reply)
+        ) as urlopen:
+            handler = self._models_status(
+                headers={
+                    "Authorization": "Bearer mac-local-token",
+                    "X-Manying-Image-Token": "mac-local-token",
+                }
+            )
+        request = self._proxied_request(urlopen)
+        self.assertEqual(
+            self._request_headers(request),
+            {
+                "authorization": "Bearer mac-local-token",
+                "x-manying-image-token": "mac-local-token",
+            },
+        )
+        self.assertEqual(handler.response, (reply, HTTPStatus.OK))
+
+    def test_remote_proxy_403_reports_auth_failure_not_service_down(self) -> None:
+        # 远端在跑但拒令牌:403≠「服务未运行」——HTTPError⊂URLError,旧代码被
+        # 兜底 except 误诊成 502 unreachable;修后如实分报鉴权失败+配置指引
+        from urllib import error as urllib_error
+
+        with patch(
+            "engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+            return_value=self.REMOTE_ENGINE,
+        ), patch(
+            "urllib.request.urlopen",
+            side_effect=urllib_error.HTTPError(
+                f"{self.REMOTE_SIDECAR}/comfy/workflows", 403, "Forbidden", None, None
+            ),
+        ), patch("comfyui.plugin_manager.list_workflows") as list_local:
+            handler = self._workflows({})
+        list_local.assert_not_called()  # 不静默回落本机
+        payload, status = handler.response
+        self.assertEqual(status, HTTPStatus.FORBIDDEN)
+        self.assertEqual(payload["error"]["code"], "remote-sidecar-auth")
+        self.assertIn("鉴权失败", payload["error"]["message"])
+        self.assertIn(server.REMOTE_TOKEN_ENV, payload["error"]["message"])
+        self.assertNotIn("未运行", payload["error"]["message"])
+
+    def test_remote_proxy_other_http_error_reports_actual_status(self) -> None:
+        from urllib import error as urllib_error
+
+        with patch(
+            "engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+            return_value=self.REMOTE_ENGINE,
+        ), patch(
+            "urllib.request.urlopen",
+            side_effect=urllib_error.HTTPError(
+                f"{self.REMOTE_SIDECAR}/models/status", 500, "Internal Server Error", None, None
+            ),
+        ), patch("image_gen.model_inventory.build_model_status") as build_local:
+            handler = self._models_status()
+        build_local.assert_not_called()  # 不静默回落本机
+        payload, status = handler.response
+        self.assertEqual(status, HTTPStatus.BAD_GATEWAY)
+        self.assertEqual(payload["error"]["code"], "remote-sidecar-error")
+        self.assertIn("HTTP 500", payload["error"]["message"])
 
 
 if __name__ == "__main__":

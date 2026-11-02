@@ -1,12 +1,29 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// 生效引擎 base 真源 mock(1102 S3 队列通道跟随):默认 sidecar 未跑=本机回落
+// (与 jsdom 真实门禁行为等价),远端用例按需覆写。
+const getRemoteEngineMock = vi.hoisted(() => vi.fn(async (): Promise<{
+  url: string | null;
+  effective: string;
+  source: "settings" | "env" | "managed" | "fallback";
+}> => {
+  throw new Error("本地生图服务未运行");
+}));
+vi.mock("@/lib/assist/image-studio/comfy-sidecar-bridge", async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, getRemoteEngine: getRemoteEngineMock };
+});
+
 import {
   STORYBOARD_BATCH_DEGRADED_RESOLUTION,
   STORYBOARD_BATCH_SHOT_INTERVAL_MS,
   createStoryboardBatchInterruptibleDelay,
+  resolveStoryboardBatchQueueChannel,
   runStoryboardBatchLadder,
   type StoryboardBatchLadderStage,
 } from "./storyboard-batch-protocols";
+import type { ComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 
 describe("批量四协议常量", () => {
   it("间隔默认值保守(≥1s)且降载档为最低分辨率 1K", () => {
@@ -126,5 +143,73 @@ describe("runStoryboardBatchLadder(失败回退阶梯)", () => {
     });
     expect(attempt).not.toHaveBeenCalled();
     expect(outcome).toMatchObject({ ok: false, aborted: true, stagesRun: [] });
+  });
+});
+
+describe("resolveStoryboardBatchQueueChannel(队列通道构造 1102 S3:跟随生效引擎 base)", () => {
+  const fetchCalls: string[] = [];
+  beforeEach(() => {
+    getRemoteEngineMock.mockImplementation(async () => {
+      throw new Error("本地生图服务未运行");
+    });
+    fetchCalls.length = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      fetchCalls.push(String(input));
+      return new Response(JSON.stringify({ queue_running: [], queue_pending: [] }), { status: 200 });
+    }));
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = undefined;
+    vi.clearAllMocks();
+  });
+
+  function stubLocalEnginePort(port: number | null) {
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = {
+      getEngineStatus: async () => ({ port }),
+    } as unknown as ComfyEngineClient;
+  }
+
+  it("远端生效(source=settings)→ 通道 baseUrl=远端 url(直连 Windows 引擎 /queue)", async () => {
+    getRemoteEngineMock.mockResolvedValue({
+      url: "http://192.168.0.101:17000",
+      effective: "http://192.168.0.101:17000",
+      source: "settings",
+    });
+    stubLocalEnginePort(17001);
+    const channel = await resolveStoryboardBatchQueueChannel();
+    expect(channel).toBeTruthy();
+    await channel!.getQueue();
+    expect(fetchCalls).toEqual(["http://192.168.0.101:17000/queue"]);
+  });
+
+  it("无远端配置 → 127.0.0.1:port(现行为回归)", async () => {
+    getRemoteEngineMock.mockResolvedValue({ url: null, effective: "http://127.0.0.1:17001", source: "managed" });
+    stubLocalEnginePort(17001);
+    const channel = await resolveStoryboardBatchQueueChannel();
+    expect(channel).toBeTruthy();
+    await channel!.getQueue();
+    expect(fetchCalls).toEqual(["http://127.0.0.1:17001/queue"]);
+  });
+
+  it("sidecar 未跑(getRemoteEngine 抛错)→ 本机回落", async () => {
+    stubLocalEnginePort(17002);
+    const channel = await resolveStoryboardBatchQueueChannel();
+    await channel!.getQueue();
+    expect(fetchCalls).toEqual(["http://127.0.0.1:17002/queue"]);
+  });
+
+  it("port 无效且无远端 → undefined(静默降级不阻断批量)", async () => {
+    stubLocalEnginePort(null);
+    await expect(resolveStoryboardBatchQueueChannel()).resolves.toBeUndefined();
+  });
+
+  it("引擎状态查询失败 → undefined", async () => {
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = {
+      getEngineStatus: async () => {
+        throw new Error("本地生图服务未运行");
+      },
+    } as unknown as ComfyEngineClient;
+    await expect(resolveStoryboardBatchQueueChannel()).resolves.toBeUndefined();
   });
 });

@@ -36,6 +36,9 @@ import {
   type ComfyEnginePillKind,
 } from "./comfy-engine/comfy-engine-contract";
 import { useComfyEngineSettings } from "./comfy-engine/useComfyEngineSettings";
+// 远端引擎接管(1102 Q3/S5):远端生效时页顶提示条——本页维护的是本机备胎引擎。
+import { getRemoteEngine, type ComfyRemoteEngineStatus } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+import { subscribeRemoteEngineChanged } from "@/lib/studio/engine-line/resolve-engine-base-url";
 // Qwen-Image-2.1 加速资产 09-24 迁入引擎卡(用户裁定「放入对应 comfyui 里面」,
 // 照 09-09 模型页迁卡先例):LoRA 走模型库行内注释(comfy-models-taxonomy),
 // TE-Speed 走生态插件区(Qwen21TeSpeedPluginRow)——此处的独立行已退役。
@@ -231,6 +234,26 @@ export function PluginSettingsTab() {
   // 深链目标页(「去更新」→ "update"):只在 reveal 时生效;用户手动折叠/展开
   // 引擎卡后清空,避免旧深链让下次手动展开误落到过期页面。
   const [revealTab, setRevealTab] = useState<ComfyEngineTab | null>(null);
+  // 远端引擎生效态(1102 Q3/S5):挂载拉取+订阅引擎地址变更通知(设置页
+  // 保存/一键切换/清空后零重启刷新提示条);sidecar 未运行=静默无提示(本机态)。
+  const [remoteEngine, setRemoteEngine] = useState<ComfyRemoteEngineStatus | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => {
+      getRemoteEngine()
+        .then((status) => {
+          if (!cancelled) setRemoteEngine(status);
+        })
+        .catch(() => undefined);
+    };
+    refresh();
+    const unsubscribe = subscribeRemoteEngineChanged(refresh);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, []);
+  const remoteEngineActive = remoteEngine?.source === "settings" && Boolean(remoteEngine.url);
 
   const refreshRowStatuses = () => {
     void imageGen.probeRuntime();
@@ -465,6 +488,16 @@ export function PluginSettingsTab() {
   return (
     <ScrollArea className="h-full">
       <div className="p-8 w-full max-w-[1600px] mx-auto space-y-8">
+        {/* 远端引擎生效提示条(1102 Q3/S5):本页一切维护口管的是本机备胎引擎,
+            远端接管期间页顶如实声明,防「在本机页修了半天以为动了 Windows」错位。 */}
+        {remoteEngineActive && (
+          <div
+            className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2 text-sm text-foreground"
+            data-remote-engine-banner
+          >
+            当前生效：<b>远端引擎({remoteEngine?.url})</b>——本页维护的是本机备胎引擎
+          </div>
+        )}
         <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h3 className="flex items-center gap-2 text-lg font-bold text-foreground">

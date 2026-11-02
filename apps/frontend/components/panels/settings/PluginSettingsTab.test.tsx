@@ -3,6 +3,16 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+// 远端引擎生效态桩(1102 S5 提示条):默认 sidecar 未跑(抛错→无提示条,
+// 与 jsdom 真实门禁行为等价);远端用例按需覆写。
+const getRemoteEngineMock = vi.hoisted(() => vi.fn(async (): Promise<ComfyRemoteEngineStatus> => {
+  throw new Error("本地生图服务未运行");
+}));
+vi.mock("@/lib/assist/image-studio/comfy-sidecar-bridge", async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, getRemoteEngine: getRemoteEngineMock };
+});
+
 // A mutable scenario flag so each test can declare whether all layers are
 // "ready" (smart-skip path) or "not ready" (full-prepare path).
 const scenario = vi.hoisted(() => ({
@@ -152,10 +162,20 @@ vi.mock("./RenderingSettingsTab", () => ({
 
 import { PluginSettingsTab } from "./PluginSettingsTab";
 import { REVEAL_SETTINGS_SECTION_EVENT } from "./comfy-engine/comfy-engine-update-reminder";
+import type { ComfyRemoteEngineStatus } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+import {
+  notifyRemoteEngineChanged,
+  resetRemoteEngineVersionForTests,
+} from "@/lib/studio/engine-line/resolve-engine-base-url";
 
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  // 1102 S5:远端桩回默认(sidecar 未跑→无提示条)+通知面版本清零
+  getRemoteEngineMock.mockImplementation(async () => {
+    throw new Error("本地生图服务未运行");
+  });
+  resetRemoteEngineVersionForTests();
   window.localStorage.removeItem("mystudio.settings.plugins.collapsedSections");
   // Reset scenario back to the "all ready" default after each test.
   scenario.pythonReady = true;
@@ -307,5 +327,53 @@ describe("PluginSettingsTab", () => {
     await waitFor(() => expect(mocks.prepareCurrentWorkflow).toHaveBeenCalledOnce());
     expect(mocks.setupRuntime).not.toHaveBeenCalled();
     expect(mocks.startTtsRuntime).not.toHaveBeenCalled();
+  });
+
+  it("远端引擎生效:页顶提示条声明当前生效远端+本页维护的是本机备胎(1102 Q3/S5)", async () => {
+    getRemoteEngineMock.mockResolvedValue({
+      url: "http://192.168.0.101:17000",
+      effective: "http://192.168.0.101:17000",
+      source: "settings",
+    });
+    render(<PluginSettingsTab />);
+    // 注:getByText 只匹配直接文本子节点;「当前生效：」是提示条 div 的直接文本,
+    // 远端 url 在 <b> 内——先锚 div 再断 fullText textContent。
+    const banner = await screen.findByText(/当前生效：/);
+    expect(banner.textContent).toContain("远端引擎(http://192.168.0.101:17000)");
+    expect(banner.textContent).toContain("本页维护的是本机备胎引擎");
+    expect(document.querySelector("[data-remote-engine-banner]")).toBeTruthy();
+  });
+
+  it("本机模式(source≠settings 或 url=null)与 sidecar 未跑:不显提示条", async () => {
+    getRemoteEngineMock.mockResolvedValue({ url: null, effective: "http://127.0.0.1:17001", source: "managed" });
+    const { unmount } = render(<PluginSettingsTab />);
+    await act(async () => undefined);
+    expect(screen.queryByText(/当前生效：/)).toBeNull();
+    expect(document.querySelector("[data-remote-engine-banner]")).toBeNull();
+    unmount();
+
+    getRemoteEngineMock.mockImplementation(async () => {
+      throw new Error("本地生图服务未运行");
+    });
+    render(<PluginSettingsTab />);
+    await act(async () => undefined);
+    expect(screen.queryByText(/当前生效：/)).toBeNull();
+    expect(document.querySelector("[data-remote-engine-banner]")).toBeNull();
+  });
+
+  it("引擎地址清空后通知:提示条零重启消失(1102 R1 补订阅)", async () => {
+    getRemoteEngineMock.mockResolvedValue({
+      url: "http://192.168.0.101:17000",
+      effective: "http://192.168.0.101:17000",
+      source: "settings",
+    });
+    render(<PluginSettingsTab />);
+    expect(await screen.findByText(/当前生效：/)).toBeTruthy();
+    // 设置页清空引擎地址 → 广播 → 同挂载实例提示条消失
+    getRemoteEngineMock.mockResolvedValue({ url: null, effective: "http://127.0.0.1:17001", source: "settings" });
+    act(() => {
+      notifyRemoteEngineChanged();
+    });
+    await waitFor(() => expect(document.querySelector("[data-remote-engine-banner]")).toBeNull());
   });
 });

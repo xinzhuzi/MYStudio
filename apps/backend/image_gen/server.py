@@ -60,6 +60,12 @@ LOCAL_TOKEN_ENV = "MANYING_LOCAL_IMAGE_TOKEN"
 # bridge 回写令牌单源(swap 阶段1 原为双侧固定串+启动 assert 防漂移):
 # comfyui/bridge_contract.BRIDGE_TOKEN 现与本函数读同一 env 变量,
 # 单源即 env 名,双侧各改各的 env 名=回写全拒,天然自暴露。
+# 11-02 S4 复核修(远端 sidecar 代理凭据):远端「同款 sidecar」非 /health 路由
+# 全令牌闸,而装机令牌双机各异(各自 electron main 生成 UUID)——本机令牌对
+# 远端无效,裸转发必 403 且被误诊「服务未运行」。双机部署把 Windows 侧令牌
+# 经启动 env 配到 Mac(electron spawn env 透传 process.env),代理据此携带;
+# 缺省回落转发入站凭据(双机手工对齐令牌的部署可用)。
+REMOTE_TOKEN_ENV = "MANYING_REMOTE_IMAGE_TOKEN"
 
 
 def local_token() -> str:
@@ -88,6 +94,33 @@ def _set_progress(model_name: str, **fields) -> None:
 def _get_progress(model_name: str) -> dict:
     with _progress_lock:
         return dict(_progress_state.get(model_name, {"status": "idle", "progress": 0}))
+
+
+# ── 11-02 远端引擎全接管 S4(H3/H4;C4 修正)───────────────────────────
+# /comfy/workflows 与 /models/status 都是 sidecar 端点(plugin_manager/本地
+# inventory),远端引擎(17000)不服务它们——远端生效时这两端的代理目标=
+# 远端 sidecar(Windows MYStudio App 自带同款 sidecar,固定端口 17595),
+# 基址取远端引擎 URL 的主机名+17595(引擎端口本身不作数)。
+
+REMOTE_SIDECAR_PORT = 17595
+
+
+def _remote_sidecar_base_url() -> str | None:
+    """远端 sidecar 基址(http://<远端引擎主机>:17595)。
+
+    未配远端引擎(remote_engine_url_from_settings() 无值)=None → 调用方走
+    本机现行为(零迁移)。URL 无主机名(手工编辑坏档,写入口有校验)同判未配。
+    """
+    from engines.image_engine.comfyui_bridge import remote_engine_url_from_settings
+
+    engine_url = remote_engine_url_from_settings()
+    if not engine_url:
+        return None
+    host = urlparse(engine_url).hostname
+    if not host:
+        return None
+    bracketed = f"[{host}]" if ":" in host else host  # IPv6 字面量需方括号
+    return f"http://{bracketed}:{REMOTE_SIDECAR_PORT}"
 
 
 # ── 1021 API 出图完成提示音 ────────────────────────────────────────────
@@ -182,6 +215,70 @@ class Handler(BaseHTTPRequestHandler):
     def _send_error_json(self, status: int, message: str, code: str = "error") -> None:
         self._send_json({"error": {"message": message, "code": code}, "status": int(status)}, status)
 
+    def _remote_sidecar_credentials(self) -> dict:
+        """远端 sidecar 代理凭据(11-02 S4 复核修,见 REMOTE_TOKEN_ENV 注释)。
+
+        优先 MANYING_REMOTE_IMAGE_TOKEN(双机部署把 Windows 侧令牌配到 Mac);
+        缺省回落转发入站凭据(双机对齐令牌的部署可用)。两者皆空=裸请求,
+        远端 403 由调用方诚实分报(remote-sidecar-auth),不再误诊未运行。
+        """
+        remote_token = os.environ.get(REMOTE_TOKEN_ENV, "").strip()
+        if remote_token:
+            return {"X-Manying-Image-Token": remote_token}
+        credentials: dict = {}
+        inbound_token = self.headers.get("X-Manying-Image-Token", "")
+        if inbound_token:
+            credentials["X-Manying-Image-Token"] = inbound_token
+        inbound_auth = self.headers.get("Authorization", "")
+        if inbound_auth:
+            credentials["Authorization"] = inbound_auth
+        return credentials
+
+    def _forward_remote_sidecar_get(self, base: str, path: str, query: dict) -> None:
+        """GET 转发远端 sidecar(11-02 S4/C4,probe 代理同范式:urllib+超时)。
+
+        远端 sidecar 不可达(Windows App 未开)=诚实错,绝不静默回落本机
+        (PRD 验收线:防「看着本机以为在用 Windows」的错位);可达=远端应答
+        原样透传(同款 sidecar 同端点,形状天然一致,前端零改动即吃)。
+        11-02 S4 复核修:①携带凭据(装机令牌双机各异,见 _remote_sidecar_credentials);
+        ②HTTPError 与不可达分报——远端 401/403=鉴权失败(服务在跑),不再被
+        URLError 兜底误诊成 502「未运行或不可达」。
+        """
+        import urllib.request
+        from urllib.parse import urlencode
+
+        target = f"{base}{path}"
+        if query:
+            target = f"{target}?{urlencode(query, doseq=True)}"
+        request = urllib.request.Request(target, headers=self._remote_sidecar_credentials())
+        try:
+            with urllib.request.urlopen(request, timeout=10) as resp:
+                reply = json.loads(resp.read().decode("utf-8", "replace"))
+        except urllib_error.HTTPError as exc:
+            if exc.code in (401, 403):
+                self._send_error_json(
+                    HTTPStatus.FORBIDDEN,
+                    "远端引擎管理服务鉴权失败(令牌未配或不一致):Windows 侧 MYStudio App "
+                    "的装机令牌与本机不同——请在 Mac 侧启动 App 时设置 "
+                    "MANYING_REMOTE_IMAGE_TOKEN=<Windows 侧令牌> 后重试",
+                    "remote-sidecar-auth",
+                )
+                return
+            self._send_error_json(
+                HTTPStatus.BAD_GATEWAY,
+                f"远端引擎管理服务应答异常(HTTP {exc.code});请检查 Windows 侧 MYStudio App",
+                "remote-sidecar-error",
+            )
+            return
+        except (OSError, urllib_error.URLError, json.JSONDecodeError) as exc:
+            self._send_error_json(
+                HTTPStatus.BAD_GATEWAY,
+                f"远端引擎管理服务未运行或不可达({exc});请开启 Windows 侧 MYStudio App 后重试",
+                "remote-sidecar-unreachable",
+            )
+            return
+        self._send_json(reply)
+
     def _authorized(self) -> bool:
         token = local_token()
         if not token:
@@ -238,6 +335,15 @@ class Handler(BaseHTTPRequestHandler):
             self._send_error_json(HTTPStatus.FORBIDDEN, "无效本地令牌", "invalid_local_token")
             return
         if path == "/models/status":
+            # 11-02 远端接管 S4(H4):远端生效时模型库存以引擎侧实况为准——本端点
+            # 是 sidecar 端点(本地 inventory),转发远端 sidecar(C4 修正:代理目标
+            # ≠远端引擎,是 Windows App 自带同款 sidecar:17595);不可达=诚实错。
+            remote_sidecar = _remote_sidecar_base_url()
+            if remote_sidecar:
+                self._forward_remote_sidecar_get(
+                    remote_sidecar, path, parse_qs(urlparse(self.path).query)
+                )
+                return
             # Keep the HTTP status contract aligned with the offline inventory:
             # every engine (Qwen/Z/FLUX.2) must expose its own big-file source,
             # pointed paths, and small-piece readiness rather than silently
@@ -885,6 +991,13 @@ class Handler(BaseHTTPRequestHandler):
 
             # ── 工作流库(纯文件操作组) ──
             if method == "GET" and path == "/comfy/workflows":
+                # 11-02 远端接管 S4(H3):远端生效时工作流列表以引擎侧库为准——
+                # 本端点是 sidecar 端点,转发远端 sidecar(C4 修正:代理目标≠远端
+                # 引擎,是 Windows App 自带同款 sidecar:17595);不可达=诚实错。
+                remote_sidecar = _remote_sidecar_base_url()
+                if remote_sidecar:
+                    self._forward_remote_sidecar_get(remote_sidecar, path, query)
+                    return
                 # 09-12 workflow-single-open:prefix=路径前缀过滤/light=轻量清单
                 # (跳过逐文件解析;海量库性能)。缺省两者皆无=旧行为不变。
                 self._send_json(pm.list_workflows(

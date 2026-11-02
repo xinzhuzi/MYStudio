@@ -1,12 +1,17 @@
 // @vitest-environment jsdom
 // ComfyUI 画布工作室 tab 测试(09-09 0b):三态渲染(未装/就绪未跑/运行中 webview)。
 
-import { act, cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ComfyCanvasStudio, buildCanvasFitScript, buildOverviewOpenScript } from "./ComfyCanvasStudio";
 import { createMockComfyEngineClient } from "@/components/panels/settings/comfy-engine/mock-comfy-engine-client";
 import { resetComfyEngineAutoStartStateForTests, useComfyEngineSettings } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
 import type { ComfyEngineClient, ComfyEngineStatus } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
+import type { ComfyRemoteEngineStatus } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+import {
+  notifyRemoteEngineChanged,
+  resetRemoteEngineVersionForTests,
+} from "@/lib/studio/engine-line/resolve-engine-base-url";
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }));
 vi.mock("sonner", () => ({ toast: toasts }));
@@ -34,9 +39,21 @@ const templateContentMock = vi.hoisted(() => vi.fn(async (id: string) => {
   }
   throw new Error("not found");
 }));
+// 远端引擎接管(1102 S2 测试面):getRemoteEngine/probeEngineUrl 可控桩——
+// 默认=sidecar 未跑(抛错→本机回落,与 jsdom 真实门禁行为等价,既有用例零变化);
+// 远端用例按需覆写。probeEngineUrl 默认不可达(false)。
+const remoteEngineMock = vi.hoisted(() => vi.fn(async (): Promise<ComfyRemoteEngineStatus> => {
+  throw new Error("本地生图服务未运行");
+}));
+const probeEngineUrlMock = vi.hoisted(() => vi.fn(async (url?: string) => ({ ok: false, url: url ?? "" })));
 vi.mock("@/lib/assist/image-studio/comfy-sidecar-bridge", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
-  return { ...actual, createHttpComfyWorkflowLibraryTransport: () => ({ importFiles: importFilesMock, content: templateContentMock }) };
+  return {
+    ...actual,
+    createHttpComfyWorkflowLibraryTransport: () => ({ importFiles: importFilesMock, content: templateContentMock }),
+    getRemoteEngine: remoteEngineMock,
+    probeEngineUrl: probeEngineUrlMock,
+  };
 });
 
 // studio-store mock:autoOpen 注入路径(10-15 P2 后有/零分镜均注入——零分镜=
@@ -73,6 +90,12 @@ afterEach(() => {
   delete window.remotionQueue;
   vi.clearAllMocks();
   vi.restoreAllMocks();
+  // 1102 S2:远端桩回默认(sidecar 未跑→本机回落;探活不可达)+通知面版本清零
+  remoteEngineMock.mockImplementation(async () => {
+    throw new Error("本地生图服务未运行");
+  });
+  probeEngineUrlMock.mockImplementation(async (url?: string) => ({ ok: false, url: url ?? "" }));
+  resetRemoteEngineVersionForTests();
   storeState.storyboards = [];
   storeState.novelChapters = [];
   storeState.activeChapterId = undefined; // D6 后章身份真源=activeChapterId(夹具同步建模)
@@ -983,6 +1006,270 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     expect(payload).toContain("待生成分镜");
     // 章存在:剧本环节仍报已导入,不误报"还没有导入小说原文"
     expect(payload).toContain("已导入 1 章原文");
+  });
+});
+
+describe("远端引擎接管(1102 S2:src 跟随/可达态/拉起抑制/零重启切换)", () => {
+  const REMOTE_URL = "http://192.168.0.101:17000";
+
+  function setRemoteConfigured() {
+    remoteEngineMock.mockResolvedValue({ url: REMOTE_URL, effective: REMOTE_URL, source: "settings" });
+  }
+
+  function setRemoteProbeOk(ok: boolean) {
+    probeEngineUrlMock.mockImplementation(async (url?: string) => ({
+      ok,
+      url: url ?? REMOTE_URL,
+      comfyui_version: ok ? "v0.3.30" : null,
+    }));
+  }
+
+  it("远端生效+探活 ok:webview src=远端 URL,本机引擎未跑不挡画布", async () => {
+    setRemoteConfigured();
+    setRemoteProbeOk(true);
+    // 本机引擎=就绪未跑(旧口径会被「已就绪」面板挡住);远端生效时全让路
+    const base = stubClient({ installed: true, state: "ready", serviceRunning: false, port: 17001 });
+    const startEngine = vi.fn(async () => base.startEngine());
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = { ...base, startEngine };
+    render(<ComfyCanvasStudio />);
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
+      { timeout: 3000 },
+    );
+    expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
+      .toBe(`${REMOTE_URL}/`);
+    // 可达态改探远端探活(不再依赖本机 serviceRunning)
+    await waitFor(() => expect(probeEngineUrlMock).toHaveBeenCalled());
+    expect(probeEngineUrlMock).toHaveBeenCalledWith(REMOTE_URL);
+    // Q2 拉起抑制:本机未跑也绝不自动 startEngine
+    await act(async () => undefined);
+    expect(startEngine).not.toHaveBeenCalled();
+    expect(screen.queryByText("ComfyUI 已就绪")).toBeNull();
+  });
+
+  it("远端生效+myScope:src=远端 URL 带 scope 查询参数(UA 尾缀通道不依赖 origin)", async () => {
+    setRemoteConfigured();
+    setRemoteProbeOk(true);
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({
+      installed: true,
+      state: "ready",
+      serviceRunning: false,
+      port: 17001,
+    });
+    render(<ComfyCanvasStudio myScope="models" />);
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
+      { timeout: 3000 },
+    );
+    const webview = document.querySelector("[data-comfy-canvas-webview]")!;
+    expect(webview.getAttribute("src")).toBe(`${REMOTE_URL}/?myScope=models`);
+    expect(webview.getAttribute("useragent")).toContain("myScope=models");
+  });
+
+  it.each([false, "throw"])("远端不可达(probe=%s):显「远端引擎未就绪」指引,绝不静默回落本机", async (failure) => {
+    setRemoteConfigured();
+    if (failure === "throw") {
+      probeEngineUrlMock.mockImplementation(async () => {
+        throw new Error("探活代理不可达");
+      });
+    } else {
+      setRemoteProbeOk(false);
+    }
+    // 本机引擎在跑(旧口径会渲染本机 webview)——远端生效时不得回落
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({
+      installed: true,
+      state: "ready",
+      serviceRunning: true,
+      port: 17001,
+    });
+    render(<ComfyCanvasStudio />);
+    expect(await screen.findByText("远端引擎未就绪")).toBeTruthy();
+    // 指引含远端地址+测试连接入口(重新测试按钮)
+    expect(screen.getByText(new RegExp(REMOTE_URL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))).toBeTruthy();
+    expect(screen.getByRole("button", { name: "重新测试连接" })).toBeTruthy();
+    // 稳态断言:无 webview、无本机 src
+    await act(async () => undefined);
+    expect(document.querySelector("[data-comfy-canvas-webview]")).toBeNull();
+  });
+
+  it("保存/清空引擎地址零重启切换(通知面):本机→远端→本机,src 即时跟随", async () => {
+    // 起步:无远端配置(sidecar 未跑桩)+本机在跑 → 本机 src
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({
+      installed: true,
+      state: "ready",
+      serviceRunning: true,
+      port: 17001,
+    });
+    const { rerender } = render(<ComfyCanvasStudio />);
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
+        .toBe("http://127.0.0.1:17001/"),
+      { timeout: 3000 },
+    );
+    // 设置页保存远端地址 → 广播 → 同一挂载实例 src 切远端(不重进视图)
+    setRemoteConfigured();
+    setRemoteProbeOk(true);
+    act(() => {
+      notifyRemoteEngineChanged();
+    });
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
+        .toBe(`${REMOTE_URL}/`),
+      { timeout: 3000 },
+    );
+    // 清空回本机 → 再广播 → src 切回本机
+    remoteEngineMock.mockImplementation(async () => {
+      throw new Error("本地生图服务未运行");
+    });
+    act(() => {
+      notifyRemoteEngineChanged();
+    });
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
+        .toBe("http://127.0.0.1:17001/"),
+      { timeout: 3000 },
+    );
+    // rerender 防未卸载告警(全程同一实例)
+    rerender(<ComfyCanvasStudio />);
+  });
+
+  // ── 1102 复核修回归 ────────────────────────────────────────────────
+  // 缺陷:三处本机态面板(installing/!status/not-installed·needs-setup)无
+  // remoteActive 旁路——远端生效且探活 ok(src 就绪)时仍拦画布,从未装本机
+  // 引擎的 Mac 打开只见「还没安装 ComfyUI 引擎」,破 PRD 验收线「本机不跑不
+  // 影响」。既有远端用例本机态全桩 state:"ready",该路径此前零覆盖。
+  it.each(["not-installed", "needs-setup"] as const)(
+    "远端生效+探活 ok+本机未装(%s):webview 直渲远端,本机安装面板不再拦画布",
+    async (state) => {
+      setRemoteConfigured();
+      setRemoteProbeOk(true);
+      (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({
+        installed: false,
+        state,
+        serviceRunning: false,
+        port: null,
+      });
+      render(<ComfyCanvasStudio />);
+      await waitFor(
+        () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
+        { timeout: 3000 },
+      );
+      expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
+        .toBe(`${REMOTE_URL}/`);
+      // 本机态面板让路:无安装按钮、无未装文案
+      expect(screen.queryByRole("button", { name: /^安装引擎$|^继续安装$/ })).toBeNull();
+      expect(screen.queryByText(/还没安装 ComfyUI 引擎|引擎装了一半/)).toBeNull();
+    },
+  );
+
+  it("远端生效+探活 ok+本机状态未知(getEngineStatus 抛错):webview 直渲远端,「确认中」面板不拦", async () => {
+    setRemoteConfigured();
+    setRemoteProbeOk(true);
+    const client = stubClient({ installed: true, state: "ready", serviceRunning: false, port: 17001 });
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = {
+      ...client,
+      getEngineStatus: vi.fn(async () => {
+        throw new Error("本地生图服务未运行");
+      }),
+    };
+    render(<ComfyCanvasStudio />);
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
+      { timeout: 3000 },
+    );
+    expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
+      .toBe(`${REMOTE_URL}/`);
+    expect(screen.queryByText(/正在确认引擎状态/)).toBeNull();
+  });
+
+  it("远端生效+探活 ok+本机安装 job 在途:webview 直渲远端,安装进度面板不拦", async () => {
+    // 起步无远端+本机未装:安装按钮在位(本机路径回归锚点)
+    const runningJob = {
+      jobId: "job-1",
+      kind: "install" as const,
+      state: "running" as const,
+      progress: 40,
+      stage: "download" as const,
+      message: "下载中",
+      report: null,
+    };
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = {
+      ...stubClient({ installed: false, state: "not-installed", serviceRunning: false, port: null }),
+      installEngine: vi.fn(async () => ({ jobId: "job-1" })),
+      getJob: vi.fn(async () => runningJob),
+    };
+    const { rerender } = render(<ComfyCanvasStudio />);
+    const installButton = await screen.findByRole("button", { name: "安装引擎" });
+    // 点安装→job 恒 running(装到一半用户去配了远端)→本机模式安装进度面板在位
+    await act(async () => {
+      fireEvent.click(installButton);
+    });
+    expect(await screen.findByText(/正在安装引擎/)).toBeTruthy();
+    // 配远端+探活 ok+广播 → src 就绪即直渲远端,安装进度面板让路
+    setRemoteConfigured();
+    setRemoteProbeOk(true);
+    act(() => {
+      notifyRemoteEngineChanged();
+    });
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
+        .toBe(`${REMOTE_URL}/`),
+      { timeout: 3000 },
+    );
+    expect(screen.queryByText(/正在安装引擎/)).toBeNull();
+    rerender(<ComfyCanvasStudio />);
+  });
+
+  it("远端地址 A→B 直切(零重启):remoteReady 不沿用 A 的就绪结论,B 未经探活不得直载", async () => {
+    const REMOTE_B = "http://192.168.0.102:17000";
+    // 起步:远端 A 生效+探活 ok → webview=A
+    setRemoteConfigured();
+    setRemoteProbeOk(true);
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({
+      installed: true, state: "ready", serviceRunning: false, port: 17001,
+    });
+    const { rerender } = render(<ComfyCanvasStudio />);
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
+        .toBe(`${REMOTE_URL}/`),
+      { timeout: 3000 },
+    );
+    // 直切 B 且探活不可达:旧代码 remoteReady 残留 true→B 未经探活被当就绪
+    // 直载(破 R2「不可达显指引,不静默」);修后必须重探,失败=占位指引。
+    remoteEngineMock.mockResolvedValue({ url: REMOTE_B, effective: REMOTE_B, source: "settings" });
+    setRemoteProbeOk(false);
+    probeEngineUrlMock.mockClear();
+    act(() => {
+      notifyRemoteEngineChanged();
+    });
+    expect(await screen.findByText("远端引擎未就绪")).toBeTruthy();
+    // 指引指向 B(非 A 残留),且 B 已被真探活(非沿用结论)
+    expect(screen.getByText(new RegExp(REMOTE_B.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))).toBeTruthy();
+    await waitFor(() => expect(probeEngineUrlMock).toHaveBeenCalledWith(REMOTE_B));
+    expect(document.querySelector("[data-comfy-canvas-webview]")).toBeNull();
+    // 重探闭环(走同一 engineBase 变更重置机制,B→A→B):不可达稳态下
+    // remoteReady 本就 false,「重新测试」按钮不产生状态变化(即时重探靠
+    // 10s 轮询,真等不划算)——经 A 往返确定性验证「B 只在探活 ok 后上画布」。
+    setRemoteProbeOk(true);
+    remoteEngineMock.mockResolvedValue({ url: REMOTE_URL, effective: REMOTE_URL, source: "settings" });
+    act(() => {
+      notifyRemoteEngineChanged();
+    });
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
+        .toBe(`${REMOTE_URL}/`),
+      { timeout: 3000 },
+    );
+    remoteEngineMock.mockResolvedValue({ url: REMOTE_B, effective: REMOTE_B, source: "settings" });
+    act(() => {
+      notifyRemoteEngineChanged();
+    });
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
+        .toBe(`${REMOTE_B}/`),
+      { timeout: 3000 },
+    );
+    rerender(<ComfyCanvasStudio />);
   });
 });
 

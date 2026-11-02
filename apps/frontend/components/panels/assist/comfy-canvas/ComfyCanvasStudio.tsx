@@ -10,7 +10,7 @@
 // - 运行中(port 就绪) → webview 指向 http://127.0.0.1:<port>/
 // 该 tab 也是后续阶段(业务自定义节点/画布主体切换)的调试台。
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Loader2, PlayCircle, ServerCog } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,12 @@ import { getComfyEngineClient, type ComfyEngineClient } from "@/components/panel
 import { tryResolveProductionEpisodeId } from "@/components/panels/studio/workflow-helpers";
 import { consumeComfyBridgeWritebacks, parseShotTarget } from "@/lib/assist/image-studio/comfy-bridge-writeback-consumer";
 import { consumeComfyBridgeActions } from "@/lib/assist/image-studio/comfy-bridge-action-consumer";
-import { createHttpComfyWorkflowLibraryTransport } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+import { createHttpComfyWorkflowLibraryTransport, probeEngineUrl } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+import {
+  getRemoteEngineVersion,
+  resolveEngineBase,
+  subscribeRemoteEngineChanged,
+} from "@/lib/studio/engine-line/resolve-engine-base-url";
 import { buildShotH3Workflow } from "@/lib/assist/image-studio/h3-shot-video-workflow";
 import { dialogueAudioPolicy } from "@/lib/assist/image-studio/h3-shot-prompt";
 import { ensureStageAssetCoversUploaded, invalidateOverviewSyncForEngineStart, readStoryboardImageB64, syncStoryboardOverviewToLibrary } from "@/lib/assist/image-studio/storyboard-overview-sync";
@@ -508,9 +513,70 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
 
   const installing = activeJob?.state === "running" && activeJob.kind === "install";
   const port = status?.port ?? null;
-  const running = status?.serviceRunning === true && Boolean(port);
-  const src = running && port
-    ? `http://127.0.0.1:${port}/${myScope ? `?myScope=${myScope}` : ""}`
+
+  // ── 远端引擎接管(1102 remote-engine-takeover S2)──
+  // 生效 base=远端配置(settings url)或本机 127.0.0.1:port(R1 统一出口);
+  // 远端生效时画布直指远端引擎 UI,本机引擎态(未装/未跑/安装中)一概不再
+  // 挡画布——纯备胎(Q2)。remoteEngineVersion=设置页保存/一键切换/清空引擎
+  // 地址的通知面(订阅零重启动态切)。
+  const remoteEngineVersion = useSyncExternalStore(subscribeRemoteEngineChanged, getRemoteEngineVersion);
+  const [engineBase, setEngineBase] = useState<string | null>(null);
+  const [remoteActive, setRemoteActive] = useState(false);
+  // 1102 复核修:远端地址 A→B 直切必须重探——remoteReady 只由探活回调置位,
+  // 地址变更若不重置,探活 effect 的 remoteReady 早退条件会带着 A 的就绪结论
+  // 跳过 B,running 恒真、webview 直载未经探活的 B(B 不可达=静默,破 R2)。
+  // 与 setEngineBase 同批 setState 无闪帧;地址未变(无关保存触发通知面)不
+  // 清=零闪烁。engineBase 只在本 effect 写,ref 比对即「值变更」判据。
+  const engineBaseRef = useRef<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    resolveEngineBase(port).then((resolution) => {
+      if (cancelled) return;
+      const next = resolution.base || null;
+      if (engineBaseRef.current !== next) {
+        engineBaseRef.current = next;
+        setRemoteReady(false); // 地址变更即失效旧探活结论(切回本机同样无害)
+      }
+      setEngineBase(next);
+      setRemoteActive(resolution.remoteActive);
+    });
+    return () => { cancelled = true; };
+  }, [port, remoteEngineVersion]);
+
+  // 远端可达态(1102 R2):远端生效时不再依赖本机 serviceRunning,改探远端
+  // 引擎探活(复用 sidecar /comfy/engine/probe 代理——渲染层 CSP 不放行局域
+  // 网直连)。不可达=诚实占位「远端引擎未就绪」,绝不静默回落本机(防「看着
+  // 本机以为在用 Windows」错位)。未就绪期间 10s 轮询兜底(远端引擎后启动也
+  // 能自动接上);就绪即停轮询,手动「重新测试」按钮重置触发即时重探。
+  const [remoteReady, setRemoteReady] = useState(false);
+  const [remoteProbing, setRemoteProbing] = useState(false);
+  useEffect(() => {
+    if (!remoteActive || !engineBase || remoteReady) return;
+    let cancelled = false;
+    const run = async () => {
+      setRemoteProbing(true);
+      try {
+        const probe = await probeEngineUrl(engineBase);
+        if (!cancelled) setRemoteReady(probe.ok);
+      } catch {
+        if (!cancelled) setRemoteReady(false);
+      } finally {
+        if (!cancelled) setRemoteProbing(false);
+      }
+    };
+    void run();
+    const timer = window.setInterval(() => void run(), 10_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [remoteActive, engineBase, remoteReady]);
+
+  // running 口径分叉:远端生效=远端探活 ok(本机 serviceRunning 不参与);
+  // 本机模式=serviceRunning+port(现行为回归)。
+  const running = remoteActive ? remoteReady : status?.serviceRunning === true && Boolean(port);
+  const src = running && engineBase
+    ? `${engineBase}/${myScope ? `?myScope=${myScope}` : ""}`
     : null;
   // 09-22 端口无关 scope 通道:URL 参数只在首载一瞬可靠(ComfyUI SPA 打开
   // 工作流即改写丢参),引擎侧 localStorage 兜底又按 origin(=引擎端口)隔离
@@ -570,11 +636,14 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
   // ③用户显式停止(设置页 stopService 落 module 闩):轮询只观测不拉起——
   //   画布落到「已就绪」面板并保留手动启动按钮,直到用户显式启动或重启 App。
   useEffect(() => {
+    // Q2 纯备胎不启动(1102 S6):远端生效期间跳过本机引擎拉起(含 install/
+    // start 自动链)——远端模式下画布视图不碰本机引擎,本机仅由本地配置页维护。
+    if (remoteActive) return;
     if (!status?.installed || status.state !== "ready") return;
     if (running || isStartingService) return;
     if (activeJob?.state === "running") return;
     void ensureServiceRunning();
-  }, [status, running, isStartingService, activeJob, ensureServiceRunning]);
+  }, [status, running, isStartingService, activeJob, ensureServiceRunning, remoteActive]);
 
   if (!hasBridge) {
     return (
@@ -587,8 +656,39 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
     );
   }
 
-  // 安装进行中(job 活着)优先展示进度——此时状态查询可能被本地服务抖动挡住
-  if (installing) {
+  // 远端引擎接管(1102 R2):远端生效时本机引擎态(安装中/未装/未跑/状态未知)
+  // 一概不再挡画布;远端探活不可达=诚实占位指引,绝不静默回落本机。
+  if (remoteActive && !src) {
+    return (
+      <Center data-comfy-canvas-remote-pending>
+        <ServerCog className="mb-3 h-10 w-10 text-muted-foreground" aria-hidden />
+        <h3 className="text-base font-medium text-foreground">远端引擎未就绪</h3>
+        <p className="mb-4 max-w-md text-center text-sm text-muted-foreground">
+          {`已配置远端引擎(${engineBase ?? "地址解析中"}),当前探活不可达——请确认 Windows 侧 ComfyUI 已启动。`}
+        </p>
+        {remoteProbing ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground" data-comfy-canvas-remote-probing>
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            正在测试连接…
+          </div>
+        ) : (
+          <Button data-comfy-canvas-remote-retest onClick={() => setRemoteReady(false)}>
+            重新测试连接
+          </Button>
+        )}
+        <p className="mt-4 text-xs text-muted-foreground">
+          可在 设置 → 引擎地址 里测试连接或切回本机引擎
+        </p>
+      </Center>
+    );
+  }
+
+  // 安装进行中(job 活着)优先展示进度——此时状态查询可能被本地服务抖动挡住。
+  // 1102 复核修:以下三处本机态面板均加 remoteActive 旁路——远端生效且 src
+  // 就绪(远端探活 ok)时直渲远端 webview,本机「安装中/状态未知/未装」一概
+  // 不再拦画布(「远端引擎接管」守卫段注释与 PRD 验收线「本机不跑不影响」的
+  // 既定语义)。
+  if (!remoteActive && installing) {
     return (
       <Center>
         <ServerCog className="mb-3 h-10 w-10 text-muted-foreground" aria-hidden />
@@ -610,7 +710,7 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
   // 状态查询不到(sidecar 未起/刚死/网络抖动):是「未知」不是「未安装」——
   // 09-10 用户实弹报障:引擎已装却渲染「还没安装」,点安装还会被同一门禁挡住。
   // 自愈拉起在 useComfyEngineSettings(连续失败节流 prepare),这里只如实展示。
-  if (!status) {
+  if (!remoteActive && !status) {
     return (
       <Center data-comfy-canvas-checking>
         <Loader2 className="mb-3 h-8 w-8 animate-spin text-muted-foreground" aria-hidden />
@@ -620,7 +720,8 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
   }
 
   // 引擎未装/装了一半:手动一键安装(下载引擎源码+依赖,进度走 job)
-  if (status.state === "not-installed" || status.state === "needs-setup") {
+  // (远端生效时旁路,见上方 installing 面板注释)
+  if (!remoteActive && status && (status.state === "not-installed" || status.state === "needs-setup")) {
     return (
       <Center>
         <ServerCog className="mb-3 h-10 w-10 text-muted-foreground" aria-hidden />
@@ -659,6 +760,17 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
             启动 ComfyUI
           </Button>
         )}
+      </Center>
+    );
+  }
+
+  // running 但生效 base 尚未解析回(local 模式挂载首拍的异步窗口):短暂确认
+  // 态占位,不闪 about:blank webview。
+  if (!src) {
+    return (
+      <Center data-comfy-canvas-resolving>
+        <Loader2 className="mb-3 h-8 w-8 animate-spin text-muted-foreground" aria-hidden />
+        <p className="text-sm text-muted-foreground">正在确认引擎地址…</p>
       </Center>
     );
   }
