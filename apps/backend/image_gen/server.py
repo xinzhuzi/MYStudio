@@ -160,8 +160,13 @@ def _remote_sidecar_base_url() -> str | None:
     if not engine_url:
         return None
     svc = _ssh_service()
-    if svc is not None and svc.tunnel_active():
-        return f"http://127.0.0.1:{svc.tunnel_local_port()}"
+    if svc is not None:
+        # 单锁快照(1103 独立复核#4):分调 active/port 两锁间隙恰逢断开收摊
+        # 会拼出 http://127.0.0.1:None 坏 URL(ValueError 兜成 500);快照
+        # 保证 active=True 时 port 必非 None。
+        tunnel_active, tunnel_port = svc.tunnel_snapshot()
+        if tunnel_active and tunnel_port is not None:
+            return f"http://127.0.0.1:{tunnel_port}"
     host = urlparse(engine_url).hostname
     if not host:
         return None

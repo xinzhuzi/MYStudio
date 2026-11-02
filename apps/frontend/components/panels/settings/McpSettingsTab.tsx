@@ -1052,7 +1052,7 @@ export function McpSettingsTab() {
               <div className="min-w-0">
                 <div className="text-sm font-medium">SSH 隧道加密通道</div>
                 <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                  开启后远端代理流量默认走本地隧道口（17596 起，被占自动避让）；隧道断开自动回落直连。Windows 侧最终可关局域网监听，仅留隧道入口。
+                  开启后远端代理流量默认走本地隧道口（17600 起，被占自动避让，避开 17593/17595-17598 保留区）；隧道断开自动回落直连。Windows 侧最终可关局域网监听，仅留隧道入口。
                 </div>
               </div>
               <label

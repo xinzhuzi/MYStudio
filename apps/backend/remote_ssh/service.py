@@ -134,8 +134,28 @@ class SSHService:
         self._disconnect_client()
 
     def notify_config_changed(self) -> None:
-        """配置写后热重载:唤醒 keeper 立即重读(未起 keeper 时无操作)。"""
+        """配置写后热重载:唤醒 keeper 立即重读;keeper 未起(paramiko 后装/
+        首启未配置)而前提已齐 → 补调 start() 起 keeper(后装恢复链,
+        1103 独立复核#1:免重启 sidecar)。未起 keeper 且仍不可起 → 无操作。"""
+        self._recover_start(ssh_config.load_config())
         self._wake.set()
+
+    def _recover_start(self, cfg: dict) -> None:
+        """后装恢复(1103 独立复核#1):启动时 paramiko 未装/未配置 → start()
+        在置 _started 前即返 False,keeper 从未创建;用户装好依赖(同进程惰性
+        import 立即可用)或写入配置后,首个入口(notify_config_changed/
+        status/test_connection)补调 start() 起 keeper——否则 available 变 true
+        而 connected 恒 false,须重启 sidecar 才恢复。
+
+        已起(_started=True)恒无操作;paramiko 仍缺/未配置由前置判断短路
+        (不走 start() 的打印路径,status 轮询不刷屏);补起失败不拦查询入口。
+        """
+        if self._started or not cfg.get("host") or _paramiko() is None:
+            return
+        try:
+            self.start()
+        except Exception:  # noqa: BLE001 — 补启失败不拦查询入口(fail-open)
+            pass
 
     # ── keeper 线程 ────────────────────────────────────────────────────
 
@@ -253,7 +273,7 @@ class SSHService:
         """断开收尾(R3/C2):关 client + 停隧道。
 
         隧道随断开一并收摊——否则 SSH 断开(sshd 停/网络断/配置清 host)期间
-        listener 仍占 17596,tunnel_active() 恒 True,_remote_sidecar_base_url
+        listener 仍占隧道口(默认 17600),tunnel_active() 恒 True,_remote_sidecar_base_url
         继续把代理引到死 transport 上开 channel 全 502;停口后断开窗口自动
         回落直连(server.py R3「隧道未活(未配置/断开)→现行直连路径零迁移」)。
         keeper 重连后 _on_connected→ensure(新 transport) 原路径重建,零额外态。
@@ -279,8 +299,13 @@ class SSHService:
     # ── 对外查询 ───────────────────────────────────────────────────────
 
     def status(self) -> dict:
-        """状态快照(R1 契约字段 + available/tunnelEnabled 补充)。"""
+        """状态快照(R1 契约字段 + available/tunnelEnabled 补充)。
+
+        顺带做后装恢复探针(1103 独立复核#1):paramiko 装好后前端回开设置页
+        首个 status 即补起 keeper,徽章三态自愈(available→connected)。
+        """
         cfg = ssh_config.load_config()
+        self._recover_start(cfg)
         with self._lock:
             return {
                 "available": self.available(),
@@ -301,6 +326,13 @@ class SSHService:
 
     def tunnel_local_port(self) -> int | None:
         return self._tunnel.local_port()
+
+    def tunnel_snapshot(self) -> tuple[bool, int | None]:
+        """单锁快照 (active, port):active=True 时 port 必非 None——代理链
+        (_remote_sidecar_base_url)分调 tunnel_active/tunnel_local_port 是两次
+        独立加锁,间隙恰逢断开收摊会拼出 http://127.0.0.1:None 坏 URL
+        (1103 独立复核#4 TOCTOU);本快照一次锁内取全,该竞态无处发生。"""
+        return self._tunnel.snapshot()
 
     # ── SFTP 面(R2:全链只走 SFTP,禁远程 exec)───────────────────────
 
@@ -340,7 +372,7 @@ class SSHService:
                 return self._refresh_token_once()
             except Exception:  # noqa: BLE001 — 自愈链失败=诚实 False
                 return False
-        future = _refresh_executor().submit(self._refresh_token_once)
+        future = _sftp_executor().submit(self._refresh_token_once)
         try:
             return bool(future.result(timeout=timeout_s))
         except concurrent.futures.TimeoutError:
@@ -379,8 +411,23 @@ class SSHService:
         tmp.write_text(token, encoding="utf-8")
         tmp.replace(target)
 
-    def peek_remote_token(self) -> dict:
-        """「测试连接」用的令牌读取回执(len 掩码;只读不落盘)。"""
+    def peek_remote_token(self, timeout_s: float | None = None) -> dict:
+        """「测试连接」用的令牌读取回执(len 掩码;只读不落盘)。
+
+        timeout_s 给定时在独立线程执行并限时返回(R1「对外调用必带超时」,
+        1103 独立复核#2:transport 半死时 paramiko SFTP 请求可无限阻塞,不许
+        悬挂 HTTP handler 线程——test 路与 refresh 路同款 executor 限时;超时/
+        异常=读取失败回执 {ok: False},后台线程自然收尾不阻塞调用方)。
+        """
+        if timeout_s is None:
+            return self._peek_token_once()
+        future = _sftp_executor().submit(self._peek_token_once)
+        try:
+            return dict(future.result(timeout=timeout_s))
+        except Exception:  # noqa: BLE001 — 超时/异常统一=失败回执,不外溢
+            return {"ok": False, "length": None, "source": None}
+
+    def _peek_token_once(self) -> dict:
         cfg = ssh_config.load_config()
         for path in ssh_config.effective_token_config_paths(cfg):
             try:
@@ -398,7 +445,12 @@ class SSHService:
         return {"ok": False, "length": None, "source": None}
 
     def test_connection(self) -> dict:
-        """R4「测试连接」回执四件:登录用户/服务器版本/令牌读取(len 掩码)/隧道探活。"""
+        """R4「测试连接」回执四件:登录用户/服务器版本/令牌读取(len 掩码)/隧道探活。
+
+        令牌读取带 15s 超时(R1 对外调用必带超时,1103 独立复核#2);入口顺带
+        后装恢复探针(paramiko 刚装好即起 keeper,本次回执按未连接、keeper
+        立即开始建连,后续 status 自愈)。
+        """
         if not self.available():
             return {
                 "ok": False,
@@ -408,6 +460,7 @@ class SSHService:
         cfg = ssh_config.load_config()
         if not cfg.get("host"):
             return {"ok": False, "reason": "not-configured", "message": "未配置 SSH 主机"}
+        self._recover_start(cfg)
         with self._lock:
             connected = self._connected
             last_error = self._last_error
@@ -427,12 +480,14 @@ class SSHService:
                 login_user = ""
         with self._lock:
             server_version = self._server_version
+        # 隧道回执同用单锁快照(1103 复核#4 同源):active 与 localPort 一致取全
+        tunnel_active, tunnel_port = self._tunnel.snapshot()
         return {
             "ok": True,
             "user": login_user or (cfg.get("user") or ""),
             "serverVersion": server_version,
-            "token": self.peek_remote_token(),
-            "tunnel": {"active": self._tunnel.active(), "localPort": self._tunnel.local_port()},
+            "token": self.peek_remote_token(timeout_s=15),
+            "tunnel": {"active": tunnel_active, "localPort": tunnel_port},
         }
 
 
@@ -440,8 +495,9 @@ class SSHService:
 
 _service: SSHService | None = None
 _service_lock = threading.Lock()
-# 令牌限时刷新的专用单线程池(daemon:超时不拖进程退出;泄漏线程由池复用)
-_refresh_pool: concurrent.futures.ThreadPoolExecutor | None = None
+# SFTP 限时操作的专用单线程池(refresh/peek 共用;daemon:超时不拖进程退出,
+# 泄漏线程由池复用——单 worker 串行化同一 client 上的 SFTP 会话)
+_sftp_pool: concurrent.futures.ThreadPoolExecutor | None = None
 
 
 def ssh_service() -> SSHService:
@@ -458,22 +514,22 @@ def notify_config_changed() -> None:
     ssh_service().notify_config_changed()
 
 
-def _refresh_executor() -> concurrent.futures.ThreadPoolExecutor:
-    global _refresh_pool
-    if _refresh_pool is None:
-        _refresh_pool = concurrent.futures.ThreadPoolExecutor(
-            max_workers=1, thread_name_prefix="remote-ssh-token-refresh"
+def _sftp_executor() -> concurrent.futures.ThreadPoolExecutor:
+    global _sftp_pool
+    if _sftp_pool is None:
+        _sftp_pool = concurrent.futures.ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="remote-ssh-sftp"
         )
-    return _refresh_pool
+    return _sftp_pool
 
 
 def reset_for_tests() -> None:
     """测试隔离:重置单例(照 comfyui.bridge_actions.reset_for_tests 范式)。"""
-    global _service, _refresh_pool
+    global _service, _sftp_pool
     with _service_lock:
         if _service is not None:
             _service.stop()
         _service = SSHService()
-    if _refresh_pool is not None:
-        _refresh_pool.shutdown(wait=False)
-        _refresh_pool = None
+    if _sftp_pool is not None:
+        _sftp_pool.shutdown(wait=False)
+        _sftp_pool = None

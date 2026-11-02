@@ -773,7 +773,7 @@ describe("McpSettingsTab·SSH 远端连接(11-03 R4)", () => {
     user: "",
     keyPath: "",
     tunnelEnabled: true,
-    tunnelLocalPort: 17596,
+    tunnelLocalPort: 17600,
     tokenConfigPaths: [],
   };
 
@@ -937,7 +937,7 @@ describe("McpSettingsTab·SSH 远端连接(11-03 R4)", () => {
         user: "zbj",
         serverVersion: "OpenSSH_for_Windows_8.9",
         token: { ok: true, length: 24, source: "E:/IP/漫影工作室/python/profiles/image-gen/config.json" },
-        tunnel: { active: true, localPort: 17596 },
+        tunnel: { active: true, localPort: 17600 },
       },
     });
     render(<McpSettingsTab />);
@@ -951,7 +951,7 @@ describe("McpSettingsTab·SSH 远端连接(11-03 R4)", () => {
     // 令牌 len 掩码:只显长度,内容永不回显(source 路径可见但令牌本体绝不出现)
     expect(screen.getByTestId("ssh-test-token").textContent).toContain("长度 24");
     expect(screen.getByTestId("ssh-test-token").textContent).toContain("掩码");
-    expect(screen.getByTestId("ssh-test-tunnel").textContent).toContain("17596");
+    expect(screen.getByTestId("ssh-test-tunnel").textContent).toContain("17600");
   });
 
   it("测试连接失败态:断开时透出 reason/message大白话(不炸不空)", async () => {

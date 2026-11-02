@@ -4,8 +4,10 @@
 paramiko transport.open_channel("direct-tcpip") + select 双向泵 ~40 行即可
 转发(tunnel→17000 /system_stats=200),不引半维护的 sshtunnel 包。
 
-端口防撞(D5):默认 17596;EADDRINUSE 时向后扫描 10 口,**跳过 17595/17597/
-17598 保留区**(17595=sidecar、17597=开发侧车、17598=引擎回落)。
+端口防撞(D5+实弹修复):默认口由 config.py 给(17600);EADDRINUSE 时向后
+扫描 10 口,**跳过保留区**{17593 TTS, 17595 sidecar, **17596 本 App 云中继**
+(comfy-cloud-relay.ts:16 COMFY_CLOUD_RELAY_PORT,1103 实弹撞车实证),17597
+开发侧车,17598 引擎回落}。
 
 语义:sshd 在而 Windows sidecar 死(App 未开)→ channel 开失败 → 关客户端
 连接 → HTTP 层吃 connection-refused → 由调用方诚实报错;keeper 重连后
@@ -18,13 +20,16 @@ import select
 import socket
 import threading
 
-# 本机保留区(定制代码地图.md:28 / comfyui_bridge.py:184):隧道口须避让三件
-RESERVED_LOCAL_PORTS = {17595, 17597, 17598}
+# 本机保留区(定制代码地图.md:28 / comfyui_bridge.py:184 / comfy-cloud-relay.ts:16):
+# 隧道口须避让——17593=TTS、17595=sidecar、17596=本 App 云中继(1103 实弹
+# 撞车:云中继常驻占 17596,首跑被挤去 17599,默认口名存实亡)、17597=开发
+# 侧车、17598=引擎回落
+RESERVED_LOCAL_PORTS = {17593, 17595, 17596, 17597, 17598}
 # 单个隧道的并发连接上限(超出拒新,防资源耗尽)
 MAX_CONCURRENT_CONNECTIONS = 8
 # 泵空闲超时:20s 无流量双向断开(挂死连接回收)
 IDLE_TIMEOUT_S = 20.0
-# 默认口占满时向后扫描的口数(17596..17605)
+# 默认口占满时向后扫描的口数(config 默认 17600 → 扫 17600..17609)
 SCAN_SPAN = 10
 _CHUNK = 65536
 
@@ -32,7 +37,13 @@ _CHUNK = 65536
 def bind_local_port(preferred_port: int) -> tuple[socket.socket, int] | None:
     """取一个空闲本地口:先试 preferred,EADDRINUSE 向后扫 10 口,跳过保留区。
 
-    返回 (已 bind 的 listener, 实际口);10 口全满 → None(调用方按隧道未建处理)。
+    返回 (已 bind **且已 listen** 的 listener, 实际口);10 口全满 → None
+    (调用方按隧道未建处理)。
+
+    ⚠️ listen() 必须在此完成:1103 实弹事故——首版只 bind 不 listen,accept
+    线程对未 listen 的 socket 调 accept() 立即 EINVAL 退出,socket 停留
+    bound-only(lsof 显 CLOSED),外部 connect 超时,隧道「假活」。真 socket
+    回环测试(test_remote_ssh_tunnel BindListenTests)钉死此语义。
     """
     for candidate in range(preferred_port, preferred_port + SCAN_SPAN):
         if candidate in RESERVED_LOCAL_PORTS:
@@ -41,8 +52,9 @@ def bind_local_port(preferred_port: int) -> tuple[socket.socket, int] | None:
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             listener.bind(("127.0.0.1", candidate))
+            listener.listen(8)
         except OSError:
-            listener.close()  # 占用/不可绑:试下一个
+            listener.close()  # 占用/不可绑/不可听:试下一个
             continue
         return listener, candidate
     return None
@@ -69,6 +81,16 @@ class TunnelManager:
     def local_port(self) -> int | None:
         with self._lock:
             return self._local_port
+
+    def snapshot(self) -> tuple[bool, int | None]:
+        """单锁快照 (active, local_port):active=True 时 port 必非 None。
+
+        调用方分调 active()/local_port() 是两次独立加锁,间隙恰逢 stop()
+        收摊会读到 active=True 而 port=None,拼出 http://127.0.0.1:None 坏
+        URL(1103 独立复核#4 TOCTOU);一次锁内取全即无处发生。
+        """
+        with self._lock:
+            return self._listener is not None, self._local_port
 
     # ── 生命周期 ─────────────────────────────────────────────────────────
 

@@ -19,7 +19,10 @@ from urllib.parse import urlparse
 
 CONFIG_FILE_NAME = "ssh-remote.json"
 DEFAULT_SSH_PORT = 22
-DEFAULT_TUNNEL_LOCAL_PORT = 17596
+# 隧道默认口(1103 实弹修复:17596 与本 App 云中继 comfy-cloud-relay.ts:16
+# COMFY_CLOUD_RELAY_PORT 撞车被挤走,默认口名存实亡;挪到 17600 离 175xx
+# 常驻集群整体让开,tunnel.py 保留区同幅扩容)
+DEFAULT_TUNNEL_LOCAL_PORT = 17600
 # Windows 令牌真源主路径(deploy-dual.sh:29-34 注释链;中文路径冒烟已证可读)
 DEFAULT_REMOTE_TOKEN_CONFIG_PATH = "E:/IP/漫影工作室/python/profiles/image-gen/config.json"
 # %APPDATA% 同构路径的模板(用户名拼入;冒烟对照脚本同款)

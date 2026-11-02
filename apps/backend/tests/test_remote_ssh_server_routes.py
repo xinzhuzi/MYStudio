@@ -45,6 +45,10 @@ class _FakeSshService:
     def available(self) -> bool:
         return self._available
 
+    def tunnel_snapshot(self):
+        # 1103 复核#4:代理链改单锁快照取 (active, port) 一次取全
+        return (self._tunnel, self._port if self._tunnel else None)
+
     def tunnel_active(self) -> bool:
         return self._tunnel
 
@@ -198,6 +202,17 @@ class SidecarBaseUrlTunnelBranchTests(unittest.TestCase):
         self.assertEqual(
             self._base_url(_FakeSshService(tunnel=False)),
             "http://192.168.0.101:17595",  # 现行直连逻辑零迁移
+        )
+
+    def test_active_tunnel_with_none_port_falls_back_to_direct(self) -> None:
+        """1103 独立复核#4 TOCTOU 钉子:分调 active/port 两锁间隙恰逢断开收摊
+        会拼出 http://127.0.0.1:None 坏 URL(urlopen ValueError 兜成 500)。
+        即使快照退化为 (True, None),port None 判失败 → 回落直连,不拼坏 URL。"""
+        stale = _FakeSshService(tunnel=True, port=17600)
+        stale.tunnel_snapshot = lambda: (True, None)  # 模拟收摊竞态读
+        self.assertEqual(
+            self._base_url(stale),
+            "http://192.168.0.101:17595",  # 不拼 127.0.0.1:None,回落直连
         )
 
     def test_missing_ssh_service_keeps_direct_path(self) -> None:

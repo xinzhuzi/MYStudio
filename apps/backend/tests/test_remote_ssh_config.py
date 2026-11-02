@@ -31,7 +31,7 @@ class RemoteSshConfigTests(unittest.TestCase):
         self.assertEqual(cfg["host"], "")  # 空=未配置(常态)
         self.assertEqual(cfg["port"], 22)
         self.assertTrue(cfg["tunnelEnabled"])
-        self.assertEqual(cfg["tunnelLocalPort"], 17596)
+        self.assertEqual(cfg["tunnelLocalPort"], 17600)
         self.assertEqual(cfg["tokenConfigPaths"], [])
 
     def test_corrupt_json_falls_back_to_defaults_with_warning(self) -> None:
@@ -47,7 +47,7 @@ class RemoteSshConfigTests(unittest.TestCase):
     def test_valid_file_round_trips_known_fields(self) -> None:
         payload = {
             "host": "192.168.0.101", "port": 22, "user": "zbj",
-            "keyPath": "", "tunnelEnabled": True, "tunnelLocalPort": 17596,
+            "keyPath": "", "tunnelEnabled": True, "tunnelLocalPort": 17600,
             "tokenConfigPaths": ["E:/IP/漫影工作室/python/profiles/image-gen/config.json"],
         }
         (self._home / "ssh-remote.json").write_text(
@@ -70,7 +70,7 @@ class RemoteSshConfigTests(unittest.TestCase):
         )
         cfg = ssh_config.load_config()
         self.assertEqual(cfg["port"], 22)
-        self.assertEqual(cfg["tunnelLocalPort"], 17596)
+        self.assertEqual(cfg["tunnelLocalPort"], 17600)
         self.assertTrue(cfg["tunnelEnabled"])  # 非 bool 不吸收=保持默认 True
         self.assertEqual(cfg["tokenConfigPaths"], [])
 

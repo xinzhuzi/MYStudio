@@ -243,11 +243,16 @@ export function createTtsRuntimePython(paths: TtsRuntimePaths, io: TtsPythonIo, 
     }
     try {
       updateSetupState({ setupStage: "installing-deps", setupMessage: "正在安装 TTS 依赖", setupProgress: undefined });
+      // 1103 实弹(11-03-sidecar-ssh-module 装机):requirements.txt 含 UTF-8 中文
+      // 注释,中文 Windows(cp936 locale)下 pip 按本地编码解码必炸
+      // UnicodeDecodeError('gbk')。PYTHONUTF8=1 强制 pip 全链按 UTF-8 读文件,
+      // 双平台无副作用(macOS 本就 UTF-8)。execFile env 整体替换,须展开继承。
+      const pipEnv = { ...process.env, PYTHONUTF8: "1" };
       if (process.platform === "win32") {
         // PyPI 默认是 CPU 版 torch，Windows 需从 CUDA 专用 index 安装
-        await runPython(python, ["-m", "pip", "install", "torch", "--index-url", "https://download.pytorch.org/whl/cu121"], { timeout: 1_800_000, maxBuffer: 32 * 1024 * 1024 });
+        await runPython(python, ["-m", "pip", "install", "torch", "--index-url", "https://download.pytorch.org/whl/cu121"], { timeout: 1_800_000, maxBuffer: 32 * 1024 * 1024, env: pipEnv });
       }
-      await runPython(python, ["-m", "pip", "install", "-r", reqPath], { timeout: 1_800_000, maxBuffer: 32 * 1024 * 1024 });
+      await runPython(python, ["-m", "pip", "install", "-r", reqPath], { timeout: 1_800_000, maxBuffer: 32 * 1024 * 1024, env: pipEnv });
       ensureDir(runtimeDataDir());
       writeTextFile(markerPath, reqHash);
       setInstalledItem({ label: "TTS Python 依赖", detail: reqPath, status: "installed" });

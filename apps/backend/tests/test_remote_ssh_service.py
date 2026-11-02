@@ -11,6 +11,8 @@ from __future__ import annotations
 import json
 import sys
 import tempfile
+import threading
+import time
 import types
 import unittest
 from pathlib import Path
@@ -108,6 +110,19 @@ class _FakeSSHClient:
         self.closed = True
 
 
+class _HangingSFTPClient(_FakeSFTPClient):
+    """病态 transport 假体(1103 复核#2):SFTP open 请求悬挂——release 放行
+    才返回,模拟「TCP 在、对端不应答」的半死连接。"""
+
+    def __init__(self, release: threading.Event) -> None:
+        super().__init__({})
+        self._release = release
+
+    def open(self, path: str, mode: str = "r"):
+        self._release.wait(10)
+        raise IOError(f"sftp hang released: {path}")  # noqa: N818 — paramiko 面异常
+
+
 def _fake_paramiko_module() -> types.ModuleType:
     module = types.ModuleType("paramiko")
     module.SSHException = type("SSHException", (Exception,), {})
@@ -144,6 +159,9 @@ class _TunnelSocketSpy:
                 spy.bound.append(port)
                 self.port = port
 
+            def listen(self, backlog: int = 0) -> None:
+                pass  # 1103 修复随动:bind_local_port 现要求 bind+listen 双成
+
             def close(self) -> None:
                 port = getattr(self, "port", None)
                 if port is not None:
@@ -163,6 +181,10 @@ class _TunnelSocketSpy:
 class RemoteSshServiceTests(unittest.TestCase):
     def setUp(self) -> None:
         ssh_service_mod.reset_for_tests()
+        # 收尾再清一次:末测试(_on_connected 的 spy listener)会留在进程级
+        # 单例里,不清则同进程后跑的 test_image_gen_server 读到假活隧道
+        # (HEAD 实证:remote_ssh 在前+image_gen 在后的合跑序全灭 4 测)
+        self.addCleanup(ssh_service_mod.reset_for_tests)
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self._home = Path(self._tmp.name)
@@ -178,7 +200,7 @@ class RemoteSshServiceTests(unittest.TestCase):
     def _write_ssh_config(self, **overrides) -> dict:
         payload = {
             "host": "192.168.0.101", "port": 22, "user": "zbj",
-            "keyPath": "", "tunnelEnabled": False, "tunnelLocalPort": 17596,
+            "keyPath": "", "tunnelEnabled": False, "tunnelLocalPort": 17600,
             "tokenConfigPaths": [],
         }
         payload.update(overrides)
@@ -226,7 +248,8 @@ class RemoteSshServiceTests(unittest.TestCase):
         cfg = self._write_ssh_config()
         svc = ssh_service()
         fake = _fake_paramiko_module()
-        with patch.dict(sys.modules, {"paramiko": fake}):
+        # status() 带后装恢复探针(1103 复核#1):patch Thread 防真 keeper 起跑
+        with patch.dict(sys.modules, {"paramiko": fake}), patch("threading.Thread"):
             self.assertTrue(svc._connect_once(cfg))
         client = svc._client
         self.assertIsInstance(client, _FakeSSHClient)
@@ -268,6 +291,71 @@ class RemoteSshServiceTests(unittest.TestCase):
                 patch("threading.Thread") as thread_cls:
             self.assertFalse(ssh_service().start())
             thread_cls.assert_not_called()
+
+    # ── 后装恢复链(C3/R4;1103 独立复核#1:paramiko 装好后免重启起 keeper)──
+
+    def _started_flag(self, svc: object) -> bool:
+        return bool(getattr(svc, "_started"))
+
+    def test_paramiko_install_recovery_via_notify_config_changed(self) -> None:
+        """病根:启动时 paramiko 未装 → start() 在置 _started 前返 False,keeper
+        从未创建,旧 notify_config_changed 只 _wake.set()=无操作——装好依赖后
+        connected 恒 false 须重启 sidecar。修复:notify 补调 start() 起 keeper。"""
+        self._write_ssh_config()
+        svc = ssh_service()
+        with patch.dict(sys.modules, _no_paramiko()):
+            self.assertFalse(svc.start())  # 首启失败:keeper 未起
+            self.assertFalse(self._started_flag(svc))
+            with patch("threading.Thread") as thread_cls:
+                svc.notify_config_changed()  # 依赖仍缺:恢复探针短路,无 keeper
+                thread_cls.assert_not_called()
+        # paramiko 装好(同进程惰性 import 立即可用)→ notify 补起 keeper
+        with patch.dict(sys.modules, {"paramiko": _fake_paramiko_module()}), \
+                patch("threading.Thread") as thread_cls:
+            svc.notify_config_changed()
+            self.assertTrue(self._started_flag(svc))
+            self.assertEqual(thread_cls.call_count, 1)  # keeper 恰一个
+            # 再 notify:keeper 已起 → 不重复起(唤醒语义)
+            svc.notify_config_changed()
+            self.assertEqual(thread_cls.call_count, 1)
+
+    def test_paramiko_install_recovery_via_status(self) -> None:
+        # status 是前端回开设置页的首个入口(McpSettingsTab useEffect 拉状态):
+        # 装好依赖后首个 status 即补起 keeper,徽章三态自愈
+        self._write_ssh_config()
+        svc = ssh_service()
+        with patch.dict(sys.modules, _no_paramiko()):
+            svc.status()  # 依赖缺:不自起
+            self.assertFalse(self._started_flag(svc))
+        with patch.dict(sys.modules, {"paramiko": _fake_paramiko_module()}), \
+                patch("threading.Thread") as thread_cls:
+            svc.status()
+            self.assertTrue(self._started_flag(svc))
+            self.assertEqual(thread_cls.call_count, 1)
+
+    def test_paramiko_install_recovery_via_test_connection(self) -> None:
+        # 「测试连接」同款补起:本次回执仍按未连接(诚实),keeper 立即开跑,
+        # 后续 status 自愈 connected
+        self._write_ssh_config()
+        svc = ssh_service()
+        with patch.dict(sys.modules, {"paramiko": _fake_paramiko_module()}), \
+                patch("threading.Thread") as thread_cls:
+            reply = svc.test_connection()
+        self.assertFalse(reply["ok"])
+        self.assertEqual(reply["reason"], "disconnected")
+        self.assertTrue(self._started_flag(svc))
+        self.assertEqual(thread_cls.call_count, 1)
+
+    def test_recovery_stays_dormant_when_unconfigured(self) -> None:
+        # host 空(未配置)+ 依赖在:恢复探针不自起(照 start 契约)
+        svc = ssh_service()
+        with patch.dict(sys.modules, {"paramiko": _fake_paramiko_module()}), \
+                patch("threading.Thread") as thread_cls:
+            svc.status()
+            svc.test_connection()
+            ssh_service_mod.notify_config_changed()
+            thread_cls.assert_not_called()
+            self.assertFalse(self._started_flag(svc))
 
     # ── status 三态 ───────────────────────────────────────────────────
 
@@ -381,6 +469,9 @@ class RemoteSshServiceTests(unittest.TestCase):
             {self.PRIMARY: json.dumps({"controlToken": "a" * 36})}
         )
         self._write_ssh_config()
+        # 令牌读取走 executor 线程池(1103 复核#2):不能 patch threading.Thread
+        # (池的 worker 也是 Thread);改以 _started=True 短路恢复探针(1103 复核#1)
+        svc._started = True
         with patch.dict(sys.modules, {"paramiko": _fake_paramiko_module()}):
             reply = svc.test_connection()
         self.assertTrue(reply["ok"])
@@ -395,11 +486,50 @@ class RemoteSshServiceTests(unittest.TestCase):
         self._write_ssh_config()
         svc = ssh_service()
         svc._last_error = "connection refused"
-        with patch.dict(sys.modules, {"paramiko": _fake_paramiko_module()}):
+        # 后装恢复探针会起 keeper(1103 复核#1):patch Thread 保持确定性
+        with patch.dict(sys.modules, {"paramiko": _fake_paramiko_module()}), patch("threading.Thread"):
             reply = svc.test_connection()
         self.assertFalse(reply["ok"])
         self.assertEqual(reply["reason"], "disconnected")
         self.assertIn("connection refused", reply["message"])
+
+    # ── 测试连接令牌读取限时(R1「对外调用必带超时」;1103 独立复核#2)────
+
+    def test_test_connection_passes_timeout_to_token_peek(self) -> None:
+        # test 路与 refresh 路同款口径:peek 走 executor 限时 15s
+        svc, _client = self._connected_service({})
+        self._write_ssh_config()
+        svc._started = True  # 跳过恢复探针,聚焦超时面
+        with patch.dict(sys.modules, {"paramiko": _fake_paramiko_module()}):
+            with patch.object(svc, "peek_remote_token", wraps=svc.peek_remote_token) as peek:
+                svc.test_connection()
+        peek.assert_called_once_with(timeout_s=15)
+
+    def test_token_peek_times_out_when_sftp_hangs(self) -> None:
+        """病根:test 路同步 peek→sftp_read_text 无超时,transport 半死(TCP 在、
+        对端不应答)时 SFTP 请求可无限阻塞 → POST /comfy/ssh/test 永不回执
+        (R4 四件失真+handler 线程泄漏)。修复:限时返回失败回执。"""
+        release = threading.Event()
+        self.addCleanup(release.set)  # 收尾放行工作线程:单 worker 池不被钉死
+        svc, client = self._connected_service({})
+        client.sftp = _HangingSFTPClient(release)
+        self._write_ssh_config()
+        started = time.monotonic()
+        reply = svc.peek_remote_token(timeout_s=0.3)
+        elapsed = time.monotonic() - started
+        self.assertLess(elapsed, 5.0)  # 限时返回,绝不悬挂
+        self.assertEqual(reply, {"ok": False, "length": None, "source": None})
+
+    def test_token_peek_with_timeout_still_reads_token(self) -> None:
+        # 限时路径正常态:可读时照常回执(ok/len 掩码/真源路径)
+        svc, _client = self._connected_service(
+            {self.PRIMARY: json.dumps({"controlToken": "tok_peek_ok"})}
+        )
+        self._write_ssh_config()
+        reply = svc.peek_remote_token(timeout_s=5)
+        self.assertTrue(reply["ok"])
+        self.assertEqual(reply["length"], len("tok_peek_ok"))
+        self.assertEqual(reply["source"], self.PRIMARY)
 
     # ── 断开即收隧道(R3/C2:断开窗口代理链回落直连)──────────────────
 
@@ -419,13 +549,15 @@ class RemoteSshServiceTests(unittest.TestCase):
         self._write_ssh_config(tunnelEnabled=True)
         spy = self._tunnel_spy()
         self.assertEqual(
-            svc._tunnel.ensure(client.transport, 17596, "127.0.0.1", 17595), 17596
+            svc._tunnel.ensure(client.transport, 17600, "127.0.0.1", 17595), 17600
         )
         self.assertTrue(svc.tunnel_active())
+        # 单锁快照(1103 复核#4):活态 (True, port);代理链一次取全
+        self.assertEqual(svc.tunnel_snapshot(), (True, 17600))
         svc._mark_disconnected("SSH 连接断开")
         self.assertFalse(svc.tunnel_active())  # 隧道已收:代理链回落直连
         self.assertIsNone(svc.tunnel_local_port())
-        self.assertEqual(spy.closed, [17596])  # 17596 口已释放(listener 不再占)
+        self.assertEqual(spy.closed, [17600])  # 17600 口已释放(listener 不再占)
         self.assertTrue(client.closed)  # client 同关(原语义保留)
 
     def test_tunnel_rebuilt_after_keeper_reconnect(self) -> None:
@@ -434,18 +566,18 @@ class RemoteSshServiceTests(unittest.TestCase):
         svc, _client = self._connected_service({})
         self._write_ssh_config(tunnelEnabled=True)
         spy = self._tunnel_spy()
-        svc._on_connected({"tunnelEnabled": True, "tunnelLocalPort": 17596})
+        svc._on_connected({"tunnelEnabled": True, "tunnelLocalPort": 17600})
         self.assertTrue(svc.tunnel_active())
         svc._mark_disconnected("SSH 连接断开")
         self.assertFalse(svc.tunnel_active())
         new_client = _FakeSSHClient()
         svc._client = new_client
         svc._connected = True
-        svc._on_connected({"tunnelEnabled": True, "tunnelLocalPort": 17596})
+        svc._on_connected({"tunnelEnabled": True, "tunnelLocalPort": 17600})
         self.assertTrue(svc.tunnel_active())  # 新 transport 上重建
-        self.assertEqual(svc.tunnel_local_port(), 17596)
-        self.assertEqual(spy.bound, [17596, 17596])  # 两次建、一收一重建
-        self.assertEqual(spy.closed, [17596])
+        self.assertEqual(svc.tunnel_local_port(), 17600)
+        self.assertEqual(spy.bound, [17600, 17600])  # 两次建、一收一重建
+        self.assertEqual(spy.closed, [17600])
 
 
 if __name__ == "__main__":
