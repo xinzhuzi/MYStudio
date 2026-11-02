@@ -331,12 +331,12 @@ export function McpSettingsTab() {
       // IP,直连 fetch 恒被拦——引擎明明在跑也报「连接失败」)。
       const probe = await probeEngineUrl(base);
       if (probe.ok) {
-        // 1102 F4:成功详情改弹窗(实机 probe 数据);行内只留短确认
+        // 1102 F4 终态:成功=弹窗即全部,行内不再重复提示(用户令)
         setEngineOkDialog({
           headline: `连接成功(${comfyVersionLabel(probe.comfyui_version ?? "未知版本", probe.device ?? null)})`,
           note: "未保存,点「保存并测试」生效",
         });
-        setRemoteTest({ status: "ok", text: "连接成功 ✓(详情见弹窗)" });
+        setRemoteTest({ status: "idle" });
       } else {
         setRemoteTest({
           status: "error",
@@ -383,12 +383,12 @@ export function McpSettingsTab() {
         try {
           const probe = await probeEngineUrl(status.effective);
           if (probe.ok) {
-            // 1102 F4:成功详情改弹窗(实机 probe 数据);行内只留短确认
+            // 1102 F4 终态:成功=弹窗即全部,行内不再重复提示(用户令)
             setEngineOkDialog({
               headline: `已连通远端引擎(${comfyVersionLabel(probe.comfyui_version ?? "未知版本", probe.device ?? null)})`,
               note: "产物将自动取回",
             });
-            setRemoteTest({ status: "ok", text: `已保存并生效(${status.effective}) ✓(详情见弹窗)` });
+            setRemoteTest({ status: "idle" });
           } else {
             setRemoteTest({
               status: "ok",
