@@ -5,7 +5,7 @@
 // 折叠态持久化 localStorage)。三组:服务连接(ComfyUI 桥+专业流开关)→ MCP 服务器 → JSON 配置。
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Check, ChevronDown, FileJson, Loader2, Pencil, Plug, Plus, Server, Star, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, FileJson, Loader2, Pencil, Plug, Plus, Server, Star, Terminal, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -56,7 +56,13 @@ import {
   comfySidecarRequest,
   SIDECAR_DOWN_GUIDANCE,
   isSidecarDownError,
+  getComfySshStatus,
+  setComfySshConfig,
+  testComfySshConnection,
+  refreshComfySshToken,
   type ComfyRemoteEngineStatus,
+  type ComfySshStatus,
+  type ComfySshTestReply,
 } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
 import { SecureVaultBanner } from "./SecureVaultBanner";
 
@@ -86,8 +92,30 @@ const emptyDraft: DraftForm = {
   enabled: true,
 };
 
+// SSH 远端连接草稿(11-03 R4):port 用 string 承接输入态(保存时解析 int,
+// 非法回退 22);密钥路径留空=后端自动探测(Q2:复用现有免密 key);隧道
+// 默认开(Q3 裁定)。
+interface SshDraftForm {
+  host: string;
+  port: string;
+  user: string;
+  keyPath: string;
+  tunnelEnabled: boolean;
+}
+
+const emptySshDraft: SshDraftForm = { host: "", port: "22", user: "", keyPath: "", tunnelEnabled: true };
+
+/** 从引擎 URL 提取 hostname(R1 默认值注入:host 空 → 预填,与引擎地址行同源)。 */
+function engineHostnameOf(url: string): string {
+  try {
+    return new URL(url).hostname || "";
+  } catch {
+    return "";
+  }
+}
+
 const COLLAPSED_STORAGE_KEY = "mystudio.settings.mcp.collapsedSections";
-type SectionId = "bridge" | "remote-engine" | "family" | "workflows" | "servers" | "json";
+type SectionId = "bridge" | "remote-engine" | "ssh-remote" | "family" | "workflows" | "servers" | "json";
 type PillState = "ready" | "needs-runtime" | "neutral";
 
 const PILL_LABELS: Record<PillState, string> = {
@@ -222,6 +250,17 @@ export function McpSettingsTab() {
   const [remoteTest, setRemoteTest] = useState<
     { status: "idle" } | { status: "ok"; text: string } | { status: "error"; message: string }
   >({ status: "idle" });
+  // ── SSH 远端连接(11-03-sidecar-ssh-module R4):远端信任自动化配置区状态 ──
+  const [sshStatus, setSshStatus] = useState<ComfySshStatus | null>(null);
+  const [sshDraft, setSshDraft] = useState<SshDraftForm>(emptySshDraft);
+  const [sshSaving, setSshSaving] = useState(false);
+  const [sshTesting, setSshTesting] = useState(false);
+  const [sshRefreshing, setSshRefreshing] = useState(false);
+  const [sshTest, setSshTest] = useState<
+    { status: "idle" } | { status: "ok"; reply: ComfySshTestReply } | { status: "error"; message: string }
+  >({ status: "idle" });
+  // 「立即刷新令牌」结果行(null=未操作;ok 决定着色)
+  const [sshTokenMsg, setSshTokenMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState<string | null>(null);
 
@@ -273,6 +312,30 @@ export function McpSettingsTab() {
       })
       .catch(() => {
         /* sidecar 未运行/端点不可达:保持空态,保存时会给出大白话 */
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // SSH 远端连接状态回显(11-03 R4):sidecar 未运行/老 sidecar 无 SSH 路由
+  // (404 同族)时静默空态——照远程引擎行范式,首开设置页不弹错。status 只带
+  // host/user/tunnelEnabled 回显(port/keyPath 待保存回执全量补齐,后端契约)。
+  useEffect(() => {
+    let cancelled = false;
+    getComfySshStatus()
+      .then((status) => {
+        if (cancelled) return;
+        setSshStatus(status);
+        setSshDraft((prev) => ({
+          ...prev,
+          host: status.host || prev.host,
+          user: status.user || prev.user,
+          // ?? 兜底:老 sidecar/异常回执缺键时不把 undefined 写进草稿
+          // (Switch checked 失控告警防线)
+          tunnelEnabled: status.tunnelEnabled ?? prev.tunnelEnabled,
+        }));
+      })
+      .catch(() => {
+        /* 保持空态(徽章=未配置),操作时会给出大白话 */
       });
     return () => { cancelled = true; };
   }, []);
@@ -398,6 +461,137 @@ export function McpSettingsTab() {
       setRemoteSaving(false);
     }
   };
+
+  // ── SSH 远端连接(11-03-sidecar-ssh-module R4)三动作:保存/测试连接/立即刷新令牌 ──
+  // 保存:POST /comfy/ssh/config;host 空 → 预填远端引擎 URL 的 hostname(R1
+  // 默认值注入,与引擎地址行同源:已存引擎地址优先,引擎地址行草稿兜底;后端
+  // save_config 同款预填双保险)。回执=完整落盘配置,据此回填草稿(port/keyPath
+  // status 不回显,保存回执是往返真源)。
+  const saveSshConfig = async () => {
+    setSshSaving(true);
+    setSshTest({ status: "idle" });
+    try {
+      let host = sshDraft.host.trim();
+      if (!host) {
+        const engineUrl =
+          normalizeEngineUrl(remoteEngine?.url ?? "") || normalizeEngineUrl(remoteDraft);
+        host = engineHostnameOf(engineUrl);
+        if (host) setSshDraft((prev) => ({ ...prev, host }));
+      }
+      const port = Number.parseInt(sshDraft.port.trim(), 10);
+      const saved = await setComfySshConfig({
+        host,
+        port: Number.isFinite(port) && port > 0 ? port : 22,
+        user: sshDraft.user.trim(),
+        keyPath: sshDraft.keyPath.trim(),
+        tunnelEnabled: sshDraft.tunnelEnabled,
+      });
+      setSshDraft({
+        host: saved.host ?? "",
+        port: saved.port != null ? String(saved.port) : "22",
+        user: saved.user ?? "",
+        keyPath: saved.keyPath ?? "",
+        tunnelEnabled: saved.tunnelEnabled ?? true,
+      });
+      toast.success("SSH 配置已保存");
+      // 保存后回读状态刷新徽章(照引擎地址行保存即回读范式;回读失败不覆盖保存成功)
+      try {
+        setSshStatus(await getComfySshStatus());
+      } catch {
+        /* 状态回读失败不影响保存结果 */
+      }
+    } catch (error) {
+      const message = isSidecarDownError(error)
+        ? SIDECAR_DOWN_GUIDANCE
+        : error instanceof Error
+          ? error.message
+          : "保存失败";
+      setSshTest({ status: "error", message });
+      toast.error(message);
+    } finally {
+      setSshSaving(false);
+    }
+  };
+
+  // 测试连接(POST /comfy/ssh/test,仅测不存):回执四件——登录用户/服务器版本
+  // (SSHServer banner)/令牌读取结果(len 掩码,内容永不回显)/隧道探活。
+  // 失败态带 reason(needs-runtime/not-configured/disconnected)+message。
+  const testSshConnection = async () => {
+    setSshTesting(true);
+    setSshTest({ status: "idle" });
+    try {
+      const reply = await testComfySshConnection();
+      setSshTest({ status: "ok", reply });
+    } catch (error) {
+      const message = isSidecarDownError(error)
+        ? SIDECAR_DOWN_GUIDANCE
+        : error instanceof Error
+          ? error.message
+          : "测试失败";
+      setSshTest({ status: "error", message });
+    } finally {
+      setSshTesting(false);
+    }
+  };
+
+  // 立即刷新令牌(POST /comfy/ssh/token-refresh):SFTP 自动重取远端
+  // controlToken(R2 病根根治的手动触发点);回执 ok+tokenRefreshedAt(epoch 秒)。
+  const refreshSshTokenNow = async () => {
+    setSshRefreshing(true);
+    setSshTokenMsg(null);
+    try {
+      const reply = await refreshComfySshToken();
+      if (reply.ok) {
+        const at = typeof reply.tokenRefreshedAt === "number" ? reply.tokenRefreshedAt : null;
+        setSshTokenMsg({
+          ok: true,
+          text: `令牌已刷新${at ? `(${new Date(at * 1000).toLocaleTimeString()})` : ""}`,
+        });
+      } else {
+        setSshTokenMsg({
+          ok: false,
+          text: "令牌刷新失败(SSH 未连接,或令牌真源路径均未取到有效令牌)——可先「测试连接」看四项回执定位",
+        });
+      }
+    } catch (error) {
+      setSshTokenMsg({
+        ok: false,
+        text: isSidecarDownError(error)
+          ? SIDECAR_DOWN_GUIDANCE
+          : error instanceof Error
+            ? error.message
+            : "刷新失败",
+      });
+    } finally {
+      setSshRefreshing(false);
+    }
+  };
+
+  // needs-runtime(C3):status.available=false(paramiko 未装)或测试回执点名
+  // needs-runtime——提示去 Python 运行环境页,徽章仍按连接态展示(fail-open)。
+  const sshNeedsRuntime =
+    sshStatus?.available === false ||
+    (sshTest.status === "ok" && sshTest.reply.reason === "needs-runtime");
+
+  // 徽章三态(R4):未配置/已连接✓/断开✗(断开含 lastError 行);needs-runtime
+  // 是正交提示(paramiko 未装时徽章仍按连接态展示,C3 fail-open 不拦操作)。
+  const sshBadge = !sshStatus?.configured
+    ? {
+        state: "unconfigured",
+        label: "未配置",
+        className: "border-border bg-muted/50 text-muted-foreground",
+      }
+    : sshStatus.connected
+      ? {
+          state: "connected",
+          label: "已连接 ✓",
+          className: "border-success/40 bg-success/10 text-success",
+        }
+      : {
+          state: "disconnected",
+          label: "断开 ✗",
+          className: "border-destructive/40 bg-destructive/10 text-destructive",
+        };
 
   // ── 引擎地址常用条目(11-02-engine-address-presets)──
   const enginePresets = useEnginePresetsStore((s) => s.presets);
@@ -781,6 +975,195 @@ export function McpSettingsTab() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+          </div>
+        </McpRow>
+
+        {/* ── SSH 远端连接(11-03-sidecar-ssh-module R4):远端信任自动化 ── */}
+        <McpRow
+          sectionId="ssh-remote"
+          icon={Terminal}
+          title="SSH 远端连接（远端信任自动化）"
+          pill={
+            sshNeedsRuntime
+              ? "needs-runtime"
+              : sshStatus?.connected
+                ? "ready"
+                : "neutral"
+          }
+          collapsed={collapsedSections.has("ssh-remote")}
+          onToggle={toggleSectionCollapsed}
+        >
+          <div className="space-y-3 px-5 py-3" data-testid="ssh-remote-section">
+            {/* C3:依赖未装(paramiko 缺失)→ 指路 Python 运行环境页(本地配置) */}
+            {sshNeedsRuntime && (
+              <p className="text-xs leading-5 text-warning" data-testid="ssh-needs-runtime">
+                SSH 依赖未安装（paramiko 缺失）：请在 设置→本地配置 →「Python 运行环境」完成准备后再使用 SSH 功能。
+              </p>
+            )}
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="ssh-host">主机</Label>
+                <Input
+                  id="ssh-host"
+                  value={sshDraft.host}
+                  onChange={(e) => setSshDraft((prev) => ({ ...prev, host: e.target.value }))}
+                  placeholder="留空保存时自动取远端引擎地址的主机名"
+                  data-testid="ssh-host"
+                  spellCheck={false}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ssh-port">端口</Label>
+                <Input
+                  id="ssh-port"
+                  value={sshDraft.port}
+                  onChange={(e) => setSshDraft((prev) => ({ ...prev, port: e.target.value }))}
+                  placeholder="22"
+                  inputMode="numeric"
+                  className="w-28"
+                  data-testid="ssh-port"
+                  spellCheck={false}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ssh-user">用户</Label>
+                <Input
+                  id="ssh-user"
+                  value={sshDraft.user}
+                  onChange={(e) => setSshDraft((prev) => ({ ...prev, user: e.target.value }))}
+                  placeholder="例如：zbj"
+                  data-testid="ssh-user"
+                  spellCheck={false}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ssh-key-path">密钥路径</Label>
+                <Input
+                  id="ssh-key-path"
+                  value={sshDraft.keyPath}
+                  onChange={(e) => setSshDraft((prev) => ({ ...prev, keyPath: e.target.value }))}
+                  placeholder="留空=自动探测 ~/.ssh/id_ed25519 → id_ecdsa → id_rsa"
+                  data-testid="ssh-key-path"
+                  spellCheck={false}
+                />
+              </div>
+            </div>
+            <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+              <div className="min-w-0">
+                <div className="text-sm font-medium">SSH 隧道加密通道</div>
+                <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                  开启后远端代理流量默认走本地隧道口（17596 起，被占自动避让）；隧道断开自动回落直连。Windows 侧最终可关局域网监听，仅留隧道入口。
+                </div>
+              </div>
+              <label
+                className="flex shrink-0 cursor-pointer items-center gap-2 text-sm text-muted-foreground"
+                title="开启后远端 sidecar 代理走 SSH 隧道加密通道"
+              >
+                <Switch
+                  checked={sshDraft.tunnelEnabled}
+                  onCheckedChange={(checked) => setSshDraft((prev) => ({ ...prev, tunnelEnabled: checked === true }))}
+                  aria-label="SSH 隧道加密通道"
+                />
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={cn(
+                  "shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium",
+                  sshBadge.className,
+                )}
+                data-testid="ssh-badge"
+                data-state={sshBadge.state}
+              >
+                {sshBadge.label}
+              </span>
+              {sshStatus?.configured && !sshStatus.connected && sshStatus.lastError && (
+                <span
+                  className="min-w-0 max-w-[280px] truncate text-xs text-destructive"
+                  data-testid="ssh-last-error"
+                  title={sshStatus.lastError}
+                >
+                  {sshStatus.lastError}
+                </span>
+              )}
+              <span className="flex-1" />
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0"
+                onClick={() => void testSshConnection()}
+                disabled={sshTesting || sshSaving}
+                data-testid="ssh-test"
+              >
+                {sshTesting ? "测试中…" : "测试连接"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0"
+                onClick={() => void refreshSshTokenNow()}
+                disabled={sshRefreshing}
+                data-testid="ssh-token-refresh"
+              >
+                {sshRefreshing ? "刷新中…" : "立即刷新令牌"}
+              </Button>
+              <Button
+                size="sm"
+                className="shrink-0"
+                onClick={() => void saveSshConfig()}
+                disabled={sshSaving || sshTesting}
+                data-testid="ssh-save"
+              >
+                {sshSaving ? "保存中…" : "保存"}
+              </Button>
+            </div>
+            {sshTest.status === "ok" && (
+              <div
+                className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5 text-xs leading-5"
+                data-testid="ssh-test-result"
+              >
+                {sshTest.reply.ok ? (
+                  <>
+                    <div>登录用户：{sshTest.reply.user || "—"}</div>
+                    <div>服务器版本：{sshTest.reply.serverVersion || "—"}</div>
+                    <div data-testid="ssh-test-token">
+                      令牌读取结果：
+                      {sshTest.reply.token
+                        ? sshTest.reply.token.ok
+                          ? `已读取（长度 ${sshTest.reply.token.length ?? "未知"}，内容掩码不回显）`
+                          : sshTest.reply.token.length != null
+                            ? `读取到令牌但格式校验未过（长度 ${sshTest.reply.token.length}）`
+                            : "未取到有效令牌（真源路径均 miss）"
+                        : "未执行"}
+                    </div>
+                    <div data-testid="ssh-test-tunnel">
+                      隧道探活：
+                      {sshTest.reply.tunnel
+                        ? sshTest.reply.tunnel.active
+                          ? `通（本地口 ${sshTest.reply.tunnel.localPort ?? "—"}）`
+                          : "未活（未启用或远端不可达）"
+                        : "未执行"}
+                    </div>
+                  </>
+                ) : (
+                  // 失败态:reason+message(needs-runtime 已由上方提示行承接,此处原样透出)
+                  <div className="text-destructive" data-testid="ssh-test-error-line">
+                    {sshTest.reply.message || `测试失败（${sshTest.reply.reason ?? "未知原因"}）`}
+                  </div>
+                )}
+              </div>
+            )}
+            {sshTest.status === "error" && (
+              <p className="text-xs text-destructive" data-testid="ssh-error">{sshTest.message}</p>
+            )}
+            {sshTokenMsg && (
+              <p
+                className={cn("text-xs", sshTokenMsg.ok ? "text-success" : "text-destructive")}
+                data-testid="ssh-token-result"
+              >
+                {sshTokenMsg.text}
+              </p>
+            )}
           </div>
         </McpRow>
 

@@ -109,9 +109,48 @@ def _get_progress(model_name: str) -> dict:
 REMOTE_SIDECAR_PORT = 17595
 
 
-def _remote_sidecar_base_url() -> str | None:
-    """远端 sidecar 基址(http://<远端引擎主机>:17595)。
+# ── 11-03 SSH 模块接入(S1/S2;tasks/11-03-sidecar-ssh-module)─────────
+# 远端信任自动化:paramiko 同步客户端(remote_ssh 包)+ 隧道加密通道 + 令牌
+# 自愈。fail-open:remote_ssh 包本体零三方依赖,paramiko 惰性导入,未装
+# (needs-runtime)时一切入口只降级,sidecar 照常起、令牌链回落文件/env。
 
+
+def _ssh_service():
+    """SSH 服务单例惰性入口;remote_ssh 不可 import(异常环境)=None 降级。"""
+    try:
+        from remote_ssh.service import ssh_service
+
+        return ssh_service()
+    except Exception:  # noqa: BLE001 — SSH 永不拦 sidecar(fail-open)
+        return None
+
+
+def _ssh_bootstrap() -> None:
+    """启动钩子(R5):惰性起 SSH 服务——有 ssh 配置或远端引擎在才连。
+
+    start() 内部自判:host 空=未配置不连;paramiko 未装=打印一行不连
+    (fail-open)。任何失败只打日志,绝不阻断 sidecar 启动。
+    """
+    try:
+        from engines.image_engine.comfyui_bridge import remote_engine_url_from_settings
+        from remote_ssh import config as ssh_config
+        from remote_ssh.service import ssh_service
+
+        cfg = ssh_config.load_config()
+        if cfg.get("host") or remote_engine_url_from_settings():
+            ssh_service().start()
+    except Exception as exc:  # noqa: BLE001 — fail-open 到现状
+        print(f"[image-sidecar] SSH 服务未启动(继续无 SSH 运行): {exc}", flush=True)
+
+
+def _remote_sidecar_base_url() -> str | None:
+    """远端 sidecar 基址(11-03 R3 隧道优先)。
+
+    ① SSH 隧道活 → http://127.0.0.1:{隧道口}(加密通道;终局 Windows
+    allowLanListen 可关、sidecar 回归仅本机监听时仍通);
+    ② 隧道未活(未配置/断开/依赖未装)→ 现行直连路径零迁移
+    (http://<远端引擎主机>:17595);两路终到同一远端 sidecar,断开期间
+    自动回落直连不静默错位(C2)。
     未配远端引擎(remote_engine_url_from_settings() 无值)=None → 调用方走
     本机现行为(零迁移)。URL 无主机名(手工编辑坏档,写入口有校验)同判未配。
     """
@@ -120,6 +159,9 @@ def _remote_sidecar_base_url() -> str | None:
     engine_url = remote_engine_url_from_settings()
     if not engine_url:
         return None
+    svc = _ssh_service()
+    if svc is not None and svc.tunnel_active():
+        return f"http://127.0.0.1:{svc.tunnel_local_port()}"
     host = urlparse(engine_url).hostname
     if not host:
         return None
@@ -265,6 +307,9 @@ class Handler(BaseHTTPRequestHandler):
         11-02 S4 复核修:①携带凭据(装机令牌双机各异,见 _remote_sidecar_credentials);
         ②HTTPError 与不可达分报——远端 401/403=鉴权失败(服务在跑),不再被
         URLError 兜底误诊成 502「未运行或不可达」。
+        11-03 R2②:403 → SSH SFTP 自动重取远端令牌(15s 超时)→ 重试一次;
+        刷新失败/重试仍 403 = 诚实 403 文案(不循环,C8)。SSH 未配置/依赖
+        未装 = 不触发自愈,保持 11-03 S4 行为(fail-open)。
         """
         import urllib.request
         from urllib.parse import urlencode
@@ -278,6 +323,8 @@ class Handler(BaseHTTPRequestHandler):
                 reply = json.loads(resp.read().decode("utf-8", "replace"))
         except urllib_error.HTTPError as exc:
             if exc.code in (401, 403):
+                if self._retry_remote_get_with_refreshed_token(target):
+                    return  # 自愈重试已应答(无论成败)
                 self._send_error_json(
                     HTTPStatus.FORBIDDEN,
                     "远端引擎管理服务鉴权失败(令牌未配或不一致):Windows 侧 MYStudio App "
@@ -301,6 +348,44 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
         self._send_json(reply)
+
+    def _retry_remote_get_with_refreshed_token(self, target: str) -> bool:
+        """403 令牌自愈重试(11-03 R2②):同步 refresh_remote_token(15s 超时)
+        成功才用**新凭据**重发一次。
+
+        返回 True=本次请求已应答(重试成功透传,或重试中网络面错误已按原口径
+        分报);False=未应答(刷新失败/未配置/重试仍 403),交回调用方发诚实
+        403 文案——单次重试不循环(C8)。
+        """
+        import urllib.request
+
+        svc = _ssh_service()
+        if svc is None or not svc.available():
+            return False  # SSH 不可用:不触发自愈(保持 11-03 S4 行为)
+        if not svc.refresh_remote_token(timeout_s=15):
+            return False  # 刷新失败(未连接/双 miss/正则拒/超时):交回 403 文案
+        request = urllib.request.Request(target, headers=self._remote_sidecar_credentials())
+        try:
+            with urllib.request.urlopen(request, timeout=10) as resp:
+                reply = json.loads(resp.read().decode("utf-8", "replace"))
+        except urllib_error.HTTPError as exc:
+            if exc.code in (401, 403):
+                return False  # 新令牌仍被拒:交回外层诚实 403 文案(不循环)
+            self._send_error_json(
+                HTTPStatus.BAD_GATEWAY,
+                f"远端引擎管理服务应答异常(HTTP {exc.code});请检查 Windows 侧 MYStudio App",
+                "remote-sidecar-error",
+            )
+            return True
+        except (OSError, urllib_error.URLError, json.JSONDecodeError) as exc:
+            self._send_error_json(
+                HTTPStatus.BAD_GATEWAY,
+                f"远端引擎管理服务未运行或不可达({exc});请开启 Windows 侧 MYStudio App 后重试",
+                "remote-sidecar-unreachable",
+            )
+            return True
+        self._send_json(reply)
+        return True
 
     def _authorized(self) -> bool:
         token = local_token()
@@ -851,6 +936,40 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"deleted": bridge_inbox.ack(ids=ids), "ackMode": "exact"})
                 return
 
+            # ── SSH 远端信任(11-03 sidecar-ssh-module R5;鉴权同 /comfy 组) ──
+            if method == "GET" and path == "/comfy/ssh/status":
+                svc = _ssh_service()
+                self._send_json(
+                    svc.status() if svc is not None else {"available": False, "configured": False, "connected": False, "lastError": "remote_ssh 模块不可用"}
+                )
+                return
+            if method == "POST" and path == "/comfy/ssh/config":
+                # 设置页 SSH 配置保存(host 空时预填远端引擎 hostname;写后
+                # 触发 service 热重载)。空 host 可清配置(=未配置态)。
+                from remote_ssh import config as ssh_config
+
+                try:
+                    self._send_json(ssh_config.save_config(payload))
+                except ValueError as exc:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, str(exc), "ssh-config-invalid")
+                return
+            if method == "POST" and path == "/comfy/ssh/test":
+                # R4「测试连接」:登录用户/服务器版本/令牌读取(len 掩码)/隧道探活
+                svc = _ssh_service()
+                self._send_json(
+                    svc.test_connection() if svc is not None else {"ok": False, "reason": "unavailable", "message": "remote_ssh 模块不可用"}
+                )
+                return
+            if method == "POST" and path == "/comfy/ssh/token-refresh":
+                # R2③ 设置页手动「立即刷新令牌」(SFTP 自动重取;15s 超时)
+                svc = _ssh_service()
+                if svc is None:
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "remote_ssh 模块不可用", "ssh-unavailable")
+                    return
+                refreshed = svc.refresh_remote_token(timeout_s=15)
+                self._send_json({"ok": refreshed, "tokenRefreshedAt": svc.status().get("tokenRefreshedAt")})
+                return
+
             if method == "GET" and path == "/comfy/engine/snapshots":
                 self._send_json(engine_manager().list_snapshots())
                 return
@@ -1155,6 +1274,9 @@ def run(host: str = "127.0.0.1", port: int = 17595) -> None:
         target=lambda: server.serve_forever(poll_interval=0.1),
         name="image-sidecar-http", daemon=True)
     server_thread.start()
+    # 11-03 R5 启动钩子:daemon 线程惰性起 SSH 服务(有 ssh 配置或远端引擎
+    # 在才连;paramiko 未装=打印一行不连,fail-open 不拦 sidecar)。
+    threading.Thread(target=_ssh_bootstrap, name="remote-ssh-bootstrap", daemon=True).start()
     stop_requested.wait()
     print("[image-sidecar] 收到退出信号,收摊:放端口 → 停引擎 → 释放锁", flush=True)
     _shutdown_sequence(server)

@@ -23,3 +23,16 @@ torch>=2.5.1; sys_platform == "darwin" and platform_machine == "arm64"
 # silero-vad 依赖 torch，所以只在已经声明 torch 的平台装；Intel Mac 无 torch 档，
 # 留空让 QC 侧走 silencedetect 补集并把 speech-integrity 记 unverified，而不是为它多拉一份 torch。
 silero-vad==6.2.3; sys_platform != "darwin" or platform_machine == "arm64"
+
+# ─── 视觉工具件：OpenCV contrib（headless，无 GUI） ───
+# 1102 人脸可判读度 face_qc/worker.py 用 cv2.FaceDetectorYN；image_gen/uncloth_pipeline 还吃
+# contrib 里的 ximgproc.guidedFilter。这两个包此前只靠别人 transitive 带进来，新机器上两条
+# 都会掉进 needs-runtime。只声明 contrib-headless 这一份——它和普通 opencv-python 提供同名
+# cv2 模块，两条并存会互相覆盖。
+opencv-contrib-python-headless>=4.10.0.84
+
+# ─── 远端 SSH 模块（11-03 sidecar-ssh-module）：paramiko 同步客户端 ───
+# 双机信任自动化：SFTP 令牌自愈 + direct-tcpip 隧道（remote_ssh/ 包）。
+# 选型定谳见 tasks/11-03-sidecar-ssh-module/prd.md：asyncssh 在本机 Clash TUN
+# 路径实弹恒死，paramiko 转正；cryptography 随带，双平台 wheel 齐。
+paramiko

@@ -1080,3 +1080,91 @@ export async function probeEngineUrl(url?: string): Promise<ComfyEngineProbe> {
   const suffix = url ? `?url=${encodeURIComponent(url)}` : "";
   return comfySidecarRequest<ComfyEngineProbe>("GET", `/comfy/engine/probe${suffix}`);
 }
+
+// ── SSH 远端连接(11-03-sidecar-ssh-module R4/R5):四请求全走本地 sidecar
+// (127.0.0.1:17595 同源无 CSP 面,照 remote-engine 范式);sidecar 端点见
+// backend remote_ssh 三件 + server.py /comfy/ssh/* 四路由。形状逐键对齐后端
+// `SSHService.status()/test_connection()` 与 `config.save_config()` 实装。 ──
+
+/**
+ * GET /comfy/ssh/status 回执(=backend remote_ssh/service.py status())。
+ * available=false 即 needs-runtime 态(paramiko 惰性导入失败,C3):
+ * UI 据此提示去 Python 运行环境页配置,不阻塞 sidecar。
+ */
+export interface ComfySshStatus {
+  /** paramiko 已装;false=依赖未装(needs-runtime,C3 fail-open)。 */
+  available: boolean;
+  /** host 非空=已配置(ssh-remote.json 在位)。 */
+  configured: boolean;
+  connected: boolean;
+  host: string;
+  user: string;
+  /** SSHServer banner(连接后才有)。 */
+  serverVersion: string | null;
+  lastError: string | null;
+  tunnelEnabled: boolean;
+  tunnelActive: boolean;
+  tunnelLocalPort: number | null;
+  /** epoch 秒(time.time();null=从未刷新)。 */
+  tokenRefreshedAt: number | null;
+}
+
+/** POST /comfy/ssh/config 保存体(R1 config.py 五字段;tokenConfigPaths 后端自管不入 UI)。 */
+export interface ComfySshConfigInput {
+  host: string;
+  port: number;
+  user: string;
+  keyPath: string;
+  tunnelEnabled: boolean;
+}
+
+/** 保存回执 = save_config 返回的完整落盘配置(草稿回显真源,host 空时后端已预填)。 */
+export interface ComfySshConfigReply extends ComfySshConfigInput {
+  tunnelLocalPort: number;
+  tokenConfigPaths: string[];
+}
+
+/** POST /comfy/ssh/test 令牌读取分项(peek_remote_token:len 掩码,内容永不回显)。 */
+export interface ComfySshTokenPeek {
+  ok: boolean;
+  length: number | null;
+  source: string | null;
+}
+
+/**
+ * POST /comfy/ssh/test 回执四件(R4):登录用户(user)/ 服务器版本(banner)/
+ * 令牌读取结果(token,len 掩码)/ 隧道探活(tunnel)。失败态带 reason:
+ * needs-runtime | not-configured | disconnected + message。
+ */
+export interface ComfySshTestReply {
+  ok: boolean;
+  reason?: "needs-runtime" | "not-configured" | "disconnected" | string;
+  message?: string;
+  host?: string;
+  user?: string;
+  serverVersion?: string | null;
+  token?: ComfySshTokenPeek | null;
+  tunnel?: { active: boolean; localPort: number | null } | null;
+}
+
+/** POST /comfy/ssh/token-refresh 回执(R2 `refresh_remote_token()`;失败无附加详情,ok 即全部)。 */
+export interface ComfySshTokenRefreshReply {
+  ok: boolean;
+  tokenRefreshedAt: number | null;
+}
+
+export async function getComfySshStatus(): Promise<ComfySshStatus> {
+  return comfySidecarRequest<ComfySshStatus>("GET", "/comfy/ssh/status");
+}
+
+export async function setComfySshConfig(config: ComfySshConfigInput): Promise<ComfySshConfigReply> {
+  return comfySidecarRequest<ComfySshConfigReply>("POST", "/comfy/ssh/config", { body: config });
+}
+
+export async function testComfySshConnection(): Promise<ComfySshTestReply> {
+  return comfySidecarRequest<ComfySshTestReply>("POST", "/comfy/ssh/test");
+}
+
+export async function refreshComfySshToken(): Promise<ComfySshTokenRefreshReply> {
+  return comfySidecarRequest<ComfySshTokenRefreshReply>("POST", "/comfy/ssh/token-refresh");
+}

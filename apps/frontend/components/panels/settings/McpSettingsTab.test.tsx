@@ -746,3 +746,306 @@ describe("S3 绑定注入(11-02 hub:resolveBoundTemplateForGeneration;收口轮�
     useWorkflowBindingsStore.setState({ t2iWorkflowId: null, i2iWorkflowId: null });
   });
 });
+
+// ── SSH 远端连接(11-03-sidecar-ssh-module R4/S3):四请求全走本地 sidecar
+// (mock fetch,照远程引擎行范式);needs-runtime=paramiko 未装的指路提示。
+// 回执形状逐键对齐后端实装(remote_ssh/service.py status()/test_connection()
+// + config.save_config;server.py /comfy/ssh/* 四路由)。──
+describe("McpSettingsTab·SSH 远端连接(11-03 R4)", () => {
+  // backend SSHService.status() 形状(未配置基线;各测按需覆写字段)
+  const SSH_STATUS_UNCONFIGURED = {
+    available: true,
+    configured: false,
+    connected: false,
+    host: "",
+    user: "",
+    serverVersion: null,
+    lastError: null,
+    tunnelEnabled: true,
+    tunnelActive: false,
+    tunnelLocalPort: null,
+    tokenRefreshedAt: null,
+  };
+  // backend config.save_config 回执=完整落盘配置(保存后草稿回显真源)
+  const SSH_CONFIG_SAVED = {
+    host: "",
+    port: 22,
+    user: "",
+    keyPath: "",
+    tunnelEnabled: true,
+    tunnelLocalPort: 17596,
+    tokenConfigPaths: [],
+  };
+
+  /** 统一 fetch mock:引擎地址回显 + ssh 四路由 + 工作流清单(族行挂载效应)。 */
+  const stubSshFetch = (handlers: {
+    engineRemote?: Record<string, unknown>;
+    sshStatus?: Record<string, unknown>;
+    sshConfigPost?: Record<string, unknown>;
+    sshTest?: Record<string, unknown>;
+    sshTokenRefresh?: Record<string, unknown>;
+  }) => {
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      const u = String(url);
+      if (u.includes("/comfy/engine/remote")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve(
+              handlers.engineRemote ?? { url: null, effective: "http://127.0.0.1:17598", source: "fallback" },
+            ),
+        } as unknown as Response);
+      }
+      if (u.includes("/comfy/ssh/status")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(handlers.sshStatus ?? SSH_STATUS_UNCONFIGURED),
+        } as unknown as Response);
+      }
+      if (u.includes("/comfy/ssh/config") && init?.method === "POST") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(handlers.sshConfigPost ?? SSH_CONFIG_SAVED),
+        } as unknown as Response);
+      }
+      if (u.includes("/comfy/ssh/test") && init?.method === "POST") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(handlers.sshTest ?? { ok: true }),
+        } as unknown as Response);
+      }
+      if (u.includes("/comfy/ssh/token-refresh") && init?.method === "POST") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(handlers.sshTokenRefresh ?? { ok: true, tokenRefreshedAt: null }),
+        } as unknown as Response);
+      }
+      if (u.includes("/comfy/workflows")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ engineOnline: false, workflows: [] }),
+        } as unknown as Response);
+      }
+      return Promise.reject(new Error("unexpected fetch " + u));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  };
+
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    setComfySidecarLivenessProbeForTests(null);
+    localStorage.clear();
+  });
+
+  beforeEach(() => {
+    setComfySidecarLivenessProbeForTests(async () => true);
+    useEnginePresetsStore.setState({ presets: [] });
+    toastMocks.success.mockClear();
+    toastMocks.error.mockClear();
+  });
+
+  it("渲染:四输入+隧道开关(默认开)+徽章「未配置」;开关可翻转", async () => {
+    stubSshFetch({});
+    render(<McpSettingsTab />);
+    expect(screen.getByText("SSH 远端连接（远端信任自动化）")).toBeTruthy();
+    // 四输入在位,端口默认 22,密钥路径空(=自动探测)
+    await waitFor(() => {
+      expect((screen.getByTestId("ssh-host") as HTMLInputElement).value).toBe("");
+    });
+    expect((screen.getByTestId("ssh-port") as HTMLInputElement).value).toBe("22");
+    expect((screen.getByTestId("ssh-user") as HTMLInputElement).value).toBe("");
+    expect((screen.getByTestId("ssh-key-path") as HTMLInputElement).value).toBe("");
+    // 隧道开关默认开(Q3 裁定),点击可翻转(草稿接线)
+    const tunnelSwitch = screen.getByRole("switch", { name: "SSH 隧道加密通道" });
+    expect(tunnelSwitch.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(tunnelSwitch);
+    expect(screen.getByRole("switch", { name: "SSH 隧道加密通道" }).getAttribute("aria-checked")).toBe("false");
+    // 徽章三态之一:未配置
+    const badge = screen.getByTestId("ssh-badge");
+    expect(badge.textContent).toBe("未配置");
+    expect(badge.getAttribute("data-state")).toBe("unconfigured");
+    expect(screen.queryByTestId("ssh-needs-runtime")).toBeNull();
+  });
+
+  it("保存流:host 空→预填远端引擎 URL 的 hostname;POST /comfy/ssh/config 携五字段;回执回填草稿", async () => {
+    const fetchMock = stubSshFetch({
+      engineRemote: {
+        url: "http://192.168.0.101:17000",
+        effective: "http://192.168.0.101:17000",
+        source: "settings",
+      },
+      sshStatus: SSH_STATUS_UNCONFIGURED,
+      sshConfigPost: {
+        ...SSH_CONFIG_SAVED,
+        host: "192.168.0.101",
+        port: 2222,
+        user: "zbj",
+        keyPath: "/Users/zbj/.ssh/id_ed25519",
+      },
+    });
+    render(<McpSettingsTab />);
+    // 等引擎地址回显落位(保存预填读 remoteEngine.url,与引擎地址行同源)
+    await waitFor(() => {
+      expect((screen.getByTestId("remote-engine-url") as HTMLInputElement).value).toBe(
+        "http://192.168.0.101:17000",
+      );
+    });
+    fireEvent.change(screen.getByTestId("ssh-user"), { target: { value: "zbj" } });
+    fireEvent.change(screen.getByTestId("ssh-port"), { target: { value: "2222" } });
+    fireEvent.change(screen.getByTestId("ssh-key-path"), { target: { value: "/Users/zbj/.ssh/id_ed25519" } });
+    // host 留空 → 保存时应预填引擎 hostname
+    fireEvent.click(screen.getByTestId("ssh-save"));
+    await waitFor(() => {
+      const post = fetchMock.mock.calls.find(
+        (c) => String(c[0]).includes("/comfy/ssh/config") && c[1]?.method === "POST",
+      );
+      expect(post).toBeTruthy();
+      const body = JSON.parse(String(post?.[1]?.body)) as Record<string, unknown>;
+      expect(body).toEqual({
+        host: "192.168.0.101",
+        port: 2222,
+        user: "zbj",
+        keyPath: "/Users/zbj/.ssh/id_ed25519",
+        tunnelEnabled: true,
+      });
+    });
+    // 预填+保存回执同步回输入框(用户看得见存了什么;回执=落盘真源)
+    await waitFor(() => {
+      expect((screen.getByTestId("ssh-host") as HTMLInputElement).value).toBe("192.168.0.101");
+    });
+    expect((screen.getByTestId("ssh-port") as HTMLInputElement).value).toBe("2222");
+    expect((screen.getByTestId("ssh-key-path") as HTMLInputElement).value).toBe("/Users/zbj/.ssh/id_ed25519");
+    expect(toastMocks.success).toHaveBeenCalledWith("SSH 配置已保存");
+    // 保存后回读 status 刷新徽章(mock 恒未配置——回读链不炸即可)
+    expect(screen.getByTestId("ssh-badge").textContent).toBe("未配置");
+  });
+
+  it("测试连接回执渲染四件:登录用户/服务器版本/令牌读取(len 掩码)/隧道探活", async () => {
+    stubSshFetch({
+      sshStatus: { ...SSH_STATUS_UNCONFIGURED, configured: true, connected: true, host: "192.168.0.101", user: "zbj" },
+      sshTest: {
+        ok: true,
+        user: "zbj",
+        serverVersion: "OpenSSH_for_Windows_8.9",
+        token: { ok: true, length: 24, source: "E:/IP/漫影工作室/python/profiles/image-gen/config.json" },
+        tunnel: { active: true, localPort: 17596 },
+      },
+    });
+    render(<McpSettingsTab />);
+    fireEvent.click(screen.getByTestId("ssh-test"));
+    await waitFor(() => {
+      expect(screen.getByTestId("ssh-test-result").textContent).toContain("登录用户：zbj");
+    });
+    expect(screen.getByTestId("ssh-test-result").textContent).toContain(
+      "服务器版本：OpenSSH_for_Windows_8.9",
+    );
+    // 令牌 len 掩码:只显长度,内容永不回显(source 路径可见但令牌本体绝不出现)
+    expect(screen.getByTestId("ssh-test-token").textContent).toContain("长度 24");
+    expect(screen.getByTestId("ssh-test-token").textContent).toContain("掩码");
+    expect(screen.getByTestId("ssh-test-tunnel").textContent).toContain("17596");
+  });
+
+  it("测试连接失败态:断开时透出 reason/message大白话(不炸不空)", async () => {
+    stubSshFetch({
+      sshStatus: { ...SSH_STATUS_UNCONFIGURED, configured: true, connected: false, host: "192.168.0.101" },
+      sshTest: {
+        ok: false,
+        reason: "disconnected",
+        host: "192.168.0.101",
+        message: "SSH 未连接(keeper 重连中)",
+      },
+    });
+    render(<McpSettingsTab />);
+    fireEvent.click(screen.getByTestId("ssh-test"));
+    await waitFor(() => {
+      expect(screen.getByTestId("ssh-test-error-line").textContent).toContain("SSH 未连接");
+    });
+    expect(screen.queryByTestId("ssh-needs-runtime")).toBeNull();
+  });
+
+  it("徽章三态:已连接✓ / 断开✗含 lastError", async () => {
+    stubSshFetch({
+      sshStatus: { ...SSH_STATUS_UNCONFIGURED, configured: true, connected: true, host: "192.168.0.101", user: "zbj" },
+    });
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("ssh-badge").getAttribute("data-state")).toBe("connected");
+    });
+    expect(screen.getByTestId("ssh-badge").textContent).toBe("已连接 ✓");
+    expect(screen.queryByTestId("ssh-last-error")).toBeNull();
+    // 断开态:徽章✗红 + lastError 行
+    cleanup();
+    stubSshFetch({
+      sshStatus: {
+        ...SSH_STATUS_UNCONFIGURED,
+        configured: true,
+        connected: false,
+        host: "192.168.0.101",
+        lastError: "Authentication failed (publickey)",
+      },
+    });
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("ssh-badge").getAttribute("data-state")).toBe("disconnected");
+    });
+    expect(screen.getByTestId("ssh-badge").textContent).toBe("断开 ✗");
+    expect(screen.getByTestId("ssh-last-error").textContent).toContain("Authentication failed");
+  });
+
+  it("needs-runtime:paramiko 未装→提示去 Python 运行环境页;测试回执同族也点亮提示", async () => {
+    stubSshFetch({
+      sshStatus: { ...SSH_STATUS_UNCONFIGURED, available: false },
+      sshTest: {
+        ok: false,
+        reason: "needs-runtime",
+        message: "paramiko 未安装:请在设置的 Python 运行环境页完成依赖配置后重试",
+      },
+    });
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("ssh-needs-runtime").textContent).toContain("paramiko");
+    });
+    expect(screen.getByTestId("ssh-needs-runtime").textContent).toContain("Python 运行环境");
+    // fail-open:徽章仍按连接态展示(此处=未配置),不拦操作
+    expect(screen.getByTestId("ssh-badge").textContent).toBe("未配置");
+    // 点「测试连接」:回执 needs-runtime 透出大白话 message
+    fireEvent.click(screen.getByTestId("ssh-test"));
+    await waitFor(() => {
+      expect(screen.getByTestId("ssh-test-error-line").textContent).toContain("paramiko 未安装");
+    });
+    expect(screen.getByTestId("ssh-test-error-line").textContent).toContain("Python 运行环境");
+  });
+
+  it("立即刷新令牌:成功给时间文案;失败给定位指引", async () => {
+    stubSshFetch({
+      sshStatus: { ...SSH_STATUS_UNCONFIGURED, configured: true, connected: true },
+      sshTokenRefresh: { ok: true, tokenRefreshedAt: 1761234567 },
+    });
+    render(<McpSettingsTab />);
+    fireEvent.click(screen.getByTestId("ssh-token-refresh"));
+    await waitFor(() => {
+      expect(screen.getByTestId("ssh-token-result").textContent).toContain("令牌已刷新");
+    });
+    // 失败分支:ok=false→定位指引(后端失败态无附加详情,ok 即全部)
+    cleanup();
+    stubSshFetch({
+      sshStatus: { ...SSH_STATUS_UNCONFIGURED, configured: true, connected: false },
+      sshTokenRefresh: { ok: false, tokenRefreshedAt: null },
+    });
+    render(<McpSettingsTab />);
+    fireEvent.click(screen.getByTestId("ssh-token-refresh"));
+    await waitFor(() => {
+      expect(screen.getByTestId("ssh-token-result").textContent).toContain("令牌刷新失败");
+    });
+    expect(screen.getByTestId("ssh-token-result").textContent).toContain("测试连接");
+  });
+});

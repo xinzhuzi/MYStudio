@@ -29,6 +29,35 @@ class RequirementsContractTests(unittest.TestCase):
             'sys_platform != "darwin" or platform_machine == "arm64"',
         )
 
+    def test_face_qc_opencv_is_declared_exactly_once(self):
+        lines = [
+            line.strip()
+            for line in (Path(__file__).parents[1] / "requirements.txt").read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+        names = [
+            line.split(";", 1)[0].split("[", 1)[0].split("=", 1)[0].split(">", 1)[0].strip()
+            for line in lines
+        ]
+        # 1102 人脸可判读度(face_qc/worker.py)与 uncloth 的 ximgproc 都吃 contrib-headless;
+        # 普通 opencv-python 提供同名 cv2 模块,两份并存会在 site-packages 里互相覆盖。
+        self.assertEqual(names.count("opencv-contrib-python-headless"), 1, names)
+        self.assertNotIn("opencv-python", names)
+
+    def test_remote_ssh_paramiko_is_declared_exactly_once(self):
+        lines = [
+            line.strip()
+            for line in (Path(__file__).parents[1] / "requirements.txt").read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+        names = [
+            line.split(";", 1)[0].split("[", 1)[0].split("=", 1)[0].split(">", 1)[0].strip()
+            for line in lines
+        ]
+        # 1103 远端 SSH 模块(remote_ssh/)的同步客户端;恰一条(重复声明会让
+        # 装机链 .deps-hash 口径漂移)。无平台标记:双机(macOS/Windows)同清单。
+        self.assertEqual(names.count("paramiko"), 1, names)
+
 
 if __name__ == "__main__":
     unittest.main()
