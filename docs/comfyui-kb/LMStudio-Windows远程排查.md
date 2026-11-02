@@ -85,7 +85,7 @@ ssh -o BatchMode=yes zbj@192.168.0.101 "tasklist | findstr /i \"studio\""       
 
 **2026-11-02 用户终裁:LM Studio 不能由脚本周期性拉起——在用的时候,由本项目拉起来。** 1007 立的常驻保活链(看门狗每 5 分钟翻案+开机自启)整体退役:
 
-- **已拆除(三计划任务)**:`LMStudio-Watchdog`(每 5 分钟四查四救)、`LMStudio-LAN-Server`(登录自启 `lms server start`)、`lmsapp2`(历史遗留)。远端脚本留档 `C:\Users\ZBJ\.lmstudio\lmstudio-watchdog.ps1.retired-1102`;部署器 `line-mode-actor-deploy.py` 每次装机主动核账删除三任务(幂等防复燃);引擎侧自愈步 `_step_watchdog` 与 actor 的 watchdog 动作同步 no-op 退役。
+- **已拆除(三计划任务)**:`LMStudio-Watchdog`(每 5 分钟四查四救)、`LMStudio-LAN-Server`(登录自启 `lms server start`)、`lmsapp2`(历史遗留)。远端 `.lmstudio` 内看门狗全套文件(含临时留档 `.retired-1102`)亦已于当日清空——**唯一档案=仓库 git 历史**(1007 版 `apps/build/scripts/win/lmstudio-watchdog.ps1`);部署器 `line-mode-actor-deploy.py` 每次装机主动核账删除三任务(幂等防复燃);引擎侧自愈步 `_step_watchdog` 与 actor 的 watchdog 动作同步 no-op 退役。
 - **现行机制:节点按需拉起**(`my_qi21_api_pe._ensure_lm_service`):扩写开关开的 [4013] MyQi21ApiPE 执行时发前 3s 探活,不通且目标是本机 Windows → 节点内 subprocess 拉 `lms server start --bind 0.0.0.0`(≤120s 等 greeting)→ 无装载则 `lms load --gpu max --parallel 1 -c 32768 -y 9B`(≤300s,与退役看门狗同一配方)→ 复探发请求。**拉不起/非本机(云端、Mac)→跳过换目标,全挂透传三层装配(恒有输出)——不卡产线。**
 - **新语义注意**:服务平时不在=**正常状态不是故障**;首次扩写要现场拉起最长 ~7 分钟(该等待进的是真实需要它的那一发)。用完不自动关——LM Studio 自身 TTL 1h 闲置自动卸载模型(显存自然还),服务进程留下次复用;**想长时间关闭随时手动关,退役后无人翻案**。
 - 遗留风险(可接受):看门狗救③(防火墙程序级 Block 规则自动禁用)随之退役——Block 冒头(授权框被取消时生成,低频)时按需拉起会失败并降级透传,日志指路本档,手动 `Disable-NetFirewallRule -DisplayName 'LM Studio'` 即恢复。
