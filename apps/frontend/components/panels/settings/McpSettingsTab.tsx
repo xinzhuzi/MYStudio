@@ -295,6 +295,48 @@ export function McpSettingsTab() {
   // 「暂未探活成功」误报);②直连生效引擎 /system_stats(引擎原生 API,
   // 不走 controller)拿 comfyui_version+devices[0].name。两步都通=全绿;
   // ①通②不通=已生效但引擎未启动的诚实降级;失败走既有 error 文案。
+  // 测试连接(仅探活不保存,11-02 用户令):直连输入框地址(空则当前生效地址)的
+  // /system_stats;与 MCP 服务器卡片「测试连接」同范式;结果共用 remoteTest 展示位。
+  const [remoteProbing, setRemoteProbing] = useState(false);
+  const testRemoteConnection = async () => {
+    const base =
+      remoteDraft.trim().replace(/\/+$/, "") ||
+      (remoteEngine?.effective ?? "").replace(/\/+$/, "");
+    if (!/^https?:\/\//.test(base)) {
+      setRemoteTest({
+        status: "error",
+        message: "引擎地址须为 http(s)://主机[:端口] 形态(如 http://192.168.0.101:17000)",
+      });
+      return;
+    }
+    setRemoteProbing(true);
+    setRemoteTest({ status: "idle" });
+    try {
+      const stats = (await fetch(`${base}/system_stats`, {
+        signal: AbortSignal.timeout(10_000),
+      }).then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json() as Promise<
+          { comfyui_version?: string | null; devices?: { name?: string | null }[] } | null
+        >;
+      })) ?? {};
+      setRemoteTest({
+        status: "ok",
+        text: `连接成功(${comfyVersionLabel(
+          stats.comfyui_version ?? "未知版本",
+          stats.devices?.[0]?.name ?? null,
+        )})——未保存,点「保存并测试」生效`,
+      });
+    } catch {
+      setRemoteTest({
+        status: "error",
+        message: `连接失败(${base})——引擎可能未启动或地址不可达`,
+      });
+    } finally {
+      setRemoteProbing(false);
+    }
+  };
+
   const saveRemoteEngine = async () => {
     const url = remoteDraft.trim();
     setRemoteSaving(true);
@@ -555,9 +597,19 @@ export function McpSettingsTab() {
               />
               <Button
                 size="sm"
+                variant="outline"
+                className="shrink-0"
+                onClick={testRemoteConnection}
+                disabled={remoteProbing || remoteSaving}
+                data-testid="remote-engine-test"
+              >
+                {remoteProbing ? "测试中…" : "测试连接"}
+              </Button>
+              <Button
+                size="sm"
                 className="shrink-0"
                 onClick={saveRemoteEngine}
-                disabled={remoteSaving}
+                disabled={remoteSaving || remoteProbing}
                 data-testid="remote-engine-save"
               >
                 {remoteSaving ? "保存中…" : "保存并测试"}
@@ -568,18 +620,6 @@ export function McpSettingsTab() {
             )}
             {remoteTest.status === "error" && (
               <p className="text-xs text-destructive" data-testid="remote-engine-error">{remoteTest.message}</p>
-            )}
-            {remoteEngine && (
-              <p className="text-xs text-muted-foreground">
-                当前生效:{remoteEngine.effective}(
-                {remoteEngine.source === "settings"
-                  ? "设置页远程"
-                  : remoteEngine.source === "env"
-                    ? "环境变量"
-                    : remoteEngine.source === "managed"
-                      ? "本机托管引擎"
-                      : "默认回落"})
-              </p>
             )}
           </div>
         </McpRow>

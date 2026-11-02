@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach } from "vitest";
 import { McpSettingsTab } from "./McpSettingsTab";
 import { useMcpServersStore } from "@/stores/mcp/mcp-servers-store";
@@ -47,7 +47,10 @@ describe("McpSettingsTab", () => {
     render(<McpSettingsTab />);
 
     expect(screen.getByTestId("mcp-server-card-本地文件")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /测试连接/ }));
+    // 11-02 起引擎地址行也有「测试连接」——按卡片作用域点,防同名撞车
+    fireEvent.click(
+      within(screen.getByTestId("mcp-server-card-本地文件")).getByRole("button", { name: /测试连接/ }),
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId("mcp-test-ok-本地文件").textContent).toContain("提供 2 个能力");
@@ -68,7 +71,9 @@ describe("McpSettingsTab", () => {
     (window as unknown as { mcpRuntime: unknown }).mcpRuntime = { testServer };
     render(<McpSettingsTab />);
 
-    fireEvent.click(screen.getByRole("button", { name: /测试连接/ }));
+    fireEvent.click(
+      within(screen.getByTestId("mcp-server-card-远程")).getByRole("button", { name: /测试连接/ }),
+    );
     await waitFor(() => {
       expect(screen.getByTestId("mcp-test-err-远程").textContent).toContain("连不上这个地址");
     });
@@ -253,11 +258,58 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
       );
     });
     expect(screen.getByTestId("remote-engine-ok").textContent).not.toContain("0.42.0");
-    expect(screen.getByText(/当前生效:http:\/\/192\.168\.0\.101:17000/)).toBeTruthy();
+    // 11-02 用户令:「当前生效」尾注撤展示——保存成功后也不再现
+    expect(screen.queryByText(/当前生效/)).toBeNull();
     const post = fetchMock.mock.calls.find((c) => String(c[0]).includes("/comfy/engine/remote") && c[1]?.method === "POST");
     expect(post?.[1]?.body).toContain("192.168.0.101");
     const probe = fetchMock.mock.calls.find((c) => String(c[0]).includes("/system_stats"));
     expect(String(probe?.[0])).toBe("http://192.168.0.101:17000/system_stats");
+  });
+
+  it("测试连接(仅探活不保存):直探 system_stats 报版本/GPU,不发 POST,文案点明未保存(11-02 用户令)", async () => {
+    setComfySidecarLivenessProbeForTests(async () => true);
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (String(url).includes("/system_stats")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({
+            comfyui_version: "0.42.0",
+            devices: [{ name: "NVIDIA RTX PRO 4000" }],
+          }),
+        } as unknown as Response);
+      }
+      return Promise.reject(new Error("unexpected fetch " + url));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.101:17000" } });
+    fireEvent.click(screen.getByTestId("remote-engine-test"));
+    await waitFor(() => {
+      expect(screen.getByTestId("remote-engine-ok").textContent).toContain(
+        "连接成功(ComfyUI 0.42.0 · NVIDIA RTX PRO 4000)",
+      );
+    });
+    expect(screen.getByTestId("remote-engine-ok").textContent).toContain("未保存");
+    // 仅探活:绝不触发保存 POST
+    const post = fetchMock.mock.calls.find(
+      (c) => String(c[0]).includes("/comfy/engine/remote") && c[1]?.method === "POST",
+    );
+    expect(post).toBeUndefined();
+  });
+
+  it("测试连接失败给直白文案(引擎未启动/地址不可达)", async () => {
+    setComfySidecarLivenessProbeForTests(async () => true);
+    const fetchMock = vi.fn().mockImplementation((url: string) =>
+      Promise.reject(new Error("network down " + String(url))),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.101:17000" } });
+    fireEvent.click(screen.getByTestId("remote-engine-test"));
+    await waitFor(() => {
+      expect(screen.getByTestId("remote-engine-error").textContent).toContain("连接失败(http://192.168.0.101:17000)");
+    });
   });
 
   it("非法 URL 保存失败给大白话", async () => {
