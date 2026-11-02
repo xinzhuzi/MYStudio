@@ -680,7 +680,7 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
     });
   });
 
-  it("R3 工作流列表+绑定:qi21 域拉列,绑 t2i 件写 store,「在用」高亮", async () => {
+  it("R3 工作流列表+绑定:qi21 域拉列,绑 t2i 件写 store,「在用」高亮;不可绑件显标注无绑定钮", async () => {
     const fetchMock = vi.fn().mockImplementation((url: string) => {
       const u = String(url);
       if (u.includes("/comfy/workflows")) {
@@ -691,6 +691,8 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
             workflows: [
               { id: "1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json", name: "qi21-道劫-t2i" },
               { id: "1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json", name: "qi21-道劫-i2i" },
+              // 1102 收口轮:组内非道劫件(同在 1_文生图 目录但无同源 API 模板)——不可绑分支
+              { id: "1_图片/Q2-1图像/1_文生图/other-t2i.json", name: "other-t2i" },
             ],
           }),
         } as unknown as Response);
@@ -702,6 +704,9 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
     await waitFor(() => {
       expect(screen.getByText("qi21-道劫-t2i")).toBeTruthy();
     });
+    // 不可绑件:显「暂无引擎模板」标注,且不给绑定钮(t2i 组仅道劫一件有钮)
+    expect(screen.getByText("暂无引擎模板")).toBeTruthy();
+    expect(screen.getAllByTestId("engine-workflow-bind-t2i")).toHaveLength(1);
     fireEvent.click(screen.getAllByTestId("engine-workflow-bind-t2i")[0]);
     await waitFor(() => {
       expect(useWorkflowBindingsStore.getState().t2iWorkflowId).toBe("1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json");

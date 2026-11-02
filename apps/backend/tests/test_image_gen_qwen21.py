@@ -438,3 +438,25 @@ class Qwen21I2iGenerateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Qwen21ForcedTemplateContractTests(unittest.TestCase):
+    """1102 控制中心 S3 绑定注入:forced_template 消费契约(源码锁,仿字面量锁范式)。
+
+    语义链两端行为各有测锁:前端映射层(McpSettingsTab.test S3 describe,库内路径→
+    API 模板键)+ 本类锁引擎消费点不回退——删除任一分支的 forced 消费即红。"""
+
+    SOURCE = (Path(__file__).resolve().parents[1] / "engines" / "image_engine" / "qwen21.py").read_text(
+        encoding="utf-8"
+    )
+
+    def test_forced_template_read_from_ctx(self) -> None:
+        # 消费点存在:照 comfyui_bridge.py:452-454 同款先例读 ctx["template"]
+        self.assertIn('forced_template = ctx.get("template")', self.SOURCE)
+
+    def test_both_branches_honor_forced_template(self) -> None:
+        # t2i 与 i2i 两分支均 forced 优先于常量(缺省 None=自动路由零迁移)
+        self.assertIn("template_key = forced_template or TEMPLATE_NAME_I2I", self.SOURCE)
+        self.assertIn("template_key = forced_template or TEMPLATE_NAME", self.SOURCE)
+        # 且两分支都以 template_key 载入(而非仍载常量)
+        self.assertIn("template = load_template(template_key)", self.SOURCE)
