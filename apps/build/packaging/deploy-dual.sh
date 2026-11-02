@@ -185,7 +185,7 @@ phase_b() {
     # wmic 已从新版 Windows 移除(本机实测 'wmic' 不是内部或外部命令)→ PowerShell CIM 等价查询
     # (实测命中全部 main.py+17000 引擎进程,含端口持有者与 venv 僵尸副本两个 PID)
     local pids
-    pids=$(ssh_win "powershell -NoProfile -Command \"(Get-CimInstance Win32_Process -Filter \\\"Name='python.exe' or Name='pythonw.exe'\\\").Where({\$_.CommandLine -match 'main.py'}).Where({\$_.CommandLine -match '$WIN_ENGINE_PORT'}) | Select-Object -ExpandProperty ProcessId\"" | tr -d '\r' | grep -E '^[0-9]+$' | head -5)
+    pids=$(ssh_win "powershell -NoProfile -Command \"(Get-CimInstance Win32_Process -Filter \\\"Name='python.exe' or Name='pythonw.exe'\\\").Where({\$_.CommandLine -match 'main.py'}).Where({\$_.CommandLine -match '$WIN_ENGINE_PORT'}) | Select-Object -ExpandProperty ProcessId\"" | tr -d '\r' | grep -E '^[0-9]+$' | head -5 || true)
     if [ -n "$pids" ]; then
       for pid in $pids; do
         ssh_win "taskkill /F /PID $pid" >/dev/null 2>&1 || true
