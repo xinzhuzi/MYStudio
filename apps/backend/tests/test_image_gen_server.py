@@ -557,8 +557,8 @@ class EngineProbeRouteTests(unittest.TestCase):
 
             def read(self):
                 return _json.dumps({
-                    "comfyui_version": "0.42.0",
-                    "devices": [{"name": "NVIDIA RTX PRO 4000"}],
+                    "system": {"comfyui_version": "0.42.0"},
+                    "devices": [{"name": "cuda:0 NVIDIA RTX PRO 4000 Blackwell : cudaMallocAsync"}],
                 }).encode()
 
         with patch("comfyui.engine_manager.engine_manager") as em, patch(
@@ -575,7 +575,7 @@ class EngineProbeRouteTests(unittest.TestCase):
         self.assertEqual(status, HTTPStatus.OK)
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["comfyui_version"], "0.42.0")
-        self.assertEqual(payload["device"], "NVIDIA RTX PRO 4000")
+        self.assertEqual(payload["device"], "NVIDIA RTX PRO 4000 Blackwell")
 
     def test_explicit_url_param_wins_over_effective(self) -> None:
         import json as _json

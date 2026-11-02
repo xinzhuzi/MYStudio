@@ -126,6 +126,19 @@ def play_generation_success_chime() -> None:
         pass
 
 
+def _clean_device_name(raw: str | None) -> str | None:
+    """device 串美化:实串 fixture "cuda:0 NVIDIA RTX PRO 4000 Blackwell : cudaMallocAsync"
+    → 按 " : " 拆首段,丢 cuda:N/cpu/device 前缀 token → "NVIDIA RTX PRO 4000 Blackwell"。
+    无 " : " 分隔或拆后为空则原样返回(不猜)。"""
+    if not raw:
+        return raw
+    head = raw.split(" : ")[0].strip()
+    tokens = head.split()
+    if tokens and (tokens[0].startswith("cuda:") or tokens[0] in ("cpu", "device")):
+        tokens = tokens[1:]
+    return " ".join(tokens) or raw
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -797,13 +810,14 @@ class Handler(BaseHTTPRequestHandler):
 
                     with urllib.request.urlopen(f"{target.rstrip('/')}/system_stats", timeout=10) as resp:
                         stats = json.loads(resp.read().decode("utf-8", "replace"))
-                    devices = (stats or {}).get("devices") or [{}]
+                    s = stats or {}
+                    devices = s.get("devices") or [{}]
                     self._send_json(
                         {
                             "ok": True,
                             "url": target,
-                            "comfyui_version": (stats or {}).get("comfyui_version"),
-                            "device": (devices[0] or {}).get("name") if devices else None,
+                            "comfyui_version": s.get("comfyui_version") or (s.get("system") or {}).get("comfyui_version"),
+                            "device": _clean_device_name((devices[0] or {}).get("name") if devices else None),
                         }
                     )
                 except (OSError, urllib_error.URLError, json.JSONDecodeError) as exc:

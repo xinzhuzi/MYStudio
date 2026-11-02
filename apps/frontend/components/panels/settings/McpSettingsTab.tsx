@@ -5,7 +5,7 @@
 // 折叠态持久化 localStorage)。三组:服务连接(ComfyUI 桥+专业流开关)→ MCP 服务器 → JSON 配置。
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Check, ChevronDown, FileJson, Loader2, Pencil, Plug, Plus, Server, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, FileJson, Loader2, Pencil, Plug, Plus, Server, Star, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,6 +40,11 @@ import {
   type McpServerConfig,
   type McpTransport,
 } from "@/stores/mcp/mcp-servers-store";
+import {
+  LOCAL_ENGINE_PRESET_KEY,
+  normalizeEngineUrl,
+  useEnginePresetsStore,
+} from "@/stores/settings/engine-presets-store";
 import {
   getRemoteEngine,
   setRemoteEngine,
@@ -189,16 +194,8 @@ const LOCAL_IMAGE_BASE_TYPES = [
 // T15/G3+T17:探活成功文案「ComfyUI x.y · GPU名」。桥行(挂载探测)由
 // comfyui_bridge.resolve_big_files → inventory gpuName 透传;保存即测(T17)
 // 则直探引擎 /system_stats devices[0].name。引擎没给时只显示版本段。
-// 引擎地址归一(11-02 实弹:中文输入法打出的全角 ：／ 肉眼与 OCR 均不可辨,
-// 前缀/ urlparse 校验恒炸「引擎地址须为 http(s)…」)——全角冒号斜杠归半角+去
-// 首尾空白与尾斜杠。合法 URL 不含全角件,归一无损。
-function normalizeEngineUrl(raw: string): string {
-  return raw
-    .replace(/：/g, ":")
-    .replace(/／/g, "/")
-    .trim()
-    .replace(/\/+$/, "");
-}
+// 引擎地址归一(全角 ：／→半角)已迁 engine-presets-store 统一导出
+// (11-02 预设条目入库与保存链路共用同一归一口径,防双源)。
 
 function comfyVersionLabel(version?: string | null, gpu?: string | null): string {
   return `ComfyUI ${version ?? ""}${gpu ? ` · ${gpu}` : ""}`;
@@ -355,8 +352,10 @@ export function McpSettingsTab() {
     }
   };
 
-  const saveRemoteEngine = async () => {
-    const url = normalizeEngineUrl(remoteDraft);
+  // urlOverride(11-02 一键切换):常用条目直传归一 url——坑①:setRemoteDraft 是
+  // 异步 setState,同帧闭包里的 remoteDraft 仍是旧值,不传参会把旧草稿存出去。
+  const saveRemoteEngine = async (urlOverride?: string) => {
+    const url = normalizeEngineUrl(urlOverride ?? remoteDraft);
     setRemoteSaving(true);
     setRemoteTest({ status: "idle" });
     try {
@@ -374,6 +373,10 @@ export function McpSettingsTab() {
           );
         }
         setRemoteTest({ status: "ok", text: `已保存并生效(${status.effective}),引擎探活中…` });
+        // 保存成功即自动收藏(Q2 双通道①):favorite 去重置顶幂等+touch 刷新 LRU;
+        // 本机(空串)不入列(外层 if (url) 已挡)。
+        enginePresetFavorite(url);
+        enginePresetTouch(url);
         // ②引擎直探:改走 sidecar 代理 /comfy/engine/probe(11-02:渲染层 CSP 不放行
         // http+局域网 IP,直连 fetch 恒被拦,T17 成功分支从未真正可达)。
         try {
@@ -412,6 +415,30 @@ export function McpSettingsTab() {
     } finally {
       setRemoteSaving(false);
     }
+  };
+
+  // ── 引擎地址常用条目(11-02-engine-address-presets)──
+  const enginePresets = useEnginePresetsStore((s) => s.presets);
+  const enginePresetFavorite = useEnginePresetsStore((s) => s.favorite);
+  const enginePresetTouch = useEnginePresetsStore((s) => s.touch);
+  const enginePresetRemove = useEnginePresetsStore((s) => s.remove);
+  // 当前生效打勾位:settings.url 为 null=本机;否则归一 url 匹配条目
+  const activePresetKey =
+    remoteEngine?.url == null ? LOCAL_ENGINE_PRESET_KEY : normalizeEngineUrl(remoteEngine.url);
+
+  // 一键切换(Q1 裁定):key 即归一 url;本机=清空保存(回本地发现)。
+  // 坑①必传 urlOverride:setRemoteDraft 异步落帧,闭包里 remoteDraft 还是旧值。
+  const handlePresetSwitch = (key: string) => {
+    const url = key === LOCAL_ENGINE_PRESET_KEY ? "" : key;
+    setRemoteDraft(url);
+    void saveRemoteEngine(url);
+  };
+
+  // ⭐手动收藏(Q2 裁定):未验证地址可先存(入库前 store 自带 normalize+前缀
+  // 校验);非法格式走现行 error 文案位。
+  const handleFavorite = () => {
+    if (enginePresetFavorite(remoteDraft)) toast.success("已存入常用");
+    else setRemoteTest({ status: "error", message: "地址格式不对,存不了(须 http(s)://主机[:端口])" });
   };
 
   const transportLabel = (transport: McpTransport) => (transport === "stdio" ? "本地命令" : "网络地址");
@@ -606,6 +633,24 @@ export function McpSettingsTab() {
         >
           <div className="space-y-2 px-5 py-3" data-testid="remote-engine-section">
             <div className="flex items-center gap-2">
+              {/* 常用快选(11-02 R1.4 一键切换):选中即填入+自动「保存并测试」立即生效 */}
+              <Select value={activePresetKey} onValueChange={handlePresetSwitch}>
+                <SelectTrigger
+                  className="w-[132px] shrink-0"
+                  aria-label="常用引擎地址"
+                  disabled={remoteSaving || remoteProbing}
+                >
+                  <SelectValue placeholder="常用" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={LOCAL_ENGINE_PRESET_KEY}>本机引擎</SelectItem>
+                  {enginePresets.map((p) => (
+                    <SelectItem key={p.url} value={p.url}>
+                      {p.label}({p.url.replace(/^https?:\/\//, "")})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Input
                 value={remoteDraft}
                 onChange={(e) => setRemoteDraft(e.target.value)}
@@ -614,6 +659,17 @@ export function McpSettingsTab() {
                 data-testid="remote-engine-url"
                 spellCheck={false}
               />
+              {/* ⭐存为常用(G3 第三按钮):未验证地址可先存;切换进行态复用 remoteSaving 禁全部控件 */}
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0"
+                onClick={handleFavorite}
+                disabled={remoteProbing || remoteSaving || !remoteDraft.trim()}
+                data-testid="remote-engine-favorite"
+              >
+                <Star className="mr-1 h-3.5 w-3.5" aria-hidden />存为常用
+              </Button>
               <Button
                 size="sm"
                 variant="outline"
@@ -627,13 +683,35 @@ export function McpSettingsTab() {
               <Button
                 size="sm"
                 className="shrink-0"
-                onClick={saveRemoteEngine}
+                onClick={() => void saveRemoteEngine()}
                 disabled={remoteSaving || remoteProbing}
                 data-testid="remote-engine-save"
               >
                 {remoteSaving ? "保存中…" : "保存并测试"}
               </Button>
             </div>
+            {/* 标签行(G2):仅当有已存条目时;删除当前生效条目只删条目不动引擎 */}
+            {enginePresets.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1" data-testid="remote-engine-presets-chips">
+                {enginePresets.map((p) => (
+                  <span
+                    key={p.url}
+                    title={p.url}
+                    className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
+                  >
+                    {p.label}
+                    <button
+                      type="button"
+                      aria-label={`删除常用 ${p.label}`}
+                      onClick={() => enginePresetRemove(p.url)}
+                      className="rounded-full text-muted-foreground/70 transition-colors hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" aria-hidden />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
             {remoteTest.status === "ok" && (
               <p className="text-xs text-success" data-testid="remote-engine-ok">{remoteTest.text}</p>
             )}
