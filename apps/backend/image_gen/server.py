@@ -264,6 +264,18 @@ class Handler(BaseHTTPRequestHandler):
         match = re.fullmatch(r"http://(?:localhost|127\.0\.0\.1|\[::1\])(?::([0-9]{1,5}))?", origin)
         if match and (match[1] is None or 0 < int(match[1]) <= 65535):
             return origin
+        # 1103 补(远端接管 CORS):my-nodes 侧栏在远端引擎 webview 里打回
+        # 本 sidecar(取工作流/分镜/动作),origin=生效引擎地址(如
+        # http://192.168.0.101:17000)不在 loopback 白名单=预检 403=侧栏
+        # 恒「取不到工作流」。放行=当前生效引擎 origin(remote-engine.json
+        # 解析),仍要过鉴权闸(令牌不变)。非引擎源仍拒。
+        try:
+            from engines.image_engine.comfyui_bridge import remote_engine_url_from_settings
+            remote = remote_engine_url_from_settings()
+            if remote and origin == remote.rstrip("/"):
+                return origin
+        except Exception:  # noqa: BLE001 — CORS 判定面失败不拒已白名单的源
+            pass
         return None
 
     def _send_json(self, payload, status: int = HTTPStatus.OK) -> None:
