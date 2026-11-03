@@ -51,6 +51,15 @@ _TUNNEL_REMOTE_HOST = "127.0.0.1"
 _TUNNEL_REMOTE_PORT = 17595
 
 
+
+def _tunnel_local_port_from_cfg() -> int:
+    """当前配置的隧道口偏好(巡检重建用;配置缺省=17600)。"""
+    cfg = ssh_config.load_config()
+    port = cfg.get("tunnelLocalPort")
+    if isinstance(port, int) and 0 < port <= 65535:
+        return port
+    return ssh_config.DEFAULT_TUNNEL_LOCAL_PORT
+
 class SSHServiceError(Exception):
     """SSH 服务级失败(未连接/未装依赖/IO 失败);调用方按降级处理。"""
 
@@ -256,11 +265,52 @@ class SSHService:
         ).start()
 
     def _watch_connection(self) -> None:
-        """已连接态巡检:transport 失活/收到 wake(配置变更)即返回重连。"""
+        """已连接态巡检:transport 失活/隧道数据面死/收到 wake 即返回重连。
+
+        1103 修(隧道通道死链自愈):Windows App 重启→sidecar 进程换代→隧道
+        通道(内嵌在 SSH 里的 direct-tcpip)指向旧进程=数据面死,但 SSH 连接
+        (22 端口→sshd)活着→transport.is_active()=True→旧巡检永不触发重连。
+        加数据面探针(穿隧道打远端 /health,3s 超时):SSH 活但隧道死→撕掉
+        旧通道→用现 transport 重建→远端 sidecar 在即秒恢复;不在则下一轮
+        探针再试(SSH 层面仍连着,重试零成本)。
+        """
+        tunnel_probe_failures = 0
         while not self._stop.is_set():
             if self._wake.is_set() or not self._transport_active():
                 return
+            # 隧道数据面探针(只在隧道启用时)
+            if self._tunnel.active():
+                if not self._probe_tunnel_data_path():
+                    tunnel_probe_failures += 1
+                    if tunnel_probe_failures >= 2:  # 连续两败=真死,重建
+                        self._tunnel.stop()
+                        self._tunnel.ensure(
+                            self._client_transport(),
+                            _tunnel_local_port_from_cfg(),
+                            _TUNNEL_REMOTE_HOST,
+                            _TUNNEL_REMOTE_PORT,
+                        )
+                        tunnel_probe_failures = 0
+                else:
+                    tunnel_probe_failures = 0
             self._wake.wait(_WATCH_INTERVAL_S)
+
+    def _probe_tunnel_data_path(self) -> bool:
+        """隧道数据面探针:穿隧道打远端 sidecar /health(无鉴权路由,3s 超时)。
+
+        探针路径走隧道口(127.0.0.1:{port}/health)→SSH 通道→远端 17595。
+        回 200=数据面活;任何异常(拒绝/超时/断连)=死。
+        """
+        port = self._tunnel.local_port()
+        if port is None:
+            return False
+        import urllib.request
+        try:
+            req = urllib.request.Request(f"http://127.0.0.1:{port}/health")
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                return resp.status == 200
+        except Exception:  # noqa: BLE001 — 任何异常=数据面死
+            return False
 
     def _transport_active(self) -> bool:
         transport = self._client_transport()
