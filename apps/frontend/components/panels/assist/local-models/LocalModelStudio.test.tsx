@@ -23,6 +23,19 @@ vi.mock("@/lib/ai/image-generation-engine", () => ({
   ensureLocalImageSidecarRunning: sidecarMock,
 }));
 
+// 1104 A1 备胎弹窗依赖:引擎地址预设(本地已配判据①)+ 切换远端(POST engine/remote)
+const presetsMock = vi.hoisted(() => ({ presets: [] as Array<{ url: string; label: string; lastUsedAt: number }> }));
+vi.mock("@/stores/settings/engine-presets-store", () => ({
+  useEnginePresetsStore: {
+    getState: () => ({ presets: presetsMock.presets }),
+  },
+}));
+
+const setRemoteEngineMock = vi.hoisted(() => vi.fn(async () => ({ url: null, cleared: true })));
+vi.mock("@/lib/assist/image-studio/comfy-sidecar-bridge", () => ({
+  setRemoteEngine: setRemoteEngineMock,
+}));
+
 // hook 整体 mock(历史模式):模型清单/引擎动作由用例注入
 const scenario = vi.hoisted(() => ({
   models: null as ComfyModelsReply | null,
@@ -115,6 +128,8 @@ beforeEach(() => {
   fetchMock.mockReset();
   persistMock.mockReset().mockResolvedValue({ url: "media://m1", mediaId: "m1", persisted: true });
   sidecarMock.mockReset().mockResolvedValue(true);
+  presetsMock.presets = [];
+  setRemoteEngineMock.mockReset().mockResolvedValue({ url: null, cleared: true });
   (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = createMockComfyEngineClient();
   vi.stubGlobal("fetch", fetchMock);
   scenario.models = modelsReply(["krea2_turbo_bf16.safetensors", "qwen_image_8b.safetensors"]);
@@ -307,5 +322,103 @@ describe("LocalModelStudio(漫影专属生图)", () => {
     expect(body.template).toBe("manying_t2i");
     expect(body.checkpoint).toBe("krea2_turbo_bf16.safetensors");
     expect(body.num_inference_steps).toBe(8);
+  });
+
+  // ── 1104 A1:远端引擎不可达备胎弹窗(仅大模型模块;bridge-unreachable+本地已配→弹)──
+
+  /** 远端引擎不可达的服务端错误回执形状(server._send_error_json:message+code)。 */
+  const bridgeUnreachableResponse = () => ({
+    ok: false,
+    status: 503,
+    text: async () =>
+      JSON.stringify({
+        error: {
+          message: "远端引擎不可达(http://192.168.0.101:17000,URLError)。请检查 Windows ComfyUI 是否在运行;或在引擎列表切换本机备胎",
+          code: "bridge-unreachable",
+        },
+        status: 503,
+      }),
+  });
+
+  async function generateOnce() {
+    fireEvent.change(await screen.findByPlaceholderText("想画什么,写在这里"), { target: { value: "远端死了的画面" } });
+    fireEvent.click(document.querySelector("[data-local-model-generate]")!);
+  }
+
+  it("bridge-unreachable+本地已配(预设条目)→弹备胎弹窗;点切换→清远端+toast", async () => {
+    presetsMock.presets = [{ url: "http://192.168.0.101:17000", label: "Windows 台式机", lastUsedAt: 1 }];
+    fetchMock.mockResolvedValueOnce(bridgeUnreachableResponse());
+    render(<LocalModelStudio />);
+    await generateOnce();
+
+    expect(await screen.findByText("远端引擎不可达", { selector: "[data-local-model-fallback-dialog] *" })).toBeTruthy();
+    expect(screen.getByText(/本机引擎已配置,可作为备胎/)).toBeTruthy();
+
+    fireEvent.click(document.querySelector("[data-local-model-fallback-switch]")!);
+    await waitFor(() => expect(setRemoteEngineMock).toHaveBeenCalledWith(""));
+    expect(toasts.success).toHaveBeenCalledWith("已切换到本机引擎");
+    await waitFor(() => expect(document.querySelector("[data-local-model-fallback-dialog]")).toBeNull());
+  });
+
+  it("bridge-unreachable+引擎账本有端口(无预设)→弹窗(getEngineStatus 判据)", async () => {
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = createMockComfyEngineClient({
+      initialStatus: { port: 17001 },
+    });
+    fetchMock.mockResolvedValueOnce(bridgeUnreachableResponse());
+    render(<LocalModelStudio />);
+    await generateOnce();
+
+    await waitFor(() => expect(document.querySelector("[data-local-model-fallback-dialog]")).toBeTruthy());
+  });
+
+  it("bridge-unreachable+本地未配(无预设+无端口)→不弹,只 toast 文字建议", async () => {
+    // mock client 缺省 status.port=null(未安装)→两个判据都不命中
+    fetchMock.mockResolvedValueOnce(bridgeUnreachableResponse());
+    render(<LocalModelStudio />);
+    await generateOnce();
+
+    await waitFor(() => expect(toasts.error).toHaveBeenCalledWith(expect.stringContaining("bridge-unreachable")));
+    await act(async () => {}); // hasLocalFallback 是异步判据,冲一把微任务再验不弹
+    expect(document.querySelector("[data-local-model-fallback-dialog]")).toBeNull();
+  });
+
+  it("非 bridge-unreachable 错误(本地已配)→不弹", async () => {
+    presetsMock.presets = [{ url: "http://192.168.0.101:17000", label: "Windows 台式机", lastUsedAt: 1 }];
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, text: async () => "别的错误" });
+    render(<LocalModelStudio />);
+    await generateOnce();
+
+    await waitFor(() => expect(toasts.error).toHaveBeenCalledWith("别的错误"));
+    await act(async () => {});
+    expect(document.querySelector("[data-local-model-fallback-dialog]")).toBeNull();
+  });
+
+  it("弹窗点重试→关弹窗并重发生成请求", async () => {
+    presetsMock.presets = [{ url: "http://192.168.0.101:17000", label: "Windows 台式机", lastUsedAt: 1 }];
+    fetchMock
+      .mockResolvedValueOnce(bridgeUnreachableResponse())
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ b64_json: "QUJD" }] }) });
+    render(<LocalModelStudio />);
+    await generateOnce();
+    await waitFor(() => expect(document.querySelector("[data-local-model-fallback-dialog]")).toBeTruthy());
+
+    fireEvent.click(document.querySelector("[data-local-model-fallback-retry]")!);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(toasts.success).toHaveBeenCalledWith("图片已生成并存入媒体库"));
+    expect(document.querySelector("[data-local-model-fallback-dialog]")).toBeNull();
+    expect(setRemoteEngineMock).not.toHaveBeenCalled(); // 重试不碰引擎配置
+  });
+
+  it("弹窗点关闭→只关弹窗,不重发不切换", async () => {
+    presetsMock.presets = [{ url: "http://192.168.0.101:17000", label: "Windows 台式机", lastUsedAt: 1 }];
+    fetchMock.mockResolvedValueOnce(bridgeUnreachableResponse());
+    render(<LocalModelStudio />);
+    await generateOnce();
+    await waitFor(() => expect(document.querySelector("[data-local-model-fallback-dialog]")).toBeTruthy());
+
+    fireEvent.click(document.querySelector("[data-local-model-fallback-close]")!);
+    await waitFor(() => expect(document.querySelector("[data-local-model-fallback-dialog]")).toBeNull());
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(setRemoteEngineMock).not.toHaveBeenCalled();
   });
 });

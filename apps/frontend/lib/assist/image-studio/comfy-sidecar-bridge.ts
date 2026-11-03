@@ -1215,8 +1215,80 @@ export interface SshPluginSyncReply {
   notes: string[];
 }
 
+/**
+ * @deprecated 1104 引擎同步中心(R4):UI 入口已撤,换 getEngineSyncManifest +
+ * syncEngine;后端 /comfy/ssh/sync-plugins 端点保留兼容,此函数仅遗存。
+ */
 export async function syncSshPlugins(): Promise<SshPluginSyncReply> {
   return comfySidecarRequest<SshPluginSyncReply>("POST", "/comfy/ssh/sync-plugins", { timeoutMs: 330_000 });
+}
+
+// ── 引擎同步中心(11-04 engine-sync R2/R3):单真源清单 + 逐项同步 + 重启 ──
+// GET /comfy/ssh/engine-sync-manifest(读 engine-sync.json+扫 Mac custom_nodes
+// +SSH 读 Win custom_nodes);POST /comfy/ssh/sync-engine(并集 Q1+强制对齐
+// Q6);POST /comfy/ssh/restart-engine(结果弹窗[重启引擎],schtasks EngineDurable)。
+
+/** 清单条目四态(R2):both=两侧都有 / mac-only=Mac 侧有(本机仓或清单声明——手动
+ * 条目双侧均无也归此态,可见可勾选,同步按 URL clone)且 Win 缺(需 clone) /
+ * win-only=Win 独有(跳过) / skip=my-nodes(Q2)。 */
+export type EngineSyncItemStatus = "both" | "mac-only" | "win-only" | "skip";
+
+export interface EngineSyncManifestItem {
+  /** 包名(目录名);"ComfyUI"=引擎本体条目(恒首行)。 */
+  name: string;
+  /** origin url(单真源 engine-sync.json;win-only 遗存件为空串)。 */
+  url: string;
+  /** Mac 侧 HEAD(null=Mac 本机无此包);UI 显前 8 字。 */
+  macHead: string | null;
+  /** Win 侧 HEAD(null=Win 缺);UI 显前 8 字。 */
+  winHead: string | null;
+  status: EngineSyncItemStatus;
+}
+
+export interface EngineSyncManifest {
+  items: EngineSyncManifestItem[];
+}
+
+/** 同步回执条目动作(R2):aligned=已对齐 Mac 版本 / cloned=新装 / skipped=跳过 / failed=失败。 */
+export type EngineSyncAction = "aligned" | "cloned" | "skipped" | "failed";
+
+export interface EngineSyncResultItem {
+  name: string;
+  type: "engine" | "plugin";
+  macHead: string | null;
+  winHead: string | null;
+  action: EngineSyncAction;
+  /** true=验证过(Win HEAD==Mac HEAD;新装=目录在+HEAD 可读)。 */
+  verified: boolean;
+  error: string | null;
+  /** pip install 失败(⚠️ 不阻断,C8);null=无依赖失败。 */
+  pipError?: string | null;
+}
+
+export interface EngineSyncResult {
+  items: EngineSyncResultItem[];
+}
+
+export async function getEngineSyncManifest(): Promise<EngineSyncManifest> {
+  // 清单要逐件 SSH 读 Win HEAD(数十件),给足超时
+  return comfySidecarRequest<EngineSyncManifest>("GET", "/comfy/ssh/engine-sync-manifest", { timeoutMs: 120_000 });
+}
+
+/** 整体超时 10min(Q3):前端逐件单发时持全局预算——每件 POST 带剩余秒数
+ *  (timeoutS),预算耗尽后不再发新件,10min 上限跨批次生效。 */
+export const ENGINE_SYNC_OVERALL_TIMEOUT_MS = 10 * 60 * 1000;
+
+export async function syncEngine(items: string[], timeoutS?: number): Promise<EngineSyncResult> {
+  // 后端整体 10min 超时(Q3);timeoutS=本件剩余预算(整体上限跨批次的关键),
+  // HTTP 超时=预算+30s 余量(缺省 10min+30s)
+  return comfySidecarRequest<EngineSyncResult>("POST", "/comfy/ssh/sync-engine", {
+    body: timeoutS !== undefined ? { items, timeoutS } : { items },
+    timeoutMs: timeoutS !== undefined ? timeoutS * 1000 + 30_000 : 630_000,
+  });
+}
+
+export async function restartRemoteEngine(): Promise<{ ok: boolean; output: string }> {
+  return comfySidecarRequest<{ ok: boolean; output: string }>("POST", "/comfy/ssh/restart-engine");
 }
 
 export async function refreshComfySshToken(): Promise<ComfySshTokenRefreshReply> {

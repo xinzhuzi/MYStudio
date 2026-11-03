@@ -23,8 +23,15 @@ GOOD_B64 = base64.b64encode(ref.fixture_sticker_rgba((160, 60, 40))).decode("asc
 
 class BlankRetryTests(unittest.TestCase):
     def _run(self, engine_module, side_effect, model="krea2-turbo", **generate_kwargs):
-        """跑 generate_image:假引擎按 side_effect 依次返回;返回 (结果, generate mock)。"""
+        """跑 generate_image:假引擎按 side_effect 依次返回;返回 (结果, generate mock)。
+
+        1104 随迁:引擎预检闸(_preflight_engine_gate,在 _require_downloaded 之前)
+        一并打桩——本文件测空片重掷链,不测引擎可达性;桥布局用例(comfyui-bridge)
+        不打桩会被闸在测试环境(无引擎)误拦。
+        """
         with patch.object(pipeline, "_require_downloaded"), patch.object(
+            pipeline, "_preflight_engine_gate", lambda _layout: None
+        ), patch.object(
             engine_module, "generate", side_effect=side_effect
         ) as generate:
             result = pipeline.generate_image(model, "水墨山水", **generate_kwargs)

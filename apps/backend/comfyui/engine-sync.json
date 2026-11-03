@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "comfyui": {
+    "repo": "https://github.com/comfyanonymous/ComfyUI",
+    "strategy": "match-local"
+  },
+  "plugins": [
+    {
+      "name": "CRT-Nodes",
+      "url": "https://github.com/PGCRT/CRT-Nodes.git"
+    },
+    {
+      "name": "ComfyUI-CharacterCardStudio",
+      "url": "https://github.com/JGRFW/ComfyUI-CharacterCardStudio.git"
+    },
+    {
+      "name": "ComfyUI-Custom-Scripts",
+      "url": "https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git"
+    },
+    {
+      "name": "ComfyUI-Easy-Use",
+      "url": "https://github.com/yolain/ComfyUI-Easy-Use"
+    },
+    {
+      "name": "ComfyUI-Fisher-Pose",
+      "url": "https://github.com/Work-Fisher/ComfyUI-Fisher-Pose.git"
+    },
+    {
+      "name": "ComfyUI-Frame-Interpolation",
+      "url": "https://github.com/Fannovel16/ComfyUI-Frame-Interpolation"
+    },
+    {
+      "name": "ComfyUI-GGUF",
+      "url": "https://github.com/city96/ComfyUI-GGUF"
+    },
+    {
+      "name": "ComfyUI-Impact-Pack",
+      "url": "https://github.com/ltdrdata/ComfyUI-Impact-Pack"
+    },
+    {
+      "name": "ComfyUI-JZL-MiniMax-H3",
+      "url": "https://github.com/wjluoxiao/ComfyUI-JZL-MiniMax-H3"
+    },
+    {
+      "name": "ComfyUI-Krea2-NAG",
+      "url": "https://github.com/iljung1106/ComfyUI-Krea2-NAG.git"
+    },
+    {
+      "name": "ComfyUI-Krea2T-Enhancer",
+      "url": "https://github.com/Capitan01R/ComfyUI-Krea2T-Enhancer.git"
+    },
+    {
+      "name": "ComfyUI-LTXVideo",
+      "url": "https://github.com/Lightricks/ComfyUI-LTXVideo"
+    },
+    {
+      "name": "ComfyUI-MiniMaxH3-Easy",
+      "url": "https://github.com/nkxx188/ComfyUI-MiniMaxH3-Easy"
+    },
+    {
+      "name": "ComfyUI-Qwen-Image-2.1-Prompt-Enhancer",
+      "url": "https://github.com/benjiyaya/ComfyUI-Qwen-Image-2.1-Prompt-Enhancer.git"
+    },
+    {
+      "name": "ComfyUI-Qwen-Image-2.1-PromptEnhancer-MTP",
+      "url": "https://github.com/mozophe/ComfyUI-Qwen-Image-2.1-PromptEnhancer-MTP"
+    },
+    {
+      "name": "ComfyUI-SetGet-Resolver",
+      "url": "https://github.com/yujianvip/ComfyUI-SetGet-Resolver.git"
+    },
+    {
+      "name": "ComfyUI-SolAttn-MPS",
+      "url": "https://github.com/yshenaw/ComfyUI-SolAttn-MPS.git"
+    },
+    {
+      "name": "ComfyUI_InfiniteYou",
+      "url": "https://github.com/bytedance/ComfyUI_InfiniteYou"
+    },
+    {
+      "name": "ComfyUI_LayerStyle",
+      "url": "https://github.com/chflame163/ComfyUI_LayerStyle.git"
+    },
+    {
+      "name": "ComfyUI_MiniMaxH3_Director",
+      "url": "https://github.com/AIMixer/ComfyUI_MiniMaxH3_Director"
+    },
+    {
+      "name": "ComfyUI_MinimaxH3_AutoContext",
+      "url": "https://github.com/supElement/ComfyUI_MinimaxH3_AutoContext.git"
+    },
+    {
+      "name": "ComfyUI_Qwen3_Translator_Node",
+      "url": "https://github.com/aduanyue/ComfyUI_Qwen3_Translator_Node"
+    },
+    {
+      "name": "ComfyUI_essentials",
+      "url": "https://github.com/cubiq/ComfyUI_essentials"
+    },
+    {
+      "name": "Comfyui-Qwen-Image-2.1-BlockCache-T8",
+      "url": "https://github.com/T8mars/Comfyui-Qwen-Image-2.1-BlockCache-T8"
+    },
+    {
+      "name": "Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8",
+      "url": "https://github.com/T8mars/Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8.git"
+    },
+    {
+      "name": "Comfyui-QwenEditUtils",
+      "url": "https://github.com/lrzjason/Comfyui-QwenEditUtils"
+    },
+    {
+      "name": "Comfyui-Resolution-Master",
+      "url": "https://github.com/Azornes/Comfyui-Resolution-Master.git"
+    },
+    {
+      "name": "Comfyui_Minimax_h3_latent_Upscaler",
+      "url": "https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler"
+    },
+    {
+      "name": "FreeVideo",
+      "url": "https://github.com/FlashML-org/FreeVideo.git"
+    },
+    {
+      "name": "Rebalance-Pack",
+      "url": "https://github.com/nova452/Rebalance-Pack"
+    },
+    {
+      "name": "WhatDreamsCost-ComfyUI",
+      "url": "https://github.com/WhatDreamsCost/WhatDreamsCost-ComfyUI"
+    },
+    {
+      "name": "cg-use-everywhere",
+      "url": "https://github.com/chrisgoringe/cg-use-everywhere.git"
+    },
+    {
+      "name": "comfy-image-saver",
+      "url": "https://github.com/giriss/comfy-image-saver.git"
+    },
+    {
+      "name": "comfyui-fashn-human-parser",
+      "url": "https://github.com/dsrunpod/comfyui-fashn-human-parser"
+    },
+    {
+      "name": "comfyui-kjnodes",
+      "url": "https://github.com/kijai/ComfyUI-KJNodes"
+    },
+    {
+      "name": "comfyui-krea2edit",
+      "url": "https://github.com/lbouaraba/comfyui-krea2edit"
+    },
+    {
+      "name": "comfyui-minimax-h3-blockcache-T8",
+      "url": "https://github.com/T8mars/comfyui-minimax-h3-blockcache-T8.git"
+    },
+    {
+      "name": "comfyui-minimax-h3-prompt-enhancer-T8",
+      "url": "https://github.com/T8mars/comfyui-minimax-h3-prompt-enhancer-T8.git"
+    },
+    {
+      "name": "comfyui-spectrum-minimax-h3",
+      "url": "https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3"
+    },
+    {
+      "name": "comfyui-videohelpersuite",
+      "url": "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite"
+    },
+    {
+      "name": "comfyui_controlnet_aux",
+      "url": "https://github.com/Fannovel16/comfyui_controlnet_aux.git"
+    },
+    {
+      "name": "rgthree-comfy",
+      "url": "https://github.com/rgthree/rgthree-comfy.git"
+    },
+    {
+      "name": "seedvr2_videoupscaler",
+      "url": "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git"
+    },
+    {
+      "name": "was-node-suite-comfyui",
+      "url": "https://github.com/WASasquatch/was-node-suite-comfyui.git"
+    }
+  ]
+}

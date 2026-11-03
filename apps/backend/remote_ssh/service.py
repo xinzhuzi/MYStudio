@@ -60,6 +60,157 @@ def _tunnel_local_port_from_cfg() -> int:
         return port
     return ssh_config.DEFAULT_TUNNEL_LOCAL_PORT
 
+
+# ── 1104 引擎同步中心(tasks/11-04-engine-sync)─────────────────────────
+# Windows 引擎家与 sync_plugins(1104 plugin-sync)同字面——同机同布局,
+# 两法同源;这里收拢成常量供新 engine-sync 逻辑引用。
+_WIN_COMFY_ROOT = "E:\\IP\\漫影工作室\\comfyui"
+_WIN_CUSTOM_NODES = _WIN_COMFY_ROOT + "\\ComfyUI\\custom_nodes"
+_WIN_VENV_PYTHON = _WIN_COMFY_ROOT + "\\venv\\Scripts\\python.exe"
+# 引擎条目名(清单/回执里 ComfyUI 本体的固定 name)
+_ENGINE_SYNC_ENGINE_NAME = "ComfyUI"
+_COMFYUI_REPO_URL = "https://github.com/comfyanonymous/ComfyUI"
+# Q2:my-nodes 归 deploy-dual 管,engine-sync 恒跳过
+_ENGINE_SYNC_SKIP_NAMES = {"my-nodes"}
+# Q3:同步整体超时 10min(部分失败不阻断,超时项标 failed)
+_ENGINE_SYNC_OVERALL_TIMEOUT_S = 600.0
+
+
+def engine_sync_json_path() -> Path:
+    """engine-sync.json 单真源路径(仓库内 committed,部署随 App 分发)。
+
+    MYSTUDIO_ENGINE_SYNC_JSON 显式覆写=测试缝(照 comfy_home 的
+    MYSTUDIO_COMFYUI_HOME 范式),防测试写脏仓库文件。
+    """
+    override = os.environ.get("MYSTUDIO_ENGINE_SYNC_JSON", "")
+    if override:
+        return Path(override).expanduser()
+    return Path(__file__).resolve().parents[1] / "comfyui" / "engine-sync.json"
+
+
+def _mac_custom_nodes_dir() -> Path:
+    """Mac 本机 custom_nodes 路径(from comfyui.manifest import comfy_home 口径)。"""
+    from comfyui.manifest import comfy_home
+
+    return comfy_home() / "ComfyUI" / "custom_nodes"
+
+
+def _scan_mac_git_packages() -> dict[str, str]:
+    """扫 Mac custom_nodes git 包(有 .git 目录者):name → origin url。
+
+    排除 my-nodes(Q2)/非 git 目录/散件(example_node.py.example 不是目录)。
+    url 读不到的包不入清单(诚实缺,不猜)。
+    """
+    import subprocess
+
+    packages: dict[str, str] = {}
+    nodes = _mac_custom_nodes_dir()
+    if not nodes.is_dir():
+        return packages
+    for entry in sorted(nodes.iterdir()):
+        if not entry.is_dir() or not (entry / ".git").is_dir():
+            continue
+        if entry.name in _ENGINE_SYNC_SKIP_NAMES:
+            continue
+        try:
+            url = (
+                subprocess.run(
+                    ["git", "-C", str(entry), "remote", "get-url", "origin"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                .stdout.strip()
+            )
+        except Exception:  # noqa: BLE001 — 单包 git 读取失败不拦整轮扫描
+            continue
+        if url:
+            packages[entry.name] = url
+    return packages
+
+
+def _mac_git_head(path: Path) -> str | None:
+    """本地 git HEAD(读不到回 None——目录非 git/无提交/超时)。"""
+    import subprocess
+
+    try:
+        out = (
+            subprocess.run(
+                ["git", "-C", str(path), "rev-parse", "HEAD"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            .stdout.strip()
+        )
+    except Exception:  # noqa: BLE001
+        return None
+    return out or None
+
+
+def _empty_engine_sync_doc() -> dict:
+    """清单骨架(version=1;ComfyUI 引擎条目 repo+strategy=match-local,Q6)。"""
+    return {
+        "version": 1,
+        "comfyui": {"repo": _COMFYUI_REPO_URL, "strategy": "match-local"},
+        "plugins": [],
+    }
+
+
+def load_engine_sync_doc() -> dict:
+    """读单真源文件;缺失/坏 JSON → 空骨架(首次扫描时自动生成)。"""
+    path = engine_sync_json_path()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return _empty_engine_sync_doc()
+    if not isinstance(data, dict) or not isinstance(data.get("plugins"), list):
+        return _empty_engine_sync_doc()
+    doc = _empty_engine_sync_doc()
+    # comfyui 条目保留文件里的 repo/strategy(手动可编辑),缺省回补
+    comfyui = data.get("comfyui")
+    if isinstance(comfyui, dict):
+        doc["comfyui"] = {
+            "repo": str(comfyui.get("repo") or _COMFYUI_REPO_URL),
+            "strategy": str(comfyui.get("strategy") or "match-local"),
+        }
+    for plugin in data["plugins"]:
+        if isinstance(plugin, dict) and isinstance(plugin.get("name"), str) and plugin["name"]:
+            doc["plugins"].append(
+                {"name": plugin["name"], "url": str(plugin.get("url") or "")}
+            )
+    return doc
+
+
+def write_engine_sync_doc(doc: dict) -> None:
+    """原子回写单真源文件(tmp+replace,照 _write_token_file 范式)。"""
+    path = engine_sync_json_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(
+        json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    tmp.replace(path)
+
+
+def merge_mac_scan_into_doc(doc: dict, scan: dict[str, str]) -> tuple[dict, bool]:
+    """R1 合并逻辑:Mac 扫描结果并进清单——有则更新 URL,无则追加;回 (doc, changed)。
+
+    changed=True 时由调用方回写文件(每次同步/清单时新 git 包自动追加)。
+    """
+    merged = False
+    existing = {p["name"]: p for p in doc.get("plugins", [])}
+    for name, url in scan.items():
+        if name in existing:
+            if existing[name]["url"] != url:
+                existing[name]["url"] = url
+                merged = True
+        else:
+            doc["plugins"].append({"name": name, "url": url})
+            existing[name] = doc["plugins"][-1]
+            merged = True
+    return doc, merged
+
 class SSHServiceError(Exception):
     """SSH 服务级失败(未连接/未装依赖/IO 失败);调用方按降级处理。"""
 
@@ -443,6 +594,10 @@ class SSHService:
     def sync_plugins(self, timeout_s: float = 300) -> dict:
         """1104 插件同步:Mac→Windows(版本对齐+缺装+有更+依赖+建议重启)。
 
+        .. deprecated:: 1104 引擎同步中心
+            已被 get_engine_sync_manifest/sync_engine 取代(R4:后端端点保留
+            兼容,UI 入口已撤);新调用方请走 engine-sync 两法。
+
         返回 {comfyuiSynced, installed, updated, pipInstalled, engineRestarted, errors[], notes[]}
         """
         import json as _json
@@ -519,6 +674,277 @@ class SSHService:
             result["notes"].append("插件已同步——建议重启引擎(设置→本地配置→启动服务)")
 
         return result
+
+    # ── 1104 引擎同步中心(tasks/11-04-engine-sync R2)──────────────────
+
+    def _win_custom_nodes_names(self) -> set[str]:
+        """SSH 读 Windows custom_nodes 目录名集合(dir /b /ad;失败回空集)。"""
+        code, out = self.run_remote_command(
+            f"dir /b /ad {_WIN_CUSTOM_NODES} 2>nul", 15
+        )
+        if code != 0:
+            return set()
+        return {
+            line.strip()
+            for line in out.splitlines()
+            if line.strip() and not line.startswith("Volume") and not line.startswith("Directory of")
+        }
+
+    def _win_git_head(self, win_path: str) -> str | None:
+        """SSH 读 Windows 侧 git HEAD(目录非 git/不存在/超时 → None)。"""
+        code, out = self.run_remote_command(
+            f'git -C "{win_path}" rev-parse HEAD 2>nul', 10
+        )
+        head = out.strip().splitlines()[-1].strip() if out.strip() else ""
+        return head if code == 0 and head else None
+
+    @staticmethod
+    def _engine_sync_status(mac_present: bool, win_present: bool, name: str) -> str:
+        """R2 四态:both=两侧都有 / mac-only=Mac 侧有(本机仓或清单声明,1104 复核
+        修:手动条目双侧均无时也归此态——可见可勾选,同步按 URL clone)且 Win 缺
+        (需 clone)/ win-only=Win 独有(跳过,Q1 并集不删)/ skip=my-nodes(Q2);
+        双侧皆无仅引擎条目可达(Mac/Win HEAD 都读不到=无处可同步,同 skip 不渲染)。"""
+        if name in _ENGINE_SYNC_SKIP_NAMES:
+            return "skip"
+        if mac_present and win_present:
+            return "both"
+        if mac_present:
+            return "mac-only"
+        if win_present:
+            return "win-only"
+        return "skip"
+
+    def get_engine_sync_manifest(self) -> dict:
+        """GET /comfy/ssh/engine-sync-manifest:单真源清单 + 双侧实况。
+
+        流程(R2):读 engine-sync.json → 扫 Mac custom_nodes(新 git 包追加
+        进清单+回写文件,R1 合并)→ SSH 扫 Windows custom_nodes(dir /b)→
+        SSH 读 Win 各包/引擎 HEAD → 回 {items: [{name,url,macHead,winHead,status}]}。
+        """
+        scan = _scan_mac_git_packages()
+        doc = load_engine_sync_doc()
+        doc, changed = merge_mac_scan_into_doc(doc, scan)
+        if changed:
+            write_engine_sync_doc(doc)  # R1:新插件自动追加+回写
+
+        win_names = self._win_custom_nodes_names()
+        mac_heads: dict[str, str | None] = {
+            name: _mac_git_head(_mac_custom_nodes_dir() / name) for name in scan
+        }
+        items: list[dict] = []
+        # ComfyUI 引擎条目(恒首行)
+        engine_mac_head = _mac_git_head(_mac_custom_nodes_dir().parent)
+        engine_win_head = self._win_git_head(_WIN_COMFY_ROOT + "\\ComfyUI")
+        items.append(
+            {
+                "name": _ENGINE_SYNC_ENGINE_NAME,
+                "url": doc.get("comfyui", {}).get("repo", _COMFYUI_REPO_URL),
+                "macHead": engine_mac_head,
+                "winHead": engine_win_head,
+                "status": self._engine_sync_status(
+                    engine_mac_head is not None, engine_win_head is not None,
+                    _ENGINE_SYNC_ENGINE_NAME,
+                ),
+            }
+        )
+        # 插件并集:清单条目 ∪ Mac 扫描 ∪ Win 现存(清单序稳定,Win 独有追加在后)
+        plugins_by_name = {p["name"]: p for p in doc["plugins"]}
+        win_only_names = sorted(win_names - set(plugins_by_name))
+        for plugin in list(doc["plugins"]) + [
+            {"name": n, "url": ""} for n in win_only_names
+        ]:
+            name = plugin["name"]
+            mac_head = mac_heads.get(name)  # None=Mac 本机无此包(清单手动条目)
+            win_head = self._win_git_head(f"{_WIN_CUSTOM_NODES}\\{name}") if name in win_names else None
+            items.append(
+                {
+                    "name": name,
+                    "url": plugin.get("url", ""),
+                    "macHead": mac_head,
+                    "winHead": win_head,
+                    # Mac 侧在场=本机有仓,或「清单声明且 Win 缺」(R1 手动条目
+                    # 双侧均无时不落 skip——skip 只留给 my-nodes Q2,否则手动新增
+                    # 件在面板不可见永无法勾选;清单声明但 Win 已有而 Mac 无仓仍归
+                    # win-only:无 Mac HEAD 可对齐,同步跳过保留,与 UI 灰显一致)
+                    "status": self._engine_sync_status(
+                        mac_head is not None
+                        or (name in plugins_by_name and name not in win_names),
+                        name in win_names,
+                        name,
+                    ),
+                }
+            )
+        return {"items": items}
+
+    def sync_engine(self, items: list[str], timeout_s: float | None = None) -> dict:
+        """POST /comfy/ssh/sync-engine:逐项 SSH 同步(并集策略 Q1+强制对齐 Q6)。
+
+        逐项动作(R2):
+          ComfyUI 引擎/both → git fetch origin && git reset --hard <Mac HEAD>;
+          mac-only → git clone <url>(无 Mac HEAD 时 clone 默认分支);
+          win-only/skip(my-nodes) → 跳过(Q1 不删/Q2 不管);
+          依赖 → 有 requirements.txt 则 PYTHONUTF8=1 venv pip install(失败不阻断,
+          记 pipError);验证 → SSH 读 Win HEAD 比对 Mac HEAD。
+        整体超时 10min(Q3);部分失败不阻断(失败项在回执标明,C8)。
+
+        返回 {items: [{name,type,macHead,winHead,action,verified,error,pipError}]}。
+        """
+        overall = _ENGINE_SYNC_OVERALL_TIMEOUT_S if timeout_s is None else timeout_s
+        deadline = time.monotonic() + overall
+        scan = _scan_mac_git_packages()
+        doc = load_engine_sync_doc()
+        doc, changed = merge_mac_scan_into_doc(doc, scan)
+        if changed:
+            write_engine_sync_doc(doc)
+        plugins_by_name = {p["name"]: p for p in doc["plugins"]}
+        win_names = self._win_custom_nodes_names()
+
+        results: list[dict] = []
+        for name in items:
+            if time.monotonic() >= deadline:
+                results.append(
+                    self._sync_result(
+                        name, "plugin" if name != _ENGINE_SYNC_ENGINE_NAME else "engine",
+                        mac_head=None, win_head=None, action="failed", verified=False,
+                        error=f"整体超时({int(overall / 60)}min),未同步",
+                    )
+                )
+                continue
+            try:
+                if name == _ENGINE_SYNC_ENGINE_NAME:
+                    mac_head = _mac_git_head(_mac_custom_nodes_dir().parent)
+                    results.append(
+                        self._sync_one(
+                            name=name, kind="engine", url=doc["comfyui"].get("repo", ""),
+                            mac_head=mac_head, win_exists=True, deadline=deadline,
+                        )
+                    )
+                    continue
+                plugin = plugins_by_name.get(name)
+                mac_head = _mac_git_head(_mac_custom_nodes_dir() / name)
+                if plugin is None and mac_head is None and name not in win_names:
+                    # 三处都无(清单/Mac/Win)——诚实报失败;Win 独有件交 _sync_one 走 skipped
+                    results.append(
+                        self._sync_result(
+                            name, "plugin", mac_head, None, "failed", False,
+                            "清单里没有这件插件(Mac 本机与清单均无)",
+                        )
+                    )
+                    continue
+                results.append(
+                    self._sync_one(
+                        name=name, kind="plugin",
+                        url=(plugin or {}).get("url", ""),
+                        mac_head=mac_head, win_exists=name in win_names,
+                        deadline=deadline,
+                    )
+                )
+            except SSHServiceError as exc:
+                results.append(
+                    self._sync_result(
+                        name, "plugin" if name != _ENGINE_SYNC_ENGINE_NAME else "engine",
+                        None, None, "failed", False, str(exc),
+                    )
+                )
+        return {"items": results}
+
+    @staticmethod
+    def _sync_result(
+        name: str, type_: str, mac_head: str | None, win_head: str | None,
+        action: str, verified: bool, error: str | None = None,
+        pip_error: str | None = None,
+    ) -> dict:
+        return {
+            "name": name, "type": type_, "macHead": mac_head, "winHead": win_head,
+            "action": action, "verified": verified, "error": error, "pipError": pip_error,
+        }
+
+    def _remaining_timeout(self, deadline: float, op_timeout_s: float) -> float:
+        """单命令超时=操作上限与整体剩余量的较小者(下限 1s 让命令有机会自报)。"""
+        return max(min(op_timeout_s, deadline - time.monotonic()), 1.0)
+
+    def _sync_one(
+        self, name: str, kind: str, url: str, mac_head: str | None,
+        win_exists: bool, deadline: float,
+    ) -> dict:
+        """单件同步:动作+依赖+验证;win-only/skip 直接过(R2 逐项逻辑)。"""
+        win_path = (
+            _WIN_COMFY_ROOT + "\\ComfyUI"
+            if kind == "engine"
+            else f"{_WIN_CUSTOM_NODES}\\{name}"
+        )
+        if name in _ENGINE_SYNC_SKIP_NAMES:  # Q2
+            return self._sync_result(name, kind, mac_head, None, "skipped", False)
+        action: str
+        if kind == "engine":
+            if mac_head is None:
+                return self._sync_result(
+                    name, kind, None, None, "failed", False,
+                    "Mac 本机引擎 HEAD 读不到(引擎目录非 git/无提交),无法对齐",
+                )
+            action = "aligned"
+            # Q6 强制对齐 Mac 版本(不拉 latest)
+            code, out = self.run_remote_command(
+                f'cd /d "{win_path}" && git fetch origin 2>&1 && git reset --hard {mac_head} 2>&1',
+                self._remaining_timeout(deadline, 120),
+            )
+            if code != 0:
+                return self._sync_result(
+                    name, kind, mac_head, None, "failed", False,
+                    f"git fetch/reset 失败: {out.strip()[:200]}",
+                )
+        elif not win_exists:
+            # mac-only(Q1):Win 缺 → clone 新装(R2③;不 reset,验证按「新装」口径)
+            action = "cloned"
+            code, out = self.run_remote_command(
+                f"cd /d {_WIN_CUSTOM_NODES} && git clone {url} {name} 2>&1",
+                self._remaining_timeout(deadline, 180),
+            )
+            if code != 0:
+                return self._sync_result(
+                    name, kind, mac_head, None, "failed", False,
+                    f"git clone 失败: {out.strip()[:200]}",
+                )
+        elif mac_head is not None:
+            # both(Q1 对齐同名插件,Q6 强制对齐 Mac 版本)
+            action = "aligned"
+            code, out = self.run_remote_command(
+                f'cd /d "{win_path}" && git fetch origin 2>&1 && git reset --hard {mac_head} 2>&1',
+                self._remaining_timeout(deadline, 120),
+            )
+            if code != 0:
+                return self._sync_result(
+                    name, kind, mac_head, None, "failed", False,
+                    f"git fetch/reset 失败: {out.strip()[:200]}",
+                )
+        else:
+            # win-only(Q1 并集不删):Win 独有,保留不动
+            return self._sync_result(
+                name, kind, None, None, "skipped", False, "win-only(Win 独有,保留不动)"
+            )
+        # 依赖安装(R2⑤):有 requirements.txt 则 PYTHONUTF8=1 venv pip install
+        pip_error = None
+        code, out = self.run_remote_command(
+            f'if exist "{win_path}\\requirements.txt" '
+            f'(set PYTHONUTF8=1 && "{_WIN_VENV_PYTHON}" -m pip install -q -r "{win_path}\\requirements.txt" 2>&1) '
+            f"else (echo NO_REQ)",
+            self._remaining_timeout(deadline, 240),
+        )
+        if code != 0:
+            pip_error = f"pip install 失败: {out.strip()[:200]}"  # ⚠️ 不阻断(C8)
+        # 验证(R2⑥):aligned → Win HEAD == Mac HEAD;cloned → 目录在+HEAD 可读
+        win_head = self._win_git_head(win_path)
+        verified = (win_head == mac_head) if action == "aligned" else win_head is not None
+        return self._sync_result(
+            name, kind, mac_head, win_head, action, verified, None, pip_error
+        )
+
+    def restart_remote_engine(self) -> dict:
+        """结果弹窗[重启引擎](R3):SSH schtasks /Run /TN EngineDurable。"""
+        code, out = self.run_remote_command(
+            "schtasks /Run /TN EngineDurable", 30
+        )
+        return {"ok": code == 0, "output": out.strip()[:500]}
 
     def refresh_remote_token(self, timeout_s: float | None = None) -> bool:
         """R2 令牌自愈:SFTP 依次读 tokenConfigPaths → controlToken → 正则校验

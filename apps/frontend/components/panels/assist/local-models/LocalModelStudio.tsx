@@ -15,12 +15,22 @@ import { ImagePlus, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   getComfyEngineClient,
 } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import { useComfyEngineSettings } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
+import { setRemoteEngine } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
 import { persistComfyImage } from "@/lib/assist/image-studio/comfy-execute";
 import { ensureLocalImageSidecarRunning } from "@/lib/ai/image-generation-engine";
 import { useProjectStore } from "@/stores/project/project-store";
+import { useEnginePresetsStore } from "@/stores/settings/engine-presets-store";
 import {
   LOCAL_IMAGE_API_KEY,
   LOCAL_IMAGE_BASE_URL,
@@ -56,6 +66,8 @@ export function LocalModelStudio() {
   const [seedText, setSeedText] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
+  // 1104 A1 备胎弹窗(仅大模型模块,grill Q1:批量生成/分镜场景不弹,文字建议已够)
+  const [remoteUnreachable, setRemoteUnreachable] = useState(false);
 
   // 模型清单:进页拉一次(与引擎卡模型页同源;引擎未装/未跑也能读 FS)
   useEffect(() => {
@@ -146,10 +158,40 @@ export function LocalModelStudio() {
         toast.warning("图片已生成,但保存失败,当前仅有内存预览,尚未存盘");
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "生图失败,请稍后再试");
+      const message = error instanceof Error ? error.message : "生图失败,请稍后再试";
+      toast.error(message);
+      // 1104 A1 备胎弹窗:远端引擎不可达(bridge-unreachable)且本机有备胎可切
+      // →弹窗给一键切换/重试;本机未配→不弹(toast 文字建议已含指引)。
+      if (message.includes("bridge-unreachable") && (await hasLocalFallback())) {
+        setRemoteUnreachable(true);
+      }
     } finally {
       unsubscribe();
       setIsGenerating(false);
+    }
+  };
+
+  // 本地引擎已配置判据(1104 A1):引擎地址预设有条目 or 引擎账本有端口。
+  const hasLocalFallback = async () => {
+    if (useEnginePresetsStore.getState().presets.length > 0) return true;
+    if (!client) return false;
+    try {
+      const status = await client.getEngineStatus();
+      return status.port != null;
+    } catch {
+      return false;
+    }
+  };
+
+  // 切换到本机引擎:清远端配置(POST /comfy/engine/remote body={url:""}),
+  // 之后生图走本机发现(自管引擎已装未跑会由后端自动拉起)。
+  const switchToLocalEngine = async () => {
+    try {
+      await setRemoteEngine("");
+      toast.success("已切换到本机引擎");
+      setRemoteUnreachable(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "切换失败,请稍后再试");
     }
   };
 
@@ -351,6 +393,40 @@ export function LocalModelStudio() {
             </div>
           )}
         </section>
+
+        {/* 1104 A1:远端引擎不可达备胎弹窗(切换/重试/关闭) */}
+        <Dialog open={remoteUnreachable} onOpenChange={setRemoteUnreachable}>
+          <DialogContent data-local-model-fallback-dialog>
+            <DialogHeader>
+              <DialogTitle>远端引擎不可达</DialogTitle>
+              <DialogDescription>
+                出图失败:远端引擎不可达,请检查远端 Windows ComfyUI 是否在运行。本机引擎已配置,可作为备胎。
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setRemoteUnreachable(false)}
+                data-local-model-fallback-close
+              >
+                关闭
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setRemoteUnreachable(false);
+                  void generate();
+                }}
+                data-local-model-fallback-retry
+              >
+                重试
+              </Button>
+              <Button onClick={() => void switchToLocalEngine()} data-local-model-fallback-switch>
+                切换到本机引擎
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

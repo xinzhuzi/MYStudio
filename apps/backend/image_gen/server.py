@@ -1006,6 +1006,7 @@ class Handler(BaseHTTPRequestHandler):
 
             if method == "POST" and path == "/comfy/ssh/sync-plugins":
                 # 1104 插件同步:Mac→Windows(版本+插件+依赖,全走 SSH)
+                # R4(11-04 engine-sync):UI 入口已撤换引擎同步面板;端点保留兼容。
                 svc = _ssh_service()
                 if svc is None:
                     self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "remote_ssh 模块不可用(paramiko 未装?)", "ssh-unavailable")
@@ -1018,6 +1019,70 @@ class Handler(BaseHTTPRequestHandler):
                     self._send_json(result)
                 except Exception as exc:
                     self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, f"插件同步失败: {exc}", "sync-failed")
+                return
+
+            # ── 1104 引擎同步中心(tasks/11-04-engine-sync R2)──
+            if method == "GET" and path == "/comfy/ssh/engine-sync-manifest":
+                # 单真源清单+双侧实况(读 engine-sync.json+扫 Mac+SSH 读 Win)
+                svc = _ssh_service()
+                if svc is None:
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "remote_ssh 模块不可用(paramiko 未装?)", "ssh-unavailable")
+                    return
+                if not svc.status().get("connected"):
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "SSH 未连接——需先连接 SSH 才能取同步清单", "ssh-disconnected")
+                    return
+                from remote_ssh.service import SSHServiceError
+
+                try:
+                    self._send_json(svc.get_engine_sync_manifest())
+                except SSHServiceError as exc:
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, f"取清单失败(SSH): {exc}", "ssh-disconnected")
+                return
+            if method == "POST" and path == "/comfy/ssh/sync-engine":
+                # 逐项同步(并集 Q1+强制对齐 Q6;body={items:[名字...],timeoutS?:剩余秒数},整体 10min Q3)
+                svc = _ssh_service()
+                if svc is None:
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "remote_ssh 模块不可用(paramiko 未装?)", "ssh-unavailable")
+                    return
+                if not svc.status().get("connected"):
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "SSH 未连接——需先连接 SSH 再同步", "ssh-disconnected")
+                    return
+                items = payload.get("items")
+                if not isinstance(items, list) or not items or any(not isinstance(n, str) or not n.strip() for n in items):
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "同步清单为空或格式不对(items 须为非空名字数组)", "sync-engine-invalid")
+                    return
+                # 可选 timeoutS(秒,正数):前端逐件单发时带剩余预算,让整体 10min
+                # 超时(Q3)跨批次生效(缺省=后端默认 600s 单批口径)
+                timeout_s = payload.get("timeoutS")
+                if timeout_s is not None and (
+                    not isinstance(timeout_s, (int, float))
+                    or isinstance(timeout_s, bool)
+                    or timeout_s <= 0
+                ):
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "timeoutS 须为正数(秒)", "sync-engine-invalid")
+                    return
+                from remote_ssh.service import SSHServiceError
+
+                try:
+                    if timeout_s is None:
+                        self._send_json(svc.sync_engine(items))
+                    else:
+                        self._send_json(svc.sync_engine(items, timeout_s=float(timeout_s)))
+                except SSHServiceError as exc:
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, f"同步失败(SSH): {exc}", "ssh-disconnected")
+                except Exception as exc:
+                    self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, f"引擎同步失败: {exc}", "sync-failed")
+                return
+            if method == "POST" and path == "/comfy/ssh/restart-engine":
+                # 结果弹窗[重启引擎](R3):SSH schtasks /Run /TN EngineDurable
+                svc = _ssh_service()
+                if svc is None:
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "remote_ssh 模块不可用(paramiko 未装?)", "ssh-unavailable")
+                    return
+                if not svc.status().get("connected"):
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "SSH 未连接——需先连接 SSH 再重启", "ssh-disconnected")
+                    return
+                self._send_json(svc.restart_remote_engine())
                 return
 
             if method == "GET" and path == "/comfy/engine/snapshots":

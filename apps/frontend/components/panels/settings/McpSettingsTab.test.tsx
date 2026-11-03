@@ -1626,3 +1626,269 @@ describe("McpSettingsTab·SSH 连接列表(11-03 终版)", () => {
   });
 });
 
+
+// ── 引擎同步(11-04 engine-sync R3/R5):清单渲染+勾选同步流+结果弹窗+旧按钮已撤 ──
+describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
+  /** manifest 夹具:四态各一(both 引擎/both 插件/mac-only×2——本机件+手动清单件/
+   * win-only)+ my-nodes(skip)。pluginManual=手动 engine-sync.json 条目双侧均无
+   * (1104 复核修:后端报 mac-only 不落 skip,面板可见可勾选)。 */
+  const MANIFEST = {
+    items: [
+      { name: "ComfyUI", url: "https://github.com/comfyanonymous/ComfyUI", macHead: "aaaa1111bbbb2222", winHead: "cccc2222dddd3333", status: "both" },
+      { name: "pluginA", url: "https://example.com/a.git", macHead: "aaaa000011112222", winHead: "aaaa000011112222", status: "both" },
+      { name: "pluginB", url: "https://example.com/b.git", macHead: "bbbb000011112222", winHead: null, status: "mac-only" },
+      { name: "pluginManual", url: "https://example.com/m.git", macHead: null, winHead: null, status: "mac-only" },
+      { name: "seedvr2_videoupscaler", url: "", macHead: null, winHead: "dddd000011112222", status: "win-only" },
+      { name: "my-nodes", url: "", macHead: null, winHead: null, status: "skip" },
+    ],
+  };
+
+  const SSH_CONNECTED = {
+    available: true, configured: true, connected: true,
+    host: "192.168.0.101", user: "zbj", serverVersion: null, lastError: null,
+    tunnelEnabled: true, tunnelActive: true, tunnelLocalPort: 17600, tokenRefreshedAt: null,
+  };
+
+  /** 统一 fetch stub:引擎地址/SSH 状态/清单/同步/重启五路;同步按 items[0] 逐件回执。 */
+  const stubEngineSyncFetch = (handlers: {
+    sshConnected?: boolean;
+    manifest?: unknown; // 缺省=MANIFEST;传 Response 形状可模拟 503
+    manifestStatus?: number;
+    syncReply?: (name: string) => unknown;
+    restartReply?: unknown;
+  }) => {
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      const u = String(url);
+      const reply = (payload: unknown, status = 200) =>
+        Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(payload) } as unknown as Response);
+      if (u.includes("/comfy/engine/remote")) {
+        return reply({ url: null, effective: "http://127.0.0.1:17598", source: "fallback" });
+      }
+      if (u.includes("/comfy/ssh/status")) {
+        return reply(handlers.sshConnected === false ? { ...SSH_CONNECTED, connected: false } : SSH_CONNECTED);
+      }
+      if (u.includes("/comfy/ssh/engine-sync-manifest")) {
+        if (handlers.manifestStatus && handlers.manifestStatus >= 400) {
+          return reply(handlers.manifest ?? { error: { message: "SSH 未连接", code: "ssh-disconnected" } }, handlers.manifestStatus);
+        }
+        return reply(handlers.manifest ?? MANIFEST);
+      }
+      if (u.includes("/comfy/ssh/sync-engine") && init?.method === "POST") {
+        const body = JSON.parse(String(init.body ?? "{}")) as { items: string[] };
+        const name = body.items[0] ?? "";
+        const fallback = (n: string) => ({
+          items: [{
+            name: n, type: n === "ComfyUI" ? "engine" : "plugin",
+            macHead: n === "ComfyUI" ? "aaaa1111bbbb2222" : n === "pluginA" ? "aaaa000011112222" : "bbbb000011112222",
+            winHead: n === "ComfyUI" ? "aaaa1111bbbb2222" : n === "pluginA" ? "aaaa000011112222" : "bbbb999988887777",
+            action: n === "pluginB" ? "cloned" : "aligned", verified: true, error: null, pipError: null,
+          }],
+        });
+        // syncReply 可返回载荷/Promise/undefined(undefined=回落默认回执,便于只改道单件)
+        const custom = handlers.syncReply ? handlers.syncReply(name) : undefined;
+        if (custom instanceof Promise) {
+          return custom.then((resolved) => reply(resolved ?? fallback(name)));
+        }
+        return reply(custom ?? fallback(name));
+      }
+      if (u.includes("/comfy/ssh/restart-engine") && init?.method === "POST") {
+        return reply(handlers.restartReply ?? { ok: true, output: "SUCCESS: EngineDurable" });
+      }
+      if (u.includes("/comfy/workflows")) {
+        return reply({ engineOnline: false, workflows: [] });
+      }
+      return Promise.reject(new Error("unexpected fetch " + u));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  };
+
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    setComfySidecarLivenessProbeForTests(null);
+    localStorage.clear();
+  });
+
+  beforeEach(() => {
+    setComfySidecarLivenessProbeForTests(async () => true);
+    useEnginePresetsStore.setState({ presets: [] });
+    useSshPresetsStore.setState({ presets: [], activeFingerprint: null });
+    toastMocks.success.mockClear();
+    toastMocks.error.mockClear();
+  });
+
+  const rowOf = (name: string) =>
+    screen.getAllByTestId("engine-sync-row").find((r) => r.dataset.name === name)!;
+
+  it("清单渲染:四态行(引擎恒首+HEAD 前8字+状态标签);win-only 默认取消勾选+⏭️;my-nodes 不显示;手动清单件(双侧均无)可见可勾选", async () => {
+    stubEngineSyncFetch({});
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-sync-section")).toBeTruthy();
+    });
+    const rows = screen.getAllByTestId("engine-sync-row");
+    expect(rows.map((r) => r.dataset.name)).toEqual(["ComfyUI", "pluginA", "pluginB", "pluginManual", "seedvr2_videoupscaler"]);
+    expect(rows[0].textContent).toContain("ComfyUI 引擎");
+    expect(rows[0].textContent).toContain("Mac aaaa1111 → Win cccc2222"); // HEAD 前 8 字
+    expect(rowOf("pluginB").textContent).toContain("Win 缺 → clone");
+    expect(rowOf("seedvr2_videoupscaler").textContent).toContain("⏭️ Win 独有,保留");
+    // 勾选态:both/mac-only 默认勾上(含手动清单件 pluginManual),win-only 恒不勾
+    const checkedOf = (name: string) =>
+      rowOf(name).querySelector('[data-testid="engine-sync-check"]')!.getAttribute("data-state");
+    expect(checkedOf("ComfyUI")).toBe("checked");
+    expect(checkedOf("pluginB")).toBe("checked");
+    expect(checkedOf("pluginManual")).toBe("checked");
+    expect(checkedOf("seedvr2_videoupscaler")).toBe("unchecked");
+  });
+
+  it("SSH 断开:开始同步禁用+指路提示;manifest 503 同口径", async () => {
+    stubEngineSyncFetch({ sshConnected: false, manifestStatus: 503 });
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-sync-ssh-hint").textContent).toContain("需先连接 SSH");
+    });
+    const start = screen.getByTestId("engine-sync-start") as HTMLButtonElement;
+    expect(start.disabled).toBe(true);
+  });
+
+  it("勾选+开始同步:逐件 POST(单件单发=真逐项进度),⏳→✅ 逐行翻绿,POST 体={items:[名]}", async () => {
+    // 首件(ComfyUI)挂起受控 promise:钉死「⏳ 同步中」的中途态
+    // (ref 对象承载 resolve:TS 流分析不跟踪回调内赋值,裸 let 会被收窄成 null)
+    const firstGate: { release: ((v: unknown) => void) | null } = { release: null };
+    const fetchMock = stubEngineSyncFetch({
+      syncReply: (name) =>
+        name === "ComfyUI"
+          ? new Promise((resolve) => { firstGate.release = resolve; }).then(() => ({
+              items: [{ name: "ComfyUI", type: "engine", macHead: "aaaa1111bbbb2222", winHead: "aaaa1111bbbb2222", action: "aligned", verified: true, error: null, pipError: null }],
+            }))
+          : undefined,
+    });
+    render(<McpSettingsTab />);
+    // 清单挂载异步:先等行就绪(开始按钮才从禁用解锁)
+    await waitFor(() => {
+      expect(screen.getAllByTestId("engine-sync-row").length).toBe(5);
+    });
+    fireEvent.click(screen.getByTestId("engine-sync-start"));
+    // 首件在途:⏳ 同步中;后面几件未开始
+    await waitFor(() => {
+      expect(rowOf("ComfyUI").querySelector('[data-testid="engine-sync-progress"]')!.textContent).toContain("⏳ 同步中");
+    });
+    expect(rowOf("pluginA").querySelector('[data-testid="engine-sync-progress"]')!.textContent).toContain("⬜ 等待");
+    firstGate.release?.(null);
+    await waitFor(() => {
+      expect(rowOf("pluginB").querySelector('[data-testid="engine-sync-progress"]')!.textContent).toContain("✅ 完成");
+    });
+    expect(rowOf("ComfyUI").querySelector('[data-testid="engine-sync-progress"]')!.textContent).toContain("✅ 完成");
+    // 逐件单发:POST 体恰为单名数组,顺序=清单序(勾选项;含手动清单件 pluginManual)
+    const posts = fetchMock.mock.calls
+      .filter((c) => String(c[0]).includes("/comfy/ssh/sync-engine") && c[1]?.method === "POST")
+      .map((c) => JSON.parse(String(c[1]?.body)) as { items: string[]; timeoutS?: number });
+    expect(posts.map((p) => p.items)).toEqual([["ComfyUI"], ["pluginA"], ["pluginB"], ["pluginManual"]]);
+    // 每件带剩余预算(timeoutS>0):整体 10min 超时跨批次生效(1104 复核修)
+    expect(posts.every((p) => typeof p.timeoutS === "number" && p.timeoutS > 0)).toBe(true);
+    expect(posts[0].timeoutS).toBeLessThanOrEqual(600);
+  });
+
+  it("完成弹结果 Dialog:逐项 ✅ 文案+重启建议+[重启引擎]→POST /comfy/ssh/restart-engine;⚠️ pip 失败不阻断", async () => {
+    const fetchMock = stubEngineSyncFetch({
+      syncReply: (name) => ({
+        items: [{
+          name, type: name === "ComfyUI" ? "engine" : "plugin",
+          macHead: "aaaa1111bbbb2222", winHead: "aaaa1111bbbb2222",
+          action: "aligned", verified: true, error: null,
+          pipError: name === "pluginA" ? "pip install 失败: ERROR: no version" : null,
+        }],
+      }),
+    });
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getAllByTestId("engine-sync-row").length).toBe(5);
+    });
+    fireEvent.click(screen.getByTestId("engine-sync-start"));
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-sync-result-dialog").textContent).toContain("同步结果");
+    });
+    const dialog = screen.getByTestId("engine-sync-result-dialog");
+    expect(dialog.textContent).toContain("已对齐 Mac 版本(aaaa1111)");
+    expect(screen.getByTestId("engine-sync-pip-warning").textContent).toContain("不阻断");
+    expect(dialog.textContent).toContain("重启引擎使插件生效");
+    // [重启引擎] → SSH schtasks(R3)
+    fireEvent.click(screen.getByTestId("engine-sync-restart"));
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some((c) => String(c[0]).includes("/comfy/ssh/restart-engine") && c[1]?.method === "POST"),
+      ).toBe(true);
+    });
+    expect(toastMocks.success).toHaveBeenCalledWith(expect.stringContaining("重启指令已发"));
+  });
+
+  it("整体超时(1104 复核修):10min 预算耗尽后不再发新 POST,剩余件按后端同口径标「整体超时」", async () => {
+    // 只假 Date(定时器留真,waitFor 不受影响):首件挂起中把系统时间推过
+    // deadline,释放后剩余件应直接收摊、零新 POST
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const firstGate: { release: ((v: unknown) => void) | null } = { release: null };
+      const fetchMock = stubEngineSyncFetch({
+        syncReply: (name) =>
+          name === "ComfyUI"
+            ? new Promise((resolve) => { firstGate.release = resolve; }).then(() => ({
+                items: [{ name: "ComfyUI", type: "engine", macHead: "aaaa1111bbbb2222", winHead: "aaaa1111bbbb2222", action: "aligned", verified: true, error: null, pipError: null }],
+              }))
+            : undefined,
+      });
+      render(<McpSettingsTab />);
+      await waitFor(() => {
+        expect(screen.getAllByTestId("engine-sync-row").length).toBe(5);
+      });
+      fireEvent.click(screen.getByTestId("engine-sync-start"));
+      await waitFor(() => {
+        expect(rowOf("ComfyUI").querySelector('[data-testid="engine-sync-progress"]')!.textContent).toContain("⏳ 同步中");
+      });
+      // 预算耗尽:系统时间推过 10min deadline 再释放首件
+      vi.setSystemTime(new Date(Date.now() + 10 * 60 * 1000 + 1000));
+      firstGate.release?.(null);
+      await waitFor(() => {
+        expect(rowOf("pluginManual").querySelector('[data-testid="engine-sync-progress"]')!.textContent).toContain("❌ 失败");
+      });
+      expect(rowOf("pluginA").querySelector('[data-testid="engine-sync-progress"]')!.textContent).toContain("❌ 失败");
+      // 只发过首件一件 POST——剩余件零新请求
+      const posts = fetchMock.mock.calls.filter(
+        (c) => String(c[0]).includes("/comfy/ssh/sync-engine") && c[1]?.method === "POST",
+      );
+      expect(posts.length).toBe(1);
+      // 结果弹窗按后端同口径报整体超时
+      await waitFor(() => {
+        expect(screen.getByTestId("engine-sync-result-dialog").textContent).toContain("整体超时(10min),未同步");
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("引擎行 Win 缺(1104 复核修):标签不承诺 clone——引擎同步恒 fetch+reset,Win 无引擎目录将诚实报错", async () => {
+    stubEngineSyncFetch({
+      manifest: {
+        items: [
+          { name: "ComfyUI", url: "https://github.com/comfyanonymous/ComfyUI", macHead: "aaaa1111bbbb2222", winHead: null, status: "mac-only" },
+        ],
+      },
+    });
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getAllByTestId("engine-sync-row").length).toBe(1);
+    });
+    expect(rowOf("ComfyUI").querySelector('[data-testid="engine-sync-status"]')!.textContent)
+      .toContain("Win 缺(引擎不自动 clone)");
+  });
+
+  it("旧「同步插件」按钮已撤(R4):ssh-sync-plugins testid 不复存在", async () => {
+    stubEngineSyncFetch({});
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-sync-section")).toBeTruthy();
+    });
+    expect(screen.queryByTestId("ssh-sync-plugins")).toBeNull();
+  });
+});

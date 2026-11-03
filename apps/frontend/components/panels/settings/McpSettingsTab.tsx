@@ -59,16 +59,23 @@ import {
   setRemoteEngine,
   probeEngineUrl,
   comfySidecarRequest,
+  ComfySidecarHttpError,
   SIDECAR_DOWN_GUIDANCE,
   isSidecarDownError,
   getComfySshStatus,
   setComfySshConfig,
   testComfySshConnection,
   refreshComfySshToken,
-  syncSshPlugins,
+  getEngineSyncManifest,
+  syncEngine,
+  restartRemoteEngine,
+  ENGINE_SYNC_OVERALL_TIMEOUT_MS,
   type ComfyRemoteEngineStatus,
   type ComfySshStatus,
   type ComfySshTestReply,
+  type EngineSyncManifest,
+  type EngineSyncManifestItem,
+  type EngineSyncResultItem,
 } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
 import { SecureVaultBanner } from "./SecureVaultBanner";
 
@@ -153,7 +160,7 @@ function resolveActiveSshPresetId(
 }
 
 const COLLAPSED_STORAGE_KEY = "mystudio.settings.mcp.collapsedSections";
-type SectionId = "bridge" | "remote-engine" | "ssh-remote" | "family" | "workflows" | "servers" | "json";
+type SectionId = "bridge" | "remote-engine" | "engine-sync" | "ssh-remote" | "family" | "workflows" | "servers" | "json";
 type PillState = "ready" | "needs-runtime" | "neutral";
 
 const PILL_LABELS: Record<PillState, string> = {
@@ -524,23 +531,131 @@ export function McpSettingsTab() {
   // 1103 追修(保存即显"断开"假断,保留项):切换触发的 keeper 重连有 1-2s 撕旧
   // 建新窗口,单次状态回读会吃到处断开态且永不再刷——带退避沉降轮询直到连上或
   // 试尽。
-  const [sshSyncing, setSshSyncing] = useState(false);
-  const handleSyncPlugins = async () => {
-    setSshSyncing(true);
-    try {
-      const r = await syncSshPlugins();
-      if (r.errors.length > 0) {
-        toast.error(`插件同步部分失败: ${r.errors[0]}`);
+  // (1104 engine-sync R4:旧「同步插件」行内按钮+handleSyncPlugins 已撤,换引擎
+  // 地址区「引擎同步」折叠子区;后端 /comfy/ssh/sync-plugins 端点保留兼容。)
+
+  // ── 引擎同步(11-04 engine-sync R3):单真源清单+勾选+逐项同步+结果弹窗 ──
+  const [engineSyncManifest, setEngineSyncManifest] = useState<EngineSyncManifest | null>(null);
+  const [engineSyncError, setEngineSyncError] = useState<string | null>(null);
+  const [engineSyncChecked, setEngineSyncChecked] = useState<Record<string, boolean>>({});
+  // 逐项进度(Q3:每完成一件更新一行):name → "pending" ⬜等待 | "syncing" ⏳ | 完成回执
+  const [engineSyncProgress, setEngineSyncProgress] = useState<Record<string, "pending" | "syncing" | EngineSyncResultItem>>({});
+  const [engineSyncRunning, setEngineSyncRunning] = useState(false);
+  // 同步完成结果弹窗(null=关;⚠️ pip 失败不阻断,随行展示)
+  const [engineSyncDialog, setEngineSyncDialog] = useState<EngineSyncResultItem[] | null>(null);
+  const [engineRestarting, setEngineRestarting] = useState(false);
+
+  // 挂载即取清单(R3):GET manifest → 渲染勾选清单。SSH 未连接(503 ssh-
+  // disconnected)/sidecar 未在驾 → 静默留空态+提示,按钮禁用(照 SSH 行范式
+  // 首开设置页不弹错)。win-only 默认取消勾选(Q1 并集不删);skip(my-nodes,
+  // Q2)不渲染。
+  useEffect(() => {
+    let cancelled = false;
+    getEngineSyncManifest()
+      .then((manifest) => {
+        if (cancelled) return;
+        setEngineSyncManifest(manifest);
+        setEngineSyncError(null);
+        setEngineSyncChecked(
+          Object.fromEntries(
+            manifest.items
+              .filter((item) => item.status === "both" || item.status === "mac-only")
+              .map((item) => [item.name, true]),
+          ),
+        );
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        if (isSidecarDownError(error)) setEngineSyncError(SIDECAR_DOWN_GUIDANCE);
+        else if (error instanceof ComfySidecarHttpError && error.status === 503)
+          setEngineSyncError("需先连接 SSH(下方 SSH 远端连接点一条连接)再取同步清单");
+        else setEngineSyncError(error instanceof Error ? error.message : "取同步清单失败");
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // 引擎同步清单可见行(skip 态不渲染;skip=my-nodes Q2 归 deploy-dual 管——
+  // 手动清单条目双侧均无时后端报 mac-only,不落 skip,可见可勾选)
+  const engineSyncRows: EngineSyncManifestItem[] = (engineSyncManifest?.items ?? []).filter(
+    (item) => item.status !== "skip",
+  );
+
+  const toggleEngineSyncItem = (name: string, checked: boolean) => {
+    setEngineSyncChecked((prev) => ({ ...prev, [name]: checked }));
+  };
+
+  // 开始同步(R3):勾选项逐件 POST sync-engine——单发 POST 拿不到中途回执,
+  // 逐件串行发=真·逐项进度(Q3 每完成一件更新一行);单件失败不拦后续(C8)。
+  // 整体超时 10min(Q3)跨批次生效(1104 复核修):逐件单发会让每件都拿全新
+  // 600s 预算,故前端持全局 deadline——每件 POST 带剩余秒数(timeoutS),预算
+  // 耗尽后剩余件不再发、按后端同口径标「整体超时」。
+  const startEngineSync = async () => {
+    const names = engineSyncRows
+      .filter((item) => item.status !== "win-only" && engineSyncChecked[item.name])
+      .map((item) => item.name);
+    if (names.length === 0 || engineSyncRunning) return;
+    setEngineSyncRunning(true);
+    setEngineSyncProgress(Object.fromEntries(names.map((name) => [name, "pending" as const])));
+    const deadline = Date.now() + ENGINE_SYNC_OVERALL_TIMEOUT_MS;
+    const overallTimeoutError = `整体超时(${ENGINE_SYNC_OVERALL_TIMEOUT_MS / 60_000}min),未同步`;
+    const results: EngineSyncResultItem[] = [];
+    for (const name of names) {
+      const remainingMs = deadline - Date.now();
+      if (remainingMs <= 0) {
+        // 预算耗尽:不发新 POST,剩余件按后端超时同口径收摊
+        const timedOut: EngineSyncResultItem = {
+          name,
+          type: name === "ComfyUI" ? "engine" : "plugin",
+          macHead: null,
+          winHead: null,
+          action: "failed",
+          verified: false,
+          error: overallTimeoutError,
+        };
+        results.push(timedOut);
+        setEngineSyncProgress((prev) => ({ ...prev, [name]: timedOut }));
+        continue;
       }
-      const parts: string[] = [];
-      if (r.comfyuiSynced) parts.push("引擎版本已对齐");
-      if (r.installed.length > 0) parts.push(`新装 ${r.installed.length} 件(${r.installed.slice(0, 3).join("、")}${r.installed.length > 3 ? "…" : ""})`);
-      if (r.updated.length > 0) parts.push(`更新 ${r.updated.length} 件`);
-      toast.success(parts.length > 0 ? `插件同步完成: ${parts.join("; ")}` : "已同步(无变更)");
+      setEngineSyncProgress((prev) => ({ ...prev, [name]: "syncing" }));  // 当前件 ⏳,其余 ⬜ 等待
+      try {
+        const reply = await syncEngine([name], Math.max(1, Math.ceil(remainingMs / 1000)));
+        const item = reply.items[0];
+        results.push(item);
+        setEngineSyncProgress((prev) => ({ ...prev, [name]: item }));
+      } catch (error) {
+        const failed: EngineSyncResultItem = {
+          name,
+          type: name === "ComfyUI" ? "engine" : "plugin",
+          macHead: null,
+          winHead: null,
+          action: "failed",
+          verified: false,
+          error: error instanceof Error ? error.message : "同步失败",
+        };
+        results.push(failed);
+        setEngineSyncProgress((prev) => ({ ...prev, [name]: failed }));
+      }
+    }
+    setEngineSyncRunning(false);
+    setEngineSyncDialog(results);
+    if (results.some((r) => r.action === "failed")) {
+      toast.error(`引擎同步有 ${results.filter((r) => r.action === "failed").length} 件失败——见结果弹窗`);
+    } else {
+      toast.success("引擎同步完成——建议重启引擎使插件生效");
+    }
+  };
+
+  // 重启引擎(R3):SSH schtasks /Run /TN EngineDurable(远端 Windows 计划任务)
+  const restartEngine = async () => {
+    setEngineRestarting(true);
+    try {
+      const reply = await restartRemoteEngine();
+      if (reply.ok) toast.success("重启指令已发(EngineDurable),引擎约需 1-2 分钟起");
+      else toast.error(`重启指令失败: ${reply.output || "schtasks 未成功"}`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "插件同步失败");
+      toast.error(error instanceof Error ? error.message : "重启失败");
     } finally {
-      setSshSyncing(false);
+      setEngineRestarting(false);
     }
   };
 
@@ -1275,6 +1390,186 @@ export function McpSettingsTab() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            {/* ── 引擎同步(11-04 engine-sync R3):单真源清单+勾选+逐项同步+结果弹窗。
+                C4:放引擎地址区(同步的是 ComfyUI 的东西),SSH 只是传输通道 ── */}
+            <Collapsible
+              open={!collapsedSections.has("engine-sync")}
+              onOpenChange={() => toggleSectionCollapsed("engine-sync")}
+            >
+              <CollapsibleTrigger className="w-full text-left">
+                <div className="flex items-center gap-2 rounded-lg px-1 py-2" data-testid="engine-sync-header">
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                      collapsedSections.has("engine-sync") && "-rotate-90",
+                    )}
+                    aria-hidden="true"
+                  />
+                  <span className="text-sm font-medium">引擎同步</span>
+                  <span className="min-w-0 truncate text-xs text-muted-foreground">
+                    把本机引擎版本与插件同步到 Windows(单真源清单,经 SSH)
+                  </span>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="space-y-3 rounded-xl border border-border p-3" data-testid="engine-sync-section">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span>
+                      同步源: 本机引擎
+                      {engineSyncRows.filter((i) => i.status === "mac-only").length > 0
+                        ? `(含 Mac 独有 ${engineSyncRows.filter((i) => i.status === "mac-only").length} 件)`
+                        : ""}
+                    </span>
+                    <span>目标: Windows(经 SSH 当前会话推送)</span>
+                  </div>
+                  {/* SSH 断开/清单取失败:按钮禁用+提示(R3);清单空同样提示 */}
+                  {!sshStatus?.connected ? (
+                    <p className="text-xs leading-5 text-warning" data-testid="engine-sync-ssh-hint">
+                      需先连接 SSH——在下方「SSH 远端连接」点一条连接后再同步。
+                    </p>
+                  ) : engineSyncError ? (
+                    <p className="text-xs leading-5 text-destructive" data-testid="engine-sync-error">{engineSyncError}</p>
+                  ) : engineSyncRows.length === 0 ? (
+                    <p className="text-xs leading-5 text-muted-foreground" data-testid="engine-sync-empty">
+                      同步清单为空——本机引擎还没扫到可同步的 git 插件(先在 设置→本地配置 准备本机引擎)。
+                    </p>
+                  ) : (
+                    <div className="space-y-1.5" data-testid="engine-sync-list">
+                      {engineSyncRows.map((item) => {
+                        const progress = engineSyncProgress[item.name];
+                        const winOnly = item.status === "win-only";
+                        return (
+                          <div
+                            key={item.name}
+                            className={cn(
+                              "flex flex-wrap items-center gap-2 rounded-lg border border-border/60 px-2 py-1.5",
+                              winOnly && "opacity-50",
+                            )}
+                            data-testid="engine-sync-row"
+                            data-name={item.name}
+                          >
+                            <Checkbox
+                              checked={winOnly ? false : (engineSyncChecked[item.name] ?? false)}
+                              disabled={winOnly || engineSyncRunning}
+                              onCheckedChange={(checked) => toggleEngineSyncItem(item.name, checked === true)}
+                              aria-label={`同步 ${item.name}`}
+                              data-testid="engine-sync-check"
+                            />
+                            <span className="min-w-0 flex-1 truncate text-sm">
+                              {item.name === "ComfyUI" ? "ComfyUI 引擎" : item.name}
+                            </span>
+                            <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                              Mac {item.macHead?.slice(0, 8) ?? "—"} → Win {item.winHead?.slice(0, 8) ?? "—"}
+                            </span>
+                            {/* 状态标签(Q1 四态:win-only 灰显 ⏭️)。引擎行 Win 缺不
+                                承诺 clone——_sync_one 引擎恒 fetch+reset 无 clone 分支,
+                                Win 无引擎目录时同步将诚实报错(PRD 同口径:引擎只对齐) */}
+                            <span
+                              className={cn(
+                                "shrink-0 rounded-full border px-1.5 py-0.5 text-[10px]",
+                                item.status === "mac-only"
+                                  ? "border-warning/40 bg-warning/[0.06] text-warning"
+                                  : item.status === "win-only"
+                                    ? "border-border bg-muted/50 text-muted-foreground"
+                                    : "border-border bg-muted/50 text-muted-foreground",
+                              )}
+                              data-testid="engine-sync-status"
+                            >
+                              {item.status === "mac-only"
+                                ? item.name === "ComfyUI"
+                                  ? "Win 缺(引擎不自动 clone)"
+                                  : "Win 缺 → clone"
+                                : winOnly
+                                  ? "⏭️ Win 独有,保留"
+                                  : "两侧都有"}
+                            </span>
+                            {/* 逐项进度(Q3:⬜ 等待 / ⏳ 同步中 / ✅ 完成 / ❌ 失败 / ⏭️ 跳过) */}
+                            {progress === "pending" ? (
+                              <span className="shrink-0 text-xs text-muted-foreground" data-testid="engine-sync-progress">⬜ 等待</span>
+                            ) : progress === "syncing" ? (
+                              <span className="shrink-0 text-xs text-warning" data-testid="engine-sync-progress">⏳ 同步中</span>
+                            ) : progress ? (
+                              <span
+                                className={cn(
+                                  "shrink-0 text-xs",
+                                  progress.action === "failed" || !progress.verified ? "text-destructive" : "text-success",
+                                )}
+                                data-testid="engine-sync-progress"
+                              >
+                                {progress.action === "skipped"
+                                  ? "⏭️ 跳过"
+                                  : progress.action === "failed" || !progress.verified
+                                    ? "❌ 失败"
+                                    : "✅ 完成"}
+                              </span>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => void startEngineSync()}
+                      disabled={
+                        engineSyncRunning ||
+                        !sshStatus?.connected ||
+                        engineSyncRows.length === 0 ||
+                        !engineSyncRows.some((i) => i.status !== "win-only" && engineSyncChecked[i.name])
+                      }
+                      data-testid="engine-sync-start"
+                    >
+                      {engineSyncRunning ? "同步中…" : "开始同步"}
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      勾选项按 Mac 版本强制对齐(Q6);Win 独有件保留不动(Q1);整体超时 10 分钟。
+                    </span>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+            {/* 同步完成结果弹窗(R3:逐项 ✅/❌/⏭️ + 重启建议+[重启引擎]) */}
+            <Dialog open={engineSyncDialog !== null} onOpenChange={(open) => !open && setEngineSyncDialog(null)}>
+              <DialogContent className="max-w-md" data-testid="engine-sync-result-dialog">
+                <DialogHeader>
+                  <DialogTitle>同步结果</DialogTitle>
+                  <DialogDescription>逐项结果(已验证=Windows 侧 HEAD 与 Mac 一致)</DialogDescription>
+                </DialogHeader>
+                <div className="max-h-72 space-y-1.5 overflow-y-auto" data-testid="engine-sync-result-list">
+                  {(engineSyncDialog ?? []).map((result) => (
+                    <div key={result.name} className="flex items-start gap-2 text-xs leading-5" data-testid="engine-sync-result-row">
+                      <span className="shrink-0">
+                        {result.action === "failed" || !result.verified ? "❌" : result.action === "skipped" ? "⏭️" : "✅"}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="font-medium">{result.name === "ComfyUI" ? "ComfyUI 引擎" : result.name}</span>
+                        {result.action === "aligned" && result.verified
+                          ? `: 已对齐 Mac 版本(${result.macHead?.slice(0, 8) ?? "—"})`
+                          : result.action === "cloned" && result.verified
+                            ? ": 已安装(新)"
+                            : result.action === "skipped"
+                              ? `: ${result.error ?? "跳过"}`
+                              : `: ${result.error ?? "未通过验证"}`}
+                        {result.pipError ? (
+                          <span className="mt-0.5 block text-warning" data-testid="engine-sync-pip-warning">⚠️ {result.pipError}(不阻断)</span>
+                        ) : null}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">建议: 重启引擎使插件生效。</p>
+                <DialogFooter>
+                  <Button size="sm" variant="ghost" onClick={() => setEngineSyncDialog(null)}>关闭</Button>
+                  <Button
+                    size="sm"
+                    onClick={() => void restartEngine()}
+                    disabled={engineRestarting}
+                    data-testid="engine-sync-restart"
+                  >{engineRestarting ? "重启指令中…" : "重启引擎"}</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </McpRow>
 
@@ -1409,13 +1704,8 @@ export function McpSettingsTab() {
                             title="手动触发令牌自愈(POST /comfy/ssh/token-refresh,走当前连接)"
                           >{sshRefreshing ? "刷新中…" : "刷令牌"}</Button>
                         )}
-                        <Button
-                          size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                          onClick={() => void handleSyncPlugins()}
-                          disabled={sshSyncing || !sshStatus?.connected}
-                          data-testid="ssh-sync-plugins"
-                          title="把 Mac 本机引擎的插件同步到 Windows(版本对齐+缺装+依赖)"
-                        >{sshSyncing ? "同步中…" : "同步插件"}</Button>
+                        {/* 1104 engine-sync R4:「同步插件」行内按钮已撤——同步入口收编到
+                            上方引擎地址区「引擎同步」折叠子区(单真源清单+逐项进度+结果弹窗) */}
                         <Button
                           size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
                           onClick={() => useSshPresetsStore.getState().remove(preset.id)}

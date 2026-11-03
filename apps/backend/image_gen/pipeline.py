@@ -333,6 +333,61 @@ def _require_downloaded(model_name: str) -> None:
         )
 
 
+def _preflight_engine_gate(layout: str) -> None:
+    """1104 A2+A3:引擎预检闸(generate_image 入口,先于 _require_downloaded)。
+
+    A2 远端模式:探远端引擎 /system_stats(3s 超时)——不通直接拒,不进生成链。
+    旧:偶发探活过了但后续各步超时叠加=用户等 60s;新:最坏 3s 明确报错。
+    A3 零引擎:无远端配置+本地探不到桥服务+本机引擎未安装=真·无引擎可用,
+    给明确指路(旧:模糊报 model-not-downloaded/「ComfyUI 没在运行」)。
+
+    只对桥布局生效:原生 diffusers 引擎(krea2/flux2/z-image/qwen)既不吃
+    远端引擎也不吃 ComfyUI 服务,零引擎态照常可生成,不得误拦。
+    已装未跑的自管引擎不在此拦——_require_downloaded 的 ensure_engine_ready
+    会自动拉起(09-11 实弹裁定:不能秒拒,否则自动启动补口永远轮不到)。
+    """
+    if layout not in _BRIDGE_LAYOUTS:
+        return
+    try:
+        from engines.image_engine.comfyui_bridge import remote_engine_url_from_settings
+        remote = remote_engine_url_from_settings()
+    except Exception:  # noqa: BLE001 — 判定面失败回落本地口径(照 _require_downloaded 先例)
+        remote = None
+    if remote:
+        import urllib.request as _ur
+        try:
+            probe = _ur.Request(f"{remote}/system_stats")
+            with _ur.urlopen(probe, timeout=3) as resp:
+                if resp.status != 200:
+                    raise OSError(f"引擎应答异常 HTTP {resp.status}")
+        except Exception as exc:  # noqa: BLE001 — 不可达=诚实秒报
+            raise PipelineError(
+                "bridge-unreachable",
+                f"远端引擎不可达({remote},{type(exc).__name__})。请检查 Windows ComfyUI 是否在运行;或在引擎列表切换本机备胎",
+            ) from exc
+        return
+    # 无远端配置:本地桥服务探活(桥布局的 find_cached=探 system_stats,非磁盘检查)
+    cached = any(
+        find_cached_image_model_for_spec(spec)
+        for spec in IMAGE_MODELS.values()
+        if spec.get("layout") in _BRIDGE_LAYOUTS
+    )
+    if cached:
+        return
+    # 探不到≠未配置:自管引擎已装未跑由 ensure_engine_ready 自动拉起,只有
+    # 「探不到服务 且 账本无安装记录」才是真·零引擎(查账本=快,不启引擎)
+    try:
+        from comfyui.manifest import engine_installed as _engine_installed
+        installed = _engine_installed()
+    except Exception:  # noqa: BLE001 — 账本读不到按未装口径(旧路径同样会拒)
+        installed = False
+    if not installed:
+        raise PipelineError(
+            "no-engine-configured",
+            "未配置任何引擎——请在 设置→引擎地址 添加远端引擎地址,或在 设置→本地配置 准备本机引擎",
+        )
+
+
 def generate_image(
     model_name: str,
     prompt: str,
@@ -373,6 +428,11 @@ def generate_image(
             "reference-unsupported",
             f"{spec['label']} 暂不支持多张参考图。请切换 ComfyUI 桥接或云端引擎。",
         )
+
+    # 1104 A2+A3:引擎预检闸(远端死→3s 秒报 bridge-unreachable;零引擎→明确
+    # 指路 no-engine-configured)。_require_downloaded 内探活保留=双层保护
+    # (grill C1:直调 engine.generate 的旁路不走 generate_image 时仍有兜底)。
+    _preflight_engine_gate(layout)
 
     _require_downloaded(model_name)
 
