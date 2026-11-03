@@ -13,9 +13,11 @@ SPEC.loader.exec_module(w)
 
 
 def test_gui_expands_to_the_same_execution_graph_as_the_recorded_case(monkeypatch):
+    # 1104 随迁:主体句文档经 1102 §12-§14 三型入列(5b0103f2)演进,回执 source 双 sha
+    # 与本测试字节锚已按 1030 回执随迁先例同笔重钉;人物海报→人物 兼容替换口径不变。
     case=json.loads((w.TASK/'artifacts/cases.json').read_text())[0]
     receipt_bytes=(w.TASK/'reports/approved-live-subject-revision-1021-3dcutaway.json').read_bytes()
-    assert hashlib.sha256(receipt_bytes).hexdigest()=='90390978f454658408492d0b7696a58f166f2d4edffeaf2d039c06984565e612'
+    assert hashlib.sha256(receipt_bytes).hexdigest()=='d5003b2edf909e8bf44c763650c5c47317738fd36d2af454f96e52d859c33c69'
     receipt=json.loads(receipt_bytes)
     for evidence in receipt['evidence']+receipt['frozen']:
         assert hashlib.sha256(w.resolve(ROOT, evidence['path']).read_bytes()).hexdigest()==evidence['sha256'],evidence['path']
@@ -32,7 +34,7 @@ def test_gui_expands_to_the_same_execution_graph_as_the_recorded_case(monkeypatc
     # Historical receipt predates the label rename; compare its unchanged payload.
     assert hashlib.sha256(source.replace('人物海报'.encode(), '人物'.encode())).hexdigest()==receipt['source']['observed_sha256']
     blocks=re.findall(r'^## (\d+)\.[^\n]*\n.*?^```[^\n]*\n(.*?)^```',source.decode('utf-8'),re.MULTILINE|re.DOTALL)
-    assert len(blocks)==11 and blocks[0][0]=='1'  # 1021 示例库 §11 3D剖面场景图入列(十型→十一型)
+    assert len(blocks)==14 and blocks[0][0]=='1'  # 1021 §11 3D剖面入列(十→十一型);1102 §12-§14 三型入列(十一→十四型)
     subject=blocks[0][1].strip()
     assert hashlib.sha256(subject.encode('utf-8')).hexdigest()==receipt['subject_sha256']
     path=w.sources()[1].with_name('flux3-道劫-t2i.json')
@@ -96,11 +98,11 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     assert set(revisions)=={base,subject}
     assert revisions[subject]=={
         'original_sha256':'40ecae03da80454b5dbec330c0bf17d2eedf6725993864e329f3b040a1ef99ea',
-        'approved_sha256':'0f38e714067c3b61da2c83751f55238cd117adc4559849d2f6fcdd35691ff7de',
+        'approved_sha256':'af085263cf59e1b5554a95fdcd77c2c28daaa69b2d13ace87f7f4f84800a30a3',
         'role':'runtime_execution_input_updated_after_snapshot',
         'historical_backup':'.trellis/tasks/archive/2026-10/10-18-daojie-conflict-p3-subject-docs/backups/道劫_类型主体句示例.md.bak-1019-p3',
         'leaf_receipt':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/approved-live-subject-revision-1021-3dcutaway.json',
-        'leaf_receipt_sha256':'90390978f454658408492d0b7696a58f166f2d4edffeaf2d039c06984565e612',
+        'leaf_receipt_sha256':'d5003b2edf909e8bf44c763650c5c47317738fd36d2af454f96e52d859c33c69',
     }
     subject_revision=revisions[subject]
     assert hashlib.sha256(w.resolve(ROOT, subject_revision['historical_backup']).read_bytes()).hexdigest()==subject_revision['original_sha256']
