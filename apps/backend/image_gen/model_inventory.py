@@ -67,8 +67,12 @@ def build_model_status() -> list[dict]:
             "bigFilesSource": resolved["source"] if resolved else None,
             "smallPiecesReady": small_ready,
             "pointedFiles": (
+                # 1103 修(远端接管模式崩溃):bridge/qwen21 服务档 resolve_big_files
+                # 只回 source/cache_dir 系键,无 main/text_encoder——无条件取键
+                # KeyError 炸掉整个 /models/status(连接被撕,远端模型页全空)。
+                # 改防御式:.get 缺键=跳过,服务档本就不指向单文件。
                 ([str(resolved["cache_dir"])] if bridge_service else
-                 [str(resolved["main"]), str(resolved["text_encoder"])]
+                 [str(p) for p in (resolved.get("main"), resolved.get("text_encoder")) if p]
                  + ([str(resolved["vae"])] if resolved.get("vae") else []))
                 if resolved else ([] if is_pointed else None)
             ),
