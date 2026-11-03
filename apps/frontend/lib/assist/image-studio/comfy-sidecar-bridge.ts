@@ -137,6 +137,21 @@ async function sidecarLikelyUp(): Promise<boolean> {
 }
 
 /** sidecar 统一 JSON 请求:探活门禁 + Bearer 令牌 + 超时 + 错误翻译成大白话。 */
+/** sidecar HTTP 非 2xx 的类型化错误(带状态码)。
+ *
+ * 1104 终态兜底:404=job 已随 sidecar 换代蒸发(job 注册表是进程内存态,
+ * App/生图服务重启即清)——确定性终态,消费方(引擎设置轮询等)应立即收摊
+ * 并给重试指引,不当网络抖动重试。 */
+export class ComfySidecarHttpError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ComfySidecarHttpError";
+    this.status = status;
+  }
+}
+
 export async function comfySidecarRequest<T>(
   method: "GET" | "POST" | "DELETE",
   path: string,
@@ -191,7 +206,10 @@ export async function comfySidecarRequest<T>(
     | (T & { error?: { message?: string } })
     | null;
   if (!response.ok) {
-    throw new Error(json?.error?.message || `请求失败(HTTP ${response.status})`);
+    throw new ComfySidecarHttpError(
+      json?.error?.message || `请求失败(HTTP ${response.status})`,
+      response.status,
+    );
   }
   if (!json) {
     throw new Error("本地生图服务应答格式异常");

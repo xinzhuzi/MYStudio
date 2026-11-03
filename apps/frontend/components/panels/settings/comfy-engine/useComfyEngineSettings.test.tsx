@@ -5,8 +5,10 @@
 
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ComfySidecarHttpError } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
 import { createMockComfyEngineClient } from "./mock-comfy-engine-client";
 import { resetComfyEngineAutoStartStateForTests, useComfyEngineSettings } from "./useComfyEngineSettings";
+import type { ComfyEngineClient, ComfyEngineJob } from "./comfy-engine-contract";
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
 vi.mock("sonner", () => ({ toast: toasts }));
@@ -285,6 +287,39 @@ describe("useComfyEngineSettings", () => {
 
     // 原任务的轮询没有被顶掉,照常推进到终结
     await waitFor(() => expect(result.current.activeJob?.state).toBe("succeeded"), { timeout: 4000 });
+  });
+
+  it("轮询 404(job 已随 sidecar 换代蒸发)立即终态收摊,不再对死 job 守灵(1104)", async () => {
+    const base = createMockComfyEngineClient({
+      initialStatus: { installed: true, state: "ready", version: "0.34.0", port: 17599 },
+    });
+    let calls = 0;
+    const client: ComfyEngineClient = {
+      ...base,
+      async getJob(jobId: string): Promise<ComfyEngineJob> {
+        calls += 1;
+        if (calls === 1) return base.getJob(jobId); // 首答 running,建立轮询
+        // 二答起=sidecar 换代后查无此 job(1104 实弹:404 循环转圈案)
+        throw new ComfySidecarHttpError("请求失败(HTTP 404)", 404);
+      },
+    };
+    const { result } = renderHook(() => useComfyEngineSettings({ client, pollIntervalMs: 50 }));
+
+    await act(async () => {
+      await result.current.updateEngine();
+    });
+    expect(result.current.activeJob?.state).toBe("running");
+
+    await waitFor(
+      () => expect(toasts.error).toHaveBeenCalledWith("任务已中断(本地生图服务已重启),请重新发起"),
+      { timeout: 2000 },
+    );
+    expect(result.current.activeJob).toBeNull();
+    const callsAtTerminal = calls;
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 200)); // 数个轮询周期
+    });
+    expect(calls).toBe(callsAtTerminal); // 轮询已停,不再 404 守灵
   });
 
   it("无桥时 hasBridge=false,动作点按给大白话错误不抛异常", async () => {

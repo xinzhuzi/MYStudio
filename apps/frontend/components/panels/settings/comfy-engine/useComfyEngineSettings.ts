@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { logEvent } from "@/lib/diagnostics/logger";
+import { ComfySidecarHttpError } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
 import {
   getComfyEngineClient,
   type ComfyCatalogEntry,
@@ -353,7 +354,16 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
                 settleJob(job);
               }
             })
-            .catch(() => {
+            .catch((error: unknown) => {
+              // 1104 终态兜底:404=job 已随 sidecar 换代蒸发(job 注册表是进程
+              // 内存态,App/生图服务重启即清)——确定性终态不是网络抖动,立即
+              // 收摊给重试指引;其余失败仍走 15 连败熔断(09-19 口径)。
+              if (error instanceof ComfySidecarHttpError && error.status === 404) {
+                stopPolling();
+                setActiveJob(null);
+                toast.error("任务已中断(本地生图服务已重启),请重新发起");
+                return;
+              }
               pollFailures += 1;
               if (pollFailures >= 15) {
                 stopPolling();
@@ -363,7 +373,14 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
             });
         }, pollIntervalMs);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "任务启动失败");
+        toast.error(
+          // 首答即 404:任务发起与首查之间 sidecar 已换代,同款终态口径。
+          error instanceof ComfySidecarHttpError && error.status === 404
+            ? "任务已中断(本地生图服务已重启),请重新发起"
+            : error instanceof Error
+              ? error.message
+              : "任务启动失败",
+        );
         void refreshStatus();
       } finally {
         jobStartingRef.current = false;
