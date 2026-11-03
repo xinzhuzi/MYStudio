@@ -905,7 +905,7 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
     });
     // A 生效 + SSH 已连;B 未生效未配
     const state = { connected: true };
-    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
       const u = String(url);
       if (u.includes("/comfy/engine/remote")) {
         return Promise.resolve({

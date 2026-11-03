@@ -514,14 +514,28 @@ export function McpSettingsTab() {
       });
       toast.success("SSH 配置已保存");
       // 1103 device-level-ssh 回写闭环:当前生效的是列表内设备→凭据回存进该设备
-      // (下次切走再切回,SSH 随行;非列表态=全局单份,不回写)
+      // (下次切走再切回,SSH 随行)
+      const sshRecord = {
+        host: saved.host ?? host,
+        port: saved.port ?? 22,
+        user: saved.user ?? "",
+        keyPath: saved.keyPath ?? "",
+      };
       if (remoteActive && activeRemoteUrl) {
-        enginePresetAttachSsh(activeRemoteUrl, {
-          host: saved.host ?? host,
-          port: saved.port ?? 22,
-          user: saved.user ?? "",
-          keyPath: saved.keyPath ?? "",
-        });
+        enginePresetAttachSsh(activeRemoteUrl, sshRecord);
+      } else {
+        // 1103 保存即成记录(用户令:像引擎地址一样,保存多条、下次直接用):
+        // 无生效设备承载 → 按 SSH host 认设备:同 host 已有设备=更新其凭据;
+        // 全新机器=自动建设备档(引擎地址按房规 http://host:17000 生成,设备列表可改)
+        const existingByHost = enginePresets.find((entry) => entry.ssh?.host === sshRecord.host);
+        if (existingByHost) {
+          enginePresetAttachSsh(existingByHost.url, sshRecord);
+          toast.success(`SSH 已保存并更新到设备「${existingByHost.label}」`);
+        } else {
+          const engineUrl = `http://${sshRecord.host}:17000`;
+          enginePresetSaveDevice({ url: engineUrl, label: sshRecord.host, ssh: sshRecord });
+          toast.success(`SSH 已存为设备「${sshRecord.host}」(引擎地址按房规生成,可在设备列表编辑)`);
+        }
       }
       // 保存后刷新徽章=沉降轮询(单次回读会吃 keeper 重连窗口的假断态,1103 追修)
       void refreshSshStatusWithSettle();
@@ -1296,8 +1310,37 @@ export function McpSettingsTab() {
                 ? `正在生效:${activeDevice.label} —— 本区保存的凭据会回写进该设备`
                 : remoteActive
                   ? "正在生效的远端地址未入设备列表——本区配置为全局单份"
-                  : "本机模式(无远端生效)——本区配置为全局单份,设备激活时随档案落章"}
+                  : "本机模式(无远端生效)——保存会按 SSH 主机自动建设备记录(像引擎地址一样可复用)"}
             </p>
+            {/* 1103 已存机器连接(用户令:像引擎地址条目一样可复用):点 chip=该机
+                引擎+SSH+隧道全链激活;=设备列表的 SSH 面,单一真源无二份 */}
+            {enginePresets.filter((entry) => entry.ssh).length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5" data-testid="ssh-saved-machines">
+                <span className="text-xs text-muted-foreground">已存机器:</span>
+                {enginePresets
+                  .filter((entry) => entry.ssh)
+                  .map((entry) => {
+                    const chipActive = remoteActive && activeRemoteUrl === entry.url;
+                    return (
+                      <button
+                        key={entry.url}
+                        type="button"
+                        onClick={() => activateDevice(entry.url)}
+                        title={`激活「${entry.label}」:引擎+SSH+隧道全链切换`}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors ${
+                          chipActive
+                            ? "border-primary/50 bg-primary/10 text-primary"
+                            : "border-border bg-muted text-muted-foreground hover:text-foreground"
+                        }`}
+                        data-testid={`ssh-machine-chip-${entry.ssh!.host}`}
+                      >
+                        {entry.label}·{entry.ssh!.host}
+                        {chipActive ? " ✓" : ""}
+                      </button>
+                    );
+                  })}
+              </div>
+            )}
             {/* C3:依赖未装(paramiko 缺失)→ 指路 Python 运行环境页(本地配置) */}
             {sshNeedsRuntime && (
               <p className="text-xs leading-5 text-warning" data-testid="ssh-needs-runtime">
