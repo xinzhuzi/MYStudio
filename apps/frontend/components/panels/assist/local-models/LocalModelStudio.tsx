@@ -28,11 +28,14 @@ import {
 import { useComfyEngineSettings } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
 import { setRemoteEngine } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
 import { persistComfyImage } from "@/lib/assist/image-studio/comfy-execute";
+import {
+  getLocalImageToken,
+  invalidateLocalImageToken,
+} from "@/lib/assist/image-studio/local-image-token";
 import { ensureLocalImageSidecarRunning } from "@/lib/ai/image-generation-engine";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useEnginePresetsStore } from "@/stores/settings/engine-presets-store";
 import {
-  LOCAL_IMAGE_API_KEY,
   LOCAL_IMAGE_BASE_URL,
 } from "@/stores/ai/api-config-provider-helpers";
 
@@ -113,24 +116,42 @@ export function LocalModelStudio() {
         return;
       }
       const template = isFast ? "manying_t2i_fast" : "manying_t2i";
-      const response = await fetch(`${LOCAL_IMAGE_BASE_URL}/v1/images/generations`, {
+      // 1104 修(存量 75a14d11:占位令牌恒 403):改用装机随机真令牌(其他模块
+      // 同款 getLocalImageToken);403=令牌陈旧(装机循环/sidecar 换代)→失效
+      // 重取重试一次(comfy-execute 同款自愈链)。
+      const body = JSON.stringify({
+        model: "comfyui-bridge",
+        prompt: prompt.trim(),
+        negative_prompt: negative.trim() || null,
+        aspect_ratio: aspect,
+        num_inference_steps: isFast ? fastSteps : steps,
+        seed,
+        template,
+        // 加速档模型在模板里钉死(Krea2 Turbo + 蒸馏 LoRA),不注入 checkpoint
+        ...(isFast ? {} : { checkpoint }),
+      });
+      let response = await fetch(`${LOCAL_IMAGE_BASE_URL}/v1/images/generations`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOCAL_IMAGE_API_KEY}`,
+          Authorization: `Bearer ${await getLocalImageToken()}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          model: "comfyui-bridge",
-          prompt: prompt.trim(),
-          negative_prompt: negative.trim() || null,
-          aspect_ratio: aspect,
-          num_inference_steps: isFast ? fastSteps : steps,
-          seed,
-          template,
-          // 加速档模型在模板里钉死(Krea2 Turbo + 蒸馏 LoRA),不注入 checkpoint
-          ...(isFast ? {} : { checkpoint }),
-        }),
+        body,
       });
+      if (response.status === 403) {
+        invalidateLocalImageToken();
+        const retryToken = await getLocalImageToken();
+        if (retryToken) {
+          response = await fetch(`${LOCAL_IMAGE_BASE_URL}/v1/images/generations`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${retryToken}`,
+              "Content-Type": "application/json",
+            },
+            body,
+          });
+        }
+      }
       assertProjectCurrent();
       if (!response.ok) {
         const detail = await response.text().catch(() => "");

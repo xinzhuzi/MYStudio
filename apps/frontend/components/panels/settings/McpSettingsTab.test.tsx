@@ -1681,7 +1681,7 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
             name: n, type: n === "ComfyUI" ? "engine" : "plugin",
             macHead: n === "ComfyUI" ? "aaaa1111bbbb2222" : n === "pluginA" ? "aaaa000011112222" : "bbbb000011112222",
             winHead: n === "ComfyUI" ? "aaaa1111bbbb2222" : n === "pluginA" ? "aaaa000011112222" : "bbbb999988887777",
-            action: n === "pluginB" ? "cloned" : "aligned", verified: true, error: null, pipError: null,
+            action: n === "pluginB" ? "cloned" : "pulled", verified: true, error: null, pipError: null,
           }],
         });
         // syncReply 可返回载荷/Promise/undefined(undefined=回落默认回执,便于只改道单件)
@@ -1761,7 +1761,7 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
       syncReply: (name) =>
         name === "ComfyUI"
           ? new Promise((resolve) => { firstGate.release = resolve; }).then(() => ({
-              items: [{ name: "ComfyUI", type: "engine", macHead: "aaaa1111bbbb2222", winHead: "aaaa1111bbbb2222", action: "aligned", verified: true, error: null, pipError: null }],
+              items: [{ name: "ComfyUI", type: "engine", macHead: "aaaa1111bbbb2222", winHead: "aaaa1111bbbb2222", action: "pulled", verified: true, error: null, pipError: null }],
             }))
           : undefined,
     });
@@ -1786,9 +1786,9 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
       .filter((c) => String(c[0]).includes("/comfy/ssh/sync-engine") && c[1]?.method === "POST")
       .map((c) => JSON.parse(String(c[1]?.body)) as { items: string[]; timeoutS?: number });
     expect(posts.map((p) => p.items)).toEqual([["ComfyUI"], ["pluginA"], ["pluginB"], ["pluginManual"]]);
-    // 每件带剩余预算(timeoutS>0):整体 10min 超时跨批次生效(1104 复核修)
+    // 每件带剩余预算(timeoutS>0):整体 30min 超时跨批次生效(1104 复核修+修正)
     expect(posts.every((p) => typeof p.timeoutS === "number" && p.timeoutS > 0)).toBe(true);
-    expect(posts[0].timeoutS).toBeLessThanOrEqual(600);
+    expect(posts[0].timeoutS).toBeLessThanOrEqual(1800);
   });
 
   it("完成弹结果 Dialog:逐项 ✅ 文案+重启建议+[重启引擎]→POST /comfy/ssh/restart-engine;⚠️ pip 失败不阻断", async () => {
@@ -1797,7 +1797,7 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
         items: [{
           name, type: name === "ComfyUI" ? "engine" : "plugin",
           macHead: "aaaa1111bbbb2222", winHead: "aaaa1111bbbb2222",
-          action: "aligned", verified: true, error: null,
+          action: "pulled", verified: true, error: null,
           pipError: name === "pluginA" ? "pip install 失败: ERROR: no version" : null,
         }],
       }),
@@ -1811,7 +1811,7 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
       expect(screen.getByTestId("engine-sync-result-dialog").textContent).toContain("同步结果");
     });
     const dialog = screen.getByTestId("engine-sync-result-dialog");
-    expect(dialog.textContent).toContain("已对齐 Mac 版本(aaaa1111)");
+    expect(dialog.textContent).toContain("已从 GitHub 拉取最新");
     expect(screen.getByTestId("engine-sync-pip-warning").textContent).toContain("不阻断");
     expect(dialog.textContent).toContain("重启引擎使插件生效");
     // [重启引擎] → SSH schtasks(R3)
@@ -1824,7 +1824,7 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
     expect(toastMocks.success).toHaveBeenCalledWith(expect.stringContaining("重启指令已发"));
   });
 
-  it("整体超时(1104 复核修):10min 预算耗尽后不再发新 POST,剩余件按后端同口径标「整体超时」", async () => {
+  it("整体超时(1104 复核修+修正):30min 预算耗尽后不再发新 POST,剩余件按后端同口径标「整体超时」", async () => {
     // 只假 Date(定时器留真,waitFor 不受影响):首件挂起中把系统时间推过
     // deadline,释放后剩余件应直接收摊、零新 POST
     vi.useFakeTimers({ toFake: ["Date"] });
@@ -1834,7 +1834,7 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
         syncReply: (name) =>
           name === "ComfyUI"
             ? new Promise((resolve) => { firstGate.release = resolve; }).then(() => ({
-                items: [{ name: "ComfyUI", type: "engine", macHead: "aaaa1111bbbb2222", winHead: "aaaa1111bbbb2222", action: "aligned", verified: true, error: null, pipError: null }],
+                items: [{ name: "ComfyUI", type: "engine", macHead: "aaaa1111bbbb2222", winHead: "aaaa1111bbbb2222", action: "pulled", verified: true, error: null, pipError: null }],
               }))
             : undefined,
       });
@@ -1846,8 +1846,8 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
       await waitFor(() => {
         expect(rowOf("ComfyUI").querySelector('[data-testid="engine-sync-progress"]')!.textContent).toContain("⏳ 同步中");
       });
-      // 预算耗尽:系统时间推过 10min deadline 再释放首件
-      vi.setSystemTime(new Date(Date.now() + 10 * 60 * 1000 + 1000));
+      // 预算耗尽:系统时间推过 30min deadline 再释放首件
+      vi.setSystemTime(new Date(Date.now() + 30 * 60 * 1000 + 1000));
       firstGate.release?.(null);
       await waitFor(() => {
         expect(rowOf("pluginManual").querySelector('[data-testid="engine-sync-progress"]')!.textContent).toContain("❌ 失败");
@@ -1860,14 +1860,14 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
       expect(posts.length).toBe(1);
       // 结果弹窗按后端同口径报整体超时
       await waitFor(() => {
-        expect(screen.getByTestId("engine-sync-result-dialog").textContent).toContain("整体超时(10min),未同步");
+        expect(screen.getByTestId("engine-sync-result-dialog").textContent).toContain("整体超时(30min),未同步");
       });
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("引擎行 Win 缺(1104 复核修):标签不承诺 clone——引擎同步恒 fetch+reset,Win 无引擎目录将诚实报错", async () => {
+  it("引擎行 Win 缺(1104 复核修):标签不承诺 clone——引擎同步恒 pull,Win 无引擎目录将诚实报错", async () => {
     stubEngineSyncFetch({
       manifest: {
         items: [

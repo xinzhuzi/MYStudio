@@ -586,9 +586,10 @@ export function McpSettingsTab() {
 
   // 开始同步(R3):勾选项逐件 POST sync-engine——单发 POST 拿不到中途回执,
   // 逐件串行发=真·逐项进度(Q3 每完成一件更新一行);单件失败不拦后续(C8)。
-  // 整体超时 10min(Q3)跨批次生效(1104 复核修):逐件单发会让每件都拿全新
-  // 600s 预算,故前端持全局 deadline——每件 POST 带剩余秒数(timeoutS),预算
-  // 耗尽后剩余件不再发、按后端同口径标「整体超时」。
+  // 整体超时 30min(Q3;1104 修正 10→30min,41 件全量 clone 需要时间)跨批次
+  // 生效(1104 复核修):逐件单发会让每件都拿全新预算,故前端持全局 deadline
+  // ——每件 POST 带剩余秒数(timeoutS),预算耗尽后剩余件不再发、按后端同口径
+  // 标「整体超时」。
   const startEngineSync = async () => {
     const names = engineSyncRows
       .filter((item) => item.status !== "win-only" && engineSyncChecked[item.name])
@@ -1406,21 +1407,21 @@ export function McpSettingsTab() {
                     aria-hidden="true"
                   />
                   <span className="text-sm font-medium">引擎同步</span>
-                  <span className="min-w-0 truncate text-xs text-muted-foreground">
-                    把本机引擎版本与插件同步到 Windows(单真源清单,经 SSH)
-                  </span>
+                      <span className="min-w-0 truncate text-xs text-muted-foreground">
+                        把引擎与插件从 GitHub 拉最新到 Windows(单真源清单,经 SSH)
+                      </span>
                 </div>
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <div className="space-y-3 rounded-xl border border-border p-3" data-testid="engine-sync-section">
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     <span>
-                      同步源: 本机引擎
+                      同步源: GitHub(各件 origin 仓库;Win 已有即拉最新,缺件即克隆)
                       {engineSyncRows.filter((i) => i.status === "mac-only").length > 0
-                        ? `(含 Mac 独有 ${engineSyncRows.filter((i) => i.status === "mac-only").length} 件)`
+                        ? `(含 Win 待装 ${engineSyncRows.filter((i) => i.status === "mac-only").length} 件)`
                         : ""}
                     </span>
-                    <span>目标: Windows(经 SSH 当前会话推送)</span>
+                    <span>目标: Windows(经 SSH 当前会话拉取)</span>
                   </div>
                   {/* SSH 断开/清单取失败:按钮禁用+提示(R3);清单空同样提示 */}
                   {!sshStatus?.connected ? (
@@ -1462,8 +1463,8 @@ export function McpSettingsTab() {
                               Mac {item.macHead?.slice(0, 8) ?? "—"} → Win {item.winHead?.slice(0, 8) ?? "—"}
                             </span>
                             {/* 状态标签(Q1 四态:win-only 灰显 ⏭️)。引擎行 Win 缺不
-                                承诺 clone——_sync_one 引擎恒 fetch+reset 无 clone 分支,
-                                Win 无引擎目录时同步将诚实报错(PRD 同口径:引擎只对齐) */}
+                                承诺 clone——_sync_one 引擎恒 pull 无 clone 分支,
+                                Win 无引擎目录时同步将诚实报错(引擎由部署脚本装) */}
                             <span
                               className={cn(
                                 "shrink-0 rounded-full border px-1.5 py-0.5 text-[10px]",
@@ -1523,7 +1524,7 @@ export function McpSettingsTab() {
                       {engineSyncRunning ? "同步中…" : "开始同步"}
                     </Button>
                     <span className="text-xs text-muted-foreground">
-                      勾选项按 Mac 版本强制对齐(Q6);Win 独有件保留不动(Q1);整体超时 10 分钟。
+                      勾选项从 GitHub 拉最新(Win 已有即更新、缺件即克隆);Win 独有件保留不动;整体超时 30 分钟。
                     </span>
                   </div>
                 </div>
@@ -1534,7 +1535,7 @@ export function McpSettingsTab() {
               <DialogContent className="max-w-md" data-testid="engine-sync-result-dialog">
                 <DialogHeader>
                   <DialogTitle>同步结果</DialogTitle>
-                  <DialogDescription>逐项结果(已验证=Windows 侧 HEAD 与 Mac 一致)</DialogDescription>
+                  <DialogDescription>逐项结果(已验证=Windows 侧目录在且 HEAD 可读)</DialogDescription>
                 </DialogHeader>
                 <div className="max-h-72 space-y-1.5 overflow-y-auto" data-testid="engine-sync-result-list">
                   {(engineSyncDialog ?? []).map((result) => (
@@ -1544,8 +1545,8 @@ export function McpSettingsTab() {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="font-medium">{result.name === "ComfyUI" ? "ComfyUI 引擎" : result.name}</span>
-                        {result.action === "aligned" && result.verified
-                          ? `: 已对齐 Mac 版本(${result.macHead?.slice(0, 8) ?? "—"})`
+                        {result.action === "pulled" && result.verified
+                          ? ": 已从 GitHub 拉取最新"
                           : result.action === "cloned" && result.verified
                             ? ": 已安装(新)"
                             : result.action === "skipped"

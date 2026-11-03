@@ -1249,8 +1249,10 @@ export interface EngineSyncManifest {
   items: EngineSyncManifestItem[];
 }
 
-/** 同步回执条目动作(R2):aligned=已对齐 Mac 版本 / cloned=新装 / skipped=跳过 / failed=失败。 */
-export type EngineSyncAction = "aligned" | "cloned" | "skipped" | "failed";
+/** 同步回执条目动作:1104 用户裁定「Windows 从 GitHub 拉最新,不 SSH 推 Mac
+ *  HEAD」——pulled=Win 已有件 git pull --ff-only 拉最新 / cloned=Win 缺件新装 /
+ *  skipped=跳过(win-only 保留/my-nodes)/ failed=失败。 */
+export type EngineSyncAction = "pulled" | "cloned" | "skipped" | "failed";
 
 export interface EngineSyncResultItem {
   name: string;
@@ -1258,7 +1260,7 @@ export interface EngineSyncResultItem {
   macHead: string | null;
   winHead: string | null;
   action: EngineSyncAction;
-  /** true=验证过(Win HEAD==Mac HEAD;新装=目录在+HEAD 可读)。 */
+  /** true=验证过(Windows 侧目录在+HEAD 可读;1104 裁定不比 Mac HEAD)。 */
   verified: boolean;
   error: string | null;
   /** pip install 失败(⚠️ 不阻断,C8);null=无依赖失败。 */
@@ -1274,16 +1276,17 @@ export async function getEngineSyncManifest(): Promise<EngineSyncManifest> {
   return comfySidecarRequest<EngineSyncManifest>("GET", "/comfy/ssh/engine-sync-manifest", { timeoutMs: 120_000 });
 }
 
-/** 整体超时 10min(Q3):前端逐件单发时持全局预算——每件 POST 带剩余秒数
- *  (timeoutS),预算耗尽后不再发新件,10min 上限跨批次生效。 */
-export const ENGINE_SYNC_OVERALL_TIMEOUT_MS = 10 * 60 * 1000;
+/** 整体超时 30min(Q3;1104 修正 10→30min,41 件全量 clone 需要时间):前端
+ *  逐件单发时持全局预算——每件 POST 带剩余秒数(timeoutS),预算耗尽后不再
+ *  发新件,30min 上限跨批次生效。 */
+export const ENGINE_SYNC_OVERALL_TIMEOUT_MS = 30 * 60 * 1000;
 
 export async function syncEngine(items: string[], timeoutS?: number): Promise<EngineSyncResult> {
-  // 后端整体 10min 超时(Q3);timeoutS=本件剩余预算(整体上限跨批次的关键),
-  // HTTP 超时=预算+30s 余量(缺省 10min+30s)
+  // 后端整体 30min 超时;timeoutS=本件剩余预算(整体上限跨批次的关键),
+  // HTTP 超时=预算+30s 余量(缺省 30min+30s)
   return comfySidecarRequest<EngineSyncResult>("POST", "/comfy/ssh/sync-engine", {
     body: timeoutS !== undefined ? { items, timeoutS } : { items },
-    timeoutMs: timeoutS !== undefined ? timeoutS * 1000 + 30_000 : 630_000,
+    timeoutMs: timeoutS !== undefined ? timeoutS * 1000 + 30_000 : 1_830_000,
   });
 }
 

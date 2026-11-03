@@ -5,9 +5,10 @@
      URL 无则追加;write 原子回读);
   ② Mac 扫描(git 包收录,my-nodes/非 git 目录排除);
   ③ manifest 四态(both/mac-only/win-only/skip,mock SSH 的 dir 与 git HEAD);
-  ④ sync_engine 逐项逻辑(mock SSH:engine/both=fetch+reset --hard Mac HEAD、
-     mac-only=clone、win-only/skip=跳过、pip PYTHONUTF8、验证比对、部分失败
-     不阻断、整体超时、pip 失败不阻断)。
+  ④ sync_engine 逐项逻辑(mock SSH:1104 用户裁定「Windows 从 GitHub 拉最新,
+     不 SSH 推 Mac HEAD」——engine/both=git pull --ff-only(零 reset --hard)、
+     mac-only=clone、win-only/skip=跳过、pip PYTHONUTF8、验证只看目录在+HEAD
+     可读(不比 Mac HEAD)、部分失败不阻断、整体超时、pip 失败不阻断)。
 
 零真 SSH/网络:run_remote_command 一律实例级 Mock;Mac 侧用 tmp 真迷你 git 仓
 (git init+remote add+空提交)承载扫描与 HEAD 读取。
@@ -156,17 +157,19 @@ class _SshStub:
         win_heads: dict[str, str],
         clone_results: dict[str, tuple[int, str]] | None = None,
         pip_results: dict[str, tuple[int, str]] | None = None,
-        reset_results: dict[str, tuple[int, str]] | None = None,
+        pull_results: dict[str, tuple[int, str]] | None = None,
     ) -> None:
         self.win_dirs = win_dirs
         self.win_heads = win_heads
         self.clone_results = clone_results or {}
         self.pip_results = pip_results or {}
-        self.reset_results = reset_results or {}
+        self.pull_results = pull_results or {}
         self.commands: list[str] = []
+        self.timeouts: list[float] = []
 
     def __call__(self, command: str, timeout_s: float = 30) -> tuple[int, str]:
         self.commands.append(command)
+        self.timeouts.append(timeout_s)
         if "dir /b /ad" in command:
             return (0, "\r\n".join(sorted(self.win_dirs)))
         if "rev-parse HEAD" in command:
@@ -177,11 +180,11 @@ class _SshStub:
                 head = self.win_heads[key]
                 return (0, head + "\n") if head else (128, "fatal: not a git repository\n")
             return (128, "fatal: no path matched\n")
-        if "reset --hard" in command:
-            for name, result in self.reset_results.items():
+        if "git pull" in command:
+            for name, result in self.pull_results.items():
                 if name in command:
                     return result
-            return (0, "HEAD is now at x\n")
+            return (0, "Already up to date.\n")
         if "git clone" in command:
             for name, result in self.clone_results.items():
                 if name in command:
@@ -326,44 +329,62 @@ class SyncEngineTests(unittest.TestCase):
             win_heads={k: v for k, v in heads.items() if v is not None},
         )
 
-    def test_engine_aligned_via_fetch_and_hard_reset_to_mac_head(self) -> None:
-        stub = self._stub(engine=self.home.engine_head)  # 验证读回=Mac HEAD
+    def test_engine_pulled_from_github_via_ff_only(self) -> None:
+        stub = self._stub(engine="winengine0head")  # Win HEAD 与 Mac HEAD 不同
         result = _service_with_stub(stub).sync_engine(["ComfyUI"])
         item = result["items"][0]
-        self.assertEqual((item["type"], item["action"], item["verified"]), ("engine", "aligned", True))
-        reset = [c for c in stub.commands if "reset --hard" in c]
-        self.assertEqual(len(reset), 1)
-        self.assertIn(self.home.engine_head, reset[0])  # Q6 强制对齐 Mac HEAD
-        self.assertIn(WIN_ENGINE, reset[0])
+        self.assertEqual((item["type"], item["action"], item["verified"]), ("engine", "pulled", True))
+        pull = [c for c in stub.commands if "git pull" in c]
+        self.assertEqual(len(pull), 1)
+        self.assertIn("--ff-only", pull[0])  # 从 GitHub 拉最新
+        self.assertIn(WIN_ENGINE, pull[0])
+        # 1104 用户裁定:不 SSH 推 Mac HEAD——整轮零 reset --hard
+        self.assertFalse(any("reset --hard" in c for c in stub.commands))
+        # 验证不比 Mac HEAD:Win HEAD≠Mac HEAD 仍 verified(只看 HEAD 可读)
+        self.assertNotEqual(item["winHead"], item["macHead"])
+        self.assertTrue(item["verified"])
         # 依赖链:PYTHONUTF8=1 venv pip install(R2⑤)
         pip = [c for c in stub.commands if "pip install" in c]
         self.assertEqual(len(pip), 1)
         self.assertIn("PYTHONUTF8=1", pip[0])
         self.assertIn(svc_mod._WIN_VENV_PYTHON, pip[0])
 
-    def test_both_plugin_resets_to_mac_head(self) -> None:
-        stub = self._stub(pluginA=self.home.heads["pluginA"])
+    def test_engine_sync_works_without_mac_head(self) -> None:
+        """1104 裁定随修:引擎不再要求 Mac HEAD 可读(不比 Mac 版本)——
+        Mac 引擎目录非 git(HEAD=None)时照样 pull,不再秒拒。"""
+        stub = self._stub(engine="winengine0head")
+        with patch.object(svc_mod, "_mac_git_head", return_value=None):
+            result = _service_with_stub(stub).sync_engine(["ComfyUI"])
+        item = result["items"][0]
+        self.assertEqual((item["action"], item["verified"]), ("pulled", True))
+        self.assertTrue(any("git pull" in c for c in stub.commands))
+
+    def test_both_plugin_pulled_from_github(self) -> None:
+        stub = self._stub(pluginA="wina0head")
         result = _service_with_stub(stub).sync_engine(["pluginA"])
         item = result["items"][0]
-        self.assertEqual((item["type"], item["action"], item["verified"]), ("plugin", "aligned", True))
-        self.assertIn(
-            f'reset --hard {self.home.heads["pluginA"]}',
-            " ".join(stub.commands),
-        )
+        self.assertEqual((item["type"], item["action"], item["verified"]), ("plugin", "pulled", True))
+        pull = [c for c in stub.commands if "git pull" in c]
+        self.assertEqual(len(pull), 1)
+        self.assertIn(f"{WIN_NODES}\\pluginA", pull[0])
+        self.assertIn("--ff-only", pull[0])
+        # 不比 Mac 版本:命令里不许出现 Mac HEAD
+        self.assertNotIn(self.home.heads["pluginA"], pull[0])
 
-    def test_mac_only_plugin_clones_without_reset(self) -> None:
+    def test_mac_only_plugin_clones_without_pull(self) -> None:
         stub = self._stub()
         result = _service_with_stub(stub).sync_engine(["pluginB"])
         item = result["items"][0]
         self.assertEqual((item["action"], item["verified"]), ("cloned", True))  # 新装验证=目录在+HEAD 可读
         self.assertTrue(any("git clone https://example.com/b.git pluginB" in c for c in stub.commands))
-        self.assertFalse(any("reset --hard" in c for c in stub.commands))  # R2③ clone 不 reset
+        self.assertFalse(any("git pull" in c for c in stub.commands))  # clone 件不 pull
+        self.assertFalse(any("reset --hard" in c for c in stub.commands))
 
     def test_win_only_and_my_nodes_skip_without_touch(self) -> None:
         stub = self._stub()
         result = _service_with_stub(stub).sync_engine(["pluginC", "my-nodes"])
         self.assertEqual([r["action"] for r in result["items"]], ["skipped", "skipped"])  # Q1 不删 / Q2 不管
-        self.assertFalse(any("reset --hard" in c or "git clone" in c for c in stub.commands))
+        self.assertFalse(any("git pull" in c or "git clone" in c for c in stub.commands))
 
     def test_manual_file_entry_without_mac_repo_clones_by_url(self) -> None:
         stub = self._stub()
@@ -373,28 +394,29 @@ class SyncEngineTests(unittest.TestCase):
         self.assertTrue(any("git clone https://example.com/m.git pluginManual" in c for c in stub.commands))
 
     def test_partial_failure_does_not_block_rest(self) -> None:
-        # pluginA reset 失败(exit 1);pluginB 正常 → 逐项回执 failed+cloned 并存(C8)
+        # pluginA pull 失败(exit 1);pluginB 正常 → 逐项回执 failed+cloned 并存(C8)
         stub = self._stub()
-        stub.reset_results["pluginA"] = (1, "error: cannot lock ref")
+        stub.pull_results["pluginA"] = (1, "error: not possible to fast-forward")
         result = _service_with_stub(stub).sync_engine(["pluginA", "pluginB"])
         by_name = {r["name"]: r for r in result["items"]}
         self.assertEqual(by_name["pluginA"]["action"], "failed")
-        self.assertIn("git fetch/reset 失败", by_name["pluginA"]["error"])
+        self.assertIn("git pull 失败", by_name["pluginA"]["error"])
         self.assertEqual(by_name["pluginB"]["action"], "cloned")
 
-    def test_verification_mismatch_reports_unverified(self) -> None:
-        stub = self._stub(engine="different0head0not0mac0head0at0all")  # 验证读回≠Mac HEAD
+    def test_verification_head_unreadable_reports_unverified(self) -> None:
+        stub = self._stub(engine=None)  # 验证读回:Win HEAD 读不到(目录非 git)
         result = _service_with_stub(stub).sync_engine(["ComfyUI"])
         item = result["items"][0]
-        self.assertEqual(item["action"], "aligned")
+        self.assertEqual(item["action"], "pulled")
+        self.assertIsNone(item["winHead"])
         self.assertFalse(item["verified"])  # 诚实报未验证
 
     def test_pip_failure_does_not_block_item(self) -> None:
-        stub = self._stub(engine=self.home.engine_head)
+        stub = self._stub(engine="winengine0head")
         stub.pip_results["ComfyUI"] = (1, "ERROR: Could not find a version")
         result = _service_with_stub(stub).sync_engine(["ComfyUI"])
         item = result["items"][0]
-        self.assertEqual(item["action"], "aligned")
+        self.assertEqual(item["action"], "pulled")
         self.assertTrue(item["verified"])  # ⚠️ pip 失败不阻断(C8),仍验证
         self.assertIn("pip install 失败", item["pipError"])
 
@@ -402,9 +424,25 @@ class SyncEngineTests(unittest.TestCase):
         stub = self._stub()
         result = _service_with_stub(stub).sync_engine(["pluginA", "pluginB"], timeout_s=0)
         self.assertEqual([r["action"] for r in result["items"]], ["failed", "failed"])
-        self.assertIn("整体超时", result["items"][0]["error"])  # Q3 10min 口径
+        self.assertIn("整体超时", result["items"][0]["error"])  # Q3 30min 口径
         # 超时后零改动类 SSH 命令(仅同步前的 Win 目录盘点)
-        self.assertFalse(any("reset --hard" in c or "git clone" in c or "pip install" in c for c in stub.commands))
+        self.assertFalse(any("git pull" in c or "git clone" in c or "pip install" in c for c in stub.commands))
+
+    def test_item_and_overall_timeouts_1104_calibration(self) -> None:
+        """1104 修正锚:单件 git 上限 300s(clone/pull)、整体 30min(41 件全量
+        clone 需要时间;旧值 180s/10min 实弹不够)。"""
+        self.assertEqual(svc_mod._ENGINE_SYNC_ITEM_TIMEOUT_S, 300.0)
+        self.assertEqual(svc_mod._ENGINE_SYNC_OVERALL_TIMEOUT_S, 1800.0)
+        # both 件 pull 的单命令预算=300s 上限(剩余预算>300 时取 300)
+        stub = self._stub()
+        _service_with_stub(stub).sync_engine(["pluginA"])
+        pull_timeouts = [t for c, t in zip(stub.commands, stub.timeouts) if "git pull" in c]
+        self.assertEqual(pull_timeouts, [300.0])
+        # mac-only 件 clone 的单命令预算同款 300s 上限
+        stub2 = self._stub()
+        _service_with_stub(stub2).sync_engine(["pluginB"])
+        clone_timeouts = [t for c, t in zip(stub2.commands, stub2.timeouts) if "git clone" in c]
+        self.assertEqual(clone_timeouts, [300.0])
 
     def test_unknown_plugin_reports_failed(self) -> None:
         stub = self._stub()
@@ -469,12 +507,12 @@ class EngineSyncRouteTests(unittest.TestCase):
     def test_sync_engine_passes_items_through_to_service(self) -> None:
         fake = Mock()
         fake.status.return_value = {"connected": True}
-        fake.sync_engine.return_value = {"items": [{"name": "ComfyUI", "action": "aligned"}]}
+        fake.sync_engine.return_value = {"items": [{"name": "ComfyUI", "action": "pulled"}]}
         with patch("image_gen.server._ssh_service", return_value=fake):
             body, status = self._comfy("POST", "/comfy/ssh/sync-engine", {"items": ["ComfyUI"]})
         self.assertEqual(status, HTTPStatus.OK)
         fake.sync_engine.assert_called_once_with(["ComfyUI"])
-        self.assertEqual(body["items"][0]["action"], "aligned")
+        self.assertEqual(body["items"][0]["action"], "pulled")
 
     def test_sync_engine_accepts_optional_timeout_s(self) -> None:
         """1104 复核修:可选 timeoutS(剩余预算秒数)透传——前端逐件单发时让

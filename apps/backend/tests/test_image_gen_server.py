@@ -352,6 +352,64 @@ class ImageGenerateRouteTests(unittest.TestCase):
             self.assertEqual(handler.response[1], expected)
             self.assertEqual(handler.response[0]["error"]["code"], code)
 
+    def _bridge_unreachable_response(self) -> tuple[dict, HTTPStatus]:
+        handler = _GenerateHandler.__new__(_GenerateHandler)
+        with patch(
+            "image_gen.server.generate_image",
+            side_effect=server.PipelineError("bridge-unreachable", "远端引擎不可达"),
+        ):
+            handler._handle_generate({"model": "comfyui-bridge", "prompt": "编辑"})
+        payload, status = handler.response
+        return payload, status
+
+    def test_remote_mode_fallback_probe_skips_local_engine_probe(self) -> None:
+        """1104 修(实弹:兜底探针探错对象):远端模式下 find_cached 探的是
+        bridge_url()/system_stats=刚死掉的远端——白等 ~4s 还恒 False 误报「本地
+        未配置备胎」。远端模式须跳过该探针,改查安装账本(engine_installed)。"""
+        probe = Mock(name="find_cached_image_model_for_spec")
+        with (
+            patch(
+                "engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+                return_value="http://192.168.0.101:8188",
+            ),
+            patch("engines.image_engine.model_cache.find_cached_image_model_for_spec", probe),
+            patch("comfyui.manifest.engine_installed", return_value=True) as installed,
+        ):
+            payload, status = self._bridge_unreachable_response()
+        self.assertEqual(status, HTTPStatus.SERVICE_UNAVAILABLE)
+        probe.assert_not_called()  # 不再探死掉的远端(零网络等待)
+        installed.assert_called_once()  # 改查安装账本(快,不启引擎)
+        self.assertIn("切换备胎", payload["error"]["message"])
+
+    def test_remote_mode_without_local_engine_reports_not_configured_via_ledger(self) -> None:
+        """远端模式+账本无安装记录 → 诚实报「本地未配置备胎」(同样零网络探针)。"""
+        probe = Mock(name="find_cached_image_model_for_spec")
+        with (
+            patch(
+                "engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+                return_value="http://192.168.0.101:8188",
+            ),
+            patch("engines.image_engine.model_cache.find_cached_image_model_for_spec", probe),
+            patch("comfyui.manifest.engine_installed", return_value=False),
+        ):
+            payload, _ = self._bridge_unreachable_response()
+        probe.assert_not_called()
+        self.assertIn("本地未配置备胎引擎", payload["error"]["message"])
+
+    def test_local_mode_fallback_probe_still_uses_service_liveness(self) -> None:
+        """本地模式(无远端配置)照旧探活(find_cached=探 system_stats)。"""
+        probe = Mock(name="find_cached_image_model_for_spec", side_effect=lambda spec: {"size_mb": 0})
+        with (
+            patch(
+                "engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+                return_value=None,
+            ),
+            patch("engines.image_engine.model_cache.find_cached_image_model_for_spec", probe),
+        ):
+            payload, _ = self._bridge_unreachable_response()
+        self.assertTrue(probe.called)  # 本地模式保留探活(any 命中即短路)
+        self.assertIn("切换备胎", payload["error"]["message"])
+
     def test_blank_output_and_degraded_codes_map_to_502_and_503(self) -> None:
         # blank-gate-1024 测试 D:空片判废→502、引擎退化→503(贴 bridge 家族映射样式)
         handler = _GenerateHandler.__new__(_GenerateHandler)

@@ -613,14 +613,30 @@ class Handler(BaseHTTPRequestHandler):
                 # 1104 全场景提示(用户令:远端出问题必须提示+建议本地启动):
                 # 按本地引擎是否已配置,在错误消息尾追加分场景可操作建议——
                 # 前端 toast.error 直透此消息,零前端改动即吃到。
+                # 1104 修(实弹:兜底探针探错对象):bridge 布局的 find_cached 探的
+                # 是 bridge_url()/system_stats——远端模式下 bridge_url() 就是刚
+                # 死掉的远端,探它=白等 ~4s(2s 超时×2 布局)且恒 False,误报
+                # 「本地未配置备胎」。远端模式改查本机引擎安装账本
+                # (engine_installed:纯读账本,快,不探网络不启引擎——pipeline
+                # 预检闸 A3 同款零引擎判据);本地模式照旧探活。
+                _local_ready = False
                 try:
-                    from engines.image_engine.model_cache import find_cached_image_model_for_spec
-                    from engines.image_engine.model_cache import IMAGE_MODELS
-                    _local_ready = any(
-                        find_cached_image_model_for_spec(spec)
-                        for spec in IMAGE_MODELS.values()
-                        if spec.get("layout") in ("comfyui-bridge", "qwen21-viggle")
-                    )
+                    from engines.image_engine.comfyui_bridge import remote_engine_url_from_settings
+                    remote_mode = bool(remote_engine_url_from_settings())
+                except Exception:  # noqa: BLE001 — 判定面失败回落本地探活口径
+                    remote_mode = False
+                try:
+                    if remote_mode:
+                        from comfyui.manifest import engine_installed as _engine_installed
+                        _local_ready = _engine_installed()
+                    else:
+                        from engines.image_engine.model_cache import find_cached_image_model_for_spec
+                        from engines.image_engine.model_cache import IMAGE_MODELS
+                        _local_ready = any(
+                            find_cached_image_model_for_spec(spec)
+                            for spec in IMAGE_MODELS.values()
+                            if spec.get("layout") in ("comfyui-bridge", "qwen21-viggle")
+                        )
                 except Exception:  # noqa: BLE001 — 探测失败不覆盖原错误
                     _local_ready = False
                 if _local_ready:

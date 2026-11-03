@@ -72,8 +72,11 @@ _ENGINE_SYNC_ENGINE_NAME = "ComfyUI"
 _COMFYUI_REPO_URL = "https://github.com/comfyanonymous/ComfyUI"
 # Q2:my-nodes 归 deploy-dual 管,engine-sync 恒跳过
 _ENGINE_SYNC_SKIP_NAMES = {"my-nodes"}
-# Q3:同步整体超时 10min(部分失败不阻断,超时项标 failed)
-_ENGINE_SYNC_OVERALL_TIMEOUT_S = 600.0
+# Q3:同步整体超时 30min(1104 修正:10→30min,41 件全量 clone 需要时间;
+# 部分失败不阻断,超时项标 failed)
+_ENGINE_SYNC_OVERALL_TIMEOUT_S = 1800.0
+# 单件 git 操作上限(pull/clone;1104 修正:180→300s,整仓 clone 需要时间)
+_ENGINE_SYNC_ITEM_TIMEOUT_S = 300.0
 
 
 def engine_sync_json_path() -> Path:
@@ -777,15 +780,17 @@ class SSHService:
         return {"items": items}
 
     def sync_engine(self, items: list[str], timeout_s: float | None = None) -> dict:
-        """POST /comfy/ssh/sync-engine:逐项 SSH 同步(并集策略 Q1+强制对齐 Q6)。
+        """POST /comfy/ssh/sync-engine:逐项 SSH 同步(并集策略 Q1;GitHub 拉最新)。
 
-        逐项动作(R2):
-          ComfyUI 引擎/both → git fetch origin && git reset --hard <Mac HEAD>;
-          mac-only → git clone <url>(无 Mac HEAD 时 clone 默认分支);
+        1104 用户裁定:「Windows 从 GitHub 拉最新,不 SSH 推 Mac HEAD」——
+        删 git reset --hard <Mac HEAD> 强制对齐(Q6 就此废止),改为:
+          Win 已有(引擎/both)→ git pull --ff-only(拉 GitHub 最新);
+          Win 缺(mac-only/手动条目)→ git clone <清单 url>;
           win-only/skip(my-nodes) → 跳过(Q1 不删/Q2 不管);
           依赖 → 有 requirements.txt 则 PYTHONUTF8=1 venv pip install(失败不阻断,
-          记 pipError);验证 → SSH 读 Win HEAD 比对 Mac HEAD。
-        整体超时 10min(Q3);部分失败不阻断(失败项在回执标明,C8)。
+          记 pipError);验证 → 只确认目录在+HEAD 可读(不比 Mac HEAD)。
+        整体超时 30min(Q3,1104 修正 10→30min);部分失败不阻断(失败项在回执
+        标明,C8)。
 
         返回 {items: [{name,type,macHead,winHead,action,verified,error,pipError}]}。
         """
@@ -867,7 +872,12 @@ class SSHService:
         self, name: str, kind: str, url: str, mac_head: str | None,
         win_exists: bool, deadline: float,
     ) -> dict:
-        """单件同步:动作+依赖+验证;win-only/skip 直接过(R2 逐项逻辑)。"""
+        """单件同步:Win 从 GitHub 拉最新(1104 用户裁定:不 SSH 推 Mac HEAD)。
+
+        Win 已有(engine/both)→ git pull --ff-only;Win 缺 → git clone <url>;
+        win-only/skip 直接过(Q1 不删/Q2 不管);验证只看目录在+HEAD 可读
+        (不比 Mac HEAD,mac_head 仅随回执透传供参考)。
+        """
         win_path = (
             _WIN_COMFY_ROOT + "\\ComfyUI"
             if kind == "engine"
@@ -876,46 +886,30 @@ class SSHService:
         if name in _ENGINE_SYNC_SKIP_NAMES:  # Q2
             return self._sync_result(name, kind, mac_head, None, "skipped", False)
         action: str
-        if kind == "engine":
-            if mac_head is None:
-                return self._sync_result(
-                    name, kind, None, None, "failed", False,
-                    "Mac 本机引擎 HEAD 读不到(引擎目录非 git/无提交),无法对齐",
-                )
-            action = "aligned"
-            # Q6 强制对齐 Mac 版本(不拉 latest)
-            code, out = self.run_remote_command(
-                f'cd /d "{win_path}" && git fetch origin 2>&1 && git reset --hard {mac_head} 2>&1',
-                self._remaining_timeout(deadline, 120),
-            )
-            if code != 0:
-                return self._sync_result(
-                    name, kind, mac_head, None, "failed", False,
-                    f"git fetch/reset 失败: {out.strip()[:200]}",
-                )
-        elif not win_exists:
-            # mac-only(Q1):Win 缺 → clone 新装(R2③;不 reset,验证按「新装」口径)
+        if not win_exists:
+            # Win 缺(mac-only/手动条目)→ clone 新装(清单 URL;单件 300s)
             action = "cloned"
             code, out = self.run_remote_command(
                 f"cd /d {_WIN_CUSTOM_NODES} && git clone {url} {name} 2>&1",
-                self._remaining_timeout(deadline, 180),
+                self._remaining_timeout(deadline, _ENGINE_SYNC_ITEM_TIMEOUT_S),
             )
             if code != 0:
                 return self._sync_result(
                     name, kind, mac_head, None, "failed", False,
                     f"git clone 失败: {out.strip()[:200]}",
                 )
-        elif mac_head is not None:
-            # both(Q1 对齐同名插件,Q6 强制对齐 Mac 版本)
-            action = "aligned"
+        elif kind == "engine" or mac_head is not None:
+            # Win 已有(引擎/both)→ 从 GitHub 拉最新(pull --ff-only;1104 用户
+            # 裁定「Windows 从 GitHub 拉最新,不 SSH 推 Mac HEAD」——删 reset)
+            action = "pulled"
             code, out = self.run_remote_command(
-                f'cd /d "{win_path}" && git fetch origin 2>&1 && git reset --hard {mac_head} 2>&1',
-                self._remaining_timeout(deadline, 120),
+                f'cd /d "{win_path}" && git pull --ff-only 2>&1',
+                self._remaining_timeout(deadline, _ENGINE_SYNC_ITEM_TIMEOUT_S),
             )
             if code != 0:
                 return self._sync_result(
                     name, kind, mac_head, None, "failed", False,
-                    f"git fetch/reset 失败: {out.strip()[:200]}",
+                    f"git pull 失败: {out.strip()[:200]}",
                 )
         else:
             # win-only(Q1 并集不删):Win 独有,保留不动
@@ -932,9 +926,10 @@ class SSHService:
         )
         if code != 0:
             pip_error = f"pip install 失败: {out.strip()[:200]}"  # ⚠️ 不阻断(C8)
-        # 验证(R2⑥):aligned → Win HEAD == Mac HEAD;cloned → 目录在+HEAD 可读
+        # 验证(1104 裁定口径):只确认目录在+HEAD 可读(_win_git_head 对缺目录/
+        # 非 git/无提交恒 None),不比 Mac HEAD
         win_head = self._win_git_head(win_path)
-        verified = (win_head == mac_head) if action == "aligned" else win_head is not None
+        verified = win_head is not None
         return self._sync_result(
             name, kind, mac_head, win_head, action, verified, None, pip_error
         )
