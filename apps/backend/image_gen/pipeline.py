@@ -268,6 +268,29 @@ def _require_downloaded(model_name: str) -> None:
     spec = IMAGE_MODELS.get(model_name)
     if not spec:
         raise PipelineError("unknown-model", f"未知图像模型: {model_name}")
+    # 1103 修(本地数据→远端算力):远端引擎生效时,ComfyUI 产线模型(qi21/edit
+    # 系)的权重在远端引擎侧——本地磁盘判定恒 False 会把整条「本地参考图→
+    # 远端出图」链在门口拒死。远端模式下改判「远端引擎可达」(可达=放行,
+    # 由引擎侧诚实报模型缺件;不可达=既有 bridge-unreachable 话术)。
+    if spec.get("layout") in ("comfyui-bridge", "qwen21-viggle"):
+        try:
+            from engines.image_engine.comfyui_bridge import remote_engine_url_from_settings
+            remote = remote_engine_url_from_settings()
+        except Exception:  # noqa: BLE001 — 判定面失败回落本地口径
+            remote = None
+        if remote:
+            import urllib.request as _ur
+            from urllib.parse import urlparse as _up
+            try:
+                probe = _ur.Request(f"{remote}/system_stats")
+                with _ur.urlopen(probe, timeout=8) as resp:
+                    if resp.status == 200:
+                        return  # 远端引擎在=模型在其侧,放行走远端链
+            except Exception as exc:  # noqa: BLE001 — 不可达=诚实报
+                raise PipelineError(
+                    "bridge-unreachable",
+                    f"远端引擎不可达({remote})——请检查 Windows 侧 ComfyUI/网络",
+                ) from exc
     cached = find_cached_image_model_for_spec(spec)
     if not cached and spec.get("layout") == "comfyui-bridge":
         # 桥的"大件"是引擎服务本身:探不到先试着拉起(自管引擎装了没跑→起),
