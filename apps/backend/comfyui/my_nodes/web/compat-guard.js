@@ -41,7 +41,7 @@ app.registerExtension({
 // ── 工作流模块模板数据过滤(09-11 用户裁定:分类按当前模块展示)──────────────
 // 工作流模块(myScope=workflow)的工作流浏览/搜索只出现漫影库:官方核心
 // 模板清单(/templates/index*.json,fileURL 无前缀)与自定义模板清单
-// (/api/workflow_templates,apiURL 带 /api)响应置空;本地模型模块与外部
+// (/api/workflow_templates,apiURL 带 /api)响应置空;大模型模块与外部
 // 直访不装过滤(全量)。纯外挂数据层过滤:不改 ComfyUI 原生 UI/DOM;桥请求
 // (BRIDGE_URL 绝对地址)与缩略图(/api/workflow_templates/<路径>)不匹配,
 // 天然不受影响。幂等:每页面加载只装一次。

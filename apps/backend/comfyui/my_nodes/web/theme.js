@@ -204,12 +204,12 @@ app.registerExtension({
 // ── 漫影侧栏 v2:两页签按模块分工(09-11 用户裁定:所有模块都展示漫影标签,
 // 内容随当前模块;模型页签撤——模型只在画布节点上呈现)────────────────
 // 页签:分镜(分镜工作流主线点击即开+镜列表回填,工作流模块默认)· 工作流
-// (漫影库按域→功能夹两级分组点击即开,本地模型模块默认)。模块标记由宿主
+// (漫影库按域→功能夹两级分组点击即开,大模型模块默认)。模块标记由宿主
 // webview 双通道传入:URL 参数 myScope(首载一瞬)+ useragent 尾缀
 // myScope=<scope>(09-22:端口漂移后唯一可靠通道;workflow/models,外部
 // 直访两者皆无=分镜)。
 function myScope() {
-  // 09-15 深排根修(用户报障:本地模型模块侧栏跳「分镜阶段」):ComfyUI 是
+  // 09-15 深排根修(用户报障:大模型模块侧栏跳「分镜阶段」):ComfyUI 是
   // SPA,打开工作流会改写 URL(丢 myScope 参数);webview persist partition
   // 会话恢复的是改写后的无参 URL → scope 判空 → 侧栏回落「外部直访=分镜」。
   // 修=首次带参加载把 scope 落 localStorage(partition 持久);URL 无参时
@@ -218,7 +218,7 @@ function myScope() {
   // 09-22 二次根修(端口漂移实录 17000→17001→17002):localStorage 按
   // origin(=引擎端口)隔离,引擎换口即全新 storage 域,旧域种子全部搁浅;
   // 且新域会话恢复首载就是无参 URL,种子永远落不上(myScope 恒 null)→
-  // 本地模型模块侧栏再次回落「分镜阶段」。增补端口无关通道:宿主 webview
+  // 大模型模块侧栏再次回落「分镜阶段」。增补端口无关通道:宿主 webview
   // useragent 尾缀 myScope=<scope>(宿主每次挂载必设,先于页面任何脚本
   // 可读,SPA 改写/引擎换口均不受影响);命中亦落 localStorage(同域后续
   // 无 UA 场景兜底)。解析序:URL 参数 → UA 尾缀 → localStorage。外部

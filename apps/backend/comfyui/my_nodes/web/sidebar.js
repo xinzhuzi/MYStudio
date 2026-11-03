@@ -264,7 +264,7 @@ async function runWorkflowContextAction(action, item, status, openBadges) {
   } catch (error) { fail(error); }
 }
 
-/** 页签二·工作流:漫影库按域分组,点击在画布打开(本地模型模块默认页签) */
+/** 页签二·工作流:漫影库按域分组,点击在画布打开(大模型模块默认页签) */
 async function openMyWorkflow(id, status) {
   const label = id.split("/").pop().replace(/\.json$/, "");
   try {
@@ -614,11 +614,12 @@ function renderSidebar(container) {
   void syncMySettingsFlags(); // 渲染期刷新旗标(设置中途改动兜底)
   container.style.padding = "8px";
   // 页签按当前模块展示,任何情况都只显一签(09-12 用户裁定×2:不能一次性
-  // 都展示出来)——工作流模块=分镜;本地模型模块=本地模型(09-14 用户裁定:
-  // 该模块标题由「工作流」正名「本地模型」,名实相符);外部直访=分镜。
+  // 都展示出来)——工作流模块=分镜;大模型模块=大模型(09-14 用户裁定:
+  // 该模块标题由「工作流」正名、名实相符;11-03 随主导航「本地模型」→
+  // 「大模型」更名随动);外部直访=分镜。
   const scope = myScope();
   const tabs = [scope === "models"
-    ? { id: "workflows", label: "本地模型", render: renderWorkflowsPane }
+    ? { id: "workflows", label: "大模型", render: renderWorkflowsPane }
     : { id: "shots", label: "分镜阶段", render: renderShotsPane }];
   const activeId = tabs[0].id;
   const bar = document.createElement("div");
