@@ -667,7 +667,7 @@ class SSHService:
         for name in list(mac_plugins.keys()):
             code, out = self.run_remote_command(
                 f"if exist {win_nodes_base}\\{name}\\requirements.txt "
-                f"(set PYTHONUTF8=1 && {venv_pip} -r {win_nodes_base}\\{name}\\requirements.txt 2>&1) else (echo NO_REQ)",
+                f"(set PYTHONUTF8=1&& {venv_pip} -r {win_nodes_base}\\{name}\\requirements.txt 2>&1) else (echo NO_REQ)",
                 120)
             if code == 0 and "NO_REQ" not in out:
                 result["pipInstalled"].append(name)
@@ -920,7 +920,7 @@ class SSHService:
         pip_error = None
         code, out = self.run_remote_command(
             f'if exist "{win_path}\\requirements.txt" '
-            f'(set PYTHONUTF8=1 && "{_WIN_VENV_PYTHON}" -m pip install -q -r "{win_path}\\requirements.txt" 2>&1) '
+            f'(set PYTHONUTF8=1&& "{_WIN_VENV_PYTHON}" -m pip install -q -r "{win_path}\\requirements.txt" 2>&1) '
             f"else (echo NO_REQ)",
             self._remaining_timeout(deadline, 240),
         )
