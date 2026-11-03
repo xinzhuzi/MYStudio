@@ -987,6 +987,35 @@ export function McpSettingsTab() {
           onToggle={toggleSectionCollapsed}
         >
           <div className="space-y-3 px-5 py-3" data-testid="remote-engine-section">
+            {/* R2 全景状态条(1104 engine-failure-guidance):远端引擎/SSH 隧道/远端管理/本地备胎
+                四组件一排状态,有红/黄时给一句话建议——用户令:每种情况都要有提示 */}
+            <div className="flex flex-wrap items-center gap-2 text-xs" data-testid="engine-status-bar">
+              {remoteActive ? (
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${remoteTest.status === "ok" || remoteEngine ? "border-success/25 bg-success/10 text-success" : "border-destructive/25 bg-destructive/[0.08] text-destructive/90"}`}>
+                  {remoteTest.status === "ok" || remoteEngine ? "✅" : "❌"} 远端引擎
+                </span>
+              ) : null}
+              {sshStatus?.configured ? (
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${sshStatus.connected ? "border-success/25 bg-success/10 text-success" : "border-destructive/25 bg-destructive/[0.08] text-destructive/90"}`}>
+                  {sshStatus.connected ? "✅" : "❌"} SSH 隧道
+                </span>
+              ) : null}
+              {remoteActive ? (
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${sshStatus?.connected ? "border-success/25 bg-success/10 text-success" : "border-warning/40 bg-warning/[0.06] text-warning"}`}>
+                  {sshStatus?.connected ? "✅" : "⚠️"} 远端管理
+                </span>
+              ) : null}
+              <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${useEnginePresetsStore.getState().presets.length > 0 ? "border-success/25 bg-success/10 text-success" : "border-border bg-muted text-muted-foreground"}`}>
+                {remoteActive ? "✅" : "⚠️"} 本地备胎{!remoteActive ? "(当前本机模式)" : ""}
+              </span>
+            </div>
+            {(sshStatus?.configured && !sshStatus.connected) || (remoteActive && !remoteEngine) ? (
+              <p className="text-xs leading-4 text-warning" data-testid="engine-status-hint">
+                {remoteActive && !remoteEngine ? "远端引擎不可达——出图会失败,请检查 Windows ComfyUI" : ""}
+                {remoteActive && !remoteEngine && sshStatus?.configured && !sshStatus.connected ? "; " : ""}
+                {sshStatus?.configured && !sshStatus.connected ? "SSH 隧道断开——工作流列表/模型库存不可用,出图不受影响" : ""}
+              </p>
+            ) : null}
             {/* R1 设备列表(1103 devices-list 役,模仿 ZCode RemoteConnectionSelection):
                 本机行恒在恒首 + N 远端设备行;行点击=激活;选中=圆点+高亮+「当前生效」
                 徽标(恒恰一行);行内 测试/编辑/删除;底部「+ 添加设备」(ZCode 底部

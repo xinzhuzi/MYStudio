@@ -610,6 +610,23 @@ class Handler(BaseHTTPRequestHandler):
                 status = HTTPStatus.BAD_REQUEST
             elif exc.code == "bridge-unreachable":
                 status = HTTPStatus.SERVICE_UNAVAILABLE
+                # 1104 全场景提示(用户令:远端出问题必须提示+建议本地启动):
+                # 按本地引擎是否已配置,在错误消息尾追加分场景可操作建议——
+                # 前端 toast.error 直透此消息,零前端改动即吃到。
+                try:
+                    from engines.image_engine.model_cache import find_cached_image_model_for_spec
+                    from engines.image_engine.model_cache import IMAGE_MODELS
+                    _local_ready = any(
+                        find_cached_image_model_for_spec(spec)
+                        for spec in IMAGE_MODELS.values()
+                        if spec.get("layout") in ("comfyui-bridge", "qwen21-viggle")
+                    )
+                except Exception:  # noqa: BLE001 — 探测失败不覆盖原错误
+                    _local_ready = False
+                if _local_ready:
+                    exc.message += "。建议:可在 设置→引擎地址 列表点「本机引擎」行切换备胎;或检查远端 Windows ComfyUI 是否在运行"
+                else:
+                    exc.message += "。本地未配置备胎引擎——可在 设置→本地配置→本地图片生成 准备本机引擎;或检查远端 Windows ComfyUI 是否在运行"
             elif exc.code == "bridge-timeout":
                 status = HTTPStatus.GATEWAY_TIMEOUT
             elif exc.code == "bridge-blank-output":

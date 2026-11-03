@@ -267,7 +267,7 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     expect(screen.getByTestId("engine-devices-list").textContent).toContain("192.168.0.101:17000");
   });
 
-  it("测试连接(仅探活不保存):经 sidecar 代理探引擎报版本/GPU,不发 POST,文案点明未保存(11-02 用户令)", async () => {
+  it("测试连接(仅探活不保存):经 sidecar 代理探引擎报版本/GPU,不发 POST,note 随生效关系分口径(1103 修:测已生效机=已生效/测其他=点行切换)", async () => {
     setComfySidecarLivenessProbeForTests(async () => true);
     const fetchMock = vi.fn().mockImplementation((url: string) => {
       if (String(url).includes("/comfy/engine/probe")) {
@@ -295,7 +295,7 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
         "连接成功(ComfyUI 0.42.0 · NVIDIA RTX PRO 4000)",
       );
     });
-    expect(screen.getByTestId("remote-engine-ok-dialog").textContent).toContain("未保存");
+    expect(screen.getByTestId("remote-engine-ok-dialog").textContent).toContain("生效");
     expect(screen.queryByTestId("remote-engine-ok")).toBeNull();
     // 仅探活:绝不触发保存 POST
     const post = fetchMock.mock.calls.find(
