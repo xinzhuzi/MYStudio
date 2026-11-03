@@ -1267,6 +1267,14 @@ def _shutdown_sequence(server, log=print) -> list[str]:
         events.append("engine-stopped")
     except Exception as exc:  # noqa: BLE001
         log(f"[image-sidecar] 退出时停引擎失败(看门狗会兜底回收): {exc}")
+    # 1103 补:SSH 模块干净收摊(keeper/隧道/paramiko 连接显式断,不靠 OS 强杀)
+    try:
+        from remote_ssh import service as _ssh_service_mod
+
+        _ssh_service_mod.ssh_service().stop()
+        events.append("ssh-stopped")
+    except Exception as exc:  # noqa: BLE001 — SSH 未配置/未起=幂等空操作
+        log(f"[image-sidecar] 退出时停 SSH 失败(不阻断): {exc}")
     try:
         from comfyui.engine_manager import release_engine_lock
 
