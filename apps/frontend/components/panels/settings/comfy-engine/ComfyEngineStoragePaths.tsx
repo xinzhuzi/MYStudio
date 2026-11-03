@@ -123,8 +123,15 @@ export function ComfyEngineStoragePaths({ modelsDirRow }: { modelsDirRow?: React
         } else if (job.state === "failed") {
           toast.error(job.message || "目录迁移失败");
         }
-      } catch {
-        /* 轮询失败下次再试 */
+      } catch (error) {
+        // 1103 追修(实弹日志:404 无限空转):sidecar 重启丢任务后 getJob 恒 404,
+        // 旧实现吞错重排=无熔断死循环——失败即收摊,任务态置 failed 停轮询+诚实指路
+        setMigrateJob((prev) =>
+          prev && prev.state === "running"
+            ? { ...prev, state: "failed", message: error instanceof Error ? error.message : "任务状态查询失败" }
+            : prev,
+        );
+        toast.error("迁移任务状态丢失(本地服务可能重启过),请重新发起");
       }
     }, 800);
     return () => window.clearTimeout(timer);
