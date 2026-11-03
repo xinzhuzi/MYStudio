@@ -850,6 +850,39 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
     expect(useEnginePresetsStore.getState().presets[0]?.ssh?.port).toBe(22);
   });
 
+  it("1103 追修:保存后状态回读首拍断开(keeper 重连窗口)→沉降轮询终显已连接", async () => {
+    // 竞时复刻:/comfy/ssh/status 首两次回 connected:false(重连窗口),第三次回 true
+    let statusHits = 0;
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      const u = String(url);
+      if (u.includes("/comfy/ssh/status")) {
+        statusHits += 1;
+        const connected = statusHits >= 3;
+        return Promise.resolve({
+          ok: true, status: 200,
+          json: () => Promise.resolve({
+            available: true, configured: true, connected,
+            host: "192.168.0.101", user: "zbj", serverVersion: connected ? "SSH-2.0-OpenSSH_for_Windows_9.5" : null,
+            lastError: connected ? null : "SSH 连接断开(keeper 重连窗口)",
+            tunnelEnabled: true, tunnelActive: connected, tunnelLocalPort: connected ? 17600 : null,
+          }),
+        } as unknown as Response);
+      }
+      if (u.includes("/comfy/ssh/config") && init?.method === "POST") {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ host: "192.168.0.101", port: 22, user: "zbj", keyPath: "", tunnelEnabled: true }) } as unknown as Response);
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) } as unknown as Response);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    fireEvent.click(screen.getByTestId("ssh-save"));
+    // 沉降轮询:1.5s 后第二拍(仍断)→+3s 第三拍(连上);终态徽章=已连接
+    await waitFor(() => {
+      expect(screen.getByTestId("ssh-badge").getAttribute("data-state")).toBe("connected");
+    }, { timeout: 12000 });
+    expect(statusHits).toBeGreaterThanOrEqual(3);
+  });
+
   it("device-ssh ④:编辑 dialog 填 SSH→设备档落块;主机清空=解除设备级凭据", async () => {
     useEnginePresetsStore.setState({
       presets: [{ url: "http://192.168.0.101:17000", label: "A机", lastUsedAt: 1 }],

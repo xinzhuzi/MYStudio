@@ -469,6 +469,23 @@ export function McpSettingsTab() {
   // 默认值注入,与引擎地址行同源:已存引擎地址优先,引擎地址行草稿兜底;后端
   // save_config 同款预填双保险)。回执=完整落盘配置,据此回填草稿(port/keyPath
   // status 不回显,保存回执是往返真源)。
+  // 1103 追修(保存即显"断开"假断):保存/切换触发的 keeper 重连有 1-2s 撕旧建新
+  // 窗口,单次状态回读会吃到处断开态且永不再刷——带退避沉降轮询直到连上或试尽。
+  const refreshSshStatusWithSettle = async (maxAttempts = 4) => {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const status = await getComfySshStatus();
+        setSshStatus(status);
+        if (status.connected) return;
+      } catch {
+        /* 回读失败保留上次态,下轮再试 */
+      }
+      if (attempt < maxAttempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, attempt === 0 ? 1500 : 3000));
+      }
+    }
+  };
+
   const saveSshConfig = async () => {
     setSshSaving(true);
     setSshTest({ status: "idle" });
@@ -506,12 +523,8 @@ export function McpSettingsTab() {
           keyPath: saved.keyPath ?? "",
         });
       }
-      // 保存后回读状态刷新徽章(照引擎地址行保存即回读范式;回读失败不覆盖保存成功)
-      try {
-        setSshStatus(await getComfySshStatus());
-      } catch {
-        /* 状态回读失败不影响保存结果 */
-      }
+      // 保存后刷新徽章=沉降轮询(单次回读会吃 keeper 重连窗口的假断态,1103 追修)
+      void refreshSshStatusWithSettle();
     } catch (error) {
       const message = isSidecarDownError(error)
         ? SIDECAR_DOWN_GUIDANCE
@@ -672,9 +685,10 @@ export function McpSettingsTab() {
         user: device.ssh.user,
         keyPath: device.ssh.keyPath,
         tunnelEnabled: sshDraft.tunnelEnabled,
-      }).catch((error: unknown) => {
-        toast.error(`该设备的 SSH 凭据落章失败:${error instanceof Error ? error.message : "未知错误"}`);
-      });
+      }).then(() => void refreshSshStatusWithSettle())
+        .catch((error: unknown) => {
+          toast.error(`该设备的 SSH 凭据落章失败:${error instanceof Error ? error.message : "未知错误"}`);
+        });
     }
   };
 
