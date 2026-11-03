@@ -518,6 +518,115 @@ class TestDynamicContinuationStartSync:
         assert _FakePopen.calls == []
 
 
+# ── 1104 收编态 restart 修复+拒绝文案勘正 ─────────────────────────────
+
+class TestRestartAdoptedInstance:
+    """1104 收编态修复:restart 对本会话收编的自家实例(枚举确证命中收编口)
+    前置停旧,深二级 job 流(插件装卸/引擎更新/复位/回滚)不再全数撞「无法
+    确认其已重启」;枚举不可用/空表/外部占用交 start_sync 既有分支,从未
+    接管的实例(keeper/外部拉起)与收编的外部 ComfyUI 照旧拒收不越权杀。"""
+
+    def _adopted_manager(self, tmp_path, monkeypatch, port: int = 17600) -> EngineManager:
+        _plant_installed_engine(tmp_path, monkeypatch, port=port)
+        manager = EngineManager()
+        manager._running_port = port  # 收编态:有运行口、无 Popen 句柄
+        return manager
+
+    def test_restart_retires_adopted_instance_then_spawns(self, tmp_path, monkeypatch):
+        """收编态+枚举命中自家实例=restart 先停旧再 spawn 一台(重启真正达成)。"""
+        manager = self._adopted_manager(tmp_path, monkeypatch)
+        alive = {"yes": True}
+        monkeypatch.setattr(manager, "_orphan_is_comfyui", lambda port: alive["yes"])
+        monkeypatch.setattr(em, "_engine_home_processes",
+                            lambda: ([{"pid": 44748, "port": 17600, "args": "…"}]
+                                     if alive["yes"] else []))
+        retire_calls: list[dict] = []
+
+        def fake_retire(port, *, extra_pids=None):
+            retire_calls.append({"port": port, "extra_pids": extra_pids})
+            alive["yes"] = False  # 停旧后实例消亡,二次枚举=空表
+            return True
+
+        monkeypatch.setattr(manager, "_retire_orphan_engine", fake_retire)
+        _stub_spawn_success(monkeypatch, manager)
+
+        result = manager.restart()
+
+        assert retire_calls == [{"port": 17600, "extra_pids": [44748]}]
+        assert len(_FakePopen.calls) == 1, "停旧后恰 spawn 一台"
+        assert result["running"] is True
+
+    def test_restart_adopted_retire_failure_aborts(self, tmp_path, monkeypatch):
+        """收编实例杀不动=如实报错收场,绝不带着旧引擎去启第二台。"""
+        manager = self._adopted_manager(tmp_path, monkeypatch)
+        monkeypatch.setattr(em, "_engine_home_processes",
+                            lambda: [{"pid": 44748, "port": 17600, "args": "…"}])
+        monkeypatch.setattr(manager, "_retire_orphan_engine",
+                            lambda port, *, extra_pids=None: False)
+        _stub_spawn_success(monkeypatch, manager)
+
+        with pytest.raises(EngineOpError) as ctx:
+            manager.restart()
+
+        assert "无法停止" in str(ctx.value)
+        assert _FakePopen.calls == [], "停旧失败绝不启新"
+
+    def test_restart_adopted_already_gone_skips_retire(self, tmp_path, monkeypatch):
+        """收编实例已死(枚举空表)→不预停,直接落入 spawn。"""
+        manager = self._adopted_manager(tmp_path, monkeypatch)
+        retire_calls: list[dict] = []
+        monkeypatch.setattr(em, "_engine_home_processes", lambda: [])
+        monkeypatch.setattr(manager, "_orphan_is_comfyui", lambda port: False)
+        monkeypatch.setattr(manager, "_retire_orphan_engine",
+                            lambda port, *, extra_pids=None: retire_calls.append(port) or True)
+        _stub_spawn_success(monkeypatch, manager)
+
+        result = manager.restart()
+
+        assert retire_calls == [], "实例已死不再停旧"
+        assert len(_FakePopen.calls) == 1
+        assert result["running"] is True
+
+    def test_restart_adopted_enumeration_unavailable_keeps_old_refusal(self, tmp_path, monkeypatch):
+        """枚举不可用=None 不预停(0929 R1「看不清就动手=拒」)——收编口上的
+        占用者身份不可证,restart 不越权杀,交 start_sync 如实报错。"""
+        manager = self._adopted_manager(tmp_path, monkeypatch)
+        retire_calls: list[dict] = []
+        monkeypatch.setattr(em, "_engine_home_processes", lambda: None)
+        monkeypatch.setattr(manager, "_orphan_is_comfyui", lambda port: True)
+        monkeypatch.setattr(manager, "_engine_speaks_bridge", lambda port: True)
+        monkeypatch.setattr(manager, "_retire_orphan_engine",
+                            lambda port, *, extra_pids=None: retire_calls.append(port) or True)
+        _stub_spawn_success(monkeypatch, manager)
+
+        with pytest.raises(EngineOpError) as ctx:
+            manager.restart()
+
+        assert "枚举不可用" in str(ctx.value)
+        assert retire_calls == [], "看不清就动手=拒,不预停"
+        assert _FakePopen.calls == []
+
+    def test_refusal_message_names_ledger_port_correctly(self, tmp_path, monkeypatch):
+        """1104 文案勘正:账本口上的非本会话实例拒绝时,报「账本端口」不再
+        误报「非账本端口」(11-04 实弹:keeper 场景账本口 17001 被报非账本)。"""
+        _plant_installed_engine(tmp_path, monkeypatch, port=17001)
+        manager = EngineManager()
+        monkeypatch.setattr(em, "_engine_home_processes",
+                            lambda: [{"pid": 44748, "port": 17001, "args": "…"}])
+        _stub_spawn_success(monkeypatch, manager)
+
+        with pytest.raises(EngineOpError) as ctx:
+            manager.start_sync(allow_adoption=False)
+
+        msg = str(ctx.value)
+        assert "无法确认其已重启" in msg
+        assert "17001" in msg
+        assert "账本端口 [17001]" in msg, "端口即账本口须如实报"
+        assert "非账本端口" not in msg, "账本口不得误报为非账本"
+        assert "非本会话拉起" in msg, "拒绝真因=无所有权须言明"
+        assert _FakePopen.calls == []
+
+
 # ── 0929 深审 R1:枚举不可用=拒绝盲启(三态根修回归) ──────────────────
 
 class TestEnumerationUnavailable:

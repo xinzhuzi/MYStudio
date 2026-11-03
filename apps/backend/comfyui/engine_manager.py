@@ -1837,10 +1837,18 @@ class EngineManager:
                 # (spec:收编的外部端点无持有 PID,restart 须拒绝再收编而非
                 # 谎报重启或杀未知进程)。
                 if not allow_adoption:
-                    drifted = sorted({info["port"] for info in home_procs
-                                      if isinstance(info["port"], int)})
+                    ledger_port = cm.recorded_port()
+                    ports = sorted({info["port"] for info in home_procs
+                                    if isinstance(info["port"], int)})
+                    drifted = [p for p in ports if p != ledger_port]
+                    where = (f"非账本端口 {drifted}" if drifted
+                             else f"账本端口 {ports}" if ports
+                             else "未绑定端口")
+                    # 1104 文案勘正:拒绝真因=实例非本会话拉起(无所有权),
+                    # 端口可以恰为账本口——旧文案一律冠「非账本端口」误导排障
+                    # (11-04 实弹:keeper 场景账本口 17001 被报成非账本)。
                     raise EngineOpError(
-                        f"漫影 ComfyUI 实例正运行在非账本端口 {drifted or ['未知端口']},"
+                        f"漫影 ComfyUI 实例正在运行({where},非本会话拉起),"
                         "无法确认其已重启;请先手动停止该实例后重试")
                 if len(home_procs) > 1:
                     # 单实例纪律:发现多台自家出身实例→全部停旧后 spawn 一台
@@ -2166,10 +2174,42 @@ class EngineManager:
         return True
 
     def restart(self, progress=None) -> dict:
-        """重启(插件安装/更新链用;期望引擎回到健康态)。"""
+        """重启(插件安装/更新链用;期望引擎回到健康态)。
+
+        1104 收编态修复:本会话收编的自家实例(_running_port 在册、无 Popen
+        句柄)旧版 restart 只停 _proc——收编实例原样存活,start_sync(allow_
+        adoption=False) 枚举命中即拒,插件装/卸/更新/开关、引擎更新、复位、
+        回滚在收编态全数撞「无法确认其已重启」。现 restart 前置一次枚举:
+        命中收编口的自家出身实例才预停(_retire_orphan_engine 身份复核后停,
+        杀不动=如实报错收场,绝不带着旧引擎去启第二台);其余路径逐字节保持
+        旧语义——枚举不可用(None)不预停(0929 R1「看不清就动手=拒」口径,
+        交 start_sync 如实报错),枚举空表交 start_sync 既有分支(桥孤儿自愈/
+        外部占用报错),收编的外部 ComfyUI 与从未接管的实例(keeper/外部拉起)
+        永不越权杀。
+        """
+        with self._lock:
+            # 收编态快照:无 Popen 句柄但 _running_port 在册=本会话接管中的实例
+            adopted_port = self._running_port if (
+                self._proc is None and self._running_port is not None) else None
         generation, stopped = self._stop_managed_process()
         if not stopped:
             raise EngineOpError("引擎进程未能停止,取消本次重启")
+        if adopted_port is not None:
+            # 前置枚举:只有「枚举确证收编口上是自家出身实例」才预停——这是
+            # start_sync(allow_adoption=False) 必拒的唯一死锁形态;其余占用
+            # 形态(外部 ComfyUI/桥孤儿/枚举不可用)交 start_sync 既有分支。
+            home_procs = _engine_home_processes()
+            same_port = [info for info in home_procs
+                         if isinstance(info.get("port"), int)
+                         and info["port"] == adopted_port] if home_procs else []
+            if same_port:
+                if progress:
+                    progress(10, "停止接管中的引擎实例后重启…")
+                if not self._retire_orphan_engine(
+                        adopted_port, extra_pids=[info["pid"] for info in same_port]):
+                    raise EngineOpError(
+                        f"端口 {adopted_port} 的接管引擎实例无法停止(找不到或终止不了"
+                        "监听进程);请手动关闭该 ComfyUI 进程后重试,以免出现双引擎")
         time.sleep(1.0)
         return self.start_sync(progress=progress, expected_generation=generation, allow_adoption=False)
 
