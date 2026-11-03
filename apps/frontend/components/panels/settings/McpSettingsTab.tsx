@@ -101,6 +101,7 @@ const emptyDraft: DraftForm = {
 // string 承接输入态(保存时解析 int,非法回退 22);密钥路径留空=后端自动
 // 探测(~/.ssh/id_ed25519 → id_ecdsa → id_rsa)。label 选填,缺省=host。
 interface SshFormDraft {
+  password: string;
   label: string;
   host: string;
   port: string;
@@ -108,10 +109,11 @@ interface SshFormDraft {
   keyPath: string;
 }
 
-const emptySshFormDraft: SshFormDraft = { label: "", host: "", port: "22", user: "", keyPath: "" };
+const emptySshFormDraft: SshFormDraft = { label: "", host: "", port: "22", user: "", keyPath: "", password: "" };
 
 /** 表单草稿 → store 入参(host 必填校验由 store 承接,非法回 null)。 */
 const sshDraftToInput = (draft: SshFormDraft, id?: string) => ({
+    password: draft.password || "",
   ...(id ? { id } : {}),
   label: draft.label,
   host: draft.host,
@@ -548,7 +550,7 @@ export function McpSettingsTab() {
         user: preset.user,
         keyPath: preset.keyPath,
         tunnelEnabled: sshTunnelEnabled,
-      });
+      password: preset.password || "",});
       useSshPresetsStore.getState().setActiveFingerprint({
         host: reply.host,
         port: reply.port,
@@ -1339,7 +1341,7 @@ export function McpSettingsTab() {
                               port: String(preset.port),
                               user: preset.user,
                               keyPath: preset.keyPath,
-                            });
+          password: preset.password || "",});
                           }}
                           data-testid="ssh-row-edit"
                           data-host={preset.host}
@@ -1533,6 +1535,18 @@ export function McpSettingsTab() {
                     />
                   </div>
                 </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="ssh-conn-password" className="text-xs">密码(可选;空=走密钥认证)</Label>
+                      <Input
+                        id="ssh-conn-password"
+                        type="password"
+                        value={sshEditDraft.password}
+                        onChange={(e) => setSshEditDraft((prev) => ({ ...prev, password: e.target.value }))}
+                        placeholder="留空=用密钥连接(自动探测 ~/.ssh/id_ed25519)"
+                        data-testid="ssh-conn-password"
+                        spellCheck={false}
+                      />
+                    </div>
                 <DialogFooter>
                   <Button size="sm" variant="ghost" onClick={() => setSshEditing(null)}>取消</Button>
                   <Button size="sm" onClick={submitEditSsh} data-testid="ssh-connection-edit-save">保存</Button>

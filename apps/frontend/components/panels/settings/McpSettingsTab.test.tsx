@@ -837,7 +837,7 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
       presets: [{ url: "http://192.168.0.101:17000", label: "A机", lastUsedAt: 1 }],
     });
     useSshPresetsStore.setState({
-      presets: [{ id: "ssh-a", label: "A连", host: "192.168.0.101", port: 22, user: "zbj", keyPath: "", lastUsedAt: 1 }],
+      presets: [{ id: "ssh-a", label: "A连", host: "192.168.0.101", port: 22, user: "zbj", keyPath: "", password: "", lastUsedAt: 1 }],
     });
     const { fetchMock } = dualListMock({ sshHost0: "192.168.0.101" });
     vi.stubGlobal("fetch", fetchMock);
@@ -991,6 +991,7 @@ describe("McpSettingsTab·SSH 连接列表(11-03 终版)", () => {
     port: 22,
     user: "zbj",
     keyPath: "",
+  password: "",
     lastUsedAt: 1,
     ...extra,
   });
@@ -1305,7 +1306,7 @@ describe("McpSettingsTab·SSH 连接列表(11-03 终版)", () => {
     expect(screen.getByTestId("ssh-last-error").textContent).toContain("Authentication failed");
   });
 
-  it("点行切换(R2):POST /comfy/ssh/config 携该行五字段+touch 置顶+沉降后指纹翻到新行+零引擎 POST(零联动②)", async () => {
+  it("点行切换(R2):POST /comfy/ssh/config 携该行六字段(含 password)+touch 置顶+沉降后指纹翻到新行+零引擎 POST(零联动②)", async () => {
     useSshPresetsStore.setState({
       presets: [
         makeSshPreset("192.168.0.101", "ssh-a", { label: "A连" }),
@@ -1359,6 +1360,7 @@ describe("McpSettingsTab·SSH 连接列表(11-03 终版)", () => {
         user: "ops",
         keyPath: "/Users/ops/.ssh/id",
         tunnelEnabled: true,
+        password: "",
       });
     });
     expect(toastMocks.success).toHaveBeenCalledWith("SSH 已切换:B连");

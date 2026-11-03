@@ -1136,6 +1136,8 @@ export interface ComfySshConfigInput {
   user: string;
   keyPath: string;
   tunnelEnabled: boolean;
+  /** SSH 密码(可选;空=走密钥认证)。status 回执永不回显此字段(安全)。 */
+  password?: string;
 }
 
 /** 保存回执 = save_config 返回的完整落盘配置(草稿回显真源,host 空时后端已预填)。 */

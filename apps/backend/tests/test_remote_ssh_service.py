@@ -259,12 +259,30 @@ class RemoteSshServiceTests(unittest.TestCase):
         self.assertEqual(kwargs["hostname"], "192.168.0.101")
         self.assertEqual(kwargs["username"], "zbj")
         self.assertIs(kwargs["allow_agent"], False)  # 禁 agent
-        self.assertIs(kwargs["look_for_keys"], False)  # 禁键探测(显式 key 唯一源)
+        # 1103 密码认证补:显式 key 仍开探测回退(paramiko 先试 key_filename 失败再探默认键)
+        self.assertIs(kwargs["look_for_keys"], True)
         self.assertEqual(kwargs["timeout"], 10)  # 建连超时 10s
         self.assertTrue(kwargs["key_filename"].endswith("id_ed25519"))
         self.assertEqual(client.transport.keepalive, 30)  # set_keepalive(30)
         # serverVersion 从 transport.remote_version 取
         self.assertEqual(svc.status()["serverVersion"], "SSH-2.0-OpenSSH_for_Windows_9.5")
+
+
+    def test_connect_once_with_password_auth(self) -> None:
+        """1103 密码认证补:cfg 带 password→connect kwargs 携 password(优先密码,回退探测)。"""
+        cfg = self._write_ssh_config()
+        cfg["password"] = "s3cret-pw"
+        svc = ssh_service()
+        fake = _fake_paramiko_module()
+        with patch.dict(sys.modules, {"paramiko": fake}), patch("threading.Thread"):
+            self.assertTrue(svc._connect_once(cfg))
+        client = svc._client
+        self.assertIsInstance(client, _FakeSSHClient)
+        kwargs = client.connect_kwargs
+        self.assertEqual(kwargs["password"], "s3cret-pw")
+        self.assertIs(kwargs["allow_agent"], False)
+        # 密码优先但失败回退探测(paramiko 自行处理回退序)
+        self.assertIs(kwargs["look_for_keys"], True)
 
     def test_connect_once_without_any_key_omits_key_filename(self) -> None:
         # 无任何默认 key 且 keyPath 空:不带 key_filename(由服务端侧拒,诚实失败)

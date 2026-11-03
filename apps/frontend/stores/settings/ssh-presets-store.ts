@@ -24,6 +24,8 @@ export interface SshPreset {
   user: string;
   /** 留空=后端自动探测 ~/.ssh/id_ed25519 → id_ecdsa → id_rsa。 */
   keyPath: string;
+  /** SSH 密码(可选;空=走密钥认证)。 */
+  password: string;
   /** LRU 时间戳;数组序=展示序(新/最近用在前)。 */
   lastUsedAt: number;
 }
@@ -36,6 +38,7 @@ export interface SshPresetInput {
   port?: number;
   user?: string;
   keyPath?: string;
+  password?: string;
   lastUsedAt?: number;
 }
 
@@ -94,6 +97,7 @@ export const useSshPresetsStore = create<SshPresetsState>()(
           port,
           user: (input.user ?? "").trim(),
           keyPath: (input.keyPath ?? "").trim(),
+          password: (input.password ?? "").trim(),
           lastUsedAt: input.lastUsedAt ?? Date.now(),
         };
         set({

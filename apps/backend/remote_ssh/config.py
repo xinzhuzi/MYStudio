@@ -41,6 +41,7 @@ def default_config() -> dict:
         "tunnelEnabled": True,
         "tunnelLocalPort": DEFAULT_TUNNEL_LOCAL_PORT,
         "tokenConfigPaths": [],
+        "password": "",  # SSH 密码认证(可选;空=走密钥),
     }
 
 
@@ -139,6 +140,9 @@ def _merge_known_fields(cfg: dict, data: dict) -> None:
     tunnel_port = data.get("tunnelLocalPort")
     if isinstance(tunnel_port, int) and not isinstance(tunnel_port, bool) and 1 <= tunnel_port <= 65535:
         cfg["tunnelLocalPort"] = tunnel_port
+    password = str(data.get("password") or "")
+    if password:
+        cfg["password"] = password
     paths = data.get("tokenConfigPaths")
     if isinstance(paths, list):
         cleaned = [str(p).strip() for p in paths if isinstance(p, str) and p.strip()]

@@ -19,6 +19,7 @@ const makePreset = (host: string, lastUsedAt: number): SshPreset => ({
   port: 22,
   user: "zbj",
   keyPath: "",
+  password: "",
   lastUsedAt,
 });
 
@@ -118,5 +119,16 @@ describe("ssh presets store(11-03 终版 R1:多条 SSH 连接,与引擎列表零
     };
     // partialize 含 activeFingerprint:指纹随 store 同键落盘,跨重开存活
     expect(persisted.state?.activeFingerprint).toEqual({ host: "192.168.0.101", port: 2222, user: "zbj" });
+  });
+
+  it("password 字段流转:save 携密码→读回保留;空密码=走密钥(1103 密码认证补)", () => {
+    const { save } = useSshPresetsStore.getState();
+    save({ host: "10.1.1.9", user: "pw-user", password: "s3cret!", label: "密码机" });
+    const hit = useSshPresetsStore.getState().presets.find((entry) => entry.host === "10.1.1.9");
+    expect(hit?.password).toBe("s3cret!");
+    // 空密码入参=空串(密钥认证语义)
+    save({ host: "10.1.1.10", user: "key-user" });
+    const hit2 = useSshPresetsStore.getState().presets.find((entry) => entry.host === "10.1.1.10");
+    expect(hit2?.password ?? "").toBe("");
   });
 });

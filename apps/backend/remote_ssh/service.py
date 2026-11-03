@@ -195,6 +195,7 @@ class SSHService:
         client.load_system_host_keys()  # 已知主机键(含键不匹配仍拒的严格面)
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # 新主机自动收录
         key_path = _resolve_key_path(cfg.get("keyPath") or "")
+        password = str(cfg.get("password") or "").strip()
         connect_kwargs = {
             "hostname": cfg["host"],
             "port": int(cfg.get("port") or ssh_config.DEFAULT_SSH_PORT),
@@ -203,8 +204,19 @@ class SSHService:
             "look_for_keys": False,
             "timeout": _CONNECT_TIMEOUT_S,
         }
+        # 认证优先序(1103 补):显式密码 > 显式密钥路径 > 自动探测密钥
+        # —— paramiko connect 的 password 参数会先试密码,失败回退 key_filename。
+        # 两者都给=paramiko 自行回退;都空=连不上(诚实报 auth failed)。
+        if password:
+            connect_kwargs["password"] = password
+            connect_kwargs["look_for_keys"] = True  # 密码失败回退自动探测密钥
         if key_path:
             connect_kwargs["key_filename"] = key_path
+            if not password:
+                connect_kwargs["look_for_keys"] = True  # 显式 key 失败也回退探测
+        elif not password:
+            # 都空:让 paramiko 自己探测默认密钥(但 look_for_keys 已 False,手动开)
+            connect_kwargs["look_for_keys"] = True
         client.connect(**connect_kwargs)
         transport = client.get_transport()
         if transport is not None:
@@ -313,6 +325,7 @@ class SSHService:
                 "connected": self._connected,
                 "host": cfg.get("host") or "",
                 "user": cfg.get("user") or "",
+                # password 永不回显(安全;UI 编辑时密码框留空=不改现有密码)
                 "serverVersion": self._server_version,
                 "lastError": self._last_error,
                 "tunnelEnabled": bool(cfg.get("tunnelEnabled", True)),
