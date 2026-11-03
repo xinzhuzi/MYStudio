@@ -896,6 +896,64 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
     expect((screen.getByTestId("ssh-key-path") as HTMLInputElement).value).toBe("/Users/ops/.ssh/id");
   });
 
+  it("device-ssh ⑧(UI 展示):生效机行显实时 SSH 态(已连接/断开),未生效行显已配待连/未配", async () => {
+    useEnginePresetsStore.setState({
+      presets: [
+        { url: "http://192.168.0.101:17000", label: "A机", lastUsedAt: 2, ssh: { host: "192.168.0.101", port: 22, user: "zbj", keyPath: "" } },
+        { url: "http://192.168.0.102:17000", label: "B机(未配)", lastUsedAt: 1 },
+      ],
+    });
+    // A 生效 + SSH 已连;B 未生效未配
+    const state = { connected: true };
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      const u = String(url);
+      if (u.includes("/comfy/engine/remote")) {
+        return Promise.resolve({
+          ok: true, status: 200,
+          json: () => Promise.resolve({ url: "http://192.168.0.101:17000", effective: "http://192.168.0.101:17000", source: "settings" }),
+        } as unknown as Response);
+      }
+      if (u.includes("/comfy/ssh/status")) {
+        return Promise.resolve({
+          ok: true, status: 200,
+          json: () => Promise.resolve({ available: true, configured: true, connected: state.connected, host: "192.168.0.101", user: "zbj", serverVersion: "SSH-2.0-OpenSSH_for_Windows_9.5", lastError: null, tunnelEnabled: true, tunnelActive: true, tunnelLocalPort: 17600 }),
+        } as unknown as Response);
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) } as unknown as Response);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-device-ssh-state-http://192.168.0.101:17000").textContent).toContain("SSH 已连接 ✓");
+    });
+    // B 未生效未配 → 未配 SSH
+    expect(screen.getByTestId("engine-device-ssh-state-http://192.168.0.102:17000").textContent).toContain("未配 SSH");
+    // 状态翻断开 → ssh-save 触发沉降回读 → 生效机行随之翻红(实时态)
+    state.connected = false;
+    fireEvent.click(screen.getByTestId("ssh-save"));
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-device-ssh-state-http://192.168.0.101:17000").textContent).toContain("SSH 断开 ✗");
+    }, { timeout: 10000 });
+  });
+
+  it("device-ssh ⑨(UI 展示):未生效但已配 SSH 的设备行显「已配·激活时连接」", async () => {
+    useEnginePresetsStore.setState({
+      presets: [
+        { url: "http://192.168.0.101:17000", label: "A机", lastUsedAt: 2, ssh: { host: "192.168.0.101", port: 22, user: "zbj", keyPath: "" } },
+        { url: "http://192.168.0.102:17000", label: "B机", lastUsedAt: 1, ssh: { host: "192.168.0.102", port: 22, user: "ops", keyPath: "" } },
+      ],
+    });
+    const { fetchMock } = deviceSshMock("http://192.168.0.101:17000");
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(
+        screen.getAllByTestId("engine-device-remote-select").find((b) => b.dataset.url === "http://192.168.0.101:17000")!.getAttribute("aria-checked"),
+      ).toBe("true");
+    });
+    expect(screen.getByTestId("engine-device-ssh-state-http://192.168.0.102:17000").textContent).toContain("SSH 已配 · 激活时连接");
+  });
+
   it("device-ssh ⑦(半截③修):SSH 区顶部标注当前生效设备名;本机模式=全局单份口径", async () => {
     useEnginePresetsStore.setState({
       presets: [{ url: "http://192.168.0.101:17000", label: "Windows 主力", lastUsedAt: 1 }],

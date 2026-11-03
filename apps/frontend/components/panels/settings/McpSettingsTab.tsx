@@ -1020,12 +1020,32 @@ export function McpSettingsTab() {
                             <span className="truncate text-sm font-medium">{p.label}</span>
                           </span>
                           <span className="block truncate font-mono text-xs text-muted-foreground">{p.url}</span>
-                          {p.ssh && (
+                          {/* 1103 UI 展示补(照 ZCode 每行状态标签):设备行显 SSH 连接态——
+                              生效机=实时态(唯一真连);未生效=已配待连/未配;title 带凭据 */}
+                          {isActive ? (
+                            <span
+                              className={`mt-0.5 inline-flex w-fit items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] ${
+                                sshStatus?.connected
+                                  ? "border-success/25 bg-success/10 text-success"
+                                  : sshStatus?.configured
+                                    ? "border-destructive/25 bg-destructive/[0.08] text-destructive/90"
+                                    : "border-border bg-muted text-muted-foreground"
+                              }`}
+                              title={p.ssh ? `设备级 SSH:${p.ssh.user ? `${p.ssh.user}@` : ""}${p.ssh.host}:${p.ssh.port}` : "未配设备级 SSH(全局单份在役)"}
+                              data-testid={`engine-device-ssh-state-${p.url}`}
+                            >{sshStatus?.connected ? "SSH 已连接 ✓" : sshStatus?.configured ? "SSH 断开 ✗" : "SSH 未配置"}</span>
+                          ) : p.ssh ? (
                             <span
                               className="mt-0.5 inline-flex w-fit items-center gap-1 rounded-full border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
-                              title={`设备级 SSH:${p.ssh.user ? `${p.ssh.user}@` : ""}${p.ssh.host}:${p.ssh.port}`}
-                              data-testid={`engine-device-ssh-chip-${p.url}`}
-                            >SSH {p.ssh.host}:{p.ssh.port}</span>
+                              title={`已配 SSH:${p.ssh.user ? `${p.ssh.user}@` : ""}${p.ssh.host}:${p.ssh.port}——连接随激活建立(一时刻一连接)`}
+                              data-testid={`engine-device-ssh-state-${p.url}`}
+                            >SSH 已配 · 激活时连接</span>
+                          ) : (
+                            <span
+                              className="mt-0.5 inline-flex w-fit items-center gap-1 rounded-full border border-border/60 px-1.5 py-0.5 text-[10px] text-muted-foreground/60"
+                              title="未配设备级 SSH——激活不动全局配置"
+                              data-testid={`engine-device-ssh-state-${p.url}`}
+                            >未配 SSH</span>
                           )}
                         </span>
                       </button>
