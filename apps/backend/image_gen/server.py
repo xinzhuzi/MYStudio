@@ -1004,6 +1004,22 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"ok": refreshed, "tokenRefreshedAt": svc.status().get("tokenRefreshedAt")})
                 return
 
+            if method == "POST" and path == "/comfy/ssh/sync-plugins":
+                # 1104 插件同步:Mac→Windows(版本+插件+依赖,全走 SSH)
+                svc = _ssh_service()
+                if svc is None:
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "remote_ssh 模块不可用(paramiko 未装?)", "ssh-unavailable")
+                    return
+                if not svc.status().get("connected"):
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "SSH 未连接——请先在 SSH 列表点一条连接", "ssh-disconnected")
+                    return
+                try:
+                    result = svc.sync_plugins(timeout_s=300)
+                    self._send_json(result)
+                except Exception as exc:
+                    self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, f"插件同步失败: {exc}", "sync-failed")
+                return
+
             if method == "GET" and path == "/comfy/engine/snapshots":
                 self._send_json(engine_manager().list_snapshots())
                 return

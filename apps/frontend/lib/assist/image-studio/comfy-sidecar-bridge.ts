@@ -1187,6 +1187,20 @@ export async function testComfySshConnection(): Promise<ComfySshTestReply> {
   return comfySidecarRequest<ComfySshTestReply>("POST", "/comfy/ssh/test");
 }
 
+export interface SshPluginSyncReply {
+  comfyuiSynced: boolean;
+  installed: string[];
+  updated: string[];
+  pipInstalled: string[];
+  engineRestarted: boolean;
+  errors: string[];
+  notes: string[];
+}
+
+export async function syncSshPlugins(): Promise<SshPluginSyncReply> {
+  return comfySidecarRequest<SshPluginSyncReply>("POST", "/comfy/ssh/sync-plugins", { timeoutMs: 330_000 });
+}
+
 export async function refreshComfySshToken(): Promise<ComfySshTokenRefreshReply> {
   return comfySidecarRequest<ComfySshTokenRefreshReply>("POST", "/comfy/ssh/token-refresh");
 }

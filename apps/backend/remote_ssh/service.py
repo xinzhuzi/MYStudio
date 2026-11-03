@@ -423,6 +423,103 @@ class SSHService:
             return data.decode("utf-8", "replace")
         return str(data)
 
+
+    def run_remote_command(self, command: str, timeout_s: float = 30) -> tuple[int, str]:
+        """SSH exec_command(1104 plugin-sync):在远端执行 shell 命令,回 (exit_code, stdout+stderr)。
+
+        只在已连接时可用;失败抛 SSHServiceError(调用方诚实报)。
+        """
+        with self._lock:
+            client = self._client
+        if client is None:
+            raise SSHServiceError("SSH 未连接")
+        try:
+            _, stdout, stderr = client.exec_command(command, timeout=timeout_s)
+            output = stdout.read().decode("utf-8", "replace") + stderr.read().decode("utf-8", "replace")
+            return int(stdout.channel.recv_exit_status()), output
+        except Exception as exc:
+            raise SSHServiceError(f"远端命令执行失败: {exc}") from exc
+
+    def sync_plugins(self, timeout_s: float = 300) -> dict:
+        """1104 插件同步:Mac→Windows(版本对齐+缺装+有更+依赖+建议重启)。
+
+        返回 {comfyuiSynced, installed, updated, pipInstalled, engineRestarted, errors[], notes[]}
+        """
+        import json as _json
+
+        result = {"comfyuiSynced": False, "installed": [], "updated": [], "pipInstalled": [], "engineRestarted": False, "errors": [], "notes": []}
+
+        # ① 读 Mac 本机插件清单
+        try:
+            from comfyui.manifest import comfy_home
+            local_nodes = comfy_home() / "ComfyUI" / "custom_nodes"
+            if not local_nodes.is_dir():
+                result["errors"].append("本机引擎未配置(custom_nodes 目录不存在)——请先在设置→本地配置准备本机引擎")
+                return result
+            mac_plugins = {}
+            for d in local_nodes.iterdir():
+                git_dir = d / ".git"
+                if git_dir.is_dir() and d.name not in ("my-nodes",):
+                    # 读 origin url
+                    try:
+                        import subprocess as _sp
+                        url = _sp.run(["git", "-C", str(d), "remote", "get-url", "origin"],
+                                      capture_output=True, text=True, timeout=5).stdout.strip()
+                        if url:
+                            mac_plugins[d.name] = url
+                    except Exception:
+                        pass
+        except Exception as exc:
+            result["errors"].append(f"读本机插件清单失败: {exc}")
+            return result
+        result["notes"].append(f"Mac 本机 {len(mac_plugins)} 件插件")
+
+        # ② 读 Windows 引擎 custom_nodes
+        code, out = self.run_remote_command("dir /b E:\\IP\\漫影工作室\\comfyui\\ComfyUI\\custom_nodes 2>nul", 15)
+        win_existing = {l.strip() for l in out.splitlines() if l.strip() and not l.startswith("Volume")} if code == 0 else set()
+        result["notes"].append(f"Windows 现有 {len(win_existing)} 件")
+
+        # ③ ComfyUI 版本对齐(git pull master)
+        code, out = self.run_remote_command(
+            "cd /d E:\\IP\\漫影工作室\\comfyui\\ComfyUI && git fetch origin 2>&1 && git pull --ff-only origin master 2>&1", 60)
+        if "Already up to date" in out or code == 0:
+            result["comfyuiSynced"] = True
+            result["notes"].append("引擎版本已对齐" if "Already" not in out else "引擎版本已最新")
+        else:
+            result["errors"].append(f"引擎版本对齐失败: {out[:100]}")
+
+        # ④ 缺的装(clone)/有的更(pull)
+        win_nodes_base = "E:\\IP\\漫影工作室\\comfyui\\ComfyUI\\custom_nodes"
+        venv_pip = "E:\\IP\\漫影工作室\\comfyui\\venv\\Scripts\\python.exe -m pip install -q"
+        for name, url in mac_plugins.items():
+            if name in win_existing:
+                code, out = self.run_remote_command(
+                    f"cd /d {win_nodes_base}\\{name} && git pull --ff-only 2>&1", 30)
+                if code == 0 and "Already" not in out:
+                    result["updated"].append(name)
+            else:
+                code, out = self.run_remote_command(
+                    f"cd /d {win_nodes_base} && git clone {url} {name} 2>&1", 60)
+                if code == 0:
+                    result["installed"].append(name)
+                else:
+                    result["errors"].append(f"装 {name} 失败: {out[:80]}")
+
+        # ⑤ 依赖安装(每件有 requirements.txt 则装)
+        for name in list(mac_plugins.keys()):
+            code, out = self.run_remote_command(
+                f"if exist {win_nodes_base}\\{name}\\requirements.txt "
+                f"(set PYTHONUTF8=1 && {venv_pip} -r {win_nodes_base}\\{name}\\requirements.txt 2>&1) else (echo NO_REQ)",
+                120)
+            if code == 0 and "NO_REQ" not in out:
+                result["pipInstalled"].append(name)
+
+        # ⑥ 建议重启(不自动重启)
+        if result["installed"] or result["updated"] or result["comfyuiSynced"]:
+            result["notes"].append("插件已同步——建议重启引擎(设置→本地配置→启动服务)")
+
+        return result
+
     def refresh_remote_token(self, timeout_s: float | None = None) -> bool:
         """R2 令牌自愈:SFTP 依次读 tokenConfigPaths → controlToken → 正则校验
         → tmp+replace 原子写 comfyui 家 remote-image-token.txt(消费链零改动)。

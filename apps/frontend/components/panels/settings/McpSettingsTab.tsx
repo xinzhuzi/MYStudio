@@ -65,6 +65,7 @@ import {
   setComfySshConfig,
   testComfySshConnection,
   refreshComfySshToken,
+  syncSshPlugins,
   type ComfyRemoteEngineStatus,
   type ComfySshStatus,
   type ComfySshTestReply,
@@ -523,6 +524,26 @@ export function McpSettingsTab() {
   // 1103 追修(保存即显"断开"假断,保留项):切换触发的 keeper 重连有 1-2s 撕旧
   // 建新窗口,单次状态回读会吃到处断开态且永不再刷——带退避沉降轮询直到连上或
   // 试尽。
+  const [sshSyncing, setSshSyncing] = useState(false);
+  const handleSyncPlugins = async () => {
+    setSshSyncing(true);
+    try {
+      const r = await syncSshPlugins();
+      if (r.errors.length > 0) {
+        toast.error(`插件同步部分失败: ${r.errors[0]}`);
+      }
+      const parts: string[] = [];
+      if (r.comfyuiSynced) parts.push("引擎版本已对齐");
+      if (r.installed.length > 0) parts.push(`新装 ${r.installed.length} 件(${r.installed.slice(0, 3).join("、")}${r.installed.length > 3 ? "…" : ""})`);
+      if (r.updated.length > 0) parts.push(`更新 ${r.updated.length} 件`);
+      toast.success(parts.length > 0 ? `插件同步完成: ${parts.join("; ")}` : "已同步(无变更)");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "插件同步失败");
+    } finally {
+      setSshSyncing(false);
+    }
+  };
+
   const refreshSshStatusWithSettle = async (maxAttempts = 4) => {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
@@ -1388,6 +1409,13 @@ export function McpSettingsTab() {
                             title="手动触发令牌自愈(POST /comfy/ssh/token-refresh,走当前连接)"
                           >{sshRefreshing ? "刷新中…" : "刷令牌"}</Button>
                         )}
+                        <Button
+                          size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                          onClick={() => void handleSyncPlugins()}
+                          disabled={sshSyncing || !sshStatus?.connected}
+                          data-testid="ssh-sync-plugins"
+                          title="把 Mac 本机引擎的插件同步到 Windows(版本对齐+缺装+依赖)"
+                        >{sshSyncing ? "同步中…" : "同步插件"}</Button>
                         <Button
                           size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
                           onClick={() => useSshPresetsStore.getState().remove(preset.id)}
