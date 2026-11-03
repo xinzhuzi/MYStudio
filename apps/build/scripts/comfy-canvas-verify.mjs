@@ -247,22 +247,22 @@ async function main() {
     check("S2 非 Dashboard 起步(已在项目内)", true);
   }
 
-  step("S3", "侧栏「本地模型」进 ComfyUI 画布");
+  step("S3", "侧栏「大模型」进 ComfyUI 画布");
   // 1005 实测定谳:App 视图状态会记忆上次画布页——webview 已挂载时导航整段可跳;
-  // 「本地模型」DOM 形态随视图漂移:图标栏主入口=div[role=button](文字在 tooltip
+  // 「大模型」DOM 形态随视图漂移:图标栏主入口=div[role=button](文字在 tooltip
   // span,常态隐藏),侧栏抽屉里是 <button>——三形轮询,domClick 内部
   // closest('button,[role="button"]') 归一;单一形态选择器必然时灵时不灵。
   const alreadyIn = await wv(client, `document.querySelector('webview') ? 'webview' : null`);
   if (alreadyIn) {
     check("S3 webview 已挂载(视图状态直 restore,跳导航)", true);
   } else {
-    const NAV_PRED = `e => ((e.textContent||'').trim() === '本地模型')`;
+    const NAV_PRED = `e => ((e.textContent||'').trim() === '大模型')`;
     const navClicked = await waitFor(async () =>
         (await client.domClick("button", NAV_PRED))
         ?? (await client.domClick('[role="button"]', NAV_PRED))
         ?? (await client.domClick("span", NAV_PRED)),
-      { timeout: 45_000, interval: 1500, label: "本地模型入口出现并可点" }).catch(() => null);
-    check("S3 本地模型入口可点", Boolean(navClicked), String(navClicked));
+      { timeout: 45_000, interval: 1500, label: "大模型入口出现并可点" }).catch(() => null);
+    check("S3 大模型入口可点", Boolean(navClicked), String(navClicked));
     // 漫影生图表单态坑:悬浮球切回画布(09-14 加固原样)
     await client.ev(vis(`document.querySelector('[data-workflow-orb]')?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }))`));
     // 挂载判据=executeJavaScript 真能通(1005 晚实测:webview 元素挂上≠guest 可

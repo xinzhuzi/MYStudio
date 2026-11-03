@@ -35,12 +35,12 @@ const WebSocket = require("ws");
 const SHOT_REGISTRY = {
   "first-screen": { readyJs: `document.querySelectorAll("button").length>5`, capMs: 60_000 },
   "local-models": {
-    navJs: `[...document.querySelectorAll("button")].some(b=>{if((b.textContent||"").trim()==="本地模型"){b.click();return true}return false})`,
+    navJs: `[...document.querySelectorAll("button")].some(b=>{if((b.textContent||"").trim()==="大模型"){b.click();return true}return false})`,
     readyJs: `!!document.querySelector("[data-comfy-canvas-start], webview")`,
     capMs: 120_000,
   },
   "comfy-canvas": {
-    navJs: `[...document.querySelectorAll("button")].some(b=>{if((b.textContent||"").trim()==="本地模型"){b.click();return true}return false})`,
+    navJs: `[...document.querySelectorAll("button")].some(b=>{if((b.textContent||"").trim()==="大模型"){b.click();return true}return false})`,
     readyJs: `!!document.querySelector("webview")`,
     startJs: `(()=>{const s=document.querySelector("[data-comfy-canvas-start]");if(s)s.click()})()`,
     engine: true, capMs: 720_000, settleMs: 4_000,

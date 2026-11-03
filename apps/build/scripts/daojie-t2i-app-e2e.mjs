@@ -5,7 +5,7 @@
  * 用户令固化的链路(原话):打开项目 → 进入道劫子项目 → 打开 ComfyUI 界面 →
  * 关闭所有的界面 → 重新打开 qi21-道劫-t2i → 测试出图。
  * 步骤段:S0 预检/prekill/选口 → S1 启动装机应用 → S2 道劫项目 →
- *   S3 本地模型画布(引擎幂等 ensure)→ S4 关闭全部工作流标签 →
+ *   S3 大模型画布(引擎幂等 ensure)→ S4 关闭全部工作流标签 →
  *   S5 漫影侧栏重开 qi21-道劫-t2i → S6 真前端 queuePrompt 出图(纯默认)→
  *   S6b 装配全文进 PE 硬闸(Q1=B+:装配器参数对拍+排队图 40:140.prompt=装配全文,真出图)→
  *   S7 收摊+报告。全链双拍(S6+S6b)≈50-65min(次拍模型已热,采样各 ≈23-30min)。
@@ -520,7 +520,7 @@ async function s2EnterProject(main) {
   if (onDashboard) {
     const clicked = await main.domClick("div.dashboard-project-card", `e => ((e.textContent||'').includes('道劫'))`);
     check("S2 道劫项目卡点击", Boolean(clicked), String(clicked));
-    await waitFor(() => main.ev(vis(`[...document.querySelectorAll('button')].some(b => ((b.textContent||'').trim() === '本地模型'))`)),
+    await waitFor(() => main.ev(vis(`[...document.querySelectorAll('button')].some(b => ((b.textContent||'').trim() === '大模型'))`)),
       { timeout: 30_000, label: "项目内导航出现" });
   } else {
     check("S2 道劫项目卡点击", true, "非 Dashboard 起步(上次会话态),已在项目内");
@@ -546,11 +546,11 @@ async function s2EnterProject(main) {
   await main.screenshot("1-project-entered");
 }
 
-// ═══════════ S3 本地模型进 ComfyUI 画布 ═══════════
+// ═══════════ S3 大模型进 ComfyUI 画布 ═══════════
 async function s3OpenCanvas(main) {
-  step("S3", "侧栏「本地模型」进 ComfyUI 画布(引擎幂等 ensure)");
-  const navClicked = await main.domClick("button", `e => ((e.textContent||'').trim() === '本地模型')`);
-  check("S3 侧栏「本地模型」入口可点", Boolean(navClicked), String(navClicked));
+  step("S3", "侧栏「大模型」进 ComfyUI 画布(引擎幂等 ensure)");
+  const navClicked = await main.domClick("button", `e => ((e.textContent||'').trim() === '大模型')`);
+  check("S3 侧栏「大模型」入口可点", Boolean(navClicked), String(navClicked));
   await sleep(1200);
   // 09-14 加固:freedom persist 可能记住非画布模式(漫影生图表单态),须借悬浮球切回画布,否则 webview 永不挂载
   const inForm = await main.ev(vis(`!!document.querySelector('[data-local-model-studio]')`));
@@ -561,7 +561,7 @@ async function s3OpenCanvas(main) {
       const sec = document.querySelector('[data-orb-section="local-models"]');
       if (sec && sec.getAttribute('data-state') === 'closed') sec.querySelector('button')?.click();
       return !!document.querySelector('[data-orb-nav-mode="comfy"]');
-    })()`)), { timeout: 15_000, interval: 800, label: "本地模型分区展开" });
+    })()`)), { timeout: 15_000, interval: 800, label: "大模型分区展开" });
     await main.ev(vis(`document.querySelector('[data-orb-nav-mode="comfy"]')?.click()`));
     await sleep(1500);
   }
