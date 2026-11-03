@@ -460,8 +460,8 @@ describe("buildChapterVideoCompositionProps", () => {
       expect(enabled.value.subtitles).toEqual([
         expect.objectContaining({ cueId: "video-use-subtitle-1-cue-1", text: "对齐后的字幕" }),
       ]);
-      // 缺省字体回落注册表默认（毛笔楷书），显式设置原样透传。
-      expect(enabled.value.subtitleFont).toBe("liu-jian-mao-cao");
+      // 缺省字体回落注册表默认（思源黑体,1028 用户令;1103 main-reds 修随动），显式设置原样透传。
+      expect(enabled.value.subtitleFont).toBe("noto-sans-sc");
       plan.renderSettings.subtitleFont = "noto-serif-sc";
       const serif = buildChapterVideoCompositionProps({
         plan,

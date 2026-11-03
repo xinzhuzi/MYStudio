@@ -20,6 +20,19 @@ function installBridge(bridge: { probe?: AnyMock; run?: AnyMock } | null): { pro
   return full;
 }
 
+// 1103 main-reds 修:jsdom 无 canvas 实现,分镜参考拼板(getContext('2d')=null)在测试环境
+// 不可真跑——桩掉拼板模块(闸门 4 测意图=分流逻辑,非拼板像素;返回体契约照
+// storyboard-reference-sheet.ts:122-131,消费点 run-image-workflow-node-generation.ts:139-152)
+vi.mock("@/components/panels/studio/image-workflow/storyboard-reference-sheet", () => ({
+  buildStoryboardReferenceSheet: vi.fn(async (input: { referenceImages: unknown[] }) => ({
+    imageUrl: "data:image/png;base64,ZmFrZVBuZw==",
+    mappings: (input?.referenceImages ?? []).map((_url: unknown, index: number) => ({
+      order: index + 1,
+      imageUrl: "data:image/png;base64,ZmFrZVBuZw==",
+    })),
+    prompt: "【分镜拼板桩】jsdom 无 canvas 实现的测试替身",
+  })),
+}));
 vi.mock("@/lib/studio/image-workflow-references", () => ({
   prepareImageWorkflowReferenceImages: vi.fn(async (urls: string[]) => urls),
 }));

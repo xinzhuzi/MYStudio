@@ -441,7 +441,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                           <Type className="h-4 w-4" aria-hidden="true" />
                           字幕字体
                         </h5>
-                        <p className="text-xs text-muted-foreground">烧录字幕的字体，按风格分组；对新发起的分镜与章节渲染生效（缺省=毛笔楷书）。</p>
+                        <p className="text-xs text-muted-foreground">烧录字幕的字体，按风格分组；对新发起的分镜与章节渲染生效（缺省=思源黑体(1028 用户令换掉狂草)）。</p>
                         {SUBTITLE_FONT_CATEGORIES.filter((category) => category !== "custom").map((category) => (
                           <div key={category} className="space-y-2 pt-2">
                             <h6 className="text-xs font-medium text-muted-foreground">{SUBTITLE_FONT_CATEGORY_LABELS[category]}</h6>

@@ -891,7 +891,7 @@ export function McpSettingsTab() {
                     onClick={() => {
                       if (remoteActive) activateDevice("");
                     }}
-                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left"
+                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg text-left"
                     data-testid="engine-device-local-select"
                     title="选中本机引擎(清空远端地址)"
                   >
@@ -934,7 +934,7 @@ export function McpSettingsTab() {
                         onClick={() => {
                           if (!isActive) activateDevice(p.url);
                         }}
-                        className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left"
+                        className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg text-left"
                         data-testid="engine-device-remote-select"
                         data-url={p.url}
                         title={`切换到 ${p.label}`}

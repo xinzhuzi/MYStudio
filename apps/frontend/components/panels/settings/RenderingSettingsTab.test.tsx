@@ -126,15 +126,16 @@ describe("RenderingSettingsTab", () => {
     ]);
   });
 
-  it("defaults the subtitle font to brush kaishu and persists a different choice", async () => {
+  it("defaults the subtitle font to 思源黑体(1028 用户令)and persists a different choice", async () => {
     useStudioStore.setState((state) => ({
       workflowConfig: { ...state.workflowConfig, subtitleFont: undefined },
     }));
     render(<RenderingSettingsTab />);
     await waitFor(() => expect(screen.getByRole("heading", { name: "字幕字体" })).toBeTruthy());
 
-    const group = screen.getByRole("radiogroup", { name: "字幕字体：书法 · 仙侠武侠" });
-    expect(group.querySelector('[aria-checked="true"]')?.textContent).toContain("柳建毛草");
+    // 1103 main-reds 修:默认随源=noto-sans-sc(modern 组;旧断言查书法组柳建毛草系 1028 换默认后漏随动)
+    const group = screen.getByRole("radiogroup", { name: "字幕字体：现代 · 正文" });
+    expect(group.querySelector('[aria-checked="true"]')?.textContent).toContain("思源黑体");
 
     fireEvent.click(screen.getByRole("radio", { name: /思源宋体/ }));
     expect(useStudioStore.getState().workflowConfig.subtitleFont).toBe("noto-serif-sc");
