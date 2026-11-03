@@ -182,7 +182,8 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     // getRemoteEngine 探活失败被组件静默吞——行仍在,无「当前生效」尾注
     render(<McpSettingsTab />);
     expect(screen.getByText("ComfyUI 引擎地址（远程）")).toBeTruthy();
-    expect(screen.getByTestId("remote-engine-url")).toBeTruthy();
+    expect(screen.getByTestId("engine-device-local")).toBeTruthy();
+    expect(screen.getByTestId("engine-device-add")).toBeTruthy();
     // 1102 控制中心:双卡徽标「当前生效」恒恰一张卡(旧尾注已撤,此断言改口径)
     expect(screen.getAllByText(/当前生效/)).toHaveLength(1);
   });
@@ -235,9 +236,9 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
         }),
     };
     render(<McpSettingsTab />);
-    const input = screen.getByTestId("remote-engine-url");
-    fireEvent.change(input, { target: { value: "http://192.168.0.101:17000" } });
-    fireEvent.click(screen.getByTestId("remote-engine-save"));
+    fireEvent.click(screen.getByTestId("engine-device-add"));
+    fireEvent.change(screen.getByTestId("engine-device-add-url"), { target: { value: "http://192.168.0.101:17000" } });
+    fireEvent.click(screen.getByTestId("engine-device-add-save"));
     await waitFor(() => {
       // 1102 F4 终态:成功=弹窗即全部,行内不再有提示(用户令)
       expect(screen.getByTestId("remote-engine-ok-dialog").textContent).toContain(
@@ -256,7 +257,7 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     // 探活走 sidecar 代理(127.0.0.1:17595),不再直连引擎 IP
     expect(probe).toBeTruthy();
     // 11-02 自动收藏(Q2 双通道①):保存成功即入列——标签行见该地址
-    expect(screen.getByTestId("remote-engine-presets-chips").textContent).toContain("192.168.0.101:17000");
+    expect(screen.getByTestId("engine-devices-list").textContent).toContain("192.168.0.101:17000");
   });
 
   it("测试连接(仅探活不保存):经 sidecar 代理探引擎报版本/GPU,不发 POST,文案点明未保存(11-02 用户令)", async () => {
@@ -278,8 +279,9 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     render(<McpSettingsTab />);
-    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.101:17000" } });
-    fireEvent.click(screen.getByTestId("remote-engine-test"));
+        fireEvent.click(screen.getByTestId("engine-device-add"));
+    fireEvent.change(screen.getByTestId("engine-device-add-url"), { target: { value: "http://192.168.0.101:17000" } });
+    fireEvent.click(screen.getByTestId("engine-device-add-test"));
     await waitFor(() => {
       // 1102 F4 终态:成功=弹窗即全部,行内不再有提示(用户令)
       expect(screen.getByTestId("remote-engine-ok-dialog").textContent).toContain(
@@ -309,8 +311,9 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     render(<McpSettingsTab />);
-    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.101:17000" } });
-    fireEvent.click(screen.getByTestId("remote-engine-test"));
+        fireEvent.click(screen.getByTestId("engine-device-add"));
+    fireEvent.change(screen.getByTestId("engine-device-add-url"), { target: { value: "http://192.168.0.101:17000" } });
+    fireEvent.click(screen.getByTestId("engine-device-add-test"));
     await waitFor(() => {
       expect(screen.getByTestId("remote-engine-error").textContent).toContain("连接失败(http://192.168.0.101:17000)");
     });
@@ -339,16 +342,15 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<McpSettingsTab />);
     // 全角冒号+全角斜杠+尾全角斜杠混输(中文输入法典型产物)
-    fireEvent.change(screen.getByTestId("remote-engine-url"), {
-      target: { value: "http：／／192.168.0.101：17000／" },
-    });
-    fireEvent.click(screen.getByTestId("remote-engine-test"));
+        fireEvent.click(screen.getByTestId("engine-device-add"));
+    fireEvent.change(screen.getByTestId("engine-device-add-url"), { target: { value: "http：／／192.168.0.101：17000／" } });
+    fireEvent.click(screen.getByTestId("engine-device-add-test"));
     await waitFor(() => {
       expect(screen.getByTestId("remote-engine-ok-dialog").textContent).toContain("连接成功(ComfyUI 0.42.0");
     });
     // F3 占位符逐字锁(用户令原文)
-    expect(screen.getByTestId("remote-engine-url").getAttribute("placeholder")).toBe(
-      "为空是本地引擎启动,填写URL为远端引擎启动",
+    expect(screen.getByTestId("engine-device-add-url").getAttribute("placeholder")).toBe(
+      "http://192.168.x.x:17000(全角：／自动归一)",
     );
     // 探活请求带出的已是归一后的半角 URL
     expect(probedUrl).toContain("url=http%3A%2F%2F192.168.0.101%3A17000");
@@ -371,8 +373,9 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     render(<McpSettingsTab />);
-    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "192.168.0.101" } });
-    fireEvent.click(screen.getByTestId("remote-engine-save"));
+        fireEvent.click(screen.getByTestId("engine-device-add"));
+    fireEvent.change(screen.getByTestId("engine-device-add-url"), { target: { value: "192.168.0.101" } });
+    fireEvent.click(screen.getByTestId("engine-device-add-save"));
     await waitFor(() => {
       expect(screen.getByTestId("remote-engine-error").textContent).toContain("http(s)");
     });
@@ -382,8 +385,9 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     // 探活 false → 桥不发 fetch 直接抛指路;设置页 catch 原样给同源文案
     setComfySidecarLivenessProbeForTests(async () => false);
     render(<McpSettingsTab />);
-    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.101:17000" } });
-    fireEvent.click(screen.getByTestId("remote-engine-save"));
+        fireEvent.click(screen.getByTestId("engine-device-add"));
+    fireEvent.change(screen.getByTestId("engine-device-add-url"), { target: { value: "http://192.168.0.101:17000" } });
+    fireEvent.click(screen.getByTestId("engine-device-add-save"));
     await waitFor(() => {
       expect(screen.getByTestId("remote-engine-error").textContent).toContain("本地生图服务未运行");
     });
@@ -430,8 +434,9 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     render(<McpSettingsTab />);
-    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.101:17000" } });
-    fireEvent.click(screen.getByTestId("remote-engine-save"));
+        fireEvent.click(screen.getByTestId("engine-device-add"));
+    fireEvent.change(screen.getByTestId("engine-device-add-url"), { target: { value: "http://192.168.0.101:17000" } });
+    fireEvent.click(screen.getByTestId("engine-device-add-save"));
     await waitFor(() => {
       expect(screen.getByTestId("remote-engine-ok").textContent).toContain(
         "已保存并生效(http://192.168.0.101:17000),引擎探活暂不可达(引擎可能未启动)",
@@ -467,8 +472,9 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     render(<McpSettingsTab />);
-    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.101:17000" } });
-    fireEvent.click(screen.getByTestId("remote-engine-save"));
+        fireEvent.click(screen.getByTestId("engine-device-add"));
+    fireEvent.change(screen.getByTestId("engine-device-add-url"), { target: { value: "http://192.168.0.101:17000" } });
+    fireEvent.click(screen.getByTestId("engine-device-add-save"));
     await waitFor(() => {
       expect(screen.getByTestId("remote-engine-error").textContent).toContain("保存后回读校验失败");
     });
@@ -532,9 +538,10 @@ describe("McpSettingsTab·引擎地址常用条目(11-02 R1)", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     render(<McpSettingsTab />);
-    // 手输框先填 A(制造旧 draft 闭包:若 handlePresetSwitch 直读 remoteDraft 就会存 A)
-    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.101:17000" } });
-    fireEvent.click(screen.getByTestId("option-http://192.168.0.102:17000"));
+    // 点 .102 设备行激活(activateDevice 直传该行 url,闭包陷阱面已随 draft 输入框退役)
+    fireEvent.click(
+      screen.getAllByTestId("engine-device-remote-select").find((b) => b.dataset.url === "http://192.168.0.102:17000")!,
+    );
     await waitFor(() => {
       expect(
         fetchMock.mock.calls.some((c) => String(c[0]).includes("/comfy/engine/remote") && c[1]?.method === "POST"),
@@ -546,38 +553,39 @@ describe("McpSettingsTab·引擎地址常用条目(11-02 R1)", () => {
     const body = JSON.parse(String(post[1].body)) as { url: string };
     expect(body.url).toBe("http://192.168.0.102:17000");
     expect(String(post[1].body)).not.toContain("192.168.0.101");
-    // 输入框同步填入所选条目(一键切换 R1.4)
-    expect((screen.getByTestId("remote-engine-url") as HTMLInputElement).value).toBe("http://192.168.0.102:17000");
+    // 设备行选中态翻转(一键切换 R1.4 新口径)
+    expect(
+      screen.getAllByTestId("engine-device-remote-select").find((b) => b.dataset.url === "http://192.168.0.102:17000")!.getAttribute("aria-checked"),
+    ).toBe("true");
   });
 
-  it("选「本机引擎」=清空保存:POST body.url 为空串(cleared),输入框清空", async () => {
+  it("点本机设备行=清空保存:POST body.url 为空串(cleared),本机行转选中", async () => {
     setComfySidecarLivenessProbeForTests(async () => true);
+    let current: string | null = "http://192.168.0.101:17000"; // 先远端生效,点本机才有切换可发
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
       const u = url as string;
-      if (u.includes("/comfy/engine/remote") && init?.method === "POST") {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({ url: null, cleared: true }),
-        } as unknown as Response);
-      }
       if (u.includes("/comfy/engine/remote")) {
+        if (init?.method === "POST") {
+          current = (JSON.parse(String(init.body)) as { url?: string }).url || null;
+        }
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: () => Promise.resolve({
-            url: null,
-            effective: "http://127.0.0.1:17598",
-            source: "fallback",
-          }),
+          json: () => Promise.resolve(
+            current
+              ? { url: current, effective: current, source: "settings" }
+              : { url: null, effective: "http://127.0.0.1:17598", source: "fallback" },
+          ),
         } as unknown as Response);
       }
       return Promise.reject(new Error("unexpected fetch " + u));
     });
     vi.stubGlobal("fetch", fetchMock);
     render(<McpSettingsTab />);
-    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.101:17000" } });
-    fireEvent.click(screen.getByTestId("option-local"));
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-device-local-select").getAttribute("aria-checked")).toBe("false");
+    });
+    fireEvent.click(screen.getByTestId("engine-device-local-select"));
     await waitFor(() => {
       expect(
         fetchMock.mock.calls.some((c) => String(c[0]).includes("/comfy/engine/remote") && c[1]?.method === "POST"),
@@ -588,37 +596,51 @@ describe("McpSettingsTab·引擎地址常用条目(11-02 R1)", () => {
     ) as [string, RequestInit];
     const body = JSON.parse(String(post[1].body)) as { url: string };
     expect(body.url).toBe("");
-    expect((screen.getByTestId("remote-engine-url") as HTMLInputElement).value).toBe("");
+    expect(screen.getByTestId("engine-device-local-select").getAttribute("aria-checked")).toBe("true");
   });
 
-  it("⭐存为常用:非法串(ftp://)给「存不了」不入列;合法串 toast+标签行即现(Q2 双通道②)", () => {
+  it("添加设备:非法串(ftp://)客户端拦「地址格式不对」不入列;合法串保存生效即入列(Q2 意图在设备列表语义下的延续)", async () => {
     render(<McpSettingsTab />);
-    // 非法:非 http(s) 前缀,store 拒收入库,走现行 error 文案位
-    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "ftp://192.168.0.103:17000" } });
-    fireEvent.click(screen.getByTestId("remote-engine-favorite"));
-    expect(screen.getByTestId("remote-engine-error").textContent).toContain("存不了");
+    fireEvent.click(screen.getByTestId("engine-device-add"));
+    fireEvent.change(screen.getByTestId("engine-device-add-url"), { target: { value: "ftp://192.168.0.103:17000" } });
+    fireEvent.click(screen.getByTestId("engine-device-add-save"));
+    expect(screen.getByTestId("remote-engine-error").textContent).toContain("地址格式不对");
     expect(useEnginePresetsStore.getState().presets).toHaveLength(0);
-    // 合法:未验证地址也可先存——toast+chips 即现
+    // 合法:保存生效即自动入列(引擎探不到也照样入列=未验证地址可先存意图)
     cleanup();
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      const u = String(url);
+      if (u.includes("/comfy/engine/remote")) {
+        if (init?.method === "POST") {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ url: "http://192.168.0.103:17000", cleared: false }) } as unknown as Response);
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ url: "http://192.168.0.103:17000", effective: "http://192.168.0.103:17000", source: "settings" }) } as unknown as Response);
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) } as unknown as Response);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    setComfySidecarLivenessProbeForTests(async () => true);
     render(<McpSettingsTab />);
-    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.103:17000" } });
-    fireEvent.click(screen.getByTestId("remote-engine-favorite"));
-    expect(toastMocks.success).toHaveBeenCalledWith("已存入常用");
-    const chips = screen.getByTestId("remote-engine-presets-chips");
-    expect(chips.textContent).toContain("192.168.0.103:17000");
-    expect(useEnginePresetsStore.getState().presets[0]?.url).toBe("http://192.168.0.103:17000");
+    fireEvent.click(screen.getByTestId("engine-device-add"));
+    fireEvent.change(screen.getByTestId("engine-device-add-url"), { target: { value: "http://192.168.0.103:17000" } });
+    fireEvent.click(screen.getByTestId("engine-device-add-save"));
+    await waitFor(() => {
+      expect(useEnginePresetsStore.getState().presets[0]?.url).toBe("http://192.168.0.103:17000");
+    });
+    expect(screen.getByTestId("engine-devices-list").textContent).toContain("192.168.0.103:17000");
   });
 
-  it("标签行 ✕ 删除条目(G2):该条目从 chips 消失;删除当前生效条目只删条目不动引擎", () => {
+  it("设备行删除:条目从列表消失;删除设备不动引擎(本机恒生效,徽标恒恰一)", () => {
     useEnginePresetsStore.setState({
       presets: [{ url: "http://192.168.0.104:17000", label: "192.168.0.104:17000", lastUsedAt: 1 }],
     });
     render(<McpSettingsTab />);
-    expect(screen.getByTestId("remote-engine-presets-chips").textContent).toContain("192.168.0.104:17000");
-    fireEvent.click(screen.getByRole("button", { name: "删除常用 192.168.0.104:17000" }));
-    // 唯一条目删空后标签行整行消失
-    expect(screen.queryByTestId("remote-engine-presets-chips")).toBeNull();
+    expect(screen.getByTestId("engine-devices-list").textContent).toContain("192.168.0.104:17000");
+    fireEvent.click(screen.getByTestId("engine-device-delete"));
     expect(useEnginePresetsStore.getState().presets).toHaveLength(0);
+    expect(screen.queryByText("192.168.0.104:17000")).toBeNull();
+    expect(screen.getAllByText(/当前生效/)).toHaveLength(1);
+    expect(screen.getByTestId("engine-device-local-select").getAttribute("aria-checked")).toBe("true");
   });
 });
 
@@ -638,7 +660,10 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
     localStorage.clear();
   });
 
-  it("R1 双卡:恒恰一张卡带「当前生效」徽标(远端配置时远端卡)", async () => {
+  it("设备列表:恒恰一行带「当前生效」徽标(远端生效时该远端行选中)", async () => {
+    useEnginePresetsStore.setState({
+      presets: [{ url: "http://192.168.0.101:17000", label: "Windows 主力", lastUsedAt: 1 }],
+    });
     const fetchMock = vi.fn().mockImplementation((url: string) => {
       const u = String(url);
       if (u.includes("/comfy/engine/remote")) {
@@ -655,17 +680,19 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<McpSettingsTab />);
     await waitFor(() => {
-      expect(screen.getByTestId("engine-card-remote").className).toContain("border-primary");
-      // 1103 UI 反馈役:未选卡不再 opacity 褪色;选中态=radio aria-checked(恒互斥一真一假)
-      expect(screen.getByTestId("engine-card-local").className).not.toContain("border-primary");
-      expect(screen.getByTestId("engine-card-local").className).not.toContain("opacity-70");
-      expect(screen.getByTestId("engine-card-remote-select").getAttribute("aria-checked")).toBe("true");
-      expect(screen.getByTestId("engine-card-local-select").getAttribute("aria-checked")).toBe("false");
+      expect(screen.getByTestId("engine-device-remote").className).toContain("border-primary");
+      expect(screen.getByTestId("engine-device-remote-select").getAttribute("aria-checked")).toBe("true");
+      expect(screen.getByTestId("engine-device-local").className).not.toContain("border-primary");
+      expect(screen.getByTestId("engine-device-local-select").getAttribute("aria-checked")).toBe("false");
     });
     expect(screen.getAllByText(/当前生效/)).toHaveLength(1);
+    expect(screen.getByTestId("engine-devices-list").textContent).toContain("Windows 主力");
   });
 
-  it("1103 选中交互:远端生效中点本机卡头→清地址保存切回本机(等效常用快选「本机引擎」项)", async () => {
+  it("1103 选中交互:远端生效中点本机设备行→清地址保存切回本机", async () => {
+    useEnginePresetsStore.setState({
+      presets: [{ url: "http://192.168.0.101:17000", label: "Windows 主力", lastUsedAt: 1 }],
+    });
     let current: string | null = "http://192.168.0.101:17000";
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
       const u = String(url);
@@ -690,23 +717,24 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<McpSettingsTab />);
     await waitFor(() => {
-      expect(screen.getByTestId("engine-card-remote-select").getAttribute("aria-checked")).toBe("true");
+      expect(screen.getByTestId("engine-device-remote-select").getAttribute("aria-checked")).toBe("true");
     });
-    fireEvent.click(screen.getByTestId("engine-card-local-select"));
+    fireEvent.click(screen.getByTestId("engine-device-local-select"));
     await waitFor(() => {
-      // 切回本机:本机 radio 选中+输入框随清空(handlePresetSwitch 同语义)
-      expect(screen.getByTestId("engine-card-local-select").getAttribute("aria-checked")).toBe("true");
-      expect(screen.getByTestId("engine-card-remote-select").getAttribute("aria-checked")).toBe("false");
+      expect(screen.getByTestId("engine-device-local-select").getAttribute("aria-checked")).toBe("true");
+      expect(screen.getByTestId("engine-device-remote-select").getAttribute("aria-checked")).toBe("false");
     });
     // POST 断言在状态翻转后(saveRemoteEngine 的 fetch 在异步微任务,同步查恒空)
     const post = fetchMock.mock.calls.find((c) => String(c[0]).includes("/comfy/engine/remote") && c[1]?.method === "POST");
     expect(post).toBeTruthy();
     expect((JSON.parse(String(post?.[1]?.body)) as { url?: string }).url).toBe("");
-    expect((screen.getByTestId("remote-engine-url") as HTMLInputElement).value).toBe("");
     expect(toastMocks.success).toHaveBeenCalledWith("已恢复本机引擎");
   });
 
-  it("1103 选中交互:本机生效中点远端卡头(草稿非空)→按草稿保存生效", async () => {
+  it("1103 选中交互:本机生效中点远端设备行→保存该机地址生效", async () => {
+    useEnginePresetsStore.setState({
+      presets: [{ url: "http://192.168.0.101:17000", label: "Windows 主力", lastUsedAt: 1 }],
+    });
     let current: string | null = null;
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
       const u = String(url);
@@ -731,12 +759,11 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<McpSettingsTab />);
     await waitFor(() => {
-      expect(screen.getByTestId("engine-card-local-select").getAttribute("aria-checked")).toBe("true");
+      expect(screen.getByTestId("engine-device-local-select").getAttribute("aria-checked")).toBe("true");
     });
-    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.101:17000" } });
-    fireEvent.click(screen.getByTestId("engine-card-remote-select"));
+    fireEvent.click(screen.getByTestId("engine-device-remote-select"));
     await waitFor(() => {
-      expect(screen.getByTestId("engine-card-remote-select").getAttribute("aria-checked")).toBe("true");
+      expect(screen.getByTestId("engine-device-remote-select").getAttribute("aria-checked")).toBe("true");
     });
     const post = fetchMock.mock.calls.find((c) => String(c[0]).includes("/comfy/engine/remote") && c[1]?.method === "POST");
     expect(post).toBeTruthy();
@@ -975,11 +1002,9 @@ describe("McpSettingsTab·SSH 远端连接(11-03 R4)", () => {
       },
     });
     render(<McpSettingsTab />);
-    // 等引擎地址回显落位(保存预填读 remoteEngine.url,与引擎地址行同源)
+    // 等引擎地址回显落位(draft 输入框已随设备列表退役;远端生效=本机行未选中)
     await waitFor(() => {
-      expect((screen.getByTestId("remote-engine-url") as HTMLInputElement).value).toBe(
-        "http://192.168.0.101:17000",
-      );
+      expect(screen.getByTestId("engine-device-local-select").getAttribute("aria-checked")).toBe("false");
     });
     fireEvent.change(screen.getByTestId("ssh-user"), { target: { value: "zbj" } });
     fireEvent.change(screen.getByTestId("ssh-port"), { target: { value: "2222" } });

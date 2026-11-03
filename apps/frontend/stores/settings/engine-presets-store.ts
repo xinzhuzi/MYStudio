@@ -37,24 +37,28 @@ function hostnameOf(url: string): string {
 
 interface EnginePresetsState {
   presets: EnginePreset[];
-  /** 入库(去重置顶/超限静默淘汰尾位 G4);非法格式返回 false 不入库(调用方给文案)。 */
-  favorite: (rawUrl: string) => boolean;
+  /** 入库(去重置顶/超限静默淘汰尾位 G4);非法格式返回 false 不入库(调用方给文案)。
+   *  label 可选(1103 devices-list 役):空/缺省=hostname——设备自定义名由此入。 */
+  favorite: (rawUrl: string, label?: string) => boolean;
   /** 保存/切换成功后刷新 LRU(置顶+时间戳)。 */
   touch: (url: string) => void;
   remove: (url: string) => void;
+  /** 改设备名(保序保时间戳;1103 devices-list 编辑dialog 消费)。 */
+  rename: (url: string, label: string) => void;
 }
 
 export const useEnginePresetsStore = create<EnginePresetsState>()(
   persist(
     (set, get) => ({
       presets: [],
-      favorite: (rawUrl) => {
+      favorite: (rawUrl, label) => {
         const url = normalizeEngineUrl(rawUrl);
         if (!/^https?:\/\//.test(url)) return false;
+        const name = (label ?? "").trim();
         const rest = get().presets.filter((p) => p.url !== url);
         set({
           presets: [
-            { url, label: hostnameOf(url), lastUsedAt: Date.now() },
+            { url, label: name || hostnameOf(url), lastUsedAt: Date.now() },
             ...rest,
           ].slice(0, ENGINE_PRESETS_MAX),
         });
@@ -71,6 +75,12 @@ export const useEnginePresetsStore = create<EnginePresetsState>()(
         });
       },
       remove: (url) => set({ presets: get().presets.filter((p) => p.url !== url) }),
+      rename: (url, label) =>
+        set({
+          presets: get().presets.map((p) =>
+            p.url === url ? { ...p, label: label.trim() || hostnameOf(url) } : p,
+          ),
+        }),
     }),
     {
       name: ENGINE_PRESETS_STORAGE_KEY,

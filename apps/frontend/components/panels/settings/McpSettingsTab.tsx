@@ -5,7 +5,7 @@
 // 折叠态持久化 localStorage)。三组:服务连接(ComfyUI 桥+专业流开关)→ MCP 服务器 → JSON 配置。
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Check, ChevronDown, FileJson, Loader2, Pencil, Plug, Plus, Server, Star, Terminal, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, FileJson, Loader2, Monitor, Pencil, Plug, Plus, Server, Terminal, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -41,9 +41,9 @@ import {
   type McpTransport,
 } from "@/stores/mcp/mcp-servers-store";
 import {
-  LOCAL_ENGINE_PRESET_KEY,
   normalizeEngineUrl,
   useEnginePresetsStore,
+  type EnginePreset,
 } from "@/stores/settings/engine-presets-store";
 import { useWorkflowBindingsStore, isBindableWorkflow, type BoundWorkflowKind } from "@/stores/settings/workflow-bindings-store";
 import { engineFamilyMeta } from "@/lib/studio/engine-line/family-catalog";
@@ -352,8 +352,9 @@ export function McpSettingsTab() {
   const [remoteProbing, setRemoteProbing] = useState(false);
   // 1102 F4:探活成功详情弹窗(headline=实机版本/显卡,note=保存态说明);null=关
   const [engineOkDialog, setEngineOkDialog] = useState<{ headline: string; note: string } | null>(null);
-  const testRemoteConnection = async () => {
-    const base = normalizeEngineUrl(remoteDraft) || normalizeEngineUrl(remoteEngine?.effective ?? "");
+  const testRemoteConnection = async (rawUrlOverride?: string) => {
+    // rawUrlOverride(1103 devices-list):设备行/添加表单直传待探地址;缺省=输入框草稿
+    const base = normalizeEngineUrl(rawUrlOverride ?? remoteDraft) || normalizeEngineUrl(remoteEngine?.effective ?? "");
     if (!base) {
       setRemoteTest({ status: "error", message: "先填引擎地址再测试(留空=本机引擎)" });
       return;
@@ -593,16 +594,15 @@ export function McpSettingsTab() {
           className: "border-destructive/40 bg-destructive/10 text-destructive",
         };
 
-  // ── 引擎地址常用条目(11-02-engine-address-presets)──
+  // ── 引擎地址常用条目(11-02-engine-address-presets;1103 devices-list 升格为设备列表)──
   const enginePresets = useEnginePresetsStore((s) => s.presets);
   const enginePresetFavorite = useEnginePresetsStore((s) => s.favorite);
   const enginePresetTouch = useEnginePresetsStore((s) => s.touch);
   const enginePresetRemove = useEnginePresetsStore((s) => s.remove);
-  // 当前生效打勾位:settings.url 为 null=本机;否则归一 url 匹配条目
-  const activePresetKey =
-    remoteEngine?.url == null ? LOCAL_ENGINE_PRESET_KEY : normalizeEngineUrl(remoteEngine.url);
-  // R1 双卡生效判定(1102 控制中心):地址指向远端=远端卡生效,否则本机卡
+  const enginePresetRename = useEnginePresetsStore((s) => s.rename);
+  // R1 生效判定(1102→1103 devices-list):地址指向远端=有远端设备生效,否则本机
   const remoteActive = remoteEngine?.source === "settings" && Boolean(remoteEngine.url);
+  const activeRemoteUrl = remoteActive ? normalizeEngineUrl(remoteEngine?.url ?? "") : "";
 
   // ── R2 模型族(1102 控制中心):真源=defaultImageModel;切换即切产线(Q1) ──
   const defaultImageModel = useAppSettingsStore((s) => s.imageGenerationSettings.defaultImageModel);
@@ -645,19 +645,50 @@ export function McpSettingsTab() {
   const t2iCandidates = familyWorkflows.filter((w) => w.id.includes("1_文生图"));
   const i2iCandidates = familyWorkflows.filter((w) => w.id.includes("2_图生图"));
 
-  // 一键切换(Q1 裁定):key 即归一 url;本机=清空保存(回本地发现)。
-  // 坑①必传 urlOverride:setRemoteDraft 异步落帧,闭包里 remoteDraft 还是旧值。
-  const handlePresetSwitch = (key: string) => {
-    const url = key === LOCAL_ENGINE_PRESET_KEY ? "" : key;
+  // ── 设备列表(1103 devices-list 役,模仿 ZCode RemoteConnectionSelection)──
+  // 激活设备:点设备行即切换(坑①沿用:必传 urlOverride——setRemoteDraft 异步落帧)
+  const activateDevice = (url: string) => {
     setRemoteDraft(url);
     void saveRemoteEngine(url);
   };
 
-  // ⭐手动收藏(Q2 裁定):未验证地址可先存(入库前 store 自带 normalize+前缀
-  // 校验);非法格式走现行 error 文案位。
-  const handleFavorite = () => {
-    if (enginePresetFavorite(remoteDraft)) toast.success("已存入常用");
-    else setRemoteTest({ status: "error", message: "地址格式不对,存不了(须 http(s)://主机[:端口])" });
+  // 添加设备表单:名字选填(缺省 hostname)+地址;保存=保存生效(saveRemoteEngine
+  // 成功即自动 favorite 入列)+ 自定义名 rename 覆盖。
+  const [addingDevice, setAddingDevice] = useState(false);
+  const [addDraft, setAddDraft] = useState({ label: "", url: "" });
+  const submitAddDevice = () => {
+    const url = normalizeEngineUrl(addDraft.url);
+    if (!/^https?:\/\//.test(url)) {
+      setRemoteTest({ status: "error", message: "地址格式不对(须 http(s)://主机[:端口];全角：／已自动归一)" });
+      return;
+    }
+    const label = addDraft.label.trim();
+    setRemoteDraft(url);
+    void saveRemoteEngine(url).then(() => {
+      if (label) enginePresetRename(url, label);
+    });
+    setAddingDevice(false);
+  };
+
+  // 编辑设备(名字/地址):地址不变=只 rename;地址变=删旧加新(自定义名带入),
+  // 旧地址若正是生效机→保存并激活新地址(生效连续性);否则不动引擎。
+  const [editingDevice, setEditingDevice] = useState<EnginePreset | null>(null);
+  const [editDraft, setEditDraft] = useState({ label: "", url: "" });
+  const submitEditDevice = () => {
+    if (!editingDevice) return;
+    const oldUrl = editingDevice.url;
+    const newUrl = normalizeEngineUrl(editDraft.url);
+    const label = editDraft.label.trim();
+    if (newUrl === oldUrl) {
+      enginePresetRename(oldUrl, label);
+    } else {
+      const wasActive = remoteActive && normalizeEngineUrl(remoteEngine?.url ?? "") === oldUrl;
+      enginePresetRemove(oldUrl);
+      if (/^https?:\/\//.test(newUrl)) enginePresetFavorite(newUrl, label);
+      if (wasActive) activateDevice(newUrl);
+    }
+    setEditingDevice(null);
+    toast.success("设备已更新");
   };
 
   const transportLabel = (transport: McpTransport) => (transport === "stdio" ? "本地命令" : "网络地址");
@@ -841,161 +872,225 @@ export function McpSettingsTab() {
           onToggle={toggleSectionCollapsed}
         >
           <div className="space-y-3 px-5 py-3" data-testid="remote-engine-section">
-            {/* R1 双卡(1102 控制中心役;1103 UI 反馈役改竖排+双 radio 选中态):
-                远端卡=控件+徽标;本机卡=托管摘要;两卡头部=互斥 radio——点本机头
-                =清地址切回本机(handlePresetSwitch 本机项同语义),点远端头=按
-                草稿保存生效;未选卡不褪色(可用可点,以圆点+边框区分) */}
-            <div className="grid gap-3">
+            {/* R1 设备列表(1103 devices-list 役,模仿 ZCode RemoteConnectionSelection):
+                本机行恒在恒首 + N 远端设备行;行点击=激活;选中=圆点+高亮+「当前生效」
+                徽标(恒恰一行);行内 测试/编辑/删除;底部「+ 添加设备」(ZCode 底部
+                新建连接排范式)。多机真源=presets store;生效机=remote-engine.json
+                单值切换——列表是配置管理,一时刻一生效机。 */}
+            <div className="space-y-2" data-testid="engine-devices-list">
+              {/* 本机行(kind=local):恒在恒首不可删;点行=清地址切回本机 */}
               <div
-                className={`rounded-xl border p-3.5 ${remoteActive ? "border-primary/60 bg-primary/5" : "border-border"}`}
-                data-testid="engine-card-remote"
+                className={`rounded-xl border p-3 ${!remoteActive ? "border-primary/60 bg-primary/5" : "border-border"}`}
+                data-testid="engine-device-local"
               >
-                <div className="mb-2 flex items-center justify-between">
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={remoteActive}
-                    onClick={() => {
-                      if (!remoteActive && remoteDraft.trim()) void saveRemoteEngine();
-                    }}
-                    className="flex cursor-pointer items-center gap-2 text-left"
-                    data-testid="engine-card-remote-select"
-                    title="选中远端引擎(按当前地址保存生效)"
-                  >
-                    <span
-                      className={`h-3.5 w-3.5 shrink-0 rounded-full border-2 ${remoteActive ? "border-primary bg-primary" : "border-muted-foreground/40 bg-transparent"}`}
-                      aria-hidden
-                    />
-                    <span className="text-sm font-medium">远端引擎</span>
-                  </button>
-                  {remoteActive && (
-                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
-                      当前生效
-                    </span>
-                  )}
-                </div>
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-              {/* 常用快选(11-02 R1.4 一键切换):选中即填入+自动「保存并测试」立即生效 */}
-              <Select value={activePresetKey} onValueChange={handlePresetSwitch}>
-                <SelectTrigger
-                  className="w-[132px] shrink-0"
-                  aria-label="常用引擎地址"
-                  disabled={remoteSaving || remoteProbing}
-                >
-                  <SelectValue placeholder="常用" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={LOCAL_ENGINE_PRESET_KEY}>本机引擎</SelectItem>
-                  {enginePresets.map((p) => (
-                    <SelectItem key={p.url} value={p.url}>
-                      {p.label}({p.url.replace(/^https?:\/\//, "")})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                value={remoteDraft}
-                onChange={(e) => setRemoteDraft(e.target.value)}
-                placeholder="为空是本地引擎启动,填写URL为远端引擎启动"
-                containerClassName="flex-1"
-                data-testid="remote-engine-url"
-                spellCheck={false}
-              />
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-              {/* ⭐存为常用(G3 第三按钮):未验证地址可先存;切换进行态复用 remoteSaving 禁全部控件 */}
-              <Button
-                size="sm"
-                variant="outline"
-                className="shrink-0"
-                onClick={handleFavorite}
-                disabled={remoteProbing || remoteSaving || !remoteDraft.trim()}
-                data-testid="remote-engine-favorite"
-              >
-                <Star className="mr-1 h-3.5 w-3.5" aria-hidden />存为常用
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="shrink-0"
-                onClick={testRemoteConnection}
-                disabled={remoteProbing || remoteSaving}
-                data-testid="remote-engine-test"
-              >
-                {remoteProbing ? "测试中…" : "测试连接"}
-              </Button>
-              <Button
-                size="sm"
-                className="shrink-0"
-                onClick={() => void saveRemoteEngine()}
-                disabled={remoteSaving || remoteProbing}
-                data-testid="remote-engine-save"
-              >
-                {remoteSaving ? "保存中…" : "保存并测试"}
-              </Button>
-              </div>
-            </div>
-              </div>
-              {/* 本机卡:留空引擎地址即启用;点卡头一键切回本机;管理入口在本地配置页 */}
-              <div
-                className={`rounded-xl border p-3.5 ${!remoteActive ? "border-primary/60 bg-primary/5" : "border-border"}`}
-                data-testid="engine-card-local"
-              >
-                <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-3">
                   <button
                     type="button"
                     role="radio"
                     aria-checked={!remoteActive}
                     onClick={() => {
-                      if (remoteActive) {
-                        setRemoteDraft("");
-                        void saveRemoteEngine("");
-                      }
+                      if (remoteActive) activateDevice("");
                     }}
-                    className="flex cursor-pointer items-center gap-2 text-left"
-                    data-testid="engine-card-local-select"
+                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left"
+                    data-testid="engine-device-local-select"
                     title="选中本机引擎(清空远端地址)"
                   >
-                    <span
-                      className={`h-3.5 w-3.5 shrink-0 rounded-full border-2 ${!remoteActive ? "border-primary bg-primary" : "border-muted-foreground/40 bg-transparent"}`}
-                      aria-hidden
-                    />
-                    <span className="text-sm font-medium">本机引擎(Mac 托管)</span>
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+                      <Monitor className="size-4 text-muted-foreground" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <span
+                          className={`h-3 w-3 shrink-0 rounded-full border-2 ${!remoteActive ? "border-primary bg-primary" : "border-muted-foreground/40 bg-transparent"}`}
+                          aria-hidden
+                        />
+                        <span className="truncate text-sm font-medium">本机引擎(Mac 托管)</span>
+                      </span>
+                      <span className="block truncate font-mono text-xs text-muted-foreground">
+                        Mac 本机托管 · 启停/模型在「设置 → 本地配置」
+                      </span>
+                    </span>
                   </button>
                   {!remoteActive && (
-                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
-                      当前生效
-                    </span>
+                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">当前生效</span>
                   )}
                 </div>
-                <p className="text-xs leading-5 text-muted-foreground">
-                  引擎地址留空即走本机引擎出图;点本卡即切回本机生效;启停/模型下载/引擎卡在「设置 → 本地配置」。
-                </p>
               </div>
-            </div>
-            {/* 标签行(G2):仅当有已存条目时;删除当前生效条目只删条目不动引擎 */}
-            {enginePresets.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1" data-testid="remote-engine-presets-chips">
-                {enginePresets.map((p) => (
-                  <span
+              {/* 远端设备行:presets 逐台;点行=保存该机地址生效(saveRemoteEngine
+                  成功即自动收藏置顶+LRU 刷新) */}
+              {enginePresets.map((p) => {
+                const isActive = remoteActive && activeRemoteUrl === p.url;
+                return (
+                  <div
                     key={p.url}
-                    title={p.url}
-                    className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
+                    className={`rounded-xl border p-3 ${isActive ? "border-primary/60 bg-primary/5" : "border-border"}`}
+                    data-testid="engine-device-remote"
                   >
-                    {p.label}
-                    <button
-                      type="button"
-                      aria-label={`删除常用 ${p.label}`}
-                      onClick={() => enginePresetRemove(p.url)}
-                      className="rounded-full text-muted-foreground/70 transition-colors hover:text-destructive"
-                    >
-                      <X className="h-3 w-3" aria-hidden />
-                    </button>
-                  </span>
-                ))}
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={isActive}
+                        onClick={() => {
+                          if (!isActive) activateDevice(p.url);
+                        }}
+                        className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left"
+                        data-testid="engine-device-remote-select"
+                        data-url={p.url}
+                        title={`切换到 ${p.label}`}
+                      >
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+                          <Server className="size-4 text-muted-foreground" aria-hidden />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-2">
+                            <span
+                              className={`h-3 w-3 shrink-0 rounded-full border-2 ${isActive ? "border-primary bg-primary" : "border-muted-foreground/40 bg-transparent"}`}
+                              aria-hidden
+                            />
+                            <span className="truncate text-sm font-medium">{p.label}</span>
+                          </span>
+                          <span className="block truncate font-mono text-xs text-muted-foreground">{p.url}</span>
+                        </span>
+                      </button>
+                      {isActive && (
+                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">当前生效</span>
+                      )}
+                      <span className="flex shrink-0 items-center gap-1">
+                        <Button
+                          size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                          onClick={() => void testRemoteConnection(p.url)}
+                          disabled={remoteProbing}
+                          data-testid="engine-device-test"
+                          data-url={p.url}
+                          title="仅探活不保存"
+                        >测试</Button>
+                        <Button
+                          size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                          onClick={() => {
+                            setEditingDevice(p);
+                            setEditDraft({ label: p.label, url: p.url });
+                          }}
+                          data-testid="engine-device-edit"
+                          data-url={p.url}
+                        ><Pencil className="mr-0.5 h-3 w-3" aria-hidden />编辑</Button>
+                        <Button
+                          size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                          onClick={() => enginePresetRemove(p.url)}
+                          aria-label={`删除设备 ${p.label}`}
+                          data-testid="engine-device-delete"
+                          data-url={p.url}
+                          title="删除设备条目(不改动当前生效引擎)"
+                        ><Trash2 className="h-3 w-3" aria-hidden /></Button>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+              {enginePresets.length === 0 && !addingDevice && (
+                <p className="px-1 text-xs leading-5 text-muted-foreground" data-testid="engine-devices-empty">
+                  暂无远端设备——点下方「添加设备」录入 Windows 等机器的引擎地址,可配多台随时切换。
+                </p>
+              )}
+            </div>
+            {/* + 添加设备(ZCode 底部新建连接排范式):名字选填+地址;可先测试再保存生效 */}
+            {!addingDevice ? (
+              <Button
+                variant="outline" size="sm" className="self-start"
+                onClick={() => {
+                  setAddingDevice(true);
+                  setAddDraft({ label: "", url: "" });
+                  setRemoteTest({ status: "idle" });
+                }}
+                disabled={remoteSaving || remoteProbing}
+                data-testid="engine-device-add"
+              >
+                <Plus className="mr-1 h-3.5 w-3.5" aria-hidden />添加设备
+              </Button>
+            ) : (
+              <div className="space-y-2.5 rounded-xl border border-border p-3" data-testid="engine-device-add-form">
+                <div className="grid gap-2.5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="engine-device-name">设备名(选填)</Label>
+                    <Input
+                      id="engine-device-name"
+                      value={addDraft.label}
+                      onChange={(e) => setAddDraft((prev) => ({ ...prev, label: e.target.value }))}
+                      placeholder="如:Windows 主力(缺省=主机地址)"
+                      data-testid="engine-device-add-name"
+                      spellCheck={false}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="engine-device-url">引擎地址</Label>
+                    <Input
+                      id="engine-device-url"
+                      value={addDraft.url}
+                      onChange={(e) => setAddDraft((prev) => ({ ...prev, url: e.target.value }))}
+                      placeholder="http://192.168.x.x:17000(全角：／自动归一)"
+                      data-testid="engine-device-add-url"
+                      spellCheck={false}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm" variant="outline"
+                    onClick={() => void testRemoteConnection(normalizeEngineUrl(addDraft.url))}
+                    disabled={remoteProbing || remoteSaving || !addDraft.url.trim()}
+                    data-testid="engine-device-add-test"
+                  >{remoteProbing ? "测试中…" : "测试连接"}</Button>
+                  <Button
+                    size="sm"
+                    onClick={submitAddDevice}
+                    disabled={remoteSaving || !addDraft.url.trim()}
+                    data-testid="engine-device-add-save"
+                  >{remoteSaving ? "保存中…" : "保存并生效"}</Button>
+                  <Button
+                    size="sm" variant="ghost"
+                    onClick={() => setAddingDevice(false)}
+                    disabled={remoteSaving}
+                    data-testid="engine-device-add-cancel"
+                  >取消</Button>
+                </div>
               </div>
             )}
+            {/* 编辑设备(名字/地址):地址不变=只改名;地址变=删旧加新(自定义名带入),
+                被编辑的正是生效机时无缝续活到新地址 */}
+            <Dialog open={editingDevice !== null} onOpenChange={(open) => !open && setEditingDevice(null)}>
+              <DialogContent className="max-w-sm" data-testid="engine-device-edit-dialog">
+                <DialogHeader>
+                  <DialogTitle>编辑设备</DialogTitle>
+                  <DialogDescription>改名或换地址;正在生效的设备换地址会自动切到新地址。</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-2.5">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="engine-device-edit-name">设备名</Label>
+                    <Input
+                      id="engine-device-edit-name"
+                      value={editDraft.label}
+                      onChange={(e) => setEditDraft((prev) => ({ ...prev, label: e.target.value }))}
+                      data-testid="engine-device-edit-name"
+                      spellCheck={false}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="engine-device-edit-url">引擎地址</Label>
+                    <Input
+                      id="engine-device-edit-url"
+                      value={editDraft.url}
+                      onChange={(e) => setEditDraft((prev) => ({ ...prev, url: e.target.value }))}
+                      data-testid="engine-device-edit-url"
+                      spellCheck={false}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button size="sm" variant="ghost" onClick={() => setEditingDevice(null)}>取消</Button>
+                  <Button size="sm" onClick={submitEditDevice} data-testid="engine-device-edit-save">保存</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             {remoteTest.status === "ok" && (
               <p className="text-xs text-success" data-testid="remote-engine-ok">{remoteTest.text}</p>
             )}
