@@ -428,10 +428,13 @@ export function McpSettingsTab() {
       // IP,直连 fetch 恒被拦——引擎明明在跑也报「连接失败」)。
       const probe = await probeEngineUrl(base);
       if (probe.ok) {
-        // 1102 F4 终态:成功=弹窗即全部,行内不再重复提示(用户令)
+        // 1102 F4 终态:成功=弹窗即全部;1103 修:note 随被测地址与生效引擎
+        // 的关系分口径(旧「未保存」文案是输入框时代残留,设备列表已无「保存
+        // 并测试」按钮——测当前生效机=已生效,测其他设备=点行切换)
+        const testingActive = remoteEngine?.source === "settings" && base === normalizeEngineUrl(remoteEngine.url ?? "");
         setEngineOkDialog({
           headline: `连接成功(${comfyVersionLabel(probe.comfyui_version ?? "未知版本", probe.device ?? null)})`,
-          note: "未保存,点「保存并测试」生效",
+          note: testingActive ? "该设备已是当前生效引擎" : "点该设备行即可切换生效",
         });
         setRemoteTest({ status: "idle" });
       } else {
