@@ -12,7 +12,7 @@
 | [prompts/](./prompts/README.md) | 提示词模板、风格参考、实验记录与素材索引 |
 | [assets/](./assets/) | 资产库、角色、场景、道具、视觉风格、音色 |
 | [director/](./director/) | 导演工作台、S级镜头、视角切换、四宫格、旧剧本 |
-| [panels/](./panels/) | 应用外壳、导航、项目、技能、本地模型（原辅助）、产物、导出、TTS 面板 |
+| [panels/](./panels/) | 应用外壳、导航、项目、技能、大模型（原「辅助」→「本地模型」，2026-11 更名）、产物、导出、TTS 面板 |
 | [settings/](./settings/) | 设置页、API、统一本地配置、图床、更新、许可证 |
 | [engineering/](./engineering/) | 架构、打包、故障排查、三方声明、存储、文档维护 |
 | [comfyui-kb/](./comfyui-kb/) | ComfyUI 产线知识库：参数速查、定制代码地图、排障 runbook（开发/运维向） |
@@ -76,15 +76,15 @@
 | [项目首页操作手册](./panels/PROJECT_DASHBOARD_OPERATIONS.md) | 侧栏按钮、管理选择、新建输入、更多菜单、重命名和批量删除弹窗 |
 | [技能编辑](./panels/SKILLS_EDITOR_GUIDE.md) | 查看、编辑、新增、删除和恢复项目 Markdown 技能文件 |
 | [技能编辑操作手册](./panels/SKILLS_EDITOR_OPERATIONS.md) | 技能页按钮状态、文件状态、新增路径、删除和恢复边界 |
-| [本地模型页（ComfyUI 工作区）](./panels/LOCAL_MODELS_GUIDE.md) | 全屏 ComfyUI 画布、TTS 配音室与漫影生图（悬浮球导航、媒体资产回流） |
-| [辅助工作台](panels/档案/ASSIST_WORKBENCH_GUIDE.md) | 【已过时 2026-09-13】五子工作台已于 09-10 全屏 ComfyUI 合一退役；现入口=主导航「本地模型」（ComfyUI 画布 + TTS 配音室 + 漫影生图） |
+| [大模型页（ComfyUI 工作区，原「本地模型」页）](./panels/LOCAL_MODELS_GUIDE.md) | 全屏 ComfyUI 画布、TTS 配音室与漫影生图（悬浮球导航、媒体资产回流） |
+| [辅助工作台](panels/档案/ASSIST_WORKBENCH_GUIDE.md) | 【已过时 2026-09-13】五子工作台已于 09-10 全屏 ComfyUI 合一退役；现入口=主导航「大模型」（ComfyUI 画布 + TTS 配音室 + 漫影生图） |
 | [辅助工作台操作手册](panels/档案/ASSIST_WORKBENCH_OPERATIONS.md) | 【已过时】随五子工作台退役，仅作历史参考 |
 | [辅助工作台参数参考](panels/档案/ASSIST_WORKBENCH_PARAMETER_REFERENCE.md) | 【已过时】参数口径已被 [ComfyUI 参数速查](./comfyui-kb/参数速查.md) 取代 |
 | [产物管理](./panels/MEDIA_OUTPUTS_GUIDE.md) | 上传、整理、预览、导出图片/视频/音频产物 |
 | [产物页操作手册](./panels/MEDIA_OUTPUTS_OPERATIONS.md) | 上传、文件夹、视图、排序、右键菜单、导出和导演入口 |
 | [成片与导出](./panels/EXPORT_GUIDE.md) | 查看渲染状态、选择文件夹导出和逐个下载素材 |
 | [成片与导出操作手册](./panels/EXPORT_OPERATIONS.md) | 导出来源、序列图、导出进度、按钮禁用和二级卡片边界 |
-| [TTS 面板操作手册](./panels/TTS_PANEL_OPERATIONS.md) | 本地 TTS 状态、模型目录、下载任务、模型详情弹窗和声线库（一级 TTS 页已撤：面板内嵌于 设置→本地配置，配音室在「本地模型」页） |
+| [TTS 面板操作手册](./panels/TTS_PANEL_OPERATIONS.md) | 本地 TTS 状态、模型目录、下载任务、模型详情弹窗和声线库（一级 TTS 页已撤：面板内嵌于 设置→本地配置，配音室在「大模型」页） |
 | [Voicebox 声音克隆流程](./panels/voicebox-voice-cloning-flow.md) | TTS 后端 API、profile、模型状态和声音克隆链路参考 |
 | [外观皮肤与护眼模式](./panels/APPEARANCE_THEMES.md) | 护眼浅色模板、暗色影视模板和使用建议 |
 
@@ -152,7 +152,7 @@
 | [Q2-1致噪词黑名单-0925](./comfyui-kb/Q2-1致噪词黑名单-0925.md) | Qwen-Image-2.1 全线致噪词禁用清单(整幅纹理语主犯等,0925 十五臂消融+flatMAD 计量实证);起草或审校任何 Q2-1 提示词前先过本清单 |
 | [K2服饰LoRA调研_0919](./comfyui-kb/K2服饰LoRA调研_0919.md) | 中国风服饰能力路线矩阵(按路线组合非物件罗列)与本地盘点结论:K2 原生可用服饰资产 3 件+成熟换装工作流配方 1 套(09-19) |
 
-> 用户操作见 [ComfyUI 引擎指南](./settings/COMFYUI_ENGINE_GUIDE.md)与[本地模型页](./panels/LOCAL_MODELS_GUIDE.md)；开发运维再查定制代码地图。
+> 用户操作见 [ComfyUI 引擎指南](./settings/COMFYUI_ENGINE_GUIDE.md)与[大模型页](./panels/LOCAL_MODELS_GUIDE.md)；开发运维再查定制代码地图。
 
 ## 提示词与实验素材（prompts/）
 

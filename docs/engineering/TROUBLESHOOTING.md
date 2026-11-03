@@ -98,7 +98,7 @@ pgrep -fl "漫影工作室|python.*tts" || true
 
 先分清链路（两条并行，互不影响）：
 
-**本地 ComfyUI 产线**（「本地模型」页漫影生图 / ComfyUI 画布 / MY 工作流的分镜视频生成、图像节点图页签）：
+**本地 ComfyUI 产线**（「大模型」页漫影生图 / ComfyUI 画布 / MY 工作流的分镜视频生成、图像节点图页签）：
 
 - `设置 → 本地配置 → ComfyUI 引擎` 引擎是否运行中、端口是否就绪。
 - 「模型」页签里对应家族（checkpoints/LoRA 等）是否就位（`comfyui/models/` 活清单）。

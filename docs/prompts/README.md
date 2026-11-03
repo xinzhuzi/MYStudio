@@ -2,7 +2,7 @@
 
 本目录保存提示词、风格参考和实验记录。按文内日期、模型、工作流与参数使用；实验结论不等于当前所有模型的效果保证。
 
-生产入口：[本地模型页](../panels/LOCAL_MODELS_GUIDE.md) · [ComfyUI 参数速查](../comfyui-kb/参数速查.md) · [文档中心](../README.md)。
+生产入口：[大模型页](../panels/LOCAL_MODELS_GUIDE.md) · [ComfyUI 参数速查](../comfyui-kb/参数速查.md) · [文档中心](../README.md)。
 
 ## 阅读边界
 

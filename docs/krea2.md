@@ -6,7 +6,7 @@
 
 ## 当前入口与仓库模板（2026-09-20）
 
-在 `设置 → 本地配置 → ComfyUI 引擎` 准备引擎与模型，然后进入 `本地模型` 页的 ComfyUI 画布或 `漫影生图`。画布侧栏的 `repo:` 模板来自仓库，只读打开；需要改图时另存用户副本，不直接修改仓库模板。模型、input/output 与用户工作流目录以引擎 manifest 和设置页为准，不按下方历史安装目录推断。
+在 `设置 → 本地配置 → ComfyUI 引擎` 准备引擎与模型，然后进入 `大模型` 页的 ComfyUI 画布或 `漫影生图`。画布侧栏的 `repo:` 模板来自仓库，只读打开；需要改图时另存用户副本，不直接修改仓库模板。模型、input/output 与用户工作流目录以引擎 manifest 和设置页为准，不按下方历史安装目录推断。
 
 | 用途 | 当前仓库入口（相对 `apps/backend/comfyui/workflows/`） | 使用边界 |
 |---|---|---|
@@ -17,7 +17,7 @@
 
 `漫影生图` 的标准档使用 `manying_t2i` 桥，默认 8 步、可输入 1–40 步；加速档使用 `manying_t2i_fast`，固定 Krea2 Turbo 与加速 LoRA，步数只有 4/6 两档。它与自由编辑 ComfyUI 画布是两个入口。当前源码见 `apps/frontend/components/panels/assist/local-models/LocalModelStudio.tsx`。
 
-完整模板清单见 [漫影工作流清单](./comfyui-kb/漫影工作流清单.md)，日常操作见 [本地模型页](./panels/LOCAL_MODELS_GUIDE.md)，采样与模型依赖见 [参数速查](./comfyui-kb/参数速查.md)。提示词参考资料位于 `docs/comfyui-kb/参考_提示词工程/`，不属于引擎工作流库。
+完整模板清单见 [漫影工作流清单](./comfyui-kb/漫影工作流清单.md)，日常操作见 [大模型页](./panels/LOCAL_MODELS_GUIDE.md)，采样与模型依赖见 [参数速查](./comfyui-kb/参数速查.md)。提示词参考资料位于 `docs/comfyui-kb/参考_提示词工程/`，不属于引擎工作流库。
 
 ## 历史功能映射与旧节点记录
 

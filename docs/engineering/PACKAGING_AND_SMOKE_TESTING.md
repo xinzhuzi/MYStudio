@@ -245,7 +245,7 @@ macOS 与 Windows 都成功后才会创建。GitHub 官方参考：
 - 核心路由可切换（经悬浮球/侧栏导航）：
   - MY 工作流
   - 资产
-  - 本地模型（全屏 ComfyUI 工作区，DOM 锚 `[data-comfy-swap]`）
+  - 大模型（原「本地模型」；全屏 ComfyUI 工作区，DOM 锚 `[data-comfy-swap]`）
   - 设置
 - 设置页包含唯一 `本地配置` 入口，并按 Python → ComfyUI 引擎（含「模型」页签） → 视觉审核 → TTS → 音效 → 视频工作流插件区块显示。
 - `本地配置` 可见 Python 3.12、`<storageBasePath>/comfyui/models/TTS/whisper-large-v3-turbo`（09-10 模型统一家；旧版 `model/TTS`、`tts-models` 仅作迁移兼容）、Node 22、浏览器和共享 FFmpeg/ffprobe 状态，以及按优先级准备、单项检查/安装/更新/修复/回滚入口；Whisper 准备复用现有 TTS runtime，不创建独立 Python 环境。

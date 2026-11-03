@@ -1,6 +1,6 @@
 # Prompting guidelines
 
-> 外部提示词资料摘录。保留原文示例提示词；原仓库示例图未随文档收录，以下保留图名与来源相对路径，不作为本地图片链接。MYStudio 的当前入口见 [本地模型页](../../panels/LOCAL_MODELS_GUIDE.md)。
+> 外部提示词资料摘录。保留原文示例提示词；原仓库示例图未随文档收录，以下保留图名与来源相对路径，不作为本地图片链接。MYStudio 的当前入口见 [大模型页](../../panels/LOCAL_MODELS_GUIDE.md)。
 
 We recommend users to use natural language prompts to generate images.
 The turbo model can generate up to 2k resolution images. Long detailed prompts yield best results, but the model is capable of generating high quality images with minimal prompt engineering. For text rendering, we recommend putting quotes around the words to be rendered.
