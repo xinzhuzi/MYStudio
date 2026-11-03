@@ -21,16 +21,30 @@ export function setLocalImageTokenForTests(override: (() => string) | null): voi
   cached = null;
 }
 
+/**
+ * 取本地 sidecar 装机令牌。
+ *
+ * 1103 追修(实弹日志定谳:渲染层全 403 窗口):**只缓存非空成功**——装机循环后
+ * app 重启,渲染层首取若跑赢 preload 注入(window.imageGenRuntime 未就绪),旧实现
+ * 会把空串钉死成进程终身缓存,之后一切鉴权请求恒 403 且永不自愈。空结果不缓存,
+ * 下次调用重取;403 自愈由 comfySidecarRequest 触发 invalidate 后重取。
+ */
 export async function getLocalImageToken(): Promise<string> {
   if (overrideForTests) return overrideForTests();
-  if (!cached) {
-    try {
-      const bridge = (window as { imageGenRuntime?: { localImageToken?: () => Promise<string> } })
-        .imageGenRuntime;
-      cached = Promise.resolve(bridge?.localImageToken ? bridge.localImageToken() : "");
-    } catch {
-      cached = Promise.resolve("");
-    }
+  if (cached) return cached;
+  let token = "";
+  try {
+    const bridge = (window as { imageGenRuntime?: { localImageToken?: () => Promise<string> } })
+      .imageGenRuntime;
+    if (bridge?.localImageToken) token = await bridge.localImageToken();
+  } catch {
+    token = "";
   }
-  return cached;
+  if (token) cached = Promise.resolve(token);
+  return token;
+}
+
+/** 令牌失效(403 自愈链):清缓存,下次调用重取。 */
+export function invalidateLocalImageToken(): void {
+  cached = null;
 }

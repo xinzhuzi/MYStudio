@@ -27,7 +27,7 @@ import { saveToMediaLibrary } from "@/lib/ai/generation-media";
 import { parseProjectFileUrl } from "@/lib/upscale/project-file-url";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useMediaStore } from "@/stores/media/media-store";
-import { getLocalImageToken } from "@/lib/assist/image-studio/local-image-token";
+import { getLocalImageToken, invalidateLocalImageToken } from "@/lib/assist/image-studio/local-image-token";
 import type { ImageWorkflowComfyWorkflowNode, ImageWorkflowGraph } from "@/types/studio";
 
 const COMFY_SIDECAR_BASE_URL = "http://127.0.0.1:17595";
@@ -84,6 +84,26 @@ export async function comfySidecarJson<T>(
       throw new Error("本地生图服务响应超时,请稍后重试");
     }
     throw new Error("无法连接本地生图服务,请先在 设置→本地配置 完成「准备运行时」后重试");
+  }
+  // 1103 403 自愈:令牌陈旧(装机循环/sidecar 换代)→失效重取,重试一次;仍 403 才报错
+  if (response.status === 403) {
+    invalidateLocalImageToken();
+    const retryToken = await getLocalImageToken();
+    if (retryToken) {
+      try {
+        response = await fetch(url.toString(), {
+          method,
+          headers: {
+            ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
+            Authorization: `Bearer ${retryToken}`,
+          },
+          ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
+          signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
+        });
+      } catch {
+        /* 重试网络失败走下面的统一错误口径 */
+      }
+    }
   }
   const json = (await response.json().catch(() => null)) as
     | (T & { error?: { message?: string } })
