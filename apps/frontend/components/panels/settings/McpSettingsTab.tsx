@@ -1459,30 +1459,23 @@ export function McpSettingsTab() {
                             <span className="min-w-0 flex-1 truncate text-sm">
                               {item.name === "ComfyUI" ? "ComfyUI 引擎" : item.name}
                             </span>
-                            <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
-                              Mac {item.macHead?.slice(0, 8) ?? "—"} → Win {item.winHead?.slice(0, 8) ?? "—"}
-                            </span>
-                            {/* 状态标签(Q1 四态:win-only 灰显 ⏭️)。引擎行 Win 缺不
-                                承诺 clone——_sync_one 引擎恒 pull 无 clone 分支,
-                                Win 无引擎目录时同步将诚实报错(引擎由部署脚本装) */}
+                            {/* 1104 改清晰显示:不比对哈希(策略=GitHub 拉最新),只报安装态 */}
                             <span
                               className={cn(
-                                "shrink-0 rounded-full border px-1.5 py-0.5 text-[10px]",
+                                "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium",
                                 item.status === "mac-only"
-                                  ? "border-warning/40 bg-warning/[0.06] text-warning"
+                                  ? "border-destructive/25 bg-destructive/[0.08] text-destructive/90"
                                   : item.status === "win-only"
-                                    ? "border-border bg-muted/50 text-muted-foreground"
-                                    : "border-border bg-muted/50 text-muted-foreground",
+                                    ? "border-border bg-muted/50 text-muted-foreground/60"
+                                    : "border-success/25 bg-success/10 text-success",
                               )}
                               data-testid="engine-sync-status"
                             >
                               {item.status === "mac-only"
-                                ? item.name === "ComfyUI"
-                                  ? "Win 缺(引擎不自动 clone)"
-                                  : "Win 缺 → clone"
-                                : winOnly
-                                  ? "⏭️ Win 独有,保留"
-                                  : "两侧都有"}
+                                ? "❌ Windows 未装"
+                                : item.status === "win-only"
+                                  ? "⏭️ 跳过(Win 独有)"
+                                  : "✅ 已装"}
                             </span>
                             {/* 逐项进度(Q3:⬜ 等待 / ⏳ 同步中 / ✅ 完成 / ❌ 失败 / ⏭️ 跳过) */}
                             {progress === "pending" ? (

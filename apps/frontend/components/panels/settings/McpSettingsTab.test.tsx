@@ -1731,9 +1731,9 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
     const rows = screen.getAllByTestId("engine-sync-row");
     expect(rows.map((r) => r.dataset.name)).toEqual(["ComfyUI", "pluginA", "pluginB", "pluginManual", "seedvr2_videoupscaler"]);
     expect(rows[0].textContent).toContain("ComfyUI 引擎");
-    expect(rows[0].textContent).toContain("Mac aaaa1111 → Win cccc2222"); // HEAD 前 8 字
-    expect(rowOf("pluginB").textContent).toContain("Win 缺 → clone");
-    expect(rowOf("seedvr2_videoupscaler").textContent).toContain("⏭️ Win 独有,保留");
+    expect(rows[0].textContent).toContain("✅ 已装"); // HEAD 前 8 字
+    expect(rowOf("pluginB").textContent).toContain("❌ Windows 未装");
+    expect(rowOf("seedvr2_videoupscaler").textContent).toContain("⏭️ 跳过(Win 独有)");
     // 勾选态:both/mac-only 默认勾上(含手动清单件 pluginManual),win-only 恒不勾
     const checkedOf = (name: string) =>
       rowOf(name).querySelector('[data-testid="engine-sync-check"]')!.getAttribute("data-state");
@@ -1880,7 +1880,7 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
       expect(screen.getAllByTestId("engine-sync-row").length).toBe(1);
     });
     expect(rowOf("ComfyUI").querySelector('[data-testid="engine-sync-status"]')!.textContent)
-      .toContain("Win 缺(引擎不自动 clone)");
+      .toContain("❌ Windows 未装");
   });
 
   it("旧「同步插件」按钮已撤(R4):ssh-sync-plugins testid 不复存在", async () => {
