@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// 漫影专属文生图(本地模型模块)测试:表单渲染/模型下拉、生成请求形状
+// 漫影专属文生图(大模型模块)测试:表单渲染/模型下拉、生成请求形状
 // (template=manying_t2i + checkpoint 注入)、出图入画廊。
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";

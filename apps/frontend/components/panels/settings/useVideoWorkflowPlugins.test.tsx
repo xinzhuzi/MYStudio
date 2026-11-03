@@ -72,7 +72,7 @@ describe("useVideoWorkflowPlugins", () => {
   it("stops the ordered preparation when video-use is blocked", async () => {
     const bridge = {
       status: vi.fn(async () => status({ "video-use": "blocked" })),
-      prepare: vi.fn(async () => action(false, "本地模型未准备")),
+      prepare: vi.fn(async () => action(false, "大模型未准备")),
       update: vi.fn(async () => action(true)),
       repair: vi.fn(async () => action(true)),
       rollback: vi.fn(async () => action(true)),
@@ -88,7 +88,7 @@ describe("useVideoWorkflowPlugins", () => {
 
     expect(bridge.prepare).toHaveBeenCalledOnce();
     expect(bridge.prepare).toHaveBeenCalledWith({ pluginId: "video-use" });
-    expect(result.current.error).toBe("本地模型未准备");
+    expect(result.current.error).toBe("大模型未准备");
   });
 
   it("routes a manual plugin update through the typed bridge", async () => {

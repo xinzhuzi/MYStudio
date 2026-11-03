@@ -735,7 +735,7 @@ describe("默认生图模型兜底(09-12 生图路由设置)", () => {
     expect(bgPrompt?.model).toBe("gpt-image-2");
   });
 
-  it("Q3a 豁免:本地模型无需渠道配置(qwen-image-2-1 常驻 sidecar,1010 渠道清场后本地独苗)", () => {
+  it("Q3a 豁免:大模型无需渠道配置(qwen-image-2-1 常驻 sidecar,1010 渠道清场后本地独苗)", () => {
     useAppSettingsStore.setState({
       imageGenerationSettings: {
         ...useAppSettingsStore.getState().imageGenerationSettings,

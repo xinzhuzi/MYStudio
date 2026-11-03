@@ -212,23 +212,23 @@ describe("AppOrb(分域矩阵·09-11:阶段仅工作流)", () => {
     expect(toast.error).toHaveBeenCalled();
   });
 
-  it("沉浸(本地模型):「本地模型」区默认展开(画布/配音室),阶段区在场但收起", async () => {
+  it("沉浸(大模型):「大模型」区默认展开(画布/配音室),阶段区在场但收起", async () => {
     useMediaPanelStore.setState({ activeTab: "freedom" });
     const { container } = render(<AppOrb />);
     openPanel();
-    expect(await screen.findByRole("group", { name: "本地模型" })).toBeTruthy();
+    expect(await screen.findByRole("group", { name: "大模型" })).toBeTruthy();
     expect(screen.getByRole("button", { name: /配音室/ })).toBeTruthy();
-    // 模块隔离(09-11 裁定):工作流阶段区不出现在本地模型视图
+    // 模块隔离(09-11 裁定):工作流阶段区不出现在大模型视图
     expect(screen.queryByRole("button", { name: /^切换阶段$/ })).toBeNull();
     expect(screen.queryByText(/待推进：/)).toBeNull();
     expect(container.querySelectorAll("[data-orb-segment]").length).toBe(0);
-    expect(container.querySelector("[data-orb-capsule]")?.textContent).toContain("本地模型");
+    expect(container.querySelector("[data-orb-capsule]")?.textContent).toContain("大模型");
     expect(
       screen.getByRole("button", { name: /^导航$/ }).getAttribute("aria-expanded"),
     ).toBe("false");
   });
 
-  it("其他视图(资产):「导航」默认展开+当前模块高亮;阶段/本地模型区在场但收起", async () => {
+  it("其他视图(资产):「导航」默认展开+当前模块高亮;阶段/大模型区在场但收起", async () => {
     useMediaPanelStore.setState({ activeTab: "assets" });
     const { container } = render(<AppOrb />);
     openPanel();
@@ -303,14 +303,14 @@ describe("AppOrb(分域矩阵·09-11:阶段仅工作流)", () => {
     );
   });
 
-  it("「导航」10 视口含本地模型,可跳转落 media-panel", async () => {
+  it("「导航」10 视口含大模型,可跳转落 media-panel", async () => {
     useMediaPanelStore.setState({ activeTab: "assets" });
     render(<AppOrb />);
     openPanel();
     await screen.findByRole("group", { name: "导航" });
     expect(
       document.querySelector('[data-orb-nav-view="freedom"]')?.textContent,
-    ).toContain("本地模型");
+    ).toContain("大模型");
     fireEvent.click(screen.getByRole("button", { name: /^概览$/ }));
     expect(useMediaPanelStore.getState().activeTab).toBe("overview");
   });

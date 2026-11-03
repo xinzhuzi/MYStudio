@@ -45,7 +45,7 @@ export interface ImageGenerationSettings {
    * 默认生图模型(09-12 生图路由设置,用户裁定 Q1a):空串=跟随渠道链(现状,
    * 链首本地 Krea2);填模型 id(本地 krea2-turbo/flux2-klein-9b/z-image-turbo/
    * qwen-image-edit-2511 或云端 gpt-image 系等)=工作流未显式指定模型时按此
-   * 路由(本地模型只走本地 sidecar,云端模型走归属渠道)。请求层兜底
+   * 路由(大模型只走本地 sidecar,云端模型走归属渠道)。请求层兜底
    * (image-workflow/request.ts),存量空 model 工作流自动跟随(Q2a)。
    */
   defaultImageModel: string;

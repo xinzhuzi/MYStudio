@@ -75,7 +75,7 @@ describe("useOrbPosition", () => {
     expect(result.current.position.y).toBeGreaterThanOrEqual(ORB_MARGIN);
   });
 
-  it("storageKey 参数化:本地模型球读写独立键,不碰工作流球键(09-10 拆双球)", () => {
+  it("storageKey 参数化:大模型球读写独立键,不碰工作流球键(09-10 拆双球)", () => {
     window.localStorage.setItem(
       WORKFLOW_ORB_POSITION_KEY,
       JSON.stringify({ x: 111, y: 222 }),

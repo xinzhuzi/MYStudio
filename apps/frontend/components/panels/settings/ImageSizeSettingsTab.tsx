@@ -19,7 +19,7 @@ type ImageSizeSettingsTabProps = {
 
 /**
  * 生图引擎候选(09-12 生图路由设置,Q1a 裁定=默认模型下拉):
- * 空串=跟随渠道链;本地模型免费走内置 sidecar,云端模型走「接口配置」里认领
+ * 空串=跟随渠道链;大模型免费走内置 sidecar,云端模型走「接口配置」里认领
  * 它的渠道(未配会在生成时报错指路,Q3a)。
  * 1102 控制中心役(G1):本地段改吃共享单源(lib/studio/engine-line,控制中心
  * 族下拉同源;qi21 补位——现役主力曾缺席此表);云端段仍留本页(控制中心族
@@ -74,7 +74,7 @@ export function ImageSizeSettingsTab({
             <div className="text-sm font-semibold text-foreground">生图引擎</div>
             <p className="mt-1 text-xs text-muted-foreground">
               统一控制分镜批量生图、剧本资产与自由生图的默认引擎;工作流里显式指定过模型的除外。
-              本地模型免费走内置引擎;云端模型走「接口配置」中认领它的渠道,未配置时生成会提示先去配置。
+              大模型免费走内置引擎;云端模型走「接口配置」中认领它的渠道,未配置时生成会提示先去配置。
             </p>
           </div>
           <div className="flex flex-wrap gap-2">

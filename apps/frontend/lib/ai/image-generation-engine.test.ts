@@ -583,7 +583,7 @@ describe("generateImage 模型归属路由", () => {
     data: [{ b64_json: "bG9jYWw=", output_format: "png" }],
   }), { status: 200 });
 
-  it("本地模型请求钉死本地 provider,即使云端排在绑定第一位(09-01 mikoto 实弹回归)", async () => {
+  it("大模型请求钉死本地 provider,即使云端排在绑定第一位(09-01 mikoto 实弹回归)", async () => {
     useAPIConfigStore.setState({
       providers: [cloudProvider, localProvider],
       featureBindings: {
@@ -598,7 +598,7 @@ describe("generateImage 模型归属路由", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await generateImage({ prompt: "本地模型归本地", model: "qwen-image-2-1" });
+    const result = await generateImage({ prompt: "大模型归本地", model: "qwen-image-2-1" });
 
     expect(result.url).toBe("data:image/png;base64,bG9jYWw=");
     expect(fetchMock.mock.calls.every(([url]) => String(url).includes("17595"))).toBe(true);
@@ -608,7 +608,7 @@ describe("generateImage 模型归属路由", () => {
     expect(requestBody.model).toBe("qwen-image-2-1");
   }, 20000);
 
-  it("本地模型在零绑定下也直接走本地 provider(选中本地即意图本地)", async () => {
+  it("大模型在零绑定下也直接走本地 provider(选中本地即意图本地)", async () => {
     useAPIConfigStore.setState({
       providers: [cloudProvider, localProvider],
       featureBindings: { freedom_image: ["mikoto:gpt-image-2"] },

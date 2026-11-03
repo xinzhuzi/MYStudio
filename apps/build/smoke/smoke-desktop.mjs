@@ -146,9 +146,9 @@ const CORE_ROUTE_CHECKS = [
   },
   {
     // 09-11 分域裁定:沉浸视图零应用 chrome,唯一球=Layout 应用层 AppOrb;
-    // 非工作流视图球胶囊=当前模块名(阶段仅工作流展示),断言锚=「本地模型」。
-    label: "本地模型",
-    requiredText: ["本地模型"],
+    // 非工作流视图球胶囊=当前模块名(阶段仅工作流展示),断言锚=「大模型」。
+    label: "大模型",
+    requiredText: ["大模型"],
     waitMs: 2_500,
   },
   {
@@ -1201,7 +1201,7 @@ async function verifyRoute(evaluate, route) {
       });
     }, ${waitMs}));
     let escapedFromImmersive = true;
-    if (routeLabel === '本地模型') {
+    if (routeLabel === '大模型') {
       // 09-10 终裁(球是 1 个):唯一球 data-workflow-orb,逃逸三步=点球→展开「导航」分区(goto)→点概览。
       // 分区默认收起(条件渲染),「导航」(goto)条目不展开不可见;两段式防抖等待保留。
       const orb = document.querySelector('[data-workflow-orb]');

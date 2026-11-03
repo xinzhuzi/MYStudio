@@ -126,7 +126,7 @@ export const COMFY_MODEL_FILE_NOTES: ReadonlyArray<readonly [string, string]> = 
   ["Krea 2 pussy", "NSFW 专业流补丁"],
   ["Krea 2 NSFW V4", "NSFW 备选补丁(默认关)"],
   ["identity_edit", "无衣物·指令编辑主件"],
-  ["Krea2-Turbo-4步蒸馏", "漫影生图加速档(8→4 步)——本地模型模块「加速」用"],
+  ["Krea2-Turbo-4步蒸馏", "漫影生图加速档(8→4 步)——大模型模块「加速」用"],
   ["viggle-turbo", "Qwen-Image-2.1 加速包——道劫工作流拨 LoRA 开关即用(步数自动 6)"],
   // T8 Fun-Acc PDD 加速包(needle 大小写敏感,装机以引擎家 loras 实际文件名逐字核对)
   ["Fun-Acc-4Step-PDD-T8", "Qwen-Image-2.1 加速包(PDD 4步)——需配 T8 专用采样节点(4步/cfg1/无负面词,TE 须 Qwen3-VL 8B 系)"],

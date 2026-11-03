@@ -1,7 +1,7 @@
 import path from "node:path";
 
 /**
- * 09-10 模型统一家(用户裁定):全部本地模型住 <storageBase>/comfyui/models/<family>/,
+ * 09-10 模型统一家(用户裁定):全部大模型住 <storageBase>/comfyui/models/<family>/,
  * 引擎卡「模型」页统一可见。08-19 的 <storageBase>/model/<family>/ 规范就此退役
  * (老目录由 apps/build/scripts/model_dir_unify.py 一次性迁平)。
  * TTS 家的单一拼装源——electron 侧(TTS 运行时/存储面板)与 video-use 插件一律经

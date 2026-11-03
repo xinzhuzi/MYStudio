@@ -66,7 +66,7 @@ export function buildSignInCloakScript(): string {
 
 /**
  * 工作流阶段自动打开分镜总览(09-10 用户裁定:进入工作流阶段,ComfyUI 展示
- * 本章分镜内容;1_图片/2_视频/3_声音 域树归本地模型模块浏览)。
+ * 本章分镜内容;1_图片/2_视频/3_声音 域树归大模型模块浏览)。
  * 轮询等 window.app(新前端 GraphView 异步赋值),每次页面加载只开一次
  * (守卫变量),app 永不出现则静默放弃(画布回退默认视图)。
  * 就绪谓词含 isGraphReady:window.app 早于 graph 初始化出现,只查方法存在
@@ -301,13 +301,13 @@ async function openShotVideoWorkflowIntoCanvas(
 export interface ComfyCanvasStudioProps {
   /**
    * 工作流阶段专用(09-10 用户裁定):webview 就绪即自动打开本章分镜总览。
-   * 仅「分镜制作」挂载点启用;本地模型模块的沉浸视图保持完整域树浏览。
+   * 仅「分镜制作」挂载点启用;大模型模块的沉浸视图保持完整域树浏览。
    */
   autoOpenOverview?: boolean;
   /**
    * 模块分野(09-11 用户裁定:按模块对待漫影插件的展示与功能)。
    * "workflow"=工作流模块:漫影分镜侧栏在场(分镜生产工具);
-   * "models"=本地模型模块:纯浏览场景,漫影分镜侧栏不注册。
+   * "models"=大模型模块:纯浏览场景,漫影分镜侧栏不注册。
    * 经 webview 双通道传给引擎前端扩展:URL 参数 myScope(首载)+ useragent
    * 尾缀(09-22:端口漂移后唯一可靠通道,见 embedUserAgent)。
    * 09-12 模块分离(用户裁定):models 域三链齐隔离——引擎侧栏库过滤分镜
@@ -581,7 +581,7 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
   // 09-22 端口无关 scope 通道:URL 参数只在首载一瞬可靠(ComfyUI SPA 打开
   // 工作流即改写丢参),引擎侧 localStorage 兜底又按 origin(=引擎端口)隔离
   // ——引擎端口漂移(实录 17000→17001→17002)后新 origin 的 my-scope 种子
-  // 落不上,本地模型模块侧栏被回落成「分镜阶段」。补第三通道:webview
+  // 落不上,大模型模块侧栏被回落成「分镜阶段」。补第三通道:webview
   // useragent 尾缀 token,每次挂载必设、先于页面任何脚本可读、SPA 改写与
   // 引擎换口均不影响;引擎侧 theme.js myScope() 按 URL→UA→localStorage
   // 顺序解析(外部浏览器直访无尾缀,行为不变)。
@@ -610,7 +610,7 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
   }, [running]);
 
   // 09-29 用户令「打开 ComfyUI 视图即确保引擎就绪」:进画布(两路挂载链任一:
-  // 本地模型沉浸视图 / 分镜制作画布)且引擎已装就绪未跑时,静默后台拉起引擎。
+  // 大模型沉浸视图 / 分镜制作画布)且引擎已装就绪未跑时,静默后台拉起引擎。
   // running 口径 0929 S2 根修后含令牌核验(后端 status:健康空令牌孤儿按未跑
   // 上报)——「仅开画布」即可触达收编/自愈机器,不再被纯 HTTP 健康探的假
   // running 挡住;令牌一致的正常在跑引擎照旧零重发(幂等闸不变)。
@@ -783,9 +783,9 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
       <webview
         ref={attachWebview}
         src={src ?? "about:blank"}
-        // 09-12 模块分离(用户裁定):本地模型模块用独立持久会话——ComfyUI
+        // 09-12 模块分离(用户裁定):大模型模块用独立持久会话——ComfyUI
         // 前端从 localStorage(activePath+草稿)恢复上一次画布,默认会话会把
-        // 工作流模块的分镜顶签/画布串进本地模型模块。独立 partition 后各模块
+        // 工作流模块的分镜顶签/画布串进大模型模块。独立 partition 后各模块
         // 各记各的会话;workflow 域(studio 两挂载点)不设=默认会话,存量零迁移。
         partition={myScope === "models" ? "persist:my-comfy-models" : undefined}
         // 09-22 端口无关 scope 通道(UA 尾缀):见上方 embedUserAgent 注释

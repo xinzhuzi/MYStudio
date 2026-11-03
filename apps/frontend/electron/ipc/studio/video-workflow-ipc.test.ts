@@ -58,7 +58,7 @@ describe("video workflow runtime IPC actions", () => {
       appVersion: "0.0.1",
       remotionVersion: "4.0.0",
       probeRemotion: async () => ({ state: "ready", remotionVersion: "4.0.0" }),
-      probeVideoUse: async () => ({ state: "blocked", code: "alignment-model-missing", message: "本地模型未准备", runtime: {} as never }),
+      probeVideoUse: async () => ({ state: "blocked", code: "alignment-model-missing", message: "大模型未准备", runtime: {} as never }),
       probeHyperFrames: async () => ({ state: "ready", message: "HyperFrames ok", runtime: {} as never }),
       now: () => 122,
     });

@@ -256,11 +256,11 @@ def _snapshot_for_repo(repo_id: str) -> Path:
 
     if repo_id == ALIGNMENT_TOKENIZER_REPO:
         if not has_repo_files(repo_id, ("tokenizer.json",), cache_dirs):
-            raise AlignmentError("alignment-model-missing", f"本地模型未准备: {repo_id}")
+            raise AlignmentError("alignment-model-missing", f"大模型未准备: {repo_id}")
     else:
         cached = find_weight_repo((repo_id,), cache_dirs)
         if cached is None:
-            raise AlignmentError("alignment-model-missing", f"本地模型未准备: {repo_id}")
+            raise AlignmentError("alignment-model-missing", f"大模型未准备: {repo_id}")
         cache_root = cached.repo_cache_dir
     if repo_id == ALIGNMENT_TOKENIZER_REPO:
         cache_root = next(
@@ -276,7 +276,7 @@ def _snapshot_for_repo(repo_id: str) -> Path:
         snapshot = snapshots[-1] if snapshots else None
     required_file = "tokenizer.json" if repo_id == ALIGNMENT_TOKENIZER_REPO else "config.json"
     if snapshot is None or not (snapshot / required_file).is_file():
-        raise AlignmentError("alignment-model-invalid", f"本地模型快照不完整: {repo_id}")
+        raise AlignmentError("alignment-model-invalid", f"大模型快照不完整: {repo_id}")
     return snapshot
 
 

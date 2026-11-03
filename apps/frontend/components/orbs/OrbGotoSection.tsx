@@ -5,7 +5,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 // 「导航」分区(原「前往」,09-11 用户裁定更名):全局模块导航区,10 视口全覆盖
-// (09-10 补:球全局化后须含本地模型入口——旧两球时代球住沉浸视图故自指无意义)。
+// (09-10 补:球全局化后须含大模型入口——旧两球时代球住沉浸视图故自指无意义)。
 // 本分区不持开合态(调用方持,默认收起);分镜面板入口不进(08-23 唯一入口裁定)。
 
 import {
@@ -31,9 +31,9 @@ const VIEW_ENTRIES: ReadonlyArray<{ id: Tab; label: string; icon: typeof LayoutD
   // label 随侧栏命名(09-12 装机轮:并行会话「MY 工作流」已随包装机+smoke 断言,对齐)
   { id: "studio", label: "MY 工作流", icon: WorkflowIcon },
   { id: "assets", label: "资产", icon: FolderOpen },
-  // 09-10 补:球全局化后「前往」须含本地模型(旧两球时代球住沉浸视图故自指无意义)
+  // 09-10 补:球全局化后「前往」须含大模型(旧两球时代球住沉浸视图故自指无意义)
   // 09-14 图标换血:弃辅助时代 Palette,与侧栏同源用 ComfyUI 模型库 ai-model 图标
-  { id: "freedom", label: "本地模型", icon: LocalModelsIcon },
+  { id: "freedom", label: "大模型", icon: LocalModelsIcon },
   { id: "skills", label: "技能", icon: BookOpenText },
   { id: "export", label: "导出", icon: Film },
   { id: "media", label: "产物", icon: Boxes },

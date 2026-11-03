@@ -937,7 +937,7 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
 });
 
 describe("S3 绑定注入(11-02 hub:resolveBoundTemplateForGeneration;收口轮映射语义)", () => {
-  it("本地模型按参考图有无取对应绑定,经映射层转引擎 API 模板键;未绑/云端=undefined(现行为)", () => {
+  it("大模型按参考图有无取对应绑定,经映射层转引擎 API 模板键;未绑/云端=undefined(现行为)", () => {
     expect(resolveBoundTemplateForGeneration("qwen-image-2-1", false)).toBeUndefined();
     useWorkflowBindingsStore.setState({
       t2iWorkflowId: "1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",

@@ -1,6 +1,6 @@
 """生图推理引擎(每模型独立模块,用户裁定 08-31:每个模型自己一个脚本)。
 
-krea2/flux2/z_image/qwen=本地模型栈;comfyui_bridge=生图经 ComfyUI 引擎
+krea2/flux2/z_image/qwen=大模型栈;comfyui_bridge=生图经 ComfyUI 引擎
 执行的路由 provider。model_cache=权重发现(env 契约不变)、workflows=K2
 四模板(引擎资产)。照 Piper 纯引擎包先例:零 HTTP;image_gen/ 服务包
 (server/pipeline/model_inventory/download_model=spawn 面)向下调用。

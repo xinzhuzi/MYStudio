@@ -92,7 +92,7 @@ export async function runImageWorkflowNodeGeneration(
   const request = buildImageWorkflowGenerationRequest(graph, targetNodeId);
   const isStoryboard = graph.target.kind === "storyboard";
   const finalModel = isStoryboard ? DEFAULT_LOCAL_IMAGE_MODEL : (request.model ?? DEFAULT_LOCAL_IMAGE_MODEL);
-  // S3 工作流绑定注入(11-02-engine-model-workflow-hus):本地模型+非分镜时,按
+  // S3 工作流绑定注入(11-02-engine-model-workflow-hus):大模型+非分镜时,按
   // 有无参考图取绑定件(文生图/图生图位)注入 extraParams.template——经
   // ai-sdk-bridge Object.assign 透传进 sidecar body(server.py→pipeline template=),
   // 出图实走绑定件;未绑=undefined=引擎按类型自动选(道劫默认零迁移)。

@@ -3,7 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 "use client";
 
-// 「本地模型」模块图标:取自 ComfyUI 前端模型库侧栏图标 comfy--ai-model
+// 「大模型」模块图标:取自 ComfyUI 前端模型库侧栏图标 comfy--ai-model
 // (Comfy-Org/ComfyUI_frontend packages/design-system/src/icons/ai-model.svg,
 // GPL-3.0;依本仓 AGPL 双许可裁定 GPL 可拷)。原样保留 16 视框与 1.3 描边设计,
 // 封装成 LucideIcon 形状(currentColor)以混入 lucide 导航图标体系。

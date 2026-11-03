@@ -118,7 +118,7 @@ export function buildImageWorkflowGenerationRequest(
   // 连线提示词节点的旧值,行为零变化。paramsEdited 见类型注释。
   const paramAuthority = node.paramsEdited ? node : (promptNode ?? node);
   // 默认生图模型兜底(09-12 生图路由设置,Q2a:空=吃默认):节点/提示词都未
-  // 指定模型时跟随设置(本地模型只走本地,云端走归属渠道);云端未配渠道
+  // 指定模型时跟随设置(大模型只走本地,云端走归属渠道);云端未配渠道
   // 在此报错指路(Q3a:不静默落链悄悄换引擎)。
   const nodeModel = node.model ?? promptSource.model;
   const defaultModel = nodeModel ? undefined : resolveDefaultImageModel();

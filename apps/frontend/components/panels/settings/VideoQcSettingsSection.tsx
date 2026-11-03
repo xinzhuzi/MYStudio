@@ -14,7 +14,8 @@ type VideoQcSettingsSectionProps = {
 };
 
 /**
- * 视频评分模型(DOVER-Mobile)配置区块 — 设置 → 本地配置。
+ * 观感评分模型配置区块(设置 → 本地配置)。清单真源是 Python 侧 `VIDEO_QC_MODELS`,
+ * DOVER-Mobile 与 YuNet 人脸检测各自一行;runtime 未就绪时整块降级为占位。
  *
  * 出片后 QC 链的观感层:模型未下载/未就绪时该层自动跳过并在 QC 报告标注,
  * 不阻塞渲染交付。下载政策与深度/超分一致:绝不自动下载。
@@ -56,8 +57,8 @@ export function VideoQcSettingsSection({ embedded = false }: VideoQcSettingsSect
     }
   };
 
-  const handleDownload = async () => {
-    const result = await runtime.downloadModel("dover-mobile");
+  const handleDownload = async (model: string) => {
+    const result = await runtime.downloadModel(model);
     if (result?.accepted) toast.success("模型下载已开始");
     else toast.error(result?.message ?? "下载启动失败");
   };
@@ -94,11 +95,15 @@ export function VideoQcSettingsSection({ embedded = false }: VideoQcSettingsSect
     }
   };
 
-  const handleDelete = async () => {
-    const result = await runtime.deleteModel("dover-mobile");
-    if (result?.success) toast.success("已删除本地模型");
+  const handleDelete = async (model: string) => {
+    const result = await runtime.deleteModel(model);
+    if (result?.success) toast.success("已删除大模型");
     else toast.error(result?.error ?? "删除失败");
   };
+
+  // DOVER 由上面的主状态条 + 主按钮承载;其余模型(1102 起 YuNet 人脸)各占一行,
+  // 是否「已下载」以 Python 清单为真源,不看共享下载槽位。
+  const extraModels = runtime.models.filter((model) => model.name !== "dover-mobile");
 
   return (
     <div className={cn("space-y-4 px-5 py-4", !embedded && "rounded-xl border border-border bg-card/30 p-4")}>
@@ -140,14 +145,14 @@ export function VideoQcSettingsSection({ embedded = false }: VideoQcSettingsSect
         <Button
           variant="outline"
           size="sm"
-          onClick={handleDownload}
+          onClick={() => void handleDownload("dover-mobile")}
           disabled={!runtime.hasBridge || !isRuntimeReady || downloading || modelReady}
         >
           {downloading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />}
           {modelReady ? "已下载" : downloading ? `下载中 ${downloadProgress ?? 0}%` : "下载模型"}
         </Button>
         {modelReady && (
-          <Button variant="outline" size="sm" onClick={handleDelete}>
+          <Button variant="outline" size="sm" onClick={() => void handleDelete("dover-mobile")}>
             <Trash2 className="mr-1.5 h-4 w-4" />
             删除模型
           </Button>
@@ -159,6 +164,29 @@ export function VideoQcSettingsSection({ embedded = false }: VideoQcSettingsSect
           </Button>
         )}
       </div>
+
+      {extraModels.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {extraModels.map((model) => (
+            <div key={model.name} className="flex items-center gap-2 rounded-lg border border-border bg-card/40 px-2.5 py-1">
+              <span className="text-sm">{model.label}</span>
+              <span
+                className={cn(
+                  "rounded-full border px-2 py-0.5 text-xs",
+                  model.downloaded
+                    ? "border-success/30 bg-success/10 text-success"
+                    : "border-warning/30 bg-warning/10 text-warning",
+                )}
+              >
+                {model.downloaded ? `已下载 ${model.sizeMb}MB` : "未下载"}
+              </span>
+              {runtime.hasBridge && (model.downloaded
+                ? <Button variant="ghost" size="sm" title={`删除 ${model.label}`} aria-label={`删除 ${model.label}`} onClick={() => void handleDelete(model.name)}><Trash2 className="h-4 w-4" /></Button>
+                : <Button variant="ghost" size="sm" disabled={!isRuntimeReady || downloading} title={`下载 ${model.label}`} aria-label={`下载 ${model.label}`} onClick={() => void handleDownload(model.name)}><Download className="h-4 w-4" /></Button>)}
+            </div>
+          ))}
+        </div>
+      )}
 
       {downloading && (
         <div className="space-y-1">

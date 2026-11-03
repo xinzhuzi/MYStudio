@@ -54,7 +54,7 @@ describe("video-use adapter", () => {
       probeRuntime: async (paths) => ({ state: "ready", paths, missing: [], versions: { python: "Python 3.12.7" } }),
       execFile: async () => {
         throw Object.assign(new Error("alignment blocked"), {
-          stdout: JSON.stringify({ status: "blocked", code: "alignment-model-missing", message: "本地模型未准备" }),
+          stdout: JSON.stringify({ status: "blocked", code: "alignment-model-missing", message: "大模型未准备" }),
         });
       },
     });
@@ -62,7 +62,7 @@ describe("video-use adapter", () => {
     await expect(adapter.probe()).resolves.toMatchObject({
       state: "blocked",
       code: "alignment-model-missing",
-      message: "本地模型未准备",
+      message: "大模型未准备",
     });
   });
 

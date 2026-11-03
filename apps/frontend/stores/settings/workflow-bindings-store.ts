@@ -57,7 +57,7 @@ export function isBindableWorkflow(workflowId: string): boolean {
 }
 
 /**
- * 出图绑定解析(S3 注入点消费):本地模型才有模板绑定语义(云端/桥模型返回
+ * 出图绑定解析(S3 注入点消费):大模型才有模板绑定语义(云端/桥模型返回
  * undefined=现行为);hasReferences 决定类型(有参考图=图生图位,否则文生图位);
  * 绑定 id 经映射层转引擎模板键(1102 修复:原样传库内路径引擎吃不到)。
  */

@@ -4,7 +4,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
-// 09-11 漫影专属文生图(本地模型模块):选主模型 + 提示词一键直出,不进
+// 09-11 漫影专属文生图(大模型模块):选主模型 + 提示词一键直出,不进
 // ComfyUI 大画布。走 ComfyUI 桥 manying_t2i 模板(checkpoint 注入 UNETLoader),
 // 引擎未跑由后端 ensure_engine_ready 自动拉起;出图自动入媒体库 + 模块内画廊。
 // 09-12 加速档:manying_t2i_fast 模板挂 Krea2 Turbo 4 步蒸馏 LoRA(8→4 步,

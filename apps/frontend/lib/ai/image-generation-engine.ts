@@ -94,8 +94,8 @@ const IMAGE_FEATURE_CHAIN = ['freedom_image', 'character_generation', 'scene_gen
 /**
  * 模型归属路由(2026-09-01 实弹教训):节点选中的模型必须优先发给「绑定了
  * 该模型」的 provider。旧逻辑只按绑定顺序挑 provider 再透传模型名,导致
- * 本地模型 krea2-turbo 被发给云端第一家 mikoto(images endpoint requires
- * an image model),本地 sidecar 从未被尝试。本地模型在无任何绑定时也直接
+ * 大模型 krea2-turbo 被发给云端第一家 mikoto(images endpoint requires
+ * an image model),本地 sidecar 从未被尝试。大模型在无任何绑定时也直接
  * 走本地 provider——选中「本地免费」即意图本地,不依赖绑定体操。
  */
 function findModelOwnerConfig(requestedModel: string | undefined, isLocalModel: boolean): FeatureConfig | undefined {
@@ -314,7 +314,7 @@ async function generateImageImpl(
     if (fallbackConfigs.length >= MAX_FALLBACK_PROVIDERS) break;
   }
 
-  // 本地模型只走本地 provider:云端渠道没有这个模型名,换家只会把本地模型
+  // 大模型只走本地 provider:云端渠道没有这个模型名,换家只会把大模型
   // 名发给云端白烧请求(mikoto 实弹)
   const localOnlyConfigs = isLocalModel
     ? fallbackConfigs.filter((cfg) => isLocalImageProvider(cfg.provider))
@@ -374,7 +374,7 @@ async function generateImageImpl(
   // 自己配的渠道被无视)。列出整条链各自的失败原因,最后错误保持原语义。
   const described = createDescribedFetchError(lastError, { endpoint: lastBaseUrl });
   if (localOnlyConfigs.length > 0) {
-    described.message = `本地图片生成失败:${described.message}(本地模型不切云端;可在本地配置检查运行时,或在节点上换云端模型)`;
+    described.message = `本地图片生成失败:${described.message}(大模型不切云端;可在本地配置检查运行时,或在节点上换云端模型)`;
   } else if (chainConfigs.length > 1) {
     described.message = `已依次尝试 ${chainConfigs.length} 家生图服务均失败(${buildAttemptChainSummary(attempts)})最后错误:${described.message}`;
   }
