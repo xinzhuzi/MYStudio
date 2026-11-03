@@ -656,9 +656,91 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
     render(<McpSettingsTab />);
     await waitFor(() => {
       expect(screen.getByTestId("engine-card-remote").className).toContain("border-primary");
-      expect(screen.getByTestId("engine-card-local").className).toContain("opacity-70");
+      // 1103 UI 反馈役:未选卡不再 opacity 褪色;选中态=radio aria-checked(恒互斥一真一假)
+      expect(screen.getByTestId("engine-card-local").className).not.toContain("border-primary");
+      expect(screen.getByTestId("engine-card-local").className).not.toContain("opacity-70");
+      expect(screen.getByTestId("engine-card-remote-select").getAttribute("aria-checked")).toBe("true");
+      expect(screen.getByTestId("engine-card-local-select").getAttribute("aria-checked")).toBe("false");
     });
     expect(screen.getAllByText(/当前生效/)).toHaveLength(1);
+  });
+
+  it("1103 选中交互:远端生效中点本机卡头→清地址保存切回本机(等效常用快选「本机引擎」项)", async () => {
+    let current: string | null = "http://192.168.0.101:17000";
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      const u = String(url);
+      if (u.includes("/comfy/engine/remote")) {
+        if (init?.method === "POST") {
+          current = (JSON.parse(String(init.body)) as { url?: string }).url || null;
+        }
+        return Promise.resolve({
+          ok: true, status: 200,
+          json: () => Promise.resolve(
+            current
+              ? { url: current, effective: current, source: "settings" }
+              : { url: null, effective: "http://127.0.0.1:17598", source: "manifest" },
+          ),
+        } as unknown as Response);
+      }
+      if (u.includes("/comfy/workflows")) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ engineOnline: true, workflows: [] }) } as unknown as Response);
+      }
+      return Promise.reject(new Error("unexpected " + u));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-card-remote-select").getAttribute("aria-checked")).toBe("true");
+    });
+    fireEvent.click(screen.getByTestId("engine-card-local-select"));
+    await waitFor(() => {
+      // 切回本机:本机 radio 选中+输入框随清空(handlePresetSwitch 同语义)
+      expect(screen.getByTestId("engine-card-local-select").getAttribute("aria-checked")).toBe("true");
+      expect(screen.getByTestId("engine-card-remote-select").getAttribute("aria-checked")).toBe("false");
+    });
+    // POST 断言在状态翻转后(saveRemoteEngine 的 fetch 在异步微任务,同步查恒空)
+    const post = fetchMock.mock.calls.find((c) => String(c[0]).includes("/comfy/engine/remote") && c[1]?.method === "POST");
+    expect(post).toBeTruthy();
+    expect((JSON.parse(String(post?.[1]?.body)) as { url?: string }).url).toBe("");
+    expect((screen.getByTestId("remote-engine-url") as HTMLInputElement).value).toBe("");
+    expect(toastMocks.success).toHaveBeenCalledWith("已恢复本机引擎");
+  });
+
+  it("1103 选中交互:本机生效中点远端卡头(草稿非空)→按草稿保存生效", async () => {
+    let current: string | null = null;
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      const u = String(url);
+      if (u.includes("/comfy/engine/remote")) {
+        if (init?.method === "POST") {
+          current = (JSON.parse(String(init.body)) as { url?: string }).url || null;
+        }
+        return Promise.resolve({
+          ok: true, status: 200,
+          json: () => Promise.resolve(
+            current
+              ? { url: current, effective: current, source: "settings" }
+              : { url: null, effective: "http://127.0.0.1:17598", source: "manifest" },
+          ),
+        } as unknown as Response);
+      }
+      if (u.includes("/comfy/workflows")) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ engineOnline: true, workflows: [] }) } as unknown as Response);
+      }
+      return Promise.reject(new Error("unexpected " + u));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-card-local-select").getAttribute("aria-checked")).toBe("true");
+    });
+    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.101:17000" } });
+    fireEvent.click(screen.getByTestId("engine-card-remote-select"));
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-card-remote-select").getAttribute("aria-checked")).toBe("true");
+    });
+    const post = fetchMock.mock.calls.find((c) => String(c[0]).includes("/comfy/engine/remote") && c[1]?.method === "POST");
+    expect(post).toBeTruthy();
+    expect((JSON.parse(String(post?.[1]?.body)) as { url?: string }).url).toBe("http://192.168.0.101:17000");
   });
 
   it("R2 族横幅:默认空=自动回落 qi21 展示;组名=引擎与产线", () => {

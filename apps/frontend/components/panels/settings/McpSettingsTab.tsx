@@ -841,22 +841,41 @@ export function McpSettingsTab() {
           onToggle={toggleSectionCollapsed}
         >
           <div className="space-y-3 px-5 py-3" data-testid="remote-engine-section">
-            {/* R1 双卡(1102 控制中心役):远端卡=当前控件+生效徽标;本机卡=托管引擎
-                摘要+启用条件;互斥联动——地址指向远端则远端卡生效,留空则本机卡生效 */}
-            <div className="grid gap-3 md:grid-cols-2">
+            {/* R1 双卡(1102 控制中心役;1103 UI 反馈役改竖排+双 radio 选中态):
+                远端卡=控件+徽标;本机卡=托管摘要;两卡头部=互斥 radio——点本机头
+                =清地址切回本机(handlePresetSwitch 本机项同语义),点远端头=按
+                草稿保存生效;未选卡不褪色(可用可点,以圆点+边框区分) */}
+            <div className="grid gap-3">
               <div
-                className={`rounded-xl border p-3.5 ${remoteActive ? "border-primary/60 bg-primary/5" : "border-border opacity-70"}`}
+                className={`rounded-xl border p-3.5 ${remoteActive ? "border-primary/60 bg-primary/5" : "border-border"}`}
                 data-testid="engine-card-remote"
               >
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm font-medium">远端引擎</span>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={remoteActive}
+                    onClick={() => {
+                      if (!remoteActive && remoteDraft.trim()) void saveRemoteEngine();
+                    }}
+                    className="flex cursor-pointer items-center gap-2 text-left"
+                    data-testid="engine-card-remote-select"
+                    title="选中远端引擎(按当前地址保存生效)"
+                  >
+                    <span
+                      className={`h-3.5 w-3.5 shrink-0 rounded-full border-2 ${remoteActive ? "border-primary bg-primary" : "border-muted-foreground/40 bg-transparent"}`}
+                      aria-hidden
+                    />
+                    <span className="text-sm font-medium">远端引擎</span>
+                  </button>
                   {remoteActive && (
                     <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
                       当前生效
                     </span>
                   )}
                 </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
               {/* 常用快选(11-02 R1.4 一键切换):选中即填入+自动「保存并测试」立即生效 */}
               <Select value={activePresetKey} onValueChange={handlePresetSwitch}>
                 <SelectTrigger
@@ -883,6 +902,8 @@ export function McpSettingsTab() {
                 data-testid="remote-engine-url"
                 spellCheck={false}
               />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
               {/* ⭐存为常用(G3 第三按钮):未验证地址可先存;切换进行态复用 remoteSaving 禁全部控件 */}
               <Button
                 size="sm"
@@ -914,14 +935,34 @@ export function McpSettingsTab() {
                 {remoteSaving ? "保存中…" : "保存并测试"}
               </Button>
               </div>
+            </div>
               </div>
-              {/* 本机卡:留空引擎地址即启用;管理入口在本地配置页(引擎启停/模型) */}
+              {/* 本机卡:留空引擎地址即启用;点卡头一键切回本机;管理入口在本地配置页 */}
               <div
-                className={`rounded-xl border p-3.5 ${!remoteActive ? "border-primary/60 bg-primary/5" : "border-border opacity-70"}`}
+                className={`rounded-xl border p-3.5 ${!remoteActive ? "border-primary/60 bg-primary/5" : "border-border"}`}
                 data-testid="engine-card-local"
               >
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm font-medium">本机引擎(Mac 托管)</span>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!remoteActive}
+                    onClick={() => {
+                      if (remoteActive) {
+                        setRemoteDraft("");
+                        void saveRemoteEngine("");
+                      }
+                    }}
+                    className="flex cursor-pointer items-center gap-2 text-left"
+                    data-testid="engine-card-local-select"
+                    title="选中本机引擎(清空远端地址)"
+                  >
+                    <span
+                      className={`h-3.5 w-3.5 shrink-0 rounded-full border-2 ${!remoteActive ? "border-primary bg-primary" : "border-muted-foreground/40 bg-transparent"}`}
+                      aria-hidden
+                    />
+                    <span className="text-sm font-medium">本机引擎(Mac 托管)</span>
+                  </button>
                   {!remoteActive && (
                     <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
                       当前生效
@@ -929,8 +970,7 @@ export function McpSettingsTab() {
                   )}
                 </div>
                 <p className="text-xs leading-5 text-muted-foreground">
-                  引擎地址留空即走本机引擎出图;启停/模型下载/引擎卡在「设置 → 本地配置」。
-                  引擎状态看本卡高亮态连通探活(测试连接)。
+                  引擎地址留空即走本机引擎出图;点本卡即切回本机生效;启停/模型下载/引擎卡在「设置 → 本地配置」。
                 </p>
               </div>
             </div>
@@ -1000,7 +1040,8 @@ export function McpSettingsTab() {
                 SSH 依赖未安装（paramiko 缺失）：请在 设置→本地配置 →「Python 运行环境」完成准备后再使用 SSH 功能。
               </p>
             )}
-            <div className="grid gap-3 md:grid-cols-2">
+            {/* 1103 UI 反馈役:四输入竖排(与引擎双卡同上下排版口径) */}
+            <div className="grid gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="ssh-host">主机</Label>
                 <Input
