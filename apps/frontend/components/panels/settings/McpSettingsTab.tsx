@@ -43,6 +43,7 @@ import {
 import {
   normalizeEngineUrl,
   useEnginePresetsStore,
+  type EngineDeviceSsh,
   type EnginePreset,
 } from "@/stores/settings/engine-presets-store";
 import { useWorkflowBindingsStore, isBindableWorkflow, type BoundWorkflowKind } from "@/stores/settings/workflow-bindings-store";
@@ -495,6 +496,16 @@ export function McpSettingsTab() {
         tunnelEnabled: saved.tunnelEnabled ?? true,
       });
       toast.success("SSH 配置已保存");
+      // 1103 device-level-ssh 回写闭环:当前生效的是列表内设备→凭据回存进该设备
+      // (下次切走再切回,SSH 随行;非列表态=全局单份,不回写)
+      if (remoteActive && activeRemoteUrl) {
+        enginePresetAttachSsh(activeRemoteUrl, {
+          host: saved.host ?? host,
+          port: saved.port ?? 22,
+          user: saved.user ?? "",
+          keyPath: saved.keyPath ?? "",
+        });
+      }
       // 保存后回读状态刷新徽章(照引擎地址行保存即回读范式;回读失败不覆盖保存成功)
       try {
         setSshStatus(await getComfySshStatus());
@@ -599,7 +610,8 @@ export function McpSettingsTab() {
   const enginePresetFavorite = useEnginePresetsStore((s) => s.favorite);
   const enginePresetTouch = useEnginePresetsStore((s) => s.touch);
   const enginePresetRemove = useEnginePresetsStore((s) => s.remove);
-  const enginePresetRename = useEnginePresetsStore((s) => s.rename);
+  const enginePresetSaveDevice = useEnginePresetsStore((s) => s.saveDevice);
+  const enginePresetAttachSsh = useEnginePresetsStore((s) => s.attachSsh);
   // R1 生效判定(1102→1103 devices-list):地址指向远端=有远端设备生效,否则本机
   const remoteActive = remoteEngine?.source === "settings" && Boolean(remoteEngine.url);
   const activeRemoteUrl = remoteActive ? normalizeEngineUrl(remoteEngine?.url ?? "") : "";
@@ -646,16 +658,37 @@ export function McpSettingsTab() {
   const i2iCandidates = familyWorkflows.filter((w) => w.id.includes("2_图生图"));
 
   // ── 设备列表(1103 devices-list 役,模仿 ZCode RemoteConnectionSelection)──
-  // 激活设备:点设备行即切换(坑①沿用:必传 urlOverride——setRemoteDraft 异步落帧)
+  // 激活设备:点设备行即切换(坑①沿用:必传 urlOverride——setRemoteDraft 异步落帧)。
+  // 1103 device-level-ssh:设备自带 SSH 档→凭据随引擎一并落章(ssh-remote.json
+  // 语义=当前生效机的解析结果,后端零改);无档=不动全局 SSH(现状兼容)。
   const activateDevice = (url: string) => {
     setRemoteDraft(url);
     void saveRemoteEngine(url);
+    const device = url ? enginePresets.find((entry) => entry.url === url) : undefined;
+    if (device?.ssh) {
+      void setComfySshConfig({
+        host: device.ssh.host,
+        port: device.ssh.port,
+        user: device.ssh.user,
+        keyPath: device.ssh.keyPath,
+        tunnelEnabled: sshDraft.tunnelEnabled,
+      }).catch((error: unknown) => {
+        toast.error(`该设备的 SSH 凭据落章失败:${error instanceof Error ? error.message : "未知错误"}`);
+      });
+    }
   };
 
   // 添加设备表单:名字选填(缺省 hostname)+地址;保存=保存生效(saveRemoteEngine
   // 成功即自动 favorite 入列)+ 自定义名 rename 覆盖。
   const [addingDevice, setAddingDevice] = useState(false);
-  const [addDraft, setAddDraft] = useState({ label: "", url: "" });
+  const [addDraft, setAddDraft] = useState({ label: "", url: "", sshHost: "", sshPort: "", sshUser: "", sshKey: "" });
+  /** 表单 ssh 字段 → 设备级 SSH 块(host 空=未配,不落档)。 */
+  const sshBlockOf = (d: { sshHost: string; sshPort: string; sshUser: string; sshKey: string }): EngineDeviceSsh | undefined => {
+    const host = d.sshHost.trim();
+    if (!host) return undefined;
+    const port = Number.parseInt(d.sshPort.trim(), 10);
+    return { host, port: Number.isFinite(port) && port > 0 ? port : 22, user: d.sshUser.trim(), keyPath: d.sshKey.trim() };
+  };
   const submitAddDevice = () => {
     const url = normalizeEngineUrl(addDraft.url);
     if (!/^https?:\/\//.test(url)) {
@@ -663,9 +696,10 @@ export function McpSettingsTab() {
       return;
     }
     const label = addDraft.label.trim();
+    const ssh = sshBlockOf(addDraft);
     setRemoteDraft(url);
     void saveRemoteEngine(url).then(() => {
-      if (label) enginePresetRename(url, label);
+      enginePresetSaveDevice({ url, label, ssh });
     });
     setAddingDevice(false);
   };
@@ -673,18 +707,19 @@ export function McpSettingsTab() {
   // 编辑设备(名字/地址):地址不变=只 rename;地址变=删旧加新(自定义名带入),
   // 旧地址若正是生效机→保存并激活新地址(生效连续性);否则不动引擎。
   const [editingDevice, setEditingDevice] = useState<EnginePreset | null>(null);
-  const [editDraft, setEditDraft] = useState({ label: "", url: "" });
+  const [editDraft, setEditDraft] = useState({ label: "", url: "", sshHost: "", sshPort: "", sshUser: "", sshKey: "" });
   const submitEditDevice = () => {
     if (!editingDevice) return;
     const oldUrl = editingDevice.url;
     const newUrl = normalizeEngineUrl(editDraft.url);
     const label = editDraft.label.trim();
+    const ssh = sshBlockOf(editDraft); // host 清空=明确解除设备级凭据(回全局单份服役)
     if (newUrl === oldUrl) {
-      enginePresetRename(oldUrl, label);
+      enginePresetSaveDevice({ url: oldUrl, label, ssh });
     } else {
       const wasActive = remoteActive && normalizeEngineUrl(remoteEngine?.url ?? "") === oldUrl;
       enginePresetRemove(oldUrl);
-      if (/^https?:\/\//.test(newUrl)) enginePresetFavorite(newUrl, label);
+      if (/^https?:\/\//.test(newUrl)) enginePresetSaveDevice({ url: newUrl, label, ssh });
       if (wasActive) activateDevice(newUrl);
     }
     setEditingDevice(null);
@@ -951,6 +986,13 @@ export function McpSettingsTab() {
                             <span className="truncate text-sm font-medium">{p.label}</span>
                           </span>
                           <span className="block truncate font-mono text-xs text-muted-foreground">{p.url}</span>
+                          {p.ssh && (
+                            <span
+                              className="mt-0.5 inline-flex w-fit items-center gap-1 rounded-full border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
+                              title={`设备级 SSH:${p.ssh.user ? `${p.ssh.user}@` : ""}${p.ssh.host}:${p.ssh.port}`}
+                              data-testid={`engine-device-ssh-chip-${p.url}`}
+                            >SSH {p.ssh.host}:{p.ssh.port}</span>
+                          )}
                         </span>
                       </button>
                       {isActive && (
@@ -969,7 +1011,14 @@ export function McpSettingsTab() {
                           size="sm" variant="ghost" className="h-7 px-2 text-xs"
                           onClick={() => {
                             setEditingDevice(p);
-                            setEditDraft({ label: p.label, url: p.url });
+                            setEditDraft({
+                              label: p.label,
+                              url: p.url,
+                              sshHost: p.ssh?.host ?? "",
+                              sshPort: p.ssh ? String(p.ssh.port) : "",
+                              sshUser: p.ssh?.user ?? "",
+                              sshKey: p.ssh?.keyPath ?? "",
+                            });
                           }}
                           data-testid="engine-device-edit"
                           data-url={p.url}
@@ -999,7 +1048,7 @@ export function McpSettingsTab() {
                 variant="outline" size="sm" className="self-start"
                 onClick={() => {
                   setAddingDevice(true);
-                  setAddDraft({ label: "", url: "" });
+                  setAddDraft({ label: "", url: "", sshHost: "", sshPort: "", sshUser: "", sshKey: "" });
                   setRemoteTest({ status: "idle" });
                 }}
                 disabled={remoteSaving || remoteProbing}
@@ -1031,6 +1080,35 @@ export function McpSettingsTab() {
                       data-testid="engine-device-add-url"
                       spellCheck={false}
                     />
+                  </div>
+                  <div className="space-y-2 rounded-lg border border-border/60 bg-muted/30 p-2.5">
+                    <p className="text-xs font-medium text-muted-foreground">SSH 连接(选填,多机各配各的;凭据随设备走)</p>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="engine-device-ssh-host" className="text-xs">SSH 主机(留空=暂不配 SSH)</Label>
+                      <Input id="engine-device-ssh-host" value={addDraft.sshHost}
+                        onChange={(e) => setAddDraft((prev) => ({ ...prev, sshHost: e.target.value }))}
+                        placeholder="如 192.168.0.101" data-testid="engine-device-add-ssh-host" spellCheck={false} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="engine-device-ssh-port" className="text-xs">端口</Label>
+                        <Input id="engine-device-ssh-port" value={addDraft.sshPort}
+                          onChange={(e) => setAddDraft((prev) => ({ ...prev, sshPort: e.target.value }))}
+                          placeholder="22" inputMode="numeric" data-testid="engine-device-add-ssh-port" spellCheck={false} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="engine-device-ssh-user" className="text-xs">用户</Label>
+                        <Input id="engine-device-ssh-user" value={addDraft.sshUser}
+                          onChange={(e) => setAddDraft((prev) => ({ ...prev, sshUser: e.target.value }))}
+                          placeholder="如 zbj" data-testid="engine-device-add-ssh-user" spellCheck={false} />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="engine-device-ssh-key" className="text-xs">密钥路径(留空=自动探测)</Label>
+                      <Input id="engine-device-ssh-key" value={addDraft.sshKey}
+                        onChange={(e) => setAddDraft((prev) => ({ ...prev, sshKey: e.target.value }))}
+                        placeholder="~/.ssh/id_ed25519" data-testid="engine-device-add-ssh-key" spellCheck={false} />
+                    </div>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1083,6 +1161,35 @@ export function McpSettingsTab() {
                       data-testid="engine-device-edit-url"
                       spellCheck={false}
                     />
+                  </div>
+                  <div className="space-y-2 rounded-lg border border-border/60 bg-muted/30 p-2.5">
+                    <p className="text-xs font-medium text-muted-foreground">SSH 连接(主机清空=解除设备级凭据,回全局单份)</p>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="engine-device-edit-ssh-host" className="text-xs">SSH 主机</Label>
+                      <Input id="engine-device-edit-ssh-host" value={editDraft.sshHost}
+                        onChange={(e) => setEditDraft((prev) => ({ ...prev, sshHost: e.target.value }))}
+                        data-testid="engine-device-edit-ssh-host" spellCheck={false} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="engine-device-edit-ssh-port" className="text-xs">端口</Label>
+                        <Input id="engine-device-edit-ssh-port" value={editDraft.sshPort}
+                          onChange={(e) => setEditDraft((prev) => ({ ...prev, sshPort: e.target.value }))}
+                          inputMode="numeric" data-testid="engine-device-edit-ssh-port" spellCheck={false} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="engine-device-edit-ssh-user" className="text-xs">用户</Label>
+                        <Input id="engine-device-edit-ssh-user" value={editDraft.sshUser}
+                          onChange={(e) => setEditDraft((prev) => ({ ...prev, sshUser: e.target.value }))}
+                          data-testid="engine-device-edit-ssh-user" spellCheck={false} />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="engine-device-edit-ssh-key" className="text-xs">密钥路径</Label>
+                      <Input id="engine-device-edit-ssh-key" value={editDraft.sshKey}
+                        onChange={(e) => setEditDraft((prev) => ({ ...prev, sshKey: e.target.value }))}
+                        data-testid="engine-device-edit-ssh-key" spellCheck={false} />
+                    </div>
                   </div>
                 </div>
                 <DialogFooter>

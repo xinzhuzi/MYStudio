@@ -770,6 +770,105 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
     expect((JSON.parse(String(post?.[1]?.body)) as { url?: string }).url).toBe("http://192.168.0.101:17000");
   });
 
+  // ── 1103 device-level-ssh:多机 SSH 凭据随设备走 ──
+  const deviceSshMock = (current0: string | null) => {
+    const state = { current: current0, sshPosted: null as Record<string, unknown> | null };
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      const u = String(url);
+      if (u.includes("/comfy/engine/remote")) {
+        if (init?.method === "POST") state.current = (JSON.parse(String(init.body)) as { url?: string }).url || null;
+        return Promise.resolve({
+          ok: true, status: 200,
+          json: () => Promise.resolve(
+            state.current
+              ? { url: state.current, effective: state.current, source: "settings" }
+              : { url: null, effective: "http://127.0.0.1:17598", source: "fallback" },
+          ),
+        } as unknown as Response);
+      }
+      if (u.includes("/comfy/ssh/config") && init?.method === "POST") {
+        state.sshPosted = JSON.parse(String(init.body)) as Record<string, unknown>;
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ...state.sshPosted }) } as unknown as Response);
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) } as unknown as Response);
+    });
+    return { fetchMock, state };
+  };
+
+  it("device-ssh ①:设备带 SSH 档→激活即双写(引擎+SSH 凭据落章)", async () => {
+    useEnginePresetsStore.setState({
+      presets: [{ url: "http://192.168.0.101:17000", label: "A机", lastUsedAt: 1, ssh: { host: "192.168.0.101", port: 22, user: "zbj", keyPath: "" } }],
+    });
+    const { fetchMock, state } = deviceSshMock(null);
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-device-local-select").getAttribute("aria-checked")).toBe("true");
+    });
+    fireEvent.click(screen.getByTestId("engine-device-remote-select"));
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-device-remote-select").getAttribute("aria-checked")).toBe("true");
+    });
+    await waitFor(() => {
+      expect(state.sshPosted).not.toBeNull();
+    });
+    expect((state.sshPosted as Record<string, unknown>).host).toBe("192.168.0.101");
+    expect((state.sshPosted as Record<string, unknown>).user).toBe("zbj");
+  });
+
+  it("device-ssh ②:设备未配 SSH→激活只写引擎,不动全局 SSH 配置", async () => {
+    useEnginePresetsStore.setState({
+      presets: [{ url: "http://192.168.0.102:17000", label: "B机", lastUsedAt: 1 }],
+    });
+    const { fetchMock } = deviceSshMock(null);
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-device-local-select").getAttribute("aria-checked")).toBe("true");
+    });
+    fireEvent.click(screen.getByTestId("engine-device-remote-select"));
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-device-remote-select").getAttribute("aria-checked")).toBe("true");
+    });
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("/comfy/ssh/config"))).toBe(false);
+  });
+
+  it("device-ssh ③:SSH 区保存→凭据回写进当前生效设备(切走再切回随行)", async () => {
+    useEnginePresetsStore.setState({
+      presets: [{ url: "http://192.168.0.101:17000", label: "A机", lastUsedAt: 1 }],
+    });
+    const { fetchMock } = deviceSshMock("http://192.168.0.101:17000");
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-device-remote-select").getAttribute("aria-checked")).toBe("true");
+    });
+    fireEvent.click(screen.getByTestId("ssh-save"));
+    await waitFor(() => {
+      expect(useEnginePresetsStore.getState().presets[0]?.ssh?.host).toBe("192.168.0.101");
+    });
+    expect(useEnginePresetsStore.getState().presets[0]?.ssh?.port).toBe(22);
+  });
+
+  it("device-ssh ④:编辑 dialog 填 SSH→设备档落块;主机清空=解除设备级凭据", async () => {
+    useEnginePresetsStore.setState({
+      presets: [{ url: "http://192.168.0.101:17000", label: "A机", lastUsedAt: 1 }],
+    });
+    const { fetchMock } = deviceSshMock("http://192.168.0.101:17000");
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    fireEvent.click(screen.getByTestId("engine-device-edit"));
+    fireEvent.change(screen.getByTestId("engine-device-edit-ssh-host"), { target: { value: "10.0.0.9" } });
+    fireEvent.change(screen.getByTestId("engine-device-edit-ssh-port"), { target: { value: "2222" } });
+    fireEvent.click(screen.getByTestId("engine-device-edit-save"));
+    expect(useEnginePresetsStore.getState().presets[0]?.ssh).toEqual({ host: "10.0.0.9", port: 2222, user: "", keyPath: "" });
+    // 再编辑:清空主机=解除
+    fireEvent.click(screen.getByTestId("engine-device-edit"));
+    fireEvent.change(screen.getByTestId("engine-device-edit-ssh-host"), { target: { value: "" } });
+    fireEvent.click(screen.getByTestId("engine-device-edit-save"));
+    expect(useEnginePresetsStore.getState().presets[0]?.ssh).toBeUndefined();
+  });
+
   it("R2 族横幅:默认空=自动回落 qi21 展示;组名=引擎与产线", () => {
     render(<McpSettingsTab />);
     expect(screen.getByText("引擎与产线")).toBeTruthy();
