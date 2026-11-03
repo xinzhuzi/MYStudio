@@ -628,6 +628,8 @@ export function McpSettingsTab() {
   // R1 生效判定(1102→1103 devices-list):地址指向远端=有远端设备生效,否则本机
   const remoteActive = remoteEngine?.source === "settings" && Boolean(remoteEngine.url);
   const activeRemoteUrl = remoteActive ? normalizeEngineUrl(remoteEngine?.url ?? "") : "";
+  // 当前生效设备档(1103 device-level-ssh R4 补:SSH 区标注与表单跟随的依据)
+  const activeDevice = enginePresets.find((p) => p.url === activeRemoteUrl) ?? null;
 
   // ── R2 模型族(1102 控制中心):真源=defaultImageModel;切换即切产线(Q1) ──
   const defaultImageModel = useAppSettingsStore((s) => s.imageGenerationSettings.defaultImageModel);
@@ -679,6 +681,14 @@ export function McpSettingsTab() {
     void saveRemoteEngine(url);
     const device = url ? enginePresets.find((entry) => entry.url === url) : undefined;
     if (device?.ssh) {
+      // 表单同步显示该机凭据(所见=所连;1103 追修半截②)
+      setSshDraft((prev) => ({
+        ...prev,
+        host: device.ssh!.host,
+        port: String(device.ssh!.port),
+        user: device.ssh!.user,
+        keyPath: device.ssh!.keyPath,
+      }));
       void setComfySshConfig({
         host: device.ssh.host,
         port: device.ssh.port,
@@ -730,6 +740,16 @@ export function McpSettingsTab() {
     const ssh = sshBlockOf(editDraft); // host 清空=明确解除设备级凭据(回全局单份服役)
     if (newUrl === oldUrl) {
       enginePresetSaveDevice({ url: oldUrl, label, ssh });
+      // 半截①修:改的正是生效中设备的 SSH→立即落章生效(不等切走切回);
+      // ssh=undefined(解除设备级)=不碰全局配置(全局单份继续服役)
+      if (ssh && remoteActive && oldUrl === activeRemoteUrl) {
+        setSshDraft((prev) => ({ ...prev, host: ssh!.host, port: String(ssh!.port), user: ssh!.user, keyPath: ssh!.keyPath }));
+        void setComfySshConfig({ ...ssh, tunnelEnabled: sshDraft.tunnelEnabled })
+          .then(() => void refreshSshStatusWithSettle())
+          .catch((error: unknown) => {
+            toast.error(`生效设备 SSH 落章失败:${error instanceof Error ? error.message : "未知错误"}`);
+          });
+      }
     } else {
       const wasActive = remoteActive && normalizeEngineUrl(remoteEngine?.url ?? "") === oldUrl;
       enginePresetRemove(oldUrl);
@@ -1250,6 +1270,14 @@ export function McpSettingsTab() {
           onToggle={toggleSectionCollapsed}
         >
           <div className="space-y-3 px-5 py-3" data-testid="ssh-remote-section">
+            {/* R4 补(1103 半截③):此区编辑/保存的对象=当前生效设备(或全局单份) */}
+            <p className="text-xs text-muted-foreground" data-testid="ssh-active-device">
+              {remoteActive && activeDevice
+                ? `正在生效:${activeDevice.label} —— 本区保存的凭据会回写进该设备`
+                : remoteActive
+                  ? "正在生效的远端地址未入设备列表——本区配置为全局单份"
+                  : "本机模式(无远端生效)——本区配置为全局单份,设备激活时随档案落章"}
+            </p>
             {/* C3:依赖未装(paramiko 缺失)→ 指路 Python 运行环境页(本地配置) */}
             {sshNeedsRuntime && (
               <p className="text-xs leading-5 text-warning" data-testid="ssh-needs-runtime">

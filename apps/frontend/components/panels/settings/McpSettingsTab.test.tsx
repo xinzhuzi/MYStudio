@@ -850,6 +850,65 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
     expect(useEnginePresetsStore.getState().presets[0]?.ssh?.port).toBe(22);
   });
 
+  it("device-ssh ⑤(半截①修):编辑生效中设备的 SSH→立即落章 POST(不等切走切回)", async () => {
+    useEnginePresetsStore.setState({
+      presets: [{ url: "http://192.168.0.101:17000", label: "A机", lastUsedAt: 1 }],
+    });
+    const { fetchMock, state } = deviceSshMock("http://192.168.0.101:17000");
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-device-remote-select").getAttribute("aria-checked")).toBe("true");
+    });
+    fireEvent.click(screen.getByTestId("engine-device-edit"));
+    fireEvent.change(screen.getByTestId("engine-device-edit-ssh-host"), { target: { value: "10.0.0.9" } });
+    fireEvent.change(screen.getByTestId("engine-device-edit-ssh-user"), { target: { value: "ops" } });
+    fireEvent.click(screen.getByTestId("engine-device-edit-save"));
+    await waitFor(() => {
+      expect(state.sshPosted).not.toBeNull();
+    });
+    expect((state.sshPosted as Record<string, unknown>).host).toBe("10.0.0.9");
+    expect((state.sshPosted as Record<string, unknown>).user).toBe("ops");
+    // 表单同步显新凭据(所见=所连)
+    expect((screen.getByTestId("ssh-host") as HTMLInputElement).value).toBe("10.0.0.9");
+  });
+
+  it("device-ssh ⑥(半截②修):切换设备→SSH 表单字段随该机档案刷新", async () => {
+    useEnginePresetsStore.setState({
+      presets: [
+        { url: "http://192.168.0.101:17000", label: "A机", lastUsedAt: 2, ssh: { host: "192.168.0.101", port: 22, user: "zbj", keyPath: "" } },
+        { url: "http://192.168.0.102:17000", label: "B机", lastUsedAt: 1, ssh: { host: "192.168.0.102", port: 2222, user: "ops", keyPath: "/Users/ops/.ssh/id" } },
+      ],
+    });
+    const { fetchMock } = deviceSshMock(null);
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("engine-device-local-select").getAttribute("aria-checked")).toBe("true");
+    });
+    // 点 B 机行(getAllByTestId 取第二台)
+    fireEvent.click(screen.getAllByTestId("engine-device-remote-select")[1]!);
+    await waitFor(() => {
+      expect((screen.getByTestId("ssh-host") as HTMLInputElement).value).toBe("192.168.0.102");
+    });
+    expect((screen.getByTestId("ssh-port") as HTMLInputElement).value).toBe("2222");
+    expect((screen.getByTestId("ssh-user") as HTMLInputElement).value).toBe("ops");
+    expect((screen.getByTestId("ssh-key-path") as HTMLInputElement).value).toBe("/Users/ops/.ssh/id");
+  });
+
+  it("device-ssh ⑦(半截③修):SSH 区顶部标注当前生效设备名;本机模式=全局单份口径", async () => {
+    useEnginePresetsStore.setState({
+      presets: [{ url: "http://192.168.0.101:17000", label: "Windows 主力", lastUsedAt: 1 }],
+    });
+    const { fetchMock } = deviceSshMock("http://192.168.0.101:17000");
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("ssh-active-device").textContent).toContain("正在生效:Windows 主力");
+    });
+    expect(screen.getByTestId("ssh-active-device").textContent).toContain("回写进该设备");
+  });
+
   it("1103 追修:保存后状态回读首拍断开(keeper 重连窗口)→沉降轮询终显已连接", async () => {
     // 竞时复刻:/comfy/ssh/status 首两次回 connected:false(重连窗口),第三次回 true
     let statusHits = 0;
