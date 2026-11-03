@@ -312,10 +312,14 @@ phase_b() {
     fi
   fi
 
-  # B7: 令牌同步(11-03 S4 远端代理鉴权修)——双机装机令牌各异,Mac 代理远端
-  # sidecar 持本机令牌必 403。从 Windows App 持久化的 controlToken(config.json)
-  # 读出,写回 Mac comfyui 家 remote-image-token.txt(server.py 凭据链最先读它)。
-  # 找不到(App 未首用过 image-gen/路径变体)=跳过不阻断,log 给手动配法。
+  # B7: 令牌同步(SSH 模块自愈的降级兜底;11-03 Q4/R5 口径)——主路径是
+  # sidecar 内建 SSH 模块 SFTP 自动发现并刷新同一文件(remote_ssh/service.py
+  # refresh_remote_token);本步兜底覆盖 SSH 未配置/paramiko 未装/免密信任
+  # 不可用的环境。双机装机令牌各异,Mac 代理远端 sidecar 持本机令牌必 403:
+  # 从 Windows App 持久化的 controlToken(config.json)读出,写回 Mac comfyui
+  # 家 remote-image-token.txt(server.py 凭据链最先读它;与模块原子写同内容
+  # last-writer-wins 无冲突 C4)。找不到(App 未首用过 image-gen/路径变体)
+  # =跳过不阻断,log 给手动配法。
   if ! dry "令牌同步: Windows controlToken → Mac remote-image-token.txt"; then
     log "Syncing remote sidecar token (B7)..."
     local win_token

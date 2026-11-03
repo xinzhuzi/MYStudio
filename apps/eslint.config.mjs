@@ -72,6 +72,10 @@ export default [
       // 「File ignored」红——再包含后零规则段适用(全规则段恒 tsFiles 收窄),实 lint 零告警。
       '!frontend/lib/studio/asset-type-shot.test.ts',
       '!eslint.config.mjs',
+      // 11-03 sidecar-ssh-module(循例追加):门禁改动清单含 McpSettingsTab.test.tsx,
+      // 同款「显式传入被忽略文件 → File ignored warning → --max-warnings 0 红」;
+      // 再包含后内容已过全规则(--no-ignore 实测零告警)。
+      '!frontend/components/panels/settings/McpSettingsTab.test.tsx',
     ],
   },
   // 外来预设统一收窄到 ts/tsx(预设自身无 files 键 = 全文件适用,会波及 js/mjs/cjs)
