@@ -338,6 +338,10 @@ export interface ComfyCanvasStudioProps {
 
 export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarActions, stageFlowNodes }: ComfyCanvasStudioProps = {}) {
   const webviewRef = useRef<WebviewElement | null>(null);
+  // 1105 D3 走查 UX 补:webview 冷载(远端 20-30s)此前全程无反馈=白屏假死。
+  // 覆盖层随 did-start-loading 出,ComfyUI 根节点探针确认 UI 真渲染后撤;
+  // 90s 硬超时兜底(探针失灵也绝不把用户困在菊花后面)。
+  const [webviewLoading, setWebviewLoading] = useState(true);
   // attach 闭包在首次挂载时固化(防重监听),prop 走 ref 保持读取新鲜值
   const autoOpenRef = useRef(autoOpenOverview);
   autoOpenRef.current = autoOpenOverview;
@@ -380,6 +384,29 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
       };
       node.addEventListener("dom-ready", inject);
       node.addEventListener("did-finish-load", inject);
+      // 1105 D3 走查 UX:装载覆盖层生命周期——起于 did-start-loading;撤于
+      // did-stop-loading 后的根节点探针(ComfyUI 是 JS 应用,资源停≠界面就绪:
+      // #comfy-ui/#graph-canvas 真渲染才算数),1.5s 一拍最多 30s 让步撤层。
+      node.addEventListener("did-start-loading", () => setWebviewLoading(true));
+      node.addEventListener("did-stop-loading", () => {
+        const startedAt = Date.now();
+        const tick = async () => {
+          let uiReady = false;
+          try {
+            uiReady = Boolean(await node.executeJavaScript?.(
+              "!!(document.querySelector('#comfy-ui, #graph-canvas, .comfyui-body'))",
+            ));
+          } catch {
+            uiReady = false;
+          }
+          if (uiReady || Date.now() - startedAt > 30_000) {
+            setWebviewLoading(false);
+            return;
+          }
+          setTimeout(tick, 1500);
+        };
+        void tick();
+      });
     }
   };
   // client 引用必须稳定(传入 hook):否则 hook 内 getComfyEngineClient() 每次
@@ -578,6 +605,13 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
   const src = running && engineBase
     ? `${engineBase}/${myScope ? `?myScope=${myScope}` : ""}`
     : null;
+  // 1105 D3:src 重建(远端/本机切换、引擎复活保鲜重挂)→ 覆盖层重新武装;
+  // 90s 硬超时=探针失灵时的最后兜底(宁早撤勿困死)。
+  useEffect(() => {
+    setWebviewLoading(true);
+    const hardFallback = setTimeout(() => setWebviewLoading(false), 90_000);
+    return () => clearTimeout(hardFallback);
+  }, [src]);
   // 09-22 端口无关 scope 通道:URL 参数只在首载一瞬可靠(ComfyUI SPA 打开
   // 工作流即改写丢参),引擎侧 localStorage 兜底又按 origin(=引擎端口)隔离
   // ——引擎端口漂移(实录 17000→17001→17002)后新 origin 的 my-scope 种子
@@ -779,8 +813,21 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
   // 09-10 用户裁定:状态条与功能按钮(存量迁移/刷新)整块退役——画布即全部,
   // 端口/说明不进布局;存量迁移入口仍在 ComfyCanvasSwap 头部条,刷新=重进页即重探。
   return (
-    <div className="relative flex h-full w-full min-h-0 min-w-0 flex-col" data-comfy-canvas-live>
-      <webview
+    <div className="relative h-full w-full min-h-0 min-w-0" data-comfy-canvas-frame>
+      {webviewLoading && (
+        <div
+          className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background"
+          data-comfy-canvas-loading
+        >
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden />
+          <p className="text-sm font-medium text-foreground">正在加载 ComfyUI 界面…</p>
+          <p className="text-xs text-muted-foreground">
+            连接引擎冷启动约 20-30 秒，界面就绪后自动进入
+          </p>
+        </div>
+      )}
+      <div className="flex h-full w-full min-h-0 min-w-0 flex-col" data-comfy-canvas-live>
+        <webview
         ref={attachWebview}
         src={src ?? "about:blank"}
         // 09-12 模块分离(用户裁定):大模型模块用独立持久会话——ComfyUI
@@ -795,6 +842,7 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
         allowpopups={false}
         data-comfy-canvas-webview
       />
+      </div>
     </div>
   );
 }

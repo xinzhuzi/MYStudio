@@ -410,6 +410,38 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       .toContain("myScope=workflow");
   });
 
+  it("1105 D3:webview 冷载全程有装载覆盖层,ComfyUI 根节点渲染确认后撤(不再白屏假死)", async () => {
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({
+      installed: true,
+      state: "ready",
+      serviceRunning: true,
+      port: 17001,
+    });
+    render(<ComfyCanvasStudio />);
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
+      { timeout: 3000 },
+    );
+    // 冷载窗口:覆盖层在场并带预期管理(20-30s 冷启告知)
+    expect(document.querySelector("[data-comfy-canvas-loading]")).toBeTruthy();
+    expect(screen.getByText(/正在加载 ComfyUI 界面/)).toBeTruthy();
+    expect(screen.getByText(/20-30 秒/)).toBeTruthy();
+    // did-stop-loading + 根节点探针回 true(#comfy-ui 已渲染)→ 覆盖层撤
+    const wv = document.querySelector("[data-comfy-canvas-webview]") as HTMLElement & {
+      executeJavaScript?: (code: string) => Promise<unknown>;
+    };
+    wv.executeJavaScript = vi.fn(async () => true);
+    act(() => {
+      wv.dispatchEvent(new Event("did-stop-loading"));
+    });
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-loading]")).toBeNull(),
+      { timeout: 3000 },
+    );
+    // webview 本体不受覆盖层生命周期影响
+    expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy();
+  });
+
   it("模块分离会话隔离(09-12):models 域 webview 独立 partition,workflow 域不设", async () => {
     (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({
       installed: true,
