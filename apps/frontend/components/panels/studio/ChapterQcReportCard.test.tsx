@@ -17,6 +17,7 @@ vi.mock("@/lib/studio/qc/vision-preflight-runner", () => ({
 }));
 
 import { ChapterQcReportCard } from "./ChapterQcReportCard";
+import { dimensionSpec } from "@rendering/plugins/videoqc/chapter-qc-registry";
 
 function report(
   preflight?: { checked: number; passed: number; failed: number; skipped: number; finishedAt: number },
@@ -171,36 +172,38 @@ describe("ChapterQcReportCard AC4 vision preflight", () => {
 });
 
 function boardReport(humanReview?: { fullWatched: boolean; audioListened: boolean; reviewer: string; at: number }) {
-  const rows = [
-    { requirementId: "no-blackout", label: "无异常黑场", verdict: "pass" as const, watchedCodes: [], evidenceCodes: [] },
-    {
-      requirementId: "real-motion",
-      label: "画面有真动态(伪动态门)",
-      verdict: "unverified" as const,
+  // 行的 label/category/evaluator/weight 一律从注册表取:UI 分组按真源渲染,夹具不手抄
+  const fromRegistry = (requirementId: string, row: Record<string, unknown>) => {
+    const spec = dimensionSpec(requirementId)!;
+    return {
+      requirementId,
+      label: spec.label,
       watchedCodes: [],
       evidenceCodes: [],
+      category: spec.category,
+      evaluator: spec.evaluator,
+      weight: spec.weight,
+      ...row,
+    };
+  };
+  const rows = [
+    fromRegistry("no-blackout", { verdict: "pass" as const }),
+    fromRegistry("real-motion", {
+      verdict: "unverified" as const,
       missing: ["阈值未标定(先记不判)"],
       note: "已记录 TI 均值 9.9",
-    },
+    }),
     humanReview
-      ? {
-          requirementId: "human-full-watch",
-          label: "人眼全速看全片 + 人耳听全轨",
+      ? fromRegistry("human-full-watch", {
           verdict: humanReview.fullWatched && humanReview.audioListened ? ("pass" as const) : ("unverified" as const),
-          watchedCodes: [],
-          evidenceCodes: [],
           ...(humanReview.fullWatched && humanReview.audioListened
             ? { note: `复核人 ${humanReview.reviewer}` }
-            : { missing: ["世事 的复核未确认「人耳听完全轨」"] }),
-        }
-      : {
-          requirementId: "human-full-watch",
-          label: "人眼全速看全片 + 人耳听全轨",
+            : { missing: [`世事 的复核未确认「人耳听完全轨」`] }),
+        })
+      : fromRegistry("human-full-watch", {
           verdict: "unverified" as const,
-          watchedCodes: [],
-          evidenceCodes: [],
           missing: ["尚无人工复核回写:须人眼全速看全片 + 人耳听全轨"],
-        },
+        }),
   ];
   return { ...report(undefined, { createdAt: 100 }), requirements: rows, ...(humanReview ? { humanReview } : {}) };
 }
@@ -283,5 +286,71 @@ describe("ChapterQcReportCard 三态验收板与人工复核", () => {
     await screen.findByText("四层检查无异常发现。");
     expect(screen.queryByText("三态验收")).toBeNull();
     expect(screen.queryByRole("button", { name: "提交复核" })).toBeNull();
+  });
+
+  it("板按注册表分组:组标题走注册表顺序,行带评价器与权重;报告里的三行不会自成一列", async () => {
+    Object.defineProperty(window, "chapterQc", {
+      configurable: true,
+      value: { getReport: vi.fn(async () => boardReport()), run: vi.fn(), submitSemantic: vi.fn(), submitVisionPreflight: vi.fn(), onReportUpdated: vi.fn(() => vi.fn()) },
+    });
+    render(<ChapterQcReportCard projectId="p1" chapterId="c1" />);
+    await screen.findByText("三态验收");
+
+    const headers = screen.getAllByText(/^(画面质量|动态|人证)$/).map((node) => node.textContent);
+    expect(headers).toEqual(["画面质量", "动态", "人证"]);
+    // 行右侧:评价器显示名 + 注册表权重
+    expect(screen.getAllByText("自研确定性信号").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("人证回写").length).toBe(1);
+    const blackoutRow = screen.getByText("无异常黑场").closest("div");
+    expect(blackoutRow?.lastElementChild?.textContent).toBe("5");
+    // 报告缺行时不硬凑:注册表 17 行只渲染报告里存在的那几行
+    expect(screen.queryByText("成片时长与计划对齐")).toBeNull();
+  });
+
+  it("骨干三件各自一行:供给计数 / 逐镜期望 / 标定进度,注册表外的行单独点名", async () => {
+    const backbone = {
+      ...boardReport(),
+      dimensionScore: { score: 9.0, weightTotal: 100, weightPassed: 9, deducted: [{ requirementId: "real-motion", weight: 5, reason: "unverified" as const }] },
+      supplyChecks: {
+        checks: [
+          { checkId: "media-readable", label: "成片可解(ffprobe 出时长)", verdict: "ok" as const, detail: "8.00s / 30.00fps" },
+          { checkId: "sidecar-vad", label: "Silero VAD 侧车可用", verdict: "gap" as const, detail: "语音段退回 silencedetect 补集" },
+          { checkId: "subtitle-material", label: "台词镜有字幕物料", verdict: "blocked" as const, detail: "1 镜声明台词却零字幕 cue" },
+        ],
+        gaps: 1,
+        blocked: 1,
+      },
+      expectations: {
+        shots: [{ shotId: "sb-1", ordinal: 1, assertions: { motion: "expected" } }],
+        coverage: [{ key: "motion", expected: 1, forbidden: 0, unknown: 0 }],
+      },
+      calibration: {
+        seriesId: "p1",
+        caseCount: 0,
+        baselines: [
+          // 画带凭别章 2 条、本系列已攒 7 条:两个数是两回事,UI 必须分开显示
+          { signalId: "motion.tiMean", mean: 6, sigma: 0.6, sampleCount: 2, seriesSampleCount: 7 },
+        ],
+      },
+      requirements: [
+        ...boardReport().requirements,
+        { requirementId: "ghost-row", label: "注册表外的历史行", verdict: "fail" as const, watchedCodes: [], evidenceCodes: ["x"] },
+      ],
+    };
+    Object.defineProperty(window, "chapterQc", {
+      configurable: true,
+      value: { getReport: vi.fn(async () => backbone), run: vi.fn(), submitSemantic: vi.fn(), submitVisionPreflight: vi.fn(), onReportUpdated: vi.fn(() => vi.fn()) },
+    });
+    render(<ChapterQcReportCard projectId="p1" chapterId="c1" />);
+    await screen.findByText("三态验收");
+
+    expect(screen.getByText("计分 9")).toBeTruthy();
+    expect(screen.getByText("供给 3 项:缺料 1 · 硬矛盾 1")).toBeTruthy();
+    expect(screen.getByText("逐镜期望 1 镜 · 未声明 0 项")).toBeTruthy();
+    expect(screen.getByText("信号标定 画带凭 别章最高 2/5 条(本系列已攒 7 条)· 打标集 0 条")).toBeTruthy();
+    const calibTip = screen.getByTitle(/画带剔本章/);
+    expect(calibTip.getAttribute("title")).toContain("画带凭别章 2 条,本系列已攒 7 条,含本章");
+    expect(calibTip.getAttribute("title")).toContain("本仓还没有打标写入口");
+    expect(screen.getByText(/^注册表外 1 行:/)).toBeTruthy();
   });
 });

@@ -42,6 +42,20 @@ VIDEO_QC_MODELS: dict[str, VideoQcModelSpec] = {
         "size_mb": 41,
         "license": "S-Lab License 1.0 (non-commercial; attribution required)",
     },
+    # 1102 吸收件①:人脸可判读度。YuNet 是 OpenCV 官方 Apache-2.0 件,托管 Python 的
+    # cv2 5.0.0 已带 FaceDetectorYN 但**不再自带任何模型文件**(实测 data 目录只剩 __init__.py),
+    # 所以权重必须走这条下载路,不能假设 import cv2 就能检。
+    "yunet-face": {
+        "label": "YuNet 人脸检测",
+        "description": "OpenCV Zoo 人脸检测器(232KB,6 项输出含 5 个关键点),"
+        "只出「检出率/脸尺寸/表观漂移」证据,不做崩坏判定",
+        "file": "face_detection_yunet.onnx",
+        "url": "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
+        "sources": (),
+        "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
+        "size_mb": 1,
+        "license": "Apache-2.0 (OpenCV Zoo)",
+    },
 }
 
 DEFAULT_VIDEO_QC_MODEL = "dover-mobile"

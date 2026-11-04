@@ -14,6 +14,16 @@ import {
   type VisionPreflightDecisionInput,
   type VisionPreflightFrameInput,
 } from "@/lib/studio/qc/vision-preflight-runner";
+import {
+  CHAPTER_QC_DIMENSIONS,
+  CHAPTER_QC_EVALUATOR_LABELS,
+  groupDimensionsByCategory,
+} from "@rendering/plugins/videoqc/chapter-qc-registry";
+import type {
+  ChapterQcDimensionCategory,
+  ChapterQcEvaluatorKind,
+} from "@rendering/plugins/videoqc/chapter-qc-types";
+import { QC_CALIBRATION_MIN_SAMPLES } from "@rendering/plugins/videoqc/chapter-qc-types";
 
 interface ChapterQcFinding {
   code: string;
@@ -31,6 +41,10 @@ interface ChapterQcRequirement {
   evidenceCodes: string[];
   missing?: string[];
   note?: string;
+  category?: ChapterQcDimensionCategory;
+  evaluator?: ChapterQcEvaluatorKind;
+  weight?: number;
+  failingShotOrdinals?: number[];
 }
 
 interface ChapterQcHumanReview {
@@ -69,6 +83,17 @@ interface ChapterQcReport {
     };
   };
   requirements?: ChapterQcRequirement[];
+  /** 骨干③:加权维度分(pass 才计分;不影响放行口径) */
+  dimensionScore?: { score: number; weightTotal: number; weightPassed: number; deducted: Array<{ requirementId: string; weight: number; reason: "unverified" | "fail" }> };
+  /** 骨干⓪:供给完整性自检 */
+  supplyChecks?: { checks: Array<{ checkId: string; label: string; verdict: "ok" | "gap" | "blocked"; detail?: string }>; gaps: number; blocked: number };
+  /** 骨干②:逐镜期望断言集 */
+  expectations?: {
+    shots: Array<{ shotId: string; ordinal: number; assertions: Record<string, string> }>;
+    coverage: Array<{ key: string; expected: number; forbidden: number; unknown: number }>;
+  };
+  /** 骨干③:参与本轮判定的信号基线 */
+  calibration?: { seriesId: string; caseCount: number; baselines: Array<{ signalId: string; mean: number; sigma: number; sampleCount: number; seriesSampleCount?: number }> };
   humanReview?: ChapterQcHumanReview;
 }
 
@@ -351,6 +376,43 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
   const failedCount = requirements.filter((item) => item.verdict === "fail").length;
   const unverifiedCount = requirements.length - passedCount - failedCount;
   const releasable = requirements.length > 0 && failedCount === 0 && unverifiedCount === 0;
+  const dimensionScore = report?.dimensionScore;
+  const supply = report?.supplyChecks;
+  const expectations = report?.expectations;
+  const calibration = report?.calibration;
+  /** 板按注册表分组渲染:行的顺序/类别/权重全来自真源,报告只提供三态。 */
+  const rowsById = new Map(requirements.map((item) => [item.requirementId, item]));
+  const boardGroups = groupDimensionsByCategory()
+    .map((group) => ({
+      ...group,
+      rows: group.specs
+        .map((spec) => ({ spec, row: rowsById.get(spec.requirementId) }))
+        .filter((item) => item.row !== undefined),
+    }))
+    // 报告没这一组的行(旧报告/层未跑)就不留空标题
+    .filter((group) => group.rows.length > 0);
+  const ungrouped = requirements.filter((item) => !CHAPTER_QC_DIMENSIONS.some((spec) => spec.requirementId === item.requirementId));
+  // 两个数不能混:sampleCount 是画带凭的别章样本(判定门槛),seriesSampleCount 是本系列落库总数(含本章)。
+  // 只显示前者会把「攒了 1 条」读成「没攒」。
+  const maxCalibrationSamples = calibration?.baselines.reduce((max, item) => Math.max(max, item.sampleCount), 0) ?? 0;
+  const maxSeriesSamples = calibration?.baselines.reduce(
+    (max, item) => Math.max(max, item.seriesSampleCount ?? item.sampleCount),
+    0,
+  ) ?? 0;
+  /** 攒了样本却没有行消费它的信号(只攒不判)——摆出来,免得注册表外悄悄长出一片死字段。 */
+  // Set 按字符串比:报告里的 signalId 是落库字段(可能带着本仓还不认的旧名),不能拿闭集类型去卡它。
+  const boundSignals = new Set<string>(CHAPTER_QC_DIMENSIONS.flatMap((spec) => spec.calibrationSignals ?? []));
+  const unboundSignals = (calibration?.baselines ?? [])
+    .map((item) => item.signalId)
+    .filter((signalId) => !boundSignals.has(signalId));
+  /** 注册表有、这份报告没有的行:旧报告的缺行不许静默当「没这回事」。 */
+  const absentRowIds = CHAPTER_QC_DIMENSIONS
+    .filter((spec) => !rowsById.has(spec.requirementId))
+    .map((spec) => spec.requirementId);
+  const supplyDetail = supply?.checks
+    .filter((check) => check.verdict !== "ok")
+    .map((check) => `${check.label}:${check.verdict === "blocked" ? "硬矛盾" : "缺料"}${check.detail ? ` — ${check.detail}` : ""}`)
+    .join("\n");
   const humanReview = report?.humanReview;
   const visionChipStatus = visionPreflight
     ? visionPreflight.failed > 0
@@ -453,33 +515,115 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
                 <span className="text-muted-foreground">
                   通过 {passedCount} · 越限 {failedCount} · 缺证 {unverifiedCount}(缺证不计通过)
                 </span>
+                {dimensionScore && (
+                  <span
+                    className="text-muted-foreground"
+                    title={[
+                      `加权分 ${dimensionScore.weightPassed}/${dimensionScore.weightTotal}:只有 pass 计分`,
+                      ...(dimensionScore.deducted.length > 0
+                        ? dimensionScore.deducted.map((item) => `−${item.weight} ${item.requirementId}(${item.reason})`)
+                        : []),
+                    ].join("\n")}
+                  >
+                    计分 {dimensionScore.score}
+                  </span>
+                )}
               </div>
-              <ul className="space-y-1 max-h-56 overflow-y-auto">
-                {requirements.map((item) => (
-                  <li key={item.requirementId} className="flex items-start gap-2 text-xs">
-                    <span
-                      className={cn(
-                        "mt-0.5 w-9 shrink-0 rounded-full border px-1.5 py-0.5 text-center font-medium",
-                        item.verdict === "pass"
-                          ? "border-success/30 bg-success/10 text-success"
-                          : item.verdict === "fail"
-                            ? "border-destructive/30 bg-destructive/10 text-destructive"
-                            : "border-warning/30 bg-warning/10 text-warning",
-                      )}
-                    >
-                      {item.verdict === "pass" ? "通过" : item.verdict === "fail" ? "越限" : "缺证"}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="text-foreground">{item.label}</span>
-                      {item.missing?.length ? (
-                        <span className="block text-muted-foreground">缺:{item.missing.join("；")}</span>
-                      ) : item.note ? (
-                        <span className="block text-muted-foreground">{item.note}</span>
-                      ) : null}
-                    </span>
-                  </li>
+
+              {supply && (
+                <p
+                  className={cn(
+                    "truncate text-xs",
+                    supply.blocked > 0 ? "text-destructive" : supply.gaps > 0 ? "text-warning" : "text-muted-foreground",
+                  )}
+                  title={supplyDetail || `供给自检 ${supply.checks.length} 项全过`}
+                >
+                  供给 {supply.checks.length} 项:缺料 {supply.gaps} · 硬矛盾 {supply.blocked}
+                </p>
+              )}
+
+              {expectations && expectations.shots.length > 0 && (
+                <p
+                  className="truncate text-xs text-muted-foreground"
+                  title={expectations.coverage
+                    .map((row) => `${row.key}:应成立 ${row.expected} 镜 / 不应成立 ${row.forbidden} 镜 / 分镜未记 ${row.unknown} 镜`)
+                    .join("\n")}
+                >
+                  逐镜期望 {expectations.shots.length} 镜 · 未声明 {expectations.coverage.reduce((sum, row) => sum + row.unknown, 0)} 项
+                </p>
+              )}
+
+              {calibration && (
+                <p
+                  className="truncate text-xs text-muted-foreground"
+                  title={[
+                    `系列 ${calibration.seriesId}:阈值取本系列实测 mean±2σ(画带剔本章,判的是样本外)`,
+                    ...calibration.baselines.map((item) => `${item.signalId}:均值 ${item.mean.toFixed(3)} ±${item.sigma.toFixed(3)}`
+                      + `(画带凭别章 ${item.sampleCount} 条${item.seriesSampleCount === undefined || item.seriesSampleCount === item.sampleCount
+                        ? ""
+                        : `,本系列已攒 ${item.seriesSampleCount} 条,含本章`})`),
+                    ...(unboundSignals.length > 0 ? [`无行消费(只攒不判):${unboundSignals.join("、")}`] : []),
+                    `打标正负例 ${calibration.caseCount} 条:本仓还没有打标写入口,0 条 = 各门「抓得住负例吗」无从核算,`
+                      + "带里的阈值仍是本仓初值",
+                  ].join("\n")}
+                >
+                  信号标定 画带凭 别章最高 {maxCalibrationSamples}/{QC_CALIBRATION_MIN_SAMPLES} 条(本系列已攒 {maxSeriesSamples} 条)· 打标集 {calibration.caseCount} 条
+                </p>
+              )}
+
+              <div className="max-h-64 space-y-1 overflow-y-auto">
+                {boardGroups.map((group) => (
+                  <div key={group.category}>
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <span>{group.label}</span>
+                      <span className="tabular-nums opacity-60">{group.weight}</span>
+                    </div>
+                    {group.rows.map(({ spec, row }) => {
+                      const item = row!;
+                      const tail = item.missing?.length ? `缺:${item.missing.join("；")}` : item.note ?? "";
+                      return (
+                        <div key={spec.requirementId} className="flex items-center gap-2 text-xs" title={tail}>
+                          <span
+                            className={cn(
+                              "w-9 shrink-0 rounded-full border px-1.5 py-0.5 text-center font-medium",
+                              item.verdict === "pass"
+                                ? "border-success/30 bg-success/10 text-success"
+                                : item.verdict === "fail"
+                                  ? "border-destructive/30 bg-destructive/10 text-destructive"
+                                  : "border-warning/30 bg-warning/10 text-warning",
+                            )}
+                          >
+                            {item.verdict === "pass" ? "通过" : item.verdict === "fail" ? "越限" : "缺证"}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-foreground">
+                            {item.label}
+                            {item.failingShotOrdinals?.length ? (
+                              <span className="ml-1.5 text-destructive">#{item.failingShotOrdinals.join(" #")}</span>
+                            ) : null}
+                            {tail ? <span className="ml-1.5 text-muted-foreground">{tail}</span> : null}
+                          </span>
+                          {item.evaluator ? (
+                            <span className="shrink-0 text-[11px] text-muted-foreground" title={CHAPTER_QC_EVALUATOR_LABELS[item.evaluator]}>
+                              {CHAPTER_QC_EVALUATOR_LABELS[item.evaluator]}
+                            </span>
+                          ) : null}
+                          <span className="w-5 shrink-0 text-right tabular-nums text-[11px] text-muted-foreground">{spec.weight}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 ))}
-              </ul>
+                {absentRowIds.length > 0 && (
+                  <div className="text-[11px] text-warning" title={`注册表有、这份报告没有的行按缺证看,不许静默省略:${absentRowIds.join("、")}`}>
+                    注册表 {CHAPTER_QC_DIMENSIONS.length} 行,本报告只 {CHAPTER_QC_DIMENSIONS.length - absentRowIds.length} 行(旧报告/层未跑)
+                  </div>
+                )}
+                {ungrouped.length > 0 && (
+                  <div className="text-[11px] text-warning">
+                    注册表外 {ungrouped.length} 行:{ungrouped.map((item) => item.requirementId).join("、")}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

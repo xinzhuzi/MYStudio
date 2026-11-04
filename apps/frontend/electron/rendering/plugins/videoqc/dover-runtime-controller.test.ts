@@ -215,6 +215,25 @@ describe("createVideoQcRuntimeController", () => {
     }
   });
 
+  it("模型名白名单:未知名在下载/删除入口即拒(1102 起 yunet-face 同权)", async () => {
+    const calls: string[][] = [];
+    const controller = makeController(async (_file, args) => {
+      calls.push(args);
+      return { stdout: '{"removed":true}' };
+    });
+    expect(await controller.downloadModel("rm -rf")).toMatchObject({ accepted: false, message: "未知观感评分模型" });
+    expect(await controller.deleteModel("rm -rf")).toEqual({ success: false, error: "未知观感评分模型" });
+    expect(calls).toHaveLength(0); // 拼错的名字连 Python 都不该碰到
+
+    const removed = await controller.deleteModel("yunet-face");
+    expect(removed.success).toBe(true);
+    // 名字必须是 argv,不许拼进 -c 源码(否则 UI 传来的字符串就成了可执行代码)
+    const deleteCall = calls.find((args) => args[0] === "-c")!;
+    expect(deleteCall[1]).toContain("delete_cached_model(sys.argv[1])");
+    expect(deleteCall[1]).not.toContain("yunet-face");
+    expect(deleteCall[2]).toBe("yunet-face");
+  });
+
   it("baselines:在线更新均值/方差", async () => {
     const controller = makeController(async () => ({ stdout: "" }));
     mkdirSync(join(storageDir, "comfyui", "models", "videoqc"), { recursive: true });

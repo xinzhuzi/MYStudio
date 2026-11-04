@@ -15,7 +15,9 @@ const liveEnabled = process.env.DOVER_LIVE === "1";
 const liveVideo = process.env.MYSTUDIO_LIVE_VIDEO ?? "";
 const storageBase = join(homedir(), "Library", "Application Support", "漫影工作室");
 const backendRoot = resolve(__dirname, "../../../../../backend");
-const modelWeight = join(storageBase, "model", "videoqc", "dover_mobile.pth");
+// 09-10 模型统一家:controller 读的是 comfyui/models/videoqc,写 model/videoqc 会让这条
+// live 门永远 skip(1102 实测旧家已不存在——skip 不等于通过,但很容易被当成跑过)。
+const modelWeight = join(storageBase, "comfyui", "models", "videoqc", "dover_mobile.pth");
 const runnable = liveEnabled && existsSync(liveVideo) && existsSync(modelWeight);
 
 describe.skipIf(!runnable)("DOVER L3 live E2E (real controller + managed python)", () => {

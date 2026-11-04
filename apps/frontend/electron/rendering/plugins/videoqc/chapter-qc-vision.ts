@@ -182,7 +182,9 @@ export async function runVisionLayer(input: ChapterQcVisionLayerInput): Promise<
     try {
       await runner(tool, [
         "-y", "-ss", point.tS.toFixed(3), "-i", input.videoPath,
-        "-frames:v", "1", "-vf", "scale='min(768,iw)':-2", "-q:v", "3",
+        // 1102:上限 768→1280。手指多指/五官错位这类崩坏在 768 档已被模型读成
+        // "看不清就不判",1080P 成片降到 768 等于把判据丢在传输前;480P 产出(608 宽)不受影响。
+        "-frames:v", "1", "-vf", "scale='min(1280,iw)':-2", "-q:v", "2",
         framePath,
       ]);
       frames.push({

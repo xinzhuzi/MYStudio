@@ -106,4 +106,22 @@ describe("runVisionLayer 帧物料", () => {
     );
     expect(outcome.densityChecked).toBe(0);
   });
+
+  it("探针帧上限 1280(1102):1080P 成片不许在送模型前被压回 768", async () => {
+    const argsList: string[][] = [];
+    const runner = async (_file: string, args: string[]) => {
+      argsList.push(args);
+      return { stdout: "", stderr: "" };
+    };
+    await runVisionLayer({
+      projectId: "p1", chapterId: "chapter-001", videoPath: "/tmp/v.mp4",
+      spans, transitions: [], visualClipIds: ["c1", "c2"],
+      reportDir: "/tmp/qc-report", runner,
+    });
+    expect(argsList).toHaveLength(5);
+    for (const args of argsList) {
+      expect(args[args.indexOf("-vf") + 1]).toBe("scale='min(1280,iw)':-2");
+      expect(args).toContain("-q:v");
+    }
+  });
 });

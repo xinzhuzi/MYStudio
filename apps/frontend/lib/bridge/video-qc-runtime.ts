@@ -13,6 +13,14 @@ export interface VideoQcRuntimeStatusPayload {
   modelCacheDir: string;
 }
 
+export interface VideoQcModelRowPayload {
+  name: string;
+  label: string;
+  downloaded: boolean;
+  sizeMb: number;
+  pinned: boolean;
+}
+
 export interface VideoQcDownloadProgressPayload {
   status: "idle" | "downloading" | "complete" | "error";
   progress: number;
@@ -26,7 +34,7 @@ interface VideoQcRuntimeBridge {
   status: () => Promise<VideoQcRuntimeStatusPayload>;
   setup: () => Promise<VideoQcRuntimeStatusPayload>;
   refresh: () => Promise<VideoQcRuntimeStatusPayload>;
-  scanModel: () => Promise<{ models: unknown[]; cacheDir: string }>;
+  scanModel: () => Promise<{ models: VideoQcModelRowPayload[]; cacheDir: string }>;
   downloadModel: (model: string) => Promise<{ accepted: boolean; message: string }>;
   downloadProgress: () => Promise<VideoQcDownloadProgressPayload>;
   getConfig: () => Promise<{ modelCacheDir: string }>;

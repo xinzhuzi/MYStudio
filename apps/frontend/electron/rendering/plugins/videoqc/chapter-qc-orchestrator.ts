@@ -17,13 +17,23 @@ import type { VideoQcRuntimeController } from "./dover-runtime-controller";
 import { extractShotKeyframes } from "./chapter-qc-fftools";
 import { describeFrameChoices, pickShotFrameTimes } from "./chapter-qc-frame-select";
 import { runFfmpegScanLayer } from "./chapter-qc-ffmpeg-scan";
+import { buildFaceFindings, runChapterQcFace } from "./chapter-qc-face";
 import { readChapterQcReport, writeChapterQcReport, chapterQcReportDir } from "./chapter-qc-report-store";
+import {
+  appendCalibrationSamples,
+  deriveSignalBaselines,
+  readCalibrationStore,
+  writeCalibrationStore,
+  type ChapterQcSignalSampleV1,
+} from "./chapter-qc-calibration";
+import { assertionCoverage, buildShotExpectations, type ChapterQcExpectationShotInput } from "./chapter-qc-expectations";
+import { buildSupplyFindings, runSupplyCheck } from "./chapter-qc-supply-check";
 import { runStructuralLayer } from "./chapter-qc-structural";
 import { buildShotSpans, buildShotSpansFromRenderPlan, type ChapterQcRenderPlanSpans } from "./chapter-qc-timeline";
 import { buildVisionDecisions, runVisionLayer } from "./chapter-qc-vision";
 import { resolveVadPythonExecutable, runChapterQcVad } from "./chapter-qc-vad";
 import { applyChapterQcRequirements } from "./chapter-qc-verdicts";
-import type { ChapterQcScanSignalsV1, ChapterQcVisionResultV1 } from "./chapter-qc-types";
+import type { ChapterQcFaceSignalsV1, ChapterQcScanSignalsV1, ChapterQcVisionResultV1 } from "./chapter-qc-types";
 import type { FrameMetricPoint } from "./parse-ffmpeg-probe";
 import {
   CHAPTER_QC_SCHEMA_VERSION,
@@ -43,8 +53,9 @@ export interface ChapterQcOrchestratorDeps {
   /** L3 控制器;缺省=观感层 skipped-no-controller */
   videoQc?: Pick<VideoQcRuntimeController, "runVideoQcScore" | "readBaselines" | "status">;
   /**
-   * L2 语音段口径(Silero VAD,跑在 managed Python 上)。缺省=不跑 VAD,
-   * 语音挤压/音画同步退回 silencedetect 补集并在 notes 里写明退化原因。
+   * QC 侧车 Python 运行时(Silero VAD + YuNet 人脸共用同一支托管 Python 与同一个 apps/backend 根)。
+   * 缺省=不跑 VAD 也不跑人脸:语音挤压/音画同步退回 silencedetect 补集、人脸维落 unverified,
+   * 并在 notes 里写明退化原因。
    */
   vadRuntime?: { storageBasePath: () => string; backendRoot: string };
   now?: () => number;
@@ -63,6 +74,24 @@ interface StoryboardLike {
   durationTarget?: number;
   ttsSpokenText?: string;
   shotAudioBindings?: Array<{ role?: string; sourceDurationUs?: number }>;
+  /** 骨干②:逐镜期望断言读的四组声明字段(全部可选——旧 store 缺列即 unknown,不冒充 pass) */
+  shotSemantics?: {
+    personFree?: boolean;
+    shotSize?: string;
+    cameraMove?: string;
+    actionIn?: string;
+    actionOut?: string;
+    visibleCharacters?: Array<{ name?: string }>;
+  };
+  continuityState?: {
+    actionIn?: string;
+    actionOut?: string;
+    dialogueText?: string;
+  };
+  shotFx?: { motion?: string };
+  state?: string;
+  stale?: boolean;
+  orderedReferenceManifest?: Array<{ missing?: boolean }>;
 }
 
 interface AgentWorkLike {
@@ -101,6 +130,41 @@ function latestScriptDraft(agentWork: unknown, chapterId: string): string | unde
   return typeof chosen?.data === "string" ? chosen.data : undefined;
 }
 
+/** 分镜条目 → 逐镜期望断言入参(骨干②):只搬「声明」,成片侧一律不看。 */
+function toExpectationShot(
+  shotId: string,
+  ordinal: number,
+  item: StoryboardLike,
+): ChapterQcExpectationShotInput {
+  const semantics = item.shotSemantics;
+  const continuity = item.continuityState;
+  const cameraMove = semantics?.cameraMove?.trim() ?? "";
+  const actionIn = semantics?.actionIn?.trim() ?? continuity?.actionIn?.trim() ?? "";
+  const actionOut = semantics?.actionOut?.trim() ?? continuity?.actionOut?.trim() ?? "";
+  const shotSize = semantics?.shotSize?.trim() ?? "";
+  const dialogueText = continuity?.dialogueText?.trim() ?? "";
+  const ttsSpokenText = item.ttsSpokenText?.trim() ?? "";
+  const visibleCharacters = semantics?.visibleCharacters;
+  const duration = Number.isFinite(item.duration ?? Number.NaN) ? (item.duration as number) : 0;
+  const durationTarget = Number(item.durationTarget ?? 0);
+  return {
+    shotId,
+    ordinal,
+    durationS: duration,
+    ...(durationTarget > 0 ? { durationTargetS: durationTarget } : {}),
+    ...(cameraMove ? { cameraMove } : {}),
+    ...(actionIn ? { actionIn } : {}),
+    ...(actionOut ? { actionOut } : {}),
+    ...(typeof semantics?.personFree === "boolean" ? { personFree: semantics.personFree } : {}),
+    ...(shotSize ? { shotSize } : {}),
+    ...(Array.isArray(visibleCharacters) ? { visibleCharacterCount: visibleCharacters.length } : {}),
+    ...(item.shotFx?.motion ? { shotFxMotion: item.shotFx.motion } : {}),
+    ...(dialogueText ? { dialogueText } : {}),
+    ...(ttsSpokenText ? { ttsSpokenText } : {}),
+    ...(item.shotAudioBindings?.some((binding) => binding.role === "voice") ? { hasVoiceBinding: true } : {}),
+  };
+}
+
 /** 观感层基线告警:偏离 mean - max(2σ, 0.05) 报 warn;无基线只记录。 */
 function evaluateAestheticAgainstBaseline(
   controller: ChapterQcOrchestratorDeps["videoQc"],
@@ -124,6 +188,52 @@ function evaluateAestheticAgainstBaseline(
     };
   }
   return { baseline };
+}
+
+function finiteValue(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/**
+ * 本轮实测信号 → 标定样本(骨干③攒基线的数据源)。
+ * 只搬「这一轮真测出来的数」:测不到就不写,写进去的必须是实测,不许拿默认值凑。
+ * `speech.coverageRatio` 用分镜声明做分母——没有「该说几镜」的锚,语音秒数本身不成信号。
+ */
+export function collectCalibrationSamples(input: {
+  chapterId: string;
+  at: number;
+  findings: readonly ChapterQcFindingV1[];
+  scanSignals?: ChapterQcScanSignalsV1;
+  aesthetic?: ChapterQcReportV1["aesthetic"];
+  faceSignals?: ChapterQcFaceSignalsV1;
+  speechDeclaredShots: number;
+}): ChapterQcSignalSampleV1[] {
+  const out: ChapterQcSignalSampleV1[] = [];
+  const push = (signalId: ChapterQcSignalSampleV1["signalId"], value: number | undefined): void => {
+    if (value !== undefined && Number.isFinite(value)) out.push({ signalId, value, chapterId: input.chapterId, at: input.at });
+  };
+  const motionSummary = input.findings.find((finding) => finding.code === "chapter-qc.motion.summary")?.evidence;
+  push("motion.tiMean", finiteValue(motionSummary?.tiMean));
+  push("motion.staticFrameRatio", finiteValue(motionSummary?.staticFrameRatio));
+  push("visual.blurMean", finiteValue(motionSummary?.blurMean) ?? input.scanSignals?.blurMean);
+  push("aesthetic.fused", input.aesthetic?.fused);
+  push("face.readableRatio", input.faceSignals?.readableRatio);
+  // 逐镜口径单独一条带:全片静止占比天然远低于离群镜,拿它画出来的带去判单镜会成片误杀。
+  const shotRatios = (input.scanSignals?.shotMotion ?? [])
+    .map((row) => row.staticFrameRatio)
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  if (shotRatios.length > 0) push("shot.motion.staticFrameRatio", Math.max(...shotRatios));
+  const shotSpeech = input.scanSignals?.shotSpeech ?? [];
+  // 语音两条信号只在 VAD 真接上时入库:silencedetect 补集在带 BGM 的片子里把整片当语音,
+  // 那种数进库会把本系列的带整体抬高——宁缺勿混。
+  const vadEvidenced = input.scanSignals?.speechSource === "silero-vad";
+  if (vadEvidenced && input.speechDeclaredShots > 0 && shotSpeech.length > 0) {
+    const covered = shotSpeech.filter((row) => row.speechSeconds > 0).length;
+    push("speech.coverageRatio", Number((covered / input.speechDeclaredShots).toFixed(6)));
+    const seconds = shotSpeech.reduce((sum, row) => sum + row.speechSeconds, 0);
+    push("speech.secondsPerDeclaredShot", Number((seconds / input.speechDeclaredShots).toFixed(6)));
+  }
+  return out;
 }
 
 export async function runChapterQc(
@@ -167,6 +277,8 @@ export async function runChapterQc(
   let plannedVoiceDurationUs: number | undefined;
   let scriptText: string | undefined;
   const descriptionByShotId = new Map<string, string>();
+  /** 本章分镜条目原样(骨干②③的声明侧:期望断言 + 供给自检都吃它,不含成片信息) */
+  const chapterShots: Array<{ shotId: string; item: StoryboardLike }> = [];
   try {
     const store = readStudioWorkflowStore(deps.dataRoot, input.projectId);
     if (store) {
@@ -185,6 +297,7 @@ export async function runChapterQc(
         if (typeof item.id === "string") {
           const description = item.videoDesc?.trim() || item.prompt?.trim() || item.ttsSpokenText?.trim();
           if (description) descriptionByShotId.set(item.id, description);
+          chapterShots.push({ shotId: item.id, item });
         }
       }
       scriptText = latestScriptDraft(store.state.agentWorkData, input.chapterId);
@@ -212,6 +325,18 @@ export async function runChapterQc(
   }
   const spans = renderPlanSpans ? renderPlanSpans.spans : buildShotSpans(edl);
 
+  // ---- 逐镜期望断言(骨干②):分镜声明 → 成片必须满足什么 ----
+  // 镜号取自时间轴(与 L2 台账、finding 的 shotOrdinal 同一套编号),
+  // 时间轴里没有的镜(未出片/被裁)顺延到成片最大镜号之后:拿分镜序号顶替会和真镜撞号,
+  // 板上「第 N 镜越带」就会指到另一支镜上。
+  const ordinalByShotId = new Map(spans.map((span) => [span.shotId, span.ordinal]));
+  let nextOffTimelineOrdinal = Math.max(0, ...spans.map((span) => span.ordinal)) + 1;
+  const expectations = buildShotExpectations(
+    chapterShots.map((row) =>
+      toExpectationShot(row.shotId, ordinalByShotId.get(row.shotId) ?? nextOffTimelineOrdinal++, row.item),
+    ),
+  );
+
   // ---- L1 结构比对 ----
   let probeDurationS: number | undefined;
   let probeFps: number | undefined;
@@ -237,6 +362,9 @@ export async function runChapterQc(
   // ---- L2 ffmpeg 逐帧 ----
   let scanFramePoints: FrameMetricPoint[] = [];
   let scanSignals: ChapterQcScanSignalsV1 | undefined;
+  let faceSignals: ChapterQcFaceSignalsV1 | undefined;
+  let vadAvailable = false;
+  let faceAvailable = false;
   if (structuralBlocked) {
     layers.ffmpegScan = { status: "skipped", reason: "structural blocker 短路" };
   } else {
@@ -252,9 +380,25 @@ export async function runChapterQc(
         backendRoot: deps.vadRuntime.backendRoot,
       });
       if (vad.available) {
+        vadAvailable = true;
         vadSpeech = { segments: vad.segments, ...(vad.model ? { model: vad.model } : {}) };
       } else {
         vadReason = vad.reason ?? "VAD 不可用";
+      }
+
+      // 人脸可判读度(1102 吸收件①):同一支托管 Python,另一条 sidecar。
+      // 它只回答「自动检出的脸够不够大、能不能拿来判五官」,不回答「脸好不好看」。
+      const face = await runChapterQcFace({
+        videoPath: outputPath,
+        pythonExecutable: resolveVadPythonExecutable(deps.vadRuntime.storageBasePath()),
+        backendRoot: deps.vadRuntime.backendRoot,
+      });
+      if (face.available && face.signals) {
+        faceAvailable = true;
+        faceSignals = face.signals;
+        findings.push(...buildFaceFindings(face.signals));
+      } else {
+        notes.push(`人脸可判读度无证据: ${face.reason ?? "未知"}`);
       }
     }
     try {
@@ -312,6 +456,8 @@ export async function runChapterQc(
 
   // ---- L3 DOVER 观感 ----
   let aesthetic: ChapterQcReportV1["aesthetic"];
+  // 模型就绪与否是配置事实,与本片跑不跑得动无关:供给自检在短路路径上也要拿得到真话。
+  const aestheticModelReady = deps.videoQc?.status().modelReady ?? false;
   if (structuralBlocked) {
     layers.aesthetic = { status: "skipped", reason: "structural blocker 短路" };
   } else if (!deps.videoQc) {
@@ -417,6 +563,59 @@ export async function runChapterQc(
     }
   }
 
+  // ---- 骨干⓪:供给完整性自检(先证物料与口径,再谈结论)----
+  // 侧车两条只在真跑过的那一轮报实测;短路轮显式记「未实探」——配置在场不是这一趟跑通的证据。
+  const speechDeclaredShots = assertionCoverage(expectations, "speech").expected;
+  const supplyChecks = runSupplyCheck({
+    mediaReadable: (probeDurationS ?? 0) > 0,
+    ...(probeDurationS !== undefined ? { durationS: probeDurationS } : {}),
+    ...(probeFps !== undefined ? { fps: probeFps } : {}),
+    spanCount: spans.length,
+    declaredShotCount: chapterShots.length,
+    timelineSource: renderPlanSpans ? "render-plan" : spans.length > 0 ? "edl" : "none",
+    expectationShotCount: expectations.shots.length,
+    speechDeclaredShots,
+    subtitleCueCount: cues.length,
+    scriptPresent: scriptText !== undefined,
+    extractedFrameCount: extractedFrames.length,
+    vadAvailable,
+    faceAvailable,
+    sidecarsEvidenced: !structuralBlocked,
+    aestheticModelReady,
+    unreadyShotCount: chapterShots.filter(({ item }) => item.state !== "ready" || item.stale === true).length,
+    missingReferenceCount: chapterShots.reduce(
+      (sum, { item }) => sum + (item.orderedReferenceManifest ?? []).filter((ref) => ref.missing === true).length,
+      0,
+    ),
+  });
+  findings.push(...buildSupplyFindings(supplyChecks));
+
+  // ---- 骨干③:系列标定库(攒样本 → 画带 → 出加权分)----
+  // seriesId 暂用 projectId(观感基线同口径);设置页的系列录入接上后一并换。
+  const seriesId = input.projectId;
+  let calibration: ChapterQcReportV1["calibration"];
+  try {
+    const store = readCalibrationStore(workspaceRoot, seriesId);
+    const merged = appendCalibrationSamples(store, collectCalibrationSamples({
+      chapterId: input.chapterId,
+      at: now(),
+      findings,
+      ...(scanSignals ? { scanSignals } : {}),
+      ...(aesthetic ? { aesthetic } : {}),
+      ...(faceSignals ? { faceSignals } : {}),
+      speechDeclaredShots,
+    }));
+    if (merged !== store) writeCalibrationStore(workspaceRoot, merged);
+    // 画带剔掉本章自己的样本:n≤5 时任何成员离均值都不到 2σ,含自己的带永远罩得住自己。
+    calibration = {
+      seriesId,
+      baselines: deriveSignalBaselines(merged, input.chapterId),
+      caseCount: merged.cases.length,
+    };
+  } catch (error) {
+    notes.push(`标定库读写异常(本轮按未标定处理): ${error instanceof Error ? error.message : String(error)}`);
+  }
+
   // ---- 报告落盘 ----
   const summary = summarizeChapterQcFindings(findings);
   const report: ChapterQcReportV1 = {
@@ -444,6 +643,10 @@ export async function runChapterQc(
     ...(aesthetic ? { aesthetic } : {}),
     ...(vision ? { vision } : {}),
     ...(scanSignals ? { scanSignals } : {}),
+    ...(faceSignals ? { faceSignals } : {}),
+    expectations,
+    supplyChecks,
+    ...(calibration ? { calibration } : {}),
   };
   applyChapterQcRequirements(report);
   await writeChapterQcReport(workspaceRoot, input.chapterId, report);

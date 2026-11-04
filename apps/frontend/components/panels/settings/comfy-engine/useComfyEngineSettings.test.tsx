@@ -314,7 +314,8 @@ describe("useComfyEngineSettings", () => {
       () => expect(toasts.error).toHaveBeenCalledWith("任务已中断(本地生图服务已重启),请重新发起"),
       { timeout: 2000 },
     );
-    expect(result.current.activeJob).toBeNull();
+    // 404 收摊后 activeJob 应设为 null;先等 toast 再等 state propagation
+    await waitFor(() => expect(result.current.activeJob).toBeNull(), { timeout: 100 });
     const callsAtTerminal = calls;
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 200)); // 数个轮询周期

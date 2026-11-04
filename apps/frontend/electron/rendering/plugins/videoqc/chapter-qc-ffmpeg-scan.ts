@@ -16,7 +16,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { VideoUseSubtitleCueV1 } from "../../contracts/video-workflow";
-import type { ChapterQcFindingV1 } from "./chapter-qc-types";
+import { SHOT_STATIC_RATIO_LIMIT } from "./chapter-qc-types";
+import type { ChapterQcFindingV1, ChapterQcScanSignalsV1 } from "./chapter-qc-types";
 import { resolveQcFfTool, type QcCommandRunner } from "./chapter-qc-fftools";
 import {
   parseBlackSegments,
@@ -56,20 +57,8 @@ export interface ChapterQcFfmpegScanInput {
 
 export interface ChapterQcFfmpegScanResult {
   findings: ChapterQcFindingV1[];
-  raw: {
-    blacks: number;
-    freezes: number;
-    silences: number;
-    loudnessInputI?: number;
-    speechSeconds?: number;
-    blurMean?: number;
-    /** 逐帧统计实际打印的采样点数 */
-    frameSampleCount?: number;
-    /** select 抽帧步长(1=逐帧全采) */
-    frameSampleStep: number;
-    /** 语音段口径来源:VAD 到位时才可能是 silero-vad */
-    speechSource?: "silero-vad" | "silencedetect-complement";
-  };
+  /** 逐镜/逐片实测台账(与报告 `scanSignals` 同一形状,单一真源在 chapter-qc-types) */
+  raw: ChapterQcScanSignalsV1;
   notes: string[];
   /**
    * 逐帧采样点(未落报告,只在内存里传递)。
@@ -91,8 +80,8 @@ const FRAME_STATS_PRINT_LIMIT = 4000;
 const STATIC_TI_GUARD = 0.5;
 /** 采样点太少时比例数字没意义,少于这个数不出镜级结论。 */
 const MIN_SHOT_SAMPLE_POINTS = 3;
-/** 静止帧占比超此值记一条伪动态线索(不判)。 */
-const STATIC_RATIO_NOTE = 0.5;
+/** 静止帧占比超此值记一条伪动态线索(不判);同一条线也是逐镜判定门的绝对病线——共用 types 层那份,不许两处各写各的。 */
+const STATIC_RATIO_NOTE = SHOT_STATIC_RATIO_LIMIT;
 /** 亮度窗(8bit YAVG),暗/爆帧占比超半数才记。择帧剔近黑/过曝共用此窗(chapter-qc-frame-select)。 */
 export const EXPOSURE_LOW_YAVG = 20;
 export const EXPOSURE_HIGH_YAVG = 245;
@@ -287,6 +276,20 @@ export async function runFfmpegScanLayer(input: ChapterQcFfmpegScanInput): Promi
   const frameStats = collectFrameStatFindings(silenced, input, sampleStep);
   findings.push(...frameStats.findings);
 
+  // ---- 逐镜语音台账(骨干②的实测侧)----
+  // 只记「这一镜的时间窗里落在语音段上的秒数」,不判:哪一镜该有台词由分镜声明说,
+  // 这里只回答「成片这一镜到底有没有声音」。
+  const shotSpeech = input.spans.map((span) => ({
+    shotId: span.shotId,
+    ordinal: span.ordinal,
+    speechSeconds: round3(
+      speech.reduce(
+        (sum, segment) => sum + Math.max(0, Math.min(span.endS, segment.endS) - Math.max(span.startS, segment.startS)),
+        0,
+      ),
+    ),
+  }));
+
   return {
     findings,
     raw: {
@@ -294,11 +297,13 @@ export async function runFfmpegScanLayer(input: ChapterQcFfmpegScanInput): Promi
       freezes: freezes.length,
       silences: silences.length,
       loudnessInputI: loudness?.inputI,
-      speechSeconds: speechSeconds !== undefined ? Number(speechSeconds.toFixed(3)) : undefined,
+      speechSeconds: speechSeconds !== undefined ? round3(speechSeconds) : undefined,
       blurMean: frameStats.blurMean !== undefined ? round3(frameStats.blurMean) : undefined,
       frameSampleCount: frameStats.sampleCount,
       frameSampleStep: sampleStep,
       speechSource,
+      shotMotion: frameStats.shotMotion,
+      shotSpeech,
     },
     notes,
     framePoints: frameStats.points,
@@ -360,16 +365,26 @@ function round3(value: number): number {
 /**
  * 逐帧统计 → 全片一条汇总(info)+ 离群镜各一条线索(info)。
  * 数字全落 evidence,供攒基线;判据本批不启用。
+ * 顺带产出**逐镜运动台账**:每镜一行,不管有没有越记录线都记 —— 因为「没出 static-heavy
+ * 那条 finding」从来不等于「这一镜测过没问题」(采样点不足直接 continue),骨干②的逐镜判定
+ * 必须拿得到覆盖与缺口,不能靠 finding 的缺席反推。
  */
 function collectFrameStatFindings(
   stderr: string,
   input: ChapterQcFfmpegScanInput,
   sampleStep: number,
-): { findings: ChapterQcFindingV1[]; blurMean?: number; sampleCount: number; points: FrameMetricPoint[] } {
+): {
+  findings: ChapterQcFindingV1[];
+  blurMean?: number;
+  sampleCount: number;
+  points: FrameMetricPoint[];
+  shotMotion: ChapterQcScanSignalsV1["shotMotion"];
+} {
   const findings: ChapterQcFindingV1[] = [];
+  const shotMotion: NonNullable<ChapterQcScanSignalsV1["shotMotion"]> = [];
   const points = parseFrameMetrics(stderr);
   const blurMean = parseBlurMean(stderr);
-  if (points.length === 0) return { findings, blurMean, sampleCount: 0, points: [] };
+  if (points.length === 0) return { findings, blurMean, sampleCount: 0, points: [], shotMotion };
 
   const whole = summarizeMotion(points, STATIC_TI_GUARD);
   const exposure = summarizeExposure(points, EXPOSURE_LOW_YAVG, EXPOSURE_HIGH_YAVG);
@@ -421,6 +436,15 @@ function collectFrameStatFindings(
     const shotPoints = pointsWithinSpan(points, span);
     if (shotPoints.length < MIN_SHOT_SAMPLE_POINTS) continue;
     const motion = summarizeMotion(shotPoints, STATIC_TI_GUARD);
+    if (motion) {
+      shotMotion.push({
+        shotId: span.shotId,
+        ordinal: span.ordinal,
+        sampleCount: motion.tiSampleCount,
+        tiMean: round3(motion.tiMean),
+        staticFrameRatio: round3(motion.staticFrameRatio),
+      });
+    }
     if (motion && motion.staticFrameRatio > STATIC_RATIO_NOTE) {
       findings.push({
         code: "chapter-qc.motion.static-heavy",
@@ -498,7 +522,7 @@ function collectFrameStatFindings(
       });
     }
   }
-  return { findings, blurMean, sampleCount: points.length, points };
+  return { findings, blurMean, sampleCount: points.length, points, shotMotion };
 }
 
 const execFileAsync = promisify(execFile);

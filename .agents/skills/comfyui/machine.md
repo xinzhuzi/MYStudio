@@ -40,6 +40,12 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
     **ref2va 10-04 退役,权重已删,恢复=外置盘(卷名=真名不入仓,完整路径见本地档案 ~/.zcode/mystudio-local/external-drive-path.txt)
     /AI/H3/diffusion_models/minimax_h3_ref2va_pruned_bf16.safetensors 拷回,台账=同目录 manifest-retired-1004.jsonl;
     官方本地 R2V 模板(官方本地-R2V-480P-需解冻ref2va.json)因此成缺模型死件(留库未归档)。**
+    **1104 终局:Mac 侧 H3 全部模型已清(用户令),本机 H3 线整体退役;现役 H3=Windows RTX Pro 4000
+    (ssh zbj@192.168.0.101,引擎 0.43.0@17000,fl2va/ref2va int8+Pika LoRA+turbo 4step 768p 在位,
+    真源清单与 24G 实测结构性约束见 docs/comfyui-kb/分镜H3视频产线.md §三「Windows 24G 实测结构性事实」;
+    多采/三采复刻工艺(段间 POST /free 清显存 20752→1200MiB/LTXVSeparateAVLatent 分离存取/
+    ×1.5 潜空间爬升 576×320→864×480→1280×704,1296×720 latent 81×45 双奇网格结构性不可达)
+    见同文档 §三 三采复刻二轮配方)。**
 - **GUI workflows folder**: `<home>/ComfyUI/user/default/workflows/漫影/` — everything lives under the
   `漫影/` group with domain-first nesting (2026-09-10 reorg): `1_图片/` (K2图像 with 1_文生图…6_修复超分,
   分镜 with 1_总览 chapter overviews + 2_单镜图 per-shot migrated flows), `2_视频/` (H3视频: 1_漫影自研

@@ -52,7 +52,27 @@ When the app assembles the prompt (`apps/frontend/lib/assist/image-studio/h3-sho
 - **Voice-timbre anchor (D1):** a character line renders `says in a <voiceMood> tone:` with `voiceMood` passed straight from `storyboard.emotion` at dispatch; omit the phrase when the mood is empty. Hand-written prompts may use the same anchor for cross-shot voice consistency.
 - **External narrator text:** TTS synthesis text for a shot = `externalNarratorSpokenText(lines, ttsSpokenText ?? "")` — mixed-line shots yield the normalized narrator body (pure-dialogue shots yield `""` and skip TTS entirely); non-`full` shots keep the full text unchanged.
 
-## Segmented Long-Form Writing (AutoContext, 2026-10-25 调研)
+## LLM Direct-Feed Director Layer (2611.3 双模式版, 2026-11-04)
+
+**上游配套**：分镜表/导演计划层方法论=`.agents/skills/director-storyboard/`（剧本→导演计划→分镜表；本技能管分镜表之后的单镜提示词展开）。
+
+LLM 直投链（非 App 组装链）的 system prompt 有**导演层规则包升级版**，住 `docs/comfyui-kb/参考_提示词工程/`：
+
+- `llm_system_prompt_for_minimax-h3_fl2va-2611.3.txt` / `llm_system_prompt_for_minimax-h3_ref2va-2611.3.txt`（旧 2608.x 保留作对照）
+- 增量五件（源=导演台 Max 源码精读，逐条分析+行号在任务档 11-03-h3-multisample-campaign `research/prompt-design-analysis.md`）：时长→镜头数表（仅 director 模式且用户未指定镜数时建议）/节奏覆盖（中英双语快剪慢镜触发词表）/主体权重（weight=0.1-2.0，仅输入显式提供时生效，越界视为无权重）/返回前静默自检段/长度预算
+- **faithful/director 双模式**：默认 faithful（严守本技能既有不发明纪律，导演层完全静默）；仅用户显式选 director 时才补足未指定的动作节拍/镜头运动，不得改写已指定事件/对白/身份/首尾约束，无指派帧时禁发明帧状态
+- 本 SKILL 的官方结构规则（六段式/标签/时序标记）不变，2611.3 在其上叠加；冲突时以本 SKILL 为准
+
+## Segmented Long-Form Writing (AutoContext, 2026-10-25 调研;1104 补 TimelineDirector 规范)
+
+> 1104 补注:分段提示词的工程规范真源=Songssx/ComfyUI-MiniMaxH3-TimelineDirector `docs/MiniMax_H3_循环分段提示词_Agent规范.md`(GPL-3,提炼吸收);其重叠帧软过渡与 AutoContext 硬切是两种衔接哲学(互补,见 docs/comfyui-kb/分镜H3视频产线.md §九.五)。
+
+- **时间参数四件套先行**(先算时间轴再排剧情,不得先写剧情后塞重叠):segment_duration_seconds / overlap_frames / fps(默认24) / segment_count。
+- **重叠区反推公式**:overlap_seconds=frames÷fps;overlap_start=duration−overlap_seconds;上一段最后一个 Shot 的开始时间严格=overlap_start,且该镜须设计为「清晰、可独立描述、可稳定延续」的镜头状态(推荐单独成末 Shot)。
+- **局部时间轴双描述约定**:下一段开头把重叠帧完整写成自己的 `[Shot 1] During 00:00.000-00:0X.XXX`——与上一段末 `00:0Y.YYY-00:0Z.ZZZ` 是同一段画面与声音,各段用本段局部时间,两处描述须吻合。
+- **参数缺失禁猜**(对方规范要求问用户;本仓 faithful 语境改为:按产线默认档执行并在输出注明假设)。
+
+
 
 > **状态:调研·未装** — 以下规则来自 GitHub `supElement/ComfyUI_MinimaxH3_AutoContext` 调研(README 全文归档于 `apps/output/bili_h3_unlimited_segments_1025/autocontext_README.md`),本仓未装该套件;**仅在分段长视频模式下适用**,单镜管线不涉及。产线侧完整落档见 `docs/comfyui-kb/分镜H3视频产线.md` §九.五。
 

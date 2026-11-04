@@ -21,6 +21,12 @@ import {
 
 const execFileAsync = promisify(execFile);
 
+/**
+ * 可下载模型名以 Python 侧 `VIDEO_QC_MODELS` 为真源(`video_qc.model_inventory` 出列表);
+ * 这里只挡明显拼错的调用,1102 起加 yunet-face(人脸可判读度)。
+ */
+const DOWNLOADABLE_MODELS = new Set(["dover-mobile", "yunet-face"]);
+
 export type VideoQcSetupStage = "idle" | "checking" | "ready" | "failed";
 
 export interface VideoQcRuntimeStatus {
@@ -313,7 +319,7 @@ export function createVideoQcRuntimeController(deps: ControllerDeps) {
   }
 
   async function downloadModel(modelName: string): Promise<{ accepted: boolean; message: string }> {
-    if (modelName !== "dover-mobile") {
+    if (!DOWNLOADABLE_MODELS.has(modelName)) {
       return { accepted: false, message: "未知观感评分模型" };
     }
     if (state.downloadStatus === "downloading") {
@@ -344,10 +350,11 @@ export function createVideoQcRuntimeController(deps: ControllerDeps) {
   }
 
   async function deleteModel(modelName: string): Promise<{ success: boolean; error?: string }> {
-    if (modelName !== "dover-mobile") return { success: false, error: "未知观感评分模型" };
+    if (!DOWNLOADABLE_MODELS.has(modelName)) return { success: false, error: "未知观感评分模型" };
     try {
+      // 模型名走 argv 而不是拼进 -c:拼字符串等于把 UI 传来的名字当代码执行。
       const { stdout } = await runPython(
-        ["-c", "from engines.video_qc_engine.model_cache import delete_cached_model; import json; print(json.dumps({'removed': delete_cached_model('dover-mobile')}))"],
+        ["-c", "import sys, json; from engines.video_qc_engine.model_cache import delete_cached_model; print(json.dumps({'removed': delete_cached_model(sys.argv[1])}))", modelName],
         30_000,
       );
       const parsed = JSON.parse(stdout) as { removed?: boolean };

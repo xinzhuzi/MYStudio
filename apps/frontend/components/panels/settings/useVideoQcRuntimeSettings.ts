@@ -1,17 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getVideoQcRuntimeBridge, type VideoQcRuntimeStatusPayload } from "@/lib/bridge/video-qc-runtime";
+import {
+  getVideoQcRuntimeBridge,
+  type VideoQcModelRowPayload,
+  type VideoQcRuntimeStatusPayload,
+} from "@/lib/bridge/video-qc-runtime";
 
 const POLL_INTERVAL_MS = 500;
 
 /**
  * 视频评分模型(video_qc)运行时 hook — 镜像 useUpscaleRuntimeSettings 的
  * 轮询/动作形状。下载中每 500ms 轮询状态,完成/出错停轮询并 toast。
+ *
+ * `models` 是 Python 侧 `VIDEO_QC_MODELS` 的真源快照(DOVER + 1102 起的人脸 YuNet),
+ * 每模型独立显示「已下载」——共享下载槽位只表示「此刻在传哪个」,不代表所有模型的态。
  */
 export function useVideoQcRuntimeSettings() {
   const bridge = getVideoQcRuntimeBridge();
   const [status, setStatus] = useState<VideoQcRuntimeStatusPayload | null>(null);
+  const [models, setModels] = useState<VideoQcModelRowPayload[]>([]);
   const [isProbing, setIsProbing] = useState(bridge !== undefined);
   const [isDownloading, setIsDownloading] = useState(false);
   const pollRef = useRef<number | null>(null);
@@ -23,6 +31,16 @@ export function useVideoQcRuntimeSettings() {
     }
   }, []);
 
+  const scanModels = useCallback(async () => {
+    if (!bridge) return;
+    try {
+      const inventory = await bridge.scanModel();
+      setModels(inventory.models);
+    } catch {
+      // 清单读不到保持上一帧,不掩盖运行时状态
+    }
+  }, [bridge]);
+
   const refreshStatus = useCallback(async () => {
     if (!bridge) return;
     try {
@@ -31,11 +49,12 @@ export function useVideoQcRuntimeSettings() {
       if (next.downloadStatus !== "downloading") {
         setIsDownloading(false);
         stopPolling();
+        await scanModels();
       }
     } catch {
       // 轮询失败保持上一帧状态
     }
-  }, [bridge, stopPolling]);
+  }, [bridge, scanModels, stopPolling]);
 
   const startPolling = useCallback(() => {
     if (pollRef.current !== null) return;
@@ -56,8 +75,9 @@ export function useVideoQcRuntimeSettings() {
         setIsProbing(false);
       }
     })();
+    void scanModels();
     return stopPolling;
-  }, [bridge, stopPolling]);
+  }, [bridge, scanModels, stopPolling]);
 
   const setup = useCallback(async (): Promise<VideoQcRuntimeStatusPayload | undefined> => {
     if (!bridge) return undefined;
@@ -70,8 +90,9 @@ export function useVideoQcRuntimeSettings() {
     if (!bridge) return undefined;
     const next = await bridge.refresh();
     setStatus(next);
+    await scanModels();
     return next;
-  }, [bridge]);
+  }, [bridge, scanModels]);
 
   const downloadModel = useCallback(async (model: string) => {
     if (!bridge) return;
@@ -100,11 +121,13 @@ export function useVideoQcRuntimeSettings() {
   return {
     hasBridge: bridge !== undefined,
     status,
+    models,
     isProbing,
     isDownloading,
     setup,
     refresh,
     downloadModel,
+    scanModels,
     setModelCacheDir,
     deleteModel,
   };

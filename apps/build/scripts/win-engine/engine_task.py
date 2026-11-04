@@ -39,6 +39,9 @@ env['TMP'] = r'C:\Users\ZBJ\AppData\Local\Temp'
 env['USERPROFILE'] = r'C:\Users\ZBJ'
 env['LOCALAPPDATA'] = r'C:\Users\ZBJ\AppData\Local'
 env.setdefault('SYSTEMROOT', r'C:\Windows')
+# TESSERA(1104 4K 链):decode 磁盘缓冲指 E: 盘——首轮 C: temp 8.7GB 缓冲装配段挂死
+# (tessera nodes._scratch_dirs 顺序 TESSERA_SCRATCH→LTX_SCRATCH→temp→output;目录须已存在)
+env['TESSERA_SCRATCH'] = 'E:/IP/tmp/tessera_scratch'
 # T13(10-29) MyShot 回写出口:注入 bridge env,对齐 engine_manager launch_env
 # (MYSTUDIO_BRIDGE_URL/MYSTUDIO_BRIDGE_TOKEN 同款注入;令牌单源=sidecar
 # config.json controlToken,electron main getControlToken 落盘的装机 UUID;env
@@ -62,6 +65,10 @@ def _bridge_token():
 
 env['MYSTUDIO_BRIDGE_URL'] = 'http://127.0.0.1:17595'
 env['MYSTUDIO_BRIDGE_TOKEN'] = _bridge_token()
+# spawn 标记行落引擎日志:TESSERA_SCRATCH 注入生效的直接证据(1104)
+log.write(('[engine_task] spawn TESSERA_SCRATCH=%s\n'
+           % env['TESSERA_SCRATCH']).encode('ascii'))
+log.flush()
 subprocess.Popen([VENV_PY, MAIN, '--listen', '0.0.0.0', '--port', '17000', '--lowvram',
                   '--enable-manager', '--use-pytorch-cross-attention',
                   '--output-directory', OUT],

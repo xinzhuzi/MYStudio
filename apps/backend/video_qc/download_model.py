@@ -93,7 +93,9 @@ def download_model(model_name: str, progress_path: Path) -> int:
             except Exception as exc:
                 print(f"[download] ModelScope 直链失败,回退 HF: {exc}", file=sys.stderr, flush=True)
                 with outbound_proxy_env():
-                    snapshot_download(repo_id=repo_id, filename=file_name, cache_dir=str(cache_dir))
+                    # snapshot_download 没有 filename 参数(实测 huggingface_hub 1.29 直接
+                    # TypeError,整条下载被判 error)——单文件过滤走 allow_patterns。
+                    snapshot_download(repo_id=repo_id, allow_patterns=[file_name], cache_dir=str(cache_dir))
         if spec["url"] and not dest.is_file():
             _download_direct(spec["url"], dest, spec["size_mb"], report)
         # 09-10 P1:完成前校验指纹——此前坏文件(截断/损坏)也报 complete,
