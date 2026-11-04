@@ -93,6 +93,13 @@ export function readFaceSignals(payload: Record<string, unknown>): ChapterQcFace
       ? { driftDistanceP95: finiteNumber(payload.driftDistanceP95) } : {}),
     driftPairs: finiteNumber(payload.driftPairs) ?? 0,
     ...(typeof payload.model === "string" ? { model: payload.model } : {}),
+    // [1103 Phase 1] Parse new geometry fields
+    ...(finiteNumber(payload.geometryAspectP50) !== undefined
+      ? { geometryAspectP50: finiteNumber(payload.geometryAspectP50) } : {}),
+    ...(finiteNumber(payload.geometryAspectP95) !== undefined
+      ? { geometryAspectP95: finiteNumber(payload.geometryAspectP95) } : {}),
+    ...(finiteNumber(payload.geometryAnomalyFlags) !== undefined
+      ? { geometryAnomalyFlags: finiteNumber(payload.geometryAnomalyFlags) } : {}),
   };
 }
 
