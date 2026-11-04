@@ -7,6 +7,8 @@ const hoisted = vi.hoisted(() => {
   const files = new Map<string, string>();
   return {
     files,
+    // project-store 水合旗标(超时护栏用例翻 false,默认恒 true=既有用例零改)
+    projectHydrated: true,
     getItem: vi.fn(async (key: string) => files.get(key) ?? null),
     setItem: vi.fn(async (key: string, value: string) => {
       files.set(key, value);
@@ -30,7 +32,7 @@ vi.mock("./indexed-db-storage", () => ({
 vi.mock("@/stores/project/project-store", () => ({
   useProjectStore: {
     getState: () => ({ activeProjectId: "proj-1", projects: [{ id: "proj-1" }] }),
-    persist: { hasHydrated: () => true, onFinishHydration: () => () => undefined },
+    persist: { hasHydrated: () => hoisted.projectHydrated, onFinishHydration: () => () => undefined },
   },
 }));
 
@@ -160,6 +162,7 @@ describe("createStudioWorkflowShardedStorage", () => {
 
   beforeEach(() => {
     hoisted.files.clear();
+    hoisted.projectHydrated = true;
     vi.clearAllMocks();
     installWindowBridge();
     storage = createStudioWorkflowShardedStorage("studio-workflow-store");
@@ -559,6 +562,77 @@ describe("createStudioWorkflowShardedStorage", () => {
     });
     await fresh.setItem("studio-workflow-store", buildPersistedValue());
     expect(hoisted.files.has("_p/proj-1/studio-workflow/manifest")).toBe(true);
+  });
+
+  it("onHydrationSaveDropped 通知：守卫拒写时每次必回调（studio-store 据此布防水合后补存），磁盘为空不通知", async () => {
+    // 铺非空分片库
+    await storage.setItem("studio-workflow-store", buildPersistedValue());
+    const manifestBefore = hoisted.files.get("_p/proj-1/studio-workflow/manifest");
+
+    const dropped = vi.fn();
+    const racing = createStudioWorkflowShardedStorage("studio-workflow-store", {
+      isHydrated: () => false,
+      onHydrationSaveDropped: dropped,
+    });
+    const racingValue = JSON.stringify({
+      state: { novelChapters: [], storyboards: [], mediaTasks: [] },
+      version: 10,
+    });
+    // 两次窗口期保存 → 两次拒写、两次通知（每次必通知；去重职责在 store 布防侧）
+    await racing.setItem("studio-workflow-store", racingValue);
+    await racing.setItem("studio-workflow-store", racingValue);
+    expect(hoisted.files.get("_p/proj-1/studio-workflow/manifest")).toBe(manifestBefore);
+    expect(dropped).toHaveBeenCalledTimes(2);
+
+    // 磁盘为空（新项目）不拒写 → 不通知
+    hoisted.files.clear();
+    const freshDropped = vi.fn();
+    const fresh = createStudioWorkflowShardedStorage("studio-workflow-store", {
+      isHydrated: () => false,
+      onHydrationSaveDropped: freshDropped,
+    });
+    await fresh.setItem("studio-workflow-store", buildPersistedValue());
+    expect(hoisted.files.has("_p/proj-1/studio-workflow/manifest")).toBe(true);
+    expect(freshDropped).not.toHaveBeenCalled();
+  });
+
+  it("getItem 兜底：桥全面 reject 时返回 null 不抛（hasHydrated 不卡死恒拒），损坏位生效后续空工作区保存仍被拒", async () => {
+    // 铺非空分片库
+    await storage.setItem("studio-workflow-store", buildPersistedValue());
+    const manifestBefore = hoisted.files.get("_p/proj-1/studio-workflow/manifest");
+
+    // 读链全面 reject（模拟 IPC 桥故障）——旧例此处 getItem reject → zustand 5
+    // catch 路径不置位 hasHydrated → 水合守卫恒拒整会话保存
+    const originalGetItem = hoisted.getItem.getMockImplementation()!;
+    hoisted.getItem.mockImplementation(async () => {
+      throw new Error("bridge reject");
+    });
+    await expect(storage.getItem("studio-workflow-store")).resolves.toBeNull();
+    hoisted.getItem.mockImplementation(originalGetItem);
+
+    // 损坏位已置：空工作区保存被空态守卫拒，旧分片库保命
+    await storage.setItem("studio-workflow-store", JSON.stringify({
+      state: { novelChapters: [], storyboards: [], mediaTasks: [] },
+      version: 10,
+    }));
+    expect(hoisted.files.get("_p/proj-1/studio-workflow/manifest")).toBe(manifestBefore);
+  });
+
+  it("getItem 超时护栏：project-store 恒未水合时 10s 后照常返回不挂死（防 hasHydrated 卡死=整会话保存恒拒）", async () => {
+    const value = buildPersistedValue();
+    await storage.setItem("studio-workflow-store", value);
+
+    hoisted.projectHydrated = false;
+    vi.useFakeTimers();
+    try {
+      const pending = storage.getItem("studio-workflow-store");
+      await vi.advanceTimersByTimeAsync(10_000);
+      const restored = await pending;
+      expect(JSON.parse(restored!)).toEqual(windowedExpectation(JSON.parse(value)));
+    } finally {
+      vi.useRealTimers();
+      hoisted.projectHydrated = true;
+    }
   });
 
   it("空态守卫扩展：保存值含分镜目标 imageWorkflow 不算空工作区（T4）——读链损坏后含分镜工作流的保存不被误拒", async () => {

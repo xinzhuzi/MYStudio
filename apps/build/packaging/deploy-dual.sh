@@ -335,6 +335,26 @@ phase_b() {
       log "    如远端代理 403,请手动:从 Windows 该 config.json 取 controlToken,写入 Mac 的 \"$MAC_REMOTE_TOKEN_FILE\""
     fi
   fi
+
+  # B8: MYStudio 桌面可见拉起(1104 交接清单#4)。schtasks /IT=交互令牌,任务在
+  # 桌面会话(Session 1)运行用户可见——SSH 直启 GUI 会落 Session 0 隐形(用户
+  # 再双击=双实例,违单一实例铁律),计划任务 /IT 是唯一桌面可见的远程拉起通道。
+  # 先 taskkill 旧实例(robocopy /MIR 覆盖后旧进程仍持旧代码;杀后再拉=单实例),
+  # 再 /Create(幂等 /F)+/Run。路径无空格,免内层引号穿 cmd/ssh 双层。
+  if ! dry "MYStudio 桌面拉起(schtasks /IT)"; then
+    log "Launching MYStudio (B8)..."
+    ssh_win "taskkill /F /IM manying-studio.exe" >/dev/null 2>&1 || true
+    if ! ssh_win "if exist $WIN_INSTALL\\manying-studio.exe exit 0 else exit 1"; then
+      die "未找到 $WIN_INSTALL\\manying-studio.exe(安装布局变体?人工核查)"
+    fi
+    if ! ssh_win "schtasks /Create /TN StartMYStudio /TR $WIN_INSTALL\\manying-studio.exe /SC ONCE /ST 00:00 /IT /F"; then
+      die "schtasks /Create StartMYStudio 失败"
+    fi
+    if ! ssh_win "schtasks /Run /TN StartMYStudio"; then
+      die "schtasks /Run StartMYStudio 失败(刚建即失?人工 schtasks /Query /TN StartMYStudio 核查)"
+    fi
+    log "✅ MYStudio 已桌面会话拉起(/IT 用户可见;先杀后拉=单实例)"
+  fi
 }
 
 # ── Phase C: 汇报 ───────────────────────────────────────────────

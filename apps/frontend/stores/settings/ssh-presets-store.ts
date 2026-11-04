@@ -5,10 +5,16 @@
 // ③修复:status 契约不回 port,指纹匹配的 port 侧事实只有这里记得住)。
 // 存量迁移(Q2)不在 store 里做——组件挂载时 store 空+status
 // 已配置 → 自动入列,见 McpSettingsTab。
-// 主机/端口/用户/密钥路径属非敏感 UI 资产:明文 localStorage 即可(照
-// workflow-bindings-store 范式,不引 safeStorage 加密链)。
+// password 属敏感凭据(1104 密码认证):落盘走 safeStorage 加密链(范式照抄
+// mcp-servers-store 0924 C1,降级/迁移行为同款);其余字段随整包同键加密。
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import {
+  clearDeferredSecureWrites,
+  consumePendingPlaintextMigration,
+  createSecureLocalStorage,
+  getSecureVaultStatus,
+} from "@/lib/storage/secure-local-storage";
 
 export const SSH_PRESETS_STORAGE_KEY = "mystudio-ssh-presets"; // 键名随 mystudio-engine-presets 范式
 export const SSH_PRESETS_MAX = 8;
@@ -38,6 +44,7 @@ export interface SshPresetInput {
   port?: number;
   user?: string;
   keyPath?: string;
+  /** 留空/纯空白:编辑(同 id)=保留旧密码不改;新增=存 ""(纯密钥认证)。 */
   password?: string;
   lastUsedAt?: number;
 }
@@ -90,6 +97,10 @@ export const useSshPresetsStore = create<SshPresetsState>()(
             ? Math.floor(input.port)
             : 22;
         const id = input.id ?? createPresetId();
+        // 编辑留空=不改密码(1104 密码认证):编辑框不回填明文,留空/纯空白保存=
+        // 保留旧值(输入新值才更换);新增无旧值,空白=存 ""(纯密钥认证)。
+        const password = (input.password ?? "").trim();
+        const existing = input.id ? get().presets.find((p) => p.id === input.id) : undefined;
         const entry: SshPreset = {
           id,
           label: (input.label ?? "").trim() || host,
@@ -97,7 +108,7 @@ export const useSshPresetsStore = create<SshPresetsState>()(
           port,
           user: (input.user ?? "").trim(),
           keyPath: (input.keyPath ?? "").trim(),
-          password: (input.password ?? "").trim(),
+          password: password === "" && existing ? existing.password : password,
           lastUsedAt: input.lastUsedAt ?? Date.now(),
         };
         set({
@@ -121,9 +132,21 @@ export const useSshPresetsStore = create<SshPresetsState>()(
     {
       name: SSH_PRESETS_STORAGE_KEY,
       partialize: (s) => ({ presets: s.presets, activeFingerprint: s.activeFingerprint }),
-      // 凭据路径/主机名非敏感(Q2 裁定明文);引擎条目走 safeStorage 是因同键
-      // 范式共链,此 store 无密件不引加密链
-      storage: createJSONStorage(() => localStorage),
+      // 1104 密码认证:password 入库后本 store 有密件,safeStorage 加密落盘
+      // (0924 C1 同款);本 store 无 version(恒 0 匹配,无 migrate 自动回写),
+      // 明文→密文迁移唯一写手就是下面的 onRehydrateStorage 钩子。
+      storage: createJSONStorage(() => createSecureLocalStorage(SSH_PRESETS_STORAGE_KEY)),
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) return;
+        if (getSecureVaultStatus(SSH_PRESETS_STORAGE_KEY).mode === "encrypted-unreadable") return;
+        if (!consumePendingPlaintextMigration(SSH_PRESETS_STORAGE_KEY)) return;
+        useSshPresetsStore.setState({ presets: [...useSshPresetsStore.getState().presets] });
+      },
     },
   ),
 );
+
+// 0924 C1(§4.5 双保险):水合完成只清空门禁期丢弃记录,绝不补写
+useSshPresetsStore.persist.onFinishHydration(() => {
+  clearDeferredSecureWrites(SSH_PRESETS_STORAGE_KEY);
+});

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { getSecureVaultStatus } from "@/lib/storage/secure-local-storage";
 import {
   SSH_PRESETS_MAX,
   SSH_PRESETS_STORAGE_KEY,
@@ -99,7 +100,7 @@ describe("ssh presets store(11-03 终版 R1:多条 SSH 连接,与引擎列表零
     expect(presets.map((p) => p.host)).toEqual(["192.168.0.1", "192.168.0.2"]);
   });
 
-  it("明文持久化:save 后 localStorage 落 mystudio-ssh-presets 键(非加密链,Q2 裁定)", async () => {
+  it("明文持久化(降级行为):jsdom 无 safeStorage 桥=plaintext-degraded 明文直写(与 mcp-servers-store 同款降级)", async () => {
     useSshPresetsStore.getState().save({ host: "192.168.0.101", user: "zbj", label: "Windows 主力" });
     await flushTick();
     const raw = window.localStorage.getItem(SSH_PRESETS_STORAGE_KEY);
@@ -107,6 +108,8 @@ describe("ssh presets store(11-03 终版 R1:多条 SSH 连接,与引擎列表零
     // 明文可直读出 host(JSON 非 safeStorage 密文)
     expect(raw).toContain("192.168.0.101");
     expect(raw).toContain("Windows 主力");
+    // 降级态如实上报(横幅同源事实)
+    expect(getSecureVaultStatus(SSH_PRESETS_STORAGE_KEY)).toEqual({ mode: "plaintext-degraded" });
   });
 
   it("③当前连接指纹:setActiveFingerprint 落 state 且随 partialize 持久化(重开设置页 port 侧消歧事实仍在)", async () => {
@@ -130,5 +133,110 @@ describe("ssh presets store(11-03 终版 R1:多条 SSH 连接,与引擎列表零
     save({ host: "10.1.1.10", user: "key-user" });
     const hit2 = useSshPresetsStore.getState().presets.find((entry) => entry.host === "10.1.1.10");
     expect(hit2?.password ?? "").toBe("");
+  });
+
+  it("编辑留空=不改密码(1104 密码认证):同 id 空白保存保留旧值,输入新值才更换;新增空白=存 \"\"", () => {
+    const { save } = useSshPresetsStore.getState();
+    const saved = save({ host: "10.1.1.9", user: "zbj", password: "old-pw" });
+    expect(saved?.password).toBe("old-pw");
+    // 编辑框不回填明文:留空/纯空白保存=旧密码原样保留(防误抹)
+    save({ id: saved!.id, host: "10.1.1.9", password: "" });
+    expect(useSshPresetsStore.getState().presets[0]?.password).toBe("old-pw");
+    save({ id: saved!.id, host: "10.1.1.9", password: "   " });
+    expect(useSshPresetsStore.getState().presets[0]?.password).toBe("old-pw");
+    // 输入新值=更换
+    save({ id: saved!.id, host: "10.1.1.9", password: "new-pw" });
+    expect(useSshPresetsStore.getState().presets[0]?.password).toBe("new-pw");
+    // 新增(无 id)空白=存 ""(纯密钥认证)
+    const added = save({ host: "10.1.1.10" });
+    expect(added?.password).toBe("");
+  });
+});
+
+// ── 1104 密码认证专项:password safeStorage 加密落盘(照抄 mcp-servers-store.test
+// 的 C1 配方:fake 桥注入 + fresh 模块(门禁窗口语义),只 mock safeStorage 系统调用本身)──
+describe("ssh presets store safeStorage persistence(1104 密码认证)", () => {
+  const fakeEncode = (plaintext: string) => Buffer.from(`fake-cipher:${plaintext}`).toString("base64");
+  const fakeDecode = (cipher: string) => {
+    const text = Buffer.from(cipher, "base64").toString("utf8");
+    return text.startsWith("fake-cipher:") ? text.slice("fake-cipher:".length) : null;
+  };
+
+  const installFakeBridge = () => {
+    vi.stubGlobal("window", {
+      secureStorage: {
+        isEncryptionAvailable: async () => ({ ok: true as const, available: true }),
+        encrypt: async (plaintext: string) => ({ ok: true as const, cipher: fakeEncode(plaintext) }),
+        decrypt: async (cipher: string) => {
+          const plaintext = fakeDecode(cipher);
+          return plaintext === null
+            ? { ok: false as const, reason: "error" }
+            : { ok: true as const, plaintext };
+        },
+      },
+    });
+  };
+
+  beforeEach(async () => {
+    await flushTick();
+    localStorage.removeItem(SSH_PRESETS_STORAGE_KEY);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("增:save 携密码后盘值为 v2 包装,解密往返与内存 presets 深相等", async () => {
+    installFakeBridge();
+    vi.resetModules();
+    const { useSshPresetsStore: freshStore } = await import("./ssh-presets-store");
+    await vi.waitFor(() => expect(freshStore.persist.hasHydrated()).toBe(true)); // 空盘水合,门禁 settle
+
+    freshStore.getState().save({ host: "10.1.1.9", user: "zbj", password: "s3cret-1104", label: "密码机" });
+    await vi.waitFor(() => {
+      expect(localStorage.getItem(SSH_PRESETS_STORAGE_KEY)).toContain('"v":2');
+    });
+    const raw = localStorage.getItem(SSH_PRESETS_STORAGE_KEY) as string;
+    expect(raw).not.toContain("s3cret-1104");
+    const decrypted = JSON.parse(fakeDecode(JSON.parse(raw).cipher) as string);
+    expect(decrypted.state.presets).toEqual(freshStore.getState().presets);
+    expect(decrypted.state.presets[0].password).toBe("s3cret-1104");
+  });
+
+  it("存量明文盘水合后被钩子覆写为 v2(无 version,钩子是唯一写手),旧密码原样渡迁", async () => {
+    installFakeBridge();
+    const legacy = JSON.stringify({
+      state: {
+        presets: [
+          {
+            id: "ssh-legacy",
+            label: "存量密码机",
+            host: "10.2.2.9",
+            port: 22,
+            user: "zbj",
+            keyPath: "",
+            password: "tok-1104-存量",
+            lastUsedAt: 1,
+          },
+        ],
+        activeFingerprint: null,
+      },
+      version: 0,
+    });
+    localStorage.setItem(SSH_PRESETS_STORAGE_KEY, legacy);
+    vi.resetModules();
+    const { useSshPresetsStore: freshStore } = await import("./ssh-presets-store");
+
+    await vi.waitFor(() => expect(freshStore.persist.hasHydrated()).toBe(true));
+    await vi.waitFor(() => {
+      expect(localStorage.getItem(SSH_PRESETS_STORAGE_KEY)).toContain('"v":2');
+    });
+    const raw = localStorage.getItem(SSH_PRESETS_STORAGE_KEY) as string;
+    expect(raw).not.toContain("tok-1104-存量");
+    const decrypted = JSON.parse(fakeDecode(JSON.parse(raw).cipher) as string);
+    expect(decrypted.state.presets).toEqual([
+      expect.objectContaining({ id: "ssh-legacy", password: "tok-1104-存量" }),
+    ]);
+    expect(freshStore.getState().presets.map((preset) => preset.id)).toEqual(["ssh-legacy"]);
   });
 });

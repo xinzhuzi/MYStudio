@@ -244,6 +244,31 @@ const initialState: StudioWorkflowState = {
 // 09-06 切章竞态守卫:快切两章时,先发的慢装载后到会把新章工作区整组回写成旧章
 let studioChapterSwitchSeq = 0;
 
+// T2(11-04) 水合竞态补存布防:zustand 5 的水合 merge 与 onRehydrateStorage 纠正写
+// 都发生在 hasHydrated 置位前,分片存储的水合守卫必拒这些保存;置位后 zustand 不会
+// 自动补存——窗口期存活于合并态的编辑要等下一次 setState 才落盘,之前退出即丢。
+// 守卫拒写时(onHydrationSaveDropped)布防一次性 onFinishHydration,置位后用全量态
+// setState 触发包装 set 的 setItem 把合并态补写落盘。armed 位防重复;触发前先复位,
+// 补存时 hasHydrated 已 true 守卫放行,至多一次回弹,不成环。
+let studioHydrationResaveArmed = false;
+const armPostHydrationResave = (): void => {
+  if (studioHydrationResaveArmed) return;
+  studioHydrationResaveArmed = true;
+  const fire = () => {
+    studioHydrationResaveArmed = false;
+    console.warn("[studio-workflow] 水合完成,补写水合窗口期被拒的保存(合并态落盘)");
+    useStudioStore.setState(useStudioStore.getState());
+  };
+  if (useStudioStore.persist.hasHydrated()) {
+    fire();
+    return;
+  }
+  const unsub = useStudioStore.persist.onFinishHydration(() => {
+    unsub();
+    fire();
+  });
+};
+
 export const useStudioStore = create<StudioWorkflowStore>()(
   persist(
     (set, get) => {
@@ -704,6 +729,8 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         // T4 水合竞态守卫：启动/切项目 rehydrate 窗口内的保存是盲写（空态+误建
         // free 图会清空 manifest 章索引），storage 层 fail-closed 拒写
         isHydrated: (): boolean => useStudioStore.persist.hasHydrated(),
+        // T2(11-04)：守卫拒写时布防水合后补存（见 armPostHydrationResave 注释）
+        onHydrationSaveDropped: armPostHydrationResave,
       })),
       version: STUDIO_WORKFLOW_PERSIST_VERSION,
       // R1（A批）：chapterSwitchLoading 是瞬态位，不落盘——若持久化，「杀进程于切章中」

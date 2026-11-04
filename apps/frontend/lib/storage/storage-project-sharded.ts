@@ -76,6 +76,10 @@ interface PreviousShardGeneration {
   filesByName: Map<string, string>;
 }
 
+/** project-store 水合等待上限：其持久层缺席/水合异常时 onFinishHydration 永不回调，
+ *  死等会把 getItem 挂死 → hasHydrated 恒 false → 水合守卫恒拒整会话保存 */
+const PROJECT_HYDRATION_WAIT_TIMEOUT_MS = 10_000;
+
 export function createStudioWorkflowShardedStorage(
   storeName: string,
   options: {
@@ -89,6 +93,11 @@ export function createStudioWorkflowShardedStorage(
      *  防启动/切项目 rehydrate 窗口内 UI 触发的盲写（空态+误建 free 图会把
      *  manifest.chapterIndex/activeChapterId 写空 → 项目索引全丢） */
     isHydrated?: () => boolean;
+    /** 水合守卫拒写时通知（studio-store 布防水合后补存用）：拒写本身仍 fail-closed
+     *  丢弃本次写（窗口期 value 是合并前快照，延后写=盲覆写），回调只负责让 store
+     *  在水合完成后用合并态强制再存一次——zustand 置位后不会自动补存，不布防则
+     *  窗口期存活于合并态的编辑要等下一次 setState 才落盘，之前退出即丢 */
+    onHydrationSaveDropped?: () => void;
   } = {},
 ): StateStorage {
   const serializeWrite = createWriteSerializer();
@@ -182,51 +191,74 @@ export function createStudioWorkflowShardedStorage(
     return JSON.stringify({ state: merged.state, version: manifest.version });
   };
 
-  return {
-    getItem: async (name: string): Promise<string | null> => {
-      // 等待 project-store 完成 rehydration，确保拿到正确的 activeProjectId
-      if (!useProjectStore.persist.hasHydrated()) {
-        await new Promise<void>((resolve) => {
-          const unsub = useProjectStore.persist.onFinishHydration(() => {
-            unsub();
-            resolve();
-          });
-        });
-      }
-
-      const pid = getActiveProjectId();
-      if (!pid) {
-        console.warn(`[StudioWorkflowShardedStorage] No activeProjectId, falling back to legacy key: ${name}`);
-        return fileStorage.getItem(name);
-      }
-
+  /** getItem 主体（薄壳见下）：超时护栏+分片合并+旧单文件回退全链 */
+  const readItem = async (name: string): Promise<string | null> => {
+    // 等待 project-store 完成 rehydration，确保拿到正确的 activeProjectId。
+    // 超时护栏（11-04）：死等会让本读挂死 → zustand 水合不完成 → hasHydrated
+    // 恒 false → 水合守卫恒拒整会话保存。
+    const projectPersist = useProjectStore.persist;
+    if (projectPersist?.hasHydrated && !projectPersist.hasHydrated()) {
+      let unsubFinish: (() => void) | undefined;
       try {
-        const merged = await readMergedShards(pid);
-        if (merged !== null) {
-          if (pendingReadDamage) {
-            // 有死片(悬空引用):损坏标记恒置位(空态覆写守卫照拒);水合内容优先级=
-            // 旧单文件全量快照 > 分片部分态(不半合并的旧契约在 legacy 在场时保留)
-            // > 绝不回 null(空水合=激活章白屏,10-20 用户实报)
-            pendingReadDamage = false;
-            hydrationDamaged = true;
-            const legacySnapshot = await fileStorage.getItem(`_p/${pid}/${storeName}`);
-            if (legacySnapshot) return legacySnapshot;
-            return merged;
-          }
-          hydrationDamaged = false;
+        await Promise.race([
+          new Promise<void>((resolve) => {
+            unsubFinish = projectPersist.onFinishHydration(() => {
+              resolve();
+            });
+          }),
+          new Promise<void>((resolve) => setTimeout(resolve, PROJECT_HYDRATION_WAIT_TIMEOUT_MS)),
+        ]);
+      } finally {
+        // 超时胜出时清掉挂着的监听（zustand 的 unsub 是 Set.delete，重复调安全）
+        unsubFinish?.();
+      }
+    }
+
+    const pid = getActiveProjectId();
+    if (!pid) {
+      console.warn(`[StudioWorkflowShardedStorage] No activeProjectId, falling back to legacy key: ${name}`);
+      return fileStorage.getItem(name);
+    }
+
+    try {
+      const merged = await readMergedShards(pid);
+      if (merged !== null) {
+        if (pendingReadDamage) {
+          // 有死片(悬空引用):损坏标记恒置位(空态覆写守卫照拒);水合内容优先级=
+          // 旧单文件全量快照 > 分片部分态(不半合并的旧契约在 legacy 在场时保留)
+          // > 绝不回 null(空水合=激活章白屏,10-20 用户实报)
+          pendingReadDamage = false;
+          hydrationDamaged = true;
+          const legacySnapshot = await fileStorage.getItem(`_p/${pid}/${storeName}`);
+          if (legacySnapshot) return legacySnapshot;
           return merged;
         }
-      } catch (error) {
+        hydrationDamaged = false;
+        return merged;
+      }
+    } catch (error) {
+      hydrationDamaged = true;
+      pendingReadDamage = false;
+      console.error('[StudioWorkflowShardedStorage] 分片读取失败，回退旧单文件:', error);
+    }
+
+    const projectKey = `_p/${pid}/${storeName}`;
+    const projectData = await fileStorage.getItem(projectKey);
+    if (projectData) return projectData;
+    return fileStorage.getItem(name);
+  };
+
+  return {
+    getItem: (name: string): Promise<string | null> =>
+      // 兜底（11-04）：未预期异常（桥 reject 等）绝不让 getItem 抛出——zustand 5
+      // 的 catch 路径不置位 hasHydrated，一旦 reject 整会话保存被水合守卫恒拒。
+      // 降级为空水合（返回 null）并置读链损坏位：空态覆写守卫继续拦盲写，旧分片保命。
+      readItem(name).catch((error) => {
         hydrationDamaged = true;
         pendingReadDamage = false;
-        console.error('[StudioWorkflowShardedStorage] 分片读取失败，回退旧单文件:', error);
-      }
-
-      const projectKey = `_p/${pid}/${storeName}`;
-      const projectData = await fileStorage.getItem(projectKey);
-      if (projectData) return projectData;
-      return fileStorage.getItem(name);
-    },
+        console.error('[StudioWorkflowShardedStorage] getItem 未预期异常，按空水合降级（读链损坏位已置）:', error);
+        return null;
+      }),
 
     setItem: async (name: string, value: string): Promise<void> => {
       const dataProjectId = extractStudioWorkflowDataProjectId(value);
@@ -264,6 +296,7 @@ export function createStudioWorkflowShardedStorage(
           const diskManifest = diskManifestRaw ? parseStudioWorkflowShardManifest(diskManifestRaw) : null;
           if (diskManifest && diskManifest.shards.length > 0) {
             console.error('[StudioWorkflowShardedStorage] 拒绝未水合覆写：store 水合未完成（启动/切项目竞态）而磁盘分片库非空(' + diskManifest.shards.length + ' 片)，本次保存丢弃');
+            options.onHydrationSaveDropped?.();
             return;
           }
         }

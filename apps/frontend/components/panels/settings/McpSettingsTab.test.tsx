@@ -1388,12 +1388,13 @@ describe("McpSettingsTab·SSH 连接列表(11-03 终版)", () => {
     fireEvent.change(screen.getByTestId("ssh-connection-add-port"), { target: { value: "2222" } });
     fireEvent.change(screen.getByTestId("ssh-connection-add-user"), { target: { value: "zbj" } });
     fireEvent.change(screen.getByTestId("ssh-connection-add-key"), { target: { value: "/Users/zbj/.ssh/id_ed25519" } });
+    fireEvent.change(screen.getByTestId("ssh-connection-add-password"), { target: { value: "pw-1104" } });
     expect((screen.getByTestId("ssh-connection-add-save") as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(screen.getByTestId("ssh-connection-add-save"));
     // 入列(store+渲染),表单收起
     const presets = useSshPresetsStore.getState().presets;
     expect(presets).toHaveLength(1);
-    expect(presets[0]).toMatchObject({ label: "Windows 主力", host: "192.168.0.101", port: 2222, user: "zbj", keyPath: "/Users/zbj/.ssh/id_ed25519" });
+    expect(presets[0]).toMatchObject({ label: "Windows 主力", host: "192.168.0.101", port: 2222, user: "zbj", keyPath: "/Users/zbj/.ssh/id_ed25519", password: "pw-1104" });
     expect(screen.getByText("zbj@192.168.0.101:2222")).toBeTruthy();
     expect(screen.queryByTestId("ssh-connection-add-form")).toBeNull();
     expect(toastMocks.success).toHaveBeenCalledWith("SSH 连接「Windows 主力」已保存,点击该行即可连接");
@@ -1403,22 +1404,31 @@ describe("McpSettingsTab·SSH 连接列表(11-03 终版)", () => {
     ).toBe(false);
   });
 
-  it("编辑 dialog:回显字段→保存更新(同 id 不增行);host 清空给 toast 拒收", async () => {
-    useSshPresetsStore.setState({ presets: [makeSshPreset("192.168.0.101", "ssh-a", { label: "A连" })] });
+  it("编辑 dialog:回显字段→保存更新(同 id 不增行);host 清空给 toast 拒收;密码不回显+留空=不改(1104)", async () => {
+    useSshPresetsStore.setState({
+      presets: [makeSshPreset("192.168.0.101", "ssh-a", { label: "A连", password: "old-pw" })],
+    });
     stubSshFetch({});
     render(<McpSettingsTab />);
     fireEvent.click(screen.getByTestId("ssh-row-edit"));
     expect((screen.getByTestId("ssh-connection-edit-host") as HTMLInputElement).value).toBe("192.168.0.101");
+    // 密码框恒空起步(不回填明文,防泄)
+    expect((screen.getByTestId("ssh-conn-password") as HTMLInputElement).value).toBe("");
     fireEvent.change(screen.getByTestId("ssh-connection-edit-host"), { target: { value: "10.0.0.9" } });
     fireEvent.change(screen.getByTestId("ssh-connection-edit-port"), { target: { value: "2222" } });
     fireEvent.change(screen.getByTestId("ssh-connection-edit-user"), { target: { value: "ops" } });
     fireEvent.click(screen.getByTestId("ssh-connection-edit-save"));
-    // 同 id 更新不增行;列表渲染新 mono 地址
+    // 同 id 更新不增行;列表渲染新 mono 地址;密码留空=旧值保留
     const presets = useSshPresetsStore.getState().presets;
     expect(presets).toHaveLength(1);
-    expect(presets[0]).toMatchObject({ id: "ssh-a", host: "10.0.0.9", port: 2222, user: "ops" });
+    expect(presets[0]).toMatchObject({ id: "ssh-a", host: "10.0.0.9", port: 2222, user: "ops", password: "old-pw" });
     expect(screen.getByText("ops@10.0.0.9:2222")).toBeTruthy();
     expect(toastMocks.success).toHaveBeenCalledWith("SSH 连接「A连」已更新,点该行应用新凭据");
+    // 重开编辑:输入新密码=更换
+    fireEvent.click(screen.getByTestId("ssh-row-edit"));
+    fireEvent.change(screen.getByTestId("ssh-conn-password"), { target: { value: "new-pw" } });
+    fireEvent.click(screen.getByTestId("ssh-connection-edit-save"));
+    expect(useSshPresetsStore.getState().presets[0]?.password).toBe("new-pw");
     // host 清空=store 拒收,toast 报错
     fireEvent.click(screen.getByTestId("ssh-row-edit"));
     fireEvent.change(screen.getByTestId("ssh-connection-edit-host"), { target: { value: "" } });

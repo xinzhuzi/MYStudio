@@ -108,6 +108,7 @@ const emptyDraft: DraftForm = {
 // SSH 连接表单草稿(11-03 终版:多条连接列表的添加/编辑共用形态):port 用
 // string 承接输入态(保存时解析 int,非法回退 22);密钥路径留空=后端自动
 // 探测(~/.ssh/id_ed25519 → id_ecdsa → id_rsa)。label 选填,缺省=host。
+// password 编辑框不回填明文:留空保存=保留旧值(store.save 兜底)。
 interface SshFormDraft {
   password: string;
   label: string;
@@ -1683,7 +1684,9 @@ export function McpSettingsTab() {
                               port: String(preset.port),
                               user: preset.user,
                               keyPath: preset.keyPath,
-          password: preset.password || "",});
+                              // 密码不回填(防明文回显):留空保存=保留旧值,见 store.save
+                              password: "",
+                            });
                           }}
                           data-testid="ssh-row-edit"
                           data-host={preset.host}
@@ -1794,6 +1797,18 @@ export function McpSettingsTab() {
                       spellCheck={false}
                     />
                   </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ssh-connection-password" className="text-xs">密码(可选;空=走密钥认证)</Label>
+                    <Input
+                      id="ssh-connection-password"
+                      type="password"
+                      value={sshAddDraft.password}
+                      onChange={(e) => setSshAddDraft((prev) => ({ ...prev, password: e.target.value }))}
+                      placeholder="留空=用密钥连接(自动探测 ~/.ssh/id_ed25519)"
+                      data-testid="ssh-connection-add-password"
+                      spellCheck={false}
+                    />
+                  </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
@@ -1878,19 +1893,19 @@ export function McpSettingsTab() {
                       spellCheck={false}
                     />
                   </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ssh-conn-password" className="text-xs">密码(留空=不改)</Label>
+                    <Input
+                      id="ssh-conn-password"
+                      type="password"
+                      value={sshEditDraft.password}
+                      onChange={(e) => setSshEditDraft((prev) => ({ ...prev, password: e.target.value }))}
+                      placeholder="留空=保持原密码;输入新值=更换"
+                      data-testid="ssh-conn-password"
+                      spellCheck={false}
+                    />
+                  </div>
                 </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="ssh-conn-password" className="text-xs">密码(可选;空=走密钥认证)</Label>
-                      <Input
-                        id="ssh-conn-password"
-                        type="password"
-                        value={sshEditDraft.password}
-                        onChange={(e) => setSshEditDraft((prev) => ({ ...prev, password: e.target.value }))}
-                        placeholder="留空=用密钥连接(自动探测 ~/.ssh/id_ed25519)"
-                        data-testid="ssh-conn-password"
-                        spellCheck={false}
-                      />
-                    </div>
                 <DialogFooter>
                   <Button size="sm" variant="ghost" onClick={() => setSshEditing(null)}>取消</Button>
                   <Button size="sm" onClick={submitEditSsh} data-testid="ssh-connection-edit-save">保存</Button>
