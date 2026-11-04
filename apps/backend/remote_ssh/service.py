@@ -657,7 +657,7 @@ class SSHService:
                     result["updated"].append(name)
             else:
                 code, out = self.run_remote_command(
-                    f"cd /d {win_nodes_base} && git clone {url} {name} 2>&1", 60)
+                    f"cd /d {win_nodes_base} && git clone --depth 1 {url} {name} 2>&1", 60)
                 if code == 0:
                     result["installed"].append(name)
                 else:
@@ -909,7 +909,7 @@ class SSHService:
             # Win 缺(mac-only/手动条目)→ clone 新装(清单 URL;单件 300s)
             action = "cloned"
             code, out = self.run_remote_command(
-                f"cd /d {_WIN_CUSTOM_NODES} && git clone {url} {name} 2>&1",
+                f"cd /d {_WIN_CUSTOM_NODES} && git clone --depth 1 {url} {name} 2>&1",
                 self._remaining_timeout(deadline, _ENGINE_SYNC_ITEM_TIMEOUT_S),
             )
             if code != 0:
