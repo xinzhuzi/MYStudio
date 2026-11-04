@@ -376,7 +376,8 @@ class SyncEngineTests(unittest.TestCase):
         result = _service_with_stub(stub).sync_engine(["pluginB"])
         item = result["items"][0]
         self.assertEqual((item["action"], item["verified"]), ("cloned", True))  # 新装验证=目录在+HEAD 可读
-        self.assertTrue(any("git clone https://example.com/b.git pluginB" in c for c in stub.commands))
+        # acc324cb 起克隆带 --depth 1(浅克隆,Win→GitHub 提速)
+        self.assertTrue(any("git clone --depth 1 https://example.com/b.git pluginB" in c for c in stub.commands))
         self.assertFalse(any("git pull" in c for c in stub.commands))  # clone 件不 pull
         self.assertFalse(any("reset --hard" in c for c in stub.commands))
 
@@ -391,7 +392,7 @@ class SyncEngineTests(unittest.TestCase):
         result = _service_with_stub(stub).sync_engine(["pluginManual"])
         item = result["items"][0]
         self.assertEqual((item["action"], item["verified"]), ("cloned", True))
-        self.assertTrue(any("git clone https://example.com/m.git pluginManual" in c for c in stub.commands))
+        self.assertTrue(any("git clone --depth 1 https://example.com/m.git pluginManual" in c for c in stub.commands))
 
     def test_partial_failure_does_not_block_rest(self) -> None:
         # pluginA pull 失败(exit 1);pluginB 正常 → 逐项回执 failed+cloned 并存(C8)
