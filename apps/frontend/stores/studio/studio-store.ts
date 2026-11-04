@@ -251,13 +251,15 @@ let studioChapterSwitchSeq = 0;
 // setState 触发包装 set 的 setItem 把合并态补写落盘。armed 位防重复;触发前先复位,
 // 补存时 hasHydrated 已 true 守卫放行,至多一次回弹,不成环。
 let studioHydrationResaveArmed = false;
-const armPostHydrationResave = (): void => {
+/** 测试注出口(生产仅 createStudioWorkflowShardedStorage options 引用;同
+ *  __resetModuleStorageWriteLockForTests 先例)——store 级补存链用例直接驱动 */
+export const armPostHydrationResave = (): void => {
   if (studioHydrationResaveArmed) return;
   studioHydrationResaveArmed = true;
   const fire = () => {
     studioHydrationResaveArmed = false;
-    // 恢复性提示用 info(非警示):补写=正向自愈动作,勿惊动 warn 计数类断言/告警面
-    console.info("[studio-workflow] 水合完成,补写水合窗口期被拒的保存(合并态落盘)");
+    // 补写静默执行(no-console 仅许 warn/error;拒写侧 error 尾注已声明
+    // 「已布防自动补写」,无需第二行日志)
     useStudioStore.setState(useStudioStore.getState());
   };
   if (useStudioStore.persist.hasHydrated()) {

@@ -29,7 +29,7 @@ from unittest.mock import Mock, patch
 
 from image_gen import server
 from remote_ssh import service as svc_mod
-from remote_ssh.service import SSHService
+from remote_ssh.service import SSHService, SSHServiceError
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
@@ -393,6 +393,65 @@ class SyncEngineTests(unittest.TestCase):
         item = result["items"][0]
         self.assertEqual((item["action"], item["verified"]), ("cloned", True))
         self.assertTrue(any("git clone --depth 1 https://example.com/m.git pluginManual" in c for c in stub.commands))
+
+    def test_session_drop_mid_sync_reconnects_and_retries_once(self) -> None:
+        """1104 B5:克隆途中会话死(session not active)→唤醒 keeper 重连→本件重试成功。"""
+        stub = self._stub()
+
+        class _DropOnce:
+            """首条 git clone 抛会话死指纹;其余透传 stub。
+
+            可调用对象包装(实例 __call__ 赋值不进特殊方法类型查找,不生效)。
+            """
+
+            def __init__(self, inner: _SshStub) -> None:
+                self.inner = inner
+                self.dropped = False
+
+            def __call__(self, command: str, timeout_s: float = 30) -> tuple[int, str]:
+                if "git clone" in command and not self.dropped:
+                    self.dropped = True
+                    raise SSHServiceError("远端命令执行失败: SSH session not active")
+                return self.inner(command, timeout_s)
+
+        wrapper = _DropOnce(stub)
+        svc = _service_with_stub(stub)
+        svc.run_remote_command = wrapper  # type: ignore[method-assign]
+        # keeper 已起且连接翻绿(_reconnect_for_sync 轮询立即通过)
+        svc._started = True
+        svc._connected = True
+        svc._client = object()
+        result = svc.sync_engine(["pluginB"])
+        item = result["items"][0]
+        self.assertEqual((item["action"], item["verified"]), ("cloned", True))
+        self.assertTrue(wrapper.dropped)  # 首发确实被掐过
+
+    def test_non_session_ssh_error_fails_without_reconnect_retry(self) -> None:
+        """1104 B5 对照:非会话类 SSHServiceError(如权限拒)不触发重连重试,单次即败。"""
+        stub = self._stub()
+
+        class _RejectOnce:
+            def __init__(self, inner: _SshStub) -> None:
+                self.inner = inner
+                self.rejected = False
+
+            def __call__(self, command: str, timeout_s: float = 30) -> tuple[int, str]:
+                if "git clone" in command and not self.rejected:
+                    self.rejected = True
+                    raise SSHServiceError("SFTP 打开失败: permission denied")
+                return self.inner(command, timeout_s)
+
+        wrapper = _RejectOnce(stub)
+        svc = _service_with_stub(stub)
+        svc.run_remote_command = wrapper  # type: ignore[method-assign]
+        svc._started = True
+        svc._connected = True
+        svc._client = object()
+        result = svc.sync_engine(["pluginB"])
+        item = result["items"][0]
+        self.assertEqual(item["action"], "failed")
+        self.assertIn("permission denied", item["error"])
+        self.assertTrue(wrapper.rejected)
 
     def test_partial_failure_does_not_block_rest(self) -> None:
         # pluginA pull 失败(exit 1);pluginB 正常 → 逐项回执 failed+cloned 并存(C8)

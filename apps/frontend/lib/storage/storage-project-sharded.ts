@@ -295,7 +295,7 @@ export function createStudioWorkflowShardedStorage(
           const diskManifestRaw = await fileStorage.getItem(`${shardFileKeyPrefix(pid)}/manifest`);
           const diskManifest = diskManifestRaw ? parseStudioWorkflowShardManifest(diskManifestRaw) : null;
           if (diskManifest && diskManifest.shards.length > 0) {
-            console.error('[StudioWorkflowShardedStorage] 拒绝未水合覆写：store 水合未完成（启动/切项目竞态）而磁盘分片库非空(' + diskManifest.shards.length + ' 片)，本次保存丢弃');
+            console.error('[StudioWorkflowShardedStorage] 拒绝未水合覆写：store 水合未完成（启动/切项目竞态）而磁盘分片库非空(' + diskManifest.shards.length + ' 片)，本次保存丢弃' + (options.onHydrationSaveDropped ? '（已布防水合完成后自动补写合并态，属启动常态非事故）' : ''));
             options.onHydrationSaveDropped?.();
             return;
           }

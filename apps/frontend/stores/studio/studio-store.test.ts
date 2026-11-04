@@ -15,7 +15,7 @@ import { useCharacterLibraryStore } from "@/stores/library/character-library-sto
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
 import type { AgentWorkData, ContinuityAssetVersion, EntityExtractionResult, NovelChapter, StoryboardItem } from "@/types/studio";
-import { useStudioStore } from "./studio-store";
+import { useStudioStore, armPostHydrationResave } from "./studio-store";
 import {
   approvedVisualReview,
   storyboardShotSemanticsFingerprint,
@@ -1950,5 +1950,62 @@ describe("switchChapter 重复行压实(P3 读侧去重)", () => {
 
     expect(afterFirst).toBe(1);
     expect(afterSecond).toBe(1);
+  });
+
+  it("水合窗口期被拒的保存在水合完成后自动补写一次(1104 T2 补存链 store 级)", async () => {
+    // 链路:守卫拒写→onHydrationSaveDropped→armPostHydrationResave 布防→
+    // 水合 getItem resolve→onFinishHydration→fire() 全量态 setState→setItem。
+    // 本用例直接驱动 arm(适配器侧 drop→notify 已有 25/25 用例覆盖),storage
+    // 用可控假件悬住水合窗口,验证真实 store 上的布防去重+补写落盘一次。
+    const originalOptions = useStudioStore.persist.getOptions();
+    const persistedState = {
+      novelChapters: [{ id: "ch-hyd", index: 1, title: "水合章", sourceText: "正文" }],
+      storyboards: [],
+      mediaTasks: [],
+    };
+    let resolveGetItem: ((value: { state: unknown; version: number } | null) => void) | undefined;
+    const setItem = vi.fn(async () => undefined);
+    const removeItem = vi.fn(async () => undefined);
+    const getItem = vi.fn(
+      (_name: string) =>
+        new Promise<{ state: unknown; version: number } | null>((resolve) => {
+          resolveGetItem = resolve;
+        }),
+    );
+    try {
+      useStudioStore.persist.setOptions({
+        storage: { getItem, setItem, removeItem },
+      });
+      const version = useStudioStore.persist.getOptions().version as number;
+      const rehydrating = useStudioStore.persist.rehydrate();
+      expect(useStudioStore.persist.hasHydrated()).toBe(false);
+
+      // 窗口期两次布防=一次(armed 去重);适配器每次拒写都会通知,store 侧收敛
+      armPostHydrationResave();
+      armPostHydrationResave();
+      expect(setItem).not.toHaveBeenCalled(); // 窗口内不补写
+
+      resolveGetItem!({ state: persistedState, version });
+      await rehydrating;
+      expect(useStudioStore.persist.hasHydrated()).toBe(true);
+
+      // 水合完成→两笔落盘:①onRehydrateStorage 纠正写(锚定激活章;生产里它在
+      // hasHydrated 置位前=会被真守卫拒掉再由补写兜住,假 storage 无守卫故直写)
+      // ②补写一次。arm 去重由「恰 2 非 3」证明(破去重=纠正+补写×2=3 笔)。
+      expect(setItem).toHaveBeenCalledTimes(2);
+      const [savedName, savedEnvelope] = setItem.mock.calls[
+        setItem.mock.calls.length - 1
+      ] as unknown as [
+        string,
+        { state: { novelChapters?: Array<{ id: string }>; activeChapterId?: string }; version: number },
+      ];
+      expect(savedEnvelope.version).toBe(version);
+      expect(savedEnvelope.state.novelChapters?.some((c) => c.id === "ch-hyd")).toBe(true);
+      expect(savedEnvelope.state.activeChapterId).toBe("ch-hyd"); // 合并态含纠正写
+      expect(typeof savedName).toBe("string");
+    } finally {
+      useStudioStore.persist.setOptions({ storage: originalOptions.storage });
+      await useStudioStore.persist.rehydrate();
+    }
   });
 });

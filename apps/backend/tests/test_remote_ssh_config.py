@@ -158,6 +158,28 @@ class RemoteSshConfigTests(unittest.TestCase):
             ssh_config.default_token_config_paths("zbj"),
         )
 
+    def test_password_never_touches_disk_session_memory_instead(self) -> None:
+        """1104 B4:密码不落盘——save 携真密码→磁盘恒空串+会话内存持有+effective 叠加;
+        再存空密码(切回密钥)→会话密清除。"""
+        ssh_config.set_session_password("")  # 隔离上位残留
+        try:
+            with patch("remote_ssh.service.notify_config_changed"):
+                saved = ssh_config.save_config(
+                    {"host": "192.168.0.101", "user": "zbj", "password": "s3cret-pw"}
+                )
+            self.assertEqual(saved["password"], "s3cret-pw")  # 回显给发送方(UI 本就持有)
+            self.assertEqual(ssh_config.session_password(), "s3cret-pw")  # 真身进会话内存
+            written = json.loads((self._home / "ssh-remote.json").read_text(encoding="utf-8"))
+            self.assertEqual(written["password"], "")  # 磁盘件恒空
+            self.assertEqual(ssh_config.effective_config()["password"], "s3cret-pw")  # 连接层叠加
+            # 再存空密码(切回密钥认证)→会话密清除,不留旧密暗生效
+            with patch("remote_ssh.service.notify_config_changed"):
+                ssh_config.save_config({"host": "192.168.0.101", "keyPath": "/Users/x/.ssh/id_ed25519", "password": ""})
+            self.assertEqual(ssh_config.session_password(), "")
+            self.assertEqual(ssh_config.effective_config()["password"], "")
+        finally:
+            ssh_config.set_session_password("")  # 收摊:不渗给同进程后续用例
+
 
 if __name__ == "__main__":
     unittest.main()

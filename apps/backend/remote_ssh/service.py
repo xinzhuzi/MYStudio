@@ -218,6 +218,12 @@ class SSHServiceError(Exception):
     """SSH 服务级失败(未连接/未装依赖/IO 失败);调用方按降级处理。"""
 
 
+def _is_session_drop(message: str) -> bool:
+    """会话死亡指纹(1104 B5):仅认实弹观察到的两种——paramiko EOF 包装的
+    「session not active」与未连接前置拒「SSH 未连接」;其余错误不配触发重连。"""
+    return "session not active" in message or "SSH 未连接" in message
+
+
 def _paramiko():
     """paramiko 惰性导入:未装(needs-runtime)→ None,fail-open 不拦 sidecar。"""
     try:
@@ -300,7 +306,7 @@ class SSHService:
         """配置写后热重载:唤醒 keeper 立即重读;keeper 未起(paramiko 后装/
         首启未配置)而前提已齐 → 补调 start() 起 keeper(后装恢复链,
         1103 独立复核#1:免重启 sidecar)。未起 keeper 且仍不可起 → 无操作。"""
-        self._recover_start(ssh_config.load_config())
+        self._recover_start(ssh_config.effective_config())
         self._wake.set()
 
     def _recover_start(self, cfg: dict) -> None:
@@ -325,7 +331,8 @@ class SSHService:
     def _keeper_loop(self) -> None:
         """保活循环:建连 → keepalive+隧道+令牌首取 → 巡检;断线指数退避重连。"""
         while not self._stop.is_set():
-            cfg = ssh_config.load_config()
+            # 密码会话叠加(1104 B4):盘上恒空,真密码从进程内存 effective_config 补
+            cfg = ssh_config.effective_config()
             if not cfg.get("host"):
                 self._mark_disconnected(None)  # 配置被清:安静回未配置态
                 self._wake.wait(1.0)
@@ -348,6 +355,20 @@ class SSHService:
             if self._wake.wait(self._backoff):
                 self._wake.clear()
             self._backoff = min(self._backoff * 2, _BACKOFF_MAX_S)
+
+    def _reconnect_for_sync(self, deadline: float, max_wait_s: float = 20.0) -> bool:
+        """同步途中会话死亡的自愈(1104 B5):唤醒 keeper 立即重连(打断退避等待),
+        轮询等连接翻绿;keeper 未起(测试/未配置态)直接 False 不空等。"""
+        if not self._started:
+            return False
+        self._wake.set()
+        limit = min(time.monotonic() + max_wait_s, deadline)
+        while time.monotonic() < limit:
+            with self._lock:
+                if self._connected and self._client is not None:
+                    return True
+            time.sleep(0.5)
+        return False
 
     def _connect_once(self, cfg: dict) -> bool:
         """同步建连:accept-new 同语义 + 免密 key;成功即设 keepalive(30)。"""
@@ -805,6 +826,30 @@ class SSHService:
         win_names = self._win_custom_nodes_names()
 
         results: list[dict] = []
+
+        def _dispatch(name: str) -> dict:
+            """单件调度(引擎/插件/清单缺失三分支);SSHServiceError 向上抛给重试层。"""
+            if name == _ENGINE_SYNC_ENGINE_NAME:
+                mac_head = _mac_git_head(_mac_custom_nodes_dir().parent)
+                return self._sync_one(
+                    name=name, kind="engine", url=doc["comfyui"].get("repo", ""),
+                    mac_head=mac_head, win_exists=True, deadline=deadline,
+                )
+            plugin = plugins_by_name.get(name)
+            mac_head = _mac_git_head(_mac_custom_nodes_dir() / name)
+            if plugin is None and mac_head is None and name not in win_names:
+                # 三处都无(清单/Mac/Win)——诚实报失败;Win 独有件交 _sync_one 走 skipped
+                return self._sync_result(
+                    name, "plugin", mac_head, None, "failed", False,
+                    "清单里没有这件插件(Mac 本机与清单均无)",
+                )
+            return self._sync_one(
+                name=name, kind="plugin",
+                url=(plugin or {}).get("url", ""),
+                mac_head=mac_head, win_exists=name in win_names,
+                deadline=deadline,
+            )
+
         for name in items:
             if time.monotonic() >= deadline:
                 results.append(
@@ -816,35 +861,24 @@ class SSHService:
                 )
                 continue
             try:
-                if name == _ENGINE_SYNC_ENGINE_NAME:
-                    mac_head = _mac_git_head(_mac_custom_nodes_dir().parent)
-                    results.append(
-                        self._sync_one(
-                            name=name, kind="engine", url=doc["comfyui"].get("repo", ""),
-                            mac_head=mac_head, win_exists=True, deadline=deadline,
-                        )
-                    )
-                    continue
-                plugin = plugins_by_name.get(name)
-                mac_head = _mac_git_head(_mac_custom_nodes_dir() / name)
-                if plugin is None and mac_head is None and name not in win_names:
-                    # 三处都无(清单/Mac/Win)——诚实报失败;Win 独有件交 _sync_one 走 skipped
-                    results.append(
-                        self._sync_result(
-                            name, "plugin", mac_head, None, "failed", False,
-                            "清单里没有这件插件(Mac 本机与清单均无)",
-                        )
-                    )
-                    continue
-                results.append(
-                    self._sync_one(
-                        name=name, kind="plugin",
-                        url=(plugin or {}).get("url", ""),
-                        mac_head=mac_head, win_exists=name in win_names,
-                        deadline=deadline,
-                    )
-                )
+                results.append(_dispatch(name))
             except SSHServiceError as exc:
+                # 断线自愈(1104 B5):长同步途中 TCP 被掐(paramiko EOF→session
+                # not active / 未连接)→唤醒 keeper 立即重连,等翻绿后本件重试
+                # 一次;重连不成或重试再败 → 诚实落 failed(不拦后续件 C8)
+                if _is_session_drop(str(exc)) and self._reconnect_for_sync(deadline):
+                    try:
+                        results.append(_dispatch(name))
+                        continue
+                    except SSHServiceError as retry_exc:
+                        results.append(
+                            self._sync_result(
+                                name, "plugin" if name != _ENGINE_SYNC_ENGINE_NAME else "engine",
+                                None, None, "failed", False,
+                                f"{retry_exc}(断线重连后重试仍败)",
+                            )
+                        )
+                        continue
                 results.append(
                     self._sync_result(
                         name, "plugin" if name != _ENGINE_SYNC_ENGINE_NAME else "engine",
@@ -1071,7 +1105,7 @@ class SSHService:
                 "reason": "needs-runtime",
                 "message": "paramiko 未安装:请在设置的 Python 运行环境页完成依赖配置后重试",
             }
-        cfg = ssh_config.load_config()
+        cfg = ssh_config.effective_config()
         if not cfg.get("host"):
             return {"ok": False, "reason": "not-configured", "message": "未配置 SSH 主机"}
         self._recover_start(cfg)

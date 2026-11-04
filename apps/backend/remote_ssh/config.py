@@ -41,8 +41,33 @@ def default_config() -> dict:
         "tunnelEnabled": True,
         "tunnelLocalPort": DEFAULT_TUNNEL_LOCAL_PORT,
         "tokenConfigPaths": [],
-        "password": "",  # SSH 密码认证(可选;空=走密钥),
+        "password": "",  # 恒空占位:密码不落盘(1104 B4),真身在会话内存(见 set_session_password)
     }
+
+
+# ── 密码会话内存层(1104 B4:密码不落盘)──────────────────────────────
+# 前端 presets store 已 safeStorage 加密持有;激活连接 POST 携真密码 → 本层
+# 进程内存暂存供 keeper 断线重连用,ssh-remote.json 磁盘件恒不带密。sidecar
+# 重启后密码连接需从 UI 预设行重激活一次(密钥连接不受影响)——安全换一次点击。
+_SESSION_PASSWORD = ""
+
+
+def set_session_password(password: str) -> None:
+    """记录/清除本进程会话密码(save_config 专用;空串=清除,如切换回密钥认证)。"""
+    global _SESSION_PASSWORD
+    _SESSION_PASSWORD = str(password or "").strip()
+
+
+def session_password() -> str:
+    return _SESSION_PASSWORD
+
+
+def effective_config() -> dict:
+    """连接用有效配置:磁盘档 + 会话密码叠加(盘上恒空;legacy 盘上旧明文容错保留)。"""
+    cfg = load_config()
+    if not cfg.get("password"):
+        cfg["password"] = session_password()
+    return cfg
 
 
 def default_token_config_paths(user: str = "") -> list[str]:
@@ -112,10 +137,15 @@ def save_config(payload: dict) -> dict:
         inherited = load_config().get("tokenConfigPaths")
         if inherited:
             cfg["tokenConfigPaths"] = inherited
+    # 密码会话内存化(1104 B4):真密码只进本进程内存供 keeper 重连;磁盘档
+    # 恒写空串(safeStorage 加密的 presets store 才是持久真源,重激活即回填)
+    set_session_password(str(cfg.get("password") or ""))
     path = config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+    disk_cfg = dict(cfg)
+    disk_cfg["password"] = ""
+    tmp.write_text(json.dumps(disk_cfg, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(path)
     _notify_service_reload()
     return cfg
