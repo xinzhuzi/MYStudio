@@ -341,16 +341,28 @@ class _FakeResponse:
 
 def test_bridge_settings_config_payload_follows_env(monkeypatch):
     # 0924 令牌随机化:web 侧栏经 /my_bridge/config 取装机随机令牌;
-    # payload 与 settings env 严格同源,env 缺失=空令牌(fail-closed)
+    # 1105 根治后令牌序=文件真源优先(sidecar 换代即新鲜),env 只作兜底。
+    # 测试机 userData 可能有真 config.json → sidecar_control_token 必须
+    # 桩化,既控行为也防真令牌漏进断言输出。
     from comfyui.my_nodes import bridge_settings_server
 
     monkeypatch.setenv("MYSTUDIO_BRIDGE_URL", "http://127.0.0.1:9123/")
-    monkeypatch.setenv("MYSTUDIO_BRIDGE_TOKEN", "tok-config")
+
+    # ① 文件真源新鲜且在场=优先于 env(1105 病例:env 是陈货,文件是新令牌)
+    monkeypatch.setattr(
+        "comfyui.bridge_contract.sidecar_control_token", lambda: "tok-fresh"
+    )
+    monkeypatch.setenv("MYSTUDIO_BRIDGE_TOKEN", "tok-stale-env")
     assert bridge_settings_server.config_payload() == {
         "bridgeUrl": "http://127.0.0.1:9123",
-        "bridgeToken": "tok-config",
+        "bridgeToken": "tok-fresh",
     }
 
+    # ② 文件不可读/为空 → 回退 env 快照(0928 fail-closed 语义保留)
+    monkeypatch.setattr("comfyui.bridge_contract.sidecar_control_token", lambda: "")
+    assert bridge_settings_server.config_payload()["bridgeToken"] == "tok-stale-env"
+
+    # ③ 双缺=空串(sidecar 侧全 403,fail-closed 不变)
     monkeypatch.delenv("MYSTUDIO_BRIDGE_TOKEN", raising=False)
     assert bridge_settings_server.config_payload()["bridgeToken"] == ""
 
@@ -423,9 +435,12 @@ def test_writeback_unreachable_raises_plain_language(monkeypatch):
             bridge.writeback.deliver([_Frame()], "", "", "")
 
 
-def test_settings_env_overrides():
+def test_settings_env_overrides(monkeypatch):
     import os
 
+    # 1105:令牌文件真源桩空(测试机 userData 可能有真 config.json,直读会
+    # 把真令牌漏进断言;桥令牌语义见 test_bridge_settings_config_payload_follows_env)
+    monkeypatch.setattr("comfyui.bridge_contract.sidecar_control_token", lambda: "")
     old = {k: os.environ.get(k) for k in ("MYSTUDIO_BRIDGE_URL", "MYSTUDIO_BRIDGE_TOKEN")}
     try:
         os.environ["MYSTUDIO_BRIDGE_URL"] = "http://localhost:17595/"

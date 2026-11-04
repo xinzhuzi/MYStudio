@@ -20,6 +20,21 @@ def bridge_url() -> str:
 
 
 def bridge_token() -> str:
+    """桥令牌(1105 根治:App 重启令牌轮换后引擎 env 快照即陈货→侧栏恒 403)。
+
+    供 /my_bridge/config 实时下发,须每次现读文件真源(sidecar config.json
+    的 controlToken,engine_task 启动注入的同源文件);文件不可读/为空才回退
+    env 快照(0928 语义保留,fail-closed 不变)。注:spawn 时刻的决议序仍是
+    bridge_contract.resolve_bridge_token 的 env 优先——那是"当刻快照"正确;
+    本处是"活供令牌"须新鲜优先,两者场景不同。"""
+    try:
+        from comfyui.bridge_contract import sidecar_control_token  # 懒加载:同树无环
+
+        fresh = sidecar_control_token()
+        if fresh:
+            return fresh
+    except Exception:  # noqa: BLE001 — 真源不可达=回退 env 快照,不放大故障
+        pass
     return os.environ.get("MYSTUDIO_BRIDGE_TOKEN") or ""
 
 

@@ -18,6 +18,30 @@ export function bridgeToken() {
   return bridgeTokenPromise;
 }
 
+// 1105 根治:App 重启→sidecar 令牌轮换→页面缓存令牌陈货→侧栏恒 403。
+// 作废进程级令牌缓存,下一次 bridgeToken() 现取 /my_bridge/config(引擎侧
+// 已改现读文件真源,见 my_nodes/bridge/settings.py)。
+export function invalidateBridgeToken() {
+  bridgeTokenPromise = null;
+}
+
+// 统一带令牌取数口:401/403=令牌陈旧指纹 → 作废缓存 → 重取 → 重试一次。
+// POST 重放安全(403=请求被拒未执行)。window 注入令牌的旧 asar 路径下
+// 重试同令牌无害(至多多一发请求)。
+export async function bridgeFetch(url, init = {}) {
+  const doFetch = async () => {
+    const headers = new Headers(init.headers || {});
+    headers.set("X-Manying-Image-Token", await bridgeToken());
+    return fetch(url, { ...init, headers });
+  };
+  let response = await doFetch();
+  if (response.status === 401 || response.status === 403) {
+    invalidateBridgeToken();
+    response = await doFetch();
+  }
+  return response;
+}
+
 export function postAction(kind, note, button, originProjectId, originEpisodeId) {
   if (typeof originProjectId !== "string" || !originProjectId.trim()
     || typeof originEpisodeId !== "string" || !originEpisodeId.trim()) {
@@ -29,11 +53,11 @@ export function postAction(kind, note, button, originProjectId, originEpisodeId)
     void button.offsetWidth;
     button.classList.add("ms-btn--flash");
   }
-  bridgeToken().then((token) => fetch(`${BRIDGE_URL}/comfy/bridge/actions`, {
+  bridgeFetch(`${BRIDGE_URL}/comfy/bridge/actions`, {
     method: "POST",
-    headers: { "X-Manying-Image-Token": token, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ kind, ...(note ? { note } : {}), originProjectId, originEpisodeId }),
-  })).then((response) => {
+  }).then((response) => {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
   }).catch((error) => {
     window.alert?.(`制作动作提交失败(${error?.message || error})，请检查宿主状态；确认动作未在执行后再重试`);

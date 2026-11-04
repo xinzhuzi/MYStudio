@@ -78,14 +78,13 @@ if (typeof document !== "undefined" && !document.getElementById("my-font-bridge"
   document.head.append(style);
 }
 
-import { bridgeToken } from "./bridge-action.js";
+import { bridgeFetch } from "./bridge-action.js";
 
 const BRIDGE_URL = (window.MY_BRIDGE_URL || window.MANYING_BRIDGE_URL || "http://127.0.0.1:17595").replace(/\/$/, "");
 
 async function fetchShots() {
-  const response = await fetch(`${BRIDGE_URL}/comfy/bridge/storyboards`, {
-    headers: { "X-Manying-Image-Token": await bridgeToken() },
-  });
+  // 1105 根治:统一走 bridgeFetch(令牌陈旧自愈)
+  const response = await bridgeFetch(`${BRIDGE_URL}/comfy/bridge/storyboards`);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.json();
 }
@@ -242,15 +241,16 @@ function myScope() {
 }
 
 async function fetchJson(url) {
-  const response = await fetch(url, { headers: { "X-Manying-Image-Token": await bridgeToken() } });
+  // 1105 根治:走 bridgeFetch(401/403=令牌陈旧→作废缓存→重取→重试一次)
+  const response = await bridgeFetch(url);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.json();
 }
 
 async function postJson(url, body) {
-  const response = await fetch(url, {
+  const response = await bridgeFetch(url, {
     method: "POST",
-    headers: { "X-Manying-Image-Token": await bridgeToken(), "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
