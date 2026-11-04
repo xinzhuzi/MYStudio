@@ -219,9 +219,13 @@ class SSHServiceError(Exception):
 
 
 def _is_session_drop(message: str) -> bool:
-    """会话死亡指纹(1104 B5):仅认实弹观察到的两种——paramiko EOF 包装的
-    「session not active」与未连接前置拒「SSH 未连接」;其余错误不配触发重连。"""
-    return "session not active" in message or "SSH 未连接" in message
+    """会话死亡/瞬抖指纹(1104 B5;1105 补空详情类):实弹观察到的三种——
+    paramiko EOF 包装的「session not active」、未连接前置拒「SSH 未连接」、
+    与「远端命令执行失败:」尾空(socket.timeout/EOFError 的 str 恒空串,
+    01:11 实弹 Frame-Interpolation 件)。其余错误不配触发重连。"""
+    if "session not active" in message or "SSH 未连接" in message:
+        return True
+    return message.rstrip().endswith("远端命令执行失败:")
 
 
 def _paramiko():

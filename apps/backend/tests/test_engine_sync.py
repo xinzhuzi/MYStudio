@@ -453,6 +453,33 @@ class SyncEngineTests(unittest.TestCase):
         self.assertIn("permission denied", item["error"])
         self.assertTrue(wrapper.rejected)
 
+    def test_empty_detail_channel_timeout_also_triggers_reconnect_retry(self) -> None:
+        """1105 补:「远端命令执行失败:」尾空(socket.timeout/EOFError str 恒空)
+        也走重连重试——01:11 实弹 Frame-Interpolation 件抽风形态。"""
+        stub = self._stub()
+
+        class _BlipOnce:
+            def __init__(self, inner: _SshStub) -> None:
+                self.inner = inner
+                self.blipped = False
+
+            def __call__(self, command: str, timeout_s: float = 30) -> tuple[int, str]:
+                if "git clone" in command and not self.blipped:
+                    self.blipped = True
+                    raise SSHServiceError("远端命令执行失败: ")
+                return self.inner(command, timeout_s)
+
+        wrapper = _BlipOnce(stub)
+        svc = _service_with_stub(stub)
+        svc.run_remote_command = wrapper  # type: ignore[method-assign]
+        svc._started = True
+        svc._connected = True
+        svc._client = object()
+        result = svc.sync_engine(["pluginB"])
+        item = result["items"][0]
+        self.assertEqual((item["action"], item["verified"]), ("cloned", True))
+        self.assertTrue(wrapper.blipped)
+
     def test_partial_failure_does_not_block_rest(self) -> None:
         # pluginA pull 失败(exit 1);pluginB 正常 → 逐项回执 failed+cloned 并存(C8)
         stub = self._stub()
