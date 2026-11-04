@@ -256,7 +256,8 @@ const armPostHydrationResave = (): void => {
   studioHydrationResaveArmed = true;
   const fire = () => {
     studioHydrationResaveArmed = false;
-    console.warn("[studio-workflow] 水合完成,补写水合窗口期被拒的保存(合并态落盘)");
+    // 恢复性提示用 info(非警示):补写=正向自愈动作,勿惊动 warn 计数类断言/告警面
+    console.info("[studio-workflow] 水合完成,补写水合窗口期被拒的保存(合并态落盘)");
     useStudioStore.setState(useStudioStore.getState());
   };
   if (useStudioStore.persist.hasHydrated()) {
