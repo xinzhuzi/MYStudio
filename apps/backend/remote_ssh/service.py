@@ -851,6 +851,25 @@ class SSHService:
                         None, None, "failed", False, str(exc),
                     )
                 )
+        # 1104 补:同步逐件结果落盘 comfyui 家 engine-sync.log(用户令:要有日志)
+        try:
+            from comfyui.manifest import comfy_home as _ch
+            import datetime as _dt
+            _log = _ch() / "engine-sync.log"
+            _ts = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            _ok = sum(1 for i in results if i.get("action") in ("pulled", "cloned"))
+            _fail = sum(1 for i in results if i.get("action") == "failed")
+            _skip = sum(1 for i in results if i.get("action") == "skipped")
+            _lines = [f"\n=== engine-sync {_ts} ==="]
+            for _i in results:
+                _icon = {"pulled": "✅", "cloned": "✅(新)", "skipped": "⏭️", "failed": "❌"}.get(_i.get("action"), "?")
+                _err = f" | {_i['error']}" if _i.get("error") else ""
+                _lines.append(f"  {_icon} {_i['name']} [{_i.get('action')}] {_err}")
+            _lines.append(f"  总计: ✅{_ok} ❌{_fail} ⏭️{_skip}")
+            with open(_log, "a", encoding="utf-8") as _f:
+                _f.write("\n".join(_lines) + "\n")
+        except Exception:  # noqa: BLE001 — 日志失败不阻断同步结果返回
+            pass
         return {"items": results}
 
     @staticmethod
