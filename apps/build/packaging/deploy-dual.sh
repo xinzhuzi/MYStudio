@@ -207,9 +207,11 @@ phase_b() {
     fi
   fi
 
-  # B3: 停旧引擎
+  # B3: 停旧引擎+停旧 App(App 在跑会锁 exe/dll → robocopy /MIR exit=11 装机失败,
+  # 1104 晚实弹:链条死在 B4 且引擎已停=半瘫痪;先杀 App 再装,B8 装完再拉起)
   if ! dry "停旧引擎进程"; then
     log "Stopping engine..."
+    ssh_win "taskkill /F /IM manying-studio.exe" >/dev/null 2>&1 || true
     # wmic 已从新版 Windows 移除(本机实测 'wmic' 不是内部或外部命令)→ PowerShell CIM 等价查询
     # (实测命中全部 main.py+17000 引擎进程,含端口持有者与 venv 僵尸副本两个 PID)
     local pids
