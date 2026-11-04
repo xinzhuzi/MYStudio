@@ -899,8 +899,22 @@ class SSHService:
                     f"git clone 失败: {out.strip()[:200]}",
                 )
         elif kind == "engine" or mac_head is not None:
-            # Win 已有(引擎/both)→ 从 GitHub 拉最新(pull --ff-only;1104 用户
-            # 裁定「Windows 从 GitHub 拉最新,不 SSH 推 Mac HEAD」——删 reset)
+            # Win 已有(引擎/both)→ 先比 HEAD 再决定要不要 pull(1104 优化:
+            # fetch 后 local HEAD == origin/HEAD = 已最新 → 跳过,省 SSH 往返;
+            # 落后才 pull。用户令:已同步的不要每次强制再拉)
+            head_code, head_out = self.run_remote_command(
+                f'cd /d "{win_path}" && git fetch origin 2>&1 && '
+                f"git rev-parse HEAD 2>&1 && git rev-parse origin/HEAD 2>&1",
+                self._remaining_timeout(deadline, 60),
+            )
+            if head_code == 0:
+                lines = [l.strip() for l in head_out.strip().splitlines() if l.strip() and not l.startswith(("From ", "origin/"))]
+                if len(lines) >= 2 and lines[-2] == lines[-1]:
+                    return self._sync_result(
+                        name, kind, mac_head, lines[-1], "skipped", True,
+                        "已是最新(HEAD=origin/HEAD),跳过",
+                    )
+            # 不最新(或比对失败=保守走 pull)→ 从 GitHub 拉最新
             action = "pulled"
             code, out = self.run_remote_command(
                 f'cd /d "{win_path}" && git pull --ff-only 2>&1',
