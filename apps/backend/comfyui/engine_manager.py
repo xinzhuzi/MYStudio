@@ -2359,6 +2359,21 @@ class EngineManager:
         return target[:7]
 
     def update_job(self) -> str:
+        from remote_ssh.service import (
+            _TORCH_UPGRADE_LOCK,
+            _ensure_stuck_marker_writable,
+            _torch_any_marker,
+            _torch_stuck_marker,
+        )
+
+        if _torch_any_marker():
+            raise EngineOpError(f"暂停引擎更新：检测到 pip 未知态残留，运行引擎 PyTorch 升级或确认 venv 无 pip 进程后自动/手动清除 {_torch_stuck_marker()}")
+        if _TORCH_UPGRADE_LOCK.locked():
+            raise EngineOpError("PyTorch 升级进行中，暂停引擎更新")
+        try:
+            _ensure_stuck_marker_writable()
+        except RuntimeError as exc:
+            raise EngineOpError(str(exc)) from exc
         if jobs.active_of("engine-update"):
             raise EngineOpError("引擎正在更新中")
         if not cm.engine_installed():
@@ -2375,7 +2390,14 @@ class EngineManager:
         target, label = (head_sha, f"master({str(head_sha)[:7]})") if (head_sha and local_sha and head_sha != local_sha) else (latest, latest)
         if not target or (target == local_sha or (target == latest and latest == engine.get("version"))):
             raise EngineOpError("当前已是最新版本,无需更新")
-        job_id = jobs.create("engine-update", f"准备更新到 {label}")
+        if not _TORCH_UPGRADE_LOCK.acquire(blocking=False):
+            raise EngineOpError("PyTorch 升级进行中，暂停引擎更新")
+        try:
+            if _torch_any_marker():
+                raise EngineOpError(f"检测到 pip 未知态残留，运行引擎 PyTorch 升级或确认 venv 无 pip 进程后自动/手动清除 {_torch_stuck_marker()}")
+            job_id = jobs.create("engine-update", f"准备更新到 {label}")
+        finally:
+            _TORCH_UPGRADE_LOCK.release()
         jobs.start(job_id, lambda jid: self._update_job(jid, target))
         return job_id
 
@@ -2407,6 +2429,9 @@ class EngineManager:
             else:
                 # 消息拼装处即探测落缓存(pip 必跑不白探);镜像线才有注记,现行线原样
                 jobs.update(job_id, progress=35, step="pip", message=f"依赖按需升级{pip_route_note()}…")
+                from remote_ssh.service import _TORCH_UPGRADE_LOCK, _torch_any_marker, _torch_stuck_marker
+                if _TORCH_UPGRADE_LOCK.locked() or _torch_any_marker():
+                    raise EngineOpError(f"PyTorch 升级进行中或检测到 pip 未知态残留，运行引擎 PyTorch 升级或确认 venv 无 pip 进程后自动/手动清除 {_torch_stuck_marker()}")
                 _pip(["install", "torch", "torchvision", "torchaudio"])
                 _pip(["install", "-r", str(src / "requirements.txt")],
                      on_line=lambda line: jobs.update(job_id, tail_line=line))

@@ -104,3 +104,12 @@ def test_fresh_install_still_acquires(home, monkeypatch):
     entry = cm.plugin_ledger()["Rebalance-Pack"]
     assert entry.get("adopted") is False
     assert "收编" not in calls["result"]["message"]
+
+
+def test_install_refuses_pip_during_torch_upgrade(home, monkeypatch):
+    from remote_ssh.service import _TORCH_UPGRADE_LOCK
+
+    monkeypatch.setattr(pm, "_plugin_requirements", lambda plan: ([{"name": "example", "raw": "example"}], []))
+    monkeypatch.setattr(pm, "check_dependency_conflicts", lambda *args: [])
+    with _TORCH_UPGRADE_LOCK, pytest.raises(EngineOpError, match="PyTorch 升级进行中"):
+        _run_install_job(monkeypatch, _plan())

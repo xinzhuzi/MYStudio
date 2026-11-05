@@ -16,16 +16,25 @@
 
 from __future__ import annotations
 
+import base64
 import concurrent.futures
+import hashlib
 import json
+import logging
 import os
 import re
+import tempfile
 import threading
 import time
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from functools import wraps
 from pathlib import Path
 
 from remote_ssh import config as ssh_config
 from remote_ssh.tunnel import TunnelManager
+
+logger = logging.getLogger(__name__)
 
 # 令牌文件名:与 image_gen/server.py 的 REMOTE_TOKEN_FILE_NAME 同字面
 # (消费链 server.py:130 _remote_sidecar_token_from_file 零改动;此处不
@@ -67,6 +76,174 @@ def _tunnel_local_port_from_cfg() -> int:
 _WIN_COMFY_ROOT = "E:\\IP\\漫影工作室\\comfyui"
 _WIN_CUSTOM_NODES = _WIN_COMFY_ROOT + "\\ComfyUI\\custom_nodes"
 _WIN_VENV_PYTHON = _WIN_COMFY_ROOT + "\\venv\\Scripts\\python.exe"
+TORCH_TV_MAP = {"2.14.1": "0.29.1", "2.14.0": "0.29.0", "2.13.0": "0.28.0"}
+PINNED_TORCH = "2.14.1"  # 升版时修改此常量
+_TORCH_UPGRADE_LOCK = threading.Lock()
+_TORCH_RECOVERY_LOCK = threading.Lock()
+_TORCH_STUCK_HELD = False
+_TORCH_STUCK_MODE = "remote"
+_TORCH_STUCK_HOST = None
+_TORCH_SESSION = threading.local()
+_TORCH_CHANNELS = {"cu128", "cu130", "cu132"}
+_TORCH_KILL_PATTERN = r"comfyui.+main\.py"
+
+
+def _exclusive_engine_sync(method):
+    @wraps(method)
+    def guarded(*args, **kwargs):
+        _acquire_torch_operation(args[0])
+        try:
+            try:
+                pip_running = args[0]._torch_remote_pip_running()
+            except Exception as exc:
+                raise RuntimeError("无法核实远端 pip 状态，引擎同步已让路") from exc
+            if pip_running:
+                raise RuntimeError("远端 pip 仍在运行，引擎同步已让路")
+            return method(*args, **kwargs)
+        finally:
+            _TORCH_UPGRADE_LOCK.release()
+    return guarded
+
+
+def _torch_stuck_marker() -> Path:
+    from comfyui.manifest import comfy_home
+    return comfy_home() / "torch-upgrade-backup" / "stuck.json"
+
+
+def _torch_fallback_marker() -> Path:
+    from comfyui.manifest import comfy_home
+    return comfy_home() / "torch-upgrade-mac-state" / "stuck.json"
+
+
+def _torch_any_marker() -> bool:
+    return _torch_stuck_marker().exists() or _torch_fallback_marker().exists()
+
+
+def _torch_clear_markers() -> None:
+    try:
+        _torch_stuck_marker().unlink(missing_ok=True)
+        _torch_fallback_marker().unlink(missing_ok=True)
+    except OSError as exc:
+        raise RuntimeError("异常标记无法清除，须人工介入") from exc
+
+
+def _torch_write_marker(record: dict) -> None:
+    marker = _torch_stuck_marker()
+    fallback = _torch_fallback_marker()
+    try:
+        fallback.parent.mkdir(parents=True, exist_ok=True)
+        fallback.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError(f"异常备用标记无法持久化：{fallback}，须人工介入") from exc
+    try:
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError(f"异常标记主路径不可写，已保存备用标记 {fallback}，须人工介入") from exc
+
+
+def _ensure_stuck_marker_writable() -> None:
+    # 1106 裁定:同步入口也做可写预检并 fail-closed；路径不可写须人工介入。
+    for marker in (_torch_stuck_marker(), _torch_fallback_marker()):
+        try:
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.TemporaryFile(dir=marker.parent) as probe:
+                probe.write(b"probe")
+                probe.flush()
+        except OSError as exc:
+            raise RuntimeError(f"异常标记路径不可写：{marker}，须人工介入") from exc
+    # pip 启动前仍需成功写入持久标记，不能依赖此探针替代写入。
+
+
+def _write_torch_in_progress(job_id: str, *, mode: str, host: str | None = None, target: str | None = None) -> None:
+    _torch_write_marker({"jobId": job_id, "at": datetime.now(timezone.utc).isoformat(),
+                         "reason": "pip 安装进行中", "mode": mode, "host": host,
+                         "target": target, "kind": "in-progress", "state": "in-progress"})
+
+
+def _mark_torch_stuck(job_id: str, reason: str, *, mode: str, host: str | None = None, target: str | None = None) -> str | None:
+    global _TORCH_STUCK_HELD, _TORCH_STUCK_MODE, _TORCH_STUCK_HOST
+    with _TORCH_RECOVERY_LOCK:
+        _TORCH_STUCK_HELD = True
+        _TORCH_STUCK_MODE = mode
+        _TORCH_STUCK_HOST = host
+        try:
+            _torch_write_marker({"jobId": job_id, "at": datetime.now(timezone.utc).isoformat(), "reason": reason, "host": host, "mode": mode, "target": target, "kind": "stuck", "state": "stuck"})
+        except RuntimeError as exc:
+            logger.exception("无法保存 PyTorch 升级异常标记")
+            return str(exc)
+    return None
+
+
+def _acquire_torch_operation(instance) -> None:
+    from comfyui.engine_manager import jobs
+    global _TORCH_STUCK_HELD, _TORCH_STUCK_HOST
+    with _TORCH_RECOVERY_LOCK:
+        marker = _torch_stuck_marker()
+        if jobs.active_of("torch-upgrade"):
+            raise RuntimeError("PyTorch 升级任务已在运行，引擎同步已让路")
+        if _torch_any_marker() or _TORCH_STUCK_HELD:
+            # 1106 裁定:兜底-only 可在主机一致、pip 空闲且 import 版本吻合后清标，否则保留并拒绝。
+            mode = _TORCH_STUCK_MODE if _TORCH_STUCK_HELD else "remote"
+            try:
+                records = [json.loads(path.read_text(encoding="utf-8")) for path in (marker, _torch_fallback_marker()) if path.exists()]
+                if not records:
+                    raise RuntimeError("异常标记缺失，须人工核实")
+                recorded = records[0]
+                conflict = "检测到跨主机/状态冲突记录，须人工核验或运行一次完整升级覆盖"
+                if any(not isinstance(record, dict) or
+                       any(not isinstance(record.get(key), str) or not record[key].strip() for key in ("jobId", "at", "mode", "reason")) or
+                       record.get("kind") not in ("in-progress", "stuck") or
+                       record.get("state") not in ("in-progress", "stuck") or
+                       "host" not in record or record["mode"] not in ("local", "remote") or
+                       (record["mode"] == "local" and record["host"] is not None) or
+                       (record["mode"] == "remote" and (not isinstance(record["host"], str) or not record["host"].strip()))
+                       for record in records):
+                    raise RuntimeError(conflict)
+                if any(record != recorded for record in records[1:]):
+                    raise RuntimeError(conflict)
+                if _TORCH_STUCK_HELD and (recorded["mode"] != _TORCH_STUCK_MODE or recorded["host"] != _TORCH_STUCK_HOST):
+                    raise RuntimeError(conflict)
+                mode = recorded.get("mode", _TORCH_STUCK_MODE if _TORCH_STUCK_HELD else "remote")
+                target = recorded.get("target")
+                if not isinstance(target, str) or not target.strip():
+                    raise RuntimeError("异常标记缺少目标版本，须人工核实")
+                if mode == "local":
+                    from comfyui import torch_upgrade_local
+                    torch_upgrade_local._ensure_no_pip()
+                    torch_upgrade_local._verify_import(target)
+                elif mode == "remote":
+                    host = recorded.get("host")
+                    if not isinstance(host, str) or not host or instance._connected_host != host or ssh_config.load_config().get("host") != host:
+                        raise RuntimeError("无法核实远端 pip 状态：SSH 主机与异常任务不一致")
+                    if instance._torch_remote_pip_running():
+                        raise RuntimeError("远端 pip 仍在运行，引擎同步已让路")
+                    instance._torch_verify_recovery_import(target)
+                else:
+                    raise RuntimeError("未知 pip 异常来源")
+            except RuntimeError as exc:
+                if "远端 pip 仍在运行" in str(exc):
+                    raise
+                raise RuntimeError(f"无法核实{'本地' if mode == 'local' else '远端'} pip 状态，引擎同步已让路：{exc}") from exc
+            except Exception as exc:
+                raise RuntimeError(f"无法核实{'本地' if mode == 'local' else '远端'} pip 状态，引擎同步已让路") from exc
+            _torch_clear_markers()
+            if _TORCH_STUCK_HELD:
+                _TORCH_UPGRADE_LOCK.release()
+                _TORCH_STUCK_HELD = False
+                _TORCH_STUCK_HOST = None
+        _ensure_stuck_marker_writable()
+        if not _TORCH_UPGRADE_LOCK.acquire(blocking=False):
+            raise RuntimeError("引擎同步或 PyTorch 升级进行中，引擎同步已让路")
+
+
+def _torch_powershell(script: str) -> str:
+    encoded = base64.b64encode(script.encode("utf-16le")).decode("ascii")
+    return f"powershell -NoProfile -NonInteractive -EncodedCommand {encoded}"
+
+
+def _torch_quote(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
 # 引擎条目名(清单/回执里 ComfyUI 本体的固定 name)
 _ENGINE_SYNC_ENGINE_NAME = "ComfyUI"
 _COMFYUI_REPO_URL = "https://github.com/comfyanonymous/ComfyUI"
@@ -218,6 +395,10 @@ class SSHServiceError(Exception):
     """SSH 服务级失败(未连接/未装依赖/IO 失败);调用方按降级处理。"""
 
 
+class TorchInstallUnknownError(RuntimeError):
+    """远端 pip 是否仍运行不可知，不能并发启动回滚。"""
+
+
 def _is_session_drop(message: str) -> bool:
     """会话死亡/瞬抖指纹(1104 B5;1105 补空详情类):实弹观察到的三种——
     paramiko EOF 包装的「session not active」、未连接前置拒「SSH 未连接」、
@@ -261,6 +442,7 @@ class SSHService:
         self._wake = threading.Event()
         self._started = False
         self._connected = False
+        self._connected_host: str | None = None
         self._server_version: str | None = None
         self._last_error: str | None = None
         self._token_refreshed_at: float | None = None
@@ -415,6 +597,7 @@ class SSHService:
         with self._lock:
             self._client = client
             self._connected = True
+            self._connected_host = cfg["host"]
             self._last_error = None
             if transport is not None:
                 version = getattr(transport, "remote_version", None)
@@ -610,6 +793,9 @@ class SSHService:
         """
         with self._lock:
             client = self._client
+            expected = getattr(_TORCH_SESSION, "client", None)
+            if expected is not None and (client is not expected or not self._connected):
+                raise SSHServiceError("升级期间 SSH 会话已改变，拒绝操作其他主机")
         if client is None:
             raise SSHServiceError("SSH 未连接")
         try:
@@ -804,6 +990,7 @@ class SSHService:
             )
         return {"items": items}
 
+    @_exclusive_engine_sync
     def sync_engine(self, items: list[str], timeout_s: float | None = None) -> dict:
         """POST /comfy/ssh/sync-engine:逐项 SSH 同步(并集策略 Q1;GitHub 拉最新)。
 
@@ -1004,6 +1191,363 @@ class SSHService:
         return self._sync_result(
             name, kind, mac_head, win_head, action, verified, None, pip_error
         )
+
+    @contextmanager
+    def _torch_session_guard(self):
+        expected = getattr(_TORCH_SESSION, "client", None)
+        if expected is None:
+            yield
+            return
+        with self._lock:
+            if self._client is not expected or not self._connected:
+                raise SSHServiceError("升级期间 SSH 会话已改变，拒绝操作其他主机")
+        try:
+            yield
+        finally:
+            with self._lock:
+                if self._client is not expected or not self._connected:
+                    raise SSHServiceError("升级期间 SSH 会话已改变，拒绝操作其他主机")
+
+    def _torch_command(self, script: str, timeout_s: float = 30) -> str:
+        with self._torch_session_guard():
+            code, output = self.run_remote_command(_torch_powershell(script), timeout_s)
+        if code != 0:
+            raise RuntimeError(output.strip() or f"远端命令失败 ({code})")
+        return output.strip()
+
+    def _torch_remote_pip_running(self) -> bool:
+        output = self._torch_command(f"$ErrorActionPreference='Stop'; @((Get-CimInstance Win32_Process -Filter \"Name like 'python%'\") | Where-Object {{ $_.CommandLine -and $_.CommandLine.IndexOf({_torch_quote(_WIN_VENV_PYTHON)}, [StringComparison]::OrdinalIgnoreCase) -ge 0 -and $_.CommandLine -match '\\s-m\\s+pip\\s+install(\\s|$)' }}).Count")
+        if not output.isdecimal():
+            raise RuntimeError("无法核实远端 pip 状态")
+        return int(output) > 0
+
+    def _torch_verify_recovery_import(self, target: str) -> None:
+        actual = self._torch_command(f"& {_torch_quote(_WIN_VENV_PYTHON)} -c 'import torch, torchvision; print(torch.__version__)'; exit $LASTEXITCODE", 60)
+        if actual.splitlines()[-1:] != [target]:
+            raise RuntimeError("远端 PyTorch 版本与异常标记不一致")
+
+    def _torch_http(self, path: str, timeout_s: float = 20) -> dict:
+        projection = "@{nodeCount=@($value.PSObject.Properties).Count}" if path == "/object_info" else "$value"
+        output = self._torch_command(
+            f"$ErrorActionPreference='Stop'; $value=Invoke-RestMethod -TimeoutSec {int(timeout_s)} -Uri 'http://127.0.0.1:17000{path}'; {projection} | ConvertTo-Json -Depth 100 -Compress",
+            timeout_s,
+        )
+        data = json.loads(output)
+        if not isinstance(data, dict):
+            raise TypeError(f"{path} 返回的数据无效")
+        return data
+
+    def _torch_wait_ready(self) -> dict:
+        deadline = time.monotonic() + 120
+        while time.monotonic() < deadline:
+            try:
+                return self._torch_http("/system_stats")
+            except (SSHServiceError, RuntimeError, TypeError, ValueError):
+                time.sleep(2)
+        raise RuntimeError("引擎重启后 120 秒内未就绪")
+
+    def _torch_restart(self) -> dict:
+        with self._torch_session_guard():
+            reply = self.restart_remote_engine()
+        if not reply.get("ok"):
+            raise RuntimeError(f"引擎重启失败: {reply.get('output', '')}")
+        return self._torch_wait_ready()
+
+    def _torch_stop_engine(self) -> None:
+        self._torch_command(f"Get-CimInstance Win32_Process -Filter \"Name like 'python%'\" | Where-Object {{ $_.CommandLine -match '{_TORCH_KILL_PATTERN}' }} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop }}; $end=(Get-Date).AddSeconds(60); while (Get-NetTCPConnection -LocalPort 17000 -State Listen -ErrorAction SilentlyContinue) {{ if ((Get-Date) -gt $end) {{ throw 'port 17000 remains in use' }}; Start-Sleep -Seconds 2 }}", 75)
+
+    def _torch_install(self, specs: list[str], channel: str, job_id: str, *, allow_mirror: bool = True) -> None:
+        from comfyui.engine_manager import jobs
+
+        packages = " ".join(_torch_quote(spec) for spec in specs)
+        last_output = ""
+        indexes = [f"https://download.pytorch.org/whl/{channel}"]
+        if allow_mirror:
+            indexes.append(f"https://mirrors.aliyun.com/pytorch-wheels/{channel}")
+        for index in indexes:
+            script = (f"$env:PYTHONUTF8='1'; & {_torch_quote(_WIN_VENV_PYTHON)} -m pip install "
+                      f"--no-cache-dir {packages} --index-url {_torch_quote(index)} 2>&1; exit $LASTEXITCODE")
+            try:
+                with self._torch_session_guard():
+                    code, output = self.run_remote_command(_torch_powershell(script), 3600)
+            except SSHServiceError as exc:
+                if isinstance(exc.__cause__, TimeoutError):
+                    self._torch_monitor_install(specs, job_id)
+                    return
+                raise TorchInstallUnknownError(f"pip 状态不明: {exc}") from exc
+            last_output = output.strip()
+            for line in last_output.splitlines()[-30:]:
+                jobs.update(job_id, tail_line=line)
+            if code == 0:
+                return
+            if code is None or code < 0:
+                raise TorchInstallUnknownError(f"pip 状态不明，退出码 {code}: {last_output[-1500:]}")
+        raise RuntimeError(f"pip 安装失败: {last_output[-1500:]}")
+
+    def _torch_monitor_install(self, specs: list[str], job_id: str) -> None:
+        from comfyui.engine_manager import jobs
+
+        deadline = time.monotonic() + 1800
+        while True:
+            try:
+                running = self._torch_remote_pip_running()
+            except (SSHServiceError, RuntimeError, ValueError) as exc:
+                raise TorchInstallUnknownError(f"pip 监控失败: {exc}") from exc
+            state = "running" if running else "stopped"
+            jobs.update(job_id, tail_line=f"pip 超时监控: {state}")
+            if state == "stopped":
+                break
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TorchInstallUnknownError("pip 监控超过 30 分钟，进程仍在运行")
+            time.sleep(min(60, remaining))
+        expected = [spec.split("==", 1)[1] for spec in specs]
+        modules = [spec.split("==", 1)[0] for spec in specs]
+        expression = "; ".join(f"print(__import__({name!r}).__version__)" for name in modules)
+        probe = (f"$env:PYTHONUTF8='1'; & {_torch_quote(_WIN_VENV_PYTHON)} "
+                 f'-c "{expression}"; exit $LASTEXITCODE')
+        try:
+            with self._torch_session_guard():
+                code, output = self.run_remote_command(_torch_powershell(probe), 30)
+        except SSHServiceError as exc:
+            raise TorchInstallUnknownError(f"pip 版本验证状态不明: {exc}") from exc
+        if code is None or code < 0:
+            raise TorchInstallUnknownError("pip 版本验证状态不明")
+        if code != 0 or output.strip().splitlines()[-len(expected):] != expected:
+            raise RuntimeError(f"pip 已退出但版本验证失败: {output.strip()}")
+
+    def _torch_write_ledger(self, current: dict, entry: dict) -> None:
+        path = _WIN_COMFY_ROOT + "\\torch-upgrade.json"
+        log_path = _WIN_COMFY_ROOT + "\\engine-upgrade.log"
+        encoded_current = base64.b64encode(json.dumps(current, ensure_ascii=False).encode()).decode()
+        encoded_entry = base64.b64encode(json.dumps(entry, ensure_ascii=False).encode()).decode()
+        script = f"""
+$ErrorActionPreference='Stop'
+$path={_torch_quote(path)}; $log={_torch_quote(log_path)}
+$current=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{encoded_current}')) | ConvertFrom-Json
+$entry=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{encoded_entry}')) | ConvertFrom-Json
+$history=@(); if (Test-Path -LiteralPath $path) {{ $old=Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json; $history=@($old.history) }}
+$json=@{{current=$current; history=@($history)+@($entry)}} | ConvertTo-Json -Depth 20
+$utf8=New-Object System.Text.UTF8Encoding($false)
+[IO.File]::WriteAllText($path+'.tmp', $json, $utf8)
+Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
+[IO.File]::AppendAllText($log, ($entry | ConvertTo-Json -Compress)+[Environment]::NewLine, $utf8)
+"""
+        self._torch_command(script)
+
+    def _torch_log(self, job_id: str, message: str) -> None:
+        line = json.dumps({"at": datetime.now(timezone.utc).isoformat(), "jobId": job_id, "message": message}, ensure_ascii=False)
+        encoded = base64.b64encode((line + "\n").encode("utf-8")).decode("ascii")
+        path = _WIN_COMFY_ROOT + "\\engine-upgrade.log"
+        self._torch_command(f"$bytes=[Convert]::FromBase64String('{encoded}'); $stream=[IO.File]::Open({_torch_quote(path)},[IO.FileMode]::Append,[IO.FileAccess]::Write,[IO.FileShare]::Read); try {{ $stream.Write($bytes,0,$bytes.Length) }} finally {{ $stream.Dispose() }}")
+
+    def get_engine_torch_info(self, *, expected_host: str | None = None) -> dict:
+        from comfyui.engine_manager import jobs
+
+        with self._lock:
+            configured_host = ssh_config.load_config().get("host")
+            host_matched = bool(expected_host and isinstance(configured_host, str)
+                                and expected_host.casefold() == configured_host.casefold()
+                                and self._connected and self._connected_host == configured_host)
+        current = None
+        try:
+            ledger = json.loads(self.sftp_read_text((_WIN_COMFY_ROOT + "\\torch-upgrade.json").replace("\\", "/")))
+            if isinstance(ledger, dict) and isinstance(ledger.get("current"), dict):
+                current = ledger["current"]
+        except (SSHServiceError, TypeError, ValueError, OSError):
+            current = None
+        live = False
+        try:
+            if not host_matched:
+                raise SSHServiceError("当前远端引擎与 SSH 主机不一致")
+            stats = self._torch_http("/system_stats")
+            version = stats.get("system", {}).get("pytorch_version")
+            if isinstance(version, str) and version:
+                cuda_match = re.search(r"\+cu(\d{2})(\d)$", version)
+                same_version = current is not None and current.get("torch") == version
+                current = {"torch": version, "torchvision": current.get("torchvision") if same_version else None,
+                           "cuda": f"{int(cuda_match.group(1))}.{cuda_match.group(2)}" if cuda_match else None,
+                           "updatedAt": current.get("updatedAt") if same_version else None, "via": "live"}
+                live = True
+        except (SSHServiceError, RuntimeError, TypeError, ValueError, AttributeError):
+            live = False
+        active_job = jobs.active_of("torch-upgrade")
+        return {"current": current, "live": live, "hostMatched": host_matched,
+                "busy": active_job is not None, "jobId": active_job["id"] if active_job else None,
+                "allowedTargets": list(TORCH_TV_MAP), "pinnedTarget": PINNED_TORCH}
+
+    def upgrade_engine_torch(self, target: str, channel: str = "cu132", *, expected_host: str | None = None) -> str:
+        from comfyui.engine_manager import jobs
+
+        if not isinstance(target, str) or not re.fullmatch(r"\d+\.\d+\.\d+", target) or channel not in _TORCH_CHANNELS:
+            raise ValueError("无效的 PyTorch 版本或 CUDA 通道")
+        if target not in TORCH_TV_MAP:
+            raise ValueError("仅支持 " + " / ".join(TORCH_TV_MAP))
+        _acquire_torch_operation(self)
+        try:
+            if jobs.active_of("torch-upgrade"):
+                raise RuntimeError("PyTorch 升级任务已在运行")
+            if jobs.active_of("engine-update") or jobs.active_of("plugin-install"):
+                raise RuntimeError("引擎更新或插件安装进行中，请稍后再升级 PyTorch")
+            with self._lock:
+                client = self._client
+                configured_host = ssh_config.load_config().get("host")
+                if client is None or not self._connected or self._connected_host != configured_host:
+                    raise RuntimeError("SSH 未连接或连接配置正在切换")
+                if expected_host is not None and (not isinstance(configured_host, str) or configured_host.casefold() != expected_host.casefold()):
+                    raise RuntimeError("当前远端引擎与已连接 SSH 主机不一致")
+            job_id = jobs.create("torch-upgrade")
+            def run(active_id):
+                global _TORCH_STUCK_HELD, _TORCH_STUCK_MODE, _TORCH_STUCK_HOST
+                _TORCH_SESSION.client = client
+                stuck = False
+                try:
+                    stuck = self._torch_upgrade_job(active_id, target, channel, configured_host)
+                finally:
+                    del _TORCH_SESSION.client
+                    if stuck:
+                        message = jobs.get(active_id).get("message")
+                        warning = _mark_torch_stuck(active_id, message, mode="remote", host=configured_host, target=f"{target}+{channel}")
+                        if warning:
+                            message = f"{message}；{warning}"
+                            jobs.update(active_id, message=message, error=message, tail_line=warning)
+                    else:
+                        with _TORCH_RECOVERY_LOCK:
+                            if _torch_any_marker():
+                                _TORCH_STUCK_HELD = True
+                                _TORCH_STUCK_MODE = "remote"
+                                _TORCH_STUCK_HOST = configured_host
+                            else:
+                                _TORCH_UPGRADE_LOCK.release()
+            try:
+                jobs.start(job_id, run)
+            except Exception:
+                jobs.update(job_id, error="升级任务启动失败")
+                raise
+            return job_id
+        except BaseException:
+            _TORCH_UPGRADE_LOCK.release()
+            raise
+
+    def _torch_upgrade_job(self, job_id: str, target: str, channel: str, host: str | None = None) -> bool:
+        from comfyui.engine_manager import jobs
+        from comfyui.manifest import comfy_home
+
+        old_torch = ""
+        old_tv = ""
+        stopped = False
+        install_started = False
+        baseline = 0
+        target_version = f"{target}+{channel}"
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        result = {"from": None, "to": target_version, "rollback": False, "pipError": None}
+        def progress(step: str, percent: int, message: str) -> None:
+            jobs.update(job_id, step=step, progress=percent, message=message)
+            self._torch_log(job_id, f"{step}: {message}")
+        try:
+            if not self.status().get("connected"):
+                raise RuntimeError("SSH 未连接")
+            progress("preflight", 5, "检查远端引擎")
+            if self._torch_remote_pip_running():
+                raise RuntimeError("引擎环境中已有 pip 安装进程，拒绝并发升级")
+            try:
+                self._torch_http("/system_stats")
+            except (SSHServiceError, RuntimeError, TypeError, ValueError):
+                self._torch_restart()
+            queue = self._torch_http("/queue")
+            if queue.get("queue_pending") != [] or queue.get("queue_running") != []:
+                raise RuntimeError("引擎队列非空或队列状态无效")
+            baseline = self._torch_http("/object_info", 120).get("nodeCount", 0)
+            if baseline <= 0:
+                raise RuntimeError("节点基线为空")
+            free = int(self._torch_command("(Get-Volume -DriveLetter E).SizeRemaining"))
+            if free < 15 * 1024 ** 3:
+                raise RuntimeError("E 盘可用空间不足 15 GiB")
+            driver = self._torch_command("& nvidia-smi; exit $LASTEXITCODE")
+            match = re.search(r"CUDA Version:\s*(\d+)\.(\d+)", driver)
+            if not match or (int(match.group(1)), int(match.group(2))) < (int(channel[2:-1]), int(channel[-1])):
+                raise RuntimeError("显卡驱动不支持目标 CUDA 版本")
+
+            progress("snapshot", 10, "备份已安装包")
+            filename = f"rollback-{timestamp}-{job_id}.txt"
+            remote_dir = _WIN_COMFY_ROOT + "\\torch-upgrade"
+            remote_path = remote_dir + "\\" + filename
+            snapshot_hash = self._torch_command(f"$ErrorActionPreference='Stop'; $env:PYTHONUTF8='1'; New-Item -ItemType Directory -Force -Path {_torch_quote(remote_dir)} | Out-Null; $lines=@(& {_torch_quote(_WIN_VENV_PYTHON)} -m pip freeze); if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}; [IO.File]::WriteAllLines({_torch_quote(remote_path)}, [string[]]$lines, (New-Object System.Text.UTF8Encoding($false))); (Get-FileHash -Algorithm SHA256 -LiteralPath {_torch_quote(remote_path)}).Hash", 120)
+            with self._torch_session_guard():
+                copied = self.sftp_read_text(remote_path.replace("\\", "/"))
+            if hashlib.sha256(copied.encode("utf-8")).hexdigest().lower() != snapshot_hash.lower():
+                raise RuntimeError("远端快照回拷校验失败")
+            pins = dict(re.findall(r"(?im)^(torch|torchvision)==([^\s]+)\s*$", copied))
+            old_torch, old_tv = pins.get("torch", ""), pins.get("torchvision", "")
+            if not re.fullmatch(r"\d+\.\d+\.\d+\+cu\d+", old_torch):
+                raise RuntimeError("快照缺少可回滚的 CUDA torch pin")
+            if not re.fullmatch(r"\d+\.\d+\.\d+\+cu\d+", old_tv):
+                raise RuntimeError("快照缺少可回滚的 torchvision pin")
+            result["from"] = old_torch
+            backup_dir = comfy_home() / "torch-upgrade-backup"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            (backup_dir / filename).write_text(copied, encoding="utf-8")
+
+            progress("stop-engine", 15, "停止远端引擎")
+            stopped = True
+            self._torch_stop_engine()
+            progress("install", 15, "安装目标版本")
+            _write_torch_in_progress(job_id, mode="remote", host=host, target=target_version)
+            install_started = True
+            specs = [f"torch=={target_version}"]
+            specs.append(f"torchvision=={TORCH_TV_MAP[target]}+{channel}")
+            self._torch_install(specs, channel, job_id)
+            progress("verify-import", 85, "验证 PyTorch 和 CUDA")
+            probe = self._torch_command(f"$env:PYTHONUTF8='1'; & {_torch_quote(_WIN_VENV_PYTHON)} -c 'import torch; print(torch.__version__); print(torch.cuda.is_available())'; exit $LASTEXITCODE", 120).splitlines()
+            if len(probe) < 2 or probe[-2:] != [target_version, "True"]:
+                raise RuntimeError("PyTorch 版本或 CUDA 导入验证失败")
+            progress("restart", 90, "重启引擎")
+            stats = self._torch_restart()
+            progress("smoke", 95, "验证引擎节点")
+            if stats.get("system", {}).get("pytorch_version") != target_version or not stats.get("devices") or self._torch_http("/object_info", 120).get("nodeCount", 0) < max(1, baseline * 0.95):
+                raise RuntimeError("引擎烟测失败")
+            progress("ledger", 99, "记录升级结果")
+            now = datetime.now(timezone.utc).isoformat()
+            current = {"torch": target_version, "torchvision": f"{TORCH_TV_MAP[target]}+{channel}", "cuda": f"{channel[2:-1]}.{channel[-1]}", "updatedAt": now, "via": "oneclick"}
+            self._torch_write_ledger(current, {"at": now, "from": old_torch, "to": target_version, "ok": True, "rollback": False, "jobId": job_id})
+            _torch_clear_markers()
+            jobs.update(job_id, step="ledger", progress=100, message="升级完成，引擎已重启", result=result)
+        except Exception as exc:
+            logger.exception("Torch upgrade failed")
+            stuck = isinstance(exc, TorchInstallUnknownError)
+            error = str(exc)
+            result["pipError"] = error if install_started else None
+            if stopped and isinstance(exc, TorchInstallUnknownError):
+                error += "；回滚未执行，引擎可能离线，须人工确认远端 pip 已停止后介入"
+            elif stopped:
+                try:
+                    if install_started:
+                        self._torch_stop_engine()
+                        old_channel = old_torch.rsplit("+", 1)[1]
+                        self._torch_install([f"torch=={old_torch}", f"torchvision=={old_tv}"], old_channel, job_id, allow_mirror=False)
+                    stats = self._torch_restart()
+                    if old_torch and (stats.get("system", {}).get("pytorch_version") != old_torch or not stats.get("devices")):
+                        raise RuntimeError("回滚后引擎版本验证失败")
+                    if install_started and self._torch_http("/object_info", 120).get("nodeCount", 0) < max(1, baseline * 0.95):
+                        raise RuntimeError("回滚后节点数量验证失败")
+                    result["rollback"] = True
+                    error += f"；已回滚至 {old_torch}" if install_started else "；引擎已恢复"
+                    if install_started:
+                        now = datetime.now(timezone.utc).isoformat()
+                        self._torch_write_ledger({"torch": old_torch, "torchvision": old_tv or None, "cuda": None, "updatedAt": now, "via": "rollback"}, {"at": now, "from": old_torch, "to": target_version, "ok": False, "rollback": True, "jobId": job_id})
+                        _torch_clear_markers()
+                except Exception as rollback_exc:
+                    logger.exception("Torch rollback failed")
+                    stuck = isinstance(rollback_exc, TorchInstallUnknownError)
+                    error += f"；回滚失败，引擎可能离线，须人工介入: {rollback_exc}"
+            try:
+                self._torch_log(job_id, error)
+            except (SSHServiceError, RuntimeError, TypeError, ValueError, OSError) as log_exc:
+                jobs.update(job_id, tail_line=f"升级日志写入失败: {log_exc}")
+            jobs.update(job_id, result=result, complete=False)
+            jobs.update(job_id, error=error, message=error, tail_line=error)
+            return stuck
+        return False
 
     def restart_remote_engine(self) -> dict:
         """结果弹窗[重启引擎](R3):SSH schtasks /Run /TN EngineDurable。"""

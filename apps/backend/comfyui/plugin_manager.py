@@ -406,6 +406,17 @@ def _safe_plugin_id(plugin_id: str) -> str:
 
 def install_plugin_job(source: str, ref: str, dry_run: bool = False) -> dict:
     """安装五步入口。dry_run=True 只做预检(同步返回冲突报告,不落盘)。"""
+    from remote_ssh.service import (
+        _TORCH_UPGRADE_LOCK,
+        _ensure_stuck_marker_writable,
+        _torch_any_marker,
+        _torch_stuck_marker,
+    )
+
+    if not dry_run and _torch_any_marker():
+        raise EngineOpError(f"暂停插件安装：检测到 pip 未知态残留，运行引擎 PyTorch 升级或确认 venv 无 pip 进程后自动/手动清除 {_torch_stuck_marker()}")
+    if not dry_run and _TORCH_UPGRADE_LOCK.locked():
+        raise EngineOpError("PyTorch 升级进行中，暂停插件安装")
     if source not in ("curated", "registry", "git", "local"):
         raise EngineOpError(f"未知安装来源: {source}(支持 curated/registry/git/local)")
     if not cm.engine_installed():
@@ -421,7 +432,18 @@ def install_plugin_job(source: str, ref: str, dry_run: bool = False) -> dict:
         raise EngineOpError(f"插件已装过({plan['dirName']});如需重装请先在已装列表卸载")
     if jobs.active_of("plugin-install"):
         raise EngineOpError("已有插件正在安装,请等待完成")
-    job_id = jobs.create("plugin-install", f"安装插件 {plan['dirName']}")
+    if not _TORCH_UPGRADE_LOCK.acquire(blocking=False):
+        raise EngineOpError("PyTorch 升级进行中，暂停插件安装")
+    try:
+        if _torch_any_marker():
+            raise EngineOpError(f"检测到 pip 未知态残留，运行引擎 PyTorch 升级或确认 venv 无 pip 进程后自动/手动清除 {_torch_stuck_marker()}")
+        try:
+            _ensure_stuck_marker_writable()
+        except RuntimeError as exc:
+            raise EngineOpError(str(exc)) from exc
+        job_id = jobs.create("plugin-install", f"安装插件 {plan['dirName']}")
+    finally:
+        _TORCH_UPGRADE_LOCK.release()
     jobs.start(job_id, lambda jid: _install_job(jid, plan))
     return {"jobId": job_id, "plan": {k: plan[k] for k in ("dirName", "source", "repo", "name") if plan.get(k)}}
 
@@ -524,6 +546,9 @@ def _install_job(job_id: str, plan: dict) -> None:
 
     jobs.update(job_id, progress=40, step="pip", message="安装插件依赖到引擎虚拟环境…")
     if reqs:
+        from remote_ssh.service import _TORCH_UPGRADE_LOCK, _torch_any_marker, _torch_stuck_marker
+        if _TORCH_UPGRADE_LOCK.locked() or _torch_any_marker():
+            raise EngineOpError(f"PyTorch 升级进行中或检测到 pip 未知态残留，运行引擎 PyTorch 升级或确认 venv 无 pip 进程后自动/手动清除 {_torch_stuck_marker()}")
         _pip(["install", *[installable_req(r["raw"]) for r in reqs]],
              on_line=lambda line: jobs.update(job_id, tail_line=line))
 

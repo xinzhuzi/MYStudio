@@ -4,10 +4,11 @@
 // 布局仿「本地配置」页:分组标签 + 可折叠行 + 行级状态胶囊(PluginSettingsTab 同款范式,
 // 折叠态持久化 localStorage)。三组:服务连接(ComfyUI 桥+专业流开关)→ MCP 服务器 → JSON 配置。
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown, FileJson, Loader2, Monitor, Pencil, Plug, Plus, Server, Terminal, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -69,6 +70,9 @@ import {
   getEngineSyncManifest,
   syncEngine,
   restartRemoteEngine,
+  getEngineTorchInfo,
+  startEngineTorchUpgrade,
+  pollJobUntilTerminal,
   ENGINE_SYNC_OVERALL_TIMEOUT_MS,
   type ComfyRemoteEngineStatus,
   type ComfySshStatus,
@@ -76,6 +80,9 @@ import {
   type EngineSyncManifest,
   type EngineSyncManifestItem,
   type EngineSyncResultItem,
+  type EngineTorchInfo,
+  type SidecarJobReply,
+  type TorchUpgradeChannel,
 } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
 import { SecureVaultBanner } from "./SecureVaultBanner";
 
@@ -161,7 +168,13 @@ function resolveActiveSshPresetId(
 }
 
 const COLLAPSED_STORAGE_KEY = "mystudio.settings.mcp.collapsedSections";
-type SectionId = "bridge" | "remote-engine" | "engine-sync" | "ssh-remote" | "family" | "workflows" | "servers" | "json";
+type SectionId = "bridge" | "remote-engine" | "engine-sync" | "torch-upgrade" | "ssh-remote" | "family" | "workflows" | "servers" | "json";
+
+const TORCH_STEPS = [
+  ["preflight", "预检"], ["snapshot", "快照"], ["stop-engine", "停止引擎"],
+  ["install", "安装"], ["verify-import", "导入验证"], ["restart", "重启"],
+  ["smoke", "烟测"], ["ledger", "落账"],
+] as const;
 type PillState = "ready" | "needs-runtime" | "neutral";
 
 const PILL_LABELS: Record<PillState, string> = {
@@ -545,6 +558,25 @@ export function McpSettingsTab() {
   // 同步完成结果弹窗(null=关;⚠️ pip 失败不阻断,随行展示)
   const [engineSyncDialog, setEngineSyncDialog] = useState<EngineSyncResultItem[] | null>(null);
   const [engineRestarting, setEngineRestarting] = useState(false);
+  const sshActiveFingerprint = useSshPresetsStore((s) => s.activeFingerprint);
+  const torchRemoteActive = remoteEngine?.source === "settings" && Boolean(remoteEngine.url);
+  const torchIdentity = JSON.stringify([torchRemoteActive, torchRemoteActive ? normalizeEngineUrl(remoteEngine?.url ?? "") : "", torchRemoteActive ? [sshStatus?.connected, sshStatus?.host, sshStatus?.user, sshActiveFingerprint] : null]);
+  const torchIdentityRef = useRef(torchIdentity);
+  torchIdentityRef.current = torchIdentity;
+  const [torchInfoState, setTorchInfoState] = useState<{ identity: string; info: EngineTorchInfo } | null>(null);
+  const torchInfo = torchInfoState?.identity === torchIdentity ? torchInfoState.info : null;
+  const [torchTarget, setTorchTarget] = useState("");
+  const [torchChannel, setTorchChannel] = useState<TorchUpgradeChannel>("cu132");
+  const [torchConfirm, setTorchConfirm] = useState(false);
+  const [torchConfirmPinned, setTorchConfirmPinned] = useState(false);
+  const [torchRunning, setTorchRunning] = useState(false);
+  const [torchJob, setTorchJob] = useState<SidecarJobReply | null>(null);
+  const [torchResultOpen, setTorchResultOpen] = useState(false);
+  const torchTracking = useRef<string | null>(null);
+  const torchPendingJob = useRef<string | null>(null);
+  const torchRetryAfter = useRef(0);
+  const [torchTrackingWarning, setTorchTrackingWarning] = useState<string | null>(null);
+  const torchTargetInitialized = useRef(false);
 
   // 挂载即取清单(R3):GET manifest → 渲染勾选清单。SSH 未连接(503 ssh-
   // disconnected)/sidecar 未在驾 → 静默留空态+提示,按钮禁用(照 SSH 行范式
@@ -595,7 +627,7 @@ export function McpSettingsTab() {
     const names = engineSyncRows
       .filter((item) => item.status !== "win-only" && engineSyncChecked[item.name])
       .map((item) => item.name);
-    if (names.length === 0 || engineSyncRunning) return;
+    if (names.length === 0 || engineSyncRunning || torchRunning || torchInfo?.busy) return;
     setEngineSyncRunning(true);
     setEngineSyncProgress(Object.fromEntries(names.map((name) => [name, "pending" as const])));
     const deadline = Date.now() + ENGINE_SYNC_OVERALL_TIMEOUT_MS;
@@ -844,7 +876,6 @@ export function McpSettingsTab() {
   // 当前连接指纹(1103 ③修复):落章回执记住的 host+port+user,随 store 持久化;
   // 与 sshStatus(host/user 实时真源)合力做 host+port+user 三全比对(见
   // resolveActiveSshPresetId),同 host+user 异 port 双档恒零或一行命中。
-  const sshActiveFingerprint = useSshPresetsStore((s) => s.activeFingerprint);
   const activeSshPresetId = useMemo(
     () => resolveActiveSshPresetId(sshPresets, sshStatus, sshActiveFingerprint),
     [sshPresets, sshStatus, sshActiveFingerprint],
@@ -852,6 +883,114 @@ export function McpSettingsTab() {
   // R1 生效判定(1102→1103 devices-list):地址指向远端=有远端设备生效,否则本机
   const remoteActive = remoteEngine?.source === "settings" && Boolean(remoteEngine.url);
   const activeRemoteUrl = remoteActive ? normalizeEngineUrl(remoteEngine?.url ?? "") : "";
+  const pinnedTorch = torchInfo?.pinnedTarget ?? torchInfo?.allowedTargets?.[0] ?? "";
+  const pinnedVersion = remoteActive ? `${pinnedTorch}+cu132` : pinnedTorch;
+  const torchVerified = Boolean(torchInfo?.live && torchInfo.hostMatched && torchInfo.current?.torch) && (!remoteActive || Boolean(sshStatus?.connected));
+  const torchNeedsUpdate = torchVerified && torchInfo?.current?.torch !== pinnedVersion;
+
+  const followTorchJob = useCallback(async (jobId: string) => {
+    torchTracking.current = jobId;
+    setTorchRunning(true);
+    setTorchTrackingWarning(null);
+    setTorchJob((previous) => previous ?? { status: "running", step: "preflight", message: "正在跟踪升级任务" });
+    try {
+      const job = await pollJobUntilTerminal(jobId, 5 * 60 * 60 * 1000, 1500, setTorchJob, 3);
+      torchPendingJob.current = null;
+      setTorchJob(job);
+      setTorchTrackingWarning(null);
+      setTorchResultOpen(true);
+    } catch {
+      torchPendingJob.current = jobId;
+      torchRetryAfter.current = Date.now() + 30_000;
+      setTorchTrackingWarning("升级跟踪中断，任务可能仍在后台运行，将自动重试跟随");
+    } finally {
+      torchTracking.current = null;
+      setTorchRunning(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    setTorchInfoState((previous) => previous?.identity === torchIdentity ? previous : null);
+  }, [torchIdentity]);
+
+  useEffect(() => {
+    if ((remoteActive && !sshStatus?.connected) || torchRunning) return;
+    let active = true;
+    let inFlight = false;
+    let pending = false;
+    const refresh = () => {
+      if (inFlight) {
+        pending = true;
+        return;
+      }
+      inFlight = true;
+      void getEngineTorchInfo().then((info) => {
+        if (!active || torchIdentityRef.current !== torchIdentity) return;
+        setTorchInfoState({ identity: torchIdentity, info });
+        if (!torchTargetInitialized.current && info.allowedTargets?.length) {
+          torchTargetInitialized.current = true;
+          setTorchTarget(info.allowedTargets[0]);
+        }
+        if (info.busy && info.jobId && !torchTracking.current && Date.now() >= torchRetryAfter.current) {
+          void followTorchJob(info.jobId);
+        } else if (!info.busy && torchPendingJob.current && !torchTracking.current && Date.now() >= torchRetryAfter.current) {
+          const jobId = torchPendingJob.current;
+          torchTracking.current = jobId;
+          void comfySidecarRequest<SidecarJobReply>("GET", `/comfy/jobs/${encodeURIComponent(jobId)}`, { timeoutMs: 10_000 })
+            .then((job) => {
+              if (!active) return;
+              if (job.status === "complete" || job.status === "error") {
+                torchPendingJob.current = null;
+                setTorchJob(job);
+                setTorchTrackingWarning(null);
+                setTorchResultOpen(true);
+              } else {
+                torchRetryAfter.current = Date.now() + 30_000;
+              }
+            })
+            .catch((error: unknown) => {
+              if (!active) return;
+              if (error instanceof ComfySidecarHttpError && error.status === 404) {
+                torchPendingJob.current = null;
+                setTorchTrackingWarning("升级结果已不可取回");
+              } else {
+                torchRetryAfter.current = Date.now() + 30_000;
+                setTorchTrackingWarning("升级结果暂时无法获取，将自动重试");
+              }
+            })
+            .finally(() => { if (torchTracking.current === jobId) torchTracking.current = null; });
+        }
+      })
+        .catch(() => { if (active && torchIdentityRef.current === torchIdentity) setTorchInfoState(null); })
+        .finally(() => {
+          inFlight = false;
+          if (active && pending) {
+            pending = false;
+            refresh();
+          }
+        });
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 10_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [remoteActive, activeRemoteUrl, sshStatus?.connected, torchRunning, followTorchJob, torchIdentity]);
+
+  const startTorchUpgrade = async () => {
+    const target = torchConfirmPinned ? pinnedTorch : torchTarget;
+    if ((remoteActive && !sshStatus?.connected) || engineSyncRunning || torchRunning || !torchInfo || torchInfo.busy || !torchInfo.allowedTargets?.includes(target)) return;
+    torchTracking.current = "starting";
+    setTorchRunning(true);
+    setTorchJob({ status: "running", step: "preflight", message: "正在启动" });
+    try {
+      const { jobId } = await startEngineTorchUpgrade(target, torchConfirmPinned ? "cu132" : torchChannel);
+      await followTorchJob(jobId);
+    } catch (error) {
+      setTorchJob({ status: "error", message: error instanceof Error ? error.message : "升级任务状态不可用" });
+      torchTracking.current = null;
+      setTorchRunning(false);
+      setTorchResultOpen(true);
+    }
+  };
 
   // ── R2 模型族(1102 控制中心):真源=defaultImageModel;切换即切产线(Q1) ──
   const defaultImageModel = useAppSettingsStore((s) => s.imageGenerationSettings.defaultImageModel);
@@ -1408,6 +1547,7 @@ export function McpSettingsTab() {
                     aria-hidden="true"
                   />
                   <span className="text-sm font-medium">引擎同步</span>
+                  <span className="text-xs text-muted-foreground">PyTorch {remoteActive && !sshStatus?.connected ? "远端未连接" : torchInfo?.current?.torch ?? "未知"}{!torchVerified ? " · 未实时验证" : torchNeedsUpdate ? " · 需更新" : ""}</span>
                       <span className="min-w-0 truncate text-xs text-muted-foreground">
                         把引擎与插件从 GitHub 拉最新到 Windows(单真源清单,经 SSH)
                       </span>
@@ -1423,6 +1563,14 @@ export function McpSettingsTab() {
                         : ""}
                     </span>
                     <span>目标: Windows(经 SSH 当前会话拉取)</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 px-2 py-1.5" data-testid="engine-sync-torch-row">
+                    <span className="text-xs">PyTorch 引擎栈</span>
+                    <span className="font-mono text-xs">当前：{!remoteActive || sshStatus?.connected ? torchInfo?.current?.torch ?? "未知" : "远端未连接"}</span>
+                    <span className={cn("text-xs", !torchVerified ? "text-muted-foreground" : torchNeedsUpdate ? "text-warning" : "text-success")}>
+                      {!torchVerified ? "未实时验证" : torchNeedsUpdate ? `需更新 → ${pinnedVersion}` : "✅ 已是钉版"}
+                    </span>
+                    <Button size="sm" disabled={!torchNeedsUpdate || engineSyncRunning || torchRunning || torchInfo?.busy || (remoteActive && !sshStatus?.connected)} onClick={() => { setTorchConfirmPinned(true); setTorchConfirm(true); }}>更新</Button>
                   </div>
                   {/* SSH 断开/清单取失败:按钮禁用+提示(R3);清单空同样提示 */}
                   {!sshStatus?.connected ? (
@@ -1508,7 +1656,7 @@ export function McpSettingsTab() {
                       size="sm"
                       onClick={() => void startEngineSync()}
                       disabled={
-                        engineSyncRunning ||
+                        engineSyncRunning || torchRunning || Boolean(torchInfo?.busy) ||
                         !sshStatus?.connected ||
                         engineSyncRows.length === 0 ||
                         !engineSyncRows.some((i) => i.status !== "win-only" && engineSyncChecked[i.name])
@@ -1566,6 +1714,56 @@ export function McpSettingsTab() {
               </DialogContent>
             </Dialog>
           </div>
+        </McpRow>
+
+        <McpRow
+          sectionId="torch-upgrade"
+          icon={Terminal}
+          title="引擎 PyTorch / CUDA"
+          pill={!remoteActive || sshStatus?.connected ? "ready" : "neutral"}
+          collapsed={collapsedSections.has("torch-upgrade")}
+          onToggle={toggleSectionCollapsed}
+        >
+          <div className="space-y-3 p-4">
+            <p className="text-xs text-muted-foreground">
+              生效版本：<span className="font-mono">{!remoteActive || sshStatus?.connected ? torchInfo?.current?.torch ?? "未知" : "远端未连接"}</span>
+              {remoteActive && sshStatus?.connected && torchInfo?.current?.cuda ? <span className="font-mono"> · CUDA {torchInfo.current.cuda}</span> : null}
+              {(!remoteActive || sshStatus?.connected) && torchInfo?.current ? (torchInfo.live && torchInfo.hostMatched ? "（实时）" : "（账本，未实时验证）") : ""}
+            </p>
+            {remoteActive && sshStatus?.connected && torchInfo && !torchInfo.hostMatched && <p className="text-xs text-warning">SSH 主机与当前生效引擎不一致，无法确认实时版本。</p>}
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="space-y-1"><Label htmlFor="torch-target">目标版本</Label><Input id="torch-target" value={torchTarget} onChange={(event) => setTorchTarget(event.target.value)} className="w-32 font-mono" /></div>
+              {remoteActive && <div className="space-y-1"><Label htmlFor="torch-channel">CUDA 通道</Label><Select value={torchChannel} onValueChange={(value) => setTorchChannel(value as TorchUpgradeChannel)}><SelectTrigger id="torch-channel" className="w-28"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cu128">cu128</SelectItem><SelectItem value="cu130">cu130</SelectItem><SelectItem value="cu132">cu132</SelectItem></SelectContent></Select></div>}
+              <Button size="sm" data-testid="torch-upgrade-start" onClick={() => { setTorchConfirmPinned(false); setTorchConfirm(true); }} disabled={(remoteActive && !sshStatus?.connected) || engineSyncRunning || !torchInfo || torchInfo.busy || torchRunning || !torchInfo.allowedTargets?.includes(torchTarget)}>升级</Button>
+            </div>
+            {torchInfo?.allowedTargets?.length && !torchInfo.allowedTargets.includes(torchTarget) ? <p className="text-xs text-warning">仅支持 {torchInfo.allowedTargets.join(" / ")}</p> : null}
+            {torchJob && <div className="space-y-1" data-testid="torch-upgrade-progress">
+              {TORCH_STEPS.map(([step, label], index) => {
+                const current = TORCH_STEPS.findIndex(([name]) => name === torchJob.step);
+                const state = torchJob.status === "complete" || index < current ? "✅" : index === current ? (torchJob.status === "error" ? "❌" : "⏳") : "⬜";
+                return <div key={step} className="text-xs">{state} {label}</div>;
+              })}
+              <p className="text-xs text-muted-foreground">{torchJob.message}</p>
+              {torchTrackingWarning && <p className="text-xs text-warning">{torchTrackingWarning}</p>}
+              {torchJob.tail?.length ? <pre className="max-h-28 overflow-auto whitespace-pre-wrap text-xs text-muted-foreground">{torchJob.tail.join("\n")}</pre> : null}
+            </div>}
+          </div>
+          <AlertDialog open={torchConfirm} onOpenChange={setTorchConfirm}>
+            <AlertDialogContent>
+              <AlertDialogHeader><AlertDialogTitle>确认升级引擎？</AlertDialogTitle><AlertDialogDescription>{remoteActive ? "引擎将停机约 15–60 分钟；失败将自动回滚旧版；磁盘需要至少 15 GiB 可用空间。SSH 中断导致安装状态不明时需要人工介入。" : "本地引擎将停机约 5–15 分钟；失败将自动回滚旧版；磁盘需要至少 15 GiB 可用空间。"}{remoteActive && <><br />注意:MYIA keeper 常驻同机,升级窗口期小概率竞态导致失败,届时将如实报告并引导处理。</>}</AlertDialogDescription></AlertDialogHeader>
+              <AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={() => void startTorchUpgrade()}>确认升级</AlertDialogAction></AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <Dialog open={torchResultOpen} onOpenChange={setTorchResultOpen}>
+            <DialogContent data-testid="torch-upgrade-result-dialog">
+              <DialogHeader><DialogTitle>{torchJob?.status === "complete" ? "升级完成" : "升级失败"}</DialogTitle><DialogDescription>{torchJob?.message ?? torchJob?.error}</DialogDescription></DialogHeader>
+              {torchJob?.result && <p className="text-sm font-mono">{String(torchJob.result.from ?? "未知")} → {String(torchJob.result.to ?? "未知")}</p>}
+              {torchJob?.status === "complete" && <p className="text-sm">引擎已重启</p>}
+              {typeof torchJob?.result?.pipError === "string" && <p className="text-xs text-warning">⚠️ {torchJob.result.pipError}</p>}
+              {torchJob?.tail?.length ? <pre className="max-h-36 overflow-auto whitespace-pre-wrap text-xs">{torchJob.tail.join("\n")}</pre> : null}
+              <DialogFooter><Button size="sm" onClick={() => setTorchResultOpen(false)}>关闭</Button></DialogFooter>
+            </DialogContent>
+          </Dialog>
         </McpRow>
 
         {/* ── SSH 远端连接(1103 终版):多条连接列表(照引擎设备列表同款范式,

@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import re
@@ -158,18 +159,24 @@ class _SshStub:
         clone_results: dict[str, tuple[int, str]] | None = None,
         pip_results: dict[str, tuple[int, str]] | None = None,
         pull_results: dict[str, tuple[int, str]] | None = None,
+        pip_running: int = 0,
     ) -> None:
         self.win_dirs = win_dirs
         self.win_heads = win_heads
         self.clone_results = clone_results or {}
         self.pip_results = pip_results or {}
         self.pull_results = pull_results or {}
+        self.pip_running = pip_running
         self.commands: list[str] = []
         self.timeouts: list[float] = []
 
     def __call__(self, command: str, timeout_s: float = 30) -> tuple[int, str]:
         self.commands.append(command)
         self.timeouts.append(timeout_s)
+        if "-EncodedCommand " in command:
+            script = base64.b64decode(command.split("-EncodedCommand ", 1)[1]).decode("utf-16le")
+            if "Win32_Process" in script and ".Count" in script:
+                return (0, f"{self.pip_running}\n")
         if "dir /b /ad" in command:
             return (0, "\r\n".join(sorted(self.win_dirs)))
         if "rev-parse HEAD" in command:
@@ -328,6 +335,11 @@ class SyncEngineTests(unittest.TestCase):
             win_dirs={"pluginA", "pluginC", "my-nodes"},
             win_heads={k: v for k, v in heads.items() if v is not None},
         )
+
+    def test_sync_defers_when_remote_pip_is_running(self) -> None:
+        stub = _SshStub(set(), {}, pip_running=1)
+        with self.assertRaisesRegex(RuntimeError, "远端 pip 仍在运行"):
+            _service_with_stub(stub).sync_engine(["ComfyUI"])
 
     def test_engine_pulled_from_github_via_ff_only(self) -> None:
         stub = self._stub(engine="winengine0head")  # Win HEAD 与 Mac HEAD 不同

@@ -225,7 +225,7 @@ function sleep(ms: number): Promise<void> {
 // sidecar 原始形状(A 流:engine_manager.jobs / status / plugin_manager)
 // ---------------------------------------------------------------------------
 
-interface SidecarJobReply {
+export interface SidecarJobReply {
   id?: string;
   kind?: string;
   status?: string; // running | complete | error
@@ -234,6 +234,7 @@ interface SidecarJobReply {
   message?: string | null;
   error?: string | null;
   result?: Record<string, unknown> | null;
+  tail?: string[];
 }
 
 interface SidecarEngineStatusReply {
@@ -526,19 +527,29 @@ export function mapDoctorReport(raw: SidecarDoctorReply): ComfyDoctorReport {
 // ---------------------------------------------------------------------------
 
 /** 等待 sidecar job 到终态(start/uninstall 这类 ack 语义的方法用)。 */
-async function pollJobUntilTerminal(
+export async function pollJobUntilTerminal(
   jobId: string,
   timeoutMs: number,
   intervalMs: number,
+  onUpdate?: (job: SidecarJobReply) => void,
+  maxConsecutiveErrors = 1,
 ): Promise<SidecarJobReply> {
   const deadline = Date.now() + timeoutMs;
+  let consecutiveErrors = 0;
   for (;;) {
-    const job = await comfySidecarRequest<SidecarJobReply>(
-      "GET",
-      `/comfy/jobs/${encodeURIComponent(jobId)}`,
-      { timeoutMs: 10_000 },
-    );
-    if (job.status !== "running") return job;
+    try {
+      const job = await comfySidecarRequest<SidecarJobReply>(
+        "GET",
+        `/comfy/jobs/${encodeURIComponent(jobId)}`,
+        { timeoutMs: 10_000 },
+      );
+      consecutiveErrors = 0;
+      onUpdate?.(job);
+      if (job.status !== "running") return job;
+    } catch (error) {
+      consecutiveErrors += 1;
+      if (consecutiveErrors >= maxConsecutiveErrors) throw error;
+    }
     if (Date.now() >= deadline) {
       throw new Error("等待任务完成超时,请稍后到 设置→本地配置 查看状态");
     }
@@ -1292,6 +1303,35 @@ export async function syncEngine(items: string[], timeoutS?: number): Promise<En
 
 export async function restartRemoteEngine(): Promise<{ ok: boolean; output: string }> {
   return comfySidecarRequest<{ ok: boolean; output: string }>("POST", "/comfy/ssh/restart-engine");
+}
+
+export type TorchUpgradeChannel = "cu128" | "cu130" | "cu132";
+
+export interface EngineTorchInfo {
+  current: {
+    torch: string | null;
+    torchvision: string | null;
+    cuda: string | null;
+    updatedAt: string | null;
+    via: string | null;
+  } | null;
+  busy: boolean;
+  live: boolean;
+  hostMatched: boolean;
+  jobId: string | null;
+  allowedTargets: string[];
+  pinnedTarget: string;
+  mode: "local" | "remote";
+}
+
+export async function getEngineTorchInfo(): Promise<EngineTorchInfo> {
+  return comfySidecarRequest<EngineTorchInfo>("GET", "/comfy/ssh/torch-info", { timeoutMs: 30_000 });
+}
+
+export async function startEngineTorchUpgrade(target: string, channel: TorchUpgradeChannel): Promise<{ jobId: string }> {
+  return comfySidecarRequest<{ jobId: string }>("POST", "/comfy/ssh/upgrade-torch", {
+    body: { target, channel },
+  });
 }
 
 export async function refreshComfySshToken(): Promise<ComfySshTokenRefreshReply> {

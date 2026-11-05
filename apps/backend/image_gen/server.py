@@ -1089,6 +1089,55 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception as exc:
                     self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, f"引擎同步失败: {exc}", "sync-failed")
                 return
+            if method == "GET" and path == "/comfy/ssh/torch-info":
+                remote = engine_manager().remote_engine_status()
+                remote_url = remote.get("url")
+                if remote.get("source") != "settings" or not remote_url:
+                    from comfyui.torch_upgrade_local import get_engine_torch_info
+                    self._send_json(get_engine_torch_info())
+                    return
+                svc = _ssh_service()
+                if svc is None:
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "remote_ssh 模块不可用", "ssh-unavailable")
+                    return
+                remote_host = urlparse(remote_url).hostname if remote.get("source") == "settings" and isinstance(remote_url, str) else None
+                self._send_json({**svc.get_engine_torch_info(expected_host=remote_host), "mode": "remote"})
+                return
+            if method == "POST" and path == "/comfy/ssh/upgrade-torch":
+                from remote_ssh.service import TORCH_TV_MAP
+
+                target = payload.get("target")
+                channel = payload.get("channel", "cu132")
+                if not isinstance(target, str) or not re.fullmatch(r"\d+\.\d+\.\d+", target) or channel not in ("cu128", "cu130", "cu132"):
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "无效的 PyTorch 版本或 CUDA 通道", "torch-upgrade-invalid")
+                    return
+                if target not in TORCH_TV_MAP:
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "仅支持 " + " / ".join(TORCH_TV_MAP), "torch-upgrade-invalid")
+                    return
+                remote = engine_manager().remote_engine_status()
+                remote_url = remote.get("url")
+                if remote.get("source") != "settings" or not remote_url:
+                    from comfyui.torch_upgrade_local import upgrade_engine_torch
+                    try:
+                        self._send_json({"jobId": upgrade_engine_torch(target), "mode": "local"})
+                    except RuntimeError as exc:
+                        self._send_error_json(HTTPStatus.CONFLICT, str(exc), "torch-upgrade-busy")
+                    return
+                svc = _ssh_service()
+                ssh_status = svc.status() if svc is not None else {}
+                if not ssh_status.get("connected"):
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "SSH 未连接", "ssh-disconnected")
+                    return
+                remote_host = urlparse(remote_url).hostname if isinstance(remote_url, str) else None
+                ssh_host = ssh_status.get("host")
+                if remote.get("source") != "settings" or not remote_host or not isinstance(ssh_host, str) or remote_host.casefold() != ssh_host.casefold():
+                    self._send_error_json(HTTPStatus.CONFLICT, "当前远端引擎与 SSH 主机不一致，拒绝升级", "torch-upgrade-host-mismatch")
+                    return
+                try:
+                    self._send_json({"jobId": svc.upgrade_engine_torch(target, channel, expected_host=remote_host), "mode": "remote"})
+                except RuntimeError as exc:
+                    self._send_error_json(HTTPStatus.CONFLICT, str(exc), "torch-upgrade-busy")
+                return
             if method == "POST" and path == "/comfy/ssh/restart-engine":
                 # 结果弹窗[重启引擎](R3):SSH schtasks /Run /TN EngineDurable
                 svc = _ssh_service()
