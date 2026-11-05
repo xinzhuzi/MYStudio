@@ -1,25 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 
 import apiTemplate from "./h3-shot-template.api.json";
-import fasth3ApiTemplate from "./fasth3-shot-template.api.json";
 import multisegTemplateJson from "./h3-multiseg-template.json";
 import multisegApiTemplate from "./h3-multiseg-template.api.json";
 import { H3_WORKFLOW_RECIPES, batchDispatchableH3Recipes } from "./h3-workflow-recipes";
 import {
-  DEFAULT_H3_RECIPE_ID,
   assertH3TemplateIntegrity,
   buildShotH3ApiWorkflow,
   buildShotH3ApiWorkflowForRecipe,
   buildShotH3MultisegApiWorkflow,
   buildShotH3RefWorkflow,
   buildShotH3Workflow,
-  h3ApiTemplateRecipeIds,
   h3BatchDispatchableRecipeIds,
   resolveH3ShotTimeoutS,
 } from "./h3-shot-video-workflow";
 
 const api = apiTemplate as unknown as Record<string, { class_type: string; inputs: Record<string, unknown> }>;
-const fasth3Api = fasth3ApiTemplate as unknown as Record<string, { class_type: string; inputs: Record<string, unknown> }>;
 const multisegApi = multisegApiTemplate as unknown as Record<string, { class_type: string; inputs: Record<string, unknown> }>;
 const multisegTemplate = multisegTemplateJson as { nodes: Array<{ id: number; type: string; mode?: number; widgets_values?: unknown[]; inputs?: Array<{ name: string; link: number | null }> }> };
 
@@ -276,7 +272,7 @@ describe("H3 工作流注册表(PRD §4,可切换核心;C1 二态+resolutionTier
   it("批量可派发集合只含 ready 件(unverified/needs-unfreeze/cloud-paid 一律不入;multiseg 二期升级 ready)", () => {
     const batch = batchDispatchableH3Recipes();
     expect(batch.map((recipe) => recipe.id)).toEqual(["my-h3-i2v-31", "my-pika-fl2v-24", "my-pika-ref2v-20", "my-h3-multiseg"]);
-    for (const excluded of ["guding-480p-direct", "guding-960p-refine", "official-i2v-480p", "my-fasth3-i2v-27", "my-fasth3-t2v-26", "api-flf2v-480p", "api-r2v-480p", "api-t2v-480p"]) {
+    for (const excluded of ["guding-480p-direct", "guding-960p-refine", "official-i2v-480p", "api-flf2v-480p", "api-r2v-480p", "api-t2v-480p"]) {
       expect(batch.some((recipe) => recipe.id === excluded)).toBe(false);
     }
   });
@@ -405,95 +401,7 @@ describe("文案逐字自检门接线 (参考_文案逐字自检门.md §一,10-
   });
 });
 
-describe("Windows FastH3 主线通道(10-27 windows-fasth3-mainline W10 配方化)", () => {
-  it("缺省零变:不带 recipeId 走旧 H3 模板对(euler/CLIPLoaderGGUF 在场,FastH3 件不在)", () => {
-    const result = buildShotH3ApiWorkflow({ shot: makeShot(), chapterId: "c", chapterLabel: "章" });
-    expect(DEFAULT_H3_RECIPE_ID).toBe("my-h3-i2v-31");
-    expect(result.apiGraph["29"].inputs.sampler_name).toBe("euler");
-    expect(result.apiGraph["21"].class_type).toBe("CLIPLoaderGGUF");
-    expect(result.apiGraph["43"].class_type).toBe("SolAttnPatch");
-  });
-
-  it("recipeId=my-fasth3-i2v-27 选 FastH3 模板对:换芯件在场+旧线退役件零回潮", () => {
-    const result = buildShotH3ApiWorkflow({ shot: makeShot(), chapterId: "c", chapterLabel: "章", recipeId: "my-fasth3-i2v-27" });
-    expect(Object.keys(result.apiGraph)).toHaveLength(23);
-    expect(result.apiGraph["29"].inputs.sampler_name).toBe("res_multistep");
-    expect(result.apiGraph["21"].class_type).toBe("CLIPLoader");
-    expect(result.apiGraph["21"].inputs.clip_name).toBe("qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors");
-    expect(result.apiGraph["40"].inputs.attention).toBe("comfy kitchen attention");
-    expect(result.apiGraph["43"].class_type).toBe("BlockSparseAttention");
-    expect(result.apiGraph["43"].inputs).toMatchObject({ selection: "vsa", "selection.keep_percent": 10 });
-    for (const retired of ["3", "17", "41", "48"]) {
-      expect(result.apiGraph[retired]).toBeUndefined();
-    }
-  });
-
-  it("FastH3 锚注入与旧线同构:提示词/秒/前缀/首帧/MyShot/宽高档位直填全在位", () => {
-    const result = buildShotH3ApiWorkflow({
-      shot: makeShot(),
-      chapterId: "chapter-001",
-      chapterLabel: "第一章 雨夜",
-      originProjectId: "project-a",
-      firstFrameB64: "aGVsbG8=",
-      recipeId: "my-fasth3-i2v-27",
-    });
-    expect(String(result.apiGraph["14"].inputs.value)).toContain("integrated_multimodal_description:");
-    expect(result.apiGraph["20"].inputs.value).toBe(124 / 24);
-    expect(result.apiGraph["4"].inputs.filename_prefix).toBe("video/漫影/chapter-001/sb-chapter-001-001/ambient");
-    expect(result.apiGraph["9"].inputs.image).toBe("my-shot-h3-sb-chapter-001-001.jpg");
-    expect(result.images).toEqual([{ key: "9.image", name: "my-shot-h3-sb-chapter-001-001.jpg", b64: "aGVsbG8=" }]);
-    expect(result.apiGraph["100"].inputs).toMatchObject({
-      shot_id: "sb-chapter-001-001", label: "S01", description: "雨夜中的石桥", media_status: "图✓", video: ["4", 0],
-    });
-    // 缺省 960p 档直填 16.width/height(覆盖出厂 ResolutionSelector link,N11 同款)
-    expect(result.apiGraph["16"].inputs.width).toBe(1344);
-    expect(result.apiGraph["16"].inputs.height).toBe(768);
-    const low = buildShotH3ApiWorkflow({ shot: makeShot(), chapterId: "c", chapterLabel: "章", recipeId: "my-fasth3-i2v-27", resolutionTier: "480p" });
-    expect(low.apiGraph["16"].inputs.width).toBe(608);
-    expect(low.apiGraph["16"].inputs.height).toBe(352);
-  });
-
-  it("uiWorkflow 附件=FastH3 画布档(回收链 extraPngInfo 与实际派发图同源)", () => {
-    const result = buildShotH3ApiWorkflow({ shot: makeShot(), chapterId: "c", chapterLabel: "章", originProjectId: "project-a", recipeId: "my-fasth3-i2v-27" });
-    const nodes = result.uiWorkflow.nodes as Array<{ id: number; type: string; properties?: Record<string, unknown>; widgets_values?: unknown[]; inputs?: Array<{ name?: string }> }>;
-    const types = nodes.map((node) => node.type);
-    expect(types).toContain("BlockSparseAttention");
-    expect(types).not.toContain("SolAttnPatch");
-    expect(types).not.toContain("ModelPreviewOverrideKJ");
-    expect(nodes).toHaveLength(27); // 4 说明 Note 保留(UI 专属,API 化跳过)
-    // 组装时补的 SaveVideo→MyShot 回收连线在画布附件里同源在场
-    const anchor = nodes.find((node) => node.id === 100);
-    expect(anchor?.inputs?.[0]?.name).toBe("video");
-    expect(anchor?.properties).toMatchObject({ myOriginProjectId: "project-a" });
-  });
-
-  it("未知 recipeId 抛大白话(禁静默回缺省模板)", () => {
-    expect(() => buildShotH3ApiWorkflow({ shot: makeShot(), chapterId: "c", chapterLabel: "章", recipeId: "my-fasth3-t2v-26" }))
-      .toThrow(/未知 H3 工作流配方:my-fasth3-t2v-26/);
-  });
-
-  it("注册表↔bundle 模板对一致性:凡带 apiTemplate 的注册条目都可派发,反之不虚挂(§14.1.4 起 multiseg 走专用组装器,并入统一可派发集)", () => {
-    const dispatchable = new Set(h3BatchDispatchableRecipeIds());
-    for (const recipe of H3_WORKFLOW_RECIPES) {
-      if (recipe.apiTemplate) expect(dispatchable.has(recipe.id), recipe.id).toBe(true);
-    }
-    expect(dispatchable.has("my-h3-i2v-31")).toBe(true);
-    expect(dispatchable.has("my-fasth3-i2v-27")).toBe(true);
-    expect(dispatchable.has("my-h3-multiseg")).toBe(true); // 分段组装器件(不在 i2v 模板对表,经 ForRecipe 分派)
-    // 模板对表自身不虚挂:i2v 族 pair id 恒在注册表在册
-    for (const id of h3ApiTemplateRecipeIds()) {
-      expect(H3_WORKFLOW_RECIPES.some((recipe) => recipe.id === id), id).toBe(true);
-    }
-  });
-
-  it("fasth3-shot-template.api.json 静态契约:锚与生成链在位(与后端接线契约测试同口径)", () => {
-    expect(Object.keys(fasth3Api)).toHaveLength(23);
-    expect(fasth3Api["16"].inputs.prompt).toEqual(["14", 0]);
-    expect(fasth3Api["16"].inputs.first_frame).toEqual(["9", 0]);
-    expect(fasth3Api["16"].inputs.length).toEqual(["23", 1]);
-    expect(fasth3Api["100"].inputs.video).toEqual(["4", 0]);
-  });
-});
+// 1105 fasth3 线退役:Windows FastH3 主线通道 describe 块整块摘除(模板对/recipes 同批出库)。
 
 // ── Pika ref2va 主力线(1101;my-pika-ref2v-20 专用组装器)────────────────────
 
