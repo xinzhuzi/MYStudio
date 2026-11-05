@@ -209,9 +209,14 @@ phase_b() {
 
   # B3: 停旧引擎+停旧 App(App 在跑会锁 exe/dll → robocopy /MIR exit=11 装机失败,
   # 1104 晚实弹:链条死在 B4 且引擎已停=半瘫痪;先杀 App 再装,B8 装完再拉起)
+  # 1105 补孤儿 sidecar 清杀:taskkill /F 只杀 App 父进程,image_gen sidecar 子进程
+  # 变孤儿续命数秒-分钟,其加载的 resources\backend\** 模块文件恰好锁死 B4 robocopy
+  # (16:03 实弹复发;App 已死时任何 image_gen python 都是孤儿,一并杀)
   if ! dry "停旧引擎进程"; then
     log "Stopping engine..."
     ssh_win "taskkill /F /IM manying-studio.exe" >/dev/null 2>&1 || true
+    sleep 2
+    ssh_win "powershell -NoProfile -Command \"Get-CimInstance Win32_Process -Filter \\\"Name='python.exe' or Name='pythonw.exe'\\\" | Where-Object { \$_.CommandLine -match 'image_gen' } | ForEach-Object { Stop-Process -Id \$_.ProcessId -Force -ErrorAction SilentlyContinue }\"" >/dev/null 2>&1 || true
     # wmic 已从新版 Windows 移除(本机实测 'wmic' 不是内部或外部命令)→ PowerShell CIM 等价查询
     # (实测命中全部 main.py+17000 引擎进程,含端口持有者与 venv 僵尸副本两个 PID)
     local pids
