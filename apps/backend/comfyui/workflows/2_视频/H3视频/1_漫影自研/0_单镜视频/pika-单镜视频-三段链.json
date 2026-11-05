@@ -1069,7 +1069,8 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            511
+            511,
+            605
           ]
         }
       ],
@@ -1079,20 +1080,20 @@
         "ver": "0.33.0",
         "models": [
           {
-            "name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+            "name": "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors",
             "directory": "diffusion_models"
           }
         ]
       },
       "widgets_values": [
-        "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+        "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors",
         "default"
       ],
       "widgets_values_named": {
-        "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+        "unet_name": "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors",
         "weight_dtype": "default"
-      }
+      },
+      "title": "Cobijada 底模(hybrid 统一·扇出双臂)"
     },
     {
       "id": 128,
@@ -1570,52 +1571,10 @@
       }
     },
     {
-      "id": 201,
-      "type": "UNETLoader",
-      "pos": [
-        5183,
-        80
-      ],
-      "size": [
-        640,
-        90
-      ],
-      "flags": {},
-      "order": 201,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            605
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "UNETLoader",
-        "cnr_id": "comfy-core",
-        "ver": "0.33.0",
-        "models": [
-          {
-            "name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors",
-            "directory": "diffusion_models"
-          }
-        ]
-      },
-      "widgets_values": [
-        "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
-        "default"
-      ],
-      "title": "FL2VA 底模(int8 pruned)"
-    },
-    {
       "id": 202,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        6043,
+        5183,
         80
       ],
       "size": [
@@ -1657,13 +1616,13 @@
         "taomate_h3_3step.safetensors",
         1
       ],
-      "title": "TaoMate 3步 LoRA"
+      "title": "TaoMate 3步 LoRA(吃统一底模扇出)"
     },
     {
       "id": 203,
       "type": "MiniMaxH3SigmaShift",
       "pos": [
-        6903,
+        6043,
         80
       ],
       "size": [
@@ -1709,7 +1668,7 @@
       "id": 215,
       "type": "ModelAttentionBackend",
       "pos": [
-        7410,
+        6550,
         80
       ],
       "size": [
@@ -2036,8 +1995,8 @@
       "id": 207,
       "type": "LTXVConcatAVLatent",
       "pos": [
-        6903,
-        318
+        6550,
+        288
       ],
       "size": [
         286.8360679651149,
@@ -2140,7 +2099,7 @@
       "id": 210,
       "type": "BasicGuider",
       "pos": [
-        7930,
+        7070,
         80
       ],
       "size": [
@@ -2181,7 +2140,7 @@
       "id": 211,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        8510,
+        7650,
         80
       ],
       "size": [
@@ -2244,7 +2203,7 @@
       "id": 212,
       "type": "VAEDecode",
       "pos": [
-        8980,
+        8120,
         80
       ],
       "size": [
@@ -2287,7 +2246,7 @@
       "id": 213,
       "type": "VAEDecodeAudio",
       "pos": [
-        8980,
+        8120,
         282
       ],
       "size": [
@@ -2330,7 +2289,7 @@
       "id": 214,
       "type": "CreateVideo",
       "pos": [
-        9450,
+        8590,
         80
       ],
       "size": [
@@ -2378,7 +2337,7 @@
       "id": 4,
       "type": "SaveVideo",
       "pos": [
-        9940,
+        9080,
         80
       ],
       "size": [
@@ -2471,7 +2430,7 @@
       "id": 100,
       "type": "MyShot",
       "pos": [
-        10443,
+        9583,
         80
       ],
       "size": [
@@ -4727,7 +4686,7 @@
     ],
     [
       605,
-      201,
+      127,
       0,
       202,
       0,
@@ -5401,11 +5360,11 @@
       "bounding": [
         5153,
         30,
-        5680,
+        4820,
         1343.2267391954765
       ],
       "color": "#223355",
-      "id": 3020,
+      "id": 2819,
       "mode": 0,
       "flags": {}
     },

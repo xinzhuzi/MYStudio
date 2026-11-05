@@ -61,9 +61,10 @@ def test_anchors_assembler_contract():
 
 
 def test_stage1_mainline_recipe_unchanged():
-    """一阶段=现役 ref2v 配方逐值:LoRA/lcm/官方 7 值 sigmas/底模/注意力。"""
+    """一阶段配方逐值:LoRA/lcm/官方 7 值 sigmas/统一底模/注意力。
+    1105 用户裁定:H3 底模统一 Cobijada(hybrid 一件双能,B 发 471.5s 快过官方 fl2va 491.0s)。"""
     _, nodes, _ = _load()
-    assert nodes[127]["widgets_values"][0] == "minimax_h3_ref2va_pruned_int8_convrot.safetensors"
+    assert nodes[127]["widgets_values"][0] == "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors"
     assert nodes[145]["widgets_values"] == ["pika_h3_flex_ref2va_comfy_bf16.safetensors", 1]
     assert nodes[123]["widgets_values"] == ["lcm"]
     assert nodes[147]["widgets_values"] == [PIKA_SIGMAS]
@@ -89,8 +90,8 @@ def test_stage2_up_recipe():
     assert w[1:5] == ["target dimensions", 1280, 704, 32]
     assert w[5] is True and w[6] is True, "chunking/force_unload 开(Win 先例 fasth3-二采超分-2x)"
     assert w[7] == "cuda", "Win 产线引擎,device 必须 cuda(社区件出厂 mps 已勘正)"
-    assert nodes[201]["widgets_values"][0] == "minimax_h3_fl2va_pruned_int8_convrot.safetensors"
     assert nodes[202]["widgets_values"] == ["taomate_h3_3step.safetensors", 1]
+    # 1105 统一改造:单 UNETLoader(Cobijada)扇出双 LoRA 臂,换装段消失(taomate@Cobijada 候实弹)
     assert nodes[209]["widgets_values"] == ["simple", 3, 0.2], "UP 定谳:simple/3步/denoise 0.2"
     assert nodes[203]["widgets_values"] == [12, 3]
     assert nodes[208]["type"] == "MiniMaxH3ReferenceToVideo"
@@ -99,8 +100,13 @@ def test_stage2_up_recipe():
 
 
 def test_stage2_single_source_fanout_no_duplicate():
-    """零真重复:[123] lcm 与 [129] 噪声单源扇出供两段采样器;VAE/TE 同源扇出。"""
+    """零真重复:[123] lcm 与 [129] 噪声单源扇出供两段采样器;VAE/TE 同源扇出;
+    底模单源:[127] Cobijada 扇出 pika/taomate 双 LoRA 臂(1105 统一改造)。"""
     d, nodes, links = _load()
+    unets = [n for n in nodes.values() if n["type"] == "UNETLoader" and n["id"] < 300]
+    assert len(unets) == 1 and unets[0]["id"] == 127, "默认路径底模恒单源(Cobijada 统一)"
+    fed = {l[3] for l in d["links"] if l[1] == 127 and l[5] == "MODEL"}
+    assert fed == {145, 202}, "Cobijada 应扇出至 pika[145] 与 taomate[202] 双臂"
     samplers = []
     for l in d["links"]:
         if l[1] == 123 and l[5] == "SAMPLER":
