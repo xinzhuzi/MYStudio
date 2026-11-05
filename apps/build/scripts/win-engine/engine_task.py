@@ -69,7 +69,8 @@ env['MYSTUDIO_BRIDGE_TOKEN'] = _bridge_token()
 log.write(('[engine_task] spawn TESSERA_SCRATCH=%s\n'
            % env['TESSERA_SCRATCH']).encode('ascii'))
 log.flush()
-subprocess.Popen([VENV_PY, MAIN, '--listen', '0.0.0.0', '--port', '17000', '--lowvram',
+# 1105 用户令拔除 --lowvram:Cobijada 19.5G<24G 可整模驻显存,小显存时代遗产每步白走 PCIe 流送
+subprocess.Popen([VENV_PY, MAIN, '--listen', '0.0.0.0', '--port', '17000',
                   '--enable-manager', '--use-pytorch-cross-attention',
                   '--output-directory', OUT],
                  cwd=CWD, stdout=log, stderr=subprocess.STDOUT,
