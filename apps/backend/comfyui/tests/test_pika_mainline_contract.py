@@ -26,7 +26,7 @@ FRONTEND_UI = ROOT / "apps/frontend/lib/assist/image-studio/pika-shot-template.j
 FRONTEND_API = ROOT / "apps/frontend/lib/assist/image-studio/pika-shot-template.api.json"
 
 # ── 官方契约(逐字取自 PikaFlex 模板子图)────────────────────────────────
-UNET = "minimax_h3_fl2va_pruned_int8_convrot.safetensors"
+UNET = "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors"
 LORA = "pika_h3_flex_fl2va_comfy_bf16.safetensors"
 SIGMAS = "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
 SAMPLER = "lcm"

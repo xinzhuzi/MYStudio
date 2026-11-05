@@ -169,7 +169,7 @@ def test_stage3_tessera_params_v4():
     assert nodes[314]["widgets_values"] == ["taomate_h3_3step.safetensors", 1]
     assert nodes[315]["widgets_values"] == ["minimax_h3_lms_v1.0_r64.safetensors", 0.75]
     assert nodes[316]["widgets_values"] == ["minimax_h3_lms_v1.0_r64.safetensors", 1]
-    assert nodes[308]["widgets_values"][0] == "minimax_h3_ref2va_pruned_int8_convrot.safetensors"
+    assert nodes[308]["widgets_values"][0] == "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors", "1105 统一深化:③组底模随双模归档同迁 Cobijada"
     assert nodes[309]["widgets_values"][0] == "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
     refine = nodes[305]["widgets_values"]
     assert refine[10] == 1.0 and refine[11] == 786110 and refine[12] == "fixed"

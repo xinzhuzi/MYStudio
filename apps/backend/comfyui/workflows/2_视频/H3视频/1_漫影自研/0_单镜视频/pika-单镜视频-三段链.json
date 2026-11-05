@@ -2496,10 +2496,10 @@
         ]
       },
       "widgets_values": [
-        "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+        "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors",
         "default"
       ],
-      "title": "TESSERA 底模(ref2va)"
+      "title": "TESSERA 底模(Cobijada 统一)"
     },
     {
       "id": 309,

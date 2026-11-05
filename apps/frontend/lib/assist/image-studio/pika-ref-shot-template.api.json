@@ -146,7 +146,7 @@
  "127": {
   "class_type": "UNETLoader",
   "inputs": {
-   "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+   "unet_name": "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors",
    "weight_dtype": "default"
   }
  },
