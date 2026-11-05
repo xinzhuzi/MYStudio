@@ -1488,7 +1488,7 @@
       "mode": 0,
       "widgets_values": [
         "",
-        "## 三段链用法(1105)\n\n**默认路径**:直接跑 → ①一阶段采样(Pika 6步 864×480)+ ②二采放大(TaoMate 3步\nlcm/simple/dn0.2 → **1280×704 终档**)。[4] 号 SaveVideo=锚(五段前缀注入+MyShot 回写);\n[204] 号存一采预览。\n\n**质量档(默认旁路,作测试)**:③组全 mode=2 不跑。要测:右键③组 unmute → [300] LoadVideo\n指向②组产物(或拷入 input 目录)→ 跑出 1920×1056(CRF12)。**1080p 交付归一(图外 ffmpeg)**:\nffmpeg -i in.mp4 -vf scale=1920:1080:flags=lanczos -c:v libx264 -crf 18 -preset slow -c:a copy out.mp4\n\n**红线**:TaoMate 二采采样器必须 **lcm**(Euler→片尾字幕乱码,UP 亲测);CFG 恒 1.0(蒸馏件\n烧 CFG)。SigmaShift [12,3] 取社区族值(UP 帧仅证 audio=3)。\n**档位**:一采 [22] 可切 0.2~0.4MP;二采目标 [206] 直填 1280×704(UP 实测档)。"
+        "## 三段链用法(1105)\n\n**默认路径**:直接跑 → ①一阶段采样(Pika 6步 864×480)+ ②二采放大(TaoMate 3步\nlcm/simple/dn0.2 → **1280×704 终档**)。[4] 号 SaveVideo=锚(五段前缀注入+MyShot 回写);\n[204] 号存一采预览。\n\n**1080p 标准上探(1105 定谳)**:②组产物 → `3_超分后处理/seedvr2-超分-1080p.json`(SeedVR2.5 7B Sharp fp8=Windows 卡适配档;resolution=1056→1920×1056→ffmpeg lanczos 归一 1080p,分钟级修复系不崩脸)。\n**质量档(默认旁路,作测试)**:③组全 mode=2 不跑。要测:右键③组 unmute → [300] LoadVideo\n指向②组产物(或拷入 input 目录)→ 跑出 1920×1056(CRF12)。**1080p 交付归一(图外 ffmpeg)**:\nffmpeg -i in.mp4 -vf scale=1920:1080:flags=lanczos -c:v libx264 -crf 18 -preset slow -c:a copy out.mp4\n\n**红线**:TaoMate 二采采样器必须 **lcm**(Euler→片尾字幕乱码,UP 亲测);CFG 恒 1.0(蒸馏件\n烧 CFG)。SigmaShift [12,3] 取社区族值(UP 帧仅证 audio=3)。\n**档位**:一采 [22] 可切 0.2~0.4MP;二采目标 [206] 直填 1280×704(UP 实测档)。"
       ]
     },
     {
