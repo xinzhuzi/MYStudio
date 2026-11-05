@@ -45,6 +45,7 @@
           "type": "IMAGE",
           "links": [
             506,
+            565,
             613
           ]
         },
@@ -106,6 +107,7 @@
           "type": "STRING",
           "links": [
             501,
+            566,
             618
           ]
         }
@@ -135,7 +137,7 @@
       "type": "MiniMaxH3ReferenceToVideo",
       "pos": [
         1810,
-        768
+        1616
       ],
       "size": [
         400,
@@ -268,14 +270,16 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            521
+            521,
+            576
           ]
         },
         {
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            522
+            522,
+            578
           ]
         }
       ],
@@ -413,7 +417,8 @@
           "name": "width",
           "type": "INT",
           "links": [
-            504
+            504,
+            567
           ]
         },
         {
@@ -421,7 +426,8 @@
           "name": "height",
           "type": "INT",
           "links": [
-            505
+            505,
+            568
           ]
         }
       ],
@@ -751,6 +757,7 @@
           "links": [
             515,
             525,
+            563,
             611,
             625
           ]
@@ -797,6 +804,7 @@
           "links": [
             516,
             526,
+            564,
             612,
             626
           ]
@@ -825,7 +833,7 @@
       "id": 121,
       "type": "VAEDecodeAudio",
       "pos": [
-        3480,
+        4000,
         762
       ],
       "size": [
@@ -868,7 +876,7 @@
       "id": 122,
       "type": "VAEDecode",
       "pos": [
-        3480,
+        4000,
         560
       ],
       "size": [
@@ -948,7 +956,7 @@
       "id": 125,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        3010,
+        3530,
         560
       ],
       "size": [
@@ -982,7 +990,7 @@
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 522
+          "link": 581
         }
       ],
       "outputs": [
@@ -1012,7 +1020,7 @@
       "id": 126,
       "type": "BasicGuider",
       "pos": [
-        2430,
+        2950,
         560
       ],
       "size": [
@@ -1026,12 +1034,12 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 513
+          "link": 579
         },
         {
           "name": "conditioning",
           "type": "CONDITIONING",
-          "link": 521
+          "link": 580
         }
       ],
       "outputs": [
@@ -1070,6 +1078,7 @@
           "type": "MODEL",
           "links": [
             511,
+            560,
             605
           ]
         }
@@ -1116,6 +1125,7 @@
           "type": "CLIP",
           "links": [
             514,
+            562,
             610
           ]
         }
@@ -1186,7 +1196,7 @@
       "id": 130,
       "type": "CreateVideo",
       "pos": [
-        3950,
+        4470,
         560
       ],
       "size": [
@@ -1278,7 +1288,8 @@
           "name": "INT",
           "type": "INT",
           "links": [
-            503
+            503,
+            569
           ]
         },
         {
@@ -1331,7 +1342,8 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            513
+            513,
+            574
           ],
           "slot_index": 0
         }
@@ -1483,7 +1495,7 @@
       "id": 204,
       "type": "SaveVideo",
       "pos": [
-        4440,
+        4960,
         560
       ],
       "size": [
@@ -1571,10 +1583,437 @@
       }
     },
     {
+      "id": 219,
+      "type": "PrimitiveBoolean",
+      "pos": [
+        80,
+        5680
+      ],
+      "size": [
+        270,
+        120
+      ],
+      "flags": {},
+      "order": 219,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "value",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "BOOLEAN",
+          "type": "BOOLEAN",
+          "links": [
+            570,
+            571,
+            572
+          ]
+        }
+      ],
+      "title": "模式:√r2v多参考 / i2v首帧锚定",
+      "widgets_values": [
+        true
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveBoolean"
+      }
+    },
+    {
+      "id": 220,
+      "type": "MiniMaxH3ImageToVideo",
+      "pos": [
+        1810,
+        976
+      ],
+      "size": [
+        430,
+        550
+      ],
+      "flags": {},
+      "order": 220,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 562
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "link": 563
+        },
+        {
+          "localized_name": "first_frame",
+          "name": "first_frame",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 565
+        },
+        {
+          "localized_name": "last_frame",
+          "name": "last_frame",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": 566
+        },
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": 567
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": 568
+        },
+        {
+          "localized_name": "length",
+          "name": "length",
+          "type": "INT",
+          "widget": {
+            "name": "length"
+          },
+          "link": 569
+        },
+        {
+          "name": "audio_vae",
+          "type": "VAE",
+          "link": 564
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            575
+          ]
+        },
+        {
+          "localized_name": "LATENT",
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            577
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3ImageToVideo",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "",
+        864,
+        480,
+        124
+      ],
+      "widgets_values_named": {
+        "prompt": "Vaporwave title sequence look: pink and blue gradient palette, VHS tracking artifacts, Greek statue motifs, chrome palm trees, RGB chromatic aberration, lo-fi retro atmosphere, mood languid and nostalgic.\n\nTimeline:\n[0s-1s] VHS static opens the frame, the title \"COMFYUI\" appears with RGB split and a slight horizontal jitter.\n[1s-2.5s] Hard cut, a Greek plaster bust close-up, pink-purple gradient sky, a pixelated sun.\n[2.5s-4s] Clean \"STARRING\" credits appear, \"LATENT\" and \"CONTROLNET\" each shown exactly once.\n[4s-5s] Final card \"DIRECTED BY COMFYUI\" holds, one VHS tracking glitch settling into stability.\n\nHard cuts only, transitions landing with tape jumps, no push-ins, no dissolves.\n\nAudio: lo-fi vaporwave score, slow drum machine with soft bass, VHS tape-noise sample joins at 2.5s, melody fading for the last 1s.\n\nAll text must be clearly legible, do not misspell English, no Chinese characters, do not repeat names or job titles, no soft dissolves, no subtitle bars.",
+        "width": 864,
+        "height": 1536,
+        "length": 73
+      },
+      "title": "首帧条件(i2v·吸收自 fl2v)"
+    },
+    {
+      "id": 216,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        950,
+        1054
+      ],
+      "size": [
+        640,
+        130
+      ],
+      "flags": {},
+      "order": 216,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 560
+        },
+        {
+          "localized_name": "lora_name",
+          "name": "lora_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_model",
+          "name": "strength_model",
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_model"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            561
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0",
+        "models": [
+          {
+            "name": "pika_h3_flex_fl2va_v1_bf16.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/loras/pika_h3_flex_fl2va_v1_bf16.safetensors",
+            "directory": "loras"
+          }
+        ]
+      },
+      "widgets_values": [
+        "pika_h3_flex_fl2va_comfy_bf16.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "pika_h3_flex_fl2va_v1_bf16.safetensors",
+        "strength_model": 1
+      },
+      "title": "Pika fl2va LoRA(i2v 臂)"
+    },
+    {
+      "id": 217,
+      "type": "ModelAttentionBackend",
+      "pos": [
+        1810,
+        768
+      ],
+      "size": [
+        300,
+        100
+      ],
+      "flags": {},
+      "order": 217,
+      "mode": 0,
+      "widgets_values": [
+        "comfy kitchen attention"
+      ],
+      "properties": {
+        "Node name for S&R": "ModelAttentionBackend"
+      },
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 561
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            573
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "kitchen(i2v 臂)"
+    },
+    {
+      "id": 218,
+      "type": "ComfySwitchNode",
+      "pos": [
+        2460,
+        560
+      ],
+      "size": [
+        270,
+        120
+      ],
+      "flags": {},
+      "order": 218,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "switch"
+          },
+          "link": 570
+        },
+        {
+          "name": "on_false",
+          "type": "COMFY_MATCHTYPE_V3",
+          "link": 574
+        },
+        {
+          "name": "on_true",
+          "type": "COMFY_MATCHTYPE_V3",
+          "link": 573
+        }
+      ],
+      "outputs": [
+        {
+          "name": "COMFY_MATCHTYPE_V3",
+          "type": "COMFY_MATCHTYPE_V3",
+          "links": [
+            579
+          ]
+        }
+      ],
+      "title": "底模选择",
+      "widgets_values": [
+        true
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      }
+    },
+    {
+      "id": 221,
+      "type": "ComfySwitchNode",
+      "pos": [
+        2460,
+        816
+      ],
+      "size": [
+        270,
+        120
+      ],
+      "flags": {},
+      "order": 221,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "switch"
+          },
+          "link": 571
+        },
+        {
+          "name": "on_false",
+          "type": "COMFY_MATCHTYPE_V3",
+          "link": 576
+        },
+        {
+          "name": "on_true",
+          "type": "COMFY_MATCHTYPE_V3",
+          "link": 575
+        }
+      ],
+      "outputs": [
+        {
+          "name": "COMFY_MATCHTYPE_V3",
+          "type": "COMFY_MATCHTYPE_V3",
+          "links": [
+            580
+          ]
+        }
+      ],
+      "title": "条件选择",
+      "widgets_values": [
+        true
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      }
+    },
+    {
+      "id": 222,
+      "type": "ComfySwitchNode",
+      "pos": [
+        2460,
+        1072
+      ],
+      "size": [
+        270,
+        120
+      ],
+      "flags": {},
+      "order": 222,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "switch"
+          },
+          "link": 572
+        },
+        {
+          "name": "on_false",
+          "type": "COMFY_MATCHTYPE_V3",
+          "link": 578
+        },
+        {
+          "name": "on_true",
+          "type": "COMFY_MATCHTYPE_V3",
+          "link": 577
+        }
+      ],
+      "outputs": [
+        {
+          "name": "COMFY_MATCHTYPE_V3",
+          "type": "COMFY_MATCHTYPE_V3",
+          "links": [
+            581
+          ]
+        }
+      ],
+      "title": "潜空间选择",
+      "widgets_values": [
+        true
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      }
+    },
+    {
       "id": 202,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        5183,
+        5703,
         80
       ],
       "size": [
@@ -1622,7 +2061,7 @@
       "id": 203,
       "type": "MiniMaxH3SigmaShift",
       "pos": [
-        6043,
+        6563,
         80
       ],
       "size": [
@@ -1668,7 +2107,7 @@
       "id": 215,
       "type": "ModelAttentionBackend",
       "pos": [
-        6550,
+        7070,
         80
       ],
       "size": [
@@ -1706,7 +2145,7 @@
       "id": 208,
       "type": "MiniMaxH3ReferenceToVideo",
       "pos": [
-        5183,
+        5703,
         520
       ],
       "size": [
@@ -1869,7 +2308,7 @@
       "id": 205,
       "type": "LTXVSeparateAVLatent",
       "pos": [
-        5183,
+        5703,
         318
       ],
       "size": [
@@ -1928,7 +2367,7 @@
       "id": 206,
       "type": "MinimaxH3LatentUpscaler3D",
       "pos": [
-        6043,
+        6563,
         318
       ],
       "size": [
@@ -1995,7 +2434,7 @@
       "id": 207,
       "type": "LTXVConcatAVLatent",
       "pos": [
-        6550,
+        7070,
         288
       ],
       "size": [
@@ -2052,7 +2491,7 @@
       "id": 209,
       "type": "BasicScheduler",
       "pos": [
-        5183,
+        5703,
         1232
       ],
       "size": [
@@ -2099,7 +2538,7 @@
       "id": 210,
       "type": "BasicGuider",
       "pos": [
-        7070,
+        7590,
         80
       ],
       "size": [
@@ -2140,7 +2579,7 @@
       "id": 211,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        7650,
+        8170,
         80
       ],
       "size": [
@@ -2203,7 +2642,7 @@
       "id": 212,
       "type": "VAEDecode",
       "pos": [
-        8120,
+        8640,
         80
       ],
       "size": [
@@ -2246,7 +2685,7 @@
       "id": 213,
       "type": "VAEDecodeAudio",
       "pos": [
-        8120,
+        8640,
         282
       ],
       "size": [
@@ -2289,7 +2728,7 @@
       "id": 214,
       "type": "CreateVideo",
       "pos": [
-        8590,
+        9110,
         80
       ],
       "size": [
@@ -2337,7 +2776,7 @@
       "id": 4,
       "type": "SaveVideo",
       "pos": [
-        9080,
+        9600,
         80
       ],
       "size": [
@@ -2430,7 +2869,7 @@
       "id": 100,
       "type": "MyShot",
       "pos": [
-        9583,
+        10103,
         80
       ],
       "size": [
@@ -2464,7 +2903,7 @@
       "type": "UNETLoader",
       "pos": [
         80,
-        7550
+        7760
       ],
       "size": [
         640,
@@ -2506,7 +2945,7 @@
       "type": "CLIPLoader",
       "pos": [
         80,
-        7788
+        7998
       ],
       "size": [
         640,
@@ -2549,7 +2988,7 @@
       "type": "VAELoader",
       "pos": [
         80,
-        8056
+        8266
       ],
       "size": [
         640,
@@ -2591,7 +3030,7 @@
       "type": "VAELoader",
       "pos": [
         80,
-        8264
+        8474
       ],
       "size": [
         650,
@@ -2633,7 +3072,7 @@
       "type": "MiniMaxH3ReferenceToVideo",
       "pos": [
         2965,
-        6534
+        6744
       ],
       "size": [
         463.23935624366527,
@@ -2785,7 +3224,7 @@
       "type": "KSamplerSelect",
       "pos": [
         80,
-        8472
+        8682
       ],
       "size": [
         210,
@@ -2819,7 +3258,7 @@
       "type": "VAEDecodeAudio",
       "pos": [
         7346,
-        6296
+        6506
       ],
       "size": [
         230,
@@ -2862,7 +3301,7 @@
       "type": "LoraLoaderModelOnly",
       "pos": [
         3648,
-        6510
+        6720
       ],
       "size": [
         398.9882722523473,
@@ -2903,7 +3342,7 @@
       "type": "LTXVConcatAVLatent",
       "pos": [
         6406,
-        6010
+        6220
       ],
       "size": [
         181.308203125,
@@ -2944,7 +3383,7 @@
       "type": "ConditioningZeroOut",
       "pos": [
         3648,
-        6748
+        6958
       ],
       "size": [
         204.134765625,
@@ -2980,7 +3419,7 @@
       "type": "ModelAttentionBackend",
       "pos": [
         1648,
-        6284
+        6494
       ],
       "size": [
         270,
@@ -3019,7 +3458,7 @@
       "type": "KSamplerSelect",
       "pos": [
         80,
-        8680
+        8890
       ],
       "size": [
         210,
@@ -3053,7 +3492,7 @@
       "type": "LoraLoaderModelOnly",
       "pos": [
         3648,
-        6272
+        6482
       ],
       "size": [
         398.9882722523473,
@@ -3094,7 +3533,7 @@
       "type": "BlockSparseAttention",
       "pos": [
         2374,
-        6350
+        6560
       ],
       "size": [
         270,
@@ -3142,7 +3581,7 @@
       "type": "LoraLoaderModelOnly",
       "pos": [
         2965,
-        6296
+        6506
       ],
       "size": [
         398.9882722523473,
@@ -3184,7 +3623,7 @@
       "type": "SetLatentNoiseMask",
       "pos": [
         2965,
-        7222
+        7432
       ],
       "size": [
         188.1373046875,
@@ -3225,7 +3664,7 @@
       "type": "VAEEncodeAudio",
       "pos": [
         2374,
-        7036
+        7246
       ],
       "size": [
         162.659765625,
@@ -3266,7 +3705,7 @@
       "type": "SolidMask",
       "pos": [
         80,
-        9810
+        10020
       ],
       "size": [
         210,
@@ -3301,7 +3740,7 @@
       "type": "LoadVideo",
       "pos": [
         80,
-        6010
+        6220
       ],
       "size": [
         1348.2068156333198,
@@ -3336,7 +3775,7 @@
       "type": "GetVideoComponents",
       "pos": [
         1648,
-        6010
+        6220
       ],
       "size": [
         193.530859375,
@@ -3394,7 +3833,7 @@
       "type": "SaveVideo",
       "pos": [
         8404,
-        6010
+        6220
       ],
       "size": [
         2002.3330129374567,
@@ -3436,7 +3875,7 @@
       "type": "CreateVideo",
       "pos": [
         7914,
-        6010
+        6220
       ],
       "size": [
         270,
@@ -3484,7 +3923,7 @@
       "type": "UNETLoader",
       "pos": [
         80,
-        9096
+        9306
       ],
       "size": [
         510,
@@ -3525,7 +3964,7 @@
       "type": "CLIPLoader",
       "pos": [
         80,
-        9334
+        9544
       ],
       "size": [
         510,
@@ -3567,7 +4006,7 @@
       "type": "TextEncodeQwenImage21",
       "pos": [
         4267,
-        6010
+        6220
       ],
       "size": [
         464.92486633790395,
@@ -3646,7 +4085,7 @@
       "type": "VAELoader",
       "pos": [
         80,
-        9602
+        9812
       ],
       "size": [
         510,
@@ -3687,7 +4126,7 @@
       "type": "KSampler",
       "pos": [
         4952,
-        6010
+        6220
       ],
       "size": [
         270,
@@ -3747,7 +4186,7 @@
       "type": "QwenImage21Cache",
       "pos": [
         2374,
-        6798
+        7008
       ],
       "size": [
         270,
@@ -3787,7 +4226,7 @@
       "type": "VAEDecode",
       "pos": [
         5442,
-        6010
+        6220
       ],
       "size": [
         230,
@@ -3828,7 +4267,7 @@
       "type": "LoraLoaderModelOnly",
       "pos": [
         1648,
-        6492
+        6702
       ],
       "size": [
         505.85527881133476,
@@ -3868,7 +4307,7 @@
       "type": "ImageScaleBy",
       "pos": [
         3648,
-        6010
+        6220
       ],
       "size": [
         270,
@@ -3916,7 +4355,7 @@
       "type": "TesseraDilate",
       "pos": [
         2374,
-        6010
+        6220
       ],
       "size": [
         371.128515625,
@@ -3978,7 +4417,7 @@
       "type": "TesseraEncode",
       "pos": [
         5912,
-        6010
+        6220
       ],
       "size": [
         273.5259765625,
@@ -4066,7 +4505,7 @@
       "type": "TesseraRefine",
       "pos": [
         6876,
-        6010
+        6220
       ],
       "size": [
         210,
@@ -4236,7 +4675,7 @@
       "type": "TesseraDecimate",
       "pos": [
         7346,
-        6010
+        6220
       ],
       "size": [
         348.077734375,
@@ -4292,7 +4731,7 @@
       "type": "TesseraArgs",
       "pos": [
         80,
-        6952
+        7162
       ],
       "size": [
         221.83203125,
@@ -4336,7 +4775,7 @@
       "type": "ManualSigmas",
       "pos": [
         80,
-        8888
+        9098
       ],
       "size": [
         370,
@@ -4368,7 +4807,7 @@
       "type": "ImageFromBatch",
       "pos": [
         2965,
-        6010
+        6220
       ],
       "size": [
         370,
@@ -4420,6 +4859,158 @@
     }
   ],
   "links": [
+    [
+      560,
+      127,
+      0,
+      216,
+      0,
+      "MODEL"
+    ],
+    [
+      561,
+      216,
+      0,
+      217,
+      0,
+      "MODEL"
+    ],
+    [
+      562,
+      128,
+      0,
+      220,
+      0,
+      "CLIP"
+    ],
+    [
+      563,
+      119,
+      0,
+      220,
+      1,
+      "VAE"
+    ],
+    [
+      564,
+      120,
+      0,
+      220,
+      8,
+      "VAE"
+    ],
+    [
+      565,
+      9,
+      0,
+      220,
+      2,
+      "IMAGE"
+    ],
+    [
+      566,
+      14,
+      0,
+      220,
+      4,
+      "STRING"
+    ],
+    [
+      567,
+      22,
+      0,
+      220,
+      5,
+      "INT"
+    ],
+    [
+      568,
+      22,
+      1,
+      220,
+      6,
+      "INT"
+    ],
+    [
+      569,
+      131,
+      1,
+      220,
+      7,
+      "INT"
+    ],
+    [
+      570,
+      219,
+      0,
+      218,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      571,
+      219,
+      0,
+      221,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      572,
+      219,
+      0,
+      222,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      573,
+      217,
+      0,
+      218,
+      2,
+      "MODEL"
+    ],
+    [
+      574,
+      140,
+      0,
+      218,
+      1,
+      "MODEL"
+    ],
+    [
+      575,
+      220,
+      0,
+      221,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      576,
+      16,
+      0,
+      221,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      577,
+      220,
+      1,
+      222,
+      2,
+      "LATENT"
+    ],
+    [
+      578,
+      16,
+      1,
+      222,
+      1,
+      "LATENT"
+    ],
     [
       501,
       14,
@@ -4517,14 +5108,6 @@
       "MODEL"
     ],
     [
-      513,
-      140,
-      0,
-      126,
-      0,
-      "MODEL"
-    ],
-    [
       514,
       128,
       0,
@@ -4579,22 +5162,6 @@
       125,
       3,
       "SIGMAS"
-    ],
-    [
-      521,
-      16,
-      0,
-      126,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      522,
-      16,
-      1,
-      125,
-      4,
-      "LATENT"
     ],
     [
       523,
@@ -4899,6 +5466,30 @@
       100,
       0,
       "VIDEO"
+    ],
+    [
+      579,
+      218,
+      0,
+      126,
+      0,
+      "MODEL"
+    ],
+    [
+      580,
+      221,
+      0,
+      126,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      581,
+      222,
+      0,
+      125,
+      4,
+      "LATENT"
     ],
     [
       700,
@@ -5347,18 +5938,18 @@
       "bounding": [
         50,
         30,
-        4703.125,
-        5572
+        5223.125,
+        5800
       ],
       "color": "#335533",
-      "id": 2970,
+      "id": 4503,
       "mode": 0,
       "flags": {}
     },
     {
       "title": "二采放大·默认终档(TaoMate 3步→1280×704)",
       "bounding": [
-        5153,
+        5673,
         30,
         4820,
         1343.2267391954765
@@ -5372,7 +5963,7 @@
       "title": "质量精修 TESSERA·默认旁路(×1.5→1920×1056)",
       "bounding": [
         50,
-        5960,
+        6170,
         10386.333012937457,
         3986
       ],

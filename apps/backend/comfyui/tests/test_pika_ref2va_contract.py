@@ -1,7 +1,7 @@
 """Pika ref2va 主力产线契约测试(1101 用户裁定「ref2va 更适合分镜产线」,
 角色卡+场景卡+分镜帧锁身份)。
 
-被测对象 = 仓库真源 `2_视频/H3视频/1_漫影自研/0_单镜视频/pika-单镜视频-ref2v.json`
+被测对象 = 仓库真源 `2_视频/H3视频/8_吸收归档/pika-单镜视频-ref2v.json`
 (28 节点引擎前端格式画布直开)+ 前端 bundle 模板对
 `pika-ref-shot-template.json`(同字节)/`pika-ref-shot-template.api.json`(20 节点)。
 
@@ -27,7 +27,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
-LIB = ROOT / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/0_单镜视频"
+LIB = ROOT / "apps/backend/comfyui/workflows/2_视频/H3视频/8_吸收归档"
 UI = LIB / "pika-单镜视频-ref2v.json"
 FRONTEND_UI = ROOT / "apps/frontend/lib/assist/image-studio/pika-ref-shot-template.json"
 FRONTEND_API = ROOT / "apps/frontend/lib/assist/image-studio/pika-ref-shot-template.api.json"

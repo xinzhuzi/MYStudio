@@ -104,9 +104,9 @@ def test_stage2_single_source_fanout_no_duplicate():
     底模单源:[127] Cobijada 扇出 pika/taomate 双 LoRA 臂(1105 统一改造)。"""
     d, nodes, links = _load()
     unets = [n for n in nodes.values() if n["type"] == "UNETLoader" and n["id"] < 300]
-    assert len(unets) == 1 and unets[0]["id"] == 127, "默认路径底模恒单源(Cobijada 统一)"
+    assert len(unets) == 1 and unets[0]["id"] == 127, "默认路径底模恒单源(Cobijada 统一;i2v 臂为 LoRA 分支非独立底模)"
     fed = {l[3] for l in d["links"] if l[1] == 127 and l[5] == "MODEL"}
-    assert fed == {145, 202}, "Cobijada 应扇出至 pika[145] 与 taomate[202] 双臂"
+    assert fed == {145, 202, 216}, "Cobijada 应扇出至 pika[145]/taomate[202]/i2v 臂[216] 三臂"
     samplers = []
     for l in d["links"]:
         if l[1] == 123 and l[5] == "SAMPLER":
@@ -214,3 +214,33 @@ def test_no_negative_zone_and_no_leftward():
         sx = nodes[l[1]]["pos"][0]
         tx = nodes[l[3]]["pos"][0]
         assert tx > sx, f"link {l[0]} 左向线 [{l[1]}]→[{l[3]}]"
+
+
+def test_absorbed_fl2v_firstframe_mode():
+    """1105 吸收裁定:fl2v 首帧模式并入 G1——双臂+三 Seam 懒选择(ComfySwitchNode),
+    单一布尔源 [219] 扇出(默认 True=r2v 多参考;i2v 臂含 pika_fl2va LoRA)。"""
+    d, nodes, links = _load()
+    assert nodes[219]["type"] == "PrimitiveBoolean" and nodes[219]["widgets_values"] == [True]
+    assert nodes[220]["type"] == "MiniMaxH3ImageToVideo", "i2v 条件(吸收自 fl2v)"
+    assert nodes[216]["widgets_values"] == ["pika_h3_flex_fl2va_comfy_bf16.safetensors", 1]
+    fans = sorted(l[3] for l in d["links"] if l[1] == 219)
+    assert fans == [218, 221, 222], "模式开关单源扇出三选择点"
+    for sid, t_slot, f_slot in ((218, 1, 2), (221, 1, 2), (222, 1, 2)):
+        ins = nodes[sid]["inputs"]
+        assert nodes[sid]["type"] == "ComfySwitchNode"
+        assert links[ins[t_slot]["link"]][1] == 16 or links[ins[t_slot]["link"]][1] == 140, "on_true=r2v 臂"
+        assert links[ins[f_slot]["link"]][1] in (217, 220), "on_false=i2v 臂"
+    # 三 Seam 出口:底模→[126].model / 条件→[126].conditioning / 潜空间→[125].latent_image
+    assert links[nodes[126]["inputs"][0]["link"]][1] == 218
+    assert links[nodes[126]["inputs"][1]["link"]][1] == 221
+    assert links[nodes[125]["inputs"][4]["link"]][1] == 222
+    # 首帧槽:[9]→[220].first_frame(i2v 臂)+[9]→[16].ref_image_0(r2v 臂)双吃
+    f9 = sorted(l[3] for l in d["links"] if l[1] == 9)
+    assert f9 == [16, 208, 220], "[9] 应喂 r2v[16]/二采条件[208]/i2v首帧[220] 三处"
+
+
+def test_single_shot_dir_only_three_stage():
+    """1105 只保留裁定:0_单镜视频 恰一件=pika-单镜视频-三段链.json。"""
+    lib = WF_DIR
+    jsons = sorted(p.name for p in lib.glob("*.json"))
+    assert jsons == ["pika-单镜视频-三段链.json"], f"0_单镜视频 应只剩三段链,现有 {jsons}"
