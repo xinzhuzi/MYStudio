@@ -61,8 +61,35 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     status: "ready",
     notes: "唯一批量首发件(D3);组装器=buildShotH3ApiWorkflow,档位宽高 960p=1344×768/480p=608×352 直填 16.width/height。",
   },
-  // 1105 fasth3 线退役(用户裁定「现在它不太行」):my-fasth3-i2v-27 / my-fasth3-t2v-26
-  // 两条 recipe 摘除,fasth3-shot-template{,.api}.json 与 repo 三件同批出库。
+  {
+    // Windows FastH3 主线(10-27 windows-fasth3-mainline 接线;计划稿 id my-fasth3-i2v-31 按实数
+    // 节点计数改 27——计划 §四 W2 明载「以实际计,若实做后非 28 以实数回写」)。
+    id: "my-fasth3-i2v-27",
+    label: "漫影单镜 FastH3 I2V(27 节点,Windows 主线)",
+    apiTemplate: "./fasth3-shot-template.api.json",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/0_单镜视频/fasth3-单镜视频-i2v.json",
+    inputMode: "i2v",
+    anchors: {
+      prompt: "14.value",
+      seconds: "20.value",
+      firstFrame: "9.image",
+      resolution: ["16.width", "16.height"],
+      savePrefix: "4.filename_prefix",
+      myShot: "100",
+    },
+    resolutionTiers: ["480p", "960p"],
+    status: "unverified",
+    notes: "Windows FastH3 主线(8 步蒸馏 DiT R1+VSA 稀疏注意力+kitchen INT8 注意力;模型件=三对齐表 R1-R4,仅 Windows 引擎在册,派发须 env MYSTUDIO_COMFYUI_BRIDGE_URL 指向隧道)。status=unverified:三层硬门(注入锚/回收/引擎层)待实弹验收(计划 §五 B)后升 ready,升前批量派发须显式带 recipeId。超时沿用档位表 480p=900s/960p=2700s(FastH3 N 卡秒级~分钟级,execute 链 MAX_EXECUTE_TIMEOUT_S=2700s 上罩余量足)。前端模板对=fasth3-shot-template{,.api}.json,UI 真源=repo 库 fasth3-单镜视频-i2v.json(契约测试钉同步)。",
+  },
+  {
+    id: "my-fasth3-t2v-26",
+    label: "漫影单镜 FastH3 T2V 基础版(26 节点,画布直开)",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/0_单镜视频/fasth3-单镜视频-t2v.json",
+    inputMode: "t2v",
+    resolutionTiers: ["480p"],
+    status: "unverified",
+    notes: "无首帧纯文生(官方 t2v 同形);无 9.image 首帧锚,分镜批量线不适用,仅画布直开。",
+  },
   {
     // 1101 用户裁定「主力用 Pika」:Pika fl2va 主力线(6-NFE LCM,2.4× vs bf16 28步)
     id: "my-pika-fl2v-24",

@@ -3,6 +3,8 @@
 // 10-27 二期 multiseg(PRD §14.1):h3-multiseg-template{,.api}.json=repo 原件四针适配产物(脚本 --preset multiseg)
 import templateJson from "./h3-shot-template.json";
 import apiTemplateJson from "./h3-shot-template.api.json";
+import fasth3TemplateJson from "./fasth3-shot-template.json";
+import fasth3ApiTemplateJson from "./fasth3-shot-template.api.json";
 import templateRefJson from "./h3-shot-template-ref2va.json";
 import multisegTemplateJson from "./h3-multiseg-template.json";
 import pikaTemplateJson from "./pika-shot-template.json";
@@ -70,12 +72,13 @@ const REQUIRED_NODES: Array<[number, string]> = [
   [101, "MarkdownNote"],
 ];
 
-/** API 档模板对(W10 配方化;1105 fasth3 线退役,fasth3 对已摘):recipeId → (UI 画布档, API 图)。
+/** API 档模板对(10-27 windows-fasth3-mainline W10 配方化):recipeId → (UI 画布档, API 图)。
  *  两对锚点契约同构(4/9/14/20/100/101 + 16 宽高直填),组装器注入/回收面零分叉;
  *  id 与 h3-workflow-recipes.ts 注册表对齐(注册表是数据面,本表是 bundle 面——
  *  有 apiTemplate 的注册条目才可派发,画布登记件不进本表)。 */
 const H3_API_TEMPLATE_PAIRS: Record<string, { ui: H3WorkflowTemplate; api: ApiGraph }> = {
   "my-h3-i2v-31": { ui: templateJson as unknown as H3WorkflowTemplate, api: apiTemplateJson as unknown as ApiGraph },
+  "my-fasth3-i2v-27": { ui: fasth3TemplateJson as unknown as H3WorkflowTemplate, api: fasth3ApiTemplateJson as unknown as ApiGraph },
   "my-pika-fl2v-24": { ui: pikaTemplateJson as unknown as H3WorkflowTemplate, api: pikaApiTemplateJson as unknown as ApiGraph },
   // 1101 pika-ref2va-mainline:r2v 族走专用组装器 buildShotH3RefApiWorkflow(分派器按
   // inputMode 路由,不经 buildShotH3ApiWorkflow);本对供可派发集/注册表↔bundle 一致性口径。
@@ -154,7 +157,7 @@ export function buildShotH3Workflow(input: ShotH3WorkflowInput): ShotH3WorkflowR
   return buildShotWorkflowFromTemplate(templateJson, input);
 }
 
-/** 画布档组装真身(W10 配方化:模板参数化,
+/** 画布档组装真身(10-27 windows-fasth3-mainline W10 配方化:模板参数化,
  *  buildShotH3Workflow 保留为旧模板薄壳=旧行为零变;FastH3 通道走同真身)。 */
 function buildShotWorkflowFromTemplate(source: H3WorkflowTemplate, input: ShotH3WorkflowInput): ShotH3WorkflowResult {
   const template = JSON.parse(JSON.stringify(source)) as H3WorkflowTemplate;
@@ -209,7 +212,8 @@ function buildShotWorkflowFromTemplate(source: H3WorkflowTemplate, input: ShotH3
 }
 
 /** API 档输入(§5.2 C3):画布档输入 + 首帧 b64(走 execute images 通道上传)+ 分辨率档。
- *  recipeId:选模板对——缺省 "my-h3-i2v-31"=旧行为零变(1105 fasth3 线退役,fasth3 对已摘)。 */
+ *  recipeId(10-27 windows-fasth3-mainline W10):选模板对——缺省 "my-h3-i2v-31"=旧行为
+ *  零变;"my-fasth3-i2v-27"=Windows FastH3 主线对(fasth3-shot-template{,.api}.json)。 */
 export interface ShotH3ApiWorkflowInput extends ShotH3WorkflowInput {
   /** 首帧图 base64(execute images 通道后端代上传);缺省=9 节点只填派生名不带上传(引擎 input 须已有同名文件)。 */
   firstFrameB64?: string;
