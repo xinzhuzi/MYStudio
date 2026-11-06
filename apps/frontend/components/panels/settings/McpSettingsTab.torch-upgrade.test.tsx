@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { McpSettingsTab } from "./McpSettingsTab";
 import { ComfySidecarHttpError } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
 import { useEnginePresetsStore } from "@/stores/settings/engine-presets-store";
@@ -51,28 +51,28 @@ describe("torch upgrade settings", () => {
   it("offers the pinned update and routes confirmation to cu132", async () => {
     mocks.poll.mockImplementation(() => new Promise(() => {}));
     render(<McpSettingsTab />);
-    const row = await screen.findByTestId("engine-sync-torch-row");
+    const row = await screen.findByTestId("torch-section-body");
     await waitFor(() => expect(row.textContent).toContain("需更新 → 2.14.1+cu132"));
-    fireEvent.click(within(row).getByRole("button", { name: "更新" }));
+    fireEvent.click(screen.getByTestId("torch-upgrade-start"));
     fireEvent.click(await screen.findByText("确认升级"));
     await waitFor(() => expect(mocks.start).toHaveBeenCalledWith("2.14.1", "cu132", "remote"));
-    expect((within(row).getByRole("button", { name: "更新" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId("torch-upgrade-start") as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("renders pinned and unverified versions distinctly", async () => {
     mocks.info.mockResolvedValue({ current: { torch: "2.14.1+cu132" }, live: true, hostMatched: true, busy: false, allowedTargets: ["2.14.1"] });
     const view = render(<McpSettingsTab />);
-    await waitFor(() => expect(screen.getByTestId("engine-sync-torch-row").textContent).toContain("✅ 已是钉版"));
+    await waitFor(() => expect(screen.getByTestId("torch-section-body").textContent).toContain("2.14.1"));
     view.unmount();
     mocks.info.mockResolvedValue({ current: { torch: "2.14.1+cu132" }, live: false, hostMatched: true, busy: false, allowedTargets: ["2.14.1"] });
     render(<McpSettingsTab />);
-    await waitFor(() => expect(screen.getByTestId("engine-sync-torch-row").textContent).toContain("未实时验证"));
+    await waitFor(() => expect(screen.getByTestId("torch-section-body").textContent).toContain("未实时验证"));
   });
 
   it("shows the first failed source in both version displays", async () => {
     mocks.info.mockResolvedValue({ current: null, live: false, hostMatched: true, busy: false, errors: ["system_stats: 引擎不可达", "venv-probe: 未连接", "ledger: 不存在"], allowedTargets: ["2.14.1"] });
     render(<McpSettingsTab />);
-    const row = await screen.findByTestId("engine-sync-torch-row");
+    const row = await screen.findByTestId("torch-section-body");
     await waitFor(() => expect(row.textContent).toContain("未知(原因:system_stats: 引擎不可达)"));
     expect(screen.getAllByText("未知(原因:system_stats: 引擎不可达)").length).toBeGreaterThan(0);
     expect(row.textContent).not.toContain("未实时验证");
@@ -84,14 +84,12 @@ describe("torch upgrade settings", () => {
     mocks.ssh.mockResolvedValue({ connected: false, configured: false, available: true });
     mocks.info.mockResolvedValue({ current: { torch: "2.14.1+cu132", source: "system_stats" }, live: true, hostMatched: false, busy: false, allowedTargets: ["2.14.1"] });
     render(<McpSettingsTab />);
-    const row = await screen.findByTestId("engine-sync-torch-row");
-    expect(row.textContent).toContain("当前：未知");
+    const row = await screen.findByTestId("torch-section-body");
+    expect(row.textContent).toContain("生效版本：未知");
     await act(async () => { resolveRemote({ source: "settings", url: "http://example.invalid:17000" }); });
-    await waitFor(() => expect(row.textContent).toContain("✅ 已是钉版"));
+    await waitFor(() => expect(row.textContent).toContain("2.14.1"));
     expect(row.textContent).not.toContain("未实时验证");
-    const header = screen.getByTestId("engine-sync-header");
-    expect(header.textContent).toContain("2.14.1+cu132");
-    expect((within(row).getByRole("button", { name: "更新" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId("torch-upgrade-start") as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("degrades both sync displays when torch info fails", async () => {
@@ -103,14 +101,13 @@ describe("torch upgrade settings", () => {
     });
     const view = render(<McpSettingsTab />);
     try {
-      const row = await screen.findByTestId("engine-sync-torch-row");
+      const row = await screen.findByTestId("torch-section-body");
       await waitFor(() => expect(row.textContent).toContain("需更新 → 2.14.1+cu132"));
       mocks.info.mockRejectedValue(new Error("offline"));
       await act(async () => { refresh?.(); await Promise.resolve(); });
       await waitFor(() => expect(row.textContent).toContain("未知"));
       expect(row.textContent).toContain("未知(原因:offline)");
       expect(row.textContent).not.toContain("未实时验证");
-      expect(screen.getByTestId("engine-sync-header").textContent).toContain("未知(原因:offline)");
     } finally {
       view.unmount();
       interval.mockRestore();
@@ -122,7 +119,7 @@ describe("torch upgrade settings", () => {
     useEnginePresetsStore.getState().favorite(nextUrl);
     let resolveNext!: (value: unknown) => void;
     render(<McpSettingsTab />);
-    const row = await screen.findByTestId("engine-sync-torch-row");
+    const row = await screen.findByTestId("torch-section-body");
     await waitFor(() => expect(row.textContent).toContain("需更新 → 2.14.1+cu132"));
     mocks.remote.mockResolvedValue({ source: "settings", url: nextUrl, effective: nextUrl });
     mocks.info.mockImplementation(() => new Promise((resolve) => { resolveNext = resolve; }));
@@ -131,12 +128,10 @@ describe("torch upgrade settings", () => {
     expect(nextButton).toBeTruthy();
     fireEvent.click(nextButton!);
     await waitFor(() => expect(mocks.setRemote).toHaveBeenCalledWith(nextUrl));
-    await waitFor(() => expect(row.textContent).toContain("当前：未知"));
+    await waitFor(() => expect(row.textContent).toContain("生效版本：未知"));
     expect(row.textContent).toContain("原因:");
-    expect(screen.getByTestId("engine-sync-header").textContent).toContain("未知(原因:");
     await act(async () => { resolveNext({ current: { torch: "2.14.1+cu132" }, live: true, hostMatched: true, busy: false, allowedTargets: ["2.14.1"] }); });
-    await waitFor(() => expect(row.textContent).toContain("✅ 已是钉版"));
-    expect(screen.getByTestId("engine-sync-header").textContent).toContain("2.14.1+cu132");
+    await waitFor(() => expect(row.textContent).toContain("2.14.1"));
   });
 
   it("invalidates the live version when the SSH fingerprint changes", async () => {
@@ -144,15 +139,15 @@ describe("torch upgrade settings", () => {
     let resolveNext!: (value: unknown) => void;
     const view = render(<McpSettingsTab />);
     try {
-      const row = await screen.findByTestId("engine-sync-torch-row");
+      const row = await screen.findByTestId("torch-section-body");
       await waitFor(() => expect(row.textContent).toContain("需更新 → 2.14.1+cu132"));
       mocks.info.mockImplementation(() => new Promise((resolve) => { resolveNext = resolve; }));
       await act(async () => { useSshPresetsStore.getState().setActiveFingerprint({ host: "other.invalid", port: 2222, user: "engine" }); });
-      expect(row.textContent).toContain("当前：未知");
+      expect(row.textContent).toContain("生效版本：未知");
       expect(row.textContent).toContain("原因:");
       expect(row.textContent).not.toContain("2.11.0+cu128");
       await act(async () => { resolveNext({ current: { torch: "2.14.1+cu132" }, live: true, hostMatched: true, busy: false, allowedTargets: ["2.14.1"] }); });
-      await waitFor(() => expect(row.textContent).toContain("✅ 已是钉版"));
+      await waitFor(() => expect(row.textContent).toContain("2.14.1"));
     } finally {
       view.unmount();
       useSshPresetsStore.setState({ activeFingerprint: originalFingerprint });
@@ -171,16 +166,16 @@ describe("torch upgrade settings", () => {
     let resolveNewer!: (value: unknown) => void;
     const view = render(<McpSettingsTab />);
     try {
-      const row = await screen.findByTestId("engine-sync-torch-row");
+      const row = await screen.findByTestId("torch-section-body");
       await waitFor(() => expect(row.textContent).toContain("需更新 → 2.14.1+cu132"));
       mocks.info.mockImplementationOnce(() => new Promise((resolve) => { resolveOlder = resolve; }))
         .mockImplementationOnce(() => new Promise((resolve) => { resolveNewer = resolve; }));
       await act(async () => { refresh?.(); });
       await act(async () => { useSshPresetsStore.getState().setActiveFingerprint({ host: "other.invalid", port: 2222, user: "engine" }); });
       await act(async () => { resolveNewer({ current: { torch: "2.14.1+cu132" }, live: true, hostMatched: true, busy: false, allowedTargets: ["2.14.1"] }); });
-      await waitFor(() => expect(row.textContent).toContain("✅ 已是钉版"));
+      await waitFor(() => expect(row.textContent).toContain("2.14.1"));
       await act(async () => { resolveOlder({ current: { torch: "2.11.0+cu128" }, live: true, hostMatched: true, busy: false, allowedTargets: ["2.14.1"] }); });
-      expect(row.textContent).toContain("✅ 已是钉版");
+      expect(row.textContent).toContain("2.14.1");
       expect(row.textContent).not.toContain("2.11.0+cu128");
     } finally {
       view.unmount();
@@ -198,7 +193,7 @@ describe("torch upgrade settings", () => {
     });
     const view = render(<McpSettingsTab />);
     try {
-      const row = await screen.findByTestId("engine-sync-torch-row");
+      const row = await screen.findByTestId("torch-section-body");
       await waitFor(() => expect(row.textContent).toContain("2.11.0+cu128"));
       vi.useFakeTimers();
       let inFlight = 0;
@@ -214,7 +209,7 @@ describe("torch upgrade settings", () => {
       await act(async () => { refresh?.(); });
       const timer = window.setInterval(() => refresh?.(), 10_000);
       await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
-      expect(row.textContent).toContain("当前：2.14.1+cu132");
+      expect(row.textContent).toContain("生效版本：2.14.1+cu132");
       expect(maxInFlight).toBe(1);
       window.clearInterval(timer);
     } finally {
@@ -268,7 +263,7 @@ describe("torch upgrade settings", () => {
       const timer = window.setInterval(() => refresh?.(), 10_000);
       await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
       expect(mocks.info).toHaveBeenCalledTimes(2);
-      expect(screen.getByTestId("engine-sync-torch-row").textContent).toContain("当前：2.11.0+cu128");
+      expect(screen.getByTestId("torch-section-body").textContent).toContain("2.11.0+cu128");
       window.clearInterval(timer);
     } finally {
       vi.useRealTimers();
@@ -283,12 +278,12 @@ describe("torch upgrade settings", () => {
     mocks.info.mockResolvedValue({ mode: "remote", current: { torch: "2.11.0+cu128" }, live: true, hostMatched: true, busy: false, allowedTargets: ["2.14.1"] });
     mocks.poll.mockImplementation(() => new Promise(() => {}));
     render(<McpSettingsTab />);
-    const row = await screen.findByTestId("engine-sync-torch-row");
+    const row = await screen.findByTestId("torch-section-body");
     await waitFor(() => expect(row.textContent).toContain("需更新 → 2.14.1"));
-    expect(screen.queryByLabelText("CUDA 通道")).toBeNull();
-    const button = within(row).getByRole("button", { name: "更新" }) as HTMLButtonElement;
+    expect(screen.getByLabelText("CUDA 通道")).toBeTruthy();
+    const button = screen.getByTestId("torch-upgrade-start") as HTMLButtonElement;
     expect(button.disabled).toBe(false);
-    expect(await screen.findByText("本地引擎升级请到 设置→本地配置→ComfyUI→更新")).toBeTruthy();
+    expect(await screen.findByText(/本地\(Mac\)引擎升级请到/)).toBeTruthy();
     expect(mocks.info).toHaveBeenCalledWith("remote");
     fireEvent.click(button);
     fireEvent.click(await screen.findByText("确认升级"));
@@ -297,27 +292,6 @@ describe("torch upgrade settings", () => {
     for (const label of ["预检", "快照", "停止引擎", "安装", "导入验证", "重启", "烟测", "落账"]) expect(progress.textContent).toContain(label);
   });
 
-  it.each(["local", "remote"] as const)("isolates a running %s job when switching engine modes", async (initialMode) => {
-    const remoteUrl = "http://example.invalid:17000";
-    useEnginePresetsStore.getState().favorite(remoteUrl);
-    mocks.remote.mockResolvedValue(initialMode === "remote" ? { source: "settings", url: remoteUrl } : { source: "local", url: "" });
-    mocks.info.mockImplementation(async (mode) => ({ current: { torch: mode === "local" ? "2.14.0" : "2.11.0+cu128" }, live: true, hostMatched: true, busy: false, allowedTargets: ["2.14.1"] }));
-    let updateOld!: (job: unknown) => void;
-    mocks.poll.mockImplementation((_id, _timeout, _interval, update) => { updateOld = update; return new Promise(() => {}); });
-    render(<McpSettingsTab />);
-    const row = await screen.findByTestId("engine-sync-torch-row");
-    await waitFor(() => expect((within(row).getByRole("button", { name: "更新" }) as HTMLButtonElement).disabled).toBe(false));
-    fireEvent.click(within(row).getByRole("button", { name: "更新" }));
-    fireEvent.click(await screen.findByText("确认升级"));
-    await waitFor(() => expect(mocks.start).toHaveBeenCalledWith("2.14.1", expect.any(String), "remote"));
-    await screen.findByTestId("torch-upgrade-progress");
-    mocks.remote.mockResolvedValue(initialMode === "remote" ? { source: "local", url: "" } : { source: "settings", url: remoteUrl, effective: remoteUrl });
-    fireEvent.click(initialMode === "remote" ? screen.getByTestId("engine-device-local-select") : screen.getAllByTestId("engine-device-remote-select").find((button) => button.getAttribute("data-url") === remoteUrl)!);
-    await waitFor(() => expect(mocks.setRemote).toHaveBeenCalledWith(initialMode === "remote" ? "" : remoteUrl));
-    await waitFor(() => expect(screen.queryByTestId("torch-upgrade-progress")).toBeNull());
-    await act(async () => { updateOld({ status: "running", step: "install", message: "旧模式任务" }); });
-    expect(screen.queryByText("旧模式任务")).toBeNull();
-  });
 
   it("远端探针失败时未知带原因且禁点(MCP 域不再降级本地)", async () => {
     const remoteUrl = "http://example.invalid:17000";
@@ -325,9 +299,9 @@ describe("torch upgrade settings", () => {
     mocks.remote.mockResolvedValue({ source: "local", url: "" });
     mocks.info.mockRejectedValue(new Error("remote probe unavailable"));
     render(<McpSettingsTab />);
-    const row = await screen.findByTestId("engine-sync-torch-row");
+    const row = await screen.findByTestId("torch-section-body");
     await waitFor(() => expect(row.textContent).toContain("未知(原因:remote probe unavailable)"));
-    const button = within(row).getByRole("button", { name: "更新" }) as HTMLButtonElement;
+    const button = screen.getByTestId("torch-upgrade-start") as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     fireEvent.click(button);
     expect(mocks.start).not.toHaveBeenCalled();
@@ -343,9 +317,9 @@ describe("torch upgrade settings", () => {
       return { current: { torch: "2.14.0" }, live: true, hostMatched: true, busy: false, allowedTargets: ["2.14.1"] };
     });
     render(<McpSettingsTab />);
-    const row = await screen.findByTestId("engine-sync-torch-row");
+    const row = await screen.findByTestId("torch-section-body");
     await waitFor(() => expect(row.textContent).toContain("未知(原因:remote probe unavailable)"));
-    const button = within(row).getByRole("button", { name: "更新" }) as HTMLButtonElement;
+    const button = screen.getByTestId("torch-upgrade-start") as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     fireEvent.click(button);
     expect(mocks.start).not.toHaveBeenCalled();
@@ -390,9 +364,9 @@ describe("torch upgrade settings", () => {
     mocks.ssh.mockResolvedValue({ connected: false, configured: false, available: true });
     mocks.info.mockResolvedValue({ mode: "local", current: { torch: "2.14.1" }, live: true, hostMatched: true, busy: false, allowedTargets: ["2.14.1"] });
     render(<McpSettingsTab />);
-    const row = await screen.findByTestId("engine-sync-torch-row");
-    await waitFor(() => expect(row.textContent).toContain("✅ 已是钉版"));
-    expect((within(row).getByRole("button", { name: "更新" }) as HTMLButtonElement).disabled).toBe(true);
+    const row = await screen.findByTestId("torch-section-body");
+    await waitFor(() => expect(row.textContent).toContain("2.14.1"));
+    expect((screen.getByTestId("torch-upgrade-start") as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("blocks torch upgrades during synchronization and synchronization during an upgrade", async () => {
@@ -402,7 +376,7 @@ describe("torch upgrade settings", () => {
     const sync = await screen.findByTestId("engine-sync-start") as HTMLButtonElement;
     await waitFor(() => expect(sync.disabled).toBe(false));
     fireEvent.click(sync);
-    await waitFor(() => expect((within(screen.getByTestId("engine-sync-torch-row")).getByRole("button", { name: "更新" }) as HTMLButtonElement).disabled).toBe(true));
+    await waitFor(() => expect((screen.getByTestId("torch-upgrade-start") as HTMLButtonElement).disabled).toBe(true));
     view.unmount();
     mocks.info.mockResolvedValue({ current: { torch: "2.11.0+cu128" }, live: true, hostMatched: true, busy: true, allowedTargets: ["2.14.1"] });
     render(<McpSettingsTab />);

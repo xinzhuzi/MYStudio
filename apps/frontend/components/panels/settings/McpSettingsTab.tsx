@@ -891,8 +891,8 @@ export function McpSettingsTab() {
   const pinnedVersion = remoteActive ? `${pinnedTorch}+cu132` : pinnedTorch;
   const torchVerified = Boolean(torchInfo?.live && torchInfo.current?.torch && (torchInfo.current.source === "system_stats" || torchInfo.hostMatched));
   const torchNeedsUpdate = torchVerified && torchInfo?.current?.torch !== pinnedVersion;
-  const torchVersionDisplay = torchInfo?.current?.torch ?? `未知(原因:${torchInfo?.errors?.[0] ?? torchInfoError ?? "尚未获取引擎版本"})`;
   const torchLedgerOnly = Boolean(torchInfo?.current?.torch && !torchInfo.live);
+  const torchVersionDisplay = torchInfo?.current?.torch ?? `未知(原因:${torchInfo?.errors?.[0] ?? torchInfoError ?? "尚未获取引擎版本"})`;
 
   const followTorchJob = useCallback(async (jobId: string) => {
     const identity = torchIdentity;
@@ -1556,7 +1556,6 @@ export function McpSettingsTab() {
                     aria-hidden="true"
                   />
                   <span className="text-sm font-medium">引擎同步</span>
-                  <span className="text-xs text-muted-foreground">PyTorch {torchVersionDisplay}{torchLedgerOnly ? " · 未实时验证" : torchNeedsUpdate ? " · 需更新" : ""}</span>
                       <span className="min-w-0 truncate text-xs text-muted-foreground">
                         把引擎与插件从 GitHub 拉最新到 Windows(单真源清单,经 SSH)
                       </span>
@@ -1573,15 +1572,7 @@ export function McpSettingsTab() {
                     </span>
                     <span>目标: Windows(经 SSH 当前会话拉取)</span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 px-2 py-1.5" data-testid="engine-sync-torch-row">
-                    <span className="text-xs">PyTorch 引擎栈</span>
-                    <span className="font-mono text-xs">当前：{torchVersionDisplay}</span>
-                    <span className={cn("text-xs", !torchVerified ? "text-muted-foreground" : torchNeedsUpdate ? "text-warning" : "text-success")}>
-                      {torchLedgerOnly ? "未实时验证" : !torchVerified ? "" : torchNeedsUpdate ? `需更新 → ${pinnedVersion}` : "✅ 已是钉版"}
-                    </span>
-                    <Button size="sm" disabled={!torchNeedsUpdate || engineSyncRunning || torchRunning || torchInfo?.busy || !sshStatus?.connected} onClick={() => { setTorchConfirmPinned(true); setTorchConfirm(true); }}>更新</Button>
-                  </div>
-                  {torchJob && collapsedSections.has("torch-upgrade") && <TorchUpgradeProgress job={torchJob} warning={torchTrackingWarning} />}
+                  {/* torch 升级入口已收敛至「引擎 PyTorch / CUDA」分节(引擎地址区;1106 用户令:同步面板不再显示,避免双入口) */}
                   {/* SSH 断开/清单取失败:按钮禁用+提示(R3);清单空同样提示 */}
                   {!sshStatus?.connected ? (
                     <p className="text-xs leading-5 text-warning" data-testid="engine-sync-ssh-hint">
@@ -1735,11 +1726,14 @@ export function McpSettingsTab() {
           onToggle={toggleSectionCollapsed}
         >
           <div className="space-y-3 p-4">
-            {!remoteActive ? <p className="text-xs text-muted-foreground">本地引擎升级请到 设置→本地配置→ComfyUI→更新</p> : <>
+            {!remoteActive && <p className="text-xs text-muted-foreground">本地(Mac)引擎升级请到 设置→本地配置→ComfyUI→更新;此处仅管理 Windows 引擎。</p>}
             <p className="text-xs text-muted-foreground">
-              生效版本：<span className="font-mono">{torchVersionDisplay}</span>
+              <span data-testid="torch-section-body">生效版本：<span className="font-mono">{torchVersionDisplay}</span>
               {torchInfo?.current?.cuda ? <span className="font-mono"> · CUDA {torchInfo.current.cuda}</span> : null}
               {torchInfo?.current ? (torchInfo.live ? "（实时）" : "（账本，未实时验证）") : ""}
+              <span className={cn("ml-1", !torchVerified ? "text-muted-foreground" : torchNeedsUpdate ? "text-warning" : "text-success")}>
+                {torchLedgerOnly ? "未实时验证" : !torchVerified ? "" : torchNeedsUpdate ? `需更新 → ${pinnedVersion}` : "✅ 已是钉版"}
+              </span></span>
             </p>
             {sshStatus?.connected && torchInfo && !torchInfo.hostMatched && <p className="text-xs text-warning">SSH 主机与当前生效引擎不一致，无法升级。</p>}
             <div className="flex flex-wrap items-end gap-2">
@@ -1748,7 +1742,6 @@ export function McpSettingsTab() {
               <Button size="sm" data-testid="torch-upgrade-start" onClick={() => { setTorchConfirmPinned(false); setTorchConfirm(true); }} disabled={!sshStatus?.connected || engineSyncRunning || !torchInfo || torchInfo.busy || torchRunning || !torchInfo.allowedTargets?.includes(torchTarget)}>升级</Button>
             </div>
             {torchInfo?.allowedTargets?.length && !torchInfo.allowedTargets.includes(torchTarget) ? <p className="text-xs text-warning">仅支持 {torchInfo.allowedTargets.join(" / ")}</p> : null}
-            </>}
             {torchJob && <TorchUpgradeProgress job={torchJob} warning={torchTrackingWarning} />}
           </div>
         </McpRow>
@@ -2428,7 +2421,7 @@ export function McpSettingsTab() {
           setTorchConfirm(true) 后弹窗组件不存在=点击无任何反应(实弹踩雷)。 */}
       <AlertDialog open={torchConfirm} onOpenChange={setTorchConfirm}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>确认升级引擎？</AlertDialogTitle><AlertDialogDescription>引擎将停机约 15–60 分钟；失败将自动回滚旧版；磁盘需要至少 15 GiB 可用空间。{remoteActive && <>SSH 中断导致安装状态不明时需要人工介入。<br />注意:MYIA keeper 常驻同机,升级窗口期小概率竞态导致失败,届时将如实报告并引导处理。</>}</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>确认升级引擎？</AlertDialogTitle><AlertDialogDescription>引擎将停机约 15–60 分钟；失败将自动回滚旧版；磁盘需要至少 15 GiB 可用空间。SSH 中断导致安装状态不明时需要人工介入。<br />注意:MYIA keeper 常驻同机,升级窗口期小概率竞态导致失败,届时将如实报告并引导处理。</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={() => void startTorchUpgrade()}>确认升级</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
