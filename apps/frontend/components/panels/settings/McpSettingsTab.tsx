@@ -1540,6 +1540,7 @@ export function McpSettingsTab() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            {remoteActive && (<>
             {/* ── 引擎同步(11-04 engine-sync R3):单真源清单+勾选+逐项同步+结果弹窗。
                 C4:放引擎地址区(同步的是 ComfyUI 的东西),SSH 只是传输通道 ── */}
             <Collapsible
@@ -1673,6 +1674,8 @@ export function McpSettingsTab() {
                 </div>
               </CollapsibleContent>
             </Collapsible>
+            </>)}
+
             {/* 同步完成结果弹窗(R3:逐项 ✅/❌/⏭️ + 重启建议+[重启引擎]) */}
             <Dialog open={engineSyncDialog !== null} onOpenChange={(open) => !open && setEngineSyncDialog(null)}>
               <DialogContent className="max-w-md" data-testid="engine-sync-result-dialog">
@@ -1716,6 +1719,7 @@ export function McpSettingsTab() {
             </Dialog>
           </div>
 
+          {remoteActive && (<>
           {/* ── 引擎 PyTorch / CUDA(1106 用户令:自独立行迁入本面板,排引擎同步之后) ── */}
           <div className="mt-3 space-y-3">
             <div className="flex items-center gap-2">
@@ -1751,6 +1755,8 @@ export function McpSettingsTab() {
             {torchJob && <TorchUpgradeProgress job={torchJob} warning={torchTrackingWarning} />}
           </div>
           </div>
+          </>)}
+
         </McpRow>
 
         {/* ── SSH 远端连接(1103 终版):多条连接列表(照引擎设备列表同款范式,
