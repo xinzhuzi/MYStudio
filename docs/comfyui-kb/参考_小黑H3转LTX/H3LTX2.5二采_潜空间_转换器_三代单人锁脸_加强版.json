@@ -1,0 +1,4663 @@
+{
+  "id": "9aff9e02-20e2-4fea-a22b-4aea63f28d80",
+  "revision": 0,
+  "last_node_id": 207,
+  "last_link_id": 283,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        -3197.2179255455158,
+        -155.5985080031831
+      ],
+      "size": [
+        474.28789145510456,
+        115.84591493067992
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            44
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "H3\\minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "H3\\minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+        "weight_dtype": "default"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        -3196.9969066937238,
+        31.709959057183813
+      ],
+      "size": [
+        466.0625,
+        142
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 0,
+          "links": [
+            136
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "H3\\qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "minimax",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "H3\\qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "type": "minimax",
+        "device": "default"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        -3197.0398772468434,
+        214.03188866143606
+      ],
+      "size": [
+        462.375,
+        86
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 0,
+          "links": [
+            138
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "H3\\minimax_h3_video_vae_int8_convrot.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "H3\\minimax_h3_video_vae_int8_convrot.safetensors"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 4,
+      "type": "VAELoader",
+      "pos": [
+        -3198.3754834485535,
+        338.3953798376287
+      ],
+      "size": [
+        432,
+        88.53125
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 0,
+          "links": [
+            34,
+            177
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "H3\\minimax_h3_audio_vae_fp32.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "H3\\minimax_h3_audio_vae_fp32.safetensors"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 6,
+      "type": "BasicScheduler",
+      "pos": [
+        -639.8628749414454,
+        248.2647028870647
+      ],
+      "size": [
+        300,
+        142
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 56,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "slot_index": 0,
+          "links": [
+            9
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicScheduler",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "simple",
+        3,
+        1
+      ],
+      "widgets_values_named": {
+        "scheduler": "simple",
+        "steps": 3,
+        "denoise": 1
+      }
+    },
+    {
+      "id": 7,
+      "type": "KSamplerSelect",
+      "pos": [
+        -639.1247659399878,
+        125.21611264954416
+      ],
+      "size": [
+        300,
+        86
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "slot_index": 0,
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "res_multistep"
+      ],
+      "widgets_values_named": {
+        "sampler_name": "res_multistep"
+      }
+    },
+    {
+      "id": 8,
+      "type": "RandomNoise",
+      "pos": [
+        -641.4976875571518,
+        -119.18016322801174
+      ],
+      "size": [
+        300,
+        86
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "slot_index": 0,
+          "links": [
+            6
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RandomNoise",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        890211415643048,
+        "randomize"
+      ],
+      "widgets_values_named": {
+        "noise_seed": 890211415643048,
+        "control_after_generate": "randomize"
+      }
+    },
+    {
+      "id": 9,
+      "type": "BasicGuider",
+      "pos": [
+        -640.1458542904454,
+        6.153135675233585
+      ],
+      "size": [
+        300,
+        78
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 57,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 4
+        },
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 142
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "slot_index": 0,
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicGuider",
+        "cnr_id": "comfy-core"
+      }
+    },
+    {
+      "id": 10,
+      "type": "SamplerCustomAdvanced",
+      "pos": [
+        -286.89668859323217,
+        -5.850853908189919
+      ],
+      "size": [
+        300,
+        390
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 58,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise",
+          "type": "NOISE",
+          "link": 6
+        },
+        {
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 7
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 8
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 9
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 143
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            11
+          ]
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "slot_index": 1,
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SamplerCustomAdvanced",
+        "cnr_id": "comfy-core"
+      }
+    },
+    {
+      "id": 11,
+      "type": "LTXVSeparateAVLatent",
+      "pos": [
+        70.96597791891627,
+        -356.3198700114764
+      ],
+      "size": [
+        300,
+        78
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 59,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "av_latent",
+          "type": "LATENT",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video_latent",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            12
+          ]
+        },
+        {
+          "name": "audio_latent",
+          "type": "LATENT",
+          "slot_index": 1,
+          "links": [
+            229
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVSeparateAVLatent",
+        "cnr_id": "comfy-core"
+      },
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 12,
+      "type": "MinimaxH3LatentUpscaler3D",
+      "pos": [
+        462.7107972772452,
+        -354.1042552232187
+      ],
+      "size": [
+        506.34375,
+        310
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 60,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "latent",
+          "type": "*",
+          "link": 12
+        },
+        {
+          "name": "mode.width",
+          "type": "INT",
+          "widget": {
+            "name": "mode.width"
+          },
+          "link": 50
+        },
+        {
+          "name": "mode.height",
+          "type": "INT",
+          "widget": {
+            "name": "mode.height"
+          },
+          "link": 262
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "*",
+          "slot_index": 0,
+          "links": [
+            14
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MinimaxH3LatentUpscaler3D",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "minimax_h3_latent_upscaler_3d_fp16.safetensors",
+        "target dimensions",
+        1280,
+        704,
+        32,
+        true,
+        false,
+        "cuda",
+        "bf16"
+      ],
+      "widgets_values_named": {
+        "model_name": "minimax_h3_latent_upscaler_3d_fp16.safetensors",
+        "mode": "target dimensions",
+        "mode.width": 1280,
+        "mode.height": 704,
+        "align": 32,
+        "enable_temporal_chunking": true,
+        "force_unload": false,
+        "device": "cuda",
+        "precision": "bf16"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 13,
+      "type": "H3LTXAdapterLoader",
+      "pos": [
+        1093.8835969078218,
+        -631.1355980666568
+      ],
+      "size": [
+        341.71875,
+        196
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "adapter",
+          "type": "H3LTX_ADAPTER",
+          "slot_index": 0,
+          "links": [
+            13
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "H3LTXAdapterLoader",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "model.safetensors",
+        "cuda",
+        "bf16",
+        false,
+        ""
+      ],
+      "widgets_values_named": {
+        "model_name": "model.safetensors",
+        "device": "cuda",
+        "precision": "bf16",
+        "reload": false,
+        "xh_lang_toggle": ""
+      },
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 14,
+      "type": "H3LTXAdapterConvert",
+      "pos": [
+        1460.2854706944945,
+        -380.2024536626364
+      ],
+      "size": [
+        330,
+        520
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 62,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "adapter",
+          "type": "H3LTX_ADAPTER",
+          "link": 13
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "ltx_latent",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            274
+          ]
+        },
+        {
+          "name": "pixel_frames",
+          "type": "INT",
+          "slot_index": 1,
+          "links": [
+            39
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "report",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "H3LTXAdapterConvert",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        0,
+        0,
+        0,
+        false,
+        false,
+        false,
+        ""
+      ],
+      "widgets_values_named": {
+        "pixel_frames": 0,
+        "pixel_height": 0,
+        "pixel_width": 0,
+        "input_is_raw": false,
+        "drop_last_frame": false,
+        "unload_after": false,
+        "xh_lang_toggle": ""
+      },
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 15,
+      "type": "UNETLoader",
+      "pos": [
+        2099.387175392931,
+        -287.6217751380123
+      ],
+      "size": [
+        577.7040349566653,
+        117.30067500126825
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            247
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "LTX2.5\\ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "LTX2.5\\ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+        "weight_dtype": "default"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 16,
+      "type": "CLIPLoader",
+      "pos": [
+        2097.370725350317,
+        -128.75498306863307
+      ],
+      "size": [
+        575.9375,
+        142.53125
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 0,
+          "links": [
+            15,
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "LTX2.5\\gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+        "ltxv",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "LTX2.5\\gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+        "type": "ltxv",
+        "device": "default"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 17,
+      "type": "CLIPTextEncode",
+      "pos": [
+        2874.8748849042786,
+        99.94540056757562
+      ],
+      "size": [
+        461.494285751935,
+        202.16447529690447
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 41,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 15
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 283
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "10‑second single‑take live‑action video, static camera, chest‑up medium close‑up, one continuous shot, warm modern livestream scene inside a small bedroom.\nAn elegant middle‑aged Chinese woman with soft oval face, fair warm‑toned skin with visible natural skin texture, softly arched eyebrows, warm brown eyes, bright open smile, dark hair in a smooth neat low bun, wearing floor‑length sleeveless white mandarin‑collar qipao and tiny pearl earrings. Her facial features, hairstyle and outfit stay consistent for the whole 10 seconds.\nBackground: warm beige bedroom wall, neatly‑made bed with folded grey blanket behind the woman. Out‑of‑frame standing ring light provides soft even frontal lighting onto her face, shallow depth of field, sharp focus on her face and sausages, background softly blurred, slightly warm consumer‑camera color grading. At lower‑right of frame is a small wooden table: plate with plump pink‑brown sausages on thin bamboo skewers, a partially opened vacuum sausage package, one steaming hot teacup. All background objects remain stationary during the whole clip.\nThe woman sits facing the camera in center of frame, upper body mostly still with gentle natural movement: relaxed shoulders, slight small head tilts, gentle hand gestures around chest height. She maintains steady eye contact toward camera, bright cheerful expression.\nAction sequence:\nShe greets the camera with a bright smile, speaking in Chinese \"家人们，开播啦，今天给你们安排点硬货。\"\nThen she stretches her right hand toward the wooden table on lower‑right, picks up one sausage skewer, lifts the skewer next to her cheek, slowly rotates the bamboo skewer so camera sees the glossy shiny sausage casing, speaking in Chinese \"纯肉火腿肠，一口爆汁，谁吃谁知道。\"\nShe brings the sausage to her mouth and takes a small bite, keeps holding the partially‑eaten sausage near her face, leans slightly forward toward the lens, eyes wide, still smiling, speaking in Chinese \"全是用料，越嚼越香，库存真的不多了。\"\nShe swallows, holds the bitten sausage up toward the camera, keeps smiling directly to lens until the 10‑second clip ends. No on‑screen chat graphics.\nSoundscape: quiet small‑bedroom room tone continues throughout, faint hum from the ring light, distant city traffic outside the closed window. During the tasting moment, light crisp snap of sausage casing and soft chewing sounds are clearly audible, one small ceramic clink from the teacup. Soft bouncy livestream‑style background synth loop, faint kick pattern and light synth plucks, background music stays low in the mix and never rises above the woman’s voice.\nRealistic live‑action, cinematic consumer cam look, natural subtle body movement, no over‑exaggerated acting, smooth natural video motion, no weird face distortion, consistent character appearance throughout clip.\n"
+      ],
+      "widgets_values_named": {
+        "text": "10‑second single‑take live‑action video, static camera, chest‑up medium close‑up, one continuous shot, warm modern livestream scene inside a small bedroom.\nAn elegant middle‑aged Chinese woman with soft oval face, fair warm‑toned skin with visible natural skin texture, softly arched eyebrows, warm brown eyes, bright open smile, dark hair in a smooth neat low bun, wearing floor‑length sleeveless white mandarin‑collar qipao and tiny pearl earrings. Her facial features, hairstyle and outfit stay consistent for the whole 10 seconds.\nBackground: warm beige bedroom wall, neatly‑made bed with folded grey blanket behind the woman. Out‑of‑frame standing ring light provides soft even frontal lighting onto her face, shallow depth of field, sharp focus on her face and sausages, background softly blurred, slightly warm consumer‑camera color grading. At lower‑right of frame is a small wooden table: plate with plump pink‑brown sausages on thin bamboo skewers, a partially opened vacuum sausage package, one steaming hot teacup. All background objects remain stationary during the whole clip.\nThe woman sits facing the camera in center of frame, upper body mostly still with gentle natural movement: relaxed shoulders, slight small head tilts, gentle hand gestures around chest height. She maintains steady eye contact toward camera, bright cheerful expression.\nAction sequence:\nShe greets the camera with a bright smile, speaking in Chinese \"家人们，开播啦，今天给你们安排点硬货。\"\nThen she stretches her right hand toward the wooden table on lower‑right, picks up one sausage skewer, lifts the skewer next to her cheek, slowly rotates the bamboo skewer so camera sees the glossy shiny sausage casing, speaking in Chinese \"纯肉火腿肠，一口爆汁，谁吃谁知道。\"\nShe brings the sausage to her mouth and takes a small bite, keeps holding the partially‑eaten sausage near her face, leans slightly forward toward the lens, eyes wide, still smiling, speaking in Chinese \"全是用料，越嚼越香，库存真的不多了。\"\nShe swallows, holds the bitten sausage up toward the camera, keeps smiling directly to lens until the 10‑second clip ends. No on‑screen chat graphics.\nSoundscape: quiet small‑bedroom room tone continues throughout, faint hum from the ring light, distant city traffic outside the closed window. During the tasting moment, light crisp snap of sausage casing and soft chewing sounds are clearly audible, one small ceramic clink from the teacup. Soft bouncy livestream‑style background synth loop, faint kick pattern and light synth plucks, background music stays low in the mix and never rises above the woman’s voice.\nRealistic live‑action, cinematic consumer cam look, natural subtle body movement, no over‑exaggerated acting, smooth natural video motion, no weird face distortion, consistent character appearance throughout clip.\n"
+      }
+    },
+    {
+      "id": 18,
+      "type": "CLIPTextEncode",
+      "pos": [
+        2887.364670845841,
+        410.8705438693414
+      ],
+      "size": [
+        440.9287774032721,
+        125.99997364005995
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 37,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 16
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "blur"
+      ],
+      "widgets_values_named": {
+        "text": "blur"
+      }
+    },
+    {
+      "id": 19,
+      "type": "LTXVConditioning",
+      "pos": [
+        3448.1011308681914,
+        172.46956345299773
+      ],
+      "size": [
+        300,
+        106
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 48,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 17
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            269
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "slot_index": 1,
+          "links": [
+            270
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVConditioning",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        24
+      ],
+      "widgets_values_named": {
+        "frame_rate": 24
+      }
+    },
+    {
+      "id": 20,
+      "type": "VAELoader",
+      "pos": [
+        2097.2867928491733,
+        53.83551177445054
+      ],
+      "size": [
+        574.5957708975243,
+        85.99997605863437
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 0,
+          "links": [
+            70,
+            272
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "LTX2.5\\ltx-2.5-video-vae-conv-bf16.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "LTX2.5\\ltx-2.5-video-vae-conv-bf16.safetensors"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 24,
+      "type": "ManualSigmas",
+      "pos": [
+        5727.589464560194,
+        205.38188930570476
+      ],
+      "size": [
+        359.1875,
+        96.96875
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "slot_index": 0,
+          "links": [
+            28
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ManualSigmas",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "0.85, 0.725, 0.4219, 0"
+      ],
+      "widgets_values_named": {
+        "sigmas": "0.85, 0.725, 0.4219, 0"
+      }
+    },
+    {
+      "id": 25,
+      "type": "RandomNoise",
+      "pos": [
+        5738.766003709123,
+        -309.9341797749529
+      ],
+      "size": [
+        337.625,
+        86
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "slot_index": 0,
+          "links": [
+            25
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RandomNoise",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        266406604048958,
+        "randomize"
+      ],
+      "widgets_values_named": {
+        "noise_seed": 266406604048958,
+        "control_after_generate": "randomize"
+      }
+    },
+    {
+      "id": 26,
+      "type": "KSamplerSelect",
+      "pos": [
+        5736.255214337966,
+        71.57886616376942
+      ],
+      "size": [
+        323.75,
+        86
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "slot_index": 0,
+          "links": [
+            27
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "euler"
+      ],
+      "widgets_values_named": {
+        "sampler_name": "euler"
+      }
+    },
+    {
+      "id": 27,
+      "type": "LTXVDualCFGGuider",
+      "pos": [
+        5740.1234709538,
+        -168.91605696054563
+      ],
+      "size": [
+        348.8125,
+        154
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 66,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 276
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 277
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 278
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "slot_index": 0,
+          "links": [
+            26
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVDualCFGGuider",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        1,
+        1
+      ],
+      "widgets_values_named": {
+        "video_cfg": 1,
+        "audio_cfg": 1
+      }
+    },
+    {
+      "id": 28,
+      "type": "SamplerCustomAdvanced",
+      "pos": [
+        6170.718726690156,
+        -99.6017181141716
+      ],
+      "size": [
+        254.9375,
+        642.625
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 70,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise",
+          "type": "NOISE",
+          "link": 25
+        },
+        {
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 26
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 27
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 28
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 254
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            227
+          ]
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "slot_index": 1,
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SamplerCustomAdvanced",
+        "cnr_id": "comfy-core"
+      }
+    },
+    {
+      "id": 31,
+      "type": "VAEDecodeAudio",
+      "pos": [
+        4734.162768364287,
+        952.4156931033341
+      ],
+      "size": [
+        264.46875,
+        114
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 61,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 229
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 34
+        }
+      ],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "slot_index": 0,
+          "links": [
+            251
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecodeAudio",
+        "cnr_id": "comfy-core"
+      },
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 32,
+      "type": "CreateVideo",
+      "pos": [
+        7152.304232647142,
+        383.4038330760726
+      ],
+      "size": [
+        300,
+        190
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 74,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 71
+        },
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 261
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "slot_index": 0,
+          "links": [
+            228
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateVideo",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        24,
+        8,
+        "sRGB",
+        "none"
+      ],
+      "widgets_values_named": {
+        "fps": 24,
+        "bit_depth": 8,
+        "color_space": "sRGB",
+        "codec": "none"
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 33,
+      "type": "SaveVideo",
+      "pos": [
+        7627.358263035766,
+        -324.9915350504308
+      ],
+      "size": [
+        972.8965336648176,
+        1716.3574605404422
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 75,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 228
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "slot_index": 0,
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveVideo",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "video/H3_LTX_refined",
+        "mp4",
+        "h264",
+        "auto"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "video/H3_LTX_refined",
+        "format": "mp4",
+        "format.codec": "h264",
+        "format.codec.encoding": "auto"
+      }
+    },
+    {
+      "id": 34,
+      "type": "MiniMaxH3SigmaShift",
+      "pos": [
+        -1030.3408982087117,
+        -153.99113038646306
+      ],
+      "size": [
+        300,
+        114
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 54,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 185
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            3,
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3SigmaShift",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        12,
+        3
+      ],
+      "widgets_values_named": {
+        "shift_video": 12,
+        "shift_audio": 3
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 35,
+      "type": "PreviewAny",
+      "pos": [
+        1825.663632340023,
+        -326.87578585554195
+      ],
+      "size": [
+        225,
+        161.99998390068362
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 65,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 39
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {},
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 36,
+      "type": "LTXVChunkFeedForward",
+      "pos": [
+        3403.740459991403,
+        -281.3195044909557
+      ],
+      "size": [
+        334.59375,
+        114
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 50,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 248
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            249
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVChunkFeedForward",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        4,
+        4096
+      ],
+      "widgets_values_named": {
+        "chunks": 4,
+        "dim_threshold": 4096
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 38,
+      "type": "LTX2AttentionTunerPatch",
+      "pos": [
+        3759.0976912428214,
+        -283.6190260304939
+      ],
+      "size": [
+        330,
+        234
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 53,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 249
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            263
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTX2AttentionTunerPatch",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "",
+        1,
+        1,
+        1,
+        1,
+        true
+      ],
+      "widgets_values_named": {
+        "blocks": "",
+        "video_scale": 1,
+        "audio_scale": 1,
+        "audio_to_video_scale": 1,
+        "video_to_audio_scale": 1,
+        "triton_kernels": true
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 39,
+      "type": "MiniMaxH3MemoryEfficientSageAttentionPatch",
+      "pos": [
+        -2337.1892670039724,
+        -386.1969646765665
+      ],
+      "size": [
+        371.5625,
+        82.59375
+      ],
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 13,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            64
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3MemoryEfficientSageAttentionPatch",
+        "cnr_id": "comfy-core"
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 40,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        -2692.202136544399,
+        -154.70975968749113
+      ],
+      "size": [
+        548.59375,
+        118.1875
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 35,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 44
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            183
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "H3\\minimax_h3_taomate_3step_lora_avg_rank_19_bf16.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "H3\\minimax_h3_taomate_3step_lora_avg_rank_19_bf16.safetensors",
+        "strength_model": 1
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 41,
+      "type": "ModelAttentionBackend",
+      "pos": [
+        -2101.1909105088953,
+        -154.99941978489653
+      ],
+      "size": [
+        311.375,
+        91.59375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 42,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 183
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            66
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelAttentionBackend"
+      },
+      "widgets_values": [
+        "comfy kitchen attention"
+      ],
+      "widgets_values_named": {
+        "attention": "comfy kitchen attention"
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 42,
+      "type": "ResolutionSelector",
+      "pos": [
+        -1586.126792501902,
+        1251.420544802071
+      ],
+      "size": [
+        299.375,
+        214
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 14,
+      "mode": 0,
+      "showAdvanced": true,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            139
+          ]
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            140
+          ]
+        }
+      ],
+      "title": "分辨率选择器1采",
+      "properties": {
+        "Node name for S&R": "ResolutionSelector",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "16:9 (Widescreen)",
+        0.4,
+        32
+      ],
+      "widgets_values_named": {
+        "aspect_ratio": "16:9 (Widescreen)",
+        "megapixels": 0.4,
+        "multiple": 32
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 43,
+      "type": "ResolutionSelector",
+      "pos": [
+        -1251.7570637453696,
+        1252.8868478762117
+      ],
+      "size": [
+        294.78125,
+        214
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 15,
+      "mode": 0,
+      "showAdvanced": true,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            50
+          ]
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            262
+          ]
+        }
+      ],
+      "title": "分辨率选择器2采",
+      "properties": {
+        "Node name for S&R": "ResolutionSelector",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "16:9 (Widescreen)",
+        1,
+        32
+      ],
+      "widgets_values_named": {
+        "aspect_ratio": "16:9 (Widescreen)",
+        "megapixels": 1,
+        "multiple": 32
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 44,
+      "type": "PrimitiveFloat",
+      "pos": [
+        -2055.7066368479805,
+        1887.502876788942
+      ],
+      "size": [
+        270,
+        86
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 16,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": [
+            52
+          ]
+        }
+      ],
+      "title": "秒",
+      "properties": {
+        "Node name for S&R": "PrimitiveFloat",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        10
+      ],
+      "widgets_values_named": {
+        "value": 10
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 45,
+      "type": "ComfyMathExpression",
+      "pos": [
+        -1742.9405601477085,
+        1914.94525006712
+      ],
+      "size": [
+        225,
+        74
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 39,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "a",
+          "name": "values.a",
+          "type": "FLOAT,INT,BOOLEAN",
+          "link": 52
+        },
+        {
+          "name": "values.b",
+          "shape": 7,
+          "type": "FLOAT,INT,BOOLEAN",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": []
+        },
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            141,
+            175
+          ]
+        },
+        {
+          "name": "BOOL",
+          "type": "BOOLEAN",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfyMathExpression",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17"
+      ],
+      "widgets_values_named": {
+        "expression": "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17"
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 50,
+      "type": "MarkdownNote",
+      "pos": [
+        -947.285585140859,
+        1332.609918379842
+      ],
+      "size": [
+        252.875,
+        547.328125
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 17,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Note: Size Settings Reference",
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "| megapixels | Aspect | Output (multiple=32) |\n|---|---|---|\n| 0.2 | 16:9 | 608 x 352 |\n| 0.3 | 16:9 | 736 x 416 |\n| 0.4 | 16:9 | 864 x 480 |\n| 0.5 | 16:9 | 960 x 544 |\n| 0.6 | 16:9 | 1056 x 608 |\n| 0.7 | 16:9 | 1152 x 640 |\n| 0.8 | 16:9 | 1216 x 672 |\n| 0.9 | 16:9 | 1280 x 736 |\n| 0.98 | 16:9 | 1344 x 768 |\n| 1.0 | 16:9 | 1376 x 768 |\n| 1.2 | 16:9 | 1504 x 832 |\n| 1.5 | 16:9 | 1664 x 928 |\n| 1.8 | 16:9 | 1824 x 1024 |\n| 2.0 | 16:9 | 1920 x 1088 |\n"
+      ],
+      "widgets_values_named": {
+        "text": "| megapixels | Aspect | Output (multiple=32) |\n|---|---|---|\n| 0.2 | 16:9 | 608 x 352 |\n| 0.3 | 16:9 | 736 x 416 |\n| 0.4 | 16:9 | 864 x 480 |\n| 0.5 | 16:9 | 960 x 544 |\n| 0.6 | 16:9 | 1056 x 608 |\n| 0.7 | 16:9 | 1152 x 640 |\n| 0.8 | 16:9 | 1216 x 672 |\n| 0.9 | 16:9 | 1280 x 736 |\n| 0.98 | 16:9 | 1344 x 768 |\n| 1.0 | 16:9 | 1376 x 768 |\n| 1.2 | 16:9 | 1504 x 832 |\n| 1.5 | 16:9 | 1664 x 928 |\n| 1.8 | 16:9 | 1824 x 1024 |\n| 2.0 | 16:9 | 1920 x 1088 |\n"
+      },
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 52,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -2054.8735897190027,
+        1188.3282668414054
+      ],
+      "size": [
+        458.3163148641389,
+        297.1935542864364
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 18,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            144
+          ]
+        }
+      ],
+      "title": "Input Text (Prompt)",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "subject_definitions:\n<Subject 1> is the young woman in <Picture 1>, with waist-length deep-crimson hair parted at the center, fine loose strands at the temples, a small red lotus petal mark painted in the center of her forehead, a blue butterfly hair ornament pinned above her left ear beside a pearl-and-blue-drop earring, warm peach blush, glossy rose lips, and dark-brown almond eyes; she wears a black halter-neck gown with a gold-trimmed high collar, sheer black sleeves feather-trimmed at the shoulders, gold lotus embroidery running down the bodice and one hip, a slender gold chain draped across her hips, and a floor-length sheer black overlay that trails on the ground.\n\nsummary:\n[reference generation] The target video is a high-fashion music-video sequence in which <Subject 1> poses through four hard-cut shots on a dark studio cyclorama, delivering two short Chinese lines straight to the lens while a single cold key light and a warm rim light carve her out of the black.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1], [Shot 2], [Shot 3], [Shot 4]): fully_preserved - her deep-crimson waist-length hair, red lotus forehead mark, blue butterfly hair ornament, pearl-and-blue-drop earring, black halter-neck gown with gold-trimmed collar and feather-trimmed sheer sleeves, gold lotus embroidery, hip chain, and sheer floor-length overlay are all retained without change.\n\ndetailed_description:\nHigh-fashion music-video visual language throughout: a glossy editorial look built on deep blacks, one cold-white hard key light with a warm amber rim light behind her, anamorphic flares and shallow depth of field, saturated crimson hair and liquid gold embroidery on a near-black costume, and rhythmic slow-motion posing that lands on the beat.\n[Shot 1] A full-length wide shot on a dark seamless studio cyclorama with a faintly reflective floor. <Subject 1>, the young woman defined in <Picture 1>, stands turned away from the lens at first: waist-length deep-crimson hair falling down her back, the small red lotus mark on her forehead, the blue butterfly ornament above her left ear beside a pearl-and-blue-drop earring, and her black halter-neck gown with a gold-trimmed collar, feather-trimmed sheer sleeves, gold lotus embroidery, and a floor-length sheer overlay pooling on the ground. A single cold-white beam cuts down from the upper right; a low fan lifts the sheer overlay and the loose strands at her temples in a slow, heavy drift. She turns her head slowly until her profile is legible against the light, then holds. The camera drifts left in a slow, even lateral move while easing in slightly.\n[Shot 2] At 00:02.600, a hard cut to an extreme close-up of <Subject 1>'s face, lit frontally by a soft warm key so every plane of her skin stays clear while the background falls to black. Her dark-brown almond eyes lift to the lens and lock on it, the red lotus mark centered between her brows, the blue butterfly ornament catching a hard glint at the left edge of frame. Only micro-movements play as <Subject 1> (S1) says in a low, unhurried, faintly smoky voice, <d>[Chinese] 看着我，别眨眼。</d> She closes her lips and holds the look on the lens through one slow blink.\n[Shot 3] At 00:05.400, a hard cut to a low-angle three-quarter shot framed from the knees up as <Subject 1> steps toward the lens out of the light beam in a long catwalk stride, one hand brushing the gold chain at her hip. The sheer floor-length overlay drags and ripples across the floor behind her, and the gold lotus embroidery flares as it crosses the key light. The camera pulls back at a matched pace, keeping her centered while the black cyclorama slides past behind her and a thin anamorphic flare blooms across the lower frame.\n[Shot 4] At 00:07.600, a hard cut to a medium close-up from the chest up as <Subject 1> stops. She lifts two fingers and drags them slowly along the gold-trimmed collar of her gown, then tilts her head a few degrees and brings her gaze back to the lens, the feather trim trembling at her upper arm. In the same low smoky voice, <Subject 1> (S1) says, <d>[Chinese] 记住我。</d> A brief flare blooms behind her; she holds the pose and the look through the closing frame.\n\noverall_soundscape:\nA dry studio room tone with a faint low fan rumble throughout, the soft drag and ripple of sheer fabric, light metallic clinks from the hip chain and the hair ornament, and the clean click of stiletto heels on the studio floor.\n\nnon_diegetic_music:\nA sleek electronic runway track at about 100 BPM, built on a deep sub-bass pulse, crisp finger snaps and tight hi-hats locked to the beat, and a muted dark synth arpeggio, lifting slightly in energy into the final shot and cutting off sharply on the last frame."
+      ],
+      "widgets_values_named": {
+        "value": "subject_definitions:\n<Subject 1> is the young woman in <Picture 1>, with waist-length deep-crimson hair parted at the center, fine loose strands at the temples, a small red lotus petal mark painted in the center of her forehead, a blue butterfly hair ornament pinned above her left ear beside a pearl-and-blue-drop earring, warm peach blush, glossy rose lips, and dark-brown almond eyes; she wears a black halter-neck gown with a gold-trimmed high collar, sheer black sleeves feather-trimmed at the shoulders, gold lotus embroidery running down the bodice and one hip, a slender gold chain draped across her hips, and a floor-length sheer black overlay that trails on the ground.\n\nsummary:\n[reference generation] The target video is a high-fashion music-video sequence in which <Subject 1> poses through four hard-cut shots on a dark studio cyclorama, delivering two short Chinese lines straight to the lens while a single cold key light and a warm rim light carve her out of the black.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1], [Shot 2], [Shot 3], [Shot 4]): fully_preserved - her deep-crimson waist-length hair, red lotus forehead mark, blue butterfly hair ornament, pearl-and-blue-drop earring, black halter-neck gown with gold-trimmed collar and feather-trimmed sheer sleeves, gold lotus embroidery, hip chain, and sheer floor-length overlay are all retained without change.\n\ndetailed_description:\nHigh-fashion music-video visual language throughout: a glossy editorial look built on deep blacks, one cold-white hard key light with a warm amber rim light behind her, anamorphic flares and shallow depth of field, saturated crimson hair and liquid gold embroidery on a near-black costume, and rhythmic slow-motion posing that lands on the beat.\n[Shot 1] A full-length wide shot on a dark seamless studio cyclorama with a faintly reflective floor. <Subject 1>, the young woman defined in <Picture 1>, stands turned away from the lens at first: waist-length deep-crimson hair falling down her back, the small red lotus mark on her forehead, the blue butterfly ornament above her left ear beside a pearl-and-blue-drop earring, and her black halter-neck gown with a gold-trimmed collar, feather-trimmed sheer sleeves, gold lotus embroidery, and a floor-length sheer overlay pooling on the ground. A single cold-white beam cuts down from the upper right; a low fan lifts the sheer overlay and the loose strands at her temples in a slow, heavy drift. She turns her head slowly until her profile is legible against the light, then holds. The camera drifts left in a slow, even lateral move while easing in slightly.\n[Shot 2] At 00:02.600, a hard cut to an extreme close-up of <Subject 1>'s face, lit frontally by a soft warm key so every plane of her skin stays clear while the background falls to black. Her dark-brown almond eyes lift to the lens and lock on it, the red lotus mark centered between her brows, the blue butterfly ornament catching a hard glint at the left edge of frame. Only micro-movements play as <Subject 1> (S1) says in a low, unhurried, faintly smoky voice, <d>[Chinese] 看着我，别眨眼。</d> She closes her lips and holds the look on the lens through one slow blink.\n[Shot 3] At 00:05.400, a hard cut to a low-angle three-quarter shot framed from the knees up as <Subject 1> steps toward the lens out of the light beam in a long catwalk stride, one hand brushing the gold chain at her hip. The sheer floor-length overlay drags and ripples across the floor behind her, and the gold lotus embroidery flares as it crosses the key light. The camera pulls back at a matched pace, keeping her centered while the black cyclorama slides past behind her and a thin anamorphic flare blooms across the lower frame.\n[Shot 4] At 00:07.600, a hard cut to a medium close-up from the chest up as <Subject 1> stops. She lifts two fingers and drags them slowly along the gold-trimmed collar of her gown, then tilts her head a few degrees and brings her gaze back to the lens, the feather trim trembling at her upper arm. In the same low smoky voice, <Subject 1> (S1) says, <d>[Chinese] 记住我。</d> A brief flare blooms behind her; she holds the pose and the look through the closing frame.\n\noverall_soundscape:\nA dry studio room tone with a faint low fan rumble throughout, the soft drag and ripple of sheer fabric, light metallic clinks from the hip chain and the hair ornament, and the clean click of stiletto heels on the studio floor.\n\nnon_diegetic_music:\nA sleek electronic runway track at about 100 BPM, built on a deep sub-bass pulse, crisp finger snaps and tight hi-hats locked to the beat, and a muted dark synth arpeggio, lifting slightly in energy into the final shot and cutting off sharply on the last frame."
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 56,
+      "type": "SolAttnPatch",
+      "pos": [
+        -1928.9614291682321,
+        -729.2518888209622
+      ],
+      "size": [
+        270,
+        422.40625
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 38,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 64
+        },
+        {
+          "name": "tau_profile",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            160
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SolAttnPatch"
+      },
+      "widgets_values": [
+        1.3,
+        0.2,
+        0.9,
+        4096,
+        true,
+        "exact_kv_and_rows",
+        false,
+        "2d_frame",
+        true,
+        false,
+        false,
+        ""
+      ],
+      "widgets_values_named": {
+        "tau": 1.3,
+        "start_percent": 0.2,
+        "end_percent": 0.9,
+        "min_tokens": 4096,
+        "int8_qk": true,
+        "sink_conditioning": "exact_kv_and_rows",
+        "morton": false,
+        "morton_curve": "2d_frame",
+        "int8_pv": true,
+        "verbose": false,
+        "use_tma": false,
+        "dense_blocks": ""
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 57,
+      "type": "MiniMaxLowVRAMAttention",
+      "pos": [
+        -1621.0735557000396,
+        -421.44341590891867
+      ],
+      "size": [
+        351.71875,
+        96.6875
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 44,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 160
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            63
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxLowVRAMAttention"
+      },
+      "widgets_values": [
+        4
+      ],
+      "widgets_values_named": {
+        "head_chunks": 4
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 59,
+      "type": "MiniMaxChunkFeedForward",
+      "pos": [
+        -1240.6788199879,
+        -427.70498179525947
+      ],
+      "size": [
+        381.0625,
+        114
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 51,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 63
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxChunkFeedForward",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        2,
+        4096
+      ],
+      "widgets_values_named": {
+        "chunks": 2,
+        "seq_threshold": 4096
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 60,
+      "type": "BlockSparseAttention",
+      "pos": [
+        -1772.8545139362593,
+        -155.52974046107568
+      ],
+      "size": [
+        307.59375,
+        318
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 49,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 66
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            184
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BlockSparseAttention"
+      },
+      "widgets_values": [
+        "sol-attn",
+        1.3,
+        0.2,
+        1,
+        "",
+        12288,
+        256,
+        "exact_kv_and_rows",
+        true
+      ],
+      "widgets_values_named": {
+        "selection": "sol-attn",
+        "selection.tau": 1.3,
+        "start_percent": 0.2,
+        "end_percent": 1,
+        "dense_blocks": "",
+        "min_tokens": 12288,
+        "extra_tokens": 256,
+        "sink_conditioning": "exact_kv_and_rows",
+        "verbose": true
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 61,
+      "type": "VAEDecode",
+      "pos": [
+        6823.785931542246,
+        340.4649769157553
+      ],
+      "size": [
+        254.25,
+        104.78125
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 72,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 255
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 70
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            71
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 117,
+      "type": "MiniMaxH3ReferenceToVideo",
+      "pos": [
+        -1163.5047881498917,
+        157.98155580239208
+      ],
+      "size": [
+        400,
+        384
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 45,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 136
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 138
+        },
+        {
+          "name": "audio_vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 177
+        },
+        {
+          "name": "ref_images.ref_image_0",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 145
+        },
+        {
+          "name": "ref_images.ref_image_1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "ref_videos.ref_video_0",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "ref_video_audios.ref_video_audio_0",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "ref_audios.ref_audio_0",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "ref_audios.ref_audio_1",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "ref_audios.ref_audio_2",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": 144
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": 139
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": 140
+        },
+        {
+          "name": "length",
+          "type": "INT",
+          "widget": {
+            "name": "length"
+          },
+          "link": 141
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            142
+          ]
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            143
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3ReferenceToVideo"
+      },
+      "widgets_values": [
+        "",
+        1344,
+        768,
+        124,
+        "match"
+      ],
+      "widgets_values_named": {
+        "prompt": "",
+        "width": 1344,
+        "height": 768,
+        "length": 124,
+        "ref_image_size": "match"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 118,
+      "type": "LoadImage",
+      "pos": [
+        -2704.155304719166,
+        1119.1460412784145
+      ],
+      "size": [
+        560.7118290337413,
+        860.5686763112101
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 19,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            145
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "title": "各种格式参考图都行",
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "char_23.jpg",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "char_23.jpg",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 132,
+      "type": "PreviewAny",
+      "pos": [
+        -1464.2986350551987,
+        1876.755096984582
+      ],
+      "size": [
+        225,
+        162
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 46,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 175
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 134,
+      "type": "MiniMaxChunkFeedForward",
+      "pos": [
+        -1434.1012595742134,
+        -155.44954606467843
+      ],
+      "size": [
+        381.0625,
+        114
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 52,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 184
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            185
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxChunkFeedForward",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        2,
+        4096
+      ],
+      "widgets_values_named": {
+        "chunks": 2,
+        "seq_threshold": 4096
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 149,
+      "type": "Note",
+      "pos": [
+        5740.711345888393,
+        378.3949465386164
+      ],
+      "size": [
+        329,
+        155.9375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 20,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "社区调优0.78, 0.725, 0.421875, 0.0\n官方修正0.85, 0.7250, 0.4219, 0.0"
+      ],
+      "widgets_values_named": {
+        "text": "社区调优0.78, 0.725, 0.421875, 0.0\n官方修正0.85, 0.7250, 0.4219, 0.0"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 160,
+      "type": "LoadImage",
+      "pos": [
+        3873.2309736135367,
+        287.5114590631432
+      ],
+      "size": [
+        363.50275750800597,
+        439.1212950638348
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 21,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            265
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "title": "大头照",
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "ComfyUI_00155_.png [output]",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "ComfyUI_00155_.png [output]",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 173,
+      "type": "PreviewImage",
+      "pos": [
+        4710.88434196027,
+        447.8643301023157
+      ],
+      "size": [
+        237.7940592396041,
+        289.9999552334418
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 47,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 266
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 177,
+      "type": "PreviewImage",
+      "pos": [
+        5347.147012393298,
+        7.0952384326475055
+      ],
+      "size": [
+        225,
+        289.9999786133296
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 68,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 280
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 178,
+      "type": "PreviewImage",
+      "pos": [
+        5305.746007404955,
+        382.9808848575385
+      ],
+      "size": [
+        315.77131970276514,
+        316.08981624389304
+      ],
+      "flags": {},
+      "order": 69,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 281
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 180,
+      "type": "ModelAttentionBackend",
+      "pos": [
+        2704.929946938253,
+        -283.01221731359914
+      ],
+      "size": [
+        323.8153891453312,
+        85.9999597440155
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 36,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 247
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            246
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelAttentionBackend"
+      },
+      "widgets_values": [
+        "comfy kitchen attention"
+      ],
+      "widgets_values_named": {
+        "attention": "comfy kitchen attention"
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 181,
+      "type": "BlockSparseAttention",
+      "pos": [
+        3062.5684772650297,
+        -288.5897546730684
+      ],
+      "size": [
+        307.59375,
+        318
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 43,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 246
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            248
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BlockSparseAttention"
+      },
+      "widgets_values": [
+        "sol-attn",
+        1.3,
+        0.2,
+        1,
+        "",
+        12288,
+        256,
+        "exact_kv_and_rows",
+        true
+      ],
+      "widgets_values_named": {
+        "selection": "sol-attn",
+        "selection.tau": 1.3,
+        "start_percent": 0.2,
+        "end_percent": 1,
+        "dense_blocks": "",
+        "min_tokens": 12288,
+        "extra_tokens": 256,
+        "sink_conditioning": "exact_kv_and_rows",
+        "verbose": true
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 183,
+      "type": "VAELoader",
+      "pos": [
+        2097.578078391073,
+        185.1093665390938
+      ],
+      "size": [
+        488.96603900304245,
+        85.99997605863419
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 22,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 0,
+          "links": [
+            252,
+            260
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "LTX2.5\\ltx-2.5-audio-vae-bf16.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "LTX2.5\\ltx-2.5-audio-vae-bf16.safetensors"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 184,
+      "type": "LTXVAudioVAEEncode",
+      "pos": [
+        5025.726725924096,
+        1102.7987996886427
+      ],
+      "size": [
+        250,
+        100
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 63,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 251
+        },
+        {
+          "label": "Audio VAE",
+          "name": "audio_vae",
+          "type": "VAE",
+          "link": 252
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Audio Latent",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            258
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVAudioVAEEncode",
+        "cnr_id": "comfy-core"
+      },
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 185,
+      "type": "LTXVConcatAVLatent",
+      "pos": [
+        5302.46393484962,
+        940.6097466306392
+      ],
+      "size": [
+        300,
+        82
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 67,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video_latent",
+          "type": "LATENT",
+          "link": 279
+        },
+        {
+          "name": "audio_latent",
+          "type": "LATENT",
+          "link": 258
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            254
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVConcatAVLatent",
+        "cnr_id": "comfy-core"
+      },
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 186,
+      "type": "LTXVSeparateAVLatent",
+      "pos": [
+        6463.320353087995,
+        316.9287951176845
+      ],
+      "size": [
+        300,
+        78
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 71,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "av_latent",
+          "type": "LATENT",
+          "link": 227
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video_latent",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            255
+          ]
+        },
+        {
+          "name": "audio_latent",
+          "type": "LATENT",
+          "slot_index": 1,
+          "links": [
+            259
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVSeparateAVLatent",
+        "cnr_id": "comfy-core"
+      },
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 189,
+      "type": "LTXVAudioVAEDecode",
+      "pos": [
+        6823.619429166884,
+        492.48146542895614
+      ],
+      "size": [
+        280,
+        82
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 73,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 259
+        },
+        {
+          "label": "Audio VAE",
+          "name": "audio_vae",
+          "type": "VAE",
+          "link": 260
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Audio",
+          "type": "AUDIO",
+          "slot_index": 0,
+          "links": [
+            261
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVAudioVAEDecode",
+        "cnr_id": "comfy-core"
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 191,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        4144.792444104523,
+        -284.4375486652924
+      ],
+      "size": [
+        521.1436097885809,
+        114.00000648979923
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 55,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 263
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            268
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "ltx2.5\\Best_FaceID_v1.0_LoRA.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "ltx2.5\\Best_FaceID_v1.0_LoRA.safetensors",
+        "strength_model": 1
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 192,
+      "type": "Note",
+      "pos": [
+        -2058.0354902512045,
+        2031.301025600119
+      ],
+      "size": [
+        257.5786274010288,
+        145.1998502061798
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 23,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "3步+3步+10s",
+      "properties": {},
+      "widgets_values": [
+        "0.4→1.0=300s\n0.4→1.2=533s"
+      ],
+      "widgets_values_named": {
+        "text": "0.4→1.0=300s\n0.4→1.2=533s"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 193,
+      "type": "XHImageResizeV2",
+      "pos": [
+        4325.107637063973,
+        -92.95394021914564
+      ],
+      "size": [
+        303.81867819581237,
+        436.7136275753266
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 40,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "图像",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 265
+        },
+        {
+          "label": "蒙版",
+          "name": "mask",
+          "shape": 7,
+          "type": "MASK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            266,
+            275
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "label": "蒙版",
+          "name": "mask",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "XHImageResizeV2"
+      },
+      "widgets_values": [
+        512,
+        512,
+        "⑤ 兰索斯 (lanczos)",
+        "② 等比缩放 (resize)",
+        "0, 0, 0",
+        "① 居中 (center)",
+        2,
+        "① CPU (cpu)",
+        ""
+      ],
+      "widgets_values_named": {
+        "width": 512,
+        "height": 512,
+        "upscale_method": "⑤ 兰索斯 (lanczos)",
+        "keep_proportion": "② 等比缩放 (resize)",
+        "pad_color": "0, 0, 0",
+        "crop_position": "① 居中 (center)",
+        "divisible_by": 2,
+        "device": "① CPU (cpu)",
+        "xh_lang_toggle": ""
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 194,
+      "type": "XHLTXIdentityOverlap",
+      "pos": [
+        4701.59375180419,
+        -267.32173048413404
+      ],
+      "size": [
+        494.20803384686076,
+        466.15505619388097
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 64,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "模型",
+          "name": "model",
+          "type": "MODEL",
+          "link": 268
+        },
+        {
+          "label": "正向",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 269
+        },
+        {
+          "label": "负向",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 270
+        },
+        {
+          "label": "VAE",
+          "name": "vae",
+          "type": "VAE",
+          "link": 272
+        },
+        {
+          "label": "潜空间",
+          "name": "latent",
+          "type": "LATENT",
+          "link": 274
+        },
+        {
+          "label": "参考图",
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 275
+        }
+      ],
+      "outputs": [
+        {
+          "label": "模型",
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            276
+          ]
+        },
+        {
+          "label": "正向",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            277
+          ]
+        },
+        {
+          "label": "负向",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            278
+          ]
+        },
+        {
+          "label": "潜空间",
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            279
+          ]
+        },
+        {
+          "label": "调试",
+          "name": "debug",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "label": "参考图预览",
+          "name": "ref_preview",
+          "type": "IMAGE",
+          "links": [
+            280
+          ]
+        },
+        {
+          "label": "裁切绿框",
+          "name": "crop_overlay",
+          "type": "IMAGE",
+          "links": [
+            281
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "XHLTXIdentityOverlap"
+      },
+      "widgets_values": [
+        2,
+        1,
+        "① 按视频比例裁切 (match_target)",
+        false,
+        "居中 (center)",
+        "叠置布局 (overlap)",
+        1,
+        0,
+        ""
+      ],
+      "widgets_values_named": {
+        "source_id": 2,
+        "phase_scale": 1,
+        "ref_resize_mode": "① 按视频比例裁切 (match_target)",
+        "debug_log": false,
+        "crop_anchor": "居中 (center)",
+        "layout": "叠置布局 (overlap)",
+        "reference_guidance_scale": 1,
+        "reference_temporal_offset_latents": 0,
+        "xh_lang_toggle": ""
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 196,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -2054.0122453886256,
+        1533.3887221724908
+      ],
+      "size": [
+        428.46810971335697,
+        290.16537641598114
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 24,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            283
+          ]
+        }
+      ],
+      "title": "Input Text (Prompt)",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "The target video is a ten-second high-fashion music-video sequence shot on a dark seamless studio cyclorama with a faintly reflective floor, in a glossy editorial look built on deep blacks: one cold-white hard key light cuts down from the upper right with a warm amber rim light behind her, anamorphic flares streak across the frame, the depth of field stays shallow, and saturated crimson and liquid gold sit against a near-black costume.\n\nThe young woman has waist-length deep-crimson hair parted at the center with fine loose strands at the temples, a small red lotus petal mark painted in the center of her forehead, a blue butterfly hair ornament pinned above her left ear beside a pearl-and-blue-drop earring, warm peach blush, glossy rose lips, dark-brown almond eyes, and a slim figure. She wears a black halter-neck gown with a gold-trimmed high collar, sheer black sleeves feather-trimmed at the shoulders, gold lotus embroidery running down the bodice and one hip, a slender gold chain draped across her hips, and a floor-length sheer black overlay.\n\nThe reflective studio floor, the black cyclorama, the single overhead light beam, and the low fan at the edge of the set remain stationary throughout.\n\nThe video opens on a full-length wide shot with the woman turned away from the lens, her waist-length deep-crimson hair falling down her back, the small red lotus mark on her forehead, the blue butterfly ornament above her left ear, her black halter-neck gown with its gold-trimmed collar, feather-trimmed sheer sleeves, gold lotus embroidery and floor-length sheer overlay pooling on the ground; the low fan lifts the sheer overlay and the loose strands at her temples in a slow, heavy drift. She turns her head slowly until her profile is legible against the light and holds it, and the camera drifts left in a slow, even lateral move while easing in slightly. The dry studio room tone and the low fan rumble run continuously underneath. A hard cut transitions to an extreme close-up of her face, fully lit from the front by a soft warm key so every plane of her skin stays clear while the background falls to black; her dark-brown almond eyes lift to the lens and lock on it, the red lotus mark centered between her brows, the blue butterfly ornament catching a hard glint at the left edge of frame, and only micro-movements play across her face as she speaks in Chinese, her voice low, unhurried and faintly smoky: \"看着我，别眨眼。\" She closes her lips and holds the look on the lens through one slow blink. The same studio room tone and the low fan rumble continue across the cut. A hard cut transitions to a low-angle three-quarter shot framed from the knees up as she steps toward the lens out of the light beam in a long catwalk stride, one hand brushing the gold chain at her hip; the sheer floor-length overlay drags and ripples across the floor behind her, the gold lotus embroidery flares as it crosses the key light, and the camera pulls back at a matched pace to keep her centered while the black cyclorama slides past behind her. The clean click of stiletto heels on the studio floor and the drag of sheer fabric continue uninterrupted across the cut. A hard cut transitions to a medium close-up from the chest up as she stops and settles her weight; she lifts two fingers and drags them slowly along the gold-trimmed collar of her gown, tilts her head a few degrees, and brings her gaze back to the lens, the feather trim trembling at her upper arm, and she speaks in Chinese, still low and quiet: \"记住我。\" A brief flare blooms behind her, and she holds the pose and the look through the closing frame.\n\nThe overall sound is a dry studio room tone with a faint low fan rumble, the soft drag and ripple of sheer fabric, light metallic clinks from the hip chain and the hair ornament, and the clean click of stiletto heels on the studio floor. A sleek electronic runway track at about 100 BPM runs underneath the whole video on a deep sub-bass pulse with crisp finger snaps and tight hi-hats locked to the beat and a muted dark synth arpeggio, lifting slightly in energy into the final shot and cutting off sharply on the last frame. Rendered as a high-fashion music-video piece: deep blacks, one cold-white hard key with a warm amber rim light, anamorphic flares, saturated crimson and liquid gold against a near-black costume, shallow focus with her face kept crisp, and smooth hard cuts between shots."
+      ],
+      "widgets_values_named": {
+        "value": "The target video is a ten-second high-fashion music-video sequence shot on a dark seamless studio cyclorama with a faintly reflective floor, in a glossy editorial look built on deep blacks: one cold-white hard key light cuts down from the upper right with a warm amber rim light behind her, anamorphic flares streak across the frame, the depth of field stays shallow, and saturated crimson and liquid gold sit against a near-black costume.\n\nThe young woman has waist-length deep-crimson hair parted at the center with fine loose strands at the temples, a small red lotus petal mark painted in the center of her forehead, a blue butterfly hair ornament pinned above her left ear beside a pearl-and-blue-drop earring, warm peach blush, glossy rose lips, dark-brown almond eyes, and a slim figure. She wears a black halter-neck gown with a gold-trimmed high collar, sheer black sleeves feather-trimmed at the shoulders, gold lotus embroidery running down the bodice and one hip, a slender gold chain draped across her hips, and a floor-length sheer black overlay.\n\nThe reflective studio floor, the black cyclorama, the single overhead light beam, and the low fan at the edge of the set remain stationary throughout.\n\nThe video opens on a full-length wide shot with the woman turned away from the lens, her waist-length deep-crimson hair falling down her back, the small red lotus mark on her forehead, the blue butterfly ornament above her left ear, her black halter-neck gown with its gold-trimmed collar, feather-trimmed sheer sleeves, gold lotus embroidery and floor-length sheer overlay pooling on the ground; the low fan lifts the sheer overlay and the loose strands at her temples in a slow, heavy drift. She turns her head slowly until her profile is legible against the light and holds it, and the camera drifts left in a slow, even lateral move while easing in slightly. The dry studio room tone and the low fan rumble run continuously underneath. A hard cut transitions to an extreme close-up of her face, fully lit from the front by a soft warm key so every plane of her skin stays clear while the background falls to black; her dark-brown almond eyes lift to the lens and lock on it, the red lotus mark centered between her brows, the blue butterfly ornament catching a hard glint at the left edge of frame, and only micro-movements play across her face as she speaks in Chinese, her voice low, unhurried and faintly smoky: \"看着我，别眨眼。\" She closes her lips and holds the look on the lens through one slow blink. The same studio room tone and the low fan rumble continue across the cut. A hard cut transitions to a low-angle three-quarter shot framed from the knees up as she steps toward the lens out of the light beam in a long catwalk stride, one hand brushing the gold chain at her hip; the sheer floor-length overlay drags and ripples across the floor behind her, the gold lotus embroidery flares as it crosses the key light, and the camera pulls back at a matched pace to keep her centered while the black cyclorama slides past behind her. The clean click of stiletto heels on the studio floor and the drag of sheer fabric continue uninterrupted across the cut. A hard cut transitions to a medium close-up from the chest up as she stops and settles her weight; she lifts two fingers and drags them slowly along the gold-trimmed collar of her gown, tilts her head a few degrees, and brings her gaze back to the lens, the feather trim trembling at her upper arm, and she speaks in Chinese, still low and quiet: \"记住我。\" A brief flare blooms behind her, and she holds the pose and the look through the closing frame.\n\nThe overall sound is a dry studio room tone with a faint low fan rumble, the soft drag and ripple of sheer fabric, light metallic clinks from the hip chain and the hair ornament, and the clean click of stiletto heels on the studio floor. A sleek electronic runway track at about 100 BPM runs underneath the whole video on a deep sub-bass pulse with crisp finger snaps and tight hi-hats locked to the beat and a muted dark synth arpeggio, lifting slightly in energy into the final shot and cutting off sharply on the last frame. Rendered as a high-fashion music-video piece: deep blacks, one cold-white hard key with a warm amber rim light, anamorphic flares, saturated crimson and liquid gold against a near-black costume, shallow focus with her face kept crisp, and smooth hard cuts between shots."
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 198,
+      "type": "XHLabel",
+      "pos": [
+        2423.8184308538985,
+        -1218.4386418005788
+      ],
+      "size": [
+        1422.1045627778105,
+        652.5143786821327
+      ],
+      "flags": {
+        "showTitle": false,
+        "pinned": true
+      },
+      "order": 25,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "极速版",
+      "properties": {
+        "Node name for S&R": "XHLabel",
+        "text": "精修提示词写法<div><span style=\"background-color: transparent;\">把H3的提示词丢给AI转换成ltx2.5格式</span></div><div><span style=\"background-color: transparent;\">有台词需要提示词，没台词提示词也可空着</span></div>",
+        "fontSize": 72,
+        "fontColor": "#ffffff",
+        "bgColor": "transparent",
+        "align": "center",
+        "fontFamily": "Arial",
+        "fontWeight": "bold",
+        "lang": "zh",
+        "hideTitle": true
+      },
+      "widgets_values": [
+        {
+          "text": "精修提示词写法<div><span style=\"background-color: transparent;\">把H3的提示词丢给AI转换成ltx2.5格式</span></div><div><span style=\"background-color: transparent;\">有台词需要提示词，没台词提示词也可空着</span></div>",
+          "fontSize": 72,
+          "fontColor": "#ffffff",
+          "bgColor": "transparent",
+          "align": "center",
+          "fontFamily": "Arial",
+          "fontWeight": "bold",
+          "lang": "zh",
+          "hideTitle": true
+        }
+      ],
+      "widgets_values_named": {
+        "label": {
+          "text": "精修提示词写法<div><span style=\"background-color: transparent;\">把H3的提示词丢给AI转换成ltx2.5格式</span></div><div><span style=\"background-color: transparent;\">有台词需要提示词，没台词提示词也可空着</span></div>",
+          "fontSize": 72,
+          "fontColor": "#ffffff",
+          "bgColor": "transparent",
+          "align": "center",
+          "fontFamily": "Arial",
+          "fontWeight": "bold",
+          "lang": "zh",
+          "hideTitle": true
+        }
+      },
+      "color": "transparent",
+      "bgcolor": "transparent"
+    },
+    {
+      "id": 199,
+      "type": "Note",
+      "pos": [
+        3545.4636670137747,
+        556.6748763789769
+      ],
+      "size": [
+        284.0694388913039,
+        147.22552623350927
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 26,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "大头照",
+      "properties": {},
+      "widgets_values": [
+        "头像图\n竖屏提供2：3,3:4这类\n横屏提供3:2,4:3这类\n"
+      ],
+      "widgets_values_named": {
+        "text": "头像图\n竖屏提供2：3,3:4这类\n横屏提供3:2,4:3这类\n"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 200,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -1912.930211823565,
+        2359.399458061911
+      ],
+      "size": [
+        458.3163148641389,
+        297.1935542864364
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 27,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "title": "Input Text (Prompt)",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "subject_definitions:\n<Picture 1> is the reference image defining the facial features, hairstyle and body proportions of <Subject 1>, and serves as the identity anchor for every shot in this video.\n<Subject 1> is the young woman in <Picture 1>, with a soft oval face, fair smooth skin with a healthy natural glow, dark brown almond eyes, gently arched eyebrows, a small straight nose, full rosy lips, black shoulder-length layered hair falling to her collarbone with a soft inward curl at the ends, and a slim figure, wearing a plain white short-sleeved round-neck cotton t-shirt.\n\nsummary:\n[reference generation] The target video is a ten-second single-character bedroom vlog shot: <Subject 1>, just out of the shower, sits on the edge of her bed in a romantic warm-lit bedroom, speaks one teasing line straight into the camera, then leans back into a coquettish pose and drags one hand slowly down her own thigh before delivering one more line that asks the viewer for a like. She is generated from her own reference image, and she speaks both lines of Chinese dialogue herself.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1], [Shot 2]): fully_preserved - the soft oval face, fair smooth skin with a healthy natural glow, dark brown almond eyes, gently arched eyebrows, small straight nose, full rosy lips, black shoulder-length layered hair with the soft inward curl at the ends, and the plain white short-sleeved round-neck cotton t-shirt are retained.\n<Picture 1> ([Shot 1], [Shot 2] identity anchor): fully_preserved - her face, hair and costume follow the reference image exactly.\n\ndetailed_description:\nThe target video is in the soft, glossy visual style of a late-night beauty vlog: warm pink and amber practical light, a shallow depth of field that keeps her face crisp while the room melts into soft bokeh, and a gentle wrapping glow on her skin that makes the whole frame feel intimate and romantic.\n[Shot 1] A chest-up medium close-up frames <Subject 1>, the young woman whose face, hairstyle and figure come from <Picture 1>: a soft oval face, fair smooth skin with a healthy natural glow, dark brown almond eyes, gently arched eyebrows, a small straight nose, full rosy lips, and black shoulder-length layered hair falling to her collarbone with a soft inward curl at the ends, the tips still faintly damp from the shower, wearing a plain white short-sleeved round-neck cotton t-shirt. She sits on the edge of a neatly made bed in a small romantic bedroom, her hands resting loosely on the mattress beside her, and the frame holds only her. Behind her the headboard is wrapped in a loose string of warm fairy lights, sheer curtains at the window diffuse a low amber glow, and a small nightstand holding one red rose in a glass and a lit jar candle falls soft and out of focus at the edge of frame. Her face is fully lit by a soft warm key light. The camera pushes in slowly and steadily until it settles into a tight close-up on her face, and only once the push has settled does she tilt her head toward the lens and address the viewer directly. <Subject 1> (S1) speaks in Chinese, her voice soft, playful and faintly breathy at an unhurried, sing-song pace, <d>[Chinese] 弟弟们，我刚刚洗完澡。</d> As the last words land, one corner of her mouth lifts into a wider smile and she holds her gaze on the lens without looking away.\n[Shot 2] At 00:05.500, the shot cuts to a slightly wider medium shot of the same bedroom, and only <Subject 1> is in frame. She has shifted back on the mattress, her weight braced on one arm behind her, her shoulders turned a little toward the lens and her spine arched into a relaxed, coquettish line, one knee drawn up. Her free hand rests on her own thigh, and she drags her palm slowly down the smooth pale skin of her thigh to just above the knee, unhurried, while her face stays fully lit by the same warm key light and the fairy lights glow soft behind her shoulder. She lowers her chin and lifts her eyes to the lens, holding the viewer in a level, knowing look, and then she speaks. <Subject 1> (S1) says in Chinese, her voice lower and more drawling than before but still soft and playful, <d>[Chinese] 看什么看，还不点赞？</d> On the final word her lips curve and she holds the pose and the look through the closing frame.\n\noverall_soundscape:\nA quiet, close bedroom ambience runs through the whole video: a low warm room tone, the faint rustle of cotton bedding shifting under her weight as she settles on the mattress, the soft brush of fabric against skin as her palm drags down her thigh, and one short breathy exhale under her opening line. The fairy lights and the candle stay silent, and there is no other voice in the room.\n\nnon_diegetic_music:\nA light, slow romantic cue: a soft synth pad with sparse electric-piano chords and a gentle finger-snap pulse at a relaxed tempo. It enters quietly beneath the push-in on <Subject 1>, holds steady under her first line, and warms slightly with one low sustained string note on the cut to the wider shot, carrying through to the end of the video."
+      ],
+      "widgets_values_named": {
+        "value": "subject_definitions:\n<Picture 1> is the reference image defining the facial features, hairstyle and body proportions of <Subject 1>, and serves as the identity anchor for every shot in this video.\n<Subject 1> is the young woman in <Picture 1>, with a soft oval face, fair smooth skin with a healthy natural glow, dark brown almond eyes, gently arched eyebrows, a small straight nose, full rosy lips, black shoulder-length layered hair falling to her collarbone with a soft inward curl at the ends, and a slim figure, wearing a plain white short-sleeved round-neck cotton t-shirt.\n\nsummary:\n[reference generation] The target video is a ten-second single-character bedroom vlog shot: <Subject 1>, just out of the shower, sits on the edge of her bed in a romantic warm-lit bedroom, speaks one teasing line straight into the camera, then leans back into a coquettish pose and drags one hand slowly down her own thigh before delivering one more line that asks the viewer for a like. She is generated from her own reference image, and she speaks both lines of Chinese dialogue herself.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1], [Shot 2]): fully_preserved - the soft oval face, fair smooth skin with a healthy natural glow, dark brown almond eyes, gently arched eyebrows, small straight nose, full rosy lips, black shoulder-length layered hair with the soft inward curl at the ends, and the plain white short-sleeved round-neck cotton t-shirt are retained.\n<Picture 1> ([Shot 1], [Shot 2] identity anchor): fully_preserved - her face, hair and costume follow the reference image exactly.\n\ndetailed_description:\nThe target video is in the soft, glossy visual style of a late-night beauty vlog: warm pink and amber practical light, a shallow depth of field that keeps her face crisp while the room melts into soft bokeh, and a gentle wrapping glow on her skin that makes the whole frame feel intimate and romantic.\n[Shot 1] A chest-up medium close-up frames <Subject 1>, the young woman whose face, hairstyle and figure come from <Picture 1>: a soft oval face, fair smooth skin with a healthy natural glow, dark brown almond eyes, gently arched eyebrows, a small straight nose, full rosy lips, and black shoulder-length layered hair falling to her collarbone with a soft inward curl at the ends, the tips still faintly damp from the shower, wearing a plain white short-sleeved round-neck cotton t-shirt. She sits on the edge of a neatly made bed in a small romantic bedroom, her hands resting loosely on the mattress beside her, and the frame holds only her. Behind her the headboard is wrapped in a loose string of warm fairy lights, sheer curtains at the window diffuse a low amber glow, and a small nightstand holding one red rose in a glass and a lit jar candle falls soft and out of focus at the edge of frame. Her face is fully lit by a soft warm key light. The camera pushes in slowly and steadily until it settles into a tight close-up on her face, and only once the push has settled does she tilt her head toward the lens and address the viewer directly. <Subject 1> (S1) speaks in Chinese, her voice soft, playful and faintly breathy at an unhurried, sing-song pace, <d>[Chinese] 弟弟们，我刚刚洗完澡。</d> As the last words land, one corner of her mouth lifts into a wider smile and she holds her gaze on the lens without looking away.\n[Shot 2] At 00:05.500, the shot cuts to a slightly wider medium shot of the same bedroom, and only <Subject 1> is in frame. She has shifted back on the mattress, her weight braced on one arm behind her, her shoulders turned a little toward the lens and her spine arched into a relaxed, coquettish line, one knee drawn up. Her free hand rests on her own thigh, and she drags her palm slowly down the smooth pale skin of her thigh to just above the knee, unhurried, while her face stays fully lit by the same warm key light and the fairy lights glow soft behind her shoulder. She lowers her chin and lifts her eyes to the lens, holding the viewer in a level, knowing look, and then she speaks. <Subject 1> (S1) says in Chinese, her voice lower and more drawling than before but still soft and playful, <d>[Chinese] 看什么看，还不点赞？</d> On the final word her lips curve and she holds the pose and the look through the closing frame.\n\noverall_soundscape:\nA quiet, close bedroom ambience runs through the whole video: a low warm room tone, the faint rustle of cotton bedding shifting under her weight as she settles on the mattress, the soft brush of fabric against skin as her palm drags down her thigh, and one short breathy exhale under her opening line. The fairy lights and the candle stay silent, and there is no other voice in the room.\n\nnon_diegetic_music:\nA light, slow romantic cue: a soft synth pad with sparse electric-piano chords and a gentle finger-snap pulse at a relaxed tempo. It enters quietly beneath the push-in on <Subject 1>, holds steady under her first line, and warms slightly with one low sustained string note on the cut to the wider shot, carrying through to the end of the video."
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 201,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -1412.4872958077106,
+        2362.7818905019194
+      ],
+      "size": [
+        428.46810971335697,
+        290.16537641598114
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 28,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "title": "Input Text (Prompt)",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "The target video is a ten-second two-shot sequence in the soft, glossy visual style of a late-night beauty vlog: warm pink and amber practical light, a shallow depth of field that keeps her face crisp while the room melts into soft bokeh, and a gentle wrapping glow on her skin that makes the whole frame feel intimate and romantic. The setting is a small romantic bedroom, with the woman seated on the edge of a neatly made bed and the headboard behind her wrapped in a loose string of warm fairy lights.\n\nThe young woman has a soft oval face, fair smooth skin with a healthy natural glow, dark brown almond eyes, gently arched eyebrows, a small straight nose, full rosy lips, and a slim figure; her black shoulder-length layered hair falls to her collarbone with a soft inward curl at the ends, the tips still faintly damp from the shower. She wears a plain white short-sleeved round-neck cotton t-shirt.\n\nSheer curtains at the window diffuse a low amber glow, and a small nightstand holding one red rose in a glass and a lit jar candle sits at the edge of frame, out of focus. The bed, the headboard, the fairy lights, the curtains, the nightstand, the rose and the candle all remain stationary throughout.\n\nThe video opens on a chest-up medium close-up of the woman, only she in frame, her hands resting loosely on the mattress beside her and her face fully lit by a soft warm key light. The camera pushes in slowly and steadily until it settles into a tight close-up on her face, and only once the push has settled does she tilt her head toward the lens and address the viewer directly. She speaks in Chinese, her voice soft, playful and faintly breathy at an unhurried, sing-song pace: \"弟弟们，我刚刚洗完澡。\" As the last words land, one corner of her mouth lifts into a wider smile and she holds her gaze on the lens without looking away. The quiet bedroom ambience and the music continue beneath the line. A hard cut transitions to a slightly wider medium shot of the same bedroom, the frame holding only her, her weight braced on one arm behind her on the mattress, her shoulders turned a little toward the lens and her spine arched into a relaxed, coquettish line with one knee drawn up. Her free hand rests on her own thigh, and she drags her palm slowly down the smooth pale skin of her thigh to just above the knee, unhurried; her face stays fully lit by the same warm key light, and the fairy lights glow soft behind her shoulder. The same warm room ambience and the music continue across the cut. She lowers her chin and lifts her eyes to the lens, holding the viewer in a level, knowing look, and then she speaks in Chinese, her voice lower and more drawling than before but still soft and playful: \"看什么看，还不点赞？\" On the final word her lips curve, and she holds the pose and the look through the closing frame.\n\nA quiet, close bedroom ambience runs through the whole video: a low warm room tone, the faint rustle of cotton bedding shifting under her weight as she settles on the mattress, the soft brush of fabric against skin as her palm drags down her thigh, and one short breathy exhale under her opening line. A light, slow romantic cue enters quietly beneath the push-in: a soft synth pad with sparse electric-piano chords and a gentle finger-snap pulse at a relaxed tempo, warming slightly with one low sustained string note at the cut to the wider shot and carrying through to the end of the video. Rendered as a soft beauty-vlog piece: warm pink and amber practical lighting, shallow focus with her face kept crisp and the room melting into soft bokeh, a gentle wrapping skin glow, and one smooth hard cut."
+      ],
+      "widgets_values_named": {
+        "value": "The target video is a ten-second two-shot sequence in the soft, glossy visual style of a late-night beauty vlog: warm pink and amber practical light, a shallow depth of field that keeps her face crisp while the room melts into soft bokeh, and a gentle wrapping glow on her skin that makes the whole frame feel intimate and romantic. The setting is a small romantic bedroom, with the woman seated on the edge of a neatly made bed and the headboard behind her wrapped in a loose string of warm fairy lights.\n\nThe young woman has a soft oval face, fair smooth skin with a healthy natural glow, dark brown almond eyes, gently arched eyebrows, a small straight nose, full rosy lips, and a slim figure; her black shoulder-length layered hair falls to her collarbone with a soft inward curl at the ends, the tips still faintly damp from the shower. She wears a plain white short-sleeved round-neck cotton t-shirt.\n\nSheer curtains at the window diffuse a low amber glow, and a small nightstand holding one red rose in a glass and a lit jar candle sits at the edge of frame, out of focus. The bed, the headboard, the fairy lights, the curtains, the nightstand, the rose and the candle all remain stationary throughout.\n\nThe video opens on a chest-up medium close-up of the woman, only she in frame, her hands resting loosely on the mattress beside her and her face fully lit by a soft warm key light. The camera pushes in slowly and steadily until it settles into a tight close-up on her face, and only once the push has settled does she tilt her head toward the lens and address the viewer directly. She speaks in Chinese, her voice soft, playful and faintly breathy at an unhurried, sing-song pace: \"弟弟们，我刚刚洗完澡。\" As the last words land, one corner of her mouth lifts into a wider smile and she holds her gaze on the lens without looking away. The quiet bedroom ambience and the music continue beneath the line. A hard cut transitions to a slightly wider medium shot of the same bedroom, the frame holding only her, her weight braced on one arm behind her on the mattress, her shoulders turned a little toward the lens and her spine arched into a relaxed, coquettish line with one knee drawn up. Her free hand rests on her own thigh, and she drags her palm slowly down the smooth pale skin of her thigh to just above the knee, unhurried; her face stays fully lit by the same warm key light, and the fairy lights glow soft behind her shoulder. The same warm room ambience and the music continue across the cut. She lowers her chin and lifts her eyes to the lens, holding the viewer in a level, knowing look, and then she speaks in Chinese, her voice lower and more drawling than before but still soft and playful: \"看什么看，还不点赞？\" On the final word her lips curve, and she holds the pose and the look through the closing frame.\n\nA quiet, close bedroom ambience runs through the whole video: a low warm room tone, the faint rustle of cotton bedding shifting under her weight as she settles on the mattress, the soft brush of fabric against skin as her palm drags down her thigh, and one short breathy exhale under her opening line. A light, slow romantic cue enters quietly beneath the push-in: a soft synth pad with sparse electric-piano chords and a gentle finger-snap pulse at a relaxed tempo, warming slightly with one low sustained string note at the cut to the wider shot and carrying through to the end of the video. Rendered as a soft beauty-vlog piece: warm pink and amber practical lighting, shallow focus with her face kept crisp and the room melting into soft bokeh, a gentle wrapping skin glow, and one smooth hard cut."
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 202,
+      "type": "Note",
+      "pos": [
+        -2155.142803869668,
+        2446.3627353633406
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 29,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "9；16",
+      "properties": {},
+      "widgets_values": [
+        "白衫女"
+      ],
+      "widgets_values_named": {
+        "text": "白衫女"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 203,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -1884.4386837124416,
+        2712.469746318602
+      ],
+      "size": [
+        458.3163148641389,
+        297.1935542864364
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 30,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "title": "Input Text (Prompt)",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "subject_definitions:\n<Subject 1> is the young woman in <Picture 1>, with waist-length deep-crimson hair parted at the center, fine loose strands at the temples, a small red lotus petal mark painted in the center of her forehead, a blue butterfly hair ornament pinned above her left ear beside a pearl-and-blue-drop earring, warm peach blush, glossy rose lips, and dark-brown almond eyes; she wears a black halter-neck gown with a gold-trimmed high collar, sheer black sleeves feather-trimmed at the shoulders, gold lotus embroidery running down the bodice and one hip, a slender gold chain draped across her hips, and a floor-length sheer black overlay that trails on the ground.\n\nsummary:\n[reference generation] The target video is a high-fashion music-video sequence in which <Subject 1> poses through four hard-cut shots on a dark studio cyclorama, delivering two short Chinese lines straight to the lens while a single cold key light and a warm rim light carve her out of the black.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1], [Shot 2], [Shot 3], [Shot 4]): fully_preserved - her deep-crimson waist-length hair, red lotus forehead mark, blue butterfly hair ornament, pearl-and-blue-drop earring, black halter-neck gown with gold-trimmed collar and feather-trimmed sheer sleeves, gold lotus embroidery, hip chain, and sheer floor-length overlay are all retained without change.\n\ndetailed_description:\nHigh-fashion music-video visual language throughout: a glossy editorial look built on deep blacks, one cold-white hard key light with a warm amber rim light behind her, anamorphic flares and shallow depth of field, saturated crimson hair and liquid gold embroidery on a near-black costume, and rhythmic slow-motion posing that lands on the beat.\n[Shot 1] A full-length wide shot on a dark seamless studio cyclorama with a faintly reflective floor. <Subject 1>, the young woman defined in <Picture 1>, stands turned away from the lens at first: waist-length deep-crimson hair falling down her back, the small red lotus mark on her forehead, the blue butterfly ornament above her left ear beside a pearl-and-blue-drop earring, and her black halter-neck gown with a gold-trimmed collar, feather-trimmed sheer sleeves, gold lotus embroidery, and a floor-length sheer overlay pooling on the ground. A single cold-white beam cuts down from the upper right; a low fan lifts the sheer overlay and the loose strands at her temples in a slow, heavy drift. She turns her head slowly until her profile is legible against the light, then holds. The camera drifts left in a slow, even lateral move while easing in slightly.\n[Shot 2] At 00:02.600, a hard cut to an extreme close-up of <Subject 1>'s face, lit frontally by a soft warm key so every plane of her skin stays clear while the background falls to black. Her dark-brown almond eyes lift to the lens and lock on it, the red lotus mark centered between her brows, the blue butterfly ornament catching a hard glint at the left edge of frame. Only micro-movements play as <Subject 1> (S1) says in a low, unhurried, faintly smoky voice, <d>[Chinese] 看着我，别眨眼。</d> She closes her lips and holds the look on the lens through one slow blink.\n[Shot 3] At 00:05.400, a hard cut to a low-angle three-quarter shot framed from the knees up as <Subject 1> steps toward the lens out of the light beam in a long catwalk stride, one hand brushing the gold chain at her hip. The sheer floor-length overlay drags and ripples across the floor behind her, and the gold lotus embroidery flares as it crosses the key light. The camera pulls back at a matched pace, keeping her centered while the black cyclorama slides past behind her and a thin anamorphic flare blooms across the lower frame.\n[Shot 4] At 00:07.600, a hard cut to a medium close-up from the chest up as <Subject 1> stops. She lifts two fingers and drags them slowly along the gold-trimmed collar of her gown, then tilts her head a few degrees and brings her gaze back to the lens, the feather trim trembling at her upper arm. In the same low smoky voice, <Subject 1> (S1) says, <d>[Chinese] 记住我。</d> A brief flare blooms behind her; she holds the pose and the look through the closing frame.\n\noverall_soundscape:\nA dry studio room tone with a faint low fan rumble throughout, the soft drag and ripple of sheer fabric, light metallic clinks from the hip chain and the hair ornament, and the clean click of stiletto heels on the studio floor.\n\nnon_diegetic_music:\nA sleek electronic runway track at about 100 BPM, built on a deep sub-bass pulse, crisp finger snaps and tight hi-hats locked to the beat, and a muted dark synth arpeggio, lifting slightly in energy into the final shot and cutting off sharply on the last frame."
+      ],
+      "widgets_values_named": {
+        "value": "subject_definitions:\n<Subject 1> is the young woman in <Picture 1>, with waist-length deep-crimson hair parted at the center, fine loose strands at the temples, a small red lotus petal mark painted in the center of her forehead, a blue butterfly hair ornament pinned above her left ear beside a pearl-and-blue-drop earring, warm peach blush, glossy rose lips, and dark-brown almond eyes; she wears a black halter-neck gown with a gold-trimmed high collar, sheer black sleeves feather-trimmed at the shoulders, gold lotus embroidery running down the bodice and one hip, a slender gold chain draped across her hips, and a floor-length sheer black overlay that trails on the ground.\n\nsummary:\n[reference generation] The target video is a high-fashion music-video sequence in which <Subject 1> poses through four hard-cut shots on a dark studio cyclorama, delivering two short Chinese lines straight to the lens while a single cold key light and a warm rim light carve her out of the black.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1], [Shot 2], [Shot 3], [Shot 4]): fully_preserved - her deep-crimson waist-length hair, red lotus forehead mark, blue butterfly hair ornament, pearl-and-blue-drop earring, black halter-neck gown with gold-trimmed collar and feather-trimmed sheer sleeves, gold lotus embroidery, hip chain, and sheer floor-length overlay are all retained without change.\n\ndetailed_description:\nHigh-fashion music-video visual language throughout: a glossy editorial look built on deep blacks, one cold-white hard key light with a warm amber rim light behind her, anamorphic flares and shallow depth of field, saturated crimson hair and liquid gold embroidery on a near-black costume, and rhythmic slow-motion posing that lands on the beat.\n[Shot 1] A full-length wide shot on a dark seamless studio cyclorama with a faintly reflective floor. <Subject 1>, the young woman defined in <Picture 1>, stands turned away from the lens at first: waist-length deep-crimson hair falling down her back, the small red lotus mark on her forehead, the blue butterfly ornament above her left ear beside a pearl-and-blue-drop earring, and her black halter-neck gown with a gold-trimmed collar, feather-trimmed sheer sleeves, gold lotus embroidery, and a floor-length sheer overlay pooling on the ground. A single cold-white beam cuts down from the upper right; a low fan lifts the sheer overlay and the loose strands at her temples in a slow, heavy drift. She turns her head slowly until her profile is legible against the light, then holds. The camera drifts left in a slow, even lateral move while easing in slightly.\n[Shot 2] At 00:02.600, a hard cut to an extreme close-up of <Subject 1>'s face, lit frontally by a soft warm key so every plane of her skin stays clear while the background falls to black. Her dark-brown almond eyes lift to the lens and lock on it, the red lotus mark centered between her brows, the blue butterfly ornament catching a hard glint at the left edge of frame. Only micro-movements play as <Subject 1> (S1) says in a low, unhurried, faintly smoky voice, <d>[Chinese] 看着我，别眨眼。</d> She closes her lips and holds the look on the lens through one slow blink.\n[Shot 3] At 00:05.400, a hard cut to a low-angle three-quarter shot framed from the knees up as <Subject 1> steps toward the lens out of the light beam in a long catwalk stride, one hand brushing the gold chain at her hip. The sheer floor-length overlay drags and ripples across the floor behind her, and the gold lotus embroidery flares as it crosses the key light. The camera pulls back at a matched pace, keeping her centered while the black cyclorama slides past behind her and a thin anamorphic flare blooms across the lower frame.\n[Shot 4] At 00:07.600, a hard cut to a medium close-up from the chest up as <Subject 1> stops. She lifts two fingers and drags them slowly along the gold-trimmed collar of her gown, then tilts her head a few degrees and brings her gaze back to the lens, the feather trim trembling at her upper arm. In the same low smoky voice, <Subject 1> (S1) says, <d>[Chinese] 记住我。</d> A brief flare blooms behind her; she holds the pose and the look through the closing frame.\n\noverall_soundscape:\nA dry studio room tone with a faint low fan rumble throughout, the soft drag and ripple of sheer fabric, light metallic clinks from the hip chain and the hair ornament, and the clean click of stiletto heels on the studio floor.\n\nnon_diegetic_music:\nA sleek electronic runway track at about 100 BPM, built on a deep sub-bass pulse, crisp finger snaps and tight hi-hats locked to the beat, and a muted dark synth arpeggio, lifting slightly in energy into the final shot and cutting off sharply on the last frame."
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 204,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -1366.1326832214745,
+        2703.9728596873865
+      ],
+      "size": [
+        428.46810971335697,
+        290.16537641598114
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 31,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "title": "Input Text (Prompt)",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "The target video is a ten-second high-fashion music-video sequence shot on a dark seamless studio cyclorama with a faintly reflective floor, in a glossy editorial look built on deep blacks: one cold-white hard key light cuts down from the upper right with a warm amber rim light behind her, anamorphic flares streak across the frame, the depth of field stays shallow, and saturated crimson and liquid gold sit against a near-black costume.\n\nThe young woman has waist-length deep-crimson hair parted at the center with fine loose strands at the temples, a small red lotus petal mark painted in the center of her forehead, a blue butterfly hair ornament pinned above her left ear beside a pearl-and-blue-drop earring, warm peach blush, glossy rose lips, dark-brown almond eyes, and a slim figure. She wears a black halter-neck gown with a gold-trimmed high collar, sheer black sleeves feather-trimmed at the shoulders, gold lotus embroidery running down the bodice and one hip, a slender gold chain draped across her hips, and a floor-length sheer black overlay.\n\nThe reflective studio floor, the black cyclorama, the single overhead light beam, and the low fan at the edge of the set remain stationary throughout.\n\nThe video opens on a full-length wide shot with the woman turned away from the lens, her waist-length deep-crimson hair falling down her back, the small red lotus mark on her forehead, the blue butterfly ornament above her left ear, her black halter-neck gown with its gold-trimmed collar, feather-trimmed sheer sleeves, gold lotus embroidery and floor-length sheer overlay pooling on the ground; the low fan lifts the sheer overlay and the loose strands at her temples in a slow, heavy drift. She turns her head slowly until her profile is legible against the light and holds it, and the camera drifts left in a slow, even lateral move while easing in slightly. The dry studio room tone and the low fan rumble run continuously underneath. A hard cut transitions to an extreme close-up of her face, fully lit from the front by a soft warm key so every plane of her skin stays clear while the background falls to black; her dark-brown almond eyes lift to the lens and lock on it, the red lotus mark centered between her brows, the blue butterfly ornament catching a hard glint at the left edge of frame, and only micro-movements play across her face as she speaks in Chinese, her voice low, unhurried and faintly smoky: \"看着我，别眨眼。\" She closes her lips and holds the look on the lens through one slow blink. The same studio room tone and the low fan rumble continue across the cut. A hard cut transitions to a low-angle three-quarter shot framed from the knees up as she steps toward the lens out of the light beam in a long catwalk stride, one hand brushing the gold chain at her hip; the sheer floor-length overlay drags and ripples across the floor behind her, the gold lotus embroidery flares as it crosses the key light, and the camera pulls back at a matched pace to keep her centered while the black cyclorama slides past behind her. The clean click of stiletto heels on the studio floor and the drag of sheer fabric continue uninterrupted across the cut. A hard cut transitions to a medium close-up from the chest up as she stops and settles her weight; she lifts two fingers and drags them slowly along the gold-trimmed collar of her gown, tilts her head a few degrees, and brings her gaze back to the lens, the feather trim trembling at her upper arm, and she speaks in Chinese, still low and quiet: \"记住我。\" A brief flare blooms behind her, and she holds the pose and the look through the closing frame.\n\nThe overall sound is a dry studio room tone with a faint low fan rumble, the soft drag and ripple of sheer fabric, light metallic clinks from the hip chain and the hair ornament, and the clean click of stiletto heels on the studio floor. A sleek electronic runway track at about 100 BPM runs underneath the whole video on a deep sub-bass pulse with crisp finger snaps and tight hi-hats locked to the beat and a muted dark synth arpeggio, lifting slightly in energy into the final shot and cutting off sharply on the last frame. Rendered as a high-fashion music-video piece: deep blacks, one cold-white hard key with a warm amber rim light, anamorphic flares, saturated crimson and liquid gold against a near-black costume, shallow focus with her face kept crisp, and smooth hard cuts between shots."
+      ],
+      "widgets_values_named": {
+        "value": "The target video is a ten-second high-fashion music-video sequence shot on a dark seamless studio cyclorama with a faintly reflective floor, in a glossy editorial look built on deep blacks: one cold-white hard key light cuts down from the upper right with a warm amber rim light behind her, anamorphic flares streak across the frame, the depth of field stays shallow, and saturated crimson and liquid gold sit against a near-black costume.\n\nThe young woman has waist-length deep-crimson hair parted at the center with fine loose strands at the temples, a small red lotus petal mark painted in the center of her forehead, a blue butterfly hair ornament pinned above her left ear beside a pearl-and-blue-drop earring, warm peach blush, glossy rose lips, dark-brown almond eyes, and a slim figure. She wears a black halter-neck gown with a gold-trimmed high collar, sheer black sleeves feather-trimmed at the shoulders, gold lotus embroidery running down the bodice and one hip, a slender gold chain draped across her hips, and a floor-length sheer black overlay.\n\nThe reflective studio floor, the black cyclorama, the single overhead light beam, and the low fan at the edge of the set remain stationary throughout.\n\nThe video opens on a full-length wide shot with the woman turned away from the lens, her waist-length deep-crimson hair falling down her back, the small red lotus mark on her forehead, the blue butterfly ornament above her left ear, her black halter-neck gown with its gold-trimmed collar, feather-trimmed sheer sleeves, gold lotus embroidery and floor-length sheer overlay pooling on the ground; the low fan lifts the sheer overlay and the loose strands at her temples in a slow, heavy drift. She turns her head slowly until her profile is legible against the light and holds it, and the camera drifts left in a slow, even lateral move while easing in slightly. The dry studio room tone and the low fan rumble run continuously underneath. A hard cut transitions to an extreme close-up of her face, fully lit from the front by a soft warm key so every plane of her skin stays clear while the background falls to black; her dark-brown almond eyes lift to the lens and lock on it, the red lotus mark centered between her brows, the blue butterfly ornament catching a hard glint at the left edge of frame, and only micro-movements play across her face as she speaks in Chinese, her voice low, unhurried and faintly smoky: \"看着我，别眨眼。\" She closes her lips and holds the look on the lens through one slow blink. The same studio room tone and the low fan rumble continue across the cut. A hard cut transitions to a low-angle three-quarter shot framed from the knees up as she steps toward the lens out of the light beam in a long catwalk stride, one hand brushing the gold chain at her hip; the sheer floor-length overlay drags and ripples across the floor behind her, the gold lotus embroidery flares as it crosses the key light, and the camera pulls back at a matched pace to keep her centered while the black cyclorama slides past behind her. The clean click of stiletto heels on the studio floor and the drag of sheer fabric continue uninterrupted across the cut. A hard cut transitions to a medium close-up from the chest up as she stops and settles her weight; she lifts two fingers and drags them slowly along the gold-trimmed collar of her gown, tilts her head a few degrees, and brings her gaze back to the lens, the feather trim trembling at her upper arm, and she speaks in Chinese, still low and quiet: \"记住我。\" A brief flare blooms behind her, and she holds the pose and the look through the closing frame.\n\nThe overall sound is a dry studio room tone with a faint low fan rumble, the soft drag and ripple of sheer fabric, light metallic clinks from the hip chain and the hair ornament, and the clean click of stiletto heels on the studio floor. A sleek electronic runway track at about 100 BPM runs underneath the whole video on a deep sub-bass pulse with crisp finger snaps and tight hi-hats locked to the beat and a muted dark synth arpeggio, lifting slightly in energy into the final shot and cutting off sharply on the last frame. Rendered as a high-fashion music-video piece: deep blacks, one cold-white hard key with a warm amber rim light, anamorphic flares, saturated crimson and liquid gold against a near-black costume, shallow focus with her face kept crisp, and smooth hard cuts between shots."
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 205,
+      "type": "Note",
+      "pos": [
+        -2130.652085278933,
+        2753.5347843056843
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 32,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "。",
+      "properties": {},
+      "widgets_values": [
+        "红发女"
+      ],
+      "widgets_values_named": {
+        "text": "红发女"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 206,
+      "type": "XHTimer",
+      "pos": [
+        -617.3208084855432,
+        1315.7846535606388
+      ],
+      "size": [
+        2072.745942587151,
+        682.0401595944963
+      ],
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "XHTimer"
+      }
+    },
+    {
+      "id": 207,
+      "type": "Note",
+      "pos": [
+        -3208.83282963366,
+        -733.8616892929467
+      ],
+      "size": [
+        801.9290526599839,
+        473.7410347337462
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 34,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "老粉注意！注意！新人无视",
+      "properties": {},
+      "widgets_values": [
+        "【重要｜XH 节点包升级说明，请先删旧包再装新包】\n\n9月22日之前我发给大家的的散装节点包，请先把下面这些文件夹整个删掉（如果有安装的）：\n\nComfyui-XH_H3MemorySaver\nComfyui-XH_ImageTools\nComfyui-XH_LTXIdentity\nXH-ChainPrompt\nXH-H3LTX-Adapter\nXH-SeamFeather\nXH_GroupController\nXH_Label\nXH_Timer\n然后重启 ComfyUI。\n\n为什么必须删：这些散包和我新整合的 Comfyui-XH_Toolbox 有 13 个节点类名（class_type）、9 个前端 js 文件名、9 个前端扩展名完全重名。ComfyUI 的 class_type 是全局字典，同名时谁后加载谁生效，而加载顺序取决于系统的文件枚举顺序——也就是你机器上到底哪一份在跑，纯看运气，今天可能新包赢、明天可能旧包赢，前端还会冒出两套按钮和面板。\n\n好消息是旧工作流不会坏：所有 class_type 一个都没改，删掉旧包、装上 Comfyui-XH_Toolbox 之后，以前存的工作流直接打开就能用。\n\n\n最终只需要留一个包：\nComfyui-XH_Toolbox —— 新整合包，包含原来 9 个散包的全部功能\n"
+      ],
+      "widgets_values_named": {
+        "text": "【重要｜XH 节点包升级说明，请先删旧包再装新包】\n\n9月22日之前我发给大家的的散装节点包，请先把下面这些文件夹整个删掉（如果有安装的）：\n\nComfyui-XH_H3MemorySaver\nComfyui-XH_ImageTools\nComfyui-XH_LTXIdentity\nXH-ChainPrompt\nXH-H3LTX-Adapter\nXH-SeamFeather\nXH_GroupController\nXH_Label\nXH_Timer\n然后重启 ComfyUI。\n\n为什么必须删：这些散包和我新整合的 Comfyui-XH_Toolbox 有 13 个节点类名（class_type）、9 个前端 js 文件名、9 个前端扩展名完全重名。ComfyUI 的 class_type 是全局字典，同名时谁后加载谁生效，而加载顺序取决于系统的文件枚举顺序——也就是你机器上到底哪一份在跑，纯看运气，今天可能新包赢、明天可能旧包赢，前端还会冒出两套按钮和面板。\n\n好消息是旧工作流不会坏：所有 class_type 一个都没改，删掉旧包、装上 Comfyui-XH_Toolbox 之后，以前存的工作流直接打开就能用。\n\n\n最终只需要留一个包：\nComfyui-XH_Toolbox —— 新整合包，包含原来 9 个散包的全部功能\n"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      3,
+      34,
+      0,
+      6,
+      0,
+      "MODEL"
+    ],
+    [
+      4,
+      34,
+      0,
+      9,
+      0,
+      "MODEL"
+    ],
+    [
+      6,
+      8,
+      0,
+      10,
+      0,
+      "NOISE"
+    ],
+    [
+      7,
+      9,
+      0,
+      10,
+      1,
+      "GUIDER"
+    ],
+    [
+      8,
+      7,
+      0,
+      10,
+      2,
+      "SAMPLER"
+    ],
+    [
+      9,
+      6,
+      0,
+      10,
+      3,
+      "SIGMAS"
+    ],
+    [
+      11,
+      10,
+      0,
+      11,
+      0,
+      "LATENT"
+    ],
+    [
+      13,
+      13,
+      0,
+      14,
+      0,
+      "H3LTX_ADAPTER"
+    ],
+    [
+      14,
+      12,
+      0,
+      14,
+      1,
+      "LATENT"
+    ],
+    [
+      15,
+      16,
+      0,
+      17,
+      0,
+      "CLIP"
+    ],
+    [
+      16,
+      16,
+      0,
+      18,
+      0,
+      "CLIP"
+    ],
+    [
+      17,
+      17,
+      0,
+      19,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      18,
+      18,
+      0,
+      19,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      25,
+      25,
+      0,
+      28,
+      0,
+      "NOISE"
+    ],
+    [
+      26,
+      27,
+      0,
+      28,
+      1,
+      "GUIDER"
+    ],
+    [
+      27,
+      26,
+      0,
+      28,
+      2,
+      "SAMPLER"
+    ],
+    [
+      28,
+      24,
+      0,
+      28,
+      3,
+      "SIGMAS"
+    ],
+    [
+      34,
+      4,
+      0,
+      31,
+      1,
+      "VAE"
+    ],
+    [
+      39,
+      14,
+      1,
+      35,
+      0,
+      "STRING"
+    ],
+    [
+      44,
+      1,
+      0,
+      40,
+      0,
+      "MODEL"
+    ],
+    [
+      63,
+      57,
+      0,
+      59,
+      0,
+      "MODEL"
+    ],
+    [
+      64,
+      39,
+      0,
+      56,
+      0,
+      "MODEL"
+    ],
+    [
+      70,
+      20,
+      0,
+      61,
+      1,
+      "VAE"
+    ],
+    [
+      71,
+      61,
+      0,
+      32,
+      0,
+      "IMAGE"
+    ],
+    [
+      142,
+      117,
+      0,
+      9,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      143,
+      117,
+      1,
+      10,
+      4,
+      "LATENT"
+    ],
+    [
+      160,
+      56,
+      0,
+      57,
+      0,
+      "MODEL"
+    ],
+    [
+      175,
+      45,
+      1,
+      132,
+      0,
+      "INT"
+    ],
+    [
+      183,
+      40,
+      0,
+      41,
+      0,
+      "MODEL"
+    ],
+    [
+      184,
+      60,
+      0,
+      134,
+      0,
+      "MODEL"
+    ],
+    [
+      185,
+      134,
+      0,
+      34,
+      0,
+      "MODEL"
+    ],
+    [
+      227,
+      28,
+      0,
+      186,
+      0,
+      "LATENT"
+    ],
+    [
+      229,
+      11,
+      1,
+      31,
+      0,
+      "LATENT"
+    ],
+    [
+      247,
+      15,
+      0,
+      180,
+      0,
+      "MODEL"
+    ],
+    [
+      248,
+      181,
+      0,
+      36,
+      0,
+      "MODEL"
+    ],
+    [
+      249,
+      36,
+      0,
+      38,
+      0,
+      "MODEL"
+    ],
+    [
+      251,
+      31,
+      0,
+      184,
+      0,
+      "AUDIO"
+    ],
+    [
+      252,
+      183,
+      0,
+      184,
+      1,
+      "VAE"
+    ],
+    [
+      254,
+      185,
+      0,
+      28,
+      4,
+      "LATENT"
+    ],
+    [
+      255,
+      186,
+      0,
+      61,
+      0,
+      "LATENT"
+    ],
+    [
+      258,
+      184,
+      0,
+      185,
+      1,
+      "LATENT"
+    ],
+    [
+      259,
+      186,
+      1,
+      189,
+      0,
+      "LATENT"
+    ],
+    [
+      260,
+      183,
+      0,
+      189,
+      1,
+      "VAE"
+    ],
+    [
+      261,
+      189,
+      0,
+      32,
+      1,
+      "AUDIO"
+    ],
+    [
+      263,
+      38,
+      0,
+      191,
+      0,
+      "MODEL"
+    ],
+    [
+      265,
+      160,
+      0,
+      193,
+      0,
+      "IMAGE"
+    ],
+    [
+      266,
+      193,
+      0,
+      173,
+      0,
+      "IMAGE"
+    ],
+    [
+      268,
+      191,
+      0,
+      194,
+      0,
+      "MODEL"
+    ],
+    [
+      269,
+      19,
+      0,
+      194,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      270,
+      19,
+      1,
+      194,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      272,
+      20,
+      0,
+      194,
+      3,
+      "VAE"
+    ],
+    [
+      274,
+      14,
+      0,
+      194,
+      4,
+      "LATENT"
+    ],
+    [
+      275,
+      193,
+      0,
+      194,
+      5,
+      "IMAGE"
+    ],
+    [
+      276,
+      194,
+      0,
+      27,
+      0,
+      "MODEL"
+    ],
+    [
+      277,
+      194,
+      1,
+      27,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      278,
+      194,
+      2,
+      27,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      279,
+      194,
+      3,
+      185,
+      0,
+      "LATENT"
+    ],
+    [
+      280,
+      194,
+      5,
+      177,
+      0,
+      "IMAGE"
+    ],
+    [
+      281,
+      194,
+      6,
+      178,
+      0,
+      "IMAGE"
+    ],
+    [
+      283,
+      196,
+      0,
+      17,
+      1,
+      "STRING"
+    ],
+    [
+      52,
+      44,
+      0,
+      45,
+      0,
+      "FLOAT"
+    ],
+    [
+      136,
+      2,
+      0,
+      117,
+      0,
+      "CLIP"
+    ],
+    [
+      138,
+      3,
+      0,
+      117,
+      1,
+      "VAE"
+    ],
+    [
+      177,
+      4,
+      0,
+      117,
+      2,
+      "VAE"
+    ],
+    [
+      145,
+      118,
+      0,
+      117,
+      3,
+      "IMAGE"
+    ],
+    [
+      144,
+      52,
+      0,
+      117,
+      10,
+      "STRING"
+    ],
+    [
+      139,
+      42,
+      0,
+      117,
+      11,
+      "INT"
+    ],
+    [
+      140,
+      42,
+      1,
+      117,
+      12,
+      "INT"
+    ],
+    [
+      141,
+      45,
+      1,
+      117,
+      13,
+      "INT"
+    ],
+    [
+      12,
+      11,
+      0,
+      12,
+      0,
+      "LATENT"
+    ],
+    [
+      50,
+      43,
+      0,
+      12,
+      1,
+      "INT"
+    ],
+    [
+      262,
+      43,
+      1,
+      12,
+      2,
+      "INT"
+    ],
+    [
+      228,
+      32,
+      0,
+      33,
+      0,
+      "VIDEO"
+    ],
+    [
+      66,
+      41,
+      0,
+      60,
+      0,
+      "MODEL"
+    ],
+    [
+      246,
+      180,
+      0,
+      181,
+      0,
+      "MODEL"
+    ]
+  ],
+  "floatingLinks": [
+    {
+      "id": 2,
+      "origin_id": 20,
+      "origin_slot": 0,
+      "target_id": -1,
+      "target_slot": -1,
+      "type": "VAE",
+      "parentId": 7
+    }
+  ],
+  "groups": [
+    {
+      "id": 2,
+      "title": "2. 拆分 AV latent",
+      "bounding": [
+        53.862099105989365,
+        -426.42375956533493,
+        363.5622212482118,
+        157.45708836617928
+      ],
+      "color": "#8AA",
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "4. LTX-2.5 精修（3 步）",
+      "bounding": [
+        2088.4556746280177,
+        -363.03004653113373,
+        5507.066181994094,
+        1097.8775258655114
+      ],
+      "color": "#3f9e78",
+      "flags": {}
+    },
+    {
+      "id": 7,
+      "title": "时长",
+      "bounding": [
+        -2061.83707311391,
+        1125.0276877257759,
+        1379.9714736693668,
+        949.5912871436232
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 9,
+      "title": "KJ最省显存加速+分块。比如你一采提高分辨率用上",
+      "bounding": [
+        -2347.1892670039724,
+        -825.6311679447454,
+        1479.6162436627992,
+        532.0279532681786
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 10,
+      "title": "H3低分辨率出",
+      "bounding": [
+        -3207.2179255455158,
+        -225.59850800318307,
+        3247.1562928591306,
+        803.7247769650917
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 20,
+      "title": "H3二采放大",
+      "bounding": [
+        452.71079727724526,
+        -424.1042552232187,
+        526.34375,
+        390
+      ],
+      "color": "#b58b2a",
+      "flags": {}
+    },
+    {
+      "id": 21,
+      "title": "H3潜空间→LTX2.5潜空间（转换器）",
+      "bounding": [
+        1080.807082412922,
+        -706.0580466083496,
+        970.9032475013305,
+        856.6745910959485
+      ],
+      "color": "#8A8",
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.3138428376721024,
+      "offset": [
+        1470.4916718964007,
+        645.4935010085696
+      ]
+    },
+    "comfyui_mcp": {
+      "workflow_uuid": "d79c2168-4a77-4603-a764-362ad9fe2252"
+    },
+    "reroutes": [
+      {
+        "id": 1,
+        "pos": [
+          -672.3540854968783,
+          444.2913963269279
+        ],
+        "linkIds": [
+          143
+        ]
+      },
+      {
+        "id": 2,
+        "parentId": 1,
+        "pos": [
+          -306.70679573375656,
+          445.538851170491
+        ],
+        "linkIds": [
+          143
+        ]
+      },
+      {
+        "id": 5,
+        "pos": [
+          -2738.1027329441154,
+          981.8973377217346
+        ],
+        "linkIds": [
+          34
+        ]
+      },
+      {
+        "id": 6,
+        "pos": [
+          2677.582550195141,
+          839.3966414727648
+        ],
+        "linkIds": [
+          70
+        ]
+      },
+      {
+        "id": 7,
+        "parentId": 6,
+        "pos": [
+          6409.196703479649,
+          810.3897698927137
+        ],
+        "linkIds": [
+          70
+        ],
+        "floating": {
+          "slotType": "output"
+        }
+      },
+      {
+        "id": 8,
+        "pos": [
+          498.59103097049706,
+          961.8199778346988
+        ],
+        "linkIds": [
+          229
+        ]
+      },
+      {
+        "id": 9,
+        "parentId": 5,
+        "pos": [
+          2727.529210606955,
+          993.7225514007658
+        ],
+        "linkIds": [
+          34
+        ]
+      },
+      {
+        "id": 15,
+        "pos": [
+          -2560.27092776887,
+          178.38025670443136
+        ],
+        "linkIds": [
+          136
+        ]
+      },
+      {
+        "id": 16,
+        "pos": [
+          -2555.107739452043,
+          206.6384455058244
+        ],
+        "linkIds": [
+          138
+        ]
+      },
+      {
+        "id": 17,
+        "pos": [
+          -2554.559874041173,
+          240.09973252442876
+        ],
+        "linkIds": [
+          177
+        ]
+      },
+      {
+        "id": 18,
+        "pos": [
+          1835.7275186308184,
+          792.3041885995098
+        ],
+        "linkIds": [
+          274
+        ]
+      },
+      {
+        "id": 19,
+        "parentId": 18,
+        "pos": [
+          4665.942801132755,
+          779.5299449669926
+        ],
+        "linkIds": [
+          274
+        ]
+      },
+      {
+        "id": 20,
+        "pos": [
+          2826.7126116898817,
+          497.9787974275955
+        ],
+        "linkIds": [
+          272
+        ]
+      },
+      {
+        "id": 21,
+        "parentId": 20,
+        "pos": [
+          3832.085299144093,
+          483.2126741139281
+        ],
+        "linkIds": [
+          272
+        ]
+      },
+      {
+        "id": 22,
+        "parentId": 8,
+        "pos": [
+          2724.8692612841296,
+          963.5774443086262
+        ],
+        "linkIds": [
+          229
+        ]
+      },
+      {
+        "id": 23,
+        "pos": [
+          2599.237854553086,
+          1157.8852098328744
+        ],
+        "linkIds": [
+          252
+        ]
+      },
+      {
+        "id": 24,
+        "pos": [
+          2558.674148523284,
+          1270.0244463808965
+        ],
+        "linkIds": [
+          260
+        ]
+      },
+      {
+        "id": 25,
+        "parentId": 24,
+        "pos": [
+          6804.2080063703925,
+          1242.7482000771759
+        ],
+        "linkIds": [
+          260
+        ]
+      }
+    ],
+    "frontendVersion": "1.53.6",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "linkExtensions": [
+      {
+        "id": 34,
+        "parentId": 9
+      },
+      {
+        "id": 70,
+        "parentId": 7
+      },
+      {
+        "id": 143,
+        "parentId": 2
+      },
+      {
+        "id": 229,
+        "parentId": 22
+      },
+      {
+        "id": 252,
+        "parentId": 23
+      },
+      {
+        "id": 260,
+        "parentId": 25
+      },
+      {
+        "id": 272,
+        "parentId": 21
+      },
+      {
+        "id": 274,
+        "parentId": 19
+      },
+      {
+        "id": 136,
+        "parentId": 15
+      },
+      {
+        "id": 138,
+        "parentId": 16
+      },
+      {
+        "id": 177,
+        "parentId": 17
+      }
+    ]
+  },
+  "version": 0.4
+}

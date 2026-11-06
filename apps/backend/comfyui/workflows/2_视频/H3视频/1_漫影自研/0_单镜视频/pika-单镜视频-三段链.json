@@ -2,7 +2,7 @@
   "id": "pika-daojie-three-stage-1105",
   "revision": 0,
   "last_node_id": 337,
-  "last_link_id": 754,
+  "last_link_id": 755,
   "nodes": [
     {
       "id": 9,
@@ -2061,7 +2061,7 @@
       "id": 203,
       "type": "MiniMaxH3SigmaShift",
       "pos": [
-        6563,
+        7163,
         80
       ],
       "size": [
@@ -2075,7 +2075,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 606
+          "link": 755
         }
       ],
       "outputs": [
@@ -2107,7 +2107,7 @@
       "id": 215,
       "type": "ModelAttentionBackend",
       "pos": [
-        7070,
+        7670,
         80
       ],
       "size": [
@@ -2435,7 +2435,7 @@
       "type": "LTXVConcatAVLatent",
       "pos": [
         7070,
-        288
+        313
       ],
       "size": [
         286.8360679651149,
@@ -2538,7 +2538,7 @@
       "id": 210,
       "type": "BasicGuider",
       "pos": [
-        7590,
+        8190,
         80
       ],
       "size": [
@@ -2579,7 +2579,7 @@
       "id": 211,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        8170,
+        8770,
         80
       ],
       "size": [
@@ -2642,7 +2642,7 @@
       "id": 212,
       "type": "VAEDecode",
       "pos": [
-        8640,
+        9240,
         80
       ],
       "size": [
@@ -2685,7 +2685,7 @@
       "id": 213,
       "type": "VAEDecodeAudio",
       "pos": [
-        8640,
+        9240,
         282
       ],
       "size": [
@@ -2728,7 +2728,7 @@
       "id": 214,
       "type": "CreateVideo",
       "pos": [
-        9110,
+        9710,
         80
       ],
       "size": [
@@ -2776,7 +2776,7 @@
       "id": 4,
       "type": "SaveVideo",
       "pos": [
-        9600,
+        10200,
         80
       ],
       "size": [
@@ -2869,7 +2869,7 @@
       "id": 100,
       "type": "MyShot",
       "pos": [
-        10103,
+        10703,
         80
       ],
       "size": [
@@ -4856,6 +4856,52 @@
         0,
         1
       ]
+    },
+    {
+      "id": 223,
+      "type": "MiniMaxChunkFeedForward",
+      "pos": [
+        6543,
+        80
+      ],
+      "size": [
+        300,
+        90
+      ],
+      "flags": {},
+      "order": 203,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 606
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            755
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxChunkFeedForward",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        },
+        "cnr_id": "comfyui-kjnodes",
+        "ver": "ab72eda7ffad6280422d71ab7d54d3fb87c0ba18"
+      },
+      "widgets_values": [
+        1,
+        4096
+      ],
+      "title": "H3 Chunk FFN(削峰·出厂 chunks=1 恒等)"
     }
   ],
   "links": [
@@ -5263,7 +5309,7 @@
       606,
       202,
       0,
-      203,
+      223,
       0,
       "MODEL"
     ],
@@ -5930,6 +5976,14 @@
       321,
       0,
       "IMAGE"
+    ],
+    [
+      755,
+      223,
+      0,
+      203,
+      0,
+      "MODEL"
     ]
   ],
   "groups": [
@@ -5951,7 +6005,7 @@
       "bounding": [
         5673,
         30,
-        4820,
+        5420,
         1343.2267391954765
       ],
       "color": "#223355",

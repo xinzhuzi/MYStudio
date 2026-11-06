@@ -1,0 +1,3982 @@
+{
+  "id": "e7255e63-7676-499d-bf42-90608eabad3b",
+  "revision": 0,
+  "last_node_id": 194,
+  "last_link_id": 252,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        -1926.5567875015638,
+        -236.7044459309014
+      ],
+      "size": [
+        450.90625,
+        114
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            44
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "H3\\minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "H3\\minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+        "weight_dtype": "default"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        -1926.3357686497716,
+        -49.395978870534435
+      ],
+      "size": [
+        466.0625,
+        142
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 0,
+          "links": [
+            136
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "H3\\qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "minimax",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "H3\\qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "type": "minimax",
+        "device": "default"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        -1926.3787392028917,
+        132.92595073371774
+      ],
+      "size": [
+        462.375,
+        86
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 0,
+          "links": [
+            138
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "H3\\minimax_h3_lynnreal_light_vae_int8_convrot.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "H3\\minimax_h3_lynnreal_light_vae_int8_convrot.safetensors"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 4,
+      "type": "VAELoader",
+      "pos": [
+        -1927.714345404602,
+        257.28944190991047
+      ],
+      "size": [
+        432,
+        88.53125
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 0,
+          "links": [
+            177,
+            231
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "H3\\minimax_h3_audio_vae_fp32.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "H3\\minimax_h3_audio_vae_fp32.safetensors"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 6,
+      "type": "BasicScheduler",
+      "pos": [
+        205.56610807720514,
+        368.0923363849564
+      ],
+      "size": [
+        300,
+        142
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 54,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "slot_index": 0,
+          "links": [
+            9
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicScheduler",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "simple",
+        3,
+        1
+      ],
+      "widgets_values_named": {
+        "scheduler": "simple",
+        "steps": 3,
+        "denoise": 1
+      }
+    },
+    {
+      "id": 7,
+      "type": "KSamplerSelect",
+      "pos": [
+        207.23383398467533,
+        247.35550247911667
+      ],
+      "size": [
+        300,
+        86
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "slot_index": 0,
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "res_multistep"
+      ],
+      "widgets_values_named": {
+        "sampler_name": "res_multistep"
+      }
+    },
+    {
+      "id": 8,
+      "type": "RandomNoise",
+      "pos": [
+        203.8492186000598,
+        6.175946439453923
+      ],
+      "size": [
+        300,
+        86
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "slot_index": 0,
+          "links": [
+            6
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RandomNoise",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        469008402292146,
+        "randomize"
+      ],
+      "widgets_values_named": {
+        "noise_seed": 469008402292146,
+        "control_after_generate": "randomize"
+      }
+    },
+    {
+      "id": 9,
+      "type": "BasicGuider",
+      "pos": [
+        206.1056977166463,
+        131.50924534269924
+      ],
+      "size": [
+        300,
+        78
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 55,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 4
+        },
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 142
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "slot_index": 0,
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicGuider",
+        "cnr_id": "comfy-core"
+      }
+    },
+    {
+      "id": 10,
+      "type": "SamplerCustomAdvanced",
+      "pos": [
+        554.5163605630763,
+        178.82762052327897
+      ],
+      "size": [
+        300,
+        390
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 56,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise",
+          "type": "NOISE",
+          "link": 6
+        },
+        {
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 7
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 8
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 9
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 143
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            11
+          ]
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "slot_index": 1,
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SamplerCustomAdvanced",
+        "cnr_id": "comfy-core"
+      }
+    },
+    {
+      "id": 11,
+      "type": "LTXVSeparateAVLatent",
+      "pos": [
+        883.8394729595773,
+        -486.756078801791
+      ],
+      "size": [
+        300,
+        78
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 57,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "av_latent",
+          "type": "LATENT",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video_latent",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            12
+          ]
+        },
+        {
+          "name": "audio_latent",
+          "type": "LATENT",
+          "slot_index": 1,
+          "links": [
+            230
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVSeparateAVLatent",
+        "cnr_id": "comfy-core"
+      },
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 12,
+      "type": "MinimaxH3LatentUpscaler3D",
+      "pos": [
+        1287.6373308147631,
+        138.59020254622868
+      ],
+      "size": [
+        506.34375,
+        310
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 58,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "latent",
+          "type": "*",
+          "link": 12
+        },
+        {
+          "name": "mode.width",
+          "type": "INT",
+          "widget": {
+            "name": "mode.width"
+          },
+          "link": 50
+        },
+        {
+          "name": "mode.height",
+          "type": "INT",
+          "widget": {
+            "name": "mode.height"
+          },
+          "link": 51
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "*",
+          "slot_index": 0,
+          "links": [
+            14
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MinimaxH3LatentUpscaler3D",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "minimax_h3_latent_upscaler_3d_fp16.safetensors",
+        "target dimensions",
+        1280,
+        704,
+        32,
+        true,
+        false,
+        "cuda",
+        "bf16"
+      ],
+      "widgets_values_named": {
+        "model_name": "minimax_h3_latent_upscaler_3d_fp16.safetensors",
+        "mode": "target dimensions",
+        "mode.width": 1280,
+        "mode.height": 704,
+        "align": 32,
+        "enable_temporal_chunking": true,
+        "force_unload": false,
+        "device": "cuda",
+        "precision": "bf16"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 13,
+      "type": "H3LTXAdapterLoader",
+      "pos": [
+        1461.1217706643542,
+        -220.10338065781895
+      ],
+      "size": [
+        341.71875,
+        196
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "adapter",
+          "type": "H3LTX_ADAPTER",
+          "slot_index": 0,
+          "links": [
+            13
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "H3LTXAdapterLoader",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "model.safetensors",
+        "cuda",
+        "fp16",
+        ""
+      ],
+      "widgets_values_named": {
+        "model_name": "model.safetensors",
+        "device": "cuda",
+        "precision": "fp16",
+        "reload": ""
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 14,
+      "type": "H3LTXAdapterConvert",
+      "pos": [
+        1829.5107501229645,
+        -61.50874060259183
+      ],
+      "size": [
+        330,
+        520
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 60,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "adapter",
+          "type": "H3LTX_ADAPTER",
+          "link": 13
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "link": 14
+        },
+        {
+          "label": "像素帧",
+          "name": "pixel_frames",
+          "type": "INT",
+          "widget": {
+            "name": "pixel_frames"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "ltx_latent",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            229
+          ]
+        },
+        {
+          "name": "pixel_frames",
+          "type": "INT",
+          "slot_index": 1,
+          "links": [
+            39
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "report",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "H3LTXAdapterConvert",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        0,
+        0,
+        false,
+        false,
+        false,
+        ""
+      ],
+      "widgets_values_named": {
+        "pixel_frames": 0,
+        "pixel_height": 0,
+        "pixel_width": false,
+        "input_is_raw": false,
+        "drop_last_frame": false,
+        "unload_after": ""
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 15,
+      "type": "UNETLoader",
+      "pos": [
+        2560.009322646011,
+        -218.13589433151802
+      ],
+      "size": [
+        540.03125,
+        114.84375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            203
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "LTX2.5\\ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "LTX2.5\\ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+        "weight_dtype": "default"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 16,
+      "type": "CLIPLoader",
+      "pos": [
+        2556.0587341208284,
+        22.679169171580952
+      ],
+      "size": [
+        575.9375,
+        142.53125
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 0,
+          "links": [
+            15,
+            201
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "LTX2.5\\gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+        "ltxv",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "LTX2.5\\gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+        "type": "ltxv",
+        "device": "default"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 17,
+      "type": "CLIPTextEncode",
+      "pos": [
+        3252.608935595377,
+        156.97795094882906
+      ],
+      "size": [
+        368.6875,
+        216.53125
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 41,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 15
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 252
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "text": ""
+      }
+    },
+    {
+      "id": 19,
+      "type": "LTXVConditioning",
+      "pos": [
+        3931.6453028447954,
+        233.91072482640033
+      ],
+      "size": [
+        300,
+        106
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 49,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 17
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 200
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            23
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "slot_index": 1,
+          "links": [
+            24
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVConditioning",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        24
+      ],
+      "widgets_values_named": {
+        "frame_rate": 24
+      }
+    },
+    {
+      "id": 20,
+      "type": "VAELoader",
+      "pos": [
+        2560.0313348322516,
+        228.24403789774487
+      ],
+      "size": [
+        564.8841812569884,
+        85.99999511273137
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 0,
+          "links": [
+            70
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "LTX2.5\\ltx-2.5-video-vae-conv-bf16.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "LTX2.5\\ltx-2.5-video-vae-conv-bf16.safetensors"
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 24,
+      "type": "ManualSigmas",
+      "pos": [
+        4745.917144172818,
+        242.72961130345544
+      ],
+      "size": [
+        359.1875,
+        96.96875
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "slot_index": 0,
+          "links": [
+            28
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ManualSigmas",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "0.85, 0.7250, 0.4219, 0.0"
+      ],
+      "widgets_values_named": {
+        "sigmas": "0.85, 0.7250, 0.4219, 0.0"
+      }
+    },
+    {
+      "id": 25,
+      "type": "RandomNoise",
+      "pos": [
+        4771.014078240187,
+        -212.39389972884635
+      ],
+      "size": [
+        337.625,
+        86
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "slot_index": 0,
+          "links": [
+            25
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RandomNoise",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        985975864674485,
+        "randomize"
+      ],
+      "widgets_values_named": {
+        "noise_seed": 985975864674485,
+        "control_after_generate": "randomize"
+      }
+    },
+    {
+      "id": 26,
+      "type": "KSamplerSelect",
+      "pos": [
+        4755.423202230774,
+        113.95584003744358
+      ],
+      "size": [
+        323.75,
+        86
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "slot_index": 0,
+          "links": [
+            27
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "euler"
+      ],
+      "widgets_values_named": {
+        "sampler_name": "euler"
+      }
+    },
+    {
+      "id": 27,
+      "type": "LTXVDualCFGGuider",
+      "pos": [
+        4759.14379685488,
+        -86.93716495132907
+      ],
+      "size": [
+        348.8125,
+        154
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 53,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 22
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 23
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 24
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "slot_index": 0,
+          "links": [
+            26
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVDualCFGGuider",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        1,
+        1
+      ],
+      "widgets_values_named": {
+        "video_cfg": 1,
+        "audio_cfg": 1
+      }
+    },
+    {
+      "id": 28,
+      "type": "SamplerCustomAdvanced",
+      "pos": [
+        5278.098216244021,
+        -206.8824259607149
+      ],
+      "size": [
+        254.9375,
+        642.625
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 61,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise",
+          "type": "NOISE",
+          "link": 25
+        },
+        {
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 26
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 27
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 28
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 229
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            234
+          ]
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "slot_index": 1,
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SamplerCustomAdvanced",
+        "cnr_id": "comfy-core"
+      }
+    },
+    {
+      "id": 32,
+      "type": "CreateVideo",
+      "pos": [
+        6812.1227613175715,
+        -121.81763855662795
+      ],
+      "size": [
+        300,
+        190
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 64,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 71
+        },
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 232
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "slot_index": 0,
+          "links": [
+            199
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateVideo",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        24,
+        8,
+        "sRGB",
+        "none"
+      ],
+      "widgets_values_named": {
+        "fps": 24,
+        "bit_depth": 8,
+        "color_space": "sRGB",
+        "codec": "none"
+      }
+    },
+    {
+      "id": 34,
+      "type": "MiniMaxH3SigmaShift",
+      "pos": [
+        -122.9945157813647,
+        -225.50458122284124
+      ],
+      "size": [
+        300,
+        114
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 52,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 185
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            3,
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3SigmaShift",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        12,
+        3
+      ],
+      "widgets_values_named": {
+        "shift_video": 12,
+        "shift_audio": 3
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 35,
+      "type": "PreviewAny",
+      "pos": [
+        2210.8491927679133,
+        -41.25400914639745
+      ],
+      "size": [
+        225,
+        354.625
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 62,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 39
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 36,
+      "type": "LTXVChunkFeedForward",
+      "pos": [
+        3844.7350998182537,
+        -224.2363311025463
+      ],
+      "size": [
+        334.59375,
+        114
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 48,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 205
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            207
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTXVChunkFeedForward",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        2,
+        4096
+      ],
+      "widgets_values_named": {
+        "chunks": 2,
+        "dim_threshold": 4096
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 38,
+      "type": "LTX2AttentionTunerPatch",
+      "pos": [
+        4211.728231271324,
+        -227.0296673844469
+      ],
+      "size": [
+        330,
+        234
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 51,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 207
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            22
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LTX2AttentionTunerPatch",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "",
+        1,
+        1,
+        1,
+        1,
+        true
+      ],
+      "widgets_values_named": {
+        "blocks": "",
+        "video_scale": 1,
+        "audio_scale": 1,
+        "audio_to_video_scale": 1,
+        "video_to_audio_scale": 1,
+        "triton_kernels": true
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 40,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        -1438.102327498756,
+        -228.2914401524174
+      ],
+      "size": [
+        548.59375,
+        118.1875
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 36,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 44
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            183
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "H3\\加速\\minimax_h3_taomate_3step_lora_avg_rank_19_bf16.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "H3\\加速\\minimax_h3_taomate_3step_lora_avg_rank_19_bf16.safetensors",
+        "strength_model": 1
+      },
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 41,
+      "type": "ModelAttentionBackend",
+      "pos": [
+        -1149.4107594996974,
+        -699.6610903147313
+      ],
+      "size": [
+        311.375,
+        91.59375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 42,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 183
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            66
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelAttentionBackend"
+      },
+      "widgets_values": [
+        "comfy kitchen attention"
+      ],
+      "widgets_values_named": {
+        "attention": "comfy kitchen attention"
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 42,
+      "type": "ResolutionSelector",
+      "pos": [
+        -638.3205086184458,
+        834.7411218079981
+      ],
+      "size": [
+        299.375,
+        214
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 13,
+      "mode": 0,
+      "showAdvanced": true,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            139
+          ]
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            140
+          ]
+        }
+      ],
+      "title": "分辨率选择器1采",
+      "properties": {
+        "Node name for S&R": "ResolutionSelector",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "16:9 (Widescreen)",
+        0.4,
+        32
+      ],
+      "widgets_values_named": {
+        "aspect_ratio": "16:9 (Widescreen)",
+        "megapixels": 0.4,
+        "multiple": 32
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 43,
+      "type": "ResolutionSelector",
+      "pos": [
+        -264.5079741981875,
+        839.2003925052741
+      ],
+      "size": [
+        294.78125,
+        214
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 14,
+      "mode": 0,
+      "showAdvanced": true,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            50
+          ]
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            51
+          ]
+        }
+      ],
+      "title": "分辨率选择器2采",
+      "properties": {
+        "Node name for S&R": "ResolutionSelector",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "16:9 (Widescreen)",
+        1,
+        32
+      ],
+      "widgets_values_named": {
+        "aspect_ratio": "16:9 (Widescreen)",
+        "megapixels": 1,
+        "multiple": 32
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 44,
+      "type": "PrimitiveFloat",
+      "pos": [
+        -893.380918765876,
+        1353.6352085576161
+      ],
+      "size": [
+        270,
+        86
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 15,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": [
+            52
+          ]
+        }
+      ],
+      "title": "秒",
+      "properties": {
+        "Node name for S&R": "PrimitiveFloat",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        10
+      ],
+      "widgets_values_named": {
+        "value": 10
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 45,
+      "type": "ComfyMathExpression",
+      "pos": [
+        -594.0971350630449,
+        1360.1406145192973
+      ],
+      "size": [
+        225,
+        74
+      ],
+      "flags": {
+        "collapsed": true,
+        "pinned": true
+      },
+      "order": 39,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "a",
+          "name": "values.a",
+          "type": "FLOAT,INT,BOOLEAN",
+          "link": 52
+        },
+        {
+          "name": "values.b",
+          "shape": 7,
+          "type": "FLOAT,INT,BOOLEAN",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": []
+        },
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            141,
+            175
+          ]
+        },
+        {
+          "name": "BOOL",
+          "type": "BOOLEAN",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfyMathExpression",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17"
+      ],
+      "widgets_values_named": {
+        "expression": "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17"
+      },
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 50,
+      "type": "MarkdownNote",
+      "pos": [
+        -39.25764665086763,
+        1143.5878465337023
+      ],
+      "size": [
+        270.8608717324682,
+        531.3333114327652
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 16,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Note: Size Settings Reference",
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "| megapixels | Aspect | Output (multiple=32) |\n|---|---|---|\n| 0.2 | 16:9 | 608 x 352 |\n| 0.3 | 16:9 | 736 x 416 |\n| 0.4 | 16:9 | 864 x 480 |\n| 0.5 | 16:9 | 960 x 544 |\n| 0.6 | 16:9 | 1056 x 608 |\n| 0.7 | 16:9 | 1152 x 640 |\n| 0.8 | 16:9 | 1216 x 672 |\n| 0.9 | 16:9 | 1280 x 736 |\n| 0.98 | 16:9 | 1344 x 768 |\n| 1.0 | 16:9 | 1376 x 768 |\n| 1.2 | 16:9 | 1504 x 832 |\n| 1.5 | 16:9 | 1664 x 928 |\n| 1.8 | 16:9 | 1824 x 1024 |\n| 2.0 | 16:9 | 1920 x 1088 |\n"
+      ],
+      "widgets_values_named": {
+        "text": "| megapixels | Aspect | Output (multiple=32) |\n|---|---|---|\n| 0.2 | 16:9 | 608 x 352 |\n| 0.3 | 16:9 | 736 x 416 |\n| 0.4 | 16:9 | 864 x 480 |\n| 0.5 | 16:9 | 960 x 544 |\n| 0.6 | 16:9 | 1056 x 608 |\n| 0.7 | 16:9 | 1152 x 640 |\n| 0.8 | 16:9 | 1216 x 672 |\n| 0.9 | 16:9 | 1280 x 736 |\n| 0.98 | 16:9 | 1344 x 768 |\n| 1.0 | 16:9 | 1376 x 768 |\n| 1.2 | 16:9 | 1504 x 832 |\n| 1.5 | 16:9 | 1664 x 928 |\n| 1.8 | 16:9 | 1824 x 1024 |\n| 2.0 | 16:9 | 1920 x 1088 |\n"
+      },
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 52,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -1191.3972852714492,
+        770.1948390613655
+      ],
+      "size": [
+        529.7969941321837,
+        125.99999290468773
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 40,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "value",
+          "type": "STRING",
+          "widget": {
+            "name": "value"
+          },
+          "link": 251
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            144
+          ]
+        }
+      ],
+      "title": "Input Text (Prompt)",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "subject_definitions:\n<Subject 1> is the elegant middle-aged Chinese woman in <Picture 1>, with a soft oval face, fair warm-toned skin with visible natural texture, softly arched eyebrows, warm brown eyes, a bright open smile, dark hair pulled back into a smooth neat low bun, and a floor-length sleeveless white mandarin-collar qipao, worn with small pearl earrings.\n<Subject 2> is the livestream set-up in [Shot 1]: a small bedroom with a warm beige wall, a neatly made bed behind her with a folded grey blanket, a slim ring light on a stand just off-frame ahead of her, and a small wooden table at the lower right edge of frame holding a plate of plump pink-brown sausages on thin bamboo skewers, a partially opened vacuum pack of sausages, and a steaming cup of tea.\n\nsummary:\n[reference generation] The target video is a ten-second single-take livestream-selling clip in which <Subject 1> sits in her own bedroom facing the camera and pitches sausages to her viewers in a warm, cheerful sales patter, holding one skewered sausage up to the lens and taking a bite on camera while the livestream chat reaction is implied on screen.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1]): fully_preserved - her facial features, the dark neat low bun, the white mandarin-collar qipao, and the small pearl earrings all remain consistent with <Picture 1> for the full ten seconds.\n<Subject 2> (appears in [Shot 1]): fully_preserved - the beige bedroom wall, the made bed with the folded grey blanket, the ring light, and the table with the sausage plate, vacuum pack, and steaming tea cup all remain in place.\n\ndetailed_description:\nThe target video is in a live-action, warm modern livestream style with the soft even frontal light of a ring light on her face, a shallow depth of field keeping her face and the sausages as the sharp focal plane, and a slightly warm consumer-camera color palette.\n[Shot 1] A chest-up medium close-up frames <Subject 1>, the elegant middle-aged Chinese woman whose appearance, hairstyle, and white qipao come from <Picture 1>, seated facing the camera at the centre of the frame inside <Subject 2>, her own small bedroom with a warm beige wall and a made bed behind her. Her face is large and sharply lit by the soft frontal ring light, with the wall soft behind her, and her whole upper body stays still with only light natural movement: her shoulders relax, her head tilts slightly, and her hands gesture near chest height. The camera holds a static shot, keeping the same chest-up framing for the entire ten seconds. She greets the lens with a bright open smile and steady eye contact, and the warm, lively mid-range female voice (S1) says: <d>[Chinese] 家人们，开播啦，今天给你们安排点硬货。</d> Still looking straight into the lens, she reaches to the table at the lower right, picks up one sausage on its bamboo skewer, and lifts it up beside her cheek, turning the skewer slowly so the camera catches the sheen on its casing. <d>[Chinese] 纯肉火腿肠，一口爆汁，谁吃谁知道。</d> She brings the skewer to her lips and takes a small bite on camera, then keeps the bitten sausage lifted near her face as she leans slightly closer to the lens, eyes wide, and the corners of her mouth still turned up. <d>[Chinese] 全是用料，越嚼越香，库存真的不多了。</d> She swallows, holds the sausage up toward the camera, and keeps smiling into the lens as the shot ends. No other speakers; the on-screen comment reaction stays implied and no audible voice is added for it.\n\noverall_soundscape:\nA quiet small-bedroom room tone continues underneath throughout, with a faint hum from the ring light and distant city traffic beyond the closed window. During the tasting moment, the light crisp snap of the sausage casing and soft chewing sounds are clearly audible, and the tea cup gives one small ceramic clink as her hand passes near it on the table.\n\nnon_diegetic_music:\nNo non-diegetic score; the only music is a soft, bouncy livestream-style background loop playing quietly from her own setup, with its faint kick pattern and light synth plucks low in the mix and never rising above her voice."
+      ],
+      "widgets_values_named": {
+        "value": "subject_definitions:\n<Subject 1> is the elegant middle-aged Chinese woman in <Picture 1>, with a soft oval face, fair warm-toned skin with visible natural texture, softly arched eyebrows, warm brown eyes, a bright open smile, dark hair pulled back into a smooth neat low bun, and a floor-length sleeveless white mandarin-collar qipao, worn with small pearl earrings.\n<Subject 2> is the livestream set-up in [Shot 1]: a small bedroom with a warm beige wall, a neatly made bed behind her with a folded grey blanket, a slim ring light on a stand just off-frame ahead of her, and a small wooden table at the lower right edge of frame holding a plate of plump pink-brown sausages on thin bamboo skewers, a partially opened vacuum pack of sausages, and a steaming cup of tea.\n\nsummary:\n[reference generation] The target video is a ten-second single-take livestream-selling clip in which <Subject 1> sits in her own bedroom facing the camera and pitches sausages to her viewers in a warm, cheerful sales patter, holding one skewered sausage up to the lens and taking a bite on camera while the livestream chat reaction is implied on screen.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1]): fully_preserved - her facial features, the dark neat low bun, the white mandarin-collar qipao, and the small pearl earrings all remain consistent with <Picture 1> for the full ten seconds.\n<Subject 2> (appears in [Shot 1]): fully_preserved - the beige bedroom wall, the made bed with the folded grey blanket, the ring light, and the table with the sausage plate, vacuum pack, and steaming tea cup all remain in place.\n\ndetailed_description:\nThe target video is in a live-action, warm modern livestream style with the soft even frontal light of a ring light on her face, a shallow depth of field keeping her face and the sausages as the sharp focal plane, and a slightly warm consumer-camera color palette.\n[Shot 1] A chest-up medium close-up frames <Subject 1>, the elegant middle-aged Chinese woman whose appearance, hairstyle, and white qipao come from <Picture 1>, seated facing the camera at the centre of the frame inside <Subject 2>, her own small bedroom with a warm beige wall and a made bed behind her. Her face is large and sharply lit by the soft frontal ring light, with the wall soft behind her, and her whole upper body stays still with only light natural movement: her shoulders relax, her head tilts slightly, and her hands gesture near chest height. The camera holds a static shot, keeping the same chest-up framing for the entire ten seconds. She greets the lens with a bright open smile and steady eye contact, and the warm, lively mid-range female voice (S1) says: <d>[Chinese] 家人们，开播啦，今天给你们安排点硬货。</d> Still looking straight into the lens, she reaches to the table at the lower right, picks up one sausage on its bamboo skewer, and lifts it up beside her cheek, turning the skewer slowly so the camera catches the sheen on its casing. <d>[Chinese] 纯肉火腿肠，一口爆汁，谁吃谁知道。</d> She brings the skewer to her lips and takes a small bite on camera, then keeps the bitten sausage lifted near her face as she leans slightly closer to the lens, eyes wide, and the corners of her mouth still turned up. <d>[Chinese] 全是用料，越嚼越香，库存真的不多了。</d> She swallows, holds the sausage up toward the camera, and keeps smiling into the lens as the shot ends. No other speakers; the on-screen comment reaction stays implied and no audible voice is added for it.\n\noverall_soundscape:\nA quiet small-bedroom room tone continues underneath throughout, with a faint hum from the ring light and distant city traffic beyond the closed window. During the tasting moment, the light crisp snap of the sausage casing and soft chewing sounds are clearly audible, and the tea cup gives one small ceramic clink as her hand passes near it on the table.\n\nnon_diegetic_music:\nNo non-diegetic score; the only music is a soft, bouncy livestream-style background loop playing quietly from her own setup, with its faint kick pattern and light synth plucks low in the mix and never rising above her voice."
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 60,
+      "type": "BlockSparseAttention",
+      "pos": [
+        -811.4820405013612,
+        -704.9876819808538
+      ],
+      "size": [
+        307.59375,
+        318
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 47,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 66
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            184
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BlockSparseAttention"
+      },
+      "widgets_values": [
+        "sol-attn",
+        1.3,
+        0.2,
+        1,
+        "",
+        12288,
+        256,
+        "exact_kv_and_rows",
+        true
+      ],
+      "widgets_values_named": {
+        "selection": "sol-attn",
+        "selection.tau": 1.3,
+        "start_percent": 0.2,
+        "end_percent": 1,
+        "dense_blocks": "",
+        "min_tokens": 12288,
+        "extra_tokens": 256,
+        "sink_conditioning": "exact_kv_and_rows",
+        "verbose": true
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 61,
+      "type": "VAEDecode",
+      "pos": [
+        6425.32783056115,
+        -169.14784495171818
+      ],
+      "size": [
+        254.25,
+        104.78125
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 63,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 234
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 70
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            71
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 117,
+      "type": "MiniMaxH3ReferenceToVideo",
+      "pos": [
+        -264.7144119045115,
+        127.01132349182805
+      ],
+      "size": [
+        400,
+        404
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 46,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 136
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 138
+        },
+        {
+          "name": "audio_vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 177
+        },
+        {
+          "name": "ref_images.ref_image_0",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 145
+        },
+        {
+          "name": "ref_images.ref_image_1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 146
+        },
+        {
+          "name": "ref_images.ref_image_2",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "ref_videos.ref_video_0",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "ref_video_audios.ref_video_audio_0",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "ref_audios.ref_audio_0",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "ref_audios.ref_audio_1",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "ref_audios.ref_audio_2",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": 144
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": 139
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": 140
+        },
+        {
+          "name": "length",
+          "type": "INT",
+          "widget": {
+            "name": "length"
+          },
+          "link": 141
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            142
+          ]
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            143
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3ReferenceToVideo"
+      },
+      "widgets_values": [
+        "",
+        1344,
+        768,
+        124,
+        "match"
+      ],
+      "widgets_values_named": {
+        "prompt": "",
+        "width": 1344,
+        "height": 768,
+        "length": 124,
+        "ref_image_size": "match"
+      }
+    },
+    {
+      "id": 118,
+      "type": "LoadImage",
+      "pos": [
+        -1930.5641916050263,
+        719.4298819737304
+      ],
+      "size": [
+        294.1845471254594,
+        345.99999276173105
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 17,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            145
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "Krea2_turbo_00036_.png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "Krea2_turbo_00036_.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 119,
+      "type": "LoadImage",
+      "pos": [
+        -1609.578429001676,
+        738.8864345737836
+      ],
+      "size": [
+        302.3556261896801,
+        355.23275678439865
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 18,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            146
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "Qwen-2512-2steps-LoRA_00047_.png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "Qwen-2512-2steps-LoRA_00047_.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 132,
+      "type": "PreviewAny",
+      "pos": [
+        -316.57673498998986,
+        1330.8373484971796
+      ],
+      "size": [
+        225,
+        162
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 45,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 175
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 134,
+      "type": "MiniMaxChunkFeedForward",
+      "pos": [
+        -446.3495701373601,
+        -680.9262973003797
+      ],
+      "size": [
+        381.0625,
+        114
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 50,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 184
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            185
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxChunkFeedForward",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        2,
+        4096
+      ],
+      "widgets_values_named": {
+        "chunks": 2,
+        "seq_threshold": 4096
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 137,
+      "type": "Note",
+      "pos": [
+        -2045.7962344445273,
+        2490.1115112878797
+      ],
+      "size": [
+        225,
+        106
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 19,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "白色旗袍女与落魄男"
+      ],
+      "widgets_values_named": {
+        "text": "白色旗袍女与落魄男"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 138,
+      "type": "Note",
+      "pos": [
+        -2032.02888568742,
+        1998.9090913029945
+      ],
+      "size": [
+        225,
+        106
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 20,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "单图旗袍女卖火腿肠"
+      ],
+      "widgets_values_named": {
+        "text": "单图旗袍女卖火腿肠"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 141,
+      "type": "Note",
+      "pos": [
+        -2045.5608541998113,
+        2937.2112198300724
+      ],
+      "size": [
+        225,
+        106.00003010435432
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 21,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "白衫女"
+      ],
+      "widgets_values_named": {
+        "text": "白衫女"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 149,
+      "type": "Note",
+      "pos": [
+        4763.53188034425,
+        384.6078697577768
+      ],
+      "size": [
+        329,
+        155.9375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 22,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "社区调优0.78, 0.725, 0.421875, 0.0\n官方修正0.85, 0.7250, 0.4219, 0.0"
+      ],
+      "widgets_values_named": {
+        "text": "社区调优0.78, 0.725, 0.421875, 0.0\n官方修正0.85, 0.7250, 0.4219, 0.0"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 160,
+      "type": "SaveVideo",
+      "pos": [
+        7162.101151505981,
+        -201.16007100539758
+      ],
+      "size": [
+        613.7949660544044,
+        924.8708984445784
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 65,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 199
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": [
+            249
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveVideo"
+      },
+      "widgets_values": [
+        "video/ComfyUI",
+        "auto",
+        "auto"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "video/ComfyUI",
+        "format": "auto",
+        "format.codec": "auto"
+      }
+    },
+    {
+      "id": 161,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        3521.425375387767,
+        526.1779426774214
+      ],
+      "size": [
+        225,
+        58
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 44,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 202
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            200
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningZeroOut"
+      }
+    },
+    {
+      "id": 163,
+      "type": "CLIPTextEncode",
+      "pos": [
+        3245.853583133111,
+        544.4890449151109
+      ],
+      "size": [
+        225,
+        34
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 38,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 201
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            202
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "text": ""
+      }
+    },
+    {
+      "id": 164,
+      "type": "ModelAttentionBackend",
+      "pos": [
+        3139.675762563847,
+        -221.46879093759776
+      ],
+      "size": [
+        311.375,
+        91.59375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 37,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 203
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            204
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelAttentionBackend"
+      },
+      "widgets_values": [
+        "comfy kitchen attention"
+      ],
+      "widgets_values_named": {
+        "attention": "comfy kitchen attention"
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 165,
+      "type": "BlockSparseAttention",
+      "pos": [
+        3486.622802988738,
+        -223.90511935453742
+      ],
+      "size": [
+        307.59375,
+        318
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 43,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 204
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            205
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BlockSparseAttention"
+      },
+      "widgets_values": [
+        "sol-attn",
+        1.3,
+        0.2,
+        1,
+        "",
+        12288,
+        256,
+        "exact_kv_and_rows",
+        true
+      ],
+      "widgets_values_named": {
+        "selection": "sol-attn",
+        "selection.tau": 1.3,
+        "start_percent": 0.2,
+        "end_percent": 1,
+        "dense_blocks": "",
+        "min_tokens": 12288,
+        "extra_tokens": 256,
+        "sink_conditioning": "exact_kv_and_rows",
+        "verbose": true
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 172,
+      "type": "XHLabel",
+      "pos": [
+        2558.0360618800505,
+        -503.78461957407717
+      ],
+      "size": [
+        532.7775289009315,
+        181.99999179558827
+      ],
+      "flags": {
+        "showTitle": false,
+        "pinned": true
+      },
+      "order": 23,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "极速版",
+      "properties": {
+        "Node name for S&R": "XHLabel",
+        "text": "精修提示词写法（简陋版）<div><span style=\"background-color: transparent;\">①空着</span></div><div><span style=\"background-color: transparent;\">②把H3的提示词丢给AI转换成ltx2.5格式</span></div>",
+        "fontSize": 22,
+        "fontColor": "#ffffff",
+        "bgColor": "transparent",
+        "align": "center",
+        "fontFamily": "Arial",
+        "fontWeight": "bold",
+        "lang": "zh",
+        "hideTitle": true
+      },
+      "widgets_values": [
+        {
+          "text": "精修提示词写法（简陋版）<div><span style=\"background-color: transparent;\">①空着</span></div><div><span style=\"background-color: transparent;\">②把H3的提示词丢给AI转换成ltx2.5格式</span></div>",
+          "fontSize": 22,
+          "fontColor": "#ffffff",
+          "bgColor": "transparent",
+          "align": "center",
+          "fontFamily": "Arial",
+          "fontWeight": "bold",
+          "lang": "zh",
+          "hideTitle": true,
+          "nodeColor": null,
+          "compact": false
+        }
+      ],
+      "widgets_values_named": {
+        "label": {
+          "text": "精修提示词写法（简陋版）<div><span style=\"background-color: transparent;\">①空着</span></div><div><span style=\"background-color: transparent;\">②把H3的提示词丢给AI转换成ltx2.5格式</span></div>",
+          "fontSize": 22,
+          "fontColor": "#ffffff",
+          "bgColor": "transparent",
+          "align": "center",
+          "fontFamily": "Arial",
+          "fontWeight": "bold",
+          "lang": "zh",
+          "hideTitle": true,
+          "nodeColor": null,
+          "compact": false
+        }
+      },
+      "color": "transparent",
+      "bgcolor": "transparent"
+    },
+    {
+      "id": 173,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -1794.760016169087,
+        1909.9640834701067
+      ],
+      "size": [
+        544.6875,
+        391.75
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 24,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            251
+          ]
+        }
+      ],
+      "title": "H3",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "subject_definitions:\n<Subject 1> is the elegant middle-aged Chinese woman in <Picture 1>, with a soft oval face, fair warm-toned skin with visible natural texture, softly arched eyebrows, warm brown eyes, a bright open smile, dark hair pulled back into a smooth neat low bun, and a floor-length sleeveless white mandarin-collar qipao, worn with small pearl earrings.\n<Subject 2> is the livestream set-up in [Shot 1]: a small bedroom with a warm beige wall, a neatly made bed behind her with a folded grey blanket, a slim ring light on a stand just off-frame ahead of her, and a small wooden table at the lower right edge of frame holding a plate of plump pink-brown sausages on thin bamboo skewers, a partially opened vacuum pack of sausages, and a steaming cup of tea.\n\nsummary:\n[reference generation] The target video is a ten-second single-take livestream-selling clip in which <Subject 1> sits in her own bedroom facing the camera and pitches sausages to her viewers in a warm, cheerful sales patter, holding one skewered sausage up to the lens and taking a bite on camera while the livestream chat reaction is implied on screen.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1]): fully_preserved - her facial features, the dark neat low bun, the white mandarin-collar qipao, and the small pearl earrings all remain consistent with <Picture 1> for the full ten seconds.\n<Subject 2> (appears in [Shot 1]): fully_preserved - the beige bedroom wall, the made bed with the folded grey blanket, the ring light, and the table with the sausage plate, vacuum pack, and steaming tea cup all remain in place.\n\ndetailed_description:\nThe target video is in a live-action, warm modern livestream style with the soft even frontal light of a ring light on her face, a shallow depth of field keeping her face and the sausages as the sharp focal plane, and a slightly warm consumer-camera color palette.\n[Shot 1] A chest-up medium close-up frames <Subject 1>, the elegant middle-aged Chinese woman whose appearance, hairstyle, and white qipao come from <Picture 1>, seated facing the camera at the centre of the frame inside <Subject 2>, her own small bedroom with a warm beige wall and a made bed behind her. Her face is large and sharply lit by the soft frontal ring light, with the wall soft behind her, and her whole upper body stays still with only light natural movement: her shoulders relax, her head tilts slightly, and her hands gesture near chest height. The camera holds a static shot, keeping the same chest-up framing for the entire ten seconds. She greets the lens with a bright open smile and steady eye contact, and the warm, lively mid-range female voice (S1) says: <d>[Chinese] 家人们，开播啦，今天给你们安排点硬货。</d> Still looking straight into the lens, she reaches to the table at the lower right, picks up one sausage on its bamboo skewer, and lifts it up beside her cheek, turning the skewer slowly so the camera catches the sheen on its casing. <d>[Chinese] 纯肉火腿肠，一口爆汁，谁吃谁知道。</d> She brings the skewer to her lips and takes a small bite on camera, then keeps the bitten sausage lifted near her face as she leans slightly closer to the lens, eyes wide, and the corners of her mouth still turned up. <d>[Chinese] 全是用料，越嚼越香，库存真的不多了。</d> She swallows, holds the sausage up toward the camera, and keeps smiling into the lens as the shot ends. No other speakers; the on-screen comment reaction stays implied and no audible voice is added for it.\n\noverall_soundscape:\nA quiet small-bedroom room tone continues underneath throughout, with a faint hum from the ring light and distant city traffic beyond the closed window. During the tasting moment, the light crisp snap of the sausage casing and soft chewing sounds are clearly audible, and the tea cup gives one small ceramic clink as her hand passes near it on the table.\n\nnon_diegetic_music:\nNo non-diegetic score; the only music is a soft, bouncy livestream-style background loop playing quietly from her own setup, with its faint kick pattern and light synth plucks low in the mix and never rising above her voice."
+      ],
+      "widgets_values_named": {
+        "value": "subject_definitions:\n<Subject 1> is the elegant middle-aged Chinese woman in <Picture 1>, with a soft oval face, fair warm-toned skin with visible natural texture, softly arched eyebrows, warm brown eyes, a bright open smile, dark hair pulled back into a smooth neat low bun, and a floor-length sleeveless white mandarin-collar qipao, worn with small pearl earrings.\n<Subject 2> is the livestream set-up in [Shot 1]: a small bedroom with a warm beige wall, a neatly made bed behind her with a folded grey blanket, a slim ring light on a stand just off-frame ahead of her, and a small wooden table at the lower right edge of frame holding a plate of plump pink-brown sausages on thin bamboo skewers, a partially opened vacuum pack of sausages, and a steaming cup of tea.\n\nsummary:\n[reference generation] The target video is a ten-second single-take livestream-selling clip in which <Subject 1> sits in her own bedroom facing the camera and pitches sausages to her viewers in a warm, cheerful sales patter, holding one skewered sausage up to the lens and taking a bite on camera while the livestream chat reaction is implied on screen.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1]): fully_preserved - her facial features, the dark neat low bun, the white mandarin-collar qipao, and the small pearl earrings all remain consistent with <Picture 1> for the full ten seconds.\n<Subject 2> (appears in [Shot 1]): fully_preserved - the beige bedroom wall, the made bed with the folded grey blanket, the ring light, and the table with the sausage plate, vacuum pack, and steaming tea cup all remain in place.\n\ndetailed_description:\nThe target video is in a live-action, warm modern livestream style with the soft even frontal light of a ring light on her face, a shallow depth of field keeping her face and the sausages as the sharp focal plane, and a slightly warm consumer-camera color palette.\n[Shot 1] A chest-up medium close-up frames <Subject 1>, the elegant middle-aged Chinese woman whose appearance, hairstyle, and white qipao come from <Picture 1>, seated facing the camera at the centre of the frame inside <Subject 2>, her own small bedroom with a warm beige wall and a made bed behind her. Her face is large and sharply lit by the soft frontal ring light, with the wall soft behind her, and her whole upper body stays still with only light natural movement: her shoulders relax, her head tilts slightly, and her hands gesture near chest height. The camera holds a static shot, keeping the same chest-up framing for the entire ten seconds. She greets the lens with a bright open smile and steady eye contact, and the warm, lively mid-range female voice (S1) says: <d>[Chinese] 家人们，开播啦，今天给你们安排点硬货。</d> Still looking straight into the lens, she reaches to the table at the lower right, picks up one sausage on its bamboo skewer, and lifts it up beside her cheek, turning the skewer slowly so the camera catches the sheen on its casing. <d>[Chinese] 纯肉火腿肠，一口爆汁，谁吃谁知道。</d> She brings the skewer to her lips and takes a small bite on camera, then keeps the bitten sausage lifted near her face as she leans slightly closer to the lens, eyes wide, and the corners of her mouth still turned up. <d>[Chinese] 全是用料，越嚼越香，库存真的不多了。</d> She swallows, holds the sausage up toward the camera, and keeps smiling into the lens as the shot ends. No other speakers; the on-screen comment reaction stays implied and no audible voice is added for it.\n\noverall_soundscape:\nA quiet small-bedroom room tone continues underneath throughout, with a faint hum from the ring light and distant city traffic beyond the closed window. During the tasting moment, the light crisp snap of the sausage casing and soft chewing sounds are clearly audible, and the tea cup gives one small ceramic clink as her hand passes near it on the table.\n\nnon_diegetic_music:\nNo non-diegetic score; the only music is a soft, bouncy livestream-style background loop playing quietly from her own setup, with its faint kick pattern and light synth plucks low in the mix and never rising above her voice."
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 174,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -1206.1928699647583,
+        1918.6756248950346
+      ],
+      "size": [
+        516.9891673981746,
+        383.8362186208688
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 25,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            252
+          ]
+        }
+      ],
+      "title": "LTX2.5精修",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "This ten-second clip is a warm modern livestream recording in live action: the soft even frontal light of a ring light on her face, a shallow depth of field that keeps her face and the sausages as the sharp focal plane, and a slightly warm consumer-camera colour palette, with the camera locked off at the same chest-up medium close-up framing for the entire ten seconds and the room behind her held soft.\n\nThe woman is an elegant middle-aged Chinese woman seated facing the camera at the centre of the frame: a soft oval face, fair warm-toned skin with visible natural texture, softly arched eyebrows, warm brown eyes, a bright open smile, dark hair pulled back into a smooth neat low bun, a floor-length sleeveless white mandarin-collar qipao, and small pearl earrings.\n\nShe sits inside her own small bedroom, which has a warm beige wall and a neatly made bed behind her with a folded grey blanket; a slim ring light stands on a stand just off-frame ahead of her, and a small wooden table sits at the lower right edge of frame holding a plate of plump pink-brown sausages on thin bamboo skewers, a partially opened vacuum pack of sausages, and a steaming cup of tea. The bedroom wall, the bed, the ring light, the table and everything on it remain stationary throughout.\n\nHer face is large in frame and sharply lit by the soft frontal ring light, and her whole upper body stays still with only light natural movement — her shoulders relax, her head tilts slightly, and her hands gesture near chest height. She greets the lens with a bright open smile and steady eye contact and speaks in Chinese in a warm, lively mid-range female voice: \"家人们，开播啦，今天给你们安排点硬货。\" Still looking straight into the lens, a beat later she reaches to the table at the lower right, picks up one sausage on its bamboo skewer, and lifts it up beside her cheek, turning the skewer slowly so the camera catches the sheen on its casing. She speaks in Chinese in the same warm, lively voice: \"纯肉火腿肠，一口爆汁，谁吃谁知道。\" A moment later she brings the skewer to her lips and takes a small bite on camera, then keeps the bitten sausage lifted near her face as she leans slightly closer to the lens, eyes wide and the corners of her mouth still turned up. She speaks in Chinese in the same warm, lively voice: \"全是用料，越嚼越香，库存真的不多了。\" She swallows, holds the sausage up toward the camera, and keeps smiling into the lens as the shot ends. She is the only speaker in the clip, and the on-screen comment reaction stays implied and silent with no other voice added.\n\nAudio: a quiet small-bedroom room tone continues underneath throughout, with a faint hum from the ring light and distant city traffic beyond the closed window; through the tasting moment the light crisp snap of the sausage casing and soft chewing are clearly audible, and the tea cup gives one small ceramic clink as her hand passes near it on the table. There is no non-diegetic score — the only music is a soft, bouncy livestream-style background loop playing quietly from her own setup, its faint kick pattern and light synth plucks sitting low in the mix and never rising above her voice. Live-action locked-off camera, soft frontal ring-light key, shallow depth of field, warm consumer-camera grading, no stylised rendering."
+      ],
+      "widgets_values_named": {
+        "value": "This ten-second clip is a warm modern livestream recording in live action: the soft even frontal light of a ring light on her face, a shallow depth of field that keeps her face and the sausages as the sharp focal plane, and a slightly warm consumer-camera colour palette, with the camera locked off at the same chest-up medium close-up framing for the entire ten seconds and the room behind her held soft.\n\nThe woman is an elegant middle-aged Chinese woman seated facing the camera at the centre of the frame: a soft oval face, fair warm-toned skin with visible natural texture, softly arched eyebrows, warm brown eyes, a bright open smile, dark hair pulled back into a smooth neat low bun, a floor-length sleeveless white mandarin-collar qipao, and small pearl earrings.\n\nShe sits inside her own small bedroom, which has a warm beige wall and a neatly made bed behind her with a folded grey blanket; a slim ring light stands on a stand just off-frame ahead of her, and a small wooden table sits at the lower right edge of frame holding a plate of plump pink-brown sausages on thin bamboo skewers, a partially opened vacuum pack of sausages, and a steaming cup of tea. The bedroom wall, the bed, the ring light, the table and everything on it remain stationary throughout.\n\nHer face is large in frame and sharply lit by the soft frontal ring light, and her whole upper body stays still with only light natural movement — her shoulders relax, her head tilts slightly, and her hands gesture near chest height. She greets the lens with a bright open smile and steady eye contact and speaks in Chinese in a warm, lively mid-range female voice: \"家人们，开播啦，今天给你们安排点硬货。\" Still looking straight into the lens, a beat later she reaches to the table at the lower right, picks up one sausage on its bamboo skewer, and lifts it up beside her cheek, turning the skewer slowly so the camera catches the sheen on its casing. She speaks in Chinese in the same warm, lively voice: \"纯肉火腿肠，一口爆汁，谁吃谁知道。\" A moment later she brings the skewer to her lips and takes a small bite on camera, then keeps the bitten sausage lifted near her face as she leans slightly closer to the lens, eyes wide and the corners of her mouth still turned up. She speaks in Chinese in the same warm, lively voice: \"全是用料，越嚼越香，库存真的不多了。\" She swallows, holds the sausage up toward the camera, and keeps smiling into the lens as the shot ends. She is the only speaker in the clip, and the on-screen comment reaction stays implied and silent with no other voice added.\n\nAudio: a quiet small-bedroom room tone continues underneath throughout, with a faint hum from the ring light and distant city traffic beyond the closed window; through the tasting moment the light crisp snap of the sausage casing and soft chewing are clearly audible, and the tea cup gives one small ceramic clink as her hand passes near it on the table. There is no non-diegetic score — the only music is a soft, bouncy livestream-style background loop playing quietly from her own setup, its faint kick pattern and light synth plucks sitting low in the mix and never rising above her voice. Live-action locked-off camera, soft frontal ring-light key, shallow depth of field, warm consumer-camera grading, no stylised rendering."
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 175,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -1789.4297118398567,
+        2381.4035567575
+      ],
+      "size": [
+        544.6875,
+        391.75
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 26,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "title": "H3",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "subject_definitions:\n<Subject 1> is the elegant middle-aged Chinese woman in <Picture 1>, with a soft oval face, fair warm-toned skin with visible natural texture, softly arched eyebrows, warm brown eyes, dark hair pulled back into a smooth neat low bun, a floor-length sleeveless white mandarin-collar qipao with a small silver brooch pinned at the collar, small pearl earrings, and a pair of red high-heeled shoes.\n<Subject 2> is the young man in <Picture 2>, with messy black hair falling over his brow, light stubble along his jaw and upper lip, dark brown eyes, a soiled and worn grey short-sleeved cotton t-shirt with a frayed and torn hem, blue jeans ripped open at both knees, and scuffed dark-brown shoes.\n\nsummary:\n[reference generation] The target video is a ten-second two-character confrontation inside a run-down rented room: <Subject 1>, dressed up and waiting on the bed, accuses <Subject 2> of keeping her waiting for two hours, and <Subject 2> answers her by breaking up with her over her age. Both characters are generated from their own reference images, and each speaks one line of Chinese dialogue.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1], [Shot 3]): fully_preserved - the soft oval face, fair warm-toned skin with visible natural texture, softly arched eyebrows, warm brown eyes, dark neat low bun, floor-length sleeveless white mandarin-collar qipao with the small silver collar brooch, small pearl earrings, and red high-heeled shoes are retained.\n<Subject 2> (appears in [Shot 2], [Shot 3]): fully_preserved - the messy black hair falling over the brow, light stubble along the jaw and upper lip, dark brown eyes, soiled grey t-shirt with a frayed and torn hem, knee-ripped blue jeans, and scuffed dark-brown shoes are retained.\n\ndetailed_description:\nThe target video is in the realistic, slightly gritty visual style of a Chinese short-drama episode: dim practical lighting, stained and peeling walls, and a muted cool-leaning color palette, with every face kept clearly lit against the shadowed room.\n[Shot 1] A chest-up medium close-up frames <Subject 1>, the elegant middle-aged Chinese woman whose appearance and white qipao come from <Picture 1>: a soft oval face, fair warm-toned skin with visible natural texture, softly arched eyebrows, warm brown eyes, dark hair in a smooth neat low bun, a floor-length sleeveless white mandarin-collar qipao with a small silver brooch at the collar, and small pearl earrings. She sits on the edge of a bare mattress in a cramped, run-down rented room, her hands folded in her lap, and only she is in frame. Behind her the wall is stained and peeling, a single bare bulb hangs overhead, and a battered wooden stool and a cardboard box of clothes sit out of focus. Her face stays fully lit by the bulb above her. The camera pushes in slowly, and only after the push settles does she lift her head toward the doorway, off-screen to her left. <Subject 1> (S1) speaks in a hoarse, unsteady middle-aged female voice at a slow, halting pace, <d>[Chinese] 我，我在这里等你两个小时了，你怎么才来？</d> Her eyes redden and glisten on the last words, and she closes her lips.\n[Shot 2] At 00:05.000, the shot cuts to a chest-up medium close-up of <Subject 2>, the young man whose appearance comes from <Picture 2>: messy black hair falling over his brow, light stubble along his jaw and upper lip, dark brown eyes, a soiled and worn grey short-sleeved cotton t-shirt with a frayed and torn hem, and blue jeans ripped open at both knees. He stands just inside the open doorway a few paces from her, and only he is in frame. The scuffed doorframe and the grey-green wall behind him fall soft, and daylight from the corridor cuts across his face, keeping it fully lit. <Subject 2> (S2) looks down toward her, off-screen to his right, and answers in a flat, dismissive young male voice with a slow, deliberate delivery, <d>[Chinese] 你年龄太大了，我们分手吧。</d> His jaw sets, he looks away past the camera, and he closes his lips.\n[Shot 3] At 00:08.000, the shot cuts to a tight over-the-shoulder two-shot: the back of <Subject 2>'s head and his near shoulder fill the lower-left foreground, close to the lens and out of focus, and <Subject 1> sits on the mattress in the mid-ground facing camera-left toward him, her face still large and fully lit by the bulb above her. Neither of them speaks. <Subject 1> holds her gaze up at him for a long beat, and her expression collapses: her lips part, then press together and tremble as her eyes fill and redden, and she drops her gaze to her lap and pulls her hands together in the folds of the white qipao. She holds still through the final frame, and the camera stays locked off.\n\noverall_soundscape:\nA hollow, cramped rented-room ambience runs through the whole video: the faint buzz of the single bare bulb, a distant dripping tap, muffled street traffic through a single-pane window, and the low creak of the old bed frame under her shifting weight. At the end of [Shot 1], off-screen, the door hinge gives one short dry creak as it swings open.\n\nnon_diegetic_music:\nA sparse, brooding string-and-piano cue at a slow tempo. It enters quietly beneath the push-in on <Subject 1>, adds a low sustained cello swell on the cut to <Subject 2>, and thins to a single held piano note through the silent final shot."
+      ],
+      "widgets_values_named": {
+        "value": "subject_definitions:\n<Subject 1> is the elegant middle-aged Chinese woman in <Picture 1>, with a soft oval face, fair warm-toned skin with visible natural texture, softly arched eyebrows, warm brown eyes, dark hair pulled back into a smooth neat low bun, a floor-length sleeveless white mandarin-collar qipao with a small silver brooch pinned at the collar, small pearl earrings, and a pair of red high-heeled shoes.\n<Subject 2> is the young man in <Picture 2>, with messy black hair falling over his brow, light stubble along his jaw and upper lip, dark brown eyes, a soiled and worn grey short-sleeved cotton t-shirt with a frayed and torn hem, blue jeans ripped open at both knees, and scuffed dark-brown shoes.\n\nsummary:\n[reference generation] The target video is a ten-second two-character confrontation inside a run-down rented room: <Subject 1>, dressed up and waiting on the bed, accuses <Subject 2> of keeping her waiting for two hours, and <Subject 2> answers her by breaking up with her over her age. Both characters are generated from their own reference images, and each speaks one line of Chinese dialogue.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1], [Shot 3]): fully_preserved - the soft oval face, fair warm-toned skin with visible natural texture, softly arched eyebrows, warm brown eyes, dark neat low bun, floor-length sleeveless white mandarin-collar qipao with the small silver collar brooch, small pearl earrings, and red high-heeled shoes are retained.\n<Subject 2> (appears in [Shot 2], [Shot 3]): fully_preserved - the messy black hair falling over the brow, light stubble along the jaw and upper lip, dark brown eyes, soiled grey t-shirt with a frayed and torn hem, knee-ripped blue jeans, and scuffed dark-brown shoes are retained.\n\ndetailed_description:\nThe target video is in the realistic, slightly gritty visual style of a Chinese short-drama episode: dim practical lighting, stained and peeling walls, and a muted cool-leaning color palette, with every face kept clearly lit against the shadowed room.\n[Shot 1] A chest-up medium close-up frames <Subject 1>, the elegant middle-aged Chinese woman whose appearance and white qipao come from <Picture 1>: a soft oval face, fair warm-toned skin with visible natural texture, softly arched eyebrows, warm brown eyes, dark hair in a smooth neat low bun, a floor-length sleeveless white mandarin-collar qipao with a small silver brooch at the collar, and small pearl earrings. She sits on the edge of a bare mattress in a cramped, run-down rented room, her hands folded in her lap, and only she is in frame. Behind her the wall is stained and peeling, a single bare bulb hangs overhead, and a battered wooden stool and a cardboard box of clothes sit out of focus. Her face stays fully lit by the bulb above her. The camera pushes in slowly, and only after the push settles does she lift her head toward the doorway, off-screen to her left. <Subject 1> (S1) speaks in a hoarse, unsteady middle-aged female voice at a slow, halting pace, <d>[Chinese] 我，我在这里等你两个小时了，你怎么才来？</d> Her eyes redden and glisten on the last words, and she closes her lips.\n[Shot 2] At 00:05.000, the shot cuts to a chest-up medium close-up of <Subject 2>, the young man whose appearance comes from <Picture 2>: messy black hair falling over his brow, light stubble along his jaw and upper lip, dark brown eyes, a soiled and worn grey short-sleeved cotton t-shirt with a frayed and torn hem, and blue jeans ripped open at both knees. He stands just inside the open doorway a few paces from her, and only he is in frame. The scuffed doorframe and the grey-green wall behind him fall soft, and daylight from the corridor cuts across his face, keeping it fully lit. <Subject 2> (S2) looks down toward her, off-screen to his right, and answers in a flat, dismissive young male voice with a slow, deliberate delivery, <d>[Chinese] 你年龄太大了，我们分手吧。</d> His jaw sets, he looks away past the camera, and he closes his lips.\n[Shot 3] At 00:08.000, the shot cuts to a tight over-the-shoulder two-shot: the back of <Subject 2>'s head and his near shoulder fill the lower-left foreground, close to the lens and out of focus, and <Subject 1> sits on the mattress in the mid-ground facing camera-left toward him, her face still large and fully lit by the bulb above her. Neither of them speaks. <Subject 1> holds her gaze up at him for a long beat, and her expression collapses: her lips part, then press together and tremble as her eyes fill and redden, and she drops her gaze to her lap and pulls her hands together in the folds of the white qipao. She holds still through the final frame, and the camera stays locked off.\n\noverall_soundscape:\nA hollow, cramped rented-room ambience runs through the whole video: the faint buzz of the single bare bulb, a distant dripping tap, muffled street traffic through a single-pane window, and the low creak of the old bed frame under her shifting weight. At the end of [Shot 1], off-screen, the door hinge gives one short dry creak as it swings open.\n\nnon_diegetic_music:\nA sparse, brooding string-and-piano cue at a slow tempo. It enters quietly beneath the push-in on <Subject 1>, adds a low sustained cello swell on the cut to <Subject 2>, and thins to a single held piano note through the silent final shot."
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 176,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -1210.1455784766392,
+        2376.8447224631536
+      ],
+      "size": [
+        544.6875,
+        391.75
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 27,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "title": "ltx2.5精修",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "The target video is a ten-second three-shot sequence in the realistic, slightly gritty visual style of a Chinese short-drama episode: dim practical lighting from a single bare bulb, stained and peeling walls, a muted cool-leaning color palette, and every face kept clearly lit against the shadowed room. The setting is a cramped, run-down rented room, with the woman seated on the bare mattress at camera-right and the open doorway off-screen to camera-left.\n\nThe woman is an elegant middle-aged Chinese woman with a soft oval face, fair warm-toned skin with visible natural texture, softly arched eyebrows, and warm brown eyes; her dark hair is pulled back into a smooth neat low bun. She wears a floor-length sleeveless white mandarin-collar qipao with a small silver brooch pinned at the collar, small pearl earrings, and a pair of red high-heeled shoes. She sits with her hands folded in her lap.\n\nThe young man has messy black hair falling over his brow, light stubble along his jaw and upper lip, and dark brown eyes. He wears a soiled and worn grey short-sleeved cotton t-shirt with a frayed and torn hem, blue jeans ripped open at both knees, and scuffed dark-brown shoes.\n\nBehind the woman the wall is stained and peeling and a single bare bulb hangs overhead; a battered wooden stool and a cardboard box of clothes sit in the background, out of focus. The mattress, the wall, the bulb, the stool, the cardboard box, the scuffed doorframe and the single-pane window all remain stationary throughout.\n\nThe video opens on a chest-up medium close-up of the woman, only she in frame, her hands folded in her lap and her face fully lit by the bulb above her. The camera pushes in slowly, and only once the push settles does she lift her head toward the doorway off-screen at camera-left and address him directly. She speaks in Chinese, her voice hoarse and unsteady at a slow, halting pace: \"我，我在这里等你两个小时了，你怎么才来？\" Her eyes redden and glisten on the last words, the old bed frame creaking low under her shifting weight, and she closes her lips. The cramped rented-room ambience runs unbroken beneath the line, and off-screen the door hinge gives one short dry creak as it swings open. A hard cut transitions to a chest-up medium close-up of the young man, the frame holding only him, standing just inside the open doorway a few paces from her, with the scuffed doorframe and the grey-green wall behind him falling soft and daylight from the corridor cutting across his face. The same hollow room ambience continues across the cut. He looks down toward her off-screen at camera-right, addressing her directly, and answers in Chinese, his voice flat and dismissive at a slow, deliberate pace: \"你年龄太大了，我们分手吧。\" His jaw sets, he looks away past the camera, and he closes his lips. A hard cut transitions to a tight over-the-shoulder two-shot: the back of the young man's head and his near shoulder fill the lower-left foreground, close to the lens and out of focus, and the woman sits on the mattress in the mid-ground facing camera-left toward him, her face still large and fully lit by the bulb above her. Neither of them speaks, and the ambience and the music continue through this cut. She holds her gaze up at him for a long beat, and her expression collapses: her lips part, then press together and tremble as her eyes fill and redden, and she drops her gaze to her lap and pulls her hands together in the folds of the white qipao. She holds still through the final frame, and the camera stays locked off.\n\nA hollow, cramped rented-room ambience runs through the whole video: the faint buzz of the single bare bulb, a distant dripping tap, muffled street traffic through the single-pane window, and the low creak of the old bed frame under her shifting weight. A sparse, brooding string-and-piano cue at a slow tempo enters quietly beneath the push-in on the woman, adds a low sustained cello swell at the cut to the young man, and thins to a single held piano note through the silent final shot. Rendered as a realistic Chinese short-drama episode: dim practical lighting, stained and peeling walls, a muted cool-leaning color palette, shallow focus that keeps every face clearly lit, and smooth hard cuts between shots."
+      ],
+      "widgets_values_named": {
+        "value": "The target video is a ten-second three-shot sequence in the realistic, slightly gritty visual style of a Chinese short-drama episode: dim practical lighting from a single bare bulb, stained and peeling walls, a muted cool-leaning color palette, and every face kept clearly lit against the shadowed room. The setting is a cramped, run-down rented room, with the woman seated on the bare mattress at camera-right and the open doorway off-screen to camera-left.\n\nThe woman is an elegant middle-aged Chinese woman with a soft oval face, fair warm-toned skin with visible natural texture, softly arched eyebrows, and warm brown eyes; her dark hair is pulled back into a smooth neat low bun. She wears a floor-length sleeveless white mandarin-collar qipao with a small silver brooch pinned at the collar, small pearl earrings, and a pair of red high-heeled shoes. She sits with her hands folded in her lap.\n\nThe young man has messy black hair falling over his brow, light stubble along his jaw and upper lip, and dark brown eyes. He wears a soiled and worn grey short-sleeved cotton t-shirt with a frayed and torn hem, blue jeans ripped open at both knees, and scuffed dark-brown shoes.\n\nBehind the woman the wall is stained and peeling and a single bare bulb hangs overhead; a battered wooden stool and a cardboard box of clothes sit in the background, out of focus. The mattress, the wall, the bulb, the stool, the cardboard box, the scuffed doorframe and the single-pane window all remain stationary throughout.\n\nThe video opens on a chest-up medium close-up of the woman, only she in frame, her hands folded in her lap and her face fully lit by the bulb above her. The camera pushes in slowly, and only once the push settles does she lift her head toward the doorway off-screen at camera-left and address him directly. She speaks in Chinese, her voice hoarse and unsteady at a slow, halting pace: \"我，我在这里等你两个小时了，你怎么才来？\" Her eyes redden and glisten on the last words, the old bed frame creaking low under her shifting weight, and she closes her lips. The cramped rented-room ambience runs unbroken beneath the line, and off-screen the door hinge gives one short dry creak as it swings open. A hard cut transitions to a chest-up medium close-up of the young man, the frame holding only him, standing just inside the open doorway a few paces from her, with the scuffed doorframe and the grey-green wall behind him falling soft and daylight from the corridor cutting across his face. The same hollow room ambience continues across the cut. He looks down toward her off-screen at camera-right, addressing her directly, and answers in Chinese, his voice flat and dismissive at a slow, deliberate pace: \"你年龄太大了，我们分手吧。\" His jaw sets, he looks away past the camera, and he closes his lips. A hard cut transitions to a tight over-the-shoulder two-shot: the back of the young man's head and his near shoulder fill the lower-left foreground, close to the lens and out of focus, and the woman sits on the mattress in the mid-ground facing camera-left toward him, her face still large and fully lit by the bulb above her. Neither of them speaks, and the ambience and the music continue through this cut. She holds her gaze up at him for a long beat, and her expression collapses: her lips part, then press together and tremble as her eyes fill and redden, and she drops her gaze to her lap and pulls her hands together in the folds of the white qipao. She holds still through the final frame, and the camera stays locked off.\n\nA hollow, cramped rented-room ambience runs through the whole video: the faint buzz of the single bare bulb, a distant dripping tap, muffled street traffic through the single-pane window, and the low creak of the old bed frame under her shifting weight. A sparse, brooding string-and-piano cue at a slow tempo enters quietly beneath the push-in on the woman, adds a low sustained cello swell at the cut to the young man, and thins to a single held piano note through the silent final shot. Rendered as a realistic Chinese short-drama episode: dim practical lighting, stained and peeling walls, a muted cool-leaning color palette, shallow focus that keeps every face clearly lit, and smooth hard cuts between shots."
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 177,
+      "type": "Note",
+      "pos": [
+        -1190.5230288458986,
+        1478.8950566703897
+      ],
+      "size": [
+        225,
+        211.69717295592025
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 28,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "3步+3步",
+      "properties": {},
+      "widgets_values": [
+        "0.4→1.0=250s\n0.4→1.5=550s（有音色听不懂风险）"
+      ],
+      "widgets_values_named": {
+        "text": "0.4→1.0=250s\n0.4→1.5=550s（有音色听不懂风险）"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 178,
+      "type": "VAEDecodeAudio",
+      "pos": [
+        6505.790059865398,
+        551.3833735722997
+      ],
+      "size": [
+        150.6763671875,
+        46
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 59,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 230
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 231
+        }
+      ],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            232
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecodeAudio"
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 187,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -1753.9023468447203,
+        2884.7284671365496
+      ],
+      "size": [
+        458.3163148641389,
+        297.1935542864364
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 29,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "title": "Input Text (Prompt)",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "subject_definitions:\n<Picture 1> is the reference image defining the facial features, hairstyle and body proportions of <Subject 1>, and serves as the identity anchor for every shot in this video.\n<Subject 1> is the young woman in <Picture 1>, with a soft oval face, fair smooth skin with a healthy natural glow, dark brown almond eyes, gently arched eyebrows, a small straight nose, full rosy lips, black shoulder-length layered hair falling to her collarbone with a soft inward curl at the ends, and a slim figure, wearing a plain white short-sleeved round-neck cotton t-shirt.\n\nsummary:\n[reference generation] The target video is a ten-second single-character bedroom vlog shot: <Subject 1>, just out of the shower, sits on the edge of her bed in a romantic warm-lit bedroom, speaks one teasing line straight into the camera, then leans back into a coquettish pose and drags one hand slowly down her own thigh before delivering one more line that asks the viewer for a like. She is generated from her own reference image, and she speaks both lines of Chinese dialogue herself.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1], [Shot 2]): fully_preserved - the soft oval face, fair smooth skin with a healthy natural glow, dark brown almond eyes, gently arched eyebrows, small straight nose, full rosy lips, black shoulder-length layered hair with the soft inward curl at the ends, and the plain white short-sleeved round-neck cotton t-shirt are retained.\n<Picture 1> ([Shot 1], [Shot 2] identity anchor): fully_preserved - her face, hair and costume follow the reference image exactly.\n\ndetailed_description:\nThe target video is in the soft, glossy visual style of a late-night beauty vlog: warm pink and amber practical light, a shallow depth of field that keeps her face crisp while the room melts into soft bokeh, and a gentle wrapping glow on her skin that makes the whole frame feel intimate and romantic.\n[Shot 1] A chest-up medium close-up frames <Subject 1>, the young woman whose face, hairstyle and figure come from <Picture 1>: a soft oval face, fair smooth skin with a healthy natural glow, dark brown almond eyes, gently arched eyebrows, a small straight nose, full rosy lips, and black shoulder-length layered hair falling to her collarbone with a soft inward curl at the ends, the tips still faintly damp from the shower, wearing a plain white short-sleeved round-neck cotton t-shirt. She sits on the edge of a neatly made bed in a small romantic bedroom, her hands resting loosely on the mattress beside her, and the frame holds only her. Behind her the headboard is wrapped in a loose string of warm fairy lights, sheer curtains at the window diffuse a low amber glow, and a small nightstand holding one red rose in a glass and a lit jar candle falls soft and out of focus at the edge of frame. Her face is fully lit by a soft warm key light. The camera pushes in slowly and steadily until it settles into a tight close-up on her face, and only once the push has settled does she tilt her head toward the lens and address the viewer directly. <Subject 1> (S1) speaks in Chinese, her voice soft, playful and faintly breathy at an unhurried, sing-song pace, <d>[Chinese] 弟弟们，我刚刚洗完澡。</d> As the last words land, one corner of her mouth lifts into a wider smile and she holds her gaze on the lens without looking away.\n[Shot 2] At 00:05.500, the shot cuts to a slightly wider medium shot of the same bedroom, and only <Subject 1> is in frame. She has shifted back on the mattress, her weight braced on one arm behind her, her shoulders turned a little toward the lens and her spine arched into a relaxed, coquettish line, one knee drawn up. Her free hand rests on her own thigh, and she drags her palm slowly down the smooth pale skin of her thigh to just above the knee, unhurried, while her face stays fully lit by the same warm key light and the fairy lights glow soft behind her shoulder. She lowers her chin and lifts her eyes to the lens, holding the viewer in a level, knowing look, and then she speaks. <Subject 1> (S1) says in Chinese, her voice lower and more drawling than before but still soft and playful, <d>[Chinese] 看什么看，还不点赞？</d> On the final word her lips curve and she holds the pose and the look through the closing frame.\n\noverall_soundscape:\nA quiet, close bedroom ambience runs through the whole video: a low warm room tone, the faint rustle of cotton bedding shifting under her weight as she settles on the mattress, the soft brush of fabric against skin as her palm drags down her thigh, and one short breathy exhale under her opening line. The fairy lights and the candle stay silent, and there is no other voice in the room.\n\nnon_diegetic_music:\nA light, slow romantic cue: a soft synth pad with sparse electric-piano chords and a gentle finger-snap pulse at a relaxed tempo. It enters quietly beneath the push-in on <Subject 1>, holds steady under her first line, and warms slightly with one low sustained string note on the cut to the wider shot, carrying through to the end of the video."
+      ],
+      "widgets_values_named": {
+        "value": "subject_definitions:\n<Picture 1> is the reference image defining the facial features, hairstyle and body proportions of <Subject 1>, and serves as the identity anchor for every shot in this video.\n<Subject 1> is the young woman in <Picture 1>, with a soft oval face, fair smooth skin with a healthy natural glow, dark brown almond eyes, gently arched eyebrows, a small straight nose, full rosy lips, black shoulder-length layered hair falling to her collarbone with a soft inward curl at the ends, and a slim figure, wearing a plain white short-sleeved round-neck cotton t-shirt.\n\nsummary:\n[reference generation] The target video is a ten-second single-character bedroom vlog shot: <Subject 1>, just out of the shower, sits on the edge of her bed in a romantic warm-lit bedroom, speaks one teasing line straight into the camera, then leans back into a coquettish pose and drags one hand slowly down her own thigh before delivering one more line that asks the viewer for a like. She is generated from her own reference image, and she speaks both lines of Chinese dialogue herself.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1], [Shot 2]): fully_preserved - the soft oval face, fair smooth skin with a healthy natural glow, dark brown almond eyes, gently arched eyebrows, small straight nose, full rosy lips, black shoulder-length layered hair with the soft inward curl at the ends, and the plain white short-sleeved round-neck cotton t-shirt are retained.\n<Picture 1> ([Shot 1], [Shot 2] identity anchor): fully_preserved - her face, hair and costume follow the reference image exactly.\n\ndetailed_description:\nThe target video is in the soft, glossy visual style of a late-night beauty vlog: warm pink and amber practical light, a shallow depth of field that keeps her face crisp while the room melts into soft bokeh, and a gentle wrapping glow on her skin that makes the whole frame feel intimate and romantic.\n[Shot 1] A chest-up medium close-up frames <Subject 1>, the young woman whose face, hairstyle and figure come from <Picture 1>: a soft oval face, fair smooth skin with a healthy natural glow, dark brown almond eyes, gently arched eyebrows, a small straight nose, full rosy lips, and black shoulder-length layered hair falling to her collarbone with a soft inward curl at the ends, the tips still faintly damp from the shower, wearing a plain white short-sleeved round-neck cotton t-shirt. She sits on the edge of a neatly made bed in a small romantic bedroom, her hands resting loosely on the mattress beside her, and the frame holds only her. Behind her the headboard is wrapped in a loose string of warm fairy lights, sheer curtains at the window diffuse a low amber glow, and a small nightstand holding one red rose in a glass and a lit jar candle falls soft and out of focus at the edge of frame. Her face is fully lit by a soft warm key light. The camera pushes in slowly and steadily until it settles into a tight close-up on her face, and only once the push has settled does she tilt her head toward the lens and address the viewer directly. <Subject 1> (S1) speaks in Chinese, her voice soft, playful and faintly breathy at an unhurried, sing-song pace, <d>[Chinese] 弟弟们，我刚刚洗完澡。</d> As the last words land, one corner of her mouth lifts into a wider smile and she holds her gaze on the lens without looking away.\n[Shot 2] At 00:05.500, the shot cuts to a slightly wider medium shot of the same bedroom, and only <Subject 1> is in frame. She has shifted back on the mattress, her weight braced on one arm behind her, her shoulders turned a little toward the lens and her spine arched into a relaxed, coquettish line, one knee drawn up. Her free hand rests on her own thigh, and she drags her palm slowly down the smooth pale skin of her thigh to just above the knee, unhurried, while her face stays fully lit by the same warm key light and the fairy lights glow soft behind her shoulder. She lowers her chin and lifts her eyes to the lens, holding the viewer in a level, knowing look, and then she speaks. <Subject 1> (S1) says in Chinese, her voice lower and more drawling than before but still soft and playful, <d>[Chinese] 看什么看，还不点赞？</d> On the final word her lips curve and she holds the pose and the look through the closing frame.\n\noverall_soundscape:\nA quiet, close bedroom ambience runs through the whole video: a low warm room tone, the faint rustle of cotton bedding shifting under her weight as she settles on the mattress, the soft brush of fabric against skin as her palm drags down her thigh, and one short breathy exhale under her opening line. The fairy lights and the candle stay silent, and there is no other voice in the room.\n\nnon_diegetic_music:\nA light, slow romantic cue: a soft synth pad with sparse electric-piano chords and a gentle finger-snap pulse at a relaxed tempo. It enters quietly beneath the push-in on <Subject 1>, holds steady under her first line, and warms slightly with one low sustained string note on the cut to the wider shot, carrying through to the end of the video."
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 188,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -1218.8115275667587,
+        2858.866607707261
+      ],
+      "size": [
+        428.46810971335697,
+        290.16537641598114
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 30,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "title": "Input Text (Prompt)",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "The target video is a ten-second two-shot sequence in the soft, glossy visual style of a late-night beauty vlog: warm pink and amber practical light, a shallow depth of field that keeps her face crisp while the room melts into soft bokeh, and a gentle wrapping glow on her skin that makes the whole frame feel intimate and romantic. The setting is a small romantic bedroom, with the woman seated on the edge of a neatly made bed and the headboard behind her wrapped in a loose string of warm fairy lights.\n\nThe young woman has a soft oval face, fair smooth skin with a healthy natural glow, dark brown almond eyes, gently arched eyebrows, a small straight nose, full rosy lips, and a slim figure; her black shoulder-length layered hair falls to her collarbone with a soft inward curl at the ends, the tips still faintly damp from the shower. She wears a plain white short-sleeved round-neck cotton t-shirt.\n\nSheer curtains at the window diffuse a low amber glow, and a small nightstand holding one red rose in a glass and a lit jar candle sits at the edge of frame, out of focus. The bed, the headboard, the fairy lights, the curtains, the nightstand, the rose and the candle all remain stationary throughout.\n\nThe video opens on a chest-up medium close-up of the woman, only she in frame, her hands resting loosely on the mattress beside her and her face fully lit by a soft warm key light. The camera pushes in slowly and steadily until it settles into a tight close-up on her face, and only once the push has settled does she tilt her head toward the lens and address the viewer directly. She speaks in Chinese, her voice soft, playful and faintly breathy at an unhurried, sing-song pace: \"弟弟们，我刚刚洗完澡。\" As the last words land, one corner of her mouth lifts into a wider smile and she holds her gaze on the lens without looking away. The quiet bedroom ambience and the music continue beneath the line. A hard cut transitions to a slightly wider medium shot of the same bedroom, the frame holding only her, her weight braced on one arm behind her on the mattress, her shoulders turned a little toward the lens and her spine arched into a relaxed, coquettish line with one knee drawn up. Her free hand rests on her own thigh, and she drags her palm slowly down the smooth pale skin of her thigh to just above the knee, unhurried; her face stays fully lit by the same warm key light, and the fairy lights glow soft behind her shoulder. The same warm room ambience and the music continue across the cut. She lowers her chin and lifts her eyes to the lens, holding the viewer in a level, knowing look, and then she speaks in Chinese, her voice lower and more drawling than before but still soft and playful: \"看什么看，还不点赞？\" On the final word her lips curve, and she holds the pose and the look through the closing frame.\n\nA quiet, close bedroom ambience runs through the whole video: a low warm room tone, the faint rustle of cotton bedding shifting under her weight as she settles on the mattress, the soft brush of fabric against skin as her palm drags down her thigh, and one short breathy exhale under her opening line. A light, slow romantic cue enters quietly beneath the push-in: a soft synth pad with sparse electric-piano chords and a gentle finger-snap pulse at a relaxed tempo, warming slightly with one low sustained string note at the cut to the wider shot and carrying through to the end of the video. Rendered as a soft beauty-vlog piece: warm pink and amber practical lighting, shallow focus with her face kept crisp and the room melting into soft bokeh, a gentle wrapping skin glow, and one smooth hard cut."
+      ],
+      "widgets_values_named": {
+        "value": "The target video is a ten-second two-shot sequence in the soft, glossy visual style of a late-night beauty vlog: warm pink and amber practical light, a shallow depth of field that keeps her face crisp while the room melts into soft bokeh, and a gentle wrapping glow on her skin that makes the whole frame feel intimate and romantic. The setting is a small romantic bedroom, with the woman seated on the edge of a neatly made bed and the headboard behind her wrapped in a loose string of warm fairy lights.\n\nThe young woman has a soft oval face, fair smooth skin with a healthy natural glow, dark brown almond eyes, gently arched eyebrows, a small straight nose, full rosy lips, and a slim figure; her black shoulder-length layered hair falls to her collarbone with a soft inward curl at the ends, the tips still faintly damp from the shower. She wears a plain white short-sleeved round-neck cotton t-shirt.\n\nSheer curtains at the window diffuse a low amber glow, and a small nightstand holding one red rose in a glass and a lit jar candle sits at the edge of frame, out of focus. The bed, the headboard, the fairy lights, the curtains, the nightstand, the rose and the candle all remain stationary throughout.\n\nThe video opens on a chest-up medium close-up of the woman, only she in frame, her hands resting loosely on the mattress beside her and her face fully lit by a soft warm key light. The camera pushes in slowly and steadily until it settles into a tight close-up on her face, and only once the push has settled does she tilt her head toward the lens and address the viewer directly. She speaks in Chinese, her voice soft, playful and faintly breathy at an unhurried, sing-song pace: \"弟弟们，我刚刚洗完澡。\" As the last words land, one corner of her mouth lifts into a wider smile and she holds her gaze on the lens without looking away. The quiet bedroom ambience and the music continue beneath the line. A hard cut transitions to a slightly wider medium shot of the same bedroom, the frame holding only her, her weight braced on one arm behind her on the mattress, her shoulders turned a little toward the lens and her spine arched into a relaxed, coquettish line with one knee drawn up. Her free hand rests on her own thigh, and she drags her palm slowly down the smooth pale skin of her thigh to just above the knee, unhurried; her face stays fully lit by the same warm key light, and the fairy lights glow soft behind her shoulder. The same warm room ambience and the music continue across the cut. She lowers her chin and lifts her eyes to the lens, holding the viewer in a level, knowing look, and then she speaks in Chinese, her voice lower and more drawling than before but still soft and playful: \"看什么看，还不点赞？\" On the final word her lips curve, and she holds the pose and the look through the closing frame.\n\nA quiet, close bedroom ambience runs through the whole video: a low warm room tone, the faint rustle of cotton bedding shifting under her weight as she settles on the mattress, the soft brush of fabric against skin as her palm drags down her thigh, and one short breathy exhale under her opening line. A light, slow romantic cue enters quietly beneath the push-in: a soft synth pad with sparse electric-piano chords and a gentle finger-snap pulse at a relaxed tempo, warming slightly with one low sustained string note at the cut to the wider shot and carrying through to the end of the video. Rendered as a soft beauty-vlog piece: warm pink and amber practical lighting, shallow focus with her face kept crisp and the room melting into soft bokeh, a gentle wrapping skin glow, and one smooth hard cut."
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 189,
+      "type": "XHTimer",
+      "pos": [
+        -378.23099692508447,
+        1961.4394246965883
+      ],
+      "size": [
+        1651.7670507333598,
+        666.2401457111273
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 31,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "XHTimer"
+      }
+    },
+    {
+      "id": 190,
+      "type": "Note",
+      "pos": [
+        2589.1976676687605,
+        -644.3339359803514
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 32,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "极速版口型对不齐，人漂"
+      ],
+      "widgets_values_named": {
+        "text": "极速版口型对不齐，人漂"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 191,
+      "type": "MarkdownNote",
+      "pos": [
+        -2857.7211181064254,
+        -269.0898073462006
+      ],
+      "size": [
+        820,
+        1500
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 33,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "## 🔁 XH 工作流说明 · H3 + LTX-2.5 二采 · 一代极速版\n\n> 📦 **关于下载链接**：下面所有链接都是**小黑整理的夸克网盘**，资源来自开源社区各位作者的公开分享，小黑只做搬运汇总、版权归原作者。**点模型（或节点包）的名字，就能直接跳转。**\n\n**这个工作流干嘛的**：H3 先 3 步出低清 → 潜空间 3D 放大 → 转成 LTX-2.5 潜空间 → LTX-2.5 再 3 步精修，最后出高清带声音的成片。\n极速版 = 3 步 + 3 步，速度最快；代价是口型可能对不齐、人物会轻微飘。要质量就把两边步数加回去。\n\n### 📦 模型（点文件名直接跳网盘，按这个路径放）\n\n- 📁 ComfyUI/models/\n  - 📁 diffusion_models/\n    - [minimax_h3_ref2va_pruned_int8_convrot.safetensors](https://pan.quark.cn/s/0f8083f5506a)\n    - [ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors](https://pan.quark.cn/s/479284fac913)\n  - 📁 text_encoders/\n    - [qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors](https://pan.quark.cn/s/b1a3399992e1)\n    - [gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors](https://pan.quark.cn/s/8de228e4b472)\n  - 📁 vae/\n    - [minimax_h3_lynnreal_light_vae_int8_convrot.safetensors](https://pan.quark.cn/s/600c5ad65937)\n    - [minimax_h3_audio_vae_fp32.safetensors](https://pan.quark.cn/s/5df6cbb54585)\n    - [ltx-2.5-video-vae-conv-bf16.safetensors](https://pan.quark.cn/s/86b7f411a513)\n  - 📁 loras/\n    - [minimax_h3_taomate_3step_lora_avg_rank_19_bf16.safetensors](https://pan.quark.cn/s/0635a5d9f74d)\n  - 📁 latent_upscale_models/\n    - [minimax_h3_latent_upscaler_3d_fp16.safetensors](https://pan.quark.cn/s/31a3d4a899f5)\n  - 📁 h3_ltx_adapter/\n    - [model.safetensors](https://pan.quark.cn/s/1b8d8724e31a)\n\n⚠️ `h3_ltx_adapter` 这个文件夹要自己新建；里面的 `model.safetensors` 是 **H3→LTX 适配器**，别认错了。\n\n### 🎯 特殊 LoRA 说明（这个工作流挂的 LoRA 是干嘛的）\n\n**`minimax_h3_taomate_3step_lora_avg_rank_19_bf16.safetensors`**\n- 功能：3 步加速 —— Taomate 蒸馏的 3 步 LoRA，把 H3 采样压到 3 步出片，本工作流「极速」的一半来源。\n- 触发词：无\n\n### 🧩 节点包下载（丢进 ComfyUI\\custom_nodes\\，重启 ComfyUI）\n\n- [Comfyui-XH_Toolbox（小黑工具箱）](https://pan.quark.cn/s/0f06707a4b08) —— H3LTXAdapterLoader、H3LTXAdapterConvert、XHLabel、XHTimer、XHSoundPlayer\n- [节点包大全](https://pan.quark.cn/s/74edeb26af33) —— 其余 3 个包都在里面：\n  - `comfyui-kjnodes`：MiniMaxChunkFeedForward、LTXVChunkFeedForward、LTX2AttentionTunerPatch\n  - `ComfyUI-SolAttn_triton`：sol-attn 稀疏注意力内核 —— BlockSparseAttention 选 sol-attn 就靠它注册 kernel，缺了会报 no compiled sol_attn kernel\n  - `Comfyui_Minimax_h3_latent_Upscaler`：MinimaxH3LatentUpscaler3D\n\n其余节点全是 ComfyUI 官方内置的（UNETLoader / CLIPLoader / VAELoader / BasicGuider / SamplerCustomAdvanced / BlockSparseAttention / MiniMaxH3ReferenceToVideo / MiniMaxH3SigmaShift / LTXVConditioning / CreateVideo …），不用额外装。\n\n> XH 老用户注意：装 Comfyui-XH_Toolbox 之前，先把 9 月那批散装旧包删干净，否则节点重名会打架。\n\n📺 更多教程：B站 [8g显存小黑的折腾日记](https://space.bilibili.com/96854764)\n📦 全部资源（模型 + 节点包 + 教程）：[小黑bilibili分享](https://pan.quark.cn/s/e7ab43c757af)"
+      ],
+      "widgets_values_named": {
+        "text": "## 🔁 XH 工作流说明 · H3 + LTX-2.5 二采 · 一代极速版\n\n> 📦 **关于下载链接**：下面所有链接都是**小黑整理的夸克网盘**，资源来自开源社区各位作者的公开分享，小黑只做搬运汇总、版权归原作者。**点模型（或节点包）的名字，就能直接跳转。**\n\n**这个工作流干嘛的**：H3 先 3 步出低清 → 潜空间 3D 放大 → 转成 LTX-2.5 潜空间 → LTX-2.5 再 3 步精修，最后出高清带声音的成片。\n极速版 = 3 步 + 3 步，速度最快；代价是口型可能对不齐、人物会轻微飘。要质量就把两边步数加回去。\n\n### 📦 模型（点文件名直接跳网盘，按这个路径放）\n\n- 📁 ComfyUI/models/\n  - 📁 diffusion_models/\n    - [minimax_h3_ref2va_pruned_int8_convrot.safetensors](https://pan.quark.cn/s/0f8083f5506a)\n    - [ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors](https://pan.quark.cn/s/479284fac913)\n  - 📁 text_encoders/\n    - [qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors](https://pan.quark.cn/s/b1a3399992e1)\n    - [gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors](https://pan.quark.cn/s/8de228e4b472)\n  - 📁 vae/\n    - [minimax_h3_lynnreal_light_vae_int8_convrot.safetensors](https://pan.quark.cn/s/600c5ad65937)\n    - [minimax_h3_audio_vae_fp32.safetensors](https://pan.quark.cn/s/5df6cbb54585)\n    - [ltx-2.5-video-vae-conv-bf16.safetensors](https://pan.quark.cn/s/86b7f411a513)\n  - 📁 loras/\n    - [minimax_h3_taomate_3step_lora_avg_rank_19_bf16.safetensors](https://pan.quark.cn/s/0635a5d9f74d)\n  - 📁 latent_upscale_models/\n    - [minimax_h3_latent_upscaler_3d_fp16.safetensors](https://pan.quark.cn/s/31a3d4a899f5)\n  - 📁 h3_ltx_adapter/\n    - [model.safetensors](https://pan.quark.cn/s/1b8d8724e31a)\n\n⚠️ `h3_ltx_adapter` 这个文件夹要自己新建；里面的 `model.safetensors` 是 **H3→LTX 适配器**，别认错了。\n\n### 🎯 特殊 LoRA 说明（这个工作流挂的 LoRA 是干嘛的）\n\n**`minimax_h3_taomate_3step_lora_avg_rank_19_bf16.safetensors`**\n- 功能：3 步加速 —— Taomate 蒸馏的 3 步 LoRA，把 H3 采样压到 3 步出片，本工作流「极速」的一半来源。\n- 触发词：无\n\n### 🧩 节点包下载（丢进 ComfyUI\\custom_nodes\\，重启 ComfyUI）\n\n- [Comfyui-XH_Toolbox（小黑工具箱）](https://pan.quark.cn/s/0f06707a4b08) —— H3LTXAdapterLoader、H3LTXAdapterConvert、XHLabel、XHTimer、XHSoundPlayer\n- [节点包大全](https://pan.quark.cn/s/74edeb26af33) —— 其余 3 个包都在里面：\n  - `comfyui-kjnodes`：MiniMaxChunkFeedForward、LTXVChunkFeedForward、LTX2AttentionTunerPatch\n  - `ComfyUI-SolAttn_triton`：sol-attn 稀疏注意力内核 —— BlockSparseAttention 选 sol-attn 就靠它注册 kernel，缺了会报 no compiled sol_attn kernel\n  - `Comfyui_Minimax_h3_latent_Upscaler`：MinimaxH3LatentUpscaler3D\n\n其余节点全是 ComfyUI 官方内置的（UNETLoader / CLIPLoader / VAELoader / BasicGuider / SamplerCustomAdvanced / BlockSparseAttention / MiniMaxH3ReferenceToVideo / MiniMaxH3SigmaShift / LTXVConditioning / CreateVideo …），不用额外装。\n\n> XH 老用户注意：装 Comfyui-XH_Toolbox 之前，先把 9 月那批散装旧包删干净，否则节点重名会打架。\n\n📺 更多教程：B站 [8g显存小黑的折腾日记](https://space.bilibili.com/96854764)\n📦 全部资源（模型 + 节点包 + 教程）：[小黑bilibili分享](https://pan.quark.cn/s/e7ab43c757af)"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 192,
+      "type": "XHSoundPlayer",
+      "pos": [
+        7804.587917584232,
+        14.255188250163997
+      ],
+      "size": [
+        270,
+        206
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 66,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "任意信号",
+          "name": "any",
+          "type": "*",
+          "link": 249
+        }
+      ],
+      "outputs": [
+        {
+          "label": "任意信号",
+          "name": "any",
+          "shape": 6,
+          "type": "*",
+          "links": null
+        },
+        {
+          "label": "信息",
+          "name": "info",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "XHSoundPlayer"
+      },
+      "widgets_values": [
+        "voice/LOL德玛西亚.flac",
+        1,
+        "always",
+        true,
+        true
+      ],
+      "widgets_values_named": {
+        "file": "voice/LOL德玛西亚.flac",
+        "volume": 1,
+        "mode": "always",
+        "stop_previous": true,
+        "loop": true
+      }
+    },
+    {
+      "id": 193,
+      "type": "Note",
+      "pos": [
+        -1902.138593427639,
+        1134.6915432142646
+      ],
+      "size": [
+        309.1308187472196,
+        176.7294493812339
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 34,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "先旗袍女跑通"
+      ],
+      "widgets_values_named": {
+        "text": "先旗袍女跑通"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 194,
+      "type": "XHLabel",
+      "pos": [
+        -2858,
+        -489
+      ],
+      "size": [
+        820,
+        200
+      ],
+      "flags": {
+        "showTitle": false,
+        "pinned": true
+      },
+      "order": 35,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "XHLabel",
+        "text": "<div style=\"font-size:30px;font-weight:bold;text-align:center;line-height:1.45;\">关注小黑不迷路，祝大家生活愉快</div><div style=\"text-align:right;font-size:15px;margin-top:16px;\"><a href=\"https://space.bilibili.com/96854764\" style=\"color:#8fd0ff;text-decoration:none;\">📺 B站：8g显存小黑的折腾日记 · space.bilibili.com/96854764</a></div>",
+        "fontSize": 30,
+        "fontColor": "#ffffff",
+        "bgColor": "transparent",
+        "align": "center",
+        "fontFamily": "微软雅黑",
+        "fontWeight": "bold",
+        "lang": "zh",
+        "hideTitle": true,
+        "nodeColor": null,
+        "compact": true
+      },
+      "widgets_values": [
+        {
+          "text": "<div style=\"font-size:30px;font-weight:bold;text-align:center;line-height:1.45;\">关注小黑不迷路，祝大家生活愉快</div><div style=\"text-align:right;font-size:15px;margin-top:16px;\"><a href=\"https://space.bilibili.com/96854764\" style=\"color:#8fd0ff;text-decoration:none;\">📺 B站：8g显存小黑的折腾日记 · space.bilibili.com/96854764</a></div>",
+          "fontSize": 30,
+          "fontColor": "#ffffff",
+          "bgColor": "transparent",
+          "align": "center",
+          "fontFamily": "微软雅黑",
+          "fontWeight": "bold",
+          "lang": "zh",
+          "hideTitle": true,
+          "nodeColor": null,
+          "compact": true
+        }
+      ],
+      "widgets_values_named": {
+        "label": {
+          "text": "<div style=\"font-size:30px;font-weight:bold;text-align:center;line-height:1.45;\">关注小黑不迷路，祝大家生活愉快</div><div style=\"text-align:right;font-size:15px;margin-top:16px;\"><a href=\"https://space.bilibili.com/96854764\" style=\"color:#8fd0ff;text-decoration:none;\">📺 B站：8g显存小黑的折腾日记 · space.bilibili.com/96854764</a></div>",
+          "fontSize": 30,
+          "fontColor": "#ffffff",
+          "bgColor": "transparent",
+          "align": "center",
+          "fontFamily": "微软雅黑",
+          "fontWeight": "bold",
+          "lang": "zh",
+          "hideTitle": true,
+          "nodeColor": null,
+          "compact": true
+        }
+      },
+      "color": "transparent",
+      "bgcolor": "transparent"
+    }
+  ],
+  "links": [
+    [
+      3,
+      34,
+      0,
+      6,
+      0,
+      "MODEL"
+    ],
+    [
+      4,
+      34,
+      0,
+      9,
+      0,
+      "MODEL"
+    ],
+    [
+      6,
+      8,
+      0,
+      10,
+      0,
+      "NOISE"
+    ],
+    [
+      7,
+      9,
+      0,
+      10,
+      1,
+      "GUIDER"
+    ],
+    [
+      8,
+      7,
+      0,
+      10,
+      2,
+      "SAMPLER"
+    ],
+    [
+      9,
+      6,
+      0,
+      10,
+      3,
+      "SIGMAS"
+    ],
+    [
+      11,
+      10,
+      0,
+      11,
+      0,
+      "LATENT"
+    ],
+    [
+      13,
+      13,
+      0,
+      14,
+      0,
+      "H3LTX_ADAPTER"
+    ],
+    [
+      14,
+      12,
+      0,
+      14,
+      1,
+      "LATENT"
+    ],
+    [
+      15,
+      16,
+      0,
+      17,
+      0,
+      "CLIP"
+    ],
+    [
+      17,
+      17,
+      0,
+      19,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      22,
+      38,
+      0,
+      27,
+      0,
+      "MODEL"
+    ],
+    [
+      23,
+      19,
+      0,
+      27,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      24,
+      19,
+      1,
+      27,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      25,
+      25,
+      0,
+      28,
+      0,
+      "NOISE"
+    ],
+    [
+      26,
+      27,
+      0,
+      28,
+      1,
+      "GUIDER"
+    ],
+    [
+      27,
+      26,
+      0,
+      28,
+      2,
+      "SAMPLER"
+    ],
+    [
+      28,
+      24,
+      0,
+      28,
+      3,
+      "SIGMAS"
+    ],
+    [
+      39,
+      14,
+      1,
+      35,
+      0,
+      "STRING"
+    ],
+    [
+      44,
+      1,
+      0,
+      40,
+      0,
+      "MODEL"
+    ],
+    [
+      70,
+      20,
+      0,
+      61,
+      1,
+      "VAE"
+    ],
+    [
+      71,
+      61,
+      0,
+      32,
+      0,
+      "IMAGE"
+    ],
+    [
+      142,
+      117,
+      0,
+      9,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      143,
+      117,
+      1,
+      10,
+      4,
+      "LATENT"
+    ],
+    [
+      175,
+      45,
+      1,
+      132,
+      0,
+      "INT"
+    ],
+    [
+      183,
+      40,
+      0,
+      41,
+      0,
+      "MODEL"
+    ],
+    [
+      184,
+      60,
+      0,
+      134,
+      0,
+      "MODEL"
+    ],
+    [
+      185,
+      134,
+      0,
+      34,
+      0,
+      "MODEL"
+    ],
+    [
+      200,
+      161,
+      0,
+      19,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      201,
+      16,
+      0,
+      163,
+      0,
+      "CLIP"
+    ],
+    [
+      202,
+      163,
+      0,
+      161,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      203,
+      15,
+      0,
+      164,
+      0,
+      "MODEL"
+    ],
+    [
+      205,
+      165,
+      0,
+      36,
+      0,
+      "MODEL"
+    ],
+    [
+      207,
+      36,
+      0,
+      38,
+      0,
+      "MODEL"
+    ],
+    [
+      229,
+      14,
+      0,
+      28,
+      4,
+      "LATENT"
+    ],
+    [
+      230,
+      11,
+      1,
+      178,
+      0,
+      "LATENT"
+    ],
+    [
+      231,
+      4,
+      0,
+      178,
+      1,
+      "VAE"
+    ],
+    [
+      232,
+      178,
+      0,
+      32,
+      1,
+      "AUDIO"
+    ],
+    [
+      234,
+      28,
+      0,
+      61,
+      0,
+      "LATENT"
+    ],
+    [
+      249,
+      160,
+      0,
+      192,
+      0,
+      "VIDEO"
+    ],
+    [
+      251,
+      173,
+      0,
+      52,
+      0,
+      "STRING"
+    ],
+    [
+      252,
+      174,
+      0,
+      17,
+      1,
+      "STRING"
+    ],
+    [
+      52,
+      44,
+      0,
+      45,
+      0,
+      "FLOAT"
+    ],
+    [
+      136,
+      2,
+      0,
+      117,
+      0,
+      "CLIP"
+    ],
+    [
+      138,
+      3,
+      0,
+      117,
+      1,
+      "VAE"
+    ],
+    [
+      177,
+      4,
+      0,
+      117,
+      2,
+      "VAE"
+    ],
+    [
+      145,
+      118,
+      0,
+      117,
+      3,
+      "IMAGE"
+    ],
+    [
+      146,
+      119,
+      0,
+      117,
+      4,
+      "IMAGE"
+    ],
+    [
+      144,
+      52,
+      0,
+      117,
+      11,
+      "STRING"
+    ],
+    [
+      139,
+      42,
+      0,
+      117,
+      12,
+      "INT"
+    ],
+    [
+      140,
+      42,
+      1,
+      117,
+      13,
+      "INT"
+    ],
+    [
+      141,
+      45,
+      1,
+      117,
+      14,
+      "INT"
+    ],
+    [
+      12,
+      11,
+      0,
+      12,
+      0,
+      "LATENT"
+    ],
+    [
+      50,
+      43,
+      0,
+      12,
+      1,
+      "INT"
+    ],
+    [
+      51,
+      43,
+      1,
+      12,
+      2,
+      "INT"
+    ],
+    [
+      66,
+      41,
+      0,
+      60,
+      0,
+      "MODEL"
+    ],
+    [
+      199,
+      32,
+      0,
+      160,
+      0,
+      "VIDEO"
+    ],
+    [
+      204,
+      164,
+      0,
+      165,
+      0,
+      "MODEL"
+    ]
+  ],
+  "floatingLinks": [
+    {
+      "id": 2,
+      "origin_id": 20,
+      "origin_slot": 0,
+      "target_id": -1,
+      "target_slot": -1,
+      "type": "VAE",
+      "parentId": 7
+    }
+  ],
+  "groups": [
+    {
+      "id": 2,
+      "title": "2. 拆分 AV latent",
+      "bounding": [
+        855.6497641089787,
+        -553.4567682694458,
+        363.5622212482118,
+        157.45708836617928
+      ],
+      "color": "#8A8A8A",
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "3.  ①放大 → ②H3潜空间→LTX潜空间 转换",
+      "bounding": [
+        1279.686283831569,
+        -322.5845727064898,
+        1171.253621908484,
+        799.6145265613488
+      ],
+      "color": "#a1309b",
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "4. LTX-2.5 精修（3 步）",
+      "bounding": [
+        2559.3754504818003,
+        -299.7850999824328,
+        3140.7582274509127,
+        1063.1336735108775
+      ],
+      "color": "#3f9e78",
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "5. 解码 + 合成输出",
+      "bounding": [
+        6411.134984968538,
+        -285.2144345435663,
+        1376.1672628079887,
+        1017.2523076923007
+      ],
+      "color": "#b58b2a",
+      "flags": {}
+    },
+    {
+      "id": 7,
+      "title": "时长",
+      "bounding": [
+        -1196.1272055104712,
+        700.1935704780813,
+        1441.9628837612768,
+        998.3928916357875
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 10,
+      "title": "H3低分辨率出",
+      "bounding": [
+        -1936.5567875015638,
+        -306.7044459309014,
+        2801.07314806464,
+        938.9015464412457
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 17,
+      "title": "Group",
+      "bounding": [
+        -1932.6615805688168,
+        643.1184970346246,
+        646.5455519837574,
+        676.1179289563756
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 18,
+      "title": "官",
+      "bounding": [
+        -1159.4107594996974,
+        -769.6610903147313,
+        1135.8479783995062,
+        368.492150688602
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.41772481694157176,
+      "offset": [
+        3615.8073184934033,
+        1127.0880846975306
+      ]
+    },
+    "comfyui_mcp": {
+      "workflow_uuid": "fc2fded5-c3f9-4055-a3fe-f735cfd8aa3b"
+    },
+    "reroutes": [
+      {
+        "id": 1,
+        "pos": [
+          180.81668256905635,
+          546.3144081249513
+        ],
+        "linkIds": [
+          143
+        ]
+      },
+      {
+        "id": 2,
+        "parentId": 1,
+        "pos": [
+          514.8524607048311,
+          544.2917031519826
+        ],
+        "linkIds": [
+          143
+        ]
+      },
+      {
+        "id": 6,
+        "pos": [
+          3134.4877795464977,
+          843.3362834793969
+        ],
+        "linkIds": [
+          70
+        ]
+      },
+      {
+        "id": 7,
+        "parentId": 6,
+        "pos": [
+          6376.332358906407,
+          840.9844345481362
+        ],
+        "linkIds": [
+          70
+        ],
+        "floating": {
+          "slotType": "output"
+        }
+      },
+      {
+        "id": 11,
+        "parentId": 22,
+        "pos": [
+          5173.8301759161595,
+          917.6536007470401
+        ],
+        "linkIds": [
+          229
+        ]
+      },
+      {
+        "id": 13,
+        "pos": [
+          1221.412668410183,
+          -473.2334079443707
+        ],
+        "linkIds": [
+          12
+        ]
+      },
+      {
+        "id": 14,
+        "pos": [
+          -1211.9869448959494,
+          -639.3210070744414
+        ],
+        "linkIds": [
+          183
+        ]
+      },
+      {
+        "id": 19,
+        "pos": [
+          885.4320956901369,
+          687.3138346187862
+        ],
+        "linkIds": [
+          51
+        ]
+      },
+      {
+        "id": 20,
+        "pos": [
+          881.3773540973876,
+          657.0319113374022
+        ],
+        "linkIds": [
+          50
+        ]
+      },
+      {
+        "id": 21,
+        "pos": [
+          3249.2586192954504,
+          1895.4456272218408
+        ],
+        "linkIds": [
+          252
+        ]
+      },
+      {
+        "id": 22,
+        "pos": [
+          2220.628004347577,
+          922.9015802046387
+        ],
+        "linkIds": [
+          229
+        ]
+      },
+      {
+        "id": 23,
+        "parentId": 24,
+        "pos": [
+          6418.04400812014,
+          1048.3462293803013
+        ],
+        "linkIds": [
+          231
+        ]
+      },
+      {
+        "id": 24,
+        "pos": [
+          734.5059611590257,
+          1067.1113666903773
+        ],
+        "linkIds": [
+          231
+        ]
+      },
+      {
+        "id": 25,
+        "pos": [
+          1200.0264814897728,
+          1000.8611230833234
+        ],
+        "linkIds": [
+          230
+        ]
+      },
+      {
+        "id": 26,
+        "parentId": 25,
+        "pos": [
+          6390.572522169007,
+          963.2970131342238
+        ],
+        "linkIds": [
+          230
+        ]
+      }
+    ],
+    "frontendVersion": "1.55.18",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "linkExtensions": [
+      {
+        "id": 70,
+        "parentId": 7
+      },
+      {
+        "id": 143,
+        "parentId": 2
+      },
+      {
+        "id": 183,
+        "parentId": 14
+      },
+      {
+        "id": 229,
+        "parentId": 11
+      },
+      {
+        "id": 230,
+        "parentId": 26
+      },
+      {
+        "id": 231,
+        "parentId": 23
+      },
+      {
+        "id": 252,
+        "parentId": 21
+      },
+      {
+        "id": 12,
+        "parentId": 13
+      },
+      {
+        "id": 50,
+        "parentId": 20
+      },
+      {
+        "id": 51,
+        "parentId": 19
+      }
+    ]
+  },
+  "extensions": {
+    "seed_widgets": {
+      "8": 0,
+      "25": 0
+    }
+  },
+  "version": 0.4,
+  "seed_widgets": {
+    "8": 0,
+    "25": 0
+  }
+}

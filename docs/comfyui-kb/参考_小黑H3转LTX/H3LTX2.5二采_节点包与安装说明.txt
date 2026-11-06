@@ -1,0 +1,171 @@
+﻿H3 → LTX2.5 二采（潜空间转换器 · 三代锁脸 · 加强版）
+节点包清单 / 安装方法 / 文件放置位置
+================================================================
+
+本文档说明这个工作流需要哪些节点包、怎么装、模型放哪里。
+按顺序做完第 3、4、5 节就能跑起来。
+
+
+----------------------------------------------------------------
+一、必须自己安装的第三方节点包（共 4 个）
+----------------------------------------------------------------
+
+【1】Comfyui-XH_Toolbox
+    作用：本工作流的核心转换与锁脸节点（H3→LTX2.5 适配器、图像缩放、LTX 锁脸、标签、计时器）
+    用到的节点：H3LTXAdapterLoader、H3LTXAdapterConvert、XHImageResizeV2、
+                XHLTXIdentityOverlap、XHLabel、XHTimer
+    获取：自研包，随本工作流压缩包一起提供（无公开仓库）
+    文件夹名必须保持：Comfyui-XH_Toolbox
+
+【2】ComfyUI-KJNodes
+    作用：低显存补丁链（注意力分块 / FFN 分块）、LTX 注意力微调
+    用到的节点：MiniMaxH3MemoryEfficientSageAttentionPatch、MiniMaxLowVRAMAttention、
+                MiniMaxChunkFeedForward、LTXVChunkFeedForward、LTX2AttentionTunerPatch
+    获取：https://github.com/kijai/ComfyUI-KJNodes
+    依赖：pillow、color-matcher、matplotlib、mss、opencv-python-headless
+
+【3】ComfyUI-SolAttn_triton
+    作用：Sol-Attn 稀疏注意力（Triton 实现），给 H3 长序列提速
+    用到的节点：SolAttnPatch
+    获取：https://github.com/kijai/ComfyUI-SolAttn_triton
+    依赖：需要 triton。首次运行会现场编译 kernel，第一次会明显慢，属正常现象。
+
+【4】Comfyui_Minimax_h3_latent_Upscaler
+    作用：H3 latent 三维潜空间放大（转换前的分辨率对齐）
+    用到的节点：MinimaxH3LatentUpscaler3D
+    获取：https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler.git
+    依赖：无
+
+
+----------------------------------------------------------------
+二、ComfyUI 官方自带（不用装，但版本要够新）
+----------------------------------------------------------------
+
+核心节点：
+  UNETLoader、VAELoader、CLIPLoader、CLIPTextEncode、LoraLoaderModelOnly、
+  LoadImage、PreviewImage、VAEDecode
+
+comfy_extras：
+  SamplerCustomAdvanced、KSamplerSelect、RandomNoise、BasicScheduler、BasicGuider、ManualSigmas
+  MiniMaxH3ReferenceToVideo、MiniMaxH3SigmaShift
+  LTXVConditioning、LTXVDualCFGGuider、LTXVSeparateAVLatent、LTXVConcatAVLatent
+  LTXVAudioVAEEncode、LTXVAudioVAEDecode
+  BlockSparseAttention、ModelAttentionBackend
+  CreateVideo、SaveVideo、VAEDecodeAudio
+  ResolutionSelector、PreviewAny、ComfyMathExpression、
+  PrimitiveStringMultiline、PrimitiveFloat
+
+提示：MiniMaxH3*、BlockSparseAttention、ModelAttentionBackend、LTXV* 属于较新的核心节点，
+      作者使用的版本是 ComfyUI 0.37.0，版本太旧会提示缺节点，建议更新到相近版本。
+      Note / MarkdownNote 是界面便签，不算节点，缺了不影响运行。
+
+
+----------------------------------------------------------------
+三、节点包安装位置
+----------------------------------------------------------------
+
+全部放进这里：
+
+    ComfyUI\custom_nodes\
+
+装完的结构应该是：
+
+    ComfyUI\custom_nodes\
+    ├── Comfyui-XH_Toolbox\                  （文件夹名不要改）
+    ├── comfyui-kjnodes\                     （文件夹名不要改）
+    ├── ComfyUI-SolAttn_triton\              （文件夹名不要改）
+    └── Comfyui_Minimax_h3_latent_Upscaler\  （文件夹名不要改）
+
+注意：是本工作流用到的 4 个包，目录名请保持原样，改名会导致节点加载不出来。
+
+
+----------------------------------------------------------------
+四、两种安装方法（选一种）
+----------------------------------------------------------------
+
+方法 A：手动解压 / git clone（推荐，最稳）
+
+  1. 把 4 个包文件夹解压或克隆到上面那个 custom_nodes 目录。
+     git 命令示例（在 custom_nodes 目录下执行）：
+       git clone https://github.com/kijai/ComfyUI-KJNodes
+       git clone https://github.com/kijai/ComfyUI-SolAttn_triton
+       git clone https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler
+     Comfyui-XH_Toolbox 请直接把文件夹拷进去。
+
+  2. 安装 KJNodes 的依赖（用 ComfyUI 自带的 python 环境执行一行命令）：
+     便携版：
+       .\python_embeded\python.exe -m pip install -r ComfyUI\custom_nodes\comfyui-kjnodes\requirements.txt
+     桌面版 / 整合包：
+       <你的环境>\python.exe -m pip install -r ComfyUI\custom_nodes\comfyui-kjnodes\requirements.txt
+     其余 3 个包没有额外 pip 依赖。
+
+  3. 重启 ComfyUI，加载工作流。如果提示缺节点，说明某个包没放对位置或版本太旧。
+
+方法 B：用 ComfyUI-Manager 装
+
+  1. 装好 ComfyUI-Manager（管理器）。
+  2. 打开 Manager → Install Custom Nodes → 选 "Install via Git URL"，
+     把上面 3 个 GitHub 地址逐个粘贴安装。
+  3. Comfyui-XH_Toolbox 是自研包，管理器里搜不到，手动拷到 custom_nodes 即可。
+  4. 装完点 "Install Missing Nodes" 补依赖，然后重启。
+
+
+----------------------------------------------------------------
+五、模型文件放置位置（重要，路径必须一致）
+----------------------------------------------------------------
+
+工作流里模型是带子文件夹写的（就是 H3\ 和 LTX2.5\ 这两层），
+所以模型要建同名的子文件夹放进去，否则加载器里会找不到、需要手动重选。
+
+    models\diffusion_models\H3\minimax_h3_ref2va_pruned_int8_convrot.safetensors
+    models\diffusion_models\LTX2.5\ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors
+
+    models\text_encoders\H3\qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors
+    models\text_encoders\LTX2.5\gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors
+
+    models\vae\H3\minimax_h3_video_vae_int8_convrot.safetensors
+    models\vae\H3\minimax_h3_audio_vae_fp32.safetensors
+    models\vae\LTX2.5\ltx-2.5-video-vae-conv-bf16.safetensors
+    models\vae\LTX2.5\ltx-2.5-audio-vae-bf16.safetensors
+
+    models\loras\H3\minimax_h3_taomate_3step_lora_avg_rank_19_bf16.safetensors
+    models\loras\ltx2.5\Best_FaceID_v1.0_LoRA.safetensors
+
+    models\latent_upscale_models\minimax_h3_latent_upscaler_3d_fp16.safetensors
+
+    models\h3_ltx_adapter\model.safetensors     ← 这个目录名由 Comfyui-XH_Toolbox 指定，必须叫 h3_ltx_adapter
+
+    input\char_23.jpg                            ← 参考图，放 ComfyUI 的 input 目录
+
+说明：
+  - 表格里的两级目录（H3、LTX2.5）是作者自己的分类习惯，工作流里已经写死了这套路径。
+    如果你想不分子文件夹平铺，把三级加载器（UNETLoader / CLIPLoader / VAELoader / LoraLoaderModelOnly）
+    的下拉框重新选一遍对应文件即可。
+  - models\h3_ltx_adapter 和 models\latent_upscale_models 这两个目录如果不存在，自己新建。
+
+
+----------------------------------------------------------------
+六、几个容易踩的坑
+----------------------------------------------------------------
+
+1. 四个包文件夹的名字不要改，改了就加载不出来。
+2. 装完包 / 换完模型一定要重启 ComfyUI，热插拔不刷新下拉列表。
+3. SolAttn 第一次跑会编译 Triton kernel，卡住几分钟是正常的，第二次就快了。
+4. 这套工作流要求显卡支持，作者的原环境是 8GB 显存的 RTX 4060 Laptop，
+   启动参数带 --lowvram。显存更小的话可能跑不动 H3 这一半。
+5. 工作流里有个别注意力补丁节点（KJ 的 Sage patch、SolAttnPatch、LowVRAM Attention）
+   属于备用实验分支，没有接进实际执行链，不影响生成结果，不用管它。
+6. 同一个模型上不要同时叠多个注意力补丁，会互相覆盖导致白装。
+
+
+----------------------------------------------------------------
+七、这个工作流一共用到多少节点
+----------------------------------------------------------------
+
+总计 76 个节点、45 种类型。
+
+第三方包 4 个：Comfyui-XH_Toolbox、ComfyUI-KJNodes、
+              ComfyUI-SolAttn_triton、Comfyui_Minimax_h3_latent_Upscaler
+其余全部是 ComfyUI 官方自带。
+
+================================================================
