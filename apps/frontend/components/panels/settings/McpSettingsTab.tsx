@@ -1727,6 +1727,12 @@ export function McpSettingsTab() {
             </div>
           <div className="space-y-3 p-4">
             {!remoteActive && <p className="text-xs text-muted-foreground">本地(Mac)引擎升级请到 设置→本地配置→ComfyUI→更新;此处仅管理 Windows 引擎。</p>}
+            <p className="text-xs leading-5 text-muted-foreground" data-testid="torch-target-desc">
+              <span className="font-medium text-foreground">升级对象:</span>Windows 引擎主机 <span className="font-mono">{activeRemoteUrl || sshStatus?.host || "未连接"}</span> —— 经 SSH 远程操作该机的 ComfyUI 引擎 Python 环境(venv),升级 <span className="font-mono">PyTorch + 配套 torchvision</span>;不动该机的 ComfyUI 本体、插件与模型文件。
+            </p>
+            <p className="text-xs leading-5 text-muted-foreground">
+              <span className="font-medium text-foreground">升级流程:</span>预检(引擎空闲/磁盘/驱动)→ 快照(可回滚)→ 停止引擎 → 安装新版本 → 导入验证 → 重启引擎 → 烟测;任一步失败自动回滚旧版,预计 15–60 分钟(视网络)。
+            </p>
             <p className="text-xs text-muted-foreground">
               <span data-testid="torch-section-body">生效版本：<span className="font-mono">{torchVersionDisplay}</span>
               {torchInfo?.current?.cuda ? <span className="font-mono"> · CUDA {torchInfo.current.cuda}</span> : null}
