@@ -169,7 +169,7 @@ function resolveActiveSshPresetId(
 }
 
 const COLLAPSED_STORAGE_KEY = "mystudio.settings.mcp.collapsedSections";
-type SectionId = "bridge" | "remote-engine" | "engine-sync" | "torch-upgrade" | "ssh-remote" | "family" | "workflows" | "servers" | "json";
+type SectionId = "bridge" | "remote-engine" | "engine-sync" | "ssh-remote" | "family" | "workflows" | "servers" | "json";
 
 type PillState = "ready" | "needs-runtime" | "neutral";
 
@@ -1715,16 +1715,16 @@ export function McpSettingsTab() {
               </DialogContent>
             </Dialog>
           </div>
-        </McpRow>
 
-        <McpRow
-          sectionId="torch-upgrade"
-          icon={Terminal}
-          title="引擎 PyTorch / CUDA"
-          pill={remoteActive && sshStatus?.connected ? "ready" : "neutral"}
-          collapsed={collapsedSections.has("torch-upgrade")}
-          onToggle={toggleSectionCollapsed}
-        >
+          {/* ── 引擎 PyTorch / CUDA(1106 用户令:自独立行迁入本面板,排引擎同步之后) ── */}
+          <div className="mt-3 space-y-3 rounded-xl border border-border/60 p-4">
+            <div className="flex items-center gap-2">
+              <Terminal className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <span className="text-sm font-medium">引擎 PyTorch / CUDA</span>
+              <span className={cn("rounded-full border px-2 py-0.5 text-xs", remoteActive && sshStatus?.connected ? "border-success/40 text-success" : "border-border text-muted-foreground")}>
+                {remoteActive && sshStatus?.connected ? "已就绪" : "未连接"}
+              </span>
+            </div>
           <div className="space-y-3 p-4">
             {!remoteActive && <p className="text-xs text-muted-foreground">本地(Mac)引擎升级请到 设置→本地配置→ComfyUI→更新;此处仅管理 Windows 引擎。</p>}
             <p className="text-xs text-muted-foreground">
@@ -1743,6 +1743,7 @@ export function McpSettingsTab() {
             </div>
             {torchInfo?.allowedTargets?.length && !torchInfo.allowedTargets.includes(torchTarget) ? <p className="text-xs text-warning">仅支持 {torchInfo.allowedTargets.join(" / ")}</p> : null}
             {torchJob && <TorchUpgradeProgress job={torchJob} warning={torchTrackingWarning} />}
+          </div>
           </div>
         </McpRow>
 
