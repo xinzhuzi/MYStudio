@@ -1717,7 +1717,7 @@ export function McpSettingsTab() {
           </div>
 
           {/* ── 引擎 PyTorch / CUDA(1106 用户令:自独立行迁入本面板,排引擎同步之后) ── */}
-          <div className="mt-3 space-y-3 rounded-xl border border-border/60 p-4">
+          <div className="mt-3 space-y-3">
             <div className="flex items-center gap-2">
               <Terminal className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               <span className="text-sm font-medium">引擎 PyTorch / CUDA</span>
