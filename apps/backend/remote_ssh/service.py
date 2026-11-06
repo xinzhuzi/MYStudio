@@ -1218,9 +1218,11 @@ class SSHService:
 
     def _torch_remote_pip_running(self) -> bool:
         output = self._torch_command(f"$ErrorActionPreference='Stop'; @((Get-CimInstance Win32_Process -Filter \"Name like 'python%'\") | Where-Object {{ $_.CommandLine -and $_.CommandLine.IndexOf({_torch_quote(_WIN_VENV_PYTHON)}, [StringComparison]::OrdinalIgnoreCase) -ge 0 -and $_.CommandLine -match '\\s-m\\s+pip\\s+install(\\s|$)' }}).Count")
-        if not output.isdecimal():
+        # CLIXML 进度记录(GBK 中文)会混进 SSH exec stdout,只取纯数字行(1107 用户实弹踩雷)
+        numeric = [l.strip() for l in output.splitlines() if l.strip().isdecimal()]
+        if not numeric:
             raise RuntimeError("无法核实远端 pip 状态")
-        return int(output) > 0
+        return int(numeric[0]) > 0
 
     def _torch_verify_recovery_import(self, target: str) -> None:
         actual = self._torch_command(f"& {_torch_quote(_WIN_VENV_PYTHON)} -c 'import torch, torchvision; print(torch.__version__)'; exit $LASTEXITCODE", 60)
