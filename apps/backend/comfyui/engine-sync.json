@@ -106,6 +106,10 @@
       "url": "https://github.com/lrzjason/Comfyui-QwenEditUtils"
     },
     {
+      "name": "Comfyui-Relay-VSR",
+      "url": "https://github.com/bbaudio-2025/Comfyui-Relay-VSR.git"
+    },
+    {
       "name": "Comfyui-Resolution-Master",
       "url": "https://github.com/Azornes/Comfyui-Resolution-Master.git"
     },

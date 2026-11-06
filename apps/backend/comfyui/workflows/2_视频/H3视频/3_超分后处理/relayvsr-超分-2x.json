@@ -1,0 +1,71 @@
+{
+  "1": {
+    "class_type": "LoadVideo",
+    "inputs": {
+      "file": "your-1280x704-clip.mp4"
+    }
+  },
+  "2": {
+    "class_type": "GetVideoComponents",
+    "inputs": {
+      "video": [
+        "1",
+        0
+      ]
+    }
+  },
+  "3": {
+    "class_type": "RelayVSRModelLoader",
+    "inputs": {
+      "bundle": "RelayVSR_X2",
+      "dtype": "bf16",
+      "offload": true,
+      "path": ""
+    }
+  },
+  "4": {
+    "class_type": "RelayVSRUpscale",
+    "inputs": {
+      "model": [
+        "3",
+        0
+      ],
+      "images": [
+        "2",
+        0
+      ],
+      "sr_ratio": 2,
+      "chunk_len": 16,
+      "seed": 0
+    }
+  },
+  "5": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "4",
+        0
+      ],
+      "fps": [
+        "2",
+        2
+      ],
+      "audio": [
+        "2",
+        1
+      ],
+      "bit_depth": 8
+    }
+  },
+  "6": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": [
+        "5",
+        0
+      ],
+      "filename_prefix": "relayvsr-2x",
+      "format": "auto"
+    }
+  }
+}
