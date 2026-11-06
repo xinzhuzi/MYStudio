@@ -6,15 +6,6 @@
     }
   },
   "2": {
-    "class_type": "GetVideoComponents",
-    "inputs": {
-      "video": [
-        "1",
-        0
-      ]
-    }
-  },
-  "3": {
     "class_type": "RelayVSRModelLoader",
     "inputs": {
       "bundle": "RelayVSR_X2",
@@ -23,49 +14,29 @@
       "path": ""
     }
   },
-  "4": {
-    "class_type": "RelayVSRUpscale",
+  "3": {
+    "class_type": "RelayVSRUpscaleStreaming",
     "inputs": {
       "model": [
-        "3",
-        0
-      ],
-      "images": [
         "2",
         0
       ],
-      "sr_ratio": 2,
-      "chunk_len": 16,
-      "seed": 0
-    }
-  },
-  "5": {
-    "class_type": "CreateVideo",
-    "inputs": {
-      "images": [
-        "4",
-        0
-      ],
-      "fps": [
-        "2",
-        2
-      ],
-      "audio": [
-        "2",
-        1
-      ],
-      "bit_depth": 8
-    }
-  },
-  "6": {
-    "class_type": "SaveVideo",
-    "inputs": {
       "video": [
-        "5",
+        "1",
         0
       ],
-      "filename_prefix": "relayvsr-2x",
-      "format": "auto"
+      "upscale_width": 0,
+      "sr_ratio": 2,
+      "chunk_len": 24,
+      "seed": 0,
+      "chunk_overlap": 4,
+      "spatial_grid_cols": 1,
+      "spatial_grid_rows": 1,
+      "spatial_overlap": 64,
+      "codec": "h264",
+      "crf": 18.0,
+      "preset": "medium",
+      "filename_prefix": "relayvsr-2x"
     }
   }
 }
