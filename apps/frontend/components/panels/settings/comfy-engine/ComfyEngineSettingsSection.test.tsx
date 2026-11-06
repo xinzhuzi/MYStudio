@@ -4,15 +4,19 @@
 // 端口与模型目录行、更新链报告/失败回滚、插件子区块(搜索/展开/卸载引用警告)、
 // 彻底重装二次确认、引擎检查报告。hook 整体 mock(历史模式沿用)。
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComfyEngineStatus } from "./comfy-engine-contract";
 import { createMockComfyEngineClient } from "./mock-comfy-engine-client";
+import torchJobRoute from "./__fixtures__/torch-job-route.json";
 
 // 存储位置卡(ComfyEngineStoragePaths)独立解析 window.comfyEngine,
 // hook 被整体 mock 不覆盖它——装上 mock client 让卡随页渲染
 beforeEach(() => {
   (window as { comfyEngine?: unknown }).comfyEngine = createMockComfyEngineClient();
+  torchActions.info.mockReset().mockRejectedValue(new Error("offline"));
+  torchActions.start.mockReset();
+  torchActions.poll.mockReset();
 });
 
 const scenario = vi.hoisted(() => ({
@@ -52,6 +56,12 @@ vi.mock("sonner", () => ({
 }));
 const scenarioModels = vi.hoisted(() => ({ reply: null as import("./comfy-engine-contract").ComfyModelsReply | null }));
 const modelActions = vi.hoisted(() => ({ loadModels: vi.fn(async () => undefined) }));
+const torchActions = vi.hoisted(() => ({ info: vi.fn(), start: vi.fn(), poll: vi.fn() }));
+
+vi.mock("@/lib/assist/image-studio/comfy-sidecar-bridge", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/assist/image-studio/comfy-sidecar-bridge")>();
+  return { ...actual, getEngineTorchInfo: torchActions.info, startEngineTorchUpgrade: torchActions.start, pollJobUntilTerminal: torchActions.poll };
+});
 
 vi.mock("./useComfyEngineSettings", () => ({
   useComfyEngineSettings: () => ({
@@ -933,6 +943,7 @@ describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () =
   });
 
   it("标签栏五页(模型/更新/启动参数/快照/存储)渲染,更新页含 PyTorch 版本块", async () => {
+    torchActions.info.mockResolvedValue({ current: { torch: "2.13.0" }, live: true, busy: false });
     render(<ComfyEngineSettingsSection />);
     fireEvent.click(comfyEl("tab", "update"));
     await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
@@ -943,6 +954,179 @@ describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () =
     expect(comfyEl("tab", "storage")).toBeTruthy();
     await waitFor(() => expect(comfyEl("torch")?.textContent).toContain("2.13.0"));
   });
+
+  it("本地 torch 显示需更新、确认并明确使用 local 模式", async () => {
+    torchActions.info.mockResolvedValue({ current: { torch: "2.14.0" }, pinnedTarget: "2.14.1", live: true, busy: false });
+    torchActions.start.mockResolvedValue({ jobId: "local-job" });
+    torchActions.poll.mockImplementation(async (_id, _timeout, _interval, onUpdate) => {
+      onUpdate({ status: "running", step: "install", message: "安装中" });
+      return { status: "complete", step: "ledger", message: "完成", result: { from: "2.14.0", to: "2.14.1" } };
+    });
+    render(<ComfyEngineSettingsSection initialActiveTab="update" />);
+    await waitFor(() => expect(screen.getByText("需更新")).toBeTruthy());
+    expect(torchActions.info).toHaveBeenCalledWith("local");
+    fireEvent.click(screen.getByTestId("local-torch-upgrade-start"));
+    expect(await screen.findByText(/本地引擎将停机/)).toBeTruthy();
+    fireEvent.click(screen.getByText("确认升级"));
+    await waitFor(() => expect(torchActions.start).toHaveBeenCalledWith("2.14.1", "cu132", "local"));
+    expect((await screen.findByTestId("local-torch-upgrade-result-dialog")).textContent).toContain("2.14.0 → 2.14.1");
+    expect(screen.getByTestId("local-torch-upgrade-progress").textContent).toContain("✅ 落账");
+  });
+
+  it("本地 torch 钉版和探针不可用时禁止升级", async () => {
+    torchActions.info.mockResolvedValue({ current: { torch: "2.14.1" }, pinnedTarget: "2.14.1", live: true, busy: false });
+    const view = render(<ComfyEngineSettingsSection initialActiveTab="update" />);
+    await waitFor(() => expect(screen.getByText("✅ 已是钉版")).toBeTruthy());
+    expect((screen.getByTestId("local-torch-upgrade-start") as HTMLButtonElement).disabled).toBe(true);
+    view.unmount();
+    torchActions.info.mockRejectedValue(new Error("offline"));
+    render(<ComfyEngineSettingsSection initialActiveTab="update" />);
+    await waitFor(() => expect(comfyEl("torch").textContent).toContain("未知(原因:offline)"));
+    expect(screen.queryByText("未实时验证")).toBeNull();
+    expect((screen.getByTestId("local-torch-upgrade-start") as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("本地三层失败展示首条原因，账本值才标未实时验证", async () => {
+    torchActions.info.mockResolvedValue({ current: null, live: false, busy: false, errors: ["system_stats: offline", "venv-probe: missing", "ledger: missing"] });
+    const view = render(<ComfyEngineSettingsSection initialActiveTab="update" />);
+    await waitFor(() => expect(comfyEl("torch").textContent).toContain("未知(原因:system_stats: offline)"));
+    expect(screen.queryByText("未实时验证")).toBeNull();
+    view.unmount();
+    torchActions.info.mockResolvedValue({ current: { torch: "2.14.0", source: "ledger" }, live: false, busy: false });
+    render(<ComfyEngineSettingsSection initialActiveTab="update" />);
+    await waitFor(() => expect(screen.getByText("未实时验证")).toBeTruthy());
+    expect(comfyEl("torch").textContent).toContain("2.14.0");
+  });
+
+  it("重挂载接管本地任务并双向禁用引擎更新", async () => {
+    scenario.status = readyStatus({ updateAvailable: true });
+    torchActions.info.mockResolvedValue({ current: { torch: "2.14.0" }, pinnedTarget: "2.14.1", live: true, busy: true, jobId: "local-job" });
+    torchActions.poll.mockImplementation((_id, _timeout, _interval, onUpdate) => {
+      onUpdate({ status: "running", step: "install" });
+      return new Promise(() => {});
+    });
+    const view = render(<ComfyEngineSettingsSection initialActiveTab="update" />);
+    await waitFor(() => expect(torchActions.poll).toHaveBeenCalledWith("local-job", expect.any(Number), expect.any(Number), expect.any(Function), 5, "local"));
+    expect(screen.getByTestId("local-torch-upgrade-progress").textContent).toContain("⏳ 安装");
+    for (const label of ["预检", "快照", "停止引擎", "安装", "导入验证", "重启", "烟测", "落账"]) expect(screen.getByTestId("torch-upgrade-progress").textContent).toContain(label);
+    expect((screen.getByRole("button", { name: /更新到最新/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId("local-torch-upgrade-start") as HTMLButtonElement).disabled).toBe(true);
+    view.unmount();
+    render(<ComfyEngineSettingsSection initialActiveTab="update" />);
+    await waitFor(() => expect(torchActions.poll).toHaveBeenCalledTimes(2));
+    expect(screen.getByTestId("local-torch-upgrade-progress").textContent).toContain("⏳ 安装");
+  });
+
+  it("服务端任务变更时接管新任务并忽略旧任务迟到终态", async () => {
+    let refresh: (() => void) | undefined;
+    let finishOld!: (job: unknown) => void;
+    const realInterval = window.setInterval.bind(window);
+    const interval = vi.spyOn(window, "setInterval").mockImplementation((handler, delay, ...args) => {
+      if (delay === 10_000 && typeof handler === "function") refresh = handler as () => void;
+      return realInterval(handler, delay, ...args) as unknown as ReturnType<typeof setInterval>;
+    });
+    const info = { current: { torch: "2.14.0" }, pinnedTarget: "2.14.1", live: true, busy: true };
+    torchActions.info.mockResolvedValueOnce({ ...info, jobId: "old-job" }).mockResolvedValue({ ...info, jobId: "new-job" });
+    torchActions.poll.mockImplementation((jobId, _timeout, _interval, onUpdate) => {
+      onUpdate({ status: "running", step: jobId === "old-job" ? "snapshot" : "install" });
+      return new Promise((resolve) => { if (jobId === "old-job") finishOld = resolve; });
+    });
+    render(<ComfyEngineSettingsSection initialActiveTab="update" />);
+    await waitFor(() => expect(screen.getByTestId("local-torch-upgrade-progress").textContent).toContain("⏳ 快照"));
+    await act(async () => { refresh?.(); });
+    await waitFor(() => expect(screen.getByTestId("local-torch-upgrade-progress").textContent).toContain("⏳ 安装"));
+    await act(async () => { finishOld({ status: "complete", step: "ledger", message: "旧任务完成" }); });
+    expect(screen.getByTestId("local-torch-upgrade-progress").textContent).toContain("⏳ 安装");
+    expect(screen.queryByTestId("local-torch-upgrade-result-dialog")).toBeNull();
+    interval.mockRestore();
+  });
+
+  it("引擎更新中禁止本地 torch 升级", async () => {
+    scenario.activeJob = { jobId: "engine-job", kind: "update", state: "running", progress: 40, stage: "pull", message: "更新中", report: null };
+    torchActions.info.mockResolvedValue({ current: { torch: "2.14.0" }, pinnedTarget: "2.14.1", live: true, busy: false });
+    render(<ComfyEngineSettingsSection initialActiveTab="update" />);
+    await waitFor(() => expect(screen.getByText("需更新")).toBeTruthy());
+    expect((screen.getByTestId("local-torch-upgrade-start") as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("本地探针单飞并忽略卸载后的迟到响应", async () => {
+    let resolveOld!: (value: unknown) => void;
+    let refresh: (() => void) | undefined;
+    const realInterval = window.setInterval.bind(window);
+    const interval = vi.spyOn(window, "setInterval").mockImplementation((handler, delay, ...args) => {
+      if (delay === 10_000 && typeof handler === "function") refresh = handler as () => void;
+      return realInterval(handler, delay, ...args) as unknown as ReturnType<typeof setInterval>;
+    });
+    torchActions.info.mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve; }));
+    const view = render(<ComfyEngineSettingsSection initialActiveTab="update" />);
+    await act(async () => { refresh?.(); refresh?.(); });
+    expect(torchActions.info).toHaveBeenCalledTimes(1);
+    view.unmount();
+    torchActions.info.mockResolvedValue({ current: { torch: "2.14.1" }, pinnedTarget: "2.14.1", live: true, busy: false });
+    render(<ComfyEngineSettingsSection initialActiveTab="update" />);
+    await waitFor(() => expect(screen.getByText("✅ 已是钉版")).toBeTruthy());
+    await act(async () => { resolveOld({ current: { torch: "2.13.0" }, live: true, busy: false }); });
+    expect(comfyEl("torch").textContent).toContain("2.14.1");
+    expect(comfyEl("torch").textContent).not.toContain("2.13.0");
+    interval.mockRestore();
+  });
+
+  it("本地 torch 安装中展示三态，失败展示回滚结果", async () => {
+    torchActions.info.mockResolvedValue({ current: { torch: "2.14.0" }, pinnedTarget: "2.14.1", live: true, busy: false });
+    torchActions.start.mockResolvedValue({ jobId: "local-job" });
+    let finish!: (job: unknown) => void;
+    torchActions.poll.mockImplementation((_id, _timeout, _interval, onUpdate) => {
+      onUpdate({ status: "running", step: "install", message: "安装中", tail: ["pip line"] });
+      return new Promise((resolve) => { finish = resolve; });
+    });
+    render(<ComfyEngineSettingsSection initialActiveTab="update" />);
+    await waitFor(() => expect((screen.getByTestId("local-torch-upgrade-start") as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByTestId("local-torch-upgrade-start"));
+    fireEvent.click(await screen.findByText("确认升级"));
+    await waitFor(() => expect(screen.getByTestId("local-torch-upgrade-progress").textContent).toContain("⏳ 安装"));
+    expect(screen.getByTestId("local-torch-upgrade-progress").textContent).toContain("✅ 预检");
+    expect(screen.getByTestId("local-torch-upgrade-progress").textContent).toContain("⬜ 烟测");
+    expect(screen.getByTestId("local-torch-upgrade-progress").textContent).toContain("pip line");
+    finish({ status: "error", step: "install", message: "已回滚至 2.14.0", result: { pipError: "安装失败" } });
+    expect((await screen.findByTestId("local-torch-upgrade-result-dialog")).textContent).toContain("已回滚至 2.14.0");
+    expect(screen.getByTestId("local-torch-upgrade-progress").textContent).toContain("❌ 安装");
+  });
+
+  it("真实任务轮询将路由尾行和终态传到本地升级界面", async () => {
+    const bridge = await vi.importActual<typeof import("@/lib/assist/image-studio/comfy-sidecar-bridge")>(
+      "@/lib/assist/image-studio/comfy-sidecar-bridge",
+    );
+    const { running, complete } = torchJobRoute;
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => running })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => complete });
+    vi.stubGlobal("fetch", fetchMock);
+    bridge.setComfySidecarLivenessProbeForTests(async () => true);
+    torchActions.info.mockResolvedValue({ current: { torch: "2.14.0" }, pinnedTarget: "2.14.1", live: true, busy: false });
+    torchActions.start.mockResolvedValue({ jobId: "local-job" });
+    torchActions.poll.mockImplementation(bridge.pollJobUntilTerminal);
+    try {
+      render(<ComfyEngineSettingsSection initialActiveTab="update" />);
+      await waitFor(() => expect((screen.getByTestId("local-torch-upgrade-start") as HTMLButtonElement).disabled).toBe(false));
+      fireEvent.click(screen.getByTestId("local-torch-upgrade-start"));
+      fireEvent.click(await screen.findByText("确认升级"));
+      await waitFor(() => expect(screen.getByTestId("local-torch-upgrade-progress").textContent).toContain(running.tail.join("\n")));
+      expect(screen.getByTestId("local-torch-upgrade-progress").textContent).toContain("⏳ 安装");
+      expect(screen.getByTestId("local-torch-upgrade-progress").textContent).toContain("⬜ 烟测");
+      const dialog = await screen.findByTestId("local-torch-upgrade-result-dialog", {}, { timeout: 5000 });
+      expect(dialog.textContent).toContain("2.14.0 → 2.14.1");
+      expect(dialog.textContent).toContain("引擎已重启");
+      expect(screen.getByTestId("local-torch-upgrade-progress").textContent).toContain("✅ 烟测");
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      for (const [url, options] of fetchMock.mock.calls) {
+        expect(url).toBe("http://127.0.0.1:17595/comfy/jobs/local-job?mode=local");
+        expect(options.method).toBe("GET");
+      }
+    } finally {
+      bridge.setComfySidecarLivenessProbeForTests(null);
+      vi.unstubAllGlobals();
+    }
+  }, 8000);
 
   it("启动参数页(Desktop 式):串唯一真源;端口行与快填镜像行已退役(09-10 不要重复展示)", async () => {
     render(<ComfyEngineSettingsSection />);

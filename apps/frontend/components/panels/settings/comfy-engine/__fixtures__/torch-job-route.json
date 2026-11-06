@@ -1,0 +1,32 @@
+{
+  "running": {
+    "id": "local-job",
+    "kind": "torch-upgrade",
+    "status": "running",
+    "progress": 15,
+    "step": "install",
+    "message": "安装中",
+    "error": null,
+    "result": null,
+    "tail": ["Collecting torch==2.14.1", "Downloading torch-2.14.1.whl"],
+    "createdAt": 1000,
+    "updatedAt": 2000,
+    "mode": "local",
+    "origin_host": "local"
+  },
+  "complete": {
+    "id": "local-job",
+    "kind": "torch-upgrade",
+    "status": "complete",
+    "progress": 100,
+    "step": "ledger",
+    "message": "升级完成，引擎已重启",
+    "error": null,
+    "result": {"from": "2.14.0", "to": "2.14.1"},
+    "tail": ["Collecting torch==2.14.1", "Downloading torch-2.14.1.whl", "finished"],
+    "createdAt": 1000,
+    "updatedAt": 2000,
+    "mode": "local",
+    "origin_host": "local"
+  }
+}

@@ -533,6 +533,7 @@ export async function pollJobUntilTerminal(
   intervalMs: number,
   onUpdate?: (job: SidecarJobReply) => void,
   maxConsecutiveErrors = 1,
+  mode?: "local" | "remote",
 ): Promise<SidecarJobReply> {
   const deadline = Date.now() + timeoutMs;
   let consecutiveErrors = 0;
@@ -540,7 +541,7 @@ export async function pollJobUntilTerminal(
     try {
       const job = await comfySidecarRequest<SidecarJobReply>(
         "GET",
-        `/comfy/jobs/${encodeURIComponent(jobId)}`,
+        `/comfy/jobs/${encodeURIComponent(jobId)}${mode ? `?mode=${mode}` : ""}`,
         { timeoutMs: 10_000 },
       );
       consecutiveErrors = 0;
@@ -1306,6 +1307,7 @@ export async function restartRemoteEngine(): Promise<{ ok: boolean; output: stri
 }
 
 export type TorchUpgradeChannel = "cu128" | "cu130" | "cu132";
+export type TorchUpgradeMode = "local" | "remote";
 
 export interface EngineTorchInfo {
   current: {
@@ -1314,7 +1316,9 @@ export interface EngineTorchInfo {
     cuda: string | null;
     updatedAt: string | null;
     via: string | null;
+    source?: "system_stats" | "venv-probe" | "ledger";
   } | null;
+  errors?: string[];
   busy: boolean;
   live: boolean;
   hostMatched: boolean;
@@ -1324,13 +1328,13 @@ export interface EngineTorchInfo {
   mode: "local" | "remote";
 }
 
-export async function getEngineTorchInfo(): Promise<EngineTorchInfo> {
-  return comfySidecarRequest<EngineTorchInfo>("GET", "/comfy/ssh/torch-info", { timeoutMs: 30_000 });
+export async function getEngineTorchInfo(mode: TorchUpgradeMode): Promise<EngineTorchInfo> {
+  return comfySidecarRequest<EngineTorchInfo>("GET", `/comfy/ssh/torch-info?mode=${mode}`, { timeoutMs: 30_000 });
 }
 
-export async function startEngineTorchUpgrade(target: string, channel: TorchUpgradeChannel): Promise<{ jobId: string }> {
+export async function startEngineTorchUpgrade(target: string, channel: TorchUpgradeChannel, mode: TorchUpgradeMode): Promise<{ jobId: string }> {
   return comfySidecarRequest<{ jobId: string }>("POST", "/comfy/ssh/upgrade-torch", {
-    body: { target, channel },
+    body: { target, channel, mode },
   });
 }
 

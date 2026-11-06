@@ -1,3 +1,4 @@
+import io
 import json
 import sys
 import threading
@@ -34,7 +35,7 @@ def test_snapshot_rejects_missing_vision_before_writing(monkeypatch, tmp_path):
     assert not (tmp_path / "torch-upgrade").exists()
 
 
-def test_live_info_requires_matching_venv_for_mps(monkeypatch, tmp_path):
+def test_live_info_prefers_system_stats_and_probes_mps(monkeypatch, tmp_path):
     monkeypatch.setattr(manifest, "comfy_home", lambda: tmp_path)
     monkeypatch.setattr(manifest, "venv_python", lambda: tmp_path / "venv" / "bin" / "python")
     monkeypatch.setattr(engine_manager, "engine_manager", lambda: SimpleNamespace(engine_url=lambda: "http://127.0.0.1:17001"))
@@ -45,18 +46,76 @@ def test_live_info_requires_matching_venv_for_mps(monkeypatch, tmp_path):
     info = torch_upgrade_local.get_engine_torch_info()
     assert info["mode"] == "local" and info["live"] and info["mps"] is True
     assert info["current"]["torch"] == "2.14.0"
+    assert info["current"]["source"] == "system_stats" and info["errors"] == []
+    run.assert_called_once()
     run.return_value.stdout = '["2.14.1", true]\n'
-    assert torch_upgrade_local.get_engine_torch_info()["mps"] is None
+    info = torch_upgrade_local.get_engine_torch_info()
+    assert info["current"]["torch"] == "2.14.0" and info["mps"] is True
+
+
+def test_local_info_falls_back_to_venv_probe(monkeypatch, tmp_path):
+    monkeypatch.setattr(manifest, "comfy_home", lambda: tmp_path)
+    monkeypatch.setattr(engine_manager, "engine_manager", lambda: SimpleNamespace(engine_url=Mock(side_effect=OSError("stats offline"))))
+    monkeypatch.setattr(engine_manager, "jobs", engine_manager.JobRegistry())
+    monkeypatch.setattr(torch_upgrade_local.subprocess, "run", Mock(return_value=SimpleNamespace(stdout='["2.14.0", true]\n')))
+    info = torch_upgrade_local.get_engine_torch_info()
+    assert info["current"]["source"] == "venv-probe" and info["live"] and info["mps"] is True
+    assert info["errors"] == ["system_stats: stats offline"]
 
 
 def test_ledger_fallback_does_not_claim_live(monkeypatch, tmp_path):
     monkeypatch.setattr(manifest, "comfy_home", lambda: tmp_path)
     monkeypatch.setattr(engine_manager, "engine_manager", lambda: SimpleNamespace(engine_url=Mock(side_effect=OSError("offline"))))
     monkeypatch.setattr(engine_manager, "jobs", engine_manager.JobRegistry())
+    monkeypatch.setattr(torch_upgrade_local.subprocess, "run", Mock(side_effect=OSError("venv offline")))
     (tmp_path / "torch-upgrade.json").write_text(json.dumps({"current": {"torch": "2.14.0"}}), encoding="utf-8")
     info = torch_upgrade_local.get_engine_torch_info()
     assert info["current"]["torch"] == "2.14.0"
+    assert info["current"]["source"] == "ledger" and len(info["errors"]) == 2
     assert info["live"] is False and info["mps"] is None
+
+
+def test_local_info_all_sources_fail_reports_errors(monkeypatch, tmp_path):
+    monkeypatch.setattr(manifest, "comfy_home", lambda: tmp_path)
+    monkeypatch.setattr(engine_manager, "engine_manager", lambda: SimpleNamespace(engine_url=Mock(side_effect=OSError("stats offline"))))
+    monkeypatch.setattr(engine_manager, "jobs", engine_manager.JobRegistry())
+    monkeypatch.setattr(torch_upgrade_local.subprocess, "run", Mock(side_effect=OSError("venv offline")))
+    info = torch_upgrade_local.get_engine_torch_info()
+    assert info["current"] is None and not info["live"]
+    assert len(info["errors"]) == 3 and info["errors"][0] == "system_stats: stats offline"
+
+
+def test_local_info_exposes_only_local_active_job_id(monkeypatch, tmp_path):
+    registry = engine_manager.JobRegistry()
+    monkeypatch.setattr(engine_manager, "jobs", registry)
+    monkeypatch.setattr(manifest, "comfy_home", lambda: tmp_path)
+    monkeypatch.setattr(engine_manager, "engine_manager", lambda: SimpleNamespace(engine_url=lambda: "http://127.0.0.1:17001"))
+    monkeypatch.setattr(engine_manager, "_get_json", lambda *args, **kwargs: {"system": {"pytorch_version": "2.14.0"}})
+    monkeypatch.setattr(torch_upgrade_local.subprocess, "run", Mock(return_value=SimpleNamespace(stdout='["2.14.0", true]\n')))
+    job_id = registry.create("torch-upgrade", mode="remote", origin_host="other.example")
+    monkeypatch.setattr(torch_upgrade_local, "_LOCAL_TORCH_JOB_ID", "different-job")
+    info = torch_upgrade_local.get_engine_torch_info()
+    assert info["busy"] and info["jobId"] is None
+    registry.update(job_id, error="finished")
+    job_id = registry.create("torch-upgrade", mode="local", origin_host="local")
+    info = torch_upgrade_local.get_engine_torch_info()
+    assert info["busy"] and info["jobId"] == job_id
+
+
+def test_local_start_registers_job_for_recovery(monkeypatch, tmp_path):
+    registry = engine_manager.JobRegistry()
+    monkeypatch.setattr(engine_manager, "jobs", registry)
+    monkeypatch.setattr(registry, "start", Mock())
+    monkeypatch.setattr(service, "_acquire_torch_operation", Mock())
+    monkeypatch.setattr(service, "ssh_service", Mock())
+    monkeypatch.setattr(torch_upgrade_local, "_LOCAL_TORCH_JOB_ID", None)
+    monkeypatch.setattr(manifest, "comfy_home", lambda: tmp_path)
+    monkeypatch.setattr(engine_manager, "engine_manager", lambda: SimpleNamespace(engine_url=lambda: "http://127.0.0.1:17001"))
+    monkeypatch.setattr(engine_manager, "_get_json", lambda *args, **kwargs: {"system": {"pytorch_version": "2.14.0"}})
+    monkeypatch.setattr(torch_upgrade_local.subprocess, "run", Mock(return_value=SimpleNamespace(stdout='["2.14.0", true]\n')))
+    job_id = torch_upgrade_local.upgrade_engine_torch("2.14.1")
+    assert torch_upgrade_local.get_engine_torch_info()["jobId"] == job_id
+    registry.start.assert_called_once()
 
 
 @pytest.fixture
@@ -131,8 +190,81 @@ def test_running_other_install_rejects_upgrade(monkeypatch, tmp_path):
         torch_upgrade_local.upgrade_engine_torch("2.14.1")
 
 
+def test_local_pip_streams_multiple_lines_before_process_exit(monkeypatch):
+    registry = engine_manager.JobRegistry()
+    monkeypatch.setattr(engine_manager, "jobs", registry)
+    job_id = registry.create("torch-upgrade")
+    real_popen = torch_upgrade_local.subprocess.Popen
+    processes = []
+    first_line = threading.Event()
+    second_line = threading.Event()
+    observed = []
+    original_update = registry.update
+
+    def launch(_command, **kwargs):
+        process = real_popen([sys.executable, "-u", "-c", 'import time; print("first", flush=True); time.sleep(0.3); print("second", flush=True); time.sleep(0.5)'], **kwargs)
+        processes.append(process)
+        return process
+
+    def update(active_id, **kwargs):
+        result = original_update(active_id, **kwargs)
+        if kwargs.get("tail_line") in ("first", "second"):
+            observed.append((kwargs["tail_line"], processes[0].poll()))
+            (first_line if kwargs["tail_line"] == "first" else second_line).set()
+        return result
+
+    monkeypatch.setattr(torch_upgrade_local.subprocess, "Popen", launch)
+    monkeypatch.setattr(registry, "update", update)
+    completed = threading.Event()
+    def install():
+        torch_upgrade_local._pip_install(["torch==2.14.1"], job_id)
+        completed.set()
+    worker = threading.Thread(target=install)
+    worker.start()
+    try:
+        assert first_line.wait(5) and second_line.wait(5)
+        assert observed == [("first", None), ("second", None)]
+        assert registry.get(job_id)["tail"][-1] == "second"
+    finally:
+        worker.join(timeout=5)
+    assert not worker.is_alive() and completed.is_set() and processes[0].returncode == 0
+
+
+def test_local_pip_drains_final_line_after_process_exit(monkeypatch, tmp_path):
+    registry = engine_manager.JobRegistry()
+    monkeypatch.setattr(engine_manager, "jobs", registry)
+    job_id = registry.create("torch-upgrade")
+    real_popen = torch_upgrade_local.subprocess.Popen
+    processes = []
+    observed = []
+    gate = tmp_path / "continue"
+    original_update = registry.update
+
+    def launch(_command, **kwargs):
+        script = 'import pathlib, sys, time; print("first", flush=True); gate = pathlib.Path(sys.argv[1]);\nwhile not gate.exists(): time.sleep(0.01)\nprint("finished", flush=True)'
+        process = real_popen([sys.executable, "-u", "-c", script, str(gate)], **kwargs)
+        processes.append(process)
+        return process
+
+    def update(active_id, **kwargs):
+        result = original_update(active_id, **kwargs)
+        if kwargs.get("tail_line") == "first":
+            gate.touch()
+            processes[0].wait(timeout=5)
+        if kwargs.get("tail_line") == "finished":
+            observed.append(("finished", processes[0].poll() is not None))
+        return result
+
+    monkeypatch.setattr(torch_upgrade_local.subprocess, "Popen", launch)
+    monkeypatch.setattr(registry, "update", update)
+    torch_upgrade_local._pip_install(["torch==2.14.1"], job_id)
+    assert observed == [("finished", True)]
+    assert registry.get(job_id)["tail"][-1] == "finished"
+    assert processes[0].returncode == 0
+
+
 def test_local_pip_timeout_monitors_process(monkeypatch):
-    process = Mock()
+    process = Mock(stdout=io.StringIO())
     process.wait.side_effect = torch_upgrade_local.subprocess.TimeoutExpired("pip", 3600)
     process.poll.side_effect = [None, 0, 0]
     process.returncode = 0
@@ -148,7 +280,7 @@ def test_local_pip_timeout_monitors_process(monkeypatch):
 @pytest.mark.parametrize("matches", [True, False])
 def test_timeout_exit_verifies_versions_and_recovers(local_job, monkeypatch, matches):
     registry, job_id, state, _ = local_job
-    process = Mock(returncode=0)
+    process = Mock(returncode=0, stdout=io.StringIO())
     def wait(timeout=None):
         if timeout == 3600:
             raise torch_upgrade_local.subprocess.TimeoutExpired("pip", timeout)
@@ -183,7 +315,7 @@ def test_timeout_exit_verifies_versions_and_recovers(local_job, monkeypatch, mat
 def test_killed_timeout_job_terminates_and_releases_lock(local_job, monkeypatch, matches):
     registry, previous_id, state, _ = local_job
     registry.update(previous_id, error="finished")
-    process = Mock(returncode=0)
+    process = Mock(returncode=0, stdout=io.StringIO())
     process.wait.side_effect = [torch_upgrade_local.subprocess.TimeoutExpired("pip", 3600), 0]
     process.poll.return_value = None
     monkeypatch.setattr(torch_upgrade_local.subprocess, "Popen", lambda *args, **kwargs: process)
@@ -209,7 +341,7 @@ def test_unreaped_killed_pip_fails_without_concurrent_rollback(local_job, monkey
 
     registry, previous_id, state, _ = local_job
     registry.update(previous_id, error="finished")
-    process = Mock()
+    process = Mock(stdout=io.StringIO())
     process.wait.side_effect = torch_upgrade_local.subprocess.TimeoutExpired("pip", 10)
     process.poll.return_value = None
     if kill_fails:
@@ -245,7 +377,7 @@ def test_local_marker_write_failure_is_visible_and_keeps_lock(local_job, monkeyp
     blocked.write_text("block")
     marker_path = {"value": tmp_path / "writable" / "stuck.json"}
     monkeypatch.setattr(service, "_torch_stuck_marker", lambda: marker_path["value"])
-    process = Mock()
+    process = Mock(stdout=io.StringIO())
     process.wait.side_effect = torch_upgrade_local.subprocess.TimeoutExpired("pip", 10)
     process.poll.return_value = None
     def cannot_kill():
@@ -513,5 +645,5 @@ def test_local_route_dispatch(monkeypatch):
     manager = SimpleNamespace(remote_engine_status=lambda: {"source": "local", "url": ""})
     monkeypatch.setattr(engine_manager, "engine_manager", lambda: manager)
     monkeypatch.setattr(torch_upgrade_local, "upgrade_engine_torch", lambda target: "local-job")
-    response, status = call("POST", "/comfy/ssh/upgrade-torch", {"target": "2.14.1"})
+    response, status = call("POST", "/comfy/ssh/upgrade-torch", {"target": "2.14.1", "mode": "local"})
     assert status == HTTPStatus.OK and response == {"jobId": "local-job", "mode": "local"}

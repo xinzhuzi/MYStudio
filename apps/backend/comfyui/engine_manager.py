@@ -249,7 +249,7 @@ class JobRegistry:
         self._lock = threading.Lock()
         self._jobs: dict[str, dict] = {}
 
-    def create(self, kind: str, message: str = "排队中") -> str:
+    def create(self, kind: str, message: str = "排队中", *, mode: str | None = None, origin_host: str | None = None) -> str:
         job_id = uuid.uuid4().hex[:12]
         with self._lock:
             self._jobs[job_id] = {
@@ -257,6 +257,8 @@ class JobRegistry:
                 "step": "queued", "message": message, "error": None, "result": None,
                 "tail": [], "createdAt": int(time.time() * 1000), "updatedAt": int(time.time() * 1000),
             }
+            if mode is not None:
+                self._jobs[job_id].update(mode=mode, origin_host=origin_host)
         return job_id
 
     def update(self, job_id: str, *, progress: int | None = None, step: str | None = None,

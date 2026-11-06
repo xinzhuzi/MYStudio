@@ -4,7 +4,7 @@ import json
 import re
 import shutil
 import subprocess
-import tempfile
+import threading
 import time
 from datetime import datetime, timezone
 from urllib import error
@@ -14,6 +14,8 @@ from remote_ssh.service import _TORCH_UPGRADE_LOCK, PINNED_TORCH, TORCH_TV_MAP
 
 from comfyui import engine_manager as engine_module
 from comfyui import manifest
+
+_LOCAL_TORCH_JOB_ID: str | None = None
 
 
 def snapshot_installed_packages(job_id: str) -> tuple[str, str]:
@@ -37,44 +39,47 @@ def snapshot_installed_packages(job_id: str) -> tuple[str, str]:
 
 def get_engine_torch_info() -> dict:
     current = None
-    try:
-        ledger = json.loads((manifest.comfy_home() / "torch-upgrade.json").read_text(encoding="utf-8"))
-        if isinstance(ledger, dict) and isinstance(ledger.get("current"), dict):
-            current = ledger["current"]
-    except (OSError, ValueError):
-        pass
-
-    live = False
+    errors = []
     mps = None
     try:
         manager = engine_module.engine_manager()
         stats = engine_module._get_json(f"{manager.engine_url()}/system_stats", timeout=5.0)
         version = stats.get("system", {}).get("pytorch_version")
-        if isinstance(version, str) and version:
-            same_version = current is not None and current.get("torch") == version
-            current = {
-                "torch": version,
-                "torchvision": current.get("torchvision") if same_version and current is not None else None,
-                "cuda": None,
-                "updatedAt": current.get("updatedAt") if same_version and current is not None else None,
-                "via": "live",
-            }
-            live = True
-            probe = subprocess.run(
-                [str(manifest.venv_python()), "-c", "import json,torch; print(json.dumps([torch.__version__,torch.backends.mps.is_available()]))"],
-                capture_output=True, text=True, timeout=30, check=True,
-            )
-            installed_version, available = json.loads(probe.stdout.strip().splitlines()[-1])
-            if installed_version == version and isinstance(available, bool):
-                mps = available
-    except (OSError, error.URLError, ValueError, TypeError, AttributeError, IndexError,
-            subprocess.SubprocessError, engine_module.EngineOpError):
-        pass
+        if not isinstance(version, str) or not version.strip():
+            raise ValueError("system_stats 缺少 pytorch_version")
+        current = {"torch": version, "torchvision": None, "cuda": None,
+                   "updatedAt": None, "via": "live", "source": "system_stats"}
+    except (OSError, error.URLError, ValueError, TypeError, AttributeError, engine_module.EngineOpError) as exc:
+        errors.append(f"system_stats: {str(exc)[:300] or type(exc).__name__}")
+    try:
+        probe = subprocess.run(
+            [str(manifest.venv_python()), "-c", "import json,torch; print(json.dumps([torch.__version__,torch.backends.mps.is_available()]))"],
+            capture_output=True, text=True, timeout=20, check=True,
+        )
+        version, available = json.loads(probe.stdout.strip().splitlines()[-1])
+        if not isinstance(version, str) or not version.strip():
+            raise ValueError("venv 未返回有效版本")
+        mps = available if isinstance(available, bool) else None
+        if current is None:
+            current = {"torch": version, "torchvision": None, "cuda": None,
+                       "updatedAt": None, "via": "live", "source": "venv-probe"}
+    except (OSError, ValueError, TypeError, IndexError, subprocess.SubprocessError) as exc:
+        if current is None:
+            errors.append(f"venv-probe: {str(exc)[:300] or type(exc).__name__}")
+    if current is None:
+        try:
+            ledger = json.loads((manifest.comfy_home() / "torch-upgrade.json").read_text(encoding="utf-8"))
+            entry = ledger.get("current") if isinstance(ledger, dict) else None
+            if not isinstance(entry, dict) or not isinstance(entry.get("torch"), str) or not entry["torch"].strip():
+                raise ValueError("账本缺少 PyTorch 版本")
+            current = {**entry, "source": "ledger"}
+        except (OSError, ValueError, TypeError) as exc:
+            errors.append(f"ledger: {str(exc)[:300] or type(exc).__name__}")
     active = engine_module.jobs.active_of("torch-upgrade")
     return {
-        "mode": "local", "current": current, "live": live, "mps": mps,
+        "mode": "local", "current": current, "live": current is not None and current["source"] != "ledger", "errors": errors, "mps": mps,
         "hostMatched": True, "busy": active is not None,
-        "jobId": active["id"] if active else None, "allowedTargets": list(TORCH_TV_MAP), "pinnedTarget": PINNED_TORCH,
+        "jobId": active["id"] if active and active.get("mode") == "local" and active.get("origin_host") == "local" else None, "allowedTargets": list(TORCH_TV_MAP), "pinnedTarget": PINNED_TORCH,
     }
 
 
@@ -128,8 +133,20 @@ def _verify_recovery_import() -> None:
 def _pip_install(specs: list[str], job_id: str, *, mirror: bool = False) -> None:
     index = "https://pypi.tuna.tsinghua.edu.cn/simple" if mirror else "https://pypi.org/simple"
     command = [str(manifest.venv_python()), "-m", "pip", "install", "--no-cache-dir", *specs, "--index-url", index]
-    with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as output:
-        process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT)
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+    lines: list[str] = []
+
+    def read_output() -> None:
+        assert process.stdout is not None
+        for output_line in process.stdout:
+            line = output_line.rstrip("\r\n")
+            lines.append(line)
+            del lines[:-30]
+            engine_module.jobs.update(job_id, tail_line=line)
+
+    reader = threading.Thread(target=read_output, daemon=True)
+    reader.start()
+    try:
         timed_out = False
         try:
             code = process.wait(timeout=3600)
@@ -151,14 +168,14 @@ def _pip_install(specs: list[str], job_id: str, *, mirror: bool = False) -> None
                     message = "无法确认 pip 已终止，须人工介入"
                     raise PipStillRunning(f"{message}；{warning}" if warning else message) from exc
             code = process.returncode
-        output.seek(0)
-        lines = output.read().splitlines()
-        for line in lines[-30:]:
-            engine_module.jobs.update(job_id, tail_line=line)
+        reader.join(timeout=2)
         if timed_out:
             _verify_specs(specs)
         elif code:
             raise RuntimeError("pip 安装失败: " + (lines[-1] if lines else str(code)))
+    finally:
+        if not reader.is_alive() and process.stdout is not None:
+            process.stdout.close()
 
 
 def _ledger(job_id: str, old: str, current: str, vision: str, *, rollback: bool) -> None:
@@ -178,6 +195,7 @@ def _ledger(job_id: str, old: str, current: str, vision: str, *, rollback: bool)
 
 
 def upgrade_engine_torch(target: str = PINNED_TORCH) -> str:
+    global _LOCAL_TORCH_JOB_ID
     if target not in TORCH_TV_MAP:
         raise ValueError("仅支持 " + " / ".join(TORCH_TV_MAP))
     torch_service._acquire_torch_operation(torch_service.ssh_service())
@@ -185,7 +203,8 @@ def upgrade_engine_torch(target: str = PINNED_TORCH) -> str:
         jobs = engine_module.jobs
         if any(jobs.active_of(kind) for kind in ("torch-upgrade", "engine-update", "plugin-install")):
             raise RuntimeError("引擎或插件安装任务正在运行")
-        job_id = jobs.create("torch-upgrade", "准备本地 PyTorch 升级")
+        job_id = jobs.create("torch-upgrade", "准备本地 PyTorch 升级", mode="local", origin_host="local")
+        _LOCAL_TORCH_JOB_ID = job_id
 
         def run(active_id: str) -> None:
             try:

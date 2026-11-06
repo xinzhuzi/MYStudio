@@ -7,7 +7,7 @@
 // 状态机:未安装 → 下载中 x% → 需准备 → 已就绪/可更新;就绪口径=装完即就绪,
 // 服务未跑显示「准备运行时」副标。行级胶囊在 PluginSettingsTab 行头(共用 hook)。
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Check,
   Copy,
@@ -35,9 +35,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ComfyModelsLibrary } from "@/components/panels/settings/comfy-engine/comfy-models/ComfyModelsLibrary";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { getEngineTorchInfo, pollJobUntilTerminal, startEngineTorchUpgrade, type EngineTorchInfo, type SidecarJobReply } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
 import {
   COMFY_ENGINE_STAGE_LABELS,
   comfyVersionGithubUrl,
@@ -50,6 +52,7 @@ import { ComfyEnginePluginBlock } from "./ComfyEnginePluginBlock";
 import { ComfyEngineStoragePaths } from "./ComfyEngineStoragePaths";
 import { Switch } from "@/components/ui/switch";
 import { useComfyEngineSettings } from "./useComfyEngineSettings";
+import { TorchUpgradeProgress } from "../TorchUpgradeProgress";
 
 /** 引擎卡标签页。「模型」为默认页(09-09 用户裁定:本地大模型展示并入引擎卡;
  *  默认落模型页 → 展开卡不再自动触发 GitHub 检查,点「更新」页才查)。 */
@@ -226,6 +229,17 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
   const status = engine.status;
   const [modelsDirDraft, setModelsDirDraft] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
+  const [localTorchInfo, setLocalTorchInfo] = useState<EngineTorchInfo | null>(null);
+  const [localTorchError, setLocalTorchError] = useState<string | null>(null);
+  const [localTorchJob, setLocalTorchJob] = useState<SidecarJobReply | null>(null);
+  const [localTorchConfirm, setLocalTorchConfirm] = useState(false);
+  const [localTorchResult, setLocalTorchResult] = useState(false);
+  const [localTorchRunning, setLocalTorchRunning] = useState(false);
+  const localTorchTracking = useRef<string | null>(null);
+  const localTorchPending = useRef<string | null>(null);
+  const localTorchRetryAfter = useRef(0);
+  const localTorchMounted = useRef(true);
+  const localTorchProbeEpoch = useRef(0);
   // 启动参数 Desktop 化(09-10):串=唯一真源;草稿 null=跟随真实状态,编辑后本地持有
   const [argsDraft, setArgsDraft] = useState<string | null>(null);
   // 深审 C2:环境表行=稳定 id 数组(对象键当 React key 会逐字符失焦+行跳动)
@@ -233,6 +247,91 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
   const [envReveal, setEnvReveal] = useState<Record<number, boolean>>({});
   // 标签页(照 ComfyUI Desktop 设置布局,09-09 增「模型」页并置首:本地大模型展示)
   const [activeTab, setActiveTab] = useState<ComfyEngineTab>(initialActiveTab ?? "models");
+  useEffect(() => {
+    localTorchMounted.current = true;
+    return () => { localTorchMounted.current = false; };
+  }, []);
+  const followLocalTorchJob = useCallback(async (jobId: string) => {
+    localTorchTracking.current = jobId;
+    setLocalTorchRunning(true);
+    setLocalTorchJob({ status: "running", step: "preflight", message: "正在跟踪升级任务" });
+    try {
+      const job = await pollJobUntilTerminal(jobId, 2 * 60 * 60 * 1000, 2000, (update) => {
+        if (localTorchMounted.current && localTorchTracking.current === jobId) setLocalTorchJob(update);
+      }, 5, "local");
+      if (!localTorchMounted.current || localTorchTracking.current !== jobId) return;
+      localTorchPending.current = null;
+      setLocalTorchJob(job);
+      setLocalTorchResult(true);
+    } catch {
+      if (!localTorchMounted.current || localTorchTracking.current !== jobId) return;
+      localTorchPending.current = jobId;
+      localTorchRetryAfter.current = Date.now() + 30_000;
+      setLocalTorchJob({ status: "running", message: "升级状态暂不可用，任务可能仍在后台运行" });
+    } finally {
+      if (localTorchTracking.current === jobId) {
+        localTorchTracking.current = null;
+        if (localTorchMounted.current) setLocalTorchRunning(false);
+      }
+    }
+  }, []);
+  useEffect(() => {
+    if (activeTab !== "update") return;
+    let active = true;
+    let inFlight = false;
+    let pending = false;
+    const refresh = () => {
+      if (inFlight) { pending = true; return; }
+      inFlight = true;
+      const epoch = localTorchProbeEpoch.current;
+      void getEngineTorchInfo("local").then((info) => {
+        if (active) {
+          if (epoch !== localTorchProbeEpoch.current) { pending = true; return; }
+          setLocalTorchInfo(info);
+          setLocalTorchError(null);
+          if (info.busy && info.jobId && localTorchTracking.current !== "starting" && localTorchTracking.current !== info.jobId && (localTorchPending.current !== info.jobId || Date.now() >= localTorchRetryAfter.current)) {
+            localTorchPending.current = info.jobId;
+            void followLocalTorchJob(info.jobId);
+          } else if (!info.busy && localTorchPending.current && !localTorchTracking.current && Date.now() >= localTorchRetryAfter.current) {
+            void followLocalTorchJob(localTorchPending.current);
+          }
+        }
+      }).catch((error: unknown) => {
+        if (active && epoch !== localTorchProbeEpoch.current) pending = true;
+        else if (active) { setLocalTorchInfo(null); setLocalTorchError(error instanceof Error ? error.message : "获取引擎版本失败"); }
+      }).finally(() => {
+        inFlight = false;
+        if (active && pending) { pending = false; refresh(); }
+      });
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 10_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [activeTab, followLocalTorchJob]);
+
+  const startLocalTorchUpgrade = async () => {
+    if (!localTorchInfo?.pinnedTarget || localTorchInfo.busy || localTorchRunning || engine.activeJob?.state === "running") return;
+    localTorchProbeEpoch.current += 1;
+    localTorchTracking.current = "starting";
+    setLocalTorchRunning(true);
+    setLocalTorchJob({ status: "running", step: "preflight", message: "正在启动" });
+    try {
+      const { jobId } = await startEngineTorchUpgrade(localTorchInfo.pinnedTarget, "cu132", "local");
+      localTorchProbeEpoch.current += 1;
+      if (!localTorchMounted.current) return;
+      await followLocalTorchJob(jobId);
+    } catch (error) {
+      if (localTorchMounted.current) {
+        setLocalTorchJob({ status: "unknown", message: `启动结果无法确认，请检查任务状态：${error instanceof Error ? error.message : "请求失败"}` });
+        setLocalTorchResult(true);
+      }
+    } finally {
+      if (localTorchTracking.current === "starting") {
+        localTorchTracking.current = null;
+        if (localTorchMounted.current) setLocalTorchRunning(false);
+      }
+    }
+  };
   // 模型分域折叠状态已随组件迁入 comfy-models/ComfyModelsLibrary(09-10)
 
   // 深链切页:卡已展开时收到 reveal(如再次点「去更新」)也要切到目标页。
@@ -342,7 +441,7 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
   // 任务闸是全局单槽(引擎与插件任务互斥):任何任务进行中,两边的操作钮都要
   // 禁下来——此前插件钮只看插件任务、引擎钮只看引擎任务,交错点击才弹
   // 「已有任务在进行中」报错,看起来就像两边不同步(09-19 根修)。
-  const anyJobRunning = engine.activeJob?.state === "running";
+  const anyJobRunning = engine.activeJob?.state === "running" || localTorchRunning || Boolean(localTorchInfo?.busy);
   // 09-08 实弹修正:status 未知(sidecar 未起/探测未回)≠ 未安装——此前误判
   // 会让已装引擎的用户看到「安装引擎」按钮,以为要重新下载。未知=检查中态。
   const statusUnknown = !status;
@@ -596,11 +695,35 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
               <div className="rounded-lg border border-border bg-card/60 px-3 py-2">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs text-muted-foreground">PyTorch 版本</span>
-                  <span className="font-mono text-xs text-foreground" data-comfy-torch>
-                    {status?.torch ?? "未记录"}(Apple 芯片 MPS)
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-xs text-foreground" data-comfy-torch>
+                      {localTorchInfo?.current?.torch ?? `未知(原因:${localTorchInfo?.errors?.[0] ?? localTorchError ?? "尚未获取引擎版本"})`}(Apple 芯片 MPS)
+                      {localTorchInfo?.pinnedTarget ? ` → ${localTorchInfo.pinnedTarget}` : ""}
+                    </span>
+                    {localTorchInfo?.live && localTorchInfo.current?.torch ? (
+                      <span className="text-xs text-muted-foreground">{localTorchInfo.current.torch === localTorchInfo.pinnedTarget ? "✅ 已是钉版" : "需更新"}</span>
+                    ) : localTorchInfo?.current?.torch && !localTorchInfo.live ? <span className="text-xs text-muted-foreground">未实时验证</span> : null}
+                    <Button size="sm" data-testid="local-torch-upgrade-start" onClick={() => setLocalTorchConfirm(true)} disabled={!localTorchInfo?.live || !localTorchInfo.current?.torch || localTorchInfo.current.torch === localTorchInfo.pinnedTarget || !localTorchInfo.pinnedTarget || localTorchInfo.busy || localTorchRunning || anyJobRunning}>升级</Button>
+                  </div>
                 </div>
+                {localTorchJob && <div className="mt-2" data-testid="local-torch-upgrade-progress"><TorchUpgradeProgress job={localTorchJob} /></div>}
               </div>
+              <AlertDialog open={localTorchConfirm} onOpenChange={setLocalTorchConfirm}>
+                <AlertDialogContent>
+                  <AlertDialogHeader><AlertDialogTitle>确认升级本地引擎？</AlertDialogTitle><AlertDialogDescription>本地引擎将停机约 5–15 分钟；失败将自动回滚旧版；磁盘需要至少 15 GiB 可用空间。</AlertDialogDescription></AlertDialogHeader>
+                  <AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={() => void startLocalTorchUpgrade()}>确认升级</AlertDialogAction></AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <Dialog open={localTorchResult} onOpenChange={setLocalTorchResult}>
+                <DialogContent data-testid="local-torch-upgrade-result-dialog">
+                  <DialogHeader><DialogTitle>{localTorchJob?.status === "complete" ? "升级完成" : localTorchJob?.status === "error" ? "升级失败" : "升级状态未知"}</DialogTitle><DialogDescription>{localTorchJob?.message ?? localTorchJob?.error}</DialogDescription></DialogHeader>
+                  {localTorchJob?.result && <p className="font-mono text-sm">{String(localTorchJob.result.from ?? "未知")} → {String(localTorchJob.result.to ?? "未知")}</p>}
+                  {localTorchJob?.status === "complete" && <p className="text-sm">引擎已重启</p>}
+                  {typeof localTorchJob?.result?.pipError === "string" && <p className="text-xs text-warning">⚠️ {localTorchJob.result.pipError}</p>}
+                  {localTorchJob?.tail?.length ? <pre className="max-h-36 overflow-auto whitespace-pre-wrap text-xs">{localTorchJob.tail.join("\n")}</pre> : null}
+                  <DialogFooter><Button size="sm" onClick={() => setLocalTorchResult(false)}>关闭</Button></DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               {/* 生态插件子区块(09-10 用户裁定:收进「更新」页=引擎版本+插件生态
                   同页管理;其余标签页不再展示;状态未知时不渲染,避免空目录噪音) */}

@@ -12,6 +12,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from comfyui import engine_manager, manifest
+from engines.image_engine import comfyui_bridge
 from remote_ssh import service
 
 
@@ -706,10 +707,12 @@ def test_live_info_does_not_reuse_stale_ledger_versions(monkeypatch):
     instance._connected = True
     instance._connected_host = "engine.example"
     instance.sftp_read_text = lambda path: json.dumps({"current": {"torch": "2.11.0+cu128", "torchvision": "0.26.0+cu128", "cuda": "12.8"}})
-    instance._torch_http = lambda path, timeout_s=20: {"system": {"pytorch_version": "2.14.1+cu132"}}
+    monkeypatch.setattr(comfyui_bridge, "bridge_url", lambda: "http://engine.example:17000")
+    monkeypatch.setattr(comfyui_bridge, "_http_json", lambda *args, **kwargs: {"system": {"pytorch_version": "2.14.1+cu132"}})
     current = instance.get_engine_torch_info(expected_host="engine.example")["current"]
     assert current["cuda"] == "13.2"
     assert current["torchvision"] is None
+    assert current["source"] == "system_stats"
 
 
 @pytest.mark.parametrize("exit_code", [-1, None])
@@ -765,7 +768,7 @@ def test_install_does_not_block_status_or_single_flight(monkeypatch):
         worker.join(2)
 
 
-def test_info_host_mismatch_uses_ledger_and_exposes_job(monkeypatch):
+def test_info_host_mismatch_rejects_other_hosts_ledger_and_exposes_job(monkeypatch):
     registry = engine_manager.JobRegistry()
     monkeypatch.setattr(engine_manager, "jobs", registry)
     monkeypatch.setattr(service.ssh_config, "load_config", lambda: {"host": "other.example"})
@@ -774,10 +777,86 @@ def test_info_host_mismatch_uses_ledger_and_exposes_job(monkeypatch):
     instance._connected_host = "other.example"
     instance.sftp_read_text = Mock(return_value=json.dumps({"current": {"torch": "old"}}))
     instance._torch_http = Mock()
-    job_id = registry.create("torch-upgrade")
+    monkeypatch.setattr(comfyui_bridge, "bridge_url", lambda: "http://other.example:17000")
+    job_id = registry.create("torch-upgrade", mode="remote", origin_host="engine.example")
+    monkeypatch.setattr(service, "_REMOTE_TORCH_JOB_ID", job_id)
     info = instance.get_engine_torch_info(expected_host="engine.example")
-    assert info == {"current": {"torch": "old"}, "live": False, "hostMatched": False, "busy": True, "jobId": job_id, "allowedTargets": list(service.TORCH_TV_MAP), "pinnedTarget": service.PINNED_TORCH}
+    assert info["current"] is None and not info["live"] and not info["hostMatched"]
+    assert info["busy"] and info["jobId"] == job_id and len(info["errors"]) == 3
     instance._torch_http.assert_not_called()
+    instance.sftp_read_text.assert_not_called()
+
+
+@pytest.mark.parametrize("owned", [False, True], ids=["foreign-job", "remote-job"])
+def test_info_exposes_only_remote_owned_active_job(monkeypatch, owned):
+    registry = engine_manager.JobRegistry()
+    monkeypatch.setattr(engine_manager, "jobs", registry)
+    job_id = registry.create("torch-upgrade", mode="remote" if owned else "local", origin_host="engine.example" if owned else "local")
+    monkeypatch.setattr(service, "_REMOTE_TORCH_JOB_ID", job_id if owned else None)
+    monkeypatch.setattr(service.ssh_config, "load_config", lambda: {"host": "other.example"})
+    monkeypatch.setattr(comfyui_bridge, "bridge_url", lambda: "http://other.example:17000")
+    info = service.SSHService().get_engine_torch_info(expected_host="engine.example")
+    assert info["busy"] is True
+    assert info["jobId"] == (job_id if owned else None)
+
+
+def test_remote_info_hides_other_host_job_but_keeps_global_busy(monkeypatch):
+    registry = engine_manager.JobRegistry()
+    monkeypatch.setattr(engine_manager, "jobs", registry)
+    job_id = registry.create("torch-upgrade", mode="remote", origin_host="a.example")
+    monkeypatch.setattr(service.ssh_config, "load_config", lambda: {"host": "a.example"})
+    monkeypatch.setattr(comfyui_bridge, "bridge_url", lambda: "http://unused.invalid:17000")
+    instance = service.SSHService()
+    assert instance.get_engine_torch_info(expected_host="b.example")["jobId"] is None
+    assert instance.get_engine_torch_info(expected_host="b.example")["busy"] is True
+    assert instance.get_engine_torch_info(expected_host="a.example")["jobId"] == job_id
+
+
+def test_remote_info_system_stats_succeeds_without_ssh(monkeypatch):
+    instance = service.SSHService()
+    monkeypatch.setattr(service.ssh_config, "load_config", lambda: {"host": "engine.example"})
+    monkeypatch.setattr(comfyui_bridge, "bridge_url", lambda: "http://engine.example:17000")
+    monkeypatch.setattr(comfyui_bridge, "_http_json", lambda *args, **kwargs: {"system": {"pytorch_version": "2.11.0+cu128"}})
+    instance._torch_command = Mock()
+    instance.sftp_read_text = Mock()
+    info = instance.get_engine_torch_info(expected_host="engine.example")
+    assert info["current"]["source"] == "system_stats" and info["live"] and not info["hostMatched"]
+    assert info["errors"] == []
+    instance._torch_command.assert_not_called()
+    instance.sftp_read_text.assert_not_called()
+
+
+def test_remote_info_rejects_changed_port_on_same_host(monkeypatch):
+    instance = service.SSHService()
+    instance._connected, instance._connected_host = True, "engine.example"
+    monkeypatch.setattr(service.ssh_config, "load_config", lambda: {"host": "engine.example"})
+    monkeypatch.setattr(comfyui_bridge, "bridge_url", lambda: "http://engine.example:18000")
+    instance._torch_command = Mock()
+    instance.sftp_read_text = Mock()
+    info = instance.get_engine_torch_info(expected_host="engine.example", expected_url="http://engine.example:17000")
+    assert info["current"] is None and len(info["errors"]) == 3
+    instance._torch_command.assert_not_called()
+    instance.sftp_read_text.assert_not_called()
+
+
+@pytest.mark.parametrize("probe_ok,ledger_ok", [(True, True), (False, True), (False, False)])
+def test_remote_info_fallback_chain(monkeypatch, probe_ok, ledger_ok):
+    instance = service.SSHService()
+    instance._connected, instance._connected_host = True, "engine.example"
+    monkeypatch.setattr(service.ssh_config, "load_config", lambda: {"host": "engine.example"})
+    monkeypatch.setattr(comfyui_bridge, "bridge_url", lambda: "http://engine.example:17000")
+    monkeypatch.setattr(comfyui_bridge, "_http_json", Mock(side_effect=RuntimeError("stats offline")))
+    instance._torch_command = Mock(return_value="2.14.1+cu132") if probe_ok else Mock(side_effect=RuntimeError("probe offline"))
+    instance.sftp_read_text = Mock(return_value=json.dumps({"current": {"torch": "2.11.0+cu128"}})) if ledger_ok else Mock(side_effect=OSError("ledger offline"))
+    info = instance.get_engine_torch_info(expected_host="engine.example")
+    assert info["errors"][0] == "system_stats: stats offline"
+    if probe_ok:
+        assert info["current"]["source"] == "venv-probe" and info["live"] and len(info["errors"]) == 1
+        instance.sftp_read_text.assert_not_called()
+    elif ledger_ok:
+        assert info["current"]["source"] == "ledger" and not info["live"] and len(info["errors"]) == 2
+    else:
+        assert info["current"] is None and not info["live"] and len(info["errors"]) == 3
 
 
 def test_sync_rejected_during_upgrade(monkeypatch):

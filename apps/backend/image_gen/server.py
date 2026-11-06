@@ -1090,9 +1090,17 @@ class Handler(BaseHTTPRequestHandler):
                     self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, f"引擎同步失败: {exc}", "sync-failed")
                 return
             if method == "GET" and path == "/comfy/ssh/torch-info":
+                mode = (query.get("mode") or [""])[0]
+                if mode not in ("local", "remote"):
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "引擎模式 mode 必须为 local 或 remote", "torch-upgrade-invalid")
+                    return
                 remote = engine_manager().remote_engine_status()
                 remote_url = remote.get("url")
-                if remote.get("source") != "settings" or not remote_url:
+                remote_active = remote.get("source") == "settings" and bool(remote_url)
+                if mode == "remote" and not remote_active:
+                    self._send_error_json(HTTPStatus.CONFLICT, "远端引擎未生效", "torch-upgrade-remote-inactive")
+                    return
+                if mode == "local":
                     from comfyui.torch_upgrade_local import get_engine_torch_info
                     self._send_json(get_engine_torch_info())
                     return
@@ -1101,13 +1109,17 @@ class Handler(BaseHTTPRequestHandler):
                     self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "remote_ssh 模块不可用", "ssh-unavailable")
                     return
                 remote_host = urlparse(remote_url).hostname if remote.get("source") == "settings" and isinstance(remote_url, str) else None
-                self._send_json({**svc.get_engine_torch_info(expected_host=remote_host), "mode": "remote"})
+                self._send_json({**svc.get_engine_torch_info(expected_host=remote_host, expected_url=remote_url), "mode": "remote"})
                 return
             if method == "POST" and path == "/comfy/ssh/upgrade-torch":
                 from remote_ssh.service import TORCH_TV_MAP
 
                 target = payload.get("target")
                 channel = payload.get("channel", "cu132")
+                mode = payload.get("mode")
+                if mode not in ("local", "remote"):
+                    self._send_error_json(HTTPStatus.BAD_REQUEST, "引擎模式 mode 必须为 local 或 remote", "torch-upgrade-invalid")
+                    return
                 if not isinstance(target, str) or not re.fullmatch(r"\d+\.\d+\.\d+", target) or channel not in ("cu128", "cu130", "cu132"):
                     self._send_error_json(HTTPStatus.BAD_REQUEST, "无效的 PyTorch 版本或 CUDA 通道", "torch-upgrade-invalid")
                     return
@@ -1116,7 +1128,11 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 remote = engine_manager().remote_engine_status()
                 remote_url = remote.get("url")
-                if remote.get("source") != "settings" or not remote_url:
+                remote_active = remote.get("source") == "settings" and bool(remote_url)
+                if mode == "remote" and not remote_active:
+                    self._send_error_json(HTTPStatus.CONFLICT, "远端引擎未生效", "torch-upgrade-remote-inactive")
+                    return
+                if mode == "local":
                     from comfyui.torch_upgrade_local import upgrade_engine_torch
                     try:
                         self._send_json({"jobId": upgrade_engine_torch(target), "mode": "local"})
@@ -1384,6 +1400,14 @@ class Handler(BaseHTTPRequestHandler):
             # ── job 进度(重操作的轮询通道) ──
             if method == "GET" and path.startswith("/comfy/jobs/"):
                 job = jobs.get(path.rsplit("/", 1)[-1])
+                if job and job.get("kind") == "torch-upgrade":
+                    mode = (query.get("mode") or [""])[0]
+                    remote = engine_manager().remote_engine_status() if mode == "remote" else {}
+                    remote_url = remote.get("url")
+                    host = urlparse(remote_url).hostname if remote.get("source") == "settings" and isinstance(remote_url, str) else None
+                    origin = job.get("origin_host")
+                    if mode not in ("local", "remote") or mode != job.get("mode") or not isinstance(origin, str) or (mode == "local" and origin != "local") or (mode == "remote" and (not host or host.casefold() != origin.casefold())):
+                        job = None
                 if job:
                     self._send_json(job)
                     return

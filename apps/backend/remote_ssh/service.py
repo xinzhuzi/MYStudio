@@ -78,6 +78,7 @@ _WIN_CUSTOM_NODES = _WIN_COMFY_ROOT + "\\ComfyUI\\custom_nodes"
 _WIN_VENV_PYTHON = _WIN_COMFY_ROOT + "\\venv\\Scripts\\python.exe"
 TORCH_TV_MAP = {"2.14.1": "0.29.1", "2.14.0": "0.29.0", "2.13.0": "0.28.0"}
 PINNED_TORCH = "2.14.1"  # 升版时修改此常量
+_REMOTE_TORCH_JOB_ID: str | None = None
 _TORCH_UPGRADE_LOCK = threading.Lock()
 _TORCH_RECOVERY_LOCK = threading.Lock()
 _TORCH_STUCK_HELD = False
@@ -1341,42 +1342,74 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
         path = _WIN_COMFY_ROOT + "\\engine-upgrade.log"
         self._torch_command(f"$bytes=[Convert]::FromBase64String('{encoded}'); $stream=[IO.File]::Open({_torch_quote(path)},[IO.FileMode]::Append,[IO.FileAccess]::Write,[IO.FileShare]::Read); try {{ $stream.Write($bytes,0,$bytes.Length) }} finally {{ $stream.Dispose() }}")
 
-    def get_engine_torch_info(self, *, expected_host: str | None = None) -> dict:
+    def get_engine_torch_info(self, *, expected_host: str | None = None, expected_url: str | None = None) -> dict:
         from comfyui.engine_manager import jobs
+        from engines.image_engine.comfyui_bridge import _http_json, bridge_url
+        from urllib.parse import urlparse
 
         with self._lock:
             configured_host = ssh_config.load_config().get("host")
+            expected_client = self._client
             host_matched = bool(expected_host and isinstance(configured_host, str)
                                 and expected_host.casefold() == configured_host.casefold()
                                 and self._connected and self._connected_host == configured_host)
+        def verify_ssh_identity() -> None:
+            with self._lock:
+                if not host_matched or self._client is not expected_client or not self._connected or self._connected_host != configured_host:
+                    raise SSHServiceError("SSH 主机或会话不匹配")
+            if expected_url and bridge_url().rstrip("/") != expected_url.rstrip("/"):
+                raise SSHServiceError("引擎地址已改变，拒绝读取其他引擎")
+
         current = None
+        errors = []
         try:
-            ledger = json.loads(self.sftp_read_text((_WIN_COMFY_ROOT + "\\torch-upgrade.json").replace("\\", "/")))
-            if isinstance(ledger, dict) and isinstance(ledger.get("current"), dict):
-                current = ledger["current"]
-        except (SSHServiceError, TypeError, ValueError, OSError):
-            current = None
-        live = False
-        try:
-            if not host_matched:
-                raise SSHServiceError("当前远端引擎与 SSH 主机不一致")
-            stats = self._torch_http("/system_stats")
+            url = bridge_url()
+            host = urlparse(url).hostname
+            if not expected_host or not host or host.casefold() != expected_host.casefold() or (expected_url and url.rstrip("/") != expected_url.rstrip("/")):
+                raise RuntimeError("引擎地址已改变，拒绝读取其他引擎")
+            stats = _http_json("GET", f"{url}/system_stats", timeout=5)
+            if bridge_url().rstrip("/") != url.rstrip("/"):
+                raise RuntimeError("引擎地址在探测期间改变")
             version = stats.get("system", {}).get("pytorch_version")
-            if isinstance(version, str) and version:
+            if not isinstance(version, str) or not version.strip():
+                raise ValueError("system_stats 缺少 pytorch_version")
+            cuda_match = re.search(r"\+cu(\d{2})(\d)$", version)
+            current = {"torch": version, "torchvision": None,
+                       "cuda": f"{int(cuda_match.group(1))}.{cuda_match.group(2)}" if cuda_match else None,
+                       "updatedAt": None, "via": "live", "source": "system_stats"}
+        except Exception as exc:
+            errors.append(f"system_stats: {str(exc)[:300] or type(exc).__name__}")
+        if current is None:
+            try:
+                verify_ssh_identity()
+                version = self._torch_command(f"$env:PYTHONUTF8='1'; & {_torch_quote(_WIN_VENV_PYTHON)} -c 'import torch; print(torch.__version__)'; exit $LASTEXITCODE", 20).splitlines()[-1].strip()
+                verify_ssh_identity()
+                if not re.fullmatch(r"\d+\.\d+\.\d+[a-zA-Z0-9.+_-]*", version):
+                    raise ValueError("venv 未返回有效版本")
                 cuda_match = re.search(r"\+cu(\d{2})(\d)$", version)
-                same_version = current is not None and current.get("torch") == version
-                current = {"torch": version, "torchvision": current.get("torchvision") if same_version else None,
+                current = {"torch": version, "torchvision": None,
                            "cuda": f"{int(cuda_match.group(1))}.{cuda_match.group(2)}" if cuda_match else None,
-                           "updatedAt": current.get("updatedAt") if same_version else None, "via": "live"}
-                live = True
-        except (SSHServiceError, RuntimeError, TypeError, ValueError, AttributeError):
-            live = False
+                           "updatedAt": None, "via": "live", "source": "venv-probe"}
+            except (SSHServiceError, RuntimeError, TypeError, ValueError, OSError, IndexError) as exc:
+                errors.append(f"venv-probe: {str(exc)[:300] or type(exc).__name__}")
+        if current is None:
+            try:
+                verify_ssh_identity()
+                ledger = json.loads(self.sftp_read_text((_WIN_COMFY_ROOT + "\\torch-upgrade.json").replace("\\", "/")))
+                verify_ssh_identity()
+                entry = ledger.get("current") if isinstance(ledger, dict) else None
+                if not isinstance(entry, dict) or not isinstance(entry.get("torch"), str) or not entry["torch"].strip():
+                    raise ValueError("账本缺少 PyTorch 版本")
+                current = {**entry, "source": "ledger"}
+            except (SSHServiceError, RuntimeError, TypeError, ValueError, OSError) as exc:
+                errors.append(f"ledger: {str(exc)[:300] or type(exc).__name__}")
         active_job = jobs.active_of("torch-upgrade")
-        return {"current": current, "live": live, "hostMatched": host_matched,
-                "busy": active_job is not None, "jobId": active_job["id"] if active_job else None,
+        return {"current": current, "live": current is not None and current["source"] != "ledger", "errors": errors, "hostMatched": host_matched,
+                "busy": active_job is not None, "jobId": active_job["id"] if active_job and active_job.get("mode") == "remote" and isinstance(active_job.get("origin_host"), str) and isinstance(expected_host, str) and active_job["origin_host"].casefold() == expected_host.casefold() else None,
                 "allowedTargets": list(TORCH_TV_MAP), "pinnedTarget": PINNED_TORCH}
 
     def upgrade_engine_torch(self, target: str, channel: str = "cu132", *, expected_host: str | None = None) -> str:
+        global _REMOTE_TORCH_JOB_ID
         from comfyui.engine_manager import jobs
 
         if not isinstance(target, str) or not re.fullmatch(r"\d+\.\d+\.\d+", target) or channel not in _TORCH_CHANNELS:
@@ -1396,7 +1429,8 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
                     raise RuntimeError("SSH 未连接或连接配置正在切换")
                 if expected_host is not None and (not isinstance(configured_host, str) or configured_host.casefold() != expected_host.casefold()):
                     raise RuntimeError("当前远端引擎与已连接 SSH 主机不一致")
-            job_id = jobs.create("torch-upgrade")
+            job_id = jobs.create("torch-upgrade", mode="remote", origin_host=configured_host)
+            _REMOTE_TORCH_JOB_ID = job_id
             def run(active_id):
                 global _TORCH_STUCK_HELD, _TORCH_STUCK_MODE, _TORCH_STUCK_HOST
                 _TORCH_SESSION.client = client
