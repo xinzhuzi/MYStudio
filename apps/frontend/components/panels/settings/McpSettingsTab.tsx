@@ -2428,7 +2428,7 @@ export function McpSettingsTab() {
           setTorchConfirm(true) 后弹窗组件不存在=点击无任何反应(实弹踩雷)。 */}
       <AlertDialog open={torchConfirm} onOpenChange={setTorchConfirm}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>确认升级引擎？</AlertDialogTitle><AlertDialogDescription>引擎将停机约 15–60 分钟；失败将自动回滚旧版；磁盘需要至少 15 GiB 可用空间。SSH 中断导致安装状态不明时需要人工介入。<br />注意:MYIA keeper 常驻同机,升级窗口期小概率竞态导致失败,届时将如实报告并引导处理。</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>确认升级引擎？</AlertDialogTitle><AlertDialogDescription>引擎将停机约 15–60 分钟；失败将自动回滚旧版；磁盘需要至少 15 GiB 可用空间。SSH 中断导致安装状态不明时需要人工介入。<br />注意:MYIA(同机另一套系统,Python/依赖与本升级零共享)的 keeper 历史上会重启这台 17000 引擎进程;升级需停引擎 15–60 分钟,若窗口期内它恰好动引擎可能导致失败——届时将如实报告并引导处理。</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={() => void startTorchUpgrade()}>确认升级</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

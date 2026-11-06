@@ -498,7 +498,7 @@ describe("torch upgrade settings", () => {
     await waitFor(() => expect((screen.getByTestId("torch-upgrade-start") as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(screen.getByTestId("torch-upgrade-start"));
     expect(await screen.findByText(/引擎将停机/)).toBeTruthy();
-    expect(screen.getByText(/MYIA keeper 常驻同机/)).toBeTruthy();
+    expect(screen.getByText(/MYIA/)).toBeTruthy();
     expect(mocks.start).not.toHaveBeenCalled();
     fireEvent.click(screen.getByText("确认升级"));
     await waitFor(() => expect(screen.getByTestId("torch-upgrade-progress").textContent).toContain("⏳ 安装"));
