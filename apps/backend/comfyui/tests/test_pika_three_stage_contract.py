@@ -99,6 +99,28 @@ def test_stage2_up_recipe():
     assert nodes[211]["type"] == "SamplerCustomAdvanced"
 
 
+def test_stage2_model_mainline_passes_through_chunkffn():
+    """1106 E2 吸收件在位:[223] MiniMaxChunkFeedForward 恒在 MODEL 主线
+    [202]taomate LoRA → [223] → [203]SigmaShift 上,出厂 chunks=1 = 源码恒等旁路
+    (comfyui-kjnodes/nodes/minimax_nodes.py:69-71 原对象返回,零 clone 零 patch)。
+    本例防的是"日后布局手术把 202→203 直接重焊"——test_links_bidirectional_consistency
+    只验拓扑合法,不验此件存在,缺它则 E2 静默蒸发。"""
+    d, nodes, links = _load()
+    assert nodes[223]["type"] == "MiniMaxChunkFeedForward"
+    assert nodes[223]["mode"] == 0, "旁路靠 chunks=1(恒等),不靠 mode 静默"
+    assert nodes[223]["widgets_values"][0] == 1, "chunks 出厂恒 1(=上游 min)"
+    assert nodes[223]["widgets_values"][1] == 4096, "seq_threshold 留节点默认"
+    assert [i["name"] for i in nodes[223]["inputs"]] == ["model"], "只留 model 口,widget 走面板"
+    up = links[nodes[223]["inputs"][0]["link"]]
+    down_ids = nodes[223]["outputs"][0]["links"]
+    assert len(down_ids) == 1, "[223] 输出恒单挂"
+    down = links[down_ids[0]]
+    assert (up[1], up[3], up[5]) == (202, 223, "MODEL"), "上游=[202] 且走 MODEL"
+    assert (down[1], down[3], down[5]) == (223, 203, "MODEL"), "下游=[203] 且走 MODEL"
+    fed = {l[3] for l in d["links"] if l[1] == 202 and l[5] == "MODEL"}
+    assert fed == {223}, "[202] 的 MODEL 唯一去向必须是 [223](主线不得绕行)"
+
+
 def test_stage2_single_source_fanout_no_duplicate():
     """零真重复:[123] lcm 与 [129] 噪声单源扇出供两段采样器;VAE/TE 同源扇出;
     底模单源:[127] Cobijada 扇出 pika/taomate 双 LoRA 臂(1105 统一改造)。"""

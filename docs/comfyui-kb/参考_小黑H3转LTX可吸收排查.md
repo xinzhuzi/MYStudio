@@ -153,8 +153,10 @@
 - **C10 定谳(探针前疑问由源码直接消解，无需实跑)**：`minimax_nodes.py` 的 `MiniMaxChunkFeedForward.execute` 头两行就是 `if chunks == 1: return io.NodeOutput(model)` —— 恒等返回**同一个 model 对象**，不重建、不包装。故"默认不生效"靠 **chunks=1** 表达，与 mode=4/mode=2 的旁路语义之争无关；prd C10 那条"直通 vs 整件剔除"的分支**整条作废**(不是被实测推翻，是被更简单的出厂恒等位取代)。开启条件仍是 **≥2MP×192f**(切 chunks=2)。
 - **执行期纠错 1(C5 走廊)**：文档原写"新件落 x∈(5703,6563) 组框内"，实测那条走廊只有 **220 px** 宽而新件声明宽 300 → 按原口径必压 `[203]`。正解=新件占 `[6543,6843]`，让位集 `TAIL_IDS=[203,215,210,211,212,214,4,100,213]` 整体 x+600，"二采放大"组框宽 4820→5420。
 - **执行期纠错 2(让位集不能用 x 区间自动判)**：最初用"落在 tail x 区间内"筛让位件，误吞了 y 288..930 行的 `[205][206][207][208]` —— 它们与新件**不同行**，一动就外扩三根曲线(205→206 / 205→207 / 208→210)，crossings **590→592 破棘轮**。改为脚本内**显式件号**+ `[207]` 单独向下 nudge 25 px(与新件列距 60<80 的 est 违规) → **589**。教训：让位集是拓扑判断不是几何框选，必须写死件号并可回检。
-- 门禁结果(C11 改写后的四门)：契约 `test_pika_three_stage_contract.py` **13 用例全绿**；结构判据(负区/左向/重叠/est)**clean**；crossings **590 → 589**(不升反降 1)；`canvas_deploy.mjs --audit` 只剩"装机与真源漂移"这一条预期红(本轮打包覆盖安装即收)。改前后两份 layout_check 原文 + before/after UI json 在 `apps/output/xiaohei-absorb-e2-1106/`。
-- 脚本=`apps/build/scripts/campaigns/xiaohei_absorb_e2_chunkffn_splice_1106.py`，幂等：已落位时按 `HEAD_POS + SHIFT` 回检让位量，不符**只报红不覆写**；`--check` 出 READY 摘要。
+- 门禁结果(C11 改写后的四门)：契约 `test_pika_three_stage_contract.py` **13 用例全绿**(此数=E2 当批；收口二批补第 14 例后现 14，见下条)；结构判据(负区/左向/重叠/est)**clean**；crossings **590 → 589**(不升反降 1)；`canvas_deploy.mjs --audit` 只剩"装机与真源漂移"这一条预期红(本轮打包覆盖安装即收)。改前后两份 layout_check 原文 + before/after UI json 在 `apps/output/xiaohei-absorb-e2-1106/`。
+- 脚本=`apps/build/scripts/xiaohei_absorb_e2_chunkffn_splice_1106.py`，幂等：已落位时按 `HEAD_POS + SHIFT` 回检让位量，不符**只报红不覆写**；`--check` 出 READY 摘要。
+- **执行期纠错 8(脚本落位仓外，收口二批)**：该生成脚本初版写进了 `apps/build/scripts/campaigns/`，而 `.gitignore:165` 整目录忽略——真源 json 入库、**造它的手艺不入库**，役满即成孤儿(复现/回滚只能靠记忆)。已移到 `apps/build/scripts/`(在册)并把 `REPO` 的 `parents[4]` 改为 `parents[3]`(campaigns 那层没了)；`--check` 复跑仍出 `SKIP 已落位`(真源零改动)。教训入档：**凡被文档点名的 `apps/build/scripts/` 脚本必须实存且在册**，`campaigns/` 只放一次性战役产物。
+- **执行期纠错 9(棘轮只守几何，不守存在性)**：`test_links_bidirectional_consistency` 验的是"连线双向登记合法"，`[223]` 被日后布局手术重焊成 `202→203` 直连时它依然绿——E2 吸收件会**静默蒸发**。已补第 14 例 `test_stage2_model_mainline_passes_through_chunkffn`(钉 `[223]` 在 `MODEL` 主线 `202→223→203`、`chunks=1`、输出口单挂、`[202]` 的 MODEL 唯一去向=`{223}`)，反向验证=拿 E2 前的 88 件/134 链真源跑该例，`KeyError 223` 即红。契约数 **13 → 14 全绿**。
 - C12 口径不变：改真源只影响"手工画布直开 + 该件契约测试"，**不改逐镜产线**(内联件 `pika-ref-shot-template.json` 走构建期内联，未同步；E2 默认旁路故无须同步)。
 
 ### E3 τ1.3 候补臂 —— 已注记，`[313]` 与③组零改动
@@ -178,7 +180,7 @@
 | `8_吸收归档/单镜视频 · chapter-001 · S01.json [17]` | `none` | **不动**：归档件本就 `none`(且 `[17] widgets=[1024,80,True,9,12,'none','']`)，双理由 |
 
 - **装件目的地的坑(执行期新证)**：`vae_approx` **不在**双机 `extra_model_paths.yaml` 映射表内，且 Win 侧 `ComfyUI/models/vae_approx/` 只有一个 0 字节 `put_taesd_encoder_pth_and_taesd_decoder_pth_here` 占位；Mac 侧同样未映射。故案一的落位目录=引擎本体 `models/vae_approx/`，Win `tiny_vae` 下拉实测只剩 `["none"]`(=目录空的硬指纹，比翻目录更硬)，装件后**必须重启**才刷新下拉 → 按 C8 随对拍役单次重启批执行，本役不动 json。
-- **双机 kjnodes 版本账(执行期新证)**：Mac HEAD `37ca7aff7ed14dde6ba3c0b25713e21c18b28dcb`、Win HEAD `ab72eda7ffad6280422d71ab7d54d3fb87c0ba18`(不同)，但 `nodes/minimax_nodes.py` **blob 逐字同**(14,861 B，sha256 `c67d638cd1f060ff…40cb91b`，末次提交 `da90cca8`；差异只是 Win CRLF / Mac LF)→ E2/E4 涉及的 schema 双机一致；`[223].ver` 取 Win 产线值。
+- **双机 kjnodes 版本账(执行期新证；收口二批把 CRLF 口径写成可复算的数)**：Mac HEAD `37ca7aff7ed14dde6ba3c0b25713e21c18b28dcb`、Win HEAD `ab72eda7ffad6280422d71ab7d54d3fb87c0ba18`(不同)，但 `nodes/minimax_nodes.py` **同一份内容**：Win 原始字节 **15,156 B / sha256 `acbfdd2c25ebec34b1ade23d4856931209a9e1d5b690b810f2cef0af47832642`**，Mac 原始字节 **14,861 B / sha256 `c67d638cd1f060ff4dd53dc3843aab77b980ea783b24ca4271300cbe040cb91b`**；差 **295 B = Win 那 295 个 CRLF 对**(逐行 `\r\n`→`\n` 归一后 Win 侧变 **14,861 B / `c67d638c…40cb91b`**，与 Mac 逐字同哈希)。故"blob 逐字同"的准确说法是 **换行归一后逐字同**，直接对原始字节比 sha256 必然假阳性不一致。末次提交 `da90cca8` → E2/E4 涉及的 schema 双机一致；`[223].ver` 取 Win 产线值。
 
 ### E1 TokenCounter 上限表 —— 十格全绿，表已入 `docs/comfyui-kb/参数速查.md`
 
@@ -186,6 +188,7 @@
 - **执行期纠错 5(两处非猜不可的技术前提)**：①`MiniMaxH3TokenCounter` **不是 OUTPUT_NODE**，直接 run-to-node 它会被 `validate_prompt` 判 `prompt_no_outputs` → 必须挂一枚 `PreviewAny` 读它的 `breakdown` 口(输出 3)作唯一出口，并用 `partial_execution_targets=[PreviewAny id]`(引擎 `server.py:1198-1204` 支持)；②客户端必须自己做闭包剪枝，否则整条产线进队。
 - **十格全绿(1106 19:18–19:21 实测，exit 0)**：0.4MP(864×480)/0.9MP(1280×736)/1.0MP(1376×768) × 33/96/192f + 2MP(1920×1056)×192f 对照，逐格 `status=success`、`WARNING` 全空，表已 `--write-doc` 追加进 `docs/comfyui-kb/参数速查.md` 末节(只追加，未碰他人 hunk)。顶格 **130,076 tokens=43.42%**，最低 8,966=2.99%；读数五条(两墙分账/帧数线性/text 项被参考占位主导/参考项≈面积×张数)写在该表下，本档不重复正文。
 - **执行期纠错 6(int32 警告线数值)**：早先笔记与脚本注释写的「`2**31 // 7168 = 268,435`」是**算错的**——`2**31//7168 = 299,593`，源码口径见 `comfyui-kjnodes/nodes/minimax_nodes.py:275-276`(`seq_len*7168 >= 2**31`)。表内百分比一律按 **299,593** 计；任何沿用 268,435 的旧账都要按新数复算(差 11.6%，不影响"从不贴顶"的结论)。
+- **第 10 格标签三处不统一(收口二批勘明，非数据问题)**：留证 `token_cells.json` 写 `2MP 1920×1056×192f(1105 贴顶对照)`(实跑当时的 CELLS 原文)、`参数速查.md` 表行写 `…（1105 显存贴顶那档）`(全角括号，手抄)、脚本现值写 `…(1105 显存贴顶那档)`(半角，事后对齐表行)。**数值同一发**：三处对应的 `tokens=130,076 / 43.42% / status=success` 逐字一致。以后按第 10 格对账**认分辨率×帧数，别认括号里的注记**；如需再跑，改 CELLS 前先知道它已与留证字符串分叉。
 - **执行期纠错 7(门禁两处，复跑必知)**：①**参考图 widget 值不可直接提交**——真源 `[9]/[110..113]` 的 `widgets_values` 是 App 组装期才落地的**占位名**，磁盘无件，直接提交被 `validate_prompt` 判 `HTTP 400 Invalid image file`(首轮十格就死在这)。修法=payload 内换成引擎 `input/` 目录**真实存在**的生产代表件，并在提交前逐件 `HEAD /view?type=input` 验在位；②**显存门不能钉绝对值**——本探针跑完第一格后 TE/VAE 被 ComfyUI 缓存常驻，24G 卡 `vram_free` 由 18,432 掉到 7,609 MiB，绝对门 18,432 会把**自己**判成"他人占卡"而永远等不到窗口。现行=显存门取 `min(--min-free-mib, 自家基线−1,024 MiB)`(基线=开跑前实测 free 与各格跑完 free 之最小值)，`/queue 0/0` 仍是硬门；③`_post` 必须把 `validate_prompt` 的响应体读出并抛出，否则只剩一句 `HTTP 400`，无从诊断(本轮实弹踩到)。
 - **引擎用户区零写入双机实测(C9 自证)**：Mac 引擎家 `user/default/workflows` **0 件**(计数不变)；Win 家 6 件、1106 当日 **0 改**；Win 装机侧只动了 `resources\backend\comfyui\workflows\…\pika-单镜视频-三段链.json` 一枚(非用户区)，改前备份在 `E:\IP\tmp\pika-单镜视频-三段链.pre-1106e2-20261106-192029.json`(md5 `ea2af13f…`)。
 
