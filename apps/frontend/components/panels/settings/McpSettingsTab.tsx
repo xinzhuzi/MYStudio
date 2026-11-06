@@ -1182,7 +1182,7 @@ export function McpSettingsTab() {
       {/* 0924 C1(§7):密钥保险箱状态横幅(env 含 token,与 API 密钥同批加密) */}
       <SecureVaultBanner
         storageKey={MCP_SERVERS_STORAGE_KEY}
-        subjectLabel="MCP 服务配置"
+        subjectLabel="远程配置"
         onRetry={() => useMcpServersStore.persist.rehydrate()}
       />
 
@@ -1190,10 +1190,10 @@ export function McpSettingsTab() {
         <div>
           <h3 className="flex items-center gap-2 text-lg font-bold text-foreground">
             <Server className="h-5 w-5 text-primary" aria-hidden />
-            MCP 服务
+            远程配置
           </h3>
           <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
-            登记你的 MCP 服务器（AI 工具联动的标准协议），先用「测试连接」确认能连上。这里只保存配置和做连通测试；具体能力的接入会逐步开放。
+            管理这台 App 之外的远端资源：引擎地址与设备、引擎同步、SSH 连接、PyTorch/CUDA 升级，以及 MCP 服务器登记（AI 工具联动标准协议，先用「测试连接」确认连通）。
           </p>
         </div>
       </header>

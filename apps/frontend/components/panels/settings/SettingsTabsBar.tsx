@@ -16,7 +16,7 @@ export const SETTINGS_TABS = [
   { value: "appearance", label: "外观" },
   { value: "api", label: "云端AI" },
   { value: "plugins", label: "本地配置" },
-  { value: "mcp", label: "MCP 服务" },
+  { value: "mcp", label: "远程配置" },
   { value: "imageSize", label: "图片规格" },
   { value: "advanced", label: "高级选项" },
   { value: "imagehost", label: "图床配置" },

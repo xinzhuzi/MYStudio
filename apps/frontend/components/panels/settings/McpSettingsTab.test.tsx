@@ -70,7 +70,7 @@ describe("McpSettingsTab", () => {
     const { container } = render(<McpSettingsTab />);
     const scroller = container.querySelector<HTMLElement>("div.overflow-y-auto");
     expect(scroller).toBeTruthy();
-    expect(scroller?.textContent).toContain("MCP 服务");
+    expect(scroller?.textContent).toContain("远程配置");
     expect(scroller?.textContent).toContain("JSON 配置（通用格式）");
   });
 
