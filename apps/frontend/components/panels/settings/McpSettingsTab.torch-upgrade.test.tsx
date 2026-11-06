@@ -277,10 +277,10 @@ describe("torch upgrade settings", () => {
     }
   });
 
-  it("routes the local pinned update through confirmation to the local job", async () => {
+  it("MCP 域恒远端:本地引擎生效时仍指向 Windows(mode=remote)", async () => {
     mocks.remote.mockResolvedValue({ source: "local", url: "" });
-    mocks.ssh.mockResolvedValue({ connected: false, configured: false, available: true });
-    mocks.info.mockResolvedValue({ mode: "local", current: { torch: "2.14.0" }, live: true, hostMatched: true, busy: false, allowedTargets: ["2.14.1"] });
+    mocks.ssh.mockResolvedValue({ connected: true, configured: true, available: true, host: "192.168.0.101" });
+    mocks.info.mockResolvedValue({ mode: "remote", current: { torch: "2.11.0+cu128" }, live: true, hostMatched: true, busy: false, allowedTargets: ["2.14.1"] });
     mocks.poll.mockImplementation(() => new Promise(() => {}));
     render(<McpSettingsTab />);
     const row = await screen.findByTestId("engine-sync-torch-row");
@@ -289,11 +289,10 @@ describe("torch upgrade settings", () => {
     const button = within(row).getByRole("button", { name: "更新" }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
     expect(await screen.findByText("本地引擎升级请到 设置→本地配置→ComfyUI→更新")).toBeTruthy();
-    expect(mocks.info).toHaveBeenCalledWith("local");
+    expect(mocks.info).toHaveBeenCalledWith("remote");
     fireEvent.click(button);
-    expect(screen.queryByText(/MYIA keeper 常驻同机/)).toBeNull();
     fireEvent.click(await screen.findByText("确认升级"));
-    await waitFor(() => expect(mocks.start).toHaveBeenCalledWith("2.14.1", expect.any(String), "local"));
+    await waitFor(() => expect(mocks.start).toHaveBeenCalledWith("2.14.1", expect.any(String), "remote"));
     const progress = await screen.findByTestId("torch-upgrade-progress");
     for (const label of ["预检", "快照", "停止引擎", "安装", "导入验证", "重启", "烟测", "落账"]) expect(progress.textContent).toContain(label);
   });
@@ -310,7 +309,7 @@ describe("torch upgrade settings", () => {
     await waitFor(() => expect((within(row).getByRole("button", { name: "更新" }) as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(within(row).getByRole("button", { name: "更新" }));
     fireEvent.click(await screen.findByText("确认升级"));
-    await waitFor(() => expect(mocks.start).toHaveBeenCalledWith("2.14.1", expect.any(String), initialMode));
+    await waitFor(() => expect(mocks.start).toHaveBeenCalledWith("2.14.1", expect.any(String), "remote"));
     await screen.findByTestId("torch-upgrade-progress");
     mocks.remote.mockResolvedValue(initialMode === "remote" ? { source: "local", url: "" } : { source: "settings", url: remoteUrl, effective: remoteUrl });
     fireEvent.click(initialMode === "remote" ? screen.getByTestId("engine-device-local-select") : screen.getAllByTestId("engine-device-remote-select").find((button) => button.getAttribute("data-url") === remoteUrl)!);
@@ -318,6 +317,21 @@ describe("torch upgrade settings", () => {
     await waitFor(() => expect(screen.queryByTestId("torch-upgrade-progress")).toBeNull());
     await act(async () => { updateOld({ status: "running", step: "install", message: "旧模式任务" }); });
     expect(screen.queryByText("旧模式任务")).toBeNull();
+  });
+
+  it("远端探针失败时未知带原因且禁点(MCP 域不再降级本地)", async () => {
+    const remoteUrl = "http://example.invalid:17000";
+    useEnginePresetsStore.getState().favorite(remoteUrl);
+    mocks.remote.mockResolvedValue({ source: "local", url: "" });
+    mocks.info.mockRejectedValue(new Error("remote probe unavailable"));
+    render(<McpSettingsTab />);
+    const row = await screen.findByTestId("engine-sync-torch-row");
+    await waitFor(() => expect(row.textContent).toContain("未知(原因:remote probe unavailable)"));
+    const button = within(row).getByRole("button", { name: "更新" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+    expect(mocks.start).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("torch-upgrade-progress")).toBeNull();
   });
 
   it("isolates a running local job when the remote probe fails after switching", async () => {
@@ -328,22 +342,14 @@ describe("torch upgrade settings", () => {
       if (mode === "remote") throw new Error("remote probe unavailable");
       return { current: { torch: "2.14.0" }, live: true, hostMatched: true, busy: false, allowedTargets: ["2.14.1"] };
     });
-    let updateOld!: (job: unknown) => void;
-    mocks.poll.mockImplementation((_id, _timeout, _interval, update) => { updateOld = update; return new Promise(() => {}); });
     render(<McpSettingsTab />);
     const row = await screen.findByTestId("engine-sync-torch-row");
-    await waitFor(() => expect((within(row).getByRole("button", { name: "更新" }) as HTMLButtonElement).disabled).toBe(false));
-    fireEvent.click(within(row).getByRole("button", { name: "更新" }));
-    fireEvent.click(await screen.findByText("确认升级"));
-    await screen.findByTestId("torch-upgrade-progress");
-    mocks.remote.mockResolvedValue({ source: "settings", url: remoteUrl, effective: remoteUrl });
-    fireEvent.click(screen.getAllByTestId("engine-device-remote-select").find((button) => button.getAttribute("data-url") === remoteUrl)!);
     await waitFor(() => expect(row.textContent).toContain("未知(原因:remote probe unavailable)"));
-    await act(async () => { updateOld({ status: "running", step: "install", message: "旧本地任务" }); });
-    expect(row.textContent).not.toContain("2.14.0");
+    const button = within(row).getByRole("button", { name: "更新" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+    expect(mocks.start).not.toHaveBeenCalled();
     expect(screen.queryByTestId("torch-upgrade-progress")).toBeNull();
-    expect(screen.queryByText("旧本地任务")).toBeNull();
-    expect(screen.getAllByText("未知(原因:remote probe unavailable)").length).toBeGreaterThan(0);
   });
 
   it("ignores a late old poll after restarting on the same identity", async () => {

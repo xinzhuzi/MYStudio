@@ -936,7 +936,7 @@ export function McpSettingsTab() {
       }
       inFlight = true;
       const epoch = torchProbeEpoch.current;
-      void getEngineTorchInfo(remoteActive ? "remote" : "local").then((info) => {
+      void getEngineTorchInfo("remote").then((info) => {
         if (!active || torchIdentityRef.current !== torchIdentity || epoch !== torchProbeEpoch.current) return;
         setTorchInfoState({ identity: torchIdentity, info });
         setTorchInfoError(null);
@@ -949,7 +949,7 @@ export function McpSettingsTab() {
         } else if (!info.busy && torchPendingJob.current[torchIdentity] && !torchTracking.current[torchIdentity] && Date.now() >= (torchRetryAfter.current[torchIdentity] ?? 0)) {
           const jobId = torchPendingJob.current[torchIdentity]!;
           torchTracking.current[torchIdentity] = jobId;
-          void comfySidecarRequest<SidecarJobReply>("GET", `/comfy/jobs/${encodeURIComponent(jobId)}?mode=${remoteActive ? "remote" : "local"}`, { timeoutMs: 10_000 })
+          void comfySidecarRequest<SidecarJobReply>("GET", `/comfy/jobs/${encodeURIComponent(jobId)}?mode=remote`, { timeoutMs: 10_000 })
             .then((job) => {
               if (!active || torchIdentityRef.current !== torchIdentity || torchTracking.current[torchIdentity] !== jobId) return;
               if (job.status === "complete" || job.status === "error") {
@@ -988,12 +988,12 @@ export function McpSettingsTab() {
 
   const startTorchUpgrade = async () => {
     const target = torchConfirmPinned ? pinnedTorch : torchTarget;
-    if ((remoteActive && !sshStatus?.connected) || engineSyncRunning || torchRunning || !torchInfo || torchInfo.busy || !torchInfo.allowedTargets?.includes(target)) return;
+    if (!sshStatus?.connected || engineSyncRunning || torchRunning || !torchInfo || torchInfo.busy || !torchInfo.allowedTargets?.includes(target)) return;
     torchProbeEpoch.current += 1;
     torchTracking.current[torchIdentity] = "starting";
     updateTorchState(torchIdentity, { running: true, job: { status: "running", step: "preflight", message: "正在启动" } });
     try {
-      const { jobId } = await startEngineTorchUpgrade(target, torchConfirmPinned ? "cu132" : torchChannel, remoteActive ? "remote" : "local");
+      const { jobId } = await startEngineTorchUpgrade(target, torchConfirmPinned ? "cu132" : torchChannel, "remote");
       await followTorchJob(jobId);
     } catch (error) {
       updateTorchState(torchIdentity, { job: { status: "error", message: error instanceof Error ? error.message : "升级任务状态不可用" }, running: false, resultOpen: true });
@@ -1579,9 +1579,9 @@ export function McpSettingsTab() {
                     <span className={cn("text-xs", !torchVerified ? "text-muted-foreground" : torchNeedsUpdate ? "text-warning" : "text-success")}>
                       {torchLedgerOnly ? "未实时验证" : !torchVerified ? "" : torchNeedsUpdate ? `需更新 → ${pinnedVersion}` : "✅ 已是钉版"}
                     </span>
-                    <Button size="sm" disabled={!torchNeedsUpdate || engineSyncRunning || torchRunning || torchInfo?.busy || (remoteActive && !sshStatus?.connected)} onClick={() => { setTorchConfirmPinned(true); setTorchConfirm(true); }}>更新</Button>
+                    <Button size="sm" disabled={!torchNeedsUpdate || engineSyncRunning || torchRunning || torchInfo?.busy || !sshStatus?.connected} onClick={() => { setTorchConfirmPinned(true); setTorchConfirm(true); }}>更新</Button>
                   </div>
-                  {!remoteActive && torchJob && <TorchUpgradeProgress job={torchJob} warning={torchTrackingWarning} />}
+                  {torchJob && collapsedSections.has("torch-upgrade") && <TorchUpgradeProgress job={torchJob} warning={torchTrackingWarning} />}
                   {/* SSH 断开/清单取失败:按钮禁用+提示(R3);清单空同样提示 */}
                   {!sshStatus?.connected ? (
                     <p className="text-xs leading-5 text-warning" data-testid="engine-sync-ssh-hint">
@@ -1748,25 +1748,9 @@ export function McpSettingsTab() {
               <Button size="sm" data-testid="torch-upgrade-start" onClick={() => { setTorchConfirmPinned(false); setTorchConfirm(true); }} disabled={!sshStatus?.connected || engineSyncRunning || !torchInfo || torchInfo.busy || torchRunning || !torchInfo.allowedTargets?.includes(torchTarget)}>升级</Button>
             </div>
             {torchInfo?.allowedTargets?.length && !torchInfo.allowedTargets.includes(torchTarget) ? <p className="text-xs text-warning">仅支持 {torchInfo.allowedTargets.join(" / ")}</p> : null}
-            {torchJob && <TorchUpgradeProgress job={torchJob} warning={torchTrackingWarning} />}
             </>}
+            {torchJob && <TorchUpgradeProgress job={torchJob} warning={torchTrackingWarning} />}
           </div>
-          <AlertDialog open={torchConfirm} onOpenChange={setTorchConfirm}>
-            <AlertDialogContent>
-              <AlertDialogHeader><AlertDialogTitle>确认升级引擎？</AlertDialogTitle><AlertDialogDescription>引擎将停机约 15–60 分钟；失败将自动回滚旧版；磁盘需要至少 15 GiB 可用空间。{remoteActive && <>SSH 中断导致安装状态不明时需要人工介入。<br />注意:MYIA keeper 常驻同机,升级窗口期小概率竞态导致失败,届时将如实报告并引导处理。</>}</AlertDialogDescription></AlertDialogHeader>
-              <AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={() => void startTorchUpgrade()}>确认升级</AlertDialogAction></AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <Dialog open={torchResultOpen} onOpenChange={setTorchResultOpen}>
-            <DialogContent data-testid="torch-upgrade-result-dialog">
-              <DialogHeader><DialogTitle>{torchJob?.status === "complete" ? "升级完成" : "升级失败"}</DialogTitle><DialogDescription>{torchJob?.message ?? torchJob?.error}</DialogDescription></DialogHeader>
-              {torchJob?.result && <p className="text-sm font-mono">{String(torchJob.result.from ?? "未知")} → {String(torchJob.result.to ?? "未知")}</p>}
-              {torchJob?.status === "complete" && <p className="text-sm">引擎已重启</p>}
-              {typeof torchJob?.result?.pipError === "string" && <p className="text-xs text-warning">⚠️ {torchJob.result.pipError}</p>}
-              {torchJob?.tail?.length ? <pre className="max-h-36 overflow-auto whitespace-pre-wrap text-xs">{torchJob.tail.join("\n")}</pre> : null}
-              <DialogFooter><Button size="sm" onClick={() => setTorchResultOpen(false)}>关闭</Button></DialogFooter>
-            </DialogContent>
-          </Dialog>
         </McpRow>
 
         {/* ── SSH 远端连接(1103 终版):多条连接列表(照引擎设备列表同款范式,
@@ -2438,6 +2422,26 @@ export function McpSettingsTab() {
       </McpGroup>
       </div>
       </ScrollArea>
+
+      {/* torch 升级确认/结果弹窗:顶层渲染(1106 修复)——原先住在 torch-upgrade 分节
+          折叠内容里,分节收起时 Radix Collapsible 不挂载内容,同步面板点「更新」
+          setTorchConfirm(true) 后弹窗组件不存在=点击无任何反应(实弹踩雷)。 */}
+      <AlertDialog open={torchConfirm} onOpenChange={setTorchConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>确认升级引擎？</AlertDialogTitle><AlertDialogDescription>引擎将停机约 15–60 分钟；失败将自动回滚旧版；磁盘需要至少 15 GiB 可用空间。{remoteActive && <>SSH 中断导致安装状态不明时需要人工介入。<br />注意:MYIA keeper 常驻同机,升级窗口期小概率竞态导致失败,届时将如实报告并引导处理。</>}</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={() => void startTorchUpgrade()}>确认升级</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <Dialog open={torchResultOpen} onOpenChange={setTorchResultOpen}>
+        <DialogContent data-testid="torch-upgrade-result-dialog">
+          <DialogHeader><DialogTitle>{torchJob?.status === "complete" ? "升级完成" : "升级失败"}</DialogTitle><DialogDescription>{torchJob?.message ?? torchJob?.error}</DialogDescription></DialogHeader>
+          {torchJob?.result && <p className="text-sm font-mono">{String(torchJob.result.from ?? "未知")} → {String(torchJob.result.to ?? "未知")}</p>}
+          {torchJob?.status === "complete" && <p className="text-sm">引擎已重启</p>}
+          {typeof torchJob?.result?.pipError === "string" && <p className="text-xs text-warning">⚠️ {torchJob.result.pipError}</p>}
+          {torchJob?.tail?.length ? <pre className="max-h-36 overflow-auto whitespace-pre-wrap text-xs">{torchJob.tail.join("\n")}</pre> : null}
+          <DialogFooter><Button size="sm" onClick={() => setTorchResultOpen(false)}>关闭</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
