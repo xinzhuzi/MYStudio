@@ -4,7 +4,7 @@
 (GUI 格式,fork pika-单镜视频-ref2v.json 出生)。
 
 三段契约:
-  ① 一阶段采样 = 现役 ref2v 主力线原样(ref2va int8 pruned + Pika ref2va LoRA@0.7
+  ① 一阶段采样 = 现役 ref2v 主力线原样(ref2va int8 pruned + Pika turbo 8step HD @1.0
      + lcm + BasicScheduler(simple,8) + kitchen attention),出厂档 0.5MP 960×544
      (1105 用户裁定;家族其余件仍 0.2MP)。
   ② 二采放大·默认终档 = UP 主黎黎原上咩配方(BV1AsxD6JEJJ 参数深挖定谳,
@@ -61,22 +61,25 @@ def test_anchors_assembler_contract():
 
 
 def test_stage1_mainline_recipe_unchanged():
-    """一阶段配方逐值:LoRA/lcm/官方 7 值 sigmas/统一底模/注意力。
+    """一阶段配方逐值:LoRA/lcm/BasicScheduler(simple,8) 自动 σ/统一底模/注意力。
     1105 用户裁定:H3 底模统一 Cobijada(hybrid 一件双能,B 发 471.5s 快过官方 fl2va 491.0s)。"""
     _, nodes, _ = _load()
     assert nodes[127]["widgets_values"][0] == "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors"
     assert nodes[145]["widgets_values"] == ["pika_h3_flex_ref2va_comfy_bf16.safetensors", 1]
     assert nodes[123]["widgets_values"] == ["lcm"]
-    assert nodes[147]["widgets_values"] == [PIKA_SIGMAS]
+    # [250] BasicScheduler(simple, 8, 1.0) 替代了旧 [147] ManualSigmas(1107 Turbo 8步)
+    w250 = nodes[250]["widgets_values"]
+    assert w250[0] == "simple" and w250[1] == 8 and w250[2] == 1.0, "一采 σ 源=BasicScheduler(simple,8,dn1.0)"
     assert nodes[140]["widgets_values"] == ["comfy kitchen attention"]
     assert nodes[129]["widgets_values"] == [42, "fixed"]
 
 
-def test_stage1_factory_tier_04mp():
+def test_stage1_factory_tier_05mp():
     """一采出厂档 0.5MP 960×544(1105 用户裁定);帧数 124=17k+5 网格。"""
     _, nodes, _ = _load()
     assert nodes[22]["widgets_values"][1] == 0.5
     assert nodes[16]["widgets_values"][1:3] == [960, 544]
+    assert nodes[220]["widgets_values"][1:3] == [960, 544], "I2V 一采分辨率同步 B2"
     assert nodes[16]["widgets_values"][3] == 124
 
 
@@ -128,7 +131,7 @@ def test_stage2_single_source_fanout_no_duplicate():
     unets = [n for n in nodes.values() if n["type"] == "UNETLoader" and n["id"] < 300]
     assert len(unets) == 1 and unets[0]["id"] == 127, "默认路径底模恒单源(Cobijada 统一;i2v 臂为 LoRA 分支非独立底模)"
     fed = {l[3] for l in d["links"] if l[1] == 127 and l[5] == "MODEL"}
-    assert fed == {145, 202, 216}, "Cobijada 应扇出至 pika[145]/taomate[202]/i2v 臂[216] 三臂"
+    assert fed == {145, 202, 209, 216, 250}, "Cobijada 应扇出至 pika[145]/taomate[202]/i2v[216] + scheduler[209,250] 五臂"
     samplers = []
     for l in d["links"]:
         if l[1] == 123 and l[5] == "SAMPLER":
@@ -251,7 +254,7 @@ def test_absorbed_fl2v_firstframe_mode():
         ins = nodes[sid]["inputs"]
         assert nodes[sid]["type"] == "ComfySwitchNode"
         assert links[ins[t_slot]["link"]][1] == 16 or links[ins[t_slot]["link"]][1] == 140, "on_true=r2v 臂"
-        assert links[ins[f_slot]["link"]][1] in (217, 220), "on_false=i2v 臂"
+        assert links[ins[f_slot]["link"]][1] in (217, 220, 251), "on_false=i2v 臂"
     # 三 Seam 出口:底模→[126].model / 条件→[126].conditioning / 潜空间→[125].latent_image
     assert links[nodes[126]["inputs"][0]["link"]][1] == 218
     assert links[nodes[126]["inputs"][1]["link"]][1] == 221

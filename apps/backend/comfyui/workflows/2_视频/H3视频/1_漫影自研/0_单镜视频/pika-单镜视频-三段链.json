@@ -297,8 +297,8 @@
       ],
       "widgets_values_named": {
         "prompt": "",
-        "width": 864,
-        "height": 480,
+        "width": 960,
+        "height": 544,
         "length": 124,
         "ref_image_size": "match"
       },
@@ -449,7 +449,7 @@
       ],
       "widgets_values_named": {
         "aspect_ratio": "16:9 (Widescreen)",
-        "megapixels": 0.4,
+        "megapixels": 0.5,
         "multiple": 32
       },
       "color": "#322",
@@ -985,7 +985,7 @@
         {
           "name": "sigmas",
           "type": "SIGMAS",
-          "link": 520
+          "link": null
         },
         {
           "name": "latent_image",
@@ -1079,7 +1079,9 @@
           "links": [
             511,
             560,
-            605
+            605,
+            756,
+            757
           ]
         }
       ],
@@ -1401,40 +1403,6 @@
       }
     },
     {
-      "id": 147,
-      "type": "ManualSigmas",
-      "pos": [
-        80,
-        5472
-      ],
-      "size": [
-        370,
-        100
-      ],
-      "flags": {},
-      "order": 10,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "SIGMAS",
-          "type": "SIGMAS",
-          "links": [
-            520
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ManualSigmas"
-      },
-      "widgets_values": [
-        "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
-      ],
-      "widgets_values_named": {
-        "sigmas": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
-      }
-    },
-    {
       "id": 101,
       "type": "MarkdownNote",
       "pos": [
@@ -1739,8 +1707,8 @@
       ],
       "widgets_values_named": {
         "prompt": "Vaporwave title sequence look: pink and blue gradient palette, VHS tracking artifacts, Greek statue motifs, chrome palm trees, RGB chromatic aberration, lo-fi retro atmosphere, mood languid and nostalgic.\n\nTimeline:\n[0s-1s] VHS static opens the frame, the title \"COMFYUI\" appears with RGB split and a slight horizontal jitter.\n[1s-2.5s] Hard cut, a Greek plaster bust close-up, pink-purple gradient sky, a pixelated sun.\n[2.5s-4s] Clean \"STARRING\" credits appear, \"LATENT\" and \"CONTROLNET\" each shown exactly once.\n[4s-5s] Final card \"DIRECTED BY COMFYUI\" holds, one VHS tracking glitch settling into stability.\n\nHard cuts only, transitions landing with tape jumps, no push-ins, no dissolves.\n\nAudio: lo-fi vaporwave score, slow drum machine with soft bass, VHS tape-noise sample joins at 2.5s, melody fading for the last 1s.\n\nAll text must be clearly legible, do not misspell English, no Chinese characters, do not repeat names or job titles, no soft dissolves, no subtitle bars.",
-        "width": 864,
-        "height": 1536,
+        "width": 960,
+        "height": 544,
         "length": 73
       },
       "title": "首帧条件(i2v·吸收自 fl2v)"
@@ -1812,7 +1780,7 @@
         1
       ],
       "widgets_values_named": {
-        "lora_name": "pika_h3_flex_fl2va_v1_bf16.safetensors",
+        "lora_name": "pika_turbo_8step_fl2va.safetensors",
         "strength_model": 1
       },
       "title": "Pika fl2va LoRA(i2v 臂)"
@@ -1887,7 +1855,7 @@
         {
           "name": "on_true",
           "type": "COMFY_MATCHTYPE_V3",
-          "link": 573
+          "link": 758
         }
       ],
       "outputs": [
@@ -2505,7 +2473,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": null
+          "link": 757
         }
       ],
       "outputs": [
@@ -4907,8 +4875,8 @@
       "id": 250,
       "type": "BasicScheduler",
       "pos": [
-        80,
-        5672
+        430,
+        4728
       ],
       "size": [
         315,
@@ -4921,7 +4889,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": null
+          "link": 756
         }
       ],
       "outputs": [
@@ -4941,6 +4909,45 @@
         "simple",
         8,
         1.0
+      ]
+    },
+    {
+      "id": 251,
+      "type": "MiniMaxH3SigmaShift",
+      "pos": [
+        2160,
+        768
+      ],
+      "size": [
+        315,
+        82
+      ],
+      "flags": {},
+      "order": 218,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 573
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            758
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3SigmaShift"
+      },
+      "widgets_values": [
+        6,
+        3
       ]
     }
   ],
@@ -5053,8 +5060,8 @@
       573,
       217,
       0,
-      218,
-      2,
+      251,
+      0,
       "MODEL"
     ],
     [
@@ -5240,14 +5247,6 @@
       125,
       2,
       "SAMPLER"
-    ],
-    [
-      520,
-      250,
-      0,
-      125,
-      3,
-      "SIGMAS"
     ],
     [
       523,
@@ -6023,6 +6022,30 @@
       0,
       203,
       0,
+      "MODEL"
+    ],
+    [
+      756,
+      127,
+      0,
+      250,
+      0,
+      "MODEL"
+    ],
+    [
+      757,
+      127,
+      0,
+      209,
+      0,
+      "MODEL"
+    ],
+    [
+      758,
+      251,
+      0,
+      218,
+      2,
       "MODEL"
     ]
   ],

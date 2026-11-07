@@ -25,7 +25,7 @@
         "1",
         0
       ],
-      "upscale_width": 0,
+      "upscale_width": 1920,
       "sr_ratio": 2,
       "chunk_len": 24,
       "seed": 0,
