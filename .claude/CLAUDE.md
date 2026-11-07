@@ -221,3 +221,16 @@
 | 自动化测试 skill | `.agents/skills/mystudio-automation-testing/` | typecheck / Vitest / 打包 / smoke 自验证 |
 | 工作流完整性 skill | `.agents/skills/mystudio-workflow-integrity-testing/` | 节点图 / Toonflow parity / 资产链接验证 |
 | 口播文案 skill | `.agents/skills/mystudio-voiceover-writer/` | 分镜口播规划与校验 |
+
+## 部署前验证门(1107 用户刻碑)
+
+**任何涉及远程操作(SSH/HTTP/pip/PowerShell)的代码,部署前必须在真实目标环境上逐条验证。不部署未验证的代码。**
+
+五验清单(缺一不部署):
+1. SSH 命令实弹——手动跑一次看原始输出(编码/CLIXML/格式)
+2. 网络可达+哈希——从目标机器 curl 测试,下载一段验哈希(Clash TUN 篡改大文件)
+3. 超时数字实弹——先测实际耗时再设(不拍脑袋);进度驱动优先于定死总时长
+4. 输出解析实弹——拿真实输出跑一遍 isdecimal/json.loads/regex
+5. 全链自跑——API 直发完整跑一遍,绿了才装机,**永远不让用户做第一次测试**
+
+详见 `.trellis/spec/guides/pre-deploy-verification-gate-guide.md`

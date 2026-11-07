@@ -1273,7 +1273,9 @@ class SSHService:
         if allow_mirror:
             indexes.append(f"https://mirrors.aliyun.com/pytorch-wheels/{channel}")
         for index in indexes:
-            script = (f"$env:PYTHONUTF8='1'; & {_torch_quote(_WIN_VENV_PYTHON)} -m pip install "
+            # 1107: 清空代理环境变量(Windows Clash 拦截 HTTPS 致 SHA256 哈希不匹配)
+            script = (f"$env:HTTPS_PROXY=''; $env:HTTP_PROXY=''; $env:NO_PROXY='*'; "
+                      f"$env:PYTHONUTF8='1'; & {_torch_quote(_WIN_VENV_PYTHON)} -m pip install "
                       f"--no-cache-dir {packages} --index-url {_torch_quote(index)} 2>&1; exit $LASTEXITCODE")
             try:
                 with self._torch_session_guard():
