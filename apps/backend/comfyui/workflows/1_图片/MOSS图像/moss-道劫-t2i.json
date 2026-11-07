@@ -1,0 +1,1891 @@
+{
+ "last_node_id": 36,
+ "last_link_id": 44,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "MyMossDaojieBase",
+   "pos": [
+    0,
+    0
+   ],
+   "size": [
+    340,
+    200
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "BASE",
+     "type": "STRING",
+     "links": [
+      1
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "WIDTH",
+     "type": "INT",
+     "links": [
+      11
+     ],
+     "slot_index": 1
+    },
+    {
+     "name": "HEIGHT",
+     "type": "INT",
+     "links": [
+      12
+     ],
+     "slot_index": 2
+    },
+    {
+     "name": "负面词",
+     "type": "STRING",
+     "links": [
+      2
+     ],
+     "slot_index": 3
+    },
+    {
+     "name": "透明值",
+     "type": "BOOLEAN",
+     "links": [
+      35
+     ],
+     "slot_index": 4
+    },
+    {
+     "name": "型名",
+     "type": "STRING",
+     "links": [],
+     "slot_index": 5
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "MyMossDaojieBase"
+   },
+   "widgets_values": [
+    "人物海报"
+   ],
+   "widgets_values_named": {
+    "base": "人物海报"
+   }
+  },
+  {
+   "id": 2,
+   "type": "PrimitiveStringMultiline",
+   "pos": [
+    0,
+    260
+   ],
+   "size": [
+    420,
+    220
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "STRING",
+     "type": "STRING",
+     "links": [
+      3
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "PrimitiveStringMultiline"
+   },
+   "widgets_values": [
+    "一位筑基后期的年轻女修，青玉色道袍束月白腰带，足蹬青布道履，乌黑长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门赭石石阶最上一级，身体正面朝向观者、微向左转约四分之一侧，重心落于右腿，左脚虚点下一级石阶，左臂自然垂落、左手五指放松；长剑以石青剑绦系于画面左侧腰间，剑鞘斜垂、与地面约呈四十五度，鞘尾朝画面左下方、剑柄朝画面右上方，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，全身仅此一柄长剑、始终挂定腰间；右臂自然垂落、右肘微屈，右手虚握挂定的剑鞘上端三分之一处、五指环拢鞘身，剑身重量仍由腰间剑绦承担；视线越过阶下青灰云海望向远处青绿群山，旧金色晨光自左侧斜照，衣袂被山风微微掀起。"
+   ],
+   "widgets_values_named": {
+    "value": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，足蹬青布道履，乌黑长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门赭石石阶最上一级，身体正面朝向观者、微向左转约四分之一侧，重心落于右腿，左脚虚点下一级石阶，左臂自然垂落、左手五指放松；长剑以石青剑绦系于画面左侧腰间，剑鞘斜垂、与地面约呈四十五度，鞘尾朝画面左下方、剑柄朝画面右上方，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，全身仅此一柄长剑、始终挂定腰间；右臂自然垂落、右肘微屈，右手虚握挂定的剑鞘上端三分之一处、五指环拢鞘身，剑身重量仍由腰间剑绦承担；视线越过阶下青灰云海望向远处青绿群山，旧金色晨光自左侧斜照，衣袂被山风微微掀起。"
+   }
+  },
+  {
+   "id": 3,
+   "type": "PrimitiveStringMultiline",
+   "pos": [
+    0,
+    520
+   ],
+   "size": [
+    420,
+    200
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "STRING",
+     "type": "STRING",
+     "links": [
+      4
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "PrimitiveStringMultiline"
+   },
+   "widgets_values": [
+    "美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。"
+   ],
+   "widgets_values_named": {
+    "value": "美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。"
+   }
+  },
+  {
+   "id": 4,
+   "type": "MyQi21PromptAssembly",
+   "pos": [
+    480,
+    0
+   ],
+   "size": [
+    420,
+    260
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "BASE",
+     "type": "STRING",
+     "link": 1
+    },
+    {
+     "name": "BASE负面",
+     "type": "STRING",
+     "link": 2
+    },
+    {
+     "name": "主体句",
+     "type": "STRING",
+     "link": 3
+    },
+    {
+     "name": "锁层A全文",
+     "type": "STRING",
+     "link": 4
+    }
+   ],
+   "outputs": [
+    {
+     "name": "装配全文",
+     "type": "STRING",
+     "links": [
+      5,
+      7
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "负面词",
+     "type": "STRING",
+     "links": [
+      6,
+      9
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "MyQi21PromptAssembly"
+   },
+   "widgets_values": [
+    "道劫美术类型"
+   ],
+   "widgets_values_named": {
+    "组装用途": "道劫美术类型"
+   }
+  },
+  {
+   "id": 5,
+   "type": "MyQi21PromptPreview",
+   "pos": [
+    480,
+    300
+   ],
+   "size": [
+    420,
+    160
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "正向提示词",
+     "type": "STRING",
+     "link": 5
+    },
+    {
+     "name": "负向提示词",
+     "type": "STRING",
+     "link": 6
+    }
+   ],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "MyQi21PromptPreview"
+   }
+  },
+  {
+   "id": 6,
+   "type": "CLIPLoader",
+   "pos": [
+    480,
+    520
+   ],
+   "size": [
+    340,
+    100
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      8,
+      10
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPLoader"
+   },
+   "widgets_values": [
+    "qwen3.5_9b_bf16.safetensors",
+    "moss_image",
+    "default"
+   ],
+   "widgets_values_named": {
+    "clip_name": "qwen3.5_9b_bf16.safetensors",
+    "type": "moss_image",
+    "device": "default"
+   }
+  },
+  {
+   "id": 7,
+   "type": "CLIPTextEncode",
+   "pos": [
+    960,
+    520
+   ],
+   "size": [
+    400,
+    200
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "text",
+     "type": "STRING",
+     "link": 7
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 8
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      18,
+      22
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    ""
+   ]
+  },
+  {
+   "id": 8,
+   "type": "CLIPTextEncode",
+   "pos": [
+    960,
+    760
+   ],
+   "size": [
+    400,
+    140
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "text",
+     "type": "STRING",
+     "link": 9
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 10
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      19,
+      23
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    ""
+   ]
+  },
+  {
+   "id": 9,
+   "type": "EmptyFlux2LatentImage",
+   "pos": [
+    1440,
+    760
+   ],
+   "size": [
+    300,
+    120
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "width",
+     "type": "INT",
+     "link": 11
+    },
+    {
+     "name": "height",
+     "type": "INT",
+     "link": 12
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      20,
+      24
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "EmptyFlux2LatentImage"
+   },
+   "widgets_values": [
+    1,
+    1,
+    1
+   ],
+   "widgets_values_named": {
+    "width": 1,
+    "height": 1,
+    "batch_size": 1
+   }
+  },
+  {
+   "id": 10,
+   "type": "UNETLoader",
+   "pos": [
+    1440,
+    0
+   ],
+   "size": [
+    340,
+    100
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      13,
+      15
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "UNETLoader"
+   },
+   "widgets_values": [
+    "moss_image_sft_bf16.safetensors",
+    "default"
+   ],
+   "widgets_values_named": {
+    "unet_name": "moss_image_sft_bf16.safetensors",
+    "weight_dtype": "default"
+   }
+  },
+  {
+   "id": 11,
+   "type": "LoraLoaderModelOnly",
+   "pos": [
+    1830,
+    0
+   ],
+   "size": [
+    380,
+    110
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 13
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      14
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoraLoaderModelOnly"
+   },
+   "widgets_values": [
+    "KOOK-MOSS-SFT-观澜.safetensors",
+    1.0
+   ],
+   "widgets_values_named": {
+    "lora_name": "KOOK-MOSS-SFT-观澜.safetensors",
+    "strength_model": 1.0
+   }
+  },
+  {
+   "id": 12,
+   "type": "SkipLayerGuidanceDiTSimple",
+   "pos": [
+    1830,
+    150
+   ],
+   "size": [
+    380,
+    140
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 14
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      17
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SkipLayerGuidanceDiTSimple"
+   },
+   "widgets_values": [
+    "",
+    "22",
+    0.0,
+    0.5
+   ],
+   "widgets_values_named": {
+    "double_layers": "",
+    "single_layers": "22",
+    "start_percent": 0.0,
+    "end_percent": 0.5
+   }
+  },
+  {
+   "id": 13,
+   "type": "KSampler",
+   "pos": [
+    2220,
+    0
+   ],
+   "size": [
+    340,
+    280
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 17
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 18
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 19
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 20
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      26
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    1108,
+    "fixed",
+    50,
+    3.5,
+    "er_sde",
+    "simple",
+    1.0
+   ],
+   "widgets_values_named": {
+    "seed": 1108,
+    "control_after_generate": "fixed",
+    "steps": 50,
+    "cfg": 3.5,
+    "sampler_name": "er_sde",
+    "scheduler": "simple",
+    "denoise": 1.0
+   }
+  },
+  {
+   "id": 14,
+   "type": "LoraLoaderModelOnly",
+   "pos": [
+    1830,
+    340
+   ],
+   "size": [
+    380,
+    110
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 15
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      16
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoraLoaderModelOnly"
+   },
+   "widgets_values": [
+    "MOSS-SFT-DMD-8step-lodestones.safetensors",
+    1.0
+   ],
+   "widgets_values_named": {
+    "lora_name": "MOSS-SFT-DMD-8step-lodestones.safetensors",
+    "strength_model": 1.0
+   }
+  },
+  {
+   "id": 15,
+   "type": "SkipLayerGuidanceDiTSimple",
+   "pos": [
+    1830,
+    490
+   ],
+   "size": [
+    380,
+    140
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 16
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      21
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SkipLayerGuidanceDiTSimple"
+   },
+   "widgets_values": [
+    "",
+    "22",
+    0.0,
+    0.0
+   ],
+   "widgets_values_named": {
+    "double_layers": "",
+    "single_layers": "22",
+    "start_percent": 0.0,
+    "end_percent": 0.0
+   }
+  },
+  {
+   "id": 16,
+   "type": "KSampler",
+   "pos": [
+    2220,
+    340
+   ],
+   "size": [
+    340,
+    280
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 21
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 22
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 23
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 24
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      27
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    1108,
+    "fixed",
+    8,
+    1.0,
+    "euler",
+    "simple",
+    1.0
+   ],
+   "widgets_values_named": {
+    "seed": 1108,
+    "control_after_generate": "fixed",
+    "steps": 8,
+    "cfg": 1.0,
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "denoise": 1.0
+   }
+  },
+  {
+   "id": 17,
+   "type": "PrimitiveBoolean",
+   "pos": [
+    1440,
+    920
+   ],
+   "size": [
+    260,
+    80
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "BOOLEAN",
+     "type": "BOOLEAN",
+     "links": [
+      25
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "PrimitiveBoolean"
+   },
+   "widgets_values": [
+    false
+   ],
+   "widgets_values_named": {
+    "value": false
+   }
+  },
+  {
+   "id": 18,
+   "type": "ComfySwitchNode",
+   "pos": [
+    2620,
+    160
+   ],
+   "size": [
+    260,
+    140
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "switch",
+     "type": "BOOLEAN",
+     "link": 25
+    },
+    {
+     "name": "on_false",
+     "type": "LATENT",
+     "link": 26
+    },
+    {
+     "name": "on_true",
+     "type": "LATENT",
+     "link": 27
+    }
+   ],
+   "outputs": [
+    {
+     "name": "*",
+     "type": "*",
+     "links": [
+      28
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ComfySwitchNode"
+   }
+  },
+  {
+   "id": 20,
+   "type": "VAELoader",
+   "pos": [
+    2620,
+    520
+   ],
+   "size": [
+    300,
+    80
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      29
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAELoader"
+   },
+   "widgets_values": [
+    "flux2-vae.safetensors"
+   ],
+   "widgets_values_named": {
+    "vae_name": "flux2-vae.safetensors"
+   }
+  },
+  {
+   "id": 21,
+   "type": "VAEDecode",
+   "pos": [
+    2980,
+    160
+   ],
+   "size": [
+    300,
+    110
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 28
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 29
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      30,
+      33,
+      36
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   }
+  },
+  {
+   "id": 22,
+   "type": "ColorToMask",
+   "pos": [
+    2980,
+    320
+   ],
+   "size": [
+    340,
+    170
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 30
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [
+      31
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ColorToMask"
+   },
+   "widgets_values": [
+    false,
+    255,
+    255,
+    255,
+    20,
+    1
+   ],
+   "widgets_values_named": {
+    "invert": false,
+    "red": 255,
+    "green": 255,
+    "blue": 255,
+    "threshold": 20,
+    "per_batch": 1
+   }
+  },
+  {
+   "id": 23,
+   "type": "GrowMaskWithBlur",
+   "pos": [
+    2980,
+    530
+   ],
+   "size": [
+    300,
+    190
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 31
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [
+      32
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "GrowMaskWithBlur"
+   },
+   "widgets_values": [
+    -3,
+    0.0,
+    true,
+    false,
+    2.0,
+    1.0,
+    1.0,
+    true
+   ],
+   "widgets_values_named": {
+    "expand": -3,
+    "incremental_expandrate": 0.0,
+    "tapered_corners": true,
+    "flip_input": false,
+    "blur_radius": 2.0,
+    "lerp_alpha": 1.0,
+    "decay_factor": 1.0,
+    "fill_holes": true
+   }
+  },
+  {
+   "id": 24,
+   "type": "GrowMask",
+   "pos": [
+    2980,
+    670
+   ],
+   "size": [
+    260,
+    120
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 32
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [
+      34
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "GrowMask"
+   },
+   "widgets_values": [
+    0,
+    true
+   ],
+   "widgets_values_named": {
+    "expand": 0,
+    "tapered_corners": true
+   }
+  },
+  {
+   "id": 25,
+   "type": "JoinImageWithAlpha",
+   "pos": [
+    2980,
+    830
+   ],
+   "size": [
+    300,
+    100
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 33
+    },
+    {
+     "name": "alpha",
+     "type": "MASK",
+     "link": 34
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      37
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "JoinImageWithAlpha"
+   }
+  },
+  {
+   "id": 26,
+   "type": "ComfySwitchNode",
+   "pos": [
+    3340,
+    480
+   ],
+   "size": [
+    260,
+    140
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "switch",
+     "type": "BOOLEAN",
+     "link": 35
+    },
+    {
+     "name": "on_false",
+     "type": "IMAGE",
+     "link": 36
+    },
+    {
+     "name": "on_true",
+     "type": "IMAGE",
+     "link": 37
+    }
+   ],
+   "outputs": [
+    {
+     "name": "*",
+     "type": "*",
+     "links": [
+      38,
+      42
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ComfySwitchNode"
+   }
+  },
+  {
+   "id": 30,
+   "type": "SeedVR2LoadDiTModel",
+   "pos": [
+    3700,
+    0
+   ],
+   "size": [
+    400,
+    190
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "SEEDVR2_DIT",
+     "type": "SEEDVR2_DIT",
+     "links": [
+      39
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SeedVR2LoadDiTModel"
+   },
+   "widgets_values": [
+    "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
+    "cuda:0",
+    36,
+    false,
+    "cpu",
+    false,
+    "sdpa"
+   ],
+   "widgets_values_named": {
+    "model": "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
+    "device": "cuda:0",
+    "blocks_to_swap": 36,
+    "swap_io_components": false,
+    "offload_device": "cpu",
+    "cache_model": false,
+    "attention_mode": "sdpa"
+   }
+  },
+  {
+   "id": 31,
+   "type": "SeedVR2LoadVAEModel",
+   "pos": [
+    3700,
+    230
+   ],
+   "size": [
+    400,
+    250
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "SEEDVR2_VAE",
+     "type": "SEEDVR2_VAE",
+     "links": [
+      40
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SeedVR2LoadVAEModel"
+   },
+   "widgets_values": [
+    "ema_vae_fp16.safetensors",
+    "cuda:0",
+    true,
+    512,
+    160,
+    true,
+    512,
+    160,
+    "false",
+    "none",
+    false
+   ],
+   "widgets_values_named": {
+    "model": "ema_vae_fp16.safetensors",
+    "device": "cuda:0",
+    "encode_tiled": true,
+    "encode_tile_size": 512,
+    "encode_tile_overlap": 160,
+    "decode_tiled": true,
+    "decode_tile_size": 512,
+    "decode_tile_overlap": 160,
+    "tile_debug": "false",
+    "offload_device": "none",
+    "cache_model": false
+   }
+  },
+  {
+   "id": 32,
+   "type": "SeedVR2VideoUpscaler",
+   "pos": [
+    4140,
+    0
+   ],
+   "size": [
+    360,
+    300
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 38
+    },
+    {
+     "name": "dit",
+     "type": "SEEDVR2_DIT",
+     "link": 39
+    },
+    {
+     "name": "vae",
+     "type": "SEEDVR2_VAE",
+     "link": 40
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      43
+     ],
+     "slot_index": 2
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SeedVR2VideoUpscaler"
+   },
+   "widgets_values": [
+    0,
+    "fixed",
+    2048,
+    0,
+    1,
+    false,
+    "lab",
+    0,
+    0,
+    0.0,
+    0.0,
+    "none",
+    false
+   ],
+   "widgets_values_named": {
+    "seed": 0,
+    "control_after_generate": "fixed",
+    "resolution": 2048,
+    "max_resolution": 0,
+    "batch_size": 1,
+    "uniform_batch_size": false,
+    "color_correction": "lab",
+    "temporal_overlap": 0,
+    "prepend_frames": 0,
+    "input_noise_scale": 0.0,
+    "latent_noise_scale": 0.0,
+    "offload_device": "none",
+    "enable_debug": false
+   }
+  },
+  {
+   "id": 33,
+   "type": "PrimitiveBoolean",
+   "pos": [
+    3700,
+    520
+   ],
+   "size": [
+    260,
+    80
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "BOOLEAN",
+     "type": "BOOLEAN",
+     "links": [
+      41
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "PrimitiveBoolean"
+   },
+   "widgets_values": [
+    false
+   ],
+   "widgets_values_named": {
+    "value": false
+   }
+  },
+  {
+   "id": 34,
+   "type": "ComfySwitchNode",
+   "pos": [
+    4560,
+    120
+   ],
+   "size": [
+    260,
+    140
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "switch",
+     "type": "BOOLEAN",
+     "link": 41
+    },
+    {
+     "name": "on_false",
+     "type": "IMAGE",
+     "link": 42
+    },
+    {
+     "name": "on_true",
+     "type": "IMAGE",
+     "link": 43
+    }
+   ],
+   "outputs": [
+    {
+     "name": "*",
+     "type": "*",
+     "links": [
+      44
+     ],
+     "slot_index": 2
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ComfySwitchNode"
+   }
+  },
+  {
+   "id": 35,
+   "type": "SaveImage",
+   "pos": [
+    4880,
+    120
+   ],
+   "size": [
+    340,
+    110
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 44
+    }
+   ],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "widgets_values": [
+    "moss_daojie/"
+   ],
+   "widgets_values_named": {
+    "filename_prefix": "moss_daojie/"
+   }
+  },
+  {
+   "id": 36,
+   "type": "MarkdownNote",
+   "pos": [
+    0,
+    780
+   ],
+   "size": [
+    460,
+    420
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "MarkdownNote"
+   },
+   "widgets_values": [
+    "## MOSS 道劫 t2i(道劫范式 × MOSS-Image,1108 役)\n\n- **型库=moss_bases.json**(由 qi21_bases.json 派生:6 透明型已带白底句;人物海报带挂载服从句;装配节点 MyQi21PromptAssembly 直复用)\n- **双臂**:左 False=原生臂 50步/CFG3.5/er_sde+观澜@1.0+SLG22(0-0.5);True=DMD 臂 8步/CFG1.0/euler+DMD LoRA@1.0+SLG end0(勿混:DMD 禁高 CFG)\n- **透明型**(道具/多视图/高清人脸/表情差分/人脸基准/无衣物定妆):MOSS=flux2-vae 纯 RGB,型文白底句+「白底转透明」腿(ColorToMask 白255容差40→ThresholdMask 0.5→GrowMask -2 收边→JoinImageWithAlpha)按型自动启停\n- **SeedVR2 2K 尾档**默认旁路;Win 参数(seedvr2_7b_sharp_fp8/swap36/cuda)\n- 模型:moss_image_sft_bf16 + qwen3.5_9b_bf16(moss_image) + flux2-vae(Windows 引擎在位)\n- 例句=道劫 05 库例一(女修·剑在鞘·手部三锁段);门禁与色词纪律同 qi21 线(docs/prompts/道劫_类型主体句示例.md)\n- 已知特性(1108 p1 实弹):MOSS 对持械挂载动词服从弱于 Q2.1——人物持械海报仍建议走 Q2.1 线,本线主打文字/道具/场景/透明资产"
+   ]
+  }
+ ],
+ "links": [
+  [
+   1,
+   1,
+   0,
+   4,
+   0,
+   "STRING"
+  ],
+  [
+   2,
+   1,
+   3,
+   4,
+   0,
+   "STRING"
+  ],
+  [
+   3,
+   2,
+   0,
+   4,
+   0,
+   "STRING"
+  ],
+  [
+   4,
+   3,
+   0,
+   4,
+   0,
+   "STRING"
+  ],
+  [
+   5,
+   4,
+   0,
+   5,
+   0,
+   "STRING"
+  ],
+  [
+   6,
+   4,
+   1,
+   5,
+   0,
+   "STRING"
+  ],
+  [
+   7,
+   4,
+   0,
+   7,
+   0,
+   "STRING"
+  ],
+  [
+   8,
+   6,
+   0,
+   7,
+   0,
+   "CLIP"
+  ],
+  [
+   9,
+   4,
+   1,
+   8,
+   0,
+   "STRING"
+  ],
+  [
+   10,
+   6,
+   0,
+   8,
+   0,
+   "CLIP"
+  ],
+  [
+   11,
+   1,
+   1,
+   9,
+   0,
+   "INT"
+  ],
+  [
+   12,
+   1,
+   2,
+   9,
+   0,
+   "INT"
+  ],
+  [
+   13,
+   10,
+   0,
+   11,
+   0,
+   "MODEL"
+  ],
+  [
+   14,
+   11,
+   0,
+   12,
+   0,
+   "MODEL"
+  ],
+  [
+   15,
+   10,
+   0,
+   14,
+   0,
+   "MODEL"
+  ],
+  [
+   16,
+   14,
+   0,
+   15,
+   0,
+   "MODEL"
+  ],
+  [
+   17,
+   12,
+   0,
+   13,
+   0,
+   "MODEL"
+  ],
+  [
+   18,
+   7,
+   0,
+   13,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   19,
+   8,
+   0,
+   13,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   20,
+   9,
+   0,
+   13,
+   0,
+   "LATENT"
+  ],
+  [
+   21,
+   15,
+   0,
+   16,
+   0,
+   "MODEL"
+  ],
+  [
+   22,
+   7,
+   0,
+   16,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   23,
+   8,
+   0,
+   16,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   24,
+   9,
+   0,
+   16,
+   0,
+   "LATENT"
+  ],
+  [
+   25,
+   17,
+   0,
+   18,
+   0,
+   "BOOLEAN"
+  ],
+  [
+   26,
+   13,
+   0,
+   18,
+   0,
+   "LATENT"
+  ],
+  [
+   27,
+   16,
+   0,
+   18,
+   0,
+   "LATENT"
+  ],
+  [
+   28,
+   18,
+   0,
+   21,
+   0,
+   "LATENT"
+  ],
+  [
+   29,
+   20,
+   0,
+   21,
+   0,
+   "VAE"
+  ],
+  [
+   30,
+   21,
+   0,
+   22,
+   0,
+   "IMAGE"
+  ],
+  [
+   31,
+   22,
+   0,
+   23,
+   0,
+   "MASK"
+  ],
+  [
+   32,
+   23,
+   0,
+   24,
+   0,
+   "MASK"
+  ],
+  [
+   33,
+   21,
+   0,
+   25,
+   0,
+   "IMAGE"
+  ],
+  [
+   34,
+   24,
+   0,
+   25,
+   0,
+   "MASK"
+  ],
+  [
+   35,
+   1,
+   4,
+   26,
+   0,
+   "BOOLEAN"
+  ],
+  [
+   36,
+   21,
+   0,
+   26,
+   0,
+   "IMAGE"
+  ],
+  [
+   37,
+   25,
+   0,
+   26,
+   0,
+   "IMAGE"
+  ],
+  [
+   38,
+   26,
+   0,
+   32,
+   0,
+   "IMAGE"
+  ],
+  [
+   39,
+   30,
+   0,
+   32,
+   0,
+   "SEEDVR2_DIT"
+  ],
+  [
+   40,
+   31,
+   0,
+   32,
+   0,
+   "SEEDVR2_VAE"
+  ],
+  [
+   41,
+   33,
+   0,
+   34,
+   0,
+   "BOOLEAN"
+  ],
+  [
+   42,
+   26,
+   0,
+   34,
+   0,
+   "IMAGE"
+  ],
+  [
+   43,
+   32,
+   0,
+   34,
+   0,
+   "IMAGE"
+  ],
+  [
+   44,
+   34,
+   0,
+   35,
+   0,
+   "IMAGE"
+  ]
+ ],
+ "groups": [
+  {
+   "id": 1,
+   "title": "① 型库·三层装配(MOSS 版 moss_bases.json)",
+   "bounding": [
+    -20,
+    -60,
+    920,
+    800
+   ],
+   "color": "#3f789e",
+   "flags": {}
+  },
+  {
+   "id": 2,
+   "title": "② 模型·双臂(原生50·观澜+SLG | DMD8步)",
+   "bounding": [
+    1410,
+    -60,
+    1180,
+    1120
+   ],
+   "color": "#88A",
+   "flags": {}
+  },
+  {
+   "id": 3,
+   "title": "③ 解码·白底转透明腿(MOSS 无 alpha,抠图造)",
+   "bounding": [
+    2590,
+    -60,
+    780,
+    1060
+   ],
+   "color": "#a33",
+   "flags": {}
+  },
+  {
+   "id": 4,
+   "title": "④ SeedVR2 2K 尾档(默认旁路)",
+   "bounding": [
+    3670,
+    -60,
+    1290,
+    660
+   ],
+   "color": "#4a7",
+   "flags": {}
+  }
+ ],
+ "config": {},
+ "extra": {},
+ "version": 0.4,
+ "revision": 0
+}

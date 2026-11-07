@@ -41,6 +41,7 @@ def test_registry_exposes_first_batch_nodes():
         "MyDaojieLoraStack",  # 09-19 LoRA快速启停 R2:14 槽九型驱动栈节点
         "MyDaojieRoute",  # 09-21 [90] 子图按型线路路由(只选线不加载)
         "MyQi21DaojieBase",  # 09-23 qi21 道劫九选一底座(仿 K2 MyDaojieBase)
+        "MyMossDaojieBase",  # 1108 MOSS 道劫十四选一(moss_bases.json,镜像母本)
         "MyQi21SpeedSelect",  # 09-29 qi21 加速区并行化:支路 LATENT 单点懒选择(1023 起四支路+E混动)
         "MyQi21RgbaSelect",  # 0929 D6 三态选择;1001 ① 文案轮:自动/true/false
         "MyQi21PromptAssembly",  # 1001 S8 R7 集成(裁定A上游):装配全文=主体句+BASE+美术风格底座 单口真源

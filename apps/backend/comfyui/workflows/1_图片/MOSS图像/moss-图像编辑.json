@@ -1,8 +1,8 @@
 {
   "id": "80fdadce-1276-4000-a248-961964f5b6e8",
   "revision": 1,
-  "last_node_id": 110,
-  "last_link_id": 18,
+  "last_node_id": 111,
+  "last_link_id": 19,
   "nodes": [
     {
       "id": 1,
@@ -24,7 +24,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            1
+            19
           ],
           "slot_index": 0
         }
@@ -689,7 +689,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "## MOSS-Image 图像编辑(官方节点链·moss-win-campaign-1025 役件)\n\nQ1 裁定:本件走**官方 TextEncodeMOSSImageEdit**(ComfyUI master PR#17095,comfy_extras/nodes_moss_image.py;插件作者自荐官方 issue #17296 节点),零第三方依赖;插件链(ApplyMossImageEdit)仅作 R6 备选,不入库。\n\n### 官方节点要点(E5 源码实证)\n- edit_format 三枚举:ai-toolkit / ai-toolkit (kv_cache off) / **Moss-Image-Edit**(本件选它——对应 HF chinoll/Moss-Image-Edit adapter);\n- 入参:clip/prompt/vae(可选——不给则参考图只进文本编码器,本件连入 VAE 走完整链)/images(Autogrow 组,画布实际入名=展开名 image_1,不存在名为 images 的口);image_strength=1.0。\n- 参考图整图直入:官方节点无 reference_max_edge;若效果差,可仿插件链在 [7] 后前置一张缩参考长边 512 的图(调参位,本件未加)。\n\n### 1MP·对齐16 随原图链(E3 官方示例+E3b 三验)\n[7] 原图 → [12] ImageScaleToTotalPixels(lanczos/1.0MP/resolution_steps=16——**16 对齐闭环在本节点第三参**,Mac 0.38 源码 nodes_post_processing.py:227-258 实读)→ [11] 取宽高 → [6] EmptyFlux2LatentImage width/height 转输入连入。\n\n### 采样档(插件官方示例同档)\n30 步 / CFG 4.0 / euler / normal / denoise 1.0;SLG 编辑档 double 留空/single=22/start=0/**end=1.0**(与 t2i 档 end 0.5 不同,勿混——插件 README 档)。\n\n### 依赖\n模型四件同 moss-t2i.json([1] 底模/[3] FLUX.2 VAE/[4] TE type=moss_image);底模链无 LoRA。引擎 ≥v0.42.4(3f438ca)。发车脚本 moss_fire_win.py --edit-src 注入原图(/upload/image 后回填 [7].image);R6 备选链=ComfyUI-Moss-Image-Edit 插件(规格见役 PLAN §4.3-附,--chain plugin)。役号 moss-win-campaign-1025。"
+        "## MOSS-Image 图像编辑(官方节点链·moss-win-campaign-1025 役件)\n\nQ1 裁定:本件走**官方 TextEncodeMOSSImageEdit**(ComfyUI master PR#17095,comfy_extras/nodes_moss_image.py;插件作者自荐官方 issue #17296 节点),零第三方依赖;插件链(ApplyMossImageEdit)仅作 R6 备选,不入库。\n\n### 官方节点要点(E5 源码实证)\n- edit_format 三枚举:ai-toolkit / ai-toolkit (kv_cache off) / **Moss-Image-Edit**(本件选它——对应 HF chinoll/Moss-Image-Edit adapter);\n- 入参:clip/prompt/vae(可选——不给则参考图只进文本编码器,本件连入 VAE 走完整链)/images(Autogrow 组,画布实际入名=展开名 image_1,不存在名为 images 的口);image_strength=1.0。\n- 参考图整图直入:官方节点无 reference_max_edge;若效果差,可仿插件链在 [7] 后前置一张缩参考长边 512 的图(调参位,本件未加)。\n\n### 1MP·对齐16 随原图链(E3 官方示例+E3b 三验)\n[7] 原图 → [12] ImageScaleToTotalPixels(lanczos/1.0MP/resolution_steps=16——**16 对齐闭环在本节点第三参**,Mac 0.38 源码 nodes_post_processing.py:227-258 实读)→ [11] 取宽高 → [6] EmptyFlux2LatentImage width/height 转输入连入。\n\n### 采样档(插件官方示例同档)\n30 步 / CFG 4.0 / euler / normal / denoise 1.0;SLG 编辑档 double 留空/single=22/start=0/**end=1.0**(与 t2i 档 end 0.5 不同,勿混——插件 README 档)。\n\n### 依赖\n模型四件同 moss-t2i.json([1] 底模/[3] FLUX.2 VAE/[4] TE type=moss_image);底模链无 LoRA。引擎 ≥v0.42.4(3f438ca)。发车脚本 moss_fire_win.py --edit-src 注入原图(/upload/image 后回填 [7].image);R6 备选链=ComfyUI-Moss-Image-Edit 插件(规格见役 PLAN §4.3-附,--chain plugin)。役号 moss-win-campaign-1025。\n\n---\n\n【1108 补官方 edit LoRA 腿】对齐官方 image_moss_image_edit.json:UNET→LoraLoaderModelOnly(moss_image_edit_lora_rank_64_bf16@1.0)→SLG。⚠️ 该 LoRA 引擎侧未落盘,下载落位前本件不可跑(1025 实弹过的是无 LoRA 档,保真弱于官方规格;LoRA 在 Comfy-Org/MOSS-Image HF)。"
       ],
       "widgets_values_named": {
         "text": "## MOSS-Image 图像编辑(官方节点链·moss-win-campaign-1025 役件)\n\nQ1 裁定:本件走**官方 TextEncodeMOSSImageEdit**(ComfyUI master PR#17095,comfy_extras/nodes_moss_image.py;插件作者自荐官方 issue #17296 节点),零第三方依赖;插件链(ApplyMossImageEdit)仅作 R6 备选,不入库。\n\n### 官方节点要点(E5 源码实证)\n- edit_format 三枚举:ai-toolkit / ai-toolkit (kv_cache off) / **Moss-Image-Edit**(本件选它——对应 HF chinoll/Moss-Image-Edit adapter);\n- 入参:clip/prompt/vae(可选——不给则参考图只进文本编码器,本件连入 VAE 走完整链)/images(Autogrow 组,画布实际入名=展开名 image_1,不存在名为 images 的口);image_strength=1.0。\n- 参考图整图直入:官方节点无 reference_max_edge;若效果差,可仿插件链在 [7] 后前置一张缩参考长边 512 的图(调参位,本件未加)。\n\n### 1MP·对齐16 随原图链(E3 官方示例+E3b 三验)\n[7] 原图 → [12] ImageScaleToTotalPixels(lanczos/1.0MP/resolution_steps=16——**16 对齐闭环在本节点第三参**,Mac 0.38 源码 nodes_post_processing.py:227-258 实读)→ [11] 取宽高 → [6] EmptyFlux2LatentImage width/height 转输入连入。\n\n### 采样档(插件官方示例同档)\n30 步 / CFG 4.0 / euler / normal / denoise 1.0;SLG 编辑档 double 留空/single=22/start=0/**end=1.0**(与 t2i 档 end 0.5 不同,勿混——插件 README 档)。\n\n### 依赖\n模型四件同 moss-t2i.json([1] 底模/[3] FLUX.2 VAE/[4] TE type=moss_image);底模链无 LoRA。引擎 ≥v0.42.4(3f438ca)。发车脚本 moss_fire_win.py --edit-src 注入原图(/upload/image 后回填 [7].image);R6 备选链=ComfyUI-Moss-Image-Edit 插件(规格见役 PLAN §4.3-附,--chain plugin)。役号 moss-win-campaign-1025。"
@@ -697,12 +697,51 @@
       "title": "[110] 用法速查",
       "color": "#432",
       "bgcolor": "#653"
+    },
+    {
+      "id": 111,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        160,
+        680
+      ],
+      "size": [
+        440,
+        120
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 19
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "moss_image_edit_lora_rank_64_bf16.safetensors",
+        1
+      ]
     }
   ],
   "links": [
     [
       1,
-      1,
+      111,
       0,
       20,
       0,
@@ -843,6 +882,14 @@
       9,
       0,
       "IMAGE"
+    ],
+    [
+      19,
+      1,
+      0,
+      111,
+      0,
+      "MODEL"
     ]
   ],
   "groups": [],

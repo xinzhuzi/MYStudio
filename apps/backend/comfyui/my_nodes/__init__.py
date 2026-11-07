@@ -28,6 +28,7 @@ from .nodes.my_daojie_loras import MyDaojieLoras
 from .nodes.my_daojie_lora_stack import MyDaojieLoraStack
 from .nodes.my_daojie_route import MyDaojieRoute
 from .nodes.my_qi21_base import MyQi21DaojieBase
+from .nodes.my_moss_daojie_base import MyMossDaojieBase
 from .nodes.my_qi21_speed_select import MyQi21SpeedSelect
 from .nodes.my_qi21_rgba_select import MyQi21RgbaSelect
 from .nodes.my_qi21_prompt_assembly import MyQi21PromptAssembly
@@ -149,6 +150,7 @@ NODE_CLASS_MAPPINGS = {
     "MyDaojieLoraStack": MyDaojieLoraStack,
     "MyDaojieRoute": MyDaojieRoute,
     "MyQi21DaojieBase": MyQi21DaojieBase,  # 09-23 qi21 道劫九选一底座(仿 K2 MyDaojieBase)
+    "MyMossDaojieBase": MyMossDaojieBase,  # 1108 MOSS 道劫十四选一(moss_bases.json,镜像母本)
     "MyQi21SpeedSelect": MyQi21SpeedSelect,  # 09-29 qi21 加速区并行化:三支路 LATENT 单点懒选择
     "MyQi21RgbaSelect": MyQi21RgbaSelect,  # 0929 D6 三态选择;1001 ① 文案轮:自动/true/false
     "MyQi21PromptAssembly": MyQi21PromptAssembly,  # 1001 S8 R7 集成(裁定A拆件):装配全文=主体句+BASE+美术风格底座,单口真源
@@ -201,6 +203,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MyDaojieLoraStack": "漫影 道劫LoRA栈",
     "MyDaojieRoute": "漫影 道劫按型线路路由",
     "MyQi21DaojieBase": "道劫·qi21底座九选一",
+    "MyMossDaojieBase": "道劫·MOSS底座十四选一",
     "MyQi21LatentUpscale": "漫影 二采潜空间放大 2x [MyQi21LatentUpscale]",  # 1106(1107 Edit 定谳后留件退役)
     "MyQi21ColorAnchor": "漫影 二采色彩锚 [MyQi21ColorAnchor]",  # 1108(Lab 迁移,一采色权威)
     "MyQi21SpeedSelect": "Q2-1 加速档位(四选一·默认混动40步+缓存)",  # ⑱ 1002 Fun-Acc;1016turbo 官方 Turbo;1101 档3混动升默认(用户令替换 Turbo)
