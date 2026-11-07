@@ -41,13 +41,13 @@ import sys
 import time
 import urllib.request
 
-VENV_PY = 'E:/IP/\u6f2c\u5f71\u5de5\u4f5c\u5ba4/comfyui/venv/Scripts/python.exe'
-MAIN = 'E:/IP/\u6f2c\u5f71\u5de5\u4f5c\u5ba4/comfyui/ComfyUI/main.py'
-OUT = 'E:/IP/\u6f2c\u5f71\u5de5\u4f5c\u5ba4/comfyui/output'
-CWD = 'E:/IP/\u6f2c\u5f71\u5de5\u4f5c\u5ba4/comfyui/ComfyUI'
-LOG = 'E:/IP/\u6f2c\u5f71\u5de5\u4f5c\u5ba4/comfyui/logs/engine.log'
+VENV_PY = 'E:/IP/\u6f2b\u5f71\u5de5\u4f5c\u5ba4/comfyui/venv/Scripts/python.exe'
+MAIN = 'E:/IP/\u6f2b\u5f71\u5de5\u4f5c\u5ba4/comfyui/ComfyUI/main.py'
+OUT = 'E:/IP/\u6f2b\u5f71\u5de5\u4f5c\u5ba4/comfyui/output'
+CWD = 'E:/IP/\u6f2b\u5f71\u5de5\u4f5c\u5ba4/comfyui/ComfyUI'
+LOG = 'E:/IP/\u6f2b\u5f71\u5de5\u4f5c\u5ba4/comfyui/logs/engine.log'
 CUSTOM_NODES = CWD + '/custom_nodes'
-STAMPS = 'E:/IP/\u6f2c\u5f71\u5de5\u4f5c\u5ba4/comfyui/logs/req_stamps.json'
+STAMPS = 'E:/IP/\u6f2b\u5f71\u5de5\u4f5c\u5ba4/comfyui/logs/req_stamps.json'
 # 清华 .cn 直连（Clash 路由直连不篡改；1107 torch 役刻碑：镜像优先于对抗）
 PIP_MIRROR = 'https://pypi.tuna.tsinghua.edu.cn/simple'
 # 「Cannot import ...custom_nodes\NAME module ...: No module named 'X'」→ 欠件插件
@@ -81,7 +81,7 @@ env['TESSERA_SCRATCH'] = 'E:/IP/tmp/tessera_scratch'
 # MANYING_LOCAL_IMAGE_TOKEN 优先,双缺=空串 fail-closed,与 repo
 # bridge_contract.resolve_bridge_token 同序;本文件零令牌字面量)。
 SIDECAR_CONFIG = ('C:/Users/ZBJ/AppData/Roaming/'
-                  '\u6f2c\u5f71\u5de5\u4f5c\u5ba4/python/profiles/image-gen/config.json')
+                  '\u6f2b\u5f71\u5de5\u4f5c\u5ba4/python/profiles/image-gen/config.json')
 
 
 def _bridge_token():
