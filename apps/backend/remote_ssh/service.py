@@ -1493,6 +1493,16 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
         try:
             if not self.status().get("connected"):
                 raise RuntimeError("SSH 未连接")
+            # 1107: skip-if-latest——当前版本已等于目标则跳过全链,不重下 4GB
+            try:
+                _stats = self._torch_http("/system_stats")
+                _cur = _stats.get("system", {}).get("pytorch_version", "")
+                if _cur == target_version:
+                    result["from"] = _cur
+                    jobs.update(job_id, step="ledger", progress=100, message=f"已是目标版本 {_cur},跳过升级", result=result)
+                    return result
+            except Exception:
+                pass  # 探针失败不拦升级流程
             progress("preflight", 5, "检查远端引擎")
             if self._torch_remote_pip_running():
                 raise RuntimeError("引擎环境中已有 pip 安装进程，拒绝并发升级")
