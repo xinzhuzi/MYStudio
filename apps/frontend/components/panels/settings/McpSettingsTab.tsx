@@ -169,7 +169,7 @@ function resolveActiveSshPresetId(
 }
 
 const COLLAPSED_STORAGE_KEY = "mystudio.settings.mcp.collapsedSections";
-type SectionId = "bridge" | "remote-engine" | "engine-sync" | "ssh-remote" | "family" | "workflows" | "servers" | "json";
+type SectionId = "bridge" | "remote-engine" | "engine-sync" | "torch-upgrade" | "ssh-remote" | "family" | "workflows" | "servers" | "json";
 
 type PillState = "ready" | "needs-runtime" | "neutral";
 
@@ -1719,17 +1719,20 @@ export function McpSettingsTab() {
             </Dialog>
           </div>
 
-          {remoteActive && (<>
-          {/* ── 引擎 PyTorch / CUDA(1106 用户令:自独立行迁入本面板,排引擎同步之后) ── */}
-          <div className="mt-3 space-y-3">
-            <div className="flex items-center gap-2">
-              <Terminal className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-              <span className="text-sm font-medium">引擎 PyTorch / CUDA</span>
-              <span className={cn("rounded-full border px-2 py-0.5 text-xs", remoteActive && sshStatus?.connected ? "border-success/40 text-success" : "border-border text-muted-foreground")}>
-                {remoteActive && sshStatus?.connected ? "已就绪" : "未连接"}
-              </span>
-            </div>
-          <div className="space-y-3 p-4">
+          {remoteActive && (
+          <Collapsible open={!collapsedSections.has("torch-upgrade")} onOpenChange={() => toggleSectionCollapsed("torch-upgrade")}>
+            <CollapsibleTrigger className="w-full text-left">
+              <div className="flex items-center gap-2 rounded-lg px-1 py-2" data-testid="torch-upgrade-header">
+                <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", collapsedSections.has("torch-upgrade") && "-rotate-90")} aria-hidden="true" />
+                <span className="text-sm font-medium">引擎 PyTorch / CUDA</span>
+                <span className="min-w-0 truncate text-xs text-muted-foreground">升级 Windows 引擎的 PyTorch(经 SSH)</span>
+                <span className={cn("ml-auto shrink-0 rounded-full border px-2 py-0.5 text-xs", remoteActive && sshStatus?.connected ? "border-success/40 text-success" : "border-border text-muted-foreground")}>
+                  {remoteActive && sshStatus?.connected ? "已就绪" : "未连接"}
+                </span>
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+            <div className="mt-2 space-y-3 p-3">
             {!remoteActive && <p className="text-xs text-muted-foreground">本地(Mac)引擎升级请到 设置→本地配置→ComfyUI→更新;此处仅管理 Windows 引擎。</p>}
             <p className="text-xs leading-5 text-muted-foreground" data-testid="torch-target-desc">
               <span className="font-medium text-foreground">升级对象:</span>Windows 引擎主机 <span className="font-mono">{activeRemoteUrl || sshStatus?.host || "未连接"}</span> —— 经 SSH 远程操作该机的 ComfyUI 引擎 Python 环境(venv),升级 <span className="font-mono">PyTorch + 配套 torchvision</span>;不动该机的 ComfyUI 本体、插件与模型文件。
@@ -1753,10 +1756,10 @@ export function McpSettingsTab() {
             </div>
             {torchInfo?.allowedTargets?.length && !torchInfo.allowedTargets.includes(torchTarget) ? <p className="text-xs text-warning">仅支持 {torchInfo.allowedTargets.join(" / ")}</p> : null}
             {torchJob && <TorchUpgradeProgress job={torchJob} warning={torchTrackingWarning} />}
-          </div>
-          </div>
-          </>)}
-
+            </div>
+            </CollapsibleContent>
+          </Collapsible>
+          )}
         </McpRow>
 
         {/* ── SSH 远端连接(1103 终版):多条连接列表(照引擎设备列表同款范式,
