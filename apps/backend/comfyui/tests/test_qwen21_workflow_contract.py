@@ -1854,15 +1854,14 @@ class TestSpeedSelectContract0929:
             graph = GRAPHS[name]
             sgs = _sgs(graph)
             # 1022 洗底子图入列:t2i/i2i 均=装配+加速+超分D+洗底④b 四定义(edit 恒2)
-            want_n = {"qi21": 5, "i2i": 4}.get(name, 2)
+            want_n = {"qi21": 4, "i2i": 4}.get(name, 2)
             assert len(sgs) == want_n, \
-                f"{name}: 应恰 {want_n} 子图(1018 终版装配+加速+超分D;1022 t2i/i2i 各收洗底④b;1107 qi21 再收二采精修;edit 恒2),得 {len(sgs)}"
+                f"{name}: 应恰 {want_n} 子图(1018 终版装配+加速+超分D;1022 t2i/i2i 各收洗底④b;1108 二采退役撤收;edit 恒2),得 {len(sgs)}"
             names = sorted(sg["name"] for sg in sgs)
             want_names = sorted([ASSEMBLY_SG_NAME_T2I, ACCEL_SG_NAME]
                                 + ([UP4[t]["name"] for t in "D"]
                                    if name in ("qi21", "i2i") else [])
-                                + ([T2I_WASH_SG_NAME] if name in ("qi21", "i2i") else [])
-                                + ([TWOPASS_SG_NAME_T2I] if name == "qi21" else []))
+                                + ([T2I_WASH_SG_NAME] if name in ("qi21", "i2i") else []))
             assert names == want_names, \
                 f"{name}: 子图 name 集合漂移,得 {names}"
             hosts = [n for n in graph["nodes"]
@@ -1985,7 +1984,7 @@ class TestSpeedSelectContract0929:
         want_seqs = {
             # 1006 四轮:qi21 四出(wh_ratio/PE启用? 随 AI扩写恒开退役;[4018] 恒九型);
             # 1017 型名穿界:两域尾加「型名」STRING 出([4010] 型名出穿 -20 边界)
-            "qi21": ["positive", "negative", "width", "height", "型名", "透明模式"],  # 1107 二采穿界尾加
+            "qi21": ["positive", "negative", "width", "height", "型名"],
             "i2i": ["prompt", "画幅W", "画幅H", "negative", "型名", "使用类型画幅"],
             # 1015 编码器出子图役:positive/negative/latent/positive_single 四槽随
             # [4015]/[171] 迁主画布退役——子图收纯「提示词装配」,三出=终稿+画幅
@@ -2602,11 +2601,11 @@ class TestCanvasDiscipline:
                                 f"qi21: 洗底子图 groups 应恰 0(1022 蓝图极简形),得 {sg['groups']}"
                         else:
                             # 1017up4 超分四法定义+1107 二采精修:groups 恰 0(蓝图极简形)
-                            assert sg["name"] in {UP4[t]["name"] for t in "D"} | {TWOPASS_SG_NAME_T2I} and not sg["groups"], \
+                            assert sg["name"] in {UP4[t]["name"] for t in "D"} and not sg["groups"], \
                                 f"qi21: 子图[{sg['name'][:12]}] groups 应恰 0(1017up4 蓝图极简形),得 {sg['groups']}"
                         continue
                     # 1017up4:超分四法定义(i2i 亦入)+2022 洗底④b(t2i/i2i):groups 恒空=蓝图极简形
-                    if sg["name"] in {UP4[t]["name"] for t in "D"} | {T2I_WASH_SG_NAME, TWOPASS_SG_NAME_T2I}:
+                    if sg["name"] in {UP4[t]["name"] for t in "D"} | {T2I_WASH_SG_NAME}:
                         assert not sg["groups"], \
                             f"{name}: 子图[{sg['name'][:12]}] groups 应恰 0(蓝图极简形)"
                         continue
@@ -3654,9 +3653,9 @@ class TestQi21SubgraphContract:
             else:
                 assert hi.get("link") is not None, \
                     f"连线槽 {hi['name']!r} 应有连线(2005 重锚:非 widget 槽必接线)"
-        assert len(sg["inputs"]) == 3 and len(sg["outputs"]) == 6, \
-            "子图内部 IO 应 3 入 6 出(1006 四轮:正向提示词/型选择/负向提示词;" \
-            "六出=positive/negative/width/height+型名(1017 型名穿界尾加)+透明模式(1107 二采穿界尾加);wh_ratio/PE启用? 随 AI扩写恒开退役)"
+        assert len(sg["inputs"]) == 3 and len(sg["outputs"]) == 5, \
+            "子图内部 IO 应 3 入 5 出(1006 四轮:正向提示词/型选择/负向提示词;" \
+            "五出=positive/negative/width/height+型名(1017 型名穿界尾加;1108 二采退役撤透明模式出);wh_ratio/PE启用? 随 AI扩写恒开退役)"
         assert [s["name"] for s in sg["inputs"]] == \
             ["正向提示词", "负向提示词", "型选择"], \
             f"-10 槽序应=1006 八轮(型选择末位),得 {[s['name'] for s in sg['inputs']]}"
@@ -4323,11 +4322,11 @@ class TestQi21SubgraphContract:
         # AI扩写恒开退役;[4018] wh_ratio/联动开关 未接=恒九型直通);
         # 1017 型名穿界:尾加「型名」STRING 出([4010] 型名穿 -20 边界)
         assert [o["name"] for o in sg["outputs"]] == \
-            ["positive", "negative", "width", "height", "型名", "透明模式"], \
-            "子图输出应为 positive/negative/width/height/型名/透明模式(1006 四轮四出+1017 型名尾加+1107 透明模式尾加)"
+            ["positive", "negative", "width", "height", "型名"], \
+            "子图输出应为 positive/negative/width/height/型名(1006 四轮四出+1017 型名尾加;1108 撤透明模式)"
         host = _nodes(graph)[QI21_HOST_ID]
         assert [o["type"] for o in host["outputs"]] == \
-            ["STRING", "STRING", "INT", "INT", "STRING", "BOOLEAN"]
+            ["STRING", "STRING", "INT", "INT", "STRING"]
         # 编码链:主图 [4015] 吃 [6].positive(STRING)出 CONDITIONING
         # (1025 my21fast:负向编码[4015N] 级联删除籍;[6].negative 槽改单喂 [401] 预览)
         for host_slot, te_id, tag in ((0, QI21_MAIN_TE_ID, "主编码"),):
@@ -4654,63 +4653,6 @@ class TestAccelBlueprintAnchors1016:
                 f"{zh}: 加速蓝图根节点 title 应=宿主 title"
             assert bp["nodes"][0]["properties"]["subgraph"] == wf_sg["id"], \
                 f"{zh}: 加速蓝图根节点应指本宿主定义 uuid"
-
-# ── 1107 二采精修·Edit 修图模式锚(蓝图↔宿主 canonical + 画布配方锁定)──
-
-class TestTwoPassEditAnchors1107:
-    """二采=Qwen 2.1 Edit 修图(同尺寸只修图;1107 用户裁定「原先1采出多大,
-    最终2采也同样出图大小,二采只修图」)。两锚:①蓝图↔宿主 canonical 除 id
-    全等(镜像装配蓝图口径;真源=工作流 JSON,蓝图随手术脚本双刷);
-    ②画布配方=Edit 官方语义(resolution=0 同尺寸/cfg=1/steps=40/denoise=1.0/
-    seed 固定 11061400/裸底模经 QwenImage21Cache/指令带守恒句)。"""
-
-    BP = _TESTS_DIR.parent / "my_nodes/subgraphs/qi21-道劫-二采精修子图.json"
-
-    def _sg(self):
-        return next(s for s in _sgs(GRAPHS["qi21"]) if s["name"] == TWOPASS_SG_NAME_T2I)
-
-    def test_blueprint_matches_host_definition(self):
-        bp = json.loads(self.BP.read_text(encoding="utf-8"))
-        bp_sg = bp["definitions"]["subgraphs"][0]
-        wf_sg = self._sg()
-        assert bp_sg["name"] == wf_sg["name"], "二采蓝图/宿主 name 漂移"
-
-        def _canon_no_id(sg: dict) -> str:
-            return json.dumps({k: v for k, v in sg.items() if k != "id"},
-                              ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-
-        assert _canon_no_id(wf_sg) == _canon_no_id(bp_sg), \
-            "二采蓝图 ↔ 宿主子图定义漂移(除 id 外应 canonical 全等;手术脚本双刷纪律)"
-        assert bp["nodes"][0]["properties"]["subgraph"] == wf_sg["id"], \
-            "二采蓝图根节点应指宿主定义 uuid"
-        host = _nodes(GRAPHS["qi21"])[TWOPASS_HOST_T2I]
-        assert [o["name"] for o in host["outputs"]] == ["image"], \
-            "二采宿主应单出槽 image"
-
-    def test_edit_recipe_locked_in_canvas(self):
-        sg = self._sg()
-        nodes = _sg_nodes(sg)
-        enc = next(n for n in nodes.values() if n["type"] == "MyQi21FastEncode")
-        assert enc["widgets_values_named"]["resolution"] == 0, \
-            "二采编码 resolution 应=0(同尺寸:latent 画幅随 image_1,零放大零缩小)"
-        ks = next(n for n in nodes.values() if n["type"] == "KSampler")
-        assert ks["widgets_values"] == [11061400, "fixed", 40, 1.0, "euler", "simple", 1.0], \
-            "二采采样应=40步 cfg1 euler simple dn1.0 seed 固定 11061400(1107 实弹配方)"
-        instr = next(n for n in nodes.values() if n["type"] == "PrimitiveStringMultiline")
-        assert "不作重新构图或整体重绘" in instr["widgets_values"][0], \
-            "修图指令应带守恒句(编辑句式骨)"
-        wrap = next(n for n in nodes.values() if n["type"] == "MyQi21FinalOutput")
-        assert [i["name"] for i in wrap["inputs"]] == ["正向提示词", "负向提示词", "透明模式"], \
-            "透明包裹三槽序(RGBA 句包装通道在场)"
-        dec = next(n for n in nodes.values() if n["type"] == "VAEDecode")
-        assert dec["outputs"][0]["links"], "解码出应有下行(色彩锚)"
-        ca = next(n for n in nodes.values() if n["type"] == "MyQi21ColorAnchor")
-        assert ca["widgets_values_named"]["chroma_keep"] == 0.15, \
-            "色彩锚 chroma_keep 默认应=0.15(1107 三验回调档)"
-        ca_in = {i["name"]: i.get("link") for i in ca["inputs"]}
-        assert ca_in["image"] is not None and ca_in["reference"] is not None, \
-            "色彩锚双入(image=二采图/reference=一采图)必接"
-
 
 # ── 6d2. 画布归一与加速区组框(0925 收窄轮 W1/W6;适用 qi21/i2i/edit 三件;
 # qwen21-t2i 静态官方件不适用——坐标原样保留)─────────────────────────────
@@ -5754,9 +5696,8 @@ class TestSeedVR2TailContract1002:
             # +末段 [513=C]:0→[503]:0;[503] 出扇出 [504](+t2i [505])不变
             src = UP4_BUS_SRC[name]["src"]
             # 1022 洗底子图:t2i/i2i 母线同插洗底宿主 [5]→[7500]→[503](洗后再超分)
-            # 1107 二采插入(仅 t2i):[5]→[8100 二采修图]→[7500]→[503](修后再洗再超分)
-            chain = ([src, TWOPASS_HOST_T2I, T2I_WASH_HOST, SVR2_UP]
-                     if name == "qi21" else [src, T2I_WASH_HOST, SVR2_UP])
+            # 1108 二采退役:母线回 [5]→[7500]→[503] 直连
+            chain = [src, T2I_WASH_HOST, SVR2_UP]
             for a, b in zip(chain, chain[1:]):
                 got = [l[0] for l in graph["links"] if l[1] == a and l[2] == 0
                        and l[3] == b and l[4] == 0]
@@ -5764,11 +5705,8 @@ class TestSeedVR2TailContract1002:
                     f"{name}: 母线段 [{a}]:0→[{b}]:0 应恰一线(design §1 串联母线),得 {got}"
             if name == "qi21":
                 out5 = sorted(l[0] for l in graph["links"] if l[1] == 5)
-                assert out5 == [7920], \
-                    f"qi21: [5] 应只扇出 [8100 二采宿主](1107 二采插入;旧口径 [7500 直连] 随令翻篇),得 {out5}"
-                out_2p = sorted(l[3] for l in graph["links"] if l[1] == TWOPASS_HOST_T2I)
-                assert out_2p == [T2I_WASH_HOST], \
-                    f"qi21: [8100 二采宿主] 应只扇出 [7500 洗底宿主],得 {out_2p}"
+                assert out5 == [7930], \
+                    f"qi21: [5] 应只扇出 [7500 洗底宿主](1108 二采退役恢复直连),得 {out5}"
                 out_w = sorted(l[3] for l in graph["links"] if l[1] == T2I_WASH_HOST)
                 assert out_w == sorted([8, SVR2_CMP, SVR2_UP]), \
                     f"qi21: [7500] 应扇出 [8]+[505]+[503](洗底后三消费),得 {out_w}"
@@ -5912,9 +5850,8 @@ class TestUpscaleFourWays1017:
             graph = GRAPHS[name]
             nodes, links = _nodes(graph), _links(graph)
             spec = UP4_BUS_SRC[name]
-            # 1022 洗底:t2i/i2i 母线同插 [7500];1107 二采(仅 t2i)插 [8100] 于洗底前
-            chain = ([spec["src"], TWOPASS_HOST_T2I, T2I_WASH_HOST, UP4["D"]["host"][name]]
-                     if name == "qi21" else [spec["src"], T2I_WASH_HOST, UP4["D"]["host"][name]])
+            # 1022 洗底:t2i/i2i 母线同插 [7500];1108 二采退役撤 [8100] 段
+            chain = [spec["src"], T2I_WASH_HOST, UP4["D"]["host"][name]]
             for a, b in zip(chain, chain[1:]):
                 got = [l for l in graph["links"] if l[1] == a and l[2] == 0
                        and l[3] == b and l[4] == 0 and l[5] == "IMAGE"]

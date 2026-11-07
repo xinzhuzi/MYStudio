@@ -24,8 +24,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            97,
-            7923
+            97
           ]
         }
       ],
@@ -70,8 +69,7 @@
           "name": "CLIP",
           "type": "CLIP",
           "links": [
-            210,
-            7921
+            210
           ]
         }
       ],
@@ -119,8 +117,7 @@
           "name": "VAE",
           "type": "VAE",
           "links": [
-            10,
-            7922
+            10
           ]
         }
       ],
@@ -329,7 +326,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            7920
+            7930
           ]
         }
       ],
@@ -347,7 +344,7 @@
       "id": 8,
       "type": "SaveImage",
       "pos": [
-        6620,
+        6010.239280551246,
         2400
       ],
       "size": [
@@ -490,14 +487,6 @@
           "links": [
             4410
           ]
-        },
-        {
-          "name": "透明模式",
-          "type": "BOOLEAN",
-          "links": [
-            7924
-          ],
-          "slot_index": 5
         }
       ],
       "title": "[6] 文本提示词类型优化子图",
@@ -1016,7 +1005,7 @@
       "id": 7500,
       "type": "b7da105a-0610-4b8e-9a2c-3d4f5e6a7b81",
       "pos": [
-        6300,
+        5850,
         1980
       ],
       "size": [
@@ -1030,7 +1019,7 @@
         {
           "name": "image",
           "type": "IMAGE",
-          "link": 7925
+          "link": 7930
         }
       ],
       "outputs": [
@@ -1048,68 +1037,6 @@
       "title": "[7500] 洗底·透明除渣",
       "properties": {
         "subgraph": "b7da105a-0610-4b8e-9a2c-3d4f5e6a7b81",
-        "previewExposures": [],
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
-      }
-    },
-    {
-      "id": 8100,
-      "type": "a1e5c9d2-1107-4f21-9c3b-2e7d8f5a4b6c",
-      "pos": [
-        5880,
-        1500
-      ],
-      "size": [
-        340,
-        260
-      ],
-      "flags": {},
-      "order": 46,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 7920
-        },
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 7921
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 7922
-        },
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 7923
-        },
-        {
-          "name": "透明模式",
-          "type": "BOOLEAN",
-          "link": 7924
-        }
-      ],
-      "outputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "slot_index": 0,
-          "links": [
-            7925
-          ]
-        }
-      ],
-      "title": "[8100] 二采·Edit修图(同尺寸)",
-      "properties": {
-        "subgraph": "a1e5c9d2-1107-4f21-9c3b-2e7d8f5a4b6c",
         "previewExposures": [],
         "ue_properties": {
           "widget_ue_connectable": {},
@@ -1313,48 +1240,8 @@
       "IMAGE"
     ],
     [
-      7920,
+      7930,
       5,
-      0,
-      8100,
-      0,
-      "IMAGE"
-    ],
-    [
-      7921,
-      2,
-      0,
-      8100,
-      1,
-      "CLIP"
-    ],
-    [
-      7922,
-      3,
-      0,
-      8100,
-      2,
-      "VAE"
-    ],
-    [
-      7923,
-      1,
-      0,
-      8100,
-      3,
-      "MODEL"
-    ],
-    [
-      7924,
-      6,
-      5,
-      8100,
-      4,
-      "BOOLEAN"
-    ],
-    [
-      7925,
-      8100,
       0,
       7500,
       0,
@@ -1554,18 +1441,6 @@
             "pos": [
               2900,
               350
-            ]
-          },
-          {
-            "id": "b2f3a4c5-0007-4b07-8f07-3c5f81b56b07",
-            "name": "透明模式",
-            "type": "BOOLEAN",
-            "linkIds": [
-              348
-            ],
-            "pos": [
-              2900,
-              385
             ]
           }
         ],
@@ -1780,8 +1655,7 @@
                 "name": "透明模式",
                 "type": "BOOLEAN",
                 "links": [
-                  345,
-                  348
+                  345
                 ],
                 "slot_index": 2
               },
@@ -2191,14 +2065,6 @@
             "target_id": -20,
             "target_slot": 4,
             "type": "STRING"
-          },
-          {
-            "id": 348,
-            "origin_id": 4013,
-            "origin_slot": 2,
-            "target_id": -20,
-            "target_slot": 5,
-            "type": "BOOLEAN"
           }
         ],
         "extra": {
@@ -4991,661 +4857,6 @@
           "lastLinkId": 7509,
           "lastRerouteId": 0
         }
-      },
-      {
-        "category": "漫影",
-        "widgets": [],
-        "extra": {
-          "ue_links": [],
-          "links_added_by_ue": []
-        },
-        "config": {
-          "defaultIOState": {}
-        },
-        "state": {
-          "lastGroupId": 0,
-          "lastNodeId": 8107,
-          "lastLinkId": 8216,
-          "lastRerouteId": 0
-        },
-        "version": 1,
-        "revision": 1,
-        "id": "a1e5c9d2-1107-4f21-9c3b-2e7d8f5a4b6c",
-        "name": "道劫·二采精修子图",
-        "inputNode": {
-          "id": -10,
-          "bounding": [
-            60,
-            60,
-            128,
-            128
-          ]
-        },
-        "outputNode": {
-          "id": -20,
-          "bounding": [
-            1720,
-            420,
-            128,
-            68
-          ]
-        },
-        "inputs": [
-          {
-            "id": "a1e5c9d2-1107-4f21-9c3b-2e7d8f5a4b6c-0001",
-            "name": "image",
-            "type": "IMAGE",
-            "linkIds": [
-              8203,
-              8216
-            ],
-            "pos": [
-              84,
-              84
-            ]
-          },
-          {
-            "id": "a1e5c9d2-1107-4f21-9c3b-2e7d8f5a4b6c-0002",
-            "name": "clip",
-            "type": "CLIP",
-            "linkIds": [
-              8201
-            ],
-            "pos": [
-              84,
-              104
-            ]
-          },
-          {
-            "id": "a1e5c9d2-1107-4f21-9c3b-2e7d8f5a4b6c-0003",
-            "name": "vae",
-            "type": "VAE",
-            "linkIds": [
-              8202,
-              8213
-            ],
-            "pos": [
-              84,
-              124
-            ]
-          },
-          {
-            "id": "a1e5c9d2-1107-4f21-9c3b-2e7d8f5a4b6c-0004",
-            "name": "model",
-            "type": "MODEL",
-            "linkIds": [
-              8207
-            ],
-            "pos": [
-              84,
-              144
-            ]
-          },
-          {
-            "id": "a1e5c9d2-1107-4f21-9c3b-2e7d8f5a4b6c-0005",
-            "name": "透明模式",
-            "type": "BOOLEAN",
-            "linkIds": [
-              8205
-            ],
-            "pos": [
-              84,
-              164
-            ]
-          }
-        ],
-        "outputs": [
-          {
-            "id": "a1e5c9d2-1107-4f21-9c3b-2e7d8f5a4b6c-1001",
-            "name": "image",
-            "type": "IMAGE",
-            "linkIds": [
-              8214
-            ],
-            "pos": [
-              2400,
-              240
-            ]
-          }
-        ],
-        "groups": [],
-        "nodes": [
-          {
-            "id": 8100,
-            "type": "PrimitiveStringMultiline",
-            "pos": [
-              120,
-              120
-            ],
-            "size": [
-              400,
-              170
-            ],
-            "flags": {},
-            "order": 0,
-            "mode": 0,
-            "inputs": [],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  8204
-                ],
-                "slot_index": 0
-              }
-            ],
-            "title": "[8100] 修图指令(同尺寸只修图)",
-            "properties": {
-              "Node name for S&R": "PrimitiveStringMultiline",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              "保持<image1>的整体画面不变:人物五官、发型、服饰、姿态、构图、色彩与背景均保持原样。修复画面中的结构缺陷:人物手部每只手五指完整、逐指分明、解剖结构正确;兵器与物件结构连贯完整、比例合理。只做上述局部修复,不作重新构图或整体重绘。"
-            ],
-            "widgets_values_named": {
-              "value": "保持<image1>的整体画面不变:人物五官、发型、服饰、姿态、构图、色彩与背景均保持原样。修复画面中的结构缺陷:人物手部每只手五指完整、逐指分明、解剖结构正确;兵器与物件结构连贯完整、比例合理。只做上述局部修复,不作重新构图或整体重绘。"
-            }
-          },
-          {
-            "id": 8101,
-            "type": "MyQi21FinalOutput",
-            "pos": [
-              580,
-              120
-            ],
-            "size": [
-              360,
-              130
-            ],
-            "flags": {},
-            "order": 1,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "正向提示词",
-                "type": "STRING",
-                "shape": 7,
-                "link": 8204
-              },
-              {
-                "name": "负向提示词",
-                "type": "STRING",
-                "shape": 7,
-                "link": null
-              },
-              {
-                "name": "透明模式",
-                "type": "BOOLEAN",
-                "shape": 7,
-                "link": 8205
-              }
-            ],
-            "outputs": [
-              {
-                "name": "进编码正向文本",
-                "type": "STRING",
-                "slot_index": 0,
-                "links": [
-                  8206
-                ]
-              },
-              {
-                "name": "进编码负向文本",
-                "type": "STRING",
-                "slot_index": 1,
-                "links": []
-              }
-            ],
-            "title": "[8101] 透明包裹",
-            "properties": {
-              "Node name for S&R": "MyQi21FinalOutput",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              "",
-              "",
-              false
-            ],
-            "widgets_values_named": {
-              "正向提示词": "",
-              "负向提示词": "",
-              "透明模式": false
-            }
-          },
-          {
-            "id": 8102,
-            "type": "MyQi21FastEncode",
-            "pos": [
-              1000,
-              120
-            ],
-            "size": [
-              420,
-              320
-            ],
-            "flags": {},
-            "order": 2,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "clip",
-                "type": "CLIP",
-                "link": 8201
-              },
-              {
-                "name": "images.image_1",
-                "shape": 7,
-                "type": "IMAGE",
-                "link": 8203
-              },
-              {
-                "name": "vae",
-                "shape": 7,
-                "type": "VAE",
-                "link": 8202
-              },
-              {
-                "name": "prompt",
-                "type": "STRING",
-                "widget": {
-                  "name": "prompt"
-                },
-                "link": 8206
-              }
-            ],
-            "outputs": [
-              {
-                "name": "positive",
-                "type": "CONDITIONING",
-                "links": [
-                  8209
-                ]
-              },
-              {
-                "name": "negative",
-                "type": "CONDITIONING",
-                "links": [
-                  8210
-                ]
-              },
-              {
-                "name": "latent",
-                "type": "LATENT",
-                "links": [
-                  8211
-                ]
-              }
-            ],
-            "title": "[8102] Edit编码(resolution=0 同尺寸)",
-            "properties": {
-              "Node name for S&R": "MyQi21FastEncode",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              "",
-              "",
-              0
-            ],
-            "widgets_values_named": {
-              "prompt": "",
-              "negative_prompt": "",
-              "resolution": 0
-            }
-          },
-          {
-            "id": 8107,
-            "type": "QwenImage21Cache",
-            "pos": [
-              120,
-              380
-            ],
-            "size": [
-              340,
-              110
-            ],
-            "flags": {},
-            "order": 7,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "model",
-                "type": "MODEL",
-                "link": 8207
-              }
-            ],
-            "outputs": [
-              {
-                "name": "MODEL",
-                "type": "MODEL",
-                "links": [
-                  8208
-                ]
-              }
-            ],
-            "title": "[8107] 模型缓存(裸底模)",
-            "properties": {
-              "Node name for S&R": "QwenImage21Cache",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              "auto",
-              "default"
-            ],
-            "widgets_values_named": {
-              "device": "auto",
-              "dtype": "default"
-            }
-          },
-          {
-            "id": 8103,
-            "type": "KSampler",
-            "pos": [
-              1480,
-              160
-            ],
-            "size": [
-              330,
-              260
-            ],
-            "flags": {},
-            "order": 3,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "model",
-                "type": "MODEL",
-                "link": 8208
-              },
-              {
-                "name": "positive",
-                "type": "CONDITIONING",
-                "link": 8209
-              },
-              {
-                "name": "negative",
-                "type": "CONDITIONING",
-                "link": 8210
-              },
-              {
-                "name": "latent_image",
-                "type": "LATENT",
-                "link": 8211
-              }
-            ],
-            "outputs": [
-              {
-                "name": "LATENT",
-                "type": "LATENT",
-                "links": [
-                  8212
-                ]
-              }
-            ],
-            "title": "[8103] Edit采样·40步 cfg1",
-            "properties": {
-              "Node name for S&R": "KSampler",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              11061400,
-              "fixed",
-              40,
-              1.0,
-              "euler",
-              "simple",
-              1.0
-            ]
-          },
-          {
-            "id": 8104,
-            "type": "VAEDecode",
-            "pos": [
-              1900,
-              200
-            ],
-            "size": [
-              210,
-              50
-            ],
-            "flags": {},
-            "order": 4,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "samples",
-                "type": "LATENT",
-                "link": 8212
-              },
-              {
-                "name": "vae",
-                "type": "VAE",
-                "link": 8213
-              }
-            ],
-            "outputs": [
-              {
-                "name": "IMAGE",
-                "type": "IMAGE",
-                "links": [
-                  8215
-                ],
-                "slot_index": 0
-              }
-            ],
-            "title": "[8104] VAEDecode",
-            "properties": {
-              "Node name for S&R": "VAEDecode",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            }
-          },
-          {
-            "id": 8105,
-            "type": "MyQi21ColorAnchor",
-            "pos": [
-              2180,
-              200
-            ],
-            "size": [
-              360,
-              150
-            ],
-            "flags": {},
-            "order": 5,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "image",
-                "type": "IMAGE",
-                "link": 8215
-              },
-              {
-                "name": "reference",
-                "type": "IMAGE",
-                "link": 8216
-              }
-            ],
-            "outputs": [
-              {
-                "name": "IMAGE",
-                "type": "IMAGE",
-                "links": [
-                  8214
-                ],
-                "slot_index": 0
-              }
-            ],
-            "title": "[8105] 色彩锚(Lab 一采色权威)",
-            "properties": {
-              "Node name for S&R": "MyQi21ColorAnchor",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              0.15
-            ],
-            "widgets_values_named": {
-              "chroma_keep": 0.15
-            }
-          }
-        ],
-        "links": [
-          {
-            "id": 8201,
-            "origin_id": -10,
-            "origin_slot": 1,
-            "target_id": 8102,
-            "target_slot": 0,
-            "type": "CLIP"
-          },
-          {
-            "id": 8202,
-            "origin_id": -10,
-            "origin_slot": 2,
-            "target_id": 8102,
-            "target_slot": 2,
-            "type": "VAE"
-          },
-          {
-            "id": 8203,
-            "origin_id": -10,
-            "origin_slot": 0,
-            "target_id": 8102,
-            "target_slot": 1,
-            "type": "IMAGE"
-          },
-          {
-            "id": 8204,
-            "origin_id": 8100,
-            "origin_slot": 0,
-            "target_id": 8101,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 8205,
-            "origin_id": -10,
-            "origin_slot": 4,
-            "target_id": 8101,
-            "target_slot": 2,
-            "type": "BOOLEAN"
-          },
-          {
-            "id": 8206,
-            "origin_id": 8101,
-            "origin_slot": 0,
-            "target_id": 8102,
-            "target_slot": 3,
-            "type": "STRING"
-          },
-          {
-            "id": 8207,
-            "origin_id": -10,
-            "origin_slot": 3,
-            "target_id": 8107,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
-          {
-            "id": 8208,
-            "origin_id": 8107,
-            "origin_slot": 0,
-            "target_id": 8103,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
-          {
-            "id": 8209,
-            "origin_id": 8102,
-            "origin_slot": 0,
-            "target_id": 8103,
-            "target_slot": 1,
-            "type": "CONDITIONING"
-          },
-          {
-            "id": 8210,
-            "origin_id": 8102,
-            "origin_slot": 1,
-            "target_id": 8103,
-            "target_slot": 2,
-            "type": "CONDITIONING"
-          },
-          {
-            "id": 8211,
-            "origin_id": 8102,
-            "origin_slot": 2,
-            "target_id": 8103,
-            "target_slot": 3,
-            "type": "LATENT"
-          },
-          {
-            "id": 8212,
-            "origin_id": 8103,
-            "origin_slot": 0,
-            "target_id": 8104,
-            "target_slot": 0,
-            "type": "LATENT"
-          },
-          {
-            "id": 8213,
-            "origin_id": -10,
-            "origin_slot": 2,
-            "target_id": 8104,
-            "target_slot": 1,
-            "type": "VAE"
-          },
-          {
-            "id": 8214,
-            "origin_id": 8105,
-            "origin_slot": 0,
-            "target_id": -20,
-            "target_slot": 0,
-            "type": "IMAGE"
-          },
-          {
-            "id": 8215,
-            "origin_id": 8104,
-            "origin_slot": 0,
-            "target_id": 8105,
-            "target_slot": 0,
-            "type": "IMAGE"
-          },
-          {
-            "id": 8216,
-            "origin_id": -10,
-            "origin_slot": 0,
-            "target_id": 8105,
-            "target_slot": 1,
-            "type": "IMAGE"
-          }
-        ]
       }
     ]
   },

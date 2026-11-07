@@ -389,7 +389,7 @@
       "class_type": "SplitImageWithAlpha",
       "inputs": {
         "image": [
-          "8100:8105",
+          "5",
           0
         ]
       }
@@ -444,114 +444,6 @@
         "alpha": [
           "7500:7506",
           1
-        ]
-      }
-    },
-    "8100:8100": {
-      "class_type": "PrimitiveStringMultiline",
-      "inputs": {
-        "value": "保持<image1>的整体画面不变:人物五官、发型、服饰、姿态、构图、色彩与背景均保持原样。修复画面中的结构缺陷:人物手部每只手五指完整、逐指分明、解剖结构正确;兵器与物件结构连贯完整、比例合理。只做上述局部修复,不作重新构图或整体重绘。"
-      }
-    },
-    "8100:8101": {
-      "class_type": "MyQi21FinalOutput",
-      "inputs": {
-        "正向提示词": [
-          "8100:8100",
-          0
-        ],
-        "负向提示词": "",
-        "透明模式": [
-          "6:4013",
-          2
-        ]
-      }
-    },
-    "8100:8102": {
-      "class_type": "MyQi21FastEncode",
-      "inputs": {
-        "prompt": [
-          "8100:8101",
-          0
-        ],
-        "negative_prompt": "",
-        "resolution": 0,
-        "clip": [
-          "2",
-          0
-        ],
-        "images.image_1": [
-          "5",
-          0
-        ],
-        "vae": [
-          "3",
-          0
-        ]
-      }
-    },
-    "8100:8107": {
-      "class_type": "QwenImage21Cache",
-      "inputs": {
-        "device": "auto",
-        "dtype": "default",
-        "model": [
-          "1",
-          0
-        ]
-      }
-    },
-    "8100:8103": {
-      "class_type": "KSampler",
-      "inputs": {
-        "seed": 11061400,
-        "steps": 40,
-        "cfg": 1.0,
-        "sampler_name": "euler",
-        "scheduler": "simple",
-        "denoise": 1.0,
-        "model": [
-          "8100:8107",
-          0
-        ],
-        "positive": [
-          "8100:8102",
-          0
-        ],
-        "negative": [
-          "8100:8102",
-          1
-        ],
-        "latent_image": [
-          "8100:8102",
-          2
-        ]
-      }
-    },
-    "8100:8104": {
-      "class_type": "VAEDecode",
-      "inputs": {
-        "samples": [
-          "8100:8103",
-          0
-        ],
-        "vae": [
-          "3",
-          0
-        ]
-      }
-    },
-    "8100:8105": {
-      "class_type": "MyQi21ColorAnchor",
-      "inputs": {
-        "chroma_keep": 0.15,
-        "image": [
-          "8100:8104",
-          0
-        ],
-        "reference": [
-          "5",
-          0
         ]
       }
     }

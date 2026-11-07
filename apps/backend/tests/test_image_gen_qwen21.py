@@ -102,30 +102,6 @@ class Qwen21TemplateContractTests(unittest.TestCase):
                          (40, 4.0, "euler", "simple", 1.0))
         self.assertIs(self.template['graph']['6:4013']['inputs']['AI扩写开关'], False)
 
-    def test_twopass_edit_refine_chain_same_size(self) -> None:
-        # 1107 二采=Edit 修图(同尺寸只修图;用户裁定):一采[5]→[8100 子图]→洗底。
-        # 链:修图指令[8100:8100]→透明包裹[8100:8101](透明模式穿 [6:4013]出2)
-        # →Edit编码[8100:8102](resolution=0 同尺寸,image_1=一采直出)
-        # →采样[8100:8103](40步 cfg1 dn1.0,裸底模经[8100:8107]缓存,seed 固定)
-        # →解码[8100:8104]→洗底[7500:7506](SeedVR2/对比件同吃修后图)。
-        g = self.template["graph"]
-        enc = g["8100:8102"]["inputs"]
-        self.assertEqual(enc["resolution"], 0)
-        self.assertEqual(enc["images.image_1"], ["5", 0])
-        self.assertEqual(enc["vae"], ["3", 0])
-        ks = g["8100:8103"]["inputs"]
-        self.assertEqual((ks["steps"], ks["cfg"], ks["denoise"]), (40, 1.0, 1.0))
-        self.assertEqual(ks["seed"], 11061400)
-        self.assertEqual(ks["model"], ["8100:8107", 0])
-        self.assertEqual(g["8100:8101"]["inputs"]["透明模式"], ["6:4013", 2])
-        self.assertIn("不作重新构图或整体重绘", g["8100:8100"]["inputs"]["value"])
-        # 1107 色彩锚:二采结构+一采色(Lab 迁移;cfg1 裸底模 Edit 系统性 +50-60% S 的对症)
-        ca = g["8100:8105"]["inputs"]
-        self.assertEqual(ca["image"], ["8100:8104", 0])
-        self.assertEqual(ca["reference"], ["5", 0])
-        self.assertEqual(ca["chroma_keep"], 0.15)
-        self.assertEqual(g["7500:7506"]["inputs"]["image"], ["8100:8105", 0])
-
     def test_seed_single_source(self) -> None:
         # seed 单源=PrimitiveInt(7:7014);1101 Phase1 起 E KSampler seed 直连它
         # (旧 7:7017 RandomNoise 消费线随 SCA 删出 E-only 模板);绑定必须指它
