@@ -1550,8 +1550,25 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
             progress("restart", 90, "重启引擎")
             stats = self._torch_restart()
             progress("smoke", 95, "验证引擎节点")
-            if stats.get("system", {}).get("pytorch_version") != target_version or not stats.get("devices") or self._torch_http("/object_info", 120).get("nodeCount", 0) < max(1, baseline * 0.95):
-                raise RuntimeError("引擎烟测失败")
+            # 1107: 引擎重启后插件异步加载,节点数需时间爬升;重试 5 轮×30s(共 150s 等待)
+            smoke_ok = False
+            for smoke_try in range(5):
+                try:
+                    node_count = self._torch_http("/object_info", 120).get("nodeCount", 0)
+                    ver_ok = stats.get("system", {}).get("pytorch_version") == target_version
+                    dev_ok = bool(stats.get("devices"))
+                    count_ok = node_count >= max(1, baseline * 0.95)
+                    if ver_ok and dev_ok and count_ok:
+                        smoke_ok = True
+                        break
+                    import time as _t; _t.sleep(30)
+                    stats = self._torch_http("/system_stats")  # 刷新版本(首轮可能旧缓存)
+                except Exception:
+                    import time as _t; _t.sleep(30)
+                    try: stats = self._torch_http("/system_stats")
+                    except Exception: pass
+            if not smoke_ok:
+                raise RuntimeError(f"引擎烟测失败(版本={stats.get('system',{}).get('pytorch_version','?')}, 节点={node_count}/{baseline})")
             progress("ledger", 99, "记录升级结果")
             now = datetime.now(timezone.utc).isoformat()
             current = {"torch": target_version, "torchvision": f"{TORCH_TV_MAP[target]}+{channel}", "cuda": f"{channel[2:-1]}.{channel[-1]}", "updatedAt": now, "via": "oneclick"}
