@@ -131,8 +131,17 @@ def _requirements_of(plugin_dir):
         text = open(path, encoding='utf-8', errors='replace').read()
     except OSError:
         return None, ''
-    lines = [ln.strip() for ln in text.splitlines()
-             if ln.strip() and not ln.strip().startswith('#')]
+    lines = []
+    for raw in text.splitlines():
+        ln = raw.strip()
+        if not ln or ln.startswith('#'):
+            continue
+        cut = ln.find(' #')  # pip 行内注释语义(1107 实弹:JZL requirements 带行内中文注释)
+        if cut >= 0:
+            ln = ln[:cut].strip()
+        if not ln or ln.startswith(('-', '--')):  # -i/-r/-f/--extra-index 等选项行非依赖
+            continue
+        lines.append(ln)
     return lines, hashlib.sha256(text.encode('utf-8', errors='replace')).hexdigest()
 
 
