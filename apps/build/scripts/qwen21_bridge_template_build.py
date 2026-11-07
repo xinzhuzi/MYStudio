@@ -78,6 +78,14 @@ def flatten_canvas(workflow: dict, info: dict) -> dict:
             return None
         node = nodes[node_id]
         if node.get('mode', 0) in (2, 4):
+            # 1106 终配令「detail-fix 默认旁路」:仅 LoraLoaderModelOnly 的 MODE=4
+            # 走同型直通(MODEL 上溯);其余旁路件(参考图变换等)维持断路语义
+            # (上游源不随旁路入模=旧为正确,IMAGE 参考旁路=作者断连意图)
+            if node.get('mode', 0) == 4 and node['type'] == 'LoraLoaderModelOnly':
+                for i in node.get('inputs', []) or []:
+                    if i.get('type') == 'MODEL' and i.get('link') is not None:
+                        link = links[i['link']]
+                        return resolve(scope, link['origin_id'], link['origin_slot'], seen)
             return None
         if node['type'] in definitions:
             inner_scope = f'{node_id}:'
