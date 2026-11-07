@@ -66,6 +66,10 @@ export interface ProjectLocationDefaults {
   /** 上次新建项目使用的父目录;目录选择器默认打开位置。 */
   lastParentDir: string;
 }
+export interface NotificationSettings {
+  /** 出片完成系统通知提示音(11-06 render-notify);缺省关=后台通知静音。 */
+  renderCompleteSound: boolean;
+}
 
 interface AppSettingsState {
   resourceSharing: ResourceSharingSettings;
@@ -76,6 +80,7 @@ interface AppSettingsState {
   imageGenerationSettings: ImageGenerationSettings;
   renderingSettings: RenderingSettings;
   projectLocationDefaults: ProjectLocationDefaults;
+  notifications: NotificationSettings;
 }
 
 interface AppSettingsActions {
@@ -87,6 +92,7 @@ interface AppSettingsActions {
   setImageGenerationSettings: (settings: Partial<ImageGenerationSettings>) => void;
   setRenderingSettings: (settings: Partial<RenderingSettings>) => void;
   setProjectLocationDefaults: (defaults: Partial<ProjectLocationDefaults>) => void;
+  setNotifications: (settings: Partial<NotificationSettings>) => void;
 }
 
 const defaultState: AppSettingsState = {
@@ -125,6 +131,9 @@ const defaultState: AppSettingsState = {
   },
   projectLocationDefaults: {
     lastParentDir: "",
+  },
+  notifications: {
+    renderCompleteSound: false,
   },
 };
 
@@ -179,6 +188,10 @@ export const useAppSettingsStore = create<AppSettingsState & AppSettingsActions>
             ...defaults,
           },
         })),
+      setNotifications: (settings) =>
+        set((state) => ({
+          notifications: { ...state.notifications, ...settings },
+        })),
     }),
     {
       name: "mystudio-app-settings",
@@ -222,6 +235,13 @@ export function mergeAppSettingsState(
       lastParentDir: typeof persistedLastParentDir === "string"
         ? persistedLastParentDir
         : current.projectLocationDefaults.lastParentDir,
+    },
+    // 旧装机缺失的新字段洗回默认(同上浅合防线):声音开关非布尔=回落默认关。
+    notifications: {
+      renderCompleteSound:
+        typeof persistedState.notifications?.renderCompleteSound === "boolean"
+          ? persistedState.notifications.renderCompleteSound
+          : current.notifications.renderCompleteSound,
     },
   };
 }

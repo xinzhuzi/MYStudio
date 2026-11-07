@@ -2,9 +2,10 @@
 // use-task-center(09-12 orb-task-center)测试:五源聚合+终态迁移提醒。
 // 手算对账:各源 zustand setState 驱动,断言归一化输出/聚合计数/迁移 diff/bump。
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { useTaskCenter } from "./use-task-center";
+import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import { useDirectorStore } from "@/stores/director/director-store";
@@ -386,5 +387,146 @@ describe("useTaskCenter(pipeline 域:10-11 批5 章流水线+批6 黄标)", () =
     const { result } = renderHook(() => useTaskCenter());
     expect(result.current.staleTasks.map((task) => task.id)).toEqual(["media:stale-1"]);
     expect(result.current.staleTasks[0]!.stale).toBe(true);
+  });
+});
+
+// ── 出片完成系统通知(11-06 render-notify):前台/后台/声音关三态 ──────────────
+describe("useTaskCenter(出片完成系统通知)", () => {
+  class NotificationStub {
+    static calls: Array<{ title: string; body?: string; silent?: boolean }> = [];
+    constructor(title: string, options: { body?: string; silent?: boolean }) {
+      NotificationStub.calls.push({ title, body: options.body, silent: options.silent });
+    }
+  }
+
+  let hasFocusSpy: ReturnType<typeof vi.spyOn> | null = null;
+  let visibilityDescriptor: PropertyDescriptor | undefined;
+
+  beforeEach(() => {
+    vi.stubGlobal("Notification", NotificationStub);
+    NotificationStub.calls = [];
+    useAppSettingsStore.setState({ notifications: { renderCompleteSound: false } });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    if (hasFocusSpy) {
+      hasFocusSpy.mockRestore();
+      hasFocusSpy = null;
+    }
+    if (visibilityDescriptor) {
+      Object.defineProperty(document, "visibilityState", visibilityDescriptor);
+      visibilityDescriptor = undefined;
+    }
+    useAppSettingsStore.setState({ notifications: { renderCompleteSound: false } });
+  });
+
+  const goBackground = () => {
+    hasFocusSpy = vi.spyOn(document, "hasFocus").mockReturnValue(false);
+  };
+
+  const goForeground = () => {
+    hasFocusSpy = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    visibilityDescriptor = Object.getOwnPropertyDescriptor(document, "visibilityState");
+    Object.defineProperty(document, "visibilityState", {
+      value: "visible",
+      configurable: true,
+    });
+  };
+
+  it("后台+声音关(默认):modelVideo running→success 发系统通知且静音", async () => {
+    goBackground();
+    useStudioStore.setState({
+      mediaTasks: [seedMediaTask({ id: "v1", kind: "modelVideo", status: "running" })],
+    } as never);
+    const { result } = renderHook(() => useTaskCenter());
+    act(() => {
+      useStudioStore.setState({
+        mediaTasks: [seedMediaTask({ id: "v1", kind: "modelVideo", status: "success" })],
+      } as never);
+    });
+    await waitFor(() => expect(result.current.bumpTick).toBe(1));
+    expect(NotificationStub.calls).toEqual([
+      { title: "单镜视频完成", body: "视频生成", silent: true },
+    ]);
+  });
+
+  it("前台:同类完成不发系统通知(App 内徽标数据面兜底)", async () => {
+    goForeground(); // jsdom 默认无焦点,前台态需显式钉死
+    useStudioStore.setState({
+      mediaTasks: [seedMediaTask({ id: "v1", kind: "modelVideo", status: "running" })],
+    } as never);
+    const { result } = renderHook(() => useTaskCenter());
+    act(() => {
+      useStudioStore.setState({
+        mediaTasks: [seedMediaTask({ id: "v1", kind: "modelVideo", status: "success" })],
+      } as never);
+    });
+    await waitFor(() => expect(result.current.bumpTick).toBe(1));
+    expect(NotificationStub.calls).toEqual([]);
+  });
+
+  it("后台+声音开:系统通知带声(silent=false)", async () => {
+    goBackground();
+    useAppSettingsStore.setState({ notifications: { renderCompleteSound: true } });
+    useStudioStore.setState({
+      mediaTasks: [seedMediaTask({ id: "v1", kind: "modelVideo", status: "running" })],
+    } as never);
+    const { result } = renderHook(() => useTaskCenter());
+    act(() => {
+      useStudioStore.setState({
+        mediaTasks: [seedMediaTask({ id: "v1", kind: "modelVideo", status: "success" })],
+      } as never);
+    });
+    await waitFor(() => expect(result.current.bumpTick).toBe(1));
+    expect(NotificationStub.calls).toEqual([
+      { title: "单镜视频完成", body: "视频生成", silent: false },
+    ]);
+  });
+
+  it("章节成片(remotion)后台完成发通知;分镜图完成与非成功终态不通知", async () => {
+    goBackground();
+    let listener: ((n: { jobId: string; chapterId: string; status: string }) => void) | null = null;
+    (window as unknown as { remotionQueue: unknown }).remotionQueue = {
+      onJob: (cb: typeof listener) => {
+        listener = cb;
+        return () => {};
+      },
+    };
+    const { result } = renderHook(() => useTaskCenter());
+    act(() => {
+      listener!({ jobId: "job-1", chapterId: "chapter-009", status: "running" });
+    });
+    act(() => {
+      listener!({ jobId: "job-1", chapterId: "chapter-009", status: "succeeded" });
+    });
+    await waitFor(() => expect(result.current.bumpTick).toBe(1));
+    expect(NotificationStub.calls).toEqual([
+      { title: "章节出片完成", body: "成片渲染 · chapter-009", silent: true },
+    ]);
+    // 非目标 kind(分镜图)后台完成:不通知(11-06 范围钉死只有两类出片事件)
+    act(() => {
+      useStudioStore.setState({
+        mediaTasks: [seedMediaTask({ id: "s1", kind: "storyboardImage", status: "running" })],
+      } as never);
+    });
+    act(() => {
+      useStudioStore.setState({
+        mediaTasks: [seedMediaTask({ id: "s1", kind: "storyboardImage", status: "success" })],
+      } as never);
+    });
+    await waitFor(() => expect(result.current.bumpTick).toBe(2));
+    expect(NotificationStub.calls).toHaveLength(1);
+    // remotion 失败:只进徽标数据面,不发系统通知(只接完成事件)
+    act(() => {
+      listener!({ jobId: "job-2", chapterId: "chapter-010", status: "running" });
+    });
+    act(() => {
+      listener!({ jobId: "job-2", chapterId: "chapter-010", status: "failed" });
+    });
+    await waitFor(() =>
+      expect(result.current.recent.some((item) => item.status === "failed")).toBe(true),
+    );
+    expect(NotificationStub.calls).toHaveLength(1);
   });
 });

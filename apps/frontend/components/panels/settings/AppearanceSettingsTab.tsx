@@ -2,6 +2,7 @@ import { useState, type CSSProperties } from "react";
 import { Check, Sparkles, Sliders, Moon, Sun, Grid, Shield, Zap, CloudRain } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { COLOR_PRESETS, useThemeStore, type ColorPresetId } from "@/stores/app/theme-store";
+import { NotificationsSettingsSection } from "./NotificationsSettingsSection";
 import { cn } from "@/lib/utils";
 
 type PresetCardStyle = CSSProperties & {
@@ -330,6 +331,9 @@ export function AppearanceSettingsTab() {
                 />
               </button>
             </div>
+
+            {/* 出片完成提示音(11-06 render-notify) */}
+            <NotificationsSettingsSection />
           </div>
         </div>
 

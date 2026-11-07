@@ -29,6 +29,7 @@ import {
   useChapterUpstreamStore,
 } from "@/components/panels/studio/chapter-pipeline-stale";
 import { useRemotionGlobalTasks } from "./use-remotion-global-tasks";
+import { notifyRenderComplete } from "@/lib/notifications/render-notify";
 
 export type OrbTaskStatus = "queued" | "running" | "success" | "failed";
 export type OrbTaskSource =
@@ -51,6 +52,8 @@ export interface OrbTaskView {
   errorReason?: string;
   /** 批6 失效传播黄标:上游剧本已变更,该已终态任务产物基于旧剧本(禁静默用旧)。 */
   stale?: boolean;
+  /** media 域任务类型(11-06 render-notify:单镜视频=modelVideo 完成发系统通知)。 */
+  mediaKind?: MediaGenerationTaskKind;
 }
 
 export interface OrbTaskCenter {
@@ -146,6 +149,7 @@ export function useTaskCenter(): OrbTaskCenter {
           id: `media:${task.id}`,
           source: "media" as const,
           label: MEDIA_KIND_LABELS[task.kind] ?? "生成任务",
+          mediaKind: task.kind,
           status: task.status as OrbTaskStatus,
           targetTab: "studio" as const,
           errorReason: task.errorReason,
@@ -355,6 +359,16 @@ export function useTaskCenter(): OrbTaskCenter {
           status: view.status,
           errorReason: view.errorReason,
         });
+        // 出片即响(11-06 render-notify):只接两类出片完成事件——章节成片
+        // (remotion)与单镜视频(media modelVideo);前台=上方 recent+bump 徽标,
+        // 后台=系统通知(声音默认关,设置→外观开关)。其余完成事件一律不碰。
+        if (view.status === "success") {
+          if (view.source === "remotion") {
+            notifyRenderComplete("chapter", view.label);
+          } else if (view.source === "media" && view.mediaKind === "modelVideo") {
+            notifyRenderComplete("shot", view.label);
+          }
+        }
       }
     }
     prevEntryStatusRef.current = new Map(
