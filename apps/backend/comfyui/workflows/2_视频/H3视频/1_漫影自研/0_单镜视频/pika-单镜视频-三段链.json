@@ -985,7 +985,7 @@
         {
           "name": "sigmas",
           "type": "SIGMAS",
-          "link": null
+          "link": 759
         },
         {
           "name": "latent_image",
@@ -4897,7 +4897,8 @@
           "name": "SIGMAS",
           "type": "SIGMAS",
           "links": [
-            520
+            520,
+            759
           ],
           "slot_index": 0
         }
@@ -6047,6 +6048,14 @@
       218,
       2,
       "MODEL"
+    ],
+    [
+      759,
+      250,
+      0,
+      125,
+      3,
+      "SIGMAS"
     ]
   ],
   "groups": [
