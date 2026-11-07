@@ -361,3 +361,27 @@ describe("studio entity extraction messages", () => {
     expect(noHints.user).not.toContain("剧本自报实体清单");
   });
 });
+
+// ── 1108 立修:行尾竖线容错(装机实弹缺尾 `|` 整批静默清零) ──────────────────
+describe("trailing-pipe tolerance", () => {
+  it("缺行尾竖线的数据行按补尾解析,不再静默清零整批", () => {
+    const output = [
+      "|character|郁临舟||chapter-001|夜航旅人，警觉护人",
+      "| character | 郁澄心 | 丫头、澄心 | chapter-001 | 少女 |",
+    ].join("\n");
+
+    const { entities, errors } = parseEntityExtraction(output, "chapter-001");
+
+    expect(entities.map((entity) => entity.name)).toEqual(["郁临舟", "郁澄心"]);
+    expect(entities[0]?.aliases).toEqual([]);
+    expect(entities[1]?.aliases).toEqual(["丫头", "澄心"]);
+    expect(errors).toEqual([]);
+  });
+
+  it("行首有竖线但字段数≠5 的行仍进非法行(不因补尾放宽)", () => {
+    const { entities, errors } = parseEntityExtraction("|character|小红|女主", "ep0");
+
+    expect(entities).toEqual([]);
+    expect(errors).toHaveLength(1);
+  });
+});

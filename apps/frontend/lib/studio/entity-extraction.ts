@@ -122,8 +122,12 @@ export function parseEntityExtraction(output: string, defaultEpisodeId: string):
   const errors: string[] = [];
 
   for (const raw of stripFences(output).split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line.startsWith("|") || !line.endsWith("|")) continue;
+    // 1108 立修:模型偶发漏写行尾竖线(1107 装机实弹见整批被静默清零且
+    // parseErrors 为空)——行首有 `|` 而缺尾 `|` 的数据行按补尾解析;
+    // 字段数≠5 仍走下方非法行路径,不因补尾放宽任何校验。
+    let line = raw.trim();
+    if (!line.startsWith("|")) continue;
+    if (!line.endsWith("|")) line = `${line}|`;
     if (isSeparatorRow(line) || isHeaderRow(line)) continue;
 
     const fields = line.slice(1, -1).split("|").map((item) => item.trim());
