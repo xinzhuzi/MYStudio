@@ -1505,7 +1505,7 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
             if free < 15 * 1024 ** 3:
                 raise RuntimeError("E 盘可用空间不足 15 GiB")
             driver = self._torch_command("& nvidia-smi; exit $LASTEXITCODE")
-            match = re.search(r"CUDA Version:\s*(\d+)\.(\d+)", driver)
+            match = re.search(r"CUDA(?:\s+UMD)?\s+Version:\s*(\d+)\.(\d+)", driver)
             if not match or (int(match.group(1)), int(match.group(2))) < (int(channel[2:-1]), int(channel[-1])):
                 raise RuntimeError("显卡驱动不支持目标 CUDA 版本")
 
