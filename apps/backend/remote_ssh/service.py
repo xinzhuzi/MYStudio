@@ -239,7 +239,11 @@ def _acquire_torch_operation(instance) -> None:
 
 
 def _torch_powershell(script: str) -> str:
-    encoded = base64.b64encode(script.encode("utf-16le")).decode("ascii")
+    # 1107 根修:SSH exec 模式下 PowerShell 会把进度记录写成 CLIXML XML 混进 stdout,
+    # 污染所有命令输出(pip 检查 isdecimal 失败/system_stats JSON 解析失败/磁盘检查失败)。
+    # $ProgressPreference='SilentlyContinue' 在源头抑制进度输出,一刀切根治。
+    full = "$ProgressPreference='SilentlyContinue'; " + script
+    encoded = base64.b64encode(full.encode("utf-16le")).decode("ascii")
     return f"powershell -NoProfile -NonInteractive -EncodedCommand {encoded}"
 
 
@@ -1241,13 +1245,14 @@ class SSHService:
         return data
 
     def _torch_wait_ready(self) -> dict:
-        deadline = time.monotonic() + 120
+        # 1107 用户实弹:20G 模型冷启动 120s 不够,提至 300s(引擎家加载全量模型栈)
+        deadline = time.monotonic() + 300
         while time.monotonic() < deadline:
             try:
                 return self._torch_http("/system_stats")
             except (SSHServiceError, RuntimeError, TypeError, ValueError):
-                time.sleep(2)
-        raise RuntimeError("引擎重启后 120 秒内未就绪")
+                time.sleep(3)
+        raise RuntimeError("引擎重启后 300 秒内未就绪")
 
     def _torch_restart(self) -> dict:
         with self._torch_session_guard():
