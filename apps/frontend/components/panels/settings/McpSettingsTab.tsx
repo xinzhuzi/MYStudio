@@ -106,6 +106,8 @@ import {
   testComfySshConnection,
   refreshComfySshToken,
   getEngineSyncManifest,
+  getEnginePluginHealth,
+  type EnginePluginHealth,
   syncEngine,
   restartRemoteEngine,
   getEngineTorchInfo,
@@ -668,6 +670,9 @@ export function McpSettingsTab() {
   // ── 引擎同步(11-04 engine-sync R3):单真源清单+勾选+逐项同步+结果弹窗 ──
   const [engineSyncManifest, setEngineSyncManifest] =
     useState<EngineSyncManifest | null>(null);
+  // 1107 自愈可见化:Win 引擎插件加载健康(挂件挂因/pip 欠账;null=未探)
+  const [enginePluginHealth, setEnginePluginHealth] =
+    useState<EnginePluginHealth | null>(null);
   const [engineSyncError, setEngineSyncError] = useState<string | null>(null);
   const [engineSyncChecked, setEngineSyncChecked] = useState<
     Record<string, boolean>
@@ -786,6 +791,13 @@ export function McpSettingsTab() {
             error instanceof Error ? error.message : "取同步清单失败",
           );
       });
+    // 1107 自愈可见化:插件加载健康图(挂件+挂因/pip 欠账)随清单取——
+    // 失败静默(徽标退「未探」,不拦同步清单本体)
+    getEnginePluginHealth()
+      .then((health) => {
+        if (!cancelled) setEnginePluginHealth(health);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -2133,6 +2145,17 @@ export function McpSettingsTab() {
                                 : ""}
                             </span>
                             <span>目标: Windows(经 SSH 当前会话拉取)</span>
+                            {enginePluginHealth &&
+                              enginePluginHealth.failedCount > 0 && (
+                                <span
+                                  className="text-destructive"
+                                  data-testid="engine-sync-health-summary"
+                                >
+                                  ⚠️ Win 引擎 {enginePluginHealth.failedCount}{" "}
+                                  件
+                                  加载失败(行内徽标悬停看挂因;重启引擎会自动补装依赖并愈后重启)
+                                </span>
+                              )}
                           </div>
                           {/* torch 升级入口已收敛至「引擎 PyTorch / CUDA」分节(引擎地址区;1106 用户令:同步面板不再显示,避免双入口) */}
                           {/* SSH 断开/清单取失败:按钮禁用+提示(R3);清单空同样提示 */}
@@ -2199,6 +2222,71 @@ export function McpSettingsTab() {
                                         ? "ComfyUI 引擎"
                                         : item.name}
                                     </span>
+                                    {/* 1107 自愈可见化:该插件在 Win 引擎的加载健康
+                                        (✅ 已加载/❌ 挂(悬停看挂因)/⚠️ 依赖欠账/
+                                        ⚪ 未探(引擎未启或探针失败));引擎行不适用 */}
+                                    {item.name !== "ComfyUI" &&
+                                      (enginePluginHealth?.plugins?.[
+                                        item.name
+                                      ] ? (
+                                        <span
+                                          className={cn(
+                                            "shrink-0 rounded-full border px-1.5 py-0.5 text-[10px]",
+                                            enginePluginHealth.plugins[
+                                              item.name
+                                            ].loaded
+                                              ? enginePluginHealth
+                                                  .depsFailures?.[item.name]
+                                                  ?.length
+                                                ? "border-warning/40 text-warning"
+                                                : "border-success/30 text-success"
+                                              : "border-destructive/40 bg-destructive/10 text-destructive",
+                                          )}
+                                          title={
+                                            enginePluginHealth.plugins[
+                                              item.name
+                                            ].loaded
+                                              ? (
+                                                  enginePluginHealth
+                                                    .depsFailures?.[
+                                                    item.name
+                                                  ] ?? []
+                                                ).join("\n") || "引擎加载正常"
+                                              : enginePluginHealth.plugins[
+                                                  item.name
+                                                ].cause || "加载失败"
+                                          }
+                                          data-testid="engine-sync-health"
+                                          data-health={
+                                            enginePluginHealth.plugins[
+                                              item.name
+                                            ].loaded
+                                              ? enginePluginHealth
+                                                  .depsFailures?.[item.name]
+                                                  ?.length
+                                                ? "deps-debt"
+                                                : "loaded"
+                                              : "failed"
+                                          }
+                                        >
+                                          {enginePluginHealth.plugins[item.name]
+                                            .loaded
+                                            ? enginePluginHealth.depsFailures?.[
+                                                item.name
+                                              ]?.length
+                                              ? "⚠️ 依赖欠账"
+                                              : "✅ 已加载"
+                                            : "❌ 加载失败"}
+                                        </span>
+                                      ) : enginePluginHealth ? (
+                                        <span
+                                          className="shrink-0 text-[10px] text-muted-foreground"
+                                          data-testid="engine-sync-health"
+                                          data-health="unknown"
+                                        >
+                                          ⚪ 未探
+                                        </span>
+                                      ) : null)}
                                     {/* 1104 改清晰显示:不比对哈希(策略=GitHub 拉最新),只报安装态 */}
                                     <span
                                       className={cn(

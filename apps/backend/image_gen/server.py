@@ -1054,6 +1054,23 @@ class Handler(BaseHTTPRequestHandler):
                 except SSHServiceError as exc:
                     self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, f"取清单失败(SSH): {exc}", "ssh-disconnected")
                 return
+            # ── 1107 自愈可见化(11-07-engine-dep-selfheal):Win 引擎插件加载健康图 ──
+            if method == "GET" and path == "/comfy/ssh/engine-plugin-health":
+                # 引擎日志最新启动段挂件+挂因 + deps-install.log 近期 pip 欠账
+                svc = _ssh_service()
+                if svc is None:
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "remote_ssh 模块不可用(paramiko 未装?)", "ssh-unavailable")
+                    return
+                if not svc.status().get("connected"):
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "SSH 未连接——需先连接 SSH 才能取插件健康", "ssh-disconnected")
+                    return
+                from remote_ssh.service import SSHServiceError
+
+                try:
+                    self._send_json(svc.get_engine_plugin_health())
+                except SSHServiceError as exc:
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, f"取插件健康失败(SSH): {exc}", "ssh-disconnected")
+                return
             if method == "POST" and path == "/comfy/ssh/sync-engine":
                 # 逐项同步(并集 Q1+强制对齐 Q6;body={items:[名字...],timeoutS?:剩余秒数},整体 10min Q3)
                 svc = _ssh_service()

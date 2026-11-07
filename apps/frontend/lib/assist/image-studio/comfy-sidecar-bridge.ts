@@ -1638,6 +1638,25 @@ export async function getEngineSyncManifest(): Promise<EngineSyncManifest> {
   );
 }
 
+/** 1107 自愈可见化:Win 引擎插件加载健康图(引擎日志挂件+挂因 / deps-install 欠账)。 */
+export interface EnginePluginHealth {
+  plugins: Record<string, { loaded: boolean; cause: string }>;
+  loadedCount: number;
+  failedCount: number;
+  depsFailures: Record<string, string[]>;
+  probedAt: string;
+  error?: string;
+}
+
+export async function getEnginePluginHealth(): Promise<EnginePluginHealth> {
+  // SSH 读引擎日志尾段+deps-install 尾段,给足超时
+  return comfySidecarRequest<EnginePluginHealth>(
+    "GET",
+    "/comfy/ssh/engine-plugin-health",
+    { timeoutMs: 90_000 },
+  );
+}
+
 /** 整体超时 30min(Q3;1104 修正 10→30min,41 件全量 clone 需要时间):前端
  *  逐件单发时持全局预算——每件 POST 带剩余秒数(timeoutS),预算耗尽后不再
  *  发新件,30min 上限跨批次生效。 */

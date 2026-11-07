@@ -82,6 +82,26 @@ TORCH_TV_MAP = {"2.14.1": "0.29.1", "2.14.0": "0.29.0", "2.13.0": "0.28.0"}
 # 官方 cu132 通道 torchaudio 最新=2.11.1(节奏落后 torch,非同版本号);其依赖 torch>=2.11 宽松下界,
 # pip 对已装的 2.14.1 判 Requirement already satisfied 不重下不降级(1107 dry-run 实证)。
 TORCH_TA_MAP = {k: "2.11.1" for k in TORCH_TV_MAP}
+
+# 1107 自愈可见化:引擎日志「Cannot import ...custom_nodes\NAME ...: 挂因」解析
+# (get_engine_plugin_health 用;纯函数离线可测,与 engine_task.MISSING_MODULE_RE 同款双斜杠形态)
+_PLUGIN_IMPORT_FAIL_RE = re.compile(
+    r"Cannot import [^\n]*custom_nodes[/\\]([A-Za-z0-9_.\-]+) "
+    r"module for custom nodes: (.+)")
+
+
+def _parse_plugin_import_failures(log_segment: str) -> dict:
+    """日志段 → {插件: {loaded:False, cause:挂因}}(同名去重保首因)。"""
+    out: dict = {}
+    for name, cause in _PLUGIN_IMPORT_FAIL_RE.findall(log_segment):
+        if name not in out:
+            out[name] = {"loaded": False, "cause": cause.strip()[:220]}
+    return out
+
+
+def _utc_now_iso() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat()
 PINNED_TORCH = "2.14.1"  # 升版时修改此常量
 _REMOTE_TORCH_JOB_ID: str | None = None
 _TORCH_UPGRADE_LOCK = threading.Lock()
@@ -937,6 +957,52 @@ class SSHService:
         if win_present:
             return "win-only"
         return "skip"
+
+    def get_engine_plugin_health(self) -> dict:
+        """GET /comfy/ssh/engine-plugin-health:Win 引擎插件加载健康图。
+
+        数据源(1107 用户令:自愈状态要在设置 UI 看得见):
+        - 引擎日志最新启动段(Total VRAM 之后)的 Cannot import 行 → 挂件+挂因;
+        - deps-install.log 尾段 → 近期依赖安装失败(pip 欠账,持续可见不再一闪而过)。
+        loaded = Win 现存插件 ∪ 挂件之差;探针失败逐项容错(引擎未启=空图+cause)。
+        """
+        win_names = self._win_custom_nodes_names()
+        health: dict[str, dict] = {}
+        # ① 引擎日志尾段(启动加载在最后 Total VRAM 之后、startup banner 之前)
+        try:
+            code, out = self.run_remote_command(
+                "powershell -NoProfile -NonInteractive -Command \""
+                "Get-Content -LiteralPath 'E:\\IP\\漫影工作室\\comfyui\\logs\\engine.log' "
+                "-Tail 8000\"", 60)
+            if code == 0 and out:
+                seg = out[out.rfind("Total VRAM"):] if "Total VRAM" in out else out
+                health = _parse_plugin_import_failures(seg)
+        except (SSHServiceError, RuntimeError, ValueError) as exc:
+            return {"plugins": {}, "loadedCount": 0, "failedCount": 0,
+                    "depsFailures": {}, "probedAt": _utc_now_iso(),
+                    "error": f"引擎日志读取失败: {str(exc)[:200]}"}
+        failed = set(health)
+        # ② deps-install.log 近期安装失败(pip 欠账;>[FAIL ...]行)
+        deps_failures: dict[str, list[str]] = {}
+        try:
+            code, out = self.run_remote_command(
+                "powershell -NoProfile -NonInteractive -Command \""
+                "Get-Content -LiteralPath 'E:\\IP\\漫影工作室\\comfyui\\logs\\deps-install.log' "
+                "-Tail 400\"", 30)
+            if code == 0 and out:
+                for ln in out.splitlines():
+                    m = re.match(r"^(\[[^\]]+\] FAIL \(([^)]+)\): .*)$", ln.strip())
+                    if m:
+                        deps_failures.setdefault(m.group(2), []).append(m.group(1)[:160])
+        except (SSHServiceError, RuntimeError, ValueError):
+            pass  # 欠账日志读失败不拦健康图
+        return {
+            "plugins": {**{n: {"loaded": True, "cause": ""} for n in sorted(win_names - failed)}, **health},
+            "loadedCount": len(win_names - failed),
+            "failedCount": len(failed & win_names),
+            "depsFailures": deps_failures,
+            "probedAt": _utc_now_iso(),
+        }
 
     def get_engine_sync_manifest(self) -> dict:
         """GET /comfy/ssh/engine-sync-manifest:单真源清单 + 双侧实况。
