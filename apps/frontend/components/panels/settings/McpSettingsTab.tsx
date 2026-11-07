@@ -1104,6 +1104,33 @@ export function McpSettingsTab() {
   const pinnedTorch =
     torchInfo?.pinnedTarget ?? torchInfo?.allowedTargets?.[0] ?? "";
   const pinnedVersion = remoteActive ? `${pinnedTorch}+cu132` : pinnedTorch;
+  // 1107 用户令(点前写明会动什么,真升级假升级一眼可辨):三件套「当前→目标」对照;
+  // 已达标件 pip 判 already-satisfied 零下载,未达标件才真正安装
+  const torchChangeRows = (() => {
+    if (!torchInfo || !remoteActive) return null;
+    const targetOk = torchInfo.allowedTargets?.includes(torchTarget) ?? false;
+    const tv = torchInfo.tvMap?.[torchTarget];
+    const ta = torchInfo.taMap?.[torchTarget];
+    const rows = [
+      {
+        pkg: "torch",
+        cur: torchInfo.current?.torch ?? null,
+        tgt: targetOk ? `${torchTarget}+${torchChannel}` : null,
+      },
+      {
+        pkg: "torchvision",
+        cur: torchInfo.current?.torchvision ?? null,
+        tgt: targetOk && tv ? `${tv}+${torchChannel}` : null,
+      },
+      {
+        pkg: "torchaudio",
+        cur: torchInfo.current?.torchaudio ?? null,
+        tgt: targetOk && ta ? `${ta}+${torchChannel}` : null,
+      },
+    ];
+    const actionable = rows.some((r) => r.tgt && r.cur !== r.tgt);
+    return { rows, actionable };
+  })();
   const torchVerified = Boolean(
     torchInfo?.live &&
     torchInfo.current?.torch &&
@@ -2340,192 +2367,247 @@ export function McpSettingsTab() {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
-              </div>
-
-              {remoteActive && (
-                <Collapsible
-                  open={!collapsedSections.has("torch-upgrade")}
-                  onOpenChange={() => toggleSectionCollapsed("torch-upgrade")}
-                >
-                  <CollapsibleTrigger className="w-full text-left">
-                    <div
-                      className="flex items-center gap-2 rounded-lg px-1 py-2"
-                      data-testid="torch-upgrade-header"
-                    >
-                      <ChevronDown
-                        className={cn(
-                          "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                          collapsedSections.has("torch-upgrade") &&
-                            "-rotate-90",
-                        )}
-                        aria-hidden="true"
-                      />
-                      <span className="text-sm font-medium">
-                        引擎 PyTorch / CUDA
-                      </span>
-                      <span className="min-w-0 truncate text-xs text-muted-foreground">
-                        升级 Windows 引擎的 PyTorch(经 SSH)
-                      </span>
-                      <span
-                        className={cn(
-                          "ml-auto shrink-0 rounded-full border px-2 py-0.5 text-xs",
-                          remoteActive && sshStatus?.connected
-                            ? "border-success/40 text-success"
-                            : "border-border text-muted-foreground",
-                        )}
+                {remoteActive && (
+                  <Collapsible
+                    open={!collapsedSections.has("torch-upgrade")}
+                    onOpenChange={() => toggleSectionCollapsed("torch-upgrade")}
+                  >
+                    <CollapsibleTrigger className="w-full text-left">
+                      <div
+                        className="flex items-center gap-2 rounded-lg px-1 py-2"
+                        data-testid="torch-upgrade-header"
                       >
-                        {remoteActive && sshStatus?.connected
-                          ? "已就绪"
-                          : "未连接"}
-                      </span>
-                    </div>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div
-                      className="space-y-3 rounded-xl border border-border p-3"
-                      data-testid="torch-upgrade-section"
-                    >
-                      {!remoteActive && (
-                        <p className="text-xs text-muted-foreground">
-                          本地(Mac)引擎升级请到
-                          设置→本地配置→ComfyUI→更新;此处仅管理 Windows 引擎。
-                        </p>
-                      )}
-                      <p
-                        className="text-xs leading-5 text-muted-foreground"
-                        data-testid="torch-target-desc"
-                      >
-                        <span className="font-medium text-foreground">
-                          升级对象:
-                        </span>
-                        Windows 引擎主机{" "}
-                        <span className="font-mono">
-                          {activeRemoteUrl || sshStatus?.host || "未连接"}
-                        </span>{" "}
-                        —— 经 SSH 远程操作该机的 ComfyUI 引擎 Python
-                        环境(venv),升级{" "}
-                        <span className="font-mono">
-                          PyTorch + 配套 torchvision/torchaudio
-                        </span>
-                        ;不动该机的 ComfyUI 本体、插件与模型文件。
-                      </p>
-                      <p className="text-xs leading-5 text-muted-foreground">
-                        <span className="font-medium text-foreground">
-                          升级流程:
-                        </span>
-                        预检(引擎空闲/磁盘/驱动)→ 快照(可回滚)→ 停止引擎 →
-                        安装新版本 → 导入验证 → 重启引擎 →
-                        烟测;任一步失败自动回滚旧版,预计 15–60 分钟(视网络)。
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        <span data-testid="torch-section-body">
-                          生效版本：
-                          <span className="font-mono">
-                            {torchVersionDisplay}
-                          </span>
-                          {torchInfo?.current?.cuda ? (
-                            <span className="font-mono">
-                              {" "}
-                              · CUDA {torchInfo.current.cuda}
-                            </span>
-                          ) : null}
-                          {torchInfo?.current
-                            ? torchInfo.live
-                              ? "（实时）"
-                              : "（账本，未实时验证）"
-                            : ""}
-                          <span
-                            className={cn(
-                              "ml-1",
-                              !torchVerified
-                                ? "text-muted-foreground"
-                                : torchNeedsUpdate
-                                  ? "text-warning"
-                                  : "text-success",
-                            )}
-                          >
-                            {torchLedgerOnly
-                              ? "未实时验证"
-                              : !torchVerified
-                                ? ""
-                                : torchNeedsUpdate
-                                  ? `需更新 → ${pinnedVersion}`
-                                  : "✅ 已是钉版"}
-                          </span>
-                        </span>
-                      </p>
-                      {sshStatus?.connected &&
-                        torchInfo &&
-                        !torchInfo.hostMatched && (
-                          <p className="text-xs text-warning">
-                            SSH 主机与当前生效引擎不一致，无法升级。
-                          </p>
-                        )}
-                      <div className="flex flex-wrap items-end gap-2">
-                        <div className="space-y-1">
-                          <Label htmlFor="torch-target">目标版本</Label>
-                          <Input
-                            id="torch-target"
-                            value={torchTarget}
-                            onChange={(event) =>
-                              setTorchTarget(event.target.value)
-                            }
-                            className="w-32 font-mono"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="torch-channel">CUDA 通道</Label>
-                          <Select
-                            value={torchChannel}
-                            onValueChange={(value) =>
-                              setTorchChannel(value as TorchUpgradeChannel)
-                            }
-                          >
-                            <SelectTrigger id="torch-channel" className="w-28">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="cu128">cu128</SelectItem>
-                              <SelectItem value="cu130">cu130</SelectItem>
-                              <SelectItem value="cu132">cu132</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <Button
-                          size="sm"
-                          data-testid="torch-upgrade-start"
-                          onClick={() => {
-                            setTorchConfirmPinned(false);
-                            setTorchConfirm(true);
-                          }}
-                          disabled={
-                            !sshStatus?.connected ||
-                            engineSyncRunning ||
-                            !torchInfo ||
-                            torchInfo.busy ||
-                            torchRunning ||
-                            !torchInfo.allowedTargets?.includes(torchTarget)
-                          }
-                        >
-                          升级
-                        </Button>
-                      </div>
-                      {torchInfo?.allowedTargets?.length &&
-                      !torchInfo.allowedTargets.includes(torchTarget) ? (
-                        <p className="text-xs text-warning">
-                          仅支持 {torchInfo.allowedTargets.join(" / ")}
-                        </p>
-                      ) : null}
-                      {torchJob && (
-                        <TorchUpgradeProgress
-                          job={torchJob}
-                          warning={torchTrackingWarning}
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                            collapsedSections.has("torch-upgrade") &&
+                              "-rotate-90",
+                          )}
+                          aria-hidden="true"
                         />
-                      )}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              )}
+                        <span className="text-sm font-medium">
+                          引擎 PyTorch / CUDA
+                        </span>
+                        <span className="min-w-0 truncate text-xs text-muted-foreground">
+                          升级 Windows 引擎的 PyTorch(经 SSH)
+                        </span>
+                        <span
+                          className={cn(
+                            "ml-auto shrink-0 rounded-full border px-2 py-0.5 text-xs",
+                            remoteActive && sshStatus?.connected
+                              ? "border-success/40 text-success"
+                              : "border-border text-muted-foreground",
+                          )}
+                        >
+                          {remoteActive && sshStatus?.connected
+                            ? "已就绪"
+                            : "未连接"}
+                        </span>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div
+                        className="space-y-3 rounded-xl border border-border p-3"
+                        data-testid="torch-upgrade-section"
+                      >
+                        <p
+                          className="text-xs leading-5 text-muted-foreground"
+                          data-testid="torch-target-desc"
+                        >
+                          <span className="font-medium text-foreground">
+                            升级对象:
+                          </span>
+                          Windows 引擎主机{" "}
+                          <span className="font-mono">
+                            {activeRemoteUrl || sshStatus?.host || "未连接"}
+                          </span>{" "}
+                          —— 经 SSH 远程操作该机的 ComfyUI 引擎 Python
+                          环境(venv),升级{" "}
+                          <span className="font-mono">
+                            PyTorch + 配套 torchvision/torchaudio
+                          </span>
+                          ;不动该机的 ComfyUI 本体、插件与模型文件。
+                        </p>
+                        <p className="text-xs leading-5 text-muted-foreground">
+                          <span className="font-medium text-foreground">
+                            升级流程:
+                          </span>
+                          预检(引擎空闲/磁盘/驱动)→ 快照(可回滚)→ 停止引擎 →
+                          安装新版本 → 导入验证 → 重启引擎 →
+                          烟测;任一步失败自动回滚旧版,预计 15–60 分钟(视网络)。
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          <span data-testid="torch-section-body">
+                            生效版本：
+                            <span className="font-mono">
+                              {torchVersionDisplay}
+                            </span>
+                            {torchInfo?.current?.cuda ? (
+                              <span className="font-mono">
+                                {" "}
+                                · CUDA {torchInfo.current.cuda}
+                              </span>
+                            ) : null}
+                            {torchInfo?.current
+                              ? torchInfo.live
+                                ? "（实时）"
+                                : "（账本，未实时验证）"
+                              : ""}
+                            <span
+                              className={cn(
+                                "ml-1",
+                                !torchVerified
+                                  ? "text-muted-foreground"
+                                  : torchNeedsUpdate
+                                    ? "text-warning"
+                                    : "text-success",
+                              )}
+                            >
+                              {torchLedgerOnly
+                                ? "未实时验证"
+                                : !torchVerified
+                                  ? ""
+                                  : torchNeedsUpdate
+                                    ? `需更新 → ${pinnedVersion}`
+                                    : "✅ 已是钉版"}
+                            </span>
+                          </span>
+                        </p>
+                        {sshStatus?.connected &&
+                          torchInfo &&
+                          !torchInfo.hostMatched && (
+                            <p className="text-xs text-warning">
+                              SSH 主机与当前生效引擎不一致，无法升级。
+                            </p>
+                          )}
+                        {torchChangeRows && (
+                          <div
+                            className="rounded-lg border border-border/60 p-2"
+                            data-testid="torch-change-list"
+                          >
+                            <p className="mb-1 text-xs font-medium text-foreground">
+                              点击升级将核对以下三件套(已达标件 pip
+                              判已满足零下载,未达标件才真正安装):
+                            </p>
+                            <div className="space-y-0.5 font-mono text-xs">
+                              {torchChangeRows.rows.map((row) => (
+                                <p
+                                  key={row.pkg}
+                                  className="flex flex-wrap items-center gap-x-2"
+                                  data-testid="torch-change-row"
+                                  data-pkg={row.pkg}
+                                >
+                                  <span className="w-24 shrink-0">
+                                    {row.pkg}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {row.cur ?? "未知"}
+                                  </span>
+                                  <span aria-hidden="true">→</span>
+                                  <span>{row.tgt ?? "目标无效"}</span>
+                                  <span
+                                    className={cn(
+                                      "font-sans",
+                                      row.tgt && row.cur === row.tgt
+                                        ? "text-success"
+                                        : "text-warning",
+                                    )}
+                                  >
+                                    {row.tgt && row.cur === row.tgt
+                                      ? "✅ 已达标,不重装"
+                                      : "⬆ 将安装"}
+                                  </span>
+                                </p>
+                              ))}
+                            </div>
+                            <p
+                              className="mt-1 text-xs"
+                              data-testid="torch-change-summary"
+                            >
+                              {torchChangeRows.actionable ? (
+                                <span className="text-muted-foreground">
+                                  真升级:存在未达标件,将停引擎安装后重启( 15–60
+                                  分钟口径;仅补小件时通常几分钟)。
+                                </span>
+                              ) : (
+                                <span className="text-success">
+                                  三件套均已达标——点击将直接跳过(skip-if-latest),不动引擎环境。
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        )}
+                        <div className="flex flex-wrap items-end gap-2">
+                          <div className="space-y-1">
+                            <Label htmlFor="torch-target">目标版本</Label>
+                            <Input
+                              id="torch-target"
+                              value={torchTarget}
+                              onChange={(event) =>
+                                setTorchTarget(event.target.value)
+                              }
+                              /* 1107 修:默认 h-9 比同排 Select(h-7)/Button(sm=h-7)高 8px 撑破基线 */
+                              className="h-7 w-32 px-2 font-mono text-xs"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="torch-channel">CUDA 通道</Label>
+                            <Select
+                              value={torchChannel}
+                              onValueChange={(value) =>
+                                setTorchChannel(value as TorchUpgradeChannel)
+                              }
+                            >
+                              <SelectTrigger
+                                id="torch-channel"
+                                className="w-28"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="cu128">cu128</SelectItem>
+                                <SelectItem value="cu130">cu130</SelectItem>
+                                <SelectItem value="cu132">cu132</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Button
+                            size="sm"
+                            data-testid="torch-upgrade-start"
+                            onClick={() => {
+                              setTorchConfirmPinned(false);
+                              setTorchConfirm(true);
+                            }}
+                            disabled={
+                              !sshStatus?.connected ||
+                              engineSyncRunning ||
+                              !torchInfo ||
+                              torchInfo.busy ||
+                              torchRunning ||
+                              !torchInfo.allowedTargets?.includes(torchTarget)
+                            }
+                          >
+                            升级
+                          </Button>
+                        </div>
+                        {torchInfo?.allowedTargets?.length &&
+                        !torchInfo.allowedTargets.includes(torchTarget) ? (
+                          <p className="text-xs text-warning">
+                            仅支持 {torchInfo.allowedTargets.join(" / ")}
+                          </p>
+                        ) : null}
+                        {torchJob && (
+                          <TorchUpgradeProgress
+                            job={torchJob}
+                            warning={torchTrackingWarning}
+                          />
+                        )}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+                {/* 1107 修:torch 区原在此 div 外=左缘比引擎同步浅 20px(px-5 容器差);搬入同容器 */}
+              </div>
             </McpRow>
 
             {/* ── SSH 远端连接(1103 终版):多条连接列表(照引擎设备列表同款范式,
@@ -3498,6 +3580,50 @@ export function McpSettingsTab() {
               可用空间。SSH 中断导致安装状态不明时需要人工介入。
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {/* 1107 用户令:确认前把会动的件列全——点了是真升级还是跳过,此处定案 */}
+          {torchChangeRows && (
+            <div
+              className="space-y-0.5 rounded-lg border border-border/60 p-2 font-mono text-xs"
+              data-testid="torch-confirm-change-list"
+            >
+              {torchChangeRows.rows.map((row) => (
+                <p
+                  key={row.pkg}
+                  className="flex flex-wrap items-center gap-x-2"
+                >
+                  <span className="w-24 shrink-0">{row.pkg}</span>
+                  <span className="text-muted-foreground">
+                    {row.cur ?? "未知"}
+                  </span>
+                  <span aria-hidden="true">→</span>
+                  <span>{row.tgt ?? "目标无效"}</span>
+                  <span
+                    className={cn(
+                      "font-sans",
+                      row.tgt && row.cur === row.tgt
+                        ? "text-success"
+                        : "text-warning",
+                    )}
+                  >
+                    {row.tgt && row.cur === row.tgt
+                      ? "✅ 已达标,不重装"
+                      : "⬆ 将安装"}
+                  </span>
+                </p>
+              ))}
+              <p className="pt-1 font-sans">
+                {torchChangeRows.actionable ? (
+                  <span className="text-warning">
+                    真升级:有未达标件将安装(其余零下载)。
+                  </span>
+                ) : (
+                  <span className="text-success">
+                    三件套均已达标,确认后将直接跳过,不动环境。
+                  </span>
+                )}
+              </p>
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction onClick={() => void startTorchUpgrade()}>

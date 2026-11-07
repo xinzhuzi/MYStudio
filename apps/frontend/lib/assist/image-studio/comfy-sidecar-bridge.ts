@@ -35,7 +35,10 @@ import type {
   ComfyBridgeActionsReply,
   ComfyMySyncReply,
 } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
-import { getLocalImageToken, invalidateLocalImageToken } from "@/lib/assist/image-studio/local-image-token";
+import {
+  getLocalImageToken,
+  invalidateLocalImageToken,
+} from "@/lib/assist/image-studio/local-image-token";
 import type {
   ComfyWorkflowDeleteScan,
   ComfyWorkflowImportConflictMode,
@@ -66,7 +69,9 @@ const FOLDER_MARKER_FILENAME = ".keep.json";
  * false——契约入口据此保持 undefined,测试继续走注入 mock。
  */
 export function isElectronRenderer(): boolean {
-  return typeof navigator !== "undefined" && navigator.userAgent.includes("Electron");
+  return (
+    typeof navigator !== "undefined" && navigator.userAgent.includes("Electron")
+  );
 }
 
 interface ComfySidecarRequestOptions {
@@ -105,12 +110,15 @@ export const SIDECAR_DOWN_GUIDANCE =
 export function isSidecarDownError(error: unknown): boolean {
   return (
     error instanceof Error &&
-    (error.message === SIDECAR_DOWN_GUIDANCE || error.message.startsWith("无法连接本地生图服务"))
+    (error.message === SIDECAR_DOWN_GUIDANCE ||
+      error.message.startsWith("无法连接本地生图服务"))
   );
 }
 
 /** 测试注入位(jsdom 无 imageGenRuntime 桥,单测直控门禁语义)。 */
-export function setComfySidecarLivenessProbeForTests(probe: ComfySidecarLivenessProbe | null): void {
+export function setComfySidecarLivenessProbeForTests(
+  probe: ComfySidecarLivenessProbe | null,
+): void {
   livenessProbeOverride = probe;
   livenessCache = null;
 }
@@ -123,11 +131,15 @@ async function sidecarLikelyUp(): Promise<boolean> {
       return false;
     }
   }
-  if (livenessCache && Date.now() - livenessCache.at < LIVENESS_TTL_MS) return livenessCache.up;
+  if (livenessCache && Date.now() - livenessCache.at < LIVENESS_TTL_MS)
+    return livenessCache.up;
   let up = false;
   try {
-    const bridge = (window as { imageGenRuntime?: { status?: () => Promise<{ running?: boolean }> } })
-      .imageGenRuntime;
+    const bridge = (
+      window as {
+        imageGenRuntime?: { status?: () => Promise<{ running?: boolean }> };
+      }
+    ).imageGenRuntime;
     if (bridge?.status) up = Boolean((await bridge.status())?.running);
   } catch {
     up = false;
@@ -170,17 +182,26 @@ export async function comfySidecarRequest<T>(
     response = await fetch(url.toString(), {
       method,
       headers: {
-        ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...(options.body !== undefined
+          ? { "Content-Type": "application/json" }
+          : {}),
         Authorization: `Bearer ${await getLocalImageToken()}`,
       },
-      ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
+      ...(options.body !== undefined
+        ? { body: JSON.stringify(options.body) }
+        : {}),
       signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
     });
   } catch (error) {
-    if (error instanceof DOMException && (error.name === "TimeoutError" || error.name === "AbortError")) {
+    if (
+      error instanceof DOMException &&
+      (error.name === "TimeoutError" || error.name === "AbortError")
+    ) {
       throw new Error("本地生图服务响应超时,请稍后重试");
     }
-    throw new Error("无法连接本地生图服务,请先在 设置→本地配置 完成「准备运行时」后重试");
+    throw new Error(
+      "无法连接本地生图服务,请先在 设置→本地配置 完成「准备运行时」后重试",
+    );
   }
   // 1103 403 自愈:令牌陈旧(装机循环/sidecar 换代)→失效重取,重试一次;仍 403 才报错
   if (response.status === 403) {
@@ -191,10 +212,14 @@ export async function comfySidecarRequest<T>(
         response = await fetch(url.toString(), {
           method,
           headers: {
-            ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
+            ...(options.body !== undefined
+              ? { "Content-Type": "application/json" }
+              : {}),
             Authorization: `Bearer ${retryToken}`,
           },
-          ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
+          ...(options.body !== undefined
+            ? { body: JSON.stringify(options.body) }
+            : {}),
           signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
         });
       } catch {
@@ -203,8 +228,7 @@ export async function comfySidecarRequest<T>(
     }
   }
   const json = (await response.json().catch(() => null)) as
-    | (T & { error?: { message?: string } })
-    | null;
+    (T & { error?: { message?: string } }) | null;
   if (!response.ok) {
     throw new ComfySidecarHttpError(
       json?.error?.message || `请求失败(HTTP ${response.status})`,
@@ -294,7 +318,13 @@ interface SidecarCatalogReply {
 
 interface SidecarDoctorReply {
   missing?: Array<{ plugin?: string; message?: string }>;
-  drifted?: Array<{ plugin?: string; package?: string; recorded?: string; actual?: string; message?: string }>;
+  drifted?: Array<{
+    plugin?: string;
+    package?: string;
+    recorded?: string;
+    actual?: string;
+    message?: string;
+  }>;
   orphan?: Array<{ plugin?: string; message?: string }>;
 }
 
@@ -307,7 +337,9 @@ interface SidecarDoctorReply {
  * running/stopped)→ B 的渲染层生命周期。B 的「更新中」由 activeJob 胶囊表达,
  * lifecycle 只区分装没装;needsSetup(源码目录残留=装了一半)仅在未安装时有意义。
  */
-export function mapEngineStatus(raw: SidecarEngineStatusReply): ComfyEngineStatus {
+export function mapEngineStatus(
+  raw: SidecarEngineStatusReply,
+): ComfyEngineStatus {
   const installed = raw.installed === true;
   let state: ComfyEngineLifecycleState;
   switch (raw.state) {
@@ -344,12 +376,21 @@ export function mapEngineStatus(raw: SidecarEngineStatusReply): ComfyEngineStatu
     torch: raw.torch ?? null,
     launchArgs: typeof raw.launchArgs === "string" ? raw.launchArgs : null,
     envVars:
-      raw.envVars && typeof raw.envVars === "object" && !Array.isArray(raw.envVars)
+      raw.envVars &&
+      typeof raw.envVars === "object" &&
+      !Array.isArray(raw.envVars)
         ? (Object.fromEntries(
-            Object.entries(raw.envVars as Record<string, unknown>).map(([key, value]) => [key, String(value)]),
+            Object.entries(raw.envVars as Record<string, unknown>).map(
+              ([key, value]) => [key, String(value)],
+            ),
           ) as Record<string, string>)
         : null,
-    portConflictPolicy: raw.portConflictPolicy === "fail" ? "fail" : raw.portConflictPolicy === "auto-shift" ? "auto-shift" : null,
+    portConflictPolicy:
+      raw.portConflictPolicy === "fail"
+        ? "fail"
+        : raw.portConflictPolicy === "auto-shift"
+          ? "auto-shift"
+          : null,
     allowLanListen: raw.allowLanListen === true,
   };
 }
@@ -402,7 +443,9 @@ function mapJobReport(job: SidecarJobReply): ComfyEngineJobReport | null {
     const nodeCountAfter = toNumber(result.nodeCount) ?? 0;
     const nodeDelta = toNumber(result.nodeDelta) ?? 0;
     const issues = Array.isArray(result.pluginIssues)
-      ? result.pluginIssues.map((item) => String((item as { plugin?: unknown })?.plugin ?? "")).filter(Boolean)
+      ? result.pluginIssues
+          .map((item) => String((item as { plugin?: unknown })?.plugin ?? ""))
+          .filter(Boolean)
       : [];
     const pluginTotal = toNumber(result.pluginCount) ?? issues.length;
     return {
@@ -430,10 +473,13 @@ export function mapJob(raw: SidecarJobReply): ComfyEngineJob {
   return {
     jobId: String(raw.id ?? ""),
     kind: JOB_KIND_MAP[raw.kind ?? ""] ?? "install",
-    state: raw.status === "complete" ? "succeeded" : failed ? "failed" : "running",
+    state:
+      raw.status === "complete" ? "succeeded" : failed ? "failed" : "running",
     progress: typeof raw.progress === "number" ? raw.progress : null,
     stage: JOB_STAGE_MAP[raw.step ?? ""] ?? null,
-    message: failed ? (raw.error ?? raw.message ?? null) : (raw.message ?? null),
+    message: failed
+      ? (raw.error ?? raw.message ?? null)
+      : (raw.message ?? null),
     report: raw.status === "complete" ? mapJobReport(raw) : null,
   };
 }
@@ -479,13 +525,19 @@ export function mapPluginRow(raw: SidecarPluginRow): ComfyPluginInfo {
   };
 }
 
-function mapCatalogEntry(raw: Record<string, unknown>, source: "curated" | "registry"): ComfyCatalogEntry {
+function mapCatalogEntry(
+  raw: Record<string, unknown>,
+  source: "curated" | "registry",
+): ComfyCatalogEntry {
   const installed = raw.installed === true;
   return {
     id: String(raw.id ?? ""),
     name: String(raw.name ?? raw.id ?? ""),
     description: String(raw.desc ?? raw.desc_zh ?? ""),
-    license: (raw.verified_license as string | undefined) || (raw.license as string | null) || "未标明",
+    license:
+      (raw.verified_license as string | undefined) ||
+      (raw.license as string | null) ||
+      "未标明",
     author: (raw.author as string | null) ?? null,
     downloads: (raw.downloads as number | null) ?? null,
     category: (raw.category as string | null) ?? null,
@@ -514,11 +566,16 @@ export function mapCatalogReply(raw: SidecarCatalogReply): ComfyCatalogEntry[] {
 
 export function mapDoctorReport(raw: SidecarDoctorReply): ComfyDoctorReport {
   return {
-    missing: (raw.missing ?? []).map((item) => `${item.plugin ?? "未知插件"}:${item.message ?? "缺失"}`),
-    drifted: (raw.drifted ?? []).map(
-      (item) => `${item.plugin ?? "?"} 的 ${item.package ?? "?"} 账本 ${item.recorded ?? "?"} → 实际 ${item.actual ?? "?"}`,
+    missing: (raw.missing ?? []).map(
+      (item) => `${item.plugin ?? "未知插件"}:${item.message ?? "缺失"}`,
     ),
-    orphan: (raw.orphan ?? []).map((item) => `${item.plugin ?? "未知目录"}:${item.message ?? "孤儿目录"}`),
+    drifted: (raw.drifted ?? []).map(
+      (item) =>
+        `${item.plugin ?? "?"} 的 ${item.package ?? "?"} 账本 ${item.recorded ?? "?"} → 实际 ${item.actual ?? "?"}`,
+    ),
+    orphan: (raw.orphan ?? []).map(
+      (item) => `${item.plugin ?? "未知目录"}:${item.message ?? "孤儿目录"}`,
+    ),
   };
 }
 
@@ -559,38 +616,63 @@ export async function pollJobUntilTerminal(
 }
 
 /** job 终态 → ack 语义(成功 accepted / 失败带大白话)。 */
-function settleAckJob(job: SidecarJobReply, fallbackMessage: string): ComfyEngineAckReply {
+function settleAckJob(
+  job: SidecarJobReply,
+  fallbackMessage: string,
+): ComfyEngineAckReply {
   if (job.status === "complete") return { accepted: true };
-  return { accepted: false, message: job.error ?? job.message ?? fallbackMessage };
+  return {
+    accepted: false,
+    message: job.error ?? job.message ?? fallbackMessage,
+  };
 }
 
 export function createHttpComfyEngineClient(): ComfyEngineClient {
   return {
     async getEngineStatus() {
       return mapEngineStatus(
-        await comfySidecarRequest<SidecarEngineStatusReply>("GET", "/comfy/engine/status"),
+        await comfySidecarRequest<SidecarEngineStatusReply>(
+          "GET",
+          "/comfy/engine/status",
+        ),
       );
     },
     async installEngine(): Promise<ComfyEngineStartJobReply> {
-      return comfySidecarRequest<ComfyEngineStartJobReply>("POST", "/comfy/engine/install");
+      return comfySidecarRequest<ComfyEngineStartJobReply>(
+        "POST",
+        "/comfy/engine/install",
+      );
     },
     async startEngine(): Promise<ComfyEngineAckReply> {
-      const { jobId } = await comfySidecarRequest<ComfyEngineStartJobReply>("POST", "/comfy/engine/start");
+      const { jobId } = await comfySidecarRequest<ComfyEngineStartJobReply>(
+        "POST",
+        "/comfy/engine/start",
+      );
       try {
         // 冷启动走 job(health 轮询最长 2 分钟):ack 语义等待终态,期间 UI 保持启动中。
-        const job = await pollJobUntilTerminal(jobId, START_JOB_TIMEOUT_MS, START_JOB_POLL_INTERVAL_MS);
+        const job = await pollJobUntilTerminal(
+          jobId,
+          START_JOB_TIMEOUT_MS,
+          START_JOB_POLL_INTERVAL_MS,
+        );
         return settleAckJob(job, "服务启动失败");
       } catch (error) {
-        return { accepted: false, message: error instanceof Error ? error.message : "服务启动失败" };
+        return {
+          accepted: false,
+          message: error instanceof Error ? error.message : "服务启动失败",
+        };
       }
     },
     async stopEngine(): Promise<ComfyEngineAckReply> {
-      const raw = await comfySidecarRequest<{ running?: boolean; stopped?: boolean }>(
-        "POST",
-        "/comfy/engine/stop",
-      );
+      const raw = await comfySidecarRequest<{
+        running?: boolean;
+        stopped?: boolean;
+      }>("POST", "/comfy/engine/stop");
       if (raw.running) {
-        return { accepted: false, message: "停止指令已下发,但引擎进程仍在运行(可能被外部接管)" };
+        return {
+          accepted: false,
+          message: "停止指令已下发,但引擎进程仍在运行(可能被外部接管)",
+        };
       }
       return { accepted: true };
     },
@@ -611,36 +693,65 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
       };
     },
     async updateEngine(): Promise<ComfyEngineStartJobReply> {
-      return comfySidecarRequest<ComfyEngineStartJobReply>("POST", "/comfy/engine/update");
+      return comfySidecarRequest<ComfyEngineStartJobReply>(
+        "POST",
+        "/comfy/engine/update",
+      );
     },
     async rollbackUpdate(snapshotId?: string): Promise<ComfyEngineAckReply> {
       try {
-        const raw = await comfySidecarRequest<{ rolledBackTo?: string }>("POST", "/comfy/engine/rollback", {
-          ...(snapshotId ? { body: { snapshotId } } : {}),
-        });
-        return { accepted: true, message: raw.rolledBackTo ? `已回滚到快照 ${raw.rolledBackTo}` : "已回滚" };
+        const raw = await comfySidecarRequest<{ rolledBackTo?: string }>(
+          "POST",
+          "/comfy/engine/rollback",
+          {
+            ...(snapshotId ? { body: { snapshotId } } : {}),
+          },
+        );
+        return {
+          accepted: true,
+          message: raw.rolledBackTo
+            ? `已回滚到快照 ${raw.rolledBackTo}`
+            : "已回滚",
+        };
       } catch (error) {
-        return { accepted: false, message: error instanceof Error ? error.message : "回滚失败" };
+        return {
+          accepted: false,
+          message: error instanceof Error ? error.message : "回滚失败",
+        };
       }
     },
     async resetEngine(): Promise<ComfyEngineStartJobReply> {
-      return comfySidecarRequest<ComfyEngineStartJobReply>("POST", "/comfy/engine/reset");
+      return comfySidecarRequest<ComfyEngineStartJobReply>(
+        "POST",
+        "/comfy/engine/reset",
+      );
     },
     async getJob(jobId: string): Promise<ComfyEngineJob> {
       return mapJob(
-        await comfySidecarRequest<SidecarJobReply>("GET", `/comfy/jobs/${encodeURIComponent(jobId)}`),
+        await comfySidecarRequest<SidecarJobReply>(
+          "GET",
+          `/comfy/jobs/${encodeURIComponent(jobId)}`,
+        ),
       );
     },
     async setModelsDir(path: string): Promise<ComfyEngineAckReply> {
       // 失败(非法路径/引擎未装)由 sidecar 抛 EngineOpError → 这里转异常给 hook toast。
-      await comfySidecarRequest("POST", "/comfy/engine/config", { body: { modelsDir: path } });
+      await comfySidecarRequest("POST", "/comfy/engine/config", {
+        body: { modelsDir: path },
+      });
       return { accepted: true };
     },
     async getPaths(): Promise<ComfyEnginePathsStatus> {
       return comfySidecarRequest<ComfyEnginePathsStatus>("GET", "/comfy/paths");
     },
-    async validatePaths(update: ComfyPathsUpdate): Promise<ComfyPathsValidation> {
-      const raw = await comfySidecarRequest<Record<string, unknown>>("POST", "/comfy/paths/validate", { body: update });
+    async validatePaths(
+      update: ComfyPathsUpdate,
+    ): Promise<ComfyPathsValidation> {
+      const raw = await comfySidecarRequest<Record<string, unknown>>(
+        "POST",
+        "/comfy/paths/validate",
+        { body: update },
+      );
       return {
         ok: raw.ok === true,
         errors: (raw.errors ?? {}) as ComfyPathsValidation["errors"],
@@ -649,23 +760,49 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
     },
     async setPaths(update: ComfyPathsUpdate): Promise<ComfyEnginePathsStatus> {
       // 已安装时 sidecar 抛「请走迁移」,由组件捕获并转确认弹窗
-      return comfySidecarRequest<ComfyEnginePathsStatus>("POST", "/comfy/paths/set", { body: update });
+      return comfySidecarRequest<ComfyEnginePathsStatus>(
+        "POST",
+        "/comfy/paths/set",
+        { body: update },
+      );
     },
-    async migratePaths(update: ComfyPathsUpdate & { startAfter?: boolean }): Promise<ComfyEngineStartJobReply> {
-      const raw = await comfySidecarRequest<{ jobId?: string }>("POST", "/comfy/paths/migrate", { body: update });
+    async migratePaths(
+      update: ComfyPathsUpdate & { startAfter?: boolean },
+    ): Promise<ComfyEngineStartJobReply> {
+      const raw = await comfySidecarRequest<{ jobId?: string }>(
+        "POST",
+        "/comfy/paths/migrate",
+        { body: update },
+      );
       return { jobId: String(raw.jobId ?? "") };
     },
-    async setIODirs(update: { inputDir?: string; outputDir?: string }): Promise<ComfyEnginePathsStatus> {
+    async setIODirs(update: {
+      inputDir?: string;
+      outputDir?: string;
+    }): Promise<ComfyEnginePathsStatus> {
       // 引擎运行中 sidecar 抛「请先停止引擎」,由组件按钮禁用+错误捕获兜底
-      return comfySidecarRequest<ComfyEnginePathsStatus>("POST", "/comfy/paths/io", { body: update });
+      return comfySidecarRequest<ComfyEnginePathsStatus>(
+        "POST",
+        "/comfy/paths/io",
+        { body: update },
+      );
     },
     async cleanOrphans(): Promise<{ removed: string[]; message?: string }> {
-      const raw = await comfySidecarRequest<{ removed?: string[]; message?: string }>("POST", "/comfy/plugins/clean-orphans");
-      return { removed: Array.isArray(raw.removed) ? raw.removed : [], message: raw.message };
+      const raw = await comfySidecarRequest<{
+        removed?: string[];
+        message?: string;
+      }>("POST", "/comfy/plugins/clean-orphans");
+      return {
+        removed: Array.isArray(raw.removed) ? raw.removed : [],
+        message: raw.message,
+      };
     },
 
     async listSnapshots(): Promise<ComfySnapshotEntry[]> {
-      const raw = await comfySidecarRequest<unknown[]>("GET", "/comfy/engine/snapshots");
+      const raw = await comfySidecarRequest<unknown[]>(
+        "GET",
+        "/comfy/engine/snapshots",
+      );
       return (Array.isArray(raw) ? raw : []).map((item) => {
         const row = (item ?? {}) as Record<string, unknown>;
         return {
@@ -678,7 +815,14 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
       });
     },
 
-    async listModels(): Promise<{ modelsDir: string; groups: Array<{ category: string; files: Array<{ name: string; sizeBytes: number }> }>; totalBytes: number } | null> {
+    async listModels(): Promise<{
+      modelsDir: string;
+      groups: Array<{
+        category: string;
+        files: Array<{ name: string; sizeBytes: number }>;
+      }>;
+      totalBytes: number;
+    } | null> {
       try {
         return await comfySidecarRequest("GET", "/comfy/engine/models");
       } catch {
@@ -686,74 +830,143 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
       }
     },
 
-    async setLaunchConfig(config: { argsString?: string; envVars?: Record<string, string>; portConflictPolicy?: "auto-shift" | "fail"; allowLanListen?: boolean }): Promise<ComfyEngineAckReply> {
+    async setLaunchConfig(config: {
+      argsString?: string;
+      envVars?: Record<string, string>;
+      portConflictPolicy?: "auto-shift" | "fail";
+      allowLanListen?: boolean;
+    }): Promise<ComfyEngineAckReply> {
       // 引擎运行中此保存会触发同步重启(stop 15s+健康等待 120s),超时须盖过重启窗口(深审 W1)
-      return comfySidecarRequest<ComfyEngineAckReply>("POST", "/comfy/engine/config", {
-        body: config,
-        timeoutMs: 180_000,
-      });
+      return comfySidecarRequest<ComfyEngineAckReply>(
+        "POST",
+        "/comfy/engine/config",
+        {
+          body: config,
+          timeoutMs: 180_000,
+        },
+      );
     },
-    async getBridgeWritebacks(cursor: number): Promise<ComfyBridgeWritebacksReply | null> {
+    async getBridgeWritebacks(
+      cursor: number,
+    ): Promise<ComfyBridgeWritebacksReply | null> {
       try {
-        return await comfySidecarRequest<ComfyBridgeWritebacksReply>("GET", "/comfy/bridge/writebacks", {
-          query: { cursor: String(cursor), include_image: "1" },
-        });
+        return await comfySidecarRequest<ComfyBridgeWritebacksReply>(
+          "GET",
+          "/comfy/bridge/writebacks",
+          {
+            query: { cursor: String(cursor), include_image: "1" },
+          },
+        );
       } catch {
         return null; // 轮询面:失败静默(sidecar 未起=无回写,不算错误)
       }
     },
-    async ackBridgeWritebacks(upTo: number, ids?: number[]): Promise<number | null> {
-      if (!Array.isArray(ids) || ids.some((id) => !Number.isSafeInteger(id) || id <= 0 || id > upTo)) return null;
+    async ackBridgeWritebacks(
+      upTo: number,
+      ids?: number[],
+    ): Promise<number | null> {
+      if (
+        !Array.isArray(ids) ||
+        ids.some((id) => !Number.isSafeInteger(id) || id <= 0 || id > upTo)
+      )
+        return null;
       try {
-        const raw = await comfySidecarRequest<{ deleted?: number; ackMode?: string }>("POST", "/comfy/bridge/writebacks/ack", {
+        const raw = await comfySidecarRequest<{
+          deleted?: number;
+          ackMode?: string;
+        }>("POST", "/comfy/bridge/writebacks/ack", {
           // Never send upTo: an old sidecar would interpret it cumulatively.
           body: { ids },
         });
-        return raw.ackMode === "exact" && typeof raw.deleted === "number" && Number.isSafeInteger(raw.deleted) && raw.deleted >= 0
-          ? raw.deleted : null;
+        return raw.ackMode === "exact" &&
+          typeof raw.deleted === "number" &&
+          Number.isSafeInteger(raw.deleted) &&
+          raw.deleted >= 0
+          ? raw.deleted
+          : null;
       } catch {
         return null; // ack 失败不致命:下次轮询重消费(落账幂等由 checkpointRef 保证)
       }
     },
     async pushBridgeStoryboards(
-      shots: Array<{ id: string; label: string; episodeId?: string; videoReady?: boolean; imageReady?: boolean }>,
+      shots: Array<{
+        id: string;
+        label: string;
+        episodeId?: string;
+        videoReady?: boolean;
+        imageReady?: boolean;
+      }>,
       currentEpisodeId?: string,
       queue?: Array<{ index: number; status: string; progress: number }>,
       originProjectId?: string,
     ): Promise<boolean> {
       try {
-        await comfySidecarRequest<{ updatedAt?: number }>("POST", "/comfy/bridge/storyboards", {
-          body: { shots, ...(currentEpisodeId ? { currentEpisodeId } : {}), ...(queue && queue.length > 0 ? { queue } : {}), ...(originProjectId ? { originProjectId } : {}) },
-        });
+        await comfySidecarRequest<{ updatedAt?: number }>(
+          "POST",
+          "/comfy/bridge/storyboards",
+          {
+            body: {
+              shots,
+              ...(currentEpisodeId ? { currentEpisodeId } : {}),
+              ...(queue && queue.length > 0 ? { queue } : {}),
+              ...(originProjectId ? { originProjectId } : {}),
+            },
+          },
+        );
         return true;
       } catch {
         return false; // 推送面:失败静默(下一 tick 重推)
       }
     },
-    async getBridgeActions(cursor: number): Promise<ComfyBridgeActionsReply | null> {
+    async getBridgeActions(
+      cursor: number,
+    ): Promise<ComfyBridgeActionsReply | null> {
       try {
         return await comfySidecarRequest<ComfyBridgeActionsReply>(
-          "GET", `/comfy/bridge/actions?cursor=${cursor}`,
+          "GET",
+          `/comfy/bridge/actions?cursor=${cursor}`,
         );
       } catch {
         return null; // 通道缺席(旧 sidecar)=静默,动作按钮不可用
       }
     },
-    async ackBridgeActions(upTo: number, queueId?: string, ids?: number[]): Promise<number | null> {
-      if (!queueId || !Array.isArray(ids) || ids.some((id) => !Number.isSafeInteger(id) || id <= 0 || id > upTo)) return null;
+    async ackBridgeActions(
+      upTo: number,
+      queueId?: string,
+      ids?: number[],
+    ): Promise<number | null> {
+      if (
+        !queueId ||
+        !Array.isArray(ids) ||
+        ids.some((id) => !Number.isSafeInteger(id) || id <= 0 || id > upTo)
+      )
+        return null;
       try {
-        const raw = await comfySidecarRequest<{ deleted?: number; ackMode?: string }>("POST", "/comfy/bridge/actions/ack", {
+        const raw = await comfySidecarRequest<{
+          deleted?: number;
+          ackMode?: string;
+        }>("POST", "/comfy/bridge/actions/ack", {
           body: { queueId, ids },
         });
-        return raw.ackMode === "exact" && typeof raw.deleted === "number" && Number.isSafeInteger(raw.deleted) && raw.deleted >= 0
-          ? raw.deleted : null;
+        return raw.ackMode === "exact" &&
+          typeof raw.deleted === "number" &&
+          Number.isSafeInteger(raw.deleted) &&
+          raw.deleted >= 0
+          ? raw.deleted
+          : null;
       } catch {
         return null;
       }
     },
-    async uploadBridgeReference(name: string, imageB64: string): Promise<{ accepted: boolean; name?: string } | null> {
+    async uploadBridgeReference(
+      name: string,
+      imageB64: string,
+    ): Promise<{ accepted: boolean; name?: string } | null> {
       try {
-        const raw = await comfySidecarRequest<{ accepted?: boolean; name?: string }>("POST", "/comfy/bridge/reference", {
+        const raw = await comfySidecarRequest<{
+          accepted?: boolean;
+          name?: string;
+        }>("POST", "/comfy/bridge/reference", {
           body: { name, imageB64 },
           timeoutMs: 60_000,
         });
@@ -764,26 +977,44 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
     },
     async syncMyNodes(): Promise<ComfyMySyncReply | null> {
       try {
-        return await comfySidecarRequest<ComfyMySyncReply>("POST", "/comfy/my/sync");
+        return await comfySidecarRequest<ComfyMySyncReply>(
+          "POST",
+          "/comfy/my/sync",
+        );
       } catch (error) {
-        return { copied: 0, restartRequired: false, ...(error instanceof Error ? {} : {}) };
+        return {
+          copied: 0,
+          restartRequired: false,
+          ...(error instanceof Error ? {} : {}),
+        };
       }
     },
 
     async listPlugins(): Promise<ComfyPluginInfo[]> {
-      const raw = await comfySidecarRequest<{ plugins?: SidecarPluginRow[] }>("GET", "/comfy/plugins");
+      const raw = await comfySidecarRequest<{ plugins?: SidecarPluginRow[] }>(
+        "GET",
+        "/comfy/plugins",
+      );
       return (raw.plugins ?? []).map(mapPluginRow);
     },
     async searchCatalog(query: string): Promise<ComfyCatalogEntry[]> {
-      const raw = await comfySidecarRequest<SidecarCatalogReply>("GET", "/comfy/catalog/search", {
-        query: { q: query },
-      });
+      const raw = await comfySidecarRequest<SidecarCatalogReply>(
+        "GET",
+        "/comfy/catalog/search",
+        {
+          query: { q: query },
+        },
+      );
       return mapCatalogReply(raw);
     },
     async installPlugin(source, ref): Promise<ComfyEngineStartJobReply> {
-      return comfySidecarRequest<ComfyEngineStartJobReply>("POST", "/comfy/plugins/install", {
-        body: { source, ref },
-      });
+      return comfySidecarRequest<ComfyEngineStartJobReply>(
+        "POST",
+        "/comfy/plugins/install",
+        {
+          body: { source, ref },
+        },
+      );
     },
     async updatePlugin(id: string): Promise<ComfyEngineStartJobReply> {
       return comfySidecarRequest<ComfyEngineStartJobReply>(
@@ -800,10 +1031,17 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
           `/comfy/plugins/${encodeURIComponent(id)}`,
           { query: { confirm: "true" } },
         );
-        const job = await pollJobUntilTerminal(jobId, START_JOB_TIMEOUT_MS, START_JOB_POLL_INTERVAL_MS);
+        const job = await pollJobUntilTerminal(
+          jobId,
+          START_JOB_TIMEOUT_MS,
+          START_JOB_POLL_INTERVAL_MS,
+        );
         return settleAckJob(job, "插件卸载失败");
       } catch (error) {
-        return { accepted: false, message: error instanceof Error ? error.message : "插件卸载失败" };
+        return {
+          accepted: false,
+          message: error instanceof Error ? error.message : "插件卸载失败",
+        };
       }
     },
     async getPluginUsage(id: string): Promise<ComfyPluginUsageReply> {
@@ -818,7 +1056,12 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
       };
     },
     async doctor(): Promise<ComfyDoctorReport> {
-      return mapDoctorReport(await comfySidecarRequest<SidecarDoctorReply>("GET", "/comfy/plugins/doctor"));
+      return mapDoctorReport(
+        await comfySidecarRequest<SidecarDoctorReply>(
+          "GET",
+          "/comfy/plugins/doctor",
+        ),
+      );
     },
   };
 }
@@ -848,11 +1091,15 @@ function parentDirOf(id: string): string | null {
 }
 
 function isFolderMarker(id: string): boolean {
-  return id === FOLDER_MARKER_FILENAME || id.endsWith(`/${FOLDER_MARKER_FILENAME}`);
+  return (
+    id === FOLDER_MARKER_FILENAME || id.endsWith(`/${FOLDER_MARKER_FILENAME}`)
+  );
 }
 
 /** A 的扁平路径列表 → D 的树(文件夹从路径段推导;.keep.json 占位只留文件夹)。 */
-export function mapWorkflowTree(entries: SidecarWorkflowEntry[]): ComfyWorkflowLibraryTree {
+export function mapWorkflowTree(
+  entries: SidecarWorkflowEntry[],
+): ComfyWorkflowLibraryTree {
   const folders = new Map<string, ComfyWorkflowLibraryFolder>();
   const ensureFolder = (dirPath: string) => {
     const segments = dirPath.split("/");
@@ -888,13 +1135,21 @@ export function mapWorkflowTree(entries: SidecarWorkflowEntry[]): ComfyWorkflowL
 }
 
 async function fetchRawWorkflowEntries(): Promise<SidecarWorkflowEntry[]> {
-  const raw = await comfySidecarRequest<{ workflows?: SidecarWorkflowEntry[] }>("GET", "/comfy/workflows");
+  const raw = await comfySidecarRequest<{ workflows?: SidecarWorkflowEntry[] }>(
+    "GET",
+    "/comfy/workflows",
+  );
   return raw.workflows ?? [];
 }
 
 function validateFolderName(name: string): void {
   const trimmed = name.trim();
-  if (!trimmed || trimmed.includes("/") || trimmed.includes("\\") || trimmed.includes("..")) {
+  if (
+    !trimmed ||
+    trimmed.includes("/") ||
+    trimmed.includes("\\") ||
+    trimmed.includes("..")
+  ) {
     throw new Error("文件夹名不能为空,也不能包含路径分隔符");
   }
 }
@@ -907,16 +1162,27 @@ async function importWithMode(
 ): Promise<ComfyWorkflowImportFileResult[]> {
   // 逐文件预检 JSON(A 的导入对坏 JSON 整批拒绝;坏文件单独标失败,好文件照走)。
   const sentToOriginal = new Map<string, string>();
-  const pending: Array<{ original: string; sentName: string; content: string; renamedTo?: string }> = [];
+  const pending: Array<{
+    original: string;
+    sentName: string;
+    content: string;
+    renamedTo?: string;
+  }> = [];
   const results: ComfyWorkflowImportFileResult[] = [];
   for (const file of files) {
     try {
       JSON.parse(file.content);
     } catch {
-      results.push({ name: file.name, status: "failed", error: "文件不是有效 JSON" });
+      results.push({
+        name: file.name,
+        status: "failed",
+        error: "文件不是有效 JSON",
+      });
       continue;
     }
-    const sentName = /\.json$/i.test(file.name) ? file.name : `${file.name}.json`;
+    const sentName = /\.json$/i.test(file.name)
+      ? file.name
+      : `${file.name}.json`;
     sentToOriginal.set(sentName, file.name);
     pending.push({ original: file.name, sentName, content: file.content });
   }
@@ -929,11 +1195,18 @@ async function importWithMode(
   const IMPORT_BATCH_MAX = 50;
   while (pending.length > 0) {
     const batch = pending.splice(0, IMPORT_BATCH_MAX);
-    const reply = await comfySidecarRequest<{ imported?: string[]; skipped?: string[] }>(
-      "POST",
-      "/comfy/workflows/import",
-      { body: { files: batch.map((item) => ({ name: item.sentName, content: item.content })), overwrite } },
-    );
+    const reply = await comfySidecarRequest<{
+      imported?: string[];
+      skipped?: string[];
+    }>("POST", "/comfy/workflows/import", {
+      body: {
+        files: batch.map((item) => ({
+          name: item.sentName,
+          content: item.content,
+        })),
+        overwrite,
+      },
+    });
     const importedSet = new Set(reply.imported ?? []);
     const skippedSet = new Set(reply.skipped ?? []);
     const next: typeof pending = [];
@@ -941,14 +1214,23 @@ async function importWithMode(
       if (importedSet.has(item.sentName)) {
         const name = sentToOriginal.get(item.sentName) ?? item.original;
         if (item.renamedTo) {
-          results.push({ name, status: "renamed", id: item.sentName, renamedTo: item.renamedTo });
+          results.push({
+            name,
+            status: "renamed",
+            id: item.sentName,
+            renamedTo: item.renamedTo,
+          });
         } else {
           results.push({ name, status: "imported", id: item.sentName });
         }
         continue;
       }
       const retryCount = (retryCounters.get(item.original) ?? 0) + 1;
-      if (mode === "keep-both" && skippedSet.has(item.sentName) && retryCount <= IMPORT_RENAME_MAX_ROUNDS) {
+      if (
+        mode === "keep-both" &&
+        skippedSet.has(item.sentName) &&
+        retryCount <= IMPORT_RENAME_MAX_ROUNDS
+      ) {
         // keep-both:同名冲突 → 该文件独立改「名 2」「名 3」…重试。
         retryCounters.set(item.original, retryCount);
         const base = item.sentName.replace(/\.json$/i, "");
@@ -963,11 +1245,19 @@ async function importWithMode(
         continue;
       }
       if (skippedSet.has(item.sentName)) {
-        results.push({ name: item.original, status: "skipped", reason: "conflict" });
+        results.push({
+          name: item.original,
+          status: "skipped",
+          reason: "conflict",
+        });
         continue;
       }
       // 既没 imported 也没 skipped:应答异常,按失败兜底。
-      results.push({ name: item.original, status: "failed", error: "导入应答异常" });
+      results.push({
+        name: item.original,
+        status: "failed",
+        error: "导入应答异常",
+      });
     }
     pending.unshift(...next); // keep-both 改名重试回队首
   }
@@ -989,33 +1279,51 @@ export function createHttpComfyWorkflowLibraryTransport(): ComfyWorkflowLibraryT
     importFiles: (files, mode) => importWithMode(files, mode),
     async renameWorkflow(id, name) {
       try {
-        await comfySidecarRequest("POST", `/comfy/workflows/${encodeURIComponent(id)}/rename`, {
-          body: { name },
-        });
+        await comfySidecarRequest(
+          "POST",
+          `/comfy/workflows/${encodeURIComponent(id)}/rename`,
+          {
+            body: { name },
+          },
+        );
         return { ok: true };
       } catch (error) {
-        return { ok: false, error: error instanceof Error ? error.message : "重命名失败" };
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "重命名失败",
+        };
       }
     },
     async moveWorkflow(id, folderId) {
       try {
-        await comfySidecarRequest("POST", `/comfy/workflows/${encodeURIComponent(id)}/move`, {
-          body: { to: folderId ?? "" },
-        });
+        await comfySidecarRequest(
+          "POST",
+          `/comfy/workflows/${encodeURIComponent(id)}/move`,
+          {
+            body: { to: folderId ?? "" },
+          },
+        );
         return { ok: true };
       } catch (error) {
-        return { ok: false, error: error instanceof Error ? error.message : "移动失败" };
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "移动失败",
+        };
       }
     },
     /** 删除第一步:引用扫描(A 的 delete 不带 confirm 即只扫描,含备份前的插件引用清单)。 */
     async scanDeleteReferences(id): Promise<ComfyWorkflowDeleteScan> {
-      const raw = await comfySidecarRequest<{ pluginsUsed?: string[]; nodeTypes?: string[] }>(
-        "POST",
-        `/comfy/workflows/${encodeURIComponent(id)}/delete`,
-        { body: {} },
-      );
+      const raw = await comfySidecarRequest<{
+        pluginsUsed?: string[];
+        nodeTypes?: string[];
+      }>("POST", `/comfy/workflows/${encodeURIComponent(id)}/delete`, {
+        body: {},
+      });
       return {
-        references: (raw.pluginsUsed ?? []).map((plugin) => ({ kind: "plugin", name: plugin })),
+        references: (raw.pluginsUsed ?? []).map((plugin) => ({
+          kind: "plugin",
+          name: plugin,
+        })),
       };
     },
     /** 删除第二步:二次确认后执行(sidecar 做快照备份)。 */
@@ -1029,7 +1337,10 @@ export function createHttpComfyWorkflowLibraryTransport(): ComfyWorkflowLibraryT
         if (raw.deleted !== true) return { ok: false, error: "删除未执行" };
         return { ok: true };
       } catch (error) {
-        return { ok: false, error: error instanceof Error ? error.message : "删除失败" };
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "删除失败",
+        };
       }
     },
     /** 空文件夹持久化:A 的库没有文件夹实体,导入 .keep.json 占位让目录可见。 */
@@ -1038,7 +1349,10 @@ export function createHttpComfyWorkflowLibraryTransport(): ComfyWorkflowLibraryT
       const trimmed = name.trim();
       const dir = parentId ? `${parentId}/${trimmed}` : trimmed;
       await comfySidecarRequest("POST", "/comfy/workflows/import", {
-        body: { files: [{ name: `${dir}/${FOLDER_MARKER_FILENAME}`, content: "{}" }], overwrite: true },
+        body: {
+          files: [{ name: `${dir}/${FOLDER_MARKER_FILENAME}`, content: "{}" }],
+          overwrite: true,
+        },
       });
       return { id: dir, name: trimmed, parentId };
     },
@@ -1051,13 +1365,22 @@ export function createHttpComfyWorkflowLibraryTransport(): ComfyWorkflowLibraryT
         const entryId = String(entry.id ?? "");
         if (!entryId.startsWith(prefix)) continue;
         const rest = entryId.slice(prefix.length);
-        const newDir = rest.includes("/") ? `${trimmed}/${rest.slice(0, rest.lastIndexOf("/"))}` : trimmed;
+        const newDir = rest.includes("/")
+          ? `${trimmed}/${rest.slice(0, rest.lastIndexOf("/"))}`
+          : trimmed;
         try {
-          await comfySidecarRequest("POST", `/comfy/workflows/${encodeURIComponent(entryId)}/move`, {
-            body: { to: newDir },
-          });
+          await comfySidecarRequest(
+            "POST",
+            `/comfy/workflows/${encodeURIComponent(entryId)}/move`,
+            {
+              body: { to: newDir },
+            },
+          );
         } catch (error) {
-          return { ok: false, error: error instanceof Error ? error.message : "文件夹重命名失败" };
+          return {
+            ok: false,
+            error: error instanceof Error ? error.message : "文件夹重命名失败",
+          };
         }
       }
       return { ok: true };
@@ -1069,11 +1392,18 @@ export function createHttpComfyWorkflowLibraryTransport(): ComfyWorkflowLibraryT
         const entryId = String(entry.id ?? "");
         if (!entryId.startsWith(prefix)) continue;
         try {
-          await comfySidecarRequest("POST", `/comfy/workflows/${encodeURIComponent(entryId)}/delete`, {
-            body: { confirm: true },
-          });
+          await comfySidecarRequest(
+            "POST",
+            `/comfy/workflows/${encodeURIComponent(entryId)}/delete`,
+            {
+              body: { confirm: true },
+            },
+          );
         } catch (error) {
-          return { ok: false, error: error instanceof Error ? error.message : "文件夹删除失败" };
+          return {
+            ok: false,
+            error: error instanceof Error ? error.message : "文件夹删除失败",
+          };
         }
       }
       return { ok: true };
@@ -1102,10 +1432,15 @@ export interface ComfyRemoteEngineStatus {
 }
 
 export async function getRemoteEngine(): Promise<ComfyRemoteEngineStatus> {
-  return comfySidecarRequest<ComfyRemoteEngineStatus>("GET", "/comfy/engine/remote");
+  return comfySidecarRequest<ComfyRemoteEngineStatus>(
+    "GET",
+    "/comfy/engine/remote",
+  );
 }
 
-export async function setRemoteEngine(url: string): Promise<{ url: string | null; cleared: boolean }> {
+export async function setRemoteEngine(
+  url: string,
+): Promise<{ url: string | null; cleared: boolean }> {
   return comfySidecarRequest<{ url: string | null; cleared: boolean }>(
     "POST",
     "/comfy/engine/remote",
@@ -1128,7 +1463,10 @@ export interface ComfyEngineProbe {
 
 export async function probeEngineUrl(url?: string): Promise<ComfyEngineProbe> {
   const suffix = url ? `?url=${encodeURIComponent(url)}` : "";
-  return comfySidecarRequest<ComfyEngineProbe>("GET", `/comfy/engine/probe${suffix}`);
+  return comfySidecarRequest<ComfyEngineProbe>(
+    "GET",
+    `/comfy/engine/probe${suffix}`,
+  );
 }
 
 // ── SSH 远端连接(11-03-sidecar-ssh-module R4/R5):四请求全走本地 sidecar
@@ -1209,8 +1547,12 @@ export async function getComfySshStatus(): Promise<ComfySshStatus> {
   return comfySidecarRequest<ComfySshStatus>("GET", "/comfy/ssh/status");
 }
 
-export async function setComfySshConfig(config: ComfySshConfigInput): Promise<ComfySshConfigReply> {
-  return comfySidecarRequest<ComfySshConfigReply>("POST", "/comfy/ssh/config", { body: config });
+export async function setComfySshConfig(
+  config: ComfySshConfigInput,
+): Promise<ComfySshConfigReply> {
+  return comfySidecarRequest<ComfySshConfigReply>("POST", "/comfy/ssh/config", {
+    body: config,
+  });
 }
 
 export async function testComfySshConnection(): Promise<ComfySshTestReply> {
@@ -1232,7 +1574,11 @@ export interface SshPluginSyncReply {
  * syncEngine;后端 /comfy/ssh/sync-plugins 端点保留兼容,此函数仅遗存。
  */
 export async function syncSshPlugins(): Promise<SshPluginSyncReply> {
-  return comfySidecarRequest<SshPluginSyncReply>("POST", "/comfy/ssh/sync-plugins", { timeoutMs: 330_000 });
+  return comfySidecarRequest<SshPluginSyncReply>(
+    "POST",
+    "/comfy/ssh/sync-plugins",
+    { timeoutMs: 330_000 },
+  );
 }
 
 // ── 引擎同步中心(11-04 engine-sync R2/R3):单真源清单 + 逐项同步 + 重启 ──
@@ -1285,7 +1631,11 @@ export interface EngineSyncResult {
 
 export async function getEngineSyncManifest(): Promise<EngineSyncManifest> {
   // 清单要逐件 SSH 读 Win HEAD(数十件),给足超时
-  return comfySidecarRequest<EngineSyncManifest>("GET", "/comfy/ssh/engine-sync-manifest", { timeoutMs: 120_000 });
+  return comfySidecarRequest<EngineSyncManifest>(
+    "GET",
+    "/comfy/ssh/engine-sync-manifest",
+    { timeoutMs: 120_000 },
+  );
 }
 
 /** 整体超时 30min(Q3;1104 修正 10→30min,41 件全量 clone 需要时间):前端
@@ -1293,17 +1643,30 @@ export async function getEngineSyncManifest(): Promise<EngineSyncManifest> {
  *  发新件,30min 上限跨批次生效。 */
 export const ENGINE_SYNC_OVERALL_TIMEOUT_MS = 30 * 60 * 1000;
 
-export async function syncEngine(items: string[], timeoutS?: number): Promise<EngineSyncResult> {
+export async function syncEngine(
+  items: string[],
+  timeoutS?: number,
+): Promise<EngineSyncResult> {
   // 后端整体 30min 超时;timeoutS=本件剩余预算(整体上限跨批次的关键),
   // HTTP 超时=预算+30s 余量(缺省 30min+30s)
-  return comfySidecarRequest<EngineSyncResult>("POST", "/comfy/ssh/sync-engine", {
-    body: timeoutS !== undefined ? { items, timeoutS } : { items },
-    timeoutMs: timeoutS !== undefined ? timeoutS * 1000 + 30_000 : 1_830_000,
-  });
+  return comfySidecarRequest<EngineSyncResult>(
+    "POST",
+    "/comfy/ssh/sync-engine",
+    {
+      body: timeoutS !== undefined ? { items, timeoutS } : { items },
+      timeoutMs: timeoutS !== undefined ? timeoutS * 1000 + 30_000 : 1_830_000,
+    },
+  );
 }
 
-export async function restartRemoteEngine(): Promise<{ ok: boolean; output: string }> {
-  return comfySidecarRequest<{ ok: boolean; output: string }>("POST", "/comfy/ssh/restart-engine");
+export async function restartRemoteEngine(): Promise<{
+  ok: boolean;
+  output: string;
+}> {
+  return comfySidecarRequest<{ ok: boolean; output: string }>(
+    "POST",
+    "/comfy/ssh/restart-engine",
+  );
 }
 
 export type TorchUpgradeChannel = "cu128" | "cu130" | "cu132";
@@ -1313,6 +1676,7 @@ export interface EngineTorchInfo {
   current: {
     torch: string | null;
     torchvision: string | null;
+    torchaudio?: string | null;
     cuda: string | null;
     updatedAt: string | null;
     via: string | null;
@@ -1325,19 +1689,39 @@ export interface EngineTorchInfo {
   jobId: string | null;
   allowedTargets: string[];
   pinnedTarget: string;
+  /** torch 版本 → 配套 torchvision/torchaudio 版本映射(1107:点前渲染三件套「当前→目标」对照) */
+  tvMap?: Record<string, string>;
+  taMap?: Record<string, string>;
   mode: "local" | "remote";
 }
 
-export async function getEngineTorchInfo(mode: TorchUpgradeMode): Promise<EngineTorchInfo> {
-  return comfySidecarRequest<EngineTorchInfo>("GET", `/comfy/ssh/torch-info?mode=${mode}`, { timeoutMs: 30_000 });
+export async function getEngineTorchInfo(
+  mode: TorchUpgradeMode,
+): Promise<EngineTorchInfo> {
+  return comfySidecarRequest<EngineTorchInfo>(
+    "GET",
+    `/comfy/ssh/torch-info?mode=${mode}`,
+    { timeoutMs: 30_000 },
+  );
 }
 
-export async function startEngineTorchUpgrade(target: string, channel: TorchUpgradeChannel, mode: TorchUpgradeMode): Promise<{ jobId: string }> {
-  return comfySidecarRequest<{ jobId: string }>("POST", "/comfy/ssh/upgrade-torch", {
-    body: { target, channel, mode },
-  });
+export async function startEngineTorchUpgrade(
+  target: string,
+  channel: TorchUpgradeChannel,
+  mode: TorchUpgradeMode,
+): Promise<{ jobId: string }> {
+  return comfySidecarRequest<{ jobId: string }>(
+    "POST",
+    "/comfy/ssh/upgrade-torch",
+    {
+      body: { target, channel, mode },
+    },
+  );
 }
 
 export async function refreshComfySshToken(): Promise<ComfySshTokenRefreshReply> {
-  return comfySidecarRequest<ComfySshTokenRefreshReply>("POST", "/comfy/ssh/token-refresh");
+  return comfySidecarRequest<ComfySshTokenRefreshReply>(
+    "POST",
+    "/comfy/ssh/token-refresh",
+  );
 }

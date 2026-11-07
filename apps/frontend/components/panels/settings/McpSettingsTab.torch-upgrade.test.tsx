@@ -35,7 +35,7 @@ describe("torch upgrade settings", () => {
 
   it("shows the live version and gates invalid versions", async () => {
     render(<McpSettingsTab />);
-    await screen.findByText("2.11.0+cu128");
+    (await screen.findAllByText("2.11.0+cu128"))[0];
     const button = screen.getByTestId("torch-upgrade-start") as HTMLButtonElement;
     await waitFor(() => expect(button.disabled).toBe(false));
     expect((screen.getByLabelText("目标版本") as HTMLInputElement).value).toBe("2.14.1");
@@ -229,7 +229,7 @@ describe("torch upgrade settings", () => {
     });
     const view = render(<McpSettingsTab />);
     try {
-      await screen.findByText("2.11.0+cu128");
+      (await screen.findAllByText("2.11.0+cu128"))[0];
       let resolveProbe!: (value: unknown) => void;
       mocks.info.mockClear().mockImplementationOnce(() => new Promise((resolve) => { resolveProbe = resolve; }));
       vi.useFakeTimers();
@@ -256,7 +256,7 @@ describe("torch upgrade settings", () => {
     });
     const view = render(<McpSettingsTab />);
     try {
-      await screen.findByText("2.11.0+cu128");
+      (await screen.findAllByText("2.11.0+cu128"))[0];
       mocks.info.mockClear().mockRejectedValueOnce(new Error("offline"));
       vi.useFakeTimers();
       await act(async () => { refresh?.(); });
@@ -386,9 +386,43 @@ describe("torch upgrade settings", () => {
   it("labels mismatched hosts as unverified ledger data", async () => {
     mocks.info.mockResolvedValue({ current: { torch: "2.11.0+cu128", source: "ledger" }, live: false, hostMatched: false, busy: false });
     render(<McpSettingsTab />);
-    await screen.findByText("2.11.0+cu128");
+    (await screen.findAllByText("2.11.0+cu128"))[0];
     expect(screen.getByText(/账本，未实时验证/)).toBeTruthy();
     expect(screen.getByText(/SSH 主机与当前生效引擎不一致/)).toBeTruthy();
+  });
+
+  it("升级清单点前写明会动什么:torchaudio 旧件标将安装,确认弹窗同款", async () => {
+    // 1107 用户令:点了是真升级还是假升级一眼可辨(事故态:torch/tv 达标,ta 残留 cu128)
+    mocks.info.mockResolvedValue({
+      current: { torch: "2.14.1+cu132", torchvision: "0.29.1+cu132", torchaudio: "2.11.0+cu128" },
+      live: true, hostMatched: true, busy: false, jobId: null, allowedTargets: ["2.14.1"],
+      tvMap: { "2.14.1": "0.29.1" }, taMap: { "2.14.1": "2.11.1" },
+    });
+    render(<McpSettingsTab />);
+    await screen.findByTestId("torch-change-list");
+    const rowOf = (pkg: string) => screen.getAllByTestId("torch-change-row").find((r) => r.dataset.pkg === pkg)!;
+    expect(rowOf("torch").textContent).toContain("✅ 已达标,不重装");
+    expect(rowOf("torchvision").textContent).toContain("✅ 已达标,不重装");
+    expect(rowOf("torchaudio").textContent).toContain("⬆ 将安装");
+    expect(rowOf("torchaudio").textContent).toContain("2.11.0+cu128");
+    expect(rowOf("torchaudio").textContent).toContain("2.11.1+cu132");
+    expect(screen.getByTestId("torch-change-summary").textContent).toContain("真升级");
+    fireEvent.click(screen.getByTestId("torch-upgrade-start"));
+    const confirmList = await screen.findByTestId("torch-confirm-change-list");
+    expect(confirmList.textContent).toContain("⬆ 将安装");
+    expect(confirmList.textContent).toContain("真升级");
+  });
+
+  it("升级清单三件全达标:标明点击将直接跳过,不动环境", async () => {
+    mocks.info.mockResolvedValue({
+      current: { torch: "2.14.1+cu132", torchvision: "0.29.1+cu132", torchaudio: "2.11.1+cu132" },
+      live: true, hostMatched: true, busy: false, jobId: null, allowedTargets: ["2.14.1"],
+      tvMap: { "2.14.1": "0.29.1" }, taMap: { "2.14.1": "2.11.1" },
+    });
+    render(<McpSettingsTab />);
+    await screen.findByTestId("torch-change-list");
+    expect(screen.getByTestId("torch-change-summary").textContent).toContain("跳过");
+    expect(screen.queryByText("⬆ 将安装")).toBeNull();
   });
 
   it("reattaches to an active job on mount", async () => {
@@ -478,14 +512,14 @@ describe("torch upgrade settings", () => {
   it("disables upgrading without SSH", async () => {
     mocks.ssh.mockResolvedValue({ connected: false, configured: false, available: true });
     render(<McpSettingsTab />);
-    await screen.findByText("2.11.0+cu128");
+    (await screen.findAllByText("2.11.0+cu128"))[0];
     expect((screen.getByTestId("torch-upgrade-start") as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("disables upgrading while a server job is active", async () => {
     mocks.info.mockResolvedValue({ current: { torch: "2.11.0+cu128" }, live: true, busy: true });
     render(<McpSettingsTab />);
-    await screen.findByText("2.11.0+cu128");
+    (await screen.findAllByText("2.11.0+cu128"))[0];
     expect((screen.getByTestId("torch-upgrade-start") as HTMLButtonElement).disabled).toBe(true);
   });
 

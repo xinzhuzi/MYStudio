@@ -1431,9 +1431,24 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
             except (SSHServiceError, RuntimeError, TypeError, ValueError, OSError) as exc:
                 errors.append(f"ledger: {str(exc)[:300] or type(exc).__name__}")
         active_job = jobs.active_of("torch-upgrade")
+        # 1107 用户令(点前写明会动什么):现值探针补 torchaudio(metadata 只读,坏件 import 即炸)
+        # + 暴露 tvMap/taMap 供 UI 渲染「当前→目标」三件套对照清单
+        if current is not None and self._client is not None and self._connected:
+            try:
+                verify_ssh_identity()
+                ta_now = self._torch_torchaudio_metadata()
+                verify_ssh_identity()
+                if re.fullmatch(r"\d+\.\d+\.\d+[a-zA-Z0-9.+_-]*", ta_now or ""):
+                    current = {**current, "torchaudio": ta_now}
+                else:
+                    current = {**current, "torchaudio": None}
+            except (SSHServiceError, RuntimeError, TypeError, ValueError, OSError) as exc:
+                current = {**current, "torchaudio": None}
+                errors.append(f"torchaudio-probe: {str(exc)[:200] or type(exc).__name__}")
         return {"current": current, "live": current is not None and current["source"] != "ledger", "errors": errors, "hostMatched": host_matched,
                 "busy": active_job is not None, "jobId": active_job["id"] if active_job and active_job.get("mode") == "remote" and isinstance(active_job.get("origin_host"), str) and isinstance(expected_host, str) and active_job["origin_host"].casefold() == expected_host.casefold() else None,
-                "allowedTargets": list(TORCH_TV_MAP), "pinnedTarget": PINNED_TORCH}
+                "allowedTargets": list(TORCH_TV_MAP), "pinnedTarget": PINNED_TORCH,
+                "tvMap": TORCH_TV_MAP, "taMap": TORCH_TA_MAP}
 
     def upgrade_engine_torch(self, target: str, channel: str = "cu132", *, expected_host: str | None = None) -> str:
         global _REMOTE_TORCH_JOB_ID
