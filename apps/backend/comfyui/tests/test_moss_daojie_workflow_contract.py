@@ -127,11 +127,13 @@ class TestCanvas:
         # 型库透明值(1 出4)→26 switch;腿=21→22(ColorToMask)→23→24→25→26 on_true
         l = self._links_into(26, "switch")
         assert l[1] == 1 and l[2] == 4
-        assert self.by[22]["widgets_values"] == [False, 255, 255, 255, 20, 1]
-        assert self.by[23]["type"] == "GrowMaskWithBlur" and self.by[23]["widgets_values"][0] == -3
-        assert self.by[24]["widgets_values"] == [0, True]  # 恒等旁路
+        assert self.by[22]["widgets_values"] == [False, 255, 255, 255, 32, 1]
+        assert self.by[23]["widgets_values"] == [3, True]  # 闭运算膨胀
+        assert self.by[24]["widgets_values"] == [-5, True]  # 闭运算腐蚀收边
+        assert self.by[27]["type"] == "ImpactGaussianBlurMask"
+        assert self._links_into(25, "alpha")[1] == 27
         for nid, iname, src in ((22, "images", 21), (23, "mask", 22), (24, "mask", 23),
-                                (25, "image", 21), (25, "alpha", 24)):
+                                (25, "image", 21), (25, "alpha", 27), (27, "mask", 24)):
             assert self._links_into(nid, iname)[1] == src
         assert self._links_into(26, "on_true")[1] == 25
         assert self._links_into(26, "on_false")[1] == 21
@@ -167,8 +169,8 @@ class TestCanvas:
             assert key in note, key
 
     def test_counts(self):
-        assert len(self.d["nodes"]) == 32 and len(self.d["links"]) == 44
-        assert self.d["last_node_id"] == 36 and self.d["last_link_id"] == 44
+        assert len(self.d["nodes"]) == 33 and len(self.d["links"]) == 45
+        assert self.d["last_node_id"] == 37 and self.d["last_link_id"] == 45
 
 
 # ── 3. API 直投模板 ────────────────────────────────────────────────

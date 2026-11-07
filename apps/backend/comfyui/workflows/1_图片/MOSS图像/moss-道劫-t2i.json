@@ -1,6 +1,6 @@
 {
- "last_node_id": 36,
- "last_link_id": 44,
+ "last_node_id": 37,
+ "last_link_id": 45,
  "nodes": [
   {
    "id": 1,
@@ -54,7 +54,7 @@
      "name": "透明值",
      "type": "BOOLEAN",
      "links": [
-      35
+      36
      ],
      "slot_index": 4
     },
@@ -922,8 +922,8 @@
      "type": "IMAGE",
      "links": [
       30,
-      33,
-      36
+      34,
+      37
      ],
      "slot_index": 0
     }
@@ -971,7 +971,7 @@
     255,
     255,
     255,
-    20,
+    32,
     1
    ],
    "widgets_values_named": {
@@ -979,20 +979,20 @@
     "red": 255,
     "green": 255,
     "blue": 255,
-    "threshold": 20,
+    "threshold": 32,
     "per_batch": 1
    }
   },
   {
    "id": 23,
-   "type": "GrowMaskWithBlur",
+   "type": "GrowMask",
    "pos": [
     2980,
     530
    ],
    "size": [
-    300,
-    190
+    240,
+    110
    ],
    "flags": {},
    "order": 0,
@@ -1015,27 +1015,15 @@
     }
    ],
    "properties": {
-    "Node name for S&R": "GrowMaskWithBlur"
+    "Node name for S&R": "GrowMask"
    },
    "widgets_values": [
-    -3,
-    0.0,
-    true,
-    false,
-    2.0,
-    1.0,
-    1.0,
+    3,
     true
    ],
    "widgets_values_named": {
-    "expand": -3,
-    "incremental_expandrate": 0.0,
-    "tapered_corners": true,
-    "flip_input": false,
-    "blur_radius": 2.0,
-    "lerp_alpha": 1.0,
-    "decay_factor": 1.0,
-    "fill_holes": true
+    "expand": 3,
+    "tapered_corners": true
    }
   },
   {
@@ -1046,8 +1034,8 @@
     670
    ],
    "size": [
-    260,
-    120
+    240,
+    110
    ],
    "flags": {},
    "order": 0,
@@ -1064,7 +1052,7 @@
      "name": "MASK",
      "type": "MASK",
      "links": [
-      34
+      33
      ],
      "slot_index": 0
     }
@@ -1073,12 +1061,55 @@
     "Node name for S&R": "GrowMask"
    },
    "widgets_values": [
-    0,
+    -5,
     true
    ],
    "widgets_values_named": {
-    "expand": 0,
+    "expand": -5,
     "tapered_corners": true
+   }
+  },
+  {
+   "id": 27,
+   "type": "ImpactGaussianBlurMask",
+   "pos": [
+    2980,
+    810
+   ],
+   "size": [
+    280,
+    110
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 33
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [
+      35
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ImpactGaussianBlurMask"
+   },
+   "widgets_values": [
+    3,
+    1.0
+   ],
+   "widgets_values_named": {
+    "kernel_size": 3,
+    "sigma": 1.0
    }
   },
   {
@@ -1086,7 +1117,7 @@
    "type": "JoinImageWithAlpha",
    "pos": [
     2980,
-    830
+    960
    ],
    "size": [
     300,
@@ -1099,12 +1130,12 @@
     {
      "name": "image",
      "type": "IMAGE",
-     "link": 33
+     "link": 34
     },
     {
      "name": "alpha",
      "type": "MASK",
-     "link": 34
+     "link": 35
     }
    ],
    "outputs": [
@@ -1112,7 +1143,7 @@
      "name": "IMAGE",
      "type": "IMAGE",
      "links": [
-      37
+      38
      ],
      "slot_index": 0
     }
@@ -1139,17 +1170,17 @@
     {
      "name": "switch",
      "type": "BOOLEAN",
-     "link": 35
+     "link": 36
     },
     {
      "name": "on_false",
      "type": "IMAGE",
-     "link": 36
+     "link": 37
     },
     {
      "name": "on_true",
      "type": "IMAGE",
-     "link": 37
+     "link": 38
     }
    ],
    "outputs": [
@@ -1157,8 +1188,8 @@
      "name": "*",
      "type": "*",
      "links": [
-      38,
-      42
+      39,
+      43
      ],
      "slot_index": 1
     }
@@ -1187,7 +1218,7 @@
      "name": "SEEDVR2_DIT",
      "type": "SEEDVR2_DIT",
      "links": [
-      39
+      40
      ],
      "slot_index": 0
     }
@@ -1234,7 +1265,7 @@
      "name": "SEEDVR2_VAE",
      "type": "SEEDVR2_VAE",
      "links": [
-      40
+      41
      ],
      "slot_index": 0
     }
@@ -1287,17 +1318,17 @@
     {
      "name": "image",
      "type": "IMAGE",
-     "link": 38
+     "link": 39
     },
     {
      "name": "dit",
      "type": "SEEDVR2_DIT",
-     "link": 39
+     "link": 40
     },
     {
      "name": "vae",
      "type": "SEEDVR2_VAE",
-     "link": 40
+     "link": 41
     }
    ],
    "outputs": [
@@ -1305,7 +1336,7 @@
      "name": "IMAGE",
      "type": "IMAGE",
      "links": [
-      43
+      44
      ],
      "slot_index": 2
     }
@@ -1364,7 +1395,7 @@
      "name": "BOOLEAN",
      "type": "BOOLEAN",
      "links": [
-      41
+      42
      ],
      "slot_index": 1
     }
@@ -1397,17 +1428,17 @@
     {
      "name": "switch",
      "type": "BOOLEAN",
-     "link": 41
+     "link": 42
     },
     {
      "name": "on_false",
      "type": "IMAGE",
-     "link": 42
+     "link": 43
     },
     {
      "name": "on_true",
      "type": "IMAGE",
-     "link": 43
+     "link": 44
     }
    ],
    "outputs": [
@@ -1415,7 +1446,7 @@
      "name": "*",
      "type": "*",
      "links": [
-      44
+      45
      ],
      "slot_index": 2
     }
@@ -1442,7 +1473,7 @@
     {
      "name": "images",
      "type": "IMAGE",
-     "link": 44
+     "link": 45
     }
    ],
    "outputs": [],
@@ -1476,7 +1507,7 @@
     "Node name for S&R": "MarkdownNote"
    },
    "widgets_values": [
-    "## MOSS 道劫 t2i(道劫范式 × MOSS-Image,1108 役)\n\n- **型库=moss_bases.json**(由 qi21_bases.json 派生:6 透明型已带白底句;人物海报带挂载服从句;装配节点 MyQi21PromptAssembly 直复用)\n- **双臂**:左 False=原生臂 50步/CFG3.5/er_sde+观澜@1.0+SLG22(0-0.5);True=DMD 臂 8步/CFG1.0/euler+DMD LoRA@1.0+SLG end0(勿混:DMD 禁高 CFG)\n- **透明型**(道具/多视图/高清人脸/表情差分/人脸基准/无衣物定妆):MOSS=flux2-vae 纯 RGB,型文白底句+「白底转透明」腿(ColorToMask 白255容差40→ThresholdMask 0.5→GrowMask -2 收边→JoinImageWithAlpha)按型自动启停\n- **SeedVR2 2K 尾档**默认旁路;Win 参数(seedvr2_7b_sharp_fp8/swap36/cuda)\n- 模型:moss_image_sft_bf16 + qwen3.5_9b_bf16(moss_image) + flux2-vae(Windows 引擎在位)\n- 例句=道劫 05 库例一(女修·剑在鞘·手部三锁段);门禁与色词纪律同 qi21 线(docs/prompts/道劫_类型主体句示例.md)\n- 已知特性(1108 p1 实弹):MOSS 对持械挂载动词服从弱于 Q2.1——人物持械海报仍建议走 Q2.1 线,本线主打文字/道具/场景/透明资产"
+    "## MOSS 道劫 t2i(道劫范式 × MOSS-Image,1108 役)\n\n- **型库=moss_bases.json**(由 qi21_bases.json 派生:6 透明型已带白底句;人物海报带挂载服从句;装配节点 MyQi21PromptAssembly 直复用)\n- **双臂**:左 False=原生臂 50步/CFG3.5/er_sde+观澜@1.0+SLG22(0-0.5);True=DMD 臂 8步/CFG1.0/euler+DMD LoRA@1.0+SLG end0(勿混:DMD 禁高 CFG)\n- **透明型**(道具/多视图/高清人脸/表情差分/人脸基准/无衣物定妆):MOSS=flux2-vae 纯 RGB,型文白底句+「白底转透明」腿(ColorToMask thr32→GrowMask+3/-5 闭运算→ImpactGaussianBlurMask 软边→JoinImageWithAlpha)按型自动启停;GrowMaskWithBlur 接口坑避雷\n- **SeedVR2 2K 尾档**默认旁路;Win 参数(seedvr2_7b_sharp_fp8/swap36/cuda)\n- 模型:moss_image_sft_bf16 + qwen3.5_9b_bf16(moss_image) + flux2-vae(Windows 引擎在位)\n- 例句=道劫 05 库例一(女修·剑在鞘·手部三锁段);门禁与色词纪律同 qi21 线(docs/prompts/道劫_类型主体句示例.md)\n- 已知特性(1108 p1 实弹):MOSS 对持械挂载动词服从弱于 Q2.1——人物持械海报仍建议走 Q2.1 线,本线主打文字/道具/场景/透明资产"
    ]
   }
  ],
@@ -1739,6 +1770,14 @@
   ],
   [
    33,
+   24,
+   0,
+   27,
+   0,
+   "MASK"
+  ],
+  [
+   34,
    21,
    0,
    25,
@@ -1746,15 +1785,15 @@
    "IMAGE"
   ],
   [
-   34,
-   24,
+   35,
+   27,
    0,
    25,
    0,
    "MASK"
   ],
   [
-   35,
+   36,
    1,
    4,
    26,
@@ -1762,7 +1801,7 @@
    "BOOLEAN"
   ],
   [
-   36,
+   37,
    21,
    0,
    26,
@@ -1770,7 +1809,7 @@
    "IMAGE"
   ],
   [
-   37,
+   38,
    25,
    0,
    26,
@@ -1778,7 +1817,7 @@
    "IMAGE"
   ],
   [
-   38,
+   39,
    26,
    0,
    32,
@@ -1786,7 +1825,7 @@
    "IMAGE"
   ],
   [
-   39,
+   40,
    30,
    0,
    32,
@@ -1794,7 +1833,7 @@
    "SEEDVR2_DIT"
   ],
   [
-   40,
+   41,
    31,
    0,
    32,
@@ -1802,7 +1841,7 @@
    "SEEDVR2_VAE"
   ],
   [
-   41,
+   42,
    33,
    0,
    34,
@@ -1810,7 +1849,7 @@
    "BOOLEAN"
   ],
   [
-   42,
+   43,
    26,
    0,
    34,
@@ -1818,7 +1857,7 @@
    "IMAGE"
   ],
   [
-   43,
+   44,
    32,
    0,
    34,
@@ -1826,7 +1865,7 @@
    "IMAGE"
   ],
   [
-   44,
+   45,
    34,
    0,
    35,

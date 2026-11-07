@@ -49,7 +49,7 @@ def build_moss_bases() -> dict:
             touched_mount.append(t["zh"])
     out["rgba"]["_doc"] = ("MOSS 版口径(1108):MOSS-Image=flux2-vae 纯 RGB 输出,英文 RGBA "
                            "头尾包裹退役(p2 实弹=白底伪透明);透明承载=型文白底句+"
-                           "「白底转透明」后链(ColorToMask→ThresholdMask→GrowMask→"
+                           "「白底转透明」后链(ColorToMask thr32→闭运算 GrowMask3/-5→高斯软边→"
                            "JoinImageWithAlpha);head/tail 仅留档零消费。")
     src_sha = hashlib.sha256(QI21_BASES.read_bytes()).hexdigest()[:16]
     out["moss_variant"] = {
@@ -180,23 +180,24 @@ def build_canvas(subject_example: str, style_base: str) -> dict:
                        inputs=[_in("samples", "LATENT", None), _in("vae", "VAE", None)],
                        outputs=[_out("IMAGE", "IMAGE", [])]))
     nodes.append(_node(22, "ColorToMask", [2980, 320], [340, 170],
-                       widgets=[False, 255, 255, 255, 20, 1],
+                       widgets=[False, 255, 255, 255, 32, 1],
                        named={"invert": False, "red": 255, "green": 255, "blue": 255,
-                              "threshold": 20, "per_batch": 1},
+                              "threshold": 32, "per_batch": 1},
                        inputs=[_in("images", "IMAGE", None)],
                        outputs=[_out("MASK", "MASK", [])]))
-    nodes.append(_node(23, "GrowMaskWithBlur", [2980, 530], [300, 190],
-                       widgets=[-3, 0.0, True, False, 2.0, 1.0, 1.0, True],
-                       named={"expand": -3, "incremental_expandrate": 0.0, "tapered_corners": True,
-                              "flip_input": False, "blur_radius": 2.0, "lerp_alpha": 1.0,
-                              "decay_factor": 1.0, "fill_holes": True},  # 收边-3 治底色晕+blur2 软边抗锯齿+fill_holes 治主体误抠洞
+    nodes.append(_node(23, "GrowMask", [2980, 530], [240, 110],
+                       widgets=[3, True], named={"expand": 3, "tapered_corners": True},
                        inputs=[_in("mask", "MASK", None)],
-                       outputs=[_out("MASK", "MASK", [], 1)]))
-    nodes.append(_node(24, "GrowMask", [2980, 670], [260, 120],
-                       widgets=[0, True], named={"expand": 0, "tapered_corners": True},  # 0=恒等旁路,手动收边开关
+                       outputs=[_out("MASK", "MASK", [], 1)]))  # 闭运算 1/2 膨胀(与 24 合成闭运算,填主体小洞)
+    nodes.append(_node(24, "GrowMask", [2980, 670], [240, 110],
+                       widgets=[-5, True], named={"expand": -5, "tapered_corners": True},
                        inputs=[_in("mask", "MASK", None)],
-                       outputs=[_out("MASK", "MASK", [])]))
-    nodes.append(_node(25, "JoinImageWithAlpha", [2980, 830], [300, 100],
+                       outputs=[_out("MASK", "MASK", [])]))  # 闭运算 2/2 腐蚀收边(治白晕,净收 2px)
+    nodes.append(_node(27, "ImpactGaussianBlurMask", [2980, 810], [280, 110],
+                       widgets=[3, 1.0], named={"kernel_size": 3, "sigma": 1.0},
+                       inputs=[_in("mask", "MASK", None)],
+                       outputs=[_out("MASK", "MASK", [], 1)]))  # 高斯软边(抗锯齿;1108 AB/C 三链同图实验胜出版)
+    nodes.append(_node(25, "JoinImageWithAlpha", [2980, 960], [300, 100],
                        inputs=[_in("image", "IMAGE", None), _in("alpha", "MASK", None)],
                        outputs=[_out("IMAGE", "IMAGE", [])]))
     nodes.append(_node(26, "ComfySwitchNode", [3340, 480], [260, 140],
@@ -289,8 +290,9 @@ def build_canvas(subject_example: str, style_base: str) -> dict:
     wire(21, 0, 22, 0, "IMAGE", "images")
     wire(22, 0, 23, 0, "MASK", "mask")
     wire(23, 0, 24, 0, "MASK", "mask")
+    wire(24, 0, 27, 0, "MASK", "mask")
     wire(21, 0, 25, 0, "IMAGE", "image")
-    wire(24, 0, 25, 0, "MASK", "alpha")
+    wire(27, 0, 25, 0, "MASK", "alpha")
     wire(1, 4, 26, 0, "BOOLEAN", "switch")
     wire(21, 0, 26, 0, "IMAGE", "on_false")
     wire(25, 0, 26, 0, "IMAGE", "on_true")
@@ -310,7 +312,7 @@ def build_canvas(subject_example: str, style_base: str) -> dict:
         {"id": 4, "title": "④ SeedVR2 2K 尾档(默认旁路)", "bounding": [3670, -60, 1290, 660], "color": "#4a7", "flags": {}},
     ]
     nodes.sort(key=lambda n: n["order"])
-    return {"last_node_id": 36, "last_link_id": len(L), "nodes": nodes, "links": L,
+    return {"last_node_id": 37, "last_link_id": len(L), "nodes": nodes, "links": L,
             "groups": groups, "config": {}, "extra": {}, "version": 0.4, "revision": 0}
 
 
@@ -318,7 +320,7 @@ NOTE_TEXT = """## MOSS 道劫 t2i(道劫范式 × MOSS-Image,1108 役)
 
 - **型库=moss_bases.json**(由 qi21_bases.json 派生:6 透明型已带白底句;人物海报带挂载服从句;装配节点 MyQi21PromptAssembly 直复用)
 - **双臂**:左 False=原生臂 50步/CFG3.5/er_sde+观澜@1.0+SLG22(0-0.5);True=DMD 臂 8步/CFG1.0/euler+DMD LoRA@1.0+SLG end0(勿混:DMD 禁高 CFG)
-- **透明型**(道具/多视图/高清人脸/表情差分/人脸基准/无衣物定妆):MOSS=flux2-vae 纯 RGB,型文白底句+「白底转透明」腿(ColorToMask 白255容差40→ThresholdMask 0.5→GrowMask -2 收边→JoinImageWithAlpha)按型自动启停
+- **透明型**(道具/多视图/高清人脸/表情差分/人脸基准/无衣物定妆):MOSS=flux2-vae 纯 RGB,型文白底句+「白底转透明」腿(ColorToMask thr32→GrowMask+3/-5 闭运算→ImpactGaussianBlurMask 软边→JoinImageWithAlpha)按型自动启停;GrowMaskWithBlur 接口坑避雷
 - **SeedVR2 2K 尾档**默认旁路;Win 参数(seedvr2_7b_sharp_fp8/swap36/cuda)
 - 模型:moss_image_sft_bf16 + qwen3.5_9b_bf16(moss_image) + flux2-vae(Windows 引擎在位)
 - 例句=道劫 05 库例一(女修·剑在鞘·手部三锁段);门禁与色词纪律同 qi21 线(docs/prompts/道劫_类型主体句示例.md)
