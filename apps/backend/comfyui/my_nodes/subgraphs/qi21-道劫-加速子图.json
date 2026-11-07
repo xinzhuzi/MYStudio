@@ -1,7 +1,7 @@
 {
   "revision": 1,
-  "last_node_id": 7045,
-  "last_link_id": 7485,
+  "last_node_id": 7100,
+  "last_link_id": 7900,
   "nodes": [
     {
       "id": 1,
@@ -1090,7 +1090,7 @@
             ],
             "flags": {},
             "order": 15,
-            "mode": 0,
+            "mode": 4,
             "inputs": [
               {
                 "localized_name": "模型",
@@ -1121,11 +1121,11 @@
             },
             "widgets_values": [
               "qwen2.1-detail-fix-2.0.safetensors",
-              1
+              0.4
             ],
             "widgets_values_named": {
               "lora_name": "qwen2.1-detail-fix-2.0.safetensors",
-              "strength_model": 1
+              "strength_model": 0.4
             }
           },
           {
@@ -1365,7 +1365,7 @@
                 "name": "model",
                 "type": "MODEL",
                 "localized_name": "模型",
-                "link": 7467
+                "link": 7900
               }
             ],
             "outputs": [
@@ -1391,11 +1391,11 @@
             },
             "widgets_values": [
               "qi21-mikkoani.safetensors",
-              0.8
+              0.6
             ],
             "widgets_values_named": {
               "lora_name": "qi21-mikkoani.safetensors",
-              "strength_model": 0.8
+              "strength_model": 0.6
             },
             "title": "[7034] 风格LoRA·mikkoani(×0.8)"
           },
@@ -1533,6 +1533,55 @@
               "scheduler": "simple",
               "denoise": 1
             }
+          },
+          {
+            "id": 7100,
+            "type": "LoraLoaderModelOnly",
+            "pos": [
+              220,
+              1920
+            ],
+            "size": [
+              270.0,
+              148.0
+            ],
+            "flags": {},
+            "order": 20,
+            "mode": 4,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": 7467
+              }
+            ],
+            "outputs": [
+              {
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  7900
+                ],
+                "slot_index": 0
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "LoraLoaderModelOnly",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              "High quality.safetensors",
+              0.3
+            ],
+            "widgets_values_named": {
+              "lora_name": "High quality.safetensors",
+              "strength_model": 0.3
+            },
+            "title": "[7034] 风格LoRA·mikkoani(×0.8)"
           }
         ],
         "groups": [
@@ -1575,10 +1624,10 @@
           {
             "title": "④共用控制",
             "bounding": [
-              270.0,
-              430.0,
-              600.0,
-              2768.0
+              220,
+              430,
+              650,
+              2768
             ],
             "color": "#3f789e",
             "id": 103,
@@ -1934,7 +1983,7 @@
             "id": 7467,
             "origin_id": -10,
             "origin_slot": 0,
-            "target_id": 7034,
+            "target_id": 7100,
             "target_slot": 0,
             "type": "MODEL"
           },
@@ -1993,13 +2042,22 @@
             "target_id": 7015,
             "target_slot": 5,
             "type": "LATENT"
+          },
+          {
+            "id": 7900,
+            "origin_id": 7100,
+            "origin_slot": 0,
+            "target_id": 7034,
+            "target_slot": 0,
+            "type": "MODEL"
           }
         ],
         "extra": {
           "ue_links": [],
           "links_added_by_ue": []
         },
-        "category": "漫影"
+        "category": "漫影",
+        "_": null
       }
     ]
   }

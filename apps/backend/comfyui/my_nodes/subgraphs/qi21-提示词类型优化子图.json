@@ -94,7 +94,7 @@
         "state": {
           "lastGroupId": 6,
           "lastNodeId": 7015,
-          "lastLinkId": 347,
+          "lastLinkId": 348,
           "lastRerouteId": 10
         },
         "revision": 1,
@@ -217,6 +217,18 @@
             "pos": [
               2900,
               350
+            ]
+          },
+          {
+            "id": "b2f3a4c5-0007-4b07-8f07-3c5f81b56b07",
+            "name": "透明模式",
+            "type": "BOOLEAN",
+            "linkIds": [
+              348
+            ],
+            "pos": [
+              2900,
+              385
             ]
           }
         ],
@@ -431,7 +443,8 @@
                 "name": "透明模式",
                 "type": "BOOLEAN",
                 "links": [
-                  345
+                  345,
+                  348
                 ],
                 "slot_index": 2
               },
@@ -841,6 +854,14 @@
             "target_id": -20,
             "target_slot": 4,
             "type": "STRING"
+          },
+          {
+            "id": 348,
+            "origin_id": 4013,
+            "origin_slot": 2,
+            "target_id": -20,
+            "target_slot": 5,
+            "type": "BOOLEAN"
           }
         ],
         "extra": {

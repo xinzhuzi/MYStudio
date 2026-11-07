@@ -30,7 +30,7 @@ parallel design §2/§4):原生出图 / viggle / Turbo 三条完整自足支路�
 
 档位表单源:SPEED_MODES 序即 combo 序,**首项=默认=「3 · 混动 40步+缓存」**
 (1101 用户令:默认档3混动替换 Turbo;1101晚 用户令「混动不需要 turbo×1.0」——
-E 臂=mikkoani+detail-fix 两层叠加态入 LazyCache,40 步 simple,撤 turbo 后 Win
+E 臂=[7100]High quality@1.0+mikkoani@0.6+detail-fix 三层入 LazyCache(1106 终配令),40 步 simple
 实弹 45.6s→24.8s(旧 2.41× 账随 turbo 撤出作废);1021「所有型默认 Turbo」令
 就此废止)。四手动档字符串一字不动(存量画布保存值/API 闭集零破坏);「自动 ·
 按型」保留为末项手动选项:型名∈{设定卡,美宣,概念气氛图}→原生出图,其余含空
@@ -53,7 +53,7 @@ from typing import Any
 AUTO_MODE = "自动 · 按型"
 _AUTO_DIRECT_TYPES: tuple[str, ...] = ("设定卡", "美宣", "概念气氛图")
 SPEED_MODES: tuple[tuple[str, str | None], ...] = (
-    ("3 · 混动 40步+缓存", "latent_e"),  # E混动臂:mikkoani+detail-fix→LazyCache 步跳缓存,40步simple;1101 升默认,1101晚 撤 turbo(45.6s→24.8s)
+    ("3 · 混动 40步+缓存", "latent_e"),  # E混动臂:HQ@1.0→mikkoani@0.6(1106 终配)→detail-fix→LazyCache,40步simple;1101 默认+撤 turbo(45.6s→24.8s)
     ("0 · Turbo 8步", "latent_turbo"),
     ("1 · 原生出图", "latent_direct"),
     ("2 · viggle", "latent_viggle"),

@@ -315,7 +315,7 @@
       "class_type": "LoraLoaderModelOnly",
       "inputs": {
         "lora_name": "qi21-mikkoani.safetensors",
-        "strength_model": 0.8,
+        "strength_model": 0.6,
         "model": [
           "9",
           0
@@ -329,17 +329,6 @@
         "start_percent": 0.15,
         "end_percent": 0.95,
         "verbose": false,
-        "model": [
-          "7:7044",
-          0
-        ]
-      }
-    },
-    "7:7044": {
-      "class_type": "LoraLoaderModelOnly",
-      "inputs": {
-        "lora_name": "qwen2.1-detail-fix-2.0.safetensors",
-        "strength_model": 1,
         "model": [
           "7:7034",
           0
