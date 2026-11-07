@@ -43,7 +43,7 @@ class MyQi21ColorAnchor:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "anchor"
-    CATEGORY = "漫影/qi21二采"
+    CATEGORY = "漫影"  # 1004 类目统一令(子组仅道劫走线族豁免)
     DESCRIPTION = (
         "二采色彩锚:以一采为色彩权威做 Lab 逐通道均值/方差迁移,"
         "保二采结构、还原一采克制色;alpha 通道原样透传。")

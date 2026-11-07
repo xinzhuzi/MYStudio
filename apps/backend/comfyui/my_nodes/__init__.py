@@ -201,6 +201,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MyDaojieLoraStack": "漫影 道劫LoRA栈",
     "MyDaojieRoute": "漫影 道劫按型线路路由",
     "MyQi21DaojieBase": "道劫·qi21底座九选一",
+    "MyQi21LatentUpscale": "漫影 二采潜空间放大 2x [MyQi21LatentUpscale]",  # 1106(1107 Edit 定谳后留件退役)
+    "MyQi21ColorAnchor": "漫影 二采色彩锚 [MyQi21ColorAnchor]",  # 1108(Lab 迁移,一采色权威)
     "MyQi21SpeedSelect": "Q2-1 加速档位(四选一·默认混动40步+缓存)",  # ⑱ 1002 Fun-Acc;1016turbo 官方 Turbo;1101 档3混动升默认(用户令替换 Turbo)
     "MyQi21RgbaSelect": "Q2-1 RGBA透明开关(三选一·默认自动)",
     "MyQi21PromptAssembly": "道劫·qi21装配全文件",

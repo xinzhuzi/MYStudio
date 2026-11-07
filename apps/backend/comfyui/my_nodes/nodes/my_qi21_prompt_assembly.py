@@ -89,7 +89,7 @@ except ImportError:  # pragma: no cover - 直载形态(单测)走此腿
 
 # 透明声明句级剔除单源(10-09-qi21-prompt-layer-conflict P6;同上双路导入)
 try:
-    from ._qi21_rgba_text import strip_rgba_decl
+    from ._qi21_rgba_text import assert_strip_survival, strip_rgba_decl
 except ImportError:  # pragma: no cover - 直载形态(单测)走此腿
     import importlib.util as _ilu
     _rgba_spec = _ilu.spec_from_file_location(
@@ -97,6 +97,7 @@ except ImportError:  # pragma: no cover - 直载形态(单测)走此腿
     _rgba_mod = _ilu.module_from_spec(_rgba_spec)
     _rgba_spec.loader.exec_module(_rgba_mod)
     strip_rgba_decl = _rgba_mod.strip_rgba_decl
+    assert_strip_survival = _rgba_mod.assert_strip_survival
 
 # ── 主体句例文+美术风格底座 default(1001 t2i 工作流值逐字迁入,脚本注入禁手敲;──
 # ── sha256 前16位对拍锚=[24]主体句 afd9e6f562e3e606 / [110]美术风格底座 ──
@@ -367,6 +368,8 @@ class MyQi21PromptAssembly:
                 _out_nb = (f"主体句:{主体句}", negative_nb)
             else:
                 base_out_nb = strip_rgba_decl(BASE) if _type_is_transparent(BASE) else BASE
+                if base_out_nb is not BASE:
+                    assert_strip_survival(BASE, base_out_nb, context="装配器类型句")
                 _out_nb = (f"类型句:{base_out_nb}\n主体句:{主体句}", negative_nb)
             assert_prompt_gates(_out_nb[0], is_subject=False, context="[终稿·无底座出图]")
             return _out_nb
@@ -378,6 +381,7 @@ class MyQi21PromptAssembly:
         # 透明类型的中文透明声明由最终输出层统一包装，不进入 PE。
         if _type_is_transparent(BASE):
             base_out = strip_rgba_decl(BASE)
+            assert_strip_survival(BASE, base_out, context="装配器类型句")
             style_out = _style_combo_transparent()
         else:
             base_out, style_out = BASE, 锁层A全文

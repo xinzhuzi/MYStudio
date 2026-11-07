@@ -67,6 +67,8 @@ def test_registry_exposes_first_batch_nodes():
         "MyVideoABCompare",  # 0929 TE-MAN 排查 B2:视频对比审片(双 video 同步+帧对齐)
         "MyModelBus",     # 09-21 模型分线排(1进9出,画布走线治理备件)
         "MyCharsheetLabels",  # 09-20 设定表汉字程序叠加(案一)
+                "MyQi21LatentUpscale",   # 1106 二采潜空间放大(1107 Edit 定谳后留件退役,torch 懒导入)
+        "MyQi21ColorAnchor",   # 1108 二采色彩锚(Lab 迁移,一采色权威)
         "MyImageSave",     # 1001 TE-MAN B7①:存图可追溯(核心存图子类+底部 prompt 面板,ui.myPrompt 回传)
         # 09-14 manying→my 改名前的旧键别名(存量工作流加载兼容)
         "ManyingPrompt", "ManyingReference", "ManyingGenerated", "ManyingShot",

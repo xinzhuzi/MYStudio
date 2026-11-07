@@ -141,7 +141,7 @@ class MyQi21LatentUpscale:
 
     RETURN_TYPES = ("LATENT",)
     FUNCTION = "upscale"
-    CATEGORY = "漫影/qi21二采"
+    CATEGORY = "漫影"  # 1004 类目统一令(子组仅道劫走线族豁免)
     DESCRIPTION = "学习型 2x 潜空间放大:一采干净 latent → 2x → 供二采 KSampler。"
 
     def upscale(self, latent):

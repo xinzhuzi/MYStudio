@@ -81,7 +81,7 @@ from typing import Any
 # 透明声明句级剔除单源(10-09-qi21-prompt-layer-conflict;装配器同款双路导入:
 # 包上下文相对导入,sys.path 直载/importlib 直载形态回落同目录直载)
 try:
-    from ._qi21_rgba_text import strip_rgba_decl
+    from ._qi21_rgba_text import assert_strip_survival, strip_rgba_decl
 except ImportError:  # pragma: no cover - 直载形态走此腿
     import importlib.util as _ilu
     _rgba_spec = _ilu.spec_from_file_location(
@@ -89,6 +89,7 @@ except ImportError:  # pragma: no cover - 直载形态走此腿
     _rgba_mod = _ilu.module_from_spec(_rgba_spec)
     _rgba_spec.loader.exec_module(_rgba_mod)
     strip_rgba_decl = _rgba_mod.strip_rgba_decl
+    assert_strip_survival = _rgba_mod.assert_strip_survival
 
 # 1017 运行时门禁单源(peer-load 同款家法):t2i 全路入口/出口硬门
 try:
@@ -1172,6 +1173,9 @@ class MyQi21ApiPE:
         # 10-09 层冲突治理 P5:透明开时型文自带的中文透明声明句不入 PE 输入
         # (透明语义全英文承载,[4014] 包裹);原始 base 用于匹配类型配置
         base_pe = strip_rgba_decl(base).strip() if (透明模式 and base) else base
+        # 1108 装配即验证:层丢响亮拦(静默丢层=废图出图)
+        if 透明模式 and base:
+            assert_strip_survival(base, base_pe, context="ApiPE类型句")
         # 1022 用户令:统一底座→类型句→主体句;设定卡仍解析条件内容,
         # 历史 subject_first 标记不再反转三层顺序。
         subj_first = False

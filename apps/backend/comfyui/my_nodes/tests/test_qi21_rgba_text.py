@@ -157,3 +157,47 @@ def test_assembly_opaque_output_unchanged():
     lock = "锁层A全文·对拍"
     out = asm.MyQi21PromptAssembly().assemble(BASE=scene, BASE负面="", 主体句=_SUBJ, 锁层A全文=lock)[0]
     assert out == f"{lock}\n类型句:{scene}\n主体句:{_SUBJ}"  # 1017 反序令
+
+
+def test_strip_keeps_body_when_declaration_semicolon_joined_1108():
+    """1108 句界修:型文以分号连句,声明句与正文糊在同一「。」句内——
+    仅按。切会吞掉末句号后全部正文(无衣物定妆 v0.1 后半丢失/单句号文整段归零)。"""
+    body = "全身素体立绘：正面直立站姿；通身素体呈现，零衣物零配饰；全身完整入画；"
+    decl = "图为带透明通道的RGBA透明底素材图，背景全透明，四周为纯透明空边。"
+    strip = _load("_qi21_rgba_text").strip_rgba_decl
+    assert strip(body + decl).strip() == body
+    # 单句号极端形(全文一个句号在末尾):只剔声明句,正文不陪葬
+    assert strip("立绘：站姿；素体；" + decl).strip() == "立绘：站姿；素体；"
+
+
+# ── 1108 装配即验证令:真实数据回归 + 断言助手 ────────────────────────────
+
+def test_real_types_strip_survival_all_types_1108():
+    """全部真实型文过剥除+存活断言:透明型只准剔声明句(保有率≥50%),
+    非透明型零改动。今日无衣物定妆整层归零(v0.2/v0.3 句式)与 v0.1 后半
+    静默丢失,本测首跑即红。"""
+    m = _load("_qi21_rgba_text")
+    strip = m.strip_rgba_decl
+    for t in _transparent_types():
+        pt = str(t.get("positive_text") or "").strip()
+        if not pt:
+            continue
+        out = strip(pt).strip()
+        assert "带透明通道" not in out and "背景透明" not in out, t["zh"]
+        m.assert_strip_survival(pt, out, context=t["zh"])  # 违者 RuntimeError=测试红
+
+
+def test_assert_strip_survival_raises_on_layer_loss_1108():
+    m = _load("_qi21_rgba_text")
+    f = m.assert_strip_survival
+    f("", "", context="空输入合法")
+    body = ("素体立绘：正面平视机位，正面直立站姿，双臂自然垂于身侧，双手放松自然；"
+            "通身素体呈现，全身人体比例与解剖结构清晰可读，足部赤裸；"
+            "头顶至足底全身完整入画；")
+    decl = "图为带透明通道的RGBA透明底素材图，背景全透明，四周为纯透明空边。"
+    f(body + decl, body, context="正常剥除合法")          # 只剔声明句=过(保有率~74%)
+    import pytest
+    with pytest.raises(RuntimeError):
+        f(body + decl, "", context="整段吞=拒")           # v0.3 式归零=炸
+    with pytest.raises(RuntimeError):
+        f(body + decl, body[:3], context="保有率过低=拒")  # 近全吞=炸
