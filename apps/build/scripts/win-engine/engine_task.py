@@ -48,6 +48,7 @@ CWD = 'E:/IP/\u6f2b\u5f71\u5de5\u4f5c\u5ba4/comfyui/ComfyUI'
 LOG = 'E:/IP/\u6f2b\u5f71\u5de5\u4f5c\u5ba4/comfyui/logs/engine.log'
 CUSTOM_NODES = CWD + '/custom_nodes'
 STAMPS = 'E:/IP/\u6f2b\u5f71\u5de5\u4f5c\u5ba4/comfyui/logs/req_stamps.json'
+DEPS_LOG = 'E:/IP/\u6f2b\u5f71\u5de5\u4f5c\u5ba4/comfyui/logs/deps-install.log'
 # 清华 .cn 直连（Clash 路由直连不篡改；1107 torch 役刻碑：镜像优先于对抗）
 PIP_MIRROR = 'https://pypi.tuna.tsinghua.edu.cn/simple'
 # 「Cannot import ...custom_nodes\NAME module ...: No module named 'X'」→ 欠件插件
@@ -106,6 +107,21 @@ def _say(msg):
     fh.flush()
 
 
+def _deps_log(msg, detail=None):
+    """安装专用日志(1107 用户令:安装时必须写入日志)——时间戳+插件+spec+
+    pip 明细,独立文件不与 engine.log 噪声互淹;>5MB 单档轮转保 .old。"""
+    try:
+        if os.path.exists(DEPS_LOG) and os.path.getsize(DEPS_LOG) > 5 * 1024 * 1024:
+            os.replace(DEPS_LOG, DEPS_LOG + '.old')
+        with open(DEPS_LOG, 'ab') as fh:
+            stamp = time.strftime('%Y-%m-%d %H:%M:%S')
+            fh.write(('[%s] %s\n' % (stamp, msg)).encode('utf-8', errors='replace'))
+            if detail:
+                fh.write((detail.rstrip() + '\n').encode('utf-8', errors='replace'))
+    except OSError:
+        pass  # 日志失败不拦安装本体
+
+
 def _load_stamps():
     try:
         data = json.load(open(STAMPS, encoding='utf-8'))
@@ -145,17 +161,26 @@ def _requirements_of(plugin_dir):
     return lines, hashlib.sha256(text.encode('utf-8', errors='replace')).hexdigest()
 
 
-def _pip_install(spec):
-    """单条依赖装进引擎 venv(清华直连;600s 上限;返回 (ok, tail))。"""
-    cmd = [VENV_PY, '-m', 'pip', 'install', '-q', spec, '-i', PIP_MIRROR]
+def _pip_install(spec, plugin=''):
+    """单条依赖装进引擎 venv(清华直连;600s 上限;返回 (ok, tail))。
+    全输出落安装专用日志:成功记 Successfully installed(版本回执),失败记尾部明细。"""
+    cmd = [VENV_PY, '-m', 'pip', 'install', spec, '-i', PIP_MIRROR]
     child = dict(env)
     child['PYTHONUTF8'] = '1'
     try:
         r = subprocess.run(cmd, capture_output=True, timeout=600, env=child)
     except subprocess.TimeoutExpired:
+        _deps_log('FAIL timeout600 (%s): %s' % (plugin, spec))
         return False, 'timeout 600s'
-    tail = (r.stderr or b'').decode('utf-8', errors='replace')[-200:].strip()
-    return r.returncode == 0, tail
+    out = ((r.stdout or b'') + b'\n' + (r.stderr or b'')).decode('utf-8', errors='replace')
+    lines = [ln for ln in out.splitlines() if ln.strip()]
+    if r.returncode == 0:
+        done = ' | '.join(ln for ln in lines if ln.startswith('Successfully installed'))
+        _deps_log('OK (%s): %s%s' % (plugin, spec, (' -> ' + done) if done else ''))
+        return True, done[-200:]
+    tail = '\n'.join(lines[-8:])
+    _deps_log('FAIL (%s): %s' % (plugin, spec), detail=tail)
+    return False, tail[-200:]
 
 
 def _install_plugin_requirements(plugin, lines=None):
@@ -171,7 +196,7 @@ def _install_plugin_requirements(plugin, lines=None):
         if spec.startswith('git+'):
             _say('deps skip git+ (%s): %s' % (plugin, spec[:70]))
             continue
-        good, tail = _pip_install(spec)
+        good, tail = _pip_install(spec, plugin)
         if good:
             ok += 1
             _say('deps ok (%s): %s' % (plugin, spec[:70]))
@@ -197,6 +222,7 @@ def reconcile_requirements():
         if stamps.get(plugin) == digest:
             continue
         _say('deps reconcile: %s (requirements 新增/变更)' % plugin)
+        _deps_log('RECONCILE start: %s (%d specs)' % (plugin, len(lines)))
         _install_plugin_requirements(plugin, lines)
         stamps[plugin] = digest
         touched = True
@@ -265,6 +291,8 @@ def heal_watch(offset):
         _say('heal-watch: 引擎就绪,依赖零欠件,自愈收工')
         return
     _say('heal-watch: 检出欠件插件 %d 个,补装后重启一代' % len(missing))
+    _deps_log('HEAL start: %d plugins missing modules: %s'
+              % (len(missing), ', '.join(sorted(missing))))
     for plugin, modules in missing.items():
         _say('heal: %s 缺 %s → 重跑 requirements' % (plugin, ','.join(sorted(modules))))
         _install_plugin_requirements(plugin)
