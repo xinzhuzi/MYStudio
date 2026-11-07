@@ -2405,7 +2405,7 @@ export function McpSettingsTab() {
                         —— 经 SSH 远程操作该机的 ComfyUI 引擎 Python
                         环境(venv),升级{" "}
                         <span className="font-mono">
-                          PyTorch + 配套 torchvision
+                          PyTorch + 配套 torchvision/torchaudio
                         </span>
                         ;不动该机的 ComfyUI 本体、插件与模型文件。
                       </p>

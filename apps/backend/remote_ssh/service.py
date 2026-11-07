@@ -77,6 +77,11 @@ _WIN_COMFY_ROOT = "E:\\IP\\漫影工作室\\comfyui"
 _WIN_CUSTOM_NODES = _WIN_COMFY_ROOT + "\\ComfyUI\\custom_nodes"
 _WIN_VENV_PYTHON = _WIN_COMFY_ROOT + "\\venv\\Scripts\\python.exe"
 TORCH_TV_MAP = {"2.14.1": "0.29.1", "2.14.0": "0.29.0", "2.13.0": "0.28.0"}
+# 1107 补挂账:升级管线只带 torch/torchvision 漏了 torchaudio,旧件 2.11.0+cu128 在 torch 2.14.1+cu132 下
+# 加载即炸,拖挂 6 插件(MiniMaxH3×3/LayerStyle/LTXVideo/CRT-Nodes)。
+# 官方 cu132 通道 torchaudio 最新=2.11.1(节奏落后 torch,非同版本号);其依赖 torch>=2.11 宽松下界,
+# pip 对已装的 2.14.1 判 Requirement already satisfied 不重下不降级(1107 dry-run 实证)。
+TORCH_TA_MAP = {k: "2.11.1" for k in TORCH_TV_MAP}
 PINNED_TORCH = "2.14.1"  # 升版时修改此常量
 _REMOTE_TORCH_JOB_ID: str | None = None
 _TORCH_UPGRADE_LOCK = threading.Lock()
@@ -1221,12 +1226,22 @@ class SSHService:
         return output.strip()
 
     def _torch_remote_pip_running(self) -> bool:
-        output = self._torch_command(f"$ErrorActionPreference='Stop'; @((Get-CimInstance Win32_Process -Filter \"Name like 'python%'\") | Where-Object {{ $_.CommandLine -and $_.CommandLine.IndexOf({_torch_quote(_WIN_VENV_PYTHON)}, [StringComparison]::OrdinalIgnoreCase) -ge 0 -and $_.CommandLine -match '\\s-m\\s+pip\\s+install(\\s|$)' }}).Count")
+        output = self._torch_command(f"$ErrorActionPreference='Stop'; @((Get-CimInstance Win32_Process -Filter \"Name like 'python%'\") | Where-Object {{ $_.CommandLine -and $_.CommandLine.IndexOf({_torch_quote(_WIN_VENV_PYTHON)}, [StringComparison]::OrdinalIgnoreCase) -ge 0 }}).Count")
         # CLIXML 进度记录(GBK 中文)会混进 SSH exec stdout,只取纯数字行(1107 用户实弹踩雷)
         numeric = [l.strip() for l in output.splitlines() if l.strip().isdecimal()]
         if not numeric:
             raise RuntimeError("无法核实远端 pip 状态")
         return int(numeric[0]) > 0
+
+    def _torch_torchaudio_metadata(self) -> str:
+        """torchaudio 版本探针(importlib.metadata 只读 dist-info,不 import——
+        坏件(如 cu128 旧 torchaudio 配 cu132 torch)import 即抛 OSError,metadata 安全)。"""
+        output = self._torch_command(
+            f"$env:PYTHONUTF8='1'; & {_torch_quote(_WIN_VENV_PYTHON)} -c 'import importlib.metadata as m; print(m.version(\"torchaudio\"))'; exit $LASTEXITCODE",
+            60,
+        )
+        lines = [l.strip() for l in output.splitlines() if l.strip()]
+        return lines[-1] if lines else ""
 
     def _torch_verify_recovery_import(self, target: str) -> None:
         actual = self._torch_command(f"& {_torch_quote(_WIN_VENV_PYTHON)} -c 'import torch, torchvision; print(torch.__version__)'; exit $LASTEXITCODE", 60)
@@ -1494,13 +1509,18 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
             if not self.status().get("connected"):
                 raise RuntimeError("SSH 未连接")
             # 1107: skip-if-latest——当前版本已等于目标则跳过全链,不重下 4GB
+            # 1107 补:torchaudio 同查(metadata 探针)——torch 达标但 torchaudio 旧件残留时
+            # 不得跳过(cu128 旧件拖挂 6 插件役教训);pip 对已满足的 torch/torchvision pin
+            # 判 already-satisfied 不重下,补装 torchaudio 仅 ~2MB
             try:
                 _stats = self._torch_http("/system_stats")
                 _cur = _stats.get("system", {}).get("pytorch_version", "")
                 if _cur == target_version:
-                    result["from"] = _cur
-                    jobs.update(job_id, step="ledger", progress=100, message=f"已是目标版本 {_cur},跳过升级", result=result)
-                    return result
+                    _ta = self._torch_torchaudio_metadata()
+                    if _ta == f"{TORCH_TA_MAP[target]}+{channel}":
+                        result["from"] = _cur
+                        jobs.update(job_id, step="ledger", progress=100, message=f"已是目标版本 {_cur}(含 torchaudio {_ta}),跳过升级", result=result)
+                        return result
             except Exception:
                 pass  # 探针失败不拦升级流程
             progress("preflight", 5, "检查远端引擎")
@@ -1533,8 +1553,9 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
                 copied = self.sftp_read_text(remote_path.replace("\\", "/"))
             if hashlib.sha256(copied.encode("utf-8")).hexdigest().lower() != snapshot_hash.lower():
                 raise RuntimeError("远端快照回拷校验失败")
-            pins = dict(re.findall(r"(?im)^(torch|torchvision)==([^\s]+)\s*$", copied))
+            pins = dict(re.findall(r"(?im)^(torch|torchvision|torchaudio)==([^\s]+)\s*$", copied))
             old_torch, old_tv = pins.get("torch", ""), pins.get("torchvision", "")
+            old_ta = pins.get("torchaudio", "")  # 1107 补:回滚带 torchaudio(无件环境=空串不强求)
             if not re.fullmatch(r"\d+\.\d+\.\d+\+cu\d+", old_torch):
                 raise RuntimeError("快照缺少可回滚的 CUDA torch pin")
             if not re.fullmatch(r"\d+\.\d+\.\d+\+cu\d+", old_tv):
@@ -1552,11 +1573,12 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
             install_started = True
             specs = [f"torch=={target_version}"]
             specs.append(f"torchvision=={TORCH_TV_MAP[target]}+{channel}")
+            specs.append(f"torchaudio=={TORCH_TA_MAP[target]}+{channel}")  # 1107 补:三件套齐
             self._torch_install(specs, channel, job_id)
             progress("verify-import", 85, "验证 PyTorch 和 CUDA")
-            probe = self._torch_command(f"$env:PYTHONUTF8='1'; & {_torch_quote(_WIN_VENV_PYTHON)} -c 'import torch; print(torch.__version__); print(torch.cuda.is_available())'; exit $LASTEXITCODE", 120).splitlines()
-            if len(probe) < 2 or probe[-2:] != [target_version, "True"]:
-                raise RuntimeError("PyTorch 版本或 CUDA 导入验证失败")
+            probe = self._torch_command(f"$env:PYTHONUTF8='1'; & {_torch_quote(_WIN_VENV_PYTHON)} -c 'import torch, torchaudio; print(torch.__version__); print(torch.cuda.is_available()); print(torchaudio.__version__)'; exit $LASTEXITCODE", 120).splitlines()
+            if len(probe) < 3 or probe[-3:] != [target_version, "True", f"{TORCH_TA_MAP[target]}+{channel}"]:
+                raise RuntimeError("PyTorch/torchaudio 版本或 CUDA 导入验证失败")
             progress("restart", 90, "重启引擎")
             stats = self._torch_restart()
             progress("smoke", 95, "验证引擎节点")
@@ -1581,7 +1603,7 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
                 raise RuntimeError(f"引擎烟测失败(版本={stats.get('system',{}).get('pytorch_version','?')}, 节点={node_count}/{baseline})")
             progress("ledger", 99, "记录升级结果")
             now = datetime.now(timezone.utc).isoformat()
-            current = {"torch": target_version, "torchvision": f"{TORCH_TV_MAP[target]}+{channel}", "cuda": f"{channel[2:-1]}.{channel[-1]}", "updatedAt": now, "via": "oneclick"}
+            current = {"torch": target_version, "torchvision": f"{TORCH_TV_MAP[target]}+{channel}", "torchaudio": f"{TORCH_TA_MAP[target]}+{channel}", "cuda": f"{channel[2:-1]}.{channel[-1]}", "updatedAt": now, "via": "oneclick"}
             self._torch_write_ledger(current, {"at": now, "from": old_torch, "to": target_version, "ok": True, "rollback": False, "jobId": job_id})
             _torch_clear_markers()
             jobs.update(job_id, step="ledger", progress=100, message="升级完成，引擎已重启", result=result)
@@ -1598,6 +1620,10 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
                         self._torch_stop_engine()
                         old_channel = old_torch.rsplit("+", 1)[1]
                         self._torch_install([f"torch=={old_torch}", f"torchvision=={old_tv}"], old_channel, job_id, allow_mirror=False)
+                        # 1107 补:torchaudio 单独回滚——混装态(如 torch cu132+torchaudio cu128)
+                        # 通道不同,须各走各的 index 找得到轮子;CPU 版 pin(无+cuXXX)无通道可言,跳过
+                        if old_ta and "+" in old_ta:
+                            self._torch_install([f"torchaudio=={old_ta}"], old_ta.rsplit("+", 1)[1], job_id, allow_mirror=False)
                     stats = self._torch_restart()
                     if old_torch and (stats.get("system", {}).get("pytorch_version") != old_torch or not stats.get("devices")):
                         raise RuntimeError("回滚后引擎版本验证失败")
@@ -1607,7 +1633,7 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
                     error += f"；已回滚至 {old_torch}" if install_started else "；引擎已恢复"
                     if install_started:
                         now = datetime.now(timezone.utc).isoformat()
-                        self._torch_write_ledger({"torch": old_torch, "torchvision": old_tv or None, "cuda": None, "updatedAt": now, "via": "rollback"}, {"at": now, "from": old_torch, "to": target_version, "ok": False, "rollback": True, "jobId": job_id})
+                        self._torch_write_ledger({"torch": old_torch, "torchvision": old_tv or None, "torchaudio": old_ta or None, "cuda": None, "updatedAt": now, "via": "rollback"}, {"at": now, "from": old_torch, "to": target_version, "ok": False, "rollback": True, "jobId": job_id})
                         _torch_clear_markers()
                 except Exception as rollback_exc:
                     logger.exception("Torch rollback failed")

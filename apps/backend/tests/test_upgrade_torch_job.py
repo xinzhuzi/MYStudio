@@ -27,8 +27,8 @@ def setup_job(monkeypatch, tmp_path):
     monkeypatch.setattr(engine_manager, "jobs", registry)
     monkeypatch.setattr(manifest, "comfy_home", lambda: tmp_path)
     instance = service.SSHService()
-    freeze = "torch==2.11.0+cu128\ntorchvision==0.26.0+cu128"
-    state = {"queue": {"queue_pending": [], "queue_running": []}, "free": str(20 * 1024 ** 3), "install_errors": []}
+    freeze = "torch==2.11.0+cu128\ntorchvision==0.26.0+cu128\ntorchaudio==2.11.0+cu128"
+    state = {"queue": {"queue_pending": [], "queue_running": []}, "free": str(20 * 1024 ** 3), "install_errors": [], "stats_version": "2.11.0+cu128", "ta_version": "2.11.0+cu128"}
     instance.status = lambda: {"connected": True}
     instance.sftp_read_text = lambda path: freeze
 
@@ -41,8 +41,11 @@ def setup_job(monkeypatch, tmp_path):
             return "CUDA Version: 13.2"
         if "pip freeze" in script:
             return hashlib.sha256(freeze.encode()).hexdigest()
+        if "importlib.metadata" in script:
+            return state["ta_version"]
         if "torch.cuda.is_available" in script:
-            return "2.14.1+cu132\nTrue"
+            # 1107 补:torchaudio 三件套验证探针(torch 版本/cuda 可用/torchaudio 版本)
+            return "2.14.1+cu132\nTrue\n2.11.1+cu132"
         return ""
 
     def http(path, timeout_s=20):
@@ -50,7 +53,7 @@ def setup_job(monkeypatch, tmp_path):
             return state["queue"]
         if path == "/object_info":
             return {"nodeCount": 1}
-        return {"system": {"pytorch_version": "2.14.1+cu132"}, "devices": [{}]}
+        return {"system": {"pytorch_version": state["stats_version"]}, "devices": [{}]}
 
     def install(specs, channel, job_id, *, allow_mirror=True):
         if state["install_errors"]:
@@ -263,7 +266,33 @@ def test_install_failure_rolls_back(setup_job, rollback_fails):
     assert job["status"] == "error"
     assert ("回滚失败" if rollback_fails else "已回滚至 2.11.0+cu128") in job["message"]
     assert instance._torch_install.call_args_list[1].args[1] == "cu128"
+    if not rollback_fails:
+        # 1107 补:torchaudio 按自身 CUDA 通道单独回滚(混装态各走各的 index)
+        assert instance._torch_install.call_args_list[2].args[0] == ["torchaudio==2.11.0+cu128"]
+        assert instance._torch_install.call_args_list[2].args[1] == "cu128"
     assert service._torch_stuck_marker().exists() is rollback_fails
+
+
+def test_skip_when_torch_and_torchaudio_both_latest(setup_job):
+    instance, registry, job_id, state, _ = setup_job
+    state["stats_version"] = "2.14.1+cu132"
+    state["ta_version"] = "2.11.1+cu132"
+    instance._torch_upgrade_job(job_id, "2.14.1", "cu132")
+    job = registry.get(job_id)
+    assert job["status"] == "complete" and "跳过升级" in job["message"]
+    instance._torch_install.assert_not_called()
+
+
+def test_torchaudio_stale_runs_full_upgrade(setup_job):
+    # 1107 事故回放:引擎 torch 已达标(2.14.1+cu132)但 torchaudio 残留 cu128 →
+    # skip-if-latest 不得放行,须跑全链补装三件套(pip 对已满足 pin 不重下,仅补 ~2MB)
+    instance, registry, job_id, state, _ = setup_job
+    state["stats_version"] = "2.14.1+cu132"
+    state["ta_version"] = "2.11.0+cu128"
+    instance._torch_upgrade_job(job_id, "2.14.1", "cu132")
+    assert registry.get(job_id)["status"] == "complete"
+    specs = instance._torch_install.call_args_list[0].args[0]
+    assert specs == ["torch==2.14.1+cu132", "torchvision==0.29.1+cu132", "torchaudio==2.11.1+cu132"]
 
 
 def test_stop_pattern_excludes_myssia():
@@ -286,7 +315,7 @@ def test_stop_command_matches_only_engine_samples():
     assert matches(r"E:\IP\app\comfyui\venv\Scripts\python.exe E:/IP/漫影工作室/comfyui/ComfyUI/main.py")
 
 
-def test_official_install_retries_mirror(monkeypatch):
+def test_mirror_install_falls_back_to_official(monkeypatch):
     registry = engine_manager.JobRegistry()
     monkeypatch.setattr(engine_manager, "jobs", registry)
     instance = service.SSHService()
@@ -294,8 +323,9 @@ def test_official_install_retries_mirror(monkeypatch):
     instance._torch_install(["torch==2.14.1+cu132"], "cu132", registry.create("torch-upgrade"))
     assert instance.run_remote_command.call_count == 2
     scripts = [base64.b64decode(call.args[0].split()[-1]).decode("utf-16le") for call in instance.run_remote_command.call_args_list]
-    assert "https://download.pytorch.org/whl/cu132" in scripts[0]
-    assert "https://mirrors.aliyun.com/pytorch-wheels/cu132" in scripts[1]
+    # 1107 终裁:交大(.cn Clash 直连不被篡改)首选,官方源兜底;阿里无 cu132 已除名
+    assert "https://mirror.sjtu.edu.cn/pytorch-wheels/cu132" in scripts[0]
+    assert "https://download.pytorch.org/whl/cu132" in scripts[1]
     assert all("PYTHONUTF8" in script for script in scripts)
 
 
@@ -528,10 +558,11 @@ def test_pip_probe_rejects_unknown_exit_code(code):
 
 
 @pytest.mark.parametrize("after,expected", [(1, "error"), (190, "complete")])
-def test_remote_smoke_respects_node_baseline(setup_job, after, expected):
+def test_remote_smoke_respects_node_baseline(setup_job, monkeypatch, after, expected):
     instance, registry, job_id, _, _ = setup_job
+    monkeypatch.setattr(service.time, "sleep", lambda seconds: None)  # 烟测重试 5×30s 免真睡
     original_http = instance._torch_http
-    counts = iter([200, after, 200])
+    counts = iter([200, after] + [200] * 5)
     instance._torch_http = lambda path, timeout_s=20: {"nodeCount": next(counts)} if path == "/object_info" else original_http(path, timeout_s)
     instance._torch_restart.side_effect = [
         {"system": {"pytorch_version": "2.14.1+cu132"}, "devices": [{}]},
@@ -556,7 +587,7 @@ def test_remote_snapshot_requires_torchvision_before_stop(setup_job):
     instance._torch_stop_engine.assert_not_called()
 
 
-def test_rollback_uses_official_index_only(setup_job):
+def test_rollback_uses_direct_mirror_only(setup_job):
     instance, registry, job_id, _, _ = setup_job
     real_install = service.SSHService._torch_install.__get__(instance)
     instance.run_remote_command = Mock(return_value=(1, "offline"))
@@ -569,7 +600,8 @@ def test_rollback_uses_official_index_only(setup_job):
     assert "回滚失败" in registry.get(job_id)["message"]
     assert instance.run_remote_command.call_count == 1
     script = base64.b64decode(instance.run_remote_command.call_args.args[0].split()[-1]).decode("utf-16le")
-    assert "download.pytorch.org/whl/cu128" in script and "mirrors.aliyun.com" not in script
+    # 1107 终裁:回滚单源=交大直连(allow_mirror=False 不再兜官方;官方域名走 Clash 代理有篡改雷)
+    assert "https://mirror.sjtu.edu.cn/pytorch-wheels/cu128" in script and "download.pytorch.org" not in script
 
 
 def test_upgrade_lock_blocks_engine_and_plugin_job_creation(monkeypatch):
@@ -928,10 +960,11 @@ def test_install_timeout_version_mismatch_rolls_back(setup_job):
     instance, registry, job_id, _, _ = setup_job
     instance._torch_install = service.SSHService._torch_install.__get__(instance)
     instance._torch_restart.return_value = {"system": {"pytorch_version": "2.11.0+cu128"}, "devices": [{}]}
-    instance.run_remote_command = Mock(side_effect=[timeout_error(), (0, "wrong\nwrong"), (0, "rollback ok")])
+    # 第4发=1107 补的 torchaudio 单独回滚(混装态各走各的 index)
+    instance.run_remote_command = Mock(side_effect=[timeout_error(), (0, "wrong\nwrong"), (0, "rollback ok"), (0, "rollback ok")])
     instance._torch_upgrade_job(job_id, "2.14.1", "cu132")
     assert "已回滚至 2.11.0+cu128" in registry.get(job_id)["message"]
-    assert instance.run_remote_command.call_count == 3
+    assert instance.run_remote_command.call_count == 4
 
 
 def test_install_timeout_disconnected_is_unknown(monkeypatch):
