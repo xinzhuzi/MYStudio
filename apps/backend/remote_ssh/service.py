@@ -1547,7 +1547,21 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
                 self._torch_restart()
             queue = self._torch_http("/queue")
             if queue.get("queue_pending") != [] or queue.get("queue_running") != []:
-                raise RuntimeError("引擎队列非空或队列状态无效")
+                # 1107 用户斥「啥没说」:报错须带队列内容摘要,不能只甩「非空」
+                _run_q = queue.get("queue_running") or []
+                _pend_q = queue.get("queue_pending") or []
+                _first_node = ""
+                for _entry in list(_run_q) + list(_pend_q):
+                    _prompt = _entry[2] if isinstance(_entry, (list, tuple)) and len(_entry) > 2 and isinstance(_entry[2], dict) else None
+                    if _prompt:
+                        _node = next(iter(_prompt.values()), None)
+                        _first_node = str(_node.get("class_type", "")) if isinstance(_node, dict) else ""
+                        break
+                raise RuntimeError(
+                    f"引擎队列非空(执行中 {len(_run_q)} 项、待跑 {len(_pend_q)} 项"
+                    + (f",首节点 {_first_node}" if _first_node else "")
+                    + ")——引擎正在跑生成任务,等任务完成或清空队列后再点升级;中途升级会杀引擎毁掉在途出图"
+                )
             baseline = self._torch_http("/object_info", 120).get("nodeCount", 0)
             if baseline <= 0:
                 raise RuntimeError("节点基线为空")
