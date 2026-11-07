@@ -4,18 +4,18 @@
 (GUI 格式,fork pika-单镜视频-ref2v.json 出生)。
 
 三段契约:
-  ① 一阶段采样 = 现役 ref2v 主力线原样(ref2va int8 pruned + Pika ref2va LoRA@1.0
-     + lcm + ManualSigmas 官方 7 值 + kitchen attention),出厂档 0.4MP 864×480
+  ① 一阶段采样 = 现役 ref2v 主力线原样(ref2va int8 pruned + Pika ref2va LoRA@0.7
+     + lcm + BasicScheduler(simple,8) + kitchen attention),出厂档 0.5MP 960×544
      (1105 用户裁定;家族其余件仍 0.2MP)。
   ② 二采放大·默认终档 = UP 主黎黎原上咩配方(BV1AsxD6JEJJ 参数深挖定谳,
      对拍档 .trellis/tasks/11-05-11-05-daojie-h3-three-stage/research/UP二采参数对拍.md):
-     LTXVSeparate→MinimaxH3LatentUpscaler3D(3d_bf16,target 1280×704,cuda)
-     →LTXVConcat(音轨 latent 直通)→FL2VA int8 pruned+taomate@1.0+SigmaShift[12,3]
+     LTXVSeparate→MinimaxH3LatentUpscaler3D(3d_bf16,target 1472×832,cuda)
+     →LTXVConcat(音轨 latent 直通)→FL2VA int8 pruned+taomate@0.7+SigmaShift[12,3]
      +kitchen+lcm+BasicScheduler simple/3步/dn0.2(TaoMate 二采必须 LCM,Euler→
      片尾字幕乱码红线);[4] SaveVideo 锚移挂二采产物=默认终档(五段前缀+MyShot
      回写契约不变,组装器 buildShotRefWorkflowFromTemplate 兼容)。
   ③ 质量精修 TESSERA = tessera_upscaler_master 精简+api_formal_v4(第四发 1080p
-     定谳)参数:×1.5→1920×1056、σ"1, 0.7, 0.4, 0.0"、er_sde+euler、taomate@1.0
+     定谳)参数:×1.5→1920×1056、σ"1, 0.7, 0.4, 0.0"、er_sde+euler、taomate@0.7
      +LMS 0.75/1.0、sol-attn、TE nvfp4_awq、CRF12、seed 786110;全组 mode=2
      默认旁路(质量档只作测试,不默认跑);1056→1080 归一=图外 ffmpeg 交付步。
 
@@ -73,29 +73,29 @@ def test_stage1_mainline_recipe_unchanged():
 
 
 def test_stage1_factory_tier_04mp():
-    """一采出厂档 0.4MP 864×480(1105 用户裁定);帧数 124=17k+5 网格。"""
+    """一采出厂档 0.5MP 960×544(1105 用户裁定);帧数 124=17k+5 网格。"""
     _, nodes, _ = _load()
-    assert nodes[22]["widgets_values"][1] == 0.4
-    assert nodes[16]["widgets_values"][1:3] == [864, 480]
+    assert nodes[22]["widgets_values"][1] == 0.5
+    assert nodes[16]["widgets_values"][1:3] == [960, 544]
     assert nodes[16]["widgets_values"][3] == 124
 
 
 def test_stage2_up_recipe():
-    """二采=UP 配方逐值:upscaler 3d_bf16→1280×704 cuda / taomate@1.0 /
+    """二采=UP 配方逐值:upscaler 3d_bf16→1280×704 cuda / taomate@0.7 /
     fl2va int8 pruned / lcm 复用 / BasicScheduler simple/3/0.2 / SigmaShift[12,3]。"""
     _, nodes, _ = _load()
     assert nodes[206]["type"] == "MinimaxH3LatentUpscaler3D"
     w = nodes[206]["widgets_values"]
     assert w[0] == "minimax_h3_latent_upscaler_3d_bf16.safetensors"
-    assert w[1:5] == ["target dimensions", 1280, 704, 32]
+    assert w[1:5] == ["target dimensions", 1472, 832, 32]
     assert w[5] is True and w[6] is True, "chunking/force_unload 开(Win 先例 fasth3-二采超分-2x)"
     assert w[7] == "cuda", "Win 产线引擎,device 必须 cuda(社区件出厂 mps 已勘正)"
-    assert nodes[202]["widgets_values"] == ["taomate_h3_3step.safetensors", 1]
+    assert nodes[202]["widgets_values"] == ["taomate_h3_3step.safetensors", 0.7]
     # 1105 统一改造:单 UNETLoader(Cobijada)扇出双 LoRA 臂,换装段消失(taomate@Cobijada 候实弹)
     assert nodes[209]["widgets_values"] == ["simple", 3, 0.2], "UP 定谳:simple/3步/denoise 0.2"
     assert nodes[203]["widgets_values"] == [12, 3]
     assert nodes[208]["type"] == "MiniMaxH3ReferenceToVideo"
-    assert nodes[208]["widgets_values"][1:3] == [1280, 704]
+    assert nodes[208]["widgets_values"][1:3] == [1472, 832]
     assert nodes[211]["type"] == "SamplerCustomAdvanced"
 
 
@@ -188,7 +188,7 @@ def test_stage3_tessera_params_v4():
     assert nodes[319]["widgets_values"] == [TESSERA_SIGMAS]
     assert nodes[317]["widgets_values"] == ["er_sde"]
     assert nodes[318]["widgets_values"] == ["euler"]
-    assert nodes[314]["widgets_values"] == ["taomate_h3_3step.safetensors", 1]
+    assert nodes[314]["widgets_values"] == ["taomate_h3_3step.safetensors", 0.7]
     assert nodes[315]["widgets_values"] == ["minimax_h3_lms_v1.0_r64.safetensors", 0.75]
     assert nodes[316]["widgets_values"] == ["minimax_h3_lms_v1.0_r64.safetensors", 1]
     assert nodes[308]["widgets_values"][0] == "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors", "1105 统一深化:③组底模随双模归档同迁 Cobijada"
@@ -244,7 +244,7 @@ def test_absorbed_fl2v_firstframe_mode():
     d, nodes, links = _load()
     assert nodes[219]["type"] == "PrimitiveBoolean" and nodes[219]["widgets_values"] == [True]
     assert nodes[220]["type"] == "MiniMaxH3ImageToVideo", "i2v 条件(吸收自 fl2v)"
-    assert nodes[216]["widgets_values"] == ["pika_h3_flex_fl2va_comfy_bf16.safetensors", 1]
+    assert nodes[216]["widgets_values"] == ["pika_turbo_8step_fl2va.safetensors", 1]
     fans = sorted(l[3] for l in d["links"] if l[1] == 219)
     assert fans == [218, 221, 222], "模式开关单源扇出三选择点"
     for sid, t_slot, f_slot in ((218, 1, 2), (221, 1, 2), (222, 1, 2)):
