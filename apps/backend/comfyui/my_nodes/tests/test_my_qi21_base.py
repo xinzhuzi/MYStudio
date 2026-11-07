@@ -71,8 +71,9 @@ RENWU_XI = {"人物海报", "美宣", "人物多视图", "高清人脸", "分镜
 # 1022 人脸基准入列(晏燎基准脸役):透明族第五型
 RGBA_DEFAULT_TYPES = {"道具", "人物多视图", "高清人脸", "表情差分", "人脸基准", "无衣物定妆"}  # 1023 无衣物定妆入列(透明族第六型)
 
-# 透明声明句核锚=全串(防「透明头皮」光头禁令条款误判,S0 research/transparency-
-# fusion.md 注记;canon_lib TRANSPARENT_DECL 首段,表情差分变体尾同前缀)
+# 透明声明句锚(1108 字段化随轮翻转):声明句已从型文正文退役(真源手术
+# qi21_decl_fieldize_1108.py),透明语义由 rgba_default 旗+[4014] 英文官方头尾
+# 程序化承载——本锚由「在场单点锚」翻转为「退役单点锚」(防声明句回潮)
 RGBA_DECL_ANCHOR = "图为带透明通道的 RGBA 透明底图"
 
 
@@ -249,7 +250,8 @@ def test_rgba_default_five_types_true_rest_false():
     互锁;RGBA_DECL_ANCHOR 保留为道具型单点锚);②五型集合独立钉(防
     RGBA_DEFAULT_TYPES 被静默改);③节点输出与 json 字段一致。"""
     daojv = next(e for e in _canon_types() if e["zh"] == "道具")
-    assert RGBA_DECL_ANCHOR in daojv["positive_text"]  # 道具型声明句单点锚
+    assert RGBA_DECL_ANCHOR not in daojv["positive_text"], \
+        "道具型声明句应已退役(1108 字段化:正文零中文声明,防回潮锚)"
     for zh in _canon_order():
         base_text, _w, _h, _n, _t, _tn = MyQi21DaojieBase().run(zh)
         entry = my_qi21_base._entry(zh)

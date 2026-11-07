@@ -90,6 +90,29 @@ except ImportError:  # pragma: no cover - 直载形态走此腿
     _rgba_spec.loader.exec_module(_rgba_mod)
     strip_rgba_decl = _rgba_mod.strip_rgba_decl
     assert_strip_survival = _rgba_mod.assert_strip_survival
+# 装配层结构体单源(1108 根治役 S2/S3;同上双路导入):型文入口统一变换
+# (ingest_type_text=legacy 声明兜底剥除+存活断言,真源数据恒等=剥除正则面归零)/
+# 负面合并单源(merge_negative_tokens,粒状切分+保序去重)/型元数据一发匹配
+# (lookup_type)/渲染序列化(render_t2i/render_lean)/设定卡条件预解析
+# (resolve_card_conditionals——原本地复制收编,_resolve_card_conditionals 保纯别名)。
+try:
+    from ._qi21_layers import (Qi21Layers, ingest_type_text, lookup_type,
+                                merge_negative_tokens, render_lean, render_t2i,
+                                resolve_card_conditionals)
+except ImportError:  # pragma: no cover - 直载形态走此腿
+    import importlib.util as _ilu
+    _layers_spec = _ilu.spec_from_file_location(
+        "qi21_layers_peer_load", Path(__file__).resolve().parent / "_qi21_layers.py")
+    _layers_mod = _ilu.module_from_spec(_layers_spec)
+    _layers_spec.loader.exec_module(_layers_mod)
+    Qi21Layers = _layers_mod.Qi21Layers
+    ingest_type_text = _layers_mod.ingest_type_text
+    lookup_type = _layers_mod.lookup_type
+    merge_negative_tokens = _layers_mod.merge_negative_tokens
+    render_lean = _layers_mod.render_lean
+    render_t2i = _layers_mod.render_t2i
+    resolve_card_conditionals = _layers_mod.resolve_card_conditionals
+_resolve_card_conditionals = resolve_card_conditionals  # 旧名兼容(测试引用)
 
 # 1017 运行时门禁单源(peer-load 同款家法):t2i 全路入口/出口硬门
 try:
@@ -503,38 +526,17 @@ def _context_materials() -> tuple[str, str]:
     return style, colors
 
 
-def _resolve_card_conditionals(text: str, subj: str) -> str:
-    """设定卡条件预解析(1017 官方对拍役:条件句提前按主体解析成确定描述)。
-
-    型文=模板(「有则画/没有则留空」条件句照存);终稿按主体句事实落定——
-    官方语料全是确定指令,运行时条件句在装配层提前解析(用户令第2条)。
-    逐字匹配 fail-closed:原句缺席=不换(模板日后改句时退回模板句,无害)。
-    """
-    if not text or not subj:
-        return text
-    out = text
-    m = re.search(r"名号「([^」]{1,12})」", subj)
-    if m:
-        out = out.replace(
-            "标题栏中央放置角色名号，主体明确提供名号时逐字使用，未提供时标题栏留白仅存细线边饰；",
-            f"标题栏中央逐字放置角色名号「{m.group(1)}」；", 1)
-    if "劲装" in subj:
-        out = out.replace(
-            "服装袖型、衣长与裤裙形制服从主体，主体为劲装时呈束袖束腰上衣与分开的双腿裤装，武器长短和材质服从主体；",
-            "服装呈束袖束腰上衣与分开的双腿裤装，武器长短和材质服从主体句；", 1)
-    if ("收鞘" in subj) or ("收在鞘中" in subj):
-        out = out.replace(
-            "武器的收鞘、出鞘或残损状态服从主体事实；完整武器两端均入画，局部图与完整图对应同一件武器；来源为收鞘态时，完整图与所有局部图均保持收鞘态。各特写只呈现实际存在的部件；主体未提供武器、鞘或配饰装备时，对应槽位保留净空，格面留白。",
-            "完整武器两端均入画，局部图与完整图对应同一件武器，完整图与所有局部图均保持收鞘态；各特写只呈现实际存在的部件。", 1)
-    if not re.search(r"技能|术法|招式|功法|神通|绝学", subj):
-        out = out.replace(
-            "底部第四区为能力资料：主体明确提供技能或术法时，上格展示一幅该能力的独立效果，下格展示其关键形态或作用部位；主体未提供时，该区保留净空，仅标注“能力未设定”。来源明确带有灵兽时，另用独立附板展示完整兽形与兽类细节，附板独立排布；来源未带灵兽时，本板保持人物设定板内容。",
-            "底部第四区为能力资料：该区保留净空，仅标注“能力未设定”。", 1)
-    return out
+# 设定卡条件预解析(1017 官方对拍役)——1108 收编单源 _qi21_layers:
+# 本地旧实现退役,顶部导入块后持纯别名 `_resolve_card_conditionals =
+# resolve_card_conditionals`(旧引用兼容;与装配器从此同一函数对象,
+# 手工逐句同步的「零跨模块家法」被单源取代)。
 
 
 def _rgba_lean_pos(subj: str, type_pos: str | None = None) -> str:
     """透明路回退极简公式(1008 R3九型实弹定谳;1009晚修:零自带头尾+剥中文透明句)。
+    1108 层结构体化(S3):遗留兼容件(当前 rewrite 路由已走三层直拼,1022 令)——
+    型元数据一发匹配(lookup_type)+型文入口统一变换(ingest_type_text,真源数据
+    恒等=剥除正则面归零,legacy 副本兜底在位)+序列化收编 render_lean,行为零改。
 
     依据:富装配17句画背景命令以6.7~8.3:1兵力比淹没透明指令(道具全透
     4.98%/多视图·高清人脸·表情差分0.00%,同seed四连逐字节复现;0927d
@@ -544,38 +546,26 @@ def _rgba_lean_pos(subj: str, type_pos: str | None = None) -> str:
     rgba.subject_isolation=透明输出承载(1008 用户令拆分:画法工艺子集随行托风格,
     底色/平涂/背景语言仍排除——1008晚二轮实证纯主体句无托底=风格漂成普通渲染)。
     1009晚修(用户令「修」,实弹 A案补色首弹收据实证双头双尾+中文透明句残留):
-    ①透明语义全英文承载(2008架构令)——rgba_positive 自带的中文透明声明句
-    (「图为带透明通道…背景透明」)句级剥除,不再入正文;
+    ①透明语义全英文承载(2008架构令)——rgba_positive 的中文透明声明句
+    1108 字段化手术已从真源退役(入口 ingest 兜底恒过);
     ②官方头尾(head_en/tail_en)由 [4014] FinalOutput 统一包裹各一次,
     本回退路零自带头尾(治 lean 自带+4014 再包=双头双尾叠加)。
     """
     bases = _load_bases_node()
     body = (subj or "").strip()
-    extra = ""
-    _card_first = False
-    if (type_pos or "").strip():
-        for t in (bases.get("types") or []):
-            if isinstance(t, dict) and (t.get("positive_text") or "").strip() == type_pos.strip():
-                extra = str(t.get("rgba_positive") or "").strip()
-                _card_first = t.get("subject_first") is True
-                break
-    # 1009晚修①:句级剥除中文透明声明(rgba_positive 为单段多句,行级滤不够;
-    # 10-09 层冲突治理:口径收归 _qi21_rgba_text 单源,单段时逐字节同旧式)
-    extra = strip_rgba_decl(extra).strip()
+    meta = lookup_type(bases.get("types"), type_pos)
+    extra = str((meta or {}).get("rgba_positive") or "").strip() if meta else ""
+    # 入口统一变换(1108):legacy 声明兜底剥除+存活断言;真源(字段化手术毕)恒等
+    extra = ingest_type_text(extra, context="lean·rgba载文")
     # 1017 条件预解析:设定卡旗型 rgba 载文同按主体落定(与 direct 路同语义)
-    if _card_first:
-        extra = _resolve_card_conditionals(extra, body)
-    # 1017 用户令「透明多视图,类型句也必须添加」:类型句(剥中文透明句后)进生效文
+    if meta and meta.get("subject_first") is True:
+        extra = resolve_card_conditionals(extra, body)
+    # 1017 用户令「透明多视图,类型句也必须添加」:类型句进生效文
     # ——版式/一致性语言直达编码器(官方同法:版式写在提示词里)。
     # 范围=数据开关 lean_carry_type(现仅多视图):其余透明型维持 1008 隔离纪律
     #(全型注入实弹红=道具「薄透罩染轻敷」绘画词泄漏进 lean,transparent_lean 抓现行)
-    type_layout = ""
-    if (type_pos or "").strip():
-        for t in (bases.get("types") or []):
-            if isinstance(t, dict) and (t.get("positive_text") or "").strip() == type_pos.strip():
-                if t.get("lean_carry_type"):
-                    type_layout = strip_rgba_decl(type_pos).strip()
-                break
+    type_layout = ingest_type_text(type_pos, context="lean·类型句") \
+        if (meta and meta.get("lean_carry_type")) else ""
     style_backing = str((bases.get("art_style_base") or {}).get("positive_text") or "").strip()
     carry = str((bases.get("rgba") or {}).get("subject_isolation") or "").strip()
     # 1017 十型验修(用户令「底座没写入?风格太写实」):底座虽在场但压队尾
@@ -1170,27 +1160,22 @@ class MyQi21ApiPE:
         # 压过 wired 与热读兜底两路,底座正向段/负向源全离场(与装配节点同语义)。
         if 底座档位 == "裸测":
             style = ""
-        # 10-09 层冲突治理 P5:透明开时型文自带的中文透明声明句不入 PE 输入
-        # (透明语义全英文承载,[4014] 包裹);原始 base 用于匹配类型配置
-        base_pe = strip_rgba_decl(base).strip() if (透明模式 and base) else base
-        # 1108 装配即验证:层丢响亮拦(静默丢层=废图出图)
-        if 透明模式 and base:
-            assert_strip_survival(base, base_pe, context="ApiPE类型句")
+        # ── 1108 层结构体化(S3):型文入口统一变换+型元数据一发+渲染单源 ──
+        # ingest_type_text=legacy 声明句兜底剥除+存活断言(层丢响亮拦,静默丢层
+        # =废图出图);真源数据(1108 声明句字段化手术毕)恒等——透明开/关同文,
+        # 剥除正则面对正文归零,透明语义只在 [4014] FinalOutput 英文头尾承载。
+        # 原始 base 用于匹配类型配置(10-09 P5 口径延续)。
+        base_pe = ingest_type_text(base, context="ApiPE类型句")
         # 1022 用户令:统一底座→类型句→主体句;设定卡仍解析条件内容,
-        # 历史 subject_first 标记不再反转三层顺序。
-        subj_first = False
-        if base_pe:
-            for entry in (_load_bases_node().get("types") or []):
-                if isinstance(entry, dict) and (entry.get("positive_text") or "").strip() == base.strip():
-                    subj_first = entry.get("subject_first") is True
-                    break
-        if base_pe and subj_first:
-            # 条件预解析:确定描述进终稿(官方同法;模板句在真源,canon 不动)
-            direct = f"{style}\n类型句:{_resolve_card_conditionals(base_pe, subj)}\n主体句:{subj}".strip()
-        elif base_pe:
-            direct = f"{style}\n类型句:{base_pe}\n主体句:{subj}".strip()
-        else:
-            direct = f"{style}\n主体句:{subj}".strip()
+        # 历史 subject_first 标记不再反转三层顺序(条件解析单源=_qi21_layers)。
+        meta = lookup_type(_load_bases_node().get("types"), base)
+        subj_first = bool(meta and meta.get("subject_first") is True)
+        # 层对象序列化(进编码器前一刻才成串):槽缺席=1017 裁定合法缺席,
+        # 两 expect 旗白名单化,警告职责归调用侧既有文案
+        direct = render_t2i(
+            Qi21Layers(style=style, type_text=base_pe, subject=subj),
+            context="[ApiPE·直拼]", card_first=subj_first,
+            style_expected=False, type_expected=False).strip()
         if not subj:
             print("[漫影 API扩写PE] 正向提示词未接线:主体句层缺席,装配=底座+类型句")
         # 负面三源(型负面+美术风格底座负面热读+外部负向)去重合并——终稿负向唯一真源
@@ -1204,12 +1189,9 @@ class MyQi21ApiPE:
         # 1017 裁定:负向同正立——槽缺席=底座负面离场,热读兜底废止(裸测档再强制清)。
         if 底座档位 == "裸测":
             style_base_neg = ""
-        neg_tokens, seen = [], set()
-        for src in (类型句负向, style_base_neg, 负向提示词):
-            for tok in (x.strip() for x in re.split(r"[,，\n]", (src or "")) if x.strip()):
-                if tok not in seen:
-                    seen.add(tok)
-                    neg_tokens.append(tok)
+        # 1108 负面合并单源:粒状切分(换行+全角+顶层半角,括号深度保护)+保序去重
+        # (旧内联 [,，\n] 无深度保护形随 _qi21_layers 收编;三源序不变)
+        neg_tokens = merge_negative_tokens(类型句负向, style_base_neg, 负向提示词)
         # 1008 负向解耦终裁(用户令「模型不再管理负向词…负向词一路由程序组合,
         # 输出到最后」):①输入侧——负面清单不再送模型,上下文块只留正稿结构/
         # 画幅/透明运行约束(色卡在系统消息侧);②输出侧——终稿负向恒=三源源词
@@ -1218,7 +1200,7 @@ class MyQi21ApiPE:
         neg_out = _sanitize_negative(", ".join(neg_tokens))
         # 1022 用户令:透明路同样复用三层装配,不能另拼主体优先的极简稿,
         # 也不能在完整类型句后重复追加 rgba_positive 缩减取景句。
-        # 中文透明声明已在 base_pe 剥除,官方英文头尾仅由 [4014] 包裹。
+        # 型文正文零中文声明(1108 字段化;入口 ingest 兜底),官方英文头尾仅由 [4014] 包裹。
         fallback_pos = direct
         # AI关闭与不可用/拒收/解析失败回退同源同序;ui 与五口 result 同文。
         if not AI扩写开关:
@@ -1233,10 +1215,8 @@ class MyQi21ApiPE:
         if 画幅宽 and 画幅高:
             ctx.append(f"[画幅] {画幅宽}×{画幅高}(按此纵横比组织画面描述)")
         ctx.append(f"[透明] {'开:本图为透明素材图,勿虚构繁杂背景' if 透明模式 else '关:常规成图'}")
-        for entry in (_load_bases_node().get("types") or []):
-            if entry.get("zh") == "设定卡" and (entry.get("positive_text") or "").strip() == base:
-                ctx.append("[设定卡版式锁] 完整类型句所有段落逐字保留，仅润色人物描述；不得省略或改写资料、色样、三视图、逐格细节与底部专项区，来源未提供的能力与物件不得补造。")
-                break
+        if meta and meta.get("zh") == "设定卡":
+            ctx.append("[设定卡版式锁] 完整类型句所有段落逐字保留，仅润色人物描述；不得省略或改写资料、色样、三视图、逐格细节与底部专项区，来源未提供的能力与物件不得补造。")
         user_with_ctx = direct + "\n\n" + "\n".join(ctx)
         # 1007 用户令(开关=api_key 控件):填=云端(_CLOUD_URL/_CLOUD_MODEL 内置,
         # key=填的值),留空=本地(api_url/model 原样);云端失败→回落本地并明示原因

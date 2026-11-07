@@ -74,30 +74,39 @@ except ImportError:  # pragma: no cover - 直载形态走此腿
     _gate_mod = _glu.module_from_spec(_gate_spec)
     _gate_spec.loader.exec_module(_gate_mod)
     assert_prompt_gates = _gate_mod.assert_prompt_gates
-# merge 单源复用(K2 MyDaojieBase 同款防两处实现漂移纪律;design §8.1 ②):
-# 双路导入=本件单测家法 importlib 直载无包上下文,相对导入在该形态 ImportError
-# →同目录直载同一 my_styles.py(同函数对象级防漂移,非复制实现)。
-try:
-    from .my_styles import _merge_negative  # 包上下文(引擎装载/包路径单测)
-except ImportError:  # pragma: no cover - 直载形态(单测)走此腿
-    import importlib.util as _ilu
-    _styles_spec = _ilu.spec_from_file_location(
-        "my_styles_peer_load", Path(__file__).resolve().parent / "my_styles.py")
-    _styles_mod = _ilu.module_from_spec(_styles_spec)
-    _styles_spec.loader.exec_module(_styles_mod)
-    _merge_negative = _styles_mod._merge_negative
+# merge 单源复用已随 1108 层结构体化收编 _qi21_layers.merge_negative_tokens
+# (旧 my_styles._merge_negative 仅半角逗号切分=巨 token 形,跨源去重失效;
+# my_styles 自身实现不动,本件不再引用)。
 
-# 透明声明句级剔除单源(10-09-qi21-prompt-layer-conflict P6;同上双路导入)
+# 装配层结构体单源(1108 根治役 S2;同上双路导入):层对象(Qi21Layers)/型文入口
+# 统一变换(ingest_type_text=legacy 声明兜底剥除+存活断言,真源数据恒等)/负面
+# 合并单源(merge_negative_tokens,粒状切分+保序去重)/设定卡条件预解析
+# (resolve_card_conditionals,原两份手工同步复制收编)/渲染序列化(render_t2i 等)。
+# strip_rgba_decl/assert_strip_survival 经其转出保留(legacy 兜底+旧引用兼容)。
 try:
-    from ._qi21_rgba_text import assert_strip_survival, strip_rgba_decl
+    from ._qi21_layers import (Qi21Layers, ingest_type_text, lookup_type,
+                                merge_negative_tokens, render_free, render_style_swap,
+                                render_t2i, resolve_card_conditionals, strip_rgba_decl,
+                                assert_strip_survival, type_flag)
 except ImportError:  # pragma: no cover - 直载形态(单测)走此腿
     import importlib.util as _ilu
-    _rgba_spec = _ilu.spec_from_file_location(
-        "qi21_rgba_text_peer_load", Path(__file__).resolve().parent / "_qi21_rgba_text.py")
-    _rgba_mod = _ilu.module_from_spec(_rgba_spec)
-    _rgba_spec.loader.exec_module(_rgba_mod)
-    strip_rgba_decl = _rgba_mod.strip_rgba_decl
-    assert_strip_survival = _rgba_mod.assert_strip_survival
+    _layers_spec = _ilu.spec_from_file_location(
+        "qi21_layers_peer_load", Path(__file__).resolve().parent / "_qi21_layers.py")
+    _layers_mod = _ilu.module_from_spec(_layers_spec)
+    _layers_spec.loader.exec_module(_layers_mod)
+    Qi21Layers = _layers_mod.Qi21Layers
+    ingest_type_text = _layers_mod.ingest_type_text
+    lookup_type = _layers_mod.lookup_type
+    merge_negative_tokens = _layers_mod.merge_negative_tokens
+    render_free = _layers_mod.render_free
+    render_style_swap = _layers_mod.render_style_swap
+    render_t2i = _layers_mod.render_t2i
+    resolve_card_conditionals = _layers_mod.resolve_card_conditionals
+    strip_rgba_decl = _layers_mod.strip_rgba_decl
+    assert_strip_survival = _layers_mod.assert_strip_survival
+    type_flag = _layers_mod.type_flag
+# 旧名兼容(测试/外部引用):设定卡条件预解析的历史下划线名
+_resolve_card_conditionals = resolve_card_conditionals
 
 # ── 主体句例文+美术风格底座 default(1001 t2i 工作流值逐字迁入,脚本注入禁手敲;──
 # ── sha256 前16位对拍锚=[24]主体句 afd9e6f562e3e606 / [110]美术风格底座 ──
@@ -186,18 +195,14 @@ def _style_only(text: str) -> str:
 def _type_is_transparent(base_text: str) -> bool:
     """BASE 型文逐字匹配 types[] 判该型 rgba_default(1008晚三件拆分:装配按型配底)。
 
-    匹配不到(自由型空串/外接自定义型文)=按不透明处理(产线保守);零跨模块
-    import,与 ApiPE._rgba_lean_pos 同款逐字匹配家法。
+    匹配不到(自由型空串/外接自定义型文)=按不透明处理(产线保守);逐字匹配
+    单源=lookup_type(1108 收编,原三处各写循环退役)。
     """
     try:
         raw = json.loads(_BASES_FILE.read_text(encoding="utf-8"))
-        for t in raw.get("types") or []:
-            if isinstance(t, dict) and (t.get("positive_text") or "").strip() == (base_text or "").strip() \
-                    and t.get("rgba_default") is True:
-                return True
+        return type_flag(raw.get("types"), base_text, "rgba_default")
     except (OSError, ValueError):
-        pass
-    return False
+        return False
 
 
 def _type_subject_first(base_text: str) -> bool:
@@ -205,46 +210,19 @@ def _type_subject_first(base_text: str) -> bool:
 
     近两千字版式前置把主体句身份锚淹成设定卡原型(实弹 0/5 服装/武器锚命中);
     旗=True 的型终稿主体句置首(官方 3.2.1/3.3.1 语料人物描述在前、版式在后)。
-    匹配不到=按 False(全局装配序仍=1017 用户令底座前置主体句殿后)。
+    匹配不到=按 False(全局装配序仍=1017 用户令底座前置主体句殿后);
+    逐字匹配单源=lookup_type(1108 收编)。
     """
     try:
         raw = json.loads(_BASES_FILE.read_text(encoding="utf-8"))
-        for t in raw.get("types") or []:
-            if isinstance(t, dict) and (t.get("positive_text") or "").strip() == (base_text or "").strip() \
-                    and t.get("subject_first") is True:
-                return True
+        return type_flag(raw.get("types"), base_text, "subject_first")
     except (OSError, ValueError):
-        pass
-    return False
+        return False
 
 
-def _resolve_card_conditionals(base_text: str, subj_text: str) -> str:
-    """设定卡条件预解析(1017 官方对拍役;与 ApiPE 同款逐字匹配家法复制)。
-
-    型文=模板(条件句照存);终稿按主体句事实落定成确定描述。原句缺席=不换
-    (fail-closed,模板日后改句退回模板句)。与 PE 节点实现保持逐句同步。
-    """
-    if not base_text or not subj_text:
-        return base_text
-    out = base_text
-    m = re.search(r"名号「([^」]{1,12})」", subj_text)
-    if m:
-        out = out.replace(
-            "标题栏中央放置角色名号，主体明确提供名号时逐字使用，未提供时标题栏留白仅存细线边饰；",
-            f"标题栏中央逐字放置角色名号「{m.group(1)}」；", 1)
-    if "劲装" in subj_text:
-        out = out.replace(
-            "服装袖型、衣长与裤裙形制服从主体，主体为劲装时呈束袖束腰上衣与分开的双腿裤装，武器长短和材质服从主体；",
-            "服装呈束袖束腰上衣与分开的双腿裤装，武器长短和材质服从主体句；", 1)
-    if ("收鞘" in subj_text) or ("收在鞘中" in subj_text):
-        out = out.replace(
-            "武器的收鞘、出鞘或残损状态服从主体事实；完整武器两端均入画，局部图与完整图对应同一件武器；来源为收鞘态时，完整图与所有局部图均保持收鞘态。各特写只呈现实际存在的部件；主体未提供武器、鞘或配饰装备时，对应槽位保留净空，格面留白。",
-            "完整武器两端均入画，局部图与完整图对应同一件武器，完整图与所有局部图均保持收鞘态；各特写只呈现实际存在的部件。", 1)
-    if not re.search(r"技能|术法|招式|功法|神通|绝学", subj_text):
-        out = out.replace(
-            "底部第四区为能力资料：主体明确提供技能或术法时，上格展示一幅该能力的独立效果，下格展示其关键形态或作用部位；主体未提供时，该区保留净空，仅标注“能力未设定”。来源明确带有灵兽时，另用独立附板展示完整兽形与兽类细节，附板独立排布；来源未带灵兽时，本板保持人物设定板内容。",
-            "底部第四区为能力资料：该区保留净空，仅标注“能力未设定”。", 1)
-    return out
+# 设定卡条件预解析(1017 官方对拍役)——1108 收编单源 _qi21_layers:本地旧实现
+# 退役,`_resolve_card_conditionals = resolve_card_conditionals` 纯别名在顶部
+# 导入块后(旧引用兼容;两节点从此同一函数对象,手工逐句同步退役)。
 
 
 def _style_combo_transparent() -> str:
@@ -340,6 +318,10 @@ class MyQi21PromptAssembly:
         警告改双关文案「自由型正常态;非自由型请检查连线」——逻辑零改,
         仅文案去「意外断线」口吻(旧行为/旧两段拼语义不变,i2i/edit 零波及)。
         """
+        # 1108 层结构体化(根治役 S3):以下四用途全走 Qi21Layers 层对象——入口
+        # ingest 建层(legacy 声明兜底+存活断言恒过;真源数据恒等)、负面
+        # merge_negative_tokens 单源合并、出口 render_* 序列化;层丢失=字段空=
+        # 渲染口警告/全空响亮拒,不再依赖字符串长度断言兜底。
         # 自由出图不继承类型布局、统一打光或全局负向；保留参考图画法。
         # 新参数可省略，旧工作流仍走既有道劫美术类型路径。
         if 组装用途 not in ("道劫美术类型", "自由出图", "道劫美术风格转换", "无底座出图"):
@@ -354,37 +336,41 @@ class MyQi21PromptAssembly:
                                 context=f"[指令·{组装用途}]")
         锁层A全文 = _style_only(锁层A全文)
         if 组装用途 == "自由出图":
-            return ((主体句 or "").strip(), (主体句负面 or "").strip())
+            return (render_free(Qi21Layers(subject=主体句 or "")),
+                    (主体句负面 or "").strip())
         if 组装用途 == "道劫美术风格转换":
             style = _style_combo_transparent() if _type_is_transparent(BASE) else 锁层A全文
-            return ("\n".join(p for p in ((主体句 or "").strip(), style.strip()) if p),
+            return (render_style_swap(Qi21Layers(style=style, subject=主体句 or "")),
                     (主体句负面 or "").strip())
         # 1016 用户令「真关掉底座」:显式裸测档——美术底座正/负全离场,
         # 含 mtime 热读兜底(此档压过 1001 S8 L-1 的「空 BASE 回落底座」语义);
         # 类型层保留(裸测对象=底座贡献,非型规则);配 PE 关(默认)才是纯裸测。
         if 组装用途 == "无底座出图":
-            negative_nb = _merge_negative((BASE负面 or ""), (主体句负面 or "").strip())
+            negative_nb = ", ".join(merge_negative_tokens((BASE负面 or ""),
+                                                          (主体句负面 or "").strip()))
             if not (BASE or "").strip():
-                _out_nb = (f"主体句:{主体句}", negative_nb)
+                _out_nb = (render_t2i(Qi21Layers(subject=主体句 or ""),
+                                      context="[无底座·空BASE]", style_expected=False,
+                                      type_expected=False), negative_nb)
             else:
-                base_out_nb = strip_rgba_decl(BASE) if _type_is_transparent(BASE) else BASE
-                if base_out_nb is not BASE:
-                    assert_strip_survival(BASE, base_out_nb, context="装配器类型句")
-                _out_nb = (f"类型句:{base_out_nb}\n主体句:{主体句}", negative_nb)
+                _out_nb = (render_t2i(Qi21Layers(
+                    type_text=ingest_type_text(BASE, context="装配器类型句·无底座"),
+                    subject=主体句 or ""), context="[无底座]", style_expected=False),
+                    negative_nb)
             assert_prompt_gates(_out_nb[0], is_subject=False, context="[终稿·无底座出图]")
             return _out_nb
-        # 负面词(口1):merge 单源复用+美术风格底座负面 mtime 现读(两分支同值,先算)
-        negative = _merge_negative(_merge_negative((BASE负面 or ""),
-                                   _load_art_style_base()["negative"]),
-                                  (主体句负面 or "").strip())
+        # 负面词(口1):三源合并单源(1108 收编两套切分语义——粒状拆 token 跨源
+        # 去重生效;旧巨 token 形「模糊」双现随轮退役)+美术风格底座负面 mtime 现读
+        negative = ", ".join(merge_negative_tokens(
+            (BASE负面 or ""), _load_art_style_base()["negative"], (主体句负面 or "").strip()))
         # 类型句提供背景、光照与状态呈现规则；风格始终只有绘画语言。
-        # 透明类型的中文透明声明由最终输出层统一包装，不进入 PE。
+        # 透明类型的透明语义由最终输出层英文头尾统一包裹(1108 声明句字段化:
+        # 型文正文零中文声明,入口 ingest 对真源恒等=剥除正则面归零)。
         if _type_is_transparent(BASE):
-            base_out = strip_rgba_decl(BASE)
-            assert_strip_survival(BASE, base_out, context="装配器类型句")
+            base_out = ingest_type_text(BASE, context="装配器类型句")
             style_out = _style_combo_transparent()
         else:
-            base_out, style_out = BASE, 锁层A全文
+            base_out, style_out = (BASE or ""), 锁层A全文
         if not (BASE or "").strip():
             # 1001 用户测试批 P1 中性化:自由型(BASE 空串)此为正常态;非自由型
             # BASE 空=缺整个型底座层,请检查连线——双关文案,逻辑零改(design §2.2)
@@ -394,14 +380,15 @@ class MyQi21PromptAssembly:
                   "MyQi21DaojieBase 的 BASE 输出连到本节点 BASE 输入,"
                   "已接线时请检查该连线是否被改动、[150] BASE 产文是否为空")
             # 1009 用户令:段前加标签(类型句:/主体句:)——模型对段角色的显式信号
-            return (f"{锁层A全文}\n主体句:{主体句}", negative)
+            return (render_t2i(Qi21Layers(style=锁层A全文, subject=主体句 or ""),
+                               context="[道劫美术类型·两段降级]", type_expected=False),
+                    negative)
         # 1017 用户令:装配序反转——底座前置、主体句殿后(标签随内容走)
         # 1022 三层统一令:历史 subject_first 旗只触发设定卡条件预解析，
         # 确定描述进类型句，仍保持美术风格底座→类型句→主体句(模板真源不动)。
-        if _type_subject_first(BASE):
-            _out = (f"{style_out}\n类型句:{_resolve_card_conditionals(base_out, 主体句)}"
-                    f"\n主体句:{主体句}", negative)
-        else:
-            _out = (f"{style_out}\n类型句:{base_out}\n主体句:{主体句}", negative)
+        layers = Qi21Layers(style=style_out, type_text=base_out,
+                            subject=主体句 or "", negatives=tuple(negative.split(", ")))
+        _out = (render_t2i(layers, context="[道劫美术类型]",
+                           card_first=_type_subject_first(BASE)), negative)
         assert_prompt_gates(_out[0], is_subject=False, context="[终稿·道劫美术类型]")
         return _out

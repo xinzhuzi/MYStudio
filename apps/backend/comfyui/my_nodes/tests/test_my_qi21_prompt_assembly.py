@@ -60,6 +60,12 @@ assembly = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(assembly)
 MyQi21PromptAssembly = assembly.MyQi21PromptAssembly
 
+# 装配层结构体单源直载(1108:负面合并/序列化对拍真源,不走被测函数)
+_layers_file = (Path(__file__).resolve().parents[1] / "nodes" / "_qi21_layers.py")
+_lspec = importlib.util.spec_from_file_location("qi21_layers_peer_1108", _layers_file)
+layers_mod = importlib.util.module_from_spec(_lspec)
+_lspec.loader.exec_module(layers_mod)
+
 # 主体句 default 迁移锚(SHA256 前16位;迁入时对拍 1001 t2i 工作流 [24] 现值)
 # +美术风格底座 default 锚(1004 集中地令后 default=qi21_bases.json
 # art_style_base.positive_text 热读现值钉;旧 eac9a808aa8f7232=工作流历史值,
@@ -75,9 +81,11 @@ def _sha16(text: str) -> str:
 
 
 def _lock_neg() -> str:
-    """美术风格底座负面真值现读(单源对拍用,不走被测函数)。"""
-    return json.loads(assembly._BASES_FILE.read_text(encoding="utf-8")
-                      )["art_style_base"]["negative_text"]
+    """美术风格底座负面真值现读+粒状合并形(1108 随轮:_qi21_layers 单源切分,
+    全角清单拆 token 半角", "拼接;旧「整段一 token 原文直出」形随收编退役)。"""
+    raw = json.loads(assembly._BASES_FILE.read_text(encoding="utf-8")
+                     )["art_style_base"]["negative_text"]
+    return ", ".join(layers_mod.merge_negative_tokens(raw))
 
 
 # ── ① 装配全文逐字拼接+双出真源+default 锚 ──────────────────────
@@ -86,11 +94,11 @@ def test_1_assembled_full_text_verbatim_single_output():
     result = node.assemble(主体句="主体句例", BASE="底座例", 锁层A全文="美术风格底座例")
     expected = "美术风格底座例\n类型句:底座例\n主体句:主体句例"
     # 1005 案B:口1 负面词=merge(BASE负面, 美术风格底座负面现读);BASE负面 缺键
-    # =merge("", lock)=裸美术风格底座负面(全角逗号清单=整段一 token,归一并=原文)
+    # =裸美术风格底座负面(1108 起=粒状合并形,见 _lock_neg)
     assert result == (expected, _lock_neg()), \
         f"装配全文应=美术风格底座+换行+BASE+换行+主体句(1017 反序令) 逐字+负面词二元组,得 {result!r}"
-    assert result[1] == assembly._merge_negative("", _lock_neg()), \
-        "缺键负面词应=merge('', 美术风格底座负面)=裸美术风格底座负面(案B 口1 语义)"
+    assert result[1] == _lock_neg(), \
+        "缺键负面词应=裸美术风格底座负面(案B 口1 语义;1108 起为粒状合并形)"
     # 口0 即喂 [140].prompt 的真源(Q1=B+);口1=负面词双出
     assert node.RETURN_TYPES == ("STRING", "STRING") \
         and node.RETURN_NAMES == ("装配全文", "负面词")
@@ -184,9 +192,7 @@ def test_6_free_type_empty_base_two_segments_neutral_warning(capsys):
         "包路径/直载两形态 default 同源(真源家现读)"
     result = node.assemble(主体句="主体句例", BASE="", 锁层A全文=lock_a)
     out = result[0]
-    assert result == (f"{lock_a}\n主体句:主体句例",
-                      json.loads(Path(assembly._BASES_FILE).read_text(
-                          encoding="utf-8"))["art_style_base"]["negative_text"]), \
+    assert result == (f"{lock_a}\n主体句:主体句例", _lock_neg()), \
         f"自由型空 BASE 应两段拼=美术风格底座+换行+主体句(1017 反序令,逐字),得 {out[:50]!r}…"
     # 换行守卫(合成多行美术风格底座):美术风格底座 内换行原样保留,禁空行分隔/禁压缩
     ml = "锁A行1\n锁A行2"
@@ -207,8 +213,8 @@ def test_6_free_type_empty_base_two_segments_neutral_warning(capsys):
 def test_7_base_negative_merged_with_lock_negative():
     """案B 口1 真值锚(design §8.1 ②):负面词=_merge_negative(BASE负面,
     美术风格底座负面)——①型负面 token 在前、美术风格底座负面在后(K2 my_styles 单源复用);
-    ②BASE负面=真源家人物海报型 negative_text(202 字全角逗号清单=整段一 token)
-    →输出=「型负面, 美术风格底座负面」半角", "两段拼接;③整 token 相等才去重:
+    ②BASE负面=真源家人物海报型 negative_text(全角逗号清单)→1108 粒状拆 token
+    在前、底座负面粒状在后,半角", "拼接;③整 token 相等才去重:
     BASE负面 传整段美术风格底座负面=去重裸输出;④半角逗号清单 token 归一并
     ("A,B"→"A, B",merge 保守重组纪律);⑤空串/纯空白=裸美术风格底座负面兜底
     (BASE负面 独立于 BASE 判空——BASE 空不妨碍型负面在场)。"""
@@ -219,17 +225,17 @@ def test_7_base_negative_merged_with_lock_negative():
     # ①+②:型负面在前,美术风格底座在后
     got = node.assemble(主体句="S", BASE="B", BASE负面=renwu_neg,
                         锁层A全文="L")[1]
-    assert got == f"{renwu_neg}, {lock}", \
-        f"merge 应=型负面在前+美术风格底座在后 半角\", \"拼接,得 {got[:60]!r}…"
-    assert got == assembly._merge_negative(renwu_neg, lock), \
-        "应与 my_styles._merge_negative 单源行为逐字一致(防两处实现漂移)"
-    # ③:整 token 相等去重(全角清单=整段一 token,同段即消)
+    assert got == ", ".join(layers_mod.merge_negative_tokens(renwu_neg, lock)), \
+        f"merge 应=型负面粒状在前+美术风格底座粒状在后 半角\", \"拼接,得 {got[:60]!r}…"
+    assert got == ", ".join(assembly.merge_negative_tokens(renwu_neg, lock)), \
+        "装配器负面应与 _qi21_layers 单源同值(1108 收编,防两处实现漂移)"
+    # ③:整 token 相等去重(粒状形下=逐 token 全消,裸输出不变)
     dup = node.assemble(主体句="S", BASE="B", BASE负面=lock, 锁层A全文="L")[1]
     assert dup == lock, "BASE负面=整段美术风格底座负面 应去重裸输出(整 token 相等才去重)"
     # ④:半角逗号清单 token 化归并
     tokens = node.assemble(主体句="S", BASE="B", BASE负面="甲,乙",
                            锁层A全文="L")[1]
-    assert tokens == f"甲, 乙, {lock}", f"半角逗号 token 应归一重组,得 {tokens[:40]!r}"
+    assert tokens == f"甲, 乙, {lock}", f"半角逗号 token 应归一重组(尾接粒状底座负面),得 {tokens[:40]!r}"
     # ⑤:空串/纯空白/缺键=裸美术风格底座负面兜底;BASE 空=两段拼不妨碍负面输出
     for empty in ("", "   "):
         got2 = node.assemble(主体句="S", BASE="", BASE负面=empty,
@@ -253,8 +259,8 @@ def test_8_lock_negative_mtime_hot_read(tmp_path):
         assembly._lock_cache.update(mtime=None, data=None)  # mtime 失效重扫
         got = MyQi21PromptAssembly().assemble(主体句="S", BASE="B",
                                               BASE负面="型负面", 锁层A全文="L")[1]
-        assert got == "型负面, 热改底座负面甲，热改底座负面乙", \
-            f"热改美术风格底座负面应现读生效(遗留债9:import 快照回潮即红),得 {got!r}"
+        assert got == "型负面, 热改底座负面甲, 热改底座负面乙", \
+            f"热改美术风格底座负面应现读生效(遗留债9:import 快照回潮即红;1108 粒状形),得 {got!r}"
     finally:
         assembly._BASES_FILE = real_path
         assembly._lock_cache.update(mtime=None, data=None)

@@ -4295,11 +4295,17 @@ class TestQi21SubgraphContract:
         asm = asm_cls()
         truth = asm.assemble(主体句="s", BASE="b", BASE负面=renwu_neg,
                              锁层A全文="l")[1]
-        assert truth == f"{renwu_neg}, {lock_neg}", \
-            "负面词直写真值应=型负面在前+美术风格底座负面在后(1005 案B 合并;直写进编码)"
+        _layers_spec = _ilu.spec_from_file_location(
+            "qi21_contract__qi21_layers",
+            _TESTS_DIR.parent / "my_nodes" / "nodes" / "_qi21_layers.py")
+        _layers_mod = _ilu.module_from_spec(_layers_spec)
+        _layers_spec.loader.exec_module(_layers_mod)
+        assert truth == ", ".join(_layers_mod.merge_negative_tokens(renwu_neg, lock_neg)), \
+            "负面词直写真值应=型负面粒状在前+底座负面粒状在后(1005 案B;1108 单源粒状;直写进编码)"
         assert asm.assemble(主体句="s", BASE="b", BASE负面=lock_neg,
-                            锁层A全文="l")[1] == lock_neg, \
-            "整 token 相等去重:BASE负面=整段美术风格底座负面→裸输出(合并不复读)"
+                            锁层A全文="l")[1] == ", ".join(
+            _layers_mod.merge_negative_tokens(lock_neg)), \
+            "整 token 相等去重:BASE负面=整段美术风格底座负面→粒状裸输出(合并不复读;1108 形)"
         # ③ 合成器真值:直写优先/空档兜底(pe关=直写不变量)
         sel_cls = _load_my_node_class(QI21_SG_SEL_CLASS)
         assert sel_cls is not None, "MyQi21PromptSelect 应可现读加载"

@@ -122,18 +122,18 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     assert gender[2]['parts'][0]['text']=='按照你的建议去做'
     assert revisions[base]=={
         'original_sha256':'a2df104bf740670cbea1fbe9b06ba43c7695b7d2be26d0a6cfc621e422967bff',
-        'approved_sha256':'1141651b23c322425a2765c896d88cf7507370f6f2bf75feab04dfa340acfa71',
+        'approved_sha256':'ada5cb13f2aa0110977b94c5885b1f9210cba328721874a1402513d57bbf62be',  # 1108 声明句字段化重锚(显示名归一化口径)
         'role':'runtime_execution_input_updated_after_snapshot',
         'historical_backup':'.trellis/tasks/archive/2026-10/10-18-daojie-conflict-p1-canon/backups/qi21_bases.json',
         'approval':{
-            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-reapproval-1030-charsheet-declutter.md',
-            'anchor':'## Decisions(2026-10-30 用户令「砍资料面板/标签改短词」)',
-            'sha256':'fad92192acd0e36d199cf8968b24c5aa6da62c1d71a7508d4ef441a202ce967f',
+            'path':'.trellis/tasks/11-08-qi21-assembly-structify/reports/bases-reapproval-1108-decl-fieldize.md',
+            'anchor':'## Decisions(1108 用户令「装配管线的结构化改造」)',
+            'sha256':'bbcf2c8581774ecf0b3b86ab7d17cd9d01957c2bdb7d9f21f29e1e8f6e04a190',
         },
         'change_ledger':{
-            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-change-ledger-1030-charsheet-declutter.md',
-            'anchor':'## 字段级变更(6 字段,1030 设定卡伪字减文字面)',
-            'sha256':'d8c82b00bc89a9ef7c457d8b64bcf934e3eb76ee9803bcef0987a9a56622b2d1',
+            'path':'.trellis/tasks/11-08-qi21-assembly-structify/reports/bases-change-ledger-1108-decl-fieldize.md',
+            'anchor':'## 字段级变更(13 字段:11 处声明句删除 + 1 处混合句拆分 + layer_contract 文案)',
+            'sha256':'2b433587a889d9f291ab8964f96c562893afe2efbdc749ead5e566aa1ce893b5',
         },
     }
     revision=revisions[base]
