@@ -1659,7 +1659,9 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
     tunnelEnabled: true, tunnelActive: true, tunnelLocalPort: 17600, tokenRefreshedAt: null,
   };
 
-  /** 统一 fetch stub:引擎地址/SSH 状态/清单/同步/重启五路;同步按 items[0] 逐件回执。 */
+  /** 统一 fetch stub:引擎地址/SSH 状态/清单/同步/重启五路;同步按 items[0] 逐件回执。
+   * 引擎地址恒回 settings+远端 url(1107 用户令:引擎同步区仅远端引擎生效时展示,
+   * 回 fallback 本机态会让整区隐藏)。 */
   const stubEngineSyncFetch = (handlers: {
     sshConnected?: boolean;
     manifest?: unknown; // 缺省=MANIFEST;传 Response 形状可模拟 503
@@ -1672,7 +1674,7 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
       const reply = (payload: unknown, status = 200) =>
         Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(payload) } as unknown as Response);
       if (u.includes("/comfy/engine/remote")) {
-        return reply({ url: null, effective: "http://127.0.0.1:17598", source: "fallback" });
+        return reply({ url: "http://192.168.0.101:17000", effective: "http://192.168.0.101:17000", source: "settings" });
       }
       if (u.includes("/comfy/ssh/status")) {
         return reply(handlers.sshConnected === false ? { ...SSH_CONNECTED, connected: false } : SSH_CONNECTED);

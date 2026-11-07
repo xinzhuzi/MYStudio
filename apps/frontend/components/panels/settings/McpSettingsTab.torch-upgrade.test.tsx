@@ -79,14 +79,15 @@ describe("torch upgrade settings", () => {
   });
 
   it("shows a fresh system_stats version after SSH disconnects without enabling upgrades", async () => {
+    // 1107 用户令:本机引擎时整区隐藏——远端地址悬置期间区域不渲染,地址落到
+    // settings+url 后才出现;SSH 断开仍有 system_stats 新鲜版本且禁点
     let resolveRemote!: (value: { source: string; url: string }) => void;
     mocks.remote.mockReturnValue(new Promise((resolve) => { resolveRemote = resolve; }));
     mocks.ssh.mockResolvedValue({ connected: false, configured: false, available: true });
     mocks.info.mockResolvedValue({ current: { torch: "2.14.1+cu132", source: "system_stats" }, live: true, hostMatched: false, busy: false, allowedTargets: ["2.14.1"] });
     render(<McpSettingsTab />);
-    const row = await screen.findByTestId("torch-section-body");
-    expect(row.textContent).toContain("生效版本：未知");
     await act(async () => { resolveRemote({ source: "settings", url: "http://example.invalid:17000" }); });
+    const row = await screen.findByTestId("torch-section-body");
     await waitFor(() => expect(row.textContent).toContain("2.14.1"));
     expect(row.textContent).not.toContain("未实时验证");
     expect((screen.getByTestId("torch-upgrade-start") as HTMLButtonElement).disabled).toBe(true);
@@ -272,31 +273,28 @@ describe("torch upgrade settings", () => {
     }
   });
 
-  it("MCP 域恒远端:本地引擎生效时仍指向 Windows(mode=remote)", async () => {
+  it("选本机引擎时 PyTorch 区与引擎同步区整区隐藏(1107 用户令,不再恒显)", async () => {
+    // 旧「MCP 域恒远端:本地引擎生效时仍指向 Windows」已废——1107 用户令选本机时
+    // 双区隐藏;本地升级走 设置→本地配置,SSH 远程升级入口仅远端引擎生效时展示
     mocks.remote.mockResolvedValue({ source: "local", url: "" });
     mocks.ssh.mockResolvedValue({ connected: true, configured: true, available: true, host: "192.168.0.101" });
     mocks.info.mockResolvedValue({ mode: "remote", current: { torch: "2.11.0+cu128" }, live: true, hostMatched: true, busy: false, allowedTargets: ["2.14.1"] });
     mocks.poll.mockImplementation(() => new Promise(() => {}));
     render(<McpSettingsTab />);
-    const row = await screen.findByTestId("torch-section-body");
-    await waitFor(() => expect(row.textContent).toContain("需更新 → 2.14.1"));
-    expect(screen.getByLabelText("CUDA 通道")).toBeTruthy();
-    const button = screen.getByTestId("torch-upgrade-start") as HTMLButtonElement;
-    expect(button.disabled).toBe(false);
-    expect(await screen.findByText(/本地\(Mac\)引擎升级请到/)).toBeTruthy();
-    expect(mocks.info).toHaveBeenCalledWith("remote");
-    fireEvent.click(button);
-    fireEvent.click(await screen.findByText("确认升级"));
-    await waitFor(() => expect(mocks.start).toHaveBeenCalledWith("2.14.1", expect.any(String), "remote"));
-    const progress = await screen.findByTestId("torch-upgrade-progress");
-    for (const label of ["预检", "快照", "停止引擎", "安装", "导入验证", "重启", "烟测", "落账"]) expect(progress.textContent).toContain(label);
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(screen.queryByTestId("torch-upgrade-header")).toBeNull();
+    expect(screen.queryByTestId("torch-section-body")).toBeNull();
+    expect(screen.queryByTestId("torch-upgrade-start")).toBeNull();
+    expect(screen.queryByTestId("engine-sync-header")).toBeNull();
+    expect(screen.queryByTestId("engine-sync-section")).toBeNull();
+    expect(mocks.start).not.toHaveBeenCalled();
   });
 
 
-  it("远端探针失败时未知带原因且禁点(MCP 域不再降级本地)", async () => {
+  it("远端探针失败时未知带原因且禁点(MCP 域不降级本地)", async () => {
     const remoteUrl = "http://example.invalid:17000";
     useEnginePresetsStore.getState().favorite(remoteUrl);
-    mocks.remote.mockResolvedValue({ source: "local", url: "" });
+    mocks.remote.mockResolvedValue({ source: "settings", url: remoteUrl });
     mocks.info.mockRejectedValue(new Error("remote probe unavailable"));
     render(<McpSettingsTab />);
     const row = await screen.findByTestId("torch-section-body");
@@ -311,7 +309,7 @@ describe("torch upgrade settings", () => {
   it("isolates a running local job when the remote probe fails after switching", async () => {
     const remoteUrl = "http://example.invalid:17000";
     useEnginePresetsStore.getState().favorite(remoteUrl);
-    mocks.remote.mockResolvedValue({ source: "local", url: "" });
+    mocks.remote.mockResolvedValue({ source: "settings", url: remoteUrl });
     mocks.info.mockImplementation(async (mode) => {
       if (mode === "remote") throw new Error("remote probe unavailable");
       return { current: { torch: "2.14.0" }, live: true, hostMatched: true, busy: false, allowedTargets: ["2.14.1"] };
@@ -359,10 +357,12 @@ describe("torch upgrade settings", () => {
     }
   });
 
-  it("disables the local update when already pinned", async () => {
-    mocks.remote.mockResolvedValue({ source: "local", url: "" });
+  it("已是钉版时禁点(SSH 断开也不放行)", async () => {
+    // 旧「disables the local update when already pinned」:本机引擎时整区隐藏(1107
+    // 用户令),本测试改为远端引擎生效+SSH 断开+已钉版 → 版本可见但按钮禁点
+    mocks.remote.mockResolvedValue({ source: "settings", url: "http://example.invalid:17000" });
     mocks.ssh.mockResolvedValue({ connected: false, configured: false, available: true });
-    mocks.info.mockResolvedValue({ mode: "local", current: { torch: "2.14.1" }, live: true, hostMatched: true, busy: false, allowedTargets: ["2.14.1"] });
+    mocks.info.mockResolvedValue({ mode: "remote", current: { torch: "2.14.1" }, live: true, hostMatched: true, busy: false, allowedTargets: ["2.14.1"] });
     render(<McpSettingsTab />);
     const row = await screen.findByTestId("torch-section-body");
     await waitFor(() => expect(row.textContent).toContain("2.14.1"));

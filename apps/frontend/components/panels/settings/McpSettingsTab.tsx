@@ -4,14 +4,47 @@
 // 布局仿「本地配置」页:分组标签 + 可折叠行 + 行级状态胶囊(PluginSettingsTab 同款范式,
 // 折叠态持久化 localStorage)。三组:服务连接(ComfyUI 桥+专业流开关)→ MCP 服务器 → JSON 配置。
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronDown, FileJson, Loader2, Monitor, Pencil, Plug, Plus, Server, Terminal, Trash2, X } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  Check,
+  ChevronDown,
+  FileJson,
+  Loader2,
+  Monitor,
+  Pencil,
+  Plug,
+  Plus,
+  Server,
+  Terminal,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { TorchUpgradeProgress } from "./TorchUpgradeProgress";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -52,7 +85,11 @@ import {
   type SshActiveFingerprint,
   type SshPreset,
 } from "@/stores/settings/ssh-presets-store";
-import { useWorkflowBindingsStore, isBindableWorkflow, type BoundWorkflowKind } from "@/stores/settings/workflow-bindings-store";
+import {
+  useWorkflowBindingsStore,
+  isBindableWorkflow,
+  type BoundWorkflowKind,
+} from "@/stores/settings/workflow-bindings-store";
 import { engineFamilyMeta } from "@/lib/studio/engine-line/family-catalog";
 import { ALL_ENGINE_FAMILIES } from "@/lib/studio/engine-line/engine-options";
 import { notifyRemoteEngineChanged } from "@/lib/studio/engine-line/resolve-engine-base-url";
@@ -90,7 +127,11 @@ import { SecureVaultBanner } from "./SecureVaultBanner";
 type TestState =
   | { status: "idle" }
   | { status: "testing" }
-  | { status: "ok"; serverName?: string; tools: { name: string; description?: string }[] }
+  | {
+      status: "ok";
+      serverName?: string;
+      tools: { name: string; description?: string }[];
+    }
   | { status: "error"; message: string };
 
 interface DraftForm {
@@ -126,11 +167,18 @@ interface SshFormDraft {
   keyPath: string;
 }
 
-const emptySshFormDraft: SshFormDraft = { label: "", host: "", port: "22", user: "", keyPath: "", password: "" };
+const emptySshFormDraft: SshFormDraft = {
+  label: "",
+  host: "",
+  port: "22",
+  user: "",
+  keyPath: "",
+  password: "",
+};
 
 /** 表单草稿 → store 入参(host 必填校验由 store 承接,非法回 null)。 */
 const sshDraftToInput = (draft: SshFormDraft, id?: string) => ({
-    password: draft.password || "",
+  password: draft.password || "",
   ...(id ? { id } : {}),
   label: draft.label,
   host: draft.host,
@@ -169,7 +217,16 @@ function resolveActiveSshPresetId(
 }
 
 const COLLAPSED_STORAGE_KEY = "mystudio.settings.mcp.collapsedSections";
-type SectionId = "bridge" | "remote-engine" | "engine-sync" | "torch-upgrade" | "ssh-remote" | "family" | "workflows" | "servers" | "json";
+type SectionId =
+  | "bridge"
+  | "remote-engine"
+  | "engine-sync"
+  | "torch-upgrade"
+  | "ssh-remote"
+  | "family"
+  | "workflows"
+  | "servers"
+  | "json";
 
 type PillState = "ready" | "needs-runtime" | "neutral";
 
@@ -197,7 +254,9 @@ function readCollapsedSections(): Set<SectionId> {
 function McpGroup({ label, children }: { label: string; children: ReactNode }) {
   return (
     <section aria-label={label} className="space-y-2">
-      <div className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </div>
       <div className="divide-y divide-border overflow-hidden rounded-xl border border-border/80 bg-card/70">
         {children}
       </div>
@@ -226,21 +285,34 @@ function McpRow({
     <Collapsible open={!collapsed} onOpenChange={() => onToggle(sectionId)}>
       <CollapsibleTrigger className="w-full text-left">
         <div className="flex items-center gap-3 px-4 py-3">
-          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <h4 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{title}</h4>
+          <Icon
+            className="h-4 w-4 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <h4 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+            {title}
+          </h4>
           <span
-            className={cn("shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium", PILL_STYLES[pill])}
+            className={cn(
+              "shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium",
+              PILL_STYLES[pill],
+            )}
             data-capability-pill={pill}
           >
             {PILL_LABELS[pill]}
           </span>
           <ChevronDown
-            className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", collapsed && "-rotate-90")}
+            className={cn(
+              "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+              collapsed && "-rotate-90",
+            )}
             aria-hidden="true"
           />
         </div>
       </CollapsibleTrigger>
-      <CollapsibleContent className="border-t border-border">{children}</CollapsibleContent>
+      <CollapsibleContent className="border-t border-border">
+        {children}
+      </CollapsibleContent>
     </Collapsible>
   );
 }
@@ -275,8 +347,16 @@ function configToDraft(server: McpServerConfig): DraftForm {
 // 1016 型选择(本地生图):道劫十型展示层枚举(真源=引擎家 qi21_bases.json;
 // 引擎侧 COMBO 校验拒非法值兜底)
 const LOCAL_IMAGE_BASE_TYPES = [
-  "人物海报", "场景", "道具", "美宣", "人物多视图", "高清人脸",
-  "分镜剧情图", "表情差分", "概念气氛图", "设定卡",
+  "人物海报",
+  "场景",
+  "道具",
+  "美宣",
+  "人物多视图",
+  "高清人脸",
+  "分镜剧情图",
+  "表情差分",
+  "概念气氛图",
+  "设定卡",
 ] as const;
 
 // T15/G3+T17:探活成功文案「ComfyUI x.y · GPU名」。桥行(挂载探测)由
@@ -285,25 +365,35 @@ const LOCAL_IMAGE_BASE_TYPES = [
 // 引擎地址归一(全角 ：／→半角)已迁 engine-presets-store 统一导出
 // (11-02 预设条目入库与保存链路共用同一归一口径,防双源)。
 
-function comfyVersionLabel(version?: string | null, gpu?: string | null): string {
+function comfyVersionLabel(
+  version?: string | null,
+  gpu?: string | null,
+): string {
   return `ComfyUI ${version ?? ""}${gpu ? ` · ${gpu}` : ""}`;
 }
 
 export function McpSettingsTab() {
-  const { servers, addServer, updateServer, removeServer } = useMcpServersStore();
-  const hasRuntime = typeof window !== "undefined" && Boolean(window.mcpRuntime);
-  const [collapsedSections, setCollapsedSections] = useState<Set<SectionId>>(() => readCollapsedSections());
+  const { servers, addServer, updateServer, removeServer } =
+    useMcpServersStore();
+  const hasRuntime =
+    typeof window !== "undefined" && Boolean(window.mcpRuntime);
+  const [collapsedSections, setCollapsedSections] = useState<Set<SectionId>>(
+    () => readCollapsedSections(),
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<DraftForm>(emptyDraft);
   const [formError, setFormError] = useState<string | null>(null);
   const [tests, setTests] = useState<Record<string, TestState>>({});
   // 远程引擎地址(10-29 D1 终裁):配置态回显/草稿/保存与连通测试进行态。
-  const [remoteEngine, setRemoteEngineState] = useState<ComfyRemoteEngineStatus | null>(null);
+  const [remoteEngine, setRemoteEngineState] =
+    useState<ComfyRemoteEngineStatus | null>(null);
   const [remoteDraft, setRemoteDraft] = useState("");
   const [remoteSaving, setRemoteSaving] = useState(false);
   const [remoteTest, setRemoteTest] = useState<
-    { status: "idle" } | { status: "ok"; text: string } | { status: "error"; message: string }
+    | { status: "idle" }
+    | { status: "ok"; text: string }
+    | { status: "error"; message: string }
   >({ status: "idle" });
   // ── SSH 远端连接(11-03 终版:多条连接列表,引擎/SSH 两列表零联动)──
   const [sshStatus, setSshStatus] = useState<ComfySshStatus | null>(null);
@@ -313,15 +403,22 @@ export function McpSettingsTab() {
   const [sshTesting, setSshTesting] = useState(false);
   const [sshRefreshing, setSshRefreshing] = useState(false);
   const [sshTest, setSshTest] = useState<
-    { status: "idle" } | { status: "ok"; reply: ComfySshTestReply } | { status: "error"; message: string }
+    | { status: "idle" }
+    | { status: "ok"; reply: ComfySshTestReply }
+    | { status: "error"; message: string }
   >({ status: "idle" });
   // 「立即刷新令牌」结果行(null=未操作;ok 决定着色)
-  const [sshTokenMsg, setSshTokenMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [sshTokenMsg, setSshTokenMsg] = useState<{
+    ok: boolean;
+    text: string;
+  } | null>(null);
   // 添加表单(展开态)+编辑 dialog(1103 终版 R2:form→list 范式迁移,照引擎区)
   const [addingSsh, setAddingSsh] = useState(false);
-  const [sshAddDraft, setSshAddDraft] = useState<SshFormDraft>(emptySshFormDraft);
+  const [sshAddDraft, setSshAddDraft] =
+    useState<SshFormDraft>(emptySshFormDraft);
   const [sshEditing, setSshEditing] = useState<SshPreset | null>(null);
-  const [sshEditDraft, setSshEditDraft] = useState<SshFormDraft>(emptySshFormDraft);
+  const [sshEditDraft, setSshEditDraft] =
+    useState<SshFormDraft>(emptySshFormDraft);
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState<string | null>(null);
 
@@ -338,7 +435,9 @@ export function McpSettingsTab() {
   // 故由本页在条目增改/导入/删除后重推;非 Electron 环境为空操作)。
   useEffect(() => {
     const commands = servers
-      .filter((server) => server.transport === "stdio" && server.command?.trim())
+      .filter(
+        (server) => server.transport === "stdio" && server.command?.trim(),
+      )
       .map((server) => server.command!.trim());
     void window.mcpRuntime?.syncRegisteredCommands?.(commands);
   }, [servers]);
@@ -348,7 +447,10 @@ export function McpSettingsTab() {
       const next = new Set(prev);
       if (next.has(sectionId)) next.delete(sectionId);
       else next.add(sectionId);
-      window.localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify([...next]));
+      window.localStorage.setItem(
+        COLLAPSED_STORAGE_KEY,
+        JSON.stringify([...next]),
+      );
       return next;
     });
   };
@@ -374,7 +476,9 @@ export function McpSettingsTab() {
       .catch(() => {
         /* sidecar 未运行/端点不可达:保持空态,保存时会给出大白话 */
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // SSH 状态回显(1103 终版 Q1 指纹真源):sidecar 未运行/老 sidecar 无 SSH 路由
@@ -408,7 +512,9 @@ export function McpSettingsTab() {
       .catch(() => {
         /* 保持空态,操作时会给出大白话;迁移一并跳过(C6) */
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // 保存=写 sidecar 配置(原子落 App 家 remote-engine.json,即时生效无需重启)。
@@ -422,12 +528,20 @@ export function McpSettingsTab() {
   // /system_stats;与 MCP 服务器卡片「测试连接」同范式;结果共用 remoteTest 展示位。
   const [remoteProbing, setRemoteProbing] = useState(false);
   // 1102 F4:探活成功详情弹窗(headline=实机版本/显卡,note=保存态说明);null=关
-  const [engineOkDialog, setEngineOkDialog] = useState<{ headline: string; note: string } | null>(null);
+  const [engineOkDialog, setEngineOkDialog] = useState<{
+    headline: string;
+    note: string;
+  } | null>(null);
   const testRemoteConnection = async (rawUrlOverride?: string) => {
     // rawUrlOverride(1103 devices-list):设备行/添加表单直传待探地址;缺省=输入框草稿
-    const base = normalizeEngineUrl(rawUrlOverride ?? remoteDraft) || normalizeEngineUrl(remoteEngine?.effective ?? "");
+    const base =
+      normalizeEngineUrl(rawUrlOverride ?? remoteDraft) ||
+      normalizeEngineUrl(remoteEngine?.effective ?? "");
     if (!base) {
-      setRemoteTest({ status: "error", message: "先填引擎地址再测试(留空=本机引擎)" });
+      setRemoteTest({
+        status: "error",
+        message: "先填引擎地址再测试(留空=本机引擎)",
+      });
       return;
     }
     if (!/^https?:\/\//.test(base)) {
@@ -449,10 +563,14 @@ export function McpSettingsTab() {
         // 1102 F4 终态:成功=弹窗即全部;1103 修:note 随被测地址与生效引擎
         // 的关系分口径(旧「未保存」文案是输入框时代残留,设备列表已无「保存
         // 并测试」按钮——测当前生效机=已生效,测其他设备=点行切换)
-        const testingActive = remoteEngine?.source === "settings" && base === normalizeEngineUrl(remoteEngine.url ?? "");
+        const testingActive =
+          remoteEngine?.source === "settings" &&
+          base === normalizeEngineUrl(remoteEngine.url ?? "");
         setEngineOkDialog({
           headline: `连接成功(${comfyVersionLabel(probe.comfyui_version ?? "未知版本", probe.device ?? null)})`,
-          note: testingActive ? "该设备已是当前生效引擎" : "点该设备行即可切换生效",
+          note: testingActive
+            ? "该设备已是当前生效引擎"
+            : "点该设备行即可切换生效",
         });
         setRemoteTest({ status: "idle" });
       } else {
@@ -493,7 +611,10 @@ export function McpSettingsTab() {
             `保存后回读校验失败:生效地址 ${status.effective}(来源 ${status.source}),与刚保存的 ${normalizedSaved} 不一致`,
           );
         }
-        setRemoteTest({ status: "ok", text: `已保存并生效(${status.effective}),引擎探活中…` });
+        setRemoteTest({
+          status: "ok",
+          text: `已保存并生效(${status.effective}),引擎探活中…`,
+        });
         // 保存成功即自动收藏(Q2 双通道①):favorite 去重置顶幂等+touch 刷新 LRU;
         // 本机(空串)不入列(外层 if (url) 已挡)。
         enginePresetFavorite(url);
@@ -545,37 +666,86 @@ export function McpSettingsTab() {
   // 地址区「引擎同步」折叠子区;后端 /comfy/ssh/sync-plugins 端点保留兼容。)
 
   // ── 引擎同步(11-04 engine-sync R3):单真源清单+勾选+逐项同步+结果弹窗 ──
-  const [engineSyncManifest, setEngineSyncManifest] = useState<EngineSyncManifest | null>(null);
+  const [engineSyncManifest, setEngineSyncManifest] =
+    useState<EngineSyncManifest | null>(null);
   const [engineSyncError, setEngineSyncError] = useState<string | null>(null);
-  const [engineSyncChecked, setEngineSyncChecked] = useState<Record<string, boolean>>({});
+  const [engineSyncChecked, setEngineSyncChecked] = useState<
+    Record<string, boolean>
+  >({});
   // 逐项进度(Q3:每完成一件更新一行):name → "pending" ⬜等待 | "syncing" ⏳ | 完成回执
-  const [engineSyncProgress, setEngineSyncProgress] = useState<Record<string, "pending" | "syncing" | EngineSyncResultItem>>({});
+  const [engineSyncProgress, setEngineSyncProgress] = useState<
+    Record<string, "pending" | "syncing" | EngineSyncResultItem>
+  >({});
   const [engineSyncRunning, setEngineSyncRunning] = useState(false);
   // 同步完成结果弹窗(null=关;⚠️ pip 失败不阻断,随行展示)
-  const [engineSyncDialog, setEngineSyncDialog] = useState<EngineSyncResultItem[] | null>(null);
+  const [engineSyncDialog, setEngineSyncDialog] = useState<
+    EngineSyncResultItem[] | null
+  >(null);
   const [engineRestarting, setEngineRestarting] = useState(false);
   const sshActiveFingerprint = useSshPresetsStore((s) => s.activeFingerprint);
-  const torchRemoteActive = remoteEngine?.source === "settings" && Boolean(remoteEngine.url);
-  const torchIdentity = JSON.stringify([torchRemoteActive, torchRemoteActive ? normalizeEngineUrl(remoteEngine?.url ?? "") : "", torchRemoteActive ? [sshStatus?.connected, sshStatus?.host, sshStatus?.user, sshActiveFingerprint] : null]);
+  const torchRemoteActive =
+    remoteEngine?.source === "settings" && Boolean(remoteEngine.url);
+  const torchIdentity = JSON.stringify([
+    torchRemoteActive,
+    torchRemoteActive ? normalizeEngineUrl(remoteEngine?.url ?? "") : "",
+    torchRemoteActive
+      ? [
+          sshStatus?.connected,
+          sshStatus?.host,
+          sshStatus?.user,
+          sshActiveFingerprint,
+        ]
+      : null,
+  ]);
   const torchIdentityRef = useRef(torchIdentity);
   torchIdentityRef.current = torchIdentity;
-  const [torchInfoState, setTorchInfoState] = useState<{ identity: string; info: EngineTorchInfo } | null>(null);
+  const [torchInfoState, setTorchInfoState] = useState<{
+    identity: string;
+    info: EngineTorchInfo;
+  } | null>(null);
   const [torchInfoError, setTorchInfoError] = useState<string | null>(null);
-  const torchInfo = torchInfoState?.identity === torchIdentity ? torchInfoState.info : null;
+  const torchInfo =
+    torchInfoState?.identity === torchIdentity ? torchInfoState.info : null;
   const [torchTarget, setTorchTarget] = useState("");
-  const [torchChannel, setTorchChannel] = useState<TorchUpgradeChannel>("cu132");
+  const [torchChannel, setTorchChannel] =
+    useState<TorchUpgradeChannel>("cu132");
   const [torchConfirm, setTorchConfirm] = useState(false);
   const [torchConfirmPinned, setTorchConfirmPinned] = useState(false);
-  const [torchStates, setTorchStates] = useState<Record<string, { running?: boolean; job?: SidecarJobReply | null; resultOpen?: boolean; warning?: string | null }>>({});
+  const [torchStates, setTorchStates] = useState<
+    Record<
+      string,
+      {
+        running?: boolean;
+        job?: SidecarJobReply | null;
+        resultOpen?: boolean;
+        warning?: string | null;
+      }
+    >
+  >({});
   const torchState = torchStates[torchIdentity];
   const torchRunning = Boolean(torchState?.running);
   const torchJob = torchState?.job ?? null;
   const torchResultOpen = Boolean(torchState?.resultOpen);
   const torchTrackingWarning = torchState?.warning ?? null;
-  const updateTorchState = useCallback((identity: string, patch: { running?: boolean; job?: SidecarJobReply | null; resultOpen?: boolean; warning?: string | null }) => {
-    setTorchStates((previous) => ({ ...previous, [identity]: { ...previous[identity], ...patch } }));
-  }, []);
-  const setTorchResultOpen = (resultOpen: boolean) => updateTorchState(torchIdentity, { resultOpen });
+  const updateTorchState = useCallback(
+    (
+      identity: string,
+      patch: {
+        running?: boolean;
+        job?: SidecarJobReply | null;
+        resultOpen?: boolean;
+        warning?: string | null;
+      },
+    ) => {
+      setTorchStates((previous) => ({
+        ...previous,
+        [identity]: { ...previous[identity], ...patch },
+      }));
+    },
+    [],
+  );
+  const setTorchResultOpen = (resultOpen: boolean) =>
+    updateTorchState(torchIdentity, { resultOpen });
   const torchTracking = useRef<Record<string, string | null>>({});
   const torchPendingJob = useRef<Record<string, string | null>>({});
   const torchRetryAfter = useRef<Record<string, number>>({});
@@ -596,26 +766,36 @@ export function McpSettingsTab() {
         setEngineSyncChecked(
           Object.fromEntries(
             manifest.items
-              .filter((item) => item.status === "both" || item.status === "mac-only")
+              .filter(
+                (item) => item.status === "both" || item.status === "mac-only",
+              )
               .map((item) => [item.name, true]),
           ),
         );
       })
       .catch((error) => {
         if (cancelled) return;
-        if (isSidecarDownError(error)) setEngineSyncError(SIDECAR_DOWN_GUIDANCE);
+        if (isSidecarDownError(error))
+          setEngineSyncError(SIDECAR_DOWN_GUIDANCE);
         else if (error instanceof ComfySidecarHttpError && error.status === 503)
-          setEngineSyncError("需先连接 SSH(下方 SSH 远端连接点一条连接)再取同步清单");
-        else setEngineSyncError(error instanceof Error ? error.message : "取同步清单失败");
+          setEngineSyncError(
+            "需先连接 SSH(下方 SSH 远端连接点一条连接)再取同步清单",
+          );
+        else
+          setEngineSyncError(
+            error instanceof Error ? error.message : "取同步清单失败",
+          );
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // 引擎同步清单可见行(skip 态不渲染;skip=my-nodes Q2 归 deploy-dual 管——
   // 手动清单条目双侧均无时后端报 mac-only,不落 skip,可见可勾选)
-  const engineSyncRows: EngineSyncManifestItem[] = (engineSyncManifest?.items ?? []).filter(
-    (item) => item.status !== "skip",
-  );
+  const engineSyncRows: EngineSyncManifestItem[] = (
+    engineSyncManifest?.items ?? []
+  ).filter((item) => item.status !== "skip");
 
   const toggleEngineSyncItem = (name: string, checked: boolean) => {
     setEngineSyncChecked((prev) => ({ ...prev, [name]: checked }));
@@ -629,11 +809,21 @@ export function McpSettingsTab() {
   // 标「整体超时」。
   const startEngineSync = async () => {
     const names = engineSyncRows
-      .filter((item) => item.status !== "win-only" && engineSyncChecked[item.name])
+      .filter(
+        (item) => item.status !== "win-only" && engineSyncChecked[item.name],
+      )
       .map((item) => item.name);
-    if (names.length === 0 || engineSyncRunning || torchRunning || torchInfo?.busy) return;
+    if (
+      names.length === 0 ||
+      engineSyncRunning ||
+      torchRunning ||
+      torchInfo?.busy
+    )
+      return;
     setEngineSyncRunning(true);
-    setEngineSyncProgress(Object.fromEntries(names.map((name) => [name, "pending" as const])));
+    setEngineSyncProgress(
+      Object.fromEntries(names.map((name) => [name, "pending" as const])),
+    );
     const deadline = Date.now() + ENGINE_SYNC_OVERALL_TIMEOUT_MS;
     const overallTimeoutError = `整体超时(${ENGINE_SYNC_OVERALL_TIMEOUT_MS / 60_000}min),未同步`;
     const results: EngineSyncResultItem[] = [];
@@ -654,9 +844,12 @@ export function McpSettingsTab() {
         setEngineSyncProgress((prev) => ({ ...prev, [name]: timedOut }));
         continue;
       }
-      setEngineSyncProgress((prev) => ({ ...prev, [name]: "syncing" }));  // 当前件 ⏳,其余 ⬜ 等待
+      setEngineSyncProgress((prev) => ({ ...prev, [name]: "syncing" })); // 当前件 ⏳,其余 ⬜ 等待
       try {
-        const reply = await syncEngine([name], Math.max(1, Math.ceil(remainingMs / 1000)));
+        const reply = await syncEngine(
+          [name],
+          Math.max(1, Math.ceil(remainingMs / 1000)),
+        );
         const item = reply.items[0];
         results.push(item);
         setEngineSyncProgress((prev) => ({ ...prev, [name]: item }));
@@ -677,7 +870,9 @@ export function McpSettingsTab() {
     setEngineSyncRunning(false);
     setEngineSyncDialog(results);
     if (results.some((r) => r.action === "failed")) {
-      toast.error(`引擎同步有 ${results.filter((r) => r.action === "failed").length} 件失败——见结果弹窗`);
+      toast.error(
+        `引擎同步有 ${results.filter((r) => r.action === "failed").length} 件失败——见结果弹窗`,
+      );
     } else {
       toast.success("引擎同步完成——建议重启引擎使插件生效");
     }
@@ -688,7 +883,8 @@ export function McpSettingsTab() {
     setEngineRestarting(true);
     try {
       const reply = await restartRemoteEngine();
-      if (reply.ok) toast.success("重启指令已发(EngineDurable),引擎约需 1-2 分钟起");
+      if (reply.ok)
+        toast.success("重启指令已发(EngineDurable),引擎约需 1-2 分钟起");
       else toast.error(`重启指令失败: ${reply.output || "schtasks 未成功"}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "重启失败");
@@ -707,7 +903,9 @@ export function McpSettingsTab() {
         /* 回读失败保留上次态,下轮再试 */
       }
       if (attempt < maxAttempts - 1) {
-        await new Promise((resolve) => setTimeout(resolve, attempt === 0 ? 1500 : 3000));
+        await new Promise((resolve) =>
+          setTimeout(resolve, attempt === 0 ? 1500 : 3000),
+        );
       }
     }
   };
@@ -727,7 +925,8 @@ export function McpSettingsTab() {
         user: preset.user,
         keyPath: preset.keyPath,
         tunnelEnabled: sshTunnelEnabled,
-      password: preset.password || "",});
+        password: preset.password || "",
+      });
       useSshPresetsStore.getState().setActiveFingerprint({
         host: reply.host,
         port: reply.port,
@@ -753,9 +952,14 @@ export function McpSettingsTab() {
   // 添加表单保存(R2):只入 store 不落章——激活走点行(与引擎设备「保存并生效」
   // 区分:SSH 列表保存=存意图,零副作用)。host 空=store 拒收,这里给文案。
   const submitAddSsh = () => {
-    const saved = useSshPresetsStore.getState().save(sshDraftToInput(sshAddDraft));
+    const saved = useSshPresetsStore
+      .getState()
+      .save(sshDraftToInput(sshAddDraft));
     if (!saved) {
-      setSshTest({ status: "error", message: "SSH 主机必填(如 192.168.0.101)" });
+      setSshTest({
+        status: "error",
+        message: "SSH 主机必填(如 192.168.0.101)",
+      });
       return;
     }
     setAddingSsh(false);
@@ -768,7 +972,9 @@ export function McpSettingsTab() {
   // 连接行,后端仍持旧凭据——点该行重新落章即生效(toast 指路,不偷写)。
   const submitEditSsh = () => {
     if (!sshEditing) return;
-    const saved = useSshPresetsStore.getState().save(sshDraftToInput(sshEditDraft, sshEditing.id));
+    const saved = useSshPresetsStore
+      .getState()
+      .save(sshDraftToInput(sshEditDraft, sshEditing.id));
     if (!saved) {
       toast.error("SSH 主机必填(如 192.168.0.101)");
       return;
@@ -785,7 +991,9 @@ export function McpSettingsTab() {
     setSshTunnelEnabled(checked);
     const presets = useSshPresetsStore.getState().presets;
     const activePreset = presets.find(
-      (p) => p.id === resolveActiveSshPresetId(presets, sshStatus, sshActiveFingerprint),
+      (p) =>
+        p.id ===
+        resolveActiveSshPresetId(presets, sshStatus, sshActiveFingerprint),
     );
     if (!activePreset) return;
     try {
@@ -837,7 +1045,10 @@ export function McpSettingsTab() {
     try {
       const reply = await refreshComfySshToken();
       if (reply.ok) {
-        const at = typeof reply.tokenRefreshedAt === "number" ? reply.tokenRefreshedAt : null;
+        const at =
+          typeof reply.tokenRefreshedAt === "number"
+            ? reply.tokenRefreshedAt
+            : null;
         setSshTokenMsg({
           ok: true,
           text: `令牌已刷新${at ? `(${new Date(at * 1000).toLocaleTimeString()})` : ""}`,
@@ -885,42 +1096,76 @@ export function McpSettingsTab() {
     [sshPresets, sshStatus, sshActiveFingerprint],
   );
   // R1 生效判定(1102→1103 devices-list):地址指向远端=有远端设备生效,否则本机
-  const remoteActive = remoteEngine?.source === "settings" && Boolean(remoteEngine.url);
-  const activeRemoteUrl = remoteActive ? normalizeEngineUrl(remoteEngine?.url ?? "") : "";
-  const pinnedTorch = torchInfo?.pinnedTarget ?? torchInfo?.allowedTargets?.[0] ?? "";
+  const remoteActive =
+    remoteEngine?.source === "settings" && Boolean(remoteEngine.url);
+  const activeRemoteUrl = remoteActive
+    ? normalizeEngineUrl(remoteEngine?.url ?? "")
+    : "";
+  const pinnedTorch =
+    torchInfo?.pinnedTarget ?? torchInfo?.allowedTargets?.[0] ?? "";
   const pinnedVersion = remoteActive ? `${pinnedTorch}+cu132` : pinnedTorch;
-  const torchVerified = Boolean(torchInfo?.live && torchInfo.current?.torch && (torchInfo.current.source === "system_stats" || torchInfo.hostMatched));
-  const torchNeedsUpdate = torchVerified && torchInfo?.current?.torch !== pinnedVersion;
+  const torchVerified = Boolean(
+    torchInfo?.live &&
+    torchInfo.current?.torch &&
+    (torchInfo.current.source === "system_stats" || torchInfo.hostMatched),
+  );
+  const torchNeedsUpdate =
+    torchVerified && torchInfo?.current?.torch !== pinnedVersion;
   const torchLedgerOnly = Boolean(torchInfo?.current?.torch && !torchInfo.live);
-  const torchVersionDisplay = torchInfo?.current?.torch ?? `未知(原因:${torchInfo?.errors?.[0] ?? torchInfoError ?? "尚未获取引擎版本"})`;
+  const torchVersionDisplay =
+    torchInfo?.current?.torch ??
+    `未知(原因:${torchInfo?.errors?.[0] ?? torchInfoError ?? "尚未获取引擎版本"})`;
 
-  const followTorchJob = useCallback(async (jobId: string) => {
-    const identity = torchIdentity;
-    const mode = torchRemoteActive ? "remote" : "local";
-    torchTracking.current[identity] = jobId;
-    updateTorchState(identity, { running: true, warning: null, job: { status: "running", step: "preflight", message: "正在跟踪升级任务" } });
-    try {
-      const job = await pollJobUntilTerminal(jobId, 5 * 60 * 60 * 1000, 1500, (value) => {
-        if (torchTracking.current[identity] === jobId) updateTorchState(identity, { job: value });
-      }, 3, mode);
-      if (torchTracking.current[identity] !== jobId) return;
-      torchPendingJob.current[identity] = null;
-      updateTorchState(identity, { job, warning: null, resultOpen: true });
-    } catch {
-      if (torchTracking.current[identity] !== jobId) return;
-      torchPendingJob.current[identity] = jobId;
-      torchRetryAfter.current[identity] = Date.now() + 30_000;
-      updateTorchState(identity, { warning: "升级跟踪中断，任务可能仍在后台运行，将自动重试跟随" });
-    } finally {
-      if (torchTracking.current[identity] === jobId) {
-        torchTracking.current[identity] = null;
-        updateTorchState(identity, { running: false });
+  const followTorchJob = useCallback(
+    async (jobId: string) => {
+      const identity = torchIdentity;
+      const mode = torchRemoteActive ? "remote" : "local";
+      torchTracking.current[identity] = jobId;
+      updateTorchState(identity, {
+        running: true,
+        warning: null,
+        job: {
+          status: "running",
+          step: "preflight",
+          message: "正在跟踪升级任务",
+        },
+      });
+      try {
+        const job = await pollJobUntilTerminal(
+          jobId,
+          5 * 60 * 60 * 1000,
+          1500,
+          (value) => {
+            if (torchTracking.current[identity] === jobId)
+              updateTorchState(identity, { job: value });
+          },
+          3,
+          mode,
+        );
+        if (torchTracking.current[identity] !== jobId) return;
+        torchPendingJob.current[identity] = null;
+        updateTorchState(identity, { job, warning: null, resultOpen: true });
+      } catch {
+        if (torchTracking.current[identity] !== jobId) return;
+        torchPendingJob.current[identity] = jobId;
+        torchRetryAfter.current[identity] = Date.now() + 30_000;
+        updateTorchState(identity, {
+          warning: "升级跟踪中断，任务可能仍在后台运行，将自动重试跟随",
+        });
+      } finally {
+        if (torchTracking.current[identity] === jobId) {
+          torchTracking.current[identity] = null;
+          updateTorchState(identity, { running: false });
+        }
       }
-    }
-  }, [torchIdentity, torchRemoteActive, updateTorchState]);
+    },
+    [torchIdentity, torchRemoteActive, updateTorchState],
+  );
 
   useEffect(() => {
-    setTorchInfoState((previous) => previous?.identity === torchIdentity ? previous : null);
+    setTorchInfoState((previous) =>
+      previous?.identity === torchIdentity ? previous : null,
+    );
     setTorchInfoError(null);
   }, [torchIdentity]);
 
@@ -936,43 +1181,98 @@ export function McpSettingsTab() {
       }
       inFlight = true;
       const epoch = torchProbeEpoch.current;
-      void getEngineTorchInfo("remote").then((info) => {
-        if (!active || torchIdentityRef.current !== torchIdentity || epoch !== torchProbeEpoch.current) return;
-        setTorchInfoState({ identity: torchIdentity, info });
-        setTorchInfoError(null);
-        if (!torchTargetInitialized.current && info.allowedTargets?.length) {
-          torchTargetInitialized.current = true;
-          setTorchTarget(info.allowedTargets[0]);
-        }
-        if (info.busy && info.jobId && !torchTracking.current[torchIdentity] && Date.now() >= (torchRetryAfter.current[torchIdentity] ?? 0)) {
-          void followTorchJob(info.jobId);
-        } else if (!info.busy && torchPendingJob.current[torchIdentity] && !torchTracking.current[torchIdentity] && Date.now() >= (torchRetryAfter.current[torchIdentity] ?? 0)) {
-          const jobId = torchPendingJob.current[torchIdentity]!;
-          torchTracking.current[torchIdentity] = jobId;
-          void comfySidecarRequest<SidecarJobReply>("GET", `/comfy/jobs/${encodeURIComponent(jobId)}?mode=remote`, { timeoutMs: 10_000 })
-            .then((job) => {
-              if (!active || torchIdentityRef.current !== torchIdentity || torchTracking.current[torchIdentity] !== jobId) return;
-              if (job.status === "complete" || job.status === "error") {
-                torchPendingJob.current[torchIdentity] = null;
-                updateTorchState(torchIdentity, { job, warning: null, resultOpen: true });
-              } else {
-                torchRetryAfter.current[torchIdentity] = Date.now() + 30_000;
-              }
-            })
-            .catch((error: unknown) => {
-              if (!active || torchIdentityRef.current !== torchIdentity || torchTracking.current[torchIdentity] !== jobId) return;
-              if (error instanceof ComfySidecarHttpError && error.status === 404) {
-                torchPendingJob.current[torchIdentity] = null;
-                updateTorchState(torchIdentity, { warning: "升级结果已不可取回" });
-              } else {
-                torchRetryAfter.current[torchIdentity] = Date.now() + 30_000;
-                updateTorchState(torchIdentity, { warning: "升级结果暂时无法获取，将自动重试" });
-              }
-            })
-            .finally(() => { if (torchTracking.current[torchIdentity] === jobId) torchTracking.current[torchIdentity] = null; });
-        }
-      })
-        .catch((error: unknown) => { if (active && torchIdentityRef.current === torchIdentity && epoch === torchProbeEpoch.current) { setTorchInfoState(null); setTorchInfoError(error instanceof Error ? error.message : "获取引擎版本失败"); } })
+      void getEngineTorchInfo("remote")
+        .then((info) => {
+          if (
+            !active ||
+            torchIdentityRef.current !== torchIdentity ||
+            epoch !== torchProbeEpoch.current
+          )
+            return;
+          setTorchInfoState({ identity: torchIdentity, info });
+          setTorchInfoError(null);
+          if (!torchTargetInitialized.current && info.allowedTargets?.length) {
+            torchTargetInitialized.current = true;
+            setTorchTarget(info.allowedTargets[0]);
+          }
+          if (
+            info.busy &&
+            info.jobId &&
+            !torchTracking.current[torchIdentity] &&
+            Date.now() >= (torchRetryAfter.current[torchIdentity] ?? 0)
+          ) {
+            void followTorchJob(info.jobId);
+          } else if (
+            !info.busy &&
+            torchPendingJob.current[torchIdentity] &&
+            !torchTracking.current[torchIdentity] &&
+            Date.now() >= (torchRetryAfter.current[torchIdentity] ?? 0)
+          ) {
+            const jobId = torchPendingJob.current[torchIdentity]!;
+            torchTracking.current[torchIdentity] = jobId;
+            void comfySidecarRequest<SidecarJobReply>(
+              "GET",
+              `/comfy/jobs/${encodeURIComponent(jobId)}?mode=remote`,
+              { timeoutMs: 10_000 },
+            )
+              .then((job) => {
+                if (
+                  !active ||
+                  torchIdentityRef.current !== torchIdentity ||
+                  torchTracking.current[torchIdentity] !== jobId
+                )
+                  return;
+                if (job.status === "complete" || job.status === "error") {
+                  torchPendingJob.current[torchIdentity] = null;
+                  updateTorchState(torchIdentity, {
+                    job,
+                    warning: null,
+                    resultOpen: true,
+                  });
+                } else {
+                  torchRetryAfter.current[torchIdentity] = Date.now() + 30_000;
+                }
+              })
+              .catch((error: unknown) => {
+                if (
+                  !active ||
+                  torchIdentityRef.current !== torchIdentity ||
+                  torchTracking.current[torchIdentity] !== jobId
+                )
+                  return;
+                if (
+                  error instanceof ComfySidecarHttpError &&
+                  error.status === 404
+                ) {
+                  torchPendingJob.current[torchIdentity] = null;
+                  updateTorchState(torchIdentity, {
+                    warning: "升级结果已不可取回",
+                  });
+                } else {
+                  torchRetryAfter.current[torchIdentity] = Date.now() + 30_000;
+                  updateTorchState(torchIdentity, {
+                    warning: "升级结果暂时无法获取，将自动重试",
+                  });
+                }
+              })
+              .finally(() => {
+                if (torchTracking.current[torchIdentity] === jobId)
+                  torchTracking.current[torchIdentity] = null;
+              });
+          }
+        })
+        .catch((error: unknown) => {
+          if (
+            active &&
+            torchIdentityRef.current === torchIdentity &&
+            epoch === torchProbeEpoch.current
+          ) {
+            setTorchInfoState(null);
+            setTorchInfoError(
+              error instanceof Error ? error.message : "获取引擎版本失败",
+            );
+          }
+        })
         .finally(() => {
           inFlight = false;
           if (active && pending) {
@@ -983,35 +1283,78 @@ export function McpSettingsTab() {
     };
     refresh();
     const timer = window.setInterval(refresh, 10_000);
-    return () => { active = false; window.clearInterval(timer); };
-  }, [remoteEngine, remoteActive, activeRemoteUrl, sshStatus?.connected, torchRunning, followTorchJob, torchIdentity, updateTorchState]);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [
+    remoteEngine,
+    remoteActive,
+    activeRemoteUrl,
+    sshStatus?.connected,
+    torchRunning,
+    followTorchJob,
+    torchIdentity,
+    updateTorchState,
+  ]);
 
   const startTorchUpgrade = async () => {
     const target = torchConfirmPinned ? pinnedTorch : torchTarget;
-    if (!sshStatus?.connected || engineSyncRunning || torchRunning || !torchInfo || torchInfo.busy || !torchInfo.allowedTargets?.includes(target)) return;
+    if (
+      !sshStatus?.connected ||
+      engineSyncRunning ||
+      torchRunning ||
+      !torchInfo ||
+      torchInfo.busy ||
+      !torchInfo.allowedTargets?.includes(target)
+    )
+      return;
     torchProbeEpoch.current += 1;
     torchTracking.current[torchIdentity] = "starting";
-    updateTorchState(torchIdentity, { running: true, job: { status: "running", step: "preflight", message: "正在启动" } });
+    updateTorchState(torchIdentity, {
+      running: true,
+      job: { status: "running", step: "preflight", message: "正在启动" },
+    });
     try {
-      const { jobId } = await startEngineTorchUpgrade(target, torchConfirmPinned ? "cu132" : torchChannel, "remote");
+      const { jobId } = await startEngineTorchUpgrade(
+        target,
+        torchConfirmPinned ? "cu132" : torchChannel,
+        "remote",
+      );
       await followTorchJob(jobId);
     } catch (error) {
-      updateTorchState(torchIdentity, { job: { status: "error", message: error instanceof Error ? error.message : "升级任务状态不可用" }, running: false, resultOpen: true });
+      updateTorchState(torchIdentity, {
+        job: {
+          status: "error",
+          message:
+            error instanceof Error ? error.message : "升级任务状态不可用",
+        },
+        running: false,
+        resultOpen: true,
+      });
       torchTracking.current[torchIdentity] = null;
     }
   };
 
   // ── R2 模型族(1102 控制中心):真源=defaultImageModel;切换即切产线(Q1) ──
-  const defaultImageModel = useAppSettingsStore((s) => s.imageGenerationSettings.defaultImageModel);
+  const defaultImageModel = useAppSettingsStore(
+    (s) => s.imageGenerationSettings.defaultImageModel,
+  );
   const currentFamily = engineFamilyMeta(defaultImageModel);
   const handleFamilySwitch = (value: string) => {
-    useAppSettingsStore.getState().setImageGenerationSettings({ defaultImageModel: value });
-    toast.success(`产线已切换:${value === "" ? "自动(本地即 Qwen-Image-2.1)" : value}`);
+    useAppSettingsStore
+      .getState()
+      .setImageGenerationSettings({ defaultImageModel: value });
+    toast.success(
+      `产线已切换:${value === "" ? "自动(本地即 Qwen-Image-2.1)" : value}`,
+    );
   };
 
   // ── R3 工作流(1102):当前族域前缀拉清单(prefix+light),双类型绑定(Q3) ──
   const bindings = useWorkflowBindingsStore();
-  const [familyWorkflows, setFamilyWorkflows] = useState<{ id: string; name: string }[]>([]);
+  const [familyWorkflows, setFamilyWorkflows] = useState<
+    { id: string; name: string }[]
+  >([]);
   const [workflowsLoading, setWorkflowsLoading] = useState(false);
   const [workflowsError, setWorkflowsError] = useState<string | null>(null);
   useEffect(() => {
@@ -1022,7 +1365,10 @@ export function McpSettingsTab() {
     let cancelled = false;
     setWorkflowsLoading(true);
     setWorkflowsError(null);
-    comfySidecarRequest<{ engineOnline: boolean; workflows: { id: string; name: string }[] }>(
+    comfySidecarRequest<{
+      engineOnline: boolean;
+      workflows: { id: string; name: string }[];
+    }>(
       "GET",
       `/comfy/workflows?prefix=${encodeURIComponent(currentFamily.workflowPrefix)}&light=true`,
     )
@@ -1030,7 +1376,8 @@ export function McpSettingsTab() {
         if (!cancelled) setFamilyWorkflows(res.workflows ?? []);
       })
       .catch(() => {
-        if (!cancelled) setWorkflowsError("清单拉取失败(sidecar 未运行或引擎未启动)");
+        if (!cancelled)
+          setWorkflowsError("清单拉取失败(sidecar 未运行或引擎未启动)");
       })
       .finally(() => {
         if (!cancelled) setWorkflowsLoading(false);
@@ -1039,8 +1386,12 @@ export function McpSettingsTab() {
       cancelled = true;
     };
   }, [currentFamily.workflowPrefix]);
-  const t2iCandidates = familyWorkflows.filter((w) => w.id.includes("1_文生图"));
-  const i2iCandidates = familyWorkflows.filter((w) => w.id.includes("2_图生图"));
+  const t2iCandidates = familyWorkflows.filter((w) =>
+    w.id.includes("1_文生图"),
+  );
+  const i2iCandidates = familyWorkflows.filter((w) =>
+    w.id.includes("2_图生图"),
+  );
 
   // ── 设备列表(1103 devices-list 役,模仿 ZCode RemoteConnectionSelection)──
   // 激活设备:点设备行即切换(坑①沿用:必传 urlOverride——setRemoteDraft 异步落帧)。
@@ -1059,7 +1410,10 @@ export function McpSettingsTab() {
   const submitAddDevice = () => {
     const url = normalizeEngineUrl(addDraft.url);
     if (!/^https?:\/\//.test(url)) {
-      setRemoteTest({ status: "error", message: "地址格式不对(须 http(s)://主机[:端口];全角：／已自动归一)" });
+      setRemoteTest({
+        status: "error",
+        message: "地址格式不对(须 http(s)://主机[:端口];全角：／已自动归一)",
+      });
       return;
     }
     const label = addDraft.label.trim();
@@ -1083,7 +1437,8 @@ export function McpSettingsTab() {
     if (newUrl === oldUrl) {
       enginePresetRename(oldUrl, label);
     } else {
-      const wasActive = remoteActive && normalizeEngineUrl(remoteEngine?.url ?? "") === oldUrl;
+      const wasActive =
+        remoteActive && normalizeEngineUrl(remoteEngine?.url ?? "") === oldUrl;
       enginePresetRemove(oldUrl);
       if (/^https?:\/\//.test(newUrl)) enginePresetFavorite(newUrl, label);
       if (wasActive) activateDevice(newUrl);
@@ -1092,7 +1447,8 @@ export function McpSettingsTab() {
     toast.success("设备已更新");
   };
 
-  const transportLabel = (transport: McpTransport) => (transport === "stdio" ? "本地命令" : "网络地址");
+  const transportLabel = (transport: McpTransport) =>
+    transport === "stdio" ? "本地命令" : "网络地址";
 
   const openCreate = () => {
     setEditingId(null);
@@ -1114,7 +1470,9 @@ export function McpSettingsTab() {
       return;
     }
     // 重名守卫:手动添加放行重名会让导出 JSON 静默合并(名字做键);导入路径才按「同名更新」语义
-    const duplicateName = servers.some((s) => s.name === draft.name.trim() && s.id !== editingId);
+    const duplicateName = servers.some(
+      (s) => s.name === draft.name.trim() && s.id !== editingId,
+    );
     if (duplicateName) {
       setFormError("已存在同名服务器，请换个名字（或编辑原条目）");
       return;
@@ -1167,1269 +1525,1965 @@ export function McpSettingsTab() {
     } catch (exc) {
       setTests((prev) => ({
         ...prev,
-        [server.id]: { status: "error", message: exc instanceof Error ? exc.message : String(exc) },
+        [server.id]: {
+          status: "error",
+          message: exc instanceof Error ? exc.message : String(exc),
+        },
       }));
     }
   };
 
-  const enabledCount = useMemo(() => servers.filter((s) => s.enabled).length, [servers]);
+  const enabledCount = useMemo(
+    () => servers.filter((s) => s.enabled).length,
+    [servers],
+  );
 
   return (
     <>
       {/* 0924 范式重构后内容超一屏;设置页全家模式=tab 自带 ScrollArea(祖先链恒 overflow-hidden) */}
       <ScrollArea className="h-full">
-      <div className="p-8 w-full max-w-[1200px] mx-auto space-y-8">
-      {/* 0924 C1(§7):密钥保险箱状态横幅(env 含 token,与 API 密钥同批加密) */}
-      <SecureVaultBanner
-        storageKey={MCP_SERVERS_STORAGE_KEY}
-        subjectLabel="远程配置"
-        onRetry={() => useMcpServersStore.persist.rehydrate()}
-      />
+        <div className="p-8 w-full max-w-[1200px] mx-auto space-y-8">
+          {/* 0924 C1(§7):密钥保险箱状态横幅(env 含 token,与 API 密钥同批加密) */}
+          <SecureVaultBanner
+            storageKey={MCP_SERVERS_STORAGE_KEY}
+            subjectLabel="远程配置"
+            onRetry={() => useMcpServersStore.persist.rehydrate()}
+          />
 
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h3 className="flex items-center gap-2 text-lg font-bold text-foreground">
-            <Server className="h-5 w-5 text-primary" aria-hidden />
-            远程配置
-          </h3>
-          <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
-            管理这台 App 之外的远端资源：引擎地址与设备、引擎同步、SSH 连接、PyTorch/CUDA 升级，以及 MCP 服务器登记（AI 工具联动标准协议，先用「测试连接」确认连通）。
-          </p>
-        </div>
-      </header>
+          <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h3 className="flex items-center gap-2 text-lg font-bold text-foreground">
+                <Server className="h-5 w-5 text-primary" aria-hidden />
+                远程配置
+              </h3>
+              <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
+                管理这台 App 之外的远端资源：引擎地址与设备、引擎同步、SSH
+                连接、PyTorch/CUDA 升级，以及 MCP 服务器登记（AI
+                工具联动标准协议，先用「测试连接」确认连通）。
+              </p>
+            </div>
+          </header>
 
-      {/* ── 引擎与产线(11-02 控制中心役):本地生图增强+引擎双卡+模型族+工作流绑定 ── */}
-      <McpGroup label="引擎与产线">
-        <McpRow
-          sectionId="bridge"
-          icon={Plug}
-          title="本地生图增强（专业流 · 道劫型）"
-          pill="neutral"
-          collapsed={collapsedSections.has("bridge")}
-          onToggle={toggleSectionCollapsed}
-        >
-          <div className="space-y-4 px-5 py-4">
-            {/* 1102 控制中心役:桥接状态灯收编进下方引擎双卡(统一探活,一个口径);
+          {/* ── 引擎与产线(11-02 控制中心役):本地生图增强+引擎双卡+模型族+工作流绑定 ── */}
+          <McpGroup label="引擎与产线">
+            <McpRow
+              sectionId="bridge"
+              icon={Plug}
+              title="本地生图增强（专业流 · 道劫型）"
+              pill="neutral"
+              collapsed={collapsedSections.has("bridge")}
+              onToggle={toggleSectionCollapsed}
+            >
+              <div className="space-y-4 px-5 py-4">
+                {/* 1102 控制中心役:桥接状态灯收编进下方引擎双卡(统一探活,一个口径);
                 此行只留真设置(专业流增强+道劫型选择)。多参考编辑能力随引擎生效:
                 当前生效引擎(本机/远端)在跑即用,状态看引擎卡探活。 */}
-            <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
-              <div className="min-w-0">
-                <div className="text-sm font-medium">专业流增强（本地）</div>
-                <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                  开启后本地生图自动走专业流：Krea2 挂 NSFW 增强组件，ComfyUI 桥改走 NSFW 专业流。默认关闭——对普通画面有模糊/偏色副作用；仅本地引擎生效，云端不受影响。
+                <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium">
+                      专业流增强（本地）
+                    </div>
+                    <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                      开启后本地生图自动走专业流：Krea2 挂 NSFW
+                      增强组件，ComfyUI 桥改走 NSFW
+                      专业流。默认关闭——对普通画面有模糊/偏色副作用；仅本地引擎生效，云端不受影响。
+                    </div>
+                  </div>
+                  <label
+                    className="flex shrink-0 cursor-pointer items-center gap-2 text-sm text-muted-foreground"
+                    data-local-image-lora-checkbox
+                    title="开启后本地生图自动挂专业流增强"
+                  >
+                    <Checkbox
+                      checked={localImageLoraEnabled}
+                      onCheckedChange={(checked) =>
+                        useAppSettingsStore
+                          .getState()
+                          .setImageGenerationSettings({
+                            localImageLoraEnabled: checked === true,
+                          })
+                      }
+                      aria-label="专业流增强（本地）"
+                    />
+                  </label>
+                </div>
+                <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium">
+                      道劫型选择（本地生图）
+                    </div>
+                    <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                      指定后本地 Qwen-Image-2.1
+                      生图按该型拼接型文与型档画幅（十型真源=引擎
+                      qi21_bases.json，非法值由引擎拒单兜底）；「不指定」沿用产线默认。仅本地引擎生效，云端不受影响。
+                    </div>
+                  </div>
+                  <select
+                    className="h-8 shrink-0 self-center rounded-md border border-border bg-background px-2 text-sm"
+                    value={localImageBaseType}
+                    onChange={(e) =>
+                      useAppSettingsStore
+                        .getState()
+                        .setImageGenerationSettings({
+                          localImageBaseType: e.target.value,
+                        })
+                    }
+                    aria-label="道劫型选择（本地）"
+                    data-local-image-base-type-select
+                  >
+                    <option value="">不指定</option>
+                    {LOCAL_IMAGE_BASE_TYPES.map((baseType) => (
+                      <option key={baseType} value={baseType}>
+                        {baseType}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
-              <label
-                className="flex shrink-0 cursor-pointer items-center gap-2 text-sm text-muted-foreground"
-                data-local-image-lora-checkbox
-                title="开启后本地生图自动挂专业流增强"
+            </McpRow>
+            {/* 远程引擎地址(10-29 D1 终裁):URL 配一条,任务发远端 MYStudio 的 ComfyUI+产物回流 */}
+            <McpRow
+              sectionId="remote-engine"
+              icon={Server}
+              title="ComfyUI 引擎地址（远程）"
+              pill={remoteEngine?.source === "settings" ? "ready" : "neutral"}
+              collapsed={collapsedSections.has("remote-engine")}
+              onToggle={toggleSectionCollapsed}
+            >
+              <div
+                className="space-y-3 px-5 py-3"
+                data-testid="remote-engine-section"
               >
-                <Checkbox
-                  checked={localImageLoraEnabled}
-                  onCheckedChange={(checked) =>
-                    useAppSettingsStore
-                      .getState()
-                      .setImageGenerationSettings({
-                        localImageLoraEnabled: checked === true,
-                      })
-                  }
-                  aria-label="专业流增强（本地）"
-                />
-              </label>
-            </div>
-            <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
-              <div className="min-w-0">
-                <div className="text-sm font-medium">道劫型选择（本地生图）</div>
-                <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                  指定后本地 Qwen-Image-2.1 生图按该型拼接型文与型档画幅（十型真源=引擎 qi21_bases.json，非法值由引擎拒单兜底）；「不指定」沿用产线默认。仅本地引擎生效，云端不受影响。
-                </div>
-              </div>
-              <select
-                className="h-8 shrink-0 self-center rounded-md border border-border bg-background px-2 text-sm"
-                value={localImageBaseType}
-                onChange={(e) =>
-                  useAppSettingsStore
-                    .getState()
-                    .setImageGenerationSettings({ localImageBaseType: e.target.value })
-                }
-                aria-label="道劫型选择（本地）"
-                data-local-image-base-type-select
-              >
-                <option value="">不指定</option>
-                {LOCAL_IMAGE_BASE_TYPES.map((baseType) => (
-                  <option key={baseType} value={baseType}>{baseType}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </McpRow>
-        {/* 远程引擎地址(10-29 D1 终裁):URL 配一条,任务发远端 MYStudio 的 ComfyUI+产物回流 */}
-        <McpRow
-          sectionId="remote-engine"
-          icon={Server}
-          title="ComfyUI 引擎地址（远程）"
-          pill={remoteEngine?.source === "settings" ? "ready" : "neutral"}
-          collapsed={collapsedSections.has("remote-engine")}
-          onToggle={toggleSectionCollapsed}
-        >
-          <div className="space-y-3 px-5 py-3" data-testid="remote-engine-section">
-            {/* R2 全景状态条(1104 engine-failure-guidance):远端引擎/SSH 隧道/远端管理/本地备胎
+                {/* R2 全景状态条(1104 engine-failure-guidance):远端引擎/SSH 隧道/远端管理/本地备胎
                 四组件一排状态,有红/黄时给一句话建议——用户令:每种情况都要有提示 */}
-            <div className="flex flex-wrap items-center gap-2 text-xs" data-testid="engine-status-bar">
-              {remoteActive ? (
-                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${remoteTest.status === "ok" || remoteEngine ? "border-success/25 bg-success/10 text-success" : "border-destructive/25 bg-destructive/[0.08] text-destructive/90"}`}>
-                  {remoteTest.status === "ok" || remoteEngine ? "✅" : "❌"} 远端引擎
-                </span>
-              ) : null}
-              {sshStatus?.configured ? (
-                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${sshStatus.connected ? "border-success/25 bg-success/10 text-success" : "border-destructive/25 bg-destructive/[0.08] text-destructive/90"}`}>
-                  {sshStatus.connected ? "✅" : "❌"} SSH 隧道
-                </span>
-              ) : null}
-              {remoteActive ? (
-                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${sshStatus?.connected ? "border-success/25 bg-success/10 text-success" : "border-warning/40 bg-warning/[0.06] text-warning"}`}>
-                  {sshStatus?.connected ? "✅" : "⚠️"} 远端管理
-                </span>
-              ) : null}
-              <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${useEnginePresetsStore.getState().presets.length > 0 ? "border-success/25 bg-success/10 text-success" : "border-border bg-muted text-muted-foreground"}`}>
-                {remoteActive ? "✅" : "⚠️"} 本地备胎{!remoteActive ? "(当前本机模式)" : ""}
-              </span>
-            </div>
-            {(sshStatus?.configured && !sshStatus.connected) || (remoteActive && !remoteEngine) ? (
-              <p className="text-xs leading-4 text-warning" data-testid="engine-status-hint">
-                {remoteActive && !remoteEngine ? "远端引擎不可达——出图会失败,请检查 Windows ComfyUI" : ""}
-                {remoteActive && !remoteEngine && sshStatus?.configured && !sshStatus.connected ? "; " : ""}
-                {sshStatus?.configured && !sshStatus.connected ? "SSH 隧道断开——工作流列表/模型库存不可用,出图不受影响" : ""}
-              </p>
-            ) : null}
-            {/* R1 设备列表(1103 devices-list 役,模仿 ZCode RemoteConnectionSelection):
+                <div
+                  className="flex flex-wrap items-center gap-2 text-xs"
+                  data-testid="engine-status-bar"
+                >
+                  {remoteActive ? (
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${remoteTest.status === "ok" || remoteEngine ? "border-success/25 bg-success/10 text-success" : "border-destructive/25 bg-destructive/[0.08] text-destructive/90"}`}
+                    >
+                      {remoteTest.status === "ok" || remoteEngine ? "✅" : "❌"}{" "}
+                      远端引擎
+                    </span>
+                  ) : null}
+                  {sshStatus?.configured ? (
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${sshStatus.connected ? "border-success/25 bg-success/10 text-success" : "border-destructive/25 bg-destructive/[0.08] text-destructive/90"}`}
+                    >
+                      {sshStatus.connected ? "✅" : "❌"} SSH 隧道
+                    </span>
+                  ) : null}
+                  {remoteActive ? (
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${sshStatus?.connected ? "border-success/25 bg-success/10 text-success" : "border-warning/40 bg-warning/[0.06] text-warning"}`}
+                    >
+                      {sshStatus?.connected ? "✅" : "⚠️"} 远端管理
+                    </span>
+                  ) : null}
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${useEnginePresetsStore.getState().presets.length > 0 ? "border-success/25 bg-success/10 text-success" : "border-border bg-muted text-muted-foreground"}`}
+                  >
+                    {remoteActive ? "✅" : "⚠️"} 本地备胎
+                    {!remoteActive ? "(当前本机模式)" : ""}
+                  </span>
+                </div>
+                {(sshStatus?.configured && !sshStatus.connected) ||
+                (remoteActive && !remoteEngine) ? (
+                  <p
+                    className="text-xs leading-4 text-warning"
+                    data-testid="engine-status-hint"
+                  >
+                    {remoteActive && !remoteEngine
+                      ? "远端引擎不可达——出图会失败,请检查 Windows ComfyUI"
+                      : ""}
+                    {remoteActive &&
+                    !remoteEngine &&
+                    sshStatus?.configured &&
+                    !sshStatus.connected
+                      ? "; "
+                      : ""}
+                    {sshStatus?.configured && !sshStatus.connected
+                      ? "SSH 隧道断开——工作流列表/模型库存不可用,出图不受影响"
+                      : ""}
+                  </p>
+                ) : null}
+                {/* R1 设备列表(1103 devices-list 役,模仿 ZCode RemoteConnectionSelection):
                 本机行恒在恒首 + N 远端设备行;行点击=激活;选中=圆点+高亮+「当前生效」
                 徽标(恒恰一行);行内 测试/编辑/删除;底部「+ 添加设备」(ZCode 底部
                 新建连接排范式)。多机真源=presets store;生效机=remote-engine.json
                 单值切换——列表是配置管理,一时刻一生效机。 */}
-            <div className="space-y-2" data-testid="engine-devices-list">
-              {/* 本机行(kind=local):恒在恒首不可删;点行=清地址切回本机 */}
-              <div
-                className={`rounded-xl border p-3 ${!remoteActive ? "border-primary/60 bg-primary/5" : "border-border"}`}
-                data-testid="engine-device-local"
-              >
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={!remoteActive}
-                    onClick={() => {
-                      if (remoteActive) activateDevice("");
-                    }}
-                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg text-left"
-                    data-testid="engine-device-local-select"
-                    title="选中本机引擎(清空远端地址)"
-                  >
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
-                      <Monitor className="size-4 text-muted-foreground" aria-hidden />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2">
-                        <span
-                          className={`h-3 w-3 shrink-0 rounded-full border-2 ${!remoteActive ? "border-primary bg-primary" : "border-muted-foreground/40 bg-transparent"}`}
-                          aria-hidden
-                        />
-                        <span className="truncate text-sm font-medium">本机引擎(Mac 托管)</span>
-                      </span>
-                      <span className="block truncate font-mono text-xs text-muted-foreground">
-                        Mac 本机托管 · 启停/模型在「设置 → 本地配置」
-                      </span>
-                    </span>
-                  </button>
-                  {!remoteActive && (
-                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">当前生效</span>
-                  )}
-                </div>
-              </div>
-              {/* 远端设备行:presets 逐台;点行=保存该机地址生效(saveRemoteEngine
-                  成功即自动收藏置顶+LRU 刷新) */}
-              {enginePresets.map((p) => {
-                const isActive = remoteActive && activeRemoteUrl === p.url;
-                return (
+                <div className="space-y-2" data-testid="engine-devices-list">
+                  {/* 本机行(kind=local):恒在恒首不可删;点行=清地址切回本机 */}
                   <div
-                    key={p.url}
-                    className={`rounded-xl border p-3 ${isActive ? "border-primary/60 bg-primary/5" : "border-border"}`}
-                    data-testid="engine-device-remote"
+                    className={`rounded-xl border p-3 ${!remoteActive ? "border-primary/60 bg-primary/5" : "border-border"}`}
+                    data-testid="engine-device-local"
                   >
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
                         role="radio"
-                        aria-checked={isActive}
+                        aria-checked={!remoteActive}
                         onClick={() => {
-                          if (!isActive) activateDevice(p.url);
+                          if (remoteActive) activateDevice("");
                         }}
                         className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg text-left"
-                        data-testid="engine-device-remote-select"
-                        data-url={p.url}
-                        title={`切换到 ${p.label}`}
+                        data-testid="engine-device-local-select"
+                        title="选中本机引擎(清空远端地址)"
                       >
                         <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
-                          <Server className="size-4 text-muted-foreground" aria-hidden />
+                          <Monitor
+                            className="size-4 text-muted-foreground"
+                            aria-hidden
+                          />
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-2">
                             <span
-                              className={`h-3 w-3 shrink-0 rounded-full border-2 ${isActive ? "border-primary bg-primary" : "border-muted-foreground/40 bg-transparent"}`}
+                              className={`h-3 w-3 shrink-0 rounded-full border-2 ${!remoteActive ? "border-primary bg-primary" : "border-muted-foreground/40 bg-transparent"}`}
                               aria-hidden
                             />
-                            <span className="truncate text-sm font-medium">{p.label}</span>
+                            <span className="truncate text-sm font-medium">
+                              本机引擎(Mac 托管)
+                            </span>
                           </span>
-                          <span className="block truncate font-mono text-xs text-muted-foreground">{p.url}</span>
+                          <span className="block truncate font-mono text-xs text-muted-foreground">
+                            Mac 本机托管 · 启停/模型在「设置 → 本地配置」
+                          </span>
                         </span>
                       </button>
-                      {isActive && (
-                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">当前生效</span>
+                      {!remoteActive && (
+                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
+                          当前生效
+                        </span>
                       )}
-                      <span className="flex shrink-0 items-center gap-1">
-                        <Button
-                          size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                          onClick={() => void testRemoteConnection(p.url)}
-                          disabled={remoteProbing}
-                          data-testid="engine-device-test"
-                          data-url={p.url}
-                          title="仅探活不保存"
-                        >测试</Button>
-                        <Button
-                          size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                          onClick={() => {
-                            setEditingDevice(p);
-                            setEditDraft({ label: p.label, url: p.url });
-                          }}
-                          data-testid="engine-device-edit"
-                          data-url={p.url}
-                        ><Pencil className="mr-0.5 h-3 w-3" aria-hidden />编辑</Button>
-                        <Button
-                          size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
-                          onClick={() => enginePresetRemove(p.url)}
-                          aria-label={`删除设备 ${p.label}`}
-                          data-testid="engine-device-delete"
-                          data-url={p.url}
-                          title="删除设备条目(不改动当前生效引擎)"
-                        ><Trash2 className="h-3 w-3" aria-hidden /></Button>
-                      </span>
                     </div>
                   </div>
-                );
-              })}
-              {enginePresets.length === 0 && !addingDevice && (
-                <p className="px-1 text-xs leading-5 text-muted-foreground" data-testid="engine-devices-empty">
-                  暂无远端设备——点下方「添加设备」录入 Windows 等机器的引擎地址,可配多台随时切换。
-                </p>
-              )}
-            </div>
-            {/* + 添加设备(ZCode 底部新建连接排范式):名字选填+地址;可先测试再保存生效 */}
-            {!addingDevice ? (
-              <Button
-                variant="outline" size="sm" className="self-start"
-                onClick={() => {
-                  setAddingDevice(true);
-                  setAddDraft({ label: "", url: "" });
-                  setRemoteTest({ status: "idle" });
-                }}
-                disabled={remoteSaving || remoteProbing}
-                data-testid="engine-device-add"
-              >
-                <Plus className="mr-1 h-3.5 w-3.5" aria-hidden />添加设备
-              </Button>
-            ) : (
-              <div className="space-y-2.5 rounded-xl border border-border p-3" data-testid="engine-device-add-form">
-                <div className="grid gap-2.5">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="engine-device-name">设备名(选填)</Label>
-                    <Input
-                      id="engine-device-name"
-                      value={addDraft.label}
-                      onChange={(e) => setAddDraft((prev) => ({ ...prev, label: e.target.value }))}
-                      placeholder="如:Windows 主力(缺省=主机地址)"
-                      data-testid="engine-device-add-name"
-                      spellCheck={false}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="engine-device-url">引擎地址</Label>
-                    <Input
-                      id="engine-device-url"
-                      value={addDraft.url}
-                      onChange={(e) => setAddDraft((prev) => ({ ...prev, url: e.target.value }))}
-                      placeholder="http://192.168.x.x:17000(全角：／自动归一)"
-                      data-testid="engine-device-add-url"
-                      spellCheck={false}
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm" variant="outline"
-                    onClick={() => void testRemoteConnection(normalizeEngineUrl(addDraft.url))}
-                    disabled={remoteProbing || remoteSaving || !addDraft.url.trim()}
-                    data-testid="engine-device-add-test"
-                  >{remoteProbing ? "测试中…" : "测试连接"}</Button>
-                  <Button
-                    size="sm"
-                    onClick={submitAddDevice}
-                    disabled={remoteSaving || !addDraft.url.trim()}
-                    data-testid="engine-device-add-save"
-                  >{remoteSaving ? "保存中…" : "保存并生效"}</Button>
-                  <Button
-                    size="sm" variant="ghost"
-                    onClick={() => setAddingDevice(false)}
-                    disabled={remoteSaving}
-                    data-testid="engine-device-add-cancel"
-                  >取消</Button>
-                </div>
-              </div>
-            )}
-            {/* 编辑设备(名字/地址):地址不变=只改名;地址变=删旧加新(自定义名带入),
-                被编辑的正是生效机时无缝续活到新地址 */}
-            <Dialog open={editingDevice !== null} onOpenChange={(open) => !open && setEditingDevice(null)}>
-              <DialogContent className="max-w-sm" data-testid="engine-device-edit-dialog">
-                <DialogHeader>
-                  <DialogTitle>编辑设备</DialogTitle>
-                  <DialogDescription>改名或换地址;正在生效的设备换地址会自动切到新地址。</DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-2.5">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="engine-device-edit-name">设备名</Label>
-                    <Input
-                      id="engine-device-edit-name"
-                      value={editDraft.label}
-                      onChange={(e) => setEditDraft((prev) => ({ ...prev, label: e.target.value }))}
-                      data-testid="engine-device-edit-name"
-                      spellCheck={false}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="engine-device-edit-url">引擎地址</Label>
-                    <Input
-                      id="engine-device-edit-url"
-                      value={editDraft.url}
-                      onChange={(e) => setEditDraft((prev) => ({ ...prev, url: e.target.value }))}
-                      data-testid="engine-device-edit-url"
-                      spellCheck={false}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button size="sm" variant="ghost" onClick={() => setEditingDevice(null)}>取消</Button>
-                  <Button size="sm" onClick={submitEditDevice} data-testid="engine-device-edit-save">保存</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            {remoteTest.status === "ok" && (
-              <p className="text-xs text-success" data-testid="remote-engine-ok">{remoteTest.text}</p>
-            )}
-            {remoteTest.status === "error" && (
-              <p className="text-xs text-destructive" data-testid="remote-engine-error">{remoteTest.message}</p>
-            )}
-            {/* 1102 F4:探活成功详情弹窗(实机数据:版本/显卡来自 probe 实时取数) */}
-            <Dialog open={engineOkDialog !== null} onOpenChange={(open) => !open && setEngineOkDialog(null)}>
-              <DialogContent className="max-w-sm" data-testid="remote-engine-ok-dialog">
-                <DialogHeader>
-                  <DialogTitle>引擎连接</DialogTitle>
-                  <DialogDescription>{engineOkDialog?.headline}</DialogDescription>
-                </DialogHeader>
-                <p className="text-sm text-muted-foreground">{engineOkDialog?.note}</p>
-                <DialogFooter>
-                  <Button size="sm" onClick={() => setEngineOkDialog(null)}>知道了</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            {remoteActive && (<>
-            {/* ── 引擎同步(11-04 engine-sync R3):单真源清单+勾选+逐项同步+结果弹窗。
-                C4:放引擎地址区(同步的是 ComfyUI 的东西),SSH 只是传输通道 ── */}
-            <Collapsible
-              open={!collapsedSections.has("engine-sync")}
-              onOpenChange={() => toggleSectionCollapsed("engine-sync")}
-            >
-              <CollapsibleTrigger className="w-full text-left">
-                <div className="flex items-center gap-2 rounded-lg px-1 py-2" data-testid="engine-sync-header">
-                  <ChevronDown
-                    className={cn(
-                      "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                      collapsedSections.has("engine-sync") && "-rotate-90",
-                    )}
-                    aria-hidden="true"
-                  />
-                  <span className="text-sm font-medium">引擎同步</span>
-                      <span className="min-w-0 truncate text-xs text-muted-foreground">
-                        把引擎与插件从 GitHub 拉最新到 Windows(单真源清单,经 SSH)
-                      </span>
-                </div>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="space-y-3 rounded-xl border border-border p-3" data-testid="engine-sync-section">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <span>
-                      同步源: GitHub(各件 origin 仓库;Win 已有即拉最新,缺件即克隆)
-                      {engineSyncRows.filter((i) => i.status === "mac-only").length > 0
-                        ? `(含 Win 待装 ${engineSyncRows.filter((i) => i.status === "mac-only").length} 件)`
-                        : ""}
-                    </span>
-                    <span>目标: Windows(经 SSH 当前会话拉取)</span>
-                  </div>
-                  {/* torch 升级入口已收敛至「引擎 PyTorch / CUDA」分节(引擎地址区;1106 用户令:同步面板不再显示,避免双入口) */}
-                  {/* SSH 断开/清单取失败:按钮禁用+提示(R3);清单空同样提示 */}
-                  {!sshStatus?.connected ? (
-                    <p className="text-xs leading-5 text-warning" data-testid="engine-sync-ssh-hint">
-                      需先连接 SSH——在下方「SSH 远端连接」点一条连接后再同步。
-                    </p>
-                  ) : engineSyncError ? (
-                    <p className="text-xs leading-5 text-destructive" data-testid="engine-sync-error">{engineSyncError}</p>
-                  ) : engineSyncRows.length === 0 ? (
-                    <p className="text-xs leading-5 text-muted-foreground" data-testid="engine-sync-empty">
-                      同步清单为空——本机引擎还没扫到可同步的 git 插件(先在 设置→本地配置 准备本机引擎)。
-                    </p>
-                  ) : (
-                    <div className="space-y-1.5" data-testid="engine-sync-list">
-                      {engineSyncRows.map((item) => {
-                        const progress = engineSyncProgress[item.name];
-                        const winOnly = item.status === "win-only";
-                        return (
-                          <div
-                            key={item.name}
-                            className={cn(
-                              "flex flex-wrap items-center gap-2 rounded-lg border border-border/60 px-2 py-1.5",
-                              winOnly && "opacity-50",
-                            )}
-                            data-testid="engine-sync-row"
-                            data-name={item.name}
+                  {/* 远端设备行:presets 逐台;点行=保存该机地址生效(saveRemoteEngine
+                  成功即自动收藏置顶+LRU 刷新) */}
+                  {enginePresets.map((p) => {
+                    const isActive = remoteActive && activeRemoteUrl === p.url;
+                    return (
+                      <div
+                        key={p.url}
+                        className={`rounded-xl border p-3 ${isActive ? "border-primary/60 bg-primary/5" : "border-border"}`}
+                        data-testid="engine-device-remote"
+                      >
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            role="radio"
+                            aria-checked={isActive}
+                            onClick={() => {
+                              if (!isActive) activateDevice(p.url);
+                            }}
+                            className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg text-left"
+                            data-testid="engine-device-remote-select"
+                            data-url={p.url}
+                            title={`切换到 ${p.label}`}
                           >
-                            <Checkbox
-                              checked={winOnly ? false : (engineSyncChecked[item.name] ?? false)}
-                              disabled={winOnly || engineSyncRunning}
-                              onCheckedChange={(checked) => toggleEngineSyncItem(item.name, checked === true)}
-                              aria-label={`同步 ${item.name}`}
-                              data-testid="engine-sync-check"
-                            />
-                            <span className="min-w-0 flex-1 truncate text-sm">
-                              {item.name === "ComfyUI" ? "ComfyUI 引擎" : item.name}
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+                              <Server
+                                className="size-4 text-muted-foreground"
+                                aria-hidden
+                              />
                             </span>
-                            {/* 1104 改清晰显示:不比对哈希(策略=GitHub 拉最新),只报安装态 */}
-                            <span
-                              className={cn(
-                                "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium",
-                                item.status === "mac-only"
-                                  ? "border-destructive/25 bg-destructive/[0.08] text-destructive/90"
-                                  : item.status === "win-only"
-                                    ? "border-border bg-muted/50 text-muted-foreground/60"
-                                    : "border-success/25 bg-success/10 text-success",
-                              )}
-                              data-testid="engine-sync-status"
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-center gap-2">
+                                <span
+                                  className={`h-3 w-3 shrink-0 rounded-full border-2 ${isActive ? "border-primary bg-primary" : "border-muted-foreground/40 bg-transparent"}`}
+                                  aria-hidden
+                                />
+                                <span className="truncate text-sm font-medium">
+                                  {p.label}
+                                </span>
+                              </span>
+                              <span className="block truncate font-mono text-xs text-muted-foreground">
+                                {p.url}
+                              </span>
+                            </span>
+                          </button>
+                          {isActive && (
+                            <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
+                              当前生效
+                            </span>
+                          )}
+                          <span className="flex shrink-0 items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => void testRemoteConnection(p.url)}
+                              disabled={remoteProbing}
+                              data-testid="engine-device-test"
+                              data-url={p.url}
+                              title="仅探活不保存"
                             >
-                              {item.status === "mac-only"
-                                ? "❌ Windows 未装"
-                                : item.status === "win-only"
-                                  ? "⏭️ 跳过(Win 独有)"
-                                  : "✅ 已装"}
+                              测试
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => {
+                                setEditingDevice(p);
+                                setEditDraft({ label: p.label, url: p.url });
+                              }}
+                              data-testid="engine-device-edit"
+                              data-url={p.url}
+                            >
+                              <Pencil className="mr-0.5 h-3 w-3" aria-hidden />
+                              编辑
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                              onClick={() => enginePresetRemove(p.url)}
+                              aria-label={`删除设备 ${p.label}`}
+                              data-testid="engine-device-delete"
+                              data-url={p.url}
+                              title="删除设备条目(不改动当前生效引擎)"
+                            >
+                              <Trash2 className="h-3 w-3" aria-hidden />
+                            </Button>
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {enginePresets.length === 0 && !addingDevice && (
+                    <p
+                      className="px-1 text-xs leading-5 text-muted-foreground"
+                      data-testid="engine-devices-empty"
+                    >
+                      暂无远端设备——点下方「添加设备」录入 Windows
+                      等机器的引擎地址,可配多台随时切换。
+                    </p>
+                  )}
+                </div>
+                {/* + 添加设备(ZCode 底部新建连接排范式):名字选填+地址;可先测试再保存生效 */}
+                {!addingDevice ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="self-start"
+                    onClick={() => {
+                      setAddingDevice(true);
+                      setAddDraft({ label: "", url: "" });
+                      setRemoteTest({ status: "idle" });
+                    }}
+                    disabled={remoteSaving || remoteProbing}
+                    data-testid="engine-device-add"
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" aria-hidden />
+                    添加设备
+                  </Button>
+                ) : (
+                  <div
+                    className="space-y-2.5 rounded-xl border border-border p-3"
+                    data-testid="engine-device-add-form"
+                  >
+                    <div className="grid gap-2.5">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="engine-device-name">设备名(选填)</Label>
+                        <Input
+                          id="engine-device-name"
+                          value={addDraft.label}
+                          onChange={(e) =>
+                            setAddDraft((prev) => ({
+                              ...prev,
+                              label: e.target.value,
+                            }))
+                          }
+                          placeholder="如:Windows 主力(缺省=主机地址)"
+                          data-testid="engine-device-add-name"
+                          spellCheck={false}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="engine-device-url">引擎地址</Label>
+                        <Input
+                          id="engine-device-url"
+                          value={addDraft.url}
+                          onChange={(e) =>
+                            setAddDraft((prev) => ({
+                              ...prev,
+                              url: e.target.value,
+                            }))
+                          }
+                          placeholder="http://192.168.x.x:17000(全角：／自动归一)"
+                          data-testid="engine-device-add-url"
+                          spellCheck={false}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          void testRemoteConnection(
+                            normalizeEngineUrl(addDraft.url),
+                          )
+                        }
+                        disabled={
+                          remoteProbing || remoteSaving || !addDraft.url.trim()
+                        }
+                        data-testid="engine-device-add-test"
+                      >
+                        {remoteProbing ? "测试中…" : "测试连接"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={submitAddDevice}
+                        disabled={remoteSaving || !addDraft.url.trim()}
+                        data-testid="engine-device-add-save"
+                      >
+                        {remoteSaving ? "保存中…" : "保存并生效"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setAddingDevice(false)}
+                        disabled={remoteSaving}
+                        data-testid="engine-device-add-cancel"
+                      >
+                        取消
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {/* 编辑设备(名字/地址):地址不变=只改名;地址变=删旧加新(自定义名带入),
+                被编辑的正是生效机时无缝续活到新地址 */}
+                <Dialog
+                  open={editingDevice !== null}
+                  onOpenChange={(open) => !open && setEditingDevice(null)}
+                >
+                  <DialogContent
+                    className="max-w-sm"
+                    data-testid="engine-device-edit-dialog"
+                  >
+                    <DialogHeader>
+                      <DialogTitle>编辑设备</DialogTitle>
+                      <DialogDescription>
+                        改名或换地址;正在生效的设备换地址会自动切到新地址。
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-2.5">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="engine-device-edit-name">设备名</Label>
+                        <Input
+                          id="engine-device-edit-name"
+                          value={editDraft.label}
+                          onChange={(e) =>
+                            setEditDraft((prev) => ({
+                              ...prev,
+                              label: e.target.value,
+                            }))
+                          }
+                          data-testid="engine-device-edit-name"
+                          spellCheck={false}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="engine-device-edit-url">引擎地址</Label>
+                        <Input
+                          id="engine-device-edit-url"
+                          value={editDraft.url}
+                          onChange={(e) =>
+                            setEditDraft((prev) => ({
+                              ...prev,
+                              url: e.target.value,
+                            }))
+                          }
+                          data-testid="engine-device-edit-url"
+                          spellCheck={false}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setEditingDevice(null)}
+                      >
+                        取消
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={submitEditDevice}
+                        data-testid="engine-device-edit-save"
+                      >
+                        保存
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                {remoteTest.status === "ok" && (
+                  <p
+                    className="text-xs text-success"
+                    data-testid="remote-engine-ok"
+                  >
+                    {remoteTest.text}
+                  </p>
+                )}
+                {remoteTest.status === "error" && (
+                  <p
+                    className="text-xs text-destructive"
+                    data-testid="remote-engine-error"
+                  >
+                    {remoteTest.message}
+                  </p>
+                )}
+                {/* 1102 F4:探活成功详情弹窗(实机数据:版本/显卡来自 probe 实时取数) */}
+                <Dialog
+                  open={engineOkDialog !== null}
+                  onOpenChange={(open) => !open && setEngineOkDialog(null)}
+                >
+                  <DialogContent
+                    className="max-w-sm"
+                    data-testid="remote-engine-ok-dialog"
+                  >
+                    <DialogHeader>
+                      <DialogTitle>引擎连接</DialogTitle>
+                      <DialogDescription>
+                        {engineOkDialog?.headline}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                      {engineOkDialog?.note}
+                    </p>
+                    <DialogFooter>
+                      <Button size="sm" onClick={() => setEngineOkDialog(null)}>
+                        知道了
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                {remoteActive && (
+                  <>
+                    {/* ── 引擎同步(11-04 engine-sync R3):单真源清单+勾选+逐项同步+结果弹窗。
+                C4:放引擎地址区(同步的是 ComfyUI 的东西),SSH 只是传输通道 ── */}
+                    <Collapsible
+                      open={!collapsedSections.has("engine-sync")}
+                      onOpenChange={() => toggleSectionCollapsed("engine-sync")}
+                    >
+                      <CollapsibleTrigger className="w-full text-left">
+                        <div
+                          className="flex items-center gap-2 rounded-lg px-1 py-2"
+                          data-testid="engine-sync-header"
+                        >
+                          <ChevronDown
+                            className={cn(
+                              "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                              collapsedSections.has("engine-sync") &&
+                                "-rotate-90",
+                            )}
+                            aria-hidden="true"
+                          />
+                          <span className="text-sm font-medium">引擎同步</span>
+                          <span className="min-w-0 truncate text-xs text-muted-foreground">
+                            把引擎与插件从 GitHub 拉最新到 Windows(单真源清单,经
+                            SSH)
+                          </span>
+                        </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div
+                          className="space-y-3 rounded-xl border border-border p-3"
+                          data-testid="engine-sync-section"
+                        >
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                            <span>
+                              同步源: GitHub(各件 origin 仓库;Win
+                              已有即拉最新,缺件即克隆)
+                              {engineSyncRows.filter(
+                                (i) => i.status === "mac-only",
+                              ).length > 0
+                                ? `(含 Win 待装 ${engineSyncRows.filter((i) => i.status === "mac-only").length} 件)`
+                                : ""}
                             </span>
-                            {/* 逐项进度(Q3:⬜ 等待 / ⏳ 同步中 / ✅ 完成 / ❌ 失败 / ⏭️ 跳过) */}
-                            {progress === "pending" ? (
-                              <span className="shrink-0 text-xs text-muted-foreground" data-testid="engine-sync-progress">⬜ 等待</span>
-                            ) : progress === "syncing" ? (
-                              <span className="shrink-0 text-xs text-warning" data-testid="engine-sync-progress">⏳ 同步中</span>
-                            ) : progress ? (
+                            <span>目标: Windows(经 SSH 当前会话拉取)</span>
+                          </div>
+                          {/* torch 升级入口已收敛至「引擎 PyTorch / CUDA」分节(引擎地址区;1106 用户令:同步面板不再显示,避免双入口) */}
+                          {/* SSH 断开/清单取失败:按钮禁用+提示(R3);清单空同样提示 */}
+                          {!sshStatus?.connected ? (
+                            <p
+                              className="text-xs leading-5 text-warning"
+                              data-testid="engine-sync-ssh-hint"
+                            >
+                              需先连接 SSH——在下方「SSH
+                              远端连接」点一条连接后再同步。
+                            </p>
+                          ) : engineSyncError ? (
+                            <p
+                              className="text-xs leading-5 text-destructive"
+                              data-testid="engine-sync-error"
+                            >
+                              {engineSyncError}
+                            </p>
+                          ) : engineSyncRows.length === 0 ? (
+                            <p
+                              className="text-xs leading-5 text-muted-foreground"
+                              data-testid="engine-sync-empty"
+                            >
+                              同步清单为空——本机引擎还没扫到可同步的 git
+                              插件(先在 设置→本地配置 准备本机引擎)。
+                            </p>
+                          ) : (
+                            <div
+                              className="space-y-1.5"
+                              data-testid="engine-sync-list"
+                            >
+                              {engineSyncRows.map((item) => {
+                                const progress = engineSyncProgress[item.name];
+                                const winOnly = item.status === "win-only";
+                                return (
+                                  <div
+                                    key={item.name}
+                                    className={cn(
+                                      "flex flex-wrap items-center gap-2 rounded-lg border border-border/60 px-2 py-1.5",
+                                      winOnly && "opacity-50",
+                                    )}
+                                    data-testid="engine-sync-row"
+                                    data-name={item.name}
+                                  >
+                                    <Checkbox
+                                      checked={
+                                        winOnly
+                                          ? false
+                                          : (engineSyncChecked[item.name] ??
+                                            false)
+                                      }
+                                      disabled={winOnly || engineSyncRunning}
+                                      onCheckedChange={(checked) =>
+                                        toggleEngineSyncItem(
+                                          item.name,
+                                          checked === true,
+                                        )
+                                      }
+                                      aria-label={`同步 ${item.name}`}
+                                      data-testid="engine-sync-check"
+                                    />
+                                    <span className="min-w-0 flex-1 truncate text-sm">
+                                      {item.name === "ComfyUI"
+                                        ? "ComfyUI 引擎"
+                                        : item.name}
+                                    </span>
+                                    {/* 1104 改清晰显示:不比对哈希(策略=GitHub 拉最新),只报安装态 */}
+                                    <span
+                                      className={cn(
+                                        "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium",
+                                        item.status === "mac-only"
+                                          ? "border-destructive/25 bg-destructive/[0.08] text-destructive/90"
+                                          : item.status === "win-only"
+                                            ? "border-border bg-muted/50 text-muted-foreground/60"
+                                            : "border-success/25 bg-success/10 text-success",
+                                      )}
+                                      data-testid="engine-sync-status"
+                                    >
+                                      {item.status === "mac-only"
+                                        ? "❌ Windows 未装"
+                                        : item.status === "win-only"
+                                          ? "⏭️ 跳过(Win 独有)"
+                                          : "✅ 已装"}
+                                    </span>
+                                    {/* 逐项进度(Q3:⬜ 等待 / ⏳ 同步中 / ✅ 完成 / ❌ 失败 / ⏭️ 跳过) */}
+                                    {progress === "pending" ? (
+                                      <span
+                                        className="shrink-0 text-xs text-muted-foreground"
+                                        data-testid="engine-sync-progress"
+                                      >
+                                        ⬜ 等待
+                                      </span>
+                                    ) : progress === "syncing" ? (
+                                      <span
+                                        className="shrink-0 text-xs text-warning"
+                                        data-testid="engine-sync-progress"
+                                      >
+                                        ⏳ 同步中
+                                      </span>
+                                    ) : progress ? (
+                                      <span
+                                        className={cn(
+                                          "shrink-0 text-xs",
+                                          progress.action === "failed" ||
+                                            !progress.verified
+                                            ? "text-destructive"
+                                            : "text-success",
+                                        )}
+                                        data-testid="engine-sync-progress"
+                                      >
+                                        {progress.action === "skipped"
+                                          ? "⏭️ 跳过"
+                                          : progress.action === "failed" ||
+                                              !progress.verified
+                                            ? "❌ 失败"
+                                            : "✅ 完成"}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => void startEngineSync()}
+                              disabled={
+                                engineSyncRunning ||
+                                torchRunning ||
+                                Boolean(torchInfo?.busy) ||
+                                !sshStatus?.connected ||
+                                engineSyncRows.length === 0 ||
+                                !engineSyncRows.some(
+                                  (i) =>
+                                    i.status !== "win-only" &&
+                                    engineSyncChecked[i.name],
+                                )
+                              }
+                              data-testid="engine-sync-start"
+                            >
+                              {engineSyncRunning ? "同步中…" : "开始同步"}
+                            </Button>
+                            <span className="text-xs text-muted-foreground">
+                              勾选项从 GitHub 拉最新(Win
+                              已有即更新、缺件即克隆);Win
+                              独有件保留不动;整体超时 30 分钟。
+                            </span>
+                          </div>
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </>
+                )}
+
+                {/* 同步完成结果弹窗(R3:逐项 ✅/❌/⏭️ + 重启建议+[重启引擎]) */}
+                <Dialog
+                  open={engineSyncDialog !== null}
+                  onOpenChange={(open) => !open && setEngineSyncDialog(null)}
+                >
+                  <DialogContent
+                    className="max-w-md"
+                    data-testid="engine-sync-result-dialog"
+                  >
+                    <DialogHeader>
+                      <DialogTitle>同步结果</DialogTitle>
+                      <DialogDescription>
+                        逐项结果(已验证=Windows 侧目录在且 HEAD 可读)
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div
+                      className="max-h-72 space-y-1.5 overflow-y-auto"
+                      data-testid="engine-sync-result-list"
+                    >
+                      {(engineSyncDialog ?? []).map((result) => (
+                        <div
+                          key={result.name}
+                          className="flex items-start gap-2 text-xs leading-5"
+                          data-testid="engine-sync-result-row"
+                        >
+                          <span className="shrink-0">
+                            {result.action === "failed" || !result.verified
+                              ? "❌"
+                              : result.action === "skipped"
+                                ? "⏭️"
+                                : "✅"}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="font-medium">
+                              {result.name === "ComfyUI"
+                                ? "ComfyUI 引擎"
+                                : result.name}
+                            </span>
+                            {result.action === "pulled" && result.verified
+                              ? ": 已从 GitHub 拉取最新"
+                              : result.action === "cloned" && result.verified
+                                ? ": 已安装(新)"
+                                : result.action === "skipped"
+                                  ? `: ${result.error ?? "跳过"}`
+                                  : `: ${result.error ?? "未通过验证"}`}
+                            {result.pipError ? (
                               <span
-                                className={cn(
-                                  "shrink-0 text-xs",
-                                  progress.action === "failed" || !progress.verified ? "text-destructive" : "text-success",
-                                )}
-                                data-testid="engine-sync-progress"
+                                className="mt-0.5 block text-warning"
+                                data-testid="engine-sync-pip-warning"
                               >
-                                {progress.action === "skipped"
-                                  ? "⏭️ 跳过"
-                                  : progress.action === "failed" || !progress.verified
-                                    ? "❌ 失败"
-                                    : "✅ 完成"}
+                                ⚠️ {result.pipError}(不阻断)
                               </span>
                             ) : null}
-                          </div>
-                        );
-                      })}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  )}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => void startEngineSync()}
-                      disabled={
-                        engineSyncRunning || torchRunning || Boolean(torchInfo?.busy) ||
-                        !sshStatus?.connected ||
-                        engineSyncRows.length === 0 ||
-                        !engineSyncRows.some((i) => i.status !== "win-only" && engineSyncChecked[i.name])
-                      }
-                      data-testid="engine-sync-start"
-                    >
-                      {engineSyncRunning ? "同步中…" : "开始同步"}
-                    </Button>
-                    <span className="text-xs text-muted-foreground">
-                      勾选项从 GitHub 拉最新(Win 已有即更新、缺件即克隆);Win 独有件保留不动;整体超时 30 分钟。
-                    </span>
-                  </div>
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-            </>)}
-
-            {/* 同步完成结果弹窗(R3:逐项 ✅/❌/⏭️ + 重启建议+[重启引擎]) */}
-            <Dialog open={engineSyncDialog !== null} onOpenChange={(open) => !open && setEngineSyncDialog(null)}>
-              <DialogContent className="max-w-md" data-testid="engine-sync-result-dialog">
-                <DialogHeader>
-                  <DialogTitle>同步结果</DialogTitle>
-                  <DialogDescription>逐项结果(已验证=Windows 侧目录在且 HEAD 可读)</DialogDescription>
-                </DialogHeader>
-                <div className="max-h-72 space-y-1.5 overflow-y-auto" data-testid="engine-sync-result-list">
-                  {(engineSyncDialog ?? []).map((result) => (
-                    <div key={result.name} className="flex items-start gap-2 text-xs leading-5" data-testid="engine-sync-result-row">
-                      <span className="shrink-0">
-                        {result.action === "failed" || !result.verified ? "❌" : result.action === "skipped" ? "⏭️" : "✅"}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="font-medium">{result.name === "ComfyUI" ? "ComfyUI 引擎" : result.name}</span>
-                        {result.action === "pulled" && result.verified
-                          ? ": 已从 GitHub 拉取最新"
-                          : result.action === "cloned" && result.verified
-                            ? ": 已安装(新)"
-                            : result.action === "skipped"
-                              ? `: ${result.error ?? "跳过"}`
-                              : `: ${result.error ?? "未通过验证"}`}
-                        {result.pipError ? (
-                          <span className="mt-0.5 block text-warning" data-testid="engine-sync-pip-warning">⚠️ {result.pipError}(不阻断)</span>
-                        ) : null}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">建议: 重启引擎使插件生效。</p>
-                <DialogFooter>
-                  <Button size="sm" variant="ghost" onClick={() => setEngineSyncDialog(null)}>关闭</Button>
-                  <Button
-                    size="sm"
-                    onClick={() => void restartEngine()}
-                    disabled={engineRestarting}
-                    data-testid="engine-sync-restart"
-                  >{engineRestarting ? "重启指令中…" : "重启引擎"}</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          {remoteActive && (
-          <Collapsible open={!collapsedSections.has("torch-upgrade")} onOpenChange={() => toggleSectionCollapsed("torch-upgrade")}>
-            <CollapsibleTrigger className="w-full text-left">
-              <div className="flex items-center gap-2 rounded-lg px-1 py-2" data-testid="torch-upgrade-header">
-                <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", collapsedSections.has("torch-upgrade") && "-rotate-90")} aria-hidden="true" />
-                <span className="text-sm font-medium">引擎 PyTorch / CUDA</span>
-                <span className="min-w-0 truncate text-xs text-muted-foreground">升级 Windows 引擎的 PyTorch(经 SSH)</span>
-                <span className={cn("ml-auto shrink-0 rounded-full border px-2 py-0.5 text-xs", remoteActive && sshStatus?.connected ? "border-success/40 text-success" : "border-border text-muted-foreground")}>
-                  {remoteActive && sshStatus?.connected ? "已就绪" : "未连接"}
-                </span>
+                    <p className="text-xs text-muted-foreground">
+                      建议: 重启引擎使插件生效。
+                    </p>
+                    <DialogFooter>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setEngineSyncDialog(null)}
+                      >
+                        关闭
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => void restartEngine()}
+                        disabled={engineRestarting}
+                        data-testid="engine-sync-restart"
+                      >
+                        {engineRestarting ? "重启指令中…" : "重启引擎"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-            <div className="mt-2 space-y-3 p-3">
-            {!remoteActive && <p className="text-xs text-muted-foreground">本地(Mac)引擎升级请到 设置→本地配置→ComfyUI→更新;此处仅管理 Windows 引擎。</p>}
-            <p className="text-xs leading-5 text-muted-foreground" data-testid="torch-target-desc">
-              <span className="font-medium text-foreground">升级对象:</span>Windows 引擎主机 <span className="font-mono">{activeRemoteUrl || sshStatus?.host || "未连接"}</span> —— 经 SSH 远程操作该机的 ComfyUI 引擎 Python 环境(venv),升级 <span className="font-mono">PyTorch + 配套 torchvision</span>;不动该机的 ComfyUI 本体、插件与模型文件。
-            </p>
-            <p className="text-xs leading-5 text-muted-foreground">
-              <span className="font-medium text-foreground">升级流程:</span>预检(引擎空闲/磁盘/驱动)→ 快照(可回滚)→ 停止引擎 → 安装新版本 → 导入验证 → 重启引擎 → 烟测;任一步失败自动回滚旧版,预计 15–60 分钟(视网络)。
-            </p>
-            <p className="text-xs text-muted-foreground">
-              <span data-testid="torch-section-body">生效版本：<span className="font-mono">{torchVersionDisplay}</span>
-              {torchInfo?.current?.cuda ? <span className="font-mono"> · CUDA {torchInfo.current.cuda}</span> : null}
-              {torchInfo?.current ? (torchInfo.live ? "（实时）" : "（账本，未实时验证）") : ""}
-              <span className={cn("ml-1", !torchVerified ? "text-muted-foreground" : torchNeedsUpdate ? "text-warning" : "text-success")}>
-                {torchLedgerOnly ? "未实时验证" : !torchVerified ? "" : torchNeedsUpdate ? `需更新 → ${pinnedVersion}` : "✅ 已是钉版"}
-              </span></span>
-            </p>
-            {sshStatus?.connected && torchInfo && !torchInfo.hostMatched && <p className="text-xs text-warning">SSH 主机与当前生效引擎不一致，无法升级。</p>}
-            <div className="flex flex-wrap items-end gap-2">
-              <div className="space-y-1"><Label htmlFor="torch-target">目标版本</Label><Input id="torch-target" value={torchTarget} onChange={(event) => setTorchTarget(event.target.value)} className="w-32 font-mono" /></div>
-              <div className="space-y-1"><Label htmlFor="torch-channel">CUDA 通道</Label><Select value={torchChannel} onValueChange={(value) => setTorchChannel(value as TorchUpgradeChannel)}><SelectTrigger id="torch-channel" className="w-28"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cu128">cu128</SelectItem><SelectItem value="cu130">cu130</SelectItem><SelectItem value="cu132">cu132</SelectItem></SelectContent></Select></div>
-              <Button size="sm" data-testid="torch-upgrade-start" onClick={() => { setTorchConfirmPinned(false); setTorchConfirm(true); }} disabled={!sshStatus?.connected || engineSyncRunning || !torchInfo || torchInfo.busy || torchRunning || !torchInfo.allowedTargets?.includes(torchTarget)}>升级</Button>
-            </div>
-            {torchInfo?.allowedTargets?.length && !torchInfo.allowedTargets.includes(torchTarget) ? <p className="text-xs text-warning">仅支持 {torchInfo.allowedTargets.join(" / ")}</p> : null}
-            {torchJob && <TorchUpgradeProgress job={torchJob} warning={torchTrackingWarning} />}
-            </div>
-            </CollapsibleContent>
-          </Collapsible>
-          )}
-        </McpRow>
 
-        {/* ── SSH 远端连接(1103 终版):多条连接列表(照引擎设备列表同款范式,
+              {remoteActive && (
+                <Collapsible
+                  open={!collapsedSections.has("torch-upgrade")}
+                  onOpenChange={() => toggleSectionCollapsed("torch-upgrade")}
+                >
+                  <CollapsibleTrigger className="w-full text-left">
+                    <div
+                      className="flex items-center gap-2 rounded-lg px-1 py-2"
+                      data-testid="torch-upgrade-header"
+                    >
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                          collapsedSections.has("torch-upgrade") &&
+                            "-rotate-90",
+                        )}
+                        aria-hidden="true"
+                      />
+                      <span className="text-sm font-medium">
+                        引擎 PyTorch / CUDA
+                      </span>
+                      <span className="min-w-0 truncate text-xs text-muted-foreground">
+                        升级 Windows 引擎的 PyTorch(经 SSH)
+                      </span>
+                      <span
+                        className={cn(
+                          "ml-auto shrink-0 rounded-full border px-2 py-0.5 text-xs",
+                          remoteActive && sshStatus?.connected
+                            ? "border-success/40 text-success"
+                            : "border-border text-muted-foreground",
+                        )}
+                      >
+                        {remoteActive && sshStatus?.connected
+                          ? "已就绪"
+                          : "未连接"}
+                      </span>
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div
+                      className="space-y-3 rounded-xl border border-border p-3"
+                      data-testid="torch-upgrade-section"
+                    >
+                      {!remoteActive && (
+                        <p className="text-xs text-muted-foreground">
+                          本地(Mac)引擎升级请到
+                          设置→本地配置→ComfyUI→更新;此处仅管理 Windows 引擎。
+                        </p>
+                      )}
+                      <p
+                        className="text-xs leading-5 text-muted-foreground"
+                        data-testid="torch-target-desc"
+                      >
+                        <span className="font-medium text-foreground">
+                          升级对象:
+                        </span>
+                        Windows 引擎主机{" "}
+                        <span className="font-mono">
+                          {activeRemoteUrl || sshStatus?.host || "未连接"}
+                        </span>{" "}
+                        —— 经 SSH 远程操作该机的 ComfyUI 引擎 Python
+                        环境(venv),升级{" "}
+                        <span className="font-mono">
+                          PyTorch + 配套 torchvision
+                        </span>
+                        ;不动该机的 ComfyUI 本体、插件与模型文件。
+                      </p>
+                      <p className="text-xs leading-5 text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                          升级流程:
+                        </span>
+                        预检(引擎空闲/磁盘/驱动)→ 快照(可回滚)→ 停止引擎 →
+                        安装新版本 → 导入验证 → 重启引擎 →
+                        烟测;任一步失败自动回滚旧版,预计 15–60 分钟(视网络)。
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        <span data-testid="torch-section-body">
+                          生效版本：
+                          <span className="font-mono">
+                            {torchVersionDisplay}
+                          </span>
+                          {torchInfo?.current?.cuda ? (
+                            <span className="font-mono">
+                              {" "}
+                              · CUDA {torchInfo.current.cuda}
+                            </span>
+                          ) : null}
+                          {torchInfo?.current
+                            ? torchInfo.live
+                              ? "（实时）"
+                              : "（账本，未实时验证）"
+                            : ""}
+                          <span
+                            className={cn(
+                              "ml-1",
+                              !torchVerified
+                                ? "text-muted-foreground"
+                                : torchNeedsUpdate
+                                  ? "text-warning"
+                                  : "text-success",
+                            )}
+                          >
+                            {torchLedgerOnly
+                              ? "未实时验证"
+                              : !torchVerified
+                                ? ""
+                                : torchNeedsUpdate
+                                  ? `需更新 → ${pinnedVersion}`
+                                  : "✅ 已是钉版"}
+                          </span>
+                        </span>
+                      </p>
+                      {sshStatus?.connected &&
+                        torchInfo &&
+                        !torchInfo.hostMatched && (
+                          <p className="text-xs text-warning">
+                            SSH 主机与当前生效引擎不一致，无法升级。
+                          </p>
+                        )}
+                      <div className="flex flex-wrap items-end gap-2">
+                        <div className="space-y-1">
+                          <Label htmlFor="torch-target">目标版本</Label>
+                          <Input
+                            id="torch-target"
+                            value={torchTarget}
+                            onChange={(event) =>
+                              setTorchTarget(event.target.value)
+                            }
+                            className="w-32 font-mono"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="torch-channel">CUDA 通道</Label>
+                          <Select
+                            value={torchChannel}
+                            onValueChange={(value) =>
+                              setTorchChannel(value as TorchUpgradeChannel)
+                            }
+                          >
+                            <SelectTrigger id="torch-channel" className="w-28">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="cu128">cu128</SelectItem>
+                              <SelectItem value="cu130">cu130</SelectItem>
+                              <SelectItem value="cu132">cu132</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          size="sm"
+                          data-testid="torch-upgrade-start"
+                          onClick={() => {
+                            setTorchConfirmPinned(false);
+                            setTorchConfirm(true);
+                          }}
+                          disabled={
+                            !sshStatus?.connected ||
+                            engineSyncRunning ||
+                            !torchInfo ||
+                            torchInfo.busy ||
+                            torchRunning ||
+                            !torchInfo.allowedTargets?.includes(torchTarget)
+                          }
+                        >
+                          升级
+                        </Button>
+                      </div>
+                      {torchInfo?.allowedTargets?.length &&
+                      !torchInfo.allowedTargets.includes(torchTarget) ? (
+                        <p className="text-xs text-warning">
+                          仅支持 {torchInfo.allowedTargets.join(" / ")}
+                        </p>
+                      ) : null}
+                      {torchJob && (
+                        <TorchUpgradeProgress
+                          job={torchJob}
+                          warning={torchTrackingWarning}
+                        />
+                      )}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+            </McpRow>
+
+            {/* ── SSH 远端连接(1103 终版):多条连接列表(照引擎设备列表同款范式,
             引擎/SSH 两列表零联动);点行=POST /comfy/ssh/config 切换当前连接 ── */}
-        <McpRow
-          sectionId="ssh-remote"
-          icon={Terminal}
-          title="SSH 远端连接（多条）"
-          pill={
-            sshNeedsRuntime
-              ? "needs-runtime"
-              : sshStatus?.connected
-                ? "ready"
-                : "neutral"
-          }
-          collapsed={collapsedSections.has("ssh-remote")}
-          onToggle={toggleSectionCollapsed}
-        >
-          <div className="space-y-3 px-5 py-3" data-testid="ssh-remote-section">
-            <p className="text-xs text-muted-foreground">
-              管理 SSH 连接目标(隧道终点+令牌发现)——点行即连接该机;与上方引擎地址互不影响。
-            </p>
-            {/* C2:依赖未装(paramiko 缺失)=环境级全局黄条(不随条目)→ 指路 Python
+            <McpRow
+              sectionId="ssh-remote"
+              icon={Terminal}
+              title="SSH 远端连接（多条）"
+              pill={
+                sshNeedsRuntime
+                  ? "needs-runtime"
+                  : sshStatus?.connected
+                    ? "ready"
+                    : "neutral"
+              }
+              collapsed={collapsedSections.has("ssh-remote")}
+              onToggle={toggleSectionCollapsed}
+            >
+              <div
+                className="space-y-3 px-5 py-3"
+                data-testid="ssh-remote-section"
+              >
+                <p className="text-xs text-muted-foreground">
+                  管理 SSH
+                  连接目标(隧道终点+令牌发现)——点行即连接该机;与上方引擎地址互不影响。
+                </p>
+                {/* C2:依赖未装(paramiko 缺失)=环境级全局黄条(不随条目)→ 指路 Python
                 运行环境页(本地配置);fail-open 不拦操作 */}
-            {sshNeedsRuntime && (
-              <p className="text-xs leading-5 text-warning" data-testid="ssh-needs-runtime">
-                SSH 依赖未安装（paramiko 缺失）：请在 设置→本地配置 →「Python 运行环境」完成准备后再使用 SSH 功能。
-              </p>
-            )}
-            {/* 连接列表(引擎设备行同构:图标瓦+名+mono 地址+radio+徽标+行内动作)。
+                {sshNeedsRuntime && (
+                  <p
+                    className="text-xs leading-5 text-warning"
+                    data-testid="ssh-needs-runtime"
+                  >
+                    SSH 依赖未安装（paramiko 缺失）：请在 设置→本地配置
+                    →「Python 运行环境」完成准备后再使用 SSH 功能。
+                  </p>
+                )}
+                {/* 连接列表(引擎设备行同构:图标瓦+名+mono 地址+radio+徽标+行内动作)。
                 「当前连接」=指纹匹配(Q1+③修复):host+user 对 status 回读,port 对
                 落章回执指纹,host+port+user 三全比对恒零或一行命中(后端一时刻一
                 连接;port 无法消歧的 legacy 双档=零命中不冒认,点行即重建);选中
                 行显实时态,未选中行不显态。 */}
-            <div className="space-y-2" data-testid="ssh-connections-list">
-              {sshPresets.map((preset) => {
-                const isActive = preset.id === activeSshPresetId;
-                return (
-                  <div
-                    key={preset.id}
-                    className={`rounded-xl border p-3 ${isActive ? "border-primary/60 bg-primary/5" : "border-border"}`}
-                    data-testid="ssh-connection-row"
-                    data-id={preset.id}
-                  >
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        role="radio"
-                        aria-checked={isActive}
-                        onClick={() => {
-                          if (!isActive) void switchSshConnection(preset);
-                        }}
-                        className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg text-left"
-                        data-testid="ssh-connection-select"
-                        data-host={preset.host}
-                        disabled={sshSwitching}
-                        title={`切换到 ${preset.label}`}
+                <div className="space-y-2" data-testid="ssh-connections-list">
+                  {sshPresets.map((preset) => {
+                    const isActive = preset.id === activeSshPresetId;
+                    return (
+                      <div
+                        key={preset.id}
+                        className={`rounded-xl border p-3 ${isActive ? "border-primary/60 bg-primary/5" : "border-border"}`}
+                        data-testid="ssh-connection-row"
+                        data-id={preset.id}
                       >
-                        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
-                          <Server className="size-4 text-muted-foreground" aria-hidden />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="flex items-center gap-2">
-                            <span
-                              className={`h-3 w-3 shrink-0 rounded-full border-2 ${isActive ? "border-primary bg-primary" : "border-muted-foreground/40 bg-transparent"}`}
-                              aria-hidden
-                            />
-                            <span className="truncate text-sm font-medium">{preset.label}</span>
-                          </span>
-                          <span className="block truncate font-mono text-xs text-muted-foreground">
-                            {preset.user ? `${preset.user}@` : ""}{preset.host}:{preset.port}
-                          </span>
-                          {/* 选中行实时态(唯一真连):已连接✓/断开✗;断开带 lastError */}
-                          {isActive && (
-                            <span className="mt-0.5 flex flex-wrap items-center gap-2">
-                              <span
-                                className={`inline-flex w-fit items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] ${
-                                  sshStatus?.connected
-                                    ? "border-success/25 bg-success/10 text-success"
-                                    : "border-destructive/25 bg-destructive/[0.08] text-destructive/90"
-                                }`}
-                                data-testid="ssh-row-live-state"
-                              >{sshStatus?.connected ? "SSH 已连接 ✓" : "SSH 断开 ✗"}</span>
-                              {!sshStatus?.connected && sshStatus?.lastError && (
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            role="radio"
+                            aria-checked={isActive}
+                            onClick={() => {
+                              if (!isActive) void switchSshConnection(preset);
+                            }}
+                            className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg text-left"
+                            data-testid="ssh-connection-select"
+                            data-host={preset.host}
+                            disabled={sshSwitching}
+                            title={`切换到 ${preset.label}`}
+                          >
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+                              <Server
+                                className="size-4 text-muted-foreground"
+                                aria-hidden
+                              />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-center gap-2">
                                 <span
-                                  className="min-w-0 max-w-[280px] truncate text-[10px] text-destructive"
-                                  data-testid="ssh-last-error"
-                                  title={sshStatus.lastError}
-                                >
-                                  {sshStatus.lastError}
+                                  className={`h-3 w-3 shrink-0 rounded-full border-2 ${isActive ? "border-primary bg-primary" : "border-muted-foreground/40 bg-transparent"}`}
+                                  aria-hidden
+                                />
+                                <span className="truncate text-sm font-medium">
+                                  {preset.label}
+                                </span>
+                              </span>
+                              <span className="block truncate font-mono text-xs text-muted-foreground">
+                                {preset.user ? `${preset.user}@` : ""}
+                                {preset.host}:{preset.port}
+                              </span>
+                              {/* 选中行实时态(唯一真连):已连接✓/断开✗;断开带 lastError */}
+                              {isActive && (
+                                <span className="mt-0.5 flex flex-wrap items-center gap-2">
+                                  <span
+                                    className={`inline-flex w-fit items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] ${
+                                      sshStatus?.connected
+                                        ? "border-success/25 bg-success/10 text-success"
+                                        : "border-destructive/25 bg-destructive/[0.08] text-destructive/90"
+                                    }`}
+                                    data-testid="ssh-row-live-state"
+                                  >
+                                    {sshStatus?.connected
+                                      ? "SSH 已连接 ✓"
+                                      : "SSH 断开 ✗"}
+                                  </span>
+                                  {!sshStatus?.connected &&
+                                    sshStatus?.lastError && (
+                                      <span
+                                        className="min-w-0 max-w-[280px] truncate text-[10px] text-destructive"
+                                        data-testid="ssh-last-error"
+                                        title={sshStatus.lastError}
+                                      >
+                                        {sshStatus.lastError}
+                                      </span>
+                                    )}
                                 </span>
                               )}
                             </span>
+                          </button>
+                          {isActive && (
+                            <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
+                              当前连接
+                            </span>
                           )}
-                        </span>
-                      </button>
-                      {isActive && (
-                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">当前连接</span>
-                      )}
-                      <span className="flex shrink-0 items-center gap-1">
-                        <Button
-                          size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                          onClick={() => void testSshConnection()}
-                          disabled={sshTesting || sshSwitching}
-                          data-testid="ssh-row-test"
-                          data-host={preset.host}
-                          title="仅探活不保存(测当前连接;后端一时刻一连接)"
-                        >测试</Button>
-                        <Button
-                          size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                          onClick={() => {
-                            setSshEditing(preset);
-                            setSshEditDraft({
-                              label: preset.label,
-                              host: preset.host,
-                              port: String(preset.port),
-                              user: preset.user,
-                              keyPath: preset.keyPath,
-                              // 密码不回填(防明文回显):留空保存=保留旧值,见 store.save
-                              password: "",
-                            });
-                          }}
-                          data-testid="ssh-row-edit"
-                          data-host={preset.host}
-                        ><Pencil className="mr-0.5 h-3 w-3" aria-hidden />编辑</Button>
-                        {/* C1:刷令牌=选中行行内第四动作(令牌走当前连接,仅选中行显) */}
-                        {isActive && (
-                          <Button
-                            size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                            onClick={() => void refreshSshTokenNow()}
-                            disabled={sshRefreshing}
-                            data-testid="ssh-row-token-refresh"
-                            title="手动触发令牌自愈(POST /comfy/ssh/token-refresh,走当前连接)"
-                          >{sshRefreshing ? "刷新中…" : "刷令牌"}</Button>
-                        )}
-                        {/* 1104 engine-sync R4:「同步插件」行内按钮已撤——同步入口收编到
+                          <span className="flex shrink-0 items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => void testSshConnection()}
+                              disabled={sshTesting || sshSwitching}
+                              data-testid="ssh-row-test"
+                              data-host={preset.host}
+                              title="仅探活不保存(测当前连接;后端一时刻一连接)"
+                            >
+                              测试
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => {
+                                setSshEditing(preset);
+                                setSshEditDraft({
+                                  label: preset.label,
+                                  host: preset.host,
+                                  port: String(preset.port),
+                                  user: preset.user,
+                                  keyPath: preset.keyPath,
+                                  // 密码不回填(防明文回显):留空保存=保留旧值,见 store.save
+                                  password: "",
+                                });
+                              }}
+                              data-testid="ssh-row-edit"
+                              data-host={preset.host}
+                            >
+                              <Pencil className="mr-0.5 h-3 w-3" aria-hidden />
+                              编辑
+                            </Button>
+                            {/* C1:刷令牌=选中行行内第四动作(令牌走当前连接,仅选中行显) */}
+                            {isActive && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => void refreshSshTokenNow()}
+                                disabled={sshRefreshing}
+                                data-testid="ssh-row-token-refresh"
+                                title="手动触发令牌自愈(POST /comfy/ssh/token-refresh,走当前连接)"
+                              >
+                                {sshRefreshing ? "刷新中…" : "刷令牌"}
+                              </Button>
+                            )}
+                            {/* 1104 engine-sync R4:「同步插件」行内按钮已撤——同步入口收编到
                             上方引擎地址区「引擎同步」折叠子区(单真源清单+逐项进度+结果弹窗) */}
-                        <Button
-                          size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
-                          onClick={() => useSshPresetsStore.getState().remove(preset.id)}
-                          aria-label={`删除 SSH 连接 ${preset.label}`}
-                          data-testid="ssh-row-delete"
-                          data-host={preset.host}
-                          title="删除连接条目(不影响当前已建立的连接)"
-                        ><Trash2 className="h-3 w-3" aria-hidden /></Button>
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-              {sshPresets.length === 0 && !addingSsh && (
-                <p className="px-1 text-xs leading-5 text-muted-foreground" data-testid="ssh-connections-empty">
-                  暂无 SSH 连接——点下方「添加 SSH 连接」录入远端机器,可配多条随时切换。
-                </p>
-              )}
-            </div>
-            {/* + 添加 SSH 连接(引擎区底部新建排同款):名字选填+主机/端口/用户/密钥;
-                保存=只入列表(store),点行才落章生效(存意图零副作用) */}
-            {!addingSsh ? (
-              <Button
-                variant="outline" size="sm" className="self-start"
-                onClick={() => {
-                  setAddingSsh(true);
-                  setSshAddDraft(emptySshFormDraft);
-                  setSshTest({ status: "idle" });
-                }}
-                data-testid="ssh-connection-add"
-              >
-                <Plus className="mr-1 h-3.5 w-3.5" aria-hidden />添加 SSH 连接
-              </Button>
-            ) : (
-              <div className="space-y-2.5 rounded-xl border border-border p-3" data-testid="ssh-connection-add-form">
-                <div className="grid gap-2.5">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="ssh-connection-name">名字(选填)</Label>
-                    <Input
-                      id="ssh-connection-name"
-                      value={sshAddDraft.label}
-                      onChange={(e) => setSshAddDraft((prev) => ({ ...prev, label: e.target.value }))}
-                      placeholder="如:Windows 主力(缺省=主机地址)"
-                      data-testid="ssh-connection-add-name"
-                      spellCheck={false}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="ssh-connection-host">主机</Label>
-                    <Input
-                      id="ssh-connection-host"
-                      value={sshAddDraft.host}
-                      onChange={(e) => setSshAddDraft((prev) => ({ ...prev, host: e.target.value }))}
-                      placeholder="如 192.168.0.101"
-                      data-testid="ssh-connection-add-host"
-                      spellCheck={false}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="ssh-connection-port">端口</Label>
-                      <Input
-                        id="ssh-connection-port"
-                        value={sshAddDraft.port}
-                        onChange={(e) => setSshAddDraft((prev) => ({ ...prev, port: e.target.value }))}
-                        placeholder="22"
-                        inputMode="numeric"
-                        data-testid="ssh-connection-add-port"
-                        spellCheck={false}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="ssh-connection-user">用户</Label>
-                      <Input
-                        id="ssh-connection-user"
-                        value={sshAddDraft.user}
-                        onChange={(e) => setSshAddDraft((prev) => ({ ...prev, user: e.target.value }))}
-                        placeholder="如 zbj"
-                        data-testid="ssh-connection-add-user"
-                        spellCheck={false}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="ssh-connection-key">密钥路径</Label>
-                    <Input
-                      id="ssh-connection-key"
-                      value={sshAddDraft.keyPath}
-                      onChange={(e) => setSshAddDraft((prev) => ({ ...prev, keyPath: e.target.value }))}
-                      placeholder="留空=自动探测 ~/.ssh/id_ed25519 → id_ecdsa → id_rsa"
-                      data-testid="ssh-connection-add-key"
-                      spellCheck={false}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="ssh-connection-password" className="text-xs">密码(可选;空=走密钥认证)</Label>
-                    <Input
-                      id="ssh-connection-password"
-                      type="password"
-                      value={sshAddDraft.password}
-                      onChange={(e) => setSshAddDraft((prev) => ({ ...prev, password: e.target.value }))}
-                      placeholder="留空=用密钥连接(自动探测 ~/.ssh/id_ed25519)"
-                      data-testid="ssh-connection-add-password"
-                      spellCheck={false}
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm" variant="outline"
-                    onClick={() => void testSshConnection()}
-                    disabled={sshTesting}
-                    data-testid="ssh-connection-add-test"
-                    title="仅探活(后端契约=测当前连接,非表单草稿)"
-                  >{sshTesting ? "测试中…" : "测试连接"}</Button>
-                  <Button
-                    size="sm"
-                    onClick={submitAddSsh}
-                    disabled={!sshAddDraft.host.trim()}
-                    data-testid="ssh-connection-add-save"
-                  >保存</Button>
-                  <Button
-                    size="sm" variant="ghost"
-                    onClick={() => setAddingSsh(false)}
-                    data-testid="ssh-connection-add-cancel"
-                  >取消</Button>
-                </div>
-              </div>
-            )}
-            {/* 编辑连接 dialog(R2:改所有字段,保 id;只改 store 档案,点行应用) */}
-            <Dialog open={sshEditing !== null} onOpenChange={(open) => !open && setSshEditing(null)}>
-              <DialogContent className="max-w-sm" data-testid="ssh-connection-edit-dialog">
-                <DialogHeader>
-                  <DialogTitle>编辑 SSH 连接</DialogTitle>
-                  <DialogDescription>改名或换主机;改完点该行重新连接即生效。</DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-2.5">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="ssh-connection-edit-name">名字</Label>
-                    <Input
-                      id="ssh-connection-edit-name"
-                      value={sshEditDraft.label}
-                      onChange={(e) => setSshEditDraft((prev) => ({ ...prev, label: e.target.value }))}
-                      data-testid="ssh-connection-edit-name"
-                      spellCheck={false}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="ssh-connection-edit-host">主机</Label>
-                    <Input
-                      id="ssh-connection-edit-host"
-                      value={sshEditDraft.host}
-                      onChange={(e) => setSshEditDraft((prev) => ({ ...prev, host: e.target.value }))}
-                      data-testid="ssh-connection-edit-host"
-                      spellCheck={false}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="ssh-connection-edit-port">端口</Label>
-                      <Input
-                        id="ssh-connection-edit-port"
-                        value={sshEditDraft.port}
-                        onChange={(e) => setSshEditDraft((prev) => ({ ...prev, port: e.target.value }))}
-                        inputMode="numeric"
-                        data-testid="ssh-connection-edit-port"
-                        spellCheck={false}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="ssh-connection-edit-user">用户</Label>
-                      <Input
-                        id="ssh-connection-edit-user"
-                        value={sshEditDraft.user}
-                        onChange={(e) => setSshEditDraft((prev) => ({ ...prev, user: e.target.value }))}
-                        data-testid="ssh-connection-edit-user"
-                        spellCheck={false}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="ssh-connection-edit-key">密钥路径</Label>
-                    <Input
-                      id="ssh-connection-edit-key"
-                      value={sshEditDraft.keyPath}
-                      onChange={(e) => setSshEditDraft((prev) => ({ ...prev, keyPath: e.target.value }))}
-                      data-testid="ssh-connection-edit-key"
-                      spellCheck={false}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="ssh-conn-password" className="text-xs">密码(留空=不改)</Label>
-                    <Input
-                      id="ssh-conn-password"
-                      type="password"
-                      value={sshEditDraft.password}
-                      onChange={(e) => setSshEditDraft((prev) => ({ ...prev, password: e.target.value }))}
-                      placeholder="留空=保持原密码;输入新值=更换"
-                      data-testid="ssh-conn-password"
-                      spellCheck={false}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button size="sm" variant="ghost" onClick={() => setSshEditing(null)}>取消</Button>
-                  <Button size="sm" onClick={submitEditSsh} data-testid="ssh-connection-edit-save">保存</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            {/* 隧道开关(全局,保留现位):不随条目——隧道走哪条连接由选中行决定 */}
-            <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
-              <div className="min-w-0">
-                <div className="text-sm font-medium">SSH 隧道加密通道</div>
-                <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                  开启后远端代理流量默认走本地隧道口（17600 起，被占自动避让，避开 17593/17595-17598 保留区）；隧道断开自动回落直连。Windows 侧最终可关局域网监听，仅留隧道入口。
-                </div>
-              </div>
-              <label
-                className="flex shrink-0 cursor-pointer items-center gap-2 text-sm text-muted-foreground"
-                title="开启后远端 sidecar 代理走 SSH 隧道加密通道"
-              >
-                <Switch
-                  checked={sshTunnelEnabled}
-                  onCheckedChange={(checked) => void toggleSshTunnel(checked === true)}
-                  aria-label="SSH 隧道加密通道"
-                />
-              </label>
-            </div>
-            {sshTest.status === "ok" && (
-              <div
-                className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5 text-xs leading-5"
-                data-testid="ssh-test-result"
-              >
-                {sshTest.reply.ok ? (
-                  <>
-                    <div>登录用户：{sshTest.reply.user || "—"}</div>
-                    <div>服务器版本：{sshTest.reply.serverVersion || "—"}</div>
-                    <div data-testid="ssh-test-token">
-                      令牌读取结果：
-                      {sshTest.reply.token
-                        ? sshTest.reply.token.ok
-                          ? `已读取（长度 ${sshTest.reply.token.length ?? "未知"}，内容掩码不回显）`
-                          : sshTest.reply.token.length != null
-                            ? `读取到令牌但格式校验未过（长度 ${sshTest.reply.token.length}）`
-                            : "未取到有效令牌（真源路径均 miss）"
-                        : "未执行"}
-                    </div>
-                    <div data-testid="ssh-test-tunnel">
-                      隧道探活：
-                      {sshTest.reply.tunnel
-                        ? sshTest.reply.tunnel.active
-                          ? `通（本地口 ${sshTest.reply.tunnel.localPort ?? "—"}）`
-                          : "未活（未启用或远端不可达）"
-                        : "未执行"}
-                    </div>
-                  </>
-                ) : (
-                  // 失败态:reason+message(needs-runtime 已由上方提示行承接,此处原样透出)
-                  <div className="text-destructive" data-testid="ssh-test-error-line">
-                    {sshTest.reply.message || `测试失败（${sshTest.reply.reason ?? "未知原因"}）`}
-                  </div>
-                )}
-              </div>
-            )}
-            {sshTest.status === "error" && (
-              <p className="text-xs text-destructive" data-testid="ssh-error">{sshTest.message}</p>
-            )}
-            {sshTokenMsg && (
-              <p
-                className={cn("text-xs", sshTokenMsg.ok ? "text-success" : "text-destructive")}
-                data-testid="ssh-token-result"
-              >
-                {sshTokenMsg.text}
-              </p>
-            )}
-          </div>
-        </McpRow>
-
-        {/* ── R2 模型族(1102 控制中心):切换=写 defaultImageModel 真源,出图即走新族 ── */}
-        <McpRow
-          sectionId="family"
-          icon={Server}
-          title="模型族（产线）"
-          pill={currentFamily.status === "ready" ? "ready" : "needs-runtime"}
-          collapsed={collapsedSections.has("family")}
-          onToggle={toggleSectionCollapsed}
-        >
-          <div className="space-y-3 px-5 py-3" data-testid="engine-family-section">
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
-              <div className="min-w-0">
-                <div className="text-sm font-medium" data-testid="engine-family-current">
-                  当前产线:{currentFamily.label}
-                </div>
-                <div className="mt-0.5 text-xs text-muted-foreground">
-                  {currentFamily.hint}——切换即改全局默认出图模型,canvas 出图立即走新族;分镜批量恒走 Qwen-Image-2.1(既有裁定)。
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Select value={defaultImageModel} onValueChange={handleFamilySwitch}>
-                <SelectTrigger className="w-[240px]" aria-label="模型族选择" data-testid="engine-family-select">
-                  <SelectValue placeholder="选择模型族" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ALL_ENGINE_FAMILIES.map((family) => (
-                    <SelectItem key={family.value} value={family.value} disabled={family.status !== "ready"}>
-                      {family.label}
-                      {family.status !== "ready" ? `(${family.hint})` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </McpRow>
-
-        {/* ── R3 工作流(1102):当前族多列展示+文生图/图生图绑定;出图实走绑定件 ── */}
-        <McpRow
-          sectionId="workflows"
-          icon={Server}
-          title="工作流（文生图 / 图生图绑定）"
-          pill={familyWorkflows.length > 0 ? "ready" : "neutral"}
-          collapsed={collapsedSections.has("workflows")}
-          onToggle={toggleSectionCollapsed}
-        >
-          <div className="space-y-3 px-5 py-3" data-testid="engine-workflows-section">
-            {!currentFamily.workflowPrefix ? (
-              <p className="text-xs text-muted-foreground">
-                当前族工作流为引擎内置模板,库内暂无域目录——绑定待该族入库后开放。
-              </p>
-            ) : workflowsLoading ? (
-              <p className="text-xs text-muted-foreground">清单拉取中…</p>
-            ) : workflowsError ? (
-              <p className="text-xs text-destructive" data-testid="engine-workflows-error">{workflowsError}</p>
-            ) : (
-              <>
-                {([
-                  ["t2i", "文生图", t2iCandidates],
-                  ["i2i", "图生图(含编辑)", i2iCandidates],
-                ] as const).map(([kind, kindLabel, candidates]) => (
-                  <div key={kind} className="space-y-1.5">
-                    <div className="text-xs font-medium text-muted-foreground">{kindLabel}</div>
-                    {candidates.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">(该类型暂无库内件)</p>
-                    ) : (
-                      candidates.map((workflow) => {
-                        const bound = bindings[`${kind}WorkflowId` as const] === workflow.id;
-                        return (
-                          <div
-                            key={workflow.id}
-                            className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${bound ? "border-primary/60 bg-primary/5" : "border-border"}`}
-                            data-testid={`engine-workflow-row-${kind}`}
-                          >
-                            <div className="min-w-0">
-                              <div className="truncate text-sm">{workflow.name}</div>
-                              <div className="truncate text-[11px] text-muted-foreground" title={workflow.id}>
-                                {workflow.id}
-                              </div>
-                            </div>
-                            <div className="flex shrink-0 items-center gap-2">
-                              {bound && (
-                                <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
-                                  在用
-                                </span>
-                              )}
-                              {isBindableWorkflow(workflow.id) ? (
-                                <Button
-                                  size="sm"
-                                  variant={bound ? "default" : "outline"}
-                                  onClick={() => bindings.setBinding(kind as BoundWorkflowKind, bound ? null : workflow.id)}
-                                  data-testid={`engine-workflow-bind-${kind}`}
-                                >
-                                  {bound ? "解绑" : `设为${kindLabel}用`}
-                                </Button>
-                              ) : (
-                                // 1102 收口轮:引擎 load_template 只吃 API 模板名,非道劫件
-                                // 无同源模板——诚实标注不给绑定钮(防绑了不生效的假绑定)
-                                <span className="text-[10px] text-muted-foreground">暂无引擎模板</span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                ))}
-                <p className="text-xs text-muted-foreground">
-                  绑定后出图实走该工作流;不绑=引擎按类型自动选默认模板(零迁移)。
-                </p>
-              </>
-            )}
-          </div>
-        </McpRow>
-      </McpGroup>
-      <McpGroup label="MCP 服务器">
-        <McpRow
-          sectionId="servers"
-          icon={Server}
-          title={`MCP 服务器管理${servers.length ? `（共 ${servers.length} 个，已启用 ${enabledCount} 个）` : ""}`}
-          pill={enabledCount > 0 ? "ready" : "needs-runtime"}
-          collapsed={collapsedSections.has("servers")}
-          onToggle={toggleSectionCollapsed}
-        >
-          <div className="space-y-3 px-5 py-4">
-            <div className="flex justify-end">
-              <Button size="sm" onClick={openCreate} data-testid="mcp-add-server">
-                <Plus className="mr-2 h-4 w-4" aria-hidden />
-                添加服务器
-              </Button>
-            </div>
-            {!hasRuntime ? (
-              <p className="text-xs text-muted-foreground">桌面应用中可用。</p>
-            ) : servers.length === 0 ? (
-              <p className="px-1 text-xs text-muted-foreground">还没有登记 MCP 服务器。点右上角「添加服务器」开始。</p>
-            ) : (
-              servers.map((server) => {
-                const test = tests[server.id] ?? { status: "idle" };
-                return (
-                  <div
-                    key={server.id}
-                    className="rounded-lg border border-border bg-card p-3.5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
-                    data-testid={`mcp-server-card-${server.name}`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{server.name}</span>
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                          {transportLabel(server.transport)}
-                        </span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                              onClick={() =>
+                                useSshPresetsStore.getState().remove(preset.id)
+                              }
+                              aria-label={`删除 SSH 连接 ${preset.label}`}
+                              data-testid="ssh-row-delete"
+                              data-host={preset.host}
+                              title="删除连接条目(不影响当前已建立的连接)"
+                            >
+                              <Trash2 className="h-3 w-3" aria-hidden />
+                            </Button>
+                          </span>
+                        </div>
                       </div>
-                      <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
-                        {server.transport === "stdio"
-                          ? [server.command, ...(server.args ?? [])].join(" ")
-                          : server.url}
-                      </p>
-                      {test.status === "ok" ? (
-                        <p className="mt-1 text-xs text-success" data-testid={`mcp-test-ok-${server.name}`}>
-                          已连上{test.serverName ? `（${test.serverName}）` : ""}，提供 {test.tools.length} 个能力
-                          {test.tools.length ? `：${test.tools.slice(0, 3).map((t) => t.name).join("、")}${test.tools.length > 3 ? " 等" : ""}` : ""}
-                        </p>
-                      ) : null}
-                      {test.status === "error" ? (
-                        <p className="mt-1 text-xs text-destructive" data-testid={`mcp-test-err-${server.name}`}>
-                          {test.message}
-                        </p>
-                      ) : null}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-                        <Switch
-                          checked={server.enabled}
-                          onCheckedChange={(checked) => updateServer(server.id, { enabled: checked === true })}
-                          aria-label={`启用 ${server.name}`}
+                    );
+                  })}
+                  {sshPresets.length === 0 && !addingSsh && (
+                    <p
+                      className="px-1 text-xs leading-5 text-muted-foreground"
+                      data-testid="ssh-connections-empty"
+                    >
+                      暂无 SSH 连接——点下方「添加 SSH
+                      连接」录入远端机器,可配多条随时切换。
+                    </p>
+                  )}
+                </div>
+                {/* + 添加 SSH 连接(引擎区底部新建排同款):名字选填+主机/端口/用户/密钥;
+                保存=只入列表(store),点行才落章生效(存意图零副作用) */}
+                {!addingSsh ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="self-start"
+                    onClick={() => {
+                      setAddingSsh(true);
+                      setSshAddDraft(emptySshFormDraft);
+                      setSshTest({ status: "idle" });
+                    }}
+                    data-testid="ssh-connection-add"
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" aria-hidden />
+                    添加 SSH 连接
+                  </Button>
+                ) : (
+                  <div
+                    className="space-y-2.5 rounded-xl border border-border p-3"
+                    data-testid="ssh-connection-add-form"
+                  >
+                    <div className="grid gap-2.5">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="ssh-connection-name">名字(选填)</Label>
+                        <Input
+                          id="ssh-connection-name"
+                          value={sshAddDraft.label}
+                          onChange={(e) =>
+                            setSshAddDraft((prev) => ({
+                              ...prev,
+                              label: e.target.value,
+                            }))
+                          }
+                          placeholder="如:Windows 主力(缺省=主机地址)"
+                          data-testid="ssh-connection-add-name"
+                          spellCheck={false}
                         />
-                        启用
-                      </label>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="ssh-connection-host">主机</Label>
+                        <Input
+                          id="ssh-connection-host"
+                          value={sshAddDraft.host}
+                          onChange={(e) =>
+                            setSshAddDraft((prev) => ({
+                              ...prev,
+                              host: e.target.value,
+                            }))
+                          }
+                          placeholder="如 192.168.0.101"
+                          data-testid="ssh-connection-add-host"
+                          spellCheck={false}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="ssh-connection-port">端口</Label>
+                          <Input
+                            id="ssh-connection-port"
+                            value={sshAddDraft.port}
+                            onChange={(e) =>
+                              setSshAddDraft((prev) => ({
+                                ...prev,
+                                port: e.target.value,
+                              }))
+                            }
+                            placeholder="22"
+                            inputMode="numeric"
+                            data-testid="ssh-connection-add-port"
+                            spellCheck={false}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="ssh-connection-user">用户</Label>
+                          <Input
+                            id="ssh-connection-user"
+                            value={sshAddDraft.user}
+                            onChange={(e) =>
+                              setSshAddDraft((prev) => ({
+                                ...prev,
+                                user: e.target.value,
+                              }))
+                            }
+                            placeholder="如 zbj"
+                            data-testid="ssh-connection-add-user"
+                            spellCheck={false}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="ssh-connection-key">密钥路径</Label>
+                        <Input
+                          id="ssh-connection-key"
+                          value={sshAddDraft.keyPath}
+                          onChange={(e) =>
+                            setSshAddDraft((prev) => ({
+                              ...prev,
+                              keyPath: e.target.value,
+                            }))
+                          }
+                          placeholder="留空=自动探测 ~/.ssh/id_ed25519 → id_ecdsa → id_rsa"
+                          data-testid="ssh-connection-add-key"
+                          spellCheck={false}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label
+                          htmlFor="ssh-connection-password"
+                          className="text-xs"
+                        >
+                          密码(可选;空=走密钥认证)
+                        </Label>
+                        <Input
+                          id="ssh-connection-password"
+                          type="password"
+                          value={sshAddDraft.password}
+                          onChange={(e) =>
+                            setSshAddDraft((prev) => ({
+                              ...prev,
+                              password: e.target.value,
+                            }))
+                          }
+                          placeholder="留空=用密钥连接(自动探测 ~/.ssh/id_ed25519)"
+                          data-testid="ssh-connection-add-password"
+                          spellCheck={false}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => void runTest(server)}
-                        disabled={test.status === "testing"}
+                        onClick={() => void testSshConnection()}
+                        disabled={sshTesting}
+                        data-testid="ssh-connection-add-test"
+                        title="仅探活(后端契约=测当前连接,非表单草稿)"
                       >
-                        {test.status === "testing" ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                        ) : (
-                          <Check className="mr-2 h-4 w-4" aria-hidden />
-                        )}
-                        {test.status === "testing" ? "测试中…" : "测试连接"}
+                        {sshTesting ? "测试中…" : "测试连接"}
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => openEdit(server)} aria-label={`编辑 ${server.name}`}>
-                        <Pencil className="h-4 w-4" aria-hidden />
+                      <Button
+                        size="sm"
+                        onClick={submitAddSsh}
+                        disabled={!sshAddDraft.host.trim()}
+                        data-testid="ssh-connection-add-save"
+                      >
+                        保存
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => removeServer(server.id)} aria-label={`删除 ${server.name}`}>
-                        <Trash2 className="h-4 w-4 text-destructive" aria-hidden />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setAddingSsh(false)}
+                        data-testid="ssh-connection-add-cancel"
+                      >
+                        取消
                       </Button>
                     </div>
                   </div>
-                );
-              })
-            )}
-          </div>
-        </McpRow>
-      </McpGroup>
+                )}
+                {/* 编辑连接 dialog(R2:改所有字段,保 id;只改 store 档案,点行应用) */}
+                <Dialog
+                  open={sshEditing !== null}
+                  onOpenChange={(open) => !open && setSshEditing(null)}
+                >
+                  <DialogContent
+                    className="max-w-sm"
+                    data-testid="ssh-connection-edit-dialog"
+                  >
+                    <DialogHeader>
+                      <DialogTitle>编辑 SSH 连接</DialogTitle>
+                      <DialogDescription>
+                        改名或换主机;改完点该行重新连接即生效。
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-2.5">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="ssh-connection-edit-name">名字</Label>
+                        <Input
+                          id="ssh-connection-edit-name"
+                          value={sshEditDraft.label}
+                          onChange={(e) =>
+                            setSshEditDraft((prev) => ({
+                              ...prev,
+                              label: e.target.value,
+                            }))
+                          }
+                          data-testid="ssh-connection-edit-name"
+                          spellCheck={false}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="ssh-connection-edit-host">主机</Label>
+                        <Input
+                          id="ssh-connection-edit-host"
+                          value={sshEditDraft.host}
+                          onChange={(e) =>
+                            setSshEditDraft((prev) => ({
+                              ...prev,
+                              host: e.target.value,
+                            }))
+                          }
+                          data-testid="ssh-connection-edit-host"
+                          spellCheck={false}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="ssh-connection-edit-port">端口</Label>
+                          <Input
+                            id="ssh-connection-edit-port"
+                            value={sshEditDraft.port}
+                            onChange={(e) =>
+                              setSshEditDraft((prev) => ({
+                                ...prev,
+                                port: e.target.value,
+                              }))
+                            }
+                            inputMode="numeric"
+                            data-testid="ssh-connection-edit-port"
+                            spellCheck={false}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="ssh-connection-edit-user">用户</Label>
+                          <Input
+                            id="ssh-connection-edit-user"
+                            value={sshEditDraft.user}
+                            onChange={(e) =>
+                              setSshEditDraft((prev) => ({
+                                ...prev,
+                                user: e.target.value,
+                              }))
+                            }
+                            data-testid="ssh-connection-edit-user"
+                            spellCheck={false}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="ssh-connection-edit-key">
+                          密钥路径
+                        </Label>
+                        <Input
+                          id="ssh-connection-edit-key"
+                          value={sshEditDraft.keyPath}
+                          onChange={(e) =>
+                            setSshEditDraft((prev) => ({
+                              ...prev,
+                              keyPath: e.target.value,
+                            }))
+                          }
+                          data-testid="ssh-connection-edit-key"
+                          spellCheck={false}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="ssh-conn-password" className="text-xs">
+                          密码(留空=不改)
+                        </Label>
+                        <Input
+                          id="ssh-conn-password"
+                          type="password"
+                          value={sshEditDraft.password}
+                          onChange={(e) =>
+                            setSshEditDraft((prev) => ({
+                              ...prev,
+                              password: e.target.value,
+                            }))
+                          }
+                          placeholder="留空=保持原密码;输入新值=更换"
+                          data-testid="ssh-conn-password"
+                          spellCheck={false}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setSshEditing(null)}
+                      >
+                        取消
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={submitEditSsh}
+                        data-testid="ssh-connection-edit-save"
+                      >
+                        保存
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                {/* 隧道开关(全局,保留现位):不随条目——隧道走哪条连接由选中行决定 */}
+                <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium">SSH 隧道加密通道</div>
+                    <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                      开启后远端代理流量默认走本地隧道口（17600
+                      起，被占自动避让，避开 17593/17595-17598
+                      保留区）；隧道断开自动回落直连。Windows
+                      侧最终可关局域网监听，仅留隧道入口。
+                    </div>
+                  </div>
+                  <label
+                    className="flex shrink-0 cursor-pointer items-center gap-2 text-sm text-muted-foreground"
+                    title="开启后远端 sidecar 代理走 SSH 隧道加密通道"
+                  >
+                    <Switch
+                      checked={sshTunnelEnabled}
+                      onCheckedChange={(checked) =>
+                        void toggleSshTunnel(checked === true)
+                      }
+                      aria-label="SSH 隧道加密通道"
+                    />
+                  </label>
+                </div>
+                {sshTest.status === "ok" && (
+                  <div
+                    className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5 text-xs leading-5"
+                    data-testid="ssh-test-result"
+                  >
+                    {sshTest.reply.ok ? (
+                      <>
+                        <div>登录用户：{sshTest.reply.user || "—"}</div>
+                        <div>
+                          服务器版本：{sshTest.reply.serverVersion || "—"}
+                        </div>
+                        <div data-testid="ssh-test-token">
+                          令牌读取结果：
+                          {sshTest.reply.token
+                            ? sshTest.reply.token.ok
+                              ? `已读取（长度 ${sshTest.reply.token.length ?? "未知"}，内容掩码不回显）`
+                              : sshTest.reply.token.length != null
+                                ? `读取到令牌但格式校验未过（长度 ${sshTest.reply.token.length}）`
+                                : "未取到有效令牌（真源路径均 miss）"
+                            : "未执行"}
+                        </div>
+                        <div data-testid="ssh-test-tunnel">
+                          隧道探活：
+                          {sshTest.reply.tunnel
+                            ? sshTest.reply.tunnel.active
+                              ? `通（本地口 ${sshTest.reply.tunnel.localPort ?? "—"}）`
+                              : "未活（未启用或远端不可达）"
+                            : "未执行"}
+                        </div>
+                      </>
+                    ) : (
+                      // 失败态:reason+message(needs-runtime 已由上方提示行承接,此处原样透出)
+                      <div
+                        className="text-destructive"
+                        data-testid="ssh-test-error-line"
+                      >
+                        {sshTest.reply.message ||
+                          `测试失败（${sshTest.reply.reason ?? "未知原因"}）`}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {sshTest.status === "error" && (
+                  <p
+                    className="text-xs text-destructive"
+                    data-testid="ssh-error"
+                  >
+                    {sshTest.message}
+                  </p>
+                )}
+                {sshTokenMsg && (
+                  <p
+                    className={cn(
+                      "text-xs",
+                      sshTokenMsg.ok ? "text-success" : "text-destructive",
+                    )}
+                    data-testid="ssh-token-result"
+                  >
+                    {sshTokenMsg.text}
+                  </p>
+                )}
+              </div>
+            </McpRow>
 
-      {/* ── JSON 配置 ── */}
-      <McpGroup label="JSON 配置">
-        <McpRow
-          sectionId="json"
-          icon={FileJson}
-          title="JSON 配置（通用格式）"
-          pill="neutral"
-          collapsed={collapsedSections.has("json")}
-          onToggle={toggleSectionCollapsed}
-        >
-          <div className="space-y-3 px-5 py-4" data-testid="mcp-json-config">
-            <p className="text-xs leading-5 text-muted-foreground">
-              与其他软件通用的配置格式：粘贴别处的 mcpServers 配置点「导入」（同名更新、新名新增）；也可以复制当前配置到别的软件用。
-            </p>
-            <Textarea
-              value={jsonText}
-              onChange={(event) => setJsonText(event.target.value)}
-              rows={8}
-              className="font-mono text-xs"
-              placeholder={'{\n  "mcpServers": {\n    "本地文件": {\n      "command": "npx",\n      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]\n    }\n  }\n}'}
-              aria-label="mcpServers JSON 配置"
-              data-testid="mcp-json-textarea"
-            />
-            <div className="flex justify-end gap-2">
-              <Button size="sm" variant="outline" onClick={() => { void navigator.clipboard.writeText(jsonText); toast.success("已复制到剪贴板"); }}>
-                复制
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setJsonText(exportMcpServersJson())}>
-                刷新为当前配置
-              </Button>
-              <Button size="sm" onClick={() => {
-                const result = importMcpServersJson(jsonText);
-                if (result.ok) {
-                  setJsonError(null);
-                  toast.success(`导入成功：新增 ${result.added} 个，更新 ${result.updated} 个`);
-                } else {
-                  setJsonError(result.error);
-                }
-              }}>
-                导入
-              </Button>
-            </div>
-            {jsonError ? (
-              <p className="text-xs text-destructive" data-testid="mcp-json-error">{jsonError}</p>
-            ) : null}
-          </div>
-        </McpRow>
-      </McpGroup>
-      </div>
+            {/* ── R2 模型族(1102 控制中心):切换=写 defaultImageModel 真源,出图即走新族 ── */}
+            <McpRow
+              sectionId="family"
+              icon={Server}
+              title="模型族（产线）"
+              pill={
+                currentFamily.status === "ready" ? "ready" : "needs-runtime"
+              }
+              collapsed={collapsedSections.has("family")}
+              onToggle={toggleSectionCollapsed}
+            >
+              <div
+                className="space-y-3 px-5 py-3"
+                data-testid="engine-family-section"
+              >
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+                  <div className="min-w-0">
+                    <div
+                      className="text-sm font-medium"
+                      data-testid="engine-family-current"
+                    >
+                      当前产线:{currentFamily.label}
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      {currentFamily.hint}——切换即改全局默认出图模型,canvas
+                      出图立即走新族;分镜批量恒走 Qwen-Image-2.1(既有裁定)。
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={defaultImageModel}
+                    onValueChange={handleFamilySwitch}
+                  >
+                    <SelectTrigger
+                      className="w-[240px]"
+                      aria-label="模型族选择"
+                      data-testid="engine-family-select"
+                    >
+                      <SelectValue placeholder="选择模型族" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ALL_ENGINE_FAMILIES.map((family) => (
+                        <SelectItem
+                          key={family.value}
+                          value={family.value}
+                          disabled={family.status !== "ready"}
+                        >
+                          {family.label}
+                          {family.status !== "ready" ? `(${family.hint})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </McpRow>
+
+            {/* ── R3 工作流(1102):当前族多列展示+文生图/图生图绑定;出图实走绑定件 ── */}
+            <McpRow
+              sectionId="workflows"
+              icon={Server}
+              title="工作流（文生图 / 图生图绑定）"
+              pill={familyWorkflows.length > 0 ? "ready" : "neutral"}
+              collapsed={collapsedSections.has("workflows")}
+              onToggle={toggleSectionCollapsed}
+            >
+              <div
+                className="space-y-3 px-5 py-3"
+                data-testid="engine-workflows-section"
+              >
+                {!currentFamily.workflowPrefix ? (
+                  <p className="text-xs text-muted-foreground">
+                    当前族工作流为引擎内置模板,库内暂无域目录——绑定待该族入库后开放。
+                  </p>
+                ) : workflowsLoading ? (
+                  <p className="text-xs text-muted-foreground">清单拉取中…</p>
+                ) : workflowsError ? (
+                  <p
+                    className="text-xs text-destructive"
+                    data-testid="engine-workflows-error"
+                  >
+                    {workflowsError}
+                  </p>
+                ) : (
+                  <>
+                    {(
+                      [
+                        ["t2i", "文生图", t2iCandidates],
+                        ["i2i", "图生图(含编辑)", i2iCandidates],
+                      ] as const
+                    ).map(([kind, kindLabel, candidates]) => (
+                      <div key={kind} className="space-y-1.5">
+                        <div className="text-xs font-medium text-muted-foreground">
+                          {kindLabel}
+                        </div>
+                        {candidates.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">
+                            (该类型暂无库内件)
+                          </p>
+                        ) : (
+                          candidates.map((workflow) => {
+                            const bound =
+                              bindings[`${kind}WorkflowId` as const] ===
+                              workflow.id;
+                            return (
+                              <div
+                                key={workflow.id}
+                                className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${bound ? "border-primary/60 bg-primary/5" : "border-border"}`}
+                                data-testid={`engine-workflow-row-${kind}`}
+                              >
+                                <div className="min-w-0">
+                                  <div className="truncate text-sm">
+                                    {workflow.name}
+                                  </div>
+                                  <div
+                                    className="truncate text-[11px] text-muted-foreground"
+                                    title={workflow.id}
+                                  >
+                                    {workflow.id}
+                                  </div>
+                                </div>
+                                <div className="flex shrink-0 items-center gap-2">
+                                  {bound && (
+                                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">
+                                      在用
+                                    </span>
+                                  )}
+                                  {isBindableWorkflow(workflow.id) ? (
+                                    <Button
+                                      size="sm"
+                                      variant={bound ? "default" : "outline"}
+                                      onClick={() =>
+                                        bindings.setBinding(
+                                          kind as BoundWorkflowKind,
+                                          bound ? null : workflow.id,
+                                        )
+                                      }
+                                      data-testid={`engine-workflow-bind-${kind}`}
+                                    >
+                                      {bound ? "解绑" : `设为${kindLabel}用`}
+                                    </Button>
+                                  ) : (
+                                    // 1102 收口轮:引擎 load_template 只吃 API 模板名,非道劫件
+                                    // 无同源模板——诚实标注不给绑定钮(防绑了不生效的假绑定)
+                                    <span className="text-[10px] text-muted-foreground">
+                                      暂无引擎模板
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    ))}
+                    <p className="text-xs text-muted-foreground">
+                      绑定后出图实走该工作流;不绑=引擎按类型自动选默认模板(零迁移)。
+                    </p>
+                  </>
+                )}
+              </div>
+            </McpRow>
+          </McpGroup>
+          <McpGroup label="MCP 服务器">
+            <McpRow
+              sectionId="servers"
+              icon={Server}
+              title={`MCP 服务器管理${servers.length ? `（共 ${servers.length} 个，已启用 ${enabledCount} 个）` : ""}`}
+              pill={enabledCount > 0 ? "ready" : "needs-runtime"}
+              collapsed={collapsedSections.has("servers")}
+              onToggle={toggleSectionCollapsed}
+            >
+              <div className="space-y-3 px-5 py-4">
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    onClick={openCreate}
+                    data-testid="mcp-add-server"
+                  >
+                    <Plus className="mr-2 h-4 w-4" aria-hidden />
+                    添加服务器
+                  </Button>
+                </div>
+                {!hasRuntime ? (
+                  <p className="text-xs text-muted-foreground">
+                    桌面应用中可用。
+                  </p>
+                ) : servers.length === 0 ? (
+                  <p className="px-1 text-xs text-muted-foreground">
+                    还没有登记 MCP 服务器。点右上角「添加服务器」开始。
+                  </p>
+                ) : (
+                  servers.map((server) => {
+                    const test = tests[server.id] ?? { status: "idle" };
+                    return (
+                      <div
+                        key={server.id}
+                        className="rounded-lg border border-border bg-card p-3.5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
+                        data-testid={`mcp-server-card-${server.name}`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">
+                              {server.name}
+                            </span>
+                            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                              {transportLabel(server.transport)}
+                            </span>
+                          </div>
+                          <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
+                            {server.transport === "stdio"
+                              ? [server.command, ...(server.args ?? [])].join(
+                                  " ",
+                                )
+                              : server.url}
+                          </p>
+                          {test.status === "ok" ? (
+                            <p
+                              className="mt-1 text-xs text-success"
+                              data-testid={`mcp-test-ok-${server.name}`}
+                            >
+                              已连上
+                              {test.serverName ? `（${test.serverName}）` : ""}
+                              ，提供 {test.tools.length} 个能力
+                              {test.tools.length
+                                ? `：${test.tools
+                                    .slice(0, 3)
+                                    .map((t) => t.name)
+                                    .join(
+                                      "、",
+                                    )}${test.tools.length > 3 ? " 等" : ""}`
+                                : ""}
+                            </p>
+                          ) : null}
+                          {test.status === "error" ? (
+                            <p
+                              className="mt-1 text-xs text-destructive"
+                              data-testid={`mcp-test-err-${server.name}`}
+                            >
+                              {test.message}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                            <Switch
+                              checked={server.enabled}
+                              onCheckedChange={(checked) =>
+                                updateServer(server.id, {
+                                  enabled: checked === true,
+                                })
+                              }
+                              aria-label={`启用 ${server.name}`}
+                            />
+                            启用
+                          </label>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void runTest(server)}
+                            disabled={test.status === "testing"}
+                          >
+                            {test.status === "testing" ? (
+                              <Loader2
+                                className="mr-2 h-4 w-4 animate-spin"
+                                aria-hidden
+                              />
+                            ) : (
+                              <Check className="mr-2 h-4 w-4" aria-hidden />
+                            )}
+                            {test.status === "testing" ? "测试中…" : "测试连接"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openEdit(server)}
+                            aria-label={`编辑 ${server.name}`}
+                          >
+                            <Pencil className="h-4 w-4" aria-hidden />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => removeServer(server.id)}
+                            aria-label={`删除 ${server.name}`}
+                          >
+                            <Trash2
+                              className="h-4 w-4 text-destructive"
+                              aria-hidden
+                            />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </McpRow>
+          </McpGroup>
+
+          {/* ── JSON 配置 ── */}
+          <McpGroup label="JSON 配置">
+            <McpRow
+              sectionId="json"
+              icon={FileJson}
+              title="JSON 配置（通用格式）"
+              pill="neutral"
+              collapsed={collapsedSections.has("json")}
+              onToggle={toggleSectionCollapsed}
+            >
+              <div
+                className="space-y-3 px-5 py-4"
+                data-testid="mcp-json-config"
+              >
+                <p className="text-xs leading-5 text-muted-foreground">
+                  与其他软件通用的配置格式：粘贴别处的 mcpServers
+                  配置点「导入」（同名更新、新名新增）；也可以复制当前配置到别的软件用。
+                </p>
+                <Textarea
+                  value={jsonText}
+                  onChange={(event) => setJsonText(event.target.value)}
+                  rows={8}
+                  className="font-mono text-xs"
+                  placeholder={
+                    '{\n  "mcpServers": {\n    "本地文件": {\n      "command": "npx",\n      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]\n    }\n  }\n}'
+                  }
+                  aria-label="mcpServers JSON 配置"
+                  data-testid="mcp-json-textarea"
+                />
+                <div className="flex justify-end gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(jsonText);
+                      toast.success("已复制到剪贴板");
+                    }}
+                  >
+                    复制
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setJsonText(exportMcpServersJson())}
+                  >
+                    刷新为当前配置
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      const result = importMcpServersJson(jsonText);
+                      if (result.ok) {
+                        setJsonError(null);
+                        toast.success(
+                          `导入成功：新增 ${result.added} 个，更新 ${result.updated} 个`,
+                        );
+                      } else {
+                        setJsonError(result.error);
+                      }
+                    }}
+                  >
+                    导入
+                  </Button>
+                </div>
+                {jsonError ? (
+                  <p
+                    className="text-xs text-destructive"
+                    data-testid="mcp-json-error"
+                  >
+                    {jsonError}
+                  </p>
+                ) : null}
+              </div>
+            </McpRow>
+          </McpGroup>
+        </div>
       </ScrollArea>
 
       {/* torch 升级确认/结果弹窗:顶层渲染(1106 修复)——原先住在 torch-upgrade 分节
@@ -2437,18 +3491,55 @@ export function McpSettingsTab() {
           setTorchConfirm(true) 后弹窗组件不存在=点击无任何反应(实弹踩雷)。 */}
       <AlertDialog open={torchConfirm} onOpenChange={setTorchConfirm}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>确认升级引擎？</AlertDialogTitle><AlertDialogDescription>引擎将停机约 15–60 分钟；失败将自动回滚旧版；磁盘需要至少 15 GiB 可用空间。SSH 中断导致安装状态不明时需要人工介入。</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={() => void startTorchUpgrade()}>确认升级</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认升级引擎？</AlertDialogTitle>
+            <AlertDialogDescription>
+              引擎将停机约 15–60 分钟；失败将自动回滚旧版；磁盘需要至少 15 GiB
+              可用空间。SSH 中断导致安装状态不明时需要人工介入。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void startTorchUpgrade()}>
+              确认升级
+            </AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
       <Dialog open={torchResultOpen} onOpenChange={setTorchResultOpen}>
         <DialogContent data-testid="torch-upgrade-result-dialog">
-          <DialogHeader><DialogTitle>{torchJob?.status === "complete" ? "升级完成" : "升级失败"}</DialogTitle><DialogDescription>{torchJob?.message ?? torchJob?.error}</DialogDescription></DialogHeader>
-          {torchJob?.result && <p className="text-sm font-mono">{String(torchJob.result.from ?? "未知")} → {String(torchJob.result.to ?? "未知")}</p>}
-          {torchJob?.status === "complete" && <p className="text-sm">引擎已重启</p>}
-          {typeof torchJob?.result?.pipError === "string" && <p className="text-xs text-warning">⚠️ {torchJob.result.pipError}</p>}
-          {torchJob?.tail?.length ? <pre className="max-h-36 overflow-auto whitespace-pre-wrap text-xs">{torchJob.tail.join("\n")}</pre> : null}
-          <DialogFooter><Button size="sm" onClick={() => setTorchResultOpen(false)}>关闭</Button></DialogFooter>
+          <DialogHeader>
+            <DialogTitle>
+              {torchJob?.status === "complete" ? "升级完成" : "升级失败"}
+            </DialogTitle>
+            <DialogDescription>
+              {torchJob?.message ?? torchJob?.error}
+            </DialogDescription>
+          </DialogHeader>
+          {torchJob?.result && (
+            <p className="text-sm font-mono">
+              {String(torchJob.result.from ?? "未知")} →{" "}
+              {String(torchJob.result.to ?? "未知")}
+            </p>
+          )}
+          {torchJob?.status === "complete" && (
+            <p className="text-sm">引擎已重启</p>
+          )}
+          {typeof torchJob?.result?.pipError === "string" && (
+            <p className="text-xs text-warning">
+              ⚠️ {torchJob.result.pipError}
+            </p>
+          )}
+          {torchJob?.tail?.length ? (
+            <pre className="max-h-36 overflow-auto whitespace-pre-wrap text-xs">
+              {torchJob.tail.join("\n")}
+            </pre>
+          ) : null}
+          <DialogFooter>
+            <Button size="sm" onClick={() => setTorchResultOpen(false)}>
+              关闭
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -2466,7 +3557,9 @@ export function McpSettingsTab() {
               <Input
                 id="mcp-name"
                 value={draft.name}
-                onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+                onChange={(event) =>
+                  setDraft({ ...draft, name: event.target.value })
+                }
                 placeholder="例如：本地文件服务"
               />
             </div>
@@ -2474,7 +3567,9 @@ export function McpSettingsTab() {
               <Label>连接方式</Label>
               <Select
                 value={draft.transport}
-                onValueChange={(value) => setDraft({ ...draft, transport: value as McpTransport })}
+                onValueChange={(value) =>
+                  setDraft({ ...draft, transport: value as McpTransport })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -2492,7 +3587,9 @@ export function McpSettingsTab() {
                   <Input
                     id="mcp-command"
                     value={draft.command}
-                    onChange={(event) => setDraft({ ...draft, command: event.target.value })}
+                    onChange={(event) =>
+                      setDraft({ ...draft, command: event.target.value })
+                    }
                     placeholder="例如：npx"
                   />
                 </div>
@@ -2501,7 +3598,9 @@ export function McpSettingsTab() {
                   <Input
                     id="mcp-args"
                     value={draft.args}
-                    onChange={(event) => setDraft({ ...draft, args: event.target.value })}
+                    onChange={(event) =>
+                      setDraft({ ...draft, args: event.target.value })
+                    }
                     placeholder="例如：-y @modelcontextprotocol/server-filesystem /tmp"
                   />
                 </div>
@@ -2512,17 +3611,23 @@ export function McpSettingsTab() {
                 <Input
                   id="mcp-url"
                   value={draft.url}
-                  onChange={(event) => setDraft({ ...draft, url: event.target.value })}
+                  onChange={(event) =>
+                    setDraft({ ...draft, url: event.target.value })
+                  }
                   placeholder="例如：http://127.0.0.1:3000/mcp"
                 />
               </div>
             )}
             <div className="space-y-1.5">
-              <Label htmlFor="mcp-env">环境变量（每行一条，格式 键=值，可选）</Label>
+              <Label htmlFor="mcp-env">
+                环境变量（每行一条，格式 键=值，可选）
+              </Label>
               <Textarea
                 id="mcp-env"
                 value={draft.env}
-                onChange={(event) => setDraft({ ...draft, env: event.target.value })}
+                onChange={(event) =>
+                  setDraft({ ...draft, env: event.target.value })
+                }
                 placeholder={"API_KEY=xxx\nDEBUG=true"}
                 rows={3}
               />
@@ -2530,12 +3635,17 @@ export function McpSettingsTab() {
             <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
               <Switch
                 checked={draft.enabled}
-                onCheckedChange={(checked) => setDraft({ ...draft, enabled: checked === true })}
+                onCheckedChange={(checked) =>
+                  setDraft({ ...draft, enabled: checked === true })
+                }
               />
               启用这个服务器
             </label>
             {formError ? (
-              <p className="text-xs text-destructive" data-testid="mcp-form-error">
+              <p
+                className="text-xs text-destructive"
+                data-testid="mcp-form-error"
+              >
                 <X className="mr-1 inline h-3 w-3" aria-hidden />
                 {formError}
               </p>
