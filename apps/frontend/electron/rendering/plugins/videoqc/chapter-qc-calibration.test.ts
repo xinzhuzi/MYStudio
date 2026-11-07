@@ -13,6 +13,8 @@ import {
     QC_CALIBRATION_MIN_SAMPLES,
     appendCalibrationSamples,
     calibrationBlocker,
+    calibrationCaseId,
+    caseRecallBlocker,
     chapterQcCalibrationPath,
     deriveSignalBaselines,
     evaluateSignalAgainstBaseline,
@@ -25,6 +27,7 @@ import {
     scoreDimensionBoard,
     signalLabel,
     signalThreshold,
+    upsertCalibrationCase,
     writeCalibrationStore,
     type ChapterQcCalibrationStoreV1,
     type ChapterQcSignalSampleV1,
@@ -47,8 +50,14 @@ function requirement(requirementId: string, verdict: ChapterQcRequirementV1["ver
   return { requirementId, label: requirementId, verdict, watchedCodes: [], evidenceCodes: [] };
 }
 
-function calibrationCase(requirementId: string, label: "green" | "red", caseId = `${requirementId}-${label}`): ChapterQcCalibrationCaseV1 {
-  return { caseId, videoSha256: "a".repeat(64), requirementId, label, note: "标定集条目" };
+function calibrationCase(
+  requirementId: string,
+  label: "green" | "red",
+  caseId = `${requirementId}-${label}`,
+  verdict: ChapterQcRequirementV1["verdict"] = "pass",
+  at = 1,
+): ChapterQcCalibrationCaseV1 {
+  return { caseId, videoSha256: "a".repeat(64), requirementId, label, verdict, at, note: "标定集条目" };
 }
 
 function emptyStore(seriesId = "p1"): ChapterQcCalibrationStoreV1 {
@@ -157,7 +166,12 @@ describe("chapter-qc-calibration:落盘与样本维护", () => {
         sample("face.readableRatio", Number.NaN, "c1"),
         { ...sample("speech.coverageRatio", 1, "c1"), signalId: "made.up" } as unknown as ChapterQcSignalSampleV1,
       ],
-      cases: [calibrationCase("real-motion", "green"), { ...calibrationCase("real-motion", "red"), label: "maybe" } as unknown as ChapterQcCalibrationCaseV1],
+      cases: [
+        calibrationCase("real-motion", "green"),
+        { ...calibrationCase("real-motion", "red"), label: "maybe" } as unknown as ChapterQcCalibrationCaseV1,
+        // 只有「人说的」没有「机器当时说的」:算不出召回,按半截条目剔掉,不让它虚增 caseCount。
+        { ...calibrationCase("no-blackout", "red"), verdict: undefined } as unknown as ChapterQcCalibrationCaseV1,
+      ],
     };
     writeCalibrationStore(dir, store);
     expect(JSON.parse(readFileSync(chapterQcCalibrationPath(dir, "series-round"), "utf-8")).samples).toHaveLength(3);
@@ -275,6 +289,48 @@ describe("chapter-qc-calibration:标定集与加权分", () => {
     expect(motion).toMatchObject({ greenTotal: 2, greenPassed: 1, redTotal: 2, redCaught: 1 });
     const blackout = scored.find((row) => row.requirementId === "no-blackout")!;
     expect(blackout).toMatchObject({ greenTotal: 0, redTotal: 1, redCaught: 0 });
+  });
+
+  it("caseId 由内容哈希+行号派生:同片同行重打覆盖,换片/换行各算一条", () => {
+    const sha = "b".repeat(64);
+    expect(calibrationCaseId(sha, "character-integrity")).toBe(`${sha}:character-integrity`);
+    expect(calibrationCaseId(sha, "text-integrity")).not.toBe(calibrationCaseId(sha, "character-integrity"));
+    let store = upsertCalibrationCase(emptyStore(), calibrationCase("character-integrity", "red", calibrationCaseId(sha, "character-integrity"), "pass", 1));
+    // 改主意(重打另一边)不追加:金标集要的是「现在这门对不对」,不是历史堆。
+    store = upsertCalibrationCase(store, calibrationCase("character-integrity", "green", calibrationCaseId(sha, "character-integrity"), "pass", 9));
+    expect(store.cases).toHaveLength(1);
+    expect(store.cases[0]).toMatchObject({ label: "green", at: 9 });
+    store = upsertCalibrationCase(store, calibrationCase("text-integrity", "red", calibrationCaseId("c".repeat(64), "text-integrity"), "fail", 5));
+    expect(store.cases.map((item) => item.at)).toEqual([5, 9]);
+  });
+
+  it("upsertCalibrationCase 留最近 keep 条,旧片子的打标不无限堆积", () => {
+    let store = emptyStore();
+    for (let i = 0; i < 7; i += 1) {
+      store = upsertCalibrationCase(store, calibrationCase("real-motion", "red", `r-${i}`, "pass", i), 3);
+    }
+    expect(store.cases.map((item) => item.caseId)).toEqual(["r-4", "r-5", "r-6"]);
+  });
+
+  it("召回门禁:只在「这门本该放行、负例攒够却一条没抓到」时压掉 pass", () => {
+    expect(caseRecallBlocker("pass", undefined)).toEqual({});
+    // 负例不足 3 条:可能是打标人记错,也可能这问题本不归这行管 ⇒ 只记账不改判。
+    const thin = caseRecallBlocker("pass", { requirementId: "character-integrity", greenTotal: 2, greenPassed: 2, redTotal: 2, redCaught: 0 });
+    expect(thin.blocker).toBeUndefined();
+    expect(thin.note).toContain("负例 0/2 条抓到");
+    // 抓回过一条 ⇒ 这门不是摆设,pass 有背书;两半账都要给读者看。
+    const part = caseRecallBlocker("pass", { requirementId: "character-integrity", greenTotal: 2, greenPassed: 1, redTotal: 3, redCaught: 1 });
+    expect(part.blocker).toBeUndefined();
+    expect(part.note).toContain("负例 1/3 条抓到");
+    expect(part.note).toContain("正例 1/2 条放行");
+    // 已知有问题的片子全放行 ⇒ 这门不能给绿。
+    const blind = caseRecallBlocker("pass", { requirementId: "character-integrity", greenTotal: 4, greenPassed: 4, redTotal: 3, redCaught: 0 });
+    expect(blind.blocker).toContain("已知有问题的片子这门一条没抓到");
+    expect(blind.blocker).toContain("正例 4/4 条放行");
+    // fail/unverified 不压:门已经在报警或已经声明看不见,再压等于藏病或自我否决。
+    const already = caseRecallBlocker("fail", { requirementId: "character-integrity", greenTotal: 0, greenPassed: 0, redTotal: 5, redCaught: 0 });
+    expect(already.blocker).toBeUndefined();
+    expect(already.note).toContain("负例 0/5 条抓到");
   });
 
   it("加权分:pass 才计分,分母恒为注册表满分(不是本轮送进来的那几行之和)", () => {

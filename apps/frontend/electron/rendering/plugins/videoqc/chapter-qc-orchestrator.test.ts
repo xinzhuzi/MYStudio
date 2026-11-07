@@ -6,7 +6,13 @@ import { join, resolve, dirname } from "node:path";
 import { runChapterQc, readReport } from "./chapter-qc-orchestrator";
 import { resolveVadPythonExecutable } from "./chapter-qc-vad";
 import { legacyStudioWorkflowStorePath } from "../../../storage/studio-workflow-store-io";
-import { readCalibrationStore } from "./chapter-qc-calibration";
+import {
+  QC_CALIBRATION_MIN_RED_CASES,
+  calibrationCaseId,
+  readCalibrationStore,
+  writeCalibrationStore,
+} from "./chapter-qc-calibration";
+import type { ChapterQcCalibrationCaseV1, ChapterQcRequirementVerdict } from "./chapter-qc-types";
 import { CHAPTER_QC_WEIGHT_TOTAL } from "./chapter-qc-registry";
 
 // 集成测试用真实 ffmpeg/ffprobe 合成 8s 成片,走完整 L1+L2 链;
@@ -88,9 +94,15 @@ describe("runChapterQc 集成(真实 ffmpeg)", () => {
     expect(report!.durationS).toBeGreaterThan(7.5);
     expect(report!.outputSha256).toMatch(/^[0-9a-f]{64}$/);
 
+    // 取证口径必须落盘:三态板只说得出「哪一维没证据」,说不出「证据是怎么来的」。
+    // 无 store、无 render-plan 这两条退化只有 notes 一个出口,丢了就永久看不见。
+    expect(report!.notes).toContain("no-workflow-store");
+    expect(report!.notes).toContain("render-plan 缺失,镜区间退回 artifact EDL 口径(未压缩,镜归因可能漂移)");
+
     // 报告落盘可读
     const persisted = await readReport(deps, { projectId: "p1", chapterId: "c-001" });
     expect(persisted?.summary).toEqual(report!.summary);
+    expect(persisted?.notes).toEqual(report!.notes);
     expect(existsSync(join(dir, "qc", "chapters", "c-001", "current.json"))).toBe(true);
   }, 180_000);
 
@@ -203,6 +215,58 @@ describe("runChapterQc 集成(真实 ffmpeg)", () => {
     expect(countSignalSamples(dir, "bb1", "motion.staticFrameRatio")).toBe(1);
   }, 240_000);
 
+  itFfmpeg("金标负例走生产链:差几条只记账,补齐 3 条这门从 pass 压成缺证", async () => {
+    const deps = {
+      remotionWorkspaceRootForProject: () => dir,
+      videoUseWorkspaceRootForProject: () => join(dir, "video-use"),
+      dataRoot: join(dir, "data"),
+    };
+    const { mkdirSync, copyFileSync } = await import("node:fs");
+    const seriesId = "bb-gold";
+    const chapterId = "c-gold";
+    mkdirSync(join(dir, "outputs", "chapters", chapterId), { recursive: true });
+    copyFileSync(videoPath, join(dir, "outputs", "chapters", chapterId, "current.mp4"));
+    const writeCases = (count: number) =>
+      writeCalibrationStore(dir, {
+        schemaVersion: 1,
+        seriesId,
+        samples: [],
+        cases: Array.from({ length: count }, (_, index) =>
+          goldCase(index, "no-blackout", "red", "pass"),
+        ),
+      });
+
+    // 前提:testsrc2 彩条在 no-blackout 上本来就是真 pass(不是被别的账压成的缺证),
+    // 否则这段证明的是「这行一直缺证」,不是「金标把摆设的门压住了」。
+    writeCases(2);
+    const thin = await runChapterQc(deps, { projectId: seriesId, chapterId });
+    expect(thin!.calibration!.caseCount).toBe(2);
+    expect(thin!.calibration!.caseScores!.find((row) => row.requirementId === "no-blackout"))
+      .toMatchObject({ redTotal: 2, redCaught: 0 });
+    const thinRow = thin!.requirements!.find((item) => item.requirementId === "no-blackout");
+    expect(thinRow?.verdict).toBe("pass");
+    expect(thinRow?.note).toContain("负例 0/2 条抓到");
+    expect(thinRow?.note).toContain(`负例不足 ${QC_CALIBRATION_MIN_RED_CASES} 条`);
+
+    // 生产链读得到金标:第 3 条负例一进库,召回门就在这份报告里生效
+    writeCases(3);
+    const stamped = await runChapterQc(deps, { projectId: seriesId, chapterId });
+    expect(stamped!.calibration!.caseScores!.find((row) => row.requirementId === "no-blackout"))
+      .toMatchObject({ redTotal: 3, redCaught: 0 });
+    const goldRow = stamped!.requirements!.find((item) => item.requirementId === "no-blackout");
+    expect(goldRow?.verdict).toBe("unverified");
+    // 压成缺证时账本进 missing(板上看得见理由),note 只剩这行自己的话
+    expect(goldRow?.missing?.[0]).toContain("负例 0/3 条抓到");
+    expect(goldRow?.missing?.[0]).toContain("这门是摆设");
+    // 分数跟着掉(5 分权重不计分),放行位也关死
+    expect(stamped!.dimensionScore!.deducted.some((row) => row.requirementId === "no-blackout")).toBe(true);
+
+    const persisted = await readReport(deps, { projectId: seriesId, chapterId });
+    expect(persisted?.calibration?.caseScores).toEqual(stamped!.calibration!.caseScores);
+    expect(persisted?.requirements?.find((item) => item.requirementId === "no-blackout")?.verdict)
+      .toBe("unverified");
+  }, 240_000);
+
   itSidecar("配了 vadRuntime → 人脸侧车真跑一趟,证据进报告与三态板", async () => {
     const deps = {
       remotionWorkspaceRootForProject: () => dir,
@@ -231,7 +295,94 @@ describe("runChapterQc 集成(真实 ffmpeg)", () => {
     const persisted = await readReport(deps, { projectId: "p1", chapterId: "c-face" });
     expect(persisted?.faceSignals?.faceCount).toBe(0);
   }, 240_000);
+
+  itSidecar("配了 render-plan → 人脸裁片侧车真跑一趟:台账进报告,无脸不算缺口,出成的帧才计覆盖", async () => {
+    const deps = {
+      remotionWorkspaceRootForProject: () => dir,
+      videoUseWorkspaceRootForProject: () => join(dir, "video-use"),
+      dataRoot: join(dir, "data"),
+      vadRuntime: { storageBasePath: () => sidecarStorageBase, backendRoot: sidecarBackendRoot },
+    };
+    const { mkdirSync, copyFileSync, writeFileSync } = await import("node:fs");
+    const chapterId = "c-crop";
+    mkdirSync(join(dir, "outputs", "chapters", chapterId), { recursive: true });
+    copyFileSync(videoPath, join(dir, "outputs", "chapters", chapterId, "current.mp4"));
+    mkdirSync(join(dir, "jobs", "chapter", chapterId), { recursive: true });
+    writeFileSync(
+      join(dir, "jobs", "chapter", chapterId, "current-render-plan.json"),
+      JSON.stringify({
+        renderSettings: { fps: 30 },
+        clips: [
+          { id: "c1", trackKind: "video", startUs: 0, durationUs: 2_500_000, source: { kind: "storyboardVideo", evidence: { storyboardId: "sb-1" } } },
+          { id: "c2", trackKind: "video", startUs: 2_500_000, durationUs: 2_500_000, source: { kind: "storyboardVideo", evidence: { storyboardId: "sb-2" } } },
+          { id: "c3", trackKind: "video", startUs: 5_000_000, durationUs: 2_500_000, source: { kind: "storyboardVideo", evidence: { storyboardId: "sb-3" } } },
+        ],
+        transitions: [],
+        effects: [],
+      }),
+      "utf-8",
+    );
+    // 分镜侧三镜 ready,否则结构层没有可比对的台账
+    mkdirSync(join(dir, "data"), { recursive: true });
+    const storePath = legacyStudioWorkflowStorePath(deps.dataRoot, "bb-crop");
+    mkdirSync(dirname(storePath), { recursive: true });
+    writeFileSync(storePath, JSON.stringify({
+      version: 1,
+      state: {
+        storyboards: [
+          { id: "sb-1", episodeId: chapterId, duration: 2.5, state: "ready", videoDesc: "镜一" },
+          { id: "sb-2", episodeId: chapterId, duration: 2.5, state: "ready", videoDesc: "镜二" },
+          { id: "sb-3", episodeId: chapterId, duration: 2.5, state: "ready", videoDesc: "镜三" },
+        ],
+      },
+    }), "utf-8");
+
+    const report = await runChapterQc(deps, { projectId: "bb-crop", chapterId });
+    expect(report).not.toBeNull();
+    const vision = report!.vision!;
+    // 3 镜中点 ⇒ 3 条裁片台账;testsrc2 无脸,全是 no-face(空证据,不是失败)
+    expect(vision.faceCrops).toHaveLength(3);
+    expect(vision.faceCrops!.map((crop) => crop.status)).toEqual(["no-face", "no-face", "no-face"]);
+    expect(vision.faceCropReason).toBeUndefined();
+    // 没出片就不许有 face 帧混进台账,frameCount 必须仍等于 frames.length(缺证门的算术前提)
+    expect(vision.frames.some((frame) => frame.kind === "face")).toBe(false);
+    expect(vision.frameCount).toBe(vision.frames.length);
+
+    const summary = report!.findings.find((item) => item.code === "chapter-qc.face.crop");
+    expect(summary).toMatchObject({ layer: "vision", severity: "info" });
+    expect(summary?.evidence).toMatchObject({ produced: 0, noFace: 3, gaps: 0, requested: 3 });
+    expect(report!.findings.some((item) => item.code === "chapter-qc.face.crop-gap")).toBe(false);
+
+    const row = report!.requirements?.find((item) => item.requirementId === "face-readability");
+    expect(row?.watchedCodes).toContain("chapter-qc.face.crop");
+    expect(row?.verdict).toBe("unverified"); // 零检出:侧车在位但五官维仍无自动证据
+    // 台账计数跟着板走:人物行 note 里能看见「这一章的特写到底出了几张」
+    expect(report!.requirements?.find((item) => item.requirementId === "character-integrity")?.note)
+      .toContain("本镜无脸 3");
+
+    const persisted = await readReport(deps, { projectId: "bb-crop", chapterId });
+    expect(persisted?.vision?.faceCrops).toEqual(vision.faceCrops);
+  }, 240_000);
 });
+
+/** 库里一条打标金标:人答「有没有」,机器当时那半边由写入口快照进来。 */
+function goldCase(
+  index: number,
+  requirementId: string,
+  label: "green" | "red",
+  verdict: ChapterQcRequirementVerdict,
+): ChapterQcCalibrationCaseV1 {
+  const videoSha256 = index.toString(16).padStart(64, "0");
+  return {
+    caseId: calibrationCaseId(videoSha256, requirementId),
+    videoSha256,
+    requirementId,
+    label,
+    verdict,
+    at: 1_700_000_000_000 + index,
+    note: "金标夹具",
+  };
+}
 
 function countSignalSamples(workspaceRoot: string, seriesId: string, signalId: string): number {
   return readCalibrationStore(workspaceRoot, seriesId).samples.filter((item) => item.signalId === signalId).length;

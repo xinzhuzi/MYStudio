@@ -17,12 +17,13 @@ import type { VideoQcRuntimeController } from "./dover-runtime-controller";
 import { extractShotKeyframes } from "./chapter-qc-fftools";
 import { describeFrameChoices, pickShotFrameTimes } from "./chapter-qc-frame-select";
 import { runFfmpegScanLayer } from "./chapter-qc-ffmpeg-scan";
-import { buildFaceFindings, runChapterQcFace } from "./chapter-qc-face";
+import { buildFaceFindings, runChapterQcFace, runChapterQcFaceCrops, summarizeFaceCrops } from "./chapter-qc-face";
 import { readChapterQcReport, writeChapterQcReport, chapterQcReportDir } from "./chapter-qc-report-store";
 import {
   appendCalibrationSamples,
   deriveSignalBaselines,
   readCalibrationStore,
+  scoreCalibrationSet,
   writeCalibrationStore,
   type ChapterQcSignalSampleV1,
 } from "./chapter-qc-calibration";
@@ -30,10 +31,10 @@ import { assertionCoverage, buildShotExpectations, type ChapterQcExpectationShot
 import { buildSupplyFindings, runSupplyCheck } from "./chapter-qc-supply-check";
 import { runStructuralLayer } from "./chapter-qc-structural";
 import { buildShotSpans, buildShotSpansFromRenderPlan, type ChapterQcRenderPlanSpans } from "./chapter-qc-timeline";
-import { buildVisionDecisions, runVisionLayer } from "./chapter-qc-vision";
+import { buildVisionDecisions, registerFaceCropFrames, runVisionLayer } from "./chapter-qc-vision";
 import { resolveVadPythonExecutable, runChapterQcVad } from "./chapter-qc-vad";
 import { applyChapterQcRequirements } from "./chapter-qc-verdicts";
-import type { ChapterQcFaceSignalsV1, ChapterQcScanSignalsV1, ChapterQcVisionResultV1 } from "./chapter-qc-types";
+import type { ChapterQcFaceCropV1, ChapterQcFaceSignalsV1, ChapterQcScanSignalsV1, ChapterQcVisionResultV1 } from "./chapter-qc-types";
 import type { FrameMetricPoint } from "./parse-ffmpeg-probe";
 import {
   CHAPTER_QC_SCHEMA_VERSION,
@@ -543,18 +544,81 @@ export async function runChapterQc(
         reportDir: chapterQcReportDir(workspaceRoot, input.chapterId),
       });
       findings.push(...outcome.findings);
+      const frames = [...outcome.frames];
+      const decisions = buildVisionDecisions({
+        spans: renderPlanSpans.spans,
+        visualClipIds: renderPlanSpans.visualClipIds,
+        descriptionsByShotId: descriptionByShotId,
+        transitions: renderPlanSpans.transitions,
+        effects: renderPlanSpans.effects,
+      });
+      // 人脸裁片(1107 吸收件②):探针整帧限宽 1280 后,1080P 成片的脸只剩 ~47px(1102 标定原生中位 71px),
+      // 预审模型对五官回「看不清就不判」。这里按镜中点时刻出原始分辨率头部裁片,以 kind="face" 的帧物料
+      // 一起交给 L5——每条裁片恰好一次调用,预审覆盖式 frames + decisions - 1 仍然成立。
+      let faceCrops: ChapterQcFaceCropV1[] | undefined;
+      let faceCropReason: string | undefined;
+      if (!deps.vadRuntime) {
+        notes.push("人脸裁片未尝试:未配置 vadRuntime(托管 Python 缺位)");
+      } else if (!faceAvailable) {
+        notes.push("人脸裁片未尝试:可判读度侧车本轮未出数");
+      } else {
+        const midFrames = frames.filter((frame) => frame.kind === "mid");
+        const cropRun = await runChapterQcFaceCrops({
+          videoPath: outputPath,
+          pythonExecutable: resolveVadPythonExecutable(deps.vadRuntime.storageBasePath()),
+          backendRoot: deps.vadRuntime.backendRoot,
+          timestamps: midFrames.map((frame) => frame.tS),
+          cropsDir: path.join(chapterQcReportDir(workspaceRoot, input.chapterId), "vision-frames"),
+        });
+        faceCrops = cropRun.crops;
+        frames.push(...registerFaceCropFrames(midFrames, cropRun, {
+          projectId: input.projectId,
+          chapterId: input.chapterId,
+        }));
+        const counts = summarizeFaceCrops(cropRun.crops);
+        if (!cropRun.available) {
+          faceCropReason = cropRun.reason ?? "人脸裁片无台账";
+        }
+        // 不采信的批次不出「裁片 N/N 镜」:那串数字看着像覆盖率,实际只是 worker 回了什么——
+        // 头部特写一张都没进预审(见 registerFaceCropFrames),报了就是缺证藏进统计。
+        if (cropRun.available && cropRun.crops.length > 0) {
+          findings.push({
+            code: "chapter-qc.face.crop",
+            layer: "vision",
+            severity: "info",
+            message: `人脸裁片 ${counts.produced}/${midFrames.length} 镜(本镜无脸 ${counts.noFace} 镜,裁片失败 ${counts.gaps} 镜):`
+              + "头部特写交预审判五官;裁片不新增细节,只是让脸占满输入视野",
+            evidence: { ...counts, requested: midFrames.length },
+          });
+        }
+        if (counts.gaps > 0 || !cropRun.available) {
+          // 镜号也靠 index 认领:批次不采信时连「哪几镜缺」都点不准,只报整批原因。
+          const gapOrdinals = cropRun.available
+            ? [...new Set(cropRun.crops
+              .filter((crop) => crop.status === "read-failed" || crop.status === "write-failed")
+              .map((crop) => midFrames[crop.index]?.ordinal)
+              .filter((ordinal): ordinal is number => ordinal !== undefined))].sort((left, right) => left - right)
+            : [];
+          findings.push({
+            code: "chapter-qc.face.crop-gap",
+            layer: "vision",
+            severity: "warn",
+            ...(gapOrdinals.length > 0 ? { shotOrdinal: gapOrdinals[0] } : {}),
+            message: gapOrdinals.length > 0
+              ? `第 ${gapOrdinals.join("、")} 镜人脸裁片没出成(读帧/写盘失败),这几镜的五官特写无证据`
+              : `人脸裁片整批不采信:${faceCropReason ?? "未知"}——头部特写一张都没进预审,五官维只有整帧探针`,
+            evidence: { ...counts, requested: midFrames.length, gapOrdinals },
+          });
+        }
+      }
       vision = {
-        frameCount: outcome.frames.length,
-        frames: outcome.frames,
-        decisions: buildVisionDecisions({
-          spans: renderPlanSpans.spans,
-          visualClipIds: renderPlanSpans.visualClipIds,
-          descriptionsByShotId: descriptionByShotId,
-          transitions: renderPlanSpans.transitions,
-          effects: renderPlanSpans.effects,
-        }),
+        frameCount: frames.length,
+        frames,
+        decisions,
         densityChecked: outcome.densityChecked,
         frameErrors: outcome.frameErrors,
+        ...(faceCrops ? { faceCrops } : {}),
+        ...(faceCropReason ? { faceCropReason } : {}),
       };
       if (outcome.frameErrors > 0) notes.push(`视觉审计帧提取失败 ${outcome.frameErrors} 帧(已跳过)`);
       layers.vision = { status: "passed", finishedAt: now() };
@@ -611,6 +675,9 @@ export async function runChapterQc(
       seriesId,
       baselines: deriveSignalBaselines(merged, input.chapterId),
       caseCount: merged.cases.length,
+      // 召回账吃的是打标当时记下的机器判定(库里那份),不是本轮这章的 verdict:
+      // 本轮还没有金标可言,拿它算召回等于自己给自己打分。
+      caseScores: scoreCalibrationSet(merged.cases, (item) => item.verdict),
     };
   } catch (error) {
     notes.push(`标定库读写异常(本轮按未标定处理): ${error instanceof Error ? error.message : String(error)}`);
@@ -630,6 +697,7 @@ export async function runChapterQc(
     layers: layers as ChapterQcReportV1["layers"],
     findings,
     summary,
+    ...(notes.length > 0 ? { notes } : {}),
     ...(extractedFrames.length > 0
       ? {
           shots: extractedFrames.map((frame) => ({

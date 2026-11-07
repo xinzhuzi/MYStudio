@@ -15,9 +15,9 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { CHAPTER_QC_WEIGHT_TOTAL, dimensionSpec } from "./chapter-qc-registry";
-import { QC_CALIBRATION_MIN_SAMPLES, type ChapterQcCalibrationCaseV1, type ChapterQcDimensionScoreV1, type ChapterQcDimensionSpecV1, type ChapterQcRequirementVerdict, type ChapterQcRequirementV1, type ChapterQcSignalBaselineV1, type ChapterQcSignalId } from "./chapter-qc-types";
+import { QC_CALIBRATION_MIN_RED_CASES, QC_CALIBRATION_MIN_SAMPLES, type ChapterQcCalibrationCaseV1, type ChapterQcCalibrationScoreV1, type ChapterQcDimensionScoreV1, type ChapterQcDimensionSpecV1, type ChapterQcRequirementVerdict, type ChapterQcRequirementV1, type ChapterQcSignalBaselineV1, type ChapterQcSignalId } from "./chapter-qc-types";
 
-export { QC_CALIBRATION_MIN_SAMPLES };
+export { QC_CALIBRATION_MIN_SAMPLES, QC_CALIBRATION_MIN_RED_CASES };
 export type { ChapterQcSignalId };
 
 /** 越限方向:low-bad=越小越坏(低于下界报警),high-bad=越大越坏(高于上界报警)。 */
@@ -207,6 +207,11 @@ function isSampleShape(value: unknown): value is ChapterQcSignalSampleV1 {
     && Number.isFinite(entry.value);
 }
 
+/**
+ * 人只答「有没有」,机器那半边(`verdict`)必须成对在库里:
+ * 只有 label 没有 verdict 的条目算不出召回,留着只会让 `caseCount` 虚高——
+ * 这种半截条目按「本仓不认」过滤,不当金标用。
+ */
 function isCaseShape(value: unknown): value is ChapterQcCalibrationCaseV1 {
   if (typeof value !== "object" || value === null) return false;
   const entry = value as Record<string, unknown>;
@@ -214,7 +219,30 @@ function isCaseShape(value: unknown): value is ChapterQcCalibrationCaseV1 {
     && typeof entry.videoSha256 === "string"
     && typeof entry.requirementId === "string"
     && (entry.label === "green" || entry.label === "red")
+    && (entry.verdict === "pass" || entry.verdict === "fail" || entry.verdict === "unverified")
+    && typeof entry.at === "number"
+    && Number.isFinite(entry.at)
     && typeof entry.note === "string";
+}
+
+/** 同一支片子同一行只留最新一次打标:caseId 由内容哈希派生,不靠调用方发号。 */
+export function calibrationCaseId(videoSha256: string, requirementId: string): string {
+  return `${videoSha256}:${requirementId}`;
+}
+
+/**
+ * 打标写入(upsert)。同 `caseId` 覆盖而不是追加:
+ * 门改了、人重新看了一遍同一片子,要的是「现在这门对不对」,不是历史堆。
+ * 历史不丢——报告与库都有 `.prev.json` 退回件,且 git 侧另有账。
+ */
+export function upsertCalibrationCase(
+  store: ChapterQcCalibrationStoreV1,
+  entry: ChapterQcCalibrationCaseV1,
+  keep = 500,
+): ChapterQcCalibrationStoreV1 {
+  const cases = store.cases.filter((existing) => existing.caseId !== entry.caseId);
+  cases.push(entry);
+  return { ...store, cases: cases.sort((left, right) => left.at - right.at).slice(-keep) };
 }
 
 /** 追加样本(同 chapter+signal 覆盖旧值;每支信号只留最近 200 条,防文件无界长)。 */
@@ -323,15 +351,8 @@ export function deriveSignalBaselines(
 
 /* ---------------- 正负例集打分:标定集的真实用途 ---------------- */
 
-export interface ChapterQcCalibrationScoreV1 {
-  requirementId: string;
-  greenTotal: number;
-  /** 正例里被判 pass 的条数(=该门的召回,漏了就是假红) */
-  greenPassed: number;
-  redTotal: number;
-  /** 负例里被判 fail 的条数(=该门抓得住口子;0=这门是摆设) */
-  redCaught: number;
-}
+// 类型真源在 chapter-qc-types.ts(报告要快照它,类型层不能反向依赖本件)。
+export type { ChapterQcCalibrationScoreV1 };
 
 /**
  * 用打标正负例集给每道门算「抓得住吗」。
@@ -396,8 +417,31 @@ export function calibrationBlocker(
     .join("、")}:阈值还没有本系列实测撑,pass 不给`;
 }
 
-/* ---------------- 加权维度分 ---------------- */
+/* ---------------- 召回门禁(金标集级兜底) ---------------- */
 
+/**
+ * 金标集给这行的「抓得住吗」一个数,这里决定这个数字能不能压掉一条 pass。
+ *
+ * 只压 `pass`,而且只在**负例全放过**时压:`fail` 是人已经看见门报警了(账要在 note 里给读者看,
+ * 但改判等于藏病);抓回过一条负例的门不是摆设,拿「还漏了几条」把它压回缺证会让整块板子
+ * 在没有标定量的时候自我否决——那是拿缺证当惩罚,不是当证据。
+ * 负例不足 `minRedCases` 条时同样只记账:一两条可能是打标人记错、或那片子里的问题本不归这行管。
+ */
+export function caseRecallBlocker(
+  verdict: ChapterQcRequirementVerdict,
+  score: ChapterQcCalibrationScoreV1 | undefined,
+  minRedCases = QC_CALIBRATION_MIN_RED_CASES,
+): { blocker?: string; note?: string } {
+  if (!score) return {};
+  const red = `负例 ${score.redCaught}/${score.redTotal} 条抓到`;
+  const green = score.greenTotal > 0 ? `、正例 ${score.greenPassed}/${score.greenTotal} 条放行` : "";
+  const book = `打标金标:${red}${green}`;
+  if (verdict !== "pass" || score.redTotal === 0 || score.redCaught > 0) return { note: book };
+  if (score.redTotal < minRedCases) return { note: `${book}(负例不足 ${minRedCases} 条,还不够判这门是摆设)` };
+  return { blocker: `${book}:已知有问题的片子这门一条没抓到,这门是摆设,pass 不给` };
+}
+
+/* ---------------- 加权维度分 ---------------- */
 /**
  * 按注册表权重给三态板算 0~100 分:pass 计分,unverified/fail 都不计分
  * (「查不出来」不给分也不倒扣——缺证的代价是不放行,不是负分)。

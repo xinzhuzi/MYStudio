@@ -13,13 +13,15 @@
  * 派生规则全部可追溯:每个 verdict 都能回指一条 finding code、一句「缺什么」或一条逐镜台账。
  */
 
-import { FACE_READABLE_MIN_RATIO } from "./chapter-qc-face";
+import { FACE_READABLE_MIN_RATIO, summarizeFaceCrops } from "./chapter-qc-face";
 import { CHAPTER_QC_DIMENSIONS } from "./chapter-qc-registry";
 import {
   calibrationBlocker,
+  caseRecallBlocker,
   evaluateSignalAgainstBaseline,
   isBaselineUsable,
   scoreDimensionBoard,
+  type ChapterQcCalibrationScoreV1,
   type ChapterQcSignalEvaluation,
 } from "./chapter-qc-calibration";
 import { assertionCoverage, describeAssertionCoverage, shotsWithAssertion } from "./chapter-qc-expectations";
@@ -74,8 +76,8 @@ export interface ChapterQcRequirementInput {
   supplyChecks?: ChapterQcSupplyCheckV1;
   /** 骨干②:逐镜期望断言集(缺省=分镜语义没读到) */
   expectations?: ChapterQcExpectationSetV1;
-  /** 骨干③:本系列的信号基线(缺某信号=该阈值未标定,只能记账不许放行) */
-  calibration?: Pick<NonNullable<ChapterQcReportV1["calibration"]>, "seriesId" | "baselines">;
+  /** 骨干③:本系列的信号基线(缺某信号=该阈值未标定,只能记账不许放行)+ 金标集逐行召回账 */
+  calibration?: Pick<NonNullable<ChapterQcReportV1["calibration"]>, "seriesId" | "baselines" | "caseScores">;
 }
 
 /** assessor 产出的裸判定,注册表信息由解释器补齐。 */
@@ -387,18 +389,68 @@ const CHARACTER_CODES = ["face-anomaly", "hand-anomaly", "pose-anomaly", "lip-sy
 const TEXT_CODES = ["text-garbled"].map(preflightCode);
 const COHERENCE_CODES = ["identity-drift", "style-inconsistency"].map(preflightCode);
 
+/**
+ * 人脸裁片缺口(1107 吸收件②)——只压人物相关的两行,不碰装配/文字/跨镜。
+ * 整帧探针被限宽到 1280 后 1080P 的脸只剩 ~47px,模型对五官的回话是「看不清就不判」;
+ * 这一镜的头部特写既然没出成,「人物没问题」就没有近景证据,pass 必须退回缺证。
+ */
+const FACE_CROP_GAP_CODE = "chapter-qc.face.crop-gap";
+
+function faceCropBlocker(input: ChapterQcRequirementInput): string | undefined {
+  const gap = input.findings.find((finding) => finding.code === FACE_CROP_GAP_CODE && isViolation(finding));
+  return gap?.message;
+}
+
+function faceCropNote(input: ChapterQcRequirementInput): string {
+  // 整批不采信时台账只剩「回了什么」的记录价值:它自己都不确定哪条对应哪镜,
+  // 再报一个 X/Y 就是在给读者第二套分母(那边的「裁片 N/N 镜」用的是请求数)。
+  const reason = input.vision?.faceCropReason;
+  if (reason) return `人脸裁片整批不采信(${reason})`;
+  const crops = input.vision?.faceCrops;
+  if (!crops || crops.length === 0) return "人脸裁片未跑本轮";
+  const counts = summarizeFaceCrops(crops);
+  return `头部特写 ${counts.produced}/${crops.length} 镜(本镜无脸 ${counts.noFace} / 裁片失败 ${counts.gaps})`;
+}
+
+function visionPreflightMissing(input: ChapterQcRequirementInput): string | undefined {
+  const layerMissing = layerMissingReason("vision", input.layers.vision);
+  if (layerMissing) return layerMissing;
+  if (input.layers.vision.status === "failed") return "vision 层执行失败，不能确认视觉证据完整";
+  const vision = input.vision;
+  const preflight = vision?.preflight;
+  if (!vision || !preflight) return "视觉预审未回写(图片理解绑定缺/帧物料缺)";
+  if (vision.frameErrors > 0) return `视觉抽帧失败 ${vision.frameErrors} 张，缺帧不算通过`;
+  if (vision.frames.length === 0 || vision.frameCount !== vision.frames.length) return "视觉探针帧缺失或帧数与台账不符";
+  if (vision.decisions.length === 0) return "分镜决策台账为空，无法确认单镜与相邻镜覆盖";
+  const uncovered = vision.decisions.filter((decision) => !vision.frames.some(
+    (frame) => frame.kind === "mid" && frame.ordinal === decision.ordinal && frame.shotId === decision.shotId,
+  )).map((decision) => decision.ordinal);
+  // 点名是哪一镜没探针:短于抽帧窗口的镜会被 visionSamplePoints 丢掉 mid,读者要能自己去修,
+  // 而不是对着一句「覆盖不全」无从下手。
+  if (uncovered.length > 0) return `第 ${uncovered.join("、")} 镜没有中帧探针(镜头短于抽帧窗口或未落盘)，该镜单帧与相邻配对都无证据`;
+  const expectedCalls = vision.frames.length + vision.decisions.length - 1;
+  if (preflight.checked !== preflight.passed + preflight.failed || preflight.skipped !== 0 || preflight.checked !== expectedCalls) {
+    return `视觉预审覆盖不全：应检查 ${expectedCalls} 次 / 已检查 ${preflight.checked} / 缺证或跳过 ${preflight.skipped}`;
+  }
+  const incomplete = input.findings.find((finding) => finding.code === preflightCode("incomplete"));
+  if (incomplete) return incomplete.message;
+  if (preflight.failed > 0 && !input.findings.some((finding) => isViolation(finding)
+    && [...ASSEMBLY_CODES, ...CHARACTER_CODES, ...TEXT_CODES, ...COHERENCE_CODES].includes(finding.code))) {
+    return "视觉预审报失败但异常明细未回写，无法判定受影响维度";
+  }
+  return undefined;
+}
+
 function visionGroup(codeList: readonly string[], extraCodes: readonly string[] = []): Assessor {
   return (context) => {
     const watched = [...extraCodes, ...codeList];
     const match = codes(...watched);
     const hits = context.input.findings.filter((finding) => isViolation(finding) && match(finding));
-    const missing = hits.length > 0
-      ? undefined
-      : layerMissingReason("vision", context.input.layers.vision)
-        ?? (context.input.vision?.preflight ? undefined : "视觉预审未回写(图片理解绑定缺/帧物料缺)");
+    const missing = hits.length > 0 ? undefined : visionPreflightMissing(context.input);
     return {
       verdict: hits.length > 0 ? "fail" : missing ? "unverified" : "pass",
       evidenceCodes: hits.map((finding) => finding.code),
+      failingShotOrdinals: [...new Set(hits.flatMap((finding) => finding.shotOrdinal === undefined ? [] : [finding.shotOrdinal]))].sort((a, b) => a - b),
       ...(missing ? { missing: [missing] } : {}),
     };
   };
@@ -418,9 +470,24 @@ const visionReviewed: Assessor = (context) => {
 const characterIntegrity: Assessor = (context) => {
   const base = visionGroup(CHARACTER_CODES)(context);
   const cast = assertionCoverage(context.input.expectations, "cast-visible");
+  const lipSyncUnverified = context.input.vision?.decisions.filter((decision) => {
+    const shot = context.input.expectations?.shots.find((item) => item.shotId === decision.shotId && item.ordinal === decision.ordinal);
+    return shot?.assertions["cast-visible"] !== "forbidden" && shot?.assertions.speech !== "forbidden";
+  }) ?? [];
+  const blockers = [
+    ...(base.missing ?? []),
+    ...(base.verdict === "pass" && lipSyncUnverified.length > 0
+      ? [`${lipSyncUnverified.length} 镜未排除出镜说话，口型同步缺证：静帧没有连续嘴部画面和音频，须音画时序检测或专项人工复核`]
+      : []),
+    ...(base.verdict === "pass" ? [faceCropBlocker(context.input)].filter((message): message is string => message !== undefined) : []),
+  ];
   return {
     ...base,
-    note: `分镜声明出镜 ${cast.expected} 镜 / 声明空镜 ${cast.forbidden} 镜 / 未记 ${cast.unknown} 镜;由图片理解模型逐探针帧判——1102 实测 608×352 下 YuNet 五官几何比值自然区间 0.28–1.02,几何门会误伤,故此维只信模型不信信号过滤器`,
+    ...(base.verdict === "fail" || blockers.length === 0 ? {} : {
+      verdict: "unverified" as const,
+      missing: blockers,
+    }),
+    note: `分镜声明出镜 ${cast.expected} 镜 / 声明空镜 ${cast.forbidden} 镜 / 未记 ${cast.unknown} 镜；图片理解仅检查探针帧可见的脸、手和肢体，不代表全片逐帧无异常；YuNet 只记可判读度；${faceCropNote(context.input)}`,
   };
 };
 
@@ -431,7 +498,13 @@ const textIntegrity: Assessor = (context) => {
 
 const crossShotCoherence: Assessor = (context) => {
   const base = visionGroup(COHERENCE_CODES)(context);
-  return { ...base, note: "成对调用(相邻两镜同送)才判得出漂移;单帧调用无对照物" };
+  return {
+    ...base,
+    ...(base.verdict === "pass" && (context.input.vision?.decisions.length ?? 0) < 2
+      ? { verdict: "unverified" as const, missing: ["没有相邻两镜对照，跨镜一致性无证据"] }
+      : {}),
+    note: "成对调用(相邻两镜同送)才判得出漂移;单帧调用无对照物",
+  };
 };
 
 /**
@@ -475,10 +548,12 @@ const faceReadability: Assessor = (context) => {
       note: faceNote(face),
     };
   }
+  const cropBlocker = faceCropBlocker(context.input);
   return {
-    verdict: "pass",
-    evidenceCodes: ["chapter-qc.face.summary"],
-    note: `${faceNote(face)} / 近景特写声明 ${closeUp.expected} 镜`,
+    verdict: cropBlocker ? "unverified" : "pass",
+    evidenceCodes: ["chapter-qc.face.summary", ...(cropBlocker ? [FACE_CROP_GAP_CODE] : [])],
+    ...(cropBlocker ? { missing: [cropBlocker] } : {}),
+    note: `${faceNote(face)} / 近景特写声明 ${closeUp.expected} 镜 / ${faceCropNote(context.input)}`,
   };
 };
 
@@ -586,6 +661,9 @@ export function buildChapterQcRequirements(input: ChapterQcRequirementInput): Ch
       updatedAt: 0,
     });
   }
+  const caseScoreMap = new Map<string, ChapterQcCalibrationScoreV1>(
+    (input.calibration?.caseScores ?? []).map((score) => [score.requirementId, score]),
+  );
   const base: Omit<AssessContext, "spec"> = {
     input: input as AssessContext["input"],
     baselineMap,
@@ -610,8 +688,11 @@ export function buildChapterQcRequirements(input: ChapterQcRequirementInput): Ch
     }
     const assessed = assessor({ ...base, spec });
     const blocker = calibrationBlocker(spec, assessed.verdict, baselineMap);
-    const verdict: ChapterQcRequirementVerdict = blocker ? "unverified" : assessed.verdict;
-    const missing = blocker ? [...(assessed.missing ?? []), blocker] : assessed.missing;
+    const recall = caseRecallBlocker(assessed.verdict, caseScoreMap.get(spec.requirementId));
+    const blockers = [blocker, recall.blocker].filter((line): line is string => Boolean(line));
+    const verdict: ChapterQcRequirementVerdict = blockers.length > 0 ? "unverified" : assessed.verdict;
+    const missing = blockers.length > 0 ? [...(assessed.missing ?? []), ...blockers] : assessed.missing;
+    const note = [assessed.note, recall.note].filter((line): line is string => Boolean(line)).join(" · ") || undefined;
     requirements.push({
       requirementId: spec.requirementId,
       label: spec.label,
@@ -619,7 +700,7 @@ export function buildChapterQcRequirements(input: ChapterQcRequirementInput): Ch
       watchedCodes: watchedCodesFor(spec.requirementId),
       evidenceCodes: assessed.evidenceCodes ?? [],
       ...(missing && missing.length > 0 ? { missing } : {}),
-      ...(assessed.note ? { note: assessed.note } : {}),
+      ...(note ? { note } : {}),
       ...(assessed.failingShotOrdinals && assessed.failingShotOrdinals.length > 0
         ? { failingShotOrdinals: assessed.failingShotOrdinals }
         : {}),
@@ -645,10 +726,10 @@ const WATCHED_BY_ID: Record<string, readonly string[]> = {
   "aesthetic-in-baseline": ["chapter-qc.aesthetic.below-baseline", "chapter-qc.aesthetic.shot-below-baseline"],
   "semantic-reviewed": ["<本层任意 blocker/warn>"],
   "vision-reviewed": ["chapter-qc.vision.transition-density", ...ASSEMBLY_CODES],
-  "character-integrity": CHARACTER_CODES,
+  "character-integrity": [...CHARACTER_CODES, FACE_CROP_GAP_CODE],
   "text-integrity": TEXT_CODES,
   "cross-shot-coherence": COHERENCE_CODES,
-  "face-readability": ["chapter-qc.face.summary", "chapter-qc.face.unreadable"],
+  "face-readability": ["chapter-qc.face.summary", "chapter-qc.face.unreadable", "chapter-qc.face.crop", FACE_CROP_GAP_CODE],
   "human-full-watch": [],
 };
 

@@ -48,6 +48,12 @@ describe("buildVisionPreflightTasks", () => {
 });
 
 describe("parseVisionPreflightReply", () => {
+  it("看不清可返回 null verdict，但必须给缺证原因", () => {
+    expect(parseVisionPreflightReply('{"pass":null,"issues":[],"reason":"手部太小无法辨认"}')).toEqual({
+      pass: null, issues: [], reason: "手部太小无法辨认",
+    });
+    expect(parseVisionPreflightReply('{"pass":null,"issues":[]}')).toBeNull();
+  });
   it("解析围栏 JSON，并拒绝契约外 code/severity", () => {
     expect(parseVisionPreflightReply('```json\n{"pass":false,"issues":[{"code":"subtitle-obstruction","severity":"warn","reason":"字幕遮住人物"}]}\n```')).toEqual({
       pass: false,
@@ -93,13 +99,162 @@ describe("buildVisionPreflightCalls(1102:单帧 + 相邻镜成对)", () => {
     expect(shotCall?.prompt).toContain("看不清的细节不要硬判");
   });
 
+  it("缺转场帧与硬切都不能漏审仍存在的边界帧", () => {
+    for (const selected of [frames, frames.filter((frame) => frame.kind !== "blend")]) {
+      for (const plan of [decisions, decisions.map(({ outgoingTransition, ...decision }) => decision)]) {
+        const calls = buildVisionPreflightCalls(selected, plan).filter((call) => call.kind === "frame");
+        expect(calls.flatMap((call) => call.frames.map((frame) => frame.frameUrl)).sort())
+          .toEqual(selected.map((frame) => frame.frameUrl).sort());
+      }
+    }
+  });
+
+  it("单帧提示词禁止看不清放行和伪音画同步判断", () => {
+    const prompt = buildVisionPreflightCalls(frames, decisions)[0].prompt;
+    expect(prompt).not.toContain("宁可回答 pass");
+    expect(prompt).toContain("null");
+    expect(prompt).not.toContain("lip-sync-suspect");
+    expect(prompt).toContain("没有音频");
+  });
+
   it("缺一镜 mid 时不成对(没有对照物就不问,而不是拿别的帧凑)", () => {
     const calls = buildVisionPreflightCalls(frames.filter((frame) => frame.kind !== "mid" || frame.ordinal !== 2), decisions);
     expect(calls.some((call) => call.kind === "pair")).toBe(false);
   });
 });
 
+describe("头部特写调用(1107 吸收件②)", () => {
+  const faceFrames: VisionPreflightFrameInput[] = [
+    { shotId: "s1", ordinal: 1, kind: "face", tS: 2, frameUrl: "face-crop-000-t2.000.jpg" },
+    { shotId: "s2", ordinal: 2, kind: "face", tS: 5, frameUrl: "face-crop-001-t5.000.jpg" },
+  ];
+
+  it("每张裁片一次单帧调用,覆盖式 frames + decisions - 1 仍成立", () => {
+    const all = [...frames, ...faceFrames];
+    const calls = buildVisionPreflightCalls(all, decisions);
+    expect(calls.filter((call) => call.kind === "frame")).toHaveLength(all.length);
+    expect(calls).toHaveLength(all.length + decisions.length - 1);
+    expect(calls.filter((call) => call.frames[0]?.kind === "face")).toHaveLength(2);
+  });
+
+  it("特写 prompt 只问五官,码白名单只留 face-anomaly", () => {
+    const call = buildVisionPreflightCalls([...frames, ...faceFrames], decisions).find((item) => item.id === "shot:1:face");
+    expect(call?.prompt).toContain("头部特写");
+    expect(call?.prompt).toContain("晏燎拔剑");
+    expect(call?.prompt).toContain('"code":"face-anomaly"');
+    expect(call?.prompt).not.toContain("hand-anomaly");
+    expect(call?.prompt).not.toContain("text-garbled");
+    expect(call?.prompt).toContain("看不清");
+    expect(call?.prompt).not.toContain("blend 帧");
+  });
+
+  it("特写里报出手部异常＝越界判断:排除该判断并记缺证,不冒充通过", async () => {
+    const outcome = await runVisionPreflight({
+      frames: faceFrames,
+      decisions,
+      readFrameDataUrl: async () => "data:image/jpeg;base64,x",
+      call: async (messages) => {
+        const content = messages[0].content as Array<Record<string, unknown>>;
+        const text = String(content[content.length - 1]?.text ?? "");
+        return text.includes("头部特写")
+          ? '{"pass":false,"issues":[{"code":"hand-anomaly","severity":"blocker","reason":"六指"}]}'
+          : '{"pass":true,"issues":[]}';
+      },
+    });
+    const faceResults = outcome.results.filter((result) => result.frames[0]?.kind === "face");
+    expect(faceResults.every((result) => result.status === "unverified")).toBe(true);
+    expect(outcome.findings.some((finding) => finding.code.endsWith("hand-anomaly"))).toBe(false);
+    expect(outcome.findings.filter((finding) => finding.code.endsWith("incomplete"))).toHaveLength(2);
+  });
+
+  it("特写报出五官异常落成 face 帧的 character 维 finding", async () => {
+    const outcome = await runVisionPreflight({
+      frames: faceFrames,
+      decisions,
+      readFrameDataUrl: async () => "data:image/jpeg;base64,x",
+      call: async () => '{"pass":false,"issues":[{"code":"face-anomaly","severity":"blocker","reason":"左眼位置低于右眼且糊成一团"}]}',
+    });
+    expect(outcome.stats).toEqual({ checked: 2, passed: 0, failed: 2, skipped: 0 });
+    expect(outcome.findings.find((finding) => finding.code.endsWith("face-anomaly"))).toMatchObject({
+      severity: "blocker",
+      shotOrdinal: 1,
+      message: "第 1 镜 face：左眼位置低于右眼且糊成一团",
+      evidence: { source: "vision-preflight", frameKind: "face" },
+    });
+  });
+});
+
 describe("runVisionPreflight", () => {
+  it("看不清只算缺证，并留下时间码与原因", async () => {
+    const outcome = await runVisionPreflight({
+      frames: [frames[0]], decisions,
+      readFrameDataUrl: async () => "data:image/jpeg;base64,x",
+      call: async () => '{"pass":null,"issues":[],"reason":"手部太小无法辨认"}',
+    });
+    expect(outcome.stats).toEqual({ checked: 0, passed: 0, failed: 0, skipped: 1 });
+    expect(outcome.results[0]).toMatchObject({ status: "unverified", reason: "手部太小无法辨认" });
+    expect(outcome.findings[0]).toMatchObject({
+      code: "chapter-qc.vision.preflight.incomplete", severity: "info", shotOrdinal: 1,
+      evidence: { tS: 2, source: "vision-preflight" },
+    });
+  });
+
+  it("合法异常与不支持的判断混在同一回复时保留异常，不用重试洗成通过", async () => {
+    const call = vi.fn()
+      .mockResolvedValueOnce(JSON.stringify({ pass: false, issues: [
+        { code: "hand-anomaly", severity: "blocker", reason: "掌心连接六根手指" },
+        { code: "lip-sync-suspect", severity: "warn", reason: "猜测不同步" },
+      ] }))
+      .mockResolvedValue('{"pass":true,"issues":[]}');
+    const outcome = await runVisionPreflight({
+      frames: [frames[0]], decisions,
+      readFrameDataUrl: async () => "data:image/jpeg;base64,x", call,
+    });
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(outcome.results[0].status).toBe("unverified");
+    expect(outcome.findings.some((item) => item.code.endsWith("hand-anomaly"))).toBe(true);
+    expect(outcome.findings.some((item) => item.code.endsWith("lip-sync-suspect"))).toBe(false);
+    expect(outcome.findings.some((item) => item.code.endsWith("incomplete"))).toBe(true);
+  });
+
+  it("缺证回复中已经检出的异常仍保留", async () => {
+    const outcome = await runVisionPreflight({
+      frames: [frames[0]], decisions,
+      readFrameDataUrl: async () => "data:image/jpeg;base64,x",
+      call: async () => '{"pass":null,"issues":[{"code":"hand-anomaly","severity":"warn","reason":"手指连接错误"}],"reason":"脸太小无法辨认"}',
+    });
+    expect(outcome.stats).toEqual({ checked: 0, passed: 0, failed: 0, skipped: 1 });
+    expect(outcome.findings.map((item) => item.code)).toEqual([
+      "chapter-qc.vision.preflight.incomplete", "chapter-qc.vision.preflight.hand-anomaly",
+    ]);
+  });
+
+  it("读帧抛错不丢掉此前发现，后续帧仍继续检查", async () => {
+    const outcome = await runVisionPreflight({
+      frames, decisions,
+      readFrameDataUrl: async (url) => {
+        if (url === "mid-2") throw new Error("frame missing");
+        return "data:image/jpeg;base64,x";
+      },
+      call: async () => '{"pass":false,"issues":[{"code":"hand-anomaly","severity":"blocker","reason":"六根手指"}]}',
+    });
+    expect(outcome.findings.some((item) => item.code.endsWith("hand-anomaly"))).toBe(true);
+    expect(outcome.stats.skipped).toBe(2);
+    expect(outcome.stats.failed).toBe(4);
+  });
+
+  it("单帧没有音频，不能接受口型同步或跨镜漂移结论", async () => {
+    for (const code of ["lip-sync-suspect", "identity-drift"]) {
+      const outcome = await runVisionPreflight({
+        frames: [frames[0]], decisions,
+        readFrameDataUrl: async () => "data:image/jpeg;base64,x",
+        call: async () => JSON.stringify({ pass: false, issues: [{ code, severity: "warn", reason: "猜测" }] }),
+      });
+      expect(outcome.stats.checked).toBe(0);
+      expect(outcome.stats.skipped).toBe(1);
+      expect(outcome.findings.some((item) => item.code.endsWith(code))).toBe(false);
+    }
+  });
   it("聚合 findings，保留 vision-preflight 来源和决策证据", async () => {
     const outcome = await runVisionPreflight({
       frames,

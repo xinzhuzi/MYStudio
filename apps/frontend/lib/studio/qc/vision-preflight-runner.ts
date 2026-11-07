@@ -1,15 +1,16 @@
 /**
  * AC4 审片预审 runner。
  *
- * 一次 provider 调用要么送 1 张主进程已缩放的探针帧(装配/形体/文字:这三维单帧看得全),
+ * 一次 provider 调用要么送 1 张主进程已缩放的探针帧(仅检查可见的装配/形体/文字),
  * 要么送 2 张相邻镜中帧(跨镜一致:漂移是关系判定,单帧没有对照物)。
  * 边界任务把 pre/blend/post 绑到同一份转场决策上下文,但仍逐帧发。
+ * kind="face" 是人脸框头部特写(1107 吸收件②),单独一条 prompt 与单独的码白名单。
  */
 
 import type { ChapterQcFindingV1 } from "@rendering/plugins/videoqc/chapter-qc-types";
 import type { MultimodalCaller } from "./semantic-runner";
 
-export type VisionPreflightFrameKind = "mid" | "pre" | "blend" | "post";
+export type VisionPreflightFrameKind = "mid" | "pre" | "blend" | "post" | "face";
 
 export interface VisionPreflightFrameInput {
   shotId: string;
@@ -41,17 +42,7 @@ export interface VisionPreflightTask {
   nextDecision?: VisionPreflightDecisionInput;
 }
 
-/**
- * 预审码表(1102 扩到角色形体与画面文字)。
- *
- * 分成两组是刻意的:前四条是 08-22 那批「成片装配」问题,后七条是「生成内容本身」
- * 的崩坏问题。三态板按组归行(character-integrity / text-integrity / cross-shot-coherence),
- * 一条 finding 只落一个需求行,免得同一个毛病在板上被数两次。
- *
- * 这七维为什么走模型而不是 ffmpeg:1102 实测 YuNet 在 608×352 的二维国风帧上
- * 五官几何比值自然区间是 noseOverEye 0.28–1.02(全属正常),任何几何线都会把
- * 风格当崩坏——手指/口型同理无法由信号过滤器判定,只能看。
- */
+/** 口型码保留供解释历史报告；单帧预审不生成此码。 */
 export type VisionPreflightIssueCode =
   | "black-or-garbled"
   | "subtitle-obstruction"
@@ -90,6 +81,12 @@ export const ASSEMBLY_ISSUE_CODES: readonly VisionPreflightIssueCode[] = [
   "transition-content-mismatch",
 ];
 
+/**
+ * 头部特写组(1107 吸收件②):裁片里只有头,能判的只有五官。
+ * 放手/文字/装配码进来等于允许模型对看不见的部位签发结论——那是假证据,不是加分。
+ */
+export const FACE_CROP_ISSUE_CODES: readonly VisionPreflightIssueCode[] = ["face-anomaly"];
+
 export const VISION_PREFLIGHT_ISSUE_CODES: readonly VisionPreflightIssueCode[] = [
   ...ASSEMBLY_ISSUE_CODES,
   ...CHARACTER_INTEGRITY_ISSUE_CODES,
@@ -114,7 +111,7 @@ export interface VisionPreflightCallResult {
   callId: string;
   kind: VisionPreflightCall["kind"];
   frames: VisionPreflightFrameInput[];
-  status: "pass" | "fail" | "unparsed" | "skipped";
+  status: "pass" | "fail" | "unverified" | "unparsed" | "skipped";
   issues?: VisionPreflightIssue[];
   reason?: string;
 }
@@ -157,11 +154,16 @@ export function buildVisionPreflightTasks(
   return tasks;
 }
 
-/** 单帧检查项:装配四条 + 角色形体四条 + 画面文字一条。 */
+const SINGLE_FRAME_ISSUE_CODES = [
+  ...ASSEMBLY_ISSUE_CODES,
+  ...CHARACTER_INTEGRITY_ISSUE_CODES.filter((code) => code !== "lip-sync-suspect"),
+  ...TEXT_INTEGRITY_ISSUE_CODES,
+];
+
 const SINGLE_FRAME_CHECKS =
-  "只检查：黑屏/花屏；字幕遮挡关键人物、动作或信息；装饰遮挡、堆叠或喧宾夺主；blend 帧的转场是否造成内容断裂或与前后镜描述明显不协调；"
-  + "五官是否错位/缺失/糊成一团(face-anomaly)；手与手指是否多指、融合、扭曲或长在错误位置(hand-anomaly)；"
-  + "肢体与姿势是否解剖不可能、穿模、悬空(pose-anomaly)；人物在说话时口型是否与台词明显对不上(lip-sync-suspect)；"
+  "逐项观察：黑屏/花屏；字幕遮挡关键人物、动作或信息；装饰遮挡、堆叠或喧宾夺主；blend 帧的转场是否造成内容断裂或与前后镜描述明显不协调；"
+  + "五官是否错位、重复、缺失或糊成一团(face-anomaly)；可见手掌与手指是否多指、融合、扭曲或长在错误位置(hand-anomaly)；"
+  + "肢体是否额外生长、连接错误、解剖不可能或穿模(pose-anomaly)；"
   + "画面内招牌/书信/匾额上的字是不是不成字的伪字或乱码(text-garbled)。";
 
 export function buildVisionPreflightPrompt(task: VisionPreflightTask, frame: VisionPreflightFrameInput): string {
@@ -171,15 +173,40 @@ export function buildVisionPreflightPrompt(task: VisionPreflightTask, frame: Vis
     .join(", ") || "无显式镜级效果";
   return [
     `这是成片第 ${frame.ordinal} 镜 ${frame.kind} 探针帧，时间码 ${frame.tS.toFixed(3)}s。`,
-    `本镜描述：${task.decision?.description ?? task.nextDecision?.description ?? "未提供"}`,
+    `本镜描述：${(frame.ordinal === task.nextDecision?.ordinal ? task.nextDecision : task.decision)?.description ?? "未提供"}`,
     `本镜效果决策：${effects}`,
     transition
       ? `出镜转场：${transition.effectId}，时长 ${transition.durationS.toFixed(3)}s，下一镜 #${transition.toOrdinal}（${task.nextDecision?.description ?? "未提供描述"}）。`
       : "本帧无出镜转场决策。",
     SINGLE_FRAME_CHECKS,
-    "看不清的细节不要硬判，宁可回答 pass 也不要猜。画面里没有人物/手/文字时，对应 code 一律不报。",
-    "不要推断未提供的导演意图。只回答 JSON：",
-    `{"pass":true或false,"issues":[{"code":"${VISION_PREFLIGHT_ISSUE_CODES.join("|")}","severity":"warn|blocker","reason":"不超过40字"}]}。`,
+    "先辨认实际可见的人物、脸、手和肢体，再检查连接关系与局部细节；不要先假定有问题或没问题。",
+    "看不清的细节不要硬判：模糊、小脸、遮挡导致无法判断时 pass=null，并在 reason 写缺什么证据。确认画面没有人物/手/文字时，不为缺席对象报错。",
+    "侧脸、背影、正常遮挡、透视缩短、二维风格化和有意运动模糊不等于畸形；只有可见结构明显矛盾才报异常。",
+    "本次只有单帧，没有音频或连续嘴部画面，不能判断口型同步，也不能判断跨镜身份漂移。不要推断未提供的导演意图。",
+    "可见适用项都能判断且无异常才 pass=true；已发现异常用 pass=false；证据不足用 pass=null（已发现的异常仍须保留在 issues）。只回答 JSON：",
+    `{"pass":true或false或null,"issues":[{"code":"${SINGLE_FRAME_ISSUE_CODES.join("|")}","severity":"warn|blocker","reason":"指出可见部位与具体问题"}],"reason":"pass=null时必填缺证原因"}。`,
+  ].join("\n");
+}
+
+/**
+ * 头部特写调用(1107 吸收件②)。
+ *
+ * 为什么要单独一条 prompt:1102 标定同一章 1080P 出片的脸原生中位只有 71px,整帧探针限宽 1280 后
+ * 剩 ~47px,模型对手/脸的统一回话是「太小看不清不判」。裁片把这一镜里脸实际占的那几十像素整份送到
+ * 输入视野,判据从「猜有没有崩」变成「看这五官对不对」。
+ */
+export function buildFaceCropPrompt(frame: VisionPreflightFrameInput, decision?: VisionPreflightDecisionInput): string {
+  return [
+    `这是成片第 ${frame.ordinal} 镜(${frame.tS.toFixed(3)}s)按人脸框裁出的头部特写,原始分辨率裁片,不是整帧缩略。`,
+    `本镜描述：${decision?.description ?? "未提供"}`,
+    "只检查五官与头部连接：眼/眉/鼻/嘴的数量、位置与左右关系是否符合解剖；"
+      + "眼珠、牙齿、嘴唇是否缺失、重复、糊成一团或长错位置；皮肤与五官边界是否有融合、重影、局部扭曲；"
+      + "脖颈与头、肩的连接是否连续、无穿模(face-anomaly)。",
+    "本图里没有手、全身、字幕和画面文字,不要对这些部位下任何结论；跨镜身份漂移需要两帧对照,单张不判。",
+    "侧脸、背影、正常遮挡、二维风格化与有意虚化不等于畸形；只有可见结构明显矛盾才报 face-anomaly。",
+    "小脸经插值放大不会新增细节：仍然不可辨时 pass=null 并在 reason 写缺什么证据,「看不清」不是「没问题」。",
+    "可见项都能判断且无异常才 pass=true；已发现异常用 pass=false；证据不足用 pass=null（已发现的异常仍须保留在 issues）。只回答 JSON：",
+    `{"pass":true或false或null,"issues":[{"code":"${FACE_CROP_ISSUE_CODES.join("|")}","severity":"warn|blocker","reason":"指出具体哪个部位怎么错"}],"reason":"pass=null时必填缺证原因"}。`,
   ].join("\n");
 }
 
@@ -216,8 +243,9 @@ export function buildVisionCoherencePrompt(
     "只检查跨镜一致性：同一角色在两镜里的长相、发型、服饰、体型是否发生可察觉漂移(identity-drift)；"
       + "两镜的画风/渲染质感/色调是否不属于同一部片(style-inconsistency)。",
     "不同角色出现在相邻两镜是正常叙事，不算漂移；只有描述指向同一角色、或同一人身形明显换脸换衣时才报。",
-    "只回答 JSON：",
-    `{"pass":true或false,"issues":[{"code":"${COHERENCE_ISSUE_CODES.join("|")}","severity":"warn|blocker","reason":"不超过40字"}]}。`,
+    "身份对应关系不明、人物太小或遮挡而无法比较时 pass=null，不把不同人物硬判为换脸，也不把无法比较当通过。",
+    "可比较且无异常用 pass=true；可见异常用 pass=false；证据不足用 pass=null，已发现的异常仍保留在 issues。只回答 JSON：",
+    `{"pass":true或false或null,"issues":[{"code":"${COHERENCE_ISSUE_CODES.join("|")}","severity":"warn|blocker","reason":"指出具体差异"}],"reason":"pass=null时必填缺证原因"}。`,
   ].join("\n");
 }
 
@@ -228,7 +256,8 @@ export function buildVisionPreflightCalls(
 ): VisionPreflightCall[] {
   const decisionByOrdinal = new Map(decisions.map((decision) => [decision.ordinal, decision]));
   const calls: VisionPreflightCall[] = [];
-  for (const task of buildVisionPreflightTasks([...frames], [...decisions])) {
+  const assignedFrames = new Set<VisionPreflightFrameInput>();
+  for (const task of buildVisionPreflightTasks(frames, decisions)) {
     for (const frame of task.frames) {
       calls.push({
         id: `${task.id}:${frame.kind}`,
@@ -236,7 +265,29 @@ export function buildVisionPreflightCalls(
         frames: [frame],
         prompt: buildVisionPreflightPrompt(task, frame),
       });
+      assignedFrames.add(frame);
     }
+  }
+  for (const frame of frames) {
+    if (assignedFrames.has(frame)) continue;
+    const decision = decisionByOrdinal.get(frame.ordinal);
+    const task: VisionPreflightTask = {
+      id: `shot:${frame.ordinal}`,
+      kind: "shot",
+      ordinal: frame.ordinal,
+      frames: [frame],
+      decision,
+      nextDecision: decision?.outgoingTransition
+        ? decisionByOrdinal.get(decision.outgoingTransition.toOrdinal)
+        : undefined,
+    };
+    // 头部特写走自己的 prompt:整帧那套「顺手/文字/装配」清单送到一张只有头的裁片上,只会换来一串「看不见故不判」。
+    calls.push({
+      id: `${task.id}:${frame.kind}`,
+      kind: "frame",
+      frames: [frame],
+      prompt: frame.kind === "face" ? buildFaceCropPrompt(frame, decision) : buildVisionPreflightPrompt(task, frame),
+    });
   }
   for (const pair of buildVisionCoherencePairs(frames, decisions)) {
     calls.push({
@@ -249,15 +300,17 @@ export function buildVisionPreflightCalls(
   return calls;
 }
 
-export function parseVisionPreflightReply(content: string): { pass: boolean; issues: VisionPreflightIssue[] } | null {
+export function parseVisionPreflightReply(content: string): { pass: boolean | null; issues: VisionPreflightIssue[]; reason?: string } | null {
   const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(content);
   const candidate = fenced?.[1] ?? content;
   const start = candidate.indexOf("{");
   const end = candidate.lastIndexOf("}");
   if (start < 0 || end <= start) return null;
   try {
-    const parsed = JSON.parse(candidate.slice(start, end + 1)) as { pass?: unknown; issues?: unknown };
-    if (typeof parsed.pass !== "boolean" || !Array.isArray(parsed.issues)) return null;
+    const parsed = JSON.parse(candidate.slice(start, end + 1)) as { pass?: unknown; issues?: unknown; reason?: unknown };
+    if ((typeof parsed.pass !== "boolean" && parsed.pass !== null) || !Array.isArray(parsed.issues)) return null;
+    const reason = typeof parsed.reason === "string" ? parsed.reason.trim().slice(0, 200) : undefined;
+    if (parsed.pass === null && !reason) return null;
     const issues: VisionPreflightIssue[] = [];
     for (const raw of parsed.issues) {
       if (typeof raw !== "object" || raw === null) return null;
@@ -271,8 +324,8 @@ export function parseVisionPreflightReply(content: string): { pass: boolean; iss
         reason: issue.reason.trim().slice(0, 80),
       });
     }
-    if ((parsed.pass && issues.length > 0) || (!parsed.pass && issues.length === 0)) return null;
-    return { pass: parsed.pass, issues };
+    if ((parsed.pass === true && issues.length > 0) || (parsed.pass === false && issues.length === 0)) return null;
+    return { pass: parsed.pass, issues, ...(parsed.pass === null ? { reason } : {}) };
   } catch {
     return null;
   }
@@ -299,8 +352,12 @@ export async function runVisionPreflight(options: RunVisionPreflightOptions): Pr
   for (const callUnit of calls) {
     const images: string[] = [];
     for (const frame of callUnit.frames) {
-      const dataUrl = await options.readFrameDataUrl(frame.frameUrl);
-      if (dataUrl) images.push(dataUrl);
+      try {
+        const dataUrl = await options.readFrameDataUrl(frame.frameUrl);
+        if (dataUrl) images.push(dataUrl);
+      } catch {
+        break;
+      }
     }
     if (images.length !== callUnit.frames.length) {
       results.push({ callId: callUnit.id, kind: callUnit.kind, frames: callUnit.frames, status: "skipped", reason: "探针帧读取失败" });
@@ -321,6 +378,16 @@ export async function runVisionPreflight(options: RunVisionPreflightOptions): Pr
           },
         ]);
         parsed = parseVisionPreflightReply(content);
+        const allowedCodes = callUnit.frames[0]?.kind === "face"
+          ? FACE_CROP_ISSUE_CODES
+          : callUnit.kind === "pair" ? COHERENCE_ISSUE_CODES : SINGLE_FRAME_ISSUE_CODES;
+        if (parsed && parsed.issues.some((issue) => !allowedCodes.includes(issue.code))) {
+          parsed = {
+            pass: null,
+            issues: parsed.issues.filter((issue) => allowedCodes.includes(issue.code)),
+            reason: [parsed.reason, "模型返回本次帧证据不支持的判断，已排除这些判断并保留可验证的异常"].filter(Boolean).join("；"),
+          };
+        }
       } catch (error) {
         providerFailed = error instanceof Error ? error.message : String(error);
         break;
@@ -335,7 +402,8 @@ export async function runVisionPreflight(options: RunVisionPreflightOptions): Pr
         callId: callUnit.id,
         kind: callUnit.kind,
         frames: callUnit.frames,
-        status: parsed.pass ? "pass" : "fail",
+        status: parsed.pass === null ? "unverified" : parsed.pass ? "pass" : "fail",
+        ...(parsed.reason ? { reason: parsed.reason } : {}),
         ...(parsed.issues.length > 0 ? { issues: parsed.issues } : {}),
       });
     }
@@ -343,9 +411,22 @@ export async function runVisionPreflight(options: RunVisionPreflightOptions): Pr
 
   const findings: ChapterQcFindingV1[] = [];
   for (const result of results) {
+    const anchor = result.kind === "pair" ? result.frames[result.frames.length - 1] : result.frames[0];
+    if (result.reason) {
+      findings.push({
+        code: "chapter-qc.vision.preflight.incomplete",
+        layer: "vision",
+        severity: "info",
+        shotId: anchor.shotId,
+        shotOrdinal: anchor.ordinal,
+        message: `第 ${anchor.ordinal} 镜视觉预审缺证：${result.reason}`,
+        evidence: {
+          source: "vision-preflight", callId: result.callId, frameKind: anchor.kind, tS: anchor.tS,
+          ...(result.kind === "pair" ? { pairTs: [result.frames[0].tS, anchor.tS] } : {}),
+        },
+      });
+    }
     for (const issue of result.issues ?? []) {
-      // 成对调用把 finding 记在后一镜:漂移是「这一镜偏离了前一镜」
-      const anchor = result.kind === "pair" ? result.frames[result.frames.length - 1] : result.frames[0];
       findings.push({
         code: `chapter-qc.vision.preflight.${issue.code}`,
         layer: "vision",
@@ -368,6 +449,6 @@ export async function runVisionPreflight(options: RunVisionPreflightOptions): Pr
   const checked = results.filter((result) => result.status === "pass" || result.status === "fail").length;
   const passed = results.filter((result) => result.status === "pass").length;
   const failed = results.filter((result) => result.status === "fail").length;
-  const skipped = results.filter((result) => result.status === "skipped" || result.status === "unparsed").length;
+  const skipped = results.length - checked;
   return { results, findings, stats: { checked, passed, failed, skipped } };
 }

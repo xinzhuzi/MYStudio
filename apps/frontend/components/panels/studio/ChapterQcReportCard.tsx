@@ -23,7 +23,7 @@ import type {
   ChapterQcDimensionCategory,
   ChapterQcEvaluatorKind,
 } from "@rendering/plugins/videoqc/chapter-qc-types";
-import { QC_CALIBRATION_MIN_SAMPLES } from "@rendering/plugins/videoqc/chapter-qc-types";
+import { QC_CALIBRATION_MIN_RED_CASES, QC_CALIBRATION_MIN_SAMPLES } from "@rendering/plugins/videoqc/chapter-qc-types";
 
 interface ChapterQcFinding {
   code: string;
@@ -65,6 +65,8 @@ interface ChapterQcReport {
   layers: Record<string, { status: string; reason?: string }>;
   findings: ChapterQcFinding[];
   summary: { blockers: number; warns: number; infos: number };
+  /** 本轮取证口径与退化留痕(编排器写;三态板说不出「证据是怎么来的」,靠这几条) */
+  notes?: string[];
   shots?: Array<{ shotId: string; ordinal: number; frameUrl: string; description?: string }>;
   semantic?: { checked: number; passed: number; failed: number; skipped: number; model?: string };
   vision?: {
@@ -92,8 +94,13 @@ interface ChapterQcReport {
     shots: Array<{ shotId: string; ordinal: number; assertions: Record<string, string> }>;
     coverage: Array<{ key: string; expected: number; forbidden: number; unknown: number }>;
   };
-  /** 骨干③:参与本轮判定的信号基线 */
-  calibration?: { seriesId: string; caseCount: number; baselines: Array<{ signalId: string; mean: number; sigma: number; sampleCount: number; seriesSampleCount?: number }> };
+  /** 骨干③:参与本轮判定的信号基线 + 打标金标逐行召回账 */
+  calibration?: {
+    seriesId: string;
+    caseCount: number;
+    baselines: Array<{ signalId: string; mean: number; sigma: number; sampleCount: number; seriesSampleCount?: number }>;
+    caseScores?: Array<{ requirementId: string; greenTotal: number; greenPassed: number; redTotal: number; redCaught: number }>;
+  };
   humanReview?: ChapterQcHumanReview;
 }
 
@@ -125,6 +132,18 @@ interface ChapterQcBridge {
     reviewer: string;
     notes?: string;
   }) => Promise<{ success: boolean; message?: string }>;
+  /**
+   * 逐行打标金标:渲染端只答「这行盯的问题,这片子里到底有没有」(red/green)。
+   * 机器判定那半边由主进程从这份报告抄,所以这里不上报 verdict——渲染端说的不算。
+   */
+  submitCalibrationCase?: (payload: {
+    projectId: string;
+    chapterId: string;
+    expectedCreatedAt: number;
+    requirementId: string;
+    label: "red" | "green";
+    note?: string;
+  }) => Promise<{ success: boolean; message?: string }>;
   onReportUpdated: (listener: (payload: { projectId: string; chapterId: string }) => void) => () => void;
 }
 
@@ -154,6 +173,8 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
   const [visionError, setVisionError] = useState<string | null>(null);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [caseBusy, setCaseBusy] = useState<string | null>(null);
+  const [caseError, setCaseError] = useState<string | null>(null);
   const [fullWatched, setFullWatched] = useState(false);
   const [audioListened, setAudioListened] = useState(false);
   const [reviewerName, setReviewerName] = useState("");
@@ -348,6 +369,31 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
     }
   }, [bridge, props.projectId, report, reviewSubmitting, reviewerName, fullWatched, audioListened, load]);
 
+  /**
+   * 打标:一次点一行的一条金标。同一片子同一行重复点是覆盖(主进程按内容哈希发号),
+   * 所以改主意直接再点另一边即可,不需要「取消」这条支路。
+   */
+  const submitCase = useCallback(async (requirementId: string, label: "red" | "green") => {
+    if (!bridge?.submitCalibrationCase || !props.projectId || !report || caseBusy) return;
+    setCaseBusy(`${requirementId}:${label}`);
+    setCaseError(null);
+    try {
+      const submitted = await bridge.submitCalibrationCase({
+        projectId: props.projectId,
+        chapterId: report.chapterId,
+        expectedCreatedAt: report.createdAt,
+        requirementId,
+        label,
+      });
+      if (!submitted.success) setCaseError(submitted.message?.trim() || "打标写入失败");
+      await load();
+    } catch {
+      setCaseError("打标写入失败");
+    } finally {
+      setCaseBusy(null);
+    }
+  }, [bridge, props.projectId, report, caseBusy, load]);
+
   const rerun = async () => {
     if (!bridge || !props.projectId || running) return;
     setRunning(true);
@@ -380,6 +426,7 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
   const supply = report?.supplyChecks;
   const expectations = report?.expectations;
   const calibration = report?.calibration;
+  const evidenceNotes = report?.notes ?? [];
   /** 板按注册表分组渲染:行的顺序/类别/权重全来自真源,报告只提供三态。 */
   const rowsById = new Map(requirements.map((item) => [item.requirementId, item]));
   const boardGroups = groupDimensionsByCategory()
@@ -409,6 +456,13 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
   const absentRowIds = CHAPTER_QC_DIMENSIONS
     .filter((spec) => !rowsById.has(spec.requirementId))
     .map((spec) => spec.requirementId);
+  /**
+   * 逐行金标账(打标写入口回读)。没有条目的行=这一行还没有人证过,
+   * 按钮正是攒它的地方;有负例却一条没抓到的行,主进程已经把 pass 压成缺证。
+   */
+  const caseScoreById = new Map(
+    (calibration?.caseScores ?? []).map((score) => [score.requirementId, score]),
+  );
   const supplyDetail = supply?.checks
     .filter((check) => check.verdict !== "ok")
     .map((check) => `${check.label}:${check.verdict === "blocked" ? "硬矛盾" : "缺料"}${check.detail ? ` — ${check.detail}` : ""}`)
@@ -553,6 +607,15 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
                 </p>
               )}
 
+              {evidenceNotes.length > 0 && (
+                <p
+                  className="truncate text-xs text-muted-foreground"
+                  title={`本轮取证口径与退化留痕(同一格 unverified,是侧车缺位还是抽帧失败,修法不同):\n${evidenceNotes.join("\n")}`}
+                >
+                  取证留痕 {evidenceNotes.length} 条
+                </p>
+              )}
+
               {calibration && (
                 <p
                   className="truncate text-xs text-muted-foreground"
@@ -563,8 +626,9 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
                         ? ""
                         : `,本系列已攒 ${item.seriesSampleCount} 条,含本章`})`),
                     ...(unboundSignals.length > 0 ? [`无行消费(只攒不判):${unboundSignals.join("、")}`] : []),
-                    `打标正负例 ${calibration.caseCount} 条:本仓还没有打标写入口,0 条 = 各门「抓得住负例吗」无从核算,`
-                      + "带里的阈值仍是本仓初值",
+                    `打标金标 ${calibration.caseCount} 条:写入口就是每行末尾的「有问题/没问题」(同片同行再点即覆盖),`
+                      + `落库时连这一行当时的机器判定一起记;负例攒满 ${QC_CALIBRATION_MIN_RED_CASES} 条而一门一条没抓到,`
+                      + "这门被判摆设,pass 压成缺证",
                   ].join("\n")}
                 >
                   信号标定 画带凭 别章最高 {maxCalibrationSamples}/{QC_CALIBRATION_MIN_SAMPLES} 条(本系列已攒 {maxSeriesSamples} 条)· 打标集 {calibration.caseCount} 条
@@ -581,6 +645,10 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
                     {group.rows.map(({ spec, row }) => {
                       const item = row!;
                       const tail = item.missing?.length ? `缺:${item.missing.join("；")}` : item.note ?? "";
+                      const score = caseScoreById.get(spec.requirementId);
+                      const book = score
+                        ? `本行金标:负例 ${score.redCaught}/${score.redTotal} 条抓到、正例 ${score.greenPassed}/${score.greenTotal} 条放行`
+                        : "本行还没有金标(没人证过这门抓不抓得住)";
                       return (
                         <div key={spec.requirementId} className="flex items-center gap-2 text-xs" title={tail}>
                           <span
@@ -602,6 +670,28 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
                             ) : null}
                             {tail ? <span className="ml-1.5 text-muted-foreground">{tail}</span> : null}
                           </span>
+                          {bridge.submitCalibrationCase && props.projectId ? (
+                            <span className="flex shrink-0 items-center gap-1">
+                              {(["red", "green"] as const).map((label) => (
+                                <button
+                                  key={label}
+                                  type="button"
+                                  disabled={Boolean(caseBusy)}
+                                  onClick={() => void submitCase(spec.requirementId, label)}
+                                  className={cn(
+                                    "shrink-0 rounded-md border px-1 text-[11px] leading-4",
+                                    label === "red" ? "border-destructive/30 text-destructive" : "border-border text-muted-foreground",
+                                    caseBusy ? "opacity-40" : "hover:bg-muted",
+                                  )}
+                                  title={`${label === "red"
+                                    ? "记一条负例:这片子里确实有这一行盯的问题"
+                                    : "记一条正例:这一行盯的问题在这片子里没有"}\n${book};打标当时的机器判定一并落库,改主意再点另一边即可覆盖`}
+                                >
+                                  {label === "red" ? "有问题" : "没问题"}
+                                </button>
+                              ))}
+                            </span>
+                          ) : null}
                           {item.evaluator ? (
                             <span className="shrink-0 text-[11px] text-muted-foreground" title={CHAPTER_QC_EVALUATOR_LABELS[item.evaluator]}>
                               {CHAPTER_QC_EVALUATOR_LABELS[item.evaluator]}
@@ -623,6 +713,7 @@ export function ChapterQcReportCard(props: { projectId?: string; chapterId: stri
                     注册表外 {ungrouped.length} 行:{ungrouped.map((item) => item.requirementId).join("、")}
                   </div>
                 )}
+                {caseError && <div className="text-[11px] text-destructive">{caseError}</div>}
               </div>
             </div>
           )}

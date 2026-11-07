@@ -24,6 +24,7 @@ import {
 } from "@/lib/studio/editing/transition-policy";
 import { createProjectFileUrl } from "../../../storage/storage-paths";
 import type {
+  ChapterQcFaceCropV1,
   ChapterQcFindingV1,
   ChapterQcVisionDecisionV1,
   ChapterQcVisionFrameKind,
@@ -165,6 +166,42 @@ export function buildVisionDecisions(input: {
         : {}),
     }];
   });
+}
+
+/**
+ * 人脸裁片台账 → 预审帧物料(1107 吸收件②)。
+ *
+ * 出成的裁片按 `index` 认领回它那一镜的中帧,以 kind="face" 并入探针帧:
+ * 这样预审调用数、覆盖算式(`帧数 + 决策数 - 1`)与渲染端读帧口径都自动跟着走,
+ * 不需要第二条计数口径。没出成的条目不在这里出现——它们由 `faceCrops` 台账点名。
+ *
+ * 整批不采信(`available=false`,台账条数或 index 口径对不上请求)时一条都不注册:
+ * 认领全靠 `index`,口径一坏,这条裁片就会挂到别的镜上——张冠李戴的证据比没证据更坏,
+ * 它会替错误的镜回答「五官没问题」。缺证由调用点的 crop-gap 台账点名,不在这里偷渡。
+ */
+export function registerFaceCropFrames(
+  midFrames: readonly ChapterQcVisionFrameRecord[],
+  cropRun: { available: boolean; crops: readonly ChapterQcFaceCropV1[] },
+  input: { projectId: string; chapterId: string },
+): ChapterQcVisionFrameRecord[] {
+  if (!cropRun.available) return [];
+  const frames: ChapterQcVisionFrameRecord[] = [];
+  for (const crop of cropRun.crops) {
+    if (crop.status !== "crop" || !crop.file) continue;
+    const anchor = midFrames[crop.index];
+    if (!anchor) continue;
+    frames.push({
+      shotId: anchor.shotId,
+      ordinal: anchor.ordinal,
+      kind: "face",
+      tS: anchor.tS,
+      frameUrl: createProjectFileUrl(
+        input.projectId,
+        `remotion/qc/chapters/${input.chapterId}/vision-frames/${crop.file}`,
+      ),
+    });
+  }
+  return frames;
 }
 
 export async function runVisionLayer(input: ChapterQcVisionLayerInput): Promise<ChapterQcVisionLayerOutput> {

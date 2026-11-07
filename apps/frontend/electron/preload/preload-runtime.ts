@@ -527,6 +527,16 @@ contextBridge.exposeInMainWorld('chapterQc', {
     notes?: string
   }): Promise<{ success: boolean; message?: string }> =>
     ipcRenderer.invoke('chapter-qc-submit-human-review', payload),
+  // 逐行打标金标:red=这行盯的问题这片子里真有,green=没有。机器判定由主进程从报告抄,这里不上报。
+  submitCalibrationCase: (payload: {
+    projectId: string
+    chapterId: string
+    expectedCreatedAt: number
+    requirementId: string
+    label: 'red' | 'green'
+    note?: string
+  }): Promise<{ success: boolean; message?: string }> =>
+    ipcRenderer.invoke('chapter-qc-submit-calibration-case', payload),
   onReportUpdated: (listener: (payload: { projectId: string; chapterId: string }) => void): (() => void) => {
     const handler = (_event: unknown, payload: { projectId: string; chapterId: string }) => listener(payload)
     ipcRenderer.on('chapter-qc-report-updated', handler)

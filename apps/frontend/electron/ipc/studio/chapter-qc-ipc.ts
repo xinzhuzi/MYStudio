@@ -1,4 +1,4 @@
-// Chapter QC IPC — QC 报告读取/手动重跑/L4 语义、AC4 视觉预审与人工复核回写 + 报告更新事件广播。
+// Chapter QC IPC — QC 报告读取/手动重跑/L4 语义、AC4 视觉预审、人工复核回写与逐行打标金标 + 报告更新事件广播。
 // 通道字面量(契约测试扫描);语义回写做 schema 校验(渲染端不可信输入)。
 
 import { ipcMain, type BrowserWindow } from "electron";
@@ -44,6 +44,16 @@ interface HumanReviewSubmitPayload {
   audioListened?: unknown;
   reviewer?: unknown;
   notes?: unknown;
+}
+
+/** 打标金标:渲染端只报「这行盯的问题这片子到底有没有」,机器判定由主进程从报告抄。 */
+interface CalibrationCaseSubmitPayload {
+  projectId?: unknown;
+  chapterId?: unknown;
+  expectedCreatedAt?: unknown;
+  requirementId?: unknown;
+  label?: unknown;
+  note?: unknown;
 }
 
 function readPreflightStats(value: unknown): { checked: number; passed: number; failed: number; skipped: number } | null {
@@ -263,6 +273,70 @@ export function registerChapterQcIpcHandlers(options: RegisterChapterQcIpcOption
     return { success: true };
   });
 
+  ipcMain.handle("chapter-qc-submit-calibration-case", async (_event, payload: unknown): Promise<{ success: boolean; message?: string }> => {
+    const submit = payload as CalibrationCaseSubmitPayload;
+    const identity = readIdentity(payload);
+    if (!identity.projectId || !identity.chapterId) {
+      return { success: false, message: "projectId/chapterId 必填" };
+    }
+    if (typeof submit.expectedCreatedAt !== "number" || !Number.isFinite(submit.expectedCreatedAt)) {
+      return { success: false, message: "expectedCreatedAt 必填" };
+    }
+    const requirementId = typeof submit.requirementId === "string" ? submit.requirementId.trim() : "";
+    if (!/^[a-z][a-z0-9-]{0,63}$/.test(requirementId)) return { success: false, message: "requirementId 非法" };
+    if (submit.label !== "red" && submit.label !== "green") {
+      return { success: false, message: "label 只能是 red(真有问题)/ green(没问题)" };
+    }
+    const note = typeof submit.note === "string" ? submit.note.trim().slice(0, 300) : "";
+
+    const request = identity as { projectId: string; chapterId: string };
+    const { readReport } = await import("@rendering/plugins/videoqc/chapter-qc-orchestrator");
+    const report: ChapterQcReportV1 | null = await readReport(deps, request);
+    if (!report) return { success: false, message: "QC 报告不存在,无法记录金标" };
+    if (report.createdAt !== submit.expectedCreatedAt) {
+      return { success: false, message: "QC 报告已更新,请按当前这一版重新打标" };
+    }
+    // 金标的机器那半边只从报告抄:渲染端上报的 verdict 不可信,也不是这一轮看板说的话。
+    const row = report.requirements?.find((item) => item.requirementId === requirementId);
+    if (!row) return { success: false, message: `这份报告没有「${requirementId}」这一行,请先重跑 QC` };
+    if (typeof report.outputSha256 !== "string" || !report.outputSha256) {
+      return { success: false, message: "报告没有成片哈希,金标无法锚定到片子上,请重跑 QC" };
+    }
+    if (!report.calibration) {
+      return { success: false, message: "这份报告早于标定骨干(无标定块),请重跑 QC 后再打标" };
+    }
+
+    const { calibrationCaseId, readCalibrationStore, scoreCalibrationSet, upsertCalibrationCase, writeCalibrationStore } =
+      await import("@rendering/plugins/videoqc/chapter-qc-calibration");
+    const workspaceRoot = deps.remotionWorkspaceRootForProject(identity.projectId);
+    const at = Date.now();
+    try {
+      const next = upsertCalibrationCase(readCalibrationStore(workspaceRoot, report.calibration.seriesId), {
+        caseId: calibrationCaseId(report.outputSha256, requirementId),
+        videoSha256: report.outputSha256,
+        requirementId,
+        label: submit.label,
+        verdict: row.verdict,
+        at,
+        note,
+      });
+      writeCalibrationStore(workspaceRoot, next);
+      report.calibration = {
+        ...report.calibration,
+        caseCount: next.cases.length,
+        caseScores: scoreCalibrationSet(next.cases, (item) => item.verdict),
+      };
+    } catch (error) {
+      return { success: false, message: `标定库写入失败,本轮未记录金标:${error instanceof Error ? error.message : String(error)}` };
+    }
+    applyChapterQcRequirements(report);
+
+    const { writeChapterQcReport } = await import("@rendering/plugins/videoqc/chapter-qc-report-store");
+    await writeChapterQcReport(workspaceRoot, identity.chapterId, report);
+    broadcast(identity.projectId, identity.chapterId);
+    return { success: true };
+  });
+
   return {
     dispose: () => {
       ipcMain.removeHandler("chapter-qc-get-report");
@@ -270,6 +344,7 @@ export function registerChapterQcIpcHandlers(options: RegisterChapterQcIpcOption
       ipcMain.removeHandler("chapter-qc-submit-semantic");
       ipcMain.removeHandler("chapter-qc-submit-vision-preflight");
       ipcMain.removeHandler("chapter-qc-submit-human-review");
+      ipcMain.removeHandler("chapter-qc-submit-calibration-case");
     },
   };
 }

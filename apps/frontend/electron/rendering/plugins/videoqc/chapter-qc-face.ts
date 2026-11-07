@@ -17,7 +17,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
-import type { ChapterQcFaceSignalsV1, ChapterQcFindingV1 } from "./chapter-qc-types";
+import type { ChapterQcFaceCropV1, ChapterQcFaceSignalsV1, ChapterQcFindingV1 } from "./chapter-qc-types";
 
 const execFileAsync = promisify(execFile);
 
@@ -93,13 +93,6 @@ export function readFaceSignals(payload: Record<string, unknown>): ChapterQcFace
       ? { driftDistanceP95: finiteNumber(payload.driftDistanceP95) } : {}),
     driftPairs: finiteNumber(payload.driftPairs) ?? 0,
     ...(typeof payload.model === "string" ? { model: payload.model } : {}),
-    // [1103 Phase 1] Parse new geometry fields
-    ...(finiteNumber(payload.geometryAspectP50) !== undefined
-      ? { geometryAspectP50: finiteNumber(payload.geometryAspectP50) } : {}),
-    ...(finiteNumber(payload.geometryAspectP95) !== undefined
-      ? { geometryAspectP95: finiteNumber(payload.geometryAspectP95) } : {}),
-    ...(finiteNumber(payload.geometryAnomalyFlags) !== undefined
-      ? { geometryAnomalyFlags: finiteNumber(payload.geometryAnomalyFlags) } : {}),
   };
 }
 
@@ -132,6 +125,132 @@ export async function runChapterQcFace(input: ChapterQcFaceInput): Promise<{
     return { available: true, signals };
   } catch (error) {
     return { available: false, reason: `人脸调用异常: ${error instanceof Error ? error.message : String(error)}` };
+  }
+}
+
+/**
+ * 人脸裁片侧车(1107 吸收件②)。
+ *
+ * 整帧探针在 L5 限宽 1280 之后,1080P 成片的脸只剩 ~47px(1102 标定:原生中位 71px),
+ * 五官细节在整帧缩放与模型切片里被吃掉。这里按编排器给的**镜中点时刻**出原始分辨率裁片,
+ * 让预审模型直接看头部特写。裁片不新增细节,只是把那几十像素整份交给模型。
+ *
+ * 逐条台账(含 `read-failed`/`write-failed`)必须回传:某一镜的裁片没出成是缺证,
+ * 不能只报一个总数——那等于把缺证藏进统计里。
+ */
+export interface ChapterQcFaceCropInput {
+  videoPath: string;
+  pythonExecutable: string;
+  backendRoot: string;
+  /** 镜中点时刻(秒);顺序即台账里的 index */
+  timestamps: number[];
+  /** 裁片落盘目录(= vision-frames 目录,渲染端读帧口径不变) */
+  cropsDir: string;
+  timeoutMs?: number;
+  runner?: FaceCommandRunner;
+}
+
+// 口径钉在类型上:types 里改名或加值时这里编译不过,而不是静默把该条当「半截条目」丢掉
+// (丢掉会走条数不符 → 整批不采信,查起来只剩一句 reason)。
+const CROP_STATUSES: readonly ChapterQcFaceCropV1["status"][] = ["crop", "no-face", "read-failed", "write-failed"];
+
+function readCropEntries(payload: Record<string, unknown>): ChapterQcFaceCropV1[] {
+  if (!Array.isArray(payload.crops)) return [];
+  const crops: ChapterQcFaceCropV1[] = [];
+  for (const raw of payload.crops) {
+    if (typeof raw !== "object" || raw === null) continue;
+    const entry = raw as Record<string, unknown>;
+    const index = finiteNumber(entry.index);
+    const tS = finiteNumber(entry.tS);
+    const status = CROP_STATUSES.find((code) => code === entry.status);
+    if (index === undefined || tS === undefined || !status) continue; // 半截条目不算台账
+    const box = readPointVector(entry.box, 4);
+    const cropPx = readPointVector(entry.cropPx, 2);
+    crops.push({
+      index,
+      tS,
+      status,
+      ...(typeof entry.file === "string" ? { file: entry.file } : {}),
+      ...(box ? { box: box as ChapterQcFaceCropV1["box"] } : {}),
+      ...(finiteNumber(entry.faceShortSidePx) !== undefined ? { faceShortSidePx: finiteNumber(entry.faceShortSidePx) } : {}),
+      ...(finiteNumber(entry.facesInFrame) !== undefined ? { facesInFrame: finiteNumber(entry.facesInFrame) } : {}),
+      ...(cropPx ? { cropPx: cropPx as ChapterQcFaceCropV1["cropPx"] } : {}),
+      ...(typeof entry.upscaled === "boolean" ? { upscaled: entry.upscaled } : {}),
+    });
+  }
+  return crops;
+}
+
+function readPointVector(value: unknown, length: number): number[] | undefined {
+  if (!Array.isArray(value) || value.length !== length) return undefined;
+  const numbers = value.map(finiteNumber);
+  return numbers.every((number) => number !== undefined) ? (numbers as number[]) : undefined;
+}
+
+/** 裁片条数与缺证条数:板上与 finding 都吃这两个数(哪几镜缺由调用点按 index 认领)。 */
+export function summarizeFaceCrops(crops: readonly ChapterQcFaceCropV1[]): {
+  produced: number;
+  noFace: number;
+  gaps: number;
+} {
+  let produced = 0;
+  let noFace = 0;
+  let gaps = 0;
+  for (const crop of crops) {
+    if (crop.status === "crop") produced += 1;
+    else if (crop.status === "no-face") noFace += 1;
+    else gaps += 1;
+  }
+  return { produced, noFace, gaps };
+}
+
+export async function runChapterQcFaceCrops(input: ChapterQcFaceCropInput): Promise<{
+  available: boolean;
+  crops: ChapterQcFaceCropV1[];
+  reason?: string;
+}> {
+  if (input.timestamps.length === 0) return { available: true, crops: [] };
+  const runner = input.runner ?? defaultRunner;
+  const args = [
+    "-m", "face_qc.worker",
+    "--video", input.videoPath,
+    "--at", input.timestamps.map((stamp) => stamp.toFixed(3)).join(","),
+    "--crop-out", input.cropsDir,
+    "--json",
+  ];
+  try {
+    const { stdout } = await runner(input.pythonExecutable, args, {
+      cwd: input.backendRoot,
+      env: { ...process.env, PYTHONPATH: input.backendRoot },
+      timeout: input.timeoutMs ?? FACE_TIMEOUT_MS,
+    });
+    const payload = parseFaceWorkerJson(stdout);
+    if (!payload) return { available: false, crops: [], reason: "人脸裁片 worker 输出无法解析" };
+    if (payload.status !== "ok") {
+      const code = typeof payload.code === "string" ? payload.code : "unknown";
+      return { available: false, crops: [], reason: `人脸裁片 ${payload.status ?? "unknown"}(${code})` };
+    }
+    if (payload.mode !== "crops") {
+      // worker 没进裁片模式=老侧车或接线错;当成缺证,不许把「没裁片」读成「这章没脸」
+      return { available: false, crops: [], reason: "人脸 worker 未回裁片台账(mode 不是 crops)" };
+    }
+    const crops = readCropEntries(payload);
+    if (crops.length !== input.timestamps.length) {
+      return { available: false, crops, reason: `人脸裁片台账 ${crops.length} 条 ≠ 请求 ${input.timestamps.length} 条` };
+    }
+    // index 必须等于台账位次( worker 侧 `enumerate(timestamps)` 的产物):调用点全靠 `midFrames[crop.index]`
+    // 把裁片认领到镜。错位时那条裁片会静默不注册,而「裁片 N/N 镜」照报满——正是本层禁的把缺证藏进统计。
+    const misplaced = crops.findIndex((crop, position) => crop.index !== position);
+    if (misplaced >= 0) {
+      return {
+        available: false,
+        crops,
+        reason: `人脸裁片台账 index 错位:第 ${misplaced} 条回的是 ${crops[misplaced].index}(口径=位次即 index)`,
+      };
+    }
+    return { available: true, crops };
+  } catch (error) {
+    return { available: false, crops: [], reason: `人脸裁片调用异常: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
 

@@ -336,6 +336,7 @@ describe("ChapterQcReportCard 三态验收板与人工复核", () => {
         ...boardReport().requirements,
         { requirementId: "ghost-row", label: "注册表外的历史行", verdict: "fail" as const, watchedCodes: [], evidenceCodes: ["x"] },
       ],
+      notes: ["no-workflow-store", "代表帧按清晰度择帧 1/1 镜(出曝光窗剔 0 帧候选,中点兜底 0 镜)"],
     };
     Object.defineProperty(window, "chapterQc", {
       configurable: true,
@@ -350,7 +351,78 @@ describe("ChapterQcReportCard 三态验收板与人工复核", () => {
     expect(screen.getByText("信号标定 画带凭 别章最高 2/5 条(本系列已攒 7 条)· 打标集 0 条")).toBeTruthy();
     const calibTip = screen.getByTitle(/画带剔本章/);
     expect(calibTip.getAttribute("title")).toContain("画带凭别章 2 条,本系列已攒 7 条,含本章");
-    expect(calibTip.getAttribute("title")).toContain("本仓还没有打标写入口");
+    expect(calibTip.getAttribute("title")).toContain("写入口就是每行末尾的「有问题/没问题」");
     expect(screen.getByText(/^注册表外 1 行:/)).toBeTruthy();
+    // 取证留痕单独一行,但可见位只报条数:退化一趟能攒到 8~9 条且含异常原文,
+    // 拼进这一行必然被 truncate 截掉——越该看的时候越看不全,所以正文只进 title。
+    const trail = screen.getByText("取证留痕 2 条");
+    expect(trail.textContent).not.toContain("no-workflow-store");
+    const trailTip = screen.getByTitle(/取证口径/).getAttribute("title") ?? "";
+    expect(trailTip).toContain("no-workflow-store");
+    expect(trailTip).toContain("代表帧按清晰度择帧 1/1 镜");
+  });
+});
+
+describe("ChapterQcReportCard 逐行打标金标", () => {
+  /** 有一行已攒过金标的看板:按钮上的账要看得见,点下去只交「有没有」。 */
+  function goldBoardReport() {
+    return {
+      ...boardReport(),
+      calibration: {
+        seriesId: "p1",
+        caseCount: 2,
+        baselines: [],
+        caseScores: [{ requirementId: "no-blackout", greenTotal: 1, greenPassed: 1, redTotal: 1, redCaught: 0 }],
+      },
+    };
+  }
+
+  it("「有问题/没问题」两点即金标写入口:payload 只带行号与 label,不带机器判定", async () => {
+    const submitCalibrationCase = vi.fn(async (_payload: Record<string, unknown>) => ({ success: true }));
+    Object.defineProperty(window, "chapterQc", {
+      configurable: true,
+      value: {
+        getReport: vi.fn(async () => goldBoardReport()),
+        run: vi.fn(),
+        submitSemantic: vi.fn(),
+        submitVisionPreflight: vi.fn(),
+        submitCalibrationCase,
+        onReportUpdated: vi.fn(() => vi.fn()),
+      },
+    });
+    render(<ChapterQcReportCard projectId="p1" chapterId="c1" />);
+
+    const redButtons = await screen.findAllByRole("button", { name: "有问题" });
+    // 板按注册表顺序渲染,首行是 no-blackout;每行都有两个按钮,不许只给一半行开口子。
+    expect(redButtons.length).toBe(boardReport().requirements.length);
+    expect(redButtons[0]!.getAttribute("title")).toContain("本行金标:负例 0/1 条抓到、正例 1/1 条放行");
+    fireEvent.click(redButtons[0]!);
+    await waitFor(() => expect(submitCalibrationCase).toHaveBeenCalledWith({
+      projectId: "p1",
+      chapterId: "c1",
+      expectedCreatedAt: 100,
+      requirementId: "no-blackout",
+      label: "red",
+    }));
+    expect(submitCalibrationCase.mock.calls[0][0]).not.toHaveProperty("verdict");
+  });
+
+  it("主进程拒收时把原话摆在板下(陈旧报告不许悄悄记一条金标)", async () => {
+    const submitCalibrationCase = vi.fn(async () => ({ success: false, message: "QC 报告已更新,请按当前这一版重新打标" }));
+    Object.defineProperty(window, "chapterQc", {
+      configurable: true,
+      value: {
+        getReport: vi.fn(async () => goldBoardReport()),
+        run: vi.fn(),
+        submitSemantic: vi.fn(),
+        submitVisionPreflight: vi.fn(),
+        submitCalibrationCase,
+        onReportUpdated: vi.fn(() => vi.fn()),
+      },
+    });
+    render(<ChapterQcReportCard projectId="p1" chapterId="c1" />);
+    const greenButtons = await screen.findAllByRole("button", { name: "没问题" });
+    fireEvent.click(greenButtons[0]!);
+    expect(await screen.findByText("QC 报告已更新,请按当前这一版重新打标")).toBeTruthy();
   });
 });

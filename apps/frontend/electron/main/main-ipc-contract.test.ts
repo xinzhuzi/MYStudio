@@ -49,6 +49,7 @@ audio-gen-runtime-setup
 audio-gen-runtime-status
 chapter-qc-get-report
 chapter-qc-run
+chapter-qc-submit-calibration-case
 chapter-qc-submit-human-review
 chapter-qc-submit-semantic
 chapter-qc-submit-vision-preflight

@@ -63,8 +63,31 @@ export interface ChapterQcSemanticResultV1 {
   finishedAt: number;
 }
 
-/** L5 视觉审计帧物料种类:镜中/边界前/转场中/边界后 */
-export type ChapterQcVisionFrameKind = "mid" | "pre" | "blend" | "post";
+/** L5 视觉审计帧物料种类:镜中/边界前/转场中/边界后/人脸裁片(1107 吸收件②) */
+export type ChapterQcVisionFrameKind = "mid" | "pre" | "blend" | "post" | "face";
+
+/**
+ * 一镜中点时刻的人脸裁片台账(`face_qc/worker.py` 裁片模式逐条回)。
+ *
+ * 每条都留痕(含没出成的):`read-failed`/`write-failed` 是缺证,必须点名到镜;
+ * `no-face` 是空证据不是失败(1102 亲检:背面/靴子特写/侧脸都是合理内容)。
+ */
+export interface ChapterQcFaceCropV1 {
+  /** 请求时间戳列表里的下标(编排器按它把裁片认领回中帧那一镜) */
+  index: number;
+  tS: number;
+  status: "crop" | "no-face" | "read-failed" | "write-failed";
+  /** 相对 `vision-frames/` 的文件名(status=crop/write-failed 时给) */
+  file?: string;
+  /** 原生像素 [x, y, w, h] */
+  box?: [number, number, number, number];
+  faceShortSidePx?: number;
+  facesInFrame?: number;
+  /** 裁片落盘尺寸 [w, h] */
+  cropPx?: [number, number];
+  /** 原生短边不足 256 时做了插值放大(不新增细节,只为让五官占满模型输入) */
+  upscaled?: boolean;
+}
 
 export interface ChapterQcVisionFrameTaskV1 {
   shotId: string;
@@ -112,6 +135,10 @@ export interface ChapterQcVisionResultV1 {
   densityChecked: number;
   /** 帧提取失败数(单帧跳过不整体失败) */
   frameErrors: number;
+  /** 1107 吸收件②:逐镜中点的人脸裁片台账(出成的已并入 `frames`,没出成的在这里点名) */
+  faceCrops?: ChapterQcFaceCropV1[];
+  /** 裁片侧车跑过却没出全台账的原因(缺证 ≠ 没有脸;缺省=本轮跑成功或根本没尝试) */
+  faceCropReason?: string;
   /** 渲染端图片理解预审回写；缺省=尚未运行或无 binding。 */
   preflight?: ChapterQcVisionPreflightResultV1;
 }
@@ -159,6 +186,13 @@ export interface ChapterQcRequirementV1 {
 
 /** 一支信号要画带(拿到可用阈值)所需的最少实测样本数;不足则相关行只能记「未标定」。 */
 export const QC_CALIBRATION_MIN_SAMPLES = 5;
+
+/**
+ * 一行要被判「负例全放过=这门是摆设」所需的最少金标负例数。
+ * 1~2 条可能是打标人记错了或那片子里的问题本不归这行管;3 条已知有问题的片子
+ * 一起被 pass,才够把「这一行的绿」降级成「这一行没测」。
+ */
+export const QC_CALIBRATION_MIN_RED_CASES = 3;
 
 /**
  * 单镜静止帧占比的绝对病线:L2 从这里起记「伪动态线索」,逐镜判定也必须从这里起判。
@@ -297,15 +331,38 @@ export interface ChapterQcSignalBaselineV1 {
   updatedAt: number;
 }
 
-/** 骨干③:正/负标定 case(对标上游 sampled_videos/ + 打标集;没它就没资格谈阈值)。 */
+/**
+ * 骨干③:正/负标定 case(对标上游 sampled_videos/ + 打标集;没它就没资格谈阈值)。
+ *
+ * 人只回答一件事:「这行盯的问题,这片子里到底有没有」= `label`。
+ * `verdict` 是**打标当时**看板给出的机器判定,由主进程从报告里抄,不接受渲染端上报:
+ * 金标的价值就是「人说的」与「机器说的」成对落库,缺任何一半都算不出召回。
+ * 门改了要重新打一次标(旧 `verdict` 记的是旧代码的表现),`at` 用来暴露这种陈旧。
+ */
 export interface ChapterQcCalibrationCaseV1 {
+  /** `${videoSha256}:${requirementId}`:同一支片子同一行只留最新一次打标 */
   caseId: string;
   /** 标定片内容 sha256(片子换了 case 就失效) */
   videoSha256: string;
   requirementId: string;
   /** green=已知应 pass;red=已知应 fail(人为注入口子的负例) */
   label: "green" | "red";
+  /** 打标这一行看板上说的话:pass=门放行了,fail=门抓住了,unverified=门看不见 */
+  verdict: ChapterQcRequirementVerdict;
+  /** 打标时刻 */
+  at: number;
   note: string;
+}
+
+/** 骨干③:一行金标集的召回账(redCaught=0 的门等于摆设)。 */
+export interface ChapterQcCalibrationScoreV1 {
+  requirementId: string;
+  greenTotal: number;
+  /** 正例里被判 pass 的条数(=该门的召回,漏了就是假红) */
+  greenPassed: number;
+  redTotal: number;
+  /** 负例里被判 fail 的条数(=该门抓得住口子;0=这门是摆设) */
+  redCaught: number;
 }
 
 /** 骨干③:加权维度分。缺证不计分(「查不出来」不给分也不倒扣)。 */
@@ -416,6 +473,12 @@ export interface ChapterQcReportV1 {
   layers: Record<ChapterQcLayerId, ChapterQcLayerResultV1>;
   findings: ChapterQcFindingV1[];
   summary: { blockers: number; warns: number; infos: number };
+  /**
+   * 本轮取证口径与退化留痕(编排器逐条记:侧车缺位、择帧兜底、提取失败几镜…)。
+   * 三态板只压得住「哪一维没证据」,压不住「证据是怎么来的」——同一格 unverified,
+   * 是模型缺位还是抽帧失败 N 镜,修法完全不同。缺省=本轮无退化留痕(旧报告同样缺省)。
+   */
+  notes?: string[];
   /** L4 消费:每镜代表帧(project-file URL)+镜描述(无帧/无描述的镜 runner 跳过) */
   shots?: Array<{ shotId: string; ordinal: number; frameUrl: string; description?: string }>;
   aesthetic?: ChapterQcAestheticResultV1;
@@ -439,6 +502,8 @@ export interface ChapterQcReportV1 {
     baselines: ChapterQcSignalBaselineV1[];
     /** 标定 case 数(正/负例集规模;0=阈值全靠猜,相关行不许 pass) */
     caseCount: number;
+    /** 逐行召回账(由 `cases` 现算,随报告快照:打标后重算需求板要它,不读盘) */
+    caseScores?: ChapterQcCalibrationScoreV1[];
   };
   /** 骨干③:加权维度分(三态不因此松动,releasable 仍看零 fail 零缺证) */
   dimensionScore?: ChapterQcDimensionScoreV1;

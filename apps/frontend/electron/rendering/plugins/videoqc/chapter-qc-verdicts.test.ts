@@ -7,6 +7,7 @@ import {
   type ChapterQcRequirementInput,
 } from "./chapter-qc-verdicts";
 import { buildShotExpectations } from "./chapter-qc-expectations";
+import { runVisionPreflight } from "@/lib/studio/qc/vision-preflight-runner";
 import { runSupplyCheck, type ChapterQcSupplyInput } from "./chapter-qc-supply-check";
 import { CHAPTER_QC_DIMENSIONS, CHAPTER_QC_WEIGHT_TOTAL } from "./chapter-qc-registry";
 import type {
@@ -81,13 +82,23 @@ function greenInput(overrides: Partial<ChapterQcRequirementInput> = {}): Chapter
     },
     semantic: { checked: 5, passed: 5, failed: 0, skipped: 0, finishedAt: 1 },
     vision: {
-      frameCount: 20,
-      frames: [],
-      decisions: [],
-      densityChecked: 4,
+      frameCount: 2,
+      frames: [
+        { shotId: "s1", ordinal: 1, kind: "mid", tS: 2, frameUrl: "mid-1" },
+        { shotId: "s2", ordinal: 2, kind: "mid", tS: 6, frameUrl: "mid-2" },
+      ],
+      decisions: [
+        { shotId: "s1", ordinal: 1, effects: [] },
+        { shotId: "s2", ordinal: 2, effects: [] },
+      ],
+      densityChecked: 0,
       frameErrors: 0,
-      preflight: { checked: 20, passed: 20, failed: 0, skipped: 0, finishedAt: 1 },
+      preflight: { checked: 3, passed: 3, failed: 0, skipped: 0, finishedAt: 1 },
     },
+    expectations: buildShotExpectations([
+      { shotId: "s1", ordinal: 1, durationS: 4, personFree: true },
+      { shotId: "s2", ordinal: 2, durationS: 4, personFree: true },
+    ]),
     ...overrides,
   };
 }
@@ -218,6 +229,41 @@ describe("buildChapterQcRequirements(三态验收:unverified 永不计通过)", 
     expect(withSamples?.missing?.[0]).toContain("攒够也不自动放行");
   });
 
+  it("金标负例全被放行 ⇒ 这门从 pass 压成缺证;抓回过一条只记账", () => {
+    // 前提要成立:这根门在这份理想证据下确实是绿的,否则「压成缺证」无从谈起。
+    expect(byId(greenInput(), "character-integrity")?.verdict).toBe("pass");
+    const blind = greenInput({
+      calibration: {
+        seriesId: "p1",
+        baselines: [],
+        caseScores: [
+          { requirementId: "character-integrity", greenTotal: 3, greenPassed: 3, redTotal: 3, redCaught: 0 },
+          { requirementId: "text-integrity", greenTotal: 0, greenPassed: 0, redTotal: 3, redCaught: 1 },
+        ],
+      },
+    });
+    expect(byId(blind, "character-integrity")?.verdict).toBe("unverified");
+    expect(byId(blind, "character-integrity")?.missing?.some((line) => line.includes("这门一条没抓到"))).toBe(true);
+    // 抓回过一条 = 这门不是摆设:pass 保住,但召回账必须让读者看得见(缺证不许藏,过也不许吹)。
+    expect(byId(blind, "text-integrity")?.verdict).toBe("pass");
+    expect(byId(blind, "text-integrity")?.note).toContain("负例 1/3 条抓到");
+  });
+
+  it("负例全放过也不把已经在报警的行压回缺证:fail 是真问题,标定账不许覆盖它", () => {
+    const alarm = greenInput({
+      findings: [MOTION_SUMMARY, finding("chapter-qc.vision.preflight.hand-anomaly", "vision", "blocker")],
+      calibration: {
+        seriesId: "p1",
+        baselines: [],
+        caseScores: [{ requirementId: "character-integrity", greenTotal: 0, greenPassed: 0, redTotal: 5, redCaught: 0 }],
+      },
+    });
+    expect(byId(alarm, "character-integrity")?.verdict).toBe("fail");
+    // 账还是要给读者看:这门在已知有问题的片子里 5 条一条没抓到,现在却靠一条码报警——
+    // 报警的可信度本身也要记账,但改判是藏病。
+    expect(byId(alarm, "character-integrity")?.note).toContain("负例 0/5 条抓到");
+  });
+
   it("逐帧统计无采样点 → real-motion 缺的是数,不是阈值", () => {
     const requirements = buildChapterQcRequirements(greenInput({ findings: [] }));
     expect(byId(requirements, "real-motion")?.missing?.[0]).toContain("逐帧统计未出数");
@@ -295,6 +341,86 @@ describe("buildChapterQcRequirements(三态验收:unverified 永不计通过)", 
     for (const id of ["vision-reviewed", "character-integrity", "text-integrity", "cross-shot-coherence"]) {
       expect(byId(noPreflight, id)?.verdict, id).toBe("unverified");
       expect(byId(noPreflight, id)?.missing?.[0], id).toContain("视觉预审未回写");
+    }
+  });
+
+  it.each([
+    { checked: 0, passed: 0, failed: 0, skipped: 20 },
+    { checked: 19, passed: 19, failed: 0, skipped: 1 },
+    { checked: 1, passed: 1, failed: 0, skipped: 0 },
+  ])("预审零检查或部分检查不放行: %j", (stats) => {
+    const input = greenInput();
+    input.vision!.preflight = { ...stats, finishedAt: 1 };
+    for (const id of ["vision-reviewed", "character-integrity", "text-integrity", "cross-shot-coherence"]) {
+      expect(byId(input, id)?.verdict, id).toBe("unverified");
+    }
+  });
+
+  it("抽帧失败即缺证，已检出的手部异常仍优先判 fail 并定位镜号", () => {
+    const input = greenInput();
+    input.vision!.frameErrors = 1;
+    expect(byId(input, "character-integrity")?.verdict).toBe("unverified");
+    input.findings.push({ ...finding("chapter-qc.vision.preflight.hand-anomaly", "vision", "blocker"), shotOrdinal: 2 });
+    expect(byId(input, "character-integrity")).toMatchObject({ verdict: "fail", failingShotOrdinals: [2] });
+  });
+
+  it("有台词的出镜角色不能靠静帧预审声明口型同步已核验", () => {
+    const input = greenInput({ expectations: buildShotExpectations([
+      { shotId: "s1", ordinal: 1, durationS: 4, personFree: false, dialogueText: "回来" },
+    ]) });
+    expect(byId(input, "character-integrity")?.verdict).toBe("unverified");
+    expect(byId(input, "character-integrity")?.missing?.join(" ")).toContain("口型同步");
+  });
+
+  it("分镜未说明台词或出镜情况也不能默认已经排除口型同步问题", () => {
+    const item = byId(greenInput({ expectations: undefined }), "character-integrity");
+    expect(item?.verdict).toBe("unverified");
+    expect(item?.missing?.join(" ")).toContain("口型同步缺证");
+  });
+
+  it("单镜无成对对照、缺中帧及失败层均不能冒充完整视觉证据", () => {
+    const single = greenInput();
+    single.vision!.frames = single.vision!.frames.slice(0, 1);
+    single.vision!.decisions = single.vision!.decisions.slice(0, 1);
+    single.vision!.frameCount = 1;
+    single.vision!.preflight = { checked: 1, passed: 1, failed: 0, skipped: 0, finishedAt: 1 };
+    expect(byId(single, "cross-shot-coherence")?.verdict).toBe("unverified");
+
+    const missingMid = greenInput();
+    missingMid.vision!.frames[1].kind = "post";
+    // 缺中帧要点名是哪一镜:短于抽帧窗口的镜被丢 mid 后,整块看板会一起变缺证,
+    // 不写镜号用户无从定位。(框架消息在 visionPreflightMissing,不在覆盖不全的聚合分支里)
+    expect(byId(missingMid, "character-integrity")?.missing).toEqual([
+      "第 2 镜没有中帧探针(镜头短于抽帧窗口或未落盘)，该镜单帧与相邻配对都无证据",
+    ]);
+    const failedLayer = greenInput({ layers: { ...PASSED_LAYERS, vision: { status: "failed" } } });
+    const empty = greenInput();
+    empty.vision!.frames = [];
+    empty.vision!.decisions = [];
+    for (const input of [missingMid, failedLayer, empty]) {
+      for (const id of ["vision-reviewed", "character-integrity", "text-integrity", "cross-shot-coherence"]) {
+        expect(byId(input, id)?.verdict, id).toBe("unverified");
+      }
+    }
+  });
+
+  it("runner 的混合缺证与手部异常实际进入需求板，异常仍 fail 其余维度不冒 pass", async () => {
+    const input = greenInput();
+    const outcome = await runVisionPreflight({
+      frames: input.vision!.frames, decisions: input.vision!.decisions,
+      readFrameDataUrl: async () => "data:image/jpeg;base64,x",
+      call: async (messages) => {
+        const content = messages[0].content;
+        const images = Array.isArray(content) ? content.filter((item) => item.type === "image_url").length : 0;
+        return images === 2 ? '{"pass":true,"issues":[]}'
+          : '{"pass":null,"issues":[{"code":"hand-anomaly","severity":"blocker","reason":"手掌多出手指"}],"reason":"脸看不清"}';
+      },
+    });
+    input.vision!.preflight = { ...outcome.stats, finishedAt: 1 };
+    input.findings = outcome.findings;
+    expect(byId(input, "character-integrity")).toMatchObject({ verdict: "fail", failingShotOrdinals: [1, 2] });
+    for (const id of ["vision-reviewed", "text-integrity", "cross-shot-coherence"]) {
+      expect(byId(input, id)?.verdict, id).toBe("unverified");
     }
   });
 
@@ -636,5 +762,131 @@ describe("applyChapterQcRequirements(三层回写后重算)", () => {
     const after = applyChapterQcRequirements(report);
     expect(report.requirements).toBe(after);
     expect(after.find((item) => item.requirementId === "semantic-reviewed")?.verdict).toBeDefined();
+  });
+});
+
+describe("人脸裁片特写(1107 吸收件②):缺证只压人物两行,既不洗白也不牵连其余", () => {
+  /** 两镜 + 第 1 镜一张头部特写:预审覆盖式 3 帧 + 2 决策 - 1 = 4 次调用。 */
+  function withCropFrame(overrides: Partial<ChapterQcRequirementInput> = {}): ChapterQcRequirementInput {
+    return greenInput({
+      findings: [MOTION_SUMMARY],
+      faceSignals: FACE_1080,
+      vision: {
+        frameCount: 3,
+        frames: [
+          { shotId: "s1", ordinal: 1, kind: "mid", tS: 2, frameUrl: "mid-1" },
+          { shotId: "s1", ordinal: 1, kind: "face", tS: 2, frameUrl: "face-crop-000.jpg" },
+          { shotId: "s2", ordinal: 2, kind: "mid", tS: 6, frameUrl: "mid-2" },
+        ],
+        decisions: [
+          { shotId: "s1", ordinal: 1, effects: [] },
+          { shotId: "s2", ordinal: 2, effects: [] },
+        ],
+        densityChecked: 0,
+        frameErrors: 0,
+        preflight: { checked: 4, passed: 4, failed: 0, skipped: 0, finishedAt: 1 },
+        faceCrops: [
+          { index: 0, tS: 2, status: "crop", file: "face-crop-000.jpg", faceShortSidePx: 52.8, cropPx: [256, 256], upscaled: true },
+          { index: 1, tS: 6, status: "no-face" },
+        ],
+      },
+      ...overrides,
+    });
+  }
+
+  const cropGapFinding = (shotOrdinal?: number): ChapterQcFindingV1 => ({
+    ...finding("chapter-qc.face.crop-gap", "vision", "warn"),
+    ...(shotOrdinal === undefined ? {} : { shotOrdinal }),
+    message: "第 2 镜人脸裁片没出成(读帧/写盘失败),这几镜的五官特写无证据",
+  });
+
+  it("特写全出成 → 人物两行照旧 pass,台账计数进 note", () => {
+    const requirements = buildChapterQcRequirements(withCropFrame());
+    expect(byId(requirements, "face-readability")?.verdict).toBe("pass");
+    expect(byId(requirements, "character-integrity")?.verdict).toBe("pass");
+    expect(byId(requirements, "face-readability")?.note).toContain("头部特写 1/2 镜");
+    expect(byId(requirements, "character-integrity")?.note).toContain("本镜无脸 1");
+  });
+
+  it("某一镜特写没出成 → 五官维从 pass 退回缺证,并把其余维度留在 pass 不牵连", () => {
+    const requirements = buildChapterQcRequirements(withCropFrame({
+      findings: [MOTION_SUMMARY, finding("chapter-qc.face.crop", "vision", "info"), cropGapFinding(2)],
+    }));
+    const face = byId(requirements, "face-readability");
+    expect(face?.verdict).toBe("unverified");
+    expect(face?.missing?.[0]).toContain("人脸裁片没出成");
+    expect(face?.evidenceCodes).toContain("chapter-qc.face.crop-gap");
+    expect(byId(requirements, "character-integrity")?.verdict).toBe("unverified");
+    // 装配/文字/跨镜三行盯的是整帧能看见的东西,特写缺口不该把它们拖成缺证
+    expect(byId(requirements, "vision-reviewed")?.verdict).toBe("pass");
+    expect(byId(requirements, "text-integrity")?.verdict).toBe("pass");
+    expect(byId(requirements, "cross-shot-coherence")?.verdict).toBe("pass");
+    expect(summarizeChapterQcRequirements(requirements).failed).toBe(0);
+  });
+
+  it("info 级裁片汇总是记账不是结论:不推翻任何一行", () => {
+    const requirements = buildChapterQcRequirements(withCropFrame({
+      findings: [MOTION_SUMMARY, finding("chapter-qc.face.crop", "vision", "info")],
+    }));
+    expect(byId(requirements, "face-readability")?.verdict).toBe("pass");
+    expect(byId(requirements, "character-integrity")?.verdict).toBe("pass");
+  });
+
+  it("特写报出五官崩坏 → 人物行 fail 照旧,缺口不许把它压回 unverified 冒充「查不出」", () => {
+    const requirements = buildChapterQcRequirements(withCropFrame({
+      findings: [
+        MOTION_SUMMARY,
+        cropGapFinding(2),
+        {
+          ...finding("chapter-qc.vision.preflight.face-anomaly", "vision", "blocker"),
+          shotId: "s1",
+          shotOrdinal: 1,
+          message: "第 1 镜 face：左眼位置低于右眼且糊成一团",
+        },
+      ],
+    }));
+    const character = byId(requirements, "character-integrity");
+    expect(character?.verdict).toBe("fail");
+    expect(character?.failingShotOrdinals).toEqual([1]);
+    expect(character?.missing).toBeUndefined();
+    // 五官维有证据了(特写被判崩坏),这一行不再是「无自动证据」
+    expect(byId(requirements, "face-readability")?.verdict).toBe("unverified");
+  });
+
+  it("整批裁片不采信(侧车跑挂)→ 人物行缺证并带上原因,不是「这章没脸」", () => {
+    const input = withCropFrame({
+      findings: [MOTION_SUMMARY, {
+        ...finding("chapter-qc.face.crop-gap", "vision", "warn"),
+        message: "人脸裁片整批不采信:人脸裁片调用异常: spawn ENOENT——头部特写一张都没进预审,五官维只有整帧探针",
+      }],
+    });
+    const requirements = buildChapterQcRequirements(input);
+    expect(byId(requirements, "character-integrity")?.missing?.[0]).toContain("整批不采信");
+    expect(byId(requirements, "face-readability")?.verdict).toBe("unverified");
+  });
+
+  it("裁片帧的覆盖数计入预审等式:少问一次就是缺证", () => {
+    const input = withCropFrame();
+    const trimmed = buildChapterQcRequirements({
+      ...input,
+      vision: { ...input.vision!, preflight: { checked: 3, passed: 3, failed: 0, skipped: 0, finishedAt: 1 } },
+    });
+    expect(byId(trimmed, "character-integrity")?.missing?.[0]).toContain("应检查 4 次 / 已检查 3");
+    expect(byId(trimmed, "face-readability")?.verdict).toBe("pass"); // 特写覆盖缺证由人物行管,可读性行只吃人脸侧车
+  });
+
+  // 不采信的批次连分母都不该报:那边的「裁片 N/N 镜」用请求条数,台账自己却短一条,
+  // 两个数不一样就会被读成两处口径一致却对不上——这里只报「不采信 + 为什么」。
+  it("整批不采信 → note 报不采信和原因,不再报台账计数", () => {
+    const input = withCropFrame();
+    const requirements = buildChapterQcRequirements({
+      ...input,
+      findings: [MOTION_SUMMARY, finding("chapter-qc.face.crop", "vision", "info"), cropGapFinding()],
+      vision: { ...input.vision!, faceCropReason: "人脸裁片台账 index 错位:第 1 条回的是 7" },
+    });
+    const note = byId(requirements, "face-readability")?.note ?? "";
+    expect(note).toContain("人脸裁片整批不采信(人脸裁片台账 index 错位");
+    expect(note).not.toContain("头部特写 1/2");
+    expect(byId(requirements, "character-integrity")?.note).toContain("整批不采信");
   });
 });

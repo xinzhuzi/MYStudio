@@ -25,6 +25,8 @@ describe("preload IPC surface", () => {
     expect(preloadSource).toContain("ipcRenderer.invoke('chapter-qc-submit-vision-preflight', payload)");
     expect(preloadSource).toContain("submitHumanReview: (payload:");
     expect(preloadSource).toContain("ipcRenderer.invoke('chapter-qc-submit-human-review', payload)");
+    expect(preloadSource).toContain("submitCalibrationCase: (payload:");
+    expect(preloadSource).toContain("ipcRenderer.invoke('chapter-qc-submit-calibration-case', payload)");
     expect(preloadSource).toContain("ipcRenderer.removeListener('chapter-qc-report-updated', handler)");
   });
 
