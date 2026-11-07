@@ -536,7 +536,7 @@ describe("Windows Pika ref2va 主力线通道(1101)", () => {
     expect(Object.keys(result.apiGraph)).toHaveLength(20);
     expect(result.apiGraph["16"].inputs["audio_vae"]).toEqual(["120", 0]);
     expect(result.apiGraph["121"].inputs.vae).toEqual(["120", 0]);
-    expect(result.apiGraph["127"].inputs.unet_name).toBe("minimax_h3_ref2va_pruned_int8_convrot.safetensors");
+    expect(result.apiGraph["127"].inputs.unet_name).toBe("Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors"); // 1105 换芯:ref2va 底模同迁 Cobijada(与 backend 三处 contract 同口径)
     expect(result.apiGraph["145"].inputs.lora_name).toBe("pika_h3_flex_ref2va_comfy_bf16.safetensors"); // ref2va 母体顶层平铺,LoRA=145(≠fl2va 子图 134)
   });
 

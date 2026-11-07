@@ -9,12 +9,14 @@ function loadExtension() {
   const queue = vi.fn(async (...args: unknown[]) => { void args; return { prompt_id: "queued" }; });
   const app = { canvas: { selected_node: node }, graph: { change: vi.fn() }, registerExtension: (extension: typeof extensions[number]) => extensions.push(extension) };
   const api = { queuePrompt: queue };
-  const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({ originProjectId: "project-a", updatedAt: Date.now(), staleAfterMs: 900000 }) }));
+  const fetchMock = vi.fn(async (...args: unknown[]) => { void args; return { ok: true, json: async () => ({ originProjectId: "project-a", updatedAt: Date.now(), staleAfterMs: 900000 }) }; });
   const confirm = vi.fn(() => true);
-  // 0924 令牌随机化:theme.js 增 import { bridgeToken }(装配剥离 import 行后须注入桩,否则 fetchShots 抛 TypeError)
+  // 1105 起 theme.js 的取数口换成 bridge-action 的 bridgeFetch(令牌自愈)。装配剥离
+  // import 行后该名悬空,须按原名注入桩并转手 fetchMock,否则 fetchShots 抛 ReferenceError
+  // 被节点回调的 try/catch 吞掉,只剩 alert。
+  const bridgeFetch = async (input: unknown, init?: unknown) => fetchMock(input, init);
   const context = vm.createContext({
-    app, api, window: { confirm, alert: vi.fn() }, fetch: fetchMock, Date, URLSearchParams,
-    bridgeToken: async () => "bridge-token-test",
+    app, api, window: { confirm, alert: vi.fn() }, fetch: fetchMock, Date, URLSearchParams, bridgeFetch,
   });
   const source = readFileSync(resolve("backend/comfyui/my_nodes/web/theme.js"), "utf8")
     .replace(/^import .*;$/gm, "")

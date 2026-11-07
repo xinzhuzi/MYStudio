@@ -15,7 +15,9 @@ function loadActionBridge(mainResponse?: () => unknown) {
     return mainResponse ? mainResponse() : { ok: true, status: 200 };
   });
   const alert = vi.fn();
-  const context = vm.createContext({ window: { alert }, fetch: fetchMock });
+  // vm 新 realm 不继承宿主全局,而 bridgeFetch 用 new Headers 挂令牌(1105)——
+  // 不注入 Headers 就 ReferenceError 被 .catch 吞成「提交失败」,主请求压根没发
+  const context = vm.createContext({ window: { alert }, fetch: fetchMock, Headers });
   const source = readFileSync(resolve("backend/comfyui/my_nodes/web/bridge-action.js"), "utf8").replace(/\bexport /g, "");
   vm.runInContext(`${source}\nglobalThis.submit = postAction;`, context);
   return { fetchMock, alert, submit: context.submit as (kind: string, note: string, button: unknown, origin?: string, episode?: string) => void };
@@ -46,9 +48,10 @@ describe("Comfy action origin binding", () => {
     submit("generate-images", "source note", null, "project-a", "chapter-a");
     // 双读链路异步:主请求在 /my_bridge/config 之后发出
     await vi.waitFor(() => expect(actionCalls(fetchMock)).toHaveLength(1));
-    const request = actionCalls(fetchMock)[0]! as [string, { body: string; headers: Record<string, string> }];
+    const request = actionCalls(fetchMock)[0]! as [string, { body: string; headers: Headers }];
     expect(JSON.parse(request[1].body)).toEqual({ kind: "generate-images", note: "source note", originProjectId: "project-a", originEpisodeId: "chapter-a" });
-    expect(request[1].headers["X-Manying-Image-Token"]).toBe("bridge-token-test");
+    expect(request[1].headers.get("X-Manying-Image-Token")).toBe("bridge-token-test");
+    expect(request[1].headers.get("Content-Type")).toBe("application/json");
   });
 
   it("never fetches active project or submits an unbound legacy node", () => {
