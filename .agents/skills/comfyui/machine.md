@@ -46,6 +46,15 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
     多采/三采复刻工艺(段间 POST /free 清显存 20752→1200MiB/LTXVSeparateAVLatent 分离存取/
     ×1.5 潜空间爬升 576×320→864×480→1280×704,1296×720 latent 81×45 双奇网格结构性不可达)
     见同文档 §三 三采复刻二轮配方)。**
+    **1104 TESSERA 4K 精修链装机(11-04-h3-4k-tessera-chain R2,Windows 引擎)**:custom_nodes 已装
+    ComfyUI-Tessera(hashu786/ComfyUI-Tessera,真路径 `E:/IP/漫影工作室/comfyui/ComfyUI/custom_nodes/`,
+    9 节点注册实证;引擎随 watchdog 补丁重启已升 0.44.0);LoRA 在位 models/loras/=
+    `minimax_h3_lms_v1.0_r64`(细节,双档 0.75/1.0)+`taomate_h3_3step`(3step,实测无加速亦无反升)。
+    挂死坑一句话:streamed decode 磁盘 memmap 段在 Windows 长片有挂死面——TESSERA_SCRATCH 恒指 E: 数据盘、
+    `tessera_decode_*.raw` 停增 15min 即 interrupt——**改 4K 工作流前必读
+    `.trellis/tasks/11-04-h3-4k-tessera-chain/research/tessera-hang-postmortem.md`**(watchdog 补丁 diff 在仓
+    `apps/output/h3-4k-tessera-1104/evidence/tessera_watchdog_patch.diff`,插件升级/重装会冲掉须重打);
+    机制/1080p 实测账/衔接口径见 docs/comfyui-kb/分镜H3视频产线.md §三「4K 分块精修链」。
 - **GUI workflows folder**: `<home>/ComfyUI/user/default/workflows/漫影/` — everything lives under the
   `漫影/` group with domain-first nesting (2026-09-10 reorg): `1_图片/` (K2图像 with 1_文生图…6_修复超分,
   分镜 with 1_总览 chapter overviews + 2_单镜图 per-shot migrated flows), `2_视频/` (H3视频: 1_漫影自研
