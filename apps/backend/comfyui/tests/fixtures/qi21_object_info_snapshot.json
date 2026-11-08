@@ -116,8 +116,14 @@
    "required": {
     "clip_name": [
      [
-      "qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors",
-      "qwen3vl_8b_bf16_heretic.safetensors"
+      "qwen3-vl-4b-heretic.safetensors",
+      "qwen3.5_9b_bf16.safetensors",
+      "qwen3.5_9b_qwen_image_2.1_pe_i2i.int8_convrot.safetensors",
+      "qwen3.5_9b_qwen_image_2.1_pe_t2i.int8_convrot.safetensors",
+      "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "qwen3vl_4b_fp8_scaled.safetensors",
+      "qwen3vl_8b_bf16_heretic.safetensors",
+      "qwen3vl_8b_int8_convrot.safetensors"
      ]
     ],
     "type": [
@@ -152,7 +158,8 @@
       "minimax",
       "yue2",
       "flux3",
-      "moss_image"
+      "moss_image",
+      "fibo2"
      ]
     ]
    },
@@ -189,7 +196,7 @@
   ],
   "name": "CLIPLoader",
   "display_name": "Load CLIP",
-  "description": "Recipes:\nsd: clip-l\nstable cascade: clip-g\nsd3: t5 xxl / clip-g / clip-l\nstable audio: t5 base\nmochi: t5 xxl\ncogvideox: t5 xxl (226-token padding)\ncosmos: old t5 xxl\nlumina2: gemma 2 2B\nwan: umt5 xxl\nhidream: llama-3.1 (Recommend) or t5\nomnigen2: qwen vl 2.5 3B\njoyimage: qwen3-vl 8B\nlens: gpt-oss-20b\npixeldit: gemma 2 2B elm\nminimax: MiniMax H3 Qwen3-VL or Music3 Qwen/RVQ\nflux3: qwen3-vl 4B",
+  "description": "Recipes:\nsd: clip-l\nstable cascade: clip-g\nsd3: t5 xxl / clip-g / clip-l\nstable audio: t5 base\nmochi: t5 xxl\ncogvideox: t5 xxl (226-token padding)\ncosmos: old t5 xxl\nlumina2: gemma 2 2B\nwan: umt5 xxl\nhidream: llama-3.1 (Recommend) or t5\nomnigen2: qwen vl 2.5 3B\njoyimage: qwen3-vl 8B\nlens: gpt-oss-20b\npixeldit: gemma 2 2B elm\nminimax: MiniMax H3 Qwen3-VL or Music3 Qwen/RVQ\nflux3: qwen3-vl 4B\nfibo2: qwen3-vl 4B",
   "python_module": "nodes",
   "category": "model/loaders",
   "output_node": false,
@@ -666,7 +673,8 @@
       "beta",
       "normal",
       "linear_quadratic",
-      "kl_optimal"
+      "kl_optimal",
+      "shifted_tangent"
      ],
      {
       "tooltip": "The scheduler controls how noise is gradually removed to form the image."
@@ -843,33 +851,167 @@
    "required": {
     "image": [
      [
-      "my-asset-0085b5a9.jpg",
-      "my-asset-0c7af8b2.jpg",
-      "my-asset-12a1db89.jpg",
-      "my-asset-14774f10.jpg",
-      "my-asset-156839c8.jpg",
-      "my-asset-2f521127.jpg",
-      "my-asset-347d839a.jpg",
-      "my-asset-4760402b.jpg",
-      "my-asset-53b6ea7c.jpg",
-      "my-asset-65d82ec4.jpg",
-      "my-asset-72a3569e.jpg",
-      "my-asset-784138bf.jpg",
-      "my-asset-7dfcafc0.jpg",
-      "my-asset-7e15a91b.jpg",
-      "my-asset-7e9d9512.jpg",
-      "my-asset-854ca48d.jpg",
-      "my-asset-8f30b7ac.jpg",
-      "my-asset-a2d54700.jpg",
-      "my-asset-a33b0409.jpg",
-      "my-asset-a43f81f9.jpg",
-      "my-asset-b5c2ed0f.jpg",
-      "my-asset-b8fb0a93.jpg",
-      "my-asset-c8b9cb98.jpg",
-      "my-asset-cd30815d.jpg",
-      "my-asset-ebb01522.jpg",
-      "my-asset-ec17c3fa.jpg",
-      "qwen21-i2i-1b925de009cb46269ef99315c2aa39a2.png"
+      "bz-face.png",
+      "ch2diag_sheet.png",
+      "daojie_A_1108.png",
+      "daojie_C1_1108.png",
+      "daojie_C2_1108.png",
+      "daojie_C3_1108.png",
+      "daojie_C4_1108.png",
+      "daojie_C5_1108.png",
+      "daojie_hand_mask_1108.png",
+      "daojie_leak_mask2_1108.png",
+      "daojie_leak_mask_1108.png",
+      "daojie_nvxiu_1108.png",
+      "daojie_nvxiu_mounted_1108.png",
+      "daojie_nvxiu_nosword2_1108.png",
+      "daojie_nvxiu_nosword_1108.png",
+      "daojie_pose_v5_1108.png",
+      "daojie_sword2_mask_1108.png",
+      "daojie_v7_1108.png",
+      "e2e-f.jpg",
+      "e2e-frame.jpg",
+      "example.png",
+      "h3test-001.png",
+      "h3test-002.png",
+      "h3test-003.png",
+      "h3test-004.png",
+      "h3test-005.png",
+      "h3test-006.png",
+      "h3test-007.png",
+      "h3test-008.png",
+      "h3test-009.png",
+      "h3test-010.png",
+      "h3test-011.png",
+      "h3test-012.png",
+      "h3test-013.png",
+      "h3test-014.png",
+      "h3test-015.png",
+      "h3test-016.png",
+      "h3test-017.png",
+      "h3test-018.png",
+      "h3test-019.png",
+      "hand_mask.png",
+      "lastP_spin_jump_hole.png",
+      "live-char01.png",
+      "live-frame-a.png",
+      "live-frame-b.png",
+      "live-scene01.png",
+      "mann_sword2_1108.png",
+      "mann_sword_1108.png",
+      "mannequin_pose_1108.png",
+      "my-asset-3bd08905.jpg",
+      "my-asset-a8a482ac.jpg",
+      "my-shot-h3-sb-chapter-001-001.jpg",
+      "my-shot-h3-sb-chapter-001-002.jpg",
+      "my-shot-h3-sb-chapter-001-003.jpg",
+      "my-shot-h3-sb-chapter-001-004.jpg",
+      "my-shot-h3-sb-chapter-001-005.jpg",
+      "my-shot-h3-sb-chapter-001-008.jpg",
+      "my-shot-h3-sb-chapter-001-012.jpg",
+      "my-shot-h3-sb-chapter-001-019.jpg",
+      "my-shot-sb-chapter-001-001-k2.png",
+      "my-shot-sb-chapter-001-001.jpg",
+      "my-shot-sb-chapter-001-002.jpg",
+      "my-shot-sb-chapter-001-003.jpg",
+      "my-shot-sb-chapter-001-004.jpg",
+      "my-shot-sb-chapter-001-005.jpg",
+      "my-shot-sb-chapter-001-006.jpg",
+      "my-shot-sb-chapter-001-007.jpg",
+      "my-shot-sb-chapter-001-008.jpg",
+      "my-shot-sb-chapter-001-009.jpg",
+      "my-shot-sb-chapter-001-010.jpg",
+      "my-shot-sb-chapter-001-011.jpg",
+      "my-shot-sb-chapter-001-012.jpg",
+      "my-shot-sb-chapter-001-013.jpg",
+      "my-shot-sb-chapter-001-014.jpg",
+      "my-shot-sb-chapter-001-015.jpg",
+      "my-shot-sb-chapter-001-016.jpg",
+      "my-shot-sb-chapter-001-017.jpg",
+      "my-shot-sb-chapter-001-018.jpg",
+      "my-shot-sb-chapter-001-019.jpg",
+      "person_ref_a.png",
+      "person_ref_b.png",
+      "portrait916_first.png",
+      "pose_a.png",
+      "pose_mannequin.png",
+      "pose_mannequin_run.png",
+      "pose_mannequin_run_flat.png",
+      "probe.png",
+      "qwen21-i2i-1030-19.png",
+      "qwen21-i2i-1030-6.png",
+      "ref-face.png",
+      "ref-jazz.png",
+      "ref-outfit.png",
+      "ref_pilot_profile.png",
+      "ref_popart_woman.png",
+      "ref_subject_station.png",
+      "remake_ref.png",
+      "romance-ff.png",
+      "sb-chapter-001-009.png",
+      "sb-chapter-002-001-frame.png",
+      "sb-chapter-002-001-sheet.png",
+      "sb-chapter-002-001.png",
+      "sb-chapter-002-002-frame.png",
+      "sb-chapter-002-002-sheet.png",
+      "sb-chapter-002-003-frame.png",
+      "sb-chapter-002-003-sheet.png",
+      "sb-chapter-002-004-frame.png",
+      "sb-chapter-002-004-sheet.png",
+      "sb-chapter-002-005-frame.png",
+      "sb-chapter-002-005-sheet.png",
+      "sb-chapter-002-006-frame.png",
+      "sb-chapter-002-006-sheet.png",
+      "sb-chapter-002-007-frame.png",
+      "sb-chapter-002-007-sheet.png",
+      "sb-chapter-002-008-frame.png",
+      "sb-chapter-002-008-sheet.png",
+      "sb-chapter-002-009-frame.png",
+      "sb-chapter-002-009-sheet.png",
+      "sb-chapter-002-010-frame.png",
+      "sb-chapter-002-010-sheet.png",
+      "sb-chapter-002-011-sheet.png",
+      "sb-chapter-002-012-sheet.png",
+      "sb-chapter-002-013-sheet.png",
+      "sb-chapter-002-014-sheet.png",
+      "sb-chapter-002-015-sheet.png",
+      "sb-chapter-002-016-sheet.png",
+      "sb-chapter-002-017-sheet.png",
+      "sb-chapter-002-018-sheet.png",
+      "sb-chapter-002-019-sheet.png",
+      "sb-chapter-002-020-sheet.png",
+      "sb-chapter-002-021-sheet.png",
+      "swx-ff.png",
+      "swx2-ff.png",
+      "t02_00001_.png",
+      "t1-masked.png",
+      "t1-t2i.png",
+      "t107_edit_in.png",
+      "t13-firstframe.jpg",
+      "t2-ref.png",
+      "t4-firstframe.jpg",
+      "woman_gold_earring_teal_top_portrait.png",
+      "yl3_ref_01_flat.png",
+      "yl3_ref_02_flat.png",
+      "yl3_ref_03_flat.png",
+      "yl3_ref_04_flat.png",
+      "yl3_ref_05_flat.png",
+      "yl3_ref_06_flat.png",
+      "yl3_ref_07_flat.png",
+      "yl3_ref_08_flat.png",
+      "yl3_ref_09_flat.png",
+      "yl3_ref_10_flat.png",
+      "无PE-latent-人物海报.png",
+      "晏燎_元婴期_正视图_v1.png",
+      "晏燎_共主期_正视图_v1.png",
+      "晏燎_化神期_正视图_v1.png",
+      "晏燎_合体期_正视图_v1.png",
+      "晏燎_大乘期_正视图_v1.png",
+      "晏燎_渡劫期_正视图_v1.png",
+      "晏燎_炼虚期_正视图_v1.png",
+      "晏燎_筑基期_正视图_v1.png",
+      "晏燎_练气期_正视图_v1.png",
+      "晏燎_金丹期_正视图_v1.png"
      ],
      {
       "image_upload": true
@@ -921,24 +1063,41 @@
     ],
     "lora_name": [
      [
-      "Inklingv2-qwen21_c1-st6000.safetensors",
-      "Nick_2anime_QwenImage2.1.safetensors",
-      "QuadView_krea2_v1.safetensors",
-      "Qwen-Image-2.1-Hanfu-Style-lora-st5000.safetensors",
+      "High quality.safetensors",
+      "KOOK-MOSS-SFT-观澜.safetensors",
+      "Krea2-NSFW\\KREA 2 Mystic XXX v3.safetensors",
+      "Krea2-NSFW\\Krea 2 NSFW V4.safetensors",
+      "Krea2-NSFW\\Krea 2 pussy.safetensors",
+      "Krea2-功能\\Krea2-编辑identity_edit_v1_2.safetensors",
+      "MOSS-SFT-DMD-8step-lodestones.safetensors",
       "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors",
+      "Qwen-功能2.1\\Qwen2.1 一致性无偏移_GH_V1.0.safetensors",
+      "Qwen-功能2.1\\Qwen2.1_万物移除Remove_GH.safetensors",
+      "Qwen-功能2.1\\Qwen2.1_扩图_GH_3750.safetensors",
+      "Qwen-功能2.1\\Qwen21-换头bfs_head_v1.1_qwen_2.1.safetensors",
+      "Qwen-功能2.1\\Qwen21-换身bfs_body_swap_v1.0_qwen_2.1.safetensors",
       "VNCCS_QI2_PoseStudioV1.1.safetensors",
-      "angles_v2_full_qwen21_multiple_angles_v2_qwen21_multiple_angles_v2_000001500.safetensors",
-      "ar_lora_inst_v3abc_comfyui.safetensors",
-      "cine1p_c1-st4000.safetensors",
-      "dmad_minimax_h3_4step_full_critic_comfyui_bf16.safetensors",
+      "VNCCS_QI2_PoseStudioV1.safetensors",
+      "elusarcas-qwen2-1-detailer-v1.safetensors",
+      "hina_QwenImage2.1_asianMix_Lora_v3.0-rank64.safetensors",
       "minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors",
-      "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
-      "next_scene_step2500.safetensors",
+      "minimax_h3_lms_v1.0_r64.safetensors",
+      "moss_base_background_tweaker.safetensors",
+      "moss_image_sft_banding_fix_L32-36_extra_bf16.safetensors",
+      "moss_image_sft_banding_fix_L37-41_bf16.safetensors",
+      "nvidia_r128.safetensors",
+      "p_q_image_2.1_6_steps_v0.2.safetensors",
+      "pika_h3_flex_fl2va_comfy_bf16.safetensors",
+      "pika_h3_flex_ref2va_comfy_bf16.safetensors",
+      "pika_turbo_8step_fl2va.safetensors",
+      "pika_turbo_8step_ref2va.safetensors",
       "qi21-mikkoani.safetensors",
       "qwen2.1-detail-fix-2.0.safetensors",
+      "qwen21_detail_slider_v2.safetensors",
       "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
-      "songmeixue-style-v1-0928_c1-st6000.safetensors",
-      "xianxia_gufeng_meixue.safetensors"
+      "taomate_h3_3step.safetensors",
+      "viggle_remake_edit_comfyui.safetensors",
+      "viggle_remake_swap_comfyui.safetensors"
      ]
     ],
     "strength_model": [
@@ -1097,7 +1256,7 @@
      "BOOLEAN",
      {
       "default": false,
-      "tooltip": "1016 用户令(尾插保位序):开=走 LM Studio/云端模型扩写;关=完全不发模型请求,直接拼 美术风格底座+类型句+主体句 三层装配直出(与透传/回退同源同值;透明开时同走极简公式+格式锁)"
+      "tooltip": "开=走 LM Studio/云端模型扩写;关=完全不发模型请求,按 美术风格底座+类型句+主体句 三层装配直出(透明模式同序;英文透明头尾由最终输出节点包裹)"
      }
     ]
    },
@@ -1186,9 +1345,12 @@
      ],
      {
       "default": "并入",
-      "tooltip": "1016 用户令「真关掉底座」:并入=默认三层;1017 裁定:[4032] 旁路/未接线=底座正负自动离场(无需动本档);并入=用接线值;裸测=接线在场时强制离场(A/B 用);透明开时的极简公式格式锁不受此档影响(透明承载必需)"
+      "tooltip": "并入=默认三层,用接线值;[4032] 旁路/未接线=底座正负自动离场;裸测=接线在场时强制离场(A/B 用);透明模式同样遵循底座档位,英文透明头尾由最终输出节点包裹"
      }
     ]
+   },
+   "hidden": {
+    "unique_id": "UNIQUE_ID"
    }
   },
   "input_order": {
@@ -1214,6 +1376,9 @@
     "画幅高",
     "透明模式",
     "底座档位"
+   ],
+   "hidden": [
+    "unique_id"
    ]
   },
   "is_input_list": false,
@@ -1264,7 +1429,7 @@
       "设定卡",
       "3D剖面场景图",
       "人脸基准",
-      "全身定妆",
+      "无衣物定妆",
       "自由"
      ],
      {
@@ -1692,6 +1857,7 @@
    "required": {
     "mode": [
      [
+      "4 · PrunaAI 6步",
       "3 · 混动 40步+缓存",
       "0 · Turbo 8步",
       "1 · 原生出图",
@@ -1699,7 +1865,7 @@
       "自动 · 按型"
      ],
      {
-      "default": "3 · 混动 40步+缓存"
+      "default": "4 · PrunaAI 6步"
      }
     ]
    },
@@ -1733,6 +1899,12 @@
      {
       "lazy": true
      }
+    ],
+    "latent_p": [
+     "LATENT",
+     {
+      "lazy": true
+     }
     ]
    }
   },
@@ -1744,7 +1916,9 @@
     "latent_turbo",
     "latent_viggle",
     "latent_direct",
-    "型名"
+    "型名",
+    "latent_e",
+    "latent_p"
    ]
   },
   "is_input_list": false,
@@ -1758,7 +1932,7 @@
    "latent"
   ],
   "name": "MyQi21SpeedSelect",
-  "display_name": "Q2-1 加速档位(三选一·默认Turbo 8步)",
+  "display_name": "Q2-1 加速档位(四选一·默认混动40步+缓存)",
   "description": "",
   "python_module": "custom_nodes.my-nodes",
   "category": "漫影",
@@ -2576,10 +2750,10 @@
      "COMBO",
      {
       "tooltip": "GPU device for DiT model inference (upscaling phase)",
-      "default": "mps",
+      "default": "cuda:0",
       "multiselect": false,
       "options": [
-       "mps"
+       "cuda:0"
       ]
      }
     ]
@@ -2610,7 +2784,8 @@
       "multiselect": false,
       "options": [
        "none",
-       "mps"
+       "cpu",
+       "cuda:0"
       ]
      }
     ],
@@ -2705,10 +2880,10 @@
      "COMBO",
      {
       "tooltip": "GPU device for VAE model inference (encoding/decoding phases)",
-      "default": "mps",
+      "default": "cuda:0",
       "multiselect": false,
       "options": [
-       "mps"
+       "cuda:0"
       ]
      }
     ]
@@ -2785,7 +2960,8 @@
       "multiselect": false,
       "options": [
        "none",
-       "mps"
+       "cpu",
+       "cuda:0"
       ]
      }
     ],
@@ -2985,7 +3161,8 @@
       "multiselect": false,
       "options": [
        "none",
-       "mps"
+       "cpu",
+       "cuda:0"
       ]
      }
     ],
@@ -3708,7 +3885,7 @@
     "mtp": [
      "COMBO",
      {
-      "tooltip": "Speculative decoding with the checkpoint's multi-token-prediction head. No effect without MTP weights. auto adapts the draft depth; 2-5 pins it. Sampled output stays correctly distributed but differs from non-MTP output for the same seed.",
+      "tooltip": "Speculative decoding with the checkpoint's multi-token-prediction head. No effect without MTP weights. auto adapts the draft depth and breadth to observed token matches and execution cost; 2-5 pins a constant draft depth; tree modes pin both breadth and depth. Sampled output stays correctly distributed but differs from non-MTP output for the same seed.",
       "default": "auto",
       "multiselect": false,
       "options": [
@@ -3717,7 +3894,11 @@
        "2",
        "3",
        "4",
-       "5"
+       "5",
+       "tree2s1",
+       "tree2s2",
+       "tree3s1",
+       "tree4s1m8"
       ]
      }
     ],
@@ -3767,20 +3948,17 @@
   ],
   "output_matchtypes": null,
   "name": "TextGenerate",
-  "display_name": "Generate Text",
+  "display_name": "Generate Text (DEPRECATED)",
   "description": "",
   "python_module": "comfy_extras.nodes_textgen",
   "category": "text",
   "output_node": false,
-  "deprecated": false,
+  "deprecated": true,
   "experimental": false,
   "dev_only": false,
   "api_node": false,
   "price_badge": null,
-  "search_aliases": [
-   "LLM",
-   "gemma"
-  ],
+  "search_aliases": null,
   "essentials_category": null,
   "has_intermediate_output": false
  },
@@ -3844,8 +4022,13 @@
    "required": {
     "unet_name": [
      [
-      "minimax_h3_fl2va_pruned_bf16.safetensors",
-      "qwen_image_2.1_bf16.safetensors"
+      "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors",
+      "Krea2\\krea2_turbo_int8_convrot.safetensors",
+      "Qwen\\qwen_image_2.1_turbo_int8_convrot.safetensors",
+      "fastvideo_fasth3_8step_v2_pruned_int8_convrot.safetensors",
+      "moss_image_sft_bf16.safetensors",
+      "qwen_image_2.1_bf16.safetensors",
+      "qwen_image_2.1_int8_convrot.safetensors"
      ]
     ],
     "weight_dtype": [
@@ -3981,8 +4164,15 @@
    "required": {
     "vae_name": [
      [
+      "fast_h3_vae_noncausal_24l.safetensors",
+      "flux2-vae.safetensors",
       "minimax_h3_audio_vae_fp32.safetensors",
+      "minimax_h3_lynnreal_light_vae_int8_convrot.safetensors",
+      "minimax_h3_sol_vae_int8_convrot.safetensors",
       "minimax_h3_video_vae_fp16.safetensors",
+      "minimax_h3_video_vae_int8_convrot.safetensors",
+      "qwen_image_2.1_vae_bf16.safetensors",
+      "qwen_image_vae.safetensors",
       "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors",
       "pixel_space"
      ]
@@ -4021,24 +4211,41 @@
     ],
     "lora_name": [
      [
-      "Inklingv2-qwen21_c1-st6000.safetensors",
-      "Nick_2anime_QwenImage2.1.safetensors",
-      "QuadView_krea2_v1.safetensors",
-      "Qwen-Image-2.1-Hanfu-Style-lora-st5000.safetensors",
+      "High quality.safetensors",
+      "KOOK-MOSS-SFT-观澜.safetensors",
+      "Krea2-NSFW\\KREA 2 Mystic XXX v3.safetensors",
+      "Krea2-NSFW\\Krea 2 NSFW V4.safetensors",
+      "Krea2-NSFW\\Krea 2 pussy.safetensors",
+      "Krea2-功能\\Krea2-编辑identity_edit_v1_2.safetensors",
+      "MOSS-SFT-DMD-8step-lodestones.safetensors",
       "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors",
+      "Qwen-功能2.1\\Qwen2.1 一致性无偏移_GH_V1.0.safetensors",
+      "Qwen-功能2.1\\Qwen2.1_万物移除Remove_GH.safetensors",
+      "Qwen-功能2.1\\Qwen2.1_扩图_GH_3750.safetensors",
+      "Qwen-功能2.1\\Qwen21-换头bfs_head_v1.1_qwen_2.1.safetensors",
+      "Qwen-功能2.1\\Qwen21-换身bfs_body_swap_v1.0_qwen_2.1.safetensors",
       "VNCCS_QI2_PoseStudioV1.1.safetensors",
-      "angles_v2_full_qwen21_multiple_angles_v2_qwen21_multiple_angles_v2_000001500.safetensors",
-      "ar_lora_inst_v3abc_comfyui.safetensors",
-      "cine1p_c1-st4000.safetensors",
-      "dmad_minimax_h3_4step_full_critic_comfyui_bf16.safetensors",
+      "VNCCS_QI2_PoseStudioV1.safetensors",
+      "elusarcas-qwen2-1-detailer-v1.safetensors",
+      "hina_QwenImage2.1_asianMix_Lora_v3.0-rank64.safetensors",
       "minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors",
-      "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
-      "next_scene_step2500.safetensors",
+      "minimax_h3_lms_v1.0_r64.safetensors",
+      "moss_base_background_tweaker.safetensors",
+      "moss_image_sft_banding_fix_L32-36_extra_bf16.safetensors",
+      "moss_image_sft_banding_fix_L37-41_bf16.safetensors",
+      "nvidia_r128.safetensors",
+      "p_q_image_2.1_6_steps_v0.2.safetensors",
+      "pika_h3_flex_fl2va_comfy_bf16.safetensors",
+      "pika_h3_flex_ref2va_comfy_bf16.safetensors",
+      "pika_turbo_8step_fl2va.safetensors",
+      "pika_turbo_8step_ref2va.safetensors",
       "qi21-mikkoani.safetensors",
       "qwen2.1-detail-fix-2.0.safetensors",
+      "qwen21_detail_slider_v2.safetensors",
       "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
-      "songmeixue-style-v1-0928_c1-st6000.safetensors",
-      "xianxia_gufeng_meixue.safetensors"
+      "taomate_h3_3step.safetensors",
+      "viggle_remake_edit_comfyui.safetensors",
+      "viggle_remake_swap_comfyui.safetensors"
      ],
      {
       "tooltip": "diffusers-format Qwen-Image-2.1 LoRA."
@@ -4203,13 +4410,29 @@
     ]
    }
   },
+  "input_order": {
+   "required": [
+    "组装用途"
+   ]
+  },
+  "is_input_list": false,
   "output": [
    "BOOLEAN"
+  ],
+  "output_is_list": [
+   false
   ],
   "output_name": [
    "使用类型画幅"
   ],
-  "output_node": false
+  "name": "MyQi21PurposeCanvas",
+  "display_name": "道劫·用途画幅路由",
+  "description": "",
+  "python_module": "custom_nodes.my-nodes",
+  "category": "漫影",
+  "output_node": false,
+  "has_intermediate_output": false,
+  "search_aliases": []
  },
  "MyQi21InstructionSelect": {
   "input": {
@@ -4373,7 +4596,8 @@
        "beta",
        "normal",
        "linear_quadratic",
-       "kl_optimal"
+       "kl_optimal",
+       "shifted_tangent"
       ]
      }
     ],
@@ -4438,8 +4662,15 @@
    "required": {
     "vae_name": [
      [
+      "fast_h3_vae_noncausal_24l.safetensors",
+      "flux2-vae.safetensors",
       "minimax_h3_audio_vae_fp32.safetensors",
+      "minimax_h3_lynnreal_light_vae_int8_convrot.safetensors",
+      "minimax_h3_sol_vae_int8_convrot.safetensors",
       "minimax_h3_video_vae_fp16.safetensors",
+      "minimax_h3_video_vae_int8_convrot.safetensors",
+      "qwen_image_2.1_vae_bf16.safetensors",
+      "qwen_image_vae.safetensors",
       "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors",
       "pixel_space"
      ]
@@ -5064,10 +5295,10 @@
    "IMAGE"
   ],
   "name": "MyQi21ColorAnchor",
-  "display_name": "MyQi21ColorAnchor",
+  "display_name": "漫影 二采色彩锚 [MyQi21ColorAnchor]",
   "description": "二采色彩锚:以一采为色彩权威做 Lab 逐通道均值/方差迁移,保二采结构、还原一采克制色;alpha 通道原样透传。",
   "python_module": "custom_nodes.my-nodes",
-  "category": "漫影/qi21二采",
+  "category": "漫影",
   "output_node": false,
   "has_intermediate_output": false,
   "search_aliases": []

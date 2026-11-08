@@ -28,13 +28,17 @@ parallel design §2/§4):原生出图 / viggle / Turbo 三条完整自足支路�
   - 选中档未接线=select 内中文报错(先例=my_daojie_route.route 未接线
     文案):带档名+槽名+已接线档位清单,不猜不代选。
 
-档位表单源:SPEED_MODES 序即 combo 序,**首项=默认=「3 · 混动 40步+缓存」**
-(1101 用户令:默认档3混动替换 Turbo;1101晚 用户令「混动不需要 turbo×1.0」——
-E 臂=[7100]High quality@1.0+mikkoani@0.6+detail-fix 三层入 LazyCache(1106 终配令),40 步 simple
-实弹 45.6s→24.8s(旧 2.41× 账随 turbo 撤出作废);1021「所有型默认 Turbo」令
-就此废止)。四手动档字符串一字不动(存量画布保存值/API 闭集零破坏);「自动 ·
-按型」保留为末项手动选项:型名∈{设定卡,美宣,概念气氛图}→原生出图,其余含空
-→Turbo(1017 路由行为保留,不再是出厂默认)。历史裁定留档。
+档位表单源:SPEED_MODES 序即 combo 序,**首项=默认=「4 · PrunaAI 6步」**
+(1108 用户令:默认档4 PrunaAI 替换档3——六车道同题终评 Pruna普通+mikkoani
+22 分与 E 臂肉眼无差、61.0s 比 E 臂 74.8s 快 18%,用户目检验收;⑦臂=底模→
+[7034]mikkoani@0.6→[7110]p_q_image_2.1_6_steps_v0.2×1.0(ViggleTurboLora 运行时
+旁路,免 bf16 合并有损)→BasicGuider 关CFG+ViggleTurboSigmas 六步原表动态shift,
+单段直出)。前史:1101 用户令默认档3混动替换 Turbo(1101晚「混动不需要
+turbo×1.0」E 臂三层入 LazyCache 40 步 simple,45.6s→24.8s;1021「所有型默认
+Turbo」令就此废止),1108 档3 让位默认但支路全保留。五手动档字符串一字不动
+(存量画布保存值/API 闭集零破坏);「自动 · 按型」保留为末项手动选项:型名∈
+{设定卡,美宣,概念气氛图}→原生出图,其余含空→Turbo(1017 路由行为保留,
+不再是出厂默认)。历史裁定留档。
 combo 列表即契约:/prompt 闭集硬校验,不在列表即 HTTP 400
 (BUILDING_NODES 陷阱在档);步数语义在支路采样器自身 widget,本节点不持步数。
 """
@@ -43,8 +47,8 @@ from __future__ import annotations
 
 from typing import Any
 
-# 档位表:首项=默认=档3混动(1101 用户令);Turbo/原生/viggle 随后,自动按型居末。
-# 四手动档字符串逐字不动;自动档无固有槽,由 resolve_slot 按型名现算。
+# 档位表:首项=默认=档4 PrunaAI(1108 用户令);档3混动/Turbo/原生/viggle 随后,自动按型居末。
+# 五手动档字符串逐字不动;自动档无固有槽,由 resolve_slot 按型名现算。
 # 元组=(档位字符串, 选中时路由的 latent 槽名);手动档档号内嵌字符串前导位=
 # 历史档名恒定标识(1021 时代=序位号,1101 起与 combo 序解耦——字符串恒定优先
 # 于序位对齐,改号会破存量保存值);分隔符=U+00B7 中点(契约测试锁码位防全角漂移)。
@@ -53,7 +57,8 @@ from typing import Any
 AUTO_MODE = "自动 · 按型"
 _AUTO_DIRECT_TYPES: tuple[str, ...] = ("设定卡", "美宣", "概念气氛图")
 SPEED_MODES: tuple[tuple[str, str | None], ...] = (
-    ("3 · 混动 40步+缓存", "latent_e"),  # E混动臂:HQ@1.0→mikkoani@0.6(1106 终配)→detail-fix→LazyCache,40步simple;1101 默认+撤 turbo(45.6s→24.8s)
+    ("4 · PrunaAI 6步", "latent_p"),  # ⑦Pruna臂:底模→mikkoani@0.6→p_q 6步v0.2×1.0,六步原表+关CFG;1108 用户令升默认(六车道第二,61.0s vs E臂74.8s)
+    ("3 · 混动 40步+缓存", "latent_e"),  # E混动臂:HQ@1.0→mikkoani@0.6(1106 终配)→detail-fix→LazyCache,40步simple;1101-1108 任默认
     ("0 · Turbo 8步", "latent_turbo"),
     ("1 · 原生出图", "latent_direct"),
     ("2 · viggle", "latent_viggle"),
@@ -87,11 +92,11 @@ def resolve_slot(mode: str | None, type_name: str | None = None) -> str | None:
 
 class MyQi21SpeedSelect:
     """漫影 qi21 加速档位:多并行支路 LATENT 汇流处单点选择。
-    默认「3 · 混动 40步+缓存」(1101 用户令,默认档3混动替换 Turbo);末项
-    「自动 · 按型」需手动选择,仍保留设定卡/美宣/概念气氛图→原生、其余含空
-    →Turbo 行为。
+    默认「4 · PrunaAI 6步」(1108 用户令,六车道终评+用户验收升默认;前史
+    1101 档3混动);末项「自动 · 按型」需手动选择,仍保留设定卡/美宣/概念
+    气氛图→原生、其余含空→Turbo 行为。
 
-    mode=combo(首项默认;自动档配 optional「型名」信号);四个 latent
+    mode=combo(首项默认;自动档配 optional「型名」信号);五个 latent
     槽全 optional 全 lazy——
     未选档未接线不报错、不进执行图;选中档未接线给中文报错;输出=选中
     支路 LATENT 原样直通(不拷贝不改写)。加速启停=用户操控杆(0920 铁律):
@@ -104,7 +109,7 @@ class MyQi21SpeedSelect:
     def INPUT_TYPES(cls) -> dict[str, Any]:
         return {
             "required": {"mode": (MODES, {"default": DEFAULT_MODE})},
-            # 全 optional 防未选档未接线报错;lazy=True=执行器对三槽默认不建
+            # 全 optional 防未选档未接线报错;lazy=True=执行器对五槽默认不建
             # 强依赖,由 check_lazy_status 只拉起选中支路(未选支路零执行零加载);
             # 型名(1017 自动档信号)=非 lazy 普通槽,接 MyQi21DaojieBase「型名」出,
             # 未接线/留空=按 Turbo(缺省安全侧)
@@ -119,6 +124,9 @@ class MyQi21SpeedSelect:
                 # 1023 E混动档支路槽(追加在末=存量画布槽序零漂移);未接线档
                 # 静默放行(i2i/edit 画布无此臂,选它=未接线人话报错)
                 "latent_e": ("LATENT", {"lazy": True}),
+                # 1108 ⑦PrunaAI 档支路槽(同末尾追加纪律;t2i 画布有此臂,
+                # i2i/edit 画布无此臂=选它未接线人话报错)
+                "latent_p": ("LATENT", {"lazy": True}),
             },
         }
 

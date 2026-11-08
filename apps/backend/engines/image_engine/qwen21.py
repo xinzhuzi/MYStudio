@@ -53,7 +53,7 @@ SPEC = {
     "size_mb": 0,
     "license": "本机 ComfyUI 配置",
     "steps": 8,
-    "description": "本地 Qwen-Image-2.1 生图(道劫产线工作流:默认档3混动 40步+缓存+SeedVR2 2K 超分,1101 令替换 Turbo;图生图=道劫美术风格转换)",
+    "description": "本地 Qwen-Image-2.1 生图(道劫产线工作流:默认档4 PrunaAI 6步+mikkoani+SeedVR2 2K 超分,1108 令替换档3;图生图=道劫美术风格转换)",
     "layout": LAYOUT,
 }
 
@@ -127,15 +127,19 @@ def apply_base_type(graph: dict[str, Any], base_type: Any) -> None:
 
 
 # 10-26 用户裁定:有手型生图默认档3混动(其余型/缺省维持画布默认 Turbo,1021 令延续)。
-# **1101 用户令:默认档3混动替换 Turbo(全型)——画布/API 模板档位值已翻「3 · 混动
-# 40步+缓存」,10-26 有手型强制规则就此并入默认(保留为冗余保险);非手型终态
-# mode==档3 时同样运行时补注 E 臂(桥模板只物质化 Turbo 臂,否则「选中档未接线」拒单)。**
+# **1101 用户令:默认档3混动替换 Turbo(全型);1108 用户令:默认档4 PrunaAI 6步
+# (全型)——画布/API 模板档位值已翻「4 · PrunaAI 6步」,有手型强制规则随默认
+# 指向档4(1108 六车道实弹:Pruna+mikkoani 手部全绿,人物海报用户验收),保留为
+# 冗余保险;档3 终态的 E 臂运行时补注路全保留(手切他档画布兼容)。**
 # 依据=档位 A/B 实弹(apps/build/scripts/gear_ab_*_1026.py,9 发:Turbo 唯一重崩
 # 指融合+剑柄穿模,混动 1绿1黄1红轻,原生 2绿1红最好但 ~5×耗时被裁定不用于默认)。
 # 有手型=全身人物常态入画六型(手/剑高发);人脸基准(止颈特写)/场景三型/道具/表情差分
 # 等无手或手部罕见型不切(1101 起这些型也走默认档3,经模板档位值而非强制规则)。
 SPEED_MODE_E_HYBRID = "3 · 混动 40步+缓存"
-_HAND_E_HYBRID_TYPES = frozenset({"无衣物定妆", "人物海报", "人物多视图", "设定卡", "美宣", "自由"})
+# 1108 默认档:⑦Pruna 臂(p_q 6步v0.2×1.0+mikkoani@0.6,六步原表+关CFG)
+SPEED_MODE_PRUNA = "4 · PrunaAI 6步"
+# 有手型名单(10-26 立,1108 随默认指向档4;实测人物海报=虚握剑鞘手部全绿)
+_HAND_PRUNA_TYPES = frozenset({"无衣物定妆", "人物海报", "人物多视图", "设定卡", "美宣", "自由"})
 # E 臂配方逐字对齐画布加速子图(my_nodes/subgraphs/qi21-道劫-加速子图*.json):
 # 1101 Phase1 案B(用户选定):E 尾 SCA 三件(7041/7042/7043)→单 KSampler [7045] cfg=4
 # ——模型链=mikkoani(7:7034)出→detailFix×1.0→7040 LazyCache(0.2/0.15/0.95)→7045
@@ -215,16 +219,20 @@ def _materialize_e_hybrid(graph: dict[str, Any]) -> None:
     speed["inputs"]["latent_e"] = ["7:7045", 0]
 
 
-def apply_hand_speed_mode(graph: dict[str, Any], base_type: Any) -> None:
-    """1101 泛化(用户令:默认档3混动替换 Turbo):
-    ①有手型(10-26 名单)→ 强制 mode=档3(并入默认后为冗余保险,保显式语义);
+def apply_hand_speed_mode(graph: dict[str, Any], base_type: Any,
+                           hand_default: str = SPEED_MODE_PRUNA) -> None:
+    """1108 分域泛化(1101 前史:默认档3混动替换 Turbo):
+    ①有手型(10-26 名单)→ 强制 mode=hand_default——t2i=档4 PrunaAI(1108 用户令,
+    六车道实弹手部全绿)/i2i=档3混动(调用方显式传参;i2i/edit 加速子图无 ⑦Pruna
+    臂,强翻档4 会「选中档未接线」拒单);
     ②终态 mode==档3 且 latent_e 未物质化 KSampler 形态 → 运行时补注(幂等——
     已物质化 ["7:7045",0] 零动作;旧 SCA 形 ["7:7043",0] 视为模板漂移重注)。
     非档3 终态(调用方显式改派他档)零动作照旧。
     镜像源缺任一=fail-closed(模板漂移须显式暴露,禁静默降级)。"""
     speed = graph.get("7:7015")
-    if isinstance(speed, dict) and isinstance(base_type, str) and base_type.strip() in _HAND_E_HYBRID_TYPES:
-        speed.setdefault("inputs", {})["mode"] = SPEED_MODE_E_HYBRID
+    # 1108:有手型 → 强制 hand_default(t2i=档4 PrunaAI;i2i=档3 混动)
+    if isinstance(speed, dict) and isinstance(base_type, str) and base_type.strip() in _HAND_PRUNA_TYPES:
+        speed.setdefault("inputs", {})["mode"] = hand_default
     if not (isinstance(speed, dict) and isinstance(speed.get("inputs", {}).get("mode"), str)
             and speed["inputs"]["mode"] == SPEED_MODE_E_HYBRID):
         return
@@ -340,8 +348,8 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
                 )
             purpose_canvas["inputs"]["组装用途"] = ASSEMBLY_PURPOSE_TYPE_FULL
             assembly["inputs"]["组装用途"] = ASSEMBLY_PURPOSE_TYPE_FULL
-            # 10-26 有手型默认档3混动(在 apply_base_type 之后,同 base_type 单真源)
-            apply_hand_speed_mode(graph, base_type)
+            # 10-26 有手型默认档;1108 分域:i2i 无 ⑦Pruna 臂=维持档3(在 apply_base_type 之后)
+            apply_hand_speed_mode(graph, base_type, hand_default=SPEED_MODE_E_HYBRID)
         else:
             # 缺省=道劫美术风格转换(指令+底座两段),既有画风转换/人脸/表情差分
             # 调用零回归(10-19 口径全量向后兼容)
@@ -355,8 +363,8 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
         _warn_if_version_below_min(stats, template)
         graph = instantiate_template(template, prompt, negative_prompt, steps, seed, aspect_ratio, [])
         apply_base_type(graph, ctx.get("base_type"))
-        # 10-26 有手型默认档3混动(在 apply_base_type 之后,同 base_type 单真源)
-        apply_hand_speed_mode(graph, ctx.get("base_type"))
+        # 10-26 有手型默认档;1108:t2i=档4 PrunaAI(用户令,在 apply_base_type 之后)
+        apply_hand_speed_mode(graph, ctx.get("base_type"), hand_default=SPEED_MODE_PRUNA)
         # 10-26 画幅手动覆写(横竖皆可裁定;t2i 手动槽优先于九型直通)
         apply_manual_size(graph, ctx.get("manual_width"), ctx.get("manual_height"))
     message = missing_nodes_message(

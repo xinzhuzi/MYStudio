@@ -1,7 +1,7 @@
 {
   "revision": 1,
-  "last_node_id": 7100,
-  "last_link_id": 7900,
+  "last_node_id": 7113,
+  "last_link_id": 7909,
   "nodes": [
     {
       "id": 1,
@@ -80,13 +80,13 @@
         }
       ],
       "widgets_values": [
-        "3 · 混动 40步+缓存",
+        "4 · PrunaAI 6步",
         0,
         "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       ],
       "title": "[7] 加速子图",
       "widgets_values_named": {
-        "速度档位": "3 · 混动 40步+缓存",
+        "速度档位": "4 · PrunaAI 6步",
         "seed": 0,
         "σ表": "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       }
@@ -105,8 +105,8 @@
         "version": 1,
         "state": {
           "lastGroupId": 96,
-          "lastNodeId": 7045,
-          "lastLinkId": 7485,
+          "lastNodeId": 7113,
+          "lastLinkId": 7910,
           "lastRerouteId": 10
         },
         "revision": 1,
@@ -154,7 +154,8 @@
               107,
               4314,
               4401,
-              7481
+              7481,
+              7903
             ],
             "pos": [
               104,
@@ -183,7 +184,9 @@
               112,
               4311,
               4402,
-              7483
+              7483,
+              7904,
+              7909
             ],
             "pos": [
               104,
@@ -254,7 +257,7 @@
           }
         ],
         "widgets": [
-          "3 · 混动 40步+缓存",
+          "4 · PrunaAI 6步",
           0,
           "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
         ],
@@ -441,6 +444,13 @@
                 "shape": 7,
                 "type": "LATENT",
                 "link": 7485
+              },
+              {
+                "localized_name": "latent_p",
+                "name": "latent_p",
+                "shape": 7,
+                "type": "LATENT",
+                "link": 7910
               }
             ],
             "outputs": [
@@ -463,7 +473,7 @@
               }
             },
             "widgets_values": [
-              "3 · 混动 40步+缓存"
+              "4 · PrunaAI 6步"
             ],
             "widgets_values_named": {
               "mode": "3 · 混动 40步+缓存"
@@ -637,10 +647,10 @@
               }
             },
             "widgets_values": [
-              "道劫·加速子图=四支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed/σ表;未选支路懒执行零加载)。\n三支路:①档0 Turbo 官方8步 cfg1 负向无口=[7028 官方 avg_rank_178 LoRA×1.0 直挂,无 Fix 前挂(1017 勘误:旧文「前接 Fix×0.5」系 [7027] 计划未落地,子图无此节点)]→[7029 BasicGuider cfg1 纯正向]→[7031 SamplerCustomAdvanced]+[7030 ManualSigmas 官方σ表(9点=8步去噪+1);②档1 原生出图 cfg1(负向不参与采样)=[7026 Fix v2.0 官方域挂件(e-n-v-y 标定=全步数+cfg>1+真负向,LoraLoaderModelOnly×1.0)]→[7010] KSampler,负向仅档1(原生出图 cfg1)接线、负向不参与采样;③档2 viggle v0.3 官方9步满血=前7步 [7011 ViggleTurboLora 未合并]+[7012]段A,后2步 [7022]底模引导+[7024]段B(摘LoRA 底模收尾);[7021]按 step=7 切 [7020] 的9点动态shift σ表;蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源(viggle/Turbo 共用 [7017] 噪声,直出另线);三支路汇 [7015] 单点出 LATENT。\nσ表面板贴表即换步数(9步=1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25 需配 [7021] step=7;6步单段=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 且 [7021] step=5)。\n\n布局前标题说明（原文保留）：\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7014] seed单源·PrimitiveInt\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7026] Fix v2.0·官方域挂件(手/细节修复)\n[7028] Turbo·官方avg_rank_178(直挂)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n道劫·加速子图·①Turbo 支路([7028] 官方LoRA×1.0 直挂→[7029]BasicGuider cfg1→[7031] SamplerCustomAdvanced 8步官方σ([7030]ManualSigmas);不与viggle同挂;前接Fix×0.5;seed=面板单源)\n道劫·加速子图·②viggle v0.3 官方9步满血双段([7011]ViggleTurboLora 未合并→[7019]BasicGuider cfg1→[7012]段A采样(7步turbo)→[7024]段B采样(2步底模摘LoRA);[7021]SplitSigmas 7+2 切分/[7020]ViggleTurboSigmas 动态shift/[7017]noise/[7018]euler/[7023]零噪声续采;cfg恒1 负向无效)\n道劫·加速子图·③原生出图支路([7026]Fix v2.0 官方域挂件×1.0→[7010]KSampler 40步 cfg1、负向不参与采样(1017 随刀,旧「负向真实生效档」口径作废)(e-n-v-y Fix 官方域=全步数+cfg>1;1017 勘误:旧文「20步cfg3.5」过期,实值 40步,1017 cfg 改 1))\n道劫·加速子图·④seed 单源([7014] PrimitiveInt 面板外露,三用扇出)\n道劫·加速子图·⑤档位选择([7015] MyQi21SpeedSelect 单点汇流出 LATENT)\n[7034] 风格LoRA·mikkoani ×0.8(1019 用户令「默认改×0.8」,原×1.0=1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)\n(1023 起并行四支路)⑤支路·档3 混动 40步+缓存(1101 Phase1 案B 收口:SCA 三件→KSampler 四合一):[7034 mikkoani]→[7026 Fix v2.0×1.0 共享件(1101晚 撤 turbo)]→[7040 LazyCache 重用阈值0.2/窗15-95%(引擎核心步跳缓存节点,verbose关)]→[7045 KSampler cfg=4.0 40步 euler/simple——正向=边界positive槽/负向=边界negative槽(Q2/Q5:负向真实生效,首版=道劫负面基线)/latent=边界槽/seed=[7014] 单源直连;实弹 LazyCache×cfg4 兼容(S=0.331 色重消退 vs B fix×1.0 cfg1 0.602);三件同形(t2i fix=共享7026/i2i·edit=自有7044);默认档=档3(1101 令),三件齐装]\n[7045] E混动·KSampler cfg4(1101 案B:SCA[7041/7042/7043]三件退役,scheduler/seed/正负向四合一入本件;cfg 1→4=fix 官方域生效前提,色重消退 S=0.331;seed=[7014] 新增扇出直连;[7017]/[7018] 仅 viggle/Turbo 臂消费(Q4 保留);σ表面板控 viggle 臂,与本件无关)"
+              "道劫·加速子图=四支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed/σ表;未选支路懒执行零加载)。\n三支路:①档0 Turbo 官方8步 cfg1 负向无口=[7028 官方 avg_rank_178 LoRA×1.0 直挂,无 Fix 前挂(1017 勘误:旧文「前接 Fix×0.5」系 [7027] 计划未落地,子图无此节点)]→[7029 BasicGuider cfg1 纯正向]→[7031 SamplerCustomAdvanced]+[7030 ManualSigmas 官方σ表(9点=8步去噪+1);②档1 原生出图 cfg1(负向不参与采样)=[7026 Fix v2.0 官方域挂件(e-n-v-y 标定=全步数+cfg>1+真负向,LoraLoaderModelOnly×1.0)]→[7010] KSampler,负向仅档1(原生出图 cfg1)接线、负向不参与采样;③档2 viggle v0.3 官方9步满血=前7步 [7011 ViggleTurboLora 未合并]+[7012]段A,后2步 [7022]底模引导+[7024]段B(摘LoRA 底模收尾);[7021]按 step=7 切 [7020] 的9点动态shift σ表;蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源(viggle/Turbo 共用 [7017] 噪声,直出另线);三支路汇 [7015] 单点出 LATENT。\nσ表面板贴表即换步数(9步=1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25 需配 [7021] step=7;6步单段=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 且 [7021] step=5)。\n\n布局前标题说明（原文保留）：\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7014] seed单源·PrimitiveInt\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7026] Fix v2.0·官方域挂件(手/细节修复)\n[7028] Turbo·官方avg_rank_178(直挂)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n道劫·加速子图·①Turbo 支路([7028] 官方LoRA×1.0 直挂→[7029]BasicGuider cfg1→[7031] SamplerCustomAdvanced 8步官方σ([7030]ManualSigmas);不与viggle同挂;前接Fix×0.5;seed=面板单源)\n道劫·加速子图·②viggle v0.3 官方9步满血双段([7011]ViggleTurboLora 未合并→[7019]BasicGuider cfg1→[7012]段A采样(7步turbo)→[7024]段B采样(2步底模摘LoRA);[7021]SplitSigmas 7+2 切分/[7020]ViggleTurboSigmas 动态shift/[7017]noise/[7018]euler/[7023]零噪声续采;cfg恒1 负向无效)\n道劫·加速子图·③原生出图支路([7026]Fix v2.0 官方域挂件×1.0→[7010]KSampler 40步 cfg1、负向不参与采样(1017 随刀,旧「负向真实生效档」口径作废)(e-n-v-y Fix 官方域=全步数+cfg>1;1017 勘误:旧文「20步cfg3.5」过期,实值 40步,1017 cfg 改 1))\n道劫·加速子图·④seed 单源([7014] PrimitiveInt 面板外露,三用扇出)\n道劫·加速子图·⑤档位选择([7015] MyQi21SpeedSelect 单点汇流出 LATENT)\n[7034] 风格LoRA·mikkoani ×0.8(1019 用户令「默认改×0.8」,原×1.0=1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)\n(1023 起并行四支路)⑤支路·档3 混动 40步+缓存(1101 Phase1 案B 收口:SCA 三件→KSampler 四合一):[7034 mikkoani]→[7026 Fix v2.0×1.0 共享件(1101晚 撤 turbo)]→[7040 LazyCache 重用阈值0.2/窗15-95%(引擎核心步跳缓存节点,verbose关)]→[7045 KSampler cfg=4.0 40步 euler/simple——正向=边界positive槽/负向=边界negative槽(Q2/Q5:负向真实生效,首版=道劫负面基线)/latent=边界槽/seed=[7014] 单源直连;实弹 LazyCache×cfg4 兼容(S=0.331 色重消退 vs B fix×1.0 cfg1 0.602);三件同形(t2i fix=共享7026/i2i·edit=自有7044);默认档=档3(1101 令),三件齐装]\n[7045] E混动·KSampler cfg4(1101 案B:SCA[7041/7042/7043]三件退役,scheduler/seed/正负向四合一入本件;cfg 1→4=fix 官方域生效前提,色重消退 S=0.331;seed=[7014] 新增扇出直连;[7017]/[7018] 仅 viggle/Turbo 臂消费(Q4 保留);σ表面板控 viggle 臂,与本件无关)\n⑦PrunaAI 6步臂候列:ViggleTurboLora 运行时旁路+六步原表动态shift,尾端悬空待入档\n⑦臂入列档4·PrunaAI 6步(1108 用户令升默认,六车道终评22分与E臂肉眼无差/61.0s 快18%):底模→[7034]mikkoani@0.6→[7110]p_q_image_2.1_6_steps_v0.2×1.0(ViggleTurboLora 运行时旁路)→[7111]BasicGuider 关CFG+[7113]六步原表(1.0,0.925,0.85,0.625,0.375,0.125)动态shift→[7112]→本节点 latent_p;档3混动全保留可手选;「候列悬空」状态就此废止。"
             ],
             "widgets_values_named": {
-              "内容": "道劫·加速子图=四支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed/σ表;未选支路懒执行零加载)。\n三支路:①档0 Turbo 官方8步 cfg1 负向无口=[7028 官方 avg_rank_178 LoRA×1.0 直挂,无 Fix 前挂(1017 勘误:旧文「前接 Fix×0.5」系 [7027] 计划未落地,子图无此节点)]→[7029 BasicGuider cfg1 纯正向]→[7031 SamplerCustomAdvanced]+[7030 ManualSigmas 官方σ表(9点=8步去噪+1);②档1 原生出图 cfg1(负向不参与采样)=[7026 Fix v2.0 官方域挂件(e-n-v-y 标定=全步数+cfg>1+真负向,LoraLoaderModelOnly×1.0)]→[7010] KSampler,负向仅档1(原生出图 cfg1)接线、负向不参与采样;③档2 viggle v0.3 官方9步满血=前7步 [7011 ViggleTurboLora 未合并]+[7012]段A,后2步 [7022]底模引导+[7024]段B(摘LoRA 底模收尾);[7021]按 step=7 切 [7020] 的9点动态shift σ表;蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源(viggle/Turbo 共用 [7017] 噪声,直出另线);三支路汇 [7015] 单点出 LATENT。\nσ表面板贴表即换步数(9步=1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25 需配 [7021] step=7;6步单段=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 且 [7021] step=5)。\n\n布局前标题说明（原文保留）：\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7014] seed单源·PrimitiveInt\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7026] Fix v2.0·官方域挂件(手/细节修复)\n[7028] Turbo·官方avg_rank_178(直挂)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n道劫·加速子图·①Turbo 支路([7028] 官方LoRA×1.0 直挂→[7029]BasicGuider cfg1→[7031] SamplerCustomAdvanced 8步官方σ([7030]ManualSigmas);不与viggle同挂;前接Fix×0.5;seed=面板单源)\n道劫·加速子图·②viggle v0.3 官方9步满血双段([7011]ViggleTurboLora 未合并→[7019]BasicGuider cfg1→[7012]段A采样(7步turbo)→[7024]段B采样(2步底模摘LoRA);[7021]SplitSigmas 7+2 切分/[7020]ViggleTurboSigmas 动态shift/[7017]noise/[7018]euler/[7023]零噪声续采;cfg恒1 负向无效)\n道劫·加速子图·③原生出图支路([7026]Fix v2.0 官方域挂件×1.0→[7010]KSampler 40步 cfg1、负向不参与采样(1017 随刀,旧「负向真实生效档」口径作废)(e-n-v-y Fix 官方域=全步数+cfg>1;1017 勘误:旧文「20步cfg3.5」过期,实值 40步,1017 cfg 改 1))\n道劫·加速子图·④seed 单源([7014] PrimitiveInt 面板外露,三用扇出)\n道劫·加速子图·⑤档位选择([7015] MyQi21SpeedSelect 单点汇流出 LATENT)\n[7034] 风格LoRA·mikkoani ×0.8(1019 用户令「默认改×0.8」,原×1.0=1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)\n(1023 起并行四支路)⑤支路·档3 混动 40步+缓存(1101 Phase1 案B 收口:SCA 三件→KSampler 四合一):[7034 mikkoani]→[7026 Fix v2.0×1.0 共享件(1101晚 撤 turbo)]→[7040 LazyCache 重用阈值0.2/窗15-95%(引擎核心步跳缓存节点,verbose关)]→[7045 KSampler cfg=4.0 40步 euler/simple——正向=边界positive槽/负向=边界negative槽(Q2/Q5:负向真实生效,首版=道劫负面基线)/latent=边界槽/seed=[7014] 单源直连;实弹 LazyCache×cfg4 兼容(S=0.331 色重消退 vs B fix×1.0 cfg1 0.602);三件同形(t2i fix=共享7026/i2i·edit=自有7044);默认档=档3(1101 令),三件齐装]\n[7045] E混动·KSampler cfg4(1101 案B:SCA[7041/7042/7043]三件退役,scheduler/seed/正负向四合一入本件;cfg 1→4=fix 官方域生效前提,色重消退 S=0.331;seed=[7014] 新增扇出直连;[7017]/[7018] 仅 viggle/Turbo 臂消费(Q4 保留);σ表面板控 viggle 臂,与本件无关)"
+              "内容": "道劫·加速子图=四支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed/σ表;未选支路懒执行零加载)。\n三支路:①档0 Turbo 官方8步 cfg1 负向无口=[7028 官方 avg_rank_178 LoRA×1.0 直挂,无 Fix 前挂(1017 勘误:旧文「前接 Fix×0.5」系 [7027] 计划未落地,子图无此节点)]→[7029 BasicGuider cfg1 纯正向]→[7031 SamplerCustomAdvanced]+[7030 ManualSigmas 官方σ表(9点=8步去噪+1);②档1 原生出图 cfg1(负向不参与采样)=[7026 Fix v2.0 官方域挂件(e-n-v-y 标定=全步数+cfg>1+真负向,LoraLoaderModelOnly×1.0)]→[7010] KSampler,负向仅档1(原生出图 cfg1)接线、负向不参与采样;③档2 viggle v0.3 官方9步满血=前7步 [7011 ViggleTurboLora 未合并]+[7012]段A,后2步 [7022]底模引导+[7024]段B(摘LoRA 底模收尾);[7021]按 step=7 切 [7020] 的9点动态shift σ表;蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源(viggle/Turbo 共用 [7017] 噪声,直出另线);三支路汇 [7015] 单点出 LATENT。\nσ表面板贴表即换步数(9步=1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25 需配 [7021] step=7;6步单段=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 且 [7021] step=5)。\n\n布局前标题说明（原文保留）：\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7014] seed单源·PrimitiveInt\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7026] Fix v2.0·官方域挂件(手/细节修复)\n[7028] Turbo·官方avg_rank_178(直挂)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n道劫·加速子图·①Turbo 支路([7028] 官方LoRA×1.0 直挂→[7029]BasicGuider cfg1→[7031] SamplerCustomAdvanced 8步官方σ([7030]ManualSigmas);不与viggle同挂;前接Fix×0.5;seed=面板单源)\n道劫·加速子图·②viggle v0.3 官方9步满血双段([7011]ViggleTurboLora 未合并→[7019]BasicGuider cfg1→[7012]段A采样(7步turbo)→[7024]段B采样(2步底模摘LoRA);[7021]SplitSigmas 7+2 切分/[7020]ViggleTurboSigmas 动态shift/[7017]noise/[7018]euler/[7023]零噪声续采;cfg恒1 负向无效)\n道劫·加速子图·③原生出图支路([7026]Fix v2.0 官方域挂件×1.0→[7010]KSampler 40步 cfg1、负向不参与采样(1017 随刀,旧「负向真实生效档」口径作废)(e-n-v-y Fix 官方域=全步数+cfg>1;1017 勘误:旧文「20步cfg3.5」过期,实值 40步,1017 cfg 改 1))\n道劫·加速子图·④seed 单源([7014] PrimitiveInt 面板外露,三用扇出)\n道劫·加速子图·⑤档位选择([7015] MyQi21SpeedSelect 单点汇流出 LATENT)\n[7034] 风格LoRA·mikkoani ×0.8(1019 用户令「默认改×0.8」,原×1.0=1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)\n(1023 起并行四支路)⑤支路·档3 混动 40步+缓存(1101 Phase1 案B 收口:SCA 三件→KSampler 四合一):[7034 mikkoani]→[7026 Fix v2.0×1.0 共享件(1101晚 撤 turbo)]→[7040 LazyCache 重用阈值0.2/窗15-95%(引擎核心步跳缓存节点,verbose关)]→[7045 KSampler cfg=4.0 40步 euler/simple——正向=边界positive槽/负向=边界negative槽(Q2/Q5:负向真实生效,首版=道劫负面基线)/latent=边界槽/seed=[7014] 单源直连;实弹 LazyCache×cfg4 兼容(S=0.331 色重消退 vs B fix×1.0 cfg1 0.602);三件同形(t2i fix=共享7026/i2i·edit=自有7044);默认档=档3(1101 令),三件齐装]\n[7045] E混动·KSampler cfg4(1101 案B:SCA[7041/7042/7043]三件退役,scheduler/seed/正负向四合一入本件;cfg 1→4=fix 官方域生效前提,色重消退 S=0.331;seed=[7014] 新增扇出直连;[7017]/[7018] 仅 viggle/Turbo 臂消费(Q4 保留);σ表面板控 viggle 臂,与本件无关)\n⑦PrunaAI 6步臂候列:ViggleTurboLora 运行时旁路+六步原表动态shift,尾端悬空待入档\n⑦臂入列档4·PrunaAI 6步(1108 用户令升默认,六车道终评22分与E臂肉眼无差/61.0s 快18%):底模→[7034]mikkoani@0.6→[7110]p_q_image_2.1_6_steps_v0.2×1.0(ViggleTurboLora 运行时旁路)→[7111]BasicGuider 关CFG+[7113]六步原表(1.0,0.925,0.85,0.625,0.375,0.125)动态shift→[7112]→本节点 latent_p;档3混动全保留可手选;「候列悬空」状态就此废止。"
             },
             "color": "#432",
             "bgcolor": "#653"
@@ -677,7 +687,8 @@
                 "type": "NOISE",
                 "links": [
                   4305,
-                  4405
+                  4405,
+                  7906
                 ]
               }
             ],
@@ -723,7 +734,8 @@
                 "links": [
                   4307,
                   4315,
-                  4406
+                  4406,
+                  7908
                 ]
               }
             ],
@@ -1377,7 +1389,8 @@
                   103,
                   4313,
                   4323,
-                  4400
+                  4400,
+                  7901
                 ]
               }
             ],
@@ -1582,6 +1595,236 @@
               "strength_model": 0.3
             },
             "title": "[7034] 风格LoRA·mikkoani(×0.8)"
+          },
+          {
+            "id": 7110,
+            "type": "ViggleTurboLora",
+            "pos": [
+              1740.0,
+              4260.0
+            ],
+            "size": [
+              270.0,
+              148.0
+            ],
+            "flags": {},
+            "order": 10,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "模型",
+                "name": "model",
+                "type": "MODEL",
+                "link": 7901
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "模型",
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  7902
+                ]
+              }
+            ],
+            "title": "[7110] Pruna6步 LoRA·候列",
+            "properties": {
+              "Node name for S&R": "ViggleTurboLora",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              "p_q_image_2.1_6_steps_v0.2.safetensors",
+              1.0
+            ],
+            "widgets_values_named": {
+              "lora_name": "p_q_image_2.1_6_steps_v0.2.safetensors",
+              "strength_model": 1.0
+            }
+          },
+          {
+            "id": 7111,
+            "type": "BasicGuider",
+            "pos": [
+              2100.0,
+              4260.0
+            ],
+            "size": [
+              270.0,
+              112.0
+            ],
+            "flags": {},
+            "order": 11,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "localized_name": "模型",
+                "link": 7902
+              },
+              {
+                "name": "conditioning",
+                "type": "CONDITIONING",
+                "localized_name": "条件",
+                "link": 7903
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "引导",
+                "name": "GUIDER",
+                "type": "GUIDER",
+                "links": [
+                  7907
+                ]
+              }
+            ],
+            "title": "[7111] Pruna引导·候列",
+            "properties": {
+              "Node name for S&R": "BasicGuider",
+              "cnr_id": "comfy-core",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [],
+            "widgets_values_named": {}
+          },
+          {
+            "id": 7113,
+            "type": "ViggleTurboSigmas",
+            "pos": [
+              1740.0,
+              4460.0
+            ],
+            "size": [
+              330.0,
+              160.0
+            ],
+            "flags": {},
+            "order": 12,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "Latent图像",
+                "name": "latent",
+                "type": "LATENT",
+                "link": 7904
+              },
+              {
+                "localized_name": "σ表",
+                "name": "nodes",
+                "type": "STRING",
+                "widget": {
+                  "name": "nodes"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "Sigmas",
+                "name": "SIGMAS",
+                "type": "SIGMAS",
+                "links": [
+                  7905
+                ]
+              }
+            ],
+            "title": "[7113] Pruna 6步σ表·候列",
+            "properties": {
+              "Node name for S&R": "ViggleTurboSigmas",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              "1.0, 0.925, 0.85, 0.625, 0.375, 0.125"
+            ],
+            "widgets_values_named": {}
+          },
+          {
+            "id": 7112,
+            "type": "SamplerCustomAdvanced",
+            "pos": [
+              2450.0,
+              4260.0
+            ],
+            "size": [
+              330.0,
+              200.0
+            ],
+            "flags": {},
+            "order": 13,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "noise",
+                "type": "NOISE",
+                "localized_name": "噪声",
+                "link": 7906
+              },
+              {
+                "name": "guider",
+                "type": "GUIDER",
+                "localized_name": "引导",
+                "link": 7907
+              },
+              {
+                "name": "sampler",
+                "type": "SAMPLER",
+                "localized_name": "采样器",
+                "link": 7908
+              },
+              {
+                "name": "sigmas",
+                "type": "SIGMAS",
+                "localized_name": "Sigmas",
+                "link": 7905
+              },
+              {
+                "name": "latent_image",
+                "type": "LATENT",
+                "localized_name": "Latent图像",
+                "link": 7909
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "输出",
+                "name": "output",
+                "type": "LATENT",
+                "links": [
+                  7910
+                ]
+              },
+              {
+                "localized_name": "去噪输出",
+                "name": "denoised_output",
+                "type": "LATENT",
+                "links": []
+              }
+            ],
+            "title": "[7112] Pruna采样·候列(输出悬空)",
+            "properties": {
+              "Node name for S&R": "SamplerCustomAdvanced",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [],
+            "widgets_values_named": {}
           }
         ],
         "groups": [
@@ -1655,6 +1898,18 @@
             ],
             "color": "#3f789e",
             "id": 105,
+            "locked": false
+          },
+          {
+            "title": "⑦PrunaAI 6步臂(候列·尾端悬空)",
+            "bounding": [
+              1700.0,
+              4200.0,
+              1100.0,
+              480.0
+            ],
+            "color": "#3f789e",
+            "id": 106,
             "locked": false
           }
         ],
@@ -1980,6 +2235,14 @@
             "type": "STRING"
           },
           {
+            "id": 7901,
+            "origin_id": 7034,
+            "origin_slot": 0,
+            "target_id": 7110,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
             "id": 7467,
             "origin_id": -10,
             "origin_slot": 0,
@@ -2050,6 +2313,78 @@
             "target_id": 7034,
             "target_slot": 0,
             "type": "MODEL"
+          },
+          {
+            "id": 7902,
+            "origin_id": 7110,
+            "origin_slot": 0,
+            "target_id": 7111,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7903,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 7111,
+            "target_slot": 1,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 7904,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 7113,
+            "target_slot": 0,
+            "type": "LATENT"
+          },
+          {
+            "id": 7905,
+            "origin_id": 7113,
+            "origin_slot": 0,
+            "target_id": 7112,
+            "target_slot": 3,
+            "type": "SIGMAS"
+          },
+          {
+            "id": 7906,
+            "origin_id": 7017,
+            "origin_slot": 0,
+            "target_id": 7112,
+            "target_slot": 0,
+            "type": "NOISE"
+          },
+          {
+            "id": 7907,
+            "origin_id": 7111,
+            "origin_slot": 0,
+            "target_id": 7112,
+            "target_slot": 1,
+            "type": "GUIDER"
+          },
+          {
+            "id": 7908,
+            "origin_id": 7018,
+            "origin_slot": 0,
+            "target_id": 7112,
+            "target_slot": 2,
+            "type": "SAMPLER"
+          },
+          {
+            "id": 7909,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 7112,
+            "target_slot": 4,
+            "type": "LATENT"
+          },
+          {
+            "id": 7910,
+            "origin_id": 7112,
+            "origin_slot": 0,
+            "target_id": 7015,
+            "target_slot": 6,
+            "type": "LATENT"
           }
         ],
         "extra": {

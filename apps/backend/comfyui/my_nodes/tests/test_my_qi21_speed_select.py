@@ -4,9 +4,9 @@
 """MyQi21SpeedSelect 契约测试(0929 加速区并行化·方案 B 自研件;与
 test_my_qi21_base.py 同目录同纪律,源码位 sidecar 零引擎依赖)。
 
-锁:注册面(双表+类目+无旧名别名)/combo 闭集(1017 增档令+1023 E混动增档:五档精确串,
-首项=默认=「3 · 混动 40步+缓存」(1101 用户令,默认档3混动替换 Turbo;1021「所有型
-默认 Turbo」废止);自动档居末且
+锁:注册面(双表+类目+无旧名别名)/combo 闭集(1017 增档令+1023 E混动增档+1108 ⑦Pruna
+增档:六档精确串,首项=默认=「4 · PrunaAI 6步」(1108 用户令,六车道终评替换档3;1101
+档3混动替换 Turbo 前史;1021「所有型默认 Turbo」废止);自动档居末且
 仍按型名∈{设定卡,美宣,概念气氛图}→原生出图,其余含空→Turbo;
 手动档字符串不变(档号=历史恒定标识,与 combo 序解耦);分隔符码位 U+00B7 防全角漂移;自动档
 配 optional「型名」STRING 信号槽,非 lazy)/各档选择各回各支路/
@@ -37,6 +37,7 @@ _TURBO = {"branch": "turbo"}
 _VIGGLE = {"branch": "viggle"}
 _DIRECT = {"branch": "direct"}
 _E = {"branch": "e"}
+_P = {"branch": "p"}
 _TYPE_INPUTS = [*bases_list(), "", None, ...]
 
 
@@ -44,53 +45,54 @@ _TYPE_INPUTS = [*bases_list(), "", None, ...]
 def test_registry_exposes_speed_select():
     assert NODE_CLASS_MAPPINGS.get("MyQi21SpeedSelect") is MyQi21SpeedSelect
     assert NODE_DISPLAY_NAME_MAPPINGS["MyQi21SpeedSelect"] == \
-        "Q2-1 加速档位(四选一·默认混动40步+缓存)"  # 1101 档3混动升默认(承 1016turbo/1002 前史)
+        "Q2-1 加速档位(默认PrunaAI 6步)"  # 1108 档4 PrunaAI 升默认(承 1101档3/1016turbo/1002 前史)
     assert MyQi21SpeedSelect.CATEGORY == "漫影"  # 类目随包内现行目录(兄弟件同区)
     # 设计裁定:新节点无存量工作流,不建 Manying 旧名别名
     assert "ManyingQi21SpeedSelect" not in NODE_CLASS_MAPPINGS
 
 
-# ── combo 闭集:五档精确串+首项=默认档3混动,自动档仍可手选 ──────
-def test_combo_closed_set_first_item_is_default_e_hybrid():
-    """新建节点默认档3混动(1101 用户令);显式手动档及自动档仍属同一闭集。"""
+# ── combo 闭集:六档精确串+首项=默认档4 PrunaAI,自动档仍可手选 ──────
+def test_combo_closed_set_first_item_is_default_pruna():
+    """新建节点默认档4 PrunaAI(1108 用户令);显式手动档及自动档仍属同一闭集。"""
     spec = MyQi21SpeedSelect.INPUT_TYPES()
     assert set(spec) == {"required", "optional"}
     assert set(spec["required"]) == {"mode"}
     assert set(spec["optional"]) == {"latent_turbo", "latent_viggle",
-                                     "latent_direct", "型名", "latent_e"}
+                                     "latent_direct", "型名", "latent_e", "latent_p"}
     # 1017:型名=自动档信号槽(STRING 非 lazy,接底座件「型名」出;未接线/
     # 留空=按 Turbo 缺省安全侧)
     assert spec["optional"]["型名"][0] == "STRING"
     assert not spec["optional"]["型名"][1].get("lazy")
     combo = spec["required"]["mode"]
     assert isinstance(combo[0], list)
-    # 1101 重排:档3升首=默认;档号字符串恒定(历史标识,与 combo 序解耦)
-    assert combo[0] == ["3 · 混动 40步+缓存", "0 · Turbo 8步",
+    # 1108 重排:档4 PrunaAI 升首=默认;档号字符串恒定(历史标识,与 combo 序解耦)
+    assert combo[0] == ["4 · PrunaAI 6步", "3 · 混动 40步+缓存", "0 · Turbo 8步",
                         "1 · 原生出图", "2 · viggle", "自动 · 按型"]
-    assert combo[1]["default"] == "3 · 混动 40步+缓存"
-    assert DEFAULT_MODE == MODES[0] == "3 · 混动 40步+缓存"
+    assert combo[1]["default"] == "4 · PrunaAI 6步"
+    assert DEFAULT_MODE == MODES[0] == "4 · PrunaAI 6步"
     assert MODES[-1] == AUTO_MODE
     # 分隔符码位锁:U+00B7 中点(防誊写漂移成全角·/・——combo 列表即契约)
     for mode in MODES:
         assert " \u00b7 " in mode, mode
     # 档位↔槽名单源映射全覆盖(自动档无固有槽=位 None,实际槽按型名现算;
     # combo 序=默认优先;档号=历史恒定标识与序解耦)
-    assert [s for _m, s in SPEED_MODES] == ["latent_e", "latent_turbo",
+    assert [s for _m, s in SPEED_MODES] == ["latent_p", "latent_e", "latent_turbo",
                                           "latent_direct", "latent_viggle", None]
     assert slot_for_mode("自动 · 按型") is None  # 自动档不经 slot_for_mode(按型名现算)
     assert slot_for_mode("0 · Turbo 8步") == "latent_turbo"
     assert slot_for_mode("1 · 原生出图") == "latent_direct"
     assert slot_for_mode("2 · viggle") == "latent_viggle"
-    assert slot_for_mode("3 · 混动 40步+缓存") == "latent_e"  # 1023 E混动档,1101 默认
+    assert slot_for_mode("3 · 混动 40步+缓存") == "latent_e"  # 1023 E混动档,1101-1108 任默认
+    assert slot_for_mode("4 · PrunaAI 6步") == "latent_p"  # 1108 ⑦Pruna 档,1108 默认
     assert slot_for_mode("不存在的档") is None
 
 
-def test_output_shape_and_three_lazy_slots():
+def test_output_shape_and_all_lazy_slots():
     assert MyQi21SpeedSelect.RETURN_TYPES == ("LATENT",)
     assert MyQi21SpeedSelect.RETURN_NAMES == ("latent",)
     assert MyQi21SpeedSelect.FUNCTION == "select"
     optional = MyQi21SpeedSelect.INPUT_TYPES()["optional"]
-    for slot in ("latent_turbo", "latent_viggle", "latent_direct", "latent_e"):
+    for slot in ("latent_turbo", "latent_viggle", "latent_direct", "latent_e", "latent_p"):
         assert optional[slot][0] == "LATENT"
         assert optional[slot][1].get("lazy") is True  # 懒声明=未选支路零执行零加载
 
@@ -101,36 +103,38 @@ def test_output_shape_and_three_lazy_slots():
     ("1 · 原生出图", _DIRECT),
     ("2 · viggle", _VIGGLE),
     ("3 · 混动 40步+缓存", _E),
+    ("4 · PrunaAI 6步", _P),
 ])
 def test_select_routes_each_mode_branch(mode, branch):
     node = MyQi21SpeedSelect()
     result = node.select(mode, latent_turbo=_TURBO, latent_viggle=_VIGGLE,
-                         latent_direct=_DIRECT, latent_e=_E)
+                         latent_direct=_DIRECT, latent_e=_E, latent_p=_P)
     assert result == (branch,)  # 原样直通(同对象引用,不拷贝不改写)
     assert result[0] is branch
 
 
 @pytest.mark.parametrize("type_name", _TYPE_INPUTS)
-def test_select_default_mode_picks_e_hybrid_branch(type_name):
-    """1101 默认=档3混动:全部十型/自由/空/缺键默认只接 latent_e 也可直通。"""
+def test_select_default_mode_picks_pruna_branch(type_name):
+    """1108 默认=档4 PrunaAI:全部十型/自由/空/缺键默认只接 latent_p 也可直通。"""
     kwargs = {} if type_name is ... else {"型名": type_name}
-    result = MyQi21SpeedSelect().select(DEFAULT_MODE, latent_e=_E, **kwargs)
-    assert result == (_E,)
-    assert result[0] is _E
+    result = MyQi21SpeedSelect().select(DEFAULT_MODE, latent_p=_P, **kwargs)
+    assert result == (_P,)
+    assert result[0] is _P
 
 
 @pytest.mark.parametrize("type_name", _TYPE_INPUTS)
-def test_default_lazy_requests_only_e_hybrid_for_every_type(type_name):
+def test_default_lazy_requests_only_pruna_for_every_type(type_name):
     kwargs = {} if type_name is ... else {"型名": type_name}
     node = MyQi21SpeedSelect()
     assert node.check_lazy_status(
+        DEFAULT_MODE, latent_p=None, latent_e=None, latent_direct=None,
+        latent_viggle=None, **kwargs) == ["latent_p"]
+    assert node.check_lazy_status(
+        DEFAULT_MODE, latent_p=_P, latent_e=None, latent_direct=None,
+        latent_viggle=None, **kwargs) is None
+    assert node.check_lazy_status(
         DEFAULT_MODE, latent_e=None, latent_direct=None, latent_viggle=None,
-        **kwargs) == ["latent_e"]
-    assert node.check_lazy_status(
-        DEFAULT_MODE, latent_e=_E, latent_direct=None, latent_viggle=None,
         **kwargs) is None
-    assert node.check_lazy_status(
-        DEFAULT_MODE, latent_direct=None, latent_viggle=None, **kwargs) is None
 
 
 @pytest.mark.parametrize("type_name", _TYPE_INPUTS)
@@ -183,7 +187,7 @@ def test_lazy_engine_protocol_matrix():
         else:              # 手动档:固有槽,型名缺席(不投递)
             rows.append((mode, slot, ...))
     for mode, expected, tn in rows:
-        for slot in ("latent_turbo", "latent_viggle", "latent_direct", "latent_e"):
+        for slot in ("latent_turbo", "latent_viggle", "latent_direct", "latent_e", "latent_p"):
             for presence in ("absent", "none", "valued"):
                 kwargs = {}
                 if presence == "none":
