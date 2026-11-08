@@ -119,7 +119,43 @@ def section3() -> list[str]:
     return ["换档构建=档3:E 臂可达(旧默认保留),⑦臂剪枝"]
 
 
+# ── 1108 拉齐轮:i2i/edit 同构校验(结构面;构建面 i2i 走 builder,edit 无桥模板仅结构)──
+REPO = REPO  # noqa
+I2I = dict(bp=REPO / "apps/backend/comfyui/my_nodes/subgraphs/qi21-道劫-加速子图-i2i.json",
+           canvas=REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
+           uuid="b3f5a1c2-9d4e-4f60-8a7b-5c6d7e8f9a0b", host=7, build=True)
+EDIT = dict(bp=REPO / "apps/backend/comfyui/my_nodes/subgraphs/qi21-道劫-加速子图-edit.json",
+            canvas=REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json",
+            uuid="7b1f3a92-2b5c-4d3e-8f41-6c8d9e0f1a02", host=7, build=False)
+
+def section4(job) -> list[str]:
+    tag = "i2i" if job["build"] else "edit"
+    src = json.loads(job["bp"].read_text(encoding="utf-8"))
+    cv = json.loads(job["canvas"].read_text(encoding="utf-8"))
+    sg_cv = next(s for s in cv["definitions"]["subgraphs"] if s["id"] == job["uuid"])
+    for label, sg in (("真源", src["definitions"]["subgraphs"][0]), ("画布", sg_cv)):
+        nodes = {n["id"]: n for n in sg["nodes"]}
+        links = {l["id"]: l for l in sg["links"]}
+        for nid in NEW_NODES:
+            check(nid in nodes, f"{tag} {label} 缺节点 {nid}")
+        check((links[7901]["origin_id"], links[7901]["target_id"]) == (7034, 7110), f"{tag} {label} 链7901")
+        check((links[7910]["origin_id"], links[7910]["target_id"]) == (7112, 7015), f"{tag} {label} 链7910")
+        sel = nodes[7015]
+        check(any(i.get("name") == "latent_p" and i.get("link") == 7910 for i in sel["inputs"]), f"{tag} {label} latent_p 槽")
+        check(sel["widgets_values"] == [MODE4] and sg["widgets"][0] == MODE4, f"{tag} {label} 档位四面")
+        check(7903 in (links and {l["id"]: l for l in sg["links"]}) and links[7903]["origin_id"] == -10, f"{tag} {label} 条件=边界 positive_single")
+    host = next(n for n in cv["nodes"] if n["id"] == job["host"])
+    check(host["widgets_values"][0] == MODE4, f"{tag} 宿主档位")
+    if job["build"]:
+        wf = json.loads(job["canvas"].read_text(encoding="utf-8"))
+        graph, meta = _build(wf)
+        check(meta["档"] == MODE4 and graph["7:7015"]["inputs"]["mode"] == MODE4, f"{tag} 默认构建档4")
+        check(graph["7:7015"]["inputs"]["latent_p"] == ["7:7112", 0] and "7:7045" not in graph, f"{tag} 默认构建⑦臂物质化")
+    return [f"{tag}:⑦臂入列+档位四面{'+默认构建' if job['build'] else '(结构面)'} 全对表"]
+
 if __name__ == "__main__":
     for i, fn in ((1, section1), (2, section2), (3, section3)):
         print(f"[pruna-arm] 第{i}段 PASS: {fn()[0]}")
-    print("[pruna-arm] 三段全绿")
+    for job in (I2I, EDIT):
+        print(f"[pruna-arm] 拉齐 PASS: {section4(job)[0]}")
+    print("[pruna-arm] 三段+拉齐全绿")

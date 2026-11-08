@@ -53,7 +53,7 @@ SPEC = {
     "size_mb": 0,
     "license": "本机 ComfyUI 配置",
     "steps": 8,
-    "description": "本地 Qwen-Image-2.1 生图(道劫产线工作流:默认档4 PrunaAI 6步+mikkoani+SeedVR2 2K 超分,1108 令替换档3;图生图=道劫美术风格转换)",
+    "description": "本地 Qwen-Image-2.1 生图(道劫产线工作流:默认档4 PrunaAI 6步+mikkoani+SeedVR2 2K 超分,1108 三件拉齐;图生图=道劫美术风格转换)",
     "layout": LAYOUT,
 }
 
@@ -136,7 +136,7 @@ def apply_base_type(graph: dict[str, Any], base_type: Any) -> None:
 # 有手型=全身人物常态入画六型(手/剑高发);人脸基准(止颈特写)/场景三型/道具/表情差分
 # 等无手或手部罕见型不切(1101 起这些型也走默认档3,经模板档位值而非强制规则)。
 SPEED_MODE_E_HYBRID = "3 · 混动 40步+缓存"
-# 1108 默认档:⑦Pruna 臂(p_q 6步v0.2×1.0+mikkoani@0.6,六步原表+关CFG)
+# 1108 默认档:⑦Pruna 臂(p_q 6步v0.2×1.0+mikkoani@0.6,六步原表+关CFG);拉齐轮起三件(t2i/i2i/edit)通吃
 SPEED_MODE_PRUNA = "4 · PrunaAI 6步"
 # 有手型名单(10-26 立,1108 随默认指向档4;实测人物海报=虚握剑鞘手部全绿)
 _HAND_PRUNA_TYPES = frozenset({"无衣物定妆", "人物海报", "人物多视图", "设定卡", "美宣", "自由"})
@@ -221,10 +221,9 @@ def _materialize_e_hybrid(graph: dict[str, Any]) -> None:
 
 def apply_hand_speed_mode(graph: dict[str, Any], base_type: Any,
                            hand_default: str = SPEED_MODE_PRUNA) -> None:
-    """1108 分域泛化(1101 前史:默认档3混动替换 Turbo):
-    ①有手型(10-26 名单)→ 强制 mode=hand_default——t2i=档4 PrunaAI(1108 用户令,
-    六车道实弹手部全绿)/i2i=档3混动(调用方显式传参;i2i/edit 加速子图无 ⑦Pruna
-    臂,强翻档4 会「选中档未接线」拒单);
+    """1108 拉齐泛化(1101 前史:默认档3混动替换 Turbo):
+    ①有手型(10-26 名单)→ 强制 mode=hand_default——三件均=档4 PrunaAI(1108 拉齐令,
+    ⑦臂已铺 t2i/i2i/edit;六车道实弹手部全绿);
     ②终态 mode==档3 且 latent_e 未物质化 KSampler 形态 → 运行时补注(幂等——
     已物质化 ["7:7045",0] 零动作;旧 SCA 形 ["7:7043",0] 视为模板漂移重注)。
     非档3 终态(调用方显式改派他档)零动作照旧。
@@ -348,8 +347,8 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
                 )
             purpose_canvas["inputs"]["组装用途"] = ASSEMBLY_PURPOSE_TYPE_FULL
             assembly["inputs"]["组装用途"] = ASSEMBLY_PURPOSE_TYPE_FULL
-            # 10-26 有手型默认档;1108 分域:i2i 无 ⑦Pruna 臂=维持档3(在 apply_base_type 之后)
-            apply_hand_speed_mode(graph, base_type, hand_default=SPEED_MODE_E_HYBRID)
+            # 1108 拉齐:i2i ⑦Pruna 臂已入列,手型默认随 t2i=档4(在 apply_base_type 之后)
+            apply_hand_speed_mode(graph, base_type, hand_default=SPEED_MODE_PRUNA)
         else:
             # 缺省=道劫美术风格转换(指令+底座两段),既有画风转换/人脸/表情差分
             # 调用零回归(10-19 口径全量向后兼容)

@@ -1,7 +1,7 @@
 {
   "revision": 1,
-  "last_node_id": 7100,
-  "last_link_id": 7900,
+  "last_node_id": 7113,
+  "last_link_id": 7910,
   "nodes": [
     {
       "id": 1,
@@ -80,13 +80,13 @@
         }
       ],
       "widgets_values": [
-        "3 · 混动 40步+缓存",
+        "4 · PrunaAI 6步",
         0,
         "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       ],
       "title": "[7] 加速子图",
       "widgets_values_named": {
-        "速度档位": "3 · 混动 40步+缓存",
+        "速度档位": "4 · PrunaAI 6步",
         "seed": 0,
         "σ表": "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       }
@@ -107,8 +107,8 @@
         "revision": 1,
         "state": {
           "lastGroupId": 15,
-          "lastNodeId": 7045,
-          "lastLinkId": 7527,
+          "lastNodeId": 7113,
+          "lastLinkId": 7910,
           "lastRerouteId": 2
         },
         "config": {
@@ -182,7 +182,8 @@
               256,
               264,
               4401,
-              7523
+              7523,
+              7903
             ],
             "pos": [
               -86,
@@ -198,7 +199,9 @@
               251,
               259,
               4402,
-              7525
+              7525,
+              7904,
+              7909
             ],
             "pos": [
               -86,
@@ -257,7 +260,7 @@
           }
         ],
         "widgets": [
-          "3 · 混动 40步+缓存",
+          "4 · PrunaAI 6步",
           0,
           "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
         ],
@@ -577,6 +580,13 @@
                 "shape": 7,
                 "type": "LATENT",
                 "link": 7527
+              },
+              {
+                "localized_name": "latent_p",
+                "name": "latent_p",
+                "shape": 7,
+                "type": "LATENT",
+                "link": 7910
               }
             ],
             "outputs": [
@@ -599,7 +609,7 @@
               }
             },
             "widgets_values": [
-              "3 · 混动 40步+缓存"
+              "4 · PrunaAI 6步"
             ],
             "widgets_values_named": {
               "mode": "3 · 混动 40步+缓存"
@@ -637,7 +647,8 @@
                 "type": "NOISE",
                 "links": [
                   257,
-                  4405
+                  4405,
+                  7906
                 ]
               }
             ],
@@ -683,7 +694,8 @@
                 "links": [
                   27,
                   266,
-                  4406
+                  4406,
+                  7908
                 ]
               }
             ],
@@ -1274,7 +1286,8 @@
                   263,
                   4410,
                   4400,
-                  7520
+                  7520,
+                  7901
                 ]
               }
             ],
@@ -1530,6 +1543,236 @@
               "strength_model": 0.3
             },
             "title": "[7034] 风格LoRA·mikkoani(×0.8)"
+          },
+          {
+            "id": 7110,
+            "type": "ViggleTurboLora",
+            "pos": [
+              600.0,
+              4200.0
+            ],
+            "size": [
+              270.0,
+              148.0
+            ],
+            "flags": {},
+            "order": 10,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "模型",
+                "name": "model",
+                "type": "MODEL",
+                "link": 7901
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "模型",
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  7902
+                ]
+              }
+            ],
+            "title": "[7110] Pruna6步 LoRA·候列",
+            "properties": {
+              "Node name for S&R": "ViggleTurboLora",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              "p_q_image_2.1_6_steps_v0.2.safetensors",
+              1.0
+            ],
+            "widgets_values_named": {
+              "lora_name": "p_q_image_2.1_6_steps_v0.2.safetensors",
+              "strength_model": 1.0
+            }
+          },
+          {
+            "id": 7111,
+            "type": "BasicGuider",
+            "pos": [
+              950.0,
+              4200.0
+            ],
+            "size": [
+              270.0,
+              112.0
+            ],
+            "flags": {},
+            "order": 11,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "localized_name": "模型",
+                "link": 7902
+              },
+              {
+                "name": "conditioning",
+                "type": "CONDITIONING",
+                "localized_name": "条件",
+                "link": 7903
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "引导",
+                "name": "GUIDER",
+                "type": "GUIDER",
+                "links": [
+                  7907
+                ]
+              }
+            ],
+            "title": "[7111] Pruna引导·候列",
+            "properties": {
+              "Node name for S&R": "BasicGuider",
+              "cnr_id": "comfy-core",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [],
+            "widgets_values_named": {}
+          },
+          {
+            "id": 7112,
+            "type": "SamplerCustomAdvanced",
+            "pos": [
+              1300.0,
+              4200.0
+            ],
+            "size": [
+              330.0,
+              200.0
+            ],
+            "flags": {},
+            "order": 13,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "noise",
+                "type": "NOISE",
+                "localized_name": "噪声",
+                "link": 7906
+              },
+              {
+                "name": "guider",
+                "type": "GUIDER",
+                "localized_name": "引导",
+                "link": 7907
+              },
+              {
+                "name": "sampler",
+                "type": "SAMPLER",
+                "localized_name": "采样器",
+                "link": 7908
+              },
+              {
+                "name": "sigmas",
+                "type": "SIGMAS",
+                "localized_name": "Sigmas",
+                "link": 7905
+              },
+              {
+                "name": "latent_image",
+                "type": "LATENT",
+                "localized_name": "Latent图像",
+                "link": 7909
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "输出",
+                "name": "output",
+                "type": "LATENT",
+                "links": [
+                  7910
+                ]
+              },
+              {
+                "localized_name": "去噪输出",
+                "name": "denoised_output",
+                "type": "LATENT",
+                "links": []
+              }
+            ],
+            "title": "[7112] Pruna采样·候列(输出悬空)",
+            "properties": {
+              "Node name for S&R": "SamplerCustomAdvanced",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [],
+            "widgets_values_named": {}
+          },
+          {
+            "id": 7113,
+            "type": "ViggleTurboSigmas",
+            "pos": [
+              600.0,
+              4470.0
+            ],
+            "size": [
+              330.0,
+              160.0
+            ],
+            "flags": {},
+            "order": 12,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "Latent图像",
+                "name": "latent",
+                "type": "LATENT",
+                "link": 7904
+              },
+              {
+                "localized_name": "σ表",
+                "name": "nodes",
+                "type": "STRING",
+                "widget": {
+                  "name": "nodes"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "Sigmas",
+                "name": "SIGMAS",
+                "type": "SIGMAS",
+                "links": [
+                  7905
+                ]
+              }
+            ],
+            "title": "[7113] Pruna 6步σ表·候列",
+            "properties": {
+              "Node name for S&R": "ViggleTurboSigmas",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              "1.0, 0.925, 0.85, 0.625, 0.375, 0.125"
+            ],
+            "widgets_values_named": {}
           }
         ],
         "groups": [
@@ -1601,6 +1844,18 @@
               1840,
               1000,
               618
+            ],
+            "color": "#8c466a",
+            "flags": {}
+          },
+          {
+            "id": 16,
+            "title": "⑦PrunaAI 6步臂(默认·1108 拉齐)",
+            "bounding": [
+              560,
+              4140,
+              1300,
+              500
             ],
             "color": "#8c466a",
             "flags": {}
@@ -1990,6 +2245,86 @@
             "target_id": 7034,
             "target_slot": 0,
             "type": "MODEL"
+          },
+          {
+            "id": 7901,
+            "origin_id": 7034,
+            "origin_slot": 0,
+            "target_id": 7110,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7902,
+            "origin_id": 7110,
+            "origin_slot": 0,
+            "target_id": 7111,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7903,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 7111,
+            "target_slot": 1,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 7904,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 7113,
+            "target_slot": 0,
+            "type": "LATENT"
+          },
+          {
+            "id": 7905,
+            "origin_id": 7113,
+            "origin_slot": 0,
+            "target_id": 7112,
+            "target_slot": 3,
+            "type": "SIGMAS"
+          },
+          {
+            "id": 7906,
+            "origin_id": 7017,
+            "origin_slot": 0,
+            "target_id": 7112,
+            "target_slot": 0,
+            "type": "NOISE"
+          },
+          {
+            "id": 7907,
+            "origin_id": 7111,
+            "origin_slot": 0,
+            "target_id": 7112,
+            "target_slot": 1,
+            "type": "GUIDER"
+          },
+          {
+            "id": 7908,
+            "origin_id": 7018,
+            "origin_slot": 0,
+            "target_id": 7112,
+            "target_slot": 2,
+            "type": "SAMPLER"
+          },
+          {
+            "id": 7909,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 7112,
+            "target_slot": 4,
+            "type": "LATENT"
+          },
+          {
+            "id": 7910,
+            "origin_id": 7112,
+            "origin_slot": 0,
+            "target_id": 7015,
+            "target_slot": 5,
+            "type": "LATENT"
           }
         ],
         "category": "漫影",

@@ -196,8 +196,10 @@ class Qwen21I2iTemplateContractTests(unittest.TestCase):
         self.assertEqual(self.graph["6:4022"]["inputs"]["组装用途"], "自由出图")
         self.assertEqual(self.graph["6:4010"]["inputs"]["base"], "人物海报")
         self.assertEqual(self.graph["6:180"]["inputs"]["rgba_hint"], ["6:4010", 4])
-        # 档位快照=档3混动(1101 默认替换 Turbo)
-        self.assertEqual(self.graph["7:7015"]["inputs"]["mode"], "3 · 混动 40步+缓存")
+        # 档位快照=档4 PrunaAI(1108 拉齐令:三件默认统一)
+        self.assertEqual(self.graph["7:7015"]["inputs"]["mode"], "4 · PrunaAI 6步")
+        self.assertEqual(self.graph["7:7015"]["inputs"]["latent_p"], ["7:7112", 0])
+        self.assertNotIn("latent_e", self.graph["7:7015"]["inputs"])
         # 指令择文直接持有 PE 开关；关闭时 selected_graph 不保留 PE 依赖。
         self.assertNotIn("6:4012", self.graph)
         self.assertEqual(self.graph["6:4014"]["class_type"], "MyQi21InstructionSelect")
@@ -208,13 +210,12 @@ class Qwen21I2iTemplateContractTests(unittest.TestCase):
         self.assertEqual(self.graph["6:153"]["class_type"], "MyQi21FinalOutput")
         self.assertEqual(self.graph["6:153"]["inputs"]["正向提示词"], ["6:4011", 0])
         self.assertEqual(self.graph["6:153"]["inputs"]["负向提示词"], ["6:4011", 1])
-        # seed 单源=PrimitiveInt(7:7014);1101 Phase2 起 E 尾=KSampler cfg4(seed 直连
-        # 单源,旧 7:7017 RandomNoise 消费线随 SCA 删出 E-only 模板)
-        self.assertNotIn("7:7017", self.graph)
-        self.assertEqual(self.graph["7:7045"]["inputs"]["seed"], ["7:7014", 0])
-        self.assertEqual(self.graph["7:7015"]["inputs"]["latent_e"], ["7:7045", 0])
-        self.assertEqual(self.graph["7:7045"]["class_type"], "KSampler")
-        self.assertEqual(self.graph["7:7045"]["inputs"]["cfg"], 4.0)
+        # seed 单源=PrimitiveInt(7:7014);1108 档4=⑦臂消费 7:7017 共用噪声
+        # (noise_seed 直连单源;E 臂 7045 随裁枝出模板)
+        self.assertNotIn("7:7045", self.graph)
+        self.assertEqual(self.graph["7:7017"]["inputs"]["noise_seed"], ["7:7014", 0])
+        self.assertEqual(graph_cls := self.graph["7:7110"]["class_type"], "ViggleTurboLora")
+        self.assertEqual(self.graph["7:7110"]["inputs"]["model"], ["7:7034", 0])
 
 
 class Qwen21I2iGenerateTests(unittest.TestCase):
@@ -354,27 +355,27 @@ class Qwen21I2iGenerateTests(unittest.TestCase):
         for gone in ("7:7045", "7:7040", "7:7028", "7:7011", "7:7012", "7:7010"):
             self.assertNotIn(gone, graph)  # 他臂死枝随档4 裁枝
 
-    def test_hand_type_i2i_defaults_e_hybrid(self) -> None:
-        # i2i 路(带参考图)同切:1101 Phase2 起 E 尾 KSampler 形随模板物质化
-        # (运行时补注=幂等零动作);fix=i2i 自有 7044,正源=positive_single 单参考域
+    def test_hand_type_i2i_defaults_pruna(self) -> None:
+        # 1108 拉齐令:i2i ⑦Pruna 臂入列,手型默认随 t2i=档4——
+        # 链=7034 mikkoani→7110 p_q×1.0→7111 关CFG+7113 六步原表→7112;
+        # 条件=171 单参考域(同②⑤臂),latent=[20] 画幅开关域;E 臂死枝全裁
         graph, _, _ = self._run_generate(
             prompt="人物海报指令", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
             reference_b64="aWlpcmVmaW9uZQ==", base_type="人物海报",
         )
-        self.assertEqual(graph["7:7015"]["inputs"]["mode"], qwen21.SPEED_MODE_E_HYBRID)
-        self.assertEqual(graph["7:7015"]["inputs"]["latent_e"], ["7:7045", 0])
-        self.assertEqual(graph["7:7045"]["class_type"], "KSampler")
-        self.assertEqual(graph["7:7045"]["inputs"]["negative"], ["4015", 1])   # MyQi21FastEncode 负向出口
-        self.assertEqual(graph["7:7045"]["inputs"]["positive"], ["171", 0])    # 单参考编码域(positive_single)
-        self.assertEqual(graph["7:7045"]["inputs"]["model"], ["7:7040", 0])
-        self.assertEqual(graph["7:7040"]["inputs"]["model"], ["7:7034", 0])    # i2i 自有 fix 件
-        self.assertEqual(graph["7:7045"]["inputs"]["latent_image"], ["20", 0])  # 参考编码 latent 域([20] 画幅开关)
-        self.assertEqual(graph["7:7045"]["inputs"]["seed"], ["7:7014", 0])     # seed 单源直连(新扇出)
-        self.assertEqual((graph["7:7045"]["inputs"]["steps"], graph["7:7045"]["inputs"]["cfg"],
-                          graph["7:7045"]["inputs"]["sampler_name"], graph["7:7045"]["inputs"]["scheduler"],
-                          graph["7:7045"]["inputs"]["denoise"]), (40, 4.0, "euler", "simple", 1.0))
-        for gone in ("7:7041", "7:7042", "7:7043", "7:7017", "7:7018"):
-            self.assertNotIn(gone, graph)  # SCA 三件+共享噪声采样件出 E-only 模板
+        sel = graph["7:7015"]["inputs"]
+        self.assertEqual(sel["mode"], qwen21.SPEED_MODE_PRUNA)
+        self.assertEqual(sel["latent_p"], ["7:7112", 0])
+        self.assertNotIn("latent_e", sel)
+        lora = graph["7:7110"]
+        self.assertEqual(lora["class_type"], "ViggleTurboLora")
+        self.assertEqual(lora["inputs"]["lora_name"], "p_q_image_2.1_6_steps_v0.2.safetensors")
+        self.assertEqual(lora["inputs"]["model"], ["7:7034", 0])
+        self.assertEqual(graph["7:7111"]["inputs"]["conditioning"], ["171", 0])  # 单参考编码域
+        self.assertEqual(graph["7:7112"]["inputs"]["latent_image"], ["20", 0])   # 画幅开关 latent 域
+        self.assertEqual(graph["7:7017"]["inputs"]["noise_seed"], ["7:7014", 0]) # seed 单源
+        for gone in ("7:7045", "7:7040", "7:7044", "7:7028", "7:7011", "7:7012", "7:7010"):
+            self.assertNotIn(gone, graph)  # 他臂死枝随档4 裁枝
 
     def test_non_hand_types_default_pruna(self) -> None:
         # 1108 用户令:默认档4 PrunaAI——非有手型走模板默认档4,

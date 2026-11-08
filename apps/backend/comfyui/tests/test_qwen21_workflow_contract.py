@@ -787,12 +787,12 @@ TYPE_WIRE_OF_1017 = {
 # 默认档=MODE_TURBO 承位(单参考正源沿 0928 域;PE 关系待实弹闸)。
 # ── 1101 用户令「qi21-edit 也要默认使用 3 · 混动 40步+缓存 加速」:edit 入
 # 1101 域翻档3(E 臂五件补注入画布内嵌子图;历史账不改写)。
-EDIT_DEFAULT_MODE = MODE_E
+EDIT_DEFAULT_MODE = MODE_P  # 1108 拉齐令:edit 亦档4(⑦臂已入列)
 # 三件默认档分域表(单一真源;1101 用户令:t2i/i2i/edit 默认改「3 · 混动 40步+缓存」
 # ——替换 Turbo(1021 令废止;edit 同批入列);历史账不改写:1017 自动档令/
 # 1018 全件 Turbo 令均留档)——
 # test_three_files_default_mode_consistent / test_accel_panel_controls_present_0929 共用
-DEFAULT_MODE_OF = {"qi21": MODE_P, "i2i": MODE_E, "edit": EDIT_DEFAULT_MODE}  # 1108 用户令:t2i=档4 PrunaAI(六车道终评;i2i/edit 无 ⑦臂维持 1101 档3)
+DEFAULT_MODE_OF = {"qi21": MODE_P, "i2i": MODE_P, "edit": EDIT_DEFAULT_MODE}  # 1108 拉齐令:三件默认=档4 PrunaAI(⑦臂已铺全)
 # 0929 并行化 Note 加速区段共用 tokens(三件 Note 均含;文案真源=三生成器 NOTE 段;
 # 1016turbo 换臂:T8 类名/FUNACC_FILE/插件生态 token 随 FunAcc 臂退役出组)
 PARALLEL_NOTE_CORE_TOKENS = (
@@ -2184,7 +2184,7 @@ class TestDefaultEHybrid1101:
     保留=手切他档画布的运行时兼容路,1108 分域 hand_default)。"""
 
     @staticmethod
-    def assert_default_pruna_graph(graph):
+    def assert_default_pruna_graph(graph, i2i=False):
         """1108 t2i 裁枝口径:档4 模板只带 ⑦Pruna 臂链(E/Turbo/viggle/原生死枝全剪)。"""
         selector = graph["7:7015"]["inputs"]
         assert selector["mode"] == MODE_P
@@ -2201,12 +2201,14 @@ class TestDefaultEHybrid1101:
         assert lora["inputs"]["model"] == ["7:7034", 0]
         assert graph["7:7111"]["class_type"] == "BasicGuider"
         assert graph["7:7111"]["inputs"]["model"] == ["7:7110", 0]
-        assert graph["7:7111"]["inputs"]["conditioning"] == ["4015", 0]
+        # 域感知:t2i=装配正向 4015/i2i=单参考编码 171(positive_single 域,同②⑤臂)
+        assert graph["7:7111"]["inputs"]["conditioning"] == (["171", 0] if i2i else ["4015", 0])
         assert graph["7:7113"]["class_type"] == "ViggleTurboSigmas"
         assert graph["7:7113"]["inputs"]["nodes"] == "1.0, 0.925, 0.85, 0.625, 0.375, 0.125"
         smp = graph["7:7112"]["inputs"]
         assert smp["guider"] == ["7:7111", 0] and smp["sampler"] == ["7:7018", 0] \
             and smp["sigmas"] == ["7:7113", 0] and smp["noise"] == ["7:7017", 0]
+        assert smp["latent_image"] == (["20", 0] if i2i else ["4", 0])  # i2i=画幅开关 latent 域
         # E/Turbo/viggle/原生 臂死枝全剪(共享噪声/欧拉=Pruna 臂自身消费,在图)
         for gone in ("7:7045", "7:7040", "7:7028", "7:7031", "7:7011", "7:7012", "7:7010"):
             assert gone not in graph, f"档4 模板不应残留他臂件 {gone}"
@@ -2280,11 +2282,8 @@ class TestDefaultEHybrid1101:
         graph = qwen21.instantiate_template(template, "离线测试", None, steps, 21, "16:9",
                                            ["offline.png"] if is_i2i else [])
         qwen21.apply_base_type(graph, base_type)
-        # 1108 分域:t2i=档4 Pruna 臂物质化/i2i=档3 E 臂物质化(实例化即默认)
-        if is_i2i:
-            self.assert_default_e_graph(graph)
-        else:
-            self.assert_default_pruna_graph(graph)
+        # 1108 拉齐:两域均=档4 Pruna 臂物质化(条件/latent 域感知:t2i=4015/4,i2i=171/20)
+        self.assert_default_pruna_graph(graph, i2i=is_i2i)
         submitted = []
 
         def offline_http(method, url, payload=None, timeout=2):
@@ -2312,12 +2311,9 @@ class TestDefaultEHybrid1101:
         assert result == "b2ZmbGluZS1tb2NrLW5vdC1tZWRpYQ=="
         assert len(submitted) == 1
         actual = submitted[0]
-        # 1108:全型(含手型/非手型/空/None)提交图均默认分域档——t2i=档4 Pruna
-        # (有手型强制=hand_default 档4,与模板默认合一幂等)/i2i=档3 E 臂
-        if is_i2i:
-            self.assert_default_e_graph(actual)
-        else:
-            self.assert_default_pruna_graph(actual)
+        # 1108 拉齐:全型(含手型/非手型/空/None)提交图均默认档4 Pruna
+        # (有手型强制=hand_default 档4,与模板默认合一幂等;两域同)
+        self.assert_default_pruna_graph(actual, i2i=is_i2i)
         assert json.dumps(template, ensure_ascii=False, sort_keys=True) == original
 
 
@@ -2924,6 +2920,7 @@ class TestEditContract:
             # 默认翻档3(EDIT_DEFAULT_MODE=MODE_E;1002 R2 Fun-Acc 回退与 1016turbo
             # 承位两笔旧口径翻篇留档),默认态断言随 EDIT_DEFAULT_MODE 走
             default_mode=EDIT_DEFAULT_MODE,
+            pruna_chain={"lora": 7110, "guider": 7111, "sigmas": 7113, "sampler": 7112},
             banned_main_types=("easy compare", "KSampler", "LoraLoaderModelOnly",
                                SPEED_SELECT_CLASS, "PrimitiveInt"),
             # T8_CLASS 随 FunAcc 臂退役(1016turbo)出禁面——主图禁面不增官方
@@ -5339,7 +5336,8 @@ class TestI2IContract:
             lora_id=I2I_LORA_ID, turbo_chain=I2I_TURBO_CHAIN, seed_id=I2I_SEED_ID,
             e_chain=I2I_E_CHAIN,  # 1023 E混动臂(i2i 入列)
             direct_lora=I2I_FIX_LORA_ID,  # 1101 用户令:i2i 原生臂补挂 Fix(7044→7010,对齐 t2i)
-            default_mode=MODE_E,  # 1101 用户令:i2i 无 ⑦臂维持档3(1108 分域)
+            default_mode=MODE_P,  # 1108 拉齐令:i2i 默认档4 PrunaAI(⑦臂已入列)
+            pruna_chain={"lora": 7110, "guider": 7111, "sigmas": 7113, "sampler": 7112},
             note_id=7016,  # 1016 布局说明独立 Note；计算节点与连线保持不变
             save_id=8, model_src_id=I2I_CACHE_ID, latent_src_id=I2I_LATENT_SW_ID,
             pos_direct="positive", pos_accel="positive_single",
@@ -6274,6 +6272,7 @@ class TestCountAnchor:
             "qi21-道劫-i2i.json",
             "qi21-道劫-img2img.json",
             "qi21-道劫-t2i.json",
+            "qi21-道劫-人物姿势.json",
             "qi21-道劫-换脸-局部重绘.json",
             "qwen21-charcard-t2i.json",
             "qwen21-daotu-rgba-t2i.json",
@@ -6289,13 +6288,16 @@ class TestCountAnchor:
             "官方-viggle-turbo-v0.3-merged-t2i.json",
             "官方-viggle-turbo-v0.3-t2i.json",
             "社区-Qwen21-Turbo-9步-全功能.json",
+            "社区-VNCCS姿势-PoseStudio.json",
+            "社区-VNCCS姿势-edit.json",
+            "社区-VNCCS姿势-t2i.json",
             "社区-skill姿态图放大-扩展整合.json",
             "社区-全能图片编辑-官方PE.json",
             "社区-全能文生图-官方PE.json",
             "社区-四合一换装捏人-Goohai.json",
             "社区-编辑生图整合-TE.json",
             "道劫-摆姿-fisher.json",
-        ], f"Q2-1图像 应恰 29 件(16 自研含BFS换头/局部重绘+3 官方模板+3 官方参照+6 社区+1 charcard改造件;1107 Goohai 四合一换装捏人入库 28→29(并行役,社区第6件);1025 charcard 角色卡件入库 26→27(CharacterCardStudio 官方一键卡改造件,v1 Turbo加速段被实弹否决改 v2=引导图接线+clip bug修正+原生采样段=修复B配方);1023 局部重绘入库25→26;1023 BFS更名qi21-bfs-换头.json（25件不变）;1022 BFS入库24→25;1019 图生图·画风转换役新增 qwen21-道劫-i2i-api.json 桥格式件(qi21-道劫-i2i.json 展平,build --target i2i 生成)23→24;1015 改名役:qwen21-daojie-t2i.json→qwen21-道劫-t2i-api.json(桥格式件统一 -api.json 口径);1014 收尾役代迁:qwen21-daojie-t2i 入库 22→23(并行侧 10-10 入库未随账,6a460a67);前账 1010 道劫-摆姿-fisher 自研产线件入库 21→22;前账 Fisher-Pose 官方参照件入库 20→21,前账:1009 用户新令 qi21-道劫-img2img 入库 19→20/1008 Viggle 官方两件 17→19/10-02 自研扩批五件 12→17),得 {files}"
+        ], f"Q2-1图像 应恰 33 件(分夹实数:0_官方模板 3+1_文生图 10+2_图生图 7+3_社区模板 8+4_姿势编辑 5;1108 用户令统一姿势编辑域,五件姿势件归位 4_姿势编辑——自 2_图生图 迁 qi21-道劫-人物姿势/qwen21-pose-edit/官方-fisher-pose-无限姿势/道劫-摆姿-fisher、自 3_社区模板 迁 社区-VNCCS姿势-PoseStudio,文件名不变纯移位;1108 道劫人物姿势开件+VNCCS姿势三件入库 29→33=17 自研含BFS换头/局部重绘+3 官方模板+3 官方参照+9 社区含VNCCS三件+1 charcard改造件(此前 29 名单欠录,归位役一并补账);1107 Goohai 四合一换装捏人入库 28→29(并行役,社区第6件);1025 charcard 角色卡件入库 26→27(CharacterCardStudio 官方一键卡改造件,v1 Turbo加速段被实弹否决改 v2=引导图接线+clip bug修正+原生采样段=修复B配方);1023 局部重绘入库25→26;1023 BFS更名qi21-bfs-换头.json（25件不变）;1022 BFS入库24→25;1019 图生图·画风转换役新增 qwen21-道劫-i2i-api.json 桥格式件(qi21-道劫-i2i.json 展平,build --target i2i 生成)23→24;1015 改名役:qwen21-daojie-t2i.json→qwen21-道劫-t2i-api.json(桥格式件统一 -api.json 口径);1014 收尾役代迁:qwen21-daojie-t2i 入库 22→23(并行侧 10-10 入库未随账,6a460a67);前账 1010 道劫-摆姿-fisher 自研产线件入库 21→22;前账 Fisher-Pose 官方参照件入库 20→21,前账:1009 用户新令 qi21-道劫-img2img 入库 19→20/1008 Viggle 官方两件 17→19/10-02 自研扩批五件 12→17),得 {files}"
 
     def test_official_templates_upstream_identical(self):
         """官方三件须与 Comfy-Org/workflow_templates 上游逐字节一致(官方件零改动铁律)。

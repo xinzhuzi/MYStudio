@@ -300,15 +300,30 @@
     "7:7015": {
       "class_type": "MyQi21SpeedSelect",
       "inputs": {
-        "mode": "3 · 混动 40步+缓存",
+        "mode": "4 · PrunaAI 6步",
         "型名": [
           "6:4010",
           5
         ],
-        "latent_e": [
-          "7:7045",
+        "latent_p": [
+          "7:7112",
           0
         ]
+      }
+    },
+    "7:7017": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": [
+          "7:7014",
+          0
+        ]
+      }
+    },
+    "7:7018": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "euler"
       }
     },
     "7:7034": {
@@ -322,44 +337,60 @@
         ]
       }
     },
-    "7:7040": {
-      "class_type": "LazyCache",
+    "7:7110": {
+      "class_type": "ViggleTurboLora",
       "inputs": {
-        "reuse_threshold": 0.2,
-        "start_percent": 0.15,
-        "end_percent": 0.95,
-        "verbose": false,
+        "lora_name": "p_q_image_2.1_6_steps_v0.2.safetensors",
+        "strength": 1.0,
         "model": [
           "7:7034",
           0
         ]
       }
     },
-    "7:7045": {
-      "class_type": "KSampler",
+    "7:7111": {
+      "class_type": "BasicGuider",
       "inputs": {
-        "seed": [
-          "7:7014",
-          0
-        ],
-        "steps": 40,
-        "cfg": 4.0,
-        "sampler_name": "euler",
-        "scheduler": "simple",
-        "denoise": 1,
         "model": [
-          "7:7040",
+          "7:7110",
           0
         ],
-        "positive": [
+        "conditioning": [
           "171",
           0
+        ]
+      }
+    },
+    "7:7112": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "7:7017",
+          0
         ],
-        "negative": [
-          "4015",
-          1
+        "guider": [
+          "7:7111",
+          0
+        ],
+        "sampler": [
+          "7:7018",
+          0
+        ],
+        "sigmas": [
+          "7:7113",
+          0
         ],
         "latent_image": [
+          "20",
+          0
+        ]
+      }
+    },
+    "7:7113": {
+      "class_type": "ViggleTurboSigmas",
+      "inputs": {
+        "nodes": "1.0, 0.925, 0.85, 0.625, 0.375, 0.125",
+        "latent": [
           "20",
           0
         ]
