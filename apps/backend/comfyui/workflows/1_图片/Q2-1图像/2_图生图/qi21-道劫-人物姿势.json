@@ -1,0 +1,1027 @@
+{
+ "last_node_id": 34,
+ "last_link_id": 22,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "MyQi21DaojieBase",
+   "pos": [
+    0,
+    0
+   ],
+   "size": [
+    340,
+    200
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "BASE",
+     "type": "STRING",
+     "links": [
+      1
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "WIDTH",
+     "type": "INT",
+     "links": [
+      13
+     ],
+     "slot_index": 1
+    },
+    {
+     "name": "HEIGHT",
+     "type": "INT",
+     "links": [
+      14
+     ],
+     "slot_index": 2
+    },
+    {
+     "name": "负面词",
+     "type": "STRING",
+     "links": [
+      2
+     ],
+     "slot_index": 3
+    },
+    {
+     "name": "透明值",
+     "type": "BOOLEAN",
+     "links": [],
+     "slot_index": 4
+    },
+    {
+     "name": "型名",
+     "type": "STRING",
+     "links": [],
+     "slot_index": 5
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "MyQi21DaojieBase"
+   },
+   "widgets_values": [
+    "人物海报"
+   ],
+   "widgets_values_named": {
+    "base": "人物海报"
+   }
+  },
+  {
+   "id": 2,
+   "type": "PrimitiveStringMultiline",
+   "pos": [
+    0,
+    240
+   ],
+   "size": [
+    420,
+    220
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "STRING",
+     "type": "STRING",
+     "links": [
+      3
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "PrimitiveStringMultiline"
+   },
+   "widgets_values": [
+    "一位筑基后期的年轻女修，青玉色道袍束月白腰带，足蹬青布道履，乌黑长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门赭石石阶最上一级，身体正面朝向观者、微向左转约四分之一侧，重心落于右腿，左脚虚点下一级石阶；一柄长剑以石青剑绦系于画面左侧腰间，剑鞘斜垂、与地面约呈四十五度，鞘尾朝画面左下方、剑柄朝画面右上方，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，全身仅此一柄长剑、始终由腰间剑绦系挂，剑的重量由腰带承担；双臂自然垂落、双手五指放松悬空；视线越过阶下青灰云海望向远处青绿群山，旧金色晨光自左侧斜照，衣袂被山风微微掀起。人物外观与佩剑严格按 image2 参考立绘呈现。"
+   ],
+   "widgets_values_named": {
+    "value": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，足蹬青布道履，乌黑长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门赭石石阶最上一级，身体正面朝向观者、微向左转约四分之一侧，重心落于右腿，左脚虚点下一级石阶；一柄长剑以石青剑绦系于画面左侧腰间，剑鞘斜垂、与地面约呈四十五度，鞘尾朝画面左下方、剑柄朝画面右上方，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，全身仅此一柄长剑、始终由腰间剑绦系挂，剑的重量由腰带承担；双臂自然垂落、双手五指放松悬空；视线越过阶下青灰云海望向远处青绿群山，旧金色晨光自左侧斜照，衣袂被山风微微掀起。人物外观与佩剑严格按 image2 参考立绘呈现。"
+   }
+  },
+  {
+   "id": 3,
+   "type": "PrimitiveStringMultiline",
+   "pos": [
+    0,
+    500
+   ],
+   "size": [
+    420,
+    200
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "STRING",
+     "type": "STRING",
+     "links": [
+      4
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "PrimitiveStringMultiline"
+   },
+   "widgets_values": [
+    "美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。"
+   ],
+   "widgets_values_named": {
+    "value": "美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。"
+   }
+  },
+  {
+   "id": 4,
+   "type": "MyQi21PromptAssembly",
+   "pos": [
+    480,
+    0
+   ],
+   "size": [
+    420,
+    260
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "BASE",
+     "type": "STRING",
+     "link": 1
+    },
+    {
+     "name": "BASE负面",
+     "type": "STRING",
+     "link": 2
+    },
+    {
+     "name": "主体句",
+     "type": "STRING",
+     "link": 3
+    },
+    {
+     "name": "锁层A全文",
+     "type": "STRING",
+     "link": 4
+    }
+   ],
+   "outputs": [
+    {
+     "name": "装配全文",
+     "type": "STRING",
+     "links": [
+      5,
+      9
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "负面词",
+     "type": "STRING",
+     "links": [
+      6
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "MyQi21PromptAssembly"
+   },
+   "widgets_values": [
+    "道劫美术类型"
+   ],
+   "widgets_values_named": {
+    "组装用途": "道劫美术类型"
+   }
+  },
+  {
+   "id": 5,
+   "type": "MyQi21PromptPreview",
+   "pos": [
+    480,
+    300
+   ],
+   "size": [
+    420,
+    160
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "正向提示词",
+     "type": "STRING",
+     "link": 5
+    },
+    {
+     "name": "负向提示词",
+     "type": "STRING",
+     "link": 6
+    }
+   ],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "MyQi21PromptPreview"
+   }
+  },
+  {
+   "id": 10,
+   "type": "FisherPoseStudio",
+   "pos": [
+    960,
+    0
+   ],
+   "size": [
+    440,
+    240
+   ],
+   "flags": {},
+   "order": 10,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "提示词",
+     "type": "STRING",
+     "links": [],
+     "slot_index": 0
+    },
+    {
+     "name": "人偶姿态图",
+     "type": "IMAGE",
+     "links": [
+      7
+     ],
+     "slot_index": 1
+    },
+    {
+     "name": "镜头预览图",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 2
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "FisherPoseStudio"
+   },
+   "widgets_values": [
+    "视角＋姿态",
+    896,
+    1152,
+    "正面全身站立的灰色人偶：身体微向左转约四分之一侧，重心落于右腿，左脚轻点地面；右臂自然垂落、右肘微屈，右手五指松拢、虚握停在右腰侧佩剑的剑鞘上端位置；左臂自然垂落，左手五指放松；头颈端正，目视前方，全身比例匀称。",
+    "{}"
+   ],
+   "widgets_values_named": {
+    "output_mode": "视角＋姿态",
+    "width": 896,
+    "height": 1152,
+    "extra_prompt": "正面全身站立的灰色人偶：身体微向左转约四分之一侧，重心落于右腿，左脚轻点地面；右臂自然垂落、右肘微屈，右手五指松拢、虚握停在右腰侧佩剑的剑鞘上端位置；左臂自然垂落，左手五指放松；头颈端正，目视前方，全身比例匀称。",
+    "scene_json": "{}"
+   }
+  },
+  {
+   "id": 11,
+   "type": "Text Concatenate",
+   "pos": [
+    960,
+    280
+   ],
+   "size": [
+    380,
+    140
+   ],
+   "flags": {},
+   "order": 11,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "text_a",
+     "type": "STRING",
+     "link": 8
+    },
+    {
+     "name": "text_b",
+     "type": "STRING",
+     "link": 9
+    }
+   ],
+   "outputs": [
+    {
+     "name": "STRING",
+     "type": "STRING",
+     "links": [
+      10
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "Text Concatenate"
+   },
+   "widgets_values": [
+    "\n\n",
+    false
+   ],
+   "widgets_values_named": {
+    "delimiter": "\n\n",
+    "clean_whitespace": false
+   }
+  },
+  {
+   "id": 12,
+   "type": "PrimitiveStringMultiline",
+   "pos": [
+    960,
+    460
+   ],
+   "size": [
+    380,
+    130
+   ],
+   "flags": {},
+   "order": 12,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "STRING",
+     "type": "STRING",
+     "links": [
+      8
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "PrimitiveStringMultiline"
+   },
+   "widgets_values": [
+    "image1 is a gray mannequin for pose only — ignore its gray color and material everywhere. 画面人物、服装、配器与场景完全按下方道劫装配文执行，人偶只提供姿势骨架。"
+   ],
+   "widgets_values_named": {
+    "value": "image1 is a gray mannequin for pose only — ignore its gray color and material everywhere. 画面人物、服装、配器与场景完全按下方道劫装配文执行，人偶只提供姿势骨架。"
+   }
+  },
+  {
+   "id": 20,
+   "type": "UNETLoader",
+   "pos": [
+    1440,
+    0
+   ],
+   "size": [
+    340,
+    100
+   ],
+   "flags": {},
+   "order": 20,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      15
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "UNETLoader"
+   },
+   "widgets_values": [
+    "qwen_image_2.1_bf16.safetensors",
+    "default"
+   ],
+   "widgets_values_named": {
+    "unet_name": "qwen_image_2.1_bf16.safetensors",
+    "weight_dtype": "default"
+   }
+  },
+  {
+   "id": 21,
+   "type": "CLIPLoader",
+   "pos": [
+    1440,
+    140
+   ],
+   "size": [
+    340,
+    100
+   ],
+   "flags": {},
+   "order": 21,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      11
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPLoader"
+   },
+   "widgets_values": [
+    "qwen3vl_8b_bf16_heretic.safetensors",
+    "qwen_image",
+    "default"
+   ],
+   "widgets_values_named": {
+    "clip_name": "qwen3vl_8b_bf16_heretic.safetensors",
+    "type": "qwen_image",
+    "device": "default"
+   }
+  },
+  {
+   "id": 22,
+   "type": "VAELoader",
+   "pos": [
+    1440,
+    280
+   ],
+   "size": [
+    360,
+    100
+   ],
+   "flags": {},
+   "order": 22,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      12,
+      21
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAELoader"
+   },
+   "widgets_values": [
+    "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
+   ],
+   "widgets_values_named": {
+    "vae_name": "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
+   }
+  },
+  {
+   "id": 23,
+   "type": "LoraLoaderModelOnly",
+   "pos": [
+    1440,
+    420
+   ],
+   "size": [
+    380,
+    110
+   ],
+   "flags": {},
+   "order": 23,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 15
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      16
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoraLoaderModelOnly"
+   },
+   "widgets_values": [
+    "VNCCS_QI2_PoseStudioV1.1.safetensors",
+    1.0
+   ],
+   "widgets_values_named": {
+    "lora_name": "VNCCS_QI2_PoseStudioV1.1.safetensors",
+    "strength_model": 1.0
+   }
+  },
+  {
+   "id": 30,
+   "type": "FisherQwenFreePose",
+   "pos": [
+    1900,
+    0
+   ],
+   "size": [
+    460,
+    320
+   ],
+   "flags": {},
+   "order": 30,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "reference_image",
+     "type": "IMAGE",
+     "link": 7
+    },
+    {
+     "name": "extra_prompt",
+     "type": "STRING",
+     "link": 10
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 11
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 12
+    },
+    {
+     "name": "width",
+     "type": "INT",
+     "link": 13
+    },
+    {
+     "name": "height",
+     "type": "INT",
+     "link": 14
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING+",
+     "type": "CONDITIONING",
+     "links": [
+      17
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "CONDITIONING-",
+     "type": "CONDITIONING",
+     "links": [
+      18
+     ],
+     "slot_index": 1
+    },
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      19
+     ],
+     "slot_index": 2
+    },
+    {
+     "name": "STRING",
+     "type": "STRING",
+     "links": [],
+     "slot_index": 3
+    },
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 4
+    },
+    {
+     "name": "STRING",
+     "type": "STRING",
+     "links": [],
+     "slot_index": 5
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "FisherQwenFreePose"
+   },
+   "widgets_values": [
+    1088,
+    1440,
+    1024,
+    "",
+    "{}"
+   ],
+   "widgets_values_named": {
+    "width": 1088,
+    "height": 1440,
+    "reference_resolution": 1024,
+    "extra_prompt": "",
+    "pose_json": "{}"
+   }
+  },
+  {
+   "id": 31,
+   "type": "KSampler",
+   "pos": [
+    2420,
+    0
+   ],
+   "size": [
+    340,
+    280
+   ],
+   "flags": {},
+   "order": 31,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 16
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 17
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 18
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 19
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      20
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    1108,
+    "fixed",
+    25,
+    1.0,
+    "euler",
+    "simple",
+    1.0
+   ],
+   "widgets_values_named": {
+    "seed": 1108,
+    "control_after_generate": "fixed",
+    "steps": 25,
+    "cfg": 1.0,
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "denoise": 1.0
+   }
+  },
+  {
+   "id": 32,
+   "type": "VAEDecode",
+   "pos": [
+    2420,
+    320
+   ],
+   "size": [
+    300,
+    110
+   ],
+   "flags": {},
+   "order": 32,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 20
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 21
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      22
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   }
+  },
+  {
+   "id": 33,
+   "type": "SaveImage",
+   "pos": [
+    2800,
+    320
+   ],
+   "size": [
+    340,
+    110
+   ],
+   "flags": {},
+   "order": 33,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 22
+    }
+   ],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "widgets_values": [
+    "道劫-人物姿势/"
+   ],
+   "widgets_values_named": {
+    "filename_prefix": "道劫-人物姿势/"
+   }
+  },
+  {
+   "id": 34,
+   "type": "MarkdownNote",
+   "pos": [
+    0,
+    760
+   ],
+   "size": [
+    460,
+    440
+   ],
+   "flags": {},
+   "order": 34,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "MarkdownNote"
+   },
+   "widgets_values": [
+    "## 道劫·人物姿势工作流(1108 持械根治役:道劫装配 × Fisher-Pose 姿势控制)\n\n**为什么**:持械挂载(剑挂腰+虚握鞘)是纯文本两模型(Q2.1/MOSS)都啃不动的接触绑定长尾——几何必须从图侧给(全网社区定谳路)。\n\n**用法**:\n1. [10] FisherPoseStudio 姿势句摆人偶(默认句已把右手钉在腰侧鞘位;可改任意姿势句)\n2. [1] 选型(默认人物海报)+[2] 主体句(色词/部件清单句/性别锚纪律同 05 库)\n3. Queue → 姿势由人偶钉死,人物/服装/剑按装配文渲染\n\n**配方母本**=道劫-摆姿-fisher.json(1010 实证):qwen_image_2.1_bf16+heretic TE+texture_fix VAE+VNCCS 姿势 LoRA@1.0+25步/CFG1/euler/simple\n**新增**=型库三层装配层(MyQi21DaojieBase→MyQi21PromptAssembly)+Fisher 官方灰人偶声明句(Text Concatenate 拼接,防灰色渗染)+姿势句模板(手在鞘位)\n**对照**:同主体句无姿势件=qi21-道劫-t2i.json(纯文本路,持械弱);本件=姿势钉死路\n\n**1108 五轮实弹验证配方(已烙为本件默认值)**:\n- image2(人物立绘)=**无剑/预贴挂腰剑立绘**——绝不可用含手持剑姿势的立绘(参照姿势会压制人偶,v3 实锤复制级压制);无剑参照+装配文剑段=双手空+挂腰唯一写法(「始终由腰间剑绦系挂/重量由腰带承担/双臂自然垂落双手悬空/全身仅此一柄」),禁写手触鞘语句(手触鞘段+人偶垂手=双剑分裂,v4 实锤)\n- 人偶姿势=右手垂在腰侧鞘位(v4 起姿势迁移实证成立:v3 复制立绘姿势→v4/v5 人偶姿势胜出)\n- 预贴剑合成注意:贴片须视觉连腰(挂姿贴法),浮贴会被 1:1 泄漏成场景悬浮实体(v5 实锤,含出鞘刃污染)——推荐掩膜贴或事后局部重绘抹泄漏\n- 无头/批量路:pose_json 可走文件引用 {\"poseReferenceFile\":{\"filename\":\"<人偶图>\",\"subfolder\":\"\"}}(人偶图放引擎 input/),免开编辑器;交互路=双击 [30] 编辑器摆姿点「应用到节点」"
+   ]
+  }
+ ],
+ "links": [
+  [
+   1,
+   1,
+   0,
+   4,
+   0,
+   "STRING"
+  ],
+  [
+   2,
+   1,
+   3,
+   4,
+   0,
+   "STRING"
+  ],
+  [
+   3,
+   2,
+   0,
+   4,
+   0,
+   "STRING"
+  ],
+  [
+   4,
+   3,
+   0,
+   4,
+   0,
+   "STRING"
+  ],
+  [
+   5,
+   4,
+   0,
+   5,
+   0,
+   "STRING"
+  ],
+  [
+   6,
+   4,
+   1,
+   5,
+   0,
+   "STRING"
+  ],
+  [
+   7,
+   10,
+   1,
+   30,
+   0,
+   "IMAGE"
+  ],
+  [
+   8,
+   12,
+   0,
+   11,
+   0,
+   "STRING"
+  ],
+  [
+   9,
+   4,
+   0,
+   11,
+   0,
+   "STRING"
+  ],
+  [
+   10,
+   11,
+   0,
+   30,
+   0,
+   "STRING"
+  ],
+  [
+   11,
+   21,
+   0,
+   30,
+   0,
+   "CLIP"
+  ],
+  [
+   12,
+   22,
+   0,
+   30,
+   0,
+   "VAE"
+  ],
+  [
+   13,
+   1,
+   1,
+   30,
+   0,
+   "INT"
+  ],
+  [
+   14,
+   1,
+   2,
+   30,
+   0,
+   "INT"
+  ],
+  [
+   15,
+   20,
+   0,
+   23,
+   0,
+   "MODEL"
+  ],
+  [
+   16,
+   23,
+   0,
+   31,
+   0,
+   "MODEL"
+  ],
+  [
+   17,
+   30,
+   0,
+   31,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   18,
+   30,
+   1,
+   31,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   19,
+   30,
+   2,
+   31,
+   0,
+   "LATENT"
+  ],
+  [
+   20,
+   31,
+   0,
+   32,
+   0,
+   "LATENT"
+  ],
+  [
+   21,
+   22,
+   0,
+   32,
+   0,
+   "VAE"
+  ],
+  [
+   22,
+   32,
+   0,
+   33,
+   0,
+   "IMAGE"
+  ]
+ ],
+ "groups": [
+  {
+   "id": 1,
+   "title": "① 道劫型库·三层装配(文字:画什么)",
+   "bounding": [
+    -20,
+    -60,
+    920,
+    860
+   ],
+   "color": "#3f789e",
+   "flags": {}
+  },
+  {
+   "id": 2,
+   "title": "② Fisher 姿势层(几何:怎么站)",
+   "bounding": [
+    940,
+    -60,
+    480,
+    700
+   ],
+   "color": "#a33",
+   "flags": {}
+  },
+  {
+   "id": 3,
+   "title": "③ Q2.1 姿势条件采样链",
+   "bounding": [
+    1420,
+    -60,
+    1380,
+    520
+   ],
+   "color": "#88A",
+   "flags": {}
+  }
+ ],
+ "config": {},
+ "extra": {},
+ "version": 0.4,
+ "revision": 0
+}
