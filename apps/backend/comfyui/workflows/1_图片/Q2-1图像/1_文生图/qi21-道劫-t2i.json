@@ -3067,8 +3067,8 @@
             "id": 7026,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              1750.0,
-              3560.0
+              850,
+              1920
             ],
             "size": [
               270.0,
@@ -3096,7 +3096,7 @@
                 ]
               }
             ],
-            "title": "[7026] 原生Fix",
+            "title": "[7026] 细节修复LoRA·detail-fix(×0.4)",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
               "ue_properties": {
@@ -3384,7 +3384,7 @@
               "lora_name": "qi21-mikkoani.safetensors",
               "strength_model": 0.6
             },
-            "title": "[7034] 风格LoRA·mikkoani(×0.8)"
+            "title": "[7034] 风格LoRA·mikkoani(×0.6)"
           },
           {
             "id": 7040,
@@ -3568,7 +3568,7 @@
               "lora_name": "High quality.safetensors",
               "strength_model": 0.3
             },
-            "title": "[7034] 风格LoRA·mikkoani(×0.8)"
+            "title": "[7100] 画质LoRA·High Quality(×0.3)"
           },
           {
             "id": 7110,
@@ -3602,7 +3602,7 @@
                 ]
               }
             ],
-            "title": "[7110] Pruna6步 LoRA·候列",
+            "title": "[7110] PrunaAI 6步蒸馏LoRA",
             "properties": {
               "Node name for S&R": "ViggleTurboLora",
               "ue_properties": {
@@ -3658,7 +3658,7 @@
                 ]
               }
             ],
-            "title": "[7111] Pruna引导·候列",
+            "title": "[7111] Pruna引导",
             "properties": {
               "Node name for S&R": "BasicGuider",
               "cnr_id": "comfy-core",
@@ -3712,7 +3712,7 @@
                 ]
               }
             ],
-            "title": "[7113] Pruna 6步σ表·候列",
+            "title": "[7113] Pruna 6步σ表",
             "properties": {
               "Node name for S&R": "ViggleTurboSigmas",
               "ue_properties": {
@@ -3788,7 +3788,7 @@
                 "links": []
               }
             ],
-            "title": "[7112] Pruna采样·候列(输出悬空)",
+            "title": "[7112] Pruna采样",
             "properties": {
               "Node name for S&R": "SamplerCustomAdvanced",
               "ue_properties": {
@@ -3829,9 +3829,9 @@
           {
             "title": "③原生出图",
             "bounding": [
-              1700.0,
+              2200,
               3510.0,
-              3300.0,
+              600,
               474.0
             ],
             "color": "#3f789e",
@@ -3841,10 +3841,10 @@
           {
             "title": "④共用控制",
             "bounding": [
-              220,
-              430,
-              650,
-              2768
+              200,
+              100,
+              1050,
+              3000
             ],
             "color": "#3f789e",
             "id": 103,

@@ -3622,8 +3622,8 @@
             "id": 7034,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              80.0,
-              640.0
+              550,
+              1920
             ],
             "size": [
               270,
@@ -3670,7 +3670,7 @@
               "lora_name": "qi21-mikkoani.safetensors",
               "strength_model": 0.6
             },
-            "title": "[7034] 风格LoRA·mikkoani(×0.8)"
+            "title": "[7034] 风格LoRA·mikkoani(×0.6)"
           },
           {
             "id": 7040,
@@ -3862,8 +3862,8 @@
             "id": 7100,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              80,
-              490
+              250,
+              1920
             ],
             "size": [
               270,
@@ -3905,7 +3905,7 @@
               "lora_name": "High quality.safetensors",
               "strength_model": 0.3
             },
-            "title": "[7034] 风格LoRA·mikkoani(×0.8)"
+            "title": "[7100] 画质LoRA·High Quality(×0.3)"
           },
           {
             "id": 7110,
@@ -3939,7 +3939,7 @@
                 ]
               }
             ],
-            "title": "[7110] Pruna6步 LoRA·候列",
+            "title": "[7110] PrunaAI 6步蒸馏LoRA",
             "properties": {
               "Node name for S&R": "ViggleTurboLora",
               "ue_properties": {
@@ -3995,7 +3995,7 @@
                 ]
               }
             ],
-            "title": "[7111] Pruna引导·候列",
+            "title": "[7111] Pruna引导",
             "properties": {
               "Node name for S&R": "BasicGuider",
               "cnr_id": "comfy-core",
@@ -4070,7 +4070,7 @@
                 "links": []
               }
             ],
-            "title": "[7112] Pruna采样·候列(输出悬空)",
+            "title": "[7112] Pruna采样",
             "properties": {
               "Node name for S&R": "SamplerCustomAdvanced",
               "ue_properties": {
@@ -4123,7 +4123,7 @@
                 ]
               }
             ],
-            "title": "[7113] Pruna 6步σ表·候列",
+            "title": "[7113] Pruna 6步σ表",
             "properties": {
               "Node name for S&R": "ViggleTurboSigmas",
               "ue_properties": {
@@ -4167,9 +4167,9 @@
             "id": 13,
             "title": "③原生出图(40步)",
             "bounding": [
-              40,
+              2200,
               1850,
-              2400,
+              600,
               650
             ],
             "color": "#88A",
@@ -4179,10 +4179,10 @@
             "id": 14,
             "title": "④共用控制(seed 单源 · 风格LoRA)",
             "bounding": [
-              68,
-              350,
-              294,
-              450.0
+              200,
+              100,
+              1050,
+              3000
             ],
             "color": "#a1309b",
             "flags": {}
