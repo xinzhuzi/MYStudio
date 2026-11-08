@@ -52,7 +52,7 @@ SPEC = {
     "repo_ids": ("ComfyUI 服务(本机)",),
     "size_mb": 0,
     "license": "本机 ComfyUI 配置",
-    "steps": 8,
+    "steps": 6,
     "description": "本地 Qwen-Image-2.1 生图(道劫产线工作流:默认档4 PrunaAI 6步+mikkoani+SeedVR2 2K 超分,1108 三件拉齐;图生图=道劫美术风格转换)",
     "layout": LAYOUT,
 }

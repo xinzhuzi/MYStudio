@@ -2223,7 +2223,7 @@ class TestDefaultEHybrid1101:
     def test_engine_metadata_default_is_e_hybrid(self):
         from engines.image_engine import qwen21
 
-        assert qwen21.SPEC["steps"] == 8
+        assert qwen21.SPEC["steps"] == 6
         assert "PrunaAI" in qwen21.SPEC["description"]  # 1108 默认档4 PrunaAI(前史档3混动)
         assert "默认" in qwen21.SPEC["description"]
         assert qwen21.LAYOUT == qwen21.SPEC["layout"] == "qwen21-viggle"
