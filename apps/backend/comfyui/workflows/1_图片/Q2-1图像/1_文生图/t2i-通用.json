@@ -1536,7 +1536,7 @@
                 ]
               }
             ],
-            "title": "[7026] 原生Fix",
+            "title": "[7026] 细节修复LoRA·detail-fix(×0.4)",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
               "ue_properties": {
@@ -1824,7 +1824,7 @@
               "lora_name": "qi21-mikkoani.safetensors",
               "strength_model": 0.6
             },
-            "title": "[7034] 风格LoRA·mikkoani(×0.8)"
+            "title": "[7034] 风格LoRA·mikkoani(已旁路)"
           },
           {
             "id": 7040,
@@ -2008,7 +2008,7 @@
               "lora_name": "High quality.safetensors",
               "strength_model": 0.3
             },
-            "title": "[7034] 风格LoRA·mikkoani(×0.8)"
+            "title": "[7100] 画质LoRA·High Quality(×0.3)"
           },
           {
             "id": 7110,
@@ -2042,7 +2042,7 @@
                 ]
               }
             ],
-            "title": "[7110] Pruna6步 LoRA·候列",
+            "title": "[7110] PrunaAI 6步蒸馏LoRA",
             "properties": {
               "Node name for S&R": "ViggleTurboLora",
               "ue_properties": {
