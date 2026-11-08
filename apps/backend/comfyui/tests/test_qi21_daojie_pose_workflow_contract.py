@@ -62,10 +62,10 @@ class TestPoseWorkflow:
 
     def test_validated_recipe_baked(self):
         subj = self.by[2]["widgets_values"][0]
-        for key in ("始终由腰间剑绦系挂", "重量由腰带承担", "双臂自然垂落、双手五指放松悬空",
-                    "全身仅此一柄长剑", "人物外观与佩剑严格按 image2"):
+        for key in ("剑格护手正下方的鞘身上段", "剑柄与柄头完整露在手的上方", "始终挂定腰间",
+                    "全身仅此一柄长剑"):
             assert key in subj, key
-        assert "虚握" not in subj  # 手触鞘语句=双剑分裂雷(v4 实锤),验证配方已剔除
+        assert "虚握在剑格护手正下方" in subj  # C11 终版:护手下方点名(带剑人偶参照下文字同向强化)
         pose = self.by[10]["widgets_values_named"]["extra_prompt"]
         assert "右手五指松拢" in pose and "腰侧" in pose
 
