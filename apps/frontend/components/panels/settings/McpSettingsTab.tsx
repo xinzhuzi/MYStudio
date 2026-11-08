@@ -1141,7 +1141,10 @@ export function McpSettingsTab() {
       },
     ];
     const actionable = rows.some((r) => r.tgt && r.cur !== r.tgt);
-    return { rows, actionable };
+    // 1108 用户令「能取到就先取,取不到再显示其他的」:cur=null=未能读取(降级态,
+    // 不渲染「将安装」);"NONE"=确定性未安装(真缺件)
+    const unverified = rows.some((r) => r.tgt && r.cur === null);
+    return { rows, actionable, unverified };
   })();
   const torchVerified = Boolean(
     torchInfo?.live &&
@@ -2589,7 +2592,11 @@ export function McpSettingsTab() {
                                     {row.pkg}
                                   </span>
                                   <span className="text-muted-foreground">
-                                    {row.cur ?? "未知"}
+                                    {row.cur === null
+                                      ? "未能读取现装版本"
+                                      : row.cur === "NONE"
+                                        ? "未安装"
+                                        : row.cur}
                                   </span>
                                   <span aria-hidden="true">→</span>
                                   <span>{row.tgt ?? "目标无效"}</span>
@@ -2598,12 +2605,16 @@ export function McpSettingsTab() {
                                       "font-sans",
                                       row.tgt && row.cur === row.tgt
                                         ? "text-success"
-                                        : "text-warning",
+                                        : row.cur === null
+                                          ? "text-muted-foreground"
+                                          : "text-warning",
                                     )}
                                   >
                                     {row.tgt && row.cur === row.tgt
                                       ? "✅ 已达标,不重装"
-                                      : "⬆ 将安装"}
+                                      : row.cur === null
+                                        ? "升级时 pip 复核"
+                                        : "⬆ 将安装"}
                                   </span>
                                 </p>
                               ))}
@@ -2612,7 +2623,12 @@ export function McpSettingsTab() {
                               className="mt-1 text-xs"
                               data-testid="torch-change-summary"
                             >
-                              {torchChangeRows.actionable ? (
+                              {torchChangeRows.actionable && torchChangeRows.unverified ? (
+                                <span className="text-muted-foreground">
+                                  有件未能读取现装版本——不冒充缺件;升级时 pip
+                                  幂等核对,已达标件零下载。
+                                </span>
+                              ) : torchChangeRows.actionable ? (
                                 <span className="text-muted-foreground">
                                   真升级:存在未达标件,将停引擎安装后重启( 15–60
                                   分钟口径;仅补小件时通常几分钟)。
@@ -3681,7 +3697,11 @@ export function McpSettingsTab() {
                 >
                   <span className="w-24 shrink-0">{row.pkg}</span>
                   <span className="text-muted-foreground">
-                    {row.cur ?? "未知"}
+                    {row.cur === null
+                      ? "未能读取现装版本"
+                      : row.cur === "NONE"
+                        ? "未安装"
+                        : row.cur}
                   </span>
                   <span aria-hidden="true">→</span>
                   <span>{row.tgt ?? "目标无效"}</span>
@@ -3690,17 +3710,25 @@ export function McpSettingsTab() {
                       "font-sans",
                       row.tgt && row.cur === row.tgt
                         ? "text-success"
-                        : "text-warning",
+                        : row.cur === null
+                          ? "text-muted-foreground"
+                          : "text-warning",
                     )}
                   >
                     {row.tgt && row.cur === row.tgt
                       ? "✅ 已达标,不重装"
-                      : "⬆ 将安装"}
+                      : row.cur === null
+                        ? "升级时 pip 复核"
+                        : "⬆ 将安装"}
                   </span>
                 </p>
               ))}
               <p className="pt-1 font-sans">
-                {torchChangeRows.actionable ? (
+                {torchChangeRows.actionable && torchChangeRows.unverified ? (
+                  <span className="text-muted-foreground">
+                    有件未能读取现装版本——不冒充缺件;确认后 pip 幂等核对,已达标件零下载。
+                  </span>
+                ) : torchChangeRows.actionable ? (
                   <span className="text-warning">
                     真升级:有未达标件将安装(其余零下载)。
                   </span>

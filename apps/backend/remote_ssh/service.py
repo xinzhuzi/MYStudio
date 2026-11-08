@@ -1299,15 +1299,19 @@ class SSHService:
             raise RuntimeError("无法核实远端 pip 状态")
         return int(numeric[0]) > 0
 
-    def _torch_torchaudio_metadata(self) -> str:
-        """torchaudio 版本探针(importlib.metadata 只读 dist-info,不 import——
-        坏件(如 cu128 旧 torchaudio 配 cu132 torch)import 即抛 OSError,metadata 安全)。"""
+    def _torch_pkg_metadata(self, name: str) -> str:
+        """包版本探针(pip show 元数据只读,不 import——坏件(如 cu128 旧 torchaudio
+        配 cu132 torch)import 即抛 OSError,metadata 安全)。1108 用户令「能取到版本
+        就先取」:返回版本串;未安装返回 "NONE"(确定性缺件);命令执行失败返回 ""
+        (调用方按「未能读取」降级,不冒充缺件)。"""
         output = self._torch_command(
-            f"$env:PYTHONUTF8='1'; & {_torch_quote(_WIN_VENV_PYTHON)} -c 'import importlib.metadata as m; print(m.version(\"torchaudio\"))'; exit $LASTEXITCODE",
+            f"$env:PYTHONUTF8='1'; & {_torch_quote(_WIN_VENV_PYTHON)} -m pip show {name}; exit $LASTEXITCODE",
             60,
         )
-        lines = [l.strip() for l in output.splitlines() if l.strip()]
-        return lines[-1] if lines else ""
+        m = re.search(r"(?im)^Version:\s*(\S+)", output or "")
+        if m:
+            return m.group(1)
+        return "NONE" if re.search(r"(?i)not found", output or "") else ""
 
     def _torch_verify_recovery_import(self, target: str) -> None:
         actual = self._torch_command(f"& {_torch_quote(_WIN_VENV_PYTHON)} -c 'import torch, torchvision; print(torch.__version__)'; exit $LASTEXITCODE", 60)
@@ -1497,20 +1501,27 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
             except (SSHServiceError, RuntimeError, TypeError, ValueError, OSError) as exc:
                 errors.append(f"ledger: {str(exc)[:300] or type(exc).__name__}")
         active_job = jobs.active_of("torch-upgrade")
-        # 1107 用户令(点前写明会动什么):现值探针补 torchaudio(metadata 只读,坏件 import 即炸)
+        # 1107 用户令(点前写明会动什么):现值探针补卫星包(metadata 只读,坏件 import 即炸)
         # + 暴露 tvMap/taMap 供 UI 渲染「当前→目标」三件套对照清单
+        # 1108 用户令「能取到版本就先取,取不到再显示其他的」:torchvision 从不探测的
+        # 旧缺口补上——两件都经 SSH pip show 真取;值域=版本串|"NONE"(确定性未安装)|
+        # None(未能读取:SSH 未连接/执行失败,前端按降级态显示,不渲染成「将安装」)。
         if current is not None and self._client is not None and self._connected:
-            try:
-                verify_ssh_identity()
-                ta_now = self._torch_torchaudio_metadata()
-                verify_ssh_identity()
-                if re.fullmatch(r"\d+\.\d+\.\d+[a-zA-Z0-9.+_-]*", ta_now or ""):
-                    current = {**current, "torchaudio": ta_now}
-                else:
-                    current = {**current, "torchaudio": None}
-            except (SSHServiceError, RuntimeError, TypeError, ValueError, OSError) as exc:
-                current = {**current, "torchaudio": None}
-                errors.append(f"torchaudio-probe: {str(exc)[:200] or type(exc).__name__}")
+            for _pkg in ("torchvision", "torchaudio"):
+                try:
+                    verify_ssh_identity()
+                    _v = self._torch_pkg_metadata(_pkg)
+                    verify_ssh_identity()
+                    if _v and _v != "NONE" and re.fullmatch(r"\d+\.\d+\.\d+[a-zA-Z0-9.+_-]*", _v):
+                        current = {**current, _pkg: _v}
+                    elif _v == "NONE":
+                        current = {**current, _pkg: "NONE"}
+                    else:
+                        current = {**current, _pkg: None}
+                        errors.append(f"{_pkg}-probe: 探测未返回有效版本")
+                except (SSHServiceError, RuntimeError, TypeError, ValueError, OSError) as exc:
+                    current = {**current, _pkg: None}
+                    errors.append(f"{_pkg}-probe: {str(exc)[:200] or type(exc).__name__}")
         return {"current": current, "live": current is not None and current["source"] != "ledger", "errors": errors, "hostMatched": host_matched,
                 "busy": active_job is not None, "jobId": active_job["id"] if active_job and active_job.get("mode") == "remote" and isinstance(active_job.get("origin_host"), str) and isinstance(expected_host, str) and active_job["origin_host"].casefold() == expected_host.casefold() else None,
                 "allowedTargets": list(TORCH_TV_MAP), "pinnedTarget": PINNED_TORCH,
@@ -1597,7 +1608,7 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
                 _stats = self._torch_http("/system_stats")
                 _cur = _stats.get("system", {}).get("pytorch_version", "")
                 if _cur == target_version:
-                    _ta = self._torch_torchaudio_metadata()
+                    _ta = self._torch_pkg_metadata("torchaudio")
                     if _ta == f"{TORCH_TA_MAP[target]}+{channel}":
                         result["from"] = _cur
                         jobs.update(job_id, step="ledger", progress=100, message=f"已是目标版本 {_cur}(含 torchaudio {_ta}),跳过升级", result=result)

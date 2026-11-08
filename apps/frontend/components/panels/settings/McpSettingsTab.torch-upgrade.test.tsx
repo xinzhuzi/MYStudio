@@ -413,6 +413,42 @@ describe("torch upgrade settings", () => {
     expect(confirmList.textContent).toContain("真升级");
   });
 
+  it("1108 能取到就先取:卫星件取不到显示降级态,不冒充将安装(确认弹窗同款)", async () => {
+    // 用户令:torch 实时可达,torchvision/torchaudio 未能读取(SSH 探测失败/未连接)
+    // → 行显示「未能读取现装版本」+徽标「升级时 pip 复核」,summary 不再说真升级
+    mocks.info.mockResolvedValue({
+      current: { torch: "2.14.1+cu132", torchvision: null, torchaudio: null },
+      live: true, hostMatched: true, busy: false, jobId: null, allowedTargets: ["2.14.1"],
+      tvMap: { "2.14.1": "0.29.1" }, taMap: { "2.14.1": "2.11.1" },
+    });
+    render(<McpSettingsTab />);
+    await screen.findByTestId("torch-change-list");
+    const rowOf = (pkg: string) => screen.getAllByTestId("torch-change-row").find((r) => r.dataset.pkg === pkg)!;
+    expect(rowOf("torch").textContent).toContain("✅ 已达标,不重装");
+    expect(rowOf("torchvision").textContent).toContain("未能读取现装版本");
+    expect(rowOf("torchvision").textContent).toContain("升级时 pip 复核");
+    expect(rowOf("torchaudio").textContent).toContain("未能读取现装版本");
+    expect(screen.queryByText("⬆ 将安装")).toBeNull();
+    expect(screen.getByTestId("torch-change-summary").textContent).toContain("未能读取现装版本");
+    fireEvent.click(screen.getByTestId("torch-upgrade-start"));
+    const confirmList = await screen.findByTestId("torch-confirm-change-list");
+    expect(confirmList.textContent).toContain("升级时 pip 复核");
+  });
+
+  it("1108 确定性缺件(NONE):显示未安装+将安装", async () => {
+    mocks.info.mockResolvedValue({
+      current: { torch: "2.14.1+cu132", torchvision: "0.29.1+cu132", torchaudio: "NONE" },
+      live: true, hostMatched: true, busy: false, jobId: null, allowedTargets: ["2.14.1"],
+      tvMap: { "2.14.1": "0.29.1" }, taMap: { "2.14.1": "2.11.1" },
+    });
+    render(<McpSettingsTab />);
+    await screen.findByTestId("torch-change-list");
+    const rowOf = (pkg: string) => screen.getAllByTestId("torch-change-row").find((r) => r.dataset.pkg === pkg)!;
+    expect(rowOf("torchaudio").textContent).toContain("未安装");
+    expect(rowOf("torchaudio").textContent).toContain("⬆ 将安装");
+    expect(screen.getByTestId("torch-change-summary").textContent).toContain("真升级");
+  });
+
   it("升级清单三件全达标:标明点击将直接跳过,不动环境", async () => {
     mocks.info.mockResolvedValue({
       current: { torch: "2.14.1+cu132", torchvision: "0.29.1+cu132", torchaudio: "2.11.1+cu132" },
