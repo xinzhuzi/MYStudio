@@ -255,8 +255,10 @@ def test_absorbed_fl2v_firstframe_mode():
         assert nodes[sid]["type"] == "ComfySwitchNode"
         assert links[ins[t_slot]["link"]][1] == 16 or links[ins[t_slot]["link"]][1] == 140, "on_true=r2v 臂"
         assert links[ins[f_slot]["link"]][1] in (217, 220, 251), "on_false=i2v 臂"
-    # 三 Seam 出口:底模→[126].model / 条件→[126].conditioning / 潜空间→[125].latent_image
-    assert links[nodes[126]["inputs"][0]["link"]][1] == 218
+    # 三 Seam 出口:底模→[266]taeh3 预览器→[126].model(1108 用户令装 taeh3) / 条件→[126].conditioning / 潜空间→[125].latent_image
+    assert nodes[266]["type"] == "ModelPreviewOverrideKJ" and nodes[266]["widgets_values"][5] == "taeh3.safetensors"
+    assert links[nodes[266]["inputs"][0]["link"]][1] == 218, "预览器应吃三 Seam 底模出口"
+    assert links[nodes[126]["inputs"][0]["link"]][1] == 266
     assert links[nodes[126]["inputs"][1]["link"]][1] == 221
     assert links[nodes[125]["inputs"][4]["link"]][1] == 222
     # 首帧槽:[9]→[220].first_frame(i2v 臂)+[9]→[16].ref_image_0(r2v 臂)双吃

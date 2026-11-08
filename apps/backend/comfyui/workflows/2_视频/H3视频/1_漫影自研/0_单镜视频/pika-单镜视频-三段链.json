@@ -1,8 +1,8 @@
 {
  "id": "pika-daojie-three-stage-1105",
  "revision": 0,
- "last_node_id": 265,
- "last_link_id": 772,
+ "last_node_id": 266,
+ "last_link_id": 774,
  "nodes": [
   {
    "id": 9,
@@ -1034,7 +1034,7 @@
     {
      "name": "model",
      "type": "MODEL",
-     "link": 579
+     "link": 774
     },
     {
      "name": "conditioning",
@@ -1863,7 +1863,7 @@
      "name": "COMFY_MATCHTYPE_V3",
      "type": "COMFY_MATCHTYPE_V3",
      "links": [
-      579
+      773
      ]
     }
    ],
@@ -5265,6 +5265,92 @@
    "properties": {
     "Node name for S&R": "PreviewAny"
    }
+  },
+  {
+   "id": 266,
+   "type": "ModelPreviewOverrideKJ",
+   "pos": [
+    2680,
+    560
+   ],
+   "size": [
+    300,
+    200
+   ],
+   "flags": {},
+   "order": 32,
+   "mode": 0,
+   "showAdvanced": null,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 773,
+     "widget": null,
+     "shape": null,
+     "label": null,
+     "localized_name": "model",
+     "dir": null,
+     "color_off": null,
+     "color_on": null,
+     "locked": null,
+     "nameLocked": null,
+     "removable": null
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": null,
+     "widget": null,
+     "shape": 7,
+     "label": null,
+     "localized_name": "vae",
+     "dir": null,
+     "color_off": null,
+     "color_on": null,
+     "locked": null,
+     "nameLocked": null,
+     "removable": null
+    },
+    {
+     "name": "audio_vae",
+     "type": "VAE",
+     "link": null,
+     "widget": null,
+     "shape": 7,
+     "label": null,
+     "localized_name": "audio_vae",
+     "dir": null,
+     "color_off": null,
+     "color_on": null,
+     "locked": null,
+     "nameLocked": null,
+     "removable": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      774
+     ],
+     "slot_index": 0
+    }
+   ],
+   "title": "taeh3 实时预览(一采·1108 用户令)",
+   "properties": {
+    "Node name for S&R": "ModelPreviewOverrideKJ"
+   },
+   "widgets_values": [
+    1024,
+    80,
+    true,
+    1,
+    12,
+    "taeh3.safetensors",
+    ""
+   ]
   }
  ],
  "links": [
@@ -5853,14 +5939,6 @@
    "VIDEO"
   ],
   [
-   579,
-   218,
-   0,
-   126,
-   0,
-   "MODEL"
-  ],
-  [
    700,
    309,
    0,
@@ -6427,6 +6505,22 @@
    265,
    0,
    "*"
+  ],
+  [
+   773,
+   218,
+   0,
+   266,
+   0,
+   "MODEL"
+  ],
+  [
+   774,
+   266,
+   0,
+   126,
+   0,
+   "MODEL"
   ]
  ],
  "groups": [
