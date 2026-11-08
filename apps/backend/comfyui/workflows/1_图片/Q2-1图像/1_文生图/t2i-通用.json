@@ -219,46 +219,6 @@
       ]
     },
     {
-      "id": 4018,
-      "type": "MyQi21WhSuggest",
-      "pos": [
-        150,
-        550
-      ],
-      "size": [
-        270,
-        120
-      ],
-      "flags": {},
-      "order": 6,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "WIDTH",
-          "type": "INT",
-          "links": [
-            10
-          ]
-        },
-        {
-          "name": "HEIGHT",
-          "type": "INT",
-          "links": [
-            11
-          ]
-        }
-      ],
-      "title": "[4018] 画幅建议",
-      "properties": {},
-      "widgets_values": [
-        0,
-        0,
-        0,
-        0
-      ]
-    },
-    {
       "id": 4,
       "type": "EmptyLatentImage",
       "pos": [
@@ -272,24 +232,7 @@
       "flags": {},
       "order": 7,
       "mode": 0,
-      "inputs": [
-        {
-          "name": "width",
-          "type": "INT",
-          "widget": {
-            "name": "width"
-          },
-          "link": 10
-        },
-        {
-          "name": "height",
-          "type": "INT",
-          "widget": {
-            "name": "height"
-          },
-          "link": 11
-        }
-      ],
+      "inputs": [],
       "outputs": [
         {
           "name": "LATENT",
@@ -537,22 +480,6 @@
       7,
       3,
       "LATENT"
-    ],
-    [
-      10,
-      4018,
-      0,
-      4,
-      0,
-      "INT"
-    ],
-    [
-      11,
-      4018,
-      1,
-      4,
-      1,
-      "INT"
     ],
     [
       12,
@@ -2388,7 +2315,7 @@
             "locked": false
           },
           {
-            "title": "⑦PrunaAI 6步臂(候列·尾端悬空)",
+            "title": "⑦PrunaAI 6步臂(默认)",
             "bounding": [
               1700.0,
               4200.0,
