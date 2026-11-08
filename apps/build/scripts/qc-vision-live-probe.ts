@@ -1,3 +1,12 @@
+/**
+ * 预审判断腿实弹探针(1105)——真模型原文 + stats + 发现 + verdict 落盘,不回写 App、不动用户设置。
+ *
+ * Usage(必须走 vite-node:本件用无扩展名相对 import,裸 `node` 直接 ERR_MODULE_NOT_FOUND,
+ * 别据此判这条腿已死):
+ *   npx vite-node --config build/timeline/vite-node.config.ts \
+ *       build/scripts/qc-vision-live-probe.ts --manifest <json> --output <json>
+ * manifest 形如 {model, cases:[{id, provenance, frames, decisions}]};前置=本机 LM Studio 服务在跑。
+ */
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
