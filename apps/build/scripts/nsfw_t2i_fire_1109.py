@@ -20,6 +20,7 @@ spec.loader.exec_module(ps)
 
 
 def main() -> int:
+    override_prompt = sys.argv[1] if len(sys.argv) > 1 else None
     running, pending = ps.queue_load()
     print(f"[preflight] queue running={running} pending={pending}", flush=True)
     if running or pending:
@@ -29,6 +30,8 @@ def main() -> int:
     for n in wf["nodes"]:
         if n["type"] == "SaveImage" and n.get("widgets_values"):
             n["widgets_values"][0] = f"{PREFIX}/out"
+        if override_prompt and n["type"] == "TextEncodeQwenImage21" and n.get("widgets_values"):
+            n["widgets_values"][0] = override_prompt
     page, procs = ps.acquire_page()
     t0 = time.monotonic()
     try:
