@@ -81,6 +81,41 @@ class BridgeOriginBoundaryTests(unittest.TestCase):
                 handler.headers.replace_header("Authorization", "Bearer invalid")
                 self.assertFalse(handler._authorized())
 
+    def test_remote_engine_view_token_federates_current_remote_token_1108(self) -> None:
+        # 1108 修复(用户三报 403):远端引擎视图下侧栏令牌=远端 sidecar 的
+        # controlToken(引擎 /my_bridge/config 下发,双机装机各异)——本机门禁
+        # 必须放行「当前远端令牌」;凭据链与出站代理同源(文件→env)。
+        engine_origin = "http://192.168.0.101:17000"
+        remote_token = "remote-token-9"
+        for file_token, env_token in (("remote-token-9", ""), ("", "remote-token-9")):
+            with self.subTest(file_token=bool(file_token), env_token=bool(env_token)):
+                with patch.object(server, "_remote_sidecar_base_url", return_value="http://192.168.0.101:17595", create=True), \
+                        patch.object(server, "_remote_sidecar_token_from_file", return_value=file_token, create=True), \
+                        patch("engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+                              return_value=engine_origin), \
+                        patch.dict("os.environ", {"MANYING_REMOTE_IMAGE_TOKEN": env_token}):
+                    handler = self.handler(engine_origin)
+                    handler.headers.replace_header("Authorization", "Bearer wrong-token")  # 隔离 Bearer 路,专测 X 头
+                    self.assertIs(handler._cors_origin(), engine_origin)
+                    handler.headers["X-Manying-Image-Token"] = remote_token
+                    self.assertTrue(handler._authorized())
+                    # 错令牌/空令牌仍拒(fail-closed 不松)
+                    handler.headers.replace_header("X-Manying-Image-Token", "wrong-token")
+                    self.assertFalse(handler._authorized())
+                    del handler.headers["X-Manying-Image-Token"]
+                    self.assertFalse(handler._authorized())
+
+    def test_remote_token_rejected_when_no_remote_engine_effective(self) -> None:
+        # 非远端态(本机引擎视图)零放行面变化:远端令牌照拒
+        with patch.object(server, "_remote_sidecar_base_url", return_value=None, create=True), \
+                patch.object(server, "_remote_sidecar_token_from_file", return_value="remote-token-9", create=True), \
+                patch("engines.image_engine.comfyui_bridge.remote_engine_url_from_settings",
+                      return_value=None):
+            handler = self.handler("http://127.0.0.1:17001")
+            handler.headers.replace_header("Authorization", "Bearer wrong-token")  # 隔离 Bearer 路,专测 X 头
+            handler.headers["X-Manying-Image-Token"] = "remote-token-9"
+            self.assertFalse(handler._authorized())
+
     def test_remote_or_malformed_origin_cannot_reach_bridge_even_with_known_token(self) -> None:
         origins = (
             "https://attacker.invalid", "http://localhost.attacker.invalid:5173",

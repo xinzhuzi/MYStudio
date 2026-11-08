@@ -414,7 +414,19 @@ class Handler(BaseHTTPRequestHandler):
         header = self.headers.get("Authorization", "")
         if header == f"Bearer {token}":
             return True
-        return self.headers.get("X-Manying-Image-Token", "") == token
+        presented = self.headers.get("X-Manying-Image-Token", "")
+        if presented == token:
+            return True
+        # 1108 修复(用户三报「取不到工作流(HTTP 403)」):远端引擎视图下,
+        # 侧栏令牌取自引擎同源 /my_bridge/config=远端 sidecar 的 controlToken
+        # (装机随机,双机各异),与本机 token 恒不等=进门即 403。远端生效时
+        # 放行「当前远端令牌」(文件真源→env,与出站代理同一凭据链,B7 同步);
+        # 下游远端 sidecar 仍以同令牌二次鉴权,端到端防线不减。非远端态零变化。
+        if _remote_sidecar_base_url():
+            remote_token = _remote_sidecar_token_from_file() or os.environ.get(REMOTE_TOKEN_ENV, "").strip()
+            if remote_token and presented == remote_token:
+                return True
+        return False
 
     def _read_json(self) -> dict:
         length = int(self.headers.get("Content-Length", "0") or 0)
