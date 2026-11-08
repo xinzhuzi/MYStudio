@@ -18,6 +18,7 @@ compatibility: Portable to any agent that can read local files — no external A
 5. For a hand-fed Chinese direct draft (manual web/client generation or a non-API quick draft), read `references/direct-zh.md` and follow its five-element order and anaphora blacklist. The official English structure from steps 2-4 stays the default and remains the pipeline source of truth.
 6. Controlled marks and numbering — `<d>[Language] ...</d>` dialogue tags, `<scenetrans>`/`<cutoff>` cut-crossing marks, `(S1)`-style global speaker IDs, and retention enums (`fully_preserved`/`partially_preserved`/`attribute_transfer`/`weak_reference`; audio: `fully_copy`/`partially_copy`/`reference`/`weak_reference`) — are fixed vocabularies defined in `references/base-en.txt` (§4.4–4.5) and `references/ref-en.txt` (§4.1–4.2, §5.2); look them up there instead of improvising marks.
 7. For fight or action shots (duels, chases, standoffs, stunts), read `references/action-en.txt` before writing the action passages, and apply its choreography rules on top of the guide selected in steps 2-5.
+8. Before finalizing any prompt, check `references/craft-external-1107.md` for field-tested boundaries that the official guides do not cover: text-mode live-action bias and the medium-first fix, turn-direction unreliability, dialogue budget (≈4.1 speakable Chinese chars/sec, 1.3–2.4s speech onset lag, two-char name instability), lip-sync ownership phrasing, cross-shot voice → reference audio, hosted-API contract (frame vs reference mutual exclusion, duration any integer 4–15, media preflight limits, two-level timeline with locked end states), full-reference slot discipline and multi-shot containers, and performer/facial-performance transfer. Apply the sections relevant to the mode; its 位阶 (precedence) statement is at the bottom of that file.
 
 ## Base Modes
 
@@ -89,7 +90,8 @@ LLM 直投链（非 App 组装链）的 system prompt 有**导演层规则包升
 - **语义桥警示**:AutoContext 生态的语义桥组件上游仅验证 FL2VA/文本路径,Ref2VA 参考路径实测**可能**劣化口型与演唱表现——数字人/口型场景禁开(本仓强化外推,细节见产线§九.五风险④)。
 
 ## Tips for Better Results
-- Always match the total duration of the description to the requested video length (5–15 seconds; matches the trained range, see `docs/comfyui-kb/参数速查.md` H3 section and `references/direct-zh.md`). Frame counts always land on the 17k+5 grid (the workflow auto-snaps them; see `docs/comfyui-kb/分镜H3视频产线.md` §二).
-- Keep reference labels consistent (e.g. `<Picture 1>`, `<Video 1>`, `<Audio 1>`) across every section.
+- Always match the total duration of the description to the requested video length (5–15 seconds; matches the trained range, see `docs/comfyui-kb/参数速查.md` H3 section and `references/direct-zh.md`). Frame counts always land on the 17k+5 grid (the workflow auto-snaps them; see `docs/comfyui-kb/分镜H3视频产线.md` §二). Hosted API accepts any integer duration 4–15 (see `references/craft-external-1107.md` §C).
+- Keep reference labels consistent (e.g. `<Picture 1>`, `<Video 1>`, `<Audio 1>`) across every section, and numbered by actual attach order — mismatches fail silently (`references/craft-external-1107.md` §D).
 - Prefer concrete visual and audio details over abstract words like "cinematic" or "beautiful".
 - When using keyframes (I2VA / FL2VA / L2VA), clearly state how the first and/or last frame connects to the timeline.
+- Write `non_diegetic_music: N/A` explicitly when there is no score; leaving it empty can invite music (`references/craft-external-1107.md` §B-7).

@@ -771,7 +771,7 @@ AUTO_GEAR = MODE_AUTO               # 显示名常量(与两 fire/文档同串;�
 # spd_inner=加速子图内线 -10 边界→[7015] 槽4;asm_inner=装配子图内线 [4010] 槽5
 # →-20 边界出(「型名」出=base 入参原值直通,单扇出)。
 TYPE_WIRE_OF_1017 = {
-    "qi21": {"root": (4410, 6, 4, 7, 4), "spd_inner": (4411, -10, 7, 7015, 4),
+    "qi21": {"root": (4410, 6, 4, 7, 4), "spd_inner": (4411, -10, 6, 7015, 4),  # 1109 σ表槽摘除,型名 7→6
              "asm_inner": (347, 4010, 5, -20, 4)},
     "i2i": {"root": (4412, 6, 4, 7, 5), "spd_inner": (4413, -10, 8, 7015, 4),
             "asm_inner": (286, 4010, 5, -20, 4)},
@@ -1474,18 +1474,22 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
         # 分辨率,latent 口必接;nodes 表已提升面板;插值参数随官方件退役)
         assert _sg_n["type"] == "ViggleTurboSigmas", f"{name}: σ链件应=官方 ViggleTurboSigmas"
         # 1015 新序列化:面板提升后的 widget 物化默认串(被接线压制=运行时死值)——
-        # 「已提升面板」真证明=nodes 槽接边界「σ表」(宿主九点表直供);旧格式=空 widget
+        # 「已提升面板」真证明=nodes 槽接边界「σ表」(宿主九点表直供);
+        # 1109 用户令(qi21):σ表下沉支路固化=widget 九点表+nodes 摘链,亦为合法形
         _sg_nodes_in = next((i for i in _sg_n["inputs"] if i.get("name") == "nodes"), None)
-        _promoted = _sg_n.get("widgets_values") in ([], None) or (
-            _sg_nodes_in is not None and _sg_nodes_in.get("link") is not None and
-            i_links[_sg_nodes_in["link"]]["origin_id"] == -10 and
-            sg["inputs"][i_links[_sg_nodes_in["link"]]["origin_slot"]]["name"] == "σ表")
-        assert _promoted, f"{name}: σ表应已提升面板(nodes 槽接边界 σ表;旧格式=空 widget)"
+        _promoted = (_sg_nodes_in is not None and _sg_nodes_in.get("link") is not None and
+                     i_links[_sg_nodes_in["link"]]["origin_id"] == -10 and
+                     sg["inputs"][i_links[_sg_nodes_in["link"]]["origin_slot"]]["name"] == "σ表")
+        _sunk = (_sg_n.get("widgets_values") == [QI21_ACCEL_PANEL_DEFAULT[0]]
+                 and (_sg_nodes_in is None or _sg_nodes_in.get("link") is None))
+        assert _promoted or _sunk, \
+            f"{name}: σ表应面板提升(i2i/edit,nodes 接边界)或支路固化九点表(1109 qi21)"
         _sg_in = {i["name"]: i for i in _sg_n["inputs"]}
         assert i_links[_sg_in["latent"]["link"]]["origin_slot"] == b_idx["latent"], \
             f"{name}: 官方件 latent 口应接边界槽(动态 shift 按分辨率)"
         _pv = sg["widgets"]
-        assert _pv[2] == QI21_ACCEL_PANEL_DEFAULT[0], f"{name}: 面板默认=9点官方表(9步满血)"
+        if len(_pv) > 2:   # 1109 qi21 σ表下沉后面板双控,i2i/edit 仍三控九点表
+            assert _pv[2] == QI21_ACCEL_PANEL_DEFAULT[0], f"{name}: 面板默认=9点官方表(9步满血)"
         # 1008 用户令「要 9 步满血」:双段链——[7021]SplitSigmas(step=7) 切高/低段,
         # 段A [7012] sigmas=高段(7步turbo);段B [7024] 底模(摘LoRA)收尾2步:
         # [7022]BasicGuider(边界 base)+[7023]DisableNoise(续采零噪声)+[7025]euler
@@ -1940,8 +1944,9 @@ class TestSpeedSelectContract0929:
             xsg = _xsg(graph)
             host = _host_of(graph, xsg)
             dmode = DEFAULT_MODE_OF[name]
-            # 1008 用户令:qi21 面板三控(σ表);1014 i2i viggle 官方化随批同款
-            _sigma_names = ("qi21", "i2i", "edit")  # 1016edit9:edit 双段换血后 σ表同入面板
+            # 1008 用户令:qi21 面板三控(σ表);1014 i2i viggle 官方化随批同款;
+            # 1109 用户令:qi21 σ表下沉 viggle 支路 [7020] 固化九点表(面板摘除回双控),i2i/edit 维持
+            _sigma_names = ("i2i", "edit")  # 1016edit9:edit 双段换血后 σ表同入面板
             _panel_wv = [dmode, 0] + (QI21_ACCEL_PANEL_DEFAULT if name in _sigma_names else [])
             assert host["widgets_values"] == _panel_wv, \
                 f"{name}: [{host['id']}] 面板应={_panel_wv!r},得 {host['widgets_values']}"
@@ -2402,10 +2407,15 @@ class TestSamplerContract:
                     assert len(samplers) == (2 if _e_ks else 1), \
                         f"{name}: 加速子图内 KSampler 应恰 {2 if _e_ks else 1} 个" \
                         f"(直出{'+E混动' if _e_ks else ''};viggle=官方链),得 {len(samplers)}"
-                    # 1008 用户令:σ表已提升面板(默认=9点官方表=9步满血;官方件动态 shift)
-                    _wvs = _xsg(graph)["widgets"]
-                    assert len([v for v in str(_wvs[2]).split(",") if v.strip()]) == 9, \
-                        f"{name}: 面板默认=9点官方表(9步满血)"
+                    # 1008 用户令:σ表已提升面板(默认=9点官方表=9步满血;官方件动态 shift);
+                    # 1109 用户令:qi21 σ表下沉 viggle 支路 [7020] 固化(面板摘除)——步数源随改
+                    if name == "qi21":
+                        _sig7020 = next(n for n in _xsg(graph)["nodes"] if n.get("id") == 7020)
+                        _sigma_src = str(_sig7020["widgets_values"][0])
+                    else:
+                        _sigma_src = str(_xsg(graph)["widgets"][2])
+                    assert len([v for v in _sigma_src.split(",") if v.strip()]) == 9, \
+                        f"{name}: 默认=9点官方表(9步满血;qi21=固化 widget,i2i/edit=面板)"
                     _sp9 = [n for n in _xsg(graph)["nodes"] if n["type"] == "SplitSigmas"]
                     assert len(_sp9) == 1 and _sp9[0]["widgets_values"] == [7], \
                         f"{name}: 双段切分 step=7(7 turbo+2 base)"
@@ -3844,8 +3854,8 @@ class TestQi21SubgraphContract:
             boundary_inputs=[("model", "MODEL"), ("positive", "CONDITIONING"),
                              ("negative", "CONDITIONING"), ("latent", "LATENT"),
                              ("速度档位", "COMBO"), ("seed", "INT"),
-                             ("σ表", "STRING"),
-                             ("型名", "STRING")],   # 1017 型名穿界:尾加第八入槽
+                             # 1109 用户令:σ表槽摘除(下沉 viggle 支路 [7020] 固化九点表)
+                             ("型名", "STRING")],   # 1017 型名穿界:尾加第七入槽(1109 σ表槽摘除)
             host_inputs=[("model", True, False), ("positive", True, False),
                          ("negative", True, False), ("latent", True, False),
                          ("型名", True, False)],    # 1017:宿主 idx4 接根线 4410
@@ -3854,7 +3864,7 @@ class TestQi21SubgraphContract:
                                         # 采样);1004 D6a cfg4 负向真实生效旧口径退役
             viggle_class="SamplerCustomAdvanced", viggle_chain=QI21_VIG_CHAIN,  # 1008 官方参数化
             lora_class="ViggleTurboLora",  # 1008「完整发挥」:官方未合并加载(拒 bf16 合并丢 30%)
-            panel_extra=tuple(QI21_ACCEL_PANEL_DEFAULT),  # 1008 面板三控
+            panel_extra=(),  # 1109 用户令:σ表下沉 viggle 支路 [7020] 固化,qi21 面板回双控
             direct_lora=QI21_FIX_LORA_ID,  # 1009:直出支路挂 Fix v2.0(官方域,7026→7010)
             vig_fix_lora=None,             # 1016 用户令:共用Fix 实验臂结案拆除(1009 试效果→1016 定谳无用)
             style_lora=QI21_STYLE_LORA_ID, # 1018inkling 用户令:入口水墨 LoRA [7034]×0.3 三支路共吃
@@ -3919,9 +3929,9 @@ class TestQi21SubgraphContract:
         x_nodes = _sg_nodes(_xsg(GRAPHS["qi21"]))
         # 1008 官方参数化:qi21 viggle 支路步数=官方 6σ 表长(链内 CustomSigmas)
         if x_nodes[QI21_SAMPLER_VIG_ID]["type"] == "SamplerCustomAdvanced":
-            # 1008 用户令:σ表在面板(sg.widgets[2]);默认=9点官方表(9步满血双段)
-            _wvs = _xsg(GRAPHS["qi21"])["widgets"]
-            _n_sig = len([v for v in str(_wvs[2]).split(",") if v.strip()])
+            # 1008 用户令:σ表=9点官方表(9步满血双段);1109 下沉 [7020] 固化 widget(面板已摘)
+            _sig7020 = next(n for n in x_nodes.values() if n.get("id") == 7020)
+            _n_sig = len([v for v in str(_sig7020["widgets_values"][0]).split(",") if v.strip()])
             assert sorted([x_nodes[QI21_SAMPLER_ID]["widgets_values"][K_SAMPLER_WV["steps"]],
                            _n_sig]) == sorted([STEPS_DIRECT, 9])
         else:
@@ -6264,6 +6274,7 @@ class TestCountAnchor:
     def test_qwen21_dir_exactly_seventeen(self):
         files = sorted(p.name for p in (_IMG_DIR / "Q2-1图像").rglob("*.json"))
         assert files == [
+            "Qwen21-Turbo-9步-全功能.json",
             "image_qwen_image_2_1_background_removal.json",
             "image_qwen_image_2_1_image_edit.json",
             "image_qwen_image_2_1_t2i.json",
@@ -6284,20 +6295,20 @@ class TestCountAnchor:
             "qwen21-titlecard-t2i.json",
             "qwen21-道劫-i2i-api.json",
             "qwen21-道劫-t2i-api.json",
+            "skill姿态图放大-扩展整合.json",
+            "t2i-通用.json",
+            "全能图片编辑-官方PE.json",
+            "全能文生图-官方PE.json",
             "官方-fisher-pose-无限姿势.json",
             "官方-viggle-turbo-v0.3-merged-t2i.json",
             "官方-viggle-turbo-v0.3-t2i.json",
-            "Qwen21-Turbo-9步-全功能.json",
-            "VNCCS姿势-PoseStudio.json",
-            "VNCCS姿势-edit.json",
-            "VNCCS姿势-t2i.json",
-            "skill姿态图放大-扩展整合.json",
-            "全能图片编辑-官方PE.json",
-            "全能文生图-官方PE.json",
-            "四合一换装捏人-Goohai.json",
+            "社区-VNCCS姿势-PoseStudio.json",
+            "社区-VNCCS姿势-edit.json",
+            "社区-VNCCS姿势-t2i.json",
+            "社区-四合一换装捏人-Goohai.json",
             "编辑生图整合-TE.json",
             "道劫-摆姿-fisher.json",
-        ], f"Q2-1图像 应恰 33 件(分夹实数:0_官方模板 3+1_文生图 10+2_图生图 7+3_社区模板 8+4_姿势编辑 5;1108 用户令统一姿势编辑域,五件姿势件归位 4_姿势编辑——自 2_图生图 迁 qi21-道劫-人物姿势/qwen21-pose-edit/官方-fisher-pose-无限姿势/道劫-摆姿-fisher、自 3_社区模板 迁 VNCCS姿势-PoseStudio,文件名不变纯移位;1108 道劫人物姿势开件+VNCCS姿势三件入库 29→33=17 自研含BFS换头/局部重绘+3 官方模板+3 官方参照+9 社区含VNCCS三件+1 charcard改造件(此前 29 名单欠录,归位役一并补账);1107 Goohai 四合一换装捏人入库 28→29(并行役,社区第6件);1025 charcard 角色卡件入库 26→27(CharacterCardStudio 官方一键卡改造件,v1 Turbo加速段被实弹否决改 v2=引导图接线+clip bug修正+原生采样段=修复B配方);1023 局部重绘入库25→26;1023 BFS更名qi21-bfs-换头.json（25件不变）;1022 BFS入库24→25;1019 图生图·画风转换役新增 qwen21-道劫-i2i-api.json 桥格式件(qi21-道劫-i2i.json 展平,build --target i2i 生成)23→24;1015 改名役:qwen21-daojie-t2i.json→qwen21-道劫-t2i-api.json(桥格式件统一 -api.json 口径);1014 收尾役代迁:qwen21-daojie-t2i 入库 22→23(并行侧 10-10 入库未随账,6a460a67);前账 1010 道劫-摆姿-fisher 自研产线件入库 21→22;前账 Fisher-Pose 官方参照件入库 20→21,前账:1009 用户新令 qi21-道劫-img2img 入库 19→20/1008 Viggle 官方两件 17→19/10-02 自研扩批五件 12→17),得 {files}"
+        ], f"Q2-1图像 应恰 34 件(1109 t2i-通用入账补账[并行役开件];分夹实数:0_官方模板 3+1_文生图 11+2_图生图 7+3_社区模板 8+4_姿势编辑 5;1108 用户令统一姿势编辑域,五件姿势件归位 4_姿势编辑——自 2_图生图 迁 qi21-道劫-人物姿势/qwen21-pose-edit/官方-fisher-pose-无限姿势/道劫-摆姿-fisher、自 3_社区模板 迁 VNCCS姿势-PoseStudio,文件名不变纯移位;1108 道劫人物姿势开件+VNCCS姿势三件入库 29→33=17 自研含BFS换头/局部重绘+3 官方模板+3 官方参照+9 社区含VNCCS三件+1 charcard改造件(此前 29 名单欠录,归位役一并补账);1107 Goohai 四合一换装捏人入库 28→29(并行役,社区第6件);1025 charcard 角色卡件入库 26→27(CharacterCardStudio 官方一键卡改造件,v1 Turbo加速段被实弹否决改 v2=引导图接线+clip bug修正+原生采样段=修复B配方);1023 局部重绘入库25→26;1023 BFS更名qi21-bfs-换头.json（25件不变）;1022 BFS入库24→25;1019 图生图·画风转换役新增 qwen21-道劫-i2i-api.json 桥格式件(qi21-道劫-i2i.json 展平,build --target i2i 生成)23→24;1015 改名役:qwen21-daojie-t2i.json→qwen21-道劫-t2i-api.json(桥格式件统一 -api.json 口径);1014 收尾役代迁:qwen21-daojie-t2i 入库 22→23(并行侧 10-10 入库未随账,6a460a67);前账 1010 道劫-摆姿-fisher 自研产线件入库 21→22;前账 Fisher-Pose 官方参照件入库 20→21,前账:1009 用户新令 qi21-道劫-img2img 入库 19→20/1008 Viggle 官方两件 17→19/10-02 自研扩批五件 12→17),得 {files}"
 
     def test_official_templates_upstream_identical(self):
         """官方三件须与 Comfy-Org/workflow_templates 上游逐字节一致(官方件零改动铁律)。

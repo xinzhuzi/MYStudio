@@ -1,0 +1,93 @@
+{
+  "source_video": {
+    "title": "抽丝剥茧！全网最详细讲解MiniMaxH3底层工作原理",
+    "url": "https://www.bilibili.com/video/BV1Cq4h6aERN",
+    "short_url_shared_by_user": "https://b23.tv/TZOcaoG",
+    "uploader": "SevnFading",
+    "upload_date": "2026-11-05",
+    "duration": "15:00",
+    "downloaded": "2026-11-07"
+  },
+  "production_pipeline": {
+    "tool": "bilibili-analyzer skill (~/.agents/skills/bilibili-analyzer/scripts/prepare.sh)",
+    "command": "prepare.sh 'https://www.bilibili.com/video/BV1Cq4h6aERN' -o ~/Downloads/1107-h3-principles-video",
+    "yt_dlp_version": "2026.10.21 (URL模式匿名成功)",
+    "transcription": "whisper small (CPU, 本地零下载), 简体引导, 转写完成 2026-11-07",
+    "frames": "场景感知抽帧 threshold=0.25, 得17帧, 时间戳在 frames.tsv",
+    "frame_analysis": "vision-flash 子代理逐帧OCR+高倍裁剪校对(17/17), 暗帧gamma增亮复核",
+    "source_verification": "Mac引擎 ComfyUI 0.44.0 comfy_extras 源码验尸(ModelAttentionBackend/BlockSparseAttention); Win引擎 ssh 探针(custom_nodes清单)"
+  },
+  "raw_artifacts": {
+    "location": "~/Downloads/1107-h3-principles-video/",
+    "files": ["video.mp4(59.8MB)", "transcript.srt(852行)", "images/frame_0001-0017.jpg", "frames.tsv", "meta.json", "video.info.json", "danmaku.xml"],
+    "note": "按用户要求本技能文件夹只存 md/json, 原始视频与帧图不随技能存放, 需要时回此目录取证"
+  },
+  "whisper_corrections": [
+    {"heard": "minimax S3 / minimum H3", "correct": "MiniMax H3 (Hailuo 3)"},
+    {"heard": "手尾针生视频", "correct": "首尾帧生视频 (first & last frame)"},
+    {"heard": "提示时", "correct": "提示词"},
+    {"heard": "市区上", "correct": "社区上"},
+    {"heard": "Vee节点 / Vee节码 / 微异解码", "correct": "VAE节点 / VAE解码"},
+    {"heard": "Audio VA1 Bama", "correct": "Audio VAE"},
+    {"heard": "恶彩 / 耳彩 / 二彩", "correct": "二采 (两段采样)"},
+    {"heard": "挪瓦 / 楼瓦", "correct": "LoRA"},
+    {"heard": "selfly / self lead", "correct": "SelfLift"},
+    {"heard": "KSampleSelectors", "correct": "KSamplerSelect"},
+    {"heard": "VacyScalculator调动器", "correct": "BasicScheduler 调度器"},
+    {"heard": "四个码曲线", "correct": "sigma(σ)曲线"},
+    {"heard": "H3sigma没finally", "correct": "H3 Sigma Refiner (YCNodes)"},
+    {"heard": "model attention back", "correct": "ModelAttentionBackend"},
+    {"heard": "model space attention", "correct": "Model Sparse Attention (BlockSparseAttention)"},
+    {"heard": "内视sage attention", "correct": "SageAttention"},
+    {"heard": "soul attention", "correct": "Sol-Attn"},
+    {"heard": "kj notes", "correct": "KJNodes"},
+    {"heard": "configure i / configurate", "correct": "ComfyUI"},
+    {"heard": "千万Image 2.1", "correct": "Qwen Image 2.1 (帧0014佐证)"},
+    {"heard": "MOS", "correct": "MOSS Image (帧0014佐证)"},
+    {"heard": "ih平台 / RGA涨价", "correct": "RunningHub 算力涨价 (帧0012佐证)"},
+    {"heard": "必远的ST2.0", "correct": "疑为 Sora 2.0 云渠道竞品口径, 无帧证据, 不确定"},
+    {"heard": "采样部数/部数", "correct": "采样步数/步数"},
+    {"heard": "枯虑不计", "correct": "忽略不计"},
+    {"heard": "弦节", "correct": "衔接"},
+    {"heard": "复杀", "correct": "复杂"},
+    {"heard": "row设置成零", "correct": "rho 设置成 0"},
+    {"heard": "小0.4的采样", "correct": "疑为 0.4~0.5MP 低目标口径, 数字存疑逻辑照录"},
+    {"heard": "平均趋势顶", "correct": "评论区置顶"},
+    {"heard": "武打系挪瓦", "correct": "武打系(动作)LoRA"}
+  ],
+  "citation_conventions": {
+    "speech": "[t=mm:ss] 段落级时间戳, 不做精确秒配对(±2s容差)",
+    "frame": "<!-- 来自 frame_XXXX · mm:ss --> 帧号+frames.tsv时间戳",
+    "source": "文件:行号+验尸日期, 已验结论标 已验证/实锤, 未能验尸标 视频口径"
+  },
+  "workflow_pack_harvest_1108": {
+    "when": "2026-11-08",
+    "chain": "评论区置顶→飞书文档(用户登录态,IAB+vision读屏)→1.3节夸克盘 pan.quark.cn/s/1cad690998b3→quark-direct-dl管线取件",
+    "doc_links": {
+      "runninghub_posts": [
+        "全能参考视频 https://www.runninghub.cn/post/2115413934902702081?inviteCode=rh-v1455",
+        "SelfLift二采 https://www.runninghub.cn/post/2117192175418175490?inviteCode=rh-v1455",
+        "SelfLift二采低显存兼容 https://www.runninghub.cn/post/2117222656276783106?inviteCode=rh-v1455"
+      ],
+      "quark_models_nodes_workflows": "https://pan.quark.cn/s/1cad690998b3",
+      "chenyu_cloud_register": "https://www.chenyu.cn/console/login?invitationCode=5FSQA8 (RH涨价替代云, 教程在文档第2章)",
+      "ai_radar": "https://www.airadar.tv/?s=CWgV",
+      "prompt_gallery": "https://www.zzai.app/prompt-gallery?s=CWgV"
+    },
+    "downloaded": ["workflows/三件JSON(126KB, 已入 h3-internals/workflows/)", "盘内75GB+模型件零下载, 永不因存档下载(用户令2026-11-08: 吸收知识非模型)"],
+    "verdicts": "见 workflows/README.md 第5节(D2终裁dmad 8step DMD/D6关闭切块真名/hybrid默认UNet/V2放大器缺口)"
+  },
+  "followup_verification_1107": {
+    "when": "2026-11-07 二轮只读探查(零下载)",
+    "repos": {
+      "selflift": "https://github.com/facok/comfyui-SelfLift (2026-09-18最后push; README: progressive-resolution sampling)",
+      "selflift_upscaler_model": "https://huggingface.co/LBH-123-AI/Minimax_h3_latent_Upscaler",
+      "ycnodes": "https://github.com/yichengup/ComfyUI-YCNodes-MiniMax-H3 (MIT, 265 stars, 6节点, 2026-09-15最后push)"
+    },
+    "hf_tree_check": {
+      "repo": "lightx2v/Minimax-h3-Turbo",
+      "checked": "2026-11-07, 23个safetensors全列",
+      "verdict": "无fi2v文件/无_comfy.后缀/文件名不内嵌lightx2v(1107中间结论=镜像重命名; 已被1108发布包JSON终裁取代: 真LoRA=dmad 8step DMD, 帧名=录屏旧变体); 官方树fl2v已到v1.3_768p, ref2v有8step v1.0/v1.1"
+    }
+  }
+}

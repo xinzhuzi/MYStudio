@@ -15,12 +15,18 @@ two paths are wired completely differently and only one of them is free.
 
 **Two paths, do not confuse them.**
 - **Hosted API**, partner nodes `MinimaxHailuo03TextToVideoNode` / `...FirstLastFrameNode` / `...ReferenceNode`,
-  category `partner/video/MiniMax`. 2K output, priced per second, no local weights.
+  category `partner/video/MiniMax`. 2K output, priced per second, no local weights. A second hosted variant
+  **MiniMax-H3-Max** (post-trained for prompt adherence and cinematic look) runs 5–15 s at 480P/768P, supports
+  text and first/last-frame ONLY — no full-reference; do not apply H3's reference-audio paths or 4 s floor to it
+  (official MiniMax-AI/cli h3-video guide, read 2026-11-07).
 - **Local open weights**, core nodes `MiniMaxH3ImageToVideo` and `MiniMaxH3ReferenceToVideo` from
   `comfy_extras/nodes_minimax_h3.py`. 768p, free, and everything below is about this path.
 
-**Who owns what, so you open one file, not three.** THIS file owns the prompt format and the operating rules.
-`reference.md` next to it owns weights, quant sizes, acceleration packs and their wiring. The MiniMax entry in
+**Who owns what, so you open one file, not four.** THIS file owns the prompt format and the operating rules.
+`reference.md` next to it owns weights, quants, acceleration packs and their wiring. The `h3-internals/`
+folder next to it owns principle-level knowledge — why a step-cut blurs, what 二采 actually buys, the
+SelfLift mainstream stack — distilled from community explainer videos, every claim stamped with its
+source timestamp (see `h3-internals/README.md`, built 2026-11-07 from BV1Cq4h6aERN). The MiniMax entry in
 the kit's `MODELS.md` owns the node-level graph (every node and socket) and the licence. When they disagree,
 the node code wins and the discrepancy is a bug worth reporting.
 
@@ -137,7 +143,12 @@ third-party node's docs call it. Confirmed by reading the guide on `MiniMaxAI/Mi
 multiline string, so nothing will tell you when you get it wrong except the result.
 
 Limits from the official card: **9 images, 3 video clips, 3 audio clips, 12 files total**, clips 2 to 15 s each
-and 15 s total, and **audio can never be the only reference**. The local `MiniMaxH3ReferenceToVideo` node has
+and 15 s total, and **audio can never be the only reference**. Two contract facts the card does not spell out
+(official CLI guide, 2026-11-07): **first/last-frame inputs and reference inputs are mutually exclusive** — to
+continue from a previous segment's actual video AND its actual last frame, send the video as `reference_video`
+(`<Video 1>`) and the frame as `reference_image` (`<Picture 1>`); and technical media limits — reference images
+256–5760 px sides, aspect 0.4–2.5, videos MP4/MOV H.264/H.265 at 23.976–60 fps, audios MP3/WAV. The hosted API
+takes **any integer duration 4–15 s** (required field), not just 5/10/15. The local `MiniMaxH3ReferenceToVideo` node has
 **four** Autogrow families reaching those ceilings: `ref_images` (max 9), `ref_videos` (3),
 **`ref_video_audios` (3, the soundtrack of the same-numbered reference video)** and `ref_audios` (3, standalone).
 A template showing three image sockets is not the limit.
@@ -159,7 +170,8 @@ Note their examples use a `[0-3s]` beat style, which is a readable shorthand rat
   362 = ~15 s). The node calls it the "17k+5 grid" and the trained range is ~124 to 362 frames.
 - **Native size is ~1 MP**, template default **1344 x 768** at 24 fps. Higher costs time and VRAM without more
   real detail; the official 2K route is a hosted regenerate pass that is not open.
-- **Duration:** trained and tested 5 to 15 s. Longer runs but is untrained territory.
+- **Duration:** trained and tested 5 to 15 s (the hosted API accepts any integer 4–15). Longer runs but is
+  untrained territory.
 - **Speed:** the open release ships **full attention only**; sparse attention is promised later. This is why it
   is slow, and why the community acceleration below matters.
 - **Licence:** open weights, not open source, and the territory clause is unusually strict. See `MODELS.md`.

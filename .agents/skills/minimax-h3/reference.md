@@ -135,6 +135,14 @@ end `_comfyui_` are the ones already in ComfyUI's key layout:
 Note the version gap: FL2V is at **v1.0**, Ref2V is still **v0.1**. Expect the reference path to be rougher.
 Same caveat as the section above applies: a distilled step-cut is a draft mode, not a free win.
 
+**2026-11-07 tree re-read**: the repo has moved on — fl2v 4step now goes up to **v1.3_768p** (bf16/fp8 +
+`_comfyui_` twins), and ref2v has **4step v1.0** plus **8step v1.0/v1.1**. Production stays on
+`..._4step_v1.2_768p_comfyui_bf16` (no upgrade order). The repo never uses a `_comfy.` suffix, never embeds
+"lightx2v" inside a filename, and has no `fi2v` file. **Final verdict 2026-11-08** (the video's published
+workflow pack, parsed from the quark share): the shipped LoRA is not lightx2v at all but
+`dmad_minimax_h3_8step_full_critic_comfyui.safetensors` @1.0 (8-step DMD) — the on-screen `fi2v...` filename
+was a stale variant at recording time (see `h3-internals/workflows/README.md`).
+
 ## Refining small faces: `Carasibana/ComfyUI-H3-FaceRefine`
 
 H3 renders distant or small faces as mush. This pack fixes it the way a compositor would: track the face,
@@ -171,6 +179,37 @@ that person. Without a reference it falls back to the `select` combo (`largest` 
 Two example graphs ship: `H3_Face_Refine.json` and `H3_Face_Refine_SAM.json`. Confirmed by reading the pack's
 `nodes.py` and listing `example_workflows/` on 2026-08-15; not run here.
 
+## SelfLift & YCNodes: the community mainstream two-pass stack (not installed here)
+
+Recorded 2026-11-07 from the SevnFading principles video (BV1Cq4h6aERN) + repo verification; neither pack is
+installed on the Mac or Win engine (checked 2026-11-07). Full parameter dump and the node-level topology live
+in `h3-internals/04-SelfLift节点与主流工作流.md`.
+
+- **SelfLift** — `github.com/facok/comfyui-SelfLift` (last push 2026-09-18). Node
+  `SelfLift Progressive Sampler (MiniMax H3)` packages "latent upscale + second-pass sampling" into one node:
+  `lowres_scale` 0.5, `transition_step` (first→second pass switch), `cfg` 1.0, **`rho` 0.0 disables the pack's
+  own acceleration algorithm — the community default, making it a plain two-pass** (the built-in SelfLift
+  algorithm is slower and worse per the video's own correction), `w_min/w_max`, `model_hires`, plus a TRAINED
+  latent upscaler `minimax_h3_latent_upscaler_3d_bf16.safetensors` from HF `LBH-123-AI/Minimax_h3_latent_Upscaler`
+  (node auto-matches any filename containing "h3"), `highres_tiling` off, `upscaler_unload` on.
+  Local incident link: the 1107 "SelfLift swallowed the first pass" stop-order — rho/transition_step are the
+  knobs that explain and control it.
+- **YCNodes-MiniMax-H3** — `github.com/yichengup/ComfyUI-YCNodes-MiniMax-H3` (MIT, 265★, 6 nodes, last push
+  2026-09-15). `H3 Sigma Refiner` sits on the SIGMAS chain and **adds one final sampling step for smoother
+  sigma transitions** — it does NOT reshape the sigma curve (author's own correction): `extra_steps` INT 0–15
+  default 1, `start_at_sigma` default 0.7, `spacing` cosine|linear|exponential. The pack's other five nodes
+  (二采条件注入/时间段提示词/动态CFG/低噪声细化/分块采样) are unread here.
+
+The combined form ("SelfLift 二采低显存兼容版") is the community mainstream per the video. **Verified
+2026-11-08 from the published workflow JSON** (`h3-internals/workflows/`): the model-level stack is
+`MiniMaxLowVRAMAttention` (widget = split count, 1 = no split) + `MiniMaxChunkFeedForward` (split count +
+4096) + `MiniMaxH3MemoryEfficientSageAttentionPatch` (the real Sage seat) + core `BlockSparseAttention`
+(sol-attn / tau 1.3 / start 0.2 / end 1.0 / min_tokens 12288 / exact_kv_and_rows) + `ModelAttentionBackend`
+= comfy kitchen attention (INT8). The pack's default UNet is the **hybrid community splice**
+`minimax_h3_hybrid_fl2va_ref2va_b25-49-int8` (banzhang-lineage, see 1104 archives), and its latent upscaler
+reference `minimax_h3_latent_upscaler_3d_fp16_V2` is NOT inside the shipped models folder (v1/lms only) —
+a gap to close before ever running it.
+
 ## Long sequences on a small card: `vizart-vj/ComfyUI-MiniMax-H3-LongMedia`
 
 A node pack aimed at long H3 sequences on limited VRAM. Its own description names streamed Sol attention,
@@ -200,6 +239,15 @@ Inference via On-the-Fly Attention Sparsification".
   `start_percent` and `end_percent`, so the first 20 and last 10 percent of steps still use whatever attention
   backend you already have. Different mechanisms: SageAttention quantises **dense** attention, Sol-Attn
   **discards most KV blocks** and quantises what survives.
+- **Third path: official core nodes (verified in local 0.44.0 source, 2026-11-07).**
+  `BlockSparseAttention` (display "Model Sparse Attention", `comfy_extras/nodes_sparse_attention.py`) implements
+  block-sparse attention directly on **comfy_kitchen's Sol-Attn adaptive kernels** (method combo includes
+  `sol-attn`; falls back with "no compiled sol_attn kernel for this GPU"). Its companion
+  `ModelAttentionBackend` (`nodes_model_advanced.py`, category `model/patch`) selects the **dense** backend —
+  options `pytorch attention` / `comfy kitchen attention` (INT8, NVIDIA/AMD) **only; no sage option** (a
+  circulating video claim that it loads SageAttention is wrong — Sage still comes via KJNodes below). The two
+  are designed as a pair: dense backend serves whenever sparse is inactive/unsupported. tau/params still do not
+  transport between this and the two third-party packs above.
 - **The "Blackwell only, SM120 only" line that circulates with these packs is a README claim, not a code gate.**
   Checked all three execution paths in the KingGore pack: the eligibility checks are `ndim == 4`,
   `head_dim == 128`, `bfloat16`, CUDA. The `sm in [90, 100, 120]` list is read only by an informational node

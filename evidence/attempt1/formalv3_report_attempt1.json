@@ -1,0 +1,25 @@
+{
+ "ok": false,
+ "prompt_id": "7de0d3c9-0bdc-404d-a289-5da78a29eba0",
+ "status": "error",
+ "wall_sec_monitor": 2501.9,
+ "interrupted_by_monitor": false,
+ "vram_samples": 496,
+ "vram_max_mib": 23661,
+ "util_max_pct": 100,
+ "log_growth_bytes": 8553,
+ "events": [
+  {
+   "t": 0.0,
+   "ev": "monitor_attached",
+   "prompt_id": "7de0d3c9-0bdc-404d-a289-5da78a29eba0",
+   "log0": 10629474
+  },
+  {
+   "t": 2501.9,
+   "ev": "finished",
+   "status": "error"
+  }
+ ],
+ "outputs": {}
+}

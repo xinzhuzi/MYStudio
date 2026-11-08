@@ -1,0 +1,171 @@
+{
+  "meta": {
+    "title": "抽丝剥茧！全网最详细讲解MiniMaxH3底层工作原理",
+    "bvid": "BV1Cq4h6aERN",
+    "url": "https://www.bilibili.com/video/BV1Cq4h6aERN",
+    "short_url": "https://b23.tv/TZOcaoG",
+    "uploader": "SevnFading",
+    "upload_date": "2026-11-05",
+    "duration": "15:00",
+    "distilled_on": "2026-11-07",
+    "scope": "MiniMax H3 (Hailuo 3) 本地 ComfyUI 工作流底层原理：四步分解、采样、蒸馏LoRA、二采、SelfLift、模型级加速",
+    "verification_levels": {
+      "verified_source": "已在双机引擎源码验尸（标注文件:行号）",
+      "frame_evidence": "画面帧逐字放大核对（帧号+时间戳）",
+      "speech_only": "仅口播，画面无对应帧，按意图层面记录",
+      "video_claim_unverified": "视频口径，本机无法验尸，采用前自行核对"
+    }
+  },
+  "three_questions": {
+    "summary": "所有H3工作流优化都在回答：省显存/更快/画面更好 [t=00:20-00:38]",
+    "speech_ts": "00:20-00:38"
+  },
+  "workflow_four_stages": {
+    "summary": "输入(提示词/参考素材/分辨率) → 理解(CLIP+VAE→positive+latent) → 采样(降噪,最耗时) → 解码保存(VAE解码)",
+    "speech_ts": "01:09-01:45",
+    "notes": [
+      "二采=两次采样；官方=一次采样 [t=01:46-01:59]",
+      "参考节点内部: CLIP编码→positive; Video VAE压缩→Video Latent; Audio VAE→Audio Latent; 两latent拼接成一个 [t=02:15-03:21]",
+      "VAE压缩原因: 像素太大太费显存; 压缩=编码 解压=解码; latent大小由分辨率×时长决定 [t=02:36-03:08]",
+      "全部封装在 MiniMaxH3ReferenceToVideo 节点内 [t=03:14-03:27]"
+    ]
+  },
+  "sampling": {
+    "summary": "采样=降噪(Diffusion); 所有图像/视频生成模型同机制(含Qwen Image 2.1/MOSS Image)",
+    "speech_ts": "03:32-05:32",
+    "frames": ["frame_0003@04:12 采样过程就是降噪", "frame_0005@04:44 00-20二十一步去噪网格"],
+    "cost_three_factors": ["步数∝时间", "分辨率↑/时长↑→latent↑→计算量↑ [t=03:39-03:56]"],
+    "concept_chain_params": "RandomNoise + BasicGuider + KSamplerSelect(res_multistep) + BasicScheduler(simple,20,1.00) → SamplerCustomAdvanced [frame_0003]"
+  },
+  "distilled_lora_principle": {
+    "summary": "直接砍步数→模糊鬼影(训练步数20烙在权重里); 蒸馏=官方20步产出当老师+低步数训练; ≈1%权重差→LoRA挂件; 游戏Mod类比; 所有LoRA同机制(区别=训练数据)",
+    "speech_ts": "05:38-07:39",
+    "frames": ["frame_0007@06:44 保留模型主体", "frame_0009@12:38 LoRA更像一个挂件"],
+    "author_corrections": [
+      "LoRA不是主模型一部分,是额外挂件 [t=12:38-12:45]",
+      "基础调度器前80%步数σ本来就大(模糊),是默认行为非人为 [t=12:43-12:52]"
+    ],
+    "local_pipeline_addendum": "步数蒸馏饿死音频头(8步蒸馏=非中文怪腔); 出音频成片=28步纯净bf16唯一标准(2026-10-30定谳)"
+  },
+  "second_pass_sampling": {
+    "summary": "二采=提速非超分: 第二采本就是目标分辨率,只把前半程(轮廓期)换低分辨率跑; 中间用训练型latent放大模型桥接; 超分是另一体系(不吃positive)",
+    "speech_ts": "07:40-11:01",
+    "recipe": ["前半0.5MP(目标1MP时) lowres_scale=0.5", "桥接: latent放大模型 0.5MP→1MP 衔接第10/11步", "后半目标1MP出细节"],
+    "when_not_needed": "目标≈0.5MP以下: ①前半更低清会伤质量 ②本来已快提速收益抵不上损失 [t=09:31-09:54] (口播数字'0.4'存疑)",
+    "three_tiers": [
+      "最好画面: 官方20步满跑",
+      "主流最优: SelfLift二采工作流",
+      "极致速度: 低分辨率+4步加速LoRA跑4步 [t=10:39-10:57]"
+    ]
+  },
+  "selflift_node": {
+    "package": "comfyui-SelfLift",
+    "node": "SelfLift Progressive Sampler (MiniMax H3)",
+    "frame": "frame_0013@14:03",
+    "params": {
+      "cfg": 1.0,
+      "transition_step": "外部接入(帧中=2nd采样步数4); 一采→二采切换步",
+      "lowres_scale": 0.5,
+      "rho": 0.0,
+      "w_min": 0.5,
+      "w_max": 1.0,
+      "latent_upscaler_model": "minimax_h3_latent_upscaler_3d_bf16.safetensors(训练型3D)",
+      "highres_tiling": false,
+      "upscaler_unload": true,
+      "inputs": ["model", "positive", "negative", "vae", "latent_image", "sampler", "sigmas", "model_hires"]
+    },
+    "truth": "SelfLift自带算法又慢又差, 社区共识rho=0关闭退化为纯二采 [t=13:03-13:24]",
+    "repo": "github.com/facok/comfyui-SelfLift (2026-11-07定位, 最后push 2026-09-18)",
+    "upscaler_model_source": "HF LBH-123-AI/Minimax_h3_latent_Upscaler (节点按文件名含h3自动匹配)",
+    "local_incident_link": "1107记忆: SelfLift装毕吞一采被叫停——rho/transition_step即事故钥匙; 2026-11-07双机custom_nodes均已无此包"
+  },
+  "h3_sigma_refiner": {
+    "package": "YCNodes-MiniMax-H3",
+    "node": "H3 Sigma Refiner",
+    "frame": "frame_0013@14:03",
+    "repo": "github.com/yichengup/ComfyUI-YCNodes-MiniMax-H3 (MIT, 265 stars, 6节点包, 2026-11-07定位互验)",
+    "params": {"extra_steps": 1, "start_at_sigma": 0.7, "end_at_sigma": 0.0, "spacing": "cosine"},
+    "repo_verified_params": "extra_steps INT默认1范围0-15; spacing可选cosine/linear/exponential",
+    "truth": "不调整σ曲线,只在采样最后补一步让σ过渡更平滑 [t=12:53-13:02]"
+  },
+  "model_level_acceleration": {
+    "speech_ts": "11:02-12:08",
+    "dense_attention_node": {
+      "name": "ModelAttentionBackend",
+      "video_claim": "加载SageAttention",
+      "source_verdict": {
+        "status": "verified_source_勘正",
+        "detail": "本机ComfyUI 0.44.0 comfy_extras/nodes_model_advanced.py:405-457: 选项仅 pytorch attention / comfy kitchen attention(INT8, NVIDIA/AMD), 无sage; Sage正路=KJNodes MiniMaxH3MemoryEfficientSageAttentionPatch"
+      }
+    },
+    "sparse_attention_node": {
+      "name": "BlockSparseAttention (display: Model Sparse Attention)",
+      "video_claim": "加载Sol-Attn",
+      "source_verdict": {
+        "status": "verified_source_实锤",
+        "detail": "comfy_extras/nodes_sparse_attention.py:353-439; 文件头'Sol-Attn adaptive'; method含sol-attn; 内核走comfy_kitchen sol_attn; 与dense后端配套回落"
+      }
+    },
+    "kjnodes_block_split": {
+      "status": "verified_from_workflow_json_1108",
+      "detail": "真名=MiniMaxLowVRAMAttention(参数=切分数,1=不切)+MiniMaxChunkFeedForward(切分数+4096); 同栈带MiniMaxH3MemoryEfficientSageAttentionPatch(Sage真身); 原件定谳, 视频口播'两个切块节点'对应成立"
+    },
+    "final_form": "SelfLift二采低显存兼容版工作流=三套递进顶层 [t=11:55-12:32]",
+    "workflow_pack_1108": {
+      "source": "夸克盘 pan.quark.cn/s/1cad690998b3 工作流/ 三件JSON(已存 h3-internals/workflows/)",
+      "key_facts": [
+        "默认UNet=minimax_h3_hybrid_fl2va_ref2va_b25-49-int8(班长系拼接件, 两件SelfLift版同用)",
+        "BlockSparseAttention实参: sol-attn/tau1.3/start0.2/end1.0/min_tokens12288/exact_kv_and_rows; ModelAttentionBackend=comfy kitchen INT8",
+        "latent放大器引用3d_fp16_V2但盘内只有v1_bf16/lms——V2缺口件",
+        "基础版存档值: res_multistep+simple/4步/match/0.7MP(与视频'官方20步'叙事不一致, 按原件记录)",
+        "SelfLiftH3Sampler: cfg1/transition=6(widget,被2nd=4 primitive覆盖)/lowres0.5/rho0/upscaler V2"
+      ]
+    }
+  },
+  "workflow_snapshot_frame13": {
+    "unet": "minimax_h3_ref2va_pruned_int8_convrot.safetensors (weight_dtype=default)",
+    "lora": {
+      "frame_claim": "minimax_h3_fi2v_lightx2v_turbo_4step_v0.1_comfy.safetensors (帧逐字, 已作废)",
+      "real": "dmad_minimax_h3_8step_full_critic_comfyui.safetensors @1.0 (8步DMD, 1.95GB)",
+      "verdict_1108_final": "发布包JSON定谳: 帧里fi2v名=录屏旧变体; 此前镜像改名假设作废; 口播'8步加速'与发布包一致"
+    },
+    "clip": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors (type=minimax)",
+    "vaes": ["minimax_h3_video_vae_fp16", "minimax_h3_audio_vae_fp32(截断)"],
+    "ref_node": {"display": "MiniMax H3 参考转视频", "ref_image_size": "max", "ref_families": ["ref_images×3", "ref_videos", "ref_video_audios", "ref_audios×3"]},
+    "negative": "positive→ConditioningZeroOut→negative",
+    "scheduler": "sgm_uniform, denoise=1.00 (概念页示例为simple)",
+    "steps": {"1st": 7, "sigma_refiner_extra": 1, "2nd": 4, "narrative": "口播8+4; 7+1=8推断吻合"},
+    "inputs": {"duration_s": 5.0, "aspect": "16:9", "megapixels": 1.2, "multiple": 32, "ref_image": "2496×1304透明电竞鼠标"},
+    "prompt_style": "英文分镜节拍式 [0.0s–1.5s]/[1.5s–3.5s]/[3.5s–5.0s]; <Picture 1> as exact opening frame",
+    "output": {"fps": 24, "bit_depth": 8, "color_space": "sRGB", "prefix": "video/MiniMax_H3"}
+  },
+  "cross_check": {
+    "agreements": [
+      "官方训练20步/砍步数必糊 ↔ 产线'蒸馏步数烙在权重里'",
+      "4/8步=质量速度取舍 ↔ reference.md draft mode",
+      "ref_image_size=max ↔ SKILL.md排障表",
+      "cfg1.0+ZeroOut ↔ 产线28步标准档",
+      "超分不吃positive ↔ RelayVSR/SeedVR2修复系",
+      "低MP不需二采 ↔ 608×352单采出产"
+    ],
+    "additions": ["四步分解+三问框架", "蒸馏LoRA第一性原理", "二采=提速非超分", "何时不用二采", "SelfLift包全解(rho=0)", "H3 Sigma Refiner", "官方核心注意力节点路径", "三工作流递进谱系"],
+    "discrepancies": [
+      "D1 sage说法被源码勘正(无sage选项)",
+      "D2 LoRA文件名fi2v——1108终裁: 帧名=录屏旧变体作废, 真LoRA=dmad 8step DMD(发布包JSON)",
+      "D3 调度器sgm_uniform(终态帧) vs simple(概念页/产线)",
+      "D4 视频无音频维度知识; 产线28步音频标准优先",
+      "D5 图像域learned latent upscaler破坏alpha(qi21实证) vs 视频域训练型3D放大器可用",
+      "D6 KJNodes切块节点未验尸"
+    ],
+    "followup_1107": [
+      "SelfLift仓库=github.com/facok/comfyui-SelfLift; 放大器=HF LBH-123-AI/Minimax_h3_latent_Upscaler",
+      "YCNodes仓库=github.com/yichengup/ComfyUI-YCNodes-MiniMax-H3(6节点, 参数互验吻合)",
+      "lightx2v官方树复核: fl2v已到v1.3_768p(产线v1.2), ref2v有8step v1.0/v1.1——档案滚动滞后属正常, 无升级令不动"
+    ]
+  },
+  "context_tail": {
+    "cloud_price": "RunningHub 2026-11-03算力涨价(Lite 0.13/Standard 0.73/Plus 0.97/Ultra 1.94 RH币每秒; API ¥1/6/8/16每小时) [frame_0012@13:48]",
+    "gpu_market": "2026-05后各型号显卡价格快速上涨 [frame_0011@13:32]",
+    "info_channel": "AI雷达(ai-radar)每日Civitai新模型早晚报+提示词画廊 [frame_0014@14:21, frame_0015-0016]"
+  }
+}
