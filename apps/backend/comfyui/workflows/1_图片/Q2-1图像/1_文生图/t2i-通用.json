@@ -8,12 +8,12 @@
       "id": 1,
       "type": "UNETLoader",
       "pos": [
-        50,
-        100
+        100,
+        200
       ],
       "size": [
-        270,
-        120
+        300,
+        130
       ],
       "flags": {},
       "order": 0,
@@ -39,12 +39,12 @@
       "id": 2,
       "type": "CLIPLoader",
       "pos": [
-        50,
-        250
+        100,
+        400
       ],
       "size": [
-        270,
-        120
+        300,
+        130
       ],
       "flags": {},
       "order": 1,
@@ -71,12 +71,12 @@
       "id": 3,
       "type": "VAELoader",
       "pos": [
-        50,
-        400
+        100,
+        600
       ],
       "size": [
-        270,
-        120
+        300,
+        100
       ],
       "flags": {},
       "order": 2,
@@ -101,12 +101,12 @@
       "id": 400,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        400,
-        100
+        480,
+        150
       ],
       "size": [
-        270,
-        120
+        400,
+        180
       ],
       "flags": {},
       "order": 3,
@@ -131,11 +131,11 @@
       "id": 404,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        400,
-        300
+        480,
+        400
       ],
       "size": [
-        270,
+        400,
         120
       ],
       "flags": {},
@@ -161,12 +161,12 @@
       "id": 401,
       "type": "TextEncodeQwenImage21",
       "pos": [
-        750,
-        150
+        950,
+        200
       ],
       "size": [
-        270,
-        120
+        320,
+        200
       ],
       "flags": {},
       "order": 5,
@@ -222,12 +222,12 @@
       "id": 4,
       "type": "EmptyLatentImage",
       "pos": [
-        400,
-        550
+        480,
+        600
       ],
       "size": [
-        270,
-        120
+        320,
+        130
       ],
       "flags": {},
       "order": 7,
@@ -254,12 +254,12 @@
       "id": 7,
       "type": "e7b9d4a2-3c5f-4e61-8d70-9f2a5c8b4d6e",
       "pos": [
-        1100,
-        100
+        1350,
+        200
       ],
       "size": [
-        270,
-        120
+        350,
+        320
       ],
       "flags": {},
       "order": 8,
@@ -339,12 +339,12 @@
       "id": 5,
       "type": "VAEDecode",
       "pos": [
-        1450,
-        200
+        1780,
+        250
       ],
       "size": [
-        270,
-        120
+        300,
+        100
       ],
       "flags": {},
       "order": 9,
@@ -377,12 +377,12 @@
       "id": 8,
       "type": "SaveImage",
       "pos": [
-        1700,
-        200
+        2150,
+        250
       ],
       "size": [
-        270,
-        120
+        350,
+        270
       ],
       "flags": {},
       "order": 10,
@@ -405,12 +405,12 @@
       "id": 402,
       "type": "MarkdownNote",
       "pos": [
-        50,
-        650
+        100,
+        850
       ],
       "size": [
-        270,
-        120
+        560,
+        180
       ],
       "flags": {},
       "order": 11,
@@ -803,8 +803,8 @@
             "id": 7015,
             "type": "MyQi21SpeedSelect",
             "pos": [
-              6160.0,
-              2440.0
+              6100,
+              2400
             ],
             "size": [
               380.0,
@@ -929,7 +929,7 @@
                 ]
               }
             ],
-            "title": "[7014] seed单源",
+            "title": "[7014] seed 单源",
             "properties": {
               "Node name for S&R": "PrimitiveInt",
               "cnr_id": "comfy-core",
@@ -1506,8 +1506,8 @@
             "id": 7026,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              1750.0,
-              3560.0
+              850,
+              1920
             ],
             "size": [
               270.0,
@@ -1776,8 +1776,8 @@
             "id": 7034,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              570.0,
-              1920.0
+              550,
+              1920
             ],
             "size": [
               270.0,
@@ -1965,7 +1965,7 @@
             "id": 7100,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              220,
+              250,
               1920
             ],
             "size": [
@@ -2014,8 +2014,8 @@
             "id": 7110,
             "type": "ViggleTurboLora",
             "pos": [
-              1740.0,
-              4260.0
+              2200,
+              4100
             ],
             "size": [
               270.0,
@@ -2064,8 +2064,8 @@
             "id": 7111,
             "type": "BasicGuider",
             "pos": [
-              2100.0,
-              4260.0
+              2550,
+              4100
             ],
             "size": [
               270.0,
@@ -2098,7 +2098,7 @@
                 ]
               }
             ],
-            "title": "[7111] Pruna引导·候列",
+            "title": "[7111] Pruna引导",
             "properties": {
               "Node name for S&R": "BasicGuider",
               "cnr_id": "comfy-core",
@@ -2115,8 +2115,8 @@
             "id": 7113,
             "type": "ViggleTurboSigmas",
             "pos": [
-              1740.0,
-              4460.0
+              2200,
+              4320
             ],
             "size": [
               330.0,
@@ -2152,7 +2152,7 @@
                 ]
               }
             ],
-            "title": "[7113] Pruna 6步σ表·候列",
+            "title": "[7113] Pruna 6步σ表",
             "properties": {
               "Node name for S&R": "ViggleTurboSigmas",
               "ue_properties": {
@@ -2170,8 +2170,8 @@
             "id": 7112,
             "type": "SamplerCustomAdvanced",
             "pos": [
-              2450.0,
-              4260.0
+              2850,
+              4100
             ],
             "size": [
               330.0,
@@ -2228,7 +2228,7 @@
                 "links": []
               }
             ],
-            "title": "[7112] Pruna采样·候列(输出悬空)",
+            "title": "[7112] Pruna采样",
             "properties": {
               "Node name for S&R": "SamplerCustomAdvanced",
               "ue_properties": {
@@ -2269,10 +2269,10 @@
           {
             "title": "③原生出图",
             "bounding": [
-              1700.0,
-              3510.0,
-              3300.0,
-              474.0
+              2200,
+              3480,
+              600,
+              500
             ],
             "color": "#3f789e",
             "id": 102,
@@ -2281,10 +2281,10 @@
           {
             "title": "④共用控制",
             "bounding": [
-              220,
-              430,
-              650,
-              2768
+              200,
+              100,
+              1050,
+              3000
             ],
             "color": "#3f789e",
             "id": 103,
@@ -2305,10 +2305,10 @@
           {
             "title": "⑥四路汇流",
             "bounding": [
-              6130.0,
-              2390.0,
-              440.0,
-              318.0
+              6050,
+              2320,
+              550,
+              400
             ],
             "color": "#3f789e",
             "id": 105,
@@ -2317,10 +2317,10 @@
           {
             "title": "⑦PrunaAI 6步臂(默认)",
             "bounding": [
-              1700.0,
-              4200.0,
-              1100.0,
-              480.0
+              2150,
+              4020,
+              1150,
+              550
             ],
             "color": "#3f789e",
             "id": 106,
@@ -2809,5 +2809,54 @@
       }
     ]
   },
-  "groups": []
+  "groups": [
+    {
+      "title": "加载器",
+      "bounding": [
+        60,
+        120,
+        400,
+        620
+      ],
+      "color": "#88A",
+      "id": 100,
+      "locked": false
+    },
+    {
+      "title": "提示词",
+      "bounding": [
+        430,
+        80,
+        510,
+        520
+      ],
+      "color": "#8A8",
+      "id": 101,
+      "locked": false
+    },
+    {
+      "title": "加速出图",
+      "bounding": [
+        1300,
+        120,
+        480,
+        480
+      ],
+      "color": "#AA6",
+      "id": 102,
+      "locked": false
+    },
+    {
+      "title": "保存",
+      "bounding": [
+        2100,
+        180,
+        460,
+        400
+      ],
+      "color": "#A86",
+      "id": 103,
+      "locked": false
+    }
+  ]
 }
