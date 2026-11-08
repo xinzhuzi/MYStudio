@@ -1,8 +1,8 @@
 {
  "id": "pika-daojie-three-stage-1105",
  "revision": 0,
- "last_node_id": 266,
- "last_link_id": 774,
+ "last_node_id": 267,
+ "last_link_id": 776,
  "nodes": [
   {
    "id": 9,
@@ -2005,7 +2005,7 @@
      "name": "MODEL",
      "type": "MODEL",
      "links": [
-      606
+      775
      ]
     }
    ],
@@ -4845,7 +4845,7 @@
     {
      "name": "model",
      "type": "MODEL",
-     "link": 606
+     "link": 776
     }
    ],
    "outputs": [
@@ -5351,6 +5351,54 @@
     "taeh3.safetensors",
     ""
    ]
+  },
+  {
+   "id": 267,
+   "type": "BlockSparseAttention",
+   "pos": [
+    6100,
+    80
+   ],
+   "size": [
+    270,
+    250
+   ],
+   "flags": {},
+   "order": 313,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 775
+    }
+   ],
+   "outputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "links": [
+      776
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.34.0",
+    "Node name for S&R": "BlockSparseAttention"
+   },
+   "widgets_values": [
+    "sol-attn",
+    1.3,
+    0,
+    1,
+    "",
+    12288,
+    256,
+    "exact_kv_and_rows",
+    false
+   ],
+   "title": "sol-attn τ1.3(二采·1108 用户令)"
   }
  ],
  "links": [
@@ -5727,14 +5775,6 @@
    127,
    0,
    202,
-   0,
-   "MODEL"
-  ],
-  [
-   606,
-   202,
-   0,
-   223,
    0,
    "MODEL"
   ],
@@ -6519,6 +6559,22 @@
    266,
    0,
    126,
+   0,
+   "MODEL"
+  ],
+  [
+   775,
+   202,
+   0,
+   267,
+   0,
+   "MODEL"
+  ],
+  [
+   776,
+   267,
+   0,
+   223,
    0,
    "MODEL"
   ]

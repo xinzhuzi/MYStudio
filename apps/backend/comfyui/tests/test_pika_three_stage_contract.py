@@ -94,6 +94,7 @@ def test_stage2_up_recipe():
     assert w[5] is True and w[6] is True, "chunking/force_unload 开(Win 先例 fasth3-二采超分-2x)"
     assert w[7] == "cuda", "Win 产线引擎,device 必须 cuda(社区件出厂 mps 已勘正)"
     assert nodes[202]["widgets_values"] == ["taomate_h3_3step.safetensors", 0.7]
+    assert nodes[267]["type"] == "BlockSparseAttention" and nodes[267]["mode"] == 0, "1108 二采挂 sol-attn"
     # 1105 统一改造:单 UNETLoader(Cobijada)扇出双 LoRA 臂,换装段消失(taomate@Cobijada 候实弹)
     assert nodes[209]["widgets_values"] == ["simple", 3, 0.2], "UP 定谳:simple/3步/denoise 0.2"
     assert nodes[203]["widgets_values"] == [12, 3]
@@ -118,10 +119,10 @@ def test_stage2_model_mainline_passes_through_chunkffn():
     down_ids = nodes[223]["outputs"][0]["links"]
     assert len(down_ids) == 1, "[223] 输出恒单挂"
     down = links[down_ids[0]]
-    assert (up[1], up[3], up[5]) == (202, 223, "MODEL"), "上游=[202] 且走 MODEL"
+    assert (up[1], up[3], up[5]) == (267, 223, "MODEL"), "上游=[202]→[267]sol-attn→[223](1108 二采挂 sol-attn)"
     assert (down[1], down[3], down[5]) == (223, 203, "MODEL"), "下游=[203] 且走 MODEL"
     fed = {l[3] for l in d["links"] if l[1] == 202 and l[5] == "MODEL"}
-    assert fed == {223}, "[202] 的 MODEL 唯一去向必须是 [223](主线不得绕行)"
+    assert fed == {267}, "[202] 的 MODEL 唯一去向=[267]sol-attn→[223](1108 二采主线)"
 
 
 def test_stage2_single_source_fanout_no_duplicate():
