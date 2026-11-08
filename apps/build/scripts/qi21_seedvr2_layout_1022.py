@@ -17,7 +17,7 @@ if sys.argv[1:]:
                     if p.name == "漫影工作室")
     target_dir = app_home / "comfyui/ComfyUI/user/default/workflows"
 paths = subprocess.check_output(
-    ["fd", "-a", "^qi21-道劫-t2i.json$", str(target_dir), "--hidden", "--no-ignore"],
+    ["fd", "-a", "^自研件-qi21-道劫-t2i.json$", str(target_dir), "--hidden", "--no-ignore"],
     text=True,
 ).splitlines()
 assert len(paths) == 1, paths

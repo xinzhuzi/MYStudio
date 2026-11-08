@@ -30,13 +30,13 @@ NEW_TITLE = "[7034] 风格LoRA·mikkoani(×0.8)"
 SEG_OLD = "[7034] 风格LoRA·mikkoani ×1.0(1018 用户令「使用 mikkoani,默认打开」——"
 SEG_NEW = ("[7034] 风格LoRA·mikkoani ×0.8(1019 用户令「默认改×0.8」,原×1.0=1018 用户令"
            "「使用 mikkoani,默认打开」——")
-FILES = [BASE / "workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
-         BASE / "workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
+FILES = [BASE / "workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json",
+         BASE / "workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json",
          BASE / "workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json",
          BASE / "my_nodes/subgraphs/qi21-道劫-加速子图.json",
          BASE / "my_nodes/subgraphs/qi21-道劫-加速子图-i2i.json",
          BASE / "my_nodes/subgraphs/qi21-道劫-加速子图-edit.json"]
-API = BASE / "workflows/1_图片/Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json"
+API = BASE / "workflows/1_图片/Q2-1图像/2_图生图/自研件-qwen21-道劫-i2i-api.json"
 API_NODE = "7:7034"
 
 

@@ -1,11 +1,11 @@
 """Qwen-Image-2.1(qi21)文生图/图生图引擎模块——经自管 ComfyUI 引擎执行。
 
 复用 comfyui_bridge 的提交/轮询/取图机制,模板=qwen21_道劫_t2i_api
-(qi21-道劫-t2i.json 工作流本体按 fire 展平逻辑生成:装配子图[6] ApiPE 双链回落
+(自研件-qi21-道劫-t2i.json 工作流本体按 fire 展平逻辑生成:装配子图[6] ApiPE 双链回落
 +加速子图[7] 默认官方 Turbo 8步(LoRA×1.0、官方 sigma、BasicGuider)
 +SeedVR2 2K 超分双产物;生成器=
 apps/build/scripts/qwen21_bridge_template_build.py,型/档随画布现值)。
-10-19 图生图·道劫美术风格转换:带参考图走 qwen21_道劫_i2i_api(qi21-道劫-i2i.json 展平,
+10-19 图生图·道劫美术风格转换:带参考图走 qwen21_道劫_i2i_api(自研件-qi21-道劫-i2i.json 展平,
 单参考 [10];快照=画布现值,运行时覆写 6:4011 组装用途=道劫美术风格转换——底座由装配层
 自动追加;seed 每次随机,fire 铁令);无参考走原 t2i 路(逐字节不变)。
 10-22 图生图·型层注入:ctx 带 base_type 时 i2i 路切「道劫美术类型」全拼档——
@@ -57,8 +57,8 @@ SPEC = {
     "layout": LAYOUT,
 }
 
-TEMPLATE_NAME = "qwen21_道劫_t2i_api"
-TEMPLATE_NAME_I2I = "qwen21_道劫_i2i_api"
+TEMPLATE_NAME = "自研件_qwen21_道劫_t2i_api"
+TEMPLATE_NAME_I2I = "自研件_qwen21_道劫_i2i_api"
 ASSEMBLY_PURPOSE_STYLE_TRANSFER = "道劫美术风格转换"
 # 10-22 i2i 型层注入路(表情差分首用例):带 base_type 即切全拼档
 # (参考图锚身份+型文全拼+型负面 merge+RGBA 跟型+型画幅路由)。

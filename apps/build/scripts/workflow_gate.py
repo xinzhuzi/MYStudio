@@ -67,8 +67,8 @@ GENERATORS: list[tuple[str, str]] = []
 
 # 布局棘轮目标(原=生成器头部常量 AST 解析;生成器退役删除后直列三件真源)
 WORKFLOW_TARGETS: list[str] = [
-    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
-    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json",
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json",
     "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json",
 ]
 
@@ -76,7 +76,7 @@ WORKFLOW_TARGETS: list[str] = [
 # (基线 workflow_layout_baseline.json = 1001 手术链成员重立,棘轮覆盖不减)。
 # ⛔ 1001 退役警示(Trellis 10-01-qi21-assembly-blueprint;警示原文在
 # qi21_daojie_t2i_0923.py:358-369)——勿再运行该生成器:重跑会把
-# qi21-道劫-t2i.json 重置回 0930 旧布局并抹掉 1001 手术。该 JSON 现真源=
+# 自研件-qi21-道劫-t2i.json 重置回 0930 旧布局并抹掉 1001 手术。该 JSON 现真源=
 # 仓库 JSON 本体+手术链(campaigns/qi21_assembly_surgery_1001.py 已役留档、
 # qi21_blueprint_sync_1001.py 蓝图同步通道),内容锁=契约测试
 # backend/comfyui/tests/test_qwen21_workflow_contract.py。

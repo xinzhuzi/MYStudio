@@ -30,7 +30,7 @@
 
 八段公式(**主体→动作→环境→风格→氛围/光→构图/镜头→色彩→质量词**)在道劫产线的三层分配:**美术风格底座**(`qi21_bases.json#art_style_base`)管「画怎么画」——共同画法/色板词汇表/成像工艺/支持时使用的全局负面；不锁定全局照明和浅色背景;**类型句**(`qi21_bases.json#types[]`)管「图怎么构」——布局与画幅参数/用途相关的环境呈现/设定图漫射光/支持时使用的型级负面;**主体句**管「这张图里有什么」——身份段(逐字同源资产)/动作/环境内容/光参数四要素(光位/时段/色/落点)/氛围神态/落点色锚。三条判据:永不变→底座、型间不同→类型句、每图必变→主体句;同一概念拆「定义→预算→落点」三级;类型句只开槽主体句只填槽。完整契约(机读 JSON,含八段矩阵/光与氛围不对称设计/跨层铁律/已知缺口)= [json/prompt_layering.json](json/prompt_layering.json);引擎侧同步内联 = `qi21_bases.json#layer_contract`。**提示词机读供给内容唯一真源家=[json/](json/README.md)(qi21_bases.json 生产真源+分层契约+42色备选库摘录,10-04 集中化轮立)**——引擎侧 `my_nodes/nodes/qi21_bases.json` 为同步产物,禁手改。
 
-**十型主体句与图生图指令写法单一入口** = [art_prompt/art_subject_ten_types.md](art_prompt/art_subject_ten_types.md)(骨架句式+单源指针,只指不抄;兼 `daojie-image-prompter` 技能真身——`.agents/skills/daojie-image-prompter/SKILL.md` 符号链指到本件)。
+**十型主体句与图生图指令写法单一入口** = [art_prompt/art_subject_ten_types.md](art_prompt/art_subject_ten_types.md)(骨架句式+单源指针,只指不抄;兼 `daojie-image-prompter` 子技能真身——`.agents/skills/qwen-image-prompt/daojie-image-prompter/SKILL.md` 符号链指到本件;1108 起该子技能并入 `qwen-image-prompt` 统一技能)。
 
 ## 历史画卷基准(09-18《三国望神州》美术 DNA 并入)
 

@@ -18,7 +18,7 @@ def check_sources():
             record=drifts.get(name,{})
             assert record.get('original_sha256')==digest,name
             assert record.get('role')=='reference_only_not_execution_input',name
-            assert (w.ROOT/name).name=='qi21-道劫-t2i.json',name
+            assert (w.ROOT/name).name=='自研件-qi21-道劫-t2i.json',name
             frozen=json.loads((w.TASK/'artifacts/gui-template.json').read_text())
             first=json.loads((w.TASK/'artifacts/cases.json').read_text())[0]
             assert w.expand_gui(frozen)==w.api_graph(first),'frozen FLUX source changed'

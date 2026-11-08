@@ -32,7 +32,7 @@ import os
 import sys
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-WF = os.path.join(REPO, 'apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json')
+WF = os.path.join(REPO, 'apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json')
 BP_ASM = os.path.join(REPO, 'apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json')
 BP_2PASS = os.path.join(REPO, 'apps/backend/comfyui/my_nodes/subgraphs/qi21-道劫-二采精修子图.json')
 

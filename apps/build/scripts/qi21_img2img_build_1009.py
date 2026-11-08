@@ -22,7 +22,7 @@ LoRA strength 1.0+KSampler 6 步;denoise<1 语义=取更长调度低噪尾段起
 off-distribution 警示与逃生口入 Note);④提示词=描述性精修指令(非
 <image1>/<image2> 编辑指令),型文底座照常参与。
 
-模板来源:节点对象逐件拷自 qi21-道劫-i2i.json(装配三件自其 [6] 子图提升为
+模板来源:节点对象逐件拷自 自研件-qi21-道劫-i2i.json(装配三件自其 [6] 子图提升为
 顶层,链路重排)与 qwen21-pose-edit.json(Cache/KSampler);asm 锁层A全文=
 i2i 现值(=qi21_bases.json art_style_base.positive_text 真源,契约测试热读互锁)。
 
@@ -38,9 +38,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 ENG = REPO / "apps/backend/comfyui"
-I2I = ENG / "workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
-POSE = ENG / "workflows/1_图片/Q2-1图像/2_图生图/qwen21-pose-edit.json"
-OUT = ENG / "workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-img2img.json"
+I2I = ENG / "workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json"
+POSE = ENG / "workflows/1_图片/Q2-1图像/4_姿势编辑/qwen21-pose-edit.json"  # 1108 归位令迁入 4_姿势编辑
+OUT = ENG / "workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-img2img.json"
 TRUTH = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
 
 DN = 0.6          # 用户令 0.5~0.7 区间取中(低噪尾段起步)

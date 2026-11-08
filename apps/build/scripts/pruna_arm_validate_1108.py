@@ -23,7 +23,7 @@ sys.path.insert(0, str(SCRIPTS))
 import qwen21_bridge_template_build as builder  # noqa: E402
 
 SRC = REPO / "apps/backend/comfyui/my_nodes/subgraphs/qi21-道劫-加速子图.json"
-CANVAS = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
+CANVAS = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json"
 SNAP = pathlib.Path("/tmp/objinfo.json")
 SG_ID = "e7b9d4a2-3c5f-4e61-8d70-9f2a5c8b4d6e"
 MODE4 = "4 · PrunaAI 6步"
@@ -122,7 +122,7 @@ def section3() -> list[str]:
 # ── 1108 拉齐轮:i2i/edit 同构校验(结构面;构建面 i2i 走 builder,edit 无桥模板仅结构)──
 REPO = REPO  # noqa
 I2I = dict(bp=REPO / "apps/backend/comfyui/my_nodes/subgraphs/qi21-道劫-加速子图-i2i.json",
-           canvas=REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
+           canvas=REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json",
            uuid="b3f5a1c2-9d4e-4f60-8a7b-5c6d7e8f9a0b", host=7, build=True)
 EDIT = dict(bp=REPO / "apps/backend/comfyui/my_nodes/subgraphs/qi21-道劫-加速子图-edit.json",
             canvas=REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json",

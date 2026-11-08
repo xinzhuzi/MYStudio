@@ -1,0 +1,6 @@
+{
+  "extends": "../../frontend/config/tsconfig.json",
+  "include": ["director_chapter001_runtime_1026.test.ts", "director_chapter001_runtime_pilot_1027_prepare.test.ts", "../../frontend/**/*.d.ts"],
+  "exclude": [],
+  "references": []
+}

@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 ENGINE = Path(__file__).resolve().parents[1]
-FILES = list((ENGINE / 'workflows').rglob('qi21-道劫-i2i.json')) + [
+FILES = list((ENGINE / 'workflows').rglob('自研件-qi21-道劫-i2i.json')) + [
     ENGINE / 'my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json',
 ]
 

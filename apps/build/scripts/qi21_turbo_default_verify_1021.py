@@ -50,7 +50,7 @@ def main():
         assert node.check_lazy_status(speed.DEFAULT_MODE, latent_turbo=None, latent_direct=None, latent_viggle=None, 型名=type_name) == ['latent_turbo']
         rows.append({'type': type_name, 'default': TURBO, 'lazy_requested': ['latent_turbo']})
     mirrors = []
-    paths = sorted([p for p in (COMFY / 'workflows').rglob('*.json') if p.name in ('qi21-道劫-t2i.json', 'qi21-道劫-i2i.json', 'qi21-edit.json')])
+    paths = sorted([p for p in (COMFY / 'workflows').rglob('*.json') if p.name in ('自研件-qi21-道劫-t2i.json', '自研件-qi21-道劫-i2i.json', 'qi21-edit.json')])
     paths += sorted([p for p in (COMFY / 'my_nodes/subgraphs').iterdir() if p.name.startswith('qi21-道劫-加速子图') and p.suffix == '.json'])
     for path in paths:
         doc = read(path)

@@ -1,0 +1,6 @@
+{
+  "extends": "../../frontend/config/tsconfig.json",
+  "include": ["./director_chapter001_runtime_owner_1027.test.ts"],
+  "exclude": [],
+  "compilerOptions": { "types": ["node"] }
+}

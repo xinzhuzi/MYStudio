@@ -1,0 +1,13 @@
+{
+  "extends": "../../frontend/config/tsconfig.json",
+  "include": [
+    "./director_chapter001_runtime_window_1027.ts",
+    "./director_chapter001_runtime_window_1027.test.ts"
+  ],
+  "exclude": [],
+  "compilerOptions": {
+    "types": [
+      "node"
+    ]
+  }
+}

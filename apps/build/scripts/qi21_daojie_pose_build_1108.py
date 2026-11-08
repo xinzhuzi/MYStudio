@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """1108 道劫人物姿势工作流·幂等生成器(持械挂腰姿势根治役)。
 
-产物: workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-人物姿势.json(画布件)
+产物: workflows/1_图片/Q2-1图像/4_姿势编辑/自研件-qi21-道劫-人物姿势.json(画布件;1108 归位令自 2_图生图 迁入,文件名不变)
 架构 = 道劫三层装配(qi21_bases 型库) × Fisher-Pose 姿势控制:
   FisherPoseStudio(文字摆人偶:手钉腰侧鞘位) → FisherQwenFreePose(姿势条件+
   装配文 extra_prompt) + VNCCS 姿势 LoRA@1.0 → KSampler 25步/CFG1 euler → 出图
-母本配方 = 道劫-摆姿-fisher.json(1010 实证版);新增=型库装配层+姿势句模板。
+母本配方 = 自研件-道劫-摆姿-fisher.json(1010 实证版);新增=型库装配层+姿势句模板。
 用法: python3 qi21_daojie_pose_build_1108.py [--dry-run]
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 QI21_BASES = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
-OUT = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-人物姿势.json"
+OUT = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/4_姿势编辑/自研件-qi21-道劫-人物姿势.json"
 
 BOILERPLATE = ("image1 is a gray mannequin for pose only — ignore its gray color and material "
                "everywhere. 画面人物、服装、配器与场景完全按下方道劫装配文执行，人偶只提供姿势骨架。")
@@ -40,9 +40,9 @@ NOTE = """## 道劫·人物姿势工作流(1108 持械根治役:道劫装配 × 
 2. [1] 选型(默认人物海报)+[2] 主体句(色词/部件清单句/性别锚纪律同 05 库)
 3. Queue → 姿势由人偶钉死,人物/服装/剑按装配文渲染
 
-**配方母本**=道劫-摆姿-fisher.json(1010 实证):qwen_image_2.1_bf16+heretic TE+texture_fix VAE+VNCCS 姿势 LoRA@1.0+25步/CFG1/euler/simple
+**配方母本**=自研件-道劫-摆姿-fisher.json(1010 实证):qwen_image_2.1_bf16+heretic TE+texture_fix VAE+VNCCS 姿势 LoRA@1.0+25步/CFG1/euler/simple
 **新增**=型库三层装配层(MyQi21DaojieBase→MyQi21PromptAssembly)+Fisher 官方灰人偶声明句(Text Concatenate 拼接,防灰色渗染)+姿势句模板(手在鞘位)
-**对照**:同主体句无姿势件=qi21-道劫-t2i.json(纯文本路,持械弱);本件=姿势钉死路
+**对照**:同主体句无姿势件=自研件-qi21-道劫-t2i.json(纯文本路,持械弱);本件=姿势钉死路
 
 **1108 五轮实弹验证配方(已烙为本件默认值)**:
 - image2(人物立绘)=**无剑/预贴挂腰剑立绘**——绝不可用含手持剑姿势的立绘(参照姿势会压制人偶,v3 实锤复制级压制);无剑参照+装配文剑段=双手空+挂腰唯一写法(「始终由腰间剑绦系挂/重量由腰带承担/双臂自然垂落双手悬空/全身仅此一柄」),禁写手触鞘语句(手触鞘段+人偶垂手=双剑分裂,v4 实锤)
@@ -185,7 +185,7 @@ def main() -> int:
         print(f"[DRY] 将写 {OUT.relative_to(REPO)}"); return 0
     d = build()
     OUT.write_text(json.dumps(d, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    print(f"OK qi21-道劫-人物姿势.json nodes={len(d['nodes'])} links={len(d['links'])}")
+    print(f"OK 自研件-qi21-道劫-人物姿势.json nodes={len(d['nodes'])} links={len(d['links'])}")
     return 0
 
 

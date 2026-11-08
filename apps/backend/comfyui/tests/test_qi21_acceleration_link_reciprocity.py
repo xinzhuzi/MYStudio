@@ -6,7 +6,7 @@ import pytest
 
 COMFY = Path(__file__).resolve().parents[1]
 NAMES = {
-    'qi21-道劫-t2i.json', 'qi21-道劫-i2i.json',
+    '自研件-qi21-道劫-t2i.json', '自研件-qi21-道劫-i2i.json',
     'qi21-道劫-加速子图.json', 'qi21-道劫-加速子图-i2i.json',
 }
 PATHS = sorted(

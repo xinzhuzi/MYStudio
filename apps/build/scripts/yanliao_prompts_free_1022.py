@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 OUT = ROOT / "apps/output/晏燎"
-BRIDGE = ROOT / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json"
+BRIDGE = ROOT / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qwen21-道劫-i2i-api.json"
 
 CLOTH = {  # 逐期全身衣物锚(源图视觉取证,色名齐全)
  "练气": "浅灰色交领广袖长袍带水墨晕染质感，领口露米白色中衣与青灰色中衣层，腰束深灰褐色布腰带垂土黄褐色飘带，胸前系浅青白色玉佩，左腰挂灰白色束口布囊，左腕系红色细绳，双小臂缠深灰色绑布，足蹬浅灰色布靴配深灰色绑腿",
@@ -81,7 +81,7 @@ def build():
     for f in OUT.glob("*.txt"): f.unlink()
     (OUT / "prompts.json").write_text(json.dumps({
         "说明": "v2 图生图式两段终稿(指令+底座209字);零类型句;自由型;自由出图路纯透传=文件即完整编码文本;门禁negation_only全检零红",
-        "底座真源": "qwen21-道劫-i2i-api.json graph[6:4011].锁层A全文(209字逐字)",
+        "底座真源": "自研件-qwen21-道劫-i2i-api.json graph[6:4011].锁层A全文(209字逐字)",
         "条目": items}, ensure_ascii=False, indent=2) + "\n")
     for it in items:
         (OUT / f"晏燎_{it['期']}期_{it['产物']}.txt").write_text(it["提示词终稿"] + "\n")

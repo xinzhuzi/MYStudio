@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""qi21-道劫-i2i.json 工作流本体直跑器(1013 用户令:「按照晏燎的图,做个图生图测试」)。
+"""自研件-qi21-道劫-i2i.json 工作流本体直跑器(1013 用户令:「按照晏燎的图,做个图生图测试」)。
 
 不做任何自建图——从工作流 GUI JSON **按其结构通用展平**成 API 格式发车
 (与画布 graphToPrompt 同语义):
@@ -32,7 +32,7 @@ import urllib.request
 from pathlib import Path
 
 REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
-WF = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
+WF = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json"
 SKIP_TYPES = {"Note", "MarkdownNote"}          # 前端注释件,无 API 形
 PASS_TYPES = {"Reroute"}                       # 解析穿越
 

@@ -22,7 +22,7 @@ def main():
     args = ap.parse_args()
     url = engine_base()
     schemas = object_info()
-    paths = {'i2i': 'qi21-道劫-i2i.json', 'edit': 'qi21-edit.json'}
+    paths = {'i2i': '自研件-qi21-道劫-i2i.json', 'edit': 'qi21-edit.json'}
     prepared = []
     for line, name in paths.items():
         if args.only and line != args.only:

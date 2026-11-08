@@ -174,8 +174,8 @@ def snapshots() -> None:
     replacements[old['positive_ground_text']] = ''
     replacements = sorted(replacements.items(), key=lambda pair: -len(pair[0]))
     backend = ROOT / 'apps/backend/comfyui'
-    names = {'qi21-道劫-t2i.json': 3, 'qi21-道劫-i2i.json': 2,
-             'qwen21-道劫-t2i-api.json': 2, 'qi21-道劫-img2img.json': 1,
+    names = {'自研件-qi21-道劫-t2i.json': 3, '自研件-qi21-道劫-i2i.json': 2,
+             '自研件-qwen21-道劫-t2i-api.json': 2, '自研件-qi21-道劫-img2img.json': 1,
              'qi21-提示词类型优化子图.json': 3, 'qi21-提示词类型优化子图-i2i.json': 2}
     paths = [p for p in (backend / 'workflows').rglob('*.json') if p.name in names]
     paths += [p for p in (backend / 'my_nodes/subgraphs').iterdir() if p.name in names]

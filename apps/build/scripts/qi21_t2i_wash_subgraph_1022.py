@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""qi21-道劫-t2i.json 洗底链收装子图手术(10-22 用户令「洗底链你做成子图!在
-qi21-道劫-t2i.json 里面」).
+"""自研件-qi21-道劫-t2i.json 洗底链收装子图手术(10-22 用户令「洗底链你做成子图!在
+自研件-qi21-道劫-t2i.json 里面」).
 
 背景:i2i 洗底链(1015 紫底 P1)为根图平铺五件;t2i 基准脸产线同患透明区
 RGB 残留,用户令以「子图」形态收装进 t2i。手术面:
@@ -22,8 +22,8 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-WF_REL = "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
-I2I_REL = "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
+WF_REL = "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json"
+I2I_REL = "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json"
 BP_REL = "apps/backend/comfyui/my_nodes/subgraphs/qi21-道劫-洗底-透明除渣.json"
 SVR2_BP_REL = "apps/backend/comfyui/my_nodes/subgraphs/qi21-道劫-超分-SeedVR2.json"
 BAK = REPO / "apps/output/bak/t2i-wash-1022"

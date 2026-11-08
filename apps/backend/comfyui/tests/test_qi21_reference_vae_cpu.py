@@ -7,7 +7,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[4]
 COMFY = ROOT / 'apps/backend/comfyui'
-NAMES = ('qi21-道劫-i2i.json', 'qi21-edit.json', 'qi21-道劫-img2img.json')
+NAMES = ('自研件-qi21-道劫-i2i.json', 'qi21-edit.json', '自研件-qi21-道劫-img2img.json')
 VAE = 'texture_fix_vae_for_qwen_image_2.1_bf16.safetensors'
 sys.path.insert(0, str(ROOT / 'apps/build/scripts'))
 from qwen21_bridge_template_build import flatten_canvas
@@ -38,7 +38,7 @@ def test_reference_vae_is_shared_cpu_fp32_with_matching_widgets(name):
 
 
 def test_app_i2i_template_uses_identical_cpu_loader():
-    graph = json.loads(next((COMFY / 'workflows').rglob('qwen21-道劫-i2i-api.json')).read_text())['graph']
+    graph = json.loads(next((COMFY / 'workflows').rglob('自研件-qwen21-道劫-i2i-api.json')).read_text())['graph']
     assert graph['3'] == {'class_type': 'VAELoaderKJ', 'inputs': {'vae_name': VAE, 'device': 'cpu', 'weight_dtype': 'fp32'}}
     consumers = [node['class_type'] for node in graph.values() if node['inputs'].get('vae') == ['3', 0]]
     # 1025 my21fast:TE 并集判定(api 件 1025 重生成后 TE=MyQi21FastEncode)

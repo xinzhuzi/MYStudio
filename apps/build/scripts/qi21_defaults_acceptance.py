@@ -15,7 +15,7 @@ COMFY = REPO / 'apps/backend/comfyui'
 TURBO = '0 · Turbo 8步'
 TURBO_FILE = 'qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors'
 FIX_FILE = 'qwen2.1-detail-fix-2.0.safetensors'
-CANVAS_NAMES = {'t2i': 'qi21-道劫-t2i.json', 'i2i': 'qi21-道劫-i2i.json', 'edit': 'qi21-edit.json'}
+CANVAS_NAMES = {'t2i': '自研件-qi21-道劫-t2i.json', 'i2i': '自研件-qi21-道劫-i2i.json', 'edit': 'qi21-edit.json'}
 
 
 def read_json(path: Path) -> dict:

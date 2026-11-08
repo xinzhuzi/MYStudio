@@ -159,7 +159,7 @@ def main():
     prepared = [repair.render(raw, old, new) for raw, old, new in zip(originals, documents, updated)]
     backup = RESEARCH / 'backups'
     backup.mkdir(parents=True, exist_ok=True)
-    api, = (ROOT / 'apps/backend/comfyui').rglob('qwen21-道劫-i2i-api.json')
+    api, = (ROOT / 'apps/backend/comfyui').rglob('自研件-qwen21-道劫-i2i-api.json')
     all_targets = [*targets, api, ROOT / 'apps/backend/comfyui/tests/test_qwen21_workflow_contract.py', ROOT / 'apps/build/scripts/test_qi21_i2i_canvas_1021.py']
     receipts = []
     for p in all_targets:

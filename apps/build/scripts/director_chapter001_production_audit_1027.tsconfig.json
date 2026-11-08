@@ -1,0 +1,6 @@
+{
+  "extends": "../../frontend/config/tsconfig.json",
+  "include": ["./director_chapter001_production_audit_1027.capture.ts", "./director_chapter001_production_audit_1027.test.ts", "../../frontend/types/**/*.d.ts", "../../frontend/vite-env.d.ts"],
+  "exclude": [],
+  "compilerOptions": { "types": ["node"] }
+}

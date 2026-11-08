@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""qi21-道劫-t2i.json 工作流本体直跑器(1009 用户令:「必须跑 qi21-道劫-t2i.json 工作流,不要瞎搞自己的设计;每次随机种子」)。
+"""自研件-qi21-道劫-t2i.json 工作流本体直跑器(1009 用户令:「必须跑 自研件-qi21-道劫-t2i.json 工作流,不要瞎搞自己的设计;每次随机种子」)。
 
 不做任何自建图——从工作流 GUI JSON **按其结构展平**成 API 格式发车:
 - 装配子图[6]:真节点逻辑(4010→4013 ApiPE(9B)→4014),型选择/主体句参数化;
@@ -24,7 +24,7 @@ import urllib.request
 from pathlib import Path
 
 REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
-WF = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
+WF = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json"
 DOC = REPO / "docs/prompts/道劫_类型主体句示例.md"
 # 1016turbo 官方臂常量(FunAcc 臂退役;LoRA 家=<引擎家>/models/loras,mystudio 映射)
 TURBO_LORA_FILE = "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors"

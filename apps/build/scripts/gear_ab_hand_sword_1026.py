@@ -28,7 +28,7 @@ sys.path.insert(0, str(REPO / 'apps/build/scripts'))
 import comfy_fire_core as fc  # noqa: E402
 
 ENGINE = 'http://127.0.0.1:17001'
-API_JSON = REPO / 'apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json'
+API_JSON = REPO / 'apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qwen21-道劫-t2i-api.json'
 OUT_DIR = REPO / 'apps/output/trial_档位AB_手剑_1026'
 CALIB_SEED = 111111
 SEEDS = [424242, 20261026, 778899]

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""qi21-道劫-i2i.json 洗底链收装子图手术(10-22 用户令「④b 没有不像文生图做成子图呢」).
+"""自研件-qi21-道劫-i2i.json 洗底链收装子图手术(10-22 用户令「④b 没有不像文生图做成子图呢」).
 
 对齐 t2i 1022 收装役(qi21_t2i_wash_subgraph_1022.py 先例,SeedVR2 制跨画布
 恒等契约):i2i 根图平铺洗底五件 [506]-[510] 拆除,嵌同 uuid 恒等定义
@@ -21,8 +21,8 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-WF_REL = "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
-T2I_REL = "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
+WF_REL = "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json"
+T2I_REL = "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json"
 BAK = REPO / "apps/output/bak/i2i-wash-1022"
 
 WASH_NAME = "道劫·④b·洗底·透明除渣"

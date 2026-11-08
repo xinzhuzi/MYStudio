@@ -42,8 +42,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 APP = REPO / "apps"
-T2I = APP / "backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
-I2I = APP / "backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
+T2I = APP / "backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json"
+I2I = APP / "backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json"
 EDIT = APP / "backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json"
 MIRROR = APP / "backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-edit.json"
 WORKFLOWS_DIR = APP / "backend/comfyui/workflows"

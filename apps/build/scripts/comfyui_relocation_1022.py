@@ -612,7 +612,7 @@ GATE_ANCHORS = [
     ("apps/build/scripts/run-python-tests.mjs",
      '"backend/engines/comfyui/my_nodes/tests"'),
     ("apps/build/scripts/workflow_gate.py",
-     '"apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"'),
+     '"apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json"'),
     ("apps/build/scripts/workflow_gate.py",
      '"backend/engines/comfyui/tests/test_qwen21_workflow_contract.py"'),
     ("apps/eslint.config.mjs", "backend/engines/comfyui/.zcode"),
@@ -636,7 +636,7 @@ RULE5_REVISIONS_REL = f"{_RULE5_TASK}/reports/shared-source-revisions.json"
 RULE5_TEST_REL = "apps/backend/engines/comfyui/tests/test_flux3_daojie_workflow_contract.py"
 
 _R5_OLD_QI21_KEY = ("apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/"
-                    "1_文生图/qi21-道劫-t2i.json")
+                    "1_文生图/自研件-qi21-道劫-t2i.json")
 _R5_OLD_FLUX3_KEY = ("apps/backend/engines/comfyui/workflows/1_图片/Flux3图像/"
                      "flux3-文生图.json")
 _R5_OLD_GUI_PATH = ("apps/backend/engines/comfyui/workflows/1_图片/Flux3图像/"
@@ -1299,8 +1299,8 @@ def cmd_execute() -> int:
         failures.append(f"对账红(未跟踪未入账或清单已失活): {recon}")
     # 门禁目标件在位(工作流三件+契约四件,迁移前旧位)
     for wf in [
-        "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
-        "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
+        "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json",
+        "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json",
         "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json",
     ]:
         if not (REPO / wf).is_file():

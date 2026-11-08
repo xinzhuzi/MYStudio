@@ -10,7 +10,7 @@ OUT = ROOT / 'apps/output/automation'
 records = json.loads((OUT / 'qi21-preinstall-cache-1022.json').read_bytes())
 record = records[0]
 source, installed, cache = (Path(record[key]) for key in ('source', 'installed', 'cache'))
-assert source.name == 'qi21-道劫-t2i.json'
+assert source.name == '自研件-qi21-道劫-t2i.json'
 wanted = source.read_bytes()
 assert installed.read_bytes() == wanted, 'Source changed after package'
 original = cache.read_bytes()
