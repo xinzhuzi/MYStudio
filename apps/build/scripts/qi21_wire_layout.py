@@ -56,7 +56,7 @@ def repair(wf):
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--apply',action='store_true')
     options=parser.parse_args()
-    path=Path(subprocess.check_output(['fd','-a','^自研件-qi21-道劫-t2i.json$',str(ROOT/'apps/backend/comfyui/workflows')],text=True).strip())
+    path=Path(subprocess.check_output(['fd','-a','^qi21-道劫-t2i.json$',str(ROOT/'apps/backend/comfyui/workflows')],text=True).strip())
     raw=path.read_bytes();wf=json.loads(raw);updated=repair(wf)
     before=lc.check_workflow(wf);after=lc.check_workflow(updated)
     assert [s['counts']['crossings'] for s in after]==[12,2,15,0,2]

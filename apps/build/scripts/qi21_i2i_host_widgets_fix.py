@@ -12,7 +12,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--apply', action='store_true')
 args = parser.parse_args()
 paths = []
-for folder, filename in [('workflows', '自研件-qi21-道劫-i2i.json'),
+for folder, filename in [('workflows', 'qi21-道劫-i2i.json'),
                          ('my_nodes/subgraphs', 'qi21-提示词类型优化子图-i2i.json')]:
     matches = subprocess.check_output(['fd', '-a', '--fixed-strings', filename, str(ENGINE / folder)], text=True).strip().splitlines()
     assert len(matches) == 1, matches

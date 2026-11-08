@@ -42,9 +42,9 @@ EXEMPT_OCCLUSION_TYPES = frozenset({
 #    入库纪律=保上游原样(1017 用户令/Q21官方模板上游锚 1021),其上游固有
 #    AABB/畸形链不作本仓改造对象;若日后升级上游版本,以新上游为准重新评估。
 EXEMPT_FILES = frozenset({
-    "自研件-qwen21-道劫-t2i-api.json",
-    "自研件-qwen21-道劫-i2i-api.json",
-    "自研件-道劫-摆姿-fisher.json",
+    "qwen21-道劫-t2i-api.json",
+    "qwen21-道劫-i2i-api.json",
+    "道劫-摆姿-fisher.json",
     "编辑生图整合-TE.json",
     "skill姿态图放大-扩展整合.json",
     "全能图片编辑-官方PE.json",

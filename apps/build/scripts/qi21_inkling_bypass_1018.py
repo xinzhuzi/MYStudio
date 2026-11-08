@@ -23,8 +23,8 @@ BASE = REPO / "apps/backend/comfyui"
 BAK = REPO / "apps/output/bak/qi21-inkling-bypass-1018"
 SG_NAME = "道劫·加速子图"
 LORA_FILE = "Inklingv2-qwen21_c1-st6000.safetensors"
-FILES = [BASE / "workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json",
-         BASE / "workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json",
+FILES = [BASE / "workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
+         BASE / "workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
          BASE / "workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json",
          BASE / "my_nodes/subgraphs/qi21-道劫-加速子图.json",
          BASE / "my_nodes/subgraphs/qi21-道劫-加速子图-i2i.json",

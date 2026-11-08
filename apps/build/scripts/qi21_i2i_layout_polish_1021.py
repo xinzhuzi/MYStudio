@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""自研件-qi21-道劫-i2i.json 布局优化落盘手术(10-21 用户令「优化其布局,美化节点布局」).
+"""qi21-道劫-i2i.json 布局优化落盘手术(10-21 用户令「优化其布局,美化节点布局」).
 
 只动布局面(node pos / 组框 bounding),拓扑/连线/widget/提示词零触碰:
   1. 拓扑指纹断言:剥 pos/size 序列化面外全等(节点序/links/widgets/标题);
@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-WF_REL = "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json"
+WF_REL = "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 BP_REL = {
     "[6] 文本提示词类型优化子图": "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json",
     "道劫·加速子图": "apps/backend/comfyui/my_nodes/subgraphs/qi21-道劫-加速子图-i2i.json",

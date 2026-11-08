@@ -5,7 +5,7 @@
 产线 t2i 链「人物海报」出图,表现如何?
 
 产线真源复用:qwen21_bridge_template_build.py 的画布展平+选中臂物质化逻辑
-(与 App 生图桥同一条 builder 管线)。对画布 自研件-qi21-道劫-t2i.json 只在内存改
+(与 App 生图桥同一条 builder 管线)。对画布 qi21-道劫-t2i.json 只在内存改
 (不落盘,画布文件保持 git 干净),四处:
   ① 宿主[6] 型选择=「人物海报」画布现值,勿动(三层装配=主体句400+型文+美术
      风格底座自动,prompt/negative 均不注入)
@@ -36,7 +36,7 @@ sys.path.insert(0, str(SCRIPTS))
 import qwen21_bridge_template_build as builder  # noqa: E402
 
 ENGINE = "http://192.168.0.101:17000"
-CANVAS = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json"
+CANVAS = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
 SNAPSHOT = pathlib.Path("/tmp/objinfo.json")
 OUT_DIR = pathlib.Path.home() / "Downloads/1108-pruna-poster"
 WS_DIR = REPO / "out/pruna1108"

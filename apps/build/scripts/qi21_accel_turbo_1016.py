@@ -162,7 +162,7 @@ FORMS = {
         "widget_rewrite": True,
     },
     "t2i": {
-        "path": WF_DIR / "1_文生图" / "自研件-qi21-道劫-t2i.json",
+        "path": WF_DIR / "1_文生图" / "qi21-道劫-t2i.json",
         "bp": BP_DIR / "qi21-道劫-加速子图.json",
         "bp_name": "道劫·加速子图(t2i)",
         "pos_boundary": "positive",
@@ -172,7 +172,7 @@ FORMS = {
         "widget_rewrite": False,
     },
     "i2i": {
-        "path": WF_DIR / "2_图生图" / "自研件-qi21-道劫-i2i.json",
+        "path": WF_DIR / "2_图生图" / "qi21-道劫-i2i.json",
         "bp": BP_DIR / "qi21-道劫-加速子图-i2i.json",
         "bp_name": "道劫·加速子图(i2i)",
         "pos_boundary": "positive_single",

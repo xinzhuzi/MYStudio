@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 import sys
 ROOT = Path(__file__).resolve().parents[3]
-NAME = '自研件-qi21-道劫-换脸-局部重绘.json'
+NAME = 'qi21-道劫-换脸-局部重绘.json'
 ORIGINAL_SHA256 = '4615ed3952cc1bb67e5360a7bac04c0bd6fc84cf1fe60a21217ee5db48f52585'
 PATCHED_SHA256 = '3df6f3d8c4b7cab06a5523014170a48680fc94713b668982ea16a2d69aad3d49'
 SCHEMAS = json.loads((ROOT / 'apps/backend/comfyui/tests/fixtures/qi21_object_info_snapshot.json').read_text())

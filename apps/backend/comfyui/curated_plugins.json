@@ -483,6 +483,17 @@
           "asset_composer.py": "fd744eaa36d77e32dc0718900eabf23bc70dd2a79889c23d2575644baf21f5c4"
         }
       }
+    },
+    {
+      "id": "ComfyUI_VNCCS_Utils",
+      "name": "VNCCS 姿势工坊",
+      "desc_zh": "Qwen-Image-2.1 精确姿势件:VNCCS_PoseStudio 节点+姿势库(远端仓库增删/刷新 REST API+local_user_poses 本地精选)。qwen21-nsfw-pose-skill 技能路线④的引擎侧必需节点;pip 三依赖(pytorch-lightning/roma/dynamicprompts),配套 VNCCS PoseStudio LoRA(HF MIUProject/VNCCS_PoseStudio_QI2.1)另下。",
+      "category": "Qwen-Image-2.1 图像",
+      "repo": "https://github.com/AHEKOT/ComfyUI_VNCCS_Utils",
+      "verified_license": "MIT",
+      "provides": [
+        "VNCCS_PoseStudio"
+      ]
     }
   ]
 }

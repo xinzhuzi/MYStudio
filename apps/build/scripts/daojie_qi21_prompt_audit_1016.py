@@ -40,7 +40,7 @@ base = json.loads(BASE.read_text())
 result['bases'] = {'path': str(BASE), 'sha256': hashlib.sha256(BASE.read_bytes()).hexdigest(), 'art_style_base': base['art_style_base'], 'rgba': base['rgba'], 'expand_instruction': base['expand_instruction'], 'types': [{key: value for key, value in item.items() if key in ('zh','rgba_default','positive_text','negative_text','rgba_positive','purpose')} for item in base['types']]}
 workflow_root = REPO / 'apps/backend/comfyui/workflows'
 for path in sorted(workflow_root.rglob('*.json')):
-    if path.name not in ('自研件-qi21-道劫-t2i.json', '自研件-qi21-道劫-i2i.json'):
+    if path.name not in ('qi21-道劫-t2i.json', 'qi21-道劫-i2i.json'):
         continue
     wf = json.loads(path.read_text())
     graph = {'path': str(path), 'sha256': hashlib.sha256(path.read_bytes()).hexdigest(), 'graphs': []}

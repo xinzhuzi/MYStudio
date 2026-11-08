@@ -42,7 +42,7 @@ EDIT_DEFAULT = "0 · Turbo 8步"
 EDIT_WF = WF / "2_图生图/qi21-edit.json"
 EDIT_BP = BP / "qi21-道劫-加速子图-edit.json"
 I2I_BP = BP / "qi21-道劫-加速子图-i2i.json"
-IMG2IMG_WF = WF / "2_图生图/自研件-qi21-道劫-img2img.json"
+IMG2IMG_WF = WF / "2_图生图/qi21-道劫-img2img.json"
 
 EDIT_NOTE_OLD = ("viggle 支路 [7012]=6(官方荐档,1002 考据;原 359 系 TE-Speed 时代值)"
                  "/Turbo 支路 8 步=[7030] 官方σ表")

@@ -5,14 +5,14 @@ v1/v2 教训:本引擎栈 VAEEncode 与 TextEncodeQwenImage21 槽2 latent 均不
 脸框 ImageCrop(x/y/w/h widget 全确定性) → 4:3 保比放大 1024×768 → 双图编辑
 (image_1=脸块,image_2=基准脸,denoise1.0) → 缩回原尺寸 → ImageCompositeMasked
 缝回原坐标——缝外像素逐位不变,脸以 1024px 高分辨率重生(全身图里脸仅~130px)。
-产物=workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-换脸-局部重绘.json
+产物=workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-换脸-局部重绘.json
 """
 import json
 from pathlib import Path
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[3]
-OUT = ROOT / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-换脸-局部重绘.json"
+OUT = ROOT / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-换脸-局部重绘.json"
 ENGINE = "http://127.0.0.1:17001"
 
 PROMPT = ("保持第一张图的构图、发型与衣物原样，色彩色调与第一张图完全一致；"

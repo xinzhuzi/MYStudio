@@ -2,7 +2,7 @@
 """my21fast-1025 序3②:定谳4 实弹探针(dry-run 离线核验 / live 实弹投弹)。
 
 三族臂:
-  t2i / i2i —— 读两版 api 件(自研件-qwen21-道劫-t2i-api.json / 自研件-qwen21-道劫-i2i-api.json)
+  t2i / i2i —— 读两版 api 件(qwen21-道劫-t2i-api.json / qwen21-道劫-i2i-api.json)
   的 ["graph"] 平铺形(桥 comfyui_bridge.py:249 deepcopy(template["graph"]) 投弹
   同形;禁整 schemaVersion 包装件 POST);
   edit —— 复用 builder 全链 flatten_canvas→selected_graph(禁只用 flatten 段;
@@ -43,10 +43,10 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 APP = REPO / "apps"
-T2I_API = APP / "backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qwen21-道劫-t2i-api.json"
-I2I_API = APP / "backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qwen21-道劫-i2i-api.json"
+T2I_API = APP / "backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json"
+I2I_API = APP / "backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json"
 EDIT_CANVAS = APP / "backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json"
-I2I_CANVAS = APP / "backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json"
+I2I_CANVAS = APP / "backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 SNAPSHOT = APP / "backend/comfyui/tests/fixtures/qi21_object_info_snapshot.json"
 BUILDER = APP / "build/scripts/qwen21_bridge_template_build.py"
 OUT_DIR = APP / "output/my21fast-1025/livefire"

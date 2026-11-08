@@ -6,7 +6,7 @@ import qi21_main_routes as r
 
 OUT=r.ROOT/'apps/output/automation/qi21-directive-final-1027'
 OUT.mkdir(parents=True,exist_ok=True)
-doc=json.loads(r.locate('自研件-qi21-道劫-i2i.json').read_bytes())
+doc=json.loads(r.locate('qi21-道劫-i2i.json').read_bytes())
 nodes=doc['nodes'];ids=[n['id'] for n in nodes];ix={nid:i for i,nid in enumerate(ids)}
 pos=np.array([n['pos'] for n in nodes],float)
 original=pos.copy()

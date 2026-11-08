@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
-WORKFLOW = next((ROOT / 'apps/backend/comfyui/workflows').rglob('自研件-qi21-道劫-换脸-局部重绘.json'))
+WORKFLOW = next((ROOT / 'apps/backend/comfyui/workflows').rglob('qi21-道劫-换脸-局部重绘.json'))
 SCRIPT = ROOT / 'apps/build/scripts/qi21_local_face_mask_repair_1027.py'
 sys.path.insert(0, str(ROOT / '.agents/skills/node-graph/tools'))
 from layout_check import check_workflow

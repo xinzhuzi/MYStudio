@@ -52,9 +52,9 @@ def file_set():
         p = ENGINE_MYNODES / "subgraphs" / sub
         if p.is_file():
             fs.append((p, f"engine:subgraphs/{sub}"))
-    for wf in ("1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json",
+    for wf in ("1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
                "1_图片/Q2-1图像/2_图生图/qi21-edit.json",
-               "1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json"):
+               "1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"):
         fs.append((REPO / "apps/backend/comfyui/workflows" / wf, f"repo:workflows/{wf.split('/')[-1]}"))
     return fs
 

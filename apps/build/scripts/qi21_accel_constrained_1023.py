@@ -15,7 +15,7 @@ from concurrent.futures import ProcessPoolExecutor
 random.seed(1023)
 CHECK = ["python3", ".zcode/skills/node-graph/tools/layout_check.py"]
 SGK = "道劫·加速子图"
-SRC = sys.argv[1] if len(sys.argv) > 1 else "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json"
+SRC = sys.argv[1] if len(sys.argv) > 1 else "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 TPL = json.dumps(json.load(open(SRC)), ensure_ascii=False)
 
 

@@ -5,7 +5,7 @@
 出图走 viggle 加速臂表现如何?
 
 产线真源复用:qwen21_bridge_template_build.py 的画布展平+选中臂物质化逻辑
-(与 App 生图桥同一条 builder 管线),对画布 自研件-qi21-道劫-t2i.json 仅覆写两个保存值:
+(与 App 生图桥同一条 builder 管线),对画布 qi21-道劫-t2i.json 仅覆写两个保存值:
   型选择: 人物海报 → 自由(14型,装配=只拼操作与保留项)
   速度档位: 3 · 混动 40步+缓存 → 2 · viggle(加速子图 viggle 臂=v0.3 r256 LoRA
             ×1.0 + σ表9值 + SplitSigmas[7] 前段7步/底模后段2步混动)
@@ -31,7 +31,7 @@ sys.path.insert(0, str(SCRIPTS))
 import qwen21_bridge_template_build as builder  # noqa: E402
 
 ENGINE = "http://192.168.0.101:17000"
-CANVAS = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json"
+CANVAS = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
 SNAPSHOT = pathlib.Path("/tmp/objinfo.json")
 OUT_DIR = pathlib.Path.home() / "Downloads/1108-viggle-turbo-poster"
 SEEDS = [7014, 90114]

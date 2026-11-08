@@ -34,9 +34,9 @@ SG_UUID = {"t2i": "e7b9d4a2-3c5f-4e61-8d70-9f2a5c8b4d6e",
 
 FILES = {  # tag -> (蓝图, 画布)
     "t2i": (BC / "my_nodes/subgraphs/qi21-道劫-加速子图.json",
-            BC / "workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json"),
+            BC / "workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"),
     "i2i": (BC / "my_nodes/subgraphs/qi21-道劫-加速子图-i2i.json",
-            BC / "workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json"),
+            BC / "workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"),
 }
 
 # 每文件布防:7044(新位/尺寸) + E臂四件新位 + 组框(id,新bounding)

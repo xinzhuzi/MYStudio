@@ -376,8 +376,8 @@ def main():
     ap.add_argument("--check", action="store_true")
     args = ap.parse_args()
     states = {}
-    for form, p in [("t2i", W / "1_文生图/自研件-qi21-道劫-t2i.json"),
-                    ("i2i", W / "2_图生图/自研件-qi21-道劫-i2i.json"),
+    for form, p in [("t2i", W / "1_文生图/qi21-道劫-t2i.json"),
+                    ("i2i", W / "2_图生图/qi21-道劫-i2i.json"),
                     ("edit", W / "2_图生图/qi21-edit.json"),
                     ("t2i", B / "qi21-道劫-加速子图.json"),
                     ("i2i", B / "qi21-道劫-加速子图-i2i.json"),

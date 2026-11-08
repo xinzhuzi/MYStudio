@@ -12,7 +12,7 @@ import layout_check as lc  # noqa: E402
 
 assert sys.argv[1:] in ([], ["--user-cache"])
 targets = [
-    (REPO / "apps/backend/comfyui/workflows", "^自研件-qi21-道劫-t2i.json$"),
+    (REPO / "apps/backend/comfyui/workflows", "^qi21-道劫-t2i.json$"),
     (REPO / "apps/backend/comfyui/my_nodes/subgraphs", "^qi21-提示词类型优化子图.json$"),
 ]
 if sys.argv[1:]:

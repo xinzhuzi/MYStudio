@@ -25,7 +25,7 @@ OWNER='flux3-daojie-ten-types-1016'
 
 
 def sources():
-    q=next(WFROOT.rglob('自研件-qi21-道劫-t2i.json'))
+    q=next(WFROOT.rglob('qi21-道劫-t2i.json'))
     f=next(WFROOT.rglob('flux3-文生图.json'))
     e=next((ROOT/'docs/prompts').glob('*主体句示例.md'))
     b=ROOT/'apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json'

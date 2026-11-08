@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--apply', action='store_true')
 parser.add_argument('--deploy', action='store_true')
 args = parser.parse_args()
-paths = subprocess.check_output(['fd', '-a', '--fixed-strings', '自研件-qi21-道劫-i2i.json', str(ROOT / 'apps/backend/comfyui/workflows')], text=True).strip().splitlines()
+paths = subprocess.check_output(['fd', '-a', '--fixed-strings', 'qi21-道劫-i2i.json', str(ROOT / 'apps/backend/comfyui/workflows')], text=True).strip().splitlines()
 assert len(paths) == 1
 source = Path(paths[0])
 receipt = ROOT / 'apps/output/automation/qi21-i2i-output-compact.json'

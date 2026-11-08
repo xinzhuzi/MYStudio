@@ -41,7 +41,7 @@ import urllib.request
 from pathlib import Path
 
 REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
-BASE_API = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qwen21-道劫-i2i-api.json"
+BASE_API = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json"
 OUT_DIR = REPO / "apps/output/outfit_probe_1026"
 ENGINE = "http://127.0.0.1:17001"  # manifest.json engine.port 亲验=17001
 CLIENT_ID = "outfit_probe_1026"

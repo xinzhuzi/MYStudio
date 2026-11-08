@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 ORIGINAL_SHA256 = '18b1f2de6a4af41a856227c90e9586c13517a56a3705fa1d4dbe40cd13f9f396'
 PATCHED_SHA256 = '4615ed3952cc1bb67e5360a7bac04c0bd6fc84cf1fe60a21217ee5db48f52585'
-NAME = '自研件-qi21-道劫-换脸-局部重绘.json'
+NAME = 'qi21-道劫-换脸-局部重绘.json'
 VAE_NAME = 'texture_fix_vae_for_qwen_image_2.1_bf16.safetensors'
 sys.path.insert(0, str(ROOT / '.agents/skills/node-graph/tools'))
 from layout_check import check_workflow

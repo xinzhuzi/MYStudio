@@ -29,7 +29,7 @@ import sys
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 TPL = os.path.join(
-    REPO, 'apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qwen21-道劫-t2i-api.json')
+    REPO, 'apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json')
 
 # 通用修图指令(1107 人物海报实弹验证句的泛化;兵器件逐型可覆写 8100)
 FIX_INSTRUCTION = (

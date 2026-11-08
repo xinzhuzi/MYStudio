@@ -123,7 +123,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true", help="repair only the audited original workflow")
     args = parser.parse_args()
-    hits = list(WORKFLOWS.rglob("自研件-qi21-道劫-img2img.json"))
+    hits = list(WORKFLOWS.rglob("qi21-道劫-img2img.json"))
     assert len(hits) == 1, "workflow must be unique"
     path = hits[0]
     raw = path.read_bytes()

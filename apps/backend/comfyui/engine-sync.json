@@ -90,6 +90,10 @@
       "url": "https://github.com/aduanyue/ComfyUI_Qwen3_Translator_Node"
     },
     {
+      "name": "ComfyUI_VNCCS_Utils",
+      "url": "https://github.com/AHEKOT/ComfyUI_VNCCS_Utils.git"
+    },
+    {
       "name": "ComfyUI_essentials",
       "url": "https://github.com/cubiq/ComfyUI_essentials"
     },

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""1108 用户裁定:二采 Edit 路线退役,t2i 只留一采——自研件-qi21-道劫-t2i.json 撤链还原。
+"""1108 用户裁定:二采 Edit 路线退役,t2i 只留一采——qi21-道劫-t2i.json 撤链还原。
 
 撤除清单(与 qi21_twopass_edit_canvas_1107.py 的落点逐项互逆):
 A. 根图:二采宿主[8100]删除;链 7920-7925 删除;恢复 [5]→[7500] 直连(新链 7930);
@@ -18,7 +18,7 @@ import os
 import sys
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-WF = os.path.join(REPO, 'apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json')
+WF = os.path.join(REPO, 'apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json')
 BP_ASM = os.path.join(REPO, 'apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json')
 
 SUB6_NAME = '[6] 文本提示词类型优化子图'

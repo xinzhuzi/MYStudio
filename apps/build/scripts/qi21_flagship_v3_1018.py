@@ -43,10 +43,10 @@ def flagship_targets():
     """整句归一位:文件中含「青玉色道袍束月白腰带」的默认例文串→新旗舰。"""
     return [
         REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md",
-        REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qwen21-道劫-t2i-api.json",
-        REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json",
-        APP / "backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qwen21-道劫-t2i-api.json",
-        APP / "backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json",
+        REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json",
+        REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
+        APP / "backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json",
+        APP / "backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
         REPO / "apps/backend/comfyui/my_nodes/nodes/my_qi21_prompt_assembly.py",
         ENGN / "nodes/my_qi21_prompt_assembly.py",
         REPO / "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json",
@@ -136,8 +136,8 @@ def main():
         tot += n
     if not args.check:
         # 引擎用户区画布副本=仓库版同步
-        eu = HOME / "Library/Application Support/漫影工作室/comfyui/ComfyUI/user/default/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json"
-        src = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json"
+        eu = HOME / "Library/Application Support/漫影工作室/comfyui/ComfyUI/user/default/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
+        src = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
         if eu.is_file():
             eu.write_bytes(src.read_bytes())
             print(f"[{CAMPAIGN}] 引擎用户区副本=仓库版同步 md5={hashlib.md5(src.read_bytes()).hexdigest()}")

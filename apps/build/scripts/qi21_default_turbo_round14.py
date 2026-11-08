@@ -17,8 +17,8 @@ COMFY = ROOT / "apps/backend/comfyui"
 TURBO = "0 · Turbo 8步"
 AUTO = "自动 · 按型"
 WORKFLOWS = COMFY / "workflows"
-T2I = next(WORKFLOWS.rglob("自研件-qi21-道劫-t2i.json"))
-I2I = next(WORKFLOWS.rglob("自研件-qi21-道劫-i2i.json"))
+T2I = next(WORKFLOWS.rglob("qi21-道劫-t2i.json"))
+I2I = next(WORKFLOWS.rglob("qi21-道劫-i2i.json"))
 FIXTURE = COMFY / "tests/fixtures/qi21_object_info_snapshot.json"
 CHANGED = [
     COMFY / "my_nodes/nodes/my_qi21_speed_select.py",
@@ -31,8 +31,8 @@ CHANGED = [
 ]
 FROZEN = [
     next(WORKFLOWS.rglob("qi21-edit.json")),
-    next(WORKFLOWS.rglob("自研件-qwen21-道劫-t2i-api.json")),
-    next(WORKFLOWS.rglob("自研件-qwen21-道劫-i2i-api.json")),
+    next(WORKFLOWS.rglob("qwen21-道劫-t2i-api.json")),
+    next(WORKFLOWS.rglob("qwen21-道劫-i2i-api.json")),
     *sorted((COMFY / "my_nodes/subgraphs").glob("qi21-道劫-加速子图*.json")),
 ]
 REPLACEMENTS = [

@@ -17,9 +17,9 @@ wv 常量已随 1005 拆件退役删除——t2i [4014] 现为 MyQi21FinalOutput
 被测对象 = 仓库真源四件(09-23 午道劫直写旧件 qwen21-daojie 退役删除后;
 09-24 增 i2i):
     comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-t2i.json
-    comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json
+    comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json
     comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json
-    comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json
+    comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json
 
 格式口径(09-23 取舍,引擎 v0.37 直开为最终裁判):三件为**引擎前端格式**
 (nodes/links/groups + MarkdownNote + pos 布局),非桥 API 格式
@@ -44,7 +44,7 @@ wv 常量已随 1005 拆件退役删除——t2i [4014] 现为 MyQi21FinalOutput
 09-23 装配子图轮(用户三件令:改名+子图化+底座美化;幂等脚本
 apps/build/scripts/qi21_daojie_t2i_0923.py 驱动;前代 qwen21-daojie-t2i-pro.json
 与其生成器 qwen21_daojie_pro_0923.py 随本轮退役删除):
-  H. 旧 pro 件(九型分层装配平铺版)改名 自研件-qi21-道劫-t2i.json 并**子图化**——
+  H. 旧 pro 件(九型分层装配平铺版)改名 qi21-道劫-t2i.json 并**子图化**——
      布局学 K2-文生图-道劫.json [90] 组织法:『底座九选一+主体句+美术风格底座+
      装配链+PE 组+RGBA 开关』整体收进一个 definitions.subgraphs 子图(宿主
      [40]);外部只剩加载器/分辨率/采样/解码/保存/说明 Note 与外露件
@@ -140,7 +140,7 @@ lazy(True)+实名懒钩子,未来给 [140] 增设非懒消费者必红);L-8 蓝�
 qi21_blueprint_sync_1001.py 幂等比较/f929798 同款,漂移即红)。
 
 09-24 i2i 轮(Trellis 09-24-qi21-daojie-i2i;PRD 架构纠正:Q2-1 生修合一,
-图输入即指令编辑,零 denoise 重绘):新增第四件 自研件-qi21-道劫-i2i.json(2_图生图/
+图输入即指令编辑,零 denoise 重绘):新增第四件 qi21-道劫-i2i.json(2_图生图/
 新功能子夹,对标 K2 线 krea2-daojie-i2i.json 同域同式)与 TestI2IContract——
 edit 骨架保留(PE-I2I 核心链[15]默认旁路/BatchImages 双通道/latent 双路/双图
 预缩 1.5+1.0MP)+qi21 九型装配移植进 [40] 装配子图(MyQi21DaojieBase combo
@@ -290,10 +290,10 @@ _TESTS_DIR = pathlib.Path(__file__).resolve().parent
 _REPO = _TESTS_DIR.parents[3]  # tests → comfyui → backend → apps → 仓库根
 _IMG_DIR = _TESTS_DIR.parent / "workflows" / "1_图片"
 T2I = _IMG_DIR / "Q2-1图像" / "1_文生图" / "qwen21-t2i.json"
-QI21 = _IMG_DIR / "Q2-1图像" / "1_文生图" / "自研件-qi21-道劫-t2i.json"
+QI21 = _IMG_DIR / "Q2-1图像" / "1_文生图" / "qi21-道劫-t2i.json"
 EDIT = _IMG_DIR / "Q2-1图像" / "2_图生图" / "qi21-edit.json"
-I2I = _IMG_DIR / "Q2-1图像" / "2_图生图" / "自研件-qi21-道劫-i2i.json"
-IMG2IMG = _IMG_DIR / "Q2-1图像" / "2_图生图" / "自研件-qi21-道劫-img2img.json"  # 1009 用户新令:严格经典图生图
+I2I = _IMG_DIR / "Q2-1图像" / "2_图生图" / "qi21-道劫-i2i.json"
+IMG2IMG = _IMG_DIR / "Q2-1图像" / "2_图生图" / "qi21-道劫-img2img.json"  # 1009 用户新令:严格经典图生图
 K2_DIR = _IMG_DIR / "K2图像"
 PROMPT_LIB = _REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md"
 # 1004 Phase A 起 daojie_bases.json 退役删件(字段合并进 qi21_bases.json 集中地);
@@ -6237,13 +6237,13 @@ class TestQi21Img2ImgContract:
 class TestHighQualityTrunk:
     """1106 HQ 主干件三层锁(蓝图/画布/api)。"""
     CASES = [
-        ("Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json", "e7b9d4a2"),
-        ("Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json", "b3f5a1c2"),
+        ("Q2-1图像/1_文生图/qi21-道劫-t2i.json", "e7b9d4a2"),
+        ("Q2-1图像/2_图生图/qi21-道劫-i2i.json", "b3f5a1c2"),
         ("Q2-1图像/2_图生图/qi21-edit.json", "7b1f3a92"),
     ]
     API_CASES = [
-        ("Q2-1图像/1_文生图/自研件-qwen21-道劫-t2i-api.json", ["1", 0]),
-        ("Q2-1图像/2_图生图/自研件-qwen21-道劫-i2i-api.json", ["9", 0]),
+        ("Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json", ["1", 0]),
+        ("Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json", ["9", 0]),
     ]
     def test_canvas_trunk(self):
         for rel, prefix in self.CASES:
@@ -6269,11 +6269,11 @@ class TestCountAnchor:
             "image_qwen_image_2_1_t2i.json",
             "qi21-bfs-换头.json",
             "qi21-edit.json",
-            "自研件-qi21-道劫-i2i.json",
-            "自研件-qi21-道劫-img2img.json",
-            "自研件-qi21-道劫-t2i.json",
-            "自研件-qi21-道劫-人物姿势.json",
-            "自研件-qi21-道劫-换脸-局部重绘.json",
+            "qi21-道劫-i2i.json",
+            "qi21-道劫-img2img.json",
+            "qi21-道劫-t2i.json",
+            "qi21-道劫-人物姿势.json",
+            "qi21-道劫-换脸-局部重绘.json",
             "qwen21-charcard-t2i.json",
             "qwen21-daotu-rgba-t2i.json",
             "qwen21-multiref-edit.json",
@@ -6282,8 +6282,8 @@ class TestCountAnchor:
             "qwen21-t2i-seedvr2.json",
             "qwen21-t2i.json",
             "qwen21-titlecard-t2i.json",
-            "自研件-qwen21-道劫-i2i-api.json",
-            "自研件-qwen21-道劫-t2i-api.json",
+            "qwen21-道劫-i2i-api.json",
+            "qwen21-道劫-t2i-api.json",
             "官方-fisher-pose-无限姿势.json",
             "官方-viggle-turbo-v0.3-merged-t2i.json",
             "官方-viggle-turbo-v0.3-t2i.json",
@@ -6296,8 +6296,8 @@ class TestCountAnchor:
             "全能文生图-官方PE.json",
             "四合一换装捏人-Goohai.json",
             "编辑生图整合-TE.json",
-            "自研件-道劫-摆姿-fisher.json",
-        ], f"Q2-1图像 应恰 33 件(分夹实数:0_官方模板 3+1_文生图 10+2_图生图 7+3_社区模板 8+4_姿势编辑 5;1108 用户令统一姿势编辑域,五件姿势件归位 4_姿势编辑——自 2_图生图 迁 qi21-道劫-人物姿势/qwen21-pose-edit/官方-fisher-pose-无限姿势/道劫-摆姿-fisher、自 3_社区模板 迁 VNCCS姿势-PoseStudio,文件名不变纯移位;1108 道劫人物姿势开件+VNCCS姿势三件入库 29→33=17 自研含BFS换头/局部重绘+3 官方模板+3 官方参照+9 社区含VNCCS三件+1 charcard改造件(此前 29 名单欠录,归位役一并补账);1107 Goohai 四合一换装捏人入库 28→29(并行役,社区第6件);1025 charcard 角色卡件入库 26→27(CharacterCardStudio 官方一键卡改造件,v1 Turbo加速段被实弹否决改 v2=引导图接线+clip bug修正+原生采样段=修复B配方);1023 局部重绘入库25→26;1023 BFS更名qi21-bfs-换头.json（25件不变）;1022 BFS入库24→25;1019 图生图·画风转换役新增 自研件-qwen21-道劫-i2i-api.json 桥格式件(自研件-qi21-道劫-i2i.json 展平,build --target i2i 生成)23→24;1015 改名役:qwen21-daojie-t2i.json→自研件-qwen21-道劫-t2i-api.json(桥格式件统一 -api.json 口径);1014 收尾役代迁:qwen21-daojie-t2i 入库 22→23(并行侧 10-10 入库未随账,6a460a67);前账 1010 道劫-摆姿-fisher 自研产线件入库 21→22;前账 Fisher-Pose 官方参照件入库 20→21,前账:1009 用户新令 qi21-道劫-img2img 入库 19→20/1008 Viggle 官方两件 17→19/10-02 自研扩批五件 12→17),得 {files}"
+            "道劫-摆姿-fisher.json",
+        ], f"Q2-1图像 应恰 33 件(分夹实数:0_官方模板 3+1_文生图 10+2_图生图 7+3_社区模板 8+4_姿势编辑 5;1108 用户令统一姿势编辑域,五件姿势件归位 4_姿势编辑——自 2_图生图 迁 qi21-道劫-人物姿势/qwen21-pose-edit/官方-fisher-pose-无限姿势/道劫-摆姿-fisher、自 3_社区模板 迁 VNCCS姿势-PoseStudio,文件名不变纯移位;1108 道劫人物姿势开件+VNCCS姿势三件入库 29→33=17 自研含BFS换头/局部重绘+3 官方模板+3 官方参照+9 社区含VNCCS三件+1 charcard改造件(此前 29 名单欠录,归位役一并补账);1107 Goohai 四合一换装捏人入库 28→29(并行役,社区第6件);1025 charcard 角色卡件入库 26→27(CharacterCardStudio 官方一键卡改造件,v1 Turbo加速段被实弹否决改 v2=引导图接线+clip bug修正+原生采样段=修复B配方);1023 局部重绘入库25→26;1023 BFS更名qi21-bfs-换头.json（25件不变）;1022 BFS入库24→25;1019 图生图·画风转换役新增 qwen21-道劫-i2i-api.json 桥格式件(qi21-道劫-i2i.json 展平,build --target i2i 生成)23→24;1015 改名役:qwen21-daojie-t2i.json→qwen21-道劫-t2i-api.json(桥格式件统一 -api.json 口径);1014 收尾役代迁:qwen21-daojie-t2i 入库 22→23(并行侧 10-10 入库未随账,6a460a67);前账 1010 道劫-摆姿-fisher 自研产线件入库 21→22;前账 Fisher-Pose 官方参照件入库 20→21,前账:1009 用户新令 qi21-道劫-img2img 入库 19→20/1008 Viggle 官方两件 17→19/10-02 自研扩批五件 12→17),得 {files}"
 
     def test_official_templates_upstream_identical(self):
         """官方三件须与 Comfy-Org/workflow_templates 上游逐字节一致(官方件零改动铁律)。
@@ -6468,8 +6468,8 @@ def test_bridge_api_template_style_lora_1019():
     锁 = STYLE_LORA_FILE × STYLE_LORA_STRENGTH(与六件画布/蓝图同值)。
     缘起:t2i 桥在 1018 挂载役只圈六件时漏了桥模板,跨战役静默缺位至 1019;重展平
     正路 = apps/build/scripts/qwen21_bridge_template_build.py --target t2i(型/档随画布现值)。"""
-    for rel in ("1_文生图/自研件-qwen21-道劫-t2i-api.json",
-                "2_图生图/自研件-qwen21-道劫-i2i-api.json"):
+    for rel in ("1_文生图/qwen21-道劫-t2i-api.json",
+                "2_图生图/qwen21-道劫-i2i-api.json"):
         doc = json.loads((_IMG_DIR / "Q2-1图像" / rel).read_text(encoding="utf-8"))
         node = doc["graph"].get("7:7034")
         assert node is not None and node.get("class_type") == "LoraLoaderModelOnly", \
@@ -6501,9 +6501,9 @@ def test_bridge_template_reflatten_equality_1019():
     schemas = json.loads((_TESTS_DIR / "fixtures" / "qi21_object_info_snapshot.json")
                          .read_text(encoding="utf-8"))
     for canvas_path, out_path, force in (
-            (QI21, _IMG_DIR / "Q2-1图像" / "1_文生图" / "自研件-qwen21-道劫-t2i-api.json", True),
-            (_IMG_DIR / "Q2-1图像" / "2_图生图" / "自研件-qi21-道劫-i2i.json",
-             _IMG_DIR / "Q2-1图像" / "2_图生图" / "自研件-qwen21-道劫-i2i-api.json", False)):
+            (QI21, _IMG_DIR / "Q2-1图像" / "1_文生图" / "qwen21-道劫-t2i-api.json", True),
+            (_IMG_DIR / "Q2-1图像" / "2_图生图" / "qi21-道劫-i2i.json",
+             _IMG_DIR / "Q2-1图像" / "2_图生图" / "qwen21-道劫-i2i-api.json", False)):
         graph, _meta = _mod.build_graph(schemas, json.loads(canvas_path.read_text(encoding="utf-8")),
                                         force_upscale=force)
         disk = json.loads(out_path.read_text(encoding="utf-8"))["graph"]

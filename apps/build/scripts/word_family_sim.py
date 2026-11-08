@@ -10,8 +10,8 @@ weapon 族+禁入 propBanHit 消费面纪律;S10 收束句=qi21_daojie_t2i_0923.
   - 词族三数组+词级微剥层 q21_optimized_round_0925.mjs(17+22+65=104 句子级 + 3 词级)
   - pattern 构造逐字复刻 qi21_daojie_t2i_0923.py(_BG_BAN_ALT+RGBA_STRIP_PATTERN 节,
     cloud 负向前瞻豁免;词级层=第二顶层备选只删词不删句)
-  - 生产 widget 对账 自研件-qi21-道劫-t2i.json 装配子图 [40:206] RegexReplace(按 type 寻址)
-  - 官方头尾 自研件-qi21-道劫-t2i.json StringConstant(title 含「官方头句/官方尾句」语义寻址)
+  - 生产 widget 对账 qi21-道劫-t2i.json 装配子图 [40:206] RegexReplace(按 type 寻址)
+  - 官方头尾 qi21-道劫-t2i.json StringConstant(title 含「官方头句/官方尾句」语义寻址)
   - 四型 base_text qi21_bases.json(rgba_default=True 恰四型)
   - 05 库透明声明句+§一 0930 W1 收束句 docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md
 
@@ -48,7 +48,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 MJS = REPO / "apps/build/scripts/q21_optimized_round_0925.mjs"
-WF_T2I = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json"
+WF_T2I = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
 OUT_S7 = REPO / "apps/output/s7-family-0930"
 BASES = REPO / "apps/backend/comfyui/my_nodes/nodes/qi21_bases.json"
 LIB05 = REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md"

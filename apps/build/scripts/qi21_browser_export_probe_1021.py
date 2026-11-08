@@ -13,7 +13,7 @@ APP_HOME = next(p for p in (Path.home() / 'Library/Application Support').iterdir
 MANIFEST = json.loads((APP_HOME / 'comfyui/manifest.json').read_text())
 ORIGIN = f"http://127.0.0.1:{MANIFEST['engine']['port']}"
 EXECUTABLE = next((Path.home() / 'Library/Caches/ms-playwright').glob('chromium_headless_shell-*/**/chrome-headless-shell'))
-NAMES = ['自研件-qi21-道劫-i2i.json', '自研件-qi21-道劫-t2i.json', 'qi21-edit.json']
+NAMES = ['qi21-道劫-i2i.json', 'qi21-道劫-t2i.json', 'qi21-edit.json']
 
 
 def main():

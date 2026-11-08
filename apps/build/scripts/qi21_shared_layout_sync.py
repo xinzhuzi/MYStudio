@@ -19,8 +19,8 @@ def locate(pattern):
     assert len(paths) == 1, paths
     return Path(paths[0])
 
-source = json.loads(locate('^自研件-qi21-道劫-t2i.json$').read_bytes())
-path = locate('^自研件-qi21-道劫-i2i.json$')
+source = json.loads(locate('^qi21-道劫-t2i.json$').read_bytes())
+path = locate('^qi21-道劫-i2i.json$')
 raw = path.read_bytes()
 original = json.loads(raw)
 updated = copy.deepcopy(original)

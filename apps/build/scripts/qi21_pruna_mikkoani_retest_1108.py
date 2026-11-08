@@ -29,7 +29,7 @@ sys.path.insert(0, str(SCRIPTS))
 import qwen21_bridge_template_build as builder  # noqa: E402
 
 ENGINE = "http://192.168.0.101:17000"
-CANVAS = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json"
+CANVAS = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
 SNAPSHOT = pathlib.Path("/tmp/objinfo.json")
 OUT_DIR = pathlib.Path.home() / "Downloads/1108-pruna-poster"
 SEED = 7014

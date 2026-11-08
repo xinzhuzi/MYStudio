@@ -20,10 +20,10 @@ import urllib.request
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-CANVAS = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json"
-OUT = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qwen21-道劫-t2i-api.json"
-CANVAS_I2I = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json"
-OUT_I2I = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qwen21-道劫-i2i-api.json"
+CANVAS = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
+OUT = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json"
+CANVAS_I2I = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
+OUT_I2I = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json"
 ENGINE = None
 
 SG6 = "96937bbe-99d1-4f16-a06c-d86b57815d91"
@@ -271,7 +271,7 @@ TEMPLATE = {
     },
 }
 
-# 10-19 图生图·道劫美术风格转换:自研件-qi21-道劫-i2i.json 展平模板。快照=画布现值
+# 10-19 图生图·道劫美术风格转换:qi21-道劫-i2i.json 展平模板。快照=画布现值
 # (组装用途=自由出图/型=人物/Turbo 8步/PE 关/SeedVR2 旁路);运行时由
 # qwen21.generate 覆写 6:4011 组装用途=道劫美术风格转换并绑 [10].image 为上传参考图名。
 TEMPLATE_I2I = {

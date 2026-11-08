@@ -127,7 +127,7 @@ def test_all_purposes_types_and_sampling_inputs_match_real_t2i_dimensions():
     base = node_module('my_qi21_base')
     type_names = base.bases_list()
     assert type_names == TYPE_NAMES
-    t2i_path, = (ROOT / 'apps/backend/comfyui/workflows').rglob('自研件-qi21-道劫-t2i.json')
+    t2i_path, = (ROOT / 'apps/backend/comfyui/workflows').rglob('qi21-道劫-t2i.json')
     t2i = json.loads(t2i_path.read_bytes())
     typed_sizes = set()
     for type_name in type_names:

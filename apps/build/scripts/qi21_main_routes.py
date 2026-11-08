@@ -132,7 +132,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--apply', action='store_true')
     args = parser.parse_args()
-    workflow = locate('自研件-qi21-道劫-i2i.json')
+    workflow = locate('qi21-道劫-i2i.json')
     baseline = ROOT / 'apps/build/scripts/workflow_layout_baseline.json'
     output = ROOT / 'apps/output/automation/qi21-main-routes-1027'
     output.mkdir(parents=True, exist_ok=True)

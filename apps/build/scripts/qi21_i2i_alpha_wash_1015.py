@@ -42,7 +42,7 @@ import sys
 from pathlib import Path
 
 REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
-WF = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json"
+WF = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 BP = REPO / "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json"
 
 SHA_WF = "df1925799db96bbd"   # 术前字节锚(本会话实锚;漂移即拦停禁为过门放宽)

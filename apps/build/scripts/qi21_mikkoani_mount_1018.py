@@ -29,8 +29,8 @@ OLD_NOTE = ("[7034] 水墨风格LoRA·Inklingv2 ×0.3(1018 用户令:替代动�
 NEW_NOTE = ("[7034] 风格LoRA·mikkoani ×1.0(1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]"
             "→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版"
             "=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)")
-FILES = [BASE / "workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json",
-         BASE / "workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json",
+FILES = [BASE / "workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
+         BASE / "workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
          BASE / "workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json",
          BASE / "my_nodes/subgraphs/qi21-道劫-加速子图.json",
          BASE / "my_nodes/subgraphs/qi21-道劫-加速子图-i2i.json",

@@ -42,11 +42,11 @@ NEW9 = "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
 WF = BASE / "workflows/1_图片/Q2-1图像"
 TARGETS: list[tuple[Path, bool]] = [
     # (文件, 是否做带引号 OLD6 修正)
-    (WF / "1_文生图/自研件-qi21-道劫-t2i.json", False),
-    (WF / "1_文生图/自研件-qwen21-道劫-t2i-api.json", False),
-    (WF / "2_图生图/自研件-qi21-道劫-i2i.json", True),
+    (WF / "1_文生图/qi21-道劫-t2i.json", False),
+    (WF / "1_文生图/qwen21-道劫-t2i-api.json", False),
+    (WF / "2_图生图/qi21-道劫-i2i.json", True),
     (WF / "2_图生图/qi21-edit.json", False),
-    (WF / "2_图生图/自研件-qi21-道劫-img2img.json", False),
+    (WF / "2_图生图/qi21-道劫-img2img.json", False),
     (BASE / "my_nodes/subgraphs/qi21-道劫-加速子图.json", False),
     (BASE / "my_nodes/subgraphs/qi21-道劫-加速子图-i2i.json", True),
     (BASE / "my_nodes/subgraphs/qi21-道劫-加速子图-edit.json", False),

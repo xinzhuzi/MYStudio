@@ -43,8 +43,8 @@ EDIT_GROUP_BB = [40, 350, 320, 230]
 
 W = BASE / "workflows/1_图片/Q2-1图像"
 B = BASE / "my_nodes/subgraphs"
-FILES = [("t2i", W / "1_文生图/自研件-qi21-道劫-t2i.json"),
-         ("i2i", W / "2_图生图/自研件-qi21-道劫-i2i.json"),
+FILES = [("t2i", W / "1_文生图/qi21-道劫-t2i.json"),
+         ("i2i", W / "2_图生图/qi21-道劫-i2i.json"),
          ("edit", W / "2_图生图/qi21-edit.json"),
          ("t2i", B / "qi21-道劫-加速子图.json"),
          ("i2i", B / "qi21-道劫-加速子图-i2i.json"),

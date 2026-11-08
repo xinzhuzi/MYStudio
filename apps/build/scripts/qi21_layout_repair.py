@@ -99,7 +99,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--apply', action='store_true')
     args = parser.parse_args()
-    workflow = locate('自研件-qi21-道劫-i2i.json', 'apps/backend/comfyui/workflows')
+    workflow = locate('qi21-道劫-i2i.json', 'apps/backend/comfyui/workflows')
     blueprint = locate('qi21-道劫-加速子图-i2i.json', 'apps/backend/comfyui/my_nodes/subgraphs')
     baseline = ROOT / 'apps/build/scripts/workflow_layout_baseline.json'
     output = ROOT / 'apps/output/automation/qi21-layout-repair-1026'

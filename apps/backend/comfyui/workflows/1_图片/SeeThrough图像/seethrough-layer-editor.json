@@ -1,0 +1,180 @@
+{
+  "id": "seethrough-layer-editor-workflow",
+  "revision": 0,
+  "last_node_id": 9,
+  "last_link_id": 8,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [-3840, -1040],
+      "size": [282, 339],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        { "name": "IMAGE", "type": "IMAGE", "links": [1] },
+        { "name": "MASK", "type": "MASK", "links": null }
+      ],
+      "properties": { "Node name for S&R": "LoadImage" },
+      "widgets_values": ["example.png", "image"]
+    },
+    {
+      "id": 2,
+      "type": "SeeThrough_LoadLayerDiffModel",
+      "pos": [-3900, -610],
+      "size": [326, 296],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        { "name": "layerdiff_model", "type": "SEETHROUGH_LAYERDIFF_MODEL", "links": [2] }
+      ],
+      "properties": { "Node name for S&R": "SeeThrough_LoadLayerDiffModel" },
+      "widgets_values": ["layerdifforg/seethroughv0.0.2_layerdiff3d", "", "", "none", true, false, true]
+    },
+    {
+      "id": 3,
+      "type": "SeeThrough_LoadDepthModel",
+      "pos": [-3400, -610],
+      "size": [306, 224],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        { "name": "depth_model", "type": "SEETHROUGH_DEPTH_MODEL", "links": [3] }
+      ],
+      "properties": { "Node name for S&R": "SeeThrough_LoadDepthModel" },
+      "widgets_values": ["layerdifforg/seethroughv0.0.1_marigold", "none", true, false, true]
+    },
+    {
+      "id": 4,
+      "type": "SeeThrough_GenerateLayers",
+      "pos": [-3400, -970],
+      "size": [293, 191],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        { "name": "image", "type": "IMAGE", "link": 1 },
+        { "name": "layerdiff_model", "type": "SEETHROUGH_LAYERDIFF_MODEL", "link": 2 }
+      ],
+      "outputs": [
+        { "name": "layers", "type": "SEETHROUGH_LAYERS", "links": [4] },
+        { "name": "preview", "type": "IMAGE", "links": null }
+      ],
+      "properties": { "Node name for S&R": "SeeThrough_GenerateLayers" },
+      "widgets_values": [42, "fixed", 1280, 30]
+    },
+    {
+      "id": 5,
+      "type": "SeeThrough_GenerateDepth",
+      "pos": [-2990, -860],
+      "size": [352, 178],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        { "name": "layers", "type": "SEETHROUGH_LAYERS", "link": 4 },
+        { "name": "depth_model", "type": "SEETHROUGH_DEPTH_MODEL", "link": 3 }
+      ],
+      "outputs": [
+        { "name": "layers_depth", "type": "SEETHROUGH_LAYERS_DEPTH", "links": [5] },
+        { "name": "preview", "type": "IMAGE", "links": null }
+      ],
+      "properties": { "Node name for S&R": "SeeThrough_GenerateDepth" },
+      "widgets_values": [42, "fixed", -1]
+    },
+    {
+      "id": 6,
+      "type": "SeeThrough_PostProcess",
+      "pos": [-2570, -860],
+      "size": [270, 151],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        { "name": "layers_depth", "type": "SEETHROUGH_LAYERS_DEPTH", "link": 5 }
+      ],
+      "outputs": [
+        { "name": "parts", "type": "SEETHROUGH_PARTS", "links": [6] },
+        { "name": "preview", "type": "IMAGE", "links": [7] }
+      ],
+      "properties": { "Node name for S&R": "SeeThrough_PostProcess" },
+      "widgets_values": [true, true]
+    },
+    {
+      "id": 7,
+      "type": "SeeThrough_PartsToLayers",
+      "pos": [-2220, -960],
+      "size": [250, 50],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        { "name": "parts", "type": "SEETHROUGH_PARTS", "link": 6 }
+      ],
+      "outputs": [
+        { "name": "layers", "type": "LAYERS", "links": [8] }
+      ],
+      "properties": { "Node name for S&R": "SeeThrough_PartsToLayers" },
+      "widgets_values": []
+    },
+    {
+      "id": 8,
+      "type": "PreviewImage",
+      "pos": [-2220, -680],
+      "size": [225, 279],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        { "name": "images", "type": "IMAGE", "link": 7 }
+      ],
+      "outputs": [],
+      "properties": { "Node name for S&R": "PreviewImage" },
+      "widgets_values": []
+    },
+    {
+      "id": 9,
+      "type": "ImageCompositor",
+      "pos": [-1890, -990],
+      "size": [430, 480],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        { "name": "layers", "type": "LAYERS", "link": 8 },
+        { "name": "compositor", "type": "COMPOSITOR", "link": null, "widget": { "name": "compositor" } }
+      ],
+      "outputs": [
+        { "name": "IMAGE", "type": "IMAGE", "links": null },
+        { "name": "MASK", "type": "MASK", "links": null }
+      ],
+      "properties": { "Node name for S&R": "ImageCompositor" },
+      "widgets_values": [""]
+    }
+  ],
+  "links": [
+    [1, 1, 0, 4, 0, "IMAGE"],
+    [2, 2, 0, 4, 1, "SEETHROUGH_LAYERDIFF_MODEL"],
+    [3, 3, 0, 5, 1, "SEETHROUGH_DEPTH_MODEL"],
+    [4, 4, 0, 5, 0, "SEETHROUGH_LAYERS"],
+    [5, 5, 0, 6, 0, "SEETHROUGH_LAYERS_DEPTH"],
+    [6, 6, 0, 7, 0, "SEETHROUGH_PARTS"],
+    [7, 6, 1, 8, 0, "IMAGE"],
+    [8, 7, 0, 9, 0, "LAYERS"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [4335, 1376]
+    }
+  },
+  "version": 0.4
+}

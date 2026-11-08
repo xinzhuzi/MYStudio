@@ -5,11 +5,11 @@
 施工节点·第1轮 序1 探针。两类职责:
 
 一、cfg=1 前置锁(定谳5)——扫描六件,递归含全部 definitions.subgraphs:
-    ① t2i 画布   workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json
-    ② i2i 画布   workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json
+    ① t2i 画布   workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json
+    ② i2i 画布   workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json
     ③ edit 画布  workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json
-    ④ t2i api 件 workflows/1_图片/Q2-1图像/1_文生图/自研件-qwen21-道劫-t2i-api.json
-    ⑤ i2i api 件 workflows/1_图片/Q2-1图像/2_图生图/自研件-qwen21-道劫-i2i-api.json
+    ④ t2i api 件 workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json
+    ⑤ i2i api 件 workflows/1_图片/Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json
     ⑥ 调色板镜像 my_nodes/subgraphs/qi21-提示词类型优化子图-edit.json
       (「调色板镜像」识别锚=计划书「镜像件子图 links=list(实测 26 条)」:
       全仓唯一 26 条 subgraph links 的镜像件;该子图嵌 色卡/调色 文本 blob
@@ -52,11 +52,11 @@ BAK = ROOT / "apps/output/bak/my21fast-1025/pre"
 
 # 六件(序1 计划书钦定;相对 ROOT)
 SIX = [
-    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json",
-    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qi21-道劫-i2i.json",
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
     "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json",
-    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qwen21-道劫-t2i-api.json",
-    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qwen21-道劫-i2i-api.json",
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json",
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json",
     "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-edit.json",
 ]
 

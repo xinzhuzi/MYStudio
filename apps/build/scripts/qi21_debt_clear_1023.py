@@ -16,8 +16,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 WFS = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图"
 BFS = WFS / "qi21-bfs-换头.json"
-FACE = WFS / "自研件-qi21-道劫-换脸-局部重绘.json"
-I2I = WFS / "自研件-qi21-道劫-i2i.json"
+FACE = WFS / "qi21-道劫-换脸-局部重绘.json"
+I2I = WFS / "qi21-道劫-i2i.json"
 BP_ACC = REPO / "apps/backend/comfyui/my_nodes/subgraphs/qi21-道劫-加速子图-i2i.json"
 LINT = REPO / "apps/build/scripts/workflow_graph_lint.py"
 CHECK = REPO / ".zcode/skills/node-graph/tools/layout_check.py"

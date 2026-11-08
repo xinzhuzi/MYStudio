@@ -44,7 +44,7 @@ def test_i2i_pe_widget_mirror_drift_is_rejected():
 
 
 def test_app_template_explicit_default_and_fix_chain():
-    path = next((acceptance.COMFY / 'workflows').rglob('自研件-qwen21-道劫-t2i-api.json'))
+    path = next((acceptance.COMFY / 'workflows').rglob('qwen21-道劫-t2i-api.json'))
     assert acceptance.audit_api(acceptance.read_json(path)['graph']) == []
 
 

@@ -14,9 +14,9 @@
   L1-C 官方TE i2i(带参考图 01_人物海报,vae 接 VAELoaderKJ cpu/fp32,
       resolution=0,latent 用 TE latent 出口)
   L1-D 新节点 i2i——与 C 同法,判据同 A/B
-  L2-t 手术后的 自研件-qwen21-道劫-t2i-api.json:注入提示词(节点400)+固定覆写
+  L2-t 手术后的 qwen21-道劫-t2i-api.json:注入提示词(节点400)+固定覆写
       seed 节点 value(7:7014=424242)后直发
-  L2-i 手术后的 自研件-qwen21-道劫-i2i-api.json:同上注入+覆写,另将 LoadImage(10)
+  L2-i 手术后的 qwen21-道劫-i2i-api.json:同上注入+覆写,另将 LoadImage(10)
       指到上传参考图(portrait_model_denim.png 不在引擎 input,必须换)
 
 采样形:SamplerCustom(cfg=1.0)+KSamplerSelect(euler)+BasicScheduler(simple,
@@ -51,8 +51,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 APP = REPO / "apps"
 PROBE = APP / "build/scripts/my21fast_livefire_probe.py"
-T2I_API = APP / "backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/自研件-qwen21-道劫-t2i-api.json"
-I2I_API = APP / "backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/自研件-qwen21-道劫-i2i-api.json"
+T2I_API = APP / "backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json"
+I2I_API = APP / "backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json"
 BASES_JSON = APP / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
 # ask 所写 01_人物海报_重掷三锁版.png 在盘上不存在;同名目录唯一人物海报件=下件(1088×1456 RGB)
 REF_SRC = APP / "output/moss-win-campaign-1025/images/14types/01_人物海报_14types_00001_.png"

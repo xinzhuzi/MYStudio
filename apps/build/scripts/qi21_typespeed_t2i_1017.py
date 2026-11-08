@@ -52,7 +52,7 @@ TAG = "t2i"
 AUTO = "自动 · 按型"          # my_qi21_speed_select.AUTO_MODE 逐字(含空格)
 OLD = "0 · Turbo 8步"        # 1008-1016 时代默认档串
 
-MAIN = BASE / "workflows/1_图片/Q2-1图像/1_文生图/自研件-qi21-道劫-t2i.json"
+MAIN = BASE / "workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
 ASM_BP = BASE / "my_nodes/subgraphs/qi21-提示词类型优化子图.json"
 SPD_BP = BASE / "my_nodes/subgraphs/qi21-道劫-加速子图.json"
 
