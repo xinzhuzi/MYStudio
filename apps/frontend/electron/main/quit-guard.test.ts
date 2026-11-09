@@ -6,7 +6,7 @@ import { installWebviewKeyboardPassthrough } from './main-menu'
 
 vi.mock('electron', () => ({ Menu: {} }))
 
-const input = (type: string, overrides: Partial<{ key: string; meta: boolean; control: boolean; autoRepeat: boolean }> = {}) => ({
+const input = (type: string, overrides: Partial<{ key: string; meta: boolean; control: boolean; isAutoRepeat: boolean }> = {}) => ({
   type, key: 'q', meta: true, control: false, ...overrides,
 })
 
@@ -34,7 +34,7 @@ describe('quit hold guard', () => {
     const guard = createQuitHoldGuard({ quit, broadcast })
     guard.handleInput(input('keyDown'), 1)
     vi.advanceTimersByTime(900)
-    guard.handleInput(input('keyDown', { autoRepeat: true }), 1)
+    guard.handleInput(input('keyDown', { isAutoRepeat: true }), 1)
     vi.advanceTimersByTime(100)
     expect(quit).toHaveBeenCalledTimes(1)
     expect(broadcast).toHaveBeenLastCalledWith('end', 1000)

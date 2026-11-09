@@ -10,7 +10,7 @@ type QuitInput = {
   key: string
   control: boolean
   meta: boolean
-  autoRepeat?: boolean
+  isAutoRepeat?: boolean
 }
 
 export function createQuitHoldGuard(deps: {
@@ -70,7 +70,7 @@ export function createQuitHoldGuard(deps: {
         return false
       }
       if (key !== 'q') return false
-      if (isDown && !input.autoRepeat) qHeld = true
+      if (isDown && !input.isAutoRepeat) qHeld = true
       if (isUp) {
         qHeld = false
         if (startedAt !== null) {
@@ -80,7 +80,7 @@ export function createQuitHoldGuard(deps: {
       }
       if (!input.meta && !input.control && startedAt === null) return false
       if (isDown) {
-        if (!input.autoRepeat && startedAt === null && (input.meta || input.control)) {
+        if (!input.isAutoRepeat && startedAt === null && (input.meta || input.control)) {
           metaHeld = input.meta
           controlHeld = input.control
           startedAt = now()
