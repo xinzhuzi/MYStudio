@@ -5,7 +5,7 @@
 
 三段契约:
   ① 一阶段采样 = 现役 ref2v 主力线原样(ref2va int8 pruned + Pika turbo 8step HD @1.0
-     + lcm + BasicScheduler(simple,8) + kitchen attention),出厂档 0.52MP 960×544(1110 A/B 实测 1280 无增益,用户定 960;二采 1440×816 渐进升格,三采 RelayVSR 1920×1080)
+     + lcm + BasicScheduler(simple,8) + kitchen attention),出厂档 0.52MP 960×544(1110 A/B 实测 1280 无增益,用户定 960;二采 1440×832(32 网格吸附)渐进升格,三采 RelayVSR 1920×1080)
      (1105 用户裁定;家族其余件仍 0.2MP)。
   ② 二采放大·默认终档 = UP 主黎黎原上咩配方(BV1AsxD6JEJJ 参数深挖定谳,
      对拍档 .trellis/tasks/11-05-11-05-daojie-h3-three-stage/research/UP二采参数对拍.md):
@@ -91,7 +91,7 @@ def test_stage2_up_recipe():
     assert nodes[206]["type"] == "MinimaxH3LatentUpscaler3D"
     w = nodes[206]["widgets_values"]
     assert w[0] == "minimax_h3_latent_upscaler_3d_bf16.safetensors"
-    assert w[1:5] == ["target dimensions", 1440, 816, 32]
+    assert w[1:5] == ["target dimensions", 1440, 832, 32]
     assert w[5] is True and w[6] is True, "chunking/force_unload 开(Win 先例 fasth3-二采超分-2x)"
     assert w[7] == "cuda", "Win 产线引擎,device 必须 cuda(社区件出厂 mps 已勘正)"
     assert nodes[202]["widgets_values"] == ["taomate_h3_3step.safetensors", 0.7]
@@ -100,7 +100,7 @@ def test_stage2_up_recipe():
     assert nodes[209]["widgets_values"] == ["simple", 3, 0.2], "UP 定谳:simple/3步/denoise 0.2"
     assert nodes[203]["widgets_values"] == [12, 3]
     assert nodes[208]["type"] == "MiniMaxH3ReferenceToVideo"
-    assert nodes[208]["widgets_values"][1:3] == [1440, 816]
+    assert nodes[208]["widgets_values"][1:3] == [1440, 832]
     assert nodes[211]["type"] == "SamplerCustomAdvanced"
 
 
