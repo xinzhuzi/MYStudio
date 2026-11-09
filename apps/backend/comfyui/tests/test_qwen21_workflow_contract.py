@@ -6299,6 +6299,7 @@ class TestCountAnchor:
             "qwen21-道劫-t2i-api.json",
             "qwen21_Gem_Face_zoom_V1.json",
             "skill姿态图放大-扩展整合.json",
+            "t2i-皮肤-超分.json",
             "t2i-通用.json",
             "全能图片编辑-官方PE.json",
             "全能文生图-官方PE.json",
