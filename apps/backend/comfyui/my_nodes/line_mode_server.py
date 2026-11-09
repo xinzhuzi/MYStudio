@@ -802,16 +802,21 @@ class _Switcher(threading.Thread):
             time.sleep(5.0)
 
     def _step_free(self) -> None:
-        """引擎 /free(评审#9+D5:全局清缓存语义——unload_models+free_memory
-        是引擎全局卸载,发前等队列完全空(任务边界),永不落在途渲染中辙;
-        15min 不空→StepDegraded(free 推迟,D1 语义)。只验 200。"""
+        """引擎 /free(D5:发前等队列完全空,永不落在途渲染中辙;15min 不空→
+        StepDegraded(free 推迟,D1 语义)。只验 200。
+
+        1109 降级(引擎连环死役定谳):unload_models=True 在 20G+ 模型驻显存时
+        触发原生级崩溃(无 traceback 无 WER,进程瞬蒸发;四死实锤+无触发对照
+        组存活 420s 钉死)。故不再主动全量卸模型——腾显存交还引擎显存管理器
+        按需换出(新作业装载时自动逐出旧模型,出图/出视频互斥自动成立);
+        free_memory 清缓存块保留(安全路径)。"""
         if _disabled():
             raise StepFailed("急停标记出现,中止序列")
         self._wait_queue_empty("free")
         import urllib.request
         req = urllib.request.Request(
             f"{_engine_base()}/free",
-            data=json.dumps({"unload_models": True, "free_memory": True}).encode("utf-8"),
+            data=json.dumps({"unload_models": False, "free_memory": True}).encode("utf-8"),
             headers={"Content-Type": "application/json"}, method="POST",
         )
         with urllib.request.urlopen(req, timeout=60.0) as resp:

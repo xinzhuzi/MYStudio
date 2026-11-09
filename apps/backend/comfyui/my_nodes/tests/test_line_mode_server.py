@@ -583,7 +583,9 @@ def test_free_step_only_200(mode_env, monkeypatch):
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
     sw._step_free()
     assert sent["url"].endswith("/free")
-    assert sent["body"] == {"unload_models": True, "free_memory": True}
+    # 1109 降级:unload_models=False(主动全量卸载在大驻留下原生崩溃,腾显存
+    # 交还引擎按需换出);free_memory=True 清缓存保留
+    assert sent["body"] == {"unload_models": False, "free_memory": True}
 
     def fake_500(req, timeout=None):
         return _FakeResp(500)
