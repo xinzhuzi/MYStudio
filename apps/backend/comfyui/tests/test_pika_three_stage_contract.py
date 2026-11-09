@@ -5,7 +5,7 @@
 
 三段契约:
   ① 一阶段采样 = 现役 ref2v 主力线原样(ref2va int8 pruned + Pika turbo 8step HD @1.0
-     + lcm + BasicScheduler(simple,8) + kitchen attention),出厂档 0.5MP 960×544
+     + lcm + BasicScheduler(simple,8) + kitchen attention),出厂档 0.9MP 1280×704(1110 用户裁定)
      (1105 用户裁定;家族其余件仍 0.2MP)。
   ② 二采放大·默认终档 = UP 主黎黎原上咩配方(BV1AsxD6JEJJ 参数深挖定谳,
      对拍档 .trellis/tasks/11-05-11-05-daojie-h3-three-stage/research/UP二采参数对拍.md):
@@ -74,12 +74,12 @@ def test_stage1_mainline_recipe_unchanged():
     assert nodes[129]["widgets_values"] == [42, "fixed"]
 
 
-def test_stage1_factory_tier_05mp():
-    """一采出厂档 0.5MP 960×544(1105 用户裁定);帧数 124=17k+5 网格。"""
+def test_stage1_factory_tier_09mp():
+    """一采出厂档 0.9MP 1280×704(1110 用户裁定「1344×768 太高」降档;帧数 124=17k+5 网格)。"""
     _, nodes, _ = _load()
     assert nodes[22]["widgets_values"][1] == 0.5
-    assert nodes[16]["widgets_values"][1:3] == [960, 544]
-    assert nodes[220]["widgets_values"][1:3] == [960, 544], "I2V 一采分辨率同步 B2"
+    assert nodes[16]["widgets_values"][1:3] == [1280, 704]
+    assert nodes[220]["widgets_values"][1:3] == [1280, 704], "I2V 一采分辨率同步"
     assert nodes[16]["widgets_values"][3] == 124
 
 
