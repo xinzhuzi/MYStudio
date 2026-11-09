@@ -24,7 +24,8 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            1
+            1,
+            9001
           ]
         }
       ],
@@ -55,7 +56,8 @@
           "name": "CLIP",
           "type": "CLIP",
           "links": [
-            2
+            2,
+            9005
           ]
         }
       ],
@@ -87,7 +89,9 @@
           "name": "VAE",
           "type": "VAE",
           "links": [
-            4
+            4,
+            9006,
+            9014
           ]
         }
       ],
@@ -365,7 +369,8 @@
           "type": "IMAGE",
           "links": [
             13,
-            14
+            14,
+            9007
           ]
         }
       ],
@@ -419,30 +424,509 @@
       "title": "[402] 用法",
       "properties": {},
       "widgets_values": [
-        "## t2i 皮肤·超分版\nt2i-通用 骨架 + ④PrunaAI 臂注入磨皮双 LoRA(1109 用户令:对皮肤最好档单列成件)\n- 皮肤配方=[7201]restore@0.5+[7202]ItsGem face@0.5(=Gem 怼脸件「磨皮」支同方)\n- 其余与 t2i-通用 完全一致(档4 PrunaAI 6步默认/2048²直采/⑤SeedVR2 4K尾档)\n- 原 Gem 磨皮支的 keep_colors 0.76 属分块拼回参数,本件无分块,不适用"
+        "## t2i 皮肤·磨皮组合件\nt2i-通用 骨架(④PrunaAI 6步/2048²直采,子图=通用原样零注入) + 尾档=Gem 怼脸件「磨皮」支(1109 用户令:4K 超分尾档出局,组合成件)\n- 磨皮后续=[8100]GemTiledUpscale 10MP 切 2MP 块 → 逐块重绘([8101]viggle-turbo@1.0+[8102]restore@0.5+[8103]ItsGem face@0.5,6步 cfg1 euler)→ [8107]Stitch(keep_colors 0.76)\n- 磨皮指令=作者原设 Restore the photo…(固定勿改,同 Gem 件口径)\n- 输出双路:[8] 直采 2048² 原图 + [8108](核心SaveImage) 磨皮 ~10MP;API 直投雷:TE 图槽名=images.image_1(点分全名)\n- 依赖:ItsGemTools 插件;t2i 段提示词/seed 走 [400]/[404]/宿主面板"
       ]
     },
     {
-      "id": 503,
-      "type": "f0a844a8-9bf5-4c71-8af5-f1c9f17c0324",
+      "id": 8100,
+      "type": "GemTiledUpscale",
       "pos": [
-        2700,
-        250
+        2750,
+        190
       ],
       "size": [
-        360,
-        458
+        289.23240334830257,
+        278
       ],
       "flags": {},
-      "order": 16,
+      "order": 9,
       "mode": 0,
       "inputs": [
         {
+          "localized_name": "image",
           "name": "image",
           "type": "IMAGE",
-          "link": 14
+          "link": 9007
         },
         {
+          "localized_name": "upscale_model",
+          "name": "upscale_model",
+          "shape": 7,
+          "type": "UPSCALE_MODEL",
+          "link": null
+        },
+        {
+          "localized_name": "megapixels",
+          "name": "megapixels",
+          "type": "FLOAT",
+          "widget": {
+            "name": "megapixels"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "tile_megapixels",
+          "name": "tile_megapixels",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "tile_megapixels"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "overlap",
+          "name": "overlap",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "overlap"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "multiple",
+          "name": "multiple",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "multiple"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "max_growth",
+          "name": "max_growth",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "max_growth"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enforce_qwen_tile_limit",
+          "name": "enforce_qwen_tile_limit",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enforce_qwen_tile_limit"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "tiles",
+          "name": "tiles",
+          "shape": 6,
+          "type": "IMAGE",
+          "links": [
+            9008
+          ]
+        },
+        {
+          "localized_name": "stitcher",
+          "name": "stitcher",
+          "type": "ITSGEM_TILE_STITCHER",
+          "links": [
+            9009
+          ]
+        },
+        {
+          "localized_name": "before",
+          "name": "before",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "localized_name": "report",
+          "name": "report",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "GemTiledUpscale"
+      },
+      "widgets_values": [
+        10,
+        2,
+        256,
+        32,
+        64,
+        true
+      ],
+      "widgets_values_named": {
+        "megapixels": 10,
+        "tile_megapixels": 2,
+        "overlap": 256,
+        "multiple": 32,
+        "max_growth": 64,
+        "enforce_qwen_tile_limit": true
+      },
+      "color": "#8a63d2",
+      "bgcolor": "#241f38"
+    },
+    {
+      "id": 8101,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        2570,
+        480
+      ],
+      "size": [
+        353.7805985429203,
+        82
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 9001
+        },
+        {
+          "localized_name": "lora_name",
+          "name": "lora_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_model",
+          "name": "strength_model",
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_model"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            9002
+          ]
+        }
+      ],
+      "title": "加速Lora",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "qwen21\\Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r128.safetensors",
+        "strength_model": 1
+      }
+    },
+    {
+      "id": 8102,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        2570,
+        700
+      ],
+      "size": [
+        353.7805985429203,
+        82
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 9002
+        },
+        {
+          "localized_name": "lora_name",
+          "name": "lora_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_model",
+          "name": "strength_model",
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_model"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            9003
+          ]
+        }
+      ],
+      "title": "AusBoss Lora",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "qwen-image-2.1-restore.safetensors",
+        0.5
+      ],
+      "widgets_values_named": {
+        "lora_name": "qwen21\\qwen-image-2.1-restore.safetensors",
+        "strength_model": 0.5
+      }
+    },
+    {
+      "id": 8103,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        2570,
+        920
+      ],
+      "size": [
+        353.7805985429203,
+        82
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 9003
+        },
+        {
+          "localized_name": "lora_name",
+          "name": "lora_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_model",
+          "name": "strength_model",
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_model"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            9004
+          ]
+        }
+      ],
+      "title": "It'sGem Lora",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "qwen_image_21_ItsGem_face_lora_v1.safetensors",
+        0.5
+      ],
+      "widgets_values_named": {
+        "lora_name": "qwen21\\qwen_image_21_ItsGem_face_lora_v1.safetensors",
+        "strength_model": 0.5
+      }
+    },
+    {
+      "id": 8104,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        3130,
+        190
+      ],
+      "size": [
+        427.7496824166309,
+        370.70437031339105
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 9005
+        },
+        {
+          "localized_name": "image_1",
+          "name": "images.image_1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 9008
+        },
+        {
+          "localized_name": "image_2",
+          "name": "images.image_2",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "image_3",
+          "name": "images.image_3",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 9006
+        },
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "negative_prompt",
+          "name": "negative_prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "negative_prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "resolution",
+          "name": "resolution",
+          "type": "INT",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            9010,
+            9011
+          ]
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": []
+        },
+        {
+          "localized_name": "latent",
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            9012
+          ]
+        }
+      ],
+      "title": "Text Encode Qwen Image 2.1 - One tile and the request",
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        "Restore the photo: remove blur, noise and compression artifacts, recover sharp natural facial detail, clean skin texture, hair strands and lip texture, keeping the same composition, identity and people.",
+        "",
+        0
+      ],
+      "widgets_values_named": {
+        "prompt": "Restore the photo: remove blur, noise and compression artifacts, recover sharp natural facial detail, clean skin texture, hair strands and lip texture, keeping the same composition, identity and people.",
+        "negative_prompt": "",
+        "resolution": 0
+      }
+    },
+    {
+      "id": 8105,
+      "type": "KSampler",
+      "pos": [
+        3450,
+        190
+      ],
+      "size": [
+        270,
+        262
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 9004
+        },
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 9010
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 9011
+        },
+        {
+          "localized_name": "latent_image",
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 9012
+        },
+        {
+          "localized_name": "seed",
           "name": "seed",
           "type": "INT",
           "widget": {
@@ -451,86 +935,262 @@
           "link": null
         },
         {
-          "name": "目标短边",
+          "localized_name": "steps",
+          "name": "steps",
           "type": "INT",
           "widget": {
-            "name": "目标短边"
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler_name",
+          "name": "sampler_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
           },
           "link": null
         }
       ],
       "outputs": [
         {
-          "name": "image",
-          "type": "IMAGE",
-          "slot_index": 0,
+          "localized_name": "LATENT",
+          "name": "LATENT",
+          "type": "LATENT",
           "links": [
-            15
+            9013
           ]
         }
       ],
-      "title": "[503] 超分·SeedVR2(4K档)",
+      "title": "Sampler - CFG 1, euler",
       "properties": {
-        "subgraph": "f0a844a8-9bf5-4c71-8af5-f1c9f17c0324",
-        "previewExposures": [],
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "KSampler"
       },
       "widgets_values": [
         0,
-        4096
+        "fixed",
+        6,
+        1,
+        "euler",
+        "simple",
+        1
       ],
       "widgets_values_named": {
         "seed": 0,
-        "目标短边": 4096
+        "control_after_generate": "fixed",
+        "steps": 6,
+        "cfg": 1,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1
       }
     },
     {
-      "id": 504,
-      "type": "SaveImage",
+      "id": 8106,
+      "type": "VAEDecode",
       "pos": [
-        3120,
-        250
+        3690,
+        190
       ],
       "size": [
-        380,
-        330
+        281.24320755148483,
+        59.84738003269365
       ],
       "flags": {},
-      "order": 17,
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "samples",
+          "name": "samples",
+          "type": "LATENT",
+          "link": 9013
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "link": 9014
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            9015
+          ]
+        }
+      ],
+      "title": "Decode",
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 8107,
+      "type": "GemTiledUpscaleStitch",
+      "pos": [
+        3910,
+        190
+      ],
+      "size": [
+        289.2263854346244,
+        150
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "tiles",
+          "name": "tiles",
+          "type": "IMAGE",
+          "link": 9015
+        },
+        {
+          "localized_name": "stitcher",
+          "name": "stitcher",
+          "type": "ITSGEM_TILE_STITCHER",
+          "link": 9009
+        },
+        {
+          "localized_name": "keep_colors",
+          "name": "keep_colors",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "keep_colors"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "align_mode",
+          "name": "align_mode",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "align_mode"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "max_align_shift",
+          "name": "max_align_shift",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "max_align_shift"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blend_band",
+          "name": "blend_band",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "blend_band"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "shape": 6,
+          "type": "IMAGE",
+          "links": [
+            9016
+          ]
+        },
+        {
+          "localized_name": "diagnostics",
+          "name": "diagnostics",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "GemTiledUpscaleStitch"
+      },
+      "widgets_values": [
+        0.76,
+        "translation",
+        64,
+        0
+      ],
+      "widgets_values_named": {
+        "keep_colors": 0.76,
+        "align_mode": "translation",
+        "max_align_shift": 64,
+        "blend_band": 0
+      },
+      "color": "#8a63d2",
+      "bgcolor": "#241f38"
+    },
+    {
+      "id": 8108,
+      "type": "SaveImage",
+      "pos": [
+        4170,
+        190
+      ],
+      "size": [
+        310,
+        280
+      ],
+      "flags": {},
+      "order": 30,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 15
+          "link": 9016
         }
       ],
-      "outputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "links": []
-        }
-      ],
-      "title": "[504] 放大保存(4K)",
+      "outputs": [],
       "properties": {
         "Node name for S&R": "SaveImage",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
+        "widgets": [
+          "filename_prefix"
+        ]
       },
+      "title": "磨皮保存",
       "widgets_values": [
-        "MYStudio-4K"
-      ],
-      "widgets_values_named": {
-        "filename_prefix": "MYStudio-4K"
-      }
+        "t2i皮肤超分_磨皮_"
+      ]
     }
   ],
   "links": [
@@ -615,18 +1275,130 @@
       "VAE"
     ],
     [
-      14,
+      9001,
+      1,
+      0,
+      8101,
+      0,
+      "MODEL"
+    ],
+    [
+      9002,
+      8101,
+      0,
+      8102,
+      0,
+      "MODEL"
+    ],
+    [
+      9003,
+      8102,
+      0,
+      8103,
+      0,
+      "MODEL"
+    ],
+    [
+      9004,
+      8103,
+      0,
+      8105,
+      0,
+      "MODEL"
+    ],
+    [
+      9005,
+      2,
+      0,
+      8104,
+      0,
+      "CLIP"
+    ],
+    [
+      9006,
+      3,
+      0,
+      8104,
+      4,
+      "VAE"
+    ],
+    [
+      9007,
       5,
       0,
-      503,
+      8100,
       0,
       "IMAGE"
     ],
     [
-      15,
-      503,
+      9008,
+      8100,
       0,
-      504,
+      8104,
+      1,
+      "IMAGE"
+    ],
+    [
+      9009,
+      8100,
+      1,
+      8107,
+      1,
+      "ITSGEM_TILE_STITCHER"
+    ],
+    [
+      9010,
+      8104,
+      0,
+      8105,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      9011,
+      8104,
+      0,
+      8105,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      9012,
+      8104,
+      2,
+      8105,
+      3,
+      "LATENT"
+    ],
+    [
+      9013,
+      8105,
+      0,
+      8106,
+      0,
+      "LATENT"
+    ],
+    [
+      9014,
+      3,
+      0,
+      8106,
+      1,
+      "VAE"
+    ],
+    [
+      9015,
+      8106,
+      0,
+      8107,
+      0,
+      "IMAGE"
+    ],
+    [
+      9016,
+      8107,
+      0,
+      8108,
       0,
       "IMAGE"
     ]
@@ -1648,7 +2420,7 @@
                 "links": [
                   4322,
                   7470,
-                  7911
+                  7901
                 ]
               }
             ],
@@ -2355,94 +3127,6 @@
             },
             "widgets_values": [],
             "widgets_values_named": {}
-          },
-          {
-            "id": 7201,
-            "type": "LoraLoaderModelOnly",
-            "pos": [
-              850,
-              2350
-            ],
-            "size": [
-              320,
-              130
-            ],
-            "flags": {},
-            "order": 10,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "model",
-                "type": "MODEL",
-                "link": 7911
-              }
-            ],
-            "outputs": [
-              {
-                "name": "MODEL",
-                "type": "MODEL",
-                "links": [
-                  7912
-                ]
-              }
-            ],
-            "title": "[7201] 皮肤修复LoRA·restore(×0.5)",
-            "properties": {
-              "Node name for S&R": "ViggleTurboLora",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              "qwen-image-2.1-restore.safetensors",
-              0.5
-            ]
-          },
-          {
-            "id": 7202,
-            "type": "LoraLoaderModelOnly",
-            "pos": [
-              850,
-              2500
-            ],
-            "size": [
-              320,
-              130
-            ],
-            "flags": {},
-            "order": 10,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "model",
-                "type": "MODEL",
-                "link": 7912
-              }
-            ],
-            "outputs": [
-              {
-                "name": "MODEL",
-                "type": "MODEL",
-                "links": [
-                  7901
-                ]
-              }
-            ],
-            "title": "[7202] 人脸LoRA·ItsGem face(×0.5)",
-            "properties": {
-              "Node name for S&R": "ViggleTurboLora",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              "qwen_image_21_ItsGem_face_lora_v1.safetensors",
-              0.5
-            ]
           }
         ],
         "groups": [
@@ -2846,7 +3530,7 @@
           },
           {
             "id": 7901,
-            "origin_id": 7202,
+            "origin_id": 7026,
             "origin_slot": 0,
             "target_id": 7110,
             "target_slot": 0,
@@ -2995,22 +3679,6 @@
             "target_id": 7015,
             "target_slot": 6,
             "type": "LATENT"
-          },
-          {
-            "id": 7911,
-            "origin_id": 7026,
-            "origin_slot": 0,
-            "target_id": 7201,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
-          {
-            "id": 7912,
-            "origin_id": 7201,
-            "origin_slot": 0,
-            "target_id": 7202,
-            "target_slot": 0,
-            "type": "MODEL"
           }
         ],
         "extra": {
@@ -3018,438 +3686,6 @@
           "links_added_by_ue": []
         },
         "_": null
-      },
-      {
-        "id": "f0a844a8-9bf5-4c71-8af5-f1c9f17c0324",
-        "version": 1,
-        "state": {
-          "lastGroupId": 0,
-          "lastNodeId": 7402,
-          "lastLinkId": 7447,
-          "lastRerouteId": 0
-        },
-        "revision": 1,
-        "config": {
-          "defaultIOState": {}
-        },
-        "name": "通用·超分·SeedVR2",
-        "inputNode": {
-          "id": -10,
-          "bounding": [
-            80,
-            400,
-            128,
-            88
-          ]
-        },
-        "outputNode": {
-          "id": -20,
-          "bounding": [
-            3800,
-            676,
-            128,
-            68
-          ]
-        },
-        "inputs": [
-          {
-            "id": "f0a844a8-0001-4c71-8af5-f1c9f17c0324",
-            "name": "image",
-            "type": "IMAGE",
-            "linkIds": [
-              7441
-            ],
-            "pos": [
-              104,
-              424
-            ]
-          },
-          {
-            "id": "f0a844a8-0002-4c71-8af5-f1c9f17c0324",
-            "name": "seed",
-            "type": "INT",
-            "linkIds": [
-              7442
-            ],
-            "pos": [
-              104,
-              444
-            ]
-          },
-          {
-            "id": "f0a844a8-0003-4c71-8af5-f1c9f17c0324",
-            "name": "目标短边",
-            "type": "INT",
-            "linkIds": [
-              7443
-            ],
-            "pos": [
-              104,
-              464
-            ]
-          }
-        ],
-        "outputs": [
-          {
-            "id": "f0a844a8-1001-4c71-8af5-f1c9f17c0324",
-            "name": "image",
-            "type": "IMAGE",
-            "linkIds": [
-              7447
-            ],
-            "pos": [
-              3824,
-              700
-            ]
-          }
-        ],
-        "widgets": [
-          0,
-          2048
-        ],
-        "nodes": [
-          {
-            "id": 501,
-            "type": "SeedVR2LoadDiTModel",
-            "pos": [
-              1500,
-              130
-            ],
-            "size": [
-              300,
-              254
-            ],
-            "flags": {},
-            "order": 0,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "torch_compile_args",
-                "shape": 7,
-                "type": "TORCH_COMPILE_ARGS",
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "name": "SEEDVR2_DIT",
-                "type": "SEEDVR2_DIT",
-                "slot_index": 0,
-                "links": [
-                  7445
-                ]
-              }
-            ],
-            "title": "[501] SeedVR2 DiT加载(sharp 7B fp8)",
-            "properties": {
-              "Node name for S&R": "SeedVR2LoadDiTModel",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
-              "mps",
-              0,
-              false,
-              "none",
-              false,
-              "sdpa"
-            ],
-            "widgets_values_named": {
-              "model": "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
-              "device": "mps",
-              "blocks_to_swap": 0,
-              "swap_io_components": false,
-              "offload_device": "none",
-              "cache_model": false,
-              "attention_mode": "sdpa"
-            }
-          },
-          {
-            "id": 502,
-            "type": "SeedVR2LoadVAEModel",
-            "pos": [
-              1500,
-              510
-            ],
-            "size": [
-              300,
-              366
-            ],
-            "flags": {},
-            "order": 1,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "torch_compile_args",
-                "shape": 7,
-                "type": "TORCH_COMPILE_ARGS",
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "name": "SEEDVR2_VAE",
-                "type": "SEEDVR2_VAE",
-                "slot_index": 0,
-                "links": [
-                  7446
-                ]
-              }
-            ],
-            "title": "[502] SeedVR2 VAE加载(ema fp16)",
-            "properties": {
-              "Node name for S&R": "SeedVR2LoadVAEModel",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              "ema_vae_fp16.safetensors",
-              "mps",
-              true,
-              512,
-              160,
-              true,
-              512,
-              160,
-              "false",
-              "none",
-              false
-            ],
-            "widgets_values_named": {
-              "model": "ema_vae_fp16.safetensors",
-              "device": "mps",
-              "encode_tiled": true,
-              "encode_tile_size": 512,
-              "encode_tile_overlap": 160,
-              "decode_tiled": true,
-              "decode_tile_size": 512,
-              "decode_tile_overlap": 160,
-              "tile_debug": "false",
-              "offload_device": "none",
-              "cache_model": false
-            }
-          },
-          {
-            "id": 7401,
-            "type": "SeedVR2VideoUpscaler",
-            "pos": [
-              3000,
-              700
-            ],
-            "size": [
-              360,
-              458
-            ],
-            "flags": {},
-            "order": 3,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "image",
-                "type": "IMAGE",
-                "link": 7441
-              },
-              {
-                "name": "dit",
-                "type": "SEEDVR2_DIT",
-                "link": 7445
-              },
-              {
-                "name": "vae",
-                "type": "SEEDVR2_VAE",
-                "link": 7446
-              },
-              {
-                "name": "seed",
-                "type": "INT",
-                "widget": {
-                  "name": "seed"
-                },
-                "link": 7444
-              },
-              {
-                "name": "resolution",
-                "type": "INT",
-                "widget": {
-                  "name": "resolution"
-                },
-                "link": 7443
-              }
-            ],
-            "outputs": [
-              {
-                "name": "IMAGE",
-                "type": "IMAGE",
-                "slot_index": 0,
-                "links": [
-                  7447
-                ]
-              }
-            ],
-            "title": "SeedVR2放大(短边4096=4K档)",
-            "properties": {
-              "Node name for S&R": "SeedVR2VideoUpscaler",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              0,
-              "fixed",
-              4096,
-              4096,
-              1,
-              false,
-              "lab",
-              0,
-              0,
-              0,
-              0,
-              "none",
-              false
-            ],
-            "widgets_values_named": {
-              "seed": 0,
-              "control_after_generate": "fixed",
-              "resolution": 4096,
-              "max_resolution": 4096,
-              "batch_size": 1,
-              "uniform_batch_size": false,
-              "color_correction": "lab",
-              "temporal_overlap": 0,
-              "prepend_frames": 0,
-              "input_noise_scale": 0,
-              "latent_noise_scale": 0,
-              "offload_device": "none",
-              "enable_debug": false
-            }
-          },
-          {
-            "id": 7402,
-            "type": "PrimitiveInt",
-            "pos": [
-              300,
-              950
-            ],
-            "size": [
-              270,
-              90
-            ],
-            "flags": {},
-            "order": 2,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "value",
-                "type": "INT",
-                "widget": {
-                  "name": "value"
-                },
-                "link": 7442
-              }
-            ],
-            "outputs": [
-              {
-                "name": "INT",
-                "type": "INT",
-                "links": [
-                  7444
-                ]
-              }
-            ],
-            "title": "[7402] seed单源",
-            "properties": {
-              "Node name for S&R": "PrimitiveInt",
-              "cnr_id": "comfy-core",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              0,
-              "fixed"
-            ],
-            "widgets_values_named": {
-              "value": 0,
-              "fixed": "fixed"
-            }
-          }
-        ],
-        "groups": [],
-        "links": [
-          {
-            "id": 7441,
-            "origin_id": -10,
-            "origin_slot": 0,
-            "target_id": 7401,
-            "target_slot": 0,
-            "type": "IMAGE"
-          },
-          {
-            "id": 7442,
-            "origin_id": -10,
-            "origin_slot": 1,
-            "target_id": 7402,
-            "target_slot": 0,
-            "type": "INT"
-          },
-          {
-            "id": 7443,
-            "origin_id": -10,
-            "origin_slot": 2,
-            "target_id": 7401,
-            "target_slot": 4,
-            "type": "INT"
-          },
-          {
-            "id": 7444,
-            "origin_id": 7402,
-            "origin_slot": 0,
-            "target_id": 7401,
-            "target_slot": 3,
-            "type": "INT"
-          },
-          {
-            "id": 7445,
-            "origin_id": 501,
-            "origin_slot": 0,
-            "target_id": 7401,
-            "target_slot": 1,
-            "type": "SEEDVR2_DIT"
-          },
-          {
-            "id": 7446,
-            "origin_id": 502,
-            "origin_slot": 0,
-            "target_id": 7401,
-            "target_slot": 2,
-            "type": "SEEDVR2_VAE"
-          },
-          {
-            "id": 7447,
-            "origin_id": 7401,
-            "origin_slot": 0,
-            "target_id": -20,
-            "target_slot": 0,
-            "type": "IMAGE"
-          }
-        ],
-        "extra": {
-          "ue_links": [],
-          "links_added_by_ue": []
-        },
-        "category": "漫影"
       }
     ]
   },
@@ -3503,15 +3739,15 @@
       "locked": false
     },
     {
-      "title": "超分尾档·4K",
+      "title": "磨皮后续·Gem分块重绘",
       "bounding": [
-        2640,
-        180,
-        900,
-        400
+        2510,
+        100,
+        2000,
+        1030
       ],
       "color": "#3f789e",
-      "id": 5,
+      "id": 90,
       "locked": false
     }
   ]
