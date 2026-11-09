@@ -329,7 +329,7 @@
         "previewExposures": []
       },
       "widgets_values": [
-        "4 · PrunaAI 6步",
+        "0 · Turbo 8步",
         0
       ],
       "widgets_values_named": {
@@ -1770,7 +1770,7 @@
               }
             },
             "widgets_values": [
-              "4 · PrunaAI 6步"
+              "0 · Turbo 8步"
             ],
             "widgets_values_named": {
               "mode": "3 · 混动 40步+缓存"
@@ -2403,7 +2403,7 @@
             ],
             "flags": {},
             "order": 15,
-            "mode": 4,
+            "mode": 0,
             "inputs": [
               {
                 "localized_name": "模型",
