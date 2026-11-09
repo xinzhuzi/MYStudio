@@ -3302,7 +3302,8 @@
                   7918,
                   7919,
                   7920,
-                  7921
+                  7921,
+                  7923
                 ],
                 "slot_index": 0
               }
@@ -3324,6 +3325,61 @@
               "strength_model": 0.3
             },
             "title": "无审查LoRA·femaledVaginus·L22-31(×1.0)"
+          },
+          {
+            "id": 7212,
+            "type": "LoraLoaderModelOnly",
+            "pos": [
+              2650,
+              2400
+            ],
+            "size": [
+              270.0,
+              148.0
+            ],
+            "flags": {},
+            "order": 20,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": 7923
+              },
+              {
+                "name": "lora_name",
+                "type": "COMBO",
+                "link": null
+              },
+              {
+                "name": "strength_model",
+                "type": "FLOAT",
+                "link": null,
+                "widget": true
+              }
+            ],
+            "outputs": [
+              {
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  7916,
+                  7917,
+                  7918,
+                  7919,
+                  7920,
+                  7921
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "LoraLoaderModelOnly"
+            },
+            "title": "无审查LoRA·Tumblr NudeShot 2.1-v3(×1.0)",
+            "widgets_values": [
+              "tumblr_2.1_v3.safetensors",
+              1.0
+            ]
           }
         ],
         "groups": [
@@ -3368,7 +3424,7 @@
             "bounding": [
               200,
               380,
-              2350,
+              2790,
               2300
             ],
             "color": "#3f789e",
@@ -3847,7 +3903,7 @@
           },
           {
             "id": 7916,
-            "origin_id": 7211,
+            "origin_id": 7212,
             "origin_slot": 0,
             "target_id": 7110,
             "target_slot": 0,
@@ -3855,7 +3911,7 @@
           },
           {
             "id": 7917,
-            "origin_id": 7211,
+            "origin_id": 7212,
             "origin_slot": 0,
             "target_id": 7028,
             "target_slot": 0,
@@ -3863,7 +3919,7 @@
           },
           {
             "id": 7918,
-            "origin_id": 7211,
+            "origin_id": 7212,
             "origin_slot": 0,
             "target_id": 7011,
             "target_slot": 0,
@@ -3871,7 +3927,7 @@
           },
           {
             "id": 7919,
-            "origin_id": 7211,
+            "origin_id": 7212,
             "origin_slot": 0,
             "target_id": 7022,
             "target_slot": 0,
@@ -3879,7 +3935,7 @@
           },
           {
             "id": 7920,
-            "origin_id": 7211,
+            "origin_id": 7212,
             "origin_slot": 0,
             "target_id": 7010,
             "target_slot": 0,
@@ -3887,7 +3943,7 @@
           },
           {
             "id": 7921,
-            "origin_id": 7211,
+            "origin_id": 7212,
             "origin_slot": 0,
             "target_id": 7040,
             "target_slot": 0,
@@ -3898,6 +3954,14 @@
             "origin_id": 7026,
             "origin_slot": 0,
             "target_id": 7210,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7923,
+            "origin_id": 7211,
+            "origin_slot": 0,
+            "target_id": 7212,
             "target_slot": 0,
             "type": "MODEL"
           }
