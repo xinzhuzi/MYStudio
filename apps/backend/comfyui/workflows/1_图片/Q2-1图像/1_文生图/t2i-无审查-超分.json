@@ -128,7 +128,7 @@
       "title": "[400] 正向提示词",
       "properties": {},
       "widgets_values": [
-        "A young woman standing on a cliff at sunset, flowing dress, golden light"
+        "A cinematic film still from a Chinese youth drama, shot in Japanese fresh photography style. Night bedroom lit by cold white moonlight from floor-to-ceiling curtains. A beautiful young Chinese woman (age 22, adult) with a flawless, perfectly proportioned figure lies on her back on white silk bedsheets, completely nude, her entire body bare. Her breasts are perfectly shaped teardrop form - gentle upper slope, fuller lower curve with natural youthful gravity, moonlight casting delicate shadows beneath them. Skin is flawless pale porcelain, matte, zero oil, zero makeup, no blush. Long black hair spread on white pillow. Natural pink lips slightly parted. Eyes red-rimmed with contained tears, expression vulnerable and innocent. A young Chinese man (age 25, adult) kneels beside her on the bed, leaning forward with one hand braced on the mattress. His expression is frozen in shock and guilt. Naturalistic lighting: cold blue-white moonlight as the key light, a faint warm candle glow as a subtle off-frame accent, realistic skin tones, soft natural shadows, true-to-life color grading like an unretouched photograph. Photorealistic, cinematic film still, shallow depth of field, pure and realistic atmosphere."
       ]
     },
     {
@@ -1563,8 +1563,8 @@
             "id": 7011,
             "type": "ViggleTurboLora",
             "pos": [
-              3820.0,
-              2460.0
+              3820,
+              2600
             ],
             "size": [
               270.0,
@@ -1613,8 +1613,8 @@
             "id": 7012,
             "type": "SamplerCustomAdvanced",
             "pos": [
-              6020.0,
-              2560.0
+              6020,
+              2700
             ],
             "size": [
               330.0,
@@ -1836,8 +1836,8 @@
             "id": 7010,
             "type": "KSampler",
             "pos": [
-              4330.0,
-              3560.0
+              3810,
+              3452
             ],
             "size": [
               302.0,
@@ -2057,8 +2057,8 @@
             "id": 7019,
             "type": "BasicGuider",
             "pos": [
-              5360.0,
-              2420.0
+              5360,
+              2560
             ],
             "size": [
               270.0,
@@ -2108,8 +2108,8 @@
             "id": 7020,
             "type": "ViggleTurboSigmas",
             "pos": [
-              5140.0,
-              2790.0
+              5140,
+              2930
             ],
             "size": [
               330.0,
@@ -2165,8 +2165,8 @@
             "id": 7021,
             "type": "SplitSigmas",
             "pos": [
-              5740.0,
-              2850.0
+              5740,
+              2990
             ],
             "size": [
               270.0,
@@ -2230,8 +2230,8 @@
             "id": 7022,
             "type": "BasicGuider",
             "pos": [
-              4590.0,
-              2000.0
+              4590,
+              2140
             ],
             "size": [
               270.0,
@@ -2281,8 +2281,8 @@
             "id": 7023,
             "type": "DisableNoise",
             "pos": [
-              6230.0,
-              2040.0
+              6230,
+              2180
             ],
             "size": [
               270.0,
@@ -2319,8 +2319,8 @@
             "id": 7024,
             "type": "SamplerCustomAdvanced",
             "pos": [
-              6960.0,
-              2540.0
+              6960,
+              2680
             ],
             "size": [
               330.0,
@@ -2444,8 +2444,8 @@
             "id": 7028,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              3780.0,
-              880.0
+              3780,
+              880
             ],
             "size": [
               270.0,
@@ -2494,8 +2494,8 @@
             "id": 7029,
             "type": "BasicGuider",
             "pos": [
-              5180.0,
-              1010.0
+              4260,
+              1010
             ],
             "size": [
               270.0,
@@ -2545,8 +2545,8 @@
             "id": 7030,
             "type": "ManualSigmas",
             "pos": [
-              7040.0,
-              990.0
+              4740,
+              990
             ],
             "size": [
               270.0,
@@ -2587,8 +2587,8 @@
             "id": 7031,
             "type": "SamplerCustomAdvanced",
             "pos": [
-              7700.0,
-              300.0
+              5220,
+              300
             ],
             "size": [
               330.0,
@@ -2713,8 +2713,8 @@
             "id": 7040,
             "type": "LazyCache",
             "pos": [
-              4280.0,
-              1350.0
+              3780,
+              1352
             ],
             "size": [
               270.0,
@@ -2761,8 +2761,8 @@
             "id": 7045,
             "type": "KSampler",
             "pos": [
-              4730.0,
-              1350.0
+              4260,
+              1352
             ],
             "size": [
               302.0,
@@ -2897,8 +2897,8 @@
             "id": 7110,
             "type": "ViggleTurboLora",
             "pos": [
-              5680,
-              4100
+              3910,
+              4102
             ],
             "size": [
               270.0,
@@ -2947,8 +2947,8 @@
             "id": 7111,
             "type": "BasicGuider",
             "pos": [
-              6030,
-              4100
+              4260,
+              4102
             ],
             "size": [
               270.0,
@@ -2998,8 +2998,8 @@
             "id": 7113,
             "type": "ViggleTurboSigmas",
             "pos": [
-              5680,
-              4320
+              3910,
+              4322
             ],
             "size": [
               330.0,
@@ -3053,8 +3053,8 @@
             "id": 7112,
             "type": "SamplerCustomAdvanced",
             "pos": [
-              6330,
-              4100
+              4560,
+              4102
             ],
             "size": [
               330.0,
@@ -3329,10 +3329,10 @@
           {
             "title": "①Turbo 8步",
             "bounding": [
-              3750.0,
-              250.0,
-              4310.0,
-              902.0
+              3760,
+              250,
+              1900,
+              902
             ],
             "color": "#3f789e",
             "id": 100,
@@ -3341,10 +3341,10 @@
           {
             "title": "②viggle 双段",
             "bounding": [
-              3790.0,
-              1950.0,
-              3530.0,
-              1072.0
+              3760,
+              2090,
+              3530,
+              1072
             ],
             "color": "#3f789e",
             "id": 101,
@@ -3353,8 +3353,8 @@
           {
             "title": "③原生出图",
             "bounding": [
-              4280,
-              3480,
+              3760,
+              3312,
               600,
               500
             ],
@@ -3377,10 +3377,10 @@
           {
             "title": "⑤混动 40步+缓存",
             "bounding": [
-              4230.0,
-              1300.0,
-              1000.0,
-              638.0
+              3760,
+              1302,
+              1000,
+              638
             ],
             "color": "#3f789e",
             "id": 104,
@@ -3401,8 +3401,8 @@
           {
             "title": "⑦PrunaAI 6步臂(默认)",
             "bounding": [
-              5530,
-              4020,
+              3760,
+              3962,
               1150,
               550
             ],
