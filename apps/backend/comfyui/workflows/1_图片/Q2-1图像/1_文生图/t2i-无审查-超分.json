@@ -2418,7 +2418,7 @@
                 "name": "MODEL",
                 "type": "MODEL",
                 "links": [
-                  7911
+                  7922
                 ]
               }
             ],
@@ -3124,7 +3124,7 @@
             "widgets_values_named": {}
           },
           {
-            "id": 7201,
+            "id": 7210,
             "type": "LoraLoaderModelOnly",
             "pos": [
               1690,
@@ -3141,105 +3141,7 @@
               {
                 "name": "model",
                 "type": "MODEL",
-                "link": 7911
-              }
-            ],
-            "outputs": [
-              {
-                "name": "MODEL",
-                "type": "MODEL",
-                "links": [
-                  7912
-                ],
-                "slot_index": 0
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "LoraLoaderModelOnly",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              "qwen-image-2.1-restore.safetensors",
-              0.5
-            ],
-            "widgets_values_named": {
-              "lora_name": "High quality.safetensors",
-              "strength_model": 0.3
-            },
-            "title": "皮肤LoRA·restore(0.5)"
-          },
-          {
-            "id": 7202,
-            "type": "LoraLoaderModelOnly",
-            "pos": [
-              2170,
-              2400
-            ],
-            "size": [
-              270.0,
-              148.0
-            ],
-            "flags": {},
-            "order": 20,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "model",
-                "type": "MODEL",
-                "link": 7912
-              }
-            ],
-            "outputs": [
-              {
-                "name": "MODEL",
-                "type": "MODEL",
-                "links": [
-                  7914
-                ],
-                "slot_index": 0
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "LoraLoaderModelOnly",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              "qwen_image_21_ItsGem_face_lora_v1.safetensors",
-              0.5
-            ],
-            "widgets_values_named": {
-              "lora_name": "High quality.safetensors",
-              "strength_model": 0.3
-            },
-            "title": "皮肤LoRA·ItsGem face(0.5)"
-          },
-          {
-            "id": 7210,
-            "type": "LoraLoaderModelOnly",
-            "pos": [
-              2650,
-              2400
-            ],
-            "size": [
-              270.0,
-              148.0
-            ],
-            "flags": {},
-            "order": 20,
-            "mode": 4,
-            "inputs": [
-              {
-                "name": "model",
-                "type": "MODEL",
-                "link": 7914
+                "link": 7922
               }
             ],
             "outputs": [
@@ -3268,13 +3170,13 @@
               "lora_name": "High quality.safetensors",
               "strength_model": 0.3
             },
-            "title": "无审查LoRA·f23gg·NSFW-Qwen2.1(×1.0,默认旁路)"
+            "title": "无审查LoRA·f23gg·NSFW-Qwen2.1(×1.0)"
           },
           {
             "id": 7211,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              3130,
+              2170,
               2400
             ],
             "size": [
@@ -3283,7 +3185,7 @@
             ],
             "flags": {},
             "order": 20,
-            "mode": 4,
+            "mode": 0,
             "inputs": [
               {
                 "name": "model",
@@ -3322,7 +3224,7 @@
               "lora_name": "High quality.safetensors",
               "strength_model": 0.3
             },
-            "title": "无审查LoRA·femaledVaginus·L22-31(×1.0,默认旁路)"
+            "title": "无审查LoRA·femaledVaginus·L22-31(×1.0)"
           }
         ],
         "groups": [
@@ -3367,7 +3269,7 @@
             "bounding": [
               200,
               380,
-              3350,
+              2350,
               2300
             ],
             "color": "#3f789e",
@@ -3829,26 +3731,10 @@
             "type": "LATENT"
           },
           {
-            "id": 7911,
-            "origin_id": 7026,
-            "origin_slot": 0,
-            "target_id": 7201,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
-          {
             "id": 7912,
             "origin_id": 7201,
             "origin_slot": 0,
             "target_id": 7202,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
-          {
-            "id": 7914,
-            "origin_id": 7202,
-            "origin_slot": 0,
-            "target_id": 7210,
             "target_slot": 0,
             "type": "MODEL"
           },
@@ -3905,6 +3791,14 @@
             "origin_id": 7211,
             "origin_slot": 0,
             "target_id": 7040,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7922,
+            "origin_id": 7026,
+            "origin_slot": 0,
+            "target_id": 7210,
             "target_slot": 0,
             "type": "MODEL"
           }
