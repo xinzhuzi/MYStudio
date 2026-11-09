@@ -105,7 +105,7 @@
       "id": 400,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        480,
+        550,
         150
       ],
       "size": [
@@ -135,7 +135,7 @@
       "id": 404,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        480,
+        550,
         400
       ],
       "size": [
@@ -165,7 +165,7 @@
       "id": 401,
       "type": "TextEncodeQwenImage21",
       "pos": [
-        950,
+        1020,
         200
       ],
       "size": [
@@ -226,7 +226,7 @@
       "id": 4,
       "type": "EmptyLatentImage",
       "pos": [
-        480,
+        550,
         600
       ],
       "size": [
@@ -258,7 +258,7 @@
       "id": 7,
       "type": "e7b9d4a2-3c5f-4e61-8d70-9f2a5c8b4d6e",
       "pos": [
-        1350,
+        1420,
         200
       ],
       "size": [
@@ -341,7 +341,7 @@
       "id": 5,
       "type": "VAEDecode",
       "pos": [
-        1780,
+        1850,
         250
       ],
       "size": [
@@ -381,7 +381,7 @@
       "id": 8,
       "type": "SaveImage",
       "pos": [
-        2150,
+        2220,
         250
       ],
       "size": [
@@ -431,7 +431,7 @@
       "id": 8100,
       "type": "GemTiledUpscale",
       "pos": [
-        2700,
+        2770,
         1200
       ],
       "size": [
@@ -584,7 +584,7 @@
       "id": 8101,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        2700,
+        2770,
         1730
       ],
       "size": [
@@ -647,7 +647,7 @@
       "id": 8102,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        3300,
+        3370,
         1730
       ],
       "size": [
@@ -710,7 +710,7 @@
       "id": 8103,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        3900,
+        3970,
         1730
       ],
       "size": [
@@ -773,7 +773,7 @@
       "id": 8104,
       "type": "TextEncodeQwenImage21",
       "pos": [
-        3230,
+        3300,
         1200
       ],
       "size": [
@@ -890,7 +890,7 @@
       "id": 8105,
       "type": "KSampler",
       "pos": [
-        4460,
+        4530,
         1200
       ],
       "size": [
@@ -1017,7 +1017,7 @@
       "id": 8106,
       "type": "VAEDecode",
       "pos": [
-        4940,
+        5010,
         2200
       ],
       "size": [
@@ -1060,7 +1060,7 @@
       "id": 8107,
       "type": "GemTiledUpscaleStitch",
       "pos": [
-        5440,
+        5510,
         2200
       ],
       "size": [
@@ -1163,7 +1163,7 @@
       "id": 8108,
       "type": "SaveImage",
       "pos": [
-        5940,
+        6010,
         2200
       ],
       "size": [
@@ -3827,7 +3827,7 @@
     {
       "title": "提示词",
       "bounding": [
-        430,
+        500,
         80,
         510,
         520
@@ -3839,7 +3839,7 @@
     {
       "title": "加速出图",
       "bounding": [
-        1300,
+        1370,
         120,
         480,
         480
@@ -3851,7 +3851,7 @@
     {
       "title": "保存",
       "bounding": [
-        2100,
+        2170,
         180,
         460,
         400
@@ -3863,7 +3863,7 @@
     {
       "title": "磨皮后续·Gem分块重绘",
       "bounding": [
-        2640,
+        2710,
         1110,
         3670,
         1548
