@@ -1417,7 +1417,7 @@
    "order": 101,
    "mode": 0,
    "widgets_values": [
-    "## 漫影 Pika ref2va 主力线(1101 用户裁定「ref2va 更适合分镜产线」)\n\n**定位**:角色卡+场景卡+分镜帧锁身份——分镜帧恒占 Picture 1(ref_image_0),\n角色/场景卡占 Picture 2-5(110-113,出厂旁路,组装器按 refs 激活)。\n**契约**(逐字取自 PikaFlex-REF2VA 官方模板):MiniMaxH3ReferenceToVideo\n(≠ fl2va 线 ImageToVideo,无 first_frame 口)+ ref2va int8 pruned 底模\n+ Pika LoRA@1.0 + lcm + 6-NFE ManualSigmas + ref_image_size=match。\n**同 fl2va 增量**:kitchen attention(B 臂白拿 -9.2%,音频同簇);seed fixed 42。\n**分辨率**:三段链出厂 1280x704(0.9MP 档,1110 用户裁定「1344 太高」;二采目标 1472×832 B2 档);禁官方原生 1344x768 直出。\n**API 直投禁令**:API 图(pika-ref-shot-template.api.json,20 节点)不含\nMyShot/占位节点——直投无 extraPngInfo;回收走五段前缀+execute result 回流,\n画布档保留 100 MyShot 写回。**未实弹**:候 Win 四件模型下载毕后热跑首发。"
+    "## 漫影 Pika ref2va 主力线(1101 用户裁定「ref2va 更适合分镜产线」)\n\n**定位**:角色卡+场景卡+分镜帧锁身份——分镜帧恒占 Picture 1(ref_image_0),\n角色/场景卡占 Picture 2-5(110-113,出厂旁路,组装器按 refs 激活)。\n**契约**(逐字取自 PikaFlex-REF2VA 官方模板):MiniMaxH3ReferenceToVideo\n(≠ fl2va 线 ImageToVideo,无 first_frame 口)+ ref2va int8 pruned 底模\n+ Pika LoRA@1.0 + lcm + 6-NFE ManualSigmas + ref_image_size=match。\n**同 fl2va 增量**:kitchen attention(B 臂白拿 -9.2%,音频同簇);seed fixed 42。\n**分辨率**:三段链出厂 1280x704(0.9MP 档,1110 用户裁定「1344 太高」;竖屏对称档 704×1280;二采目标 1472×832 B2 档;一采加速件全名=Pika Turbo 8 步);禁官方原生 1344x768 直出。\n**API 直投禁令**:API 图(pika-ref-shot-template.api.json,20 节点)不含\nMyShot/占位节点——直投无 extraPngInfo;回收走五段前缀+execute result 回流,\n画布档保留 100 MyShot 写回。**未实弹**:候 Win 四件模型下载毕后热跑首发。"
    ]
   },
   {
