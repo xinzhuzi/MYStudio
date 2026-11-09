@@ -424,7 +424,7 @@
       "title": "[402] 用法",
       "properties": {},
       "widgets_values": [
-        "## t2i 皮肤·磨皮组合件\nt2i-通用 骨架(④PrunaAI 6步/2048²直采,子图=通用原样零注入) + 尾档=Gem 怼脸件「磨皮」支(1109 用户令:4K 超分尾档出局,组合成件)\n- 磨皮后续=[8100]GemTiledUpscale 10MP 切 2MP 块 → 逐块重绘([8101]viggle-turbo@1.0+[8102]restore@0.5+[8103]ItsGem face@0.5,6步 cfg1 euler)→ [8107]Stitch(keep_colors 0.76)\n- 磨皮指令=作者原设 Restore the photo…(固定勿改,同 Gem 件口径)\n- 输出双路:[8] 直采 2048² 原图 + [8108](核心SaveImage) 磨皮 ~10MP;API 直投雷:TE 图槽名=images.image_1(点分全名)\n- 依赖:ItsGemTools 插件;t2i 段提示词/seed 走 [400]/[404]/宿主面板\n- 双路磨皮(1109 a+c):全局段=④臂[7201]restore@0.5+[7202]face@0.5(直采即带磨皮,零拼缝不双头);精细段=尾档分块重绘(怼脸特写用;[8107]对位256/羽化64缓解骑缝鬼影)。全景图看[8]直采,怼脸图取[8108]磨皮10MP"
+        "## t2i 皮肤·磨皮组合件\nt2i-通用 骨架(④PrunaAI 6步/2048²直采,子图=通用原样零注入) + 尾档=Gem 怼脸件「磨皮」支(1109 用户令:4K 超分尾档出局,组合成件)\n- 磨皮后续=[8100]GemTiledUpscale 10MP 切 2MP 块 → 逐块重绘([8101]viggle-turbo@1.0+[8102]restore@0.5+[8103]ItsGem face@0.5,6步 cfg1 euler)→ [8107]Stitch(keep_colors 0.76)\n- 磨皮指令=1109 用户令全身修复句(八部位点名+毛孔/发丝/唇纹/甲缘/虹膜+七项保留;替换 Gem 作者原设短句)\n- 输出双路:[8] 直采 2048² 原图 + [8108](核心SaveImage) 磨皮 ~10MP;API 直投雷:TE 图槽名=images.image_1(点分全名)\n- 依赖:ItsGemTools 插件;t2i 段提示词/seed 走 [400]/[404]/宿主面板\n- 双路磨皮(1109 a+c):全局段=④臂[7201]restore@0.5+[7202]face@0.5(直采即带磨皮,零拼缝不双头);精细段=尾档分块重绘(怼脸特写用;[8107]对位256/羽化64缓解骑缝鬼影)。全景图看[8]直采,怼脸图取[8108]磨皮10MP"
       ]
     },
     {
@@ -876,7 +876,7 @@
         "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
-        "Restore the photo: remove blur, noise and compression artifacts, recover sharp natural facial detail, clean skin texture, hair strands and lip texture, keeping the same composition, identity and people.",
+        "Restore this photo to professional quality. Remove all blur, noise, and compression artifacts from every visible surface — face, neck, shoulders, arms, hands, torso, legs, and feet. Recover sharp natural detail across all body skin: fine delicate pores, clean smooth texture, naturally radiant and healthy skin, individually resolved hair strands on the scalp and body, defined lip texture, crisp nail edges, and clear iris detail. Every patch of skin should look naturally smooth, finely grained, and true to life. Keep the exact same composition, framing, identity, pose, clothing, lighting, and every person unchanged.",
         "",
         0
       ],
