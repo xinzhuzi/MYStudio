@@ -564,6 +564,7 @@ class RemoteMystudioTests(unittest.TestCase):
         self.kill_port = True
         self.daemon = False
         self.end_code = 0
+        self.probe_code = 0
         self.lock = patch.object(svc_mod, "_acquire_torch_operation", side_effect=lambda _: svc_mod._TORCH_UPGRADE_LOCK.acquire())
         self.lock.start()
         self.addCleanup(self.lock.stop)
@@ -574,7 +575,7 @@ class RemoteMystudioTests(unittest.TestCase):
             command = base64.b64decode(command.split("-EncodedCommand ", 1)[1]).decode("utf-16le")
         self.commands.append(command)
         if "Name='manying-studio.exe'" in command:
-            return 0, str(int(self.app))
+            return self.probe_code, str(int(self.app))
         if "Get-NetTCPConnection" in command:
             return 0, str(int(self.engine))
         if "Invoke-RestMethod" in command:
@@ -651,6 +652,18 @@ class RemoteMystudioTests(unittest.TestCase):
         self.assertFalse(result["appWasRunning"])
         self.assertFalse(result["engineWasRunning"])
         self.assertFalse(any("Stop-Process" in command for command in self.commands))
+
+    def test_probe_nonzero_exit_with_clean_count_is_tolerated(self):
+        # 1110 实弹雷(两形态,exit code 不可信只看解析):①Get-NetTCPConnection
+        # 零匹配时 powershell.exe exit=1(错误流副产品)而 stdout 干净 "0";
+        # ②长连会话 recv_exit_status 毛刺返回 -1——计数在即答案,否则关完仍 503
+        for probe_code in (1, -1):
+            with self.subTest(probe_code=probe_code):
+                self.setUp()
+                self.probe_code = probe_code
+                result = self.service.shutdown_remote_mystudio()
+                self.assertTrue(result["ok"])
+                self.assertFalse(result["appWasRunning"])
 
     def test_shutdown_port_still_listening(self):
         self.engine = True

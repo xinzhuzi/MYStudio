@@ -1812,7 +1812,12 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
     def _remote_process_count(self, script: str) -> int:
         code, output = self._mystudio_command(_torch_powershell(script), 15)
         counts = [int(line.strip()) for line in output.splitlines() if line.strip().isdecimal()]
-        if code != 0 or not counts:
+        # 1110 实弹雷(两形态,exit code 不可信):①Get-NetTCPConnection 零匹配时
+        # 即便 -ErrorAction SilentlyContinue,powershell.exe 仍 exit=1(错误流
+        # 副产品)而 stdout 是干净 "0";②长连会话 recv_exit_status 毛刺返回 -1。
+        # 判定只看解析:解析出干净计数行=答案;真错误时输出是错误文本,counts
+        # 自然为空→诚实抛。
+        if not counts:
             raise SSHServiceError(f"远端状态探测失败: {output.strip()[:500]}")
         return counts[-1]
 
