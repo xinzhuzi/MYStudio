@@ -388,11 +388,25 @@ async function renderWorkflowsPane(pane) {
   pane.textContent = "";
   // 满宽无空隙容器(09-15 用户铁律:布局要拓展至满控件,不要留空隙)
   pane.style.cssText = "padding:6px 6px;display:flex;flex-direction:column;gap:4px;width:100%;height:100%;flex:1;min-height:0;box-sizing:border-box;";
+  // 顶行=状态文本+常驻刷新按钮(1109 用户令:引擎瞬时不可达报 502 后无重试入口,
+  // 须一键刷新;风格随分镜页签刷新款)
+  const headRow = document.createElement("div");
+  headRow.style.cssText = "display:flex;align-items:center;gap:6px;";
   const status = paneStatus("加载自研工作流…");
   status.style.padding = "0 4px";
+  status.style.flex = "1";
+  status.style.minWidth = "0";
+  const refreshBtn = document.createElement("button");
+  refreshBtn.title = "刷新工作流列表";
+  refreshBtn.style.cssText = `display:flex;align-items:center;justify-content:center;width:26px;height:26px;flex:none;cursor:pointer;border-radius:8px;border:1px solid ${THEME.line};background:transparent;color:${THEME.text2};transition:transform 80ms ease;`;
+  refreshBtn.append(icon(ICONS.refresh, 13));
+  refreshBtn.onpointerdown = () => { refreshBtn.style.transform = "scale(0.92)"; };
+  refreshBtn.onpointerup = refreshBtn.onpointerleave = () => { refreshBtn.style.transform = ""; };
+  refreshBtn.onclick = () => { void renderWorkflowsPane(pane); };
+  headRow.append(status, refreshBtn);
   const host = document.createElement("div");
   host.style.cssText = "display:flex;flex-direction:column;flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;width:100%;box-sizing:border-box;";
-  pane.append(status, host);
+  pane.append(headRow, host);
 
   try {
     const data = await fetchJson(`${BRIDGE_URL}/comfy/workflows?light=1`);
@@ -603,7 +617,9 @@ async function renderWorkflowsPane(pane) {
     host.append(renderLevel(tree, 0, true, null));
     syncOpenBadges(openBadges);
   } catch (error) {
-    status.textContent = `取不到工作流(${error.message || error});请确认漫影软件在运行`;
+    status.textContent = `取不到工作流(${error.message || error});请确认漫影软件在运行,或点右上刷新重试`;
+    // 报错后清除页签渲染缓存:切走再切回即自动重试(不须手点)
+    delete pane.dataset.rendered;
   }
 }
 
