@@ -376,10 +376,13 @@ class Handler(BaseHTTPRequestHandler):
         """
         import urllib.request
 
+        print(f"[remote-ssh] 远端 401/403 触发令牌自愈重试: {target.split('?', 1)[0]}", flush=True)
         svc = _ssh_service()
         if svc is None or not svc.available():
+            print("[remote-ssh] 自愈跳过: SSH 服务不可用", flush=True)
             return False  # SSH 不可用:不触发自愈(保持 11-03 S4 行为)
         if not svc.refresh_remote_token(timeout_s=15):
+            print("[remote-ssh] 自愈失败: 令牌刷新未成功(SSH 未连接/路径全 miss/正则拒/15s 超时,详见逐路径日志)", flush=True)
             return False  # 刷新失败(未连接/双 miss/正则拒/超时):交回 403 文案
         request = urllib.request.Request(target, headers=self._remote_sidecar_credentials())
         try:
@@ -387,6 +390,7 @@ class Handler(BaseHTTPRequestHandler):
                 reply = json.loads(resp.read().decode("utf-8", "replace"))
         except urllib_error.HTTPError as exc:
             if exc.code in (401, 403):
+                print("[remote-ssh] 自愈后仍被拒: 请检查 Windows 侧 config.json", flush=True)
                 return False  # 新令牌仍被拒:交回外层诚实 403 文案(不循环)
             self._send_error_json(
                 HTTPStatus.BAD_GATEWAY,
@@ -401,6 +405,7 @@ class Handler(BaseHTTPRequestHandler):
                 "remote-sidecar-unreachable",
             )
             return True
+        print("[remote-ssh] 自愈成功: 新令牌重试通过", flush=True)
         self._send_json(reply)
         return True
 

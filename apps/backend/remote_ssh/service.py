@@ -681,10 +681,13 @@ class SSHService:
                 )
         elif self._tunnel.active():
             self._tunnel.stop()  # 配置改关隧道:旧 listener 一并收
-        # R2①:sidecar 启动后台预取(daemon 线程,非阻塞;失败静默回落文件/env)
+        # R2①:sidecar 启动后台预取(daemon 线程,非阻塞;失败回落文件/env)
+        def prefetch_token() -> None:
+            refreshed = self.refresh_remote_token(timeout_s=15)
+            print(f"[remote-ssh] 令牌预取{'成功' if refreshed else '失败'}", flush=True)
+
         threading.Thread(
-            target=self.refresh_remote_token,
-            kwargs={"timeout_s": 15},
+            target=prefetch_token,
             name="remote-ssh-token-prefetch",
             daemon=True,
         ).start()
@@ -1942,15 +1945,24 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
         for path in ssh_config.effective_token_config_paths(cfg):
             try:
                 raw = self.sftp_read_text(path)
-                data = json.loads(raw)
             except (SSHServiceError, OSError, ValueError):
-                continue  # miss / 坏 JSON / 未连接:试下一条真源路径
+                print(f"[remote-ssh] 令牌路径读取失败: {path}", flush=True)
+                continue
+            try:
+                data = json.loads(raw)
+            except ValueError:
+                print(f"[remote-ssh] 令牌路径 JSON 无效: {path}", flush=True)
+                continue
             if not isinstance(data, dict):
+                print(f"[remote-ssh] 令牌路径 JSON 格式无效: {path}", flush=True)
                 continue
             token = data.get("controlToken")
             if not isinstance(token, str) or not _TOKEN_RE.fullmatch(token):
+                print(f"[remote-ssh] 令牌路径校验未通过: {path}", flush=True)
                 continue  # 正则拒/类型不对:试下一条(B7 同款口径)
+            print(f"[remote-ssh] 令牌路径命中: {path}", flush=True)
             self._write_token_file(token)
+            print("[remote-ssh] 远端令牌文件写入成功", flush=True)
             with self._lock:
                 self._token_refreshed_at = time.time()
             return True

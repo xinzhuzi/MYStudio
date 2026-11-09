@@ -338,7 +338,7 @@ phase_b() {
         log "⚠️  令牌写入失败($MAC_REMOTE_TOKEN_FILE)——不阻断,可手动写入"
       fi
     else
-      log "⚠️  未在 Windows 侧找到 image-gen controlToken(找过 $WIN_TOKEN_CONFIG 与 %APPDATA% 同构路径;App 未首用过图像生成?)——跳过令牌同步不阻断"
+      log "⚠️  未在 Windows 侧找到 image-gen controlToken(找过 $WIN_TOKEN_CONFIG 与 %APPDATA% 同构路径;Win 侧 App 启动一次即自动生成令牌,或检查 storageBase 重定向路径)——跳过令牌同步不阻断"
       log "    如远端代理 403,请手动:从 Windows 该 config.json 取 controlToken,写入 Mac 的 \"$MAC_REMOTE_TOKEN_FILE\""
     fi
   fi

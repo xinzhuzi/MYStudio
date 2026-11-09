@@ -45,11 +45,29 @@ describe("createImageGenRuntimeController getModelCacheDir(08-19 模型目录规
 });
 
 describe("image generation engine selection", () => {
+  it("creates a control token during construction without a Python runtime", () => {
+    makeController();
+    const configPath = join(storageDir, "python", "profiles", "image-gen", "config.json");
+    expect(JSON.parse(readFileSync(configPath, "utf8"))).toMatchObject({
+      controlToken: expect.stringMatching(/^[0-9a-f-]{36}$/),
+    });
+  });
+
+  it("reuses the existing control token without rewriting the config", () => {
+    const configPath = join(storageDir, "python", "profiles", "image-gen", "config.json");
+    mkdirSync(join(storageDir, "python", "profiles", "image-gen"), { recursive: true });
+    const original = '{"controlToken":"existing-token","activeModel":"z-image-turbo"}\n';
+    writeFileSync(configPath, original, "utf8");
+    const controller = makeController();
+    expect(controller.status().activeModel).toBe("z-image-turbo");
+    expect(readFileSync(configPath, "utf8")).toBe(original);
+  });
+
   it("persists the selected engine and restores it on a new controller", () => {
     const first = makeController();
     expect(first.setActiveModel("z-image-turbo")).toBe(true);
     const configPath = join(storageDir, "python", "profiles", "image-gen", "config.json");
-    expect(JSON.parse(readFileSync(configPath, "utf8"))).toEqual({ activeModel: "z-image-turbo" });
+    expect(JSON.parse(readFileSync(configPath, "utf8"))).toMatchObject({ activeModel: "z-image-turbo" });
 
     const second = makeController();
     expect(second.status().activeModel).toBe("z-image-turbo");

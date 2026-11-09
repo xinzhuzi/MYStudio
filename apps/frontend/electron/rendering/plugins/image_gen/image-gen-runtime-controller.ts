@@ -197,6 +197,7 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
     return controlToken;
   }
 
+  getControlToken();
   const state: ImageGenRuntimeStatus = {
     running: false,
     setupStage: "idle",
