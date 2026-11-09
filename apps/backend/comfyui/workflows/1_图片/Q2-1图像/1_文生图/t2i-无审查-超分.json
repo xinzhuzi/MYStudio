@@ -1008,10 +1008,10 @@
         "Node name for S&R": "GemTiledUpscaleStitch"
       },
       "widgets_values": [
-        0.76,
+        1.0,
         "translation",
-        256,
-        64
+        64,
+        0
       ],
       "widgets_values_named": {
         "keep_colors": 0.76,
