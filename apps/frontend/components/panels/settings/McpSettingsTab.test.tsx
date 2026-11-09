@@ -1610,6 +1610,9 @@ describe("McpSettingsTab·SSH 连接列表(11-03 终版)", () => {
               ),
           } as unknown as Response);
         }
+        if (u.includes("/comfy/ssh/launch-mystudio") || u.includes("/comfy/ssh/shutdown-mystudio")) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true, alreadyRunning: true, engineReady: true }) } as Response);
+        }
         if (u.includes("/comfy/workflows")) {
           return Promise.resolve({
             ok: true,
@@ -2253,6 +2256,33 @@ describe("McpSettingsTab·SSH 连接列表(11-03 终版)", () => {
     ]);
     expect(screen.queryByText("zbj@192.168.0.101:22")).toBeNull();
     expect(screen.getByText("zbj@192.168.0.102:22")).toBeTruthy();
+  });
+
+  it("远端 MYStudio 操作仅当前行显示并确认后关闭", async () => {
+    useSshPresetsStore.setState({ presets: [makeSshPreset("192.168.0.101", "ssh-a"), makeSshPreset("192.168.0.102", "ssh-b")] });
+    const fetchMock = stubSshFetch({ sshStatus: { ...SSH_STATUS_UNCONFIGURED, configured: true, connected: true, host: "192.168.0.101", user: "zbj" } });
+    render(<McpSettingsTab />);
+    await waitFor(() => expect(screen.getByTestId("ssh-row-launch-mystudio")).toBeTruthy());
+    expect(screen.getAllByTestId("ssh-row-launch-mystudio")).toHaveLength(1);
+    expect(screen.getAllByTestId("ssh-row-shutdown-mystudio")).toHaveLength(1);
+    fireEvent.click(screen.getByTestId("ssh-row-launch-mystudio"));
+    await waitFor(() => expect(toastMocks.success).toHaveBeenCalledWith("MYStudio 已在运行,未重拉"));
+    expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("/comfy/ssh/launch-mystudio") && call[1]?.method === "POST")).toBe(true);
+    fireEvent.click(screen.getByTestId("ssh-row-shutdown-mystudio"));
+    expect(screen.getByText(/引擎正在跑的任务会被中断/)).toBeTruthy();
+    expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("/comfy/ssh/shutdown-mystudio"))).toBe(false);
+    fireEvent.click(screen.getByTestId("shutdown-confirm-ok"));
+    await waitFor(() => expect(toastMocks.success).toHaveBeenCalledWith("已关闭 MYStudio(App+引擎)"));
+    expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("/comfy/ssh/shutdown-mystudio") && call[1]?.method === "POST")).toBe(true);
+  });
+
+  it("SSH 未连接时远端 MYStudio 按钮不可用", async () => {
+    useSshPresetsStore.setState({ presets: [makeSshPreset("192.168.0.101", "ssh-a")], activeFingerprint: { host: "192.168.0.101", port: 22, user: "zbj" } });
+    stubSshFetch({ sshStatus: { ...SSH_STATUS_UNCONFIGURED, configured: true, connected: false, host: "192.168.0.101", user: "zbj" } });
+    render(<McpSettingsTab />);
+    await waitFor(() => expect(screen.getByTestId("ssh-row-launch-mystudio")).toBeTruthy());
+    expect((screen.getByTestId("ssh-row-launch-mystudio") as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId("ssh-row-shutdown-mystudio") as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("刷令牌(C1):仅选中行显第四动作;点击 POST /comfy/ssh/token-refresh 给结果行", async () => {

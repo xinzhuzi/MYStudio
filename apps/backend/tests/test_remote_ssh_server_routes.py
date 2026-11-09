@@ -111,6 +111,29 @@ class SshRoutesTests(unittest.TestCase):
         handler._comfy(method, path, payload or {}, query or {})
         return handler.response
 
+    def test_mystudio_routes_guards_and_responses(self) -> None:
+        from remote_ssh.service import SSHServiceError
+        for action in ("launch", "shutdown"):
+            path = f"/comfy/ssh/{action}-mystudio"
+            with self.subTest(action=action):
+                with patch("image_gen.server._ssh_service", return_value=None):
+                    body, status = self._comfy("POST", path)
+                    self.assertEqual((status, body["error"]["code"]), (503, "ssh-unavailable"))
+                fake = Mock()
+                fake.status.return_value = {"connected": False}
+                with patch("image_gen.server._ssh_service", return_value=fake):
+                    body, status = self._comfy("POST", path)
+                    self.assertEqual((status, body["error"]["code"]), (503, "ssh-disconnected"))
+                    fake.status.return_value = {"connected": True}
+                    method = getattr(fake, f"{action}_remote_mystudio")
+                    method.return_value = {"ok": True}
+                    body, status = self._comfy("POST", path)
+                    self.assertEqual((status, body), (200, {"ok": True}))
+                    method.side_effect = SSHServiceError("SSH 连接已切换,操作中止")
+                    body, status = self._comfy("POST", path)
+                    self.assertEqual((status, body["error"]["code"]), (503, "ssh-action-failed"))
+                    self.assertEqual(body["error"]["message"], "SSH 连接已切换,操作中止")
+
     def test_ssh_routes_share_comfy_group_auth_gate(self) -> None:
         # 鉴权同组:/comfy/ssh/* 走 do_GET/do_POST 的 _authorized 闸(不 override)
         from io import BytesIO

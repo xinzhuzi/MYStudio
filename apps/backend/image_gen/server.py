@@ -1195,6 +1195,23 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json(svc.restart_remote_engine())
                 return
 
+            if method == "POST" and path in ("/comfy/ssh/launch-mystudio", "/comfy/ssh/shutdown-mystudio"):
+                svc = _ssh_service()
+                if svc is None:
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "remote_ssh 模块不可用", "ssh-unavailable")
+                    return
+                if not svc.status().get("connected"):
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "SSH 未连接——先在列表点一条连接", "ssh-disconnected")
+                    return
+                from remote_ssh.service import SSHServiceError
+
+                try:
+                    action = svc.launch_remote_mystudio if path.endswith("launch-mystudio") else svc.shutdown_remote_mystudio
+                    self._send_json(action())
+                except SSHServiceError as exc:
+                    self._send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, str(exc), "ssh-action-failed")
+                return
+
             if method == "GET" and path == "/comfy/engine/snapshots":
                 self._send_json(engine_manager().list_snapshots())
                 return

@@ -112,6 +112,8 @@ import {
   type EnginePluginHealth,
   syncEngine,
   restartRemoteEngine,
+  launchRemoteMystudio,
+  shutdownRemoteMystudio,
   getEngineTorchInfo,
   startEngineTorchUpgrade,
   pollJobUntilTerminal,
@@ -401,6 +403,9 @@ export function McpSettingsTab() {
   >({ status: "idle" });
   // ── SSH 远端连接(11-03 终版:多条连接列表,引擎/SSH 两列表零联动)──
   const [sshStatus, setSshStatus] = useState<ComfySshStatus | null>(null);
+  const [mystudioAction, setMystudioAction] = useState<"idle" | "launching" | "shutting">("idle");
+  const [shutdownConfirmOpen, setShutdownConfirmOpen] = useState(false);
+  const mystudioActionRef = useRef(false);
   // 隧道开关=全局单份(不随条目;status 回显,切换连接/拨开关时随凭据落章)
   const [sshTunnelEnabled, setSshTunnelEnabled] = useState(true);
   const [sshSwitching, setSshSwitching] = useState(false);
@@ -904,6 +909,31 @@ export function McpSettingsTab() {
       toast.error(error instanceof Error ? error.message : "重启失败");
     } finally {
       setEngineRestarting(false);
+    }
+  };
+
+  const runMystudioAction = async (action: "launching" | "shutting") => {
+    if (mystudioActionRef.current) return;
+    if (!sshStatus?.connected) {
+      toast.error("SSH 未连接——先在列表点一条连接");
+      return;
+    }
+    mystudioActionRef.current = true;
+    setMystudioAction(action);
+    try {
+      const reply = await (action === "launching" ? launchRemoteMystudio() : shutdownRemoteMystudio());
+      if (!reply.ok) toast.error(reply.output || "远端操作失败");
+      else if (action === "shutting") toast.success("已关闭 MYStudio(App+引擎)");
+      else if (reply.alreadyRunning && !reply.engineReady && !reply.engineRestarted)
+        toast.error(`MYStudio 已在运行,未重拉；引擎补拉失败: ${reply.output || "schtasks 未成功"}`);
+      else if (reply.alreadyRunning)
+        toast.success(`MYStudio 已在运行,未重拉${reply.engineRestarted ? "(引擎已补拉)" : ""}`);
+      else toast.success("已拉起 MYStudio(引擎启动中,稍后即可连)");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "远端操作失败");
+    } finally {
+      mystudioActionRef.current = false;
+      setMystudioAction("idle");
     }
   };
 
@@ -2883,6 +2913,22 @@ export function McpSettingsTab() {
                                 {sshRefreshing ? "刷新中…" : "刷令牌"}
                               </Button>
                             )}
+                            {isActive && (
+                              <>
+                                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                                  data-testid="ssh-row-launch-mystudio" data-host={preset.host}
+                                  disabled={!sshStatus?.connected || mystudioAction !== "idle"}
+                                  onClick={() => void runMystudioAction("launching")}>
+                                  {mystudioAction === "launching" ? "拉起中…" : "拉起 MYStudio"}
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                                  data-testid="ssh-row-shutdown-mystudio" data-host={preset.host}
+                                  disabled={!sshStatus?.connected || mystudioAction !== "idle"}
+                                  onClick={() => setShutdownConfirmOpen(true)}>
+                                  {mystudioAction === "shutting" ? "关闭中…" : "关闭 MYStudio"}
+                                </Button>
+                              </>
+                            )}
                             {/* 1104 engine-sync R4:「同步插件」行内按钮已撤——同步入口收编到
                             上方引擎地址区「引擎同步」折叠子区(单真源清单+逐项进度+结果弹窗) */}
                             <Button
@@ -3673,6 +3719,21 @@ export function McpSettingsTab() {
           </McpGroup>
         </div>
       </ScrollArea>
+
+      <AlertDialog open={shutdownConfirmOpen} onOpenChange={setShutdownConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>关闭远端 MYStudio</AlertDialogTitle>
+            <AlertDialogDescription>将彻底关闭 Windows 上的 MYStudio 与引擎；引擎正在跑的任务会被中断。</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction data-testid="shutdown-confirm-ok"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void runMystudioAction("shutting")}>确认关闭</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* torch 升级确认/结果弹窗:顶层渲染(1106 修复)——原先住在 torch-upgrade 分节
           折叠内容里,分节收起时 Radix Collapsible 不挂载内容,同步面板点「更新」

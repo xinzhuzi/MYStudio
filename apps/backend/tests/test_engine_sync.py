@@ -550,6 +550,180 @@ class SyncEngineTests(unittest.TestCase):
         self.assertIn("清单里没有", result["items"][0]["error"])
 
 
+class RemoteMystudioTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.service = SSHService()
+        self.service._client = object()
+        self.service._connected = True
+        self.commands = []
+        self.app = False
+        self.engine = False
+        self.ready = False
+        self.exe = True
+        self.graceful = True
+        self.kill_port = True
+        self.daemon = False
+        self.end_code = 0
+        self.lock = patch.object(svc_mod, "_acquire_torch_operation", side_effect=lambda _: svc_mod._TORCH_UPGRADE_LOCK.acquire())
+        self.lock.start()
+        self.addCleanup(self.lock.stop)
+        self.service.run_remote_command = self.command
+
+    def command(self, command, timeout_s=30):
+        if "-EncodedCommand " in command:
+            command = base64.b64decode(command.split("-EncodedCommand ", 1)[1]).decode("utf-16le")
+        self.commands.append(command)
+        if "Name='manying-studio.exe'" in command:
+            return 0, str(int(self.app))
+        if "Get-NetTCPConnection" in command:
+            return 0, str(int(self.engine))
+        if "Invoke-RestMethod" in command:
+            return (0 if self.ready else 1), ""
+        if "CloseMainWindow" in command:
+            if self.graceful:
+                self.app = False
+            return 0, ""
+        if "Stop-Process -Name manying-studio" in command:
+            self.app = False
+            return 0, ""
+        if "Stop-Process -Id" in command:
+            if self.kill_port:
+                self.engine = False
+            self.daemon = False
+            return 0, ""
+        if "Name like 'python%'" in command:
+            return 0, str(int(self.engine or self.daemon))
+        if command == "schtasks /End /TN EngineDurable":
+            return self.end_code, "end failed" if self.end_code else "ok"
+        if command.startswith("if exist"):
+            return (0 if self.exe else 1), ""
+        if command == "schtasks /Run /TN StartMYStudio":
+            self.app = True
+        return 0, "ok"
+
+    def test_launch_running_does_not_relaunch(self):
+        self.app = self.ready = True
+        result = self.service.launch_remote_mystudio()
+        self.assertTrue(result["alreadyRunning"])
+        self.assertFalse(any("/Create" in command or "Stop-Process" in command for command in self.commands))
+
+    def test_launch_running_restarts_dead_engine(self):
+        self.app = True
+        result = self.service.launch_remote_mystudio()
+        self.assertTrue(result["engineRestarted"])
+        self.assertIn("schtasks /Run /TN EngineDurable", self.commands)
+
+    def test_launch_creates_interactive_task(self):
+        result = self.service.launch_remote_mystudio()
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["alreadyRunning"])
+        commands = [command for command in self.commands if command.startswith(("if exist", "schtasks"))]
+        self.assertTrue(commands[0].startswith("if exist"))
+        self.assertIn("/IT /F", commands[1])
+        self.assertEqual(commands[2], "schtasks /Run /TN StartMYStudio")
+
+    def test_launch_missing_executable(self):
+        self.exe = False
+        result = self.service.launch_remote_mystudio()
+        self.assertFalse(result["ok"])
+        self.assertIn("未找到", result["output"])
+
+    def test_shutdown_graceful(self):
+        self.app = self.engine = True
+        result = self.service.shutdown_remote_mystudio()
+        self.assertTrue(result["ok"])
+        self.assertFalse(any("Stop-Process -Name manying-studio" in command for command in self.commands))
+
+    def test_shutdown_forces_app(self):
+        self.app = True
+        self.graceful = False
+        clock = [0.0]
+        with patch.object(svc_mod.time, "monotonic", side_effect=lambda: clock[0]), patch.object(
+            svc_mod.time, "sleep", side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)
+        ):
+            result = self.service.shutdown_remote_mystudio()
+        self.assertTrue(result["ok"])
+        self.assertTrue(any("Stop-Process -Name manying-studio" in command for command in self.commands))
+
+    def test_shutdown_already_stopped(self):
+        result = self.service.shutdown_remote_mystudio()
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["appWasRunning"])
+        self.assertFalse(result["engineWasRunning"])
+        self.assertFalse(any("Stop-Process" in command for command in self.commands))
+
+    def test_shutdown_port_still_listening(self):
+        self.engine = True
+        self.kill_port = False
+        clock = [0.0]
+        with patch.object(svc_mod.time, "monotonic", side_effect=lambda: clock[0]), patch.object(
+            svc_mod.time, "sleep", side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)
+        ):
+            result = self.service.shutdown_remote_mystudio()
+        self.assertFalse(result["ok"])
+        self.assertIn("17000", result["output"])
+
+    def test_session_switch_aborts_both_actions(self):
+        for action in ("launch_remote_mystudio", "shutdown_remote_mystudio"):
+            with self.subTest(action=action):
+                original_client = object()
+                new_client = object()
+                self.service._client = original_client
+                clients = []
+
+                def switch_client(command, timeout_s=30, clients=clients, new_client=new_client):
+                    clients.append(self.service._client)
+                    self.service._client = new_client
+                    return 0, "0"
+
+                with patch.object(self.service, "run_remote_command", side_effect=switch_client), self.assertRaisesRegex(
+                    SSHServiceError, "SSH 连接已切换,操作中止"
+                ):
+                    getattr(self.service, action)()
+                self.assertEqual(clients, [original_client])
+
+    def test_shutdown_kills_heal_watch_when_end_fails(self):
+        self.daemon = True
+        self.end_code = 1
+        result = self.service.shutdown_remote_mystudio()
+        self.assertTrue(result["ok"])
+        kill = next(command for command in self.commands if "Stop-Process -Id" in command)
+        self.assertIn("engine_task", kill)
+        self.assertIn(svc_mod._TORCH_KILL_PATTERN, kill)
+        self.assertLess(self.commands.index("schtasks /End /TN EngineDurable"), self.commands.index(kill))
+        self.assertFalse(self.daemon)
+
+    def test_actions_share_deadline_and_report_timeout(self):
+        for action in ("launch_remote_mystudio", "shutdown_remote_mystudio"):
+            with self.subTest(action=action):
+                clock = [0.0]
+                timeouts = []
+
+                def slow_command(command, timeout_s=30, timeouts=timeouts, clock=clock):
+                    timeouts.append(timeout_s)
+                    clock[0] += 2
+                    return 0, "0"
+
+                with patch.object(svc_mod.time, "monotonic", side_effect=lambda clock=clock: clock[0]), patch.object(
+                    self.service, "run_remote_command", side_effect=slow_command
+                ):
+                    result = getattr(self.service, action)(timeout_s=3)
+                self.assertFalse(result["ok"])
+                self.assertIn("超时", result["output"])
+                self.assertEqual(timeouts, [3, 1])
+
+    def test_busy_upgrade_sends_no_commands(self):
+        with patch.object(svc_mod, "_acquire_torch_operation", side_effect=RuntimeError("升级进行中")):
+            with self.assertRaises(SSHServiceError):
+                self.service.launch_remote_mystudio()
+        self.assertEqual(self.commands, [])
+
+    def test_failed_probe_does_not_create_task(self):
+        self.service.run_remote_command = lambda command, timeout_s=30: (1, "probe failed")
+        with self.assertRaises(SSHServiceError):
+            self.service.launch_remote_mystudio()
+
+
 class _ComfyHandler(server.Handler):
     """照 test_remote_ssh_server_routes 范式:捕获应答+直通鉴权。"""
 

@@ -112,6 +112,10 @@ _TORCH_STUCK_HOST = None
 _TORCH_SESSION = threading.local()
 _TORCH_CHANNELS = {"cu128", "cu130", "cu132"}
 _TORCH_KILL_PATTERN = r"comfyui.+main\.py"
+_WIN_APP_EXE = "E:\\IP\\manying-studio\\manying-studio.exe"
+_SCHTASK_APP = "StartMYStudio"
+_SCHTASK_ENGINE = "EngineDurable"
+_MYSTUDIO_SESSION = threading.local()
 
 
 def _exclusive_engine_sync(method):
@@ -261,6 +265,35 @@ def _acquire_torch_operation(instance) -> None:
         _ensure_stuck_marker_writable()
         if not _TORCH_UPGRADE_LOCK.acquire(blocking=False):
             raise RuntimeError("引擎同步或 PyTorch 升级进行中，引擎同步已让路")
+
+
+def _exclusive_mystudio(method):
+    @wraps(method)
+    def guarded(self, *args, **kwargs):
+        timeout_s = args[0] if args else kwargs.get("timeout_s", method.__defaults__[0])
+        deadline = time.monotonic() + timeout_s
+        with self._lock:
+            expected_client = self._client
+            if expected_client is None or not self._connected:
+                raise SSHServiceError("SSH 未连接")
+        try:
+            _acquire_torch_operation(self)
+        except RuntimeError as exc:
+            raise SSHServiceError(str(exc)) from exc
+        try:
+            _MYSTUDIO_SESSION.client = expected_client
+            _MYSTUDIO_SESSION.deadline = deadline
+            _MYSTUDIO_SESSION.result = {"ok": False, "output": "远端操作超时"}
+            try:
+                return method(self, *args, **kwargs)
+            except TimeoutError:
+                result = _MYSTUDIO_SESSION.result
+                result.update(ok=False, output="远端操作超时")
+                return result
+        finally:
+            _MYSTUDIO_SESSION.__dict__.clear()
+            _TORCH_UPGRADE_LOCK.release()
+    return guarded
 
 
 def _torch_powershell(script: str) -> str:
@@ -1753,6 +1786,129 @@ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
             jobs.update(job_id, error=error, message=error, tail_line=error)
             return stuck
         return False
+
+    def _mystudio_command(self, command: str, timeout_s: float) -> tuple[int, str]:
+        with self._lock:
+            if self._client is not _MYSTUDIO_SESSION.client or not self._connected:
+                raise SSHServiceError("SSH 连接已切换,操作中止")
+            remaining = _MYSTUDIO_SESSION.deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("远端操作超时")
+            try:
+                result = self.run_remote_command(command, min(timeout_s, remaining))
+            except SSHServiceError:
+                if time.monotonic() >= _MYSTUDIO_SESSION.deadline:
+                    raise TimeoutError("远端操作超时") from None
+                raise
+            if self._client is not _MYSTUDIO_SESSION.client or not self._connected:
+                raise SSHServiceError("SSH 连接已切换,操作中止")
+            if time.monotonic() >= _MYSTUDIO_SESSION.deadline:
+                raise TimeoutError("远端操作超时")
+            return result
+
+    def _remote_process_count(self, script: str) -> int:
+        code, output = self._mystudio_command(_torch_powershell(script), 15)
+        counts = [int(line.strip()) for line in output.splitlines() if line.strip().isdecimal()]
+        if code != 0 or not counts:
+            raise SSHServiceError(f"远端状态探测失败: {output.strip()[:500]}")
+        return counts[-1]
+
+    def _remote_app_running(self) -> bool:
+        return self._remote_process_count(
+            '$ErrorActionPreference=\'Stop\'; Get-CimInstance Win32_Process -Filter "Name=\'manying-studio.exe\'" | '
+            'Measure-Object | Select-Object -ExpandProperty Count'
+        ) > 0
+
+    def _remote_engine_ready(self) -> bool:
+        code, _ = self._mystudio_command(_torch_powershell(
+            "$ErrorActionPreference='Stop'; Invoke-RestMethod -Uri "
+            "'http://127.0.0.1:17000/system_stats' -TimeoutSec 3 | Out-Null"
+        ), 10)
+        return code == 0
+
+    def _remote_engine_listening(self) -> bool:
+        return self._remote_process_count(
+            'Get-NetTCPConnection -LocalPort 17000 -State Listen -ErrorAction SilentlyContinue | '
+            'Measure-Object | Select-Object -ExpandProperty Count'
+        ) > 0
+
+    def _remote_engine_running(self) -> bool:
+        return self._remote_process_count(
+            '$ErrorActionPreference=\'Stop\'; Get-CimInstance Win32_Process -Filter "Name like \'python%\'" | '
+            f"Where-Object {{ $_.CommandLine -match '{_TORCH_KILL_PATTERN}' -or $_.CommandLine -match 'engine_task' }} | "
+            'Measure-Object | Select-Object -ExpandProperty Count'
+        ) > 0
+
+    @_exclusive_mystudio
+    def launch_remote_mystudio(self, timeout_s: float = 45) -> dict:
+        result = {"ok": False, "alreadyRunning": False, "appRunning": False,
+                  "engineReady": False, "engineRestarted": False, "output": ""}
+        _MYSTUDIO_SESSION.result = result
+        if self._remote_app_running():
+            result.update(ok=True, alreadyRunning=True, appRunning=True)
+            result["engineReady"] = self._remote_engine_ready()
+            if not result["engineReady"]:
+                code, output = self._mystudio_command(f"schtasks /Run /TN {_SCHTASK_ENGINE}", 30)
+                result["engineRestarted"] = code == 0
+                result["output"] = output.strip()[:500]
+            return result
+        code, _ = self._mystudio_command(f"if exist {_WIN_APP_EXE} exit 0 else exit 1", 15)
+        if code:
+            result["output"] = f"未找到 {_WIN_APP_EXE}，请人工核查安装路径"
+            return result
+        for command in (f"schtasks /Create /TN {_SCHTASK_APP} /TR {_WIN_APP_EXE} /SC ONCE /ST 00:00 /IT /F",
+                        f"schtasks /Run /TN {_SCHTASK_APP}"):
+            code, output = self._mystudio_command(command, 30)
+            if code:
+                result["output"] = output.strip()[:500] or "计划任务执行失败"
+                return result
+        deadline = min(_MYSTUDIO_SESSION.deadline, time.monotonic() + 30)
+        while True:
+            if self._remote_app_running():
+                result.update(ok=True, appRunning=True, engineReady=self._remote_engine_ready())
+                return result
+            if time.monotonic() >= deadline:
+                result["output"] = "拉起指令已发但 30 秒内未见进程"
+                return result
+            time.sleep(min(2, max(0, deadline - time.monotonic())))
+
+    @_exclusive_mystudio
+    def shutdown_remote_mystudio(self, timeout_s: float = 75) -> dict:
+        result = {"ok": False, "appWasRunning": False, "engineWasRunning": False, "output": ""}
+        _MYSTUDIO_SESSION.result = result
+        app_was = self._remote_app_running()
+        engine_was = self._remote_engine_listening() or self._remote_engine_running()
+        result.update(appWasRunning=app_was, engineWasRunning=engine_was)
+        deadline = _MYSTUDIO_SESSION.deadline
+        if app_was:
+            self._mystudio_command(_torch_powershell(
+                '(Get-Process -Name manying-studio -ErrorAction SilentlyContinue) | '
+                'ForEach-Object { $_.CloseMainWindow() }'), 15)
+            graceful_deadline = min(deadline, time.monotonic() + 10)
+            while self._remote_app_running() and time.monotonic() < graceful_deadline:
+                time.sleep(min(2, max(0, graceful_deadline - time.monotonic())))
+            if self._remote_app_running():
+                self._mystudio_command(_torch_powershell(
+                    'Stop-Process -Name manying-studio -Force -ErrorAction SilentlyContinue'), 15)
+                kill_deadline = min(deadline, time.monotonic() + 10)
+                while self._remote_app_running() and time.monotonic() < kill_deadline:
+                    time.sleep(min(2, max(0, kill_deadline - time.monotonic())))
+        self._mystudio_command(f"schtasks /End /TN {_SCHTASK_ENGINE}", 15)
+        if self._remote_engine_running():
+            self._mystudio_command(_torch_powershell(
+                'Get-CimInstance Win32_Process -Filter "Name like \'python%\'" | '
+                f"Where-Object {{ $_.CommandLine -match '{_TORCH_KILL_PATTERN}' -or $_.CommandLine -match 'engine_task' }} | "
+                'ForEach-Object { Stop-Process -Id $_.ProcessId -Force }'), 15)
+        port_deadline = min(deadline, time.monotonic() + 30)
+        while self._remote_engine_listening() and time.monotonic() < port_deadline:
+            time.sleep(min(3, max(0, port_deadline - time.monotonic())))
+        if self._remote_app_running():
+            result["output"] = "App 强杀后仍在，人工核查"
+        elif self._remote_engine_listening() or self._remote_engine_running():
+            result["output"] = "引擎进程或 17000 端口仍在，人工核查"
+        else:
+            result["ok"] = True
+        return result
 
     def restart_remote_engine(self) -> dict:
         """结果弹窗[重启引擎](R3):SSH schtasks /Run /TN EngineDurable。"""

@@ -1688,6 +1688,25 @@ export async function restartRemoteEngine(): Promise<{
   );
 }
 
+export type RemoteMystudioActionReply = {
+  ok: boolean;
+  alreadyRunning?: boolean;
+  appRunning?: boolean;
+  engineReady?: boolean;
+  engineRestarted?: boolean;
+  appWasRunning?: boolean;
+  engineWasRunning?: boolean;
+  output?: string;
+};
+
+export async function launchRemoteMystudio(): Promise<RemoteMystudioActionReply> {
+  return comfySidecarRequest("POST", "/comfy/ssh/launch-mystudio", { timeoutMs: 90_000 });
+}
+
+export async function shutdownRemoteMystudio(): Promise<RemoteMystudioActionReply> {
+  return comfySidecarRequest("POST", "/comfy/ssh/shutdown-mystudio", { timeoutMs: 130_000 });
+}
+
 export type TorchUpgradeChannel = "cu128" | "cu130" | "cu132";
 export type TorchUpgradeMode = "local" | "remote";
 
