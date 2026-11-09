@@ -2523,7 +2523,7 @@
                 ]
               }
             ],
-            "title": "[7026] 细节修复LoRA·detail-fix(×0.4)",
+            "title": "[7026] 细节修复LoRA·detail-fix(×1.0)",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
               "ue_properties": {
@@ -2534,7 +2534,7 @@
             },
             "widgets_values": [
               "qwen2.1-detail-fix-2.0.safetensors",
-              0.4
+              1.0
             ],
             "widgets_values_named": {
               "lora_name": "qwen2.1-detail-fix-2.0.safetensors",
