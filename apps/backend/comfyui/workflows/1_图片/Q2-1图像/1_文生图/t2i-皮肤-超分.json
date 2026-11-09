@@ -128,7 +128,7 @@
       "title": "[400] 正向提示词",
       "properties": {},
       "widgets_values": [
-        "A cinematic film still from a Chinese youth drama, shot in Japanese fresh photography style. Night bedroom lit by cold white moonlight from floor-to-ceiling curtains. A beautiful young Chinese woman (age 22, adult) with a flawless, perfectly proportioned figure lies on her back on white silk bedsheets, completely nude, her entire body bare. Her breasts are perfectly shaped teardrop form - gentle upper slope, fuller lower curve with natural youthful gravity, moonlight casting delicate shadows beneath them. Skin is flawless pale porcelain, matte, zero oil, zero makeup, no blush. Long black hair spread on white pillow. Natural pink lips slightly parted. Eyes red-rimmed with contained tears, expression vulnerable and innocent. The white silk sheet lies crumpled beneath her, one slender leg extended. A young Chinese man (age 25, adult) kneels beside her on the bed, leaning forward with one hand braced on the mattress, wearing only a white bath towel. He holds a lit candle, the small warm flame casting a faint amber glow on the wall. His expression is frozen in shock and guilt. Cold blue-white color palette with a single warm candle accent, soft diffused moonlight, high-key shadows. Photorealistic, cinematic film still, shallow depth of field, pure and ethereal atmosphere."
+        "A young woman standing on a cliff at sunset, flowing dress, golden light"
       ]
     },
     {
@@ -158,7 +158,7 @@
       "title": "[404] 负向提示词",
       "properties": {},
       "widgets_values": [
-        "low quality, blurry, deformed, extra fingers, watermark"
+        ""
       ]
     },
     {
