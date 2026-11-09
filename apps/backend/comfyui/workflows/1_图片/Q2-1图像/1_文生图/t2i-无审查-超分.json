@@ -1549,7 +1549,7 @@
               122
             ],
             "pos": [
-              6804.0,
+              8760.0,
               2464.0
             ]
           }
@@ -1563,7 +1563,7 @@
             "id": 7011,
             "type": "ViggleTurboLora",
             "pos": [
-              1740.0,
+              3820.0,
               2460.0
             ],
             "size": [
@@ -1578,7 +1578,7 @@
                 "localized_name": "模型",
                 "name": "model",
                 "type": "MODEL",
-                "link": 4323
+                "link": 7918
               }
             ],
             "outputs": [
@@ -1613,7 +1613,7 @@
             "id": 7012,
             "type": "SamplerCustomAdvanced",
             "pos": [
-              3940.0,
+              6020.0,
               2560.0
             ],
             "size": [
@@ -1687,7 +1687,7 @@
             "id": 7015,
             "type": "MyQi21SpeedSelect",
             "pos": [
-              6100,
+              8180,
               2400
             ],
             "size": [
@@ -1781,7 +1781,7 @@
             "type": "PrimitiveInt",
             "pos": [
               250,
-              3060
+              2150
             ],
             "size": [
               270.0,
@@ -1836,7 +1836,7 @@
             "id": 7010,
             "type": "KSampler",
             "pos": [
-              2250.0,
+              4330.0,
               3560.0
             ],
             "size": [
@@ -1851,7 +1851,7 @@
                 "localized_name": "模型",
                 "name": "model",
                 "type": "MODEL",
-                "link": 4322
+                "link": 7920
               },
               {
                 "localized_name": "正面条件",
@@ -1924,7 +1924,7 @@
             "type": "Note",
             "pos": [
               700,
-              3060
+              2150
             ],
             "size": [
               560.0,
@@ -2057,7 +2057,7 @@
             "id": 7019,
             "type": "BasicGuider",
             "pos": [
-              3280.0,
+              5360.0,
               2420.0
             ],
             "size": [
@@ -2108,7 +2108,7 @@
             "id": 7020,
             "type": "ViggleTurboSigmas",
             "pos": [
-              3060.0,
+              5140.0,
               2790.0
             ],
             "size": [
@@ -2165,7 +2165,7 @@
             "id": 7021,
             "type": "SplitSigmas",
             "pos": [
-              3660.0,
+              5740.0,
               2850.0
             ],
             "size": [
@@ -2230,7 +2230,7 @@
             "id": 7022,
             "type": "BasicGuider",
             "pos": [
-              2510.0,
+              4590.0,
               2000.0
             ],
             "size": [
@@ -2245,7 +2245,7 @@
                 "localized_name": "模型",
                 "name": "model",
                 "type": "MODEL",
-                "link": 4313
+                "link": 7919
               },
               {
                 "localized_name": "条件",
@@ -2281,7 +2281,7 @@
             "id": 7023,
             "type": "DisableNoise",
             "pos": [
-              4150.0,
+              6230.0,
               2040.0
             ],
             "size": [
@@ -2319,7 +2319,7 @@
             "id": 7024,
             "type": "SamplerCustomAdvanced",
             "pos": [
-              4880.0,
+              6960.0,
               2540.0
             ],
             "size": [
@@ -2395,7 +2395,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1210,
-              3240
+              2400
             ],
             "size": [
               270.0,
@@ -2418,8 +2418,6 @@
                 "name": "MODEL",
                 "type": "MODEL",
                 "links": [
-                  4322,
-                  7470,
                   7911
                 ]
               }
@@ -2446,7 +2444,7 @@
             "id": 7028,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              1700.0,
+              3780.0,
               880.0
             ],
             "size": [
@@ -2461,7 +2459,7 @@
                 "name": "model",
                 "type": "MODEL",
                 "localized_name": "模型",
-                "link": 4400
+                "link": 7917
               }
             ],
             "outputs": [
@@ -2496,7 +2494,7 @@
             "id": 7029,
             "type": "BasicGuider",
             "pos": [
-              3100.0,
+              5180.0,
               1010.0
             ],
             "size": [
@@ -2547,7 +2545,7 @@
             "id": 7030,
             "type": "ManualSigmas",
             "pos": [
-              4960.0,
+              7040.0,
               990.0
             ],
             "size": [
@@ -2589,7 +2587,7 @@
             "id": 7031,
             "type": "SamplerCustomAdvanced",
             "pos": [
-              5620.0,
+              7700.0,
               300.0
             ],
             "size": [
@@ -2665,7 +2663,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               730,
-              3240
+              2400
             ],
             "size": [
               270.0,
@@ -2689,9 +2687,6 @@
                 "type": "MODEL",
                 "links": [
                   103,
-                  4313,
-                  4323,
-                  4400,
                   7901
                 ]
               }
@@ -2718,7 +2713,7 @@
             "id": 7040,
             "type": "LazyCache",
             "pos": [
-              2200.0,
+              4280.0,
               1350.0
             ],
             "size": [
@@ -2732,7 +2727,7 @@
               {
                 "name": "model",
                 "type": "MODEL",
-                "link": 7470
+                "link": 7921
               }
             ],
             "outputs": [
@@ -2766,7 +2761,7 @@
             "id": 7045,
             "type": "KSampler",
             "pos": [
-              2650.0,
+              4730.0,
               1350.0
             ],
             "size": [
@@ -2854,7 +2849,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               250,
-              3240
+              2400
             ],
             "size": [
               270.0,
@@ -2902,7 +2897,7 @@
             "id": 7110,
             "type": "ViggleTurboLora",
             "pos": [
-              3600,
+              5680,
               4100
             ],
             "size": [
@@ -2952,7 +2947,7 @@
             "id": 7111,
             "type": "BasicGuider",
             "pos": [
-              3950,
+              6030,
               4100
             ],
             "size": [
@@ -3003,7 +2998,7 @@
             "id": 7113,
             "type": "ViggleTurboSigmas",
             "pos": [
-              3600,
+              5680,
               4320
             ],
             "size": [
@@ -3058,7 +3053,7 @@
             "id": 7112,
             "type": "SamplerCustomAdvanced",
             "pos": [
-              4250,
+              6330,
               4100
             ],
             "size": [
@@ -3133,7 +3128,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1690,
-              3240
+              2400
             ],
             "size": [
               270.0,
@@ -3182,7 +3177,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               2170,
-              3240
+              2400
             ],
             "size": [
               270.0,
@@ -3231,7 +3226,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               2650,
-              3240
+              2400
             ],
             "size": [
               270.0,
@@ -3280,7 +3275,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               3130,
-              3240
+              2400
             ],
             "size": [
               270.0,
@@ -3301,7 +3296,12 @@
                 "name": "MODEL",
                 "type": "MODEL",
                 "links": [
-                  7916
+                  7916,
+                  7917,
+                  7918,
+                  7919,
+                  7920,
+                  7921
                 ],
                 "slot_index": 0
               }
@@ -3329,7 +3329,7 @@
           {
             "title": "①Turbo 8步",
             "bounding": [
-              1670.0,
+              3750.0,
               250.0,
               4310.0,
               902.0
@@ -3341,7 +3341,7 @@
           {
             "title": "②viggle 双段",
             "bounding": [
-              1710.0,
+              3790.0,
               1950.0,
               3530.0,
               1072.0
@@ -3353,7 +3353,7 @@
           {
             "title": "③原生出图",
             "bounding": [
-              2200,
+              4280,
               3480,
               600,
               500
@@ -3363,12 +3363,12 @@
             "locked": false
           },
           {
-            "title": "④共用控制·模型预处理链(LoRA 堆叠)+seed",
+            "title": "④共用控制·LoRA堆叠全臂单源(7211扇出)+seed/噪声",
             "bounding": [
               200,
-              3030,
+              380,
               3350,
-              440
+              2300
             ],
             "color": "#3f789e",
             "id": 103,
@@ -3377,7 +3377,7 @@
           {
             "title": "⑤混动 40步+缓存",
             "bounding": [
-              2150.0,
+              4230.0,
               1300.0,
               1000.0,
               638.0
@@ -3389,7 +3389,7 @@
           {
             "title": "⑥四路汇流",
             "bounding": [
-              6050,
+              8130,
               2320,
               550,
               400
@@ -3401,7 +3401,7 @@
           {
             "title": "⑦PrunaAI 6步臂(默认)",
             "bounding": [
-              3450,
+              5530,
               4020,
               1150,
               550
@@ -3573,14 +3573,6 @@
             "type": "SIGMAS"
           },
           {
-            "id": 4313,
-            "origin_id": 7034,
-            "origin_slot": 0,
-            "target_id": 7022,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
-          {
             "id": 4314,
             "origin_id": -10,
             "origin_slot": 1,
@@ -3627,30 +3619,6 @@
             "target_id": 7024,
             "target_slot": 3,
             "type": "SIGMAS"
-          },
-          {
-            "id": 4322,
-            "origin_id": 7026,
-            "origin_slot": 0,
-            "target_id": 7010,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
-          {
-            "id": 4323,
-            "origin_id": 7034,
-            "origin_slot": 0,
-            "target_id": 7011,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
-          {
-            "id": 4400,
-            "origin_id": 7034,
-            "origin_slot": 0,
-            "target_id": 7028,
-            "target_slot": 0,
-            "type": "MODEL"
           },
           {
             "id": 4401,
@@ -3729,14 +3697,6 @@
             "origin_id": -10,
             "origin_slot": 0,
             "target_id": 7100,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
-          {
-            "id": 7470,
-            "origin_id": 7026,
-            "origin_slot": 0,
-            "target_id": 7040,
             "target_slot": 0,
             "type": "MODEL"
           },
@@ -3905,6 +3865,46 @@
             "origin_id": 7211,
             "origin_slot": 0,
             "target_id": 7110,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7917,
+            "origin_id": 7211,
+            "origin_slot": 0,
+            "target_id": 7028,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7918,
+            "origin_id": 7211,
+            "origin_slot": 0,
+            "target_id": 7011,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7919,
+            "origin_id": 7211,
+            "origin_slot": 0,
+            "target_id": 7022,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7920,
+            "origin_id": 7211,
+            "origin_slot": 0,
+            "target_id": 7010,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7921,
+            "origin_id": 7211,
+            "origin_slot": 0,
+            "target_id": 7040,
             "target_slot": 0,
             "type": "MODEL"
           }
