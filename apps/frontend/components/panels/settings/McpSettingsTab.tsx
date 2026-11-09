@@ -1,8 +1,10 @@
 "use client";
 
-// MCP 服务设置 tab(09-01-mcp-settings-section)。
+// MCP 服务设置 tab(09-01-mcp-settings-section;tab 标签现称「远程配置」)。
 // 布局仿「本地配置」页:分组标签 + 可折叠行 + 行级状态胶囊(PluginSettingsTab 同款范式,
-// 折叠态持久化 localStorage)。三组:服务连接(ComfyUI 桥+专业流开关)→ MCP 服务器 → JSON 配置。
+// 折叠态持久化 localStorage)。三组:引擎与产线(1102 三层:远端/本机设备+模型族下拉+
+// 工作流绑定;原「服务连接」组名与桥接探活行已退役,专业流/道劫型两设置随行保留)
+// → MCP 服务器 → JSON 配置。
 
 import {
   useCallback,

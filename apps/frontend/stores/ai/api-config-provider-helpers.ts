@@ -66,8 +66,10 @@ export const LOCAL_IMAGE_BASE_URL = "http://127.0.0.1:17595";
 export const LOCAL_IMAGE_API_KEY = "manying-local-image";
 // 1010 用户裁定:本地渠道清场,只留 Q2.1(道劫产线工作流直跑)。
 // 1102 控制中心役(G1/Q1 裁定:族下拉可切且切换即生效)在其上解锁两个实证本地
-// 免费模型——flux2-klein-9b/qwen-image-edit-2511(三引擎库存模型在库+引擎模板在,
-// 旧 Q3a 云端守卫误拦);krea2(10-19 定谳缺件)与 z-image(模板待建)维持不放开。
+// 免费模型——flux2-klein-9b/qwen-image-edit-2511(引擎库存模型在库,旧 Q3a 云端
+// 守卫误拦);krea2(10-19 定谳缺件)与 z-image(模板待建)维持不放开。
+// 1109 实锚校正:模板消费只有 qwen21(道劫)与 krea2 桥;flux2/edit 的 generate
+// 只 **ctx 吸收 template 不调 load_template——可切族出图,但无工作流绑定语义。
 export const LOCAL_IMAGE_MODELS = ["qwen-image-2-1", "flux2-klein-9b", "qwen-image-edit-2511"] as const;
 export const DEFAULT_LOCAL_IMAGE_MODEL = "qwen-image-2-1";
 

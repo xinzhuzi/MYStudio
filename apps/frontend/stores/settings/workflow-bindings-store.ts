@@ -44,11 +44,14 @@ export const useWorkflowBindingsStore = create<WorkflowBindingsState>()(
  * 绑定 id(库内画布路径)→ 引擎 API 模板键映射(1102 收口轮语义定谳修复:
  * load_template 只吃 API 模板名,画布路径进不去——道劫三件与 API 模板同源
  * (builder 从画布展平生成),故仅此三件可绑;其余库内件返回 null=无引擎模板)。
+ * model 维度(1109):模板键属族专属,绑定是全局单绑而族可切——不守族会把
+ * qi21 模板键注入 flux2/edit 请求(那两族引擎只 **ctx 吸收不消费,今天无显症,
+ * 一旦补消费点即静默跑错工作流)。
  */
-const BINDABLE_WORKFLOW_TEMPLATES: { match: RegExp; templateKey: string }[] = [
-  { match: /1_文生图\/qi21-道劫-t2i/, templateKey: "qwen21_道劫_t2i_api" },
-  { match: /2_图生图\/qi21-道劫-i2i/, templateKey: "qwen21_道劫_i2i_api" },
-  { match: /2_图生图\/qi21-edit/, templateKey: "qwen21_道劫_i2i_api" },
+const BINDABLE_WORKFLOW_TEMPLATES: { match: RegExp; model: string; templateKey: string }[] = [
+  { match: /1_文生图\/qi21-道劫-t2i/, model: "qwen-image-2-1", templateKey: "qwen21_道劫_t2i_api" },
+  { match: /2_图生图\/qi21-道劫-i2i/, model: "qwen-image-2-1", templateKey: "qwen21_道劫_i2i_api" },
+  { match: /2_图生图\/qi21-edit/, model: "qwen-image-2-1", templateKey: "qwen21_道劫_i2i_api" },
 ];
 
 /** 绑定件是否可被引擎执行(有道劫 API 模板同源件);UI 候选行据此开/关绑定钮。 */
@@ -59,13 +62,14 @@ export function isBindableWorkflow(workflowId: string): boolean {
 /**
  * 出图绑定解析(S3 注入点消费):大模型才有模板绑定语义(云端/桥模型返回
  * undefined=现行为);hasReferences 决定类型(有参考图=图生图位,否则文生图位);
- * 绑定 id 经映射层转引擎模板键(1102 修复:原样传库内路径引擎吃不到)。
+ * 绑定 id 经映射层转引擎模板键(1102 修复:原样传库内路径引擎吃不到),
+ * 且必须族相符(1109:全局单绑+族可切,不守族会跨族注入 qi21 专属模板键)。
  */
 export function resolveBoundTemplateForGeneration(model: string, hasReferences: boolean): string | undefined {
   if (!(LOCAL_IMAGE_MODELS as readonly string[]).includes(model)) return undefined;
   const state = useWorkflowBindingsStore.getState();
   const bound = hasReferences ? state.i2iWorkflowId : state.t2iWorkflowId;
   if (!bound) return undefined;
-  const hit = BINDABLE_WORKFLOW_TEMPLATES.find((entry) => entry.match.test(bound));
+  const hit = BINDABLE_WORKFLOW_TEMPLATES.find((entry) => entry.model === model && entry.match.test(bound));
   return hit?.templateKey;
 }

@@ -1463,6 +1463,37 @@ describe("S3 绑定注入(11-02 hub:resolveBoundTemplateForGeneration;收口轮�
       i2iWorkflowId: null,
     });
   });
+
+  it("族守卫(1109):绑定全局单绑而族可切——flux2/edit 不被注入 qi21 专属模板键", () => {
+    useWorkflowBindingsStore.setState({
+      t2iWorkflowId: "1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
+      i2iWorkflowId: "1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
+    });
+    // 两族同属 LOCAL_IMAGE_MODELS(旧守卫放行)但引擎不消费 template:注入即跨族泄漏
+    expect(
+      resolveBoundTemplateForGeneration("flux2-klein-9b", false),
+    ).toBeUndefined();
+    expect(
+      resolveBoundTemplateForGeneration("flux2-klein-9b", true),
+    ).toBeUndefined();
+    expect(
+      resolveBoundTemplateForGeneration("qwen-image-edit-2511", false),
+    ).toBeUndefined();
+    expect(
+      resolveBoundTemplateForGeneration("qwen-image-edit-2511", true),
+    ).toBeUndefined();
+    // qi21 本族零回归
+    expect(resolveBoundTemplateForGeneration("qwen-image-2-1", false)).toBe(
+      "qwen21_道劫_t2i_api",
+    );
+    expect(resolveBoundTemplateForGeneration("qwen-image-2-1", true)).toBe(
+      "qwen21_道劫_i2i_api",
+    );
+    useWorkflowBindingsStore.setState({
+      t2iWorkflowId: null,
+      i2iWorkflowId: null,
+    });
+  });
 });
 
 // ── SSH 连接列表(11-03 终版:多条列表,引擎/SSH 零联动;照引擎设备列表同款
