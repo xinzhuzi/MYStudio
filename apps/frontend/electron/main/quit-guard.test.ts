@@ -40,6 +40,19 @@ describe('quit hold guard', () => {
     expect(broadcast).toHaveBeenLastCalledWith('end', 1000)
   })
 
+  it('treats rawKeyDown as a press and stays idempotent when both forms arrive', () => {
+    vi.useFakeTimers()
+    const quit = vi.fn()
+    const broadcast = vi.fn()
+    const guard = createQuitHoldGuard({ quit, broadcast })
+    // macOS 带修饰组合常报 rawKeyDown;且同一物理按下可能 raw/key 两连发
+    expect(guard.handleInput(input('rawKeyDown'), 1)).toBe(true)
+    guard.handleInput(input('keyDown'), 1)
+    vi.advanceTimersByTime(1000)
+    expect(quit).toHaveBeenCalledTimes(1)
+    expect(broadcast.mock.calls.map(([phase]) => phase)).toEqual(['start', 'end'])
+  })
+
   it('cancels a guest hold on host window blur and ignores unrelated keys', () => {
     vi.useFakeTimers()
     const quit = vi.fn()

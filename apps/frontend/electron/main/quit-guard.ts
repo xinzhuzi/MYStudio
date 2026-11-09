@@ -57,17 +57,21 @@ export function createQuitHoldGuard(deps: {
     },
     handleInput(input: QuitInput, sourceId: number): boolean {
       const key = input.key.toLowerCase()
+      // macOS 上带修饰组合常报 rawKeyDown 而非 keyDown(Electron Input.type 枚举
+      // 两者皆有,electron.d.ts;只匹配 keyDown 会静默失效)——按下类双匹配
+      const isDown = input.type === 'keyDown' || input.type === 'rawKeyDown'
+      const isUp = input.type === 'keyUp'
       if (key === 'meta' || key === 'control') {
-        if (input.type === 'keyDown' || input.type === 'keyUp') {
-          if (key === 'meta') metaHeld = input.type === 'keyDown'
-          else controlHeld = input.type === 'keyDown'
-          if (input.type === 'keyUp' && startedAt !== null && qHeld && !metaHeld && !controlHeld) finish('too-short')
+        if (isDown || isUp) {
+          if (key === 'meta') metaHeld = isDown
+          else controlHeld = isDown
+          if (isUp && startedAt !== null && qHeld && !metaHeld && !controlHeld) finish('too-short')
         }
         return false
       }
       if (key !== 'q') return false
-      if (input.type === 'keyDown' && !input.autoRepeat) qHeld = true
-      if (input.type === 'keyUp') {
+      if (isDown && !input.autoRepeat) qHeld = true
+      if (isUp) {
         qHeld = false
         if (startedAt !== null) {
           release()
@@ -75,7 +79,7 @@ export function createQuitHoldGuard(deps: {
         }
       }
       if (!input.meta && !input.control && startedAt === null) return false
-      if (input.type === 'keyDown') {
+      if (isDown) {
         if (!input.autoRepeat && startedAt === null && (input.meta || input.control)) {
           metaHeld = input.meta
           controlHeld = input.control
@@ -90,7 +94,7 @@ export function createQuitHoldGuard(deps: {
         }
         return true
       }
-      if (input.type === 'keyUp') {
+      if (isUp) {
         return true
       }
       return false
