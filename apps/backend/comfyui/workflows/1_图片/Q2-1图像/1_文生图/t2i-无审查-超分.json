@@ -563,11 +563,11 @@
       },
       "widgets_values": [
         10,
-        2,
+        4,
         256,
         32,
         64,
-        true
+        false
       ],
       "widgets_values_named": {
         "megapixels": 10,
@@ -1001,7 +1001,7 @@
         1,
         "euler",
         "simple",
-        1
+        0.65
       ],
       "widgets_values_named": {
         "seed": 0,
