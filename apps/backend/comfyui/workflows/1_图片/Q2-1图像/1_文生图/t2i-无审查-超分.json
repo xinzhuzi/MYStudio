@@ -596,33 +596,24 @@
       "mode": 0,
       "inputs": [
         {
-          "localized_name": "model",
           "name": "model",
           "type": "MODEL",
           "link": 9001
         },
         {
-          "localized_name": "lora_name",
           "name": "lora_name",
           "type": "COMBO",
-          "widget": {
-            "name": "lora_name"
-          },
           "link": null
         },
         {
-          "localized_name": "strength_model",
           "name": "strength_model",
           "type": "FLOAT",
-          "widget": {
-            "name": "strength_model"
-          },
-          "link": null
+          "link": null,
+          "widget": true
         }
       ],
       "outputs": [
         {
-          "localized_name": "MODEL",
           "name": "MODEL",
           "type": "MODEL",
           "links": [
@@ -630,18 +621,14 @@
           ]
         }
       ],
-      "title": "加速Lora",
       "properties": {
         "Node name for S&R": "LoraLoaderModelOnly"
       },
+      "title": "官方Turbo8步LoRA·rank178(×1.0)",
       "widgets_values": [
-        "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors",
-        1
-      ],
-      "widgets_values_named": {
-        "lora_name": "qwen21\\Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r128.safetensors",
-        "strength_model": 1
-      }
+        "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
+        1.0
+      ]
     },
     {
       "id": 8102,
@@ -752,7 +739,8 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            9004
+            9004,
+            9017
           ]
         }
       ],
@@ -853,7 +841,8 @@
           "type": "CONDITIONING",
           "links": [
             9010,
-            9011
+            9011,
+            9018
           ]
         },
         {
@@ -867,7 +856,8 @@
           "name": "latent",
           "type": "LATENT",
           "links": [
-            9012
+            9012,
+            9019
           ]
         }
       ],
@@ -887,137 +877,10 @@
       }
     },
     {
-      "id": 8105,
-      "type": "KSampler",
-      "pos": [
-        4530,
-        1200
-      ],
-      "size": [
-        270,
-        262
-      ],
-      "flags": {},
-      "order": 17,
-      "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "model",
-          "name": "model",
-          "type": "MODEL",
-          "link": 9004
-        },
-        {
-          "localized_name": "positive",
-          "name": "positive",
-          "type": "CONDITIONING",
-          "link": 9010
-        },
-        {
-          "localized_name": "negative",
-          "name": "negative",
-          "type": "CONDITIONING",
-          "link": 9011
-        },
-        {
-          "localized_name": "latent_image",
-          "name": "latent_image",
-          "type": "LATENT",
-          "link": 9012
-        },
-        {
-          "localized_name": "seed",
-          "name": "seed",
-          "type": "INT",
-          "widget": {
-            "name": "seed"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "steps",
-          "name": "steps",
-          "type": "INT",
-          "widget": {
-            "name": "steps"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "cfg",
-          "name": "cfg",
-          "type": "FLOAT",
-          "widget": {
-            "name": "cfg"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "sampler_name",
-          "name": "sampler_name",
-          "type": "COMBO",
-          "widget": {
-            "name": "sampler_name"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "scheduler",
-          "name": "scheduler",
-          "type": "COMBO",
-          "widget": {
-            "name": "scheduler"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "denoise",
-          "name": "denoise",
-          "type": "FLOAT",
-          "widget": {
-            "name": "denoise"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "LATENT",
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            9013
-          ]
-        }
-      ],
-      "title": "Sampler - CFG 1, euler",
-      "properties": {
-        "Node name for S&R": "KSampler"
-      },
-      "widgets_values": [
-        0,
-        "fixed",
-        6,
-        1,
-        "euler",
-        "simple",
-        0.65
-      ],
-      "widgets_values_named": {
-        "seed": 0,
-        "control_after_generate": "fixed",
-        "steps": 6,
-        "cfg": 1,
-        "sampler_name": "euler",
-        "scheduler": "simple",
-        "denoise": 1
-      }
-    },
-    {
       "id": 8106,
       "type": "VAEDecode",
       "pos": [
-        5010,
+        5910,
         2200
       ],
       "size": [
@@ -1032,7 +895,7 @@
           "localized_name": "samples",
           "name": "samples",
           "type": "LATENT",
-          "link": 9013
+          "link": 9024
         },
         {
           "localized_name": "vae",
@@ -1060,7 +923,7 @@
       "id": 8107,
       "type": "GemTiledUpscaleStitch",
       "pos": [
-        5510,
+        6410,
         2200
       ],
       "size": [
@@ -1163,7 +1026,7 @@
       "id": 8108,
       "type": "SaveImage",
       "pos": [
-        6010,
+        6910,
         2200
       ],
       "size": [
@@ -1191,6 +1054,218 @@
       "widgets_values": [
         "t2i无审查超分_磨皮_"
       ]
+    },
+    {
+      "id": 8110,
+      "type": "RandomNoise",
+      "pos": [
+        4530,
+        1580
+      ],
+      "size": [
+        270,
+        148
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise_seed",
+          "type": "INT",
+          "widget": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "links": [
+            9020
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RandomNoise"
+      },
+      "title": "共用噪声(尾)",
+      "widgets_values": [
+        0,
+        "fixed"
+      ]
+    },
+    {
+      "id": 8111,
+      "type": "BasicGuider",
+      "pos": [
+        4530,
+        1200
+      ],
+      "size": [
+        270,
+        148
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 9017
+        },
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 9018
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "links": [
+            9021
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicGuider"
+      },
+      "title": "官方Turbo引导(尾)",
+      "widgets_values": []
+    },
+    {
+      "id": 8112,
+      "type": "KSamplerSelect",
+      "pos": [
+        4930,
+        1580
+      ],
+      "size": [
+        270,
+        148
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "sampler_name",
+          "type": "COMBO",
+          "widget": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            9022
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "title": "euler采样器(尾)",
+      "widgets_values": [
+        "euler"
+      ]
+    },
+    {
+      "id": 8113,
+      "type": "ManualSigmas",
+      "pos": [
+        4930,
+        1380
+      ],
+      "size": [
+        270,
+        148
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "sigmas",
+          "type": "STRING",
+          "widget": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            9023
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ManualSigmas"
+      },
+      "title": "官方8步σ(尾)",
+      "widgets_values": [
+        "1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0"
+      ]
+    },
+    {
+      "id": 8114,
+      "type": "SamplerCustomAdvanced",
+      "pos": [
+        5330,
+        1200
+      ],
+      "size": [
+        270,
+        148
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise",
+          "type": "NOISE",
+          "link": 9020
+        },
+        {
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 9021
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 9022
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 9023
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 9019
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            9024
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SamplerCustomAdvanced"
+      },
+      "title": "官方Turbo采样(尾)",
+      "widgets_values": []
     }
   ],
   "links": [
@@ -1299,14 +1374,6 @@
       "MODEL"
     ],
     [
-      9004,
-      8103,
-      0,
-      8105,
-      0,
-      "MODEL"
-    ],
-    [
       9005,
       2,
       0,
@@ -1347,38 +1414,6 @@
       "ITSGEM_TILE_STITCHER"
     ],
     [
-      9010,
-      8104,
-      0,
-      8105,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      9011,
-      8104,
-      0,
-      8105,
-      2,
-      "CONDITIONING"
-    ],
-    [
-      9012,
-      8104,
-      2,
-      8105,
-      3,
-      "LATENT"
-    ],
-    [
-      9013,
-      8105,
-      0,
-      8106,
-      0,
-      "LATENT"
-    ],
-    [
       9014,
       3,
       0,
@@ -1401,6 +1436,70 @@
       8108,
       0,
       "IMAGE"
+    ],
+    [
+      9017,
+      8103,
+      0,
+      8111,
+      0,
+      "MODEL"
+    ],
+    [
+      9018,
+      8104,
+      0,
+      8111,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      9019,
+      8104,
+      2,
+      8114,
+      4,
+      "LATENT"
+    ],
+    [
+      9020,
+      8110,
+      0,
+      8114,
+      0,
+      "NOISE"
+    ],
+    [
+      9021,
+      8111,
+      0,
+      8114,
+      1,
+      "GUIDER"
+    ],
+    [
+      9022,
+      8112,
+      0,
+      8114,
+      2,
+      "SAMPLER"
+    ],
+    [
+      9023,
+      8113,
+      0,
+      8114,
+      3,
+      "SIGMAS"
+    ],
+    [
+      9024,
+      8114,
+      0,
+      8106,
+      0,
+      "LATENT"
     ]
   ],
   "version": 0.4,
@@ -3865,8 +3964,8 @@
       "bounding": [
         2710,
         1110,
-        3670,
-        1548
+        4590,
+        1570
       ],
       "color": "#3f789e",
       "id": 90,
