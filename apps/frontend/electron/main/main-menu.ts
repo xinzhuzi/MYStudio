@@ -48,9 +48,11 @@ export function createWebviewMenuGate(api: MenuGateApi) {
 export function installWebviewKeyboardPassthrough(
   webContents: WebContents,
   api: MenuGateApi = Menu,
+  onGuestAttached?: (guest: WebContents) => void,
 ) {
   const gate = createWebviewMenuGate(api);
   webContents.on("did-attach-webview", (_event, guest) => {
+    onGuestAttached?.(guest);
     guest.on("focus", () => gate.guestFocused());
     const restore = () => gate.guestUnfocused();
     guest.on("blur", restore);

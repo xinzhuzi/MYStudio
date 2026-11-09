@@ -9,6 +9,15 @@ import type { ImageRequestPayload, ImageRequestResult } from '../../types/api-im
 import type { DiagnosticsLogEntryInput, DiagnosticsLogQuery } from '../../types/diagnostics'
 import type { StudioVisualManualCreatePayload, StudioVisualManualImagesWritePayload, StudioVisualManualWritePayload } from '../../types/studio-visual-manual'
 import type { UpdateCheckOptions } from '../../types/update'
+import { QUIT_HOLD_STATE_IPC, type QuitHoldState } from '../main/quit-guard'
+
+contextBridge.exposeInMainWorld('quitHold', {
+  onQuitHoldState(listener: (state: QuitHoldState) => void) {
+    const wrapped = (_event: IpcRendererEvent, state: QuitHoldState) => listener(state)
+    ipcRenderer.on(QUIT_HOLD_STATE_IPC, wrapped)
+    return () => ipcRenderer.removeListener(QUIT_HOLD_STATE_IPC, wrapped)
+  },
+})
 
 contextBridge.exposeInMainWorld('diagnosticsLog', {
   write: (entry: DiagnosticsLogEntryInput) => ipcRenderer.invoke('diagnostics-log-write', entry),

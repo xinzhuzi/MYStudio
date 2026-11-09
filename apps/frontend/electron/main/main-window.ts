@@ -22,6 +22,7 @@ import { isPathInsideRoot } from '../storage/storage-paths'
 import { writeDiagnosticsLog } from './main-diagnostics'
 import { hostedStudio } from './main-hosted-studio'
 import { installWebviewKeyboardPassthrough } from './main-menu'
+import { attachQuitHoldGuard, createQuitHoldGuard, QUIT_HOLD_STATE_IPC } from './quit-guard'
 import { isBackgroundSmoke, RENDERER_DIST, RENDERER_INDEX_HTML, VITE_DEV_SERVER_URL } from './main-env'
 import {
   DEFAULT_WINDOW_HEIGHT,
@@ -195,7 +196,21 @@ export function createWindow() {
 
   // 09-12 ComfyUI 键盘直通:guest 获焦清空应用菜单(默认菜单 accelerator
   // 截胡 ComfyUI 快捷键的根修),失焦/销毁恢复
-  installWebviewKeyboardPassthrough(win.webContents)
+  const window = win
+  const quitGuard = process.platform === 'darwin' ? createQuitHoldGuard({
+    quit: () => app.quit(),
+    broadcast: (phase, heldMs) => {
+      if (!window.isDestroyed()) window.webContents.send(QUIT_HOLD_STATE_IPC, { phase, heldMs })
+    },
+  }) : null
+  if (quitGuard) {
+    attachQuitHoldGuard(window.webContents, quitGuard)
+    window.on('blur', () => quitGuard.cancel())
+    window.on('closed', () => quitGuard.cancel())
+  }
+  installWebviewKeyboardPassthrough(window.webContents, undefined, quitGuard ? (guest) => {
+    attachQuitHoldGuard(guest, quitGuard, true)
+  } : undefined)
 
   win.once('ready-to-show', showWindow)
 

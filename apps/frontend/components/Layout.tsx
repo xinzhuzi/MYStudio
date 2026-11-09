@@ -5,6 +5,7 @@ import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
 import { TabBar } from "./TabBar";
 import { Dashboard } from "./Dashboard";
 import { ProjectHeader } from "./ProjectHeader";
+import { QuitHoldOverlay } from "./QuitHoldOverlay";
 // Split-panel-only chrome — only rendered inside a project (never on the
 // Dashboard first screen). Lazy-loaded so the entry stays small; RightPanel in
 // particular pulls in director/context-panel code that has no place on boot.
@@ -158,6 +159,7 @@ export function Layout() {
         <Suspense fallback={null}>
           <AppOrb />
         </Suspense>
+        <QuitHoldOverlay />
       </>
     );
   }
@@ -192,6 +194,7 @@ export function Layout() {
         <Suspense fallback={null}>
           <AppOrb />
         </Suspense>
+        <QuitHoldOverlay />
       </>
     );
   }
@@ -238,6 +241,7 @@ export function Layout() {
         <Suspense fallback={null}>
           <AppOrb />
         </Suspense>
+        <QuitHoldOverlay />
       </>
     );
   }
@@ -338,6 +342,7 @@ export function Layout() {
     <Suspense fallback={null}>
       <AppOrb />
     </Suspense>
+    <QuitHoldOverlay />
     </>
   );
 }

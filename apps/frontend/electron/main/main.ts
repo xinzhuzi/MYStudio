@@ -17,7 +17,8 @@ import "./main-ipc-bootstrap";
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
-import {app, dialog, protocol, session, utilityProcess} from 'electron'
+import {app, dialog, Menu, protocol, session, utilityProcess} from 'electron'
+import { buildDarwinAppMenuTemplate } from './quit-guard'
 import path from 'node:path'
 import {configureSidecarLogCapture} from '../diagnostics/sidecar-log-capture'
 import {createTtsRuntimeController} from '../tts/tts-runtime'
@@ -694,6 +695,9 @@ app.whenReady().then(async () => {
     item.setSavePath(filePath)
   })
 
+  if (process.platform === 'darwin') {
+    Menu.setApplicationMenu(Menu.buildFromTemplate(buildDarwinAppMenuTemplate(app)))
+  }
   createWindow()
 
   // 10-29 问题#3 sidecar 懒自启:App 重启后本地生图 sidecar(127.0.0.1:17595,引擎卡/

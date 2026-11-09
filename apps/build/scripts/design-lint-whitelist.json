@@ -18,6 +18,7 @@
     "components/ui/menubar.tsx",
     "components/ui/navigation-menu.tsx",
     "components/AppErrorBoundary.tsx",
+    "components/QuitHoldOverlay.tsx",
     "components/features/storyboard/angle-switch/AngleController.tsx",
     "components/panels/tts/LocalTtsModelDetailsDialog.tsx",
     "components/ui/chart.tsx",

@@ -6,6 +6,12 @@ const preloadSource = readFileSync(new URL("./preload.ts", import.meta.url), "ut
 const electronTypesSource = readFileSync(new URL("../../types/electron.d.ts", import.meta.url), "utf8");
 
 describe("preload IPC surface", () => {
+  it("exposes a removable quit hold state subscription", () => {
+    expect(preloadSource).toContain("exposeInMainWorld('quitHold'");
+    expect(preloadSource).toContain('onQuitHoldState(listener:');
+    expect(preloadSource).toContain('ipcRenderer.on(QUIT_HOLD_STATE_IPC, wrapped)');
+    expect(preloadSource).toContain('ipcRenderer.removeListener(QUIT_HOLD_STATE_IPC, wrapped)');
+  });
   it("does not expose raw ipcRenderer send/invoke to the renderer", () => {
     expect(preloadSource).not.toContain("exposeInMainWorld('ipcRenderer'");
     expect(preloadSource).toContain("exposeInMainWorld('appEvents'");
