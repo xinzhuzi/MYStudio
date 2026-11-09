@@ -1,0 +1,2926 @@
+{
+  "id": "d0a00cf2-577b-47b7-9da4-8b5de8ecd47a",
+  "revision": 0,
+  "last_node_id": 580,
+  "last_link_id": 207,
+  "nodes": [
+    {
+      "id": 426,
+      "type": "LoadImage",
+      "pos": [
+        -859.6338312286069,
+        -362.6187460145493
+      ],
+      "size": [
+        229.2572116517922,
+        377.05544076112443
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "choose file to upload",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            50,
+            203,
+            205,
+            207
+          ]
+        },
+        {
+          "localized_name": "MASK",
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "test_face_00024.png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "zjm.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 431,
+      "type": "GemTiledUpscale",
+      "pos": [
+        -321.1572920407781,
+        -270.5620848805227
+      ],
+      "size": [
+        289.23240334830257,
+        278
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 85
+        },
+        {
+          "localized_name": "upscale_model",
+          "name": "upscale_model",
+          "shape": 7,
+          "type": "UPSCALE_MODEL",
+          "link": null
+        },
+        {
+          "localized_name": "megapixels",
+          "name": "megapixels",
+          "type": "FLOAT",
+          "widget": {
+            "name": "megapixels"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "tile_megapixels",
+          "name": "tile_megapixels",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "tile_megapixels"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "overlap",
+          "name": "overlap",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "overlap"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "multiple",
+          "name": "multiple",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "multiple"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "max_growth",
+          "name": "max_growth",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "max_growth"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enforce_qwen_tile_limit",
+          "name": "enforce_qwen_tile_limit",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enforce_qwen_tile_limit"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "tiles",
+          "name": "tiles",
+          "shape": 6,
+          "type": "IMAGE",
+          "links": [
+            26
+          ]
+        },
+        {
+          "localized_name": "stitcher",
+          "name": "stitcher",
+          "type": "ITSGEM_TILE_STITCHER",
+          "links": [
+            36,
+            159,
+            182
+          ]
+        },
+        {
+          "localized_name": "before",
+          "name": "before",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "localized_name": "report",
+          "name": "report",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "GemTiledUpscale"
+      },
+      "widgets_values": [
+        10,
+        2,
+        256,
+        32,
+        64,
+        true
+      ],
+      "widgets_values_named": {
+        "megapixels": 10,
+        "tile_megapixels": 2,
+        "overlap": 256,
+        "multiple": 32,
+        "max_growth": 64,
+        "enforce_qwen_tile_limit": true
+      },
+      "color": "#8a63d2",
+      "bgcolor": "#241f38"
+    },
+    {
+      "id": 438,
+      "type": "CLIPLoader",
+      "pos": [
+        -86.2893105843641,
+        -559.297079129147
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip_name",
+          "name": "clip_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "type",
+          "name": "type",
+          "type": "COMBO",
+          "widget": {
+            "name": "type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "device",
+          "name": "device",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "CLIP",
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            25
+          ]
+        }
+      ],
+      "title": "Text encoder",
+      "properties": {
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen3vl_8b_int8_convrot.safetensors",
+        "qwen_image",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+        "type": "qwen_image",
+        "device": "default"
+      }
+    },
+    {
+      "id": 439,
+      "type": "VAELoader",
+      "pos": [
+        -75.32104015386534,
+        -423.29707912914705
+      ],
+      "size": [
+        270,
+        58
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "vae_name",
+          "name": "vae_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "vae_name"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "VAE",
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            27,
+            34,
+            157,
+            178
+          ]
+        }
+      ],
+      "title": "VAE",
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "qwen_image_2.1_vae_bf16.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+      }
+    },
+    {
+      "id": 445,
+      "type": "UNETLoader",
+      "pos": [
+        274.4296768519306,
+        -635.4205086578938
+      ],
+      "size": [
+        353.7805985429203,
+        82
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "unet_name",
+          "name": "unet_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "unet_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "weight_dtype",
+          "name": "weight_dtype",
+          "type": "COMBO",
+          "widget": {
+            "name": "weight_dtype"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            149
+          ]
+        }
+      ],
+      "title": "Diffusion model",
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "qwen_image_2.1_int8_convrot.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "qwen_image_2.1_int8_convrot.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    {
+      "id": 447,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        778.2001807312068,
+        -1632.660670073737
+      ],
+      "size": [
+        364.1662336641574,
+        82
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 150
+        },
+        {
+          "localized_name": "lora_name",
+          "name": "lora_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_model",
+          "name": "strength_model",
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_model"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            155
+          ]
+        }
+      ],
+      "title": "AusBoss Lora",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "qwen-image-2.1-restore.safetensors",
+        0.5
+      ],
+      "widgets_values_named": {
+        "lora_name": "qwen21\\qwen-image-2.1-restore.safetensors",
+        "strength_model": 0.5
+      }
+    },
+    {
+      "id": 499,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        768.2424286523161,
+        -239.09102563398702
+      ],
+      "size": [
+        353.7805985429203,
+        82
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 190
+        },
+        {
+          "localized_name": "lora_name",
+          "name": "lora_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_model",
+          "name": "strength_model",
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_model"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            95
+          ]
+        }
+      ],
+      "title": "It'sGem Lora",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "qwen_image_21_ItsGem_face_lora_v1.safetensors",
+        0.5
+      ],
+      "widgets_values_named": {
+        "lora_name": "qwen21\\qwen_image_21_ItsGem_face_lora_v1.safetensors",
+        "strength_model": 0.5
+      }
+    },
+    {
+      "id": "441_413",
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        216.40254130501657,
+        -319.7737048447937
+      ],
+      "size": [
+        427.7496824166309,
+        370.70437031339105
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 25
+        },
+        {
+          "localized_name": "image_1",
+          "name": "images.image_1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 26
+        },
+        {
+          "localized_name": "image_2",
+          "name": "images.image_2",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "image_3",
+          "name": "images.image_3",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 27
+        },
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "negative_prompt",
+          "name": "negative_prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "negative_prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "resolution",
+          "name": "resolution",
+          "type": "INT",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            30,
+            152,
+            174
+          ]
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            31,
+            153,
+            175
+          ]
+        },
+        {
+          "localized_name": "latent",
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            32,
+            154,
+            176
+          ]
+        }
+      ],
+      "title": "Text Encode Qwen Image 2.1 - One tile and the request",
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        "Restore the photo: remove blur, noise and compression artifacts, recover sharp natural facial detail, clean skin texture, hair strands and lip texture, keeping the same composition, identity and people.",
+        "",
+        0
+      ],
+      "widgets_values_named": {
+        "prompt": "Restore the photo: remove blur, noise and compression artifacts, recover sharp natural facial detail, clean skin texture, hair strands and lip texture, keeping the same composition, identity and people.",
+        "negative_prompt": "",
+        "resolution": 0
+      }
+    },
+    {
+      "id": "441_417",
+      "type": "KSampler",
+      "pos": [
+        768.2424286523161,
+        -116.56208488052272
+      ],
+      "size": [
+        270,
+        262
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 95
+        },
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 30
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 31
+        },
+        {
+          "localized_name": "latent_image",
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 32
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler_name",
+          "name": "sampler_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "LATENT",
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            33
+          ]
+        }
+      ],
+      "title": "Sampler - CFG 1, euler",
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        0,
+        "fixed",
+        6,
+        1,
+        "euler",
+        "simple",
+        1
+      ],
+      "widgets_values_named": {
+        "seed": 0,
+        "control_after_generate": "fixed",
+        "steps": 6,
+        "cfg": 1,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    },
+    {
+      "id": "441_418",
+      "type": "VAEDecode",
+      "pos": [
+        1150.3495922785037,
+        -362.6187460145493
+      ],
+      "size": [
+        281.24320755148483,
+        59.84738003269365
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "samples",
+          "name": "samples",
+          "type": "LATENT",
+          "link": 33
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "link": 34
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            35
+          ]
+        }
+      ],
+      "title": "Decode",
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": "441_424",
+      "type": "GemTiledUpscaleStitch",
+      "pos": [
+        1144.268031052196,
+        -251.09102563398702
+      ],
+      "size": [
+        289.2263854346244,
+        150
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "tiles",
+          "name": "tiles",
+          "type": "IMAGE",
+          "link": 35
+        },
+        {
+          "localized_name": "stitcher",
+          "name": "stitcher",
+          "type": "ITSGEM_TILE_STITCHER",
+          "link": 36
+        },
+        {
+          "localized_name": "keep_colors",
+          "name": "keep_colors",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "keep_colors"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "align_mode",
+          "name": "align_mode",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "align_mode"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "max_align_shift",
+          "name": "max_align_shift",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "max_align_shift"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blend_band",
+          "name": "blend_band",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "blend_band"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "shape": 6,
+          "type": "IMAGE",
+          "links": [
+            187
+          ]
+        },
+        {
+          "localized_name": "diagnostics",
+          "name": "diagnostics",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "GemTiledUpscaleStitch"
+      },
+      "widgets_values": [
+        0.76,
+        "translation",
+        64,
+        0
+      ],
+      "widgets_values_named": {
+        "keep_colors": 0.76,
+        "align_mode": "translation",
+        "max_align_shift": 64,
+        "blend_band": 0
+      },
+      "color": "#8a63d2",
+      "bgcolor": "#241f38"
+    },
+    {
+      "id": 504,
+      "type": "88c48041-0d9e-4877-8ca2-5c4238f87325",
+      "pos": [
+        -595.5840921267555,
+        -361.44321079068254
+      ],
+      "size": [
+        199.7752898456339,
+        33.46907735483285
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 50
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            85
+          ]
+        }
+      ],
+      "properties": {
+        "previewExposures": []
+      }
+    },
+    {
+      "id": 516,
+      "type": "Label (ItsGemTools)",
+      "pos": [
+        283.49871023300955,
+        -541.3475052593249
+      ],
+      "size": [
+        210.0146484375,
+        10
+      ],
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "加速Lora，不要改值或直接不用，否则会偏移。",
+      "properties": {
+        "fontSize": 10,
+        "fontFamily": "Arial",
+        "fontColor": "#aa63d2",
+        "textAlign": "left",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0,
+        "angle": 0,
+        "Node name for S&R": "Label (ItsGemTools)"
+      },
+      "color": "transparent",
+      "bgcolor": "transparent"
+    },
+    {
+      "id": 545,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        274.4296768519305,
+        -496.65762538421615
+      ],
+      "size": [
+        353.7805985429203,
+        82
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 149
+        },
+        {
+          "localized_name": "lora_name",
+          "name": "lora_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_model",
+          "name": "strength_model",
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_model"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            150,
+            170,
+            189
+          ]
+        }
+      ],
+      "title": "加速Lora",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "qwen21\\Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r128.safetensors",
+        "strength_model": 1
+      }
+    },
+    {
+      "id": 546,
+      "type": "KSampler",
+      "pos": [
+        776.6959307185778,
+        -1506.7100313515525
+      ],
+      "size": [
+        365.6704836767867,
+        263.14439569807803
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 155
+        },
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 152
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 153
+        },
+        {
+          "localized_name": "latent_image",
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 154
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler_name",
+          "name": "sampler_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "LATENT",
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            156
+          ]
+        }
+      ],
+      "title": "Sampler - CFG 1, euler",
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        0,
+        "fixed",
+        6,
+        1,
+        "euler",
+        "simple",
+        1
+      ],
+      "widgets_values_named": {
+        "seed": 0,
+        "control_after_generate": "fixed",
+        "steps": 6,
+        "cfg": 1,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    },
+    {
+      "id": 547,
+      "type": "VAEDecode",
+      "pos": [
+        1160.9009495117966,
+        -1632.660670073737
+      ],
+      "size": [
+        270.6918503181914,
+        46
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "samples",
+          "name": "samples",
+          "type": "LATENT",
+          "link": 156
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "link": 157
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            158
+          ]
+        }
+      ],
+      "title": "Decode",
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 548,
+      "type": "GemTiledUpscaleStitch",
+      "pos": [
+        1164.2885029549884,
+        -1520.660670073737
+      ],
+      "size": [
+        267.304296875,
+        150
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "tiles",
+          "name": "tiles",
+          "type": "IMAGE",
+          "link": 158
+        },
+        {
+          "localized_name": "stitcher",
+          "name": "stitcher",
+          "type": "ITSGEM_TILE_STITCHER",
+          "link": 159
+        },
+        {
+          "localized_name": "keep_colors",
+          "name": "keep_colors",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "keep_colors"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "align_mode",
+          "name": "align_mode",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "align_mode"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "max_align_shift",
+          "name": "max_align_shift",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "max_align_shift"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blend_band",
+          "name": "blend_band",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "blend_band"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "shape": 6,
+          "type": "IMAGE",
+          "links": [
+            186
+          ]
+        },
+        {
+          "localized_name": "diagnostics",
+          "name": "diagnostics",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "GemTiledUpscaleStitch"
+      },
+      "widgets_values": [
+        1,
+        "translation",
+        64,
+        0
+      ],
+      "widgets_values_named": {
+        "keep_colors": 1,
+        "align_mode": "translation",
+        "max_align_shift": 64,
+        "blend_band": 0
+      },
+      "color": "#8a63d2",
+      "bgcolor": "#241f38"
+    },
+    {
+      "id": 555,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        778.2001807312067,
+        -952.2682366100319
+      ],
+      "size": [
+        372.14941154729684,
+        86.66784995221269
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 170
+        },
+        {
+          "localized_name": "lora_name",
+          "name": "lora_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_model",
+          "name": "strength_model",
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_model"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            177
+          ]
+        }
+      ],
+      "title": "viggle-turbo LoRA 0.6",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "qwen_image_21_ItsGem_face_lora_v1.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "qwen21\\qwen_image_21_ItsGem_face_lora_v1.safetensors",
+        "strength_model": 1
+      }
+    },
+    {
+      "id": 556,
+      "type": "KSampler",
+      "pos": [
+        776.6959307185779,
+        -799.0399135613961
+      ],
+      "size": [
+        365.6704836767867,
+        263.28125387620844
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 177
+        },
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 174
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 175
+        },
+        {
+          "localized_name": "latent_image",
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 176
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler_name",
+          "name": "sampler_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "LATENT",
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            171
+          ]
+        }
+      ],
+      "title": "Sampler - CFG 1, euler",
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        0,
+        "fixed",
+        6,
+        1,
+        "euler",
+        "simple",
+        1
+      ],
+      "widgets_values_named": {
+        "seed": 0,
+        "control_after_generate": "fixed",
+        "steps": 6,
+        "cfg": 1,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    },
+    {
+      "id": 557,
+      "type": "VAEDecode",
+      "pos": [
+        1169.3570126036075,
+        -954.6420291350847
+      ],
+      "size": [
+        262.23578722638103,
+        89.04164247726555
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "samples",
+          "name": "samples",
+          "type": "LATENT",
+          "link": 171
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "link": 178
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            172
+          ]
+        }
+      ],
+      "title": "Decode",
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 558,
+      "type": "GemTiledUpscaleStitch",
+      "pos": [
+        1164.2885029549886,
+        -689.5534201711517
+      ],
+      "size": [
+        267.304296875,
+        150
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "tiles",
+          "name": "tiles",
+          "type": "IMAGE",
+          "link": 172
+        },
+        {
+          "localized_name": "stitcher",
+          "name": "stitcher",
+          "type": "ITSGEM_TILE_STITCHER",
+          "link": 182
+        },
+        {
+          "localized_name": "keep_colors",
+          "name": "keep_colors",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "keep_colors"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "align_mode",
+          "name": "align_mode",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "align_mode"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "max_align_shift",
+          "name": "max_align_shift",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "max_align_shift"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blend_band",
+          "name": "blend_band",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "blend_band"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "shape": 6,
+          "type": "IMAGE",
+          "links": [
+            185
+          ]
+        },
+        {
+          "localized_name": "diagnostics",
+          "name": "diagnostics",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "GemTiledUpscaleStitch"
+      },
+      "widgets_values": [
+        1,
+        "translation",
+        64,
+        0
+      ],
+      "widgets_values_named": {
+        "keep_colors": 1,
+        "align_mode": "translation",
+        "max_align_shift": 64,
+        "blend_band": 0
+      },
+      "color": "#8a63d2",
+      "bgcolor": "#241f38"
+    },
+    {
+      "id": 564,
+      "type": "SaveImageAdvanced",
+      "pos": [
+        1469.670711270364,
+        -954.6420291350848
+      ],
+      "size": [
+        340.1456601597188,
+        415.0886089639331
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 185
+        },
+        {
+          "localized_name": "filename_prefix",
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "format",
+          "name": "format",
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "format"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "bit_depth",
+          "name": "format.bit_depth",
+          "type": "COMBO",
+          "widget": {
+            "name": "format.bit_depth"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "input_color_space",
+          "name": "format.input_color_space",
+          "type": "COMBO",
+          "widget": {
+            "name": "format.input_color_space"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            204
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImageAdvanced"
+      },
+      "widgets_values": [
+        "itsgem_ep9/out_gem",
+        "png",
+        "8-bit",
+        "sRGB"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "itsgem_ep9/out_gem",
+        "format": "png",
+        "format.bit_depth": "8-bit",
+        "format.input_color_space": "sRGB"
+      }
+    },
+    {
+      "id": 565,
+      "type": "SaveImageAdvanced",
+      "pos": [
+        1469.670711270364,
+        -1632.660670073737
+      ],
+      "size": [
+        317.4784680387261,
+        524.9990841799561
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 186
+        },
+        {
+          "localized_name": "filename_prefix",
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "format",
+          "name": "format",
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "format"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "bit_depth",
+          "name": "format.bit_depth",
+          "type": "COMBO",
+          "widget": {
+            "name": "format.bit_depth"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "input_color_space",
+          "name": "format.input_color_space",
+          "type": "COMBO",
+          "widget": {
+            "name": "format.input_color_space"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            202
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImageAdvanced"
+      },
+      "widgets_values": [
+        "itsgem_ep9/out_aus",
+        "png",
+        "8-bit",
+        "sRGB"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "itsgem_ep9/out_aus",
+        "format": "png",
+        "format.bit_depth": "8-bit",
+        "format.input_color_space": "sRGB"
+      }
+    },
+    {
+      "id": 566,
+      "type": "SaveImageAdvanced",
+      "pos": [
+        1469.670711270364,
+        -362.6187460145493
+      ],
+      "size": [
+        340.1456601597188,
+        496.95332596274125
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 187
+        },
+        {
+          "localized_name": "filename_prefix",
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "format",
+          "name": "format",
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "format"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "bit_depth",
+          "name": "format.bit_depth",
+          "type": "COMBO",
+          "widget": {
+            "name": "format.bit_depth"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "input_color_space",
+          "name": "format.input_color_space",
+          "type": "COMBO",
+          "widget": {
+            "name": "format.input_color_space"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            206
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImageAdvanced"
+      },
+      "widgets_values": [
+        "itsgem_ep9/out_aus_new",
+        "png",
+        "8-bit",
+        "sRGB"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "itsgem_ep9/out_aus_new",
+        "format": "png",
+        "format.bit_depth": "8-bit",
+        "format.input_color_space": "sRGB"
+      }
+    },
+    {
+      "id": 567,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        768.2424286523162,
+        -362.6187460145493
+      ],
+      "size": [
+        353.7805985429203,
+        82
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 189
+        },
+        {
+          "localized_name": "lora_name",
+          "name": "lora_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_model",
+          "name": "strength_model",
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_model"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            190
+          ]
+        }
+      ],
+      "title": "AusBoss Lora",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "qwen-image-2.1-restore.safetensors",
+        0.5
+      ],
+      "widgets_values_named": {
+        "lora_name": "qwen21\\qwen-image-2.1-restore.safetensors",
+        "strength_model": 0.5
+      }
+    },
+    {
+      "id": 575,
+      "type": "ItsGemImageCompare",
+      "pos": [
+        1858.4033030284293,
+        -1655.1912731151144
+      ],
+      "size": [
+        514.5351961401993,
+        563.1712500424037
+      ],
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "image_a",
+          "name": "image_a",
+          "type": "IMAGE",
+          "link": 203
+        },
+        {
+          "localized_name": "image_b",
+          "name": "image_b",
+          "type": "IMAGE",
+          "link": 202
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "image_a",
+          "name": "image_a",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "itsgem_compare_mode": "slide",
+        "Node name for S&R": "ItsGemImageCompare"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "itsgem_compare_panel": ""
+      },
+      "color": "#8a63d2",
+      "bgcolor": "#241f38"
+    },
+    {
+      "id": 576,
+      "type": "ItsGemImageCompare",
+      "pos": [
+        1858.403303028429,
+        -1012.3306514413583
+      ],
+      "size": [
+        514.5351961401998,
+        559.0335723122113
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "image_a",
+          "name": "image_a",
+          "type": "IMAGE",
+          "link": 205
+        },
+        {
+          "localized_name": "image_b",
+          "name": "image_b",
+          "type": "IMAGE",
+          "link": 204
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "image_a",
+          "name": "image_a",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "itsgem_compare_mode": "slide",
+        "Node name for S&R": "ItsGemImageCompare"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "itsgem_compare_panel": ""
+      },
+      "color": "#8a63d2",
+      "bgcolor": "#241f38"
+    },
+    {
+      "id": 577,
+      "type": "ItsGemImageCompare",
+      "pos": [
+        1858.403303028429,
+        -405.12350630196204
+      ],
+      "size": [
+        514.5351961402002,
+        564.2743526953714
+      ],
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "image_a",
+          "name": "image_a",
+          "type": "IMAGE",
+          "link": 207
+        },
+        {
+          "localized_name": "image_b",
+          "name": "image_b",
+          "type": "IMAGE",
+          "link": 206
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "image_a",
+          "name": "image_a",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "itsgem_compare_mode": "slide",
+        "Node name for S&R": "ItsGemImageCompare"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "itsgem_compare_panel": ""
+      },
+      "color": "#8a63d2",
+      "bgcolor": "#241f38"
+    },
+    {
+      "id": 578,
+      "type": "MarkdownNote",
+      "pos": [
+        -2619.1754921500988,
+        -1274.6255380411546
+      ],
+      "size": [
+        566.7952149551429,
+        1157.0895207820943
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Note: 功能说明与三路输出",
+      "properties": {},
+      "widgets_values": [
+        "# 一句话结论\n把一张人像切成**互相重叠的小块**，交给 Qwen-Image 2.1（配 6 步加速 LoRA）逐块重绘修复，再按原坐标拼回（带亚像素平移配准 + 颜色回归），一次同时输出三张约 10MP 的成图：**强细节 / 普通细节 / 磨皮**。\n\n# 一、整体架构（先看这层）\n1. **输入归一化** — \"防大图检查\"子图把长边超过 1024 的图等比缩到 1024，否则分块数量爆炸、显存不可控。\n2. **分块重绘** — 切成单块 ≤2MP、宽高均为 32 倍数的重叠块；模型只在块内做「去模糊 / 去噪 / 补纹理」，不改构图、不改人。\n3. **拼回校正** — 按 stitcher 记录的坐标拼回，每块先做平移配准、再全带渐变混合，最后把颜色拉回源块。\n\n**关键认知**：成图清晰度来自「10MP 重绘目标 + 模型补细节」，不是把原图硬放大。原图越糊，三路输出的差异越明显。\n\n# 二、三个输出差在哪（核心差异表）\n三路共用同一套分块、同一个 latent、同一个 seed（0），**只有「模型链」和「拼回颜色」不同**，所以对比是公平的。\n\n## 1) 强细节 — itsgem_ep9/aus\n- 模型链：本体 → 加速LoRA(1.0) → **restore LoRA(0.5)**\n- 拼回：keep_colors = 1（颜色完全贴源图）\n- 观感：毛孔、睫毛、发丝、唇纹最清楚，边缘最硬；原图的噪点、油光、瑕疵也会被一起放大\n- 适合：要「硬质感照片」、放大后仍经得起 100% 检视\n\n## 2) 普通细节 — itsgem_ep9/gem\n- 模型链：本体 → 加速LoRA(1.0) → **ItsGem 人脸 LoRA(1.0)**\n- 拼回：keep_colors = 1\n- 观感：五官更「正」、肤色更均匀，细节中等偏柔；没有 restore 的强力去模糊，脏点和压缩痕迹清得比第一路轻\n- 适合：日常修图，要「自然好看」而不是「极致锐利」\n- 注意：这个节点的标题还写着「viggle-turbo LoRA 0.6」，是历史遗留的旧名字；实际加载的是 ItsGem 人脸 LoRA、强度 1.0，**以节点里选中的文件为准**，不影响出图\n\n## 3) 磨皮 — itsgem_ep9/aus_new\n- 模型链：本体 → 加速LoRA(1.0) → **restore(0.5) + 人脸 LoRA(0.5) 叠加**\n- 拼回：keep_colors = 0.76（只把 76% 的颜色拉回源图，允许 24% 色调漂移）\n- 观感：皮肤最平滑、瑕疵最少，肤色更通透白皙；锐度介于前两者之间\n- 适合：证件照、写真、电商人像\n\n**一句话记**：强细节 = 纯还原，普通细节 = 纯美化，磨皮 = 各出一半 + 允许跑色。\n\n# 三、逐段拆解（局部）\n## 输入 → 防大图检查（内嵌子图）\n- LoadImage 出图后进子图：GetImageSize 取宽高 → 表达式 `min(1, 1024 / max(w, h))` → ImageScaleBy（lanczos）等比缩放。\n- 长边 >1024 就缩到 1024；≤1024 时 scale_by=1，原样通过。\n- 代价：原图分辨率被归一化，最终清晰度由后面的 10MP 重绘目标决定。\n\n## 分块 — GemTiledUpscale\n- `megapixels=10`：成图目标约 10MP（填 0 才是保持原尺寸）\n- `tile_megapixels=2`：单块最大 2MP；Qwen 2.1 官方单图上限约 4.19MP，这里留足余量\n- `overlap=256`：相邻块共享 256px，拼缝在这条带上过渡\n- `multiple=32`：每块宽高都是 32 的倍数（Qwen VAE 对齐要求）\n- `max_growth=64`：重绘尺寸不超过原图 64 倍，超出部分用普通放大补齐\n- `enforce_qwen_tile_limit=开`：单块一旦超 4.6MP 自动下调 tile_megapixels（防呆）\n- 同时吐出 `stitcher`（每块坐标 / 尺寸 / 实际 overlap），后面三个拼回节点共用同一个\n\n## 逐块条件 — TextEncodeQwenImage21\n- `image_1` 接的是 tiles：每个块把自己当参考图；提示词固定为「去模糊去噪去压缩痕迹、恢复自然皮肤与发丝、不改构图与人」\n- `resolution=0`：跟随块自身尺寸，不额外缩放（避免二次变形）\n- `negative` 空 + `cfg=1`：走 Qwen 官方无引导路径\n- 输出 positive / negative / latent 三路共用，**三路模型只在 MODEL 那一根线上分岔**\n\n## 采样 — KSampler ×3\n- `steps=6`、`cfg=1`、`euler`、`simple`、`denoise=1`（整块全重绘，不是图生图微调）\n- 6 步能成立完全依赖「加速 LoRA」；`seed` 固定 0，三路噪声一致\n- 注意左侧 Label 的提醒：**加速 LoRA 强度 1.0 不要改、也不要跳过不接**，改了会整体偏移\n\n## 拼回 — GemTiledUpscaleStitch ×3\n- `align_mode=translation`：每块先和源块做亚像素平移配准，抵消自训 LoRA 重绘带来的漂移（AusBoss 没有这层安全网）\n- `max_align_shift=64`：估计位移超过 64px 判为不可靠、跳过，避免错误配准\n- `blend_band=0`：全带对称渐变，两块权重和恒为 1，用邻块平均天然稀释单块随机幻觉（如多出来的下巴）\n- `keep_colors`：1 = 颜色完全回归源图；0.76 = 只回归 76%\n\n## 输出与对比\n- SaveImageAdvanced：png / 8-bit / sRGB，三路分别存到 `itsgem_ep9/aus`、`/gem`、`/aus_new`\n- ItsGemImageCompare（slide）：原图 vs 每路成图，滑动对比看差异\n\n# 四、要改的时候改哪里\n- **成图更大 / 更小**：只改 `megapixels`（10 → 6 或 16），其它不动\n- **局部细节更狠**：`tile_megapixels` 2 → 2.5（注意别把单块推过 4.6MP 防呆线太多）\n- **拼缝有重影**：先看 Stitch 的 `diagnostics` 输出，再考虑调大 `max_align_shift`\n- **磨皮更狠**：`keep_colors` 从 0.76 继续降（0.5 左右），或把两个 LoRA 强度各降一点\n- **换加速 LoRA 步数（如 4 步）**：必须同步改三路 KSampler 的 steps 和加速 LoRA 文件，否则会偏移 / 糊\n"
+      ],
+      "widgets_values_named": {
+        "text": "# 一句话结论\n把一张人像切成**互相重叠的小块**，交给 Qwen-Image 2.1（配 6 步加速 LoRA）逐块重绘修复，再按原坐标拼回（带亚像素平移配准 + 颜色回归），一次同时输出三张约 10MP 的成图：**强细节 / 普通细节 / 磨皮**。\n\n# 一、整体架构（先看这层）\n1. **输入归一化** — \"防大图检查\"子图把长边超过 1024 的图等比缩到 1024，否则分块数量爆炸、显存不可控。\n2. **分块重绘** — 切成单块 ≤2MP、宽高均为 32 倍数的重叠块；模型只在块内做「去模糊 / 去噪 / 补纹理」，不改构图、不改人。\n3. **拼回校正** — 按 stitcher 记录的坐标拼回，每块先做平移配准、再全带渐变混合，最后把颜色拉回源块。\n\n**关键认知**：成图清晰度来自「10MP 重绘目标 + 模型补细节」，不是把原图硬放大。原图越糊，三路输出的差异越明显。\n\n# 二、三个输出差在哪（核心差异表）\n三路共用同一套分块、同一个 latent、同一个 seed（0），**只有「模型链」和「拼回颜色」不同**，所以对比是公平的。\n\n## 1) 强细节 — itsgem_ep9/aus\n- 模型链：本体 → 加速LoRA(1.0) → **restore LoRA(0.5)**\n- 拼回：keep_colors = 1（颜色完全贴源图）\n- 观感：毛孔、睫毛、发丝、唇纹最清楚，边缘最硬；原图的噪点、油光、瑕疵也会被一起放大\n- 适合：要「硬质感照片」、放大后仍经得起 100% 检视\n\n## 2) 普通细节 — itsgem_ep9/gem\n- 模型链：本体 → 加速LoRA(1.0) → **ItsGem 人脸 LoRA(1.0)**\n- 拼回：keep_colors = 1\n- 观感：五官更「正」、肤色更均匀，细节中等偏柔；没有 restore 的强力去模糊，脏点和压缩痕迹清得比第一路轻\n- 适合：日常修图，要「自然好看」而不是「极致锐利」\n- 注意：这个节点的标题还写着「viggle-turbo LoRA 0.6」，是历史遗留的旧名字；实际加载的是 ItsGem 人脸 LoRA、强度 1.0，**以节点里选中的文件为准**，不影响出图\n\n## 3) 磨皮 — itsgem_ep9/aus_new\n- 模型链：本体 → 加速LoRA(1.0) → **restore(0.5) + 人脸 LoRA(0.5) 叠加**\n- 拼回：keep_colors = 0.76（只把 76% 的颜色拉回源图，允许 24% 色调漂移）\n- 观感：皮肤最平滑、瑕疵最少，肤色更通透白皙；锐度介于前两者之间\n- 适合：证件照、写真、电商人像\n\n**一句话记**：强细节 = 纯还原，普通细节 = 纯美化，磨皮 = 各出一半 + 允许跑色。\n\n# 三、逐段拆解（局部）\n## 输入 → 防大图检查（内嵌子图）\n- LoadImage 出图后进子图：GetImageSize 取宽高 → 表达式 `min(1, 1024 / max(w, h))` → ImageScaleBy（lanczos）等比缩放。\n- 长边 >1024 就缩到 1024；≤1024 时 scale_by=1，原样通过。\n- 代价：原图分辨率被归一化，最终清晰度由后面的 10MP 重绘目标决定。\n\n## 分块 — GemTiledUpscale\n- `megapixels=10`：成图目标约 10MP（填 0 才是保持原尺寸）\n- `tile_megapixels=2`：单块最大 2MP；Qwen 2.1 官方单图上限约 4.19MP，这里留足余量\n- `overlap=256`：相邻块共享 256px，拼缝在这条带上过渡\n- `multiple=32`：每块宽高都是 32 的倍数（Qwen VAE 对齐要求）\n- `max_growth=64`：重绘尺寸不超过原图 64 倍，超出部分用普通放大补齐\n- `enforce_qwen_tile_limit=开`：单块一旦超 4.6MP 自动下调 tile_megapixels（防呆）\n- 同时吐出 `stitcher`（每块坐标 / 尺寸 / 实际 overlap），后面三个拼回节点共用同一个\n\n## 逐块条件 — TextEncodeQwenImage21\n- `image_1` 接的是 tiles：每个块把自己当参考图；提示词固定为「去模糊去噪去压缩痕迹、恢复自然皮肤与发丝、不改构图与人」\n- `resolution=0`：跟随块自身尺寸，不额外缩放（避免二次变形）\n- `negative` 空 + `cfg=1`：走 Qwen 官方无引导路径\n- 输出 positive / negative / latent 三路共用，**三路模型只在 MODEL 那一根线上分岔**\n\n## 采样 — KSampler ×3\n- `steps=6`、`cfg=1`、`euler`、`simple`、`denoise=1`（整块全重绘，不是图生图微调）\n- 6 步能成立完全依赖「加速 LoRA」；`seed` 固定 0，三路噪声一致\n- 注意左侧 Label 的提醒：**加速 LoRA 强度 1.0 不要改、也不要跳过不接**，改了会整体偏移\n\n## 拼回 — GemTiledUpscaleStitch ×3\n- `align_mode=translation`：每块先和源块做亚像素平移配准，抵消自训 LoRA 重绘带来的漂移（AusBoss 没有这层安全网）\n- `max_align_shift=64`：估计位移超过 64px 判为不可靠、跳过，避免错误配准\n- `blend_band=0`：全带对称渐变，两块权重和恒为 1，用邻块平均天然稀释单块随机幻觉（如多出来的下巴）\n- `keep_colors`：1 = 颜色完全回归源图；0.76 = 只回归 76%\n\n## 输出与对比\n- SaveImageAdvanced：png / 8-bit / sRGB，三路分别存到 `itsgem_ep9/aus`、`/gem`、`/aus_new`\n- ItsGemImageCompare（slide）：原图 vs 每路成图，滑动对比看差异\n\n# 四、要改的时候改哪里\n- **成图更大 / 更小**：只改 `megapixels`（10 → 6 或 16），其它不动\n- **局部细节更狠**：`tile_megapixels` 2 → 2.5（注意别把单块推过 4.6MP 防呆线太多）\n- **拼缝有重影**：先看 Stitch 的 `diagnostics` 输出，再考虑调大 `max_align_shift`\n- **磨皮更狠**：`keep_colors` 从 0.76 继续降（0.5 左右），或把两个 LoRA 强度各降一点\n- **换加速 LoRA 步数（如 4 步）**：必须同步改三路 KSampler 的 steps 和加速 LoRA 文件，否则会偏移 / 糊\n"
+      },
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 579,
+      "type": "MarkdownNote",
+      "pos": [
+        -2039.1754921500988,
+        -1274.6255380411546
+      ],
+      "size": [
+        689.8057523404218,
+        1157.0895207820943
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Note: 节点与模型安装",
+      "properties": {},
+      "widgets_values": [
+        "# 依赖结论（先看这条）\n- 第三方节点包：**只需要 1 个** —— ItsGemTools（提供 GemTiledUpscale / GemTiledUpscaleStitch / ItsGemImageCompare / Label）\n- 其余节点全部是 ComfyUI 本体自带（含 TextEncodeQwenImage21、SaveImageAdvanced）\n- 模型共 6 个文件，分 4 个目录放置\n\n# 一、第三方节点：ItsGemTools\n- 仓库：[ComfyUI-ItsGemTools](https://github.com/gemBeBetter/ComfyUI-ItsGemTools)\n- 安装路径：`ComfyUI/custom_nodes/ItsGemTools`\n- 命令行安装：\n```\ncd ComfyUI/custom_nodes\ngit clone https://github.com/gemBeBetter/ComfyUI-ItsGemTools.git ItsGemTools\n```\n- 装完重启 ComfyUI。纯 torch 算法实现，**不加载任何模型、不需要额外 pip 依赖**。\n- ComfyUI Manager 若已收录，也可直接搜 ItsGemTools 安装。\n\n# 二、ComfyUI 本体要求\n- TextEncodeQwenImage21（`comfy_extras/nodes_qwen.py`）、SaveImageAdvanced（`comfy_extras/nodes_images.py`）都是本体节点；本体太旧会显示红色「缺失节点」，先更新 ComfyUI 再导入工作流。\n- GetImageSize / ComfyMathExpression / ImageScaleBy / LoadImage / CLIPLoader / VAELoader / UNETLoader / LoraLoaderModelOnly / KSampler / VAEDecode 同样都在本体。\n- 节点标题里的「AusBoss Lora」「It'sGem Lora」只是命名，实际用的都是原生 LoraLoaderModelOnly，**不需要另外安装 AusBoss 节点包**。\n- 「防大图检查」是一个内嵌子图（subgraph），随工作流一起走，不依赖外部节点。\n\n# 三、模型清单\n仓库主页： [Hugging Face: Comfy-Org/Qwen-Image-2.1](https://huggingface.co/Comfy-Org/Qwen-Image-2.1) ｜ [ModelScope: Comfy-Org/Qwen-Image-2.1](https://modelscope.cn/models/Comfy-Org/Qwen-Image-2.1)\n\n**diffusion_models**\n- [qwen_image_2.1_int8_convrot.safetensors](https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors) (6.76 GB)\n\n**text_encoders**\n- [qwen3vl_8b_bf16.safetensors](https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_bf16.safetensors)\n- [qwen3vl_8b_int8_convrot.safetensors](https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors) \n\n**vae**\n- [qwen_image_2.1_vae_bf16.safetensors](https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors) (644 MB)\n\n**loras/qwen21**\n- [Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r128.safetensors](https://huggingface.co/Viggle/Qwen-Image-2.1-viggle-turbo/resolve/main/Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r128.safetensors) (0.63 GB) — 加速 LoRA，6 步必需\n- qwen-image-2.1-restore.safetensors (0.15 GB) — (网盘链接)\n- qwen_image_21_ItsGem_face_lora_v1.safetensors (0.30 GB) —  (网盘链接)\n\n# 四、目录结构\n```\n📂 ComfyUI/\n├── 📂 models/\n│   ├── 📂 diffusion_models/\n│   │   └── qwen_image_2.1_int8_convrot.safetensors\n│   ├── 📂 text_encoders/\n│   │   └──  qwen3vl_8b_int8_convrot.safetensors\n│   ├── 📂 vae/\n│   │   └── qwen_image_2.1_vae_bf16.safetensors\n│   └── 📂 loras/\n│       └── 📂 qwen21/\n│           ├── Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r128.safetensors\n│           ├── qwen-image-2.1-restore.safetensors\n│           └── qwen_image_21_ItsGem_face_lora_v1.safetensors\n└── 📂 custom_nodes/\n    └── 📂 ItsGemTools/\n```\n\n# 五、几个容易踩的点\n- **LoRA 子目录名必须是 `qwen21`**：工作流里存的是 `qwen21\\xxx.safetensors`，放错目录下拉会变空、节点报红。\n- 三个模型下拉如果变空，基本都是「目录不对」或「文件名不一致」，改名放到上面对应目录即可，不用重连。\n- 输入图：LoadImage 默认读 `ComfyUI/input/lamer.png`，换成自己的图即可。\n- 本机当前安装根目录（核对用）：`C:\\Users\\wyfdg\\AppData\\Local\\Comfy-Desktop\\ComfyUI-Installs\\minimaxh3\\ComfyUI`\n- 备选：文本编码器若实在找不到同名文件，可先用公开的 Heretic W4A8 版本 [qwen3vl_8b_w4a8_heretic.safetensors](https://huggingface.co/pottokao/Qwen-Image-2.1-Text-Encoder-Heretic-W4A8/resolve/main/qwen3vl_8b_w4a8_heretic.safetensors) (6.31 GB)，放入 text_encoders 后在 CLIPLoader 里改选它。\n"
+      ],
+      "widgets_values_named": {
+        "text": "# 依赖结论（先看这条）\n- 第三方节点包：**只需要 1 个** —— ItsGemTools（提供 GemTiledUpscale / GemTiledUpscaleStitch / ItsGemImageCompare / Label）\n- 其余节点全部是 ComfyUI 本体自带（含 TextEncodeQwenImage21、SaveImageAdvanced）\n- 模型共 6 个文件，分 4 个目录放置\n\n# 一、第三方节点：ItsGemTools\n- 仓库：[ComfyUI-ItsGemTools](https://github.com/gemBeBetter/ComfyUI-ItsGemTools)\n- 安装路径：`ComfyUI/custom_nodes/ItsGemTools`\n- 命令行安装：\n```\ncd ComfyUI/custom_nodes\ngit clone https://github.com/gemBeBetter/ComfyUI-ItsGemTools.git ItsGemTools\n```\n- 装完重启 ComfyUI。纯 torch 算法实现，**不加载任何模型、不需要额外 pip 依赖**。\n- ComfyUI Manager 若已收录，也可直接搜 ItsGemTools 安装。\n\n# 二、ComfyUI 本体要求\n- TextEncodeQwenImage21（`comfy_extras/nodes_qwen.py`）、SaveImageAdvanced（`comfy_extras/nodes_images.py`）都是本体节点；本体太旧会显示红色「缺失节点」，先更新 ComfyUI 再导入工作流。\n- GetImageSize / ComfyMathExpression / ImageScaleBy / LoadImage / CLIPLoader / VAELoader / UNETLoader / LoraLoaderModelOnly / KSampler / VAEDecode 同样都在本体。\n- 节点标题里的「AusBoss Lora」「It'sGem Lora」只是命名，实际用的都是原生 LoraLoaderModelOnly，**不需要另外安装 AusBoss 节点包**。\n- 「防大图检查」是一个内嵌子图（subgraph），随工作流一起走，不依赖外部节点。\n\n# 三、模型清单\n仓库主页： [Hugging Face: Comfy-Org/Qwen-Image-2.1](https://huggingface.co/Comfy-Org/Qwen-Image-2.1) ｜ [ModelScope: Comfy-Org/Qwen-Image-2.1](https://modelscope.cn/models/Comfy-Org/Qwen-Image-2.1)\n\n**diffusion_models**\n- [qwen_image_2.1_int8_convrot.safetensors](https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors) (6.76 GB)\n\n**text_encoders**\n- [qwen3vl_8b_bf16.safetensors](https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_bf16.safetensors)\n- [qwen3vl_8b_int8_convrot.safetensors](https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors) \n\n**vae**\n- [qwen_image_2.1_vae_bf16.safetensors](https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors) (644 MB)\n\n**loras/qwen21**\n- [Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r128.safetensors](https://huggingface.co/Viggle/Qwen-Image-2.1-viggle-turbo/resolve/main/Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r128.safetensors) (0.63 GB) — 加速 LoRA，6 步必需\n- qwen-image-2.1-restore.safetensors (0.15 GB) — (网盘链接)\n- qwen_image_21_ItsGem_face_lora_v1.safetensors (0.30 GB) —  (网盘链接)\n\n# 四、目录结构\n```\n📂 ComfyUI/\n├── 📂 models/\n│   ├── 📂 diffusion_models/\n│   │   └── qwen_image_2.1_int8_convrot.safetensors\n│   ├── 📂 text_encoders/\n│   │   └──  qwen3vl_8b_int8_convrot.safetensors\n│   ├── 📂 vae/\n│   │   └── qwen_image_2.1_vae_bf16.safetensors\n│   └── 📂 loras/\n│       └── 📂 qwen21/\n│           ├── Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r128.safetensors\n│           ├── qwen-image-2.1-restore.safetensors\n│           └── qwen_image_21_ItsGem_face_lora_v1.safetensors\n└── 📂 custom_nodes/\n    └── 📂 ItsGemTools/\n```\n\n# 五、几个容易踩的点\n- **LoRA 子目录名必须是 `qwen21`**：工作流里存的是 `qwen21\\xxx.safetensors`，放错目录下拉会变空、节点报红。\n- 三个模型下拉如果变空，基本都是「目录不对」或「文件名不一致」，改名放到上面对应目录即可，不用重连。\n- 输入图：LoadImage 默认读 `ComfyUI/input/lamer.png`，换成自己的图即可。\n- 本机当前安装根目录（核对用）：`C:\\Users\\wyfdg\\AppData\\Local\\Comfy-Desktop\\ComfyUI-Installs\\minimaxh3\\ComfyUI`\n- 备选：文本编码器若实在找不到同名文件，可先用公开的 Heretic W4A8 版本 [qwen3vl_8b_w4a8_heretic.safetensors](https://huggingface.co/pottokao/Qwen-Image-2.1-Text-Encoder-Heretic-W4A8/resolve/main/qwen3vl_8b_w4a8_heretic.safetensors) (6.31 GB)，放入 text_encoders 后在 CLIPLoader 里改选它。\n"
+      },
+      "color": "#222",
+      "bgcolor": "#000"
+    }
+  ],
+  "links": [
+    [
+      30,
+      "441_413",
+      0,
+      "441_417",
+      1,
+      "CONDITIONING"
+    ],
+    [
+      31,
+      "441_413",
+      1,
+      "441_417",
+      2,
+      "CONDITIONING"
+    ],
+    [
+      32,
+      "441_413",
+      2,
+      "441_417",
+      3,
+      "LATENT"
+    ],
+    [
+      33,
+      "441_417",
+      0,
+      "441_418",
+      0,
+      "LATENT"
+    ],
+    [
+      34,
+      439,
+      0,
+      "441_418",
+      1,
+      "VAE"
+    ],
+    [
+      35,
+      "441_418",
+      0,
+      "441_424",
+      0,
+      "IMAGE"
+    ],
+    [
+      36,
+      431,
+      1,
+      "441_424",
+      1,
+      "ITSGEM_TILE_STITCHER"
+    ],
+    [
+      50,
+      426,
+      0,
+      504,
+      0,
+      "IMAGE"
+    ],
+    [
+      85,
+      504,
+      0,
+      431,
+      0,
+      "IMAGE"
+    ],
+    [
+      95,
+      499,
+      0,
+      "441_417",
+      0,
+      "MODEL"
+    ],
+    [
+      149,
+      445,
+      0,
+      545,
+      0,
+      "MODEL"
+    ],
+    [
+      150,
+      545,
+      0,
+      447,
+      0,
+      "MODEL"
+    ],
+    [
+      152,
+      "441_413",
+      0,
+      546,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      153,
+      "441_413",
+      1,
+      546,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      154,
+      "441_413",
+      2,
+      546,
+      3,
+      "LATENT"
+    ],
+    [
+      155,
+      447,
+      0,
+      546,
+      0,
+      "MODEL"
+    ],
+    [
+      156,
+      546,
+      0,
+      547,
+      0,
+      "LATENT"
+    ],
+    [
+      157,
+      439,
+      0,
+      547,
+      1,
+      "VAE"
+    ],
+    [
+      158,
+      547,
+      0,
+      548,
+      0,
+      "IMAGE"
+    ],
+    [
+      159,
+      431,
+      1,
+      548,
+      1,
+      "ITSGEM_TILE_STITCHER"
+    ],
+    [
+      170,
+      545,
+      0,
+      555,
+      0,
+      "MODEL"
+    ],
+    [
+      171,
+      556,
+      0,
+      557,
+      0,
+      "LATENT"
+    ],
+    [
+      172,
+      557,
+      0,
+      558,
+      0,
+      "IMAGE"
+    ],
+    [
+      174,
+      "441_413",
+      0,
+      556,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      175,
+      "441_413",
+      1,
+      556,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      176,
+      "441_413",
+      2,
+      556,
+      3,
+      "LATENT"
+    ],
+    [
+      177,
+      555,
+      0,
+      556,
+      0,
+      "MODEL"
+    ],
+    [
+      178,
+      439,
+      0,
+      557,
+      1,
+      "VAE"
+    ],
+    [
+      182,
+      431,
+      1,
+      558,
+      1,
+      "ITSGEM_TILE_STITCHER"
+    ],
+    [
+      189,
+      545,
+      0,
+      567,
+      0,
+      "MODEL"
+    ],
+    [
+      190,
+      567,
+      0,
+      499,
+      0,
+      "MODEL"
+    ],
+    [
+      202,
+      565,
+      0,
+      575,
+      1,
+      "IMAGE"
+    ],
+    [
+      203,
+      426,
+      0,
+      575,
+      0,
+      "IMAGE"
+    ],
+    [
+      204,
+      564,
+      0,
+      576,
+      1,
+      "IMAGE"
+    ],
+    [
+      205,
+      426,
+      0,
+      576,
+      0,
+      "IMAGE"
+    ],
+    [
+      206,
+      566,
+      0,
+      577,
+      1,
+      "IMAGE"
+    ],
+    [
+      207,
+      426,
+      0,
+      577,
+      0,
+      "IMAGE"
+    ],
+    [
+      25,
+      438,
+      0,
+      "441_413",
+      0,
+      "CLIP"
+    ],
+    [
+      26,
+      431,
+      0,
+      "441_413",
+      1,
+      "IMAGE"
+    ],
+    [
+      185,
+      558,
+      0,
+      564,
+      0,
+      "IMAGE"
+    ],
+    [
+      186,
+      548,
+      0,
+      565,
+      0,
+      "IMAGE"
+    ],
+    [
+      187,
+      "441_424",
+      0,
+      566,
+      0,
+      "IMAGE"
+    ],
+    [
+      27,
+      439,
+      0,
+      "441_413",
+      4,
+      "VAE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 2,
+      "title": "Qwen2.1 模型 和 Lora",
+      "bounding": [
+        255.82835191898369,
+        -703.0180401538616,
+        393.2792908892152,
+        310.39929413931236
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "真实细节",
+      "bounding": [
+        745.3243355224381,
+        -1042.3306514413584,
+        1087.11377649414,
+        589.0335723122115
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "强细节",
+      "bounding": [
+        745.3243355224381,
+        -1715.818395052131,
+        1075.6770702183273,
+        643.2646042035958
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 6,
+      "title": "磨皮",
+      "bounding": [
+        745.3243355224381,
+        -435.12350630196204,
+        1087.11377649414,
+        594.2743526953714
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 7,
+      "title": "Qwen2.1 模型 和 Lora",
+      "bounding": [
+        -360.119454261451,
+        -858.6982560829966,
+        1087.6602873541738,
+        1017.849102476406
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    }
+  ],
+  "definitions": {
+    "subgraphs": [
+      {
+        "id": "88c48041-0d9e-4877-8ca2-5c4238f87325",
+        "version": 1,
+        "state": {
+          "lastGroupId": 7,
+          "lastNodeId": 580,
+          "lastLinkId": 207,
+          "lastRerouteId": 0
+        },
+        "revision": 0,
+        "config": {},
+        "name": "防大图检查",
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            -332.99696474648414,
+            -143.96693634618651,
+            128,
+            68
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            731.3935771220893,
+            -143.96693634618651,
+            128,
+            68
+          ]
+        },
+        "inputs": [
+          {
+            "id": "58471b6f-b75f-45a7-ba64-e38af6573dfc",
+            "name": "image",
+            "type": "IMAGE",
+            "linkIds": [
+              38,
+              2
+            ],
+            "localized_name": "image",
+            "pos": [
+              -228.99696474648414,
+              -119.96693634618651
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "078feded-7692-4d0b-830e-3f7a056dba77",
+            "name": "IMAGE",
+            "type": "IMAGE",
+            "linkIds": [
+              18
+            ],
+            "localized_name": "IMAGE",
+            "pos": [
+              755.3935771220893,
+              -119.96693634618651
+            ]
+          }
+        ],
+        "widgets": [],
+        "nodes": [
+          {
+            "id": "460_600",
+            "type": "GetImageSize",
+            "pos": [
+              -144.99696474648414,
+              -194.96693634618651
+            ],
+            "size": [
+              140,
+              124
+            ],
+            "flags": {
+              "collapsed": false
+            },
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "image",
+                "name": "image",
+                "type": "IMAGE",
+                "link": 38
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "width",
+                "name": "width",
+                "type": "INT",
+                "links": [
+                  39
+                ]
+              },
+              {
+                "localized_name": "height",
+                "name": "height",
+                "type": "INT",
+                "links": [
+                  40
+                ]
+              },
+              {
+                "localized_name": "batch_size",
+                "name": "batch_size",
+                "type": "INT",
+                "links": null
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "GetImageSize"
+            }
+          },
+          {
+            "id": "460_601",
+            "type": "ComfyMathExpression",
+            "pos": [
+              15.269664896043992,
+              -194.96693634618651
+            ],
+            "size": [
+              400,
+              200
+            ],
+            "flags": {
+              "collapsed": false
+            },
+            "order": 2,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "a",
+                "name": "values.a",
+                "type": "FLOAT,INT,BOOLEAN",
+                "link": 39
+              },
+              {
+                "localized_name": "b",
+                "name": "values.b",
+                "shape": 7,
+                "type": "FLOAT,INT,BOOLEAN",
+                "link": 40
+              },
+              {
+                "localized_name": "c",
+                "name": "values.c",
+                "shape": 7,
+                "type": "FLOAT,INT,BOOLEAN",
+                "link": null
+              },
+              {
+                "localized_name": "expression",
+                "name": "expression",
+                "type": "STRING",
+                "widget": {
+                  "name": "expression"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "FLOAT",
+                "name": "FLOAT",
+                "type": "FLOAT",
+                "links": [
+                  1
+                ]
+              },
+              {
+                "localized_name": "INT",
+                "name": "INT",
+                "type": "INT",
+                "links": null
+              },
+              {
+                "localized_name": "BOOL",
+                "name": "BOOL",
+                "type": "BOOLEAN",
+                "links": null
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "ComfyMathExpression"
+            },
+            "widgets_values": [
+              "min(1, 1024 / max(a, b))"
+            ],
+            "widgets_values_named": {
+              "expression": "min(1, 1024 / max(a, b))"
+            }
+          },
+          {
+            "id": 425,
+            "type": "ImageScaleBy",
+            "pos": [
+              433.4560879492567,
+              -191.96693634618651
+            ],
+            "size": [
+              237.93748917283256,
+              82
+            ],
+            "flags": {
+              "collapsed": false
+            },
+            "order": 0,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "image",
+                "name": "image",
+                "type": "IMAGE",
+                "link": 2
+              },
+              {
+                "localized_name": "upscale_method",
+                "name": "upscale_method",
+                "type": "COMBO",
+                "widget": {
+                  "name": "upscale_method"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "scale_by",
+                "name": "scale_by",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "scale_by"
+                },
+                "link": 1
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  18
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "ImageScaleBy"
+            },
+            "widgets_values": [
+              "lanczos",
+              1
+            ],
+            "widgets_values_named": {
+              "upscale_method": "lanczos",
+              "scale_by": 1
+            }
+          }
+        ],
+        "groups": [],
+        "links": [
+          {
+            "id": 1,
+            "origin_id": "460_601",
+            "origin_slot": 0,
+            "target_id": 425,
+            "target_slot": 2,
+            "type": "FLOAT"
+          },
+          {
+            "id": 38,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": "460_600",
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 2,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 425,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 18,
+            "origin_id": 425,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 39,
+            "origin_id": "460_600",
+            "origin_slot": 0,
+            "target_id": "460_601",
+            "target_slot": 0,
+            "type": "INT"
+          },
+          {
+            "id": 40,
+            "origin_id": "460_600",
+            "origin_slot": 1,
+            "target_id": "460_601",
+            "target_slot": 1,
+            "type": "INT"
+          }
+        ],
+        "extra": {}
+      }
+    ]
+  },
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1.034194328288971,
+      "offset": [
+        605.3246942776736,
+        1196.6003112477526
+      ]
+    }
+  },
+  "extensions": {
+    "seed_widgets": {
+      "7": 1,
+      "53": 0
+    }
+  },
+  "version": 0.4
+}
