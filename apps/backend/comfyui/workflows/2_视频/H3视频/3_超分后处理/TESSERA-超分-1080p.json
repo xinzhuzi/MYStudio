@@ -1,0 +1,2427 @@
+{
+ "id": "tessera-upscale-1080p-1110",
+ "revision": 1,
+ "last_node_id": 337,
+ "last_link_id": 754,
+ "nodes": [
+  {
+   "id": 308,
+   "type": "UNETLoader",
+   "pos": [
+    80,
+    1670
+   ],
+   "size": [
+    640,
+    90
+   ],
+   "flags": {},
+   "order": 308,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      710
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.29.0",
+    "Node name for S&R": "UNETLoader",
+    "models": [
+     {
+      "name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "directory": "diffusion_models"
+     }
+    ]
+   },
+   "widgets_values": [
+    "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors",
+    "default"
+   ],
+   "title": "TESSERA 底模(Cobijada 统一)"
+  },
+  {
+   "id": 309,
+   "type": "CLIPLoader",
+   "pos": [
+    80,
+    1908
+   ],
+   "size": [
+    640,
+    120
+   ],
+   "flags": {},
+   "order": 309,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      700,
+      741
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.29.0",
+    "Node name for S&R": "CLIPLoader",
+    "models": [
+     {
+      "name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "directory": "text_encoders"
+     }
+    ]
+   },
+   "widgets_values": [
+    "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+    "minimax",
+    "default"
+   ]
+  },
+  {
+   "id": 310,
+   "type": "VAELoader",
+   "pos": [
+    80,
+    2176
+   ],
+   "size": [
+    640,
+    70
+   ],
+   "flags": {},
+   "order": 310,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      701,
+      736,
+      745
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.29.0",
+    "Node name for S&R": "VAELoader",
+    "models": [
+     {
+      "name": "minimax_h3_video_vae_fp16.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_video_vae_fp16.safetensors",
+      "directory": "vae"
+     }
+    ]
+   },
+   "widgets_values": [
+    "minimax_h3_video_vae_int8_convrot.safetensors"
+   ]
+  },
+  {
+   "id": 311,
+   "type": "VAELoader",
+   "pos": [
+    80,
+    2384
+   ],
+   "size": [
+    650,
+    70
+   ],
+   "flags": {},
+   "order": 311,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      702,
+      705,
+      717
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.29.0",
+    "Node name for S&R": "VAELoader",
+    "models": [
+     {
+      "name": "minimax_h3_audio_vae_fp32.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_audio_vae_fp32.safetensors",
+      "directory": "vae"
+     }
+    ]
+   },
+   "widgets_values": [
+    "minimax_h3_audio_vae_fp32.safetensors"
+   ]
+  },
+  {
+   "id": 320,
+   "type": "MiniMaxH3ReferenceToVideo",
+   "pos": [
+    2965,
+    654
+   ],
+   "size": [
+    463.23935624366527,
+    424
+   ],
+   "flags": {},
+   "order": 320,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 700
+    },
+    {
+     "name": "vae",
+     "shape": 7,
+     "type": "VAE",
+     "link": 701
+    },
+    {
+     "name": "audio_vae",
+     "shape": 7,
+     "type": "VAE",
+     "link": 702
+    },
+    {
+     "label": "ref_image_0",
+     "name": "ref_images.ref_image_0",
+     "shape": 7,
+     "type": "IMAGE",
+     "link": null
+    },
+    {
+     "label": "ref_video_0",
+     "name": "ref_videos.ref_video_0",
+     "shape": 7,
+     "type": "IMAGE",
+     "link": 703
+    },
+    {
+     "name": "ref_videos.ref_video_1",
+     "shape": 7,
+     "type": "IMAGE",
+     "link": null
+    },
+    {
+     "label": "ref_video_audio_0",
+     "name": "ref_video_audios.ref_video_audio_0",
+     "shape": 7,
+     "type": "AUDIO",
+     "link": null
+    },
+    {
+     "label": "ref_audio_0",
+     "name": "ref_audios.ref_audio_0",
+     "shape": 7,
+     "type": "AUDIO",
+     "link": null
+    },
+    {
+     "name": "ref_audios.ref_audio_1",
+     "shape": 7,
+     "type": "AUDIO",
+     "link": null
+    },
+    {
+     "name": "ref_audios.ref_audio_2",
+     "shape": 7,
+     "type": "AUDIO",
+     "link": null
+    },
+    {
+     "name": "prompt",
+     "type": "STRING",
+     "widget": {
+      "name": "prompt"
+     },
+     "link": null
+    },
+    {
+     "name": "width",
+     "type": "INT",
+     "widget": {
+      "name": "width"
+     },
+     "link": null
+    },
+    {
+     "name": "height",
+     "type": "INT",
+     "widget": {
+      "name": "height"
+     },
+     "link": null
+    },
+    {
+     "name": "length",
+     "type": "INT",
+     "widget": {
+      "name": "length"
+     },
+     "link": null
+    },
+    {
+     "name": "ref_video_audios.ref_video_audio_1",
+     "shape": 7,
+     "type": "AUDIO",
+     "link": null
+    },
+    {
+     "name": "ref_video_audios.ref_video_audio_2",
+     "shape": 7,
+     "type": "AUDIO",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "links": [
+      709,
+      737
+     ]
+    },
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": []
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.30.0",
+    "Node name for S&R": "MiniMaxH3ReferenceToVideo"
+   },
+   "widgets_values": [
+    "subject_definitions:\n<Video 1>: the reference video. Its picture, motion, framing, timing and content are the target video's content.\n<Picture 1> is a reference of a high resolution upscaled version of the first frame of the video. \n\nretention_analysis:\n<Video 1>: fully_preserved - <Video 1> is reproduced one to one as the target video. Every frame matches the source.\n\nEnhance this video with sharp, crisp details while preserving a natural photorealistic appearance.",
+    1920,
+    1056,
+    192,
+    "max"
+   ],
+   "title": "TESSERA 条件(1920×1056)"
+  },
+  {
+   "id": 317,
+   "type": "KSamplerSelect",
+   "pos": [
+    80,
+    2592
+   ],
+   "size": [
+    210,
+    58
+   ],
+   "flags": {},
+   "order": 317,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "SAMPLER",
+     "type": "SAMPLER",
+     "links": [
+      746
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.29.0",
+    "Node name for S&R": "KSamplerSelect"
+   },
+   "widgets_values": [
+    "er_sde"
+   ],
+   "title": "er_sde"
+  },
+  {
+   "id": 334,
+   "type": "VAEDecodeAudio",
+   "pos": [
+    7346,
+    416
+   ],
+   "size": [
+    230,
+    60
+   ],
+   "flags": {
+    "collapsed": false
+   },
+   "order": 334,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 704
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 705
+    }
+   ],
+   "outputs": [
+    {
+     "name": "AUDIO",
+     "type": "AUDIO",
+     "links": [
+      721
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.29.0",
+    "Node name for S&R": "VAEDecodeAudio"
+   }
+  },
+  {
+   "id": 316,
+   "type": "LoraLoaderModelOnly",
+   "pos": [
+    3648,
+    630
+   ],
+   "size": [
+    398.9882722523473,
+    82
+   ],
+   "flags": {},
+   "order": 316,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 706
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      740
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.31.0",
+    "Node name for S&R": "LoraLoaderModelOnly"
+   },
+   "widgets_values": [
+    "minimax_h3_lms_v1.0_r64.safetensors",
+    1.0
+   ],
+   "title": "LMS@1.0(fine)"
+  },
+  {
+   "id": 304,
+   "type": "LTXVConcatAVLatent",
+   "pos": [
+    6406,
+    130
+   ],
+   "size": [
+    181.308203125,
+    46
+   ],
+   "flags": {},
+   "order": 304,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "video_latent",
+     "type": "LATENT",
+     "link": 707
+    },
+    {
+     "name": "audio_latent",
+     "type": "LATENT",
+     "link": 708
+    }
+   ],
+   "outputs": [
+    {
+     "name": "latent",
+     "type": "LATENT",
+     "links": [
+      744
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.31.0",
+    "Node name for S&R": "LTXVConcatAVLatent"
+   }
+  },
+  {
+   "id": 337,
+   "type": "ConditioningZeroOut",
+   "pos": [
+    3648,
+    868
+   ],
+   "size": [
+    204.134765625,
+    26
+   ],
+   "flags": {},
+   "order": 337,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "conditioning",
+     "type": "CONDITIONING",
+     "link": 709
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      743
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.33.0",
+    "Node name for S&R": "ConditioningZeroOut"
+   }
+  },
+  {
+   "id": 312,
+   "type": "ModelAttentionBackend",
+   "pos": [
+    1648,
+    404
+   ],
+   "size": [
+    270,
+    58
+   ],
+   "flags": {},
+   "order": 312,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 710
+    }
+   ],
+   "outputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "links": [
+      712
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.33.0",
+    "Node name for S&R": "ModelAttentionBackend"
+   },
+   "widgets_values": [
+    "comfy kitchen attention"
+   ]
+  },
+  {
+   "id": 318,
+   "type": "KSamplerSelect",
+   "pos": [
+    80,
+    2800
+   ],
+   "size": [
+    210,
+    58
+   ],
+   "flags": {},
+   "order": 318,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "SAMPLER",
+     "type": "SAMPLER",
+     "links": [
+      747
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.29.0",
+    "Node name for S&R": "KSamplerSelect"
+   },
+   "widgets_values": [
+    "euler"
+   ],
+   "title": "euler(fine)"
+  },
+  {
+   "id": 315,
+   "type": "LoraLoaderModelOnly",
+   "pos": [
+    3648,
+    392
+   ],
+   "size": [
+    398.9882722523473,
+    82
+   ],
+   "flags": {},
+   "order": 315,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 711
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      739
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.31.0",
+    "Node name for S&R": "LoraLoaderModelOnly"
+   },
+   "widgets_values": [
+    "minimax_h3_lms_v1.0_r64.safetensors",
+    0.75
+   ],
+   "title": "LMS@0.75(主)"
+  },
+  {
+   "id": 313,
+   "type": "BlockSparseAttention",
+   "pos": [
+    2374,
+    470
+   ],
+   "size": [
+    270,
+    250
+   ],
+   "flags": {},
+   "order": 313,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 712
+    }
+   ],
+   "outputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "links": [
+      713
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.34.0",
+    "Node name for S&R": "BlockSparseAttention"
+   },
+   "widgets_values": [
+    "sol-attn",
+    1.5,
+    0.0,
+    1.0,
+    "0,1",
+    12288,
+    256,
+    "exact_kv_and_rows",
+    false
+   ],
+   "title": "sol-attn"
+  },
+  {
+   "id": 314,
+   "type": "LoraLoaderModelOnly",
+   "pos": [
+    2965,
+    416
+   ],
+   "size": [
+    398.9882722523473,
+    82
+   ],
+   "flags": {},
+   "order": 314,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 713
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      706,
+      711
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.31.0",
+    "Node name for S&R": "LoraLoaderModelOnly"
+   },
+   "widgets_values": [
+    "taomate_h3_3step.safetensors",
+    0.7
+   ],
+   "title": "taomate@1.0"
+  },
+  {
+   "id": 333,
+   "type": "SetLatentNoiseMask",
+   "pos": [
+    2965,
+    1342
+   ],
+   "size": [
+    188.1373046875,
+    46
+   ],
+   "flags": {},
+   "order": 333,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 714
+    },
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 715
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      708
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.35.0",
+    "Node name for S&R": "SetLatentNoiseMask"
+   }
+  },
+  {
+   "id": 331,
+   "type": "VAEEncodeAudio",
+   "pos": [
+    2374,
+    1156
+   ],
+   "size": [
+    162.659765625,
+    46
+   ],
+   "flags": {},
+   "order": 331,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "audio",
+     "type": "AUDIO",
+     "link": 716
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 717
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      714
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.35.0",
+    "Node name for S&R": "VAEEncodeAudio"
+   }
+  },
+  {
+   "id": 332,
+   "type": "SolidMask",
+   "pos": [
+    80,
+    3930
+   ],
+   "size": [
+    210,
+    106
+   ],
+   "flags": {},
+   "order": 332,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [
+      715
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.35.0",
+    "Node name for S&R": "SolidMask"
+   },
+   "widgets_values": [
+    1,
+    32,
+    32
+   ]
+  },
+  {
+   "id": 300,
+   "type": "LoadVideo",
+   "pos": [
+    80,
+    130
+   ],
+   "size": [
+    1348.2068156333198,
+    851.8116244038383
+   ],
+   "flags": {},
+   "order": 300,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "VIDEO",
+     "type": "VIDEO",
+     "links": [
+      718
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.35.0",
+    "Node name for S&R": "LoadVideo"
+   },
+   "widgets_values": [
+    "your_source_clip.mp4",
+    "image"
+   ],
+   "title": "源视频(指②组产物)"
+  },
+  {
+   "id": 301,
+   "type": "GetVideoComponents",
+   "pos": [
+    1648,
+    130
+   ],
+   "size": [
+    193.530859375,
+    106
+   ],
+   "flags": {},
+   "order": 301,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "video",
+     "type": "VIDEO",
+     "link": 718
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [
+      734
+     ]
+    },
+    {
+     "name": "audio",
+     "type": "AUDIO",
+     "links": [
+      716
+     ]
+    },
+    {
+     "name": "fps",
+     "type": "FLOAT",
+     "links": []
+    },
+    {
+     "name": "bit_depth",
+     "type": "COMBO",
+     "links": []
+    },
+    {
+     "name": "color_space",
+     "type": "COMBO",
+     "links": []
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.35.0",
+    "Node name for S&R": "GetVideoComponents"
+   }
+  },
+  {
+   "id": 336,
+   "type": "SaveVideo",
+   "pos": [
+    8404,
+    130
+   ],
+   "size": [
+    2002.3330129374567,
+    1280.6553739978922
+   ],
+   "flags": {},
+   "order": 336,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "video",
+     "type": "VIDEO",
+     "link": 719
+    }
+   ],
+   "outputs": [
+    {
+     "name": "video",
+     "type": "VIDEO",
+     "links": []
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.35.0"
+   },
+   "widgets_values": [
+    "video/TESSERA超分/tessera-1080p",
+    "mp4",
+    "h264",
+    "re-encode",
+    12.0,
+    "auto"
+   ],
+   "title": "TESSERA 保存(CRF12)"
+  },
+  {
+   "id": 335,
+   "type": "CreateVideo",
+   "pos": [
+    7914,
+    130
+   ],
+   "size": [
+    270,
+    150
+   ],
+   "flags": {},
+   "order": 335,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 720
+    },
+    {
+     "name": "audio",
+     "shape": 7,
+     "type": "AUDIO",
+     "link": 721
+    }
+   ],
+   "outputs": [
+    {
+     "name": "VIDEO",
+     "type": "VIDEO",
+     "links": [
+      719
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.35.0",
+    "Node name for S&R": "CreateVideo"
+   },
+   "widgets_values": [
+    24,
+    "auto",
+    "sRGB",
+    "none"
+   ]
+  },
+  {
+   "id": 324,
+   "type": "UNETLoader",
+   "pos": [
+    80,
+    3216
+   ],
+   "size": [
+    510,
+    90
+   ],
+   "flags": {},
+   "order": 324,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      732
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.37.0",
+    "Node name for S&R": "UNETLoader",
+    "models": [
+     {
+      "name": "qwen_image_2.1_int8_convrot.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors",
+      "directory": "diffusion_models"
+     }
+    ]
+   },
+   "widgets_values": [
+    "qwen_image_2.1_int8_convrot.safetensors",
+    "default"
+   ]
+  },
+  {
+   "id": 325,
+   "type": "CLIPLoader",
+   "pos": [
+    80,
+    3454
+   ],
+   "size": [
+    510,
+    120
+   ],
+   "flags": {},
+   "order": 325,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      722
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.37.0",
+    "Node name for S&R": "CLIPLoader",
+    "models": [
+     {
+      "name": "qwen3vl_8b_int8_convrot.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors",
+      "directory": "text_encoders"
+     }
+    ]
+   },
+   "widgets_values": [
+    "qwen3vl_8b_int8_convrot.safetensors",
+    "qwen_image",
+    "default"
+   ]
+  },
+  {
+   "id": 323,
+   "type": "TextEncodeQwenImage21",
+   "pos": [
+    4267,
+    130
+   ],
+   "size": [
+    464.92486633790395,
+    526.4168466121318
+   ],
+   "flags": {},
+   "order": 323,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 722
+    },
+    {
+     "name": "images.image_1",
+     "shape": 7,
+     "type": "IMAGE",
+     "link": 723
+    },
+    {
+     "name": "vae",
+     "shape": 7,
+     "type": "VAE",
+     "link": 724
+    },
+    {
+     "name": "images.image_11",
+     "shape": 7,
+     "type": "IMAGE",
+     "link": null
+    },
+    {
+     "name": "images.image_2",
+     "shape": 7,
+     "type": "IMAGE",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "links": [
+      726
+     ]
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "links": [
+      727
+     ]
+    },
+    {
+     "name": "latent",
+     "type": "LATENT",
+     "links": [
+      728
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.37.0",
+    "Node name for S&R": "TextEncodeQwenImage21"
+   },
+   "widgets_values": [
+    "upscale <image 1> to make it high detail, realistic. Maintain the likeness of the character as much as possible",
+    "",
+    0
+   ]
+  },
+  {
+   "id": 326,
+   "type": "VAELoader",
+   "pos": [
+    80,
+    3722
+   ],
+   "size": [
+    510,
+    70
+   ],
+   "flags": {},
+   "order": 326,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      724,
+      731
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.37.0",
+    "Node name for S&R": "VAELoader",
+    "models": [
+     {
+      "name": "qwen_image_2.1_vae_bf16.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors",
+      "directory": "vae"
+     }
+    ]
+   },
+   "widgets_values": [
+    "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
+   ]
+  },
+  {
+   "id": 329,
+   "type": "KSampler",
+   "pos": [
+    4952,
+    130
+   ],
+   "size": [
+    270,
+    417.66666666666663
+   ],
+   "flags": {},
+   "order": 329,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 725
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 726
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 727
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 728
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      730
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.37.0",
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    1,
+    "fixed",
+    8,
+    1.0,
+    "euler",
+    "linear_quadratic",
+    1.0
+   ]
+  },
+  {
+   "id": 327,
+   "type": "QwenImage21Cache",
+   "pos": [
+    2374,
+    918
+   ],
+   "size": [
+    270,
+    90
+   ],
+   "flags": {},
+   "order": 327,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 729
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      725
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.37.0",
+    "Node name for S&R": "QwenImage21Cache"
+   },
+   "widgets_values": [
+    "auto",
+    "default"
+   ]
+  },
+  {
+   "id": 330,
+   "type": "VAEDecode",
+   "pos": [
+    5442,
+    130
+   ],
+   "size": [
+    230,
+    60
+   ],
+   "flags": {},
+   "order": 330,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 730
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 731
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      738
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.37.0",
+    "Node name for S&R": "VAEDecode"
+   }
+  },
+  {
+   "id": 328,
+   "type": "LoraLoaderModelOnly",
+   "pos": [
+    1648,
+    612
+   ],
+   "size": [
+    505.85527881133476,
+    82
+   ],
+   "flags": {},
+   "order": 328,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 732
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      729
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.39.0",
+    "Node name for S&R": "LoraLoaderModelOnly"
+   },
+   "widgets_values": [
+    "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
+    1.0
+   ]
+  },
+  {
+   "id": 322,
+   "type": "ImageScaleBy",
+   "pos": [
+    3648,
+    130
+   ],
+   "size": [
+    270,
+    82
+   ],
+   "flags": {},
+   "order": 322,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 733
+    },
+    {
+     "name": "scale_by",
+     "type": "FLOAT",
+     "widget": {
+      "name": "scale_by"
+     },
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      723
+     ]
+    }
+   ],
+   "properties": {
+    "cnr_id": "comfy-core",
+    "ver": "0.41.0",
+    "Node name for S&R": "ImageScaleBy"
+   },
+   "widgets_values": [
+    "lanczos",
+    1.5
+   ]
+  },
+  {
+   "id": 302,
+   "type": "TesseraDilate",
+   "pos": [
+    2374,
+    130
+   ],
+   "size": [
+    371.128515625,
+    166
+   ],
+   "flags": {},
+   "order": 302,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 734
+    }
+   ],
+   "outputs": [
+    {
+     "name": "dilated",
+     "type": "IMAGE",
+     "links": [
+      703,
+      735,
+      754
+     ]
+    },
+    {
+     "name": "original_frames",
+     "type": "INT",
+     "links": [
+      752
+     ]
+    },
+    {
+     "name": "info",
+     "type": "STRING",
+     "links": []
+    },
+    {
+     "name": "frame_map",
+     "type": "STRING",
+     "links": [
+      750,
+      753
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "TesseraDilate"
+   },
+   "widgets_values": [
+    "auto",
+    1.2,
+    2.0
+   ],
+   "title": "Tessera 膨胀"
+  },
+  {
+   "id": 303,
+   "type": "TesseraEncode",
+   "pos": [
+    5912,
+    130
+   ],
+   "size": [
+    273.5259765625,
+    234
+   ],
+   "flags": {},
+   "order": 303,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 735
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 736
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 737
+    },
+    {
+     "name": "anchor",
+     "shape": 7,
+     "type": "IMAGE",
+     "link": 738
+    },
+    {
+     "name": "upscale_by",
+     "type": "FLOAT",
+     "widget": {
+      "name": "upscale_by"
+     },
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "links": [
+      742
+     ]
+    },
+    {
+     "name": "latent",
+     "type": "LATENT",
+     "links": [
+      707
+     ]
+    },
+    {
+     "name": "width",
+     "type": "INT",
+     "links": []
+    },
+    {
+     "name": "height",
+     "type": "INT",
+     "links": []
+    },
+    {
+     "name": "frames",
+     "type": "INT",
+     "links": []
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "TesseraEncode"
+   },
+   "widgets_values": [
+    1.5,
+    "lanczos",
+    56,
+    1.0,
+    4
+   ],
+   "title": "Tessera 编码 ×1.5→1920×1056"
+  },
+  {
+   "id": 305,
+   "type": "TesseraRefine",
+   "pos": [
+    6876,
+    130
+   ],
+   "size": [
+    210,
+    720
+   ],
+   "flags": {},
+   "order": 305,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 739
+    },
+    {
+     "name": "model_fine",
+     "shape": 7,
+     "type": "MODEL",
+     "link": 740
+    },
+    {
+     "name": "model_hero",
+     "shape": 7,
+     "type": "MODEL",
+     "link": null
+    },
+    {
+     "name": "clip",
+     "shape": 7,
+     "type": "CLIP",
+     "link": 741
+    },
+    {
+     "name": "positive",
+     "shape": 7,
+     "type": "CONDITIONING",
+     "link": 742
+    },
+    {
+     "name": "negative",
+     "shape": 7,
+     "type": "CONDITIONING",
+     "link": 743
+    },
+    {
+     "name": "latent",
+     "shape": 7,
+     "type": "LATENT",
+     "link": 744
+    },
+    {
+     "name": "vae",
+     "shape": 7,
+     "type": "VAE",
+     "link": 745
+    },
+    {
+     "name": "sampler",
+     "shape": 7,
+     "type": "SAMPLER",
+     "link": 746
+    },
+    {
+     "name": "sampler_fine",
+     "shape": 7,
+     "type": "SAMPLER",
+     "link": 747
+    },
+    {
+     "name": "sigmas",
+     "shape": 7,
+     "type": "SIGMAS",
+     "link": 748
+    },
+    {
+     "name": "hero_sigmas",
+     "shape": 7,
+     "type": "SIGMAS",
+     "link": null
+    },
+    {
+     "name": "hero_mask",
+     "shape": 7,
+     "type": "MASK",
+     "link": null
+    },
+    {
+     "name": "tile_cond",
+     "shape": 7,
+     "type": "TILE_COND",
+     "link": null
+    },
+    {
+     "name": "plan",
+     "shape": 7,
+     "type": "TESSERA_PLAN",
+     "link": null
+    },
+    {
+     "name": "args",
+     "shape": 7,
+     "type": "TESSERA_ARGS",
+     "link": 749
+    },
+    {
+     "name": "frame_map",
+     "shape": 7,
+     "type": "STRING",
+     "link": 750
+    },
+    {
+     "name": "prompt",
+     "type": "STRING",
+     "widget": {
+      "name": "prompt"
+     },
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "latent",
+     "type": "LATENT",
+     "links": [
+      704
+     ]
+    },
+    {
+     "name": "report",
+     "type": "STRING",
+     "links": []
+    },
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "links": [
+      751
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "TesseraRefine"
+   },
+   "widgets_values": [
+    "high_vram",
+    1024,
+    1024,
+    "high_vram",
+    124,
+    4,
+    64,
+    32,
+    896,
+    "median",
+    1.0,
+    786110,
+    "fixed",
+    true,
+    "overall",
+    "subject_definitions:\n<Video 1>: the reference video. Its picture, motion, framing, timing and content are the target video's content.\n<Picture 1> is a reference of a high resolution upscaled version of the first frame of the video. \n\nretention_analysis:\n<Video 1>: fully_preserved - <Video 1> is reproduced one to one as the target video. Every frame matches the source.\n\nEnhance this video with sharp, crisp details while preserving a natural photorealistic appearance.",
+    "subject_definitions:\n<Video 1>: the reference video. Its picture, motion, framing, timing and content are the target video's content.\n<Picture 1> is a reference of a high resolution upscaled version of the first frame of the video. \n\nretention_analysis:\n<Video 1>: fully_preserved - <Video 1> is reproduced one to one as the target video. Every frame matches the source.\n\nEnhance this video with sharp, crisp details while preserving a natural photorealistic appearance."
+   ],
+   "title": "Tessera 精修(σ 1/0.7/0.4/0)"
+  },
+  {
+   "id": 306,
+   "type": "TesseraDecimate",
+   "pos": [
+    7346,
+    130
+   ],
+   "size": [
+    348.077734375,
+    82
+   ],
+   "flags": {},
+   "order": 306,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 751
+    },
+    {
+     "name": "original_frames",
+     "type": "INT",
+     "widget": {
+      "name": "original_frames"
+     },
+     "link": 752
+    },
+    {
+     "name": "frame_map",
+     "shape": 7,
+     "type": "STRING",
+     "widget": {
+      "name": "frame_map"
+     },
+     "link": 753
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      720
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "TesseraDecimate"
+   },
+   "widgets_values": [
+    0,
+    ""
+   ],
+   "title": "Tessera 抽减"
+  },
+  {
+   "id": 307,
+   "type": "TesseraArgs",
+   "pos": [
+    80,
+    1072
+   ],
+   "size": [
+    221.83203125,
+    322
+   ],
+   "flags": {},
+   "order": 307,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "args",
+     "type": "TESSERA_ARGS",
+     "links": [
+      749
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "TesseraArgs"
+   },
+   "widgets_values": [
+    "per_tile",
+    "per_tile",
+    0,
+    "full",
+    "per_frame",
+    0.8,
+    true,
+    -1,
+    true,
+    0.3,
+    0.75,
+    "",
+    0,
+    4
+   ]
+  },
+  {
+   "id": 319,
+   "type": "ManualSigmas",
+   "pos": [
+    80,
+    3008
+   ],
+   "size": [
+    370,
+    100
+   ],
+   "flags": {},
+   "order": 319,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "SIGMAS",
+     "type": "SIGMAS",
+     "links": [
+      748
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ManualSigmas"
+   },
+   "widgets_values": [
+    "1, 0.7, 0.4, 0.0"
+   ],
+   "title": "σ=1,0.7,0.4,0"
+  },
+  {
+   "id": 321,
+   "type": "ImageFromBatch",
+   "pos": [
+    2965,
+    130
+   ],
+   "size": [
+    370,
+    100
+   ],
+   "flags": {},
+   "order": 321,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 754
+    },
+    {
+     "name": "batch_index",
+     "type": "INT",
+     "widget": {
+      "name": "batch_index"
+     },
+     "link": null
+    },
+    {
+     "name": "length",
+     "type": "INT",
+     "widget": {
+      "name": "length"
+     },
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      733
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ImageFromBatch",
+    "cnr_id": "comfy-core"
+   },
+   "widgets_values": [
+    0,
+    1
+   ]
+  }
+ ],
+ "links": [
+  [
+   700,
+   309,
+   0,
+   320,
+   0,
+   "CLIP"
+  ],
+  [
+   701,
+   310,
+   0,
+   320,
+   1,
+   "VAE"
+  ],
+  [
+   702,
+   311,
+   0,
+   320,
+   2,
+   "VAE"
+  ],
+  [
+   703,
+   302,
+   0,
+   320,
+   4,
+   "IMAGE"
+  ],
+  [
+   704,
+   305,
+   0,
+   334,
+   0,
+   "LATENT"
+  ],
+  [
+   705,
+   311,
+   0,
+   334,
+   1,
+   "VAE"
+  ],
+  [
+   706,
+   314,
+   0,
+   316,
+   0,
+   "MODEL"
+  ],
+  [
+   707,
+   303,
+   1,
+   304,
+   0,
+   "LATENT"
+  ],
+  [
+   708,
+   333,
+   0,
+   304,
+   1,
+   "LATENT"
+  ],
+  [
+   709,
+   320,
+   0,
+   337,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   710,
+   308,
+   0,
+   312,
+   0,
+   "MODEL"
+  ],
+  [
+   711,
+   314,
+   0,
+   315,
+   0,
+   "MODEL"
+  ],
+  [
+   712,
+   312,
+   0,
+   313,
+   0,
+   "MODEL"
+  ],
+  [
+   713,
+   313,
+   0,
+   314,
+   0,
+   "MODEL"
+  ],
+  [
+   714,
+   331,
+   0,
+   333,
+   0,
+   "LATENT"
+  ],
+  [
+   715,
+   332,
+   0,
+   333,
+   1,
+   "MASK"
+  ],
+  [
+   716,
+   301,
+   1,
+   331,
+   0,
+   "AUDIO"
+  ],
+  [
+   717,
+   311,
+   0,
+   331,
+   1,
+   "VAE"
+  ],
+  [
+   718,
+   300,
+   0,
+   301,
+   0,
+   "VIDEO"
+  ],
+  [
+   719,
+   335,
+   0,
+   336,
+   0,
+   "VIDEO"
+  ],
+  [
+   720,
+   306,
+   0,
+   335,
+   0,
+   "IMAGE"
+  ],
+  [
+   721,
+   334,
+   0,
+   335,
+   1,
+   "AUDIO"
+  ],
+  [
+   722,
+   325,
+   0,
+   323,
+   0,
+   "CLIP"
+  ],
+  [
+   723,
+   322,
+   0,
+   323,
+   1,
+   "IMAGE"
+  ],
+  [
+   724,
+   326,
+   0,
+   323,
+   2,
+   "VAE"
+  ],
+  [
+   725,
+   327,
+   0,
+   329,
+   0,
+   "MODEL"
+  ],
+  [
+   726,
+   323,
+   0,
+   329,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   727,
+   323,
+   1,
+   329,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   728,
+   323,
+   2,
+   329,
+   3,
+   "LATENT"
+  ],
+  [
+   729,
+   328,
+   0,
+   327,
+   0,
+   "MODEL"
+  ],
+  [
+   730,
+   329,
+   0,
+   330,
+   0,
+   "LATENT"
+  ],
+  [
+   731,
+   326,
+   0,
+   330,
+   1,
+   "VAE"
+  ],
+  [
+   732,
+   324,
+   0,
+   328,
+   0,
+   "MODEL"
+  ],
+  [
+   733,
+   321,
+   0,
+   322,
+   0,
+   "IMAGE"
+  ],
+  [
+   734,
+   301,
+   0,
+   302,
+   0,
+   "IMAGE"
+  ],
+  [
+   735,
+   302,
+   0,
+   303,
+   0,
+   "IMAGE"
+  ],
+  [
+   736,
+   310,
+   0,
+   303,
+   1,
+   "VAE"
+  ],
+  [
+   737,
+   320,
+   0,
+   303,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   738,
+   330,
+   0,
+   303,
+   3,
+   "IMAGE"
+  ],
+  [
+   739,
+   315,
+   0,
+   305,
+   0,
+   "MODEL"
+  ],
+  [
+   740,
+   316,
+   0,
+   305,
+   1,
+   "MODEL"
+  ],
+  [
+   741,
+   309,
+   0,
+   305,
+   3,
+   "CLIP"
+  ],
+  [
+   742,
+   303,
+   0,
+   305,
+   4,
+   "CONDITIONING"
+  ],
+  [
+   743,
+   337,
+   0,
+   305,
+   5,
+   "CONDITIONING"
+  ],
+  [
+   744,
+   304,
+   0,
+   305,
+   6,
+   "LATENT"
+  ],
+  [
+   745,
+   310,
+   0,
+   305,
+   7,
+   "VAE"
+  ],
+  [
+   746,
+   317,
+   0,
+   305,
+   8,
+   "SAMPLER"
+  ],
+  [
+   747,
+   318,
+   0,
+   305,
+   9,
+   "SAMPLER"
+  ],
+  [
+   748,
+   319,
+   0,
+   305,
+   10,
+   "SIGMAS"
+  ],
+  [
+   749,
+   307,
+   0,
+   305,
+   15,
+   "TESSERA_ARGS"
+  ],
+  [
+   750,
+   302,
+   3,
+   305,
+   16,
+   "STRING"
+  ],
+  [
+   751,
+   305,
+   2,
+   306,
+   0,
+   "IMAGE"
+  ],
+  [
+   752,
+   302,
+   1,
+   306,
+   1,
+   "INT"
+  ],
+  [
+   753,
+   302,
+   3,
+   306,
+   2,
+   "STRING"
+  ],
+  [
+   754,
+   302,
+   0,
+   321,
+   0,
+   "IMAGE"
+  ]
+ ],
+ "groups": [
+  {
+   "title": "TESSERA 超分·1080p(第四发 api_formal_v4 定谳;独立工具件,LoadVideo 吃任意片)",
+   "bounding": [
+    50,
+    80,
+    10386.333012937457,
+    3986
+   ],
+   "color": "#553322",
+   "id": 2103,
+   "mode": 0,
+   "flags": {}
+  }
+ ],
+ "config": {},
+ "extra": {},
+ "version": 0.4
+}
