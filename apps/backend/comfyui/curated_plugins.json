@@ -494,6 +494,58 @@
       "provides": [
         "VNCCS_PoseStudio"
       ]
+    },
+    {
+      "id": "ComfyUI-See-through",
+      "name": "SeeThrough 立绘图层拆解",
+      "desc_zh": "单张动漫立绘一键拆 20+ 透明语义图层(深度排序定绘制序+遮挡部位自动补全,虹膜/眼白/睫毛/眉/耳左右拆)导出 PSD+深度PSD,SIGGRAPH 2026 See-through 论文的官方 ComfyUI 封装(作者 jtydhr88=B站UP主机智罗_LX本人)。repo 工作流 seethrough-basic/seethrough-layer-editor 依赖本件;模型 layerdiff3d 9.46G+marigold 3.05G 住 models/SeeThrough/(首跑自动下载或手放);pip 仅懒依赖 bitsandbytes(NF4 可选臂),bf16 主路零额外依赖。",
+      "category": "图像 图层拆解",
+      "repo": "https://github.com/jtydhr88/ComfyUI-See-through",
+      "verified_license": "MIT(README 明示,1107 实查)",
+      "provides": [
+        "SeeThrough_LoadLayerDiffModel",
+        "SeeThrough_LoadDepthModel",
+        "SeeThrough_GenerateLayers",
+        "SeeThrough_GenerateDepth",
+        "SeeThrough_PostProcess",
+        "SeeThrough_SavePSD",
+        "SeeThrough_PartsToLayers"
+      ],
+      "pin": {
+        "commit": "98d754bf04f668647919ab750eccb0e0640faa81",
+        "anchors_sha256": {
+          "nodes.py": "47897109ecadbcb44ba68964c0dea84d23acb7e8805a5bd4880922dedd169645",
+          "__init__.py": "fbaa58c329624b9097642b86eddf034cfe865fd6a6648ddf809a533e046e10c7",
+          "pyproject.toml": "1155b16cf507ae7be887fa38c8899124f4e55eaac8a2ab58f6ccb21290f11517"
+        }
+      }
+    },
+    {
+      "id": "Comfyui-Qwen-Image-2.1-MultiAngle-T8",
+      "name": "MultiAngle-T8 AnyAngle 多角度工作台",
+      "desc_zh": "Qwen-Image-2.1 任意机位+姿势工作台:AnyAngle Studio 浏览器工作台(内置 MakeHuman 人偶摆姿/照片导入旋转机位/DWPose 一键照片姿势提取/多人编码/Canny 控制)。基础流(内置人偶+Canny)零新权重即跑;DWPose ONNX 351M 首跑自动下载;3D 重建分支需 TripoSplat 五件 3.78G(未装不可跑);可选 AnyAngle LoRA 与同作者 Spectrum/SageAttention/BlockCache 节点联动。1108-11 骨架路补装役入册,配套 Fun-Controlnet-Union CN 模型(models/controlnet/)。",
+      "category": "Qwen-Image-2.1 图像",
+      "repo": "https://github.com/T8mars/Comfyui-Qwen-Image-2.1-MultiAngle-T8",
+      "verified_license": "MIT(仓库 LICENSE 文件,2026-11-11 钉版实查)",
+      "provides": [
+        "AnyAngleStudioT8",
+        "AnyAngleOptionalLoRAT8",
+        "AnyAngleReconstructionOutputT8",
+        "AnyAngleMultiPersonEncodeT8",
+        "AnyAnglePoseReadT8",
+        "AnyAngleReferenceReadT8",
+        "AnyAngleTextReadT8",
+        "AnyAnglePromptModeReadT8"
+      ],
+      "pin": {
+        "commit": "f920d97fd9477a807a8d68e59bf3174a70fa1b30",
+        "anchors_sha256": {
+          "__init__.py": "23e0ba8615fb5efb412fec1863a16b2e248ce4cf388972638cf7ffa1f47373f6",
+          "depth.py": "d807c8dfeba46e7ba887c4981f6c8a34b13d771f1fd91ec876d4c3ecbde28282",
+          "reference_library.py": "25a3e7785a25a58d90680843cb5c0d8842f54ed561cb0ca4fa2b53b1a47d7bf5",
+          "web/anyangle.js": "8bd48e17f8afdb6163c5acf6832826b66b725d03e77f3100569a717a9cfba992"
+        }
+      }
     }
   ]
 }

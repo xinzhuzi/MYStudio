@@ -228,6 +228,14 @@
     {
       "name": "WhatDreamsCost-ComfyUI",
       "url": "https://github.com/WhatDreamsCost/WhatDreamsCost-ComfyUI"
+    },
+    {
+      "name": "ComfyUI-See-through",
+      "url": "https://github.com/jtydhr88/ComfyUI-See-through.git"
+    },
+    {
+      "name": "Comfyui-Qwen-Image-2.1-MultiAngle-T8",
+      "url": "https://github.com/T8mars/Comfyui-Qwen-Image-2.1-MultiAngle-T8.git"
     }
   ]
 }
