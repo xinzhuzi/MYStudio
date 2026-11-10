@@ -588,6 +588,58 @@
           "union_compat.py": "6738ff17ba88a92f81ba10d4e60f64969a6845ea89f33719cc4226fd1ffea172"
         }
       }
+    },
+    {
+      "id": "Goohai-ImageLibrary-Comfyui",
+      "name": "Goohai 四合一素材图库(服装/姿势/发型/人像)",
+      "desc_zh": "孤海FOTO 四合一图库节点 GoohaiImageLibrary:类型下拉(服装/姿势/发型/人像/无/上传)+随机批量+收藏+内置裁剪,输出 image+prompt;素材库住引擎 models/GHIL/{costume,pose,hair,portrait}(四域 8.5G,1111 从 wangweihong 四图库上游仓重建落 Win,计数 1439/1407/893×3/1499×2 全对账;域内索引自带上游 data/*-zh.json);源=孤海夸克 2a6c7ea8ff7c 插件包重建(28 件零缺失),上游谱系=wangweihong 四件套+Deeyu/anhao 数据;1111 装毕 Win 引擎+烟测三连绿(四域出图/PE 看图写指令/全链换装 40s 视觉验收过)。",
+      "category": "Qwen-Image 图像引擎",
+      "repo": "https://pan.quark.cn/s/2a6c7ea8ff7c",
+      "verified_license": "unknown(网盘独发无公开仓;包内 licenses/ 携上游四仓 LICENSE/NOTICE,素材版权归原权利人商用自查)",
+      "provides": [
+        "GoohaiImageLibrary"
+      ],
+      "pin": "1111"
+    },
+    {
+      "id": "ComfyUI-H3-NativeAudioLock",
+      "name": "H3 原生音轨锁(数字人音频驱动)",
+      "desc_zh": "MiniMaxH3NativeAudioLock 单文件件:把用户音频编码进 H3 AV latent 音频流并加 noise_mask(视频侧=1 降噪/音频侧=0 锁定),模型联合注意力驱动口型;源=Shrek3OnVH5/MiniMax-H3-NativeAudio-MusicVideo-Workflow 内嵌 custom_nodes(上游 master 无独立仓);1111 数字人V6 嫁接役装 Win 引擎(萝卜 340 集件的核心依赖)。",
+      "category": "MiniMax H3 视频",
+      "repo": "https://github.com/Shrek3OnVH5/MiniMax-H3-NativeAudio-MusicVideo-Workflow",
+      "verified_license": "unknown(工作流仓内嵌件,LICENSE 未单列)",
+      "provides": [
+        "MiniMaxH3NativeAudioLock"
+      ],
+      "pin": "1111"
+    },
+    {
+      "id": "ComfyUI-H3-Motion-Context",
+      "name": "H3 动作上下文接力(22帧桥)",
+      "desc_zh": "MotionContext 三件套:MiniMaxH3MotionContext(上段尾帧 latent 作永不降噪条件行=无缝接力)/MotionContextSaveLatent/LoadLatent(磁盘 relay,latent_path 字符串链保执行序);22/5/39/56 帧档,22=近无缝;取 NikoDemon80 紧凑 fork(无 VHS 依赖;seitanism/-MultiRef 为大而全兄弟仓);1111 数字人V6/无限时长V6 嫁接役装 Win 引擎。",
+      "category": "MiniMax H3 视频",
+      "repo": "https://github.com/NikoDemon80/ComfyUI-H3-Motion-Context",
+      "verified_license": "MIT(仓库 LICENSE)",
+      "provides": [
+        "MiniMaxH3MotionContext",
+        "MiniMaxH3MotionContextSaveLatent",
+        "MiniMaxH3MotionContextLoadLatent",
+        "MiniMaxH3MotionContextTrim",
+        "MiniMaxH3MotionContextChain"
+      ],
+      "pin": "1111"
+    },
+    {
+      "id": "ComfyUI-H3-Context-Noise",
+      "name": "H3 上下文锥形噪声注入",
+      "desc_zh": "MiniMaxH3ContextLatentTaperNoise:对上段 AV latent 尾部潜步注入锥形高斯噪声(alpha 0.45→0.1,ramp_steps 2,音频流不动),配 MotionContext 用=循环拼接的桥接软化;作者 beijinren;1111 数字人V6 嫁接役装 Win 引擎。",
+      "category": "MiniMax H3 视频",
+      "repo": "https://github.com/beijinren/ComfyUI-H3-Context-Noise",
+      "verified_license": "MIT(仓库 LICENSE)",
+      "provides": [
+        "MiniMaxH3ContextLatentTaperNoise"
+      ],
+      "pin": "1111"
     }
   ]
 }
