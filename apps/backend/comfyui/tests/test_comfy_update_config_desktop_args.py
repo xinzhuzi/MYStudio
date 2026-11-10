@@ -121,10 +121,12 @@ class TestResolveLaunchPort:
 class TestParseHardening:
     """深审 W2/INFO1:双端口一致的三类硬拒。"""
 
-    def test_backslash_rejected(self):
-        from comfyui.engine_manager import EngineOpError, parse_launch_args_string
-        with pytest.raises(EngineOpError, match="反斜杠"):
-            parse_launch_args_string(r"--foo a\b")
+    def test_backslash_normalized_to_forward_slash(self):
+        # 1111 Win 修:反斜杠不再拒收——归一为正斜杠(Windows 路径原生形态,双平台同语义)
+        from comfyui.engine_manager import parse_launch_args_string
+        parsed = parse_launch_args_string(r"--output-directory E:\IP\data --port 17000")
+        assert parsed["flags"] == ["--output-directory", "E:/IP/data"]
+        assert parsed["port"] == 17000
 
     def test_unicode_whitespace_token_rejected(self):
         from comfyui.engine_manager import EngineOpError, parse_launch_args_string

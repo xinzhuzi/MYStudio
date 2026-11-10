@@ -376,7 +376,10 @@ def parse_launch_args_string(args_string: str) -> dict:
     (09-10 全盘照 Desktop:串=唯一真源,语义错误不在此拦,引擎自会报错走 error 态)。
     """
     if "\\" in args_string:
-        raise EngineOpError("启动参数暂不支持反斜杠转义;请用引号包裹含特殊字符的值")
+        # 1111 Win 修复:Windows 路径原生反斜杠(manifest --output-directory E:\IP\...),
+        # 归一为正斜杠(Python/子进程双平台同语义)而非拒收——归一后 shlex 转义歧义
+        # 随之消失;纯转义攻击面(把 \ 当 shlex 转义符吃字符)同步消解。
+        args_string = args_string.replace("\\", "/")
     try:
         tokens = shlex.split(args_string or "")
     except ValueError as exc:
