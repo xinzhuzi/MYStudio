@@ -3240,7 +3240,7 @@
               {
                 "name": "model",
                 "type": "MODEL",
-                "link": 7922
+                "link": 7923
               }
             ],
             "outputs": [
@@ -3302,8 +3302,7 @@
                   7918,
                   7919,
                   7920,
-                  7921,
-                  7923
+                  7921
                 ],
                 "slot_index": 0
               }
@@ -3330,7 +3329,7 @@
             "id": 7212,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              2650,
+              1450,
               2400
             ],
             "size": [
@@ -3339,12 +3338,12 @@
             ],
             "flags": {},
             "order": 20,
-            "mode": 0,
+            "mode": 4,
             "inputs": [
               {
                 "name": "model",
                 "type": "MODEL",
-                "link": 7923
+                "link": 7922
               },
               {
                 "name": "lora_name",
@@ -3363,19 +3362,14 @@
                 "name": "MODEL",
                 "type": "MODEL",
                 "links": [
-                  7916,
-                  7917,
-                  7918,
-                  7919,
-                  7920,
-                  7921
+                  7923
                 ]
               }
             ],
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly"
             },
-            "title": "无审查LoRA·Tumblr NudeShot 2.1-v3(×1.0)",
+            "title": "无审查LoRA·Tumblr NudeShot 2.1-v3(×1.0,默认旁路)",
             "widgets_values": [
               "tumblr_2.1_v3.safetensors",
               1.0
@@ -3903,7 +3897,7 @@
           },
           {
             "id": 7916,
-            "origin_id": 7212,
+            "origin_id": 7211,
             "origin_slot": 0,
             "target_id": 7110,
             "target_slot": 0,
@@ -3911,7 +3905,7 @@
           },
           {
             "id": 7917,
-            "origin_id": 7212,
+            "origin_id": 7211,
             "origin_slot": 0,
             "target_id": 7028,
             "target_slot": 0,
@@ -3919,7 +3913,7 @@
           },
           {
             "id": 7918,
-            "origin_id": 7212,
+            "origin_id": 7211,
             "origin_slot": 0,
             "target_id": 7011,
             "target_slot": 0,
@@ -3927,7 +3921,7 @@
           },
           {
             "id": 7919,
-            "origin_id": 7212,
+            "origin_id": 7211,
             "origin_slot": 0,
             "target_id": 7022,
             "target_slot": 0,
@@ -3935,7 +3929,7 @@
           },
           {
             "id": 7920,
-            "origin_id": 7212,
+            "origin_id": 7211,
             "origin_slot": 0,
             "target_id": 7010,
             "target_slot": 0,
@@ -3943,7 +3937,7 @@
           },
           {
             "id": 7921,
-            "origin_id": 7212,
+            "origin_id": 7211,
             "origin_slot": 0,
             "target_id": 7040,
             "target_slot": 0,
@@ -3953,15 +3947,15 @@
             "id": 7922,
             "origin_id": 7026,
             "origin_slot": 0,
-            "target_id": 7210,
+            "target_id": 7212,
             "target_slot": 0,
             "type": "MODEL"
           },
           {
             "id": 7923,
-            "origin_id": 7211,
+            "origin_id": 7212,
             "origin_slot": 0,
-            "target_id": 7212,
+            "target_id": 7210,
             "target_slot": 0,
             "type": "MODEL"
           }
