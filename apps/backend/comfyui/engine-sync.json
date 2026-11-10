@@ -236,6 +236,18 @@
     {
       "name": "Comfyui-Qwen-Image-2.1-MultiAngle-T8",
       "url": "https://github.com/T8mars/Comfyui-Qwen-Image-2.1-MultiAngle-T8.git"
+    },
+    {
+      "name": "ComfyUI-llama_Dapao",
+      "url": "https://github.com/paolaoshi/ComfyUI-llama_Dapao.git"
+    },
+    {
+      "name": "comfy_mtb",
+      "url": "https://github.com/melMass/comfy_mtb.git"
+    },
+    {
+      "name": "Comfyui-Qwen-Image-2.1-Fun-Controlnet-Union-T8",
+      "url": "https://github.com/T8mars/Comfyui-Qwen-Image-2.1-Fun-Controlnet-Union-T8.git"
     }
   ]
 }

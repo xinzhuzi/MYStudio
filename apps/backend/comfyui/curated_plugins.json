@@ -546,6 +546,48 @@
           "web/anyangle.js": "8bd48e17f8afdb6163c5acf6832826b66b725d03e77f3100569a717a9cfba992"
         }
       }
+    },
+    {
+      "id": "ComfyUI-llama_Dapao",
+      "name": "大炮本地 LLM 导演台(漫画创造大师)",
+      "desc_zh": "本地 LLM 全家桶:MOSS 漫画一键生成器核心依赖——「漫画创造大师」四页签表单(风格/分格 7 档/对白字效/六槽参考:画风+角色+场景)+本地导演(Qwen3.8-VL GGUF 把需求与参考图编译成整页漫画提示词)+大炮本地模型加载器(llama.cpp 后端,GGUF 放 ComfyUI/models/LLM)。另含 H3 提示词生成/图片反推/多轮对话/素材库。llama-cpp-python 须 JamePeng fork(引擎 venv 已装 0.4.5+cu131);moss-comic-director-local 等技能随插件自带。来源=炮老师 BV1bG4F6EEsU,1107 解构入库役。",
+      "category": "本地大模型",
+      "repo": "https://github.com/paolaoshi/ComfyUI-llama_Dapao",
+      "verified_license": "未声明(上游无根 LICENSE;内含 chflame163 MIT 改编件 h3_local)",
+      "provides": [
+        "DapaoComicOptions",
+        "DapaoLocalH3Prompt",
+        "DapaoLocalModelLoader"
+      ]
+    },
+    {
+      "id": "comfy_mtb",
+      "name": "MTB 综合工具箱",
+      "desc_zh": "老牌综合节点包:图像处理/批处理/遮罩/曲线/二维码等百级节点,漫影 MOSS 漫画件的注释卡(Note Plus)依赖;其余功能按需取用。",
+      "category": "综合工具包",
+      "repo": "https://github.com/melMass/comfy_mtb",
+      "verified_license": "MIT"
+    },
+    {
+      "id": "Comfyui-Qwen-Image-2.1-Fun-Controlnet-Union-T8",
+      "name": "Fun-Controlnet-Union-T8 姿势/结构控制",
+      "desc_zh": "Qwen-Image-2.1 骨架/结构 ControlNet 施控件(阿里 Fun-Controlnet-Union 的 ComfyUI 兼容层):UnionLoader+UnionApply+ReferenceEncode+LatentFromImage 四节点,8 种控制(openpose 姿势/depth/hed/canny/normal/segment/tile/repaint 局部重绘)。模型需转换版 Qwen-Image-2.1-Fun-Controlnet-Union-ComfyUI.safetensors(源=alibaba-pai 原件 sha 65d6b66d,仓内 convert_union.py 仅改头,产物 sha b3f0f3a5;1111 已转换落 Win models/controlnet);控制图须预处理(接 OpenposePreprocessor 等出骨架)。1108-11 骨架路补装役入册。",
+      "category": "Qwen-Image-2.1 图像",
+      "repo": "https://github.com/T8mars/Comfyui-Qwen-Image-2.1-Fun-Controlnet-Union-T8",
+      "verified_license": "MIT(适配器 LICENSE;捆绑 ComfyUI Union 兼容层 GPL-3.0;模型权重 Qwen Research License 非商用——引擎用户区安装无碍,App 内嵌分发才触发 copyleft,2026-11-11 实查)",
+      "provides": [
+        "QwenImage21UnionLoader",
+        "QwenImage21UnionApply",
+        "QwenImage21UnionReferenceEncode",
+        "QwenImage21UnionLatentFromImage"
+      ],
+      "pin": {
+        "commit": "01f084ccde2f2a262529b6e7b5504df9ea36a0b7",
+        "anchors_sha256": {
+          "__init__.py": "fa088b39cd1a18cda9dfbea838ef7478cb260a609fdd77c59b58348eaee13964",
+          "union_compat.py": "6738ff17ba88a92f81ba10d4e60f64969a6845ea89f33719cc4226fd1ffea172"
+        }
+      }
     }
   ]
 }
