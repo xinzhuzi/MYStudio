@@ -3226,7 +3226,7 @@
             "id": 7210,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              2650,
+              2170,
               2400
             ],
             "size": [
@@ -3275,7 +3275,7 @@
             "id": 7211,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              3130,
+              2650,
               2400
             ],
             "size": [
@@ -3326,10 +3326,10 @@
             "title": "无审查LoRA·femaledVaginus·L22-31(×1.0)"
           },
           {
-            "id": 7212,
+            "id": 7213,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              2170,
+              1690,
               2400
             ],
             "size": [
@@ -3338,12 +3338,12 @@
             ],
             "flags": {},
             "order": 20,
-            "mode": 4,
+            "mode": 0,
             "inputs": [
               {
                 "name": "model",
                 "type": "MODEL",
-                "link": 7924
+                "link": 7922
               },
               {
                 "name": "lora_name",
@@ -3369,60 +3369,10 @@
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly"
             },
-            "title": "无审查LoRA·Tumblr NudeShot 2.1-v3(×1.0,默认旁路)",
-            "widgets_values": [
-              "tumblr_2.1_v3.safetensors",
-              1.0
-            ]
-          },
-          {
-            "id": 7213,
-            "type": "LoraLoaderModelOnly",
-            "pos": [
-              1690,
-              2400
-            ],
-            "size": [
-              270.0,
-              148.0
-            ],
-            "flags": {},
-            "order": 20,
-            "mode": 4,
-            "inputs": [
-              {
-                "name": "model",
-                "type": "MODEL",
-                "link": 7922
-              },
-              {
-                "name": "lora_name",
-                "type": "COMBO",
-                "link": null
-              },
-              {
-                "name": "strength_model",
-                "type": "FLOAT",
-                "link": null,
-                "widget": true
-              }
-            ],
-            "outputs": [
-              {
-                "name": "MODEL",
-                "type": "MODEL",
-                "links": [
-                  7924
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "LoraLoaderModelOnly"
-            },
-            "title": "无审查LoRA·hina asianMix 2.1-r64(×1.0,默认旁路)",
+            "title": "无审查LoRA·hina asianMix 2.1-r64(×0.3)",
             "widgets_values": [
               "hina_QwenImage2.1_asianMix_Lora_v3.0-rank64.safetensors",
-              1.0
+              0.3
             ]
           }
         ],
@@ -4003,17 +3953,9 @@
           },
           {
             "id": 7923,
-            "origin_id": 7212,
-            "origin_slot": 0,
-            "target_id": 7210,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
-          {
-            "id": 7924,
             "origin_id": 7213,
             "origin_slot": 0,
-            "target_id": 7212,
+            "target_id": 7210,
             "target_slot": 0,
             "type": "MODEL"
           }
