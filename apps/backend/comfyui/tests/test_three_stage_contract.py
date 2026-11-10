@@ -1,6 +1,6 @@
 """道劫三段链工作流契约测试(11-05-daojie-h3-three-stage)。
 
-被测对象 = 仓库真源 `2_视频/H3视频/1_漫影自研/0_单镜视频/MY-三采-单镜.json`(1110 用户令改名,旧名 pika-单镜视频-三段链)
+被测对象 = 仓库真源 `2_视频/H3视频/1_漫影自研/0_单镜视频/三采-单镜.json`(1110 两度改名终态:先 MY-三采-单镜 后去前缀,旧名 pika-单镜视频-三段链)
 (GUI 格式,fork pika-单镜视频-ref2v.json 出生)。
 
 三段契约:
@@ -36,7 +36,7 @@ from pathlib import Path
 import pytest
 
 WF_DIR = Path(__file__).resolve().parents[1] / "workflows" / "2_视频" / "H3视频" / "1_漫影自研" / "0_单镜视频"
-WF = WF_DIR / "MY-三采-单镜.json"
+WF = WF_DIR / "三采-单镜.json"
 
 PIKA_SIGMAS = "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
 TESSERA_SIGMAS = "1, 0.7, 0.4, 0.0"
@@ -270,10 +270,10 @@ def test_absorbed_fl2v_firstframe_mode():
 
 
 def test_single_shot_dir_only_three_stage():
-    """1105 只保留裁定:0_单镜视频 恰一件(1110 起名 MY-三采-单镜.json)。"""
+    """1105 只保留裁定:0_单镜视频 恰一件(1110 终名 三采-单镜.json)。"""
     lib = WF_DIR
     jsons = sorted(p.name for p in lib.glob("*.json"))
-    assert jsons == ["MY-三采-单镜.json"], f"0_单镜视频 应只剩三采单镜件,现有 {jsons}"
+    assert jsons == ["三采-单镜.json"], f"0_单镜视频 应只剩三采单镜件,现有 {jsons}"
 
 
 def test_sigma_feed_scheduler_gets_shifted_model():

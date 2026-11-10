@@ -65,9 +65,7 @@ def main() -> int:
 
     # 5. 真源无 laid-out / MY- 件
     laid = [p.name for p in tree_jsons if p.name.endswith(".laid-out.json")]
-    # 1110 用户令局部恢复 MY- 前缀:仅 MY-三采-单镜.json 一件豁免(AGENTS 09-18 裁定的 1110 补丁)
-    MY_EXEMPT = {"MY-三采-单镜.json"}
-    my_prefix = [p.name for p in tree_jsons if p.name.startswith("MY-") and p.name not in MY_EXEMPT]
+    my_prefix = [p.name for p in tree_jsons if p.name.startswith("MY-")]
     check(not laid, "真源无 .laid-out.json 中间件", "; ".join(laid[:5]))
     check(not my_prefix, "真源无 MY- 前缀件", "; ".join(my_prefix[:5]))
 
