@@ -133,7 +133,7 @@ def test_stage2_single_source_fanout_no_duplicate():
     unets = [n for n in nodes.values() if n["type"] == "UNETLoader" and n["id"] < 300]
     assert len(unets) == 1 and unets[0]["id"] == 127, "默认路径底模恒单源(Cobijada 统一;i2v 臂为 LoRA 分支非独立底模)"
     fed = {l[3] for l in d["links"] if l[1] == 127 and l[5] == "MODEL"}
-    assert fed == {145, 202, 209, 216, 250}, "Cobijada 应扇出至 pika[145]/taomate[202]/i2v[216] + scheduler[209,250] 五臂"
+    assert fed == {145, 202, 216}, "Cobijada 扇出三 LoRA 臂;调度器[250/209]改吃 σshift 后模型(1110 σ接线定谳,见 test_sigma_feed_scheduler_gets_shifted_model)"
     samplers = []
     for l in d["links"]:
         if l[1] == 123 and l[5] == "SAMPLER":
@@ -273,3 +273,18 @@ def test_single_shot_dir_only_three_stage():
     lib = WF_DIR
     jsons = sorted(p.name for p in lib.glob("*.json"))
     assert jsons == ["MY-三采-单镜.json"], f"0_单镜视频 应只剩三采单镜件,现有 {jsons}"
+
+
+def test_sigma_feed_scheduler_gets_shifted_model():
+    """1110 σ接线定谳:BasicScheduler.execute 源码=σ表从自身 MODEL 的
+    model_sampling 推导(comfy_extras/nodes_custom_sampler.py);σshift 节点
+    docstring 明言 video shift 驱动采样器 σ 表——故调度器必须吃 σshift 后的模型,
+    吃裸底模=网格用默认 shift 与 DiT 预期脱钩(一采曾裸喂,Pika FL2VA 官方[6,3]
+    档从未真正落到 σ 网格上)。"""
+    _, _, links = _load()
+    def model_src(to_node):
+        srcs = [l[1] for l in links.values() if l[5] == "MODEL" and l[3] == to_node]
+        assert len(srcs) == 1, f"[{to_node}] MODEL 应恰一条入线,现有 {srcs}"
+        return srcs[0]
+    assert model_src(250) == 251, "一采调度器[250]必须吃[251]σshift[6,3]后的模型"
+    assert model_src(209) == 203, "二采调度器[209]必须吃[203]σshift[12,3]后的模型"
