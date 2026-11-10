@@ -174,3 +174,4 @@ apps/backend/comfyui/runs/
 # 77 官方示例图二进制不入库(1017 用户令:大图勿入库 push 撞 181MB 断线;URL 对照表=images/README.md,本地件留存)
 docs/prompts/Qwen-Image-2.1/images/*
 !docs/prompts/Qwen-Image-2.1/images/README.md
+apps/index.html
