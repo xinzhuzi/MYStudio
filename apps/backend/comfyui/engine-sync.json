@@ -252,6 +252,10 @@
     {
       "name": "Comfyui-Qwen-Image-2.1-Fun-Controlnet-Union-T8",
       "url": "https://github.com/T8mars/Comfyui-Qwen-Image-2.1-Fun-Controlnet-Union-T8.git"
+    },
+    {
+      "name": "Comfyui-Drama-3",
+      "url": "https://github.com/T8mars/Comfyui-Drama-3.git"
     }
   ]
 }
