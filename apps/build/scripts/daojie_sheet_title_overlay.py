@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # 1110 设定卡标题真字后叠(役:14型分辨率重设→设定卡固定格式)
 # 背景:Qwen-Image-2.1 在标题位只会回声指令名词(六措辞全灭实录 A~F),
-# 型文已改为「标题带留白+朱印」;本脚本在留白位确定性叠真字名号=零出错。
+# 型文=「标题带通栏留白」(1110 去朱印令:整带零印章零装饰);本脚本在留白位确定性叠真字名号=零出错。
 # 用法: python3 daojie_sheet_title_overlay.py <生成图.png> <名字> [输出.png]
 import sys, os
 from PIL import Image, ImageDraw, ImageFont
