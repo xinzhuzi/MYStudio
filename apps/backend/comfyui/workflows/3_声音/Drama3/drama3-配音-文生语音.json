@@ -1,0 +1,347 @@
+{
+  "last_node_id": 7,
+  "last_link_id": 6,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "T8DramaLoader",
+      "pos": [
+        60,
+        60
+      ],
+      "size": [
+        370,
+        430
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "DRAMA3_T8_ENGINE",
+          "type": "DRAMA3_T8_ENGINE",
+          "links": [
+            1,
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "T8DramaLoader"
+      },
+      "widgets_values": [
+        "drama3-t8-w4a8.safetensors",
+        "drama3-codec.safetensors",
+        12,
+        "torch",
+        "",
+        "",
+        "",
+        "",
+        "compact",
+        "auto",
+        true,
+        "ram"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "T8DramaSession",
+      "pos": [
+        60,
+        520
+      ],
+      "size": [
+        370,
+        260
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "references",
+          "type": "DRAMA3_T8_REFERENCES",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "DRAMA3_T8_SESSION",
+          "type": "DRAMA3_T8_SESSION",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "T8DramaSession"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 3,
+      "type": "T8DramaGenerate",
+      "pos": [
+        480,
+        60
+      ],
+      "size": [
+        370,
+        540
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "engine",
+          "type": "DRAMA3_T8_ENGINE",
+          "link": 1
+        },
+        {
+          "name": "session",
+          "type": "DRAMA3_T8_SESSION",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "DRAMA3_T8_SESSION",
+          "type": "DRAMA3_T8_SESSION",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "T8DramaGenerate"
+      },
+      "widgets_values": [
+        "speech",
+        "你好，这是本地语音测试。",
+        "",
+        300,
+        42,
+        "fixed",
+        0.7,
+        0.7,
+        30,
+        180,
+        "",
+        0,
+        "custom"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "T8DramaDecode",
+      "pos": [
+        900,
+        60
+      ],
+      "size": [
+        370,
+        260
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "engine",
+          "type": "DRAMA3_T8_ENGINE",
+          "link": 3
+        },
+        {
+          "name": "session",
+          "type": "DRAMA3_T8_SESSION",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            5
+          ]
+        },
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            6
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "T8DramaDecode"
+      },
+      "widgets_values": [
+        -1,
+        false,
+        false,
+        0.75
+      ]
+    },
+    {
+      "id": 5,
+      "type": "SaveAudio",
+      "pos": [
+        1320,
+        60
+      ],
+      "size": [
+        370,
+        260
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveAudio"
+      },
+      "widgets_values": [
+        "Drama3_T8/文生语音"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "PreviewAny",
+      "pos": [
+        900,
+        520
+      ],
+      "size": [
+        370,
+        260
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "title": "生成台词 / Generated transcript"
+    },
+    {
+      "id": 7,
+      "type": "Note",
+      "pos": [
+        1320,
+        980
+      ],
+      "size": [
+        370,
+        260
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "Note"
+      },
+      "widgets_values": [
+        "seed 数字控件支持 JavaScript 安全整数；更大的 uint64 种子请填 seed_text 十进制文本。\nUse decimal seed_text for larger uint64 seeds; leave it blank to use the numeric seed widget."
+      ],
+      "title": "使用说明 / Instructions"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      3,
+      0,
+      "DRAMA3_T8_ENGINE"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      1,
+      "DRAMA3_T8_SESSION"
+    ],
+    [
+      3,
+      1,
+      0,
+      4,
+      0,
+      "DRAMA3_T8_ENGINE"
+    ],
+    [
+      4,
+      3,
+      0,
+      4,
+      1,
+      "DRAMA3_T8_SESSION"
+    ],
+    [
+      5,
+      4,
+      0,
+      5,
+      0,
+      "AUDIO"
+    ],
+    [
+      6,
+      4,
+      1,
+      6,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.75,
+      "offset": [
+        40,
+        40
+      ]
+    }
+  },
+  "version": 0.4
+}

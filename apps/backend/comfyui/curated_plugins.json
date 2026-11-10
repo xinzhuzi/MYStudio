@@ -640,6 +640,21 @@
         "MiniMaxH3ContextLatentTaperNoise"
       ],
       "pin": "1111"
+    },
+    {
+      "id": "comfyui-drama3-t8",
+      "name": "Drama-3 T8 配音节点",
+      "desc_zh": "Fish Audio Drama-3 原生配音节点(30节点)——漫影配音线引擎依赖:多角色场景(一段文本16说话人)/导演情绪标签/长文流式;w4a8 24.6G 走 expert_cache 24G卡实证;ASR/R2T2 域未装(剧本台词即文本免转写)。",
+      "category": "声音 TTS",
+      "repo": "https://github.com/T8mars/Comfyui-Drama-3",
+      "verified_license": "GPL-3.0",
+      "provides": [
+        "T8DramaLoader",
+        "T8DramaSession",
+        "T8DramaGenerate",
+        "T8DramaScene",
+        "T8DramaDecode"
+      ]
     }
   ]
 }
