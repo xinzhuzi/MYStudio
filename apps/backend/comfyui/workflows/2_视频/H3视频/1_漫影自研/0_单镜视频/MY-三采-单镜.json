@@ -2723,7 +2723,8 @@
      "name": "VIDEO",
      "type": "VIDEO",
      "links": [
-      629
+      629,
+      778
      ]
     }
    ],
@@ -5397,6 +5398,183 @@
     false
    ],
    "title": "sol-attn τ1.3(二采·1108 用户令)"
+  },
+  {
+   "id": 268,
+   "type": "RelayVSRModelLoader",
+   "pos": [
+    11150,
+    80
+   ],
+   "size": [
+    315,
+    130
+   ],
+   "flags": {},
+   "order": 200,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "bundle",
+     "type": "COMBO",
+     "link": null,
+     "widget": true
+    },
+    {
+     "name": "dtype",
+     "type": "COMBO",
+     "link": null,
+     "widget": true
+    },
+    {
+     "name": "offload",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": true
+    },
+    {
+     "name": "path",
+     "type": "STRING",
+     "link": null,
+     "widget": true
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "RELAYVSR_MODEL",
+     "links": [
+      779
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "RelayVSRModelLoader"
+   },
+   "widgets_values": [
+    "RelayVSR_X2",
+    "bf16",
+    true,
+    ""
+   ]
+  },
+  {
+   "id": 269,
+   "type": "RelayVSRUpscaleStreaming",
+   "pos": [
+    11500,
+    80
+   ],
+   "size": [
+    370,
+    420
+   ],
+   "flags": {},
+   "order": 201,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "RELAYVSR_MODEL",
+     "link": 779
+    },
+    {
+     "name": "video",
+     "type": "VIDEO",
+     "link": 778
+    },
+    {
+     "name": "upscale_width",
+     "type": "INT",
+     "link": null,
+     "widget": true
+    },
+    {
+     "name": "sr_ratio",
+     "type": "INT",
+     "link": null,
+     "widget": true
+    },
+    {
+     "name": "chunk_len",
+     "type": "INT",
+     "link": null,
+     "widget": true
+    },
+    {
+     "name": "seed",
+     "type": "INT",
+     "link": null,
+     "widget": true
+    },
+    {
+     "name": "chunk_overlap",
+     "type": "INT",
+     "link": null,
+     "widget": true
+    },
+    {
+     "name": "spatial_grid_cols",
+     "type": "INT",
+     "link": null,
+     "widget": true
+    },
+    {
+     "name": "spatial_grid_rows",
+     "type": "INT",
+     "link": null,
+     "widget": true
+    },
+    {
+     "name": "spatial_overlap",
+     "type": "INT",
+     "link": null,
+     "widget": true
+    },
+    {
+     "name": "codec",
+     "type": "COMBO",
+     "link": null,
+     "widget": true
+    },
+    {
+     "name": "crf",
+     "type": "FLOAT",
+     "link": null,
+     "widget": true
+    },
+    {
+     "name": "preset",
+     "type": "COMBO",
+     "link": null,
+     "widget": true
+    },
+    {
+     "name": "filename_prefix",
+     "type": "STRING",
+     "link": null,
+     "widget": true
+    }
+   ],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "RelayVSRUpscaleStreaming"
+   },
+   "widgets_values": [
+    1920,
+    2,
+    24,
+    0,
+    4,
+    1,
+    1,
+    64,
+    "h264",
+    18.0,
+    "medium",
+    "video/漫影/chapter-001/sb-chapter-001-001/p3-relayvsr"
+   ]
   }
  ],
  "links": [
@@ -6575,6 +6753,22 @@
    223,
    0,
    "MODEL"
+  ],
+  [
+   778,
+   214,
+   0,
+   269,
+   1,
+   "VIDEO"
+  ],
+  [
+   779,
+   268,
+   0,
+   269,
+   0,
+   "RELAYVSR_MODEL"
   ]
  ],
  "groups": [
@@ -6616,6 +6810,17 @@
    "id": 2103,
    "mode": 0,
    "flags": {}
+  },
+  {
+   "title": "三采超分·RelayVSR 主线(1110 终版阶梯 1920→交付裁 15px=1080)",
+   "bounding": [
+    11130,
+    20,
+    780,
+    560
+   ],
+   "color": "#3f789e",
+   "id": 4
   }
  ],
  "config": {},

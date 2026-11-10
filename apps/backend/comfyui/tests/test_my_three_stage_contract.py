@@ -220,7 +220,8 @@ def test_groups_three_bands_non_overlap():
     """三段=三组框,两两不交,标题口径正确。"""
     d = _load()[0]
     gs = d["groups"]
-    assert len(gs) == 3
+    assert len(gs) == 4, "四组=一采/二采/三采超分(RelayVSR)/TESSERA 旁路(1110 三采内联)"
+    assert any("三采超分" in g["title"] for g in gs), "三采超分组必须在册"
     for i in range(len(gs)):
         for j in range(i + 1, len(gs)):
             a, b = gs[i]["bounding"], gs[j]["bounding"]
@@ -288,3 +289,16 @@ def test_sigma_feed_scheduler_gets_shifted_model():
         return srcs[0]
     assert model_src(250) == 251, "一采调度器[250]必须吃[251]σshift[6,3]后的模型"
     assert model_src(209) == 203, "二采调度器[209]必须吃[203]σshift[12,3]后的模型"
+
+
+def test_stage3_relayvsr_inline_group():
+    """1110 三采内联:二采产物[214]→RelayVSR streaming 1920 宽(交付裁 15px=1080),
+    bundle=RelayVSR_X2 bf16 offload 恒开(1106 刻碑)。"""
+    _, nodes, links = _load()
+    assert nodes[268]["type"] == "RelayVSRModelLoader"
+    assert nodes[268]["widgets_values"] == ["RelayVSR_X2", "bf16", True, ""]
+    assert nodes[269]["type"] == "RelayVSRUpscaleStreaming"
+    w = nodes[269]["widgets_values"]
+    assert w[0] == 1920 and w[1] == 2, "终版阶梯:1440×832→1920 宽"
+    vin = [l for l in links.values() if l[5] == "VIDEO" and l[3] == 269]
+    assert len(vin) == 1 and vin[0][1] == 214, "三采吃二采 CreateVideo[214] 产物"
