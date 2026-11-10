@@ -388,8 +388,9 @@ async function renderWorkflowsPane(pane) {
   pane.textContent = "";
   // 满宽无空隙容器(09-15 用户铁律:布局要拓展至满控件,不要留空隙)
   pane.style.cssText = "padding:6px 6px;display:flex;flex-direction:column;gap:4px;width:100%;height:100%;flex:1;min-height:0;box-sizing:border-box;";
-  // 顶行=状态文本+常驻刷新按钮(1109 用户令:引擎瞬时不可达报 502 后无重试入口,
-  // 须一键刷新;风格随分镜页签刷新款)
+  // 顶行=状态文本;刷新键(1109 用户令:502 后须一键重试)1110 上挂页签行
+  // 动作槽=与「大模型」标题同一横向右侧(用户令:不要一上一下);槽缺席
+  // (异常挂载态)回退本行,功能不丢
   const headRow = document.createElement("div");
   headRow.style.cssText = "display:flex;align-items:center;gap:6px;";
   const status = paneStatus("加载自研工作流…");
@@ -403,7 +404,14 @@ async function renderWorkflowsPane(pane) {
   refreshBtn.onpointerdown = () => { refreshBtn.style.transform = "scale(0.92)"; };
   refreshBtn.onpointerup = refreshBtn.onpointerleave = () => { refreshBtn.style.transform = ""; };
   refreshBtn.onclick = () => { void renderWorkflowsPane(pane); };
-  headRow.append(status, refreshBtn);
+  const barActions = pane.closest("[data-my-ui]")?.querySelector("[data-my-bar-actions]");
+  if (barActions) {
+    barActions.textContent = ""; // 重渲染防重复挂载(刷新键随渲染重建)
+    barActions.append(refreshBtn);
+  } else {
+    headRow.append(refreshBtn);
+  }
+  headRow.append(status);
   const host = document.createElement("div");
   host.style.cssText = "display:flex;flex-direction:column;flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;width:100%;box-sizing:border-box;";
   pane.append(headRow, host);
@@ -667,6 +675,12 @@ function renderSidebar(container) {
     panes.set(tab.id, document.createElement("div"));
     bar.append(button);
   }
+  // 1110 用户令:页签行右侧动作槽——大模型页签的刷新键挂这里,与「大模型」
+  // 标题同一横向右侧(原:键在分隔线下方内容区,一上一下)
+  const barActions = document.createElement("div");
+  barActions.dataset.myBarActions = "1";
+  barActions.style.cssText = "display:flex;align-items:center;flex:none;";
+  bar.append(barActions);
   container.append(bar);
   for (const [, pane] of panes) container.append(pane);
   switchTab(activeId);
