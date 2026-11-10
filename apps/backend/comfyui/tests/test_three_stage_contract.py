@@ -81,6 +81,8 @@ def test_stage1_factory_tier_052mp():
     assert nodes[16]["widgets_values"][1:3] == [960, 544]
     assert nodes[220]["widgets_values"][1:3] == [960, 544], "I2V 一采分辨率同步"
     assert nodes[16]["widgets_values"][4] == "max", "参考图恒 max(1110 用户令)"
+    md101 = nodes[101]["widgets_values"][0]
+    assert "4096" in md101 and "图质越高视频越好" in md101, "参考图定律入 Note101(1110:超分+磨皮 4096 再入链)"
     assert nodes[16]["widgets_values"][3] == 124
 
 
