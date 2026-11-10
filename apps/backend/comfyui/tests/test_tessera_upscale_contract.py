@@ -1,10 +1,10 @@
 """TESSERA 独立超分件契约(1110 建件,用户令「单独做个超分的工作流」)。
 
 被测对象 = 仓库真源 `2_视频/H3视频/3_超分后处理/TESSERA-超分-1080p.json`
-(38 节点整株移植自 MY-三采-单镜.json TESSERA 旁路组,平移原点+解除 mode=2 旁路)。
+(38 节点整株移植自 三采-单镜.json(移植时名 MY-三采-单镜)TESSERA 旁路组,平移原点+解除 mode=2 旁路)。
 
 参数真源 = 第四发 api_formal_v4(1104 定谳,1105 入库):×1.5 lanczos→1920×1056/
-σ"1,0.7,0.4,0.0"/er_sde+euler/taomate@1.0+LMS 0.75·1.0/sol-attn τ1.5/TE nvfp4_awq/CRF12。
+σ"1,0.7,0.4,0.0"/er_sde+euler/taomate@0.7(1107 去油值)+LMS 0.75·1.0/sol-attn τ1.5/TE nvfp4_awq/CRF12。
 """
 import json
 from pathlib import Path
@@ -89,3 +89,13 @@ def test_no_negative_zone_and_no_leftward():
         sx = nodes[l[1]]["pos"][0]
         tx = nodes[l[3]]["pos"][0]
         assert tx > sx, f"链 {l[0]} 左向线 [{l[1]}]→[{l[3]}]"
+
+
+def test_ops_note_present():
+    """1110 审读关裁定:调查定谳四条运维事实(watchdog/显存/1056→1080 归一/耗时)必须件内可见。"""
+    d, _, _ = _load()
+    notes = [n for n in d["nodes"] if n["type"] == "MarkdownNote"]
+    assert notes, "独立件必须带运维 Note"
+    txt = "".join(str(w) for n in notes for w in n.get("widgets_values", []))
+    for key in ("watchdog", "1056", "1080", "29"):
+        assert key in txt, f"运维 Note 缺关键词: {key}"

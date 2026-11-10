@@ -722,7 +722,7 @@
     "taomate_h3_3step.safetensors",
     0.7
    ],
-   "title": "taomate@1.0"
+   "title": "taomate@0.7(1107 去油;1105 老账 1.0 已漂移)"
   },
   {
    "id": 333,
@@ -874,7 +874,7 @@
     "your_source_clip.mp4",
     "image"
    ],
-   "title": "源视频(指②组产物)"
+   "title": "源视频(任意片;建议 1280×704 级二采产物)"
   },
   {
    "id": 301,
@@ -1961,6 +1961,28 @@
    "widgets_values": [
     0,
     1
+   ]
+  },
+  {
+   "id": 400,
+   "type": "MarkdownNote",
+   "pos": [
+    110,
+    200
+   ],
+   "size": [
+    420,
+    320
+   ],
+   "flags": {},
+   "order": 250,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [],
+   "properties": {},
+   "widgets_values": [
+    "",
+    "## TESSERA 独立超分件·运维四条(1110 调查定谳)\n\n1. **watchdog 补丁依赖**:Tessera 插件的 decode watchdog 补丁会被插件升级/重装冲掉,升级后须重打(docs/comfyui-kb/分镜H3视频产线.md)。\n2. **显存门槛**:社区口径\"20G 以下跑不动\"(TesseraRefine 两处 high_vram 假设);本产线=Win RTX PRO 4000 24G 可跑,Mac 引擎无 Tessera 包。\n3. **交付归一步**:本件直出 **1920×1056**,交付真 1080p 须图外一步:`ffmpeg -i in.mp4 -vf scale=1920:1080:flags=lanczos -c:v libx264 -crf 18 -c:a copy out.mp4`。\n4. **耗时预期**:社区唯一实测 1280×720×141f→×2.0≈29.3min@5090D;本仓第四发 1080p 全弹 1h13m 级——非紧急精修勿上批量。\n\n参数真源=第四发 api_formal_v4 现值(taomate@0.7=1107 去油值);输入建议 1280×704 级二采产物(×1.5 恰达 1056)。"
    ]
   }
  ],
