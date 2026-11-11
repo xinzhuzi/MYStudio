@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """数字人/无限时长 UI 画布件契约测试(1111 嫁接役 Part C)。
 
-锚定两件: 2_视频/H3视频/1_漫影自研/2_数字人/{数字人-音频驱动,无限时长-循环拼接}.json
+锚定两件: 2_视频/H3视频/8_数字人/{数字人-音频驱动,无限时长-循环拼接}.json
+(1112 分类重组:数字人自 1_漫影自研/2_数字人/ 升顶层域 8_数字人,用户令「单独做一个分类」)
 生成器: apps/build/scripts/digitalhuman_ui_build_1111.py(幂等)
 """
 import json
@@ -10,7 +11,7 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WF_DIR = os.path.normpath(os.path.join(HERE, '..', 'workflows', '2_视频', 'H3视频',
-                                       '1_漫影自研', '2_数字人'))
+                                       '8_数字人'))
 AUDIO_WF = os.path.join(WF_DIR, '数字人-音频驱动.json')
 UNLIM_WF = os.path.join(WF_DIR, '无限时长-循环拼接.json')
 

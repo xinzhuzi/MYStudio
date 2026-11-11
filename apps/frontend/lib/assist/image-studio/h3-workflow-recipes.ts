@@ -67,7 +67,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     id: "my-fasth3-i2v-27",
     label: "漫影单镜 FastH3 I2V(27 节点,Windows 主线)",
     apiTemplate: "./fasth3-shot-template.api.json",
-    uiTemplateRef: "2_视频/H3视频/1_漫影自研/7_FastH3/fasth3-单镜视频-i2v.json",
+    uiTemplateRef: "2_视频/H3视频/7_FastH3/fasth3-单镜视频-i2v.json",
     inputMode: "i2v",
     anchors: {
       prompt: "14.value",
@@ -84,7 +84,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
   {
     id: "my-fasth3-t2v-26",
     label: "漫影单镜 FastH3 T2V 基础版(26 节点,画布直开)",
-    uiTemplateRef: "2_视频/H3视频/1_漫影自研/7_FastH3/fasth3-单镜视频-t2v.json",
+    uiTemplateRef: "2_视频/H3视频/7_FastH3/fasth3-单镜视频-t2v.json",
     inputMode: "t2v",
     resolutionTiers: ["480p"],
     status: "unverified",
@@ -95,7 +95,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     id: "my-pika-fl2v-24",
     label: "漫影单镜 Pika fl2va 主力线(24 API 节点,6-NFE)",
     apiTemplate: "./pika-shot-template.api.json",
-    uiTemplateRef: "2_视频/H3视频/1_漫影自研/8_吸收归档/pika-单镜视频-fl2v.json",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/0_单镜视频/pika-单镜视频-fl2v.json",
     inputMode: "i2v",
     anchors: {
       prompt: "14.value",
@@ -114,7 +114,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     id: "my-pika-ref2v-20",
     label: "漫影单镜 Pika ref2va 参考线(20 API 节点,6-NFE,角色/场景卡)",
     apiTemplate: "./pika-ref-shot-template.api.json",
-    uiTemplateRef: "2_视频/H3视频/1_漫影自研/8_吸收归档/pika-单镜视频-ref2v.json",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/0_单镜视频/pika-单镜视频-ref2v.json",
     inputMode: "r2v",
     anchors: {
       prompt: "14.value",

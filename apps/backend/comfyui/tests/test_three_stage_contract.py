@@ -2,8 +2,8 @@
 
 被测对象 = 仓库真源 `2_视频/H3视频/1_漫影自研/0_单镜视频/三采-单镜.json`
 (1111 用户裁定换防主线:三采主力 RelayVSR→ReCaVSR;1112 用户裁定复名:自研件不用外来技术名,
-挑战臂役暂名 三采-recavsr-单镜.json 复名回 三采-单镜.json;旧 RelayVSR 版主线退役归档
-8_吸收归档/三采-单镜-RelayVSR-1110.json;克隆血统=1110 主线终名(更早 pika-单镜视频-三段链),
+挑战臂役暂名 三采-recavsr-单镜.json 复名回 三采-单镜.json;旧 RelayVSR 版主线退役件
+三采-单镜-RelayVSR-1110.json(1112 吸收归档撤域后与主线同住 0_单镜视频);克隆血统=1110 主线终名(更早 pika-单镜视频-三段链),
 fork pika-单镜视频-ref2v.json 出生)(GUI 格式)。
 
 三段契约:
@@ -275,14 +275,22 @@ def test_absorbed_fl2v_firstframe_mode():
     assert f9 == [16, 208, 220], "[9] 应喂 r2v[16]/二采条件[208]/i2v首帧[220] 三处"
 
 
-def test_single_shot_dir_only_three_stage():
-    """1105 只保留裁定+1111 换防+1112 复名:0_单镜视频 恰一件=主线 三采-单镜.json
-    (换防令「三采换成 ReCaVSR,主线就换成这个」+复名令「自研件不要瞎改名字」;
-    旧 RelayVSR 版退役归档 8_吸收归档/三采-单镜-RelayVSR-1110.json,
-    RelayVSR 臂在本件内以 mode=2 旁路保留=回退臂)。"""
-    lib = WF_DIR
-    jsons = sorted(p.name for p in lib.glob("*.json"))
-    assert jsons == ["三采-单镜.json"], f"0_单镜视频 应恰一件(主线),现有 {jsons}"
+def test_single_shot_dir_inventory():
+    """0_单镜视频 件册(1112 吸收归档撤域重组后恰五件):主线 三采-单镜.json
+    (1111 换防+1112 复名终态;RelayVSR 回退臂在本件内 mode=2 旁路保留)+
+    1110 换防退役件 三采-单镜-RelayVSR-1110.json(历史形态考据)+
+    1105 被三段链吸收的 pika-单镜视频-{fl2v,ref2v}.json +
+    首跑历史样本 单镜视频 · chapter-001 · S01.json(分镜零实体裁定允许的保留件)。
+    1112 用户令:吸收归档撤域,归档件按类型归位;退役/归档语义由文件名后缀承载。"""
+    expected = [
+        "pika-单镜视频-fl2v.json",
+        "pika-单镜视频-ref2v.json",
+        "三采-单镜-RelayVSR-1110.json",
+        "三采-单镜.json",
+        "单镜视频 · chapter-001 · S01.json",
+    ]
+    jsons = sorted(p.name for p in WF_DIR.glob("*.json"))
+    assert jsons == expected, f"0_单镜视频 件册漂移,现有 {jsons}"
 
 
 def test_sigma_feed_scheduler_gets_shifted_model():
