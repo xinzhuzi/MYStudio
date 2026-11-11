@@ -1078,5 +1078,37 @@ class RemoteSidecarProxyTokenFileTests(unittest.TestCase):
             )
 
 
+class EngineFreeRouteTests(unittest.TestCase):
+    """POST /comfy/engine/free(1112 recavsr-mainline:三采两段拆链的段间动作):
+    包 engine_health.free_memory(unload_models=true+free_memory=true,短超时吞错),
+    base 与执行链同源(comfyui.execute._engine_url);引擎不可达降级应答不 5xx。"""
+
+    def _free(self) -> "_ComfyHandler":
+        handler = _ComfyHandler.__new__(_ComfyHandler)
+        handler._comfy("POST", "/comfy/engine/free", {}, {})
+        return handler
+
+    def test_free_proxies_engine_health_with_execute_chain_base(self) -> None:
+        with patch("comfyui.execute._engine_url", return_value="http://127.0.0.1:17598") as url_mock, patch(
+            "engines.image_engine.engine_health.free_memory", return_value=True
+        ) as free_mock:
+            handler = self._free()
+        url_mock.assert_called_once_with()
+        free_mock.assert_called_once_with("http://127.0.0.1:17598")
+        payload, status = handler.response
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertEqual(payload, {"freed": True, "engineOnline": True, "url": "http://127.0.0.1:17598"})
+
+    def test_engine_unreachable_degrades_to_freed_false_not_5xx(self) -> None:
+        with patch("comfyui.execute._engine_url", return_value="http://192.168.0.101:17000"), patch(
+            "engines.image_engine.engine_health.free_memory", return_value=False
+        ):
+            handler = self._free()
+        payload, status = handler.response
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertFalse(payload["freed"])
+        self.assertFalse(payload["engineOnline"])
+
+
 if __name__ == "__main__":
     unittest.main()
