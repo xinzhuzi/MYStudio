@@ -1,8 +1,10 @@
 """道劫三段链工作流契约测试(11-05-daojie-h3-three-stage)。
 
-被测对象 = 仓库真源 `2_视频/H3视频/1_漫影自研/0_单镜视频/三采-recavsr-单镜.json`
-(1111 用户裁定换防主线:三采主力 RelayVSR→ReCaVSR;旧主线 三采-单镜.json 退役归档 8_吸收归档/,
-克隆血统=三采-单镜.json(1110 终名,更早 pika-单镜视频-三段链),fork pika-单镜视频-ref2v.json 出生)(GUI 格式)。
+被测对象 = 仓库真源 `2_视频/H3视频/1_漫影自研/0_单镜视频/三采-单镜.json`
+(1111 用户裁定换防主线:三采主力 RelayVSR→ReCaVSR;1112 用户裁定复名:自研件不用外来技术名,
+挑战臂役暂名 三采-recavsr-单镜.json 复名回 三采-单镜.json;旧 RelayVSR 版主线退役归档
+8_吸收归档/三采-单镜-RelayVSR-1110.json;克隆血统=1110 主线终名(更早 pika-单镜视频-三段链),
+fork pika-单镜视频-ref2v.json 出生)(GUI 格式)。
 
 三段契约:
   ① 一阶段采样 = 现役 ref2v 主力线原样(ref2va int8 pruned + Pika turbo 8step HD @1.0
@@ -37,7 +39,7 @@ from pathlib import Path
 import pytest
 
 WF_DIR = Path(__file__).resolve().parents[1] / "workflows" / "2_视频" / "H3视频" / "1_漫影自研" / "0_单镜视频"
-WF = WF_DIR / "三采-recavsr-单镜.json"
+WF = WF_DIR / "三采-单镜.json"
 
 PIKA_SIGMAS = "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
 TESSERA_SIGMAS = "1, 0.7, 0.4, 0.0"
@@ -274,12 +276,13 @@ def test_absorbed_fl2v_firstframe_mode():
 
 
 def test_single_shot_dir_only_three_stage():
-    """1105 只保留裁定+1111 换防:0_单镜视频 恰一件=新主线 三采-recavsr-单镜.json
-    (用户裁定「三采换成 ReCaVSR,主线就换成这个」;旧主线 三采-单镜.json 退役
-    归档 8_吸收归档/,RelayVSR 臂在本件内以 mode=2 旁路保留=回退臂)。"""
+    """1105 只保留裁定+1111 换防+1112 复名:0_单镜视频 恰一件=主线 三采-单镜.json
+    (换防令「三采换成 ReCaVSR,主线就换成这个」+复名令「自研件不要瞎改名字」;
+    旧 RelayVSR 版退役归档 8_吸收归档/三采-单镜-RelayVSR-1110.json,
+    RelayVSR 臂在本件内以 mode=2 旁路保留=回退臂)。"""
     lib = WF_DIR
     jsons = sorted(p.name for p in lib.glob("*.json"))
-    assert jsons == ["三采-recavsr-单镜.json"], f"0_单镜视频 应恰一件(新主线),现有 {jsons}"
+    assert jsons == ["三采-单镜.json"], f"0_单镜视频 应恰一件(主线),现有 {jsons}"
 
 
 def test_sigma_feed_scheduler_gets_shifted_model():
