@@ -1318,6 +1318,23 @@ class Handler(BaseHTTPRequestHandler):
                     self._send_json({"ok": False, "url": target, "error": str(exc)})
                 return
 
+            if method == "POST" and path == "/comfy/engine/free":
+                # 引擎显存释放代理(1112 recavsr-mainline:三采两段拆链的段间动作,
+                # Note103 运行法则①):包 engine_health.free_memory(unload_models=
+                # True+free_memory=True,短超时吞错恒不抛)。base 与执行链同一真源
+                # (comfyui.execute._engine_url → comfyui_bridge.bridge_url,env 覆写
+                # →manifest 端口→17598)——段间 /free 必须打在与段A/B 提交相同的
+                # 引擎上(含远端 settings 模式)。引擎不可达降级应答(freed=false+
+                # engineOnline=false),不 5xx——free 是优化动作不是正确性依赖。
+                from comfyui.execute import _engine_url
+
+                from engines.image_engine import engine_health
+
+                base = _engine_url()
+                freed = engine_health.free_memory(base)
+                self._send_json({"freed": freed, "engineOnline": freed, "url": base})
+                return
+
             # ── 存储位置(09-09 comfyui-frontend-swap 0a:四目录配置/校验/迁移) ──
             if method == "GET" and path == "/comfy/paths":
                 self._send_json(engine_manager().paths_status())
