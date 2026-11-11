@@ -101,7 +101,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
       prompt: "14.value",
       seconds: "20.value",
       firstFrame: "9.image",
-      resolution: ["16.width", "16.height"],
+      resolution: ["131.width", "131.height"],  // 1112 深读实雷修:该对生成器=131 非 16(组装器已改按 class 动态锚)
       savePrefix: "4.filename_prefix",
       myShot: "100",
     },

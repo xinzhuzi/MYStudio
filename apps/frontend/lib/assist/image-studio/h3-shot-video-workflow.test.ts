@@ -188,6 +188,22 @@ describe("h3-shot-template.api.json 契约(PRD §5.1,1027 API 化脚本产物)",
   });
 });
 
+describe("my-pika-fl2v-24 派发回归(1112 深读实雷修:生成器=131 非 16)", () => {
+  it("端到端组装不抛错且 131 生成器宽高直填(480p=608×352)", () => {
+    const result = buildShotH3ApiWorkflowForRecipe("my-pika-fl2v-24", {
+      shot: makeShot(),
+      chapterId: "chapter-001",
+      chapterLabel: "第一章 雨夜",
+      originProjectId: "project-a",
+      resolutionTier: "480p",
+    });
+    expect(result.apiGraph["131"]).toMatchObject({ class_type: "MiniMaxH3ImageToVideo" });
+    expect(result.apiGraph["131"].inputs.width).toBe(608);
+    expect(result.apiGraph["131"].inputs.height).toBe(352);
+    expect(String(result.apiGraph["4"].inputs.filename_prefix).split("/")).toHaveLength(5);
+  });
+});
+
 describe("buildShotH3ApiWorkflow(PRD §5.2 C3 标量出厂直填,通道B 批量派发真身)", () => {  it("apiGraph 出厂直填与画布档逐字同源(prompt/prefix/imageName/MyShot 四字段/report)", () => {
     const result = buildShotH3ApiWorkflow({ shot: makeShot(), chapterId: "chapter-001", chapterLabel: "第一章 雨夜", originProjectId: "project-a" });
     const uiNodes = result.uiWorkflow.nodes as Array<{ id: number; widgets_values?: unknown[]; properties?: Record<string, unknown> }>;

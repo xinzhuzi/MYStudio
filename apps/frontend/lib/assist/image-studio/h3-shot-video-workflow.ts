@@ -289,7 +289,13 @@ export function buildShotH3ApiWorkflow(input: ShotH3ApiWorkflowInput): ShotH3Api
   getApiNode(apiGraph, "9", "LoadImage").inputs.image = imageName;
   const myShot = getApiNode(apiGraph, "100", "MyShot");
   myShot.inputs = { ...myShot.inputs, shot_id: shotId, label, description, media_status: mediaStatus };
-  const generator = getApiNode(apiGraph, "16", "MiniMaxH3ImageToVideo");
+  // 生成器节点按 class 动态锚(1112 深读实雷修):i2v 族 API 图里唯一的 MiniMaxH3ImageToVideo 即生成器——
+  // pika 对生成器是 131(非 16),硬编码号会让 my-pika-fl2v-24 派发当场 drift 抛错。
+  const generatorIds = Object.keys(apiGraph).filter((id) => apiGraph[id]?.class_type === "MiniMaxH3ImageToVideo");
+  if (generatorIds.length !== 1) {
+    throw new Error(`h3-shot-template.api.json drift: MiniMaxH3ImageToVideo 生成器应恰一个(${recipeId}),实得 [${generatorIds.join(",")}]`);
+  }
+  const generator = getApiNode(apiGraph, generatorIds[0]!, "MiniMaxH3ImageToVideo");
   const [width, height] = H3_RESOLUTION_TIERS[tier]; // 档位直填覆盖出厂 ResolutionSelector link(N11)
   generator.inputs.width = width;
   generator.inputs.height = height;
