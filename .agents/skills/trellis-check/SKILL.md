@@ -62,7 +62,18 @@ Read the specific guideline files referenced — the index is a pointer, not the
 
 ## Step 3: Run Project Checks
 
-Run the project's lint, type-check, and test commands. Fix any failures before proceeding.
+<!-- MYSTUDIO-FUSION: verification-loop, 2026-11-11 -->
+
+Run the six verification gates **in order**. A red gate stops the loop: fix it and re-run before moving to the next gate — never skip ahead, and never report a later gate as green while an earlier one is red.
+
+1. **Build / aggregate** — resolve the mandated entry for this change type from `docs/engineering/TESTING_ENTRYPOINTS.md` (`test:all` / `test:py` / `test:workflow` ...). Report-producing runs are judged by the report JSON's `ok` field, not the console tail. Never hand-assemble a private command chain and claim equal standing.
+2. **Type check** — already inside the aggregate entry; run standalone only to isolate a failure.
+3. **Lint** — same. When truncating output, use the `set -o pipefail` + `tail`/`sed` form; a bare `cmd | tail` swallows the exit code and is banned as a verdict readout.
+4. **Tests** — report Total / Passed / Failed (and coverage when the runner emits it; do not invent a coverage threshold).
+5. **Security grep** — `rg` scoped to the changed files from Step 1: leaked key literals (`sk-`, token strings), debug logging left in, silently swallowed errors.
+6. **Diff review** — `git diff --stat`, then per-file: unintended changes / missing error handling / edge cases (feeds Step 4 and Step 5).
+
+End with a **VERIFICATION REPORT** (six gate lines + `Overall: READY / NOT READY` + `Target:` + next permitted step). Template and target-acceptance rules: `.trellis/spec/guides/verification-loop-guide.md`.
 
 ## Step 4: Review Against Checklist
 

@@ -56,6 +56,17 @@ Before archiving ANY task, run the A1–A5 checklist from `.trellis/spec/guides/
 
 Write evidence to the task's `research/archive_precheck_<YYYYMMDD>.md`. Any red = no archive, and do not offer archive as an option; report open items and parallel blockers instead.
 
+## Step 2.6: Target Acceptance gate(装机/双机交付任务,2026-11-11)
+
+Before archiving, if the task's PRD / `implement.md` declares a delivery surface beyond this working tree — installed app (/Applications), the Windows machine, or a remote engine — the acceptance state must be reported explicitly as one of the four states from `.trellis/spec/guides/verification-loop-guide.md`:
+
+- **VERIFIED** — acceptance evidence from the target environment itself (Mac: `verify:installed` two-way asar hash equal; Win: `certutil` hash computed on the installed file, not a status board).
+- **FAILED** — target-environment run failed; attach the raw output. Fix first; FAILED blocks archive.
+- **NOT PERFORMED** — not yet verified; must state the next permitted step (e.g. 候打包令 / 候 deploy-dual 窗 — whose order, what window). Does not block archive, but only when written down.
+- **NOT APPLICABLE** — pure local task with no installed surface.
+
+**Local green is never acceptance.** Append the verdict as a `Target Acceptance` line in the Step 2.5 evidence file; an unreported target state is a red — a reported NOT PERFORMED with its next step is honest bookkeeping.
+
 ## Step 2.7: Campaign closeout gate(战役清账门,2026-10-05 用户裁定)
 
 Applies when the task being archived was executed via dynamic-workflow runs(战役型任务). Full rules in `.claude/CLAUDE.md` 铁律 8. Before `task.py archive`:
