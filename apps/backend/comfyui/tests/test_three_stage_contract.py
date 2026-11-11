@@ -272,10 +272,13 @@ def test_absorbed_fl2v_firstframe_mode():
 
 
 def test_single_shot_dir_only_three_stage():
-    """1105 只保留裁定:0_单镜视频 恰一件(1110 终名 三采-单镜.json)。"""
+    """1105 只保留裁定:0_单镜视频 恰一件(1110 终名 三采-单镜.json);
+    1111 ReCaVSR 三采挑战臂役 +1=三采-recavsr-单镜.json(克隆手术件:id=recavsr-
+    three-stage-1111,RelayVSR [268]/[269] 转 mode=2 旁路+新臂 [338]/[339]/[340],
+    本文件其余各测仍只钉母本 三采-单镜.json,不受挑战臂影响)。"""
     lib = WF_DIR
     jsons = sorted(p.name for p in lib.glob("*.json"))
-    assert jsons == ["三采-单镜.json"], f"0_单镜视频 应只剩三采单镜件,现有 {jsons}"
+    assert jsons == ["三采-recavsr-单镜.json", "三采-单镜.json"], f"0_单镜视频 应为三采母子两件,现有 {jsons}"
 
 
 def test_sigma_feed_scheduler_gets_shifted_model():
