@@ -256,6 +256,18 @@
     {
       "name": "Comfyui-Drama-3",
       "url": "https://github.com/T8mars/Comfyui-Drama-3.git"
+    },
+    {
+      "name": "ComfyUI-ReCaVSR",
+      "url": "https://github.com/PedroMarinhoDev/ComfyUI-ReCaVSR.git"
+    },
+    {
+      "name": "ComfyUI-H3-Motion-Context",
+      "url": "https://github.com/NikoDemon80/ComfyUI-H3-Motion-Context.git"
+    },
+    {
+      "name": "ComfyUI-H3-Context-Noise",
+      "url": "https://github.com/beijinren/ComfyUI-H3-Context-Noise.git"
     }
   ]
 }
