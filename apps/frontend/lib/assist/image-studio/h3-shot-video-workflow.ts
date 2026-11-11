@@ -12,6 +12,11 @@ import pikaApiTemplateJson from "./pika-shot-template.api.json";
 import pikaRefTemplateJson from "./pika-ref-shot-template.json";
 import pikaRefApiTemplateJson from "./pika-ref-shot-template.api.json";
 import multisegApiTemplateJson from "./h3-multiseg-template.api.json";
+// 1112 recavsr-mainline:三采主线模板对——GUI 档=repo 主线件原样拷贝语义
+// (103 节点含 TESSERA ③组/300-301 旁路);API 母体=Win 实弹验证过的 59 节点
+// 塑形图(九节点签名塑形:220 削口/260-267 sol-attn/206 target-dim/214-130 auto/266 taeh3)。
+import sancaiTemplateJson from "./h3-three-stage-template.json";
+import sancaiApiTemplateJson from "./h3-three-stage-template.api.json";
 import type { StoryboardItem } from "@/types/studio";
 import { buildShotH3Prompt, buildShotH3MultisegPrompt, buildShotH3RefPrompt, extractPlannedDialogueTexts, verifyPlannedTextVerbatim, type H3AudioPolicy } from "./h3-shot-prompt";
 import { H3_WORKFLOW_RECIPES, type H3ResolutionTier } from "./h3-workflow-recipes";
@@ -386,27 +391,46 @@ export function buildShotH3MultisegApiWorkflow(input: ShotH3ApiWorkflowInput): S
   };
 }
 
-/** 注册表分派组装器(§14.1.4;1101 pika-ref2va-mainline 增 r2v 分支):按 H3_WORKFLOW_RECIPES
- *  查 inputMode——multiseg→buildShotH3MultisegApiWorkflow;r2v→buildShotH3RefApiWorkflow
- *  (Pika ref2va 参考线专用,refs 注入);i2v 族→buildShotH3ApiWorkflow(W10 配方化
- *  模板对);未知 id 抛错(禁静默回缺省)。 */
-export function buildShotH3ApiWorkflowForRecipe(recipeId: string, input: ShotH3ApiWorkflowInput): ShotH3ApiWorkflowResult {
+/** 注册表分派组装器(§14.1.4;1101 pika-ref2va-mainline 增 r2v 分支;1112 recavsr-mainline
+ *  增三采分支):按 H3_WORKFLOW_RECIPES 查 inputMode——sancai 族→buildShotH3SancaiApiWorkflow
+ *  (两段拆链,r2v/i2v 共用真身,219 布尔置位);multiseg→buildShotH3MultisegApiWorkflow;
+ *  r2v→buildShotH3RefApiWorkflow(Pika ref2va 参考线专用,refs 注入);i2v 族→
+ *  buildShotH3ApiWorkflow(W10 配方化模板对);未知 id 抛错(禁静默回缺省)。 */
+export function buildShotH3ApiWorkflowForRecipe(
+  recipeId: string,
+  input: ShotH3ApiWorkflowInput & Partial<Pick<ShotH3SancaiApiWorkflowInput, "r2v" | "refs" | "frameWidth" | "frameHeight">>,
+): ShotH3ApiWorkflowResult {
   const recipe = H3_WORKFLOW_RECIPES.find((item) => item.id === recipeId);
   if (!recipe) {
     throw new Error(`未知 H3 工作流配方:${recipeId}(注册表在册:${H3_WORKFLOW_RECIPES.map((item) => item.id).join(" / ")})`);
+  }
+  if (recipe.inputMode === "sancai-r2v" || recipe.inputMode === "sancai-i2v") {
+    const sancaiInput = input as ShotH3SancaiApiWorkflowInput;
+    if (typeof sancaiInput.frameWidth !== "number" || typeof sancaiInput.frameHeight !== "number") {
+      throw new Error("三采配方派发需要首帧像素宽高(frameWidth/frameHeight——AR 阶梯推导源,可用 parseImageSizeFromB64 从 b64 解出)");
+    }
+    return buildShotH3SancaiApiWorkflow({
+      ...input,
+      r2v: recipe.inputMode === "sancai-r2v",
+      refs: sancaiInput.refs,
+      frameWidth: sancaiInput.frameWidth,
+      frameHeight: sancaiInput.frameHeight,
+    });
   }
   if (recipe.inputMode === "multiseg") return buildShotH3MultisegApiWorkflow(input);
   if (recipe.inputMode === "r2v") return buildShotH3RefApiWorkflow({ ...input, refs: (input as ShotH3RefApiWorkflowInput).refs ?? [] });
   return buildShotH3ApiWorkflow({ ...input, recipeId });
 }
 
-/** 批量可派发配方 id 集(§14.1.4,W10 配方化与 multiseg 并轨):bundle 模板对(i2v 族)
- *  + 注册表 ready 的 multiseg 件(走专用组装器,不进模板对表)。发车前双门之一:
- *  注册表 ready 门(batchDispatchableH3Recipes)在前,本集在后。 */
+/** 批量可派发配方 id 集(§14.1.4,W10 配方化与 multiseg 并轨;1112 增三采):bundle
+ *  模板对(i2v 族)+ 注册表 ready 的 multiseg/sancai 件(走专用组装器,不进模板对表)。
+ *  发车前双门之一:注册表 ready 门(batchDispatchableH3Recipes)在前,本集在后。 */
 export function h3BatchDispatchableRecipeIds(): string[] {
   return [
     ...Object.keys(H3_API_TEMPLATE_PAIRS),
-    ...H3_WORKFLOW_RECIPES.filter((item) => item.inputMode === "multiseg" && item.status === "ready").map((item) => item.id),
+    ...H3_WORKFLOW_RECIPES.filter(
+      (item) => item.status === "ready" && (item.inputMode === "multiseg" || item.inputMode === "sancai-r2v" || item.inputMode === "sancai-i2v"),
+    ).map((item) => item.id),
   ];
 }
 
@@ -417,9 +441,19 @@ const MULTISEG_TIMEOUT_BASE_S = 600;
 const MULTISEG_TIMEOUT_PER_SECOND_S = 300;
 /** multiseg 超时上限(§14.1.5 M2:40s 960p≈12600s+冷启+余量;与 execute.py MAX_EXECUTE_TIMEOUT_S=14400 对齐)。 */
 export const MULTISEG_TIMEOUT_CAP_S = 14400;
+/** 三采两段档超时(Note103 法则③实测:1:1 方图 10s=一二采 472.5s+三采 70.3s;
+ *  段A(一二采)900s/段B(三采)300s 留裕量,冷启含加载)。 */
+export const SANCAI_STAGE_A_TIMEOUT_S = 900;
+export const SANCAI_STAGE_B_TIMEOUT_S = 300;
 
-/** 执行超时秒解析(§14.1.4):i2v 族=档位表(900/2700,现状不动);
- *  multiseg=600+ceil(seconds)×300(960p 单档),clamp≤14400。
+/** 三采两段档超时表(1112 recavsr-mainline):段A=一二采 900s、段B=三采 300s。 */
+export function resolveSancaiStageTimeoutS(): { stageA: number; stageB: number } {
+  return { stageA: SANCAI_STAGE_A_TIMEOUT_S, stageB: SANCAI_STAGE_B_TIMEOUT_S };
+}
+
+/** 执行超时秒解析(§14.1.4;1112 三采分支):i2v 族=档位表(900/2700,现状不动);
+ *  multiseg=600+ceil(seconds)×300(960p 单档),clamp≤14400;
+ *  sancai 族=段A 档 900s(单值口径——编排器段B 用 resolveSancaiStageTimeoutS)。
  *  前端轮询 pollTimeoutMs=timeoutS×1000+30s 既有公式自动随宽。 */
 export function resolveH3ShotTimeoutS(recipeId: string, seconds: number, tier: H3ResolutionTier = "960p"): number {
   const recipe = H3_WORKFLOW_RECIPES.find((item) => item.id === recipeId);
@@ -428,6 +462,9 @@ export function resolveH3ShotTimeoutS(recipeId: string, seconds: number, tier: H
   }
   if (recipe.inputMode === "multiseg") {
     return Math.min(MULTISEG_TIMEOUT_CAP_S, MULTISEG_TIMEOUT_BASE_S + Math.ceil(seconds) * MULTISEG_TIMEOUT_PER_SECOND_S);
+  }
+  if (recipe.inputMode === "sancai-r2v" || recipe.inputMode === "sancai-i2v") {
+    return SANCAI_STAGE_A_TIMEOUT_S;
   }
   return H3_I2V_TIER_TIMEOUT_S[tier];
 }
@@ -576,4 +613,224 @@ export function buildShotH3RefApiWorkflow(input: ShotH3RefApiWorkflowInput): Sho
 
   const images = input.firstFrameB64 ? [{ key: "9.image", name: String(widget(9, "LoadImage")), b64: input.firstFrameB64 }] : [];
   return { apiGraph, uiWorkflow: base.ui, images, report: base.report };
+}
+
+// ── 三采两段档(1112 recavsr-mainline;Note103 运行法则:拆链+/free/独立一发)──────────────────────
+
+/** AR 阶梯(Note103 法则②:一采~0.52MP/二采~1.2MP 按输入图 AR 开方、全 32 对齐;
+ *  判例 16:9=960×544→1440×832、1:1=736²→1088²、竖图镜像;改 16/220/208/206 四处)。
+ *  对齐口径=引擎 ResolutionSelector 同款 round(nodes_resolution.py execute:
+ *  round(w_ratio*scale/multiple)*multiple);二采档 AR 从一采已对齐值再推
+ *  (960/544→1440×832 判例口径——用原始 16:9 直推会得 1472×832 偏一档)。 */
+export interface SancaiResolutionLadder {
+  /** 一采档宽(16/220 注入) */
+  w1: number;
+  /** 一采档高 */
+  h1: number;
+  /** 二采档宽(208/206 注入) */
+  w2: number;
+  /** 二采档高 */
+  h2: number;
+}
+
+const SANCAI_STAGE1_PIXELS = 520_000;
+const SANCAI_STAGE2_PIXELS = 1_200_000;
+
+export function computeSancaiResolutionLadder(width: number, height: number): SancaiResolutionLadder {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    throw new Error("三采 AR 阶梯需要有效的首帧像素宽高(W×H 均须为正数)");
+  }
+  const align32 = (value: number) => Math.round(value / 32) * 32;
+  const ar = width / height;
+  const w1 = align32(Math.sqrt(SANCAI_STAGE1_PIXELS * ar));
+  const h1 = align32(Math.sqrt(SANCAI_STAGE1_PIXELS / ar));
+  const ar2 = w1 / h1;
+  const w2 = align32(Math.sqrt(SANCAI_STAGE2_PIXELS * ar2));
+  const h2 = align32(Math.sqrt(SANCAI_STAGE2_PIXELS / ar2));
+  return { w1, h1, w2, h2 };
+}
+
+/** 段A(一二采)节点集=59 塑形图全链减三采链(Win 实弹 ar10s_stage12 同款 56 节点)。 */
+const SANCAI_STAGE_B_NODE_IDS = ["338", "339", "340"] as const;
+
+/** 三采 API 档输入:画布档输入 + 两段档扩展(r2v 臂选择/refs/首帧像素——AR 阶梯源)。 */
+export interface ShotH3SancaiApiWorkflowInput extends ShotH3ApiWorkflowInput {
+  /** true=r2v 多参考臂(219=false→16 号 MiniMaxH3ReferenceToVideo,提示词六段式);
+   *  false=i2v 首帧锚定臂(219=true→220 号,Win 实弹 ar10s 同款;注意 219 语义
+   *  以 wire 为准:ComfySwitchNode switch?on_true:on_false,on_true=220)。缺省 true。 */
+  r2v?: boolean;
+  /** 参考资产(r2v 臂;≤4 按序占 110-113=Picture 2..5;按名引用,资产上传归宿主) */
+  refs?: ShotH3RefAssetInput[];
+  /** 首帧像素宽(AR 阶梯推导源;parseImageSizeFromB64 可解) */
+  frameWidth: number;
+  /** 首帧像素高 */
+  frameHeight: number;
+}
+
+/** 三采两段档组装结果:apiGraph=段A(一二采),stageBGraph=段B(三采)。 */
+export interface ShotH3SancaiApiWorkflowResult extends ShotH3ApiWorkflowResult {
+  /** 段B(三采)API 图:300 LoadVideo 的 file 出厂为空串,编排器在段A complete
+   *  后用 applySancaiStageBSource 回填终档注解名(零拷贝 [output] 通道)。 */
+  stageBGraph: Record<string, { class_type: string; inputs: Record<string, unknown> }>;
+}
+
+/** 段A 终档产物 → 引擎注解名(零拷贝通道:folder_paths.annotated_filepath 原生认
+ *  「<subfolder>/<filename> [output]」,LoadVideo 直读输出目录,不经上传不落 input)。 */
+/** b64 首帧 → 像素宽高(三采 AR 阶梯推导源;纯函数单测覆盖)。
+ *  PNG=固定偏移 IHDR(16-23 字节);JPEG=扫 SOF0/1/2/… 帧 marker(高在先宽在后)。
+ *  其余格式/损坏流 → null(调用方拒派发,禁猜尺寸)。 */
+export function parseImageSizeFromB64(b64: string): { width: number; height: number } | null {
+  const clean = b64.replace(/^data:[^,]*,/, "").replace(/[\r\n]/g, "");
+  const binary = atob(clean);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  const readUInt32BE = (offset: number) => ((bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3]) >>> 0;
+  const readUInt16BE = (offset: number) => (bytes[offset] << 8) | bytes[offset + 1];
+  // PNG:89 50 4E 47 + IHDR(宽高各 4 字节大端,偏移 16/20)
+  if (bytes.length >= 24 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+    const width = readUInt32BE(16);
+    const height = readUInt32BE(20);
+    return width > 0 && height > 0 ? { width, height } : null;
+  }
+  // JPEG:FF D8,逐段扫 SOF marker(C0-CF 除 C4/C8/CC)
+  if (bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
+    let offset = 2;
+    while (offset + 9 < bytes.length) {
+      if (bytes[offset] !== 0xff) {
+        offset += 1;
+        continue;
+      }
+      const marker = bytes[offset + 1];
+      const length = readUInt16BE(offset + 2);
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        const height = readUInt16BE(offset + 5);
+        const width = readUInt16BE(offset + 7);
+        return width > 0 && height > 0 ? { width, height } : null;
+      }
+      if (marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd9)) {
+        offset += 2;
+        continue;
+      }
+      offset += 2 + length;
+    }
+  }
+  return null;
+}
+
+export function sancaiAnnotatedVideoRef(video: { filename: string; subfolder?: string }): string {
+  const sub = (video.subfolder ?? "").replace(/\/+$/, "");
+  return sub ? `${sub}/${video.filename} [output]` : `${video.filename} [output]`;
+}
+
+/** 段B 视频源回填(编排器专用:段A result.videos 里 nodeId=4 的终档条目)。 */
+export function applySancaiStageBSource(
+  stageBGraph: Record<string, { class_type: string; inputs: Record<string, unknown> }>,
+  video: { filename: string; subfolder?: string },
+): void {
+  getApiNode(stageBGraph, "300", "LoadVideo").inputs.file = sancaiAnnotatedVideoRef(video);
+}
+
+/** 画布档三采薄壳(1112 模板换血登记:母体=h3-three-stage-template.json=repo 主线件
+ *  原样拷贝语义;画布直开链按 recipe 分派到本壳——旧行为走 buildShotH3Workflow 零变)。 */
+export function buildShotH3ThreeStageWorkflow(
+  input: ShotH3WorkflowInput & { r2v?: boolean; refs?: ShotH3RefAssetInput[] },
+): ShotH3WorkflowResult {
+  return input.r2v === false
+    ? buildShotWorkflowFromTemplate(sancaiTemplateJson as unknown as H3WorkflowTemplate, input)
+    : buildShotRefWorkflowFromTemplate(sancaiTemplateJson as unknown as H3WorkflowTemplate, { ...input, refs: input.refs ?? [] });
+}
+
+/** 三采 API 档组装器(1112 recavsr-mainline 真身;r2v/i2v 共用):
+ *  ① 提示词链复用既有真身(r2v=buildShotRefWorkflowFromTemplate 六段式 /
+ *  i2v=buildShotWorkflowFromTemplate,内含文案逐字自检门+MyShot properties 三键
+ *  +connectVideoWriteback;旧断言集对新母体天然兼容——4/9/14/20/100/101 全在场);
+ *  ② 段A=59 塑形图克隆 − 三采链(Win 实弹 56 节点同款),锚注入(14/20/9/4/204/
+ *  110-113/219)+AR 阶梯直填 16/220/208/206(覆盖 22 号 link,22 删除=按需旁路);
+ *  ③ 段B=300 LoadVideo(file 待编排器回填)+338/339/340 克隆(339.video 改接 300)
+ *  +MyShot 100 连 340(终档落账:五段前缀+extraPngInfo 复用段A uiWorkflow——
+ *  MyShot.run 只读 API 图连线与 pnginfo 里的 properties,UI 图连线不参与);
+ *  ④ images 通道只带首帧 b64(110-113 按名引用;i2v 臂以分镜帧补位满槽——208
+ *  二采恒消费 ref_image_1..4,占位名禁进 API 图直投)。 */
+export function buildShotH3SancaiApiWorkflow(input: ShotH3SancaiApiWorkflowInput): ShotH3SancaiApiWorkflowResult {
+  const r2v = input.r2v ?? true;
+  const refs = (input.refs ?? []).slice(0, REF_IMAGE_NODE_IDS.length);
+  const ladder = computeSancaiResolutionLadder(input.frameWidth, input.frameHeight);
+
+  // ① 画布档同源组装(提示词+自检门+MyShot 三键+9/110-113 激活)
+  const base = r2v
+    ? buildShotRefWorkflowFromTemplate(sancaiTemplateJson as unknown as H3WorkflowTemplate, { ...input, refs })
+    : buildShotWorkflowFromTemplate(sancaiTemplateJson as unknown as H3WorkflowTemplate, input);
+  const nodes = base.ui.nodes as WorkflowNode[];
+  const widgetOf = (id: number, type: string): unknown => {
+    const node = getNode({ nodes } as H3WorkflowTemplate, id, type);
+    if (!Array.isArray(node.widgets_values)) throw new Error(`h3-three-stage-template drift: node ${id} widgets_values missing`);
+    return node.widgets_values[0];
+  };
+
+  const apiGraph = JSON.parse(JSON.stringify(sancaiApiTemplateJson)) as ApiGraph;
+  const promptText = widgetOf(14, "PrimitiveStringMultiline");
+  const seconds = widgetOf(20, "PrimitiveFloat");
+  const imageName = String(widgetOf(9, "LoadImage"));
+  const myShotWidgets = (nodes.find((node) => node.id === 100) as WorkflowNode | undefined)?.widgets_values;
+  if (!Array.isArray(myShotWidgets) || myShotWidgets.length < 4) throw new Error("h3-three-stage-template drift: node 100 widgets_values missing");
+  const [shotId, label, description, mediaStatus] = myShotWidgets;
+
+  // ② 段A 注入(锚=object_info 实锚;前缀口径=同源真身已注入的 4 号五段前缀
+  // ——r2v 臂 ref-{policy}/i2v 臂 {policy},与既有单段线完全同构;204={prefix}-p1
+  // 一采预览;段B 340=同 prefix 终档落账,subfolder 恒四段过 consumer 白名单)
+  const prefix = String(widgetOf(4, "SaveVideo"));
+  for (const id of SANCAI_STAGE_B_NODE_IDS) {
+    if (!apiGraph[id]) throw new Error(`h3-three-stage-template.api.json drift: node ${id} missing`);
+    delete apiGraph[id];
+  }
+  getApiNode(apiGraph, "14", "PrimitiveStringMultiline").inputs.value = promptText;
+  getApiNode(apiGraph, "20", "PrimitiveFloat").inputs.value = seconds;
+  getApiNode(apiGraph, "4", "SaveVideo").inputs.filename_prefix = prefix;
+  getApiNode(apiGraph, "204", "SaveVideo").inputs.filename_prefix = `${prefix}-p1`;
+  getApiNode(apiGraph, "9", "LoadImage").inputs.image = imageName;
+  // 219 布尔置位(wire 真相:true→on_true=220 i2v 臂;false→on_false=16 r2v 臂)
+  getApiNode(apiGraph, "219", "PrimitiveBoolean").inputs.value = !r2v;
+  // AR 阶梯直填(Note103 法则②四处;覆盖 22 号 link 后删除 22=按需旁路)
+  const stage1 = getApiNode(apiGraph, "16", "MiniMaxH3ReferenceToVideo");
+  stage1.inputs.width = ladder.w1;
+  stage1.inputs.height = ladder.h1;
+  const stage1I2v = getApiNode(apiGraph, "220", "MiniMaxH3ImageToVideo");
+  stage1I2v.inputs.width = ladder.w1;
+  stage1I2v.inputs.height = ladder.h1;
+  const stage2 = getApiNode(apiGraph, "208", "MiniMaxH3ReferenceToVideo");
+  stage2.inputs.width = ladder.w2;
+  stage2.inputs.height = ladder.h2;
+  const upscaler = getApiNode(apiGraph, "206", "MinimaxH3LatentUpscaler3D");
+  upscaler.inputs["mode.width"] = ladder.w2;
+  upscaler.inputs["mode.height"] = ladder.h2;
+  delete apiGraph["22"];
+  // 110-113 满槽注入(208 二采恒消费 ref_image_1..4;r2v=refs 按序+分镜帧补位,
+  // i2v=分镜帧补位——Win 实弹同图多槽先例;占位名禁进 API 图直投)
+  REF_IMAGE_NODE_IDS.forEach((nodeId, position) => {
+    const ref = refs[position];
+    const name = r2v && ref ? ref.imageName : imageName;
+    getApiNode(apiGraph, String(nodeId), "LoadImage").inputs.image = name;
+  });
+
+  // ③ 段B 构造(300 LoadVideo + 338/339/340 克隆 + MyShot 100 连 340)
+  const stageBGraph = JSON.parse(JSON.stringify(sancaiApiTemplateJson)) as ApiGraph;
+  for (const id of Object.keys(stageBGraph)) {
+    if (!SANCAI_STAGE_B_NODE_IDS.includes(id as (typeof SANCAI_STAGE_B_NODE_IDS)[number])) delete stageBGraph[id];
+  }
+  stageBGraph["300"] = { class_type: "LoadVideo", inputs: { file: "" } };
+  const loader = getApiNode(stageBGraph, "338", "ReCaVSRLoader");
+  const upscale = getApiNode(stageBGraph, "339", "ReCaVSRUpscale");
+  const saveVideoB = getApiNode(stageBGraph, "340", "SaveVideo");
+  loader.inputs.transformer = loader.inputs.transformer ?? "transformer_int8_convrot.safetensors";
+  upscale.inputs.model = ["338", 0];
+  upscale.inputs.video = ["300", 0];
+  saveVideoB.inputs.video = ["339", 0];
+  saveVideoB.inputs.filename_prefix = prefix;
+  stageBGraph["100"] = {
+    class_type: "MyShot",
+    inputs: { shot_id: shotId, label, description, media_status: mediaStatus, video: ["340", 0] },
+  };
+
+  const images = input.firstFrameB64 ? [{ key: "9.image", name: imageName, b64: input.firstFrameB64 }] : [];
+  return { apiGraph, uiWorkflow: base.ui, images, stageBGraph, report: base.report };
 }

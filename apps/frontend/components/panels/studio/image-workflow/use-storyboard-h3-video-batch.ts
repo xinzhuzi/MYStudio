@@ -16,10 +16,14 @@ import {
   buildShotH3ApiWorkflowForRecipe,
   h3BatchDispatchableRecipeIds,
   resolveH3ShotTimeoutS,
+  resolveSancaiStageTimeoutS,
+  parseImageSizeFromB64,
+  applySancaiStageBSource,
+  type ShotH3SancaiApiWorkflowResult,
 } from "@/lib/assist/image-studio/h3-shot-video-workflow";
 import { batchDispatchableH3Recipes, type H3ResolutionTier } from "@/lib/assist/image-studio/h3-workflow-recipes";
 import { dialogueAudioPolicy } from "@/lib/assist/image-studio/h3-shot-prompt";
-import { comfySidecarJson, persistComfyVideosFromResult, type ComfyExecuteJobReply } from "@/lib/assist/image-studio/comfy-execute";
+import { comfySidecarJson, persistComfyVideosFromResult, requestComfyEngineFree, type ComfyExecuteJobReply } from "@/lib/assist/image-studio/comfy-execute";
 import { getRemoteEngine } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
 import { consumeComfyBridgeWritebacks } from "@/lib/assist/image-studio/comfy-bridge-writeback-consumer";
 import { readStoryboardImageB64 } from "@/lib/assist/image-studio/storyboard-overview-sync";
@@ -129,8 +133,10 @@ async function persistRemoteShotVideos(
 }
 
 /** 自实现执行+轮询:提交拿到 jobId 即回调 onJobId(硬取消 stop 追踪用);
- *  job error 抛大白话由调用方分类。complete 时远端 settings 模式下顺带入库
- *  result.videos(T16 产物回流,本地模式零调用)。 */
+ *  job error 抛大白话由调用方分类;complete 返回 job result(三采拆链要读
+ *  result.videos 拿段A 终档产物做段B 视频源)。远端 settings 模式下按
+ *  persistOnComplete 入库 result.videos(T16 产物回流,本地模式零调用;
+ *  1112 三采:段A 中间档(p1/p2)不回流,仅段B 终档回流)。 */
 async function executeShotWorkflow(input: {
   apiGraph: Record<string, { class_type: string; inputs: Record<string, unknown> }>;
   extraPngInfo: Record<string, unknown>;
@@ -139,7 +145,9 @@ async function executeShotWorkflow(input: {
   /** 发起项目快照(远端回流入库归属;照 persistComfyVideo 防错挂惯例) */
   originProjectId: string;
   onJobId?: (jobId: string) => void;
-}): Promise<void> {
+  /** complete 时远端 settings 模式入库 result.videos(单段线/三采段B=true) */
+  persistOnComplete?: boolean;
+}): Promise<NonNullable<ComfyExecuteJobReply["result"]>> {
   const { jobId } = await comfySidecarJson<{ jobId: string }>("POST", "/comfy/execute", {
     body: {
       graph: input.apiGraph,
@@ -159,8 +167,8 @@ async function executeShotWorkflow(input: {
     );
     if (job.status === "error") throw new Error(job.error || job.message || "ComfyUI 执行失败");
     if (job.status === "complete") {
-      await persistRemoteShotVideos(job.result, input.originProjectId);
-      return;
+      if (input.persistOnComplete) await persistRemoteShotVideos(job.result, input.originProjectId);
+      return job.result ?? {};
     }
     if (Date.now() >= deadline) throw new Error(`ComfyUI 执行超时(${input.timeoutS} 秒),请检查引擎队列后重试`);
     await new Promise((resolve) => setTimeout(resolve, JOB_POLL_INTERVAL_MS));
@@ -222,9 +230,11 @@ async function powerSaveStop(): Promise<void> {
 
 /** 单镜执行+回收(批量循环与镜级 force 重生成共用真身)。
  *  失败分类抛出:kind="engine"(不重掷)/"reclaim"(仅重试消费过仍失败)/"assembled"(组装/自检门)。
- *  recipeId(§14.1.4 multiseg/W10 fasth3):经 buildShotH3ApiWorkflowForRecipe 注册表分派——
- *  i2v 族按模板对(缺省=旧 H3 线);multiseg 走分段组装器(超时随 report.seconds 缩放)。
- *  onJobId:提交引擎后拿到 jobId 即回调——批量 stop 硬取消追踪用(单镜 force
+ *  recipeId(§14.1.4 multiseg/W10 fasth3;1112 三采):经 buildShotH3ApiWorkflowForRecipe
+ *  注册表分派——sancai 族走两段拆链(Note103 法则①:段A 一二采一发→POST /free→段B
+ *  三采独立一发;段B 视频源=段A result.videos 里 nodeId=4 终档的 [output] 注解名,
+ *  零拷贝直读输出目录);i2v 族按模板对(缺省=旧 H3 线);multiseg 走分段组装器。
+ *  onJobId:每段提交引擎后即回调——批量 stop 硬取消追踪两段共用(单镜 force
  *  不接停止 UI,天然不需要,PRD §14.2.3)。 */
 export async function runStoryboardH3ShotVideoStep(input: {
   shot: StoryboardItem;
@@ -245,6 +255,9 @@ export async function runStoryboardH3ShotVideoStep(input: {
   } catch (error) {
     throw new Error(`读取首帧失败:${error instanceof Error ? error.message : String(error)}`);
   }
+  // 1112 三采:AR 阶梯推导需要首帧像素宽高(纯函数解 PNG/JPEG 头)。旧配方
+  // 忽略尺寸;三采族解不出(非 PNG/JPEG/损坏头)由分派器的字段门拒派发。
+  const frameSize = parseImageSizeFromB64(firstFrameB64);
   const assembled = buildShotH3ApiWorkflowForRecipe(input.recipeId ?? DEFAULT_H3_RECIPE_ID, {
     shot,
     chapterId: shot.episodeId,
@@ -254,15 +267,49 @@ export async function runStoryboardH3ShotVideoStep(input: {
     originProjectId: input.originProjectId,
     firstFrameB64,
     resolutionTier: input.tier,
+    ...(frameSize ? { frameWidth: frameSize.width, frameHeight: frameSize.height } : {}),
   });
-  await executeShotWorkflow({
-    apiGraph: assembled.apiGraph,
-    extraPngInfo: assembled.uiWorkflow,
-    images: assembled.images,
-    timeoutS: resolveH3ShotTimeoutS(input.recipeId ?? DEFAULT_H3_RECIPE_ID, assembled.report.seconds, input.tier),
-    originProjectId: input.originProjectId,
-    onJobId: input.onJobId,
-  });
+  const sancai = (assembled as ShotH3SancaiApiWorkflowResult).stageBGraph
+    ? (assembled as ShotH3SancaiApiWorkflowResult)
+    : null;
+  if (sancai) {
+    // 两段拆链(Note103 法则①;超时=两段档 900s/300s)
+    const { stageA, stageB } = resolveSancaiStageTimeoutS();
+    const resultA = await executeShotWorkflow({
+      apiGraph: sancai.apiGraph,
+      extraPngInfo: sancai.uiWorkflow,
+      images: sancai.images,
+      timeoutS: stageA,
+      originProjectId: input.originProjectId,
+      onJobId: input.onJobId,
+    });
+    const finalVideo = (resultA.videos ?? []).find((video) => video.nodeId === "4" && video.filename);
+    if (!finalVideo?.filename) {
+      throw new Error("一二采已完成但未取到终档产物(SaveVideo 节点 4 的输出缺失),无法衔接三采");
+    }
+    // 段间 /free(卸载 H3 全家桶防三采被饿;发后即忘——失败吞错不阻断段B)
+    await requestComfyEngineFree();
+    applySancaiStageBSource(sancai.stageBGraph, { filename: finalVideo.filename, subfolder: finalVideo.subfolder });
+    await executeShotWorkflow({
+      apiGraph: sancai.stageBGraph,
+      extraPngInfo: sancai.uiWorkflow,
+      images: [],
+      timeoutS: stageB,
+      originProjectId: input.originProjectId,
+      onJobId: input.onJobId,
+      persistOnComplete: true,
+    });
+  } else {
+    await executeShotWorkflow({
+      apiGraph: assembled.apiGraph,
+      extraPngInfo: assembled.uiWorkflow,
+      images: assembled.images,
+      timeoutS: resolveH3ShotTimeoutS(input.recipeId ?? DEFAULT_H3_RECIPE_ID, assembled.report.seconds, input.tier),
+      originProjectId: input.originProjectId,
+      onJobId: input.onJobId,
+      persistOnComplete: true,
+    });
+  }
   const baseline = snapshotShotBaseline(shot.id);
   const landed = await reclaimShotVideo({ shotId: shot.id, ...baseline });
   if (!landed) {

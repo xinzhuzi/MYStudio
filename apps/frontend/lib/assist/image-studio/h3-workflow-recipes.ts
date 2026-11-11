@@ -5,7 +5,7 @@
 // 锚字段名以 object_info 实锚为准(1027 引擎 17001 实查):节点 14 的文本锚是 14.value
 // (PrimitiveStringMultiline 的 INPUT_TYPES 键为 value,设计稿曾记 14.text,以实锚为准)。
 
-export type H3WorkflowInputMode = "i2v" | "fl2v" | "r2v" | "t2v" | "multiseg";
+export type H3WorkflowInputMode = "i2v" | "fl2v" | "r2v" | "t2v" | "multiseg" | "sancai-r2v" | "sancai-i2v";
 
 export type H3RecipeStatus = "ready" | "needs-adaptation" | "needs-unfreeze" | "cloud-paid" | "unverified";
 
@@ -143,6 +143,47 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     resolutionTiers: ["960p"],
     status: "ready",
     notes: "二期适配完成(§14.1,四针=MyShot 锚 103/首帧潜空间锚 9→101.first_frame/五段前缀/双旁路出厂):适配 UI 件=h3-multiseg-template.json(前端 bundle,repo 原件零改);组装器=buildShotH3MultisegApiWorkflow(分段提示词 buildShotH3MultisegPrompt,无 seconds 锚——时长在分段文本标签行内);档位恒 960×544 模板原厂(M5:与 768p turbo LoRA 失配属画质议题,实弹判读后候令对齐);超时=resolveH3ShotTimeoutS(600+秒×300,clamp 14400);40s 硬顶拒派(M1)。",
+  },
+  {
+    // 1112 recavsr-mainline(用户终裁「ReCaVSR 非常不错,就做这个主线,三采单镜」):
+    // 三采两段拆链档(Note103 运行法则①)——一二采一发→POST /free(unload_models)→
+    // 三采独立一发;r2v/i2v 两臂共用同一母体(219 布尔置位),组装真身=
+    // buildShotH3SancaiApiWorkflow(段A 56 节点=59 塑形图−三采链;段B=300 LoadVideo
+    // 注解名注入+338/339/340+MyShot 100 连 340 落账终档)。
+    id: "my-h3-sancai-r2v",
+    label: "漫影单镜三采 R2V(ReCaVSR 主线,拆链两发)",
+    apiTemplate: "./h3-three-stage-template.api.json",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/0_单镜视频/三采-单镜.json",
+    inputMode: "sancai-r2v",
+    anchors: {
+      prompt: "14.value",
+      seconds: "20.value",
+      firstFrame: "9.image",
+      resolution: ["16.width", "16.height"],
+      savePrefix: "4.filename_prefix",
+      myShot: "100",
+    },
+    resolutionTiers: ["960p"],
+    status: "ready",
+    notes: "1112 三采主线 R2V 臂(多参考):219=false 走 16 号 MiniMaxH3ReferenceToVideo,提示词=buildShotH3RefPrompt 六段式,分镜帧占 9(Picture 1)+refs 按 110-113。AR 阶梯按输入图推导(Note103 法则②:0.52MP/1.2MP 开方+32 对齐,改 16/220/208/206 四处)。超时=两段档(段A 900s/段B 300s,resolveSancaiStageTimeoutS)。Win 实弹验证(59 节点塑形图+拆链段A/B);Mac 引擎派发前须模型件在册(Cobijada/Pika LoRA/latent upscaler/ReCaVSR transformer),缺失时引擎 node_errors 大白话拒。",
+  },
+  {
+    id: "my-h3-sancai-i2v",
+    label: "漫影单镜三采 I2V(ReCaVSR 主线,拆链两发)",
+    apiTemplate: "./h3-three-stage-template.api.json",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/0_单镜视频/三采-单镜.json",
+    inputMode: "sancai-i2v",
+    anchors: {
+      prompt: "14.value",
+      seconds: "20.value",
+      firstFrame: "9.image",
+      resolution: ["16.width", "16.height"],
+      savePrefix: "4.filename_prefix",
+      myShot: "100",
+    },
+    resolutionTiers: ["960p"],
+    status: "ready",
+    notes: "1112 三采主线 I2V 臂(首帧锚定):219=true 走 220 号 MiniMaxH3ImageToVideo(Win 实弹 ar10s 同款),提示词=buildShotH3Prompt,9=首帧;208 二采恒用 ref_images(110-113 以分镜帧补位,Win 实弹同图多槽先例)。其余同 my-h3-sancai-r2v。",
   },
   {
     id: "guding-480p-direct",

@@ -118,6 +118,28 @@ export async function comfySidecarJson<T>(
 }
 
 // ---------------------------------------------------------------------------
+// 引擎显存释放(1112 recavsr-mainline:三采拆链条间 POST /free)
+// ---------------------------------------------------------------------------
+
+/**
+ * 请求引擎卸载模型并回收显存(sidecar POST /comfy/engine/free → engine_health.
+ * free_memory → 引擎 POST /free {"unload_models":true,"free_memory":true})。
+ * Note103 运行法则①的段间动作:H3 全家桶驻留显存会把三采饿至 2~5s/帧,
+ * 拆链+/free 后 243f≈70s。发后即忘语义:失败只回 false 恒不抛(拆链是优化
+ * 不是正确性依赖,引擎不可达/路由未上不应阻断段B)。
+ */
+export async function requestComfyEngineFree(): Promise<boolean> {
+  try {
+    const reply = await comfySidecarJson<{ freed?: boolean; engineOnline?: boolean }>("POST", "/comfy/engine/free", {
+      timeoutMs: 15_000,
+    });
+    return Boolean(reply?.freed);
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 执行契约类型与 job 轮询
 // ---------------------------------------------------------------------------
 

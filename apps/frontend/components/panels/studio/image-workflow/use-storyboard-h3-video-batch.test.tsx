@@ -14,6 +14,7 @@ const consumeMock = vi.hoisted(() => vi.fn());
 const readB64Mock = vi.hoisted(() => vi.fn());
 const persistVideosMock = vi.hoisted(() => vi.fn());
 const getRemoteEngineMock = vi.hoisted(() => vi.fn());
+const engineFreeMock = vi.hoisted(() => vi.fn());
 const powerSave = vi.hoisted(() => ({
   start: vi.fn(async () => ({ started: true, id: 1 })),
   stop: vi.fn(async () => ({ started: false })),
@@ -23,6 +24,7 @@ const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), info: vi.fn(
 vi.mock("@/lib/assist/image-studio/comfy-execute", () => ({
   comfySidecarJson: comfyJsonMock,
   persistComfyVideosFromResult: persistVideosMock,
+  requestComfyEngineFree: engineFreeMock,
 }));
 vi.mock("@/lib/assist/image-studio/comfy-sidecar-bridge", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/assist/image-studio/comfy-sidecar-bridge")>();
@@ -583,6 +585,127 @@ describe("runStoryboardH3ShotVideo(镜级重生成 force 路径)", () => {
     seedShots([shot({ id: "a", index: 1 })]);
     await expect(runStoryboardH3ShotVideo(useStudioStore.getState().storyboards[0]!)).rejects.toThrow("缺少首帧");
     expect(comfyJsonMock).not.toHaveBeenCalled();
+  });
+});
+
+// ── 1112 recavsr-mainline:三采两段拆链(Note103 法则①:一二采一发→/free→三采独立一发) ──
+
+/** 960×544 PNG(16:9 判例档:AR 阶梯→960×544→1440×832)。 */
+const PNG_960_544 = "iVBORw0KGgoAAAANSUhEUgAAA8AAAAIgCAIAAADFh5f6AAAAAElFTkSuQmCC";
+
+describe("runStoryboardH3ShotVideoStep(三采两段拆链,1112 recavsr-mainline)", () => {
+  /** 两段引擎状态机:段A complete 带 nodeId=4 终档产物;段B complete 带 340 终档。
+   *  GET 恒回 complete(假时钟不推进 sleep,首轮即终态——照既有 programEngine 范式)。
+   *  返回提交体捕获数组(断言段A/段B 图形状)。 */
+  function programSancaiEngine(executeBodies: Array<Record<string, unknown>>): void {
+    let jobSeq = 0;
+    comfyJsonMock.mockImplementation(async (method: string, path: string, options?: { body?: unknown }) => {
+      if (method === "POST" && path === "/comfy/execute") {
+        jobSeq += 1;
+        executeBodies.push(options?.body as Record<string, unknown>);
+        return { jobId: `job-${jobSeq}` };
+      }
+      if (method === "GET" && path.startsWith("/comfy/jobs/")) {
+        return jobSeq === 1
+          ? {
+            status: "complete",
+            result: {
+              videos: [
+                { nodeId: "204", filename: "ambient-p1_00001_.mp4", subfolder: "video/漫影/chapter-001/a", type: "output" },
+                { nodeId: "4", filename: "ambient_00002_.mp4", subfolder: "video/漫影/chapter-001/a", type: "output" },
+              ],
+            },
+          }
+          : { status: "complete", result: { videos: [{ nodeId: "340", filename: "ambient_00001_.mp4", subfolder: "video/漫影/chapter-001/a", type: "output" }] } };
+      }
+      throw new Error(`unexpected ${method} ${path}`);
+    });
+  }
+
+  beforeEach(() => {
+    engineFreeMock.mockReset();
+    engineFreeMock.mockResolvedValue(true);
+  });
+
+  it("两段拆链全链:段A(56 节点无三采链)→/free→段B(300.file 注解名+MyShot 连 340)", async () => {
+    seedShots([shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" } })]);
+    readB64Mock.mockResolvedValue(PNG_960_544);
+    const executeBodies: Array<Record<string, unknown>> = [];
+    programSancaiEngine(executeBodies);
+    programLanding(["a"]);
+    await runStoryboardH3ShotVideo(useStudioStore.getState().storyboards[0]!, { recipeId: "my-h3-sancai-i2v" });
+    expect(executeBodies.length).toBe(2);
+    expect(engineFreeMock).toHaveBeenCalledTimes(1);
+    const stageA = executeBodies[0]!.graph as Record<string, { class_type: string; inputs: Record<string, unknown> }>;
+    const stageB = executeBodies[1]!.graph as Record<string, { class_type: string; inputs: Record<string, unknown> }>;
+    // 段A=一二采(无三采链节点;219=true=i2v 臂;AR 阶梯 960×544/1440×832)
+    expect(stageA["338"]).toBeUndefined();
+    expect(stageA["339"]).toBeUndefined();
+    expect(stageA["340"]).toBeUndefined();
+    expect(stageA["219"]!.inputs.value).toBe(true);
+    expect(stageA["220"]!.inputs.width).toBe(960);
+    expect(stageA["220"]!.inputs.height).toBe(544);
+    expect(stageA["16"]!.inputs.width).toBe(960);
+    expect(stageA["16"]!.inputs.height).toBe(544);
+    expect(stageA["208"]!.inputs.width).toBe(1440);
+    expect(stageA["208"]!.inputs.height).toBe(832);
+    expect(stageA["206"]!.inputs["mode.width"]).toBe(1440);
+    expect(stageA["206"]!.inputs["mode.height"]).toBe(832);
+    // 段B=三采(300.file=段A nodeId=4 终档注解名;339.video←300;MyShot 100 连 340)
+    expect(stageB["300"]!.class_type).toBe("LoadVideo");
+    expect(stageB["300"]!.inputs.file).toBe("video/漫影/chapter-001/a/ambient_00002_.mp4 [output]");
+    expect(stageB["339"]!.inputs.video).toEqual(["300", 0]);
+    expect(stageB["340"]!.inputs.filename_prefix).toBe(String(stageA["4"]!.inputs.filename_prefix));
+    expect(stageB["100"]!.class_type).toBe("MyShot");
+    expect(stageB["100"]!.inputs.video).toEqual(["340", 0]);
+    expect(stageB["100"]!.inputs.shot_id).toBe("a");
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining("已出片并回收"));
+  });
+
+  it("段A 完成但缺 nodeId=4 终档产物→抛错不发段B(零拷贝通道断链显式失败)", async () => {
+    seedShots([shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" } })]);
+    readB64Mock.mockResolvedValue(PNG_960_544);
+    const executeBodies: Array<Record<string, unknown>> = [];
+    let jobSeq = 0;
+    comfyJsonMock.mockImplementation(async (method: string, path: string, options?: { body?: unknown }) => {
+      if (method === "POST" && path === "/comfy/execute") {
+        jobSeq += 1;
+        executeBodies.push(options?.body as Record<string, unknown>);
+        return { jobId: `job-${jobSeq}` };
+      }
+      if (method === "GET" && path.startsWith("/comfy/jobs/")) {
+        return { status: "complete", result: { videos: [{ nodeId: "204", filename: "p1.mp4", subfolder: "" }] } };
+      }
+      throw new Error(`unexpected ${method} ${path}`);
+    });
+    await expect(runStoryboardH3ShotVideo(useStudioStore.getState().storyboards[0]!, { recipeId: "my-h3-sancai-i2v" }))
+      .rejects.toThrow("未取到终档产物");
+    expect(executeBodies.length).toBe(1);
+    expect(engineFreeMock).not.toHaveBeenCalled();
+  });
+
+  it("/free 失败(引擎离线)吞错不阻断段B(拆链是优化不是正确性依赖)", async () => {
+    seedShots([shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" } })]);
+    readB64Mock.mockResolvedValue(PNG_960_544);
+    engineFreeMock.mockResolvedValue(false);
+    const executeBodies: Array<Record<string, unknown>> = [];
+    programSancaiEngine(executeBodies);
+    programLanding(["a"]);
+    await runStoryboardH3ShotVideo(useStudioStore.getState().storyboards[0]!, { recipeId: "my-h3-sancai-r2v" });
+    expect(executeBodies.length).toBe(2);
+    expect(engineFreeMock).toHaveBeenCalledTimes(1);
+    const stageB = executeBodies[1]!.graph as Record<string, { inputs: Record<string, unknown> }>;
+    expect(stageB["300"]!.inputs.file).toContain("[output]");
+  });
+
+  it("旧配方(DEFAULT)单发照旧:不调 /free 不拆段", async () => {
+    seedShots([shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" } })]);
+    const executeBodies: Array<Record<string, unknown>> = [];
+    programSancaiEngine(executeBodies);
+    programLanding(["a"]);
+    await runStoryboardH3ShotVideo(useStudioStore.getState().storyboards[0]!, { tier: "480p" });
+    expect(executeBodies.length).toBe(1);
+    expect(engineFreeMock).not.toHaveBeenCalled();
   });
 });
 

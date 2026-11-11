@@ -275,7 +275,7 @@ describe("H3 工作流注册表(PRD §4,可切换核心;C1 二态+resolutionTier
 
   it("批量可派发集合只含 ready 件(unverified/needs-unfreeze/cloud-paid 一律不入;multiseg 二期升级 ready)", () => {
     const batch = batchDispatchableH3Recipes();
-    expect(batch.map((recipe) => recipe.id)).toEqual(["my-h3-i2v-31", "my-pika-fl2v-24", "my-pika-ref2v-20", "my-h3-multiseg"]);
+    expect(batch.map((recipe) => recipe.id)).toEqual(["my-h3-i2v-31", "my-pika-fl2v-24", "my-pika-ref2v-20", "my-h3-multiseg", "my-h3-sancai-r2v", "my-h3-sancai-i2v"]);
     for (const excluded of ["guding-480p-direct", "guding-960p-refine", "official-i2v-480p", "my-fasth3-i2v-27", "my-fasth3-t2v-26", "api-flf2v-480p", "api-r2v-480p", "api-t2v-480p"]) {
       expect(batch.some((recipe) => recipe.id === excluded)).toBe(false);
     }
@@ -731,5 +731,188 @@ describe("buildShotH3ApiWorkflowForRecipe 分派三态 + resolveH3ShotTimeoutS �
       expect(multisegApi[nodeId]?.inputs[key], field).not.toBeUndefined();
     }
     expect(multisegApi[anchors.myShot!].class_type).toBe("MyShot");
+  });
+});
+
+// ── 1112 recavsr-mainline:三采两段档(AR 阶梯/段A 段B 组装/分派/超时)──────────────────────
+
+import sancaiTemplateJson from "./h3-three-stage-template.json";
+import sancaiApiTemplateJson from "./h3-three-stage-template.api.json";
+import {
+  applySancaiStageBSource,
+  buildShotH3SancaiApiWorkflow,
+  computeSancaiResolutionLadder,
+  h3BatchDispatchableRecipeIds as sancaiDispatchable,
+  parseImageSizeFromB64,
+  resolveH3ShotTimeoutS as resolveTimeout,
+  resolveSancaiStageTimeoutS,
+  sancaiAnnotatedVideoRef,
+} from "./h3-shot-video-workflow";
+
+const sancaiApi = sancaiApiTemplateJson as unknown as Record<string, { class_type: string; inputs: Record<string, unknown> }>;
+const sancaiTemplate = sancaiTemplateJson as { nodes: Array<{ id: number; type: string; mode?: number }> };
+
+/** 最小 PNG 头 b64(仅签名+IHDR,parseImageSizeFromB64 只读固定偏移)。 */
+const PNG_960_544 = "iVBORw0KGgoAAAANSUhEUgAAA8AAAAIgCAIAAADFh5f6AAAAAElFTkSuQmCC";
+const PNG_736_736 = "iVBORw0KGgoAAAANSUhEUgAAAuAAAALgCAIAAABavFVeAAAAAElFTkSuQmCC";
+
+describe("computeSancaiResolutionLadder(Note103 法则②判例)", () => {
+  it("16:9(960×544 输入)→960×544→1440×832", () => {
+    const ladder = computeSancaiResolutionLadder(960, 544);
+    expect(ladder).toEqual({ w1: 960, h1: 544, w2: 1440, h2: 832 });
+  });
+  it("1:1(736×736 输入)→736²→1088²", () => {
+    const ladder = computeSancaiResolutionLadder(736, 736);
+    expect(ladder).toEqual({ w1: 736, h1: 736, w2: 1088, h2: 1088 });
+  });
+  it("竖图(544×960 输入,9:16)镜像:544×960→832×1440", () => {
+    const ladder = computeSancaiResolutionLadder(544, 960);
+    expect(ladder).toEqual({ w1: 544, h1: 960, w2: 832, h2: 1440 });
+  });
+  it("非正数拒绝(禁猜尺寸)", () => {
+    expect(() => computeSancaiResolutionLadder(0, 100)).toThrow("正数");
+    expect(() => computeSancaiResolutionLadder(Number.NaN, 100)).toThrow("正数");
+  });
+});
+
+describe("parseImageSizeFromB64(PNG 头纯函数)", () => {
+  it("PNG IHDR 固定偏移读宽高(含 data: 前缀与换行容错)", () => {
+    expect(parseImageSizeFromB64(PNG_960_544)).toEqual({ width: 960, height: 544 });
+    expect(parseImageSizeFromB64(`data:image/png;base64,${PNG_736_736}\n`)).toEqual({ width: 736, height: 736 });
+  });
+  it("非 PNG/JPEG 流返回 null", () => {
+    expect(parseImageSizeFromB64("Zm9rZQ==")).toBeNull();
+    expect(parseImageSizeFromB64("")).toBeNull();
+  });
+});
+
+describe("buildShotH3SancaiApiWorkflow(三采两段组装)", () => {
+  it("i2v 臂:段A 无三采链/219=true/AR 阶梯四处;段B 300 空源+339.video←300+MyShot 连 340", () => {
+    const result = buildShotH3SancaiApiWorkflow({
+      shot: makeShot() as never,
+      chapterId: "chapter-001",
+      chapterLabel: "第一章",
+      firstFrameB64: "QUJD",
+      r2v: false,
+      frameWidth: 960,
+      frameHeight: 544,
+    });
+    const stageA = result.apiGraph;
+    expect(stageA["338"]).toBeUndefined();
+    expect(stageA["339"]).toBeUndefined();
+    expect(stageA["340"]).toBeUndefined();
+    expect(stageA["22"]).toBeUndefined(); // 阶梯直填后 22 按需旁路删除
+    expect(stageA["219"]!.inputs.value).toBe(true); // wire 真相:true→on_true=220 i2v
+    expect(stageA["16"]!.inputs.width).toBe(960);
+    expect(stageA["16"]!.inputs.height).toBe(544);
+    expect(stageA["220"]!.inputs.width).toBe(960);
+    expect(stageA["220"]!.inputs.height).toBe(544);
+    expect(stageA["208"]!.inputs.width).toBe(1440);
+    expect(stageA["208"]!.inputs.height).toBe(832);
+    expect(stageA["206"]!.inputs["mode.width"]).toBe(1440);
+    expect(stageA["206"]!.inputs["mode.height"]).toBe(832);
+    // i2v 臂 110-113 分镜帧补位满槽(208 恒消费 ref_image_1..4)
+    for (const id of ["110", "111", "112", "113"]) {
+      expect(stageA[id]!.inputs.image).toBe(stageA["9"]!.inputs.image);
+    }
+    expect(result.images).toEqual([{ key: "9.image", name: expect.any(String), b64: "QUJD" }]);
+    // 段B 形状
+    const stageB = result.stageBGraph;
+    expect(Object.keys(stageB).sort()).toEqual(["100", "300", "338", "339", "340"]);
+    expect(stageB["300"]!.class_type).toBe("LoadVideo");
+    expect(stageB["300"]!.inputs.file).toBe("");
+    expect(stageB["339"]!.inputs.video).toEqual(["300", 0]);
+    expect(stageB["340"]!.inputs.video).toEqual(["339", 0]);
+    expect(stageB["340"]!.inputs.filename_prefix).toBe(stageA["4"]!.inputs.filename_prefix);
+    expect(stageB["100"]!.class_type).toBe("MyShot");
+    expect(stageB["100"]!.inputs.video).toEqual(["340", 0]);
+    expect(stageB["100"]!.inputs.shot_id).toBe("sb-chapter-001-001");
+    // 段A 前缀五段(subfolder 恒四段过 consumer 白名单)
+    expect(String(stageA["4"]!.inputs.filename_prefix)).toMatch(/^video\/漫影\/chapter-001\/sb-chapter-001-001\/[A-Za-z0-9._-]+$/);
+    // uiWorkflow=画布档(MyShot properties 三键在场,段B extraPngInfo 复用)
+    const uiNodes = (result.uiWorkflow as { nodes: Array<{ id: number; properties?: Record<string, unknown> }> }).nodes;
+    const myShot = uiNodes.find((node) => node.id === 100);
+    expect(myShot?.properties?.myOriginProjectId).toBe("");
+    expect(myShot?.properties?.myOriginEpisodeId).toBe("chapter-001");
+  });
+
+  it("r2v 臂:219=false;refs 按序占 110-111,余槽分镜帧补位", () => {
+    const result = buildShotH3SancaiApiWorkflow({
+      shot: makeShot() as never,
+      chapterId: "chapter-001",
+      chapterLabel: "第一章",
+      r2v: true,
+      refs: [
+        { name: "角色A", kind: "character", imageName: "ref-a.jpg" },
+        { name: "场景B", kind: "scene", imageName: "ref-b.jpg" },
+      ],
+      frameWidth: 736,
+      frameHeight: 736,
+    });
+    const stageA = result.apiGraph;
+    expect(stageA["219"]!.inputs.value).toBe(false); // false→on_false=16 r2v
+    expect(stageA["110"]!.inputs.image).toBe("ref-a.jpg");
+    expect(stageA["111"]!.inputs.image).toBe("ref-b.jpg");
+    expect(stageA["112"]!.inputs.image).toBe(stageA["9"]!.inputs.image);
+    expect(stageA["113"]!.inputs.image).toBe(stageA["9"]!.inputs.image);
+    // 1:1 阶梯判例
+    expect(stageA["16"]!.inputs.width).toBe(736);
+    expect(stageA["208"]!.inputs.width).toBe(1088);
+  });
+
+  it("applySancaiStageBSource 回填零拷贝注解名(段A 终档→段B 300.file)", () => {
+    const result = buildShotH3SancaiApiWorkflow({
+      shot: makeShot() as never,
+      chapterId: "chapter-001",
+      chapterLabel: "第一章",
+      frameWidth: 960,
+      frameHeight: 544,
+    });
+    applySancaiStageBSource(result.stageBGraph, { filename: "ambient_00002_.mp4", subfolder: "video/漫影/chapter-001/a" });
+    expect(result.stageBGraph["300"]!.inputs.file).toBe("video/漫影/chapter-001/a/ambient_00002_.mp4 [output]");
+    expect(sancaiAnnotatedVideoRef({ filename: "x.mp4", subfolder: "" })).toBe("x.mp4 [output]");
+  });
+});
+
+describe("三采分派与超时(1112 recavsr-mainline)", () => {
+  it("注册表:my-h3-sancai-r2v/i2v 在册 ready,锚字段全在 API 母体", () => {
+    for (const id of ["my-h3-sancai-r2v", "my-h3-sancai-i2v"]) {
+      const recipe = H3_WORKFLOW_RECIPES.find((item) => item.id === id);
+      expect(recipe).toMatchObject({ status: "ready" });
+      expect(["sancai-r2v", "sancai-i2v"]).toContain(recipe!.inputMode);
+      const anchors = recipe!.anchors!;
+      for (const field of [anchors.prompt, anchors.seconds, anchors.firstFrame, anchors.savePrefix, ...(anchors.resolution ?? [])]) {
+        const [nodeId, key] = field!.split(".");
+        expect(sancaiApi[nodeId]?.inputs[key], field).not.toBeUndefined();
+      }
+    }
+    expect(sancaiDispatchable()).toContain("my-h3-sancai-r2v");
+    expect(sancaiDispatchable()).toContain("my-h3-sancai-i2v");
+  });
+
+  it("旧断言集对新母体天然兼容(assertH3TemplateIntegrity 零动通过)", () => {
+    expect(() => assertH3TemplateIntegrity(sancaiTemplate)).not.toThrow();
+  });
+
+  it("分派器:sancai 族走两段组装(带 stageBGraph);缺像素宽高拒派发", () => {
+    const ok = buildShotH3ApiWorkflowForRecipe("my-h3-sancai-i2v", {
+      shot: makeShot() as never,
+      chapterId: "chapter-001",
+      chapterLabel: "第一章",
+      frameWidth: 960,
+      frameHeight: 544,
+    } as never) as { stageBGraph?: unknown };
+    expect(ok.stageBGraph).toBeTruthy();
+    expect(() => buildShotH3ApiWorkflowForRecipe("my-h3-sancai-r2v", {
+      shot: makeShot() as never,
+      chapterId: "chapter-001",
+      chapterLabel: "第一章",
+    } as never)).toThrow("首帧像素宽高");
+  });
+
+  it("超时:三采两段档 900s/300s;resolveH3ShotTimeoutS 三采=段A 档", () => {
+    expect(resolveSancaiStageTimeoutS()).toEqual({ stageA: 900, stageB: 300 });
+    expect(resolveTimeout("my-h3-sancai-r2v", 10)).toBe(900);
+    expect(resolveTimeout("my-h3-sancai-i2v", 10, "480p")).toBe(900);
   });
 });
