@@ -189,6 +189,20 @@ def build_prompt(cfg, segs, prompts, audio_name):
     p['unet'] = {'class_type': 'UNETLoader', 'inputs': {'unet_name': UNET, 'weight_dtype': 'default'}}
     p['lora'] = {'class_type': 'LoraLoaderModelOnly',
                  'inputs': {'model': ['unet', 0], 'lora_name': LORA, 'strength_model': LORA_STRENGTH}}
+    model_src = ['lora', 0]
+    if cfg.get('accel'):
+        # 1111 加速链 A/B 的 B 臂:我方产线 MODEL 链范式(三采-单镜 r2v 臂同款)
+        # sol-attn τ1.3(与 kitchen 成对,裸 kitchen 必炸)+ChunkFFN[1,4096](本档<2MP×192f=恒等旁路)+kitchen
+        p['solattn'] = {'class_type': 'BlockSparseAttention',
+                        'inputs': {'model': ['lora', 0], 'selection': 'sol-attn',
+                                   'selection.tau': 1.3, 'start_percent': 0.0, 'end_percent': 1.0,
+                                   'dense_blocks': '', 'min_tokens': 12288, 'extra_tokens': 256,
+                                   'sink_conditioning': 'exact_kv_and_rows', 'verbose': False}}
+        p['chunkffn'] = {'class_type': 'MiniMaxChunkFeedForward',
+                         'inputs': {'model': ['solattn', 0], 'chunks': 1, 'seq_threshold': 4096}}
+        p['kitchen'] = {'class_type': 'ModelAttentionBackend',
+                        'inputs': {'model': ['chunkffn', 0], 'attention': 'comfy kitchen attention'}}
+        model_src = ['kitchen', 0]
     p['clip'] = {'class_type': 'CLIPLoader',
                  'inputs': {'clip_name': CLIP, 'type': 'minimax', 'device': 'default'}}
     p['vae_v'] = {'class_type': 'VAELoader', 'inputs': {'vae_name': VAE_VIDEO}}
@@ -210,7 +224,7 @@ def build_prompt(cfg, segs, prompts, audio_name):
                           'ref_audios.ref_audio_0': [f'trim{t}', 0]}}
         p[f'r2v{t}'] = r2v
         p[f'lock{t}'] = {'class_type': 'MiniMaxH3NativeAudioLock',
-                         'inputs': {'model': ['lora', 0], 'av_latent': [f'r2v{t}', 1],
+                         'inputs': {'model': model_src, 'av_latent': [f'r2v{t}', 1],
                                     'audio_vae': ['vae_a', 0], 'audio': [f'trim{t}', 0]}}
         cond = [f'r2v{t}', 0]
         latent = [f'lock{t}', 1]
@@ -381,9 +395,11 @@ def main():
     ap.add_argument('--audio-dir', default=AUDIO_DIR)
     ap.add_argument('--out-dir', default=None)
     ap.add_argument('--resume', default=None, help='断点续轮:已有 prompt_id,跳过提交直接轮询+取件+装配')
+    ap.add_argument('--accel', action='store_true', help='B 臂:挂产线加速链(sol-attn τ1.3+ChunkFFN+kitchen)')
     a = ap.parse_args()
     cfg = dict(MODES[a.mode])
-    TAG = a.mode
+    if a.accel: cfg['accel'] = True
+    TAG = a.mode + ('-accel' if a.accel else '')
     global OUT_BASE
     if a.out_dir:
         OUT_BASE = a.out_dir
