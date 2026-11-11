@@ -546,7 +546,7 @@ class ComfyJobCancelRouteTests(unittest.TestCase):
 
 
 class ShutdownSequenceTests(unittest.TestCase):
-    """退出收摊顺序契约(09-14 生命周期审计 P3):放端口 → 停引擎 → 释放锁。"""
+    """退出收摊顺序契约(09-14 生命周期审计 P3;1103 补 SSH 收摊):放端口 → 停引擎 → 停 SSH → 释放锁。"""
 
     class _FakeServer:
         def __init__(self, calls: list) -> None:
@@ -569,6 +569,13 @@ class ShutdownSequenceTests(unittest.TestCase):
                 raise RuntimeError("boom")
             return {"running": False, "stopped": True}
 
+    class _FakeSshService:
+        def __init__(self, calls: list) -> None:
+            self._calls = calls
+
+        def stop(self) -> None:
+            self._calls.append("ssh_stop")
+
     def test_shutdown_releases_port_then_stops_engine_then_releases_lock(self) -> None:
         calls: list = []
         manager = self._FakeManager(calls)
@@ -577,11 +584,12 @@ class ShutdownSequenceTests(unittest.TestCase):
             calls.append("release_lock")
 
         with patch("comfyui.engine_manager.engine_manager", return_value=manager), \
-                patch("comfyui.engine_manager.release_engine_lock", fake_release):
+                patch("comfyui.engine_manager.release_engine_lock", fake_release), \
+                patch("remote_ssh.service.ssh_service", return_value=self._FakeSshService(calls)):
             events = server._shutdown_sequence(self._FakeServer(calls), log=lambda *_: None)
 
-        self.assertEqual(events, ["port-released", "engine-stopped"])
-        self.assertEqual(calls, ["shutdown", "server_close", "engine_stop", "release_lock"])
+        self.assertEqual(events, ["port-released", "engine-stopped", "ssh-stopped"])
+        self.assertEqual(calls, ["shutdown", "server_close", "engine_stop", "ssh_stop", "release_lock"])
 
     def test_shutdown_survives_engine_stop_failure(self) -> None:
         """停引擎抛错:不弃守后续步(锁释放),进程仍能干净退出。"""
@@ -593,11 +601,12 @@ class ShutdownSequenceTests(unittest.TestCase):
             calls.append("release_lock")
 
         with patch("comfyui.engine_manager.engine_manager", return_value=manager), \
-                patch("comfyui.engine_manager.release_engine_lock", fake_release):
+                patch("comfyui.engine_manager.release_engine_lock", fake_release), \
+                patch("remote_ssh.service.ssh_service", return_value=self._FakeSshService(calls)):
             events = server._shutdown_sequence(self._FakeServer(calls), log=logged.append)
 
-        self.assertEqual(events, ["port-released"])
-        self.assertEqual(calls, ["shutdown", "server_close", "engine_stop", "release_lock"])
+        self.assertEqual(events, ["port-released", "ssh-stopped"])
+        self.assertEqual(calls, ["shutdown", "server_close", "engine_stop", "ssh_stop", "release_lock"])
         self.assertTrue(any("停引擎失败" in line for line in logged))
 
     def test_shutdown_signals_cover_term_int_and_hup(self) -> None:
