@@ -15,7 +15,7 @@
 | 引擎运维(ComfyUI 引擎 / keeper / sidecar 状态排查) | `npm run doctor:engine`(四段全只读;引擎 down = 合法态不判红) | 退出码 0 = 健康/合法 down;仅 token mismatch / 双引擎并存 = 1;engine-doctor-report.json | [`package.json`](../../apps/package.json) `doctor:engine` · [`engine_doctor.py`](../../apps/build/scripts/engine_doctor.py) |
 | 卫生域(脚本命名 / 台账核账 / 文件尺寸 / 工作流图 lint / 文档审计) | `npm run hygiene`(已挂 test:all 段;单项脚本命名 lint:`npm run lint:scripts`) | exit 0 + hygiene-gate-report.json | [`package.json`](../../apps/package.json) `hygiene`/`lint:scripts` · [`hygiene_gate.py`](../../apps/build/scripts/hygiene_gate.py) |
 | 编辑共享真源前(并行协作) | `python3 apps/build/scripts/preflight_gate.py <paths>`(工具,不走 npm;跑生成器前加 `--regen`) | GREEN(exit 0)才动手;静默窗红须查证写入者后再 `--force`(记档) | [`preflight_gate.py`](../../apps/build/scripts/preflight_gate.py) · 报告 preflight-report.json |
-| 提交收官 | `sh apps/build/scripts/commit_gate.sh -m "<信息>" -- <pathspec>`(工具,不走 npm) | 双向对账绿 + 提交后再核 + `git show HEAD --stat` 自动抽验 | [`commit_gate.sh`](../../apps/build/scripts/commit_gate.sh) |
+| 提交收官 | `bash apps/build/scripts/commit_gate.sh -m "<信息>" -- <pathspec>`(工具,不走 npm;**必须 bash 直跑**——脚本用进程替换 `<(…)` 对账,`sh`/zsh-sh 模式必炸 syntax error,1111 实踩) | 双向对账绿 + 提交后再核 + `git show HEAD --stat` 自动抽验 | [`commit_gate.sh`](../../apps/build/scripts/commit_gate.sh) |
 
 ## preflight_gate 使用时机纪律(强制)
 
