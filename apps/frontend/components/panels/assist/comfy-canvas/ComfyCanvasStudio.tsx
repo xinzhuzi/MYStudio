@@ -25,7 +25,8 @@ import {
   resolveEngineBase,
   subscribeRemoteEngineChanged,
 } from "@/lib/studio/engine-line/resolve-engine-base-url";
-import { buildShotH3Workflow } from "@/lib/assist/image-studio/h3-shot-video-workflow";
+import { buildShotH3ThreeStageWorkflow, buildShotH3Workflow } from "@/lib/assist/image-studio/h3-shot-video-workflow";
+import { useStoryboardH3VideoSessionStore } from "@/stores/studio/storyboard-h3-video-session-store";
 import { dialogueAudioPolicy } from "@/lib/assist/image-studio/h3-shot-prompt";
 import { ensureStageAssetCoversUploaded, invalidateOverviewSyncForEngineStart, readStoryboardImageB64, syncStoryboardOverviewToLibrary } from "@/lib/assist/image-studio/storyboard-overview-sync";
 import {
@@ -292,7 +293,14 @@ async function openShotVideoWorkflowIntoCanvas(
   // 10-11 音频分工 R3a:逐镜音频政策派生(有角色行→full 台词烧镜内+口型,
   // 否则 ambient 音效床),替旧硬编码 "ambient";voiceMood 音色锚直通
   // storyboard.emotion(D1)。
-  const workflow = buildShotH3Workflow({ shot, chapterId: shot.episodeId, chapterLabel, policy: dialogueAudioPolicy(shot.lines), voiceMood: shot.emotion, imageName, originProjectId });
+  // 1112 recavsr-mainline 模板换血登记:会话在档配方为三采族时,画布直开吃新母体
+  // (h3-three-stage-template.json=repo 主线件原样拷贝语义);缺省/其它配方=旧模板
+  // 零变。会话 store 是批量/单镜共用的配方记忆(续跑同轨),画布直开跟读。
+  const sessionRecipeId = useStoryboardH3VideoSessionStore.getState().session?.recipeId;
+  const isSancaiRecipe = sessionRecipeId === "my-h3-sancai-r2v" || sessionRecipeId === "my-h3-sancai-i2v";
+  const workflow = isSancaiRecipe
+    ? buildShotH3ThreeStageWorkflow({ shot, chapterId: shot.episodeId, chapterLabel, policy: dialogueAudioPolicy(shot.lines), voiceMood: shot.emotion, imageName, originProjectId, r2v: sessionRecipeId !== "my-h3-sancai-i2v" })
+    : buildShotH3Workflow({ shot, chapterId: shot.episodeId, chapterLabel, policy: dialogueAudioPolicy(shot.lines), voiceMood: shot.emotion, imageName, originProjectId });
   // 09-14 通用化(零文件):单镜视频=组装器现装直开,不再写 分镜/3_单镜视频
   await node.executeJavaScript?.(buildOverviewOpenScript(workflow.ui, `${workflow.name}.json`, { force: true }));
   toast.success(`已打开 ${String(workflow.name.match(/S\d+$/)?.[0] || `S${String(shot.index).padStart(2, "0")}`)} 单镜视频工作流`);
