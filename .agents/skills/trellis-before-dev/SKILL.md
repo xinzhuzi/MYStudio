@@ -50,7 +50,11 @@ Execute these steps:
 
    A small, well-scoped change does not need this — do it directly.
 
-   If the real scope turns out to be clearly larger than this, say so and why before continuing. Do not widen the change on your own.
+If the real scope turns out to be clearly larger than this, say so and why before continuing. Do not widen the change on your own.
+
+<!-- MYSTUDIO-FUSION: verification-loop, 2026-11-12 -->
+
+**Verification contract up front (non-trivial tasks)**: when stating the change boundary above, also name what will judge it — the scoped verification entry for this change type (resolve it via `docs/engineering/TESTING_ENTRYPOINTS.md`) and the expected output, so it lands in `prd.md`/`implement.md` now rather than being improvised at check time. Check verdicts will use the six-gate VERIFICATION REPORT format (`.trellis/spec/guides/verification-loop-guide.md`); a declared delivery surface beyond this working tree (installed app / second machine) becomes a Target Acceptance line at finish-work Step 2.6.
 
 9. Understand the coding standards and patterns you need to follow, then proceed with your development plan.
 
