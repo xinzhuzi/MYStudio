@@ -41,8 +41,8 @@ def setup_job(monkeypatch, tmp_path):
             return "CUDA Version: 13.2"
         if "pip freeze" in script:
             return hashlib.sha256(freeze.encode()).hexdigest()
-        if "importlib.metadata" in script:
-            return state["ta_version"]
+        if "pip show" in script:
+            return f"Version: {state['ta_version']}\n"
         if "torch.cuda.is_available" in script:
             # 1107 补:torchaudio 三件套验证探针(torch 版本/cuda 可用/torchaudio 版本)
             return "2.14.1+cu132\nTrue\n2.11.1+cu132"

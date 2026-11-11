@@ -107,7 +107,7 @@ export async function loadChapterStudioProjection(request: { projectId: string; 
   // （08-20 修复：subtitleFont 曾只有注释承诺无实现，设置页选择从不进 plan）。
   const shotFxStoryboards = (() => {
     try {
-      const store = readStudioWorkflowStore(getDataDir(), request.projectId)
+      const store = readStudioWorkflowStore(getDataDir(), request.projectId, request.chapterId)
       const storyboards = (store?.state?.storyboards ?? []) as Array<{ id: string; episodeId: string; prompt?: string; line?: string; shotFx?: { motion?: unknown } }>
       plan.value.renderSettings = applyWorkflowConfigToRenderSettings(
         plan.value.renderSettings,

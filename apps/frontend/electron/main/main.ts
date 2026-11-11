@@ -506,7 +506,7 @@ const remotionChapterRenderer = new RemotionChapterRenderer({
   // 字幕音效类别表：分镜记录 shotFx.sfx（装饰层，同 store 单源；读取失败=空表零派生）。
   readSfxCategories: (projectId, chapterId) => {
     try {
-      const store = readStudioWorkflowStore(getDataDir(), projectId)
+      const store = readStudioWorkflowStore(getDataDir(), projectId, chapterId)
       const storyboards = (store?.state?.storyboards ?? []) as Array<{ id: string; episodeId: string; shotFx?: { sfx?: unknown } }>
       const categories: Record<string, string> = {}
       for (const storyboard of storyboards) {

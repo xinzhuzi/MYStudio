@@ -52,7 +52,7 @@ export const buildManagedVideoUseChapterRun = (request: VideoWorkflowChapterRunR
   const imagePathByShotId = (() => {
     const map = new Map<string, string>()
     try {
-      const store = readStudioWorkflowStore(getDataDir(), request.projectId)
+      const store = readStudioWorkflowStore(getDataDir(), request.projectId, request.chapterId)
       const storyboards = (store?.state?.storyboards ?? []) as Array<{ id: string; episodeId: string; mediaRef?: { path?: string } }>
       for (const storyboard of storyboards) {
         if (storyboard.episodeId !== request.chapterId || !storyboard.mediaRef?.path) continue

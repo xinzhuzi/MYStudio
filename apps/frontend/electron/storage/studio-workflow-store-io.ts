@@ -53,15 +53,26 @@ function readJsonIfExists(filePath: string): string | null {
 /**
  * 读取 studio-workflow store：分片优先，legacy 单文件兜底。
  * 返回 null 表示项目尚无该 store（两种布局都不存在）。
+ *
+ * chapterId 传入则只读项目级 + 该章分片（与渲染进程 readMergedShards 窗口同口径）：
+ * 主进程章节操作原读全项目分片再按 episodeId 过滤，4125 章下批量 O(N²)（1109 审计 F-4）。
+ * 不传=全量（CLI 写回前读旧态）；legacy 无分片可选，忽略 chapterId。调用方本就按章过滤，语义不变。
  */
-export function readStudioWorkflowStore(dataRoot: string, projectId: string): StudioWorkflowStoreEnvelope | null {
+export function readStudioWorkflowStore(
+  dataRoot: string,
+  projectId: string,
+  chapterId?: string,
+): StudioWorkflowStoreEnvelope | null {
   const shardDir = shardDirFor(dataRoot, projectId);
   const manifestRaw = readJsonIfExists(path.join(shardDir, "manifest.json"));
   if (manifestRaw) {
     const manifest = parseStudioWorkflowShardManifest(manifestRaw);
     if (!manifest) throw new Error(`studio-workflow manifest 无法解析: ${shardDir}/manifest.json`);
+    const wantedShards = chapterId
+      ? manifest.shards.filter((shardName) => !shardName.startsWith("chapters/") || shardName.split("/")[1] === chapterId)
+      : manifest.shards;
     const contents: string[] = [];
-    for (const shardName of manifest.shards) {
+    for (const shardName of wantedShards) {
       if (!isSafeShardFileName(shardName)) {
         throw new Error(`studio-workflow manifest 含非法分片名: ${shardName}`);
       }

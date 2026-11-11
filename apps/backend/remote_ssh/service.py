@@ -43,6 +43,10 @@ TOKEN_FILE_NAME = "remote-image-token.txt"
 # B7 同款令牌正则(deploy-dual.sh 令牌搬运口径):字母数字开头,后跟
 # 字母数字/下划线/连字符
 _TOKEN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
+# F-1 (1109 审计): engine-sync name/url 白名单——cmd 元字符 (& | < > ^ ( ) % ! " ' 空格) 截断/展开命令,
+# shlex.quote 对 cmd 无效。name 同 plugin_manager._safe_plugin_id 口径;url 排除 % 与全部 cmd 元字符。
+_SYNC_NAME_RE = re.compile(r"^[0-9A-Za-z._\-]+$")
+_SYNC_URL_RE = re.compile(r"^[A-Za-z0-9_./:@+~\-]+$")
 # keyPath 空时的自动探测顺序(Q2:复用现有免密 key,ed25519 优先)
 _KEY_CANDIDATES = (".ssh/id_ed25519", ".ssh/id_ecdsa", ".ssh/id_rsa")
 # keeper 建连超时(秒)
@@ -907,6 +911,17 @@ class SSHService:
         except Exception as exc:
             result["errors"].append(f"读本机插件清单失败: {exc}")
             return result
+        # F-1 (1109 审计): 过滤非法 name/url(cmd 元字符)进 errors,绝不带入远端命令
+        safe_plugins = {}
+        for name, url in mac_plugins.items():
+            if not _SYNC_NAME_RE.match(name):
+                result["errors"].append(f"跳过非法插件名(cmd 元字符): {name!r}")
+                continue
+            if url and not _SYNC_URL_RE.match(url):
+                result["errors"].append(f"跳过 {name} 非法 URL(cmd 元字符): {url!r}")
+                continue
+            safe_plugins[name] = url
+        mac_plugins = safe_plugins
         result["notes"].append(f"Mac 本机 {len(mac_plugins)} 件插件")
 
         # ② 读 Windows 引擎 custom_nodes
@@ -1234,6 +1249,11 @@ class SSHService:
         win-only/skip 直接过(Q1 不删/Q2 不管);验证只看目录在+HEAD 可读
         (不比 Mac HEAD,mac_head 仅随回执透传供参考)。
         """
+        # F-1 (1109 审计): name/url 白名单闸——cmd 注入防御,失败即返 failed 不执行远端命令
+        if not _SYNC_NAME_RE.match(name):
+            return self._sync_result(name, kind, mac_head, None, "failed", False, f"非法插件名(cmd 元字符): {name!r}")
+        if url and not _SYNC_URL_RE.match(url):
+            return self._sync_result(name, kind, mac_head, None, "failed", False, f"非法 URL(cmd 元字符): {url!r}")
         win_path = (
             _WIN_COMFY_ROOT + "\\ComfyUI"
             if kind == "engine"

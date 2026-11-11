@@ -981,7 +981,6 @@ class Handler(BaseHTTPRequestHandler):
                 except ValueError as exc:
                     self._send_error_json(400, str(exc), "bridge-actions-invalid")
                 return
-                return
             if method == "GET" and path == "/comfy/bridge/actions":
                 from comfyui import bridge_actions
                 self._send_json(bridge_actions.list_since(int(q("cursor") or 0)))

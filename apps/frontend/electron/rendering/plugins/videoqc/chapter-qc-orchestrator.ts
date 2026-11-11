@@ -281,7 +281,7 @@ export async function runChapterQc(
   /** 本章分镜条目原样(骨干②③的声明侧:期望断言 + 供给自检都吃它,不含成片信息) */
   const chapterShots: Array<{ shotId: string; item: StoryboardLike }> = [];
   try {
-    const store = readStudioWorkflowStore(deps.dataRoot, input.projectId);
+    const store = readStudioWorkflowStore(deps.dataRoot, input.projectId, input.chapterId);
     if (store) {
       const storyboards = Array.isArray(store.state.storyboards)
         ? (store.state.storyboards as Array<StoryboardLike & { id?: string; videoDesc?: string; prompt?: string }>)

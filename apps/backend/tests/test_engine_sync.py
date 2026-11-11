@@ -549,6 +549,32 @@ class SyncEngineTests(unittest.TestCase):
         self.assertEqual(result["items"][0]["action"], "failed")
         self.assertIn("清单里没有", result["items"][0]["error"])
 
+    def test_sync_one_rejects_malicious_name_before_exec(self) -> None:
+        """F-1 (1109 审计): name 含 cmd 元字符 → 白名单闸拒,绝不执行远端命令。"""
+        stub = self._stub()
+        svc = _service_with_stub(stub)
+        result = svc._sync_one("x & calc.exe", "plugin", "https://github.com/u/r.git", None, False, 1e12)
+        self.assertEqual(result["action"], "failed")
+        self.assertIn("cmd 元字符", result["error"])
+        self.assertEqual(stub.commands, [])
+
+    def test_sync_one_rejects_malicious_url_before_exec(self) -> None:
+        """F-1: url 含 cmd 元字符(% 展开/ & 截断)→ 白名单闸拒,绝不执行远端命令。"""
+        stub = self._stub()
+        svc = _service_with_stub(stub)
+        result = svc._sync_one("pluginB", "plugin", "https://x.com/%PATH% & calc", None, False, 1e12)
+        self.assertEqual(result["action"], "failed")
+        self.assertIn("cmd 元字符", result["error"])
+        self.assertEqual(stub.commands, [])
+
+    def test_sync_one_whitelist_charset_boundary(self) -> None:
+        """F-1: 合法 name/url 字符集通过闸,正常 clone(白名单不误伤真插件)。"""
+        stub = self._stub()
+        svc = _service_with_stub(stub)
+        result = svc._sync_one("plugin_ok-1.2", "plugin", "https://github.com/u/r.git", None, False, 1e12)
+        self.assertEqual(result["action"], "cloned")
+        self.assertIsNone(result["error"])
+
 
 class RemoteMystudioTests(unittest.TestCase):
     def setUp(self) -> None:
