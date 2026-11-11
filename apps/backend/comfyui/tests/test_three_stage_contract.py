@@ -1,7 +1,8 @@
 """道劫三段链工作流契约测试(11-05-daojie-h3-three-stage)。
 
-被测对象 = 仓库真源 `2_视频/H3视频/1_漫影自研/0_单镜视频/三采-单镜.json`(1110 两度改名终态:先 MY-三采-单镜 后去前缀,旧名 pika-单镜视频-三段链)
-(GUI 格式,fork pika-单镜视频-ref2v.json 出生)。
+被测对象 = 仓库真源 `2_视频/H3视频/1_漫影自研/0_单镜视频/三采-recavsr-单镜.json`
+(1111 用户裁定换防主线:三采主力 RelayVSR→ReCaVSR;旧主线 三采-单镜.json 退役归档 8_吸收归档/,
+克隆血统=三采-单镜.json(1110 终名,更早 pika-单镜视频-三段链),fork pika-单镜视频-ref2v.json 出生)(GUI 格式)。
 
 三段契约:
   ① 一阶段采样 = 现役 ref2v 主力线原样(ref2va int8 pruned + Pika turbo 8step HD @1.0
@@ -36,7 +37,7 @@ from pathlib import Path
 import pytest
 
 WF_DIR = Path(__file__).resolve().parents[1] / "workflows" / "2_视频" / "H3视频" / "1_漫影自研" / "0_单镜视频"
-WF = WF_DIR / "三采-单镜.json"
+WF = WF_DIR / "三采-recavsr-单镜.json"
 
 PIKA_SIGMAS = "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
 TESSERA_SIGMAS = "1, 0.7, 0.4, 0.0"
@@ -189,7 +190,7 @@ def test_stage2_latent_pipeline_wiring():
 def test_stage3_tessera_params_v4():
     """质量档=第四发 1080p 定谳参数;默认旁路(全 mode=2)。"""
     _, nodes, _ = _load()
-    assert all(n.get("mode") == 2 for nid, n in nodes.items() if nid >= 300), "③组全员默认旁路 mode=2"
+    assert all(n.get("mode") == 2 for nid, n in nodes.items() if 300 <= nid <= 337), "③组(TESSERA 300-337)全员默认旁路 mode=2;338-340=ReCaVSR 新臂不在此列"
     assert nodes[303]["type"] == "TesseraEncode"
     assert nodes[303]["widgets_values"][0] == 1.5, "×1.5 → 1920×1056(1104 12:55 终裁 1080p 档)"
     assert nodes[319]["widgets_values"] == [TESSERA_SIGMAS]
@@ -222,8 +223,9 @@ def test_groups_three_bands_non_overlap():
     """三段=三组框,两两不交,标题口径正确。"""
     d = _load()[0]
     gs = d["groups"]
-    assert len(gs) == 4, "四组=一采/二采/三采超分(RelayVSR)/TESSERA 旁路(1110 三采内联)"
+    assert len(gs) == 5, "五组=一采/二采/三采·RelayVSR 旁路/TESSERA 旁路/三采·ReCaVSR 主线(1111 换防)"
     assert any("三采超分" in g["title"] for g in gs), "三采超分组必须在册"
+    assert any("ReCaVSR" in g["title"] for g in gs), "ReCaVSR 主线组必须在册"
     for i in range(len(gs)):
         for j in range(i + 1, len(gs)):
             a, b = gs[i]["bounding"], gs[j]["bounding"]
@@ -231,7 +233,7 @@ def test_groups_three_bands_non_overlap():
             oy = a[1] < b[1] + b[3] and b[1] < a[1] + a[3]
             assert not (ox and oy), f"组框重叠: {gs[i]['title']} × {gs[j]['title']}"
     titles = "".join(g["title"] for g in gs)
-    for kw in ("一阶段采样", "二采放大", "TESSERA"):
+    for kw in ("一阶段采样", "二采放大", "TESSERA", "RelayVSR"):
         assert kw in titles
 
 
@@ -272,13 +274,12 @@ def test_absorbed_fl2v_firstframe_mode():
 
 
 def test_single_shot_dir_only_three_stage():
-    """1105 只保留裁定:0_单镜视频 恰一件(1110 终名 三采-单镜.json);
-    1111 ReCaVSR 三采挑战臂役 +1=三采-recavsr-单镜.json(克隆手术件:id=recavsr-
-    three-stage-1111,RelayVSR [268]/[269] 转 mode=2 旁路+新臂 [338]/[339]/[340],
-    本文件其余各测仍只钉母本 三采-单镜.json,不受挑战臂影响)。"""
+    """1105 只保留裁定+1111 换防:0_单镜视频 恰一件=新主线 三采-recavsr-单镜.json
+    (用户裁定「三采换成 ReCaVSR,主线就换成这个」;旧主线 三采-单镜.json 退役
+    归档 8_吸收归档/,RelayVSR 臂在本件内以 mode=2 旁路保留=回退臂)。"""
     lib = WF_DIR
     jsons = sorted(p.name for p in lib.glob("*.json"))
-    assert jsons == ["三采-recavsr-单镜.json", "三采-单镜.json"], f"0_单镜视频 应为三采母子两件,现有 {jsons}"
+    assert jsons == ["三采-recavsr-单镜.json"], f"0_单镜视频 应恰一件(新主线),现有 {jsons}"
 
 
 def test_sigma_feed_scheduler_gets_shifted_model():
@@ -297,13 +298,39 @@ def test_sigma_feed_scheduler_gets_shifted_model():
 
 
 def test_stage3_relayvsr_inline_group():
-    """1110 三采内联:二采产物[214]→RelayVSR streaming 1920 宽(交付裁 15px=1080),
-    bundle=RelayVSR_X2 bf16 offload 恒开(1106 刻碑)。"""
+    """1110 三采内联→1111 换防后=回退旁路臂:二采产物[214]→RelayVSR streaming
+    1920 宽,bundle=RelayVSR_X2 bf16 offload 恒开(1106 刻碑);mode=2 旁路保留
+    (用户换防令:三采主力=ReCaVSR,RelayVSR 降备份,需要时 unmute 即回退)。"""
     _, nodes, links = _load()
     assert nodes[268]["type"] == "RelayVSRModelLoader"
+    assert nodes[268]["mode"] == 2, "1111 换防:RelayVSR 臂转旁路"
     assert nodes[268]["widgets_values"] == ["RelayVSR_X2", "bf16", True, ""]
     assert nodes[269]["type"] == "RelayVSRUpscaleStreaming"
+    assert nodes[269]["mode"] == 2, "1111 换防:RelayVSR 臂转旁路"
     w = nodes[269]["widgets_values"]
-    assert w[0] == 1920 and w[1] == 2, "终版阶梯:1440×832→1920 宽"
+    assert w[0] == 1920 and w[1] == 2, "回退档保持终版阶梯:1440×832→1920 宽"
     vin = [l for l in links.values() if l[5] == "VIDEO" and l[3] == 269]
-    assert len(vin) == 1 and vin[0][1] == 214, "三采吃二采 CreateVideo[214] 产物"
+    assert len(vin) == 1 and vin[0][1] == 214, "旁路臂仍吃二采 CreateVideo[214] 产物"
+
+
+def test_stage3_recavsr_mainline_arm():
+    """1111 换防主线臂:[338]ReCaVSRLoader(int8 ConvRot)→[339]ReCaVSRUpscale
+    (scale2/fast/flashdecoder)→[340]SaveVideo(p3-recavsr);二采[214]直喂;
+    1440×832→2880×1664,交付层归一 1080(对称旧口径);实弹=同档对拍 59.1s vs
+    RelayVSR 185.6s(3.14×),PSNR 对源保真 35.7(生成系加细节)。"""
+    d, nodes, links = _load()
+    assert nodes[338]["type"] == "ReCaVSRLoader"
+    assert nodes[338]["mode"] == 0 and nodes[338]["widgets_values"] == ["transformer_int8_convrot.safetensors"]
+    assert nodes[339]["type"] == "ReCaVSRUpscale"
+    assert nodes[339]["mode"] == 0
+    w = nodes[339]["widgets_values"]
+    assert w[0] == 2, "scale=2:1440×832→2880×1664"
+    assert w[5] == "fast" and w[4] == "flashdecoder", "kernels=fast / decoder=flashdecoder"
+    assert nodes[340]["type"] == "SaveVideo" and nodes[340]["mode"] == 0
+    assert nodes[340]["widgets_values"][0] == "video/漫影/chapter-001/sb-chapter-001-001/p3-recavsr"
+    # 接线:780=[214]→[339].video / 781=[338]→[339].model / 782=[339]→[340]
+    l780 = links[780]; l781 = links[781]; l782 = links[782]
+    assert (l780[1], l780[3], l780[5]) == (214, 339, "VIDEO"), "三采主臂直吃二采 CreateVideo[214]"
+    assert (l781[1], l781[3], l781[5]) == (338, 339, "RECAVSR"), "模型链型=RECAVSR(作者件槽型原样)"
+    assert (l782[1], l782[3], l782[5]) == (339, 340, "VIDEO")
+    assert d["last_node_id"] >= 340 and d["last_link_id"] >= 782, "计数器不落后(267/776 落后雷刻碑)"
