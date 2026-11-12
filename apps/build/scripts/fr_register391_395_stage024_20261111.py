@@ -1,0 +1,21 @@
+"""Complete historical reconciliation registration and hand off024 content review."""
+from pathlib import Path
+from datetime import datetime,timezone
+import json,hashlib,shutil
+root=Path(__file__).resolve().parents[3];t=root/'.trellis/tasks/10-27-script-narrative-translation-cure';r=t/'research';lp=r/'fr-volumes-current-20261110.json';c=json.loads(lp.read_text());rows={x['chapter']:x for x in c['volume1']['chapters']};fresh=json.loads((r/'fr-history-391-395-mainfresh-20261111.json').read_text());assert fresh['pass'] and fresh['checks_passed']==20
+for x in fresh['inputs']:assert hashlib.sha256(Path(x['path']).read_bytes()).hexdigest()==x['sha256']
+report='fr-history-evidence-391-395-20261111.md';assert (r/report).exists()
+for n,m in zip(range(391,396),[(12,64,669),(12,65,680),(12,68,686),(12,65,660),(12,68,689)]):
+ assert rows[n]['status']=='pending_evidence_audit'
+ rows[n].update(status='historical_evidence_audited_content_review_pending',evidence_audit_date='2026-11-11',evidence_audit=report,evidence_audit_scope='20 inputs,47 stable evidence/22 supports/80 backups checked; source/approved fixes preserved, no full semantic rereview.',historical_execution_metrics={'scenes':m[0],'shots':m[1],'seconds':m[2],'source':report,'not_content_acceptance':True},historical_independent_coverage_incomplete_or_not_passed=True,next_action='Reuse historical corrections and current drafts; complete current full independent content review and main fresh. No repeat historical audit/repairs.')
+c['volume1']['historical_evidence_audited_chapters']=sorted(set(c['volume1']['historical_evidence_audited_chapters'])|set(range(391,396)));assert set(c['volume1']['historical_evidence_audited_chapters'])|set(range(259,271))==set(range(1,396));c['evidence_audit_in_progress']=None
+assert rows[24]['status']=='historical_evidence_audited_content_review_pending';rows[24].update(status='current_full_independent_review_in_progress',reviewer='/root/fr024_full_review',writer=None,next_action='Complete full current source/trio independent content review; preserve old revisions, no manuscript writes.')
+c['as_of']=datetime.now(timezone.utc).isoformat();c['next_action']='33 reusable chapters. All volume1 historical reconciliation registered(001-258/271-395;259-270 closed skipped).022 repair,023 postfix review,024 full review active. Continue only missing content closure then volume continuity;volume2 not started.'
+p=t/'offline-progress.md';s=p.read_text();anchor='|第一卷其余章|';assert s.count(anchor)==1;s=s.replace(anchor,'|391—395历史证据|最后对账批完成；主20输入/47稳定证据/22支持/80备份聚合核验通过|[对账报告](research/fr-history-evidence-391-395-20261111.md)、[主身份核验](research/fr-history-391-395-mainfresh-20261111.json)|395批准修正沿用；全卷历史对账已覆盖，不再重复；继续内容独审|\n'+anchor)
+s=s.replace('|第一卷其余章|现稿和历史证据逐章对账／核源未完|机器台账各章状态|先复用有效历史完成证据；仅修确证缺口；最后卷内／卷界连续性复核|','|第一卷其余章|历史对账已覆盖；当前内容审阅／核源闭合未完|机器台账各章状态|复用已修与有效闭合证据，只补缺失内容独审/确证修复；最后卷内／卷界连续性复核|')
+a='历史001—258、271—390已登记；最后391—395由 `/root/fr_history_391_395` 只读对账。';assert a in s;s=s.replace(a,'历史001—258、271—395已登记，259—270已闭合跳过，全卷历史对账完成，不再重复。024由 `/root/fr024_full_review` 全文独审。')
+pd=t/'prd.md';pt=pd.read_text();a=next(x for x in pt.splitlines() if x.startswith('> **2026-11-11 最新离线进度**'));pt=pt.replace(a,'> **2026-11-11 最新离线进度**：33章已闭合（001—021、259—270），已闭合且SHA未变不重做。第一卷历史对账已全部覆盖：001—258、271—395已登记，259—270闭合跳过；只继续缺失的内容独审和确证修复。022局修、023修后定点独审、024全文独审在途。卷内/卷界连续性及第二卷尚未完成；证据、SHA和所有权见offline-progress.md。')
+plan=r/'fr-volumes-resume-20261110.md';qt=plan.read_text()+'\n391—395最后历史批及主20输入/47稳定证据/22支持/80备份核验已登记。第一卷395章历史接续资格已全部覆盖（001—258/271—395对账，259—270闭合跳过），此后不重复历史扫描。当前33章文本闭合，022局修、023修后独审、024全文独审在途；随后仅继续缺失内容闭合和卷内/卷界审阅，再开始第二卷。\n'
+meta=t/'task.json';m=json.loads(meta.read_text());m['offlineTrack']['last_checkpoint']=c['next_action'];bk=r/('fr-audit391-metadata-backup-'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ'));bk.mkdir()
+for p in [lp,t/'offline-progress.md',pd,plan,meta]:shutil.copy2(p,bk/p.name)
+lp.write_text(json.dumps(c,ensure_ascii=False,indent=2)+'\n');(t/'offline-progress.md').write_text(s);pd.write_text(pt);plan.write_text(qt);meta.write_text(json.dumps(m,ensure_ascii=False,indent=2)+'\n');print(json.dumps({'pass':True,'historical_registered':[391,395],'all_volume1_history_covered':True,'closed':33,'next_full_review':24,'files':rows[24]['files']},ensure_ascii=False))
