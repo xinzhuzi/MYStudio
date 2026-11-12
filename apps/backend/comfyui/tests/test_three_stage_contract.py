@@ -287,15 +287,14 @@ def test_absorbed_fl2v_firstframe_mode():
 
 
 def test_single_shot_dir_inventory():
-    """1_漫影自研 件册(1112 扁平化裁定:零子夹,七件平铺):主线 三采-单镜.json
-    +退役件 三采-单镜-RelayVSR-1110.json + 1105 被吸收旧主线 pika-{fl2v,ref2v}.json
+    """1_漫影自研 件册(1112 扁平化+历史档外迁裁定:零子夹,六件平铺):主线 三采-单镜.json
+    (1111 换防退役件 三采-单镜-RelayVSR-1110.json 已移 7_测试/ 留档)+ 1105 被吸收旧主线 pika-{fl2v,ref2v}.json
     +首跑样本 单镜视频 · chapter-001 · S01.json + 导演台.json + h3-autocontext-multiseg.json。
     1112 用户令:1_漫影自研 下不设子文件夹;归档语义由文件名后缀承载。"""
     expected = [
         "h3-autocontext-multiseg.json",
         "pika-单镜视频-fl2v.json",
         "pika-单镜视频-ref2v.json",
-        "三采-单镜-RelayVSR-1110.json",
         "三采-单镜.json",
         "单镜视频 · chapter-001 · S01.json",
         "导演台.json",
