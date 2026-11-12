@@ -30,8 +30,9 @@
 目录布局:<out-root>/reports/chapter-NNN.{md,json,cite.json}、<out-root>/index.tsv、
           failures.tsv、drama-snapshot.json
 
-模型: gemini-3.8-flash-{high,medium,low} (令牌可用三档,默认 high)
-密钥: 环境变量 LOVELONG_API_KEY 优先,缺省用内置令牌(见文件头声明)
+模型: 1112 切换智谱 BigModel——glm-5.3 / glm-5.3-flash / glm-5.3-flashx(高/中/低,默认 high)
+密钥: 环境变量 CRITIC_API_KEY 或 ZHIPU_API_KEY(1112 用户令换 env,旧 love-long 内置键已 401 死并移除,
+      1030 D3 硬编码裁定就此作废;端点可 CRITIC_API_BASE 覆写)
 仅依赖 Python 标准库。
 """
 import argparse
@@ -44,9 +45,10 @@ import time
 import urllib.error
 import urllib.request
 
-API_BASE = "https://love-long.com/v1"
-DEFAULT_KEY = "sk-mBYosnPKudMTVCk6jQTqsSDR0PJmNiyyh8SL6h5u3QsWfHeo"
-MODELS = {"high": "gemini-3.8-flash-high", "medium": "gemini-3.8-flash-medium", "low": "gemini-3.8-flash-low"}
+API_BASE = os.environ.get("CRITIC_API_BASE", "https://open.bigmodel.cn/api/paas/v4")
+DEFAULT_KEY = (os.environ.get("CRITIC_API_KEY") or os.environ.get("ZHIPU_API_KEY")
+               or os.environ.get("LOVELONG_API_KEY") or "")
+MODELS = {"high": "glm-5.3", "medium": "glm-5.3-flash", "low": "glm-5.3-flashx"}
 
 VERDICT_LEVELS = ("存在结构性问题", "基本合理但需打磨", "合理")  # 长词优先,防「合理」吃掉长判定
 INDEX_HEADER = ("ep", "verdict", "verdictRaw", "score", "p0", "p1", "p2", "citeRate", "secs", "model", "retries")
@@ -527,7 +529,9 @@ def main() -> int:
     ap.add_argument("--focus", default="", help="单章模式:附加关注点")
     args = ap.parse_args()
 
-    api_key = os.environ.get("LOVELONG_API_KEY", DEFAULT_KEY)
+    api_key = os.environ.get("CRITIC_API_KEY") or os.environ.get("ZHIPU_API_KEY") or DEFAULT_KEY
+    if not api_key:
+        sys.exit("缺 API key:设 CRITIC_API_KEY 或 ZHIPU_API_KEY(1112 起不内置,见文件头)")
     model_id = MODELS[args.model]
 
     if args.batch is not None:

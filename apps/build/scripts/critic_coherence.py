@@ -63,7 +63,7 @@ def main() -> int:
     lo_i, hi_i = int(lo), int(hi or lo)
     coh_dir = os.path.join(args.out_root, "coherence")
     os.makedirs(coh_dir, exist_ok=True)
-    api_key = os.environ.get("LOVELONG_API_KEY", DEFAULT_KEY)
+    api_key = os.environ.get("CRITIC_API_KEY") or os.environ.get("ZHIPU_API_KEY") or DEFAULT_KEY
 
     # 逐卷处理
     vol_idx = 0
