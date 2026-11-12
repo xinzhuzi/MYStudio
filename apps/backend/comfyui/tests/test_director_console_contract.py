@@ -241,6 +241,19 @@ def test_concat_and_loadvideo_wiring():
     assert _links_between(links, 3000, 3001), "缺 3000→3001 草片落盘接线"
 
 
+# ── §5-13 i2v 臂陈旧入参回归闸(引擎 0.45.2 已无 audio_vae,1112 补测实踩) ──
+def test_i2v_arm_no_stale_audio_vae():
+    _, nodes, links = _load()
+    for off in (0, 1000, 2000):
+        n = nodes[220 + off]
+        names = [i.get("name") for i in n.get("inputs", [])]
+        assert "audio_vae" not in names, \
+            f"[{220 + off}] MiniMaxH3ImageToVideo 不得声明 audio_vae 槽(引擎 0.45.2 无此参,实弹 TypeError)"
+    targets = {l[3] for l in links}
+    for off in (0, 1000, 2000):
+        assert 220 + off in targets, f"[{220 + off}] i2v 臂应仍有 conditioning 入线"
+
+
 # ── §5-12 模式开关扇出与方向(F1 修正后)+ F3 title 文案 ───────────────
 def test_mode_switch_semantics():
     _, nodes, links = _load()

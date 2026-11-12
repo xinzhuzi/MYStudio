@@ -322,12 +322,22 @@ def build() -> dict:
     nodes = [by_id[i] for i in sorted(by_id)]
     for idx, n in enumerate(nodes):
         n["order"] = idx
+    for k in range(SHOT_COUNT):  # 偏差 4 剥槽:220+k 不再声明 audio_vae 输入槽
+        n220 = by_id[220 + ID_STRIDE * k]
+        n220["inputs"] = [i for i in n220.get("inputs", []) if i.get("name") != "audio_vae"]
 
     # 4) 链处理四步(design §2)
+    # 偏差 4(1112 补测抓雷):引擎 0.45.2 的 MiniMaxH3ImageToVideo 已无 audio_vae 入参
+    # (object_info 实证 required+optional 双无),母本 [120]→[220] 该线为 0.44 时代陈旧接线,
+    # i2v 模式实弹必炸「unexpected keyword argument 'audio_vae'」——本台拔线剥槽;母本同病候用户另裁。
+    m220 = next(n for n in mother["nodes"] if n["id"] == 220)
+    AV_IDX = next((j for j, i in enumerate(m220.get("inputs", [])) if i.get("name") == "audio_vae"), None)
     raw_links: list[tuple[int, int, int, str]] = []  # (from, from_slot, to, to_slot, type) 前四+type
     for lid, frm, fslot, to, tslot, ltype in mother["links"]:
         if lid in DROP_LINK_IDS or frm in DROP or to in DROP:
             continue
+        if to == 220 and AV_IDX is not None and tslot == AV_IDX:
+            continue  # 陈旧 audio_vae 线(见偏差 4)
         f_in_t, t_in_t = frm in TEMPLATE, to in TEMPLATE
         if f_in_t and t_in_t:
             for k in range(SHOT_COUNT):
