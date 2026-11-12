@@ -423,7 +423,7 @@ claims no rights over outputs and places responsibility on the user.
 - **TE 疑点(实弹裁决)**:QAD README 要求 TE 带 **reference-vision 支持**,配套仓 `FastVideo/FastH3-OmniRef-Comfy`
   (HF,169GB,魔搭无镜像)。现用 Q2=`qwen3vl_32b_minimax_h3_nvfp4_awq`(fl2va 仓/Comfy-Org 同名件,Win 在位)与原生
   ref2va 线共用一套 TE 是 Comfy-Org 官方设计,大概率同件可用——**未实弹证实**,败则从 OmniRef-Comfy 仓补 TE(HF 通路)。
-- **本仓接入(1031 rtx-pro-4000 换卡役)**:repo 真源 `2_视频/H3视频/1_漫影自研/0_单镜视频/fasth3-单镜视频-r2v.json`
+- **本仓接入(1031 rtx-pro-4000 换卡役;1112 勘误)**:~~repo 真源 `1_漫影自研/0_单镜视频/fasth3-单镜视频-r2v.json`~~ r2v 变体已随 1105 重组消亡(能力并入三采-单镜 r2v 臂);fasth3 现存件=`2_视频/H3视频/7_测试/fasth3-单镜视频-{i2v,t2v}.json`(历史档)+ 前端模板对 `fasth3-shot-template{,.api}.json`
   (30 节点,母体=34 节点 Mac R2V 骨架四删 3/17/43/48)+ 前端模板对 `fasth3-ref-shot-template{,.api}.json` +
   recipe `my-fasth3-r2v-30`(unverified)+ 组装器 `buildShotH3RefApiWorkflow`(六段式 buildShotH3RefPrompt,分镜帧恒占
   Picture 1,角色/场景卡 refs 注入 110-113)+ 契约测试 `test_fasth3_qad_workflow_contract.py`(7 用例)。生成器
