@@ -91,7 +91,7 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     """Verify registered source provenance, not frozen historical runtime rendering."""
     import hashlib
     drift=json.loads((w.TASK/'reports/source-drift.json').read_text())
-    assert set(drift)=={'apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json'}
+    assert set(drift)=={'apps/backend/comfyui/workflows/1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json'}
     base='apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json'
     subject='docs/prompts/道劫_类型主体句示例.md'
     revisions=json.loads((w.TASK/'reports/shared-source-revisions.json').read_text())

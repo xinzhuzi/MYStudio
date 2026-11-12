@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """1108 道劫人物姿势工作流·幂等生成器(持械挂腰姿势根治役)。
 
-产物: workflows/1_图片/Q2-1图像/4_姿势编辑/qi21-道劫-人物姿势.json(画布件;1108 归位令自 2_图生图 迁入,文件名不变)
+产物: workflows/1_图片/QwenImage2.1/4_姿势编辑/qi21-道劫-人物姿势.json(画布件;1108 归位令自 2_图生图 迁入,文件名不变)
 架构 = 道劫三层装配(qi21_bases 型库) × Fisher-Pose 姿势控制:
   FisherPoseStudio(文字摆人偶:手钉腰侧鞘位) → FisherQwenFreePose(姿势条件+
   装配文 extra_prompt) + VNCCS 姿势 LoRA@1.0 → KSampler 25步/CFG1 euler → 出图
@@ -16,7 +16,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 QI21_BASES = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
-OUT = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/4_姿势编辑/qi21-道劫-人物姿势.json"
+OUT = REPO / "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/4_姿势编辑/qi21-道劫-人物姿势.json"
 
 BOILERPLATE = ("image1 is a gray mannequin for pose only — ignore its gray color and material "
                "everywhere. 画面人物、服装、配器与场景完全按下方道劫装配文执行，人偶只提供姿势骨架。")

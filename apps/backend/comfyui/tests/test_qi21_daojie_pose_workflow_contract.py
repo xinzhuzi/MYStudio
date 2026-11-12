@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[4]
-WF = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/4_姿势编辑/qi21-道劫-人物姿势.json"
+WF = REPO / "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/4_姿势编辑/qi21-道劫-人物姿势.json"
 
 
 def _load():

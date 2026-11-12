@@ -3,7 +3,7 @@
 09-18 收缩背景:早间用户裁定 MY- 静态工作流库清退,真源文件(旧名
     MY-K2_文生图_道劫.json)一度删除(tar 备份+git 历史双路可恢复);同日晚间
 裁定改为全库改名保留——MY- 前缀废弃,51 件去前缀+下划线转连字符,该件现名
-    comfyui/workflows/1_图片/K2图像/1_文生图/K2-文生图-道劫.json(在库)。
+    comfyui/workflows/1_图片/krea2/1_文生图/K2-文生图-道劫.json(在库)。
 1004 Phase A 起数据层正负拆开:daojie_bases.json 退役删件,九型 canon=
 qi21_bases.json types 前 9(字段 positive/negative→positive_text/
 negative_text,负面中文化);旧「json↔0918 md 围栏逐字互锁」随数据瘦身

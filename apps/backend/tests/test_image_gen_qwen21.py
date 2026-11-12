@@ -14,15 +14,15 @@ from image_gen import pipeline
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE_PATH = (
     REPO_ROOT
-    / "backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json"
+    / "backend/comfyui/workflows/1_图片/QwenImage2.1/1_文生图/qwen21-道劫-t2i-api.json"
 )
 I2I_TEMPLATE_PATH = (
     REPO_ROOT
-    / "backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json"
+    / "backend/comfyui/workflows/1_图片/QwenImage2.1/2_图生图/qwen21-道劫-i2i-api.json"
 )
 I2I_CANVAS_PATH = (
     REPO_ROOT
-    / "backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
+    / "backend/comfyui/workflows/1_图片/QwenImage2.1/2_图生图/qi21-道劫-i2i.json"
 )
 
 

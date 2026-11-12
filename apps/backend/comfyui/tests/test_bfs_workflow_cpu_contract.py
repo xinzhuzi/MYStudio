@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 WORKFLOWS = Path(__file__).resolve().parents[1] / "workflows"
-DIRECTORY = WORKFLOWS / "1_图片/Q2-1图像/2_图生图"
+DIRECTORY = WORKFLOWS / "1_图片/QwenImage2.1/2_图生图"
 WORKFLOW = DIRECTORY / "qi21-bfs-换头.json"
 HEAD_SWAP = (
     "head_swap: start with <image1> as the base image, keeping its lighting, "

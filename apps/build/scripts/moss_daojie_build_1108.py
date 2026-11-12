@@ -5,7 +5,7 @@
   1. apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/moss_bases.json
      —— 由 qi21_bases.json 派生:6 透明型+白底句 / 人物海报+挂载服从句 /
         steps_hint→DMD8·原生50 / lora_recipe 清空(Q2.1 配方不迁移)
-  2. apps/backend/comfyui/workflows/1_图片/MOSS图像/moss-道劫-t2i.json
+  2. apps/backend/comfyui/workflows/1_图片/MossImage/moss-道劫-t2i.json
      —— 画布件:选型→三层装配(复用 MyQi21PromptAssembly)→双臂采样
         (原生50 观澜+SLG | DMD8)→透明白底抠图腿→SeedVR2 2K 尾档(默认旁路)
   3. 同目录 moss-道劫-t2i-api.json —— 默认臂(原生50)直投模板,注入锚:
@@ -22,7 +22,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 DATA_DIR = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json"
-WF_DIR = REPO / "apps/backend/comfyui/workflows/1_图片/MOSS图像"
+WF_DIR = REPO / "apps/backend/comfyui/workflows/1_图片/MossImage"
 QI21_BASES = DATA_DIR / "qi21_bases.json"
 MOSS_BASES = DATA_DIR / "moss_bases.json"
 CANVAS = WF_DIR / "moss-道劫-t2i.json"

@@ -1,6 +1,6 @@
 """Windows FastH3 主线工作流契约测试(10-27 windows-fasth3-mainline 阶段2,repo 工作流作者)。
 
-被测对象 = 仓库真源两件(`2_视频/H3视频/7_FastH3/`,1105 退役重组迁入,引擎前端格式画布直开):
+被测对象 = 仓库真源两件(`2_视频/H3视频/7_测试/`,1112 功能重组自 7_FastH3 移入留档;1105 退役件,引擎前端格式画布直开):
     fasth3-单镜视频-i2v.json  主形态:分镜 I2V/首帧锚定(9.image→16.first_frame)
     fasth3-单镜视频-t2v.json  基础版:无首帧纯文生(官方 t2v 同形)
 
@@ -31,7 +31,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
-LIB = ROOT / "apps/backend/comfyui/workflows/2_视频/H3视频/7_FastH3"
+LIB = ROOT / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试"
 I2V = LIB / "fasth3-单镜视频-i2v.json"
 T2V = LIB / "fasth3-单镜视频-t2v.json"
 SNAPSHOT = Path(__file__).resolve().parent / "fixtures/fasth3_object_info_snapshot.json"

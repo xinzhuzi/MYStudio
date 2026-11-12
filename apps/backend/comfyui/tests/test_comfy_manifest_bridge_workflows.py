@@ -228,13 +228,13 @@ class TestWorkflowFileOps:
         """09-14 存放架构:静态自研真源(09-18 改名后无 MY- 前缀)=仓库(repo: 前缀并入列表;可读;
         写操作拒绝——repo 路径在用户区天然不存在)。"""
         home = _use_tmp_home(tmp_path, monkeypatch)
-        repo = tmp_path / "repo-workflows" / "1_图片" / "K2图像" / "1_文生图"
+        repo = tmp_path / "repo-workflows" / "1_图片" / "krea2" / "1_文生图"
         repo.mkdir(parents=True)
         (repo / "K2-文生图.json").write_text(json.dumps(
             {"nodes": [{"type": "KSampler"}]}, ensure_ascii=False), encoding="utf-8")
         listing = pm.list_workflows()
         repo_ids = [w["id"] for w in listing["workflows"] if w.get("source") == "repo"]
-        assert repo_ids == ["repo:1_图片/K2图像/1_文生图/K2-文生图.json"]
+        assert repo_ids == ["repo:1_图片/krea2/1_文生图/K2-文生图.json"]
         by_id = {w["id"]: w for w in listing["workflows"]}
         assert by_id[repo_ids[0]]["nodeCount"] == 1
         # light 形态也带 source
@@ -261,7 +261,7 @@ class TestWorkflowFileOps:
         """09-14 三次修订:桥模板(schemaVersion+graph 无 nodes 的 API 格式)归位
         静态库后不进侧栏列表——画布打不开,漏进=变相误置件。"""
         _use_tmp_home(tmp_path, monkeypatch)
-        repo = tmp_path / "repo-workflows" / "1_图片" / "K2图像" / "1_文生图"
+        repo = tmp_path / "repo-workflows" / "1_图片" / "krea2" / "1_文生图"
         repo.mkdir(parents=True)
         (repo / "K2-文生图.json").write_text(json.dumps(
             {"nodes": [{"type": "KSampler"}]}, ensure_ascii=False), encoding="utf-8")
@@ -271,7 +271,7 @@ class TestWorkflowFileOps:
         for light in (False, True):
             listing = pm.list_workflows(light=light)
             repo_ids = [w["id"] for w in listing["workflows"] if w.get("source") == "repo"]
-            assert repo_ids == ["repo:1_图片/K2图像/1_文生图/K2-文生图.json"], light
+            assert repo_ids == ["repo:1_图片/krea2/1_文生图/K2-文生图.json"], light
 
     def test_read_rename_move(self, tmp_path, monkeypatch):
         self._import_two(tmp_path, monkeypatch)

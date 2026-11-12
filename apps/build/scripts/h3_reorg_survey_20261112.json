@@ -1,0 +1,2292 @@
+[
+ {
+  "path": "1_漫影自研/0_单镜视频/pika-单镜视频-fl2v.json",
+  "bytes": 37055,
+  "title": "",
+  "n_nodes": 26,
+  "n_links": 26,
+  "classes_top": [
+   [
+    "LoadImage",
+    2
+   ],
+   [
+    "PrimitiveFloat",
+    2
+   ],
+   [
+    "VAELoader",
+    2
+   ],
+   [
+    "MarkdownNote",
+    2
+   ],
+   [
+    "SaveVideo",
+    1
+   ],
+   [
+    "PrimitiveStringMultiline",
+    1
+   ],
+   [
+    "ResolutionSelector",
+    1
+   ],
+   [
+    "MyShot",
+    1
+   ]
+  ],
+  "models": [
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_int8_convrot.safetensors",
+   "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
+  ],
+  "loras": [
+   "pika_h3_flex_fl2va_comfy_bf16.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "manying-shot-h3-placeholder.jpg",
+    "manying-shot-h3-lastframe-placeholder.jpg"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "KSamplerSelect:[]"
+  ],
+  "groups": []
+ },
+ {
+  "path": "1_漫影自研/0_单镜视频/pika-单镜视频-ref2v.json",
+  "bytes": 38897,
+  "title": "",
+  "n_nodes": 28,
+  "n_links": 30,
+  "classes_top": [
+   [
+    "LoadImage",
+    5
+   ],
+   [
+    "VAELoader",
+    2
+   ],
+   [
+    "MarkdownNote",
+    2
+   ],
+   [
+    "SaveVideo",
+    1
+   ],
+   [
+    "PrimitiveStringMultiline",
+    1
+   ],
+   [
+    "MiniMaxH3ReferenceToVideo",
+    1
+   ],
+   [
+    "PrimitiveFloat",
+    1
+   ],
+   [
+    "ResolutionSelector",
+    1
+   ]
+  ],
+  "models": [
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_int8_convrot.safetensors",
+   "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
+  ],
+  "loras": [
+   "pika_h3_flex_ref2va_comfy_bf16.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "manying-shot-h3-placeholder.jpg",
+    "manying-shot-h3-ref-placeholder.jpg",
+    "manying-shot-h3-ref-placeholder.jpg"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "KSamplerSelect:[]"
+  ],
+  "groups": []
+ },
+ {
+  "path": "1_漫影自研/0_单镜视频/三采-单镜-RelayVSR-1110.json",
+  "bytes": 103155,
+  "title": "",
+  "n_nodes": 100,
+  "n_links": 149,
+  "classes_top": [
+   [
+    "LoraLoaderModelOnly",
+    7
+   ],
+   [
+    "LoadImage",
+    5
+   ],
+   [
+    "VAELoader",
+    5
+   ],
+   [
+    "ModelAttentionBackend",
+    4
+   ],
+   [
+    "BlockSparseAttention",
+    4
+   ],
+   [
+    "MiniMaxH3ReferenceToVideo",
+    3
+   ],
+   [
+    "VAEDecodeAudio",
+    3
+   ],
+   [
+    "VAEDecode",
+    3
+   ]
+  ],
+  "models": [
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_int8_convrot.safetensors",
+   "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+   "qwen3vl_8b_int8_convrot.safetensors",
+   "qwen_image",
+   "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
+  ],
+  "loras": [
+   "minimax_h3_lms_v1.0_r64.safetensors",
+   "pika_h3_flex_ref2va_comfy_bf16.safetensors",
+   "pika_turbo_8step_fl2va.safetensors",
+   "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
+   "taomate_h3_3step.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "manying-shot-h3-placeholder.jpg",
+    "manying-shot-h3-ref-placeholder.jpg",
+    "manying-shot-h3-ref-placeholder.jpg"
+   ],
+   "video": [
+    "your_source_clip.mp4"
+   ],
+   "audio": []
+  },
+  "samplers": [
+   "KSamplerSelect:[]",
+   "BasicScheduler:[3, 0.2]",
+   "KSamplerSelect:[]",
+   "KSamplerSelect:[]"
+  ],
+  "groups": [
+   "一阶段采样(Pika 6步·864×480)",
+   "二采放大·默认终档(TaoMate 3步→1280×704)",
+   "质量精修 TESSERA·默认旁路(×1.5→1920×1056)",
+   "三采超分·RelayVSR 主线(1110 终版阶梯 1920→交付裁 15px=1080)"
+  ]
+ },
+ {
+  "path": "1_漫影自研/0_单镜视频/三采-单镜.json",
+  "bytes": 107495,
+  "title": "",
+  "n_nodes": 103,
+  "n_links": 152,
+  "classes_top": [
+   [
+    "LoraLoaderModelOnly",
+    7
+   ],
+   [
+    "LoadImage",
+    5
+   ],
+   [
+    "VAELoader",
+    5
+   ],
+   [
+    "ModelAttentionBackend",
+    4
+   ],
+   [
+    "SaveVideo",
+    4
+   ],
+   [
+    "BlockSparseAttention",
+    4
+   ],
+   [
+    "MiniMaxH3ReferenceToVideo",
+    3
+   ],
+   [
+    "VAEDecodeAudio",
+    3
+   ]
+  ],
+  "models": [
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_int8_convrot.safetensors",
+   "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+   "qwen3vl_8b_int8_convrot.safetensors",
+   "qwen_image",
+   "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
+  ],
+  "loras": [
+   "minimax_h3_lms_v1.0_r64.safetensors",
+   "pika_h3_flex_ref2va_comfy_bf16.safetensors",
+   "pika_turbo_8step_fl2va.safetensors",
+   "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
+   "taomate_h3_3step.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "manying-shot-h3-placeholder.jpg",
+    "manying-shot-h3-ref-placeholder.jpg",
+    "manying-shot-h3-ref-placeholder.jpg"
+   ],
+   "video": [
+    "your_source_clip.mp4"
+   ],
+   "audio": []
+  },
+  "samplers": [
+   "KSamplerSelect:[]",
+   "BasicScheduler:[3, 0.2]",
+   "KSamplerSelect:[]",
+   "KSamplerSelect:[]"
+  ],
+  "groups": [
+   "一阶段采样(Pika 6步·864×480)",
+   "二采放大·默认终档(TaoMate 3步→1280×704)",
+   "质量精修 TESSERA·默认旁路(×1.5→1920×1056)",
+   "三采超分·RelayVSR 旁路(1110 终版阶梯 1920→交付裁 15px=1080)",
+   "三采超分·ReCaVSR 挑战臂(1111 对拍档 int8·scale2→2880×1664)"
+  ]
+ },
+ {
+  "path": "1_漫影自研/0_单镜视频/单镜视频 · chapter-001 · S01.json",
+  "bytes": 53584,
+  "title": "",
+  "n_nodes": 31,
+  "n_links": 31,
+  "classes_top": [
+   [
+    "MarkdownNote",
+    4
+   ],
+   [
+    "VAELoader",
+    2
+   ],
+   [
+    "VAEDecodeAudio",
+    1
+   ],
+   [
+    "SplitSigmas",
+    1
+   ],
+   [
+    "SaveVideo",
+    1
+   ],
+   [
+    "VAEDecode",
+    1
+   ],
+   [
+    "BasicScheduler",
+    1
+   ],
+   [
+    "LoadImage",
+    1
+   ]
+  ],
+  "models": [
+   "Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf",
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_fp16.safetensors"
+  ],
+  "loras": [
+   "dmad_minimax_h3_4step_full_critic_comfyui_bf16.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "manying-shot-h3-sb-chapter-001-001.jpg"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "BasicScheduler:[4, 1]",
+   "KSamplerSelect:[]"
+  ],
+  "groups": [
+   "① 输入与参数配置 · User Inputs",
+   "② 核心基础模型 · Models",
+   "③ 采样与去噪控制 · Sampling",
+   "④ 文本与条件引导 · Conditioning",
+   "⑤ 两阶段精修与视频解码 · Decoding & Create Video",
+   "⑥ 潜空间超分微调 · Latent Upscaler",
+   "⑦ 成片预览监视 · Preview"
+  ]
+ },
+ {
+  "path": "1_漫影自研/1_分段视频/h3-autocontext-multiseg.json",
+  "bytes": 8447,
+  "title": "",
+  "n_nodes": 12,
+  "n_links": 14,
+  "classes_top": [
+   [
+    "VAELoader",
+    2
+   ],
+   [
+    "UNETLoader",
+    1
+   ],
+   [
+    "LoraLoaderModelOnly",
+    1
+   ],
+   [
+    "CLIPLoaderGGUF",
+    1
+   ],
+   [
+    "H3Parameter",
+    1
+   ],
+   [
+    "H3AutoContextSampler",
+    1
+   ],
+   [
+    "VAEDecode",
+    1
+   ],
+   [
+    "VAEDecodeAudio",
+    1
+   ]
+  ],
+  "models": [
+   "Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf",
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_fp16.safetensors"
+  ],
+  "loras": [
+   "minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors"
+  ],
+  "inputs": {
+   "image": [],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "2_固定线/社区-480P生成-960P精修-SolAttn加速-960P直出.json",
+  "bytes": 64531,
+  "title": "",
+  "n_nodes": 45,
+  "n_links": 60,
+  "classes_top": [
+   [
+    "MarkdownNote",
+    4
+   ],
+   [
+    "ManualSigmas",
+    3
+   ],
+   [
+    "VAEDecodeAudio",
+    2
+   ],
+   [
+    "VAEDecode",
+    2
+   ],
+   [
+    "VAELoader",
+    2
+   ],
+   [
+    "LoadImage",
+    2
+   ],
+   [
+    "ResolutionSelector",
+    2
+   ],
+   [
+    "MiniMaxH3ImageToVideo",
+    2
+   ]
+  ],
+  "models": [
+   "Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf",
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_fp16.safetensors"
+  ],
+  "loras": [
+   "minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "Krea2_无衣__00003_.png",
+    "Krea2_无衣__00003_.png"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "BasicScheduler:[8, 1]",
+   "KSamplerSelect:[]"
+  ],
+  "groups": [
+   "User Inputs",
+   "Models",
+   "Sampling",
+   "Conditioning",
+   "Two-stage sampling upscaling - Decoding and create video",
+   "H3 Latent Upscaler",
+   "preview"
+  ]
+ },
+ {
+  "path": "2_固定线/社区-480P生成-SolAttn加速-480P直出.json",
+  "bytes": 74270,
+  "title": "",
+  "n_nodes": 31,
+  "n_links": 32,
+  "classes_top": [
+   [
+    "MarkdownNote",
+    4
+   ],
+   [
+    "VAELoader",
+    2
+   ],
+   [
+    "LoadImage",
+    2
+   ],
+   [
+    "VAEDecodeAudio",
+    1
+   ],
+   [
+    "SplitSigmas",
+    1
+   ],
+   [
+    "SaveVideo",
+    1
+   ],
+   [
+    "VAEDecode",
+    1
+   ],
+   [
+    "BasicScheduler",
+    1
+   ]
+  ],
+  "models": [
+   "Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf",
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_fp16.safetensors"
+  ],
+  "loras": [
+   "minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "0a4e7f55-402e-4c93-92b4-3b7ac47ed5c1.png",
+    "02ebcc12-17e5-4752-b189-beadc048e5c5.png"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "BasicScheduler:[8, 1]",
+   "KSamplerSelect:[]"
+  ],
+  "groups": [
+   "User Inputs",
+   "Models",
+   "Sampling",
+   "Conditioning",
+   "Two-stage sampling upscaling - Decoding and create video",
+   "H3 Latent Upscaler",
+   "preview"
+  ]
+ },
+ {
+  "path": "3_超分后处理/TESSERA-超分-1080p.json",
+  "bytes": 35883,
+  "title": "",
+  "n_nodes": 39,
+  "n_links": 55,
+  "classes_top": [
+   [
+    "LoraLoaderModelOnly",
+    4
+   ],
+   [
+    "VAELoader",
+    3
+   ],
+   [
+    "UNETLoader",
+    2
+   ],
+   [
+    "CLIPLoader",
+    2
+   ],
+   [
+    "KSamplerSelect",
+    2
+   ],
+   [
+    "MiniMaxH3ReferenceToVideo",
+    1
+   ],
+   [
+    "VAEDecodeAudio",
+    1
+   ],
+   [
+    "LTXVConcatAVLatent",
+    1
+   ]
+  ],
+  "models": [
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_int8_convrot.safetensors",
+   "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+   "qwen3vl_8b_int8_convrot.safetensors",
+   "qwen_image",
+   "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
+  ],
+  "loras": [
+   "minimax_h3_lms_v1.0_r64.safetensors",
+   "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
+   "taomate_h3_3step.safetensors"
+  ],
+  "inputs": {
+   "image": [],
+   "video": [
+    "your_source_clip.mp4"
+   ],
+   "audio": []
+  },
+  "samplers": [
+   "KSamplerSelect:[]",
+   "KSamplerSelect:[]",
+   "KSampler:[1, 8, 1.0, 1.0]"
+  ],
+  "groups": [
+   "TESSERA 超分·1080p(第四发 api_formal_v4 定谳;独立工具件,LoadVideo 吃任意片)"
+  ]
+ },
+ {
+  "path": "3_超分后处理/relayvsr-超分-2x.json",
+  "bytes": 771,
+  "title": "",
+  "n_nodes": 0,
+  "n_links": 0,
+  "classes_top": [],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "3_超分后处理/seedvr2-超分-1080p.json",
+  "bytes": 1947,
+  "title": "",
+  "n_nodes": 0,
+  "n_links": 0,
+  "classes_top": [],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "3_超分后处理/seedvr2-超分-4x.json",
+  "bytes": 1945,
+  "title": "",
+  "n_nodes": 0,
+  "n_links": 0,
+  "classes_top": [],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "3_超分后处理/社区-视频文件直接超分-SeedVR2.json",
+  "bytes": 7141,
+  "title": "",
+  "n_nodes": 8,
+  "n_links": 8,
+  "classes_top": [
+   [
+    "LoadVideo",
+    1
+   ],
+   [
+    "GetVideoComponents",
+    1
+   ],
+   [
+    "SeedVR2LoadDiTModel",
+    1
+   ],
+   [
+    "SeedVR2LoadVAEModel",
+    1
+   ],
+   [
+    "SeedVR2VideoUpscaler",
+    1
+   ],
+   [
+    "CreateVideo",
+    1
+   ],
+   [
+    "SaveVideo",
+    1
+   ],
+   [
+    "MarkdownNote",
+    1
+   ]
+  ],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "4_官方本地模板/H3-文生视频-480p.json",
+  "bytes": 13976,
+  "title": "",
+  "n_nodes": 8,
+  "n_links": 10,
+  "classes_top": [
+   [
+    "CLIPLoaderGGUF",
+    1
+   ],
+   [
+    "UNETLoader",
+    1
+   ],
+   [
+    "LoraLoaderModelOnly",
+    1
+   ],
+   [
+    "VAELoader",
+    1
+   ],
+   [
+    "MiniMaxH3ImageToVideo",
+    1
+   ],
+   [
+    "KSampler",
+    1
+   ],
+   [
+    "VAEDecode",
+    1
+   ],
+   [
+    "SaveAnimatedWEBP",
+    1
+   ]
+  ],
+  "models": [
+   "Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf",
+   "minimax",
+   "minimax_h3_video_vae_fp16.safetensors"
+  ],
+  "loras": [
+   "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors"
+  ],
+  "inputs": {
+   "image": [],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "KSampler:[42, 8, 1, 1]"
+  ],
+  "groups": []
+ },
+ {
+  "path": "4_官方本地模板/H3-首尾帧运镜版.json",
+  "bytes": 9359,
+  "title": "",
+  "n_nodes": 11,
+  "n_links": 14,
+  "classes_top": [
+   [
+    "LoadImage",
+    2
+   ],
+   [
+    "CLIPLoaderGGUF",
+    1
+   ],
+   [
+    "UNETLoader",
+    1
+   ],
+   [
+    "LoraLoaderModelOnly",
+    1
+   ],
+   [
+    "ModelPreviewOverrideKJ",
+    1
+   ],
+   [
+    "VAELoader",
+    1
+   ],
+   [
+    "MiniMaxH3ImageToVideo",
+    1
+   ],
+   [
+    "KSampler",
+    1
+   ]
+  ],
+  "models": [
+   "Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf",
+   "minimax",
+   "minimax_h3_video_vae_fp16.safetensors"
+  ],
+  "loras": [
+   "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "h3_start_frame.png",
+    "h3_end_frame.png"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "KSampler:[42, 8, 1.0, 1.0]"
+  ],
+  "groups": []
+ },
+ {
+  "path": "4_官方本地模板/官方本地-I2V-480P.json",
+  "bytes": 55494,
+  "title": "",
+  "n_nodes": 9,
+  "n_links": 5,
+  "classes_top": [
+   [
+    "MarkdownNote",
+    3
+   ],
+   [
+    "SaveVideo",
+    1
+   ],
+   [
+    "LoadImage",
+    1
+   ],
+   [
+    "ResolutionSelector",
+    1
+   ],
+   [
+    "4c314f31-ecda-4b08-ae98-faaba1bf613f",
+    1
+   ],
+   [
+    "ImageScaleToTotalPixels",
+    1
+   ],
+   [
+    "GetImageSize",
+    1
+   ]
+  ],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [
+    "transparent_rgb_gaming_mouse.png"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": [
+   "Use Image Size"
+  ]
+ },
+ {
+  "path": "4_官方本地模板/官方本地-PikaFlex-FL2VA首尾帧-加速双叠.json",
+  "bytes": 8296,
+  "title": "",
+  "n_nodes": 0,
+  "n_links": 0,
+  "classes_top": [],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "4_官方本地模板/官方本地-PikaFlex-FL2VA首尾帧.json",
+  "bytes": 51828,
+  "title": "",
+  "n_nodes": 6,
+  "n_links": 6,
+  "classes_top": [
+   [
+    "LoadImage",
+    2
+   ],
+   [
+    "SaveVideo",
+    1
+   ],
+   [
+    "MarkdownNote",
+    1
+   ],
+   [
+    "79dd8a95-ce9d-4c14-b264-2162e8bec5ce",
+    1
+   ],
+   [
+    "GetImageSize",
+    1
+   ]
+  ],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [
+    "lastP_spin_jump_hole.png",
+    "ref_popart_woman.png"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "4_官方本地模板/官方本地-PikaFlex-REF2VA参考图-加速双叠.json",
+  "bytes": 10155,
+  "title": "",
+  "n_nodes": 0,
+  "n_links": 0,
+  "classes_top": [],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "4_官方本地模板/官方本地-PikaFlex-REF2VA参考图.json",
+  "bytes": 35378,
+  "title": "",
+  "n_nodes": 22,
+  "n_links": 25,
+  "classes_top": [
+   [
+    "VAELoader",
+    2
+   ],
+   [
+    "LoadImage",
+    2
+   ],
+   [
+    "SaveVideo",
+    1
+   ],
+   [
+    "ResolutionSelector",
+    1
+   ],
+   [
+    "MarkdownNote",
+    1
+   ],
+   [
+    "VAEDecodeAudio",
+    1
+   ],
+   [
+    "VAEDecode",
+    1
+   ],
+   [
+    "KSamplerSelect",
+    1
+   ]
+  ],
+  "models": [
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_int8_convrot.safetensors",
+   "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
+  ],
+  "loras": [
+   "pika_h3_flex_ref2va_comfy_bf16.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "ref_pilot_profile.png",
+    "ref_subject_station.png"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "KSamplerSelect:[]"
+  ],
+  "groups": [
+   "Models",
+   "Sampling",
+   "Decoding and create video",
+   "User Inputs",
+   "Conditioning"
+  ]
+ },
+ {
+  "path": "4_官方本地模板/官方本地-PikaFlex-T2V-加速双叠.json",
+  "bytes": 7755,
+  "title": "",
+  "n_nodes": 0,
+  "n_links": 0,
+  "classes_top": [],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "4_官方本地模板/官方本地-PikaFlex-T2V.json",
+  "bytes": 50584,
+  "title": "",
+  "n_nodes": 4,
+  "n_links": 3,
+  "classes_top": [
+   [
+    "SaveVideo",
+    1
+   ],
+   [
+    "ResolutionSelector",
+    1
+   ],
+   [
+    "MarkdownNote",
+    1
+   ],
+   [
+    "79dd8a95-ce9d-4c14-b264-2162e8bec5ce",
+    1
+   ]
+  ],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "4_官方本地模板/官方本地-R2V-480P-需解冻ref2va.json",
+  "bytes": 43209,
+  "title": "",
+  "n_nodes": 29,
+  "n_links": 33,
+  "classes_top": [
+   [
+    "MarkdownNote",
+    3
+   ],
+   [
+    "VAELoader",
+    2
+   ],
+   [
+    "LoadImage",
+    2
+   ],
+   [
+    "ComfySwitchNode",
+    2
+   ],
+   [
+    "PrimitiveInt",
+    2
+   ],
+   [
+    "SaveVideo",
+    1
+   ],
+   [
+    "ResolutionSelector",
+    1
+   ],
+   [
+    "VAEDecodeAudio",
+    1
+   ]
+  ],
+  "models": [
+   "Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf",
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_fp16.safetensors"
+  ],
+  "loras": [
+   "minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "red_superboy_on_city_roof.png",
+    "mecha_dragon_lightning.png"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "KSamplerSelect:[]",
+   "BasicScheduler:[20, 1]"
+  ],
+  "groups": [
+   "Models",
+   "Sampling",
+   "Switch Model and Settings",
+   "Decoding and create video",
+   "User Inputs",
+   "Conditioning"
+  ]
+ },
+ {
+  "path": "4_官方本地模板/官方本地-T2V-480P.json",
+  "bytes": 52727,
+  "title": "",
+  "n_nodes": 6,
+  "n_links": 3,
+  "classes_top": [
+   [
+    "MarkdownNote",
+    3
+   ],
+   [
+    "SaveVideo",
+    1
+   ],
+   [
+    "ResolutionSelector",
+    1
+   ],
+   [
+    "79dd8a95-ce9d-4c14-b264-2162e8bec5ce",
+    1
+   ]
+  ],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "5_云端API/官方API-FLF2V-480P.json",
+  "bytes": 3053,
+  "title": "",
+  "n_nodes": 4,
+  "n_links": 3,
+  "classes_top": [
+   [
+    "LoadImage",
+    2
+   ],
+   [
+    "SaveVideo",
+    1
+   ],
+   [
+    "MinimaxHailuo03FirstLastFrameNode",
+    1
+   ]
+  ],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [
+    "angel-warrior-demon-battle-start.png",
+    "angel-warrior-demon-battle-end.png"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "5_云端API/官方API-R2V-480P.json",
+  "bytes": 3648,
+  "title": "",
+  "n_nodes": 3,
+  "n_links": 2,
+  "classes_top": [
+   [
+    "LoadImage",
+    1
+   ],
+   [
+    "SaveVideo",
+    1
+   ],
+   [
+    "MinimaxHailuo03ReferenceNode",
+    1
+   ]
+  ],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [
+    "9panel_storyboard_golden_hour_clay_court.png"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "5_云端API/官方API-T2V-480P.json",
+  "bytes": 3845,
+  "title": "",
+  "n_nodes": 2,
+  "n_links": 1,
+  "classes_top": [
+   [
+    "SaveVideo",
+    1
+   ],
+   [
+    "MinimaxHailuo03TextToVideoNode",
+    1
+   ]
+  ],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "6_社区模板/viggle-remake-edit-single-ref.json",
+  "bytes": 55473,
+  "title": "",
+  "n_nodes": 19,
+  "n_links": 24,
+  "classes_top": [
+   [
+    "VAELoader",
+    2
+   ],
+   [
+    "UNETLoader",
+    1
+   ],
+   [
+    "LoraLoaderBypassModelOnly",
+    1
+   ],
+   [
+    "RemakeKeyframeUntil",
+    1
+   ],
+   [
+    "CLIPLoader",
+    1
+   ],
+   [
+    "LoadVideo",
+    1
+   ],
+   [
+    "GetVideoComponents",
+    1
+   ],
+   [
+    "LoadImage",
+    1
+   ]
+  ],
+  "models": [
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_fp16.safetensors",
+   "qwen3vl_32b_minimax_h3_bf16.safetensors"
+  ],
+  "loras": [
+   "viggle_remake_edit_comfyui.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "remake_edit_ref1.png"
+   ],
+   "video": [
+    "remake_edit_source.mp4"
+   ],
+   "audio": []
+  },
+  "samplers": [
+   "KSamplerSelect:[]"
+  ],
+  "groups": []
+ },
+ {
+  "path": "6_社区模板/viggle-remake-edit.json",
+  "bytes": 46582,
+  "title": "",
+  "n_nodes": 20,
+  "n_links": 25,
+  "classes_top": [
+   [
+    "VAELoader",
+    2
+   ],
+   [
+    "LoadImage",
+    2
+   ],
+   [
+    "UNETLoader",
+    1
+   ],
+   [
+    "LoraLoaderBypassModelOnly",
+    1
+   ],
+   [
+    "RemakeKeyframeUntil",
+    1
+   ],
+   [
+    "CLIPLoader",
+    1
+   ],
+   [
+    "LoadVideo",
+    1
+   ],
+   [
+    "GetVideoComponents",
+    1
+   ]
+  ],
+  "models": [
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_fp16.safetensors",
+   "qwen3vl_32b_minimax_h3_bf16.safetensors"
+  ],
+  "loras": [
+   "viggle_remake_edit_comfyui.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "remake_edit_ref1.png",
+    "remake_edit_ref2.png"
+   ],
+   "video": [
+    "remake_edit_source.mp4"
+   ],
+   "audio": []
+  },
+  "samplers": [
+   "KSamplerSelect:[]"
+  ],
+  "groups": []
+ },
+ {
+  "path": "6_社区模板/viggle-remake-swap.json",
+  "bytes": 49806,
+  "title": "",
+  "n_nodes": 20,
+  "n_links": 25,
+  "classes_top": [
+   [
+    "VAELoader",
+    2
+   ],
+   [
+    "LoadImage",
+    2
+   ],
+   [
+    "UNETLoader",
+    1
+   ],
+   [
+    "LoraLoaderBypassModelOnly",
+    1
+   ],
+   [
+    "RemakeKeyframeUntil",
+    1
+   ],
+   [
+    "CLIPLoader",
+    1
+   ],
+   [
+    "LoadVideo",
+    1
+   ],
+   [
+    "GetVideoComponents",
+    1
+   ]
+  ],
+  "models": [
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_fp16.safetensors",
+   "qwen3vl_32b_minimax_h3_bf16.safetensors"
+  ],
+  "loras": [
+   "viggle_remake_swap_comfyui.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "remake_swap_ref1.png",
+    "remake_swap_ref2.png"
+   ],
+   "video": [
+    "remake_swap_source.mp4"
+   ],
+   "audio": []
+  },
+  "samplers": [
+   "KSamplerSelect:[]"
+  ],
+  "groups": []
+ },
+ {
+  "path": "6_社区模板/社区-480P生成-960P精修-SolAttn加速-SeedVR2超分2K.json",
+  "bytes": 108312,
+  "title": "",
+  "n_nodes": 47,
+  "n_links": 62,
+  "classes_top": [
+   [
+    "MarkdownNote",
+    4
+   ],
+   [
+    "ManualSigmas",
+    3
+   ],
+   [
+    "VAEDecodeAudio",
+    2
+   ],
+   [
+    "VAEDecode",
+    2
+   ],
+   [
+    "VAELoader",
+    2
+   ],
+   [
+    "LoadImage",
+    2
+   ],
+   [
+    "ResolutionSelector",
+    2
+   ],
+   [
+    "MiniMaxH3ImageToVideo",
+    2
+   ]
+  ],
+  "models": [
+   "Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf",
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_fp16.safetensors"
+  ],
+  "loras": [
+   "minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "0a4e7f55-402e-4c93-92b4-3b7ac47ed5c1.png",
+    "02ebcc12-17e5-4752-b189-beadc048e5c5.png"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "BasicScheduler:[8, 1]",
+   "KSamplerSelect:[]"
+  ],
+  "groups": [
+   "User Inputs",
+   "Models",
+   "Sampling",
+   "Conditioning",
+   "Two-stage sampling upscaling - Decoding and create video",
+   "H3 Latent Upscaler",
+   "preview"
+  ]
+ },
+ {
+  "path": "6_社区模板/社区-480P生成-潜空间放大到960P.json",
+  "bytes": 75866,
+  "title": "",
+  "n_nodes": 42,
+  "n_links": 58,
+  "classes_top": [
+   [
+    "ManualSigmas",
+    3
+   ],
+   [
+    "MarkdownNote",
+    3
+   ],
+   [
+    "VAEDecodeAudio",
+    2
+   ],
+   [
+    "VAEDecode",
+    2
+   ],
+   [
+    "VAELoader",
+    2
+   ],
+   [
+    "LoadImage",
+    2
+   ],
+   [
+    "ResolutionSelector",
+    2
+   ],
+   [
+    "MiniMaxH3ImageToVideo",
+    2
+   ]
+  ],
+  "models": [
+   "Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf",
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_fp16.safetensors"
+  ],
+  "loras": [
+   "minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "h3_first_frame_example.png",
+    "h3_first_frame_example.png"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "BasicScheduler:[8, 1]",
+   "KSamplerSelect:[]"
+  ],
+  "groups": [
+   "User Inputs",
+   "Models",
+   "Sampling",
+   "Conditioning",
+   "Two-stage sampling upscaling - Decoding and create video",
+   "H3 Latent Upscaler",
+   "preview"
+  ]
+ },
+ {
+  "path": "6_社区模板/社区-Easy-一键多模式-480P.json",
+  "bytes": 18920,
+  "title": "",
+  "n_nodes": 16,
+  "n_links": 21,
+  "classes_top": [
+   [
+    "RandomNoise",
+    1
+   ],
+   [
+    "SamplerCustomAdvanced",
+    1
+   ],
+   [
+    "VAEDecodeAudio",
+    1
+   ],
+   [
+    "VAEDecode",
+    1
+   ],
+   [
+    "CreateVideo",
+    1
+   ],
+   [
+    "RAMCleanup",
+    1
+   ],
+   [
+    "LoadImage",
+    1
+   ],
+   [
+    "MiniMaxH3EasyLoader",
+    1
+   ]
+  ],
+  "models": [],
+  "loras": [
+   "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "ComfyUI_temp_anoxe_00001_.png"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "SamplerCustomAdvanced:[]",
+   "BasicScheduler:[8, 1]",
+   "KSamplerSelect:[]"
+  ],
+  "groups": [
+   "model",
+   "Fast Generation",
+   "Sampling",
+   "Decode & Assemble"
+  ]
+ },
+ {
+  "path": "6_社区模板/社区-Easy-两段精修-480P.json",
+  "bytes": 42128,
+  "title": "",
+  "n_nodes": 35,
+  "n_links": 50,
+  "classes_top": [
+   [
+    "easy clearCacheAll",
+    3
+   ],
+   [
+    "VAEDecode",
+    2
+   ],
+   [
+    "ModelAttentionBackend",
+    2
+   ],
+   [
+    "BasicGuider",
+    2
+   ],
+   [
+    "KSamplerSelect",
+    2
+   ],
+   [
+    "CreateVideo",
+    2
+   ],
+   [
+    "SamplerCustomAdvanced",
+    2
+   ],
+   [
+    "BasicScheduler",
+    2
+   ]
+  ],
+  "models": [],
+  "loras": [
+   "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "h3_first_frame_example.png"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "KSamplerSelect:[]",
+   "SamplerCustomAdvanced:[]",
+   "BasicScheduler:[8, 1]",
+   "SamplerCustomAdvanced:[]"
+  ],
+  "groups": [
+   "First pass - motion and composition",
+   "Native second-pass preparation",
+   "Second pass - W4A8 low denoise",
+   "2"
+  ]
+ },
+ {
+  "path": "6_社区模板/社区-FreeVideo-All-in-One-N卡专用.json",
+  "bytes": 6146,
+  "title": "",
+  "n_nodes": 2,
+  "n_links": 1,
+  "classes_top": [
+   [
+    "FreeVideoGenerate",
+    1
+   ],
+   [
+    "FreeVideoMedia",
+    1
+   ]
+  ],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "6_社区模板/社区-H3三采6步lora完美版.json",
+  "bytes": 110686,
+  "title": "",
+  "n_nodes": 36,
+  "n_links": 49,
+  "classes_top": [
+   [
+    "VAEDecodeAudio",
+    3
+   ],
+   [
+    "VAEDecode",
+    3
+   ],
+   [
+    "BanZhang_VRAM_Cleaner",
+    3
+   ],
+   [
+    "banzhangVideoCombine",
+    3
+   ],
+   [
+    "VAELoader",
+    2
+   ],
+   [
+    "PreviewAny",
+    2
+   ],
+   [
+    "BanZhang_MMH3_Upscale",
+    2
+   ],
+   [
+    "CLIPLoader",
+    1
+   ]
+  ],
+  "models": [
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_w4a8_from_fp16.safetensors",
+   "qwen3vl_32b_minimax_h3-w4a8_convrot.safetensors"
+  ],
+  "loras": [],
+  "inputs": {
+   "image": [],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "KSampler:[1, 6, 1, 1]"
+  ],
+  "groups": [
+   "基础模型",
+   "三采阶段",
+   "二采阶段",
+   "智能生视频"
+  ]
+ },
+ {
+  "path": "6_社区模板/社区-H3终极三采v2版.json",
+  "bytes": 72732,
+  "title": "",
+  "n_nodes": 34,
+  "n_links": 49,
+  "classes_top": [
+   [
+    "VAEDecodeAudio",
+    3
+   ],
+   [
+    "VAEDecode",
+    3
+   ],
+   [
+    "BanZhang_VRAM_Cleaner",
+    3
+   ],
+   [
+    "banzhangVideoCombine",
+    3
+   ],
+   [
+    "VAELoader",
+    2
+   ],
+   [
+    "BanZhang_MMH3_Upscale",
+    2
+   ],
+   [
+    "PreviewAny",
+    2
+   ],
+   [
+    "CLIPLoader",
+    1
+   ]
+  ],
+  "models": [
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_int8_convrot.safetensors",
+   "qwen3vl_32b_minimax_h3-w4a8_convrot.safetensors"
+  ],
+  "loras": [],
+  "inputs": {
+   "image": [],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "KSampler:[983877043246182, 4, 1, 1]"
+  ],
+  "groups": [
+   "基础模型",
+   "三采阶段",
+   "二采阶段",
+   "智能生视频"
+  ]
+ },
+ {
+  "path": "6_社区模板/社区-TTS-语音生成-480P.json",
+  "bytes": 32989,
+  "title": "",
+  "n_nodes": 4,
+  "n_links": 3,
+  "classes_top": [
+   [
+    "LoadImage",
+    1
+   ],
+   [
+    "SaveAudioAdvanced",
+    1
+   ],
+   [
+    "SpeechLengthCalculator",
+    1
+   ],
+   [
+    "466b2449-e267-4ec5-9751-96c224d14021",
+    1
+   ]
+  ],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [
+    "h3_first_frame_example.png"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "7_FastH3/fasth3-二采超分-2x.json",
+  "bytes": 3928,
+  "title": "",
+  "n_nodes": 0,
+  "n_links": 0,
+  "classes_top": [],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "7_FastH3/fasth3-单镜视频-i2v.json",
+  "bytes": 42243,
+  "title": "",
+  "n_nodes": 27,
+  "n_links": 26,
+  "classes_top": [
+   [
+    "MarkdownNote",
+    4
+   ],
+   [
+    "VAELoader",
+    2
+   ],
+   [
+    "VAEDecodeAudio",
+    1
+   ],
+   [
+    "SaveVideo",
+    1
+   ],
+   [
+    "VAEDecode",
+    1
+   ],
+   [
+    "BasicScheduler",
+    1
+   ],
+   [
+    "LoadImage",
+    1
+   ],
+   [
+    "PrimitiveStringMultiline",
+    1
+   ]
+  ],
+  "models": [
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_int8_convrot.safetensors",
+   "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
+  ],
+  "loras": [],
+  "inputs": {
+   "image": [
+    "manying-shot-h3-placeholder.jpg"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "BasicScheduler:[8, 1]",
+   "KSamplerSelect:[]"
+  ],
+  "groups": [
+   "User Inputs",
+   "Models",
+   "Sampling",
+   "Conditioning",
+   "Two-stage sampling upscaling - Decoding and create video",
+   "H3 Latent Upscaler"
+  ]
+ },
+ {
+  "path": "7_FastH3/fasth3-单镜视频-t2v.json",
+  "bytes": 42663,
+  "title": "",
+  "n_nodes": 26,
+  "n_links": 25,
+  "classes_top": [
+   [
+    "MarkdownNote",
+    4
+   ],
+   [
+    "VAELoader",
+    2
+   ],
+   [
+    "VAEDecodeAudio",
+    1
+   ],
+   [
+    "SaveVideo",
+    1
+   ],
+   [
+    "VAEDecode",
+    1
+   ],
+   [
+    "BasicScheduler",
+    1
+   ],
+   [
+    "PrimitiveStringMultiline",
+    1
+   ],
+   [
+    "MiniMaxH3ImageToVideo",
+    1
+   ]
+  ],
+  "models": [
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_int8_convrot.safetensors",
+   "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
+  ],
+  "loras": [],
+  "inputs": {
+   "image": [],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "BasicScheduler:[8, 1]",
+   "KSamplerSelect:[]"
+  ],
+  "groups": [
+   "User Inputs",
+   "Models",
+   "Sampling",
+   "Conditioning",
+   "Two-stage sampling upscaling - Decoding and create video",
+   "H3 Latent Upscaler"
+  ]
+ },
+ {
+  "path": "8_数字人/340-H3数字人V6-萝卜原件.json",
+  "bytes": 213962,
+  "title": "",
+  "n_nodes": 5,
+  "n_links": 5,
+  "classes_top": [
+   [
+    "LoadImage",
+    1
+   ],
+   [
+    "RB_ImagesToVideo",
+    1
+   ],
+   [
+    "LoadAudio",
+    1
+   ],
+   [
+    "PrimitiveStringMultiline",
+    1
+   ],
+   [
+    "4815e359-f41b-45a7-9163-690a53c7618b",
+    1
+   ]
+  ],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [
+    "K2_00048.jpg"
+   ],
+   "video": [],
+   "audio": [
+    "01-霓虹灯下的舞步.flac"
+   ]
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "8_数字人/340-H3无限时长V6-萝卜原件.json",
+  "bytes": 169175,
+  "title": "",
+  "n_nodes": 5,
+  "n_links": 5,
+  "classes_top": [
+   [
+    "LoadImage",
+    2
+   ],
+   [
+    "RB_ImagesToVideo",
+    1
+   ],
+   [
+    "4815e359-f41b-45a7-9163-690a53c7618b",
+    1
+   ],
+   [
+    "PrimitiveStringMultiline",
+    1
+   ]
+  ],
+  "models": [],
+  "loras": [],
+  "inputs": {
+   "image": [
+    "K2_00021.jpg",
+    "Krea2_turbo_00010_.png"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [],
+  "groups": []
+ },
+ {
+  "path": "8_数字人/数字人-音频驱动.json",
+  "bytes": 44684,
+  "title": "",
+  "n_nodes": 49,
+  "n_links": 82,
+  "classes_top": [
+   [
+    "PrimitiveStringMultiline",
+    3
+   ],
+   [
+    "MiniMaxH3ReferenceToVideo",
+    3
+   ],
+   [
+    "TrimAudioDuration",
+    3
+   ],
+   [
+    "MiniMaxH3NativeAudioLock",
+    3
+   ],
+   [
+    "BasicGuider",
+    3
+   ],
+   [
+    "RandomNoise",
+    3
+   ],
+   [
+    "SamplerCustomAdvanced",
+    3
+   ],
+   [
+    "MiniMaxH3MotionContextSaveLatent",
+    3
+   ]
+  ],
+  "models": [
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_int8_convrot.safetensors",
+   "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
+  ],
+  "loras": [
+   "pika_h3_flex_ref2va_comfy_bf16.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "daojie_A_1108.png"
+   ],
+   "video": [],
+   "audio": [
+    "dh_full_17s.wav"
+   ]
+  },
+  "samplers": [
+   "KSamplerSelect:[]"
+  ],
+  "groups": [
+   "段0(初始化)",
+   "段1·22帧桥循环",
+   "段2·22帧桥循环"
+  ]
+ },
+ {
+  "path": "8_数字人/无限时长-循环拼接.json",
+  "bytes": 43174,
+  "title": "",
+  "n_nodes": 48,
+  "n_links": 79,
+  "classes_top": [
+   [
+    "PrimitiveStringMultiline",
+    3
+   ],
+   [
+    "MiniMaxH3ReferenceToVideo",
+    3
+   ],
+   [
+    "VAEDecodeAudio",
+    3
+   ],
+   [
+    "BasicGuider",
+    3
+   ],
+   [
+    "RandomNoise",
+    3
+   ],
+   [
+    "SamplerCustomAdvanced",
+    3
+   ],
+   [
+    "MiniMaxH3MotionContextSaveLatent",
+    3
+   ],
+   [
+    "VAEDecode",
+    3
+   ]
+  ],
+  "models": [
+   "minimax",
+   "minimax_h3_audio_vae_fp32.safetensors",
+   "minimax_h3_video_vae_int8_convrot.safetensors",
+   "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
+  ],
+  "loras": [
+   "pika_h3_flex_ref2va_comfy_bf16.safetensors"
+  ],
+  "inputs": {
+   "image": [
+    "daojie_A_1108.png"
+   ],
+   "video": [],
+   "audio": []
+  },
+  "samplers": [
+   "KSamplerSelect:[]"
+  ],
+  "groups": [
+   "段0(初始化)",
+   "段1·22帧桥循环",
+   "段2·22帧桥循环"
+  ]
+ }
+]

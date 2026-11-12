@@ -15,7 +15,7 @@
   - file_size_gate 先验=纯 check(全文零改写路径,scan 只读;默认态即 check,退出码
     语义=超 HARD 线红)→ 无需补 --check 旗标,直接接线;存量 7 件 HARD 已按脚本自身
     口径「须拆分或登记豁免」登记 file-size-gate-exemptions.json(拆分留待专门任务)。
-  - workflow_graph_lint 范围=1_图片/Q2-1图像/ 全域(活跃手术域,7 件现库全绿)。
+  - workflow_graph_lint 范围=1_图片/QwenImage2.1/ 全域(活跃手术域,7 件现库全绿)。
     全树 68 件实测 33 红(API 格式 11 件=格式不匹配如实报错+社区/官方模板 AABB 遮挡
     与必填槽启发式),PRD 约束「生产工作流 JSON 只读」不可修绿存量——先挂 Q2-1 域,
     扩域待专门清债战役。
@@ -38,7 +38,7 @@ from pathlib import Path
 SCRIPTS = Path(__file__).resolve().parent
 REPO = SCRIPTS.parents[2]
 REPORT_JSON = REPO / "apps/output/automation/hygiene-gate-report.json"
-Q21_DIR = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像"
+Q21_DIR = REPO / "apps/backend/comfyui/workflows/1_图片/QwenImage2.1"
 PY = sys.executable or "python3"
 
 

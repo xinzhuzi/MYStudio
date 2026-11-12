@@ -3,7 +3,7 @@
   "head": "ebf0bf98",
   "rebuiltAt": "2026-11-11T13:32:41",
   "files": {
-    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": {
+    "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json": {
       "scopes": {
         "main": {
           "crossings": 10,
@@ -27,7 +27,7 @@
         }
       }
     },
-    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": {
+    "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/2_图生图/qi21-道劫-i2i.json": {
       "scopes": {
         "main": {
           "crossings": 43,
@@ -51,7 +51,7 @@
         }
       }
     },
-    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json": {
+    "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/2_图生图/qi21-edit.json": {
       "scopes": {
         "main": {
           "crossings": 16,

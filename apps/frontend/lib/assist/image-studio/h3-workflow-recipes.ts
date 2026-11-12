@@ -67,7 +67,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     id: "my-fasth3-i2v-27",
     label: "漫影单镜 FastH3 I2V(27 节点,Windows 主线)",
     apiTemplate: "./fasth3-shot-template.api.json",
-    uiTemplateRef: "2_视频/H3视频/7_FastH3/fasth3-单镜视频-i2v.json",
+    uiTemplateRef: "2_视频/H3视频/7_测试/fasth3-单镜视频-i2v.json",
     inputMode: "i2v",
     anchors: {
       prompt: "14.value",
@@ -84,7 +84,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
   {
     id: "my-fasth3-t2v-26",
     label: "漫影单镜 FastH3 T2V 基础版(26 节点,画布直开)",
-    uiTemplateRef: "2_视频/H3视频/7_FastH3/fasth3-单镜视频-t2v.json",
+    uiTemplateRef: "2_视频/H3视频/7_测试/fasth3-单镜视频-t2v.json",
     inputMode: "t2v",
     resolutionTiers: ["480p"],
     status: "unverified",
@@ -206,7 +206,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
   {
     id: "official-i2v-480p",
     label: "官方本地:I2V 480P",
-    uiTemplateRef: "2_视频/H3视频/4_官方本地模板/官方本地-I2V-480P.json",
+    uiTemplateRef: "2_视频/H3视频/4_模板/官方本地-I2V-480P.json",
     inputMode: "i2v",
     resolutionTiers: ["480p"],
     status: "unverified",
@@ -214,7 +214,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
   {
     id: "official-fl2v-motion-480p",
     label: "官方本地:首尾帧运镜版",
-    uiTemplateRef: "2_视频/H3视频/4_官方本地模板/H3-首尾帧运镜版.json",
+    uiTemplateRef: "2_视频/H3视频/4_模板/H3-首尾帧运镜版.json",
     inputMode: "fl2v",
     resolutionTiers: ["480p"],
     status: "unverified",
@@ -222,7 +222,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
   {
     id: "official-t2v-480p",
     label: "官方本地:文生视频 480P",
-    uiTemplateRef: "2_视频/H3视频/4_官方本地模板/H3-文生视频-480p.json",
+    uiTemplateRef: "2_视频/H3视频/4_模板/H3-文生视频-480p.json",
     inputMode: "t2v",
     resolutionTiers: ["480p"],
     status: "unverified",
@@ -230,7 +230,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
   {
     id: "official-t2v-480p-alt",
     label: "官方本地:T2V 480P(另一版)",
-    uiTemplateRef: "2_视频/H3视频/4_官方本地模板/官方本地-T2V-480P.json",
+    uiTemplateRef: "2_视频/H3视频/4_模板/官方本地-T2V-480P.json",
     inputMode: "t2v",
     resolutionTiers: ["480p"],
     status: "unverified",
@@ -238,7 +238,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
   {
     id: "official-r2v-480p",
     label: "官方本地:R2V 480P(需解冻 ref2va)",
-    uiTemplateRef: "2_视频/H3视频/4_官方本地模板/官方本地-R2V-480P-需解冻ref2va.json",
+    uiTemplateRef: "2_视频/H3视频/4_模板/官方本地-R2V-480P-需解冻ref2va.json",
     inputMode: "r2v",
     resolutionTiers: ["480p"],
     status: "needs-unfreeze",

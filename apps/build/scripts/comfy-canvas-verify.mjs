@@ -12,7 +12,7 @@
  *
  * 用法:
  *   node apps/build/scripts/comfy-canvas-verify.mjs [workflow相对路径]
- *     默认 1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json
+ *     默认 1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json
  *   KEEP_APP=1 验完不关 App(默认留 App 常驻,用户可直接看画布)
  * 输出:apps/output/comfy-canvas-verify/canvas.png + stdout 摘要
  *
@@ -28,7 +28,7 @@ import { spawn, execFileSync } from "node:child_process";
 const HOME = process.env.HOME;
 const APP_BIN = "/Applications/漫影工作室.app/Contents/MacOS/漫影工作室";
 const APP_BUNDLE_ID = "com.my.manying-studio";
-const WF_REL = process.argv[2] || "1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json";
+const WF_REL = process.argv[2] || "1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json";
 // 1005 晚路径定谳(四副本哈希对拍,详见 docs/comfyui-kb/子图宿主面板排查.md):
 // repo: 侧栏叶子直载真读=装机包 Resources backend 树(装机态)/仓库树(dev 态;
 // activeWorkflow.path 形态 "workflows/<rel>" = repo: 直载特征);引擎家

@@ -16,7 +16,7 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[4]
-WF = REPO / "apps/backend/comfyui/workflows/1_图片/K2图像/3_改图/K2-道劫修手.json"
+WF = REPO / "apps/backend/comfyui/workflows/1_图片/krea2/3_改图/K2-道劫修手.json"
 PKG = REPO / "docs/prompts/道劫_新提示词包_0917.md"
 
 DIRTY_WORDS = ("宣纸", "工笔线描", "工笔白描", "写意泼墨", "xuan")

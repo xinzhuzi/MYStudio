@@ -10,10 +10,10 @@
 
 | 用途 | 当前仓库入口（相对 `apps/backend/comfyui/workflows/`） | 使用边界 |
 |---|---|---|
-| 画布文生图 | `1_图片/K2图像/1_文生图/K2-文生图.json` | 在 ComfyUI 画布加载，参数以该图实际节点为准 |
-| Krea2 文生图桥模板 | `1_图片/K2图像/1_文生图/krea2-t2i.json` | 桥接调用的模板，不等同于用户画布存档 |
-| 参考图编辑桥模板 | `1_图片/K2图像/3_改图/krea2-edit-ref.json` | 参考输入和节点参数以当前模板为准 |
-| 降噪与超分 | `1_图片/K2图像/6_修复超分/K2-SeedVR2降噪后4K.json` | 先查参数速查及输入分辨率限制 |
+| 画布文生图 | `1_图片/krea2/1_文生图/K2-文生图.json` | 在 ComfyUI 画布加载，参数以该图实际节点为准 |
+| Krea2 文生图桥模板 | `1_图片/krea2/1_文生图/krea2-t2i.json` | 桥接调用的模板，不等同于用户画布存档 |
+| 参考图编辑桥模板 | `1_图片/krea2/3_改图/krea2-edit-ref.json` | 参考输入和节点参数以当前模板为准 |
+| 降噪与超分 | `1_图片/krea2/6_修复超分/K2-SeedVR2降噪后4K.json` | 先查参数速查及输入分辨率限制 |
 
 `漫影生图` 的标准档使用 `manying_t2i` 桥，默认 8 步、可输入 1–40 步；加速档使用 `manying_t2i_fast`，固定 Krea2 Turbo 与加速 LoRA，步数只有 4/6 两档。它与自由编辑 ComfyUI 画布是两个入口。当前源码见 `apps/frontend/components/panels/assist/local-models/LocalModelStudio.tsx`。
 
@@ -25,7 +25,7 @@
 
 ### 一、历史应用功能 ↔ ComfyUI 工作流映射
 
-| 应用功能 | ComfyUI 工作流(本机 `ComfyUI/user/default/workflows/漫影/1_图片/K2图像/`,按功能分六夹) | 关键参数 |
+| 应用功能 | ComfyUI 工作流(本机 `ComfyUI/user/default/workflows/漫影/1_图片/krea2/`,按功能分六夹) | 关键参数 |
 |---|---|---|
 | 文生图(专业流) | `1_文生图/Krea2-NSFW专业流.json` | 8 步 · cfg=1 · euler/simple · denoise=1 |
 | 图生图 | `2_图生图/Krea2-NSFW专业流-图生图.json`(全家桶亦在此夹) | 8 步 · cfg=1 · **denoise=0.6** · SDEdit(LoadImage→VAEEncode→KSampler) |

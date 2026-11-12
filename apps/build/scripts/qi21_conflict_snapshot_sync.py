@@ -7,8 +7,8 @@
 命中长文内部片段),不碰任何连线/参数/拓扑。
 
 镜像对象(D4 四件):
-  apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json
-  apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json
+  apps/backend/comfyui/workflows/1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json
+  apps/backend/comfyui/workflows/1_图片/QwenImage2.1/1_文生图/qwen21-道劫-t2i-api.json
   apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json
   apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json
 
@@ -38,8 +38,8 @@ from qi21_base_swap_tool import ROOT, SOURCE, Tool  # noqa: E402
 CAMPAIGN = "qi21-conflict-p1-1018"
 
 TARGETS = [
-    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
-    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json",
+    "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json",
+    "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/1_文生图/qwen21-道劫-t2i-api.json",
     "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json",
     "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json",
 ]

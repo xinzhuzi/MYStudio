@@ -13,7 +13,7 @@
  *   节点 6:4011 `MyQi21PromptAssembly` 的 inputs 含「锁层X全文」键=注入层
  *   (层名取键,实盘 锁层A全文=209 字底座全文);节点 10 `LoadImage` 在场→i2i;
  *   节点 7:7014 `PrimitiveInt.value`=主采样 seed。
- * - t2i 仓库模板真源(apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/
+ * - t2i 仓库模板真源(apps/backend/comfyui/workflows/1_图片/QwenImage2.1/1_文生图/
  *   qi21-道劫-t2i.json 画布形 + qwen21-道劫-t2i-api.json API 形):
  *   节点 400=正向主体句、节点 404=负向提示词(PrimitiveStringMultiline);
  *   `TextEncodeQwenImage21` 4015=主编码(API 形 negative_prompt 为内联串)、

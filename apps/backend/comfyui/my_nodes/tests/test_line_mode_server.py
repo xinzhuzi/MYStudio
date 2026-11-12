@@ -29,7 +29,7 @@ _spec.loader.exec_module(lm)
 _APPS = Path(__file__).resolve().parents[4]
 _IMAGE_STUDIO = _APPS / "frontend" / "lib" / "assist" / "image-studio"
 _QWEN21_T2I_API = (_APPS / "backend" / "comfyui" / "workflows" / "1_图片" /
-                   "Q2-1图像" / "1_文生图" / "qwen21-道劫-t2i-api.json")
+                   "QwenImage2.1" / "1_文生图" / "qwen21-道劫-t2i-api.json")
 _YUE2_OFFICIAL = (_APPS / "backend" / "comfyui" / "workflows" / "3_声音" /
                   "Yue2" / "yue2-整曲-官方版.json")
 

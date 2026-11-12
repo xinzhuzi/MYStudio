@@ -27,7 +27,7 @@ from comfyui.my_nodes.nodes.my_moss_daojie_base import MyMossDaojieBase, bases_l
 BACKEND = Path(__file__).resolve().parents[2]  # apps/backend(tests→comfyui→backend)
 REPO = BACKEND.parents[1]
 DATA = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json"
-WF = REPO / "apps/backend/comfyui/workflows/1_图片/MOSS图像"
+WF = REPO / "apps/backend/comfyui/workflows/1_图片/MossImage"
 WHITE = "背景为均匀纯白底色"
 MOUNT = "保持挂定原位"
 

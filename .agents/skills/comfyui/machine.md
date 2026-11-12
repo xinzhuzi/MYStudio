@@ -56,9 +56,10 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
     `apps/output/h3-4k-tessera-1104/evidence/tessera_watchdog_patch.diff`,插件升级/重装会冲掉须重打);
     机制/1080p 实测账/衔接口径见 docs/comfyui-kb/分镜H3视频产线.md §三「4K 分块精修链」。
 - **GUI workflows folder**: `<home>/ComfyUI/user/default/workflows/漫影/` — everything lives under the
-  `漫影/` group with domain-first nesting (2026-09-10 reorg): `1_图片/` (K2图像 with 1_文生图…6_修复超分,
+  `漫影/` group with domain-first nesting (2026-09-10 reorg): `1_图片/` (krea2 with 1_文生图…6_修复超分,
   分镜 with 1_总览 chapter overviews + 2_单镜图 per-shot migrated flows), `2_视频/` (H3视频: 1_漫影自研
-  empty home for in-house workflows, 2_固定线 … 6_社区模板), `3_声音/` (音乐), `4_参考_提示词工程/`.
+  empty home for in-house workflows, 2_固定线 / 3_超分后处理 / 4_模板 / 5_云端API / 6_视频重制 /
+  7_测试 / 8_数字人 — 1112 功能重组), `3_声音/` (音乐), `4_参考_提示词工程/`.
   New app-generated workflows always land under `漫影/` in the matching domain.
 - **Launch command**: managed by MYStudio — start/restart via the app (engine_manager spawns
   `<home>/venv/bin/python <home>/ComfyUI/main.py --listen 127.0.0.1 --port <manifest engine.port> ...`;
@@ -75,13 +76,13 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
   - Parallel image lines since 09-23 (user verdict): image = K2 **and** Qwen-Image-2.1 (Q2-1)
     share this engine queue-serially — ComfyUI's smart memory management swaps weights between
     runs, which does NOT violate the no-second-model-process rule; video = H3. Repo workflows:
-    `1_图片/K2图像/` + `1_图片/Q2-1图像/` (qwen21-t2i / qwen21-edit, engine-openable canvas format).
+    `1_图片/krea2/` + `1_图片/QwenImage2.1/` (qwen21-t2i / qwen21-edit, engine-openable canvas format).
     **〔Superseded 1004 audit: the "K2 **and** Q2-1" parallel verdict above is dead history —
     K2 retired 09-23/24 (weights deleted, see the Image line note above); current image line =
-    Q2-1 ONLY, repo workflows `1_图片/Q2-1图像/` (17 canvas pieces as of 10-04, count per
+    Q2-1 ONLY, repo workflows `1_图片/QwenImage2.1/` (17 canvas pieces as of 10-04, count per
     docs/comfyui-kb/漫影工作流清单.md). The queue-serially / smart-memory-swap note still applies
     to Q2-1 base+PE weight swapping.〕**
-  - (09-24) Q2-1 daojie i2i workflow `1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json` (4th Q2-1
+  - (09-24) Q2-1 daojie i2i workflow `1_图片/QwenImage2.1/2_图生图/qi21-道劫-i2i.json` (4th Q2-1
     piece; generate-and-refine-are-one architecture — image input IS instruction editing, no
     denoise repaint): edit skeleton + nine-type assembly subgraph [40] (directive occupies ①
     layer) + LoRA speed slot bypassed by default (`models/loras/Qwen-Image-2.1-viggle-turbo-

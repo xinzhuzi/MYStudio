@@ -1,6 +1,6 @@
 // 族↔工作流库域映射(11-02-engine-model-workflow-hub R3):控制中心工作流段按
 // 当前族拉漫影工作流库对应域前缀(list_workflows prefix 过滤,light 防海量件雷)。
-// 1102 实锚:库内 1_图片/ 下现域=Q2-1图像(qi21)/K2图像/Flux3图像/MOSS图像;
+// 1102 实锚:库内 1_图片/ 下现域=QwenImage2.1(qi21)/krea2/Flux.3/MossImage;
 // 其余本地族(flux2/编辑/z_image)无库内域——工作流段显示占位(引擎内置模板)。
 import { LOCAL_ENGINE_FAMILIES, STOPPED_ENGINE_FAMILIES, type EngineFamilyOption } from "./engine-options";
 
@@ -12,7 +12,7 @@ export interface EngineFamilyMeta extends EngineFamilyOption {
 const FAMILY_META: EngineFamilyMeta[] = [
   ...LOCAL_ENGINE_FAMILIES.map((family) => ({
     ...family,
-    workflowPrefix: family.value === "qwen-image-2-1" ? "1_图片/Q2-1图像" : null,
+    workflowPrefix: family.value === "qwen-image-2-1" ? "1_图片/QwenImage2.1" : null,
   })),
   ...STOPPED_ENGINE_FAMILIES.map((family) => ({ ...family, workflowPrefix: null })),
 ];

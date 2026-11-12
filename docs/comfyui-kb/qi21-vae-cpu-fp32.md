@@ -42,16 +42,16 @@ BFS 换头输出曾出现严重棕灰浮雕纹理；保存默认的道劫 i2i �
 
 | 仓库真源 | 加载位置与边界 |
 |---|---|
-| [qi21-bfs-换头.json](../../apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-bfs-换头.json) | 节点 `485`；同一 VAE 接编码 `496`（link `774`）与解码 `487`（link `754`） |
-| [qi21-道劫-i2i.json](../../apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json) | 根节点 `3`；保留既有消费者，参考编码与输出解码共用 |
-| [qi21-edit.json](../../apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json) | 根节点 `3`；保留既有消费者，参考编码与输出解码共用 |
-| [qwen21-道劫-i2i-api.json](../../apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json) | 从现行 i2i 生成的 API 模板，`graph["3"]` 保持同一加载器及三项输入 |
+| [qi21-bfs-换头.json](../../apps/backend/comfyui/workflows/1_图片/QwenImage2.1/2_图生图/qi21-bfs-换头.json) | 节点 `485`；同一 VAE 接编码 `496`（link `774`）与解码 `487`（link `754`） |
+| [qi21-道劫-i2i.json](../../apps/backend/comfyui/workflows/1_图片/QwenImage2.1/2_图生图/qi21-道劫-i2i.json) | 根节点 `3`；保留既有消费者，参考编码与输出解码共用 |
+| [qi21-edit.json](../../apps/backend/comfyui/workflows/1_图片/QwenImage2.1/2_图生图/qi21-edit.json) | 根节点 `3`；保留既有消费者，参考编码与输出解码共用 |
+| [qwen21-道劫-i2i-api.json](../../apps/backend/comfyui/workflows/1_图片/QwenImage2.1/2_图生图/qwen21-道劫-i2i-api.json) | 从现行 i2i 生成的 API 模板，`graph["3"]` 保持同一加载器及三项输入 |
 
 范围只到上述已验 QI21 参考链；**不推广到其他 VAE、t2i、FLUX、H3 或 SeedVR2**。修复实施依据见[默认图生图 VAE 修复计划](../../.trellis/tasks/archive/2026-10/10-16-qi21-defaults-install/research/vae-cpu-repair-plan-1024.md)，保存默认及安装分层验收见[本线最终验收矩阵](../../.trellis/tasks/archive/2026-10/10-23-qi21-character-poster-type/research/final-ac-matrix-1024.md)；本页不替代原始请求、history、事件与 PNG 证据。
 
 ## 2026-10-27 当前工作流补漏
 
-当前源码核查发现两条此前未纳入 CPU 防回归清单的参考流：[严格经典 img2img](../../apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-img2img.json)和[裁片换脸](../../apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-换脸-局部重绘.json)。两者的节点 `3` 已补齐同一 texture_fix VAE、CPU＋FP32，参考编码、实际底图编码及解码共用。原 i2i/edit/BFS 的配置仍保留；不能因旧四件通过就认定后续工作流也已经覆盖。
+当前源码核查发现两条此前未纳入 CPU 防回归清单的参考流：[严格经典 img2img](../../apps/backend/comfyui/workflows/1_图片/QwenImage2.1/2_图生图/qi21-道劫-img2img.json)和[裁片换脸](../../apps/backend/comfyui/workflows/1_图片/QwenImage2.1/2_图生图/qi21-道劫-换脸-局部重绘.json)。两者的节点 `3` 已补齐同一 texture_fix VAE、CPU＋FP32，参考编码、实际底图编码及解码共用。原 i2i/edit/BFS 的配置仍保留；不能因旧四件通过就认定后续工作流也已经覆盖。
 
 经典 img2img 另有独立的潜码接线错误：**当前官方 `TextEncodeQwenImage21` 第三输出是匹配首图尺寸的全零潜码，形状为 `[1,64,H/16,W/16]`，并非首图经 VAE 编码的内容。** denoise=0.6 的保构图精修必须由 `[16]` 的底图经新增 `[4021] VAEEncode` 接入采样器；参考条件仍接文本编码器。采样按位/按名两份存值同时固定为现行 9 步、cfg1、euler/simple、denoise0.6，防止载入时恢复旧的25步/denoise1。
 

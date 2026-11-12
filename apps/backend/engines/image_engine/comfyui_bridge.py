@@ -39,7 +39,7 @@ ASPECT_RATIOS = {
     "4:3": (1072, 808), "3:4": (808, 1072),
 }
 # 09-14 三次修订(用户裁定:正途归位):桥模板并入漫影静态库真源
-# comfyui/workflows/ 按域分类(K2图像/1_文生图·2_图生图·3_改图),
+# comfyui/workflows/ 按域分类(krea2/1_文生图·2_图生图·3_改图),
 # 此目录不再有独立 workflows/——模板按文件名全库检索,分类挪动零映射。
 _WORKFLOWS_DIR = Path(__file__).resolve().parents[2] / "comfyui" / "workflows"
 _REQUIRED_TEMPLATES = ("krea2_t2i", "krea2_edit_ref", "krea2_nsfw_pro", "krea2_uncloth_instruct")

@@ -1,7 +1,8 @@
 """FastH3 二采超分(横评质量王 W6)契约测试(10-28 fasth3-upscale-shootout 用户终审转正)。
 
-被测对象 = 仓库真源 `2_视频/H3视频/7_FastH3/fasth3-二采超分-2x.json`
-(API 直发格式,LoadVideo 吃现成视频文件=任意 FastH3 480p 产物)。
+被测对象 = 仓库真源 `2_视频/H3视频/7_测试/fasth3-二采超分-2x.json`
+(API 直发格式,LoadVideo 吃现成视频文件=任意 FastH3 480p 产物;
+1112 功能重组自 7_FastH3 移入 7_测试 留档,1105 退役件)。
 
 出身 = 10-28 超分全方案横评 W6 胜者件逐字节入库(实跑原文,引擎 execution
 82e1f43d 一次过,1499.4s/1216×704/RTX 4060Ti 8G 实弹);用户终审「Fasth3 二采 W6 最好」。
@@ -33,7 +34,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
-LIB = ROOT / "apps/backend/comfyui/workflows/2_视频/H3视频/7_FastH3"
+LIB = ROOT / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试"
 WF = LIB / "fasth3-二采超分-2x.json"
 SNAPSHOT = Path(__file__).resolve().parent / "fixtures/fasth3_object_info_snapshot.json"
 

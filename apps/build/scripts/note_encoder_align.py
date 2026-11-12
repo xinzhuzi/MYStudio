@@ -26,12 +26,12 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2] / "backend/comfyui/workflows"
 
 TARGETS = [
-    "1_图片/K2图像/1_文生图/K2-三视图.json",
-    "1_图片/K2图像/1_文生图/K2-宫格生图.json",
-    "1_图片/K2图像/2_图生图/K2-NSFW专业流-图生图.json",
-    "1_图片/K2图像/2_图生图/K2-角色换装.json",
-    "1_图片/K2图像/2_图生图/K2-角色设定-道劫.json",
-    "1_图片/K2图像/2_图生图/K2-角色设定-道劫-专家模式.json",
+    "1_图片/krea2/1_文生图/K2-三视图.json",
+    "1_图片/krea2/1_文生图/K2-宫格生图.json",
+    "1_图片/krea2/2_图生图/K2-NSFW专业流-图生图.json",
+    "1_图片/krea2/2_图生图/K2-角色换装.json",
+    "1_图片/krea2/2_图生图/K2-角色设定-道劫.json",
+    "1_图片/krea2/2_图生图/K2-角色设定-道劫-专家模式.json",
 ]
 
 RULES = [

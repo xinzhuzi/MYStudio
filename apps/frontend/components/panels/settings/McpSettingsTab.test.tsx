@@ -1365,16 +1365,16 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
               engineOnline: true,
               workflows: [
                 {
-                  id: "1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
+                  id: "1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json",
                   name: "qi21-道劫-t2i",
                 },
                 {
-                  id: "1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
+                  id: "1_图片/QwenImage2.1/2_图生图/qi21-道劫-i2i.json",
                   name: "qi21-道劫-i2i",
                 },
                 // 1102 收口轮:组内非道劫件(同在 1_文生图 目录但无同源 API 模板)——不可绑分支
                 {
-                  id: "1_图片/Q2-1图像/1_文生图/other-t2i.json",
+                  id: "1_图片/QwenImage2.1/1_文生图/other-t2i.json",
                   name: "other-t2i",
                 },
               ],
@@ -1398,7 +1398,7 @@ describe("McpSettingsTab·引擎与产线控制中心(11-02 hub)", () => {
     fireEvent.click(screen.getAllByTestId("engine-workflow-bind-t2i")[0]);
     await waitFor(() => {
       expect(useWorkflowBindingsStore.getState().t2iWorkflowId).toBe(
-        "1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
+        "1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json",
       );
     });
     expect(screen.getByText("在用")).toBeTruthy();
@@ -1416,8 +1416,8 @@ describe("S3 绑定注入(11-02 hub:resolveBoundTemplateForGeneration;收口轮�
       resolveBoundTemplateForGeneration("qwen-image-2-1", false),
     ).toBeUndefined();
     useWorkflowBindingsStore.setState({
-      t2iWorkflowId: "1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
-      i2iWorkflowId: "1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
+      t2iWorkflowId: "1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json",
+      i2iWorkflowId: "1_图片/QwenImage2.1/2_图生图/qi21-道劫-i2i.json",
     });
     // 1102 收口轮修复:绑定 id(库内画布路径)→ 引擎 API 模板键(load_template 只吃后者)
     expect(resolveBoundTemplateForGeneration("qwen-image-2-1", false)).toBe(
@@ -1439,20 +1439,20 @@ describe("S3 绑定注入(11-02 hub:resolveBoundTemplateForGeneration;收口轮�
   it("edit 绑定件映射到 i2i 模板;无引擎模板的库内件(修复超分等)返回 undefined=回落现行为", () => {
     useWorkflowBindingsStore.setState({
       t2iWorkflowId: null,
-      i2iWorkflowId: "1_图片/Q2-1图像/2_图生图/qi21-edit.json",
+      i2iWorkflowId: "1_图片/QwenImage2.1/2_图生图/qi21-edit.json",
     });
     expect(resolveBoundTemplateForGeneration("qwen-image-2-1", true)).toBe(
       "qwen21_道劫_i2i_api",
     );
-    expect(isBindableWorkflow("1_图片/Q2-1图像/2_图生图/qi21-edit.json")).toBe(
+    expect(isBindableWorkflow("1_图片/QwenImage2.1/2_图生图/qi21-edit.json")).toBe(
       true,
     );
     // 修复超分等非道劫件:不可绑(UI 亦不 给绑定钮),即便误注入也回落 undefined
     useWorkflowBindingsStore.setState({
-      t2iWorkflowId: "1_图片/Q2-1图像/6_修复超分/xxx.json",
+      t2iWorkflowId: "1_图片/QwenImage2.1/6_修复超分/xxx.json",
       i2iWorkflowId: null,
     });
-    expect(isBindableWorkflow("1_图片/Q2-1图像/6_修复超分/xxx.json")).toBe(
+    expect(isBindableWorkflow("1_图片/QwenImage2.1/6_修复超分/xxx.json")).toBe(
       false,
     );
     expect(
@@ -1466,8 +1466,8 @@ describe("S3 绑定注入(11-02 hub:resolveBoundTemplateForGeneration;收口轮�
 
   it("族守卫(1109):绑定全局单绑而族可切——flux2/edit 不被注入 qi21 专属模板键", () => {
     useWorkflowBindingsStore.setState({
-      t2iWorkflowId: "1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
-      i2iWorkflowId: "1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
+      t2iWorkflowId: "1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json",
+      i2iWorkflowId: "1_图片/QwenImage2.1/2_图生图/qi21-道劫-i2i.json",
     });
     // 两族同属 LOCAL_IMAGE_MODELS(旧守卫放行)但引擎不消费 template:注入即跨族泄漏
     expect(

@@ -50,20 +50,20 @@ GHOST_TEXT_FIXES = [
 ]
 
 REMOVE_TARGETS = [
-    WF / "1_图片/K2图像/1_文生图/K2-文生图-超集.json",
-    WF / "1_图片/K2图像/1_文生图/K2-文生图-风格参照.json",
-    WF / "1_图片/K2图像/2_图生图/K2-角色设定-道劫.json",
-    HOME_WF / "1_图片/K2图像/1_文生图/MY-K2_文生图_超集.json",
-    HOME_WF / "1_图片/K2图像/1_文生图/MY-K2_文生图_道劫.json",
+    WF / "1_图片/krea2/1_文生图/K2-文生图-超集.json",
+    WF / "1_图片/krea2/1_文生图/K2-文生图-风格参照.json",
+    WF / "1_图片/krea2/2_图生图/K2-角色设定-道劫.json",
+    HOME_WF / "1_图片/krea2/1_文生图/MY-K2_文生图_超集.json",
+    HOME_WF / "1_图片/krea2/1_文生图/MY-K2_文生图_道劫.json",
 ]
 PATH_FIXES = {
-    WF / "1_图片/K2图像/2_图生图/DynamicCharacterSheet_krea2_v1.json": {
+    WF / "1_图片/krea2/2_图生图/DynamicCharacterSheet_krea2_v1.json": {
         "krea/krea2_charactersheet_full_v1.safetensors":
             "DynamicCharacterSheet_krea2_v1.safetensors",
     },
 }
 ALIGN_NAMED = {  # file → {node_id: 取 positional wv[0] 对齐 named.lora_name}
-    WF / "2_视频/H3视频/6_社区模板/社区-480P生成-潜空间放大到960P.json": {41},
+    WF / "2_视频/H3视频/7_测试/社区-480P生成-潜空间放大到960P.json": {41},
 }
 
 

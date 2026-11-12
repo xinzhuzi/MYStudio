@@ -67,9 +67,9 @@ GENERATORS: list[tuple[str, str]] = []
 
 # 布局棘轮目标(原=生成器头部常量 AST 解析;生成器退役删除后直列三件真源)
 WORKFLOW_TARGETS: list[str] = [
-    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
-    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
-    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json",
+    "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json",
+    "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/2_图生图/qi21-道劫-i2i.json",
+    "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/2_图生图/qi21-edit.json",
 ]
 
 # 退役生成器 → 段1 恒不运行;仅段3 布局棘轮仍解析其头部常量取目标 JSON
