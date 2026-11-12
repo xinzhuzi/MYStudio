@@ -292,9 +292,8 @@ def test_single_shot_dir_inventory():
     +首跑样本 单镜视频 · chapter-001 · S01.json + 导演台.json + h3-autocontext-multiseg.json。
     1112 用户令:1_漫影自研 下不设子文件夹;归档语义由文件名后缀承载。"""
     expected = [
-        "h3-autocontext-multiseg.json",
+        "一镜到底-分段.json",
         "三采-单镜.json",
-        "单镜视频 · chapter-001 · S01.json",
         "导演台.json",
     ]
     jsons = sorted(p.name for p in WF_DIR.glob("*.json"))

@@ -131,7 +131,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     id: "my-h3-multiseg",
     label: "漫影分段视频(multiseg)",
     apiTemplate: "./h3-multiseg-template.api.json",
-    uiTemplateRef: "2_视频/H3视频/1_漫影自研/h3-autocontext-multiseg.json",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/一镜到底-分段.json",
     inputMode: "multiseg",
     anchors: {
       prompt: "100.long_prompt",
