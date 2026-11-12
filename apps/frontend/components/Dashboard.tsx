@@ -57,7 +57,7 @@ import {
   Wand2,
   Waves,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, isAppleDevice } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Project } from "@/stores/project/project-store";
 import type {
@@ -242,7 +242,15 @@ export function Dashboard({
   return (
     <div className="dashboard-shell flex flex-col h-full bg-background overflow-hidden">
       {/* Header */}
-      <div className="dashboard-topbar h-10 pr-8 pl-20 flex items-center justify-between shrink-0">
+      {/* 1112 Win 三钮让位:win32 走 titleBarOverlay(系统自绘 关闭/最大化/最小化
+          ≈138px 浮在本顶栏右缘),非 Apple 平台右 padding 加大避让;mac 交通灯在
+          左(pl-20 已留),右缘维持 pr-8 */}
+      <div
+        className={cn(
+          'dashboard-topbar h-10 pl-20 flex items-center justify-between shrink-0',
+          isAppleDevice() ? 'pr-8' : 'pr-[150px]'
+        )}
+      >
         <div className="flex items-center gap-2.5">
           {onToggleSidebar && (
             <SidebarToggleButton
