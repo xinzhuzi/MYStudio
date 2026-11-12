@@ -171,12 +171,15 @@ export function createWindow() {
     // 1112 Win 报障修(用户:Win 上关闭/最大化/最小化三钮全无):'hidden' 在 win32
     // 等价 frame:false=整框全拆,原生三钮消失而网页侧无自绘窗控——Win 分支补
     // titleBarOverlay 让系统自绘三钮浮在网页顶栏(dashboard-topbar h-10=40px,
-    // Dashboard 顶栏已按 isAppleDevice 让位右缘)上,配色随深色主题;交通灯摆位
-    // =mac 专属,归 mac 分支。mac 行为零变。
+    // Dashboard 顶栏已按 isAppleDevice 让位右缘)上;交通灯摆位=mac 专属,归 mac
+    // 分支。mac 行为零变。
+    // 1112 二改(用户令「按钮颜色背景要透明,不能遮盖原本背景」):color 用全透明
+    // #00000000(Electron≥25 支持 #RRGGBBAA,44.5 在役)——三钮只剩符号本身浮在
+    // 网页背景上,不再压色块;overlay 命中区仍在(Dashboard 右缘让位不变)。
     ...(process.platform === 'win32'
       ? {
           titleBarOverlay: {
-            color: '#17191c',
+            color: '#00000000',
             symbolColor: '#f2f3f5',
             height: 40,
           },
