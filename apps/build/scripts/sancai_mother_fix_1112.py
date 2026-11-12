@@ -18,7 +18,7 @@ import json
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-WF = REPO / 'apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/0_单镜视频/三采-单镜.json'
+WF = REPO / 'apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json'
 SWITCHES = (218, 221, 222)
 R2V_SRC = {16, 140}          # r2v 臂源(kitchen 140 / ReferenceToVideo 16)
 I2V_SRC = {217, 220, 251}    # i2v 臂源(kitchen 217 / ImageToVideo 220 / σshift 251)

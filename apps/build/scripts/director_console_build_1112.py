@@ -3,7 +3,7 @@
 
 依据 .trellis/tasks/11-12-h3-director-console/design.md(唯一施工依据)+
 research/anatomy-1112.md A 节(克隆源逐 id 对账真源):
-  母本=0_单镜视频/三采-单镜.json → 产物=1_漫影自研/导演台.json
+  母本=三采-单镜.json(1112 扁平化后同域) → 产物=1_漫影自研/导演台.json
   SHARED 恒原 id 单源 / SHOT_TEMPLATE 每镜克隆(id+1000k)/ 链全量重编号+outputs 重建 /
   出厂门控(一采 mode0·二三采 mode2)/ 组框自算两两零交集。
 
@@ -36,7 +36,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-MOTHER = ROOT / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/0_单镜视频/三采-单镜.json"
+MOTHER = ROOT / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json"
 OUT = ROOT / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/导演台.json"
 WORKFLOWS_ROOT = ROOT / "apps/backend/comfyui/workflows"
 
@@ -182,7 +182,8 @@ def set_widget(node: dict, nid: int, pos_idx: int, named_key: str, value) -> Non
 def build() -> dict:
     mother = json.loads(MOTHER.read_text(encoding="utf-8"))
     mnodes = {n["id"]: n for n in mother["nodes"]}
-    if len(mnodes) != 103 or len(mother["links"]) != 152 or len(mother["groups"]) != 5:
+    # links=151:1112 母本三笔修后(audio_vae 拔线,原 152)
+    if len(mnodes) != 103 or len(mother["links"]) != 151 or len(mother["groups"]) != 5:
         raise AssertionError(f"母本形态漂移: nodes={len(mnodes)} links={len(mother['links'])} groups={len(mother['groups'])}")
 
     # 切分完备性对账(anatomy A)
@@ -348,27 +349,31 @@ def build() -> dict:
         else:  # FROM TEMPLATE→TO SHARED / 双端 SHARED:母本无此类,防御性单份保留
             raw_links.append((frm, fslot, to, tslot, ltype))
 
-    # F1 开关语义修正(1112 深检,见模块 docstring 偏差 3):母本 [219]=true 实跑 i2v 系
-    # 母本文案倒挂(on_true 接 i2v 臂)——交换三镜三开关两臂槽位引用:true→on_true=r2v 臂
-    # (218+k←140+k / 221/222+k←16+k)、on_false←i2v 臂(218+k←251+k / 221/222+k←220+k),
-    # 与 219 title/Note103/台本卡「√=r2v」全文案对齐。250+k 恒吃 251+k 不动(σ 网格单源)。
-    # 母本零改动(铁律④),母本修复候用户另裁。
-    SWITCH_BASES = (218, 221, 222)
+    # F1 开关语义(1112 深检;母本 73d91f9a 已同步修正,本块幂等):
+    # 倒挂态(on_true←i2v 臂)→交换两臂槽位;已正态(on_true←r2v 臂)→直通。
+    # 终态:true→on_true=r2v 臂(218+k←140+k / 221/222+k←16+k)、on_false←i2v 臂
+    # (218+k←251+k / 221/222+k←220+k),与 219 title/Note103/台本卡「√=r2v」全文案对齐。
+    # 250+k 恒吃 251+k 不动(σ 网格单源)。
+    SWITCH_ARMS = {218: (140, 251), 221: (16, 220), 222: (16, 220)}  # base: (r2v_src, i2v_src)
     slot_of: dict[tuple[int, str], int] = {}
-    for b in SWITCH_BASES:
+    for b in SWITCH_ARMS:
         names = [i.get("name") for i in mnodes[b].get("inputs", [])]
         slot_of[(b, "on_true")] = names.index("on_true")
         slot_of[(b, "on_false")] = names.index("on_false")
     for k in range(SHOT_COUNT):
-        for b in SWITCH_BASES:
+        for b, (r2v_src, i2v_src) in SWITCH_ARMS.items():
             sw = b + ID_STRIDE * k
             j_t = [j for j, rl in enumerate(raw_links) if rl[2] == sw and rl[3] == slot_of[(b, "on_true")]]
             j_f = [j for j, rl in enumerate(raw_links) if rl[2] == sw and rl[3] == slot_of[(b, "on_false")]]
             if len(j_t) != 1 or len(j_f) != 1:
                 raise AssertionError(f"F1 前置失败: 开关 {sw} on_true/on_false 槽各应恰一链, 实 {len(j_t)}/{len(j_f)}")
-            rl_t, rl_f = raw_links[j_t[0]], raw_links[j_f[0]]
-            raw_links[j_t[0]] = rl_t[:3] + (slot_of[(b, "on_false")],) + rl_t[4:]
-            raw_links[j_f[0]] = rl_f[:3] + (slot_of[(b, "on_true")],) + rl_f[4:]
+            if raw_links[j_t[0]][0] == i2v_src + ID_STRIDE * k:  # 倒挂态→换
+                rl_t, rl_f = raw_links[j_t[0]], raw_links[j_f[0]]
+                raw_links[j_t[0]] = rl_t[:3] + (slot_of[(b, "on_false")],) + rl_t[4:]
+                raw_links[j_f[0]] = rl_f[:3] + (slot_of[(b, "on_true")],) + rl_f[4:]
+            else:
+                assert raw_links[j_t[0]][0] == r2v_src + ID_STRIDE * k, \
+                    f"开关 {sw} on_true 源非两臂任一: {raw_links[j_t[0]][0]}"
     for k in range(SHOT_COUNT):  # 新链:三采文件化入口
         raw_links.append((NID_LOADVIDEO[k], 0, 339 + ID_STRIDE * k, 1, "VIDEO"))
     for k in range(SHOT_COUNT):  # 新链:草片拼三入口

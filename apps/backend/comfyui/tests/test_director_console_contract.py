@@ -27,7 +27,7 @@ from pathlib import Path
 WF = (Path(__file__).resolve().parents[1] / "workflows" / "2_视频" / "H3视频"
       / "1_漫影自研" / "导演台.json")
 MOTHER = (Path(__file__).resolve().parents[1] / "workflows" / "2_视频" / "H3视频"
-          / "1_漫影自研" / "0_单镜视频" / "三采-单镜.json")
+          / "1_漫影自研" / "三采-单镜.json")
 WORKFLOWS_ROOT = Path(__file__).resolve().parents[1] / "workflows"
 
 K_OFF = tuple(1000 * k for k in range(3))

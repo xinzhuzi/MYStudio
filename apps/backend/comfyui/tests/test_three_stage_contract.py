@@ -38,7 +38,7 @@ from pathlib import Path
 
 import pytest
 
-WF_DIR = Path(__file__).resolve().parents[1] / "workflows" / "2_视频" / "H3视频" / "1_漫影自研" / "0_单镜视频"
+WF_DIR = Path(__file__).resolve().parents[1] / "workflows" / "2_视频" / "H3视频" / "1_漫影自研"
 WF = WF_DIR / "三采-单镜.json"
 
 PIKA_SIGMAS = "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
@@ -287,22 +287,23 @@ def test_absorbed_fl2v_firstframe_mode():
 
 
 def test_single_shot_dir_inventory():
-    """0_单镜视频 件册(1112 吸收归档撤域重组后恰五件):主线 三采-单镜.json
-    (1111 换防+1112 复名终态;RelayVSR 回退臂在本件内 mode=2 旁路保留)+
-    1110 换防退役件 三采-单镜-RelayVSR-1110.json(历史形态考据)+
-    1105 被三段链吸收的 pika-单镜视频-{fl2v,ref2v}.json +
-    首跑历史样本 单镜视频 · chapter-001 · S01.json(分镜零实体裁定允许的保留件)。
-    1112 用户令:吸收归档撤域,归档件按类型归位;退役/归档语义由文件名后缀承载。"""
+    """1_漫影自研 件册(1112 扁平化裁定:零子夹,七件平铺):主线 三采-单镜.json
+    +退役件 三采-单镜-RelayVSR-1110.json + 1105 被吸收旧主线 pika-{fl2v,ref2v}.json
+    +首跑样本 单镜视频 · chapter-001 · S01.json + 导演台.json + h3-autocontext-multiseg.json。
+    1112 用户令:1_漫影自研 下不设子文件夹;归档语义由文件名后缀承载。"""
     expected = [
+        "h3-autocontext-multiseg.json",
         "pika-单镜视频-fl2v.json",
         "pika-单镜视频-ref2v.json",
         "三采-单镜-RelayVSR-1110.json",
         "三采-单镜.json",
         "单镜视频 · chapter-001 · S01.json",
+        "导演台.json",
     ]
     jsons = sorted(p.name for p in WF_DIR.glob("*.json"))
-    assert jsons == expected, f"0_单镜视频 件册漂移,现有 {jsons}"
-
+    assert jsons == expected, f"1_漫影自研 件册漂移,现有 {jsons}"
+    subs = [d.name for d in WF_DIR.iterdir() if d.is_dir()]
+    assert not subs, f"1_漫影自研 应零子夹(1112 扁平化裁定),现有 {subs}"
 
 def test_sigma_feed_scheduler_gets_shifted_model():
     """1110 σ接线定谳:BasicScheduler.execute 源码=σ表从自身 MODEL 的

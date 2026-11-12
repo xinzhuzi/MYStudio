@@ -95,7 +95,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     id: "my-pika-fl2v-24",
     label: "漫影单镜 Pika fl2va 主力线(24 API 节点,6-NFE)",
     apiTemplate: "./pika-shot-template.api.json",
-    uiTemplateRef: "2_视频/H3视频/1_漫影自研/0_单镜视频/pika-单镜视频-fl2v.json",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/pika-单镜视频-fl2v.json",
     inputMode: "i2v",
     anchors: {
       prompt: "14.value",
@@ -114,7 +114,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     id: "my-pika-ref2v-20",
     label: "漫影单镜 Pika ref2va 参考线(20 API 节点,6-NFE,角色/场景卡)",
     apiTemplate: "./pika-ref-shot-template.api.json",
-    uiTemplateRef: "2_视频/H3视频/1_漫影自研/0_单镜视频/pika-单镜视频-ref2v.json",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/pika-单镜视频-ref2v.json",
     inputMode: "r2v",
     anchors: {
       prompt: "14.value",
@@ -131,7 +131,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     id: "my-h3-multiseg",
     label: "漫影分段视频(multiseg)",
     apiTemplate: "./h3-multiseg-template.api.json",
-    uiTemplateRef: "2_视频/H3视频/1_漫影自研/1_分段视频/h3-autocontext-multiseg.json",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/h3-autocontext-multiseg.json",
     inputMode: "multiseg",
     anchors: {
       prompt: "100.long_prompt",
@@ -153,7 +153,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     id: "my-h3-sancai-r2v",
     label: "漫影单镜三采 R2V(ReCaVSR 主线,拆链两发)",
     apiTemplate: "./h3-three-stage-template.api.json",
-    uiTemplateRef: "2_视频/H3视频/1_漫影自研/0_单镜视频/三采-单镜.json",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/三采-单镜.json",
     inputMode: "sancai-r2v",
     anchors: {
       prompt: "14.value",
@@ -171,7 +171,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     id: "my-h3-sancai-i2v",
     label: "漫影单镜三采 I2V(ReCaVSR 主线,拆链两发)",
     apiTemplate: "./h3-three-stage-template.api.json",
-    uiTemplateRef: "2_视频/H3视频/1_漫影自研/0_单镜视频/三采-单镜.json",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/三采-单镜.json",
     inputMode: "sancai-i2v",
     anchors: {
       prompt: "14.value",
