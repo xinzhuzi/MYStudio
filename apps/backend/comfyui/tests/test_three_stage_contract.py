@@ -293,8 +293,6 @@ def test_single_shot_dir_inventory():
     1112 用户令:1_漫影自研 下不设子文件夹;归档语义由文件名后缀承载。"""
     expected = [
         "h3-autocontext-multiseg.json",
-        "pika-单镜视频-fl2v.json",
-        "pika-单镜视频-ref2v.json",
         "三采-单镜.json",
         "单镜视频 · chapter-001 · S01.json",
         "导演台.json",

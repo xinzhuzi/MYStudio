@@ -95,7 +95,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     id: "my-pika-fl2v-24",
     label: "漫影单镜 Pika fl2va 主力线(24 API 节点,6-NFE)",
     apiTemplate: "./pika-shot-template.api.json",
-    uiTemplateRef: "2_视频/H3视频/1_漫影自研/pika-单镜视频-fl2v.json",
+    uiTemplateRef: "2_视频/H3视频/7_测试/pika-单镜视频-fl2v.json",
     inputMode: "i2v",
     anchors: {
       prompt: "14.value",
@@ -114,7 +114,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     id: "my-pika-ref2v-20",
     label: "漫影单镜 Pika ref2va 参考线(20 API 节点,6-NFE,角色/场景卡)",
     apiTemplate: "./pika-ref-shot-template.api.json",
-    uiTemplateRef: "2_视频/H3视频/1_漫影自研/pika-单镜视频-ref2v.json",
+    uiTemplateRef: "2_视频/H3视频/7_测试/pika-单镜视频-ref2v.json",
     inputMode: "r2v",
     anchors: {
       prompt: "14.value",
