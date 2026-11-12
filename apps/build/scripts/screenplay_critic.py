@@ -30,7 +30,8 @@
 目录布局:<out-root>/reports/chapter-NNN.{md,json,cite.json}、<out-root>/index.tsv、
           failures.tsv、drama-snapshot.json
 
-模型: 1112 切换智谱 BigModel——glm-5.3 / glm-5.3-flash / glm-5.3-flashx(高/中/低,默认 high)
+模型: glm-5.3 / glm-5.3-flash / glm-5.3-flashx(高/中/低,默认 high);协议=Anthropic messages
+      (1113 定谳:该 key 额度仅在 /api/anthropic 口生效,paas/v4 OpenAI 口恒 1113——llm-api-tester 实测)
 密钥: 环境变量 CRITIC_API_KEY 或 ZHIPU_API_KEY(1112 用户令换 env,旧 love-long 内置键已 401 死并移除,
       1030 D3 硬编码裁定就此作废;端点可 CRITIC_API_BASE 覆写)
 仅依赖 Python 标准库。
@@ -45,7 +46,7 @@ import time
 import urllib.error
 import urllib.request
 
-API_BASE = os.environ.get("CRITIC_API_BASE", "https://open.bigmodel.cn/api/paas/v4")
+API_BASE = os.environ.get("CRITIC_API_BASE", "https://open.bigmodel.cn/api/anthropic")
 DEFAULT_KEY = (os.environ.get("CRITIC_API_KEY") or os.environ.get("ZHIPU_API_KEY")
                or os.environ.get("LOVELONG_API_KEY") or "")
 MODELS = {"high": "glm-5.3", "medium": "glm-5.3-flash", "low": "glm-5.3-flashx"}
@@ -147,43 +148,48 @@ class FatalAuthError(RuntimeError):
 
 
 def call_api(api_key: str, model: str, user_content: str, timeout: int = 300):
-    """调用 OpenAI 兼容接口。返回 (助手回复文本, 重试次数)。
-    瞬态错误(网络瞬断/超时/连接被断/429/5xx/中转错误体)统一指数退避 5/15/45s;
-    认证失败(401/403)→ FatalAuthError 立即熔停;其它 4xx 硬错不重试。"""
+    """调用 Anthropic messages 接口(BigModel /api/anthropic)。返回 (可见正文, 重试次数)。
+    glm-5.3 默认带思考块——只拼 type=="text" 块,thinking 不入正文;
+    瞬态错误统一指数退避 5/15/45s;认证失败(401/403)→ FatalAuthError 熔停;其它 4xx 硬错不重试。"""
     payload = json.dumps({
         "model": model,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_content},
-        ],
+        "system": SYSTEM_PROMPT,
+        "messages": [{"role": "user", "content": user_content}],
         "temperature": 0.3,
         "max_tokens": 8192,
+        # glm-5.3 默认思考会把 output 预算烧光(EP016 三连空正文实锤)→关思考直出
+        "thinking": {"type": "disabled"},
     }).encode("utf-8")
     backoff = list(RATE_BACKOFF_S)
     retries = 0
     last_err = None
     while True:
         req = urllib.request.Request(
-            f"{API_BASE}/chat/completions",
+            f"{API_BASE}/v1/messages",
             data=payload,
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}",
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
                 # WAF 会拦 Python-urllib 默认 UA(实测 403),换成常规 UA 即通
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) MYStudio-ScreenplayCritic/2.0",
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) MYStudio-ScreenplayCritic/2.1",
             },
             method="POST",
         )
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-            if "error" in data:
-                err_text = json.dumps(data["error"], ensure_ascii=False)
-                code = data["error"].get("code") if isinstance(data["error"], dict) else None
-                if code in (401, 403) or "invalid_api_key" in err_text or "unauthorized" in err_text.lower():
+            if data.get("type") == "error":
+                err = data.get("error", {}) or {}
+                err_text = json.dumps(err, ensure_ascii=False)
+                etype = err.get("type", "")
+                if etype in ("authentication_error", "permission_error") or "invalid_api_key" in err_text:
                     raise FatalAuthError(f"API 认证错误: {err_text[:300]}")
                 raise RuntimeError(f"API 错误(将退避重试): {err_text[:300]}")
-            return data["choices"][0]["message"]["content"], retries
+            visible = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
+            if not visible.strip():
+                raise RuntimeError("空正文(疑似思考烧尽预算/上游空转)")
+            return visible, retries
         except FatalAuthError:
             raise
         except urllib.error.HTTPError as e:
