@@ -6,7 +6,10 @@ import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import { buildStoryboardImageWorkflowPatch } from "@/lib/studio/image-workflow";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useProjectStore } from "@/stores/project/project-store";
-import { storyboardSourceFingerprint } from "@/stores/studio/studio-store-continuity-helpers";
+import {
+  storyboardSourceFingerprint,
+  storyboardSourceFingerprintDrifted,
+} from "@/stores/studio/studio-store-continuity-helpers";
 import { visualReviewInputFingerprint } from "@/lib/studio/visual-continuity";
 import {
   createStoryboardBatchSessionId,
@@ -372,18 +375,23 @@ async function withPromptIdCapture(
   }
 }
 
-/** M3a:缺帧计数——单帧镜无图=1;多帧镜=空槽帧数(mediaRef 缺图视为首帧空) */
+/** M3a:缺帧计数——单帧镜无图=1;多帧镜=空槽帧数(mediaRef 缺图视为首帧空)。
+ * W2(1112 验尸 .trellis/tasks/11-12-storyboard-asset-refchain-repair):stale 或
+ * 「脏而未标」(存档指纹≠现算指纹——离线 CLI 直写改文本不走 merge 链不置脏)
+ * 的已有图镜也计缺帧纳入批量,斩断脏镜被当新鲜跳过的 media 冻结。 */
 function countMissingFrames(shot: StoryboardItem): number {
   if (!shot.keyframes?.length) {
-    return !shot.stale && shot.mediaRef?.kind === "image" && shot.mediaRef.path ? 0 : 1;
+    if (!(shot.mediaRef?.kind === "image" && shot.mediaRef.path)) return 1;
+    return shot.stale || storyboardSourceFingerprintDrifted(shot) ? 1 : 0;
   }
   return shot.keyframes.filter((frame) => frameNeedsGeneration(shot, frame)).length;
 }
 
-/** stale 的旧 URI 不算完成;同一失效时点之后、同源工作流的已落帧可续跑。 */
+/** stale 的旧 URI 不算完成;同一失效时点之后、同源工作流的已落帧可续跑。
+ * W2:指纹漂移(脏而未标)与 stale 同门——漂移镜没有失效时点,既有帧全部重生成。 */
 function frameNeedsGeneration(shot: StoryboardItem, frame: NonNullable<StoryboardItem["keyframes"]>[number]): boolean {
   if (!frame.mediaRef?.path) return true;
-  if (!shot.stale) return false;
+  if (!shot.stale && !storyboardSourceFingerprintDrifted(shot)) return false;
   if (!shot.staleSince) return true;
   const graph = useStudioStore.getState().imageWorkflows.find((item) => item.id === frame.mediaRef.imageWorkflowId);
   const node = graph?.nodes.find((item) => item.id === frame.mediaRef.imageWorkflowNodeId);

@@ -145,6 +145,72 @@ export function storyboardSourceFingerprint(item: Partial<StoryboardItem>) {
   });
 }
 
+/**
+ * W1(1112 验尸 .trellis/tasks/11-12-storyboard-asset-refchain-repair):文本层指纹
+ * = 全指纹剔除 continuityState/orderedReferenceManifest 两层。replace 链据此判
+ * 「源文本是否真变了」——真变才失效旧 continuity 层;未变的重新保存零扰动
+ * (continuity 原样保留,全指纹稳定,不误标脏)。
+ */
+export function storyboardTextLayerFingerprint(item: Partial<StoryboardItem>) {
+  return stableHash({
+    episodeId: item.episodeId,
+    index: item.index,
+    trackKey: item.trackKey,
+    duration: item.duration,
+    prompt: item.prompt,
+    videoDesc: item.videoDesc,
+    assetIds: item.assetIds ?? [],
+    shouldGenerateImage: item.shouldGenerateImage,
+    ...(item.sourceEvidence?.scene ? { sourceScene: item.sourceEvidence.scene } : {}),
+    shotSemantics: item.shotSemantics,
+    cinematic: (item as { cinematic?: unknown }).cinematic,
+    lines: item.lines,
+    speakerId: item.speakerId,
+  });
+}
+
+/**
+ * W2(1112 验尸):「脏而未标」判定——存档 sourceFingerprint ≠ 现算指纹,即
+ * 文本/continuity/manifest 层已被裸写改过(离线 CLI 直写分片改 lines / 手术
+ * 脚本 pop continuityState 均不动存档指纹),而 stale 未置。批量消费面据此把
+ * 该镜计为缺帧纳入队列,斩断「脏镜被当新鲜跳过」的 media 冻结。
+ */
+export function storyboardSourceFingerprintDrifted(item: Partial<StoryboardItem>): boolean {
+  return item.sourceFingerprint !== undefined
+    && item.sourceFingerprint !== storyboardSourceFingerprint(item);
+}
+
+/**
+ * W1(1112 验尸):水合自愈——分片里的 sourceFingerprint 是上次 merge 存档的
+ * 快照串,裸写路径永不重算,快照永久滞旧且永不置 stale(11-04 实弹验尸:19 镜
+ * revision/5 镜 lines 变了而指纹逐字节未变)。水合时存档指纹≠现算指纹且已有
+ * 产出 ⇒ 标脏 + 审核回 pending。不重算指纹——漂移证据保留给消费面(W2 双保险),
+ * 产出重写(freshWrite)时指纹自然收敛。
+ */
+export function healStaleFingerprintDrift(storyboards: StoryboardItem[]): StoryboardItem[] {
+  const staleSince = Date.now();
+  return storyboards.map((item) => {
+    if (!storyboardSourceFingerprintDrifted(item)) return item;
+    const hasOutput = Boolean(
+      item.mediaRef || item.audioRef || item.imageWorkflowId || item.imageWorkflowNodeId,
+    );
+    if (!hasOutput) return item;
+    return {
+      ...item,
+      stale: true,
+      staleReason: "分镜源已变化（离线写入未重算指纹），需重新生成",
+      staleSince,
+      visualReview: item.visualReview
+        ? {
+            ...item.visualReview,
+            status: "pending" as const,
+            reasons: ["分镜画面或连续性输入已变化，必须重新审核"],
+          }
+        : item.visualReview,
+    };
+  });
+}
+
 export function trackSourceFingerprint(track: ProductionTrack, storyboards: StoryboardItem[]) {
   return stableHash({
     episodeId: track.episodeId,

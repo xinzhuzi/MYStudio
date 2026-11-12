@@ -185,6 +185,60 @@ describe("useStoryboardBatchGeneration(stale 完整性与来源隔离)", () => {
     expect(toast.info).not.toHaveBeenCalledWith("所有分镜画面均已齐备");
   });
 
+  // W2(1112 验尸 .trellis/tasks/11-12-storyboard-asset-refchain-repair):「脏而
+  // 未标」镜(离线 CLI 直写分片改 lines 却不置 stale 不重算指纹——11-04 实弹
+  // 验尸:5 镜 lines 变而 sourceFingerprint 逐字节未变)不得被当新鲜跳过。
+  // 桩抄 store 分片真源形态(snap-20261111 storyboards-002:sb-chapter-001-009)。
+  it("指纹漂移(脏而未标)的单帧镜纳入批量重生成,不再冒充齐备", async () => {
+    const sb = shot({
+      id: "sb-chapter-001-009",
+      prompt: "夜。金水塾馆三间青瓦房围一方小院，门楣上朽烂的木匾墨迹漫漶。",
+      lines: "管事：识字么？认得几个，行。",
+      mediaRef: { kind: "image", path: "project-file://49dce4c1/workflow-images/chapter-001/storyboard-1027/sb-chapter-001-009.png" },
+    });
+    sb.sourceFingerprint = storyboardSourceFingerprint(sb);
+    // 离线 CLI 裸写:lines 已改,存档指纹未跟,stale 未标。
+    sb.lines = "管事：离线 CLI 改写后的新台词。";
+    resetStore([sb]);
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/new.png" });
+    const { result } = renderHook(() => useStoryboardBatchGeneration({
+      storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0,
+    }));
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false));
+    expect(generateImageMock).toHaveBeenCalledTimes(1);
+    expect(useStudioStore.getState().storyboards[0]?.mediaRef?.path).toContain("gen-out.png");
+    // 指纹随 freshWrite 收敛,镜不再漂移。
+    const landed = useStudioStore.getState().storyboards[0]!;
+    expect(landed.stale).not.toBe(true);
+    expect(landed.sourceFingerprint).toBe(storyboardSourceFingerprint(landed));
+    expect(toast.info).not.toHaveBeenCalledWith("所有分镜画面均已齐备");
+  });
+
+  it("指纹漂移的多帧镜既有帧全部重生成(旧帧基于旧文本,无可续跑)", async () => {
+    const sb = shot({
+      id: "sb-chapter-001-009",
+      duration: 12,
+      lines: "管事：识字么？认得几个，行。",
+      keyframes: [
+        { frameId: "sb-chapter-001-009-kf-1", inUs: 0, mediaRef: { kind: "image", path: "project-file://49dce4c1/workflow-images/sb-009-kf-1.png" } },
+        { frameId: "sb-chapter-001-009-kf-2", inUs: 6_000_000, mediaRef: { kind: "image", path: "project-file://49dce4c1/workflow-images/sb-009-kf-2.png" } },
+      ],
+    });
+    sb.sourceFingerprint = storyboardSourceFingerprint(sb);
+    sb.lines = "管事：离线 CLI 改写后的新台词。"; // 裸写,指纹滞旧,stale 未标
+    resetStore([sb]);
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/new.png" });
+    const { result } = renderHook(() => useStoryboardBatchGeneration({
+      storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0,
+    }));
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false));
+    expect(generateImageMock).toHaveBeenCalledTimes(2);
+    const landed = useStudioStore.getState().storyboards[0]!;
+    expect(landed.keyframes?.every((frame) => frame.mediaRef?.path.includes("gen-out.png"))).toBe(true);
+  });
+
   it("keeps a successfully rebuilt stale frame across ladder retries and later recovery", async () => {
     resetStore([shot({ stale: true, staleSince: 10, duration: 12, keyframes: [
       { frameId: "sb-1-kf-1", inUs: 0, mediaRef: { kind: "image", path: "project-file://old-1.png" } },

@@ -52,9 +52,10 @@ import {
 } from "./studio-store-runtime";
 import {
   continuityAssetVersionKey,
+  healStaleFingerprintDrift,
   invalidateStoryboardsForAssetVersionChanges,
   markStale,
- 
+
   trackSourceFingerprint,
   videoCandidateFingerprint,
 } from "./studio-store-continuity-helpers";
@@ -770,6 +771,14 @@ export const useStudioStore = create<StudioWorkflowStore>()(
             : {}),
           ...(reapedLedgers.mediaTasks !== undefined
             ? { mediaTasks: reapedLedgers.mediaTasks }
+            : {}),
+          // W1(1112 验尸 .trellis/tasks/11-12-storyboard-asset-refchain-repair):
+          // 水合自愈——分片里的 sourceFingerprint 是上次 merge 存档的快照串,
+          // 离线 CLI 直写分片(update-storyboards-voice / 手术脚本)改指纹内字段
+          // 却不重算指纹也不置 stale,快照永久滞旧。存档指纹≠现算指纹且已有产出
+          // ⇒ 水合即标脏,裸写遗留的「脏而未标」不再穿过应用侧比对。
+          ...(Array.isArray(persisted.storyboards)
+            ? { storyboards: healStaleFingerprintDrift(persisted.storyboards) }
             : {}),
           ...(persistedConfig
             ? {

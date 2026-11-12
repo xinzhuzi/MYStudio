@@ -17,6 +17,7 @@ import { createStudioWorkflowId } from "./studio-store-runtime";
 import {
   mergeStoryboardReplacement,
   storyboardSourceFingerprint,
+  storyboardTextLayerFingerprint,
 } from "./studio-store-continuity-helpers";
 import {
   createHumanVisualReview,
@@ -154,17 +155,33 @@ export function createStoryboardSliceActions(set: SetFn, get: GetFn) {
                 (current) =>
                   current.episodeId === episodeId && current.index === item.index,
               );
-            return previous
-              ? mergeStoryboardReplacement(
-                  previous,
-                  { ...previous, ...item },
-                  "storyboard source changed",
-                )
-              : {
-                  ...item,
-                  sourceFingerprint:
-                    item.sourceFingerprint ?? storyboardSourceFingerprint(item),
-                };
+            if (!previous) {
+              return {
+                ...item,
+                sourceFingerprint:
+                  item.sourceFingerprint ?? storyboardSourceFingerprint(item),
+              };
+            }
+            const next: StoryboardItem = { ...previous, ...item };
+            // W1(1112 验尸 .trellis/tasks/11-12-storyboard-asset-refchain-repair):
+            // toStoryboardItems 产出的文本层条目不含 continuityState/
+            // orderedReferenceManifest 键——此前被 {...previous} 静默继承,旧
+            // continuity 层随新文本原样带进 next,撕裂(旧锚定 vs 新文本)对
+            // 指纹比对不可见。改为:文本层指纹真变了才失效两层(缺失=待生图
+            // 回写 landStoryboardContinuity 重建);文本未变的重新保存零扰动
+            // (continuity 原样保留,全指纹稳定,不误标脏)。
+            if (
+              storyboardTextLayerFingerprint(previous)
+              !== storyboardTextLayerFingerprint(next)
+            ) {
+              next.continuityState = item.continuityState;
+              next.orderedReferenceManifest = item.orderedReferenceManifest;
+            }
+            return mergeStoryboardReplacement(
+              previous,
+              next,
+              "storyboard source changed",
+            );
           }),
         ],
       }));

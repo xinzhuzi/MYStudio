@@ -16,6 +16,7 @@ import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
 import type { AgentWorkData, ContinuityAssetVersion, EntityExtractionResult, NovelChapter, StoryboardItem } from "@/types/studio";
 import { useStudioStore, armPostHydrationResave } from "./studio-store";
+import { storyboardSourceFingerprint } from "./studio-store-continuity-helpers";
 import {
   approvedVisualReview,
   storyboardShotSemanticsFingerprint,
@@ -1300,6 +1301,125 @@ describe("studio workflow store", () => {
     expect(
       state.productionTracks.flatMap((track) => track.storyboardIds),
     ).not.toContain("sb-ep1-2");
+  });
+
+  // W1(1112 验尸 .trellis/tasks/11-12-storyboard-asset-refchain-repair):文本层
+  // 重生成(toStoryboardItems 产出不含 continuityState/orderedReferenceManifest
+  // 键)不得静默继承旧 continuity 层——继承=撕裂(旧锚定 vs 新文本)对指纹比对
+  // 不可见。桩抄 store 分片真源结构(snap-20261111 storyboards-002:sb-chapter-001-009)。
+  it("文本层重生成失效 continuity/manifest 继承并置脏;文本未变重存零扰动", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(3311);
+    const continuityState = {
+      groupId: "group-chapter-001",
+      sceneVersionId: "scene_1780296482373_avuxou2:dock-main-axis:v1",
+      sceneViewpointId: "dock-main-axis",
+      palette: "墨青、灰蓝、湿石赭褐与克制旧木色",
+      lighting: "清晨冷色漫射雾光",
+      actionIn: "独孤剑尘立于门外低声应对",
+      actionOut: "接笔进屋",
+      characters: [],
+      inputFingerprint: "fp-continuity",
+    } as NonNullable<StoryboardItem["continuityState"]>;
+    const orderedReferenceManifest = [{
+      order: 1,
+      assetId: "scene_1780296482373_avuxou2",
+      assetName: "金水河码头",
+      assetKind: "scene",
+      imagePath: "project-file://49dce4c1/continuity-bibles/chapter-001/reference-1.png",
+      versionId: "scene_1780296482373_avuxou2:dock-main-axis:v1",
+      referenceRole: "scene-viewpoint",
+    }] as NonNullable<StoryboardItem["orderedReferenceManifest"]>;
+    useStudioStore.getState().addStoryboard({
+      id: "sb-chapter-001-009",
+      episodeId: "chapter-001",
+      index: 9,
+      trackKey: "001-9",
+      duration: 4,
+      prompt: "夜。金水塾馆三间青瓦房围一方小院。",
+      videoDesc: "管事踱步扫视来客、发问、塞白土笔指屋。",
+      assetIds: ["独孤剑尘", "管事"],
+      lines: "管事：识字么？认得几个，行。",
+      continuityState,
+      orderedReferenceManifest,
+      mediaRef: { kind: "image", path: "project-file://49dce4c1/workflow-images/chapter-001/storyboard-1027/sb-chapter-001-009.png" },
+      state: "ready",
+      outputVersion: 6,
+    });
+
+    // 文本层重生成条目:prompt 重写,不含 continuityState/orderedReferenceManifest 键。
+    useStudioStore.getState().replaceStoryboardsForEpisode("chapter-001", [{
+      id: "sb-chapter-001-009",
+      episodeId: "chapter-001",
+      index: 9,
+      trackKey: "001-9",
+      trackId: "",
+      duration: 4,
+      prompt: "重生成:清晨雾光下的金水河码头远景。",
+      videoDesc: "管事踱步扫视来客、发问、塞白土笔指屋。",
+      assetIds: ["独孤剑尘", "管事"],
+      lines: "管事：识字么？认得几个，行。",
+      state: "idle",
+    }]);
+
+    const regenerated = useStudioStore.getState().storyboards.find((item) => item.id === "sb-chapter-001-009");
+    expect(regenerated).toMatchObject({
+      prompt: "重生成:清晨雾光下的金水河码头远景。",
+      stale: true,
+      staleReason: "storyboard source changed",
+      staleSince: 3311,
+      // 旧 continuity 层失效(等生图回写 landStoryboardContinuity 重建),不再随新文本假新鲜。
+      continuityState: undefined,
+      orderedReferenceManifest: undefined,
+      // 产出保留:批量重跑按 mediaRef 幂等,不丢既有图。
+      mediaRef: { kind: "image", path: "project-file://49dce4c1/workflow-images/chapter-001/storyboard-1027/sb-chapter-001-009.png" },
+      outputVersion: 6,
+    });
+    expect(regenerated?.sourceFingerprint).toBe(storyboardSourceFingerprint(regenerated!));
+
+    // 文本未变的重新保存(独立镜,已落 continuity+产出+指纹一致):continuity
+    // 原样保留,不置脏(零扰动)。
+    useStudioStore.getState().addStoryboard({
+      id: "sb-chapter-001-010",
+      episodeId: "chapter-001",
+      index: 10,
+      trackKey: "001-10",
+      duration: 4,
+      prompt: "稳定镜头:金水河码头缆绳特写。",
+      videoDesc: "缆绳绷紧,水珠滴落。",
+      assetIds: ["独孤剑尘"],
+      lines: "管事：船到了。",
+      continuityState,
+      orderedReferenceManifest,
+      mediaRef: { kind: "image", path: "project-file://49dce4c1/workflow-images/sb-chapter-001-010.png" },
+      state: "ready",
+      outputVersion: 3,
+    });
+
+    useStudioStore.getState().replaceStoryboardsForEpisode("chapter-001", [{
+      id: "sb-chapter-001-010",
+      episodeId: "chapter-001",
+      index: 10,
+      trackKey: "001-10",
+      trackId: "",
+      duration: 4,
+      prompt: "稳定镜头:金水河码头缆绳特写。",
+      videoDesc: "缆绳绷紧,水珠滴落。",
+      assetIds: ["独孤剑尘"],
+      lines: "管事：船到了。",
+      state: "idle",
+    }]);
+
+    const resaved = useStudioStore.getState().storyboards.find((item) => item.id === "sb-chapter-001-010");
+    expect(resaved?.stale).not.toBe(true);
+    expect(resaved).toMatchObject({
+      continuityState,
+      orderedReferenceManifest,
+      outputVersion: 3,
+    });
+    // 自清理:本用例的写操作在未水合窗口触发守卫拒写→布防了水合后补写
+    // (armPostHydrationResave 模块级 armed/订阅),不复位会污染后续水合补存
+    // 用例的 setItem 计数——显式走一次 rehydrate 把遗留补写消费掉。
+    await useStudioStore.persist.rehydrate();
   });
 
   it("resets an approved visual review when episode replacement writes fresh visual output", () => {
