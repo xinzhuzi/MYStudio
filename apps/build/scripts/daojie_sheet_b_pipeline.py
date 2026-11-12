@@ -187,10 +187,12 @@ def parse_subject(path: Path):
     return text, fields
 
 
-def zoom(img: Image.Image, fx, fy, frac) -> Image.Image:
-    """以 (fx,fy) 为中心取 frac 边长预裁(后续 fit_crop 再按格缩放)。"""
+def zoom(img: Image.Image, fx, fy, fw, fh=None) -> Image.Image:
+    """以 (fx,fy) 为中心取 (fw,fh) 宽高比例预裁(后续 fit/contain 再按格缩放)。
+    眉眼取横带(fw>fh)配 contain 格=双眼完整(1112 二轮教训:竖格 cover 裁外眼角)。"""
+    fh = fh if fh is not None else fw
     w, h = img.size
-    cw, chh = round(w * frac), round(h * frac)
+    cw, chh = round(w * fw), round(h * fh)
     cx, cy = round(w * fx), round(h * fy)
     x0 = min(max(cx - cw // 2, 0), w - cw)
     y0 = min(max(cy - chh // 2, 0), h - chh)
@@ -225,8 +227,9 @@ def main() -> int:
             yield tag, "master", None  # edit 需先有 master 落盘再构造
         yield "head", "side", None
         yield "weapon", None, build_t2i(
-            "\n".join([f"{name}的佩器:{f.get('武器', '长剑')}。整器完整入画居中,横置,"
-                       f"收鞘状态,背景素净。", t_item, style_pos]),
+            "\n".join([f"{name}的佩器:{f.get('武器', '长剑')}。整剑水平横置,自柄首至"
+                       f"鞘尾完整入画,两端各留边;鞘身光素,剑穗为青白丝线本色,"
+                       f"饰件皆素银;背景素净米白。", t_item, style_pos]),
             2048, 1152, args.seed + 7, "sheetB/weapon")
         yield "effect", None, build_t2i(
             "\n".join([f"能力特效设定图:{f.get('能力', '剑气')}。一柄出鞘长剑的剑身与"
@@ -274,7 +277,7 @@ def main() -> int:
     cells = {
         "front": imgs["master"], "side": imgs["side"], "back": imgs["back"],
         "face": imgs["face"], "head": imgs["head"],
-        "eye": zoom(imgs["face"], 0.5, 0.34, 0.45),
+        "eye": zoom(imgs["face"], 0.5, 0.42, 0.70, 0.26),
         "hair": zoom(imgs["head"], 0.5, 0.20, 0.60),
         "wrist": imgs["wrist"], "waist": imgs["waist"],
         "weapon": imgs["weapon"],
@@ -284,7 +287,7 @@ def main() -> int:
         "fabric_2": zoom(imgs["waist"], 0.5, 0.5, 0.60),
         "fabric_3": zoom(imgs["wrist"], 0.5, 0.5, 0.60),
         "gear_1": zoom(imgs["waist"], 0.42, 0.52, 0.45),
-        "gear_2": zoom(imgs["head"], 0.5, 0.28, 0.55),
+        "gear_2": zoom(imgs["waist"], 0.45, 0.50, 0.40),
         "fx_1": imgs["effect"],
         "fx_2": zoom(imgs["effect"], 0.62, 0.35, 0.55),
     }

@@ -129,35 +129,59 @@ def fit_crop(img: Image.Image, rect, focal=(0.5, 0.5)) -> Image.Image:
 
 
 def extract_palette(img: Image.Image, n: int = 5):
-    """主体实际设色提取:中位切分量化→滤纸白/墨灰→按 覆盖×饱和 评分取前 n。"""
+    """主体实际设色提取:中位切分量化→滤画布纸底(仅滤与 PAPER 同值,月白衣不误伤)
+    →去重+最小色距→按 覆盖×饱和 评分取前 n(1112 首单教训:量化槽重复色与
+    「近白即滤」曾致三枚同值圆卡+月白缺席)。"""
     small = img.convert("RGB")
     small.thumbnail((320, 320))
     q = small.quantize(colors=24, method=Image.Quantize.MEDIANCUT)
     pal = q.getpalette()[:72]
     counts = sorted(q.getcolors() or [], reverse=True)
-    out = []
+    picked: list = []
+
+    def far_enough(rgb):
+        return all(sum(abs(a - b) for a, b in zip(rgb, p)) > 60 for p, _ in picked)
+
     for cnt, idx in counts:
         r, g, b = pal[idx * 3: idx * 3 + 3]
+        if abs(r - PAPER[0]) + abs(g - PAPER[1]) + abs(b - PAPER[2]) < 24:
+            continue                      # 仅滤画布纸底本身
         mx, mn = max(r, g, b), min(r, g, b)
         sat = 0.0 if mx == 0 else (mx - mn) / mx
-        lum = (r + g + b) / 3
-        if lum > 232 and sat < 0.15:      # 纸白底
+        rgb, score = (r, g, b), cnt * (0.2 + sat)
+        if not far_enough(rgb):
             continue
-        if sat < 0.12 or mx < 60:         # 墨线/深灰
-            continue
-        out.append(((r, g, b), cnt * (0.2 + sat)))
-        if len(out) >= n:
+        picked.append((rgb, score))
+        if len(picked) >= n:
             break
-    while len(out) < n:                   # 不足补墨色(宁缺毋滥不凑近白)
-        out.append(((90, 86, 78), 0))
-    return [c for c, _ in out[:n]]
+    while len(picked) < n:                # 不足补墨色阶梯(仍守最小色距)
+        for cand in ((44, 39, 32), (90, 86, 78), (140, 134, 122),
+                     (190, 184, 170), (232, 226, 212)):
+            if far_enough(cand):
+                picked.append((cand, 0))
+                break
+        else:
+            break
+    return [c for c, _ in picked[:n]]
 
 
 def _place(canvas: Image.Image, draw: ImageDraw.ImageDraw,
            img, rect, label: str | None, focal=(0.5, 0.5),
-           label_font: ImageFont.FreeTypeFont | None = None):
+           label_font: ImageFont.FreeTypeFont | None = None,
+           mode: str = "cover"):
+    """mode=cover:占满裁切(特写/局部);contain:整图入格居中,余白衬纸色
+    (三视图/整器=全身与整剑必须完整;1112 首单教训:cover 把头与剑两端裁掉)。"""
     x0, y0, x1, y1 = rect
-    canvas.paste(fit_crop(img, rect, focal), (x0, y0))
+    rw, rh = x1 - x0, y1 - y0
+    if mode == "contain":
+        iw, ih = img.size
+        s = min(rw / iw, rh / ih)
+        nw, nh = max(1, round(iw * s)), max(1, round(ih * s))
+        tile = Image.new("RGB", (rw, rh), PAPER)
+        tile.paste(img.resize((nw, nh), Image.LANCZOS), ((rw - nw) // 2, (rh - nh) // 2))
+        canvas.paste(tile, (x0, y0))
+    else:
+        canvas.paste(fit_crop(img, rect, focal), (x0, y0))
     draw.rectangle(rect, outline=INK_LINE, width=2)
     if label:
         f = label_font or _font(LABEL_SIZE)
@@ -193,10 +217,12 @@ def compose(cells: dict, palette, title: str, dst: str) -> str:
     d.text(((W - tw) // 2 - bb[0], M + (BAND_H - th) // 2 - bb[1]),
            title, font=tf, fill=INK_TEXT)
 
-    # 18 格裁贴(角标随格;武器区/纹理区/装备区/能力区仅首格带区标)
+    # 18 格裁贴(角标随格;三视图与整器=contain 整图入格,其余 cover 裁切)
+    CONTAIN = {"front", "side", "back", "weapon", "eye"}
     for k in CELL_KEYS:
         _place(canvas, d, cells[k], geo[k], LABELS.get(k),
-               focal=cells_focal().get(k, (0.5, 0.5)), label_font=label_font)
+               focal=cells_focal().get(k, (0.5, 0.5)), label_font=label_font,
+               mode="contain" if k in CONTAIN else "cover")
 
     # 配色带:角标+五枚圆卡(取自主体实际设色)
     px0, py0, px1, py1 = geo["_palette"]
