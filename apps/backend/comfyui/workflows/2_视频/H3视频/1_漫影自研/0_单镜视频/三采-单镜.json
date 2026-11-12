@@ -804,7 +804,6 @@
      "links": [
       516,
       526,
-      564,
       612,
       626
      ]
@@ -1665,11 +1664,6 @@
       "name": "length"
      },
      "link": 569
-    },
-    {
-     "name": "audio_vae",
-     "type": "VAE",
-     "link": 564
     }
    ],
    "outputs": [
@@ -1846,12 +1840,12 @@
     {
      "name": "on_false",
      "type": "COMFY_MATCHTYPE_V3",
-     "link": 574
+     "link": 758
     },
     {
      "name": "on_true",
      "type": "COMFY_MATCHTYPE_V3",
-     "link": 758
+     "link": 574
     }
    ],
    "outputs": [
@@ -1897,12 +1891,12 @@
     {
      "name": "on_false",
      "type": "COMFY_MATCHTYPE_V3",
-     "link": 576
+     "link": 575
     },
     {
      "name": "on_true",
      "type": "COMFY_MATCHTYPE_V3",
-     "link": 575
+     "link": 576
     }
    ],
    "outputs": [
@@ -1949,12 +1943,12 @@
     {
      "name": "on_false",
      "type": "COMFY_MATCHTYPE_V3",
-     "link": 578
+     "link": 577
     },
     {
      "name": "on_true",
      "type": "COMFY_MATCHTYPE_V3",
-     "link": 577
+     "link": 578
     }
    ],
    "outputs": [
@@ -2861,7 +2855,7 @@
     "myPreview": "manying-shot-h3-placeholder.jpg"
    },
    "widgets_values": [
-    "S00",
+    "sb-chapter-001-001",
     "",
     "",
     "待生成"
@@ -5798,14 +5792,6 @@
    "VAE"
   ],
   [
-   564,
-   120,
-   0,
-   220,
-   8,
-   "VAE"
-  ],
-  [
    565,
    9,
    0,
@@ -5882,7 +5868,7 @@
    140,
    0,
    218,
-   1,
+   2,
    "MODEL"
   ],
   [
@@ -5890,7 +5876,7 @@
    220,
    0,
    221,
-   2,
+   1,
    "CONDITIONING"
   ],
   [
@@ -5898,7 +5884,7 @@
    16,
    0,
    221,
-   1,
+   2,
    "CONDITIONING"
   ],
   [
@@ -5906,7 +5892,7 @@
    220,
    1,
    222,
-   2,
+   1,
    "LATENT"
   ],
   [
@@ -5914,7 +5900,7 @@
    16,
    1,
    222,
-   1,
+   2,
    "LATENT"
   ],
   [
@@ -6818,7 +6804,7 @@
    251,
    0,
    218,
-   2,
+   1,
    "MODEL"
   ],
   [

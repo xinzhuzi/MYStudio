@@ -256,14 +256,25 @@ def test_absorbed_fl2v_firstframe_mode():
     d, nodes, links = _load()
     assert nodes[219]["type"] == "PrimitiveBoolean" and nodes[219]["widgets_values"] == [True]
     assert nodes[220]["type"] == "MiniMaxH3ImageToVideo", "i2v 条件(吸收自 fl2v)"
+    # 1112 回归闸:引擎 0.45.2 已无 audio_vae 入参(object_info 实证),陈旧线必炸 i2v 实弹
+    assert all(i["name"] != "audio_vae" for i in nodes[220]["inputs"]), \
+        "[220] 不得声明 audio_vae 槽(0.45.2 TypeError)"
+    # 1112 回归闸③:MyShot shot_id 必须等于 [4] p2 前缀 parts[3](my_shot.py:71;S00 克隆残留实踩)
+    _p2_prefix = next(n["widgets_values"][0] for n in d["nodes"] if n["id"] == 4)
+    assert nodes[100]["widgets_values"][0] == _p2_prefix.split("/")[3], \
+        "[100] MyShot shot_id 与 p2 前缀失配,画布默认态二采必炸"
     assert nodes[216]["widgets_values"] == ["pika_turbo_8step_fl2va.safetensors", 1]
     fans = sorted(l[3] for l in d["links"] if l[1] == 219)
     assert fans == [218, 221, 222], "模式开关单源扇出三选择点"
-    for sid, t_slot, f_slot in ((218, 1, 2), (221, 1, 2), (222, 1, 2)):
-        ins = nodes[sid]["inputs"]
+    for sid in (218, 221, 222):
+        ins = {i["name"]: i for i in nodes[sid]["inputs"]}
         assert nodes[sid]["type"] == "ComfySwitchNode"
-        assert links[ins[t_slot]["link"]][1] == 16 or links[ins[t_slot]["link"]][1] == 140, "on_true=r2v 臂"
-        assert links[ins[f_slot]["link"]][1] in (217, 220, 251), "on_false=i2v 臂"
+        # 1112 F1 修正后真实槽语义:on_true=√(219=true)→r2v 臂,on_false→i2v 臂
+        # (母本原接线倒挂=on_true 接 i2v,1112 sancai_mother_fix_1112.py 已换;
+        #  旧断言把 ins[1](实为 on_false 槽)读作 t_slot 系与倒挂共谋,随修复改写)
+        assert links[ins["on_true"]["link"]][1] in (16, 140), "on_true=r2v 臂(√=r2v 真语义)"
+        assert links[ins["on_false"]["link"]][1] in (217, 220, 251), "on_false=i2v 臂"
+        assert "audio_vae" not in ins or sid != 220, "可达性哨(220 无开关槽)"
     # 三 Seam 出口:底模→[266]taeh3 预览器→[126].model(1108 用户令装 taeh3) / 条件→[126].conditioning / 潜空间→[125].latent_image
     assert nodes[266]["type"] == "ModelPreviewOverrideKJ" and nodes[266]["widgets_values"][5] == "taeh3.safetensors"
     assert links[nodes[266]["inputs"][0]["link"]][1] == 218, "预览器应吃三 Seam 底模出口"
