@@ -581,6 +581,9 @@ test("⑱ 产物 schema:normalize 兜底 null;roundtrip 路径保全;导入零�
   sb.DaoyanToolbar.actions.importPayload(back.ctrl, json);
   assert.equal(back.ctrl.state.segments[0].artifacts.p1.includes("p1-draft.mp4"), true,
     "导入后产物路径在");
+  // 导入路径门禁(1114 深检 F-1 补:删 toolbar importPayload 回填行须红此处)
+  assert.equal(back.ctrl.state.chapter_outputs.draft, "video/导演台/chapter-b001/章草片.mp4",
+    "chapter_outputs 走导入路径回填(非仅读回路径)");
   // 非串/空串兜底 null(不产生垃圾路径)
   const bad = sb.DaoyanSerial.normalizeState({ segments: [{ artifacts: { p1: "", p2: 42, p3: "ok.mp4" } }] });
   assert.equal(JSON.stringify(bad.segments[0].artifacts), '{"p1":null,"p2":null,"p3":"ok.mp4"}');
