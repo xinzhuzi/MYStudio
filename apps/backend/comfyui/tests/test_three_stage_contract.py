@@ -221,13 +221,24 @@ def test_links_bidirectional_consistency():
 
 
 def test_groups_three_bands_non_overlap():
-    """1113 手术后=五组横排:加载模型→输入→一阶段采样→二采放大→三采超分;
-    两两不交,标题口径正确(TESSERA/RelayVSR 已出主线,标题不得再含)。"""
-    d = _load()[0]
+    """1113 手术后=五组横排:加载模型→输入→一阶段采样→二阶段放大→三采超分;
+    两两不交,标题口径正确(TESSERA/RelayVSR 已出主线,标题不得再含);
+    罩全门(1113 刻碑:负高度组框实弹事故——深度阶梯改版丢 g_max_y 更新行,五组高度全 -20,
+    画布上组框退化成标题条、节点全部框外;检查器不查组覆盖须自算,此处入契约)。"""
+    d, nodes, _ = _load()
     gs = d["groups"]
-    assert len(gs) == 5, "五组=加载模型/输入/一阶段采样/二采放大/三采超分(1113 手术终态)"
+    assert len(gs) == 5, "五组=加载模型/输入/一阶段采样/二阶段放大/三采超分(1113 手术终态)"
     assert any("三采超分" in g["title"] for g in gs), "三采超分组必须在册"
     assert any("ReCaVSR" in g["title"] for g in gs), "ReCaVSR 主线组必须在册"
+    for g in gs:
+        x, y, w, h = g["bounding"]
+        assert w > 0 and h > 0, f"组[{g['title']}] 尺寸非正 bounding={g['bounding']}(负高度=标题条退化)"
+    for nid, n in nodes.items():
+        nx, ny = n["pos"]
+        covered = any(g["bounding"][0] <= nx and g["bounding"][1] <= ny
+                      and nx < g["bounding"][0] + g["bounding"][2]
+                      and ny < g["bounding"][1] + g["bounding"][3] for g in gs)
+        assert covered, f"[{nid}] {n['type']} 不在任何组框内(组框罩全红线)"
     for i in range(len(gs)):
         for j in range(i + 1, len(gs)):
             a, b = gs[i]["bounding"], gs[j]["bounding"]
