@@ -50,14 +50,15 @@ STRIDE_ROUND = 100          # 镜距整百化
 STRIDE_EXTRA = 500          # 镜距附加余量(组框间隙)
 
 # ── design §1 节点切分(anatomy A 节对账)────────────────────────────────
-FIRST_STAGE = {  # 一采 35(group4503 成员去 SHARED 去 Note)
+FIRST_STAGE = {  # 一采 35(母本一阶段采样组成员去 SHARED 去 Note;1113 纯净化母本
+    # 移除 [264]TokenCounter/[265]PreviewAny 两监视件——纯预览零生成影响,随母本同删)
     9, 14, 16, 20, 22,
     110, 111, 112, 113,
     121, 122, 123, 125, 126, 129, 130, 131,
     140, 145, 204,
     216, 217, 218, 220, 221, 222,
     250, 251,
-    260, 261, 262, 263, 264, 265, 266,
+    260, 261, 262, 263, 266,
 }
 SECOND_STAGE = {4, 100, 202, 203, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 223, 267}  # 二采 17
 THIRD_STAGE = {339, 340}    # 三采 2(克隆后归三采组)
@@ -183,14 +184,16 @@ def build() -> dict:
     mother = json.loads(MOTHER.read_text(encoding="utf-8"))
     mnodes = {n["id"]: n for n in mother["nodes"]}
     # links=151:1112 母本三笔修后(audio_vae 拔线,原 152)
-    if len(mnodes) != 103 or len(mother["links"]) != 151 or len(mother["groups"]) != 5:
+    if len(mnodes) != 59 or len(mother["links"]) != 91 or len(mother["groups"]) != 5:  # 1113 纯净化母本(103/151→59/91)
         raise AssertionError(f"母本形态漂移: nodes={len(mnodes)} links={len(mother['links'])} groups={len(mother['groups'])}")
 
     # 切分完备性对账(anatomy A)
-    partition = TEMPLATE | SHARED | DROP
-    if partition != set(mnodes) or (TEMPLATE & SHARED) or (TEMPLATE & DROP) or (SHARED & DROP):
-        raise AssertionError("母本 id 切分与 anatomy A 节不符")
-    if len(FIRST_STAGE) != 35 or len(SECOND_STAGE) != 17:
+    # 1113 纯净化后 DROP 件(TESSERA/RelayVSR/监视对)已不在母本:对账语义改为
+    # 「母本每个 id 必有归属」;DROP 中缺席者=已随母本净化移除,合法。
+    unexpected = set(mnodes) - TEMPLATE - SHARED - DROP
+    if unexpected or (TEMPLATE & SHARED) or (TEMPLATE & DROP) or (SHARED & DROP):
+        raise AssertionError(f"母本 id 切分不符,未归类: {sorted(unexpected)}")
+    if len(FIRST_STAGE) != 33 or len(SECOND_STAGE) != 17:  # 1113 纯净化:35-2 监视对=33
         raise AssertionError(f"一/二采模板件数漂移: {len(FIRST_STAGE)}/{len(SECOND_STAGE)}")
 
     # 母本关键 widget 原值核对(design §3「母本原值核对」)
@@ -220,15 +223,18 @@ def build() -> dict:
     shared_pos = {119: (80, shared_y), 120: (80, shared_y + 240), 127: (80, shared_y + 480),
                   128: (80, shared_y + 720), 219: (80, shared_y + 960)}
     for nid in sorted(SHARED):
+        if nid == 103:  # 1113 纯净化母本已删原 Note103 → 本台自造(运行法则三段门控版)
+            n = {"id": 103, "type": "MarkdownNote", "pos": [80, shared_y + 1400],
+                 "size": [520, 760], "flags": {}, "order": 0, "mode": 0,
+                 "properties": {}, "widgets_values": [NOTE_103]}
+            nodes.append(n)
+            continue
         n = copy.deepcopy(mnodes[nid])
         n["mode"] = 0
         if nid in shared_pos:
             n["pos"] = list(shared_pos[nid])
-        elif nid == 103:  # 运行法则三段门控版重写(design §1)
-            n["pos"] = [80, shared_y + 1400]
-            n["size"] = [520, 760]
-            n["widgets_values"] = [NOTE_103]
-        # 338 原位进三采组
+        elif nid == 338:  # 1113:三采 loader 挪三采列顶(纯净化母本原位落加载器列)
+            n["pos"] = [12300, 60]
         nodes.append(n)
 
     # 2) SHOT_TEMPLATE ×3 克隆(id+1000k, pos.y+stride*k)
@@ -236,7 +242,10 @@ def build() -> dict:
         for nid in sorted(TEMPLATE):
             n = copy.deepcopy(mnodes[nid])
             n["id"] = nid + ID_STRIDE * k
-            n["pos"] = [n["pos"][0], n["pos"][1] + stride * k]
+            if nid in THIRD_STAGE:  # 三采族显式右列位(1113 母本三采臂 x 位落镜头列带)
+                n["pos"] = [12450, 480 + stride * k + (560 if nid == 339 else 1060)]
+            else:
+                n["pos"] = [n["pos"][0], n["pos"][1] + stride * k]
             n["mode"] = 2 if (nid in SECOND_STAGE or nid in THIRD_STAGE) else 0
             if nid in (206, 208):  # F3:title 陈旧文案 1280×704→1440×832(widgets 母本原值已 1440×832)
                 n["title"] = n["title"].replace("1280×704", "1440×832")

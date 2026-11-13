@@ -89,7 +89,8 @@ def widget_slots(cls: str) -> list[tuple[str, bool, bool, bool, bool]]:
             t = s[0] if s else None
             meta = s[1] if len(s) > 1 and isinstance(s[1], dict) else {}
             dyn = isinstance(t, str) and t in DYN_COMBOS
-            if isinstance(t, list) or (isinstance(t, str) and t in PRIMITIVE) or dyn:
+            bd = t == "BDGROUP"  # AIMixer 雷#1:分组标题伪控件占 widgets_values 一位且为 required 输入
+            if isinstance(t, list) or (isinstance(t, str) and t in PRIMITIVE) or dyn or bd:
                 out.append((name, bool(meta.get('control_after_generate')), dyn,
                             bool(meta.get('hidden')), section == 'required'))
     return out

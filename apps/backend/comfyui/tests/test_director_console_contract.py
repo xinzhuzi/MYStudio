@@ -34,7 +34,7 @@ K_OFF = tuple(1000 * k for k in range(3))
 FIRST_STAGE = {
     9, 14, 16, 20, 22, 110, 111, 112, 113, 121, 122, 123, 125, 126, 129, 130, 131,
     140, 145, 204, 216, 217, 218, 220, 221, 222, 250, 251,
-    260, 261, 262, 263, 264, 265, 266,
+    260, 261, 262, 263, 266,  # 264/265 监视对随 1113 纯净化母本移除
 }
 SECOND_STAGE = {4, 100, 202, 203, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 223, 267}
 THIRD_STAGE = {339, 340}
@@ -77,7 +77,7 @@ def test_json_valid_and_unique_ids():
     assert len(nodes) == len(doc["nodes"]), "节点 id 重复"
     ids = [l[0] for l in links]
     assert len(set(ids)) == len(ids), f"链 id 重复: {sorted({i for i in ids if ids.count(i) > 1})}"
-    assert len(doc["nodes"]) == 177, f"节点总数 {len(doc['nodes'])} != 177(3×54 模板+7 SHARED+8 新造)"
+    assert len(doc["nodes"]) == 171, f"节点总数 {len(doc['nodes'])} != 171(3×52 模板+7 SHARED+8 新造;1113 随纯净化母本剔监视对×3镜=177→171)"
 
 
 # ── §5-2 悬空引用双向扫 + outputs 重建一致性 ─────────────────────────
