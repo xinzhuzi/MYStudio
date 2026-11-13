@@ -6,12 +6,12 @@
       "id": 1,
       "type": "T8DramaLoader",
       "pos": [
-        60,
-        60
+        100,
+        218
       ],
       "size": [
         370,
-        430
+        448
       ],
       "flags": {},
       "order": 0,
@@ -49,8 +49,8 @@
       "id": 2,
       "type": "T8DramaScene",
       "pos": [
-        480,
-        60
+        670,
+        142
       ],
       "size": [
         410,
@@ -68,12 +68,14 @@
         {
           "name": "references",
           "type": "DRAMA3_T8_REFERENCES",
-          "link": null
+          "link": null,
+          "shape": 7
         },
         {
           "name": "session",
           "type": "DRAMA3_T8_SESSION",
-          "link": null
+          "link": null,
+          "shape": 7
         }
       ],
       "outputs": [
@@ -110,8 +112,8 @@
       "id": 3,
       "type": "T8DramaDecode",
       "pos": [
-        900,
-        60
+        1280,
+        312
       ],
       "size": [
         370,
@@ -162,8 +164,8 @@
       "id": 4,
       "type": "SaveAudio",
       "pos": [
-        1320,
-        60
+        1850,
+        120
       ],
       "size": [
         370,
@@ -197,12 +199,12 @@
       "id": 5,
       "type": "PreviewAny",
       "pos": [
-        900,
-        520
+        1850,
+        460
       ],
       "size": [
         370,
-        260
+        348
       ],
       "flags": {},
       "order": 4,
@@ -231,8 +233,8 @@
       "id": 6,
       "type": "Note",
       "pos": [
-        60,
-        980
+        100,
+        746
       ],
       "size": [
         370,
@@ -255,8 +257,8 @@
       "id": 7,
       "type": "Note",
       "pos": [
-        1320,
-        980
+        100,
+        1086
       ],
       "size": [
         370,

@@ -6,12 +6,12 @@
       "id": 1,
       "type": "T8DramaLoader",
       "pos": [
-        60,
-        60
+        100,
+        120
       ],
       "size": [
         370,
-        430
+        448
       ],
       "flags": {},
       "order": 0,
@@ -49,8 +49,8 @@
       "id": 2,
       "type": "T8DramaSession",
       "pos": [
-        60,
-        520
+        100,
+        648
       ],
       "size": [
         370,
@@ -63,7 +63,8 @@
         {
           "name": "references",
           "type": "DRAMA3_T8_REFERENCES",
-          "link": null
+          "link": null,
+          "shape": 7
         }
       ],
       "outputs": [
@@ -86,8 +87,8 @@
       "id": 3,
       "type": "T8DramaGenerate",
       "pos": [
-        480,
-        60
+        670,
+        255
       ],
       "size": [
         370,
@@ -140,8 +141,8 @@
       "id": 4,
       "type": "T8DramaDecode",
       "pos": [
-        900,
-        60
+        1240,
+        395
       ],
       "size": [
         370,
@@ -192,8 +193,8 @@
       "id": 5,
       "type": "SaveAudio",
       "pos": [
-        1320,
-        60
+        1810,
+        203
       ],
       "size": [
         370,
@@ -227,12 +228,12 @@
       "id": 6,
       "type": "PreviewAny",
       "pos": [
-        900,
-        520
+        1810,
+        543
       ],
       "size": [
         370,
-        260
+        348
       ],
       "flags": {},
       "order": 5,
@@ -261,8 +262,8 @@
       "id": 7,
       "type": "Note",
       "pos": [
-        1320,
-        980
+        100,
+        988
       ],
       "size": [
         370,

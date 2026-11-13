@@ -8,8 +8,8 @@
       "id": 12,
       "type": "PrimitiveNode",
       "pos": [
-        90,
-        -745
+        100,
+        120
       ],
       "size": [
         571,
@@ -44,8 +44,8 @@
       "id": 13,
       "type": "PrimitiveNode",
       "pos": [
-        92,
-        -360
+        100,
+        491
       ],
       "size": [
         500,
@@ -80,12 +80,12 @@
       "id": 15,
       "type": "CheckpointLoaderSimple",
       "pos": [
-        -175,
-        75
+        100,
+        894
       ],
       "size": [
         372,
-        102
+        166
       ],
       "flags": {},
       "order": 2,
@@ -128,12 +128,12 @@
       "id": 100,
       "type": "LoraLoader",
       "pos": [
-        255,
-        55
+        871,
+        617
       ],
       "size": [
         350,
-        126
+        202
       ],
       "flags": {},
       "order": 3,
@@ -185,12 +185,12 @@
       "id": 23,
       "type": "YuE2GenerateABC",
       "pos": [
-        700,
-        140
+        1421,
+        485
       ],
       "size": [
         400,
-        250
+        466
       ],
       "flags": {},
       "order": 4,
@@ -262,12 +262,12 @@
       "id": 14,
       "type": "PreviewAny",
       "pos": [
-        712,
-        470
+        2021,
+        544
       ],
       "size": [
         444,
-        200
+        348
       ],
       "flags": {},
       "order": 5,
@@ -298,12 +298,12 @@
       "id": 22,
       "type": "YuE2GenerateMusic",
       "pos": [
-        980,
-        -140
+        2665,
+        473
       ],
       "size": [
         400,
-        408
+        490
       ],
       "flags": {},
       "order": 6,
@@ -391,12 +391,12 @@
       "id": 5,
       "type": "EmptyYuE2LatentAudio",
       "pos": [
-        1290,
-        510
+        3265,
+        644
       ],
       "size": [
         290,
-        100
+        148
       ],
       "flags": {},
       "order": 7,
@@ -436,12 +436,12 @@
       "id": 8,
       "type": "KSampler",
       "pos": [
-        1465,
-        30
+        3755,
+        533
       ],
       "size": [
         330,
-        270
+        370
       ],
       "flags": {},
       "order": 8,
@@ -503,12 +503,12 @@
       "id": 17,
       "type": "VAEDecodeAudioTiled",
       "pos": [
-        1880,
-        -125
+        4285,
+        632
       ],
       "size": [
         271,
-        110
+        172
       ],
       "flags": {},
       "order": 9,
@@ -550,8 +550,8 @@
       "id": 10,
       "type": "SaveAudioAdvanced",
       "pos": [
-        2220,
-        -135
+        4756,
+        635
       ],
       "size": [
         560,
@@ -590,8 +590,8 @@
       "id": 26,
       "type": "Note",
       "pos": [
-        1880,
-        140
+        100,
+        1140
       ],
       "size": [
         520,
@@ -616,8 +616,8 @@
       "id": 27,
       "type": "Note",
       "pos": [
-        55,
-        565
+        100,
+        1440
       ],
       "size": [
         330,

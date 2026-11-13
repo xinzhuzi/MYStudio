@@ -8,8 +8,8 @@
       "id": 12,
       "type": "PrimitiveNode",
       "pos": [
-        90,
-        -745
+        100,
+        120
       ],
       "size": [
         571,
@@ -43,8 +43,8 @@
       "id": 13,
       "type": "PrimitiveNode",
       "pos": [
-        92,
-        -360
+        100,
+        491
       ],
       "size": [
         500,
@@ -78,12 +78,12 @@
       "id": 15,
       "type": "CheckpointLoaderSimple",
       "pos": [
-        90,
-        80
+        100,
+        894
       ],
       "size": [
         372,
-        102
+        166
       ],
       "flags": {},
       "order": 2,
@@ -122,12 +122,12 @@
       "id": 23,
       "type": "YuE2GenerateABC",
       "pos": [
-        700,
-        140
+        871,
+        399
       ],
       "size": [
         400,
-        250
+        466
       ],
       "flags": {},
       "order": 3,
@@ -199,12 +199,12 @@
       "id": 14,
       "type": "PreviewAny",
       "pos": [
-        712,
-        470
+        1471,
+        458
       ],
       "size": [
         444,
-        200
+        348
       ],
       "flags": {},
       "order": 4,
@@ -233,8 +233,8 @@
       "id": 26,
       "type": "Note",
       "pos": [
-        90,
-        470
+        100,
+        1140
       ],
       "size": [
         520,
