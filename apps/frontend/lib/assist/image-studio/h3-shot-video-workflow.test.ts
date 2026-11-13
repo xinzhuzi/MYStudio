@@ -934,7 +934,7 @@ describe("三采分派与超时(1112 recavsr-mainline)", () => {
 });
 
 describe("buildShotH3SancaiApiWorkflow 1113 火力扩展(8卡+尾帧+参考视频)", () => {
-  it("r2v 8 卡满配:110-113/341-344 逐槽注入,槽5..8 链 341-344,尾帧/视频缺省摘除", () => {
+  it("r2v 满配:110-113/341-344 逐槽注入(1114 自适应后 7 异卡+帧=8 预算,第8卡帧补位),尾帧/视频缺省摘除", () => {
     const result = buildShotH3SancaiApiWorkflow({
       shot: makeShot() as never,
       chapterId: "chapter-001",
@@ -948,7 +948,10 @@ describe("buildShotH3SancaiApiWorkflow 1113 火力扩展(8卡+尾帧+参考视�
     });
     const a = result.apiGraph;
     const ids = ["110", "111", "112", "113", "341", "342", "343", "344"];
-    ids.forEach((id, i) => expect(a[id]!.inputs.image).toBe(`ref-${i + 1}.jpg`));
+    ids.forEach((id, i) => {
+      if (i < 7) expect(a[id]!.inputs.image).toBe(`ref-${i + 1}.jpg`);
+    });
+    expect(a["344"]!.inputs.image).toBe(a["9"]!.inputs.image); // 第8异图超预算被截→帧补位
     for (const nid of ["16", "208"]) {
       expect(a[nid]!.inputs["ref_images.ref_image_5"]).toEqual(["341", 0]);
       expect(a[nid]!.inputs["ref_images.ref_image_8"]).toEqual(["344", 0]);
@@ -958,6 +961,36 @@ describe("buildShotH3SancaiApiWorkflow 1113 火力扩展(8卡+尾帧+参考视�
     expect(a["346"]).toBeUndefined();
     expect(a["220"]!.inputs.last_frame).toBeUndefined();
     expect(a["16"]!.inputs["ref_videos.ref_video_0"]).toBeUndefined();
+  });
+
+  it("1114 自适应:异图(帧+参考去重)≤4 保 max(1110 定律原面);重复图不占预算", () => {
+    const few = buildShotH3SancaiApiWorkflow({
+      shot: makeShot() as never, chapterId: "chapter-001", chapterLabel: "第一章",
+      r2v: true, frameWidth: 960, frameHeight: 544,
+      refs: [{ name: "A", kind: "character", imageName: "r1.jpg" }, { name: "B", kind: "scene", imageName: "r2.jpg" }],
+    });
+    expect(few.apiGraph["16"]!.inputs.ref_image_size).toBe("max");
+    expect(few.apiGraph["208"]!.inputs.ref_image_size).toBe("max");
+    // 8 槽全填但仅 2 异图 → 仍 max 且全注入
+    const dup = buildShotH3SancaiApiWorkflow({
+      shot: makeShot() as never, chapterId: "chapter-001", chapterLabel: "第一章",
+      r2v: true, frameWidth: 960, frameHeight: 544,
+      refs: Array.from({ length: 8 }, (_, i) => ({ name: `x${i}`, kind: "character" as const, imageName: i % 2 ? "a.jpg" : "b.jpg" })),
+    });
+    expect(dup.apiGraph["16"]!.inputs.ref_image_size).toBe("max");
+    expect(dup.apiGraph["344"]!.inputs.image).toBe("a.jpg"); // 第8张(i=7,奇)=a.jpg
+  });
+
+  it("1114 自适应:5+ 异图降 match(实测 9 异图/大参考数×max=引擎原生崩)", () => {
+    const many = buildShotH3SancaiApiWorkflow({
+      shot: makeShot() as never, chapterId: "chapter-001", chapterLabel: "第一章",
+      r2v: true, frameWidth: 960, frameHeight: 544,
+      refs: [1, 2, 3, 4, 5, 6, 7, 8].map((i) => ({ name: `x${i}`, kind: "character" as const, imageName: `d${i}.jpg` })),
+    });
+    expect(many.apiGraph["16"]!.inputs.ref_image_size).toBe("match");
+    expect(many.apiGraph["208"]!.inputs.ref_image_size).toBe("match");
+    expect(many.apiGraph["343"]!.inputs.image).toBe("d7.jpg");
+    expect(many.apiGraph["344"]!.inputs.image).toBe(many.apiGraph["9"]!.inputs.image);
   });
 
   it("endFrame 有=345 注入+last_frame 保持;i2v 满槽=8 卡全分镜帧补位", () => {

@@ -771,7 +771,15 @@ export function buildShotH3ThreeStageWorkflow(
  *  二采恒消费 ref_image_1..4,占位名禁进 API 图直投)。 */
 export function buildShotH3SancaiApiWorkflow(input: ShotH3SancaiApiWorkflowInput): ShotH3SancaiApiWorkflowResult {
   const r2v = input.r2v ?? true;
-  const refs = (input.refs ?? []).slice(0, SANCAI_REF_IDS.length);
+  // 1114 自适应(用户裁定;17000 实测:异图≥9 或 大参考数×max=引擎原生崩,8异图×match 稳):
+  // 帧+参考按 imageName 去重计预算,异图上限 8(重复图不占预算),超预算截参考尾。
+  const distinctBudget = new Set<string>([input.imageName ?? "__frame__"]);
+  const refs = (input.refs ?? []).slice(0, SANCAI_REF_IDS.length).filter((ref) => {
+    if (distinctBudget.has(ref.imageName)) return true;
+    if (distinctBudget.size >= 8) return false;
+    distinctBudget.add(ref.imageName);
+    return true;
+  });
   const ladder = computeSancaiResolutionLadder(input.frameWidth, input.frameHeight);
 
   // ① 画布档同源组装(提示词+自检门+MyShot 三键+9/110-113/341-344 激活,1113 火力满配 8 槽)
@@ -829,6 +837,10 @@ export function buildShotH3SancaiApiWorkflow(input: ShotH3SancaiApiWorkflowInput
     const name = r2v && ref ? ref.imageName : imageName;
     getApiNode(apiGraph, String(nodeId), "LoadImage").inputs.image = name;
   });
+  // 1114 自适应:异图(帧+参考去重)≤4 保 max(1110 定律原面);≥5 降 match(实测大参考数×max=引擎原生崩)
+  const refImageSize = distinctBudget.size <= 4 ? "max" : "match";
+  getApiNode(apiGraph, "16", "MiniMaxH3ReferenceToVideo").inputs.ref_image_size = refImageSize;
+  getApiNode(apiGraph, "208", "MiniMaxH3ReferenceToVideo").inputs.ref_image_size = refImageSize;
   // ④ 尾帧(i2v 首尾双锚;缺省摘 345+220.last_frame,禁空喂占位)
   if (input.endFrame) {
     getApiNode(apiGraph, "345", "LoadImage").inputs.image = input.endFrame;
