@@ -25,7 +25,7 @@ frame = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(frame)
 
 STEPS_DIR = _TESTS.parents[3] / "apps/output/daojie-sheet-b-1112"
-GOLDEN_SHA = "419639ab6c25b3ff3554b80165eae03065e29d90b44cfd018f62c59bd746b7fd"
+GOLDEN_SHA = "e6221c367a02890c597c96aceb25fdc6ffdabd6d8d4578513532557d275394db"  # v1.1 净空三视图重掷(1113 用户勘背景/机位);金样重对
 
 
 def test_placeholder_compose(tmp_path):

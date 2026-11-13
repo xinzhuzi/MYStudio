@@ -49,10 +49,9 @@ NOTE = """## 道劫·角色设定卡(格式一 v1,1113 道劫正册化)
 def _prompts():
     bases = json.loads(BASES.read_text(encoding="utf-8"))
     sc = bases["sheet_card"]
-    assert sc["format_version"] == "v1"
+    assert sc["format_version"] == "v1.1"
     style = bases["art_style_base"]["positive_text"]
-    t_person = next(t["positive_text"] for t in bases["types"]
-                    if t["zh"] == sc["master"]["type"])
+    m_base = sc["master"]["positive_text"]  # v1.1 起 master 自有净空立绘底座
     t_item = next(t["positive_text"] for t in bases["types"]
                   if t["zh"] == sc["weapon"]["type"])
     weapon_field = next(p.split(":", 1)[1] for p in SUBJECT_DEFAULT.split("|")
@@ -60,7 +59,7 @@ def _prompts():
     ability_field = next(p.split(":", 1)[1] for p in SUBJECT_DEFAULT.split("|")
                          if p.startswith("能力:"))
     return {
-        "master": "\n".join([SUBJECT_DEFAULT, t_person, style]),
+        "master": "\n".join([SUBJECT_DEFAULT, m_base, style]),
         "instr": sc["edit_instructions"],
         "weapon": "\n".join([sc["weapon"]["subject_template"].format(
             name=NAME_DEFAULT, weapon=weapon_field), t_item, style]),

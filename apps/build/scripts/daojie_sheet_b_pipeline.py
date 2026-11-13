@@ -48,9 +48,10 @@ SHEET_REQUIRED_KEYS = ("master", "edit_instructions", "weapon", "effect", "seeds
 
 def sheet_cfg(bases: dict) -> dict:
     sc = bases.get("sheet_card") or {}
-    assert sc.get("format_version") == "v1", "sheet_card 真源缺位或版本漂移"
-    for k in SHEET_REQUIRED_KEYS:
+    assert sc.get("format_version") == "v1.1", "sheet_card 真源缺位或版本漂移"
+    for k in SHEET_REQUIRED_KEYS + ("master",):
         assert k in sc, f"sheet_card 缺 {k}"
+    assert sc["master"].get("positive_text"), "master 底座句缺位(v1.1 起 master 自有底座)"
     return sc
 
 
@@ -199,7 +200,7 @@ def main() -> int:
     bases = json.loads(BASES.read_text(encoding="utf-8"))
     sc = sheet_cfg(bases)
     style_pos = bases["art_style_base"]["positive_text"]
-    t_person = next(t["positive_text"] for t in bases["types"] if t["zh"] == sc["master"]["type"])
+    m_base = sc["master"]["positive_text"]  # v1.1 起 master 自有净空立绘底座
     t_item = next(t["positive_text"] for t in bases["types"] if t["zh"] == sc["weapon"]["type"])
     subject_raw, f = parse_subject(Path(args.subject))
     name = f.get("姓名", args.name)
@@ -210,7 +211,7 @@ def main() -> int:
     # 步表:(tag, 依赖tag|None, 构造器)
     def steps():
         yield "master", None, build_t2i(
-            "\n".join([subject_raw, t_person, style_pos]),
+            "\n".join([subject_raw, m_base, style_pos]),
             sc["master"]["width"], sc["master"]["height"],
             args.seed, "sheetB/master")
         for tag in ("side", "back", "face", "wrist", "waist"):
