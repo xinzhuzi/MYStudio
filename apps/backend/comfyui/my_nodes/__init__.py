@@ -55,6 +55,7 @@ from .nodes.my_qi21_purpose_canvas import MyQi21PurposeCanvas
 from .nodes.my_qi21_fast_encode import MyQi21FastEncode
 from .nodes.my_qi21_latent_upscale import MyQi21LatentUpscale
 from .nodes.my_qi21_color_anchor import MyQi21ColorAnchor
+from .nodes.my_director_console import MyDirectorConsole  # 1113 导演台真复刻阶段1(11-13-director-console-remake)
 from . import cloud_takeover
 from . import prompt_log_server as _prompt_log_server
 from . import my_styles_server as _my_styles_server
@@ -177,6 +178,7 @@ NODE_CLASS_MAPPINGS = {
     "MyModelBus": MyModelBus,
     "MyCharsheetLabels": MyCharsheetLabels,
     "MyImageSave": MyImageSave,  # 1001 TE-MAN B7①:存图可追溯(核心存图子类+底部 prompt 面板,ui.myPrompt 回传)
+    "MyDirectorConsole": MyDirectorConsole,  # 1113 导演台(阶段1 壳:四 loader 口+timeline_data 单通道+空转占位帧)
     # 旧名别名(09-14 改名前存量工作流的节点 type 键)
     "ManyingPrompt": MyPromptLegacy,
     "ManyingReference": MyReferenceLegacy,
@@ -233,6 +235,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MyModelBus": "漫影 道劫模型分线排",
     "MyCharsheetLabels": "漫影 设定表标注",
     "MyImageSave": "漫影 存图(可追溯)",
+    "MyDirectorConsole": "导演台",
     # 旧键同名显示(画布上旧工作流节点标题照旧渲染「漫影 …」)
     "ManyingPrompt": "漫影 提示词",
     "ManyingReference": "漫影 参考图",
