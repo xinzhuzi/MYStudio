@@ -41,35 +41,35 @@
           "name": "ref_images.ref_image_0",
           "shape": 7,
           "type": "IMAGE",
-          "link": 506
+          "link": 500
         },
         {
           "label": "ref_image_1",
           "name": "ref_images.ref_image_1",
           "shape": 7,
           "type": "IMAGE",
-          "link": 507
+          "link": null
         },
         {
           "label": "ref_image_2",
           "name": "ref_images.ref_image_2",
           "shape": 7,
           "type": "IMAGE",
-          "link": 508
+          "link": null
         },
         {
           "label": "ref_image_3",
           "name": "ref_images.ref_image_3",
           "shape": 7,
           "type": "IMAGE",
-          "link": 509
+          "link": null
         },
         {
           "label": "ref_image_4",
           "name": "ref_images.ref_image_4",
           "shape": 7,
           "type": "IMAGE",
-          "link": 510
+          "link": null
         },
         {
           "label": "ref_video_0",
@@ -110,7 +110,7 @@
           "widget": {
             "name": "prompt"
           },
-          "link": 501
+          "link": 503
         },
         {
           "name": "width",
@@ -625,7 +625,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 774
+          "link": null
         },
         {
           "name": "conditioning",
@@ -1066,7 +1066,7 @@
           "name": "first_frame",
           "shape": 7,
           "type": "IMAGE",
-          "link": 565
+          "link": 501
         },
         {
           "localized_name": "last_frame",
@@ -1082,7 +1082,7 @@
           "widget": {
             "name": "prompt"
           },
-          "link": 566
+          "link": null
         },
         {
           "localized_name": "width",
@@ -1585,35 +1585,35 @@
           "name": "ref_images.ref_image_0",
           "shape": 7,
           "type": "IMAGE",
-          "link": 613
+          "link": null
         },
         {
           "label": "ref_image_1",
           "name": "ref_images.ref_image_1",
           "shape": 7,
           "type": "IMAGE",
-          "link": 614
+          "link": null
         },
         {
           "label": "ref_image_2",
           "name": "ref_images.ref_image_2",
           "shape": 7,
           "type": "IMAGE",
-          "link": 615
+          "link": null
         },
         {
           "label": "ref_image_3",
           "name": "ref_images.ref_image_3",
           "shape": 7,
           "type": "IMAGE",
-          "link": 616
+          "link": null
         },
         {
           "label": "ref_image_4",
           "name": "ref_images.ref_image_4",
           "shape": 7,
           "type": "IMAGE",
-          "link": 617
+          "link": null
         },
         {
           "label": "ref_video_0",
@@ -1654,7 +1654,7 @@
           "widget": {
             "name": "prompt"
           },
-          "link": 618
+          "link": 504
         },
         {
           "name": "width",
@@ -2884,6 +2884,73 @@
       "widgets_values": [
         "## 三采-单镜·产线速查\n\n**链路**:一采 960×544(Pika Turbo 8步+sol-attn+ChunkFFFF+kitchen)→ 二采 1440×832(TaoMate@0.7·3步lcm·dn0.2)→ 三采 ReCaVSR scale2(2880×1664→归一 1080p)。\n**发车**:直接跑;[4] SaveVideo=终产物锚(五段前缀注入+MyShot 回写);[340]=ReCaVSR 出口。\n**运行法则**(Note103):拆链=一二采一发→POST /free→三采独立一发;分辨率阶梯按 AR 推导改 16/220/208/206 四处。\n**正典**:参考图=超分+磨皮 4096 产物+恒 max(1110 定律:图质越高视频越好);seed fixed 42;σ接线=调度器吃 σshift 后模型(93b329e1)。"
       ]
+    },
+    {
+      "id": 9,
+      "type": "LoadImage",
+      "pos": [
+        1900,
+        900
+      ],
+      "size": [
+        300,
+        400
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            500,
+            501
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "t2i无审查超分_磨皮__00007_.png",
+        "image"
+      ]
+    },
+    {
+      "id": 14,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        1900,
+        1400
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            503,
+            504
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        ""
+      ]
     }
   ],
   "links": [
@@ -3478,6 +3545,34 @@
       340,
       0,
       "VIDEO"
+    ],
+    [
+      500,
+      9,
+      0,
+      16,
+      3
+    ],
+    [
+      503,
+      14,
+      0,
+      16,
+      13
+    ],
+    [
+      504,
+      14,
+      0,
+      208,
+      13
+    ],
+    [
+      501,
+      9,
+      0,
+      220,
+      2
     ]
   ],
   "groups": [
