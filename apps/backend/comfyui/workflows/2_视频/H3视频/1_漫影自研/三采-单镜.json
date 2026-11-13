@@ -5,134 +5,6 @@
   "last_link_id": 782,
   "nodes": [
     {
-      "id": 9,
-      "type": "LoadImage",
-      "pos": [
-        80,
-        560
-      ],
-      "size": [
-        290,
-        330
-      ],
-      "flags": {},
-      "order": 9,
-      "mode": 4,
-      "inputs": [
-        {
-          "localized_name": "图像",
-          "name": "image",
-          "type": "COMBO",
-          "widget": {
-            "name": "image"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "选择文件上传",
-          "name": "upload",
-          "type": "IMAGEUPLOAD",
-          "widget": {
-            "name": "upload"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "图像",
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            506,
-            565,
-            613
-          ]
-        },
-        {
-          "localized_name": "遮罩",
-          "name": "MASK",
-          "type": "MASK",
-          "links": []
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadImage",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        },
-        "cnr_id": "comfy-core",
-        "ver": "0.33.2"
-      },
-      "widgets_values": [
-        "manying-shot-h3-placeholder.jpg",
-        "image"
-      ],
-      "widgets_values_named": {
-        "image": "Krea2_无衣__00003_.png",
-        "upload": "image"
-      }
-    },
-    {
-      "id": 14,
-      "type": "PrimitiveStringMultiline",
-      "pos": [
-        80,
-        1082
-      ],
-      "size": [
-        636.53125,
-        296.453125
-      ],
-      "flags": {},
-      "order": 14,
-      "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "值",
-          "name": "value",
-          "type": "STRING",
-          "widget": {
-            "name": "value"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "字符串",
-          "name": "STRING",
-          "type": "STRING",
-          "links": [
-            501,
-            566,
-            618
-          ]
-        }
-      ],
-      "title": "提示词",
-      "properties": {
-        "Node name for S&R": "PrimitiveStringMultiline",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        },
-        "cnr_id": "comfy-core",
-        "ver": "0.33.2"
-      },
-      "widgets_values": [
-        ""
-      ],
-      "widgets_values_named": {
-        "value": ""
-      },
-      "color": "#232",
-      "bgcolor": "#353"
-    },
-    {
       "id": 16,
       "type": "MiniMaxH3ReferenceToVideo",
       "pos": [
@@ -454,286 +326,6 @@
       },
       "color": "#322",
       "bgcolor": "#533"
-    },
-    {
-      "id": 110,
-      "type": "LoadImage",
-      "pos": [
-        80,
-        2016
-      ],
-      "size": [
-        290,
-        330
-      ],
-      "flags": {},
-      "order": 110,
-      "mode": 4,
-      "inputs": [
-        {
-          "localized_name": "图像",
-          "name": "image",
-          "type": "COMBO",
-          "widget": {
-            "name": "image"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "选择文件上传",
-          "name": "upload",
-          "type": "IMAGEUPLOAD",
-          "widget": {
-            "name": "upload"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "图像",
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            507,
-            614
-          ]
-        },
-        {
-          "localized_name": "遮罩",
-          "name": "MASK",
-          "type": "MASK",
-          "links": []
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadImage",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        },
-        "cnr_id": "comfy-core",
-        "ver": "0.33.2"
-      },
-      "widgets_values": [
-        "manying-shot-h3-ref-placeholder.jpg",
-        "image"
-      ],
-      "widgets_values_named": {
-        "image": "Krea2_无衣__00003_.png",
-        "upload": "image"
-      }
-    },
-    {
-      "id": 111,
-      "type": "LoadImage",
-      "pos": [
-        80,
-        2538
-      ],
-      "size": [
-        290,
-        330
-      ],
-      "flags": {},
-      "order": 111,
-      "mode": 4,
-      "inputs": [
-        {
-          "localized_name": "图像",
-          "name": "image",
-          "type": "COMBO",
-          "widget": {
-            "name": "image"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "选择文件上传",
-          "name": "upload",
-          "type": "IMAGEUPLOAD",
-          "widget": {
-            "name": "upload"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "图像",
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            508,
-            615
-          ]
-        },
-        {
-          "localized_name": "遮罩",
-          "name": "MASK",
-          "type": "MASK",
-          "links": []
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadImage",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        },
-        "cnr_id": "comfy-core",
-        "ver": "0.33.2"
-      },
-      "widgets_values": [
-        "manying-shot-h3-ref-placeholder.jpg",
-        "image"
-      ],
-      "widgets_values_named": {
-        "image": "Krea2_无衣__00003_.png",
-        "upload": "image"
-      }
-    },
-    {
-      "id": 112,
-      "type": "LoadImage",
-      "pos": [
-        80,
-        3060
-      ],
-      "size": [
-        290,
-        330
-      ],
-      "flags": {},
-      "order": 112,
-      "mode": 4,
-      "inputs": [
-        {
-          "localized_name": "图像",
-          "name": "image",
-          "type": "COMBO",
-          "widget": {
-            "name": "image"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "选择文件上传",
-          "name": "upload",
-          "type": "IMAGEUPLOAD",
-          "widget": {
-            "name": "upload"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "图像",
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            509,
-            616
-          ]
-        },
-        {
-          "localized_name": "遮罩",
-          "name": "MASK",
-          "type": "MASK",
-          "links": []
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadImage",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        },
-        "cnr_id": "comfy-core",
-        "ver": "0.33.2"
-      },
-      "widgets_values": [
-        "manying-shot-h3-ref-placeholder.jpg",
-        "image"
-      ],
-      "widgets_values_named": {
-        "image": "Krea2_无衣__00003_.png",
-        "upload": "image"
-      }
-    },
-    {
-      "id": 113,
-      "type": "LoadImage",
-      "pos": [
-        80,
-        3582
-      ],
-      "size": [
-        290,
-        330
-      ],
-      "flags": {},
-      "order": 113,
-      "mode": 4,
-      "inputs": [
-        {
-          "localized_name": "图像",
-          "name": "image",
-          "type": "COMBO",
-          "widget": {
-            "name": "image"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "选择文件上传",
-          "name": "upload",
-          "type": "IMAGEUPLOAD",
-          "widget": {
-            "name": "upload"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "图像",
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            510,
-            617
-          ]
-        },
-        {
-          "localized_name": "遮罩",
-          "name": "MASK",
-          "type": "MASK",
-          "links": []
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadImage",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        },
-        "cnr_id": "comfy-core",
-        "ver": "0.33.2"
-      },
-      "widgets_values": [
-        "manying-shot-h3-ref-placeholder.jpg",
-        "image"
-      ],
-      "widgets_values_named": {
-        "image": "Krea2_无衣__00003_.png",
-        "upload": "image"
-      }
     },
     {
       "id": 119,
@@ -1397,152 +989,6 @@
       "widgets_values_named": {
         "lora_name": "pika_h3_flex_ref2va_comfy_bf16.safetensors",
         "strength_model": 1
-      }
-    },
-    {
-      "id": 101,
-      "type": "MarkdownNote",
-      "pos": [
-        80,
-        80
-      ],
-      "size": [
-        420,
-        340
-      ],
-      "flags": {},
-      "order": 101,
-      "mode": 0,
-      "widgets_values": [
-        "## 漫影 Pika ref2va 主力线(1101 用户裁定「ref2va 更适合分镜产线」)\n\n**定位**:角色卡+场景卡+分镜帧锁身份——分镜帧恒占 Picture 1(ref_image_0),\n角色/场景卡占 Picture 2-5(110-113,出厂旁路,组装器按 refs 激活)。\n**契约**(逐字取自 PikaFlex-REF2VA 官方模板):MiniMaxH3ReferenceToVideo\n(≠ fl2va 线 ImageToVideo,无 first_frame 口)+ ref2va int8 pruned 底模\n+ Pika LoRA@1.0 + lcm + 6-NFE ManualSigmas + ref_image_size=match。\n**同 fl2va 增量**:kitchen attention(B 臂白拿 -9.2%,音频同簇);seed fixed 42。\n**分辨率**:三段链出厂 960×544(0.52MP,1110 A/B 实测 1280 无增益,用户定 960);二采目标 1440×832(引擎画布 32 网格吸附值,1110 实测);三采 RelayVSR 1920 宽→1110,交付裁 15px 上下=1920×1080;参考图=超分+磨皮 4096 产物(1110 定律:图质越高视频越好)+恒 max;一采加速件全名=Pika Turbo 8 步;禁官方原生 1344x768 直出。\n**API 直投禁令**:API 图(pika-ref-shot-template.api.json,20 节点)不含\nMyShot/占位节点——直投无 extraPngInfo;回收走五段前缀+execute result 回流,\n画布档保留 100 MyShot 写回。**未实弹**:候 Win 四件模型下载毕后热跑首发。"
-      ]
-    },
-    {
-      "id": 102,
-      "type": "MarkdownNote",
-      "pos": [
-        640,
-        80
-      ],
-      "size": [
-        420,
-        240
-      ],
-      "flags": {},
-      "order": 102,
-      "mode": 0,
-      "widgets_values": [
-        "",
-        "## 产线锚点契约(与 r2v 族骨架同构)\n\n- 14.value:提示词(六段式 buildShotH3RefPrompt 整段覆写)\n- 20.value:秒数(17k+5 网格吸附,131 号 ComfyMathExpression 换算帧数)\n- 9.image:分镜帧(Picture 1=ref_images.ref_image_0,出厂旁路)\n- 110-113.image:角色/场景卡(Picture 2-5=ref_images.ref_image_1..4,出厂旁路)\n- 16.width/16.height:864x480 直填出厂(22 号 0.4MP 16:9 档覆写;三段链出厂值)\n- 16 号:MiniMaxH3ReferenceToVideo(r2v 族锚,≠ i2v 族的 first_frame 口)\n- 4.filename_prefix:五段前缀(ref-* 策略段,回收链)\n- 100:MyShot 回写"
-      ]
-    },
-    {
-      "id": 103,
-      "type": "MarkdownNote",
-      "pos": [
-        1200,
-        80
-      ],
-      "size": [
-        560,
-        460
-      ],
-      "flags": {},
-      "order": 103,
-      "mode": 0,
-      "widgets_values": [
-        "## 三段链用法(1105)\n\n**默认路径**:直接跑 → ①一阶段采样(Pika Turbo 8步 1280×704)+ ②二采放大(TaoMate 3步\nlcm/simple/dn0.2 → **1440×832 终档**)。[4] 号 SaveVideo=锚(五段前缀注入+MyShot 回写);\n[204] 号存一采预览。\n\n**标准上探=RelayVSR 1080p 档(1106 深夜终裁:默认 1080p,不上 2K)**:②组产物 → `3_超分后处理/relayvsr-超分-2x.json`(横屏 upscale_width=1920→1920×1056→ffmpeg lanczos 归一 1080p;竖屏 upscale_width=1080→1080×1944;~3min/10s 片,offload 恒开永不关;2K/1440 非默认——1440 二跳实测≈21min 性价比不敌)→ffmpeg lanczos 归一 1080p;1.09s/帧 速度档,offload 恒开永不关)。SeedVR2 1080p 档降为备用修复系(1105 8a1fd7e 入库,崩脸救援)。\n**质量档(默认旁路,作测试)**:③组全 mode=2 不跑。要测:右键③组 unmute → [300] LoadVideo\n指向②组产物(或拷入 input 目录)→ 跑出 1920×1056(CRF12)。**1080p 交付归一(图外 ffmpeg)**:\nffmpeg -i in.mp4 -vf scale=1920:1080:flags=lanczos -c:v libx264 -crf 18 -preset slow -c:a copy out.mp4\n\n**红线**:TaoMate 二采采样器必须 **lcm**(Euler→片尾字幕乱码,UP 亲测);CFG 恒 1.0(蒸馏件\n烧 CFG)。SigmaShift [12,3] 取社区族值(UP 帧仅证 audio=3)。\n**档位**:一采出厂 0.52MP=960×544(1110 A/B 裁定);二采目标 [206] 1440×832;三采 [外挂 relayvsr] 1920 宽。\n1111 ReCaVSR 挑战臂:二采 1440×832 → int8/fast/scale2 → 2880×1664(交付层归一 1080,对称 RelayVSR 裁 15px 口径)\n1112 终裁换防主线(用户令「ReCaVSR 非常不错,就做这个主线,三采单镜」)。运行法则:①发车拆链=一二采一发→POST /free {\"unload_models\":true}→三采独立一发(全链单 prompt 因 H3 全家桶驻留显存,三采被饿至 2~5s/帧=31:56 实测;拆链+/free 后 243f 三采≈70s);②分辨率阶梯按输入图 AR 推导:一采~0.52MP/二采~1.2MP 按 AR 开方、全 32 对齐(16:9=960×544→1440×832→×2;1:1=736²→1088²→2176²;竖图镜像),改 16/220/208/206 四处,22 号输出按需旁路;③1:1 方图 10s 实测=472.5+70.3=9:03(暖机含加载)。"
-      ]
-    },
-    {
-      "id": 204,
-      "type": "SaveVideo",
-      "pos": [
-        4960,
-        560
-      ],
-      "size": [
-        283.125,
-        358.65625
-      ],
-      "flags": {},
-      "order": 204,
-      "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "视频",
-          "name": "video",
-          "type": "VIDEO",
-          "link": 630
-        },
-        {
-          "localized_name": "文件名前缀",
-          "name": "filename_prefix",
-          "type": "STRING",
-          "widget": {
-            "name": "filename_prefix"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "格式",
-          "name": "format",
-          "type": "COMFY_DYNAMICCOMBO_V3",
-          "widget": {
-            "name": "format"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "codec",
-          "name": "format.codec",
-          "type": "COMFY_DYNAMICCOMBO_V3",
-          "widget": {
-            "name": "format.codec"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "编码器",
-          "name": "codec",
-          "shape": 7,
-          "type": "COMFY_DYNAMICCOMBO_V3",
-          "widget": {
-            "name": "codec"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "video",
-          "name": "video",
-          "type": "VIDEO",
-          "links": []
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "SaveVideo",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        },
-        "cnr_id": "comfy-core",
-        "ver": "0.33.2"
-      },
-      "widgets_values": [
-        "video/漫影/chapter-001/sb-chapter-001-001/p1-preview",
-        "auto",
-        "auto",
-        "auto"
-      ],
-      "title": "一采预览",
-      "widgets_values_named": {
-        "filename_prefix": "video/漫影/chapter-001/sb-chapter-001-001/p1-preview",
-        "format": "auto",
-        "format.codec": "auto",
-        "codec": "auto"
       }
     },
     {
@@ -3177,217 +2623,6 @@
       "title": "ChunkFFN[2,4096](一采·r2v 路)"
     },
     {
-      "id": 264,
-      "type": "MiniMaxH3TokenCounter",
-      "pos": [
-        2700,
-        1150
-      ],
-      "size": [
-        280,
-        130
-      ],
-      "flags": {},
-      "order": 30,
-      "mode": 0,
-      "showAdvanced": null,
-      "inputs": [
-        {
-          "name": "samples",
-          "type": "LATENT",
-          "link": 764,
-          "widget": null,
-          "shape": null,
-          "label": null,
-          "localized_name": "samples",
-          "dir": null,
-          "color_off": null,
-          "color_on": null,
-          "locked": null,
-          "nameLocked": null,
-          "removable": null
-        },
-        {
-          "name": "conditioning",
-          "type": "CONDITIONING",
-          "link": 762,
-          "widget": null,
-          "shape": null,
-          "label": null,
-          "localized_name": "conditioning",
-          "dir": null,
-          "color_off": null,
-          "color_on": null,
-          "locked": null,
-          "nameLocked": null,
-          "removable": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "samples",
-          "type": "LATENT",
-          "links": [],
-          "slot_index": 0
-        },
-        {
-          "name": "conditioning",
-          "type": "CONDITIONING",
-          "links": [],
-          "slot_index": 1
-        },
-        {
-          "name": "tokens",
-          "type": "INT",
-          "links": [
-            768
-          ],
-          "slot_index": 2
-        },
-        {
-          "name": "breakdown",
-          "type": "STRING",
-          "links": [],
-          "slot_index": 3
-        }
-      ],
-      "title": "TokenCounter(一采默认·1108 用户令)",
-      "properties": {
-        "Node name for S&R": "MiniMaxH3TokenCounter"
-      }
-    },
-    {
-      "id": 265,
-      "type": "PreviewAny",
-      "pos": [
-        2960,
-        1160
-      ],
-      "size": [
-        280,
-        120
-      ],
-      "flags": {},
-      "order": 31,
-      "mode": 0,
-      "showAdvanced": null,
-      "inputs": [
-        {
-          "name": "source",
-          "type": "*",
-          "link": 768,
-          "widget": null,
-          "shape": null,
-          "label": null,
-          "localized_name": "source",
-          "dir": null,
-          "color_off": null,
-          "color_on": null,
-          "locked": null,
-          "nameLocked": null,
-          "removable": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "STRING",
-          "type": "STRING",
-          "links": [],
-          "slot_index": 0
-        }
-      ],
-      "title": "TokenCounter 读数(一采)",
-      "properties": {
-        "Node name for S&R": "PreviewAny"
-      }
-    },
-    {
-      "id": 266,
-      "type": "ModelPreviewOverrideKJ",
-      "pos": [
-        2680,
-        560
-      ],
-      "size": [
-        300,
-        200
-      ],
-      "flags": {},
-      "order": 32,
-      "mode": 0,
-      "showAdvanced": null,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 773,
-          "widget": null,
-          "shape": null,
-          "label": null,
-          "localized_name": "model",
-          "dir": null,
-          "color_off": null,
-          "color_on": null,
-          "locked": null,
-          "nameLocked": null,
-          "removable": null
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": null,
-          "widget": null,
-          "shape": 7,
-          "label": null,
-          "localized_name": "vae",
-          "dir": null,
-          "color_off": null,
-          "color_on": null,
-          "locked": null,
-          "nameLocked": null,
-          "removable": null
-        },
-        {
-          "name": "audio_vae",
-          "type": "VAE",
-          "link": null,
-          "widget": null,
-          "shape": 7,
-          "label": null,
-          "localized_name": "audio_vae",
-          "dir": null,
-          "color_off": null,
-          "color_on": null,
-          "locked": null,
-          "nameLocked": null,
-          "removable": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            774
-          ],
-          "slot_index": 0
-        }
-      ],
-      "title": "taeh3 实时预览(一采·1108 用户令)",
-      "properties": {
-        "Node name for S&R": "ModelPreviewOverrideKJ"
-      },
-      "widgets_values": [
-        1024,
-        80,
-        true,
-        1,
-        12,
-        "taeh3.safetensors",
-        ""
-      ]
-    },
-    {
       "id": 267,
       "type": "BlockSparseAttention",
       "pos": [
@@ -3434,183 +2669,6 @@
         false
       ],
       "title": "sol-attn τ1.3(二采·1108 用户令)"
-    },
-    {
-      "id": 268,
-      "type": "RelayVSRModelLoader",
-      "pos": [
-        11150,
-        80
-      ],
-      "size": [
-        315,
-        130
-      ],
-      "flags": {},
-      "order": 200,
-      "mode": 2,
-      "inputs": [
-        {
-          "name": "bundle",
-          "type": "COMBO",
-          "link": null,
-          "widget": true
-        },
-        {
-          "name": "dtype",
-          "type": "COMBO",
-          "link": null,
-          "widget": true
-        },
-        {
-          "name": "offload",
-          "type": "BOOLEAN",
-          "link": null,
-          "widget": true
-        },
-        {
-          "name": "path",
-          "type": "STRING",
-          "link": null,
-          "widget": true
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "RELAYVSR_MODEL",
-          "links": [
-            779
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "RelayVSRModelLoader"
-      },
-      "widgets_values": [
-        "RelayVSR_X2",
-        "bf16",
-        true,
-        ""
-      ]
-    },
-    {
-      "id": 269,
-      "type": "RelayVSRUpscaleStreaming",
-      "pos": [
-        11500,
-        80
-      ],
-      "size": [
-        370,
-        420
-      ],
-      "flags": {},
-      "order": 201,
-      "mode": 2,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "RELAYVSR_MODEL",
-          "link": 779
-        },
-        {
-          "name": "video",
-          "type": "VIDEO",
-          "link": 778
-        },
-        {
-          "name": "upscale_width",
-          "type": "INT",
-          "link": null,
-          "widget": true
-        },
-        {
-          "name": "sr_ratio",
-          "type": "INT",
-          "link": null,
-          "widget": true
-        },
-        {
-          "name": "chunk_len",
-          "type": "INT",
-          "link": null,
-          "widget": true
-        },
-        {
-          "name": "seed",
-          "type": "INT",
-          "link": null,
-          "widget": true
-        },
-        {
-          "name": "chunk_overlap",
-          "type": "INT",
-          "link": null,
-          "widget": true
-        },
-        {
-          "name": "spatial_grid_cols",
-          "type": "INT",
-          "link": null,
-          "widget": true
-        },
-        {
-          "name": "spatial_grid_rows",
-          "type": "INT",
-          "link": null,
-          "widget": true
-        },
-        {
-          "name": "spatial_overlap",
-          "type": "INT",
-          "link": null,
-          "widget": true
-        },
-        {
-          "name": "codec",
-          "type": "COMBO",
-          "link": null,
-          "widget": true
-        },
-        {
-          "name": "crf",
-          "type": "FLOAT",
-          "link": null,
-          "widget": true
-        },
-        {
-          "name": "preset",
-          "type": "COMBO",
-          "link": null,
-          "widget": true
-        },
-        {
-          "name": "filename_prefix",
-          "type": "STRING",
-          "link": null,
-          "widget": true
-        }
-      ],
-      "outputs": [],
-      "properties": {
-        "Node name for S&R": "RelayVSRUpscaleStreaming"
-      },
-      "widgets_values": [
-        1920,
-        2,
-        24,
-        0,
-        4,
-        1,
-        1,
-        64,
-        "h264",
-        18.0,
-        "medium",
-        "video/漫影/chapter-001/sb-chapter-001-001/p3-relayvsr"
-      ]
     },
     {
       "id": 338,
@@ -3805,6 +2863,27 @@
         "format.codec": "auto",
         "codec": "auto"
       }
+    },
+    {
+      "id": 101,
+      "type": "MarkdownNote",
+      "pos": [
+        80,
+        80
+      ],
+      "size": [
+        500,
+        400
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## 三采-单镜·产线速查\n\n**链路**:一采 960×544(Pika Turbo 8步+sol-attn+ChunkFFFF+kitchen)→ 二采 1440×832(TaoMate@0.7·3步lcm·dn0.2)→ 三采 ReCaVSR scale2(2880×1664→归一 1080p)。\n**发车**:直接跑;[4] SaveVideo=终产物锚(五段前缀注入+MyShot 回写);[340]=ReCaVSR 出口。\n**运行法则**(Note103):拆链=一二采一发→POST /free→三采独立一发;分辨率阶梯按 AR 推导改 16/220/208/206 四处。\n**正典**:参考图=超分+磨皮 4096 产物+恒 max(1110 定律:图质越高视频越好);seed fixed 42;σ接线=调度器吃 σshift 后模型(93b329e1)。"
+      ]
     }
   ],
   "links": [
@@ -3831,22 +2910,6 @@
       220,
       1,
       "VAE"
-    ],
-    [
-      565,
-      9,
-      0,
-      220,
-      2,
-      "IMAGE"
-    ],
-    [
-      566,
-      14,
-      0,
-      220,
-      4,
-      "STRING"
     ],
     [
       567,
@@ -3945,14 +3008,6 @@
       "LATENT"
     ],
     [
-      501,
-      14,
-      0,
-      16,
-      13,
-      "STRING"
-    ],
-    [
       502,
       20,
       0,
@@ -3983,46 +3038,6 @@
       16,
       15,
       "INT"
-    ],
-    [
-      506,
-      9,
-      0,
-      16,
-      3,
-      "IMAGE"
-    ],
-    [
-      507,
-      110,
-      0,
-      16,
-      4,
-      "IMAGE"
-    ],
-    [
-      508,
-      111,
-      0,
-      16,
-      5,
-      "IMAGE"
-    ],
-    [
-      509,
-      112,
-      0,
-      16,
-      6,
-      "IMAGE"
-    ],
-    [
-      510,
-      113,
-      0,
-      16,
-      7,
-      "IMAGE"
     ],
     [
       511,
@@ -4225,54 +3240,6 @@
       "VAE"
     ],
     [
-      613,
-      9,
-      0,
-      208,
-      3,
-      "IMAGE"
-    ],
-    [
-      614,
-      110,
-      0,
-      208,
-      4,
-      "IMAGE"
-    ],
-    [
-      615,
-      111,
-      0,
-      208,
-      5,
-      "IMAGE"
-    ],
-    [
-      616,
-      112,
-      0,
-      208,
-      6,
-      "IMAGE"
-    ],
-    [
-      617,
-      113,
-      0,
-      208,
-      7,
-      "IMAGE"
-    ],
-    [
-      618,
-      14,
-      0,
-      208,
-      13,
-      "STRING"
-    ],
-    [
       619,
       129,
       0,
@@ -4357,14 +3324,6 @@
       214,
       0,
       4,
-      0,
-      "VIDEO"
-    ],
-    [
-      630,
-      130,
-      0,
-      204,
       0,
       "VIDEO"
     ],
@@ -4465,22 +3424,6 @@
       "MODEL"
     ],
     [
-      762,
-      221,
-      0,
-      264,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      764,
-      222,
-      0,
-      264,
-      0,
-      "LATENT"
-    ],
-    [
       766,
       221,
       0,
@@ -4497,30 +3440,6 @@
       "LATENT"
     ],
     [
-      768,
-      264,
-      2,
-      265,
-      0,
-      "*"
-    ],
-    [
-      773,
-      218,
-      0,
-      266,
-      0,
-      "MODEL"
-    ],
-    [
-      774,
-      266,
-      0,
-      126,
-      0,
-      "MODEL"
-    ],
-    [
       775,
       202,
       0,
@@ -4535,22 +3454,6 @@
       223,
       0,
       "MODEL"
-    ],
-    [
-      778,
-      214,
-      0,
-      269,
-      1,
-      "VIDEO"
-    ],
-    [
-      779,
-      268,
-      0,
-      269,
-      0,
-      "RELAYVSR_MODEL"
     ],
     [
       780,
@@ -4605,7 +3508,7 @@
       "flags": {}
     },
     {
-      "title": "三采超分(ReCaVSR 主线·RelayVSR 旁路)",
+      "title": "三采超分(ReCaVSR 主线)",
       "bounding": [
         11130,
         20,
