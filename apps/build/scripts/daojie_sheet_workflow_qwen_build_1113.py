@@ -29,19 +29,44 @@ OUT_DIR = REPO / "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/5_角色�
 OUTS = {"t2i": OUT_DIR / "道劫-角色设定卡-t2i.json",
         "i2i": OUT_DIR / "道劫-角色设定卡-i2i.json"}
 
-NOTE = """## 道劫·角色设定卡(QwenImage 2.1 版,1113 双件)
+NOTE = """# 道劫·角色设定卡(QwenImage 2.1 版)
 
-- **双件**:-t2i=master 文生图;**-i2i=master 图生图**(LoadImage 喂已有角色图→
-  multiref「以<image1>生成正面全身立绘」)——六编辑/枢纽/合成器两件同构
-- **提示词枢纽 MySheetPromptHub**:画布唯一提示词入口(主体句+角名+**背景类型
-  唯一旋钮**),运行时热读 qi21_bases 真源装配,13 出分发到各 TE;各 TE 的提示词
-  全部由枢纽链接喂入——禁在 TE 上手改散装提示词(真源漂移即契约红)
-- **背景类型联动(不能出错的单源设计)**:枢纽「背景类型」→提示词 {背景} 占位
-  填充→同型输出直连合成器「背景」输入→画布底色同型渲染;换型只动枢纽一个旋钮
-- **模型四件**(qi21 产线现行):bf16+heretic+texture_fix(KJ,cpu/fp32)+viggle
-  turbo r256@1.0;t2i=8步;编辑=multiref base 25步(三加速否决史见真源 _doc)
-- head 吃侧视图,余编辑吃 master;MySheetCardComposer 格式=全卡/简版/竖版/无武器
-- **批量/断点续跑**:python3 apps/build/scripts/daojie_sheet_b_pipeline.py --engine qwen"""
+## 这是什么
+从一段主体句文本(或一张参考图)生成 3840×2160 4K 水墨国风角色设定卡:
+三视图(正/侧/背)+六格特写+配色五圆+武器/服饰/装备/能力四区,全部程序合成
+固定底框(零缺笔零印章)。
+
+## 输入
+- **主体句**(枢纽节点):竖线字段式「姓名:X|性别:男|服装:...|武器:...」
+- **角名**(枢纽节点):角色名,程序绘到卡片右上角
+- **背景类型**(枢纽节点):素白宣纸/绢本仿古/淡青玉版——同时控制提示词与画布底色
+
+## 输出
+- 4K PNG 设定卡(3840×2160, RGB 无 alpha)
+
+## 设计思路
+- **框与字归程序,画归模型**:底框/格线/16 角标/角名由 MySheetCardComposer 程序
+  绘制(结构性保证零缺笔零印章);格内画面由 QwenImage 分格生成
+- **提示词单点**:MySheetPromptHub 是画布唯一的提示词入口,运行时热读
+  qi21_bases.json 真源装配三层提示词,13 路输出链接分发到各 TextEncode
+- **背景类型联动**:枢纽旋钮→提示词占位填充→同型直连合成器→画布底色同型渲染
+- **master 一源**:三视图+六特写全部从 master 正视图派生(multiref 编辑)
+
+## 双件说明
+- **-t2i**:master=文生图(三层装配:主体句+净空立绘底座+美术风格底座)
+- **-i2i**:master=图生图(LoadImage 喂已有角色图→multiref 正面全身立绘)
+
+## 注意
+- 模型=bf16 UNET+heretic TE+texture_fix VAE(KJ,cpu/fp32)+viggle turbo r256
+- t2i=Turbo 8步;编辑=multiref base 25步
+- VAE 恒 cpu/fp32(回 GPU 会崩引擎)
+- 合成器格式=全卡/简版/竖版/无武器(四选一)
+
+## 批量使用
+```bash
+python3 apps/build/scripts/daojie_sheet_b_pipeline.py --engine qwen \
+    --subject 主体句文件.txt --name 角色名
+```"""
 
 
 def _prompts():
