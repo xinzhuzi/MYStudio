@@ -39,7 +39,7 @@ FIRST_STAGE = {
 SECOND_STAGE = {4, 100, 202, 203, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 223, 267}
 THIRD_STAGE = {339, 340}
 SHARED = {103, 119, 120, 127, 128, 219, 338}
-TREE_ANCHOR = 147  # 146=MiniMax 版;1113 +1=Qwen 版道劫-角色设定卡.json(双引擎孪生,清单锚同笔)
+TREE_ANCHOR = 151  # 147 并行基线+AIMixer 参照件 4  # 146=MiniMax 版;1113 +1=Qwen 版道劫-角色设定卡.json(双引擎孪生,清单锚同笔)
 
 
 def _load():
