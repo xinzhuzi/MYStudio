@@ -1,0 +1,142 @@
+<!doctype html>
+<!-- Copyright (c) 2025 hotflow2024
+     Licensed under AGPL-3.0-or-later. See LICENSE for details.
+     Commercial licensing available. See COMMERCIAL_LICENSE.md.
+
+     导演台·阶段2 交互态截图 harness(11-13-director-console-remake)。
+     同源组件六件直接引用 ../../my_nodes/web/daoyan/(与引擎 index.js、
+     node 测试件消费同一份 IIFE);装载后跑一段真实交互序列(导入旧台账→
+     加组→拖档秒数→勾阶段→布防重掷→公共图管理→插模板→选择运行),
+     尾部展示序列化闭环产物 timeline_data JSON(=写回 widget 的字节)。
+     用法:无头 Chrome --screenshot 截本页;或浏览器双击直开手点验证。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>导演台 · 阶段2 交互态(序列化闭环实证)</title>
+<style>
+  :root{color-scheme:dark;}
+  body{margin:0;padding:26px 22px 40px;min-height:100vh;
+    background:radial-gradient(1200px 600px at 20% -10%,#141d33 0%,#0a0f1c 55%,#060a14 100%);
+    font:400 12px/1.6 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:#e8edf6;}
+  .page-head{max-width:1100px;margin:0 auto 14px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;}
+  .page-head h1{margin:0;font-size:17px;letter-spacing:.02em;color:#f0f4fa;}
+  .page-head .badge{font-size:10.5px;font-weight:700;color:#8dbcff;background:rgba(110,168,254,.13);
+    border:1px solid rgba(110,168,254,.35);border-radius:999px;padding:2px 10px;}
+  .page-head .sub{font-size:11px;color:#9aa7ba;}
+  .daoyan-host{box-sizing:border-box;max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:9px;
+    padding:12px 14px;border-radius:12px;
+    background:linear-gradient(180deg,rgba(12,18,32,.94),rgba(7,11,20,.97));
+    border:1px solid rgba(255,255,255,.09);box-shadow:0 12px 32px -6px rgba(0,0,0,.65),0 4px 12px rgba(0,0,0,.4);}
+  .daoyan-host *{box-sizing:border-box;}
+  .daoyan-host .dy-mid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:9px;align-items:stretch;}
+  @media (max-width:760px){.daoyan-host .dy-mid{grid-template-columns:1fr;}}
+  .daoyan-host .dy-zone-title{font-size:10px;font-weight:700;letter-spacing:.08em;color:#7d8b9f;margin:2px 2px -3px;}
+  .serial-box{max-width:1100px;margin:14px auto 0;}
+  .serial-box h2{font-size:12px;color:#9aa7ba;margin:0 0 6px;font-weight:700;}
+  .serial-box pre{margin:0;padding:10px 12px;border-radius:10px;border:1px solid rgba(52,211,153,.35);
+    background:rgba(6,12,10,.8);color:#9fe8c9;font:400 10.5px/1.6 ui-monospace,'SF Mono',Menlo,monospace;
+    white-space:pre-wrap;word-break:break-all;max-height:240px;overflow:auto;}
+  .page-foot{max-width:1100px;margin:12px auto 0;font-size:10.5px;color:#7d8b9f;line-height:1.7;}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <h1>导演台</h1>
+    <span class="badge">阶段2 · 交互态 · 序列化闭环实证</span>
+    <span class="sub">导入旧台账→加组→贴网格秒数→勾阶段→重掷布防→公共图→模板→运行态 —— 六件同源组件=apps/backend/comfyui/my_nodes/web/daoyan/</span>
+  </div>
+
+  <div class="daoyan-host" id="daoyan-host">
+    <section data-zone="toolbar"></section>
+    <section data-zone="params"><div class="dy-zone-title">参数</div><div class="dy-zone-body"></div></section>
+    <section data-zone="timeline"><div class="dy-zone-title">时间线</div><div class="dy-zone-body"></div></section>
+    <div class="dy-mid">
+      <section data-zone="cards"><div class="dy-zone-title">素材组卡</div><div class="dy-zone-body"></div></section>
+      <section data-zone="prompt"><div class="dy-zone-title">提示词</div><div class="dy-zone-body"></div></section>
+    </div>
+  </div>
+
+  <div class="serial-box">
+    <h2>timeline_data(序列化闭环产物 = 已写回 widget 的字节,任何编辑 500ms 去抖落盘)</h2>
+    <pre id="serial-out">（待渲染）</pre>
+  </div>
+
+  <div class="page-foot">
+    交互序列(装载即执行,截图=交互后状态):导入导演包(旧台账 chapter-script.json 两镜)→ 公共图区 +canon-jc.png/hero-card.png →
+    本组图 +sb001_scene.jpg → 加第 3 组(r2v·吃公共档)→ 复制组 → 镜头1 秒数 4s→107f 贴网格 → 布防「重跑此镜」→
+    勾二采+三采 → 插入结构模板 → 选中镜头1 → 选择运行(取消钮活·进度占位)。<br>
+    本页与引擎面板消费同一份组件文件(IIFE 挂 window);引擎侧经 index.js 挂 addDOMWidget,序列化通道=隐藏 widget timeline_data。
+  </div>
+
+  <!-- 同源组件七件(顺序加载;serial 最先=常量就绪;live=1114 缺口③事件通道) -->
+  <script src="../../../my_nodes/web/daoyan/serial.js"></script>
+  <script src="../../../my_nodes/web/daoyan/toolbar.js"></script>
+  <script src="../../../my_nodes/web/daoyan/params.js"></script>
+  <script src="../../../my_nodes/web/daoyan/timeline.js"></script>
+  <script src="../../../my_nodes/web/daoyan/cards.js"></script>
+  <script src="../../../my_nodes/web/daoyan/prompt.js"></script>
+  <script src="../../../my_nodes/web/daoyan/live.js"></script>
+  <script>
+    (function () {
+      var host = document.getElementById("daoyan-host");
+      function zone(name) {
+        var sec = host.querySelector('[data-zone="' + name + '"]');
+        return sec.querySelector(".dy-zone-body") || sec;
+      }
+      // widget 桩:面板↔节点唯一通道(引擎侧=隐藏 STRING widget timeline_data)
+      var widget = { name: "timeline_data", value: "" };
+      var ctrl = window.DaoyanSerial.createController({
+        read: function () { return widget.value; },
+        write: function (json) { widget.value = json; },
+      });
+      function renderAll() {
+        window.DaoyanToolbar.build(zone("toolbar"), ctrl);
+        window.DaoyanParams.build(zone("params"), ctrl);
+        window.DaoyanTimeline.build(zone("timeline"), ctrl);
+        window.DaoyanCards.build(zone("cards"), ctrl);
+        window.DaoyanPrompt.build(zone("prompt"), ctrl);
+      }
+      ctrl.subscribe(renderAll);
+
+      // ── 交互序列(截图=跑完后的状态)───────────────────────────────
+      // ① 导入旧台账(批量役 chapter-script.json 同 schema,两镜)
+      window.DaoyanToolbar.actions.importPayload(ctrl, JSON.stringify({
+        chapter: "chapter-b001", mode: "r2v", frames: 124,
+        shots: [
+          { id: "sb-b001-01", seed: 101, refs: ["/x/chapter001/sb001_scene.jpg"],
+            prompt: "2D Chinese ink-wash guofeng animation. Miners wade through low fog, chains swaying; lanterns bob on the river; overseer with red whip on the dock. Slow push-in. 5 seconds, single shot, no cuts." },
+          { id: "sb-b001-02", seed: 102, refs: ["/x/chapter001/sb-002.png"],
+            prompt: "Overseer's whip arcs over a kneeling laborer; spilled ore glows faint cyan. Locked tableau, micro-motions. 5 seconds." },
+        ],
+      }));
+      // ② 公共图区管理(文件名引用代上传)
+      window.DaoyanCards.actions.addCommonImage(ctrl, "canon-jc.png");
+      window.DaoyanCards.actions.addCommonImage(ctrl, "hero-card.png");
+      // ③ 本组图槽(镜头1 分镜帧)
+      window.DaoyanCards.actions.addGroupImage(ctrl, 0, "sb001_scene.jpg");
+      // ④ 加第 3 组+复制组
+      window.DaoyanCards.actions.addGroup(ctrl);
+      window.DaoyanCards.actions.duplicateGroup(ctrl, 2);
+      // ⑤ 镜头1 秒数 4s→107f(贴 17k+5 网格,双单位显示)
+      window.DaoyanTimeline.actions.setSegmentSeconds(ctrl, 0, 4);
+      // ⑥ 布防重掷(单镜重掷按钮态)
+      window.DaoyanCards.actions.toggleRerun(ctrl, 0);
+      // ⑦ 三勾选:勾二采+三采(写 timeline_data.stages)
+      window.DaoyanToolbar.actions.setStage(ctrl, "ercai", true);
+      window.DaoyanToolbar.actions.setStage(ctrl, "sancai", true);
+      // ⑧ 选中镜头1+插入结构模板
+      window.DaoyanTimeline.actions.selectSegment(ctrl, 0);
+      window.DaoyanPrompt.actions.insertTemplate(ctrl);
+      // ⑨ 展开公共参数行+选择运行(取消钮活·进度占位)
+      window.DaoyanCards.actions.toggleCommonExpanded(ctrl);
+      window.DaoyanToolbar.actions.startRun(ctrl);
+      // ⑩ 序列化闭环:强 flush→timeline_data 字节上屏
+      ctrl.flush();
+      renderAll();
+      document.getElementById("serial-out").textContent = widget.value;
+    })();
+  </script>
+</body>
+</html>

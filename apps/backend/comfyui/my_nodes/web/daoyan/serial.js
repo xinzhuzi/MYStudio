@@ -26,8 +26,10 @@
 //     seed(null=继承全局), match(参考图尺寸 match▾), rerun(单镜重掷态),
 //     use_common(本组禁用公共参数=false),
 //     prompt: { summary, retention, description, soundscape },
-//     images: ["sb001_scene.jpg", ...]                  // 本组图区(文件名引用)
-//   }]
+//     images: ["sb001_scene.jpg", ...],                 // 本组图区(文件名引用)
+//     artifacts: { p1:null|"video/导演台/…/p1-draft.mp4", p2, p3 }
+//   }],                                                 // 产物回看(阶段3 落盘
+//   chapter_outputs: { draft:null, final:null }         // 回填;null=未落盘)
 // }
 // 旧台账兼容:chapter-script.json(批量役 1112 同 schema 导入,PRD R1.6)
 // → chapterScriptToState():shots[] 逐镜映射 segments[](refs 取 basename
@@ -105,6 +107,15 @@
   function pick(v, allowed, fallback) {
     return allowed.indexOf(v) >= 0 ? v : fallback;
   }
+  /** 产物路径或 null(非串/空串=未落盘;PRD R1.6 产物回看) */
+  function strOrNull(v) {
+    return typeof v === "string" && v.trim() ? v.trim() : null;
+  }
+  /** 产物槽组 {p1,p2,p3}:null=未落盘(阶段3 执行链落盘回填) */
+  function normalizeArtifacts(v) {
+    v = v && typeof v === "object" ? v : {};
+    return { p1: strOrNull(v.p1), p2: strOrNull(v.p2), p3: strOrNull(v.p3) };
+  }
 
   /** 单段规范化(所有入口字段兜底;frames 恒=seconds 贴网格的派生值) */
   function normalizeSegment(seg, idx) {
@@ -129,6 +140,7 @@
         soundscape: typeof prompt.soundscape === "string" ? prompt.soundscape : "",
       },
       images: strList(seg.images),
+      artifacts: normalizeArtifacts(seg.artifacts),
     };
   }
 
@@ -174,6 +186,10 @@
       advanced: advanced,
       perf: perf,
       segments: segments,
+      chapter_outputs: {
+        draft: strOrNull((data.chapter_outputs || {}).draft),
+        final: strOrNull((data.chapter_outputs || {}).final),
+      },
     };
   }
 
@@ -264,7 +280,8 @@
     var maxUndo = Math.max(1, num(opts.maxUndo, 60));
     var state = normalizeState(opts.initial != null ? opts.initial
       : (typeof opts.read === "function" ? opts.read() : null));
-    var view = { selected: 0, running: false, done: 0, armedDelete: -1, commonExpanded: false };
+    var view = { selected: 0, running: false, done: 0, armedDelete: -1, commonExpanded: false,
+                 galleryOpen: false, livePreview: false };
     var undoStack = [];
     var subs = [];
     var timer = null;

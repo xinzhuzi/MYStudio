@@ -38,6 +38,12 @@
     ".dy-gparams select,.dy-gparams input[type=number]{border-radius:7px;border:1px solid rgba(255,255,255,.14);background:rgba(10,14,24,.72);color:#dbe7fb;padding:2px 7px;font:inherit;font-size:11px;outline:none;}",
     ".dy-gparams select:focus,.dy-gparams input:focus{border-color:rgba(110,168,254,.55);}",
     ".dy-gparams .dy-frames{color:#f5cd6d;font-family:ui-monospace,'SF Mono',Menlo,monospace;}",
+    /* 产物回看槽(1114 缺口②:每镜 p1/p2/p3;null=候落盘) */
+    ".dy-artifacts{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:7px 12px;border-bottom:1px solid rgba(255,255,255,.06);font-size:11px;color:#9aa7ba;}",
+    ".dy-art{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:2.5px 10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#9aa7ba;white-space:nowrap;}",
+    ".dy-art--have{border-color:rgba(52,211,153,.45);background:rgba(52,211,153,.1);color:#d9f7ea;cursor:pointer;text-decoration:none;}",
+    ".dy-art--have:hover{border-color:rgba(52,211,153,.75);}",
+    ".dy-art b{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:10px;color:inherit;font-weight:600;}",
     ".dy-gparams .dy-off{font-size:10px;color:#fbbf24;border:1px solid rgba(251,191,36,.35);border-radius:999px;padding:0 6px;}",
     /* 公共参数行(已启用/展开/禁用) */
     ".dy-common-params{display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:6px 12px;border-bottom:1px solid rgba(255,255,255,.06);font-size:11px;color:#9aa7ba;}",
@@ -112,6 +118,26 @@
     if (slash >= 0) { sub = file.slice(0, slash); file = file.slice(slash + 1); }
     return "/view?filename=" + encodeURIComponent(file)
       + "&type=input&subfolder=" + encodeURIComponent(sub);
+  }
+
+  /** 产物回看 URL(output/ 通道视频;PRD R1.6 点开即看) */
+  function artViewUrl(path) {
+    var file = String(path || "");
+    var sub = "";
+    var slash = file.lastIndexOf("/");
+    if (slash >= 0) { sub = file.slice(0, slash); file = file.slice(slash + 1); }
+    return "/view?filename=" + encodeURIComponent(file)
+      + "&type=output&subfolder=" + encodeURIComponent(sub);
+  }
+
+  /** 产物徽标:有路径=绿胶囊可点(/view 直看);null=灰胶囊「候落盘」 */
+  function artBadge(key, label, path) {
+    return path
+      ? '<a class="dy-art dy-art--have" href="' + esc(artViewUrl(path))
+        + '" target="_blank" rel="noopener" title="' + esc(path) + '">▶ '
+        + label + " · <b>" + esc(path.slice(path.lastIndexOf("/") + 1)) + "</b></a>"
+      : '<span class="dy-art" data-act="art-' + key
+        + '" title="未落盘:勾阶段运行后由执行链回填">' + label + " · 候落盘</span>";
   }
 
   // ── 上传器(input/ 通道;注入式=引擎真传/测试桩/预览降级三态)──────
@@ -462,6 +488,14 @@
       '<div class="dy-slots">' + ownSlots + "</div>",
       "</div>",
       fileRow("own", "回车或点添加:文件名引用入槽(续号);⬆ 上传=input/ 通道直传,上传即缩略图进卡"),
+      /* 产物回看槽(PRD R1.6:每镜 p1草片/p2成片/p3终片;阶段3 落盘回填) */
+      '<div class="dy-artifacts">',
+      "<span>产物:</span>",
+      artBadge("p1", "一采草片", seg.artifacts && seg.artifacts.p1),
+      artBadge("p2", "二采成片", seg.artifacts && seg.artifacts.p2),
+      artBadge("p3", "三采终片", seg.artifacts && seg.artifacts.p3),
+      '<span class="dy-hint">阶段3 落盘后点亮,点击即看</span>',
+      "</div>",
       '<div class="dy-card-foot">',
       '<span class="dy-pager">'
       + '<i data-act="prev-group"' + (sel > 0 ? "" : ' class="dy-pager--off"') + ">◀</i>"

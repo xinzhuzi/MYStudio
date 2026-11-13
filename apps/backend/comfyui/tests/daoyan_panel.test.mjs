@@ -70,7 +70,7 @@ function loadPanel() {
     body: { appendChild() {} },
   };
   const ctx = vm.createContext(sandbox);
-  for (const f of ["serial.js", "toolbar.js", "params.js", "timeline.js", "cards.js", "prompt.js"]) {
+  for (const f of ["serial.js", "toolbar.js", "params.js", "timeline.js", "cards.js", "prompt.js", "live.js"]) {
     const code = readFileSync(path.join(WEB, f), "utf8");
     vm.runInContext(code, ctx, { filename: f });
   }
@@ -554,6 +554,118 @@ test("⑰ 导出→导入全字段闭环:stages/color_fix/common_params/advanced
   assert.equal(dst.ctrl.state.segments[0].prompt.summary, "Miners in fog.");
   // 终极断言:整包 canonical 状态同构(导出↔导入零损)
   assert.equal(JSON.stringify(dst.ctrl.state), JSON.stringify(src.ctrl.state));
+});
+
+// ── ⑱ 产物回看 schema(1114 缺口②:artifacts/chapter_outputs 落盘回填通道)──
+test("⑱ 产物 schema:normalize 兜底 null;roundtrip 路径保全;导入零丢", async () => {
+  const sb = loadPanel();
+  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
+  sb.DaoyanCards.actions.addGroup(ctrl);
+  // 默认=三槽 null(未落盘;跨 vm 域对象用 JSON 串比对)
+  assert.equal(JSON.stringify(ctrl.state.segments[0].artifacts), '{"p1":null,"p2":null,"p3":null}');
+  assert.equal(JSON.stringify(ctrl.state.chapter_outputs), '{"draft":null,"final":null}');
+  // 模拟阶段3 执行链回填(apply 直写=面板侧唯一入口面)
+  ctrl.apply(function (st) {
+    st.segments[0].artifacts.p1 = "video/导演台/chapter-b001/sb-01/p1-draft.mp4";
+    st.chapter_outputs.draft = "video/导演台/chapter-b001/章草片.mp4";
+  });
+  await sleep(30);
+  // 序列化 roundtrip:widget JSON → 新控制器读回,路径零丢
+  const dst = makeCtrl(sb, { initial: ctrl.state });
+  assert.equal(dst.ctrl.state.segments[0].artifacts.p1,
+    "video/导演台/chapter-b001/sb-01/p1-draft.mp4", "p1 路径 roundtrip 不丢");
+  assert.equal(dst.ctrl.state.chapter_outputs.draft, "video/导演台/chapter-b001/章草片.mp4");
+  // 导出→导入交换格式同样保全
+  const json = sb.DaoyanToolbar.actions.exportPayload(ctrl);
+  const back = makeCtrl(sb, { debounceMs: 10 });
+  sb.DaoyanToolbar.actions.importPayload(back.ctrl, json);
+  assert.equal(back.ctrl.state.segments[0].artifacts.p1.includes("p1-draft.mp4"), true,
+    "导入后产物路径在");
+  // 非串/空串兜底 null(不产生垃圾路径)
+  const bad = sb.DaoyanSerial.normalizeState({ segments: [{ artifacts: { p1: "", p2: 42, p3: "ok.mp4" } }] });
+  assert.equal(JSON.stringify(bad.segments[0].artifacts), '{"p1":null,"p2":null,"p3":"ok.mp4"}');
+});
+
+// ── ⑲ 卡片产物槽(缺口②:每镜 p1/p2/p3 槽位占位+点亮态)──────────────
+test("⑲ 卡片产物槽:未落盘=「候落盘」×3;落盘=绿胶囊 /view output 链接", () => {
+  const sb = loadPanel();
+  const { ctrl } = makeCtrl(sb);
+  sb.DaoyanCards.actions.addGroup(ctrl);
+  const root = stubElement();
+  sb.DaoyanCards.build(root, ctrl);
+  assert.equal((root.innerHTML.match(/候落盘/g) || []).length, 3, "空态三槽占位");
+  assert.ok(!root.innerHTML.includes("dy-art--have"), "未落盘无点亮胶囊");
+  // 落盘一槽:绿胶囊+output 型 /view 直看链
+  ctrl.apply(function (st) {
+    st.segments[0].artifacts.p2 = "video/导演台/chapter-b001/sb-01/p2-final.mp4";
+  });
+  sb.DaoyanCards.build(root, ctrl);
+  const a = root.innerHTML.match(/<a class="dy-art dy-art--have"[^>]*>/)[0];
+  assert.ok(a.includes("/view?filename=p2-final.mp4"), "链接指 /view output");
+  assert.ok(a.includes("type=output"), "output 型(非 input 缩略通道)");
+  assert.ok(root.innerHTML.includes("p2-final.mp4"), "文件名入胶囊");
+  assert.ok(root.innerHTML.includes("候落盘"), "其余两槽仍候落盘");
+});
+
+// ── ⑳ 产物总览 gallery(缺口②:章级+逐镜一屏点看,面板里看不去翻文件夹)──
+test("⑳ 产物总览:toggleGallery 开合;章级/逐镜行俱在;落盘点亮", () => {
+  const sb = loadPanel();
+  const { ctrl } = makeCtrl(sb);
+  sb.DaoyanCards.actions.addGroup(ctrl);
+  sb.DaoyanCards.actions.addGroup(ctrl);
+  ctrl.apply(function (st) {
+    st.segments[0].artifacts.p1 = "video/导演台/c/sb-01/p1-draft.mp4";
+    st.chapter_outputs.final = "video/导演台/c/章终片.mp4";
+  });
+  const root = stubElement();
+  sb.DaoyanToolbar.build(root, ctrl);
+  assert.ok(!root.innerHTML.includes("daoyan-gallery"), "默认收起");
+  assert.equal(sb.DaoyanToolbar.actions.toggleGallery(ctrl), true, "开");
+  sb.DaoyanToolbar.build(root, ctrl);
+  assert.ok(root.innerHTML.includes("daoyan-gallery"), "开后渲染");
+  assert.ok(root.innerHTML.includes("章草片"), "章级行在");
+  assert.ok(root.innerHTML.includes("镜 2 · 镜头2"), "逐镜行在");
+  assert.equal((root.innerHTML.match(/dy-art--have/g) || []).length, 2, "章终片+镜1 p1 两处点亮");
+  assert.ok(root.innerHTML.includes("镜 2") && root.innerHTML.includes("候落盘"), "镜2 全候落盘");
+  sb.DaoyanToolbar.actions.toggleGallery(ctrl);
+  sb.DaoyanToolbar.build(root, ctrl);
+  assert.ok(!root.innerHTML.includes("daoyan-gallery"), "再toggle收起");
+});
+
+// ── ㉑ 实时预览事件通道(缺口③:daoyan_preview→DaoyanLive→预览条)────
+test("㉑ 实时预览:onSample 滚动样本;宿主直渲;开关门;按钮点亮路", () => {
+  const sb = loadPanel();
+  sb.DaoyanLive.reset();
+  const { ctrl } = makeCtrl(sb);
+  sb.DaoyanCards.actions.addGroup(ctrl);
+  // 事件入口:坏 payload 拒收,好 payload 入样
+  assert.equal(sb.DaoyanLive.onSample(null), false);
+  assert.equal(sb.DaoyanLive.onSample({ segment_index: 0, url: "/view?filename=f1.png&type=output" }), true);
+  assert.equal(sb.DaoyanLive.onSample({ segment_index: 0, step: 3, total: 8, url: "/view?filename=f2.png&type=output" }), true);
+  const last = sb.DaoyanLive.lastSample();
+  assert.equal(last.step, 3, "最新样本=后到者");
+  // 开关+宿主直渲(自持 DOM 更新,不依赖控制器重渲)
+  const liveEl = stubElement();
+  const host = { querySelector: (sel) => (sel === ".daoyan-live" ? liveEl : null) };
+  sb.DaoyanLive.bindHost(host);
+  sb.DaoyanLive.setEnabled(true);
+  assert.ok(liveEl.innerHTML.includes("f2.png"), "开启即渲最新帧");
+  assert.ok(liveEl.innerHTML.includes("步 3/8"), "步进信息入条");
+  sb.DaoyanLive.onSample({ segment_index: 1, step: 4, total: 8, url: "/view?filename=f3.png&type=output" });
+  assert.ok(liveEl.innerHTML.includes("f3.png"), "新事件即时刷");
+  assert.ok(liveEl.innerHTML.includes("共 3 帧样本"), "滚动计数");
+  // 关=不再刷(事件仍入样,渲染停)
+  sb.DaoyanLive.setEnabled(false);
+  sb.DaoyanLive.onSample({ segment_index: 1, step: 5, total: 8, url: "/view?filename=f4.png&type=output" });
+  assert.ok(!liveEl.innerHTML.includes("f4.png"), "关后不刷");
+  // 按钮路:toggleLivePreview 开→工具条嵌预览条 html(非 disabled 壳)
+  const bar = stubElement();
+  assert.equal(sb.DaoyanToolbar.actions.toggleLivePreview(ctrl), true);
+  sb.DaoyanToolbar.build(bar, ctrl);
+  assert.ok(bar.innerHTML.includes("daoyan-live"), "工具条嵌预览条");
+  assert.ok(!bar.innerHTML.includes('data-act="live-preview" disabled'), "按钮已点亮非灰壳");
+  assert.ok(bar.innerHTML.includes("实时预览已开启") || bar.innerHTML.includes("帧样本"), "预览条有实内容");
+  sb.DaoyanLive.reset();
 });
 
 // require() 幂等防 tree-shake(双 runner 下保持 CJS 依赖引用)

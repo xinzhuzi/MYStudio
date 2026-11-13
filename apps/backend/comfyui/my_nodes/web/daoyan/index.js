@@ -17,12 +17,14 @@
 // 交互闭环:任何编辑→apply→去抖 commit→widget.value=JSON;入队前强 flush
 // (queuePrompt patch);Ctrl+Z=撤销快照栈(PRD R1.6)。
 import { app } from "/scripts/app.js";
+import { api } from "/scripts/api.js";
 import "./serial.js";
 import "./toolbar.js";
 import "./params.js";
 import "./timeline.js";
 import "./cards.js";
 import "./prompt.js";
+import "./live.js";
 
 const NODE_TYPE = "MyDirectorConsole";
 const PANEL_DOM_WIDGET_NAME = "daoyan_panel";
@@ -101,6 +103,8 @@ function mountPanel(node) {
   // ④ addDOMWidget 挂载(我方 stage-node.js / AIMixer 13519-13538 同款)
   const host = buildShell();
   renderZones(host, ctrl);
+  // 实时预览宿主绑定(DaoyanLive 事件驱动自渲;1114 缺口③)
+  globalThis.DaoyanLive && globalThis.DaoyanLive.bindHost(host);
   node.addDOMWidget(PANEL_DOM_WIDGET_NAME, "daoyan", host, {
     getValue: () => "",
     setValue: () => {},
@@ -143,6 +147,13 @@ if (origQueuePrompt) {
 
 app.registerExtension({
   name: "my.director-console.daoyan",
+  setup() {
+    // 实时预览事件路由(1114 缺口③:通道先行;发射端=阶段3 执行链,
+    // AIMixer minimax_director_preview 同构):payload 见 live.js 头注
+    api.addEventListener("daoyan_preview", (e) => {
+      globalThis.DaoyanLive && globalThis.DaoyanLive.onSample(e.detail || {});
+    });
+  },
   beforeRegisterNodeDef(nodeType, nodeData) {
     if (!nodeData || nodeData.name !== NODE_TYPE) return;
     const onNodeCreated = nodeType.prototype.onNodeCreated;

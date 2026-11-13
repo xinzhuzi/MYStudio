@@ -46,6 +46,21 @@
     ".dy-btn--live{background:linear-gradient(180deg,rgba(52,211,153,.32),rgba(52,211,153,.18));border-color:rgba(52,211,153,.55);color:#eafff5;}",
     ".dy-btn--live[disabled]{opacity:.92;}",
     ".dy-import-file{display:none;}",
+    /* 产物总览(gallery:章草片/章终片+逐镜 p1/p2/p3;1114 缺口②) */
+    ".daoyan-gallery{margin-top:8px;padding:8px 12px 10px;border:1px solid rgba(52,211,153,.22);border-radius:10px;background:linear-gradient(180deg,rgba(14,26,24,.78),rgba(8,14,16,.84));}",
+    ".dy-gal-title{font-size:12px;font-weight:700;color:#d9f7ea;margin-bottom:6px;}",
+    ".dy-gal-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:3px 0;font-size:11px;color:#cfd8e6;border-top:1px dashed rgba(255,255,255,.07);}",
+    ".dy-gal-row:first-of-type{border-top:none;}",
+    ".dy-gal-row .dy-gal-seg{min-width:88px;font-weight:600;color:#f0f4fa;}",
+    ".dy-art{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:1.5px 9px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#9aa7ba;font-size:10.5px;white-space:nowrap;}",
+    ".dy-art--have{border-color:rgba(52,211,153,.45);background:rgba(52,211,153,.1);color:#d9f7ea;cursor:pointer;text-decoration:none;}",
+    ".dy-art--have:hover{border-color:rgba(52,211,153,.75);}",
+    /* 实时预览条(live:daoyan_preview 事件驱动;1114 缺口③) */
+    ".daoyan-live{margin-top:8px;display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid rgba(110,168,254,.25);border-radius:10px;background:linear-gradient(180deg,rgba(16,24,40,.78),rgba(9,13,24,.84));}",
+    ".daoyan-live img.dy-live-frame{width:132px;height:74px;object-fit:contain;border-radius:7px;border:1px solid rgba(110,168,254,.4);background:#05080f;}",
+    ".dy-live-info{font-size:11px;color:#cfd8e6;line-height:1.7;}",
+    ".dy-live-strip{display:flex;gap:5px;margin-left:auto;}",
+    ".dy-live-strip img{width:64px;height:36px;object-fit:contain;border-radius:5px;border:1px solid rgba(255,255,255,.12);background:#05080f;}",
   ].join("\n");
 
   var STYLE_ID = "daoyan-toolbar-style";
@@ -124,6 +139,7 @@
           st.common_params = next.common_params;
           st.advanced = next.advanced;
           st.perf = next.perf;
+          st.chapter_outputs = next.chapter_outputs;
         });
         return { ok: true, count: next.segments.length };
       }
@@ -146,7 +162,51 @@
       return json;
     },
     undo: function (ctrl) { return ctrl.undo(); },
+    /** 产物总览开关(PRD R1.6:章草片/章终片+逐镜 p1/p2/p3 一屏点看) */
+    toggleGallery: function (ctrl) {
+      ctrl.view.galleryOpen = !ctrl.view.galleryOpen;
+      ctrl.apply(function () {});
+      return ctrl.view.galleryOpen;
+    },
+    /** 实时预览开关(1114 缺口③:事件通道 DaoyanLive;执行链阶段3 发射) */
+    toggleLivePreview: function (ctrl) {
+      ctrl.view.livePreview = !ctrl.view.livePreview;
+      ctrl.apply(function () {});
+      var live = global.DaoyanLive;
+      if (live) live.setEnabled(ctrl.view.livePreview);
+      return ctrl.view.livePreview;
+    },
   };
+
+  /** 产物总览行(PRD R1.6:面板里看,不去文件夹翻) */
+  function galleryPanel(ctrl) {
+    var st = ctrl.state;
+    function art(label, path) {
+      return path
+        ? '<a class="dy-art dy-art--have" target="_blank" rel="noopener" href="/view?filename='
+          + encodeURIComponent(path.slice(path.lastIndexOf("/") + 1))
+          + "&type=output&subfolder=" + encodeURIComponent(path.slice(0, Math.max(0, path.lastIndexOf("/"))))
+          + '" title="' + esc(path) + '">▶ ' + label + "</a>"
+        : '<span class="dy-art">' + label + " · 候落盘</span>";
+    }
+    var rows = st.segments.map(function (seg, i) {
+      var a = seg.artifacts || {};
+      return '<div class="dy-gal-row"><span class="dy-gal-seg">镜 ' + (i + 1)
+        + " · " + esc(seg.id) + "</span>"
+        + art("p1 草片", a.p1) + art("p2 成片", a.p2) + art("p3 终片", a.p3)
+        + (seg.rerun ? '<span class="dy-art" style="border-color:rgba(52,211,153,.4);color:#d9f7ea;">重掷已布防</span>' : "")
+        + "</div>";
+    }).join("");
+    var co = st.chapter_outputs || {};
+    return [
+      '<div class="daoyan-gallery">',
+      '<div class="dy-gal-title">产物总览 · ' + esc(st.chapter) + "(" + st.segments.length + " 镜)</div>",
+      '<div class="dy-gal-row"><span class="dy-gal-seg">章级</span>'
+      + art("章草片", co.draft) + art("章终片", co.final) + "</div>",
+      rows || '<div class="dy-gal-row"><span>零组:先添加素材组再谈产物</span></div>',
+      "</div>",
+    ].join("");
+  }
 
   // ── 渲染 ───────────────────────────────────────────────────────────
 
@@ -186,7 +246,8 @@
       + ' title="中断后续镜,已完镜产物保留(检查点语义)">取消</button>',
       '<button class="dy-btn dy-btn--ghost" data-act="undo"' + (ctrl.canUndo() ? "" : " disabled")
       + ' title="Ctrl+Z 同款:快照栈回退">↩ 撤销</button>',
-      '<button class="dy-btn dy-btn--ghost" data-act="gallery" title="章草片/章终片与每镜 p1/p2/p3 产物回看(阶段3 落盘后点亮)">查看产物</button>',
+      '<button class="dy-btn' + (ctrl.view.galleryOpen ? " dy-btn--primary" : " dy-btn--ghost")
+      + '" data-act="gallery" title="章草片/章终片与每镜 p1/p2/p3 产物总览(已落盘点开即看)">查看产物</button>',
       '<span class="dy-progress">',
       '<span class="dy-progress-text">' + (running
         ? "第 " + done + "/" + total + " 组 · " + stagesLabel + " · 执行链排阶段3"
@@ -211,12 +272,16 @@
       '<span class="dy-ocap dy-ocap--check" title="段间引导:相邻镜首尾衔接"><input type="checkbox" checked data-act="continuity"> 段间引导</span>',
       ocap("上下文帧数", "22"),
       ocap("引导方式", "引导"),
-      '<button class="dy-btn dy-btn--live" disabled title="实时预览:采样中实时帧回看(阶段3 接线)">实时预览</button>',
+      '<button class="dy-btn dy-btn--live"' + (ctrl.view.livePreview ? ' style="box-shadow:0 0 0 1.5px #34d399"' : "")
+      + ' data-act="live-preview" title="实时预览:采样中实时帧回看(daoyan_preview 事件通道;阶段3 执行链发射)">实时预览</button>',
       "</div>",
       "</div>",
       "</div>",
     ].join("");
-    root.innerHTML = businessBar + outputBar;
+    var liveBar = ctrl.view.livePreview && global.DaoyanLive
+      ? global.DaoyanLive.panelHtml() : "";
+    root.innerHTML = businessBar + outputBar
+      + (ctrl.view.galleryOpen ? galleryPanel(ctrl) : "") + liveBar;
     bind(root, ctrl);
     return root;
   }
@@ -235,6 +300,8 @@
       if (act === "run") actions.startRun(ctrl);
       else if (act === "cancel") actions.cancelRun(ctrl);
       else if (act === "undo") actions.undo(ctrl);
+      else if (act === "gallery") actions.toggleGallery(ctrl);
+      else if (act === "live-preview") actions.toggleLivePreview(ctrl);
       else if (act === "import") {
         var file = root.querySelector('[data-act="import-file"]');
         if (file) file.click();
