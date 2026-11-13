@@ -1165,7 +1165,7 @@
         "width": 1024,
         "height": 1536,
         "use_lora": false,
-        "_doc": "口径=qwen21-multiref-edit 在役件(base 25步/cfg1/dn1;TE 参考图槽;无 turbo)"
+        "_doc": "口径=qwen21-multiref-edit 在役件(base 25步/cfg1/dn1;TE 参考图槽;无 turbo);1113 vae_device=main_device 实验定谳:master 3.5×(127→36s)但 multiref 编辑链 TE+DiT+GPU钉住VAE 挤爆 24G 引擎崩重启(side 900s 超时,engine.log 新启序列实证)——VAE 恒 cpu/fp32 产线口径"
       },
       "_doc": "口径=qi21-道劫-img2img 在役件(turbo r256@1.0)+产线档4 Turbo 8 步"
     },
