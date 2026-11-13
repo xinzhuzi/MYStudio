@@ -24,7 +24,10 @@ _spec = importlib.util.spec_from_file_location("my_sheet_card_frame_test", _NODE
 frame = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(frame)
 
-STEPS_DIR = _TESTS.parents[3] / "apps/output/daojie-sheet-b-1112"
+STEPS_DIR = (_TESTS.parents[3] / "apps/output/daojie-sheet-b-1112-arch1113"
+               if (_TESTS.parents[3] / "apps/output/daojie-sheet-b-1112-arch1113").is_dir()
+               else _TESTS.parents[3] / "apps/output/daojie-sheet-b-1112")
+# 金样 e6221c36 的产源步图住归档夹(1113 复测重掷顶位后指针随迁;两处皆无=skip)
 GOLDEN_SHA = "e6221c367a02890c597c96aceb25fdc6ffdabd6d8d4578513532557d275394db"  # v1.1 净空三视图重掷(1113 用户勘背景/机位);金样重对
 
 
