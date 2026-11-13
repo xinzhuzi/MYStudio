@@ -932,3 +932,66 @@ describe("三采分派与超时(1112 recavsr-mainline)", () => {
     expect(resolveTimeout("my-h3-sancai-i2v", 10, "480p")).toBe(900);
   });
 });
+
+describe("buildShotH3SancaiApiWorkflow 1113 火力扩展(8卡+尾帧+参考视频)", () => {
+  it("r2v 8 卡满配:110-113/341-344 逐槽注入,槽5..8 链 341-344,尾帧/视频缺省摘除", () => {
+    const result = buildShotH3SancaiApiWorkflow({
+      shot: makeShot() as never,
+      chapterId: "chapter-001",
+      chapterLabel: "第一章",
+      r2v: true,
+      refs: [1, 2, 3, 4, 5, 6, 7, 8].map((i) => ({
+        name: `资产${i}`, kind: i === 8 ? ("scene" as const) : ("character" as const), imageName: `ref-${i}.jpg`,
+      })),
+      frameWidth: 960,
+      frameHeight: 544,
+    });
+    const a = result.apiGraph;
+    const ids = ["110", "111", "112", "113", "341", "342", "343", "344"];
+    ids.forEach((id, i) => expect(a[id]!.inputs.image).toBe(`ref-${i + 1}.jpg`));
+    for (const nid of ["16", "208"]) {
+      expect(a[nid]!.inputs["ref_images.ref_image_5"]).toEqual(["341", 0]);
+      expect(a[nid]!.inputs["ref_images.ref_image_8"]).toEqual(["344", 0]);
+    }
+    // 尾帧/视频缺省:345/346 摘除 + 槽键删除(禁空喂占位)
+    expect(a["345"]).toBeUndefined();
+    expect(a["346"]).toBeUndefined();
+    expect(a["220"]!.inputs.last_frame).toBeUndefined();
+    expect(a["16"]!.inputs["ref_videos.ref_video_0"]).toBeUndefined();
+  });
+
+  it("endFrame 有=345 注入+last_frame 保持;i2v 满槽=8 卡全分镜帧补位", () => {
+    const result = buildShotH3SancaiApiWorkflow({
+      shot: makeShot() as never,
+      chapterId: "chapter-001",
+      chapterLabel: "第一章",
+      firstFrameB64: "QUJD",
+      r2v: false,
+      endFrame: "end-frame.jpg",
+      frameWidth: 960,
+      frameHeight: 544,
+    });
+    const a = result.apiGraph;
+    expect(a["345"]!.inputs.image).toBe("end-frame.jpg");
+    expect(a["220"]!.inputs.last_frame).toEqual(["345", 0]);
+    for (const id of ["110", "111", "112", "113", "341", "342", "343", "344"]) {
+      expect(a[id]!.inputs.image).toBe(a["9"]!.inputs.image); // i2v 补位满槽
+    }
+  });
+
+  it("videoRef 有=346 注入 file+16.ref_videos 槽保持", () => {
+    const result = buildShotH3SancaiApiWorkflow({
+      shot: makeShot() as never,
+      chapterId: "chapter-001",
+      chapterLabel: "第一章",
+      r2v: true,
+      videoRef: "motion-ref.mp4",
+      refs: [{ name: "角色A", kind: "character", imageName: "ref-a.jpg" }],
+      frameWidth: 960,
+      frameHeight: 544,
+    });
+    const a = result.apiGraph;
+    expect(a["346"]!.inputs.file).toBe("motion-ref.mp4");
+    expect(a["16"]!.inputs["ref_videos.ref_video_0"]).toEqual(["346", 0]);
+  });
+});

@@ -2,7 +2,7 @@
   "id": "recavsr-three-stage-1111",
   "revision": 0,
   "last_node_id": 340,
-  "last_link_id": 782,
+  "last_link_id": 792,
   "nodes": [
     {
       "id": 9,
@@ -136,8 +136,8 @@
       "id": 16,
       "type": "MiniMaxH3ReferenceToVideo",
       "pos": [
-        3577,
-        612
+        4147,
+        100
       ],
       "size": [
         400,
@@ -204,7 +204,7 @@
           "name": "ref_videos.ref_video_0",
           "shape": 7,
           "type": "IMAGE",
-          "link": null
+          "link": 792
         },
         {
           "label": "ref_video_audio_0",
@@ -263,6 +263,34 @@
             "name": "length"
           },
           "link": 503
+        },
+        {
+          "label": "ref_image_5",
+          "name": "ref_images.ref_image_5",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 783
+        },
+        {
+          "label": "ref_image_6",
+          "name": "ref_images.ref_image_6",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 785
+        },
+        {
+          "label": "ref_image_7",
+          "name": "ref_images.ref_image_7",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 787
+        },
+        {
+          "label": "ref_image_8",
+          "name": "ref_images.ref_image_8",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 789
         }
       ],
       "outputs": [
@@ -458,7 +486,7 @@
       "type": "LoadImage",
       "pos": [
         2777,
-        1210
+        100
       ],
       "size": [
         290,
@@ -528,7 +556,7 @@
       "type": "LoadImage",
       "pos": [
         2777,
-        1722
+        612
       ],
       "size": [
         290,
@@ -598,7 +626,7 @@
       "type": "LoadImage",
       "pos": [
         2777,
-        2234
+        1124
       ],
       "size": [
         290,
@@ -667,8 +695,8 @@
       "id": 113,
       "type": "LoadImage",
       "pos": [
-        3497,
-        100
+        2777,
+        1636
       ],
       "size": [
         290,
@@ -830,7 +858,7 @@
       "id": 121,
       "type": "VAEDecodeAudio",
       "pos": [
-        4317,
+        4887,
         1012
       ],
       "size": [
@@ -873,7 +901,7 @@
       "id": 122,
       "type": "VAEDecode",
       "pos": [
-        4317,
+        4887,
         1204
       ],
       "size": [
@@ -916,7 +944,7 @@
       "id": 123,
       "type": "KSamplerSelect",
       "pos": [
-        4237,
+        4807,
         100
       ],
       "size": [
@@ -953,7 +981,7 @@
       "id": 125,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        4277,
+        4847,
         748
       ],
       "size": [
@@ -1017,7 +1045,7 @@
       "id": 126,
       "type": "BasicGuider",
       "pos": [
-        4237,
+        4807,
         298
       ],
       "size": [
@@ -1154,8 +1182,8 @@
       "id": 129,
       "type": "RandomNoise",
       "pos": [
-        3497,
-        1806
+        2777,
+        2148
       ],
       "size": [
         360,
@@ -1193,7 +1221,7 @@
       "id": 130,
       "type": "CreateVideo",
       "pos": [
-        4357,
+        4927,
         1396
       ],
       "size": [
@@ -1399,7 +1427,7 @@
       "id": 204,
       "type": "SaveVideo",
       "pos": [
-        4397,
+        4967,
         1708
       ],
       "size": [
@@ -1533,8 +1561,8 @@
       "id": 220,
       "type": "MiniMaxH3ImageToVideo",
       "pos": [
-        2857,
-        100
+        3427,
+        2148
       ],
       "size": [
         430,
@@ -1568,7 +1596,7 @@
           "name": "last_frame",
           "shape": 7,
           "type": "IMAGE",
-          "link": null
+          "link": 791
         },
         {
           "localized_name": "prompt",
@@ -1810,8 +1838,8 @@
       "id": 221,
       "type": "ComfySwitchNode",
       "pos": [
-        3617,
-        1314
+        4187,
+        898
       ],
       "size": [
         270,
@@ -1861,8 +1889,8 @@
       "id": 222,
       "type": "ComfySwitchNode",
       "pos": [
-        3617,
-        1560
+        4187,
+        1144
       ],
       "size": [
         270,
@@ -1960,8 +1988,8 @@
       "id": 203,
       "type": "MiniMaxH3SigmaShift",
       "pos": [
-        4980,
-        1900
+        5550,
+        1996
       ],
       "size": [
         266,
@@ -2007,8 +2035,8 @@
       "id": 215,
       "type": "ModelAttentionBackend",
       "pos": [
-        5020,
-        2386
+        5590,
+        2482
       ],
       "size": [
         300,
@@ -2045,7 +2073,7 @@
       "id": 208,
       "type": "MiniMaxH3ReferenceToVideo",
       "pos": [
-        4940,
+        5510,
         970
       ],
       "size": [
@@ -2172,6 +2200,34 @@
             "name": "length"
           },
           "link": null
+        },
+        {
+          "label": "ref_image_5",
+          "name": "ref_images.ref_image_5",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 784
+        },
+        {
+          "label": "ref_image_6",
+          "name": "ref_images.ref_image_6",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 786
+        },
+        {
+          "label": "ref_image_7",
+          "name": "ref_images.ref_image_7",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 788
+        },
+        {
+          "label": "ref_image_8",
+          "name": "ref_images.ref_image_8",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 790
         }
       ],
       "outputs": [
@@ -2208,7 +2264,7 @@
       "id": 205,
       "type": "LTXVSeparateAVLatent",
       "pos": [
-        4940,
+        5510,
         100
       ],
       "size": [
@@ -2267,7 +2323,7 @@
       "id": 206,
       "type": "MinimaxH3LatentUpscaler3D",
       "pos": [
-        4980,
+        5550,
         292
       ],
       "size": [
@@ -2334,7 +2390,7 @@
       "id": 207,
       "type": "LTXVConcatAVLatent",
       "pos": [
-        5020,
+        5590,
         778
       ],
       "size": [
@@ -2391,8 +2447,8 @@
       "id": 209,
       "type": "BasicScheduler",
       "pos": [
-        5020,
-        2128
+        5590,
+        2224
       ],
       "size": [
         308,
@@ -2438,7 +2494,7 @@
       "id": 210,
       "type": "BasicGuider",
       "pos": [
-        5670,
+        6240,
         100
       ],
       "size": [
@@ -2479,7 +2535,7 @@
       "id": 211,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        5710,
+        6280,
         292
       ],
       "size": [
@@ -2542,7 +2598,7 @@
       "id": 212,
       "type": "VAEDecode",
       "pos": [
-        5750,
+        6320,
         556
       ],
       "size": [
@@ -2585,7 +2641,7 @@
       "id": 213,
       "type": "VAEDecodeAudio",
       "pos": [
-        5750,
+        6320,
         748
       ],
       "size": [
@@ -2628,7 +2684,7 @@
       "id": 214,
       "type": "CreateVideo",
       "pos": [
-        5790,
+        6360,
         940
       ],
       "size": [
@@ -2677,7 +2733,7 @@
       "id": 4,
       "type": "SaveVideo",
       "pos": [
-        5830,
+        6400,
         1252
       ],
       "size": [
@@ -2770,7 +2826,7 @@
       "id": 100,
       "type": "MyShot",
       "pos": [
-        5870,
+        6440,
         1896
       ],
       "size": [
@@ -2803,8 +2859,8 @@
       "id": 223,
       "type": "MiniMaxChunkFeedForward",
       "pos": [
-        4940,
-        1672
+        5510,
+        1768
       ],
       "size": [
         300,
@@ -2849,7 +2905,7 @@
       "id": 250,
       "type": "BasicScheduler",
       "pos": [
-        4237,
+        4807,
         490
       ],
       "size": [
@@ -3251,7 +3307,7 @@
       "id": 338,
       "type": "ReCaVSRLoader",
       "pos": [
-        6490,
+        7060,
         100
       ],
       "size": [
@@ -3296,7 +3352,7 @@
       "id": 339,
       "type": "ReCaVSRUpscale",
       "pos": [
-        6530,
+        7100,
         298
       ],
       "size": [
@@ -3364,7 +3420,7 @@
       "id": 340,
       "type": "SaveVideo",
       "pos": [
-        6570,
+        7140,
         808
       ],
       "size": [
@@ -3445,8 +3501,8 @@
       "id": 101,
       "type": "MarkdownNote",
       "pos": [
-        2777,
-        730
+        1930,
+        1762
       ],
       "size": [
         500,
@@ -3460,6 +3516,359 @@
       "properties": {},
       "widgets_values": [
         "## 三采-单镜·产线速查\n\n**链路**:一采 960×544(Pika Turbo 8步+sol-attn+ChunkFF+kitchen)→ 二采 1440×832(TaoMate@0.7·3步lcm·dn0.2)→ 三采 ReCaVSR scale2(2880×1664→归一 1080p)。\n**发车**:直接跑;[4] SaveVideo=终产物锚(五段前缀注入+MyShot 回写);[340]=ReCaVSR 出口;[204]=一采预览。\n**运行法则**:拆链=一二采一发→POST /free→三采独立一发;分辨率阶梯按 AR 推导改 16/220/208/206 四处。\n**正典**:参考图=超分+磨皮 4096 产物(图质越高视频越好)+恒 max(1110 定律);seed fixed 42;σ接线=调度器吃 σshift 后模型(93b329e1)。"
+      ]
+    },
+    {
+      "id": 341,
+      "type": "LoadImage",
+      "pos": [
+        2777,
+        2376
+      ],
+      "size": [
+        290,
+        150
+      ],
+      "flags": {},
+      "order": 341,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "选择文件上传",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            783,
+            784
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.33.2"
+      },
+      "widgets_values": [
+        "manying-shot-h3-ref-placeholder.jpg",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "Krea2_无衣__00003_.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 342,
+      "type": "LoadImage",
+      "pos": [
+        3347,
+        100
+      ],
+      "size": [
+        290,
+        150
+      ],
+      "flags": {},
+      "order": 342,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "选择文件上传",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            785,
+            786
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.33.2"
+      },
+      "widgets_values": [
+        "manying-shot-h3-ref-placeholder.jpg",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "Krea2_无衣__00003_.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 343,
+      "type": "LoadImage",
+      "pos": [
+        3347,
+        612
+      ],
+      "size": [
+        290,
+        150
+      ],
+      "flags": {},
+      "order": 343,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "选择文件上传",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            787,
+            788
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.33.2"
+      },
+      "widgets_values": [
+        "manying-shot-h3-ref-placeholder.jpg",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "Krea2_无衣__00003_.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 344,
+      "type": "LoadImage",
+      "pos": [
+        3347,
+        1124
+      ],
+      "size": [
+        290,
+        150
+      ],
+      "flags": {},
+      "order": 344,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "选择文件上传",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            789,
+            790
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.33.2"
+      },
+      "widgets_values": [
+        "manying-shot-h3-ref-placeholder.jpg",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "Krea2_无衣__00003_.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 345,
+      "type": "LoadImage",
+      "pos": [
+        3347,
+        1636
+      ],
+      "size": [
+        290,
+        150
+      ],
+      "flags": {},
+      "order": 345,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "选择文件上传",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            791
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.33.2"
+      },
+      "widgets_values": [
+        "manying-shot-h3-ref-placeholder.jpg",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "Krea2_无衣__00003_.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 346,
+      "type": "LoadVideo",
+      "pos": [
+        3347,
+        2778
+      ],
+      "size": [
+        340,
+        150
+      ],
+      "flags": {},
+      "order": 346,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            792
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.35.0",
+        "Node name for S&R": "LoadVideo"
+      },
+      "widgets_values": [
+        "",
+        "image"
       ]
     }
   ],
@@ -4191,6 +4600,86 @@
       340,
       0,
       "VIDEO"
+    ],
+    [
+      783,
+      341,
+      0,
+      16,
+      17,
+      "IMAGE"
+    ],
+    [
+      784,
+      341,
+      0,
+      208,
+      17,
+      "IMAGE"
+    ],
+    [
+      785,
+      342,
+      0,
+      16,
+      18,
+      "IMAGE"
+    ],
+    [
+      786,
+      342,
+      0,
+      208,
+      18,
+      "IMAGE"
+    ],
+    [
+      787,
+      343,
+      0,
+      16,
+      19,
+      "IMAGE"
+    ],
+    [
+      788,
+      343,
+      0,
+      208,
+      19,
+      "IMAGE"
+    ],
+    [
+      789,
+      344,
+      0,
+      16,
+      20,
+      "IMAGE"
+    ],
+    [
+      790,
+      344,
+      0,
+      208,
+      20,
+      "IMAGE"
+    ],
+    [
+      791,
+      345,
+      0,
+      220,
+      3,
+      "IMAGE"
+    ],
+    [
+      792,
+      346,
+      0,
+      16,
+      8,
+      "VIDEO"
     ]
   ],
   "groups": [
@@ -4213,8 +4702,8 @@
       "bounding": [
         1900,
         40,
-        2107,
-        2344
+        2677,
+        2888
       ],
       "color": "#335588",
       "flags": {},
@@ -4224,7 +4713,7 @@
       "id": 102,
       "title": "一阶段采样",
       "bounding": [
-        4207,
+        4777,
         40,
         503,
         2232
@@ -4237,10 +4726,10 @@
       "id": 103,
       "title": "二阶段放大",
       "bounding": [
-        4910,
+        5480,
         40,
         1350,
-        2464
+        2560
       ],
       "color": "#448844",
       "flags": {},
@@ -4250,7 +4739,7 @@
       "id": 104,
       "title": "三采超分(ReCaVSR 主线)",
       "bounding": [
-        6460,
+        7030,
         40,
         410,
         1332

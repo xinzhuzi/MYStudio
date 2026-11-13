@@ -54,15 +54,35 @@ def _load():
 
 
 def test_anchors_assembler_contract():
-    """组装器锚点齐全(assertH3TemplateIntegrity 对齐)+ [16] r2v 族锚。"""
+    """组装器锚点齐全(assertH3TemplateIntegrity 对齐)+ [16] r2v 族锚;
+    1113 火力扩展锚:341-344 参考卡(ref_image_5..8)/345 尾帧/346 参考视频,全 MUTED 出厂。"""
     _, nodes, _ = _load()
     for nid, ntype in ((4, "SaveVideo"), (9, "LoadImage"), (14, "PrimitiveStringMultiline"),
                        (20, "PrimitiveFloat"), (100, "MyShot"), (101, "MarkdownNote")):
         assert nodes[nid]["type"] == ntype, f"[{nid}] 应为 {ntype}"
     assert nodes[9]["mode"] == 4, "[9] 分镜帧占位出厂应旁路(mode=4)"
-    for nid in (110, 111, 112, 113):
-        assert nodes[nid]["type"] == "LoadImage" and nodes[nid]["mode"] == 4
+    for nid in (110, 111, 112, 113, 341, 342, 343, 344, 345):
+        assert nodes[nid]["type"] == "LoadImage" and nodes[nid]["mode"] == 4, f"[{nid}] 参考锚应 MUTED LoadImage"
+    assert nodes[346]["type"] == "LoadVideo" and nodes[346]["mode"] == 4, "[346] 参考视频锚"
     assert nodes[16]["type"] == "MiniMaxH3ReferenceToVideo", "[16] r2v 族锚"
+
+
+def test_input_firepower_1113():
+    """1113 火力满配(ref_image_0..8 九槽+尾帧+参考视频):
+    引擎 AUTOGROW max=9 实证;三步同步连线;组装器 SANCAI_REF_IDS 八卡同构。"""
+    d, nodes, links = _load()
+    for dst in (16, 208):
+        slots = {e["name"]: e for e in nodes[dst]["inputs"] if e["name"].startswith("ref_images.ref_image_")}
+        assert len(slots) == 9, f"[{dst}] 图槽应 9(ref_image_0..8),现 {len(slots)}"
+        assert all(e["link"] is not None for e in slots.values()), f"[{dst}] 有空槽"
+        # 槽-源对位:0←9,1..4←110-113,5..8←341-344
+        for n, src in [(0, 9), (1, 110), (2, 111), (3, 112), (4, 113), (5, 341), (6, 342), (7, 343), (8, 344)]:
+            lid = slots[f"ref_images.ref_image_{n}"]["link"]
+            assert links[lid][1] == src, f"[{dst}] 槽{n} 应←[{src}],实←[{links[lid][1]}]"
+    lf = next(e for e in nodes[220]["inputs"] if e["name"] == "last_frame")
+    assert lf["link"] is not None and links[lf["link"]][1] == 345, "[220].last_frame 应←[345] 尾帧锚"
+    rv = next(e for e in nodes[16]["inputs"] if e["name"] == "ref_videos.ref_video_0")
+    assert rv["link"] is not None and links[rv["link"]][1] == 346, "[16].ref_video_0 应←[346] 视频锚"
 
 
 def test_stage1_mainline_recipe_unchanged():

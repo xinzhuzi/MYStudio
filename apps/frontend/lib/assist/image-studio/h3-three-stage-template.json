@@ -2,7 +2,7 @@
   "id": "recavsr-three-stage-1111",
   "revision": 0,
   "last_node_id": 340,
-  "last_link_id": 782,
+  "last_link_id": 792,
   "nodes": [
     {
       "id": 9,
@@ -204,7 +204,7 @@
           "name": "ref_videos.ref_video_0",
           "shape": 7,
           "type": "IMAGE",
-          "link": null
+          "link": 792
         },
         {
           "label": "ref_video_audio_0",
@@ -263,6 +263,34 @@
             "name": "length"
           },
           "link": 503
+        },
+        {
+          "label": "ref_image_5",
+          "name": "ref_images.ref_image_5",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 783
+        },
+        {
+          "label": "ref_image_6",
+          "name": "ref_images.ref_image_6",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 785
+        },
+        {
+          "label": "ref_image_7",
+          "name": "ref_images.ref_image_7",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 787
+        },
+        {
+          "label": "ref_image_8",
+          "name": "ref_images.ref_image_8",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 789
         }
       ],
       "outputs": [
@@ -270,7 +298,6 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            521,
             576
           ]
         },
@@ -278,7 +305,6 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            522,
             578
           ]
         }
@@ -1223,7 +1249,6 @@
           "name": "VIDEO",
           "type": "VIDEO",
           "links": [
-            529,
             630
           ]
         }
@@ -1341,7 +1366,6 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            513,
             574
           ],
           "slot_index": 0
@@ -1593,7 +1617,7 @@
           "name": "last_frame",
           "shape": 7,
           "type": "IMAGE",
-          "link": null
+          "link": 791
         },
         {
           "localized_name": "prompt",
@@ -2202,6 +2226,34 @@
             "name": "length"
           },
           "link": null
+        },
+        {
+          "label": "ref_image_5",
+          "name": "ref_images.ref_image_5",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 784
+        },
+        {
+          "label": "ref_image_6",
+          "name": "ref_images.ref_image_6",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 786
+        },
+        {
+          "label": "ref_image_7",
+          "name": "ref_images.ref_image_7",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 788
+        },
+        {
+          "label": "ref_image_8",
+          "name": "ref_images.ref_image_8",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 790
         }
       ],
       "outputs": [
@@ -2901,7 +2953,6 @@
           "name": "SIGMAS",
           "type": "SIGMAS",
           "links": [
-            520,
             759
           ],
           "slot_index": 0
@@ -3471,6 +3522,359 @@
         "format.codec": "auto",
         "codec": "auto"
       }
+    },
+    {
+      "id": 341,
+      "type": "LoadImage",
+      "pos": [
+        100,
+        100
+      ],
+      "size": [
+        290,
+        432
+      ],
+      "flags": {},
+      "order": 341,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "选择文件上传",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            783,
+            784
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.33.2"
+      },
+      "widgets_values": [
+        "manying-shot-h3-ref-placeholder.jpg",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "Krea2_无衣__00003_.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 342,
+      "type": "LoadImage",
+      "pos": [
+        100,
+        100
+      ],
+      "size": [
+        290,
+        432
+      ],
+      "flags": {},
+      "order": 342,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "选择文件上传",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            785,
+            786
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.33.2"
+      },
+      "widgets_values": [
+        "manying-shot-h3-ref-placeholder.jpg",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "Krea2_无衣__00003_.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 343,
+      "type": "LoadImage",
+      "pos": [
+        100,
+        100
+      ],
+      "size": [
+        290,
+        432
+      ],
+      "flags": {},
+      "order": 343,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "选择文件上传",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            787,
+            788
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.33.2"
+      },
+      "widgets_values": [
+        "manying-shot-h3-ref-placeholder.jpg",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "Krea2_无衣__00003_.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 344,
+      "type": "LoadImage",
+      "pos": [
+        100,
+        100
+      ],
+      "size": [
+        290,
+        432
+      ],
+      "flags": {},
+      "order": 344,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "选择文件上传",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            789,
+            790
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.33.2"
+      },
+      "widgets_values": [
+        "manying-shot-h3-ref-placeholder.jpg",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "Krea2_无衣__00003_.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 345,
+      "type": "LoadImage",
+      "pos": [
+        100,
+        100
+      ],
+      "size": [
+        290,
+        432
+      ],
+      "flags": {},
+      "order": 345,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "选择文件上传",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            791
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.33.2"
+      },
+      "widgets_values": [
+        "manying-shot-h3-ref-placeholder.jpg",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "Krea2_无衣__00003_.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 346,
+      "type": "LoadVideo",
+      "pos": [
+        100,
+        100
+      ],
+      "size": [
+        340,
+        150
+      ],
+      "flags": {},
+      "order": 346,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            792
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.35.0",
+        "Node name for S&R": "LoadVideo"
+      },
+      "widgets_values": [
+        "",
+        "image"
+      ]
     }
   ],
   "links": [
@@ -4200,6 +4604,86 @@
       0,
       340,
       0,
+      "VIDEO"
+    ],
+    [
+      783,
+      341,
+      0,
+      16,
+      17,
+      "IMAGE"
+    ],
+    [
+      784,
+      341,
+      0,
+      208,
+      17,
+      "IMAGE"
+    ],
+    [
+      785,
+      342,
+      0,
+      16,
+      18,
+      "IMAGE"
+    ],
+    [
+      786,
+      342,
+      0,
+      208,
+      18,
+      "IMAGE"
+    ],
+    [
+      787,
+      343,
+      0,
+      16,
+      19,
+      "IMAGE"
+    ],
+    [
+      788,
+      343,
+      0,
+      208,
+      19,
+      "IMAGE"
+    ],
+    [
+      789,
+      344,
+      0,
+      16,
+      20,
+      "IMAGE"
+    ],
+    [
+      790,
+      344,
+      0,
+      208,
+      20,
+      "IMAGE"
+    ],
+    [
+      791,
+      345,
+      0,
+      220,
+      3,
+      "IMAGE"
+    ],
+    [
+      792,
+      346,
+      0,
+      16,
+      8,
       "VIDEO"
     ]
   ],

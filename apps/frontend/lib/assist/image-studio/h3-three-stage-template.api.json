@@ -66,7 +66,27 @@
       "ref_images": "",
       "ref_videos": 960,
       "ref_video_audios": 544,
-      "ref_audios": 124
+      "ref_audios": 124,
+      "ref_images.ref_image_5": [
+        "341",
+        0
+      ],
+      "ref_images.ref_image_6": [
+        "342",
+        0
+      ],
+      "ref_images.ref_image_7": [
+        "343",
+        0
+      ],
+      "ref_images.ref_image_8": [
+        "344",
+        0
+      ],
+      "ref_videos.ref_video_0": [
+        "346",
+        0
+      ]
     }
   },
   "20": {
@@ -309,6 +329,10 @@
       "vae": [
         "119",
         0
+      ],
+      "last_frame": [
+        "345",
+        0
       ]
     }
   },
@@ -458,7 +482,23 @@
       "width": 960,
       "height": 544,
       "length": 124,
-      "ref_image_size": "max"
+      "ref_image_size": "max",
+      "ref_images.ref_image_5": [
+        "341",
+        0
+      ],
+      "ref_images.ref_image_6": [
+        "342",
+        0
+      ],
+      "ref_images.ref_image_7": [
+        "343",
+        0
+      ],
+      "ref_images.ref_image_8": [
+        "344",
+        0
+      ]
     }
   },
   "205": {
@@ -790,6 +830,42 @@
       "filename_prefix": "video/漫影/chapter-001/sb-chapter-001-001/p3-recavsr",
       "format": "auto",
       "codec": "auto"
+    }
+  },
+  "341": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "my-asset-176bc9e6.jpg"
+    }
+  },
+  "342": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "my-asset-176bc9e6.jpg"
+    }
+  },
+  "343": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "my-asset-176bc9e6.jpg"
+    }
+  },
+  "344": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "my-asset-176bc9e6.jpg"
+    }
+  },
+  "345": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "my-asset-176bc9e6.jpg"
+    }
+  },
+  "346": {
+    "class_type": "LoadVideo",
+    "inputs": {
+      "file": ""
     }
   }
 }

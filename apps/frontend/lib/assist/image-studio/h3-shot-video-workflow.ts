@@ -490,6 +490,11 @@ export interface ShotH3RefWorkflowInput extends ShotH3WorkflowInput {
  * 定妆照/场景图经六节提示词绑定 <Subject>/<Picture>(09-14-h3-ref2va-line)。 */
 const REF_IMAGE_NODE_IDS = [110, 111, 112, 113] as const;
 
+/** 三采线参考槽(1113 火力扩展):110-113+341-344 = ref_image_1..8 → <Picture 2..9>;
+ * 引擎 MiniMaxH3ReferenceToVideo.ref_images AUTOGROW max=9(ref_image_0..8,0=分镜帧)。
+ * pika 线模板无 341+,仍用 REF_IMAGE_NODE_IDS(4 槽祖传口径)。 */
+const SANCAI_REF_IDS = [110, 111, 112, 113, 341, 342, 343, 344] as const;
+
 export function buildShotH3RefWorkflow(input: ShotH3RefWorkflowInput): ShotH3WorkflowResult {
   return buildShotRefWorkflowFromTemplate(templateRefJson, input);
 }
@@ -498,7 +503,7 @@ export function buildShotH3RefWorkflow(input: ShotH3RefWorkflowInput): ShotH3Wor
  *  先例):buildShotH3RefWorkflow 保留为 Mac 自研档旧模板薄壳=旧行为零变;Pika ref2va API
  *  组装器走同真身但母体=pika-ref-shot-template.json(Pika 官方契约档,两母体锚点契约同构:
  *  16 号 MiniMaxH3ReferenceToVideo + 9/110-113 参考槽 + 14/20/4/100 锚)。 */
-function buildShotRefWorkflowFromTemplate(source: H3WorkflowTemplate, input: ShotH3RefWorkflowInput): ShotH3WorkflowResult {
+function buildShotRefWorkflowFromTemplate(source: H3WorkflowTemplate, input: ShotH3RefWorkflowInput, refIds: readonly number[] = REF_IMAGE_NODE_IDS): ShotH3WorkflowResult {
   const template = JSON.parse(JSON.stringify(source)) as H3WorkflowTemplate;
   assertH3TemplateIntegrity(template);
   connectVideoWriteback(template);
@@ -508,7 +513,7 @@ function buildShotRefWorkflowFromTemplate(source: H3WorkflowTemplate, input: Sho
   const semantics = shot.shotSemantics as ShotSemanticsForH3;
   const description = shot.videoDesc.trim() || shot.prompt.trim();
   const durationSec = shot.durationTarget ?? shot.duration;
-  const refs = input.refs.slice(0, REF_IMAGE_NODE_IDS.length);
+  const refs = input.refs.slice(0, refIds.length);
   const characters = [] as Array<{ name: string; pictureIndex: number }>;
   let scene: { name: string; pictureIndex: number } | undefined;
   refs.forEach((ref, position) => {
@@ -547,7 +552,7 @@ function buildShotRefWorkflowFromTemplate(source: H3WorkflowTemplate, input: Sho
   setNamedWidget(promptNode, "text", prompt.prompt);
   setFirstWidget(secondsNode, prompt.seconds);
   setNamedWidget(secondsNode, "value", prompt.seconds);
-  REF_IMAGE_NODE_IDS.forEach((nodeId, position) => {
+  refIds.forEach((nodeId, position) => {
     const ref = refs[position];
     if (!ref) return; // 未用的占位槽保持模板旁路
     const node = getNode(template, nodeId, "LoadImage");
@@ -665,8 +670,15 @@ export interface ShotH3SancaiApiWorkflowInput extends ShotH3ApiWorkflowInput {
    *  false=i2v 首帧锚定臂(219=true→220 号,Win 实弹 ar10s 同款;注意 219 语义
    *  以 wire 为准:ComfySwitchNode switch?on_true:on_false,on_true=220)。缺省 true。 */
   r2v?: boolean;
-  /** 参考资产(r2v 臂;≤4 按序占 110-113=Picture 2..5;按名引用,资产上传归宿主) */
+  /** 参考资产(r2v 臂;≤8 按序占 110-113/341-344=ref_image_1..8=<Picture 2..9,
+   * 1113 火力满配,引擎 AUTOGROW max=9;按名引用,资产上传归宿主) */
   refs?: ShotH3RefAssetInput[];
+  /** i2v 尾帧资产名(可选;[345]→220.last_frame 首尾双锚 FL2VA 语义,
+   *  提示词须描述首→尾连续路径;缺省=API 图摘 345 与 last_frame 槽零空喂) */
+  endFrame?: string;
+  /** 参考视频文件名(可选;r2v 臂 [346]→16.ref_videos.ref_video_0=<Video 1>,
+   *  动作/风格参考;引擎约束 24fps、2-15s;缺省=API 图摘 346 与该槽零空喂) */
+  videoRef?: string;
   /** 首帧像素宽(AR 阶梯推导源;parseImageSizeFromB64 可解) */
   frameWidth: number;
   /** 首帧像素高 */
@@ -759,12 +771,12 @@ export function buildShotH3ThreeStageWorkflow(
  *  二采恒消费 ref_image_1..4,占位名禁进 API 图直投)。 */
 export function buildShotH3SancaiApiWorkflow(input: ShotH3SancaiApiWorkflowInput): ShotH3SancaiApiWorkflowResult {
   const r2v = input.r2v ?? true;
-  const refs = (input.refs ?? []).slice(0, REF_IMAGE_NODE_IDS.length);
+  const refs = (input.refs ?? []).slice(0, SANCAI_REF_IDS.length);
   const ladder = computeSancaiResolutionLadder(input.frameWidth, input.frameHeight);
 
-  // ① 画布档同源组装(提示词+自检门+MyShot 三键+9/110-113 激活)
+  // ① 画布档同源组装(提示词+自检门+MyShot 三键+9/110-113/341-344 激活,1113 火力满配 8 槽)
   const base = r2v
-    ? buildShotRefWorkflowFromTemplate(sancaiTemplateJson as unknown as H3WorkflowTemplate, { ...input, refs })
+    ? buildShotRefWorkflowFromTemplate(sancaiTemplateJson as unknown as H3WorkflowTemplate, { ...input, refs }, SANCAI_REF_IDS)
     : buildShotWorkflowFromTemplate(sancaiTemplateJson as unknown as H3WorkflowTemplate, input);
   const nodes = base.ui.nodes as WorkflowNode[];
   const widgetOf = (id: number, type: string): unknown => {
@@ -810,13 +822,27 @@ export function buildShotH3SancaiApiWorkflow(input: ShotH3SancaiApiWorkflowInput
   upscaler.inputs["mode.width"] = ladder.w2;
   upscaler.inputs["mode.height"] = ladder.h2;
   delete apiGraph["22"];
-  // 110-113 满槽注入(208 二采恒消费 ref_image_1..4;r2v=refs 按序+分镜帧补位,
-  // i2v=分镜帧补位——Win 实弹同图多槽先例;占位名禁进 API 图直投)
-  REF_IMAGE_NODE_IDS.forEach((nodeId, position) => {
+  // 110-113/341-344 满槽注入(208 二采恒消费全部图槽;r2v=refs 按序+分镜帧补位,
+  // i2v=分镜帧补位——Win 实弹同图多槽先例;占位名禁进 API 图直投;1113 火力 8 槽)
+  SANCAI_REF_IDS.forEach((nodeId, position) => {
     const ref = refs[position];
     const name = r2v && ref ? ref.imageName : imageName;
     getApiNode(apiGraph, String(nodeId), "LoadImage").inputs.image = name;
   });
+  // ④ 尾帧(i2v 首尾双锚;缺省摘 345+220.last_frame,禁空喂占位)
+  if (input.endFrame) {
+    getApiNode(apiGraph, "345", "LoadImage").inputs.image = input.endFrame;
+  } else {
+    delete apiGraph["345"];
+    delete getApiNode(apiGraph, "220", "MiniMaxH3ImageToVideo").inputs.last_frame;
+  }
+  // ⑤ 参考视频(r2v <Video 1>;缺省摘 346+16.ref_videos 槽,禁空喂占位)
+  if (input.videoRef) {
+    getApiNode(apiGraph, "346", "LoadVideo").inputs.file = input.videoRef;
+  } else {
+    delete apiGraph["346"];
+    delete getApiNode(apiGraph, "16", "MiniMaxH3ReferenceToVideo").inputs["ref_videos.ref_video_0"];
+  }
 
   // ③ 段B 构造(300 LoadVideo + 338/339/340 克隆 + MyShot 100 连 340)
   const stageBGraph = JSON.parse(JSON.stringify(sancaiApiTemplateJson)) as ApiGraph;
