@@ -16,7 +16,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 BASES = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
-OUT = REPO / "apps/backend/comfyui/workflows/1_图片/MiniMax/道劫-角色设定卡.json"
+OUT = REPO / "apps/backend/comfyui/workflows/1_图片/MiniMax/5_角色设定卡/道劫-角色设定卡.json"
 
 # 主机适配四件(1112 装机终版,与 h3image 两真源脚本同款)
 DIT = "minimax_h3_image_pruned_int8_convrot.safetensors"

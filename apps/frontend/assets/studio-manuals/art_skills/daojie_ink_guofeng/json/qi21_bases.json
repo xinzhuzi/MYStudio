@@ -1097,7 +1097,7 @@
   },
   "sheet_card": {
     "format_version": "v1.1",
-    "_doc": "设定卡 B 线分格真源(1113 用户令道劫正册化):固定底框=MySheetCardComposer 格式一 v1;master=人物海报型三层装配(主体句+型底座+美术风格底座);格内 edit 指令与武器/特效主体模板逐字取本块,禁手搓;管线=apps/build/scripts/daojie_sheet_b_pipeline.py;工作流=1_图片/MiniMax/道劫-角色设定卡.json;换角色=改主体句头部+角名,指令区角色无关恒定",
+    "_doc": "设定卡 B 线分格真源(1113 用户令道劫正册化):固定底框=MySheetCardComposer 格式一 v1;master=人物海报型三层装配(主体句+型底座+美术风格底座);格内 edit 指令与武器/特效主体模板逐字取本块,禁手搓;管线=apps/build/scripts/daojie_sheet_b_pipeline.py;工作流=1_图片/MiniMax/5_角色设定卡/道劫-角色设定卡.json;换角色=改主体句头部+角名,指令区角色无关恒定",
     "master": {
       "positive_text": "主体的正面全身立绘,脸与胸口正对镜头,双肩对称;标准自然站姿,双手自然垂于身侧,头顶与脚底完整入画,呈现发型、手部、鞋履与佩挂;全画均匀一致的漫射光,轮廓清楚;环境净空,素净浅色底,整幅为人物本体与贴身佩挂。",
       "width": 1664,

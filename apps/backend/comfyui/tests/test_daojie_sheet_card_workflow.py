@@ -19,7 +19,7 @@ import pathlib
 
 _TESTS = pathlib.Path(__file__).resolve().parent
 _REPO = _TESTS.parents[3]
-WF = (_REPO / "apps/backend/comfyui/workflows/1_图片/MiniMax/"
+WF = (_REPO / "apps/backend/comfyui/workflows/1_图片/MiniMax/5_角色设定卡/"
       "道劫-角色设定卡.json")
 _GEN = _REPO / "apps/build/scripts/daojie_sheet_workflow_build_1113.py"
 
