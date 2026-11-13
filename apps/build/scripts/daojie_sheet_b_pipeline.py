@@ -84,6 +84,74 @@ def build_t2i(prompt, w, h, seed, prefix):
     }
 
 
+def build_q_t2i(prompt, neg, w, h, seed, prefix, models, smp):
+    """Qwen t2i 载荷(bf16+heretic+texture_fix(KJ)+viggle turbo r256;产线档4 Turbo 8步)。"""
+    t = smp["t2i"]
+    return {
+        "1": {"class_type": "UNETLoader",
+              "inputs": {"unet_name": models["unet"], "weight_dtype": "default"}},
+        "2": {"class_type": "CLIPLoader",
+              "inputs": {"clip_name": models["clip"], "type": "qwen_image", "device": "default"}},
+        "3": {"class_type": "VAELoaderKJ",
+              "inputs": {"vae_name": models["vae"], "device": "cpu",
+                              "weight_dtype": "fp32"}},
+        "7011": {"class_type": "LoraLoaderModelOnly",
+                 "inputs": {"model": ["1", 0], "lora_name": models["lora"],
+                            "strength_model": models["lora_strength"]}},
+        "4015": {"class_type": "TextEncodeQwenImage21",
+                 "inputs": {"clip": ["2", 0], "prompt": prompt,
+                            "negative_prompt": neg, "resolution": t["resolution"]}},
+        "4": {"class_type": "EmptyLatentImage",
+              "inputs": {"width": w, "height": h, "batch_size": 1}},
+        "7": {"class_type": "KSampler",
+              "inputs": {"model": ["7011", 0], "positive": ["4015", 0],
+                         "negative": ["4015", 1], "latent_image": ["4", 0],
+                         "seed": seed, "steps": t["steps"], "cfg": t["cfg"],
+                         "sampler_name": t["sampler_name"], "scheduler": t["scheduler"],
+                         "denoise": t["denoise"]}},
+        "8": {"class_type": "VAEDecode", "inputs": {"samples": ["7", 0], "vae": ["3", 0]}},
+        "9": {"class_type": "SaveImage",
+              "inputs": {"images": ["8", 0], "filename_prefix": prefix}},
+    }
+
+
+def build_q_edit(image_name, instr, neg, seed, prefix, models, smp):
+    """Qwen 编辑载荷 v2(multiref 真源路:参考图进 TE images.image_1 槽+<image1> 指代;
+    base 25步/cfg1/dn1;qwen21-multiref-edit 在役件口径)。"""
+    e = smp["edit"]
+    api = {
+        "1": {"class_type": "UNETLoader",
+              "inputs": {"unet_name": models["unet"], "weight_dtype": "default"}},
+        "2": {"class_type": "CLIPLoader",
+              "inputs": {"clip_name": models["clip"], "type": "qwen_image", "device": "default"}},
+        "3": {"class_type": "VAELoaderKJ",
+              "inputs": {"vae_name": models["vae"], "device": "cpu",
+                         "weight_dtype": "fp32"}},
+        "45": {"class_type": "LoadImage", "inputs": {"image": image_name}},
+        "4015": {"class_type": "TextEncodeQwenImage21",
+                 "inputs": {"clip": ["2", 0], "prompt": instr,
+                            "negative_prompt": neg, "resolution": 0,
+                            "images.image_1": ["45", 0], "vae": ["3", 0]}},
+        "4": {"class_type": "EmptyLatentImage",
+              "inputs": {"width": e["width"], "height": e["height"], "batch_size": 1}},
+        "7": {"class_type": "KSampler",
+              "inputs": {"model": ["1", 0], "positive": ["4015", 0],
+                         "negative": ["4015", 1], "latent_image": ["4", 0],
+                         "seed": seed, "steps": e["steps"], "cfg": e["cfg"],
+                         "sampler_name": e["sampler_name"], "scheduler": e["scheduler"],
+                         "denoise": e["denoise"]}},
+        "8": {"class_type": "VAEDecode", "inputs": {"samples": ["7", 0], "vae": ["3", 0]}},
+        "9": {"class_type": "SaveImage",
+              "inputs": {"images": ["8", 0], "filename_prefix": prefix}},
+    }
+    if e.get("use_lora", True):  # v2 编辑=base 直驱(multiref 口径)
+        api["7011"] = {"class_type": "LoraLoaderModelOnly",
+                       "inputs": {"model": ["1", 0], "lora_name": models["lora"],
+                                  "strength_model": models["lora_strength"]}}
+        api["7"]["inputs"]["model"] = ["7011", 0]
+    return api
+
+
 def build_edit(image_name, instruction, seed, prefix):
     """edit 载荷=smoke 真源直投路(images.image_1 点分;宽高 0=随 image_1)。"""
     return {
@@ -187,10 +255,15 @@ def main() -> int:
     ap.add_argument("--subject", default="/tmp/sheet_subject.txt")
     ap.add_argument("--name", default="沈孤鸿")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--engine", choices=["h3image", "qwen"], default="h3image",
+                    help="h3image=MiniMax H3-Image 33B;qwen=QwenImage2.1(产线四件+turbo r256)")
     ap.add_argument("--compose-only", action="store_true")
     ap.add_argument("--title-size", type=int, default=None,
                     help="覆盖 frame.TITLE_SIZE(逐步调版旋钮;不传=用底框常量)")
     args = ap.parse_args()
+    global OUT
+    OUT = (REPO / "apps/output/daojie-sheet-b-qwen-1113" if args.engine == "qwen"
+           else REPO / "apps/output/daojie-sheet-b-1112")
     OUT.mkdir(parents=True, exist_ok=True)
 
     import daojie_sheet_b_frame as frame
@@ -198,18 +271,57 @@ def main() -> int:
         frame.NAME_SIZE = args.title_size  # 逐步调版旋钮(默认=底框常量)
 
     bases = json.loads(BASES.read_text(encoding="utf-8"))
-    sc = sheet_cfg(bases)
     style_pos = bases["art_style_base"]["positive_text"]
-    m_base = sc["master"]["positive_text"]  # v1.1 起 master 自有净空立绘底座
-    t_item = next(t["positive_text"] for t in bases["types"] if t["zh"] == sc["weapon"]["type"])
+    style_neg = bases["art_style_base"].get("negative_text", "")
     subject_raw, f = parse_subject(Path(args.subject))
     name = f.get("姓名", args.name)
+
+    def neg_join(*parts):
+        return ",".join(p for p in parts if p)
+
+    if args.engine == "qwen":
+        # Qwen 线独立真源(sheet_card_qwen:提示词按 Qwen 写法单独成套,1113 用户令)
+        q = bases.get("sheet_card_qwen") or {}
+        assert q.get("format_version") == "v2" \
+            and q.get("engine") == "qwen-image-2.1", "sheet_card_qwen 真源缺位/版本漂移"
+        qm, qw, qe = q["master"], q["weapon"], q["effect"]
+    else:
+        sc = sheet_cfg(bases)
+        m_base = sc["master"]["positive_text"]  # v1.1 起 master 自有净空立绘底座
+        t_item = next(t["positive_text"] for t in bases["types"]
+                      if t["zh"] == sc["weapon"]["type"])
 
     def step_path(i, tag):
         return OUT / f"step_{i:02d}_{tag}.png"
 
-    # 步表:(tag, 依赖tag|None, 构造器)
+    # 步表:(tag, 依赖tag|None, 构造器);pfx 引擎隔离产物子目录
+    pfx = "sheetBq" if args.engine == "qwen" else "sheetB"
+
     def steps():
+        if args.engine == "qwen":
+            yield "master", None, build_q_t2i(
+                "\n".join([subject_raw, qm["positive_text"], style_pos]),
+                neg_join(style_neg, qm["negative_text"]),
+                qm["width"], qm["height"], args.seed, f"{pfx}/master",
+                q["models"], q["sampler"])
+            for tag in ("side", "back", "face", "wrist", "waist"):
+                yield tag, "master", None
+            yield "head", "side", None
+            yield "weapon", None, build_q_t2i(
+                "\n".join([qw["positive_template"].format(
+                                name=name, weapon=f.get("武器", "长剑")),
+                            style_pos]),
+                neg_join(style_neg, qw["negative_text"]),
+                qw["width"], qw["height"], args.seed, f"{pfx}/weapon",
+                q["models"], q["sampler"])
+            yield "effect", None, build_q_t2i(
+                "\n".join([qe["positive_template"].format(
+                                ability=f.get("能力", "剑气")),
+                            style_pos]),
+                neg_join(style_neg, qe["negative_text"]),
+                qe["width"], qe["height"], args.seed, f"{pfx}/effect",
+                q["models"], q["sampler"])
+            return
         yield "master", None, build_t2i(
             "\n".join([subject_raw, m_base, style_pos]),
             sc["master"]["width"], sc["master"]["height"],
@@ -232,9 +344,10 @@ def main() -> int:
 
     if not args.compose_only:
         # 发车前门:队列空+schema 真源核对(接口边界假设核对纪律)
-        q = http_json(f"{ENGINE}/queue", timeout=10)
-        if q.get("queue_running") or q.get("queue_pending"):
-            print(f"[FAIL] 队列非空,让行:{len(q['queue_running'])}+{len(q['queue_pending'])}")
+        queue = http_json(f"{ENGINE}/queue", timeout=10)
+        if queue.get("queue_running") or queue.get("queue_pending"):
+            print(f"[FAIL] 队列非空,让行:"
+                  f"{len(queue['queue_running'])}+{len(queue['queue_pending'])}")
             return 9
         spec = http_json(f"{ENGINE}/object_info/MiniMaxH3ImageConditioning")[
             "MiniMaxH3ImageConditioning"]["input"]
@@ -254,8 +367,15 @@ def main() -> int:
                 src = next(p for j, (t2, _, _) in enumerate(steps())
                            if t2 == dep for p in [step_path(j, t2)])
                 up = upload_image(src)
-                api = build_edit(up, sc["edit_instructions"][tag],
-                                 args.seed + sc["seeds"][tag], f"sheetB/{tag}")
+                if args.engine == "qwen":
+                    api = build_q_edit(up, q["edit_instructions"][tag],
+                                       neg_join(style_neg, q["edit_negative"]),
+                                       args.seed + q["seeds"][tag],
+                                       f"{pfx}/{tag}", q["models"], q["sampler"])
+                else:
+                    api = build_edit(up, sc["edit_instructions"][tag],
+                                     args.seed + sc["seeds"][tag],
+                                     f"sheetB/{tag}")
             fire(api, tag, dst)
 
     # ── 合成:直生格+预裁格+配色取色(主体中央带,滤背景)──

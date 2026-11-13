@@ -1135,5 +1135,77 @@
       "weapon": 7,
       "effect": 8
     }
+  },
+  "sheet_card_qwen": {
+    "format_version": "v2",
+    "engine": "qwen-image-2.1",
+    "_doc": "Qwen 版设定卡分格真源(1113 用户令「单独做这个角色设定卡的提示词」):与 sheet_card(H3-Image)平行独立,提示词按 Qwen 写法(正向直陈+编辑逐部位点名);画布件=QwenImage2.1/道劫-角色设定卡.json;管线=daojie_sheet_b_pipeline.py --engine qwen;合成器/底框两线共用(格式一 v1);v2(1113 三弹定谳:编辑=官方 multiref 路——参考图进 TE images.image_1 槽+提示词 <image1> 指代,base 模型 25步/cfg1/dn1 无 turbo;dn0.6 编辑不生效/dn1.0 无图参考则身份画风塌,两败俱汰)",
+    "models": {
+      "unet": "qwen_image_2.1_bf16.safetensors",
+      "clip": "qwen3vl_8b_bf16_heretic.safetensors",
+      "vae": "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors",
+      "lora": "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors",
+      "lora_strength": 1.0
+    },
+    "sampler": {
+      "t2i": {
+        "steps": 8,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0,
+        "resolution": 1024
+      },
+      "edit": {
+        "steps": 25,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0,
+        "width": 1024,
+        "height": 1536,
+        "use_lora": false,
+        "_doc": "口径=qwen21-multiref-edit 在役件(base 25步/cfg1/dn1;TE 参考图槽;无 turbo)"
+      },
+      "_doc": "口径=qi21-道劫-img2img 在役件(turbo r256@1.0)+产线档4 Turbo 8 步"
+    },
+    "master": {
+      "positive_text": "主体的正面全身立绘,脸与胸口正对镜头,双肩对称;标准自然站姿,双手自然垂于身侧,头顶与脚底完整入画,完整呈现发型、面部、手部、鞋履与全部佩挂;全身比例端正,肢体与衣装结构清楚;均匀一致的漫射光,轮廓清楚;环境净空,素净浅色底,整幅为人物本体与贴身佩挂。",
+      "negative_text": "印章,盖章,朱红印章,落款钤印,闲章,戳记,水印,多余角色,背景场景,山水,树木,云雾,文字,错字",
+      "width": 1280,
+      "height": 1920
+    },
+    "edit_instructions": {
+      "side": "将<image1>中的角色转为纯九十度左侧全身站姿,仅见一侧眼睛,双肩前后重合;严格保持<image1>中该角色的脸型五官、发型与发带颜色、服装颜色与形制、腰封配饰、佩剑挂载与水墨国风画法;头顶脚底完整入画,素净浅色背景。",
+      "back": "将<image1>中的角色转为背面全身站姿,后脑与背部朝向镜头,画面中无面部;严格保持<image1>中该角色的发型与发带颜色、服装颜色与形制、腰封配饰、佩剑挂载与水墨国风画法;头顶脚底完整入画,素净浅色背景。",
+      "face": "以<image1>中的角色为同一人,生成其正面面部近景特写,取景从完整头顶至锁骨,清楚呈现脸型、五官与发际;面部特征、发型与发色严格依<image1>,水墨国风画法,素净浅色背景。",
+      "head": "以<image1>中的角色为同一人,生成其侧面头部近景特写,完整呈现头部轮廓、发型结构与耳侧关系;发型、发色与五官严格依<image1>,水墨国风画法,素净浅色背景。",
+      "wrist": "以<image1>中的角色为同一人,生成其腕部与袖口的局部特写,清楚呈现袖口结构与腕部细节;服装布料颜色与配饰严格依<image1>,水墨国风画法,素净浅色背景。",
+      "waist": "以<image1>中的角色为同一人,生成其腰封与衣带的局部特写,清楚呈现腰封材质、方扣佩挂与连接结构;服装与配饰严格依<image1>,水墨国风画法,素净浅色背景。"
+    },
+    "edit_negative": "印章,盖章,落款钤印,水印,多余人物,肢体变形,手指崩坏,文字,错字",
+    "weapon": {
+      "positive_template": "{name}的佩器:{weapon}。整剑水平横置,自柄首至鞘尾完整入画,两端各留边;鞘身光素,剑穗为青白丝线本色,饰件皆素银;背景素净米白。",
+      "negative_text": "印章,水印,文字,多余物件,背景场景",
+      "width": 2048,
+      "height": 768
+    },
+    "effect": {
+      "positive_template": "能力特效设定图:{ability}。一柄出鞘长剑的剑身与剑锋特写,剑气光效清晰锐利,素净深色背景,画面完整居中。",
+      "negative_text": "印章,水印,文字,多余物件",
+      "width": 1024,
+      "height": 1024
+    },
+    "seeds": {
+      "master": 0,
+      "side": 1,
+      "back": 2,
+      "face": 3,
+      "head": 4,
+      "wrist": 5,
+      "waist": 6,
+      "weapon": 7,
+      "effect": 8
+    }
   }
 }
