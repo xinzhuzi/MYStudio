@@ -256,6 +256,8 @@ def test_groups_three_bands_non_overlap():
         x, y, w, h = g["bounding"]
         assert w > 0 and h > 0, f"组[{g['title']}] 尺寸非正 bounding={g['bounding']}(负高度=标题条退化)"
     for nid, n in nodes.items():
+        if n["type"] == "MarkdownNote":
+            continue  # 1114:Note101=README 恒居组外(用户令),罩全门豁免
         nx, ny = n["pos"]
         covered = any(g["bounding"][0] <= nx and g["bounding"][1] <= ny
                       and nx < g["bounding"][0] + g["bounding"][2]

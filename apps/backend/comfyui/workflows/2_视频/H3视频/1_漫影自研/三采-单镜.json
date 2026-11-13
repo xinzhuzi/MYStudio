@@ -8,7 +8,7 @@
       "id": 9,
       "type": "LoadImage",
       "pos": [
-        1930,
+        100,
         100
       ],
       "size": [
@@ -73,13 +73,14 @@
       "widgets_values_named": {
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
-      }
+      },
+      "title": "① 分镜帧(主图·必填)"
     },
     {
       "id": 14,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        1930,
+        100,
         612
       ],
       "size": [
@@ -112,7 +113,7 @@
           ]
         }
       ],
-      "title": "提示词",
+      "title": "③ 提示词(必填·在此输入)",
       "properties": {
         "Node name for S&R": "PrimitiveStringMultiline",
         "ue_properties": {
@@ -124,10 +125,10 @@
         "ver": "0.33.2"
       },
       "widgets_values": [
-        ""
+        "【在此输入提示词】\nintegrated_multimodal_description: <此处写镜头正文;引用参考卡用 <Picture 2..9> 按挂接序;尾帧模式写「首帧→…→末帧」连续单镜头>\noverall_soundscape: <环境声>\nnon_diegetic_music: N/A\n——经漫影App派发时本栏自动注入,手动直跑才需填写"
       ],
       "widgets_values_named": {
-        "value": ""
+        "value": "【在此输入提示词】\nintegrated_multimodal_description: <此处写镜头正文;引用参考卡用 <Picture 2..9> 按挂接序;尾帧模式写「首帧→…→末帧」连续单镜头>\noverall_soundscape: <环境声>\nnon_diegetic_music: N/A\n——经漫影App派发时本栏自动注入,手动直跑才需填写"
       },
       "color": "#232",
       "bgcolor": "#353"
@@ -136,8 +137,8 @@
       "id": 16,
       "type": "MiniMaxH3ReferenceToVideo",
       "pos": [
-        4147,
-        364
+        3947,
+        100
       ],
       "size": [
         400,
@@ -335,7 +336,7 @@
       "id": 20,
       "type": "PrimitiveFloat",
       "pos": [
-        1930,
+        100,
         988
       ],
       "size": [
@@ -390,7 +391,7 @@
       "id": 22,
       "type": "ResolutionSelector",
       "pos": [
-        1930,
+        100,
         1432
       ],
       "size": [
@@ -485,8 +486,8 @@
       "id": 110,
       "type": "LoadImage",
       "pos": [
-        2777,
-        100
+        100,
+        1762
       ],
       "size": [
         290,
@@ -549,14 +550,15 @@
       "widgets_values_named": {
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
-      }
+      },
+      "title": "② 参考卡1"
     },
     {
       "id": 111,
       "type": "LoadImage",
       "pos": [
-        2777,
-        612
+        947,
+        100
       ],
       "size": [
         290,
@@ -619,14 +621,15 @@
       "widgets_values_named": {
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
-      }
+      },
+      "title": "② 参考卡2"
     },
     {
       "id": 112,
       "type": "LoadImage",
       "pos": [
-        2777,
-        1124
+        947,
+        612
       ],
       "size": [
         290,
@@ -689,14 +692,15 @@
       "widgets_values_named": {
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
-      }
+      },
+      "title": "② 参考卡3"
     },
     {
       "id": 113,
       "type": "LoadImage",
       "pos": [
-        2777,
-        1636
+        947,
+        1124
       ],
       "size": [
         290,
@@ -759,13 +763,14 @@
       "widgets_values_named": {
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
-      }
+      },
+      "title": "② 参考卡4"
     },
     {
       "id": 119,
       "type": "VAELoader",
       "pos": [
-        100,
+        2117,
         100
       ],
       "size": [
@@ -812,7 +817,7 @@
       "id": 120,
       "type": "VAELoader",
       "pos": [
-        100,
+        2117,
         298
       ],
       "size": [
@@ -858,8 +863,8 @@
       "id": 121,
       "type": "VAEDecodeAudio",
       "pos": [
-        4887,
-        1012
+        4757,
+        100
       ],
       "size": [
         250,
@@ -901,8 +906,8 @@
       "id": 122,
       "type": "VAEDecode",
       "pos": [
-        4887,
-        1204
+        4757,
+        292
       ],
       "size": [
         250,
@@ -944,8 +949,8 @@
       "id": 123,
       "type": "KSamplerSelect",
       "pos": [
-        4807,
-        100
+        3947,
+        898
       ],
       "size": [
         370,
@@ -981,8 +986,8 @@
       "id": 125,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        4847,
-        748
+        4067,
+        2668
       ],
       "size": [
         250,
@@ -1045,8 +1050,8 @@
       "id": 126,
       "type": "BasicGuider",
       "pos": [
-        4807,
-        298
+        4027,
+        1972
       ],
       "size": [
         360,
@@ -1086,7 +1091,7 @@
       "id": 127,
       "type": "UNETLoader",
       "pos": [
-        100,
+        2117,
         496
       ],
       "size": [
@@ -1133,7 +1138,7 @@
       "id": 128,
       "type": "CLIPLoader",
       "pos": [
-        990,
+        3007,
         1468
       ],
       "size": [
@@ -1182,8 +1187,8 @@
       "id": 129,
       "type": "RandomNoise",
       "pos": [
-        2777,
-        2148
+        947,
+        1636
       ],
       "size": [
         360,
@@ -1221,8 +1226,8 @@
       "id": 130,
       "type": "CreateVideo",
       "pos": [
-        4927,
-        1396
+        4797,
+        484
       ],
       "size": [
         270,
@@ -1275,7 +1280,7 @@
       "id": 131,
       "type": "ComfyMathExpression",
       "pos": [
-        1970,
+        140,
         1186
       ],
       "size": [
@@ -1338,7 +1343,7 @@
       "id": 140,
       "type": "ModelAttentionBackend",
       "pos": [
-        260,
+        2277,
         1618
       ],
       "size": [
@@ -1376,7 +1381,7 @@
       "id": 145,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        140,
+        2157,
         724
       ],
       "size": [
@@ -1427,8 +1432,8 @@
       "id": 204,
       "type": "SaveVideo",
       "pos": [
-        4967,
-        1708
+        4837,
+        796
       ],
       "size": [
         283,
@@ -1518,7 +1523,7 @@
       "id": 219,
       "type": "PrimitiveBoolean",
       "pos": [
-        990,
+        3007,
         1726
       ],
       "size": [
@@ -1561,8 +1566,8 @@
       "id": 220,
       "type": "MiniMaxH3ImageToVideo",
       "pos": [
-        3427,
-        2148
+        3947,
+        1096
       ],
       "size": [
         430,
@@ -1676,7 +1681,7 @@
       "id": 216,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        1030,
+        3047,
         100
       ],
       "size": [
@@ -1748,7 +1753,7 @@
       "id": 217,
       "type": "ModelAttentionBackend",
       "pos": [
-        1150,
+        3167,
         1042
       ],
       "size": [
@@ -1787,7 +1792,7 @@
       "id": 218,
       "type": "ComfySwitchNode",
       "pos": [
-        1230,
+        3247,
         1926
       ],
       "size": [
@@ -1838,8 +1843,8 @@
       "id": 221,
       "type": "ComfySwitchNode",
       "pos": [
-        4187,
-        1162
+        3987,
+        1726
       ],
       "size": [
         270,
@@ -1889,8 +1894,8 @@
       "id": 222,
       "type": "ComfySwitchNode",
       "pos": [
-        4187,
-        1408
+        3987,
+        2164
       ],
       "size": [
         270,
@@ -1940,7 +1945,7 @@
       "id": 202,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        140,
+        2157,
         1816
       ],
       "size": [
@@ -1988,7 +1993,7 @@
       "id": 203,
       "type": "MiniMaxH3SigmaShift",
       "pos": [
-        5550,
+        5420,
         1996
       ],
       "size": [
@@ -2035,7 +2040,7 @@
       "id": 215,
       "type": "ModelAttentionBackend",
       "pos": [
-        5590,
+        5460,
         2482
       ],
       "size": [
@@ -2073,7 +2078,7 @@
       "id": 208,
       "type": "MiniMaxH3ReferenceToVideo",
       "pos": [
-        5510,
+        5380,
         970
       ],
       "size": [
@@ -2264,7 +2269,7 @@
       "id": 205,
       "type": "LTXVSeparateAVLatent",
       "pos": [
-        5510,
+        5380,
         100
       ],
       "size": [
@@ -2323,7 +2328,7 @@
       "id": 206,
       "type": "MinimaxH3LatentUpscaler3D",
       "pos": [
-        5550,
+        5420,
         292
       ],
       "size": [
@@ -2390,7 +2395,7 @@
       "id": 207,
       "type": "LTXVConcatAVLatent",
       "pos": [
-        5590,
+        5460,
         778
       ],
       "size": [
@@ -2447,7 +2452,7 @@
       "id": 209,
       "type": "BasicScheduler",
       "pos": [
-        5590,
+        5460,
         2224
       ],
       "size": [
@@ -2494,7 +2499,7 @@
       "id": 210,
       "type": "BasicGuider",
       "pos": [
-        6240,
+        6110,
         100
       ],
       "size": [
@@ -2535,7 +2540,7 @@
       "id": 211,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        6280,
+        6150,
         292
       ],
       "size": [
@@ -2598,7 +2603,7 @@
       "id": 212,
       "type": "VAEDecode",
       "pos": [
-        6320,
+        6190,
         556
       ],
       "size": [
@@ -2641,7 +2646,7 @@
       "id": 213,
       "type": "VAEDecodeAudio",
       "pos": [
-        6320,
+        6190,
         748
       ],
       "size": [
@@ -2684,7 +2689,7 @@
       "id": 214,
       "type": "CreateVideo",
       "pos": [
-        6360,
+        6230,
         940
       ],
       "size": [
@@ -2733,7 +2738,7 @@
       "id": 4,
       "type": "SaveVideo",
       "pos": [
-        6400,
+        6270,
         1252
       ],
       "size": [
@@ -2826,7 +2831,7 @@
       "id": 100,
       "type": "MyShot",
       "pos": [
-        6440,
+        6310,
         1896
       ],
       "size": [
@@ -2859,7 +2864,7 @@
       "id": 223,
       "type": "MiniMaxChunkFeedForward",
       "pos": [
-        5510,
+        5380,
         1768
       ],
       "size": [
@@ -2905,8 +2910,8 @@
       "id": 250,
       "type": "BasicScheduler",
       "pos": [
-        4807,
-        490
+        3947,
+        2410
       ],
       "size": [
         315,
@@ -2945,7 +2950,7 @@
       "id": 251,
       "type": "MiniMaxH3SigmaShift",
       "pos": [
-        1190,
+        3207,
         1240
       ],
       "size": [
@@ -2985,7 +2990,7 @@
       "id": 260,
       "type": "BlockSparseAttention",
       "pos": [
-        1070,
+        3087,
         376
       ],
       "size": [
@@ -3033,7 +3038,7 @@
       "id": 261,
       "type": "MiniMaxChunkFeedForward",
       "pos": [
-        1110,
+        3127,
         814
       ],
       "size": [
@@ -3079,7 +3084,7 @@
       "id": 262,
       "type": "BlockSparseAttention",
       "pos": [
-        180,
+        2197,
         952
       ],
       "size": [
@@ -3127,7 +3132,7 @@
       "id": 263,
       "type": "MiniMaxChunkFeedForward",
       "pos": [
-        220,
+        2237,
         1390
       ],
       "size": [
@@ -3173,7 +3178,7 @@
       "id": 266,
       "type": "ModelPreviewOverrideKJ",
       "pos": [
-        1270,
+        3287,
         2172
       ],
       "size": [
@@ -3259,7 +3264,7 @@
       "id": 267,
       "type": "BlockSparseAttention",
       "pos": [
-        180,
+        2197,
         2044
       ],
       "size": [
@@ -3307,7 +3312,7 @@
       "id": 338,
       "type": "ReCaVSRLoader",
       "pos": [
-        7060,
+        6930,
         100
       ],
       "size": [
@@ -3352,7 +3357,7 @@
       "id": 339,
       "type": "ReCaVSRUpscale",
       "pos": [
-        7100,
+        6970,
         298
       ],
       "size": [
@@ -3420,7 +3425,7 @@
       "id": 340,
       "type": "SaveVideo",
       "pos": [
-        7140,
+        7010,
         808
       ],
       "size": [
@@ -3501,12 +3506,12 @@
       "id": 101,
       "type": "MarkdownNote",
       "pos": [
-        1930,
-        1762
+        100,
+        3002
       ],
       "size": [
-        500,
-        400
+        1500,
+        780
       ],
       "flags": {},
       "order": 0,
@@ -3515,15 +3520,15 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "## 三采-单镜·产线速查\n\n**链路**:一采 960×544(Pika Turbo 8步+sol-attn+ChunkFF+kitchen)→ 二采 1440×832(TaoMate@0.7·3步lcm·dn0.2)→ 三采 ReCaVSR scale2(2880×1664→归一 1080p)。\n**发车**:直接跑;[4] SaveVideo=终产物锚(五段前缀注入+MyShot 回写);[340]=ReCaVSR 出口;[204]=一采预览。\n**运行法则**:拆链=一二采一发→POST /free→三采独立一发;分辨率阶梯按 AR 推导改 16/220/208/206 四处。\n**正典**:参考图=超分+磨皮 4096 产物(图质越高视频越好)+恒 max(1110 定律);seed fixed 42;σ接线=调度器吃 σshift 后模型(93b329e1)。"
+        "# 三采-单镜 · 使用说明\n## 功能\n单镜头三段链出片:一采 960×544 快出运动构图 → 二采 1440×832 TaoMate 精修 → 三采 ReCaVSR 超分 2880×1664 终档;图生视频双模(多参考 r2v / 首尾帧 i2v),原生音轨。\n\n## 输入(按序号)\n- ① 分镜帧(主图,必填):出厂旁路,漫影App自动注入;手动直跑=取消旁路并选图\n- ② 参考卡 1-8(可选,身份锁):按序对应 <Picture 2..9>;引擎异图上限 8,超出自适应截断\n- ③ 提示词(必填):六段式/integrated_multimodal_description;参考引用按挂接序编号\n- ④ 尾帧(可选):i2v 首尾双锚,提示词写首→尾连续路径\n- ⑤ 参考视频(可选):动作/节奏参考,务必同画风(写实视频会把成片带成写实)\n\n## 输出\n三档 mp4:p1 草稿 / p2 终档 / p3 超分终档;MyShot 回写台账。\n\n## 为什么这样设计\n三段阶梯=先快后精(8步起稿秒级出构图,3步精修出质感,超分出2K);参考卡走 TE 参考通道锁身份不占采样步;一采两臂(r2v/i2v)经布尔开关懒切换。\n\n## 注意点\n1. 本链**无负向提示词口**——H3 视频体系不设负向通道,「避免什么」直接写进提示词正文\n2. 参考图=超分+磨皮 4096 产物(图质越高视频越好);≥5张自动降参考尺寸(match)防显存崩,≤4张恒 max 高保真\n3. 帧数恒落 17k+5 网格(默认124帧=5.17秒);seed=42 供复现\n4. 模型/大节点勿动;改提示词与选图即可出片"
       ]
     },
     {
       "id": 341,
       "type": "LoadImage",
       "pos": [
-        2777,
-        2376
+        947,
+        1864
       ],
       "size": [
         290,
@@ -3580,14 +3585,15 @@
       "widgets_values_named": {
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
-      }
+      },
+      "title": "② 参考卡5"
     },
     {
       "id": 342,
       "type": "LoadImage",
       "pos": [
-        3347,
-        100
+        947,
+        2376
       ],
       "size": [
         290,
@@ -3644,14 +3650,15 @@
       "widgets_values_named": {
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
-      }
+      },
+      "title": "② 参考卡6"
     },
     {
       "id": 343,
       "type": "LoadImage",
       "pos": [
-        3347,
-        612
+        1517,
+        100
       ],
       "size": [
         290,
@@ -3708,14 +3715,15 @@
       "widgets_values_named": {
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
-      }
+      },
+      "title": "② 参考卡7"
     },
     {
       "id": 344,
       "type": "LoadImage",
       "pos": [
-        3347,
-        1124
+        1517,
+        612
       ],
       "size": [
         290,
@@ -3772,14 +3780,15 @@
       "widgets_values_named": {
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
-      }
+      },
+      "title": "② 参考卡8"
     },
     {
       "id": 345,
       "type": "LoadImage",
       "pos": [
-        3347,
-        1636
+        1517,
+        1124
       ],
       "size": [
         290,
@@ -3835,14 +3844,15 @@
       "widgets_values_named": {
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
-      }
+      },
+      "title": "④ 尾帧(可选·i2v首尾双锚)"
     },
     {
       "id": 346,
       "type": "LoadVideo",
       "pos": [
-        3347,
-        2778
+        1517,
+        1636
       ],
       "size": [
         340,
@@ -3869,14 +3879,15 @@
       "widgets_values": [
         "",
         "image"
-      ]
+      ],
+      "title": "⑤ 参考视频(可选·须同画风)"
     },
     {
       "id": 347,
       "type": "GetVideoComponents",
       "pos": [
-        4107,
-        100
+        1557,
+        2124
       ],
       "size": [
         270,
@@ -3924,7 +3935,8 @@
       "properties": {
         "cnr_id": "comfy-core",
         "Node name for S&R": "GetVideoComponents"
-      }
+      },
+      "title": "视频拆帧桥(参考视频→帧)"
     }
   ],
   "links": [
@@ -4747,28 +4759,28 @@
   ],
   "groups": [
     {
+      "id": 101,
+      "title": "输入",
+      "bounding": [
+        70,
+        40,
+        1817,
+        2486
+      ],
+      "color": "#335588",
+      "flags": {},
+      "order": 0
+    },
+    {
       "id": 100,
       "title": "加载模型",
       "bounding": [
-        70,
+        2087,
         40,
         1630,
         2478
       ],
       "color": "#884666",
-      "flags": {},
-      "order": 0
-    },
-    {
-      "id": 101,
-      "title": "输入",
-      "bounding": [
-        1900,
-        40,
-        2677,
-        2888
-      ],
-      "color": "#335588",
       "flags": {},
       "order": 1
     },
@@ -4776,10 +4788,10 @@
       "id": 102,
       "title": "一阶段采样",
       "bounding": [
-        4777,
+        3917,
         40,
-        503,
-        2232
+        1233,
+        2812
       ],
       "color": "#3f789e",
       "flags": {},
@@ -4789,7 +4801,7 @@
       "id": 103,
       "title": "二阶段放大",
       "bounding": [
-        5480,
+        5350,
         40,
         1350,
         2560
@@ -4802,7 +4814,7 @@
       "id": 104,
       "title": "三采超分(ReCaVSR 主线)",
       "bounding": [
-        7030,
+        6900,
         40,
         410,
         1332
