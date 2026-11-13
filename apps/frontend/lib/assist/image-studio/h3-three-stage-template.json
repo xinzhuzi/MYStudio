@@ -8,12 +8,12 @@
    "id": 9,
    "type": "LoadImage",
    "pos": [
-    80,
-    560
+    2425,
+    100
    ],
    "size": [
     290,
-    330
+    432
    ],
    "flags": {},
    "order": 9,
@@ -79,12 +79,12 @@
    "id": 14,
    "type": "PrimitiveStringMultiline",
    "pos": [
-    80,
-    1082
+    2425,
+    612
    ],
    "size": [
-    636.53125,
-    296.453125
+    637,
+    296
    ],
    "flags": {},
    "order": 14,
@@ -136,12 +136,12 @@
    "id": 16,
    "type": "MiniMaxH3ReferenceToVideo",
    "pos": [
-    1810,
-    1616
+    3342,
+    574
    ],
    "size": [
     400,
-    410
+    622
    ],
    "flags": {},
    "order": 16,
@@ -309,12 +309,12 @@
    "id": 20,
    "type": "PrimitiveFloat",
    "pos": [
-    80,
-    1468
+    2425,
+    988
    ],
    "size": [
     270,
-    70
+    118
    ],
    "flags": {},
    "order": 20,
@@ -364,12 +364,12 @@
    "id": 22,
    "type": "ResolutionSelector",
    "pos": [
-    80,
-    1676
+    2425,
+    1186
    ],
    "size": [
-    270.96875,
-    134
+    271,
+    250
    ],
    "flags": {},
    "order": 22,
@@ -459,12 +459,12 @@
    "id": 110,
    "type": "LoadImage",
    "pos": [
-    80,
-    2016
+    2425,
+    1996
    ],
    "size": [
     290,
-    330
+    432
    ],
    "flags": {},
    "order": 110,
@@ -529,12 +529,12 @@
    "id": 111,
    "type": "LoadImage",
    "pos": [
-    80,
-    2538
+    2425,
+    2508
    ],
    "size": [
     290,
-    330
+    432
    ],
    "flags": {},
    "order": 111,
@@ -599,12 +599,12 @@
    "id": 112,
    "type": "LoadImage",
    "pos": [
-    80,
-    3060
+    2425,
+    3020
    ],
    "size": [
     290,
-    330
+    432
    ],
    "flags": {},
    "order": 112,
@@ -669,12 +669,12 @@
    "id": 113,
    "type": "LoadImage",
    "pos": [
-    80,
-    3582
+    2425,
+    3532
    ],
    "size": [
     290,
-    330
+    432
    ],
    "flags": {},
    "order": 113,
@@ -739,12 +739,12 @@
    "id": 119,
    "type": "VAELoader",
    "pos": [
-    80,
-    4104
+    100,
+    100
    ],
    "size": [
     640,
-    70
+    118
    ],
    "flags": {},
    "order": 2,
@@ -786,12 +786,12 @@
    "id": 120,
    "type": "VAELoader",
    "pos": [
-    80,
-    4312
+    100,
+    298
    ],
    "size": [
     650,
-    70
+    118
    ],
    "flags": {},
    "order": 3,
@@ -804,7 +804,6 @@
      "links": [
       516,
       526,
-      564,
       612,
       626
      ]
@@ -833,12 +832,12 @@
    "id": 121,
    "type": "VAEDecodeAudio",
    "pos": [
-    4000,
-    762
+    4002,
+    1012
    ],
    "size": [
-    230,
-    60
+    250,
+    112
    ],
    "flags": {
     "collapsed": false
@@ -876,12 +875,12 @@
    "id": 122,
    "type": "VAEDecode",
    "pos": [
-    4000,
-    560
+    4002,
+    1204
    ],
    "size": [
-    230,
-    60
+    250,
+    112
    ],
    "flags": {
     "collapsed": false
@@ -919,12 +918,12 @@
    "id": 123,
    "type": "KSamplerSelect",
    "pos": [
-    80,
-    4520
+    3922,
+    100
    ],
    "size": [
     370,
-    70
+    118
    ],
    "flags": {},
    "order": 4,
@@ -956,12 +955,12 @@
    "id": 125,
    "type": "SamplerCustomAdvanced",
    "pos": [
-    3530,
-    560
+    3962,
+    748
    ],
    "size": [
-    230,
-    140
+    250,
+    184
    ],
    "flags": {},
    "order": 17,
@@ -1020,12 +1019,12 @@
    "id": 126,
    "type": "BasicGuider",
    "pos": [
-    2950,
-    560
+    3922,
+    298
    ],
    "size": [
     360,
-    60
+    112
    ],
    "flags": {},
    "order": 16,
@@ -1061,12 +1060,12 @@
    "id": 127,
    "type": "UNETLoader",
    "pos": [
-    80,
-    4728
+    100,
+    496
    ],
    "size": [
     640,
-    90
+    148
    ],
    "flags": {},
    "order": 5,
@@ -1108,12 +1107,12 @@
    "id": 128,
    "type": "CLIPLoader",
    "pos": [
-    80,
-    4966
+    100,
+    724
    ],
    "size": [
     640,
-    120
+    178
    ],
    "flags": {},
    "order": 6,
@@ -1157,12 +1156,12 @@
    "id": 129,
    "type": "RandomNoise",
    "pos": [
-    80,
-    5234
+    3262,
+    100
    ],
    "size": [
     360,
-    90
+    148
    ],
    "flags": {},
    "order": 7,
@@ -1196,12 +1195,12 @@
    "id": 130,
    "type": "CreateVideo",
    "pos": [
-    4470,
-    560
+    4042,
+    1396
    ],
    "size": [
     270,
-    150
+    232
    ],
    "flags": {},
    "order": 20,
@@ -1251,12 +1250,12 @@
    "id": 131,
    "type": "ComfyMathExpression",
    "pos": [
-    950,
-    560
+    3302,
+    328
    ],
    "size": [
-    230,
-    80
+    250,
+    166
    ],
    "flags": {
     "collapsed": true
@@ -1314,12 +1313,12 @@
    "id": 140,
    "type": "ModelAttentionBackend",
    "pos": [
-    1810,
-    560
+    1140,
+    1870
    ],
    "size": [
     300,
-    100
+    118
    ],
    "flags": {},
    "order": 140,
@@ -1353,12 +1352,12 @@
    "id": 145,
    "type": "LoraLoaderModelOnly",
    "pos": [
-    950,
-    816
+    140,
+    1380
    ],
    "size": [
     640,
-    90
+    148
    ],
    "flags": {},
    "order": 13,
@@ -1404,67 +1403,33 @@
    "id": 101,
    "type": "MarkdownNote",
    "pos": [
-    80,
-    80
+    2425,
+    1516
    ],
    "size": [
-    420,
-    340
+    500,
+    400
    ],
    "flags": {},
-   "order": 101,
+   "order": 0,
    "mode": 0,
    "widgets_values": [
-    "## 漫影 Pika ref2va 主力线(1101 用户裁定「ref2va 更适合分镜产线」)\n\n**定位**:角色卡+场景卡+分镜帧锁身份——分镜帧恒占 Picture 1(ref_image_0),\n角色/场景卡占 Picture 2-5(110-113,出厂旁路,组装器按 refs 激活)。\n**契约**(逐字取自 PikaFlex-REF2VA 官方模板):MiniMaxH3ReferenceToVideo\n(≠ fl2va 线 ImageToVideo,无 first_frame 口)+ ref2va int8 pruned 底模\n+ Pika LoRA@1.0 + lcm + 6-NFE ManualSigmas + ref_image_size=match。\n**同 fl2va 增量**:kitchen attention(B 臂白拿 -9.2%,音频同簇);seed fixed 42。\n**分辨率**:三段链出厂 960×544(0.52MP,1110 A/B 实测 1280 无增益,用户定 960);二采目标 1440×832(引擎画布 32 网格吸附值,1110 实测);三采 RelayVSR 1920 宽→1110,交付裁 15px 上下=1920×1080;参考图=超分+磨皮 4096 产物(1110 定律:图质越高视频越好)+恒 max;一采加速件全名=Pika Turbo 8 步;禁官方原生 1344x768 直出。\n**API 直投禁令**:API 图(pika-ref-shot-template.api.json,20 节点)不含\nMyShot/占位节点——直投无 extraPngInfo;回收走五段前缀+execute result 回流,\n画布档保留 100 MyShot 写回。**未实弹**:候 Win 四件模型下载毕后热跑首发。"
-   ]
-  },
-  {
-   "id": 102,
-   "type": "MarkdownNote",
-   "pos": [
-    640,
-    80
+    "## 三采-单镜·产线速查\n\n**链路**:一采 960×544(Pika Turbo 8步+sol-attn+ChunkFF+kitchen)→ 二采 1440×832(TaoMate@0.7·3步lcm·dn0.2)→ 三采 ReCaVSR scale2(2880×1664→归一 1080p)。\n**发车**:直接跑;[4] SaveVideo=终产物锚(五段前缀注入+MyShot 回写);[340]=ReCaVSR 出口;[204]=一采预览。\n**运行法则**:拆链=一二采一发→POST /free→三采独立一发;分辨率阶梯按 AR 推导改 16/220/208/206 四处。\n**正典**:参考图=超分+磨皮 4096 产物(图质越高视频越好)+恒 max(1110 定律);seed fixed 42;σ接线=调度器吃 σshift 后模型(93b329e1)。"
    ],
-   "size": [
-    420,
-    240
-   ],
-   "flags": {},
-   "order": 102,
-   "mode": 0,
-   "widgets_values": [
-    "",
-    "## 产线锚点契约(与 r2v 族骨架同构)\n\n- 14.value:提示词(六段式 buildShotH3RefPrompt 整段覆写)\n- 20.value:秒数(17k+5 网格吸附,131 号 ComfyMathExpression 换算帧数)\n- 9.image:分镜帧(Picture 1=ref_images.ref_image_0,出厂旁路)\n- 110-113.image:角色/场景卡(Picture 2-5=ref_images.ref_image_1..4,出厂旁路)\n- 16.width/16.height:864x480 直填出厂(22 号 0.4MP 16:9 档覆写;三段链出厂值)\n- 16 号:MiniMaxH3ReferenceToVideo(r2v 族锚,≠ i2v 族的 first_frame 口)\n- 4.filename_prefix:五段前缀(ref-* 策略段,回收链)\n- 100:MyShot 回写"
-   ]
-  },
-  {
-   "id": 103,
-   "type": "MarkdownNote",
-   "pos": [
-    1200,
-    80
-   ],
-   "size": [
-    560,
-    460
-   ],
-   "flags": {},
-   "order": 103,
-   "mode": 0,
-   "widgets_values": [
-    "## 三段链用法(1105)\n\n**默认路径**:直接跑 → ①一阶段采样(Pika Turbo 8步 1280×704)+ ②二采放大(TaoMate 3步\nlcm/simple/dn0.2 → **1440×832 终档**)。[4] 号 SaveVideo=锚(五段前缀注入+MyShot 回写);\n[204] 号存一采预览。\n\n**标准上探=RelayVSR 1080p 档(1106 深夜终裁:默认 1080p,不上 2K)**:②组产物 → `3_超分后处理/relayvsr-超分-2x.json`(横屏 upscale_width=1920→1920×1056→ffmpeg lanczos 归一 1080p;竖屏 upscale_width=1080→1080×1944;~3min/10s 片,offload 恒开永不关;2K/1440 非默认——1440 二跳实测≈21min 性价比不敌)→ffmpeg lanczos 归一 1080p;1.09s/帧 速度档,offload 恒开永不关)。SeedVR2 1080p 档降为备用修复系(1105 8a1fd7e 入库,崩脸救援)。\n**质量档(默认旁路,作测试)**:③组全 mode=2 不跑。要测:右键③组 unmute → [300] LoadVideo\n指向②组产物(或拷入 input 目录)→ 跑出 1920×1056(CRF12)。**1080p 交付归一(图外 ffmpeg)**:\nffmpeg -i in.mp4 -vf scale=1920:1080:flags=lanczos -c:v libx264 -crf 18 -preset slow -c:a copy out.mp4\n\n**红线**:TaoMate 二采采样器必须 **lcm**(Euler→片尾字幕乱码,UP 亲测);CFG 恒 1.0(蒸馏件\n烧 CFG)。SigmaShift [12,3] 取社区族值(UP 帧仅证 audio=3)。\n**档位**:一采出厂 0.52MP=960×544(1110 A/B 裁定);二采目标 [206] 1440×832;三采 [外挂 relayvsr] 1920 宽。\n1111 ReCaVSR 挑战臂:二采 1440×832 → int8/fast/scale2 → 2880×1664(交付层归一 1080,对称 RelayVSR 裁 15px 口径)\n1112 终裁换防主线(用户令「ReCaVSR 非常不错,就做这个主线,三采单镜」)。运行法则:①发车拆链=一二采一发→POST /free {\"unload_models\":true}→三采独立一发(全链单 prompt 因 H3 全家桶驻留显存,三采被饿至 2~5s/帧=31:56 实测;拆链+/free 后 243f 三采≈70s);②分辨率阶梯按输入图 AR 推导:一采~0.52MP/二采~1.2MP 按 AR 开方、全 32 对齐(16:9=960×544→1440×832→×2;1:1=736²→1088²→2176²;竖图镜像),改 16/220/208/206 四处,22 号输出按需旁路;③1:1 方图 10s 实测=472.5+70.3=9:03(暖机含加载)。"
-   ]
+   "properties": {},
+   "inputs": [],
+   "outputs": []
   },
   {
    "id": 204,
    "type": "SaveVideo",
    "pos": [
-    4960,
-    560
+    4082,
+    1708
    ],
    "size": [
-    283.125,
-    358.65625
+    283,
+    564
    ],
    "flags": {},
    "order": 204,
@@ -1550,8 +1515,8 @@
    "id": 219,
    "type": "PrimitiveBoolean",
    "pos": [
-    80,
-    5680
+    100,
+    982
    ],
    "size": [
     270,
@@ -1593,8 +1558,8 @@
    "id": 220,
    "type": "MiniMaxH3ImageToVideo",
    "pos": [
-    1810,
-    976
+    3342,
+    1276
    ],
    "size": [
     430,
@@ -1669,7 +1634,7 @@
     {
      "name": "audio_vae",
      "type": "VAE",
-     "link": 564
+     "link": null
     }
    ],
    "outputs": [
@@ -1713,12 +1678,12 @@
    "id": 216,
    "type": "LoraLoaderModelOnly",
    "pos": [
-    950,
-    1054
+    140,
+    1836
    ],
    "size": [
     640,
-    130
+    196
    ],
    "flags": {},
    "order": 216,
@@ -1785,12 +1750,12 @@
    "id": 217,
    "type": "ModelAttentionBackend",
    "pos": [
-    1810,
-    768
+    1140,
+    2068
    ],
    "size": [
     300,
-    100
+    118
    ],
    "flags": {},
    "order": 217,
@@ -1824,12 +1789,12 @@
    "id": 218,
    "type": "ComfySwitchNode",
    "pos": [
-    2460,
-    560
+    1220,
+    2494
    ],
    "size": [
     270,
-    120
+    166
    ],
    "flags": {},
    "order": 218,
@@ -1875,12 +1840,12 @@
    "id": 221,
    "type": "ComfySwitchNode",
    "pos": [
-    2460,
-    816
+    3382,
+    1906
    ],
    "size": [
     270,
-    120
+    166
    ],
    "flags": {},
    "order": 221,
@@ -1910,7 +1875,6 @@
      "name": "COMFY_MATCHTYPE_V3",
      "type": "COMFY_MATCHTYPE_V3",
      "links": [
-      762,
       766
      ]
     }
@@ -1927,12 +1891,12 @@
    "id": 222,
    "type": "ComfySwitchNode",
    "pos": [
-    2460,
-    1072
+    3382,
+    2152
    ],
    "size": [
     270,
-    120
+    166
    ],
    "flags": {},
    "order": 222,
@@ -1962,7 +1926,6 @@
      "name": "COMFY_MATCHTYPE_V3",
      "type": "COMFY_MATCHTYPE_V3",
      "links": [
-      764,
       767
      ]
     }
@@ -1979,12 +1942,12 @@
    "id": 202,
    "type": "LoraLoaderModelOnly",
    "pos": [
-    5703,
-    80
+    140,
+    1608
    ],
    "size": [
     640,
-    90
+    148
    ],
    "flags": {},
    "order": 202,
@@ -2027,12 +1990,12 @@
    "id": 203,
    "type": "MiniMaxH3SigmaShift",
    "pos": [
-    7163,
-    80
+    4555,
+    1708
    ],
    "size": [
-    265.53194252971207,
-    82
+    266,
+    148
    ],
    "flags": {},
    "order": 203,
@@ -2074,12 +2037,12 @@
    "id": 215,
    "type": "ModelAttentionBackend",
    "pos": [
-    7670,
-    80
+    4595,
+    2386
    ],
    "size": [
     300,
-    100
+    118
    ],
    "flags": {},
    "order": 215,
@@ -2112,12 +2075,12 @@
    "id": 208,
    "type": "MiniMaxH3ReferenceToVideo",
    "pos": [
-    5703,
-    520
+    4515,
+    292
    ],
    "size": [
     400,
-    410
+    622
    ],
    "flags": {},
    "order": 208,
@@ -2275,12 +2238,12 @@
    "id": 205,
    "type": "LTXVSeparateAVLatent",
    "pos": [
-    5703,
-    318
+    4515,
+    100
    ],
    "size": [
-    286.836067965115,
-    48.43467905382113
+    287,
+    112
    ],
    "flags": {},
    "order": 205,
@@ -2334,12 +2297,12 @@
    "id": 206,
    "type": "MinimaxH3LatentUpscaler3D",
    "pos": [
-    6563,
-    318
+    4555,
+    1222
    ],
    "size": [
-    286.836067965115,
-    226
+    287,
+    406
    ],
    "flags": {},
    "order": 206,
@@ -2401,12 +2364,12 @@
    "id": 207,
    "type": "LTXVConcatAVLatent",
    "pos": [
-    7070,
-    313
+    4595,
+    1936
    ],
    "size": [
-    286.8360679651149,
-    46
+    287,
+    112
    ],
    "flags": {},
    "order": 207,
@@ -2458,12 +2421,12 @@
    "id": 209,
    "type": "BasicScheduler",
    "pos": [
-    7460,
-    1232
+    4595,
+    2128
    ],
    "size": [
-    308.3164287851357,
-    111.22673919547651
+    308,
+    178
    ],
    "flags": {},
    "order": 209,
@@ -2505,12 +2468,12 @@
    "id": 210,
    "type": "BasicGuider",
    "pos": [
-    8190,
-    80
+    4635,
+    2584
    ],
    "size": [
     360,
-    60
+    112
    ],
    "flags": {},
    "order": 210,
@@ -2546,12 +2509,12 @@
    "id": 211,
    "type": "SamplerCustomAdvanced",
    "pos": [
-    8770,
-    80
+    5355,
+    100
    ],
    "size": [
-    230,
-    140
+    250,
+    184
    ],
    "flags": {},
    "order": 211,
@@ -2609,12 +2572,12 @@
    "id": 212,
    "type": "VAEDecode",
    "pos": [
-    9240,
-    80
+    5395,
+    364
    ],
    "size": [
-    230,
-    60
+    250,
+    112
    ],
    "flags": {
     "collapsed": false
@@ -2652,12 +2615,12 @@
    "id": 213,
    "type": "VAEDecodeAudio",
    "pos": [
-    9240,
-    282
+    5395,
+    556
    ],
    "size": [
-    230,
-    60
+    250,
+    112
    ],
    "flags": {
     "collapsed": false
@@ -2695,12 +2658,12 @@
    "id": 214,
    "type": "CreateVideo",
    "pos": [
-    9710,
-    80
+    5435,
+    748
    ],
    "size": [
     270,
-    150
+    232
    ],
    "flags": {},
    "order": 214,
@@ -2724,7 +2687,6 @@
      "type": "VIDEO",
      "links": [
       629,
-      778,
       780
      ]
     }
@@ -2745,12 +2707,12 @@
    "id": 4,
    "type": "SaveVideo",
    "pos": [
-    10200,
-    80
+    5475,
+    1060
    ],
    "size": [
-    283.125,
-    358.65625
+    283,
+    564
    ],
    "flags": {},
    "order": 4,
@@ -2838,8 +2800,8 @@
    "id": 100,
    "type": "MyShot",
    "pos": [
-    10703,
-    80
+    5515,
+    1704
    ],
    "size": [
     360,
@@ -2868,1974 +2830,15 @@
    ]
   },
   {
-   "id": 308,
-   "type": "UNETLoader",
-   "pos": [
-    80,
-    7760
-   ],
-   "size": [
-    640,
-    90
-   ],
-   "flags": {},
-   "order": 308,
-   "mode": 2,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "MODEL",
-     "type": "MODEL",
-     "links": [
-      710
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.29.0",
-    "Node name for S&R": "UNETLoader",
-    "models": [
-     {
-      "name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
-      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors",
-      "directory": "diffusion_models"
-     }
-    ]
-   },
-   "widgets_values": [
-    "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors",
-    "default"
-   ],
-   "title": "TESSERA 底模(Cobijada 统一)"
-  },
-  {
-   "id": 309,
-   "type": "CLIPLoader",
-   "pos": [
-    80,
-    7998
-   ],
-   "size": [
-    640,
-    120
-   ],
-   "flags": {},
-   "order": 309,
-   "mode": 2,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "CLIP",
-     "type": "CLIP",
-     "links": [
-      700,
-      741
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.29.0",
-    "Node name for S&R": "CLIPLoader",
-    "models": [
-     {
-      "name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-      "directory": "text_encoders"
-     }
-    ]
-   },
-   "widgets_values": [
-    "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-    "minimax",
-    "default"
-   ]
-  },
-  {
-   "id": 310,
-   "type": "VAELoader",
-   "pos": [
-    80,
-    8266
-   ],
-   "size": [
-    640,
-    70
-   ],
-   "flags": {},
-   "order": 310,
-   "mode": 2,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "VAE",
-     "type": "VAE",
-     "links": [
-      701,
-      736,
-      745
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.29.0",
-    "Node name for S&R": "VAELoader",
-    "models": [
-     {
-      "name": "minimax_h3_video_vae_fp16.safetensors",
-      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_video_vae_fp16.safetensors",
-      "directory": "vae"
-     }
-    ]
-   },
-   "widgets_values": [
-    "minimax_h3_video_vae_int8_convrot.safetensors"
-   ]
-  },
-  {
-   "id": 311,
-   "type": "VAELoader",
-   "pos": [
-    80,
-    8474
-   ],
-   "size": [
-    650,
-    70
-   ],
-   "flags": {},
-   "order": 311,
-   "mode": 2,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "VAE",
-     "type": "VAE",
-     "links": [
-      702,
-      705,
-      717
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.29.0",
-    "Node name for S&R": "VAELoader",
-    "models": [
-     {
-      "name": "minimax_h3_audio_vae_fp32.safetensors",
-      "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_audio_vae_fp32.safetensors",
-      "directory": "vae"
-     }
-    ]
-   },
-   "widgets_values": [
-    "minimax_h3_audio_vae_fp32.safetensors"
-   ]
-  },
-  {
-   "id": 320,
-   "type": "MiniMaxH3ReferenceToVideo",
-   "pos": [
-    2965,
-    6744
-   ],
-   "size": [
-    463.23935624366527,
-    424
-   ],
-   "flags": {},
-   "order": 320,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "clip",
-     "type": "CLIP",
-     "link": 700
-    },
-    {
-     "name": "vae",
-     "shape": 7,
-     "type": "VAE",
-     "link": 701
-    },
-    {
-     "name": "audio_vae",
-     "shape": 7,
-     "type": "VAE",
-     "link": 702
-    },
-    {
-     "label": "ref_image_0",
-     "name": "ref_images.ref_image_0",
-     "shape": 7,
-     "type": "IMAGE",
-     "link": null
-    },
-    {
-     "label": "ref_video_0",
-     "name": "ref_videos.ref_video_0",
-     "shape": 7,
-     "type": "IMAGE",
-     "link": 703
-    },
-    {
-     "name": "ref_videos.ref_video_1",
-     "shape": 7,
-     "type": "IMAGE",
-     "link": null
-    },
-    {
-     "label": "ref_video_audio_0",
-     "name": "ref_video_audios.ref_video_audio_0",
-     "shape": 7,
-     "type": "AUDIO",
-     "link": null
-    },
-    {
-     "label": "ref_audio_0",
-     "name": "ref_audios.ref_audio_0",
-     "shape": 7,
-     "type": "AUDIO",
-     "link": null
-    },
-    {
-     "name": "ref_audios.ref_audio_1",
-     "shape": 7,
-     "type": "AUDIO",
-     "link": null
-    },
-    {
-     "name": "ref_audios.ref_audio_2",
-     "shape": 7,
-     "type": "AUDIO",
-     "link": null
-    },
-    {
-     "name": "prompt",
-     "type": "STRING",
-     "widget": {
-      "name": "prompt"
-     },
-     "link": null
-    },
-    {
-     "name": "width",
-     "type": "INT",
-     "widget": {
-      "name": "width"
-     },
-     "link": null
-    },
-    {
-     "name": "height",
-     "type": "INT",
-     "widget": {
-      "name": "height"
-     },
-     "link": null
-    },
-    {
-     "name": "length",
-     "type": "INT",
-     "widget": {
-      "name": "length"
-     },
-     "link": null
-    },
-    {
-     "name": "ref_video_audios.ref_video_audio_1",
-     "shape": 7,
-     "type": "AUDIO",
-     "link": null
-    },
-    {
-     "name": "ref_video_audios.ref_video_audio_2",
-     "shape": 7,
-     "type": "AUDIO",
-     "link": null
-    }
-   ],
-   "outputs": [
-    {
-     "name": "positive",
-     "type": "CONDITIONING",
-     "links": [
-      709,
-      737
-     ]
-    },
-    {
-     "name": "LATENT",
-     "type": "LATENT",
-     "links": []
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.30.0",
-    "Node name for S&R": "MiniMaxH3ReferenceToVideo"
-   },
-   "widgets_values": [
-    "subject_definitions:\n<Video 1>: the reference video. Its picture, motion, framing, timing and content are the target video's content.\n<Picture 1> is a reference of a high resolution upscaled version of the first frame of the video. \n\nretention_analysis:\n<Video 1>: fully_preserved - <Video 1> is reproduced one to one as the target video. Every frame matches the source.\n\nEnhance this video with sharp, crisp details while preserving a natural photorealistic appearance.",
-    1920,
-    1056,
-    192,
-    "max"
-   ],
-   "title": "TESSERA 条件(1920×1056)"
-  },
-  {
-   "id": 317,
-   "type": "KSamplerSelect",
-   "pos": [
-    80,
-    8682
-   ],
-   "size": [
-    210,
-    58
-   ],
-   "flags": {},
-   "order": 317,
-   "mode": 2,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "SAMPLER",
-     "type": "SAMPLER",
-     "links": [
-      746
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.29.0",
-    "Node name for S&R": "KSamplerSelect"
-   },
-   "widgets_values": [
-    "er_sde"
-   ],
-   "title": "er_sde"
-  },
-  {
-   "id": 334,
-   "type": "VAEDecodeAudio",
-   "pos": [
-    7346,
-    6506
-   ],
-   "size": [
-    230,
-    60
-   ],
-   "flags": {
-    "collapsed": false
-   },
-   "order": 334,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "samples",
-     "type": "LATENT",
-     "link": 704
-    },
-    {
-     "name": "vae",
-     "type": "VAE",
-     "link": 705
-    }
-   ],
-   "outputs": [
-    {
-     "name": "AUDIO",
-     "type": "AUDIO",
-     "links": [
-      721
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.29.0",
-    "Node name for S&R": "VAEDecodeAudio"
-   }
-  },
-  {
-   "id": 316,
-   "type": "LoraLoaderModelOnly",
-   "pos": [
-    3648,
-    6720
-   ],
-   "size": [
-    398.9882722523473,
-    82
-   ],
-   "flags": {},
-   "order": 316,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "model",
-     "type": "MODEL",
-     "link": 706
-    }
-   ],
-   "outputs": [
-    {
-     "name": "MODEL",
-     "type": "MODEL",
-     "links": [
-      740
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.31.0",
-    "Node name for S&R": "LoraLoaderModelOnly"
-   },
-   "widgets_values": [
-    "minimax_h3_lms_v1.0_r64.safetensors",
-    1.0
-   ],
-   "title": "LMS@1.0(fine)"
-  },
-  {
-   "id": 304,
-   "type": "LTXVConcatAVLatent",
-   "pos": [
-    6406,
-    6220
-   ],
-   "size": [
-    181.308203125,
-    46
-   ],
-   "flags": {},
-   "order": 304,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "video_latent",
-     "type": "LATENT",
-     "link": 707
-    },
-    {
-     "name": "audio_latent",
-     "type": "LATENT",
-     "link": 708
-    }
-   ],
-   "outputs": [
-    {
-     "name": "latent",
-     "type": "LATENT",
-     "links": [
-      744
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.31.0",
-    "Node name for S&R": "LTXVConcatAVLatent"
-   }
-  },
-  {
-   "id": 337,
-   "type": "ConditioningZeroOut",
-   "pos": [
-    3648,
-    6958
-   ],
-   "size": [
-    204.134765625,
-    26
-   ],
-   "flags": {},
-   "order": 337,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "conditioning",
-     "type": "CONDITIONING",
-     "link": 709
-    }
-   ],
-   "outputs": [
-    {
-     "name": "CONDITIONING",
-     "type": "CONDITIONING",
-     "links": [
-      743
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.33.0",
-    "Node name for S&R": "ConditioningZeroOut"
-   }
-  },
-  {
-   "id": 312,
-   "type": "ModelAttentionBackend",
-   "pos": [
-    1648,
-    6494
-   ],
-   "size": [
-    270,
-    58
-   ],
-   "flags": {},
-   "order": 312,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "model",
-     "type": "MODEL",
-     "link": 710
-    }
-   ],
-   "outputs": [
-    {
-     "name": "model",
-     "type": "MODEL",
-     "links": [
-      712
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.33.0",
-    "Node name for S&R": "ModelAttentionBackend"
-   },
-   "widgets_values": [
-    "comfy kitchen attention"
-   ]
-  },
-  {
-   "id": 318,
-   "type": "KSamplerSelect",
-   "pos": [
-    80,
-    8890
-   ],
-   "size": [
-    210,
-    58
-   ],
-   "flags": {},
-   "order": 318,
-   "mode": 2,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "SAMPLER",
-     "type": "SAMPLER",
-     "links": [
-      747
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.29.0",
-    "Node name for S&R": "KSamplerSelect"
-   },
-   "widgets_values": [
-    "euler"
-   ],
-   "title": "euler(fine)"
-  },
-  {
-   "id": 315,
-   "type": "LoraLoaderModelOnly",
-   "pos": [
-    3648,
-    6482
-   ],
-   "size": [
-    398.9882722523473,
-    82
-   ],
-   "flags": {},
-   "order": 315,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "model",
-     "type": "MODEL",
-     "link": 711
-    }
-   ],
-   "outputs": [
-    {
-     "name": "MODEL",
-     "type": "MODEL",
-     "links": [
-      739
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.31.0",
-    "Node name for S&R": "LoraLoaderModelOnly"
-   },
-   "widgets_values": [
-    "minimax_h3_lms_v1.0_r64.safetensors",
-    0.75
-   ],
-   "title": "LMS@0.75(主)"
-  },
-  {
-   "id": 313,
-   "type": "BlockSparseAttention",
-   "pos": [
-    2374,
-    6560
-   ],
-   "size": [
-    270,
-    250
-   ],
-   "flags": {},
-   "order": 313,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "model",
-     "type": "MODEL",
-     "link": 712
-    }
-   ],
-   "outputs": [
-    {
-     "name": "model",
-     "type": "MODEL",
-     "links": [
-      713
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.34.0",
-    "Node name for S&R": "BlockSparseAttention"
-   },
-   "widgets_values": [
-    "sol-attn",
-    1.5,
-    0.0,
-    1.0,
-    "0,1",
-    12288,
-    256,
-    "exact_kv_and_rows",
-    false
-   ],
-   "title": "sol-attn"
-  },
-  {
-   "id": 314,
-   "type": "LoraLoaderModelOnly",
-   "pos": [
-    2965,
-    6506
-   ],
-   "size": [
-    398.9882722523473,
-    82
-   ],
-   "flags": {},
-   "order": 314,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "model",
-     "type": "MODEL",
-     "link": 713
-    }
-   ],
-   "outputs": [
-    {
-     "name": "MODEL",
-     "type": "MODEL",
-     "links": [
-      706,
-      711
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.31.0",
-    "Node name for S&R": "LoraLoaderModelOnly"
-   },
-   "widgets_values": [
-    "taomate_h3_3step.safetensors",
-    0.7
-   ],
-   "title": "taomate@1.0"
-  },
-  {
-   "id": 333,
-   "type": "SetLatentNoiseMask",
-   "pos": [
-    2965,
-    7432
-   ],
-   "size": [
-    188.1373046875,
-    46
-   ],
-   "flags": {},
-   "order": 333,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "samples",
-     "type": "LATENT",
-     "link": 714
-    },
-    {
-     "name": "mask",
-     "type": "MASK",
-     "link": 715
-    }
-   ],
-   "outputs": [
-    {
-     "name": "LATENT",
-     "type": "LATENT",
-     "links": [
-      708
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.35.0",
-    "Node name for S&R": "SetLatentNoiseMask"
-   }
-  },
-  {
-   "id": 331,
-   "type": "VAEEncodeAudio",
-   "pos": [
-    2374,
-    7246
-   ],
-   "size": [
-    162.659765625,
-    46
-   ],
-   "flags": {},
-   "order": 331,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "audio",
-     "type": "AUDIO",
-     "link": 716
-    },
-    {
-     "name": "vae",
-     "type": "VAE",
-     "link": 717
-    }
-   ],
-   "outputs": [
-    {
-     "name": "LATENT",
-     "type": "LATENT",
-     "links": [
-      714
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.35.0",
-    "Node name for S&R": "VAEEncodeAudio"
-   }
-  },
-  {
-   "id": 332,
-   "type": "SolidMask",
-   "pos": [
-    80,
-    10020
-   ],
-   "size": [
-    210,
-    106
-   ],
-   "flags": {},
-   "order": 332,
-   "mode": 2,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "MASK",
-     "type": "MASK",
-     "links": [
-      715
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.35.0",
-    "Node name for S&R": "SolidMask"
-   },
-   "widgets_values": [
-    1,
-    32,
-    32
-   ]
-  },
-  {
-   "id": 300,
-   "type": "LoadVideo",
-   "pos": [
-    80,
-    6220
-   ],
-   "size": [
-    1348.2068156333198,
-    851.8116244038383
-   ],
-   "flags": {},
-   "order": 300,
-   "mode": 2,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "VIDEO",
-     "type": "VIDEO",
-     "links": [
-      718
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.35.0",
-    "Node name for S&R": "LoadVideo"
-   },
-   "widgets_values": [
-    "your_source_clip.mp4",
-    "image"
-   ],
-   "title": "源视频(指②组产物)"
-  },
-  {
-   "id": 301,
-   "type": "GetVideoComponents",
-   "pos": [
-    1648,
-    6220
-   ],
-   "size": [
-    193.530859375,
-    106
-   ],
-   "flags": {},
-   "order": 301,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "video",
-     "type": "VIDEO",
-     "link": 718
-    }
-   ],
-   "outputs": [
-    {
-     "name": "images",
-     "type": "IMAGE",
-     "links": [
-      734
-     ]
-    },
-    {
-     "name": "audio",
-     "type": "AUDIO",
-     "links": [
-      716
-     ]
-    },
-    {
-     "name": "fps",
-     "type": "FLOAT",
-     "links": []
-    },
-    {
-     "name": "bit_depth",
-     "type": "COMBO",
-     "links": []
-    },
-    {
-     "name": "color_space",
-     "type": "COMBO",
-     "links": []
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.35.0",
-    "Node name for S&R": "GetVideoComponents"
-   }
-  },
-  {
-   "id": 336,
-   "type": "SaveVideo",
-   "pos": [
-    8404,
-    6220
-   ],
-   "size": [
-    2002.3330129374567,
-    1280.6553739978922
-   ],
-   "flags": {},
-   "order": 336,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "video",
-     "type": "VIDEO",
-     "link": 719
-    }
-   ],
-   "outputs": [
-    {
-     "name": "video",
-     "type": "VIDEO",
-     "links": []
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.35.0"
-   },
-   "widgets_values": [
-    "video/漫影/chapter-001/sb-chapter-001-001/p3-tessera-x15-1920x1056",
-    "mp4",
-    "h264",
-    "re-encode",
-    12.0,
-    "auto"
-   ],
-   "title": "TESSERA 保存(CRF12)"
-  },
-  {
-   "id": 335,
-   "type": "CreateVideo",
-   "pos": [
-    7914,
-    6220
-   ],
-   "size": [
-    270,
-    150
-   ],
-   "flags": {},
-   "order": 335,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "images",
-     "type": "IMAGE",
-     "link": 720
-    },
-    {
-     "name": "audio",
-     "shape": 7,
-     "type": "AUDIO",
-     "link": 721
-    }
-   ],
-   "outputs": [
-    {
-     "name": "VIDEO",
-     "type": "VIDEO",
-     "links": [
-      719
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.35.0",
-    "Node name for S&R": "CreateVideo"
-   },
-   "widgets_values": [
-    24,
-    "auto",
-    "sRGB",
-    "none"
-   ]
-  },
-  {
-   "id": 324,
-   "type": "UNETLoader",
-   "pos": [
-    80,
-    9306
-   ],
-   "size": [
-    510,
-    90
-   ],
-   "flags": {},
-   "order": 324,
-   "mode": 2,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "MODEL",
-     "type": "MODEL",
-     "links": [
-      732
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.37.0",
-    "Node name for S&R": "UNETLoader",
-    "models": [
-     {
-      "name": "qwen_image_2.1_int8_convrot.safetensors",
-      "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors",
-      "directory": "diffusion_models"
-     }
-    ]
-   },
-   "widgets_values": [
-    "qwen_image_2.1_int8_convrot.safetensors",
-    "default"
-   ]
-  },
-  {
-   "id": 325,
-   "type": "CLIPLoader",
-   "pos": [
-    80,
-    9544
-   ],
-   "size": [
-    510,
-    120
-   ],
-   "flags": {},
-   "order": 325,
-   "mode": 2,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "CLIP",
-     "type": "CLIP",
-     "links": [
-      722
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.37.0",
-    "Node name for S&R": "CLIPLoader",
-    "models": [
-     {
-      "name": "qwen3vl_8b_int8_convrot.safetensors",
-      "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors",
-      "directory": "text_encoders"
-     }
-    ]
-   },
-   "widgets_values": [
-    "qwen3vl_8b_int8_convrot.safetensors",
-    "qwen_image",
-    "default"
-   ]
-  },
-  {
-   "id": 323,
-   "type": "TextEncodeQwenImage21",
-   "pos": [
-    4267,
-    6220
-   ],
-   "size": [
-    464.92486633790395,
-    526.4168466121318
-   ],
-   "flags": {},
-   "order": 323,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "clip",
-     "type": "CLIP",
-     "link": 722
-    },
-    {
-     "name": "images.image_1",
-     "shape": 7,
-     "type": "IMAGE",
-     "link": 723
-    },
-    {
-     "name": "vae",
-     "shape": 7,
-     "type": "VAE",
-     "link": 724
-    },
-    {
-     "name": "images.image_11",
-     "shape": 7,
-     "type": "IMAGE",
-     "link": null
-    },
-    {
-     "name": "images.image_2",
-     "shape": 7,
-     "type": "IMAGE",
-     "link": null
-    }
-   ],
-   "outputs": [
-    {
-     "name": "positive",
-     "type": "CONDITIONING",
-     "links": [
-      726
-     ]
-    },
-    {
-     "name": "negative",
-     "type": "CONDITIONING",
-     "links": [
-      727
-     ]
-    },
-    {
-     "name": "latent",
-     "type": "LATENT",
-     "links": [
-      728
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.37.0",
-    "Node name for S&R": "TextEncodeQwenImage21"
-   },
-   "widgets_values": [
-    "upscale <image 1> to make it high detail, realistic. Maintain the likeness of the character as much as possible",
-    "",
-    0
-   ]
-  },
-  {
-   "id": 326,
-   "type": "VAELoader",
-   "pos": [
-    80,
-    9812
-   ],
-   "size": [
-    510,
-    70
-   ],
-   "flags": {},
-   "order": 326,
-   "mode": 2,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "VAE",
-     "type": "VAE",
-     "links": [
-      724,
-      731
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.37.0",
-    "Node name for S&R": "VAELoader",
-    "models": [
-     {
-      "name": "qwen_image_2.1_vae_bf16.safetensors",
-      "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors",
-      "directory": "vae"
-     }
-    ]
-   },
-   "widgets_values": [
-    "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
-   ]
-  },
-  {
-   "id": 329,
-   "type": "KSampler",
-   "pos": [
-    4952,
-    6220
-   ],
-   "size": [
-    270,
-    417.66666666666663
-   ],
-   "flags": {},
-   "order": 329,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "model",
-     "type": "MODEL",
-     "link": 725
-    },
-    {
-     "name": "positive",
-     "type": "CONDITIONING",
-     "link": 726
-    },
-    {
-     "name": "negative",
-     "type": "CONDITIONING",
-     "link": 727
-    },
-    {
-     "name": "latent_image",
-     "type": "LATENT",
-     "link": 728
-    }
-   ],
-   "outputs": [
-    {
-     "name": "LATENT",
-     "type": "LATENT",
-     "links": [
-      730
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.37.0",
-    "Node name for S&R": "KSampler"
-   },
-   "widgets_values": [
-    1,
-    "fixed",
-    8,
-    1.0,
-    "euler",
-    "linear_quadratic",
-    1.0
-   ]
-  },
-  {
-   "id": 327,
-   "type": "QwenImage21Cache",
-   "pos": [
-    2374,
-    7008
-   ],
-   "size": [
-    270,
-    90
-   ],
-   "flags": {},
-   "order": 327,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "model",
-     "type": "MODEL",
-     "link": 729
-    }
-   ],
-   "outputs": [
-    {
-     "name": "MODEL",
-     "type": "MODEL",
-     "links": [
-      725
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.37.0",
-    "Node name for S&R": "QwenImage21Cache"
-   },
-   "widgets_values": [
-    "auto",
-    "default"
-   ]
-  },
-  {
-   "id": 330,
-   "type": "VAEDecode",
-   "pos": [
-    5442,
-    6220
-   ],
-   "size": [
-    230,
-    60
-   ],
-   "flags": {},
-   "order": 330,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "samples",
-     "type": "LATENT",
-     "link": 730
-    },
-    {
-     "name": "vae",
-     "type": "VAE",
-     "link": 731
-    }
-   ],
-   "outputs": [
-    {
-     "name": "IMAGE",
-     "type": "IMAGE",
-     "links": [
-      738
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.37.0",
-    "Node name for S&R": "VAEDecode"
-   }
-  },
-  {
-   "id": 328,
-   "type": "LoraLoaderModelOnly",
-   "pos": [
-    1648,
-    6702
-   ],
-   "size": [
-    505.85527881133476,
-    82
-   ],
-   "flags": {},
-   "order": 328,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "model",
-     "type": "MODEL",
-     "link": 732
-    }
-   ],
-   "outputs": [
-    {
-     "name": "MODEL",
-     "type": "MODEL",
-     "links": [
-      729
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.39.0",
-    "Node name for S&R": "LoraLoaderModelOnly"
-   },
-   "widgets_values": [
-    "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
-    1.0
-   ]
-  },
-  {
-   "id": 322,
-   "type": "ImageScaleBy",
-   "pos": [
-    3648,
-    6220
-   ],
-   "size": [
-    270,
-    82
-   ],
-   "flags": {},
-   "order": 322,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "image",
-     "type": "IMAGE",
-     "link": 733
-    },
-    {
-     "name": "scale_by",
-     "type": "FLOAT",
-     "widget": {
-      "name": "scale_by"
-     },
-     "link": null
-    }
-   ],
-   "outputs": [
-    {
-     "name": "IMAGE",
-     "type": "IMAGE",
-     "links": [
-      723
-     ]
-    }
-   ],
-   "properties": {
-    "cnr_id": "comfy-core",
-    "ver": "0.41.0",
-    "Node name for S&R": "ImageScaleBy"
-   },
-   "widgets_values": [
-    "lanczos",
-    1.5
-   ]
-  },
-  {
-   "id": 302,
-   "type": "TesseraDilate",
-   "pos": [
-    2374,
-    6220
-   ],
-   "size": [
-    371.128515625,
-    166
-   ],
-   "flags": {},
-   "order": 302,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "images",
-     "type": "IMAGE",
-     "link": 734
-    }
-   ],
-   "outputs": [
-    {
-     "name": "dilated",
-     "type": "IMAGE",
-     "links": [
-      703,
-      735,
-      754
-     ]
-    },
-    {
-     "name": "original_frames",
-     "type": "INT",
-     "links": [
-      752
-     ]
-    },
-    {
-     "name": "info",
-     "type": "STRING",
-     "links": []
-    },
-    {
-     "name": "frame_map",
-     "type": "STRING",
-     "links": [
-      750,
-      753
-     ]
-    }
-   ],
-   "properties": {
-    "Node name for S&R": "TesseraDilate"
-   },
-   "widgets_values": [
-    "auto",
-    1.2,
-    2.0
-   ],
-   "title": "Tessera 膨胀"
-  },
-  {
-   "id": 303,
-   "type": "TesseraEncode",
-   "pos": [
-    5912,
-    6220
-   ],
-   "size": [
-    273.5259765625,
-    234
-   ],
-   "flags": {},
-   "order": 303,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "images",
-     "type": "IMAGE",
-     "link": 735
-    },
-    {
-     "name": "vae",
-     "type": "VAE",
-     "link": 736
-    },
-    {
-     "name": "positive",
-     "type": "CONDITIONING",
-     "link": 737
-    },
-    {
-     "name": "anchor",
-     "shape": 7,
-     "type": "IMAGE",
-     "link": 738
-    },
-    {
-     "name": "upscale_by",
-     "type": "FLOAT",
-     "widget": {
-      "name": "upscale_by"
-     },
-     "link": null
-    }
-   ],
-   "outputs": [
-    {
-     "name": "positive",
-     "type": "CONDITIONING",
-     "links": [
-      742
-     ]
-    },
-    {
-     "name": "latent",
-     "type": "LATENT",
-     "links": [
-      707
-     ]
-    },
-    {
-     "name": "width",
-     "type": "INT",
-     "links": []
-    },
-    {
-     "name": "height",
-     "type": "INT",
-     "links": []
-    },
-    {
-     "name": "frames",
-     "type": "INT",
-     "links": []
-    }
-   ],
-   "properties": {
-    "Node name for S&R": "TesseraEncode"
-   },
-   "widgets_values": [
-    1.5,
-    "lanczos",
-    56,
-    1.0,
-    4
-   ],
-   "title": "Tessera 编码 ×1.5→1920×1056"
-  },
-  {
-   "id": 305,
-   "type": "TesseraRefine",
-   "pos": [
-    6876,
-    6220
-   ],
-   "size": [
-    210,
-    720
-   ],
-   "flags": {},
-   "order": 305,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "model",
-     "type": "MODEL",
-     "link": 739
-    },
-    {
-     "name": "model_fine",
-     "shape": 7,
-     "type": "MODEL",
-     "link": 740
-    },
-    {
-     "name": "model_hero",
-     "shape": 7,
-     "type": "MODEL",
-     "link": null
-    },
-    {
-     "name": "clip",
-     "shape": 7,
-     "type": "CLIP",
-     "link": 741
-    },
-    {
-     "name": "positive",
-     "shape": 7,
-     "type": "CONDITIONING",
-     "link": 742
-    },
-    {
-     "name": "negative",
-     "shape": 7,
-     "type": "CONDITIONING",
-     "link": 743
-    },
-    {
-     "name": "latent",
-     "shape": 7,
-     "type": "LATENT",
-     "link": 744
-    },
-    {
-     "name": "vae",
-     "shape": 7,
-     "type": "VAE",
-     "link": 745
-    },
-    {
-     "name": "sampler",
-     "shape": 7,
-     "type": "SAMPLER",
-     "link": 746
-    },
-    {
-     "name": "sampler_fine",
-     "shape": 7,
-     "type": "SAMPLER",
-     "link": 747
-    },
-    {
-     "name": "sigmas",
-     "shape": 7,
-     "type": "SIGMAS",
-     "link": 748
-    },
-    {
-     "name": "hero_sigmas",
-     "shape": 7,
-     "type": "SIGMAS",
-     "link": null
-    },
-    {
-     "name": "hero_mask",
-     "shape": 7,
-     "type": "MASK",
-     "link": null
-    },
-    {
-     "name": "tile_cond",
-     "shape": 7,
-     "type": "TILE_COND",
-     "link": null
-    },
-    {
-     "name": "plan",
-     "shape": 7,
-     "type": "TESSERA_PLAN",
-     "link": null
-    },
-    {
-     "name": "args",
-     "shape": 7,
-     "type": "TESSERA_ARGS",
-     "link": 749
-    },
-    {
-     "name": "frame_map",
-     "shape": 7,
-     "type": "STRING",
-     "link": 750
-    },
-    {
-     "name": "prompt",
-     "type": "STRING",
-     "widget": {
-      "name": "prompt"
-     },
-     "link": null
-    }
-   ],
-   "outputs": [
-    {
-     "name": "latent",
-     "type": "LATENT",
-     "links": [
-      704
-     ]
-    },
-    {
-     "name": "report",
-     "type": "STRING",
-     "links": []
-    },
-    {
-     "name": "image",
-     "type": "IMAGE",
-     "links": [
-      751
-     ]
-    }
-   ],
-   "properties": {
-    "Node name for S&R": "TesseraRefine"
-   },
-   "widgets_values": [
-    "high_vram",
-    1024,
-    1024,
-    "high_vram",
-    124,
-    4,
-    64,
-    32,
-    896,
-    "median",
-    1.0,
-    786110,
-    "fixed",
-    true,
-    "overall",
-    "subject_definitions:\n<Video 1>: the reference video. Its picture, motion, framing, timing and content are the target video's content.\n<Picture 1> is a reference of a high resolution upscaled version of the first frame of the video. \n\nretention_analysis:\n<Video 1>: fully_preserved - <Video 1> is reproduced one to one as the target video. Every frame matches the source.\n\nEnhance this video with sharp, crisp details while preserving a natural photorealistic appearance.",
-    "subject_definitions:\n<Video 1>: the reference video. Its picture, motion, framing, timing and content are the target video's content.\n<Picture 1> is a reference of a high resolution upscaled version of the first frame of the video. \n\nretention_analysis:\n<Video 1>: fully_preserved - <Video 1> is reproduced one to one as the target video. Every frame matches the source.\n\nEnhance this video with sharp, crisp details while preserving a natural photorealistic appearance."
-   ],
-   "title": "Tessera 精修(σ 1/0.7/0.4/0)"
-  },
-  {
-   "id": 306,
-   "type": "TesseraDecimate",
-   "pos": [
-    7346,
-    6220
-   ],
-   "size": [
-    348.077734375,
-    82
-   ],
-   "flags": {},
-   "order": 306,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "images",
-     "type": "IMAGE",
-     "link": 751
-    },
-    {
-     "name": "original_frames",
-     "type": "INT",
-     "widget": {
-      "name": "original_frames"
-     },
-     "link": 752
-    },
-    {
-     "name": "frame_map",
-     "shape": 7,
-     "type": "STRING",
-     "widget": {
-      "name": "frame_map"
-     },
-     "link": 753
-    }
-   ],
-   "outputs": [
-    {
-     "name": "IMAGE",
-     "type": "IMAGE",
-     "links": [
-      720
-     ]
-    }
-   ],
-   "properties": {
-    "Node name for S&R": "TesseraDecimate"
-   },
-   "widgets_values": [
-    0,
-    ""
-   ],
-   "title": "Tessera 抽减"
-  },
-  {
-   "id": 307,
-   "type": "TesseraArgs",
-   "pos": [
-    80,
-    7162
-   ],
-   "size": [
-    221.83203125,
-    322
-   ],
-   "flags": {},
-   "order": 307,
-   "mode": 2,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "args",
-     "type": "TESSERA_ARGS",
-     "links": [
-      749
-     ]
-    }
-   ],
-   "properties": {
-    "Node name for S&R": "TesseraArgs"
-   },
-   "widgets_values": [
-    "per_tile",
-    "per_tile",
-    0,
-    "full",
-    "per_frame",
-    0.8,
-    true,
-    -1,
-    true,
-    0.3,
-    0.75,
-    "",
-    0,
-    4
-   ]
-  },
-  {
-   "id": 319,
-   "type": "ManualSigmas",
-   "pos": [
-    80,
-    9098
-   ],
-   "size": [
-    370,
-    100
-   ],
-   "flags": {},
-   "order": 319,
-   "mode": 2,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "SIGMAS",
-     "type": "SIGMAS",
-     "links": [
-      748
-     ]
-    }
-   ],
-   "properties": {
-    "Node name for S&R": "ManualSigmas"
-   },
-   "widgets_values": [
-    "1, 0.7, 0.4, 0.0"
-   ],
-   "title": "σ=1,0.7,0.4,0"
-  },
-  {
-   "id": 321,
-   "type": "ImageFromBatch",
-   "pos": [
-    2965,
-    6220
-   ],
-   "size": [
-    370,
-    100
-   ],
-   "flags": {},
-   "order": 321,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "image",
-     "type": "IMAGE",
-     "link": 754
-    },
-    {
-     "name": "batch_index",
-     "type": "INT",
-     "widget": {
-      "name": "batch_index"
-     },
-     "link": null
-    },
-    {
-     "name": "length",
-     "type": "INT",
-     "widget": {
-      "name": "length"
-     },
-     "link": null
-    }
-   ],
-   "outputs": [
-    {
-     "name": "IMAGE",
-     "type": "IMAGE",
-     "links": [
-      733
-     ]
-    }
-   ],
-   "properties": {
-    "Node name for S&R": "ImageFromBatch",
-    "cnr_id": "comfy-core"
-   },
-   "widgets_values": [
-    0,
-    1
-   ]
-  },
-  {
    "id": 223,
    "type": "MiniMaxChunkFeedForward",
    "pos": [
-    6543,
-    80
+    4515,
+    994
    ],
    "size": [
     300,
-    90
+    148
    ],
    "flags": {},
    "order": 203,
@@ -4876,12 +2879,12 @@
    "id": 250,
    "type": "BasicScheduler",
    "pos": [
-    2475,
-    900
+    3922,
+    490
    ],
    "size": [
     315,
-    106
+    178
    ],
    "flags": {},
    "order": 10,
@@ -4917,12 +2920,12 @@
    "id": 251,
    "type": "MiniMaxH3SigmaShift",
    "pos": [
-    2160,
-    768
+    1180,
+    2266
    ],
    "size": [
     315,
-    82
+    148
    ],
    "flags": {},
    "order": 218,
@@ -4957,12 +2960,12 @@
    "id": 260,
    "type": "BlockSparseAttention",
    "pos": [
-    1180,
-    1000
+    1060,
+    976
    ],
    "size": [
     270,
-    250
+    358
    ],
    "flags": {},
    "order": 313,
@@ -5005,12 +3008,12 @@
    "id": 261,
    "type": "MiniMaxChunkFeedForward",
    "pos": [
-    1400,
-    1000
+    1100,
+    1642
    ],
    "size": [
     300,
-    90
+    148
    ],
    "flags": {},
    "order": 203,
@@ -5051,12 +3054,12 @@
    "id": 262,
    "type": "BlockSparseAttention",
    "pos": [
-    1180,
-    780
+    1060,
+    100
    ],
    "size": [
     270,
-    250
+    358
    ],
    "flags": {},
    "order": 313,
@@ -5099,12 +3102,12 @@
    "id": 263,
    "type": "MiniMaxChunkFeedForward",
    "pos": [
-    1400,
-    780
+    1100,
+    1414
    ],
    "size": [
     300,
-    90
+    148
    ],
    "flags": {},
    "order": 203,
@@ -5142,140 +3145,15 @@
    "title": "ChunkFFN[2,4096](一采·r2v 路)"
   },
   {
-   "id": 264,
-   "type": "MiniMaxH3TokenCounter",
-   "pos": [
-    2700,
-    1150
-   ],
-   "size": [
-    280,
-    130
-   ],
-   "flags": {},
-   "order": 30,
-   "mode": 0,
-   "showAdvanced": null,
-   "inputs": [
-    {
-     "name": "samples",
-     "type": "LATENT",
-     "link": 764,
-     "widget": null,
-     "shape": null,
-     "label": null,
-     "localized_name": "samples",
-     "dir": null,
-     "color_off": null,
-     "color_on": null,
-     "locked": null,
-     "nameLocked": null,
-     "removable": null
-    },
-    {
-     "name": "conditioning",
-     "type": "CONDITIONING",
-     "link": 762,
-     "widget": null,
-     "shape": null,
-     "label": null,
-     "localized_name": "conditioning",
-     "dir": null,
-     "color_off": null,
-     "color_on": null,
-     "locked": null,
-     "nameLocked": null,
-     "removable": null
-    }
-   ],
-   "outputs": [
-    {
-     "name": "samples",
-     "type": "LATENT",
-     "links": [],
-     "slot_index": 0
-    },
-    {
-     "name": "conditioning",
-     "type": "CONDITIONING",
-     "links": [],
-     "slot_index": 1
-    },
-    {
-     "name": "tokens",
-     "type": "INT",
-     "links": [
-      768
-     ],
-     "slot_index": 2
-    },
-    {
-     "name": "breakdown",
-     "type": "STRING",
-     "links": [],
-     "slot_index": 3
-    }
-   ],
-   "title": "TokenCounter(一采默认·1108 用户令)",
-   "properties": {
-    "Node name for S&R": "MiniMaxH3TokenCounter"
-   }
-  },
-  {
-   "id": 265,
-   "type": "PreviewAny",
-   "pos": [
-    2960,
-    1160
-   ],
-   "size": [
-    280,
-    120
-   ],
-   "flags": {},
-   "order": 31,
-   "mode": 0,
-   "showAdvanced": null,
-   "inputs": [
-    {
-     "name": "source",
-     "type": "*",
-     "link": 768,
-     "widget": null,
-     "shape": null,
-     "label": null,
-     "localized_name": "source",
-     "dir": null,
-     "color_off": null,
-     "color_on": null,
-     "locked": null,
-     "nameLocked": null,
-     "removable": null
-    }
-   ],
-   "outputs": [
-    {
-     "name": "STRING",
-     "type": "STRING",
-     "links": [],
-     "slot_index": 0
-    }
-   ],
-   "title": "TokenCounter 读数(一采)",
-   "properties": {
-    "Node name for S&R": "PreviewAny"
-   }
-  },
-  {
    "id": 266,
    "type": "ModelPreviewOverrideKJ",
    "pos": [
-    2680,
-    560
+    1975,
+    100
    ],
    "size": [
     300,
-    200
+    346
    ],
    "flags": {},
    "order": 32,
@@ -5356,12 +3234,12 @@
    "id": 267,
    "type": "BlockSparseAttention",
    "pos": [
-    6100,
-    80
+    1060,
+    538
    ],
    "size": [
     270,
-    250
+    358
    ],
    "flags": {},
    "order": 313,
@@ -5401,192 +3279,15 @@
    "title": "sol-attn τ1.3(二采·1108 用户令)"
   },
   {
-   "id": 268,
-   "type": "RelayVSRModelLoader",
-   "pos": [
-    11150,
-    80
-   ],
-   "size": [
-    315,
-    130
-   ],
-   "flags": {},
-   "order": 200,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "bundle",
-     "type": "COMBO",
-     "link": null,
-     "widget": true
-    },
-    {
-     "name": "dtype",
-     "type": "COMBO",
-     "link": null,
-     "widget": true
-    },
-    {
-     "name": "offload",
-     "type": "BOOLEAN",
-     "link": null,
-     "widget": true
-    },
-    {
-     "name": "path",
-     "type": "STRING",
-     "link": null,
-     "widget": true
-    }
-   ],
-   "outputs": [
-    {
-     "name": "MODEL",
-     "type": "RELAYVSR_MODEL",
-     "links": [
-      779
-     ],
-     "slot_index": 0
-    }
-   ],
-   "properties": {
-    "Node name for S&R": "RelayVSRModelLoader"
-   },
-   "widgets_values": [
-    "RelayVSR_X2",
-    "bf16",
-    true,
-    ""
-   ]
-  },
-  {
-   "id": 269,
-   "type": "RelayVSRUpscaleStreaming",
-   "pos": [
-    11500,
-    80
-   ],
-   "size": [
-    370,
-    420
-   ],
-   "flags": {},
-   "order": 201,
-   "mode": 2,
-   "inputs": [
-    {
-     "name": "model",
-     "type": "RELAYVSR_MODEL",
-     "link": 779
-    },
-    {
-     "name": "video",
-     "type": "VIDEO",
-     "link": 778
-    },
-    {
-     "name": "upscale_width",
-     "type": "INT",
-     "link": null,
-     "widget": true
-    },
-    {
-     "name": "sr_ratio",
-     "type": "INT",
-     "link": null,
-     "widget": true
-    },
-    {
-     "name": "chunk_len",
-     "type": "INT",
-     "link": null,
-     "widget": true
-    },
-    {
-     "name": "seed",
-     "type": "INT",
-     "link": null,
-     "widget": true
-    },
-    {
-     "name": "chunk_overlap",
-     "type": "INT",
-     "link": null,
-     "widget": true
-    },
-    {
-     "name": "spatial_grid_cols",
-     "type": "INT",
-     "link": null,
-     "widget": true
-    },
-    {
-     "name": "spatial_grid_rows",
-     "type": "INT",
-     "link": null,
-     "widget": true
-    },
-    {
-     "name": "spatial_overlap",
-     "type": "INT",
-     "link": null,
-     "widget": true
-    },
-    {
-     "name": "codec",
-     "type": "COMBO",
-     "link": null,
-     "widget": true
-    },
-    {
-     "name": "crf",
-     "type": "FLOAT",
-     "link": null,
-     "widget": true
-    },
-    {
-     "name": "preset",
-     "type": "COMBO",
-     "link": null,
-     "widget": true
-    },
-    {
-     "name": "filename_prefix",
-     "type": "STRING",
-     "link": null,
-     "widget": true
-    }
-   ],
-   "outputs": [],
-   "properties": {
-    "Node name for S&R": "RelayVSRUpscaleStreaming"
-   },
-   "widgets_values": [
-    1920,
-    2,
-    24,
-    0,
-    4,
-    1,
-    1,
-    64,
-    "h264",
-    18.0,
-    "medium",
-    "video/漫影/chapter-001/sb-chapter-001-001/p3-relayvsr"
-   ]
-  },
-  {
    "id": 338,
    "type": "ReCaVSRLoader",
    "pos": [
-    12450,
-    80
+    100,
+    1182
    ],
    "size": [
     270,
-    58
+    118
    ],
    "flags": {},
    "order": 1,
@@ -5626,12 +3327,12 @@
    "id": 339,
    "type": "ReCaVSRUpscale",
    "pos": [
-    12750,
-    80
+    6025,
+    100
    ],
    "size": [
     270,
-    218
+    430
    ],
    "flags": {},
    "order": 4,
@@ -5694,12 +3395,12 @@
    "id": 340,
    "type": "SaveVideo",
    "pos": [
-    13300,
-    80
+    6065,
+    610
    ],
    "size": [
     270,
-    557.2213114754097
+    564
    ],
    "flags": {},
    "order": 6,
@@ -5795,14 +3496,6 @@
    0,
    220,
    1,
-   "VAE"
-  ],
-  [
-   564,
-   120,
-   0,
-   220,
-   8,
    "VAE"
   ],
   [
@@ -6350,446 +4043,6 @@
    "VIDEO"
   ],
   [
-   700,
-   309,
-   0,
-   320,
-   0,
-   "CLIP"
-  ],
-  [
-   701,
-   310,
-   0,
-   320,
-   1,
-   "VAE"
-  ],
-  [
-   702,
-   311,
-   0,
-   320,
-   2,
-   "VAE"
-  ],
-  [
-   703,
-   302,
-   0,
-   320,
-   4,
-   "IMAGE"
-  ],
-  [
-   704,
-   305,
-   0,
-   334,
-   0,
-   "LATENT"
-  ],
-  [
-   705,
-   311,
-   0,
-   334,
-   1,
-   "VAE"
-  ],
-  [
-   706,
-   314,
-   0,
-   316,
-   0,
-   "MODEL"
-  ],
-  [
-   707,
-   303,
-   1,
-   304,
-   0,
-   "LATENT"
-  ],
-  [
-   708,
-   333,
-   0,
-   304,
-   1,
-   "LATENT"
-  ],
-  [
-   709,
-   320,
-   0,
-   337,
-   0,
-   "CONDITIONING"
-  ],
-  [
-   710,
-   308,
-   0,
-   312,
-   0,
-   "MODEL"
-  ],
-  [
-   711,
-   314,
-   0,
-   315,
-   0,
-   "MODEL"
-  ],
-  [
-   712,
-   312,
-   0,
-   313,
-   0,
-   "MODEL"
-  ],
-  [
-   713,
-   313,
-   0,
-   314,
-   0,
-   "MODEL"
-  ],
-  [
-   714,
-   331,
-   0,
-   333,
-   0,
-   "LATENT"
-  ],
-  [
-   715,
-   332,
-   0,
-   333,
-   1,
-   "MASK"
-  ],
-  [
-   716,
-   301,
-   1,
-   331,
-   0,
-   "AUDIO"
-  ],
-  [
-   717,
-   311,
-   0,
-   331,
-   1,
-   "VAE"
-  ],
-  [
-   718,
-   300,
-   0,
-   301,
-   0,
-   "VIDEO"
-  ],
-  [
-   719,
-   335,
-   0,
-   336,
-   0,
-   "VIDEO"
-  ],
-  [
-   720,
-   306,
-   0,
-   335,
-   0,
-   "IMAGE"
-  ],
-  [
-   721,
-   334,
-   0,
-   335,
-   1,
-   "AUDIO"
-  ],
-  [
-   722,
-   325,
-   0,
-   323,
-   0,
-   "CLIP"
-  ],
-  [
-   723,
-   322,
-   0,
-   323,
-   1,
-   "IMAGE"
-  ],
-  [
-   724,
-   326,
-   0,
-   323,
-   2,
-   "VAE"
-  ],
-  [
-   725,
-   327,
-   0,
-   329,
-   0,
-   "MODEL"
-  ],
-  [
-   726,
-   323,
-   0,
-   329,
-   1,
-   "CONDITIONING"
-  ],
-  [
-   727,
-   323,
-   1,
-   329,
-   2,
-   "CONDITIONING"
-  ],
-  [
-   728,
-   323,
-   2,
-   329,
-   3,
-   "LATENT"
-  ],
-  [
-   729,
-   328,
-   0,
-   327,
-   0,
-   "MODEL"
-  ],
-  [
-   730,
-   329,
-   0,
-   330,
-   0,
-   "LATENT"
-  ],
-  [
-   731,
-   326,
-   0,
-   330,
-   1,
-   "VAE"
-  ],
-  [
-   732,
-   324,
-   0,
-   328,
-   0,
-   "MODEL"
-  ],
-  [
-   733,
-   321,
-   0,
-   322,
-   0,
-   "IMAGE"
-  ],
-  [
-   734,
-   301,
-   0,
-   302,
-   0,
-   "IMAGE"
-  ],
-  [
-   735,
-   302,
-   0,
-   303,
-   0,
-   "IMAGE"
-  ],
-  [
-   736,
-   310,
-   0,
-   303,
-   1,
-   "VAE"
-  ],
-  [
-   737,
-   320,
-   0,
-   303,
-   2,
-   "CONDITIONING"
-  ],
-  [
-   738,
-   330,
-   0,
-   303,
-   3,
-   "IMAGE"
-  ],
-  [
-   739,
-   315,
-   0,
-   305,
-   0,
-   "MODEL"
-  ],
-  [
-   740,
-   316,
-   0,
-   305,
-   1,
-   "MODEL"
-  ],
-  [
-   741,
-   309,
-   0,
-   305,
-   3,
-   "CLIP"
-  ],
-  [
-   742,
-   303,
-   0,
-   305,
-   4,
-   "CONDITIONING"
-  ],
-  [
-   743,
-   337,
-   0,
-   305,
-   5,
-   "CONDITIONING"
-  ],
-  [
-   744,
-   304,
-   0,
-   305,
-   6,
-   "LATENT"
-  ],
-  [
-   745,
-   310,
-   0,
-   305,
-   7,
-   "VAE"
-  ],
-  [
-   746,
-   317,
-   0,
-   305,
-   8,
-   "SAMPLER"
-  ],
-  [
-   747,
-   318,
-   0,
-   305,
-   9,
-   "SAMPLER"
-  ],
-  [
-   748,
-   319,
-   0,
-   305,
-   10,
-   "SIGMAS"
-  ],
-  [
-   749,
-   307,
-   0,
-   305,
-   15,
-   "TESSERA_ARGS"
-  ],
-  [
-   750,
-   302,
-   3,
-   305,
-   16,
-   "STRING"
-  ],
-  [
-   751,
-   305,
-   2,
-   306,
-   0,
-   "IMAGE"
-  ],
-  [
-   752,
-   302,
-   1,
-   306,
-   1,
-   "INT"
-  ],
-  [
-   753,
-   302,
-   3,
-   306,
-   2,
-   "STRING"
-  ],
-  [
-   754,
-   302,
-   0,
-   321,
-   0,
-   "IMAGE"
-  ],
-  [
    755,
    223,
    0,
@@ -6878,22 +4131,6 @@
    "MODEL"
   ],
   [
-   762,
-   221,
-   0,
-   264,
-   1,
-   "CONDITIONING"
-  ],
-  [
-   764,
-   222,
-   0,
-   264,
-   0,
-   "LATENT"
-  ],
-  [
    766,
    221,
    0,
@@ -6908,14 +4145,6 @@
    125,
    4,
    "LATENT"
-  ],
-  [
-   768,
-   264,
-   2,
-   265,
-   0,
-   "*"
   ],
   [
    773,
@@ -6950,22 +4179,6 @@
    "MODEL"
   ],
   [
-   778,
-   214,
-   0,
-   269,
-   1,
-   "VIDEO"
-  ],
-  [
-   779,
-   268,
-   0,
-   269,
-   0,
-   "RELAYVSR_MODEL"
-  ],
-  [
    780,
    214,
    0,
@@ -6992,67 +4205,69 @@
  ],
  "groups": [
   {
-   "title": "一阶段采样(Pika 6步·864×480)",
+   "id": 100,
+   "title": "加载模型",
    "bounding": [
+    70,
     50,
-    30,
-    5223.125,
-    5800
+    2235,
+    -20
    ],
-   "color": "#335533",
-   "id": 4503,
-   "mode": 0,
-   "flags": {}
+   "color": "#884666",
+   "flags": {},
+   "order": 0
   },
   {
-   "title": "二采放大·默认终档(TaoMate 3步→1280×704)",
+   "id": 101,
+   "title": "输入",
    "bounding": [
-    5673,
-    30,
-    5420,
-    1343.2267391954765
-   ],
-   "color": "#223355",
-   "id": 2819,
-   "mode": 0,
-   "flags": {}
-  },
-  {
-   "title": "质量精修 TESSERA·默认旁路(×1.5→1920×1056)",
-   "bounding": [
+    2395,
     50,
-    6170,
-    10386.333012937457,
-    3986
+    1407,
+    -20
    ],
-   "color": "#553322",
-   "id": 2103,
-   "mode": 0,
-   "flags": {}
+   "color": "#335588",
+   "flags": {},
+   "order": 1
   },
   {
-   "title": "三采超分·RelayVSR 旁路(1110 终版阶梯 1920→交付裁 15px=1080)",
+   "id": 102,
+   "title": "一阶段采样",
    "bounding": [
-    11130,
-    20,
-    780,
-    560
+    3892,
+    50,
+    503,
+    -20
    ],
    "color": "#3f789e",
-   "id": 4
+   "flags": {},
+   "order": 2
   },
   {
-   "title": "三采超分·ReCaVSR 挑战臂(1111 对拍档 int8·scale2→2880×1664)",
+   "id": 103,
+   "title": "二阶段放大",
    "bounding": [
-    12430,
-    20,
-    1180,
-    700
+    4485,
+    50,
+    1420,
+    -20
    ],
-   "color": "#3f789e",
-   "id": 5,
-   "mode": 0,
-   "flags": {}
+   "color": "#448844",
+   "flags": {},
+   "order": 3
+  },
+  {
+   "id": 104,
+   "title": "三采超分(ReCaVSR 主线)",
+   "bounding": [
+    5995,
+    50,
+    370,
+    -20
+   ],
+   "color": "#aa6600",
+   "flags": {},
+   "order": 4
   }
  ],
  "config": {},
