@@ -112,19 +112,19 @@ def build_doc(variant: str = "t2i"):
         n["inputs"][ds]["link"] = None
 
     # ① 装载四件
-    g.node(1, "UNETLoader", [0, 0], [340, 100],
+    g.node(1, "UNETLoader", [540, 0], [340, 100],
            [models["unet"], "default"],
            {"unet_name": models["unet"], "weight_dtype": "default"},
            outputs=[("MODEL", "MODEL", [])])
-    g.node(2, "CLIPLoader", [0, 180], [340, 130],
+    g.node(2, "CLIPLoader", [540, 180], [340, 130],
            [models["clip"], "qwen_image", "default"],
            {"clip_name": models["clip"], "type": "qwen_image", "device": "default"},
            outputs=[("CLIP", "CLIP", [])])
-    g.node(3, "VAELoaderKJ", [0, 360], [340, 150],
+    g.node(3, "VAELoaderKJ", [540, 360], [340, 150],
            [models["vae"], "cpu", "fp32"],
            {"vae_name": models["vae"], "device": "cpu", "weight_dtype": "fp32"},
            outputs=[("VAE", "VAE", [])])
-    g.node(4, "LoraLoaderModelOnly", [0, 560], [340, 130],
+    g.node(4, "LoraLoaderModelOnly", [540, 560], [340, 130],
            [models["lora"], models["lora_strength"]],
            {"lora_name": models["lora"], "strength_model": models["lora_strength"]},
            inputs=[("model", "MODEL", None)],
@@ -139,7 +139,7 @@ def build_doc(variant: str = "t2i"):
                 ("指令·腕部", "STRING", []), ("指令·腰部", "STRING", []),
                 ("负面·生成", "STRING", []), ("负面·编辑", "STRING", []),
                 ("背景类型", "STRING", [])]
-    g.node(60, "MySheetPromptHub", [2440, 1300], [420, 620],
+    g.node(60, "MySheetPromptHub", [0, 100], [420, 620],
            [SUBJECT_DEFAULT, NAME_DEFAULT, "素白宣纸"],
            {"主体句": SUBJECT_DEFAULT, "角名": NAME_DEFAULT, "背景类型": "素白宣纸"},
            outputs=hub_outs)
@@ -151,7 +151,7 @@ def build_doc(variant: str = "t2i"):
         if is_edit:
             ins += [("images.image_1", "IMAGE", None), ("vae", "VAE", None)]
         res = smp["t2i"]["resolution"] if not is_edit else 0
-        g.node(nid, "TextEncodeQwenImage21", [700, y], [460, 320],
+        g.node(nid, "TextEncodeQwenImage21", [1260, y], [460, 320],
                [prompt, neg, res],
                {"prompt": prompt, "negative_prompt": neg, "resolution": res},
                inputs=ins,
@@ -166,10 +166,10 @@ def build_doc(variant: str = "t2i"):
         te, lat, s, dec = nid, nid + 1, nid + 2, nid + 3
         te_node(te, y, prompt, neg, hub_key, is_edit=False)
         t = smp["t2i"]
-        g.node(lat, "EmptyLatentImage", [1210, y], [300, 120],
+        g.node(lat, "EmptyLatentImage", [1770, y], [300, 120],
                [w, h, 1], {"width": w, "height": h, "batch_size": 1},
                outputs=[("LATENT", "LATENT", [])])
-        g.node(s, "KSampler", [1570, y], [340, 280],
+        g.node(s, "KSampler", [2130, y], [340, 280],
                [seed, "fixed", t["steps"], t["cfg"], t["sampler_name"],
                 t["scheduler"], t["denoise"]],
                {"seed": seed, "control_after_generate": "fixed",
@@ -179,7 +179,7 @@ def build_doc(variant: str = "t2i"):
                inputs=[("model", "MODEL", None), ("positive", "CONDITIONING", None),
                        ("negative", "CONDITIONING", None), ("latent_image", "LATENT", None)],
                outputs=[("LATENT", "LATENT", [])])
-        g.node(dec, "VAEDecode", [1970, y], [300, 110],
+        g.node(dec, "VAEDecode", [2530, y], [300, 110],
                inputs=[("samples", "LATENT", None), ("vae", "VAE", None)],
                outputs=[("IMAGE", "IMAGE", [])])
         wire(4, 0, s, 0, "MODEL")
@@ -194,11 +194,11 @@ def build_doc(variant: str = "t2i"):
         te, lat, s, dec = nid, nid + 1, nid + 2, nid + 3
         te_node(te, y, instr, p["edit_neg"], hub_key, is_edit=True)
         e = smp["edit"]
-        g.node(lat, "EmptyLatentImage", [1210, y], [300, 120],
+        g.node(lat, "EmptyLatentImage", [1770, y], [300, 120],
                [e["width"], e["height"], 1],
                {"width": e["width"], "height": e["height"], "batch_size": 1},
                outputs=[("LATENT", "LATENT", [])])
-        g.node(s, "KSampler", [1570, y], [340, 280],
+        g.node(s, "KSampler", [2130, y], [340, 280],
                [seed, "fixed", e["steps"], e["cfg"], e["sampler_name"],
                 e["scheduler"], e["denoise"]],
                {"seed": seed, "control_after_generate": "fixed",
@@ -208,7 +208,7 @@ def build_doc(variant: str = "t2i"):
                inputs=[("model", "MODEL", None), ("positive", "CONDITIONING", None),
                        ("negative", "CONDITIONING", None), ("latent_image", "LATENT", None)],
                outputs=[("LATENT", "LATENT", [])])
-        g.node(dec, "VAEDecode", [1970, y], [300, 110],
+        g.node(dec, "VAEDecode", [2530, y], [300, 110],
                inputs=[("samples", "LATENT", None), ("vae", "VAE", None)],
                outputs=[("IMAGE", "IMAGE", [])])
         wire(image_src, 0, te, 3, "IMAGE")   # 参考图槽
@@ -229,7 +229,7 @@ def build_doc(variant: str = "t2i"):
                       seeds["master"], "master")
         master_dec = m[3]
     else:
-        g.node(55, "LoadImage", [650, 60], [340, 130],
+        g.node(55, "LoadImage", [1280, 60], [340, 130],
                ["道劫-角色图.png", "image"],
                {"image": "道劫-角色图.png", "upload": "image"},
                outputs=[("IMAGE", "IMAGE", [])])
@@ -240,13 +240,13 @@ def build_doc(variant: str = "t2i"):
     edits = {}
     for i, tag in enumerate(("side", "back", "face", "wrist", "waist", "head")):
         nid = 10 + i * 5
-        y = 420 + i * 420
+        y = 560 + i * 420
         edits[tag] = edit_chain(nid, y, p["instr"][tag], seeds[tag],
                                 image_src=master_dec, hub_key=tag)
-    wp = t2i_chain(40, 2940, p["weapon"][0], p["weapon"][1],
+    wp = t2i_chain(40, 3080, p["weapon"][0], p["weapon"][1],
                    q["weapon"]["width"], q["weapon"]["height"],
                    seeds["weapon"], "weapon")
-    fx = t2i_chain(45, 3360, p["effect"][0], p["effect"][1],
+    fx = t2i_chain(45, 3500, p["effect"][0], p["effect"][1],
                    q["effect"]["width"], q["effect"]["height"],
                    seeds["effect"], "effect")
 
@@ -262,7 +262,7 @@ def build_doc(variant: str = "t2i"):
                    ("master", "side", "back", "face", "head",
                     "wrist", "waist", "weapon", "effect")]
     comp_inputs.append(("背景", "STRING", None))  # 枢纽同源(永不脱钩)
-    g.node(50, "MySheetCardComposer", [2560, 1260], [420, 620],
+    g.node(50, "MySheetCardComposer", [3060, 1260], [420, 620],
            [NAME_DEFAULT, "全卡", "素白宣纸"],
            {"角名": NAME_DEFAULT, "格式": "全卡", "背景": "素白宣纸"},
            inputs=comp_inputs,
@@ -272,18 +272,21 @@ def build_doc(variant: str = "t2i"):
         node_by(s)["outputs"][0]["links"].append(li)
         g.nodes[-1]["inputs"][slot]["link"] = li
     wire(60, HUB["bg"], 50, 9, "STRING")  # 背景类型:枢纽→合成器
-    g.node(51, "SaveImage", [3060, 1440], [340, 110],
+    g.node(51, "SaveImage", [3560, 1440], [340, 110],
            ["道劫设定卡Q/"], {"filename_prefix": "道劫设定卡Q/"},
            inputs=[("images", "IMAGE", None)], outputs=[])
     wire(50, 0, 51, 0, "IMAGE")
 
-    g.node(52, "MarkdownNote", [0, 3820], [560, 700], [NOTE])
+    # Note=README(顶置,组外)
+    g.node(52, "MarkdownNote", [0, -800], [800, 600], [NOTE])
 
-    g.group("① 装载四件+turbo r256(bf16/heretic/texture_fix)", [-40, -60, 660, 760])
-    g.group("② master(本件变体:t2i 文生图 / i2i 图生图)", [620, -60, 1740, 300])
-    g.group("③ 六路编辑(multiref:TE 参考图槽;head 吃侧视图)", [640, 360, 1720, 2380])
-    g.group("④ 武器/特效 t2i(Turbo 8步)", [640, 2880, 1720, 900], "#88A")
-    g.group("⑤ 提示词枢纽+固定底框合成(格式/背景联动)", [2400, 1180, 1180, 780], "#3A3")
+    # 组框:⑥枢纽左置独立;Note 组外;全流程向右;两两不相交
+    g.group("⑥ 提示词枢纽(单点固化·背景类型唯一旋钮)", [-40, -60, 460, 500], "#C3A")
+    g.group("① 装载四件+turbo r256(bf16/heretic/texture_fix)", [500, -60, 660, 760])
+    g.group("② master(本件变体:t2i 文生图 / i2i 图生图)", [1220, -60, 1740, 480])
+    g.group("③ 六路编辑(multiref:TE 参考图槽;head 吃侧视图)", [1220, 500, 1720, 2400])
+    g.group("④ 武器/特效 t2i(Turbo 8步)", [1220, 3020, 1720, 900], "#88A")
+    g.group("⑤ 固定底框合成(格式/背景联动)", [3000, 1180, 1100, 780], "#3A3")
     return g.build()
 
 
