@@ -242,6 +242,21 @@ def _engine_up(timeout_s=300):
     return False
 
 
+def _engine_busy(port: int = 17000, timeout: float = 5.0) -> bool:
+    """队列守卫(1113 根修):引擎在跑/在排作业=True → 杀重启类动作须让行。
+
+    判例=deploy-dual「查 /queue 空才动引擎」;探不到(引擎未起/端口不通)按
+    不忙处理,冷启动路径不受影响。
+    """
+    try:
+        with urllib.request.urlopen(
+                f'http://127.0.0.1:{port}/queue', timeout=timeout) as r:
+            q = json.loads(r.read().decode('utf-8'))
+    except Exception:
+        return False
+    return bool(q.get('queue_running') or q.get('queue_pending'))
+
+
 def _missing_modules(log_offset):
     """读本次启动日志段,提取「No module named」欠件插件→缺失模块映射。"""
     missing = {}
@@ -291,15 +306,26 @@ def heal_watch(offset):
         _say('heal-watch: 引擎就绪,依赖零欠件,自愈收工')
         return
     _say('heal-watch: 检出欠件插件 %d 个,补装后重启一代' % len(missing))
+    # 1113 根修门①队列守卫(用户令「根修+不影响其他代码」):引擎忙=队列有活,
+    # 本轮 heal 整体让行(连 pip 都不动——避免在忙引擎脚下换文件)。
+    # 实锤史:外部触发 EngineDurable 重跑+heal 无差别杀手=长管线无声死两起
+    # (21:57 turbo 链/21:1x GPU-VAE 链),17001 私有实例引导期同屠。
+    if _engine_busy():
+        _say('heal-watch: 引擎队列有活,跳过本轮补装+杀重启(防误杀忙引擎)')
+        _deps_log('HEAL skip: engine queue busy (1113 root fix)')
+        return
     _deps_log('HEAL start: %d plugins missing modules: %s'
               % (len(missing), ', '.join(sorted(missing))))
     for plugin, modules in missing.items():
         _say('heal: %s 缺 %s → 重跑 requirements' % (plugin, ','.join(sorted(modules))))
         _install_plugin_requirements(plugin)
     # 杀当前引擎(斜杠双态:命令行有正斜杠与反斜杠两种历史形态,1107 实弹)
+    # 1113 根修门②身份过滤+留证:只屠 --port 17000 本尊(私有端口实例豁免,
+    # 17001 引导期被同屠实锤);杀前先落 ProcessId+CommandLine 存证。
     killer = (
-        "$ps = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'ComfyUI[/\\\\]main\\.py' };"
-        " foreach($p in $ps){ Stop-Process -Id $p.ProcessId -Force; Write-Output ('killed ' + $p.ProcessId) }")
+        "$ps = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'ComfyUI[/\\\\]main\\.py' -and $_.CommandLine -match '--port[ ]+17000' };"
+        " foreach($p in $ps){ Write-Output ('killing ' + $p.ProcessId + ' :: ' + $p.Commandline);"
+        " Stop-Process -Id $p.ProcessId -Force; Write-Output ('killed ' + $p.ProcessId) }")
     subprocess.run(['powershell', '-NoProfile', '-NonInteractive', '-Command', killer],
                    capture_output=True, timeout=60)
     time.sleep(3)
