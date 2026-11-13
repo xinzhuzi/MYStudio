@@ -1139,7 +1139,7 @@
   "sheet_card_qwen": {
     "format_version": "v2",
     "engine": "qwen-image-2.1",
-    "_doc": "Qwen 版设定卡分格真源(1113 用户令「单独做这个角色设定卡的提示词」):与 sheet_card(H3-Image)平行独立,提示词按 Qwen 写法(正向直陈+编辑逐部位点名);画布件=QwenImage2.1/道劫-角色设定卡.json;管线=daojie_sheet_b_pipeline.py --engine qwen;合成器/底框两线共用(格式一 v1);v2(1113 三弹定谳:编辑=官方 multiref 路——参考图进 TE images.image_1 槽+提示词 <image1> 指代,base 模型 25步/cfg1/dn1 无 turbo;dn0.6 编辑不生效/dn1.0 无图参考则身份画风塌,两败俱汰)",
+    "_doc": "Qwen 版设定卡分格真源(1113 用户令「单独做这个角色设定卡的提示词」):与 sheet_card(H3-Image)平行独立,提示词按 Qwen 写法(正向直陈+编辑逐部位点名);画布件=QwenImage2.1/5_角色设定卡/道劫-角色设定卡.json(设定卡族归位夹);管线=daojie_sheet_b_pipeline.py --engine qwen;合成器/底框两线共用(格式一 v1);v2(1113 三弹定谳:编辑=官方 multiref 路——参考图进 TE images.image_1 槽+提示词 <image1> 指代,base 模型 25步/cfg1/dn1 无 turbo;dn0.6 编辑不生效/dn1.0 无图参考则身份画风塌,两败俱汰)",
     "models": {
       "unet": "qwen_image_2.1_bf16.safetensors",
       "clip": "qwen3vl_8b_bf16_heretic.safetensors",

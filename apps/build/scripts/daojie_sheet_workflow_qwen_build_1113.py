@@ -25,7 +25,7 @@ from daojie_sheet_workflow_build_1113 import (  # noqa: E402
 
 REPO = _HERE.parents[2]
 BASES = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
-OUT = REPO / "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/1_文生图/道劫-角色设定卡.json"
+OUT = REPO / "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/5_角色设定卡/道劫-角色设定卡.json"
 
 NOTE = """## 道劫·角色设定卡(QwenImage 2.1 版,1113)
 
