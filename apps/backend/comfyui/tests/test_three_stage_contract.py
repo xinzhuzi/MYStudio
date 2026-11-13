@@ -108,6 +108,7 @@ def test_stage2_up_recipe():
     assert nodes[203]["widgets_values"] == [12, 3]
     assert nodes[208]["type"] == "MiniMaxH3ReferenceToVideo"
     assert nodes[208]["widgets_values"][1:3] == [1440, 832]
+    assert nodes[208]["widgets_values"][4] == "max", "二采参考图恒 max(1113 用户令「用Max」;与 [16] 同律)"
     assert nodes[211]["type"] == "SamplerCustomAdvanced"
 
 

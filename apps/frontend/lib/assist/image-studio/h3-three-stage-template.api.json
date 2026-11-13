@@ -62,7 +62,7 @@
         "131",
         1
       ],
-      "ref_image_size": "match",
+      "ref_image_size": "max",
       "ref_images": "",
       "ref_videos": 960,
       "ref_video_audios": 544,
@@ -458,7 +458,7 @@
       "width": 960,
       "height": 544,
       "length": 124,
-      "ref_image_size": "match"
+      "ref_image_size": "max"
     }
   },
   "205": {
