@@ -3,8 +3,9 @@
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
 """Qwen 版道劫-角色设定卡 工作流契约(1113;生成器=daojie_sheet_workflow_qwen_build_1113.py)。
 
-v2 口径(1113 三弹定谳):编辑=multiref 路(参考图进 TE images.image_1 槽+<image1> 指代,
-base 直驱 25步/cfg1/dn1);t2i=turbo r256 8步。锁六面:
+v2 口径:编辑=multiref 路(TE 参考图槽+<image1> 指代,base 25步/cfg1/dn1);t2i=bf16+viggle
+r256 8步。三加速否决史(1113 实测定谳,禁复犯):viggle-LoRA 挂编辑=不生效;VAE 回 GPU=崩引擎;
+官方 turbo 蒸馏底模=单发可用但连跑崩引擎(换模抖动挤爆 24G)。锁六面:
 ① 件在库+类集恰十一种;② 9 段 TE(正/负)逐字==sheet_card_qwen v2 独立真源(与 H3 块分源
 互斥);③ 采样口径+装载四件+LoRA;④ 连线双向+编辑参考图槽对号(head←side,余←master)+
 合成器九槽;⑤ 组框罩全+Note 三锚;⑥ 前缀=道劫设定卡Q/。
@@ -88,7 +89,7 @@ def test_sampler_doctrine_and_models():
         assert LINKS[NODES[i + 2]["inputs"][3]["link"]][1] == i + 1  # latent←EmptyLatent
     assert NODES[1]["widgets_values"] == [q["models"]["unet"], "default"]
     assert NODES[2]["widgets_values"] == [q["models"]["clip"], "qwen_image", "default"]
-    assert NODES[3]["widgets_values"] == [q["models"]["vae"], "cpu", "fp32"]
+    assert NODES[3]["widgets_values"] == [q["models"]["vae"], q["models"].get("vae_device", "cpu"), "fp32"]
     assert NODES[4]["widgets_values"] == [q["models"]["lora"], q["models"]["lora_strength"]]
 
 

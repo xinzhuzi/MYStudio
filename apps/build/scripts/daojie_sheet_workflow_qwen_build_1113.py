@@ -96,8 +96,8 @@ def build_doc():
            {"clip_name": models["clip"], "type": "qwen_image", "device": "default"},
            outputs=[("CLIP", "CLIP", [])])
     g.node(3, "VAELoaderKJ", [0, 360], [340, 150],
-           [models["vae"], "cpu", "fp32"],
-           {"vae_name": models["vae"], "device": "cpu", "weight_dtype": "fp32"},
+           [models["vae"], models.get("vae_device", "cpu"), "fp32"],
+           {"vae_name": models["vae"], "device": models.get("vae_device", "cpu"), "weight_dtype": "fp32"},
            outputs=[("VAE", "VAE", [])])
     g.node(4, "LoraLoaderModelOnly", [0, 560], [340, 130],
            [models["lora"], models["lora_strength"]],
@@ -173,7 +173,7 @@ def build_doc():
         wire(2, 0, te, 0, "CLIP")
         wire(image_src, 0, te, 1, "IMAGE")   # 参考图槽
         wire(3, 0, te, 2, "VAE")
-        wire(1, 0, s, 0, "MODEL")            # v2 编辑=base 直驱,无 turbo
+        wire(1, 0, s, 0, "MODEL")            # v2 编辑=base 直驱(三加速否决定谳)
         wire(te, 0, s, 1, "CONDITIONING")
         wire(te, 1, s, 2, "CONDITIONING")
         wire(lat, 0, s, 3, "LATENT")
