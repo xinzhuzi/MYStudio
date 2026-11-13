@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# 密钥经用户 1030 裁定知情入库
+# 密钥走环境变量(1112 用户令;1030 D3 硬编码裁定已作废,仓内零内置密钥)
 """
 剧本评判程序 v2 —— 道劫全剧(4125 章)AI 评判产线(任务档 10-30-daojie-screenplay-critique-1030)。
 
@@ -47,8 +47,7 @@ import urllib.error
 import urllib.request
 
 API_BASE = os.environ.get("CRITIC_API_BASE", "https://open.bigmodel.cn/api/anthropic")
-DEFAULT_KEY = (os.environ.get("CRITIC_API_KEY") or os.environ.get("ZHIPU_API_KEY")
-               or os.environ.get("LOVELONG_API_KEY") or "")
+DEFAULT_KEY = (os.environ.get("CRITIC_API_KEY") or os.environ.get("ZHIPU_API_KEY") or "")
 MODELS = {"high": "glm-5.3", "medium": "glm-5.3-flash", "low": "glm-5.3-flashx"}
 
 VERDICT_LEVELS = ("存在结构性问题", "基本合理但需打磨", "合理")  # 长词优先,防「合理」吃掉长判定
@@ -178,7 +177,7 @@ def call_api(api_key: str, model: str, user_content: str, timeout: int = 300):
                 "x-api-key": api_key,
                 "anthropic-version": "2023-06-01",
                 # WAF 会拦 Python-urllib 默认 UA(实测 403),换成常规 UA 即通
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) MYStudio-ScreenplayCritic/2.1",
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) MYStudio-ScreenplayCritic/2.2",
             },
             method="POST",
         )
@@ -528,7 +527,7 @@ def critique_one(path: str, api_key: str, model: str, focus: str, as_json: bool)
 
 def main() -> int:
     ap = argparse.ArgumentParser(
-        description="剧本评判 v2:单章评判 + 全剧批量产线(love-long.com gemini-3.8-flash,任务档 10-30-daojie-screenplay-critique-1030)")
+        description="剧本评判 v2:单章评判 + 全剧批量产线(智谱 BigModel anthropic 口 glm-5.3 三档,任务档 10-30-daojie-screenplay-critique-1030)")
     ap.add_argument("scripts", nargs="*", help="剧本文件路径(单章模式,可多个);或剧本目录(配合裸 --batch)")
     ap.add_argument("--batch", nargs="?", const="", default=None, metavar="DIR",
                     help="批量模式:--batch <剧本目录>,或位置参数给目录 + 裸 --batch")
