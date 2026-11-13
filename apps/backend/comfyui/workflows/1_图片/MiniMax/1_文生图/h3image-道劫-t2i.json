@@ -504,7 +504,7 @@
                 "name": "MODEL",
                 "type": "MODEL",
                 "links": [
-                  201
+                  5
                 ]
               }
             ],
@@ -1028,7 +1028,7 @@
                 "localized_name": "model",
                 "name": "model",
                 "type": "MODEL",
-                "link": 202
+                "link": 5
               },
               {
                 "localized_name": "positive",
@@ -1404,44 +1404,6 @@
               "json_string": "",
               "key": "expanded_caption"
             }
-          },
-          {
-            "id": 30,
-            "type": "LoraLoaderModelOnly",
-            "pos": [
-              130,
-              -250
-            ],
-            "size": [
-              315,
-              98
-            ],
-            "flags": {},
-            "order": 4,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "model",
-                "type": "MODEL",
-                "link": 201
-              }
-            ],
-            "outputs": [
-              {
-                "name": "MODEL",
-                "type": "MODEL",
-                "links": [
-                  202
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "LoraLoaderModelOnly"
-            },
-            "widgets_values": [
-              "minimax-h3-hd-anime.safetensors",
-              1.0
-            ]
           }
         ],
         "groups": [
@@ -1748,16 +1710,8 @@
             "type": "STRING"
           },
           {
-            "id": 201,
+            "id": 5,
             "origin_id": 1,
-            "origin_slot": 0,
-            "target_id": 30,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
-          {
-            "id": 202,
-            "origin_id": 30,
             "origin_slot": 0,
             "target_id": 7,
             "target_slot": 0,
