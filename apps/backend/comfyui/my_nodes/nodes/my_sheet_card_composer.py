@@ -17,10 +17,29 @@ from PIL import Image, ImageDraw, ImageFont
 W, H = 3840, 2160
 M = 36          # 外边距
 G = 20          # 格间距
-FORMAT_VERSION = "v1"   # 1112 用户终审冻结;改动=显式升版+金样重对
+FORMAT_VERSION = "v1.1"  # v1=1112 冻结;v1.1=1113 多格式注册表(全卡几何零改动)
 PAPER = (247, 243, 234)      # 宣纸米白
 INK_LINE = (107, 101, 90)    # 细线边框
 INK_TEXT = (44, 39, 32)      # 角标/题名墨色
+
+# ── 格式注册表(1113 用户令「固定成几个格式」)──
+# 全卡=格式一 v1 几何逐字节恒定(金样锚);其余为同族衍生格式。
+FORMATS = ("全卡", "简版", "竖版", "无武器")
+CANVAS = {"全卡": (3840, 2160), "简版": (3840, 2160),
+          "竖版": (2160, 3840), "无武器": (3840, 2160)}
+CELL_KEYS_BY_FMT = {
+    "全卡": ("front", "side", "back", "face", "head", "eye", "hair",
+             "wrist", "waist", "weapon", "weapon_a", "weapon_b",
+             "fabric_1", "fabric_2", "fabric_3", "gear_1", "gear_2",
+             "fx_1", "fx_2"),
+    "简版": ("front", "side", "back", "face", "head", "eye", "hair",
+             "wrist", "waist"),                     # 三视图+六特写,砍四区
+    "竖版": ("全卡同集=18 格"),
+    "无武器": ("front", "side", "back", "face", "head", "eye", "hair",
+               "wrist", "waist", "fabric_1", "fabric_2", "fabric_3",
+               "gear_1", "gear_2", "fx_1", "fx_2"),  # 四区去武器区→三区
+}
+CELL_KEYS_BY_FMT["竖版"] = CELL_KEYS_BY_FMT["全卡"]
 
 NAME_SIZE = 64                # 角名字号(右上角小档,1112 用户令「标题太大/仅占名位」)
 LABEL_SIZE = 36               # 角标字号(4K 画布可辨下限)
@@ -52,6 +71,34 @@ LABELS = {
 }
 
 
+_BG_TRUTH_CANDIDATES = (
+    __import__("pathlib").Path(__file__).resolve().parents[4]
+    / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json",
+    __import__("pathlib").Path(__import__("os").environ.get(
+        "MYSTUDIO_COMFYUI_HOME",
+        __import__("pathlib").Path.home()
+        / "Library/Application Support/漫影工作室/comfyui")) / "daojie-data",
+    __import__("pathlib").Path("/Applications/漫影工作室.app/Contents/Resources/"
+                               "studio-manuals/art_skills/daojie_ink_guofeng/json"),
+)
+
+
+def _bg_color(bg: str):
+    """背景类型→画布底色(真源 sheet_card_qwen.backgrounds;缺位回退素白宣纸)。"""
+    try:
+        import json as _json
+        for cand in _BG_TRUTH_CANDIDATES:
+            p = cand / "qi21_bases.json"
+            if p.is_file():
+                tab = _json.loads(p.read_text(encoding="utf-8"))[
+                    "sheet_card_qwen"]["backgrounds"]
+                if bg in tab:
+                    return tuple(tab[bg]["canvas"])
+    except Exception:
+        pass
+    return PAPER  # 缺真源/未知型=默认素白宣纸(金样同色)
+
+
 def _font(size: int) -> ImageFont.FreeTypeFont:
     """中文字体链(跨平台;题名后叠件同源口径)。"""
     for fp in FONT_CHAIN:
@@ -60,59 +107,95 @@ def _font(size: int) -> ImageFont.FreeTypeFont:
     raise RuntimeError("无可用中文字体:" + "|".join(FONT_CHAIN))
 
 
-def layout() -> dict:
-    """版式几何(格式一 v1:顶块=[三视图紧凑横排|六特写3×2|配色条]+底部四区)。"""
+def layout(fmt: str = "全卡") -> dict:
+    """版式几何(格式注册表 v1.1;全卡=格式一 v1 几何逐字节恒定)。"""
+    assert fmt in FORMATS, f"未知格式 {fmt!r}({FORMATS})"
+    cw_, ch_ = CANVAS[fmt]
     cells: dict = {}
-    iw, ih = W - 2 * M, H - 2 * M
-    r1 = round(ih * 0.55)                    # 顶块:三视图+六特写+配色条
-    r4 = ih - G - r1                         # 底部四区(配色并入顶块,1112 v1.3)
-    y1 = M
-    y4 = y1 + r1 + G
-    # 顶块左:三视图三格横排紧凑(vw=全身 AR 宽+衬距;master 1664×2496)
-    vw = round(r1 * 1664 / 2496) + 48
-    for i, k in enumerate(("front", "side", "back")):
-        x = M + i * (vw + G)
-        cells[k] = (x, y1, x + vw, y1 + r1)
-    # 顶块右:六格特写 3×2 + 右下配色条(空余位利用)
-    rx0 = M + 3 * vw + 2 * G
-    rw = W - M - rx0
-    PH = 150                                 # 配色条高(缩档,不占整行)
-    cw = (rw - 2 * G) // 3
-    chh = (r1 - PH - 2 * G) // 2
-    for i, k in enumerate(("face", "head", "eye", "hair", "wrist", "waist")):
-        col, row = i % 3, i // 3
-        x = rx0 + col * (cw + G)
-        y = y1 + row * (chh + G)
-        cells[k] = (x, y, x + cw, y + chh)
-    cells["_palette"] = (rx0, y1 + r1 - PH, W - M, y1 + r1)
-    # 底部四区 40:20:20:20
-    zw = iw - 3 * G
-    z1w = round(zw * 0.40)
-    zsw = (zw - z1w) // 3
-    x = M
-    z1 = (x, y4, x + z1w, y4 + r4); x += z1w + G
-    z2 = (x, y4, x + zsw, y4 + r4); x += zsw + G
-    z3 = (x, y4, x + zsw, y4 + r4); x += zsw + G
-    z4 = (x, y4, W - M, y4 + r4)
-    # 区一·武器展示:上幅整器横陈(吃满宽)+下排两局部
-    wt = round(r4 * 0.58)
-    ihh = (r4 - G) // 2   # 装备/能力区上下对半高
-    cells["weapon"] = (z1[0], y4, z1[2], y4 + wt)
-    mid = z1[0] + (z1[2] - z1[0] - G) // 2
-    cells["weapon_a"] = (z1[0], y4 + wt + G, mid, y4 + r4)
-    cells["weapon_b"] = (mid + G, y4 + wt + G, z1[2], y4 + r4)
-    # 区二·服饰纹理:纵向三枚
-    sh = (r4 - 2 * G) // 3
-    for i, k in enumerate(("fabric_1", "fabric_2", "fabric_3")):
-        y = y4 + i * (sh + G)
-        cells[k] = (z2[0], y, z2[2], y + sh)
-    # 区三·装备细节:上下两格
-    cells["gear_1"] = (z3[0], y4, z3[2], y4 + ihh)
-    cells["gear_2"] = (z3[0], y4 + ihh + G, z3[2], y4 + r4)
-    # 区四·能力:上下两格
-    cells["fx_1"] = (z4[0], y4, z4[2], y4 + ihh)
-    cells["fx_2"] = (z4[0], y4 + ihh + G, z4[2], y4 + r4)
-    return cells
+    iw, ih = cw_ - 2 * M, ch_ - 2 * M
+    if fmt == "全卡" or fmt == "竖版":
+        scale = ih if fmt == "全卡" else ih  # 两版行比例同构,竖版画布高重塑
+        r1 = round(ih * 0.55) if fmt == "全卡" else round(ih * 0.58)
+        r4 = ih - G - r1
+        y1, y4 = M, M + r1 + G
+        vw = round(r1 * 1664 / 2496) + 48
+        for i, k in enumerate(("front", "side", "back")):
+            x = M + i * (vw + G)
+            cells[k] = (x, y1, x + vw, y1 + r1)
+        rx0 = M + 3 * vw + 2 * G
+        rw = cw_ - M - rx0
+        PH = 150
+        cwid = (rw - 2 * G) // 3
+        chh = (r1 - PH - 2 * G) // 2
+        for i, k in enumerate(("face", "head", "eye", "hair", "wrist", "waist")):
+            col, row = i % 3, i // 3
+            x = rx0 + col * (cwid + G)
+            y = y1 + row * (chh + G)
+            cells[k] = (x, y, x + cwid, y + chh)
+        cells["_palette"] = (rx0, y1 + r1 - PH, cw_ - M, y1 + r1)
+        if fmt == "无武器":
+            pass
+        if fmt == "全卡" or fmt == "竖版":
+            zw = iw - 3 * G
+            z1w = round(zw * 0.40)
+            zsw = (zw - z1w) // 3
+            x = M
+            z1 = (x, y4, x + z1w, y4 + r4); x += z1w + G
+            z2 = (x, y4, x + zsw, y4 + r4); x += zsw + G
+            z3 = (x, y4, x + zsw, y4 + r4); x += zsw + G
+            z4 = (x, y4, cw_ - M, y4 + r4)
+            wt = round(r4 * 0.58)
+            ihh = (r4 - G) // 2
+            cells["weapon"] = (z1[0], y4, z1[2], y4 + wt)
+            mid = z1[0] + (z1[2] - z1[0] - G) // 2
+            cells["weapon_a"] = (z1[0], y4 + wt + G, mid, y4 + r4)
+            cells["weapon_b"] = (mid + G, y4 + wt + G, z1[2], y4 + r4)
+            sh = (r4 - 2 * G) // 3
+            for i, k in enumerate(("fabric_1", "fabric_2", "fabric_3")):
+                y = y4 + i * (sh + G)
+                cells[k] = (z2[0], y, z2[2], y + sh)
+            cells["gear_1"] = (z3[0], y4, z3[2], y4 + ihh)
+            cells["gear_2"] = (z3[0], y4 + ihh + G, z3[2], y4 + r4)
+            cells["fx_1"] = (z4[0], y4, z4[2], y4 + ihh)
+            cells["fx_2"] = (z4[0], y4 + ihh + G, z4[2], y4 + r4)
+        return cells
+    if fmt == "无武器":
+        # 顶块同全卡;底部=三等区(服饰纵向三枚/装备上下/能力上下),武器区移除
+        cells = layout("全卡")
+        for k in ("weapon", "weapon_a", "weapon_b", "fabric_1", "fabric_2",
+                  "fabric_3", "gear_1", "gear_2", "fx_1", "fx_2"):
+            cells.pop(k)
+        y4 = cells["_palette"][3] + G
+        r4 = H - M - y4
+        zw = (W - 2 * M - 2 * G) // 3
+        sh = (r4 - 2 * G) // 3
+        ihh = (r4 - G) // 2
+        zx = (M, M + zw + G, M + 2 * (zw + G))
+        for i, k in enumerate(("fabric_1", "fabric_2", "fabric_3")):
+            y = y4 + i * (sh + G)
+            cells[k] = (zx[0], y, zx[0] + zw, y + sh)
+        cells["gear_1"] = (zx[1], y4, zx[1] + zw, y4 + ihh)
+        cells["gear_2"] = (zx[1], y4 + ihh + G, zx[1] + zw, y4 + r4)
+        cells["fx_1"] = (zx[2], y4, zx[2] + zw, y4 + ihh)
+        cells["fx_2"] = (zx[2], y4 + ihh + G, zx[2] + zw, y4 + r4)
+        return cells
+    if fmt == "简版":
+        # 三视图横排(52%)+六特写 6×1(40%)+配色条(8%),无底部区
+        r1 = round(ih * 0.52)
+        r2 = round(ih * 0.40)
+        y1, y2 = M, M + r1 + G
+        y3 = y2 + r2 + G
+        vw = (iw - 2 * G) // 3
+        for i, k in enumerate(("front", "side", "back")):
+            x = M + i * (vw + G)
+            cells[k] = (x, y1, x + vw, y1 + r1)
+        cwid = (iw - 5 * G) // 6
+        for i, k in enumerate(("face", "head", "eye", "hair", "wrist", "waist")):
+            x = M + i * (cwid + G)
+            cells[k] = (x, y2, x + cwid, y2 + r2)
+        cells["_palette"] = (M, y3, W - M, H - M)
+        return cells
+    raise AssertionError(fmt)
 
 
 def cells_focal() -> dict:
@@ -177,7 +260,7 @@ def extract_palette(img: Image.Image, n: int = 5):
 def _place(canvas: Image.Image, draw: ImageDraw.ImageDraw,
            img, rect, label: str | None, focal=(0.5, 0.5),
            label_font: ImageFont.FreeTypeFont | None = None,
-           mode: str = "cover"):
+           mode: str = "cover", paper=PAPER):
     """mode=cover:占满裁切(特写/局部);contain:整图入格居中,余白衬纸色
     (三视图/整器/眉眼横带=完整优先;1112 教训:cover 裁头/裁两端/裁外眼角)。"""
     x0, y0, x1, y1 = rect
@@ -186,7 +269,7 @@ def _place(canvas: Image.Image, draw: ImageDraw.ImageDraw,
         iw, ih = img.size
         s = min(rw / iw, rh / ih)
         nw, nh = max(1, round(iw * s)), max(1, round(ih * s))
-        tile = Image.new("RGB", (rw, rh), PAPER)
+        tile = Image.new("RGB", (rw, rh), paper)
         tile.paste(img.resize((nw, nh), Image.LANCZOS), ((rw - nw) // 2, (rh - nh) // 2))
         canvas.paste(tile, (x0, y0))
     else:
@@ -197,7 +280,7 @@ def _place(canvas: Image.Image, draw: ImageDraw.ImageDraw,
         bb = draw.textbbox((0, 0), label, font=f)
         tw, th = bb[2] - bb[0], bb[3] - bb[1]
         pad = 8
-        draw.rectangle((x0, y0, x0 + tw + 2 * pad, y0 + th + 2 * pad), fill=PAPER)
+        draw.rectangle((x0, y0, x0 + tw + 2 * pad, y0 + th + 2 * pad), fill=paper)
         draw.text((x0 + pad - bb[0], y0 + pad - bb[1]), label, font=f, fill=INK_TEXT)
 
 
@@ -237,32 +320,36 @@ def derive_cells(imgs: dict) -> dict:
     }
 
 
-def compose(cells: dict, palette, title: str, dst: str) -> str:
-    """整卡合成(文件路,脚本/金样用)。缺格断言红;产物恒 RGB 无 alpha。"""
-    missing = [k for k in CELL_KEYS if not isinstance(cells.get(k), Image.Image)]
-    assert not missing, f"缺格 {missing}(18 格全填才准合成)"
+def compose(cells: dict, palette, title: str, dst: str, fmt: str = "全卡", bg: str = "素白宣纸") -> str:
+    """整卡合成(文件路,脚本/金样用;fmt=格式注册表)。缺格断言红;恒 RGB。"""
+    assert fmt in FORMATS, fmt
+    keys = CELL_KEYS_BY_FMT[fmt]
+    missing = [k for k in keys if not isinstance(cells.get(k), Image.Image)]
+    assert not missing, f"缺格 {missing}({fmt} 应全填 {len(keys)} 格)"
     assert len(palette) == 5, "配色应恰五枚"
+    cw_, ch_ = CANVAS[fmt]
+    paper = _bg_color(bg)
 
-    canvas = Image.new("RGB", (W, H), PAPER)
+    canvas = Image.new("RGB", (cw_, ch_), paper)
     d = ImageDraw.Draw(canvas)
-    geo = layout()
+    geo = layout(fmt)
     label_font = _font(LABEL_SIZE)
 
-    # 外框(顶格四行版:格子自顶起,无标题带)
-    d.rectangle((M, M, W - M, H - M), outline=INK_LINE, width=3)
-    # 18 格裁贴(三视图/整器/眉眼横带=contain 整图入格,其余 cover 裁切)
+    # 外框(顶格版式:格子自顶起,无标题带)
+    d.rectangle((M, M, cw_ - M, ch_ - M), outline=INK_LINE, width=3)
+    # 格裁贴(三视图/整器/眉眼横带=contain 整图入格,其余 cover 裁切)
     CONTAIN = {"front", "side", "back", "weapon", "eye"}
-    for k in CELL_KEYS:
+    for k in keys:
         _place(canvas, d, cells[k], geo[k], LABELS.get(k),
                focal=cells_focal().get(k, (0.5, 0.5)), label_font=label_font,
-               mode="contain" if k in CONTAIN else "cover")
+               mode="contain" if k in CONTAIN else "cover", paper=paper)
 
     # 配色带:角标+五枚圆卡(取自主体实际设色)
     px0, py0, px1, py1 = geo["_palette"]
     bb = d.textbbox((0, 0), "配色", font=label_font)
     d.text((px0 + 8 - bb[0], py0 + (py1 - py0 - (bb[3] - bb[1])) // 2 - bb[1]),
            "配色", font=label_font, fill=INK_TEXT)
-    r = min((py1 - py0) // 2 - 14, (px1 - px0 - 260) // 12)
+    r = min((py1 - py0) // 2 - 14, max(10, (px1 - px0 - 260) // 12))
     cx = px0 + 200
     cy = (py0 + py1) // 2
     for rgb in palette:
@@ -275,7 +362,7 @@ def compose(cells: dict, palette, title: str, dst: str) -> str:
     tf = _font(NAME_SIZE)
     bb = d.textbbox((0, 0), title, font=tf)
     tw = bb[2] - bb[0]
-    d.text((W - M - 20 - tw - bb[0], M + 12 - bb[1]), title,
+    d.text((cw_ - M - 20 - tw - bb[0], M + 12 - bb[1]), title,
            font=tf, fill=INK_TEXT)
 
     canvas.save(dst)  # RGB 模式保存,PNG 恒无 alpha
@@ -311,6 +398,8 @@ class MySheetCardComposer:
             "wrist": ("IMAGE",), "waist": ("IMAGE",),
             "weapon": ("IMAGE",), "effect": ("IMAGE",),
             "角名": ("STRING", {"default": "沈孤鸿", "multiline": False}),
+            "格式": (list(FORMATS), {"default": "全卡"}),
+            "背景": ("STRING", {"default": "素白宣纸", "multiline": False}),
         }}
 
     RETURN_TYPES = ("IMAGE",)
@@ -319,7 +408,7 @@ class MySheetCardComposer:
     CATEGORY = "道劫/设定卡"
 
     def compose_card(self, master, side, back, face, head, wrist, waist,
-                     weapon, effect, 角名):
+                     weapon, effect, 角名, 格式="全卡", 背景="素白宣纸"):
         import numpy as np  # 引擎内必在;懒导入保 Mac 纯文件路测试零 torch 依赖
 
         def to_pil(t):
@@ -339,7 +428,7 @@ class MySheetCardComposer:
 
         import io
         buf = io.BytesIO()
-        compose(cells, palette, 角名, buf)  # compose 接受路径或文件对象
+        compose(cells, palette, 角名, buf, fmt=格式, bg=背景)
         buf.seek(0)
         card = Image.open(buf).convert("RGB")
 

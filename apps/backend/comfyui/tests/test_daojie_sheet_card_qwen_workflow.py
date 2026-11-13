@@ -18,8 +18,9 @@ import pathlib
 
 _TESTS = pathlib.Path(__file__).resolve().parent
 _REPO = _TESTS.parents[3]
-WF = (_REPO / "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/5_角色设定卡/"
-      "道劫-角色设定卡.json")
+WF_DIR = (_REPO / "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/5_角色设定卡/")
+WF = WF_DIR / "道劫-角色设定卡-t2i.json"
+WF_I2I = WF_DIR / "道劫-角色设定卡-i2i.json"
 _GEN = _REPO / "apps/build/scripts/daojie_sheet_workflow_qwen_build_1113.py"
 
 _spec = importlib.util.spec_from_file_location("sheet_wf_qgen", _GEN)
@@ -27,13 +28,15 @@ gen = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(gen)
 
 DOC = json.loads(WF.read_text(encoding="utf-8"))
+DOC_I2I = json.loads(WF_I2I.read_text(encoding="utf-8"))
 NODES = {n["id"]: n for n in DOC["nodes"]}
 LINKS = {l[0]: l for l in DOC["links"]}
 
 CLASS_WHITELIST = {
     "UNETLoader", "CLIPLoader", "VAELoaderKJ", "LoraLoaderModelOnly",
     "TextEncodeQwenImage21", "EmptyLatentImage", "KSampler", "VAEDecode",
-    "MySheetCardComposer", "SaveImage", "MarkdownNote",
+    "MySheetCardComposer", "MySheetPromptHub", "LoadImage",
+    "SaveImage", "MarkdownNote",
 }
 
 EDIT_IDS = {"side": 10, "back": 15, "face": 20, "wrist": 25, "waist": 30, "head": 35}
@@ -47,9 +50,13 @@ def _te(nid):
 
 
 def test_file_and_class_whitelist():
-    assert WF.is_file()
+    assert WF.is_file() and WF_I2I.is_file()
+    assert not (WF_DIR / "道劫-角色设定卡.json").exists(), "旧名单件应已改名 -t2i"
     got = {n["type"] for n in DOC["nodes"]}
-    assert got == CLASS_WHITELIST, got ^ CLASS_WHITELIST
+    got.discard("LoadImage")  # i2i 变体专属
+    assert got <= CLASS_WHITELIST and "MySheetPromptHub" in got, got ^ CLASS_WHITELIST
+    got2 = {n["type"] for n in DOC_I2I["nodes"]}
+    assert got2 <= CLASS_WHITELIST and "LoadImage" in got2, got2 ^ CLASS_WHITELIST
 
 
 def test_prompts_are_qwen_truth_v2():
@@ -110,15 +117,26 @@ def test_links_and_multiref_wiring():
     # 编辑参考图槽(slot1):head←side decode(13),余←master decode(8)
     for tag, i in EDIT_IDS.items():
         want = 13 if tag == "head" else 8
-        assert LINKS[NODES[i]["inputs"][1]["link"]][1] == want, tag
-        assert NODES[i]["inputs"][1]["name"] == "images.image_1", tag
-        assert LINKS[NODES[i]["inputs"][2]["link"]][1] == 3   # TE vae
+        assert LINKS[NODES[i]["inputs"][3]["link"]][1] == want, tag  # v4 槽3=参考图
+        assert NODES[i]["inputs"][3]["name"] == "images.image_1", tag
+        assert LINKS[NODES[i]["inputs"][4]["link"]][1] == 3   # TE vae=槽4
     comp = NODES[50]
     order = ("master", "side", "back", "face", "head",
-             "wrist", "waist", "weapon", "effect")
+             "wrist", "waist", "weapon", "effect", "背景")
     assert [i["name"] for i in comp["inputs"]] == list(order)
+    # 背景类型:枢纽(slot12)→合成器(slot9) 永不脱钩
+    bg_lk = comp["inputs"][9]["link"]
+    assert LINKS[bg_lk][1] == 60 and LINKS[bg_lk][2] == 12, "背景应=枢纽出12直连"
+    # TE prompt 全部由枢纽链接喂(散装退役)
+    for i in list(T2I_IDS.values()) + list(EDIT_IDS.values()):
+        plk = NODES[i]["inputs"][1]["link"]
+        assert LINKS[plk][1] == 60, f"TE{i} prompt 应吃枢纽"
+    hub = NODES[60]
+    assert hub["type"] == "MySheetPromptHub"
+    assert len(hub["outputs"]) == 13
     want_src = {"master": 8, "side": 13, "back": 18, "face": 23,
-                "head": 38, "wrist": 28, "waist": 33, "weapon": 43, "effect": 48}
+                "head": 38, "wrist": 28, "waist": 33, "weapon": 43, "effect": 48,
+                "背景": 60}
     for slot, key in enumerate(order):
         assert LINKS[comp["inputs"][slot]["link"]][1] == want_src[key], key
     save = next(n for n in DOC["nodes"] if n["type"] == "SaveImage")
@@ -136,5 +154,13 @@ def test_groups_cover_and_note():
                 and g["bounding"][1] <= cy <= g["bounding"][1] + g["bounding"][3]]
         assert len(hits) == 1, f"节点 {n['id']} 组框命中 {len(hits)}"
     text = note["widgets_values"][0]
-    for kw in ("孪生件", "独立真源", "换角色"):
+    for kw in ("双件", "背景类型联动", "批量"):
         assert kw in text, f"Note 缺法则锚 {kw}"
+    # 组框两两不相交(1113 用户令禁遮盖)
+    bs = [g["bounding"] for g in DOC["groups"]]
+    for i in range(len(bs)):
+        for j in range(i + 1, len(bs)):
+            a, b = bs[i], bs[j]
+            ox = min(a[0] + a[2], b[0] + b[2]) - max(a[0], b[0])
+            oy = min(a[1] + a[3], b[1] + b[3]) - max(a[1], b[1])
+            assert ox <= 0 or oy <= 0, f"组框重叠{i}×{j}"

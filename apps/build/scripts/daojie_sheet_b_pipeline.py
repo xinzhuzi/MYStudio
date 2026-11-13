@@ -279,11 +279,14 @@ def main() -> int:
     def neg_join(*parts):
         return ",".join(p for p in parts if p)
 
+    t_item_q = next(t["positive_text"] for t in bases["types"]
+                   if t["zh"] == "道具")  # 1113 补挂:Qwen 武器同构三层(模板+道具型+风格)
     if args.engine == "qwen":
         # Qwen 线独立真源(sheet_card_qwen:提示词按 Qwen 写法单独成套,1113 用户令)
         q = bases.get("sheet_card_qwen") or {}
         assert q.get("format_version") == "v2" \
             and q.get("engine") == "qwen-image-2.1", "sheet_card_qwen 真源缺位/版本漂移"
+        bgp = q["backgrounds"]["素白宣纸"]["phrase"]  # v4 占位填充(默认素白宣纸)
         qm, qw, qe = q["master"], q["weapon"], q["effect"]
     else:
         sc = sheet_cfg(bases)
@@ -300,7 +303,7 @@ def main() -> int:
     def steps():
         if args.engine == "qwen":
             yield "master", None, build_q_t2i(
-                "\n".join([subject_raw, qm["positive_text"], style_pos]),
+                "\n".join([subject_raw, qm["positive_text"].replace("{背景}", bgp), style_pos]),
                 neg_join(style_neg, qm["negative_text"]),
                 qm["width"], qm["height"], args.seed, f"{pfx}/master",
                 q["models"], q["sampler"])
@@ -310,7 +313,7 @@ def main() -> int:
             yield "weapon", None, build_q_t2i(
                 "\n".join([qw["positive_template"].format(
                                 name=name, weapon=f.get("武器", "长剑")),
-                            style_pos]),
+                            t_item_q, style_pos]),
                 neg_join(style_neg, qw["negative_text"]),
                 qw["width"], qw["height"], args.seed, f"{pfx}/weapon",
                 q["models"], q["sampler"])
@@ -368,7 +371,7 @@ def main() -> int:
                            if t2 == dep for p in [step_path(j, t2)])
                 up = upload_image(src)
                 if args.engine == "qwen":
-                    api = build_q_edit(up, q["edit_instructions"][tag],
+                    api = build_q_edit(up, q["edit_instructions"][tag].replace("{背景}", bgp),
                                        neg_join(style_neg, q["edit_negative"]),
                                        args.seed + q["seeds"][tag],
                                        f"{pfx}/{tag}", q["models"], q["sampler"])

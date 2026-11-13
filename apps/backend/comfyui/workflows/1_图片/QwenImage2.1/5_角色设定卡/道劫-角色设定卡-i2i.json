@@ -1,6 +1,6 @@
 {
-  "last_node_id": 52,
-  "last_link_id": 87,
+  "last_node_id": 60,
+  "last_link_id": 108,
   "nodes": [
     {
       "id": 1,
@@ -23,12 +23,13 @@
           "type": "MODEL",
           "links": [
             1,
-            12,
-            21,
-            30,
-            39,
-            48,
-            57
+            7,
+            18,
+            29,
+            40,
+            51,
+            62,
+            73
           ],
           "slot_index": 0
         }
@@ -66,14 +67,14 @@
           "type": "CLIP",
           "links": [
             2,
-            9,
-            18,
-            27,
-            36,
-            45,
-            54,
-            63,
-            70
+            13,
+            24,
+            35,
+            46,
+            57,
+            68,
+            79,
+            88
           ],
           "slot_index": 0
         }
@@ -112,21 +113,22 @@
           "name": "VAE",
           "type": "VAE",
           "links": [
-            8,
-            11,
+            6,
+            12,
             17,
-            20,
-            26,
-            29,
-            35,
-            38,
-            44,
-            47,
-            53,
+            23,
+            28,
+            34,
+            39,
+            45,
+            50,
             56,
-            62,
-            69,
-            76
+            61,
+            67,
+            72,
+            78,
+            87,
+            96
           ],
           "slot_index": 0
         }
@@ -171,9 +173,8 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            3,
-            64,
-            71
+            82,
+            91
           ],
           "slot_index": 0
         }
@@ -188,6 +189,183 @@
       "widgets_values_named": {
         "lora_name": "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors",
         "strength_model": 1.0
+      }
+    },
+    {
+      "id": 60,
+      "type": "MySheetPromptHub",
+      "pos": [
+        2440,
+        1300
+      ],
+      "size": [
+        420,
+        620
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "正向·master",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 0
+        },
+        {
+          "name": "指令·master图生图",
+          "type": "STRING",
+          "links": [
+            3
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "正向·武器",
+          "type": "STRING",
+          "links": [
+            80
+          ],
+          "slot_index": 2
+        },
+        {
+          "name": "正向·特效",
+          "type": "STRING",
+          "links": [
+            89
+          ],
+          "slot_index": 3
+        },
+        {
+          "name": "指令·侧视图",
+          "type": "STRING",
+          "links": [
+            14
+          ],
+          "slot_index": 4
+        },
+        {
+          "name": "指令·背视图",
+          "type": "STRING",
+          "links": [
+            25
+          ],
+          "slot_index": 5
+        },
+        {
+          "name": "指令·面部",
+          "type": "STRING",
+          "links": [
+            36
+          ],
+          "slot_index": 6
+        },
+        {
+          "name": "指令·头部",
+          "type": "STRING",
+          "links": [
+            69
+          ],
+          "slot_index": 7
+        },
+        {
+          "name": "指令·腕部",
+          "type": "STRING",
+          "links": [
+            47
+          ],
+          "slot_index": 8
+        },
+        {
+          "name": "指令·腰部",
+          "type": "STRING",
+          "links": [
+            58
+          ],
+          "slot_index": 9
+        },
+        {
+          "name": "负面·生成",
+          "type": "STRING",
+          "links": [
+            81,
+            90
+          ],
+          "slot_index": 10
+        },
+        {
+          "name": "负面·编辑",
+          "type": "STRING",
+          "links": [
+            4,
+            15,
+            26,
+            37,
+            48,
+            59,
+            70
+          ],
+          "slot_index": 11
+        },
+        {
+          "name": "背景类型",
+          "type": "STRING",
+          "links": [
+            107
+          ],
+          "slot_index": 12
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MySheetPromptHub"
+      },
+      "widgets_values": [
+        "姓名:沈孤鸿|性别:男|年龄:二十二岁|身份:剑修|能力:孤鸿剑气——剑锋凝出一线青白剑气,形如鸿羽掠空,自剑尖延展约三尺|脸型:清峻,丹凤眼深褐瞳,眉斜飞入鬓|发型:黑发高束马尾,墨青发带,颊侧两缕碎发|服装:月白窄袖长袍衣缘银线暗纹,内黛青束袖劲装,墨色宽腰封缀素银方扣,黛青束口裤,玄色短靴靴口银边|配色:主色月白,辅色黛青,点睛银|衣料:主衣料细密缎面,腰封厚织锦,绑绳素麻绳|配饰:墨青发带,腰封素银方扣,剑穗青白丝线|武器:长剑,玄色木胎鲛皮鞘,鞘口衔银,剑柄缠墨色丝绦,剑穗青白丝线,收鞘态|其余:无灵兽,无伤痕旧损",
+        "沈孤鸿",
+        "素白宣纸"
+      ],
+      "widgets_values_named": {
+        "主体句": "姓名:沈孤鸿|性别:男|年龄:二十二岁|身份:剑修|能力:孤鸿剑气——剑锋凝出一线青白剑气,形如鸿羽掠空,自剑尖延展约三尺|脸型:清峻,丹凤眼深褐瞳,眉斜飞入鬓|发型:黑发高束马尾,墨青发带,颊侧两缕碎发|服装:月白窄袖长袍衣缘银线暗纹,内黛青束袖劲装,墨色宽腰封缀素银方扣,黛青束口裤,玄色短靴靴口银边|配色:主色月白,辅色黛青,点睛银|衣料:主衣料细密缎面,腰封厚织锦,绑绳素麻绳|配饰:墨青发带,腰封素银方扣,剑穗青白丝线|武器:长剑,玄色木胎鲛皮鞘,鞘口衔银,剑柄缠墨色丝绦,剑穗青白丝线,收鞘态|其余:无灵兽,无伤痕旧损",
+        "角名": "沈孤鸿",
+        "背景类型": "素白宣纸"
+      }
+    },
+    {
+      "id": 55,
+      "type": "LoadImage",
+      "pos": [
+        650,
+        60
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            5
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "道劫-角色图.png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "道劫-角色图.png",
+        "upload": "image"
       }
     },
     {
@@ -209,6 +387,26 @@
           "name": "clip",
           "type": "CLIP",
           "link": 2
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 3
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "link": 4
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 5
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 6
         }
       ],
       "outputs": [
@@ -216,7 +414,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            4
+            8
           ],
           "slot_index": 0
         },
@@ -224,7 +422,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            5
+            9
           ],
           "slot_index": 1
         }
@@ -233,14 +431,14 @@
         "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
-        "姓名:沈孤鸿|性别:男|年龄:二十二岁|身份:剑修|能力:孤鸿剑气——剑锋凝出一线青白剑气,形如鸿羽掠空,自剑尖延展约三尺|脸型:清峻,丹凤眼深褐瞳,眉斜飞入鬓|发型:黑发高束马尾,墨青发带,颊侧两缕碎发|服装:月白窄袖长袍衣缘银线暗纹,内黛青束袖劲装,墨色宽腰封缀素银方扣,黛青束口裤,玄色短靴靴口银边|配色:主色月白,辅色黛青,点睛银|衣料:主衣料细密缎面,腰封厚织锦,绑绳素麻绳|配饰:墨青发带,腰封素银方扣,剑穗青白丝线|武器:长剑,玄色木胎鲛皮鞘,鞘口衔银,剑柄缠墨色丝绦,剑穗青白丝线,收鞘态|其余:无灵兽,无伤痕旧损\n主体的正面全身立绘,脸与胸口正对镜头,双肩对称;标准自然站姿,双手自然垂于身侧,头顶与脚底完整入画,完整呈现发型、面部、手部、鞋履与全部佩挂;全身比例端正,肢体与衣装结构清楚;均匀一致的漫射光,轮廓清楚;环境净空,素净浅色底,整幅为人物本体与贴身佩挂。\n美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
-        "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦,印章,盖章,朱红印章,落款钤印,闲章,戳记,水印,多余角色,背景场景,山水,树木,云雾,文字,错字",
-        1024
+        "以<image1>中的角色为同一人,生成其正面全身立绘,脸与胸口正对镜头,双肩对称;严格保持<image1>中该角色的脸型五官、发型与发色、服装颜色与形制、配饰与佩戴、水墨国风画法;标准自然站姿,双手自然垂于身侧,头顶与脚底完整入画;素净浅色背景。",
+        "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦,印章,盖章,落款钤印,水印,多余人物,肢体变形,手指崩坏,文字,错字",
+        0
       ],
       "widgets_values_named": {
-        "prompt": "姓名:沈孤鸿|性别:男|年龄:二十二岁|身份:剑修|能力:孤鸿剑气——剑锋凝出一线青白剑气,形如鸿羽掠空,自剑尖延展约三尺|脸型:清峻,丹凤眼深褐瞳,眉斜飞入鬓|发型:黑发高束马尾,墨青发带,颊侧两缕碎发|服装:月白窄袖长袍衣缘银线暗纹,内黛青束袖劲装,墨色宽腰封缀素银方扣,黛青束口裤,玄色短靴靴口银边|配色:主色月白,辅色黛青,点睛银|衣料:主衣料细密缎面,腰封厚织锦,绑绳素麻绳|配饰:墨青发带,腰封素银方扣,剑穗青白丝线|武器:长剑,玄色木胎鲛皮鞘,鞘口衔银,剑柄缠墨色丝绦,剑穗青白丝线,收鞘态|其余:无灵兽,无伤痕旧损\n主体的正面全身立绘,脸与胸口正对镜头,双肩对称;标准自然站姿,双手自然垂于身侧,头顶与脚底完整入画,完整呈现发型、面部、手部、鞋履与全部佩挂;全身比例端正,肢体与衣装结构清楚;均匀一致的漫射光,轮廓清楚;环境净空,素净浅色底,整幅为人物本体与贴身佩挂。\n美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
-        "negative_prompt": "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦,印章,盖章,朱红印章,落款钤印,闲章,戳记,水印,多余角色,背景场景,山水,树木,云雾,文字,错字",
-        "resolution": 1024
+        "prompt": "以<image1>中的角色为同一人,生成其正面全身立绘,脸与胸口正对镜头,双肩对称;严格保持<image1>中该角色的脸型五官、发型与发色、服装颜色与形制、配饰与佩戴、水墨国风画法;标准自然站姿,双手自然垂于身侧,头顶与脚底完整入画;素净浅色背景。",
+        "negative_prompt": "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦,印章,盖章,落款钤印,水印,多余人物,肢体变形,手指崩坏,文字,错字",
+        "resolution": 0
       }
     },
     {
@@ -263,7 +461,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            6
+            10
           ],
           "slot_index": 0
         }
@@ -272,13 +470,13 @@
         "Node name for S&R": "EmptyLatentImage"
       },
       "widgets_values": [
-        1280,
-        1920,
+        1024,
+        1536,
         1
       ],
       "widgets_values_named": {
-        "width": 1280,
-        "height": 1920,
+        "width": 1024,
+        "height": 1536,
         "batch_size": 1
       }
     },
@@ -300,22 +498,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 3
+          "link": 7
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 4
+          "link": 8
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 5
+          "link": 9
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 6
+          "link": 10
         }
       ],
       "outputs": [
@@ -323,7 +521,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            7
+            11
           ],
           "slot_index": 0
         }
@@ -334,7 +532,7 @@
       "widgets_values": [
         0,
         "fixed",
-        8,
+        25,
         1.0,
         "euler",
         "simple",
@@ -343,7 +541,7 @@
       "widgets_values_named": {
         "seed": 0,
         "control_after_generate": "fixed",
-        "steps": 8,
+        "steps": 25,
         "cfg": 1.0,
         "sampler_name": "euler",
         "scheduler": "simple",
@@ -368,12 +566,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 7
+          "link": 11
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 8
+          "link": 12
         }
       ],
       "outputs": [
@@ -381,12 +579,12 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            10,
-            19,
-            28,
-            37,
-            46,
-            78
+            16,
+            27,
+            38,
+            49,
+            60,
+            98
           ],
           "slot_index": 0
         }
@@ -413,17 +611,27 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 9
+          "link": 13
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 14
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "link": 15
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 10
+          "link": 16
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 11
+          "link": 17
         }
       ],
       "outputs": [
@@ -431,7 +639,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            13
+            19
           ],
           "slot_index": 0
         },
@@ -439,7 +647,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            14
+            20
           ],
           "slot_index": 1
         }
@@ -478,7 +686,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            15
+            21
           ],
           "slot_index": 0
         }
@@ -515,22 +723,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 12
+          "link": 18
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 13
+          "link": 19
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 14
+          "link": 20
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 15
+          "link": 21
         }
       ],
       "outputs": [
@@ -538,7 +746,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            16
+            22
           ],
           "slot_index": 0
         }
@@ -583,12 +791,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 16
+          "link": 22
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 17
+          "link": 23
         }
       ],
       "outputs": [
@@ -596,8 +804,8 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            77,
-            79
+            97,
+            99
           ],
           "slot_index": 0
         }
@@ -624,17 +832,27 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 18
+          "link": 24
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 25
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "link": 26
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 19
+          "link": 27
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 20
+          "link": 28
         }
       ],
       "outputs": [
@@ -642,7 +860,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            22
+            30
           ],
           "slot_index": 0
         },
@@ -650,7 +868,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            23
+            31
           ],
           "slot_index": 1
         }
@@ -689,7 +907,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            24
+            32
           ],
           "slot_index": 0
         }
@@ -726,22 +944,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 21
+          "link": 29
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 22
+          "link": 30
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 23
+          "link": 31
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 24
+          "link": 32
         }
       ],
       "outputs": [
@@ -749,7 +967,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            25
+            33
           ],
           "slot_index": 0
         }
@@ -794,12 +1012,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 25
+          "link": 33
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 26
+          "link": 34
         }
       ],
       "outputs": [
@@ -807,7 +1025,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            80
+            100
           ],
           "slot_index": 0
         }
@@ -834,17 +1052,27 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 27
+          "link": 35
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 36
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "link": 37
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 28
+          "link": 38
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 29
+          "link": 39
         }
       ],
       "outputs": [
@@ -852,7 +1080,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            31
+            41
           ],
           "slot_index": 0
         },
@@ -860,7 +1088,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            32
+            42
           ],
           "slot_index": 1
         }
@@ -899,7 +1127,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            33
+            43
           ],
           "slot_index": 0
         }
@@ -936,22 +1164,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 30
+          "link": 40
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 31
+          "link": 41
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 32
+          "link": 42
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 33
+          "link": 43
         }
       ],
       "outputs": [
@@ -959,7 +1187,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            34
+            44
           ],
           "slot_index": 0
         }
@@ -1004,12 +1232,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 34
+          "link": 44
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 35
+          "link": 45
         }
       ],
       "outputs": [
@@ -1017,7 +1245,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            81
+            101
           ],
           "slot_index": 0
         }
@@ -1044,17 +1272,27 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 36
+          "link": 46
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 47
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "link": 48
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 37
+          "link": 49
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 38
+          "link": 50
         }
       ],
       "outputs": [
@@ -1062,7 +1300,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            40
+            52
           ],
           "slot_index": 0
         },
@@ -1070,7 +1308,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            41
+            53
           ],
           "slot_index": 1
         }
@@ -1109,7 +1347,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            42
+            54
           ],
           "slot_index": 0
         }
@@ -1146,22 +1384,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 39
+          "link": 51
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 40
+          "link": 52
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 41
+          "link": 53
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 42
+          "link": 54
         }
       ],
       "outputs": [
@@ -1169,7 +1407,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            43
+            55
           ],
           "slot_index": 0
         }
@@ -1214,12 +1452,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 43
+          "link": 55
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 44
+          "link": 56
         }
       ],
       "outputs": [
@@ -1227,7 +1465,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            83
+            103
           ],
           "slot_index": 0
         }
@@ -1254,17 +1492,27 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 45
+          "link": 57
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 58
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "link": 59
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 46
+          "link": 60
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 47
+          "link": 61
         }
       ],
       "outputs": [
@@ -1272,7 +1520,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            49
+            63
           ],
           "slot_index": 0
         },
@@ -1280,7 +1528,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            50
+            64
           ],
           "slot_index": 1
         }
@@ -1319,7 +1567,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            51
+            65
           ],
           "slot_index": 0
         }
@@ -1356,22 +1604,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 48
+          "link": 62
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 49
+          "link": 63
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 50
+          "link": 64
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 51
+          "link": 65
         }
       ],
       "outputs": [
@@ -1379,7 +1627,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            52
+            66
           ],
           "slot_index": 0
         }
@@ -1424,12 +1672,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 52
+          "link": 66
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 53
+          "link": 67
         }
       ],
       "outputs": [
@@ -1437,7 +1685,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            84
+            104
           ],
           "slot_index": 0
         }
@@ -1464,17 +1712,27 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 54
+          "link": 68
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 69
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "link": 70
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 77
+          "link": 97
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 56
+          "link": 72
         }
       ],
       "outputs": [
@@ -1482,7 +1740,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            58
+            74
           ],
           "slot_index": 0
         },
@@ -1490,7 +1748,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            59
+            75
           ],
           "slot_index": 1
         }
@@ -1529,7 +1787,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            60
+            76
           ],
           "slot_index": 0
         }
@@ -1566,22 +1824,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 57
+          "link": 73
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 58
+          "link": 74
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 59
+          "link": 75
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 60
+          "link": 76
         }
       ],
       "outputs": [
@@ -1589,7 +1847,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            61
+            77
           ],
           "slot_index": 0
         }
@@ -1634,12 +1892,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 61
+          "link": 77
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 62
+          "link": 78
         }
       ],
       "outputs": [
@@ -1647,7 +1905,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            82
+            102
           ],
           "slot_index": 0
         }
@@ -1674,7 +1932,17 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 63
+          "link": 79
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 80
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "link": 81
         }
       ],
       "outputs": [
@@ -1682,7 +1950,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            65
+            83
           ],
           "slot_index": 0
         },
@@ -1690,7 +1958,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            66
+            84
           ],
           "slot_index": 1
         }
@@ -1699,12 +1967,12 @@
         "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
-        "沈孤鸿的佩器:长剑,玄色木胎鲛皮鞘,鞘口衔银,剑柄缠墨色丝绦,剑穗青白丝线,收鞘态。整剑水平横置,自柄首至鞘尾完整入画,两端各留边;鞘身光素,剑穗为青白丝线本色,饰件皆素银;背景素净米白。\n美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
+        "沈孤鸿的佩器:长剑,玄色木胎鲛皮鞘,鞘口衔银,剑柄缠墨色丝绦,剑穗青白丝线,收鞘态。整剑水平横置,自柄首至鞘尾完整入画,两端各留边;鞘身光素,剑穗为青白丝线本色,饰件皆素银;背景素净米白。\n主体的器物设定图：器物可见范围完整入画并居中，占画面大部；同一件器物，材质、纹样与器身一致。器物按二维动漫道具的线描设色方式呈现：金属、皮革与木料均为平整色面，结构与纹样以细线勾勒，亮部为窄色带。机位服从主体句指定的识别面；主体句未指定识别面时，采用器物正面正交视角完整入画，轮廓比例清晰。传统色多色相铺陈各安其位，薄透罩染轻敷。\n主体设色配比：主体明文主色为第一主色，色仅落于器物本体，中等强度色作主体层次，少量高识别色仅作点睛。\n器物设定图采用便于辨认结构的均匀漫射光；来源规定的断裂、缺损、磨损、积尘与血痕按实际状态呈现。透明底时主体以外为透明区域；关闭透明时背景采用主体句指定的简洁底色。\n美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
         "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦,印章,水印,文字,多余物件,背景场景",
         1024
       ],
       "widgets_values_named": {
-        "prompt": "沈孤鸿的佩器:长剑,玄色木胎鲛皮鞘,鞘口衔银,剑柄缠墨色丝绦,剑穗青白丝线,收鞘态。整剑水平横置,自柄首至鞘尾完整入画,两端各留边;鞘身光素,剑穗为青白丝线本色,饰件皆素银;背景素净米白。\n美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
+        "prompt": "沈孤鸿的佩器:长剑,玄色木胎鲛皮鞘,鞘口衔银,剑柄缠墨色丝绦,剑穗青白丝线,收鞘态。整剑水平横置,自柄首至鞘尾完整入画,两端各留边;鞘身光素,剑穗为青白丝线本色,饰件皆素银;背景素净米白。\n主体的器物设定图：器物可见范围完整入画并居中，占画面大部；同一件器物，材质、纹样与器身一致。器物按二维动漫道具的线描设色方式呈现：金属、皮革与木料均为平整色面，结构与纹样以细线勾勒，亮部为窄色带。机位服从主体句指定的识别面；主体句未指定识别面时，采用器物正面正交视角完整入画，轮廓比例清晰。传统色多色相铺陈各安其位，薄透罩染轻敷。\n主体设色配比：主体明文主色为第一主色，色仅落于器物本体，中等强度色作主体层次，少量高识别色仅作点睛。\n器物设定图采用便于辨认结构的均匀漫射光；来源规定的断裂、缺损、磨损、积尘与血痕按实际状态呈现。透明底时主体以外为透明区域；关闭透明时背景采用主体句指定的简洁底色。\n美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
         "negative_prompt": "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦,印章,水印,文字,多余物件,背景场景",
         "resolution": 1024
       }
@@ -1729,7 +1997,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            67
+            85
           ],
           "slot_index": 0
         }
@@ -1766,22 +2034,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 64
+          "link": 82
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 65
+          "link": 83
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 66
+          "link": 84
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 67
+          "link": 85
         }
       ],
       "outputs": [
@@ -1789,7 +2057,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            68
+            86
           ],
           "slot_index": 0
         }
@@ -1834,12 +2102,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 68
+          "link": 86
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 69
+          "link": 87
         }
       ],
       "outputs": [
@@ -1847,7 +2115,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            85
+            105
           ],
           "slot_index": 0
         }
@@ -1874,7 +2142,17 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 70
+          "link": 88
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 89
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "link": 90
         }
       ],
       "outputs": [
@@ -1882,7 +2160,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            72
+            92
           ],
           "slot_index": 0
         },
@@ -1890,7 +2168,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            73
+            93
           ],
           "slot_index": 1
         }
@@ -1929,7 +2207,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            74
+            94
           ],
           "slot_index": 0
         }
@@ -1966,22 +2244,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 71
+          "link": 91
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 72
+          "link": 92
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 73
+          "link": 93
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 74
+          "link": 94
         }
       ],
       "outputs": [
@@ -1989,7 +2267,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            75
+            95
           ],
           "slot_index": 0
         }
@@ -2034,12 +2312,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 75
+          "link": 95
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 76
+          "link": 96
         }
       ],
       "outputs": [
@@ -2047,7 +2325,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            86
+            106
           ],
           "slot_index": 0
         }
@@ -2065,7 +2343,7 @@
       ],
       "size": [
         420,
-        560
+        620
       ],
       "flags": {},
       "order": 0,
@@ -2074,47 +2352,52 @@
         {
           "name": "master",
           "type": "IMAGE",
-          "link": 78
+          "link": 98
         },
         {
           "name": "side",
           "type": "IMAGE",
-          "link": 79
+          "link": 99
         },
         {
           "name": "back",
           "type": "IMAGE",
-          "link": 80
+          "link": 100
         },
         {
           "name": "face",
           "type": "IMAGE",
-          "link": 81
+          "link": 101
         },
         {
           "name": "head",
           "type": "IMAGE",
-          "link": 82
+          "link": 102
         },
         {
           "name": "wrist",
           "type": "IMAGE",
-          "link": 83
+          "link": 103
         },
         {
           "name": "waist",
           "type": "IMAGE",
-          "link": 84
+          "link": 104
         },
         {
           "name": "weapon",
           "type": "IMAGE",
-          "link": 85
+          "link": 105
         },
         {
           "name": "effect",
           "type": "IMAGE",
-          "link": 86
+          "link": 106
+        },
+        {
+          "name": "背景",
+          "type": "STRING",
+          "link": 107
         }
       ],
       "outputs": [
@@ -2122,7 +2405,7 @@
           "name": "设定卡",
           "type": "IMAGE",
           "links": [
-            87
+            108
           ],
           "slot_index": 0
         }
@@ -2131,10 +2414,14 @@
         "Node name for S&R": "MySheetCardComposer"
       },
       "widgets_values": [
-        "沈孤鸿"
+        "沈孤鸿",
+        "全卡",
+        "素白宣纸"
       ],
       "widgets_values_named": {
-        "角名": "沈孤鸿"
+        "角名": "沈孤鸿",
+        "格式": "全卡",
+        "背景": "素白宣纸"
       }
     },
     {
@@ -2155,7 +2442,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 87
+          "link": 108
         }
       ],
       "outputs": [],
@@ -2178,7 +2465,7 @@
       ],
       "size": [
         560,
-        640
+        700
       ],
       "flags": {},
       "order": 0,
@@ -2189,7 +2476,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "## 道劫·角色设定卡(QwenImage 2.1 版,1113)\n\n- **孪生件**:与 `1_图片/MiniMax/道劫-角色设定卡.json`(H3-Image)同模式同底框——\n  MySheetCardComposer 格式一 v1(程序绘框线/16 角标/右上角名,零缺笔零印章)\n- **模型四件**(qi21 产线现行):bf16 UNET+heretic TE+texture_fix VAE(KJ,cpu/fp32)\n  +viggle turbo r256@1.0;t2i=Turbo 8步/cfg1\n- **六路编辑=multiref 路(v2)**:参考图进 TE `images.image_1` 槽+提示词 `<image1>`\n  指代;base 直驱 25步/cfg1/dn1(qwen21-multiref-edit 在役件口径;经典 img2img 两败\n  教训=dn0.6 编辑不生效/dn1.0 无图参考身份画风塌);head 吃侧视图,余吃 master\n- **提示词独立真源**:qi21_bases.json#sheet_card_qwen(v2,单独成套);master 三层装配\n  带负面词;换角色=改 master 首段主体句+角名+武器/特效句首名号\n- **批量/断点续跑**:python3 apps/build/scripts/daojie_sheet_b_pipeline.py --engine qwen"
+        "## 道劫·角色设定卡(QwenImage 2.1 版,1113 双件)\n\n- **双件**:-t2i=master 文生图;**-i2i=master 图生图**(LoadImage 喂已有角色图→\n  multiref「以<image1>生成正面全身立绘」)——六编辑/枢纽/合成器两件同构\n- **提示词枢纽 MySheetPromptHub**:画布唯一提示词入口(主体句+角名+**背景类型\n  唯一旋钮**),运行时热读 qi21_bases 真源装配,13 出分发到各 TE;各 TE 的提示词\n  全部由枢纽链接喂入——禁在 TE 上手改散装提示词(真源漂移即契约红)\n- **背景类型联动(不能出错的单源设计)**:枢纽「背景类型」→提示词 {背景} 占位\n  填充→同型输出直连合成器「背景」输入→画布底色同型渲染;换型只动枢纽一个旋钮\n- **模型四件**(qi21 产线现行):bf16+heretic+texture_fix(KJ,cpu/fp32)+viggle\n  turbo r256@1.0;t2i=8步;编辑=multiref base 25步(三加速否决史见真源 _doc)\n- head 吃侧视图,余编辑吃 master;MySheetCardComposer 格式=全卡/简版/竖版/无武器\n- **批量/断点续跑**:python3 apps/build/scripts/daojie_sheet_b_pipeline.py --engine qwen"
       ]
     }
   ],
@@ -2212,94 +2499,142 @@
     ],
     [
       3,
+      60,
+      1,
+      5,
+      1,
+      "STRING"
+    ],
+    [
       4,
+      60,
+      11,
+      5,
+      2,
+      "STRING"
+    ],
+    [
+      5,
+      55,
+      0,
+      5,
+      3,
+      "IMAGE"
+    ],
+    [
+      6,
+      3,
+      0,
+      5,
+      4,
+      "VAE"
+    ],
+    [
+      7,
+      1,
       0,
       7,
       0,
       "MODEL"
     ],
     [
-      4,
+      8,
       5,
       0,
       7,
       1,
       "CONDITIONING"
-    ],
-    [
-      5,
-      5,
-      1,
-      7,
-      2,
-      "CONDITIONING"
-    ],
-    [
-      6,
-      6,
-      0,
-      7,
-      3,
-      "LATENT"
-    ],
-    [
-      7,
-      7,
-      0,
-      8,
-      0,
-      "LATENT"
-    ],
-    [
-      8,
-      3,
-      0,
-      8,
-      1,
-      "VAE"
     ],
     [
       9,
+      5,
+      1,
+      7,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      10,
+      6,
+      0,
+      7,
+      3,
+      "LATENT"
+    ],
+    [
+      11,
+      7,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      12,
+      3,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      13,
       2,
       0,
       10,
       0,
       "CLIP"
-    ],
-    [
-      10,
-      8,
-      0,
-      10,
-      1,
-      "IMAGE"
-    ],
-    [
-      11,
-      3,
-      0,
-      10,
-      2,
-      "VAE"
-    ],
-    [
-      12,
-      1,
-      0,
-      12,
-      0,
-      "MODEL"
-    ],
-    [
-      13,
-      10,
-      0,
-      12,
-      1,
-      "CONDITIONING"
     ],
     [
       14,
+      60,
+      4,
+      10,
+      1,
+      "STRING"
+    ],
+    [
+      15,
+      60,
+      11,
+      10,
+      2,
+      "STRING"
+    ],
+    [
+      16,
+      8,
+      0,
+      10,
+      3,
+      "IMAGE"
+    ],
+    [
+      17,
+      3,
+      0,
+      10,
+      4,
+      "VAE"
+    ],
+    [
+      18,
+      1,
+      0,
+      12,
+      0,
+      "MODEL"
+    ],
+    [
+      19,
+      10,
+      0,
+      12,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      20,
       10,
       1,
       12,
@@ -2307,7 +2642,7 @@
       "CONDITIONING"
     ],
     [
-      15,
+      21,
       11,
       0,
       12,
@@ -2315,7 +2650,7 @@
       "LATENT"
     ],
     [
-      16,
+      22,
       12,
       0,
       13,
@@ -2323,7 +2658,7 @@
       "LATENT"
     ],
     [
-      17,
+      23,
       3,
       0,
       13,
@@ -2331,135 +2666,167 @@
       "VAE"
     ],
     [
-      18,
+      24,
       2,
       0,
       15,
       0,
       "CLIP"
-    ],
-    [
-      19,
-      8,
-      0,
-      15,
-      1,
-      "IMAGE"
-    ],
-    [
-      20,
-      3,
-      0,
-      15,
-      2,
-      "VAE"
-    ],
-    [
-      21,
-      1,
-      0,
-      17,
-      0,
-      "MODEL"
-    ],
-    [
-      22,
-      15,
-      0,
-      17,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      23,
-      15,
-      1,
-      17,
-      2,
-      "CONDITIONING"
-    ],
-    [
-      24,
-      16,
-      0,
-      17,
-      3,
-      "LATENT"
     ],
     [
       25,
-      17,
-      0,
-      18,
-      0,
-      "LATENT"
+      60,
+      5,
+      15,
+      1,
+      "STRING"
     ],
     [
       26,
-      3,
-      0,
-      18,
-      1,
-      "VAE"
+      60,
+      11,
+      15,
+      2,
+      "STRING"
     ],
     [
       27,
-      2,
-      0,
-      20,
-      0,
-      "CLIP"
-    ],
-    [
-      28,
       8,
       0,
-      20,
-      1,
+      15,
+      3,
       "IMAGE"
     ],
     [
-      29,
+      28,
       3,
       0,
-      20,
-      2,
+      15,
+      4,
       "VAE"
     ],
     [
-      30,
+      29,
       1,
       0,
-      22,
+      17,
       0,
       "MODEL"
     ],
     [
-      31,
-      20,
+      30,
+      15,
       0,
-      22,
+      17,
       1,
+      "CONDITIONING"
+    ],
+    [
+      31,
+      15,
+      1,
+      17,
+      2,
       "CONDITIONING"
     ],
     [
       32,
-      20,
-      1,
-      22,
-      2,
-      "CONDITIONING"
+      16,
+      0,
+      17,
+      3,
+      "LATENT"
     ],
     [
       33,
-      21,
+      17,
       0,
-      22,
-      3,
+      18,
+      0,
       "LATENT"
     ],
     [
       34,
+      3,
+      0,
+      18,
+      1,
+      "VAE"
+    ],
+    [
+      35,
+      2,
+      0,
+      20,
+      0,
+      "CLIP"
+    ],
+    [
+      36,
+      60,
+      6,
+      20,
+      1,
+      "STRING"
+    ],
+    [
+      37,
+      60,
+      11,
+      20,
+      2,
+      "STRING"
+    ],
+    [
+      38,
+      8,
+      0,
+      20,
+      3,
+      "IMAGE"
+    ],
+    [
+      39,
+      3,
+      0,
+      20,
+      4,
+      "VAE"
+    ],
+    [
+      40,
+      1,
+      0,
+      22,
+      0,
+      "MODEL"
+    ],
+    [
+      41,
+      20,
+      0,
+      22,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      42,
+      20,
+      1,
+      22,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      43,
+      21,
+      0,
+      22,
+      3,
+      "LATENT"
+    ],
+    [
+      44,
       22,
       0,
       23,
@@ -2467,7 +2834,7 @@
       "LATENT"
     ],
     [
-      35,
+      45,
       3,
       0,
       23,
@@ -2475,7 +2842,7 @@
       "VAE"
     ],
     [
-      36,
+      46,
       2,
       0,
       25,
@@ -2483,23 +2850,39 @@
       "CLIP"
     ],
     [
-      37,
+      47,
+      60,
+      8,
+      25,
+      1,
+      "STRING"
+    ],
+    [
+      48,
+      60,
+      11,
+      25,
+      2,
+      "STRING"
+    ],
+    [
+      49,
       8,
       0,
       25,
-      1,
+      3,
       "IMAGE"
     ],
     [
-      38,
+      50,
       3,
       0,
       25,
-      2,
+      4,
       "VAE"
     ],
     [
-      39,
+      51,
       1,
       0,
       27,
@@ -2507,7 +2890,7 @@
       "MODEL"
     ],
     [
-      40,
+      52,
       25,
       0,
       27,
@@ -2515,7 +2898,7 @@
       "CONDITIONING"
     ],
     [
-      41,
+      53,
       25,
       1,
       27,
@@ -2523,7 +2906,7 @@
       "CONDITIONING"
     ],
     [
-      42,
+      54,
       26,
       0,
       27,
@@ -2531,111 +2914,143 @@
       "LATENT"
     ],
     [
-      43,
+      55,
       27,
       0,
       28,
       0,
       "LATENT"
-    ],
-    [
-      44,
-      3,
-      0,
-      28,
-      1,
-      "VAE"
-    ],
-    [
-      45,
-      2,
-      0,
-      30,
-      0,
-      "CLIP"
-    ],
-    [
-      46,
-      8,
-      0,
-      30,
-      1,
-      "IMAGE"
-    ],
-    [
-      47,
-      3,
-      0,
-      30,
-      2,
-      "VAE"
-    ],
-    [
-      48,
-      1,
-      0,
-      32,
-      0,
-      "MODEL"
-    ],
-    [
-      49,
-      30,
-      0,
-      32,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      50,
-      30,
-      1,
-      32,
-      2,
-      "CONDITIONING"
-    ],
-    [
-      51,
-      31,
-      0,
-      32,
-      3,
-      "LATENT"
-    ],
-    [
-      52,
-      32,
-      0,
-      33,
-      0,
-      "LATENT"
-    ],
-    [
-      53,
-      3,
-      0,
-      33,
-      1,
-      "VAE"
-    ],
-    [
-      54,
-      2,
-      0,
-      35,
-      0,
-      "CLIP"
     ],
     [
       56,
       3,
       0,
-      35,
-      2,
+      28,
+      1,
       "VAE"
     ],
     [
       57,
+      2,
+      0,
+      30,
+      0,
+      "CLIP"
+    ],
+    [
+      58,
+      60,
+      9,
+      30,
+      1,
+      "STRING"
+    ],
+    [
+      59,
+      60,
+      11,
+      30,
+      2,
+      "STRING"
+    ],
+    [
+      60,
+      8,
+      0,
+      30,
+      3,
+      "IMAGE"
+    ],
+    [
+      61,
+      3,
+      0,
+      30,
+      4,
+      "VAE"
+    ],
+    [
+      62,
+      1,
+      0,
+      32,
+      0,
+      "MODEL"
+    ],
+    [
+      63,
+      30,
+      0,
+      32,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      64,
+      30,
+      1,
+      32,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      65,
+      31,
+      0,
+      32,
+      3,
+      "LATENT"
+    ],
+    [
+      66,
+      32,
+      0,
+      33,
+      0,
+      "LATENT"
+    ],
+    [
+      67,
+      3,
+      0,
+      33,
+      1,
+      "VAE"
+    ],
+    [
+      68,
+      2,
+      0,
+      35,
+      0,
+      "CLIP"
+    ],
+    [
+      69,
+      60,
+      7,
+      35,
+      1,
+      "STRING"
+    ],
+    [
+      70,
+      60,
+      11,
+      35,
+      2,
+      "STRING"
+    ],
+    [
+      72,
+      3,
+      0,
+      35,
+      4,
+      "VAE"
+    ],
+    [
+      73,
       1,
       0,
       37,
@@ -2643,7 +3058,7 @@
       "MODEL"
     ],
     [
-      58,
+      74,
       35,
       0,
       37,
@@ -2651,7 +3066,7 @@
       "CONDITIONING"
     ],
     [
-      59,
+      75,
       35,
       1,
       37,
@@ -2659,7 +3074,7 @@
       "CONDITIONING"
     ],
     [
-      60,
+      76,
       36,
       0,
       37,
@@ -2667,7 +3082,7 @@
       "LATENT"
     ],
     [
-      61,
+      77,
       37,
       0,
       38,
@@ -2675,7 +3090,7 @@
       "LATENT"
     ],
     [
-      62,
+      78,
       3,
       0,
       38,
@@ -2683,7 +3098,7 @@
       "VAE"
     ],
     [
-      63,
+      79,
       2,
       0,
       40,
@@ -2691,7 +3106,23 @@
       "CLIP"
     ],
     [
-      64,
+      80,
+      60,
+      2,
+      40,
+      1,
+      "STRING"
+    ],
+    [
+      81,
+      60,
+      10,
+      40,
+      2,
+      "STRING"
+    ],
+    [
+      82,
       4,
       0,
       42,
@@ -2699,7 +3130,7 @@
       "MODEL"
     ],
     [
-      65,
+      83,
       40,
       0,
       42,
@@ -2707,7 +3138,7 @@
       "CONDITIONING"
     ],
     [
-      66,
+      84,
       40,
       1,
       42,
@@ -2715,7 +3146,7 @@
       "CONDITIONING"
     ],
     [
-      67,
+      85,
       41,
       0,
       42,
@@ -2723,7 +3154,7 @@
       "LATENT"
     ],
     [
-      68,
+      86,
       42,
       0,
       43,
@@ -2731,7 +3162,7 @@
       "LATENT"
     ],
     [
-      69,
+      87,
       3,
       0,
       43,
@@ -2739,7 +3170,7 @@
       "VAE"
     ],
     [
-      70,
+      88,
       2,
       0,
       45,
@@ -2747,7 +3178,23 @@
       "CLIP"
     ],
     [
-      71,
+      89,
+      60,
+      3,
+      45,
+      1,
+      "STRING"
+    ],
+    [
+      90,
+      60,
+      10,
+      45,
+      2,
+      "STRING"
+    ],
+    [
+      91,
       4,
       0,
       47,
@@ -2755,7 +3202,7 @@
       "MODEL"
     ],
     [
-      72,
+      92,
       45,
       0,
       47,
@@ -2763,7 +3210,7 @@
       "CONDITIONING"
     ],
     [
-      73,
+      93,
       45,
       1,
       47,
@@ -2771,7 +3218,7 @@
       "CONDITIONING"
     ],
     [
-      74,
+      94,
       46,
       0,
       47,
@@ -2779,7 +3226,7 @@
       "LATENT"
     ],
     [
-      75,
+      95,
       47,
       0,
       48,
@@ -2787,7 +3234,7 @@
       "LATENT"
     ],
     [
-      76,
+      96,
       3,
       0,
       48,
@@ -2795,15 +3242,15 @@
       "VAE"
     ],
     [
-      77,
+      97,
       13,
       0,
       35,
-      1,
+      3,
       "IMAGE"
     ],
     [
-      78,
+      98,
       8,
       0,
       50,
@@ -2811,7 +3258,7 @@
       "IMAGE"
     ],
     [
-      79,
+      99,
       13,
       0,
       50,
@@ -2819,7 +3266,7 @@
       "IMAGE"
     ],
     [
-      80,
+      100,
       18,
       0,
       50,
@@ -2827,7 +3274,7 @@
       "IMAGE"
     ],
     [
-      81,
+      101,
       23,
       0,
       50,
@@ -2835,7 +3282,7 @@
       "IMAGE"
     ],
     [
-      82,
+      102,
       38,
       0,
       50,
@@ -2843,7 +3290,7 @@
       "IMAGE"
     ],
     [
-      83,
+      103,
       28,
       0,
       50,
@@ -2851,7 +3298,7 @@
       "IMAGE"
     ],
     [
-      84,
+      104,
       33,
       0,
       50,
@@ -2859,7 +3306,7 @@
       "IMAGE"
     ],
     [
-      85,
+      105,
       43,
       0,
       50,
@@ -2867,7 +3314,7 @@
       "IMAGE"
     ],
     [
-      86,
+      106,
       48,
       0,
       50,
@@ -2875,7 +3322,15 @@
       "IMAGE"
     ],
     [
-      87,
+      107,
+      60,
+      12,
+      50,
+      9,
+      "STRING"
+    ],
+    [
+      108,
       50,
       0,
       51,
@@ -2890,7 +3345,7 @@
       "bounding": [
         -40,
         -60,
-        760,
+        660,
         760
       ],
       "color": "#3f789e",
@@ -2898,11 +3353,11 @@
     },
     {
       "id": 2,
-      "title": "② master·正视图源(三层装配)",
+      "title": "② master(本件变体:t2i 文生图 / i2i 图生图)",
       "bounding": [
-        640,
+        620,
         -60,
-        1720,
+        1740,
         300
       ],
       "color": "#3f789e",
@@ -2915,7 +3370,7 @@
         640,
         360,
         1720,
-        2450
+        2380
       ],
       "color": "#3f789e",
       "flags": {}
@@ -2934,12 +3389,12 @@
     },
     {
       "id": 5,
-      "title": "⑤ 固定底框合成(格式一 v1,与 H3 孪生同框)",
+      "title": "⑤ 提示词枢纽+固定底框合成(格式/背景联动)",
       "bounding": [
-        2480,
+        2400,
         1180,
-        1100,
-        660
+        1180,
+        780
       ],
       "color": "#3A3",
       "flags": {}

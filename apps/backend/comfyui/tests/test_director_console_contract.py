@@ -12,6 +12,9 @@ apps/build/scripts/director_console_build_1112.py 幂等产出;母本
 锚偏差备注(实况对 design):
   §5-10 树锚 design 写 144(起草时树 143);生成时 1_图片/MiniMax/ 已落 2 件(树 145),
   导演台 +1 → 146。锚随实况;树再漂移须连生成器 TREE_ANCHOR 同改。
+  1113 追账(151→153):1d177415 h3image-道劫-t2i.json 入库(151→152,后 3a05f157
+  更名道劫-t2i.json)+3a05f157 道劫-i2i.json 补建(152→153)——两笔已同步清单/audit
+  锚,本锚与生成器 TREE_ANCHOR 同笔归平。
 
 开关语义修正备注(1112 深检 F1):
   母本 [219] 出厂 true 而 ComfySwitchNode 语义 on_true 真,母本接线 on_true←i2v 臂
@@ -39,7 +42,7 @@ FIRST_STAGE = {
 SECOND_STAGE = {4, 100, 202, 203, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 223, 267}
 THIRD_STAGE = {339, 340}
 SHARED = {103, 119, 120, 127, 128, 219, 338}
-TREE_ANCHOR = 151  # 147 并行基线+AIMixer 参照件 4  # 146=MiniMax 版;1113 +1=Qwen 版道劫-角色设定卡.json(双引擎孪生,清单锚同笔)
+TREE_ANCHOR = 154  # 153→+1=1113 i2i 双件入库  # 151 基线+2=1113 h3image-道劫-t2i(1d177415)与道劫-i2i(3a05f157)两笔入库;清单/audit 锚同 153(1113 追账归平)
 
 
 def _load():
@@ -223,8 +226,9 @@ def test_group_coverage_and_class_whitelist():
 def test_tree_count_anchor():
     count = len(list(WORKFLOWS_ROOT.rglob("*.json")))
     assert count == TREE_ANCHOR, \
-        f"workflows 树 rglob *.json={count} != 锚 {TREE_ANCHOR}(design 起草 144/时树 143;" \
-        "实况 MiniMax+2 后 145,导演台+1=146;树漂移须连生成器 TREE_ANCHOR 与清单锚同改)"
+        f"workflows 树 rglob *.json={count} != 锚 {TREE_ANCHOR}(151 基线;" \
+        "1113 两笔入库 151→152→153=h3image-道劫-t2i(1d177415)+道劫-i2i(3a05f157);" \
+        "树漂移须连生成器 TREE_ANCHOR 与清单锚同改)"
 
 
 # ── §5-11 草片拼三入口 + 三采文件化接线 ──────────────────────────────

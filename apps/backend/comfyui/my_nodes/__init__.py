@@ -37,6 +37,7 @@ from .nodes.my_qi21_final_output import MyQi21FinalOutput
 from .nodes.my_qi21_subject_select import MyQi21SubjectSelect
 from .nodes.my_qi21_wh_suggest import MyQi21WhSuggest
 from .nodes.my_sheet_card_composer import MySheetCardComposer
+from .nodes.my_sheet_prompt_hub import MySheetPromptHub
 from .nodes.my_qi21_chinese_pe import MyQi21ChinesePE
 from .nodes.my_qi21_api_pe import MyQi21ApiPE
 from .nodes.my_flux3_daojie_adapter import MyFlux3DaojieAdapter
@@ -164,6 +165,7 @@ NODE_CLASS_MAPPINGS = {
     "MyQi21PromptPreview": MyQi21PromptPreview,  # 1005 用户令:正负终稿合成一个预览节点(分区显示)
     "MyQi21WhSuggest": MyQi21WhSuggest,  # 1001 S8 R7 集成:画幅联动链 8合1(4.2MP·8倍数取整)
     "MySheetCardComposer": MySheetCardComposer,  # 1113 道劫正册化:设定卡格式一 v1 合成器(9图→4K 固定底框)
+    "MySheetPromptHub": MySheetPromptHub,  # 1113 提示词枢纽:单点固化+背景类型唯一旋钮→13 出分发
     "MyQi21ChinesePE": MyQi21ChinesePE,  # 1004 中文PE:drop-in替上游PE(系统指令内存patch中文规则+负向双出,磁盘零改)
     "MyQi21ApiPE": MyQi21ApiPE,  # 1006 API版PE:LM Studio本机大模型按真源教材扩写(服务不在=透传);三轮=六入全上下文+双口出
     "MyFlux3DaojieAdapter": MyFlux3DaojieAdapter,
@@ -221,6 +223,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MyQi21PromptPreview": "道劫·正负双预览",
     "MyQi21WhSuggest": "道劫·qi21画幅联动建议器",
     "MySheetCardComposer": "道劫·设定卡合成器",
+    "MySheetPromptHub": "道劫·设定卡提示词枢纽",
     "MyQi21ChinesePE": "漫影 中文扩写PE",
     "MyQi21ApiPE": "漫影 API扩写PE",
     "MyFlux3DaojieAdapter": "FLUX.3 道劫 RGB 适配",
