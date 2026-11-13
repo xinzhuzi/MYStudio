@@ -84,7 +84,7 @@
         0
       ],
       "ref_videos.ref_video_0": [
-        "346",
+        "347",
         0
       ]
     }
@@ -866,6 +866,15 @@
     "class_type": "LoadVideo",
     "inputs": {
       "file": ""
+    }
+  },
+  "347": {
+    "class_type": "GetVideoComponents",
+    "inputs": {
+      "video": [
+        "346",
+        0
+      ]
     }
   }
 }

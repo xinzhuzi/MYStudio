@@ -15,6 +15,7 @@ UI_FILES = {
 API_FILE = '/Users/zhengbingjin/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json'
 CARD_IDS = [341, 342, 343, 344]          # 参考卡锚(ref_image_5..8;114-119 已被现役节点占用)
 END_FRAME_ID, VIDEO_ID = 345, 346        # 尾帧锚 / 参考视频锚
+BRIDGE_ID = 347                         # GetVideoComponents 桥(LoadVideo吐VIDEO,槽吃IMAGE帧)
 SLOT_OF = {341: 5, 342: 6, 343: 7, 344: 8}
 
 def surgery(d):
@@ -142,7 +143,8 @@ def api_verify(a):
         for dst in ('16', '208'):
             if a[dst]['inputs'].get(f'ref_images.ref_image_{slot_n}') is None: probs.append(f"API[{dst}] 缺槽{slot_n}")
     if a['220']['inputs'].get('last_frame') != [str(END_FRAME_ID), 0]: probs.append("API 尾帧未接")
-    if a['16']['inputs'].get('ref_videos.ref_video_0') != [str(VIDEO_ID), 0]: probs.append("API 视频未接")
+    if a['16']['inputs'].get('ref_videos.ref_video_0') != [str(BRIDGE_ID), 0]: probs.append("API 视频未接桥")
+    if a.get(str(BRIDGE_ID), {}).get('inputs', {}).get('video') != [str(VIDEO_ID), 0]: probs.append("API 桥未接源")
     return probs
 
 if __name__ == '__main__':

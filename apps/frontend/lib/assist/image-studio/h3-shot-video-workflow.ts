@@ -841,6 +841,7 @@ export function buildShotH3SancaiApiWorkflow(input: ShotH3SancaiApiWorkflowInput
     getApiNode(apiGraph, "346", "LoadVideo").inputs.file = input.videoRef;
   } else {
     delete apiGraph["346"];
+    delete apiGraph["347"]; // GetVideoComponents 桥(LoadVideo吐VIDEO,槽吃IMAGE帧)
     delete getApiNode(apiGraph, "16", "MiniMaxH3ReferenceToVideo").inputs["ref_videos.ref_video_0"];
   }
 

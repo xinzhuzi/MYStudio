@@ -992,6 +992,7 @@ describe("buildShotH3SancaiApiWorkflow 1113 火力扩展(8卡+尾帧+参考视�
     });
     const a = result.apiGraph;
     expect(a["346"]!.inputs.file).toBe("motion-ref.mp4");
-    expect(a["16"]!.inputs["ref_videos.ref_video_0"]).toEqual(["346", 0]);
+    expect(a["347"]!.inputs.video).toEqual(["346", 0]); // VIDEO→IMAGE 桥
+    expect(a["16"]!.inputs["ref_videos.ref_video_0"]).toEqual(["347", 0]);
   });
 });

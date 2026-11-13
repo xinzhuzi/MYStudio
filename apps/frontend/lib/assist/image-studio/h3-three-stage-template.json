@@ -1,8 +1,8 @@
 {
   "id": "recavsr-three-stage-1111",
   "revision": 0,
-  "last_node_id": 340,
-  "last_link_id": 792,
+  "last_node_id": 347,
+  "last_link_id": 794,
   "nodes": [
     {
       "id": 9,
@@ -204,7 +204,7 @@
           "name": "ref_videos.ref_video_0",
           "shape": 7,
           "type": "IMAGE",
-          "link": 792
+          "link": 794
         },
         {
           "label": "ref_video_audio_0",
@@ -3862,7 +3862,7 @@
           "name": "VIDEO",
           "type": "VIDEO",
           "links": [
-            792
+            793
           ]
         }
       ],
@@ -3875,6 +3875,61 @@
         "",
         "image"
       ]
+    },
+    {
+      "id": 347,
+      "type": "GetVideoComponents",
+      "pos": [
+        100,
+        100
+      ],
+      "size": [
+        270,
+        100
+      ],
+      "flags": {},
+      "order": 347,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 793
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            794
+          ]
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": []
+        },
+        {
+          "name": "fps",
+          "type": "FLOAT",
+          "links": []
+        },
+        {
+          "name": "bit_depth",
+          "type": "COMBO",
+          "links": []
+        },
+        {
+          "name": "color_space",
+          "type": "COMBO",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "GetVideoComponents"
+      }
     }
   ],
   "links": [
@@ -4679,12 +4734,20 @@
       "IMAGE"
     ],
     [
-      792,
+      793,
       346,
+      0,
+      347,
+      0,
+      "VIDEO"
+    ],
+    [
+      794,
+      347,
       0,
       16,
       8,
-      "VIDEO"
+      "IMAGE"
     ]
   ],
   "groups": [

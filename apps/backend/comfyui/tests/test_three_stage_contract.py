@@ -82,7 +82,9 @@ def test_input_firepower_1113():
     lf = next(e for e in nodes[220]["inputs"] if e["name"] == "last_frame")
     assert lf["link"] is not None and links[lf["link"]][1] == 345, "[220].last_frame 应←[345] 尾帧锚"
     rv = next(e for e in nodes[16]["inputs"] if e["name"] == "ref_videos.ref_video_0")
-    assert rv["link"] is not None and links[rv["link"]][1] == 346, "[16].ref_video_0 应←[346] 视频锚"
+    assert rv["link"] is not None and links[rv["link"]][1] == 347, "[16].ref_video_0 应←[347]桥(GetVideoComponents)"
+    assert nodes[347]["type"] == "GetVideoComponents" and links[nodes[347]["inputs"][0]["link"]][1] == 346, \
+        "[347]桥应←[346]LoadVideo(VIDEO→IMAGE 帧桥)"
 
 
 def test_stage1_mainline_recipe_unchanged():
