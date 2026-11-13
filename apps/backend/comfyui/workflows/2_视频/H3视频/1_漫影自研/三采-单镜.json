@@ -270,7 +270,6 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            521,
             576
           ]
         },
@@ -278,7 +277,6 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            522,
             578
           ]
         }
@@ -1223,7 +1221,6 @@
           "name": "VIDEO",
           "type": "VIDEO",
           "links": [
-            529,
             630
           ]
         }
@@ -1341,7 +1338,6 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            513,
             574
           ],
           "slot_index": 0
@@ -1849,7 +1845,6 @@
           "name": "COMFY_MATCHTYPE_V3",
           "type": "COMFY_MATCHTYPE_V3",
           "links": [
-            762,
             766
           ]
         }
@@ -1901,7 +1896,6 @@
           "name": "COMFY_MATCHTYPE_V3",
           "type": "COMFY_MATCHTYPE_V3",
           "links": [
-            764,
             767
           ]
         }
@@ -2663,7 +2657,6 @@
           "type": "VIDEO",
           "links": [
             629,
-            778,
             780
           ]
         }
@@ -2878,7 +2871,6 @@
           "name": "SIGMAS",
           "type": "SIGMAS",
           "links": [
-            520,
             759
           ],
           "slot_index": 0

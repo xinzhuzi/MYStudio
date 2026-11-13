@@ -201,13 +201,23 @@ def test_stage3_tessera_params_v4():
 
 
 def test_links_bidirectional_consistency():
-    """连线双向一致:inputs[].link ↔ links[] ↔ outputs[].links。"""
+    """连线双向一致:inputs[].link ↔ links[] ↔ outputs[].links。
+    1113 反向门:outputs[].links/inputs[].link 里的 id 必须落在 links 表内——
+    删节点清了链表却留登记(上午手术实留 8 处悬空)即红。"""
     d, nodes, _ = _load()
     for l in d["links"]:
         lid, s, ss, t, ts, _t = l
         assert s in nodes and t in nodes, f"link {lid} 端点悬空"
         assert nodes[t]["inputs"][ts]["link"] == lid, f"link {lid} 目标端未登记"
         assert lid in (nodes[s]["outputs"][ss].get("links") or []), f"link {lid} 源端未登记"
+    link_ids = {l[0] for l in d["links"]}
+    for nid, n in nodes.items():
+        for o in n.get("outputs", []):
+            for lid in (o.get("links") or []):
+                assert lid in link_ids, f"[{nid}] 输出槽 {o.get('name')} 悬空登记 {lid}(删节点未清登记)"
+        for i in n.get("inputs", []):
+            assert i.get("link") is None or i["link"] in link_ids, \
+                f"[{nid}] 输入槽 {i['name']} 悬空登记 {i.get('link')}"
 
 
 def test_groups_three_bands_non_overlap():
