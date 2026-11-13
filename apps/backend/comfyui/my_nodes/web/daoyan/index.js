@@ -35,6 +35,8 @@ const NODE_SIZE = [1040, 700];
 const RESTORE_DELAYS_MS = [0, 80];
 // 全部在册控制器(入队前强 flush 用;多导演台节点并存各 flush 各的)
 const liveControllers = new Set();
+// 节点号→控制器(执行链事件回填路由;1114 阶段3)
+const ctrlByNode = new Map();
 
 /** 六区容器壳(引擎侧;preview.html 有等价内联壳,组件区同源) */
 function buildShell() {
@@ -100,6 +102,7 @@ function mountPanel(node) {
     write: (json) => { if (channel) channel.value = json; },
   });
   liveControllers.add(ctrl);
+  if (node.id != null) ctrlByNode.set(node.id, ctrl);
   // ④ addDOMWidget 挂载(我方 stage-node.js / AIMixer 13519-13538 同款)
   const host = buildShell();
   renderZones(host, ctrl);
@@ -152,6 +155,30 @@ app.registerExtension({
     // AIMixer minimax_director_preview 同构):payload 见 live.js 头注
     api.addEventListener("daoyan_preview", (e) => {
       globalThis.DaoyanLive && globalThis.DaoyanLive.onSample(e.detail || {});
+    });
+    // 执行链进度回填(阶段3):running/done 驱动进度条;终态清 running
+    api.addEventListener("daoyan_progress", (e) => {
+      const d = e.detail || {};
+      const ctrl = ctrlByNode.get(d.node_id);
+      if (!ctrl) return;
+      const fin = /全部完成|已取消/.test(String(d.message || ""));
+      ctrl.view.running = !fin;
+      if (typeof d.done === "number") ctrl.view.done = d.done;
+      if (typeof d.total === "number") ctrl.view.total = d.total;
+      ctrl.apply(() => {});
+    });
+    // 产物落盘回填(阶段3):事件携带逐镜 p1/p2/p3 相对路径→state.artifacts
+    // (apply=序列化写回,面板产物槽/总览点亮;1112 批量役检查点同源)
+    api.addEventListener("daoyan_artifacts", (e) => {
+      const d = e.detail || {};
+      const ctrl = ctrlByNode.get(d.node_id);
+      if (!ctrl || typeof d.segment_index !== "number") return;
+      ctrl.apply((st) => {
+        const seg = st.segments[d.segment_index];
+        if (!seg) return;
+        seg.artifacts = Object.assign(
+          { p1: null, p2: null, p3: null }, seg.artifacts || {}, d.artifacts);
+      });
     });
   },
   beforeRegisterNodeDef(nodeType, nodeData) {
