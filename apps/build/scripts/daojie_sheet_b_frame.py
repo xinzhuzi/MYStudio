@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """daojie_sheet_b_frame.py — 设定卡 B 线固定底框合成(1112 用户令:固定底框+分格图生图)。
 
+**FORMAT_VERSION = v1(1112 用户终审「就这版」冻结)**:顶块=[三视图紧凑横排|
+六特写3×2|配色条]+底部四区(武器上整剑下两局部);角名最后贴右上角透明底。
+此后改动须显式升版+金样对账(金样=--selftest 产物,几何/角标/角名逐像素恒定)。
+
 架构定位:框/格线/全部角标文字/题名=程序绘(零缺笔零印章,结构性根除 1110「发型」
 残字一类模型天花板);格内画面=管线(daojie_sheet_b_pipeline)分格生成后 fit-crop 裁贴。
 几何=K 版型文版式口径(qi21_bases.json 设定卡条:标题带通栏/左列约三成三视图竖排/
@@ -20,14 +24,13 @@ from PIL import Image, ImageDraw, ImageFont
 W, H = 3840, 2160
 M = 36          # 外边距
 G = 20          # 格间距
-BAND_H = 216    # 标题带高(≈一成)
-LEFT_W = 1063   # 左列宽(三成:round((W-2M-G)*0.30))
+FORMAT_VERSION = "v1"   # 1112 用户终审冻结;改动=显式升版+金样重对
 PAPER = (247, 243, 234)      # 宣纸米白
 INK_LINE = (107, 101, 90)    # 细线边框
 INK_TEXT = (44, 39, 32)      # 角标/题名墨色
 
-TITLE_SIZE = round(BAND_H * 0.62)   # 题名字号(题名后叠件同口径)
-LABEL_SIZE = 36                      # 角标字号(4K 画布可辨下限)
+NAME_SIZE = 64                # 角名字号(右上角小档,1112 用户令「标题太大/仅占名位」)
+LABEL_SIZE = 36               # 角标字号(4K 画布可辨下限)
 
 # 格名→(行,列语义)登记;compose 断言缺格即红(半成品卡禁出门)
 CELL_KEYS = (
@@ -51,57 +54,61 @@ def _font(size: int) -> ImageFont.FreeTypeFont:
 
 
 def layout() -> dict:
-    """版式几何:(x0,y0,x1,y1) 格矩全集,K 版口径。"""
+    """版式几何(1112 v1.2 用户令:三视图紧凑横排,余宽放六特写;三段=顶块/配色/四区)。
+
+    (x0,y0,x1,y1) 格矩全集。顶块左=三视图横排(格宽=主体 AR 宽+衬距,contain
+    恒不裁,两侧仅小衬距无空白带);顶块右=六格特写 3×2;配色带后底部四区。
+    """
     cells: dict = {}
-    top = M + BAND_H + G
-    main_h = H - M - top
-    # 左列三视图竖排(上下摞放成一竖列)
-    ch = (main_h - 2 * G) // 3
+    iw, ih = W - 2 * M, H - 2 * M
+    r1 = round(ih * 0.55)                    # 顶块:三视图+六特写+配色条
+    r4 = ih - G - r1                         # 底部四区(配色并入顶块,1112 v1.3)
+    y1 = M
+    y4 = y1 + r1 + G
+    # 顶块左:三视图三格横排紧凑(vw=全身 AR 宽+衬距;master 1664×2496)
+    vw = round(r1 * 1664 / 2496) + 48
     for i, k in enumerate(("front", "side", "back")):
-        y = top + i * (ch + G)
-        cells[k] = (M, y, M + LEFT_W, y + ch)
-    # 右列三行
-    rx0 = M + LEFT_W + G
+        x = M + i * (vw + G)
+        cells[k] = (x, y1, x + vw, y1 + r1)
+    # 顶块右:六格特写 3×2 + 右下配色条(空余位利用,1112 用户令两连)
+    rx0 = M + 3 * vw + 2 * G
     rw = W - M - rx0
-    r1_h = round(main_h * 0.55)
-    r2_h = round(main_h * 0.13)
-    r3_h = main_h - r1_h - r2_h - 2 * G
-    # 行一:六格特写横排
-    cw = (rw - 5 * G) // 6
+    PH = 150                                 # 配色条高(缩档,不占整行)
+    cw = (rw - 2 * G) // 3
+    chh = (r1 - PH - 2 * G) // 2
     for i, k in enumerate(("face", "head", "eye", "hair", "wrist", "waist")):
-        x = rx0 + i * (cw + G)
-        cells[k] = (x, top, x + cw, top + r1_h)
-    # 行二:配色带(标签+五圆,无格;矩形留给管线画圆)
-    y2 = top + r1_h + G
-    cells["_palette"] = (rx0, y2, W - M, y2 + r2_h)
-    # 行三:四区 40:20:20:20
-    y3 = y2 + r2_h + G
-    zw = (rw - 3 * G)
+        col, row = i % 3, i // 3
+        x = rx0 + col * (cw + G)
+        y = y1 + row * (chh + G)
+        cells[k] = (x, y, x + cw, y + chh)
+    cells["_palette"] = (rx0, y1 + r1 - PH, W - M, y1 + r1)
+    # 底部四区 40:20:20:20
+    zw = iw - 3 * G
     z1w = round(zw * 0.40)
     zsw = (zw - z1w) // 3
-    x = rx0
-    z1 = (x, y3, x + z1w, y3 + r3_h); x += z1w + G
-    z2 = (x, y3, x + zsw, y3 + r3_h); x += zsw + G
-    z3 = (x, y3, x + zsw, y3 + r3_h); x += zsw + G
-    z4 = (x, y3, W - M, y3 + r3_h)
-    # 区一·武器展示:左幅整器+右侧上下两局部
-    inner_w = z1[2] - z1[0] - G
-    ww = round(inner_w * 0.55)
-    ih = (r3_h - G) // 2
-    cells["weapon"] = (z1[0], y3, z1[0] + ww, y3 + r3_h)
-    cells["weapon_a"] = (z1[0] + ww + G, y3, z1[2], y3 + ih)
-    cells["weapon_b"] = (z1[0] + ww + G, y3 + ih + G, z1[2], y3 + r3_h)
+    x = M
+    z1 = (x, y4, x + z1w, y4 + r4); x += z1w + G
+    z2 = (x, y4, x + zsw, y4 + r4); x += zsw + G
+    z3 = (x, y4, x + zsw, y4 + r4); x += zsw + G
+    z4 = (x, y4, W - M, y4 + r4)
+    # 区一·武器展示:上幅整器横陈(吃满宽)+下排两局部(v1.3 高区重排)
+    wt = round(r4 * 0.58)
+    ihh = (r4 - G) // 2   # 装备/能力区上下对半高
+    cells["weapon"] = (z1[0], y4, z1[2], y4 + wt)
+    mid = z1[0] + (z1[2] - z1[0] - G) // 2
+    cells["weapon_a"] = (z1[0], y4 + wt + G, mid, y4 + r4)
+    cells["weapon_b"] = (mid + G, y4 + wt + G, z1[2], y4 + r4)
     # 区二·服饰纹理:纵向三枚
-    sh = (r3_h - 2 * G) // 3
+    sh = (r4 - 2 * G) // 3
     for i, k in enumerate(("fabric_1", "fabric_2", "fabric_3")):
-        y = y3 + i * (sh + G)
+        y = y4 + i * (sh + G)
         cells[k] = (z2[0], y, z2[2], y + sh)
     # 区三·装备细节:上下两格
-    cells["gear_1"] = (z3[0], y3, z3[2], y3 + ih)
-    cells["gear_2"] = (z3[0], y3 + ih + G, z3[2], y3 + r3_h)
+    cells["gear_1"] = (z3[0], y4, z3[2], y4 + ihh)
+    cells["gear_2"] = (z3[0], y4 + ihh + G, z3[2], y4 + r4)
     # 区四·能力:上下两格
-    cells["fx_1"] = (z4[0], y3, z4[2], y3 + ih)
-    cells["fx_2"] = (z4[0], y3 + ih + G, z4[2], y3 + r3_h)
+    cells["fx_1"] = (z4[0], y4, z4[2], y4 + ihh)
+    cells["fx_2"] = (z4[0], y4 + ihh + G, z4[2], y4 + r4)
     return cells
 
 
@@ -206,16 +213,8 @@ def compose(cells: dict, palette, title: str, dst: str) -> str:
     geo = layout()
     label_font = _font(LABEL_SIZE)
 
-    # 外框+标题带底线
+    # 外框(顶格四行版:格子自顶起,无标题带)
     d.rectangle((M, M, W - M, H - M), outline=INK_LINE, width=3)
-    d.line((M, M + BAND_H + G // 2, W - M, M + BAND_H + G // 2),
-           fill=INK_LINE, width=2)
-    # 题名真字(程序绘,居中;题名后叠件同字体链)
-    tf = _font(TITLE_SIZE)
-    bb = d.textbbox((0, 0), title, font=tf)
-    tw, th = bb[2] - bb[0], bb[3] - bb[1]
-    d.text(((W - tw) // 2 - bb[0], M + (BAND_H - th) // 2 - bb[1]),
-           title, font=tf, fill=INK_TEXT)
 
     # 18 格裁贴(角标随格;三视图与整器=contain 整图入格,其余 cover 裁切)
     CONTAIN = {"front", "side", "back", "weapon", "eye"}
@@ -236,6 +235,14 @@ def compose(cells: dict, palette, title: str, dst: str) -> str:
         d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=rgb,
                   outline=INK_LINE, width=3)
         cx += 2 * r + max(30, (px1 - px0 - 260 - 5 * 2 * r) // 4)
+
+    # 角名=最后一步贴(1112 用户令「先画条条框框,最后名字贴到图上,对比好尺寸」):
+    # 透明底浮于右上格面上,零衬底零遮挡。
+    tf = _font(NAME_SIZE)
+    bb = d.textbbox((0, 0), title, font=tf)
+    tw = bb[2] - bb[0]
+    d.text((W - M - 20 - tw - bb[0], M + 12 - bb[1]), title,
+           font=tf, fill=INK_TEXT)
 
     canvas.save(dst)  # RGB 模式保存,PNG 恒无 alpha
     return dst

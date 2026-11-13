@@ -205,8 +205,14 @@ def main() -> int:
     ap.add_argument("--name", default="沈孤鸿")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--compose-only", action="store_true")
+    ap.add_argument("--title-size", type=int, default=None,
+                    help="覆盖 frame.TITLE_SIZE(逐步调版旋钮;不传=用底框常量)")
     args = ap.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
+
+    import daojie_sheet_b_frame as frame
+    if args.title_size:
+        frame.NAME_SIZE = args.title_size  # 逐步调版旋钮(默认=底框常量)
 
     bases = json.loads(BASES.read_text(encoding="utf-8"))
     style_pos = bases["art_style_base"]["positive_text"]
@@ -230,7 +236,7 @@ def main() -> int:
             "\n".join([f"{name}的佩器:{f.get('武器', '长剑')}。整剑水平横置,自柄首至"
                        f"鞘尾完整入画,两端各留边;鞘身光素,剑穗为青白丝线本色,"
                        f"饰件皆素银;背景素净米白。", t_item, style_pos]),
-            2048, 1152, args.seed + 7, "sheetB/weapon")
+            3456, 1280, args.seed + 7, "sheetB/weapon")
         yield "effect", None, build_t2i(
             "\n".join([f"能力特效设定图:{f.get('能力', '剑气')}。一柄出鞘长剑的剑身与"
                        f"剑锋特写,剑气光效清晰锐利,素净深色背景,画面完整居中。",
