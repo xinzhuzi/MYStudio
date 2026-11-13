@@ -4,18 +4,18 @@
 // 结构借鉴 AIMixer/ComfyUI_MiniMaxH3_Director (Apache-2.0):
 // minimax_timeline.js:13323 app.registerExtension / :13439-13651
 // beforeRegisterNodeDef 原型链 patch / :13500-13550 onNodeCreated→
-// addDOMWidget("minimax_director_ui") 挂载+隐藏 widget 打标 / :13612-13650
-// onConfigure 延迟恢复——布局复刻、代码重写(PRD R3);我方先例
-// stage-node.js(41K)addDOMWidget 骨架同构([验尸]C3)。
+// addDOMWidget("minimax_director_ui") 挂载+隐藏 widget 打标 /
+// :13333 queuePrompt patch 入队强 flush / onConfigure 三段延迟恢复——
+// 布局复刻、代码重写(PRD R3);我方先例 stage-node.js(addDOMWidget 骨架
+// 同构,[验尸]C3)。
 //
-// 导演台面板引擎入口(阶段1 静态骨架):识别 MyDirectorConsole→隐藏原生
-// timeline_data widget(单通道由面板接管)→addDOMWidget 挂六区容器→组件
-// 渲染。组件六件(serial/params/timeline/cards/prompt/toolbar)为 IIFE 挂
-// window.DaoyanXxx(无 import/export 语法,file:// preview.html 双轨直开同源
-// 渲染,design §0 对冲);本件为唯一 ES module(引擎 /scripts/app.js 依赖)。
-// 布局六区对标 design §2 / PRD R2:业务条+输出条(1113 阶段1.5 补丁①:
-// 输出条独立渲染于业务条下方,PRD R1.6)/参数折叠/时间线/素材组卡/提示词
-// 编辑。
+// 导演台面板引擎入口(阶段2 交互接线):识别 MyDirectorConsole→隐藏原生
+// timeline_data widget(单通道由面板接管)→addDOMWidget 挂六区容器→
+// DaoyanSerial.createController 绑 widget(读=onConfigure 恢复,写=500ms
+// 去抖 timeline_data JSON)→组件区渲染(组件六件为 IIFE 挂 window.DaoyanXxx,
+// preview/测试同源;本件为唯一 ES module)。
+// 交互闭环:任何编辑→apply→去抖 commit→widget.value=JSON;入队前强 flush
+// (queuePrompt patch);Ctrl+Z=撤销快照栈(PRD R1.6)。
 import { app } from "/scripts/app.js";
 import "./serial.js";
 import "./toolbar.js";
@@ -29,16 +29,19 @@ const PANEL_DOM_WIDGET_NAME = "daoyan_panel";
 // 面板最小高度(AIMixer 钉 680、节点 1000×680 同款语义;用户拉大=面板大)
 const PANEL_MIN_HEIGHT = 620;
 const NODE_SIZE = [1040, 700];
-// onConfigure 恢复延迟(AIMixer 三段延迟恢复的骨架版;全量时序对抗排阶段2)
+// onConfigure 恢复延迟(AIMixer 三段延迟恢复的骨架版)
 const RESTORE_DELAYS_MS = [0, 80];
+// 全部在册控制器(入队前强 flush 用;多导演台节点并存各 flush 各的)
+const liveControllers = new Set();
 
 /** 六区容器壳(引擎侧;preview.html 有等价内联壳,组件区同源) */
 function buildShell() {
   const host = document.createElement("div");
   host.className = "daoyan-host";
+  host.tabIndex = 0; // 面板可聚焦=Ctrl+Z 键盘撤销可达
   host.innerHTML = [
     '<style id="daoyan-host-style">',
-    ".daoyan-host{box-sizing:border-box;width:100%;height:100%;display:flex;flex-direction:column;gap:9px;padding:10px 12px;font:400 12px/1.6 -apple-system,'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;color:#e8edf6;background:linear-gradient(180deg,rgba(12,18,32,.94),rgba(7,11,20,.97));border-radius:10px;overflow-y:auto;}",
+    ".daoyan-host{box-sizing:border-box;width:100%;height:100%;display:flex;flex-direction:column;gap:9px;padding:10px 12px;font:400 12px/1.6 -apple-system,'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;color:#e8edf6;background:linear-gradient(180deg,rgba(12,18,32,.94),rgba(7,11,20,.97));border-radius:10px;overflow-y:auto;outline:none;}",
     ".daoyan-host *{box-sizing:border-box;}",
     ".daoyan-host .dy-mid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:9px;align-items:stretch;}",
     "@media (max-width:760px){.daoyan-host .dy-mid{grid-template-columns:1fr;}}",
@@ -55,22 +58,20 @@ function buildShell() {
   return host;
 }
 
-/** 组件区渲染(引擎与 preview.html 同一组件同源) */
-function renderZones(host, node) {
-  const serial = globalThis.DaoyanSerial;
-  const state = serial && node ? (serial.readTimelineWidget(node) || null) : null;
+/** 组件区渲染(引擎与 preview/测试同一组件同源;ctx=DaoyanSerial 控制器) */
+function renderZones(host, ctrl) {
   const zone = (name) => {
     const sec = host.querySelector('[data-zone="' + name + '"]');
     return sec.querySelector(".dy-zone-body") || sec;
   };
   try {
-    globalThis.DaoyanToolbar && globalThis.DaoyanToolbar.build(zone("toolbar"), state);
-    globalThis.DaoyanParams && globalThis.DaoyanParams.build(zone("params"), state);
-    globalThis.DaoyanTimeline && globalThis.DaoyanTimeline.build(zone("timeline"), state);
-    globalThis.DaoyanCards && globalThis.DaoyanCards.build(zone("cards"), state);
-    globalThis.DaoyanPrompt && globalThis.DaoyanPrompt.build(zone("prompt"), state);
+    globalThis.DaoyanToolbar && globalThis.DaoyanToolbar.build(zone("toolbar"), ctrl);
+    globalThis.DaoyanParams && globalThis.DaoyanParams.build(zone("params"), ctrl);
+    globalThis.DaoyanTimeline && globalThis.DaoyanTimeline.build(zone("timeline"), ctrl);
+    globalThis.DaoyanCards && globalThis.DaoyanCards.build(zone("cards"), ctrl);
+    globalThis.DaoyanPrompt && globalThis.DaoyanPrompt.build(zone("prompt"), ctrl);
   } catch (err) {
-    console.error("[daoyan] 面板渲染失败(阶段1 静态骨架):", err);
+    console.error("[daoyan] 面板渲染失败:", err);
   }
 }
 
@@ -78,26 +79,66 @@ function renderZones(host, node) {
 function mountPanel(node) {
   // ① 隐藏原生 timeline_data widget:单通道仍在(widgets_values 序列化
   // 不丢),交互由面板接管(AIMixer applyDirectorWidgetLabels 同构)
+  let channel = null;
   for (const w of node.widgets || []) {
     if (w && w.name === "timeline_data") {
       w.hidden = true;
       if (w.type === "text" || w.type === "STRING") w.type = "STRING_HIDDEN";
+      channel = w;
     }
   }
   // ② 节点尺寸(AIMixer 钉 [1000,680] 同款;用户拉大=面板大)
   if (node.size && (node.size[0] < NODE_SIZE[0] || node.size[1] < NODE_SIZE[1])) {
     node.size = [NODE_SIZE[0], NODE_SIZE[1]];
   }
-  // ③ addDOMWidget 挂载(我方 stage-node.js / AIMixer 13519-13538 同款)
+  // ③ 控制器:绑 timeline_data widget(读=恢复,写=去抖序列化写回;
+  // 阶段2 序列化闭环核心:任何编辑→500ms→widget.value=timeline_data JSON)
+  const ctrl = globalThis.DaoyanSerial.createController({
+    read: () => (channel ? channel.value : null),
+    write: (json) => { if (channel) channel.value = json; },
+  });
+  liveControllers.add(ctrl);
+  // ④ addDOMWidget 挂载(我方 stage-node.js / AIMixer 13519-13538 同款)
   const host = buildShell();
-  renderZones(host, node);
+  renderZones(host, ctrl);
   node.addDOMWidget(PANEL_DOM_WIDGET_NAME, "daoyan", host, {
     getValue: () => "",
     setValue: () => {},
     getMinHeight: () => PANEL_MIN_HEIGHT,
     hideOnZoom: false,
   });
+  // ⑤ 编辑→重渲(订阅);Ctrl+Z=撤销快照栈(PRD R1.6;工具条↩钮同款)
+  ctrl.subscribe(() => renderZones(host, ctrl));
+  ctrl._host = host; // onConfigure 恢复时按宿主反查控制器
+  host.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z")) {
+      e.preventDefault();
+      ctrl.undo();
+    }
+  });
+  // ⑥ 节点收起态摘要行(PRD R1.6-1「3 组 · 45s · r2v」):收起时画布
+  // 只绘标题栏,摘要并入 node.title(常显=展开态也不失读);每次状态
+  // 变化/工作流加载恢复时随订阅与 reload 重算
+  const refreshSummary = () => {
+    try {
+      node.title = "导演台 · " + globalThis.DaoyanSerial.summaryLine(ctrl.state);
+    } catch (err) { /* 摘要失败不咬面板 */ }
+  };
+  ctrl.subscribe(refreshSummary);
+  refreshSummary();
   node.setDirtyCanvas(true, true);
+}
+
+// 入队前强 flush(AIMixer queuePrompt patch :13333 同构):去抖窗口内的
+// 未落盘编辑在入队瞬间直写 widget,杜绝「编辑未序列化就跑」
+const origQueuePrompt = typeof app.queuePrompt === "function" ? app.queuePrompt.bind(app) : null;
+if (origQueuePrompt) {
+  app.queuePrompt = function queuePromptWithDaoyanFlush() {
+    for (const ctrl of liveControllers) {
+      try { ctrl.flush(); } catch (err) { /* 单节点 flush 故障不咬入队 */ }
+    }
+    return origQueuePrompt.apply(this, arguments);
+  };
 }
 
 app.registerExtension({
@@ -114,8 +155,8 @@ app.registerExtension({
       }
       return r;
     };
-    // 工作流加载后恢复(AIMixer onConfigure 三段延迟恢复的骨架版:
-    // widget 值在 configure 期才回填,延迟重读重渲染;全量对抗排阶段2)
+    // 工作流加载后恢复:widget 值在 configure 期才回填→reload 重读+延迟重渲
+    // (AIMixer onConfigure 三段延迟恢复的骨架版)
     const onConfigure = nodeType.prototype.onConfigure;
     nodeType.prototype.onConfigure = function () {
       const r = onConfigure ? onConfigure.apply(this, arguments) : undefined;
@@ -123,7 +164,11 @@ app.registerExtension({
       const widget = node.widgets && node.widgets.find((w) => w && w.name === PANEL_DOM_WIDGET_NAME);
       if (widget && widget.element) {
         for (const delay of RESTORE_DELAYS_MS) {
-          setTimeout(() => renderZones(widget.element, node), delay);
+          setTimeout(() => {
+            // 恢复=重读 timeline_data widget 值(外部写入/工作流加载)
+            const ctrl = [...liveControllers].find((c) => c._host === widget.element);
+            if (ctrl) ctrl.reload();
+          }, delay);
         }
       }
       return r;
