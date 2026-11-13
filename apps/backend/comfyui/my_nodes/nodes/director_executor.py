@@ -154,12 +154,32 @@ class Hooks:
 
 
 def _call(classes: dict, name: str, **kwargs):
-    """在册节点类直调(零改类本体;FUNCTION 名取类属性)。"""
+    """在册节点类直调(零改类本体)。
+
+    双约定自适应:经典节点=FUNCTION 属性+返元组;DSL 节点(io.ComfyNode,
+    如核心 BSA/SaveVideo)=classmethod execute+返 io.NodeOutput(支持
+    [i] 索引)。动态组合(DynamicCombo)参数吃解析后的结构体字典
+    (1114 实弹 R1 定谳:selection=裸串→「string indices」TypeError)。
+    """
     cls = classes.get(name)
     if cls is None:
         raise DirectorError(f"引擎缺节点类 {name}(对应插件未装/未注册)")
-    fn = getattr(cls, "FUNCTION", None) or "run"
-    return getattr(cls(), fn)(**kwargs)
+    # DSL 节点(io.ComfyNode)的 hidden 类属性由 harness 执行期填,节点内
+    # 直调=None→Save 族读 extra_pnginfo 即 AttributeError(1114 R1 实弹
+    # 五拦定谳);空 Holder=全 None 安全跳元数据,图跑时 harness 自覆写
+    if getattr(cls, "SCHEMA", None) is not None \
+            and getattr(cls, "hidden", "set") is None:
+        class _EmptyHidden:
+            def __getattr__(self, _key):
+                return None
+        cls.hidden = _EmptyHidden()
+    fn_name = getattr(cls, "FUNCTION", None)
+    if not fn_name:
+        fn_name = "execute" if hasattr(cls, "execute") else "run"
+    out = getattr(cls(), fn_name)(**kwargs)
+    if isinstance(out, tuple) or hasattr(out, "__getitem__"):
+        return out  # 元组/io.NodeOutput 均支持 [i]
+    return (out,)
 
 
 class ModelKit:
@@ -172,8 +192,12 @@ class ModelKit:
 
     def __init__(self, classes: dict, model: Any):
         r = DIRECTOR_RECIPE
-        bsa = dict(selection="sol-attn", start_percent=1.3, end_percent=0.0,
-                   dense_blocks="1", min_tokens=12288, extra_tokens=256,
+        # BSA=核心 DSL 节点:动态组合 selection 吃结构体(母本 widgets
+        # [sol-attn,1.3,0,1] 真义=method sol-attn/tau1.3/全域0→1;
+        # 1114 R1 实弹定谳,余参取类默认)
+        bsa = dict(selection={"selection": "sol-attn", "tau": 1.3},
+                   start_percent=0.0, end_percent=1.0, dense_blocks="",
+                   min_tokens=12288, extra_tokens=0,
                    sink_conditioning="exact_kv_and_rows", verbose=False)
 
         def lora(name, strength, m):
@@ -207,12 +231,20 @@ class ModelKit:
         self.kitchen_p2 = kitchen(self.sigma_p2)
 
     def preview_wrap(self, classes, model, video_vae, audio_vae):
-        """[266] ModelPreviewOverrideKJ:实时预览原生通道(母本 widgets 原样)。"""
-        return _call(classes, "ModelPreviewOverrideKJ", model=model,
-                     max_resolution=1024, jpeg_quality=80,
-                     suppress_default_preview=True, preview_frames=1,
-                     preview_fps=12, vae=video_vae,
-                     tiny_vae="taeh3.safetensors", audio_vae=audio_vae)[0]
+        """[266] ModelPreviewOverrideKJ:实时预览原生通道(母本 widgets 原样)。
+
+        可失败降级:该件吃执行上下文(dynprompt,1114 R1 实弹四拦定谳),
+        节点内直调无上下文=AttributeError;预览加速非正确性依赖,失败即
+        回退裸臂模型(采样配方零影响;面板实时预览走 daoyan_preview 事件)。
+        """
+        try:
+            return _call(classes, "ModelPreviewOverrideKJ", model=model,
+                         max_resolution=1024, jpeg_quality=80,
+                         suppress_default_preview=True, preview_frames=1,
+                         preview_fps=12, vae=video_vae,
+                         tiny_vae="taeh3.safetensors", audio_vae=audio_vae)[0]
+        except Exception as err:
+            return model
 
 
 class DirectorExecutor:
@@ -238,8 +270,11 @@ class DirectorExecutor:
                       length=frames, ref_image_size="max")  # 产线定谳:ref 恒 max
             if mode == "r2v":
                 kw.update(vae=video_vae, audio_vae=audio_vae)
-                for j, img in enumerate(refs[:9]):
-                    kw[f"ref_images.ref_image_{j}"] = img
+                # AUTOGROW 类直调=聚合字典 {ref_image_N: IMAGE}(引擎把点分
+                # 子槽聚成 dict 传类;1114 R1 实弹三拦定谳,消费方
+                # .values()/.items() 遍历)
+                kw["ref_images"] = {f"ref_image_{j}": img
+                                    for j, img in enumerate(refs[:9])}
             return _call(self.C, "MiniMaxH3ReferenceToVideo", **kw)
         own = seg.get("images") or []
         kw = dict(clip=clip, vae=video_vae, prompt=prompt, width=width,
@@ -266,7 +301,7 @@ class DirectorExecutor:
             if src:
                 src.rename(str(src) + ".bak")
         _call(self.C, "SaveVideo", video=video, filename_prefix=prefix,
-              format="auto", codec="auto")
+              format={"format": "auto"})
         hits = [p for p in (self.H.list_output(prefix) or [])
                 if not p.endswith(".bak")]
         if not hits:
@@ -311,7 +346,8 @@ class DirectorExecutor:
                                            av_latent=av_latent)
         up = _call(self.C, "MinimaxH3LatentUpscaler3D", latent=video_latent,
                    model_name="minimax_h3_latent_upscaler",
-                   mode="target dimensions", width=PASS2_W, height=PASS2_H,
+                   mode={"mode": "target dimensions", "width": PASS2_W,
+                         "height": PASS2_H},
                    align=32, enable_temporal_chunking=True, force_unload=True,
                    device="cuda", precision="fp16")[0]
         latent = _call(self.C, "LTXVConcatAVLatent", video_latent=up,

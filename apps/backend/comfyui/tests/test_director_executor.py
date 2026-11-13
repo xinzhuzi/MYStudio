@@ -279,9 +279,10 @@ def test_dry_run_full_chain_calls_and_events(monkeypatch):
     names = [c[0] for c in FakeCls.calls]
     # 三臂 LoRA 各一次(r2v/i2v/taomate)
     assert names.count("LoraLoaderModelOnly") == 3
-    # BSA 参数=母本位序映射
+    # BSA 参数=动态组合结构体(R1 实弹定谳:τ1.3/全域 0→1)
     bsa = next(kw for n, kw in FakeCls.calls if n == "BlockSparseAttention")
-    assert bsa["selection"] == "sol-attn" and bsa["start_percent"] == 1.3
+    assert bsa["selection"] == {"selection": "sol-attn", "tau": 1.3}
+    assert bsa["start_percent"] == 0.0 and bsa["end_percent"] == 1.0
     # 逐镜:2 镜 × (ref2va 条件+采样+解码+存盘×3 采)+二采潜放大
     assert names.count("MiniMaxH3ReferenceToVideo") == 4  # 2镜×(一采+二采条件)
     assert names.count("SamplerCustomAdvanced") == 4       # 2镜×两采
