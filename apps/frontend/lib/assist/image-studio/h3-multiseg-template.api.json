@@ -148,7 +148,7 @@
       "seed": 42,
       "steps": 8,
       "cfg": 1.0,
-      "sampler_name": "lcm",
+      "sampler_name": "euler",
       "scheduler": "simple",
       "denoise": 1.0,
       "enable_cache": true,
