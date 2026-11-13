@@ -29,7 +29,8 @@ from PIL import Image
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from daojie_sheet_b_frame import CELL_KEYS, compose, extract_palette  # noqa: E402
+from daojie_sheet_b_frame import (CELL_KEYS, compose, derive_cells,  # noqa: E402
+                                  extract_palette)
 
 BASES = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
 ENGINE = "http://192.168.0.101:17000"
@@ -40,24 +41,17 @@ DIT = "minimax_h3_image_pruned_int8_convrot.safetensors"
 TE = "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
 VAE = "minimax_h3_image_vae_fp16.safetensors"
 
-# edit 指令(格位句锚自 qi21_bases.json 设定卡型文:正视图/侧视图/背视图/面部特写/
-# 头部细节/腕部/腰部/武器各格取景原文;一致性句=十境链「同角色同服装」口径)
-EDIT_INSTR = {
-    "side": "将画面中人物整体转为纯九十度左侧的全身立绘,仅见一侧眼睛,双肩前后重合;"
-            "保持同一角色的脸型、发型、服装、配饰、武器与画风完全不变;"
-            "标准自然站姿,头顶脚底完整入画,背景保持同样的画法与色调。",
-    "back": "将画面中人物整体转为背面的全身立绘,后脑与背部朝向镜头;"
-            "保持同一角色的发型、服装、配饰、武器与画风完全不变;"
-            "标准自然站姿,头顶脚底完整入画,背景保持同样的画法与色调。",
-    "face": "将画面推近为正面面部近景特写,取景从完整头顶至锁骨,"
-            "清楚展示脸型、五官与发际;保持同一角色与画风。",
-    "head": "将画面推近为侧面头部近景特写,完整呈现头部轮廓、发型结构与耳侧关系;"
-            "保持同一角色与画风。",
-    "wrist": "将画面推近至人物腕部与袖口的局部特写,清楚展示袖口结构与腕部细节;"
-             "保持同一角色的服装、配饰与画风。",
-    "waist": "将画面推近至人物腰封与衣带的局部特写,清楚展示腰封材质、方扣佩挂"
-             "与连接方式;保持同一角色的服装、配饰与画风。",
-}
+# 分格真源=qi21_bases.json 顶层 sheet_card 块(1113 道劫正册化:指令/模板/分辨率/
+# seed 表逐字取真源,禁手搓;管线零硬编码)
+SHEET_REQUIRED_KEYS = ("master", "edit_instructions", "weapon", "effect", "seeds")
+
+
+def sheet_cfg(bases: dict) -> dict:
+    sc = bases.get("sheet_card") or {}
+    assert sc.get("format_version") == "v1", "sheet_card 真源缺位或版本漂移"
+    for k in SHEET_REQUIRED_KEYS:
+        assert k in sc, f"sheet_card 缺 {k}"
+    return sc
 
 
 def http_json(url, timeout=20):
@@ -187,18 +181,6 @@ def parse_subject(path: Path):
     return text, fields
 
 
-def zoom(img: Image.Image, fx, fy, fw, fh=None) -> Image.Image:
-    """以 (fx,fy) 为中心取 (fw,fh) 宽高比例预裁(后续 fit/contain 再按格缩放)。
-    眉眼取横带(fw>fh)配 contain 格=双眼完整(1112 二轮教训:竖格 cover 裁外眼角)。"""
-    fh = fh if fh is not None else fw
-    w, h = img.size
-    cw, chh = round(w * fw), round(h * fh)
-    cx, cy = round(w * fx), round(h * fy)
-    x0 = min(max(cx - cw // 2, 0), w - cw)
-    y0 = min(max(cy - chh // 2, 0), h - chh)
-    return img.crop((x0, y0, x0 + cw, y0 + chh))
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--subject", default="/tmp/sheet_subject.txt")
@@ -215,9 +197,10 @@ def main() -> int:
         frame.NAME_SIZE = args.title_size  # 逐步调版旋钮(默认=底框常量)
 
     bases = json.loads(BASES.read_text(encoding="utf-8"))
+    sc = sheet_cfg(bases)
     style_pos = bases["art_style_base"]["positive_text"]
-    t_person = next(t["positive_text"] for t in bases["types"] if t["zh"] == "人物海报")
-    t_item = next(t["positive_text"] for t in bases["types"] if t["zh"] == "道具")
+    t_person = next(t["positive_text"] for t in bases["types"] if t["zh"] == sc["master"]["type"])
+    t_item = next(t["positive_text"] for t in bases["types"] if t["zh"] == sc["weapon"]["type"])
     subject_raw, f = parse_subject(Path(args.subject))
     name = f.get("姓名", args.name)
 
@@ -227,21 +210,24 @@ def main() -> int:
     # 步表:(tag, 依赖tag|None, 构造器)
     def steps():
         yield "master", None, build_t2i(
-            "\n".join([subject_raw, t_person, style_pos]), 1664, 2496,
+            "\n".join([subject_raw, t_person, style_pos]),
+            sc["master"]["width"], sc["master"]["height"],
             args.seed, "sheetB/master")
-        for i, tag in enumerate(("side", "back", "face", "wrist", "waist"), 1):
+        for tag in ("side", "back", "face", "wrist", "waist"):
             yield tag, "master", None  # edit 需先有 master 落盘再构造
         yield "head", "side", None
         yield "weapon", None, build_t2i(
-            "\n".join([f"{name}的佩器:{f.get('武器', '长剑')}。整剑水平横置,自柄首至"
-                       f"鞘尾完整入画,两端各留边;鞘身光素,剑穗为青白丝线本色,"
-                       f"饰件皆素银;背景素净米白。", t_item, style_pos]),
-            3456, 1280, args.seed + 7, "sheetB/weapon")
+            "\n".join([sc["weapon"]["subject_template"].format(
+                           name=name, weapon=f.get("武器", "长剑")),
+                       t_item, style_pos]),
+            sc["weapon"]["width"], sc["weapon"]["height"],
+            args.seed, "sheetB/weapon")
         yield "effect", None, build_t2i(
-            "\n".join([f"能力特效设定图:{f.get('能力', '剑气')}。一柄出鞘长剑的剑身与"
-                       f"剑锋特写,剑气光效清晰锐利,素净深色背景,画面完整居中。",
+            "\n".join([sc["effect"]["subject_template"].format(
+                           ability=f.get("能力", "剑气")),
                        style_pos]),
-            2048, 2048, args.seed + 8, "sheetB/effect")
+            sc["effect"]["width"], sc["effect"]["height"],
+            args.seed, "sheetB/effect")
 
     if not args.compose_only:
         # 发车前门:队列空+schema 真源核对(接口边界假设核对纪律)
@@ -258,8 +244,6 @@ def main() -> int:
         assert TE in cl, f"TE 不在 CLIPLoader 名单:{TE}"
         print("[OK] 发车前门全过(队列空/schema/名单)")
 
-        seeds = {"side": 1, "back": 2, "face": 3, "head": 4,
-                 "wrist": 5, "waist": 6}
         for i, (tag, dep, api) in enumerate(steps()):
             dst = step_path(i, tag)
             if dst.is_file():
@@ -269,34 +253,14 @@ def main() -> int:
                 src = next(p for j, (t2, _, _) in enumerate(steps())
                            if t2 == dep for p in [step_path(j, t2)])
                 up = upload_image(src)
-                api = build_edit(up, EDIT_INSTR[tag], args.seed + seeds[tag],
-                                 f"sheetB/{tag}")
+                api = build_edit(up, sc["edit_instructions"][tag],
+                                 args.seed + sc["seeds"][tag], f"sheetB/{tag}")
             fire(api, tag, dst)
 
     # ── 合成:直生格+预裁格+配色取色(主体中央带,滤背景)──
     imgs = {p.stem.split("_", 2)[2]: Image.open(p)
             for p in sorted(OUT.glob("step_*.png"))}
-    need = {"master", "side", "back", "face", "head", "wrist", "waist",
-            "weapon", "effect"}
-    assert need <= set(imgs), f"缺步产物:{need - set(imgs)}"
-
-    cells = {
-        "front": imgs["master"], "side": imgs["side"], "back": imgs["back"],
-        "face": imgs["face"], "head": imgs["head"],
-        "eye": zoom(imgs["face"], 0.5, 0.42, 0.70, 0.26),
-        "hair": zoom(imgs["head"], 0.5, 0.20, 0.60),
-        "wrist": imgs["wrist"], "waist": imgs["waist"],
-        "weapon": imgs["weapon"],
-        "weapon_a": zoom(imgs["weapon"], 0.12, 0.5, 0.35),
-        "weapon_b": zoom(imgs["weapon"], 0.88, 0.5, 0.35),
-        "fabric_1": zoom(imgs["master"], 0.5, 0.42, 0.30),
-        "fabric_2": zoom(imgs["waist"], 0.5, 0.5, 0.60),
-        "fabric_3": zoom(imgs["wrist"], 0.5, 0.5, 0.60),
-        "gear_1": zoom(imgs["waist"], 0.42, 0.52, 0.45),
-        "gear_2": zoom(imgs["waist"], 0.45, 0.50, 0.40),
-        "fx_1": imgs["effect"],
-        "fx_2": zoom(imgs["effect"], 0.62, 0.35, 0.55),
-    }
+    cells = derive_cells(imgs)
     assert set(cells) == set(CELL_KEYS), set(CELL_KEYS) ^ set(cells)
 
     m = imgs["master"]

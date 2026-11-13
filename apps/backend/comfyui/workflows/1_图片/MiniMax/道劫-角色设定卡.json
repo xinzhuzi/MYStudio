@@ -1,0 +1,2984 @@
+{
+  "last_node_id": 52,
+  "last_link_id": 97,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        340,
+        100
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            6,
+            16,
+            26,
+            36,
+            46,
+            56,
+            66,
+            75,
+            84
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "minimax_h3_image_pruned_int8_convrot.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "minimax_h3_image_pruned_int8_convrot.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        0,
+        180
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            1,
+            10,
+            20,
+            30,
+            40,
+            50,
+            60,
+            70,
+            79
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "minimax",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "type": "minimax",
+        "device": "default"
+      }
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        0,
+        360
+      ],
+      "size": [
+        340,
+        100
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            2,
+            8,
+            11,
+            18,
+            21,
+            28,
+            31,
+            38,
+            41,
+            48,
+            51,
+            58,
+            61,
+            68,
+            71,
+            77,
+            80,
+            86
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "minimax_h3_image_vae_fp16.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "minimax_h3_image_vae_fp16.safetensors"
+      }
+    },
+    {
+      "id": 5,
+      "type": "MiniMaxH3ImageConditioning",
+      "pos": [
+        700,
+        0
+      ],
+      "size": [
+        480,
+        300
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 1
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            3,
+            9
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            5
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3ImageConditioning"
+      },
+      "widgets_values": [
+        "姓名:沈孤鸿|性别:男|年龄:二十二岁|身份:剑修|能力:孤鸿剑气——剑锋凝出一线青白剑气,形如鸿羽掠空,自剑尖延展约三尺|脸型:清峻,丹凤眼深褐瞳,眉斜飞入鬓|发型:黑发高束马尾,墨青发带,颊侧两缕碎发|服装:月白窄袖长袍衣缘银线暗纹,内黛青束袖劲装,墨色宽腰封缀素银方扣,黛青束口裤,玄色短靴靴口银边|配色:主色月白,辅色黛青,点睛银|衣料:主衣料细密缎面,腰封厚织锦,绑绳素麻绳|配饰:墨青发带,腰封素银方扣,剑穗青白丝线|武器:长剑,玄色木胎鲛皮鞘,鞘口衔银,剑柄缠墨色丝绦,剑穗青白丝线,收鞘态|其余:无灵兽,无伤痕旧损\n主体的单人立绘，全身完整入画，头顶与足底完整呈现；人物比例服从年龄、体型与来源设定，解剖结构清晰，人物细节密度最高。身体姿态服从主体句；主体句未指定动作时，呈自然直立站姿，双手自然垂于身侧。\n背景按二维动漫场景组织线条与色面：近景物象以细彩线勾形，线条细稳连贯、边缘清楚锐利；中景物象白描线勾出形体、平整色面填彩，带彩色连环画的概括造型感；远景归纳为整块平整色面，色面平整分层、边界清晰锐利，层与层以色相与明度阶区分；云雾烟霭以淡色罩染分层，层间边界清晰；树木山石以细彩线定形、矿物色面填彩。背景用色矿物色质感鲜泽通透，多色相并陈、主次分明、饱和度适中，色相出自画中场景与时段；画面洁净平整，宣纸白仅作局部透气。\n衣褶/裙摆：使用宽幅平静布面，正面长结构褶疏落两到四条。\n衣料以线描与薄染交代结构；完整、破损、污渍、血痕与空袖状态按角色来源事实呈现。\n头发概括为清晰成组的发束，细线交代局部发丝，发量与发际线服从角色设定。面部采用动漫式概括五官，轮廓与眉眼线条清楚，以简洁分层的肤色色块交代转折，脸型与年龄感服从角色设定。\n持握物件的方式自然符合物件用途，手部衔接几何明确：握位、指态与物件表面的接触关系具体可辨；佩挂物件的挂载几何明确：连接件与身体相连、挂点与倾角清晰，物件重量由挂载连接件承担，手部至多轻搭。武器与配器按二维动漫道具的线描设色方式呈现：金属、皮革与木料均为平整色面，结构与纹样以细线勾勒，亮部为窄色带。\n光色服从来源场景和时段，落为整片色面的冷暖倾向；明暗以色相深浅与主次关系交代，轮廓清楚完整；身体状态依来源设定呈现。\n主体设色配比：主体明文服装与配器主色为第一主色，以大面积稳定基底承托，中等强度色作主体层次，少量高识别色仅作点睛。\n美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
+        1664,
+        2496
+      ],
+      "widgets_values_named": {
+        "prompt": "姓名:沈孤鸿|性别:男|年龄:二十二岁|身份:剑修|能力:孤鸿剑气——剑锋凝出一线青白剑气,形如鸿羽掠空,自剑尖延展约三尺|脸型:清峻,丹凤眼深褐瞳,眉斜飞入鬓|发型:黑发高束马尾,墨青发带,颊侧两缕碎发|服装:月白窄袖长袍衣缘银线暗纹,内黛青束袖劲装,墨色宽腰封缀素银方扣,黛青束口裤,玄色短靴靴口银边|配色:主色月白,辅色黛青,点睛银|衣料:主衣料细密缎面,腰封厚织锦,绑绳素麻绳|配饰:墨青发带,腰封素银方扣,剑穗青白丝线|武器:长剑,玄色木胎鲛皮鞘,鞘口衔银,剑柄缠墨色丝绦,剑穗青白丝线,收鞘态|其余:无灵兽,无伤痕旧损\n主体的单人立绘，全身完整入画，头顶与足底完整呈现；人物比例服从年龄、体型与来源设定，解剖结构清晰，人物细节密度最高。身体姿态服从主体句；主体句未指定动作时，呈自然直立站姿，双手自然垂于身侧。\n背景按二维动漫场景组织线条与色面：近景物象以细彩线勾形，线条细稳连贯、边缘清楚锐利；中景物象白描线勾出形体、平整色面填彩，带彩色连环画的概括造型感；远景归纳为整块平整色面，色面平整分层、边界清晰锐利，层与层以色相与明度阶区分；云雾烟霭以淡色罩染分层，层间边界清晰；树木山石以细彩线定形、矿物色面填彩。背景用色矿物色质感鲜泽通透，多色相并陈、主次分明、饱和度适中，色相出自画中场景与时段；画面洁净平整，宣纸白仅作局部透气。\n衣褶/裙摆：使用宽幅平静布面，正面长结构褶疏落两到四条。\n衣料以线描与薄染交代结构；完整、破损、污渍、血痕与空袖状态按角色来源事实呈现。\n头发概括为清晰成组的发束，细线交代局部发丝，发量与发际线服从角色设定。面部采用动漫式概括五官，轮廓与眉眼线条清楚，以简洁分层的肤色色块交代转折，脸型与年龄感服从角色设定。\n持握物件的方式自然符合物件用途，手部衔接几何明确：握位、指态与物件表面的接触关系具体可辨；佩挂物件的挂载几何明确：连接件与身体相连、挂点与倾角清晰，物件重量由挂载连接件承担，手部至多轻搭。武器与配器按二维动漫道具的线描设色方式呈现：金属、皮革与木料均为平整色面，结构与纹样以细线勾勒，亮部为窄色带。\n光色服从来源场景和时段，落为整片色面的冷暖倾向；明暗以色相深浅与主次关系交代，轮廓清楚完整；身体状态依来源设定呈现。\n主体设色配比：主体明文服装与配器主色为第一主色，以大面积稳定基底承托，中等强度色作主体层次，少量高识别色仅作点睛。\n美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
+        "width": 1664,
+        "height": 2496
+      }
+    },
+    {
+      "id": 6,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        1240,
+        0
+      ],
+      "size": [
+        300,
+        80
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            4
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningZeroOut"
+      }
+    },
+    {
+      "id": 7,
+      "type": "KSampler",
+      "pos": [
+        1600,
+        0
+      ],
+      "size": [
+        340,
+        280
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 6
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 3
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 4
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            7
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        0,
+        "fixed",
+        6,
+        1.0,
+        "euler",
+        "simple",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 0,
+        "control_after_generate": "fixed",
+        "steps": 6,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        2000,
+        0
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 7
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            12,
+            22,
+            32,
+            42,
+            52,
+            88
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 10,
+      "type": "MiniMaxH3ImageConditioning",
+      "pos": [
+        700,
+        420
+      ],
+      "size": [
+        480,
+        300
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 10
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 11
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            13,
+            19
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            15
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3ImageConditioning"
+      },
+      "widgets_values": [
+        "将画面中人物整体转为纯九十度左侧的全身立绘,仅见一侧眼睛,双肩前后重合;保持同一角色的脸型、发型、服装、配饰、武器与画风完全不变;标准自然站姿,头顶脚底完整入画,背景保持同样的画法与色调。",
+        0,
+        0
+      ],
+      "widgets_values_named": {
+        "prompt": "将画面中人物整体转为纯九十度左侧的全身立绘,仅见一侧眼睛,双肩前后重合;保持同一角色的脸型、发型、服装、配饰、武器与画风完全不变;标准自然站姿,头顶脚底完整入画,背景保持同样的画法与色调。",
+        "width": 0,
+        "height": 0
+      }
+    },
+    {
+      "id": 11,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        1240,
+        420
+      ],
+      "size": [
+        300,
+        80
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 19
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            14
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningZeroOut"
+      }
+    },
+    {
+      "id": 12,
+      "type": "KSampler",
+      "pos": [
+        1600,
+        420
+      ],
+      "size": [
+        340,
+        280
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 16
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 13
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 14
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            17
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        1,
+        "fixed",
+        6,
+        1.0,
+        "euler",
+        "simple",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 1,
+        "control_after_generate": "fixed",
+        "steps": 6,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 13,
+      "type": "VAEDecode",
+      "pos": [
+        2000,
+        420
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 17
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            62,
+            89
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 15,
+      "type": "MiniMaxH3ImageConditioning",
+      "pos": [
+        700,
+        840
+      ],
+      "size": [
+        480,
+        300
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 20
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 21
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 22
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            23,
+            29
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            25
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3ImageConditioning"
+      },
+      "widgets_values": [
+        "将画面中人物整体转为背面的全身立绘,后脑与背部朝向镜头;保持同一角色的发型、服装、配饰、武器与画风完全不变;标准自然站姿,头顶脚底完整入画,背景保持同样的画法与色调。",
+        0,
+        0
+      ],
+      "widgets_values_named": {
+        "prompt": "将画面中人物整体转为背面的全身立绘,后脑与背部朝向镜头;保持同一角色的发型、服装、配饰、武器与画风完全不变;标准自然站姿,头顶脚底完整入画,背景保持同样的画法与色调。",
+        "width": 0,
+        "height": 0
+      }
+    },
+    {
+      "id": 16,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        1240,
+        840
+      ],
+      "size": [
+        300,
+        80
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 29
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            24
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningZeroOut"
+      }
+    },
+    {
+      "id": 17,
+      "type": "KSampler",
+      "pos": [
+        1600,
+        840
+      ],
+      "size": [
+        340,
+        280
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 26
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 23
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 24
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 25
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            27
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        2,
+        "fixed",
+        6,
+        1.0,
+        "euler",
+        "simple",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 2,
+        "control_after_generate": "fixed",
+        "steps": 6,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 18,
+      "type": "VAEDecode",
+      "pos": [
+        2000,
+        840
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 27
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 28
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            90
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 20,
+      "type": "MiniMaxH3ImageConditioning",
+      "pos": [
+        700,
+        1260
+      ],
+      "size": [
+        480,
+        300
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 30
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 31
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 32
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            33,
+            39
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            35
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3ImageConditioning"
+      },
+      "widgets_values": [
+        "将画面推近为正面面部近景特写,取景从完整头顶至锁骨,清楚展示脸型、五官与发际;保持同一角色与画风。",
+        0,
+        0
+      ],
+      "widgets_values_named": {
+        "prompt": "将画面推近为正面面部近景特写,取景从完整头顶至锁骨,清楚展示脸型、五官与发际;保持同一角色与画风。",
+        "width": 0,
+        "height": 0
+      }
+    },
+    {
+      "id": 21,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        1240,
+        1260
+      ],
+      "size": [
+        300,
+        80
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 39
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            34
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningZeroOut"
+      }
+    },
+    {
+      "id": 22,
+      "type": "KSampler",
+      "pos": [
+        1600,
+        1260
+      ],
+      "size": [
+        340,
+        280
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 36
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 33
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 34
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 35
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            37
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        3,
+        "fixed",
+        6,
+        1.0,
+        "euler",
+        "simple",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 3,
+        "control_after_generate": "fixed",
+        "steps": 6,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 23,
+      "type": "VAEDecode",
+      "pos": [
+        2000,
+        1260
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 37
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 38
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            91
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 25,
+      "type": "MiniMaxH3ImageConditioning",
+      "pos": [
+        700,
+        1680
+      ],
+      "size": [
+        480,
+        300
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 40
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 41
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 42
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            43,
+            49
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            45
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3ImageConditioning"
+      },
+      "widgets_values": [
+        "将画面推近至人物腕部与袖口的局部特写,清楚展示袖口结构与腕部细节;保持同一角色的服装、配饰与画风。",
+        0,
+        0
+      ],
+      "widgets_values_named": {
+        "prompt": "将画面推近至人物腕部与袖口的局部特写,清楚展示袖口结构与腕部细节;保持同一角色的服装、配饰与画风。",
+        "width": 0,
+        "height": 0
+      }
+    },
+    {
+      "id": 26,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        1240,
+        1680
+      ],
+      "size": [
+        300,
+        80
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 49
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            44
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningZeroOut"
+      }
+    },
+    {
+      "id": 27,
+      "type": "KSampler",
+      "pos": [
+        1600,
+        1680
+      ],
+      "size": [
+        340,
+        280
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 46
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 43
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 44
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 45
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            47
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        5,
+        "fixed",
+        6,
+        1.0,
+        "euler",
+        "simple",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 5,
+        "control_after_generate": "fixed",
+        "steps": 6,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 28,
+      "type": "VAEDecode",
+      "pos": [
+        2000,
+        1680
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 47
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 48
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            93
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 30,
+      "type": "MiniMaxH3ImageConditioning",
+      "pos": [
+        700,
+        2100
+      ],
+      "size": [
+        480,
+        300
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 50
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 51
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 52
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            53,
+            59
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            55
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3ImageConditioning"
+      },
+      "widgets_values": [
+        "将画面推近至人物腰封与衣带的局部特写,清楚展示腰封材质、方扣佩挂与连接方式;保持同一角色的服装、配饰与画风。",
+        0,
+        0
+      ],
+      "widgets_values_named": {
+        "prompt": "将画面推近至人物腰封与衣带的局部特写,清楚展示腰封材质、方扣佩挂与连接方式;保持同一角色的服装、配饰与画风。",
+        "width": 0,
+        "height": 0
+      }
+    },
+    {
+      "id": 31,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        1240,
+        2100
+      ],
+      "size": [
+        300,
+        80
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 59
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            54
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningZeroOut"
+      }
+    },
+    {
+      "id": 32,
+      "type": "KSampler",
+      "pos": [
+        1600,
+        2100
+      ],
+      "size": [
+        340,
+        280
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 56
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 53
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 54
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 55
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            57
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        6,
+        "fixed",
+        6,
+        1.0,
+        "euler",
+        "simple",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 6,
+        "control_after_generate": "fixed",
+        "steps": 6,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 33,
+      "type": "VAEDecode",
+      "pos": [
+        2000,
+        2100
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 57
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 58
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            94
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 35,
+      "type": "MiniMaxH3ImageConditioning",
+      "pos": [
+        700,
+        2520
+      ],
+      "size": [
+        480,
+        300
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 60
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 61
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 62
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            63,
+            69
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            65
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3ImageConditioning"
+      },
+      "widgets_values": [
+        "将画面推近为侧面头部近景特写,完整呈现头部轮廓、发型结构与耳侧关系;保持同一角色与画风。",
+        0,
+        0
+      ],
+      "widgets_values_named": {
+        "prompt": "将画面推近为侧面头部近景特写,完整呈现头部轮廓、发型结构与耳侧关系;保持同一角色与画风。",
+        "width": 0,
+        "height": 0
+      }
+    },
+    {
+      "id": 36,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        1240,
+        2520
+      ],
+      "size": [
+        300,
+        80
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 69
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            64
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningZeroOut"
+      }
+    },
+    {
+      "id": 37,
+      "type": "KSampler",
+      "pos": [
+        1600,
+        2520
+      ],
+      "size": [
+        340,
+        280
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 66
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 63
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 64
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 65
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            67
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        4,
+        "fixed",
+        6,
+        1.0,
+        "euler",
+        "simple",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 4,
+        "control_after_generate": "fixed",
+        "steps": 6,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 38,
+      "type": "VAEDecode",
+      "pos": [
+        2000,
+        2520
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 67
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 68
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            92
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 40,
+      "type": "MiniMaxH3ImageConditioning",
+      "pos": [
+        700,
+        2940
+      ],
+      "size": [
+        480,
+        300
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 70
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 71
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            72,
+            78
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            74
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3ImageConditioning"
+      },
+      "widgets_values": [
+        "沈孤鸿的佩器:长剑,玄色木胎鲛皮鞘,鞘口衔银,剑柄缠墨色丝绦,剑穗青白丝线,收鞘态。整剑水平横置,自柄首至鞘尾完整入画,两端各留边;鞘身光素,剑穗为青白丝线本色,饰件皆素银;背景素净米白。\n主体的器物设定图：器物可见范围完整入画并居中，占画面大部；同一件器物，材质、纹样与器身一致。器物按二维动漫道具的线描设色方式呈现：金属、皮革与木料均为平整色面，结构与纹样以细线勾勒，亮部为窄色带。机位服从主体句指定的识别面；主体句未指定识别面时，采用器物正面正交视角完整入画，轮廓比例清晰。传统色多色相铺陈各安其位，薄透罩染轻敷。\n主体设色配比：主体明文主色为第一主色，色仅落于器物本体，中等强度色作主体层次，少量高识别色仅作点睛。\n器物设定图采用便于辨认结构的均匀漫射光；来源规定的断裂、缺损、磨损、积尘与血痕按实际状态呈现。透明底时主体以外为透明区域；关闭透明时背景采用主体句指定的简洁底色。\n美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
+        3456,
+        1280
+      ],
+      "widgets_values_named": {
+        "prompt": "沈孤鸿的佩器:长剑,玄色木胎鲛皮鞘,鞘口衔银,剑柄缠墨色丝绦,剑穗青白丝线,收鞘态。整剑水平横置,自柄首至鞘尾完整入画,两端各留边;鞘身光素,剑穗为青白丝线本色,饰件皆素银;背景素净米白。\n主体的器物设定图：器物可见范围完整入画并居中，占画面大部；同一件器物，材质、纹样与器身一致。器物按二维动漫道具的线描设色方式呈现：金属、皮革与木料均为平整色面，结构与纹样以细线勾勒，亮部为窄色带。机位服从主体句指定的识别面；主体句未指定识别面时，采用器物正面正交视角完整入画，轮廓比例清晰。传统色多色相铺陈各安其位，薄透罩染轻敷。\n主体设色配比：主体明文主色为第一主色，色仅落于器物本体，中等强度色作主体层次，少量高识别色仅作点睛。\n器物设定图采用便于辨认结构的均匀漫射光；来源规定的断裂、缺损、磨损、积尘与血痕按实际状态呈现。透明底时主体以外为透明区域；关闭透明时背景采用主体句指定的简洁底色。\n美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
+        "width": 3456,
+        "height": 1280
+      }
+    },
+    {
+      "id": 41,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        1240,
+        2940
+      ],
+      "size": [
+        300,
+        80
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 78
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            73
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningZeroOut"
+      }
+    },
+    {
+      "id": 42,
+      "type": "KSampler",
+      "pos": [
+        1600,
+        2940
+      ],
+      "size": [
+        340,
+        280
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 75
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 72
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 73
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 74
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            76
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        7,
+        "fixed",
+        6,
+        1.0,
+        "euler",
+        "simple",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 7,
+        "control_after_generate": "fixed",
+        "steps": 6,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 43,
+      "type": "VAEDecode",
+      "pos": [
+        2000,
+        2940
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 76
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 77
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            95
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 45,
+      "type": "MiniMaxH3ImageConditioning",
+      "pos": [
+        700,
+        3360
+      ],
+      "size": [
+        480,
+        300
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 79
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 80
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            81,
+            87
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            83
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3ImageConditioning"
+      },
+      "widgets_values": [
+        "能力特效设定图:孤鸿剑气——剑锋凝出一线青白剑气,形如鸿羽掠空,自剑尖延展约三尺。一柄出鞘长剑的剑身与剑锋特写,剑气光效清晰锐利,素净深色背景,画面完整居中。\n美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
+        2048,
+        2048
+      ],
+      "widgets_values_named": {
+        "prompt": "能力特效设定图:孤鸿剑气——剑锋凝出一线青白剑气,形如鸿羽掠空,自剑尖延展约三尺。一柄出鞘长剑的剑身与剑锋特写,剑气光效清晰锐利,素净深色背景,画面完整居中。\n美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
+        "width": 2048,
+        "height": 2048
+      }
+    },
+    {
+      "id": 46,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        1240,
+        3360
+      ],
+      "size": [
+        300,
+        80
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 87
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            82
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningZeroOut"
+      }
+    },
+    {
+      "id": 47,
+      "type": "KSampler",
+      "pos": [
+        1600,
+        3360
+      ],
+      "size": [
+        340,
+        280
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 84
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 81
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 82
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 83
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            85
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        8,
+        "fixed",
+        6,
+        1.0,
+        "euler",
+        "simple",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 8,
+        "control_after_generate": "fixed",
+        "steps": 6,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 48,
+      "type": "VAEDecode",
+      "pos": [
+        2000,
+        3360
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 85
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 86
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            96
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 50,
+      "type": "MySheetCardComposer",
+      "pos": [
+        2560,
+        1260
+      ],
+      "size": [
+        420,
+        560
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "master",
+          "type": "IMAGE",
+          "link": 88
+        },
+        {
+          "name": "side",
+          "type": "IMAGE",
+          "link": 89
+        },
+        {
+          "name": "back",
+          "type": "IMAGE",
+          "link": 90
+        },
+        {
+          "name": "face",
+          "type": "IMAGE",
+          "link": 91
+        },
+        {
+          "name": "head",
+          "type": "IMAGE",
+          "link": 92
+        },
+        {
+          "name": "wrist",
+          "type": "IMAGE",
+          "link": 93
+        },
+        {
+          "name": "waist",
+          "type": "IMAGE",
+          "link": 94
+        },
+        {
+          "name": "weapon",
+          "type": "IMAGE",
+          "link": 95
+        },
+        {
+          "name": "effect",
+          "type": "IMAGE",
+          "link": 96
+        }
+      ],
+      "outputs": [
+        {
+          "name": "设定卡",
+          "type": "IMAGE",
+          "links": [
+            97
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MySheetCardComposer"
+      },
+      "widgets_values": [
+        "沈孤鸿"
+      ],
+      "widgets_values_named": {
+        "角名": "沈孤鸿"
+      }
+    },
+    {
+      "id": 51,
+      "type": "SaveImage",
+      "pos": [
+        3060,
+        1440
+      ],
+      "size": [
+        340,
+        110
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 97
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "道劫设定卡/"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "道劫设定卡/"
+      }
+    },
+    {
+      "id": 52,
+      "type": "MarkdownNote",
+      "pos": [
+        0,
+        3820
+      ],
+      "size": [
+        560,
+        640
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "## 道劫·角色设定卡(格式一 v1,1113 道劫正册化)\n\n- **固定框**=MySheetCardComposer:顶块[三视图紧凑横排|六特写3×2|配色条]+底部四区;框线/16 角标/右上角名**程序绘**(零缺笔零印章);角名最后贴(先画框后贴名)\n- **真源**:六路指令/武器特效模板/分辨率/seed=qi21_bases.json#sheet_card(v1);master=人物海报型三层装配(主体句+型底座+美术风格底座逐字);合成器单真源=my_nodes/nodes/my_sheet_card_composer.py\n- **固定方式**:master t2i(1664×2496)→六路 edit 直投(侧/背转 view+面部/侧头/腕/腰推近;head 吃侧视图,余吃 master)→武器 t2i(3456×1280 横陈)与特效 t2i(2048²)→合成器出 4K\n- **换角色**:改 master 提示词首段主体句+角名+武器/特效句首名号;六路指令角色无关恒定\n- **批量/断点续跑**走脚本路 apps/build/scripts/daojie_sheet_b_pipeline.py;本件=画布直开单卡\n- steps=6/CFG1/euler/simple(H3-Image 蒸馏口径,禁高 CFG)"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      2,
+      0,
+      5,
+      0,
+      "CLIP"
+    ],
+    [
+      2,
+      3,
+      0,
+      5,
+      1,
+      "VAE"
+    ],
+    [
+      3,
+      5,
+      0,
+      7,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      4,
+      6,
+      0,
+      7,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      5,
+      5,
+      1,
+      7,
+      3,
+      "LATENT"
+    ],
+    [
+      6,
+      1,
+      0,
+      7,
+      0,
+      "MODEL"
+    ],
+    [
+      7,
+      7,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      8,
+      3,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      9,
+      5,
+      0,
+      6,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      10,
+      2,
+      0,
+      10,
+      0,
+      "CLIP"
+    ],
+    [
+      11,
+      3,
+      0,
+      10,
+      1,
+      "VAE"
+    ],
+    [
+      12,
+      8,
+      0,
+      10,
+      2,
+      "IMAGE"
+    ],
+    [
+      13,
+      10,
+      0,
+      12,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      14,
+      11,
+      0,
+      12,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      15,
+      10,
+      1,
+      12,
+      3,
+      "LATENT"
+    ],
+    [
+      16,
+      1,
+      0,
+      12,
+      0,
+      "MODEL"
+    ],
+    [
+      17,
+      12,
+      0,
+      13,
+      0,
+      "LATENT"
+    ],
+    [
+      18,
+      3,
+      0,
+      13,
+      1,
+      "VAE"
+    ],
+    [
+      19,
+      10,
+      0,
+      11,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      20,
+      2,
+      0,
+      15,
+      0,
+      "CLIP"
+    ],
+    [
+      21,
+      3,
+      0,
+      15,
+      1,
+      "VAE"
+    ],
+    [
+      22,
+      8,
+      0,
+      15,
+      2,
+      "IMAGE"
+    ],
+    [
+      23,
+      15,
+      0,
+      17,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      24,
+      16,
+      0,
+      17,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      25,
+      15,
+      1,
+      17,
+      3,
+      "LATENT"
+    ],
+    [
+      26,
+      1,
+      0,
+      17,
+      0,
+      "MODEL"
+    ],
+    [
+      27,
+      17,
+      0,
+      18,
+      0,
+      "LATENT"
+    ],
+    [
+      28,
+      3,
+      0,
+      18,
+      1,
+      "VAE"
+    ],
+    [
+      29,
+      15,
+      0,
+      16,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      30,
+      2,
+      0,
+      20,
+      0,
+      "CLIP"
+    ],
+    [
+      31,
+      3,
+      0,
+      20,
+      1,
+      "VAE"
+    ],
+    [
+      32,
+      8,
+      0,
+      20,
+      2,
+      "IMAGE"
+    ],
+    [
+      33,
+      20,
+      0,
+      22,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      34,
+      21,
+      0,
+      22,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      35,
+      20,
+      1,
+      22,
+      3,
+      "LATENT"
+    ],
+    [
+      36,
+      1,
+      0,
+      22,
+      0,
+      "MODEL"
+    ],
+    [
+      37,
+      22,
+      0,
+      23,
+      0,
+      "LATENT"
+    ],
+    [
+      38,
+      3,
+      0,
+      23,
+      1,
+      "VAE"
+    ],
+    [
+      39,
+      20,
+      0,
+      21,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      40,
+      2,
+      0,
+      25,
+      0,
+      "CLIP"
+    ],
+    [
+      41,
+      3,
+      0,
+      25,
+      1,
+      "VAE"
+    ],
+    [
+      42,
+      8,
+      0,
+      25,
+      2,
+      "IMAGE"
+    ],
+    [
+      43,
+      25,
+      0,
+      27,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      44,
+      26,
+      0,
+      27,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      45,
+      25,
+      1,
+      27,
+      3,
+      "LATENT"
+    ],
+    [
+      46,
+      1,
+      0,
+      27,
+      0,
+      "MODEL"
+    ],
+    [
+      47,
+      27,
+      0,
+      28,
+      0,
+      "LATENT"
+    ],
+    [
+      48,
+      3,
+      0,
+      28,
+      1,
+      "VAE"
+    ],
+    [
+      49,
+      25,
+      0,
+      26,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      50,
+      2,
+      0,
+      30,
+      0,
+      "CLIP"
+    ],
+    [
+      51,
+      3,
+      0,
+      30,
+      1,
+      "VAE"
+    ],
+    [
+      52,
+      8,
+      0,
+      30,
+      2,
+      "IMAGE"
+    ],
+    [
+      53,
+      30,
+      0,
+      32,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      54,
+      31,
+      0,
+      32,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      55,
+      30,
+      1,
+      32,
+      3,
+      "LATENT"
+    ],
+    [
+      56,
+      1,
+      0,
+      32,
+      0,
+      "MODEL"
+    ],
+    [
+      57,
+      32,
+      0,
+      33,
+      0,
+      "LATENT"
+    ],
+    [
+      58,
+      3,
+      0,
+      33,
+      1,
+      "VAE"
+    ],
+    [
+      59,
+      30,
+      0,
+      31,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      60,
+      2,
+      0,
+      35,
+      0,
+      "CLIP"
+    ],
+    [
+      61,
+      3,
+      0,
+      35,
+      1,
+      "VAE"
+    ],
+    [
+      62,
+      13,
+      0,
+      35,
+      2,
+      "IMAGE"
+    ],
+    [
+      63,
+      35,
+      0,
+      37,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      64,
+      36,
+      0,
+      37,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      65,
+      35,
+      1,
+      37,
+      3,
+      "LATENT"
+    ],
+    [
+      66,
+      1,
+      0,
+      37,
+      0,
+      "MODEL"
+    ],
+    [
+      67,
+      37,
+      0,
+      38,
+      0,
+      "LATENT"
+    ],
+    [
+      68,
+      3,
+      0,
+      38,
+      1,
+      "VAE"
+    ],
+    [
+      69,
+      35,
+      0,
+      36,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      70,
+      2,
+      0,
+      40,
+      0,
+      "CLIP"
+    ],
+    [
+      71,
+      3,
+      0,
+      40,
+      1,
+      "VAE"
+    ],
+    [
+      72,
+      40,
+      0,
+      42,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      73,
+      41,
+      0,
+      42,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      74,
+      40,
+      1,
+      42,
+      3,
+      "LATENT"
+    ],
+    [
+      75,
+      1,
+      0,
+      42,
+      0,
+      "MODEL"
+    ],
+    [
+      76,
+      42,
+      0,
+      43,
+      0,
+      "LATENT"
+    ],
+    [
+      77,
+      3,
+      0,
+      43,
+      1,
+      "VAE"
+    ],
+    [
+      78,
+      40,
+      0,
+      41,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      79,
+      2,
+      0,
+      45,
+      0,
+      "CLIP"
+    ],
+    [
+      80,
+      3,
+      0,
+      45,
+      1,
+      "VAE"
+    ],
+    [
+      81,
+      45,
+      0,
+      47,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      82,
+      46,
+      0,
+      47,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      83,
+      45,
+      1,
+      47,
+      3,
+      "LATENT"
+    ],
+    [
+      84,
+      1,
+      0,
+      47,
+      0,
+      "MODEL"
+    ],
+    [
+      85,
+      47,
+      0,
+      48,
+      0,
+      "LATENT"
+    ],
+    [
+      86,
+      3,
+      0,
+      48,
+      1,
+      "VAE"
+    ],
+    [
+      87,
+      45,
+      0,
+      46,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      88,
+      8,
+      0,
+      50,
+      0,
+      "IMAGE"
+    ],
+    [
+      89,
+      13,
+      0,
+      50,
+      1,
+      "IMAGE"
+    ],
+    [
+      90,
+      18,
+      0,
+      50,
+      2,
+      "IMAGE"
+    ],
+    [
+      91,
+      23,
+      0,
+      50,
+      3,
+      "IMAGE"
+    ],
+    [
+      92,
+      38,
+      0,
+      50,
+      4,
+      "IMAGE"
+    ],
+    [
+      93,
+      28,
+      0,
+      50,
+      5,
+      "IMAGE"
+    ],
+    [
+      94,
+      33,
+      0,
+      50,
+      6,
+      "IMAGE"
+    ],
+    [
+      95,
+      43,
+      0,
+      50,
+      7,
+      "IMAGE"
+    ],
+    [
+      96,
+      48,
+      0,
+      50,
+      8,
+      "IMAGE"
+    ],
+    [
+      97,
+      50,
+      0,
+      51,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "① 装载三件(H3-Image 主机适配档)",
+      "bounding": [
+        -40,
+        -60,
+        760,
+        560
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "② master·正视图源(三层装配)",
+      "bounding": [
+        640,
+        -60,
+        1720,
+        300
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "③ 六路分格编辑(指令真源 sheet_card)",
+      "bounding": [
+        640,
+        360,
+        1720,
+        2450
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "④ 武器/特效 t2i",
+      "bounding": [
+        640,
+        2880,
+        1720,
+        900
+      ],
+      "color": "#88A",
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "⑤ 固定底框合成(格式一 v1)",
+      "bounding": [
+        2480,
+        1180,
+        1100,
+        660
+      ],
+      "color": "#3A3",
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {},
+  "version": 0.4,
+  "revision": 0
+}
