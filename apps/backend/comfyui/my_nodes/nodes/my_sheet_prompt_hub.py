@@ -13,23 +13,29 @@ import os
 from pathlib import Path
 
 _HERE = Path(__file__).resolve()
-_TRUTH_CANDIDATES = (
-    _HERE.parents[4] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json",
-    Path(os.environ.get("MYSTUDIO_COMFYUI_HOME",
-                        Path.home() / "Library/Application Support/漫影工作室/comfyui"))
-    / "daojie-data",
-    Path("/Applications/漫影工作室.app/Contents/Resources/studio-manuals/"
-         "art_skills/daojie_ink_guofeng/json"),
-)
+
+
+def _daojie_data(fn: str) -> Path:
+    """道劫资产四层候选(同 my_qi21_base._daojie_data 正典;自包含防跨节点 import)。"""
+    _env = os.environ.get("MYSTUDIO_DAOJIE_DATA")
+    if _env:
+        return Path(_env) / fn
+    for _base in (
+        _HERE.parents[4] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json",
+        _HERE.parents[4] / "daojie-data",  # 引擎家数据位(Mac/Win 同构)
+        Path("/Applications/漫影工作室.app/Contents/Resources/studio-manuals/"
+             "art_skills/daojie_ink_guofeng/json"),
+        Path.home() / "Applications" / "漫影工作室.app" / "Contents"
+        / "Resources" / "studio-manuals" / "art_skills" / "daojie_ink_guofeng" / "json",
+    ):
+        _p = _base / fn
+        if _p.is_file():
+            return _p
+    return _HERE.parent / fn
 
 
 def _truth() -> dict:
-    for cand in _TRUTH_CANDIDATES:
-        p = cand / "qi21_bases.json"
-        if p.is_file():
-            return json.loads(p.read_text(encoding="utf-8"))
-    raise RuntimeError("qi21_bases.json 真源缺位(候选链:" +
-                       "|".join(str(c) for c in _TRUTH_CANDIDATES) + ")")
+    return json.loads(_daojie_data("qi21_bases.json").read_text(encoding="utf-8"))
 
 
 def _field(subject: str, key: str, default: str) -> str:
