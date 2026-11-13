@@ -82,7 +82,7 @@
     },
     {
       "id": 21,
-      "type": "CLIPLoaderGGUF",
+      "type": "CLIPLoader",
       "pos": [
         100,
         400
@@ -108,10 +108,10 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "CLIPLoaderGGUF"
+        "Node name for S&R": "CLIPLoader"
       },
       "widgets_values": [
-        "Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf",
+        "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
         "minimax"
       ]
     },

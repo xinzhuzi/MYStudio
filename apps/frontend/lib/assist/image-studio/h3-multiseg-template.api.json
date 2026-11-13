@@ -57,9 +57,9 @@
     }
   },
   "21": {
-    "class_type": "CLIPLoaderGGUF",
+    "class_type": "CLIPLoader",
     "inputs": {
-      "clip_name": "Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
       "type": "minimax"
     }
   },
