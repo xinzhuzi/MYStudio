@@ -135,8 +135,14 @@ def round1() -> None:
 
 
 def view_ok_best(prefix: str) -> tuple[bool, int]:
-    """SaveVideo 自增计数:取 /view 对 prefix_00001.mp4 的探测(首号)。"""
-    return view_ok(f"{prefix}_00001.mp4", 100_000)
+    """SaveVideo 真名={prefix}_{counter:05}_.mp4(尾下划线,源码钉式);
+    多轮发车计数进位 → 探 1..12 号取最大命中。"""
+    best = (False, 0)
+    for k in range(1, 13):
+        ok, size = view_ok(f"{prefix}_{k:05}_.mp4", 100_000)
+        if ok and size > best[1]:
+            best = (ok, size)
+    return best
 
 
 def round2() -> None:

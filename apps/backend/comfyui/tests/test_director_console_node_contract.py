@@ -118,8 +118,8 @@ def test_execute_skeleton_returns_1x1_placeholder(monkeypatch):
     out = node_mod.MyDirectorConsole().execute(
         model=object(), video_vae=object(), audio_vae=object(), clip=object(),
         timeline_data='{"stages": {"yicai": true}}')
-    assert calls == [(1, 1, 3)], f"占位帧应 torch.zeros((1,1,3)),实 {calls}"
-    assert out == (("TENSOR", (1, 1, 3)),)
+    assert calls == [(1, 64, 112, 3)], f"占位帧应 torch.zeros((1,64,112,3)),实 {calls}"
+    assert out == (("TENSOR", (1, 64, 112, 3)),)
 
 
 def test_execute_placeholder_real_torch():
@@ -128,5 +128,5 @@ def test_execute_placeholder_real_torch():
     out = node_mod.MyDirectorConsole().execute(
         model=None, video_vae=None, audio_vae=None, clip=None, timeline_data="")
     frame = out[0]
-    assert tuple(frame.shape) == (1, 1, 3)
+    assert tuple(frame.shape) == (1, 64, 112, 3)
     assert float(frame.abs().sum()) == 0.0

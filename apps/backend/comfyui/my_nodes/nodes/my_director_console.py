@@ -195,9 +195,11 @@ class MyDirectorConsole:
 
     @staticmethod
     def _placeholder_frame():
-        """1×1×3 零占位帧(引擎库懒加载:torch 函数内 import,源码位可测)。"""
+        """BHWC 零占位帧(1×64×112×3=恰四维;引擎 IMAGE 契约=4 维——
+        1114 R1 第七/八发定谳:3 维 CreateVideo 咬 ndim、五维编码器咬
+        ndim;引擎库懒加载:torch 函数内 import,源码位可测)。"""
         import torch
-        return torch.zeros((1, 1, 3))
+        return torch.zeros((1, 64, 112, 3))
 
     def execute(self, model, video_vae, audio_vae, clip, timeline_data="",
                 unique_id=None):

@@ -345,7 +345,7 @@ class DirectorExecutor:
         video_latent, audio_latent = _call(self.C, "LTXVSeparateAVLatent",
                                            av_latent=av_latent)
         up = _call(self.C, "MinimaxH3LatentUpscaler3D", latent=video_latent,
-                   model_name="minimax_h3_latent_upscaler",
+                   model_name="minimax_h3_latent_upscaler_3d_bf16.safetensors",
                    mode={"mode": "target dimensions", "width": PASS2_W,
                          "height": PASS2_H},
                    align=32, enable_temporal_chunking=True, force_unload=True,
@@ -577,17 +577,38 @@ def bind_engine_hooks():
         return getattr(cls(), fn)(file=name)[0]
 
     def ffmpeg(rels, out_rel):
-        """章级拼接(批量役 concat 同款:-f concat -safe 0 -c copy)。"""
+        """章级拼接(批量役 concat 同式:cwd=清单同目录+相对条目)。
+
+        引擎侧 ffmpeg 构建对 HEVC-in-mp4 直拷会败(1114 R3 定谳:p3=hevc
+        2K,p1=h264 可拷;批量役当年 concat 在驱动侧 Mac 跑未踩此)——
+        分级降挡:copy → copy+hvc1 标签 → 末档 x264 转码(保底出片)。
+        """
+        import os
         out = out_dir / out_rel
         out.parent.mkdir(parents=True, exist_ok=True)
         lst = out.with_suffix(".txt")
-        lst.write_text("".join(f"file '{r}'\n" for r in rels),
-                       encoding="utf-8")
-        subprocess.run(
-            ["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
-             "-i", lst.name, "-c", "copy", out.name],
-            check=True, cwd=str(out_dir))
-        lst.unlink(missing_ok=True)
+        entries = "".join(
+            "file '%s'\n" % os.path.relpath(out_dir / r, out.parent)
+            .replace("\\", "/")
+            for r in rels)
+        lst.write_text(entries, encoding="utf-8")
+        base = ["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
+                "-i", lst.name]
+        stages = (
+            [*base, "-c", "copy", out.name],
+            [*base, "-c", "copy", "-tag:v", "hvc1", out.name],
+            [*base, "-c:v", "libx264", "-preset", "veryfast", "-crf", "16",
+             "-c:a", "copy", out.name],
+        )
+        last_err = None
+        for args in stages:
+            proc = subprocess.run(args, cwd=str(out.parent),
+                                  capture_output=True, text=True)
+            if proc.returncode == 0:
+                lst.unlink(missing_ok=True)
+                return
+            last_err = (proc.stderr or "").strip()[-300:]
+        raise RuntimeError(f"ffmpeg 章级拼接三挡全败:{out.name}:{last_err}")
 
     def send_event(etype, payload):
         try:
