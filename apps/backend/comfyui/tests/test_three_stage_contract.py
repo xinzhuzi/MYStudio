@@ -1,6 +1,6 @@
 """道劫三段链工作流契约测试(11-05-daojie-h3-three-stage)。
 
-被测对象 = 仓库真源 `2_视频/H3视频/1_漫影自研/0_单镜视频/三采-单镜.json`
+被测对象 = 仓库真源 `2_视频/H3视频/1_漫影自研/三采-单镜.json`
 (1111 用户裁定换防主线:三采主力 RelayVSR→ReCaVSR;1112 用户裁定复名:自研件不用外来技术名,
 挑战臂役暂名 三采-recavsr-单镜.json 复名回 三采-单镜.json;旧 RelayVSR 版主线退役件
 三采-单镜-RelayVSR-1110.json(1112 吸收归档撤域后与主线同住 0_单镜视频);克隆血统=1110 主线终名(更早 pika-单镜视频-三段链),
@@ -17,10 +17,13 @@ fork pika-单镜视频-ref2v.json 出生)(GUI 格式)。
      +kitchen+lcm+BasicScheduler simple/3步/dn0.2(TaoMate 二采必须 LCM,Euler→
      片尾字幕乱码红线);[4] SaveVideo 锚移挂二采产物=默认终档(五段前缀+MyShot
      回写契约不变,组装器 buildShotRefWorkflowFromTemplate 兼容)。
-  ③ 质量精修 TESSERA = tessera_upscaler_master 精简+api_formal_v4(第四发 1080p
-     定谳)参数:×1.5→1920×1056、σ"1, 0.7, 0.4, 0.0"、er_sde+euler、taomate@0.7
-     +LMS 0.75/1.0、sol-attn、TE nvfp4_awq、CRF12、seed 786110;全组 mode=2
-     默认旁路(质量档只作测试,不默认跑);1056→1080 归一=图外 ffmpeg 交付步。
+  ③ 三采超分 = ReCaVSR 主线(scale2:1440×832→2880×1664,交付层归一 1080)。
+     1113 手术重放(trellis 11-13-sancai-workflow-surgery-replay,自 875124ad 原版重放):
+     TESSERA 38 节点整组出主线(零跨界,参数契约随独立件 7_测试/TESSERA-超分-1080p.json
+     由 test_tessera_upscale_contract 把守);RelayVSR 旁路 [268][269]+监控死端 [264][265]
+     删除(用户令「ReCaVSR 已稳不需要兜底」;RelayVSR 回退档=7_测试/三采-单镜-RelayVSR-1110.json
+     留档);三 Note 合一为 [101] 产线速查;布局五组横排(加载模型→输入→一阶段采样→
+     二采放大→三采超分),深度阶梯严格右向。
 
 锚点契约(与 ref2v 族同构,组装器 assertH3TemplateIntegrity 对齐):
     [4] SaveVideo / [9] LoadImage(出厂 mode=4) / [14] PrimitiveStringMultiline
@@ -42,7 +45,6 @@ WF_DIR = Path(__file__).resolve().parents[1] / "workflows" / "2_视频" / "H3视
 WF = WF_DIR / "三采-单镜.json"
 
 PIKA_SIGMAS = "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
-TESSERA_SIGMAS = "1, 0.7, 0.4, 0.0"
 
 
 def _load():
@@ -146,14 +148,13 @@ def test_stage2_single_source_fanout_no_duplicate():
     assert sorted(samplers) == [125, 211], "KSamplerSelect(lcm) 应单源扇出至一采/二采"
     ksel = [n for n in nodes.values() if n["type"] == "KSamplerSelect" and n["id"] < 300]
     assert len(ksel) == 1, "一采+二采共享一个 KSamplerSelect(零真重复)"
-    # 默认路径(①+②,id<300)视频 VAE 单源;③组自足支路自备同款 VAELoader
-    # (muted 分支零加载;设计偏差已入任务档:自足+官方验证路径优先于单源扇出)
+    # 默认路径(①+②,id<300)视频 VAE 单源;1113 手术后 ≥300 仅剩 ReCaVSR 三件,
+    # ③组自足 VAELoader 已随 TESSERA 整组出主线(零残留)
     vae_video = [n for n in nodes.values() if n["id"] < 300 and n["type"] == "VAELoader"
                  and "video_vae_int8" in json.dumps(n.get("widgets_values"))]
     assert len(vae_video) == 1
-    vae_g3 = [n for n in nodes.values() if n["id"] >= 300 and n["type"] == "VAELoader"
-              and "video_vae_int8" in json.dumps(n.get("widgets_values"))]
-    assert len(vae_g3) == 1 and vae_g3[0]["mode"] == 2, "③组自足 VAELoader 恒旁路"
+    vae_g3 = [n for n in nodes.values() if n["id"] >= 300 and n["type"] == "VAELoader"]
+    assert not vae_g3, "≥300 段不得再有 VAELoader(TESSERA 出主线后仅 ReCaVSR 338/339/340)"
 
 
 def test_anchor4_final_mounted_on_stage2():
@@ -190,25 +191,12 @@ def test_stage2_latent_pipeline_wiring():
 
 
 def test_stage3_tessera_params_v4():
-    """质量档=第四发 1080p 定谳参数;默认旁路(全 mode=2)。"""
+    """1113 手术:TESSERA 整组(38 节点)出主线零残留;参数契约随独立件
+    7_测试/TESSERA-超分-1080p.json 由 test_tessera_upscale_contract 把守。"""
     _, nodes, _ = _load()
-    assert all(n.get("mode") == 2 for nid, n in nodes.items() if 300 <= nid <= 337), "③组(TESSERA 300-337)全员默认旁路 mode=2;338-340=ReCaVSR 新臂不在此列"
-    assert nodes[303]["type"] == "TesseraEncode"
-    assert nodes[303]["widgets_values"][0] == 1.5, "×1.5 → 1920×1056(1104 12:55 终裁 1080p 档)"
-    assert nodes[319]["widgets_values"] == [TESSERA_SIGMAS]
-    assert nodes[317]["widgets_values"] == ["er_sde"]
-    assert nodes[318]["widgets_values"] == ["euler"]
-    assert nodes[314]["widgets_values"] == ["taomate_h3_3step.safetensors", 0.7]
-    assert nodes[315]["widgets_values"] == ["minimax_h3_lms_v1.0_r64.safetensors", 0.75]
-    assert nodes[316]["widgets_values"] == ["minimax_h3_lms_v1.0_r64.safetensors", 1]
-    assert nodes[308]["widgets_values"][0] == "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors", "1105 统一深化:③组底模随双模归档同迁 Cobijada"
-    assert nodes[309]["widgets_values"][0] == "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
-    refine = nodes[305]["widgets_values"]
-    assert refine[10] == 1.0 and refine[11] == 786110 and refine[12] == "fixed"
-    assert refine[0] == "high_vram" and refine[3] == "high_vram", "chunked=官方验证路径"
-    sv = nodes[336]["widgets_values"]
-    assert sv[0].endswith("p3-tessera-x15-1920x1056") and sv[4] == 12.0
-    assert nodes[300]["type"] == "LoadVideo", "③组输入=LoadVideo 指向②组产物(文件交接,验证路径)"
+    tessera_nodes = [nid for nid, n in nodes.items() if "Tessera" in n["type"]]
+    assert not tessera_nodes, f"主线不得残留 TESSERA 件(1113 用户令移 7_测试): {tessera_nodes}"
+    assert not [nid for nid in nodes if 300 <= nid <= 337], "300-337 号段(旧 TESSERA 组)应整段清空"
 
 
 def test_links_bidirectional_consistency():
@@ -222,10 +210,11 @@ def test_links_bidirectional_consistency():
 
 
 def test_groups_three_bands_non_overlap():
-    """三段=三组框,两两不交,标题口径正确。"""
+    """1113 手术后=五组横排:加载模型→输入→一阶段采样→二采放大→三采超分;
+    两两不交,标题口径正确(TESSERA/RelayVSR 已出主线,标题不得再含)。"""
     d = _load()[0]
     gs = d["groups"]
-    assert len(gs) == 5, "五组=一采/二采/三采·RelayVSR 旁路/TESSERA 旁路/三采·ReCaVSR 主线(1111 换防)"
+    assert len(gs) == 5, "五组=加载模型/输入/一阶段采样/二采放大/三采超分(1113 手术终态)"
     assert any("三采超分" in g["title"] for g in gs), "三采超分组必须在册"
     assert any("ReCaVSR" in g["title"] for g in gs), "ReCaVSR 主线组必须在册"
     for i in range(len(gs)):
@@ -235,8 +224,10 @@ def test_groups_three_bands_non_overlap():
             oy = a[1] < b[1] + b[3] and b[1] < a[1] + a[3]
             assert not (ox and oy), f"组框重叠: {gs[i]['title']} × {gs[j]['title']}"
     titles = "".join(g["title"] for g in gs)
-    for kw in ("一阶段采样", "二采放大", "TESSERA", "RelayVSR"):
-        assert kw in titles
+    for kw in ("加载模型", "输入", "一阶段采样", "二阶段放大", "三采超分"):
+        assert kw in titles, f"五组标题缺: {kw}"
+    for gone in ("TESSERA", "RelayVSR"):
+        assert gone not in titles, f"{gone} 已出主线,组标题不得残留"
 
 
 def test_no_negative_zone_and_no_leftward():
@@ -317,19 +308,14 @@ def test_sigma_feed_scheduler_gets_shifted_model():
 
 
 def test_stage3_relayvsr_inline_group():
-    """1110 三采内联→1111 换防后=回退旁路臂:二采产物[214]→RelayVSR streaming
-    1920 宽,bundle=RelayVSR_X2 bf16 offload 恒开(1106 刻碑);mode=2 旁路保留
-    (用户换防令:三采主力=ReCaVSR,RelayVSR 降备份,需要时 unmute 即回退)。"""
+    """1113 用户令「ReCaVSR 已稳不需要兜底,删 RelayVSR 相关节点」:[268][269]
+    删除零残留;回退能力由 7_测试/三采-单镜-RelayVSR-1110.json 存档承载。"""
     _, nodes, links = _load()
-    assert nodes[268]["type"] == "RelayVSRModelLoader"
-    assert nodes[268]["mode"] == 2, "1111 换防:RelayVSR 臂转旁路"
-    assert nodes[268]["widgets_values"] == ["RelayVSR_X2", "bf16", True, ""]
-    assert nodes[269]["type"] == "RelayVSRUpscaleStreaming"
-    assert nodes[269]["mode"] == 2, "1111 换防:RelayVSR 臂转旁路"
-    w = nodes[269]["widgets_values"]
-    assert w[0] == 1920 and w[1] == 2, "回退档保持终版阶梯:1440×832→1920 宽"
-    vin = [l for l in links.values() if l[5] == "VIDEO" and l[3] == 269]
-    assert len(vin) == 1 and vin[0][1] == 214, "旁路臂仍吃二采 CreateVideo[214] 产物"
+    relay = [nid for nid, n in nodes.items() if "RelayVSR" in n["type"]]
+    assert not relay, f"主线不得残留 RelayVSR 件(1113 用户令删): {relay}"
+    assert 268 not in nodes and 269 not in nodes, "[268][269] 应已删"
+    archive = WF_DIR.parent / "7_测试" / "三采-单镜-RelayVSR-1110.json"
+    assert archive.exists(), "RelayVSR 回退存档件应在 7_测试 在册"
 
 
 def test_stage3_recavsr_mainline_arm():

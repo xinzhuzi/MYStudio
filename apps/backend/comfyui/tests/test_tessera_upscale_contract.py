@@ -1,7 +1,8 @@
 """TESSERA 独立超分件契约(1110 建件,用户令「单独做个超分的工作流」)。
 
-被测对象 = 仓库真源 `2_视频/H3视频/3_超分后处理/TESSERA-超分-1080p.json`
-(38 节点整株移植自 三采-单镜.json(移植时名 MY-三采-单镜)TESSERA 旁路组,平移原点+解除 mode=2 旁路)。
+被测对象 = 仓库真源 `2_视频/H3视频/7_测试/TESSERA-超分-1080p.json`
+(38 节点整株移植自 三采-单镜.json(移植时名 MY-三采-单镜)TESSERA 旁路组,平移原点+解除 mode=2 旁路;
+1113 手术随「TESSERA 出主线」令自 3_超分后处理 迁 7_测试)。
 
 参数真源 = 第四发 api_formal_v4(1104 定谳,1105 入库):×1.5 lanczos→1920×1056/
 σ"1,0.7,0.4,0.0"/er_sde+euler/taomate@0.7(1107 去油值)+LMS 0.75·1.0/sol-attn τ1.5/TE nvfp4_awq/CRF12。
@@ -9,7 +10,7 @@
 import json
 from pathlib import Path
 
-WF_DIR = Path(__file__).resolve().parents[1] / "workflows" / "2_视频" / "H3视频" / "3_超分后处理"
+WF_DIR = Path(__file__).resolve().parents[1] / "workflows" / "2_视频" / "H3视频" / "7_测试"
 WF = WF_DIR / "TESSERA-超分-1080p.json"
 
 
