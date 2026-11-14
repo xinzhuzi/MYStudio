@@ -6,8 +6,8 @@
 三门:
 ① 占位合成+几何互斥(恒跑):19 键色块占位 → 尺寸/模式/格不重叠不越界;
 ② 金样等价(步产物在位才跑,apps/output=gitignore 本地产物区):9 步真产物经
-   derive_cells+extract_palette+compose 逐字节 == 格式一 v1 金样
-   e6221c36…(节点件=单真源,薄壳/管线/本测同一条代码路,防几何漂移金锚);
+   derive_cells+extract_palette+compose 逐字节 == v6 金样(Skill-5.4 正名+底带
+   档案栏重对;节点件=单真源,薄壳/管线/本测同一条代码路,防几何漂移金锚);
 ③ 格式注册表快照(1114):书写序(全卡恒首键=缺省档契约)+四格式 rects/键序/
    modes 锁内嵌 _FROZEN 冻结期望+真源在位时 truth.formats==快照(双源漂移即红)。
 """
@@ -35,7 +35,7 @@ STEPS_DIR = (_TESTS.parents[3] / "apps/output/daojie-sheet-b-1112-arch1113"
                if (_TESTS.parents[3] / "apps/output/daojie-sheet-b-1112-arch1113").is_dir()
                else _TESTS.parents[3] / "apps/output/daojie-sheet-b-1112")
 # 金样 e6221c36 的产源步图住归档夹(1113 复测重掷顶位后指针随迁;两处皆无=skip)
-GOLDEN_SHA = "e6221c367a02890c597c96aceb25fdc6ffdabd6d8d4578513532557d275394db"  # v1.1 净空三视图重掷(1113 用户勘背景/机位);金样重对
+GOLDEN_SHA = "4528dac128480b04d900c227bbc249e7daffdb6a3511fe3c15e987766536eee9"  # v6=Skill-5.4 正名+底带档案栏+末圆内收(1114 金样重对;老 e6221c36=v1.1 档随役存档)
 
 
 def test_placeholder_compose(tmp_path):
@@ -104,12 +104,12 @@ def test_formats_registry_snapshot():
         assert got["canvas"] == want["canvas"], fmt
         assert tuple(k for k in got["rects"] if k != "_palette") \
             == frame.CELL_KEYS_BY_FMT[fmt], fmt
-    # ③ 字面锚(防 _FROZEN 与解释器一起漂):全卡金样几何三代恒等
+    # ③ 字面锚(防 _FROZEN 与解释器一起漂):全卡几何 v6 档(底带通栏)恒等
     full = sf.resolve("全卡")
     assert full["canvas"] == (3840, 2160) and full["margin"] == 36 and full["gutter"] == 20
     assert full["rects"]["front"] == (36, 36, 849, 1184)
-    assert full["rects"]["_palette"] == (2515, 1034, 3804, 1184)
-    assert full["rects"]["fx_2"] == (3061, 1674, 3804, 2124)
+    assert full["rects"]["_palette"] == (36, 1974, 3804, 2124)   # v6 底部通栏信息带
+    assert full["rects"]["fx_2"] == (3061, 1589, 3804, 1954)
     assert {k for k, m in full["modes"].items() if m == "contain"} \
         == {"front", "side", "back", "weapon", "eye"}
     assert len(full["labels"]["text"]) == 15 and full["labels"]["size"] == 36

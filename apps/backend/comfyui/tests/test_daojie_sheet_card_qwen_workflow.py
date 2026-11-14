@@ -129,7 +129,7 @@ def test_links_and_multiref_wiring():
         assert LINKS[_slot(i, "vae")["link"]][1] == 3, tag  # TE vae
     comp = NODES[50]
     order = ("master", "side", "back", "face", "head",
-             "wrist", "waist", "weapon", "effect", "背景", "格式")
+             "wrist", "waist", "weapon", "effect", "背景", "格式", "档案")
     assert [i["name"] for i in comp["inputs"]] == list(order)
     # 背景类型:枢纽(slot12)→合成器(slot9) 永不脱钩
     bg_lk = comp["inputs"][9]["link"]
@@ -137,16 +137,19 @@ def test_links_and_multiref_wiring():
     # 格式:枢纽(slot13)→合成器(slot10) 尾部追加(1114 注册表驱动透传)
     fmt_lk = comp["inputs"][10]["link"]
     assert LINKS[fmt_lk][1] == 60 and LINKS[fmt_lk][2] == 13, "格式应=枢纽出13直连"
+    # 档案:枢纽(slot14)→合成器(slot11) v6 底部信息带(Skill-5.4 §十 标配档案栏)
+    arch_lk = comp["inputs"][11]["link"]
+    assert LINKS[arch_lk][1] == 60 and LINKS[arch_lk][2] == 14, "档案应=枢纽出14直连"
     # TE prompt 全部由枢纽链接喂(散装退役)
     for i in list(T2I_IDS.values()) + list(EDIT_IDS.values()):
         plk = _slot(i, "prompt")["link"]
         assert plk is not None and LINKS[plk][1] == 60, f"TE{i} prompt 应吃枢纽"
     hub = NODES[60]
     assert hub["type"] == "MySheetPromptHub"
-    assert len(hub["outputs"]) == 14
+    assert len(hub["outputs"]) == 15
     want_src = {"master": 8, "side": 13, "back": 18, "face": 23,
                 "head": 38, "wrist": 28, "waist": 33, "weapon": 43, "effect": 48,
-                "背景": 60, "格式": 60}
+                "背景": 60, "格式": 60, "档案": 60}
     for slot, key in enumerate(order):
         assert LINKS[comp["inputs"][slot]["link"]][1] == want_src[key], key
     save = next(n for n in DOC["nodes"] if n["type"] == "SaveImage")

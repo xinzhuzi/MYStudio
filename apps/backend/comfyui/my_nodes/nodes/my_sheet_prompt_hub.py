@@ -56,6 +56,26 @@ def _field(subject: str, key: str, default: str) -> str:
     return default
 
 
+# Skill-5.4 §十 canon:角色档案字段=专业设定集标配信息栏(短字段行,程序绘)
+ARCHIVE_FIELDS = ("姓名", "性别", "年龄", "身份", "武器")
+ARCHIVE_VALUE_MAX = 12          # 长值(武器全名/能力句)取首段截 12 字,全量仍在格图与主体句
+
+
+def archive_line(subject: str, name: str) -> str:
+    """主体句→底部档案行(逐字段取真源值,值至首个中英逗号/破折号,禁手搓)。"""
+    parts = []
+    for key in ARCHIVE_FIELDS:
+        val = _field(subject, key, "")
+        if not val:
+            if key != "姓名":
+                continue
+            val = name or "沈孤鸿"
+        for sep in (",", ",", "——"):
+            val = val.split(sep)[0]
+        parts.append(f"{key}:{val[:ARCHIVE_VALUE_MAX]}")
+    return " · ".join(parts)
+
+
 def assemble(subject: str, name: str, bg: str) -> dict:
     """装配全卡提示词(纯函数,单测/枢纽共一条路;{背景} 按 truth.backgrounds 填)。"""
     bases = _truth()
@@ -83,12 +103,13 @@ def assemble(subject: str, name: str, bg: str) -> dict:
     }
     for k in ("side", "back", "face", "head", "wrist", "waist"):
         out[k] = fill(q["edit_instructions"][k])
+    out["档案"] = archive_line(subject, name)   # v6:底部信息带字段行(程序绘)
     return out
 
 
 OUT_ORDER = ("master", "master_i2i", "weapon", "effect",
              "side", "back", "face", "head", "wrist", "waist",
-             "neg_gen", "neg_edit", "bg", "格式")
+             "neg_gen", "neg_edit", "bg", "格式", "档案")
 
 
 class MySheetPromptHub:
@@ -108,18 +129,18 @@ class MySheetPromptHub:
         return {"required": {
             "主体句": ("STRING", {"default": subject_default, "multiline": True}),
             "角名": ("STRING", {"default": "沈孤鸿", "multiline": False}),
-            "背景类型": (list(q["backgrounds"]), {"default": "素白宣纸"}),
+            "背景类型": (list(q["backgrounds"]), {"default": next(iter(q["backgrounds"]))}),
         }, "optional": {
             # optional 裁定(1114):required 会使旧法构造的 API 直调 prompt JSON
             # 缺『格式』字段即 validate 红;缺省全卡=画布存量件无感。
             "格式": (_sf.formats_list(), {"default": "全卡"}),
         }}
 
-    RETURN_TYPES = ("STRING",) * 14
+    RETURN_TYPES = ("STRING",) * 15
     RETURN_NAMES = ("正向·master", "指令·master图生图", "正向·武器", "正向·特效",
                     "指令·侧视图", "指令·背视图", "指令·面部", "指令·头部",
                     "指令·腕部", "指令·腰部", "负面·生成", "负面·编辑", "背景类型",
-                    "格式")
+                    "格式", "档案")
     FUNCTION = "hub"
     CATEGORY = "道劫/设定卡"
 

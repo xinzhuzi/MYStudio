@@ -3,8 +3,8 @@
 单真源件:固定底框几何/角标/角名/配色取色/预裁分格全内聚本件;
 脚本 apps/build/scripts/daojie_sheet_b_frame.py 为薄壳 re-export(管线/金样同路)。
 真源链:分格指令与武器/特效模板=qi21_bases.json#sheet_card(v1);
-版式格式注册表=qi21_bases.json#sheet_card_qwen.formats(v5,1114 数据驱动化——
-布局/角标/contain 集经 sheet_card_formats.py 解释器求值,渲染字节恒等,金样不重对);
+版式格式注册表=qi21_bases.json#sheet_card_qwen.formats(v6,1114 Skill-5.4 正名——
+角标 canon 词+底部通栏信息带:档案字段左/配色方案五圆右,程序绘零缺笔);
 本件只管「固定框+固定方式」——框/格线/题名/15 项角标程序绘(零缺笔零印章),
 格内画面由上游 9 图(master/侧/背/面部/侧头/腕/腰/武器/特效)喂入。
 字体链跨平台:Mac 楷体→冬黑→苹方;Win simkai→msyh。
@@ -32,8 +32,8 @@ resolve = _sf.resolve
 W, H = 3840, 2160
 M = 36          # 外边距
 G = 20          # 格间距
-FORMAT_VERSION = "v1.2"  # v1=1112 冻结;v1.1=1113 多格式注册表;v1.2=1114 注册表驱动(真源 formats,全卡渲染字节恒等)
-PAPER = (247, 243, 234)      # 宣纸米白
+FORMAT_VERSION = "v1.3"  # v1=1112 冻结;v1.1=1113 多格式注册表;v1.2=1114 注册表驱动;v1.3=1114 Skill-5.4 正名+底带档案
+PAPER = (255, 255, 255)     # 纯白(1114 用户令背景收敛单档)
 INK_LINE = (107, 101, 90)    # 细线边框
 INK_TEXT = (44, 39, 32)      # 角标/题名墨色
 
@@ -70,7 +70,7 @@ _BG_TRUTH_CANDIDATES = (
 
 
 def _bg_color(bg: str):
-    """背景类型→画布底色(真源 sheet_card_qwen.backgrounds;缺位回退素白宣纸)。"""
+    """背景类型→画布底色(真源 sheet_card_qwen.backgrounds;缺位回退纯白)。"""
     try:
         import json as _json
         for cand in _BG_TRUTH_CANDIDATES:
@@ -82,7 +82,7 @@ def _bg_color(bg: str):
                     return tuple(tab[bg]["canvas"])
     except Exception:
         pass
-    return PAPER  # 缺真源/未知型=默认素白宣纸(金样同色)
+    return PAPER  # 缺真源/未知型=默认纯白
 
 
 def _font(size: int) -> ImageFont.FreeTypeFont:
@@ -225,11 +225,12 @@ def derive_cells(imgs: dict) -> dict:
     }
 
 
-def compose(cells: dict, palette, title: str, dst: str, fmt: str = "全卡", bg: str = "素白宣纸") -> str:
+def compose(cells: dict, palette, title: str, dst: str, fmt: str = "全卡",
+            bg: str = "纯白", archive: str = "") -> str:
     """整卡合成(文件路,脚本/金样用;fmt=格式注册表)。缺格断言红;恒 RGB。
 
     版式取数全走 resolve(fmt)(真源 formats 注册表):格序/画布/几何/contain
-    集/角标文/角标字号;渲染行与 v1.1 逐字节同路(金样 e6221c36 不重对)。
+    集/角标文/角标字号;v6 起底部通栏信息带(archive=档案行,空串=只配色)。
     """
     assert fmt in FORMATS, fmt
     spec = resolve(fmt)
@@ -255,18 +256,43 @@ def compose(cells: dict, palette, title: str, dst: str, fmt: str = "全卡", bg:
                focal=cells_focal().get(k, (0.5, 0.5)), label_font=label_font,
                mode=modes[k], paper=paper)
 
-    # 配色带:角标+五枚圆卡(取自主体实际设色)
+    # 底部通栏信息带(v6,Skill-5.4 §十:档案字段=专业设定集标配,程序绘零缺笔):
+    # 档案行左(收字号 36→32→28 适宽,仍溢逐字截断带…)+"配色方案"五圆右
     px0, py0, px1, py1 = geo["_palette"]
-    bb = d.textbbox((0, 0), "配色", font=label_font)
-    d.text((px0 + 8 - bb[0], py0 + (py1 - py0 - (bb[3] - bb[1])) // 2 - bb[1]),
-           "配色", font=label_font, fill=INK_TEXT)
-    r = min((py1 - py0) // 2 - 14, max(10, (px1 - px0 - 260) // 12))
-    cx = px0 + 200
+    bw, bh = px1 - px0, py1 - py0
     cy = (py0 + py1) // 2
+    r = min(bh // 2 - 14, 56)
+    gap = max(28, r // 2)
+    lb = d.textbbox((0, 0), "配色方案", font=label_font)
+    lab_w = lb[2] - lb[0]
+    pal_w = lab_w + 28 + 5 * 2 * r + 4 * gap
+    arc_max = bw - pal_w - 48
+    if archive:
+        afont = label_font
+        bb = d.textbbox((0, 0), archive, font=afont)
+        if bb[2] - bb[0] > arc_max:
+            for size in (32, 28):
+                afont = _font(size)
+                bb = d.textbbox((0, 0), archive, font=afont)
+                if bb[2] - bb[0] <= arc_max:
+                    break
+        text = archive
+        while bb[2] - bb[0] > arc_max and len(text) > 1:
+            text = text[:-1]
+            bb = d.textbbox((0, 0), text + "…", font=afont)
+        if text != archive:
+            text += "…"
+            bb = d.textbbox((0, 0), text, font=afont)
+        d.text((px0 + 8 - bb[0], cy - (bb[3] - bb[1]) // 2 - bb[1]),
+               text, font=afont, fill=INK_TEXT)
+    lx = px1 - pal_w - 20               # 右收 20px:末圆离框线(简版贴边勘)
+    d.text((lx - lb[0], cy - (lb[3] - lb[1]) // 2 - lb[1]),
+           "配色方案", font=label_font, fill=INK_TEXT)
+    cx = lx + lab_w + 28 + r
     for rgb in palette:
         d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=rgb,
                   outline=INK_LINE, width=3)
-        cx += 2 * r + max(30, (px1 - px0 - 260 - 5 * 2 * r) // 4)
+        cx += 2 * r + gap
 
     # 角名=最后一步贴(1112 用户令「先画条条框框,最后名字贴到图上」):
     # 透明底浮于右上格面上,零衬底零遮挡。
@@ -288,7 +314,8 @@ def _selftest(dst="/tmp/sheetB_frame_selftest.png"):
     for i, k in enumerate(CELL_KEYS):
         hue = (i * 37) % 255
         cells[k] = Image.new("RGB", (900, 600), (hue, (hue * 2) % 255, (hue * 3) % 255))
-    compose(cells, [(200, 60, 60)] * 5, "自检·沈孤鸿", dst)
+    compose(cells, [(200, 60, 60)] * 5, "自检·沈孤鸿", dst,
+            archive="姓名:沈孤鸿 · 性别:男 · 年龄:二十二岁 · 身份:剑修 · 武器:长剑")
     im = Image.open(dst)
     assert im.size == (W, H) and im.mode == "RGB", (im.size, im.mode)
 
@@ -299,7 +326,7 @@ class MySheetCardComposer:
     9 图入卡:master(正视图源)/side/back/face/head/wrist/waist/weapon/effect
     →固定底框(程序绘框线+15 项角标+配色五圆+右上角名)→ 3840×2160 IMAGE。
     固定框/固定方式=本模块;分格指令真源=qi21_bases.json#sheet_card;
-    版式格式注册表真源=qi21_bases.json#sheet_card_qwen.formats(v5)。
+    版式格式注册表真源=qi21_bases.json#sheet_card_qwen.formats(v6)。
     """
 
     @classmethod
@@ -311,7 +338,10 @@ class MySheetCardComposer:
             "weapon": ("IMAGE",), "effect": ("IMAGE",),
             "角名": ("STRING", {"default": "沈孤鸿", "multiline": False}),
             "格式": (formats_list(), {"default": formats_list()[0]}),
-            "背景": ("STRING", {"default": "素白宣纸", "multiline": False}),
+            "背景": ("STRING", {"default": "纯白", "multiline": False}),
+        }, "optional": {
+            # optional(同枢纽『格式』裁定):旧法 API 直调 prompt JSON 缺字段即 validate 红
+            "档案": ("STRING", {"default": "", "multiline": False}),
         }}
 
     RETURN_TYPES = ("IMAGE",)
@@ -320,7 +350,7 @@ class MySheetCardComposer:
     CATEGORY = "道劫/设定卡"
 
     def compose_card(self, master, side, back, face, head, wrist, waist,
-                     weapon, effect, 角名, 格式="全卡", 背景="素白宣纸"):
+                     weapon, effect, 角名, 格式="全卡", 背景="纯白", 档案=""):
         import numpy as np  # 引擎内必在;懒导入保 Mac 纯文件路测试零 torch 依赖
 
         def to_pil(t):
@@ -340,7 +370,7 @@ class MySheetCardComposer:
 
         import io
         buf = io.BytesIO()
-        compose(cells, palette, 角名, buf, fmt=格式, bg=背景)
+        compose(cells, palette, 角名, buf, fmt=格式, bg=背景, archive=档案)
         buf.seek(0)
         card = Image.open(buf).convert("RGB")
 

@@ -17,6 +17,7 @@ API 载荷整图复用 1112 三遍实弹毕的两件真源(禁拆抄拼改):
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import sys
 import time
@@ -284,9 +285,9 @@ def main() -> int:
     if args.engine == "qwen":
         # Qwen 线独立真源(sheet_card_qwen:提示词按 Qwen 写法单独成套,1113 用户令)
         q = bases.get("sheet_card_qwen") or {}
-        assert q.get("format_version") == "v2" \
+        assert int(q.get("format_version", "v0").lstrip("v")) >= 2 \
             and q.get("engine") == "qwen-image-2.1", "sheet_card_qwen 真源缺位/版本漂移"
-        bgp = q["backgrounds"]["素白宣纸"]["phrase"]  # v4 占位填充(默认素白宣纸)
+        bgp = q["backgrounds"]["纯白"]["phrase"]     # v6 占位填充(1114 背景收敛纯白)
         qm, qw, qe = q["master"], q["weapon"], q["effect"]
     else:
         sc = sheet_cfg(bases)
@@ -391,8 +392,16 @@ def main() -> int:
     pal_src = m.crop((round(m.width * 0.32), 0, round(m.width * 0.68), m.height))
     palette = extract_palette(pal_src)
 
+    # 档案行(v6 底部信息带):与引擎枢纽同一条解析路(archive_line 单真源)
+    hub_spec = importlib.util.spec_from_file_location(
+        "my_sheet_prompt_hub",
+        REPO / "apps/backend/comfyui/my_nodes/nodes/my_sheet_prompt_hub.py")
+    hub = importlib.util.module_from_spec(hub_spec)
+    hub_spec.loader.exec_module(hub)
+    archive = hub.archive_line(subject_raw, name)
+
     final = OUT / f"设定卡B线_{name}_3840.png"
-    compose(cells, palette, name, str(final))
+    compose(cells, palette, name, str(final), archive=archive)
     print(f"[DONE] {final}")
     return 0
 

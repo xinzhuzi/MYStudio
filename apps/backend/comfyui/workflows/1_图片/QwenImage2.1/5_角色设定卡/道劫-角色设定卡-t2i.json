@@ -1,8 +1,6 @@
 {
-  "id": "1918a51a-1388-4883-a3da-2dc7a0b0a9a6",
-  "revision": 0,
   "last_node_id": 60,
-  "last_link_id": 113,
+  "last_link_id": 108,
   "nodes": [
     {
       "id": 1,
@@ -23,25 +21,20 @@
         {
           "name": "MODEL",
           "type": "MODEL",
-          "slot_index": 0,
           "links": [
             1,
-            18,
-            29,
-            40,
-            51,
-            62,
-            73
-          ]
+            16,
+            27,
+            38,
+            49,
+            60,
+            71
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "UNETLoader",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "UNETLoader"
       },
       "widgets_values": [
         "qwen_image_2.1_bf16.safetensors",
@@ -64,34 +57,29 @@
         130
       ],
       "flags": {},
-      "order": 1,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
           "name": "CLIP",
           "type": "CLIP",
-          "slot_index": 0,
           "links": [
-            13,
-            24,
-            35,
-            46,
-            57,
-            68,
-            79,
-            88,
-            111
-          ]
+            2,
+            11,
+            22,
+            33,
+            44,
+            55,
+            66,
+            77,
+            86
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "CLIPLoader",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "CLIPLoader"
       },
       "widgets_values": [
         "qwen3vl_8b_bf16_heretic.safetensors",
@@ -116,40 +104,35 @@
         150
       ],
       "flags": {},
-      "order": 2,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
           "name": "VAE",
           "type": "VAE",
-          "slot_index": 0,
           "links": [
-            12,
-            17,
-            23,
-            28,
-            34,
-            39,
-            45,
-            50,
-            56,
-            61,
-            67,
-            72,
-            78,
-            87,
-            96
-          ]
+            10,
+            15,
+            21,
+            26,
+            32,
+            37,
+            43,
+            48,
+            54,
+            59,
+            65,
+            70,
+            76,
+            85,
+            94
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "VAELoaderKJ",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "VAELoaderKJ"
       },
       "widgets_values": [
         "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors",
@@ -174,7 +157,7 @@
         130
       ],
       "flags": {},
-      "order": 15,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
@@ -187,29 +170,24 @@
         {
           "name": "MODEL",
           "type": "MODEL",
-          "slot_index": 0,
           "links": [
-            82,
-            91,
-            110
-          ]
+            5,
+            80,
+            89
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "LoraLoaderModelOnly",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "LoraLoaderModelOnly"
       },
       "widgets_values": [
         "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors",
-        1
+        1.0
       ],
       "widgets_values_named": {
         "lora_name": "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors",
-        "strength_model": 1
+        "strength_model": 1.0
       }
     },
     {
@@ -224,146 +202,149 @@
         620
       ],
       "flags": {},
-      "order": 3,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
           "name": "正向·master",
           "type": "STRING",
-          "slot_index": 0,
           "links": [
-            112
-          ]
+            3
+          ],
+          "slot_index": 0
         },
         {
           "name": "指令·master图生图",
           "type": "STRING",
-          "slot_index": 1,
-          "links": []
+          "links": [],
+          "slot_index": 1
         },
         {
           "name": "正向·武器",
           "type": "STRING",
-          "slot_index": 2,
           "links": [
-            80
-          ]
+            78
+          ],
+          "slot_index": 2
         },
         {
           "name": "正向·特效",
           "type": "STRING",
-          "slot_index": 3,
           "links": [
-            89
-          ]
+            87
+          ],
+          "slot_index": 3
         },
         {
           "name": "指令·侧视图",
           "type": "STRING",
-          "slot_index": 4,
           "links": [
-            14
-          ]
+            12
+          ],
+          "slot_index": 4
         },
         {
           "name": "指令·背视图",
           "type": "STRING",
-          "slot_index": 5,
           "links": [
-            25
-          ]
+            23
+          ],
+          "slot_index": 5
         },
         {
           "name": "指令·面部",
           "type": "STRING",
-          "slot_index": 6,
           "links": [
-            36
-          ]
+            34
+          ],
+          "slot_index": 6
         },
         {
           "name": "指令·头部",
           "type": "STRING",
-          "slot_index": 7,
           "links": [
-            69
-          ]
+            67
+          ],
+          "slot_index": 7
         },
         {
           "name": "指令·腕部",
           "type": "STRING",
-          "slot_index": 8,
           "links": [
-            47
-          ]
+            45
+          ],
+          "slot_index": 8
         },
         {
           "name": "指令·腰部",
           "type": "STRING",
-          "slot_index": 9,
           "links": [
-            58
-          ]
+            56
+          ],
+          "slot_index": 9
         },
         {
           "name": "负面·生成",
           "type": "STRING",
-          "slot_index": 10,
           "links": [
-            81,
-            90
-          ]
+            4,
+            79,
+            88
+          ],
+          "slot_index": 10
         },
         {
           "name": "负面·编辑",
           "type": "STRING",
-          "slot_index": 11,
           "links": [
-            15,
-            26,
-            37,
-            48,
-            59,
-            70,
-            113
-          ]
+            13,
+            24,
+            35,
+            46,
+            57,
+            68
+          ],
+          "slot_index": 11
         },
         {
           "name": "背景类型",
           "type": "STRING",
-          "slot_index": 12,
           "links": [
-            107
-          ]
+            105
+          ],
+          "slot_index": 12
         },
         {
           "name": "格式",
           "type": "STRING",
           "links": [
-            109
+            106
           ],
           "slot_index": 13
+        },
+        {
+          "name": "档案",
+          "type": "STRING",
+          "links": [
+            107
+          ],
+          "slot_index": 14
         }
       ],
       "properties": {
-        "Node name for S&R": "MySheetPromptHub",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "MySheetPromptHub"
       },
       "widgets_values": [
         "姓名:沈孤鸿|性别:男|年龄:二十二岁|身份:剑修|能力:孤鸿剑气——剑锋凝出一线青白剑气,形如鸿羽掠空,自剑尖延展约三尺|脸型:清峻,丹凤眼深褐瞳,眉斜飞入鬓|发型:黑发高束马尾,墨青发带,颊侧两缕碎发|服装:月白窄袖长袍衣缘银线暗纹,内黛青束袖劲装,墨色宽腰封缀素银方扣,黛青束口裤,玄色短靴靴口银边|配色:主色月白,辅色黛青,点睛银|衣料:主衣料细密缎面,腰封厚织锦,绑绳素麻绳|配饰:墨青发带,腰封素银方扣,剑穗青白丝线|武器:长剑,玄色木胎鲛皮鞘,鞘口衔银,剑柄缠墨色丝绦,剑穗青白丝线,收鞘态|其余:无灵兽,无伤痕旧损",
         "沈孤鸿",
-        "素白宣纸",
+        "纯白",
         "全卡"
       ],
       "widgets_values_named": {
         "主体句": "姓名:沈孤鸿|性别:男|年龄:二十二岁|身份:剑修|能力:孤鸿剑气——剑锋凝出一线青白剑气,形如鸿羽掠空,自剑尖延展约三尺|脸型:清峻,丹凤眼深褐瞳,眉斜飞入鬓|发型:黑发高束马尾,墨青发带,颊侧两缕碎发|服装:月白窄袖长袍衣缘银线暗纹,内黛青束袖劲装,墨色宽腰封缀素银方扣,黛青束口裤,玄色短靴靴口银边|配色:主色月白,辅色黛青,点睛银|衣料:主衣料细密缎面,腰封厚织锦,绑绳素麻绳|配饰:墨青发带,腰封素银方扣,剑穗青白丝线|武器:长剑,玄色木胎鲛皮鞘,鞘口衔银,剑柄缠墨色丝绦,剑穗青白丝线,收鞘态|其余:无灵兽,无伤痕旧损",
         "角名": "沈孤鸿",
-        "背景类型": "素白宣纸",
+        "背景类型": "纯白",
         "格式": "全卡"
       }
     },
@@ -379,58 +360,45 @@
         320
       ],
       "flags": {},
-      "order": 18,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 111
+          "link": 2
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 112
+          "link": 3
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "link": 113
+          "link": 4
         }
       ],
       "outputs": [
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "slot_index": 0,
           "links": [
-            8
-          ]
+            6
+          ],
+          "slot_index": 0
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "slot_index": 1,
           "links": [
-            9
-          ]
-        },
-        {
-          "name": "latent",
-          "type": "LATENT",
-          "links": []
+            7
+          ],
+          "slot_index": 1
         }
       ],
       "properties": {
-        "Node name for S&R": "TextEncodeQwenImage21",
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "prompt": true,
-            "negative_prompt": true
-          },
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
         "姓名:沈孤鸿|性别:男|年龄:二十二岁|身份:剑修|能力:孤鸿剑气——剑锋凝出一线青白剑气,形如鸿羽掠空,自剑尖延展约三尺|脸型:清峻,丹凤眼深褐瞳,眉斜飞入鬓|发型:黑发高束马尾,墨青发带,颊侧两缕碎发|服装:月白窄袖长袍衣缘银线暗纹,内黛青束袖劲装,墨色宽腰封缀素银方扣,黛青束口裤,玄色短靴靴口银边|配色:主色月白,辅色黛青,点睛银|衣料:主衣料细密缎面,腰封厚织锦,绑绳素麻绳|配饰:墨青发带,腰封素银方扣,剑穗青白丝线|武器:长剑,玄色木胎鲛皮鞘,鞘口衔银,剑柄缠墨色丝绦,剑穗青白丝线,收鞘态|其余:无灵兽,无伤痕旧损\n主体的正面全身立绘,脸与胸口正对镜头,双肩对称;标准自然站姿,双手自然垂于身侧,头顶与脚底完整入画,完整呈现发型、面部、手部、鞋履与全部佩挂;全身比例端正,肢体与衣装结构清楚;均匀一致的漫射光,轮廓清楚;环境净空,素净浅色底,整幅为人物本体与贴身佩挂。\n美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
@@ -455,35 +423,30 @@
         120
       ],
       "flags": {},
-      "order": 5,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            10
-          ]
+            8
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptyLatentImage",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "EmptyLatentImage"
       },
       "widgets_values": [
-        1024,
-        1536,
+        1280,
+        1920,
         1
       ],
       "widgets_values_named": {
-        "width": 1024,
-        "height": 1536,
+        "width": 1280,
+        "height": 1920,
         "batch_size": 1
       }
     },
@@ -499,65 +462,60 @@
         280
       ],
       "flags": {},
-      "order": 21,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 110
+          "link": 5
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 8
+          "link": 6
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 9
+          "link": 7
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 10
+          "link": 8
         }
       ],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            11
-          ]
+            9
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "KSampler",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "KSampler"
       },
       "widgets_values": [
         0,
         "fixed",
         8,
-        1,
+        1.0,
         "euler",
         "simple",
-        1
+        1.0
       ],
       "widgets_values_named": {
         "seed": 0,
         "control_after_generate": "fixed",
         "steps": 8,
-        "cfg": 1,
+        "cfg": 1.0,
         "sampler_name": "euler",
         "scheduler": "simple",
-        "denoise": 1
+        "denoise": 1.0
       }
     },
     {
@@ -572,42 +530,37 @@
         110
       ],
       "flags": {},
-      "order": 24,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 11
+          "link": 9
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 12
+          "link": 10
         }
       ],
       "outputs": [
         {
           "name": "IMAGE",
           "type": "IMAGE",
-          "slot_index": 0,
           "links": [
-            16,
-            27,
-            38,
-            49,
-            60,
-            98
-          ]
+            14,
+            25,
+            36,
+            47,
+            58,
+            96
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "VAEDecode",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "VAEDecode"
       }
     },
     {
@@ -622,64 +575,32 @@
         320
       ],
       "flags": {},
-      "order": 25,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 13
-        },
-        {
-          "name": "images.image_1",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": 16
-        },
-        {
-          "name": "images.image_2",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_3",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_4",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_5",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "vae",
-          "shape": 7,
-          "type": "VAE",
-          "link": 17
+          "link": 11
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "widget": {
-            "name": "prompt"
-          },
-          "link": 14
+          "link": 12
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "widget": {
-            "name": "negative_prompt"
-          },
+          "link": 13
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 14
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
           "link": 15
         }
       ],
@@ -687,35 +608,22 @@
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "slot_index": 0,
           "links": [
-            19
-          ]
+            17
+          ],
+          "slot_index": 0
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "slot_index": 1,
           "links": [
-            20
-          ]
-        },
-        {
-          "name": "latent",
-          "type": "LATENT",
-          "links": []
+            18
+          ],
+          "slot_index": 1
         }
       ],
       "properties": {
-        "Node name for S&R": "TextEncodeQwenImage21",
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "prompt": true,
-            "negative_prompt": true
-          },
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
         "将<image1>中的角色转为纯九十度左侧全身站姿,仅见一侧眼睛,双肩前后重合;严格保持<image1>中该角色的脸型五官、发型与发带颜色、服装颜色与形制、腰封配饰、佩剑挂载与水墨国风画法;头顶脚底完整入画,素净浅色背景。",
@@ -740,26 +648,21 @@
         120
       ],
       "flags": {},
-      "order": 6,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            21
-          ]
+            19
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptyLatentImage",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "EmptyLatentImage"
       },
       "widgets_values": [
         1024,
@@ -784,65 +687,60 @@
         280
       ],
       "flags": {},
-      "order": 30,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 18
+          "link": 16
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 19
+          "link": 17
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 20
+          "link": 18
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 21
+          "link": 19
         }
       ],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            22
-          ]
+            20
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "KSampler",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "KSampler"
       },
       "widgets_values": [
         1,
         "fixed",
         25,
-        1,
+        1.0,
         "euler",
         "simple",
-        1
+        1.0
       ],
       "widgets_values_named": {
         "seed": 1,
         "control_after_generate": "fixed",
         "steps": 25,
-        "cfg": 1,
+        "cfg": 1.0,
         "sampler_name": "euler",
         "scheduler": "simple",
-        "denoise": 1
+        "denoise": 1.0
       }
     },
     {
@@ -857,38 +755,33 @@
         110
       ],
       "flags": {},
-      "order": 35,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 22
+          "link": 20
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 23
+          "link": 21
         }
       ],
       "outputs": [
         {
           "name": "IMAGE",
           "type": "IMAGE",
-          "slot_index": 0,
           "links": [
-            97,
-            99
-          ]
+            95,
+            97
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "VAEDecode",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "VAEDecode"
       }
     },
     {
@@ -903,64 +796,32 @@
         320
       ],
       "flags": {},
-      "order": 26,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 24
-        },
-        {
-          "name": "images.image_1",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": 27
-        },
-        {
-          "name": "images.image_2",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_3",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_4",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_5",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "vae",
-          "shape": 7,
-          "type": "VAE",
-          "link": 28
+          "link": 22
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "widget": {
-            "name": "prompt"
-          },
-          "link": 25
+          "link": 23
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "widget": {
-            "name": "negative_prompt"
-          },
+          "link": 24
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 25
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
           "link": 26
         }
       ],
@@ -968,35 +829,22 @@
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "slot_index": 0,
           "links": [
-            30
-          ]
+            28
+          ],
+          "slot_index": 0
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "slot_index": 1,
           "links": [
-            31
-          ]
-        },
-        {
-          "name": "latent",
-          "type": "LATENT",
-          "links": []
+            29
+          ],
+          "slot_index": 1
         }
       ],
       "properties": {
-        "Node name for S&R": "TextEncodeQwenImage21",
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "prompt": true,
-            "negative_prompt": true
-          },
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
         "将<image1>中的角色转为背面全身站姿,后脑与背部朝向镜头,画面中无面部;严格保持<image1>中该角色的发型与发带颜色、服装颜色与形制、腰封配饰、佩剑挂载与水墨国风画法;头顶脚底完整入画,素净浅色背景。",
@@ -1021,26 +869,21 @@
         120
       ],
       "flags": {},
-      "order": 7,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            32
-          ]
+            30
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptyLatentImage",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "EmptyLatentImage"
       },
       "widgets_values": [
         1024,
@@ -1065,65 +908,60 @@
         280
       ],
       "flags": {},
-      "order": 31,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 29
+          "link": 27
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 30
+          "link": 28
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 31
+          "link": 29
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 32
+          "link": 30
         }
       ],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            33
-          ]
+            31
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "KSampler",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "KSampler"
       },
       "widgets_values": [
         2,
         "fixed",
         25,
-        1,
+        1.0,
         "euler",
         "simple",
-        1
+        1.0
       ],
       "widgets_values_named": {
         "seed": 2,
         "control_after_generate": "fixed",
         "steps": 25,
-        "cfg": 1,
+        "cfg": 1.0,
         "sampler_name": "euler",
         "scheduler": "simple",
-        "denoise": 1
+        "denoise": 1.0
       }
     },
     {
@@ -1138,37 +976,32 @@
         110
       ],
       "flags": {},
-      "order": 36,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 33
+          "link": 31
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 34
+          "link": 32
         }
       ],
       "outputs": [
         {
           "name": "IMAGE",
           "type": "IMAGE",
-          "slot_index": 0,
           "links": [
-            100
-          ]
+            98
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "VAEDecode",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "VAEDecode"
       }
     },
     {
@@ -1183,64 +1016,32 @@
         320
       ],
       "flags": {},
-      "order": 27,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 35
-        },
-        {
-          "name": "images.image_1",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": 38
-        },
-        {
-          "name": "images.image_2",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_3",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_4",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_5",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "vae",
-          "shape": 7,
-          "type": "VAE",
-          "link": 39
+          "link": 33
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "widget": {
-            "name": "prompt"
-          },
-          "link": 36
+          "link": 34
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "widget": {
-            "name": "negative_prompt"
-          },
+          "link": 35
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 36
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
           "link": 37
         }
       ],
@@ -1248,35 +1049,22 @@
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "slot_index": 0,
           "links": [
-            41
-          ]
+            39
+          ],
+          "slot_index": 0
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "slot_index": 1,
           "links": [
-            42
-          ]
-        },
-        {
-          "name": "latent",
-          "type": "LATENT",
-          "links": []
+            40
+          ],
+          "slot_index": 1
         }
       ],
       "properties": {
-        "Node name for S&R": "TextEncodeQwenImage21",
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "prompt": true,
-            "negative_prompt": true
-          },
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
         "以<image1>中的角色为同一人,生成其正面面部近景特写,取景从完整头顶至锁骨,清楚呈现脸型、五官与发际;面部特征、发型与发色严格依<image1>,水墨国风画法,素净浅色背景。",
@@ -1301,26 +1089,21 @@
         120
       ],
       "flags": {},
-      "order": 8,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            43
-          ]
+            41
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptyLatentImage",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "EmptyLatentImage"
       },
       "widgets_values": [
         1024,
@@ -1345,65 +1128,60 @@
         280
       ],
       "flags": {},
-      "order": 32,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 40
+          "link": 38
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 41
+          "link": 39
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 42
+          "link": 40
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 43
+          "link": 41
         }
       ],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            44
-          ]
+            42
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "KSampler",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "KSampler"
       },
       "widgets_values": [
         3,
         "fixed",
         25,
-        1,
+        1.0,
         "euler",
         "simple",
-        1
+        1.0
       ],
       "widgets_values_named": {
         "seed": 3,
         "control_after_generate": "fixed",
         "steps": 25,
-        "cfg": 1,
+        "cfg": 1.0,
         "sampler_name": "euler",
         "scheduler": "simple",
-        "denoise": 1
+        "denoise": 1.0
       }
     },
     {
@@ -1418,37 +1196,32 @@
         110
       ],
       "flags": {},
-      "order": 37,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 44
+          "link": 42
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 45
+          "link": 43
         }
       ],
       "outputs": [
         {
           "name": "IMAGE",
           "type": "IMAGE",
-          "slot_index": 0,
           "links": [
-            101
-          ]
+            99
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "VAEDecode",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "VAEDecode"
       }
     },
     {
@@ -1463,64 +1236,32 @@
         320
       ],
       "flags": {},
-      "order": 28,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 46
-        },
-        {
-          "name": "images.image_1",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": 49
-        },
-        {
-          "name": "images.image_2",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_3",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_4",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_5",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "vae",
-          "shape": 7,
-          "type": "VAE",
-          "link": 50
+          "link": 44
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "widget": {
-            "name": "prompt"
-          },
-          "link": 47
+          "link": 45
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "widget": {
-            "name": "negative_prompt"
-          },
+          "link": 46
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 47
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
           "link": 48
         }
       ],
@@ -1528,35 +1269,22 @@
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "slot_index": 0,
           "links": [
-            52
-          ]
+            50
+          ],
+          "slot_index": 0
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "slot_index": 1,
           "links": [
-            53
-          ]
-        },
-        {
-          "name": "latent",
-          "type": "LATENT",
-          "links": []
+            51
+          ],
+          "slot_index": 1
         }
       ],
       "properties": {
-        "Node name for S&R": "TextEncodeQwenImage21",
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "prompt": true,
-            "negative_prompt": true
-          },
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
         "以<image1>中的角色为同一人,生成其腕部与袖口的局部特写,清楚呈现袖口结构与腕部细节;服装布料颜色与配饰严格依<image1>,水墨国风画法,素净浅色背景。",
@@ -1581,26 +1309,21 @@
         120
       ],
       "flags": {},
-      "order": 9,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            54
-          ]
+            52
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptyLatentImage",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "EmptyLatentImage"
       },
       "widgets_values": [
         1024,
@@ -1625,65 +1348,60 @@
         280
       ],
       "flags": {},
-      "order": 33,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 51
+          "link": 49
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 52
+          "link": 50
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 53
+          "link": 51
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 54
+          "link": 52
         }
       ],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            55
-          ]
+            53
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "KSampler",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "KSampler"
       },
       "widgets_values": [
         5,
         "fixed",
         25,
-        1,
+        1.0,
         "euler",
         "simple",
-        1
+        1.0
       ],
       "widgets_values_named": {
         "seed": 5,
         "control_after_generate": "fixed",
         "steps": 25,
-        "cfg": 1,
+        "cfg": 1.0,
         "sampler_name": "euler",
         "scheduler": "simple",
-        "denoise": 1
+        "denoise": 1.0
       }
     },
     {
@@ -1698,37 +1416,32 @@
         110
       ],
       "flags": {},
-      "order": 38,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 55
+          "link": 53
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 56
+          "link": 54
         }
       ],
       "outputs": [
         {
           "name": "IMAGE",
           "type": "IMAGE",
-          "slot_index": 0,
           "links": [
-            103
-          ]
+            101
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "VAEDecode",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "VAEDecode"
       }
     },
     {
@@ -1743,64 +1456,32 @@
         320
       ],
       "flags": {},
-      "order": 29,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 57
-        },
-        {
-          "name": "images.image_1",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": 60
-        },
-        {
-          "name": "images.image_2",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_3",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_4",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_5",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "vae",
-          "shape": 7,
-          "type": "VAE",
-          "link": 61
+          "link": 55
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "widget": {
-            "name": "prompt"
-          },
-          "link": 58
+          "link": 56
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "widget": {
-            "name": "negative_prompt"
-          },
+          "link": 57
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 58
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
           "link": 59
         }
       ],
@@ -1808,35 +1489,22 @@
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "slot_index": 0,
           "links": [
-            63
-          ]
+            61
+          ],
+          "slot_index": 0
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "slot_index": 1,
           "links": [
-            64
-          ]
-        },
-        {
-          "name": "latent",
-          "type": "LATENT",
-          "links": []
+            62
+          ],
+          "slot_index": 1
         }
       ],
       "properties": {
-        "Node name for S&R": "TextEncodeQwenImage21",
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "prompt": true,
-            "negative_prompt": true
-          },
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
         "以<image1>中的角色为同一人,生成其腰封与衣带的局部特写,清楚呈现腰封材质、方扣佩挂与连接结构;服装与配饰严格依<image1>,水墨国风画法,素净浅色背景。",
@@ -1861,26 +1529,21 @@
         120
       ],
       "flags": {},
-      "order": 10,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            65
-          ]
+            63
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptyLatentImage",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "EmptyLatentImage"
       },
       "widgets_values": [
         1024,
@@ -1905,65 +1568,60 @@
         280
       ],
       "flags": {},
-      "order": 34,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 62
+          "link": 60
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 63
+          "link": 61
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 64
+          "link": 62
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 65
+          "link": 63
         }
       ],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            66
-          ]
+            64
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "KSampler",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "KSampler"
       },
       "widgets_values": [
         6,
         "fixed",
         25,
-        1,
+        1.0,
         "euler",
         "simple",
-        1
+        1.0
       ],
       "widgets_values_named": {
         "seed": 6,
         "control_after_generate": "fixed",
         "steps": 25,
-        "cfg": 1,
+        "cfg": 1.0,
         "sampler_name": "euler",
         "scheduler": "simple",
-        "denoise": 1
+        "denoise": 1.0
       }
     },
     {
@@ -1978,37 +1636,32 @@
         110
       ],
       "flags": {},
-      "order": 39,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 66
+          "link": 64
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 67
+          "link": 65
         }
       ],
       "outputs": [
         {
           "name": "IMAGE",
           "type": "IMAGE",
-          "slot_index": 0,
           "links": [
-            104
-          ]
+            102
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "VAEDecode",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "VAEDecode"
       }
     },
     {
@@ -2023,64 +1676,32 @@
         320
       ],
       "flags": {},
-      "order": 40,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 68
-        },
-        {
-          "name": "images.image_1",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": 97
-        },
-        {
-          "name": "images.image_2",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_3",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_4",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "images.image_5",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "vae",
-          "shape": 7,
-          "type": "VAE",
-          "link": 72
+          "link": 66
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "widget": {
-            "name": "prompt"
-          },
-          "link": 69
+          "link": 67
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "widget": {
-            "name": "negative_prompt"
-          },
+          "link": 68
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 95
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
           "link": 70
         }
       ],
@@ -2088,35 +1709,22 @@
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "slot_index": 0,
           "links": [
-            74
-          ]
+            72
+          ],
+          "slot_index": 0
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "slot_index": 1,
           "links": [
-            75
-          ]
-        },
-        {
-          "name": "latent",
-          "type": "LATENT",
-          "links": []
+            73
+          ],
+          "slot_index": 1
         }
       ],
       "properties": {
-        "Node name for S&R": "TextEncodeQwenImage21",
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "prompt": true,
-            "negative_prompt": true
-          },
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
         "以<image1>中的角色为同一人,生成其侧面头部近景特写,完整呈现头部轮廓、发型结构与耳侧关系;发型、发色与五官严格依<image1>,水墨国风画法,素净浅色背景。",
@@ -2141,26 +1749,21 @@
         120
       ],
       "flags": {},
-      "order": 11,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            76
-          ]
+            74
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptyLatentImage",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "EmptyLatentImage"
       },
       "widgets_values": [
         1024,
@@ -2185,65 +1788,60 @@
         280
       ],
       "flags": {},
-      "order": 41,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 73
+          "link": 71
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 74
+          "link": 72
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 75
+          "link": 73
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 76
+          "link": 74
         }
       ],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            77
-          ]
+            75
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "KSampler",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "KSampler"
       },
       "widgets_values": [
         4,
         "fixed",
         25,
-        1,
+        1.0,
         "euler",
         "simple",
-        1
+        1.0
       ],
       "widgets_values_named": {
         "seed": 4,
         "control_after_generate": "fixed",
         "steps": 25,
-        "cfg": 1,
+        "cfg": 1.0,
         "sampler_name": "euler",
         "scheduler": "simple",
-        "denoise": 1
+        "denoise": 1.0
       }
     },
     {
@@ -2258,37 +1856,32 @@
         110
       ],
       "flags": {},
-      "order": 42,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 77
+          "link": 75
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 78
+          "link": 76
         }
       ],
       "outputs": [
         {
           "name": "IMAGE",
           "type": "IMAGE",
-          "slot_index": 0,
           "links": [
-            102
-          ]
+            100
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "VAEDecode",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "VAEDecode"
       }
     },
     {
@@ -2303,76 +1896,45 @@
         320
       ],
       "flags": {},
-      "order": 16,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 79
-        },
-        {
-          "name": "images.image_1",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "vae",
-          "shape": 7,
-          "type": "VAE",
-          "link": null
+          "link": 77
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "widget": {
-            "name": "prompt"
-          },
-          "link": 80
+          "link": 78
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "widget": {
-            "name": "negative_prompt"
-          },
-          "link": 81
+          "link": 79
         }
       ],
       "outputs": [
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "slot_index": 0,
           "links": [
-            83
-          ]
+            81
+          ],
+          "slot_index": 0
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "slot_index": 1,
           "links": [
-            84
-          ]
-        },
-        {
-          "name": "latent",
-          "type": "LATENT",
-          "links": []
+            82
+          ],
+          "slot_index": 1
         }
       ],
       "properties": {
-        "Node name for S&R": "TextEncodeQwenImage21",
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "prompt": true,
-            "negative_prompt": true
-          },
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
         "沈孤鸿的佩器:长剑,玄色木胎鲛皮鞘,鞘口衔银,剑柄缠墨色丝绦,剑穗青白丝线,收鞘态。整剑水平横置,自柄首至鞘尾完整入画,两端各留边;鞘身光素,剑穗为青白丝线本色,饰件皆素银;背景素净米白。\n主体的器物设定图：器物可见范围完整入画并居中，占画面大部；同一件器物，材质、纹样与器身一致。器物按二维动漫道具的线描设色方式呈现：金属、皮革与木料均为平整色面，结构与纹样以细线勾勒，亮部为窄色带。机位服从主体句指定的识别面；主体句未指定识别面时，采用器物正面正交视角完整入画，轮廓比例清晰。传统色多色相铺陈各安其位，薄透罩染轻敷。\n主体设色配比：主体明文主色为第一主色，色仅落于器物本体，中等强度色作主体层次，少量高识别色仅作点睛。\n器物设定图采用便于辨认结构的均匀漫射光；来源规定的断裂、缺损、磨损、积尘与血痕按实际状态呈现。透明底时主体以外为透明区域；关闭透明时背景采用主体句指定的简洁底色。\n美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
@@ -2397,26 +1959,21 @@
         120
       ],
       "flags": {},
-      "order": 12,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            85
-          ]
+            83
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptyLatentImage",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "EmptyLatentImage"
       },
       "widgets_values": [
         2048,
@@ -2441,65 +1998,60 @@
         280
       ],
       "flags": {},
-      "order": 19,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 82
+          "link": 80
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 83
+          "link": 81
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 84
+          "link": 82
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 85
+          "link": 83
         }
       ],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            86
-          ]
+            84
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "KSampler",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "KSampler"
       },
       "widgets_values": [
         7,
         "fixed",
         8,
-        1,
+        1.0,
         "euler",
         "simple",
-        1
+        1.0
       ],
       "widgets_values_named": {
         "seed": 7,
         "control_after_generate": "fixed",
         "steps": 8,
-        "cfg": 1,
+        "cfg": 1.0,
         "sampler_name": "euler",
         "scheduler": "simple",
-        "denoise": 1
+        "denoise": 1.0
       }
     },
     {
@@ -2514,37 +2066,32 @@
         110
       ],
       "flags": {},
-      "order": 22,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 86
+          "link": 84
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 87
+          "link": 85
         }
       ],
       "outputs": [
         {
           "name": "IMAGE",
           "type": "IMAGE",
-          "slot_index": 0,
           "links": [
-            105
-          ]
+            103
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "VAEDecode",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "VAEDecode"
       }
     },
     {
@@ -2559,76 +2106,45 @@
         320
       ],
       "flags": {},
-      "order": 17,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 88
-        },
-        {
-          "name": "images.image_1",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "vae",
-          "shape": 7,
-          "type": "VAE",
-          "link": null
+          "link": 86
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "widget": {
-            "name": "prompt"
-          },
-          "link": 89
+          "link": 87
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "widget": {
-            "name": "negative_prompt"
-          },
-          "link": 90
+          "link": 88
         }
       ],
       "outputs": [
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "slot_index": 0,
           "links": [
-            92
-          ]
+            90
+          ],
+          "slot_index": 0
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "slot_index": 1,
           "links": [
-            93
-          ]
-        },
-        {
-          "name": "latent",
-          "type": "LATENT",
-          "links": []
+            91
+          ],
+          "slot_index": 1
         }
       ],
       "properties": {
-        "Node name for S&R": "TextEncodeQwenImage21",
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "prompt": true,
-            "negative_prompt": true
-          },
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
         "能力特效设定图:孤鸿剑气——剑锋凝出一线青白剑气,形如鸿羽掠空,自剑尖延展约三尺。一柄出鞘长剑的剑身与剑锋特写,剑气光效清晰锐利,素净深色背景,画面完整居中。\n美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
@@ -2653,26 +2169,21 @@
         120
       ],
       "flags": {},
-      "order": 13,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            94
-          ]
+            92
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "EmptyLatentImage",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "EmptyLatentImage"
       },
       "widgets_values": [
         1024,
@@ -2697,65 +2208,60 @@
         280
       ],
       "flags": {},
-      "order": 20,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 91
+          "link": 89
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 92
+          "link": 90
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 93
+          "link": 91
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 94
+          "link": 92
         }
       ],
       "outputs": [
         {
           "name": "LATENT",
           "type": "LATENT",
-          "slot_index": 0,
           "links": [
-            95
-          ]
+            93
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "KSampler",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "KSampler"
       },
       "widgets_values": [
         8,
         "fixed",
         8,
-        1,
+        1.0,
         "euler",
         "simple",
-        1
+        1.0
       ],
       "widgets_values_named": {
         "seed": 8,
         "control_after_generate": "fixed",
         "steps": 8,
-        "cfg": 1,
+        "cfg": 1.0,
         "sampler_name": "euler",
         "scheduler": "simple",
-        "denoise": 1
+        "denoise": 1.0
       }
     },
     {
@@ -2770,37 +2276,32 @@
         110
       ],
       "flags": {},
-      "order": 23,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 95
+          "link": 93
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 96
+          "link": 94
         }
       ],
       "outputs": [
         {
           "name": "IMAGE",
           "type": "IMAGE",
-          "slot_index": 0,
           "links": [
-            106
-          ]
+            104
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "VAEDecode",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "VAEDecode"
       }
     },
     {
@@ -2815,97 +2316,94 @@
         620
       ],
       "flags": {},
-      "order": 43,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
           "name": "master",
           "type": "IMAGE",
-          "link": 98
+          "link": 96
         },
         {
           "name": "side",
           "type": "IMAGE",
-          "link": 99
+          "link": 97
         },
         {
           "name": "back",
           "type": "IMAGE",
-          "link": 100
+          "link": 98
         },
         {
           "name": "face",
           "type": "IMAGE",
-          "link": 101
+          "link": 99
         },
         {
           "name": "head",
           "type": "IMAGE",
-          "link": 102
+          "link": 100
         },
         {
           "name": "wrist",
           "type": "IMAGE",
-          "link": 103
+          "link": 101
         },
         {
           "name": "waist",
           "type": "IMAGE",
-          "link": 104
+          "link": 102
         },
         {
           "name": "weapon",
           "type": "IMAGE",
-          "link": 105
+          "link": 103
         },
         {
           "name": "effect",
           "type": "IMAGE",
-          "link": 106
+          "link": 104
         },
         {
           "name": "背景",
           "type": "STRING",
-          "widget": {
-            "name": "背景"
-          },
-          "link": 107
+          "link": 105
         },
         {
           "name": "格式",
           "type": "STRING",
-          "link": 109
+          "link": 106
+        },
+        {
+          "name": "档案",
+          "type": "STRING",
+          "link": 107
         }
       ],
       "outputs": [
         {
           "name": "设定卡",
           "type": "IMAGE",
-          "slot_index": 0,
           "links": [
             108
-          ]
+          ],
+          "slot_index": 0
         }
       ],
       "properties": {
-        "Node name for S&R": "MySheetCardComposer",
-        "ue_properties": {
-          "widget_ue_connectable": {
-            "背景": true
-          },
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "MySheetCardComposer"
       },
       "widgets_values": [
         "沈孤鸿",
         "全卡",
-        "素白宣纸"
+        "纯白",
+        ""
       ],
       "widgets_values_named": {
         "角名": "沈孤鸿",
         "格式": "全卡",
-        "背景": "素白宣纸"
+        "背景": "纯白",
+        "档案": ""
       }
     },
     {
@@ -2920,7 +2418,7 @@
         110
       ],
       "flags": {},
-      "order": 44,
+      "order": 0,
       "mode": 0,
       "inputs": [
         {
@@ -2929,20 +2427,9 @@
           "link": 108
         }
       ],
-      "outputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "links": []
-        }
-      ],
+      "outputs": [],
       "properties": {
-        "Node name for S&R": "SaveImage",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "SaveImage"
       },
       "widgets_values": [
         "道劫设定卡Q/"
@@ -2963,26 +2450,16 @@
         600
       ],
       "flags": {},
-      "order": 14,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [],
       "properties": {
-        "Node name for S&R": "MarkdownNote",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "8.0.1",
-          "input_ue_unconnectable": {}
-        }
+        "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "## 道劫·角色设定卡(QwenImage 2.1 版,1113 双件)\n\n- **双件**:-t2i=master 文生图;**-i2i=master 图生图**(LoadImage 喂已有角色图→\n  multiref「以<image1>生成正面全身立绘」)——六编辑/枢纽/合成器两件同构\n- **提示词枢纽 MySheetPromptHub**:画布唯一提示词入口(主体句+角名+**背景类型\n  唯一旋钮**),运行时热读 qi21_bases 真源装配,13 出分发到各 TE;各 TE 的提示词\n  全部由枢纽链接喂入——禁在 TE 上手改散装提示词(真源漂移即契约红)\n- **背景类型联动(不能出错的单源设计)**:枢纽「背景类型」→提示词 {背景} 占位\n  填充→同型输出直连合成器「背景」输入→画布底色同型渲染;换型只动枢纽一个旋钮\n- **模型四件**(qi21 产线现行):bf16+heretic+texture_fix(KJ,cpu/fp32)+viggle\n  turbo r256@1.0;t2i=8步;编辑=multiref base 25步(三加速否决史见真源 _doc)\n- head 吃侧视图,余编辑吃 master;MySheetCardComposer 格式=全卡/简版/竖版/无武器\n- **批量/断点续跑**:python3 apps/build/scripts/daojie_sheet_b_pipeline.py --engine qwen"
-      ],
-      "widgets_values_named": {
-        "text": "## 道劫·角色设定卡(QwenImage 2.1 版,1113 双件)\n\n- **双件**:-t2i=master 文生图;**-i2i=master 图生图**(LoadImage 喂已有角色图→\n  multiref「以<image1>生成正面全身立绘」)——六编辑/枢纽/合成器两件同构\n- **提示词枢纽 MySheetPromptHub**:画布唯一提示词入口(主体句+角名+**背景类型\n  唯一旋钮**),运行时热读 qi21_bases 真源装配,13 出分发到各 TE;各 TE 的提示词\n  全部由枢纽链接喂入——禁在 TE 上手改散装提示词(真源漂移即契约红)\n- **背景类型联动(不能出错的单源设计)**:枢纽「背景类型」→提示词 {背景} 占位\n  填充→同型输出直连合成器「背景」输入→画布底色同型渲染;换型只动枢纽一个旋钮\n- **模型四件**(qi21 产线现行):bf16+heretic+texture_fix(KJ,cpu/fp32)+viggle\n  turbo r256@1.0;t2i=8步;编辑=multiref base 25步(三加速否决史见真源 _doc)\n- head 吃侧视图,余编辑吃 master;MySheetCardComposer 格式=全卡/简版/竖版/无武器\n- **批量/断点续跑**:python3 apps/build/scripts/daojie_sheet_b_pipeline.py --engine qwen"
-      },
-      "color": "#432",
-      "bgcolor": "#653"
+        "# 道劫·角色设定卡(QwenImage 2.1 版)\n\n## 这是什么\n从一段主体句文本(或一张参考图)生成 3840×2160 4K 水墨国风角色设定卡:\n三视图(正/侧/背)+六格特写+配色五圆+武器/服饰/装备/能力四区,全部程序合成\n固定底框(零缺笔零印章)。\n\n## 输入\n- **主体句**(枢纽节点):竖线字段式「姓名:X|性别:男|服装:...|武器:...」\n- **角名**(枢纽节点):角色名,程序绘到卡片右上角\n- **背景类型**(枢纽节点):纯白单档(1114 用户令背景收敛)——同时控制提示词与画布底色\n\n## 输出\n- 4K PNG 设定卡(3840×2160, RGB 无 alpha)\n\n## 设计思路\n- **框与字归程序,画归模型**:底框/格线/16 角标/角名由 MySheetCardComposer 程序\n  绘制(结构性保证零缺笔零印章);格内画面由 QwenImage 分格生成\n- **提示词单点**:MySheetPromptHub 是画布唯一的提示词入口,运行时热读\n  qi21_bases.json 真源装配三层提示词,15 路输出链接分发到各 TextEncode\n- **背景类型联动**:枢纽旋钮→提示词占位填充→同型直连合成器→画布底色同型渲染\n- **档案行**(v6,Skill-5.4 §十 标配信息栏):枢纽从主体句解析 姓名/性别/年龄/\n  身份/武器 五短字段→直连合成器→底部通栏信息带程序绘(档案左+配色方案右)\n- **master 一源**:三视图+六特写全部从 master 正视图派生(multiref 编辑)\n\n## 双件说明\n- **-t2i**:master=文生图(三层装配:主体句+净空立绘底座+美术风格底座)\n- **-i2i**:master=图生图(LoadImage 喂已有角色图→multiref 正面全身立绘)\n\n## 注意\n- 模型=bf16 UNET+heretic TE+texture_fix VAE(KJ,cpu/fp32)+viggle turbo r256\n- t2i=Turbo 8步;编辑=multiref base 25步\n- VAE 恒 cpu/fp32(回 GPU 会崩引擎)\n- 合成器格式=全卡/简版/竖版/无武器(四选一)\n\n## 批量使用\n```bash\npython3 apps/build/scripts/daojie_sheet_b_pipeline.py --engine qwen     --subject 主体句文件.txt --name 角色名\n```"
+      ]
     }
   ],
   "links": [
@@ -2995,7 +2472,39 @@
       "MODEL"
     ],
     [
-      8,
+      2,
+      2,
+      0,
+      5,
+      0,
+      "CLIP"
+    ],
+    [
+      3,
+      60,
+      0,
+      5,
+      1,
+      "STRING"
+    ],
+    [
+      4,
+      60,
+      10,
+      5,
+      2,
+      "STRING"
+    ],
+    [
+      5,
+      4,
+      0,
+      7,
+      0,
+      "MODEL"
+    ],
+    [
+      6,
       5,
       0,
       7,
@@ -3003,7 +2512,7 @@
       "CONDITIONING"
     ],
     [
-      9,
+      7,
       5,
       1,
       7,
@@ -3011,7 +2520,7 @@
       "CONDITIONING"
     ],
     [
-      10,
+      8,
       6,
       0,
       7,
@@ -3019,7 +2528,7 @@
       "LATENT"
     ],
     [
-      11,
+      9,
       7,
       0,
       8,
@@ -3027,7 +2536,7 @@
       "LATENT"
     ],
     [
-      12,
+      10,
       3,
       0,
       8,
@@ -3035,7 +2544,47 @@
       "VAE"
     ],
     [
-      18,
+      11,
+      2,
+      0,
+      10,
+      0,
+      "CLIP"
+    ],
+    [
+      12,
+      60,
+      4,
+      10,
+      1,
+      "STRING"
+    ],
+    [
+      13,
+      60,
+      11,
+      10,
+      2,
+      "STRING"
+    ],
+    [
+      14,
+      8,
+      0,
+      10,
+      3,
+      "IMAGE"
+    ],
+    [
+      15,
+      3,
+      0,
+      10,
+      4,
+      "VAE"
+    ],
+    [
+      16,
       1,
       0,
       12,
@@ -3043,7 +2592,7 @@
       "MODEL"
     ],
     [
-      19,
+      17,
       10,
       0,
       12,
@@ -3051,7 +2600,7 @@
       "CONDITIONING"
     ],
     [
-      20,
+      18,
       10,
       1,
       12,
@@ -3059,7 +2608,7 @@
       "CONDITIONING"
     ],
     [
-      21,
+      19,
       11,
       0,
       12,
@@ -3067,7 +2616,7 @@
       "LATENT"
     ],
     [
-      22,
+      20,
       12,
       0,
       13,
@@ -3075,7 +2624,7 @@
       "LATENT"
     ],
     [
-      23,
+      21,
       3,
       0,
       13,
@@ -3083,7 +2632,47 @@
       "VAE"
     ],
     [
-      29,
+      22,
+      2,
+      0,
+      15,
+      0,
+      "CLIP"
+    ],
+    [
+      23,
+      60,
+      5,
+      15,
+      1,
+      "STRING"
+    ],
+    [
+      24,
+      60,
+      11,
+      15,
+      2,
+      "STRING"
+    ],
+    [
+      25,
+      8,
+      0,
+      15,
+      3,
+      "IMAGE"
+    ],
+    [
+      26,
+      3,
+      0,
+      15,
+      4,
+      "VAE"
+    ],
+    [
+      27,
       1,
       0,
       17,
@@ -3091,7 +2680,7 @@
       "MODEL"
     ],
     [
-      30,
+      28,
       15,
       0,
       17,
@@ -3099,7 +2688,7 @@
       "CONDITIONING"
     ],
     [
-      31,
+      29,
       15,
       1,
       17,
@@ -3107,7 +2696,7 @@
       "CONDITIONING"
     ],
     [
-      32,
+      30,
       16,
       0,
       17,
@@ -3115,7 +2704,7 @@
       "LATENT"
     ],
     [
-      33,
+      31,
       17,
       0,
       18,
@@ -3123,7 +2712,7 @@
       "LATENT"
     ],
     [
-      34,
+      32,
       3,
       0,
       18,
@@ -3131,7 +2720,47 @@
       "VAE"
     ],
     [
-      40,
+      33,
+      2,
+      0,
+      20,
+      0,
+      "CLIP"
+    ],
+    [
+      34,
+      60,
+      6,
+      20,
+      1,
+      "STRING"
+    ],
+    [
+      35,
+      60,
+      11,
+      20,
+      2,
+      "STRING"
+    ],
+    [
+      36,
+      8,
+      0,
+      20,
+      3,
+      "IMAGE"
+    ],
+    [
+      37,
+      3,
+      0,
+      20,
+      4,
+      "VAE"
+    ],
+    [
+      38,
       1,
       0,
       22,
@@ -3139,7 +2768,7 @@
       "MODEL"
     ],
     [
-      41,
+      39,
       20,
       0,
       22,
@@ -3147,7 +2776,7 @@
       "CONDITIONING"
     ],
     [
-      42,
+      40,
       20,
       1,
       22,
@@ -3155,7 +2784,7 @@
       "CONDITIONING"
     ],
     [
-      43,
+      41,
       21,
       0,
       22,
@@ -3163,7 +2792,7 @@
       "LATENT"
     ],
     [
-      44,
+      42,
       22,
       0,
       23,
@@ -3171,7 +2800,7 @@
       "LATENT"
     ],
     [
-      45,
+      43,
       3,
       0,
       23,
@@ -3179,7 +2808,47 @@
       "VAE"
     ],
     [
-      51,
+      44,
+      2,
+      0,
+      25,
+      0,
+      "CLIP"
+    ],
+    [
+      45,
+      60,
+      8,
+      25,
+      1,
+      "STRING"
+    ],
+    [
+      46,
+      60,
+      11,
+      25,
+      2,
+      "STRING"
+    ],
+    [
+      47,
+      8,
+      0,
+      25,
+      3,
+      "IMAGE"
+    ],
+    [
+      48,
+      3,
+      0,
+      25,
+      4,
+      "VAE"
+    ],
+    [
+      49,
       1,
       0,
       27,
@@ -3187,7 +2856,7 @@
       "MODEL"
     ],
     [
-      52,
+      50,
       25,
       0,
       27,
@@ -3195,7 +2864,7 @@
       "CONDITIONING"
     ],
     [
-      53,
+      51,
       25,
       1,
       27,
@@ -3203,7 +2872,7 @@
       "CONDITIONING"
     ],
     [
-      54,
+      52,
       26,
       0,
       27,
@@ -3211,7 +2880,7 @@
       "LATENT"
     ],
     [
-      55,
+      53,
       27,
       0,
       28,
@@ -3219,7 +2888,7 @@
       "LATENT"
     ],
     [
-      56,
+      54,
       3,
       0,
       28,
@@ -3227,7 +2896,47 @@
       "VAE"
     ],
     [
-      62,
+      55,
+      2,
+      0,
+      30,
+      0,
+      "CLIP"
+    ],
+    [
+      56,
+      60,
+      9,
+      30,
+      1,
+      "STRING"
+    ],
+    [
+      57,
+      60,
+      11,
+      30,
+      2,
+      "STRING"
+    ],
+    [
+      58,
+      8,
+      0,
+      30,
+      3,
+      "IMAGE"
+    ],
+    [
+      59,
+      3,
+      0,
+      30,
+      4,
+      "VAE"
+    ],
+    [
+      60,
       1,
       0,
       32,
@@ -3235,7 +2944,7 @@
       "MODEL"
     ],
     [
-      63,
+      61,
       30,
       0,
       32,
@@ -3243,7 +2952,7 @@
       "CONDITIONING"
     ],
     [
-      64,
+      62,
       30,
       1,
       32,
@@ -3251,7 +2960,7 @@
       "CONDITIONING"
     ],
     [
-      65,
+      63,
       31,
       0,
       32,
@@ -3259,7 +2968,7 @@
       "LATENT"
     ],
     [
-      66,
+      64,
       32,
       0,
       33,
@@ -3267,7 +2976,7 @@
       "LATENT"
     ],
     [
-      67,
+      65,
       3,
       0,
       33,
@@ -3275,7 +2984,39 @@
       "VAE"
     ],
     [
-      73,
+      66,
+      2,
+      0,
+      35,
+      0,
+      "CLIP"
+    ],
+    [
+      67,
+      60,
+      7,
+      35,
+      1,
+      "STRING"
+    ],
+    [
+      68,
+      60,
+      11,
+      35,
+      2,
+      "STRING"
+    ],
+    [
+      70,
+      3,
+      0,
+      35,
+      4,
+      "VAE"
+    ],
+    [
+      71,
       1,
       0,
       37,
@@ -3283,7 +3024,7 @@
       "MODEL"
     ],
     [
-      74,
+      72,
       35,
       0,
       37,
@@ -3291,7 +3032,7 @@
       "CONDITIONING"
     ],
     [
-      75,
+      73,
       35,
       1,
       37,
@@ -3299,7 +3040,7 @@
       "CONDITIONING"
     ],
     [
-      76,
+      74,
       36,
       0,
       37,
@@ -3307,7 +3048,7 @@
       "LATENT"
     ],
     [
-      77,
+      75,
       37,
       0,
       38,
@@ -3315,7 +3056,7 @@
       "LATENT"
     ],
     [
-      78,
+      76,
       3,
       0,
       38,
@@ -3323,7 +3064,7 @@
       "VAE"
     ],
     [
-      79,
+      77,
       2,
       0,
       40,
@@ -3331,7 +3072,23 @@
       "CLIP"
     ],
     [
-      82,
+      78,
+      60,
+      2,
+      40,
+      1,
+      "STRING"
+    ],
+    [
+      79,
+      60,
+      10,
+      40,
+      2,
+      "STRING"
+    ],
+    [
+      80,
       4,
       0,
       42,
@@ -3339,7 +3096,7 @@
       "MODEL"
     ],
     [
-      83,
+      81,
       40,
       0,
       42,
@@ -3347,7 +3104,7 @@
       "CONDITIONING"
     ],
     [
-      84,
+      82,
       40,
       1,
       42,
@@ -3355,7 +3112,7 @@
       "CONDITIONING"
     ],
     [
-      85,
+      83,
       41,
       0,
       42,
@@ -3363,7 +3120,7 @@
       "LATENT"
     ],
     [
-      86,
+      84,
       42,
       0,
       43,
@@ -3371,7 +3128,7 @@
       "LATENT"
     ],
     [
-      87,
+      85,
       3,
       0,
       43,
@@ -3379,7 +3136,7 @@
       "VAE"
     ],
     [
-      88,
+      86,
       2,
       0,
       45,
@@ -3387,7 +3144,23 @@
       "CLIP"
     ],
     [
-      91,
+      87,
+      60,
+      3,
+      45,
+      1,
+      "STRING"
+    ],
+    [
+      88,
+      60,
+      10,
+      45,
+      2,
+      "STRING"
+    ],
+    [
+      89,
       4,
       0,
       47,
@@ -3395,7 +3168,7 @@
       "MODEL"
     ],
     [
-      92,
+      90,
       45,
       0,
       47,
@@ -3403,7 +3176,7 @@
       "CONDITIONING"
     ],
     [
-      93,
+      91,
       45,
       1,
       47,
@@ -3411,7 +3184,7 @@
       "CONDITIONING"
     ],
     [
-      94,
+      92,
       46,
       0,
       47,
@@ -3419,7 +3192,7 @@
       "LATENT"
     ],
     [
-      95,
+      93,
       47,
       0,
       48,
@@ -3427,7 +3200,7 @@
       "LATENT"
     ],
     [
-      96,
+      94,
       3,
       0,
       48,
@@ -3435,7 +3208,15 @@
       "VAE"
     ],
     [
-      98,
+      95,
+      13,
+      0,
+      35,
+      3,
+      "IMAGE"
+    ],
+    [
+      96,
       8,
       0,
       50,
@@ -3443,7 +3224,7 @@
       "IMAGE"
     ],
     [
-      99,
+      97,
       13,
       0,
       50,
@@ -3451,7 +3232,7 @@
       "IMAGE"
     ],
     [
-      100,
+      98,
       18,
       0,
       50,
@@ -3459,7 +3240,7 @@
       "IMAGE"
     ],
     [
-      101,
+      99,
       23,
       0,
       50,
@@ -3467,7 +3248,7 @@
       "IMAGE"
     ],
     [
-      102,
+      100,
       38,
       0,
       50,
@@ -3475,7 +3256,7 @@
       "IMAGE"
     ],
     [
-      103,
+      101,
       28,
       0,
       50,
@@ -3483,7 +3264,7 @@
       "IMAGE"
     ],
     [
-      104,
+      102,
       33,
       0,
       50,
@@ -3491,7 +3272,7 @@
       "IMAGE"
     ],
     [
-      105,
+      103,
       43,
       0,
       50,
@@ -3499,12 +3280,36 @@
       "IMAGE"
     ],
     [
-      106,
+      104,
       48,
       0,
       50,
       8,
       "IMAGE"
+    ],
+    [
+      105,
+      60,
+      12,
+      50,
+      9,
+      "STRING"
+    ],
+    [
+      106,
+      60,
+      13,
+      50,
+      10,
+      "STRING"
+    ],
+    [
+      107,
+      60,
+      14,
+      50,
+      11,
+      "STRING"
     ],
     [
       108,
@@ -3513,326 +3318,6 @@
       51,
       0,
       "IMAGE"
-    ],
-    [
-      13,
-      2,
-      0,
-      10,
-      0,
-      "CLIP"
-    ],
-    [
-      16,
-      8,
-      0,
-      10,
-      1,
-      "IMAGE"
-    ],
-    [
-      17,
-      3,
-      0,
-      10,
-      6,
-      "VAE"
-    ],
-    [
-      14,
-      60,
-      4,
-      10,
-      7,
-      "STRING"
-    ],
-    [
-      15,
-      60,
-      11,
-      10,
-      8,
-      "STRING"
-    ],
-    [
-      24,
-      2,
-      0,
-      15,
-      0,
-      "CLIP"
-    ],
-    [
-      27,
-      8,
-      0,
-      15,
-      1,
-      "IMAGE"
-    ],
-    [
-      28,
-      3,
-      0,
-      15,
-      6,
-      "VAE"
-    ],
-    [
-      25,
-      60,
-      5,
-      15,
-      7,
-      "STRING"
-    ],
-    [
-      26,
-      60,
-      11,
-      15,
-      8,
-      "STRING"
-    ],
-    [
-      35,
-      2,
-      0,
-      20,
-      0,
-      "CLIP"
-    ],
-    [
-      38,
-      8,
-      0,
-      20,
-      1,
-      "IMAGE"
-    ],
-    [
-      39,
-      3,
-      0,
-      20,
-      6,
-      "VAE"
-    ],
-    [
-      36,
-      60,
-      6,
-      20,
-      7,
-      "STRING"
-    ],
-    [
-      37,
-      60,
-      11,
-      20,
-      8,
-      "STRING"
-    ],
-    [
-      46,
-      2,
-      0,
-      25,
-      0,
-      "CLIP"
-    ],
-    [
-      49,
-      8,
-      0,
-      25,
-      1,
-      "IMAGE"
-    ],
-    [
-      50,
-      3,
-      0,
-      25,
-      6,
-      "VAE"
-    ],
-    [
-      47,
-      60,
-      8,
-      25,
-      7,
-      "STRING"
-    ],
-    [
-      48,
-      60,
-      11,
-      25,
-      8,
-      "STRING"
-    ],
-    [
-      57,
-      2,
-      0,
-      30,
-      0,
-      "CLIP"
-    ],
-    [
-      60,
-      8,
-      0,
-      30,
-      1,
-      "IMAGE"
-    ],
-    [
-      61,
-      3,
-      0,
-      30,
-      6,
-      "VAE"
-    ],
-    [
-      58,
-      60,
-      9,
-      30,
-      7,
-      "STRING"
-    ],
-    [
-      59,
-      60,
-      11,
-      30,
-      8,
-      "STRING"
-    ],
-    [
-      68,
-      2,
-      0,
-      35,
-      0,
-      "CLIP"
-    ],
-    [
-      97,
-      13,
-      0,
-      35,
-      1,
-      "IMAGE"
-    ],
-    [
-      72,
-      3,
-      0,
-      35,
-      6,
-      "VAE"
-    ],
-    [
-      69,
-      60,
-      7,
-      35,
-      7,
-      "STRING"
-    ],
-    [
-      70,
-      60,
-      11,
-      35,
-      8,
-      "STRING"
-    ],
-    [
-      80,
-      60,
-      2,
-      40,
-      3,
-      "STRING"
-    ],
-    [
-      81,
-      60,
-      10,
-      40,
-      4,
-      "STRING"
-    ],
-    [
-      89,
-      60,
-      3,
-      45,
-      3,
-      "STRING"
-    ],
-    [
-      90,
-      60,
-      10,
-      45,
-      4,
-      "STRING"
-    ],
-    [
-      107,
-      60,
-      12,
-      50,
-      9,
-      "STRING"
-    ],
-    [
-      109,
-      60,
-      13,
-      50,
-      10,
-      "STRING"
-    ],
-    [
-      110,
-      4,
-      0,
-      7,
-      0,
-      "MODEL"
-    ],
-    [
-      111,
-      2,
-      0,
-      5,
-      0,
-      "CLIP"
-    ],
-    [
-      112,
-      60,
-      0,
-      5,
-      1,
-      "STRING"
-    ],
-    [
-      113,
-      60,
-      11,
-      5,
-      2,
-      "STRING"
     ]
   ],
   "groups": [
@@ -3910,31 +3395,7 @@
     }
   ],
   "config": {},
-  "extra": {
-    "ue_links": [],
-    "ds": {
-      "scale": 0.10610175927220701,
-      "offset": [
-        9569.889036029976,
-        2735.1280370450463
-      ]
-    },
-    "frontendVersion": "1.58.5",
-    "VHS_latentpreview": false,
-    "VHS_latentpreviewrate": 0,
-    "VHS_MetadataImage": true,
-    "VHS_KeepIntermediate": true
-  },
+  "extra": {},
   "version": 0.4,
-  "seed_widgets": {
-    "7": 0,
-    "12": 0,
-    "17": 0,
-    "22": 0,
-    "27": 0,
-    "32": 0,
-    "37": 0,
-    "42": 0,
-    "47": 0
-  }
+  "revision": 0
 }

@@ -39,7 +39,7 @@ NOTE = """# 道劫·角色设定卡(QwenImage 2.1 版)
 ## 输入
 - **主体句**(枢纽节点):竖线字段式「姓名:X|性别:男|服装:...|武器:...」
 - **角名**(枢纽节点):角色名,程序绘到卡片右上角
-- **背景类型**(枢纽节点):素白宣纸/绢本仿古/淡青玉版——同时控制提示词与画布底色
+- **背景类型**(枢纽节点):纯白单档(1114 用户令背景收敛)——同时控制提示词与画布底色
 
 ## 输出
 - 4K PNG 设定卡(3840×2160, RGB 无 alpha)
@@ -48,8 +48,10 @@ NOTE = """# 道劫·角色设定卡(QwenImage 2.1 版)
 - **框与字归程序,画归模型**:底框/格线/16 角标/角名由 MySheetCardComposer 程序
   绘制(结构性保证零缺笔零印章);格内画面由 QwenImage 分格生成
 - **提示词单点**:MySheetPromptHub 是画布唯一的提示词入口,运行时热读
-  qi21_bases.json 真源装配三层提示词,13 路输出链接分发到各 TextEncode
+  qi21_bases.json 真源装配三层提示词,15 路输出链接分发到各 TextEncode
 - **背景类型联动**:枢纽旋钮→提示词占位填充→同型直连合成器→画布底色同型渲染
+- **档案行**(v6,Skill-5.4 §十 标配信息栏):枢纽从主体句解析 姓名/性别/年龄/
+  身份/武器 五短字段→直连合成器→底部通栏信息带程序绘(档案左+配色方案右)
 - **master 一源**:三视图+六特写全部从 master 正视图派生(multiref 编辑)
 
 ## 双件说明
@@ -72,10 +74,10 @@ python3 apps/build/scripts/daojie_sheet_b_pipeline.py --engine qwen \
 def _prompts():
     bases = json.loads(BASES.read_text(encoding="utf-8"))
     q = bases["sheet_card_qwen"]
-    assert q["format_version"] == "v5" and q["engine"] == "qwen-image-2.1"
+    assert q["format_version"] == "v6" and q["engine"] == "qwen-image-2.1"
     style = bases["art_style_base"]["positive_text"]
     style_neg = bases["art_style_base"].get("negative_text", "")
-    bgp = q["backgrounds"]["素白宣纸"]["phrase"]  # 画布件烧默认型(旋钮在枢纽)
+    bgp = q["backgrounds"]["纯白"]["phrase"]  # 画布件烧默认型(旋钮在枢纽)
     fill = lambda s: s.replace("{背景}", bgp)  # noqa: E731
     weapon_field = next(p.split(":", 1)[1] for p in SUBJECT_DEFAULT.split("|")
                         if p.startswith("武器:"))
@@ -102,7 +104,7 @@ def _prompts():
 
 HUB = {"master": 0, "master_i2i": 1, "weapon": 2, "effect": 3,
        "side": 4, "back": 5, "face": 6, "head": 7, "wrist": 8, "waist": 9,
-       "neg_gen": 10, "neg_edit": 11, "bg": 12}
+       "neg_gen": 10, "neg_edit": 11, "bg": 12, "fmt": 13, "arch": 14}
 
 
 def build_doc(variant: str = "t2i"):
@@ -163,10 +165,12 @@ def build_doc(variant: str = "t2i"):
                 ("指令·面部", "STRING", []), ("指令·头部", "STRING", []),
                 ("指令·腕部", "STRING", []), ("指令·腰部", "STRING", []),
                 ("负面·生成", "STRING", []), ("负面·编辑", "STRING", []),
-                ("背景类型", "STRING", [])]
+                ("背景类型", "STRING", []), ("格式", "STRING", []),
+                ("档案", "STRING", [])]
     g.node(60, "MySheetPromptHub", [0, 100], [420, 620],
-           [SUBJECT_DEFAULT, NAME_DEFAULT, "素白宣纸"],
-           {"主体句": SUBJECT_DEFAULT, "角名": NAME_DEFAULT, "背景类型": "素白宣纸"},
+           [SUBJECT_DEFAULT, NAME_DEFAULT, "纯白", "全卡"],
+           {"主体句": SUBJECT_DEFAULT, "角名": NAME_DEFAULT,
+            "背景类型": "纯白", "格式": "全卡"},
            outputs=hub_outs)
 
     def te_node(nid, y, prompt, neg, hub_key, is_edit):
@@ -287,16 +291,20 @@ def build_doc(variant: str = "t2i"):
                    ("master", "side", "back", "face", "head",
                     "wrist", "waist", "weapon", "effect")]
     comp_inputs.append(("背景", "STRING", None))  # 枢纽同源(永不脱钩)
+    comp_inputs.append(("格式", "STRING", None))   # 1114 注册表驱动透传
+    comp_inputs.append(("档案", "STRING", None))   # v6 底部信息带字段行
     g.node(50, "MySheetCardComposer", [3060, 1260], [420, 620],
-           [NAME_DEFAULT, "全卡", "素白宣纸"],
-           {"角名": NAME_DEFAULT, "格式": "全卡", "背景": "素白宣纸"},
+           [NAME_DEFAULT, "全卡", "纯白", ""],
+           {"角名": NAME_DEFAULT, "格式": "全卡", "背景": "纯白", "档案": ""},
            inputs=comp_inputs,
            outputs=[("设定卡", "IMAGE", [])])
     for slot, s in enumerate(src_ids):
         li = g.link(s, 0, 50, slot, "IMAGE")
         node_by(s)["outputs"][0]["links"].append(li)
         g.nodes[-1]["inputs"][slot]["link"] = li
-    wire(60, HUB["bg"], 50, 9, "STRING")  # 背景类型:枢纽→合成器
+    wire(60, HUB["bg"], 50, 9, "STRING")   # 背景类型:枢纽→合成器
+    wire(60, HUB["fmt"], 50, 10, "STRING")  # 格式:枢纽→合成器(注册表透传)
+    wire(60, HUB["arch"], 50, 11, "STRING")  # 档案:枢纽→合成器(底带字段行)
     g.node(51, "SaveImage", [3560, 1440], [340, 110],
            ["道劫设定卡Q/"], {"filename_prefix": "道劫设定卡Q/"},
            inputs=[("images", "IMAGE", None)], outputs=[])
@@ -313,6 +321,24 @@ def build_doc(variant: str = "t2i"):
     g.group("④ 武器/特效 t2i(Turbo 8步)", [1220, 3020, 1720, 900], "#88A")
     g.group("⑤ 固定底框合成(格式/背景联动)", [3000, 1180, 1100, 780], "#3A3")
     return g.build()
+
+
+def carry_layout(old_doc: dict, doc: dict) -> dict:
+    """版式回灌(1114 勘误:用户手排画布=布局真源,重生只换结构不换布局)。
+
+    节点按 id 回灌 pos/size;组框按 title 回灌 bounding(结构变化新增组保留新位)。
+    """
+    old_nodes = {n["id"]: n for n in old_doc.get("nodes", [])}
+    for n in doc["nodes"]:
+        if n["id"] in old_nodes:
+            n["pos"] = old_nodes[n["id"]]["pos"]
+            if "size" in old_nodes[n["id"]]:
+                n["size"] = old_nodes[n["id"]]["size"]
+    old_groups = {g_["title"]: g_ for g_ in old_doc.get("groups", [])}
+    for g_ in doc["groups"]:
+        if g_["title"] in old_groups:
+            g_["bounding"] = old_groups[g_["title"]]["bounding"]
+    return doc
 
 
 def groups_disjoint(doc):
@@ -332,6 +358,8 @@ def main():
     args = ap.parse_args()
     for name, out in OUTS.items():
         doc = build_doc(name)
+        if out.is_file():                      # 版式回灌:布局恒取在版画布
+            doc = carry_layout(json.loads(out.read_text(encoding="utf-8")), doc)
         check(doc)
         groups_disjoint(doc)
         if args.check:
