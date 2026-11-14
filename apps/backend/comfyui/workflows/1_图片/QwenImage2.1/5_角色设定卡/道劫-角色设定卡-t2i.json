@@ -1,6 +1,6 @@
 {
   "last_node_id": 113,
-  "last_link_id": 168,
+  "last_link_id": 170,
   "nodes": [
     {
       "id": 1,
@@ -23,17 +23,7 @@
           "type": "MODEL",
           "links": [
             1,
-            16,
-            27,
-            38,
-            49,
-            60,
-            71,
-            101,
-            112,
-            123,
-            134,
-            145
+            2
           ],
           "slot_index": 0
         }
@@ -70,20 +60,20 @@
           "name": "CLIP",
           "type": "CLIP",
           "links": [
-            2,
-            11,
-            22,
-            33,
-            44,
-            55,
-            66,
-            77,
-            86,
-            96,
-            107,
-            118,
-            129,
-            140
+            4,
+            13,
+            24,
+            35,
+            46,
+            57,
+            68,
+            79,
+            88,
+            98,
+            109,
+            120,
+            131,
+            142
           ],
           "slot_index": 0
         }
@@ -122,31 +112,31 @@
           "name": "VAE",
           "type": "VAE",
           "links": [
-            10,
-            15,
-            21,
-            26,
-            32,
-            37,
-            43,
-            48,
-            54,
-            59,
-            65,
-            70,
-            76,
-            85,
-            94,
-            100,
-            106,
-            111,
-            117,
-            122,
-            128,
-            133,
-            139,
-            144,
-            150
+            12,
+            17,
+            23,
+            28,
+            34,
+            39,
+            45,
+            50,
+            56,
+            61,
+            67,
+            72,
+            78,
+            87,
+            96,
+            102,
+            108,
+            113,
+            119,
+            124,
+            130,
+            135,
+            141,
+            146,
+            152
           ],
           "slot_index": 0
         }
@@ -191,9 +181,9 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            5,
-            80,
-            89
+            7,
+            82,
+            91
           ],
           "slot_index": 0
         }
@@ -208,6 +198,106 @@
       "widgets_values_named": {
         "lora_name": "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors",
         "strength_model": 1.0
+      }
+    },
+    {
+      "id": 65,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        3060,
+        60
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            3
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "qwen2.1-detail-fix-2.0.safetensors",
+        0.4
+      ],
+      "widgets_values_named": {
+        "lora_name": "qwen2.1-detail-fix-2.0.safetensors",
+        "strength_model": 0.4
+      }
+    },
+    {
+      "id": 66,
+      "type": "LazyCache",
+      "pos": [
+        3060,
+        300
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            18,
+            29,
+            40,
+            51,
+            62,
+            73,
+            103,
+            114,
+            125,
+            136,
+            147
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LazyCache"
+      },
+      "widgets_values": [
+        0.2,
+        0.15,
+        0.95,
+        false
+      ],
+      "widgets_values_named": {
+        "reuse_threshold": 0.2,
+        "start_percent": 0.15,
+        "end_percent": 0.95,
+        "verbose": false
       }
     },
     {
@@ -230,7 +320,7 @@
           "name": "正向·master",
           "type": "STRING",
           "links": [
-            3
+            5
           ],
           "slot_index": 0
         },
@@ -244,7 +334,7 @@
           "name": "正向·武器",
           "type": "STRING",
           "links": [
-            78
+            80
           ],
           "slot_index": 2
         },
@@ -252,7 +342,7 @@
           "name": "正向·特效",
           "type": "STRING",
           "links": [
-            87
+            89
           ],
           "slot_index": 3
         },
@@ -260,7 +350,7 @@
           "name": "指令·侧视图",
           "type": "STRING",
           "links": [
-            12
+            14
           ],
           "slot_index": 4
         },
@@ -268,7 +358,7 @@
           "name": "指令·背视图",
           "type": "STRING",
           "links": [
-            23
+            25
           ],
           "slot_index": 5
         },
@@ -276,7 +366,7 @@
           "name": "指令·面部",
           "type": "STRING",
           "links": [
-            34
+            36
           ],
           "slot_index": 6
         },
@@ -284,7 +374,7 @@
           "name": "指令·头部",
           "type": "STRING",
           "links": [
-            67
+            69
           ],
           "slot_index": 7
         },
@@ -292,7 +382,7 @@
           "name": "指令·腕部",
           "type": "STRING",
           "links": [
-            45
+            47
           ],
           "slot_index": 8
         },
@@ -300,7 +390,7 @@
           "name": "指令·腰部",
           "type": "STRING",
           "links": [
-            56
+            58
           ],
           "slot_index": 9
         },
@@ -308,7 +398,7 @@
           "name": "指令·开心",
           "type": "STRING",
           "links": [
-            97
+            99
           ],
           "slot_index": 10
         },
@@ -316,7 +406,7 @@
           "name": "指令·生气",
           "type": "STRING",
           "links": [
-            108
+            110
           ],
           "slot_index": 11
         },
@@ -324,7 +414,7 @@
           "name": "指令·悲伤",
           "type": "STRING",
           "links": [
-            119
+            121
           ],
           "slot_index": 12
         },
@@ -332,7 +422,7 @@
           "name": "指令·惊讶",
           "type": "STRING",
           "links": [
-            130
+            132
           ],
           "slot_index": 13
         },
@@ -340,7 +430,7 @@
           "name": "指令·害羞",
           "type": "STRING",
           "links": [
-            141
+            143
           ],
           "slot_index": 14
         },
@@ -348,9 +438,9 @@
           "name": "负面·生成",
           "type": "STRING",
           "links": [
-            4,
-            79,
-            88
+            6,
+            81,
+            90
           ],
           "slot_index": 15
         },
@@ -358,17 +448,17 @@
           "name": "负面·编辑",
           "type": "STRING",
           "links": [
-            13,
-            24,
-            35,
-            46,
-            57,
-            68,
-            98,
-            109,
-            120,
-            131,
-            142
+            15,
+            26,
+            37,
+            48,
+            59,
+            70,
+            100,
+            111,
+            122,
+            133,
+            144
           ],
           "slot_index": 16
         },
@@ -376,7 +466,7 @@
           "name": "背景类型",
           "type": "STRING",
           "links": [
-            165
+            167
           ],
           "slot_index": 17
         },
@@ -384,7 +474,7 @@
           "name": "格式",
           "type": "STRING",
           "links": [
-            166
+            168
           ],
           "slot_index": 18
         },
@@ -392,7 +482,7 @@
           "name": "档案",
           "type": "STRING",
           "links": [
-            167
+            169
           ],
           "slot_index": 19
         }
@@ -431,17 +521,17 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 2
+          "link": 4
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 3
+          "link": 5
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "link": 4
+          "link": 6
         }
       ],
       "outputs": [
@@ -449,7 +539,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            6
+            8
           ],
           "slot_index": 0
         },
@@ -457,7 +547,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            7
+            9
           ],
           "slot_index": 1
         }
@@ -496,7 +586,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            8
+            10
           ],
           "slot_index": 0
         }
@@ -533,22 +623,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 5
+          "link": 7
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 6
+          "link": 8
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 7
+          "link": 9
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 8
+          "link": 10
         }
       ],
       "outputs": [
@@ -556,7 +646,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            9
+            11
           ],
           "slot_index": 0
         }
@@ -601,12 +691,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 9
+          "link": 11
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 10
+          "link": 12
         }
       ],
       "outputs": [
@@ -614,12 +704,12 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            14,
-            25,
-            36,
-            47,
-            58,
-            151
+            16,
+            27,
+            38,
+            49,
+            60,
+            153
           ],
           "slot_index": 0
         }
@@ -646,27 +736,27 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 11
+          "link": 13
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 12
+          "link": 14
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "link": 13
+          "link": 15
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 14
+          "link": 16
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 15
+          "link": 17
         }
       ],
       "outputs": [
@@ -674,7 +764,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            17
+            19
           ],
           "slot_index": 0
         },
@@ -682,7 +772,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            18
+            20
           ],
           "slot_index": 1
         }
@@ -721,7 +811,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            19
+            21
           ],
           "slot_index": 0
         }
@@ -758,22 +848,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 16
+          "link": 18
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 17
+          "link": 19
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 18
+          "link": 20
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 19
+          "link": 21
         }
       ],
       "outputs": [
@@ -781,7 +871,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            20
+            22
           ],
           "slot_index": 0
         }
@@ -792,8 +882,8 @@
       "widgets_values": [
         1,
         "fixed",
-        25,
-        1.0,
+        40,
+        4.0,
         "euler",
         "simple",
         1.0
@@ -801,8 +891,8 @@
       "widgets_values_named": {
         "seed": 1,
         "control_after_generate": "fixed",
-        "steps": 25,
-        "cfg": 1.0,
+        "steps": 40,
+        "cfg": 4.0,
         "sampler_name": "euler",
         "scheduler": "simple",
         "denoise": 1.0
@@ -826,12 +916,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 20
+          "link": 22
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 21
+          "link": 23
         }
       ],
       "outputs": [
@@ -839,8 +929,8 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            95,
-            152
+            97,
+            154
           ],
           "slot_index": 0
         }
@@ -867,27 +957,27 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 22
+          "link": 24
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 23
+          "link": 25
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "link": 24
+          "link": 26
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 25
+          "link": 27
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 26
+          "link": 28
         }
       ],
       "outputs": [
@@ -895,7 +985,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            28
+            30
           ],
           "slot_index": 0
         },
@@ -903,7 +993,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            29
+            31
           ],
           "slot_index": 1
         }
@@ -942,7 +1032,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            30
+            32
           ],
           "slot_index": 0
         }
@@ -979,22 +1069,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 27
+          "link": 29
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 28
+          "link": 30
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 29
+          "link": 31
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 30
+          "link": 32
         }
       ],
       "outputs": [
@@ -1002,7 +1092,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            31
+            33
           ],
           "slot_index": 0
         }
@@ -1013,8 +1103,8 @@
       "widgets_values": [
         2,
         "fixed",
-        25,
-        1.0,
+        40,
+        4.0,
         "euler",
         "simple",
         1.0
@@ -1022,8 +1112,8 @@
       "widgets_values_named": {
         "seed": 2,
         "control_after_generate": "fixed",
-        "steps": 25,
-        "cfg": 1.0,
+        "steps": 40,
+        "cfg": 4.0,
         "sampler_name": "euler",
         "scheduler": "simple",
         "denoise": 1.0
@@ -1047,12 +1137,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 31
+          "link": 33
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 32
+          "link": 34
         }
       ],
       "outputs": [
@@ -1060,7 +1150,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            153
+            155
           ],
           "slot_index": 0
         }
@@ -1087,27 +1177,27 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 33
+          "link": 35
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 34
+          "link": 36
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "link": 35
+          "link": 37
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 36
+          "link": 38
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 37
+          "link": 39
         }
       ],
       "outputs": [
@@ -1115,7 +1205,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            39
+            41
           ],
           "slot_index": 0
         },
@@ -1123,7 +1213,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            40
+            42
           ],
           "slot_index": 1
         }
@@ -1162,7 +1252,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            41
+            43
           ],
           "slot_index": 0
         }
@@ -1199,22 +1289,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 38
+          "link": 40
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 39
+          "link": 41
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 40
+          "link": 42
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 41
+          "link": 43
         }
       ],
       "outputs": [
@@ -1222,7 +1312,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            42
+            44
           ],
           "slot_index": 0
         }
@@ -1233,8 +1323,8 @@
       "widgets_values": [
         3,
         "fixed",
-        25,
-        1.0,
+        40,
+        4.0,
         "euler",
         "simple",
         1.0
@@ -1242,8 +1332,8 @@
       "widgets_values_named": {
         "seed": 3,
         "control_after_generate": "fixed",
-        "steps": 25,
-        "cfg": 1.0,
+        "steps": 40,
+        "cfg": 4.0,
         "sampler_name": "euler",
         "scheduler": "simple",
         "denoise": 1.0
@@ -1267,12 +1357,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 42
+          "link": 44
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 43
+          "link": 45
         }
       ],
       "outputs": [
@@ -1280,12 +1370,12 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            99,
-            110,
-            121,
-            132,
-            143,
-            154
+            101,
+            112,
+            123,
+            134,
+            145,
+            156
           ],
           "slot_index": 0
         }
@@ -1312,27 +1402,27 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 44
+          "link": 46
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 45
+          "link": 47
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "link": 46
+          "link": 48
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 47
+          "link": 49
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 48
+          "link": 50
         }
       ],
       "outputs": [
@@ -1340,7 +1430,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            50
+            52
           ],
           "slot_index": 0
         },
@@ -1348,7 +1438,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            51
+            53
           ],
           "slot_index": 1
         }
@@ -1387,7 +1477,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            52
+            54
           ],
           "slot_index": 0
         }
@@ -1424,22 +1514,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 49
+          "link": 51
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 50
+          "link": 52
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 51
+          "link": 53
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 52
+          "link": 54
         }
       ],
       "outputs": [
@@ -1447,7 +1537,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            53
+            55
           ],
           "slot_index": 0
         }
@@ -1458,8 +1548,8 @@
       "widgets_values": [
         5,
         "fixed",
-        25,
-        1.0,
+        40,
+        4.0,
         "euler",
         "simple",
         1.0
@@ -1467,8 +1557,8 @@
       "widgets_values_named": {
         "seed": 5,
         "control_after_generate": "fixed",
-        "steps": 25,
-        "cfg": 1.0,
+        "steps": 40,
+        "cfg": 4.0,
         "sampler_name": "euler",
         "scheduler": "simple",
         "denoise": 1.0
@@ -1492,12 +1582,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 53
+          "link": 55
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 54
+          "link": 56
         }
       ],
       "outputs": [
@@ -1505,7 +1595,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            156
+            158
           ],
           "slot_index": 0
         }
@@ -1532,27 +1622,27 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 55
+          "link": 57
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 56
+          "link": 58
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "link": 57
+          "link": 59
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 58
+          "link": 60
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 59
+          "link": 61
         }
       ],
       "outputs": [
@@ -1560,7 +1650,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            61
+            63
           ],
           "slot_index": 0
         },
@@ -1568,7 +1658,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            62
+            64
           ],
           "slot_index": 1
         }
@@ -1607,7 +1697,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            63
+            65
           ],
           "slot_index": 0
         }
@@ -1644,22 +1734,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 60
+          "link": 62
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 61
+          "link": 63
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 62
+          "link": 64
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 63
+          "link": 65
         }
       ],
       "outputs": [
@@ -1667,7 +1757,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            64
+            66
           ],
           "slot_index": 0
         }
@@ -1678,8 +1768,8 @@
       "widgets_values": [
         6,
         "fixed",
-        25,
-        1.0,
+        40,
+        4.0,
         "euler",
         "simple",
         1.0
@@ -1687,8 +1777,8 @@
       "widgets_values_named": {
         "seed": 6,
         "control_after_generate": "fixed",
-        "steps": 25,
-        "cfg": 1.0,
+        "steps": 40,
+        "cfg": 4.0,
         "sampler_name": "euler",
         "scheduler": "simple",
         "denoise": 1.0
@@ -1712,12 +1802,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 64
+          "link": 66
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 65
+          "link": 67
         }
       ],
       "outputs": [
@@ -1725,7 +1815,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            157
+            159
           ],
           "slot_index": 0
         }
@@ -1752,27 +1842,27 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 66
+          "link": 68
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 67
+          "link": 69
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "link": 68
+          "link": 70
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 95
+          "link": 97
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 70
+          "link": 72
         }
       ],
       "outputs": [
@@ -1780,7 +1870,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            72
+            74
           ],
           "slot_index": 0
         },
@@ -1788,7 +1878,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            73
+            75
           ],
           "slot_index": 1
         }
@@ -1827,7 +1917,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            74
+            76
           ],
           "slot_index": 0
         }
@@ -1864,22 +1954,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 71
+          "link": 73
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 72
+          "link": 74
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 73
+          "link": 75
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 74
+          "link": 76
         }
       ],
       "outputs": [
@@ -1887,7 +1977,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            75
+            77
           ],
           "slot_index": 0
         }
@@ -1898,8 +1988,8 @@
       "widgets_values": [
         4,
         "fixed",
-        25,
-        1.0,
+        40,
+        4.0,
         "euler",
         "simple",
         1.0
@@ -1907,8 +1997,8 @@
       "widgets_values_named": {
         "seed": 4,
         "control_after_generate": "fixed",
-        "steps": 25,
-        "cfg": 1.0,
+        "steps": 40,
+        "cfg": 4.0,
         "sampler_name": "euler",
         "scheduler": "simple",
         "denoise": 1.0
@@ -1932,12 +2022,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 75
+          "link": 77
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 76
+          "link": 78
         }
       ],
       "outputs": [
@@ -1945,7 +2035,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            155
+            157
           ],
           "slot_index": 0
         }
@@ -1972,17 +2062,17 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 77
+          "link": 79
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 78
+          "link": 80
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "link": 79
+          "link": 81
         }
       ],
       "outputs": [
@@ -1990,7 +2080,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            81
+            83
           ],
           "slot_index": 0
         },
@@ -1998,7 +2088,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            82
+            84
           ],
           "slot_index": 1
         }
@@ -2037,7 +2127,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            83
+            85
           ],
           "slot_index": 0
         }
@@ -2074,22 +2164,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 80
+          "link": 82
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 81
+          "link": 83
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 82
+          "link": 84
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 83
+          "link": 85
         }
       ],
       "outputs": [
@@ -2097,7 +2187,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            84
+            86
           ],
           "slot_index": 0
         }
@@ -2142,12 +2232,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 84
+          "link": 86
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 85
+          "link": 87
         }
       ],
       "outputs": [
@@ -2155,7 +2245,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            158
+            160
           ],
           "slot_index": 0
         }
@@ -2182,17 +2272,17 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 86
+          "link": 88
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 87
+          "link": 89
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "link": 88
+          "link": 90
         }
       ],
       "outputs": [
@@ -2200,7 +2290,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            90
+            92
           ],
           "slot_index": 0
         },
@@ -2208,7 +2298,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            91
+            93
           ],
           "slot_index": 1
         }
@@ -2247,7 +2337,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            92
+            94
           ],
           "slot_index": 0
         }
@@ -2284,22 +2374,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 89
+          "link": 91
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 90
+          "link": 92
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 91
+          "link": 93
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 92
+          "link": 94
         }
       ],
       "outputs": [
@@ -2307,7 +2397,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            93
+            95
           ],
           "slot_index": 0
         }
@@ -2352,12 +2442,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 93
+          "link": 95
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 94
+          "link": 96
         }
       ],
       "outputs": [
@@ -2365,7 +2455,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            159
+            161
           ],
           "slot_index": 0
         }
@@ -2392,27 +2482,27 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 96
+          "link": 98
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 97
+          "link": 99
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "link": 98
+          "link": 100
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 99
+          "link": 101
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 100
+          "link": 102
         }
       ],
       "outputs": [
@@ -2420,7 +2510,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            102
+            104
           ],
           "slot_index": 0
         },
@@ -2428,7 +2518,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            103
+            105
           ],
           "slot_index": 1
         }
@@ -2467,7 +2557,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            104
+            106
           ],
           "slot_index": 0
         }
@@ -2504,22 +2594,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 101
+          "link": 103
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 102
+          "link": 104
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 103
+          "link": 105
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 104
+          "link": 106
         }
       ],
       "outputs": [
@@ -2527,7 +2617,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            105
+            107
           ],
           "slot_index": 0
         }
@@ -2538,8 +2628,8 @@
       "widgets_values": [
         9,
         "fixed",
-        25,
-        1.0,
+        40,
+        4.0,
         "euler",
         "simple",
         1.0
@@ -2547,8 +2637,8 @@
       "widgets_values_named": {
         "seed": 9,
         "control_after_generate": "fixed",
-        "steps": 25,
-        "cfg": 1.0,
+        "steps": 40,
+        "cfg": 4.0,
         "sampler_name": "euler",
         "scheduler": "simple",
         "denoise": 1.0
@@ -2572,12 +2662,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 105
+          "link": 107
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 106
+          "link": 108
         }
       ],
       "outputs": [
@@ -2585,7 +2675,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            160
+            162
           ],
           "slot_index": 0
         }
@@ -2612,27 +2702,27 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 107
+          "link": 109
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 108
+          "link": 110
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "link": 109
+          "link": 111
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 110
+          "link": 112
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 111
+          "link": 113
         }
       ],
       "outputs": [
@@ -2640,7 +2730,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            113
+            115
           ],
           "slot_index": 0
         },
@@ -2648,7 +2738,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            114
+            116
           ],
           "slot_index": 1
         }
@@ -2687,7 +2777,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            115
+            117
           ],
           "slot_index": 0
         }
@@ -2724,22 +2814,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 112
+          "link": 114
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 113
+          "link": 115
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 114
+          "link": 116
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 115
+          "link": 117
         }
       ],
       "outputs": [
@@ -2747,7 +2837,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            116
+            118
           ],
           "slot_index": 0
         }
@@ -2758,8 +2848,8 @@
       "widgets_values": [
         10,
         "fixed",
-        25,
-        1.0,
+        40,
+        4.0,
         "euler",
         "simple",
         1.0
@@ -2767,8 +2857,8 @@
       "widgets_values_named": {
         "seed": 10,
         "control_after_generate": "fixed",
-        "steps": 25,
-        "cfg": 1.0,
+        "steps": 40,
+        "cfg": 4.0,
         "sampler_name": "euler",
         "scheduler": "simple",
         "denoise": 1.0
@@ -2792,12 +2882,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 116
+          "link": 118
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 117
+          "link": 119
         }
       ],
       "outputs": [
@@ -2805,7 +2895,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            161
+            163
           ],
           "slot_index": 0
         }
@@ -2832,27 +2922,27 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 118
+          "link": 120
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 119
+          "link": 121
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "link": 120
+          "link": 122
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 121
+          "link": 123
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 122
+          "link": 124
         }
       ],
       "outputs": [
@@ -2860,7 +2950,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            124
+            126
           ],
           "slot_index": 0
         },
@@ -2868,7 +2958,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            125
+            127
           ],
           "slot_index": 1
         }
@@ -2907,7 +2997,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            126
+            128
           ],
           "slot_index": 0
         }
@@ -2944,22 +3034,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 123
+          "link": 125
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 124
+          "link": 126
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 125
+          "link": 127
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 126
+          "link": 128
         }
       ],
       "outputs": [
@@ -2967,7 +3057,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            127
+            129
           ],
           "slot_index": 0
         }
@@ -2978,8 +3068,8 @@
       "widgets_values": [
         11,
         "fixed",
-        25,
-        1.0,
+        40,
+        4.0,
         "euler",
         "simple",
         1.0
@@ -2987,8 +3077,8 @@
       "widgets_values_named": {
         "seed": 11,
         "control_after_generate": "fixed",
-        "steps": 25,
-        "cfg": 1.0,
+        "steps": 40,
+        "cfg": 4.0,
         "sampler_name": "euler",
         "scheduler": "simple",
         "denoise": 1.0
@@ -3012,12 +3102,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 127
+          "link": 129
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 128
+          "link": 130
         }
       ],
       "outputs": [
@@ -3025,7 +3115,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            162
+            164
           ],
           "slot_index": 0
         }
@@ -3052,27 +3142,27 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 129
+          "link": 131
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 130
+          "link": 132
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "link": 131
+          "link": 133
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 132
+          "link": 134
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 133
+          "link": 135
         }
       ],
       "outputs": [
@@ -3080,7 +3170,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            135
+            137
           ],
           "slot_index": 0
         },
@@ -3088,7 +3178,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            136
+            138
           ],
           "slot_index": 1
         }
@@ -3127,7 +3217,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            137
+            139
           ],
           "slot_index": 0
         }
@@ -3164,22 +3254,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 134
+          "link": 136
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 135
+          "link": 137
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 136
+          "link": 138
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 137
+          "link": 139
         }
       ],
       "outputs": [
@@ -3187,7 +3277,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            138
+            140
           ],
           "slot_index": 0
         }
@@ -3198,8 +3288,8 @@
       "widgets_values": [
         12,
         "fixed",
-        25,
-        1.0,
+        40,
+        4.0,
         "euler",
         "simple",
         1.0
@@ -3207,8 +3297,8 @@
       "widgets_values_named": {
         "seed": 12,
         "control_after_generate": "fixed",
-        "steps": 25,
-        "cfg": 1.0,
+        "steps": 40,
+        "cfg": 4.0,
         "sampler_name": "euler",
         "scheduler": "simple",
         "denoise": 1.0
@@ -3232,12 +3322,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 138
+          "link": 140
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 139
+          "link": 141
         }
       ],
       "outputs": [
@@ -3245,7 +3335,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            163
+            165
           ],
           "slot_index": 0
         }
@@ -3272,27 +3362,27 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 140
+          "link": 142
         },
         {
           "name": "prompt",
           "type": "STRING",
-          "link": 141
+          "link": 143
         },
         {
           "name": "negative_prompt",
           "type": "STRING",
-          "link": 142
+          "link": 144
         },
         {
           "name": "images.image_1",
           "type": "IMAGE",
-          "link": 143
+          "link": 145
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 144
+          "link": 146
         }
       ],
       "outputs": [
@@ -3300,7 +3390,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            146
+            148
           ],
           "slot_index": 0
         },
@@ -3308,7 +3398,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            147
+            149
           ],
           "slot_index": 1
         }
@@ -3347,7 +3437,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            148
+            150
           ],
           "slot_index": 0
         }
@@ -3384,22 +3474,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 145
+          "link": 147
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 146
+          "link": 148
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 147
+          "link": 149
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 148
+          "link": 150
         }
       ],
       "outputs": [
@@ -3407,7 +3497,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            149
+            151
           ],
           "slot_index": 0
         }
@@ -3418,8 +3508,8 @@
       "widgets_values": [
         13,
         "fixed",
-        25,
-        1.0,
+        40,
+        4.0,
         "euler",
         "simple",
         1.0
@@ -3427,8 +3517,8 @@
       "widgets_values_named": {
         "seed": 13,
         "control_after_generate": "fixed",
-        "steps": 25,
-        "cfg": 1.0,
+        "steps": 40,
+        "cfg": 4.0,
         "sampler_name": "euler",
         "scheduler": "simple",
         "denoise": 1.0
@@ -3452,12 +3542,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 149
+          "link": 151
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 150
+          "link": 152
         }
       ],
       "outputs": [
@@ -3465,7 +3555,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            164
+            166
           ],
           "slot_index": 0
         }
@@ -3492,87 +3582,87 @@
         {
           "name": "master",
           "type": "IMAGE",
-          "link": 151
+          "link": 153
         },
         {
           "name": "side",
           "type": "IMAGE",
-          "link": 152
+          "link": 154
         },
         {
           "name": "back",
           "type": "IMAGE",
-          "link": 153
+          "link": 155
         },
         {
           "name": "face",
           "type": "IMAGE",
-          "link": 154
+          "link": 156
         },
         {
           "name": "head",
           "type": "IMAGE",
-          "link": 155
+          "link": 157
         },
         {
           "name": "wrist",
           "type": "IMAGE",
-          "link": 156
+          "link": 158
         },
         {
           "name": "waist",
           "type": "IMAGE",
-          "link": 157
+          "link": 159
         },
         {
           "name": "weapon",
           "type": "IMAGE",
-          "link": 158
+          "link": 160
         },
         {
           "name": "effect",
           "type": "IMAGE",
-          "link": 159
+          "link": 161
         },
         {
           "name": "exp_1",
           "type": "IMAGE",
-          "link": 160
+          "link": 162
         },
         {
           "name": "exp_2",
           "type": "IMAGE",
-          "link": 161
+          "link": 163
         },
         {
           "name": "exp_3",
           "type": "IMAGE",
-          "link": 162
+          "link": 164
         },
         {
           "name": "exp_4",
           "type": "IMAGE",
-          "link": 163
+          "link": 165
         },
         {
           "name": "exp_5",
           "type": "IMAGE",
-          "link": 164
+          "link": 166
         },
         {
           "name": "背景",
           "type": "STRING",
-          "link": 165
+          "link": 167
         },
         {
           "name": "格式",
           "type": "STRING",
-          "link": 166
+          "link": 168
         },
         {
           "name": "档案",
           "type": "STRING",
-          "link": 167
+          "link": 169
         }
       ],
       "outputs": [
@@ -3580,7 +3670,7 @@
           "name": "设定卡",
           "type": "IMAGE",
           "links": [
-            168
+            170
           ],
           "slot_index": 0
         }
@@ -3619,7 +3709,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 168
+          "link": 170
         }
       ],
       "outputs": [],
@@ -3653,7 +3743,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "# 道劫·角色设定卡(QwenImage 2.1 版)\n\n## 这是什么\n从一段主体句文本(或一张参考图)生成 3840×2160 4K 水墨国风角色设定卡:\n三视图(正/侧/背)+六格特写+配色五圆+武器/服饰/装备/能力四区,全部程序合成\n固定底框(零缺笔零印章)。\n\n## 输入\n- **主体句**(枢纽节点):竖线字段式「姓名:X|性别:男|服装:...|武器:...」\n- **角名**(枢纽节点):角色名,程序绘到卡片右上角\n- **背景类型**(枢纽节点):纯白单档(1114 用户令背景收敛)——同时控制提示词与画布底色\n\n## 输出\n- 4K PNG 设定卡(3840×2160, RGB 无 alpha)\n\n## 设计思路\n- **框与字归程序,画归模型**:底框/格线/16 角标/角名由 MySheetCardComposer 程序\n  绘制(结构性保证零缺笔零印章);格内画面由 QwenImage 分格生成\n- **提示词单点**:MySheetPromptHub 是画布唯一的提示词入口,运行时热读\n  qi21_bases.json 真源装配三层提示词,15 路输出链接分发到各 TextEncode\n- **背景类型联动**:枢纽旋钮→提示词占位填充→同型直连合成器→画布底色同型渲染\n- **档案行**(v6,Skill-5.4 §十 标配信息栏):枢纽从主体句解析 姓名/性别/年龄/\n  身份/武器/技能 六短字段→直连合成器→底部通栏信息带程序绘(档案左+配色方案右)\n- **设计说明行**(Skill-5.4 §十④):主体句「设计说明:」字段→底带第二行程序绘\n- **表情参考行**(Skill-5.4 §六):面部图 multiref 编辑×5(开心/生气/悲伤/惊讶/\n  害羞,肌群定义逐字取 §六表)→通栏表情条;缺步回退面部中性不断链\n- **master 一源**:三视图+六特写全部从 master 正视图派生(multiref 编辑)\n\n## 双件说明\n- **-t2i**:master=文生图(三层装配:主体句+净空立绘底座+美术风格底座)\n- **-i2i**:master=图生图(LoadImage 喂已有角色图→multiref 正面全身立绘)\n\n## 注意\n- 模型=bf16 UNET+heretic TE+texture_fix VAE(KJ,cpu/fp32)+viggle turbo r256\n- t2i=Turbo 8步;编辑=multiref base 25步\n- VAE 恒 cpu/fp32(回 GPU 会崩引擎)\n- 合成器格式=全卡/简版/竖版/无武器(四选一)\n\n## 批量使用\n```bash\npython3 apps/build/scripts/daojie_sheet_b_pipeline.py --engine qwen     --subject 主体句文件.txt --name 角色名\n```"
+        "# 道劫·角色设定卡(QwenImage 2.1 版)\n\n## 这是什么\n从一段主体句文本(或一张参考图)生成 3840×2160 4K 水墨国风角色设定卡:\n三视图(正/侧/背)+六格特写+配色五圆+武器/服饰/装备/能力四区,全部程序合成\n固定底框(零缺笔零印章)。\n\n## 输入\n- **主体句**(枢纽节点):竖线字段式「姓名:X|性别:男|服装:...|武器:...」\n- **角名**(枢纽节点):角色名,程序绘到卡片右上角\n- **背景类型**(枢纽节点):纯白单档(1114 用户令背景收敛)——同时控制提示词与画布底色\n\n## 输出\n- 4K PNG 设定卡(3840×2160, RGB 无 alpha)\n\n## 设计思路\n- **框与字归程序,画归模型**:底框/格线/16 角标/角名由 MySheetCardComposer 程序\n  绘制(结构性保证零缺笔零印章);格内画面由 QwenImage 分格生成\n- **提示词单点**:MySheetPromptHub 是画布唯一的提示词入口,运行时热读\n  qi21_bases.json 真源装配三层提示词,15 路输出链接分发到各 TextEncode\n- **背景类型联动**:枢纽旋钮→提示词占位填充→同型直连合成器→画布底色同型渲染\n- **档案行**(v6,Skill-5.4 §十 标配信息栏):枢纽从主体句解析 姓名/性别/年龄/\n  身份/武器/技能 六短字段→直连合成器→底部通栏信息带程序绘(档案左+配色方案右)\n- **设计说明行**(Skill-5.4 §十④):主体句「设计说明:」字段→底带第二行程序绘\n- **表情参考行**(Skill-5.4 §六):面部图 multiref 编辑×5(开心/生气/悲伤/惊讶/\n  害羞,肌群定义逐字取 §六表)→通栏表情条;缺步回退面部中性不断链\n- **master 一源**:三视图+六特写全部从 master 正视图派生(multiref 编辑)\n\n## 双件说明\n- **-t2i**:master=文生图(三层装配:主体句+净空立绘底座+美术风格底座)\n- **-i2i**:master=图生图(LoadImage 喂已有角色图→multiref 正面全身立绘)\n\n## 注意\n- 模型=bf16 UNET+heretic TE+texture_fix VAE(KJ,cpu/fp32)+viggle turbo r256\n- t2i=Turbo 8步;编辑=multiref 档3混动(40步 cfg4+Fix0.4+LazyCache,1114 AB 定谳)\n- VAE 恒 cpu/fp32(回 GPU 会崩引擎)\n- 合成器格式=全卡/简版/竖版/无武器(四选一)\n\n## 批量使用\n```bash\npython3 apps/build/scripts/daojie_sheet_b_pipeline.py --engine qwen     --subject 主体句文件.txt --name 角色名\n```"
       ]
     }
   ],
@@ -3668,6 +3758,22 @@
     ],
     [
       2,
+      1,
+      0,
+      65,
+      0,
+      "MODEL"
+    ],
+    [
+      3,
+      65,
+      0,
+      66,
+      0,
+      "MODEL"
+    ],
+    [
+      4,
       2,
       0,
       5,
@@ -3675,7 +3781,7 @@
       "CLIP"
     ],
     [
-      3,
+      5,
       60,
       0,
       5,
@@ -3683,7 +3789,7 @@
       "STRING"
     ],
     [
-      4,
+      6,
       60,
       15,
       5,
@@ -3691,7 +3797,7 @@
       "STRING"
     ],
     [
-      5,
+      7,
       4,
       0,
       7,
@@ -3699,7 +3805,7 @@
       "MODEL"
     ],
     [
-      6,
+      8,
       5,
       0,
       7,
@@ -3707,7 +3813,7 @@
       "CONDITIONING"
     ],
     [
-      7,
+      9,
       5,
       1,
       7,
@@ -3715,7 +3821,7 @@
       "CONDITIONING"
     ],
     [
-      8,
+      10,
       6,
       0,
       7,
@@ -3723,7 +3829,7 @@
       "LATENT"
     ],
     [
-      9,
+      11,
       7,
       0,
       8,
@@ -3731,7 +3837,7 @@
       "LATENT"
     ],
     [
-      10,
+      12,
       3,
       0,
       8,
@@ -3739,7 +3845,7 @@
       "VAE"
     ],
     [
-      11,
+      13,
       2,
       0,
       10,
@@ -3747,7 +3853,7 @@
       "CLIP"
     ],
     [
-      12,
+      14,
       60,
       4,
       10,
@@ -3755,7 +3861,7 @@
       "STRING"
     ],
     [
-      13,
+      15,
       60,
       16,
       10,
@@ -3763,7 +3869,7 @@
       "STRING"
     ],
     [
-      14,
+      16,
       8,
       0,
       10,
@@ -3771,7 +3877,7 @@
       "IMAGE"
     ],
     [
-      15,
+      17,
       3,
       0,
       10,
@@ -3779,31 +3885,31 @@
       "VAE"
     ],
     [
-      16,
-      1,
+      18,
+      66,
       0,
       12,
       0,
       "MODEL"
-    ],
-    [
-      17,
-      10,
-      0,
-      12,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      18,
-      10,
-      1,
-      12,
-      2,
-      "CONDITIONING"
     ],
     [
       19,
+      10,
+      0,
+      12,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      20,
+      10,
+      1,
+      12,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      21,
       11,
       0,
       12,
@@ -3811,7 +3917,7 @@
       "LATENT"
     ],
     [
-      20,
+      22,
       12,
       0,
       13,
@@ -3819,7 +3925,7 @@
       "LATENT"
     ],
     [
-      21,
+      23,
       3,
       0,
       13,
@@ -3827,7 +3933,7 @@
       "VAE"
     ],
     [
-      22,
+      24,
       2,
       0,
       15,
@@ -3835,7 +3941,7 @@
       "CLIP"
     ],
     [
-      23,
+      25,
       60,
       5,
       15,
@@ -3843,7 +3949,7 @@
       "STRING"
     ],
     [
-      24,
+      26,
       60,
       16,
       15,
@@ -3851,7 +3957,7 @@
       "STRING"
     ],
     [
-      25,
+      27,
       8,
       0,
       15,
@@ -3859,7 +3965,7 @@
       "IMAGE"
     ],
     [
-      26,
+      28,
       3,
       0,
       15,
@@ -3867,15 +3973,15 @@
       "VAE"
     ],
     [
-      27,
-      1,
+      29,
+      66,
       0,
       17,
       0,
       "MODEL"
     ],
     [
-      28,
+      30,
       15,
       0,
       17,
@@ -3883,7 +3989,7 @@
       "CONDITIONING"
     ],
     [
-      29,
+      31,
       15,
       1,
       17,
@@ -3891,7 +3997,7 @@
       "CONDITIONING"
     ],
     [
-      30,
+      32,
       16,
       0,
       17,
@@ -3899,7 +4005,7 @@
       "LATENT"
     ],
     [
-      31,
+      33,
       17,
       0,
       18,
@@ -3907,7 +4013,7 @@
       "LATENT"
     ],
     [
-      32,
+      34,
       3,
       0,
       18,
@@ -3915,7 +4021,7 @@
       "VAE"
     ],
     [
-      33,
+      35,
       2,
       0,
       20,
@@ -3923,7 +4029,7 @@
       "CLIP"
     ],
     [
-      34,
+      36,
       60,
       6,
       20,
@@ -3931,7 +4037,7 @@
       "STRING"
     ],
     [
-      35,
+      37,
       60,
       16,
       20,
@@ -3939,7 +4045,7 @@
       "STRING"
     ],
     [
-      36,
+      38,
       8,
       0,
       20,
@@ -3947,7 +4053,7 @@
       "IMAGE"
     ],
     [
-      37,
+      39,
       3,
       0,
       20,
@@ -3955,15 +4061,15 @@
       "VAE"
     ],
     [
-      38,
-      1,
+      40,
+      66,
       0,
       22,
       0,
       "MODEL"
     ],
     [
-      39,
+      41,
       20,
       0,
       22,
@@ -3971,7 +4077,7 @@
       "CONDITIONING"
     ],
     [
-      40,
+      42,
       20,
       1,
       22,
@@ -3979,7 +4085,7 @@
       "CONDITIONING"
     ],
     [
-      41,
+      43,
       21,
       0,
       22,
@@ -3987,7 +4093,7 @@
       "LATENT"
     ],
     [
-      42,
+      44,
       22,
       0,
       23,
@@ -3995,7 +4101,7 @@
       "LATENT"
     ],
     [
-      43,
+      45,
       3,
       0,
       23,
@@ -4003,7 +4109,7 @@
       "VAE"
     ],
     [
-      44,
+      46,
       2,
       0,
       25,
@@ -4011,7 +4117,7 @@
       "CLIP"
     ],
     [
-      45,
+      47,
       60,
       8,
       25,
@@ -4019,7 +4125,7 @@
       "STRING"
     ],
     [
-      46,
+      48,
       60,
       16,
       25,
@@ -4027,7 +4133,7 @@
       "STRING"
     ],
     [
-      47,
+      49,
       8,
       0,
       25,
@@ -4035,7 +4141,7 @@
       "IMAGE"
     ],
     [
-      48,
+      50,
       3,
       0,
       25,
@@ -4043,15 +4149,15 @@
       "VAE"
     ],
     [
-      49,
-      1,
+      51,
+      66,
       0,
       27,
       0,
       "MODEL"
     ],
     [
-      50,
+      52,
       25,
       0,
       27,
@@ -4059,7 +4165,7 @@
       "CONDITIONING"
     ],
     [
-      51,
+      53,
       25,
       1,
       27,
@@ -4067,7 +4173,7 @@
       "CONDITIONING"
     ],
     [
-      52,
+      54,
       26,
       0,
       27,
@@ -4075,7 +4181,7 @@
       "LATENT"
     ],
     [
-      53,
+      55,
       27,
       0,
       28,
@@ -4083,7 +4189,7 @@
       "LATENT"
     ],
     [
-      54,
+      56,
       3,
       0,
       28,
@@ -4091,7 +4197,7 @@
       "VAE"
     ],
     [
-      55,
+      57,
       2,
       0,
       30,
@@ -4099,7 +4205,7 @@
       "CLIP"
     ],
     [
-      56,
+      58,
       60,
       9,
       30,
@@ -4107,7 +4213,7 @@
       "STRING"
     ],
     [
-      57,
+      59,
       60,
       16,
       30,
@@ -4115,7 +4221,7 @@
       "STRING"
     ],
     [
-      58,
+      60,
       8,
       0,
       30,
@@ -4123,7 +4229,7 @@
       "IMAGE"
     ],
     [
-      59,
+      61,
       3,
       0,
       30,
@@ -4131,15 +4237,15 @@
       "VAE"
     ],
     [
-      60,
-      1,
+      62,
+      66,
       0,
       32,
       0,
       "MODEL"
     ],
     [
-      61,
+      63,
       30,
       0,
       32,
@@ -4147,7 +4253,7 @@
       "CONDITIONING"
     ],
     [
-      62,
+      64,
       30,
       1,
       32,
@@ -4155,7 +4261,7 @@
       "CONDITIONING"
     ],
     [
-      63,
+      65,
       31,
       0,
       32,
@@ -4163,7 +4269,7 @@
       "LATENT"
     ],
     [
-      64,
+      66,
       32,
       0,
       33,
@@ -4171,7 +4277,7 @@
       "LATENT"
     ],
     [
-      65,
+      67,
       3,
       0,
       33,
@@ -4179,7 +4285,7 @@
       "VAE"
     ],
     [
-      66,
+      68,
       2,
       0,
       35,
@@ -4187,7 +4293,7 @@
       "CLIP"
     ],
     [
-      67,
+      69,
       60,
       7,
       35,
@@ -4195,7 +4301,7 @@
       "STRING"
     ],
     [
-      68,
+      70,
       60,
       16,
       35,
@@ -4203,7 +4309,7 @@
       "STRING"
     ],
     [
-      70,
+      72,
       3,
       0,
       35,
@@ -4211,15 +4317,15 @@
       "VAE"
     ],
     [
-      71,
-      1,
+      73,
+      66,
       0,
       37,
       0,
       "MODEL"
     ],
     [
-      72,
+      74,
       35,
       0,
       37,
@@ -4227,7 +4333,7 @@
       "CONDITIONING"
     ],
     [
-      73,
+      75,
       35,
       1,
       37,
@@ -4235,7 +4341,7 @@
       "CONDITIONING"
     ],
     [
-      74,
+      76,
       36,
       0,
       37,
@@ -4243,7 +4349,7 @@
       "LATENT"
     ],
     [
-      75,
+      77,
       37,
       0,
       38,
@@ -4251,7 +4357,7 @@
       "LATENT"
     ],
     [
-      76,
+      78,
       3,
       0,
       38,
@@ -4259,7 +4365,7 @@
       "VAE"
     ],
     [
-      77,
+      79,
       2,
       0,
       40,
@@ -4267,7 +4373,7 @@
       "CLIP"
     ],
     [
-      78,
+      80,
       60,
       2,
       40,
@@ -4275,7 +4381,7 @@
       "STRING"
     ],
     [
-      79,
+      81,
       60,
       15,
       40,
@@ -4283,7 +4389,7 @@
       "STRING"
     ],
     [
-      80,
+      82,
       4,
       0,
       42,
@@ -4291,7 +4397,7 @@
       "MODEL"
     ],
     [
-      81,
+      83,
       40,
       0,
       42,
@@ -4299,7 +4405,7 @@
       "CONDITIONING"
     ],
     [
-      82,
+      84,
       40,
       1,
       42,
@@ -4307,7 +4413,7 @@
       "CONDITIONING"
     ],
     [
-      83,
+      85,
       41,
       0,
       42,
@@ -4315,7 +4421,7 @@
       "LATENT"
     ],
     [
-      84,
+      86,
       42,
       0,
       43,
@@ -4323,7 +4429,7 @@
       "LATENT"
     ],
     [
-      85,
+      87,
       3,
       0,
       43,
@@ -4331,7 +4437,7 @@
       "VAE"
     ],
     [
-      86,
+      88,
       2,
       0,
       45,
@@ -4339,7 +4445,7 @@
       "CLIP"
     ],
     [
-      87,
+      89,
       60,
       3,
       45,
@@ -4347,7 +4453,7 @@
       "STRING"
     ],
     [
-      88,
+      90,
       60,
       15,
       45,
@@ -4355,7 +4461,7 @@
       "STRING"
     ],
     [
-      89,
+      91,
       4,
       0,
       47,
@@ -4363,7 +4469,7 @@
       "MODEL"
     ],
     [
-      90,
+      92,
       45,
       0,
       47,
@@ -4371,7 +4477,7 @@
       "CONDITIONING"
     ],
     [
-      91,
+      93,
       45,
       1,
       47,
@@ -4379,7 +4485,7 @@
       "CONDITIONING"
     ],
     [
-      92,
+      94,
       46,
       0,
       47,
@@ -4387,7 +4493,7 @@
       "LATENT"
     ],
     [
-      93,
+      95,
       47,
       0,
       48,
@@ -4395,7 +4501,7 @@
       "LATENT"
     ],
     [
-      94,
+      96,
       3,
       0,
       48,
@@ -4403,7 +4509,7 @@
       "VAE"
     ],
     [
-      95,
+      97,
       13,
       0,
       35,
@@ -4411,7 +4517,7 @@
       "IMAGE"
     ],
     [
-      96,
+      98,
       2,
       0,
       70,
@@ -4419,7 +4525,7 @@
       "CLIP"
     ],
     [
-      97,
+      99,
       60,
       10,
       70,
@@ -4427,7 +4533,7 @@
       "STRING"
     ],
     [
-      98,
+      100,
       60,
       16,
       70,
@@ -4435,7 +4541,7 @@
       "STRING"
     ],
     [
-      99,
+      101,
       23,
       0,
       70,
@@ -4443,7 +4549,7 @@
       "IMAGE"
     ],
     [
-      100,
+      102,
       3,
       0,
       70,
@@ -4451,15 +4557,15 @@
       "VAE"
     ],
     [
-      101,
-      1,
+      103,
+      66,
       0,
       72,
       0,
       "MODEL"
     ],
     [
-      102,
+      104,
       70,
       0,
       72,
@@ -4467,7 +4573,7 @@
       "CONDITIONING"
     ],
     [
-      103,
+      105,
       70,
       1,
       72,
@@ -4475,7 +4581,7 @@
       "CONDITIONING"
     ],
     [
-      104,
+      106,
       71,
       0,
       72,
@@ -4483,7 +4589,7 @@
       "LATENT"
     ],
     [
-      105,
+      107,
       72,
       0,
       73,
@@ -4491,7 +4597,7 @@
       "LATENT"
     ],
     [
-      106,
+      108,
       3,
       0,
       73,
@@ -4499,7 +4605,7 @@
       "VAE"
     ],
     [
-      107,
+      109,
       2,
       0,
       80,
@@ -4507,7 +4613,7 @@
       "CLIP"
     ],
     [
-      108,
+      110,
       60,
       11,
       80,
@@ -4515,7 +4621,7 @@
       "STRING"
     ],
     [
-      109,
+      111,
       60,
       16,
       80,
@@ -4523,7 +4629,7 @@
       "STRING"
     ],
     [
-      110,
+      112,
       23,
       0,
       80,
@@ -4531,7 +4637,7 @@
       "IMAGE"
     ],
     [
-      111,
+      113,
       3,
       0,
       80,
@@ -4539,15 +4645,15 @@
       "VAE"
     ],
     [
-      112,
-      1,
+      114,
+      66,
       0,
       82,
       0,
       "MODEL"
     ],
     [
-      113,
+      115,
       80,
       0,
       82,
@@ -4555,7 +4661,7 @@
       "CONDITIONING"
     ],
     [
-      114,
+      116,
       80,
       1,
       82,
@@ -4563,7 +4669,7 @@
       "CONDITIONING"
     ],
     [
-      115,
+      117,
       81,
       0,
       82,
@@ -4571,7 +4677,7 @@
       "LATENT"
     ],
     [
-      116,
+      118,
       82,
       0,
       83,
@@ -4579,7 +4685,7 @@
       "LATENT"
     ],
     [
-      117,
+      119,
       3,
       0,
       83,
@@ -4587,7 +4693,7 @@
       "VAE"
     ],
     [
-      118,
+      120,
       2,
       0,
       90,
@@ -4595,7 +4701,7 @@
       "CLIP"
     ],
     [
-      119,
+      121,
       60,
       12,
       90,
@@ -4603,7 +4709,7 @@
       "STRING"
     ],
     [
-      120,
+      122,
       60,
       16,
       90,
@@ -4611,7 +4717,7 @@
       "STRING"
     ],
     [
-      121,
+      123,
       23,
       0,
       90,
@@ -4619,7 +4725,7 @@
       "IMAGE"
     ],
     [
-      122,
+      124,
       3,
       0,
       90,
@@ -4627,15 +4733,15 @@
       "VAE"
     ],
     [
-      123,
-      1,
+      125,
+      66,
       0,
       92,
       0,
       "MODEL"
     ],
     [
-      124,
+      126,
       90,
       0,
       92,
@@ -4643,7 +4749,7 @@
       "CONDITIONING"
     ],
     [
-      125,
+      127,
       90,
       1,
       92,
@@ -4651,7 +4757,7 @@
       "CONDITIONING"
     ],
     [
-      126,
+      128,
       91,
       0,
       92,
@@ -4659,7 +4765,7 @@
       "LATENT"
     ],
     [
-      127,
+      129,
       92,
       0,
       93,
@@ -4667,7 +4773,7 @@
       "LATENT"
     ],
     [
-      128,
+      130,
       3,
       0,
       93,
@@ -4675,7 +4781,7 @@
       "VAE"
     ],
     [
-      129,
+      131,
       2,
       0,
       100,
@@ -4683,7 +4789,7 @@
       "CLIP"
     ],
     [
-      130,
+      132,
       60,
       13,
       100,
@@ -4691,7 +4797,7 @@
       "STRING"
     ],
     [
-      131,
+      133,
       60,
       16,
       100,
@@ -4699,7 +4805,7 @@
       "STRING"
     ],
     [
-      132,
+      134,
       23,
       0,
       100,
@@ -4707,7 +4813,7 @@
       "IMAGE"
     ],
     [
-      133,
+      135,
       3,
       0,
       100,
@@ -4715,15 +4821,15 @@
       "VAE"
     ],
     [
-      134,
-      1,
+      136,
+      66,
       0,
       102,
       0,
       "MODEL"
     ],
     [
-      135,
+      137,
       100,
       0,
       102,
@@ -4731,7 +4837,7 @@
       "CONDITIONING"
     ],
     [
-      136,
+      138,
       100,
       1,
       102,
@@ -4739,7 +4845,7 @@
       "CONDITIONING"
     ],
     [
-      137,
+      139,
       101,
       0,
       102,
@@ -4747,7 +4853,7 @@
       "LATENT"
     ],
     [
-      138,
+      140,
       102,
       0,
       103,
@@ -4755,7 +4861,7 @@
       "LATENT"
     ],
     [
-      139,
+      141,
       3,
       0,
       103,
@@ -4763,7 +4869,7 @@
       "VAE"
     ],
     [
-      140,
+      142,
       2,
       0,
       110,
@@ -4771,7 +4877,7 @@
       "CLIP"
     ],
     [
-      141,
+      143,
       60,
       14,
       110,
@@ -4779,7 +4885,7 @@
       "STRING"
     ],
     [
-      142,
+      144,
       60,
       16,
       110,
@@ -4787,7 +4893,7 @@
       "STRING"
     ],
     [
-      143,
+      145,
       23,
       0,
       110,
@@ -4795,7 +4901,7 @@
       "IMAGE"
     ],
     [
-      144,
+      146,
       3,
       0,
       110,
@@ -4803,15 +4909,15 @@
       "VAE"
     ],
     [
-      145,
-      1,
+      147,
+      66,
       0,
       112,
       0,
       "MODEL"
     ],
     [
-      146,
+      148,
       110,
       0,
       112,
@@ -4819,7 +4925,7 @@
       "CONDITIONING"
     ],
     [
-      147,
+      149,
       110,
       1,
       112,
@@ -4827,7 +4933,7 @@
       "CONDITIONING"
     ],
     [
-      148,
+      150,
       111,
       0,
       112,
@@ -4835,7 +4941,7 @@
       "LATENT"
     ],
     [
-      149,
+      151,
       112,
       0,
       113,
@@ -4843,7 +4949,7 @@
       "LATENT"
     ],
     [
-      150,
+      152,
       3,
       0,
       113,
@@ -4851,31 +4957,31 @@
       "VAE"
     ],
     [
-      151,
+      153,
       8,
       0,
       50,
       0,
-      "IMAGE"
-    ],
-    [
-      152,
-      13,
-      0,
-      50,
-      1,
-      "IMAGE"
-    ],
-    [
-      153,
-      18,
-      0,
-      50,
-      2,
       "IMAGE"
     ],
     [
       154,
+      13,
+      0,
+      50,
+      1,
+      "IMAGE"
+    ],
+    [
+      155,
+      18,
+      0,
+      50,
+      2,
+      "IMAGE"
+    ],
+    [
+      156,
       23,
       0,
       50,
@@ -4883,7 +4989,7 @@
       "IMAGE"
     ],
     [
-      155,
+      157,
       38,
       0,
       50,
@@ -4891,7 +4997,7 @@
       "IMAGE"
     ],
     [
-      156,
+      158,
       28,
       0,
       50,
@@ -4899,7 +5005,7 @@
       "IMAGE"
     ],
     [
-      157,
+      159,
       33,
       0,
       50,
@@ -4907,7 +5013,7 @@
       "IMAGE"
     ],
     [
-      158,
+      160,
       43,
       0,
       50,
@@ -4915,7 +5021,7 @@
       "IMAGE"
     ],
     [
-      159,
+      161,
       48,
       0,
       50,
@@ -4923,7 +5029,7 @@
       "IMAGE"
     ],
     [
-      160,
+      162,
       73,
       0,
       50,
@@ -4931,7 +5037,7 @@
       "IMAGE"
     ],
     [
-      161,
+      163,
       83,
       0,
       50,
@@ -4939,7 +5045,7 @@
       "IMAGE"
     ],
     [
-      162,
+      164,
       93,
       0,
       50,
@@ -4947,7 +5053,7 @@
       "IMAGE"
     ],
     [
-      163,
+      165,
       103,
       0,
       50,
@@ -4955,7 +5061,7 @@
       "IMAGE"
     ],
     [
-      164,
+      166,
       113,
       0,
       50,
@@ -4963,7 +5069,7 @@
       "IMAGE"
     ],
     [
-      165,
+      167,
       60,
       17,
       50,
@@ -4971,7 +5077,7 @@
       "STRING"
     ],
     [
-      166,
+      168,
       60,
       18,
       50,
@@ -4979,7 +5085,7 @@
       "STRING"
     ],
     [
-      167,
+      169,
       60,
       19,
       50,
@@ -4987,7 +5093,7 @@
       "STRING"
     ],
     [
-      168,
+      170,
       50,
       0,
       51,
@@ -5070,6 +5176,18 @@
     },
     {
       "id": 7,
+      "title": "①b 档3混动编辑链(Fix0.4+LazyCache,1114 AB 定谳)",
+      "bounding": [
+        3000,
+        -60,
+        900,
+        560
+      ],
+      "color": "#A83",
+      "flags": {}
+    },
+    {
+      "id": 8,
       "title": "⑤ 固定底框合成(格式/背景联动)",
       "bounding": [
         4105.870508204909,

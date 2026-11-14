@@ -225,8 +225,10 @@ def derive_cells(imgs: dict) -> dict:
         "weapon_a": zoom(imgs["weapon"], 0.12, 0.5, 0.35),
         "weapon_b": zoom(imgs["weapon"], 0.88, 0.5, 0.35),
         "fabric_1": zoom(imgs["master"], 0.5, 0.42, 0.30),
-        "fabric_2": zoom(imgs["waist"], 0.5, 0.5, 0.60),
-        "fabric_3": zoom(imgs["wrist"], 0.5, 0.5, 0.60),
+        # 材质·袍料/护臂(1114 档3重掷勘误:新图构图上移,旧中心窗 cover 后脱靶
+        # 成空格/截断;按新图内容带重靶向——waist 带 y0.23-0.47/wrist 竖条 y0.11-0.74)
+        "fabric_2": zoom(imgs["waist"], 0.5, 0.35, 0.62, 0.26),
+        "fabric_3": zoom(imgs["wrist"], 0.50, 0.47, 0.42, 0.26),
         # 装备=随身佩挂器物,语义三分界(1114 用户令「衣物还是武器装备要分清楚」):
         # 衣物(袍裤靴)→材质/腰部/腕部格;武器本体→武器区;
         # 此格只放配饰栏真源件(墨青发带/素银方扣/剑穗):

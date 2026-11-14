@@ -36,7 +36,7 @@ CLASS_WHITELIST = {
     "UNETLoader", "CLIPLoader", "VAELoaderKJ", "LoraLoaderModelOnly",
     "TextEncodeQwenImage21", "EmptyLatentImage", "KSampler", "VAEDecode",
     "MySheetCardComposer", "MySheetPromptHub", "LoadImage",
-    "SaveImage", "MarkdownNote",
+    "SaveImage", "MarkdownNote", "LazyCache",
 }
 
 EDIT_IDS = {"side": 10, "back": 15, "face": 20, "wrist": 25, "waist": 30, "head": 35,
@@ -103,8 +103,15 @@ def test_sampler_doctrine_and_models():
         seed, ctrl, steps, cfg, nm, sch, dn = NODES[i + 2]["widgets_values"]
         assert (ctrl, steps, cfg, nm, sch, dn) == (
             "fixed", e["steps"], e["cfg"], e["sampler_name"], e["scheduler"], e["denoise"])
-        assert LINKS[NODES[i + 2]["inputs"][0]["link"]][1] == 1   # 编辑模型=base 直驱
+        assert LINKS[NODES[i + 2]["inputs"][0]["link"]][1] == 66  # 编辑模型=档3混动链(1114 AB 定谳)
         assert LINKS[NODES[i + 2]["inputs"][3]["link"]][1] == i + 1  # latent←EmptyLatent
+    # 档3混动共享链:UNET(1)→Fix65→LazyCache(66);参数==真源
+    assert NODES[65]["widgets_values"] == [e["fix_lora"], e.get("fix_strength", 0.4)]
+    _lc = e["lazycache"]
+    assert NODES[66]["widgets_values"] == [_lc["reuse_threshold"], _lc["start_percent"],
+                                           _lc["end_percent"], _lc["verbose"]]
+    assert LINKS[NODES[66]["inputs"][0]["link"]][1] == 65
+    assert LINKS[NODES[65]["inputs"][0]["link"]][1] == 1
     assert NODES[1]["widgets_values"] == [q["models"]["unet"], "default"]
     assert NODES[2]["widgets_values"] == [q["models"]["clip"], "qwen_image", "default"]
     assert NODES[3]["widgets_values"] == [q["models"]["vae"], q["models"].get("vae_device", "cpu"), "fp32"]

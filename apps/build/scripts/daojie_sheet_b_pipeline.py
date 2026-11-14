@@ -136,7 +136,7 @@ def build_q_edit(image_name, instr, neg, seed, prefix, models, smp):
         "4": {"class_type": "EmptyLatentImage",
               "inputs": {"width": e["width"], "height": e["height"], "batch_size": 1}},
         "7": {"class_type": "KSampler",
-              "inputs": {"model": ["1", 0], "positive": ["4015", 0],
+              "inputs": {"model": _edit_model(e, models), "positive": ["4015", 0],
                          "negative": ["4015", 1], "latent_image": ["4", 0],
                          "seed": seed, "steps": e["steps"], "cfg": e["cfg"],
                          "sampler_name": e["sampler_name"], "scheduler": e["scheduler"],
@@ -150,7 +150,26 @@ def build_q_edit(image_name, instr, neg, seed, prefix, models, smp):
                        "inputs": {"model": ["1", 0], "lora_name": models["lora"],
                                   "strength_model": models["lora_strength"]}}
         api["7"]["inputs"]["model"] = ["7011", 0]
+    elif e.get("fix_lora"):      # v4=档3混动嫁接(1114 AB 定谳):Fix→LazyCache→KSampler
+        api["7026"] = {"class_type": "LoraLoaderModelOnly",
+                       "inputs": {"model": ["1", 0], "lora_name": e["fix_lora"],
+                                  "strength_model": e.get("fix_strength", 0.4)}}
+        lc = e.get("lazycache") or {}
+        api["7040"] = {"class_type": "LazyCache",
+                       "inputs": {"model": ["7026", 0],
+                                  **{k: lc[k] for k in
+                                     ("reuse_threshold", "start_percent",
+                                      "end_percent", "verbose") if k in lc}}}
     return api
+
+
+def _edit_model(e, models):
+    """编辑 KSampler 的 model 边:use_lora→viggle;fix_lora→LazyCache;否则 base 直驱。"""
+    if e.get("use_lora", True):
+        return ["7011", 0]
+    if e.get("fix_lora"):
+        return ["7040", 0]
+    return ["1", 0]
 
 
 def build_edit(image_name, instruction, seed, prefix):

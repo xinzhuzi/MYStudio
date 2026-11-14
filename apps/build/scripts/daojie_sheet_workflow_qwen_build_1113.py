@@ -63,7 +63,7 @@ NOTE = """# 道劫·角色设定卡(QwenImage 2.1 版)
 
 ## 注意
 - 模型=bf16 UNET+heretic TE+texture_fix VAE(KJ,cpu/fp32)+viggle turbo r256
-- t2i=Turbo 8步;编辑=multiref base 25步
+- t2i=Turbo 8步;编辑=multiref 档3混动(40步 cfg4+Fix0.4+LazyCache,1114 AB 定谳)
 - VAE 恒 cpu/fp32(回 GPU 会崩引擎)
 - 合成器格式=全卡/简版/竖版/无武器(四选一)
 
@@ -162,6 +162,26 @@ def build_doc(variant: str = "t2i"):
            inputs=[("model", "MODEL", None)],
            outputs=[("MODEL", "MODEL", [])])
     wire(1, 0, 4, 0, "MODEL")
+    # 档3混动编辑链共享件(1114 AB 定谳嫁接:Fix0.4→LazyCache→全部编辑 KSampler;
+    # t2i 三链仍走 viggle turbo 8 步不变)
+    g.node(65, "LoraLoaderModelOnly", [3060, 60], [340, 130],
+           [smp["edit"]["fix_lora"], smp["edit"].get("fix_strength", 0.4)],
+           {"lora_name": smp["edit"]["fix_lora"],
+            "strength_model": smp["edit"].get("fix_strength", 0.4)},
+           inputs=[("model", "MODEL", None)],
+           outputs=[("MODEL", "MODEL", [])])
+    _lc = smp["edit"].get("lazycache") or {}
+    g.node(66, "LazyCache", [3060, 300], [340, 130],
+           [_lc.get("reuse_threshold", 0.2), _lc.get("start_percent", 0.15),
+            _lc.get("end_percent", 0.95), _lc.get("verbose", False)],
+           {"reuse_threshold": _lc.get("reuse_threshold", 0.2),
+            "start_percent": _lc.get("start_percent", 0.15),
+            "end_percent": _lc.get("end_percent", 0.95),
+            "verbose": _lc.get("verbose", False)},
+           inputs=[("model", "MODEL", None)],
+           outputs=[("MODEL", "MODEL", [])])
+    wire(1, 0, 65, 0, "MODEL")
+    wire(65, 0, 66, 0, "MODEL")
 
     # ⑥ 提示词枢纽(单点固化+背景唯一旋钮;真源 v4)
     hub_outs = [("正向·master", "STRING", []), ("指令·master图生图", "STRING", []),
@@ -250,7 +270,7 @@ def build_doc(variant: str = "t2i"):
                outputs=[("IMAGE", "IMAGE", [])])
         wire(image_src, 0, te, 3, "IMAGE")   # 参考图槽
         wire(3, 0, te, 4, "VAE")
-        wire(1, 0, s, 0, "MODEL")            # v2 定谳:编辑=base 直驱
+        wire(66, 0, s, 0, "MODEL")           # v4=档3混动:Fix+LazyCache 共享链
         wire(te, 0, s, 1, "CONDITIONING")
         wire(te, 1, s, 2, "CONDITIONING")
         wire(lat, 0, s, 3, "LATENT")
@@ -340,6 +360,7 @@ def build_doc(variant: str = "t2i"):
     g.group("③ 六路编辑(multiref:TE 参考图槽;head 吃侧视图)", [1220, 500, 1720, 2400])
     g.group("④ 武器/特效 t2i(Turbo 8步)", [1220, 3020, 1720, 900], "#88A")
     g.group("⑦ 表情参考×5(Skill-5.4 §六;参考=面部特写)", [1220, 5160, 1720, 2500], "#8AA")
+    g.group("①b 档3混动编辑链(Fix0.4+LazyCache,1114 AB 定谳)", [3000, -60, 900, 560], "#A83")
     g.group("⑤ 固定底框合成(格式/背景联动)", [3000, 1180, 1100, 780], "#3A3")
     return g.build()
 
