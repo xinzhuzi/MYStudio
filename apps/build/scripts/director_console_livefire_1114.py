@@ -163,11 +163,11 @@ def round3() -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--round", required=True, choices=("1", "2", "3", "all", "chapter3", "cache"))
+    ap.add_argument("--round", required=True, choices=("1", "2", "3", "all", "chapter3", "cache", "shell"))
     a = ap.parse_args()
     rounds = ("1", "2", "3") if a.round == "all" else (a.round,)
     for rd in rounds:
-        {"1": round1, "2": round2, "3": round3, "chapter3": round_chapter3, "cache": round_cache}[rd]()
+        {"1": round1, "2": round2, "3": round3, "chapter3": round_chapter3, "cache": round_cache, "shell": round_shell}[rd]()
     print("三遍实弹全绿" if len(rounds) == 3 else f"round{'/'.join(rounds)} 绿")
     return 0
 
@@ -281,6 +281,83 @@ def round_cache() -> None:
             raise RuntimeError("缓存实证执行错:" + json.dumps(h[pid]["status"])[:300])
         time.sleep(6)
     raise RuntimeError("缓存实证超时")
+
+
+
+
+def round_shell() -> None:
+    """三壳手动调试链实弹(1114 用户令「2你要执行」):画布式
+    loaders→Pass1→(LATENT)→Pass2→(VIDEO)→Pass3 一发全通。"""
+    prompt_txt = ("2D Chinese ink-wash guofeng animation. A lone swordsman "
+                  "crosses a rope bridge in fog. 5 seconds.")
+    shell_graph = {
+        "1": {"class_type": "UNETLoader",
+              "inputs": {"unet_name": R["unet"], "weight_dtype": "default"}},
+        "2": {"class_type": "VAELoader", "inputs": {"vae_name": R["vae_v"]}},
+        "3": {"class_type": "VAELoader", "inputs": {"vae_name": R["vae_a"]}},
+        "4": {"class_type": "CLIPLoader",
+              "inputs": {"clip_name": R["clip"], "type": "minimax",
+                         "device": "default"}},
+        "10": {"class_type": "MyDaoyanPass1", "inputs": {
+            "model": ["1", 0], "video_vae": ["2", 0],
+            "audio_vae": ["3", 0], "clip": ["4", 0],
+            "mode": "r2v", "frames": 124, "seed": 42,
+            "prompt_summary": prompt_txt, "prompt_retention": "",
+            "prompt_description": "", "prompt_soundscape": "",
+            "ref_names": "canon-jc.png,sb001_scene.jpg",
+            "chapter": "chapter-debug", "seg_id": "shell-01"}},
+        "20": {"class_type": "MyDaoyanPass2", "inputs": {
+            "model": ["1", 0], "video_vae": ["2", 0],
+            "audio_vae": ["3", 0], "clip": ["4", 0],
+            "mode": "r2v", "frames": 124, "seed": 42,
+            "prompt_summary": prompt_txt, "prompt_retention": "",
+            "prompt_description": "", "prompt_soundscape": "",
+            "ref_names": "canon-jc.png,sb001_scene.jpg",
+            "chapter": "chapter-debug", "seg_id": "shell-01",
+            "av_latent": ["10", 1]}},
+        "30": {"class_type": "MyDaoyanPass3", "inputs": {
+            "p2_video": ["20", 0], "color_fix": "none", "seed": 42,
+            "chapter": "chapter-debug", "seg_id": "shell-01"}},
+        "40": {"class_type": "SaveVideo", "inputs": {
+            "video": ["30", 0],
+            "filename_prefix": f"{OUT_ROOT}/_passthrough",
+            "format": "auto", "codec": "auto"}},
+    }
+    q = http("GET", "/queue")
+    while q["queue_running"] or q["queue_pending"]:
+        time.sleep(10)
+        q = http("GET", "/queue")
+    pid = http("POST", "/prompt", {"prompt": shell_graph,
+                                   "client_id": "daoyan-livefire-1114"})["prompt_id"]
+    print("[三壳调试链] 已入队 …")
+    t0 = time.time()
+    while time.time() - t0 < 1200:
+        h = http("GET", f"/history/{pid}")
+        if pid in h:
+            rec = h[pid]
+            status = rec.get("status", {})
+            if status.get("status_str") == "error":
+                msgs = [m for m in status.get("messages", [])
+                        if "execution_error" in str(m[0])]
+                raise RuntimeError("三壳链执行错:" + json.dumps(msgs)[:500])
+            if status.get("completed"):
+                secs = round(time.time() - t0, 1)
+                base = f"{OUT_ROOT}/chapter-debug/shell-01"
+                ok = {}
+                for name in ("p1-draft", "p2-final", "p3-recavsr"):
+                    hit, size = view_ok_best(f"{base}/{name}")
+                    ok[name] = (hit, size)
+                log = http("GET", "/my_daoyan/logs?chapter=chapter-debug&limit=40")
+                hit2 = [l for l in (log.get("lines") or []) if "缓存" in l]
+                print(f"[三壳调试链] {secs}s")
+                for k, (hit, size) in ok.items():
+                    print(f"  {k}: {'✓' if hit else '✗'} {size:,}B")
+                print(f"  Pass2→Pass1 latent 直通(缓存命中行同源):{len(hit2)}")
+                assert all(v[0] for v in ok.values()), "三壳链产物未闭环"
+                return
+        time.sleep(8)
+    raise RuntimeError("三壳链超时")
+
 
 
 if __name__ == "__main__":
