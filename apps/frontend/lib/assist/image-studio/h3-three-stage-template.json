@@ -17,7 +17,7 @@
       ],
       "flags": {},
       "order": 9,
-      "mode": 4,
+      "mode": 0,
       "inputs": [
         {
           "localized_name": "图像",
@@ -74,7 +74,7 @@
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
       },
-      "title": "① 参考图1·主图(必填·手动先取消旁路)"
+      "title": "① 参考图1·主图(必填·选图即跑)"
     },
     {
       "id": 14,

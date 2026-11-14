@@ -11,7 +11,7 @@ FILES = {
     'twin': '/Users/zhengbingjin/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.json',
 }
 TITLES = {
-    9: "① 参考图1·主图(必填·手动先取消旁路)",
+    9: "① 参考图1·主图(必填·选图即跑)",
     110: "② 参考图2", 111: "② 参考图3", 112: "② 参考图4", 113: "② 参考图5",
     341: "② 参考图6", 342: "② 参考图7", 343: "② 参考图8", 344: "② 参考图9",
     345: "④ 尾帧(可选·i2v首尾双锚)",
@@ -63,6 +63,8 @@ def surgery(d):
     # 347 桥出厂旁路化(手动路悬空雷根修)
     if 347 in n:
         n[347]['mode'] = 4
+    # ①必填主图出厂激活(1114 用户令:杀手动多点一次;忘选图=立刻报错好过静默空跑烧GPU;可选口仍旁路)
+    n[9]['mode'] = 0
     n[14]['widgets_values'] = [GUIDE] + list(n[14]['widgets_values'][1:])
     if n[14].get('widgets_values_named'):
         for k in ('value', 'text'):

@@ -60,7 +60,7 @@ def test_anchors_assembler_contract():
     for nid, ntype in ((4, "SaveVideo"), (9, "LoadImage"), (14, "PrimitiveStringMultiline"),
                        (20, "PrimitiveFloat"), (100, "MyShot"), (101, "MarkdownNote")):
         assert nodes[nid]["type"] == ntype, f"[{nid}] 应为 {ntype}"
-    assert nodes[9]["mode"] == 4, "[9] 分镜帧占位出厂应旁路(mode=4)"
+    assert nodes[9]["mode"] == 0, "[9] 必填主图出厂激活(1114 用户令:手动选图即跑零额外点击;忘选图=fail-fast报错优于静默空跑)"
     for nid in (110, 111, 112, 113, 341, 342, 343, 344, 345):
         assert nodes[nid]["type"] == "LoadImage" and nodes[nid]["mode"] == 4, f"[{nid}] 参考锚应 MUTED LoadImage"
     assert nodes[346]["type"] == "LoadVideo" and nodes[346]["mode"] == 4, "[346] 参考视频锚"
