@@ -35,7 +35,7 @@ STEPS_DIR = (_TESTS.parents[3] / "apps/output/daojie-sheet-b-1112-arch1113"
                if (_TESTS.parents[3] / "apps/output/daojie-sheet-b-1112-arch1113").is_dir()
                else _TESTS.parents[3] / "apps/output/daojie-sheet-b-1112")
 # 金样 e6221c36 的产源步图住归档夹(1113 复测重掷顶位后指针随迁;两处皆无=skip)
-GOLDEN_SHA = ""  # v6+档3混动+五圆÷2(1114 用户令「太大缩小」;金样重对;老 e6221c36=v1.1 档随役存档)
+GOLDEN_SHA = "d409f221b384d6343c2910a229e0cec952757fd6a9054ac5cb5c14115f86bc23"  # v6+五圆÷2 档(1114 产物夹被并行清理后自引擎 sheetB 回收重锚;金样重对;老 e6221c36=v1.1 档随役存档)
 
 
 def test_placeholder_compose(tmp_path):
