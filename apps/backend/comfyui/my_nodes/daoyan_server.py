@@ -44,8 +44,18 @@ _CHAPTER_NUM = re.compile(r"^chapter-(\d+)")
 MAX_CHAPTER_LEN = 80
 
 
-def _app_home() -> Path:
-    """漫影 app-home 定位(env 显式覆盖响亮降级;默认地基权威位)。"""
+def _app_home_candidates() -> list[Path]:
+    """漫影 app-home 四层候选(1114 实弹定谳补层,禁硬编码绝对路径):
+
+    ① env MYSTUDIO_APP_HOME 显式覆盖(已设但缺=响亮降级返该路径)
+    ② 引擎家推导:本件部署位 <app-home>/comfyui/ComfyUI/custom_nodes/
+       my-nodes/daoyan_server.py 的 parents[4](Win=storageBase 正位)
+    ③ macOS App userData 默认位(地基权威位;dev 引擎住 Project/IP 时
+       与 ② 不同层——② 探不到册子自然滑到这层)
+    ④ Windows Electron %APPDATA% 默认位
+    候选以「含 project-locations.json 或 projects/mystudio-project-store.json」
+    定层;全缺=返回 ②(引擎态报错信息最可行动)。
+    """
     env = os.environ.get("MYSTUDIO_APP_HOME")
     if env:
         home = Path(env)
@@ -53,8 +63,24 @@ def _app_home() -> Path:
             print(f"[daoyan] MYSTUDIO_APP_HOME 已设但缺 {home}:"
                   "响亮降级原路返回(显式覆盖失效须排查,不偷滑低层)",
                   flush=True)
-        return home
-    return Path.home() / "Library" / "Application Support" / "漫影工作室"
+        return [home]
+    derived = Path(__file__).resolve().parents[4]  # 引擎家推导层
+    mac_default = Path.home() / "Library" / "Application Support" / "漫影工作室"
+    win_default = (Path(os.environ.get("APPDATA", "")) / "漫影工作室"
+                   if os.environ.get("APPDATA") else None)
+    candidates = [derived, mac_default]
+    if win_default is not None:
+        candidates.append(win_default)
+    for home in candidates:
+        if (home / "project-locations.json").is_file() \
+                or (home / "projects" / "mystudio-project-store.json").is_file():
+            return [home]
+    return [derived]
+
+
+def _app_home() -> Path:
+    """漫影 app-home 定位(四层候选首个;见 _app_home_candidates 注)。"""
+    return _app_home_candidates()[0]
 
 
 def _read_json(path: Path):
