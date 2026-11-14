@@ -39,7 +39,10 @@ CLASS_WHITELIST = {
     "SaveImage", "MarkdownNote",
 }
 
-EDIT_IDS = {"side": 10, "back": 15, "face": 20, "wrist": 25, "waist": 30, "head": 35}
+EDIT_IDS = {"side": 10, "back": 15, "face": 20, "wrist": 25, "waist": 30, "head": 35,
+            "exp_happy": 70, "exp_angry": 80, "exp_sad": 90,
+            "exp_surprise": 100, "exp_shy": 110}
+EXP_IDS = {k: v for k, v in EDIT_IDS.items() if k.startswith("exp_")}
 T2I_IDS = {"master": 5, "weapon": 40, "effect": 45}
 
 
@@ -82,7 +85,8 @@ def test_prompts_are_qwen_truth_v2():
                      "daojie_ink_guofeng/json/qi21_bases.json").read_text(
                          encoding="utf-8"))["sheet_card"]
     for tag in EDIT_IDS:
-        assert p["instr"][tag] != h3["edit_instructions"][tag], "Qwen 指令退化成 H3 同文"
+        assert p["instr"][tag] != h3["edit_instructions"].get(tag, ""), \
+            "Qwen 指令退化成 H3 同文"
 
 
 def test_sampler_doctrine_and_models():
@@ -121,34 +125,38 @@ def test_links_and_multiref_wiring():
             assert all(lk in LINKS for lk in o["links"])
     for i in list(T2I_IDS.values()) + list(EDIT_IDS.values()):
         assert LINKS[NODES[i]["inputs"][0]["link"]][1] == 2   # TE clip←CLIP
-    # 编辑参考图槽(images.image_1):head←side decode(13),余←master decode(8)
+    # 编辑参考图槽(images.image_1):head←side decode(13),表情五路←face decode(23),
+    # 余←master decode(8)
     for tag, i in EDIT_IDS.items():
-        want = 13 if tag == "head" else 8
+        want = 13 if tag == "head" else 23 if tag in EXP_IDS else 8
         img = _slot(i, "images.image_1")
         assert img["link"] is not None and LINKS[img["link"]][1] == want, tag
         assert LINKS[_slot(i, "vae")["link"]][1] == 3, tag  # TE vae
     comp = NODES[50]
     order = ("master", "side", "back", "face", "head",
-             "wrist", "waist", "weapon", "effect", "背景", "格式", "档案")
+             "wrist", "waist", "weapon", "effect",
+             "exp_1", "exp_2", "exp_3", "exp_4", "exp_5",
+             "背景", "格式", "档案")
     assert [i["name"] for i in comp["inputs"]] == list(order)
-    # 背景类型:枢纽(slot12)→合成器(slot9) 永不脱钩
-    bg_lk = comp["inputs"][9]["link"]
-    assert LINKS[bg_lk][1] == 60 and LINKS[bg_lk][2] == 12, "背景应=枢纽出12直连"
-    # 格式:枢纽(slot13)→合成器(slot10) 尾部追加(1114 注册表驱动透传)
-    fmt_lk = comp["inputs"][10]["link"]
-    assert LINKS[fmt_lk][1] == 60 and LINKS[fmt_lk][2] == 13, "格式应=枢纽出13直连"
-    # 档案:枢纽(slot14)→合成器(slot11) v6 底部信息带(Skill-5.4 §十 标配档案栏)
-    arch_lk = comp["inputs"][11]["link"]
-    assert LINKS[arch_lk][1] == 60 and LINKS[arch_lk][2] == 14, "档案应=枢纽出14直连"
+    # 背景类型:枢纽(slot17)→合成器(slot14) 永不脱钩
+    bg_lk = comp["inputs"][14]["link"]
+    assert LINKS[bg_lk][1] == 60 and LINKS[bg_lk][2] == 17, "背景应=枢纽出17直连"
+    # 格式:枢纽(slot18)→合成器(slot15) 尾部追加(1114 注册表驱动透传)
+    fmt_lk = comp["inputs"][15]["link"]
+    assert LINKS[fmt_lk][1] == 60 and LINKS[fmt_lk][2] == 18, "格式应=枢纽出18直连"
+    # 档案:枢纽(slot19)→合成器(slot16) v6 底部信息带两行(档案+设计说明)
+    arch_lk = comp["inputs"][16]["link"]
+    assert LINKS[arch_lk][1] == 60 and LINKS[arch_lk][2] == 19, "档案应=枢纽出19直连"
     # TE prompt 全部由枢纽链接喂(散装退役)
     for i in list(T2I_IDS.values()) + list(EDIT_IDS.values()):
         plk = _slot(i, "prompt")["link"]
         assert plk is not None and LINKS[plk][1] == 60, f"TE{i} prompt 应吃枢纽"
     hub = NODES[60]
     assert hub["type"] == "MySheetPromptHub"
-    assert len(hub["outputs"]) == 15
+    assert len(hub["outputs"]) == 20
     want_src = {"master": 8, "side": 13, "back": 18, "face": 23,
                 "head": 38, "wrist": 28, "waist": 33, "weapon": 43, "effect": 48,
+                "exp_1": 73, "exp_2": 83, "exp_3": 93, "exp_4": 103, "exp_5": 113,
                 "背景": 60, "格式": 60, "档案": 60}
     for slot, key in enumerate(order):
         assert LINKS[comp["inputs"][slot]["link"]][1] == want_src[key], key

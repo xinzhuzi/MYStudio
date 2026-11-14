@@ -325,6 +325,9 @@ def main() -> int:
                 neg_join(style_neg, qe["negative_text"]),
                 qe["width"], qe["height"], args.seed, f"{pfx}/effect",
                 q["models"], q["sampler"])
+            for tag in ("exp_happy", "exp_angry", "exp_sad",
+                        "exp_surprise", "exp_shy"):   # 1114 Skill-5.4 §六 表情×5
+                yield tag, "face", None
             return
         yield "master", None, build_t2i(
             "\n".join([subject_raw, m_base, style_pos]),
@@ -398,7 +401,8 @@ def main() -> int:
         REPO / "apps/backend/comfyui/my_nodes/nodes/my_sheet_prompt_hub.py")
     hub = importlib.util.module_from_spec(hub_spec)
     hub_spec.loader.exec_module(hub)
-    archive = hub.archive_line(subject_raw, name)
+    archive = "\n".join(t for t in (hub.archive_line(subject_raw, name),
+                                   hub.design_note(subject_raw)) if t)
 
     final = OUT / f"设定卡B线_{name}_3840.png"
     compose(cells, palette, name, str(final), archive=archive)

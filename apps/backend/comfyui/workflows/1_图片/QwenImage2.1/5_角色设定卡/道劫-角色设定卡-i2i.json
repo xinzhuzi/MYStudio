@@ -1,6 +1,6 @@
 {
-  "last_node_id": 60,
-  "last_link_id": 110,
+  "last_node_id": 113,
+  "last_link_id": 170,
   "nodes": [
     {
       "id": 1,
@@ -29,7 +29,12 @@
             40,
             51,
             62,
-            73
+            73,
+            103,
+            114,
+            125,
+            136,
+            147
           ],
           "slot_index": 0
         }
@@ -74,7 +79,12 @@
             57,
             68,
             79,
-            88
+            88,
+            98,
+            109,
+            120,
+            131,
+            142
           ],
           "slot_index": 0
         }
@@ -128,7 +138,17 @@
             72,
             78,
             87,
-            96
+            96,
+            102,
+            108,
+            113,
+            119,
+            124,
+            130,
+            135,
+            141,
+            146,
+            152
           ],
           "slot_index": 0
         }
@@ -286,13 +306,53 @@
           "slot_index": 9
         },
         {
+          "name": "指令·开心",
+          "type": "STRING",
+          "links": [
+            99
+          ],
+          "slot_index": 10
+        },
+        {
+          "name": "指令·生气",
+          "type": "STRING",
+          "links": [
+            110
+          ],
+          "slot_index": 11
+        },
+        {
+          "name": "指令·悲伤",
+          "type": "STRING",
+          "links": [
+            121
+          ],
+          "slot_index": 12
+        },
+        {
+          "name": "指令·惊讶",
+          "type": "STRING",
+          "links": [
+            132
+          ],
+          "slot_index": 13
+        },
+        {
+          "name": "指令·害羞",
+          "type": "STRING",
+          "links": [
+            143
+          ],
+          "slot_index": 14
+        },
+        {
           "name": "负面·生成",
           "type": "STRING",
           "links": [
             81,
             90
           ],
-          "slot_index": 10
+          "slot_index": 15
         },
         {
           "name": "负面·编辑",
@@ -304,33 +364,38 @@
             37,
             48,
             59,
-            70
+            70,
+            100,
+            111,
+            122,
+            133,
+            144
           ],
-          "slot_index": 11
+          "slot_index": 16
         },
         {
           "name": "背景类型",
           "type": "STRING",
           "links": [
-            107
+            167
           ],
-          "slot_index": 12
+          "slot_index": 17
         },
         {
           "name": "格式",
           "type": "STRING",
           "links": [
-            108
+            168
           ],
-          "slot_index": 13
+          "slot_index": 18
         },
         {
           "name": "档案",
           "type": "STRING",
           "links": [
-            109
+            169
           ],
-          "slot_index": 14
+          "slot_index": 19
         }
       ],
       "properties": {
@@ -602,7 +667,7 @@
             38,
             49,
             60,
-            98
+            153
           ],
           "slot_index": 0
         }
@@ -823,7 +888,7 @@
           "type": "IMAGE",
           "links": [
             97,
-            99
+            154
           ],
           "slot_index": 0
         }
@@ -1043,7 +1108,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            100
+            155
           ],
           "slot_index": 0
         }
@@ -1263,7 +1328,12 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            101
+            101,
+            112,
+            123,
+            134,
+            145,
+            156
           ],
           "slot_index": 0
         }
@@ -1483,7 +1553,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            103
+            158
           ],
           "slot_index": 0
         }
@@ -1703,7 +1773,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            104
+            159
           ],
           "slot_index": 0
         }
@@ -1923,7 +1993,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            102
+            157
           ],
           "slot_index": 0
         }
@@ -2133,7 +2203,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            105
+            160
           ],
           "slot_index": 0
         }
@@ -2343,7 +2413,1107 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
+            161
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 70,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        1260,
+        5260
+      ],
+      "size": [
+        460,
+        320
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 98
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 99
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "link": 100
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 101
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 102
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            104
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            105
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        "以<image1>中的角色为同一人,仅改变其表情为开心:眉放松,眼微弯,嘴角明显上扬,脸颊抬起;严格保持<image1>中该角色的脸型五官、发型与发色、水墨国风画法与素净浅色背景,取景从完整头顶至锁骨,其余不变。",
+        "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦,印章,盖章,落款钤印,水印,多余人物,肢体变形,手指崩坏,文字,错字",
+        0
+      ],
+      "widgets_values_named": {
+        "prompt": "以<image1>中的角色为同一人,仅改变其表情为开心:眉放松,眼微弯,嘴角明显上扬,脸颊抬起;严格保持<image1>中该角色的脸型五官、发型与发色、水墨国风画法与素净浅色背景,取景从完整头顶至锁骨,其余不变。",
+        "negative_prompt": "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦,印章,盖章,落款钤印,水印,多余人物,肢体变形,手指崩坏,文字,错字",
+        "resolution": 0
+      }
+    },
+    {
+      "id": 71,
+      "type": "EmptyLatentImage",
+      "pos": [
+        1770,
+        5260
+      ],
+      "size": [
+        300,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
             106
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1024,
+        1536,
+        1
+      ],
+      "widgets_values_named": {
+        "width": 1024,
+        "height": 1536,
+        "batch_size": 1
+      }
+    },
+    {
+      "id": 72,
+      "type": "KSampler",
+      "pos": [
+        2130,
+        5260
+      ],
+      "size": [
+        340,
+        280
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 103
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 104
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 105
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 106
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            107
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        9,
+        "fixed",
+        25,
+        1.0,
+        "euler",
+        "simple",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 9,
+        "control_after_generate": "fixed",
+        "steps": 25,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 73,
+      "type": "VAEDecode",
+      "pos": [
+        2530,
+        5260
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 107
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 108
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            162
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 80,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        1260,
+        5680
+      ],
+      "size": [
+        460,
+        320
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 109
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 110
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "link": 111
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 112
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 113
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            115
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            116
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        "以<image1>中的角色为同一人,仅改变其表情为生气:眉下压,眉心收紧,眼神锐利,眼睑收紧,唇紧绷,头微前倾;严格保持<image1>中该角色的脸型五官、发型与发色、水墨国风画法与素净浅色背景,取景从完整头顶至锁骨,其余不变。",
+        "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦,印章,盖章,落款钤印,水印,多余人物,肢体变形,手指崩坏,文字,错字",
+        0
+      ],
+      "widgets_values_named": {
+        "prompt": "以<image1>中的角色为同一人,仅改变其表情为生气:眉下压,眉心收紧,眼神锐利,眼睑收紧,唇紧绷,头微前倾;严格保持<image1>中该角色的脸型五官、发型与发色、水墨国风画法与素净浅色背景,取景从完整头顶至锁骨,其余不变。",
+        "negative_prompt": "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦,印章,盖章,落款钤印,水印,多余人物,肢体变形,手指崩坏,文字,错字",
+        "resolution": 0
+      }
+    },
+    {
+      "id": 81,
+      "type": "EmptyLatentImage",
+      "pos": [
+        1770,
+        5680
+      ],
+      "size": [
+        300,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            117
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1024,
+        1536,
+        1
+      ],
+      "widgets_values_named": {
+        "width": 1024,
+        "height": 1536,
+        "batch_size": 1
+      }
+    },
+    {
+      "id": 82,
+      "type": "KSampler",
+      "pos": [
+        2130,
+        5680
+      ],
+      "size": [
+        340,
+        280
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 114
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 115
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 116
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 117
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            118
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        10,
+        "fixed",
+        25,
+        1.0,
+        "euler",
+        "simple",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 10,
+        "control_after_generate": "fixed",
+        "steps": 25,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 83,
+      "type": "VAEDecode",
+      "pos": [
+        2530,
+        5680
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 118
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 119
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            163
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 90,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        1260,
+        6100
+      ],
+      "size": [
+        460,
+        320
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 120
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 121
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "link": 122
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 123
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 124
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            126
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            127
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        "以<image1>中的角色为同一人,仅改变其表情为悲伤:眉内侧略上,眼神下垂,眼睑略低,嘴角向下;严格保持<image1>中该角色的脸型五官、发型与发色、水墨国风画法与素净浅色背景,取景从完整头顶至锁骨,其余不变。",
+        "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦,印章,盖章,落款钤印,水印,多余人物,肢体变形,手指崩坏,文字,错字",
+        0
+      ],
+      "widgets_values_named": {
+        "prompt": "以<image1>中的角色为同一人,仅改变其表情为悲伤:眉内侧略上,眼神下垂,眼睑略低,嘴角向下;严格保持<image1>中该角色的脸型五官、发型与发色、水墨国风画法与素净浅色背景,取景从完整头顶至锁骨,其余不变。",
+        "negative_prompt": "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦,印章,盖章,落款钤印,水印,多余人物,肢体变形,手指崩坏,文字,错字",
+        "resolution": 0
+      }
+    },
+    {
+      "id": 91,
+      "type": "EmptyLatentImage",
+      "pos": [
+        1770,
+        6100
+      ],
+      "size": [
+        300,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            128
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1024,
+        1536,
+        1
+      ],
+      "widgets_values_named": {
+        "width": 1024,
+        "height": 1536,
+        "batch_size": 1
+      }
+    },
+    {
+      "id": 92,
+      "type": "KSampler",
+      "pos": [
+        2130,
+        6100
+      ],
+      "size": [
+        340,
+        280
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 125
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 126
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 127
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 128
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            129
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        11,
+        "fixed",
+        25,
+        1.0,
+        "euler",
+        "simple",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 11,
+        "control_after_generate": "fixed",
+        "steps": 25,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 93,
+      "type": "VAEDecode",
+      "pos": [
+        2530,
+        6100
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 129
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 130
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            164
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 100,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        1260,
+        6520
+      ],
+      "size": [
+        460,
+        320
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 131
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 132
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "link": 133
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 134
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 135
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            137
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            138
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        "以<image1>中的角色为同一人,仅改变其表情为惊讶:眉明显上扬,眼明显睁大,嘴自然张开,头微后仰;严格保持<image1>中该角色的脸型五官、发型与发色、水墨国风画法与素净浅色背景,取景从完整头顶至锁骨,其余不变。",
+        "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦,印章,盖章,落款钤印,水印,多余人物,肢体变形,手指崩坏,文字,错字",
+        0
+      ],
+      "widgets_values_named": {
+        "prompt": "以<image1>中的角色为同一人,仅改变其表情为惊讶:眉明显上扬,眼明显睁大,嘴自然张开,头微后仰;严格保持<image1>中该角色的脸型五官、发型与发色、水墨国风画法与素净浅色背景,取景从完整头顶至锁骨,其余不变。",
+        "negative_prompt": "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦,印章,盖章,落款钤印,水印,多余人物,肢体变形,手指崩坏,文字,错字",
+        "resolution": 0
+      }
+    },
+    {
+      "id": 101,
+      "type": "EmptyLatentImage",
+      "pos": [
+        1770,
+        6520
+      ],
+      "size": [
+        300,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            139
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1024,
+        1536,
+        1
+      ],
+      "widgets_values_named": {
+        "width": 1024,
+        "height": 1536,
+        "batch_size": 1
+      }
+    },
+    {
+      "id": 102,
+      "type": "KSampler",
+      "pos": [
+        2130,
+        6520
+      ],
+      "size": [
+        340,
+        280
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 136
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 137
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 138
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 139
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            140
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        12,
+        "fixed",
+        25,
+        1.0,
+        "euler",
+        "simple",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 12,
+        "control_after_generate": "fixed",
+        "steps": 25,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 103,
+      "type": "VAEDecode",
+      "pos": [
+        2530,
+        6520
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 140
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 141
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            165
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 110,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        1260,
+        6940
+      ],
+      "size": [
+        460,
+        320
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 142
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 143
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "link": 144
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "link": 145
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 146
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            148
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            149
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        "以<image1>中的角色为同一人,仅改变其表情为害羞:眼神躲闪看向侧下方,眼睑略低,唇轻抿,脸颊微红,头微低;严格保持<image1>中该角色的脸型五官、发型与发色、水墨国风画法与素净浅色背景,取景从完整头顶至锁骨,其余不变。",
+        "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦,印章,盖章,落款钤印,水印,多余人物,肢体变形,手指崩坏,文字,错字",
+        0
+      ],
+      "widgets_values_named": {
+        "prompt": "以<image1>中的角色为同一人,仅改变其表情为害羞:眼神躲闪看向侧下方,眼睑略低,唇轻抿,脸颊微红,头微低;严格保持<image1>中该角色的脸型五官、发型与发色、水墨国风画法与素净浅色背景,取景从完整头顶至锁骨,其余不变。",
+        "negative_prompt": "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦,印章,盖章,落款钤印,水印,多余人物,肢体变形,手指崩坏,文字,错字",
+        "resolution": 0
+      }
+    },
+    {
+      "id": 111,
+      "type": "EmptyLatentImage",
+      "pos": [
+        1770,
+        6940
+      ],
+      "size": [
+        300,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            150
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1024,
+        1536,
+        1
+      ],
+      "widgets_values_named": {
+        "width": 1024,
+        "height": 1536,
+        "batch_size": 1
+      }
+    },
+    {
+      "id": 112,
+      "type": "KSampler",
+      "pos": [
+        2130,
+        6940
+      ],
+      "size": [
+        340,
+        280
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 147
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 148
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 149
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 150
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            151
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        13,
+        "fixed",
+        25,
+        1.0,
+        "euler",
+        "simple",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 13,
+        "control_after_generate": "fixed",
+        "steps": 25,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 113,
+      "type": "VAEDecode",
+      "pos": [
+        2530,
+        6940
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 151
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 152
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            166
           ],
           "slot_index": 0
         }
@@ -2370,62 +3540,87 @@
         {
           "name": "master",
           "type": "IMAGE",
-          "link": 98
+          "link": 153
         },
         {
           "name": "side",
           "type": "IMAGE",
-          "link": 99
+          "link": 154
         },
         {
           "name": "back",
           "type": "IMAGE",
-          "link": 100
+          "link": 155
         },
         {
           "name": "face",
           "type": "IMAGE",
-          "link": 101
+          "link": 156
         },
         {
           "name": "head",
           "type": "IMAGE",
-          "link": 102
+          "link": 157
         },
         {
           "name": "wrist",
           "type": "IMAGE",
-          "link": 103
+          "link": 158
         },
         {
           "name": "waist",
           "type": "IMAGE",
-          "link": 104
+          "link": 159
         },
         {
           "name": "weapon",
           "type": "IMAGE",
-          "link": 105
+          "link": 160
         },
         {
           "name": "effect",
           "type": "IMAGE",
-          "link": 106
+          "link": 161
+        },
+        {
+          "name": "exp_1",
+          "type": "IMAGE",
+          "link": 162
+        },
+        {
+          "name": "exp_2",
+          "type": "IMAGE",
+          "link": 163
+        },
+        {
+          "name": "exp_3",
+          "type": "IMAGE",
+          "link": 164
+        },
+        {
+          "name": "exp_4",
+          "type": "IMAGE",
+          "link": 165
+        },
+        {
+          "name": "exp_5",
+          "type": "IMAGE",
+          "link": 166
         },
         {
           "name": "背景",
           "type": "STRING",
-          "link": 107
+          "link": 167
         },
         {
           "name": "格式",
           "type": "STRING",
-          "link": 108
+          "link": 168
         },
         {
           "name": "档案",
           "type": "STRING",
-          "link": 109
+          "link": 169
         }
       ],
       "outputs": [
@@ -2433,7 +3628,7 @@
           "name": "设定卡",
           "type": "IMAGE",
           "links": [
-            110
+            170
           ],
           "slot_index": 0
         }
@@ -2472,7 +3667,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 110
+          "link": 170
         }
       ],
       "outputs": [],
@@ -2506,7 +3701,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "# 道劫·角色设定卡(QwenImage 2.1 版)\n\n## 这是什么\n从一段主体句文本(或一张参考图)生成 3840×2160 4K 水墨国风角色设定卡:\n三视图(正/侧/背)+六格特写+配色五圆+武器/服饰/装备/能力四区,全部程序合成\n固定底框(零缺笔零印章)。\n\n## 输入\n- **主体句**(枢纽节点):竖线字段式「姓名:X|性别:男|服装:...|武器:...」\n- **角名**(枢纽节点):角色名,程序绘到卡片右上角\n- **背景类型**(枢纽节点):纯白单档(1114 用户令背景收敛)——同时控制提示词与画布底色\n\n## 输出\n- 4K PNG 设定卡(3840×2160, RGB 无 alpha)\n\n## 设计思路\n- **框与字归程序,画归模型**:底框/格线/16 角标/角名由 MySheetCardComposer 程序\n  绘制(结构性保证零缺笔零印章);格内画面由 QwenImage 分格生成\n- **提示词单点**:MySheetPromptHub 是画布唯一的提示词入口,运行时热读\n  qi21_bases.json 真源装配三层提示词,15 路输出链接分发到各 TextEncode\n- **背景类型联动**:枢纽旋钮→提示词占位填充→同型直连合成器→画布底色同型渲染\n- **档案行**(v6,Skill-5.4 §十 标配信息栏):枢纽从主体句解析 姓名/性别/年龄/\n  身份/武器 五短字段→直连合成器→底部通栏信息带程序绘(档案左+配色方案右)\n- **master 一源**:三视图+六特写全部从 master 正视图派生(multiref 编辑)\n\n## 双件说明\n- **-t2i**:master=文生图(三层装配:主体句+净空立绘底座+美术风格底座)\n- **-i2i**:master=图生图(LoadImage 喂已有角色图→multiref 正面全身立绘)\n\n## 注意\n- 模型=bf16 UNET+heretic TE+texture_fix VAE(KJ,cpu/fp32)+viggle turbo r256\n- t2i=Turbo 8步;编辑=multiref base 25步\n- VAE 恒 cpu/fp32(回 GPU 会崩引擎)\n- 合成器格式=全卡/简版/竖版/无武器(四选一)\n\n## 批量使用\n```bash\npython3 apps/build/scripts/daojie_sheet_b_pipeline.py --engine qwen     --subject 主体句文件.txt --name 角色名\n```"
+        "# 道劫·角色设定卡(QwenImage 2.1 版)\n\n## 这是什么\n从一段主体句文本(或一张参考图)生成 3840×2160 4K 水墨国风角色设定卡:\n三视图(正/侧/背)+六格特写+配色五圆+武器/服饰/装备/能力四区,全部程序合成\n固定底框(零缺笔零印章)。\n\n## 输入\n- **主体句**(枢纽节点):竖线字段式「姓名:X|性别:男|服装:...|武器:...」\n- **角名**(枢纽节点):角色名,程序绘到卡片右上角\n- **背景类型**(枢纽节点):纯白单档(1114 用户令背景收敛)——同时控制提示词与画布底色\n\n## 输出\n- 4K PNG 设定卡(3840×2160, RGB 无 alpha)\n\n## 设计思路\n- **框与字归程序,画归模型**:底框/格线/16 角标/角名由 MySheetCardComposer 程序\n  绘制(结构性保证零缺笔零印章);格内画面由 QwenImage 分格生成\n- **提示词单点**:MySheetPromptHub 是画布唯一的提示词入口,运行时热读\n  qi21_bases.json 真源装配三层提示词,15 路输出链接分发到各 TextEncode\n- **背景类型联动**:枢纽旋钮→提示词占位填充→同型直连合成器→画布底色同型渲染\n- **档案行**(v6,Skill-5.4 §十 标配信息栏):枢纽从主体句解析 姓名/性别/年龄/\n  身份/武器/技能 六短字段→直连合成器→底部通栏信息带程序绘(档案左+配色方案右)\n- **设计说明行**(Skill-5.4 §十④):主体句「设计说明:」字段→底带第二行程序绘\n- **表情参考行**(Skill-5.4 §六):面部图 multiref 编辑×5(开心/生气/悲伤/惊讶/\n  害羞,肌群定义逐字取 §六表)→通栏表情条;缺步回退面部中性不断链\n- **master 一源**:三视图+六特写全部从 master 正视图派生(multiref 编辑)\n\n## 双件说明\n- **-t2i**:master=文生图(三层装配:主体句+净空立绘底座+美术风格底座)\n- **-i2i**:master=图生图(LoadImage 喂已有角色图→multiref 正面全身立绘)\n\n## 注意\n- 模型=bf16 UNET+heretic TE+texture_fix VAE(KJ,cpu/fp32)+viggle turbo r256\n- t2i=Turbo 8步;编辑=multiref base 25步\n- VAE 恒 cpu/fp32(回 GPU 会崩引擎)\n- 合成器格式=全卡/简版/竖版/无武器(四选一)\n\n## 批量使用\n```bash\npython3 apps/build/scripts/daojie_sheet_b_pipeline.py --engine qwen     --subject 主体句文件.txt --name 角色名\n```"
       ]
     }
   ],
@@ -2538,7 +3733,7 @@
     [
       4,
       60,
-      11,
+      16,
       5,
       2,
       "STRING"
@@ -2626,7 +3821,7 @@
     [
       15,
       60,
-      11,
+      16,
       10,
       2,
       "STRING"
@@ -2714,7 +3909,7 @@
     [
       26,
       60,
-      11,
+      16,
       15,
       2,
       "STRING"
@@ -2802,7 +3997,7 @@
     [
       37,
       60,
-      11,
+      16,
       20,
       2,
       "STRING"
@@ -2890,7 +4085,7 @@
     [
       48,
       60,
-      11,
+      16,
       25,
       2,
       "STRING"
@@ -2978,7 +4173,7 @@
     [
       59,
       60,
-      11,
+      16,
       30,
       2,
       "STRING"
@@ -3066,7 +4261,7 @@
     [
       70,
       60,
-      11,
+      16,
       35,
       2,
       "STRING"
@@ -3146,7 +4341,7 @@
     [
       81,
       60,
-      10,
+      15,
       40,
       2,
       "STRING"
@@ -3218,7 +4413,7 @@
     [
       90,
       60,
-      10,
+      15,
       45,
       2,
       "STRING"
@@ -3281,6 +4476,446 @@
     ],
     [
       98,
+      2,
+      0,
+      70,
+      0,
+      "CLIP"
+    ],
+    [
+      99,
+      60,
+      10,
+      70,
+      1,
+      "STRING"
+    ],
+    [
+      100,
+      60,
+      16,
+      70,
+      2,
+      "STRING"
+    ],
+    [
+      101,
+      23,
+      0,
+      70,
+      3,
+      "IMAGE"
+    ],
+    [
+      102,
+      3,
+      0,
+      70,
+      4,
+      "VAE"
+    ],
+    [
+      103,
+      1,
+      0,
+      72,
+      0,
+      "MODEL"
+    ],
+    [
+      104,
+      70,
+      0,
+      72,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      105,
+      70,
+      1,
+      72,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      106,
+      71,
+      0,
+      72,
+      3,
+      "LATENT"
+    ],
+    [
+      107,
+      72,
+      0,
+      73,
+      0,
+      "LATENT"
+    ],
+    [
+      108,
+      3,
+      0,
+      73,
+      1,
+      "VAE"
+    ],
+    [
+      109,
+      2,
+      0,
+      80,
+      0,
+      "CLIP"
+    ],
+    [
+      110,
+      60,
+      11,
+      80,
+      1,
+      "STRING"
+    ],
+    [
+      111,
+      60,
+      16,
+      80,
+      2,
+      "STRING"
+    ],
+    [
+      112,
+      23,
+      0,
+      80,
+      3,
+      "IMAGE"
+    ],
+    [
+      113,
+      3,
+      0,
+      80,
+      4,
+      "VAE"
+    ],
+    [
+      114,
+      1,
+      0,
+      82,
+      0,
+      "MODEL"
+    ],
+    [
+      115,
+      80,
+      0,
+      82,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      116,
+      80,
+      1,
+      82,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      117,
+      81,
+      0,
+      82,
+      3,
+      "LATENT"
+    ],
+    [
+      118,
+      82,
+      0,
+      83,
+      0,
+      "LATENT"
+    ],
+    [
+      119,
+      3,
+      0,
+      83,
+      1,
+      "VAE"
+    ],
+    [
+      120,
+      2,
+      0,
+      90,
+      0,
+      "CLIP"
+    ],
+    [
+      121,
+      60,
+      12,
+      90,
+      1,
+      "STRING"
+    ],
+    [
+      122,
+      60,
+      16,
+      90,
+      2,
+      "STRING"
+    ],
+    [
+      123,
+      23,
+      0,
+      90,
+      3,
+      "IMAGE"
+    ],
+    [
+      124,
+      3,
+      0,
+      90,
+      4,
+      "VAE"
+    ],
+    [
+      125,
+      1,
+      0,
+      92,
+      0,
+      "MODEL"
+    ],
+    [
+      126,
+      90,
+      0,
+      92,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      127,
+      90,
+      1,
+      92,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      128,
+      91,
+      0,
+      92,
+      3,
+      "LATENT"
+    ],
+    [
+      129,
+      92,
+      0,
+      93,
+      0,
+      "LATENT"
+    ],
+    [
+      130,
+      3,
+      0,
+      93,
+      1,
+      "VAE"
+    ],
+    [
+      131,
+      2,
+      0,
+      100,
+      0,
+      "CLIP"
+    ],
+    [
+      132,
+      60,
+      13,
+      100,
+      1,
+      "STRING"
+    ],
+    [
+      133,
+      60,
+      16,
+      100,
+      2,
+      "STRING"
+    ],
+    [
+      134,
+      23,
+      0,
+      100,
+      3,
+      "IMAGE"
+    ],
+    [
+      135,
+      3,
+      0,
+      100,
+      4,
+      "VAE"
+    ],
+    [
+      136,
+      1,
+      0,
+      102,
+      0,
+      "MODEL"
+    ],
+    [
+      137,
+      100,
+      0,
+      102,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      138,
+      100,
+      1,
+      102,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      139,
+      101,
+      0,
+      102,
+      3,
+      "LATENT"
+    ],
+    [
+      140,
+      102,
+      0,
+      103,
+      0,
+      "LATENT"
+    ],
+    [
+      141,
+      3,
+      0,
+      103,
+      1,
+      "VAE"
+    ],
+    [
+      142,
+      2,
+      0,
+      110,
+      0,
+      "CLIP"
+    ],
+    [
+      143,
+      60,
+      14,
+      110,
+      1,
+      "STRING"
+    ],
+    [
+      144,
+      60,
+      16,
+      110,
+      2,
+      "STRING"
+    ],
+    [
+      145,
+      23,
+      0,
+      110,
+      3,
+      "IMAGE"
+    ],
+    [
+      146,
+      3,
+      0,
+      110,
+      4,
+      "VAE"
+    ],
+    [
+      147,
+      1,
+      0,
+      112,
+      0,
+      "MODEL"
+    ],
+    [
+      148,
+      110,
+      0,
+      112,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      149,
+      110,
+      1,
+      112,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      150,
+      111,
+      0,
+      112,
+      3,
+      "LATENT"
+    ],
+    [
+      151,
+      112,
+      0,
+      113,
+      0,
+      "LATENT"
+    ],
+    [
+      152,
+      3,
+      0,
+      113,
+      1,
+      "VAE"
+    ],
+    [
+      153,
       8,
       0,
       50,
@@ -3288,7 +4923,7 @@
       "IMAGE"
     ],
     [
-      99,
+      154,
       13,
       0,
       50,
@@ -3296,7 +4931,7 @@
       "IMAGE"
     ],
     [
-      100,
+      155,
       18,
       0,
       50,
@@ -3304,7 +4939,7 @@
       "IMAGE"
     ],
     [
-      101,
+      156,
       23,
       0,
       50,
@@ -3312,7 +4947,7 @@
       "IMAGE"
     ],
     [
-      102,
+      157,
       38,
       0,
       50,
@@ -3320,7 +4955,7 @@
       "IMAGE"
     ],
     [
-      103,
+      158,
       28,
       0,
       50,
@@ -3328,7 +4963,7 @@
       "IMAGE"
     ],
     [
-      104,
+      159,
       33,
       0,
       50,
@@ -3336,7 +4971,7 @@
       "IMAGE"
     ],
     [
-      105,
+      160,
       43,
       0,
       50,
@@ -3344,7 +4979,7 @@
       "IMAGE"
     ],
     [
-      106,
+      161,
       48,
       0,
       50,
@@ -3352,31 +4987,71 @@
       "IMAGE"
     ],
     [
-      107,
-      60,
-      12,
+      162,
+      73,
+      0,
       50,
       9,
-      "STRING"
+      "IMAGE"
     ],
     [
-      108,
-      60,
-      13,
+      163,
+      83,
+      0,
       50,
       10,
-      "STRING"
+      "IMAGE"
     ],
     [
-      109,
-      60,
-      14,
+      164,
+      93,
+      0,
       50,
       11,
+      "IMAGE"
+    ],
+    [
+      165,
+      103,
+      0,
+      50,
+      12,
+      "IMAGE"
+    ],
+    [
+      166,
+      113,
+      0,
+      50,
+      13,
+      "IMAGE"
+    ],
+    [
+      167,
+      60,
+      17,
+      50,
+      14,
       "STRING"
     ],
     [
-      110,
+      168,
+      60,
+      18,
+      50,
+      15,
+      "STRING"
+    ],
+    [
+      169,
+      60,
+      19,
+      50,
+      16,
+      "STRING"
+    ],
+    [
+      170,
       50,
       0,
       51,
@@ -3447,6 +5122,18 @@
     },
     {
       "id": 6,
+      "title": "⑦ 表情参考×5(Skill-5.4 §六;参考=面部特写)",
+      "bounding": [
+        1220,
+        5160,
+        1720,
+        2500
+      ],
+      "color": "#8AA",
+      "flags": {}
+    },
+    {
+      "id": 7,
       "title": "⑤ 固定底框合成(格式/背景联动)",
       "bounding": [
         4105.870508204909,

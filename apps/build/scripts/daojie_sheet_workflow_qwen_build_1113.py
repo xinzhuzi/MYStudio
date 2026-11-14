@@ -51,7 +51,10 @@ NOTE = """# 道劫·角色设定卡(QwenImage 2.1 版)
   qi21_bases.json 真源装配三层提示词,15 路输出链接分发到各 TextEncode
 - **背景类型联动**:枢纽旋钮→提示词占位填充→同型直连合成器→画布底色同型渲染
 - **档案行**(v6,Skill-5.4 §十 标配信息栏):枢纽从主体句解析 姓名/性别/年龄/
-  身份/武器 五短字段→直连合成器→底部通栏信息带程序绘(档案左+配色方案右)
+  身份/武器/技能 六短字段→直连合成器→底部通栏信息带程序绘(档案左+配色方案右)
+- **设计说明行**(Skill-5.4 §十④):主体句「设计说明:」字段→底带第二行程序绘
+- **表情参考行**(Skill-5.4 §六):面部图 multiref 编辑×5(开心/生气/悲伤/惊讶/
+  害羞,肌群定义逐字取 §六表)→通栏表情条;缺步回退面部中性不断链
 - **master 一源**:三视图+六特写全部从 master 正视图派生(multiref 编辑)
 
 ## 双件说明
@@ -104,7 +107,9 @@ def _prompts():
 
 HUB = {"master": 0, "master_i2i": 1, "weapon": 2, "effect": 3,
        "side": 4, "back": 5, "face": 6, "head": 7, "wrist": 8, "waist": 9,
-       "neg_gen": 10, "neg_edit": 11, "bg": 12, "fmt": 13, "arch": 14}
+       "exp_happy": 10, "exp_angry": 11, "exp_sad": 12,
+       "exp_surprise": 13, "exp_shy": 14,
+       "neg_gen": 15, "neg_edit": 16, "bg": 17, "fmt": 18, "arch": 19}
 
 
 def build_doc(variant: str = "t2i"):
@@ -164,10 +169,13 @@ def build_doc(variant: str = "t2i"):
                 ("指令·侧视图", "STRING", []), ("指令·背视图", "STRING", []),
                 ("指令·面部", "STRING", []), ("指令·头部", "STRING", []),
                 ("指令·腕部", "STRING", []), ("指令·腰部", "STRING", []),
+                ("指令·开心", "STRING", []), ("指令·生气", "STRING", []),
+                ("指令·悲伤", "STRING", []), ("指令·惊讶", "STRING", []),
+                ("指令·害羞", "STRING", []),
                 ("负面·生成", "STRING", []), ("负面·编辑", "STRING", []),
                 ("背景类型", "STRING", []), ("格式", "STRING", []),
                 ("档案", "STRING", [])]
-    g.node(60, "MySheetPromptHub", [0, 100], [420, 620],
+    g.node(60, "MySheetPromptHub", [0, 100], [420, 820],
            [SUBJECT_DEFAULT, NAME_DEFAULT, "纯白", "全卡"],
            {"主体句": SUBJECT_DEFAULT, "角名": NAME_DEFAULT,
             "背景类型": "纯白", "格式": "全卡"},
@@ -283,6 +291,15 @@ def build_doc(variant: str = "t2i"):
     unwire(edits["head"][0], 3)
     wire(edits["side"][3], 0, edits["head"][0], 3, "IMAGE")
 
+    # ③b 表情参考×5(1114 Skill-5.4 §六;参考源=面部特写图,仅变表情锁身份)
+    face_dec = edits["face"][3]
+    exp_decs = []
+    for i, tag in enumerate(("exp_happy", "exp_angry", "exp_sad",
+                             "exp_surprise", "exp_shy")):
+        chain = edit_chain(70 + i * 10, 5260 + i * 420, p["instr"][tag],
+                           seeds[tag], image_src=face_dec, hub_key=tag)
+        exp_decs.append(chain[3])
+
     # ⑤ 合成+存图(格式=注册表;背景=枢纽同源直连)
     src_ids = [master_dec, edits["side"][3], edits["back"][3], edits["face"][3],
                edits["head"][3], edits["wrist"][3], edits["waist"][3],
@@ -290,6 +307,7 @@ def build_doc(variant: str = "t2i"):
     comp_inputs = [(k, "IMAGE", None) for k in
                    ("master", "side", "back", "face", "head",
                     "wrist", "waist", "weapon", "effect")]
+    comp_inputs += [(f"exp_{i}", "IMAGE", None) for i in range(1, 6)]  # 表情五图
     comp_inputs.append(("背景", "STRING", None))  # 枢纽同源(永不脱钩)
     comp_inputs.append(("格式", "STRING", None))   # 1114 注册表驱动透传
     comp_inputs.append(("档案", "STRING", None))   # v6 底部信息带字段行
@@ -302,9 +320,11 @@ def build_doc(variant: str = "t2i"):
         li = g.link(s, 0, 50, slot, "IMAGE")
         node_by(s)["outputs"][0]["links"].append(li)
         g.nodes[-1]["inputs"][slot]["link"] = li
-    wire(60, HUB["bg"], 50, 9, "STRING")   # 背景类型:枢纽→合成器
-    wire(60, HUB["fmt"], 50, 10, "STRING")  # 格式:枢纽→合成器(注册表透传)
-    wire(60, HUB["arch"], 50, 11, "STRING")  # 档案:枢纽→合成器(底带字段行)
+    for i, dec in enumerate(exp_decs):      # 表情五图→槽 9..13
+        wire(dec, 0, 50, 9 + i, "IMAGE")
+    wire(60, HUB["bg"], 50, 14, "STRING")   # 背景类型:枢纽→合成器
+    wire(60, HUB["fmt"], 50, 15, "STRING")  # 格式:枢纽→合成器(注册表透传)
+    wire(60, HUB["arch"], 50, 16, "STRING")  # 档案:枢纽→合成器(底带两行)
     g.node(51, "SaveImage", [3560, 1440], [340, 110],
            ["道劫设定卡Q/"], {"filename_prefix": "道劫设定卡Q/"},
            inputs=[("images", "IMAGE", None)], outputs=[])
@@ -319,6 +339,7 @@ def build_doc(variant: str = "t2i"):
     g.group("② master(本件变体:t2i 文生图 / i2i 图生图)", [1220, -60, 1740, 480])
     g.group("③ 六路编辑(multiref:TE 参考图槽;head 吃侧视图)", [1220, 500, 1720, 2400])
     g.group("④ 武器/特效 t2i(Turbo 8步)", [1220, 3020, 1720, 900], "#88A")
+    g.group("⑦ 表情参考×5(Skill-5.4 §六;参考=面部特写)", [1220, 5160, 1720, 2500], "#8AA")
     g.group("⑤ 固定底框合成(格式/背景联动)", [3000, 1180, 1100, 780], "#3A3")
     return g.build()
 

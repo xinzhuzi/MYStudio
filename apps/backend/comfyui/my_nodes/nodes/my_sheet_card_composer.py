@@ -110,6 +110,7 @@ def cells_focal() -> dict:
         "eye": (0.5, 0.36), "hair": (0.5, 0.20),
         "weapon_a": (0.12, 0.5), "weapon_b": (0.88, 0.5),
         "fabric_1": (0.5, 0.44), "fx_2": (0.62, 0.38),
+        **{f"exp_{i}": (0.5, 0.45) for i in range(1, 6)},   # 表情格=眼嘴肌群中区
     }
 
 
@@ -206,7 +207,15 @@ def derive_cells(imgs: dict) -> dict:
     need = {"master", "side", "back", "face", "head", "wrist", "waist",
             "weapon", "effect"}
     assert need <= set(imgs), f"缺步产物:{need - set(imgs)}"
-    return {
+    exp_tags = ("exp_happy", "exp_angry", "exp_sad", "exp_surprise", "exp_shy")
+    exp = {}
+    for i, tag in enumerate(exp_tags):        # 1114 Skill-5.4 §六 表情参考行
+        src = imgs.get(tag)
+        if src is None:                       # 缺步回退=面部中性(表情行可辨不断链)
+            print(f"[sheet] 表情步 {tag} 缺,exp_{i + 1} 回退面部中性")
+            src = imgs["face"]
+        exp[f"exp_{i + 1}"] = src
+    return {**{
         "front": imgs["master"], "side": imgs["side"], "back": imgs["back"],
         "face": imgs["face"], "head": imgs["head"],
         "eye": zoom(imgs["face"], 0.5, 0.42, 0.70, 0.26),
@@ -226,7 +235,8 @@ def derive_cells(imgs: dict) -> dict:
         "gear_2": zoom(imgs["head"], 0.55, 0.17, 0.64, 0.33),
         "fx_1": imgs["effect"],
         "fx_2": zoom(imgs["effect"], 0.62, 0.35, 0.55),
-    }
+        **exp,
+    }}
 
 
 def compose(cells: dict, palette, title: str, dst: str, fmt: str = "全卡",
@@ -271,24 +281,33 @@ def compose(cells: dict, palette, title: str, dst: str, fmt: str = "全卡",
     lab_w = lb[2] - lb[0]
     pal_w = lab_w + 28 + 5 * 2 * r + 4 * gap
     arc_max = bw - pal_w - 48
-    if archive:
-        afont = label_font
-        bb = d.textbbox((0, 0), archive, font=afont)
+
+    def _fit(text, sizes, y_top):
+        """一行档案文字:按 sizes 收字号适宽,仍溢逐字截断带…(Skill-5.4 §十)。"""
+        afont = _font(sizes[0])
+        bb = d.textbbox((0, 0), text, font=afont)
         if bb[2] - bb[0] > arc_max:
-            for size in (32, 28):
+            for size in sizes[1:]:
                 afont = _font(size)
-                bb = d.textbbox((0, 0), archive, font=afont)
+                bb = d.textbbox((0, 0), text, font=afont)
                 if bb[2] - bb[0] <= arc_max:
                     break
-        text = archive
-        while bb[2] - bb[0] > arc_max and len(text) > 1:
-            text = text[:-1]
-            bb = d.textbbox((0, 0), text + "…", font=afont)
-        if text != archive:
-            text += "…"
-            bb = d.textbbox((0, 0), text, font=afont)
-        d.text((px0 + 8 - bb[0], cy - (bb[3] - bb[1]) // 2 - bb[1]),
-               text, font=afont, fill=INK_TEXT)
+        t = text
+        while bb[2] - bb[0] > arc_max and len(t) > 1:
+            t = t[:-1]
+            bb = d.textbbox((0, 0), t + "…", font=afont)
+        if t != text:
+            bb = d.textbbox((0, 0), t + "…", font=afont)
+            t += "…"
+        d.text((px0 + 8 - bb[0], y_top - bb[1]), t, font=afont, fill=INK_TEXT)
+
+    lines = [t for t in (archive or "").split("\n") if t]
+    if len(lines) == 1:                        # 单行=档案行居中(36→28)
+        bb = d.textbbox((0, 0), "档", font=label_font)
+        _fit(lines[0], (36, 32, 28), cy - (bb[3] - bb[1]) // 2)
+    elif len(lines) == 2:                      # 两行=档案 34+设计说明 26
+        _fit(lines[0], (34, 30, 26), cy - 42)
+        _fit(lines[1], (28, 24, 22), cy + 8)
     lx = px1 - pal_w - 20               # 右收 20px:末圆离框线(简版贴边勘)
     d.text((lx - lb[0], cy - (lb[3] - lb[1]) // 2 - lb[1]),
            "配色方案", font=label_font, fill=INK_TEXT)
@@ -319,7 +338,8 @@ def _selftest(dst="/tmp/sheetB_frame_selftest.png"):
         hue = (i * 37) % 255
         cells[k] = Image.new("RGB", (900, 600), (hue, (hue * 2) % 255, (hue * 3) % 255))
     compose(cells, [(200, 60, 60)] * 5, "自检·沈孤鸿", dst,
-            archive="姓名:沈孤鸿 · 性别:男 · 年龄:二十二岁 · 身份:剑修 · 武器:长剑")
+            archive="姓名:沈孤鸿 · 性别:男 · 年龄:二十二岁 · 身份:剑修 · 武器:长剑 · 技能:孤鸿剑气\n"
+                    "设计说明:孤鸿出岫,剑修远尘;月白黛青取鸿羽掠空之色;一剑收鞘,锋藏不露")
     im = Image.open(dst)
     assert im.size == (W, H) and im.mode == "RGB", (im.size, im.mode)
 
@@ -344,7 +364,10 @@ class MySheetCardComposer:
             "格式": (formats_list(), {"default": formats_list()[0]}),
             "背景": ("STRING", {"default": "纯白", "multiline": False}),
         }, "optional": {
-            # optional(同枢纽『格式』裁定):旧法 API 直调 prompt JSON 缺字段即 validate 红
+            # optional(同枢纽『格式』裁定):旧法 API 直调 prompt JSON 缺字段即 validate 红;
+            # 表情五图 optional=旧画布件/缺步不断链(合成器回退面部中性)
+            "exp_1": ("IMAGE",), "exp_2": ("IMAGE",), "exp_3": ("IMAGE",),
+            "exp_4": ("IMAGE",), "exp_5": ("IMAGE",),
             "档案": ("STRING", {"default": "", "multiline": False}),
         }}
 
@@ -354,18 +377,25 @@ class MySheetCardComposer:
     CATEGORY = "道劫/设定卡"
 
     def compose_card(self, master, side, back, face, head, wrist, waist,
-                     weapon, effect, 角名, 格式="全卡", 背景="纯白", 档案=""):
+                     weapon, effect, 角名, 格式="全卡", 背景="纯白", 档案="",
+                     exp_1=None, exp_2=None, exp_3=None, exp_4=None, exp_5=None):
         import numpy as np  # 引擎内必在;懒导入保 Mac 纯文件路测试零 torch 依赖
 
         def to_pil(t):
             arr = (t[0].clamp(0, 1).cpu().numpy() * 255).round().astype("uint8")
             return Image.fromarray(arr)
 
+        def opt(t):
+            return None if t is None else to_pil(t)
+
         cells = derive_cells({
             "master": to_pil(master), "side": to_pil(side), "back": to_pil(back),
             "face": to_pil(face), "head": to_pil(head),
             "wrist": to_pil(wrist), "waist": to_pil(waist),
             "weapon": to_pil(weapon), "effect": to_pil(effect),
+            "exp_happy": opt(exp_1), "exp_angry": opt(exp_2),
+            "exp_sad": opt(exp_3), "exp_surprise": opt(exp_4),
+            "exp_shy": opt(exp_5),
         })
         m = cells["front"]
         pal_src = m.crop((round(m.width * 0.32), 0,

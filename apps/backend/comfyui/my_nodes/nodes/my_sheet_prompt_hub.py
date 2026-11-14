@@ -57,14 +57,16 @@ def _field(subject: str, key: str, default: str) -> str:
 
 
 # Skill-5.4 §十 canon:角色档案字段=专业设定集标配信息栏(短字段行,程序绘)
-ARCHIVE_FIELDS = ("姓名", "性别", "年龄", "身份", "武器")
+# (键, 显示名):能力字段以「技能」名上卡(§十③ 物品名称=技能名)
+ARCHIVE_FIELDS = (("姓名", "姓名"), ("性别", "性别"), ("年龄", "年龄"),
+                  ("身份", "身份"), ("武器", "武器"), ("能力", "技能"))
 ARCHIVE_VALUE_MAX = 12          # 长值(武器全名/能力句)取首段截 12 字,全量仍在格图与主体句
 
 
 def archive_line(subject: str, name: str) -> str:
     """主体句→底部档案行(逐字段取真源值,值至首个中英逗号/破折号,禁手搓)。"""
     parts = []
-    for key in ARCHIVE_FIELDS:
+    for key, label in ARCHIVE_FIELDS:
         val = _field(subject, key, "")
         if not val:
             if key != "姓名":
@@ -72,8 +74,13 @@ def archive_line(subject: str, name: str) -> str:
             val = name or "沈孤鸿"
         for sep in (",", ",", "——"):
             val = val.split(sep)[0]
-        parts.append(f"{key}:{val[:ARCHIVE_VALUE_MAX]}")
+        parts.append(f"{label}:{val[:ARCHIVE_VALUE_MAX]}")
     return " · ".join(parts)
+
+
+def design_note(subject: str) -> str:
+    """主体句「设计说明:」字段→底带第二行(Skill-5.4 §十④ 2-4 短行;缺位=空)。"""
+    return _field(subject, "设计说明", "")
 
 
 def assemble(subject: str, name: str, bg: str) -> dict:
@@ -103,12 +110,18 @@ def assemble(subject: str, name: str, bg: str) -> dict:
     }
     for k in ("side", "back", "face", "head", "wrist", "waist"):
         out[k] = fill(q["edit_instructions"][k])
-    out["档案"] = archive_line(subject, name)   # v6:底部信息带字段行(程序绘)
+    for k in EXP_TAGS:                          # 1114 Skill-5.4 §六 表情参考行
+        out[k] = fill(q["edit_instructions"][k])
+    # v6 底部信息带:档案行+设计说明行(两行合成一个 STRING 出,程序绘)
+    out["档案"] = "\n".join(t for t in (archive_line(subject, name),
+                                       design_note(subject)) if t)
     return out
 
 
+EXP_TAGS = ("exp_happy", "exp_angry", "exp_sad", "exp_surprise", "exp_shy")
 OUT_ORDER = ("master", "master_i2i", "weapon", "effect",
              "side", "back", "face", "head", "wrist", "waist",
+             *EXP_TAGS,
              "neg_gen", "neg_edit", "bg", "格式", "档案")
 
 
@@ -125,6 +138,8 @@ class MySheetPromptHub:
                            "黛青束口裤,玄色短靴靴口银边|配色:主色月白,辅色黛青,点睛银|"
                            "衣料:主衣料细密缎面,腰封厚织锦,绑绳素麻绳|配饰:墨青发带,腰封素银方扣,剑穗青白丝线|"
                            "武器:长剑,玄色木胎鲛皮鞘,鞘口衔银,剑柄缠墨色丝绦,剑穗青白丝线,收鞘态|"
+                           "设计说明:孤鸿出岫,剑修远尘;月白黛青取鸿羽掠空之色;"
+                           "一剑收鞘,锋藏不露|"
                            "其余:无灵兽,无伤痕旧损")
         return {"required": {
             "主体句": ("STRING", {"default": subject_default, "multiline": True}),
@@ -136,10 +151,12 @@ class MySheetPromptHub:
             "格式": (_sf.formats_list(), {"default": "全卡"}),
         }}
 
-    RETURN_TYPES = ("STRING",) * 15
+    RETURN_TYPES = ("STRING",) * 20
     RETURN_NAMES = ("正向·master", "指令·master图生图", "正向·武器", "正向·特效",
                     "指令·侧视图", "指令·背视图", "指令·面部", "指令·头部",
-                    "指令·腕部", "指令·腰部", "负面·生成", "负面·编辑", "背景类型",
+                    "指令·腕部", "指令·腰部",
+                    "指令·开心", "指令·生气", "指令·悲伤", "指令·惊讶", "指令·害羞",
+                    "负面·生成", "负面·编辑", "背景类型",
                     "格式", "档案")
     FUNCTION = "hub"
     CATEGORY = "道劫/设定卡"
