@@ -94,6 +94,28 @@ def relayout(d):
                            'color': old['color'] if old else '#335588',
                            'flags': old.get('flags', {}) if old else {}, 'order': gi})
         x_cur = g_max_x + 260
+        # 1114 用户令:输入组依赖对横排直连(⑤视频→桥、时长→表达式 上下叠放=回旋连线穿身)
+        if gname == '输入':
+            ROWS = [[14], [345], [346, 347], [20, 131], [22], [129]]
+            col2_x = max((nodes[i]['pos'][0] + nodes[i]['size'][0]) for i in (9, 110, 111, 112, 113, 341, 342, 343, 344)) + 210
+            ry = Y0
+            for row in ROWS:
+                rx = col2_x
+                row_h = 0
+                for rid in row:
+                    nodes[rid]['pos'] = [rx, ry]
+                    w, h = nodes[rid]['size'][0], max(nodes[rid]['size'][1], est_h(nodes[rid]))
+                    g_max_x = max(g_max_x, rx + w)
+                    row_h = max(row_h, h)
+                    rx += w + 210  # est 宪法:同排间距≥200
+                ry += row_h + VGAP
+            # 组 bbox 按行式后的成员实物重算(刚 append 的即本组)
+            g = new_groups[-1]
+            mem = [nodes[i] for i in valid]
+            gx0 = min(m['pos'][0] for m in mem); gy0 = min(m['pos'][1] for m in mem)
+            gx1 = max(m['pos'][0] + m['size'][0] for m in mem); gy1 = max(m['pos'][1] + m['size'][1] for m in mem)
+            g['bounding'] = [gx0 - 30, gy0 - 60, gx1 - gx0 + 60, gy1 - gy0 + 60]
+            x_cur = g_max_x + 260
     d['groups'] = new_groups
     # Note101=README 恒在全部组框外侧左下(1114 用户令)
     n101 = next((x for x in d['nodes'] if x['id'] == 101), None)
