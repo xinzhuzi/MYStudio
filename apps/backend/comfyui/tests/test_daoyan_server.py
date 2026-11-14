@@ -304,7 +304,7 @@ class _PostReq:
 
 def test_install_new_routes_shape(tmp_path, monkeypatch):
     """三新路由注册+响应形状:input_media {files,count};upload_audio 落
-    input/;enhance_prompt 缺 key=200+ok:False(非 500)。"""
+    input/。"""
     routes: dict = {}
     aiohttp = types.ModuleType("aiohttp")
 
@@ -331,8 +331,8 @@ def test_install_new_routes_shape(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "server", server)
     monkeypatch.setattr(ds, "_installed", False)
     ds.install()
-    assert {"/my_daoyan/input_media", "/my_daoyan/upload_audio",
-            "/my_daoyan/enhance_prompt"} <= set(routes)
+    assert {"/my_daoyan/input_media", "/my_daoyan/upload_audio"} <= set(routes)
+    assert "/my_daoyan/enhance_prompt" not in routes  # 1115 撤裁
 
     inp = tmp_path / "input"
     inp.mkdir()
@@ -359,13 +359,3 @@ def test_install_new_routes_shape(tmp_path, monkeypatch):
         _PostReq(body=b"x", headers={"X-Filename": "a.exe"})))
     assert bad.status == 400 and bad.payload["ok"] is False
 
-    # enhance_prompt:缺 key=200+ok:False 明示(非 500)
-    monkeypatch.delenv("BIGMODEL_API_KEY", raising=False)
-    enh = asyncio.run(routes["/my_daoyan/enhance_prompt"](
-        _PostReq(body=json.dumps({"text": "短句"}).encode("utf-8"))))
-    assert enh.status == 200
-    assert enh.payload["ok"] is False
-    assert "BIGMODEL_API_KEY" in enh.payload["error"]
-    empty = asyncio.run(routes["/my_daoyan/enhance_prompt"](
-        _PostReq(body=json.dumps({"text": ""}).encode("utf-8"))))
-    assert empty.status == 200 and empty.payload["ok"] is False
