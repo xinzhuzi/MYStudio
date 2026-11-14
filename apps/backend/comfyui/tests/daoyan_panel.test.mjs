@@ -323,20 +323,22 @@ test("⑨ 组管理:上一组下一组/复制组(副本)/删组两步确认/单�
   assert.ok(root.innerHTML.includes("重掷已布防"), "meta 示布防");
 });
 
-// ── ⑩ 槽守门:公共+本组合计 ≤9(AUTOGROW max=9 口径)─────────────────
-test("⑩ 槽守门:公共+本组合计≤9;去重;秒数双单位渲染", () => {
+// ── ⑩ 槽守门:公共+本组合计 ≤9 槽/异图 ≤8(1114 用户裁定,App 组装器同口径)──
+test("⑩ 槽守门:公共+本组合计≤9槽;异图≤8;重复图不占预算;秒数双单位渲染", () => {
   const sb = loadPanel();
   const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 7; i++) {
     assert.equal(sb.DaoyanCards.actions.addCommonImage(ctrl, "c" + i + ".png"), true);
   }
   assert.equal(sb.DaoyanCards.actions.addCommonImage(ctrl, "c0.png"), false, "重名去重");
-  assert.equal(sb.DaoyanCards.actions.addCommonImage(ctrl, "c8.png"), true, "第 9 张公共=合计顶格仍合法");
-  assert.equal(sb.DaoyanCards.actions.addCommonImage(ctrl, "c9.png"), false, "第 10 张=破 9 上限拒加");
+  assert.equal(sb.DaoyanCards.actions.addCommonImage(ctrl, "c7.png"), true, "第 8 张公共=异图顶格仍合法");
+  assert.equal(sb.DaoyanCards.actions.addCommonImage(ctrl, "c8.png"), false, "第 9 张=破异图 8 拒加(槽 9 未破→纯异图门)");
   sb.DaoyanCards.actions.removeCommonImage(ctrl, 0);
   sb.DaoyanCards.actions.addGroup(ctrl);
-  assert.equal(sb.DaoyanCards.actions.addGroupImage(ctrl, 0, "a.png"), true, "8公共+1本组=9 合法");
-  assert.equal(sb.DaoyanCards.actions.addGroupImage(ctrl, 0, "b.png"), false, "再添=破 9 上限拒加");
+  assert.equal(sb.DaoyanCards.actions.addGroupImage(ctrl, 0, "a.png"), true, "7公共+1本组=8异图合法");
+  assert.equal(sb.DaoyanCards.actions.addGroupImage(ctrl, 0, "b.png"), false, "第 9 异图拒加(槽 9 未破→纯异图门)");
+  assert.equal(sb.DaoyanCards.actions.addGroupImage(ctrl, 0, "c1.png"), true, "跨区重名=重复图不占异图预算,槽 9 顶格");
+  assert.equal(sb.DaoyanCards.actions.addGroupImage(ctrl, 0, "d.png"), false, "第 10 槽亦拒");
   // 组级参数渲染:参考图尺寸 match▾ + 秒数→帧双单位
   sb.DaoyanTimeline.actions.setSegmentSeconds(ctrl, 0, 5);
   const root = stubElement();
@@ -486,10 +488,13 @@ test("⑮ 素材进出全量:真上传入槽/上传守门/原位替换/缩略图
   assert.equal(sb.DaoyanCards.actions.replaceCommonImage(ctrl, 0, "canon-jc.png"), true, "原位同名幂等");
   sb.DaoyanCards.actions.addCommonImage(ctrl, "hero.png");
   assert.equal(sb.DaoyanCards.actions.replaceCommonImage(ctrl, 0, "hero.png"), false, "换 成他槽已有名拒");
-  // 上传路径同吃 ≤9 守门:公共顶格后上传 ok:false
-  for (let i = 0; i < 6; i++) await sb.DaoyanCards.actions.uploadToZone(ctrl, "common", 0, { name: "c" + i + ".png" });
+  // 上传路径同吃 ≤9槽/≤8异图守门:异图顶格后上传 ok:false
+  for (let i = 0; i < 5; i++) {
+    const r = await sb.DaoyanCards.actions.uploadToZone(ctrl, "common", 0, { name: "c" + i + ".png" });
+    assert.equal(r.ok, true);
+  }
   const r4 = await sb.DaoyanCards.actions.uploadToZone(ctrl, "common", 0, { name: "c9.png" });
-  assert.equal(r4.ok, false, "8公共+1本组=9 顶格,再上传拒");
+  assert.equal(r4.ok, false, "7公共+1本组=8异图顶格,再上传=第9异图拒");
   // 缩略图渲染:/view 真缩略图+死图回退类+⇄ 替换按钮+⬆ 上传按钮
   const root = stubElement();
   sb.DaoyanCards.build(root, ctrl);

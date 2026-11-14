@@ -595,3 +595,55 @@ def test_interrupt_classified():
     assert de.classify_interrupt(InterruptProcessingException("stop")) is True
     assert de.classify_interrupt(ValueError("x")) is False
 
+
+# ── 参考图预算(1114 用户裁定:9槽/8异图;≥5异图 ref_image_size 降 match;
+#    与 App 组装器 buildShotH3SancaiApiWorkflow 同口径)────────────────
+
+def test_ref_name_list_budget_nine_distinct_truncated():
+    """纯名预算:9异图截第9名(尾弃);重复名不占预算(跨区重名保槽)。"""
+    st = _state(common_images=["c1", "c2", "c3"])
+    seg = {"images": [f"s{i}.png" for i in range(6)]}  # 3公共+6本组=9槽9异图
+    assert de.ref_name_list(st, seg) == ["c1", "c2", "c3",
+                                         "s0.png", "s1.png", "s2.png",
+                                         "s3.png", "s4.png"]  # s5 弃尾
+    seg2 = {"images": ["c1", "s0.png", "s1.png", "s2.png",
+                       "s3.png", "s4.png", "s5.png"]}  # 9槽8异图(c1重复)
+    assert de.ref_name_list(st, seg2) == ["c1", "c2", "c3", "c1",
+                                          "s0.png", "s1.png", "s2.png",
+                                          "s3.png", "s4.png"]
+
+
+def test_dry_run_ninth_distinct_dropped_and_match(monkeypatch):
+    """执行链干跑:第9异图不进 ref_images;8异图≥5→ref_image_size=match。"""
+    st = _state()
+    st["stages"]["yicai"] = True
+    st["segments"] = [dict(st["segments"][0])]
+    st["segments"][0]["images"] = [f"s{i}.png" for i in range(8)]  # +canon=9异图
+    hooks, side, box = _fake_hooks()
+    _patch_save(monkeypatch, side)
+    FakeCls.calls.clear()
+    de.DirectorExecutor(_fake_classes(), hooks).run(
+        "model", "vvae", "avae", "clip", st, unique_id=7)
+    kw = next(kw for n, kw in FakeCls.calls
+              if n == "MiniMaxH3ReferenceToVideo")
+    assert len(kw["ref_images"]) == 8  # canon+s0..s6;s7 截尾
+    assert list(kw["ref_images"]) == [f"ref_image_{j}" for j in range(8)]
+    assert kw["ref_image_size"] == "match"
+
+
+def test_dry_run_four_distinct_keeps_max(monkeypatch):
+    """异图≤4(1110 定律原面)保 max,槽全保不截。"""
+    st = _state()
+    st["stages"]["yicai"] = True
+    st["segments"] = [dict(st["segments"][0])]
+    st["segments"][0]["images"] = ["sb01.png", "a.png", "b.png"]  # canon+3=4异图
+    hooks, side, box = _fake_hooks()
+    _patch_save(monkeypatch, side)
+    FakeCls.calls.clear()
+    de.DirectorExecutor(_fake_classes(), hooks).run(
+        "model", "vvae", "avae", "clip", st, unique_id=7)
+    kw = next(kw for n, kw in FakeCls.calls
+              if n == "MiniMaxH3ReferenceToVideo")
+    assert len(kw["ref_images"]) == 4
+    assert kw["ref_image_size"] == "max"
+

@@ -374,15 +374,58 @@ def _shape(x) -> str:
     return str(x)
 
 
+# ── 参考图预算口径(1114 用户裁定,与 App 组装器 buildShotH3SancaiApiWorkflow
+#    同源):17000 实测 异图≥9 或 大参考数×max=引擎原生崩,8异图×match 稳;
+#    槽≤9(AUTOGROW ref_image_0..8),异图按名去重≤8(重复图不占预算)───
+REF_SLOT_LIMIT = 9
+REF_DISTINCT_LIMIT = 8
+
+
+def budget_ref_items(keys, slots=REF_SLOT_LIMIT,
+                     distinct=REF_DISTINCT_LIMIT):
+    """预算单源:keys 按槽序(名或无名张量伪名);重复键不占预算,
+    超 slots/distinct 截尾。返回(保留下标序, 异图数, 弃件下标)。"""
+    seen: set = set()
+    keep: list[int] = []
+    drop: list[int] = []
+    for j, key in enumerate(keys):
+        if key in seen:
+            keep.append(j)
+        elif len(seen) < distinct and len(keep) < slots:
+            seen.add(key)
+            keep.append(j)
+        else:
+            drop.append(j)
+    return keep, len(seen), drop
+
+
+def budget_ref_names(names, slots=REF_SLOT_LIMIT,
+                     distinct=REF_DISTINCT_LIMIT):
+    """名版预算(ref_name_list/调试壳共用):返回(保留名序, 异图数, 弃名)。"""
+    keys = [n for n in names if n]
+    keep, n_distinct, drop = budget_ref_items(keys, slots, distinct)
+    return ([keys[j] for j in keep], n_distinct,
+            [keys[j] for j in drop])
+
+
 def ref_name_list(state: dict, seg: dict) -> list[str]:
-    """r2v 参考图名序列=公共(角色卡,Picture 1-3)+本组(分镜帧,4+),≤9。"""
-    names = ((state.get("common_images") or []) + (seg.get("images") or []))[:9]
-    return [n for n in names if n]
+    """r2v 参考图名序列=公共(角色卡,Picture 1-3)+本组(分镜帧,4+);
+    9槽/8异图预算(超预算截尾,面板 <Picture N> 语义按保留序)。"""
+    names = (state.get("common_images") or []) + (seg.get("images") or [])
+    kept, _, _ = budget_ref_names(names)
+    return kept
 
 
-def load_refs(hooks: Hooks, state: dict, seg: dict) -> tuple[list, list]:
-    """按名装载参考图:缺件=DirectorError 点名(不静默跳过)。"""
-    names = ref_name_list(state, seg)
+def load_refs(hooks: Hooks, state: dict, seg: dict,
+              log=None) -> tuple[list, list]:
+    """按名装载参考图(9槽/8异图预算截尾,弃件留痕);缺件=DirectorError
+    点名(不静默跳过)。"""
+    raw = [n for n in (state.get("common_images") or [])
+           + (seg.get("images") or []) if n]
+    names, _, dropped = budget_ref_names(raw)
+    if dropped and log:
+        log(f"参考图预算截尾(9槽/8异图,App 组装器同口径):"
+            f"弃 [{','.join(dropped)}]")
     refs = []
     for name in names:
         img = hooks.load_image(name)
@@ -407,14 +450,27 @@ def conditioning(ctx: PassCtx, seg: dict, refs, ref_names, width, height,
     own = seg.get("images") or []
     if mode in ("t2v", "r2v"):
         kw = dict(clip=clip, prompt=prompt, width=width, height=height,
-                  length=frames, ref_image_size="max")  # 产线定谳:ref 恒 max
+                  length=frames,
+                  ref_image_size="max")  # t2v 无参考恒 max;r2v 预算后自适应
         if mode == "r2v":
             kw.update(vae=video_vae, audio_vae=audio_vae)
             # AUTOGROW 类直调=聚合字典 {ref_image_N: IMAGE}(引擎把点分
             # 子槽聚成 dict 传类;1114 R1 实弹三拦定谳,消费方
             # .values()/.items() 遍历)
-            kw["ref_images"] = {f"ref_image_{j}": img
-                                for j, img in enumerate(refs[:9])}
+            # 末端口径预算(单源守门,executor/壳全路径):9槽/8异图,
+            # 重复名不占预算;无名画布张量(壳路径)保守各计 1 异图
+            names = [str(n) for n in (ref_names or [])]
+            keys = names + [f"(画布直喂{j})"
+                            for j in range(len(names), len(refs))]
+            keep, distinct, drop = budget_ref_items(keys)
+            if drop:
+                log(f"参考图预算截尾(9槽/8异图):"
+                    f"弃 [{','.join(keys[j] for j in drop)}]")
+            kw["ref_images"] = {f"ref_image_{j}": refs[idx]
+                                for j, idx in enumerate(keep)}
+            # 1114 自适应(用户裁定):异图≤4 保 max(1110 定律原面);
+            # ≥5 降 match(实测 大参考数×max=引擎原生崩)
+            kw["ref_image_size"] = "max" if distinct <= 4 else "match"
         log(f"cond mode={mode} refs=[{','.join(ref_names or [])}]"
             f" 首帧=- 尾帧=- {width}×{height} length={frames}")
         log(f"prompt 全文:\n{prompt}")
@@ -784,7 +840,7 @@ class DirectorExecutor:
                     try:
                         if stage in ("yicai", "ercai") and kit is None:
                             kit = build_model_kit(self.C, model, log)
-                        refs, ref_names = load_refs(self.H, state, seg)
+                        refs, ref_names = load_refs(self.H, state, seg, log)
                         if stage == "yicai":
                             p1_rel, av_latent, _ = pass1(
                                 ctx, seg, kit, refs, model, video_vae,

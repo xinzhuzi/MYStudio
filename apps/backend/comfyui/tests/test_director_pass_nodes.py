@@ -201,3 +201,37 @@ def test_single_source_parity(monkeypatch):
         p2_video="vid:p2.mp4", color_fix="none", seed=42,
         chapter="chapter-b001", seg_id="sb-01"))
     assert exec_counts == shell_counts
+
+
+# ── 参考图预算(1114:9槽/8异图,画布直喂张量占1名额)──────────────────
+
+def test_pass1_shell_budgets_names_with_canvas_tensor(monkeypatch):
+    """壳路径预算:画布张量占1异图名额→名预算7异图;末端口径
+    ref_images=7名+张量共8槽(≤9槽/8异图),≥5异图→match。"""
+    _, _, side, _ = _bind_fake(monkeypatch)
+    _patch_save(monkeypatch, side)
+    FakeCls.calls.clear()
+    dpn.MyDaoyanPass1().execute(
+        "model", "vv", "aa", "cc", mode="r2v",
+        ref_names=",".join(f"r{i}.png" for i in range(9)),
+        chapter="chapter-b001", seg_id="sb-01", ref_image="TENSOR")
+    kw = next(kw for n, kw in FakeCls.calls
+              if n == "MiniMaxH3ReferenceToVideo")
+    assert len(kw["ref_images"]) == 8  # 7名(r0..r6)+1张量
+    assert kw["ref_images"]["ref_image_7"] == "TENSOR"
+    assert kw["ref_image_size"] == "match"
+
+
+def test_pass2_shell_budgets_names(monkeypatch):
+    """Pass2 壳:9异图名→名预算截第9;8异图≥5→match。"""
+    _, _, side, _ = _bind_fake(monkeypatch)
+    _patch_save(monkeypatch, side)
+    FakeCls.calls.clear()
+    dpn.MyDaoyanPass2().execute(
+        "model", "vv", "aa", "cc", mode="r2v",
+        ref_names=",".join(f"r{i}.png" for i in range(9)),
+        chapter="chapter-b001", seg_id="sb-01", av_latent="av-direct")
+    kw = next(kw for n, kw in FakeCls.calls
+              if n == "MiniMaxH3ReferenceToVideo")
+    assert len(kw["ref_images"]) == 8
+    assert kw["ref_image_size"] == "match"

@@ -20,8 +20,9 @@ pass_nodes.py::test_single_source_parity 钉死)。
 """
 from __future__ import annotations
 
-from .director_executor import (PassCtx, build_model_kit, pass1, pass2,
-                                pass3)
+from .director_executor import (REF_DISTINCT_LIMIT, PassCtx,
+                                budget_ref_names, build_model_kit, pass1,
+                                pass2, pass3)
 from .my_director_console import DIRECTOR_RECIPE
 
 CATEGORY = "漫影/导演台"
@@ -108,14 +109,21 @@ class MyDaoyanPass1:
                 prompt_description="", prompt_soundscape="", ref_names="",
                 chapter="chapter-debug", seg_id="debug-01", ref_image=None):
         classes, hooks = _bind_engine_hooks()
-        names = _split_ref_names(ref_names)
+        log = _open_log(hooks, chapter)
+        # 9槽/8异图预算(1114 用户裁定):画布直喂张量占 1 异图名额
+        # (名预算让位;末端口径 conditioning 再兜底)
+        names, _, dropped = budget_ref_names(
+            _split_ref_names(ref_names),
+            distinct=REF_DISTINCT_LIMIT - (0 if ref_image is None else 1))
+        if dropped:
+            log(f"参考图预算截尾(画布直喂张量占1异图名额):"
+                f"弃 [{','.join(dropped)}]")
         seg = {"id": seg_id, "mode": mode, "frames": int(frames),
                "seed": int(seed),
                "prompt": dict(zip(_PROMPT_FIELDS,
                                   (prompt_summary, prompt_retention,
                                    prompt_description, prompt_soundscape))),
                "images": list(names)}
-        log = _open_log(hooks, chapter)
         ctx = PassCtx(classes=classes, hooks=hooks, chapter=chapter,
                       seg_index=0,
                       first_steps=DIRECTOR_RECIPE["first_pass_steps"],
@@ -163,14 +171,18 @@ class MyDaoyanPass2:
                 prompt_description="", prompt_soundscape="", ref_names="",
                 chapter="chapter-debug", seg_id="debug-01", av_latent=None):
         classes, hooks = _bind_engine_hooks()
-        names = _split_ref_names(ref_names)
+        log = _open_log(hooks, chapter)
+        # 9槽/8异图预算(1114 用户裁定;末端口径 conditioning 再兜底)
+        names, _, dropped = budget_ref_names(_split_ref_names(ref_names))
+        if dropped:
+            log(f"参考图预算截尾(9槽/8异图,App 组装器同口径):"
+                f"弃 [{','.join(dropped)}]")
         seg = {"id": seg_id, "mode": mode, "frames": int(frames),
                "seed": int(seed),
                "prompt": dict(zip(_PROMPT_FIELDS,
                                   (prompt_summary, prompt_retention,
                                    prompt_description, prompt_soundscape))),
                "images": list(names)}
-        log = _open_log(hooks, chapter)
         ctx = PassCtx(classes=classes, hooks=hooks, chapter=chapter,
                       seg_index=0,
                       first_steps=DIRECTOR_RECIPE["first_pass_steps"],

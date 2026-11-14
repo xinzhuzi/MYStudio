@@ -110,6 +110,15 @@
     return "图片 " + (zone === "common" ? slotIdx + 1 : common + slotIdx + 1);
   }
 
+  /** 异图计数(按名去重;1114 用户裁定:≥9 异图=引擎原生崩,与
+   * executor/App 组装器同口径;跨区重名=重复图不占预算) */
+  function distinctCount(l1, l2) {
+    var seen = {};
+    for (var i = 0; i < l1.length; i++) seen[l1[i]] = true;
+    for (var j = 0; j < (l2 ? l2.length : 0); j++) seen[l2[j]] = true;
+    return Object.keys(seen).length;
+  }
+
   /** 缩略图 URL(input/ 通道图=引擎 /view 端点;name 含子目录时拆参数) */
   function thumbUrl(name) {
     var file = String(name || "");
@@ -272,8 +281,9 @@
       return ctrl.view.commonExpanded;
     },
     /** 公共图区添加(文件名引用已有;真上传走 uploadToZone)。守门=每镜
-     * 总参考 ≤9:公共数+现存各组本组图最大数+1 ≤9(1113 追认批修:
-     * 旧守门只数公共自身,9 公共+组内 1 图=该镜 10 参考破 AUTOGROW 顶) */
+     * 总参考 ≤9 槽:公共数+现存各组本组图最大数+1 ≤9(1113 追认批修:
+     * 旧守门只数公共自身,9 公共+组内 1 图=该镜 10 参考破 AUTOGROW 顶);
+     * 1114 增异图门 ≤8:公共全区+各组本组图按名去重(重复图不占预算) */
     addCommonImage: function (ctrl, filename) {
       var name = String(filename || "").trim();
       if (!name) return false;
@@ -284,6 +294,11 @@
       }
       if (st.common_images.length + maxOwn + 1 > S().MAX_REFERENCE_IMAGES) return false;
       if (st.common_images.indexOf(name) >= 0) return false;
+      var next = st.common_images.concat([name]);
+      if (distinctCount(next, []) > S().MAX_DISTINCT_REFERENCE_IMAGES) return false;
+      for (var gj = 0; gj < st.segments.length; gj++) {
+        if (distinctCount(next, st.segments[gj].images) > S().MAX_DISTINCT_REFERENCE_IMAGES) return false;
+      }
       ctrl.apply(function (s) { s.common_images.push(name); });
       return true;
     },
@@ -292,13 +307,14 @@
       ctrl.apply(function (st) { st.common_images.splice(i, 1); });
       return true;
     },
-    /** 本组图槽添加(续号制:公共 N 张+本组 M 张 ≤9) */
+    /** 本组图槽添加(续号制:公共 N 张+本组 M 张 ≤9 槽;异图 ≤8) */
     addGroupImage: function (ctrl, segIdx, filename) {
       var name = String(filename || "").trim();
       var seg = ctrl.state.segments[segIdx];
       if (!name || !seg) return false;
       if (ctrl.state.common_images.length + seg.images.length + 1 > S().MAX_REFERENCE_IMAGES) return false;
       if (seg.images.indexOf(name) >= 0) return false;
+      if (distinctCount(ctrl.state.common_images, seg.images.concat([name])) > S().MAX_DISTINCT_REFERENCE_IMAGES) return false;
       ctrl.apply(function (st) { st.segments[segIdx].images.push(name); });
       return true;
     },
@@ -314,6 +330,12 @@
       if (!name || i < 0 || i >= ctrl.state.common_images.length) return false;
       var dup = ctrl.state.common_images.indexOf(name);
       if (dup >= 0 && dup !== i) return false; // 与他槽重名拒(原位同名=幂等直过)
+      var next = ctrl.state.common_images.slice();
+      next[i] = name;
+      if (distinctCount(next, []) > S().MAX_DISTINCT_REFERENCE_IMAGES) return false;
+      for (var g = 0; g < ctrl.state.segments.length; g++) {
+        if (distinctCount(next, ctrl.state.segments[g].images) > S().MAX_DISTINCT_REFERENCE_IMAGES) return false;
+      }
       ctrl.apply(function (st) { st.common_images[i] = name; });
       return true;
     },
@@ -324,6 +346,9 @@
       if (!name || !seg || slot < 0 || slot >= seg.images.length) return false;
       var dup = seg.images.indexOf(name);
       if (dup >= 0 && dup !== slot) return false;
+      var nextImgs = seg.images.slice();
+      nextImgs[slot] = name;
+      if (distinctCount(ctrl.state.common_images, nextImgs) > S().MAX_DISTINCT_REFERENCE_IMAGES) return false;
       ctrl.apply(function (st) { st.segments[segIdx].images[slot] = name; });
       return true;
     },
@@ -337,7 +362,7 @@
           var ok = zone === "common"
             ? actions.addCommonImage(ctrl, name)
             : actions.addGroupImage(ctrl, segIdx, name);
-          if (!ok) { lastUploadError = "入槽被拒(上限 9/重名):" + name; }
+          if (!ok) { lastUploadError = "入槽被拒(槽≤9/异图≤8/重名):" + name; }
           return { ok: ok, name: name, err: lastUploadError };
         })
         .catch(function (err) {
@@ -478,7 +503,7 @@
       "</div>",
       '<div class="dy-slot-zone">',
       '<div class="dy-slot-zone-title">公共图区(角色卡,全章共享,占 图片1-' + common.length + ")<span class=\"dy-ro\">只读</span>"
-      + "<span>共 " + common.length + " 张 · 公共+本组合计上限 " + S().MAX_REFERENCE_IMAGES + " 槽</span></div>",
+      + "<span>共 " + common.length + " 张 · 公共+本组合计上限 " + S().MAX_REFERENCE_IMAGES + " 槽/" + S().MAX_DISTINCT_REFERENCE_IMAGES + " 异图</span></div>",
       '<div class="dy-slots">' + commonSlots + "</div>",
       "</div>",
       fileRow("common", "公共图=全章共享(角色卡/场景卡);文件名引用 input/ 已有图,或⬆ 上传新图"),
@@ -591,6 +616,7 @@
     build: build, css: CSS, actions: actions, pictureLabel: pictureLabel,
     thumbUrl: thumbUrl, setUploader: setUploader, lastUploadError: function () { return lastUploadError; },
     MAX_REFERENCE_IMAGES: 9,
+    MAX_DISTINCT_REFERENCE_IMAGES: 8,
   };
 })(typeof window !== "undefined" ? window
     : typeof globalThis !== "undefined" ? globalThis : this);

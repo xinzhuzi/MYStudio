@@ -57,6 +57,9 @@
   var PERF_DEFAULTS = { free_h3: true, vram_clear: true, resume: true, gallery: true };
   /** 引擎参考图槽上限(三采 AUTOGROW max=9 口径,公共+本组合计) */
   var MAX_REFERENCE_IMAGES = 9;
+  /** 参考图异图上限(1114 用户裁定:≥9 异图=引擎原生崩;与 App 组装器
+   *  buildShotH3SancaiApiWorkflow/executor 同口径,重复图不占预算) */
+  var MAX_DISTINCT_REFERENCE_IMAGES = 8;
 
   /** 秒 → 17k+5 帧网格(就近合法档) */
   function secondsToFrames(seconds) {
@@ -433,6 +436,7 @@
     ADVANCED_DEFAULTS: ADVANCED_DEFAULTS,
     PERF_DEFAULTS: PERF_DEFAULTS,
     MAX_REFERENCE_IMAGES: MAX_REFERENCE_IMAGES,
+    MAX_DISTINCT_REFERENCE_IMAGES: MAX_DISTINCT_REFERENCE_IMAGES,
     secondsToFrames: secondsToFrames,
     framesToSeconds: framesToSeconds,
     summaryLine: summaryLine,
