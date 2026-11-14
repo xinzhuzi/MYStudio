@@ -277,8 +277,8 @@ def compose(cells: dict, palette, title: str, dst: str, fmt: str = "全卡",
     px0, py0, px1, py1 = geo["_palette"]
     bw, bh = px1 - px0, py1 - py0
     cy = (py0 + py1) // 2
-    r = min(bh // 2 - 14, 56)
-    gap = max(28, r // 2)
+    r = min(bh // 2 - 14, 28)   # 1114 用户令「太大缩一些」:五圆÷2(56→28,径=带高37%)
+    gap = max(24, r)
     lb = d.textbbox((0, 0), "配色方案", font=label_font)
     lab_w = lb[2] - lb[0]
     pal_w = lab_w + 28 + 5 * 2 * r + 4 * gap
