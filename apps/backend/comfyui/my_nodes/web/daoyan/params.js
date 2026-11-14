@@ -121,6 +121,11 @@
       ctrl.apply(function (st) { st.perf[key] = !st.perf[key]; });
       return ctrl.state.perf[key];
     },
+    /** 段间引导开关(1115 缺口7:上一镜末帧入参考首槽;默认开) */
+    toggleContinuity: function (ctrl) {
+      ctrl.apply(function (st) { st.continuity = st.continuity === false; });
+      return ctrl.state.continuity !== false;
+    },
   };
 
   // ── 渲染 ───────────────────────────────────────────────────────────
@@ -174,6 +179,7 @@
       capCaret("分辨率档", null, "16:9 阶梯", "960 → 1440 → 2880(锁 16:9 一档)"),
       capStep("每组时长(默认)", "bump-seconds", cp.seconds + "s", "贴 17k+5 网格 → " + S().secondsToFrames(cp.seconds) + "f"),
       capCaret("三采 color_fix", "cycle-colorfix", st.color_fix),
+      capToggle("段间引导", "toggle-continuity", st.continuity !== false, "上一镜末帧入参考首槽"),
       "    </div>",
       '    <div class="dy-note">分辨率锁 16:9 一档阶梯,不开放自由像素;竖屏后续役。新组默认吃公共参数档。</div>',
       "  </div>",
@@ -229,6 +235,7 @@
         else actions.bumpAdvanced(ctrl, key, delta ? +delta : 0, 1);
       } else if (act === "adv-reset") actions.resetAdvanced(ctrl);
       else if (act && act.indexOf("perf-") === 0) actions.togglePerf(ctrl, act.slice(5));
+      else if (act === "toggle-continuity") actions.toggleContinuity(ctrl);
     });
   }
 

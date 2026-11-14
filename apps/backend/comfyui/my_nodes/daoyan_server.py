@@ -1,9 +1,9 @@
 # Copyright (c) 2025 hotflow2024
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
-"""导演台面板服务端(11-13-director-console-remake 阶段3.5,1114)。
+"""导演台面板服务端(11-13-director-console-remake 阶段3.5,1114;1115 三路由)。
 
-三条只读路由(my_styles_server.py 同款 install 幂等自守卫+失败静默纪律):
+只读路由(my_styles_server.py 同款 install 幂等自守卫+失败静默纪律):
   GET /my_daoyan/projects
       → {projects:[{id,name}],activeProjectId,error?}(store 缺/坏→error+空表)
   GET /my_daoyan/chapters?project=<pid>
@@ -12,6 +12,15 @@
   GET /my_daoyan/logs?chapter=<v>&limit=500
       → {chapter,path,lines[],error?}(尾 N 行;文件缺失 404;chapter 含
         /、\\、.. 或 >80 字符拒收——防穿越真边界,中文章名放行)
+1115 增三路由(缺口2/5/6):
+  GET /my_daoyan/input_media?limit=200
+      → {files:[{name,mtime,size}],count,error?}(input/ 递归图清单,
+        mtime 倒序,库内选图器数据源)
+  POST /my_daoyan/upload_audio(原始 body+X-Filename)
+      → {ok,name,size,error?}(参考音频落 input/,白名单+50MB 帽)
+  POST /my_daoyan/enhance_prompt {text}
+      → {ok,text?,error?}(智谱 /api/anthropic messages 线 LLM 扩写;
+        缺 key=200+ok:False 明示)
 
 数据源(地基实读验证,selectorSpec 1114):
 - 项目册=<app-home>/projects/mystudio-project-store.json
@@ -212,6 +221,148 @@ def _output_root() -> Path:
     """引擎输出根(路由内惰性 import,同 my_styles_server 纪律)。"""
     import folder_paths
     return Path(folder_paths.get_output_directory())
+
+
+def _input_dir() -> Path:
+    """引擎 input 根(路由内惰性 import,同 _output_root 纪律)。"""
+    import folder_paths
+    return Path(folder_paths.get_input_directory())
+
+
+# ── 库内选图器数据源(1115 缺口2):input/ 递归媒体清单 ────────────────
+
+_INPUT_MEDIA_LIMIT_MAX = 500
+
+
+def list_input_media(input_dir, limit=200) -> dict:
+    """input/ 图媒体清单(picker.js 数据源;read_run_log 同注入纪律)。
+
+    os.walk 递归含子夹(input/ 实况 59 项含 3d/ 子夹已核);相对 posix 名
+    (与 cards.js thumbUrl lastIndexOf('/') 拆 subfolder 口径互吃);后缀
+    白名单 _IMAGE_EXTS(chapter_image 同纪律);mtime 倒序(并列 name
+    稳定序);limit 钳 1..500;目录缺=error 不炸。
+    """
+    root = Path(input_dir)
+    if not root.is_dir():
+        return {"files": [], "count": 0,
+                "error": f"input 目录不存在:{root}"}
+    try:
+        limit = max(1, min(_INPUT_MEDIA_LIMIT_MAX, int(limit)))
+    except (TypeError, ValueError):
+        limit = 200
+    rows = []
+    for dirpath, _dirs, names in os.walk(root):
+        for name in names:
+            p = Path(dirpath) / name
+            if p.suffix.lower() not in _IMAGE_EXTS:
+                continue
+            try:
+                st = p.stat()
+            except OSError:
+                continue
+            rows.append({"name": p.relative_to(root).as_posix(),
+                         "mtime": int(st.st_mtime), "size": st.st_size})
+    rows.sort(key=lambda r: (-r["mtime"], r["name"]))
+    return {"files": rows[:limit], "count": len(rows[:limit])}
+
+
+# ── 参考音频上传(1115 缺口5):引擎无 /upload/audio,自设落 input/ ────
+
+_AUDIO_EXTS = (".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac")
+_AUDIO_CAP = 50 * 1024 * 1024
+
+
+def save_upload_audio(input_dir, filename, data) -> dict:
+    """参考音频上传落 input/(X-Filename sanitize+后缀白名单+50MB 帽)。
+
+    面板 defaultAudioUploader=原始 body+X-Filename(引擎 /upload/image
+    同式);非法名/后缀/超帽=ok:False 带原因,不炸不落盘。
+    """
+    name = str(filename or "").strip().replace("\\", "/").split("/")[-1]
+    if not name or name in (".", "..") \
+            or Path(name).suffix.lower() not in _AUDIO_EXTS:
+        return {"ok": False,
+                "error": f"非法音频文件名或后缀(白名单 {'/'.join(_AUDIO_EXTS)})"}
+    if not isinstance(data, (bytes, bytearray)) or not data:
+        return {"ok": False, "error": "空上传体"}
+    if len(data) > _AUDIO_CAP:
+        return {"ok": False, "error": "音频超 50MB 帽"}
+    input_dir = Path(input_dir)
+    input_dir.mkdir(parents=True, exist_ok=True)
+    target = input_dir / name
+    target.write_bytes(bytes(data))
+    return {"ok": True, "name": name, "size": len(data)}
+
+
+# ── LLM 提示词扩写(1115 缺口6):智谱 Anthropic messages 线 ──────────
+# repo 1113 定谳(screenplay_critic.py):该厂 key 额度仅在 /api/anthropic
+# 口生效,paas/v4 OpenAI 口恒 1113——故落 Anthropic 线格式(x-api-key 头
+# +messages 形),非 paas/v4。BIGMODEL_API_KEY=仓内第三个同厂 key env 名
+# (CRITIC_API_KEY/ZHIPU_API_KEY 先例),须在启动环境新增。
+
+BIGMODEL_API_BASE_DEFAULT = "https://open.bigmodel.cn/api/anthropic"
+
+ENHANCE_SYSTEM = (
+    "你是影视导演的分镜提示词扩写助手。把用户给出的分镜描述扩写成更丰富的"
+    "文生视频提示词:补充声画细节与镜头语言(景别/机位/运镜/光线/色调/"
+    "音效),不改变既有人物、事件与语义,不添加新情节设定;输出纯文本正文,"
+    "不要任何标题、列表标记或解释;篇幅不超过原文的三倍。"
+)
+
+
+def enhance_prompt(api_key, text, http_open=None, model="glm-5.3",
+                   timeout=60) -> dict:
+    """分镜描述 LLM 扩写(POST {BIGMODEL_API_BASE}/v1/messages)。
+
+    headers=x-api-key+anthropic-version(screenplay_critic.py 同款);payload
+    带 thinking disabled(glm-5.3 思考块烧 output 预算,同先例);响应只拼
+    content[].type=="text" 块(thinking 不入正文)。key 由调用方从
+    os.environ["BIGMODEL_API_KEY"] 读取传入,恒不入码不落日志;key 缺=
+    {ok:False,error:明示}。http_open(url, data, headers, timeout) 注入=
+    无头可测(默认 urllib);HTTP 4xx/5xx→ok:False 不抛。
+    """
+    text = str(text or "")
+    if not api_key:
+        return {"ok": False,
+                "error": "缺 BIGMODEL_API_KEY 环境变量(启动环境新增后重启引擎)"}
+    if http_open is None:
+        def _urlopen(url, data, headers, timeout=60):
+            import urllib.request
+            req = urllib.request.Request(url, data=data, headers=headers,
+                                         method="POST")
+            return urllib.request.urlopen(req, timeout=timeout)
+        http_open = _urlopen
+    base = os.environ.get("BIGMODEL_API_BASE", BIGMODEL_API_BASE_DEFAULT)
+    payload = json.dumps({
+        "model": model,
+        "system": ENHANCE_SYSTEM,
+        "messages": [{"role": "user", "content": text}],
+        "temperature": 0.3,
+        "max_tokens": 2048,
+        "thinking": {"type": "disabled"},
+    }).encode("utf-8")
+    headers = {
+        "Content-Type": "application/json",
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        # WAF 拦 Python-urllib 默认 UA(screenplay_critic 实测 403)同先例
+        "User-Agent": "Mozilla/5.0 MYStudio-DaoyanEnhance/1.0",
+    }
+    try:
+        resp = http_open(base + "/v1/messages", payload, headers, timeout)
+        status = int(getattr(resp, "status", 200) or 200)
+        body = json.loads(resp.read().decode("utf-8", "replace"))
+    except Exception as error:  # noqa: BLE001 - 网络面全降级 ok:False 不抛
+        return {"ok": False, "error": f"{type(error).__name__}: {error}"[:300]}
+    if status >= 400:
+        return {"ok": False, "error": f"HTTP {status}: {str(body)[:200]}"}
+    if isinstance(body, dict) and body.get("type") == "error":
+        return {"ok": False, "error": "API 错误: " + json.dumps(
+            body.get("error", body), ensure_ascii=False)[:300]}
+    blocks = body.get("content", []) if isinstance(body, dict) else []
+    visible = "".join(str(b.get("text", "")) for b in blocks
+                      if isinstance(b, dict) and b.get("type") == "text")
+    return {"ok": True, "text": visible}
 
 
 
@@ -536,9 +687,58 @@ def install() -> None:
                     {"ok": False, "error": str(error), "segments": []},
                     status=500)
 
+        @PromptServer.instance.routes.get("/my_daoyan/input_media")
+        async def _input_media(request):  # noqa: ANN202 - aiohttp handler
+            try:
+                limit = request.rel_url.query.get("limit", "200")
+                return web.json_response(list_input_media(_input_dir(), limit))
+            except Exception as error:  # noqa: BLE001
+                return web.json_response(
+                    {"files": [], "count": 0, "error": str(error)},
+                    status=500)
+
+        @PromptServer.instance.routes.post("/my_daoyan/upload_audio")
+        async def _upload_audio(request):  # noqa: ANN202 - aiohttp handler
+            try:
+                # 原始 body+X-Filename(引擎 /upload/image 同式;引擎无
+                # /upload/audio 故自设)
+                name = request.headers.get("X-Filename", "")
+                data = await request.read()
+                out = save_upload_audio(_input_dir(), name, data)
+                return web.json_response(
+                    out, status=200 if out.get("ok") else 400)
+            except Exception as error:  # noqa: BLE001
+                return web.json_response(
+                    {"ok": False, "error": str(error)}, status=500)
+
+        @PromptServer.instance.routes.post("/my_daoyan/enhance_prompt")
+        async def _enhance_prompt(request):  # noqa: ANN202 - aiohttp handler
+            try:
+                raw = await request.read()
+                try:
+                    body = json.loads(raw.decode("utf-8")) if raw else {}
+                except (ValueError, UnicodeDecodeError):
+                    body = {}
+                text = str((body or {}).get("text") or "").strip()
+                if not text:
+                    return web.json_response(
+                        {"ok": False, "error": "text 为空(1..8000 字)"})
+                key = os.environ.get("BIGMODEL_API_KEY", "")
+                # LLM 秒级阻塞走线程池,不饿 aiohttp 事件循环;缺 key=
+                # 200+ok:False(面板可显示原因,非 500)
+                import asyncio
+                data = await asyncio.to_thread(
+                    enhance_prompt, key, text[:8000])
+                return web.json_response(data)
+            except Exception as error:  # noqa: BLE001
+                return web.json_response(
+                    {"ok": False, "error": str(error)}, status=500)
+
         _installed = True
         print("[daoyan] 面板路由已挂载:/my_daoyan/projects、"
-              "/my_daoyan/chapters、/my_daoyan/logs", flush=True)
+              "/my_daoyan/chapters、/my_daoyan/logs、"
+              "/my_daoyan/input_media、/my_daoyan/upload_audio、"
+              "/my_daoyan/enhance_prompt", flush=True)
     except Exception as error:  # noqa: BLE001 - 引擎侧任何失败不挡装载
         print(f"[daoyan] 面板路由挂载失败(不影响节点与出图):{error}",
               flush=True)

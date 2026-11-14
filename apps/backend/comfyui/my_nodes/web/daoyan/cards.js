@@ -23,10 +23,15 @@
   var CSS = [
     ".daoyan-cards{display:flex;flex-direction:column;gap:8px;font:400 12px/1.6 -apple-system,'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;color:#e8edf6;}",
     ".dy-card{border:1px solid rgba(255,255,255,.09);border-radius:10px;background:linear-gradient(180deg,rgba(18,24,38,.78),rgba(10,14,24,.84));overflow:hidden;}",
+    /* skip 态降透明(1115 缺口4:不参与运行的镜) */
+    ".dy-card.dy--skip{opacity:.55;filter:saturate(.6);}",
     ".dy-card-head{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.07);font-size:12px;font-weight:700;color:#f0f4fa;flex-wrap:wrap;}",
     ".dy-card-head .dy-mode{font-size:9.5px;color:#0c1220;background:#6ea8fe;border-radius:999px;padding:0 7px;flex:none;}",
     ".dy-card-head .dy-meta{font-size:10.5px;color:#9aa7ba;font-weight:400;font-family:ui-monospace,'SF Mono',Menlo,monospace;}",
     ".dy-card-head .dy-actions{margin-left:auto;display:flex;gap:5px;}",
+    /* 参与运行勾选(1115 缺口4:卡头一枚 checkbox,默认勾) */
+    ".dy-card-head .dy-skip{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;color:#d9f7ea;cursor:pointer;flex:none;}",
+    ".dy-card-head .dy-skip input{accent-color:#34d399;cursor:pointer;}",
     ".dy-btn{font-size:10.5px;font-weight:600;color:#dbe7fb;background:rgba(110,168,254,.14);border:1px solid rgba(110,168,254,.32);border-radius:7px;padding:2.5px 9px;cursor:pointer;white-space:nowrap;}",
     ".dy-btn--primary{background:rgba(52,211,153,.16);border-color:rgba(52,211,153,.4);color:#d9f7ea;}",
     ".dy-btn--ghost{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);color:#9aa7ba;}",
@@ -139,12 +144,13 @@
       + "&type=output&subfolder=" + encodeURIComponent(sub);
   }
 
-  /** 产物徽标:有路径=绿胶囊可点(/view 直看);null=灰胶囊「候落盘」 */
+  /** 产物徽标:有路径=绿胶囊可点(1115 缺口3:target=_blank 退场,data-view
+   * 承载 /view output URL→DaoyanVideo 面板内播放);null=灰胶囊「候落盘」 */
   function artBadge(key, label, path) {
     return path
-      ? '<a class="dy-art dy-art--have" href="' + esc(artViewUrl(path))
-        + '" target="_blank" rel="noopener" title="' + esc(path) + '">▶ '
-        + label + " · <b>" + esc(path.slice(path.lastIndexOf("/") + 1)) + "</b></a>"
+      ? '<span class="dy-art dy-art--have" data-act="play-art" data-view="'
+        + esc(artViewUrl(path)) + '" title="' + esc(path) + '">▶ '
+        + label + " · <b>" + esc(path.slice(path.lastIndexOf("/") + 1)) + "</b></span>"
       : '<span class="dy-art" data-act="art-' + key
         + '" title="未落盘:勾阶段运行后由执行链回填">' + label + " · 候落盘</span>";
   }
@@ -171,6 +177,35 @@
   function getUploader() { return injectedUploader || defaultUploader; }
   /** 注入上传器(测试桩/引擎定制;null=还原默认 /upload/image) */
   function setUploader(fn) { injectedUploader = typeof fn === "function" ? fn : null; }
+  /** 裸上传(不入槽;1115 缺口2:picker「⬆ 上传新图」复用同一上传器) */
+  function uploadFile(file) {
+    lastUploadError = "";
+    return Promise.resolve().then(function () { return getUploader()(file); })
+      .catch(function (err) {
+        lastUploadError = String(err && err.message || err);
+        throw err;
+      });
+  }
+
+  // ── 参考音频上传器(1115 缺口5;引擎无 /upload/audio(server.py 仅
+  // /upload/image+/upload/mask)→自有路由 POST /my_daoyan/upload_audio:
+  // X-Filename 头+原始 body;注入式=引擎真传/测试桩双态)─────────────
+  var injectedAudioUploader = null;
+  var lastAudioError = "";
+
+  function defaultAudioUploader(file) {
+    var name = (file && file.name) || "audio";
+    return fetch("/my_daoyan/upload_audio", {
+      method: "POST",
+      headers: { "X-Filename": name },
+      body: file,
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j || !j.name) throw new Error((j && j.error) || "上传响应无文件名");
+      return { name: j.name, subfolder: j.subfolder || "" };
+    });
+  }
+  function getAudioUploader() { return injectedAudioUploader || defaultAudioUploader; }
+  function setAudioUploader(fn) { injectedAudioUploader = typeof fn === "function" ? fn : null; }
 
   // ── 动作 ───────────────────────────────────────────────────────────
 
@@ -233,6 +268,13 @@
       if (!ctrl.state.segments[i]) return false;
       ctrl.apply(function (st) { st.segments[i].rerun = !st.segments[i].rerun; });
       return true;
+    },
+    /** 逐段参与运行(1115 缺口4:skip=true=该镜不跑不拼入章片;默认参与) */
+    toggleSkip: function (ctrl, idx) {
+      var i = idx == null ? ctrl.view.selected : idx;
+      if (!ctrl.state.segments[i]) return false;
+      ctrl.apply(function (st) { st.segments[i].skip = !st.segments[i].skip; });
+      return ctrl.state.segments[i].skip;
     },
     setGroupMode: function (ctrl, idx, mode) {
       if (!ctrl.state.segments[idx] || S().SEGMENT_MODES.indexOf(mode) < 0) return false;
@@ -352,6 +394,22 @@
       ctrl.apply(function (st) { st.segments[segIdx].images[slot] = name; });
       return true;
     },
+    /** 参考音频槽添加(1115 缺口5:≤MAX_AUDIO_REFS(3),重名拒;文件名引用) */
+    addSegmentAudio: function (ctrl, segIdx, filename) {
+      var name = String(filename || "").trim();
+      var seg = ctrl.state.segments[segIdx];
+      if (!name || !seg) return false;
+      if (seg.audios.length >= S().MAX_AUDIO_REFS) return false;
+      if (seg.audios.indexOf(name) >= 0) return false;
+      ctrl.apply(function (st) { st.segments[segIdx].audios.push(name); });
+      return true;
+    },
+    removeSegmentAudio: function (ctrl, segIdx, slot) {
+      var seg = ctrl.state.segments[segIdx];
+      if (!seg || slot < 0 || slot >= seg.audios.length) return false;
+      ctrl.apply(function (st) { st.segments[segIdx].audios.splice(slot, 1); });
+      return true;
+    },
     /** 真上传入槽(input/ 通道):uploader(file)→引擎名→addXxxImage
      * (守门/去重与文件名引用同面);Promise<{ok,name,err}> */
     uploadToZone: function (ctrl, zone, segIdx, file) {
@@ -387,6 +445,22 @@
           return { ok: false, name: "", err: lastUploadError };
         });
     },
+    /** 参考音频真上传(1115 缺口5:X-Filename+原始 body→/my_daoyan/
+     * upload_audio)→addSegmentAudio(≤3/重名拒同面) */
+    uploadAudioToZone: function (ctrl, segIdx, file) {
+      lastAudioError = "";
+      return Promise.resolve().then(function () { return getAudioUploader()(file); })
+        .then(function (r) {
+          var name = (r && r.subfolder ? r.subfolder + "/" : "") + (r && r.name);
+          var ok = actions.addSegmentAudio(ctrl, segIdx, name);
+          if (!ok) { lastAudioError = "入槽被拒(≤3/重名):" + name; }
+          return { ok: ok, name: name, err: lastAudioError };
+        })
+        .catch(function (err) {
+          lastAudioError = String(err && err.message || err);
+          return { ok: false, name: "", err: lastAudioError };
+        });
+    },
   };
 
   // ── 渲染 ───────────────────────────────────────────────────────────
@@ -416,9 +490,21 @@
     return '<div class="dy-file-row">'
       + '<input type="text" data-act="file-' + zone + '" placeholder="input/ 文件名,如 sb001_scene.jpg(引用已有)" title="' + esc(hint) + '">'
       + '<button class="dy-file-add" data-act="add-' + zone + '">添加</button>'
+      + '<button class="dy-file-add" data-act="pick-' + zone + '" title="库内选图(1115 缺口2):input/ 图库缩略图点选入槽">🖼 图库</button>'
       + '<button class="dy-file-add" data-act="upload-' + zone + '" title="真上传走 input/ 通道(POST /upload/image),上传即缩略图进卡">⬆ 上传</button>'
       + '<input type="file" accept="image/*" class="dy-upload-file" data-act="upload-file-' + zone + '">'
       + (lastUploadError ? '<span class="dy-upload-err" title="' + esc(lastUploadError) + '">上传失败</span>' : "")
+      + "</div>";
+  }
+
+  /** 参考音频槽行(1115 缺口5:文件名引用/⬆ 上传 accept=audio/*) */
+  function audioFileRow() {
+    return '<div class="dy-file-row">'
+      + '<input type="text" data-act="file-audio" placeholder="input/ 音频文件名,如 bgm.mp3(引用已有)" title="参考音频=H3 参考声;≤3 个,重名拒">'
+      + '<button class="dy-file-add" data-act="add-audio">添加</button>'
+      + '<button class="dy-file-add" data-act="upload-audio" title="上传音频走 POST /my_daoyan/upload_audio(X-Filename+原始 body)">⬆ 上传</button>'
+      + '<input type="file" accept="audio/*" class="dy-upload-file" data-act="upload-file-audio">'
+      + (lastAudioError ? '<span class="dy-upload-err" title="' + esc(lastAudioError) + '">上传失败</span>' : "")
       + "</div>";
   }
 
@@ -463,16 +549,25 @@
       ownSlots += slot("", pictureLabel(st, "own", seg.images.length + k), false, false);
     }
 
+    // 参考音频槽(1115 缺口5:已填槽 🎧+文件名+✕;仅已填渲染)
+    var audioSlots = (seg.audios || []).map(function (a, j) {
+      return '<div class="dy-slot dy-slot--filled" title="' + esc(a) + '">'
+        + '<span class="dy-slot-glyph">🎧</span><small>' + esc(a) + "</small>"
+        + '<i class="dy-slot-x" data-act="del-audio" data-i="' + j + '" title="移除此音频">✕</i></div>';
+    }).join("");
+
     root.innerHTML = [
-      '<div class="dy-card">',
+      '<div class="dy-card' + (seg.skip ? " dy--skip" : "") + '">',
       '<div class="dy-card-head">',
       "镜头 " + (sel + 1) + " / " + st.segments.length,
       '<select data-act="set-mode" title="每镜 task 四选一(默认 r2v=产线口径)">'
       + S().SEGMENT_MODES.map(function (m) {
         return '<option value="' + m + '"' + (seg.mode === m ? " selected" : "") + ">" + m + "</option>";
       }).join("") + "</select>",
+      '<label class="dy-skip" title="取消勾选=该镜不参与运行(执行链跳过,产物不拼入章片)"><input type="checkbox" data-act="toggle-skip"'
+      + (!seg.skip ? " checked" : "") + ">参与运行</label>",
       '<span class="dy-meta">' + seg.seconds + "s→" + seg.frames + "f · seed " + (seg.seed == null ? "继承全局" : seg.seed)
-      + (seg.rerun ? " · 重掷已布防" : "") + "</span>",
+      + (seg.skip ? " · 已跳过" : "") + (seg.rerun ? " · 重掷已布防" : "") + "</span>",
       '<span class="dy-actions">',
       '<button class="dy-btn dy-btn--rerun' + (seg.rerun ? "" : " dy-btn--ghost") + '" data-act="toggle-rerun" title="强制覆盖该镜当前阶段产物(不点=默认跳过已完镜)">重跑此镜' + (seg.rerun ? " ✓" : "") + "</button>",
       '<button class="dy-btn" data-act="dup-group">复制组</button>',
@@ -513,6 +608,13 @@
       '<div class="dy-slots">' + ownSlots + "</div>",
       "</div>",
       fileRow("own", "回车或点添加:文件名引用入槽(续号);⬆ 上传=input/ 通道直传,上传即缩略图进卡"),
+      /* 参考音频槽(1115 缺口5:H3 参考声,≤MAX_AUDIO_REFS;chips <Audio J>) */
+      '<div class="dy-slot-zone">',
+      '<div class="dy-slot-zone-title">参考音频(H3 参考声 · ≤' + S().MAX_AUDIO_REFS
+        + " 个 · 提示词 chips &lt;Audio J&gt; 1-based)</div>",
+      '<div class="dy-slots">' + audioSlots + "</div>",
+      "</div>",
+      audioFileRow(),
       /* 产物回看槽(PRD R1.6:每镜 p1草片/p2成片/p3终片;阶段3 落盘回填) */
       '<div class="dy-artifacts">',
       "<span>产物:</span>",
@@ -546,6 +648,7 @@
       var act = el.getAttribute("data-act");
       var i = el.getAttribute("data-i");
       var sel = ctrl.view.selected;
+      if (act === "toggle-skip") return; // 复选走 change(先 click 后 change 会双翻)
       function pickFile(zone) {
         var f = root.querySelector('[data-act="upload-file-' + zone + '"]');
         if (f) { f.value = ""; f.click(); }
@@ -559,12 +662,31 @@
       else if (act === "toggle-cp-enabled") actions.toggleCommonEnabled(ctrl);
       else if (act === "toggle-cp-expand") actions.toggleCommonExpanded(ctrl);
       else if (act === "toggle-use-common") actions.setUseCommon(ctrl, sel, !ctrl.state.segments[sel].use_common);
+      else if (act === "play-art") {
+        // 1115 缺口3:产物徽章=面板内播放(data-view 承载 /view URL)
+        var vid = global.DaoyanVideo;
+        var src = el.getAttribute("data-view");
+        if (vid && src) vid.open(src, el.getAttribute("title") || "产物回看");
+      }
       else if (act === "del-common") actions.removeCommonImage(ctrl, +i);
       else if (act === "del-own") actions.removeGroupImage(ctrl, sel, +i);
-      else if (act === "swap-common" || act === "swap-own") {
-        // 替换布防:记槽位→弹文件选择;上传成功后原位换图(槽位/续号不动)
-        ctrl.view.pendingSwap = { zone: act === "swap-common" ? "common" : "own", seg: sel, slot: +i };
-        pickFile(ctrl.view.pendingSwap.zone);
+      else if (act === "del-audio") actions.removeSegmentAudio(ctrl, sel, +i);
+      else if (act === "pick-common" || act === "pick-own") {
+        // 库内选图器(1115 缺口2):input/ 图库缩略图点选,新增模式
+        if (global.DaoyanPicker) {
+          global.DaoyanPicker.open({ zone: act === "pick-common" ? "common" : "own",
+            segIdx: sel, slot: null, ctrl: ctrl });
+        }
+      } else if (act === "swap-common" || act === "swap-own") {
+        // 替换槽位:⇄ 走库内选图器(replace 模式,上传钮内嵌=功能不减
+        // 路径合一);无 picker(旧壳/降级)回退直弹文件选择
+        var swZone = act === "swap-common" ? "common" : "own";
+        if (global.DaoyanPicker) {
+          global.DaoyanPicker.open({ zone: swZone, segIdx: sel, slot: +i, ctrl: ctrl });
+        } else {
+          ctrl.view.pendingSwap = { zone: swZone, seg: sel, slot: +i };
+          pickFile(swZone);
+        }
       } else if (act === "upload-common" || act === "upload-own") {
         ctrl.view.pendingSwap = null; // 非替换=新增入槽
         pickFile(act === "upload-common" ? "common" : "own");
@@ -574,6 +696,12 @@
       } else if (act === "add-own") {
         var inp2 = root.querySelector('[data-act="file-own"]');
         if (inp2 && actions.addGroupImage(ctrl, sel, inp2.value)) inp2.value = "";
+      } else if (act === "add-audio") {
+        var ainp = root.querySelector('[data-act="file-audio"]');
+        if (ainp && actions.addSegmentAudio(ctrl, sel, ainp.value)) ainp.value = "";
+      } else if (act === "upload-audio") {
+        var afile = root.querySelector('[data-act="upload-file-audio"]');
+        if (afile) { afile.value = ""; afile.click(); }
       }
     });
     root.addEventListener("change", function (e) {
@@ -586,6 +714,7 @@
       else if (act === "set-match") actions.setGroupMatch(ctrl, sel, el.value);
       else if (act === "set-seconds") actions.setGroupSeconds(ctrl, sel, el.value);
       else if (act === "set-seed") actions.setGroupSeed(ctrl, sel, el.value);
+      else if (act === "toggle-skip") actions.toggleSkip(ctrl, sel);
       else if (act === "upload-file-common" || act === "upload-file-own") {
         var zone = act === "upload-file-common" ? "common" : "own";
         var file = el.files && el.files.length ? el.files[0] : null;
@@ -599,6 +728,13 @@
         p.then(function (r) {
           if (!r.ok) ctrl.apply(function () {}); // 失败态重渲示「上传失败」标
         });
+      } else if (act === "upload-file-audio") {
+        var audio = el.files && el.files.length ? el.files[0] : null;
+        el.value = "";
+        if (!audio) return;
+        actions.uploadAudioToZone(ctrl, sel, audio).then(function (r) {
+          if (!r.ok) ctrl.apply(function () {});
+        });
       }
     });
     root.addEventListener("keydown", function (e) {
@@ -609,12 +745,15 @@
       var sel = ctrl.view.selected;
       if (act === "file-common" && actions.addCommonImage(ctrl, el.value)) el.value = "";
       if (act === "file-own" && actions.addGroupImage(ctrl, sel, el.value)) el.value = "";
+      if (act === "file-audio" && actions.addSegmentAudio(ctrl, sel, el.value)) el.value = "";
     });
   }
 
   global.DaoyanCards = {
     build: build, css: CSS, actions: actions, pictureLabel: pictureLabel,
     thumbUrl: thumbUrl, setUploader: setUploader, lastUploadError: function () { return lastUploadError; },
+    uploadFile: uploadFile,
+    setAudioUploader: setAudioUploader, lastAudioError: function () { return lastAudioError; },
     MAX_REFERENCE_IMAGES: 9,
     MAX_DISTINCT_REFERENCE_IMAGES: 8,
   };

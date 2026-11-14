@@ -4,7 +4,7 @@
      Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
      导演台·阶段2 交互态截图 harness(11-13-director-console-remake)。
-     同源组件六件直接引用 ../../my_nodes/web/daoyan/(与引擎 index.js、
+     同源组件十件直接引用 ../../my_nodes/web/daoyan/(与引擎 index.js、
      node 测试件消费同一份 IIFE);装载后跑一段真实交互序列(导入旧台账→
      加组→拖档秒数→勾阶段→布防重掷→公共图管理→插模板→选择运行),
      尾部展示序列化闭环产物 timeline_data JSON(=写回 widget 的字节)。
@@ -70,14 +70,18 @@
     本页与引擎面板消费同一份组件文件(IIFE 挂 window);引擎侧经 index.js 挂 addDOMWidget,序列化通道=隐藏 widget timeline_data。
   </div>
 
-  <!-- 同源组件七件(顺序加载;serial 最先=常量就绪;live=1114 缺口③事件通道) -->
+  <!-- 同源组件十件(顺序加载;serial 最先=常量就绪;live=1114 缺口③事件通道;
+       logs=1114 阶段3.5 运行日志(修G 补齐);picker/video=1115 缺口2/3) -->
   <script src="../../../my_nodes/web/daoyan/serial.js"></script>
   <script src="../../../my_nodes/web/daoyan/toolbar.js"></script>
   <script src="../../../my_nodes/web/daoyan/params.js"></script>
   <script src="../../../my_nodes/web/daoyan/timeline.js"></script>
   <script src="../../../my_nodes/web/daoyan/cards.js"></script>
+  <script src="../../../my_nodes/web/daoyan/picker.js"></script>
+  <script src="../../../my_nodes/web/daoyan/video.js"></script>
   <script src="../../../my_nodes/web/daoyan/prompt.js"></script>
   <script src="../../../my_nodes/web/daoyan/live.js"></script>
+  <script src="../../../my_nodes/web/daoyan/logs.js"></script>
   <script>
     (function () {
       var host = document.getElementById("daoyan-host");

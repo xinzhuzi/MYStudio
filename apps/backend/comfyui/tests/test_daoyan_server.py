@@ -188,7 +188,10 @@ def test_install_routes_shape(tmp_path, monkeypatch):
     assert set(routes) == {"/my_daoyan/projects", "/my_daoyan/chapters",
                            "/my_daoyan/logs", "/my_daoyan/chapter_data",
                            "/my_daoyan/chapter_image",
-                           "/my_daoyan/import_storyboard"}
+                           "/my_daoyan/import_storyboard",
+                           "/my_daoyan/input_media",
+                           "/my_daoyan/upload_audio",
+                           "/my_daoyan/enhance_prompt"}
 
     # projects:200+activeProjectId
     out = asyncio.run(routes["/my_daoyan/projects"](_Req({})))
@@ -220,3 +223,190 @@ def test_install_routes_shape(tmp_path, monkeypatch):
     assert ok.status == 200
     assert ok.payload["lines"] == ["b", "c"]
     assert ok.payload["chapter"] == "c1"
+
+
+# ══ 1115 缺口2/5/6:input_media/save_upload_audio/enhance_prompt ═════
+
+def test_list_input_media_walk_order_whitelist_limit(tmp_path):
+    """os.walk 递归含子夹;mtime 倒序(并列 name 稳定序);非图滤除;
+    相对 posix 名;limit 钳;目录缺=error 不炸。"""
+    media = tmp_path / "input"
+    media.mkdir()
+
+    def touch(rel, mtime):
+        f = media / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_bytes(b"x")
+        st = f.stat()
+        import os
+        os.utime(f, (st.st_atime, mtime))
+
+    touch("a.png", 100)
+    touch("b.jpg", 200)
+    touch("3d/x.png", 300)
+    touch("note.txt", 400)  # 非图滤除
+    data = ds.list_input_media(media)
+    assert data["count"] == 3 and not data.get("error")
+    assert [f["name"] for f in data["files"]] \
+        == ["3d/x.png", "b.jpg", "a.png"]  # mtime 倒序;子夹相对 posix 名
+    # 并列 mtime→name 稳定序
+    touch("z.png", 500)
+    touch("y.png", 500)
+    head = ds.list_input_media(media, 2)
+    assert [f["name"] for f in head["files"]] == ["y.png", "z.png"]
+    # limit 钳:m 系造足 500(盘上 510 图)→9999 钳 500 恒咬合;默认 200
+    for i in range(500):
+        touch(f"m{i:03d}.png", 600)
+    full = ds.list_input_media(media, "9999")
+    assert full["count"] == 500  # 510 件盘上,钳 500
+    capped = ds.list_input_media(media)  # 默认 200
+    assert capped["count"] == 200 and len(capped["files"]) == 200
+    assert capped["files"][0]["name"] == "m000.png" \
+        and capped["files"][-1]["name"] == "m199.png"
+    assert ds.list_input_media(media, "0")["count"] == 1
+    # 目录缺=error 不炸
+    gone = ds.list_input_media(tmp_path / "gone")
+    assert gone["files"] == [] and gone["count"] == 0 and gone.get("error")
+
+
+def test_enhance_prompt_missing_key():
+    out = ds.enhance_prompt("", "短句")
+    assert out["ok"] is False and "BIGMODEL_API_KEY" in out["error"]
+
+
+def test_enhance_prompt_anthropic_line_and_text_blocks_only():
+    """Anthropic 线格式:URL=x-api-key 口 /v1/messages;thinking 块不入正文。"""
+    seen: dict = {}
+
+    class _Resp200:
+        status = 200
+
+        def read(self):
+            return json.dumps({"content": [
+                {"type": "thinking", "thinking": "内部思考"},
+                {"type": "text", "text": "扩写文"}]}).encode("utf-8")
+
+    def http_open(url, data, headers, timeout=60):
+        seen["url"] = url
+        seen["headers"] = headers
+        seen["payload"] = json.loads(data.decode("utf-8"))
+        return _Resp200()
+
+    out = ds.enhance_prompt("k-xxx", "短句", http_open=http_open)
+    assert out == {"ok": True, "text": "扩写文"}  # 只拼 type==text 块
+    assert seen["url"].endswith("/api/anthropic/v1/messages")
+    assert seen["headers"]["x-api-key"] == "k-xxx"
+    assert seen["headers"]["anthropic-version"] == "2023-06-01"
+    assert seen["payload"]["thinking"] == {"type": "disabled"}
+    assert seen["payload"]["messages"] == [{"role": "user", "content": "短句"}]
+
+
+def test_enhance_prompt_http_500_not_raised():
+    class _Resp500:
+        status = 500
+
+        def read(self):
+            return json.dumps({"error": {"type": "api_error"}}).encode()
+
+    out = ds.enhance_prompt("k", "x", http_open=lambda *a, **kw: _Resp500())
+    assert out["ok"] is False and "500" in out["error"]
+
+
+def test_save_upload_audio_gates(tmp_path):
+    """X-Filename sanitize(取 basename 防穿越)+后缀白名单+50MB 帽+落盘。"""
+    inp = tmp_path / "input"
+    ok = ds.save_upload_audio(inp, "ref.mp3", b"ID3data")
+    assert ok["ok"] is True and ok["name"] == "ref.mp3"
+    assert (inp / "ref.mp3").read_bytes() == b"ID3data"
+    # sanitize:穿越名取 basename(父目录不落件)
+    trav = ds.save_upload_audio(inp, "../evil.wav", b"x")
+    assert trav["ok"] is True and (inp / "evil.wav").exists()
+    assert not (tmp_path / "evil.wav").exists()
+    # 白名单外/无后缀/空体/超 50MB 帽=拒
+    assert not ds.save_upload_audio(inp, "a.exe", b"x")["ok"]
+    assert not ds.save_upload_audio(inp, "noext", b"x")["ok"]
+    assert not ds.save_upload_audio(inp, "a.mp3", b"")["ok"]
+    assert not ds.save_upload_audio(
+        inp, "big.mp3", b"x" * (50 * 1024 * 1024 + 1))["ok"]
+    assert not (inp / "big.mp3").exists()
+
+
+class _PostReq:
+    """伪 POST request:raw read()+headers(enhance/upload_audio 消费面)。"""
+
+    def __init__(self, body=b"", headers=None):
+        self._body = body
+        self.headers = headers or {}
+        self.rel_url = types.SimpleNamespace(query={})
+
+    async def read(self):
+        return self._body
+
+
+def test_install_new_routes_shape(tmp_path, monkeypatch):
+    """三新路由注册+响应形状:input_media {files,count};upload_audio 落
+    input/;enhance_prompt 缺 key=200+ok:False(非 500)。"""
+    routes: dict = {}
+    aiohttp = types.ModuleType("aiohttp")
+
+    class _Web:
+        @staticmethod
+        def json_response(data, status=200):
+            return _Resp(data, status)
+
+    aiohttp.web = _Web()
+
+    class _Routes:
+        def get(self, path):
+            def deco(fn):
+                routes[path] = fn
+                return fn
+            return deco
+
+        post = get
+
+    server = types.ModuleType("server")
+    server.PromptServer = types.SimpleNamespace(
+        instance=types.SimpleNamespace(routes=_Routes()))
+    monkeypatch.setitem(sys.modules, "aiohttp", aiohttp)
+    monkeypatch.setitem(sys.modules, "server", server)
+    monkeypatch.setattr(ds, "_installed", False)
+    ds.install()
+    assert {"/my_daoyan/input_media", "/my_daoyan/upload_audio",
+            "/my_daoyan/enhance_prompt"} <= set(routes)
+
+    inp = tmp_path / "input"
+    inp.mkdir()
+    (inp / "p1.png").write_bytes(b"x")
+    (inp / "p2.png").write_bytes(b"x")
+    fake_fp = types.ModuleType("folder_paths")
+    fake_fp.get_output_directory = lambda: str(tmp_path / "out")
+    fake_fp.get_input_directory = lambda: str(inp)
+    monkeypatch.setitem(sys.modules, "folder_paths", fake_fp)
+
+    # input_media:200+{files,count},mtime 序缩略名
+    out = asyncio.run(routes["/my_daoyan/input_media"](
+        _Req({"limit": "10"})))
+    assert out.status == 200
+    assert out.payload["count"] == 2
+    assert {f["name"] for f in out.payload["files"]} == {"p1.png", "p2.png"}
+
+    # upload_audio:原始 body+X-Filename→落 input/
+    up = asyncio.run(routes["/my_daoyan/upload_audio"](
+        _PostReq(body=b"ID3data", headers={"X-Filename": "ref.mp3"})))
+    assert up.status == 200 and up.payload["ok"] is True
+    assert (inp / "ref.mp3").read_bytes() == b"ID3data"
+    bad = asyncio.run(routes["/my_daoyan/upload_audio"](
+        _PostReq(body=b"x", headers={"X-Filename": "a.exe"})))
+    assert bad.status == 400 and bad.payload["ok"] is False
+
+    # enhance_prompt:缺 key=200+ok:False 明示(非 500)
+    monkeypatch.delenv("BIGMODEL_API_KEY", raising=False)
+    enh = asyncio.run(routes["/my_daoyan/enhance_prompt"](
+        _PostReq(body=json.dumps({"text": "短句"}).encode("utf-8"))))
+    assert enh.status == 200
+    assert enh.payload["ok"] is False
+    assert "BIGMODEL_API_KEY" in enh.payload["error"]
+    empty = asyncio.run(routes["/my_daoyan/enhance_prompt"](
+        _PostReq(body=json.dumps({"text": ""}).encode("utf-8"))))
+    assert empty.status == 200 and empty.payload["ok"] is False

@@ -23,6 +23,8 @@ import "./toolbar.js";
 import "./params.js";
 import "./timeline.js";
 import "./cards.js";
+import "./picker.js";
+import "./video.js";
 import "./prompt.js";
 import "./live.js";
 import "./logs.js";

@@ -21,12 +21,15 @@
 //   common_params: { enabled:bool, seconds:num, seed:num, match:str },
 //   advanced: { first_steps, second_steps, sampler, scheduler, cfg },
 //   perf: { free_h3, vram_clear, resume, gallery },
+//   continuity: bool,                                    // 段间引导(1115 缺口7,默认开)
 //   segments: [{
 //     id, mode(t2v/i2v/fl2v/r2v), seconds, frames(17k+5 贴网格),
 //     seed(null=继承全局), match(参考图尺寸 match▾), rerun(单镜重掷态),
+//     skip(1115 缺口4:不参与运行,默认 false),
 //     use_common(本组禁用公共参数=false),
 //     prompt: { summary, retention, description, soundscape },
 //     images: ["sb001_scene.jpg", ...],                 // 本组图区(文件名引用)
+//     audios: ["bgm.mp3", ...],                          // 参考音频(1115 缺口5,≤3 去重)
 //     artifacts: { p1:null|"video/导演台/…/p1-draft.mp4", p2, p3 }
 //   }],                                                 // 产物回看(阶段3 落盘
 //   chapter_outputs: { draft:null, final:null }         // 回填;null=未落盘)
@@ -61,6 +64,10 @@
   /** 参考图异图上限(1114 用户裁定:≥9 异图=引擎原生崩;与 App 组装器
    *  buildShotH3SancaiApiWorkflow/executor 同口径,重复图不占预算) */
   var MAX_DISTINCT_REFERENCE_IMAGES = 8;
+  /** 参考音频槽上限(1115 缺口5:引擎 AUTOGROW max=3=ref_audio_0..2,
+   * comfy_api/latest/_io.py names=range(max) 实证;normalize 面去重+帽3
+   * =与 pick(mode) 归一纪律同源,chips 编号=state=运行时列恒不悬空) */
+  var MAX_AUDIO_REFS = 3;
 
   /** 秒 → 17k+5 帧网格(就近合法档) */
   function secondsToFrames(seconds) {
@@ -120,6 +127,19 @@
     v = v && typeof v === "object" ? v : {};
     return { p1: strOrNull(v.p1), p2: strOrNull(v.p2), p3: strOrNull(v.p3) };
   }
+  /** 参考音频归一:按名去重保序+帽 MAX_AUDIO_REFS(手改/外部导入的
+   * 重名与>3 在归一面收敛;chips <Audio J> 编号=state=运行时列恒不悬空) */
+  function normalizeAudios(v) {
+    var list = strList(v);
+    var seen = {};
+    var out = [];
+    for (var i = 0; i < list.length && out.length < MAX_AUDIO_REFS; i++) {
+      if (seen[list[i]]) continue;
+      seen[list[i]] = true;
+      out.push(list[i]);
+    }
+    return out;
+  }
 
   /** 单段规范化(所有入口字段兜底;frames 恒=seconds 贴网格的派生值) */
   function normalizeSegment(seg, idx) {
@@ -136,6 +156,7 @@
       seed: intOrNull(seg.seed),
       match: pick(seg.match, MATCH_MODES, "match"),
       rerun: seg.rerun === true,
+      skip: seg.skip === true, // 1115 缺口4:逐段参与运行(默认参与)
       use_common: seg.use_common === false ? false : true,
       prompt: {
         summary: typeof prompt.summary === "string" ? prompt.summary : "",
@@ -144,6 +165,7 @@
         soundscape: typeof prompt.soundscape === "string" ? prompt.soundscape : "",
       },
       images: strList(seg.images),
+      audios: normalizeAudios(seg.audios), // 1115 缺口5:参考音频≤3
       artifacts: normalizeArtifacts(seg.artifacts),
     };
   }
@@ -189,6 +211,7 @@
       },
       advanced: advanced,
       perf: perf,
+      continuity: data.continuity === false ? false : true, // 1115 缺口7:段间引导默认开
       segments: segments,
       chapter_outputs: {
         draft: strOrNull((data.chapter_outputs || {}).draft),
@@ -438,6 +461,7 @@
     PERF_DEFAULTS: PERF_DEFAULTS,
     MAX_REFERENCE_IMAGES: MAX_REFERENCE_IMAGES,
     MAX_DISTINCT_REFERENCE_IMAGES: MAX_DISTINCT_REFERENCE_IMAGES,
+    MAX_AUDIO_REFS: MAX_AUDIO_REFS,
     secondsToFrames: secondsToFrames,
     framesToSeconds: framesToSeconds,
     summaryLine: summaryLine,

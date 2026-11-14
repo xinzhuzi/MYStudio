@@ -750,3 +750,304 @@ def test_perf_switches_are_real_1115(monkeypatch):
     de.DirectorExecutor(_fake_classes(), hooks).run(
         "model", "vv", "aa", "cc", st, unique_id=1)
     assert box["freed"] == [], "free_h3=False 不得卸载"
+
+
+# ══ 1115 缺口4:逐段参与运行 skip ═════════════════════════════════════
+
+def test_resolve_plan_skip_filters_and_gates():
+    """skip 段:零 runs 零登记不报缺上游;skip+rerun 并存=skip 胜;全 skip 门。"""
+    st = _state()
+    st["stages"]["yicai"] = True
+    st["segments"][1]["skip"] = True
+    runs, errors, art = _plan(st)
+    assert [r["seg"]["id"] for r in runs] == ["sb-01"]
+    assert not errors and art["sb-02"] == {}  # skip 段产物册恒空 dict
+    # skip+rerun 并存=skip 胜(重掷不越位)
+    st2 = _state()
+    st2["stages"]["yicai"] = True
+    st2["segments"][1].update(skip=True, rerun=True)
+    runs2, errors2, art2 = _plan(st2)
+    assert [r["seg"]["id"] for r in runs2] == ["sb-01"] and art2["sb-02"] == {}
+    # skip 段不报缺上游(ercai 单独:仅 sb-01 被点名)
+    st3 = _state()
+    st3["stages"]["ercai"] = True
+    st3["segments"][1]["skip"] = True
+    _, errors3, _ = _plan(st3)
+    assert any("第1镜(sb-01)无p1" in e for e in errors3)
+    assert not any("sb-02" in e for e in errors3)
+    # 新门:segs 非空但全部 skip
+    st4 = _state()
+    st4["stages"]["yicai"] = True
+    for s in st4["segments"]:
+        s["skip"] = True
+    runs4, errors4, _ = _plan(st4)
+    assert runs4 == [] and any("全部镜已勾选跳过" in e for e in errors4)
+
+
+def test_finalize_skips_skip_segments():
+    """finalize 构造面:skip 段无 p1 也零「无p1」miss 点名+不入拼接源。"""
+    hooks, _, box = _fake_hooks()
+    ex = de.DirectorExecutor(_fake_classes(), hooks)
+    collector = _LogCollector()
+    st = _state()
+    st["stages"]["sancai"] = True
+    st["segments"][1]["skip"] = True
+    p3 = "video/导演台/c/sb-01/p3-recavsr.mp4"
+    out = ex._finalize("chapter-b001", st, {"sb-01": {"p3": p3}},
+                       False, log=collector)
+    assert out["final"].endswith("章终片.mp4")
+    assert not any("sb-02" in x for x in collector.lines), "skip 段不得 miss 点名"
+    assert box["ffmpeg"][0][0] == [p3], "拼接源不含 skip 段"
+
+
+def test_dry_run_skip_zero_savevideo_and_logged(monkeypatch):
+    """run 干跑:skip 段零 SaveVideo 调用(按 filename_prefix 断)+留痕 skip=1。"""
+    st = _state()
+    st["stages"]["yicai"] = True
+    st["segments"][1]["skip"] = True
+    res, box, log = _run_with_log(monkeypatch, st)
+    saved = [kw["filename_prefix"] for n, kw in FakeCls.calls
+             if n == "SaveVideo"]
+    assert saved and all("sb-02" not in p for p in saved), "skip 段不得落盘"
+    assert res["artifacts"]["sb-02"] == {}
+    assert "skip=1" in log.joined()
+    # 章草片源=仅 sb-01(skip 段不入拼)
+    assert box["ffmpeg"][0][0] == [res["artifacts"]["sb-01"]["p1"]]
+
+
+# ══ 1115 缺口5:参考音频(修E 去重帽3/修F 三键/修I 缺件点名)══════════
+
+def test_load_audios_dedupe_cap_and_missing_named():
+    """load_audios:防御性去重保序+帽3(canonical 输入 no-op);缺件=先检
+    返 None→DirectorError 点名「不在 input/」(修I,非裸 FileNotFoundError)。"""
+    loaded: list = []
+    hooks = de.Hooks(load_audio=lambda n: (loaded.append(n) or f"aud:{n}"))
+    assert de.normalize_audio_names(["a", "a", "b", "c", "d"]) == ["a", "b", "c"]
+    assert de.load_audios(
+        hooks, {"audios": ["a.mp3", "a.mp3", "b.mp3", "c.mp3", "d.mp3"]}) \
+        == ["aud:a.mp3", "aud:b.mp3", "aud:c.mp3"]
+    assert loaded == ["a.mp3", "b.mp3", "c.mp3"]
+    assert de.load_audios(hooks, {"audios": []}) == []
+    missing = de.Hooks(load_audio=lambda n: None)
+    with pytest.raises(de.DirectorError, match="参考音频 x.mp3 不在 input/"):
+        de.load_audios(missing, {"audios": ["x.mp3"]})
+    with pytest.raises(de.DirectorError, match="参考音频 y.mp3 不在 input/"):
+        de.load_audios(de.Hooks(), {"audios": ["y.mp3"]})  # legacy 无钩子同口径
+
+
+def test_dry_run_ref_audios_three_keys(monkeypatch):
+    """conditioning(修F):canonical 三音频→kw['ref_audios'] 恰三键
+    {ref_audio_0,ref_audio_1,ref_audio_2}(聚合字典仿 ref_images)。"""
+    st = _state()
+    st["stages"]["yicai"] = True
+    st["segments"] = [dict(st["segments"][0])]
+    st["segments"][0]["audios"] = ["a.mp3", "b.mp3", "c.mp3"]
+    hooks, side, box = _fake_hooks()
+    hooks.load_audio = lambda n: f"aud:{n}"
+    _patch_save(monkeypatch, side)
+    FakeCls.calls.clear()
+    de.DirectorExecutor(_fake_classes(), hooks).run(
+        "model", "vv", "aa", "cc", st, unique_id=1)
+    kw = next(kw for n, kw in FakeCls.calls
+              if n == "MiniMaxH3ReferenceToVideo")
+    assert set(kw["ref_audios"]) == {"ref_audio_0", "ref_audio_1",
+                                     "ref_audio_2"}
+    assert kw["ref_audios"] == {"ref_audio_0": "aud:a.mp3",
+                                "ref_audio_1": "aud:b.mp3",
+                                "ref_audio_2": "aud:c.mp3"}
+
+
+def test_dry_run_i2v_has_no_ref_audios(monkeypatch):
+    """i2v 镜走 ImageToVideo:kw 不含 ref_audios 键(方案裁定不接)。"""
+    st = _state()
+    st["stages"]["yicai"] = True
+    seg = dict(st["segments"][0])
+    seg.update(mode="i2v", audios=["a.mp3"])
+    st["segments"] = [seg]
+    hooks, side, box = _fake_hooks()
+    hooks.load_audio = lambda n: f"aud:{n}"
+    _patch_save(monkeypatch, side)
+    FakeCls.calls.clear()
+    de.DirectorExecutor(_fake_classes(), hooks).run(
+        "model", "vv", "aa", "cc", st, unique_id=1)
+    kw = next(kw for n, kw in FakeCls.calls if n == "MiniMaxH3ImageToVideo")
+    assert "ref_audios" not in kw
+    assert kw["first_frame"] == "img:sb01.png"  # i2v 首帧口径不受影响
+
+
+def test_latent_fingerprint_audios_and_continuity_keys():
+    """指纹新增决定因素:audios 变→指纹变;continuity 身份变→指纹变。"""
+    st = _state()
+    seg = dict(st["segments"][0])
+    seg_a, seg_b = dict(seg, audios=["a.mp3"]), dict(seg, audios=[])
+    assert de.latent_fingerprint(st, seg_a, ["c.png"]) \
+        != de.latent_fingerprint(st, seg_b, ["c.png"])
+    assert de.latent_fingerprint(st, seg_a, ["c.png"]) \
+        == de.latent_fingerprint(st, dict(seg, audios=["a.mp3"]), ["c.png"])
+    assert de.latent_fingerprint(st, seg, ["c.png"], continuity="cont@1") \
+        != de.latent_fingerprint(st, seg, ["c.png"])
+
+
+# ══ 1115 缺口7:段间连续性(修B 守卫/修D mtime 身份)══════════════════
+
+def test_shift_picture_tags():
+    assert de.shift_picture_tags("<Picture 1> and <Picture 9>", 1) \
+        == "<Picture 2> and <Picture 10>"
+    assert de.shift_picture_tags("无标签 <Audio 2> 透传", 1) \
+        == "无标签 <Audio 2> 透传"  # 仅 Picture 平移
+    assert de.shift_picture_tags("<Picture 3>", 0) == "<Picture 3>"
+    assert de.shift_picture_tags(None, 1) == ""
+
+
+def test_continuity_ref_names_budget():
+    """cont=None=budget 原面;cont 恒 slot1,余量 slots-1/distinct-1 给 user。"""
+    assert de.continuity_ref_names(["u1", "u2"], None) \
+        == de.budget_ref_names(["u1", "u2"])
+    assert de.continuity_ref_names(["u1", "u2"], "c.png") \
+        == (["c.png", "u1", "u2"], 3, [])
+    # 9 槽满载:cont+c.u0..u6(distinct 帽 8),u7/u8 弃尾
+    kept, n_distinct, dropped = de.continuity_ref_names(
+        [f"u{i}" for i in range(9)], "c.png")
+    assert kept[0] == "c.png"
+    assert kept == ["c.png"] + [f"u{i}" for i in range(7)]
+    assert dropped == ["u7", "u8"] and n_distinct == 8
+
+
+def test_legacy_hooks_guard_no_grab_last_frame(monkeypatch):
+    """修B 回归:_fake_hooks 原样(无 grab_last_frame)双镜全链干跑=守卫
+    跳过零注入,现状断言原封不动仍绿(防新增自带桩遮坑)。"""
+    st = _state()
+    for k in ("yicai", "ercai", "sancai"):
+        st["stages"][k] = True
+    res, box, log = _run_with_log(monkeypatch, st)
+    assert res["done"] == 2 and res["cancelled"] is False
+    assert "段间引导 跳过(无 grab_last_frame 钩子" in log.joined()
+
+
+def test_dry_run_continuity_injects_prev_frame(monkeypatch):
+    """grab 桩:第2镜 pass1 ref_image_0=前镜衔接图;prompt <Picture N> 已
+    +1;首镜零注入;段间引导留痕行。"""
+    st = _state()
+    st["stages"]["yicai"] = True
+    st["segments"][1]["prompt"]["description"] = "<Picture 1> 决斗"
+    hooks, side, box = _fake_hooks()
+    grabs: list = []
+    hooks.grab_last_frame = lambda rel, name: (grabs.append((rel, name))
+                                               or name)
+    _patch_save(monkeypatch, side)
+    FakeCls.calls.clear()
+    de.DirectorExecutor(_fake_classes(), hooks).run(
+        "model", "vv", "aa", "cc", st, unique_id=1)
+    conds = [kw for n, kw in FakeCls.calls
+             if n == "MiniMaxH3ReferenceToVideo"]
+    # 首镜:零注入,原面 refs
+    assert conds[0]["ref_images"] == {"ref_image_0": "img:canon-jc.png",
+                                      "ref_image_1": "img:sb01.png"}
+    # 次镜:衔接图占首槽
+    assert conds[1]["ref_images"]["ref_image_0"] \
+        == "img:daoyan-cont-chapter-b001-sb-01.png"
+    assert conds[1]["ref_images"]["ref_image_1"] == "img:canon-jc.png"
+    # grab 恰一次:吃首镜刚产的 p1,目标名恒 daoyan-cont-{章}-{前镜id}
+    assert grabs == [("video/导演台/chapter-b001/sb-01/"
+                      "p1-draft_00001.mp4",
+                      "daoyan-cont-chapter-b001-sb-01.png")]
+
+
+def test_dry_run_continuity_injects_prev_frame_and_shift(monkeypatch):
+    """上测的 prompt 面:第2镜 prompt 全文 <Picture 1>→<Picture 2>(仅注入
+    镜),首镜原文不动;指纹含 continuity 身份(缓存与 pass1 同输入)。"""
+    st = _state()
+    st["stages"]["yicai"] = True
+    st["segments"][1]["prompt"]["description"] = "<Picture 1> 决斗"
+    hooks, side, box = _fake_hooks()
+    hooks.grab_last_frame = lambda rel, name: name
+    cache: dict = {}
+    hooks.save_latent = lambda rel, payload: cache.__setitem__(rel, payload)
+    _patch_save(monkeypatch, side)
+    FakeCls.calls.clear()
+    res = de.DirectorExecutor(_fake_classes(), hooks).run(
+        "model", "vv", "aa", "cc", st, unique_id=1)
+    seg1_fp = cache[de.artifact_prefix("chapter-b001", "sb-01", "p1-draft")
+                    + ".latent"]["fp"]
+    seg2_fp = cache[de.artifact_prefix("chapter-b001", "sb-02", "p1-draft")
+                    + ".latent"]["fp"]
+    # 期望指纹=与 pass1 同输入:平移后 prompt+effective refs+衔接身份(裸名)
+    seg2_eff = dict(st["segments"][1], prompt={
+        "summary": "", "retention": "", "description": "<Picture 2> 决斗",
+        "soundscape": ""})
+    assert seg2_fp == de.latent_fingerprint(
+        st, seg2_eff, ["daoyan-cont-chapter-b001-sb-01.png", "canon-jc.png"],
+        audios=[], continuity="daoyan-cont-chapter-b001-sb-01.png")
+    assert seg1_fp == de.latent_fingerprint(
+        st, st["segments"][0], ["canon-jc.png", "sb01.png"])
+
+
+def test_dry_run_continuity_false_matches_no_injection(monkeypatch):
+    """continuity=False(或无钩子)→零注入:refs 面与无 continuity 完全一致。"""
+
+    def seg2_refs(state, grab):
+        hooks, side, box = _fake_hooks()
+        if grab:
+            hooks.grab_last_frame = lambda rel, name: name
+        _patch_save(monkeypatch, side)
+        FakeCls.calls.clear()
+        de.DirectorExecutor(_fake_classes(), hooks).run(
+            "model", "vv", "aa", "cc", state, unique_id=1)
+        conds = [kw for n, kw in FakeCls.calls
+                 if n == "MiniMaxH3ReferenceToVideo"]
+        return conds[1]["ref_images"]
+
+    off_st = _state()
+    off_st["stages"]["yicai"] = True
+    off_st["continuity"] = False
+    plain_st = _state()
+    plain_st["stages"]["yicai"] = True
+    refs_off = seg2_refs(off_st, grab=True)   # 显式关+钩子在=不注入
+    refs_none = seg2_refs(plain_st, grab=False)  # 无钩子=守卫跳过
+    assert refs_off == refs_none == {"ref_image_0": "img:canon-jc.png"}
+
+
+def test_continuity_identity_mtime_fingerprint():
+    """修D:前镜 p1 stat mtime 变→衔接身份变→☑2 latent 指纹变(陈缓存
+    作废);output_path 不可用=裸名回退。"""
+    import types
+
+    class _P:
+        def __init__(self, ns):
+            self._ns = ns
+
+        def stat(self):
+            return types.SimpleNamespace(st_mtime_ns=self._ns)
+
+    st = _state()
+    p1 = "video/导演台/chapter-b001/sb-01/p1-draft_00001.mp4"
+    arts = {"sb-01": {"p1": p1}}
+    hooks = de.Hooks(grab_last_frame=lambda rel, name: name,
+                     output_path=lambda rel: _P(111))
+    key, ident = de.resolve_continuity(st, arts, 1, hooks)
+    assert key == "daoyan-cont-chapter-b001-sb-01.png"
+    assert ident == "daoyan-cont-chapter-b001-sb-01.png@111"
+    hooks.output_path = lambda rel: _P(222)  # 前镜 p1 重产→mtime 变
+    _, ident2 = de.resolve_continuity(st, arts, 1, hooks)
+    assert ident2 == "daoyan-cont-chapter-b001-sb-01.png@222"
+    names = [key, "canon-jc.png"]
+    assert de.latent_fingerprint(st, st["segments"][1], names,
+                                 continuity=ident) \
+        != de.latent_fingerprint(st, st["segments"][1], names,
+                                 continuity=ident2)
+    # 裸名回退:output_path=None
+    hooks.output_path = None
+    _, ident3 = de.resolve_continuity(st, arts, 1, hooks)
+    assert ident3 == key
+
+
+def test_continuity_prev_no_p1_no_ref_skips_with_log():
+    """前镜无 p1 且无参考→跳注入+「段间引导」留痕行。"""
+    st = _state()
+    st["common_images"] = []
+    st["segments"][0]["images"] = []
+    lines: list = []
+    hooks = de.Hooks(grab_last_frame=lambda rel, name: name,
+                     list_output=lambda p: [])
+    assert de.resolve_continuity(st, {}, 1, hooks, lines.append) is None
+    assert any("段间引导" in x for x in lines)

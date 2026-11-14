@@ -70,7 +70,7 @@ function loadPanel() {
     body: { appendChild() {} },
   };
   const ctx = vm.createContext(sandbox);
-  for (const f of ["serial.js", "toolbar.js", "params.js", "timeline.js", "cards.js", "prompt.js", "live.js", "logs.js"]) {
+  for (const f of ["serial.js", "toolbar.js", "params.js", "timeline.js", "cards.js", "prompt.js", "live.js", "logs.js", "picker.js", "video.js"]) {
     const code = readFileSync(path.join(WEB, f), "utf8");
     vm.runInContext(code, ctx, { filename: f });
   }
@@ -559,6 +559,21 @@ test("⑰ 导出→导入全字段闭环:stages/color_fix/common_params/advanced
   assert.equal(dst.ctrl.state.segments[0].prompt.summary, "Miners in fog.");
   // 终极断言:整包 canonical 状态同构(导出↔导入零损)
   assert.equal(JSON.stringify(dst.ctrl.state), JSON.stringify(src.ctrl.state));
+  // 1115 缺口4/5/7 增量三字段扩展:skip/audios/continuity 导出→导入零丢
+  // (钉 importPayload 补 st.continuity 点名行:顶层字段不随 segments 携带)
+  sb.DaoyanCards.actions.toggleSkip(src.ctrl, 0);          // → skip=true(不参与运行)
+  sb.DaoyanCards.actions.addSegmentAudio(src.ctrl, 0, "a.mp3");
+  sb.DaoyanParams.actions.toggleContinuity(src.ctrl);      // → false(段间引导关)
+  const json2 = sb.DaoyanToolbar.actions.exportPayload(src.ctrl);
+  const dst2 = makeCtrl(sb, { debounceMs: 10 });
+  const r2 = sb.DaoyanToolbar.actions.importPayload(dst2.ctrl, json2);
+  assert.equal(JSON.stringify(r2), JSON.stringify({ ok: true, count: 1 }));
+  assert.equal(dst2.ctrl.state.continuity, false, "continuity 不丢(顶层字段点名回填)");
+  assert.equal(dst2.ctrl.state.segments[0].skip, true, "skip 不丢(segments 整组置换携带)");
+  assert.equal(JSON.stringify(dst2.ctrl.state.segments[0].audios),
+    JSON.stringify(["a.mp3"]), "audios 不丢");
+  assert.equal(JSON.stringify(dst2.ctrl.state), JSON.stringify(src.ctrl.state),
+    "增量三字段后整包仍同构");
 });
 
 // ── ⑱ 产物回看 schema(1114 缺口②:artifacts/chapter_outputs 落盘回填通道)──
@@ -595,7 +610,10 @@ test("⑱ 产物 schema:normalize 兜底 null;roundtrip 路径保全;导入零�
 });
 
 // ── ⑲ 卡片产物槽(缺口②:每镜 p1/p2/p3 槽位占位+点亮态)──────────────
-test("⑲ 卡片产物槽:未落盘=「候落盘」×3;落盘=绿胶囊 /view output 链接", () => {
+// 1115 缺口3 ⑲迁移:徽章 <a target=_blank>→<span data-act=play-art
+// data-view>,原 <a> 正则在 span 徽章下必 null→[0] 抛 TypeError(已 node
+// 复现);span 正则+data-view 承载=URL 正确性断言语义不降级。
+test("⑲ 卡片产物槽:未落盘=「候落盘」×3;落盘=绿胶囊 data-view 面板内播放", () => {
   const sb = loadPanel();
   const { ctrl } = makeCtrl(sb);
   sb.DaoyanCards.actions.addGroup(ctrl);
@@ -603,16 +621,25 @@ test("⑲ 卡片产物槽:未落盘=「候落盘」×3;落盘=绿胶囊 /view ou
   sb.DaoyanCards.build(root, ctrl);
   assert.equal((root.innerHTML.match(/候落盘/g) || []).length, 3, "空态三槽占位");
   assert.ok(!root.innerHTML.includes("dy-art--have"), "未落盘无点亮胶囊");
-  // 落盘一槽:绿胶囊+output 型 /view 直看链
+  // 落盘一槽:绿胶囊 span(data-view 承载 /view output URL=面板内播放)
   ctrl.apply(function (st) {
     st.segments[0].artifacts.p2 = "video/导演台/chapter-b001/sb-01/p2-final.mp4";
   });
   sb.DaoyanCards.build(root, ctrl);
-  const a = root.innerHTML.match(/<a class="dy-art dy-art--have"[^>]*>/)[0];
-  assert.ok(a.includes("/view?filename=p2-final.mp4"), "链接指 /view output");
+  const a = root.innerHTML.match(/<span class="dy-art dy-art--have"[^>]*>/)[0];
+  assert.ok(a.includes("/view?filename=p2-final.mp4"), "data-view 指向 /view output");
   assert.ok(a.includes("type=output"), "output 型(非 input 缩略通道)");
+  assert.ok(a.includes('data-act="play-art"'), "点开=面板内播放(DaoyanVideo)");
   assert.ok(root.innerHTML.includes("p2-final.mp4"), "文件名入胶囊");
   assert.ok(root.innerHTML.includes("候落盘"), "其余两槽仍候落盘");
+  assert.ok(!root.innerHTML.includes('target="_blank"'), "新页通道退场");
+  // URL 正确性断言面保留:data-view 值经 DaoyanVideo.open 打开
+  const dv = a.match(/data-view="([^"]*)"/)[1].replace(/&amp;/g, "&");
+  assert.ok(dv.startsWith("/view?filename=p2-final.mp4"));
+  sb.DaoyanVideo.open(dv, "p2");
+  assert.equal(sb.DaoyanVideo.state().open, true, "data-view 可开浮层");
+  assert.equal(sb.DaoyanVideo.state().url, dv);
+  sb.DaoyanVideo.close();
 });
 
 // ── ⑳ 产物总览 gallery(缺口②:章级+逐镜一屏点看,面板里看不去翻文件夹)──
@@ -935,4 +962,366 @@ test("㉘ 输出条=三采阶梯真值只读;占位假件(声音/导出方式/�
   sb.DaoyanParams.build(proot, ctrl);
   assert.ok(!proot.innerHTML.includes("断点续跑") && !proot.innerHTML.includes("产物回看"),
     "两假开关胶囊已删");
+});
+
+
+// ── ㉙ 提示词 token chips 渲染(1115 缺口1:已填槽 <Picture N>/<Audio J>)──
+test("㉙ chips 渲染:公共2图+本组1图→恰 <Picture 1/2/3> 三钮;零图零音频整行不渲;audios→<Audio J>", () => {
+  const sb = loadPanel();
+  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
+  sb.DaoyanCards.actions.addGroup(ctrl);
+  // 零图零音频=chips 行整行不渲
+  let root = stubElement();
+  sb.DaoyanPrompt.build(root, ctrl);
+  assert.ok(!root.innerHTML.includes("dy-chips"), "零参考图零音频=chips 行不渲");
+  assert.ok(!root.innerHTML.includes('data-act="chip-picture"'));
+  // 公共2图+本组1图 → pictureLabel 连续编号恰三钮(空槽不占位)
+  sb.DaoyanCards.actions.addCommonImage(ctrl, "c1.png");
+  sb.DaoyanCards.actions.addCommonImage(ctrl, "c2.png");
+  sb.DaoyanCards.actions.addGroupImage(ctrl, 0, "o1.png");
+  root = stubElement();
+  sb.DaoyanPrompt.build(root, ctrl);
+  assert.equal((root.innerHTML.match(/data-act="chip-picture"/g) || []).length, 3,
+    "恰三枚图 chips");
+  assert.ok(root.innerHTML.includes("&lt;Picture 1&gt;"), "公共1→<Picture 1>");
+  assert.ok(root.innerHTML.includes("&lt;Picture 2&gt;"), "公共2→<Picture 2>");
+  assert.ok(root.innerHTML.includes("&lt;Picture 3&gt;"), "本组1续号→<Picture 3>");
+  assert.ok(!root.innerHTML.includes("&lt;Picture 4&gt;"), "空槽不占位");
+  // 音频 chips:<Audio J>(J=idx+1,1-based)
+  sb.DaoyanCards.actions.addSegmentAudio(ctrl, 0, "a.mp3");
+  sb.DaoyanCards.actions.addSegmentAudio(ctrl, 0, "b.mp3");
+  root = stubElement();
+  sb.DaoyanPrompt.build(root, ctrl);
+  assert.equal((root.innerHTML.match(/data-act="chip-audio"/g) || []).length, 2,
+    "恰两枚音频 chips");
+  assert.ok(root.innerHTML.includes("&lt;Audio 1&gt;"));
+  assert.ok(root.innerHTML.includes("&lt;Audio 2&gt;"));
+  assert.equal((root.innerHTML.match(/data-act="chip-picture"/g) || []).length, 3,
+    "图 chips 不受音频影响");
+});
+
+// ── ㉚ 插入数学+静默写(1115 缺口1)──────────────────────────────────
+test("㉚ 插入数学:insertAtCursor('abc',2,'<Picture 2>')→'ab<Picture 2>c' 新光标=13;insertToken 静默+一次回退整枚 token", () => {
+  const sb = loadPanel();
+  const r = sb.DaoyanPrompt.insertAtCursor("abc", 2, "<Picture 2>");
+  assert.equal(r.text, "ab<Picture 2>c", "插入不改邻近字符");
+  assert.equal(r.cursor, 13, "新光标=pos+token.length(2+11)");
+  // 越界钳制:pos 负→0,超长→末尾
+  assert.equal(sb.DaoyanPrompt.insertAtCursor("ab", 99, "X").cursor, 3);
+  assert.equal(sb.DaoyanPrompt.insertAtCursor("ab", -5, "X").cursor, 1);
+  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
+  sb.DaoyanCards.actions.addGroup(ctrl);
+  sb.DaoyanPrompt.actions.setPromptField(ctrl, "description", "abc");
+  let notified = 0;
+  ctrl.subscribe(() => { notified += 1; });
+  const cur = sb.DaoyanPrompt.actions.insertToken(ctrl, "description", "<Picture 2>", 2);
+  assert.equal(cur, 13, "返回新光标");
+  assert.equal(ctrl.state.segments[0].prompt.description, "ab<Picture 2>c");
+  assert.equal(notified, 0, "applySilent 静默写=不通知重渲(打字同款不丢焦点)");
+  // Ctrl+Z 一次回退整枚 token(coalesce key 与打字/模板分离)
+  assert.equal(ctrl.undo(), true);
+  assert.equal(ctrl.state.segments[0].prompt.description, "abc", "一次回退整枚 token");
+});
+
+// ── ㉛ chips DOM 接线面(1115 缺口1:纯 textarea,禁 contenteditable)──
+test("㉛ chips DOM 接线:chip-picture/chip-audio 与目标 textarea data-field 俱在;无 contenteditable", () => {
+  const sb = loadPanel();
+  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
+  sb.DaoyanCards.actions.addGroup(ctrl);
+  sb.DaoyanCards.actions.addCommonImage(ctrl, "c1.png");
+  sb.DaoyanCards.actions.addSegmentAudio(ctrl, 0, "a.mp3");
+  const root = stubElement();
+  sb.DaoyanPrompt.build(root, ctrl);
+  assert.ok(root.innerHTML.includes('data-act="chip-picture"'), "图 chip 按钮在");
+  assert.ok(root.innerHTML.includes('data-act="chip-audio"'), "音频 chip 按钮在");
+  assert.ok(root.innerHTML.includes('data-token="&lt;Picture 1&gt;"'), "data-token 承载原文");
+  assert.ok(root.innerHTML.includes('data-field="description"'), "目标 textarea 在(focusin 记段)");
+  assert.ok(root.innerHTML.includes('data-field="soundscape"'));
+  assert.ok(!root.innerHTML.includes("contenteditable"), "纯 textarea 增强,禁 contenteditable");
+});
+
+// ── ㉜ 库内选图器:无 fetch 降级(1115 缺口2)─────────────────────────
+test("㉜ DaoyanPicker 无 fetch:open() 降级 error 面不炸(state().error 非空)", async () => {
+  const sb = loadPanel();
+  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
+  sb.DaoyanCards.actions.addGroup(ctrl);
+  const st = await sb.DaoyanPicker.open({ zone: "own", segIdx: 0, slot: null, ctrl });
+  assert.ok(st.error && st.error.includes("无 fetch"), "无 fetch=降级 error(error 非空)");
+  assert.equal(sb.DaoyanPicker.state().open, true, "浮层仍开(示错误,不炸)");
+  assert.ok(sb.DaoyanPicker.overlayHtml().includes("无 fetch"), "错误文案入面");
+  sb.DaoyanPicker.close();
+  assert.equal(sb.DaoyanPicker.state().open, false, "close 复位");
+  assert.equal(sb.DaoyanPicker.close(), true, "close 幂等");
+});
+
+// ── ㉝ 库内选图器:fetch 桩点选回调(1115 缺口2)───────────────────────
+test("㉝ DaoyanPicker fetch 桩:open 渲 input/ 缩略图;点选→addGroupImage/replaceGroupImage;拒时留痕不自闭;fileRow「图库」钮", async () => {
+  const sb = loadPanel();
+  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
+  sb.DaoyanCards.actions.addGroup(ctrl);
+  const calls = [];
+  sb.fetch = function (url) {
+    calls.push(url);
+    return Promise.resolve({ json: () => Promise.resolve({
+      files: [
+        { name: "a.png", mtime: 2, size: 10 },
+        { name: "3d/b.png", mtime: 1, size: 20 },   // 子夹相对 posix 名
+      ],
+      count: 2 }) });
+  };
+  await sb.DaoyanPicker.open({ zone: "own", segIdx: 0, slot: null, ctrl });
+  assert.equal(calls.length, 1);
+  assert.ok(calls[0].includes("/my_daoyan/input_media?limit=200"), "GET 图库路由");
+  const html = sb.DaoyanPicker.overlayHtml();
+  assert.ok(html.includes("a.png") && html.includes("3d/b.png"), "files 渲(mtime 倒序=服务侧序)");
+  assert.ok(html.indexOf("a.png") < html.indexOf("3d/b.png"), "渲染序=返回序");
+  assert.ok(html.includes("type=input"), "缩略图走 thumbUrl input 通道");
+  assert.ok(html.includes("⬆ 上传新图"), "上传钮内嵌");
+  // 新增模式点选→addGroupImage 入槽(9槽/8异图守门在 cards 侧生效)
+  assert.equal(sb.DaoyanPicker.pick("a.png"), true);
+  assert.equal(JSON.stringify(ctrl.state.segments[0].images), JSON.stringify(["a.png"]),
+    "点选回调→addGroupImage 入槽");
+  assert.equal(sb.DaoyanPicker.state().open, false, "入槽成功自闭");
+  // 重名拒:notice 留痕+面不关
+  await sb.DaoyanPicker.open({ zone: "own", segIdx: 0, slot: null, ctrl });
+  assert.equal(sb.DaoyanPicker.pick("a.png"), false, "重名拒(addGroupImage 守门)");
+  assert.ok(sb.DaoyanPicker.state().notice.includes("入槽被拒"), "拒因留痕");
+  assert.equal(sb.DaoyanPicker.state().open, true, "被拒不自闭");
+  sb.DaoyanPicker.close();
+  // 替换模式:slot=0→replaceGroupImage 原位换名
+  await sb.DaoyanPicker.open({ zone: "own", segIdx: 0, slot: 0, ctrl });
+  assert.equal(sb.DaoyanPicker.state().slot, 0, "replace 模式(slot=0)");
+  assert.equal(sb.DaoyanPicker.pick("3d/b.png"), true);
+  assert.equal(JSON.stringify(ctrl.state.segments[0].images), JSON.stringify(["3d/b.png"]),
+    "replace 模式原位换名(槽位/续号不动)");
+  // cards fileRow「🖼 图库」钮(公共/本组两入口)
+  const root = stubElement();
+  sb.DaoyanCards.build(root, ctrl);
+  assert.ok(root.innerHTML.includes('data-act="pick-own"'), "本组图库钮");
+  assert.ok(root.innerHTML.includes('data-act="pick-common"'), "公共图库钮");
+  assert.ok(root.innerHTML.includes("🖼 图库"));
+  delete sb.fetch;
+});
+
+// ── ㉞ 面板内视频播放:DaoyanVideo 基础面(1115 缺口3)─────────────────
+test("㉞ DaoyanVideo:open/close/state/overlayHtml;src 恒 esc(内联样式浮层)", () => {
+  const sb = loadPanel();
+  sb.DaoyanVideo.close();
+  assert.equal(sb.DaoyanVideo.state().open, false, "初始关");
+  assert.equal(sb.DaoyanVideo.open("/view?filename=x.mp4&type=output", "x.mp4"), true);
+  const st = sb.DaoyanVideo.state();
+  assert.equal(st.open, true);
+  assert.equal(st.url, "/view?filename=x.mp4&type=output");
+  assert.equal(st.title, "x.mp4");
+  const html = sb.DaoyanVideo.overlayHtml();
+  assert.ok(html.includes("<video controls"), "video[controls]");
+  assert.ok(html.includes("autoplay"));
+  assert.ok(html.includes('src="/view?filename=x.mp4&amp;type=output"'), "/view 直链(esc)");
+  assert.ok(html.includes('data-act="video-close"'), "遮罩点击=关");
+  sb.DaoyanVideo.close();
+  assert.equal(sb.DaoyanVideo.state().open, false, "close 复位");
+  assert.equal(sb.DaoyanVideo.state().url, "", "url 清空");
+  // esc(src):引号/尖括号不裸进属性
+  const bad = sb.DaoyanVideo.overlayHtml('a" onerror="x', "t");
+  assert.ok(!bad.includes('src="a" onerror'), "引号已转义");
+  assert.ok(bad.includes("&quot;"), "esc 落地");
+});
+
+// ── ㉟ gallery 产物=面板内播放(1115 缺口3:两消费面新页通道退场)──────
+test("㉟ gallery play-art:galleryOpen 后 data-act=play-art;root 零 target=\"_blank\"", () => {
+  const sb = loadPanel();
+  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
+  sb.DaoyanCards.actions.addGroup(ctrl);
+  ctrl.apply(function (st) {
+    st.segments[0].artifacts.p2 = "video/导演台/c/sb-01/p2-final.mp4";
+    st.chapter_outputs.final = "video/导演台/c/章终片.mp4";
+  });
+  sb.DaoyanToolbar.actions.toggleGallery(ctrl);
+  const root = stubElement();
+  sb.DaoyanToolbar.build(root, ctrl);
+  assert.ok(root.innerHTML.includes('data-act="play-art"'), "gallery 产物=面板内播放");
+  assert.ok(root.innerHTML.includes("data-view="), "data-view 承载 /view URL");
+  assert.ok(!root.innerHTML.includes('target="_blank"'), "toolbar 新页通道全数退场");
+  // ⑳ 存活面:dy-art--have 类名保留(计数/includes 式断言不降级)
+  assert.ok((root.innerHTML.match(/dy-art--have/g) || []).length >= 2, "点亮胶囊类名保留");
+});
+
+// ── ㊱ 逐段参与运行 skip:动作+卡片/时间线/gallery 渲染(1115 缺口4)──
+test("㊱ skip:toggleSkip 写 seg.skip;卡片 data-act=toggle-skip checked+.dy--skip;时间线块/gallery 同步", () => {
+  const sb = loadPanel();
+  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
+  sb.DaoyanCards.actions.addGroup(ctrl);
+  assert.equal(ctrl.state.segments[0].skip, false, "默认参与");
+  let root = stubElement();
+  sb.DaoyanCards.build(root, ctrl);
+  assert.ok(/data-act="toggle-skip" checked/.test(root.innerHTML), "默认勾=参与运行");
+  assert.ok(!root.innerHTML.includes("dy--skip"), "参与态无降透明类");
+  assert.equal(sb.DaoyanCards.actions.toggleSkip(ctrl, 0), true, "翻转为 skip");
+  assert.equal(ctrl.state.segments[0].skip, true, "skip 写 state");
+  root = stubElement();
+  sb.DaoyanCards.build(root, ctrl);
+  assert.ok(root.innerHTML.includes('class="dy-card dy--skip"'), "卡片 .dy--skip 降透明类");
+  assert.ok(!/data-act="toggle-skip" checked/.test(root.innerHTML), "勾退场");
+  assert.ok(root.innerHTML.includes("已跳过"), "meta 示跳过");
+  // 时间线块同步降透明
+  const tl = stubElement();
+  sb.DaoyanTimeline.build(tl, ctrl);
+  assert.ok(tl.innerHTML.includes("dy--skip"), "时间线块 .dy--skip");
+  // gallery 行「跳过」小徽
+  sb.DaoyanToolbar.actions.toggleGallery(ctrl);
+  const tbar = stubElement();
+  sb.DaoyanToolbar.build(tbar, ctrl);
+  assert.ok(tbar.innerHTML.includes("跳过"), "gallery 跳过小徽");
+});
+
+// ── ㊲ skip/audios 旧 payload 兜底+roundtrip 保全(1115 缺口4/5)──────
+test("㊲ 旧 payload 兜底:无 skip 键→false;无 audios→[];roundtrip 全保全;continuity 默认 true", async () => {
+  const sb = loadPanel();
+  const st = sb.DaoyanSerial.normalizeState({ segments: [{ id: "x" }] });
+  assert.equal(st.segments[0].skip, false, "旧 payload 无 skip 键→false 兜底");
+  assert.equal(JSON.stringify(st.segments[0].audios), "[]", "无 audios→[]");
+  const initialJson = JSON.stringify({
+    segments: [{ id: "x", skip: true, audios: ["a.mp3"] }],
+    continuity: false,
+  });
+  const { ctrl, widget } = makeCtrl(sb, { debounceMs: 10, initial: initialJson });
+  assert.equal(ctrl.state.segments[0].skip, true, "读回恢复(skip)");
+  assert.equal(ctrl.state.continuity, false, "读回恢复(continuity)");
+  ctrl.apply(function () {}); // 触发去抖写回(roundtrip 面)
+  await sleep(40);
+  const parsed = JSON.parse(widget.value);
+  assert.equal(parsed.segments[0].skip, true, "skip roundtrip 保全");
+  assert.equal(JSON.stringify(parsed.segments[0].audios), JSON.stringify(["a.mp3"]),
+    "audios roundtrip 保全");
+  assert.equal(parsed.continuity, false, "continuity roundtrip 保全");
+  assert.equal(sb.DaoyanSerial.normalizeState({}).continuity, true, "无键默认开");
+});
+
+// ── ㊳ 参考音频槽:≤3/重名拒/移除/上传通道(1115 缺口5)─────────────────
+test("㊳ audios 槽:addSegmentAudio 三连成+第4拒+重名拒+remove;上传走注入音频上传器;🎧槽行渲染", async () => {
+  const sb = loadPanel();
+  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
+  sb.DaoyanCards.actions.addGroup(ctrl);
+  assert.equal(sb.DaoyanCards.actions.addSegmentAudio(ctrl, 0, "a.mp3"), true);
+  assert.equal(sb.DaoyanCards.actions.addSegmentAudio(ctrl, 0, "b.mp3"), true);
+  assert.equal(sb.DaoyanCards.actions.addSegmentAudio(ctrl, 0, "c.mp3"), true);
+  assert.equal(sb.DaoyanCards.actions.addSegmentAudio(ctrl, 0, "d.mp3"), false, "第 4 拒(帽 3)");
+  assert.equal(sb.DaoyanCards.actions.addSegmentAudio(ctrl, 0, "a.mp3"), false, "重名拒");
+  assert.equal(JSON.stringify(ctrl.state.segments[0].audios),
+    JSON.stringify(["a.mp3", "b.mp3", "c.mp3"]), "保序入槽");
+  assert.equal(sb.DaoyanCards.actions.removeSegmentAudio(ctrl, 0, 1), true);
+  assert.equal(JSON.stringify(ctrl.state.segments[0].audios),
+    JSON.stringify(["a.mp3", "c.mp3"]), "按槽移除");
+  // 上传通道:注入音频上传器(引擎真传=POST /my_daoyan/upload_audio
+  // X-Filename+原始 body;测试桩面同构 image setUploader 先例)
+  const calls = [];
+  sb.DaoyanCards.setAudioUploader(function (file) {
+    calls.push(file.name);
+    return Promise.resolve({ name: file.name, subfolder: "" });
+  });
+  const up = await sb.DaoyanCards.actions.uploadAudioToZone(ctrl, 0, { name: "e.wav" });
+  assert.deepEqual(calls, ["e.wav"], "音频上传器吃原始文件对象");
+  assert.equal(up.ok, true);
+  assert.equal(JSON.stringify(ctrl.state.segments[0].audios),
+    JSON.stringify(["a.mp3", "c.mp3", "e.wav"]), "上传后入槽");
+  const up2 = await sb.DaoyanCards.actions.uploadAudioToZone(ctrl, 0, { name: "f.wav" });
+  assert.equal(up2.ok, false, "帽 3 后上传拒");
+  assert.ok(sb.DaoyanCards.lastAudioError().includes("入槽被拒"), "拒因留痕");
+  // 槽行渲染:🎧 已填槽+✕+文件名引用/上传(accept=audio/*)
+  const root = stubElement();
+  sb.DaoyanCards.build(root, ctrl);
+  assert.ok(root.innerHTML.includes("参考音频"), "音频槽行标题");
+  assert.ok(root.innerHTML.includes("🎧"), "已填槽 🎧");
+  assert.ok(root.innerHTML.includes('data-act="del-audio"'), "槽角 ✕");
+  assert.ok(root.innerHTML.includes('data-act="add-audio"'), "文件名引用添加钮");
+  assert.ok(root.innerHTML.includes('accept="audio/*"'), "上传 accept=audio/*");
+  assert.ok(root.innerHTML.includes("a.mp3"), "文件名入槽");
+});
+
+// ── ㊴ audios normalize 去重帽3(1115 缺口5 修E:chips 编号恒不悬空)──
+test("㊴ audios normalize:['a','a','b','c','d']→['a','b','c'](去重保序+帽3);roundtrip 保全;MAX_AUDIO_REFS=3", () => {
+  const sb = loadPanel();
+  const st = sb.DaoyanSerial.normalizeState({ segments: [{ audios: ["a", "a", "b", "c", "d"] }] });
+  assert.equal(JSON.stringify(st.segments[0].audios), JSON.stringify(["a", "b", "c"]),
+    "归一面收敛:去重保序+帽 3(修E)");
+  assert.equal(sb.DaoyanSerial.MAX_AUDIO_REFS, 3, "引擎 AUTOGROW ref_audio_0..2 口径");
+  const round = JSON.parse(sb.DaoyanSerial.buildTimelinePayload(st));
+  assert.equal(JSON.stringify(round.segments[0].audios), JSON.stringify(["a", "b", "c"]),
+    "roundtrip 保全");
+});
+
+// ── ㊵ AI扩写:fetch 桩回填+undo 一次回退(1115 缺口6)─────────────────
+test("㊵ AI扩写:POST /my_daoyan/enhance_prompt {text};回填 description;Ctrl+Z 一次回退", async () => {
+  const sb = loadPanel();
+  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
+  sb.DaoyanCards.actions.addGroup(ctrl);
+  sb.DaoyanPrompt.actions.setPromptField(ctrl, "description", "短句");
+  let captured = null;
+  sb.fetch = function (url, opts) {
+    captured = { url: url, opts: opts };
+    return Promise.resolve({ json: () => Promise.resolve({ ok: true, text: "扩写长文" }) });
+  };
+  const r = await sb.DaoyanPrompt.actions.enhance(ctrl);
+  assert.equal(r.ok, true);
+  assert.ok(captured.url.includes("/my_daoyan/enhance_prompt"), "命中自有路由");
+  assert.equal(captured.opts.method, "POST", "method POST");
+  assert.equal(captured.opts.headers["Content-Type"], "application/json");
+  assert.equal(JSON.parse(captured.opts.body).text, "短句", "请求体 JSON {text}");
+  assert.equal(ctrl.state.segments[0].prompt.description, "扩写长文", "回填画面描述");
+  // 回填走 ctrl.apply(非 silent,独立快照)=Ctrl+Z 一次回退
+  assert.equal(ctrl.undo(), true);
+  assert.equal(ctrl.state.segments[0].prompt.description, "短句", "一次回退扩写前原文");
+  delete sb.fetch;
+});
+
+// ── ㊶ AI扩写:无 fetch/空描述 disabled+err 红标(1115 缺口6)───────────
+test("㊶ AI扩写钮态:无 fetch/空描述=disabled;err(ok:False)原文不动+红标渲", async () => {
+  const sb = loadPanel();
+  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
+  sb.DaoyanCards.actions.addGroup(ctrl);
+  // 无 fetch(vm 沙箱默认):钮 disabled
+  let root = stubElement();
+  sb.DaoyanPrompt.build(root, ctrl);
+  assert.ok(/data-act="enhance" disabled/.test(root.innerHTML), "无 fetch=禁用");
+  // 有 fetch 但描述空=禁用
+  sb.fetch = function () { return Promise.resolve({ json: () => Promise.resolve({}) }); };
+  root = stubElement();
+  sb.DaoyanPrompt.build(root, ctrl);
+  assert.ok(/data-act="enhance" disabled/.test(root.innerHTML), "描述空=禁用");
+  // err 路径:ok:False → 原文不动+红标渲(缺 key 类错误明示)
+  sb.DaoyanPrompt.actions.setPromptField(ctrl, "description", "短句");
+  sb.fetch = function () {
+    return Promise.resolve({ json: () => Promise.resolve(
+      { ok: false, error: "缺 BIGMODEL_API_KEY 环境变量" }) });
+  };
+  const r = await sb.DaoyanPrompt.actions.enhance(ctrl);
+  assert.equal(r.ok, false);
+  assert.ok(r.error.includes("BIGMODEL_API_KEY"));
+  assert.equal(ctrl.state.segments[0].prompt.description, "短句", "失败不动原文");
+  root = stubElement();
+  sb.DaoyanPrompt.build(root, ctrl);
+  assert.ok(root.innerHTML.includes("扩写失败"), "红标渲染");
+  assert.ok(!/data-act="enhance" disabled/.test(root.innerHTML), "有 fetch+有描述=可再试");
+  delete sb.fetch;
+});
+
+// ── ㊷ 段间引导 continuity:默认开/toggle/params 渲染(1115 缺口7)─────
+test("㊷ 段间引导:normalizeState 默认 true;{continuity:false}→false;roundtrip 保全;toggleContinuity 写 state+渲 capToggle", async () => {
+  const sb = loadPanel();
+  assert.equal(sb.DaoyanSerial.normalizeState({}).continuity, true, "默认开");
+  assert.equal(sb.DaoyanSerial.normalizeState({ continuity: false }).continuity, false);
+  assert.equal(sb.DaoyanSerial.normalizeState({ continuity: true }).continuity, true);
+  assert.equal(JSON.parse(sb.DaoyanSerial.buildTimelinePayload(
+    sb.DaoyanSerial.normalizeState({ continuity: false }))).continuity, false, "roundtrip 保全");
+  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
+  assert.equal(ctrl.state.continuity, true, "控制器态默认开");
+  assert.equal(sb.DaoyanParams.actions.toggleContinuity(ctrl), false, "翻转为关");
+  assert.equal(ctrl.state.continuity, false, "toggle 写 st.continuity");
+  const proot = stubElement();
+  sb.DaoyanParams.build(proot, ctrl);
+  assert.ok(proot.innerHTML.includes('data-act="toggle-continuity"'), "capToggle 渲染");
+  assert.ok(proot.innerHTML.includes("段间引导"), "采样区胶囊行");
+  assert.ok(proot.innerHTML.includes("上一镜末帧入参考首槽"), "hint 在");
+  assert.equal(sb.DaoyanParams.actions.toggleContinuity(ctrl), true, "再翻回开");
+  assert.equal(ctrl.state.continuity, true);
 });

@@ -23,6 +23,8 @@
     ".dy-track{position:relative;height:92px;border-radius:10px;background:linear-gradient(180deg,rgba(18,24,38,.6),rgba(10,14,24,.7));border:1px solid rgba(255,255,255,.08);overflow:hidden;}",
     ".dy-seg{position:absolute;top:10px;bottom:10px;border-radius:8px;background:linear-gradient(180deg,rgba(110,168,254,.2),rgba(110,168,254,.1));border:1px solid rgba(110,168,254,.4);display:flex;flex-direction:column;justify-content:space-between;padding:7px 10px;overflow:hidden;cursor:pointer;}",
     ".dy-seg--selected{border-color:#34d399;box-shadow:0 0 0 1.5px #34d399,0 0 14px rgba(52,211,153,.45);background:linear-gradient(180deg,rgba(52,211,153,.28),rgba(52,211,153,.14));}",
+    /* skip 态降透明(1115 缺口4:不参与运行的镜) */
+    ".dy-seg.dy--skip{opacity:.45;filter:saturate(.55);}",
     ".dy-seg-head{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#f0f4fa;white-space:nowrap;}",
     ".dy-seg-mode{font-size:9.5px;font-weight:700;color:#0c1220;background:#6ea8fe;border-radius:999px;padding:0 7px;flex:none;}",
     ".dy-seg--selected .dy-seg-mode{background:#34d399;}",
@@ -145,7 +147,8 @@
   function segmentBlock(item, seg, total, selected) {
     var left = total > 0 ? (item.start / total) * 100 : 0;
     var width = total > 0 ? ((item.end - item.start) / total) * 100 : 100;
-    return '<div class="dy-seg' + (selected ? " dy-seg--selected" : "") + '"'
+    return '<div class="dy-seg' + (selected ? " dy-seg--selected" : "")
+      + (seg.skip ? " dy--skip" : "") + '"'
       + ' data-act="select-seg" data-seg="' + item.index + '"'
       + ' style="left:' + left + '%;width:' + width + '%">'
       + '<i class="dy-seg-edge dy-seg-edge--l" data-drag-edge="l" data-seg="' + item.index + '" title="拖边界改时长(贴网格)"></i>'

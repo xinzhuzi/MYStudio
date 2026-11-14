@@ -401,6 +401,7 @@
           st.common_params = next.common_params;
           st.advanced = next.advanced;
           st.perf = next.perf;
+          st.continuity = next.continuity; // 1115 缺口7:顶层字段须点名(否则导出→导入丢)
           st.chapter_outputs = next.chapter_outputs;
         });
         return { ok: true, count: next.segments.length };
@@ -482,10 +483,10 @@
     var st = ctrl.state;
     function art(label, path) {
       return path
-        ? '<a class="dy-art dy-art--have" target="_blank" rel="noopener" href="/view?filename='
+        ? '<span class="dy-art dy-art--have" data-act="play-art" data-view="/view?filename='
           + encodeURIComponent(path.slice(path.lastIndexOf("/") + 1))
           + "&type=output&subfolder=" + encodeURIComponent(path.slice(0, Math.max(0, path.lastIndexOf("/"))))
-          + '" title="' + esc(path) + '">▶ ' + label + "</a>"
+          + '" title="' + esc(path) + '">▶ ' + label + "</span>"
         : '<span class="dy-art">' + label + " · 候落盘</span>";
     }
     var rows = st.segments.map(function (seg, i) {
@@ -493,6 +494,7 @@
       return '<div class="dy-gal-row"><span class="dy-gal-seg">镜 ' + (i + 1)
         + " · " + esc(seg.id) + "</span>"
         + art("p1 草片", a.p1) + art("p2 成片", a.p2) + art("p3 终片", a.p3)
+        + (seg.skip ? '<span class="dy-art" style="border-color:rgba(251,191,36,.45);color:#fbbf24;">跳过</span>' : "")
         + (seg.rerun ? '<span class="dy-art" style="border-color:rgba(52,211,153,.4);color:#d9f7ea;">重掷已布防</span>' : "")
         + "</div>";
     }).join("");
@@ -639,7 +641,12 @@
         if (slot && global.DaoyanLogs) global.DaoyanLogs.refresh(slot);
       } else if (act === "live-preview") actions.toggleLivePreview(ctrl);
       else if (act === "import-sb") actions.importStoryboard(ctrl);
-      else if (act === "import") {
+      else if (act === "play-art") {
+        // 1115 缺口3:gallery 产物=面板内播放(data-view 承载 /view URL)
+        var vid = global.DaoyanVideo;
+        var src = el.getAttribute("data-view");
+        if (vid && src) vid.open(src, el.getAttribute("title") || "产物回看");
+      } else if (act === "import") {
         var file = root.querySelector('[data-act="import-file"]');
         if (file) file.click();
       } else if (act === "export") actions.downloadPayload(ctrl);

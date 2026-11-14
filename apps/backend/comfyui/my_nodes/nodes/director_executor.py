@@ -48,6 +48,7 @@ required 键序)赋参=与母本实跑逐位同值。
 from __future__ import annotations
 
 import json
+import re
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -96,6 +97,9 @@ def resolve_plan(state: dict, list_output: Callable[[str], list],
         return [], ["未勾任何阶段(勾啥跑啥:一采/二采/三采至少勾一)"], artifacts
     if not segs:
         return [], ["零素材组:先在面板添加第一组再运行"], artifacts
+    # 1115 逐段参与运行:segs 非空但全部 skip=无可运行(与既有两门共存)
+    if all(seg.get("skip") is True for seg in segs):
+        return [], ["全部镜已勾选跳过,无可运行"], artifacts
 
     def hit(prefix: str) -> str | None:
         # 视频扩展名白名单(纵深:.latent/.bak 恒不入产物册;1114 整章二发勘误)
@@ -104,6 +108,11 @@ def resolve_plan(state: dict, list_output: Callable[[str], list],
         return found[0] if found else None
 
     for i, seg in enumerate(segs):
+        if seg.get("skip") is True:
+            # 1115 逐段参与运行:循环首(在 hit()/缺上游点名/rerun 读取之前)
+            # ——skip 段零 todo/零产物登记/不报缺上游;skip 与 rerun 并存=skip 胜
+            artifacts[seg["id"]] = {}
+            continue
         chapter = state["chapter"]
         p1 = hit(artifact_prefix(chapter, seg["id"], P1_NAME))
         p2 = hit(artifact_prefix(chapter, seg["id"], P2_NAME))
@@ -163,7 +172,8 @@ class Hooks:
                  output_path=None, copy_to_input=None, load_video=None,
                  ffmpeg=None, send_event=None, check_interrupt=None,
                  free_memory=None, log=None, open_run_log=None,
-                 save_latent=None, load_latent=None):
+                 save_latent=None, load_latent=None,
+                 load_audio=None, grab_last_frame=None):
         self.load_image = load_image          # input 文件名 -> IMAGE
         self.save_image = save_image          # (images, prefix) -> UI dict
         self.list_output = list_output        # prefix -> [output 相对路径]
@@ -178,13 +188,19 @@ class Hooks:
         self.open_run_log = open_run_log      # chapter -> RunLog(双落点;缺省空)
         self.save_latent = save_latent        # (rel, payload) -> None(加速缓存)
         self.load_latent = load_latent        # rel -> payload|None(指纹自核)
+        self.load_audio = load_audio          # input 文件名 -> AUDIO(缺件 None 点名)
+        self.grab_last_frame = grab_last_frame  # (p1_rel, input名) -> input名|None
 
 
-def latent_fingerprint(state: dict, seg: dict, ref_names) -> str:
+def latent_fingerprint(state: dict, seg: dict, ref_names, audios=None,
+                       continuity=None) -> str:
     """av_latent 决定因素指纹(seed/模式/时长/提示词/参考图/步数/分辨率)。
 
     ☑2 单独的 latent 检查点缓存用它防串:任何输入变了→指纹变→缓存作废
     重采样(确定性同果)。1114 加速:二采单独免 ~一采采样时长/镜。
+    1115 增两键:audios(参考音频名序;None=读 seg 兜底)与 continuity
+    (段间衔接身份 f"{名}@{前镜p1 mtime_ns}";前镜 p1 重产→mtime 变→指纹
+    变→陈 latent 作废,修D 裸名指纹吃陈缓存的坑就此钉死)。
     """
     import hashlib
     payload = json.dumps({
@@ -192,6 +208,9 @@ def latent_fingerprint(state: dict, seg: dict, ref_names) -> str:
         "mode": seg["mode"], "frames": seg["frames"],
         "prompt": seg.get("prompt") or {},
         "refs": list(ref_names or []),
+        "audios": list(audios if audios is not None
+                       else (seg.get("audios") or [])),
+        "continuity": continuity or None,
         "steps": state["advanced"]["first_steps"],
         "res": [PASS1_W, PASS1_H],
     }, ensure_ascii=False, sort_keys=True)
@@ -444,6 +463,17 @@ def ref_name_list(state: dict, seg: dict) -> list[str]:
     return kept
 
 
+def _load_images_by_names(hooks: Hooks, names) -> list:
+    """按名装载参考图;缺件=DirectorError 点名(不静默跳过)。"""
+    refs = []
+    for name in names:
+        img = hooks.load_image(name)
+        if img is None:
+            raise DirectorError(f"参考图 {name} 不在 input/,先在面板上传或改引用")
+        refs.append(img)
+    return refs
+
+
 def load_refs(hooks: Hooks, state: dict, seg: dict,
               log=None) -> tuple[list, list]:
     """按名装载参考图(9槽/8异图预算截尾,弃件留痕);缺件=DirectorError
@@ -454,22 +484,139 @@ def load_refs(hooks: Hooks, state: dict, seg: dict,
     if dropped and log:
         log(f"参考图预算截尾(9槽/8异图,App 组装器同口径):"
             f"弃 [{','.join(dropped)}]")
-    refs = []
+    return _load_images_by_names(hooks, names), names
+
+
+# ── 参考音频(1115 缺口5):引擎 AUTOGROW ref_audio_0..2=max 3(JZL H3
+#    nodes.py 实证),面板 <Audio J> 编号=运行时列,归一面去重帽3收敛──
+
+MAX_AUDIO_REFS = 3
+
+
+def normalize_audio_names(names) -> list:
+    """音频名归一:按名去重保序+帽 MAX_AUDIO_REFS(修E:与 serial.js/
+    _normalize_segment 同构;手改/外部导入的超限在归一面收敛,chips 编号
+    恒不悬空)。"""
+    seen: set = set()
+    out: list[str] = []
+    for n in names or []:
+        n = str(n or "").strip()
+        if n and n not in seen:
+            seen.add(n)
+            out.append(n)
+    return out[:MAX_AUDIO_REFS]
+
+
+def load_audios(hooks: Hooks, seg: dict, log=None) -> list:
+    """按名装载参考音频(防御性去重≤3,对 canonical 输入 no-op);缺件=
+    DirectorError 点名「参考音频 X 不在 input/」不静默跳(修I:引擎绑
+    load_audio exists 先检→None,不裸 FileNotFoundError)。"""
+    names = normalize_audio_names(seg.get("audios"))
+    if not names:
+        return []
+    loader = getattr(hooks, "load_audio", None)
+    out = []
     for name in names:
-        img = hooks.load_image(name)
-        if img is None:
-            raise DirectorError(f"参考图 {name} 不在 input/,先在面板上传或改引用")
-        refs.append(img)
-    return refs, names
+        audio = loader(name) if callable(loader) else None
+        if audio is None:
+            raise DirectorError(f"参考音频 {name} 不在 input/,先在面板上传或改引用")
+        out.append(audio)
+    if log:
+        log(f"参考音频 装载=[{','.join(names)}]")
+    return out
+
+
+# ── 段间连续性(1115 缺口7):pass1 第 i>0 镜参考图首槽插上一镜衔接图 ──
+
+_PICTURE_TAG = re.compile(r"<Picture (\d+)>")
+
+
+def shift_picture_tags(prompt, offset: int):
+    """<Picture N> 标签平移(衔接图占首槽后,用户标签整体 +offset);
+    无标签原样透传。"""
+    text = str(prompt or "")
+    if offset == 0 or "<Picture " not in text:
+        return text
+    return _PICTURE_TAG.sub(
+        lambda m: f"<Picture {int(m.group(1)) + offset}>", text)
+
+
+def continuity_ref_names(names, cont_key):
+    """衔接版参考名预算:cont_key=None→budget_ref_names 原面;否则 cont
+    恒 slot1,余量 slots-1/distinct-1 给 user 尾弃(引擎 ref_image_0..8
+    =9 槽硬帽)。返回(保留名序, 异图数, 弃名)。"""
+    names = [n for n in (names or []) if n]
+    if not cont_key:
+        return budget_ref_names(names)
+    return budget_ref_names([str(cont_key)] + names)
+
+
+def resolve_continuity(state, artifacts, index, hooks, log=None):
+    """上一参与(非 skip)镜的衔接图解析 → (input名, 身份) | None。
+
+    身份=f"{名}@{前镜p1 mtime_ns}"(经 hooks.output_path(rel).stat();
+    不可用=裸名回退)——前镜 p1 重产→mtime 变→后镜 ☑2 latent 指纹变→
+    陈缓存作废(修D)。前镜 p1(册或盘 glob)→grab_last_frame 恒覆盖写
+    落 input/(幂等跳过废除:前镜重跑后旧帧即过期,恒重写=恒新);
+    gf 失败→fallback 前镜首张参考图;再无→跳注入留痕。legacy/无头钩子
+    面无 grab_last_frame=首行守卫跳过(修B:不炸,现状断言不动)。
+    """
+    log = log or (lambda *a: None)
+    gf = getattr(hooks, "grab_last_frame", None)
+    if not callable(gf):
+        log("段间引导 跳过(无 grab_last_frame 钩子,legacy/无头钩子面)")
+        return None
+    if state.get("continuity") is False:  # 默认开:仅显式 False 关
+        return None
+    prev = None
+    for cand in reversed((state.get("segments") or [])[:index]):
+        if cand.get("skip") is not True:
+            prev = cand
+            break
+    if prev is None:
+        return None
+    chapter = state["chapter"]
+    p1 = (artifacts.get(prev.get("id")) or {}).get("p1")
+    if not p1:
+        hits = [p for p in (hooks.list_output(
+            artifact_prefix(chapter, prev["id"], P1_NAME)) or [])
+            if p.lower().endswith((".mp4", ".webm", ".mov", ".mkv"))]
+        p1 = hits[0] if hits else None
+    if p1:
+        target = f"daoyan-cont-{chapter}-{prev['id']}.png"
+        try:
+            grabbed = gf(p1, target)
+        except Exception:  # noqa: BLE001 - 抓帧失败=fallback 面,不咬主路
+            grabbed = None
+        if grabbed:
+            mtime_ns = None
+            op = getattr(hooks, "output_path", None)
+            if callable(op):
+                try:
+                    p = op(p1)
+                    if p is not None:
+                        mtime_ns = p.stat().st_mtime_ns
+                except OSError:
+                    mtime_ns = None
+            return target, (f"{target}@{mtime_ns}"
+                            if mtime_ns is not None else target)
+    fallback = ref_name_list(state, prev)
+    if fallback:
+        return fallback[0], fallback[0]
+    log(f"段间引导 跳过(前镜 {prev.get('id')} 无 p1 无参考图,无可注入)")
+    return None
 
 
 def conditioning(ctx: PassCtx, seg: dict, refs, ref_names, width, height,
-                 clip, video_vae, audio_vae):
+                 clip, video_vae, audio_vae, audios=None):
     """t2v/r2v→ReferenceToVideo[16];i2v/fl2v→ImageToVideo[220](单源)。
 
     参考图顺序=面板 <Picture N> 语义(公共图区 1-3,本组从 4 续);
     i2v 首帧=本组分镜帧优先(seg.images[0]),fl2v 尾帧=本组末张;
     无名画布直喂张量(壳路径)直接作首帧。cond 行+prompt 全文逐字留痕。
+    1115 缺口5:audios(已装载 AUDIO 张量,≤3)→ref_audios 聚合字典
+    {ref_audio_N: AUDIO}(仿 ref_images AUTOGROW 口径);i2v/fl2v 分支
+    不接(方案裁定)。
     """
     log = ctx.log
     prompt = assemble_prompt(seg)
@@ -480,6 +627,9 @@ def conditioning(ctx: PassCtx, seg: dict, refs, ref_names, width, height,
         kw = dict(clip=clip, prompt=prompt, width=width, height=height,
                   length=frames,
                   ref_image_size="max")  # t2v 无参考恒 max;r2v 预算后自适应
+        if audios:
+            kw["ref_audios"] = {f"ref_audio_{j}": a
+                                for j, a in enumerate(audios[:MAX_AUDIO_REFS])}
         if mode == "r2v":
             kw.update(vae=video_vae, audio_vae=audio_vae)
             # AUTOGROW 类直调=聚合字典 {ref_image_N: IMAGE}(引擎把点分
@@ -595,12 +745,13 @@ def emit_preview(hooks: Hooks, unique_id, seg_index, seg_id, chapter,
 # ── 三采单源(模块级;DirectorExecutor 与三薄壳共用)──────────────────
 
 def pass1(ctx: PassCtx, seg, kit, refs, model, video_vae, audio_vae, clip,
-          save=True, ref_names=None):
+          save=True, ref_names=None, audios=None):
     """一采(单源):采样→解码→(save)p1-draft;恒返 av_latent 供二采。
 
     返回 (p1_rel|None, av_latent, video|None):save=False=☑2 单独吃盘上 p1
     的确定性重采样(只取 latent,不落盘不解码);video=CreateVideo 产物
-    (壳节点 VIDEO 出口用;save=False 时 None)。
+    (壳节点 VIDEO 出口用;save=False 时 None)。audios=参考音频张量
+    (1115 缺口5;None=壳路径 no-op)。
     """
     log = ctx.log
     ref_names = list(ref_names or [])
@@ -617,7 +768,7 @@ def pass1(ctx: PassCtx, seg, kit, refs, model, video_vae, audio_vae, clip,
         log(f"{label} 一采 重采样 latent-only(吃盘上p1,同seed确定性)"
             f" seed={seed}")
     cond, latent = conditioning(ctx, seg, refs, ref_names, PASS1_W, PASS1_H,
-                                clip, video_vae, audio_vae)
+                                clip, video_vae, audio_vae, audios=audios)
     arm = kit.r2v if mode in ("t2v", "r2v") else kit.sigma_p1
     guider_model = kit.preview_wrap(ctx.classes, arm, video_vae, audio_vae,
                                     log=log)
@@ -644,7 +795,7 @@ def pass1(ctx: PassCtx, seg, kit, refs, model, video_vae, audio_vae, clip,
 
 
 def pass2(ctx: PassCtx, seg, kit, refs, av_latent, video_vae, audio_vae,
-          clip, ref_names=None):
+          clip, ref_names=None, audios=None):
     """二采(单源):潜放大 1440×832 + taomate 3步 σ(12,3) → p2-final。"""
     log = ctx.log
     ref_names = list(ref_names or [])
@@ -668,7 +819,7 @@ def pass2(ctx: PassCtx, seg, kit, refs, av_latent, video_vae, audio_vae,
     latent = _call(ctx.classes, "LTXVConcatAVLatent", video_latent=up,
                    audio_latent=audio_latent)[0]
     cond, _ = conditioning(ctx, seg, refs, ref_names, PASS2_W, PASS2_H,
-                           clip, video_vae, audio_vae)
+                           clip, video_vae, audio_vae, audios=audios)
     guider_model = kit.preview_wrap(ctx.classes, kit.kitchen_p2, video_vae,
                                     audio_vae, log=log)
     sampler = _call(ctx.classes, "KSamplerSelect",
@@ -849,6 +1000,7 @@ class DirectorExecutor:
             log(f"plan 第{i + 1}镜({seg['id']}) p1={hit(art.get('p1'))}"
                 f" p2={hit(art.get('p2'))} p3={hit(art.get('p3'))}"
                 f" rerun={1 if seg.get('rerun') else 0}"
+                f" skip={1 if seg.get('skip') else 0}"
                 f" todo={','.join(todo) if todo else '-(已完跳过)'}")
         chapter_outputs: dict = {}
         kit = None
@@ -863,18 +1015,52 @@ class DirectorExecutor:
                               seed=state["common_params"]["seed"],
                               color_fix=state.get("color_fix", "none"))
                 av_latent = None
+                # 1115 缺口7:pass1 消费面(一采/☑2 重采样)进 stage 前算一次
+                # 衔接图+effective refs/names+参考音频;pass2 refs 不动
+                # (需求范围=pass1 图级衔接);指纹/缓存与 pass1 同输入(防串)
+                prepared = False
+                cont_key = cont_identity = None
+                eff_refs: list = []
+                eff_names: list = []
+                auds: list = []
+                audio_names: list = []
+                seg_p1 = seg
                 for stage in todo:
                     self._tick(unique_id, i, len(state["segments"]), stage,
                                done, total)
                     try:
                         if stage in ("yicai", "ercai") and kit is None:
                             kit = build_model_kit(self.C, model, log)
-                        refs, ref_names = load_refs(self.H, state, seg, log)
+                        if stage in ("yicai", "ercai") and not prepared:
+                            cont = resolve_continuity(state, artifacts, i,
+                                                      self.H, log)
+                            if cont is not None:
+                                cont_key, cont_identity = cont
+                            raw = [n for n in (state.get("common_images") or [])
+                                   + (seg.get("images") or []) if n]
+                            eff_names, _, dropped = continuity_ref_names(
+                                raw, cont_key)
+                            if cont_key:
+                                log(f"段间引导 注入={cont_identity}"
+                                    f" 预算弃=[{','.join(dropped)}]")
+                            elif dropped:
+                                log(f"参考图预算截尾(9槽/8异图,App 组装器"
+                                    f"同口径):弃 [{','.join(dropped)}]")
+                            eff_refs = _load_images_by_names(self.H, eff_names)
+                            if cont_key:  # 衔接图占首槽→用户 <Picture N> +1
+                                seg_p1 = dict(seg, prompt={
+                                    k: shift_picture_tags(v, 1)
+                                    for k, v in
+                                    (seg.get("prompt") or {}).items()})
+                            auds = load_audios(self.H, seg, log)
+                            audio_names = normalize_audio_names(
+                                seg.get("audios"))
+                            prepared = True
                         if stage == "yicai":
                             p1_rel, av_latent, _ = pass1(
-                                ctx, seg, kit, refs, model, video_vae,
+                                ctx, seg_p1, kit, eff_refs, model, video_vae,
                                 audio_vae, clip, save=True,
-                                ref_names=ref_names)
+                                ref_names=eff_names, audios=auds)
                             artifacts.setdefault(seg["id"], {})["p1"] = p1_rel
                             if self.H.save_latent and av_latent is not None:
                                 # 种缓存:将来 ☑2 单独/重掷二采=零采样直吃
@@ -882,13 +1068,18 @@ class DirectorExecutor:
                                     state["chapter"], seg["id"], P1_NAME)
                                     + ".latent", {
                                         "fp": latent_fingerprint(
-                                            state, seg, ref_names),
+                                            state, seg_p1, eff_names,
+                                            audios=audio_names,
+                                            continuity=cont_identity),
                                         "latent": av_latent})
                         elif stage == "ercai":
                             if av_latent is None:
                                 # 加速:latent 检查点缓存命中=零采样直吃
                                 # (指纹含 seed/提示词/参考图/步数,变则作废)
-                                fp = latent_fingerprint(state, seg, ref_names)
+                                fp = latent_fingerprint(
+                                    state, seg_p1, eff_names,
+                                    audios=audio_names,
+                                    continuity=cont_identity)
                                 cache_rel = artifact_prefix(
                                     state["chapter"], seg["id"],
                                     P1_NAME) + ".latent"
@@ -901,16 +1092,19 @@ class DirectorExecutor:
                                 else:
                                     # 吃盘上 p1:确定性重采样取 latent(不落盘)
                                     _, av_latent, _ = pass1(
-                                        ctx, seg, kit, refs, model, video_vae,
-                                        audio_vae, clip, save=False,
-                                        ref_names=ref_names)
+                                        ctx, seg_p1, kit, eff_refs, model,
+                                        video_vae, audio_vae, clip, save=False,
+                                        ref_names=eff_names, audios=auds)
                                     if self.H.save_latent:
                                         self.H.save_latent(cache_rel, {
                                             "fp": fp, "latent": av_latent})
                                         log("latent 已缓存(下次二采单独零采样)")
+                            # pass2 吃原面 refs(段间引导=pass1 域,不动)
+                            refs, ref_names = load_refs(self.H, state, seg,
+                                                        log)
                             p2_rel, _ = pass2(ctx, seg, kit, refs, av_latent,
                                               video_vae, audio_vae, clip,
-                                              ref_names=ref_names)
+                                              ref_names=ref_names, audios=auds)
                             artifacts.setdefault(seg["id"], {})["p2"] = p2_rel
                         else:  # sancai(三采前统一卸载:首批进三采时一次)
                             if not self._freed:
@@ -1028,15 +1222,18 @@ class DirectorExecutor:
         def rels(key):
             return [artifacts.get(s["id"], {}).get(key)
                     for s in state["segments"]
-                    if artifacts.get(s["id"], {}).get(key)]
+                    if s.get("skip") is not True  # 1115:skip 段不入拼接源
+                    and artifacts.get(s["id"], {}).get(key)]
 
         for key, label, out_key in plans:
             have = [(s["id"], artifacts.get(s["id"], {}).get(key))
                     for s in state["segments"]
-                    if artifacts.get(s["id"], {}).get(key)]
+                    if s.get("skip") is not True
+                    and artifacts.get(s["id"], {}).get(key)]
             miss = [f"{s['id']}(无{key})"
                     for s in state["segments"]
-                    if not artifacts.get(s["id"], {}).get(key)]
+                    if s.get("skip") is not True  # 1115:skip 段不算 miss 点名
+                    and not artifacts.get(s["id"], {}).get(key)]
             if not have:
                 if miss:
                     log(f"{label} 源=0镜 跳过={len(miss)}镜[{','.join(miss)}](不拼)")
@@ -1096,7 +1293,7 @@ NEEDED_CLASSES = (
     "SamplerCustomAdvanced", "VAEDecode", "VAEDecodeAudio", "CreateVideo",
     "SaveVideo", "SaveImage", "LoadVideo", "LTXVSeparateAVLatent",
     "MinimaxH3LatentUpscaler3D", "LTXVConcatAVLatent", "ReCaVSRLoader",
-    "ReCaVSRUpscale",
+    "ReCaVSRUpscale", "LoadAudio",  # 1115 缺口5:参考音频(core 在册)
 )
 
 
@@ -1153,6 +1350,33 @@ def bind_engine_hooks():
         cls = comfy_nodes.NODE_CLASS_MAPPINGS["LoadVideo"]
         fn = getattr(cls, "FUNCTION", None) or "load_video"
         return getattr(cls(), fn)(file=name)[0]
+
+    def load_audio(name):
+        # 1115 缺口5(修I):抄 load_image 先检纪律(input/name exists→
+        # None 由执行链点名),不抄 load_video 裸调(缺件=裸 FileNotFoundError)
+        p = input_dir / name
+        if not p.exists():
+            return None
+        cls = comfy_nodes.NODE_CLASS_MAPPINGS["LoadAudio"]  # DSL execute 直调
+        return cls.execute(audio=name)[0]
+
+    def grab_last_frame(p1_rel, target_name):
+        """前镜 p1 末帧→input/<target_name>(1115 缺口7;恒覆盖写=前镜重跑
+        后旧帧即过期,幂等跳过废除修D)。ffmpeg -sseof 尾帧单发;失败 None
+        (fallback 前镜首张参考图由 resolve_continuity 接管)。"""
+        import subprocess
+        src = out_dir / p1_rel
+        if not src.exists():
+            return None
+        dst = input_dir / target_name
+        try:
+            proc = subprocess.run(
+                ["ffmpeg", "-y", "-v", "error", "-sseof", "-0.1",
+                 "-i", str(src), "-update", "1", "-frames:v", "1",
+                 str(dst)], capture_output=True, text=True, timeout=120)
+        except Exception:  # noqa: BLE001 - 抓帧失败=降级面,不咬主路
+            return None
+        return target_name if proc.returncode == 0 and dst.exists() else None
 
     def open_run_log(chapter):
         return RunLog(chapter, out_dir, echo=True)
@@ -1215,5 +1439,6 @@ def bind_engine_hooks():
                   ffmpeg=ffmpeg, send_event=send_event,
                   check_interrupt=check_interrupt, free_memory=free_memory,
                   log=log, open_run_log=open_run_log,
-                  save_latent=save_latent, load_latent=load_latent)
+                  save_latent=save_latent, load_latent=load_latent,
+                  load_audio=load_audio, grab_last_frame=grab_last_frame)
     return {n: comfy_nodes.NODE_CLASS_MAPPINGS[n] for n in NEEDED_CLASSES}, hooks
