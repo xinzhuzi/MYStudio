@@ -884,3 +884,30 @@ test("㉖ 驾驶舱:选章自动带出三件;分镜表→时间线整组替换�
   ctrl.undo();
   assert.equal(ctrl.state.segments.length, 0, "导入可撤销");
 });
+
+
+// ── ㉗ 真发车/真中断(1114 审计修:半壳按钮补实)───────────────────────
+test("㉗ 选择运行=enqueue 真发车;取消=interrupt 真中断(无 Runner=态机降级)", async () => {
+  const sb = loadPanel();
+  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
+  const calls = [];
+  sb.DaoyanRunner = {
+    enqueue: () => calls.push("enqueue"),
+    interrupt: () => calls.push("interrupt"),
+  };
+  sb.DaoyanToolbar.actions.startRun(ctrl);
+  assert.deepEqual(calls, ["enqueue"]);
+  sb.DaoyanToolbar.actions.cancelRun(ctrl);
+  assert.deepEqual(calls, ["enqueue", "interrupt"]);
+  assert.equal(ctrl.view.running, false, "取消后运行态清");
+  // 无 Runner(预览/测试态)=不炸,纯态机
+  sb.DaoyanRunner = undefined;
+  assert.equal(sb.DaoyanToolbar.actions.startRun(ctrl), true);
+  assert.equal(ctrl.view.running, true);
+  assert.equal(sb.DaoyanToolbar.actions.cancelRun(ctrl), true);
+  assert.equal(ctrl.view.running, false);
+  // 重复章节文本框已砍(一功能一入口)
+  const root = stubElement();
+  sb.DaoyanToolbar.build(root, ctrl);
+  assert.ok(!root.innerHTML.includes('data-act="chapter"'), "重复章节输入框已移除");
+});

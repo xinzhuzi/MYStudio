@@ -149,6 +149,13 @@ if (origQueuePrompt) {
   };
 }
 
+// 面板真发车/真中断通道(1114 审计修:选择运行=入队本图,取消=/interrupt)
+const _daoyanRunner = {
+  enqueue: () => { app.queuePrompt(); },
+  interrupt: () => { api.fetchApi("/interrupt", { method: "POST" }); },
+};
+globalThis.DaoyanRunner = _daoyanRunner;
+
 app.registerExtension({
   name: "my.director-console.daoyan",
   setup() {

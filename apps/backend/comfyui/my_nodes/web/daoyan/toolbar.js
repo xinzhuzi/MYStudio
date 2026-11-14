@@ -351,19 +351,30 @@
       ensureCockpit(currentPid, chapterId).then(rerender);
       return r;
     },
-    /** 选择运行→运行态(取消钮活/进度走;此处=按钮态机) */
+    /** 选择运行=真发车(1114 审计修:引擎态经 DaoyanRunner.enqueue=
+     * app.queuePrompt 入队[面板编辑已 queuePrompt-patch 强 flush];
+     * 预览/测试无 Runner=态机降级) */
     startRun: function (ctrl) {
       ctrl.view.running = true;
       ctrl.view.done = 0;
       ctrl.view.message = null;
       ctrl.apply(function () {});
+      var runner = global.DaoyanRunner;
+      if (runner && typeof runner.enqueue === "function") {
+        try { runner.enqueue(); } catch (err) { /* 入队失败不咬态机 */ }
+      }
       return true;
     },
-    /** 取消:中断后续镜,已完镜产物保留(检查点语义,PRD R1.8) */
+    /** 取消=真中断(1114 审计修:POST /interrupt 打断引擎,执行链
+     * check_interrupt 捕获=已完镜保留的检查点语义;预览态=仅态机) */
     cancelRun: function (ctrl) {
       ctrl.view.running = false;
       ctrl.view.done = 0;
       ctrl.apply(function () {});
+      var runner = global.DaoyanRunner;
+      if (runner && typeof runner.interrupt === "function") {
+        try { runner.interrupt(); } catch (err) { /* 中断失败不咬态机 */ }
+      }
       return true;
     },
     /** 导入导演包:双 schema 分流——旧台账 chapter-script.json(shots[]
@@ -533,7 +544,6 @@
       box("ercai", "二采"),
       box("sancai", "三采"),
       "</span>",
-      '<span class="dy-chapter">章节 <input value="' + esc(st.chapter) + '" data-act="chapter" title="产物目录 video/导演台/{章节}/{镜id}/ 同步引用(手写兜底;下拉选中同写此值)"></span>',
       '<button class="dy-btn dy-btn--primary" data-act="run" title="面板编辑→timeline_data 序列化(阶段3 接执行链)">选择运行</button>',
       '<button class="dy-btn" data-act="import" title="兼容批量役 chapter-script.json(同 schema 直读)">导入导演包</button>',
       '<button class="dy-btn" data-act="export" title="导出同 schema 交换格式">导出导演包</button>',
@@ -643,7 +653,6 @@
       if (!el || !el.getAttribute || !ctrl) return;
       var act = el.getAttribute("data-act");
       if (act === "stage") actions.setStage(ctrl, el.getAttribute("data-key"), el.checked);
-      else if (act === "chapter") actions.setChapter(ctrl, el.value);
       else if (act === "pick-project") {
         // 切项目只换章表源,不自动改 st.chapter(等用户显式选章)
         currentPid = el.value || null;
