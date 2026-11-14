@@ -74,7 +74,7 @@
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
       },
-      "title": "① 分镜帧(主图·必填·手动先取消旁路)"
+      "title": "① 参考图1·主图(必填·手动先取消旁路)"
     },
     {
       "id": 14,
@@ -125,10 +125,10 @@
         "ver": "0.33.2"
       },
       "widgets_values": [
-        "【在此输入提示词】\nintegrated_multimodal_description: <此处写镜头正文;引用参考图用 <Picture 2..9> 按挂接序;尾帧模式写「首帧→…→末帧」连续单镜头>\noverall_soundscape: <环境声>\nnon_diegetic_music: N/A\n——经漫影App派发时本栏自动注入,手动直跑才需填写"
+        "【在此输入提示词】\nintegrated_multimodal_description: <此处写镜头正文;引用参考图用 <Picture 1..9>(节点号即编号) 按挂接序;尾帧模式写「首帧→…→末帧」连续单镜头>\noverall_soundscape: <环境声>\nnon_diegetic_music: N/A\n——经漫影App派发时本栏自动注入,手动直跑才需填写"
       ],
       "widgets_values_named": {
-        "value": "【在此输入提示词】\nintegrated_multimodal_description: <此处写镜头正文;引用参考图用 <Picture 2..9> 按挂接序;尾帧模式写「首帧→…→末帧」连续单镜头>\noverall_soundscape: <环境声>\nnon_diegetic_music: N/A\n——经漫影App派发时本栏自动注入,手动直跑才需填写"
+        "value": "【在此输入提示词】\nintegrated_multimodal_description: <此处写镜头正文;引用参考图用 <Picture 1..9>(节点号即编号) 按挂接序;尾帧模式写「首帧→…→末帧」连续单镜头>\noverall_soundscape: <环境声>\nnon_diegetic_music: N/A\n——经漫影App派发时本栏自动注入,手动直跑才需填写"
       },
       "color": "#232",
       "bgcolor": "#353"
@@ -551,7 +551,7 @@
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
       },
-      "title": "② 参考图1"
+      "title": "② 参考图2"
     },
     {
       "id": 111,
@@ -622,7 +622,7 @@
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
       },
-      "title": "② 参考图2"
+      "title": "② 参考图3"
     },
     {
       "id": 112,
@@ -693,7 +693,7 @@
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
       },
-      "title": "② 参考图3"
+      "title": "② 参考图4"
     },
     {
       "id": 113,
@@ -764,7 +764,7 @@
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
       },
-      "title": "② 参考图4"
+      "title": "② 参考图5"
     },
     {
       "id": 119,
@@ -3591,7 +3591,7 @@
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
       },
-      "title": "② 参考图5"
+      "title": "② 参考图6"
     },
     {
       "id": 342,
@@ -3656,7 +3656,7 @@
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
       },
-      "title": "② 参考图6"
+      "title": "② 参考图7"
     },
     {
       "id": 343,
@@ -3721,7 +3721,7 @@
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
       },
-      "title": "② 参考图7"
+      "title": "② 参考图8"
     },
     {
       "id": 344,
@@ -3786,7 +3786,7 @@
         "image": "Krea2_无衣__00003_.png",
         "upload": "image"
       },
-      "title": "② 参考图8"
+      "title": "② 参考图9"
     },
     {
       "id": 345,
