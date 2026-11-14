@@ -35,7 +35,7 @@ STEPS_DIR = (_TESTS.parents[3] / "apps/output/daojie-sheet-b-1112-arch1113"
                if (_TESTS.parents[3] / "apps/output/daojie-sheet-b-1112-arch1113").is_dir()
                else _TESTS.parents[3] / "apps/output/daojie-sheet-b-1112")
 # 金样 e6221c36 的产源步图住归档夹(1113 复测重掷顶位后指针随迁;两处皆无=skip)
-GOLDEN_SHA = "2a9607ad44da51114ee10ee23b923ff6438a40acde1145922ee478d54ffa8429"  # v6+表情条(缺步回退 face 中性;1114 金样重对;老 e6221c36=v1.1 档随役存档)
+GOLDEN_SHA = "897469792ad2c6d3ada9a050a0ef86ccef4869897235445dd7ec6fc6b2622a48"  # v6+表情条+材质/装备逐格命名+无装备档(1114 金样重对;老 e6221c36=v1.1 档随役存档)
 
 
 def test_placeholder_compose(tmp_path):
@@ -94,7 +94,7 @@ def test_formats_registry_snapshot():
     truth.formats==_FROZEN(双源漂移即红)——快照等价半边在缺位环境无意义,skip。
     """
     # ① 书写序契约
-    assert sf.formats_list() == ["全卡", "简版", "竖版", "无武器"]
+    assert sf.formats_list() == ["全卡", "简版", "竖版", "无装备"]
     # ② 四格式 resolve(rects/键序/modes)锁 _FROZEN 冻结期望(与环境真源解耦)
     for fmt in sf.formats_list():
         got, want = sf.resolve(fmt), sf._resolve(sf._FROZEN, fmt)
@@ -114,9 +114,9 @@ def test_formats_registry_snapshot():
     assert full["rects"]["fx_2"] == (3061, 1610, 3804, 1954)
     assert {k for k, m in full["modes"].items() if m == "contain"} \
         == {"front", "side", "back", "weapon", "eye", "gear_1", "gear_2"}
-    assert len(full["labels"]["text"]) == 20 and full["labels"]["size"] == 36  # 15+表情5
+    assert len(full["labels"]["text"]) == 23 and full["labels"]["size"] == 36  # 15+表情5+材质/装备逐格名3
     assert len(sf.resolve("简版")["rects"]) == 10            # 9 格+_palette
-    assert len(sf.resolve("无武器")["rects"]) == 22           # 21 格+_palette(含表情×5)
+    assert len(sf.resolve("无装备")["rects"]) == 20           # 19 格+_palette(武器/装备区全撤)
     # ④ 真源在位时:truth.formats == 内嵌快照(双源漂移即红)
     tp = sf.truth_path()
     if tp is None:
