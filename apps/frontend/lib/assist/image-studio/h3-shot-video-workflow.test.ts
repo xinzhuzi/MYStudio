@@ -7,7 +7,7 @@ import multisegApiTemplate from "./h3-multiseg-template.api.json";
 import { H3_WORKFLOW_RECIPES, batchDispatchableH3Recipes } from "./h3-workflow-recipes";
 import {
   DEFAULT_H3_RECIPE_ID,
-  assertH3TemplateIntegrity,
+  assertH3TemplateIntegrity, SANCAI_CANVAS_ANCHORS,
   buildShotH3ApiWorkflow,
   buildShotH3ApiWorkflowForRecipe,
   buildShotH3MultisegApiWorkflow,
@@ -814,40 +814,40 @@ describe("buildShotH3SancaiApiWorkflow(三采两段组装)", () => {
       frameHeight: 544,
     });
     const stageA = result.apiGraph;
-    expect(stageA["338"]).toBeUndefined();
-    expect(stageA["339"]).toBeUndefined();
-    expect(stageA["340"]).toBeUndefined();
-    expect(stageA["22"]).toBeUndefined(); // 阶梯直填后 22 按需旁路删除
-    expect(stageA["219"]!.inputs.value).toBe(true); // wire 真相:true→on_true=220 i2v
-    expect(stageA["16"]!.inputs.width).toBe(960);
-    expect(stageA["16"]!.inputs.height).toBe(544);
-    expect(stageA["220"]!.inputs.width).toBe(960);
-    expect(stageA["220"]!.inputs.height).toBe(544);
-    expect(stageA["208"]!.inputs.width).toBe(1440);
-    expect(stageA["208"]!.inputs.height).toBe(832);
-    expect(stageA["206"]!.inputs["mode.width"]).toBe(1440);
-    expect(stageA["206"]!.inputs["mode.height"]).toBe(832);
+    expect(stageA["4001"]).toBeUndefined();
+    expect(stageA["4002"]).toBeUndefined();
+    expect(stageA["4003"]).toBeUndefined();
+    expect(stageA["53"]).toBeUndefined(); // 阶梯直填后 22 按需旁路删除
+    expect(stageA["1061"]!.inputs.value).toBe(true); // wire 真相:true→on_true=220 i2v
+    expect(stageA["2001"]!.inputs.width).toBe(960);
+    expect(stageA["2001"]!.inputs.height).toBe(544);
+    expect(stageA["2002"]!.inputs.width).toBe(960);
+    expect(stageA["2002"]!.inputs.height).toBe(544);
+    expect(stageA["3031"]!.inputs.width).toBe(1440);
+    expect(stageA["3031"]!.inputs.height).toBe(832);
+    expect(stageA["3002"]!.inputs["mode.width"]).toBe(1440);
+    expect(stageA["3002"]!.inputs["mode.height"]).toBe(832);
     // i2v 臂 110-113 分镜帧补位满槽(208 恒消费 ref_image_1..4)
-    for (const id of ["110", "111", "112", "113"]) {
-      expect(stageA[id]!.inputs.image).toBe(stageA["9"]!.inputs.image);
+    for (const id of ["11", "12", "13", "14"]) {
+      expect(stageA[id]!.inputs.image).toBe(stageA["1"]!.inputs.image);
     }
-    expect(result.images).toEqual([{ key: "9.image", name: expect.any(String), b64: "QUJD" }]);
+    expect(result.images).toEqual([{ key: "1.image", name: expect.any(String), b64: "QUJD" }]);
     // 段B 形状
     const stageB = result.stageBGraph;
-    expect(Object.keys(stageB).sort()).toEqual(["100", "300", "338", "339", "340"]);
+    expect(Object.keys(stageB).sort()).toEqual(["300", "3061", "4001", "4002", "4003"]);
     expect(stageB["300"]!.class_type).toBe("LoadVideo");
     expect(stageB["300"]!.inputs.file).toBe("");
-    expect(stageB["339"]!.inputs.video).toEqual(["300", 0]);
-    expect(stageB["340"]!.inputs.video).toEqual(["339", 0]);
-    expect(stageB["340"]!.inputs.filename_prefix).toBe(stageA["4"]!.inputs.filename_prefix);
-    expect(stageB["100"]!.class_type).toBe("MyShot");
-    expect(stageB["100"]!.inputs.video).toEqual(["340", 0]);
-    expect(stageB["100"]!.inputs.shot_id).toBe("sb-chapter-001-001");
+    expect(stageB["4002"]!.inputs.video).toEqual(["300", 0]);
+    expect(stageB["4003"]!.inputs.video).toEqual(["4002", 0]);
+    expect(stageB["4003"]!.inputs.filename_prefix).toBe(stageA["3071"]!.inputs.filename_prefix);
+    expect(stageB["3061"]!.class_type).toBe("MyShot");
+    expect(stageB["3061"]!.inputs.video).toEqual(["4003", 0]);
+    expect(stageB["3061"]!.inputs.shot_id).toBe("sb-chapter-001-001");
     // 段A 前缀五段(subfolder 恒四段过 consumer 白名单)
-    expect(String(stageA["4"]!.inputs.filename_prefix)).toMatch(/^video\/漫影\/chapter-001\/sb-chapter-001-001\/[A-Za-z0-9._-]+$/);
+    expect(String(stageA["3071"]!.inputs.filename_prefix)).toMatch(/^video\/漫影\/chapter-001\/sb-chapter-001-001\/[A-Za-z0-9._-]+$/);
     // uiWorkflow=画布档(MyShot properties 三键在场,段B extraPngInfo 复用)
     const uiNodes = (result.uiWorkflow as { nodes: Array<{ id: number; properties?: Record<string, unknown> }> }).nodes;
-    const myShot = uiNodes.find((node) => node.id === 100);
+    const myShot = uiNodes.find((node) => node.id === 3061);
     expect(myShot?.properties?.myOriginProjectId).toBe("");
     expect(myShot?.properties?.myOriginEpisodeId).toBe("chapter-001");
   });
@@ -866,14 +866,14 @@ describe("buildShotH3SancaiApiWorkflow(三采两段组装)", () => {
       frameHeight: 736,
     });
     const stageA = result.apiGraph;
-    expect(stageA["219"]!.inputs.value).toBe(false); // false→on_false=16 r2v
-    expect(stageA["110"]!.inputs.image).toBe("ref-a.jpg");
-    expect(stageA["111"]!.inputs.image).toBe("ref-b.jpg");
-    expect(stageA["112"]!.inputs.image).toBe(stageA["9"]!.inputs.image);
-    expect(stageA["113"]!.inputs.image).toBe(stageA["9"]!.inputs.image);
+    expect(stageA["1061"]!.inputs.value).toBe(false); // false→on_false=16 r2v
+    expect(stageA["11"]!.inputs.image).toBe("ref-a.jpg");
+    expect(stageA["12"]!.inputs.image).toBe("ref-b.jpg");
+    expect(stageA["13"]!.inputs.image).toBe(stageA["1"]!.inputs.image);
+    expect(stageA["14"]!.inputs.image).toBe(stageA["1"]!.inputs.image);
     // 1:1 阶梯判例
-    expect(stageA["16"]!.inputs.width).toBe(736);
-    expect(stageA["208"]!.inputs.width).toBe(1088);
+    expect(stageA["2001"]!.inputs.width).toBe(736);
+    expect(stageA["3031"]!.inputs.width).toBe(1088);
   });
 
   it("applySancaiStageBSource 回填零拷贝注解名(段A 终档→段B 300.file)", () => {
@@ -906,8 +906,8 @@ describe("三采分派与超时(1112 recavsr-mainline)", () => {
     expect(sancaiDispatchable()).toContain("my-h3-sancai-i2v");
   });
 
-  it("旧断言集对新母体天然兼容(assertH3TemplateIntegrity 零动通过)", () => {
-    expect(() => assertH3TemplateIntegrity(sancaiTemplate)).not.toThrow();
+  it("1114 千位段编号后:sancai 母体过自家锚集(默认 REQUIRED_NODES 属 pika 族)", () => {
+    expect(() => assertH3TemplateIntegrity(sancaiTemplate, SANCAI_CANVAS_ANCHORS.required)).not.toThrow();
   });
 
   it("分派器:sancai 族走两段组装(带 stageBGraph);缺像素宽高拒派发", () => {
@@ -947,20 +947,20 @@ describe("buildShotH3SancaiApiWorkflow 1113 火力扩展(8卡+尾帧+参考视�
       frameHeight: 544,
     });
     const a = result.apiGraph;
-    const ids = ["110", "111", "112", "113", "341", "342", "343", "344"];
+    const ids = ["11", "12", "13", "14", "15", "16", "17", "18"];
     ids.forEach((id, i) => {
       if (i < 7) expect(a[id]!.inputs.image).toBe(`ref-${i + 1}.jpg`);
     });
-    expect(a["344"]!.inputs.image).toBe(a["9"]!.inputs.image); // 第8异图超预算被截→帧补位
-    for (const nid of ["16", "208"]) {
-      expect(a[nid]!.inputs["ref_images.ref_image_5"]).toEqual(["341", 0]);
-      expect(a[nid]!.inputs["ref_images.ref_image_8"]).toEqual(["344", 0]);
+    expect(a["18"]!.inputs.image).toBe(a["1"]!.inputs.image); // 第8异图超预算被截→帧补位
+    for (const nid of ["2001", "3031"]) {
+      expect(a[nid]!.inputs["ref_images.ref_image_5"]).toEqual(["15", 0]);
+      expect(a[nid]!.inputs["ref_images.ref_image_8"]).toEqual(["18", 0]);
     }
     // 尾帧/视频缺省:345/346 摘除 + 槽键删除(禁空喂占位)
-    expect(a["345"]).toBeUndefined();
-    expect(a["346"]).toBeUndefined();
-    expect(a["220"]!.inputs.last_frame).toBeUndefined();
-    expect(a["16"]!.inputs["ref_videos.ref_video_0"]).toBeUndefined();
+    expect(a["31"]).toBeUndefined();
+    expect(a["41"]).toBeUndefined();
+    expect(a["2002"]!.inputs.last_frame).toBeUndefined();
+    expect(a["2001"]!.inputs["ref_videos.ref_video_0"]).toBeUndefined();
   });
 
   it("1114 自适应:异图(帧+参考去重)≤4 保 max(1110 定律原面);重复图不占预算", () => {
@@ -969,16 +969,16 @@ describe("buildShotH3SancaiApiWorkflow 1113 火力扩展(8卡+尾帧+参考视�
       r2v: true, frameWidth: 960, frameHeight: 544,
       refs: [{ name: "A", kind: "character", imageName: "r1.jpg" }, { name: "B", kind: "scene", imageName: "r2.jpg" }],
     });
-    expect(few.apiGraph["16"]!.inputs.ref_image_size).toBe("max");
-    expect(few.apiGraph["208"]!.inputs.ref_image_size).toBe("max");
+    expect(few.apiGraph["2001"]!.inputs.ref_image_size).toBe("max");
+    expect(few.apiGraph["3031"]!.inputs.ref_image_size).toBe("max");
     // 8 槽全填但仅 2 异图 → 仍 max 且全注入
     const dup = buildShotH3SancaiApiWorkflow({
       shot: makeShot() as never, chapterId: "chapter-001", chapterLabel: "第一章",
       r2v: true, frameWidth: 960, frameHeight: 544,
       refs: Array.from({ length: 8 }, (_, i) => ({ name: `x${i}`, kind: "character" as const, imageName: i % 2 ? "a.jpg" : "b.jpg" })),
     });
-    expect(dup.apiGraph["16"]!.inputs.ref_image_size).toBe("max");
-    expect(dup.apiGraph["344"]!.inputs.image).toBe("a.jpg"); // 第8张(i=7,奇)=a.jpg
+    expect(dup.apiGraph["2001"]!.inputs.ref_image_size).toBe("max");
+    expect(dup.apiGraph["18"]!.inputs.image).toBe("a.jpg"); // 第8张(i=7,奇)=a.jpg
   });
 
   it("1114 自适应:5+ 异图降 match(实测 9 异图/大参考数×max=引擎原生崩)", () => {
@@ -987,10 +987,10 @@ describe("buildShotH3SancaiApiWorkflow 1113 火力扩展(8卡+尾帧+参考视�
       r2v: true, frameWidth: 960, frameHeight: 544,
       refs: [1, 2, 3, 4, 5, 6, 7, 8].map((i) => ({ name: `x${i}`, kind: "character" as const, imageName: `d${i}.jpg` })),
     });
-    expect(many.apiGraph["16"]!.inputs.ref_image_size).toBe("match");
-    expect(many.apiGraph["208"]!.inputs.ref_image_size).toBe("match");
-    expect(many.apiGraph["343"]!.inputs.image).toBe("d7.jpg");
-    expect(many.apiGraph["344"]!.inputs.image).toBe(many.apiGraph["9"]!.inputs.image);
+    expect(many.apiGraph["2001"]!.inputs.ref_image_size).toBe("match");
+    expect(many.apiGraph["3031"]!.inputs.ref_image_size).toBe("match");
+    expect(many.apiGraph["17"]!.inputs.image).toBe("d7.jpg");
+    expect(many.apiGraph["18"]!.inputs.image).toBe(many.apiGraph["1"]!.inputs.image);
   });
 
   it("endFrame 有=345 注入+last_frame 保持;i2v 满槽=8 卡全分镜帧补位", () => {
@@ -1005,10 +1005,10 @@ describe("buildShotH3SancaiApiWorkflow 1113 火力扩展(8卡+尾帧+参考视�
       frameHeight: 544,
     });
     const a = result.apiGraph;
-    expect(a["345"]!.inputs.image).toBe("end-frame.jpg");
-    expect(a["220"]!.inputs.last_frame).toEqual(["345", 0]);
-    for (const id of ["110", "111", "112", "113", "341", "342", "343", "344"]) {
-      expect(a[id]!.inputs.image).toBe(a["9"]!.inputs.image); // i2v 补位满槽
+    expect(a["31"]!.inputs.image).toBe("end-frame.jpg");
+    expect(a["2002"]!.inputs.last_frame).toEqual(["31", 0]);
+    for (const id of ["11", "12", "13", "14", "15", "16", "17", "18"]) {
+      expect(a[id]!.inputs.image).toBe(a["1"]!.inputs.image); // i2v 补位满槽
     }
   });
 
@@ -1024,8 +1024,8 @@ describe("buildShotH3SancaiApiWorkflow 1113 火力扩展(8卡+尾帧+参考视�
       frameHeight: 544,
     });
     const a = result.apiGraph;
-    expect(a["346"]!.inputs.file).toBe("motion-ref.mp4");
-    expect(a["347"]!.inputs.video).toEqual(["346", 0]); // VIDEO→IMAGE 桥
-    expect(a["16"]!.inputs["ref_videos.ref_video_0"]).toEqual(["347", 0]);
+    expect(a["41"]!.inputs.file).toBe("motion-ref.mp4");
+    expect(a["42"]!.inputs.video).toEqual(["41", 0]); // VIDEO→IMAGE 桥
+    expect(a["2001"]!.inputs["ref_videos.ref_video_0"]).toEqual(["42", 0]);
   });
 });

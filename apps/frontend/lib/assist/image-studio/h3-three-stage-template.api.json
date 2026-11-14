@@ -1,65 +1,65 @@
 {
-  "9": {
+  "1": {
     "class_type": "LoadImage",
     "inputs": {
       "image": "my-asset-090e36ae.jpg"
     }
   },
-  "14": {
+  "21": {
     "class_type": "PrimitiveStringMultiline",
     "inputs": {
       "value": "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.\n\nintegrated_multimodal_description: [Shot 1] 老苦力、年轻苦力、铁山拖筐前行，肩背持续下沉 铁链从左侧进入，苦力队列弯腰搬运 队列向右侧持续移动 No dialogue in this clip; the characters' lips stay closed. At 00:03.000, the described action is visible.\n\noverall_soundscape: 音效：铁链拖地声、江风呜咽声、藤筐摩擦声、灵矿落地钝响\n\nnon_diegetic_music: None."
     }
   },
-  "16": {
+  "2001": {
     "class_type": "MiniMaxH3ReferenceToVideo",
     "inputs": {
       "clip": [
-        "128",
+        "1002",
         0
       ],
       "vae": [
-        "119",
+        "1003",
         0
       ],
       "audio_vae": [
-        "120",
+        "1004",
         0
       ],
       "ref_images.ref_image_0": [
-        "9",
+        "1",
         0
       ],
       "ref_images.ref_image_1": [
-        "110",
+        "11",
         0
       ],
       "ref_images.ref_image_2": [
-        "111",
+        "12",
         0
       ],
       "ref_images.ref_image_3": [
-        "112",
+        "13",
         0
       ],
       "ref_images.ref_image_4": [
-        "113",
-        0
-      ],
-      "prompt": [
         "14",
         0
       ],
+      "prompt": [
+        "21",
+        0
+      ],
       "width": [
-        "22",
+        "53",
         0
       ],
       "height": [
-        "22",
+        "53",
         1
       ],
       "length": [
-        "131",
+        "52",
         1
       ],
       "ref_image_size": "max",
@@ -68,34 +68,34 @@
       "ref_video_audios": 544,
       "ref_audios": 124,
       "ref_images.ref_image_5": [
-        "341",
+        "15",
         0
       ],
       "ref_images.ref_image_6": [
-        "342",
+        "16",
         0
       ],
       "ref_images.ref_image_7": [
-        "343",
+        "17",
         0
       ],
       "ref_images.ref_image_8": [
-        "344",
+        "18",
         0
       ],
       "ref_videos.ref_video_0": [
-        "347",
+        "42",
         0
       ]
     }
   },
-  "20": {
+  "51": {
     "class_type": "PrimitiveFloat",
     "inputs": {
       "value": 5
     }
   },
-  "22": {
+  "53": {
     "class_type": "ResolutionSelector",
     "inputs": {
       "aspect_ratio": "16:9 (Widescreen)",
@@ -104,120 +104,120 @@
       "preview": "16:9 (Widescreen)"
     }
   },
-  "110": {
+  "11": {
     "class_type": "LoadImage",
     "inputs": {
       "image": "my-asset-176bc9e6.jpg"
     }
   },
-  "111": {
+  "12": {
     "class_type": "LoadImage",
     "inputs": {
       "image": "my-asset-18a7e80e.jpg"
     }
   },
-  "112": {
+  "13": {
     "class_type": "LoadImage",
     "inputs": {
       "image": "my-asset-26746162.jpg"
     }
   },
-  "113": {
+  "14": {
     "class_type": "LoadImage",
     "inputs": {
       "image": "my-asset-2f5b2bb2.jpg"
     }
   },
-  "119": {
+  "1003": {
     "class_type": "VAELoader",
     "inputs": {
       "vae_name": "minimax_h3_video_vae_int8_convrot.safetensors"
     }
   },
-  "120": {
+  "1004": {
     "class_type": "VAELoader",
     "inputs": {
       "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
     }
   },
-  "121": {
+  "2042": {
     "class_type": "VAEDecodeAudio",
     "inputs": {
       "samples": [
-        "125",
+        "2032",
         0
       ],
       "vae": [
-        "120",
+        "1004",
         0
       ]
     }
   },
-  "122": {
+  "2041": {
     "class_type": "VAEDecode",
     "inputs": {
       "samples": [
-        "125",
+        "2032",
         0
       ],
       "vae": [
-        "119",
+        "1003",
         0
       ]
     }
   },
-  "123": {
+  "2022": {
     "class_type": "KSamplerSelect",
     "inputs": {
       "sampler_name": "lcm"
     }
   },
-  "125": {
+  "2032": {
     "class_type": "SamplerCustomAdvanced",
     "inputs": {
       "noise": [
-        "129",
+        "54",
         0
       ],
       "guider": [
-        "126",
+        "2031",
         0
       ],
       "sampler": [
-        "123",
+        "2022",
         0
       ],
       "sigmas": [
-        "250",
+        "2021",
         0
       ],
       "latent_image": [
-        "222",
+        "2012",
         0
       ]
     }
   },
-  "126": {
+  "2031": {
     "class_type": "BasicGuider",
     "inputs": {
       "model": [
-        "266",
+        "1071",
         0
       ],
       "conditioning": [
-        "221",
+        "2011",
         0
       ]
     }
   },
-  "127": {
+  "1001": {
     "class_type": "UNETLoader",
     "inputs": {
       "unet_name": "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors",
       "weight_dtype": "default"
     }
   },
-  "128": {
+  "1002": {
     "class_type": "CLIPLoader",
     "inputs": {
       "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
@@ -225,21 +225,21 @@
       "device": "default"
     }
   },
-  "129": {
+  "54": {
     "class_type": "RandomNoise",
     "inputs": {
       "noise_seed": 42
     }
   },
-  "130": {
+  "2051": {
     "class_type": "CreateVideo",
     "inputs": {
       "images": [
-        "122",
+        "2041",
         0
       ],
       "audio": [
-        "121",
+        "2042",
         0
       ],
       "fps": 24,
@@ -249,43 +249,43 @@
       "codec": "none"
     }
   },
-  "131": {
+  "52": {
     "class_type": "ComfyMathExpression",
     "inputs": {
       "values.a": [
-        "20",
+        "51",
         0
       ],
       "expression": "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17",
       "values": "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17"
     }
   },
-  "140": {
+  "1042": {
     "class_type": "ModelAttentionBackend",
     "inputs": {
       "model": [
-        "263",
+        "1035",
         0
       ],
       "attention": "comfy kitchen attention"
     }
   },
-  "145": {
+  "1011": {
     "class_type": "LoraLoaderModelOnly",
     "inputs": {
       "model": [
-        "127",
+        "1001",
         0
       ],
       "lora_name": "pika_h3_flex_ref2va_comfy_bf16.safetensors",
       "strength_model": 1
     }
   },
-  "204": {
+  "2061": {
     "class_type": "SaveVideo",
     "inputs": {
       "video": [
-        "130",
+        "2051",
         0
       ],
       "filename_prefix": "video/漫影/chapter-001/sb-chapter-001-001/p1-preview",
@@ -293,190 +293,190 @@
       "codec": "auto"
     }
   },
-  "219": {
+  "1061": {
     "class_type": "PrimitiveBoolean",
     "inputs": {
       "value": true
     }
   },
-  "220": {
+  "2002": {
     "class_type": "MiniMaxH3ImageToVideo",
     "inputs": {
       "clip": [
-        "128",
+        "1002",
         0
       ],
       "prompt": [
-        "14",
+        "21",
         0
       ],
       "width": [
-        "22",
+        "53",
         0
       ],
       "height": [
-        "22",
+        "53",
         1
       ],
       "length": [
-        "131",
+        "52",
         1
       ],
       "first_frame": [
-        "9",
+        "1",
         0
       ],
       "vae": [
-        "119",
+        "1003",
         0
       ],
       "last_frame": [
-        "345",
+        "31",
         0
       ]
     }
   },
-  "216": {
+  "1012": {
     "class_type": "LoraLoaderModelOnly",
     "inputs": {
       "model": [
-        "127",
+        "1001",
         0
       ],
       "lora_name": "pika_turbo_8step_fl2va.safetensors",
       "strength_model": 1
     }
   },
-  "217": {
+  "1041": {
     "class_type": "ModelAttentionBackend",
     "inputs": {
       "model": [
-        "261",
+        "1034",
         0
       ],
       "attention": "comfy kitchen attention"
     }
   },
-  "218": {
+  "1062": {
     "class_type": "ComfySwitchNode",
     "inputs": {
       "switch": [
-        "219",
+        "1061",
         0
       ],
       "on_false": [
-        "140",
+        "1042",
         0
       ],
       "on_true": [
-        "251",
+        "1051",
         0
       ]
     }
   },
-  "221": {
+  "2011": {
     "class_type": "ComfySwitchNode",
     "inputs": {
       "switch": [
-        "219",
+        "1061",
         0
       ],
       "on_false": [
-        "16",
+        "2001",
         0
       ],
       "on_true": [
-        "220",
+        "2002",
         0
       ]
     }
   },
-  "222": {
+  "2012": {
     "class_type": "ComfySwitchNode",
     "inputs": {
       "switch": [
-        "219",
+        "1061",
         0
       ],
       "on_false": [
-        "16",
+        "2001",
         1
       ],
       "on_true": [
-        "220",
+        "2002",
         1
       ]
     }
   },
-  "202": {
+  "1021": {
     "class_type": "LoraLoaderModelOnly",
     "inputs": {
       "model": [
-        "127",
+        "1001",
         0
       ],
       "lora_name": "taomate_h3_3step.safetensors",
       "strength_model": 0.7
     }
   },
-  "203": {
+  "3021": {
     "class_type": "MiniMaxH3SigmaShift",
     "inputs": {
       "model": [
-        "223",
+        "3011",
         0
       ],
       "shift_video": 12,
       "shift_audio": 3
     }
   },
-  "215": {
+  "3044": {
     "class_type": "ModelAttentionBackend",
     "inputs": {
       "model": [
-        "203",
+        "3021",
         0
       ],
       "attention": "comfy kitchen attention"
     }
   },
-  "208": {
+  "3031": {
     "class_type": "MiniMaxH3ReferenceToVideo",
     "inputs": {
       "clip": [
-        "128",
+        "1002",
         0
       ],
       "vae": [
-        "119",
+        "1003",
         0
       ],
       "audio_vae": [
-        "120",
+        "1004",
         0
       ],
       "ref_images.ref_image_0": [
-        "9",
+        "1",
         0
       ],
       "ref_images.ref_image_1": [
-        "110",
+        "11",
         0
       ],
       "ref_images.ref_image_2": [
-        "111",
+        "12",
         0
       ],
       "ref_images.ref_image_3": [
-        "112",
+        "13",
         0
       ],
       "ref_images.ref_image_4": [
-        "113",
+        "14",
         0
       ],
       "prompt": [
-        "14",
+        "21",
         0
       ],
       "width": 960,
@@ -484,37 +484,37 @@
       "length": 124,
       "ref_image_size": "max",
       "ref_images.ref_image_5": [
-        "341",
+        "15",
         0
       ],
       "ref_images.ref_image_6": [
-        "342",
+        "16",
         0
       ],
       "ref_images.ref_image_7": [
-        "343",
+        "17",
         0
       ],
       "ref_images.ref_image_8": [
-        "344",
+        "18",
         0
       ]
     }
   },
-  "205": {
+  "3001": {
     "class_type": "LTXVSeparateAVLatent",
     "inputs": {
       "av_latent": [
-        "125",
+        "2032",
         1
       ]
     }
   },
-  "206": {
+  "3002": {
     "class_type": "MinimaxH3LatentUpscaler3D",
     "inputs": {
       "latent": [
-        "205",
+        "3001",
         0
       ],
       "model_name": "minimax_h3_latent_upscaler_3d_bf16.safetensors",
@@ -528,24 +528,24 @@
       "precision": "fp16"
     }
   },
-  "207": {
+  "3003": {
     "class_type": "LTXVConcatAVLatent",
     "inputs": {
       "video_latent": [
-        "206",
+        "3002",
         0
       ],
       "audio_latent": [
-        "205",
+        "3001",
         1
       ]
     }
   },
-  "209": {
+  "3041": {
     "class_type": "BasicScheduler",
     "inputs": {
       "model": [
-        "203",
+        "3021",
         0
       ],
       "scheduler": "simple",
@@ -553,79 +553,79 @@
       "denoise": 0.2
     }
   },
-  "210": {
+  "3042": {
     "class_type": "BasicGuider",
     "inputs": {
       "model": [
-        "215",
+        "3044",
         0
       ],
       "conditioning": [
-        "208",
+        "3031",
         0
       ]
     }
   },
-  "211": {
+  "3043": {
     "class_type": "SamplerCustomAdvanced",
     "inputs": {
       "noise": [
-        "129",
+        "54",
         0
       ],
       "guider": [
-        "210",
+        "3042",
         0
       ],
       "sampler": [
-        "123",
+        "2022",
         0
       ],
       "sigmas": [
-        "209",
+        "3041",
         0
       ],
       "latent_image": [
-        "207",
+        "3003",
         0
       ]
     }
   },
-  "212": {
+  "3051": {
     "class_type": "VAEDecode",
     "inputs": {
       "samples": [
-        "211",
+        "3043",
         0
       ],
       "vae": [
-        "119",
+        "1003",
         0
       ]
     }
   },
-  "213": {
+  "3052": {
     "class_type": "VAEDecodeAudio",
     "inputs": {
       "samples": [
-        "211",
+        "3043",
         0
       ],
       "vae": [
-        "120",
+        "1004",
         0
       ]
     }
   },
-  "214": {
+  "3053": {
     "class_type": "CreateVideo",
     "inputs": {
       "images": [
-        "212",
+        "3051",
         0
       ],
       "audio": [
-        "213",
+        "3052",
         0
       ],
       "fps": 24,
@@ -634,11 +634,11 @@
       "chroma_subsampling": "auto"
     }
   },
-  "4": {
+  "3071": {
     "class_type": "SaveVideo",
     "inputs": {
       "video": [
-        "214",
+        "3053",
         0
       ],
       "filename_prefix": "video/漫影/chapter-001/sb-chapter-001-001/p2-final",
@@ -646,22 +646,22 @@
       "codec": "auto"
     }
   },
-  "223": {
+  "3011": {
     "class_type": "MiniMaxChunkFeedForward",
     "inputs": {
       "model": [
-        "267",
+        "1033",
         0
       ],
       "chunks": 1,
       "seq_threshold": 4096
     }
   },
-  "250": {
+  "2021": {
     "class_type": "BasicScheduler",
     "inputs": {
       "model": [
-        "251",
+        "1051",
         0
       ],
       "scheduler": "simple",
@@ -669,22 +669,22 @@
       "denoise": 1.0
     }
   },
-  "251": {
+  "1051": {
     "class_type": "MiniMaxH3SigmaShift",
     "inputs": {
       "model": [
-        "217",
+        "1041",
         0
       ],
       "shift_video": 6,
       "shift_audio": 3
     }
   },
-  "260": {
+  "1031": {
     "class_type": "BlockSparseAttention",
     "inputs": {
       "model": [
-        "216",
+        "1012",
         0
       ],
       "selection": "sol-attn",
@@ -698,22 +698,22 @@
       "verbose": false
     }
   },
-  "261": {
+  "1034": {
     "class_type": "MiniMaxChunkFeedForward",
     "inputs": {
       "model": [
-        "260",
+        "1031",
         0
       ],
       "chunks": 2,
       "seq_threshold": 4096
     }
   },
-  "262": {
+  "1032": {
     "class_type": "BlockSparseAttention",
     "inputs": {
       "model": [
-        "145",
+        "1011",
         0
       ],
       "selection": "sol-attn",
@@ -727,44 +727,22 @@
       "verbose": false
     }
   },
-  "263": {
+  "1035": {
     "class_type": "MiniMaxChunkFeedForward",
     "inputs": {
       "model": [
-        "262",
+        "1032",
         0
       ],
       "chunks": 2,
       "seq_threshold": 4096
     }
   },
-  "264": {
-    "class_type": "MiniMaxH3TokenCounter",
-    "inputs": {
-      "samples": [
-        "222",
-        0
-      ],
-      "conditioning": [
-        "221",
-        0
-      ]
-    }
-  },
-  "265": {
-    "class_type": "PreviewAny",
-    "inputs": {
-      "source": [
-        "264",
-        2
-      ]
-    }
-  },
-  "266": {
+  "1071": {
     "class_type": "ModelPreviewOverrideKJ",
     "inputs": {
       "model": [
-        "218",
+        "1062",
         0
       ],
       "max_resolution": 1024,
@@ -775,11 +753,11 @@
       "vae": "taeh3.safetensors"
     }
   },
-  "267": {
+  "1033": {
     "class_type": "BlockSparseAttention",
     "inputs": {
       "model": [
-        "202",
+        "1021",
         0
       ],
       "selection": "sol-attn",
@@ -793,21 +771,21 @@
       "verbose": false
     }
   },
-  "338": {
+  "4001": {
     "class_type": "ReCaVSRLoader",
     "inputs": {
       "transformer": "transformer_int8_convrot.safetensors"
     }
   },
-  "339": {
+  "4002": {
     "class_type": "ReCaVSRUpscale",
     "inputs": {
       "model": [
-        "338",
+        "4001",
         0
       ],
       "video": [
-        "214",
+        "3053",
         0
       ],
       "scale": 2,
@@ -820,11 +798,11 @@
       "encoder": "auto"
     }
   },
-  "340": {
+  "4003": {
     "class_type": "SaveVideo",
     "inputs": {
       "video": [
-        "339",
+        "4002",
         0
       ],
       "filename_prefix": "video/漫影/chapter-001/sb-chapter-001-001/p3-recavsr",
@@ -832,47 +810,47 @@
       "codec": "auto"
     }
   },
-  "341": {
+  "15": {
     "class_type": "LoadImage",
     "inputs": {
       "image": "my-asset-176bc9e6.jpg"
     }
   },
-  "342": {
+  "16": {
     "class_type": "LoadImage",
     "inputs": {
       "image": "my-asset-176bc9e6.jpg"
     }
   },
-  "343": {
+  "17": {
     "class_type": "LoadImage",
     "inputs": {
       "image": "my-asset-176bc9e6.jpg"
     }
   },
-  "344": {
+  "18": {
     "class_type": "LoadImage",
     "inputs": {
       "image": "my-asset-176bc9e6.jpg"
     }
   },
-  "345": {
+  "31": {
     "class_type": "LoadImage",
     "inputs": {
       "image": "my-asset-176bc9e6.jpg"
     }
   },
-  "346": {
+  "41": {
     "class_type": "LoadVideo",
     "inputs": {
       "file": ""
     }
   },
-  "347": {
+  "42": {
     "class_type": "GetVideoComponents",
     "inputs": {
       "video": [
-        "346",
+        "41",
         0
       ]
     }

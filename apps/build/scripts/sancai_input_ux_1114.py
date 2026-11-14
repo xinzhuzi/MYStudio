@@ -11,13 +11,13 @@ FILES = {
     'twin': '/Users/zhengbingjin/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.json',
 }
 TITLES = {
-    9: "① 参考图1·主图(必填·选图即跑)",
-    110: "② 参考图2", 111: "② 参考图3", 112: "② 参考图4", 113: "② 参考图5",
-    341: "② 参考图6", 342: "② 参考图7", 343: "② 参考图8", 344: "② 参考图9",
-    345: "④ 尾帧(可选·i2v首尾双锚)",
-    346: "⑤ 参考视频(可选·须同画风)",
-    14: "③ 提示词(必填·在此输入)",
-    347: "⑤ 视频拆帧桥(与⑤联动)",
+    1: "① 参考图1·主图(必填·选图即跑)",
+    11: "② 参考图2", 12: "② 参考图3", 13: "② 参考图4", 14: "② 参考图5",
+    15: "② 参考图6", 16: "② 参考图7", 17: "② 参考图8", 18: "② 参考图9",
+    31: "④ 尾帧(可选·i2v首尾双锚)",
+    41: "⑤ 参考视频(可选·须同画风)",
+    21: "③ 提示词(必填·在此输入)",
+    42: "⑤ 视频拆帧桥(与⑤联动)",
 }
 GUIDE = ("【在此输入提示词】\nintegrated_multimodal_description: <此处写镜头正文;"
          "引用参考图用 <Picture 1..9>(节点号即编号) 按挂接序;尾帧模式写「首帧→…→末帧」连续单镜头>\n"
@@ -37,7 +37,7 @@ README = """# 三采-单镜 · 使用说明
 | ② 参考图1-8[110-113/341-344] | 要几张开几张:各自取消旁路+选图,序号=挂接序 <Picture 2..9>;不开的保持旁路(悬空合法)。(App:按分镜引用清单自动填,≤8 超出截断) |
 | ③ 提示词[14] | 点开替换骨架占位为正文(六段式已预置);参考图按挂接序引用。(App:装配文整体覆写本栏) |
 | ④ 尾帧[345] | 仅 i2v 首尾双锚用:取消旁路+选「结束帧」,提示词写首→尾连续动作;不用保持旁路(合法) |
-| ⑤ 参考视频[346]+拆帧桥[347] | 要用必须**两个一起**取消旁路,346 选 24fps、2-15 秒、同画风片段;只开 346 不开 347=桥悬空必跑红;都不用=都保持旁路(出厂态)。App:给了 videoRef 才注入,否则整链摘除 |
+| ⑤ 参考视频[346]+拆帧桥[347] | 要用必须**两个一起**取消旁路,41 选 24fps、2-15 秒、同画风片段;只开 41 不开 42=桥悬空必跑红;都不用=都保持旁路(出厂态)。App:给了 videoRef 才注入,否则整链摘除 |
 | 时长[20] Float(Duration) | 秒数,默认 5;帧数自动吸附 17k+5 网格(5s=124帧) |
 | 画幅[22] Resolution Selector | 宽高比/百万像素/倍数;改画幅只动这里 |
 | 种子[129] RandomNoise | seed=42 复现用;重摇改这里 |
@@ -61,16 +61,16 @@ def surgery(d):
         if nid in n:
             n[nid]['title'] = title
     # 347 桥出厂旁路化(手动路悬空雷根修)
-    if 347 in n:
-        n[347]['mode'] = 4
+    if 42 in n:
+        n[42]['mode'] = 4
     # ①必填主图出厂激活(1114 用户令:杀手动多点一次;忘选图=立刻报错好过静默空跑烧GPU;可选口仍旁路)
-    n[9]['mode'] = 0
-    n[14]['widgets_values'] = [GUIDE] + list(n[14]['widgets_values'][1:])
-    if n[14].get('widgets_values_named'):
+    n[1]['mode'] = 0
+    n[21]['widgets_values'] = [GUIDE] + list(n[21]['widgets_values'][1:])
+    if n[21].get('widgets_values_named'):
         for k in ('value', 'text'):
             if k in n[14]['widgets_values_named']:
                 n[14]['widgets_values_named'][k] = GUIDE
-    note = n[101]
+    note = n[9999]
     note['widgets_values'] = [README]
     if note.get('widgets_values_named') and 'text' in note['widgets_values_named']:
         note['widgets_values_named']['text'] = README
@@ -83,4 +83,4 @@ if __name__ == '__main__':
         surgery(d)
         json.dump(d, open(p, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
         n = {x['id']: x for x in d['nodes']}
-        print(f"{tag}: README v2({len(README)}字) 347旁路化={n[347].get('mode')==4} ✅")
+        print(f"{tag}: README v2({len(README)}字) 42旁路化={n[42].get('mode')==4} ✅")

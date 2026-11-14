@@ -103,9 +103,9 @@ function getNode(template: H3WorkflowTemplate, id: number, type: string): Workfl
   return node;
 }
 
-export function assertH3TemplateIntegrity(template: { nodes?: unknown }): void {
+export function assertH3TemplateIntegrity(template: { nodes?: unknown }, required: Array<[number, string]> = REQUIRED_NODES): void {
   if (!Array.isArray(template.nodes)) throw new Error("h3-shot-template drift: nodes missing");
-  for (const [id, type] of REQUIRED_NODES) {
+  for (const [id, type] of required) {
     const node = template.nodes.find((item): item is { id?: unknown; type?: unknown } => Boolean(item && typeof item === "object" && "id" in item && "type" in item) && (item as { id?: unknown }).id === id);
     if (!node || node.type !== type) throw new Error(`h3-shot-template drift: node ${id} must be ${type}`);
   }
@@ -144,14 +144,15 @@ function setNamedWidget(node: WorkflowNode, key: string, value: unknown): void {
 }
 
 function connectVideoWriteback(template: H3WorkflowTemplate): void {
-  const saveVideo = getNode(template, 4, "SaveVideo");
-  const anchor = getNode(template, 100, "MyShot");
+  const saveVideo = template.nodes.find((n): n is typeof n & { id: number } => n.type === "SaveVideo");
+  const anchor = template.nodes.find((n): n is typeof n & { id: number } => n.type === "MyShot");
+  if (!saveVideo || !anchor) throw new Error("h3-shot-template drift: SaveVideo/MyShot 不在册");
   const output = saveVideo.outputs?.[0];
   if (!output) throw new Error("h3-shot-template drift: SaveVideo video output missing");
   const existing = anchor.inputs?.find((input) => input.name === "video");
   if (existing) return;
   const nextLinkId = Math.max(template.last_link_id ?? 0, ...(template.links ?? []).map((link) => Number(link[0]) || 0)) + 1;
-  const link = [nextLinkId, 4, 0, 100, 0, "VIDEO"];
+  const link = [nextLinkId, saveVideo.id, 0, anchor.id, 0, "VIDEO"];
   output.links = [...((output.links as number[] | undefined) ?? []), nextLinkId];
   anchor.inputs = [{ name: "video", type: "VIDEO", link: nextLinkId }, ...(anchor.inputs ?? [])];
   template.links = [...(template.links ?? []), link];
@@ -162,11 +163,26 @@ export function buildShotH3Workflow(input: ShotH3WorkflowInput): ShotH3WorkflowR
   return buildShotWorkflowFromTemplate(templateJson, input);
 }
 
+/** 画布构建器锚表(1114 千位段编号:三采件已重编,pika/multiseg 族仍旧号;共享构建器按族注入) */
+interface CanvasAnchors {
+  r2v: number; saveVideo: number; image: number; prompt: number; seconds: number; myShot: number;
+  required: Array<[number, string]>;
+}
+const PIKA_CANVAS_ANCHORS: CanvasAnchors = {
+  r2v: 16, saveVideo: 4, image: 9, prompt: 14, seconds: 20, myShot: 100,
+  required: REQUIRED_NODES,
+};
+export const SANCAI_CANVAS_ANCHORS: CanvasAnchors = {
+  r2v: 2001, saveVideo: 3071, image: 1, prompt: 21, seconds: 51, myShot: 3061,
+  required: [[3071, "SaveVideo"], [1, "LoadImage"], [21, "PrimitiveStringMultiline"],
+             [51, "PrimitiveFloat"], [3061, "MyShot"], [2001, "MiniMaxH3ReferenceToVideo"]],
+};
+
 /** 画布档组装真身(10-27 windows-fasth3-mainline W10 配方化:模板参数化,
  *  buildShotH3Workflow 保留为旧模板薄壳=旧行为零变;FastH3 通道走同真身)。 */
-function buildShotWorkflowFromTemplate(source: H3WorkflowTemplate, input: ShotH3WorkflowInput): ShotH3WorkflowResult {
+function buildShotWorkflowFromTemplate(source: H3WorkflowTemplate, input: ShotH3WorkflowInput, anchors: CanvasAnchors = PIKA_CANVAS_ANCHORS): ShotH3WorkflowResult {
   const template = JSON.parse(JSON.stringify(source)) as H3WorkflowTemplate;
-  assertH3TemplateIntegrity(template);
+  assertH3TemplateIntegrity(template, anchors.required);
   connectVideoWriteback(template);
   const policy = input.policy ?? "ambient";
   const shot = input.shot;
@@ -187,10 +203,10 @@ function buildShotWorkflowFromTemplate(source: H3WorkflowTemplate, input: ShotH3
   const label = shotLabel(shot.index);
   const imageName = input.imageName ?? `my-shot-h3-${safeImageId(shot.id)}.jpg`;
 
-  const saveVideo = getNode(template, 4, "SaveVideo");
-  const firstFrame = getNode(template, 9, "LoadImage");
-  const promptNode = getNode(template, 14, "PrimitiveStringMultiline");
-  const secondsNode = getNode(template, 20, "PrimitiveFloat");
+  const saveVideo = getNode(template, anchors.saveVideo, "SaveVideo");
+  const firstFrame = getNode(template, anchors.image, "LoadImage");
+  const promptNode = getNode(template, anchors.prompt, "PrimitiveStringMultiline");
+  const secondsNode = getNode(template, anchors.seconds, "PrimitiveFloat");
   const prefix = `video/漫影/${input.chapterId}/${shot.id}/${policy}`;
   setFirstWidget(saveVideo, prefix);
   setNamedWidget(saveVideo, "filename_prefix", prefix);
@@ -203,7 +219,7 @@ function buildShotWorkflowFromTemplate(source: H3WorkflowTemplate, input: ShotH3
   setFirstWidget(secondsNode, prompt.seconds);
   setNamedWidget(secondsNode, "value", prompt.seconds);
 
-  const anchor = getNode(template, 100, "MyShot");
+  const anchor = getNode(template, anchors.myShot, "MyShot");
   anchor.widgets_values = [shot.id, label, description, "图✓"];
   anchor.properties = { ...(anchor.properties ?? {}), myPreview: imageName, myOriginProjectId: input.originProjectId ?? "", myOriginEpisodeId: input.chapterId };
 
@@ -493,7 +509,7 @@ const REF_IMAGE_NODE_IDS = [110, 111, 112, 113] as const;
 /** 三采线参考槽(1113 火力扩展):110-113+341-344 = ref_image_1..8 → <Picture 2..9>;
  * 引擎 MiniMaxH3ReferenceToVideo.ref_images AUTOGROW max=9(ref_image_0..8,0=分镜帧)。
  * pika 线模板无 341+,仍用 REF_IMAGE_NODE_IDS(4 槽祖传口径)。 */
-const SANCAI_REF_IDS = [110, 111, 112, 113, 341, 342, 343, 344] as const;
+const SANCAI_REF_IDS = [11, 12, 13, 14, 15, 16, 17, 18] as const;
 
 export function buildShotH3RefWorkflow(input: ShotH3RefWorkflowInput): ShotH3WorkflowResult {
   return buildShotRefWorkflowFromTemplate(templateRefJson, input);
@@ -503,11 +519,11 @@ export function buildShotH3RefWorkflow(input: ShotH3RefWorkflowInput): ShotH3Wor
  *  先例):buildShotH3RefWorkflow 保留为 Mac 自研档旧模板薄壳=旧行为零变;Pika ref2va API
  *  组装器走同真身但母体=pika-ref-shot-template.json(Pika 官方契约档,两母体锚点契约同构:
  *  16 号 MiniMaxH3ReferenceToVideo + 9/110-113 参考槽 + 14/20/4/100 锚)。 */
-function buildShotRefWorkflowFromTemplate(source: H3WorkflowTemplate, input: ShotH3RefWorkflowInput, refIds: readonly number[] = REF_IMAGE_NODE_IDS): ShotH3WorkflowResult {
+function buildShotRefWorkflowFromTemplate(source: H3WorkflowTemplate, input: ShotH3RefWorkflowInput, refIds: readonly number[] = REF_IMAGE_NODE_IDS, anchors: CanvasAnchors = PIKA_CANVAS_ANCHORS): ShotH3WorkflowResult {
   const template = JSON.parse(JSON.stringify(source)) as H3WorkflowTemplate;
-  assertH3TemplateIntegrity(template);
+  assertH3TemplateIntegrity(template, anchors.required);
   connectVideoWriteback(template);
-  getNode(template, 16, "MiniMaxH3ReferenceToVideo");
+  getNode(template, anchors.r2v, "MiniMaxH3ReferenceToVideo");
   const policy = input.policy ?? "ambient";
   const shot = input.shot;
   const semantics = shot.shotSemantics as ShotSemanticsForH3;
@@ -538,10 +554,10 @@ function buildShotRefWorkflowFromTemplate(source: H3WorkflowTemplate, input: Sho
   const label = shotLabel(shot.index);
   const imageName = input.imageName ?? `my-shot-h3-${safeImageId(shot.id)}.jpg`;
 
-  const saveVideo = getNode(template, 4, "SaveVideo");
-  const firstFrame = getNode(template, 9, "LoadImage");
-  const promptNode = getNode(template, 14, "PrimitiveStringMultiline");
-  const secondsNode = getNode(template, 20, "PrimitiveFloat");
+  const saveVideo = getNode(template, anchors.saveVideo, "SaveVideo");
+  const firstFrame = getNode(template, anchors.image, "LoadImage");
+  const promptNode = getNode(template, anchors.prompt, "PrimitiveStringMultiline");
+  const secondsNode = getNode(template, anchors.seconds, "PrimitiveFloat");
   const prefix = `video/漫影/${input.chapterId}/${shot.id}/ref-${policy}`;
   setFirstWidget(saveVideo, prefix);
   setNamedWidget(saveVideo, "filename_prefix", prefix);
@@ -561,7 +577,7 @@ function buildShotRefWorkflowFromTemplate(source: H3WorkflowTemplate, input: Sho
     node.mode = 0;
   });
 
-  const anchor = getNode(template, 100, "MyShot");
+  const anchor = getNode(template, anchors.myShot, "MyShot");
   anchor.widgets_values = [shot.id, label, description, "图✓"];
   anchor.properties = { ...(anchor.properties ?? {}), myPreview: imageName, myOriginProjectId: input.originProjectId ?? "", myOriginEpisodeId: input.chapterId };
 
@@ -662,7 +678,7 @@ export function computeSancaiResolutionLadder(width: number, height: number): Sa
 }
 
 /** 段A(一二采)节点集=59 塑形图全链减三采链(Win 实弹 ar10s_stage12 同款 56 节点)。 */
-const SANCAI_STAGE_B_NODE_IDS = ["338", "339", "340"] as const;
+const SANCAI_STAGE_B_NODE_IDS = ["4001", "4002", "4003"] as const;
 
 /** 三采 API 档输入:画布档输入 + 两段档扩展(r2v 臂选择/refs/首帧像素——AR 阶梯源)。 */
 export interface ShotH3SancaiApiWorkflowInput extends ShotH3ApiWorkflowInput {
@@ -754,7 +770,7 @@ export function buildShotH3ThreeStageWorkflow(
   input: ShotH3WorkflowInput & { r2v?: boolean; refs?: ShotH3RefAssetInput[] },
 ): ShotH3WorkflowResult {
   return input.r2v === false
-    ? buildShotWorkflowFromTemplate(sancaiTemplateJson as unknown as H3WorkflowTemplate, input)
+    ? buildShotWorkflowFromTemplate(sancaiTemplateJson as unknown as H3WorkflowTemplate, input, SANCAI_CANVAS_ANCHORS)
     : buildShotRefWorkflowFromTemplate(sancaiTemplateJson as unknown as H3WorkflowTemplate, { ...input, refs: input.refs ?? [] });
 }
 
@@ -784,8 +800,8 @@ export function buildShotH3SancaiApiWorkflow(input: ShotH3SancaiApiWorkflowInput
 
   // ① 画布档同源组装(提示词+自检门+MyShot 三键+9/110-113/341-344 激活,1113 火力满配 8 槽)
   const base = r2v
-    ? buildShotRefWorkflowFromTemplate(sancaiTemplateJson as unknown as H3WorkflowTemplate, { ...input, refs }, SANCAI_REF_IDS)
-    : buildShotWorkflowFromTemplate(sancaiTemplateJson as unknown as H3WorkflowTemplate, input);
+    ? buildShotRefWorkflowFromTemplate(sancaiTemplateJson as unknown as H3WorkflowTemplate, { ...input, refs }, SANCAI_REF_IDS, SANCAI_CANVAS_ANCHORS)
+    : buildShotWorkflowFromTemplate(sancaiTemplateJson as unknown as H3WorkflowTemplate, input, SANCAI_CANVAS_ANCHORS);
   const nodes = base.ui.nodes as WorkflowNode[];
   const widgetOf = (id: number, type: string): unknown => {
     const node = getNode({ nodes } as H3WorkflowTemplate, id, type);
@@ -794,42 +810,42 @@ export function buildShotH3SancaiApiWorkflow(input: ShotH3SancaiApiWorkflowInput
   };
 
   const apiGraph = JSON.parse(JSON.stringify(sancaiApiTemplateJson)) as ApiGraph;
-  const promptText = widgetOf(14, "PrimitiveStringMultiline");
-  const seconds = widgetOf(20, "PrimitiveFloat");
-  const imageName = String(widgetOf(9, "LoadImage"));
-  const myShotWidgets = (nodes.find((node) => node.id === 100) as WorkflowNode | undefined)?.widgets_values;
+  const promptText = widgetOf(21, "PrimitiveStringMultiline");
+  const seconds = widgetOf(51, "PrimitiveFloat");
+  const imageName = String(widgetOf(1, "LoadImage"));
+  const myShotWidgets = (nodes.find((node) => node.id === 3061) as WorkflowNode | undefined)?.widgets_values;
   if (!Array.isArray(myShotWidgets) || myShotWidgets.length < 4) throw new Error("h3-three-stage-template drift: node 100 widgets_values missing");
   const [shotId, label, description, mediaStatus] = myShotWidgets;
 
   // ② 段A 注入(锚=object_info 实锚;前缀口径=同源真身已注入的 4 号五段前缀
   // ——r2v 臂 ref-{policy}/i2v 臂 {policy},与既有单段线完全同构;204={prefix}-p1
   // 一采预览;段B 340=同 prefix 终档落账,subfolder 恒四段过 consumer 白名单)
-  const prefix = String(widgetOf(4, "SaveVideo"));
+  const prefix = String(widgetOf(3071, "SaveVideo"));
   for (const id of SANCAI_STAGE_B_NODE_IDS) {
     if (!apiGraph[id]) throw new Error(`h3-three-stage-template.api.json drift: node ${id} missing`);
     delete apiGraph[id];
   }
-  getApiNode(apiGraph, "14", "PrimitiveStringMultiline").inputs.value = promptText;
-  getApiNode(apiGraph, "20", "PrimitiveFloat").inputs.value = seconds;
-  getApiNode(apiGraph, "4", "SaveVideo").inputs.filename_prefix = prefix;
-  getApiNode(apiGraph, "204", "SaveVideo").inputs.filename_prefix = `${prefix}-p1`;
-  getApiNode(apiGraph, "9", "LoadImage").inputs.image = imageName;
+  getApiNode(apiGraph, "21", "PrimitiveStringMultiline").inputs.value = promptText;
+  getApiNode(apiGraph, "51", "PrimitiveFloat").inputs.value = seconds;
+  getApiNode(apiGraph, "3071", "SaveVideo").inputs.filename_prefix = prefix;
+  getApiNode(apiGraph, "2061", "SaveVideo").inputs.filename_prefix = `${prefix}-p1`;
+  getApiNode(apiGraph, "1", "LoadImage").inputs.image = imageName;
   // 219 布尔置位(wire 真相:true→on_true=220 i2v 臂;false→on_false=16 r2v 臂)
-  getApiNode(apiGraph, "219", "PrimitiveBoolean").inputs.value = !r2v;
+  getApiNode(apiGraph, "1061", "PrimitiveBoolean").inputs.value = !r2v;
   // AR 阶梯直填(Note103 法则②四处;覆盖 22 号 link 后删除 22=按需旁路)
-  const stage1 = getApiNode(apiGraph, "16", "MiniMaxH3ReferenceToVideo");
+  const stage1 = getApiNode(apiGraph, "2001", "MiniMaxH3ReferenceToVideo");
   stage1.inputs.width = ladder.w1;
   stage1.inputs.height = ladder.h1;
-  const stage1I2v = getApiNode(apiGraph, "220", "MiniMaxH3ImageToVideo");
+  const stage1I2v = getApiNode(apiGraph, "2002", "MiniMaxH3ImageToVideo");
   stage1I2v.inputs.width = ladder.w1;
   stage1I2v.inputs.height = ladder.h1;
-  const stage2 = getApiNode(apiGraph, "208", "MiniMaxH3ReferenceToVideo");
+  const stage2 = getApiNode(apiGraph, "3031", "MiniMaxH3ReferenceToVideo");
   stage2.inputs.width = ladder.w2;
   stage2.inputs.height = ladder.h2;
-  const upscaler = getApiNode(apiGraph, "206", "MinimaxH3LatentUpscaler3D");
+  const upscaler = getApiNode(apiGraph, "3002", "MinimaxH3LatentUpscaler3D");
   upscaler.inputs["mode.width"] = ladder.w2;
   upscaler.inputs["mode.height"] = ladder.h2;
-  delete apiGraph["22"];
+  delete apiGraph["53"];
   // 110-113/341-344 满槽注入(208 二采恒消费全部图槽;r2v=refs 按序+分镜帧补位,
   // i2v=分镜帧补位——Win 实弹同图多槽先例;占位名禁进 API 图直投;1113 火力 8 槽)
   SANCAI_REF_IDS.forEach((nodeId, position) => {
@@ -839,22 +855,22 @@ export function buildShotH3SancaiApiWorkflow(input: ShotH3SancaiApiWorkflowInput
   });
   // 1114 自适应:异图(帧+参考去重)≤4 保 max(1110 定律原面);≥5 降 match(实测大参考数×max=引擎原生崩)
   const refImageSize = distinctBudget.size <= 4 ? "max" : "match";
-  getApiNode(apiGraph, "16", "MiniMaxH3ReferenceToVideo").inputs.ref_image_size = refImageSize;
-  getApiNode(apiGraph, "208", "MiniMaxH3ReferenceToVideo").inputs.ref_image_size = refImageSize;
+  getApiNode(apiGraph, "2001", "MiniMaxH3ReferenceToVideo").inputs.ref_image_size = refImageSize;
+  getApiNode(apiGraph, "3031", "MiniMaxH3ReferenceToVideo").inputs.ref_image_size = refImageSize;
   // ④ 尾帧(i2v 首尾双锚;缺省摘 345+220.last_frame,禁空喂占位)
   if (input.endFrame) {
-    getApiNode(apiGraph, "345", "LoadImage").inputs.image = input.endFrame;
+    getApiNode(apiGraph, "31", "LoadImage").inputs.image = input.endFrame;
   } else {
-    delete apiGraph["345"];
-    delete getApiNode(apiGraph, "220", "MiniMaxH3ImageToVideo").inputs.last_frame;
+    delete apiGraph["31"];
+    delete getApiNode(apiGraph, "2002", "MiniMaxH3ImageToVideo").inputs.last_frame;
   }
   // ⑤ 参考视频(r2v <Video 1>;缺省摘 346+16.ref_videos 槽,禁空喂占位)
   if (input.videoRef) {
-    getApiNode(apiGraph, "346", "LoadVideo").inputs.file = input.videoRef;
+    getApiNode(apiGraph, "41", "LoadVideo").inputs.file = input.videoRef;
   } else {
-    delete apiGraph["346"];
-    delete apiGraph["347"]; // GetVideoComponents 桥(LoadVideo吐VIDEO,槽吃IMAGE帧)
-    delete getApiNode(apiGraph, "16", "MiniMaxH3ReferenceToVideo").inputs["ref_videos.ref_video_0"];
+    delete apiGraph["41"];
+    delete apiGraph["42"]; // GetVideoComponents 桥(LoadVideo吐VIDEO,槽吃IMAGE帧)
+    delete getApiNode(apiGraph, "2001", "MiniMaxH3ReferenceToVideo").inputs["ref_videos.ref_video_0"];
   }
 
   // ③ 段B 构造(300 LoadVideo + 338/339/340 克隆 + MyShot 100 连 340)
@@ -863,19 +879,19 @@ export function buildShotH3SancaiApiWorkflow(input: ShotH3SancaiApiWorkflowInput
     if (!SANCAI_STAGE_B_NODE_IDS.includes(id as (typeof SANCAI_STAGE_B_NODE_IDS)[number])) delete stageBGraph[id];
   }
   stageBGraph["300"] = { class_type: "LoadVideo", inputs: { file: "" } };
-  const loader = getApiNode(stageBGraph, "338", "ReCaVSRLoader");
-  const upscale = getApiNode(stageBGraph, "339", "ReCaVSRUpscale");
-  const saveVideoB = getApiNode(stageBGraph, "340", "SaveVideo");
+  const loader = getApiNode(stageBGraph, "4001", "ReCaVSRLoader");
+  const upscale = getApiNode(stageBGraph, "4002", "ReCaVSRUpscale");
+  const saveVideoB = getApiNode(stageBGraph, "4003", "SaveVideo");
   loader.inputs.transformer = loader.inputs.transformer ?? "transformer_int8_convrot.safetensors";
-  upscale.inputs.model = ["338", 0];
+  upscale.inputs.model = ["4001", 0];
   upscale.inputs.video = ["300", 0];
-  saveVideoB.inputs.video = ["339", 0];
+  saveVideoB.inputs.video = ["4002", 0];
   saveVideoB.inputs.filename_prefix = prefix;
-  stageBGraph["100"] = {
+  stageBGraph["3061"] = {
     class_type: "MyShot",
-    inputs: { shot_id: shotId, label, description, media_status: mediaStatus, video: ["340", 0] },
+    inputs: { shot_id: shotId, label, description, media_status: mediaStatus, video: ["4003", 0] },
   };
 
-  const images = input.firstFrameB64 ? [{ key: "9.image", name: imageName, b64: input.firstFrameB64 }] : [];
+  const images = input.firstFrameB64 ? [{ key: "1.image", name: imageName, b64: input.firstFrameB64 }] : [];
   return { apiGraph, uiWorkflow: base.ui, images, stageBGraph, report: base.report };
 }
