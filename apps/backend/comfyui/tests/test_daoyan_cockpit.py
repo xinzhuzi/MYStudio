@@ -123,7 +123,7 @@ def test_import_storyboard_maps_segments(tmp_path):
     assert len(list(input_dir.glob("daoyan-sb-*.png"))) == 2
     # 无分镜章
     r2 = srv.import_storyboard(loc, "chapter-888", input_dir)
-    assert not r2["ok"] and "无分镜表" in r2["error"]
+    assert not r2["ok"] and "无分镜" in r2["error"]
 
 
 def test_merge_storyboards_latest_wins_and_union(tmp_path):
@@ -138,3 +138,43 @@ def test_merge_storyboards_latest_wins_and_union(tmp_path):
     merged = srv.merge_storyboards(cdir)
     assert [m["index"] for m in merged] == [1, 2]
     assert merged[0]["videoDesc"] == "新"
+
+
+def test_parse_script_shots_fallback(tmp_path):
+    """剧本解析兜底(1114 用户勘误:每章剧本都有分镜,不止2章)。"""
+    text = ("# 道劫 EP01\n## 剧情梗概\nx\n\n"
+            "1-1 码头 拂晓/外 ·约50秒\n人物：甲\n"
+            "镜头1：雾中渡河，风灯浮动\n台词行不进镜\n"
+            "镜头2：高台俯瞰\n\n"
+            "1-2 巷口 夜/内 ·约10秒\n"
+            "镜头3：檐下打量\n")
+    shots = srv.parse_script_shots(text)
+    assert [s["index"] for s in shots] == [1, 2, 3]
+    assert shots[0]["duration"] == 15  # 50s 场次钳到产线上限
+    assert shots[2]["duration"] == 10  # 场次 1-2
+    assert "雾中渡河" in shots[0]["videoDesc"]
+
+
+def test_chapter_payload_falls_back_to_script(tmp_path):
+    """无分片章:分镜表=剧本解析(fromScript=True);有分片章不受扰。"""
+    loc = _mk_project(tmp_path)
+    p1 = srv.chapter_payload(loc, "chapter-001")
+    assert p1["storyboards"]["count"] == 3
+    assert p1["storyboards"]["fromScript"] is False  # 有分片不兜底
+    (loc / "novel" / "drama" / "chapter-777_漫剧.md").write_text(
+        "1-1 x ·约8秒\n镜头1：甲\n镜头2：乙\n", encoding="utf-8")
+    p2 = srv.chapter_payload(loc, "chapter-777")
+    assert p2["storyboards"]["count"] == 2
+    assert p2["storyboards"]["fromScript"] is True
+    assert p2["storyboards"]["items"][0]["videoDesc"] == "甲"
+
+
+def test_import_storyboard_fallback_from_script(tmp_path):
+    loc = _mk_project(tmp_path)
+    (loc / "novel" / "drama" / "chapter-777_漫剧.md").write_text(
+        "1-1 x ·约8秒\n镜头1：甲\n镜头2：乙\n", encoding="utf-8")
+    r = srv.import_storyboard(loc, "chapter-777", tmp_path / "in")
+    assert r["ok"] and r["count"] == 2 and r["fromScript"] is True
+    assert r["segments"][0]["prompt"]["description"] == "甲"
+    assert r["segments"][0]["seconds"] == 8
+    assert r["segments"][0]["images"] == []

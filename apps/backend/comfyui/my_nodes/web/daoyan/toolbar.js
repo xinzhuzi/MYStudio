@@ -261,6 +261,7 @@
         + '<span class="dy-hint">章数据不可达(项目位置缺/引擎读盘败)</span></div></div>';
     }
     var shots = (mine.storyboards && mine.storyboards.items) || [];
+    var sbFromScript = !!(mine.storyboards && mine.storyboards.fromScript);
     var sbRows = shots.map(function (x) {
       var img = x.image
         ? '<img loading="lazy" src="/my_daoyan/chapter_image?project='
@@ -287,7 +288,9 @@
          ? '<div class="dy-pane">' + esc(dp.text) + "</div>"
          : '<div class="dy-empty">本章暂无导演计划(在漫影工作台·任务中心生成)</div>')
       + "</details>",
-      '<details><summary>分镜表(' + shots.length + " 镜)</summary>"
+      '<details><summary>分镜表(' + shots.length + ' 镜)'
+      + (sbFromScript ? ' <span class="dy-hint">(自剧本解析)</span>' : '')
+      + '</summary>'
       + (shots.length
          ? '<table class="dy-sbtable"><tr><th>镜</th><th>秒</th><th>内容</th><th>台词</th><th>图</th></tr>'
            + sbRows + "</table>"

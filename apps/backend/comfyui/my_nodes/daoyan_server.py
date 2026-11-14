@@ -295,6 +295,38 @@ def chapter_title(location: Path, chapter: str) -> str:
     return ""
 
 
+
+
+_SCENE_RE = re.compile(r"^(\d+-\d+) .+ ·约(\d+)秒", re.M)
+_SHOT_RE = re.compile(r"^镜头(\d+)：(.+)", re.M)
+
+
+def parse_script_shots(script_text: str) -> list:
+    """剧本 md → 镜列表兜底(1114 用户勘误「每章剧本都有分镜,不止2章」):
+    场次行定时长(·约N秒,钳 1-15),镜头N:行定镜(全局续号)。"""
+    if not script_text:
+        return []
+    # 场次起点行号表(镜行归属=其前最近场次)
+    scene_marks = [(m.start(), int(m.group(2)))
+                   for m in _SCENE_RE.finditer(script_text)]
+    shots = []
+    for m in _SHOT_RE.finditer(script_text):
+        dur = 5
+        for pos, sec in scene_marks:
+            if pos < m.start():
+                dur = sec
+            else:
+                break
+        shots.append({
+            "index": len(shots) + 1,
+            "id": None,
+            "duration": min(15, max(1, dur)),
+            "prompt": "", "videoDesc": m.group(2).strip()[:160],
+            "line": "", "image": "",
+        })
+    return shots
+
+
 def chapter_payload(location: Path, chapter: str) -> dict:
     """章节驾驶舱三件:剧本(drama md)/导演计划(agentWorkData)/分镜表。"""
     if not chapter or not valid_chapter(chapter):
@@ -319,6 +351,10 @@ def chapter_payload(location: Path, chapter: str) -> dict:
             "line": str(shot.get("line") or "")[:80],
             "image": _media_rel(shot.get("mediaRef")),
         })
+    from_script = False
+    if not items and script_text:
+        items = parse_script_shots(script_text)
+        from_script = bool(items)
     return {
         "chapter": chapter,
         "title": chapter_title(location, chapter),
@@ -327,7 +363,8 @@ def chapter_payload(location: Path, chapter: str) -> dict:
                    if script_text else 0},
         "directorPlan": {"text": str(dp.get("data") or ""),
                          "updatedAt": dp.get("updatedAt")},
-        "storyboards": {"items": items, "count": len(items)},
+        "storyboards": {"items": items, "count": len(items),
+                        "fromScript": from_script},
     }
 
 
@@ -354,8 +391,15 @@ def import_storyboard(location: Path, chapter: str, input_dir: Path) -> dict:
         return {"ok": False, "error": "非法 chapter 参数", "segments": []}
     cdir = location / "store" / "studio-workflow" / "chapters" / chapter
     shots = merge_storyboards(cdir)
+    from_script = False
     if not shots:
-        return {"ok": False, "error": "本章无分镜表(先在漫影工作台生成分镜)",
+        drama = location / "novel" / "drama" / f"{chapter}_漫剧.md"
+        if drama.is_file():
+            shots = parse_script_shots(drama.read_text(
+                encoding="utf-8", errors="ignore")[:_SCRIPT_CAP])
+            from_script = bool(shots)
+    if not shots:
+        return {"ok": False, "error": "本章无分镜(分片与剧本均无镜行)",
                 "segments": []}
     input_dir.mkdir(parents=True, exist_ok=True)
     segments, copied = [], []
@@ -389,7 +433,7 @@ def import_storyboard(location: Path, chapter: str, input_dir: Path) -> dict:
             "images": images,
         })
     return {"ok": True, "segments": segments, "copied": copied,
-            "count": len(segments)}
+            "count": len(segments), "fromScript": from_script}
 
 
 def install() -> None:
