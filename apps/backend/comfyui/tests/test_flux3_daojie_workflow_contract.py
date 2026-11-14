@@ -15,9 +15,11 @@ SPEC.loader.exec_module(w)
 def test_gui_expands_to_the_same_execution_graph_as_the_recorded_case(monkeypatch):
     # 1104 随迁:主体句文档经 1102 §12-§14 三型入列(5b0103f2)演进,回执 source 双 sha
     # 与本测试字节锚已按 1030 回执随迁先例同笔重钉;人物海报→人物 兼容替换口径不变。
+    # 1114 随迁:用户令「现在批准当前 canon 即重钉」批准 GLM 设定卡 v4(c4dd6cb6)+daoyan(59db5fb0)
+    # 演进后的当前 canon(bases comp f32a4517 / subject comp 2748852e),回执/台账/路径键同笔重钉。
     case=json.loads((w.TASK/'artifacts/cases.json').read_text())[0]
     receipt_bytes=(w.TASK/'reports/approved-live-subject-revision-1021-3dcutaway.json').read_bytes()
-    assert hashlib.sha256(receipt_bytes).hexdigest()=='d5003b2edf909e8bf44c763650c5c47317738fd36d2af454f96e52d859c33c69'
+    assert hashlib.sha256(receipt_bytes).hexdigest()=='a293ae5fac9f8ecb582c95d32e2d32f968b2e28855127a55811bd90a63ded0cb'
     receipt=json.loads(receipt_bytes)
     for evidence in receipt['evidence']+receipt['frozen']:
         assert hashlib.sha256(w.resolve(ROOT, evidence['path']).read_bytes()).hexdigest()==evidence['sha256'],evidence['path']
@@ -98,11 +100,11 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     assert set(revisions)=={base,subject}
     assert revisions[subject]=={
         'original_sha256':'40ecae03da80454b5dbec330c0bf17d2eedf6725993864e329f3b040a1ef99ea',
-        'approved_sha256':'af085263cf59e1b5554a95fdcd77c2c28daaa69b2d13ace87f7f4f84800a30a3',
+        'approved_sha256':'2748852eea27b650267c360ab3d4c83efb53e25b65c28ce26ca63ea378c9dcff',
         'role':'runtime_execution_input_updated_after_snapshot',
         'historical_backup':'.trellis/tasks/archive/2026-10/10-18-daojie-conflict-p3-subject-docs/backups/道劫_类型主体句示例.md.bak-1019-p3',
         'leaf_receipt':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/approved-live-subject-revision-1021-3dcutaway.json',
-        'leaf_receipt_sha256':'d5003b2edf909e8bf44c763650c5c47317738fd36d2af454f96e52d859c33c69',
+        'leaf_receipt_sha256':'a293ae5fac9f8ecb582c95d32e2d32f968b2e28855127a55811bd90a63ded0cb',
     }
     subject_revision=revisions[subject]
     assert hashlib.sha256(w.resolve(ROOT, subject_revision['historical_backup']).read_bytes()).hexdigest()==subject_revision['original_sha256']
@@ -122,18 +124,18 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     assert gender[2]['parts'][0]['text']=='按照你的建议去做'
     assert revisions[base]=={
         'original_sha256':'a2df104bf740670cbea1fbe9b06ba43c7695b7d2be26d0a6cfc621e422967bff',
-        'approved_sha256':'ada5cb13f2aa0110977b94c5885b1f9210cba328721874a1402513d57bbf62be',  # 1108 声明句字段化重锚(显示名归一化口径)
+        'approved_sha256':'f32a45178dbac5927159c9dd61865ee0890d9afcced7260b3b353c9f14d429ac',  # 1114 canon 随迁(设定卡 v4 + daoyan 演进,显示名归一化口径)
         'role':'runtime_execution_input_updated_after_snapshot',
         'historical_backup':'.trellis/tasks/archive/2026-10/10-18-daojie-conflict-p1-canon/backups/qi21_bases.json',
         'approval':{
-            'path':'.trellis/tasks/11-08-qi21-assembly-structify/reports/bases-reapproval-1108-decl-fieldize.md',
-            'anchor':'## Decisions(1108 用户令「装配管线的结构化改造」)',
-            'sha256':'bbcf2c8581774ecf0b3b86ab7d17cd9d01957c2bdb7d9f21f29e1e8f6e04a190',
+            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-reapproval-1114-canon.md',
+            'anchor':'## Decisions(1114 用户令「现在批准当前 canon 即重钉」)',
+            'sha256':'e565a9351c4046e522216247fc75bb3286aad494b8e7f52cb2941502a739f1ce',
         },
         'change_ledger':{
-            'path':'.trellis/tasks/11-08-qi21-assembly-structify/reports/bases-change-ledger-1108-decl-fieldize.md',
-            'anchor':'## 字段级变更(13 字段:11 处声明句删除 + 1 处混合句拆分 + layer_contract 文案)',
-            'sha256':'2b433587a889d9f291ab8964f96c562893afe2efbdc749ead5e566aa1ce893b5',
+            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-change-ledger-1114-canon.md',
+            'anchor':'## 字段级变更(1114 canon 随迁:11→14 型 + sheet_card 双注册表 + resolution_override)',
+            'sha256':'ce7223998e0ba1126d09c343026b377f65f444a1fd93dad697dcdf2a7b3c3cf9',
         },
     }
     revision=revisions[base]
