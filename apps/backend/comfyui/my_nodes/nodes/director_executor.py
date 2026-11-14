@@ -823,6 +823,7 @@ class DirectorExecutor:
         chapter = state["chapter"]
         log = self._open_log(chapter)
         self._log = log
+        perf = state.get("perf") or {}
         runs, errors, artifacts = resolve_plan(state, self.H.list_output)
         if errors:
             log(f"run 拒绝:{'; '.join(errors)}")
@@ -913,8 +914,11 @@ class DirectorExecutor:
                             artifacts.setdefault(seg["id"], {})["p2"] = p2_rel
                         else:  # sancai(三采前统一卸载:首批进三采时一次)
                             if not self._freed:
-                                log("三采前统一卸载(首次)")
-                                self.H.free_memory()
+                                if perf.get("free_h3", True):
+                                    log("三采前统一卸载(首次)")
+                                    self.H.free_memory()
+                                else:
+                                    log("三采前卸载已关(perf.free_h3=False)")
                                 self._freed = True
                             reg = artifacts.get(seg["id"], {}).get("p2")
                             p2_rel, src = reg, "登记"
@@ -957,6 +961,12 @@ class DirectorExecutor:
                         break
                 if cancelled:
                     break
+                if perf.get("vram_clear", True) and len(runs) > 1:
+                    try:
+                        from comfy.model_management import soft_empty_cache
+                        soft_empty_cache()
+                    except Exception:
+                        pass
                 done += 1
             chapter_outputs = self._finalize(chapter, state, artifacts,
                                              cancelled, log=log)

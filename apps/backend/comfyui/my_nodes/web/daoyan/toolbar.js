@@ -567,23 +567,20 @@
       '<input type="file" class="dy-import-file" data-act="import-file" accept=".json,application/json">',
       "</div>",
     ].join("");
+    // 输出条(1115 grill 重写):三采阶梯真值只读(配方锁死,与执行链
+    // DIRECTOR_RECIPE 同源展示);删占位假件(声音/导出方式恒真无信息量,
+    // 段间引导三件=一镜到底域概念单镜无段,1113 阶段1.5 占位就此清)
     var outputBar = [
       '<div class="daoyan-output">',
-      '<div class="dy-out-title">输出 <span class="dy-hint">渲染输出参数(占位·阶段3 接执行链)</span></div>',
+      '<div class="dy-out-title">输出 <span class="dy-hint">三采阶梯(配方锁死)</span></div>',
       '<div class="dy-out-rows">',
       '<div class="dy-out-row">',
-      ocap("输出分辨率", "16:9 档"),
-      ocap("百万像素", "0.4"),
+      ocap("一采", "960×544"),
+      ocap("二采", "1440×832"),
+      ocap("三采", "2880×1664"),
       ocap("帧率", String(S().FRAME_GRID.fps)),
-      ocap("声音", "使用原声"),
-      ocap("导出方式", "全部导出"),
-      "</div>",
-      '<div class="dy-out-row">',
-      '<span class="dy-ocap dy-ocap--check" title="段间引导:相邻镜首尾衔接"><input type="checkbox" checked data-act="continuity"> 段间引导</span>',
-      ocap("上下文帧数", "22"),
-      ocap("引导方式", "引导"),
       '<button class="dy-btn dy-btn--live"' + (ctrl.view.livePreview ? ' style="box-shadow:0 0 0 1.5px #34d399"' : "")
-      + ' data-act="live-preview" title="实时预览:采样中实时帧回看(daoyan_preview 事件通道;阶段3 执行链发射)">实时预览</button>',
+      + ' data-act="live-preview" title="实时预览:采样中实时帧回看(daoyan_preview 事件通道)">实时预览</button>',
       "</div>",
       "</div>",
       "</div>",

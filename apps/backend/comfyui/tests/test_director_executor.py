@@ -731,3 +731,22 @@ def test_latent_file_never_counts_as_checkpoint(monkeypatch):
     with pytest.raises(de.DirectorError, match="无p1"):
         de.DirectorExecutor(_fake_classes(), hooks).run(
             "model", "vv", "aa", "cc", st, unique_id=1)
+
+
+
+
+def test_perf_switches_are_real_1115(monkeypatch):
+    """1115 grill:free_h3=False=跳过三采前卸载;vram_clear=False=跳过段间清。"""
+    st = _state()
+    st["stages"]["sancai"] = True
+    st["segments"] = [st["segments"][0]]
+    p1 = de.artifact_prefix("chapter-b001", "sb-01", "p1-draft")
+    p2 = de.artifact_prefix("chapter-b001", "sb-01", "p2-final")
+    p1f, p2f = p1 + "_00001.mp4", p2 + "_00001.mp4"
+    hooks, side, box = _fake_hooks(disk={p1: [p1f], p2: [p2f]})
+    _patch_save(monkeypatch, side)
+    st["perf"] = {"free_h3": False, "vram_clear": False}
+    FakeCls.calls.clear()
+    de.DirectorExecutor(_fake_classes(), hooks).run(
+        "model", "vv", "aa", "cc", st, unique_id=1)
+    assert box["freed"] == [], "free_h3=False 不得卸载"

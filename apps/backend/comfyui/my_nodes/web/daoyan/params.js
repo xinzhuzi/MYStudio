@@ -200,8 +200,6 @@
       '    <div class="dy-caplist">',
       capToggle("三采前卸 H3", "perf-free_h3", st.perf.free_h3, "/free 自动"),
       capToggle("段间清显存", "perf-vram_clear", st.perf.vram_clear),
-      capToggle("断点续跑", "perf-resume", st.perf.resume, "已完镜自动跳过"),
-      capToggle("产物回看", "perf-gallery", st.perf.gallery, "面板产物区 p1/p2/p3"),
       "    </div>",
       '    <div class="dy-note">显存清理四点位+model_prefetch 队列清坑随执行链(阶段3)落位。</div>',
       "  </div>",

@@ -536,7 +536,7 @@ test("⑰ 导出→导入全字段闭环:stages/color_fix/common_params/advanced
   sb.DaoyanCards.actions.addGroup(src.ctrl);
   sb.DaoyanToolbar.actions.setStage(src.ctrl, "sancai", true);
   sb.DaoyanParams.actions.setAdvanced(src.ctrl, "first_steps", 12);
-  sb.DaoyanParams.actions.togglePerf(src.ctrl, "resume"); // → false
+  sb.DaoyanParams.actions.togglePerf(src.ctrl, "free_h3"); // → false
   sb.DaoyanParams.actions.cycleColorFix(src.ctrl); // none→adain
   sb.DaoyanCards.actions.addCommonImage(src.ctrl, "canon-jc.png");
   sb.DaoyanPrompt.actions.setPromptField(src.ctrl, "summary", "Miners in fog.");
@@ -546,7 +546,7 @@ test("⑰ 导出→导入全字段闭环:stages/color_fix/common_params/advanced
   assert.equal(exported.stages.sancai, true);
   assert.equal(exported.color_fix, "adain");
   assert.equal(exported.advanced.first_steps, 12);
-  assert.equal(exported.perf.resume, false);
+  assert.equal(exported.perf.free_h3, false);
   // 回导新 ctrl:逐字段保全(旧缺陷=只回填 chapter/segments/common_images)
   const dst = makeCtrl(sb, { debounceMs: 10 });
   const r = sb.DaoyanToolbar.actions.importPayload(dst.ctrl, json);
@@ -554,7 +554,7 @@ test("⑰ 导出→导入全字段闭环:stages/color_fix/common_params/advanced
   assert.equal(dst.ctrl.state.stages.sancai, true, "勾选阶段不丢");
   assert.equal(dst.ctrl.state.color_fix, "adain", "color_fix 不丢");
   assert.equal(dst.ctrl.state.advanced.first_steps, 12, "高级采样偏离档不丢");
-  assert.equal(dst.ctrl.state.perf.resume, false, "性能开关不丢");
+  assert.equal(dst.ctrl.state.perf.free_h3, false, "性能开关不丢");
   assert.equal(dst.ctrl.state.common_images[0], "canon-jc.png");
   assert.equal(dst.ctrl.state.segments[0].prompt.summary, "Miners in fog.");
   // 终极断言:整包 canonical 状态同构(导出↔导入零损)
@@ -910,4 +910,29 @@ test("㉗ 选择运行=enqueue 真发车;取消=interrupt 真中断(无 Runner=�
   const root = stubElement();
   sb.DaoyanToolbar.build(root, ctrl);
   assert.ok(!root.innerHTML.includes('data-act="chapter"'), "重复章节输入框已移除");
+});
+
+
+// ── ㉘ 输出条真值+假件清场(1115 grill)──────────────────────────────
+test("㉘ 输出条=三采阶梯真值只读;占位假件(声音/导出方式/段间引导三件)清场;perf 假开关删除", () => {
+  const sb = loadPanel();
+  const { ctrl } = makeCtrl(sb);
+  const root = stubElement();
+  sb.DaoyanToolbar.build(root, ctrl);
+  const html = root.innerHTML;
+  assert.ok(html.includes("960×544") && html.includes("1440×832")
+    && html.includes("2880×1664"), "三采阶梯真值(与执行链 DIRECTOR_RECIPE 同源)");
+  assert.ok(html.includes('帧率 <b>24</b>'), "帧率24真值保留");
+  assert.ok(!html.includes("占位"), "无「占位」过时话");
+  assert.ok(!html.includes("使用原声") && !html.includes("全部导出"), "恒真非参数件已删");
+  assert.ok(!html.includes("段间引导") && !html.includes("上下文帧数")
+    && !html.includes("引导方式"), "段间引导三件(一镜到底域概念)已清");
+  assert.ok(html.includes("实时预览"), "实时预览(真通道)保留");
+  // perf 键集:恰 free_h3/vram_clear(1115 grill:resume/gallery 假开关删)
+  const perfKeys = Object.keys(ctrl.state.perf).sort();
+  assert.equal(JSON.stringify(perfKeys), '["free_h3","vram_clear"]');
+  const proot = stubElement();
+  sb.DaoyanParams.build(proot, ctrl);
+  assert.ok(!proot.innerHTML.includes("断点续跑") && !proot.innerHTML.includes("产物回看"),
+    "两假开关胶囊已删");
 });

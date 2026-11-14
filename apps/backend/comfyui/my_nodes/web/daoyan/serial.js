@@ -55,7 +55,7 @@
   /** 高级采样产线验证档(偏离即黄条警示,PRD R1.7) */
   var ADVANCED_DEFAULTS = { first_steps: 8, second_steps: 3, sampler: "lcm", scheduler: "simple", cfg: 1.0 };
   /** 性能区默认(全开) */
-  var PERF_DEFAULTS = { free_h3: true, vram_clear: true, resume: true, gallery: true };
+  var PERF_DEFAULTS = { free_h3: true, vram_clear: true };  // 1115 grill:resume/gallery 假开关删
   /** 引擎参考图槽上限(三采 AUTOGROW max=9 口径,公共+本组合计) */
   var MAX_REFERENCE_IMAGES = 9;
   /** 参考图异图上限(1114 用户裁定:≥9 异图=引擎原生崩;与 App 组装器
