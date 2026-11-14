@@ -11,7 +11,7 @@ FILES = {
     'twin': '/Users/zhengbingjin/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.json',
 }
 TITLES = {
-    9: "① 分镜帧(主图·必填)",
+    9: "① 分镜帧(主图·必填·手动先取消旁路)",
     110: "② 参考图1", 111: "② 参考图2", 112: "② 参考图3", 113: "② 参考图4",
     341: "② 参考图5", 342: "② 参考图6", 343: "② 参考图7", 344: "② 参考图8",
     345: "④ 尾帧(可选·i2v首尾双锚)",
