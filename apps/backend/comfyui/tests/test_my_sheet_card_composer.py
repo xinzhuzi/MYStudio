@@ -35,7 +35,7 @@ STEPS_DIR = (_TESTS.parents[3] / "apps/output/daojie-sheet-b-1112-arch1113"
                if (_TESTS.parents[3] / "apps/output/daojie-sheet-b-1112-arch1113").is_dir()
                else _TESTS.parents[3] / "apps/output/daojie-sheet-b-1112")
 # 金样 e6221c36 的产源步图住归档夹(1113 复测重掷顶位后指针随迁;两处皆无=skip)
-GOLDEN_SHA = "4528dac128480b04d900c227bbc249e7daffdb6a3511fe3c15e987766536eee9"  # v6=Skill-5.4 正名+底带档案栏+末圆内收(1114 金样重对;老 e6221c36=v1.1 档随役存档)
+GOLDEN_SHA = "9cb1086ba2246baffbfd8497b26fdb7b26a572a5449df723c8381288eaf72434"  # v6=Skill-5.4 正名+底带档案栏+装备格换源(剑穗/发带配饰,contain 整件入格;1114 金样重对;老 e6221c36=v1.1 档随役存档)
 
 
 def test_placeholder_compose(tmp_path):
@@ -111,7 +111,7 @@ def test_formats_registry_snapshot():
     assert full["rects"]["_palette"] == (36, 1974, 3804, 2124)   # v6 底部通栏信息带
     assert full["rects"]["fx_2"] == (3061, 1589, 3804, 1954)
     assert {k for k, m in full["modes"].items() if m == "contain"} \
-        == {"front", "side", "back", "weapon", "eye"}
+        == {"front", "side", "back", "weapon", "eye", "gear_1", "gear_2"}
     assert len(full["labels"]["text"]) == 15 and full["labels"]["size"] == 36
     assert len(sf.resolve("简版")["rects"]) == 10            # 9 格+_palette
     assert len(sf.resolve("无武器")["rects"]) == 17           # 16 格+_palette

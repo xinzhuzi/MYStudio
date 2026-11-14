@@ -218,8 +218,12 @@ def derive_cells(imgs: dict) -> dict:
         "fabric_1": zoom(imgs["master"], 0.5, 0.42, 0.30),
         "fabric_2": zoom(imgs["waist"], 0.5, 0.5, 0.60),
         "fabric_3": zoom(imgs["wrist"], 0.5, 0.5, 0.60),
-        "gear_1": zoom(imgs["waist"], 0.42, 0.52, 0.45),
-        "gear_2": zoom(imgs["waist"], 0.45, 0.50, 0.40),
+        # 装备=随身佩挂器物,语义三分界(1114 用户令「衣物还是武器装备要分清楚」):
+        # 衣物(袍裤靴)→材质/腰部/腕部格;武器本体→武器区;
+        # 此格只放配饰栏真源件(墨青发带/素银方扣/剑穗):
+        # 剑穗=武器图柄首垂穗特写;发带=侧头图冠区束带
+        "gear_1": zoom(imgs["weapon"], 0.09, 0.66, 0.21, 0.68),
+        "gear_2": zoom(imgs["head"], 0.55, 0.17, 0.64, 0.33),
         "fx_1": imgs["effect"],
         "fx_2": zoom(imgs["effect"], 0.62, 0.35, 0.55),
     }

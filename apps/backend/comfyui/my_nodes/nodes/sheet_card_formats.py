@@ -714,7 +714,8 @@ _FROZEN: dict = {
             "y4",
             "ihh"
           ]
-        ]
+        ],
+        "mode": "contain"
       },
       {
         "key": "gear_2",
@@ -739,7 +740,8 @@ _FROZEN: dict = {
             "y4",
             "r4"
           ]
-        ]
+        ],
+        "mode": "contain"
       },
       {
         "key": "fx_1",
@@ -1330,7 +1332,8 @@ _FROZEN: dict = {
             "y4",
             "ihh"
           ]
-        ]
+        ],
+        "mode": "contain"
       },
       {
         "key": "gear_2",
@@ -1355,7 +1358,8 @@ _FROZEN: dict = {
             "y4",
             "r4"
           ]
-        ]
+        ],
+        "mode": "contain"
       },
       {
         "key": "fx_1",
@@ -1681,7 +1685,8 @@ _FROZEN: dict = {
             "y4",
             "ihh"
           ]
-        ]
+        ],
+        "mode": "contain"
       },
       {
         "key": "gear_2",
@@ -1706,7 +1711,8 @@ _FROZEN: dict = {
             "y4",
             "r4"
           ]
-        ]
+        ],
+        "mode": "contain"
       },
       {
         "key": "fx_1",
