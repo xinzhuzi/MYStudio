@@ -172,6 +172,12 @@ def test_install_routes_shape(tmp_path, monkeypatch):
                 return fn
             return deco
 
+        def post(self, path):
+            def deco(fn):
+                routes[path] = fn
+                return fn
+            return deco
+
     server = types.ModuleType("server")
     server.PromptServer = types.SimpleNamespace(
         instance=types.SimpleNamespace(routes=_Routes()))
@@ -180,7 +186,9 @@ def test_install_routes_shape(tmp_path, monkeypatch):
     monkeypatch.setattr(ds, "_installed", False)
     ds.install()
     assert set(routes) == {"/my_daoyan/projects", "/my_daoyan/chapters",
-                           "/my_daoyan/logs"}
+                           "/my_daoyan/logs", "/my_daoyan/chapter_data",
+                           "/my_daoyan/chapter_image",
+                           "/my_daoyan/import_storyboard"}
 
     # projects:200+activeProjectId
     out = asyncio.run(routes["/my_daoyan/projects"](_Req({})))

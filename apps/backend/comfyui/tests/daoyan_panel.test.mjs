@@ -811,3 +811,72 @@ test("㉕ 进度文本:view.message(当前阶段消息)优先;运行日志钮开
 
 // require() 幂等防 tree-shake(双 runner 下保持 CJS 依赖引用)
 assert.ok(typeof require === "function");
+
+
+// ── ㉖ 章节驾驶舱(1114:选章自动带出+分镜表入时间线)───────────────────
+test("㉖ 驾驶舱:选章自动带出三件;分镜表→时间线整组替换可撤销", async () => {
+  const sb = loadPanel();
+  sb.DaoyanToolbar.selectors.reset();
+  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
+  // fetch 桩:项目册/章表/章数据/导入 POST 全覆盖
+  sb.fetch = function (url, opts) {
+    if (url.indexOf("/my_daoyan/projects") >= 0) {
+      return Promise.resolve({ json: () => Promise.resolve(
+        { projects: [{ id: "p1", name: "道劫" }], activeProjectId: "p1" }) });
+    }
+    if (url.indexOf("/my_daoyan/chapters") >= 0) {
+      return Promise.resolve({ json: () => Promise.resolve(
+        { chapters: [{ id: "chapter-001", title: "第1章" }], count: 1 }) });
+    }
+    if (url.indexOf("/my_daoyan/chapter_data") >= 0) {
+      return Promise.resolve({ json: () => Promise.resolve({
+        chapter: "chapter-001", title: "第1章：断剑为谁而鸣",
+        script: { text: "1-1 码头 ·约50秒\n镜头1：雾中渡河", lines: 2 },
+        directorPlan: { text: "《导演创作规划》", updatedAt: "t2" },
+        storyboards: { count: 2, items: [
+          { index: 1, duration: 5, videoDesc: "渡河", line: "走", image: "workflow-images/c1/sb1.png" },
+          { index: 2, duration: 4, videoDesc: "回望", line: "", image: "" }] } }) });
+    }
+    if (url.indexOf("/my_daoyan/import_storyboard") >= 0 && opts && opts.method === "POST") {
+      return Promise.resolve({ json: () => Promise.resolve({
+        ok: true, count: 2, copied: ["daoyan-sb-chapter-001-001.png"],
+        segments: [
+          { id: "sb-001-1", mode: "r2v", seconds: 5, seed: null,
+            prompt: { description: "渡河" }, images: ["daoyan-sb-chapter-001-001.png"] },
+          { id: "sb-001-2", mode: "r2v", seconds: 4, seed: null,
+            prompt: { description: "回望" }, images: [] }] }) });
+    }
+    return Promise.reject(new Error("unexpected " + url));
+  };
+  sb.DaoyanToolbar.selectors.reset();
+  let root = stubElement();
+  sb.DaoyanToolbar.build(root, ctrl);
+  await sleep(30);
+  sb.DaoyanToolbar.build(root, ctrl);  // 项目册到后再渲
+  // 选项目→选章
+  sb.DaoyanToolbar.actions.pickProject(ctrl, "p1");
+  await sleep(20);
+  sb.DaoyanToolbar.actions.pickChapter(ctrl, "chapter-001");
+  await sleep(30);
+  root = stubElement();
+  sb.DaoyanToolbar.build(root, ctrl);
+  await sleep(20);
+  sb.DaoyanToolbar.build(root, ctrl);
+  const html = root.innerHTML;
+  assert.ok(html.includes("章节驾驶舱"), "驾驶舱区渲染");
+  assert.ok(html.includes("第1章：断剑为谁而鸣"), "章名带出");
+  assert.ok(html.includes("雾中渡河"), "剧本内容带出");
+  assert.ok(html.includes("导演创作规划"), "导演计划带出");
+  assert.ok(html.includes("2 镜") && html.includes("分镜表 → 时间线"), "分镜表行+导入钮");
+  assert.ok(html.includes("/my_daoyan/chapter_image?"), "分镜缩略图走章图路由");
+  // 导入:segments 整组替换+可撤销
+  assert.equal(sb.DaoyanToolbar.actions.importStoryboard(ctrl), true);
+  await sleep(40);
+  assert.equal(ctrl.state.segments.length, 2, "两镜入时间线");
+  assert.equal(ctrl.state.segments[0].id, "sb-001-1");
+  assert.equal(ctrl.state.segments[0].prompt.description, "渡河");
+  assert.equal(JSON.stringify(ctrl.state.segments[0].images), '["daoyan-sb-chapter-001-001.png"]');
+  assert.equal(ctrl.state.segments[0].frames, 124, "秒数贴网格(5s→124f@24)");
+  ctrl.undo();
+  assert.equal(ctrl.state.segments.length, 0, "导入可撤销");
+});

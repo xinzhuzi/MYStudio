@@ -3,6 +3,9 @@
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
 """导演台新形态件生成器(11-13-director-console-remake 阶段2.5,1114 缺口①)。
 
+布局(1114 用户令「横向布局,最后保存视频节点要宽一些」):Note 左上;
+四 loader 横排一行→导演台→CreateVideo→SaveVideo(640 宽压轴)。
+
 PRD R1.3 终裁:``1_漫影自研/导演台.json`` 重生为**恰一条链(≤8 节点)**:
 loader×4 → 导演台节点×1 → CreateVideo → SaveVideo(+1 张最小说明 Note)
 ——零镜头组/零克隆/零预留组,多镜/阶段勾选/素材管理全在面板内。
@@ -83,40 +86,40 @@ def build_graph() -> dict:
         {"name": "clip", "type": "CLIP", "link": 4},
     ]
     nodes = [
-        _node(1, "MarkdownNote", [100, 100], [420, 200],
+        _node(1, "MarkdownNote", [60, 60], [420, 200],
               widgets=[NOTE_TEXT], props={"Node name for S&R": "MarkdownNote",
                                           "cnr_id": "comfy-core"}),
-        _node(2, "UNETLoader", [100, 340], [640, 148],
+        _node(2, "UNETLoader", [60, 300], [330, 148],
               outputs=[{"name": "MODEL", "type": "MODEL", "links": [1],
                         "slot_index": 0}],
               widgets=[UNET_NAME, UNET_DTYPE]),
-        _node(3, "VAELoader", [100, 520], [640, 118],
+        _node(3, "VAELoader", [420, 300], [330, 118],
               outputs=[{"name": "VAE", "type": "VAE", "links": [2],
                         "slot_index": 0}],
               widgets=[VAE_VIDEO]),
-        _node(4, "VAELoader", [100, 670], [640, 118],
+        _node(4, "VAELoader", [780, 300], [330, 118],
               outputs=[{"name": "VAE", "type": "VAE", "links": [3],
                         "slot_index": 0}],
               widgets=[VAE_AUDIO]),
-        _node(5, "CLIPLoader", [100, 820], [640, 178],
+        _node(5, "CLIPLoader", [1140, 300], [330, 178],
               outputs=[{"name": "CLIP", "type": "CLIP", "links": [4],
                         "slot_index": 0}],
               widgets=[CLIP_NAME, CLIP_TYPE, CLIP_DEVICE]),
-        _node(6, "MyDirectorConsole", [830, 340], [1040, 700],
+        _node(6, "MyDirectorConsole", [1560, 120], [1040, 700],
               inputs=console_inputs,
               outputs=[{"name": "IMAGE", "type": "IMAGE", "links": [5],
                         "slot_index": 0}],
               # timeline_data 隐藏单通道:面板接管,默认空串(新台本空态)
               widgets=[""],
               props={"Node name for S&R": "MyDirectorConsole"}),
-        _node(7, "CreateVideo", [1940, 380], [270, 232],
+        _node(7, "CreateVideo", [2660, 300], [300, 240],
               inputs=[{"name": "images", "type": "IMAGE", "link": 5},
                       # audio 口空悬:阶段3 执行链若出 AUDIO 再接(现 IMAGE 单出)
                       {"name": "audio", "type": "AUDIO", "link": None}],
               outputs=[{"name": "VIDEO", "type": "VIDEO", "links": [6],
                         "slot_index": 0}],
               widgets=list(CREATE_VIDEO_WIDGETS)),
-        _node(8, "SaveVideo", [1940, 670], [283, 564],
+        _node(8, "SaveVideo", [3020, 260], [640, 430],
               inputs=[{"name": "video", "type": "VIDEO", "link": 6},
                       {"name": "filename_prefix", "type": "STRING", "link": None},
                       {"name": "format", "type": "COMFY_DYNAMICCOMBO_V3",

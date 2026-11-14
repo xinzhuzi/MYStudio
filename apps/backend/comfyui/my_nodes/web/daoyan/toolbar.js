@@ -57,6 +57,19 @@
     ".dy-btn--live{background:linear-gradient(180deg,rgba(52,211,153,.32),rgba(52,211,153,.18));border-color:rgba(52,211,153,.55);color:#eafff5;}",
     ".dy-btn--live[disabled]{opacity:.92;}",
     ".dy-import-file{display:none;}",
+
+    /* 章节驾驶舱(1114:选章自动带出三件) */
+    ".dy-cockpit{margin-top:8px;border:1px solid rgba(110,168,254,.22);border-radius:10px;background:linear-gradient(180deg,rgba(16,24,40,.78),rgba(9,13,24,.84));padding:8px 12px;}",
+    ".dy-cockpit-head{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#dbe7fb;}",
+    ".dy-cockpit-head .dy-hint{font-size:10px;font-weight:400;color:#9aa7ba;}",
+    ".dy-cockpit details{margin-top:6px;border-top:1px dashed rgba(255,255,255,.08);padding-top:5px;}",
+    ".dy-cockpit summary{font-size:11.5px;font-weight:600;color:#cfd8e6;cursor:pointer;}",
+    ".dy-cockpit .dy-pane{max-height:220px;overflow-y:auto;margin-top:5px;font-size:11px;color:#cfd8e6;white-space:pre-wrap;word-break:break-word;background:rgba(5,8,15,.5);border-radius:7px;padding:6px 9px;line-height:1.7;}",
+    ".dy-sbtable{width:100%;border-collapse:collapse;margin-top:5px;font-size:10.5px;color:#cfd8e6;}",
+    ".dy-sbtable th,.dy-sbtable td{border:1px solid rgba(255,255,255,.08);padding:3px 6px;text-align:left;vertical-align:top;}",
+    ".dy-sbtable img{width:56px;height:32px;object-fit:cover;border-radius:4px;display:block;}",
+    ".dy-cockpit .dy-empty{font-size:10.5px;color:#9aa7ba;margin-top:4px;}",
+
     /* 产物总览(gallery:章草片/章终片+逐镜 p1/p2/p3;1114 缺口②) */
     ".daoyan-gallery{margin-top:8px;padding:8px 12px 10px;border:1px solid rgba(52,211,153,.22);border-radius:10px;background:linear-gradient(180deg,rgba(14,26,24,.78),rgba(8,14,16,.84));}",
     ".dy-gal-title{font-size:12px;font-weight:700;color:#d9f7ea;margin-bottom:6px;}",
@@ -206,6 +219,86 @@
       options, inList ? st.chapter : "", false);
   }
 
+
+  // ── 章节驾驶舱(1114:选章→剧本/导演计划/分镜表自动带出来)────────────
+  var cockpit = { pid: null, chapter: null, data: "loading" };
+
+  function ensureCockpit(pid, chapter) {
+    if (!pid || !chapter || typeof fetch !== "function") return Promise.resolve(null);
+    if (cockpit.pid === pid && cockpit.chapter === chapter
+        && cockpit.data !== "loading") {
+      return Promise.resolve(cockpit.data);
+    }
+    cockpit = { pid: pid, chapter: chapter, data: "loading" };
+    return fetchJson("/my_daoyan/chapter_data?project="
+      + encodeURIComponent(pid) + "&chapter=" + encodeURIComponent(chapter))
+      .then(function (d) { cockpit.data = d || "unavailable"; return cockpit.data; })
+      .catch(function () { cockpit.data = "unavailable"; return cockpit.data; });
+  }
+
+  function fetchPostJson(url, body) {
+    return fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).then(function (r) { return r.json(); });
+  }
+
+  function cockpitHtml(st) {
+    if (!currentPid || typeof fetch !== "function") return "";
+    var d = chaptersData[currentPid];
+    if (!d || d === "unavailable" || !Array.isArray(d.chapters)) return "";
+    var inList = d.chapters.some(function (c) { return c.id === st.chapter; });
+    if (!inList) return "";  // 手输章节无项目数据
+    var mine = (cockpit.pid === currentPid && cockpit.chapter === st.chapter)
+      ? cockpit.data : null;
+    if (mine === null || mine === "loading") {
+      return '<div class="dy-cockpit"><div class="dy-cockpit-head">章节驾驶舱'
+        + '<span class="dy-hint">章数据加载中…</span></div></div>';
+    }
+    if (mine === "unavailable" || !mine || mine.error) {
+      return '<div class="dy-cockpit"><div class="dy-cockpit-head">章节驾驶舱'
+        + '<span class="dy-hint">章数据不可达(项目位置缺/引擎读盘败)</span></div></div>';
+    }
+    var shots = (mine.storyboards && mine.storyboards.items) || [];
+    var sbRows = shots.map(function (x) {
+      var img = x.image
+        ? '<img loading="lazy" src="/my_daoyan/chapter_image?project='
+          + encodeURIComponent(currentPid) + "&rel=" + encodeURIComponent(x.image)
+          + '" alt="" onerror="this.remove()">' : "";
+      return "<tr><td>" + (x.index == null ? "-" : x.index) + "</td><td>"
+        + (x.duration == null ? "-" : x.duration) + "s</td><td>"
+        + esc(x.videoDesc || x.prompt || "") + "</td><td>"
+        + esc(x.line || "") + "</td><td>" + img + "</td></tr>";
+    }).join("");
+    var dp = mine.directorPlan || {};
+    return [
+      '<div class="dy-cockpit">',
+      '<div class="dy-cockpit-head">章节驾驶舱 · '
+      + esc(mine.title || st.chapter) + '<span class="dy-hint">'
+      + (mine.script && mine.script.lines ? mine.script.lines + " 行剧本" : "无剧本")
+      + " · " + shots.length + " 镜分镜 · "
+      + (dp.text ? "有导演计划" : "无导演计划") + "</span></div>",
+      '<details><summary>剧本(' + st.chapter + "_漫剧)</summary>"
+      + '<div class="dy-pane">' + esc((mine.script && mine.script.text) || "本章无剧本文件")
+      + "</div></details>",
+      '<details><summary>导演计划</summary>'
+      + (dp.text
+         ? '<div class="dy-pane">' + esc(dp.text) + "</div>"
+         : '<div class="dy-empty">本章暂无导演计划(在漫影工作台·任务中心生成)</div>')
+      + "</details>",
+      '<details><summary>分镜表(' + shots.length + " 镜)</summary>"
+      + (shots.length
+         ? '<table class="dy-sbtable"><tr><th>镜</th><th>秒</th><th>内容</th><th>台词</th><th>图</th></tr>'
+           + sbRows + "</table>"
+           + '<button class="dy-btn dy-btn--primary" data-act="import-sb"'
+           + ' title="分镜镜行→时间线组(时长/描述/分镜图入 input/,可直接勾阶段跑)">分镜表 → 时间线</button>'
+         : '<div class="dy-empty">本章暂无分镜表(在漫影工作台生成分镜后此处自动带出)</div>')
+      + "</details>",
+      "</div>",
+    ].join("");
+  }
+
   // ── 动作 ───────────────────────────────────────────────────────────
 
   var actions = {
@@ -230,10 +323,13 @@
       rerender();
       return currentPid;
     },
-    /** 章节下拉选中:唯一写入口=actions.setChapter 同路(写 st.chapter) */
+    /** 章节下拉选中:唯一写入口=actions.setChapter 同路(写 st.chapter);
+     * 并触发章节驾驶舱自动带出(1114) */
     pickChapter: function (ctrl, chapterId) {
       if (!chapterId) return false;
-      return actions.setChapter(ctrl, chapterId);
+      var r = actions.setChapter(ctrl, chapterId);
+      ensureCockpit(currentPid, chapterId).then(rerender);
+      return r;
     },
     /** 选择运行→运行态(取消钮活/进度走;此处=按钮态机) */
     startRun: function (ctrl) {
@@ -297,6 +393,36 @@
       return json;
     },
     undo: function (ctrl) { return ctrl.undo(); },
+
+    /** 分镜表→时间线(1114 自动带出来闭环):后端拷分镜图入 input/+
+     * 镜行映射 segments;成功=整组替换时间线(可 Ctrl+Z 回退) */
+    importStoryboard: function (ctrl) {
+      if (typeof fetch !== "function" || !currentPid) return false;
+      fetchPostJson("/my_daoyan/import_storyboard",
+        { project: currentPid, chapter: ctrl.state.chapter })
+        .then(function (r) {
+          if (!r || !r.ok || !Array.isArray(r.segments)) {
+            ctrl.view.message = (r && r.error) || "导入失败";
+            rerender();
+            return;
+          }
+          var S_ = S();
+          ctrl.apply(function (st) {
+            st.segments = r.segments.map(function (raw, i) {
+              return S_.normalizeSegment(raw, i);
+            });
+          });
+          ctrl.view.selected = 0;
+          ctrl.view.message = "分镜表已入时间线:" + r.count + " 镜(图 "
+            + (r.copied ? r.copied.length : 0) + " 张已传 input/)";
+          rerender();
+        })
+        .catch(function () {
+          ctrl.view.message = "导入请求失败";
+          rerender();
+        });
+      return true;
+    },
     /** 产物总览开关(PRD R1.6:章草片/章终片+逐镜 p1/p2/p3 一屏点看) */
     toggleGallery: function (ctrl) {
       ctrl.view.galleryOpen = !ctrl.view.galleryOpen;
@@ -436,7 +562,7 @@
       ? global.DaoyanLive.panelHtml() : "";
     var logsSlot = ctrl.view.logsOpen
       ? '<div class="daoyan-logs-slot" data-log="daoyan"></div>' : "";
-    root.innerHTML = businessBar + outputBar + logsSlot
+    root.innerHTML = businessBar + outputBar + cockpitHtml(st) + logsSlot
       + (ctrl.view.galleryOpen ? galleryPanel(ctrl) : "") + liveBar;
     bind(root, ctrl);
     wireLogs(root, ctrl, running);
@@ -485,6 +611,7 @@
           ? root.querySelector('[data-log="daoyan"]') : null;
         if (slot && global.DaoyanLogs) global.DaoyanLogs.refresh(slot);
       } else if (act === "live-preview") actions.toggleLivePreview(ctrl);
+      else if (act === "import-sb") actions.importStoryboard(ctrl);
       else if (act === "import") {
         var file = root.querySelector('[data-act="import-file"]');
         if (file) file.click();

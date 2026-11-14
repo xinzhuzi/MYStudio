@@ -34,6 +34,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 from pathlib import Path
 
 from .nodes.director_executor import OUT_DIR_ROOT
@@ -68,14 +69,21 @@ def _app_home_candidates() -> list[Path]:
     mac_default = Path.home() / "Library" / "Application Support" / "漫影工作室"
     win_default = (Path(os.environ.get("APPDATA", "")) / "漫影工作室"
                    if os.environ.get("APPDATA") else None)
-    candidates = [derived, mac_default]
-    if win_default is not None:
-        candidates.append(win_default)
+    # 平台定序(1114 探针实证):Win 存储根=引擎家父目录→推导层居首;
+    # macOS App userData 恒=Library 默认位→居首,推导层(dev 引擎家自带的
+    # default-project 空册)会让真册(道劫)被遮——实测坑,序即防线
+    if sys.platform == "win32":
+        candidates = [derived]
+        if win_default is not None:
+            candidates.append(win_default)
+        candidates.append(mac_default)
+    else:
+        candidates = [mac_default, derived]
     for home in candidates:
         if (home / "project-locations.json").is_file() \
                 or (home / "projects" / "mystudio-project-store.json").is_file():
             return [home]
-    return [derived]
+    return [candidates[0]]
 
 
 def _app_home() -> Path:
@@ -206,6 +214,184 @@ def _output_root() -> Path:
     return Path(folder_paths.get_output_directory())
 
 
+
+
+# ── 章节驾驶舱(1114 用户令「选章→剧本/导演计划/分镜表自动带出来」)────
+
+_IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp")
+_SCRIPT_CAP = 300_000
+_IMAGE_CAP = 20 * 1024 * 1024
+
+
+def _project_location_path(app_home, pid: str):
+    """pid→项目根 Path(位置册优先,store 兜底;不在册=None)。"""
+    home = Path(app_home)
+    locs: dict = {}
+    loc_file = home / "project-locations.json"
+    if loc_file.is_file():
+        data = _read_json(loc_file)
+        if isinstance(data, dict) and isinstance(data.get("locations"), dict):
+            locs = {str(k): str(v) for k, v in data["locations"].items()
+                    if isinstance(v, str)}
+    store_file = home / "projects" / "mystudio-project-store.json"
+    if not locs.get(pid) and store_file.is_file():
+        data = _read_json(store_file) or {}
+        for row in ((data.get("state") or {}).get("projects") or []):
+            if isinstance(row, dict) and row.get("id") == pid \
+                    and row.get("location"):
+                locs[pid] = str(row["location"])
+    loc = locs.get(pid)
+    return Path(loc) if loc else None
+
+
+def merge_storyboards(chapter_dir: Path) -> list:
+    """跨 storyboards-*.json 分片按 index 并集(后文件胜=最新态)。"""
+    merged: dict = {}
+    for shard in sorted(chapter_dir.glob("storyboards-*.json")):
+        data = _read_json(shard)
+        if not isinstance(data, dict):
+            continue
+        for item in ((data.get("state") or {}).get("storyboards") or []):
+            if isinstance(item, dict) and isinstance(item.get("index"), int):
+                merged[item["index"]] = item
+    return [merged[k] for k in sorted(merged)]
+
+
+def latest_agent_work(chapter_dir: Path, key: str):
+    """agentWorkData 指定 key 的最新条(directorPlan 等)。"""
+    best = None
+    for shard in sorted(chapter_dir.glob("agent-work-data-*.json")):
+        data = _read_json(shard)
+        if not isinstance(data, dict):
+            continue
+        for ent in ((data.get("state") or {}).get("agentWorkData") or []):
+            if isinstance(ent, dict) and ent.get("key") == key:
+                best = ent
+    return best
+
+
+def _media_rel(media_ref) -> str:
+    """project-file://<pid>/<rel> → <rel>(分镜图定位口径)。"""
+    path = str((media_ref or {}).get("path") or "")
+    if not path.startswith("project-file://"):
+        return ""
+    parts = path.split("/", 3)
+    return parts[3] if len(parts) == 4 else ""
+
+
+def chapter_title(location: Path, chapter: str) -> str:
+    manifest = location / "store" / "studio-workflow" / "manifest.json"
+    if manifest.is_file():
+        data = _read_json(manifest)
+        for row in ((data or {}).get("chapterIndex") or []):
+            if isinstance(row, dict) and row.get("id") == chapter:
+                return str(row.get("title") or "")
+    md = location / "novel" / "chapters" / f"{chapter}.md"
+    if md.is_file():
+        for line in md.read_text(encoding="utf-8", errors="ignore") \
+                .splitlines()[:6]:
+            if line.startswith("# "):
+                return line[2:].strip()
+    return ""
+
+
+def chapter_payload(location: Path, chapter: str) -> dict:
+    """章节驾驶舱三件:剧本(drama md)/导演计划(agentWorkData)/分镜表。"""
+    if not chapter or not valid_chapter(chapter):
+        return {"error": "非法 chapter 参数"}
+    cdir = location / "store" / "studio-workflow" / "chapters" / chapter
+    drama = location / "novel" / "drama" / f"{chapter}_漫剧.md"
+    script_text = ""
+    if drama.is_file():
+        try:
+            script_text = drama.read_text(
+                encoding="utf-8", errors="ignore")[:_SCRIPT_CAP]
+        except Exception:
+            script_text = ""
+    dp = latest_agent_work(cdir, "directorPlan") or {}
+    items = []
+    for shot in merge_storyboards(cdir):
+        items.append({
+            "index": shot.get("index"), "id": shot.get("id"),
+            "duration": shot.get("duration"),
+            "prompt": str(shot.get("prompt") or "")[:160],
+            "videoDesc": str(shot.get("videoDesc") or "")[:160],
+            "line": str(shot.get("line") or "")[:80],
+            "image": _media_rel(shot.get("mediaRef")),
+        })
+    return {
+        "chapter": chapter,
+        "title": chapter_title(location, chapter),
+        "script": {"text": script_text,
+                   "lines": (script_text.count(chr(10)) + 1)
+                   if script_text else 0},
+        "directorPlan": {"text": str(dp.get("data") or ""),
+                         "updatedAt": dp.get("updatedAt")},
+        "storyboards": {"items": items, "count": len(items)},
+    }
+
+
+def chapter_image_bytes(location: Path, rel: str):
+    """分镜图读取(白名单目录+扩展名+20MB 帽;返回 (bytes|None, err|None))。"""
+    rel = str(rel or "").strip().lstrip("/").replace("\\", "/")
+    if not rel or ".." in rel.split("/"):
+        return None, "非法路径"
+    if not (rel.startswith("workflow-images/")
+            or rel.startswith("continuity-bibles/")):
+        return None, "路径不在分镜图/连续性资产白名单"
+    p = location / rel
+    if not p.is_file() or p.suffix.lower() not in _IMAGE_EXTS:
+        return None, "图不存在或非图件"
+    data = p.read_bytes()
+    if len(data) > _IMAGE_CAP:
+        return None, "图超 20MB 帽"
+    return data, None
+
+
+def import_storyboard(location: Path, chapter: str, input_dir: Path) -> dict:
+    """分镜表→时间线组:镜行映射 segment+分镜图拷入 input/(自动带出来)。"""
+    if not chapter or not valid_chapter(chapter):
+        return {"ok": False, "error": "非法 chapter 参数", "segments": []}
+    cdir = location / "store" / "studio-workflow" / "chapters" / chapter
+    shots = merge_storyboards(cdir)
+    if not shots:
+        return {"ok": False, "error": "本章无分镜表(先在漫影工作台生成分镜)",
+                "segments": []}
+    input_dir.mkdir(parents=True, exist_ok=True)
+    segments, copied = [], []
+    for shot in shots:
+        idx = shot.get("index") or 0
+        try:
+            seconds = round(float(shot.get("duration") or 5) * 2) / 2
+        except (TypeError, ValueError):
+            seconds = 5.0
+        seconds = min(15.0, max(1.0, seconds))
+        images = []
+        rel = _media_rel(shot.get("mediaRef"))
+        if rel:
+            data, _err = chapter_image_bytes(location, rel)
+            if data is not None:
+                ext = Path(rel).suffix.lower() or ".png"
+                name = f"daoyan-sb-{chapter}-{idx:03d}{ext}"
+                target = input_dir / name
+                if not target.exists():
+                    target.write_bytes(data)
+                images = [name]
+                copied.append(name)
+        desc = str(shot.get("videoDesc") or "").strip() \
+            or str(shot.get("prompt") or "").strip()
+        segments.append({
+            "id": str(shot.get("id") or f"sb-{chapter}-{idx:03d}"),
+            "mode": "r2v", "seconds": seconds, "seed": None,
+            "rerun": False,
+            "prompt": {"summary": "", "retention": "",
+                       "description": desc, "soundscape": ""},
+            "images": images,
+        })
+    return {"ok": True, "segments": segments, "copied": copied,
+            "count": len(segments)}
+
+
 def install() -> None:
     """挂三条只读路由(幂等守卫;失败静默打印,不影响节点与出图)。"""
     global _installed
@@ -250,6 +436,61 @@ def install() -> None:
                 return web.json_response(
                     {"chapter": "", "path": None, "lines": [],
                      "error": str(error)}, status=500)
+
+
+        @PromptServer.instance.routes.get("/my_daoyan/chapter_data")
+        async def _chapter_data(request):
+            try:
+                pid = request.rel_url.query.get("project", "")
+                chapter = request.rel_url.query.get("chapter", "")
+                loc = _project_location_path(_app_home(), pid)
+                if loc is None:
+                    return web.json_response(
+                        {"error": f"项目 {pid} 不在册"}, status=404)
+                data = chapter_payload(loc, chapter)
+                return web.json_response(
+                    data, status=400 if data.get("error") else 200)
+            except Exception as error:  # noqa: BLE001
+                return web.json_response({"error": str(error)}, status=500)
+
+        @PromptServer.instance.routes.get("/my_daoyan/chapter_image")
+        async def _chapter_image(request):
+            try:
+                pid = request.rel_url.query.get("project", "")
+                rel = request.rel_url.query.get("rel", "")
+                loc = _project_location_path(_app_home(), pid)
+                if loc is None:
+                    return web.json_response(
+                        {"error": "项目不在册"}, status=404)
+                data, err = chapter_image_bytes(loc, rel)
+                if data is None:
+                    return web.json_response({"error": err}, status=400)
+                ctype = ("image/png" if rel.lower().endswith(".png")
+                         else "image/jpeg")
+                return web.Response(body=data, content_type=ctype)
+            except Exception as error:  # noqa: BLE001
+                return web.json_response({"error": str(error)}, status=500)
+
+        @PromptServer.instance.routes.post("/my_daoyan/import_storyboard")
+        async def _import_storyboard(request):
+            try:
+                body = await request.json()
+                pid = str((body or {}).get("project", ""))
+                chapter = str((body or {}).get("chapter", ""))
+                loc = _project_location_path(_app_home(), pid)
+                if loc is None:
+                    return web.json_response(
+                        {"ok": False, "error": f"项目 {pid} 不在册",
+                         "segments": []}, status=404)
+                import folder_paths
+                input_dir = Path(folder_paths.get_input_directory())
+                data = import_storyboard(loc, chapter, input_dir)
+                return web.json_response(
+                    data, status=200 if data.get("ok") else 400)
+            except Exception as error:  # noqa: BLE001
+                return web.json_response(
+                    {"ok": False, "error": str(error), "segments": []},
+                    status=500)
 
         _installed = True
         print("[daoyan] 面板路由已挂载:/my_daoyan/projects、"
