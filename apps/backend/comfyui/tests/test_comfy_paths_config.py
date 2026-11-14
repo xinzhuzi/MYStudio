@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from comfyui import manifest as cm
+from comfyui import engine_manager as em
 from comfyui.engine_manager import EngineManager, EngineOpError
 
 
@@ -19,6 +20,8 @@ from comfyui.engine_manager import EngineManager, EngineOpError
 def home(tmp_path, monkeypatch):
     monkeypatch.setenv("MYSTUDIO_COMFYUI_HOME", str(tmp_path / "comfyui"))
     cm._read_cache.clear()
+    # 隔离全局 job 注册表:前序 migrate 测试留的 running job 会污染后续 migrate 分支判定
+    monkeypatch.setattr(em, "jobs", em.JobRegistry())
     return tmp_path / "comfyui"
 
 
