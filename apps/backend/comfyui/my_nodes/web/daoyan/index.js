@@ -12,7 +12,7 @@
 // 导演台面板引擎入口(阶段2 交互接线):识别 MyDirectorConsole→隐藏原生
 // timeline_data widget(单通道由面板接管)→addDOMWidget 挂六区容器→
 // DaoyanSerial.createController 绑 widget(读=onConfigure 恢复,写=500ms
-// 去抖 timeline_data JSON)→组件区渲染(组件六件为 IIFE 挂 window.DaoyanXxx,
+// 去抖 timeline_data JSON)→组件区渲染(组件七件为 IIFE 挂 window.DaoyanXxx,
 // preview/测试同源;本件为唯一 ES module)。
 // 交互闭环:任何编辑→apply→去抖 commit→widget.value=JSON;入队前强 flush
 // (queuePrompt patch);Ctrl+Z=撤销快照栈(PRD R1.6)。
@@ -25,6 +25,7 @@ import "./timeline.js";
 import "./cards.js";
 import "./prompt.js";
 import "./live.js";
+import "./logs.js";
 
 const NODE_TYPE = "MyDirectorConsole";
 const PANEL_DOM_WIDGET_NAME = "daoyan_panel";
@@ -156,15 +157,28 @@ app.registerExtension({
     api.addEventListener("daoyan_preview", (e) => {
       globalThis.DaoyanLive && globalThis.DaoyanLive.onSample(e.detail || {});
     });
-    // 执行链进度回填(阶段3):running/done 驱动进度条;终态清 running
+    // 执行链进度回填(阶段3):running/done 驱动进度条,message/stage 存
+    // view(工具条进度文本显示当前阶段消息);终态(全部完成/已取消/失败)
+    // 清 running;终态另携 chapter_outputs(章草片/章终片)→apply 回填
+    // st.chapter_outputs(gallery 章级行点亮,1114 阶段3.5)
     api.addEventListener("daoyan_progress", (e) => {
       const d = e.detail || {};
       const ctrl = ctrlByNode.get(d.node_id);
       if (!ctrl) return;
-      const fin = /全部完成|已取消/.test(String(d.message || ""));
+      const fin = /全部完成|已取消|失败/.test(String(d.message || ""));
       ctrl.view.running = !fin;
       if (typeof d.done === "number") ctrl.view.done = d.done;
       if (typeof d.total === "number") ctrl.view.total = d.total;
+      if (d.message != null) ctrl.view.message = String(d.message);
+      if (d.stage != null) ctrl.view.stage = String(d.stage);
+      if (d.chapter_outputs && typeof d.chapter_outputs === "object") {
+        ctrl.apply((st) => {
+          const co = d.chapter_outputs;
+          if (co.draft) st.chapter_outputs.draft = String(co.draft);
+          if (co.final) st.chapter_outputs.final = String(co.final);
+        });
+        return;
+      }
       ctrl.apply(() => {});
     });
     // 产物落盘回填(阶段3):事件携带逐镜 p1/p2/p3 相对路径→state.artifacts

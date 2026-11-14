@@ -315,12 +315,15 @@ def test_dry_run_yicai_only_concat_draft(monkeypatch):
 
 
 def test_dry_run_ercai_alone_resamples_p1_without_saving(monkeypatch):
-    """☑2 单独吃盘上 p1:SaveVideo(p1) 零调用,一采采样照跑取 latent。"""
+    """☑2 单独吃盘上 p1:SaveVideo(p1) 零调用,一采采样照跑取 latent;
+    重采样路可观测=log 含「latent-only(吃盘上p1)」与 seed 行(1114)。"""
     st = _state()
     st["stages"]["ercai"] = True
     st["segments"] = [st["segments"][0]]
     p1 = de.artifact_prefix("chapter-b001", "sb-01", "p1-draft")
     hooks, side, box = _fake_hooks(disk={p1: [p1 + "_00001.mp4"]})
+    collector = _LogCollector()
+    hooks.open_run_log = lambda ch: collector
     _patch_save(monkeypatch, side)
     FakeCls.calls.clear()
     res = de.DirectorExecutor(_fake_classes(), hooks).run(
@@ -332,6 +335,11 @@ def test_dry_run_ercai_alone_resamples_p1_without_saving(monkeypatch):
                                  for n, _ in FakeCls.calls)  # 重采样跑了
     assert res["artifacts"]["sb-01"]["p2"].endswith("p2-final_00001.mp4")
     assert not box["ffmpeg"]  # 二采不拼章级
+    # 可观测:重采样行带 latent-only 口径+seed;潜放大形状入行
+    joined = collector.joined()
+    assert "latent-only(吃盘上p1,同seed确定性)" in joined
+    assert "seed=42" in joined
+    assert "潜放大" in joined and "对齐=32" in joined
 
 
 def test_dry_run_interrupt_keeps_completed(monkeypatch):  # noqa: F811
@@ -359,3 +367,231 @@ def test_dry_run_missing_ref_names_shot(monkeypatch):
     with pytest.raises(de.DirectorError, match="第1镜\\(sb-01\\).*missing.png"):
         de.DirectorExecutor(_fake_classes(), hooks).run(
             "model", "vv", "aa", "cc", st, unique_id=1)
+
+
+# ── §日志与可观测(1114 阶段3.5):计划留痕/臂名/失败上下文+终态/preview
+#    契约/chapter_outputs+跳过点名/ffmpeg 逐挡/重采样日志/中断分类 ──────
+
+class _LogCollector:
+    """伪 RunLog:收集行(__call__/stage/context 三面,与 RunLog 同口)。"""
+
+    def __init__(self):
+        self.lines = []
+
+    def __call__(self, msg):
+        self.lines.append(str(msg))
+        return str(msg)
+
+    def stage(self, seg_id, stage, event, **kv):
+        line = " ".join([str(seg_id), str(stage), str(event)]
+                        + [f"{k}={v}" for k, v in kv.items()])
+        self.lines.append(line)
+        return line
+
+    def context(self, **kv):
+        return self
+
+    def joined(self):
+        return "\n".join(self.lines)
+
+
+def _run_with_log(monkeypatch, st, disk=None):
+    hooks, side, box = _fake_hooks(disk=disk)
+    collector = _LogCollector()
+    hooks.open_run_log = lambda ch: collector
+    _patch_save(monkeypatch, side)
+    FakeCls.calls.clear()
+    res = de.DirectorExecutor(_fake_classes(), hooks).run(
+        "model", "vv", "aa", "cc", st, unique_id=1)
+    return res, box, collector
+
+
+def test_plan_decisions_logged(monkeypatch):
+    """计划门控决策留痕:勾1+2 且 sb-01 盘上已有 p1→log 含「p1=命中」
+    「todo=ercai」;rerun=True 镜行含 rerun=1。"""
+    st = _state()
+    st["stages"]["yicai"] = st["stages"]["ercai"] = True
+    p1 = de.artifact_prefix("chapter-b001", "sb-01", "p1-draft")
+    _, _, log = _run_with_log(monkeypatch, st, disk={p1: [p1 + "_00001.mp4"]})
+    joined = log.joined()
+    assert "p1=命中" in joined and "todo=ercai" in joined
+    # 重掷:强制覆盖(已完镜也重跑)
+    st2 = _state()
+    st2["stages"]["yicai"] = st2["stages"]["ercai"] = True
+    st2["segments"][0]["rerun"] = True
+    _, _, log2 = _run_with_log(monkeypatch, st2, disk={p1: [p1 + "_00001.mp4"]})
+    joined2 = log2.joined()
+    assert "rerun=1" in joined2 and "todo=yicai,ercai" in joined2
+
+
+def test_kit_build_logs_and_failure_names_arm():
+    """三臂构建逐臂日志(r2v/i2v/二采 各带 LoRA 名与 σ 档);伪
+    LoraLoaderModelOnly 定向首发抛→错误行点名「r2v 臂」臂名。"""
+    lines: list = []
+    de.build_model_kit(_fake_classes(), "model", lines.append)
+    joined = "\n".join(lines)
+    assert "kit r2v 臂构建" in joined
+    assert "pika_h3_flex_ref2va_comfy_bf16.safetensors" in joined
+    assert "kit i2v 臂构建" in joined and "σ=(6,3)" in joined
+    assert "kit 二采臂构建" in joined
+    assert "taomate_h3_3step.safetensors" in joined and "σ=(12,3)" in joined
+    # 定向失败:第一发 LoraLoaderModelOnly(r2v 臂头)抛 → 点名臂名
+    classes = _fake_classes()
+    counter = {"n": 0}
+    base = classes["LoraLoaderModelOnly"]
+
+    class BoomLora(base):
+        def __init__(self):
+            base.__init__(self)
+            self.name = "LoraLoaderModelOnly"
+
+        def go(self, **kw):
+            counter["n"] += 1
+            if counter["n"] == 1:
+                raise RuntimeError("lora boom")
+            return base.go(self, **kw)
+
+    classes["LoraLoaderModelOnly"] = BoomLora
+    fails: list = []
+    with pytest.raises(de.DirectorError, match="r2v 臂构建失败"):
+        de.build_model_kit(classes, "model", fails.append)
+    assert any("r2v 臂构建失败" in x and "lora boom" in x for x in fails)
+
+
+def test_stage_error_wrapped_with_context_and_terminal_event(monkeypatch):
+    """阶段失败全包:伪 SamplerCustomAdvanced 第4发抛 RuntimeError→
+    DirectorError 含「第2镜(sb-02)·二采」+seed/步骤/σ 上下文;发出
+    message 含「失败」的终态 daoyan_progress 事件(payload 带
+    done/total/chapter_outputs=面板清 running 判据)。"""
+    st = _state()
+    for k in ("yicai", "ercai", "sancai"):
+        st["stages"][k] = True
+    classes = _fake_classes()
+    counter = {"n": 0}
+    base = classes["SamplerCustomAdvanced"]
+
+    class BoomSampler(base):
+        def __init__(self):
+            base.__init__(self)
+            self.name = "SamplerCustomAdvanced"
+
+        def go(self, **kw):
+            counter["n"] += 1
+            if counter["n"] == 4:
+                raise RuntimeError("sampler boom")
+            return base.go(self, **kw)
+
+    classes["SamplerCustomAdvanced"] = BoomSampler
+    hooks, side, box = _fake_hooks()
+    collector = _LogCollector()
+    hooks.open_run_log = lambda ch: collector
+    _patch_save(monkeypatch, side)
+    FakeCls.calls.clear()
+    with pytest.raises(de.DirectorError) as ei:
+        de.DirectorExecutor(classes, hooks).run(
+            "model", "vv", "aa", "cc", st, unique_id=1)
+    msg = str(ei.value)
+    assert "第2镜(sb-02)·二采失败" in msg
+    assert "seed=7" in msg and "steps=3" in msg and "σ=(12,3)" in msg
+    assert "sampler boom" in msg
+    finals = [p for t, p in box["events"]
+              if t == "daoyan_progress" and "失败" in str(p.get("message", ""))]
+    assert finals, "须发失败终态事件"
+    fp = finals[-1]
+    assert "第2/2 镜" in fp["message"]
+    assert fp["done"] == 1 and fp["total"] == 2
+    assert fp["chapter_outputs"] == {}
+    assert any("第2镜(sb-02)·二采 失败" in x and "err=RuntimeError" in x
+               for x in collector.lines)
+
+
+def test_preview_payload_contract(monkeypatch):
+    """daoyan_preview payload 键集={node_id,segment_id,segment_index,url,
+    step,total}(对齐 live.js 消费契约;step/total=改采样器本体禁区,如实
+    null);面板侧同形 payload 喂 DaoyanLive.onSample 由
+    daoyan_panel.test.mjs ㉔ 双端钉死。"""
+    st = _state()
+    st["stages"]["yicai"] = True
+    _, box, _ = _run_with_log(monkeypatch, st)
+    previews = [p for t, p in box["events"] if t == "daoyan_preview"]
+    assert previews
+    for payload in previews:
+        assert set(payload.keys()) == {"node_id", "segment_id",
+                                       "segment_index", "url", "step",
+                                       "total"}
+        assert payload["step"] is None and payload["total"] is None
+
+
+def test_finalize_outputs_and_skip_named(monkeypatch):
+    """☑3 跑通:终态事件 payload.chapter_outputs 含 final 路径;构造一镜
+    缺 p3 的 finalize→log 点名「跳过=1镜[<id>(无p3)]」。"""
+    st = _state()
+    st["stages"]["sancai"] = True
+    p2a = de.artifact_prefix("chapter-b001", "sb-01", "p2-final")
+    p2b = de.artifact_prefix("chapter-b001", "sb-02", "p2-final")
+    _, box, _ = _run_with_log(
+        monkeypatch, st,
+        disk={p2a: [p2a + "_00001.mp4"], p2b: [p2b + "_00001.mp4"]})
+    finals = [p for t, p in box["events"] if t == "daoyan_progress"]
+    assert finals[-1]["chapter_outputs"]["final"].endswith("章终片.mp4")
+    # 缺 p3 一镜:finalize 源/跳过逐镜点名(直接构造 artifacts 面)
+    hooks, _, _ = _fake_hooks()
+    ex = de.DirectorExecutor(_fake_classes(), hooks)
+    collector = _LogCollector()
+    st3 = _state()
+    st3["stages"]["sancai"] = True
+    out = ex._finalize("chapter-b001", st3,
+                       {"sb-01": {"p3":
+                                  "video/导演台/c/sb-01/p3-recavsr.mp4"}},
+                       False, log=collector)
+    assert out["final"].endswith("章终片.mp4")
+    assert any("跳过=1镜[sb-02(无p3)]" in x for x in collector.lines)
+
+
+def test_ffmpeg_tier_logging(tmp_path):
+    """模块级 ffmpeg_concat:伪 run_cmd rc 序(1,1,0)→三行逐挡日志
+    (挡1 rc=1/挡2 rc=1/挡3 成功)且返回成功;三挡全败→RuntimeError 带
+    末挡 stderr(零真 ffmpeg)。"""
+
+    class Proc:
+        def __init__(self, rc, err):
+            self.returncode = rc
+            self.stderr = err
+            self.stdout = ""
+
+    def make_cmd(rcs):
+        calls: list = []
+
+        def run_cmd(args, **kw):
+            calls.append(list(args))
+            return Proc(rcs.pop(0), f"boom{len(calls)}")
+
+        return run_cmd, calls
+
+    rels = ["a.mp4", "b.mp4"]
+    out_rel = "video/导演台/chapter-b001/章终片.mp4"
+    lines: list = []
+    run_cmd, calls = make_cmd([1, 1, 0])
+    assert de.ffmpeg_concat(tmp_path, rels, out_rel, lines.append,
+                            run_cmd=run_cmd) is True
+    joined = "\n".join(lines)
+    assert "挡1(copy) rc=1" in joined and "挡2(copy+hvc1) rc=1" in joined
+    assert "挡3(x264) 成功" in joined
+    assert len(calls) == 3
+    lines2: list = []
+    run_cmd2, _ = make_cmd([1, 1, 1])
+    with pytest.raises(RuntimeError, match="boom3"):
+        de.ffmpeg_concat(tmp_path, rels, out_rel, lines2.append,
+                         run_cmd=run_cmd2)
+
+
+def test_interrupt_classified():
+    """中断分类谓词(纯函数):InterruptProcessingException 同名异常→
+    True(=取消);ValueError→False(bind 侧原样上抛路径)。"""
+
+    class InterruptProcessingException(Exception):  # noqa: A001 - 引擎同名桩
+        pass
+
+    assert de.classify_interrupt(InterruptProcessingException("stop")) is True
+    assert de.classify_interrupt(ValueError("x")) is False
+

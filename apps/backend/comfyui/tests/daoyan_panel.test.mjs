@@ -7,8 +7,8 @@
  * 摘要行(PRD R1.6-1)、导出→导入全字段闭环。
  * 跑法:node --test apps/backend/comfyui/tests/daoyan_panel.test.mjs
  *
- * 被测对象 = my_nodes/web/daoyan/ 六件 IIFE 组件(serial/timeline/cards/
- * params/prompt/toolbar)——vm 加载真源文件 + 最小 DOM stub(无 jsdom、
+ * 被测对象 = my_nodes/web/daoyan/ 七件 IIFE 组件(serial/timeline/cards/
+ * params/prompt/toolbar/logs)——vm 加载真源文件 + 最小 DOM stub(无 jsdom、
  * 无引擎、无 GPU;断言面=动作函数/序列化/渲染 HTML 字符串)。
  * index.js 为引擎 ES module 入口(/scripts/app.js 依赖),不入 vm;
  * 其接线逻辑(去抖写回/onConfigure 恢复/Ctrl+Z)由控制器 API 同面覆盖。
@@ -70,7 +70,7 @@ function loadPanel() {
     body: { appendChild() {} },
   };
   const ctx = vm.createContext(sandbox);
-  for (const f of ["serial.js", "toolbar.js", "params.js", "timeline.js", "cards.js", "prompt.js", "live.js"]) {
+  for (const f of ["serial.js", "toolbar.js", "params.js", "timeline.js", "cards.js", "prompt.js", "live.js", "logs.js"]) {
     const code = readFileSync(path.join(WEB, f), "utf8");
     vm.runInContext(code, ctx, { filename: f });
   }
@@ -669,6 +669,139 @@ test("㉑ 实时预览:onSample 滚动样本;宿主直渲;开关门;按钮点亮
   assert.ok(!bar.innerHTML.includes('data-act="live-preview" disabled'), "按钮已点亮非灰壳");
   assert.ok(bar.innerHTML.includes("实时预览已开启") || bar.innerHTML.includes("帧样本"), "预览条有实内容");
   sb.DaoyanLive.reset();
+});
+
+// ── ㉒ 项目/章节两级下拉(1114 阶段3.5;fetch guard+桩填充+选章写回)──
+test("㉒ 选择器:无 fetch 禁用占位;fetch 桩→项目/章表填充;选章写 st.chapter", async () => {
+  const sb = loadPanel();
+  sb.DaoyanToolbar.selectors.reset();
+  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
+  // 无 fetch(vm 沙箱默认):两下拉禁用+占位
+  let root = stubElement();
+  sb.DaoyanToolbar.build(root, ctrl);
+  assert.ok(/data-act="pick-project" disabled/.test(root.innerHTML), "项目下拉禁用");
+  assert.ok(root.innerHTML.includes("项目不可用"), "项目不可用占位");
+  assert.ok(/data-act="pick-chapter" disabled/.test(root.innerHTML), "章节下拉禁用(未选项目)");
+  // fetch 桩:项目册+章表(/my_daoyan/projects|chapters 同源只读路由)
+  // (先 reset:无 fetch 阶段已把「不可用」结果缓存进 promise=同源一次性语义)
+  sb.DaoyanToolbar.selectors.reset();
+  sb.fetch = function (url) {
+    const d = url.indexOf("/my_daoyan/projects") >= 0
+      ? { projects: [{ id: "p1", name: "道劫" }], activeProjectId: "p1" }
+      : { chapters: [{ id: "chapter-001", n: 1, title: "第1章：断剑为谁而鸣" },
+                     { id: "chapter-002", n: 2, title: "" }], count: 2 };
+    return Promise.resolve({ json: () => Promise.resolve(d) });
+  };
+  await sb.DaoyanToolbar.selectors.ensureProjects();
+  assert.equal(sb.DaoyanToolbar.selectors.currentProject(), "p1", "activeProjectId 默认选中");
+  root = stubElement();
+  sb.DaoyanToolbar.build(root, ctrl);
+  assert.ok(root.innerHTML.includes("道劫"), "项目 option 填充");
+  await sb.DaoyanToolbar.selectors.ensureChapters("p1");
+  root = stubElement();
+  sb.DaoyanToolbar.build(root, ctrl);
+  assert.ok(root.innerHTML.includes("chapter-001 · 第1章：断剑为谁而鸣"), "章 option 带章名");
+  assert.ok(root.innerHTML.includes("chapter-002 · 无章名"), "空章名 fallback 文案");
+  // 选章:唯一写入口=actions.setChapter 同路(写 st.chapter)
+  sb.DaoyanToolbar.actions.pickChapter(ctrl, "chapter-001");
+  assert.equal(ctrl.state.chapter, "chapter-001");
+  root = stubElement();
+  sb.DaoyanToolbar.build(root, ctrl);
+  assert.ok(/value="chapter-001" selected/.test(root.innerHTML), "列表内值预选");
+  // 手输章节不在列表:占位示明,不覆盖不偷写
+  sb.DaoyanToolbar.actions.setChapter(ctrl, "chapter-b001");
+  root = stubElement();
+  sb.DaoyanToolbar.build(root, ctrl);
+  assert.ok(root.innerHTML.includes("(手输章节:chapter-b001)"), "手输值占位不偷写");
+  assert.equal(ctrl.state.chapter, "chapter-b001", "手输值未被下拉偷改");
+  delete sb.fetch;
+  sb.DaoyanToolbar.selectors.reset();
+});
+
+// ── ㉓ DaoyanLogs 日志区(1114 阶段3.5:fetch/渲染/刷新/错误降级)────
+test("㉓ DaoyanLogs:fetch 载入渲染行;手动刷新;无 fetch/不可达降级", async () => {
+  const sb = loadPanel();
+  sb.DaoyanLogs.reset();
+  const el = stubElement();
+  // 无 fetch:降级 error 文案(不炸)
+  let st = await sb.DaoyanLogs.open(el, "chapter-b001");
+  assert.ok(st.error.includes("无 fetch 环境"));
+  assert.ok(el.innerHTML.includes("无 fetch 环境"), "降级文案渲染");
+  // fetch 桩:行渲染+路径头+刷新钮
+  let n = 0;
+  sb.fetch = function () {
+    n += 1;
+    return Promise.resolve({ json: () => Promise.resolve({
+      chapter: "chapter-b001",
+      path: "output/video/导演台/chapter-b001/run-log.txt",
+      lines: ["09:00:01 run 开始 章节=chapter-b001", "09:00:05 plan 第1镜(sb-01) p1=未命中"],
+    }) });
+  };
+  st = await sb.DaoyanLogs.open(el, "chapter-b001");
+  assert.equal(st.error, null);
+  assert.ok(el.innerHTML.includes("plan 第1镜(sb-01)"), "日志行渲染");
+  assert.ok(el.innerHTML.includes("run-log.txt"), "路径头渲染");
+  assert.ok(el.innerHTML.includes('data-act="runlog-refresh"'), "刷新钮在");
+  await sb.DaoyanLogs.refresh(el);
+  assert.equal(n, 2, "refresh 再拉一次");
+  // fetch reject:错误降级(文案渲染,不炸)
+  sb.fetch = function () { return Promise.reject(new Error("net down")); };
+  st = await sb.DaoyanLogs.refresh(el);
+  assert.ok(st.error.includes("日志服务不可达"));
+  assert.ok(el.innerHTML.includes("日志服务不可达"), "不可达降级渲染");
+  // 轮询 API 面:启停幂等(间隔 5s,不真等)
+  assert.equal(typeof sb.DaoyanLogs.startPolling, "function");
+  assert.equal(sb.DaoyanLogs.stopPolling(), true);
+  assert.equal(sb.DaoyanLogs.polling(), false);
+  delete sb.fetch;
+  sb.DaoyanLogs.reset();
+});
+
+// ── ㉔ 同形 preview payload 喂 onSample(与 pytest 侧键集双端钉死)───
+test("㉔ 同形 preview payload:onSample「第 2 镜」正确显示(segment_index 生效)", () => {
+  const sb = loadPanel();
+  sb.DaoyanLive.reset();
+  // 与 director_executor.emit_preview 同形 payload(键集由
+  // test_director_executor.py::test_preview_payload_contract 钉死)
+  const payload = { node_id: 7, segment_id: "sb-02", segment_index: 1,
+                    step: null, total: null,
+                    url: "/view?filename=f9.png&subfolder=x&type=output" };
+  assert.equal(sb.DaoyanLive.onSample(payload), true);
+  const last = sb.DaoyanLive.lastSample();
+  assert.equal(last.segment_index, 1, "segment_index 透传");
+  const liveEl = stubElement();
+  const host = { querySelector: (sel) => (sel === ".daoyan-live" ? liveEl : null) };
+  sb.DaoyanLive.bindHost(host);
+  sb.DaoyanLive.setEnabled(true);
+  assert.ok(liveEl.innerHTML.includes("第 2 镜"), "segment_index=1→「第 2 镜」");
+  assert.ok(liveEl.innerHTML.includes("步 ?/?"), "step/total null→? 容错显示");
+  sb.DaoyanLive.reset();
+});
+
+// ── ㉕ 进度文本显示当前阶段消息+运行日志开关(1114 阶段3.5)──────────
+test("㉕ 进度文本:view.message(当前阶段消息)优先;运行日志钮开关日志槽", () => {
+  const sb = loadPanel();
+  sb.DaoyanToolbar.selectors.reset();
+  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
+  sb.DaoyanCards.actions.addGroup(ctrl);
+  sb.DaoyanToolbar.actions.startRun(ctrl);
+  ctrl.view.message = "第 1/1 镜 · 一采 运行中 · 进度 0/1";
+  let root = stubElement();
+  sb.DaoyanToolbar.build(root, ctrl);
+  assert.ok(root.innerHTML.includes("第 1/1 镜 · 一采 运行中"), "消息优先于占位");
+  assert.ok(!root.innerHTML.includes("执行链排阶段3"), "旧占位退场");
+  // 无消息:回退运行中文案(仍非旧占位)
+  ctrl.view.message = null;
+  sb.DaoyanToolbar.build(root, ctrl);
+  assert.ok(root.innerHTML.includes("运行中"), "无消息回退文案");
+  // 运行日志按钮:开→日志槽渲染+按钮点亮;关→槽退场
+  assert.equal(sb.DaoyanToolbar.actions.toggleRunLog(ctrl), true);
+  sb.DaoyanToolbar.build(root, ctrl);
+  assert.ok(root.innerHTML.includes('data-log="daoyan"'), "日志槽在");
+  assert.ok(!root.innerHTML.includes('data-act="runlog" disabled'), "日志钮点亮");
+  assert.equal(sb.DaoyanToolbar.actions.toggleRunLog(ctrl), false);
+  sb.DaoyanToolbar.build(root, ctrl);
+  assert.ok(!root.innerHTML.includes('data-log="daoyan"'), "再 toggle 收起");
 });
 
 // require() 幂等防 tree-shake(双 runner 下保持 CJS 依赖引用)

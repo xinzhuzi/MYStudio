@@ -13,6 +13,12 @@
 // 写回/选择运行→取消按钮态切换+进度条占位(执行链排阶段3)/导入导演包
 // (旧台账 chapter-script.json 兼容)/导出导演包(同 schema)/撤销入口。
 // IIFE 挂 window.DaoyanToolbar,无 import/export 语法(见 serial.js 头注)。
+//
+// 阶段3.5(1114 可观测+选择器):业务条前段 项目▾+章节▾ 两级下拉
+// (/my_daoyan/projects|chapters 同源只读路由;选中值唯一写 st.chapter,
+// 自由输入框保留手写兜底;fetch 全 guard,无 fetch 环境=禁用占位);
+// 「运行日志」按钮挂日志区(DaoyanLogs,章目录 run-log.txt 尾行);
+// 进度文本显示当前阶段消息(index.js 存 view.message,去执行链占位)。
 (function (global) {
   "use strict";
 
@@ -24,6 +30,11 @@
     ".dy-chapter{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#9aa7ba;}",
     ".dy-chapter input{width:110px;border-radius:7px;border:1px solid rgba(255,255,255,.14);background:rgba(10,14,24,.72);color:#dbe7fb;padding:3px 8px;font:inherit;outline:none;}",
     ".dy-chapter input:focus{border-color:rgba(110,168,254,.55);}",
+    /* 项目/章节两级下拉(1114 阶段3.5;selectorSpec) */
+    ".dy-pick{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#9aa7ba;}",
+    ".dy-pick select{max-width:190px;border-radius:7px;border:1px solid rgba(255,255,255,.14);background:rgba(10,14,24,.72);color:#dbe7fb;padding:3px 6px;font:inherit;outline:none;}",
+    ".dy-pick select:focus{border-color:rgba(110,168,254,.55);}",
+    ".dy-pick select[disabled]{opacity:.5;cursor:default;}",
     ".dy-btn{font-size:11px;font-weight:600;color:#dbe7fb;background:rgba(110,168,254,.14);border:1px solid rgba(110,168,254,.32);border-radius:7px;padding:3.5px 11px;cursor:pointer;white-space:nowrap;}",
     ".dy-btn--primary{background:linear-gradient(180deg,rgba(52,211,153,.28),rgba(52,211,153,.16));border-color:rgba(52,211,153,.5);color:#eafff5;}",
     ".dy-btn--ghost{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);color:#9aa7ba;}",
@@ -61,6 +72,13 @@
     ".dy-live-info{font-size:11px;color:#cfd8e6;line-height:1.7;}",
     ".dy-live-strip{display:flex;gap:5px;margin-left:auto;}",
     ".dy-live-strip img{width:64px;height:36px;object-fit:contain;border-radius:5px;border:1px solid rgba(255,255,255,.12);background:#05080f;}",
+    /* 运行日志区(1114 阶段3.5:DaoyanLogs 宿主槽) */
+    ".daoyan-logs-slot{margin-top:8px;}",
+    ".daoyan-logs{display:flex;flex-direction:column;gap:6px;padding:8px 12px 9px;border:1px solid rgba(255,255,255,.09);border-radius:10px;background:linear-gradient(180deg,rgba(18,24,38,.78),rgba(10,14,24,.84));}",
+    ".dy-log-title{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#f0f4fa;}",
+    ".dy-log-path{flex:1;min-width:0;font-size:10px;font-weight:400;color:#9aa7ba;font-family:ui-monospace,'SF Mono',Menlo,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
+    ".dy-log-lines{max-height:260px;overflow-y:auto;border-radius:7px;background:rgba(5,8,15,.6);border:1px solid rgba(255,255,255,.07);padding:6px 9px;font:400 10.5px/1.7 ui-monospace,'SF Mono',Menlo,monospace;color:#cfd8e6;white-space:pre-wrap;word-break:break-all;}",
+    ".dy-log-empty{font-size:11px;color:#9aa7ba;}",
   ].join("\n");
 
   var STYLE_ID = "daoyan-toolbar-style";
@@ -86,6 +104,108 @@
       + label + ' <b>' + value + "</b></span>";
   }
 
+  // ── 项目/章节两级下拉数据(1114 阶段3.5;selectorSpec)──────────────
+  // 模块级缓存(my-styles-node.js loadStyles 同款先例):promise 缓存
+  // 项目册、Map 缓存逐项目章表;fetch 全 guard——无 fetch 环境
+  // (vm 测试/纯浏览器 file://)降级禁用占位,自由输入框仍可用。
+  var projectsData = null;      // null=未载 | {projects,activeProjectId} | "unavailable"
+  var projectsPromise = null;
+  var chaptersData = {};        // pid → {chapters,count} | "unavailable"
+  var chaptersPromises = {};
+  var currentPid = null;
+  var lastRender = null;        // {root,ctx,ctrl}:异步数据到达后重渲
+
+  function fetchJson(url) {
+    if (typeof fetch !== "function") return Promise.resolve(null);
+    return fetch(url).then(function (r) { return r.json(); })
+      .catch(function () { return null; });
+  }
+
+  function ensureProjects() {
+    if (!projectsPromise) {
+      projectsPromise = fetchJson("/my_daoyan/projects").then(function (d) {
+        projectsData = (d && Array.isArray(d.projects) && d.projects.length)
+          ? d : "unavailable";
+        if (projectsData !== "unavailable" && !currentPid) {
+          currentPid = projectsData.activeProjectId
+            || (projectsData.projects[0] && projectsData.projects[0].id)
+            || null;
+        }
+        return projectsData;
+      });
+    }
+    return projectsPromise;
+  }
+
+  function ensureChapters(pid) {
+    if (!pid || chaptersPromises[pid]) return chaptersPromises[pid]
+      || Promise.resolve(chaptersData[pid] || null);
+    chaptersPromises[pid] = fetchJson(
+      "/my_daoyan/chapters?project=" + encodeURIComponent(pid))
+      .then(function (d) {
+        chaptersData[pid] = (d && Array.isArray(d.chapters)) ? d : "unavailable";
+        return chaptersData[pid];
+      });
+    return chaptersPromises[pid];
+  }
+
+  function rerender() {
+    if (!lastRender) return;
+    try { build(lastRender.root, lastRender.ctx); } catch (err) { /* 重渲失败不咬 */ }
+  }
+
+  /** select 壳:占位 option(隐藏)在无选中时可见;手输值不在列=占位不偷写 */
+  function selectHtml(act, label, placeholder, options, selected, disabled) {
+    var optHtml = "";
+    var hasSel = false;
+    for (var i = 0; i < options.length; i++) {
+      var sel = !!selected && options[i].value === selected;
+      if (sel) hasSel = true;
+      optHtml += '<option value="' + esc(options[i].value) + '"'
+        + (sel ? " selected" : "") + ">" + esc(options[i].label) + "</option>";
+    }
+    return '<span class="dy-pick">' + label
+      + ' <select data-act="' + act + '"' + (disabled ? " disabled" : "") + ">"
+      + '<option value=""' + (hasSel ? "" : " selected")
+      + ' disabled hidden>' + esc(placeholder) + "</option>"
+      + optHtml + "</select></span>";
+  }
+
+  function projectSelectHtml() {
+    if (projectsData === null) {
+      return selectHtml("pick-project", "项目",
+        typeof fetch === "function" ? "项目加载中…" : "项目不可用", [], null, true);
+    }
+    if (projectsData === "unavailable") {
+      return selectHtml("pick-project", "项目", "项目不可用", [], null, true);
+    }
+    return selectHtml("pick-project", "项目", "选择项目",
+      projectsData.projects.map(function (p) {
+        return { value: p.id, label: p.name };
+      }), currentPid, false);
+  }
+
+  function chapterSelectHtml(st) {
+    if (!currentPid) {
+      return selectHtml("pick-chapter", "章节", "先选项目", [], null, true);
+    }
+    var d = chaptersData[currentPid];
+    if (d === "unavailable") {
+      return selectHtml("pick-chapter", "章节", "章节不可用", [], null, true);
+    }
+    if (!d) {
+      return selectHtml("pick-chapter", "章节", "章节加载中…", [], null, true);
+    }
+    var options = d.chapters.map(function (c) {
+      return { value: c.id, label: c.id + " · " + (c.title || "无章名") };
+    });
+    var inList = options.some(function (o) { return o.value === st.chapter; });
+    // 当前 st.chapter 在列表→预选;不在(手输)→占位示明,不覆盖不偷写
+    return selectHtml("pick-chapter", "章节",
+      inList ? "选择章节" : "(手输章节:" + (st.chapter || "?") + ")",
+      options, inList ? st.chapter : "", false);
+  }
+
   // ── 动作 ───────────────────────────────────────────────────────────
 
   var actions = {
@@ -101,10 +221,25 @@
       ctrl.apply(function (st) { st.chapter = v || "chapter-b001"; }, "chapter");
       return ctrl.state.chapter;
     },
-    /** 选择运行→运行态(取消钮活/进度走;执行链排阶段3,此处=按钮态机) */
+    /** 项目下拉选中(不自动改 st.chapter;等用户显式选章) */
+    pickProject: function (ctrl, pid) {
+      currentPid = pid || null;
+      if (currentPid && !chaptersData[currentPid]) {
+        ensureChapters(currentPid).then(rerender);
+      }
+      rerender();
+      return currentPid;
+    },
+    /** 章节下拉选中:唯一写入口=actions.setChapter 同路(写 st.chapter) */
+    pickChapter: function (ctrl, chapterId) {
+      if (!chapterId) return false;
+      return actions.setChapter(ctrl, chapterId);
+    },
+    /** 选择运行→运行态(取消钮活/进度走;此处=按钮态机) */
     startRun: function (ctrl) {
       ctrl.view.running = true;
       ctrl.view.done = 0;
+      ctrl.view.message = null;
       ctrl.apply(function () {});
       return true;
     },
@@ -168,6 +303,13 @@
       ctrl.apply(function () {});
       return ctrl.view.galleryOpen;
     },
+    /** 运行日志开关(1114 阶段3.5:章目录 run-log.txt 尾行区) */
+    toggleRunLog: function (ctrl) {
+      ctrl.view.logsOpen = !ctrl.view.logsOpen;
+      if (!ctrl.view.logsOpen && global.DaoyanLogs) global.DaoyanLogs.stopPolling();
+      ctrl.apply(function () {});
+      return ctrl.view.logsOpen;
+    },
     /** 实时预览开关(1114 缺口③:事件通道 DaoyanLive;执行链阶段3 发射) */
     toggleLivePreview: function (ctrl) {
       ctrl.view.livePreview = !ctrl.view.livePreview;
@@ -219,6 +361,7 @@
     ensureStyle();
     var ctrl = S().ctrlOf(ctx);
     var st = ctrl.state;
+    lastRender = { root: root, ctx: ctx, ctrl: ctrl };
     var running = ctrl.view.running;
     var total = st.segments.length;
     var done = Math.min(ctrl.view.done, total);
@@ -230,14 +373,21 @@
       return "<label><input type='checkbox' data-act='stage' data-key='" + key + "'"
         + (st.stages[key] ? " checked" : "") + "> " + label + "</label>";
     }
+    // 项目/章节数据 lazy 起拉(到达后 rerender;无 fetch=占位即终态)
+    if (projectsData === null) ensureProjects().then(rerender);
+    if (currentPid && !chaptersData[currentPid]) {
+      ensureChapters(currentPid).then(rerender);
+    }
     var businessBar = [
       '<div class="daoyan-toolbar">',
+      projectSelectHtml(),
+      chapterSelectHtml(st),
       '<span class="dy-stage-box" title="勾啥跑啥:勾 1=全镜一采草片;1+2=接二采;2 单独=吃盘上 p1 只跑二采;3 单独=吃盘上 p2 只跑三采">',
       box("yicai", "一采"),
       box("ercai", "二采"),
       box("sancai", "三采"),
       "</span>",
-      '<span class="dy-chapter">章节 <input value="' + esc(st.chapter) + '" data-act="chapter" title="产物目录 video/导演台/{章节}/{镜id}/ 同步引用"></span>',
+      '<span class="dy-chapter">章节 <input value="' + esc(st.chapter) + '" data-act="chapter" title="产物目录 video/导演台/{章节}/{镜id}/ 同步引用(手写兜底;下拉选中同写此值)"></span>',
       '<button class="dy-btn dy-btn--primary" data-act="run" title="面板编辑→timeline_data 序列化(阶段3 接执行链)">选择运行</button>',
       '<button class="dy-btn" data-act="import" title="兼容批量役 chapter-script.json(同 schema 直读)">导入导演包</button>',
       '<button class="dy-btn" data-act="export" title="导出同 schema 交换格式">导出导演包</button>',
@@ -248,9 +398,13 @@
       + ' title="Ctrl+Z 同款:快照栈回退">↩ 撤销</button>',
       '<button class="dy-btn' + (ctrl.view.galleryOpen ? " dy-btn--primary" : " dy-btn--ghost")
       + '" data-act="gallery" title="章草片/章终片与每镜 p1/p2/p3 产物总览(已落盘点开即看)">查看产物</button>',
+      '<button class="dy-btn' + (ctrl.view.logsOpen ? " dy-btn--primary" : " dy-btn--ghost")
+      + '" data-act="runlog" title="章目录 run-log.txt 尾行(引擎控制台+文件双落点逐镜留痕)">运行日志</button>',
       '<span class="dy-progress">',
       '<span class="dy-progress-text">' + (running
-        ? "第 " + done + "/" + total + " 组 · " + stagesLabel + " · 执行链排阶段3"
+        ? (ctrl.view.message
+            ? esc(ctrl.view.message)
+            : "第 " + done + "/" + total + " 组 · " + stagesLabel + " · 运行中")
         : "第 0/" + total + " 组 · 待运行") + "</span>",
       '<span class="dy-progress-bar"><i style="width:' + pct + '%"></i></span>',
       "</span>",
@@ -280,10 +434,34 @@
     ].join("");
     var liveBar = ctrl.view.livePreview && global.DaoyanLive
       ? global.DaoyanLive.panelHtml() : "";
-    root.innerHTML = businessBar + outputBar
+    var logsSlot = ctrl.view.logsOpen
+      ? '<div class="daoyan-logs-slot" data-log="daoyan"></div>' : "";
+    root.innerHTML = businessBar + outputBar + logsSlot
       + (ctrl.view.galleryOpen ? galleryPanel(ctrl) : "") + liveBar;
     bind(root, ctrl);
+    wireLogs(root, ctrl, running);
     return root;
+  }
+
+  /** 日志区接线:开=按章首拉+渲染;running=5s 轮询(重渲即清重建) */
+  function wireLogs(root, ctrl, running) {
+    if (!ctrl.view.logsOpen || !global.DaoyanLogs) return;
+    var el = root.querySelector ? root.querySelector('[data-log="daoyan"]') : null;
+    if (!el) return;
+    var logs = global.DaoyanLogs;
+    if (logs.state().chapter !== ctrl.state.chapter) {
+      logs.open(el, ctrl.state.chapter);
+    } else {
+      logs.render(el);
+    }
+    logs.stopPolling();
+    if (running) {
+      (function (c) {
+        logs.startPolling(el, function () {
+          return !!(c && c.view && c.view.running);
+        });
+      })(ctrl);
+    }
   }
 
   /** 事件:点击/复选/change 委托(重渲防重绑同 timeline.js 手法) */
@@ -301,7 +479,12 @@
       else if (act === "cancel") actions.cancelRun(ctrl);
       else if (act === "undo") actions.undo(ctrl);
       else if (act === "gallery") actions.toggleGallery(ctrl);
-      else if (act === "live-preview") actions.toggleLivePreview(ctrl);
+      else if (act === "runlog") actions.toggleRunLog(ctrl);
+      else if (act === "runlog-refresh") {
+        var slot = root.querySelector
+          ? root.querySelector('[data-log="daoyan"]') : null;
+        if (slot && global.DaoyanLogs) global.DaoyanLogs.refresh(slot);
+      } else if (act === "live-preview") actions.toggleLivePreview(ctrl);
       else if (act === "import") {
         var file = root.querySelector('[data-act="import-file"]');
         if (file) file.click();
@@ -314,7 +497,16 @@
       var act = el.getAttribute("data-act");
       if (act === "stage") actions.setStage(ctrl, el.getAttribute("data-key"), el.checked);
       else if (act === "chapter") actions.setChapter(ctrl, el.value);
-      else if (act === "import-file" && el.files && el.files.length) {
+      else if (act === "pick-project") {
+        // 切项目只换章表源,不自动改 st.chapter(等用户显式选章)
+        currentPid = el.value || null;
+        if (currentPid && !chaptersData[currentPid]) {
+          ensureChapters(currentPid).then(rerender);
+        }
+        rerender();
+      } else if (act === "pick-chapter") {
+        if (el.value) actions.setChapter(ctrl, el.value);
+      } else if (act === "import-file" && el.files && el.files.length) {
         var reader = new FileReader();
         reader.onload = function () { actions.importPayload(ctrl, String(reader.result)); };
         reader.readAsText(el.files[0]);
@@ -323,6 +515,30 @@
     });
   }
 
-  global.DaoyanToolbar = { build: build, css: CSS, actions: actions };
+  global.DaoyanToolbar = {
+    build: build,
+    css: CSS,
+    actions: actions,
+    /** 选择器数据面(测试/预览直探;fetch 桩注入 globalThis.fetch) */
+    selectors: {
+      ensureProjects: function () {
+        return ensureProjects().then(function (d) { rerender(); return d; });
+      },
+      ensureChapters: function (pid) {
+        return ensureChapters(pid).then(function (d) { rerender(); return d; });
+      },
+      projects: function () { return projectsData; },
+      chapters: function (pid) { return chaptersData[pid] || null; },
+      currentProject: function () { return currentPid; },
+      reset: function () {
+        projectsData = null;
+        projectsPromise = null;
+        chaptersData = {};
+        chaptersPromises = {};
+        currentPid = null;
+        lastRender = null;
+      },
+    },
+  };
 })(typeof window !== "undefined" ? window
     : typeof globalThis !== "undefined" ? globalThis : this);

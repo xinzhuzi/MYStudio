@@ -1,7 +1,7 @@
 # Copyright (c) 2025 hotflow2024
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
-"""导演台执行链(11-13-director-console-remake 阶段3,1114)。
+"""导演台执行链(11-13-director-console-remake 阶段3+3.5,1114)。
 
 结构借鉴 AIMixer/ComfyUI_MiniMaxH3_Director(Apache-2.0)executor 的
 「计划→逐段循环→finalize」三段式——布局复刻、代码重写;采样内部零重写:
@@ -26,13 +26,32 @@ required 键序)赋参=与母本实跑逐位同值。
 - 检查点=产物链在盘即跳过;重掷 rerun=True 强制覆盖(旧件挪 .bak)
 - 取消=检查点语义:已完镜保留,章级拼接停
 
+阶段3.5(1114 可观测+单源拆壳):
+- 三采执行核抽为模块级显式参数函数(PassCtx 上下文;build_model_kit/
+  pass1/pass2/pass3/emit_preview/ffmpeg_concat 单源)——DirectorExecutor
+  方法变薄委托,三个调试薄壳节点(director_pass_nodes)共用同一真源;
+  ffmpeg 三挡降挡上提=无头可测(run_cmd 注入)。
+- RunLog 双落点(daoyan_runlog)贯穿:计划门控/三臂构建/阶段开始结束/
+  条件构造 prompt 全文/潜放大形状/三采交接/落盘诊断/章级拼接逐挡/中断
+  ——每行可独立回答审计一个 gap;Hooks.open_run_log 注入(缺省=空记录器)。
+- 阶段级 try/except 全包(裸异常也带镜/阶段/seed/σ 上下文包装上抛)+
+  失败终态事件(message 含「失败」,面板清 running 判据)+终态事件带
+  chapter_outputs;daoyan_preview payload 对齐 live.js 消费契约
+  ({node_id,segment_id,segment_index,step,total,url})。
+- 中断分类 classify_interrupt:InterruptProcessingException→取消,其余
+  异常原样上抛不再吞(采样 K 步内逐步行需改引擎本体=禁区不做,只在
+  阶段边界检查)。
+
 可注入式:classes/hooks 全可换=无头 pytest 伪类干跑(零引擎零 GPU);
 引擎真绑= my_director_console.execute(lazy import)。
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable
 
+from .daoyan_runlog import NullRunLog
 from .my_director_console import DIRECTOR_RECIPE
 
 # ── 产物目录规范(PRD R1.3 ⑤):video/导演台/{章节}/{镜id}/p1-draft|…────
@@ -139,18 +158,19 @@ class Hooks:
     def __init__(self, load_image=None, save_image=None, list_output=None,
                  output_path=None, copy_to_input=None, load_video=None,
                  ffmpeg=None, send_event=None, check_interrupt=None,
-                 free_memory=None, log=None):
+                 free_memory=None, log=None, open_run_log=None):
         self.load_image = load_image          # input 文件名 -> IMAGE
         self.save_image = save_image          # (images, prefix) -> UI dict
         self.list_output = list_output        # prefix -> [output 相对路径]
         self.output_path = output_path        # 相对路径 -> 绝对 Path
         self.copy_to_input = copy_to_input    # output 相对路径 -> input 文件名
         self.load_video = load_video          # input 文件名 -> VIDEO
-        self.ffmpeg = ffmpeg                  # (output相对路径列表, 出) -> None
+        self.ffmpeg = ffmpeg                  # (output相对路径列表, 出[, log]) -> None
         self.send_event = send_event          # (type, payload) -> None
         self.check_interrupt = check_interrupt
         self.free_memory = free_memory
         self.log = log or (lambda *a: None)
+        self.open_run_log = open_run_log      # chapter -> RunLog(双落点;缺省空)
 
 
 def _call(classes: dict, name: str, **kwargs):
@@ -182,61 +202,52 @@ def _call(classes: dict, name: str, **kwargs):
     return (out,)
 
 
+# ── 中断分类(纯函数;gap8:中断与真错误可辨)──────────────────────────
+
+INTERRUPT_EXC_NAME = "InterruptProcessingException"
+
+
+def classify_interrupt(exc: BaseException) -> bool:
+    """用户中断判定:InterruptProcessingException(引擎 nodes/utils 与
+    comfy.model_management 双模块候选 import+类名兜底)→True(=取消);
+    其余异常 False(调用方须原样上抛,不再吞成「取消」)。"""
+    if type(exc).__name__ == INTERRUPT_EXC_NAME:
+        return True
+    import importlib
+    for mod_name in ("nodes", "comfy.model_management"):
+        try:
+            mod = importlib.import_module(mod_name)
+        except Exception:
+            continue
+        cls = getattr(mod, INTERRUPT_EXC_NAME, None)
+        if isinstance(cls, type) and isinstance(exc, cls):
+            return True
+    return False
+
+
+# ── 三臂模型链(单源:DirectorExecutor 与三薄壳共用)───────────────────
+
 class ModelKit:
     """三臂模型链(母本 [145/216/202] 三 LoRA 臂;每次执行构建一次)。
 
     BSA 参数=引擎装载母本的同一语义:widgets[sol-attn,1.3,0,1] 位序赋给
     required(selection,start_percent,end_percent,dense_blocks),其余吃默认
     ——与三采收官实跑逐位同值(fidelity-by-construction)。
+    构建真源=模块级 build_model_kit(逐臂留痕版;本构造器薄委托)。
     """
 
-    def __init__(self, classes: dict, model: Any):
-        r = DIRECTOR_RECIPE
-        # BSA=核心 DSL 节点:动态组合 selection 吃结构体(母本 widgets
-        # [sol-attn,1.3,0,1] 真义=method sol-attn/tau1.3/全域0→1;
-        # 1114 R1 实弹定谳,余参取类默认)
-        bsa = dict(selection={"selection": "sol-attn", "tau": 1.3},
-                   start_percent=0.0, end_percent=1.0, dense_blocks="",
-                   min_tokens=12288, extra_tokens=0,
-                   sink_conditioning="exact_kv_and_rows", verbose=False)
+    def __init__(self, classes: dict, model: Any, log=None):
+        _build_kit(self, classes, model, log or (lambda *a: None))
 
-        def lora(name, strength, m):
-            return _call(classes, "LoraLoaderModelOnly", model=m,
-                         lora_name=name, strength_model=strength)[0]
-
-        def bsa_(m):
-            return _call(classes, "BlockSparseAttention", model=m, **bsa)[0]
-
-        def cff(m, chunks):
-            return _call(classes, "MiniMaxChunkFeedForward", model=m,
-                         chunks=chunks, seq_threshold=4096)[0]
-
-        def kitchen(m):
-            return _call(classes, "ModelAttentionBackend", model=m,
-                         attention="comfy kitchen attention")[0]
-
-        # r2v 臂 [145→262→263→140]
-        m = lora(*r["lora_r2v"], model)
-        self.r2v = kitchen(cff(bsa_(m), 2))
-        # i2v 臂 [216→260→261→217→251](σ(6,3) 恒供调度器,母本接线原样)
-        m = lora(*r["lora_i2v"], model)
-        self.sigma_p1 = _call(classes, "MiniMaxH3SigmaShift",
-                              model=kitchen(cff(bsa_(m), 2)),
-                              shift_video=6.0, shift_audio=3.0)[0]
-        # 二采臂 [202→267→223→203→215]
-        m = lora(*r["lora_second_pass"], model)
-        self.sigma_p2 = _call(classes, "MiniMaxH3SigmaShift",
-                              model=cff(bsa_(m), 1),
-                              shift_video=12.0, shift_audio=3.0)[0]
-        self.kitchen_p2 = kitchen(self.sigma_p2)
-
-    def preview_wrap(self, classes, model, video_vae, audio_vae):
+    def preview_wrap(self, classes, model, video_vae, audio_vae, log=None):
         """[266] ModelPreviewOverrideKJ:实时预览原生通道(母本 widgets 原样)。
 
         可失败降级:该件吃执行上下文(dynprompt,1114 R1 实弹四拦定谳),
         节点内直调无上下文=AttributeError;预览加速非正确性依赖,失败即
-        回退裸臂模型(采样配方零影响;面板实时预览走 daoyan_preview 事件)。
+        回退裸臂模型(采样配方零影响;降级留痕;面板实时预览走
+        daoyan_preview 事件)。
         """
+        log = log or (lambda *a: None)
         try:
             return _call(classes, "ModelPreviewOverrideKJ", model=model,
                          max_resolution=1024, jpeg_quality=80,
@@ -244,8 +255,434 @@ class ModelKit:
                          preview_fps=12, vae=video_vae,
                          tiny_vae="taeh3.safetensors", audio_vae=audio_vae)[0]
         except Exception as err:
+            log(f"预览包装降级(裸模型直跑):{err}")
             return model
 
+
+def _build_kit(kit: ModelKit, classes: dict, model: Any, log) -> ModelKit:
+    r = DIRECTOR_RECIPE
+    # BSA=核心 DSL 节点:动态组合 selection 吃结构体(母本 widgets
+    # [sol-attn,1.3,0,1] 真义=method sol-attn/tau1.3/全域0→1;
+    # 1114 R1 实弹定谳,余参取类默认)
+    bsa = dict(selection={"selection": "sol-attn", "tau": 1.3},
+               start_percent=0.0, end_percent=1.0, dense_blocks="",
+               min_tokens=12288, extra_tokens=0,
+               sink_conditioning="exact_kv_and_rows", verbose=False)
+
+    def lora(name, strength, m):
+        return _call(classes, "LoraLoaderModelOnly", model=m,
+                     lora_name=name, strength_model=strength)[0]
+
+    def bsa_(m):
+        return _call(classes, "BlockSparseAttention", model=m, **bsa)[0]
+
+    def cff(m, chunks):
+        return _call(classes, "MiniMaxChunkFeedForward", model=m,
+                     chunks=chunks, seq_threshold=4096)[0]
+
+    def kitchen(m):
+        return _call(classes, "ModelAttentionBackend", model=m,
+                     attention="comfy kitchen attention")[0]
+
+    def arm(title: str, build):
+        """逐臂独立 try:失败行点名臂名(不再是无名堆栈)。"""
+        try:
+            return build()
+        except DirectorError:
+            raise
+        except Exception as err:
+            log(f"kit {title} 臂构建失败:{err!r}")
+            raise DirectorError(f"{title} 臂构建失败:{err}") from err
+
+    def _r2v():
+        m = lora(*r["lora_r2v"], model)
+        out = kitchen(cff(bsa_(m), 2))
+        log(f"kit r2v 臂构建 lora={r['lora_r2v'][0]}×{r['lora_r2v'][1]}"
+            f" τ={bsa['selection']['tau']} cff=2")
+        return out
+
+    def _i2v():
+        m = lora(*r["lora_i2v"], model)
+        out = _call(classes, "MiniMaxH3SigmaShift",
+                    model=kitchen(cff(bsa_(m), 2)),
+                    shift_video=6.0, shift_audio=3.0)[0]
+        log(f"kit i2v 臂构建 lora={r['lora_i2v'][0]}×{r['lora_i2v'][1]}"
+            f" τ={bsa['selection']['tau']} cff=2 σ=(6,3)")
+        return out
+
+    def _second():
+        m = lora(*r["lora_second_pass"], model)
+        sigma = _call(classes, "MiniMaxH3SigmaShift",
+                      model=cff(bsa_(m), 1),
+                      shift_video=12.0, shift_audio=3.0)[0]
+        kit.kitchen_p2 = kitchen(sigma)
+        log(f"kit 二采臂构建 lora={r['lora_second_pass'][0]}"
+            f"×{r['lora_second_pass'][1]} τ={bsa['selection']['tau']}"
+            f" cff=1 σ=(12,3)")
+        return sigma
+
+    # r2v 臂 [145→262→263→140]
+    kit.r2v = arm("r2v", _r2v)
+    # i2v 臂 [216→260→261→217→251](σ(6,3) 恒供调度器,母本接线原样)
+    kit.sigma_p1 = arm("i2v", _i2v)
+    # 二采臂 [202→267→223→203→215]
+    kit.sigma_p2 = arm("二采", _second)
+    return kit
+
+
+def build_model_kit(classes: dict, model: Any, log=None) -> ModelKit:
+    """三臂模型链构建(模块级单源:executor.run 与三薄壳共用;逐臂留痕)。"""
+    kit = ModelKit.__new__(ModelKit)
+    return _build_kit(kit, classes, model, log or (lambda *a: None))
+
+
+# ── 单源三采上下文(阶段3.5:壳节点与 executor 共用)──────────────────
+
+@dataclass
+class PassCtx:
+    """模块级三采函数的显式参数束(splitSpec 1114:采子图路线B)。"""
+
+    classes: dict                   # 在册节点类注册表(注入式)
+    hooks: Hooks                    # 文件/事件钩子
+    chapter: str                    # 产物章节目录名
+    seg_index: int                  # 0 基镜号(日志「第N镜」与事件索引)
+    first_steps: int                # 一采步数(高级区)
+    second_steps: int               # 二采步数
+    log: Any                        # RunLog(双落点)或兼容记录器
+    unique_id: Any = None           # 节点号(事件回填路由)
+    seed: int = 42                  # 全局 seed 兜底(seg.seed None 时)
+    color_fix: str = "none"         # 三采色彩修正档
+
+
+def seg_label(ctx: PassCtx, seg: dict) -> str:
+    return f"第{ctx.seg_index + 1}镜({seg['id']})"
+
+
+def _seg_seed(ctx: PassCtx, seg: dict) -> int:
+    seed = seg.get("seed")
+    return int(seed) if seed is not None else int(ctx.seed)
+
+
+def _shape(x) -> str:
+    """张量形状入日志行(伪类干跑对象无 shape→str 兜底)。"""
+    shape = getattr(x, "shape", None)
+    if shape is not None:
+        try:
+            return "(" + ",".join(str(d) for d in shape) + ")"
+        except Exception:
+            pass
+    return str(x)
+
+
+def ref_name_list(state: dict, seg: dict) -> list[str]:
+    """r2v 参考图名序列=公共(角色卡,Picture 1-3)+本组(分镜帧,4+),≤9。"""
+    names = ((state.get("common_images") or []) + (seg.get("images") or []))[:9]
+    return [n for n in names if n]
+
+
+def load_refs(hooks: Hooks, state: dict, seg: dict) -> tuple[list, list]:
+    """按名装载参考图:缺件=DirectorError 点名(不静默跳过)。"""
+    names = ref_name_list(state, seg)
+    refs = []
+    for name in names:
+        img = hooks.load_image(name)
+        if img is None:
+            raise DirectorError(f"参考图 {name} 不在 input/,先在面板上传或改引用")
+        refs.append(img)
+    return refs, names
+
+
+def conditioning(ctx: PassCtx, seg: dict, refs, ref_names, width, height,
+                 clip, video_vae, audio_vae):
+    """t2v/r2v→ReferenceToVideo[16];i2v/fl2v→ImageToVideo[220](单源)。
+
+    参考图顺序=面板 <Picture N> 语义(公共图区 1-3,本组从 4 续);
+    i2v 首帧=本组分镜帧优先(seg.images[0]),fl2v 尾帧=本组末张;
+    无名画布直喂张量(壳路径)直接作首帧。cond 行+prompt 全文逐字留痕。
+    """
+    log = ctx.log
+    prompt = assemble_prompt(seg)
+    mode = seg["mode"]
+    frames = seg["frames"]
+    own = seg.get("images") or []
+    if mode in ("t2v", "r2v"):
+        kw = dict(clip=clip, prompt=prompt, width=width, height=height,
+                  length=frames, ref_image_size="max")  # 产线定谳:ref 恒 max
+        if mode == "r2v":
+            kw.update(vae=video_vae, audio_vae=audio_vae)
+            # AUTOGROW 类直调=聚合字典 {ref_image_N: IMAGE}(引擎把点分
+            # 子槽聚成 dict 传类;1114 R1 实弹三拦定谳,消费方
+            # .values()/.items() 遍历)
+            kw["ref_images"] = {f"ref_image_{j}": img
+                                for j, img in enumerate(refs[:9])}
+        log(f"cond mode={mode} refs=[{','.join(ref_names or [])}]"
+            f" 首帧=- 尾帧=- {width}×{height} length={frames}")
+        log(f"prompt 全文:\n{prompt}")
+        return _call(ctx.classes, "MiniMaxH3ReferenceToVideo", **kw)
+    first_desc = last_desc = "-"
+    kw = dict(clip=clip, vae=video_vae, prompt=prompt, width=width,
+              height=height, length=frames)
+    if own:
+        kw["first_frame"] = ctx.hooks.load_image(own[0])
+        first_desc = own[0]
+    elif ref_names:
+        kw["first_frame"] = ctx.hooks.load_image(ref_names[0])
+        first_desc = ref_names[0]
+    elif refs:
+        kw["first_frame"] = refs[0]  # 画布直喂张量(壳路径)
+        first_desc = "(画布直喂)"
+    if mode == "fl2v" and len(own) > 1:
+        kw["last_frame"] = ctx.hooks.load_image(own[-1])
+        last_desc = own[-1]
+    log(f"cond mode={mode} refs=[{','.join(ref_names or [])}]"
+        f" 首帧={first_desc} 尾帧={last_desc} {width}×{height} length={frames}")
+    log(f"prompt 全文:\n{prompt}")
+    return _call(ctx.classes, "MiniMaxH3ImageToVideo", **kw)
+
+
+def _sample(classes, seed, guider_model, cond, sampler, sigmas, latent):
+    noise = _call(classes, "RandomNoise", noise_seed=seed)[0]
+    guider = _call(classes, "BasicGuider", model=guider_model,
+                   conditioning=cond)[0]
+    return _call(classes, "SamplerCustomAdvanced", noise=noise,
+                 guider=guider, sampler=sampler, sigmas=sigmas,
+                 latent_image=latent)
+
+
+def save_video(classes, hooks: Hooks, log, video, chapter, seg_id,
+               name) -> str:
+    """落盘+检查点诊断:SaveVideo 抛异常(类名)与返回但盘上无命中
+    (疑似写往别处)分开口径;重掷旧件让名 .bak×n 入行。"""
+    prefix = artifact_prefix(chapter, seg_id, name)
+    olds = [p for p in (hooks.list_output(prefix) or [])
+            if not p.endswith(".bak")]  # 重掷:旧件让名(SaveVideo 自增计数)
+    for old in olds:
+        # output_path 可注入缺省 None(既有伪钩子)=跳让名,不炸
+        src = hooks.output_path(old) if callable(hooks.output_path) else None
+        if src:
+            src.rename(str(src) + ".bak")
+    try:
+        _call(classes, "SaveVideo", video=video, filename_prefix=prefix,
+              format={"format": "auto"})
+    except Exception as err:
+        log(f"落盘失败 SaveVideo 抛异常({type(err).__name__}):{err!r}")
+        raise DirectorError(
+            f"SaveVideo 未落盘:{prefix}(抛异常 {type(err).__name__}:{err})"
+        ) from err
+    hits = [p for p in (hooks.list_output(prefix) or [])
+            if not p.endswith(".bak")]
+    if not hits:
+        log(f"落盘失败 SaveVideo 返回但盘上无命中(prefix={prefix} 疑似写往别处)")
+        raise DirectorError(
+            f"SaveVideo 未落盘:{prefix}(返回但盘上无命中,疑似写往别处)")
+    log(f"落盘 {hits[0]}" + (f"(旧件让名 .bak×{len(olds)})" if olds else ""))
+    return hits[0]
+
+
+def video_from(classes, images, audio):
+    """[130] CreateVideo(母本 widgets 24/8/sRGB/none)。"""
+    return _call(classes, "CreateVideo", images=images, fps=24, audio=audio,
+                 bit_depth="auto", color_space="sRGB",
+                 chroma_subsampling="auto", codec="none")[0]
+
+
+def emit_preview(hooks: Hooks, unique_id, seg_index, seg_id, chapter,
+                 images) -> bool:
+    """daoyan_preview 事件发射(payload 对齐 live.js 消费契约:
+    {node_id,segment_id,segment_index,step,total,url};step/total=采样步内
+    行需改引擎本体=禁区,如实置 null)。预览失败不咬主路。"""
+    try:
+        ui = hooks.save_image(images[:1], f"daoyan_preview/{chapter}")
+        url = None
+        if isinstance(ui, dict) and ui.get("filename"):
+            url = (f"/view?filename={ui['filename']}"
+                   f"&subfolder={ui.get('subfolder', '')}"
+                   f"&type={ui.get('type', 'output')}")
+        hooks.send_event("daoyan_preview", {
+            "node_id": unique_id, "segment_id": seg_id,
+            "segment_index": seg_index, "step": None, "total": None,
+            "url": url})
+        return True
+    except Exception as err:  # 预览失败不咬主路
+        hooks.log(f"预览事件失败(不咬主路):{err}")
+        return False
+
+
+# ── 三采单源(模块级;DirectorExecutor 与三薄壳共用)──────────────────
+
+def pass1(ctx: PassCtx, seg, kit, refs, model, video_vae, audio_vae, clip,
+          save=True, ref_names=None):
+    """一采(单源):采样→解码→(save)p1-draft;恒返 av_latent 供二采。
+
+    返回 (p1_rel|None, av_latent, video|None):save=False=☑2 单独吃盘上 p1
+    的确定性重采样(只取 latent,不落盘不解码);video=CreateVideo 产物
+    (壳节点 VIDEO 出口用;save=False 时 None)。
+    """
+    log = ctx.log
+    ref_names = list(ref_names or [])
+    seed = _seg_seed(ctx, seg)
+    mode = seg["mode"]
+    label = seg_label(ctx, seg)
+    arm_name = "flex_ref2va" if mode in ("t2v", "r2v") else "turbo_fl2va"
+    log.stage(label, STAGE_LABEL["yicai"], "开始", mode=mode, seed=seed,
+              frames=seg["frames"], size=f"{PASS1_W}×{PASS1_H}",
+              steps=ctx.first_steps, sigma=(6, 3),
+              sampler=DIRECTOR_RECIPE["sampler_first_pass"],
+              臂=arm_name, save=bool(save))
+    if not save:
+        log(f"{label} 一采 重采样 latent-only(吃盘上p1,同seed确定性)"
+            f" seed={seed}")
+    cond, latent = conditioning(ctx, seg, refs, ref_names, PASS1_W, PASS1_H,
+                                clip, video_vae, audio_vae)
+    arm = kit.r2v if mode in ("t2v", "r2v") else kit.sigma_p1
+    guider_model = kit.preview_wrap(ctx.classes, arm, video_vae, audio_vae,
+                                    log=log)
+    sampler = _call(ctx.classes, "KSamplerSelect",
+                    sampler_name=DIRECTOR_RECIPE["sampler_first_pass"])[0]
+    sigmas = _call(ctx.classes, "BasicScheduler", model=kit.sigma_p1,
+                   scheduler="simple", steps=ctx.first_steps, denoise=1.0)[0]
+    samples, av_latent = _sample(ctx.classes, seed, guider_model, cond,
+                                 sampler, sigmas, latent)
+    if not save:  # ☑2 单独吃盘上 p1:重采样只取 latent(批量役 stage2 同义)
+        log(f"{label} 一采 结束 ok=1 latent-only"
+            f"(latent_in={_shape(latent)} latent_out={_shape(av_latent)})")
+        return None, av_latent, None
+    images = _call(ctx.classes, "VAEDecode", samples=samples, vae=video_vae)[0]
+    audio = _call(ctx.classes, "VAEDecodeAudio", samples=samples,
+                  vae=audio_vae)[0]
+    emit_preview(ctx.hooks, ctx.unique_id, ctx.seg_index, seg["id"],
+                 ctx.chapter, images)
+    video = video_from(ctx.classes, images, audio)
+    p1_rel = save_video(ctx.classes, ctx.hooks, log, video, ctx.chapter,
+                        seg["id"], P1_NAME)
+    log.stage(label, STAGE_LABEL["yicai"], "结束", ok=1, 产物=p1_rel)
+    return p1_rel, av_latent, video
+
+
+def pass2(ctx: PassCtx, seg, kit, refs, av_latent, video_vae, audio_vae,
+          clip, ref_names=None):
+    """二采(单源):潜放大 1440×832 + taomate 3步 σ(12,3) → p2-final。"""
+    log = ctx.log
+    ref_names = list(ref_names or [])
+    seed = _seg_seed(ctx, seg)
+    label = seg_label(ctx, seg)
+    log.stage(label, STAGE_LABEL["ercai"], "开始", mode=seg["mode"], seed=seed,
+              frames=seg["frames"], size=f"{PASS2_W}×{PASS2_H}",
+              steps=ctx.second_steps, sigma=(12, 3),
+              sampler=DIRECTOR_RECIPE["sampler_first_pass"], 臂="taomate",
+              save=True)
+    video_latent, audio_latent = _call(ctx.classes, "LTXVSeparateAVLatent",
+                                       av_latent=av_latent)
+    up = _call(ctx.classes, "MinimaxH3LatentUpscaler3D", latent=video_latent,
+               model_name="minimax_h3_latent_upscaler_3d_bf16.safetensors",
+               mode={"mode": "target dimensions", "width": PASS2_W,
+                     "height": PASS2_H},
+               align=32, enable_temporal_chunking=True, force_unload=True,
+               device="cuda", precision="fp16")[0]
+    log(f"潜放大 vl={_shape(video_latent)}→up={_shape(up)} 对齐=32"
+        f" {PASS2_W}×{PASS2_H}")
+    latent = _call(ctx.classes, "LTXVConcatAVLatent", video_latent=up,
+                   audio_latent=audio_latent)[0]
+    cond, _ = conditioning(ctx, seg, refs, ref_names, PASS2_W, PASS2_H,
+                           clip, video_vae, audio_vae)
+    guider_model = kit.preview_wrap(ctx.classes, kit.kitchen_p2, video_vae,
+                                    audio_vae, log=log)
+    sampler = _call(ctx.classes, "KSamplerSelect",
+                    sampler_name=DIRECTOR_RECIPE["sampler_first_pass"])[0]
+    sigmas = _call(ctx.classes, "BasicScheduler", model=kit.sigma_p2,
+                   scheduler="simple", steps=ctx.second_steps,
+                   denoise=DIRECTOR_RECIPE["second_pass_denoise"])[0]
+    samples, _ = _sample(ctx.classes, seed, guider_model, cond, sampler,
+                         sigmas, latent)
+    images = _call(ctx.classes, "VAEDecode", samples=samples, vae=video_vae)[0]
+    audio = _call(ctx.classes, "VAEDecodeAudio", samples=samples,
+                  vae=audio_vae)[0]
+    emit_preview(ctx.hooks, ctx.unique_id, ctx.seg_index, seg["id"],
+                 ctx.chapter, images)
+    video = video_from(ctx.classes, images, audio)
+    p2_rel = save_video(ctx.classes, ctx.hooks, log, video, ctx.chapter,
+                        seg["id"], P2_NAME)
+    log.stage(label, STAGE_LABEL["ercai"], "结束", ok=1, 产物=p2_rel)
+    return p2_rel, video
+
+
+def pass3(ctx: PassCtx, seg, video, seed, p2_rel=None):
+    """三采(单源):ReCaVSR 超分 → p3-recavsr。
+
+    video=None 时文件化交接吃 p2(output→input→LoadVideo,批量役 stage3
+    同工艺,交接行留痕);video 直喂=壳节点画布路(LoadVideo/Pass2 出口)。
+    返回 (p3_rel, video_out)。
+    """
+    log = ctx.log
+    label = seg_label(ctx, seg)
+    if video is None:
+        if not p2_rel:
+            raise DirectorError(f"{seg['id']} p2 缺失,三采无从起")
+        name = ctx.hooks.copy_to_input(p2_rel)
+        log(f"三采 copy_to_input→{name}(源={p2_rel})")
+        video = ctx.hooks.load_video(name)
+    log.stage(label, STAGE_LABEL["sancai"], "开始", seed=seed, scale=2.0,
+              color_fix=ctx.color_fix, 源=str(p2_rel or "(画布直喂)"))
+    rc_model = _call(ctx.classes, "ReCaVSRLoader",
+                     transformer=DIRECTOR_RECIPE["recavsr_transformer"])[0]
+    out = _call(ctx.classes, "ReCaVSRUpscale", model=rc_model, scale=2.0,
+                color_fix=ctx.color_fix, seed=seed,
+                decoder="flashdecoder", kernels="fast", kv_offload=False,
+                encoder="auto", fps=30.0, video=video)[0]
+    p3_rel = save_video(ctx.classes, ctx.hooks, log, out, ctx.chapter,
+                        seg["id"], P3_NAME)
+    log.stage(label, STAGE_LABEL["sancai"], "结束", ok=1, 产物=p3_rel)
+    return p3_rel, out
+
+
+FFMPEG_TIERS = ("copy", "copy+hvc1", "x264")
+
+
+def ffmpeg_concat(out_dir, rels, out_rel, log, run_cmd=None) -> bool:
+    """章级拼接(单源;批量役 concat 同式:cwd=清单同目录+相对条目)。
+
+    引擎侧 ffmpeg 构建对 HEVC-in-mp4 直拷会败(1114 R3 定谳:p3=hevc
+    2K,p1=h264 可拷)——分级降挡:copy → copy+hvc1 标签 → 末档 x264 转码
+    (保底出片);逐挡留痕(挡N(名) rc=/成功)。run_cmd 注入=无头可测。
+    """
+    import os
+    import subprocess
+    if run_cmd is None:
+        run_cmd = subprocess.run
+    log = log or (lambda *a: None)
+    out_dir = Path(out_dir)
+    out = out_dir / out_rel
+    out.parent.mkdir(parents=True, exist_ok=True)
+    lst = out.with_suffix(".txt")
+    entries = "".join(
+        "file '%s'\n" % os.path.relpath(out_dir / r, out.parent)
+        .replace("\\", "/")
+        for r in rels)
+    lst.write_text(entries, encoding="utf-8")
+    base = ["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
+            "-i", lst.name]
+    stages = (
+        [*base, "-c", "copy", out.name],
+        [*base, "-c", "copy", "-tag:v", "hvc1", out.name],
+        [*base, "-c:v", "libx264", "-preset", "veryfast", "-crf", "16",
+         "-c:a", "copy", out.name],
+    )
+    last_err = None
+    for i, (tier, args) in enumerate(zip(FFMPEG_TIERS, stages), 1):
+        proc = run_cmd(args, cwd=str(out.parent), capture_output=True,
+                       text=True)
+        rc = getattr(proc, "returncode", 1)
+        stderr = (getattr(proc, "stderr", "") or "").strip()
+        if rc == 0:
+            lst.unlink(missing_ok=True)
+            log(f"ffmpeg 挡{i}({tier}) 成功")
+            return True
+        last_err = stderr[-300:]
+        log(f"ffmpeg 挡{i}({tier}) rc={rc} stderr尾={stderr[-120:]!r}")
+    raise RuntimeError(f"ffmpeg 章级拼接三挡全败:{out.name}:{last_err}")
+
+
+# ── 逐镜调度器(方法面=薄委托;主循环同 AIMixer executor)──────────────
 
 class DirectorExecutor:
     """逐镜三采调度器(AIMixer executor 主循环同构,拆写为注入式)。"""
@@ -253,251 +690,255 @@ class DirectorExecutor:
     def __init__(self, classes: dict, hooks: Hooks):
         self.C = classes
         self.H = hooks
+        self._log = None
+        self._freed = False
 
-    # ── 条件与潜空间 ────────────────────────────────────────────────
-    def _conditioning(self, state, seg, refs, width, height, clip,
-                      video_vae, audio_vae):
-        """t2v/r2v→ReferenceToVideo[16];i2v/fl2v→ImageToVideo[220]。
+    # ── 薄委托(兼容面;run() 直调模块单源函数)─────────────────────
+    def _ctx_for(self, state, seg) -> PassCtx:
+        idx = next((i for i, s in enumerate(state["segments"])
+                    if s["id"] == seg.get("id")), 0)
+        return PassCtx(classes=self.C, hooks=self.H,
+                       chapter=state["chapter"], seg_index=idx,
+                       first_steps=state["advanced"]["first_steps"],
+                       second_steps=state["advanced"]["second_steps"],
+                       log=self._log or NullRunLog(),
+                       seed=state["common_params"]["seed"],
+                       color_fix=state.get("color_fix", "none"))
 
-        参考图顺序=面板 <Picture N> 语义(公共图区 1-3,本组从 4 续);
-        i2v 首帧=本组分镜帧优先(seg.images[0]),fl2v 尾帧=本组末张。
-        """
-        prompt = assemble_prompt(seg)
-        mode = seg["mode"]
-        frames = seg["frames"]
-        if mode in ("t2v", "r2v"):
-            kw = dict(clip=clip, prompt=prompt, width=width, height=height,
-                      length=frames, ref_image_size="max")  # 产线定谳:ref 恒 max
-            if mode == "r2v":
-                kw.update(vae=video_vae, audio_vae=audio_vae)
-                # AUTOGROW 类直调=聚合字典 {ref_image_N: IMAGE}(引擎把点分
-                # 子槽聚成 dict 传类;1114 R1 实弹三拦定谳,消费方
-                # .values()/.items() 遍历)
-                kw["ref_images"] = {f"ref_image_{j}": img
-                                    for j, img in enumerate(refs[:9])}
-            return _call(self.C, "MiniMaxH3ReferenceToVideo", **kw)
-        own = seg.get("images") or []
-        kw = dict(clip=clip, vae=video_vae, prompt=prompt, width=width,
-                  height=height, length=frames)
-        if own or refs:
-            kw["first_frame"] = self.H.load_image(own[0] if own else refs[0])
-            if mode == "fl2v" and len(own) > 1:
-                kw["last_frame"] = self.H.load_image(own[-1])
-        return _call(self.C, "MiniMaxH3ImageToVideo", **kw)
-
-    def _sample(self, seed, guider_model, conditioning, sampler, sigmas, latent):
-        noise = _call(self.C, "RandomNoise", noise_seed=seed)[0]
-        guider = _call(self.C, "BasicGuider", model=guider_model,
-                       conditioning=conditioning)[0]
-        return _call(self.C, "SamplerCustomAdvanced", noise=noise,
-                     guider=guider, sampler=sampler, sigmas=sigmas,
-                     latent_image=latent)
-
-    def _save_video(self, video, chapter, seg_id, name) -> str:
-        prefix = artifact_prefix(chapter, seg_id, name)
-        for old in [p for p in (self.H.list_output(prefix) or [])
-                    if not p.endswith(".bak")]:  # 重掷:旧件让名(SaveVideo 自增计数)
-            src = self.H.output_path(old)
-            if src:
-                src.rename(str(src) + ".bak")
-        _call(self.C, "SaveVideo", video=video, filename_prefix=prefix,
-              format={"format": "auto"})
-        hits = [p for p in (self.H.list_output(prefix) or [])
-                if not p.endswith(".bak")]
-        if not hits:
-            raise DirectorError(f"SaveVideo 未落盘:{prefix}")
-        self.H.log(f"[daoyan] 落盘 {hits[0]}")
-        return hits[0]
-
-    def _video_from(self, images, audio):
-        """[130] CreateVideo(母本 widgets 24/8/sRGB/none)。"""
-        return _call(self.C, "CreateVideo", images=images, fps=24, audio=audio,
-                     bit_depth="auto", color_space="sRGB",
-                     chroma_subsampling="auto", codec="none")[0]
-
-    # ── 三采 ───────────────────────────────────────────────────────
     def _pass1(self, state, seg, kit, refs, model, video_vae, audio_vae, clip,
                save=True):
-        """一采:采样→解码→(save)p1-draft;恒返 av_latent 供二采。"""
-        cond, latent = self._conditioning(state, seg, refs, PASS1_W, PASS1_H,
-                                          clip, video_vae, audio_vae)
-        arm = kit.r2v if seg["mode"] in ("t2v", "r2v") else kit.sigma_p1
-        guider_model = kit.preview_wrap(self.C, arm, video_vae, audio_vae)
-        sampler = _call(self.C, "KSamplerSelect",
-                        sampler_name=DIRECTOR_RECIPE["sampler_first_pass"])[0]
-        sigmas = _call(self.C, "BasicScheduler", model=kit.sigma_p1,
-                       scheduler="simple",
-                       steps=state["advanced"]["first_steps"], denoise=1.0)[0]
-        samples, av_latent = self._sample(effective_seed(state, seg),
-                                          guider_model, cond, sampler,
-                                          sigmas, latent)
-        if not save:  # ☑2 单独吃盘上 p1:重采样只取 latent(批量役 stage2 同义)
-            return None, av_latent
-        images = _call(self.C, "VAEDecode", samples=samples, vae=video_vae)[0]
-        audio = _call(self.C, "VAEDecodeAudio", samples=samples, vae=audio_vae)[0]
-        self._emit_preview(state, seg["id"], images)
-        return self._save_video(self._video_from(images, audio),
-                                state["chapter"], seg["id"], P1_NAME), av_latent
+        p1_rel, av_latent, _ = pass1(self._ctx_for(state, seg), seg, kit,
+                                     refs, model, video_vae, audio_vae, clip,
+                                     save=save)
+        return p1_rel, av_latent
 
     def _pass2(self, state, seg, kit, refs, av_latent, video_vae, audio_vae,
                clip):
-        """二采:潜放大 1440×832 + taomate 3步 σ(12,3) → p2-final。"""
-        video_latent, audio_latent = _call(self.C, "LTXVSeparateAVLatent",
-                                           av_latent=av_latent)
-        up = _call(self.C, "MinimaxH3LatentUpscaler3D", latent=video_latent,
-                   model_name="minimax_h3_latent_upscaler_3d_bf16.safetensors",
-                   mode={"mode": "target dimensions", "width": PASS2_W,
-                         "height": PASS2_H},
-                   align=32, enable_temporal_chunking=True, force_unload=True,
-                   device="cuda", precision="fp16")[0]
-        latent = _call(self.C, "LTXVConcatAVLatent", video_latent=up,
-                       audio_latent=audio_latent)[0]
-        cond, _ = self._conditioning(state, seg, refs, PASS2_W, PASS2_H,
-                                     clip, video_vae, audio_vae)
-        guider_model = kit.preview_wrap(self.C, kit.kitchen_p2, video_vae,
-                                        audio_vae)
-        sampler = _call(self.C, "KSamplerSelect",
-                        sampler_name=DIRECTOR_RECIPE["sampler_first_pass"])[0]
-        sigmas = _call(self.C, "BasicScheduler", model=kit.sigma_p2,
-                       scheduler="simple",
-                       steps=state["advanced"]["second_steps"],
-                       denoise=DIRECTOR_RECIPE["second_pass_denoise"])[0]
-        samples, _ = self._sample(effective_seed(state, seg), guider_model,
-                                  cond, sampler, sigmas, latent)
-        images = _call(self.C, "VAEDecode", samples=samples, vae=video_vae)[0]
-        audio = _call(self.C, "VAEDecodeAudio", samples=samples, vae=audio_vae)[0]
-        self._emit_preview(state, seg["id"], images)
-        return self._save_video(self._video_from(images, audio),
-                                state["chapter"], seg["id"], P2_NAME)
+        p2_rel, _ = pass2(self._ctx_for(state, seg), seg, kit, refs,
+                          av_latent, video_vae, audio_vae, clip)
+        return p2_rel
 
     def _pass3(self, state, seg, p2_rel, seed):
-        """三采:文件化交接吃 p2(output→input→LoadVideo,批量役 stage3 同工艺)。"""
-        if not p2_rel:
-            raise DirectorError(f"第N镜({seg['id']})p2 缺失,三采无从起")
-        name = self.H.copy_to_input(p2_rel)
-        video_in = self.H.load_video(name)
-        rc_model = _call(self.C, "ReCaVSRLoader",
-                         transformer=DIRECTOR_RECIPE["recavsr_transformer"])[0]
-        out = _call(self.C, "ReCaVSRUpscale", model=rc_model, scale=2.0,
-                    color_fix=state["color_fix"], seed=seed,
-                    decoder="flashdecoder", kernels="fast", kv_offload=False,
-                    encoder="auto", fps=30.0, video=video_in)[0]
-        return self._save_video(out, state["chapter"], seg["id"], P3_NAME)
+        p3_rel, _ = pass3(self._ctx_for(state, seg), seg, None, seed,
+                          p2_rel=p2_rel)
+        return p3_rel
 
     def _emit_preview(self, state, seg_id, images):
-        try:
-            ui = self.H.save_image(images[:1],
-                                   f"daoyan_preview/{state['chapter']}")
-            url = None
-            if isinstance(ui, dict) and ui.get("filename"):
-                url = (f"/view?filename={ui['filename']}"
-                       f"&subfolder={ui.get('subfolder', '')}"
-                       f"&type={ui.get('type', 'output')}")
-            self.H.send_event("daoyan_preview", {"segment_id": seg_id,
-                                                 "url": url})
-        except Exception as err:  # 预览失败不咬主路
-            self.H.log(f"[daoyan] 预览事件失败(不咬主路):{err}")
+        idx = next((i for i, s in enumerate(state["segments"])
+                    if s["id"] == seg_id), 0)
+        return emit_preview(self.H, None, idx, seg_id, state["chapter"],
+                            images)
+
+    def _load_refs(self, state, seg) -> list:
+        refs, _ = load_refs(self.H, state, seg)
+        return refs
 
     # ── 主循环(AIMixer executor 主循环同构)─────────────────────────
     def run(self, model, video_vae, audio_vae, clip, state: dict,
             unique_id=None) -> dict:
         chapter = state["chapter"]
+        log = self._open_log(chapter)
+        self._log = log
         runs, errors, artifacts = resolve_plan(state, self.H.list_output)
         if errors:
+            log(f"run 拒绝:{'; '.join(errors)}")
             raise DirectorError("; ".join(errors))
-        kit = ModelKit(self.C, model)
         total = len(runs)
         done = 0
         cancelled = False
-        for item in runs:
-            i, seg, todo = item["index"], item["seg"], item["do"]
-            av_latent = None
-            for stage in todo:
-                self._tick(unique_id, i, len(state["segments"]), stage,
-                           done, total)
-                try:
-                    refs = self._load_refs(state, seg)
-                    if stage == "yicai":
-                        p1_rel, av_latent = self._pass1(
-                            state, seg, kit, refs, model, video_vae, audio_vae,
-                            clip, save=True)
-                        artifacts.setdefault(seg["id"], {})["p1"] = p1_rel
-                    elif stage == "ercai":
-                        if av_latent is None:  # 吃盘上 p1:确定性重采样取 latent
-                            _, av_latent = self._pass1(
-                                state, seg, kit, refs, model, video_vae,
-                                audio_vae, clip, save=False)
-                        p2_rel = self._pass2(state, seg, kit, refs, av_latent,
-                                             video_vae, audio_vae, clip)
-                        artifacts.setdefault(seg["id"], {})["p2"] = p2_rel
-                    else:  # sancai(三采前统一卸载:首批进三采时一次)
-                        if not getattr(self, "_freed", False):
-                            self.H.free_memory()
-                            self._freed = True
-                        p2_rel = artifacts.get(seg["id"], {}).get("p2") or next(
-                            (p for p in (self.H.list_output(
-                                artifact_prefix(chapter, seg["id"], P2_NAME))
-                                or []) if not p.endswith(".bak")), None)
-                        p3_rel = self._pass3(state, seg, p2_rel,
-                                             effective_seed(state, seg))
-                        artifacts.setdefault(seg["id"], {})["p3"] = p3_rel
-                except DirectorError as err:
-                    raise DirectorError(f"第{i + 1}镜({seg['id']}):{err}") from err
-                self._emit_artifact(unique_id, i, seg["id"], artifacts[seg["id"]])
-                if self.H.check_interrupt():
-                    cancelled = True  # 检查点语义:已完镜保留,就地停
-                    break
-            if cancelled:
-                break
-            done += 1
+        fail_no = None
+        sel = "+".join(str(n) for n, k in zip((1, 2, 3),
+                                              ("yicai", "ercai", "sancai"))
+                       if state["stages"][k]) or "-"
+        log(f"run 开始 章节={chapter} 勾选={sel}"
+            f" 镜数={len(state['segments'])} 运行清单={total}镜")
+        # 计划门控决策留痕(resolve_plan 的逐镜命中/todo/rerun 决策入行)
+        todo_by_index = {r["index"]: r["do"] for r in runs}
+        for i, seg in enumerate(state["segments"]):
+            art = artifacts.get(seg["id"], {})
 
-        chapter_outputs = self._finalize(chapter, state, artifacts, cancelled)
+            def hit(v):
+                return f"命中:{v}" if v else "未命中"
+
+            todo = todo_by_index.get(i)
+            log(f"plan 第{i + 1}镜({seg['id']}) p1={hit(art.get('p1'))}"
+                f" p2={hit(art.get('p2'))} p3={hit(art.get('p3'))}"
+                f" rerun={1 if seg.get('rerun') else 0}"
+                f" todo={','.join(todo) if todo else '-(已完跳过)'}")
+        chapter_outputs: dict = {}
+        kit = None
+        try:
+            for item in runs:
+                i, seg, todo = item["index"], item["seg"], item["do"]
+                ctx = PassCtx(classes=self.C, hooks=self.H, chapter=chapter,
+                              seg_index=i,
+                              first_steps=state["advanced"]["first_steps"],
+                              second_steps=state["advanced"]["second_steps"],
+                              log=log, unique_id=unique_id,
+                              seed=state["common_params"]["seed"],
+                              color_fix=state.get("color_fix", "none"))
+                av_latent = None
+                for stage in todo:
+                    self._tick(unique_id, i, len(state["segments"]), stage,
+                               done, total)
+                    try:
+                        if stage in ("yicai", "ercai") and kit is None:
+                            kit = build_model_kit(self.C, model, log)
+                        refs, ref_names = load_refs(self.H, state, seg)
+                        if stage == "yicai":
+                            p1_rel, av_latent, _ = pass1(
+                                ctx, seg, kit, refs, model, video_vae,
+                                audio_vae, clip, save=True,
+                                ref_names=ref_names)
+                            artifacts.setdefault(seg["id"], {})["p1"] = p1_rel
+                        elif stage == "ercai":
+                            if av_latent is None:
+                                # 吃盘上 p1:确定性重采样取 latent(不落盘)
+                                _, av_latent, _ = pass1(
+                                    ctx, seg, kit, refs, model, video_vae,
+                                    audio_vae, clip, save=False,
+                                    ref_names=ref_names)
+                            p2_rel, _ = pass2(ctx, seg, kit, refs, av_latent,
+                                              video_vae, audio_vae, clip,
+                                              ref_names=ref_names)
+                            artifacts.setdefault(seg["id"], {})["p2"] = p2_rel
+                        else:  # sancai(三采前统一卸载:首批进三采时一次)
+                            if not self._freed:
+                                log("三采前统一卸载(首次)")
+                                self.H.free_memory()
+                                self._freed = True
+                            reg = artifacts.get(seg["id"], {}).get("p2")
+                            p2_rel, src = reg, "登记"
+                            if not p2_rel:
+                                p2_rel = next(
+                                    (p for p in (self.H.list_output(
+                                        artifact_prefix(chapter, seg["id"],
+                                                        P2_NAME))
+                                        or []) if not p.endswith(".bak")),
+                                    None)
+                                src = "盘glob"
+                            if not p2_rel:
+                                raise DirectorError(
+                                    f"第{i + 1}镜({seg['id']})"
+                                    f"无p2,三采无从起")
+                            log(f"三采 p2 来源={src}:{p2_rel}")
+                            p3_rel, _ = pass3(
+                                ctx, seg, None, effective_seed(state, seg),
+                                p2_rel=p2_rel)
+                            artifacts.setdefault(seg["id"], {})["p3"] = p3_rel
+                    except DirectorError as err:
+                        raise DirectorError(
+                            f"第{i + 1}镜({seg['id']}):{err}") from err
+                    except Exception as err:  # 阶段失败全包(裸异常带上下文)
+                        fail_no = i + 1
+                        log(f"第{i + 1}镜({seg['id']})·{STAGE_LABEL[stage]}"
+                            f" 失败 {_stage_context(stage, ctx, seg)}"
+                            f" err={err!r}")
+                        raise DirectorError(
+                            f"第{i + 1}镜({seg['id']})·{STAGE_LABEL[stage]}"
+                            f"失败 {_stage_context(stage, ctx, seg)}:{err}"
+                        ) from err
+                    self._emit_artifact(unique_id, i, seg["id"],
+                                         artifacts[seg["id"]])
+                    if self.H.check_interrupt():
+                        cancelled = True  # 检查点语义:已完镜保留,就地停
+                        log(f"中断(用户取消) 第{i + 1}镜({seg['id']})"
+                            f" 已完={done}")
+                        break
+                if cancelled:
+                    break
+                done += 1
+            chapter_outputs = self._finalize(chapter, state, artifacts,
+                                             cancelled, log=log)
+        except Exception as err:  # 失败终态事件(面板清 running 判据:含「失败」)
+            if fail_no is None:
+                fail_no = done + 1
+            message = f"失败 第{fail_no}/{total} 镜:{str(err)[:200]}"
+            try:
+                self.H.send_event("daoyan_progress", {
+                    "node_id": unique_id, "done": done, "total": total,
+                    "message": message, "chapter_outputs": chapter_outputs})
+                log(f"run 终态 {message}")
+            except Exception:  # noqa: BLE001 - 事件失败不咬上抛主路
+                pass
+            raise
+        log(f"run 完成 done={done}/{total}"
+            f" 取消={1 if cancelled else 0}"
+            f" 章草片={chapter_outputs.get('draft') or '-'}"
+            f" 章终片={chapter_outputs.get('final') or '-'}")
         self.H.send_event("daoyan_progress", {
             "node_id": unique_id,
             "message": ("已取消(已完镜产物保留)" if cancelled else "全部完成")
-                       + f" {done}/{total} 镜"})
+                       + f" {done}/{total} 镜",
+            "done": done, "total": total, "chapter_outputs": chapter_outputs})
         return {"artifacts": artifacts, "chapter_outputs": chapter_outputs,
                 "done": done, "total": total, "cancelled": cancelled}
 
-    def _load_refs(self, state, seg) -> list:
-        """r2v 参考图序列=公共(角色卡,Picture 1-3)+本组(分镜帧,4+),≤9。"""
-        names = ((state.get("common_images") or [])
-                 + (seg.get("images") or []))[:9]
-        refs = []
-        for name in names:
-            if not name:
-                continue
-            img = self.H.load_image(name)
-            if img is None:
-                raise DirectorError(f"参考图 {name} 不在 input/,先在面板上传或改引用")
-            refs.append(img)
-        return refs
+    def _open_log(self, chapter):
+        opener = getattr(self.H, "open_run_log", None)
+        if callable(opener):
+            try:
+                return opener(chapter)
+            except Exception:  # noqa: BLE001 - 日志开不了不咬执行
+                pass
+        return NullRunLog()
 
-    def _finalize(self, chapter, state, artifacts, cancelled):
+    def _finalize(self, chapter, state, artifacts, cancelled, log=None):
         """章草片(p1 拼接)/章终片(p3 拼接):ffmpeg 外拼(批量役 concat 同款)。
-        取消=不拼半章(已完镜检查点在盘,补跑完成后自拼)。"""
+        取消=不拼半章(已完镜检查点在盘,补跑完成后自拼);源/跳过逐镜点名。"""
+        log = log or (lambda *a: None)
         out = {}
         if cancelled:
+            log("finalize 取消=不拼半章(已完镜检查点在盘,补跑完成后自拼)")
             return out
+
+        stages = state["stages"]
+        sel = "+".join(str(n) for n, k in zip((1, 2, 3),
+                                              ("yicai", "ercai", "sancai"))
+                       if stages[k]) or "-"
+        plans = []
+        if stages["yicai"] and not stages["sancai"]:
+            plans.append(("p1", DRAFT_NAME, "draft"))
+        if stages["sancai"]:
+            plans.append(("p3", FINAL_NAME, "final"))
+        log(f"finalize 勾={sel} "
+            + ("+".join(label for _, label, _ in plans) if plans
+               else "无章级拼接"))
 
         def rels(key):
             return [artifacts.get(s["id"], {}).get(key)
                     for s in state["segments"]
                     if artifacts.get(s["id"], {}).get(key)]
 
-        if state["stages"]["yicai"] and not state["stages"]["sancai"]:
-            p1s = rels("p1")
-            if p1s:
-                target = f"{OUT_DIR_ROOT}/{chapter}/{DRAFT_NAME}.mp4"
-                self.H.ffmpeg(p1s, target)
-                out["draft"] = target
-        if state["stages"]["sancai"]:
-            p3s = rels("p3")
-            if p3s:
-                target = f"{OUT_DIR_ROOT}/{chapter}/{FINAL_NAME}.mp4"
-                self.H.ffmpeg(p3s, target)
-                out["final"] = target
+        for key, label, out_key in plans:
+            have = [(s["id"], artifacts.get(s["id"], {}).get(key))
+                    for s in state["segments"]
+                    if artifacts.get(s["id"], {}).get(key)]
+            miss = [f"{s['id']}(无{key})"
+                    for s in state["segments"]
+                    if not artifacts.get(s["id"], {}).get(key)]
+            if not have:
+                if miss:
+                    log(f"{label} 源=0镜 跳过={len(miss)}镜[{','.join(miss)}](不拼)")
+                continue
+            log(f"{label} 源={len(have)}镜[{','.join(i for i, _ in have)}]"
+                + (f" 跳过={len(miss)}镜[{','.join(miss)}]" if miss else ""))
+            target = f"{OUT_DIR_ROOT}/{chapter}/{label}.mp4"
+            self._ffmpeg(rels(key), target, log)
+            out[out_key] = target
         return out
+
+    def _ffmpeg(self, rels, target, log):
+        """ffmpeg 钩子委托:三参签名(log 尾随)可用则带日志,旧二参兼容。"""
+        import inspect
+        try:
+            arity = len(inspect.signature(self.H.ffmpeg).parameters)
+        except (TypeError, ValueError):
+            arity = 2
+        if arity >= 3:
+            self.H.ffmpeg(rels, target, log)
+        else:
+            self.H.ffmpeg(rels, target)
 
     def _tick(self, unique_id, index, seg_total, stage, done, total):
         self.H.send_event("daoyan_progress", {
@@ -510,6 +951,18 @@ class DirectorExecutor:
         self.H.send_event("daoyan_artifacts", {
             "node_id": unique_id, "segment_index": index, "segment_id": seg_id,
             "artifacts": {k: v for k, v in art.items() if v}})
+
+
+def _stage_context(stage: str, ctx: PassCtx, seg: dict) -> str:
+    """阶段失败行的 seed/步骤/σ/分辨率上下文(审计定位四件套;
+    seed=组级覆盖优先,空=继承全局,与 _seg_seed 同口径)。"""
+    seed = _seg_seed(ctx, seg)
+    if stage == "yicai":
+        return f"seed={seed} steps={ctx.first_steps} σ=(6,3) {PASS1_W}×{PASS1_H}"
+    if stage == "ercai":
+        return (f"seed={seed} steps={ctx.second_steps} σ=(12,3)"
+                f" {PASS2_W}×{PASS2_H}")
+    return f"seed={seed} scale=2.0 color_fix={ctx.color_fix}"
 
 
 # ── 引擎真绑(懒加载:源码位可测,引擎态才 import)────────────────────
@@ -528,7 +981,7 @@ NEEDED_CLASSES = (
 
 
 def bind_engine_hooks():
-    """引擎态装配:类注册表+文件系统/事件/中断/卸载钩子(1112 批量役
+    """引擎态装配:类注册表+文件系统/事件/中断/卸载/日志钩子(1112 批量役
     同工艺:output 检查点 glob/input 通道装载/ffmpeg concat -c copy)。"""
     import shutil
     import subprocess
@@ -537,6 +990,8 @@ def bind_engine_hooks():
     import nodes as comfy_nodes
     import folder_paths
     from server import PromptServer
+
+    from .daoyan_runlog import RunLog
 
     missing = [n for n in NEEDED_CLASSES if n not in comfy_nodes.NODE_CLASS_MAPPINGS]
     if missing:
@@ -576,45 +1031,19 @@ def bind_engine_hooks():
         fn = getattr(cls, "FUNCTION", None) or "load_video"
         return getattr(cls(), fn)(file=name)[0]
 
-    def ffmpeg(rels, out_rel):
-        """章级拼接(批量役 concat 同式:cwd=清单同目录+相对条目)。
+    def open_run_log(chapter):
+        return RunLog(chapter, out_dir, echo=True)
 
-        引擎侧 ffmpeg 构建对 HEVC-in-mp4 直拷会败(1114 R3 定谳:p3=hevc
-        2K,p1=h264 可拷;批量役当年 concat 在驱动侧 Mac 跑未踩此)——
-        分级降挡:copy → copy+hvc1 标签 → 末档 x264 转码(保底出片)。
-        """
-        import os
-        out = out_dir / out_rel
-        out.parent.mkdir(parents=True, exist_ok=True)
-        lst = out.with_suffix(".txt")
-        entries = "".join(
-            "file '%s'\n" % os.path.relpath(out_dir / r, out.parent)
-            .replace("\\", "/")
-            for r in rels)
-        lst.write_text(entries, encoding="utf-8")
-        base = ["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
-                "-i", lst.name]
-        stages = (
-            [*base, "-c", "copy", out.name],
-            [*base, "-c", "copy", "-tag:v", "hvc1", out.name],
-            [*base, "-c:v", "libx264", "-preset", "veryfast", "-crf", "16",
-             "-c:a", "copy", out.name],
-        )
-        last_err = None
-        for args in stages:
-            proc = subprocess.run(args, cwd=str(out.parent),
-                                  capture_output=True, text=True)
-            if proc.returncode == 0:
-                lst.unlink(missing_ok=True)
-                return
-            last_err = (proc.stderr or "").strip()[-300:]
-        raise RuntimeError(f"ffmpeg 章级拼接三挡全败:{out.name}:{last_err}")
+    def ffmpeg(rels, out_rel, log=None):
+        """章级拼接委托(三挡降挡单源 ffmpeg_concat;逐挡留痕)。"""
+        ffmpeg_concat(out_dir, rels, out_rel, log)
 
     def send_event(etype, payload):
         try:
             PromptServer.Instance.send_sync(etype, payload)
-        except Exception:
-            pass  # 面板不在线(程序化直投)时事件静默
+        except Exception as err:  # 事件哑发留痕(面板不在线/程序化直投)
+            print(f"[daoyan] 事件 {etype} 发送失败(面板不在线?):{err}",
+                  flush=True)
 
     def check_interrupt():
         try:
@@ -622,8 +1051,13 @@ def bind_engine_hooks():
                 throw_exception_if_processing_interrupted
             throw_exception_if_processing_interrupted()
             return False
-        except Exception:
-            return True
+        except BaseException as err:  # noqa: BLE001 - 分类:取消 vs 真错误
+            if classify_interrupt(err):
+                print(f"[daoyan] 中断(用户取消):{type(err).__name__}",
+                      flush=True)
+                return True
+            print(f"[daoyan] 中断检查异常(非取消,上抛):{err!r}", flush=True)
+            raise
 
     def free_memory():
         """三采前卸载(批量役 POST /free {'unload_models': True} 同义)。"""
@@ -631,9 +1065,13 @@ def bind_engine_hooks():
         unload_all_models()
         soft_empty_cache()
 
+    def log(msg):
+        print(f"[daoyan] {msg}", flush=True)
+
     hooks = Hooks(load_image=load_image, save_image=save_image,
                   list_output=list_output, output_path=output_path,
                   copy_to_input=copy_to_input, load_video=load_video,
                   ffmpeg=ffmpeg, send_event=send_event,
-                  check_interrupt=check_interrupt, free_memory=free_memory)
+                  check_interrupt=check_interrupt, free_memory=free_memory,
+                  log=log, open_run_log=open_run_log)
     return {n: comfy_nodes.NODE_CLASS_MAPPINGS[n] for n in NEEDED_CLASSES}, hooks

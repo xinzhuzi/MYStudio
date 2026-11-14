@@ -3,7 +3,9 @@
 单真源件:固定底框几何/角标/角名/配色取色/预裁分格全内聚本件;
 脚本 apps/build/scripts/daojie_sheet_b_frame.py 为薄壳 re-export(管线/金样同路)。
 真源链:分格指令与武器/特效模板=qi21_bases.json#sheet_card(v1);
-本件只管「固定框+固定方式」——框/格线/题名/16 角标程序绘(零缺笔零印章),
+版式格式注册表=qi21_bases.json#sheet_card_qwen.formats(v5,1114 数据驱动化——
+布局/角标/contain 集经 sheet_card_formats.py 解释器求值,渲染字节恒等,金样不重对);
+本件只管「固定框+固定方式」——框/格线/题名/15 项角标程序绘(零缺笔零印章),
 格内画面由上游 9 图(master/侧/背/面部/侧头/腕/腰/武器/特效)喂入。
 字体链跨平台:Mac 楷体→冬黑→苹方;Win simkai→msyh。
 """
@@ -13,36 +15,39 @@ import os
 
 from PIL import Image, ImageDraw, ImageFont
 
+try:  # 包内正常导入(引擎/pytest rootdir 在 apps 下)
+    from . import sheet_card_formats as _sf
+except ImportError:  # spec_from_file_location 裸载(测试/薄壳无包上下文):按同目录加载
+    import importlib.util as _ilu
+    import pathlib as _pl
+    _sf_spec = _ilu.spec_from_file_location(
+        "sheet_card_formats", _pl.Path(__file__).resolve().parent / "sheet_card_formats.py")
+    _sf = _ilu.module_from_spec(_sf_spec)
+    _sf_spec.loader.exec_module(_sf)
+
+formats_list = _sf.formats_list
+resolve = _sf.resolve
+
 # ── 画布与版式常量(3840×2160=设定卡 resolution_override 口径,32 对齐)──
 W, H = 3840, 2160
 M = 36          # 外边距
 G = 20          # 格间距
-FORMAT_VERSION = "v1.1"  # v1=1112 冻结;v1.1=1113 多格式注册表(全卡几何零改动)
+FORMAT_VERSION = "v1.2"  # v1=1112 冻结;v1.1=1113 多格式注册表;v1.2=1114 注册表驱动(真源 formats,全卡渲染字节恒等)
 PAPER = (247, 243, 234)      # 宣纸米白
 INK_LINE = (107, 101, 90)    # 细线边框
 INK_TEXT = (44, 39, 32)      # 角标/题名墨色
 
-# ── 格式注册表(1113 用户令「固定成几个格式」)──
+# ── 格式注册表面(1114 数据驱动化:值=真源 formats 经 sheet_card_formats 求值)──
 # 全卡=格式一 v1 几何逐字节恒定(金样锚);其余为同族衍生格式。
-FORMATS = ("全卡", "简版", "竖版", "无武器")
-CANVAS = {"全卡": (3840, 2160), "简版": (3840, 2160),
-          "竖版": (2160, 3840), "无武器": (3840, 2160)}
-CELL_KEYS_BY_FMT = {
-    "全卡": ("front", "side", "back", "face", "head", "eye", "hair",
-             "wrist", "waist", "weapon", "weapon_a", "weapon_b",
-             "fabric_1", "fabric_2", "fabric_3", "gear_1", "gear_2",
-             "fx_1", "fx_2"),
-    "简版": ("front", "side", "back", "face", "head", "eye", "hair",
-             "wrist", "waist"),                     # 三视图+六特写,砍四区
-    "竖版": ("全卡同集=18 格"),
-    "无武器": ("front", "side", "back", "face", "head", "eye", "hair",
-               "wrist", "waist", "fabric_1", "fabric_2", "fabric_3",
-               "gear_1", "gear_2", "fx_1", "fx_2"),  # 四区去武器区→三区
-}
-CELL_KEYS_BY_FMT["竖版"] = CELL_KEYS_BY_FMT["全卡"]
+# 遗留符号绑定=取『全卡』格式对应值(金样锚格式,非首键);渲染路径恒走 resolve(fmt) 现算。
+FORMATS = _sf.FORMATS
+CANVAS = _sf.CANVAS
+CELL_KEYS_BY_FMT = _sf.CELL_KEYS_BY_FMT
+CELL_KEYS = _sf.CELL_KEYS      # 全卡 19 格序(占位自检/管线占位/薄壳 re-export)
+LABELS = _sf.LABELS            # 全卡角标文(15 项;渲染路径恒走 resolve(fmt) 的 labels)
 
 NAME_SIZE = 64                # 角名字号(右上角小档,1112 用户令「标题太大/仅占名位」)
-LABEL_SIZE = 36               # 角标字号(4K 画布可辨下限)
+LABEL_SIZE = 36               # 角标字号(4K 画布可辨下限;真源 labels.size 同值,兜底缺键)
 
 FONT_CHAIN = (
     "/System/Library/Fonts/STKaiti.ttc",
@@ -51,25 +56,6 @@ FONT_CHAIN = (
     "C:\\Windows\\Fonts\\simkai.ttf",   # Win 楷体
     "C:\\Windows\\Fonts\\msyh.ttc",     # Win 微软雅黑
 )
-
-# 格名登记;compose 断言缺格即红(半成品卡禁出门)
-CELL_KEYS = (
-    "front", "side", "back",                    # 三视图横排
-    "face", "head", "eye", "hair", "wrist", "waist",   # 六格特写
-    "weapon", "weapon_a", "weapon_b",           # 武器(整器+两局部)
-    "fabric_1", "fabric_2", "fabric_3",         # 服饰纹理三样
-    "gear_1", "gear_2",                         # 装备细节两格
-    "fx_1", "fx_2",                             # 能力两格
-)
-
-LABELS = {
-    "front": "正视图", "side": "侧视图", "back": "背视图",
-    "face": "面部特写", "head": "头部细节", "eye": "眉眼", "hair": "发型",
-    "wrist": "腕部", "waist": "腰部",
-    "weapon": "武器展示", "weapon_a": "握持部位", "weapon_b": "收存结构",
-    "fabric_1": "服饰纹理", "gear_1": "装备细节", "fx_1": "能力",
-}
-
 
 _BG_TRUTH_CANDIDATES = (
     __import__("pathlib").Path(__file__).resolve().parents[4]
@@ -108,94 +94,13 @@ def _font(size: int) -> ImageFont.FreeTypeFont:
 
 
 def layout(fmt: str = "全卡") -> dict:
-    """版式几何(格式注册表 v1.1;全卡=格式一 v1 几何逐字节恒定)。"""
+    """版式几何(真源 formats 注册表 v1.2;全卡=格式一 v1 几何逐字节恒定)。
+
+    rects 含保留键 _palette(配色带矩形);格序=cells 书写序=compose 渲染序。
+    真源缺位/坏条目的分级兜底见 sheet_card_formats.load_formats。
+    """
     assert fmt in FORMATS, f"未知格式 {fmt!r}({FORMATS})"
-    cw_, ch_ = CANVAS[fmt]
-    cells: dict = {}
-    iw, ih = cw_ - 2 * M, ch_ - 2 * M
-    if fmt == "全卡" or fmt == "竖版":
-        scale = ih if fmt == "全卡" else ih  # 两版行比例同构,竖版画布高重塑
-        r1 = round(ih * 0.55) if fmt == "全卡" else round(ih * 0.58)
-        r4 = ih - G - r1
-        y1, y4 = M, M + r1 + G
-        vw = round(r1 * 1664 / 2496) + 48
-        for i, k in enumerate(("front", "side", "back")):
-            x = M + i * (vw + G)
-            cells[k] = (x, y1, x + vw, y1 + r1)
-        rx0 = M + 3 * vw + 2 * G
-        rw = cw_ - M - rx0
-        PH = 150
-        cwid = (rw - 2 * G) // 3
-        chh = (r1 - PH - 2 * G) // 2
-        for i, k in enumerate(("face", "head", "eye", "hair", "wrist", "waist")):
-            col, row = i % 3, i // 3
-            x = rx0 + col * (cwid + G)
-            y = y1 + row * (chh + G)
-            cells[k] = (x, y, x + cwid, y + chh)
-        cells["_palette"] = (rx0, y1 + r1 - PH, cw_ - M, y1 + r1)
-        if fmt == "无武器":
-            pass
-        if fmt == "全卡" or fmt == "竖版":
-            zw = iw - 3 * G
-            z1w = round(zw * 0.40)
-            zsw = (zw - z1w) // 3
-            x = M
-            z1 = (x, y4, x + z1w, y4 + r4); x += z1w + G
-            z2 = (x, y4, x + zsw, y4 + r4); x += zsw + G
-            z3 = (x, y4, x + zsw, y4 + r4); x += zsw + G
-            z4 = (x, y4, cw_ - M, y4 + r4)
-            wt = round(r4 * 0.58)
-            ihh = (r4 - G) // 2
-            cells["weapon"] = (z1[0], y4, z1[2], y4 + wt)
-            mid = z1[0] + (z1[2] - z1[0] - G) // 2
-            cells["weapon_a"] = (z1[0], y4 + wt + G, mid, y4 + r4)
-            cells["weapon_b"] = (mid + G, y4 + wt + G, z1[2], y4 + r4)
-            sh = (r4 - 2 * G) // 3
-            for i, k in enumerate(("fabric_1", "fabric_2", "fabric_3")):
-                y = y4 + i * (sh + G)
-                cells[k] = (z2[0], y, z2[2], y + sh)
-            cells["gear_1"] = (z3[0], y4, z3[2], y4 + ihh)
-            cells["gear_2"] = (z3[0], y4 + ihh + G, z3[2], y4 + r4)
-            cells["fx_1"] = (z4[0], y4, z4[2], y4 + ihh)
-            cells["fx_2"] = (z4[0], y4 + ihh + G, z4[2], y4 + r4)
-        return cells
-    if fmt == "无武器":
-        # 顶块同全卡;底部=三等区(服饰纵向三枚/装备上下/能力上下),武器区移除
-        cells = layout("全卡")
-        for k in ("weapon", "weapon_a", "weapon_b", "fabric_1", "fabric_2",
-                  "fabric_3", "gear_1", "gear_2", "fx_1", "fx_2"):
-            cells.pop(k)
-        y4 = cells["_palette"][3] + G
-        r4 = H - M - y4
-        zw = (W - 2 * M - 2 * G) // 3
-        sh = (r4 - 2 * G) // 3
-        ihh = (r4 - G) // 2
-        zx = (M, M + zw + G, M + 2 * (zw + G))
-        for i, k in enumerate(("fabric_1", "fabric_2", "fabric_3")):
-            y = y4 + i * (sh + G)
-            cells[k] = (zx[0], y, zx[0] + zw, y + sh)
-        cells["gear_1"] = (zx[1], y4, zx[1] + zw, y4 + ihh)
-        cells["gear_2"] = (zx[1], y4 + ihh + G, zx[1] + zw, y4 + r4)
-        cells["fx_1"] = (zx[2], y4, zx[2] + zw, y4 + ihh)
-        cells["fx_2"] = (zx[2], y4 + ihh + G, zx[2] + zw, y4 + r4)
-        return cells
-    if fmt == "简版":
-        # 三视图横排(52%)+六特写 6×1(40%)+配色条(8%),无底部区
-        r1 = round(ih * 0.52)
-        r2 = round(ih * 0.40)
-        y1, y2 = M, M + r1 + G
-        y3 = y2 + r2 + G
-        vw = (iw - 2 * G) // 3
-        for i, k in enumerate(("front", "side", "back")):
-            x = M + i * (vw + G)
-            cells[k] = (x, y1, x + vw, y1 + r1)
-        cwid = (iw - 5 * G) // 6
-        for i, k in enumerate(("face", "head", "eye", "hair", "wrist", "waist")):
-            x = M + i * (cwid + G)
-            cells[k] = (x, y2, x + cwid, y2 + r2)
-        cells["_palette"] = (M, y3, W - M, H - M)
-        return cells
-    raise AssertionError(fmt)
+    return resolve(fmt)["rects"]
 
 
 def cells_focal() -> dict:
@@ -296,8 +201,8 @@ def zoom(img: Image.Image, fx, fy, fw, fh=None) -> Image.Image:
 
 
 def derive_cells(imgs: dict) -> dict:
-    """9 步产物(master/side/back/face/head/wrist/waist/weapon/effect)→18 格。
-    分格方式=格式一 v1 固定方式(直用+预裁放大;金样锚 419639ab)。"""
+    """9 步产物(master/side/back/face/head/wrist/waist/weapon/effect)→19 格。
+    分格方式=格式一 v1 固定方式(直用+预裁放大;金样锚 e6221c36)。"""
     need = {"master", "side", "back", "face", "head", "wrist", "waist",
             "weapon", "effect"}
     assert need <= set(imgs), f"缺步产物:{need - set(imgs)}"
@@ -321,28 +226,34 @@ def derive_cells(imgs: dict) -> dict:
 
 
 def compose(cells: dict, palette, title: str, dst: str, fmt: str = "全卡", bg: str = "素白宣纸") -> str:
-    """整卡合成(文件路,脚本/金样用;fmt=格式注册表)。缺格断言红;恒 RGB。"""
+    """整卡合成(文件路,脚本/金样用;fmt=格式注册表)。缺格断言红;恒 RGB。
+
+    版式取数全走 resolve(fmt)(真源 formats 注册表):格序/画布/几何/contain
+    集/角标文/角标字号;渲染行与 v1.1 逐字节同路(金样 e6221c36 不重对)。
+    """
     assert fmt in FORMATS, fmt
-    keys = CELL_KEYS_BY_FMT[fmt]
+    spec = resolve(fmt)
+    geo = spec["rects"]
+    keys = tuple(k for k in geo if k != "_palette")      # =cells 书写序=渲染序
     missing = [k for k in keys if not isinstance(cells.get(k), Image.Image)]
     assert not missing, f"缺格 {missing}({fmt} 应全填 {len(keys)} 格)"
     assert len(palette) == 5, "配色应恰五枚"
-    cw_, ch_ = CANVAS[fmt]
+    cw_, ch_ = spec["canvas"]
     paper = _bg_color(bg)
+    modes = spec["modes"]
+    labels_text = spec["labels"].get("text", {})
 
     canvas = Image.new("RGB", (cw_, ch_), paper)
     d = ImageDraw.Draw(canvas)
-    geo = layout(fmt)
-    label_font = _font(LABEL_SIZE)
+    label_font = _font(spec["labels"].get("size", LABEL_SIZE))
 
     # 外框(顶格版式:格子自顶起,无标题带)
     d.rectangle((M, M, cw_ - M, ch_ - M), outline=INK_LINE, width=3)
     # 格裁贴(三视图/整器/眉眼横带=contain 整图入格,其余 cover 裁切)
-    CONTAIN = {"front", "side", "back", "weapon", "eye"}
     for k in keys:
-        _place(canvas, d, cells[k], geo[k], LABELS.get(k),
+        _place(canvas, d, cells[k], geo[k], labels_text.get(k),
                focal=cells_focal().get(k, (0.5, 0.5)), label_font=label_font,
-               mode="contain" if k in CONTAIN else "cover", paper=paper)
+               mode=modes[k], paper=paper)
 
     # 配色带:角标+五枚圆卡(取自主体实际设色)
     px0, py0, px1, py1 = geo["_palette"]
@@ -386,8 +297,9 @@ class MySheetCardComposer:
     """道劫角色设定卡·格式一 v1 合成器(1113 道劫正册化)。
 
     9 图入卡:master(正视图源)/side/back/face/head/wrist/waist/weapon/effect
-    →固定底框(程序绘框线+16 角标+配色五圆+右上角名)→ 3840×2160 IMAGE。
-    固定框/固定方式=本模块;分格指令真源=qi21_bases.json#sheet_card。
+    →固定底框(程序绘框线+15 项角标+配色五圆+右上角名)→ 3840×2160 IMAGE。
+    固定框/固定方式=本模块;分格指令真源=qi21_bases.json#sheet_card;
+    版式格式注册表真源=qi21_bases.json#sheet_card_qwen.formats(v5)。
     """
 
     @classmethod
@@ -398,7 +310,7 @@ class MySheetCardComposer:
             "wrist": ("IMAGE",), "waist": ("IMAGE",),
             "weapon": ("IMAGE",), "effect": ("IMAGE",),
             "角名": ("STRING", {"default": "沈孤鸿", "multiline": False}),
-            "格式": (list(FORMATS), {"default": "全卡"}),
+            "格式": (formats_list(), {"default": formats_list()[0]}),
             "背景": ("STRING", {"default": "素白宣纸", "multiline": False}),
         }}
 

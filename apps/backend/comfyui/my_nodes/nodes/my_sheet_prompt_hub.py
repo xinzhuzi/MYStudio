@@ -1,9 +1,11 @@
 """my_sheet_prompt_hub.py — 道劫设定卡·提示词枢纽(1113 用户令「固化提示词单点分发」)。
 
-画布从「九处散装提示词」变「一处入口」:本节点输入=主体句+角名+**背景类型唯一旋钮**,
-运行时热读 qi21_bases.json#sheet_card_qwen 真源(v4:{背景} 占位+backgrounds 三型表)
-装配三层提示词,13 出链接分发到各 TextEncode 与合成器——背景类型同源直连合成器
-「背景」输入,提示词与画布底色永不脱钩(用户令「配合明白不能出错」)。
+画布从「九处散装提示词」变「一处入口」:本节点输入=主体句+角名+**背景类型/格式两旋钮**,
+运行时热读 qi21_bases.json#sheet_card_qwen 真源(v5:{背景} 占位+backgrounds 三型表
++formats 格式注册表)装配三层提示词,14 出链接分发到各 TextEncode 与合成器——
+背景类型/格式同源直连合成器对应输入,提示词与画布底色/版式永不脱钩
+(用户令「配合明白不能出错」)。格式下拉与合成器同走 sheet_card_formats
+(真源 formats 注册表,缺真源回退内嵌冻结快照)。
 数据位候选链对齐 my_qi21_base(dev 真源家→引擎家 daojie-data→装机固定位)。
 """
 from __future__ import annotations
@@ -13,6 +15,15 @@ import os
 from pathlib import Path
 
 _HERE = Path(__file__).resolve()
+
+try:  # 包内正常导入(引擎/pytest rootdir 在 apps 下)
+    from . import sheet_card_formats as _sf
+except ImportError:  # spec_from_file_location 裸载兜底(与合成器同款 shim)
+    import importlib.util as _ilu
+    _sf_spec = _ilu.spec_from_file_location(
+        "sheet_card_formats", _HERE.parent / "sheet_card_formats.py")
+    _sf = _ilu.module_from_spec(_sf_spec)
+    _sf_spec.loader.exec_module(_sf)
 
 
 def _daojie_data(fn: str) -> Path:
@@ -49,7 +60,8 @@ def assemble(subject: str, name: str, bg: str) -> dict:
     """装配全卡提示词(纯函数,单测/枢纽共一条路;{背景} 按 truth.backgrounds 填)。"""
     bases = _truth()
     q = bases["sheet_card_qwen"]
-    assert q["format_version"] >= "v4" and bg in q["backgrounds"], \
+    # 数值比较(1114:字符串比较 'v10'>='v4'=False 会误红;升两位数版本无感)
+    assert int(q["format_version"].lstrip("v")) >= 4 and bg in q["backgrounds"], \
         f"真源 v4 缺位或背景型 {bg!r} 不在册"
     phrase = q["backgrounds"][bg]["phrase"]
     style = bases["art_style_base"]["positive_text"]
@@ -76,11 +88,11 @@ def assemble(subject: str, name: str, bg: str) -> dict:
 
 OUT_ORDER = ("master", "master_i2i", "weapon", "effect",
              "side", "back", "face", "head", "wrist", "waist",
-             "neg_gen", "neg_edit", "bg")
+             "neg_gen", "neg_edit", "bg", "格式")
 
 
 class MySheetPromptHub:
-    """道劫·设定卡提示词枢纽(单点固化→13 出分发;背景类型唯一旋钮)。"""
+    """道劫·设定卡提示词枢纽(单点固化→14 出分发;背景类型/格式单源旋钮)。"""
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -97,17 +109,23 @@ class MySheetPromptHub:
             "主体句": ("STRING", {"default": subject_default, "multiline": True}),
             "角名": ("STRING", {"default": "沈孤鸿", "multiline": False}),
             "背景类型": (list(q["backgrounds"]), {"default": "素白宣纸"}),
+        }, "optional": {
+            # optional 裁定(1114):required 会使旧法构造的 API 直调 prompt JSON
+            # 缺『格式』字段即 validate 红;缺省全卡=画布存量件无感。
+            "格式": (_sf.formats_list(), {"default": "全卡"}),
         }}
 
-    RETURN_TYPES = ("STRING",) * 13
+    RETURN_TYPES = ("STRING",) * 14
     RETURN_NAMES = ("正向·master", "指令·master图生图", "正向·武器", "正向·特效",
                     "指令·侧视图", "指令·背视图", "指令·面部", "指令·头部",
-                    "指令·腕部", "指令·腰部", "负面·生成", "负面·编辑", "背景类型")
+                    "指令·腕部", "指令·腰部", "负面·生成", "负面·编辑", "背景类型",
+                    "格式")
     FUNCTION = "hub"
     CATEGORY = "道劫/设定卡"
 
-    def hub(self, 主体句, 角名, 背景类型):
+    def hub(self, 主体句, 角名, 背景类型, 格式="全卡"):
         out = assemble(主体句, 角名, 背景类型)
+        out["格式"] = 格式  # 单源旋钮直连合成器『格式』输入(缺省透传,prompts 恒 base)
         return tuple(out[k] for k in OUT_ORDER)
 
 

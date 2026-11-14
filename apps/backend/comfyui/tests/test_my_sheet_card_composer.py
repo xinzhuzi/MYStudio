@@ -1,13 +1,15 @@
 # Copyright (c) 2025 hotflow2024
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
-"""道劫设定卡合成器单测(1113 道劫正册化)。
+"""道劫设定卡合成器单测(1113 道劫正册化;1114 格式注册表数据驱动化)。
 
-两门:
-① 占位合成+几何互斥(恒跑):18 格色块占位 → 尺寸/模式/格不重叠不越界;
+三门:
+① 占位合成+几何互斥(恒跑):19 键色块占位 → 尺寸/模式/格不重叠不越界;
 ② 金样等价(步产物在位才跑,apps/output=gitignore 本地产物区):9 步真产物经
    derive_cells+extract_palette+compose 逐字节 == 格式一 v1 金样
-   419639ab…(节点件=单真源,薄壳/管线/本测同一条代码路,防几何漂移金锚)。
+   e6221c36…(节点件=单真源,薄壳/管线/本测同一条代码路,防几何漂移金锚);
+③ 格式注册表快照(1114):书写序(全卡恒首键=缺省档契约)+四格式 rects/键序/
+   modes 锁内嵌 _FROZEN 冻结期望+真源在位时 truth.formats==快照(双源漂移即红)。
 """
 from __future__ import annotations
 
@@ -23,6 +25,11 @@ _NODE_SRC = _TESTS.parent / "my_nodes/nodes/my_sheet_card_composer.py"
 _spec = importlib.util.spec_from_file_location("my_sheet_card_frame_test", _NODE_SRC)
 frame = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(frame)
+
+_SF_SRC = _TESTS.parent / "my_nodes/nodes/sheet_card_formats.py"
+_sf_spec = importlib.util.spec_from_file_location("sheet_card_formats_test", _SF_SRC)
+sf = importlib.util.module_from_spec(_sf_spec)
+_sf_spec.loader.exec_module(sf)
 
 STEPS_DIR = (_TESTS.parents[3] / "apps/output/daojie-sheet-b-1112-arch1113"
                if (_TESTS.parents[3] / "apps/output/daojie-sheet-b-1112-arch1113").is_dir()
@@ -78,3 +85,42 @@ def test_golden_equivalence(tmp_path):
     sha = hashlib.sha256(dst.read_bytes()).hexdigest()
     assert sha == GOLDEN_SHA, \
         f"金样漂移:{sha}(几何/分格/字体任一改动须显式升版+金样重对)"
+
+
+def test_formats_registry_snapshot():
+    """1114 格式注册表快照:书写序+四格式几何/键序/modes 锁内嵌 _FROZEN 冻结期望。
+
+    『全卡』恒首键=INPUT_TYPES 缺省档契约(新增格式只能尾部追加);真源在位时
+    truth.formats==_FROZEN(双源漂移即红)——快照等价半边在缺位环境无意义,skip。
+    """
+    # ① 书写序契约
+    assert sf.formats_list() == ["全卡", "简版", "竖版", "无武器"]
+    # ② 四格式 resolve(rects/键序/modes)锁 _FROZEN 冻结期望(与环境真源解耦)
+    for fmt in sf.formats_list():
+        got, want = sf.resolve(fmt), sf._resolve(sf._FROZEN, fmt)
+        assert got["rects"] == want["rects"], fmt
+        assert got["modes"] == want["modes"], fmt
+        assert got["labels"] == want["labels"], fmt
+        assert got["canvas"] == want["canvas"], fmt
+        assert tuple(k for k in got["rects"] if k != "_palette") \
+            == frame.CELL_KEYS_BY_FMT[fmt], fmt
+    # ③ 字面锚(防 _FROZEN 与解释器一起漂):全卡金样几何三代恒等
+    full = sf.resolve("全卡")
+    assert full["canvas"] == (3840, 2160) and full["margin"] == 36 and full["gutter"] == 20
+    assert full["rects"]["front"] == (36, 36, 849, 1184)
+    assert full["rects"]["_palette"] == (2515, 1034, 3804, 1184)
+    assert full["rects"]["fx_2"] == (3061, 1674, 3804, 2124)
+    assert {k for k, m in full["modes"].items() if m == "contain"} \
+        == {"front", "side", "back", "weapon", "eye"}
+    assert len(full["labels"]["text"]) == 15 and full["labels"]["size"] == 36
+    assert len(sf.resolve("简版")["rects"]) == 10            # 9 格+_palette
+    assert len(sf.resolve("无武器")["rects"]) == 17           # 16 格+_palette
+    # ④ 真源在位时:truth.formats == 内嵌快照(双源漂移即红)
+    tp = sf.truth_path()
+    if tp is None:
+        pytest.skip("真源缺位(候选链全无 qi21_bases.json):快照等价半边无意义;"
+                    "当前 resolve 走内嵌 _FROZEN 回退,见 load_formats 分级兜底")
+    import json
+    truth_reg = json.loads(tp.read_text(encoding="utf-8"))["sheet_card_qwen"]["formats"]
+    assert truth_reg == sf._FROZEN, \
+        f"真源与 _FROZEN 漂移:{tp}(请跑 apps/build/scripts/daojie_sheet_formats_freeze.py 再生)"

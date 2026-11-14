@@ -57,12 +57,15 @@ from .nodes.my_qi21_fast_encode import MyQi21FastEncode
 from .nodes.my_qi21_latent_upscale import MyQi21LatentUpscale
 from .nodes.my_qi21_color_anchor import MyQi21ColorAnchor
 from .nodes.my_director_console import MyDirectorConsole  # 1113 导演台真复刻阶段1(11-13-director-console-remake)
+from .nodes.director_pass_nodes import (MyDaoyanPass1, MyDaoyanPass2,
+                                        MyDaoyanPass3)  # 1114 阶段3.5 三采调试薄壳(单源=director_executor 模块函数)
 from . import cloud_takeover
 from . import prompt_log_server as _prompt_log_server
 from . import my_styles_server as _my_styles_server
 from . import bridge_settings_server as _bridge_settings_server
 from . import open_receipt_server as _open_receipt_server
 from . import line_mode_server as _line_mode_server
+from . import daoyan_server as _daoyan_server
 
 
 class MyPromptLegacy(MyPrompt):
@@ -135,6 +138,10 @@ _open_receipt_server.install()
 # install 同款自守卫纪律(win32 only+急停标记文件,失败静默绝不挡装载出图)。
 _line_mode_server.install()
 
+# 导演台面板路由(1114 阶段3.5 可观测):三条只读 /my_daoyan/*
+# (projects/chapters/logs);install 同款自守卫纪律(失败绝不挡装载出图)。
+_daoyan_server.install()
+
 NODE_CLASS_MAPPINGS = {
     "MyQi21InstructionSelect": MyQi21InstructionSelect,
     "MyQi21PurposeCanvas": MyQi21PurposeCanvas,
@@ -165,7 +172,7 @@ NODE_CLASS_MAPPINGS = {
     "MyQi21PromptPreview": MyQi21PromptPreview,  # 1005 用户令:正负终稿合成一个预览节点(分区显示)
     "MyQi21WhSuggest": MyQi21WhSuggest,  # 1001 S8 R7 集成:画幅联动链 8合1(4.2MP·8倍数取整)
     "MySheetCardComposer": MySheetCardComposer,  # 1113 道劫正册化:设定卡格式一 v1 合成器(9图→4K 固定底框)
-    "MySheetPromptHub": MySheetPromptHub,  # 1113 提示词枢纽:单点固化+背景类型唯一旋钮→13 出分发
+    "MySheetPromptHub": MySheetPromptHub,  # 1113 提示词枢纽:单点固化+背景类型/格式单源旋钮→14 出分发(1114 格式透传)
     "MyQi21ChinesePE": MyQi21ChinesePE,  # 1004 中文PE:drop-in替上游PE(系统指令内存patch中文规则+负向双出,磁盘零改)
     "MyQi21ApiPE": MyQi21ApiPE,  # 1006 API版PE:LM Studio本机大模型按真源教材扩写(服务不在=透传);三轮=六入全上下文+双口出
     "MyFlux3DaojieAdapter": MyFlux3DaojieAdapter,
@@ -181,6 +188,9 @@ NODE_CLASS_MAPPINGS = {
     "MyCharsheetLabels": MyCharsheetLabels,
     "MyImageSave": MyImageSave,  # 1001 TE-MAN B7①:存图可追溯(核心存图子类+底部 prompt 面板,ui.myPrompt 回传)
     "MyDirectorConsole": MyDirectorConsole,  # 1113 导演台(阶段1 壳:四 loader 口+timeline_data 单通道+空转占位帧)
+    "MyDaoyanPass1": MyDaoyanPass1,  # 1114 阶段3.5 导演台·一采单镜调试壳(单源 pass1)
+    "MyDaoyanPass2": MyDaoyanPass2,  # 1114 阶段3.5 导演台·二采单镜调试壳(单源 pass2;不接 av_latent=确定性重采样)
+    "MyDaoyanPass3": MyDaoyanPass3,  # 1114 阶段3.5 导演台·三采单镜调试壳(单源 pass3;p2_video 画布直喂)
     # 旧名别名(09-14 改名前存量工作流的节点 type 键)
     "ManyingPrompt": MyPromptLegacy,
     "ManyingReference": MyReferenceLegacy,
@@ -239,6 +249,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MyCharsheetLabels": "漫影 设定表标注",
     "MyImageSave": "漫影 存图(可追溯)",
     "MyDirectorConsole": "导演台",
+    "MyDaoyanPass1": "导演台·一采单镜",
+    "MyDaoyanPass2": "导演台·二采单镜",
+    "MyDaoyanPass3": "导演台·三采单镜",
     # 旧键同名显示(画布上旧工作流节点标题照旧渲染「漫影 …」)
     "ManyingPrompt": "漫影 提示词",
     "ManyingReference": "漫影 参考图",

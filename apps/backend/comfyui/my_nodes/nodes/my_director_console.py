@@ -222,5 +222,11 @@ class MyDirectorConsole:
             raise RuntimeError(f"导演台执行链装配失败:{err}") from err
         result = DirectorExecutor(classes, hooks).run(
             model, video_vae, audio_vae, clip, plan, unique_id=unique_id)
-        _ = result  # 产物经事件(daoyan_artifacts/daoyan_progress)回面板
+        # run 汇总日志行(1114 可观测:不丢返回值;产物经事件
+        # daoyan_artifacts/daoyan_progress 回面板,量况入引擎日志)
+        co = result.get("chapter_outputs") or {}
+        print(f"[daoyan] run 完成 done={result['done']}/{result['total']}"
+              f" 取消={1 if result['cancelled'] else 0}"
+              f" 章草片={co.get('draft') or '-'}"
+              f" 章终片={co.get('final') or '-'}", flush=True)
         return (self._placeholder_frame(),)

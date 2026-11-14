@@ -72,7 +72,7 @@ python3 apps/build/scripts/daojie_sheet_b_pipeline.py --engine qwen \
 def _prompts():
     bases = json.loads(BASES.read_text(encoding="utf-8"))
     q = bases["sheet_card_qwen"]
-    assert q["format_version"] == "v4" and q["engine"] == "qwen-image-2.1"
+    assert q["format_version"] == "v5" and q["engine"] == "qwen-image-2.1"
     style = bases["art_style_base"]["positive_text"]
     style_neg = bases["art_style_base"].get("negative_text", "")
     bgp = q["backgrounds"]["素白宣纸"]["phrase"]  # 画布件烧默认型(旋钮在枢纽)
