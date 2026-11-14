@@ -126,6 +126,27 @@ export function createStudioWorkflowShardedStorage(
   const envFullSaveEvery = Number.parseInt(shardEnv, 10);
   const fullSaveEvery = options.fullSaveEvery ?? (Number.isFinite(envFullSaveEvery) ? envFullSaveEvery : 50);
 
+  /**
+   * 1114 章序修复：水合侧章序键——entry.index 数值优先，缺失时从 id 解析数字
+   * (chapter-001→1)，均不可得排尾(Array.sort 稳定，保原相对序)。manifest.chapterIndex
+   * 的物理数组序历史上已乱(保存链恒抄内存序，乱序自固化，用户实报三处章节下拉乱序)，
+   * 且 novelChapters 数组序被切章上一章/前情上下文/第N共M序号/管线迭代序多处当语义用——
+   * 读侧排序=唯一正序入口；保存按内存序回写，下次保存自然把 manifest 写正(自愈，零迁移)。
+   */
+  const hydratedChapterOrder = (chapter: unknown): number => {
+    if (chapter && typeof chapter === "object") {
+      const record = chapter as Record<string, unknown>;
+      if (typeof record.index === "number" && Number.isFinite(record.index)) {
+        return record.index;
+      }
+      if (typeof record.id === "string") {
+        const fromId = Number.parseInt(record.id.match(/(\d+)/)?.[1] ?? "", 10);
+        if (Number.isFinite(fromId)) return fromId;
+      }
+    }
+    return Number.POSITIVE_INFINITY;
+  };
+
   const readMergedShards = async (pid: string): Promise<string | null> => {
     const manifestRaw = await fileStorage.getItem(`${shardFileKeyPrefix(pid)}/manifest`);
     if (!manifestRaw) return null;
@@ -169,6 +190,8 @@ export function createStudioWorkflowShardedStorage(
         }
         return entry;
       });
+      // 1114 章序修复：chapterIndex 物理序不可信，水合产出前按章号数值排一次
+      novelChapters.sort((left, right) => hydratedChapterOrder(left) - hydratedChapterOrder(right));
       // activeChapterId 必须放进 state——zustand persist 只 merge 信封的 state，顶层附加键会被丢弃
       return JSON.stringify({
         state: { ...merged.state, novelChapters, activeChapterId: active },
@@ -188,6 +211,12 @@ export function createStudioWorkflowShardedStorage(
     }
     if (missingAll > 0) pendingReadDamage = true;
     const merged = mergeStudioWorkflowShards(contents);
+    // 1114 章序修复：无 chapterIndex 的旧版 manifest 同类乱序风险，合并态同排序
+    if (Array.isArray(merged.state.novelChapters)) {
+      (merged.state.novelChapters as unknown[]).sort(
+        (left, right) => hydratedChapterOrder(left) - hydratedChapterOrder(right),
+      );
+    }
     return JSON.stringify({ state: merged.state, version: manifest.version });
   };
 

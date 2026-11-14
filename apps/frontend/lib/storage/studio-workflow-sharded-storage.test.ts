@@ -730,4 +730,57 @@ describe("createStudioWorkflowShardedStorage", () => {
       await __resetModuleStorageWriteLockForTests();
     }
   });
+
+  it("1114 章序修复：盘上 manifest.chapterIndex 乱序 → 水合按章号数值升序（激活章全量对象落位正确）", async () => {
+    // 复刻用户实盘形态：chapterIndex 物理数组序已乱（历史保存链恒抄内存序自固化）
+    await storage.setItem("studio-workflow-store", buildPersistedValue());
+    const manifestKey = "_p/proj-1/studio-workflow/manifest";
+    const manifest = JSON.parse(hoisted.files.get(manifestKey)!) as {
+      shards: string[];
+      chapterIndex?: Array<Record<string, unknown>>;
+    };
+    // 真实数据形态：条目带数值 index（截图实测乱序样本 1,800,3815,404,193,99,6,500,97）
+    manifest.chapterIndex = [1, 800, 3815, 404, 193, 99, 6, 500, 97].map((n) => ({
+      id: `chapter-${String(n).padStart(3, "0")}`,
+      index: n,
+      title: `第${n}章`,
+    }));
+    hoisted.files.set(manifestKey, JSON.stringify(manifest));
+
+    const restored = await storage.getItem("studio-workflow-store");
+    const parsed = JSON.parse(restored!) as {
+      state: { novelChapters: Array<{ id: string; index?: number; sourceText?: string }> };
+    };
+    expect(parsed.state.novelChapters.map((c) => c.id)).toEqual([
+      "chapter-001", "chapter-006", "chapter-097", "chapter-099", "chapter-193",
+      "chapter-404", "chapter-500", "chapter-800", "chapter-3815",
+    ]);
+    // 激活章（chapter-001）从分片找回全量对象并落位第一，其余为轻索引项
+    expect(parsed.state.novelChapters[0]).toMatchObject({ id: "chapter-001" });
+    expect(typeof parsed.state.novelChapters[0]!.sourceText).toBe("string");
+    expect(parsed.state.novelChapters[1]!.sourceText).toBeUndefined();
+  });
+
+  it("1114 章序修复：条目缺 index 时按 id 数字回退，无数字条目稳定排尾", async () => {
+    await storage.setItem("studio-workflow-store", buildPersistedValue());
+    const manifestKey = "_p/proj-1/studio-workflow/manifest";
+    const manifest = JSON.parse(hoisted.files.get(manifestKey)!) as {
+      shards: string[];
+      chapterIndex?: Array<Record<string, unknown>>;
+    };
+    manifest.chapterIndex = [
+      { id: "chapter-500" },
+      { id: "chapter-006" },
+      { id: "chapter-无数字-a" },
+      { id: "chapter-001" },
+      { id: "chapter-无数字-b" },
+    ];
+    hoisted.files.set(manifestKey, JSON.stringify(manifest));
+
+    const restored = await storage.getItem("studio-workflow-store");
+    const parsed = JSON.parse(restored!) as { state: { novelChapters: Array<{ id: string }> } };
+    expect(parsed.state.novelChapters.map((c) => c.id)).toEqual([
+      "chapter-001", "chapter-006", "chapter-500", "chapter-无数字-a", "chapter-无数字-b",
+    ]);
+  });
 });
