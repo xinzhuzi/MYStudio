@@ -151,6 +151,12 @@ def _normalize_segment(seg, idx):
         and seg["frames"] > 0 else _frames_from_seconds(seconds),
         "seed": seg.get("seed") if isinstance(seg.get("seed"), int) else None,
         "rerun": seg.get("rerun") is True,
+        # 1115 六缺口字段(skip/audios/use_common):节点侧归一同步
+        # (六缺口弹实录:漏此三键=skip 在面板→timeline_data→plan 链上被丢)
+        "skip": seg.get("skip") is True,
+        "audios": [str(x) for x in (seg.get("audios") or [])
+                   if isinstance(x, str) and x.strip()],
+        "use_common": False if seg.get("use_common") is False else True,
         "prompt": {k: str(prompt.get(k) or "") for k in
                    ("summary", "retention", "description", "soundscape")},
         "images": [str(x) for x in (seg.get("images") or [])
