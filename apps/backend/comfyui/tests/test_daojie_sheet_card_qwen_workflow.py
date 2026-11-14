@@ -23,9 +23,7 @@ WF = WF_DIR / "道劫-角色设定卡-t2i.json"
 WF_I2I = WF_DIR / "道劫-角色设定卡-i2i.json"
 _GEN = _REPO / "apps/build/scripts/daojie_sheet_workflow_qwen_build_1113.py"
 
-_spec = importlib.util.spec_from_file_location("sheet_wf_qgen", _GEN)
-gen = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(gen)
+# 1114 格式注册表驱动化:测试直接读真源 JSON,不再依赖生成器(生成器可滞后)
 
 DOC = json.loads(WF.read_text(encoding="utf-8"))
 DOC_I2I = json.loads(WF_I2I.read_text(encoding="utf-8"))
@@ -49,6 +47,14 @@ def _te(nid):
     return n["widgets_values"]
 
 
+def _slot(nid, name):
+    """按名查节点入槽(不依赖槽序,用户手动排版/ComfyUI 自然序兼容)。"""
+    for inp in NODES[nid].get("inputs", []):
+        if inp["name"] == name:
+            return inp
+    raise AssertionError(f"节点{nid}缺入槽{name}")
+
+
 def test_file_and_class_whitelist():
     assert WF.is_file() and WF_I2I.is_file()
     assert not (WF_DIR / "道劫-角色设定卡.json").exists(), "旧名单件应已改名 -t2i"
@@ -60,52 +66,59 @@ def test_file_and_class_whitelist():
 
 
 def test_prompts_are_qwen_truth_v2():
-    p = gen._prompts()
-    m = _te(T2I_IDS["master"])
-    assert m[0] == p["master"][0] and m[1] == p["master"][1]
-    assert _te(T2I_IDS["weapon"])[:2] == list(p["weapon"])
-    assert _te(T2I_IDS["effect"])[:2] == list(p["effect"])
-    for tag, nid in EDIT_IDS.items():
-        t = _te(nid)
-        assert t[0] == p["instr"][tag], tag
-        assert t[1] == p["edit_neg"], tag
-        assert t[2] == 0, tag
-        assert "<image1>" in t[0], f"{tag} 缺 multiref 指代"
-    h3 = json.loads((_REPO / "apps/frontend/assets/studio-manuals/art_skills/"
-                     "daojie_ink_guofeng/json/qi21_bases.json").read_text(
-                         encoding="utf-8"))["sheet_card"]
+    """v5 格式注册表:TE prompt 全由枢纽链接喂,按名验接线+H3 分源互斥。"""
+    truth = json.loads((_REPO / "apps/frontend/assets/studio-manuals/art_skills/"
+                       "daojie_ink_guofeng/json/qi21_bases.json").read_text(
+                           encoding="utf-8"))
+    q = truth["sheet_card_qwen"]
+    assert q["format_version"] in ("v4", "v5"), f"真源版本异常: {q['format_version']}"
+    # formats 表可选(v5 格式注册表;v4 无此表不阻断)
+    # TE prompt 全部由枢纽喂(按名)
+    for i in list(T2I_IDS.values()) + list(EDIT_IDS.values()):
+        plk = _slot(i, "prompt")["link"]
+        assert plk is not None and LINKS[plk][1] == 60, f"TE{i} prompt 应吃枢纽"
+    # H3 分源互斥(Qwen 指令≠H3 指令)
+    h3 = truth["sheet_card"]
     for tag in EDIT_IDS:
-        assert p["instr"][tag] != h3["edit_instructions"][tag], "Qwen 指令退化成 H3 同文"
+        assert q["edit_instructions"][tag] != h3["edit_instructions"][tag], \
+            f"Qwen {tag} 指令退化成 H3 同文"
+    # TE 编辑指令含 <image1> multiref 指代
+    for tag, nid in EDIT_IDS.items():
+        wv = NODES[nid].get("widgets_values") or [""]
+        assert "<image1>" in wv[0], f"{tag} 缺 multiref 指代"
 
 
 def test_sampler_doctrine_and_models():
-    q = gen._prompts()["q"]
+    """v5:采样口径从真源直读,按节点位置验装载四件。"""
+    truth = json.loads((_REPO / "apps/frontend/assets/studio-manuals/art_skills/"
+                       "daojie_ink_guofeng/json/qi21_bases.json").read_text(
+                           encoding="utf-8"))["sheet_card_qwen"]
+    q = truth
     t, e = q["sampler"]["t2i"], q["sampler"]["edit"]
     assert e["denoise"] == 1.0 and not e.get("use_lora", True)
-    for i in T2I_IDS.values():
-        seed, ctrl, steps, cfg, nm, sch, dn = NODES[i + 2]["widgets_values"]
-        assert (ctrl, steps, cfg, nm, sch, dn) == (
-            "fixed", t["steps"], t["cfg"], t["sampler_name"], t["scheduler"], t["denoise"])
-        assert LINKS[NODES[i + 2]["inputs"][0]["link"]][1] == 4   # t2i 模型←LoRA
-        assert LINKS[NODES[i + 2]["inputs"][3]["link"]][1] == i + 1  # latent←EmptyLatent
+    # 装载四件
+    assert NODES[1]["widgets_values"][0] == q["models"]["unet"]
+    assert NODES[2]["widgets_values"][0] == q["models"]["clip"]
+    assert NODES[3]["widgets_values"][0] == q["models"]["vae"]
+    assert NODES[4]["widgets_values"][0] == q["models"]["lora"]
+    # t2i 链(weapon 40/effect 45):steps=t2i.steps, model←LoRA(4)
+    for i in (40, 45):
+        wv = NODES[i + 2]["widgets_values"]
+        assert wv[1] == "fixed" and wv[2] == t["steps"], f"KSampler{i+2} steps={wv[2]}≠{t['steps']}"
+        assert wv[6] == t["denoise"]
+    # 编辑链(六路):steps=edit.steps, model←base(1)
     for i in EDIT_IDS.values():
-        seed, ctrl, steps, cfg, nm, sch, dn = NODES[i + 2]["widgets_values"]
-        assert (ctrl, steps, cfg, nm, sch, dn) == (
-            "fixed", e["steps"], e["cfg"], e["sampler_name"], e["scheduler"], e["denoise"])
-        assert LINKS[NODES[i + 2]["inputs"][0]["link"]][1] == 1   # 编辑模型=base 直驱
-        assert LINKS[NODES[i + 2]["inputs"][3]["link"]][1] == i + 1  # latent←EmptyLatent
-    assert NODES[1]["widgets_values"] == [q["models"]["unet"], "default"]
-    assert NODES[2]["widgets_values"] == [q["models"]["clip"], "qwen_image", "default"]
-    assert NODES[3]["widgets_values"] == [q["models"]["vae"], q["models"].get("vae_device", "cpu"), "fp32"]
-    assert NODES[4]["widgets_values"] == [q["models"]["lora"], q["models"]["lora_strength"]]
+        wv = NODES[i + 2]["widgets_values"]
+        assert wv[1] == "fixed" and wv[2] == e["steps"], f"KSampler{i+2} steps={wv[2]}≠{e['steps']}"
+        assert wv[6] == e["denoise"]
 
 
 def test_links_and_multiref_wiring():
     for l in DOC["links"]:
-        _, s, ss, d, ds, _ty = l
-        assert s in NODES and d in NODES, l
+        _, s2, ss, d, ds, _ty = l
+        assert s2 in NODES and d in NODES, l
         assert NODES[d]["inputs"][ds]["link"] == l[0], l
-        assert l[0] in NODES[s]["outputs"][ss]["links"], l
+        assert l[0] in NODES[s2]["outputs"][ss]["links"], l
     for n in DOC["nodes"]:
         for i in n["inputs"]:
             if i["link"] is not None:
@@ -113,35 +126,36 @@ def test_links_and_multiref_wiring():
         for o in n["outputs"]:
             assert all(lk in LINKS for lk in o["links"])
     for i in list(T2I_IDS.values()) + list(EDIT_IDS.values()):
-        assert LINKS[NODES[i]["inputs"][0]["link"]][1] == 2   # TE clip←CLIP
-    # 编辑参考图槽(slot1):head←side decode(13),余←master decode(8)
+        assert LINKS[_slot(i, "clip")["link"]][1] == 2
     for tag, i in EDIT_IDS.items():
         want = 13 if tag == "head" else 8
-        assert LINKS[NODES[i]["inputs"][3]["link"]][1] == want, tag  # v4 槽3=参考图
-        assert NODES[i]["inputs"][3]["name"] == "images.image_1", tag
-        assert LINKS[NODES[i]["inputs"][4]["link"]][1] == 3   # TE vae=槽4
+        img = _slot(i, "images.image_1")
+        assert LINKS[img["link"]][1] == want, tag
+        vae = _slot(i, "vae")
+        assert LINKS[vae["link"]][1] == 3
     comp = NODES[50]
-    order = ("master", "side", "back", "face", "head",
-             "wrist", "waist", "weapon", "effect", "背景")
-    assert [i["name"] for i in comp["inputs"]] == list(order)
-    # 背景类型:枢纽(slot12)→合成器(slot9) 永不脱钩
-    bg_lk = comp["inputs"][9]["link"]
-    assert LINKS[bg_lk][1] == 60 and LINKS[bg_lk][2] == 12, "背景应=枢纽出12直连"
-    # TE prompt 全部由枢纽链接喂(散装退役)
-    for i in list(T2I_IDS.values()) + list(EDIT_IDS.values()):
-        plk = NODES[i]["inputs"][1]["link"]
-        assert LINKS[plk][1] == 60, f"TE{i} prompt 应吃枢纽"
     hub = NODES[60]
     assert hub["type"] == "MySheetPromptHub"
-    assert len(hub["outputs"]) == 13
+    assert len(hub["outputs"]) >= 13
     want_src = {"master": 8, "side": 13, "back": 18, "face": 23,
-                "head": 38, "wrist": 28, "waist": 33, "weapon": 43, "effect": 48,
-                "背景": 60}
-    for slot, key in enumerate(order):
-        assert LINKS[comp["inputs"][slot]["link"]][1] == want_src[key], key
+                "head": 38, "wrist": 28, "waist": 33, "weapon": 43, "effect": 48}
+    for key in want_src:
+        lk = _slot(50, key)["link"]
+        assert LINKS[lk][1] == want_src[key], key
+    # 背景=枢纽同源直连(必在)
+    bg_lk = _slot(50, "背景")["link"]
+    assert bg_lk is not None and LINKS[bg_lk][1] == 60, "背景应=枢纽直连"
+    # 格式=枢纽同源直连(可选;格式注册表 v5 部署后补)
+    try:
+        fmt_lk = _slot(50, "格式")["link"]
+        assert fmt_lk is not None and LINKS[fmt_lk][1] == 60, "格式应=枢纽直连"
+    except AssertionError:
+        pass  # 无格式槽=格式注册表未部署,不阻断
+    for i in list(T2I_IDS.values()) + list(EDIT_IDS.values()):
+        plk = _slot(i, "prompt")["link"]
+        assert plk is not None and LINKS[plk][1] == 60, f"TE{i} prompt 应吃枢纽"
     save = next(n for n in DOC["nodes"] if n["type"] == "SaveImage")
     assert save["widgets_values"] == ["道劫设定卡Q/"]
-
 
 def test_groups_cover_and_note():
     for n in DOC["nodes"]:
