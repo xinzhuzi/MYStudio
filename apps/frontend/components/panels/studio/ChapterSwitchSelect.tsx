@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -41,13 +41,21 @@ export function ChapterSwitchSelect({
   const chapter =
     chapters.find((item) => item.id === activeChapterId) ?? chapters[0];
   // 1015 可搜索章节选择器:select(全本 4125 项原生 popup 无搜索)→ Popover+Command 组合。
-  // cmdk 必 shouldFilter={false}——其内置过滤只对「已渲染 Item」打分,与 cap 窗口化互斥;
-  // 自写子串过滤(序号或标题)+exact-index-first 置顶(搜「2000」第2000章必在 cap 内且第一)。
+  // cmdk 必 shouldFilter={false}——其内置过滤只对「已渲染 Item」打分,与窗口化互斥;
+  // 自写子串过滤(序号或标题)+exact-index-first 置顶(搜「2000」第2000章必在首批且第一)。
+  // 1115 渐进加载(用户令「要能下滑到所有章节」;旧 cap=100 硬帽截断被斥吞了后续):
+  // 打开先渲染首批 100(开面板恒快——全本 4125 行一次性渲染会拖垮渲染与 DOM 内存),
+  // 滚到近底(240px 预感带)自动再装一批(+200),可一路滑到全量;键盘↓滚到底同样触发。
+  // 搜索词变化/面板重开 → 重置回首批。
+  const CHAPTER_SELECT_INITIAL = 100;
+  const CHAPTER_SELECT_STEP = 200;
+  const CHAPTER_SELECT_GROW_THRESHOLD_PX = 240;
   const [chapterSelectOpen, setChapterSelectOpen] = useState(false);
   const [chapterSearch, setChapterSearch] = useState("");
-  // cap=100:对齐 NovelChapterTable.tsx VISIBLE_BATCH=100 先例(全本规模下一次性渲染全量行
-  // 会拖垮渲染与 DOM 内存);cap 外渲染提示行,继续输入缩小范围。cap 后 cmdk 恒见 ≤100 项。
-  const CHAPTER_SELECT_CAP = 100;
+  const [visibleCount, setVisibleCount] = useState(CHAPTER_SELECT_INITIAL);
+  useEffect(() => {
+    setVisibleCount(CHAPTER_SELECT_INITIAL);
+  }, [chapterSearch, chapterSelectOpen]);
   const filteredChapters = useMemo(() => {
     const q = chapterSearch.trim().toLowerCase();
     if (!q) return chapters;
@@ -60,7 +68,7 @@ export function ChapterSwitchSelect({
     const rest = matched.filter((item) => String(item.index) !== q);
     return [...exact, ...rest];
   }, [chapters, chapterSearch]);
-  const visibleChapters = filteredChapters.slice(0, CHAPTER_SELECT_CAP);
+  const visibleChapters = filteredChapters.slice(0, visibleCount);
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Label className="text-sm">{label}</Label>
@@ -104,7 +112,19 @@ export function ChapterSwitchSelect({
               value={chapterSearch}
               onValueChange={setChapterSearch}
             />
-            <CommandList data-testid="chapter-select-list">
+            <CommandList
+              data-testid="chapter-select-list"
+              onScroll={(event) => {
+                const list = event.currentTarget;
+                if (filteredChapters.length <= visibleCount) return;
+                if (
+                  list.scrollTop + list.clientHeight
+                  >= list.scrollHeight - CHAPTER_SELECT_GROW_THRESHOLD_PX
+                ) {
+                  setVisibleCount((count) => count + CHAPTER_SELECT_STEP);
+                }
+              }}
+            >
               <CommandGroup>
                 {visibleChapters.map((item) => (
                   <CommandItem
@@ -126,13 +146,13 @@ export function ChapterSwitchSelect({
               <CommandEmpty data-testid="chapter-select-empty">
                 无匹配章节
               </CommandEmpty>
-              {filteredChapters.length > CHAPTER_SELECT_CAP ? (
+              {filteredChapters.length > visibleChapters.length ? (
                 <div
                   data-testid="chapter-select-cap-hint"
                   className="border-t px-3 py-2 text-xs text-muted-foreground"
                 >
-                  已显示 {CHAPTER_SELECT_CAP} / 共 {filteredChapters.length}{" "}
-                  个匹配，继续输入缩小范围
+                  已显示 {visibleChapters.length} / 共 {filteredChapters.length}{" "}
+                  个匹配，下滑加载更多
                 </div>
               ) : null}
             </CommandList>

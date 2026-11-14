@@ -811,6 +811,45 @@ describe("章选择·可搜索选择器(搜索/直达/cap/装载中)", () => {
     expect(screen.queryByTestId("chapter-select-cap-hint")).toBeNull();
   });
 
+  it("1115 渐进加载:滚到近底自动 +200,可一路滑到全量 4125,提示行随全量消失;重开面板重置回首批", async () => {
+    const many = Array.from({ length: 4125 }, (_, i) => light(i + 1));
+    render(<ScriptTab novelChapters={many} {...makeProps()} />);
+    await openSelector();
+
+    const list = screen.getByTestId("chapter-select-list");
+    const scrollToList = (top: number, height: number, client: number) => {
+      Object.defineProperty(list, "scrollTop", { value: top, configurable: true });
+      Object.defineProperty(list, "scrollHeight", { value: height, configurable: true });
+      Object.defineProperty(list, "clientHeight", { value: client, configurable: true });
+      fireEvent.scroll(list);
+    };
+
+    // 首批 100
+    expect(screen.getAllByRole("option").length).toBe(100);
+    // 滚到近底 → +200 = 300,提示行同步推进
+    scrollToList(1060, 1100, 300);
+    expect(screen.getAllByRole("option").length).toBe(300);
+    expect(screen.getByTestId("chapter-select-cap-hint").textContent).toContain(
+      "已显示 300 / 共 4125 个匹配",
+    );
+    // 远离底部不增发
+    scrollToList(0, 3200, 300);
+    expect(screen.getAllByRole("option").length).toBe(300);
+    // 连续滑到底直到全量(每滚一次+200,顶满 4125 后提示行消失)
+    for (let round = 0; round < 20; round += 1) {
+      scrollToList(9_999_999, 100, 0);
+    }
+    expect(screen.getAllByRole("option").length).toBe(4125);
+    expect(screen.queryByTestId("chapter-select-cap-hint")).toBeNull();
+    // 重开面板重置回首批 100
+    fireEvent.click(screen.getByTestId("chapter-select-trigger"));
+    await waitFor(() =>
+      expect(screen.queryByTestId("chapter-select-list")).toBeNull(),
+    );
+    await openSelector();
+    expect(screen.getAllByRole("option").length).toBe(100);
+  });
+
   it("键盘路径:ArrowDown 移高亮后 Enter 派发 switchChapter(驱动快路径)", async () => {
     const switchSpy = vi.spyOn(useStudioStore.getState(), "switchChapter");
     render(
