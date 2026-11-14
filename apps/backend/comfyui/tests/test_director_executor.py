@@ -657,7 +657,7 @@ def test_latent_cache_hit_skips_resampling(monkeypatch):
     st["stages"]["ercai"] = True
     st["segments"] = [st["segments"][0]]
     p1 = de.artifact_prefix("chapter-b001", "sb-01", "p1-draft")
-    hooks, side, box = _fake_hooks(disk={p1: [p1 + "_00001_.mp4"]})
+    hooks, side, box = _fake_hooks(disk={p1: [p1 + "_00001.mp4"]})
     cache: dict = {}
     hooks.save_latent = lambda rel, payload: cache.__setitem__(rel, payload)
     hooks.load_latent = lambda rel: cache.get(rel)
@@ -669,8 +669,9 @@ def test_latent_cache_hit_skips_resampling(monkeypatch):
         "model", "vv", "aa", "cc", st, unique_id=1)
     sampled = [1 for n, _ in FakeCls.calls
                if n == "SamplerCustomAdvanced"]
-    assert sampled == [], "缓存命中必须零采样"
-    assert res["artifacts"]["sb-01"]["p2"].endswith("p2-final_00001_.mp4")
+    # 恰 1 次=仅二采自身采样;一采重采样(第 2 次)必须被缓存消除
+    assert len(sampled) == 1, f"缓存命中应只剩二采 1 次采样,实 {len(sampled)}"
+    assert res["artifacts"]["sb-01"]["p2"].endswith("p2-final_00001.mp4")
     assert any("缓存命中" in str(p) for t, p in box["events"]) or True  # 日志走 log 钩子
 
 
@@ -681,7 +682,7 @@ def test_latent_cache_invalidated_by_fingerprint_change(monkeypatch):
     st["segments"] = [st["segments"][0]]
     st["segments"][0]["prompt"]["summary"] = "CHANGED"
     p1 = de.artifact_prefix("chapter-b001", "sb-01", "p1-draft")
-    hooks, side, box = _fake_hooks(disk={p1: [p1 + "_00001_.mp4"]})
+    hooks, side, box = _fake_hooks(disk={p1: [p1 + "_00001.mp4"]})
     cache: dict = {}
     hooks.save_latent = lambda rel, payload: cache.__setitem__(rel, payload)
     hooks.load_latent = lambda rel: cache.get(rel)
