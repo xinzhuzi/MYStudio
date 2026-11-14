@@ -393,9 +393,10 @@ function sectionLabel(text, iconPath) {
   return el;
 }
 
-/** 状态徽章:彩点+文字(视频✓/待出/未绑定) */
+/** 状态徽章:彩点+文字(视频✓/待出/未生图)。1115 grill:idle 原「未绑定」
+ * 语义错(该态=图未生,与项目绑定无关,误导),正名「未生图」。 */
 function statusBadge(kind) {
-  const map = { done: [THEME.ok, "视频✓"], pending: [THEME.pending, "待出"], idle: [THEME.idle, "未绑定"] };
+  const map = { done: [THEME.ok, "视频✓"], pending: [THEME.pending, "待出"], idle: [THEME.idle, "未生图"] };
   const [color, label] = map[kind] || map.idle;
   const el = document.createElement("span");
   el.style.cssText = `display:inline-flex;align-items:center;gap:4px;font-size:var(--my-fs-10);color:${color};flex:none;`;

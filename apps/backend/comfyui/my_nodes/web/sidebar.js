@@ -12,11 +12,12 @@ import {
   BRIDGE_URL, fetchShots, applyShotToSelection, bindSelectedProject, snapshotOrigin, myScope,
   fetchJson, postJson, THEME, icon, ICONS, sectionLabel, statusBadge,
   progressBar, collapseGroup, actionButton, paneStatus,
-  myTooltipsEnabled, syncMySettingsFlags,
+  syncMySettingsFlags,
 } from "./theme.js";
 import { MY_STORE_BASE, cloneGraph, openWorkflowSingleInstance, cleanupLegacyUnsavedTabs } from "./open-workflow.js";
 
-/** 页签一·分镜:分镜工作流主线(点击即开)+原镜列表逻辑整迁(刷新+状态+点选回填) */
+/** 页签一·分镜:章节徽章+制作动作(生图/视频/绑定)+视频进度与镜列表(点选回填)。
+ * 1115 grill:09-14 退役的主线区块(标签/自动打开提示/死容器)整体清场。 */
 function renderShotsPane(pane) {
   pane.style.cssText = "padding:10px 12px;display:flex;flex-direction:column;gap:2px;";
   // ── 章节徽章(顶部,主色描边胶囊) ──
@@ -28,13 +29,9 @@ function renderShotsPane(pane) {
   chapterText.textContent = "获取章节…";
   chapterPill.append(chapterDot, chapterText);
 
-  // ── 分镜工作流主线 ──
-  const flowLabel = sectionLabel("分镜工作流", ICONS.folderOpen);
-  const flowStatus = paneStatus("加载主线…");
-  const flowList = document.createElement("div");
-  flowList.style.cssText = "display:flex;flex-direction:column;gap:4px;";
+  // 09-14 主线卡退役(零文件,进入「分镜制作」阶段即自动打开),面板不再设区块。
 
-  // ── 制作动作(主按钮=一键生图 主色填充;次按钮=一键视频 描边) ──
+  // ── 制作动作(主按钮=一键生图 主色填充;次按钮=一键生成视频/绑定 描边) ──
   const actionLabel = sectionLabel("制作动作", ICONS.zap);
   const actionBar = document.createElement("div");
   actionBar.style.cssText = "display:flex;gap:6px;";
@@ -59,7 +56,7 @@ function renderShotsPane(pane) {
     }
   };
   genBtn.onclick = () => void submitAction(genBtn, "generate-images", "一键生图");
-  vidBtn.onclick = () => void submitAction(vidBtn, "generate-videos", "一键视频");
+  vidBtn.onclick = () => void submitAction(vidBtn, "generate-videos", "一键生成视频");
   actionBar.append(genBtn, vidBtn);
   const bindButton = actionButton({ label: "绑定当前项目", iconPath: ICONS.folderOpen, primary: false });
   bindButton.onclick = async () => {
@@ -76,16 +73,18 @@ function renderShotsPane(pane) {
   const status = paneStatus("");
   const list = document.createElement("div");
   list.style.cssText = "display:flex;flex-direction:column;gap:6px;margin-top:2px;";
+  // 刷新键(1115 grill:与「大模型」页签同款,挂页签行右侧动作槽,底部全宽键退役;
+  // 槽缺席=异常挂载态回退 pane 底,功能不丢)
   const refresh = document.createElement("button");
-  refresh.style.cssText = `display:flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:6px;cursor:pointer;border-radius:8px;border:1px solid ${THEME.line};background:transparent;color:${THEME.text2};font-size:var(--my-fs-11);transition:transform 80ms ease;`;
-  refresh.append(icon(ICONS.refresh, 12));
-  const refreshText = document.createElement("span");
-  refreshText.textContent = "刷新分镜列表";
-  refresh.append(refreshText);
-  refresh.onpointerdown = () => { refresh.style.transform = "scale(0.97)"; };
+  refresh.title = "刷新分镜列表";
+  refresh.style.cssText = `display:flex;align-items:center;justify-content:center;width:26px;height:26px;flex:none;cursor:pointer;border-radius:8px;border:1px solid ${THEME.line};background:transparent;color:${THEME.text2};transition:transform 80ms ease;`;
+  refresh.append(icon(ICONS.refresh, 13));
+  refresh.onpointerdown = () => { refresh.style.transform = "scale(0.92)"; };
   refresh.onpointerup = refresh.onpointerleave = () => { refresh.style.transform = ""; };
 
-  pane.append(chapterPill, flowLabel, flowStatus, flowList, actionLabel, actionBar, actionStatus, progressLabel, progressHost, status, list, refresh);
+  pane.append(chapterPill, actionLabel, actionBar, actionStatus, progressLabel, progressHost, status, list);
+  const barActions = pane.closest("[data-my-ui]")?.querySelector("[data-my-bar-actions]");
+  if (barActions) barActions.append(refresh); else pane.append(refresh);
 
   // 09-11 续:按当前章节过滤+视频进度分类+镜列表默认折叠
   let currentEpisodeId = "";
@@ -102,10 +101,6 @@ function renderShotsPane(pane) {
       applyChapter();
     })
     .catch(() => undefined);
-
-  // 09-14 通用化(零文件):主线不再落库文件,主线卡退役——主线随
-  // 「分镜制作」阶段进入自动打开(通用模板+当前章载荷注入),此处仅提示。
-  flowStatus.textContent = "主线随「分镜制作」阶段自动打开";
 
   const load = async () => {
     displayedSnapshot = null;
@@ -129,7 +124,7 @@ function renderShotsPane(pane) {
       const withVideo = shots.filter((shot) => shot.videoReady).length;
       const withImage = shots.filter((shot) => shot.imageReady).length;
       progressHost.append(progressBar(withVideo, shots.length));
-      status.textContent = `画面 ${withImage}/${shots.length}${stale ? " · 快照较旧(打开画布页刷新)" : ""}`;
+      status.textContent = `画面 ${withImage}/${shots.length}${stale ? " · 快照较旧(打开漫影分镜面板刷新)" : ""}`;
       const groups = [
         { title: "已出视频", count: withVideo, shots: shots.filter((shot) => shot.videoReady), kind: "done" },
         { title: "待出视频", count: shots.length - withVideo, shots: shots.filter((shot) => !shot.videoReady), kind: "pending" },
@@ -353,11 +348,15 @@ function syncOpenBadges(openBadges) {
   }
 }
 
-// ── 「自研件」标签(09-23):repo: 工作流含 My 前缀定制节点即标 ──────────────
-// 判据=工作流 JSON 的节点 type 列表里出现 My 开头类型(MyQi21DaojieBase/
-// MyDaojieBase/MyDaojieRoute/MyStage 等;顶层 nodes+子图 definitions.
-// subgraphs[].nodes 都查——qi21 子图件 My 节点在子图内,K2 件在顶层)。
-// 读源=与打开动作同一 content 端点异步 fetch(先于任何 loadGraphData,不待
+// ── 「自研件」标签(09-23 立;1115 补路径判据)────────────────────────────
+// 判据(任一命中即标):
+// ① 路径段——repo 工作流路径含「1_漫影自研」段(自研域家,1115 用户令
+//    「一镜到底也是自研件」:组装型自研配方零 My 定制节点,纯节点探检的盲区;
+//    路径命中免 fetch 即标)。
+// ② My 前缀节点——工作流 JSON 节点 type 出现 My 开头类型(MyQi21DaojieBase/
+//    MyDaojieBase/MyDaojieRoute/MyStage 等;顶层 nodes+子图 definitions.
+//    subgraphs[].nodes 都查——qi21 子图件 My 节点在子图内,K2 件在顶层)。
+// ②读源=与打开动作同一 content 端点异步 fetch(先于任何 loadGraphData,不待
 // 点击);结果按 id 缓存防重拉,失败静默不打标。标签行尾内联灰底小字,
 // label 恒 flex:1,追加元素天然靠右,不动既有布局。
 const myNodeTagCache = new Map();
@@ -372,13 +371,17 @@ function makeSelfBuiltTag() {
 async function markSelfBuiltWorkflow(item, row) {
   let hit = myNodeTagCache.get(item.id);
   if (hit === undefined) {
-    try {
-      const data = await fetchJson(`${BRIDGE_URL}/comfy/workflows/${encodeURIComponent(item.id)}/content`);
-      const graph = JSON.parse(data.content);
-      const isMyType = (node) => String(node?.type || "").startsWith("My");
-      hit = (graph.nodes || []).some(isMyType)
-        || ((graph.definitions || {}).subgraphs || []).some((sg) => (sg.nodes || []).some(isMyType));
-    } catch (error) { hit = false; }
+    // ① 路径段判据(1115):repo 域家 1_漫影自研 下的件恒标,免 fetch
+    hit = String(item.id || "").split("/").includes("1_漫影自研");
+    if (!hit) {
+      try {
+        const data = await fetchJson(`${BRIDGE_URL}/comfy/workflows/${encodeURIComponent(item.id)}/content`);
+        const graph = JSON.parse(data.content);
+        const isMyType = (node) => String(node?.type || "").startsWith("My");
+        hit = (graph.nodes || []).some(isMyType)
+          || ((graph.definitions || {}).subgraphs || []).some((sg) => (sg.nodes || []).some(isMyType));
+      } catch (error) { hit = false; }
+    }
     myNodeTagCache.set(item.id, hit);
   }
   if (hit && row.isConnected) row.append(makeSelfBuiltTag());
