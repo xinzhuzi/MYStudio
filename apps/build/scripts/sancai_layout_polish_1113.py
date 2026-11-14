@@ -14,7 +14,7 @@ FILES = {
     'twin': '/Users/zhengbingjin/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.json',
 }
 GROUPS = [
-    ('输入',     [22,20,129,131,9,110,111,112,113,14,341,342,343,344,345,346,347], '#335588', 6),  # 1114 组序换位:输入最左,Note101 出组作README
+    ('输入',     [22,20,129,131,9,110,111,112,113,14,341,342,343,344,345,346,347], '#335588', 9),  # 1114 组序换位:输入最左,Note101 出组作README
     ('加载模型', [127,128,119,120,145,216,202,260,262,267,261,263,217,140,251,219,218,266], '#884466', 9),
     ('一阶段采样', [16,220,221,222,250,123,126,125,122,121,130,204], '#3f789e', 8),
     ('二阶段放大', [205,206,207,223,203,208,209,210,211,215,212,213,214,100,4], '#448844', 8),
@@ -49,7 +49,13 @@ def relayout(d):
             for v in sorted(succ[u]):
                 indeg[v] -= 1
                 if indeg[v] == 0: dfs(v)
-        for r in sorted(i for i in valid if indeg[i] == 0):
+        IMAGE_STRIP = {9, 110, 111, 112, 113, 341, 342, 343, 344}  # 1114 用户令:分镜图+参考图1-8 独占首列竖排
+        P2 = [14, 345, 346, 20, 22, 129, 131]  # 二列序:③提示词/④尾帧/⑤视频紧跟图条,控制件沉底
+        def root_key(x):
+            if x in IMAGE_STRIP: return (0, x)
+            if x in P2: return (1, P2.index(x))
+            return (2, x)
+        for r in sorted((i for i in valid if indeg[i] == 0), key=root_key):
             if r not in topo: dfs(r)
         assert len(topo) == len(valid), f"{gname} 环"
         depth = {}
@@ -93,7 +99,19 @@ def relayout(d):
     n101 = next((x for x in d['nodes'] if x['id'] == 101), None)
     if n101:
         max_bottom = max(g['bounding'][1] + g['bounding'][3] for g in new_groups)
-        n101['pos'] = [100, max_bottom + 150]
+        # est 长尾防护:组内节点按 est 高度下缘取最大,Note 让位
+        est_tail = 0
+        for x in d['nodes']:
+            if x['id'] == 101:
+                continue
+            slots = max(len(x.get('inputs', [])), len(x.get('outputs', [])))
+            widgets = len(x['widgets_values']) if x.get('widgets_values') else 0
+            eh = 36 + slots * 24 + widgets * 30 + 28
+            if x['type'] in ('SaveImage', 'LoadImage', 'SaveVideo', 'LoadVideo', 'MarkdownNote'):
+                eh += 260
+            eh = max(eh, x.get('size', [0, 120])[1])
+            est_tail = max(est_tail, x['pos'][1] + eh)
+        n101['pos'] = [100, max(max_bottom, est_tail) + 150]
 
 def verify(d):
     nodes = {n['id']: n for n in d['nodes']}
