@@ -35,7 +35,6 @@
     ".dy-chip--audio{color:#d9f7ea;background:rgba(52,211,153,.09);border-color:rgba(52,211,153,.32);}",
     ".dy-chip--audio:hover{background:rgba(52,211,153,.2);}",
     /* AI扩写失败红标(1115 缺口6;cards dy-upload-err 同款) */
-    ".dy-enhance-err{font-size:10px;color:#f87171;border:1px solid rgba(248,113,113,.4);border-radius:6px;padding:0 6px;cursor:help;}",
   ].join("\n");
 
   var STYLE_ID = "daoyan-prompt-style";
@@ -66,7 +65,6 @@
   };
 
   /** AI扩写最近错误(build 渲红标用;cards lastUploadError 同款模式) */
-  var lastEnhanceError = "";
 
   // ── 纯函数(测试断言面)────────────────────────────────────────────
 
@@ -134,38 +132,6 @@
         ctrl.apply(mut, "token-" + field + "-" + ctrl.view.selected);
       }
       return r.cursor;
-    },
-    /** AI扩写(1115 缺口6③):POST /my_daoyan/enhance_prompt {text}
-     * →ok:回填 description(非 silent=独立快照,Ctrl+Z 一次回退);
-     * err:红标+原文不动;无 fetch=钮 disabled 不达此路 */
-    enhance: function (ctrl, btn) {
-      var seg = ctrl.selectedSegment();
-      if (!seg || typeof fetch !== "function") return Promise.resolve({ ok: false, error: "无 fetch 环境" });
-      var text = String(seg.prompt.description || "").trim();
-      if (!text) return Promise.resolve({ ok: false, error: "画面描述为空" });
-      if (btn) { try { btn.disabled = true; } catch (err) { /* stub 容错 */ } }
-      return fetch("/my_daoyan/enhance_prompt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text }),
-      }).then(function (r) { return r.json(); })
-        .then(function (j) {
-          if (j && j.ok && typeof j.text === "string" && j.text) {
-            lastEnhanceError = "";
-            ctrl.apply(function (st) {
-              st.segments[ctrl.view.selected].prompt.description = j.text;
-            });
-            return { ok: true, text: j.text };
-          }
-          lastEnhanceError = (j && j.error) || "扩写失败";
-          ctrl.apply(function () {}); // 失败态重渲示红标
-          return { ok: false, error: lastEnhanceError };
-        })
-        .catch(function (err) {
-          lastEnhanceError = "扩写服务不可达:" + (err && err.message || err);
-          ctrl.apply(function () {});
-          return { ok: false, error: lastEnhanceError };
-        });
     },
   };
 
@@ -239,10 +205,6 @@
       '<span class="dy-title">提示词编辑</span>',
       '<span class="dy-who">' + (seg ? "当前组:" + esc(seg.id) : "无组") + "</span>",
       '<button class="dy-btn dy-btn--primary" data-act="insert-template"' + (seg ? "" : " disabled") + ">插入结构模板</button>",
-      '<button class="dy-btn" data-act="enhance"'
-      + (!seg || !desc || typeof fetch !== "function" ? " disabled" : "")
-      + ' title="LLM 扩写画面描述(声画镜头语言,不改既有语义;Ctrl+Z 一次回退)">AI扩写</button>',
-      lastEnhanceError ? '<span class="dy-enhance-err" title="' + esc(lastEnhanceError) + '">扩写失败</span>' : "",
       '<span class="dy-hint">四段结构 · 只填空段 · Ctrl+Z 撤销</span>',
       "</div>",
       chipsRow(ctrl, seg),
@@ -287,9 +249,7 @@
       var act = el.getAttribute("data-act");
       if (act === "insert-template") {
         actions.insertTemplate(ctrl);
-      } else if (act === "enhance") {
-        actions.enhance(ctrl, el);
-      } else if (act === "chip-picture" || act === "chip-audio") {
+            } else if (act === "chip-picture" || act === "chip-audio") {
         var token = el.getAttribute("data-token") || "";
         var field = root._dyPromptLastField || "description";
         var ta = root.querySelector ? root.querySelector('textarea[data-field="' + field + '"]') : null;
@@ -315,7 +275,7 @@
   global.DaoyanPrompt = {
     build: build, css: CSS, FIELDS: FIELDS, STRUCT_TEMPLATE: STRUCT_TEMPLATE,
     actions: actions, insertAtCursor: insertAtCursor,
-    lastEnhanceError: function () { return lastEnhanceError; },
+   
   };
 })(typeof window !== "undefined" ? window
     : typeof globalThis !== "undefined" ? globalThis : this);

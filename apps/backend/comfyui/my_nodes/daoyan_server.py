@@ -18,7 +18,6 @@
         mtime 倒序,库内选图器数据源)
   POST /my_daoyan/upload_audio(原始 body+X-Filename)
       → {ok,name,size,error?}(参考音频落 input/,白名单+50MB 帽)
-  POST /my_daoyan/enhance_prompt {text}
       → {ok,text?,error?}(智谱 /api/anthropic messages 线 LLM 扩写;
         缺 key=200+ok:False 明示)
 
@@ -299,73 +298,6 @@ def save_upload_audio(input_dir, filename, data) -> dict:
 # 口生效,paas/v4 OpenAI 口恒 1113——故落 Anthropic 线格式(x-api-key 头
 # +messages 形),非 paas/v4。BIGMODEL_API_KEY=仓内第三个同厂 key env 名
 # (CRITIC_API_KEY/ZHIPU_API_KEY 先例),须在启动环境新增。
-
-BIGMODEL_API_BASE_DEFAULT = "https://open.bigmodel.cn/api/anthropic"
-
-ENHANCE_SYSTEM = (
-    "你是影视导演的分镜提示词扩写助手。把用户给出的分镜描述扩写成更丰富的"
-    "文生视频提示词:补充声画细节与镜头语言(景别/机位/运镜/光线/色调/"
-    "音效),不改变既有人物、事件与语义,不添加新情节设定;输出纯文本正文,"
-    "不要任何标题、列表标记或解释;篇幅不超过原文的三倍。"
-)
-
-
-def enhance_prompt(api_key, text, http_open=None, model="glm-5.3",
-                   timeout=60) -> dict:
-    """分镜描述 LLM 扩写(POST {BIGMODEL_API_BASE}/v1/messages)。
-
-    headers=x-api-key+anthropic-version(screenplay_critic.py 同款);payload
-    带 thinking disabled(glm-5.3 思考块烧 output 预算,同先例);响应只拼
-    content[].type=="text" 块(thinking 不入正文)。key 由调用方从
-    os.environ["BIGMODEL_API_KEY"] 读取传入,恒不入码不落日志;key 缺=
-    {ok:False,error:明示}。http_open(url, data, headers, timeout) 注入=
-    无头可测(默认 urllib);HTTP 4xx/5xx→ok:False 不抛。
-    """
-    text = str(text or "")
-    if not api_key:
-        return {"ok": False,
-                "error": "缺 BIGMODEL_API_KEY 环境变量(启动环境新增后重启引擎)"}
-    if http_open is None:
-        def _urlopen(url, data, headers, timeout=60):
-            import urllib.request
-            req = urllib.request.Request(url, data=data, headers=headers,
-                                         method="POST")
-            return urllib.request.urlopen(req, timeout=timeout)
-        http_open = _urlopen
-    base = os.environ.get("BIGMODEL_API_BASE", BIGMODEL_API_BASE_DEFAULT)
-    payload = json.dumps({
-        "model": model,
-        "system": ENHANCE_SYSTEM,
-        "messages": [{"role": "user", "content": text}],
-        "temperature": 0.3,
-        "max_tokens": 2048,
-        "thinking": {"type": "disabled"},
-    }).encode("utf-8")
-    headers = {
-        "Content-Type": "application/json",
-        "x-api-key": api_key,
-        "anthropic-version": "2023-06-01",
-        # WAF 拦 Python-urllib 默认 UA(screenplay_critic 实测 403)同先例
-        "User-Agent": "Mozilla/5.0 MYStudio-DaoyanEnhance/1.0",
-    }
-    try:
-        resp = http_open(base + "/v1/messages", payload, headers, timeout)
-        status = int(getattr(resp, "status", 200) or 200)
-        body = json.loads(resp.read().decode("utf-8", "replace"))
-    except Exception as error:  # noqa: BLE001 - 网络面全降级 ok:False 不抛
-        return {"ok": False, "error": f"{type(error).__name__}: {error}"[:300]}
-    if status >= 400:
-        return {"ok": False, "error": f"HTTP {status}: {str(body)[:200]}"}
-    if isinstance(body, dict) and body.get("type") == "error":
-        return {"ok": False, "error": "API 错误: " + json.dumps(
-            body.get("error", body), ensure_ascii=False)[:300]}
-    blocks = body.get("content", []) if isinstance(body, dict) else []
-    visible = "".join(str(b.get("text", "")) for b in blocks
-                      if isinstance(b, dict) and b.get("type") == "text")
-    return {"ok": True, "text": visible}
-
-
-
 
 # ── 章节驾驶舱(1114 用户令「选章→剧本/导演计划/分镜表自动带出来」)────
 
@@ -711,34 +643,10 @@ def install() -> None:
                 return web.json_response(
                     {"ok": False, "error": str(error)}, status=500)
 
-        @PromptServer.instance.routes.post("/my_daoyan/enhance_prompt")
-        async def _enhance_prompt(request):  # noqa: ANN202 - aiohttp handler
-            try:
-                raw = await request.read()
-                try:
-                    body = json.loads(raw.decode("utf-8")) if raw else {}
-                except (ValueError, UnicodeDecodeError):
-                    body = {}
-                text = str((body or {}).get("text") or "").strip()
-                if not text:
-                    return web.json_response(
-                        {"ok": False, "error": "text 为空(1..8000 字)"})
-                key = os.environ.get("BIGMODEL_API_KEY", "")
-                # LLM 秒级阻塞走线程池,不饿 aiohttp 事件循环;缺 key=
-                # 200+ok:False(面板可显示原因,非 500)
-                import asyncio
-                data = await asyncio.to_thread(
-                    enhance_prompt, key, text[:8000])
-                return web.json_response(data)
-            except Exception as error:  # noqa: BLE001
-                return web.json_response(
-                    {"ok": False, "error": str(error)}, status=500)
-
         _installed = True
         print("[daoyan] 面板路由已挂载:/my_daoyan/projects、"
               "/my_daoyan/chapters、/my_daoyan/logs、"
-              "/my_daoyan/input_media、/my_daoyan/upload_audio、"
-              "/my_daoyan/enhance_prompt", flush=True)
+              "/my_daoyan/input_media、/my_daoyan/upload_audio、", flush=True)
     except Exception as error:  # noqa: BLE001 - 引擎侧任何失败不挡装载
         print(f"[daoyan] 面板路由挂载失败(不影响节点与出图):{error}",
               flush=True)

@@ -1250,61 +1250,6 @@ test("㊴ audios normalize:['a','a','b','c','d']→['a','b','c'](去重保序+�
     "roundtrip 保全");
 });
 
-// ── ㊵ AI扩写:fetch 桩回填+undo 一次回退(1115 缺口6)─────────────────
-test("㊵ AI扩写:POST /my_daoyan/enhance_prompt {text};回填 description;Ctrl+Z 一次回退", async () => {
-  const sb = loadPanel();
-  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
-  sb.DaoyanCards.actions.addGroup(ctrl);
-  sb.DaoyanPrompt.actions.setPromptField(ctrl, "description", "短句");
-  let captured = null;
-  sb.fetch = function (url, opts) {
-    captured = { url: url, opts: opts };
-    return Promise.resolve({ json: () => Promise.resolve({ ok: true, text: "扩写长文" }) });
-  };
-  const r = await sb.DaoyanPrompt.actions.enhance(ctrl);
-  assert.equal(r.ok, true);
-  assert.ok(captured.url.includes("/my_daoyan/enhance_prompt"), "命中自有路由");
-  assert.equal(captured.opts.method, "POST", "method POST");
-  assert.equal(captured.opts.headers["Content-Type"], "application/json");
-  assert.equal(JSON.parse(captured.opts.body).text, "短句", "请求体 JSON {text}");
-  assert.equal(ctrl.state.segments[0].prompt.description, "扩写长文", "回填画面描述");
-  // 回填走 ctrl.apply(非 silent,独立快照)=Ctrl+Z 一次回退
-  assert.equal(ctrl.undo(), true);
-  assert.equal(ctrl.state.segments[0].prompt.description, "短句", "一次回退扩写前原文");
-  delete sb.fetch;
-});
-
-// ── ㊶ AI扩写:无 fetch/空描述 disabled+err 红标(1115 缺口6)───────────
-test("㊶ AI扩写钮态:无 fetch/空描述=disabled;err(ok:False)原文不动+红标渲", async () => {
-  const sb = loadPanel();
-  const { ctrl } = makeCtrl(sb, { debounceMs: 10 });
-  sb.DaoyanCards.actions.addGroup(ctrl);
-  // 无 fetch(vm 沙箱默认):钮 disabled
-  let root = stubElement();
-  sb.DaoyanPrompt.build(root, ctrl);
-  assert.ok(/data-act="enhance" disabled/.test(root.innerHTML), "无 fetch=禁用");
-  // 有 fetch 但描述空=禁用
-  sb.fetch = function () { return Promise.resolve({ json: () => Promise.resolve({}) }); };
-  root = stubElement();
-  sb.DaoyanPrompt.build(root, ctrl);
-  assert.ok(/data-act="enhance" disabled/.test(root.innerHTML), "描述空=禁用");
-  // err 路径:ok:False → 原文不动+红标渲(缺 key 类错误明示)
-  sb.DaoyanPrompt.actions.setPromptField(ctrl, "description", "短句");
-  sb.fetch = function () {
-    return Promise.resolve({ json: () => Promise.resolve(
-      { ok: false, error: "缺 BIGMODEL_API_KEY 环境变量" }) });
-  };
-  const r = await sb.DaoyanPrompt.actions.enhance(ctrl);
-  assert.equal(r.ok, false);
-  assert.ok(r.error.includes("BIGMODEL_API_KEY"));
-  assert.equal(ctrl.state.segments[0].prompt.description, "短句", "失败不动原文");
-  root = stubElement();
-  sb.DaoyanPrompt.build(root, ctrl);
-  assert.ok(root.innerHTML.includes("扩写失败"), "红标渲染");
-  assert.ok(!/data-act="enhance" disabled/.test(root.innerHTML), "有 fetch+有描述=可再试");
-  delete sb.fetch;
-});
-
 // ── ㊷ 段间引导 continuity:默认开/toggle/params 渲染(1115 缺口7)─────
 test("㊷ 段间引导:normalizeState 默认 true;{continuity:false}→false;roundtrip 保全;toggleContinuity 写 state+渲 capToggle", async () => {
   const sb = loadPanel();

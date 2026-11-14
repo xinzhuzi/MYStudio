@@ -190,8 +190,7 @@ def test_install_routes_shape(tmp_path, monkeypatch):
                            "/my_daoyan/chapter_image",
                            "/my_daoyan/import_storyboard",
                            "/my_daoyan/input_media",
-                           "/my_daoyan/upload_audio",
-                           "/my_daoyan/enhance_prompt"}
+                           "/my_daoyan/upload_audio"}
 
     # projects:200+activeProjectId
     out = asyncio.run(routes["/my_daoyan/projects"](_Req({})))
@@ -269,47 +268,7 @@ def test_list_input_media_walk_order_whitelist_limit(tmp_path):
     assert gone["files"] == [] and gone["count"] == 0 and gone.get("error")
 
 
-def test_enhance_prompt_missing_key():
-    out = ds.enhance_prompt("", "短句")
-    assert out["ok"] is False and "BIGMODEL_API_KEY" in out["error"]
 
-
-def test_enhance_prompt_anthropic_line_and_text_blocks_only():
-    """Anthropic 线格式:URL=x-api-key 口 /v1/messages;thinking 块不入正文。"""
-    seen: dict = {}
-
-    class _Resp200:
-        status = 200
-
-        def read(self):
-            return json.dumps({"content": [
-                {"type": "thinking", "thinking": "内部思考"},
-                {"type": "text", "text": "扩写文"}]}).encode("utf-8")
-
-    def http_open(url, data, headers, timeout=60):
-        seen["url"] = url
-        seen["headers"] = headers
-        seen["payload"] = json.loads(data.decode("utf-8"))
-        return _Resp200()
-
-    out = ds.enhance_prompt("k-xxx", "短句", http_open=http_open)
-    assert out == {"ok": True, "text": "扩写文"}  # 只拼 type==text 块
-    assert seen["url"].endswith("/api/anthropic/v1/messages")
-    assert seen["headers"]["x-api-key"] == "k-xxx"
-    assert seen["headers"]["anthropic-version"] == "2023-06-01"
-    assert seen["payload"]["thinking"] == {"type": "disabled"}
-    assert seen["payload"]["messages"] == [{"role": "user", "content": "短句"}]
-
-
-def test_enhance_prompt_http_500_not_raised():
-    class _Resp500:
-        status = 500
-
-        def read(self):
-            return json.dumps({"error": {"type": "api_error"}}).encode()
-
-    out = ds.enhance_prompt("k", "x", http_open=lambda *a, **kw: _Resp500())
-    assert out["ok"] is False and "500" in out["error"]
 
 
 def test_save_upload_audio_gates(tmp_path):
