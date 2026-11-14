@@ -163,13 +163,124 @@ def round3() -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--round", required=True, choices=("1", "2", "3", "all"))
+    ap.add_argument("--round", required=True, choices=("1", "2", "3", "all", "chapter3", "cache"))
     a = ap.parse_args()
     rounds = ("1", "2", "3") if a.round == "all" else (a.round,)
     for rd in rounds:
-        {"1": round1, "2": round2, "3": round3}[rd]()
+        {"1": round1, "2": round2, "3": round3, "chapter3": round_chapter3, "cache": round_cache}[rd]()
     print("三遍实弹全绿" if len(rounds) == 3 else f"round{'/'.join(rounds)} 绿")
     return 0
+
+
+
+
+# ── 三镜整章实弹(1114 用户令「实际测试」)────────────────────────────
+CH3 = "chapter-live3"
+SEGS3 = [
+    {"id": "sb-301", "prompt": "2D Chinese ink-wash guofeng animation. Miners wade through fog. 5 seconds.",
+     "images": ["sb001_scene.jpg"]},
+    {"id": "sb-302", "prompt": "2D Chinese ink-wash guofeng animation. Overseer with whip arcs over kneeling laborer. 4 seconds.",
+     "images": ["sb007_scene.jpg"]},
+    {"id": "sb-303", "prompt": "2D guofeng animation. A broken sword hums above an ancient altar, mist swirling. 5 seconds.",
+     "images": []},
+]
+
+
+def graph3(stages: dict) -> dict:
+    segs = []
+    for s in SEGS3:
+        segs.append({"id": s["id"], "mode": "r2v", "seconds": 5 if s["id"] != "sb-302" else 4,
+                     "frames": 124 if s["id"] != "sb-302" else 90, "seed": None,
+                     "rerun": False,
+                     "prompt": {"summary": s["prompt"], "retention": "", "description": "", "soundscape": ""},
+                     "images": s["images"]})
+    timeline = json.dumps({
+        "version": 1, "chapter": CH3, "stages": stages, "color_fix": "none",
+        "common_images": ["canon-jc.png"],
+        "common_params": {"enabled": True, "seconds": 5, "seed": 42, "match": "match"},
+        "advanced": {"first_steps": 8, "second_steps": 3, "sampler": "lcm", "scheduler": "simple", "cfg": 1.0},
+        "segments": segs,
+    }, ensure_ascii=False)
+    g = graph(stages)
+    g["5"]["inputs"]["timeline_data"] = timeline
+    return g
+
+
+def fire3(stages: dict, tag: str, timeout_s: int = 2400) -> dict:
+    q = http("GET", "/queue")
+    while q["queue_running"] or q["queue_pending"]:
+        time.sleep(10)
+        q = http("GET", "/queue")
+    pid = http("POST", "/prompt", {"prompt": graph3(stages),
+                                   "client_id": "daoyan-livefire-1114"})["prompt_id"]
+    print(f"[{tag}] 已入队 {pid} …")
+    t0 = time.time()
+    while time.time() - t0 < timeout_s:
+        h = http("GET", f"/history/{pid}")
+        if pid in h:
+            rec = h[pid]
+            status = rec.get("status", {})
+            if status.get("status_str") == "error":
+                msgs = [m for m in status.get("messages", []) if "execution_error" in str(m[0])]
+                raise RuntimeError(f"{tag} 执行错:{json.dumps(msgs)[:500]}")
+            if status.get("completed"):
+                return {"secs": round(time.time() - t0, 1)}
+        time.sleep(8)
+    raise RuntimeError(f"{tag} 超时 {timeout_s}s")
+
+
+def round_chapter3() -> None:
+    r = fire3({"yicai": True, "ercai": True, "sancai": True}, "三镜整章全链")
+    ok = {}
+    for s in SEGS3:
+        for name in ("p1-draft", "p2-final", "p3-recavsr"):
+            hit, size = view_ok_best(f"{OUT_ROOT}/{CH3}/{s['id']}/{name}")
+            ok[f"{s['id']}.{name}"] = (hit, size)
+    draft_ok, draft_sz = view_ok(f"{OUT_ROOT}/{CH3}/章草片.mp4", 200_000)
+    final_ok, final_sz = view_ok(f"{OUT_ROOT}/{CH3}/章终片.mp4", 500_000)
+    log = http("GET", f"/my_daoyan/logs?chapter={CH3}&limit=500")
+    lines = log.get("lines") or []
+    print(f"[整章] {r['secs']}s")
+    for k, (hit, size) in ok.items():
+        print(f"  {k}: {'✓' if hit else '✗'} {size:,}B")
+    print(f"  章草片 {'✓' if draft_ok else '✗'} {draft_sz:,}B | 章终片 {'✓' if final_ok else '✗'} {final_sz:,}B")
+    print(f"  run-log 行数:{len(lines)}(含耗时行:{sum(1 for l in lines if '耗时' in l)})")
+    assert all(v[0] for v in ok.values()) and draft_ok and final_ok, "整章产物链未闭环"
+    assert len(lines) >= 20 and any("耗时" in l for l in lines), "运行日志未落"
+
+
+def round_cache() -> None:
+    """☑2 单独复跑:latent 缓存命中=零采样(对 284s 重采样基线的加速实证)。"""
+    segs = [dict(s) for s in SEGS3[:1]]
+    g = graph3({"yicai": False, "ercai": True, "sancai": False})
+    timeline = json.loads(g["5"]["inputs"]["timeline_data"])
+    timeline["segments"] = timeline["segments"][:1]
+    timeline["segments"][0]["rerun"] = True  # 强制重掷该镜二采(产物覆盖,latent 缓存仍命中)
+    g["5"]["inputs"]["timeline_data"] = json.dumps(timeline, ensure_ascii=False)
+    q = http("GET", "/queue")
+    while q["queue_running"] or q["queue_pending"]:
+        time.sleep(10)
+        q = http("GET", "/queue")
+    pid = http("POST", "/prompt", {"prompt": g, "client_id": "daoyan-livefire-1114"})["prompt_id"]
+    print("[缓存实证] 已入队 …")
+    t0 = time.time()
+    while time.time() - t0 < 900:
+        h = http("GET", f"/history/{pid}")
+        if pid in h and h[pid].get("status", {}).get("completed"):
+            secs = round(time.time() - t0, 1)
+            log = http("GET", f"/my_daoyan/logs?chapter={CH3}&limit=80")
+            lines = log.get("lines") or []
+            hit_lines = [l for l in lines if "缓存命中" in l]
+            print(f"[缓存实证] {secs}s(基线 284s=重采样+二采) 缓存命中行:{len(hit_lines)}")
+            for l in hit_lines[:2]:
+                print("  ", l[:90])
+            assert hit_lines, "latent 缓存未命中(加速未生效)"
+            assert secs < 200, "时长未显著降(缓存命中但没省采样?)"
+            return
+        if pid in h and h[pid].get("status", {}).get("status_str") == "error":
+            raise RuntimeError("缓存实证执行错:" + json.dumps(h[pid]["status"])[:300])
+        time.sleep(6)
+    raise RuntimeError("缓存实证超时")
 
 
 if __name__ == "__main__":
