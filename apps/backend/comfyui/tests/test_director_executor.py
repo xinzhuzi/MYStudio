@@ -292,9 +292,11 @@ def test_dry_run_full_chain_calls_and_events(monkeypatch):
     # 产物链:每镜 p1/p2/p3 全落
     assert res["artifacts"]["sb-01"]["p1"].endswith("p1-draft_00001.mp4")
     assert res["artifacts"]["sb-02"]["p3"].endswith("p3-recavsr_00001.mp4")
-    # 章终片拼接(勾含三采):p3×2 入 ffmpeg;勾1+三采→不拼草片
-    assert box["ffmpeg"] and box["ffmpeg"][0][1].endswith("章终片.mp4")
-    assert len(box["ffmpeg"][0][0]) == 2
+    # 章级双拼(1114 整章实弹勘误:勾1 即拼草片,全链=草片+终片两拼)
+    outs = [o for _, o in box["ffmpeg"]]
+    assert any(o.endswith("章草片.mp4") for o in outs), "勾1 必拼章草片"
+    assert any(o.endswith("章终片.mp4") for o in outs), "勾三采必拼章终片"
+    assert len(box["ffmpeg"]) == 2
     # 事件:每阶段 progress + 每步 artifacts + 终态
     kinds = [t for t, _ in box["events"]]
     assert kinds.count("daoyan_progress") >= 7  # 2镜×3阶段+终态

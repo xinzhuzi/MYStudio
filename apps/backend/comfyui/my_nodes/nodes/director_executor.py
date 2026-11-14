@@ -387,14 +387,17 @@ def _seg_seed(ctx: PassCtx, seg: dict) -> int:
 
 
 def _shape(x) -> str:
-    """张量形状入日志行(伪类干跑对象无 shape→str 兜底)。"""
+    """张量形状入日志行(1114 整章实弹勘误:LATENT=dict 无 shape,str 兜底
+    会把整包张量倾倒进 run-log——dict=逐键内形状摘要,兜底截 60 字)。"""
     shape = getattr(x, "shape", None)
     if shape is not None:
         try:
             return "(" + ",".join(str(d) for d in shape) + ")"
         except Exception:
             pass
-    return str(x)
+    if isinstance(x, dict):
+        return "{" + ",".join(f"{k}:{_shape(v)}" for k, v in list(x.items())[:4]) + "}"
+    return str(x)[:60]
 
 
 # ── 参考图预算口径(1114 用户裁定,与 App 组装器 buildShotH3SancaiApiWorkflow
@@ -829,7 +832,7 @@ class DirectorExecutor:
         sel = "+".join(str(n) for n, k in zip((1, 2, 3),
                                               ("yicai", "ercai", "sancai"))
                        if state["stages"][k]) or "-"
-        log(f"run 开始 章节={chapter} 勾选={sel}"
+        log(f"═══ run 开始 章节={chapter} 勾选={sel}"
             f" 镜数={len(state['segments'])} 运行清单={total}镜")
         # 计划门控决策留痕(resolve_plan 的逐镜命中/todo/rerun 决策入行)
         todo_by_index = {r["index"]: r["do"] for r in runs}
@@ -972,7 +975,7 @@ class DirectorExecutor:
             f" 章终片={chapter_outputs.get('final') or '-'}")
         self.H.send_event("daoyan_progress", {
             "node_id": unique_id,
-            "message": ("已取消(已完镜产物保留)" if cancelled else "全部完成")
+            "message": ("═══ run 终态 已取消(已完镜产物保留)" if cancelled else "═══ run 终态 全部完成")
                        + f" {done}/{total} 镜",
             "done": done, "total": total, "chapter_outputs": chapter_outputs})
         return {"artifacts": artifacts, "chapter_outputs": chapter_outputs,
@@ -1001,7 +1004,7 @@ class DirectorExecutor:
                                               ("yicai", "ercai", "sancai"))
                        if stages[k]) or "-"
         plans = []
-        if stages["yicai"] and not stages["sancai"]:
+        if stages["yicai"]:  # 勾1 即拼(全链同跑也拼;1114 整章实弹勘误)
             plans.append(("p1", DRAFT_NAME, "draft"))
         if stages["sancai"]:
             plans.append(("p3", FINAL_NAME, "final"))
