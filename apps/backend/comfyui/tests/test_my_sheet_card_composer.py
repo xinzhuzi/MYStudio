@@ -35,7 +35,7 @@ STEPS_DIR = (_TESTS.parents[3] / "apps/output/daojie-sheet-b-1112-arch1113"
                if (_TESTS.parents[3] / "apps/output/daojie-sheet-b-1112-arch1113").is_dir()
                else _TESTS.parents[3] / "apps/output/daojie-sheet-b-1112")
 # 金样 e6221c36 的产源步图住归档夹(1113 复测重掷顶位后指针随迁;两处皆无=skip)
-GOLDEN_SHA = "d409f221b384d6343c2910a229e0cec952757fd6a9054ac5cb5c14115f86bc23"  # v6+五圆÷2 档(1114 产物夹被并行清理后自引擎 sheetB 回收重锚;金样重对;老 e6221c36=v1.1 档随役存档)
+GOLDEN_SHA = "c9677a63de250c25068bbd547fedf14e898c0dec0a2681299415d3eae5f5a691"  # v6+底带收高108(1114 用户令;金样重对;老 e6221c36=v1.1 档随役存档)
 
 
 def test_placeholder_compose(tmp_path):
@@ -108,10 +108,10 @@ def test_formats_registry_snapshot():
     full = sf.resolve("全卡")
     assert full["canvas"] == (3840, 2160) and full["margin"] == 36 and full["gutter"] == 20
     assert full["rects"]["front"] == (36, 36, 717, 986)     # v6+表情条档(r1=950)
-    assert full["rects"]["_palette"] == (36, 1974, 3804, 2124)   # v6 底部通栏信息带
+    assert full["rects"]["_palette"] == (36, 2016, 3804, 2124)   # v6 底带收高108(1114 令)
     assert full["rects"]["exp_1"] == (36, 1006, 773, 1226)      # 表情条首格
-    assert full["rects"]["weapon"] == (36, 1246, 1519, 1657)    # 底区下移
-    assert full["rects"]["fx_2"] == (3061, 1610, 3804, 1954)
+    assert full["rects"]["weapon"] == (36, 1246, 1519, 1681)    # 底区(收高后 r4=750)
+    assert full["rects"]["fx_2"] == (3061, 1631, 3804, 1996)
     assert {k for k, m in full["modes"].items() if m == "contain"} \
         == {"front", "side", "back", "weapon", "eye", "gear_1", "gear_2"}
     assert len(full["labels"]["text"]) == 23 and full["labels"]["size"] == 36  # 15+表情5+材质/装备逐格名3
