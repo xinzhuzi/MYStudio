@@ -200,11 +200,12 @@
     if (projectsData === "unavailable") {
       return selectHtml("pick-project", "项目", "项目不可用", [], null, true);
     }
-    var sorted = projectsData.projects.slice().sort(function (a, b) {
-      return (b.location ? 1 : 0) - (a.location ? 1 : 0);
-    });
+    // 只列真项目(1114 用户令「为什么还有多个项目」):无 location 的
+    // App 空壳项隐没;全无真项目(全新装机)才兜底全列防空下拉
+    var real = projectsData.projects.filter(function (p) { return p.location; });
+    var shown = real.length ? real : projectsData.projects;
     return selectHtml("pick-project", "项目", "选择项目",
-      sorted.map(function (p) {
+      shown.map(function (p) {
         return { value: p.id, label: p.name };
       }), currentPid, false);
   }
@@ -220,8 +221,13 @@
     if (!d) {
       return selectHtml("pick-chapter", "章节", "章节加载中…", [], null, true);
     }
+    // 章标签=纯「第N章…」口径(1114 用户令:去 chapter-xxx 前缀,按章号
+    // 排序直列):有章名用章名;无章名从 id 抽数字派生「第N章」
     var options = d.chapters.map(function (c) {
-      return { value: c.id, label: c.id + " · " + (c.title || "无章名") };
+      var m = /\d+/.exec(c.id || "");
+      var label = c.title
+        || ("第" + (m ? String(parseInt(m[0], 10)) : "?") + "章");
+      return { value: c.id, label: label };
     });
     var inList = options.some(function (o) { return o.value === st.chapter; });
     // 当前 st.chapter 在列表→预选;不在(手输)→占位示明,不覆盖不偷写

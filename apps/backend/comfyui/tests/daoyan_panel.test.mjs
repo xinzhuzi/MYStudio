@@ -687,12 +687,14 @@ test("㉒ 选择器:无 fetch 禁用占位;fetch 桩→项目/章表填充;选�
   assert.ok(/data-act="pick-project" disabled/.test(root.innerHTML), "项目下拉禁用");
   assert.ok(root.innerHTML.includes("项目不可用"), "项目不可用占位");
   assert.ok(/data-act="pick-chapter" disabled/.test(root.innerHTML), "章节下拉禁用(未选项目)");
-  // fetch 桩:项目册+章表(/my_daoyan/projects|chapters 同源只读路由)
+  // (后段断言壳项隐没)(/my_daoyan/projects|chapters 同源只读路由)
   // (先 reset:无 fetch 阶段已把「不可用」结果缓存进 promise=同源一次性语义)
   sb.DaoyanToolbar.selectors.reset();
   sb.fetch = function (url) {
     const d = url.indexOf("/my_daoyan/projects") >= 0
-      ? { projects: [{ id: "p1", name: "道劫" }], activeProjectId: "p1" }
+      ? { projects: [{ id: "p1", name: "道劫", location: "/x/MA" },
+                     { id: "shell", name: "漫影工作室项目", location: "" }],
+          activeProjectId: "p1" }
       : { chapters: [{ id: "chapter-001", n: 1, title: "第1章：断剑为谁而鸣" },
                      { id: "chapter-002", n: 2, title: "" }], count: 2 };
     return Promise.resolve({ json: () => Promise.resolve(d) });
@@ -702,11 +704,13 @@ test("㉒ 选择器:无 fetch 禁用占位;fetch 桩→项目/章表填充;选�
   root = stubElement();
   sb.DaoyanToolbar.build(root, ctrl);
   assert.ok(root.innerHTML.includes("道劫"), "项目 option 填充");
+  assert.ok(!root.innerHTML.includes("漫影工作室项目"), "无 location 壳项隐没");
   await sb.DaoyanToolbar.selectors.ensureChapters("p1");
   root = stubElement();
   sb.DaoyanToolbar.build(root, ctrl);
-  assert.ok(root.innerHTML.includes("chapter-001 · 第1章：断剑为谁而鸣"), "章 option 带章名");
-  assert.ok(root.innerHTML.includes("chapter-002 · 无章名"), "空章名 fallback 文案");
+  assert.ok(root.innerHTML.includes("第1章：断剑为谁而鸣"), "章 option 纯章名");
+  assert.ok(!/chapter-001 ·/.test(root.innerHTML), "章 option 无 chapter-xxx 前缀");
+  assert.ok(root.innerHTML.includes("第2章"), "空章名派生「第N章」");
   // 选章:唯一写入口=actions.setChapter 同路(写 st.chapter)
   sb.DaoyanToolbar.actions.pickChapter(ctrl, "chapter-001");
   assert.equal(ctrl.state.chapter, "chapter-001");
