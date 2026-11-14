@@ -98,7 +98,9 @@ def resolve_plan(state: dict, list_output: Callable[[str], list],
         return [], ["零素材组:先在面板添加第一组再运行"], artifacts
 
     def hit(prefix: str) -> str | None:
-        found = [p for p in (list_output(prefix) or []) if not p.endswith(".bak")]
+        # 视频扩展名白名单(纵深:.latent/.bak 恒不入产物册;1114 整章二发勘误)
+        found = [p for p in (list_output(prefix) or [])
+                 if p.lower().endswith((".mp4", ".webm", ".mov", ".mkv"))]
         return found[0] if found else None
 
     for i, seg in enumerate(segs):
@@ -537,7 +539,7 @@ def save_video(classes, hooks: Hooks, log, video, chapter, seg_id,
     (疑似写往别处)分开口径;重掷旧件让名 .bak×n 入行。"""
     prefix = artifact_prefix(chapter, seg_id, name)
     olds = [p for p in (hooks.list_output(prefix) or [])
-            if not p.endswith(".bak")]  # 重掷:旧件让名(SaveVideo 自增计数)
+            if p.lower().endswith((".mp4", ".webm", ".mov", ".mkv"))]  # 重掷:旧件让名(白名单=视频)
     for old in olds:
         # output_path 可注入缺省 None(既有伪钩子)=跳让名,不炸
         src = hooks.output_path(old) if callable(hooks.output_path) else None
@@ -552,7 +554,7 @@ def save_video(classes, hooks: Hooks, log, video, chapter, seg_id,
             f"SaveVideo 未落盘:{prefix}(抛异常 {type(err).__name__}:{err})"
         ) from err
     hits = [p for p in (hooks.list_output(prefix) or [])
-            if not p.endswith(".bak")]
+            if p.lower().endswith((".mp4", ".webm", ".mov", ".mkv"))]
     if not hits:
         log(f"落盘失败 SaveVideo 返回但盘上无命中(prefix={prefix} 疑似写往别处)")
         raise DirectorError(
@@ -921,7 +923,8 @@ class DirectorExecutor:
                                     (p for p in (self.H.list_output(
                                         artifact_prefix(chapter, seg["id"],
                                                         P2_NAME))
-                                        or []) if not p.endswith(".bak")),
+                                        or []) if p.lower().endswith(
+                                            (".mp4", ".webm", ".mov", ".mkv"))),
                                     None)
                                 src = "盘glob"
                             if not p2_rel:
@@ -1108,8 +1111,11 @@ def bind_engine_hooks():
     input_dir = Path(folder_paths.get_input_directory())
 
     def list_output(prefix):
+        # 1114 整章二发勘误:p1-draft.latent(加速缓存)撞 p1-draft* glob 混入
+        # 产物册喂 ffmpeg——产物册恒只认视频扩展名
         return [str(p.relative_to(out_dir))
-                for p in sorted(out_dir.glob(prefix + "*"))]
+                for p in sorted(out_dir.glob(prefix + "*"))
+                if p.suffix.lower() in ("mp4", "webm", "mov", "mkv")]
 
     def output_path(rel):
         p = out_dir / rel

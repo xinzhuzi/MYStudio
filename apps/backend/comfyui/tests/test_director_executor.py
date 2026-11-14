@@ -717,3 +717,17 @@ def test_yicai_seeds_latent_cache(monkeypatch):
         "model", "vv", "aa", "cc", st, unique_id=1)
     rel = de.artifact_prefix("chapter-b001", "sb-01", "p1-draft") + ".latent"
     assert rel in cache and cache[rel]["fp"], "一采后缓存必须落且带指纹"
+
+
+def test_latent_file_never_counts_as_checkpoint(monkeypatch):
+    """1114 整章二发勘误钉:p1-draft.latent(加速缓存)不得混入产物册。"""
+    st = _state()
+    st["stages"]["ercai"] = True
+    st["segments"] = [st["segments"][0]]
+    p1 = de.artifact_prefix("chapter-b001", "sb-01", "p1-draft")
+    # 盘上只有 .latent 无视频 → 二采单独应报「无p1」而非把 latent 当 p1
+    hooks, side, box = _fake_hooks(disk={p1: [p1 + ".latent"]})
+    _patch_save(monkeypatch, side)
+    with pytest.raises(de.DirectorError, match="无p1"):
+        de.DirectorExecutor(_fake_classes(), hooks).run(
+            "model", "vv", "aa", "cc", st, unique_id=1)
