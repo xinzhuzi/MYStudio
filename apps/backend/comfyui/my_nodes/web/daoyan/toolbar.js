@@ -140,8 +140,16 @@
         projectsData = (d && Array.isArray(d.projects) && d.projects.length)
           ? d : "unavailable";
         if (projectsData !== "unavailable" && !currentPid) {
-          currentPid = projectsData.activeProjectId
-            || (projectsData.projects[0] && projectsData.projects[0].id)
+          // 预选硬化(1114 用户斥「漫影工作室项目」越位):active 优先,
+          // 但落空时跳过无 location 的空壳项,取首个真项目
+          var projs = projectsData.projects || [];
+          var active = projectsData.activeProjectId;
+          var real = projs.filter(function (x) { return x.location; });
+          currentPid = (active && projs.some(function (x) {
+            return x.id === active;
+          })) ? active
+            : (real[0] && real[0].id)
+            || (projs[0] && projs[0].id)
             || null;
         }
         return projectsData;
@@ -192,8 +200,11 @@
     if (projectsData === "unavailable") {
       return selectHtml("pick-project", "项目", "项目不可用", [], null, true);
     }
+    var sorted = projectsData.projects.slice().sort(function (a, b) {
+      return (b.location ? 1 : 0) - (a.location ? 1 : 0);
+    });
     return selectHtml("pick-project", "项目", "选择项目",
-      projectsData.projects.map(function (p) {
+      sorted.map(function (p) {
         return { value: p.id, label: p.name };
       }), currentPid, false);
   }
