@@ -64,6 +64,8 @@ def test_anchors_assembler_contract():
     for nid in (110, 111, 112, 113, 341, 342, 343, 344, 345):
         assert nodes[nid]["type"] == "LoadImage" and nodes[nid]["mode"] == 4, f"[{nid}] 参考锚应 MUTED LoadImage"
     assert nodes[346]["type"] == "LoadVideo" and nodes[346]["mode"] == 4, "[346] 参考视频锚"
+    assert nodes[347]["type"] == "GetVideoComponents" and nodes[347]["mode"] == 4, \
+        "[347] 拆帧桥出厂旁路(346旁路时桥悬空必填=手动直跑校验红,1114 根修)"
     assert nodes[16]["type"] == "MiniMaxH3ReferenceToVideo", "[16] r2v 族锚"
 
 
