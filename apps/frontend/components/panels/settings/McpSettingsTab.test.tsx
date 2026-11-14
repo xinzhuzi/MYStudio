@@ -2,6 +2,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -1983,6 +1984,63 @@ describe("McpSettingsTab·SSH 连接列表(11-03 终版)", () => {
     );
   });
 
+  it("1114 轮询+迁移 toast:断开弹错含 lastError、回连弹成功;徽章随拍翻新不停旧红字;首拍已断开零噪", async () => {
+    useSshPresetsStore.setState({
+      presets: [makeSshPreset("192.168.0.101", "ssh-a")],
+    });
+    let connected = true;
+    stubSshFetch({
+      sshStatus: () => ({
+        ...SSH_STATUS_UNCONFIGURED,
+        configured: true,
+        connected,
+        host: "192.168.0.101",
+        user: "zbj",
+        lastError: connected ? null : "[Errno 54] Connection reset by peer",
+      }),
+    });
+    vi.useFakeTimers();
+    try {
+      render(<McpSettingsTab />);
+      // 首拍:已连接✓,null 基线零 toast(防开页即噪)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      expect(screen.getByTestId("ssh-row-live-state").textContent).toBe(
+        "SSH 已连接 ✓",
+      );
+      expect(toastMocks.error).not.toHaveBeenCalled();
+      expect(toastMocks.success).not.toHaveBeenCalled();
+      // 10s 拍:断开窗口 → 徽章翻红 + toast 弹错含 lastError
+      connected = false;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      expect(screen.getByTestId("ssh-row-live-state").textContent).toBe(
+        "SSH 断开 ✗",
+      );
+      expect(screen.getByTestId("ssh-last-error").textContent).toContain(
+        "Errno 54",
+      );
+      expect(toastMocks.error).toHaveBeenCalledTimes(1);
+      expect(toastMocks.error.mock.calls[0][0]).toContain("Errno 54");
+      expect(toastMocks.success).not.toHaveBeenCalled();
+      // 再 10s 拍:keeper 自愈重连 → 徽章翻绿 + 回连 toast
+      connected = true;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      expect(screen.getByTestId("ssh-row-live-state").textContent).toBe(
+        "SSH 已连接 ✓",
+      );
+      expect(toastMocks.success).toHaveBeenCalledTimes(1);
+      expect(toastMocks.success.mock.calls[0][0]).toContain("重连");
+      expect(toastMocks.error).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("点行切换(R2):POST /comfy/ssh/config 携该行六字段(含 password)+touch 置顶+沉降后指纹翻到新行+零引擎 POST(零联动②)", async () => {
     useSshPresetsStore.setState({
       presets: [
@@ -2430,6 +2488,44 @@ describe("McpSettingsTab·SSH 连接列表(11-03 终版)", () => {
     });
     expect(screen.getByTestId("ssh-needs-runtime").textContent).toContain(
       "Python 运行环境",
+    );
+  });
+
+  it("1114 测试失败双呈现:toast 即时弹错(不再只有底部安静红字)+底部结果框保留", async () => {
+    useSshPresetsStore.setState({
+      presets: [makeSshPreset("192.168.0.101", "ssh-a")],
+    });
+    stubSshFetch({
+      // 开页即断开态:首拍 null 基线零噪(只验不弹,徽章红属渲染域上测已盖)
+      sshStatus: {
+        ...SSH_STATUS_UNCONFIGURED,
+        configured: true,
+        connected: false,
+        host: "192.168.0.101",
+        user: "zbj",
+        lastError: "[Errno 54] Connection reset by peer",
+      },
+      sshTest: {
+        ok: false,
+        reason: "disconnected",
+        message: "[Errno 54] Connection reset by peer",
+      },
+    });
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("ssh-row-live-state").textContent).toBe(
+        "SSH 断开 ✗",
+      );
+    });
+    expect(toastMocks.error).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("ssh-row-test"));
+    await waitFor(() => {
+      expect(toastMocks.error).toHaveBeenCalledTimes(1);
+    });
+    expect(toastMocks.error.mock.calls[0][0]).toContain("Errno 54");
+    // 底部结果框保留(双呈现)
+    expect(screen.getByTestId("ssh-test-error-line").textContent).toContain(
+      "Errno 54",
     );
   });
 

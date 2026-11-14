@@ -503,6 +503,8 @@ export function McpSettingsTab() {
       .then((status) => {
         if (cancelled) return;
         setSshStatus(status);
+        // 首拍入迁移基线(下方轮询 effect 沿此判断断开/回连)
+        sshPrevConnectedRef.current = status.connected;
         // ?? 兜底:老 sidecar/异常回执缺键时不把 undefined 写进开关
         // (Switch checked 失控告警防线)
         setSshTunnelEnabled(status.tunnelEnabled ?? true);
@@ -524,6 +526,33 @@ export function McpSettingsTab() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // SSH 断开/回连迁移基线(1114 修:mount 首拍写入,轮询 effect 沿此 toast)
+  const sshPrevConnectedRef = useRef<boolean | null>(null);
+
+  // 1114 修:SSH 徽章此前只在挂载取一拍——keeper 断线自愈后面板停在旧「断开×」
+  // 红字(用户实弹:Errno 54 早已重连,截图仍红)。轻轮询(照 torch-info 10s 同
+  // 拍)保新鲜;断开/回连两向迁移各 toast 一声(首拍 null 基线不弹,防开页即
+  // 噪)。仅设置页在位时监控;全局常驻监控是另一档事,不在本修范围。
+  useEffect(() => {
+    const tick = async () => {
+      try {
+        const status = await getComfySshStatus();
+        setSshStatus(status);
+        const prev = sshPrevConnectedRef.current;
+        sshPrevConnectedRef.current = status.connected;
+        if (prev === true && status.connected === false) {
+          toast.error(`SSH 断开:${status.lastError || "连接已断开"}`);
+        } else if (prev === false && status.connected === true) {
+          toast.success("SSH 已重连 ✓");
+        }
+      } catch {
+        /* 轮询失败静默:sidecar 未起/瞬态,下拍再试 */
+      }
+    };
+    const timer = window.setInterval(tick, 10_000);
+    return () => window.clearInterval(timer);
   }, []);
 
   // 保存=写 sidecar 配置(原子落 App 家 remote-engine.json,即时生效无需重启)。
@@ -1069,6 +1098,13 @@ export function McpSettingsTab() {
     try {
       const reply = await testComfySshConnection();
       setSshTest({ status: "ok", reply });
+      // 1114 修:失败回执此前只落区块底部结果框(离行内按钮隔一张隧道卡,用户
+      // 实弹「没提示」)——失败加 toast 即时反馈,底部结果框保留=双呈现
+      if (!reply.ok) {
+        toast.error(
+          reply.message || `测试失败(${reply.reason ?? "未知原因"})`,
+        );
+      }
     } catch (error) {
       const message = isSidecarDownError(error)
         ? SIDECAR_DOWN_GUIDANCE
@@ -1076,6 +1112,7 @@ export function McpSettingsTab() {
           ? error.message
           : "测试失败";
       setSshTest({ status: "error", message });
+      toast.error(message);
     } finally {
       setSshTesting(false);
     }
