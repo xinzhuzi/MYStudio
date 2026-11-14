@@ -43,7 +43,8 @@ trellis channel create <name>
 Behavior:
 - Appends a `create` event; immutable `type` (cannot mutate forum↔chat after).
 - `--ephemeral` channels are hidden from `channel list` by default and are
-  the sweep target for `channel prune --ephemeral`.
+  the sweep target for `channel prune --ephemeral`. This flag does not set
+  Codex session persistence; worker dispatch uses the history guard in SKILL.md.
 - `--linked-context-*` are folded into `--context-*`; emit a deprecation
   notice when used.
 
@@ -211,14 +212,14 @@ Behavior:
 ### `spawn <name>`
 
 ```bash
-trellis channel spawn <name>
+python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn <name>
   [--scope project|global]
   [--agent <agent-name>]                  # loads .trellis/agents/<name>.md
   [--provider claude|codex]               # overrides agent file
   [--as <worker-name>]                    # default: agent name
   [--cwd <path>]
   [--model <id>]
-  [--resume <id>]                         # session/thread id resume
+  [--resume <id>]                         # persistent provider session only; not temporary Codex
   [--timeout <Ns|Nm|Nh>]                  # auto-kill after duration
   [--warn-before <Ns|Nm|Nh>]              # supervisor_warning lead time
                                           # default 5m, 0ms disables
@@ -249,7 +250,7 @@ Behavior:
 ### `run [name]`
 
 ```bash
-trellis channel run [name?]
+python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel run [name?]
   [--agent <name>]
   [--provider claude|codex]
   [--as <worker-name>]
@@ -284,7 +285,8 @@ Behavior:
 - Default path: SIGTERM → 8 s grace → SIGKILL escalation; the CLI writes a
   `killed` event when SIGKILL was needed so the log stays truthful.
 - Cleans `pid`, `worker-pid`, `config`, `spawnlock` sidecar files; keeps
-  `log`, `session-id`, `thread-id` for forensics / resume.
+  `log`, `session-id`, `thread-id` for forensics. Temporary Codex thread
+  IDs cannot resume an exited session; use channel records to brief a fresh worker.
 
 ### `rm <name>`
 

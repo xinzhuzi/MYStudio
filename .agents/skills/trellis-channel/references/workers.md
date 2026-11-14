@@ -9,7 +9,7 @@ and translates its output back into channel events.
 
 ```bash
 trellis channel create impl-task --by dispatcher --cwd /path/to/repo
-trellis channel spawn impl-task --provider codex --as codex-impl --timeout 30m
+python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn impl-task --provider codex --as codex-impl --timeout 30m
 
 echo "Implement the schema for table X per .trellis/.../prd.md" \
   | trellis channel send impl-task --as dispatcher --to codex-impl --stdin
@@ -29,7 +29,7 @@ Key `spawn` flags:
 - `--as <name>` — channel worker handle; defaults to the agent name.
 - `--cwd <path>` — worker working directory (also the jail root for `--file`/`--jsonl`).
 - `--model <id>` — model override.
-- `--resume <id>` — resume an existing claude session / codex thread.
+- `--resume <id>` — persistent Claude session resume. Temporary Codex channel sessions cannot be resumed from Codex history after exit; brief a new worker from channel records.
 - `--timeout <duration>` — auto-kill after `30s` / `2m` / `1h`.
 - `--warn-before <duration>` — supervisor_warning lead time (default `5m`; `0ms` disables).
 - `--file <path>` (repeatable, glob-supported) — inject file content into the system prompt.
@@ -92,7 +92,7 @@ Example spawning a check agent against a task directory:
 
 ```bash
 TASK=.trellis/tasks/05-13-example
-trellis channel spawn cr-example --agent check --provider codex --as check-cx \
+python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn cr-example --agent check --provider codex --as check-cx \
   --file "$TASK/prd.md" \
   --file "$TASK/design.md" \
   --file "$TASK/implement.md" \
@@ -115,8 +115,8 @@ Use explicit names when multiple workers or providers participate in one
 channel:
 
 ```bash
-trellis channel spawn cr-feature --agent check --as check-claude
-trellis channel spawn cr-feature --agent check --provider codex --as check-cx
+python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn cr-feature --agent check --as check-claude
+python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn cr-feature --agent check --provider codex --as check-cx
 
 trellis channel wait cr-feature --as main \
   --from check-claude,check-cx --kind done --all --timeout 15m
@@ -160,7 +160,7 @@ echo "Check this when you reach the next turn." \
       --stdin --tag question
 ```
 
-## Hard Interrupt — `kill` + `--resume`
+## Hard Interrupt — `kill` and restart
 
 Use `kill` when the worker must stop **now** (e.g. runaway loop, bad
 instructions already in flight, or `interrupt` is not honored by the
@@ -169,12 +169,12 @@ writes a `killed` event when SIGKILL is needed so the event log stays
 truthful.
 
 ```bash
-trellis channel kill impl-task --as codex-impl
-trellis channel spawn impl-task --as codex-impl --provider codex \
+trellis channel kill impl-task --as claude-impl
+python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn impl-task --as claude-impl --provider claude \
   --resume "$(cat ~/.trellis/channels/<bucket>/impl-task/worker.session-id)"
 
 echo "STOP — new instructions: ..." \
-  | trellis channel send impl-task --as dispatcher --to codex-impl --stdin
+  | trellis channel send impl-task --as dispatcher --to claude-impl --stdin
 ```
 
 `kill` flags:
@@ -184,10 +184,13 @@ echo "STOP — new instructions: ..." \
 - `--force` — SIGKILL immediately (also kills the inner worker pid).
 
 Side effects: cleans `pid`, `worker-pid`, `config`, `spawnlock` sidecar
-files; keeps `log`, `session-id`, `thread-id` for forensics and resume.
+files; keeps `log`, `session-id`, `thread-id` for forensics. Persistent
+Claude sessions may use the resume example above. Codex temporary thread IDs
+are audit references, not a persistent recovery mechanism. After killing a
+Codex worker, read `channel messages --raw` and its worker log, then spawn a
+fresh worker with an explicit continuation brief. Do not promise resume.
 
-When `interrupt` will not converge, kill + `--resume` is the guaranteed
-redirection path.
+Killing stops the old process; a new worker still needs the revised instruction.
 
 ## Worker OOM Guard
 

@@ -12,7 +12,7 @@ Use when the user says "和 codex/claude 讨论一下", "brainstorm", or "拉一
 trellis channel create brainstorm-storage-layer --by main \
   --task .trellis/tasks/05-XX-storage-adapter
 
-trellis channel spawn brainstorm-storage-layer \
+python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn brainstorm-storage-layer \
   --agent architect --provider codex \
   --file .trellis/tasks/05-XX-storage-adapter/prd.md \
   --file .trellis/tasks/05-XX-storage-adapter/design.md \
@@ -54,7 +54,7 @@ Use when the user asks to dispatch implementation or review work.
 TASK=.trellis/tasks/05-12-foo
 trellis channel create cr-foo --task "$TASK" --by main
 
-trellis channel spawn cr-foo \
+python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn cr-foo \
   --agent check \
   --jsonl "$TASK/check.jsonl" \
   --file "$TASK/prd.md" \
@@ -78,11 +78,11 @@ Use one channel and distinct worker names.
 ```bash
 trellis channel create cr-feature --by main --ephemeral
 
-trellis channel spawn cr-feature --agent check \
+python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn cr-feature --agent check \
   --jsonl "$TASK/check.jsonl" --file "$TASK/prd.md" --file "$TASK/design.md" \
   --timeout 15m
 
-trellis channel spawn cr-feature --agent check --provider codex --as check-cx \
+python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn cr-feature --agent check --provider codex --as check-cx \
   --jsonl "$TASK/check.jsonl" --file "$TASK/prd.md" --file "$TASK/design.md" \
   --timeout 15m
 
@@ -96,8 +96,8 @@ trellis channel wait cr-feature --as main --kind done --from check,check-cx --al
 ## Pattern D: One-shot Worker
 
 ```bash
-trellis channel run --provider codex --message "say hi in 3 words" --timeout 1m
-trellis channel run --agent plan --message-file /tmp/plan-question.md --timeout 10m
+python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel run --provider codex --message "say hi in 3 words" --timeout 1m
+python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel run --agent plan --message-file /tmp/plan-question.md --timeout 10m
 ```
 
 On success, `run` removes the ephemeral channel. On error/timeout/killed, it

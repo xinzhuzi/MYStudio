@@ -11,6 +11,31 @@ Typical user signals: "和 codex/claude 讨论", "brainstorm with another agent"
 
 This skill is an index. Load only the reference file for the current job — do not preload all of them.
 
+## Codex Desktop History Guard (host customization)
+
+On this host, every worker launch (`channel spawn` or `channel run`, including
+provider defaults from agent cards) MUST use this stable entry:
+
+```bash
+python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn <channel> --provider codex --as <worker>
+python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel run --provider codex --message-file /tmp/brief.md
+```
+
+The entry lives outside bundled skills. Before delegating to the installed CLI,
+it dynamically resolves the Trellis package and verifies that the Codex adapter
+returns `ephemeral: true`. It can back up and repair only the fingerprinted
+0.6.17 adapter; an unknown unsafe implementation stops before dispatch. Do not
+bypass a failed check with a direct `trellis`/`tl` launch. The installed adapter
+also sets this field, so current direct CLI launches use temporary Codex sessions.
+
+`channel create --ephemeral` hides a Trellis channel only; it does not control
+Codex desktop history. Codex channel sessions are temporary and cannot be resumed
+from persistent Codex history after exit. For `spawn`, use channel events and
+worker logs to brief a fresh worker. `run` retains its existing successful-channel
+cleanup behavior; save stdout if a lasting result is needed. This is a local fix,
+not an upstream release guarantee. After updates, keep this guard and the project
+AGENTS.md rule; inspect changed upstream code when the guard refuses dispatch.
+
 ## First Commands
 
 ```bash
