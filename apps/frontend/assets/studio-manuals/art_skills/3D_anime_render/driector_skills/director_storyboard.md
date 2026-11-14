@@ -178,7 +178,7 @@ no photorealism, no realistic rendering, no CG realism, no dark tones, no heavy 
 </negative>
 ```
 
-## 快速参考卡
+## 快速参考图
 
 ### 情绪 → 画面词速查
 

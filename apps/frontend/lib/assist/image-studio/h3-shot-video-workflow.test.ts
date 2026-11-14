@@ -422,11 +422,11 @@ describe("文案逐字自检门接线 (参考_文案逐字自检门.md §一,10-
 });
 
 describe("Windows FastH3 主线通道(10-27 windows-fasth3-mainline W10 配方化)", () => {
-  it("缺省零变:不带 recipeId 走旧 H3 模板对(euler/CLIPLoaderGGUF 在场,FastH3 件不在)", () => {
+  it("缺省走 i2v-31 模板对(1114 换装后:lcm/CLIPLoader+awq 在场,FastH3 件不在)", () => {
     const result = buildShotH3ApiWorkflow({ shot: makeShot(), chapterId: "c", chapterLabel: "章" });
     expect(DEFAULT_H3_RECIPE_ID).toBe("my-h3-i2v-31");
-    expect(result.apiGraph["29"].inputs.sampler_name).toBe("euler");
-    expect(result.apiGraph["21"].class_type).toBe("CLIPLoaderGGUF");
+    expect(result.apiGraph["29"].inputs.sampler_name).toBe("lcm");
+    expect(result.apiGraph["21"].class_type).toBe("CLIPLoader");
     expect(result.apiGraph["43"].class_type).toBe("SolAttnPatch");
   });
 

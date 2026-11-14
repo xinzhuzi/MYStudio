@@ -175,7 +175,7 @@ no photorealistic, no realistic photography, no 3D render, no low-poly, no rough
 </negative>
 ```
 
-## 快速参考卡
+## 快速参考图
 
 ### 情绪 → 画面词速查
 

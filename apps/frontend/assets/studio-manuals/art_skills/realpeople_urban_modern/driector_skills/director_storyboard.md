@@ -170,7 +170,7 @@ no plastic skin, no beauty filter, no studio lighting, no centered composition, 
 </negative>
 ```
 
-## 快速参考卡
+## 快速参考图
 
 ### 情绪 → 画面词速查
 

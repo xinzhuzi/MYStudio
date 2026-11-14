@@ -174,7 +174,7 @@ no modern anime style, no digital 3D rendering, no CG animation, no cel-shading,
 </negative>
 ```
 
-## 快速参考卡
+## 快速参考图
 
 ### 情绪 → 画面词速查
 

@@ -208,7 +208,7 @@ no photorealistic, no realistic photography, no low-poly, no rough modeling, no 
 
 ---
 
-## 快速参考卡（古风+都市双适配）
+## 快速参考图（古风+都市双适配）
 
 ### 情绪 → 画面词速查
 | 情绪 | 面容关键词 | 古风光线匹配 | 都市光线匹配 |

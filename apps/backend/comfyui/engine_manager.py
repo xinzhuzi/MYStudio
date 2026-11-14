@@ -353,6 +353,24 @@ def pick_latest_release(ls_remote_lines: list[str]) -> str | None:
     return tags[-1][1] if tags else None
 
 
+def _version_tuple(version: str) -> tuple[int, ...] | None:
+    """版本串 → 可比较元组(解析失败=None)。"""
+    nums = _VERSION_RE.findall(version or "")
+    return tuple(int(n) for n in nums) if nums else None
+
+
+def _is_upgrade(latest: str | None, current: str | None) -> bool:
+    """1114 降级横幅根修:仅 latest 语义版本 > current 才算可更新。
+    装机钉在较新 master(0.45.2)而远端最新 release tag 较旧(0.44.2)时,
+    旧 != 口径会报「可更新到 0.44.2」降级提示;改方向比较后=不是更新。"""
+    if not latest or not current:
+        return False
+    latest_v, current_v = _version_tuple(latest), _version_tuple(current)
+    if latest_v is None or current_v is None:
+        return latest != current  # 解析不动(非语义版本串)回落旧差分口径
+    return latest_v > current_v
+
+
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
@@ -1400,7 +1418,7 @@ class EngineManager:
             "updateAvailable": (
                 (head_known != local_sha)
                 if (head_known and local_sha)
-                else bool(latest_known and engine.get("version") and latest_known != engine.get("version"))
+                else _is_upgrade(latest_known, engine.get("version"))
             ),
             "aheadBy": ahead_known if isinstance(ahead_known, int) else None,
             "lastCheckAt": last_check_at if isinstance(last_check_at, int) else None,
@@ -2327,7 +2345,7 @@ class EngineManager:
             if update_available:
                 ahead_by = self._commits_ahead(local_sha)
         else:
-            update_available = bool(latest and current and latest != current)
+            update_available = _is_upgrade(latest, current)
         checked_at = cm.timestamp_ms()
         self._last_check = {
             "current": current, "latest": latest,

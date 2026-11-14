@@ -921,7 +921,7 @@
     },
     {
       "id": 21,
-      "type": "CLIPLoaderGGUF",
+      "type": "CLIPLoader",
       "pos": [
         1022.1892320604375,
         5283.23147307899
@@ -964,7 +964,7 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "CLIPLoaderGGUF",
+        "Node name for S&R": "CLIPLoader",
         "ue_properties": {
           "widget_ue_connectable": {
             "clip_name": true,
@@ -975,7 +975,7 @@
         }
       },
       "widgets_values": [
-        "Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf",
+        "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
         "minimax"
       ],
       "widgets_values_named": {
@@ -1277,7 +1277,7 @@
         "ver": "0.33.2"
       },
       "widgets_values": [
-        "euler"
+        "lcm"
       ],
       "widgets_values_named": {
         "sampler_name": "euler"
@@ -1465,7 +1465,7 @@
         ]
       },
       "widgets_values": [
-        "minimax_h3_ref2va_pruned_bf16.safetensors",
+        "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors",
         "default"
       ],
       "widgets_values_named": {

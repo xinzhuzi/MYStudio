@@ -174,7 +174,7 @@ no modern digital 3D, no CGI rendering, no smooth plastic, no oversaturated colo
 </negative>
 ```
 
-## 快速参考卡
+## 快速参考图
 
 ### 情绪 → 画面词速查
 

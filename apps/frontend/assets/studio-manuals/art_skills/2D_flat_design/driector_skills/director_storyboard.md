@@ -173,7 +173,7 @@ no 3D rendering, no photorealism, no shadows, no gradients, no textures, no real
 </negative>
 ```
 
-## 快速参考卡
+## 快速参考图
 
 ### 情绪 → 画面词速查
 

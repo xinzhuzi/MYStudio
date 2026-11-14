@@ -216,7 +216,7 @@ no 3D render, no CGI, no Unreal Engine, no Blender, no PBR material, no game eng
 
 ---
 
-## 八、快速参考卡
+## 八、快速参考图
 
 ### 情绪 → 画面词速查
 
