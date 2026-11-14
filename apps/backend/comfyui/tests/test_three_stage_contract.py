@@ -55,7 +55,7 @@ def _load():
 
 def test_anchors_assembler_contract():
     """组装器锚点齐全(assertH3TemplateIntegrity 对齐)+ [16] r2v 族锚;
-    1113 火力扩展锚:341-344 参考卡(ref_image_5..8)/345 尾帧/346 参考视频,全 MUTED 出厂。"""
+    1113 火力扩展锚:341-344 参考图(ref_image_5..8)/345 尾帧/346 参考视频,全 MUTED 出厂(1114 用户令统一称参考图)。"""
     _, nodes, _ = _load()
     for nid, ntype in ((4, "SaveVideo"), (9, "LoadImage"), (14, "PrimitiveStringMultiline"),
                        (20, "PrimitiveFloat"), (100, "MyShot"), (101, "MarkdownNote")):
