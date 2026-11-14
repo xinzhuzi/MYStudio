@@ -1115,7 +1115,7 @@ def bind_engine_hooks():
         # 产物册喂 ffmpeg——产物册恒只认视频扩展名
         return [str(p.relative_to(out_dir))
                 for p in sorted(out_dir.glob(prefix + "*"))
-                if p.suffix.lower() in ("mp4", "webm", "mov", "mkv")]
+                if p.suffix.lower() in (".mp4", ".webm", ".mov", ".mkv")]
 
     def output_path(rel):
         p = out_dir / rel
