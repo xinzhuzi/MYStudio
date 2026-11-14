@@ -49,6 +49,13 @@ def _te(nid):
     return n["widgets_values"]
 
 
+def _slot(nid, name):
+    """按名查节点入槽(不依赖槽序,用户手动排版/ComfyUI 自然序兼容)。"""
+    for inp in NODES[nid].get("inputs", []):
+        if inp["name"] == name:
+            return inp
+
+
 def test_file_and_class_whitelist():
     assert WF.is_file() and WF_I2I.is_file()
     assert not (WF_DIR / "道劫-角色设定卡.json").exists(), "旧名单件应已改名 -t2i"
@@ -114,12 +121,12 @@ def test_links_and_multiref_wiring():
             assert all(lk in LINKS for lk in o["links"])
     for i in list(T2I_IDS.values()) + list(EDIT_IDS.values()):
         assert LINKS[NODES[i]["inputs"][0]["link"]][1] == 2   # TE clip←CLIP
-    # 编辑参考图槽(slot1):head←side decode(13),余←master decode(8)
+    # 编辑参考图槽(images.image_1):head←side decode(13),余←master decode(8)
     for tag, i in EDIT_IDS.items():
         want = 13 if tag == "head" else 8
-        assert LINKS[NODES[i]["inputs"][3]["link"]][1] == want, tag  # v4 槽3=参考图
-        assert NODES[i]["inputs"][3]["name"] == "images.image_1", tag
-        assert LINKS[NODES[i]["inputs"][4]["link"]][1] == 3   # TE vae=槽4
+        img = _slot(i, "images.image_1")
+        assert img["link"] is not None and LINKS[img["link"]][1] == want, tag
+        assert LINKS[_slot(i, "vae")["link"]][1] == 3, tag  # TE vae
     comp = NODES[50]
     order = ("master", "side", "back", "face", "head",
              "wrist", "waist", "weapon", "effect", "背景", "格式")
@@ -132,8 +139,8 @@ def test_links_and_multiref_wiring():
     assert LINKS[fmt_lk][1] == 60 and LINKS[fmt_lk][2] == 13, "格式应=枢纽出13直连"
     # TE prompt 全部由枢纽链接喂(散装退役)
     for i in list(T2I_IDS.values()) + list(EDIT_IDS.values()):
-        plk = NODES[i]["inputs"][1]["link"]
-        assert LINKS[plk][1] == 60, f"TE{i} prompt 应吃枢纽"
+        plk = _slot(i, "prompt")["link"]
+        assert plk is not None and LINKS[plk][1] == 60, f"TE{i} prompt 应吃枢纽"
     hub = NODES[60]
     assert hub["type"] == "MySheetPromptHub"
     assert len(hub["outputs"]) == 14

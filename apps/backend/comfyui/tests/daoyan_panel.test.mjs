@@ -129,18 +129,18 @@ test("① 时间线增删分段:addSegment×2→2 段,removeSegment→1 段", ()
 });
 
 // ── ② 拖边界/秒输入→17k+5 网格 ──────────────────────────────────────
-test("② 时长贴网格:5s→124f,4s→107f;拖边界边缘钳制", () => {
+test("② 时长贴网格:5s→124f,4s→90f;拖边界边缘钳制", () => {
   const sb = loadPanel();
   const { ctrl } = makeCtrl(sb);
   assert.equal(sb.DaoyanSerial.secondsToFrames(5), 124, "PRD 钉例 5s→124f");
-  assert.equal(sb.DaoyanSerial.secondsToFrames(4), 107, "PRD 钉例 4s→107f");
+  assert.equal(sb.DaoyanSerial.secondsToFrames(4), 90, "PRD 钉例 4s→90f");
   assert.equal(sb.DaoyanSerial.secondsToFrames(3), 73, "3s→73f(17×4+5)");
   sb.DaoyanTimeline.actions.addSegment(ctrl);
   sb.DaoyanTimeline.actions.setSegmentSeconds(ctrl, 0, 5);
   assert.equal(ctrl.state.segments[0].frames, 124);
   assert.equal(ctrl.state.segments[0].seconds, 5);
   sb.DaoyanTimeline.actions.setSegmentSeconds(ctrl, 0, 4);
-  assert.equal(ctrl.state.segments[0].frames, 107);
+  assert.equal(ctrl.state.segments[0].frames, 90);
   // 拖边界数学:右缘 +1.2s → 5.2s → 贴 (130-5)/17=7.35→7 →124f
   const raw = sb.DaoyanTimeline.edgeDragToSeconds(4, "r", 1.2);
   assert.equal(raw, 5.2);
@@ -165,7 +165,7 @@ test("③ 序列化闭环:编辑→去抖→timeline_data JSON 写回;roundtrip 
   assert.ok(widget.value.length > 0, "去抖到期写回 widget");
   const parsed = JSON.parse(widget.value);
   assert.equal(parsed.segments.length, 1);
-  assert.equal(parsed.segments[0].frames, 107);
+  assert.equal(parsed.segments[0].frames, 90);
   // roundtrip:序列化→再解析→状态等价(canonical 闭环;跨 vm 域对象
   // 用 JSON 同构比较,规避 deepStrictEqual 的 realm 原型判等)
   const state2 = sb.DaoyanSerial.normalizeState(widget.value);
@@ -436,7 +436,7 @@ test("⑬ 业务条与 onConfigure 读回:章节名写回;运行态取消钮活;
   });
   ctrl.reload();
   assert.equal(ctrl.state.segments.length, 3, "reload 恢复 3 组");
-  assert.equal(ctrl.state.segments[0].frames, 107, "恢复时贴网格(4s→107f)");
+  assert.equal(ctrl.state.segments[0].frames, 90, "恢复时贴网格(4s→90f)");
   assert.equal(ctrl.state.segments[0].mode, "i2v");
   assert.equal(ctrl.state.chapter, "chapter-b009");
 });
@@ -450,11 +450,11 @@ test("⑭ 时间线布局:分段顺序累计;17k+5 网格常量钉值", () => {
   const lay = sb.DaoyanTimeline.layout(ctrl.state);
   assert.equal(lay.items.length, 2);
   assert.equal(lay.items[0].start, 0);
-  assert.equal(lay.items[0].end, 4.96, "124f=4.96s");
-  assert.equal(lay.items[1].start, 4.96);
-  assert.equal(lay.items[1].end, 9.24, "107f=4.28s 顺累计 4.96+4.28");
-  assert.equal(lay.total, 9.24);
-  assert.equal(JSON.stringify(sb.DaoyanSerial.FRAME_GRID), JSON.stringify({ k: 17, bias: 5, fps: 25 }));
+  assert.equal(lay.items[0].end, 5.17, "124f=5.17s(24fps)");
+  assert.equal(lay.items[1].start, 5.17);
+  assert.equal(lay.items[1].end, 8.92, "90f=3.75s 顺累计 5.17+3.75(24fps)");
+  assert.equal(lay.total, 8.92);
+  assert.equal(JSON.stringify(sb.DaoyanSerial.FRAME_GRID), JSON.stringify({ k: 17, bias: 5, fps: 24 }));
 });
 
 // ── ⑮ 真上传(input/ 通道)+缩略图+原位替换(1113 门禁追认补)────────
@@ -518,15 +518,15 @@ test("⑯ 收起态摘要行:「N 组 · Xs · 主mode」;空态/多数派/并�
   const sb = loadPanel();
   assert.equal(sb.DaoyanSerial.summaryLine(sb.DaoyanSerial.normalizeState(null)), "0 组 · 待添加");
   const { ctrl } = makeCtrl(sb);
-  sb.DaoyanTimeline.actions.addSegment(ctrl, { id: "A", seconds: 5, mode: "i2v" });  // 124f=4.96s
-  sb.DaoyanTimeline.actions.addSegment(ctrl, { id: "B", seconds: 4, mode: "r2v" });  // 107f=4.28s
-  sb.DaoyanTimeline.actions.addSegment(ctrl, { id: "C", seconds: 6, mode: "r2v" });  // 158f=6.32s
+  sb.DaoyanTimeline.actions.addSegment(ctrl, { id: "A", seconds: 5, mode: "i2v" });  // 124f=5.17s
+  sb.DaoyanTimeline.actions.addSegment(ctrl, { id: "B", seconds: 4, mode: "r2v" });  // 90f=3.75s
+  sb.DaoyanTimeline.actions.addSegment(ctrl, { id: "C", seconds: 6, mode: "r2v" });  // 141f=5.88s(6s@24 贴网格)
   // PRD R1.6-1 例形「3 组 · 45s · r2v」:三组/总时长/多数派 mode
-  assert.equal(sb.DaoyanSerial.summaryLine(ctrl.state), "3 组 · 15.56s · r2v");
+  assert.equal(sb.DaoyanSerial.summaryLine(ctrl.state), "3 组 · 14.8s · r2v");
   // 并列(各 1 票)取先见者
   const st2 = sb.DaoyanSerial.normalizeState({ segments: [
     { id: "x", mode: "t2v", seconds: 5 }, { id: "y", mode: "fl2v", seconds: 4 }] });
-  assert.equal(sb.DaoyanSerial.summaryLine(st2), "2 组 · 9.24s · t2v");
+  assert.equal(sb.DaoyanSerial.summaryLine(st2), "2 组 · 8.92s · t2v");
 });
 
 // ── ⑰ 导出→导入全字段闭环(1113 门禁深检修:不再只回填三字段)────────

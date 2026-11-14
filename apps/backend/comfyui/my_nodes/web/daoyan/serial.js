@@ -43,8 +43,9 @@
   var TIMELINE_VERSION = 1;
   /** 阶段勾选默认(勾啥跑啥,PRD R1.5;空台本三不勾) */
   var DEFAULT_STAGES = { yicai: false, ercai: false, sancai: false };
-  /** 时长贴网格:17k+5 帧 @25fps(5s→124f;PRD R1.5) */
-  var FRAME_GRID = { k: 17, bias: 5, fps: 25 };
+  /** 时长贴网格:17k+5 帧 @24fps(5s→124f;1114 定谳:A/V 联生=音频163样本
+   * 5.167s 恰等 124f@24,25 会音画漂移——产物 ffprobe 实证,PRD R1.5) */
+  var FRAME_GRID = { k: 17, bias: 5, fps: 24 };
   /** 每镜 task 四选一(混合时间线,AIMixer 同谱系;默认 r2v=产线口径) */
   var SEGMENT_MODES = ["t2v", "i2v", "fl2v", "r2v"];
   /** 参考图尺寸 match▾ 档(默认 match=跟参考图) */

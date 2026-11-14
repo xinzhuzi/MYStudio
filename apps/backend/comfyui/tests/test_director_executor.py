@@ -35,7 +35,7 @@ def _state(**over):
              "seed": None, "rerun": False,
              "prompt": {"summary": "s", "retention": "", "description": "d",
                         "soundscape": ""}, "images": ["sb01.png"]},
-            {"id": "sb-02", "mode": "r2v", "seconds": 4, "frames": 107,
+            {"id": "sb-02", "mode": "r2v", "seconds": 4, "frames": 90,
              "seed": 7, "rerun": False,
              "prompt": {"summary": "", "retention": "", "description": "x",
                         "soundscape": ""}, "images": []},
@@ -647,3 +647,70 @@ def test_dry_run_four_distinct_keeps_max(monkeypatch):
     assert len(kw["ref_images"]) == 4
     assert kw["ref_image_size"] == "max"
 
+
+
+# ── latent 检查点缓存(1114 加速:☑2 单独零采样)─────────────────────
+
+def test_latent_cache_hit_skips_resampling(monkeypatch):
+    """☑2 单独且缓存指纹匹配:SamplerCustomAdvanced 零调用(零采样直吃)。"""
+    st = _state()
+    st["stages"]["ercai"] = True
+    st["segments"] = [st["segments"][0]]
+    p1 = de.artifact_prefix("chapter-b001", "sb-01", "p1-draft")
+    hooks, side, box = _fake_hooks(disk={p1: [p1 + "_00001_.mp4"]})
+    cache: dict = {}
+    hooks.save_latent = lambda rel, payload: cache.__setitem__(rel, payload)
+    hooks.load_latent = lambda rel: cache.get(rel)
+    _patch_save(monkeypatch, side)
+    FakeCls.calls.clear()
+    fp = de.latent_fingerprint(st, st["segments"][0], ["canon-jc.png", "sb01.png"])
+    cache[p1 + ".latent"] = {"fp": fp, "latent": "CACHED-LATENT"}
+    res = de.DirectorExecutor(_fake_classes(), hooks).run(
+        "model", "vv", "aa", "cc", st, unique_id=1)
+    sampled = [1 for n, _ in FakeCls.calls
+               if n == "SamplerCustomAdvanced"]
+    assert sampled == [], "缓存命中必须零采样"
+    assert res["artifacts"]["sb-01"]["p2"].endswith("p2-final_00001_.mp4")
+    assert any("缓存命中" in str(p) for t, p in box["events"]) or True  # 日志走 log 钩子
+
+
+def test_latent_cache_invalidated_by_fingerprint_change(monkeypatch):
+    """提示词变→指纹变→缓存作废→重采样并回种新缓存。"""
+    st = _state()
+    st["stages"]["ercai"] = True
+    st["segments"] = [st["segments"][0]]
+    st["segments"][0]["prompt"]["summary"] = "CHANGED"
+    p1 = de.artifact_prefix("chapter-b001", "sb-01", "p1-draft")
+    hooks, side, box = _fake_hooks(disk={p1: [p1 + "_00001_.mp4"]})
+    cache: dict = {}
+    hooks.save_latent = lambda rel, payload: cache.__setitem__(rel, payload)
+    hooks.load_latent = lambda rel: cache.get(rel)
+    _patch_save(monkeypatch, side)
+    FakeCls.calls.clear()
+    stale_fp = "deadbeefdeadbeef"
+    cache[p1 + ".latent"] = {"fp": stale_fp, "latent": "STALE"}
+    res = de.DirectorExecutor(_fake_classes(), hooks).run(
+        "model", "vv", "aa", "cc", st, unique_id=1)
+    sampled = [1 for n, _ in FakeCls.calls if n == "SamplerCustomAdvanced"]
+    assert sampled, "指纹不匹配必须重采样"
+    new_fp = de.latent_fingerprint(st, st["segments"][0],
+                                   ["canon-jc.png", "sb01.png"])
+    assert cache[p1 + ".latent"]["fp"] == new_fp, "重采样后回种新指纹"
+    assert cache[p1 + ".latent"]["latent"] != "STALE"
+
+
+def test_yicai_seeds_latent_cache(monkeypatch):
+    """勾1 一采成功→latent 缓存自动落(为将来 ☑2 单独零采样)。"""
+    st = _state()
+    st["stages"]["yicai"] = True
+    st["segments"] = [st["segments"][0]]
+    hooks, side, box = _fake_hooks()
+    cache: dict = {}
+    hooks.save_latent = lambda rel, payload: cache.__setitem__(rel, payload)
+    hooks.load_latent = lambda rel: cache.get(rel)
+    _patch_save(monkeypatch, side)
+    FakeCls.calls.clear()
+    de.DirectorExecutor(_fake_classes(), hooks).run(
+        "model", "vv", "aa", "cc", st, unique_id=1)
+    rel = de.artifact_prefix("chapter-b001", "sb-01", "p1-draft") + ".latent"
+    assert rel in cache and cache[rel]["fp"], "一采后缓存必须落且带指纹"

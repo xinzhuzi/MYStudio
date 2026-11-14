@@ -126,8 +126,9 @@ def parse_timeline(timeline_data):
 
 
 def _frames_from_seconds(seconds):
-    """秒 → 17k+5 帧网格(面板 serial.secondsToFrames 同式)。"""
-    k, bias, fps = 17, 5, 25
+    """秒 → 17k+5 帧网格(面板 serial.secondsToFrames 同式;fps=24=A/V
+    联生实证口径,见 serial.js 头注)。"""
+    k, bias, fps = 17, 5, 24
     if not isinstance(seconds, (int, float)) or seconds <= 0:
         return bias
     n = max(1, round((seconds * fps - bias) / k))

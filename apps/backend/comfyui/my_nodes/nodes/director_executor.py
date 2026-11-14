@@ -47,6 +47,8 @@ required 键序)赋参=与母本实跑逐位同值。
 """
 from __future__ import annotations
 
+import json
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -158,7 +160,8 @@ class Hooks:
     def __init__(self, load_image=None, save_image=None, list_output=None,
                  output_path=None, copy_to_input=None, load_video=None,
                  ffmpeg=None, send_event=None, check_interrupt=None,
-                 free_memory=None, log=None, open_run_log=None):
+                 free_memory=None, log=None, open_run_log=None,
+                 save_latent=None, load_latent=None):
         self.load_image = load_image          # input 文件名 -> IMAGE
         self.save_image = save_image          # (images, prefix) -> UI dict
         self.list_output = list_output        # prefix -> [output 相对路径]
@@ -171,6 +174,26 @@ class Hooks:
         self.free_memory = free_memory
         self.log = log or (lambda *a: None)
         self.open_run_log = open_run_log      # chapter -> RunLog(双落点;缺省空)
+        self.save_latent = save_latent        # (rel, payload) -> None(加速缓存)
+        self.load_latent = load_latent        # rel -> payload|None(指纹自核)
+
+
+def latent_fingerprint(state: dict, seg: dict, ref_names) -> str:
+    """av_latent 决定因素指纹(seed/模式/时长/提示词/参考图/步数/分辨率)。
+
+    ☑2 单独的 latent 检查点缓存用它防串:任何输入变了→指纹变→缓存作废
+    重采样(确定性同果)。1114 加速:二采单独免 ~一采采样时长/镜。
+    """
+    import hashlib
+    payload = json.dumps({
+        "seed": effective_seed(state, seg),
+        "mode": seg["mode"], "frames": seg["frames"],
+        "prompt": seg.get("prompt") or {},
+        "refs": list(ref_names or []),
+        "steps": state["advanced"]["first_steps"],
+        "res": [PASS1_W, PASS1_H],
+    }, ensure_ascii=False, sort_keys=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 
 def _call(classes: dict, name: str, **kwargs):
@@ -847,13 +870,38 @@ class DirectorExecutor:
                                 audio_vae, clip, save=True,
                                 ref_names=ref_names)
                             artifacts.setdefault(seg["id"], {})["p1"] = p1_rel
+                            if self.H.save_latent and av_latent is not None:
+                                # 种缓存:将来 ☑2 单独/重掷二采=零采样直吃
+                                self.H.save_latent(artifact_prefix(
+                                    state["chapter"], seg["id"], P1_NAME)
+                                    + ".latent", {
+                                        "fp": latent_fingerprint(
+                                            state, seg, ref_names),
+                                        "latent": av_latent})
                         elif stage == "ercai":
                             if av_latent is None:
-                                # 吃盘上 p1:确定性重采样取 latent(不落盘)
-                                _, av_latent, _ = pass1(
-                                    ctx, seg, kit, refs, model, video_vae,
-                                    audio_vae, clip, save=False,
-                                    ref_names=ref_names)
+                                # 加速:latent 检查点缓存命中=零采样直吃
+                                # (指纹含 seed/提示词/参考图/步数,变则作废)
+                                fp = latent_fingerprint(state, seg, ref_names)
+                                cache_rel = artifact_prefix(
+                                    state["chapter"], seg["id"],
+                                    P1_NAME) + ".latent"
+                                cached = self.H.load_latent(cache_rel) \
+                                    if self.H.load_latent else None
+                                if cached and cached.get("fp") == fp:
+                                    av_latent = cached["latent"]
+                                    log("latent 缓存命中(零采样,指纹 "
+                                        + fp + "):" + seg["id"])
+                                else:
+                                    # 吃盘上 p1:确定性重采样取 latent(不落盘)
+                                    _, av_latent, _ = pass1(
+                                        ctx, seg, kit, refs, model, video_vae,
+                                        audio_vae, clip, save=False,
+                                        ref_names=ref_names)
+                                    if self.H.save_latent:
+                                        self.H.save_latent(cache_rel, {
+                                            "fp": fp, "latent": av_latent})
+                                        log("latent 已缓存(下次二采单独零采样)")
                             p2_rel, _ = pass2(ctx, seg, kit, refs, av_latent,
                                               video_vae, audio_vae, clip,
                                               ref_names=ref_names)
@@ -1124,10 +1172,29 @@ def bind_engine_hooks():
     def log(msg):
         print(f"[daoyan] {msg}", flush=True)
 
+    def save_latent(rel, payload):
+        """latent 检查点缓存(加速:☑2 单独零采样;本地受信文件)。"""
+        import torch
+        p = out_dir / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        torch.save(payload, p)
+
+    def load_latent(rel):
+        import torch
+        p = out_dir / rel
+        if not p.exists():
+            return None
+        try:
+            return torch.load(p, map_location="cpu", weights_only=False)
+        except Exception as err:  # 损坏缓存不当咬主路
+            log(f"latent 缓存读取失败(作废重采样):{err}")
+            return None
+
     hooks = Hooks(load_image=load_image, save_image=save_image,
                   list_output=list_output, output_path=output_path,
                   copy_to_input=copy_to_input, load_video=load_video,
                   ffmpeg=ffmpeg, send_event=send_event,
                   check_interrupt=check_interrupt, free_memory=free_memory,
-                  log=log, open_run_log=open_run_log)
+                  log=log, open_run_log=open_run_log,
+                  save_latent=save_latent, load_latent=load_latent)
     return {n: comfy_nodes.NODE_CLASS_MAPPINGS[n] for n in NEEDED_CLASSES}, hooks
