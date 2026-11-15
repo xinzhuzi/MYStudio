@@ -196,6 +196,14 @@ export async function runImageWorkflowNodeGeneration(
     extraParams: {
       ...(request.nsfwPro ? { use_lora: true } : undefined),
       ...(boundTemplate ? { template: boundTemplate } : undefined),
+      // L5(11-15 类型词断点①·历史欠账 1010 起从未接通):分镜域节点级注入
+      // qi21 第7型「分镜剧情图」(positive 635 字/16:9,十型真源=引擎家
+      // qi21_bases.json)。引擎两路消费现成零改——i2i 带 base_type 自动切
+      // 「道劫美术类型」全拼档(类型句进装配,qwen21.py:334-351),t2i 经
+      // apply_base_type 覆写 6:4010 型层(顺带正画幅 16:9,替代画布快照
+      // 「人物海报」3:4 竖幅);节点级优先于全局 localImageBaseType
+      // (image-generation-engine.ts:577-580),非分镜请求零影响。
+      ...(isStoryboard ? { base_type: "分镜剧情图" } : undefined),
     },
     transport,
     // 分镜/工作流成图自存项目真源(projectFiles.saveImage),跳过媒体库副本双写

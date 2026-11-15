@@ -27,7 +27,7 @@ export default {
       const cover = asset.cover
         ? inputImg(asset.cover)
         : `<span class="cv">🖼</span>`;
-      return `<div class="ms-card" title="${esc(asset.name)}">${cover}
+      return `<div class="ms-card" data-act="asset-detail" data-asset-name="${esc(asset.name)}" title="${esc(asset.name)}">${cover}
         <span class="nm">${esc(asset.name)}<small>${esc(asset.typeLabel)}${asset.views ? " · " + esc(asset.views) + " 视图" : ""}${asset.state ? " · " + esc(asset.state) : ""}</small></span>
       </div>`;
     }).join("");

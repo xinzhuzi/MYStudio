@@ -11,7 +11,7 @@ export default {
     const tiles = (payload.tiles || []).map((tile) => {
       const state = tile.hasVideo ? "#6ea8fe" : tile.hasImage ? "#4ec9a8" : "#7d8ba1";
       const media = tile.preview ? inputImg(tile.preview) : "";
-      return `<div class="ms-tile" title="${esc(tile.title)}${tile.lines ? "\n" + esc(tile.lines) : ""}">
+      return `<div class="ms-tile" data-act="shot-detail" data-shot-id="${esc(tile.id || "")}" data-idx="${Number(tile.index) || 0}" title="${esc(tile.title)}${tile.lines ? "\n" + esc(tile.lines) : ""}">
         ${media}<span class="ph">${esc(tile.title)}</span>
         <i class="sd" style="background:${state}"></i>
         <span class="tt">${esc(tile.title)}</span>

@@ -11,7 +11,8 @@ import { bridgeFetch, BRIDGE_URL, postAction } from "./bridge-action.js";
 // 每型节点 UI 独立模块(09-13 用户裁定:不同代码分模块,适应 ComfyUI):
 // stage-ui/ 下七型各一文件+common 公共件+vendor(markdown-it MIT);
 // 本文件只做壳(头区/动作/组稿器/速查卡/轮询/高度)与按 payload.key 分发。
-import { esc, liveBadgesHTML, onMarkdownReady } from "./stage-ui/common.js";
+import { esc, liveBadgesHTML, onMarkdownReady, renderMarkdown } from "./stage-ui/common.js";
+import { openDetail } from "./stage-ui/detail.js";
 import scriptUI from "./stage-ui/script.js";
 import directorPlanUI from "./stage-ui/director-plan.js";
 import assetsUI from "./stage-ui/assets.js";
@@ -140,6 +141,11 @@ const STYLES = `
 .ms-row .sub{display:block;font-size:var(--my-fs-10);color:rgba(160,172,190,.68);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
 .ms-row .meta{flex:none;color:var(--my-text-2);font-size:var(--my-fs-10-5);font-family:var(--font-mono,var(--font-mono,ui-monospace,Menlo,monospace));}
+/* 1115 详情下钻:pointer-events 门放行——.my-stage-body/.ms-body 恒 none,
+   带 data-act 的行/贴/卡才可点(与 .ms-btn 同款;无 data-act 的行保持画布
+   穿透,不偷节点拖拽/滚轮) */
+.ms-row[data-act],.ms-tile[data-act],.ms-card[data-act]{pointer-events:auto;cursor:pointer;transition:background 120ms ease;}
+.ms-row[data-act]:hover,.ms-card[data-act]:hover{background:rgba(110,168,254,.12);}
 .ms-badges{display:flex;gap:4px;flex:none;align-items:center;}
 .ms-badge{font-size:var(--my-fs-9-5);border-radius:4px;padding:0 4.5px;line-height:16px;font-weight:600;}
 .ms-badge--ok{color:#4ec9a8;background:rgba(78,201,168,.13);}
@@ -203,6 +209,10 @@ const STYLES = `
 #my-canvas-hints .ms-hints-item{display:flex;gap:7px;padding:3.5px 0;}
 #my-canvas-hints .ms-hints-item b{flex:none;color:#6ea8fe;min-width:48px;font-weight:600;}
 #my-canvas-hints .ms-hints-item span{color:var(--my-text-2);}
+#my-canvas-hints .ms-hints-md{max-height:300px;overflow-y:auto;}
+#my-canvas-hints .ms-hints-md::-webkit-scrollbar{width:3.5px;}
+#my-canvas-hints .ms-hints-md::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:999px;}
+#my-canvas-hints .ms-hints-md ul{margin:2px 0 5px;padding-left:16px;}
 #my-canvas-hints-fab{position:fixed;right:14px;top:18px;z-index:60;width:32px;height:32px;
   pointer-events:auto;cursor:pointer;border-radius:50%;border:1px solid rgba(110,168,254,.45);
   background:linear-gradient(135deg,var(--my-card-bg) 0%,var(--my-pop-bg) 100%);
@@ -377,6 +387,18 @@ function mountDomBody(node) {
   }, { passive: true });
 }
 
+/** 详情浮层上下文(1115 详情入 ComfyUI):来源章戳与面板载荷同一源
+ * (postAction 的 origin 双参同口径);rowCount=旧行对齐兜底的行数基数。 */
+function detailContext(node) {
+  const payload = node?.properties?.myStage ?? node?.properties?.manyingStage ?? null;
+  return {
+    projectId: node?.properties?.myOriginProjectId || "",
+    chapter: node?.properties?.myOriginEpisodeId || "",
+    payload,
+    rowCount: (payload?.tableRows || payload?.tiles || []).length,
+  };
+}
+
 function wireActions(node, el) {
   el.addEventListener("click", (event) => {
     // 技能胶囊:点开/收起详情(09-13 用户裁定),高度变化走 syncSizeFor
@@ -390,6 +412,19 @@ function wireActions(node, el) {
       }
       return;
     }
+    // 1115 详情下钻:分镜表行/分镜磁贴/资产卡点击开本地详情浮层
+    // (引擎直读 shot_detail 路由/载荷直渲,废回 App 阶段页往返)
+    const actEl = event.target.closest('[data-act="shot-detail"],[data-act="asset-detail"]');
+    if (actEl) {
+      openDetail({
+        act: actEl.dataset.act,
+        shotId: actEl.dataset.shotId || "",
+        idx: actEl.dataset.idx || "",
+        assetName: actEl.dataset.assetName || null,
+        ...detailContext(node),
+      });
+      return;
+    }
     const button = event.target.closest(".ms-btn");
     if (!button || button.disabled) return;
     // 分镜内容(09-14):本地进入子图,不经桥——官方 canvas.openSubgraph
@@ -399,6 +434,13 @@ function wireActions(node, el) {
       const ref = nodes.find((n) => n.type !== "MyStage" && n.type !== "ManyingStage" && String(n.title || "").includes("分镜内容"))
         || nodes.find((n) => n.subgraph && String(n.title || "").includes("分镜内容"));
       if (ref && window.app.canvas?.openSubgraph) window.app.canvas.openSubgraph(ref.subgraph, ref);
+      return;
+    }
+    // 1115 详情入 ComfyUI:五型 view-doc(标签=「详情」)本地开浮层,
+    // 不再 postAction 回 App 阶段页;真文档型(script/scriptPlan「全文」)
+    // 照旧过桥(NodeDocViewer 弹窗保留)
+    if (kind0 === "view-doc" && DOC_VIEW_LABELS[button.dataset.note || ""]) {
+      openDetail({ kind: button.dataset.note, ...detailContext(node) });
       return;
     }
     const kind = button.dataset.kind || "";
@@ -534,32 +576,67 @@ function installQueuePoller() {
   }, 2000);
 }
 
-// ── B3 画布速查卡(老画布 CanvasHints 等价迁移):首开自动浮出五条核心用法,
-// 可关闭+localStorage 记忆,右下角「?」随时唤回。外挂 DOM,零改 ComfyUI 本体。──
-const HINTS_ITEMS = [
-  ["导航", "拖拽画布空白处平移,空白处滚轮缩放;双击空白可添加节点"],
-  ["节点按钮", "全文=文档弹窗(剧本/导演规划);详情=直达对应阶段页;分镜内容=进入每镜子图;金色⭐=付费云端(可填补充要求)"],
-  ["分镜内容", "分镜面板节点「分镜内容」进入子图;每镜双关键帧并排,标号即卡片"],
-  ["正文滚动", "内容超出帽高的节点,正文区可直接滚轮滚动(不会缩放画布)"],
-  ["进度与技能", "头区进度对=已做/要做;技能胶囊点开看来源与摘要;队列徽章 2 秒实进"],
-];
+// ── B3 画布速查卡(1115 写死文案退役):内容真源=分镜工作流模板内 9999 号
+// MarkdownNote 的 md(模板即真源,App 克隆注入照旧);本文件只做渲染器——
+// renderMarkdown 成型,图内缺 9999=优雅退化不浮卡。外挂 DOM,零改本体。
+// 保留:可关闭+localStorage 记忆+右下角「?」唤回。──
+const HINTS_NODE_ID = 9999;
+const HINTS_KEY = "my.canvasHints.dismissed";
+let hintsDismissed = false;
+
+/** 图内 9999 MarkdownNote 的 md 直读(widgets_values 原值,widget 未
+ * materialize 也可读);缺/坏=null。禁在 setup() 读节点——setup 时
+ * graph._nodes 恒空(1115 评审16问),内容装载走图装载事件(onConfigure)。 */
+function hintsMarkdown() {
+  for (const node of (window.app?.canvas?.graph?._nodes || [])) {
+    if (Number(node?.id) !== HINTS_NODE_ID) continue;
+    if (String(node?.type || "") !== "MarkdownNote") return null;
+    const values = node.widgets_values;
+    const md = Array.isArray(values)
+      ? (values.find((v) => typeof v === "string" && v.trim()) || "")
+      : (typeof values === "string" ? values : "");
+    return String(md).trim() ? String(md) : null;
+  }
+  return null;
+}
+
+/** 建卡(md=图内真源;explicit=FAB 唤回,缺 9999 时给退化反馈非死按钮) */
+function buildHintsCard(md, explicit = false) {
+  if (document.getElementById("my-canvas-hints")) return true;
+  const body = md
+    ? `<div class="ms-hints-md ms-md">${renderMarkdown(md)}</div>`
+    : (explicit
+      ? `<div class="ms-hints-item"><span>此工作流未携带速查说明(9999 说明节点缺席)</span></div>`
+      : "");
+  if (!body) return false; // 非唤回且缺 9999=优雅退化不浮卡
+  const card = document.createElement("div");
+  card.id = "my-canvas-hints";
+  card.innerHTML = `
+      <div class="ms-hints-head"><span>分镜画布速查</span><button class="ms-hints-x" title="关闭(右下角 ? 可唤回)">×</button></div>
+      ${body}`;
+  document.body.append(card);
+  card.querySelector(".ms-hints-x").onclick = () => {
+    card.remove();
+    hintsDismissed = true;
+    try { localStorage.setItem(HINTS_KEY, "1"); } catch (error) { /* 无碍 */ }
+  };
+  return true;
+}
+
+/** 图装载/9999 就位后刷新(开着=按新 md 重浮;未开+未 dismiss=自动浮) */
+function refreshCanvasHints() {
+  const open = document.getElementById("my-canvas-hints");
+  if (open) {
+    open.remove();
+    buildHintsCard(hintsMarkdown());
+    return;
+  }
+  if (!hintsDismissed) buildHintsCard(hintsMarkdown());
+}
 
 function installCanvasHints() {
   if (document.getElementById("my-canvas-hints-fab")) return;
-  const KEY = "my.canvasHints.dismissed";
-  const build = () => {
-    const card = document.createElement("div");
-    card.id = "my-canvas-hints";
-    card.innerHTML = `
-      <div class="ms-hints-head"><span>分镜画布速查</span><button class="ms-hints-x" title="关闭(右下角 ? 可唤回)">×</button></div>
-      ${HINTS_ITEMS.map(([title, text]) => `
-        <div class="ms-hints-item"><b>${title}</b><span>${text}</span></div>`).join("")}`;
-    document.body.append(card);
-    card.querySelector(".ms-hints-x").onclick = () => {
-      card.remove();
-      try { localStorage.setItem(KEY, "1"); } catch (error) { /* 无碍 */ }
-    };
-  };
+  try { hintsDismissed = localStorage.getItem(HINTS_KEY) === "1"; } catch (error) { /* 无碍 */ }
   const fab = document.createElement("button");
   fab.id = "my-canvas-hints-fab";
   fab.title = "画布速查卡";
@@ -567,12 +644,12 @@ function installCanvasHints() {
   fab.onclick = () => {
     const existing = document.getElementById("my-canvas-hints");
     if (existing) existing.remove();
-    else build();
+    else buildHintsCard(hintsMarkdown(), true);
   };
   document.body.append(fab);
-  let dismissed = false;
-  try { dismissed = localStorage.getItem(KEY) === "1"; } catch (error) { /* 无碍 */ }
-  if (!dismissed) build();
+  // setup 期 graph._nodes 恒空:此处只装 FAB;内容浮出由图装载事件
+  // (MarkdownNote 9999 onConfigure,见 beforeRegisterNodeDef)驱动
+  if (!hintsDismissed) buildHintsCard(hintsMarkdown());
 }
 
 function renderDomBody(node) {
@@ -640,6 +717,18 @@ app.registerExtension({
     try { installCanvasHints(); } catch (error) { /* 无碍 */ }
   },
   async beforeRegisterNodeDef(nodeType, nodeData) {
+    // 1115 速查真源装载钩子:9999 MarkdownNote 的图装载事件(onConfigure
+    // 类,禁 setup——setup 时 graph._nodes 空)。theme.js onConfigure 包
+    // 装同款:原型链保留,9999 就位/换图重载即按新 md 浮卡
+    if (nodeData?.name === "MarkdownNote") {
+      const onNoteConfigure = nodeType.prototype.onConfigure;
+      nodeType.prototype.onConfigure = function (...args) {
+        const result = onNoteConfigure?.apply(this, args);
+        try { if (Number(this.id) === HINTS_NODE_ID) refreshCanvasHints(); } catch (error) { /* 无碍 */ }
+        return result;
+      };
+      return;
+    }
     // 旧名 ManyingStage=存量工作流兼容
     if (nodeData?.name !== "MyStage" && nodeData?.name !== "ManyingStage") return;
     // 09-15 右键继承:环节动作族挂进 litegraph 原生节点菜单(与 DOM 面板
@@ -657,12 +746,20 @@ app.registerExtension({
           callback: () => { postAction(kind, note || payload.key, null, originProjectId, originEpisodeId); },
         });
         // 与 DOM 面板按钮同源(docButtons 单源):桥类动作走 postAction;
-        // 本地动作(open-shot-grid=进分镜子图)在菜单内本地执行同款
+        // 本地动作(open-shot-grid=进分镜子图/1115 五型 view-doc=详情浮层)
+        // 在菜单内本地执行同款——双入口一致
         for (const action of docButtons(payload.key)) {
           if (action.kind === "open-shot-grid") {
             options.push({
               content: `漫影 · ${action.label}`,
               callback: () => { try { window.app?.canvas?.openSubgraph?.(this); } catch (error) { /* 子图缺席静默 */ } },
+            });
+            continue;
+          }
+          if (action.kind === "view-doc" && DOC_VIEW_LABELS[action.noteKey]) {
+            options.push({
+              content: `漫影 · ${action.label}`,
+              callback: () => { try { openDetail({ kind: action.noteKey, ...detailContext(this) }); } catch (error) { /* 浮层失败静默 */ } },
             });
             continue;
           }

@@ -200,6 +200,35 @@ describe("generateImage", () => {
     expect(requestBody.base_type).toBeUndefined();
   });
 
+  it("prefers node-level extraParams.base_type over the global localImageBaseType (11-15 L5 分镜域注入)", async () => {
+    useAPIConfigStore.setState({
+      providers: [{
+        id: "manying-local-image",
+        platform: "manying-local-image",
+        name: "本地图片生成",
+        baseUrl: "http://127.0.0.1:17595",
+        apiKey: "manying-local-image",
+        model: ["qwen-image-2-1"],
+        capabilities: ["image_generation"],
+      }],
+      featureBindings: { freedom_image: ["manying-local-image:qwen-image-2-1"] },
+      modelEndpointTypes: { "qwen-image-2-1": ["image-generation"] },
+    } as never);
+    // 全局型与节点级型同时在场:分镜批量生图注入 base_type='分镜剧情图'
+    // (run-image-workflow-node-generation.ts),不得被全局 localImageBaseType 覆盖
+    useAppSettingsStore.getState().setImageGenerationSettings({ localImageBaseType: "设定卡" });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [{ b64_json: "aGVsbG8=", output_format: "png" }],
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await generateImage({ prompt: "分镜剧情图帧", extraParams: { base_type: "分镜剧情图" } });
+
+    const genCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/v1/images/generations"));
+    const requestBody = JSON.parse(String(genCall?.[1]?.body));
+    expect(requestBody.base_type).toBe("分镜剧情图");
+  });
+
   it("node-level use_lora via extraParams survives when the global switch is off (09-07-nsfw-pro-node)", async () => {
     useAPIConfigStore.setState({
       providers: [{

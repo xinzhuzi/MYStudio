@@ -14,7 +14,9 @@ import { engineBaseTypeFor } from "./asset-image-kind";
  * 型名→bases 条目对齐键=zh 名(与 base_type 实发值同串:asset-type-shot.ts 以
  * AssetImageKind 枚举成员[=中文]注入 extraParams.base_type,bases.types[].zh 直接
  * 对齐,前端按名查表零映射;型谱 13 名 13/13 全对齐,bases 14 型多出的「分镜剧情图」
- * 属分镜域不在资产谱)。「查无该型」为防御位非预期路径(§4.4:该型无独立型文,
+ * 属分镜域不在资产谱——非死数据:分镜批量生图节点级注入 base_type 消费
+ * (run-image-workflow-node-generation.ts,11-15 L5 接通),勿按孤儿型清理)。
+ * 「查无该型」为防御位非预期路径(§4.4:该型无独立型文,
  * 共用底座)。
  *
  * 字段锚纪律:positive_text/negative_text/aspect_ratio/rgba_default 四字段被改名

@@ -190,7 +190,8 @@ def test_install_routes_shape(tmp_path, monkeypatch):
                            "/my_daoyan/chapter_image",
                            "/my_daoyan/import_storyboard",
                            "/my_daoyan/input_media",
-                           "/my_daoyan/upload_audio"}
+                           "/my_daoyan/upload_audio",
+                           "/my_daoyan/shot_detail"}  # 1115 详情路由计入
 
     # projects:200+activeProjectId
     out = asyncio.run(routes["/my_daoyan/projects"](_Req({})))
@@ -358,4 +359,180 @@ def test_install_new_routes_shape(tmp_path, monkeypatch):
     bad = asyncio.run(routes["/my_daoyan/upload_audio"](
         _PostReq(body=b"x", headers={"X-Filename": "a.exe"})))
     assert bad.status == 400 and bad.payload["ok"] is False
+
+
+# ══ 1115 详情入 ComfyUI:shot_detail 路由 + print 九路由清单 ═══════
+
+_LONG_PROMPT = "镜" * 300  # >160 字:证详情路由零截断(chapter_payload 才截)
+
+
+def _mk_shard_project(tmp_path):
+    """分片夹具:两分片并集(后片胜)+mediaRef/state 造三态。"""
+    root = tmp_path / "proj" / "sb"
+    cdir = root / "store" / "studio-workflow" / "chapters" / "chapter-001"
+    cdir.mkdir(parents=True)
+
+    def shard(name, shots):
+        (cdir / name).write_text(json.dumps(
+            {"state": {"storyboards": shots}, "version": 0},
+            ensure_ascii=False), encoding="utf-8")
+
+    shard("storyboards-001-aaa.json", [{
+        "index": 1, "id": "sb-c1-001", "state": "ready",
+        "prompt": _LONG_PROMPT, "videoDesc": "描述一", "lines": "台词一",
+        "duration": 6, "trackKey": "001-01",
+        "mediaRef": {"kind": "image", "path":
+                     "project-file://p1/workflow-images/c1/sb1.png"},
+        "associateAssetsNames": ["独孤剑尘", "青盐鞭"],
+        "shotSemantics": {"shotSize": "全景", "cameraMove": "极缓移",
+                          "actionIn": "入画", "actionOut": "出画"},
+        "orientation": "正面", "spatialRelation": "中轴", "emotion": "紧绷",
+        "line": "旁白一", "sound": "音效:风", "revision": 3,
+    }, {
+        # state 非 ready+mediaRef 空:imageReady 必须 False(语义换算)
+        "index": 2, "id": "sb-c1-002", "state": "pending",
+        "prompt": "描述二", "lines": "", "duration": 8,
+        "mediaRef": None,
+    }])
+    shard("storyboards-002-bbb.json", [{
+        # mediaRef kind=video(H3 回写态):videoUrl 出、imageUrl 空
+        "index": 3, "id": "sb-c1-003", "state": "ready",
+        "prompt": "描述三", "lines": "台词三", "duration": 5,
+        "mediaRef": {"kind": "video", "path":
+                     "project-file://p1/media/ai-video/2026-11/s3.mp4"},
+    }])
+    return root
+
+
+def test_shot_detail_fifteen_columns_uncut(tmp_path):
+    """单镜模式:15 列全量(长 prompt 零截断)+imageReady 语义+URL 换算。"""
+    root = _mk_shard_project(tmp_path)
+    data = ds.shot_detail(root, "chapter-001", "sb-c1-001", "p1")
+    shot = data["shot"]
+    cols = shot["columns"]
+    assert len(cols) == 15  # 15 列契约
+    assert [c[0] for c in cols] == [
+        "镜号", "场次", "画面描述", "视频描述", "时长", "景别", "运镜",
+        "动作", "朝向", "空间关系", "情绪", "台词", "旁白", "音效",
+        "关联资产"]
+    by_label = dict(cols)
+    assert by_label["画面描述"] == _LONG_PROMPT  # 300 字全量≠160 截断
+    assert by_label["台词"] == "台词一" and by_label["旁白"] == "旁白一"
+    assert by_label["动作"] == "入画 → 出画"
+    assert by_label["关联资产"] == "独孤剑尘、青盐鞭"
+    assert shot["imageReady"] is True  # state ready+mediaRef 可定位
+    assert shot["imageUrl"] == ("/my_daoyan/chapter_image?project=p1"
+                                "&rel=workflow-images%2Fc1%2Fsb1.png")
+    assert shot["videoUrl"] == ""  # 图期镜无视频
+    assert shot["revision"] == 3
+    # 换算语义:pending 镜 imageReady False(分片无字面键)
+    d2 = ds.shot_detail(root, "chapter-001", "sb-c1-002", "p1")
+    assert d2["shot"]["imageReady"] is False
+    assert d2["shot"]["imageUrl"] == ""
+    # H3 回写态:videoUrl 出、imageUrl 空
+    d3 = ds.shot_detail(root, "chapter-001", "sb-c1-003", "p1")
+    assert d3["shot"]["videoUrl"].startswith("/my_daoyan/chapter_image")
+    assert "media%2Fai-video%2F" in d3["shot"]["videoUrl"]
+    assert d3["shot"]["imageUrl"] == ""
+    # 缺镜/非法章
+    assert ds.shot_detail(root, "chapter-001", "sb-xx", "p1").get("error")
+    assert ds.shot_detail(root, "../etc", "sb-c1-001").get("error")
+
+
+def test_shot_detail_chapter_list_mode(tmp_path):
+    """清单模式:无 shot_id=整章 id 清单(浮层下钻+旧行对齐兜底双用)。"""
+    root = _mk_shard_project(tmp_path)
+    data = ds.shot_detail(root, "chapter-001", "", "p1")
+    assert data["count"] == 3 and not data.get("error")
+    assert [s["id"] for s in data["shots"]] \
+        == ["sb-c1-001", "sb-c1-002", "sb-c1-003"]
+    assert data["shots"][0]["imageReady"] is True
+    assert data["shots"][1]["imageReady"] is False
+    assert data["shots"][0]["title"] == _LONG_PROMPT[:18]  # 清单行短标题
+
+
+def test_shot_detail_video_media_whitelist(tmp_path):
+    """chapter_image 视频扩:media/ai-video/*.mp4 可读;白名单外语义不变。"""
+    root = _mk_shard_project(tmp_path)
+    vdir = root / "media" / "ai-video" / "2026-11"
+    vdir.mkdir(parents=True)
+    (vdir / "s3.mp4").write_bytes(b"\x00\x00\x00\x18ftypmp42")
+    data, err = ds.chapter_image_bytes(root, "media/ai-video/2026-11/s3.mp4")
+    assert data is not None and data.startswith(b"\x00\x00") and not err
+    # 白名单外/穿越/非图语义逐字保留(test_daoyan_cockpit 同钉)
+    assert ds.chapter_image_bytes(
+        root, "../projects/store.json")[0] is None
+    assert ds.chapter_image_bytes(
+        root, "novel/drama/x.md")[1] == "路径不在分镜图/连续性资产白名单"
+    assert ds.chapter_image_bytes(
+        root, "media/ai-video/2026-11/note.txt")[1] == "图不存在或非图件"
+
+
+def test_install_shot_detail_route_and_print(tmp_path, monkeypatch, capsys):
+    """路由注册+响应形状+print 九路由逐名断言(1115 print 修正钉)。"""
+    root = _mk_shard_project(tmp_path)
+    home = _mk_app_home(
+        tmp_path,
+        projects=[{"id": "p1", "name": "道劫", "location": str(root)}],
+        active="p1",
+        locations={"p1": str(root)})
+    monkeypatch.setenv("MYSTUDIO_APP_HOME", str(home))
+
+    routes: dict = {}
+    aiohttp = types.ModuleType("aiohttp")
+
+    class _Web:
+        @staticmethod
+        def json_response(data, status=200):
+            return _Resp(data, status)
+
+        @staticmethod
+        def Response(body=None, content_type=None):
+            return _Resp({"body": body, "ctype": content_type})
+
+    aiohttp.web = _Web()
+
+    class _Routes:
+        def get(self, path):
+            def deco(fn):
+                routes[path] = fn
+                return fn
+            return deco
+
+        post = get
+
+    server = types.ModuleType("server")
+    server.PromptServer = types.SimpleNamespace(
+        instance=types.SimpleNamespace(routes=_Routes()))
+    monkeypatch.setitem(sys.modules, "aiohttp", aiohttp)
+    monkeypatch.setitem(sys.modules, "server", server)
+    monkeypatch.setattr(ds, "_installed", False)
+    ds.install()
+
+    # print 清单=九路由逐名在案(chapter_data/chapter_image/
+    # import_storyboard 旧漏三路由回补+shot_detail 计入+不悬「、」)
+    out = capsys.readouterr().out
+    for name in ("/my_daoyan/projects", "/my_daoyan/chapters",
+                 "/my_daoyan/logs", "/my_daoyan/chapter_data",
+                 "/my_daoyan/chapter_image",
+                 "/my_daoyan/import_storyboard", "/my_daoyan/input_media",
+                 "/my_daoyan/upload_audio", "/my_daoyan/shot_detail"):
+        assert name in out, name
+    assert not out.rstrip("\n").endswith("、")  # 旧悬「、」退役
+
+    # shot_detail 路由:清单 200/单镜 200/缺镜 404/缺项目 404
+    lst = asyncio.run(routes["/my_daoyan/shot_detail"](
+        _Req({"project": "p1", "chapter": "chapter-001"})))
+    assert lst.status == 200 and lst.payload["count"] == 3
+    one = asyncio.run(routes["/my_daoyan/shot_detail"](
+        _Req({"project": "p1", "chapter": "chapter-001",
+              "shot_id": "sb-c1-001"})))
+    assert one.status == 200 and len(one.payload["shot"]["columns"]) == 15
+    miss = asyncio.run(routes["/my_daoyan/shot_detail"](
+        _Req({"project": "p1", "chapter": "chapter-001",
+              "shot_id": "sb-xx"})))
+    assert miss.status == 404 and miss.payload["error"]
+    noproj = asyncio.run(routes["/my_daoyan/shot_detail"](
+        _Req({"project": "zz", "chapter": "chapter-001"})))
+    assert noproj.status == 404 and noproj.payload["error"]
 

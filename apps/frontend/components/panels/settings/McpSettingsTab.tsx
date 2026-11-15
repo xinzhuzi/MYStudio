@@ -351,7 +351,9 @@ function configToDraft(server: McpServerConfig): DraftForm {
 }
 
 // 1016 型选择(本地生图):道劫十型展示层枚举(真源=引擎家 qi21_bases.json;
-// 引擎侧 COMBO 校验拒非法值兜底)
+// 引擎侧 COMBO 校验拒非法值兜底)。注:「分镜剧情图」非死数据——分镜批量
+// 生图节点级 base_type 注入消费(run-image-workflow-node-generation.ts,
+// 11-15 L5 接通),此处仅作全局手选项,节点级恒优先。
 const LOCAL_IMAGE_BASE_TYPES = [
   "人物海报",
   "场景",

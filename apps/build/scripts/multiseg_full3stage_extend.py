@@ -45,7 +45,7 @@ STAGE2_LENGTH = 56            # 出厂=56;判决门 2×5秒=243 由 livefire 覆
 P2_PREFIX = "video/H3/分段视频/p2-final"
 P3_PREFIX = "video/H3/分段视频/p3-recavsr"
 
-STAGE_B_IDS = (4000, 4001, 4002, 4003)   # 段B 子图(出厂旁路;两发正典见 PRD 段B 执行语义)
+STAGE_B_IDS = (4001, 4002, 4003)   # 段B 三采(1115 内联正典:4002.video←3053 直连,整图一发直出 p1/p2/p3)
 ORIGINAL_IDS = (34, 41, 21, 7, 13, 100, 101, 6, 2, 102, 36, 4)
 
 # 组框(五组横排,PRD 结构规则;MarkdownNote 9999 恒居组外)
@@ -59,44 +59,27 @@ GROUPS = [
     ("⑤ 三采超分(ReCaVSR scale2·2880×1664)", list(STAGE_B_IDS),        "#335588"),
 ]
 
-# 布局表(pos 由手绘平面性分析定稿;layout_check est 宪法全绿为验收门)
+# 布局种子(pos=平面性分析序;经 _compact_layout 压缩到紧凑档节奏后落盘——
+# 1115 用户观感令「节点间隔太大/线条要横向」:紧凑档启用,est 宪法下限恒硬门)
 LAYOUT: dict[int, tuple[float, float]] = {
-    2: (3635, 2815),
-4: (4755, 2280),
-6: (3320, 1375),
-7: (80, 1020),
-13: (80, 1360),
-21: (140, 725),
-34: (80, 80),
-36: (4695, 1960),
-41: (1805, 665),
-100: (235, 2500),
-101: (2250, 2620),
-102: (3985, 1450),
-1021: (245, 360),
-1033: (1345, 140),
-3001: (5195, 5735),
-3002: (5490, 5225),
-3003: (6730, 7685),
-3011: (5420, 230),
-3021: (5610, 935),
-3022: (7385, 875),
-3030: (5780, 4635),
-3031: (5835, 3195),
-3040: (7285, 110),
-3041: (7425, 2000),
-3042: (6640, 330),
-3043: (8345, 630),
-3044: (6345, 80),
-3051: (8620, 2590),
-3052: (8535, 5985),
-3053: (9280, 3100),
-3071: (9525, 3520),
-4000: (10100, 920),
-4001: (10145, 280),
-4002: (11095, 2300),
-4003: (11280, 80),
-9999: (100, 6200),
+    # ── 1115 分层行重排(五组横排带式;polish 真判据首轮收敛态烘焙=全程最优:
+    #    crossings 36/占地 3150(-58%)/线遮 3 处按家族正典现值入档)
+    # 走廊:顶廊(21/7/13→3031);中廊(7→3051/13→3052);101→3001 横线;模型低廊 y~2400
+    21: (80, 80), 7: (80, 400), 13: (80, 720),
+    34: (80, 1040), 41: (630, 1040),
+    1021: (630, 2050), 1033: (1180, 2050),
+    101: (2330, 900), 100: (1680, 1200),
+    6: (2960, 1150), 2: (2960, 1800), 102: (3510, 1030),
+    36: (4100, 1200), 4: (4650, 1400),
+    3031: (5900, 80), 3030: (5250, 380),
+    3001: (5900, 1060), 3002: (5940, 1300), 3003: (5980, 1800),
+    3022: (7120, 80), 3040: (7120, 320),
+    3051: (8190, 900), 3052: (8190, 1100),
+    3053: (8670, 680), 3071: (9170, 1000),
+    3011: (5250, 2400), 3021: (5900, 2400), 3044: (6530, 2400),
+    3042: (7120, 2400), 3041: (7120, 2700), 3043: (7710, 2200),
+    4001: (9760, 800), 4002: (10260, 1000), 4003: (10760, 1000),
+    9999: (1680, 2280),
 }
 # 新节点 size(w,h);旧 12 节点沿用现件声明 size
 SIZES: dict[int, tuple[float, float]] = {
@@ -105,7 +88,7 @@ SIZES: dict[int, tuple[float, float]] = {
     3041: (308, 178), 3042: (360, 112), 3043: (250, 184), 3044: (300, 118),
     3001: (287, 112), 3002: (287, 406), 3003: (287, 112),
     3051: (250, 112), 3052: (250, 112), 3053: (270, 202), 3071: (360, 468),
-    4000: (340, 150), 4001: (270, 118), 4002: (270, 430), 4003: (270, 468),
+    4001: (270, 118), 4002: (270, 430), 4003: (270, 468),
     9999: (1650, 950),
 }
 
@@ -113,12 +96,11 @@ README_NOTE = (
     "# 一镜到底-分段 · 全链三采(1114 用户裁定「都过三采」)\n\n"
     "## 件用途\n分段生成(一采,绕 15s 封顶)→ 二采 TaoMate 精修(1440×832)→ 三采 ReCaVSR 超分"
     "(2880×1664 终档)。与 三采-单镜.json 分工:单镜 ≤15s 高质线 / 本件任意时长全梯线。\n\n"
-    "## 两发操作手册(段B 执行语义;雷#15/#16)\n"
-    "段A(一二采):段B 四节点(4000-4003)保持旁路,整图一发即出 p1(960×544)+p2(1440×832)。\n"
-    "段B(三采):**禁止与段A 同发**(LoadVideo 可能在 p2 落盘前执行=时序赌局)。UI 手工=首跑段B 旁路出 p1/p2 →"
-    "激活段B 四节点+4000 填 p2 注解名(`video/H3/分段视频/p2-final_00001_.mp4 [output]` 形;落盘名=前缀_五位计数_尾下划线,nodes_video.py:199)→"
-    "**选中段B 节点局部执行**(不得整图重跑:一采缓存可命中但二采重烧不可接受);API 正典=两发+间中 "
-    "`POST /free {\"unload_models\": true}`(先例 sancai stageBGraph)。\n\n"
+    "## 操作手册(1115 内联正典)\n"
+    "**UI 手工=整图一发直出三档**:Run 一按,p1(960×544)+p2(1440×832)+p3(2880×1664)顺序落盘"
+    "(三采内联:3053 CreateVideo→4002 ReCaVSR 直连,先例=三采-单镜 UI 件)。\n"
+    "提速正典=API 两发拆链(段A 一二采 → `POST /free {\"unload_models\": true}` → 段B 三采),"
+    "由 livefire 脚本走(App 派发/批量同此);拆链省的是显存驻留,不是必要语义。\n\n"
     "## 同步点三则(手改必读)\n1. 改分段时长必须按帧数公式同步 [3031].length(targets→snap17 网格→Σnew,"
     "出厂 2×1秒=56),实跑以 p1 ffprobe 实测帧数双核对(雷#13/#17);\n2. [3030] 与 [100] 提示词是两份拷贝,"
     "手改同频(雷#14,契约测试出厂态断言同文);\n3. 组框五组横排与布局 est 宪法由 "
@@ -197,9 +179,9 @@ NEW_LINKS: list[tuple[int, int, int, int, int, str]] = [
     (40, 3051, 0, 3053, 0, "IMAGE"),
     (41, 3052, 0, 3053, 1, "AUDIO"),
     (42, 3053, 0, 3071, 0, "VIDEO"),
-    # 段B 三采(出厂旁路;文件交接,不与段A 同发)
+    # 段B 三采(1115 内联正典:3053 直喂 4002,UI 整图一发直出三档;先例=三采-单镜 UI 件 link780)
     (43, 4001, 0, 4002, 0, "RECAVSR"),
-    (44, 4000, 0, 4002, 1, "VIDEO"),
+    (44, 3053, 0, 4002, 1, "VIDEO"),
     (45, 4002, 0, 4003, 0, "VIDEO"),
 ]
 
@@ -281,27 +263,24 @@ def _new_nodes() -> list[dict]:
         _node(3052, "VAEDecodeAudio", [],
               inputs=[_in("samples", "LATENT", 37), _in("vae", "VAE", 39)],
               outputs=[_out("AUDIO", "AUDIO", [41])]),
-        _node(3053, "CreateVideo", [24, 8, "sRGB"],
+        _node(3053, "CreateVideo", [24, 8, "sRGB"],   # 3 元组=实弹绿形态(chroma/codec 走引擎默认;sancai API 孪生 3053 同构)
               inputs=[_in("images", "IMAGE", 40), _in("audio", "AUDIO", 41, shape=7)],
-              outputs=[_out("VIDEO", "VIDEO", [42])]),
+              outputs=[_out("VIDEO", "VIDEO", [42, 44])]),
         _node(3071, "SaveVideo", [P2_PREFIX, "auto", "auto", "auto"],
               inputs=[_in("video", "VIDEO", 42)],
               outputs=[],
-              title="p2 长片(1440×832;段B 走文件交接)"),
-        # —— 段B 三采(出厂 mode=4 旁路)——
-        _node(4000, "LoadVideo", ["", "image"],
-              outputs=[_out("VIDEO", "VIDEO", [44])], mode=4,
-              title="段B 源=段A p2 注解名(激活后填;两发正典)"),
+              title="p2 长片(1440×832)"),
+        # —— 段B 三采(1115 内联正典:mode=0 激活,3053→4002 直连)——
         _node(4001, "ReCaVSRLoader", ["transformer_int8_convrot.safetensors"],
-              outputs=[_out("model", "RECAVSR", [43])], mode=4),
+              outputs=[_out("model", "RECAVSR", [43])]),
         _node(4002, "ReCaVSRUpscale",
               [2, "none", 42, "fixed", "flashdecoder", "fast", False, "auto", 30],
               inputs=[_in("model", "RECAVSR", 43), _in("video", "VIDEO", 44),
                       _in("images", "IMAGE", None), _in("vae", "VAE", None)],
-              outputs=[_out("VIDEO", "VIDEO", [45])], mode=4),
+              outputs=[_out("VIDEO", "VIDEO", [45])]),
         _node(4003, "SaveVideo", [P3_PREFIX, "auto", "auto", "auto"],
               inputs=[_in("video", "VIDEO", 45)],
-              outputs=[], mode=4,
+              outputs=[],
               title="p3 终档(2880×1664)"),
         _node(9999, "MarkdownNote", [README_NOTE], title="README(恒居组外)"),
     ]
@@ -331,11 +310,13 @@ def build_full3stage_graph(base: dict) -> dict:
         raise SystemExit(f"基件缺旧锚节点: {missing}")
     originals = [copy.deepcopy(base_nodes[i]) for i in ORIGINAL_IDS]
     for n in originals:
-        n["pos"] = list(LAYOUT[n["id"]])          # 全图重排(PRD 结构规则:旧 12 节点 pos 一并重排)
+        n["pos"] = list(LAYOUT[n["id"]])          # 种子平面序(经 _compact_layout 压缩后落盘)
         n.setdefault("size", list(SIZES.get(n["id"], [320, 200])))
     new_nodes = _new_nodes()
     by_id = {n["id"]: n for n in originals + new_nodes}
     _fanout_patch(by_id)
+    old_links_probe = [list(l) for l in base["links"] if l[0] <= ORIGINAL_LINKS_MAX]
+    _compact_layout(by_id, sorted(old_links_probe + [list(l) for l in NEW_LINKS], key=lambda l: l[0]))
 
     old_links = [list(l) for l in base["links"] if l[0] <= ORIGINAL_LINKS_MAX]
     links = sorted(old_links + [list(l) for l in NEW_LINKS], key=lambda l: l[0])
@@ -446,16 +427,19 @@ def build_stageA_api(graph: dict) -> dict:
 
 
 def build_stageB_api(graph: dict, source_file: str = "") -> dict:
-    """段B prompt=仅 4000/4001/4002/4003 子图;4000.file 出厂空串,livefire 回填 p2 注解名。"""
+    """段B prompt=仅 4001/4002/4003 子图+合成 [300] LoadVideo(零拷贝 [output] 注解名)。
+    1115 起 UI 件内段B=内联正典(3053→4002);API 两发拆链仍走本出口(livefire 判决门/
+    App 派发同此):内联线不进 API 形,4002.video 改吃 [300],file=source_file。"""
     links_by_target = {l[0]: (l[1], l[2]) for l in graph["links"]}
     out = {}
     for n in graph["nodes"]:
         if n["id"] not in STAGE_B_IDS:
             continue
         entry = _api_node(n, links_by_target)
-        if n["id"] == 4000:
-            entry["inputs"]["file"] = source_file
+        if n["id"] == 4002:
+            entry["inputs"]["video"] = ["300", 0]
         out[str(n["id"])] = entry
+    out["300"] = {"class_type": "LoadVideo", "inputs": {"file": source_file}}
     return out
 
 
@@ -470,7 +454,7 @@ NEW_NODE_TYPES = {
     3042: "BasicGuider", 3043: "SamplerCustomAdvanced", 3044: "ModelAttentionBackend",
     3001: "LTXVSeparateAVLatent", 3002: "MinimaxH3LatentUpscaler3D", 3003: "LTXVConcatAVLatent",
     3051: "VAEDecode", 3052: "VAEDecodeAudio", 3053: "CreateVideo", 3071: "SaveVideo",
-    4000: "LoadVideo", 4001: "ReCaVSRLoader", 4002: "ReCaVSRUpscale", 4003: "SaveVideo",
+    4001: "ReCaVSRLoader", 4002: "ReCaVSRUpscale", 4003: "SaveVideo",
 }
 
 
@@ -487,6 +471,254 @@ def _est_size(n: dict) -> tuple[float, float]:
     except (IndexError, TypeError, ValueError):
         pass
     return w, max(h, sh)
+
+
+# ---------------------------------------------------------------------------
+# 紧凑化(1115 用户观感令「节点间隔太大/线条要横向」:紧凑档节奏,est 宪法下限恒硬门)
+# ---------------------------------------------------------------------------
+_X_GAP_CAP = 4000.0      # 轴间隙钳:相邻坐标间隙超帽即收到帽(序严格保持;1115 观感令;900=首绿档,试紧失败自动回此)
+_Y_GAP_CAP = 4000.0     # y 帽(须 ≥ 最大 est 高 728+85;首绿档 1150)
+_MIN_X_GAP = 205.0      # est 同排间隙下限 200+5 余量
+_MIN_Y_GAP = 85.0       # est 同列间隙下限 80+5 余量
+
+
+def _est_box(n: dict) -> list[float]:
+    return [n["pos"][0], n["pos"][1], *_est_size(n)]
+
+
+def _clamp_axis(nodes_by_id: dict[int, dict], axis: int, cap: float) -> None:
+    """单调分段间隙钳:按种子序排,相邻坐标间隙 min(orig, cap);序严格不变
+    ⇒ 右向/平面拓扑保持;帽只吃大空隙(间隔太大→紧凑,观感令)。"""
+    order = sorted(nodes_by_id, key=lambda i: (LAYOUT[i][axis], i))
+    prev = None
+    for nid in order:
+        pos = nodes_by_id[nid]["pos"]
+        if prev is not None:
+            gap = min(pos[axis] - prev[axis], cap)
+            pos[axis] = prev[axis] + gap
+        prev = pos
+
+
+def _pair_est_repair(nodes_by_id: dict[int, dict]) -> None:
+    """全对 est 终修(右推/下推小位移,不再回摆;8 轮或收敛)。"""
+    for _ in range(8):
+        moved = False
+        boxes = {nid: _est_box(n) for nid, n in nodes_by_id.items()}
+        ids = sorted(boxes)
+        for i in range(len(ids)):
+            for j in range(i + 1, len(ids)):
+                a, b = boxes[ids[i]], boxes[ids[j]]
+                xov = min(a[0] + a[2], b[0] + b[2]) - max(a[0], b[0])
+                yov = min(a[1] + a[3], b[1] + b[3]) - max(a[1], b[1])
+                na, nb = nodes_by_id[ids[i]], nodes_by_id[ids[j]]
+                if xov > 0 and yov > 0:
+                    (nb if nb["pos"][1] >= na["pos"][1] else na)["pos"][1] += yov + 5
+                    moved = True
+                elif yov > 0 and xov <= 0 and -xov < _MIN_X_GAP:
+                    # 同排:x 向实隙=-xov,补到 _MIN_X_GAP(推力恒正,右推 x 大者)
+                    (nb if nb["pos"][0] >= na["pos"][0] else na)["pos"][0] += _MIN_X_GAP + xov + 5
+                    moved = True
+                elif xov > 0 and yov <= 0 and -yov < _MIN_Y_GAP:
+                    # 同列:y 向实隙=-yov,补到 _MIN_Y_GAP(推力恒正,下推 y 大者)
+                    (nb if nb["pos"][1] >= na["pos"][1] else na)["pos"][1] += _MIN_Y_GAP + yov + 5
+                    moved = True
+        if not moved:
+            break
+
+
+def _rightward_fix(nodes_by_id: dict[int, dict], links: list[list]) -> None:
+    """右向安全环:修复道推位后若出现 target.x ≤ source.x(级联/纵叠形态下 est 推位可翻非重叠对),
+    把 target 右推到 source+40;随后由外层再跑一轮 est 修复。"""
+    for _ in range(3):
+        moved = False
+        for l in links:
+            _, s, _ss, t, _ts, _ty = l
+            if s not in nodes_by_id or t not in nodes_by_id:
+                continue
+            sp, tp = nodes_by_id[s]["pos"], nodes_by_id[t]["pos"]
+            if tp[0] <= sp[0]:
+                tp[0] = sp[0] + 40.0
+                moved = True
+        if not moved:
+            break
+
+
+def _groups_overlap(nodes_by_id: dict[int, dict]) -> bool:
+    aabbs = []
+    for _, ids_g, _c in GROUPS:
+        mem = [_est_box(nodes_by_id[i]) for i in ids_g]
+        x0 = min(m[0] for m in mem) - 30; y0 = min(m[1] for m in mem) - 60
+        x1 = max(m[0] + m[2] for m in mem) + 30; y1 = max(m[1] + m[3] for m in mem) + 60
+        aabbs.append((x0, y0, x1, y1))
+    for i in range(len(aabbs)):
+        for j in range(i + 1, len(aabbs)):
+            a, b = aabbs[i], aabbs[j]
+            if a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]:
+                return True
+    return False
+
+
+def _seg_hits_box(p1, p2, box, margin=10.0) -> bool:
+    """Liang-Barsky:线段与外扩盒是否相交。"""
+    x0, y0, x1, y1 = box[0] - margin, box[1] - margin, box[0] + box[2] + margin, box[1] + box[3] + margin
+    dx, dy = p2[0] - p1[0], p2[1] - p1[1]
+    t0, t1 = 0.0, 1.0
+    for pp, qq in ((-dx, p1[0] - x0), (dx, x1 - p1[0]), (-dy, p1[1] - y0), (dy, y1 - p1[1])):
+        if pp == 0:
+            if qq < 0:
+                return False
+        else:
+            r = qq / pp
+            if pp < 0:
+                if r > t1: return False
+                t0 = max(t0, r)
+            else:
+                if r < t0: return False
+                t1 = min(t1, r)
+    return t0 <= t1
+
+
+def _occlusion_repair(nodes_by_id: dict[int, dict], links: list[list]) -> None:
+    """线遮修复(layout_check occlusion 口径近似:中芯连线×盒):遮挡块沿垂直于主线方向让线;
+    推完交 _pair_est_repair 复清;4 轮或收敛。"""
+    for _ in range(4):
+        moved = False
+        boxes = {nid: _est_box(n) for nid, n in nodes_by_id.items()}
+        for l in links:
+            _, s, _ss, t, _ts, _ty = l
+            if s not in boxes or t not in boxes:
+                continue
+            sb, tb = boxes[s], boxes[t]
+            p1 = (sb[0] + sb[2], sb[1] + sb[3] / 2)
+            p2 = (tb[0], tb[1] + tb[3] / 2)
+            for nid, bx in boxes.items():
+                if nid in (s, t) or not _seg_hits_box(p1, p2, bx):
+                    continue
+                horiz = abs(p2[1] - p1[1]) <= abs(p2[0] - p1[0])
+                if horiz:
+                    cx = (bx[0] + bx[0] + bx[2]) / 2
+                    frac = (cx - p1[0]) / (p2[0] - p1[0]) if p2[0] != p1[0] else 0.5
+                    y_line = p1[1] + (p2[1] - p1[1]) * max(0.0, min(1.0, frac))
+                    if y_line > bx[1] + bx[3] / 2 and bx[1] - (y_line - bx[1] - bx[3]) + 40 >= 80:
+                        nodes_by_id[nid]["pos"][1] -= (y_line - bx[1] - bx[3]) + 40   # 上让
+                    else:
+                        nodes_by_id[nid]["pos"][1] += (bx[1] - y_line) + 40 if y_line < bx[1] else 40  # 下让
+                else:
+                    nodes_by_id[nid]["pos"][0] += 40 + bx[2] / 2
+                moved = True
+                boxes = {nid2: _est_box(n) for nid2, n in nodes_by_id.items()}
+        if not moved:
+            break
+
+
+def _load_layout_check():
+    """导入 node-graph 判据真模型(贝塞尔口径);缺席则返回 None(polish 道自跳过)。"""
+    import importlib.util
+    lc_path = REPO_ROOT / ".zcode/skills/node-graph/tools/layout_check.py"
+    if not lc_path.exists():
+        return None
+    spec = importlib.util.spec_from_file_location("layout_check_polish", lc_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _polish(nodes_by_id: dict[int, dict], links: list[list]) -> None:
+    """真判据局部搜索(确定性,首改善接受):目标=layout_check 违规加权
+    (线遮 300/超帽交叉 30/其余 1000)+画布占地。1115 收敛后烘焙进 LAYOUT,
+    默认跳过(秒级幂等);重优化=MULTISEG_POLISH=1 复跑(分钟级)。"""
+    import os
+    if os.environ.get("MULTISEG_POLISH") != "1":
+        return
+    lc = _load_layout_check()
+    if lc is None:
+        return
+
+    ordered = sorted(nodes_by_id.values(), key=lambda n: n["order"])
+    wf = {"nodes": ordered, "links": links}   # 只读判据;组框由 _groups_overlap 另把
+
+    def score():
+        s = 0.0
+        for sc in lc.check_workflow(wf, max_crossings=40):
+            for k, v in sc["counts"].items():
+                if k == "crossings":
+                    s += 30 * max(0, v - 40)
+                elif k == "occlusion":
+                    s += 300 * v
+                elif v:
+                    s += 1000 * v
+        xs = [n["pos"][0] + n["size"][0] for n in ordered]
+        ys = [n["pos"][1] + n["size"][1] for n in ordered]
+        return s + (max(xs) + max(ys)) / 2000.0
+
+    best = score()
+    deltas = [(-0, -480), (-0, -320), (-0, -200), (-0, -120), (-0, -60), (0, 60), (0, 120), (0, 200), (0, 320), (0, 480),
+              (-240, 0), (-120, 0), (120, 0), (240, 0)]
+    ids = sorted(nodes_by_id)
+    for _sweep in range(6):
+        improved = False
+        for nid in ids:
+            n = nodes_by_id[nid]
+            bx, by = n["pos"]
+            for dx, dy in deltas:
+                nx, ny = bx + dx, by + dy
+                if nx < 80 or ny < 80:
+                    continue
+                n["pos"] = [nx, ny]
+                s = score()
+                if s < best - 1e-9:
+                    best, bx, by, improved = s, nx, ny, True
+                else:
+                    n["pos"] = [bx, by]
+        if not improved:
+            break
+
+
+def _seed_clean(nodes_by_id: dict[int, dict]) -> bool:
+    """种子洁净判:管线自家 est 谓词(与 verify ⑥ 同式)零违规。"""
+    boxes = {nid: _est_box(n) for nid, n in nodes_by_id.items()}
+    ids = sorted(boxes)
+    for i in range(len(ids)):
+        for j in range(i + 1, len(ids)):
+            a, b = boxes[ids[i]], boxes[ids[j]]
+            xov = min(a[0] + a[2], b[0] + b[2]) - max(a[0], b[0])
+            yov = min(a[1] + a[3], b[1] + b[3]) - max(a[1], b[1])
+            if (xov > 0 and yov > 0) or (yov > 0 and xov <= 0 and -xov < _MIN_X_GAP) \
+               or (xov > 0 and yov <= 0 and -yov < _MIN_Y_GAP):
+                return False
+    return True
+
+
+def _compact_layout(nodes_by_id: dict[int, dict], links: list[list]) -> None:
+    """紧凑化(1115 用户观感令「节点间隔太大/线条要横向」):
+    轴间隙钳(序严格保持=右向/拓扑不破)→ 全对 est 终修 → 组框 AABB 检;
+    组框咬合则帽 ×1.2 自种子重试(≤6 档),帽常量即最终观感节奏。"""
+    if _seed_clean(nodes_by_id) and not _groups_overlap(nodes_by_id):
+        for n in nodes_by_id.values():                      # 种子已洁净(烘焙态):原样落盘
+            n["pos"] = [max(80.0, round(v)) for v in n["pos"]]
+        return
+    xc, yc = _X_GAP_CAP, _Y_GAP_CAP
+    snapshot = {nid: list(n["pos"]) for nid, n in nodes_by_id.items()}
+    for _ in range(6):
+        for nid, n in nodes_by_id.items():
+            n["pos"] = list(snapshot[nid])
+        _clamp_axis(nodes_by_id, 0, xc)
+        _clamp_axis(nodes_by_id, 1, yc)
+        _pair_est_repair(nodes_by_id)
+        _rightward_fix(nodes_by_id, links)
+        _pair_est_repair(nodes_by_id)
+        if not _groups_overlap(nodes_by_id):
+            _polish(nodes_by_id, links)
+            _pair_est_repair(nodes_by_id)
+            _rightward_fix(nodes_by_id, links)
+            if _groups_overlap(nodes_by_id):
+                continue
+            for n in nodes_by_id.values():
+                n["pos"] = [max(80.0, round(v)) for v in n["pos"]]
+            return
+        xc *= 1.2
+        yc *= 1.2
+    raise SystemExit("紧凑化 6 档帽均组框咬合,放弃(禁出坏布局)")
 
 
 def verify_graph(d: dict) -> list[str]:
@@ -542,12 +774,17 @@ def verify_graph(d: dict) -> list[str]:
     if "段1:1秒" not in w100[0] or w100[0].count("段1:1秒") != 1 or "段2:1秒" not in w100[0]:
         problems.append("出厂提示词缺 2×1秒 时长标签")
 
-    # ⑤ 段B 出厂旁路
+    # ⑤ 段B 内联正典(1115):三节点激活,3053→4002 直连,零 LoadVideo
+    if 4000 in nodes:
+        problems.append("[4000] LoadVideo 应不存在(1115 内联正典)")
     for nid in STAGE_B_IDS:
-        if nodes[nid].get("mode") != 4:
-            problems.append(f"[{nid}] 出厂应旁路 mode=4(雷#15)")
-    if nodes[4000]["widgets_values"][0] != "":
-        problems.append("[4000] 出厂 file 应空串占位")
+        if nodes[nid].get("mode") != 0:
+            problems.append(f"[{nid}] 应激活 mode=0(1115 内联正典)")
+    l44 = links.get(44)
+    if not l44 or (l44[1], l44[2], l44[3], l44[4]) != (3053, 0, 4002, 1):
+        problems.append("段B 内联接线漂移: link44 应 3053.0→4002.1")
+    if nodes[3053]["outputs"][0]["links"] != [42, 44]:
+        problems.append("[3053] VIDEO 扇出应 [42,44](p2 存盘+三采直喂)")
     if nodes[4002]["outputs"][0]["links"] != [45]:
         problems.append("[4002]→[4003] 接线漂移")
 

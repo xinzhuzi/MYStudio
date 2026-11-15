@@ -15,10 +15,13 @@ afterEach(() => {
 function makeBridge(entries: {
   scene?: Array<{ name: string; assetName?: string; id?: string; previewUrl?: string }>;
   role?: Array<{ name: string; assetName?: string; id?: string; previewUrl?: string }>;
+  tool?: Array<{ name: string; assetName?: string; id?: string; previewUrl?: string }>;
 }) {
   return {
     batchMatch: vi.fn(({ type }: { type: string }) => Promise.resolve(
-      (type === "scene" ? entries.scene ?? [] : entries.role ?? []).map((entry) => ({
+      (type === "scene" ? entries.scene ?? []
+        : type === "role" ? entries.role ?? []
+        : entries.tool ?? []).map((entry) => ({
         name: entry.name,
         asset: {
           id: entry.id ?? `id-${entry.name}`,
@@ -115,6 +118,79 @@ describe("resolveStoryboardAssetReferences", () => {
       videoDesc: "独孤观察、抬手又停，管事在门口持筹",
     });
     expect(refs?.map((ref) => ref.title)).toEqual(["金水塾馆", "独孤剑尘", "李先生;管事"]);
+  });
+
+  it("queries the bridge for tool assets and lands them as prop references with cap 2 (L1 两词分工)", async () => {
+    const bridge = makeBridge({
+      scene: [{ name: "金水河码头" }],
+      role: [{ name: "赵四" }],
+      tool: [{ name: "青盐鞭" }, { name: "灵矿藤筐" }, { name: "第三件道具" }],
+    });
+    bridgeMock.mockReturnValue(bridge);
+    const names = ["金水河码头", "赵四", "青盐鞭", "灵矿藤筐", "第三件道具"];
+
+    const refs = await resolveStoryboardAssetReferences({
+      associateAssetsNames: names,
+      id: "sb-chapter-001-001",
+      videoDesc: "赵四在金水河码头扬起青盐鞭。",
+    });
+
+    // 桥查询词=tool(DB 实型);引用层=prop(拼板标签/@图N kindLabel/连续性落库键)
+    expect((bridge as unknown as { batchMatch: { mock: { calls: Array<[unknown]> } } }).batchMatch.mock.calls
+      .some(([payload]) => JSON.stringify(payload) === JSON.stringify({ type: "tool", names }))).toBe(true);
+    expect(refs?.map((ref) => [ref.title, ref.assetType])).toEqual([
+      ["金水河码头", "scene"],
+      ["赵四", "character"],
+      ["青盐鞭", "prop"],
+      ["灵矿藤筐", "prop"],
+    ]);
+  });
+
+  it("logs a warn diagnostics trace when names are present but the bridge is missing (L2 fail-empty 可观测)", async () => {
+    const write = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("window", { diagnosticsLog: { write } });
+    try {
+      bridgeMock.mockReturnValue(undefined);
+      const refs = await resolveStoryboardAssetReferences({
+        associateAssetsNames: ["赵四", "青盐鞭"],
+        id: "sb-chapter-001-001",
+      });
+      expect(refs).toEqual([]);
+      expect(write).toHaveBeenCalledTimes(1);
+      const entry = write.mock.calls[0]?.[0] as {
+        level: string; message: string; context: Record<string, unknown>;
+      };
+      expect(entry.level).toBe("warn");
+      expect(entry.message).toContain("bridge missing");
+      expect(entry.context.shotId).toBe("sb-chapter-001-001");
+      expect(entry.context.associateAssetsNames).toEqual(["赵四", "青盐鞭"]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps a character referenced only by suffix short name in frame text (L4 后缀方向)", async () => {
+    bridgeMock.mockReturnValue(makeBridge({
+      role: [{ name: "独孤剑尘" }],
+    }));
+    // 正文只写「剑尘」——全名/剥前缀/前缀逐级截取全不命中,后缀截取(≥2字)兜住;
+    // 旧逻辑静默滤掉,道具/环境之外的主角参考也丢
+    const refs = await resolveStoryboardAssetReferences({
+      associateAssetsNames: ["独孤剑尘"],
+      videoDesc: "剑尘侧身避开鞭梢，肩头擦出一线血痕。",
+    });
+    expect(refs?.map((ref) => [ref.title, ref.assetType])).toEqual([["独孤剑尘", "character"]]);
+  });
+
+  it("still filters a character with zero mention after suffix matching is in play (S08 防线不破)", async () => {
+    bridgeMock.mockReturnValue(makeBridge({
+      role: [{ name: "独孤剑尘" }, { name: "赵四" }],
+    }));
+    const refs = await resolveStoryboardAssetReferences({
+      associateAssetsNames: ["独孤剑尘", "赵四"],
+      videoDesc: "赵四把鞭子盘在腰间，走进矿洞深处。",
+    });
+    expect(refs?.map((ref) => ref.title)).toEqual(["赵四"]);
   });
 });
 

@@ -28,7 +28,7 @@ import {
   resolveStoryboardBatchQueueChannel,
   runStoryboardBatchLadder,
 } from "./storyboard-batch-protocols";
-import type { StoryboardItem } from "@/types/studio";
+import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
 import type { VlmReviewArtifactV1 } from "@/types/contracts/vlm-review-workflow";
 import { buildStoryboardItemOpenContext } from "../storyboard-open-context";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
@@ -75,6 +75,42 @@ const IDLE_BATCH_STATE: StoryboardBatchGenerationState = {
  * 仍在跑(store 直写不依赖挂载)——模块级标记挡住重挂实例的二次启动。
  */
 let liveBatchRunning = false;
+
+/**
+ * L2(11-15 断点②):建流/补挂期「本期参考数」入 diagnostics——场景/角色/道具
+ * 分桶计数+未挂名单(请求清单 ∖ 挂载集,双向包含口径容复合资产名)。解析器
+ * (storyboard-asset-references)对 fail-empty 另记 warn,双痕互证;实弹期首镜
+ * 看本痕即可定谳「链通/桥 fail-empty/名称 miss/道具缺发」(FR3-L2diag)。
+ */
+function logStoryboardReferenceBudget(
+  shot: StoryboardItem,
+  references: NonNullable<ImageWorkflowOpenContext["assetReferences"]>,
+): void {
+  const requested = shot.associateAssetsNames ?? [];
+  if (!requested.length) return;
+  const attached = references.map((ref) => ref.title);
+  const unresolvedNames = requested.filter((name) =>
+    !attached.some((title) => title.includes(name) || name.includes(title)));
+  const countBy = (assetType: "scene" | "character" | "prop") =>
+    references.filter((ref) => ref.assetType === assetType).length;
+  void logEvent({
+    level: references.length ? "info" : "warn",
+    category: "workflow",
+    operationId: createOperationId("storyboard-ref-budget"),
+    message: references.length
+      ? `Storyboard reference budget: scene=${countBy("scene")} character=${countBy("character")} prop=${countBy("prop")}`
+      : "Storyboard reference budget: empty (no asset references attached)",
+    context: {
+      shotId: shot.id,
+      shotIndex: shot.index,
+      requested: requested.length,
+      attachedScene: countBy("scene"),
+      attachedCharacter: countBy("character"),
+      attachedProp: countBy("prop"),
+      unresolvedNames,
+    },
+  });
+}
 
 /**
  * 分镜面板「一键生图」串行批量(Trellis 08-24-storyboard-panel-batch-generate):
@@ -606,7 +642,8 @@ async function generateOneShot(
   // 模型自由发挥角色形象,监工被画成主角剑客相)
   let graph = findStoryboardWorkflowForContext(store.imageWorkflows, context);
   if (!graph) {
-    const assetReferences = await resolveStoryboardAssetReferences(shot).catch(() => []);
+    const assetReferences = (await resolveStoryboardAssetReferences(shot).catch(() => [])) ?? [];
+    logStoryboardReferenceBudget(shot, assetReferences);
     guard.assertCurrent();
     graph = createOpenImageWorkflowGraph({ ...context, assetReferences }, projectName);
     useStudioStore.getState().upsertImageWorkflow(graph);
@@ -622,8 +659,13 @@ async function generateOneShot(
       useStudioStore.getState().upsertImageWorkflow(healed);
       graph = healed;
     }
-    if (!graph.nodes.some((node) => node.type === "reference")) {
-      const references = await resolveStoryboardAssetReferences(shot).catch(() => []);
+    // L3(11-15 断点③):补挂门改资产维度——旧门「图内零任意 reference 才补挂」
+    // 让带杂参考(当前分镜参考图/分镜帧/手动 project-file)而零资产参考的图
+    // 永久粘死;现判「图内零 source.kind==='asset' 参考节点」,集差/替换语义
+    // 在 ensureStoryboardAssetReferences 内(杂参考保留,资产参考集对齐现镜)
+    if (!graph.nodes.some((node) => node.type === "reference" && node.source?.kind === "asset")) {
+      const references = (await resolveStoryboardAssetReferences(shot).catch(() => [])) ?? [];
+      logStoryboardReferenceBudget(shot, references);
       guard.assertCurrent();
       const ensured = ensureStoryboardAssetReferences(graph, references);
       if (ensured !== graph) {

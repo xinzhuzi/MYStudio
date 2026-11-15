@@ -11,7 +11,7 @@ ReCaVSR 超分(三采 2880×1664 终档);与 三采-单镜.json 分工=单镜 �
      3031 1440-832-56-match)
   ③ 101.slot1→3001;音轨直通;3043 五口喂源;模型链 34→1021→1033→3011→3021 双扇出→3041/3044→3042
   ④ 单源扇出:UNETLoader 全图唯一(34)扇出 {41,1021};KSamplerSelect/RandomNoise 各恰一
-  ⑤ 段B 出厂旁路:4000-4003 mode=4;4002 九元组;4000 file="" 占位
+  ⑤ 段B 内联正典(1115):4001-4003 mode=0,3053→4002 直连,零 LoadVideo;4002 九元组
   ⑥ 出厂自洽四元组:100 提示词 2×1秒/total=56/3031.length=56/3030 与 100 同文
   ⑦ 三面一致/五组横排罩全/零负区零左向(镜像样板三件)
 
@@ -138,15 +138,20 @@ def test_single_source_fanout():
     assert fed13 == {101, 2, 3031, 3052}, f"[13] 扇出漂移: {fed13}"
 
 
-def test_stage3_bypass_factory():
-    """段B 出厂旁路(mode=4;激活语义=两发正典见 PRD 段B 执行语义,雷#15/#16);
-    4002 九元组逐值;4000 file 出厂空串占位;p3 前缀。"""
-    _, nodes, _ = _load()
-    for nid, ntype in ((4000, "LoadVideo"), (4001, "ReCaVSRLoader"),
+def test_stage3_inline_factory():
+    """段B 内联正典(1115 用户令「都旁路太奇怪」):三节点激活,3053→4002 直连
+    (UI 整图一发直出 p1/p2/p3;先例=三采-单镜 UI 件 link780);零 LoadVideo;
+    4002 九元组逐值;p3 前缀。API 两发拆链由 extend.py build_stageB_api 合成 300 LoadVideo。"""
+    d, nodes, links = _load()
+    assert 4000 not in nodes, "[4000] LoadVideo 应不存在(1115 内联正典)"
+    for nid, ntype in ((4001, "ReCaVSRLoader"),
                        (4002, "ReCaVSRUpscale"), (4003, "SaveVideo")):
         assert nodes[nid]["type"] == ntype, f"[{nid}] 应为 {ntype}"
-        assert nodes[nid]["mode"] == 4, f"[{nid}] 出厂应旁路 mode=4"
-    assert nodes[4000]["widgets_values"] == ["", "image"], "[4000] 出厂空串占位"
+        assert nodes[nid]["mode"] == 0, f"[{nid}] 应激活 mode=0(1115 内联正典)"
+    l44 = links.get(44)
+    assert l44 and (l44[1], l44[2], l44[3], l44[4]) == (3053, 0, 4002, 1), \
+        "link44 应 3053.0→4002.1(内联直喂)"
+    assert nodes[3053]["outputs"][0]["links"] == [42, 44], "[3053] 扇出应 [42,44]"
     assert nodes[4001]["widgets_values"] == ["transformer_int8_convrot.safetensors"]
     assert nodes[4002]["widgets_values"] == [2, "none", 42, "fixed", "flashdecoder",
                                              "fast", False, "auto", 30], "4002 九元组逐值"

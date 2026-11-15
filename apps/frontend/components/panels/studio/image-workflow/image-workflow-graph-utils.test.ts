@@ -9,6 +9,7 @@ import { useStudioStore } from "@/stores/studio/studio-store";
 import {
   assetWorkflowContextKey,
   createOpenImageWorkflowGraph,
+  ensureStoryboardAssetReferences,
   findLinkedPromptNodeForGenerated,
   focusNodeIdsForGenerated,
   imageWorkflowTargetKey,
@@ -244,6 +245,83 @@ describe("splitImageMaterialsByOrigin", () => {
     ]);
     expect(assetReferences.map((item) => item.id)).toEqual(["m1", "m4"]);
     expect(workflowOutputs.map((item) => item.id)).toEqual(["m2", "m3"]);
+  });
+});
+
+describe("ensureStoryboardAssetReferences (L3 资产维度+集差/替换, 11-15)", () => {
+  const refs = [
+    { imageUrl: "file:///assets/dock.png", title: "金水河码头", assetType: "scene" as const, assetId: "scene-1" },
+    { imageUrl: "file:///assets/zhao.png", title: "监工赵四", assetType: "character" as const, assetId: "role-1" },
+    { imageUrl: "file:///assets/whip.png", title: "青盐鞭", assetType: "prop" as const, assetId: "tool-1" },
+  ];
+  /** 图内仅杂参考(当前分镜参考图=storyboard 源)零资产参考——旧门下永久粘死的形态 */
+  function makeGraph() {
+    return {
+      id: "wf-l3", name: "L3", target: { kind: "storyboard", id: "sb-1" },
+      nodes: [
+        {
+          id: "src-ref", type: "reference", title: "当前分镜参考图",
+          imageUrl: "project-file://demo/old.png",
+          source: { kind: "storyboard", id: "sb-1" }, position: { x: 80, y: 40 },
+        },
+        { id: "p1", type: "prompt", prompt: "【画面】赵四扬鞭", position: { x: 80, y: 520 } },
+        { id: "g1", type: "generated", title: "分镜 1 成图", position: { x: 760, y: 40 } },
+      ],
+      edges: [{ id: "src-ref->g1", source: "src-ref", target: "g1" }],
+    } as never;
+  }
+  const assetRefNodes = (graph: ReturnType<typeof ensureStoryboardAssetReferences>) =>
+    graph.nodes.filter(
+      (node): node is Extract<typeof node, { type: "reference" }> =>
+        node.type === "reference" && node.source?.kind === "asset",
+    );
+  const promptOf = (graph: ReturnType<typeof ensureStoryboardAssetReferences>) =>
+    graph.nodes.find((node) => node.type === "prompt")?.prompt ?? "";
+
+  it("① 图内仅杂参考零资产参考 → 补挂触发(旧「任一 reference 即返回」门已退役)", () => {
+    const graph = makeGraph();
+    const ensured = ensureStoryboardAssetReferences(graph, refs);
+    expect(ensured).not.toBe(graph);
+    const assetRefs = assetRefNodes(ensured);
+    expect(assetRefs.map((node) => node.title)).toEqual(["金水河码头", "监工赵四", "青盐鞭"]);
+    expect(assetRefs.map((node) => node.continuityOrder)).toEqual([1, 2, 3]);
+    // 杂参考恒保留,其既有连线不丢
+    const srcRef = ensured.nodes.find((node) => node.id === "src-ref");
+    expect(srcRef?.type).toBe("reference");
+    expect(ensured.edges.some((edge) => edge.source === "src-ref" && edge.target === "g1")).toBe(true);
+    // 新资产参考全部连向成图
+    for (const node of assetRefs) {
+      expect(ensured.edges.some((edge) => edge.source === node.id && edge.target === "g1")).toBe(true);
+    }
+    // @图N 头段随最终参考序重写(装配门禁联动)
+    expect(promptOf(ensured)).toContain("@图1 为金水河码头场景");
+    expect(promptOf(ensured)).toContain("@图2 为监工赵四角色");
+    expect(promptOf(ensured)).toContain("@图3 为青盐鞭道具");
+  });
+
+  it("② 图内资产参考集≠现镜解析集 → 替换对齐(旧资产参考清出、杂参考保留)", () => {
+    const base = ensureStoryboardAssetReferences(makeGraph(), [refs[0]]);
+    const oldRef = base.nodes.find((node) => node.title === "金水河码头");
+    expect(oldRef?.type).toBe("reference");
+    const nextRefs = [
+      { imageUrl: "file:///assets/dock2.png", title: "金水河码头·新代", assetType: "scene" as const, assetId: "scene-2" },
+      refs[1]!, refs[2]!,
+    ];
+    const ensured = ensureStoryboardAssetReferences(base, nextRefs);
+    expect(assetRefNodes(ensured).map((node) => node.title)).toEqual(["金水河码头·新代", "监工赵四", "青盐鞭"]);
+    // 旧资产参考节点及其边确实清出
+    expect(ensured.nodes.some((node) => node.id === oldRef!.id)).toBe(false);
+    expect(ensured.edges.some((edge) => edge.source === oldRef!.id)).toBe(false);
+    // 杂参考保留
+    expect(ensured.nodes.some((node) => node.id === "src-ref")).toBe(true);
+    // 头段按新集重写,旧头段不复存
+    expect(promptOf(ensured)).toContain("@图1 为金水河码头·新代场景");
+    expect(promptOf(ensured)).not.toContain("金水河码头场景；");
+  });
+
+  it("③ 资产参考齐备一致 → 幂等原样返回", () => {
+    const first = ensureStoryboardAssetReferences(makeGraph(), refs);
+    expect(ensureStoryboardAssetReferences(first, refs)).toBe(first);
   });
 });
 

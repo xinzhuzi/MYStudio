@@ -71,6 +71,10 @@ def test_registry_exposes_first_batch_nodes():
                 "MyQi21LatentUpscale",   # 1106 二采潜空间放大(1107 Edit 定谳后留件退役,torch 懒导入)
         "MyQi21ColorAnchor",   # 1108 二采色彩锚(Lab 迁移,一采色权威)
         "MyImageSave",     # 1001 TE-MAN B7①:存图可追溯(核心存图子类+底部 prompt 面板,ui.myPrompt 回传)
+        "MySheetCardComposer",  # 1113 道劫设定卡正册化:9图→4K 固定底框合成器
+        "MySheetPromptHub",  # 1113 设定卡提示词枢纽:单点固化+背景类型/格式单源旋钮→14 出分发
+        "MyDirectorConsole",  # 1113 导演台(阶段1 壳:四 loader 口+timeline_data 单通道)
+        "MyDaoyanPass1", "MyDaoyanPass2", "MyDaoyanPass3",  # 1114 阶段3.5 导演台三采单镜调试薄壳
         # 09-14 manying→my 改名前的旧键别名(存量工作流加载兼容)
         "ManyingPrompt", "ManyingReference", "ManyingGenerated", "ManyingShot",
         "ManyingCloudImage", "ManyingStage"}
@@ -80,13 +84,20 @@ def test_registry_exposes_first_batch_nodes():
         "NODE_DISPLAY_NAME_MAPPINGS 与 NODE_CLASS_MAPPINGS 键集漂移:"
         f"仅显示名表有 {sorted(set(NODE_DISPLAY_NAME_MAPPINGS) - set(NODE_CLASS_MAPPINGS))},"
         f"仅 CLASS 表有 {sorted(set(NODE_CLASS_MAPPINGS) - set(NODE_DISPLAY_NAME_MAPPINGS))}")
+    # 1004 类目统一:右键菜单单分组「漫影」——子组例外逐节点钉死(新节点
+    # 落子组须在此登记,防静默漂移):
+    CATEGORY_BY_NODE = {
+        "MyDaojieRoute": "漫影/道劫",       # 09-21 道劫走线族
+        "MyModelBus": "漫影/道劫",
+        "MyFlux3DaojieAdapter": "漫影/道劫",
+        "MySheetCardComposer": "道劫/设定卡",  # 1113 设定卡正册化子组
+        "MySheetPromptHub": "道劫/设定卡",
+        "MyDaoyanPass1": "漫影/导演台",     # 1114 导演台三采调试壳
+        "MyDaoyanPass2": "漫影/导演台",
+        "MyDaoyanPass3": "漫影/导演台",
+    }
     for name, node in NODE_CLASS_MAPPINGS.items():
-        # 1004 类目统一:右键菜单单分组「漫影」——道劫走线族(09-21)仍归
-        # 「漫影/道劫」子组,其余恒 "漫影"(原 "my" 并入,用户裁定)。
-        if name in ("MyDaojieRoute", "MyModelBus", "MyFlux3DaojieAdapter"):
-            assert node.CATEGORY == "漫影/道劫"
-        else:
-            assert node.CATEGORY == "漫影"
+        assert node.CATEGORY == CATEGORY_BY_NODE.get(name, "漫影"), name
 
 
 def test_legacy_aliases_deprecated_and_behaviour_aligned():
@@ -293,15 +304,16 @@ def test_daojie_base_options_and_assembly():
 
 
 def test_daojie_base_resolution_outputs_nine_types():
-    """九型+自由分辨率两出全枚举实测:aspect 逐字命中官方 ResolutionSelector
+    """十四型+自由分辨率两出全枚举实测:aspect 逐字命中官方 ResolutionSelector
     AspectRatio 枚举(引擎 comfy_extras/nodes_resolution.py,8 项;sidecar
-    测试不可 import 引擎库,枚举镜像硬编码于此)、megapixels 1008 快出档缩编
-    (用户令 1-2MP 快出+后放大):道具/高清人脸/自由 1.0(09-19 用户裁定出
-    1024×1024,该节点口径 1.0 MP 精确=1024×1024;自由=Q2.1 十档末位
-    1:1/1.0MP 兜底)、多视图 1.8、其余五型 1.5(4.2 旧档退役入 git 史)、
-    两值与真源家 qi21_bases.json types[] 字段一比一(原 daojie_bases.json
-    退役,锚随迁);正负 STRING=1004 三层拼装/合并语义(逐字锚归
-    test_my_daojie_base.py 专项件)。"""
+    测试不可 import 引擎库,枚举镜像硬编码于此)、megapixels 全型显式钉
+    (1115 门禁修红:旧 1008 快出档掩码「其余五型 1.5」漏追 1110 用户令
+    「14型分辨率重设」d7d8c302——人物海报 1536×2048=3.0/概念气氛图
+    2048×1152=2.25/设定卡 3840×2160(4K 底框)=7.91;MP 按 1024² 计随
+    resolution_override 精确像素换算)、两值与真源家 qi21_bases.json
+    types[] 字段一比一(原 daojie_bases.json 退役,锚随迁;新增型不进
+    EXPECTED_MP=响亮 KeyError 逼登记,禁静默默认值);正负 STRING=1004
+    三层拼装/合并语义(逐字锚归 test_my_daojie_base.py 专项件)。"""
     node = NODE_CLASS_MAPPINGS["MyDaojieBase"]()
     from comfyui.my_nodes.nodes import my_daojie_base
     bases = _json_types(my_daojie_base._BASES_JSON)
@@ -310,15 +322,30 @@ def test_daojie_base_resolution_outputs_nine_types():
         "3:4 (Portrait Standard)", "4:3 (Standard)",
         "9:16 (Portrait Widescreen)", "16:9 (Widescreen)", "21:9 (Ultrawide)",
     }
-    expected_mp = {"道具": 1.0, "高清人脸": 1.0, "人脸基准": 1.0, "自由": 1.0,
-                   "人物多视图": 1.8, "场景": 2.25, "美宣": 2.25,
-                   "分镜剧情图": 2.25, "设定卡": 2.25, "3D剖面场景图": 2.25}.get  # 其余型按原MP预算
+    # 全型显式钉(真源=qi21_bases.json; rulings:09-19 快出档 1.0 系/
+    # 1008 多视图 1.8/1110 d7d8c302 14型重设 3.0·2.25·7.91 系)
+    expected_mp = {
+        "道具": 1.0,         # 09-19 用户裁定 1024×1024
+        "高清人脸": 1.0,     # 09-19 同上
+        "人脸基准": 1.0,
+        "自由": 1.0,         # Q2.1 十档末位 1:1/1.0MP 兜底
+        "表情差分": 1.5,
+        "无衣物定妆": 1.5,   # 1108 无衣物型文 v0.3
+        "人物多视图": 1.8,   # 1008 多视图档
+        "人物海报": 3.0,     # 1110 d7d8c302:1536×2048(2K 级)
+        "场景": 2.25,        # 2K=2048×1152 运行时已达,1110 勘误不动
+        "美宣": 2.25,
+        "分镜剧情图": 2.25,
+        "3D剖面场景图": 2.25,
+        "概念气氛图": 2.25,  # 1110 d7d8c302:2048×1152
+        "设定卡": 7.91,      # 1110 d7d8c302:3840×2160(4K 固定底框)
+    }
     for entry in bases:
         pos, neg, aspect, megapixels, base_out, _w, _h = node.run(entry["zh"])
         assert base_out == entry["zh"]  # 09-19 第五出=型直通(驱动按型 LoRA 供线)
         assert aspect == entry["aspect_ratio"], entry["zh"]
         assert aspect in official_aspects, f"「{entry['zh']}」aspect 非官方枚举逐字串"
-        assert megapixels == entry["megapixels"] == expected_mp(entry["zh"], 1.5), entry["zh"]
+        assert megapixels == entry["megapixels"] == expected_mp[entry["zh"]], entry["zh"]
         # 1008:留空=纯型层(不再拼底座);负向=纯型层负向(中文基线非空)
         assert pos == entry["positive_text"]
         if pos:  # 自由型正向=空串,跳过句号检查

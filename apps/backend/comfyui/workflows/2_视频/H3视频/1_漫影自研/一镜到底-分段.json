@@ -8,8 +8,8 @@
       "id": 2,
       "type": "VAEDecodeAudio",
       "pos": [
-        3635,
-        2815
+        2960,
+        1800
       ],
       "size": [
         320,
@@ -51,8 +51,8 @@
       "id": 4,
       "type": "SaveVideo",
       "pos": [
-        4755,
-        2280
+        4650,
+        1400
       ],
       "size": [
         360,
@@ -85,8 +85,8 @@
       "id": 6,
       "type": "VAEDecode",
       "pos": [
-        3320,
-        1375
+        2960,
+        1150
       ],
       "size": [
         320,
@@ -128,8 +128,8 @@
       "id": 7,
       "type": "VAELoader",
       "pos": [
-        80,
-        1020
+        80.0,
+        400
       ],
       "size": [
         320,
@@ -165,8 +165,8 @@
       "id": 13,
       "type": "VAELoader",
       "pos": [
-        80,
-        1360
+        80.0,
+        720
       ],
       "size": [
         320,
@@ -202,8 +202,8 @@
       "id": 21,
       "type": "CLIPLoader",
       "pos": [
-        140,
-        725
+        80.0,
+        80.0
       ],
       "size": [
         320,
@@ -238,8 +238,8 @@
       "id": 34,
       "type": "UNETLoader",
       "pos": [
-        80,
-        80
+        80.0,
+        1040
       ],
       "size": [
         320,
@@ -274,8 +274,8 @@
       "id": 36,
       "type": "CreateVideo",
       "pos": [
-        4695,
-        1960
+        4100,
+        1200
       ],
       "size": [
         320,
@@ -321,8 +321,8 @@
       "id": 41,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        1805,
-        665
+        630,
+        1040
       ],
       "size": [
         320,
@@ -362,8 +362,8 @@
       "id": 100,
       "type": "H3Parameter",
       "pos": [
-        235,
-        2500
+        1680,
+        1200
       ],
       "size": [
         420,
@@ -414,8 +414,8 @@
       "id": 101,
       "type": "H3AutoContextSampler",
       "pos": [
-        2250,
-        2620
+        2330,
+        900
       ],
       "size": [
         400,
@@ -498,8 +498,8 @@
       "id": 102,
       "type": "H3SeamCorrection",
       "pos": [
-        3985,
-        1450
+        3510,
+        1030
       ],
       "size": [
         360,
@@ -544,8 +544,8 @@
       "id": 1021,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        245,
-        360
+        630,
+        2050
       ],
       "size": [
         320,
@@ -583,8 +583,8 @@
       "id": 1033,
       "type": "BlockSparseAttention",
       "pos": [
-        1345,
-        140
+        1180,
+        2050
       ],
       "size": [
         270,
@@ -629,8 +629,8 @@
       "id": 3001,
       "type": "LTXVSeparateAVLatent",
       "pos": [
-        5195,
-        5735
+        5900,
+        1060
       ],
       "size": [
         287,
@@ -673,8 +673,8 @@
       "id": 3002,
       "type": "MinimaxH3LatentUpscaler3D",
       "pos": [
-        5490,
-        5225
+        5940,
+        1300
       ],
       "size": [
         287,
@@ -735,8 +735,8 @@
       "id": 3003,
       "type": "LTXVConcatAVLatent",
       "pos": [
-        6730,
-        7685
+        5980,
+        1800
       ],
       "size": [
         287,
@@ -778,8 +778,8 @@
       "id": 3011,
       "type": "MiniMaxChunkFeedForward",
       "pos": [
-        5420,
-        230
+        5250,
+        2400
       ],
       "size": [
         300,
@@ -817,8 +817,8 @@
       "id": 3021,
       "type": "MiniMaxH3SigmaShift",
       "pos": [
-        5610,
-        935
+        5900,
+        2400
       ],
       "size": [
         266,
@@ -857,8 +857,8 @@
       "id": 3022,
       "type": "KSamplerSelect",
       "pos": [
-        7385,
-        875
+        7120,
+        80.0
       ],
       "size": [
         315,
@@ -888,8 +888,8 @@
       "id": 3030,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        5780,
-        4635
+        5250,
+        380
       ],
       "size": [
         420,
@@ -929,8 +929,8 @@
       "id": 3031,
       "type": "MiniMaxH3ReferenceToVideo",
       "pos": [
-        5835,
-        3195
+        5900,
+        80.0
       ],
       "size": [
         400,
@@ -1020,8 +1020,8 @@
       "id": 3040,
       "type": "RandomNoise",
       "pos": [
-        7285,
-        110
+        7120,
+        320
       ],
       "size": [
         315,
@@ -1052,8 +1052,8 @@
       "id": 3041,
       "type": "BasicScheduler",
       "pos": [
-        7425,
-        2000
+        7120,
+        2700
       ],
       "size": [
         308,
@@ -1092,8 +1092,8 @@
       "id": 3042,
       "type": "BasicGuider",
       "pos": [
-        6640,
-        330
+        7120,
+        2400
       ],
       "size": [
         360,
@@ -1132,8 +1132,8 @@
       "id": 3043,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        8345,
-        630
+        7710,
+        2200
       ],
       "size": [
         250,
@@ -1194,8 +1194,8 @@
       "id": 3044,
       "type": "ModelAttentionBackend",
       "pos": [
-        6345,
-        80
+        6530,
+        2400
       ],
       "size": [
         300,
@@ -1231,8 +1231,8 @@
       "id": 3051,
       "type": "VAEDecode",
       "pos": [
-        8620,
-        2590
+        8190,
+        900
       ],
       "size": [
         250,
@@ -1271,8 +1271,8 @@
       "id": 3052,
       "type": "VAEDecodeAudio",
       "pos": [
-        8535,
-        5985
+        8190,
+        1100
       ],
       "size": [
         250,
@@ -1311,8 +1311,8 @@
       "id": 3053,
       "type": "CreateVideo",
       "pos": [
-        9280,
-        3100
+        8670,
+        680
       ],
       "size": [
         270,
@@ -1339,7 +1339,8 @@
           "name": "VIDEO",
           "type": "VIDEO",
           "links": [
-            42
+            42,
+            44
           ]
         }
       ],
@@ -1356,8 +1357,8 @@
       "id": 3071,
       "type": "SaveVideo",
       "pos": [
-        9525,
-        3520
+        9170,
+        1000
       ],
       "size": [
         360,
@@ -1383,55 +1384,22 @@
         "auto",
         "auto"
       ],
-      "title": "p2 长片(1440×832;段B 走文件交接)"
-    },
-    {
-      "id": 4000,
-      "type": "LoadVideo",
-      "pos": [
-        10100,
-        920
-      ],
-      "size": [
-        340,
-        150
-      ],
-      "flags": {},
-      "order": 31,
-      "mode": 4,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "VIDEO",
-          "type": "VIDEO",
-          "links": [
-            44
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadVideo"
-      },
-      "widgets_values": [
-        "",
-        "image"
-      ],
-      "title": "段B 源=段A p2 注解名(激活后填;两发正典)"
+      "title": "p2 长片(1440×832)"
     },
     {
       "id": 4001,
       "type": "ReCaVSRLoader",
       "pos": [
-        10145,
-        280
+        9760,
+        800
       ],
       "size": [
         270,
         118
       ],
       "flags": {},
-      "order": 32,
-      "mode": 4,
+      "order": 31,
+      "mode": 0,
       "inputs": [],
       "outputs": [
         {
@@ -1453,16 +1421,16 @@
       "id": 4002,
       "type": "ReCaVSRUpscale",
       "pos": [
-        11095,
-        2300
+        10260,
+        1000
       ],
       "size": [
         270,
         430
       ],
       "flags": {},
-      "order": 33,
-      "mode": 4,
+      "order": 32,
+      "mode": 0,
       "inputs": [
         {
           "name": "model",
@@ -1513,16 +1481,16 @@
       "id": 4003,
       "type": "SaveVideo",
       "pos": [
-        11280,
-        80
+        10760,
+        1000
       ],
       "size": [
         270,
         468
       ],
       "flags": {},
-      "order": 34,
-      "mode": 4,
+      "order": 33,
+      "mode": 0,
       "inputs": [
         {
           "name": "video",
@@ -1546,15 +1514,15 @@
       "id": 9999,
       "type": "MarkdownNote",
       "pos": [
-        100,
-        6200
+        1680,
+        2280
       ],
       "size": [
         1650,
         950
       ],
       "flags": {},
-      "order": 35,
+      "order": 34,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -1562,7 +1530,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "# 一镜到底-分段 · 全链三采(1114 用户裁定「都过三采」)\n\n## 件用途\n分段生成(一采,绕 15s 封顶)→ 二采 TaoMate 精修(1440×832)→ 三采 ReCaVSR 超分(2880×1664 终档)。与 三采-单镜.json 分工:单镜 ≤15s 高质线 / 本件任意时长全梯线。\n\n## 两发操作手册(段B 执行语义;雷#15/#16)\n段A(一二采):段B 四节点(4000-4003)保持旁路,整图一发即出 p1(960×544)+p2(1440×832)。\n段B(三采):**禁止与段A 同发**(LoadVideo 可能在 p2 落盘前执行=时序赌局)。UI 手工=首跑段B 旁路出 p1/p2 →激活段B 四节点+4000 填 p2 注解名(`video/H3/分段视频/p2-final_00001_.mp4 [output]` 形;落盘名=前缀_五位计数_尾下划线,nodes_video.py:199)→**选中段B 节点局部执行**(不得整图重跑:一采缓存可命中但二采重烧不可接受);API 正典=两发+间中 `POST /free {\"unload_models\": true}`(先例 sancai stageBGraph)。\n\n## 同步点三则(手改必读)\n1. 改分段时长必须按帧数公式同步 [3031].length(targets→snap17 网格→Σnew,出厂 2×1秒=56),实跑以 p1 ffprobe 实测帧数双核对(雷#13/#17);\n2. [3030] 与 [100] 提示词是两份拷贝,手改同频(雷#14,契约测试出厂态断言同文);\n3. 组框五组横排与布局 est 宪法由 `apps/build/scripts/multiseg_full3stage_extend.py --verify` 把门,改版后整体重跑(雷#7)。\n\n## 模型/配方速查\n二采=Cobijada 扇出 taomate@0.7+sol-attn τ1.3+σshift[12,3]+kitchen+lcm+simple/3步/dn0.2(UP 定谳);三采=ReCaVSR scale2 int8 ConvRot。seed=42 复现。"
+        "# 一镜到底-分段 · 全链三采(1114 用户裁定「都过三采」)\n\n## 件用途\n分段生成(一采,绕 15s 封顶)→ 二采 TaoMate 精修(1440×832)→ 三采 ReCaVSR 超分(2880×1664 终档)。与 三采-单镜.json 分工:单镜 ≤15s 高质线 / 本件任意时长全梯线。\n\n## 操作手册(1115 内联正典)\n**UI 手工=整图一发直出三档**:Run 一按,p1(960×544)+p2(1440×832)+p3(2880×1664)顺序落盘(三采内联:3053 CreateVideo→4002 ReCaVSR 直连,先例=三采-单镜 UI 件)。\n提速正典=API 两发拆链(段A 一二采 → `POST /free {\"unload_models\": true}` → 段B 三采),由 livefire 脚本走(App 派发/批量同此);拆链省的是显存驻留,不是必要语义。\n\n## 同步点三则(手改必读)\n1. 改分段时长必须按帧数公式同步 [3031].length(targets→snap17 网格→Σnew,出厂 2×1秒=56),实跑以 p1 ffprobe 实测帧数双核对(雷#13/#17);\n2. [3030] 与 [100] 提示词是两份拷贝,手改同频(雷#14,契约测试出厂态断言同文);\n3. 组框五组横排与布局 est 宪法由 `apps/build/scripts/multiseg_full3stage_extend.py --verify` 把门,改版后整体重跑(雷#7)。\n\n## 模型/配方速查\n二采=Cobijada 扇出 taomate@0.7+sol-attn τ1.3+σshift[12,3]+kitchen+lcm+simple/3步/dn0.2(UP 定谳);三采=ReCaVSR scale2 int8 ConvRot。seed=42 复现。"
       ],
       "title": "README(恒居组外)"
     }
@@ -1914,7 +1882,7 @@
     ],
     [
       44,
-      4000,
+      3053,
       0,
       4002,
       1,
@@ -1936,8 +1904,8 @@
       "bounding": [
         50,
         20,
-        2105,
-        1540
+        1430,
+        2388
       ],
       "color": "#884466",
       "flags": {},
@@ -1947,10 +1915,10 @@
       "id": 11,
       "title": "② 一采分段(H3底模+pika Turbo 8步·960×544)",
       "bounding": [
-        205,
-        2440,
-        2475,
-        820
+        1650,
+        840,
+        1110,
+        1120
       ],
       "color": "#3f789e",
       "flags": {},
@@ -1960,10 +1928,10 @@
       "id": 12,
       "title": "③ 一采直出",
       "bounding": [
-        3290,
-        1315,
-        1855,
-        1700
+        2930,
+        970,
+        2110,
+        1030
       ],
       "color": "#448844",
       "flags": {},
@@ -1973,10 +1941,10 @@
       "id": 13,
       "title": "④ 二采精修(TaoMate LoRA 3步·1440×832)",
       "bounding": [
-        5165,
+        5220,
         20,
-        4750,
-        7777
+        4340,
+        2858
       ],
       "color": "#aa6600",
       "flags": {},
@@ -1986,10 +1954,10 @@
       "id": 14,
       "title": "⑤ 三采超分(ReCaVSR scale2·2880×1664)",
       "bounding": [
-        10070,
-        20,
-        1510,
-        2710
+        9730,
+        740,
+        1330,
+        728
       ],
       "color": "#335588",
       "flags": {},

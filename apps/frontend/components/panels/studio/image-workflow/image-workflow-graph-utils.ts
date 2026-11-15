@@ -265,17 +265,51 @@ export function findStoryboardWorkflowForContext(
 }
 
 /**
- * 参考完备性补挂(身份防线 08-24): 复用既有分镜工作流而图内无资产参考时,
- * 按 createOpenImageWorkflowGraph 同款参数补挂解析出的参考并连向成图节点;
- * 幂等(已有参考节点原样返回)。
+ * 参考完备性补挂(身份防线 08-24;11-15 L3 资产维度+集差/替换语义): 复用
+ * 既有分镜工作流而图内无资产参考(source.kind==='asset')时,按
+ * createOpenImageWorkflowGraph 同款参数补挂解析出的参考并连向成图节点;
+ * 图内已有资产参考但集合与现镜解析集不一致(跨代残留/资产清单换代)时替换
+ * 对齐——旧资产参考节点及其边清出、新集补挂、@图N 头段经
+ * ensureStoryboardBindingConsistency 按最终边序重写(复用 08-24 装配门禁
+ * 同款机制)。杂参考(当前分镜参考图/分镜帧/手动 project-file)不属资产
+ * 维度,恒保留不动——旧幂等门「任一 reference 即原样返回」让零资产参考而
+ * 带杂参考的图永久粘死(11-15 验尸断点③)。幂等:资产参考集
+ * (型+名+URL,含序)一致时原样返回。
  */
 export function ensureStoryboardAssetReferences(
   graph: ImageWorkflowGraph,
   references: ImageWorkflowOpenContext["assetReferences"],
 ): ImageWorkflowGraph {
   if (!references?.length) return graph;
-  if (graph.nodes.some((node) => node.type === "reference")) return graph;
+  const isAssetReference = (node: ImageWorkflowNode): node is ImageWorkflowReferenceNode =>
+    node.type === "reference" && node.source?.kind === "asset";
+  const existing = graph.nodes.filter(isAssetReference);
+  const signatureOf = (assetType: string, title: string, imageUrl: string) =>
+    `${assetType}::${title}::${imageUrl}`;
+  const currentSignature = existing
+    .map((node) => signatureOf(
+      node.source?.assetType ?? "",
+      node.title ?? "",
+      node.imageUrl ?? "",
+    ))
+    .join("|");
+  const wantedSignature = references
+    .map((reference) => signatureOf(reference.assetType, reference.title, reference.imageUrl))
+    .join("|");
+  if (currentSignature === wantedSignature) return graph;
   let next = graph;
+  if (existing.length) {
+    // 替换对齐:旧资产参考节点(及其全部边)清出;杂参考及其边不动
+    const removedIds = new Set(existing.map((node) => node.id));
+    next = {
+      ...graph,
+      nodes: graph.nodes.filter((node) => !removedIds.has(node.id)),
+      edges: graph.edges.filter(
+        (edge) => !removedIds.has(edge.source) && !removedIds.has(edge.target),
+      ),
+      updatedAt: Date.now(),
+    };
+  }
   references.forEach((reference, index) => {
     next = addReferenceImageNode(next, {
       id: createId("asset-ref", Date.now() + index + 1),

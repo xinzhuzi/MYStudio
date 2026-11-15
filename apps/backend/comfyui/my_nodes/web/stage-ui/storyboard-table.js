@@ -33,7 +33,7 @@ export default {
   render(payload) {
     if (Array.isArray(payload.tableRows) && payload.tableRows.length > 0) {
       const rows = payload.tableRows.map((row) => `
-        <div class="ms-row">
+        <div class="ms-row" data-act="shot-detail" data-shot-id="${esc(row.id || "")}" data-idx="${Number(row.index) || 0}">
           <span class="idx">#${String(row.index).padStart(2, "0")}</span>
           <span class="main"><span class="scene">${esc(row.scene)}</span>${esc(row.title)}
             <span class="sub">「${esc(row.lines || "—")}」${row.action ? " · " + esc(row.action) : ""}${row.sound ? " · ♪" + esc(row.sound) : ""}${row.assets ? " · 【" + esc(row.assets) + "】" : ""}</span>

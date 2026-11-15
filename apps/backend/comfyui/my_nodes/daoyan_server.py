@@ -18,8 +18,17 @@
         mtime 倒序,库内选图器数据源)
   POST /my_daoyan/upload_audio(原始 body+X-Filename)
       → {ok,name,size,error?}(参考音频落 input/,白名单+50MB 帽)
-      → {ok,text?,error?}(智谱 /api/anthropic messages 线 LLM 扩写;
+  → {ok,text?,error?}(智谱 /api/anthropic messages 线 LLM 扩写;
         缺 key=200+ok:False 明示)
+1115 详情入 ComfyUI(derived-asset-detail):
+  GET /my_daoyan/shot_detail?project=<pid>&chapter=<v>[&shot_id=<id>]
+      → 无 shot_id:{chapter,count,shots:[{index,id,title,duration,
+        lines,state,imageReady}...]}(整章镜 id 清单=浮层下钻与旧行
+        行号对齐兜底双用)
+      → 有 shot_id:{chapter,shot:{id,columns(15 列全量零截断),state,
+        imageReady,imageUrl,videoUrl,revision,stale,...}}(chapter_payload
+        的 160/80 截断仅驾驶舱用,此处独立装配;图/视频 URL 走
+        chapter_image 同款引擎可显示路径)
 
 数据源(地基实读验证,selectorSpec 1114):
 - 项目册=<app-home>/projects/mystudio-project-store.json
@@ -44,6 +53,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from urllib.parse import quote
 
 from .nodes.director_executor import OUT_DIR_ROOT
 
@@ -302,6 +312,7 @@ def save_upload_audio(input_dir, filename, data) -> dict:
 # ── 章节驾驶舱(1114 用户令「选章→剧本/导演计划/分镜表自动带出来」)────
 
 _IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp")
+_VIDEO_EXTS = (".mp4", ".webm", ".mov")  # 1115 详情浮层:media/ai-video/ 同口
 _SCRIPT_CAP = 300_000
 _IMAGE_CAP = 20 * 1024 * 1024
 
@@ -452,20 +463,123 @@ def chapter_payload(location: Path, chapter: str) -> dict:
 
 
 def chapter_image_bytes(location: Path, rel: str):
-    """分镜图读取(白名单目录+扩展名+20MB 帽;返回 (bytes|None, err|None))。"""
+    """分镜图读取(白名单目录+扩展名+20MB 帽;返回 (bytes|None, err|None))。
+
+    1115 详情浮层补:media/ai-video/ 前缀的视频件(.mp4/.webm/.mov,
+    H3 单镜产物回写位)同口可读(shot_detail 的 videoUrl 消费;图像行为
+    零改——白名单外语义与错误文案逐字保留,test_daoyan_cockpit 钉)。
+    """
     rel = str(rel or "").strip().lstrip("/").replace("\\", "/")
     if not rel or ".." in rel.split("/"):
         return None, "非法路径"
-    if not (rel.startswith("workflow-images/")
-            or rel.startswith("continuity-bibles/")):
+    if rel.startswith("media/ai-video/"):
+        exts = _VIDEO_EXTS
+    elif rel.startswith("workflow-images/") or rel.startswith("continuity-bibles/"):
+        exts = _IMAGE_EXTS
+    else:
         return None, "路径不在分镜图/连续性资产白名单"
     p = location / rel
-    if not p.is_file() or p.suffix.lower() not in _IMAGE_EXTS:
+    if not p.is_file() or p.suffix.lower() not in exts:
         return None, "图不存在或非图件"
     data = p.read_bytes()
     if len(data) > _IMAGE_CAP:
         return None, "图超 20MB 帽"
     return data, None
+
+
+# ── 单镜/整章镜详情(1115 详情入 ComfyUI:MyStage「详情」浮层数据源)────
+
+# 单镜详情 15 列(分镜表同源列集;label→分片字段映射单源,渲染端零拼)
+def _shot_columns(shot) -> list:
+    sem = shot.get("shotSemantics") if isinstance(
+        shot.get("shotSemantics"), dict) else {}
+    duration = shot.get("duration")
+    if not isinstance(duration, (int, float)):
+        duration = shot.get("durationTarget")
+    action = " → ".join(
+        str(x) for x in (sem.get("actionIn"), sem.get("actionOut")) if x)
+    return [
+        ("镜号", shot.get("index")),
+        ("场次", shot.get("trackKey")),
+        ("画面描述", shot.get("prompt")),
+        ("视频描述", shot.get("videoDesc")),
+        ("时长", f"{duration} 秒" if duration else None),
+        ("景别", sem.get("shotSize")),
+        ("运镜", sem.get("cameraMove")),
+        ("动作", action or None),
+        ("朝向", shot.get("orientation")),
+        ("空间关系", shot.get("spatialRelation")),
+        ("情绪", shot.get("emotion")),
+        ("台词", shot.get("lines")),
+        ("旁白", shot.get("line")),
+        ("音效", shot.get("sound")),
+        ("关联资产", "、".join(shot.get("associateAssetsNames") or []) or None),
+    ]
+
+
+def _image_ready(shot) -> bool:
+    """imageReady 语义(分片无字面键):state=='ready' 且 mediaRef 可定位
+    (project-file:// 可解出 rel 才有引擎可显示图)。"""
+    return str(shot.get("state") or "") == "ready" \
+        and bool(_media_rel(shot.get("mediaRef")))
+
+
+def _media_url(pid: str, media_ref) -> str:
+    """mediaRef → 引擎可显示 URL(chapter_image 先例同款;缺/坏=空串)。"""
+    rel = _media_rel(media_ref)
+    if not rel or str((media_ref or {}).get("kind") or "image") != "image":
+        return ""
+    return (f"/my_daoyan/chapter_image?project={quote(pid, safe='')}"
+            f"&rel={quote(rel, safe='')}")
+
+
+def _video_url(pid: str, media_ref) -> str:
+    """单镜视频 URL(mediaRef kind=video=H3 产物回写态;图期=空串,
+    浮层按空串隐藏视频钮)。"""
+    rel = _media_rel(media_ref)
+    if not rel or str((media_ref or {}).get("kind") or "") != "video":
+        return ""
+    return (f"/my_daoyan/chapter_image?project={quote(pid, safe='')}"
+            f"&rel={quote(rel, safe='')}")
+
+
+def shot_detail(location: Path, chapter: str, shot_id: str = "",
+                pid: str = "") -> dict:
+    """单镜 15 列全量/整章镜 id 清单(1115 详情浮层数据源,纯函数注入可测)。
+
+    零截断纪律:chapter_payload 的 prompt/videoDesc 160 字、line 80 字截断
+    仅驾驶舱用,此处独立装配全量;按 id 精确取(禁行号直取=跨源一致性)。
+    """
+    if not chapter or not valid_chapter(chapter):
+        return {"error": "非法 chapter 参数"}
+    cdir = location / "store" / "studio-workflow" / "chapters" / chapter
+    shots = merge_storyboards(cdir)
+    if not shot_id:
+        rows = [{
+            "index": s.get("index"), "id": s.get("id"),
+            "title": str(s.get("prompt") or "")[:18]
+            or f"分镜 {s.get('index')}",
+            "duration": s.get("duration"),
+            "lines": str(s.get("lines") or ""),
+            "state": s.get("state"),
+            "imageReady": _image_ready(s),
+        } for s in shots]
+        return {"chapter": chapter, "count": len(rows), "shots": rows}
+    for s in shots:
+        if str(s.get("id") or "") == str(shot_id):
+            return {"chapter": chapter, "shot": {
+                "id": s.get("id"),
+                "columns": _shot_columns(s),
+                "state": s.get("state"),
+                "imageReady": _image_ready(s),
+                "imageUrl": _media_url(pid, s.get("mediaRef")),
+                "videoUrl": _video_url(pid, s.get("mediaRef")),
+                "revision": s.get("revision"),
+                "stale": bool(s.get("stale")),
+                "speaker": s.get("speaker"),
+                "voiceStyle": s.get("voiceStyle"),
+            }}
+    return {"error": f"镜 {shot_id} 不在分片并集(表/分片换代?请重开工作流)"}
 
 
 def import_storyboard(location: Path, chapter: str, input_dir: Path) -> dict:
@@ -520,7 +634,11 @@ def import_storyboard(location: Path, chapter: str, input_dir: Path) -> dict:
 
 
 def install() -> None:
-    """挂三条只读路由(幂等守卫;失败静默打印,不影响节点与出图)。"""
+    """挂只读路由族(幂等守卫;失败静默打印,不影响节点与出图)。
+
+    清单(与尾部 print 一对一,1115 修正):projects/chapters/logs/
+    chapter_data/chapter_image/import_storyboard(POST)/input_media/
+    upload_audio(POST)/shot_detail。"""
     global _installed
     if _installed:
         return
@@ -592,8 +710,15 @@ def install() -> None:
                 data, err = chapter_image_bytes(loc, rel)
                 if data is None:
                     return web.json_response({"error": err}, status=400)
-                ctype = ("image/png" if rel.lower().endswith(".png")
-                         else "image/jpeg")
+                low = rel.lower()
+                if low.endswith((".mp4", ".mov")):
+                    ctype = "video/mp4"
+                elif low.endswith(".webm"):
+                    ctype = "video/webm"
+                elif low.endswith(".png"):
+                    ctype = "image/png"
+                else:
+                    ctype = "image/jpeg"
                 return web.Response(body=data, content_type=ctype)
             except Exception as error:  # noqa: BLE001
                 return web.json_response({"error": str(error)}, status=500)
@@ -643,10 +768,32 @@ def install() -> None:
                 return web.json_response(
                     {"ok": False, "error": str(error)}, status=500)
 
+        @PromptServer.instance.routes.get("/my_daoyan/shot_detail")
+        async def _shot_detail(request):  # noqa: ANN202 - aiohttp handler
+            try:
+                pid = request.rel_url.query.get("project", "")
+                chapter = request.rel_url.query.get("chapter", "")
+                shot_id = request.rel_url.query.get("shot_id", "")
+                loc = _project_location_path(_app_home(), pid)
+                if loc is None:
+                    return web.json_response(
+                        {"error": f"项目 {pid} 不在册"}, status=404)
+                data = shot_detail(loc, chapter, shot_id, pid)
+                status = 404 if ("不在分片并集" in str(data.get("error") or "")
+                                 or "不在册" in str(data.get("error") or "")) \
+                    else (400 if data.get("error") else 200)
+                return web.json_response(data, status=status)
+            except Exception as error:  # noqa: BLE001
+                return web.json_response({"error": str(error)}, status=500)
+
         _installed = True
-        print("[daoyan] 面板路由已挂载:/my_daoyan/projects、"
-              "/my_daoyan/chapters、/my_daoyan/logs、"
-              "/my_daoyan/input_media、/my_daoyan/upload_audio、", flush=True)
+        # 1115 print 修正:与实际 add_route 清单一一对齐(八存量+shot_detail;
+        # 旧 print 悬「、」且漏 chapter_data/chapter_image/import_storyboard)
+        print("[daoyan] 面板路由已挂载(9):/my_daoyan/projects、"
+              "/my_daoyan/chapters、/my_daoyan/logs、/my_daoyan/chapter_data、"
+              "/my_daoyan/chapter_image、/my_daoyan/import_storyboard、"
+              "/my_daoyan/input_media、/my_daoyan/upload_audio、"
+              "/my_daoyan/shot_detail", flush=True)
     except Exception as error:  # noqa: BLE001 - 引擎侧任何失败不挡装载
         print(f"[daoyan] 面板路由挂载失败(不影响节点与出图):{error}",
               flush=True)
