@@ -251,6 +251,24 @@ phase_b() {
     fi
   fi
 
+  # B4.2: F6 刀1 Win 侧 reseed marker(1115 补完役)——装机后在下一次 App 启动早期
+  # 把「用户改过→永不覆盖」保护门下的 app 域偏基线手册一次性 reseed(先 .bak 备份)。
+  # 真实 skills 根按 %APPDATA%\漫影工作室\storage-config.json 的 basePath 解析
+  # (禁写死 %APPDATA%——本机存储根可重定向);marker 体含包内 studio-manuals 树哈希
+  # (信息位,App 侧只认 marker 存在性)。PowerShell 不可达/执行失败=降级不阻断,
+  # 退路=设置页「恢复」显式操作(既有语义)。
+  if ! dry "Win 侧 studio-skills reseed marker"; then
+    log "Dropping studio-skills reseed marker on Windows..."
+    local marker_ps marker_rv
+    marker_ps="\$base = Join-Path \$env:APPDATA '漫影工作室'; \$storageBase = \$base; \$cfg = Join-Path \$base 'storage-config.json'; if (Test-Path \$cfg) { try { \$j = Get-Content -LiteralPath \$cfg -Raw | ConvertFrom-Json; if (\$j.basePath) { \$storageBase = [string]\$j.basePath } } catch {} }; \$skills = Join-Path \$storageBase 'skills'; New-Item -ItemType Directory -Force -Path \$skills | Out-Null; \$manuals = '$WIN_INSTALL\\resources\\studio-manuals'; \$files = Get-ChildItem -LiteralPath \$manuals -Recurse -File | Where-Object { (\$_.FullName -notmatch 'story_skills\\\\Daojie_xianxia') -and (\$_.Name -ne '.DS_Store') -and (\$_.FullName -notmatch '\\\\.zcode\\\\') }; \$nl = [string][char]10; \$lines = @(\$files | Sort-Object FullName | ForEach-Object { \$rel = \$_.FullName.Substring(\$manuals.Length + 1); \$h = (Get-FileHash -LiteralPath \$_.FullName -Algorithm SHA256).Hash.ToLower(); (\$rel + ':' + \$h) }); \$text = (\$lines -join \$nl) + \$nl; \$sha = [Security.Cryptography.SHA256]::Create(); \$tree = ([BitConverter]::ToString(\$sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(\$text)))).Replace('-','').ToLower(); \$payload = @{ version = 1; createdAt = (Get-Date).ToUniversalTime().ToString('o'); source = 'deploy-dual.sh'; packageStudioManualsTreeHash = \$tree; packageStudioManualsFileCount = \$files.Count } | ConvertTo-Json; Set-Content -LiteralPath (Join-Path \$skills '.studio-skills-reseed-marker.json') -Value \$payload -Encoding UTF8; Write-Output ('MARKER_OK files=' + \$files.Count + ' tree=' + \$tree.Substring(0,12))"
+    marker_rv=$(ssh_win "powershell -NoProfile -Command \"$marker_ps\"" 2>/dev/null | tr -d '\r' | grep -m1 "MARKER_OK" || true)
+    if [ -n "$marker_rv" ]; then
+      log "✅ Win 侧 reseed marker 已落: $marker_rv"
+    else
+      log "⚠️  Win 侧 marker 落盘失败(PowerShell 不可达?)——降级不阻断,退路=设置页「恢复」显式操作"
+    fi
+  fi
+
   # B4.5: 同步 my-nodes 到引擎(Grill Q1=A:脚本直接复制;/E 仅增不删——引擎侧特有文件不能删)
   if ! dry "同步 my-nodes → 引擎"; then
     log "Syncing my-nodes to engine..."

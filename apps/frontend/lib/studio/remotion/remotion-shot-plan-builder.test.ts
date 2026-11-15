@@ -344,6 +344,66 @@ describe("buildRemotionShotPlans", () => {
     }]);
   });
 
+  it("F3(1115):h3-baked 镜豁免外挂 voice 编译门且不发射 shot-scoped voice binding(残量无视)", async () => {
+    const item = storyboard(0);
+    item.duration = 1;
+    item.lines = "逐镜对白";
+    item.mediaRef = { kind: "video", path: "project-file://project-a/shots/0.mp4", contentSha256: HASH_A };
+    item.audioMix = "h3-baked";
+    item.h3DurationUs = 5_000_000;
+    const voice = await makeShotAudioBindingV2({
+      shotId: item.id,
+      durationUs: 1_500_000,
+      sourceStartUs: 0,
+      sourceDurationUs: 1_500_000,
+      volume: 0.8,
+    });
+    item.shotAudioBindings = [voice];
+    // 残量:audioRef 指旧素材、ttsJob 停在旧 revision——h3-baked 形态下编译门整体豁免
+    item.audioRef = {
+      kind: "audio",
+      path: "project-file://project-a/legacy/voice.mp3",
+      contentSha256: "f".repeat(64),
+    };
+    item.ttsJob = {
+      schemaVersion: 1,
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      shotId: item.id,
+      shotRevision: 99,
+      inputFingerprint: "stale-fingerprint",
+      status: "completed",
+      attempt: 1,
+      createdAt: 100,
+      updatedAt: 200,
+    };
+
+    const result = await buildRemotionShotPlans({
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      chapterRevision: 1,
+      renderSettings: {
+        width: 1080,
+        height: 1920,
+        fps: 30,
+        codec: "h264",
+        subtitleMode: "burn-in",
+        loudnessLufs: -14,
+        truePeakDbtp: -1.5,
+      },
+      storyboards: [item],
+      continuityPolicy: "skip",
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.plans).toHaveLength(1);
+    expect(result.plans[0]?.visualKind).toBe("video");
+    expect(result.plans[0]?.audioMix).toBe("h3-baked");
+    // 发射面:voice binding 被滤掉(台词烧 H3 片内,Remotion 链不消费外挂 voice)
+    expect(result.plans[0]?.shot.audioBindings.filter((binding) => binding.role === "voice")).toHaveLength(0);
+  });
+
   it("recovers a blank mediaRef SHA-256 by hashing the actual project file", async () => {
     const payload = new Uint8Array([1, 2, 3, 4]);
     const digest = await crypto.subtle.digest("SHA-256", payload);

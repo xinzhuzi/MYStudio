@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { homedir, tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { inspectPackagedRemotionApp } from '../remotion/verify-packaged-remotion.mjs';
 import { probeRunningInstances, resolvePrekillMode } from '../smoke/smoke-process-lifecycle.mjs';
+import { collectStudioManualsTree, diffStudioManualsTrees, studioManualsTreeHash } from './studio-manuals-tree.mjs';
 
 // 1003 死守卫:本脚本会关闭既有实例并启动 漫影App 做装机验收(stopInstalledAppIfRunning/
 // verifyRealOpen/ smoke:desktop 子链)。无用户亲手解锁,任何人不许跑;本检查必须发生在
@@ -185,6 +186,60 @@ function verifyInstalledIntegrity() {
     throw new Error(`Installed app.asar hash mismatch: packaged=${packagedHash}, installed=${installedHash}`);
   }
   console.log(`Installed app.asar hash verified: ${installedHash}`);
+  verifyInstalledStudioManualsTree();
+}
+
+// F6 刀2(1115 补完役):studio-manuals 树级 SHA 对账——仓源 vs 装机
+// Resources/studio-manuals,按 electron-builder.yml:77-88 同款滤除,不等即 RED。
+// 病根=electron-builder 对已存在目录的陈留不刷新;此前「装机=仓源」无机械门。
+function verifyInstalledStudioManualsTree() {
+  const repoManualsRoot = resolve(process.cwd(), 'frontend', 'assets', 'studio-manuals');
+  const installedManualsRoot = resolve(installedApp, 'Contents', 'Resources', 'studio-manuals');
+  const diff = diffStudioManualsTrees(repoManualsRoot, installedManualsRoot);
+  if (diff) {
+    throw new Error(
+      'Installed studio-manuals tree mismatch (F6 刀2): '
+      + `missing=${diff.missing.length} extra=${diff.extra.length} changed=${diff.changed.length}`
+      + `; firstMissing=${diff.missing[0] ?? '-'} firstExtra=${diff.extra[0] ?? '-'} firstChanged=${diff.changed[0] ?? '-'}`
+      + `; repo=${repoManualsRoot} installed=${installedManualsRoot}`,
+    );
+  }
+  console.log('Installed studio-manuals tree verified: repo == installed (F6 刀2)');
+}
+
+// F6 刀1(1115 补完役):覆盖安装后、smoke 拉起前落 reseed marker(含包内
+// studio-manuals 树哈希)。App 启动早期 ensureStudioSkillsAvailableAtStartup
+// 消费:把「用户改过→永不覆盖」保护门下吃不到新包种子的 app 域偏基线条目
+// 一次性 reseed(先 .bak 备份)。真实 skills 根按 userData/storage-config.json
+// 的 basePath 重定向解析(禁写死默认路径)。
+function dropStudioSkillsReseedMarker() {
+  const packagedManualsRoot = resolve(packagedApp, 'Contents', 'Resources', 'studio-manuals');
+  const entries = collectStudioManualsTree(packagedManualsRoot);
+  const treeHash = studioManualsTreeHash(entries);
+  const realUserData = resolve(homedir(), 'Library', 'Application Support', '漫影工作室');
+  let storageBase = realUserData;
+  const storageConfigPath = resolve(realUserData, 'storage-config.json');
+  if (existsSync(storageConfigPath)) {
+    try {
+      const parsed = JSON.parse(readFileSync(storageConfigPath, 'utf8'));
+      if (typeof parsed?.basePath === 'string' && parsed.basePath.trim()) {
+        storageBase = parsed.basePath.trim();
+      }
+    } catch {
+      // 损坏配置=按默认 userData 兜底
+    }
+  }
+  const skillsRoot = resolve(storageBase, 'skills');
+  mkdirSync(skillsRoot, { recursive: true });
+  const markerPath = resolve(skillsRoot, '.studio-skills-reseed-marker.json');
+  writeFileSync(markerPath, JSON.stringify({
+    version: 1,
+    createdAt: new Date().toISOString(),
+    source: 'install-and-smoke.mjs',
+    packageStudioManualsTreeHash: treeHash,
+    packageStudioManualsFileCount: entries.size,
+  }, null, 2) + '\n');
+  console.log(`[studio-skills-reseed] marker dropped: ${markerPath} (files=${entries.size}, treeHash=${treeHash.slice(0, 12)}…)`);
 }
 
 function findInstalledAppPid() {
@@ -267,6 +322,7 @@ assertNoBackupApps();
 stopInstalledAppIfRunning();
 installPackagedApp();
 assertNoBackupApps();
+dropStudioSkillsReseedMarker();
 
 verifyInstalledIntegrity();
 
@@ -296,6 +352,7 @@ try {
   stopInstalledAppIfRunning();
   installPackagedApp();
   assertNoBackupApps();
+  dropStudioSkillsReseedMarker();
   verifyInstalledIntegrity();
   verifyRealOpen();
   console.log('[open-verify] recovered after clean reinstall');

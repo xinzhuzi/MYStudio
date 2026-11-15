@@ -30,6 +30,9 @@ export type StoredStudioSkillFile = {
 };
 
 const manifestFilename = ".studio-skills-manifest.json";
+// F6 刀1(1115 补完役):装机后 reseed marker——打包侧(install-and-smoke.mjs/
+// deploy-dual.sh)覆盖安装后落、App 启动早期(storage 就绪后、启动同步前)消费并清除。
+const reseedMarkerFilename = ".studio-skills-reseed-marker.json";
 const agentSkillsDirectory = "agent_skills";
 const seedImageFilePattern = /\.(png|jpe?g|gif|webp|svg)$/i;
 // 角色真源 JSON 路径形(10-26 角色真源JSON役):art_skills/<技能包>/json/<角色名>.json。
@@ -239,6 +242,93 @@ export async function markStoredStudioSkillPathDeleted(storageRoot: string, rela
   manifest.deleted[normalizedPath] = { deletedAt: Date.now() };
   delete manifest.files[normalizedPath];
   await writeManifest(storageRoot, manifest);
+}
+
+export type StudioSkillReseedOutcome = {
+  relativePath: string;
+  action: "reseeded" | "clean" | "external" | "unowned" | "missing-copy" | "missing-source";
+  backupPath?: string;
+};
+
+export type StudioSkillReseedReport = {
+  markerPath: string;
+  markerPayload: unknown;
+  outcomes: StudioSkillReseedOutcome[];
+};
+
+export function getStudioSkillReseedMarkerPath(storageRoot: string) {
+  return path.join(storageRoot, reseedMarkerFilename);
+}
+
+/**
+ * F6 刀1(1115 补完役):deploy 管线 studio-manuals 陈留的病根修。
+ * 包内容更新后,历史热补/用户编辑过的存储副本因「用户改过→永不覆盖」保护门
+ * (:299-303)永远吃不到新包种子——marker 驱动一次性 reseed:
+ *   - 仅 sourceKind==='app' 且存储副本偏离基线(storedHash !== seedHash)的条目;
+ *   - 先落 .bak-pre-reseed-<日期> 备份,再从本轮包内源覆盖,重写基线
+ *     (seedHash=包内源哈希, syncedAt=now);
+ *   - sourceKind==='external' 与无清单条目(用户手放件)零触碰(:244-255 保护语义
+ *     明文不破)。历史热补与真编辑哈希不可区分——连真编辑一起盖,仅 .bak 兜底
+ *     (方案 F6 已载风险);清单外/源缺失/副本缺失一律跳过并留痕。
+ * 幂等:重跑时已 reseed 条目变 clean,零二次写。
+ */
+export async function reseedDriftedAppSeeds(options: StudioSkillSyncOptions): Promise<StudioSkillReseedOutcome[]> {
+  const { sourceRoot, storageRoot } = options;
+  await fs.promises.mkdir(storageRoot, { recursive: true });
+  const manifest = await readManifest(storageRoot);
+  const appRoot = path.resolve(sourceRoot);
+  const dateStamp = new Date().toISOString().slice(0, 10);
+  const outcomes: StudioSkillReseedOutcome[] = [];
+
+  for (const [relativePath, entry] of Object.entries(manifest.files)) {
+    if (entry.sourceKind !== "app") {
+      outcomes.push({ relativePath, action: entry.sourceKind === "external" ? "external" : "unowned" });
+      continue;
+    }
+    const sourceRelativePath = getSourceStudioSkillRelativePath(relativePath);
+    const sourcePath = path.resolve(appRoot, sourceRelativePath);
+    assertInsideRoot(appRoot, sourcePath);
+    if (!fs.existsSync(sourcePath)) {
+      outcomes.push({ relativePath, action: "missing-source" });
+      continue;
+    }
+    const targetPath = path.join(storageRoot, relativePath);
+    if (!fs.existsSync(targetPath)) {
+      // 副本缺失:常规启动同步会从源拷贝,reseed 无事可做
+      outcomes.push({ relativePath, action: "missing-copy" });
+      continue;
+    }
+    if (await hashFile(targetPath) === entry.seedHash) {
+      outcomes.push({ relativePath, action: "clean" });
+      continue;
+    }
+    const sourceHash = await hashFile(sourcePath);
+    const backupPath = `${targetPath}.bak-pre-reseed-${dateStamp}`;
+    await fs.promises.copyFile(targetPath, backupPath);
+    await fs.promises.copyFile(sourcePath, targetPath);
+    manifest.files[relativePath] = { seedHash: sourceHash, syncedAt: Date.now(), sourceKind: "app" };
+    outcomes.push({ relativePath, action: "reseeded", backupPath });
+  }
+
+  await writeManifest(storageRoot, manifest);
+  return outcomes;
+}
+
+/** marker 在位才 reseed;执行后立即清除(一次性)。marker 体(打包侧写入的包内
+ * studio-manuals 树哈希等)原样随报告返回供日志对账;损坏的 marker 也执行
+ * reseed(marker 存在即意图存在),payload 记 parse 错误字符串。 */
+export async function runStudioSkillReseedIfMarkerPresent(options: StudioSkillSyncOptions): Promise<StudioSkillReseedReport | null> {
+  const markerPath = getStudioSkillReseedMarkerPath(options.storageRoot);
+  if (!fs.existsSync(markerPath)) return null;
+  let markerPayload: unknown;
+  try {
+    markerPayload = JSON.parse(await fs.promises.readFile(markerPath, "utf-8"));
+  } catch (error) {
+    markerPayload = { parseError: error instanceof Error ? error.message : String(error) };
+  }
+  const outcomes = await reseedDriftedAppSeeds(options);
+  await fs.promises.rm(markerPath, { force: true });
+  return { markerPath, markerPayload, outcomes };
 }
 
 /**

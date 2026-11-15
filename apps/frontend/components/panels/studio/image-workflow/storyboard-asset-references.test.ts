@@ -120,6 +120,23 @@ describe("resolveStoryboardAssetReferences", () => {
     expect(refs?.map((ref) => ref.title)).toEqual(["金水塾馆", "独孤剑尘", "李先生;管事"]);
   });
 
+  it("F5①(1115):scene 包含命中(短名查询→全名资产)挂载为场景参考", async () => {
+    bridgeMock.mockReturnValue(makeBridge({
+      scene: [{ name: "灵矿", assetName: "灵矿坑道葬玉;灵矿坑道;坑道深处石室" }],
+      role: [{ name: "独孤剑尘" }],
+    }));
+
+    const refs = await resolveStoryboardAssetReferences({
+      associateAssetsNames: ["灵矿", "独孤剑尘"],
+      videoDesc: "独孤剑尘蹲在坑道里，指腹被灵矿倒刺扎破。",
+    });
+
+    expect(refs?.map((ref) => [ref.title, ref.assetType])).toEqual([
+      ["灵矿坑道葬玉;灵矿坑道;坑道深处石室", "scene"],
+      ["独孤剑尘", "character"],
+    ]);
+  });
+
   it("queries the bridge for tool assets and lands them as prop references with cap 2 (L1 两词分工)", async () => {
     const bridge = makeBridge({
       scene: [{ name: "金水河码头" }],

@@ -179,9 +179,10 @@ export async function compileRemotionShotPlan(
   if (input.storyboard.stale) {
     issue(issues, "$.storyboard.stale", input.storyboard.staleReason || "分镜连续性已过期");
   }
-  if (requiresDialogueAudio(input.storyboard) && !input.shot.audioBindings.some(
-    (binding) => binding.renderScope === "shot" && binding.role === "voice",
-  )) {
+  if (!storyboardUsesH3BakedAudio(input.storyboard)
+    && requiresDialogueAudio(input.storyboard) && !input.shot.audioBindings.some(
+      (binding) => binding.renderScope === "shot" && binding.role === "voice",
+    )) {
     issue(issues, "$.shot.audioBindings", "当前分镜包含台词，但没有 shot-scoped voice 音频");
   }
   const continuityPolicy = input.continuityPolicy ?? "required";
@@ -251,8 +252,12 @@ export async function compileRemotionShotPlan(
   if (!input.storyboard.mediaRef?.contentSha256) {
     issue(issues, "$.storyboard.mediaRef.contentSha256", "当前分镜素材缺少内容 fingerprint");
   }
-  validateStoryboardAudioReference(input.storyboard, input.shot, input.projectId, issues);
-  validateStoryboardTtsBinding(input.storyboard, input.shot, input.projectId, input.chapterId, issues);
+  // F3(1115):h3-baked 形态台词烧 H3 片内,外挂 voice 链(audioRef 镜像/ttsJob 指纹)
+  // 整体豁免——残量字段无视,静图/tts-stack/mixed 语义零变。
+  if (!storyboardUsesH3BakedAudio(input.storyboard)) {
+    validateStoryboardAudioReference(input.storyboard, input.shot, input.projectId, issues);
+    validateStoryboardTtsBinding(input.storyboard, input.shot, input.projectId, input.chapterId, issues);
+  }
   if (issues.length > 0 || visualKind === undefined || visualKind === "audio") {
     return { success: false, issues };
   }
@@ -668,6 +673,18 @@ function requiresDialogueAudio(storyboard: StoryboardItem): boolean {
       const text = value?.trim();
       return Boolean(text && !/^(无|无台词|无对白)$/i.test(text));
     });
+}
+
+/**
+ * F3(1115 补完役):H3 烧录形态——video 镜且 audioMix===「h3-baked」(缺省 tts-stack)。
+ * 该形态台词烧在引擎 H3 片内音轨(章合成直通,composition-chapter-video muted:false),
+ * Remotion 链不消费外挂 shot-scoped voice:编译三门(台词须有 voice / audioRef 镜像
+ * 校验 / ttsJob 指纹校验)与 builder 发射共用本谓词豁免,防口径漂移。残量
+ * audioRef/ttsJob/voice binding 由本谓词无视——不由 store 写清除(分镜真源硬边界:
+ * 仅 S08/S11 两行合规化获准,余存量一字不动)。
+ */
+export function storyboardUsesH3BakedAudio(storyboard: StoryboardItem): boolean {
+  return storyboard.mediaRef?.kind === "video" && (storyboard.audioMix ?? "tts-stack") === "h3-baked";
 }
 
 function shotValidationManifest(

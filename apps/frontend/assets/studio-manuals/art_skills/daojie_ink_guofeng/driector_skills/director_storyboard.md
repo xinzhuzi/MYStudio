@@ -96,16 +96,16 @@ metaData: director_skills
 **画质锁定词（所有输出必须包含，置于风格收尾之后）：**
 
 模式A（中文）——默认（画面无画内文字需求时）：
-水墨国风高清渲染，高细节，工笔线描，平整色面质感，工笔成片质感，画面无字幕、无水印、无标题叠字
+水墨国风高清渲染，高细节，工笔线描，平整色面质感，工笔成片质感，画面保持素洁成片，字样仅随牌匾、对联、界碑等场景道具入画
 
 模式A（中文）——画内文字场景（画面描述中含牌匾/对联/玉简等道具文字时）：
-水墨国风高清渲染，高细节，工笔线描，平整色面质感，工笔成片质感，画面无字幕、无水印、无标题叠字，牌匾/对联等场景道具上的文字清晰可辨
+水墨国风高清渲染，高细节，工笔线描，平整色面质感，工笔成片质感，画面保持素洁成片，牌匾/对联等场景道具上的文字清晰可辨
 
 模式B（英文）——英文调用方参考；Qwen 道劫自定义链默认中文：
-Chinese ink-wash xianxia, gongbi line drawing, flat layered color fields, ground color and lighting consistent with the scene and time, clean finished gongbi quality, high detail, no subtitles, no captions, no watermark, no title overlay
+Chinese ink-wash xianxia, gongbi line drawing, flat layered color fields, ground color and lighting consistent with the scene and time, clean finished gongbi quality, high detail, in-frame text kept to in-scene props such as plaques and couplets
 
 模式B（英文）——画内文字场景：
-Chinese ink-wash xianxia, gongbi line drawing, flat layered color fields, ground color and lighting consistent with the scene and time, clean finished gongbi quality, high detail, no subtitles, no captions, no watermark, no title overlay, legible text on in-scene props such as plaques and couplets
+Chinese ink-wash xianxia, gongbi line drawing, flat layered color fields, ground color and lighting consistent with the scene and time, clean finished gongbi quality, high detail, legible text on in-scene props such as plaques and couplets
 
 **负向词模板（模式B 必须包含，置于提示词末尾）：**
 
@@ -143,13 +143,13 @@ no photorealistic, no realistic photography, no 3D render, no low-poly, no rough
 
 | 序号 | 画面描述 | 场景 | 关联资产名称 | 时长 | 景别 | 运镜 | 角色动作 | 情绪 | 光影氛围 |
 |------|---------|------|-------------|------|------|------|---------|------|----------|
-| 1 | 修仙少女站在灵山崖边，手持灵剑，眼神坚定 | 灵山 | 修仙少女 | 12s | 中景 | 缓推 | 持剑而立，眼神坚定 | 坚定 / 道心 | 散光清透 |
+| 1 | 修仙少女站在灵山崖边，右臂微屈，右手持灵剑青玉剑柄于身前，剑尖朝下，眼神坚定 | 灵山 | 修仙少女 | 12s | 中景 | 缓推 | 右手持青玉剑柄立于身前，剑尖朝下，眼神坚定 | 坚定 / 道心 | 散光清透 |
 
 ### 示例输出A（模式A · Seedream）
 
 [Prompt]
-水墨国风，修仙古韵，工笔线描，平整分层色面，背景色相与明暗服从场景时段，水墨国风造型，工笔白描清晰，服饰细节精致，水墨光影层次丰富，中景构图，修仙少女站在灵山崖边，手持灵剑凌风而立，神情坚毅，眼神如炬，青绿山水背景，灵雾缭绕，旧金微光点缀，灵光以整片色面的冷暖倾向表达，远景归纳为整块平整色面层层退远，水墨国风成片质感，修仙古韵，传统水墨技法，工笔写意融合，水墨国风高清渲染，高细节，工笔线描，平整色面质感，工笔成片质感，画面无字幕、无水印、无标题叠字。
-Based on the reference image of 修仙少女，maintain consistent: face features, hairstyle, costume details. Generate a new scene: standing at cliff edge of spirit mountain, holding spirit sword. Keep visual style identical to reference.
+水墨国风，修仙古韵，工笔线描，平整分层色面，背景色相与明暗服从场景时段，水墨国风造型，工笔白描清晰，服饰细节精致，水墨光影层次丰富，中景构图，修仙少女站在灵山崖边，右臂微屈，右手持灵剑青玉剑柄于身前，剑身完整、剑尖朝斜下，凌风而立，神情坚毅，眼神如炬，青绿山水背景，灵雾缭绕，旧金微光点缀，灵光以整片色面的冷暖倾向表达，远景归纳为整块平整色面层层退远，水墨国风成片质感，修仙古韵，传统水墨技法，工笔写意融合，水墨国风高清渲染，高细节，工笔线描，平整色面质感，工笔成片质感，画面保持素洁成片，字样仅随场景道具入画。
+Based on the reference image of 修仙少女，maintain consistent: face features, hairstyle, costume details. Generate a new scene: standing at cliff edge of spirit mountain, right hand gripping the spirit sword hilt in front of her body, blade complete and pointing diagonally down. Keep visual style identical to reference.
 
 ### 示例输出B（模式B · Nanobanana）
 
@@ -168,7 +168,7 @@ Image [1]: 修仙少女 — 水墨国风造型，仙道服饰，工笔线描美�
 - Do NOT introduce western fantasy elements
 </continuity_rules>
 <shot>
-Medium shot, xianxia girl in elegant dao robe standing at spirit mountain cliff edge, holding spirit sword, determined expression, resolute gaze, paper-scattered light, layered pale ink mist, ink-wash atmospheric perspective, gongbi line drawing with xieyi splash ink, Chinese ink-wash xianxia, traditional brushwork, ground color and lighting consistent with the scene and time, high detail, no subtitles, no captions, no watermark, no title overlay.
+Medium shot, xianxia girl in elegant dao robe standing at spirit mountain cliff edge, right arm slightly bent, right hand gripping the spirit sword hilt in front of her body, blade complete and pointing diagonally down, determined expression, resolute gaze, paper-scattered light, layered pale ink mist, ink-wash atmospheric perspective, gongbi line drawing with xieyi splash ink, Chinese ink-wash xianxia, traditional brushwork, ground color and lighting consistent with the scene and time, high detail, in-frame text kept to in-scene props.
 </shot>
 <negative>
 no photorealistic, no realistic photography, no 3D render, no low-poly, no rough modeling, no plastic texture, no harsh lines, no western fantasy, no cyberpunk, no sci-fi, no modern elements, no subtitles, no captions, no watermark, no title overlay, no UI text

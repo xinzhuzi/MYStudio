@@ -43,6 +43,19 @@ export function assetNameMatchesQuery(assetName: string | undefined | null, quer
   return parseAssetNames(assetName).allNames.some((name) => normalizeComparableName(name) === normalizedQuery);
 }
 
+/**
+ * F5①(1115 补完役):包含语义匹配器(旁挂)——查询词归一化后被资产主名/别名完整
+ * 包含(短名「灵矿」→全名「灵矿坑道葬玉」)。只供 batchMatchAssets 的包含命中层
+ * 消费;getAssetByName/listAssets 的全等主路径(assetNameMatchesQuery)零改动。
+ * 短词防误吞:归一化后不足 2 字不收(单字「铜」不应包含命中一切含铜资产——
+ * 「matches assets by semicolon-separated secondary names」既有口径回归锁)。
+ */
+export function assetNameContainsQuery(assetName: string | undefined | null, query: string) {
+  const normalizedQuery = normalizeComparableName(query);
+  if (normalizedQuery.length < 2) return false;
+  return parseAssetNames(assetName).allNames.some((name) => normalizeComparableName(name).includes(normalizedQuery));
+}
+
 export function cleanAssetNameSegment(value: string) {
   const text = value.trim();
   if (!text) return "";

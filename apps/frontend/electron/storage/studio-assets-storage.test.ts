@@ -483,6 +483,59 @@ describe("asset alias matching", () => {
     expect(matches.has("教书先生")).toBe(false);
   });
 
+  it("F5①(1115):包含命中层——短名查询「灵矿」命中唯一 usable scene 全名;tool 多命中不收", async () => {
+    initTempAssetsStorage();
+    const sceneFile = join(tempAssetRoot!, "mine-scene.png");
+    writeFileSync(sceneFile, "fake image");
+    const scene = addAsset({
+      type: "scene",
+      name: "灵矿坑道葬玉;灵矿坑道;坑道深处石室",
+      description: "坑道深处石室,葬玉层叠",
+      sourceFilePath: sceneFile,
+    });
+    const toolFile = join(tempAssetRoot!, "ore.png");
+    writeFileSync(toolFile, "fake image");
+    addAsset({ type: "tool", name: "灵矿石", description: "矿石", sourceFilePath: toolFile });
+    addAsset({ type: "tool", name: "灵矿藤筐", description: "藤筐", sourceFilePath: toolFile });
+    addAsset({ type: "tool", name: "灵矿账册", description: "账册", sourceFilePath: toolFile });
+
+    // scene 类:「灵矿」包含命中唯一 usable 行→收(1115 实盘 scene 0/19 的修点)
+    const sceneMatch = await batchMatchAssets("scene", ["灵矿"]);
+    expect(sceneMatch.get("灵矿")).toMatchObject({ id: scene.id, name: "灵矿坑道葬玉;灵矿坑道;坑道深处石室" });
+
+    // tool 类:同查询 3 行 usable 包含命中→多义不收(宁缺勿错,照 remark 兜底先例)
+    const toolMatch = await batchMatchAssets("tool", ["灵矿"]);
+    expect(toolMatch.has("灵矿")).toBe(false);
+  });
+
+  it("F5①(1115):包含命中层别名可命中且单字查询不触发;精确名/分号别名全等主路径零回退", async () => {
+    initTempAssetsStorage();
+    const file = join(tempAssetRoot!, "dock.png");
+    writeFileSync(file, "fake image");
+    const dock = addAsset({
+      type: "scene",
+      name: "金水河码头;金水河渡口",
+      description: "码头",
+      sourceFilePath: file,
+    });
+
+    // 别名包含:查询「金水河渡」被别名「金水河渡口」包含→唯一 usable 收
+    const containsByAlias = await batchMatchAssets("scene", ["金水河渡"]);
+    expect(containsByAlias.get("金水河渡")?.id).toBe(dock.id);
+
+    // 全等主路径零回退:精确名/别名精确照旧
+    const exact = await batchMatchAssets("scene", ["金水河码头", "金水河渡口"]);
+    expect(exact.get("金水河码头")?.id).toBe(dock.id);
+    expect(exact.get("金水河渡口")?.id).toBe(dock.id);
+
+    // 单字查询不触发包含层(「铜」既有口径回归:铜钱资产名含铜也不收)
+    const coinFile = join(tempAssetRoot!, "coin.png");
+    writeFileSync(coinFile, "fake image");
+    addAsset({ type: "tool", name: "铜钱;铜币;古钱", description: "圆形方孔钱", sourceFilePath: coinFile });
+    const singleChar = await batchMatchAssets("tool", ["铜"]);
+    expect(singleChar.has("铜")).toBe(false);
+  });
+
   it("prefers a populated alias match over an empty exact duplicate", async () => {
     initTempAssetsStorage();
     addAsset({

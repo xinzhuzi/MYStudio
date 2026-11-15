@@ -560,6 +560,56 @@ describe("chapter auto video orchestration", () => {
     expect(result.ttsErrors).toEqual({});
   });
 
+  it("F3(1115):16 h3-baked+3 tts-stack 混合形态 prepare 零阻塞、blockedShotIds 空", async () => {
+    const run = createDependencies({ storyboardCount: 19 });
+    const base = run.dependencies.loadStoryboards;
+    run.dependencies.loadStoryboards = () => base().map((item) => {
+      const numericId = Number(item.id.replace("sb-", ""));
+      if (numericId > 16) return item; // sb-17..19=静图 tts-stack(默认),外挂 TTS 照常
+      const h3Shot = {
+        ...item,
+        // 纯对白 H3 镜形态(角色台词烧镜内,外挂旁白文本=空)——与「skips external
+        // TTS only for dialogue-only H3 shots」用例同构
+        lines: `独孤剑尘：台词 ${numericId}。`,
+        ttsSpokenText: `台词 ${numericId}。`,
+        mediaRef: { kind: "video" as const, path: `/h3-${item.id}.mp4` },
+        audioMix: "h3-baked" as const,
+      };
+      return {
+        ...h3Shot,
+        // 工厂默认 review 证据锚静图路径;换 H3 视频后按新画面重签审核
+        visualReview: approvedVisualReview({
+          reviewedAt: 1,
+          evidencePaths: [`/h3-${item.id}.mp4`],
+          sceneChecks: [{ sceneVersionId: "dock:main", passed: true }],
+          propChecks: [],
+          transitionChecks: numericId > 1
+            ? [{ previousStoryboardId: `sb-${numericId - 1}`, passed: true }]
+            : [],
+          textWatermarkCheck: { passed: true },
+          inputFingerprint: visualReviewInputFingerprint(h3Shot),
+        }),
+      };
+    });
+
+    const result = await prepareChapterMedia({
+      projectId: "project-1",
+      episodeId: "chapter-001",
+      dependencies: run.dependencies,
+    });
+
+    expect(result.blockedShotIds).toEqual([]);
+    expect(result.ttsErrors).toEqual({});
+    expect(run.dependencies.generateAudio).toHaveBeenCalledTimes(3);
+    for (const id of ["sb-17", "sb-18", "sb-19"]) {
+      expect(run.dependencies.generateAudio).toHaveBeenCalledWith(
+        expect.objectContaining({ id }),
+        expect.anything(),
+        profiles,
+      );
+    }
+  });
+
   it("isolates generated audio that cannot be resolved after TTS writeback", async () => {
     const run = createDependencies();
     run.dependencies.resolveMediaPath = vi.fn(async (path) => (

@@ -283,6 +283,57 @@ describe("Remotion shot plan compiler", () => {
     expectIssue(await compileRemotionShotPlan(staleDialogue), "$.storyboard.audioRef.contentSha256");
   });
 
+  it("F3(1115):h3-baked 纯对白 video 镜无 voice binding 可编译;残量 audioRef/ttsJob 无视", async () => {
+    const h3 = await input();
+    h3.storyboard.mediaRef = { kind: "video", path: "videos/shot-001.mp4", contentSha256: TEST_SHA_A };
+    h3.storyboard.audioMix = "h3-baked";
+    h3.storyboard.lines = "需要口播";
+    h3.storyboard.shotAudioBindings = [];
+    h3.shot.audioBindings = [];
+    delete h3.storyboard.audioRef;
+    delete h3.storyboard.ttsJob;
+    const compiled = await compileRemotionShotPlan(h3);
+    expect(compiled.success).toBe(true);
+    if (!compiled.success) return;
+    expect(compiled.value.visualKind).toBe("video");
+    expect(compiled.value.audioMix).toBe("h3-baked");
+
+    // 残量形态:旧 audioRef/旧 revision ttsJob/旧 voice binding 全留在原地,
+    // h3-baked 豁免谓词无视(分镜真源硬边界:残量不由 store 写清除)
+    const residual = await input();
+    residual.storyboard.mediaRef = { kind: "video", path: "videos/shot-001.mp4", contentSha256: TEST_SHA_A };
+    residual.storyboard.audioMix = "h3-baked";
+    residual.storyboard.lines = "需要口播";
+    residual.storyboard.audioRef = {
+      kind: "audio",
+      path: "audio/old-shot-001.wav",
+      contentSha256: TEST_SHA_C,
+    };
+    residual.storyboard.ttsJob = { ...residual.storyboard.ttsJob!, shotRevision: 99 };
+    expect((await compileRemotionShotPlan(residual)).success).toBe(true);
+  });
+
+  it("F3(1115):台词须有 voice 的门对 tts-stack/mixed/静图零变(豁免仅限 h3-baked)", async () => {
+    for (const audioMix of ["tts-stack", "mixed"] as const) {
+      const blocked = await input();
+      blocked.storyboard.mediaRef = { kind: "video", path: "videos/shot-001.mp4", contentSha256: TEST_SHA_A };
+      blocked.storyboard.audioMix = audioMix;
+      blocked.storyboard.lines = "需要口播";
+      blocked.storyboard.shotAudioBindings = [];
+      blocked.shot.audioBindings = [];
+      delete blocked.storyboard.audioRef;
+      delete blocked.storyboard.ttsJob;
+      expectIssue(await compileRemotionShotPlan(blocked), "$.shot.audioBindings");
+    }
+    const imageBlocked = await input();
+    imageBlocked.storyboard.lines = "需要口播";
+    imageBlocked.storyboard.shotAudioBindings = [];
+    imageBlocked.shot.audioBindings = [];
+    delete imageBlocked.storyboard.audioRef;
+    delete imageBlocked.storyboard.ttsJob;
+    expectIssue(await compileRemotionShotPlan(imageBlocked), "$.shot.audioBindings");
+  });
+
   it("runtime-validates persisted plans and their canonical hash", async () => {
     const compiled = await compileRemotionShotPlan(await input());
     expect(compiled.success).toBe(true);

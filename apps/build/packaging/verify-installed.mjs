@@ -20,6 +20,7 @@ import { dirname, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { writeDurableJsonReport } from "../shared/durable-json-report.mjs";
+import { diffStudioManualsTrees } from "./studio-manuals-tree.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const INSTALL_AND_SMOKE = resolve(scriptDir, "install-and-smoke.mjs");
@@ -147,6 +148,22 @@ async function main() {
   console.log(`${TAG} 双向对拍:packaged → installed ${equal ? "EQUAL" : "MISMATCH"}`);
   console.log(`${TAG} 双向对拍:installed → packaged ${installedHash === packagedHash ? "EQUAL" : "MISMATCH"}`);
 
+  // 段①b(F6 刀2,1115 补完役):studio-manuals 树级 SHA 对账——仓源 vs 装机
+  // Resources/studio-manuals(electron-builder.yml:77-88 同款滤除),不等即 RED。
+  // 病根=electron-builder 对已存在目录陈留不刷新,此前无机械门。
+  const repoManualsRoot = resolve(process.cwd(), "frontend", "assets", "studio-manuals");
+  const installedManualsRoot = resolve(paths.installedApp, "Contents", "Resources", "studio-manuals");
+  const manualsDiff = diffStudioManualsTrees(repoManualsRoot, installedManualsRoot);
+  report.studioManualsTree = manualsDiff
+    ? { status: "failed", ...manualsDiff }
+    : { status: "passed", repo: repoManualsRoot, installed: installedManualsRoot };
+  if (manualsDiff) {
+    console.error(`${TAG} RED studio-manuals 树不一致:missing=${manualsDiff.missing.length} extra=${manualsDiff.extra.length} changed=${manualsDiff.changed.length}`);
+    console.error(`${TAG}   firstMissing=${manualsDiff.missing[0] ?? "-"} firstExtra=${manualsDiff.extra[0] ?? "-"} firstChanged=${manualsDiff.changed[0] ?? "-"}`);
+  } else {
+    console.log(`${TAG} studio-manuals 树对账:repo == installed(F6 刀2 GREEN)`);
+  }
+
   // 段②:exec npm run smoke:installed(install-and-smoke 全链;--shasum-only 跳过)
   if (shasumOnly) {
     report.smoke = { status: "skipped", reason: "--shasum-only:冒烟不在此跑(留给终局门禁/人工裁定)" };
@@ -158,7 +175,11 @@ async function main() {
   }
 
   const smokeGreen = shasumOnly || report.smoke.status === "passed";
-  finish(equal && smokeGreen, `shasum=${equal ? "EQUAL" : "MISMATCH"}, smoke=${report.smoke.status}`);
+  const manualsGreen = !manualsDiff;
+  finish(
+    equal && smokeGreen && manualsGreen,
+    `shasum=${equal ? "EQUAL" : "MISMATCH"}, manuals=${manualsGreen ? "EQUAL" : "MISMATCH"}, smoke=${report.smoke.status}`,
+  );
 }
 
 main().catch((error) => {

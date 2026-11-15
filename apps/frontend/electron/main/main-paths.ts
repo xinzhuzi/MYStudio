@@ -9,7 +9,7 @@ import {
   resolveLocalMediaPath,
   resolveAssetFilePath,
 } from "../storage/storage-paths";
-import { ensureStudioSkillsSynced } from "../storage/studio-skills-storage";
+import { ensureStudioSkillsSynced, runStudioSkillReseedIfMarkerPresent } from "../storage/studio-skills-storage";
 import { createImageSourceReader } from "../media/image-source";
 import path from "node:path";
 import fs from "node:fs";
@@ -136,6 +136,22 @@ export function getStudioSkillSyncOptions() {
 }
 
 export async function ensureStudioSkillsAvailableAtStartup() {
+  // F6 刀1(1115):装机 reseed marker(打包侧 install-and-smoke.mjs/deploy-dual.sh
+  // 覆盖安装后落)——先于启动同步执行并清除,避开与 ensureStudioSkillsSynced
+  // 互踩 manifest 的竞态;marker 不在=零动作零开销。
+  try {
+    const reseedReport = await runStudioSkillReseedIfMarkerPresent(getStudioSkillSyncOptions())
+    if (reseedReport) {
+      const reseeded = reseedReport.outcomes.filter((outcome) => outcome.action === 'reseeded')
+      console.warn(
+        `[studio-skills-reseed] marker handled: reseeded=${reseeded.length} `
+        + `clean=${reseedReport.outcomes.filter((outcome) => outcome.action === 'clean').length} `
+        + `skipped=${reseedReport.outcomes.length - reseeded.length}`,
+      )
+    }
+  } catch (error) {
+    console.warn('Failed to reseed studio skills from install marker:', error)
+  }
   try {
     await ensureStudioSkillsSynced(getStudioSkillSyncOptions())
   } catch (error) {

@@ -15,6 +15,7 @@ import type {
 import { sha256CanonicalJson } from "./canonical-json";
 import {
   compileRemotionShotPlan,
+  storyboardUsesH3BakedAudio,
   type RemotionShotPlanV1,
   type ShotPlanIssue,
 } from "./shot-plan";
@@ -196,6 +197,12 @@ function buildShotDefinition(
   );
   if (!visualSource) return undefined;
   const audioBindings = structuredClone(storyboard.shotAudioBindings ?? []);   // 留原地:产物输出用,与判定无关
+  // F3(1115 补完役):h3-baked 镜台词烧在 H3 片内音轨,Remotion 链不消费外挂
+  // voice——发射期滤掉 shot-scoped voice binding(渲染端 :319 同形态全滤已有);
+  // 残量非 voice binding 照旧原地保留,静图/tts-stack/mixed 发射零变。
+  const emittedAudioBindings = storyboardUsesH3BakedAudio(storyboard)
+    ? audioBindings.filter((binding) => binding.role !== "voice")
+    : audioBindings;
   const durationUs = storyboardEffectiveDurationUs(storyboard);
   if (!Number.isSafeInteger(durationUs) || durationUs <= 0) {
     issues.push({ code: "shot-plan.duration", path: `shots.${storyboard.id}.duration`, message: "分镜时长必须是正数" });
@@ -246,7 +253,7 @@ function buildShotDefinition(
     durationUs,
     visualSource,
     ...(keyframeRefs.length > 1 ? { keyframes: keyframeRefs } : {}),
-    audioBindings,
+    audioBindings: emittedAudioBindings,
     motion: { kind: "static" },
     transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
     ...(approvedContinuityVersion ? { approvedContinuityVersion } : {}),

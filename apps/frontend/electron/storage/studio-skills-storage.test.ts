@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -6,12 +7,15 @@ import {
   createStoredStudioSkillFile,
   deleteStoredStudioSkillFile,
   ensureStudioSkillsSynced,
+  getStudioSkillReseedMarkerPath,
   getStudioSkillStorageRoot,
   listStoredStudioSkillFiles,
   readStoredStudioSkillText,
+  reseedDriftedAppSeeds,
   resetStudioSkillsSyncState,
   restoreStoredStudioSkillFile,
   resolveStoredStudioSkillPath,
+  runStudioSkillReseedIfMarkerPresent,
   writeStoredStudioSkillText,
 } from "./studio-skills-storage";
 
@@ -405,5 +409,94 @@ describe("character truth json editable domain (10-26 角色真源JSON)", () => 
     // 合法角色真源路径仍通(负例守卫不误伤正路)
     const stat = await writeStoredStudioSkillText(storageRoot, "art_skills/daojie_ink_guofeng/json/晏燎.json", '{"ok":true}');
     expect(stat.isFile()).toBe(true);
+  });
+});
+
+describe("F6 刀1(1115 补完役):装机 reseedDriftedAppSeeds(marker 驱动)", () => {
+  it("app 域偏基线条目=覆盖+基线重写+.bak 备份;external 条目零触碰", async () => {
+    const root = await createTempRoot();
+    const sourceRoot = path.join(root, "source");
+    const externalRoot = path.join(root, "external");
+    const storageRoot = getStudioSkillStorageRoot(path.join(root, "storage"));
+    const options = { sourceRoot, fallbackSourceRoots: [externalRoot], storageRoot };
+    await writeText(path.join(sourceRoot, "app-manual.md"), "# App v1\n");
+    await writeText(path.join(externalRoot, "external-manual.md"), "# Ext v1\n");
+    await ensureStudioSkillsSynced(options);
+
+    // app 域(历史热补形态)与 external 域(个人资产)各造偏基线副本
+    await writeStoredStudioSkillText(storageRoot, "agent_skills/app-manual.md", "# 用户热补陈留\n");
+    await writeStoredStudioSkillText(storageRoot, "agent_skills/external-manual.md", "# 用户扩展编辑\n");
+    // 本轮包更新:app 源升 v2
+    await writeText(path.join(sourceRoot, "app-manual.md"), "# App v2\n");
+
+    const outcomes = await reseedDriftedAppSeeds(options);
+    const byPath = new Map(outcomes.map((outcome) => [outcome.relativePath, outcome]));
+    expect(byPath.get("agent_skills/app-manual.md")?.action).toBe("reseeded");
+    expect(byPath.get("agent_skills/external-manual.md")?.action).toBe("external");
+
+    // 覆盖=包内 v2;.bak 留用户旧文;external 副本原样
+    await expect(readStoredStudioSkillText(storageRoot, "agent_skills/app-manual.md")).resolves.toBe("# App v2\n");
+    const backupPath = byPath.get("agent_skills/app-manual.md")?.backupPath ?? "";
+    expect(backupPath).toContain(".bak-pre-reseed-");
+    await expect(fs.readFile(backupPath, "utf-8")).resolves.toBe("# 用户热补陈留\n");
+    await expect(readStoredStudioSkillText(storageRoot, "agent_skills/external-manual.md")).resolves.toBe("# 用户扩展编辑\n");
+
+    // 基线已重写:reseed 后的干净副本恢复「源变更自动传播」(陈留病根治愈证明)
+    await writeText(path.join(sourceRoot, "app-manual.md"), "# App v3\n");
+    resetStudioSkillsSyncState();
+    await ensureStudioSkillsSynced(options);
+    await expect(readStoredStudioSkillText(storageRoot, "agent_skills/app-manual.md")).resolves.toBe("# App v3\n");
+  });
+
+  it("reseed 幂等:二跑全 clean,零新 .bak;无清单条目(用户手放件)零触碰", async () => {
+    const root = await createTempRoot();
+    const sourceRoot = path.join(root, "source");
+    const storageRoot = getStudioSkillStorageRoot(path.join(root, "storage"));
+    const options = { sourceRoot, storageRoot };
+    await writeText(path.join(sourceRoot, "app-manual.md"), "# App v1\n");
+    await ensureStudioSkillsSynced(options);
+    // 无清单手放件(用户手工放置在种子路径)
+    await writeText(path.join(storageRoot, "agent_skills/user-drop.md"), "# 用户手放\n");
+    await writeStoredStudioSkillText(storageRoot, "agent_skills/app-manual.md", "# 偏基线\n");
+
+    const first = await reseedDriftedAppSeeds(options);
+    expect(first.filter((outcome) => outcome.action === "reseeded")).toHaveLength(1);
+    await expect(readStoredStudioSkillText(storageRoot, "agent_skills/user-drop.md")).resolves.toBe("# 用户手放\n");
+
+    const second = await reseedDriftedAppSeeds(options);
+    expect(second.every((outcome) => outcome.action !== "reseeded")).toBe(true);
+    expect(second.filter((outcome) => outcome.action === "clean")).toHaveLength(1);
+  });
+
+  it("runStudioSkillReseedIfMarkerPresent:marker 在位才执行、执行后清除;损坏 marker 也执行", async () => {
+    const root = await createTempRoot();
+    const sourceRoot = path.join(root, "source");
+    const storageRoot = getStudioSkillStorageRoot(path.join(root, "storage"));
+    const options = { sourceRoot, storageRoot };
+    await writeText(path.join(sourceRoot, "app-manual.md"), "# App v1\n");
+    await ensureStudioSkillsSynced(options);
+    await writeStoredStudioSkillText(storageRoot, "agent_skills/app-manual.md", "# 偏基线\n");
+    await writeText(path.join(sourceRoot, "app-manual.md"), "# App v2\n");
+
+    // 无 marker=零动作
+    await expect(runStudioSkillReseedIfMarkerPresent(options)).resolves.toBeNull();
+
+    // 损坏 marker(非 JSON)也触发 reseed,payload 留 parseError
+    const markerPath = getStudioSkillReseedMarkerPath(storageRoot);
+    await writeText(markerPath, "not-json{{{");
+    const corrupted = await runStudioSkillReseedIfMarkerPresent(options);
+    expect(corrupted).not.toBeNull();
+    expect((corrupted!.markerPayload as { parseError?: string }).parseError).toBeTruthy();
+    expect(existsSync(markerPath)).toBe(false);
+    await expect(readStoredStudioSkillText(storageRoot, "agent_skills/app-manual.md")).resolves.toBe("# App v2\n");
+
+    // 正常 marker:执行+清除+报告
+    await writeStoredStudioSkillText(storageRoot, "agent_skills/app-manual.md", "# 再偏一次\n");
+    await writeText(markerPath, JSON.stringify({ version: 1, packageStudioManualsTreeHash: "a".repeat(64) }));
+    const report = await runStudioSkillReseedIfMarkerPresent(options);
+    expect(report).not.toBeNull();
+    expect(report!.outcomes.filter((outcome) => outcome.action === "reseeded")).toHaveLength(1);
+    expect((report!.markerPayload as { packageStudioManualsTreeHash: string }).packageStudioManualsTreeHash).toBe("a".repeat(64));
+    expect(existsSync(markerPath)).toBe(false);
   });
 });

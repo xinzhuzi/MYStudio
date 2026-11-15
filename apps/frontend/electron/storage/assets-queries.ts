@@ -4,7 +4,7 @@ import {
   getThumbUrl, escapeSql,
 } from "./assets-sqlite";
 import path from "node:path";
-import { assetNameMatchesQuery } from "../../lib/studio/asset-names";
+import { assetNameContainsQuery, assetNameMatchesQuery } from "../../lib/studio/asset-names";
 import type { StudioAssetKind, StudioAssetSummary } from "../../types/studio-assets";
 import { createAssetFileUrl } from "./storage-paths";
 import { buildAssetNameCandidateCondition, buildAssetWhere, rowToSummary } from "./assets-sqlite";
@@ -95,6 +95,16 @@ export async function batchMatchAssets(type: StudioAssetKind, names: string[]): 
     const exact = pickBestAssetNameMatch(rows, name);
     if (exact) {
       result.set(name, rowToSummary(exact));
+      continue;
+    }
+    // F5① 包含命中层(1115 补完役):资产主名/别名归一化后完整包含查询词
+    // (短名「灵矿」→全名「灵矿坑道葬玉」)。多义收口=该类 usable 唯一命中才收
+    // (照 remark 兜底宁缺勿错先例):查询「灵矿」→tool 类 6 行候选不收、
+    // scene 类唯一「灵矿坑道葬玉」收——未收的由画面过滤/补挂链兜住。
+    const contains = rows.filter((row) => assetNameContainsQuery(row.name, name));
+    const usableContains = contains.filter(isUsableAssetRow);
+    if (usableContains.length === 1) {
+      result.set(name, rowToSummary(usableContains[0]));
       continue;
     }
     // remark 模糊兜底(人名/场景串型防线 08-24): 仅在唯一命中时采用——
