@@ -13,8 +13,8 @@ import { toast } from "sonner";
 
 import type { ComfyBridgeWritebackItem } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import { persistComfyImage } from "@/lib/assist/image-studio/comfy-execute";
+import { landH3ShotVideo, probeH3VideoDurationUs } from "@/lib/assist/image-studio/h3-shot-landing";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
-import { normalizeH3DurationUs } from "@/lib/studio/h3-duration-us";
 import { parseProjectFileUrl } from "@/lib/upscale/project-file-url";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -103,35 +103,15 @@ function defaultApplyVideoToStoryboard(
   policy: string,
   h3DurationUs?: number,
 ): void {
-  const store = useStudioStore.getState();
-  const storyboard = store.storyboards.find((entry) => entry.id === storyboardId);
-  if (!storyboard) return;
-  const candidateNumber = store.videoCandidates.filter(
-    (candidate) => candidate.provider === "h3-comfyui" && candidate.trackId === storyboard.trackId,
-  ).length + 1;
-  store.updateStoryboard(storyboardId, {
-    mediaRef: { kind: "video", path: url },
-    outputVersion: (storyboard.outputVersion ?? 0) + 1,
-    // B1(09-29):时长一律过共享守卫;换片后未知时长清空旧值——旧片的实测时长
-    // 不得冒充新片(残留会挡掉「探测失败静默降级名义时长」,排轨按假真源走)。
-    h3DurationUs: normalizeH3DurationUs(h3DurationUs),
-    // 10-11 音频分工 R3c:回写同步落音频政策(供 mediaRef 分支语义/混音分档/
-    // 诊断;非 full 一律窄化 ambient)。候选侧 meta.policy 一直有,此为分镜字段。
-    h3AudioPolicy: policy === "full" ? "full" : "ambient",
-    // 10-27 H3 双通道 Q6:policy=full 纯对白镜烧了台词在片内,若停留默认混音
-    // tts-stack(视频静音+成片链跳过其外挂 TTS)→整镜无声;落位时未显式设过
-    // 混音(audioMix===undefined)自动 h3-baked 防无声;用户已设任意值不覆写,
-    // ambient 不动(默认 tts-stack 由外挂 TTS 出声,语义不变)。
-    ...(policy === "full" && storyboard.audioMix === undefined ? { audioMix: "h3-baked" as const } : {}),
-  });
-  store.addVideoCandidate({
-    id: `h3-${storyboard.id}-${candidateNumber}`,
-    trackId: storyboard.trackId,
-    provider: "h3-comfyui",
-    filePath: url,
-    meta: { policy, bridgeItemId: item.id, originProjectId: item.meta?.originProjectId, storyboardId },
-    state: "ready",
-    createdAt: Date.now(),
+  // 1115 fire F2③:落账真身抽至 h3-shot-landing(消费器/远端直落/存量配对挂载
+  // 三处共用;本包装仅保持 deps 注入面签名不变,逐字段语义零改)。
+  landH3ShotVideo({
+    storyboardId,
+    url,
+    policy,
+    h3DurationUs,
+    bridgeItemId: item.id,
+    originProjectId: item.meta?.originProjectId as string | undefined,
   });
 }
 
@@ -203,20 +183,7 @@ async function consumeComfyBridgeWritebacksOnce(
     storyboards: deps.storyboards ?? (() => useStudioStore.getState().storyboards),
     applyToStoryboard: deps.applyToStoryboard ?? defaultApplyToStoryboard,
     applyVideoToStoryboard: deps.applyVideoToStoryboard ?? defaultApplyVideoToStoryboard,
-    probeVideoDuration:
-      deps.probeVideoDuration ??
-      (async (url) => {
-        const probeMedia = typeof window !== "undefined" ? window.studioRenderer?.probeMedia : undefined;
-        if (!probeMedia) return null;
-        try {
-          const evidence = await probeMedia(url);
-          return Number.isFinite(evidence.duration) && evidence.duration > 0
-            ? Math.round(evidence.duration * 1_000_000)
-            : null;
-        } catch {
-          return null;
-        }
-      }),
+    probeVideoDuration: deps.probeVideoDuration ?? probeH3VideoDurationUs,
     projectId: deps.projectId ?? (() => useProjectStore.getState().activeProjectId),
     writeProjectBinary:
       deps.writeProjectBinary ??

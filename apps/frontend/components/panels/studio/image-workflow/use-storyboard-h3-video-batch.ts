@@ -26,6 +26,7 @@ import { dialogueAudioPolicy } from "@/lib/assist/image-studio/h3-shot-prompt";
 import { comfySidecarJson, persistComfyVideosFromResult, requestComfyEngineFree, type ComfyExecuteJobReply } from "@/lib/assist/image-studio/comfy-execute";
 import { getRemoteEngine } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
 import { consumeComfyBridgeWritebacks } from "@/lib/assist/image-studio/comfy-bridge-writeback-consumer";
+import { landH3ShotVideo, probeH3VideoDurationUs } from "@/lib/assist/image-studio/h3-shot-landing";
 import { readStoryboardImageB64 } from "@/lib/assist/image-studio/storyboard-overview-sync";
 import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -119,24 +120,36 @@ async function remoteEngineIsFromSettings(): Promise<boolean> {
  *  media/ai-video/(成功即剥离 b64)。口径:①仅远端 settings 生效才调(本地模式
  *  收件箱已回收,再写=双写,零调用);②result 无 videos 短路(免逐镜多余 remote
  *  探活 GET);③入库失败只计数不抛错不阻断——照 T7 WorkbenchTab 消费位「失败
- *  不阻断」惯例,镜落账仍由收件箱回收链单独判(本函数不碰回收/收件箱逻辑)。 */
+ *  不阻断」惯例,镜落账仍由收件箱回收链单独判(本函数不碰回收/收件箱逻辑)。
+ *  1115 fire F2①②:回流入库明细带回 subfolder 镜绑定;绑定匹配白名单
+ *  (video/漫影/{章}/{镜},镜像消费器 assertVideoSubfolder)即返回 landedUrl,
+ *  供 complete 处正门直落——远端收件箱结构性永不到,不再等 60s 回收窗。 */
 async function persistRemoteShotVideos(
   result: ComfyExecuteJobReply["result"],
   originProjectId: string,
-): Promise<void> {
-  if (!result?.videos?.length) return;
-  if (!(await remoteEngineIsFromSettings())) return;
+  shot: { id: string; episodeId: string },
+): Promise<{ landedUrl: string | null }> {
+  if (!result?.videos?.length) return { landedUrl: null };
+  if (!(await remoteEngineIsFromSettings())) return { landedUrl: null };
   const summary = await persistComfyVideosFromResult(result, originProjectId);
   if (summary.failed > 0) {
     console.warn("[h3-video-batch] 远端引擎视频回流入库部分失败(产物仍在引擎输出目录)", summary);
   }
+  const expectedSubfolder = `video/漫影/${shot.episodeId}/${shot.id}`;
+  const matched = (summary.items ?? []).find((item) => item.subfolder === expectedSubfolder && item.url);
+  return { landedUrl: matched?.url ?? null };
 }
 
 /** 自实现执行+轮询:提交拿到 jobId 即回调 onJobId(硬取消 stop 追踪用);
  *  job error 抛大白话由调用方分类;complete 返回 job result(三采拆链要读
  *  result.videos 拿段A 终档产物做段B 视频源)。远端 settings 模式下按
  *  persistOnComplete 入库 result.videos(T16 产物回流,本地模式零调用;
- *  1112 三采:段A 中间档(p1/p2)不回流,仅段B 终档回流)。 */
+ *  1112 三采:段A 中间档(p1/p2)不回流,仅段B 终档回流)。
+ *  1115 fire F2②:远端回流入库且镜绑定匹配白名单时,complete 处即走
+ *  landH3ShotVideo 正门直落(mediaRef=video+候选+时长探测,与收件箱消费器
+ *  同一落账真身)——远端收件箱结构性永不到,直落即判 landed,回收窗只作
+ *  本地链双保险;directLanded=false(本地模式/无绑定/入库失败)照旧回落
+ *  收件箱回收链。 */
 async function executeShotWorkflow(input: {
   apiGraph: Record<string, { class_type: string; inputs: Record<string, unknown> }>;
   extraPngInfo: Record<string, unknown>;
@@ -147,7 +160,11 @@ async function executeShotWorkflow(input: {
   onJobId?: (jobId: string) => void;
   /** complete 时远端 settings 模式入库 result.videos(单段线/三采段B=true) */
   persistOnComplete?: boolean;
-}): Promise<NonNullable<ComfyExecuteJobReply["result"]>> {
+  /** 目标镜(远端直落的绑定校验与落账对象) */
+  shot?: StoryboardItem;
+  /** 派发位音频政策(dialogueAudioPolicy(shot.lines),直落 policy 线程传入) */
+  policy?: "full" | "ambient";
+}): Promise<{ result: NonNullable<ComfyExecuteJobReply["result"]>; directLanded: boolean }> {
   const { jobId } = await comfySidecarJson<{ jobId: string }>("POST", "/comfy/execute", {
     body: {
       graph: input.apiGraph,
@@ -167,8 +184,24 @@ async function executeShotWorkflow(input: {
     );
     if (job.status === "error") throw new Error(job.error || job.message || "ComfyUI 执行失败");
     if (job.status === "complete") {
-      if (input.persistOnComplete) await persistRemoteShotVideos(job.result, input.originProjectId);
-      return job.result ?? {};
+      let directLanded = false;
+      if (input.persistOnComplete) {
+        const shot = input.shot ?? { id: "", episodeId: "" };
+        const { landedUrl } = await persistRemoteShotVideos(job.result, input.originProjectId, shot);
+        if (landedUrl && input.shot && input.policy) {
+          const h3DurationUs = await probeH3VideoDurationUs(landedUrl);
+          landH3ShotVideo({
+            storyboardId: input.shot.id,
+            url: landedUrl,
+            policy: input.policy,
+            h3DurationUs: h3DurationUs ?? undefined,
+            bridgeItemId: `remote-direct:${jobId}`,
+            originProjectId: input.originProjectId,
+          });
+          directLanded = true;
+        }
+      }
+      return { result: job.result ?? {}, directLanded };
     }
     if (Date.now() >= deadline) throw new Error(`ComfyUI 执行超时(${input.timeoutS} 秒),请检查引擎队列后重试`);
     await new Promise((resolve) => setTimeout(resolve, JOB_POLL_INTERVAL_MS));
@@ -272,10 +305,11 @@ export async function runStoryboardH3ShotVideoStep(input: {
   const sancai = (assembled as ShotH3SancaiApiWorkflowResult).stageBGraph
     ? (assembled as ShotH3SancaiApiWorkflowResult)
     : null;
+  let directLanded = false;
   if (sancai) {
     // 两段拆链(Note103 法则①;超时=两段档 900s/300s)
     const { stageA, stageB } = resolveSancaiStageTimeoutS();
-    const resultA = await executeShotWorkflow({
+    const { result: resultA } = await executeShotWorkflow({
       apiGraph: sancai.apiGraph,
       extraPngInfo: sancai.uiWorkflow,
       images: sancai.images,
@@ -290,7 +324,7 @@ export async function runStoryboardH3ShotVideoStep(input: {
     // 段间 /free(卸载 H3 全家桶防三采被饿;发后即忘——失败吞错不阻断段B)
     await requestComfyEngineFree();
     applySancaiStageBSource(sancai.stageBGraph, { filename: finalVideo.filename, subfolder: finalVideo.subfolder });
-    await executeShotWorkflow({
+    ({ directLanded } = await executeShotWorkflow({
       apiGraph: sancai.stageBGraph,
       extraPngInfo: sancai.uiWorkflow,
       images: [],
@@ -298,9 +332,11 @@ export async function runStoryboardH3ShotVideoStep(input: {
       originProjectId: input.originProjectId,
       onJobId: input.onJobId,
       persistOnComplete: true,
-    });
+      shot,
+      policy: dialogueAudioPolicy(shot.lines),
+    }));
   } else {
-    await executeShotWorkflow({
+    ({ directLanded } = await executeShotWorkflow({
       apiGraph: assembled.apiGraph,
       extraPngInfo: assembled.uiWorkflow,
       images: assembled.images,
@@ -308,12 +344,18 @@ export async function runStoryboardH3ShotVideoStep(input: {
       originProjectId: input.originProjectId,
       onJobId: input.onJobId,
       persistOnComplete: true,
-    });
+      shot,
+      policy: dialogueAudioPolicy(shot.lines),
+    }));
   }
-  const baseline = snapshotShotBaseline(shot.id);
-  const landed = await reclaimShotVideo({ shotId: shot.id, ...baseline });
-  if (!landed) {
-    throw new Error(`视频已生成但 60 秒内未回收到项目(收件箱条目保留,画布在场或下轮批量可补收)`);
+  // 1115 fire F2②:远端直落即判 landed(片已入库+分镜已挂);回收窗只作本地收件箱
+  // 链双保险——远端收件箱结构性永不到,再等=白烧 60s(1115 实盘 19/19 全因此计失败)。
+  if (!directLanded) {
+    const baseline = snapshotShotBaseline(shot.id);
+    const landed = await reclaimShotVideo({ shotId: shot.id, ...baseline });
+    if (!landed) {
+      throw new Error(`视频已生成但 60 秒内未回收到项目(收件箱条目保留,画布在场或下轮批量可补收)`);
+    }
   }
 }
 

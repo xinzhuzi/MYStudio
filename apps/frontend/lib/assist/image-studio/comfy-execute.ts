@@ -539,7 +539,8 @@ export async function persistComfyVideo(
   b64: string,
   engineFilename: string,
   projectId: string,
-): Promise<{ url: string | null; mediaId?: string; persisted: boolean }> {
+  options: { subfolder?: string } = {},
+): Promise<{ url: string | null; mediaId?: string; persisted: boolean; subfolder?: string }> {
   const projectFiles = getProjectFilesBridge();
   if (!projectId || !projectFiles?.writeBinary) {
     return { url: null, persisted: false };
@@ -585,7 +586,19 @@ export async function persistComfyVideo(
       source: "comfy-video",
     },
   }).catch(() => undefined);
-  return { url: saved.url, mediaId, persisted: true };
+  return { url: saved.url, mediaId, persisted: true, subfolder: options.subfolder };
+}
+
+export interface ComfyVideoPersistDetail {
+  /** 项目受管地址(media/ai-video/,project-file://) */
+  url: string;
+  /** 引擎产物文件名(SaveVideo 前缀真源) */
+  engineFilename: string;
+  /** 引擎产物镜绑定(video/漫影/{章}/{镜})——1115 F2① 回流保绑定:入库明细不再
+   *  丢弃镜归属,远端直落/存量配对挂载按此把片对回分镜(镜像消费器
+   *  assertVideoSubfolder 白名单口径)。 */
+  subfolder?: string;
+  mediaId?: string;
 }
 
 export interface ComfyVideoPersistSummary {
@@ -593,6 +606,8 @@ export interface ComfyVideoPersistSummary {
   persisted: number;
   /** 入库失败(b64 保留在结果对象,产物仍在引擎输出目录可重试) */
   failed: number;
+  /** 逐段入库明细(1115 F2①:subfolder 镜绑定透传;仅成功段入列,失败段 b64 仍在 result) */
+  items: ComfyVideoPersistDetail[];
 }
 
 /**
@@ -605,7 +620,7 @@ export async function persistComfyVideosFromResult(
   result: Pick<NonNullable<ComfyExecuteJobReply["result"]>, "videos">,
   projectId: string | null,
 ): Promise<ComfyVideoPersistSummary> {
-  const summary: ComfyVideoPersistSummary = { persisted: 0, failed: 0 };
+  const summary: ComfyVideoPersistSummary = { persisted: 0, failed: 0, items: [] };
   for (const video of result.videos ?? []) {
     if (!video.b64) continue;
     try {
@@ -613,12 +628,19 @@ export async function persistComfyVideosFromResult(
         video.b64,
         video.filename ?? `comfy_video_${Date.now()}.mp4`,
         projectId ?? "",
+        { subfolder: video.subfolder },
       );
       if (saved.persisted && saved.url) {
         delete video.b64;
         video.url = saved.url;
         video.persisted = true;
         summary.persisted += 1;
+        summary.items.push({
+          url: saved.url,
+          engineFilename: video.filename ?? "",
+          subfolder: video.subfolder,
+          mediaId: saved.mediaId,
+        });
       } else {
         summary.failed += 1;
       }

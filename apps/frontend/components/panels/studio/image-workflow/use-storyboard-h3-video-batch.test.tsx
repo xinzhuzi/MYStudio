@@ -112,7 +112,7 @@ beforeEach(() => {
   getRemoteEngineMock.mockReset();
   getRemoteEngineMock.mockResolvedValue({ url: null, effective: "http://127.0.0.1:17598", source: "managed" });
   persistVideosMock.mockReset();
-  persistVideosMock.mockResolvedValue({ persisted: 0, failed: 0 });
+  persistVideosMock.mockResolvedValue({ persisted: 0, failed: 0, items: [] });
   vi.stubGlobal("h3BatchPowerSave", powerSave);
 });
 
@@ -712,8 +712,9 @@ describe("runStoryboardH3ShotVideoStep(三采两段拆链,1112 recavsr-mainline)
 // ── T16(10-29 D1 复核 gap2):远端 settings 引擎产物 b64 回流入库门控 ───────────────────────────
 
 describe("useStoryboardH3VideoBatch(远端 settings 产物回流,T16 复核 gap2)", () => {
-  /** 引擎 job 应答带 result.videos(complete 即带 b64 产物,远端回流通形态)。 */
-  function programEngineWithVideos(videos: Array<{ nodeId?: string; filename?: string; b64: string }>): void {
+  /** 引擎 job 应答带 result.videos(complete 即带 b64 产物,远端回流通形态;1115 F2
+   *  起引擎侧带 subfolder 镜绑定——video/漫影/{章}/{镜})。 */
+  function programEngineWithVideos(videos: Array<{ nodeId?: string; filename?: string; subfolder?: string; b64: string }>): void {
     comfyJsonMock.mockImplementation(async (method: string, path: string) => {
       if (method === "POST" && path === "/comfy/execute") return { jobId: "job-1" };
       if (method === "GET" && path.startsWith("/comfy/jobs/")) {
@@ -793,6 +794,76 @@ describe("useStoryboardH3VideoBatch(远端 settings 产物回流,T16 复核 gap2
     expect(result.current.state.done).toBe(1);
     expect(getRemoteEngineMock).not.toHaveBeenCalled(); // 无产物不探活
     expect(persistVideosMock).not.toHaveBeenCalled();
+  });
+
+  // ── 1115 fire F2②:远端 settings 收账判据扩展——complete+persisted≥1 即正门直落 ──
+
+  it("远端 settings+回流带镜绑定:complete 即正门直落(mediaRef=video+候选+full→h3-baked),零收件箱依赖", async () => {
+    seedShots([
+      shot({ id: "a", index: 1, trackKey: "track-a", trackId: "track-a", mediaRef: { kind: "image", path: "p1" }, lines: "独孤剑尘：台词入镜。" }),
+    ]);
+    programEngineWithVideos([
+      { nodeId: "21", filename: "full_00001_.mp4", subfolder: "video/漫影/chapter-001/a", b64: "QUJD" },
+    ]);
+    // 不调 programLanding:远端收件箱结构性不通(1115 实盘定谳——19/19 全因 60s
+    // 回收窗耗尽计失败而片早已回流入库);直落后回收窗零等待。
+    consumeMock.mockResolvedValue({ processed: 0, landed: 0 });
+    getRemoteEngineMock.mockResolvedValue({ url: "http://192.168.0.101:17598", effective: "http://192.168.0.101:17598", source: "settings" });
+    persistVideosMock.mockResolvedValue({
+      persisted: 1,
+      failed: 0,
+      items: [{
+        url: "project-file://proj-1/media/ai-video/2026-11/comfy_video_1.mp4",
+        engineFilename: "full_00001_.mp4",
+        subfolder: "video/漫影/chapter-001/a",
+      }],
+    });
+    const { result } = renderHook(() => useStoryboardH3VideoBatch({
+      storyboards: useStudioStore.getState().storyboards,
+    }));
+    act(() => { result.current.start({ tier: "480p" }); });
+    await pumpUntilDone(result);
+    expect(result.current.state.done).toBe(1);
+    expect(result.current.state.failed).toBe(0);
+    expect(persistVideosMock).toHaveBeenCalledTimes(1);
+    const shotState = useStudioStore.getState().storyboards.find((item) => item.id === "a");
+    expect(shotState?.mediaRef).toEqual({ kind: "video", path: "project-file://proj-1/media/ai-video/2026-11/comfy_video_1.mp4" });
+    expect(shotState?.h3AudioPolicy).toBe("full");
+    expect(shotState?.audioMix).toBe("h3-baked"); // full 且未显式设混音→自动 h3-baked(消费器同构)
+    expect(shotState?.outputVersion).toBe(1);
+    const candidates = useStudioStore.getState().videoCandidates.filter(
+      (entry) => entry.provider === "h3-comfyui" && entry.meta?.storyboardId === "a",
+    );
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]?.state).toBe("ready");
+  });
+
+  it("远端回流入库但镜绑定不在白名单:不直落,回落收件箱回收链(本地链语义不变)", async () => {
+    seedShots([
+      shot({ id: "a", index: 1, trackKey: "track-a", trackId: "track-a", mediaRef: { kind: "image", path: "p1" }, lines: "独孤剑尘：台词入镜。" }),
+    ]);
+    programEngineWithVideos([{ nodeId: "21", filename: "H3.mp4", b64: "QUJD" }]); // 引擎未带 subfolder
+    programLanding(["a"]); // 收件箱照常落账(双保险链;mock 只挂候选,mediaRef 由真实消费器落——此处断言判据=candidates)
+    getRemoteEngineMock.mockResolvedValue({ url: "http://192.168.0.101:17598", effective: "http://192.168.0.101:17598", source: "settings" });
+    persistVideosMock.mockResolvedValue({
+      persisted: 1,
+      failed: 0,
+      items: [{ url: "project-file://proj-1/media/ai-video/2026-11/comfy_video_2.mp4", engineFilename: "H3.mp4" }],
+    });
+    const { result } = renderHook(() => useStoryboardH3VideoBatch({
+      storyboards: useStudioStore.getState().storyboards,
+    }));
+    act(() => { result.current.start({ tier: "480p" }); });
+    await pumpUntilDone(result);
+    expect(result.current.state.done).toBe(1); // 收件箱链兜住(判据=回收轮询见新候选)
+    expect(result.current.state.failed).toBe(0);
+    // 未直落:直落会写 mediaRef=video+候选 backfill;此路径只落收件箱候选(programLanding)
+    const candidates = useStudioStore.getState().videoCandidates.filter(
+      (entry) => entry.meta?.storyboardId === "a",
+    );
+    expect(candidates).toHaveLength(1);
+    const shotState = useStudioStore.getState().storyboards.find((item) => item.id === "a");
+    expect(shotState?.mediaRef?.kind).toBe("image"); // 直落未发生(绑定不在白名单)
   });
 });
 

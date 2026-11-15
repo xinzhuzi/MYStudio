@@ -591,7 +591,17 @@ describe("persistComfyVideosFromResult(结果 videos 循环入库+b64 剥离)", 
       ],
     };
     const summary = await persistComfyVideosFromResult(result, "p-video");
-    expect(summary).toEqual({ persisted: 1, failed: 1 });
+    expect(summary.persisted).toBe(1);
+    expect(summary.failed).toBe(1);
+    // 1115 F2①:入库明细透传 subfolder 镜绑定(远端直落按此把片对回分镜)
+    expect(summary.items).toEqual([
+      {
+        url: "project-file://p-video/media/ai-video/2026-10/comfy_video_1.mp4",
+        engineFilename: "ok.mp4",
+        subfolder: "",
+        mediaId: expect.any(String) as unknown as string,
+      },
+    ]);
     const videos = result.videos as NonNullable<NonNullable<ComfyExecuteJobReply["result"]>["videos"]>;
     expect(videos[0]).toEqual({
       nodeId: "21", filename: "ok.mp4", subfolder: "", type: "output",
@@ -606,12 +616,41 @@ describe("persistComfyVideosFromResult(结果 videos 循环入库+b64 剥离)", 
     const writeBinary = vi.fn(async () => ({ success: true, url: "project-file://p-video/media/ai-video/2026-10/a.mp4" }));
     (window as unknown as { projectFiles?: unknown }).projectFiles = { writeBinary };
     const stripped = await persistComfyVideosFromResult({ videos: [{ nodeId: "9", filename: "a.mp4", url: "project-file://p-video/media/ai-video/2026-10/a.mp4", persisted: true }] }, "p-video");
-    expect(stripped).toEqual({ persisted: 0, failed: 0 });
+    expect(stripped).toEqual({ persisted: 0, failed: 0, items: [] });
     const empty = await persistComfyVideosFromResult({}, "p-video");
-    expect(empty).toEqual({ persisted: 0, failed: 0 });
+    expect(empty).toEqual({ persisted: 0, failed: 0, items: [] });
     const noProject = await persistComfyVideosFromResult({ videos: [{ b64: "QUJD", filename: "x.mp4" }] }, null);
-    expect(noProject).toEqual({ persisted: 0, failed: 1 });
+    expect(noProject).toEqual({ persisted: 0, failed: 1, items: [] });
     expect(writeBinary).not.toHaveBeenCalled();
+  });
+
+  it("1115 F2①:subfolder 镜绑定透传进返回明细(persistComfyVideo 回显+逐段 items 携带)", async () => {
+    (window as unknown as { projectFiles?: unknown }).projectFiles = {
+      writeBinary: vi.fn(async () => ({ success: true, url: "project-file://p-video/media/ai-video/2026-11/comfy_video_9.mp4" })),
+    };
+    const saved = await persistComfyVideo("QUJD", "full_00001_.mp4", "p-video", { subfolder: "video/漫影/chapter-001/sb-1" });
+    expect(saved).toEqual({
+      url: "project-file://p-video/media/ai-video/2026-11/comfy_video_9.mp4",
+      persisted: true,
+      subfolder: "video/漫影/chapter-001/sb-1",
+      mediaId: expect.any(String) as unknown as string,
+    });
+    // 缺省不注入 subfolder 键(旧调用面零波及)
+    const bare = await persistComfyVideo("QUJD", "full_00002_.mp4", "p-video");
+    expect(bare.subfolder).toBeUndefined();
+
+    const result: NonNullable<ComfyExecuteJobReply["result"]> = {
+      videos: [
+        { nodeId: "21", filename: "full_00001_.mp4", subfolder: "video/漫影/chapter-001/sb-1", type: "output", b64: "QUJD" },
+        { nodeId: "22", filename: "p1_00001_.mp4", type: "output", b64: "QUJD" },
+      ],
+    };
+    const summary = await persistComfyVideosFromResult(result, "p-video");
+    expect(summary.persisted).toBe(2);
+    expect(summary.items.map((item) => [item.engineFilename, item.subfolder ?? null])).toEqual([
+      ["full_00001_.mp4", "video/漫影/chapter-001/sb-1"],
+      ["p1_00001_.mp4", null],
+    ]);
   });
 });
 
