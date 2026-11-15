@@ -122,18 +122,22 @@ describe("storyboard reference sheet transport", () => {
     expect(result.prompt).toContain("场景、角色和道具");
   });
 
-  it("完整绘制全部准备后参考，顺序与请求一致，图名和类别同步标注", async () => {
+  it("完整绘制全部准备后参考，顺序与请求一致；格内零标注文字(烧字防线)由 prompt 句承担映射", async () => {
     const result = await buildStoryboardReferenceSheet(input());
     expect(decoded).toEqual(["prepared-scene", "prepared-hero", "prepared-prop"]);
     expect(drawImage).toHaveBeenCalledTimes(3);
-    expect(fillText.mock.calls.map((args) => args[0])).toEqual(["图1｜场景", "码头", "图2｜角色", "独孤剑尘", "图3｜道具", "铁剑"]);
+    // 1115 第六病理修:「图N｜角色」标签画进参考图会被模型抄进成图(分镜-11 烧字
+    // 实证)——格内只画参考图本体,fillText 恒零调用
+    expect(fillText).not.toHaveBeenCalled();
     expect(result.prompt).toContain("图3对应拼板第3格：铁剑（道具）");
+    expect(result.prompt).toContain("同名角色在画面中仅出现一次");
+    expect(result.prompt).toContain("不重现参考图的版式、多视角、背景与任何文字标注");
     expect(result.mappings).toEqual([
       { order: 1, imageUrl: "scene" }, { order: 2, imageUrl: "hero" }, { order: 3, imageUrl: "prop" },
     ]);
     const canvas = vi.mocked(HTMLCanvasElement.prototype.toDataURL).mock.instances[0] as HTMLCanvasElement;
     expect([canvas.width, canvas.height]).toEqual([1536, 1536]);
-    // 四参数目标矩形按等比完整容纳，未使用裁切源矩形。
+    // 竖幅参考(600×800)零裁切,四参数目标矩形按等比完整容纳。
     expect(drawImage.mock.calls[0].slice(1)).toEqual([156, 16, 456, 608]);
   });
 
@@ -162,13 +166,96 @@ describe("storyboard reference sheet transport", () => {
     const result = await buildStoryboardReferenceSheet(value);
     expect(result.prompt).toContain("上一镜（上游成图）");
     expect(result.prompt).not.toContain("已审");
-    expect(fillText).toHaveBeenCalledWith("图2｜上游成图", expect.any(Number), expect.any(Number));
+    // 标签不画格内(烧字防线),映射由 prompt 句承担
+    expect(fillText).not.toHaveBeenCalled();
   });
 
   it("解码失败明确报错，不导出缺格拼板", async () => {
     failDecode = true;
     await expect(buildStoryboardReferenceSheet(input())).rejects.toThrow("图1参考图无法解码");
     expect(HTMLCanvasElement.prototype.toDataURL).not.toHaveBeenCalled();
+  });
+
+  // === 1115 第六病理修(参考图种类错配):横幅设定卡单视图裁切 ===
+
+  /** 横幅五视图卡合成像素:奶油底(245,240,228),内容块占 10%–35% 列带。 */
+  function landscapeCardPixels(width: number, height: number, contentFrom = 0.1, contentTo = 0.35): Uint8ClampedArray {
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const at = (y * width + x) * 4;
+        const content = x >= Math.floor(width * contentFrom) && x <= Math.floor(width * contentTo);
+        if (content) { data[at] = 92; data[at + 1] = 61; data[at + 2] = 43; }
+        else { data[at] = 245; data[at + 1] = 240; data[at + 2] = 228; }
+        data[at + 3] = 255;
+      }
+    }
+    return data;
+  }
+
+  function stubAnalysisContext(pixelsFor: (w: number, h: number) => Uint8ClampedArray) {
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+      fillRect: vi.fn(),
+      drawImage,
+      fillText,
+      measureText: (text: string) => ({ width: Array.from(text).length * 22 }),
+      getImageData: (_x: number, _y: number, w: number, h: number) => ({ data: pixelsFor(w, h) }),
+    } as never);
+  }
+
+  it("横幅多视图卡角色参考 → 裁最左单姿(9 参源矩形),整卡禁入格", async () => {
+    stubAnalysisContext((w, h) => landscapeCardPixels(w, h));
+    vi.stubGlobal("Image", class {
+      naturalWidth = 600; naturalHeight = 800;
+      onload?: () => void; onerror?: () => void;
+      set src(value: string) {
+        if (value === "prepared-hero") { // 赵四五视图卡实测画幅 1248×832
+          this.naturalWidth = 1248; this.naturalHeight = 832;
+        }
+        queueMicrotask(() => this.onload?.());
+      }
+    });
+    const value = input(); // [scene(600×800), hero(角色,1248×832 卡), prop(600×800)]
+    const result = await buildStoryboardReferenceSheet(value);
+    expect(result.imageUrl).toBe("data:image/png;base64,sheet");
+    // 9 参源矩形只落在第2格(角色卡);场景/竖幅道具保持 5 参整图(分析画布的
+    // (0,0) 缩放绘制不计入主绘制)
+    const nineArg = drawImage.mock.calls.filter((args) => args.length === 9);
+    expect(nineArg).toHaveLength(1);
+    const [, sx, , sw] = nineArg[0]!;
+    // 内容块 10%–35% + 两侧 2% 余量 → sx∈[90,160], sw∈[290,370]
+    expect(sx).toBeGreaterThanOrEqual(90); expect(sx).toBeLessThanOrEqual(160);
+    expect(sw).toBeGreaterThanOrEqual(290); expect(sw).toBeLessThanOrEqual(370);
+    expect(drawImage.mock.calls.filter((args) => args.length === 5 && !(args[1] === 0 && args[2] === 0))).toHaveLength(2);
+  });
+
+  it("横幅场景参考合法(16:9 场景图)恒不裁切", async () => {
+    stubAnalysisContext((w, h) => landscapeCardPixels(w, h));
+    vi.stubGlobal("Image", class {
+      naturalWidth = 600; naturalHeight = 800;
+      onload?: () => void; onerror?: () => void;
+      set src(value: string) {
+        if (value === "prepared-scene") { this.naturalWidth = 1536; this.naturalHeight = 864; }
+        queueMicrotask(() => this.onload?.());
+      }
+    });
+    await buildStoryboardReferenceSheet(input()); // 第1格=场景(1536×864 横幅)
+    expect(drawImage.mock.calls.filter((args) => args.length === 9)).toHaveLength(0);
+    expect(drawImage.mock.calls.every((args) => args.length === 5)).toBe(true);
+  });
+
+  it("列占用检测不可用(无 getImageData)→ 退整图,绝不阻断生图", async () => {
+    // beforeEach 的 getContext 替身本就无 getImageData:横幅角色卡在此形态下
+    // 必须安全退化为既有整图行为(守卫句仍在线)
+    vi.stubGlobal("Image", class {
+      naturalWidth = 1248; naturalHeight = 832;
+      onload?: () => void; onerror?: () => void;
+      set src(_value: string) { queueMicrotask(() => this.onload?.()); }
+    });
+    const result = await buildStoryboardReferenceSheet(input());
+    expect(result.imageUrl).toBe("data:image/png;base64,sheet");
+    expect(drawImage.mock.calls.filter((args) => args.length === 9)).toHaveLength(0);
+    expect(drawImage.mock.calls.every((args) => args.length === 5)).toBe(true);
   });
 
   it("输入单边超过8192px时拒绝，不缩小后掩盖超限", async () => {

@@ -13,9 +13,9 @@ afterEach(() => {
 });
 
 function makeBridge(entries: {
-  scene?: Array<{ name: string; assetName?: string; id?: string; previewUrl?: string }>;
-  role?: Array<{ name: string; assetName?: string; id?: string; previewUrl?: string }>;
-  tool?: Array<{ name: string; assetName?: string; id?: string; previewUrl?: string }>;
+  scene?: Array<{ name: string; assetName?: string; id?: string; previewUrl?: string; images?: Array<{ name?: string; url?: string }> }>;
+  role?: Array<{ name: string; assetName?: string; id?: string; previewUrl?: string; images?: Array<{ name?: string; url?: string }> }>;
+  tool?: Array<{ name: string; assetName?: string; id?: string; previewUrl?: string; images?: Array<{ name?: string; url?: string }> }>;
 }) {
   return {
     batchMatch: vi.fn(({ type }: { type: string }) => Promise.resolve(
@@ -27,6 +27,7 @@ function makeBridge(entries: {
           id: entry.id ?? `id-${entry.name}`,
           name: entry.assetName ?? entry.name,
           previewUrl: entry.previewUrl === undefined ? `file:///assets/${entry.name}.png` : entry.previewUrl,
+          ...(entry.images ? { images: entry.images } : {}),
         },
       })),
     )),
@@ -208,6 +209,69 @@ describe("resolveStoryboardAssetReferences", () => {
       videoDesc: "赵四把鞭子盘在腰间，走进矿洞深处。",
     });
     expect(refs?.map((ref) => ref.title)).toEqual(["赵四"]);
+  });
+
+  // === 1115 第六病理修(参考图种类错配):资产库单姿立绘优先 ===
+
+  it("prefers gallery single-pose portrait over card/plain main for characters (单姿立绘优先)", async () => {
+    bridgeMock.mockReturnValue(makeBridge({
+      role: [
+        {
+          // 晏燎实盘形态:主图=人脸派生(无单姿标记),图库含 _人物图_ 单姿
+          name: "晏燎",
+          previewUrl: "file:///assets/role/晏燎/晏燎_无衣物定妆_v1_人脸_2026年10月26日.png",
+          images: [
+            { name: "晏燎_多视图_2026年10月26日", url: "file:///assets/role/晏燎/晏燎_多视图_2026年10月26日.png" },
+            { name: "晏燎_人物图_2026年10月26日", url: "file:///assets/role/晏燎/晏燎_人物图_2026年10月26日.png" },
+          ],
+        },
+      ],
+    }));
+    const refs = await resolveStoryboardAssetReferences({
+      associateAssetsNames: ["晏燎"],
+      videoDesc: "晏燎立在坑道口。",
+    });
+    expect(refs?.[0]?.imageUrl).toBe("file:///assets/role/晏燎/晏燎_人物图_2026年10月26日.png");
+  });
+
+  it("keeps main image when it is already single-pose or gallery has no pose (主图已单姿/无更优)", async () => {
+    bridgeMock.mockReturnValue(makeBridge({
+      role: [
+        {
+          name: "独孤剑尘",
+          previewUrl: "file:///assets/role/独孤剑尘/独孤剑尘_人物图_2026年10月21日.png",
+          images: [{ name: "独孤剑尘_多视图_2026年10月21日", url: "file:///assets/role/独孤剑尘/独孤剑尘_多视图_2026年10月21日.png" }],
+        },
+        {
+          // 赵四实盘形态:主图与图库均无单姿标记 → 维持主图(横幅卡由拼板层裁切兜底)
+          name: "赵四",
+          previewUrl: "file:///assets/role/赵四/监工赵四,赵四_袍旧版_2026年10月21日.png",
+          images: [{ name: "监工赵四,赵四_监工赵四_c3c92dfb_2026年10月21日", url: "file:///assets/role/赵四/监工赵四,赵四_监工赵四_c3c92dfb_2026年10月21日.png" }],
+        },
+      ],
+    }));
+    const refs = await resolveStoryboardAssetReferences({
+      associateAssetsNames: ["独孤剑尘", "赵四"],
+      videoDesc: "独孤剑尘与赵四在坑道深处对峙。",
+    });
+    expect(refs?.[0]?.imageUrl).toBe("file:///assets/role/独孤剑尘/独孤剑尘_人物图_2026年10月21日.png");
+    expect(refs?.[1]?.imageUrl).toBe("file:///assets/role/赵四/监工赵四,赵四_袍旧版_2026年10月21日.png");
+  });
+
+  it("never switches image for scene references even when gallery has pose-named images (场景零切)", async () => {
+    bridgeMock.mockReturnValue(makeBridge({
+      scene: [
+        {
+          name: "灵矿坑道葬玉",
+          previewUrl: "file:///assets/scene/灵矿坑道葬玉/灵矿坑道葬玉_场景图.png",
+          images: [{ name: "灵矿坑道葬玉_人物图_2026年10月26日", url: "file:///assets/scene/灵矿坑道葬玉/pose.png" }],
+        },
+      ],
+    }));
+    const refs = await resolveStoryboardAssetReferences({
+      associateAssetsNames: ["灵矿坑道葬玉"],
+    });
+    expect(refs?.[0]?.imageUrl).toBe("file:///assets/scene/灵矿坑道葬玉/灵矿坑道葬玉_场景图.png");
   });
 });
 

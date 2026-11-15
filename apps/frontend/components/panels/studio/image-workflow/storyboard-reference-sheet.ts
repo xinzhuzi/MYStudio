@@ -3,14 +3,27 @@ import { collapseTransparentNodes } from "@/lib/studio/image-workflow/graph-buil
 import type { StoryboardSingleImageTransport } from "@/lib/studio/image-workflow/request";
 import { IMAGE_ASPECT_RATIOS, type ImageAspectRatio } from "@/lib/ai/image-size-presets";
 
-// 3×3 上限：每格 768px（640px 图像区 + 128px 标签区），总画布最多 5.31MP。
+// 3×3 上限：每格 768px（640px 图像区 + 128px 预留区），总画布最多 5.31MP。
 // 限制解码尺寸和传输体积，逐张解码绘制；任何超限均拒绝，绝不截掉参考。
+// 1115 第六病理修(参考图种类错配,主会话处置令):①标签区不再画字——「图N｜角色」
+// 烧进参考图会被模型抄进成图(分镜-11 实证),映射改由 prompt 句承担;②角色/道具
+// 参考为横幅多视图设定卡时,按底色列占用裁最左单姿(转面卡正面居左约定),禁整卡
+// 入格(分镜-1 赵四五视图卡实证=同角色多副本);场景参考合法横幅恒不裁。
 const MAX_REFERENCES = 9;
 const CELL_SIZE = 768;
 const IMAGE_HEIGHT = 640;
 const MAX_SOURCE_PIXELS = 32 * 1024 * 1024;
 const MAX_SOURCE_EDGE = 8192;
 const MAX_INPUT_CHARACTERS = 48 * 1024 * 1024;
+/** 单姿裁切探针宽(px):列占用分析降采样上限,分析失败恒退整图不阻断生图。 */
+const POSE_PROBE_WIDTH = 512;
+/** 底色判定色距阈值(RGB 欧氏距离):奶油底/白底设定卡与人物内容的分界。 */
+const POSE_BG_COLOR_DISTANCE = 60;
+/** 判定为「内容列」的阈值:采样带内非底色像素占比高于该值。 */
+const POSE_CONTENT_COLUMN_RATIO = 0.08;
+/** 裁切结果合理性带:内容块宽占全宽比例低于/高于该带=检测不可信,退整图。 */
+const POSE_BLOCK_MIN_RATIO = 0.08;
+const POSE_BLOCK_MAX_RATIO = 0.92;
 
 export async function buildStoryboardReferenceSheet(input: {
   graph: ImageWorkflowGraph;
@@ -38,6 +51,16 @@ export async function buildStoryboardReferenceSheet(input: {
   const connected = graph.edges.filter((edge) => edge.target === input.targetNodeId)
     .map((edge) => graph.nodes.find((node) => node.id === edge.source));
   const single = referenceImages.length === 1;
+  // 每格参考的资产型(单视图裁切只对角色/道具;场景合法横幅恒不裁)。单参考
+  // 形态无映射校验(既有宽容语义),裁切决策同样需要型信息,故独立于 labels 计算。
+  const cellKinds = referenceImages.map((url) => {
+    const node = connected.find((item) =>
+      (item?.type === "reference" && item.imageUrl === url)
+      || (item?.type === "generated" && item.resultUrl === url));
+    return node?.type === "reference" && node.source?.kind === "asset"
+      ? node.source.assetType
+      : undefined;
+  });
   const labels = (single ? [] : referenceImages).map((url, index) => {
     const matches = connected.filter((node) =>
       (node?.type === "reference" && node.imageUrl === url)
@@ -92,28 +115,22 @@ export async function buildStoryboardReferenceSheet(input: {
     const x = offsetX + (index % columns) * CELL_SIZE * layoutScale;
     const y = offsetY + Math.floor(index / columns) * CELL_SIZE * layoutScale;
     const imageHeight = single ? CELL_SIZE : IMAGE_HEIGHT;
-    const scale = Math.min((CELL_SIZE - 32) / image.naturalWidth, (imageHeight - 32) / image.naturalHeight) * layoutScale;
-    const width = image.naturalWidth * scale;
-    const height = image.naturalHeight * scale;
-    context.drawImage(image, x + (CELL_SIZE * layoutScale - width) / 2, y + (imageHeight * layoutScale - height) / 2, width, height);
-    if (single) continue;
-    context.fillStyle = "#111111";
-    context.font = `bold ${24 * layoutScale}px sans-serif`;
-    context.textBaseline = "top";
-    context.fillText(`图${index + 1}｜${labels[index].category}`, x + 16 * layoutScale, y + (IMAGE_HEIGHT + 8) * layoutScale);
-    context.font = `${22 * layoutScale}px sans-serif`;
-    let line = "";
-    let lineY = y + (IMAGE_HEIGHT + 38) * layoutScale;
-    for (const char of Array.from(labels[index].name)) {
-      if (line && context.measureText(line + char).width > (CELL_SIZE - 32) * layoutScale) {
-        context.fillText(line, x + 16 * layoutScale, lineY);
-        lineY += 26 * layoutScale;
-        line = "";
-      }
-      line += char;
+    // 1115 第六病理修:角色/道具横幅设定卡 → 最左单姿源矩形(检测失败=null=整图)
+    const crop = singlePoseCropRect(image, cellKinds[index]);
+    const sourceWidth = crop ? crop.sw : image.naturalWidth;
+    const sourceHeight = crop ? crop.sh : image.naturalHeight;
+    const scale = Math.min((CELL_SIZE - 32) / sourceWidth, (imageHeight - 32) / sourceHeight) * layoutScale;
+    const width = sourceWidth * scale;
+    const height = sourceHeight * scale;
+    const dx = x + (CELL_SIZE * layoutScale - width) / 2;
+    const dy = y + (imageHeight * layoutScale - height) / 2;
+    if (crop) {
+      context.drawImage(image, crop.sx, crop.sy, crop.sw, crop.sh, dx, dy, width, height);
+    } else {
+      context.drawImage(image, dx, dy, width, height);
     }
-    if (lineY + 26 * layoutScale > y + CELL_SIZE * layoutScale) throw new Error(`图${index + 1}资产名无法完整标注`);
-    context.fillText(line, x + 16 * layoutScale, lineY);
+    // 标签烧字废除(1115 第六病理):格内只画参考图本体——「图N｜角色」画进参考图
+    // 会被模型当画面文字抄进成图(分镜-11 实证);图N↔格位映射由下方 prompt 句承担。
   }
   let imageUrl: string;
   try { imageUrl = canvas.toDataURL("image/png"); }
@@ -122,11 +139,94 @@ export async function buildStoryboardReferenceSheet(input: {
   return {
     imageUrl,
     mappings: referenceImages.map((imageUrl, index) => ({ order: index + 1, imageUrl })),
-    prompt: single ? "图1仅作身份/场景参考，留白仅用于参考布局。输出为一张完整连续的剧情画面，画面内容仅为场景、角色和道具。"
+    // 1115 第六病理修:尾段守卫句(主会话处置令原文语义)——参考图仅示身份与服装、
+    // 同名角色仅出现一次、不重现参考图版式/多视角/背景/文字标注(已过 _gongbi_gate
+    // negation_only 门,negation_only=True 口径实测零违规)。
+    prompt: single ? "图1仅作身份/场景参考，留白仅用于参考布局。输出为一张完整连续的剧情画面，画面内容仅为场景、角色和道具；参考图仅示身份与服装，同名角色在画面中仅出现一次，画面以全新构图呈现；不重现参考图的版式、多视角、背景与任何文字标注。"
       : "【参考拼板映射】按从左到右、从上到下排列；"
       + labels.map((label, index) => `图${index + 1}对应拼板第${index + 1}格：${label.name}（${label.category}）`).join("；")
-      + "。图N对应拼板第N格，仅作身份/场景参考，输出为一张完整连续的剧情画面，画面内容仅为场景、角色和道具。",
+      + "。图N对应拼板第N格，仅作身份/场景参考，输出为一张完整连续的剧情画面，画面内容仅为场景、角色和道具；参考图仅示身份与服装，同名角色在画面中仅出现一次，画面以全新构图呈现；不重现参考图的版式、多视角、背景与任何文字标注。",
   };
+}
+
+/**
+ * 单视图源矩形(1115 第六病理修,主会话处置令「只有设定卡时,出图前裁/选正面
+ * 单姿为参考,禁整卡」):对角色/道具且横置(w>h)的参考图,以四角底色估计做列占用
+ * 分析,取采样带内**最左连续内容块**(转面卡正面居左约定,零跨隙桥接——1116
+ * 实测赵四/独孤剑尘/小杂役/铁山/妇人甲五卡:桥接会把相邻视图并块)为正面单姿;
+ * 竖幅/方幅/场景/检测失败(含测试替身无 getImageData)一律返回 null=维持整图,
+ * 绝不因裁切失败阻断生图。采样带跳过顶部 15%/底部 10%(卡面标题/角标/底注的
+ * 常驻位),块宽落 [8%, 92%] 合理带外=检测不可信同样退整图(守卫句仍在线)。
+ */
+function singlePoseCropRect(
+  image: HTMLImageElement,
+  assetType: string | undefined,
+): { sx: number; sy: number; sw: number; sh: number } | null {
+  if (assetType !== "character" && assetType !== "prop") return null;
+  const fullWidth = image.naturalWidth;
+  const fullHeight = image.naturalHeight;
+  if (!fullWidth || !fullHeight || fullWidth <= fullHeight) return null;
+  const probeWidth = Math.min(POSE_PROBE_WIDTH, fullWidth);
+  const probeHeight = Math.max(1, Math.round(fullHeight * probeWidth / fullWidth));
+  let analysis: CanvasRenderingContext2D | null = null;
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = probeWidth;
+    canvas.height = probeHeight;
+    analysis = canvas.getContext("2d", { willReadFrequently: true });
+    if (!analysis || typeof analysis.getImageData !== "function" || typeof analysis.drawImage !== "function") return null;
+    analysis.drawImage(image, 0, 0, probeWidth, probeHeight);
+  } catch {
+    return null;
+  }
+  let pixels: Uint8ClampedArray;
+  try {
+    pixels = analysis.getImageData(0, 0, probeWidth, probeHeight).data;
+  } catch {
+    return null;
+  }
+  const sample = (x: number, y: number): [number, number, number] => {
+    const at = (y * probeWidth + x) * 4;
+    return [pixels[at]!, pixels[at + 1]!, pixels[at + 2]!];
+  };
+  const corners: Array<[number, number, number]> = [];
+  for (const [cx, cy] of [[2, 2], [probeWidth - 3, 2], [2, probeHeight - 3], [probeWidth - 3, probeHeight - 3]] as const) {
+    corners.push(sample(Math.max(0, Math.min(probeWidth - 1, cx)), Math.max(0, Math.min(probeHeight - 1, cy))));
+  }
+  const bg = corners.reduce(
+    (acc, c) => [acc[0] + c[0] / 4, acc[1] + c[1] / 4, acc[2] + c[2] / 4] as [number, number, number],
+    [0, 0, 0] as [number, number, number],
+  );
+  const bandTop = Math.floor(probeHeight * 0.15);
+  const bandBottom = Math.max(bandTop + 1, Math.floor(probeHeight * 0.9));
+  const isBackground = (x: number, y: number): boolean => {
+    const [r, g, b] = sample(x, y);
+    const dr = r - bg[0]!, dg = g - bg[1]!, db = b - bg[2]!;
+    return Math.sqrt(dr * dr + dg * dg + db * db) < POSE_BG_COLOR_DISTANCE;
+  };
+  const hasContent = new Array<boolean>(probeWidth);
+  for (let x = 0; x < probeWidth; x += 1) {
+    let content = 0;
+    for (let y = bandTop; y < bandBottom; y += 1) {
+      if (!isBackground(x, y)) content += 1;
+    }
+    hasContent[x] = content / (bandBottom - bandTop) >= POSE_CONTENT_COLUMN_RATIO;
+  }
+  // 最左连续内容块(≥3 探针列起算,零桥接:块间断隙即视图边界)
+  let first = -1;
+  let last = -1;
+  for (let x = 0; x < probeWidth; x += 1) {
+    if (hasContent[x]) { first = x; break; }
+  }
+  if (first < 0) return null;
+  for (let x = first; x < probeWidth && hasContent[x]; x += 1) last = x;
+  if (last - first + 1 < 3) return null;
+  const blockWidth = last - first + 1;
+  if (blockWidth < probeWidth * POSE_BLOCK_MIN_RATIO || blockWidth > probeWidth * POSE_BLOCK_MAX_RATIO) return null;
+  const margin = Math.round(probeWidth * 0.02);
+  const sx = Math.max(0, Math.round(((first - margin) / probeWidth) * fullWidth));
+  const sxEnd = Math.min(fullWidth, Math.round(((last + 1 + margin) / probeWidth) * fullWidth));
+  return { sx, sy: 0, sw: Math.max(1, sxEnd - sx), sh: fullHeight };
 }
 
 function loadReferenceImage(url: string, order: number): Promise<HTMLImageElement> {

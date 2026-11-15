@@ -350,8 +350,18 @@ export function ensureStoryboardBindingConsistency(graph: ImageWorkflowGraph): I
     .sort((a, b) => (a.continuityOrder ?? Number.MAX_SAFE_INTEGER) - (b.continuityOrder ?? Number.MAX_SAFE_INTEGER));
   if (orderedRefs.length === 0) return graph;
   const kindLabel: Record<string, string> = { scene: "场景", character: "角色", prop: "道具" };
+  // 1115 第六病理修(主会话处置令):角色/道具绑定句挂单出现守卫——参考图仅示身份
+  // 与服装、画面中仅出现一次、不重现参考图版式/多视角/背景/文字标注(分镜-1 整卡
+  // 多副本+分镜-11 烧字实证;措辞已过 _gongbi_gate prompt_violations(is_subject)
+  // 全查实测零违规,2026-11-16)。
   const head = orderedRefs
-    .map((ref, i) => `@图${i + 1} 为${ref.title}${kindLabel[(ref.source as { assetType?: string } | undefined)?.assetType ?? ""] ?? ""}`)
+    .map((ref, i) => {
+      const kind = (ref.source as { assetType?: string } | undefined)?.assetType ?? "";
+      const base = `@图${i + 1} 为${ref.title}${kindLabel[kind] ?? ""}`;
+      if (kind !== "character" && kind !== "prop") return base;
+      const noun = kind === "character" ? "该角色" : "该道具";
+      return `${base}（参考图仅示身份与服装，${noun}在画面中仅出现一次；不重现参考图的版式、多视角、背景与任何文字标注）`;
+    })
     .join("；");
   const expected = /@图\d+\s*为/.test(head) ? head : "";
   let changed = false;

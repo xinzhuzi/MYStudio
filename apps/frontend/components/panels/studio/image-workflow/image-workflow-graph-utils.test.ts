@@ -298,6 +298,13 @@ describe("ensureStoryboardAssetReferences (L3 资产维度+集差/替换, 11-15)
     expect(promptOf(ensured)).toContain("@图1 为金水河码头场景");
     expect(promptOf(ensured)).toContain("@图2 为监工赵四角色");
     expect(promptOf(ensured)).toContain("@图3 为青盐鞭道具");
+    // 1115 第六病理修:角色/道具绑定句挂单出现守卫(整卡多副本+烧字防线);
+    // 场景参考合法横幅不挂守卫
+    expect(promptOf(ensured)).toContain(
+      "@图2 为监工赵四角色（参考图仅示身份与服装，该角色在画面中仅出现一次；不重现参考图的版式、多视角、背景与任何文字标注）");
+    expect(promptOf(ensured)).toContain(
+      "@图3 为青盐鞭道具（参考图仅示身份与服装，该道具在画面中仅出现一次；不重现参考图的版式、多视角、背景与任何文字标注）");
+    expect(promptOf(ensured)).not.toContain("@图1 为金水河码头场景（");
   });
 
   it("② 图内资产参考集≠现镜解析集 → 替换对齐(旧资产参考清出、杂参考保留)", () => {

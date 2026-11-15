@@ -100,8 +100,15 @@ export async function resolveStoryboardAssetReferences(
       if (added >= limit) break;
       const asset = entry.asset as {
         id?: string; name?: string; previewUrl?: string; thumbnailUrl?: string;
+        images?: Array<{ name?: string; url?: string }>;
       } | null;
-      const imageUrl = asset?.previewUrl ?? asset?.thumbnailUrl ?? "";
+      // 1115 第六病理修(主会话处置令「资产库单姿立绘优先」):角色/道具主图为
+      // 多视图/三视图/设定卡而图库含 _人物图_/_正视图_ 单姿时,参考位改挂单姿,
+      // 禁整卡(分镜-1 赵四五视图整卡实证=同角色多副本);仅当单姿严格优于主图才
+      // 切换,主图已是单姿/两者同档/无更优=维持主图(横幅卡残余由拼板层单视图
+      // 裁切兜底,storyboard-reference-sheet singlePoseCropRect)。
+      const imageUrl = pickSingleViewAssetImage(asset, assetType)
+        ?? asset?.previewUrl ?? asset?.thumbnailUrl ?? "";
       const title = asset?.name || entry.name;
       if (!imageUrl || /^(?:data|blob):/i.test(imageUrl) || seen.has(title)) {
         skipped.push({ title, assetType, reason: "no-image-or-dup" });
@@ -140,4 +147,35 @@ export async function resolveStoryboardAssetReferences(
     });
   }
   return references;
+}
+
+/**
+ * 单姿图优先(1115 第六病理修,主会话处置令「资产库单姿立绘优先;只有设定卡时,
+ * 出图前裁/选正面单姿为参考,禁整卡」):角色/道具在主图非单姿(多视图/三视图/
+ * 设定卡标记,或无单姿标记的存量图)而 images 图库含 _人物图_/_正视图_ 单姿时,
+ * 返回该单姿 url;其余情形(场景/主图已单姿/图库无单姿)返回 undefined=走主图。
+ * 单姿标记取资产图命名规则(_人物图_/_正视图_,与 classifyAssetImage 命名表
+ * 同源口径);卡标记=_多视图_/_三视图_/_设定卡_。
+ */
+function pickSingleViewAssetImage(
+  asset: {
+    previewUrl?: string;
+    images?: Array<{ name?: string; url?: string }>;
+  } | null | undefined,
+  assetType: "scene" | "character" | "prop",
+): string | undefined {
+  if (!asset || (assetType !== "character" && assetType !== "prop")) return undefined;
+  const poseMarker = /_(?:人物图|正视图)_/;
+  const mainBasename = (() => {
+    try { return decodeURIComponent((asset.previewUrl ?? "").split("/").pop() ?? ""); }
+    catch { return (asset.previewUrl ?? "").split("/").pop() ?? ""; }
+  })();
+  const mainIsPose = poseMarker.test(mainBasename);
+  if (mainIsPose) return undefined;
+  const galleryPose = (asset.images ?? []).find((image) =>
+    image?.url && !/^(?:data|blob):/i.test(image.url)
+    && (poseMarker.test(image.name ?? "") || poseMarker.test(image.url)));
+  // 主图是明确卡标记(_多视图_/_三视图_/_设定卡_)或无标记存量图(画幅未知)→
+  // 图库单姿恒优(单姿命名是显式证据,存量名零证据);统一切换,无第三档。
+  return galleryPose?.url;
 }
