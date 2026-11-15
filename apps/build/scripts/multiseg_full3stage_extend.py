@@ -96,11 +96,11 @@ README_NOTE = (
     "# 一镜到底-分段 · 全链三采(1114 用户裁定「都过三采」)\n\n"
     "## 件用途\n分段生成(一采,绕 15s 封顶)→ 二采 TaoMate 精修(1440×832)→ 三采 ReCaVSR 超分"
     "(2880×1664 终档)。与 三采-单镜.json 分工:单镜 ≤15s 高质线 / 本件任意时长全梯线。\n\n"
-    "## 操作手册(1115 内联正典)\n"
-    "**UI 手工=整图一发直出三档**:Run 一按,p1(960×544)+p2(1440×832)+p3(2880×1664)顺序落盘"
-    "(三采内联:3053 CreateVideo→4002 ReCaVSR 直连,先例=三采-单镜 UI 件)。\n"
-    "提速正典=API 两发拆链(段A 一二采 → `POST /free {\"unload_models\": true}` → 段B 三采),"
-    "由 livefire 脚本走(App 派发/批量同此);拆链省的是显存驻留,不是必要语义。\n\n"
+    "## 操作手册(1115 实弹勘误终态:两步法)\n"
+    "**第 1 步 整图直跑(段B 出厂旁路)**:Run 一按出 p1(960×544)+p2(1440×832)。\n"
+    "**第 2 步 三采**:激活 4001/4002/4003 三节点 → **选中段B 节点局部执行**(引擎缓存复用,只烧 ReCaVSR ~1min)。\n"
+    "⚠ **整图一发含段B = 禁**(1115 实弹崩溃实证:全链驻留下 ReCaVSR 上卡即原生崩引擎,引擎日志 17:04:42 零 traceback);"
+    "App 派发/批量/livefire 恒走 API 两发拆链+间中 `POST /free {\"unload_models\": true}`(Note103 运行法则)。\n\n"
     "## 同步点三则(手改必读)\n1. 改分段时长必须按帧数公式同步 [3031].length(targets→snap17 网格→Σnew,"
     "出厂 2×1秒=56),实跑以 p1 ffprobe 实测帧数双核对(雷#13/#17);\n2. [3030] 与 [100] 提示词是两份拷贝,"
     "手改同频(雷#14,契约测试出厂态断言同文);\n3. 组框五组横排与布局 est 宪法由 "
@@ -270,17 +270,17 @@ def _new_nodes() -> list[dict]:
               inputs=[_in("video", "VIDEO", 42)],
               outputs=[],
               title="p2 长片(1440×832)"),
-        # —— 段B 三采(1115 内联正典:mode=0 激活,3053→4002 直连)——
+        # —— 段B 三采(1115 实弹勘误终态:出厂旁路 mode=4+内联接线;整图一发含段B=引擎崩,禁)——
         _node(4001, "ReCaVSRLoader", ["transformer_int8_convrot.safetensors"],
-              outputs=[_out("model", "RECAVSR", [43])]),
+              outputs=[_out("model", "RECAVSR", [43])], mode=4),
         _node(4002, "ReCaVSRUpscale",
               [2, "none", 42, "fixed", "flashdecoder", "fast", False, "auto", 30],
               inputs=[_in("model", "RECAVSR", 43), _in("video", "VIDEO", 44),
                       _in("images", "IMAGE", None), _in("vae", "VAE", None)],
-              outputs=[_out("VIDEO", "VIDEO", [45])]),
+              outputs=[_out("VIDEO", "VIDEO", [45])], mode=4),
         _node(4003, "SaveVideo", [P3_PREFIX, "auto", "auto", "auto"],
               inputs=[_in("video", "VIDEO", 45)],
-              outputs=[],
+              outputs=[], mode=4,
               title="p3 终档(2880×1664)"),
         _node(9999, "MarkdownNote", [README_NOTE], title="README(恒居组外)"),
     ]
@@ -774,12 +774,12 @@ def verify_graph(d: dict) -> list[str]:
     if "段1:1秒" not in w100[0] or w100[0].count("段1:1秒") != 1 or "段2:1秒" not in w100[0]:
         problems.append("出厂提示词缺 2×1秒 时长标签")
 
-    # ⑤ 段B 内联正典(1115):三节点激活,3053→4002 直连,零 LoadVideo
+    # ⑤ 段B 出厂旁路+内联接线(1115 实弹勘误终态:整图一发含段B=崩,两步法手册)
     if 4000 in nodes:
-        problems.append("[4000] LoadVideo 应不存在(1115 内联正典)")
+        problems.append("[4000] LoadVideo 应不存在(内联接线正典)")
     for nid in STAGE_B_IDS:
-        if nodes[nid].get("mode") != 0:
-            problems.append(f"[{nid}] 应激活 mode=0(1115 内联正典)")
+        if nodes[nid].get("mode") != 4:
+            problems.append(f"[{nid}] 出厂应旁路 mode=4(整图一发含段B=引擎崩,禁)")
     l44 = links.get(44)
     if not l44 or (l44[1], l44[2], l44[3], l44[4]) != (3053, 0, 4002, 1):
         problems.append("段B 内联接线漂移: link44 应 3053.0→4002.1")

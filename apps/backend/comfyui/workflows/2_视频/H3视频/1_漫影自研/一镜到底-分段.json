@@ -1399,7 +1399,7 @@
       ],
       "flags": {},
       "order": 31,
-      "mode": 0,
+      "mode": 4,
       "inputs": [],
       "outputs": [
         {
@@ -1430,7 +1430,7 @@
       ],
       "flags": {},
       "order": 32,
-      "mode": 0,
+      "mode": 4,
       "inputs": [
         {
           "name": "model",
@@ -1490,7 +1490,7 @@
       ],
       "flags": {},
       "order": 33,
-      "mode": 0,
+      "mode": 4,
       "inputs": [
         {
           "name": "video",
@@ -1530,7 +1530,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "# 一镜到底-分段 · 全链三采(1114 用户裁定「都过三采」)\n\n## 件用途\n分段生成(一采,绕 15s 封顶)→ 二采 TaoMate 精修(1440×832)→ 三采 ReCaVSR 超分(2880×1664 终档)。与 三采-单镜.json 分工:单镜 ≤15s 高质线 / 本件任意时长全梯线。\n\n## 操作手册(1115 内联正典)\n**UI 手工=整图一发直出三档**:Run 一按,p1(960×544)+p2(1440×832)+p3(2880×1664)顺序落盘(三采内联:3053 CreateVideo→4002 ReCaVSR 直连,先例=三采-单镜 UI 件)。\n提速正典=API 两发拆链(段A 一二采 → `POST /free {\"unload_models\": true}` → 段B 三采),由 livefire 脚本走(App 派发/批量同此);拆链省的是显存驻留,不是必要语义。\n\n## 同步点三则(手改必读)\n1. 改分段时长必须按帧数公式同步 [3031].length(targets→snap17 网格→Σnew,出厂 2×1秒=56),实跑以 p1 ffprobe 实测帧数双核对(雷#13/#17);\n2. [3030] 与 [100] 提示词是两份拷贝,手改同频(雷#14,契约测试出厂态断言同文);\n3. 组框五组横排与布局 est 宪法由 `apps/build/scripts/multiseg_full3stage_extend.py --verify` 把门,改版后整体重跑(雷#7)。\n\n## 模型/配方速查\n二采=Cobijada 扇出 taomate@0.7+sol-attn τ1.3+σshift[12,3]+kitchen+lcm+simple/3步/dn0.2(UP 定谳);三采=ReCaVSR scale2 int8 ConvRot。seed=42 复现。"
+        "# 一镜到底-分段 · 全链三采(1114 用户裁定「都过三采」)\n\n## 件用途\n分段生成(一采,绕 15s 封顶)→ 二采 TaoMate 精修(1440×832)→ 三采 ReCaVSR 超分(2880×1664 终档)。与 三采-单镜.json 分工:单镜 ≤15s 高质线 / 本件任意时长全梯线。\n\n## 操作手册(1115 实弹勘误终态:两步法)\n**第 1 步 整图直跑(段B 出厂旁路)**:Run 一按出 p1(960×544)+p2(1440×832)。\n**第 2 步 三采**:激活 4001/4002/4003 三节点 → **选中段B 节点局部执行**(引擎缓存复用,只烧 ReCaVSR ~1min)。\n⚠ **整图一发含段B = 禁**(1115 实弹崩溃实证:全链驻留下 ReCaVSR 上卡即原生崩引擎,引擎日志 17:04:42 零 traceback);App 派发/批量/livefire 恒走 API 两发拆链+间中 `POST /free {\"unload_models\": true}`(Note103 运行法则)。\n\n## 同步点三则(手改必读)\n1. 改分段时长必须按帧数公式同步 [3031].length(targets→snap17 网格→Σnew,出厂 2×1秒=56),实跑以 p1 ffprobe 实测帧数双核对(雷#13/#17);\n2. [3030] 与 [100] 提示词是两份拷贝,手改同频(雷#14,契约测试出厂态断言同文);\n3. 组框五组横排与布局 est 宪法由 `apps/build/scripts/multiseg_full3stage_extend.py --verify` 把门,改版后整体重跑(雷#7)。\n\n## 模型/配方速查\n二采=Cobijada 扇出 taomate@0.7+sol-attn τ1.3+σshift[12,3]+kitchen+lcm+simple/3步/dn0.2(UP 定谳);三采=ReCaVSR scale2 int8 ConvRot。seed=42 复现。"
       ],
       "title": "README(恒居组外)"
     }
