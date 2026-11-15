@@ -4,6 +4,7 @@ import { ManualsTab } from "./ManualsTab";
 import { NovelTab } from "./NovelTab";
 import { ScriptTab } from "./ScriptTab";
 import { StoryboardPanelTab } from "./StoryboardPanelTab";
+import { StoryboardPanelEntryButton } from "./storyboard-panel-entry";
 import { WorkbenchTab } from "./WorkbenchTab";
 import { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
 import { ComfyCanvasSwap } from "../assist/comfy-canvas/ComfyCanvasSwap";
@@ -260,6 +261,13 @@ export function StudioView() {
           </div>
         </ScrollArea>
       </Tabs>
+      {/* 1115 FR4 发车口补(二裁路 2):分镜面板独立入口——D3 详情本地化后
+          storyboardPanel 原唯一入口退役成孤岛(实弹实证),App 侧最小浮钮补;
+          已在面板页时自隐。 */}
+      <StoryboardPanelEntryButton
+        hidden={viewModel.activeWorkflowTab === "storyboardPanel"}
+        onOpen={() => viewModel.handleStageChange("storyboardPanel")}
+      />
       {docNode ? (
         <NodeDocViewer
           node={docNode}
