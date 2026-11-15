@@ -230,9 +230,11 @@
       return { value: c.id, label: label };
     });
     var inList = options.some(function (o) { return o.value === st.chapter; });
-    // 当前 st.chapter 在列表→预选;不在(手输)→占位示明,不覆盖不偷写
+    // 当前 st.chapter 在列表→预选;不在列表→「选择章节」引导用户选
+    // (1115 用户斥「为什么是手动输入章节」:旧文案误导;手输兜底只在章表
+    // 不可用时才有意义,真章表在=引导选择而非显示手输残留)
     return selectHtml("pick-chapter", "章节",
-      inList ? "选择章节" : "(手输章节:" + (st.chapter || "?") + ")",
+      inList ? "选择章节" : "选择章节",
       options, inList ? st.chapter : "", false);
   }
 

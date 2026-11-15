@@ -748,7 +748,7 @@ test("㉒ 选择器:无 fetch 禁用占位;fetch 桩→项目/章表填充;选�
   sb.DaoyanToolbar.actions.setChapter(ctrl, "chapter-b001");
   root = stubElement();
   sb.DaoyanToolbar.build(root, ctrl);
-  assert.ok(root.innerHTML.includes("(手输章节:chapter-b001)"), "手输值占位不偷写");
+  assert.ok(root.innerHTML.includes("选择章节"), "非列表值示「选择章节」(1115 修:禁误导手输文案)");
   assert.equal(ctrl.state.chapter, "chapter-b001", "手输值未被下拉偷改");
   delete sb.fetch;
   sb.DaoyanToolbar.selectors.reset();
