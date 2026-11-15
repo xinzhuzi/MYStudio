@@ -54,6 +54,27 @@ def test_anchors_and_p1_untouched():
     assert nodes[101]["widgets_values"][1] == 42, "[101] seed=42 出厂"
 
 
+def test_stage1_canonical_arm():
+    """一采正典臂(1115 B3 定谳=全库 Pika 必须 lcm 的完整配对):41 turbo→1041 sol-attn τ1.3
+    →1042 ChunkFFN[2]→1043 kitchen→1044 σshift[6,3](一采值,非二采[12,3])→101.model;
+    101 外接 sampler←1046 lcm + sigmas←1045 simple/8(README :205 官方覆盖门)。"""
+    d, nodes, links = _load()
+    expect = {46: (41, 0, 1041, 0), 47: (1041, 0, 1042, 0), 48: (1042, 0, 1043, 0),
+              49: (1043, 0, 1044, 0), 50: (1044, 0, 101, 0), 51: (1046, 0, 101, 5),
+              52: (1044, 0, 1045, 0), 53: (1045, 0, 101, 6)}
+    for lid, exp in expect.items():
+        l = links.get(lid)
+        assert l and (l[1], l[2], l[3], l[4]) == exp, f"一采臂 link{lid} 漂移: 期望 {exp}, 实 {l}"
+    assert nodes[41]["outputs"][0]["links"] == [46], "[41] 出线应 [46](直连废除)"
+    assert 2 not in links, "旧直连 link2 应不存在"
+    assert nodes[1044]["widgets_values"] == [6, 3], "σshift 一采值 [6,3]"
+    assert nodes[1042]["widgets_values"] == [2, 4096], "ChunkFFN [2,4096](照抄 i2v 臂)"
+    assert nodes[1046]["widgets_values"] == ["lcm"], "一采采样器=lcm(Pika 必须 lcm)"
+    assert nodes[1045]["widgets_values"] == ["simple", 8, 1.0]
+    assert nodes[1041]["widgets_values"][1] == 1.3, "sol-attn τ1.3"
+    assert nodes[101]["widgets_values"][4] == "euler", "内置 euler 留作 widget 展示位(被外接覆盖,README :205)"
+
+
 def test_stage2_recipe_values():
     """二采配方逐值(UP 定谳 + 1114 嫁接快照):3002 九元组 target 1440×832 cuda /
     taomate@0.7 / sol-attn τ1.3 / σshift[12,3] / kitchen / lcm / simple-3步-dn0.2。"""
@@ -127,8 +148,8 @@ def test_single_source_fanout():
     assert len(unets) == 1 and unets[0]["id"] == 34, "底模恒单源(Cobijada 一件双能)"
     fed = {l[3] for l in d["links"] if l[1] == 34 and l[5] == "MODEL"}
     assert fed == {41, 1021}, "[34] 应扇出一采 pika 臂 + 二采 taomate 臂"
-    ksel = [n for n in nodes.values() if n["type"] == "KSamplerSelect"]
-    assert len(ksel) == 1 and ksel[0]["id"] == 3022, "KSamplerSelect 恰一(lcm 单源)"
+    ksel = sorted((n for n in nodes.values() if n["type"] == "KSamplerSelect"), key=lambda n: n["id"])
+    assert [n["id"] for n in ksel] == [1046, 3022], "KSamplerSelect 两枚(1115 正典臂:一采 1046 + 二采 3022,均 lcm)"
     noise = [n for n in nodes.values() if n["type"] == "RandomNoise"]
     assert len(noise) == 1 and noise[0]["id"] == 3040, "RandomNoise 恰一"
     # VAE 视频单源(7)扇出 101/6/3031/3051;音频 VAE 单源(13)扇出 101/2/3031/3052
@@ -185,7 +206,7 @@ def test_links_bidirectional():
         for i in n.get("inputs", []):
             assert i.get("link") is None or i["link"] in link_ids, \
                 f"[{nid}] 输入槽 {i['name']} 悬空登记 {i.get('link')}"
-    assert d["last_node_id"] == 4003 and d["last_link_id"] == 45, "计数器(14+31 新线)"
+    assert d["last_node_id"] == 4003 and d["last_link_id"] == 53, "计数器(14+31+8 臂线−1 改道=52)"
 
 
 def test_groups_five_bands():
@@ -193,7 +214,7 @@ def test_groups_five_bands():
     两两不交、罩全(MarkdownNote 豁免)、尺寸非正=退化红线。"""
     d, nodes, _ = _load()
     gs = d["groups"]
-    assert len(gs) == 5, "五组横排"
+    assert len(gs) == 6, "六组横排(1115 增⑥一采正典臂)"
     titles = "".join(g["title"] for g in gs)
     for kw in ("加载模型", "一采分段", "一采直出", "二采精修", "三采超分"):
         assert kw in titles, f"五组标题缺: {kw}"

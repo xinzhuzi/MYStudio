@@ -2,7 +2,7 @@
   "id": "h3-autocontext-multiseg",
   "revision": 1,
   "last_node_id": 4003,
-  "last_link_id": 45,
+  "last_link_id": 53,
   "nodes": [
     {
       "id": 2,
@@ -86,7 +86,7 @@
       "type": "VAEDecode",
       "pos": [
         2960,
-        1150
+        600
       ],
       "size": [
         320,
@@ -129,7 +129,7 @@
       "type": "VAELoader",
       "pos": [
         80.0,
-        400
+        380
       ],
       "size": [
         320,
@@ -345,7 +345,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            2
+            46
           ],
           "slot_index": 0
         }
@@ -363,7 +363,7 @@
       "type": "H3Parameter",
       "pos": [
         1680,
-        1200
+        1490
       ],
       "size": [
         420,
@@ -430,7 +430,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 2
+          "link": 50
         },
         {
           "name": "clip",
@@ -451,6 +451,96 @@
           "name": "parameter",
           "type": "DICT",
           "link": 6
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 51
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 53
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 51
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 53
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 51
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 53
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 51
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 53
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 51
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 53
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 51
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 53
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 51
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 53
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 51
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 53
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 51
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 53
         }
       ],
       "outputs": [
@@ -545,7 +635,7 @@
       "type": "LoraLoaderModelOnly",
       "pos": [
         630,
-        2050
+        2400
       ],
       "size": [
         320,
@@ -584,7 +674,7 @@
       "type": "BlockSparseAttention",
       "pos": [
         1180,
-        2050
+        2400
       ],
       "size": [
         270,
@@ -626,10 +716,245 @@
       "title": "sol-attn τ1.3(二采)"
     },
     {
+      "id": 1041,
+      "type": "BlockSparseAttention",
+      "pos": [
+        1180,
+        2900
+      ],
+      "size": [
+        270,
+        358
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 46
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            47
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BlockSparseAttention"
+      },
+      "widgets_values": [
+        "sol-attn",
+        1.3,
+        0,
+        1,
+        "",
+        12288,
+        256,
+        "exact_kv_and_rows",
+        false
+      ],
+      "title": "sol-attn τ1.3(一采正典臂)"
+    },
+    {
+      "id": 1042,
+      "type": "MiniMaxChunkFeedForward",
+      "pos": [
+        1680,
+        2900
+      ],
+      "size": [
+        300,
+        148
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 47
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            48
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxChunkFeedForward"
+      },
+      "widgets_values": [
+        2,
+        4096
+      ],
+      "title": "H3 Chunk FFN(一采,chunks=2 照抄 i2v 臂)"
+    },
+    {
+      "id": 1043,
+      "type": "ModelAttentionBackend",
+      "pos": [
+        1690,
+        3200
+      ],
+      "size": [
+        300,
+        118
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 48
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            49
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelAttentionBackend"
+      },
+      "widgets_values": [
+        "comfy kitchen attention"
+      ],
+      "title": "kitchen attention(一采)"
+    },
+    {
+      "id": 1044,
+      "type": "MiniMaxH3SigmaShift",
+      "pos": [
+        2220,
+        3200
+      ],
+      "size": [
+        266,
+        148
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 49
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            50,
+            52
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3SigmaShift"
+      },
+      "widgets_values": [
+        6,
+        3
+      ],
+      "title": "Sigma Shift [6,3](一采值,非二采[12,3])"
+    },
+    {
+      "id": 1045,
+      "type": "BasicScheduler",
+      "pos": [
+        2230,
+        3600
+      ],
+      "size": [
+        308,
+        178
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 52
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            53
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicScheduler"
+      },
+      "widgets_values": [
+        "simple",
+        8,
+        1.0
+      ],
+      "title": "一采 σ 源 simple/8/dn1.0"
+    },
+    {
+      "id": 1046,
+      "type": "KSamplerSelect",
+      "pos": [
+        1130,
+        880
+      ],
+      "size": [
+        315,
+        118
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            51
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+        "lcm"
+      ],
+      "title": "lcm(一采;Pika 必须 lcm 全库正典)"
+    },
+    {
       "id": 3001,
       "type": "LTXVSeparateAVLatent",
       "pos": [
-        5900,
+        5400,
         1060
       ],
       "size": [
@@ -637,7 +962,7 @@
         112
       ],
       "flags": {},
-      "order": 14,
+      "order": 20,
       "mode": 0,
       "inputs": [
         {
@@ -673,15 +998,15 @@
       "id": 3002,
       "type": "MinimaxH3LatentUpscaler3D",
       "pos": [
-        5940,
-        1300
+        5900,
+        1060
       ],
       "size": [
         287,
         406
       ],
       "flags": {},
-      "order": 15,
+      "order": 21,
       "mode": 0,
       "inputs": [
         {
@@ -743,7 +1068,7 @@
         112
       ],
       "flags": {},
-      "order": 16,
+      "order": 22,
       "mode": 0,
       "inputs": [
         {
@@ -786,7 +1111,7 @@
         148
       ],
       "flags": {},
-      "order": 17,
+      "order": 23,
       "mode": 0,
       "inputs": [
         {
@@ -825,7 +1150,7 @@
         148
       ],
       "flags": {},
-      "order": 18,
+      "order": 24,
       "mode": 0,
       "inputs": [
         {
@@ -865,7 +1190,7 @@
         118
       ],
       "flags": {},
-      "order": 19,
+      "order": 25,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -896,7 +1221,7 @@
         300
       ],
       "flags": {},
-      "order": 20,
+      "order": 26,
       "mode": 0,
       "inputs": [
         {
@@ -937,7 +1262,7 @@
         622
       ],
       "flags": {},
-      "order": 21,
+      "order": 27,
       "mode": 0,
       "inputs": [
         {
@@ -1028,7 +1353,7 @@
         118
       ],
       "flags": {},
-      "order": 22,
+      "order": 28,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -1060,7 +1385,7 @@
         178
       ],
       "flags": {},
-      "order": 23,
+      "order": 29,
       "mode": 0,
       "inputs": [
         {
@@ -1100,7 +1425,7 @@
         112
       ],
       "flags": {},
-      "order": 24,
+      "order": 30,
       "mode": 0,
       "inputs": [
         {
@@ -1140,7 +1465,7 @@
         184
       ],
       "flags": {},
-      "order": 25,
+      "order": 31,
       "mode": 0,
       "inputs": [
         {
@@ -1202,7 +1527,7 @@
         118
       ],
       "flags": {},
-      "order": 26,
+      "order": 32,
       "mode": 0,
       "inputs": [
         {
@@ -1239,7 +1564,7 @@
         112
       ],
       "flags": {},
-      "order": 27,
+      "order": 33,
       "mode": 0,
       "inputs": [
         {
@@ -1279,7 +1604,7 @@
         112
       ],
       "flags": {},
-      "order": 28,
+      "order": 34,
       "mode": 0,
       "inputs": [
         {
@@ -1319,7 +1644,7 @@
         202
       ],
       "flags": {},
-      "order": 29,
+      "order": 35,
       "mode": 0,
       "inputs": [
         {
@@ -1365,7 +1690,7 @@
         468
       ],
       "flags": {},
-      "order": 30,
+      "order": 36,
       "mode": 0,
       "inputs": [
         {
@@ -1398,7 +1723,7 @@
         118
       ],
       "flags": {},
-      "order": 31,
+      "order": 37,
       "mode": 4,
       "inputs": [],
       "outputs": [
@@ -1429,7 +1754,7 @@
         430
       ],
       "flags": {},
-      "order": 32,
+      "order": 38,
       "mode": 4,
       "inputs": [
         {
@@ -1489,7 +1814,7 @@
         468
       ],
       "flags": {},
-      "order": 33,
+      "order": 39,
       "mode": 4,
       "inputs": [
         {
@@ -1514,15 +1839,15 @@
       "id": 9999,
       "type": "MarkdownNote",
       "pos": [
-        1680,
-        2280
+        5250,
+        3000
       ],
       "size": [
         1650,
         950
       ],
       "flags": {},
-      "order": 34,
+      "order": 40,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -1530,7 +1855,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "# 一镜到底-分段 · 全链三采(1114 用户裁定「都过三采」)\n\n## 件用途\n分段生成(一采,绕 15s 封顶)→ 二采 TaoMate 精修(1440×832)→ 三采 ReCaVSR 超分(2880×1664 终档)。与 三采-单镜.json 分工:单镜 ≤15s 高质线 / 本件任意时长全梯线。\n\n## 操作手册(1115 实弹勘误终态:两步法)\n**第 1 步 整图直跑(段B 出厂旁路)**:Run 一按出 p1(960×544)+p2(1440×832)。\n**第 2 步 三采**:激活 4001/4002/4003 三节点 → **选中段B 节点局部执行**(引擎缓存复用,只烧 ReCaVSR ~1min)。\n⚠ **整图一发含段B = 禁**(1115 实弹崩溃实证:全链驻留下 ReCaVSR 上卡即原生崩引擎,引擎日志 17:04:42 零 traceback);App 派发/批量/livefire 恒走 API 两发拆链+间中 `POST /free {\"unload_models\": true}`(Note103 运行法则)。\n\n## 同步点三则(手改必读)\n1. 改分段时长必须按帧数公式同步 [3031].length(targets→snap17 网格→Σnew,出厂 2×1秒=56),实跑以 p1 ffprobe 实测帧数双核对(雷#13/#17);\n2. [3030] 与 [100] 提示词是两份拷贝,手改同频(雷#14,契约测试出厂态断言同文);\n3. 组框五组横排与布局 est 宪法由 `apps/build/scripts/multiseg_full3stage_extend.py --verify` 把门,改版后整体重跑(雷#7)。\n\n## 模型/配方速查\n二采=Cobijada 扇出 taomate@0.7+sol-attn τ1.3+σshift[12,3]+kitchen+lcm+simple/3步/dn0.2(UP 定谳);三采=ReCaVSR scale2 int8 ConvRot。seed=42 复现。"
+        "# 一镜到底-分段 · 全链三采(1114 用户裁定「都过三采」)\n\n## 件用途\n分段生成(一采,绕 15s 封顶)→ 二采 TaoMate 精修(1440×832)→ 三采 ReCaVSR 超分(2880×1664 终档)。与 三采-单镜.json 分工:单镜 ≤15s 高质线 / 本件任意时长全梯线。\n\n## 操作手册(1115 实弹勘误终态:两步法)\n**第 1 步 整图直跑(段B 出厂旁路)**:Run 一按出 p1(960×544)+p2(1440×832)。\n**第 2 步 三采**:激活 4001/4002/4003 三节点 → **选中段B 节点局部执行**(引擎缓存复用,只烧 ReCaVSR ~1min)。\n⚠ **整图一发含段B = 禁**(1115 实弹崩溃实证:全链驻留下 ReCaVSR 上卡即原生崩引擎,引擎日志 17:04:42 零 traceback);App 派发/批量/livefire 恒走 API 两发拆链+间中 `POST /free {\"unload_models\": true}`(Note103 运行法则)。\n\n## 同步点三则(手改必读)\n1. 改分段时长必须按帧数公式同步 [3031].length(targets→snap17 网格→Σnew,出厂 2×1秒=56),实跑以 p1 ffprobe 实测帧数双核对(雷#13/#17);\n2. [3030] 与 [100] 提示词是两份拷贝,手改同频(雷#14,契约测试出厂态断言同文);\n3. 组框五组横排与布局 est 宪法由 `apps/build/scripts/multiseg_full3stage_extend.py --verify` 把门,改版后整体重跑(雷#7)。\n\n## 模型/配方速查(1115 B3 定谳)\n一采=**正典全配方臂**:turbo@1.0+sol-attn τ1.3+ChunkFFN[2]+kitchen+σshift[**6,3**]+**lcm**+simple/8(Pika 必须 lcm=全库正典;裸 euler 已废,B3 实弹 p1 胜/p2 平);二采=taomate@0.7+sol-attn τ1.3+σshift[12,3]+kitchen+lcm+simple/3步/dn0.2(UP 定谳);三采=ReCaVSR scale2 int8 ConvRot。seed=42 复现。⚠ 段缓存指纹不含外接 sampler——A/B 试验须 enable_cache=False(1115 实证)。"
       ],
       "title": "README(恒居组外)"
     }
@@ -1541,14 +1866,6 @@
       34,
       0,
       41,
-      0,
-      "MODEL"
-    ],
-    [
-      2,
-      41,
-      0,
-      101,
       0,
       "MODEL"
     ],
@@ -1895,6 +2212,70 @@
       4003,
       0,
       "VIDEO"
+    ],
+    [
+      46,
+      41,
+      0,
+      1041,
+      0,
+      "MODEL"
+    ],
+    [
+      47,
+      1041,
+      0,
+      1042,
+      0,
+      "MODEL"
+    ],
+    [
+      48,
+      1042,
+      0,
+      1043,
+      0,
+      "MODEL"
+    ],
+    [
+      49,
+      1043,
+      0,
+      1044,
+      0,
+      "MODEL"
+    ],
+    [
+      50,
+      1044,
+      0,
+      101,
+      0,
+      "MODEL"
+    ],
+    [
+      51,
+      1046,
+      0,
+      101,
+      5,
+      "SAMPLER"
+    ],
+    [
+      52,
+      1044,
+      0,
+      1045,
+      0,
+      "MODEL"
+    ],
+    [
+      53,
+      1045,
+      0,
+      101,
+      6,
+      "SIGMAS"
     ]
   ],
   "groups": [
@@ -1905,7 +2286,7 @@
         50,
         20,
         1430,
-        2388
+        2738
       ],
       "color": "#884466",
       "flags": {},
@@ -1913,32 +2294,45 @@
     },
     {
       "id": 11,
-      "title": "② 一采分段(H3底模+pika Turbo 8步·960×544)",
+      "title": "⑥ 一采正典臂(turbo+lcm+sol-attn+ChunkFFN+kitchen+σshift[6,3])",
       "bounding": [
-        1650,
-        840,
-        1110,
-        1120
+        1150,
+        2840,
+        1418,
+        938
       ],
-      "color": "#3f789e",
+      "color": "#5f8788",
       "flags": {},
       "order": 1
     },
     {
       "id": 12,
-      "title": "③ 一采直出",
+      "title": "② 一采分段(H3底模+pika Turbo 8步·960×544)",
       "bounding": [
-        2930,
-        970,
-        2110,
-        1030
+        1650,
+        840,
+        1110,
+        1410
       ],
-      "color": "#448844",
+      "color": "#3f789e",
       "flags": {},
       "order": 2
     },
     {
       "id": 13,
+      "title": "③ 一采直出",
+      "bounding": [
+        2930,
+        540,
+        2110,
+        1460
+      ],
+      "color": "#448844",
+      "flags": {},
+      "order": 3
+    },
+    {
+      "id": 14,
       "title": "④ 二采精修(TaoMate LoRA 3步·1440×832)",
       "bounding": [
         5220,
@@ -1948,10 +2342,10 @@
       ],
       "color": "#aa6600",
       "flags": {},
-      "order": 3
+      "order": 4
     },
     {
-      "id": 14,
+      "id": 15,
       "title": "⑤ 三采超分(ReCaVSR scale2·2880×1664)",
       "bounding": [
         9730,
@@ -1961,7 +2355,7 @@
       ],
       "color": "#335588",
       "flags": {},
-      "order": 4
+      "order": 5
     }
   ],
   "config": {},

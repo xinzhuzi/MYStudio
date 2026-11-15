@@ -50,7 +50,9 @@ ORIGINAL_IDS = (34, 41, 21, 7, 13, 100, 101, 6, 2, 102, 36, 4)
 
 # 组框(五组横排,PRD 结构规则;MarkdownNote 9999 恒居组外)
 GROUPS = [
-    ("① 加载模型",   [34, 41, 1021, 1033, 21, 7, 13], "#884466"),
+    ("① 加载模型",   [34, 41, 1046, 1021, 1033, 21, 7, 13], "#884466"),
+    ("⑥ 一采正典臂(turbo+lcm+sol-attn+ChunkFFN+kitchen+σshift[6,3])",
+     [1041, 1042, 1043, 1044, 1045], "#5f8788"),
     ("② 一采分段(H3底模+pika Turbo 8步·960×544)", [100, 101],          "#3f789e"),
     ("③ 一采直出",   [6, 2, 102, 36, 4],              "#448844"),
     ("④ 二采精修(TaoMate LoRA 3步·1440×832)",
@@ -65,24 +67,29 @@ LAYOUT: dict[int, tuple[float, float]] = {
     # ── 1115 分层行重排(五组横排带式;polish 真判据首轮收敛态烘焙=全程最优:
     #    crossings 36/占地 3150(-58%)/线遮 3 处按家族正典现值入档)
     # 走廊:顶廊(21/7/13→3031);中廊(7→3051/13→3052);101→3001 横线;模型低廊 y~2400
-    21: (80, 80), 7: (80, 400), 13: (80, 720),
+    21: (80, 80), 7: (80, 380), 13: (80, 720),      # 7 微调(贪心:避 7→3051×6)
     34: (80, 1040), 41: (630, 1040),
-    1021: (630, 2050), 1033: (1180, 2050),
-    101: (2330, 900), 100: (1680, 1200),
-    6: (2960, 1150), 2: (2960, 1800), 102: (3510, 1030),
+    1021: (630, 2400), 1033: (1180, 2400),               # 模型低廊下沉(1033→3011 走 100 新位下方)
+    1041: (1180, 2900), 1042: (1680, 2900),                       # 一采正典臂低廊(两排;随低廊下沉)
+    1043: (1690, 3200), 1044: (2220, 3200), 1045: (2230, 3600),    # 二排+尾阶梯(pos 恒<101.x=2330)
+    1046: (1130, 880),                                             # 一采 lcm(贪心终位:三线净空)
+    101: (2330, 900), 100: (1680, 1490),                 # 100 沉位(13→2 线走上净空,1033→3011 低廊走下)
+    6: (2960, 600), 2: (2960, 1800), 102: (3510, 1030),          # 6 上提:7→6 馈线走 101 上净空
     36: (4100, 1200), 4: (4650, 1400),
     3031: (5900, 80), 3030: (5250, 380),
-    3001: (5900, 1060), 3002: (5940, 1300), 3003: (5980, 1800),
+    3001: (5400, 1060), 3002: (5900, 1060), 3003: (5980, 1800),   # 3002 右移上提(音轨直通 3001→3003 走其下方)
     3022: (7120, 80), 3040: (7120, 320),
     3051: (8190, 900), 3052: (8190, 1100),
     3053: (8670, 680), 3071: (9170, 1000),
     3011: (5250, 2400), 3021: (5900, 2400), 3044: (6530, 2400),
     3042: (7120, 2400), 3041: (7120, 2700), 3043: (7710, 2200),
     4001: (9760, 800), 4002: (10260, 1000), 4003: (10760, 1000),
-    9999: (1680, 2280),
+    9999: (5250, 3000),                                          # README(④带下方,让位臂低廊)
 }
 # 新节点 size(w,h);旧 12 节点沿用现件声明 size
 SIZES: dict[int, tuple[float, float]] = {
+    1041: (270, 358), 1042: (300, 148), 1043: (300, 118), 1044: (266, 148),
+    1045: (308, 178), 1046: (315, 118),
     1021: (320, 200), 1033: (270, 358), 3011: (300, 148), 3021: (266, 148),
     3022: (315, 118), 3030: (420, 300), 3031: (400, 622), 3040: (315, 118),
     3041: (308, 178), 3042: (360, 112), 3043: (250, 184), 3044: (300, 118),
@@ -105,8 +112,11 @@ README_NOTE = (
     "出厂 2×1秒=56),实跑以 p1 ffprobe 实测帧数双核对(雷#13/#17);\n2. [3030] 与 [100] 提示词是两份拷贝,"
     "手改同频(雷#14,契约测试出厂态断言同文);\n3. 组框五组横排与布局 est 宪法由 "
     "`apps/build/scripts/multiseg_full3stage_extend.py --verify` 把门,改版后整体重跑(雷#7)。\n\n"
-    "## 模型/配方速查\n二采=Cobijada 扇出 taomate@0.7+sol-attn τ1.3+σshift[12,3]+kitchen+lcm+simple/3步/dn0.2"
-    "(UP 定谳);三采=ReCaVSR scale2 int8 ConvRot。seed=42 复现。"
+    "## 模型/配方速查(1115 B3 定谳)\n一采=**正典全配方臂**:turbo@1.0+sol-attn τ1.3+ChunkFFN[2]+kitchen+"
+    "σshift[**6,3**]+**lcm**+simple/8(Pika 必须 lcm=全库正典;裸 euler 已废,B3 实弹 p1 胜/p2 平);"
+    "二采=taomate@0.7+sol-attn τ1.3+σshift[12,3]+kitchen+lcm+simple/3步/dn0.2(UP 定谳);"
+    "三采=ReCaVSR scale2 int8 ConvRot。seed=42 复现。⚠ 段缓存指纹不含外接 sampler——"
+    "A/B 试验须 enable_cache=False(1115 实证)。"
 )
 
 
@@ -147,6 +157,15 @@ def _out(name: str, otype: str, links=None):
 # (lid, src, sslot, dst, dslot, type)
 NEW_LINKS: list[tuple[int, int, int, int, int, str]] = [
     # 模型链:34 扇出 → 1021 → 1033 → 3011 → 3021 → {3041, 3044} → 3042
+    # 一采正典臂(1115 B3 定谳:41 turbo→sol-attn→ChunkFFN2→kitchen→σshift[6,3]→101;外接 lcm+simple/8)
+    (46, 41, 0, 1041, 0, "MODEL"),
+    (47, 1041, 0, 1042, 0, "MODEL"),
+    (48, 1042, 0, 1043, 0, "MODEL"),
+    (49, 1043, 0, 1044, 0, "MODEL"),
+    (50, 1044, 0, 101, 0, "MODEL"),
+    (51, 1046, 0, 101, 5, "SAMPLER"),
+    (52, 1044, 0, 1045, 0, "MODEL"),
+    (53, 1045, 0, 101, 6, "SIGMAS"),
     (15, 34, 0, 1021, 0, "MODEL"),
     (16, 1021, 0, 1033, 0, "MODEL"),
     (17, 1033, 0, 3011, 0, "MODEL"),
@@ -188,6 +207,31 @@ NEW_LINKS: list[tuple[int, int, int, int, int, str]] = [
 
 def _new_nodes() -> list[dict]:
     nodes = [
+        # —— 一采正典臂(1115 B3 定谳;逐值照抄 三采-单镜 i2v 臂 1031/1034/1041/1051/2021/2022)——
+        _node(1041, "BlockSparseAttention",
+              ["sol-attn", 1.3, 0, 1, "", 12288, 256, "exact_kv_and_rows", False],
+              inputs=[_in("model", "MODEL", 46)],
+              outputs=[_out("model", "MODEL", [47])],
+              title="sol-attn τ1.3(一采正典臂)"),
+        _node(1042, "MiniMaxChunkFeedForward", [2, 4096],
+              inputs=[_in("model", "MODEL", 47)],
+              outputs=[_out("model", "MODEL", [48])],
+              title="H3 Chunk FFN(一采,chunks=2 照抄 i2v 臂)"),
+        _node(1043, "ModelAttentionBackend", ["comfy kitchen attention"],
+              inputs=[_in("model", "MODEL", 48)],
+              outputs=[_out("MODEL", "MODEL", [49])],
+              title="kitchen attention(一采)"),
+        _node(1044, "MiniMaxH3SigmaShift", [6, 3],
+              inputs=[_in("model", "MODEL", 49)],
+              outputs=[_out("MODEL", "MODEL", [50, 52])],
+              title="Sigma Shift [6,3](一采值,非二采[12,3])"),
+        _node(1045, "BasicScheduler", ["simple", 8, 1.0],
+              inputs=[_in("model", "MODEL", 52)],
+              outputs=[_out("SIGMAS", "SIGMAS", [53])],
+              title="一采 σ 源 simple/8/dn1.0"),
+        _node(1046, "KSamplerSelect", ["lcm"],
+              outputs=[_out("SAMPLER", "SAMPLER", [51])],
+              title="lcm(一采;Pika 必须 lcm 全库正典)"),
         _node(1021, "LoraLoaderModelOnly", ["taomate_h3_3step.safetensors", 0.7],
               inputs=[_in("model", "MODEL", 15)],
               outputs=[_out("MODEL", "MODEL", [16])],
@@ -296,6 +340,12 @@ ORIGINAL_LINKS_MAX = 14   # 现件 links 1-14 原样保留
 def _fanout_patch(nodes_by_id: dict[int, dict]) -> None:
     """旧节点扇出登记(三面一致:links 表/inputs[].link/outputs[].links)。"""
     nodes_by_id[34]["outputs"][0]["links"] = [1, 15]                 # MODEL → 41, 1021
+    nodes_by_id[41]["outputs"][0]["links"] = [46]                    # MODEL → 1041(1115 正典臂,旧 2 改道)
+    n101 = nodes_by_id[101]
+    ins = [i for i in n101["inputs"] if i.get("name") not in ("sampler", "sigmas")]
+    ins[0]["link"] = 50                                              # model ← 1044 σshift(旧直连废除)
+    ins.append({"name": "sampler", "type": "SAMPLER", "link": 51})  # ← 1046 lcm(外接覆盖,README :205)
+    ins.append({"name": "sigmas", "type": "SIGMAS", "link": 53})    # ← 1045 simple/8(重建式=幂等)
     nodes_by_id[21]["outputs"][0]["links"] = [3, 23]                 # CLIP → 101, 3031
     nodes_by_id[7]["outputs"][0]["links"] = [4, 8, 24, 38]           # VAE → 101, 6, 3031, 3051
     nodes_by_id[13]["outputs"][0]["links"] = [5, 10, 25, 39]         # VAE → 101, 2, 3031, 3052
@@ -315,10 +365,10 @@ def build_full3stage_graph(base: dict) -> dict:
     new_nodes = _new_nodes()
     by_id = {n["id"]: n for n in originals + new_nodes}
     _fanout_patch(by_id)
-    old_links_probe = [list(l) for l in base["links"] if l[0] <= ORIGINAL_LINKS_MAX]
+    old_links_probe = [list(l) for l in base["links"] if l[0] <= ORIGINAL_LINKS_MAX and l[0] != 2]
     _compact_layout(by_id, sorted(old_links_probe + [list(l) for l in NEW_LINKS], key=lambda l: l[0]))
 
-    old_links = [list(l) for l in base["links"] if l[0] <= ORIGINAL_LINKS_MAX]
+    old_links = [list(l) for l in base["links"] if l[0] <= ORIGINAL_LINKS_MAX and l[0] != 2]   # 2(41→101)改道正典臂
     links = sorted(old_links + [list(l) for l in NEW_LINKS], key=lambda l: l[0])
 
     ordered = originals + [n for n in new_nodes]
@@ -392,7 +442,8 @@ _WIDGET_KEYS: dict[str, list[str]] = {
 # 零 widget 的类型(VAEDecode/VAEDecodeAudio/BasicGuider/LTXV*/SamplerCustomAdvanced)
 
 _LINK_SLOT_KEYS: dict[int, dict[int, str]] = {   # node_id -> {input_slot: api_key} 全部按名直映
-    101: {0: "model", 1: "clip", 2: "vae", 3: "audio_vae", 4: "parameter"},
+    101: {0: "model", 1: "clip", 2: "vae", 3: "audio_vae", 4: "parameter",
+          5: "sampler", 6: "sigmas"},   # 1115 正典臂外接口(object_info 序:sampler 先于 sigmas)
 }
 
 
@@ -448,6 +499,8 @@ def build_stageB_api(graph: dict, source_file: str = "") -> dict:
 # ---------------------------------------------------------------------------
 _IMAGE_PREVIEW_TYPES = {"SaveImage", "LoadImage", "SaveVideo", "PreviewVideo"}
 NEW_NODE_TYPES = {
+    1041: "BlockSparseAttention", 1042: "MiniMaxChunkFeedForward", 1043: "ModelAttentionBackend",
+    1044: "MiniMaxH3SigmaShift", 1045: "BasicScheduler", 1046: "KSamplerSelect",
     1021: "LoraLoaderModelOnly", 1033: "BlockSparseAttention", 3011: "MiniMaxChunkFeedForward",
     3021: "MiniMaxH3SigmaShift", 3022: "KSamplerSelect", 3030: "PrimitiveStringMultiline",
     3031: "MiniMaxH3ReferenceToVideo", 3040: "RandomNoise", 3041: "BasicScheduler",
@@ -755,6 +808,26 @@ def verify_graph(d: dict) -> list[str]:
             if i.get("link") is not None and i["link"] not in link_ids:
                 problems.append(f"[{nid}] 输入槽 {i['name']} 悬空登记 {i.get('link')}")
 
+    # ②b 一采正典臂(1115 B3):链/外接口/逐值
+    arm_expect = {46: (41, 0, 1041, 0, "MODEL"), 47: (1041, 0, 1042, 0, "MODEL"),
+                  48: (1042, 0, 1043, 0, "MODEL"), 49: (1043, 0, 1044, 0, "MODEL"),
+                  50: (1044, 0, 101, 0, "MODEL"), 51: (1046, 0, 101, 5, "SAMPLER"),
+                  52: (1044, 0, 1045, 0, "MODEL"), 53: (1045, 0, 101, 6, "SIGMAS")}
+    for lid, exp in arm_expect.items():
+        l = links.get(lid)
+        if not l or tuple(l[1:6]) != exp:
+            problems.append(f"一采臂 link {lid} 漂移: 期望 {exp}")
+    if nodes[41]["outputs"][0]["links"] != [46]:
+        problems.append("[41] MODEL 出线应 [46](正典臂改道,旧直连废除)")
+    if nodes[1044]["widgets_values"] != [6, 3]:
+        problems.append("[1044] σshift 应 [6,3](一采值)")
+    if nodes[1042]["widgets_values"] != [2, 4096]:
+        problems.append("[1044] ChunkFFN 应 [2,4096](照抄 i2v 臂)")
+    if nodes[1046]["widgets_values"] != ["lcm"]:
+        problems.append("[1046] 一采采样器应 lcm(Pika 必须 lcm 全库正典)")
+    if nodes[1045]["widgets_values"] != ["simple", 8, 1.0]:
+        problems.append("[1045] 一采 σ 源应 simple/8/1.0")
+
     # ③ p1 链原样(slot0 双扇出 [6]/[2];36→4 直连)
     p1_expected = {7: (101, 0, 6, 0), 9: (101, 0, 2, 0), 8: (7, 0, 6, 1), 10: (13, 0, 2, 1),
                    11: (6, 0, 102, 0), 12: (102, 0, 36, 0), 13: (2, 0, 36, 1), 14: (36, 0, 4, 0)}
@@ -812,8 +885,8 @@ def verify_graph(d: dict) -> list[str]:
 
     # ⑦ 组框:五组横排/两两不交/罩全(Note 豁免)
     gs = d["groups"]
-    if len(gs) != 5:
-        problems.append(f"应五组横排,现 {len(gs)} 组")
+    if len(gs) != 6:
+        problems.append(f"应六组横排(1115 增⑥一采正典臂),现 {len(gs)} 组")
     for i in range(len(gs)):
         for j in range(i + 1, len(gs)):
             a, b = gs[i]["bounding"], gs[j]["bounding"]
@@ -834,8 +907,8 @@ def verify_graph(d: dict) -> list[str]:
     # ⑧ 计数器
     if d["last_node_id"] != 4003:
         problems.append(f"last_node_id={d['last_node_id']} 应 4003")
-    if d["last_link_id"] != 45:
-        problems.append(f"last_link_id={d['last_link_id']} 应 45(14+31)")
+    if d["last_link_id"] != 53:
+        problems.append(f"last_link_id={d['last_link_id']} 应 53(14+31+8臂−1改道)")
     return problems
 
 
