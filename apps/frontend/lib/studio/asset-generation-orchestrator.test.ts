@@ -610,6 +610,39 @@ describe("asset-generation-orchestrator", () => {
       expect(String(compileLog?.[0].context?.contractSha256)).toMatch(/^[a-f0-9]{64}$/);
     });
 
+    it("F5② 死锁续修(1115):润色产物携画风词时送引擎主体句先剥(与分镜链同款门禁同源剥)", async () => {
+      vi.mocked(polishAssetPrompt).mockResolvedValueOnce({
+        status: "success",
+        prompt: "矿场题材正文:近景工笔线描勾矿岩肌理,白描式线条塑形,保留彩色连环画凝练造型。",
+        negativePrompt: "水印",
+      });
+
+      const result = await generateAsset({
+        assetId: "scene-1",
+        assetType: "scene",
+        name: "灵矿坑道葬玉",
+        description: "坑道深处石室",
+        isDerivative: false,
+        visualManualId: "daojie_ink_guofeng",
+      });
+
+      expect(result.phase).toBe("done");
+      const [params] = vi.mocked(aiManager.image).mock.calls[0];
+      // 主体句段(首个自动层「配料方案」之前)画风词剥净;底座/轨道层的画风词
+      // 是合法正资产(门按段查,晨役 10/12 实证)——不查整串。
+      const subjectSegment = params.prompt.split("配料方案")[0];
+      expect(subjectSegment).not.toContain("工笔");
+      expect(subjectSegment).not.toContain("白描");
+      expect(subjectSegment).not.toContain("连环画");
+      expect(subjectSegment).toContain("勾矿岩肌理");
+      expect(params.prompt).toContain("风格底座");
+      // 剥词留痕(diagnostics 可追溯)
+      const stripLog = vi.mocked(logEvent).mock.calls.find(
+        ([entry]) => entry.message.includes("style words stripped"),
+      );
+      expect(stripLog?.[0].context).toMatchObject({ strippedWords: { 工笔: 1, 白描: 1, 连环画: 1 } });
+    });
+
     it("已有提示词复用仍进编译与长度门(skipPolish≠skipCompile),作业负面不丢", async () => {
       const result = await generateAsset({
         assetId: "prop-1",
@@ -725,7 +758,11 @@ describe("asset-generation-orchestrator", () => {
       expect(params.prompt).not.toContain("宣纸质感");
       expect(params.prompt).not.toContain("电影质感");
       expect(params.prompt).toContain("浅净平涂底");
-      expect(params.prompt).toContain("工笔成片质感");
+      // 1115 F5② 死锁续修:sanitize 的「电影质感→工笔成片质感」改写属门禁前
+      // 时代语义(往主体句塞画风词=引擎门拒收病源)——送引擎主体句经同源剥词后
+      // 画风词剥净,「成片质感」语义保留;风格语义由底座层承担。
+      expect(params.prompt.split("配料方案")[0]).not.toContain("工笔");
+      expect(params.prompt).toContain("成片质感");
     });
 
     it("题材正文带风险措辞时 warn 软检查日志,不阻断生成", async () => {

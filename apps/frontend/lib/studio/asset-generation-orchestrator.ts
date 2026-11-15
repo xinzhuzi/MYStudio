@@ -6,6 +6,7 @@ import type { ImageAspectRatio, ImageResolution } from "@/lib/ai/image-size-pres
 export type { AssetType } from "@/lib/ai/prompt-polisher";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import { DaojiePromptContractError, compileDaojiePrompt, lintDaojieSubjectRisks } from "@/lib/ai/daojie-prompt-contract";
+import { stripDaojieSubjectStyleWordsForTransport } from "@/lib/studio/daojie-style-word-strip";
 import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
 import { AssetType, PolishRequest, PolishResult, batchPolishAssetPrompts, polishAssetPrompt, sanitizeExtendedManualPrompt, selectDaojiePaletteSchemeForAsset } from "@/lib/ai/prompt-polisher";
 import { applyMatchedAssets, collectAndMatchAssets, markAssetsPolishing, saveGeneratedAssetImage, updateStoreWithResult, writePolishErrorToStore, writePolishResultToStore } from "./asset-generation-store-writers";
@@ -135,7 +136,12 @@ export async function generateAsset(
     if (task.visualManualId === EXTENDED_VISUAL_MANUAL_SEED_ID) {
       // 已有提示词直出链同口径清洗:润色路径产出的正文已过 sanitize,
       // 存量/手写 draftPrompt 不过——违禁词(电影质感/景深/宣纸质感系)不得直通 provider
-      const subjectBody = sanitizeExtendedManualPrompt(prompt.trim());
+      // 1115 补完役 F5② 死锁续修:资产链润色产物会携画风词(工笔/白描/连环画,
+      // 实弹 4 连拒同指纹)——与分镜链 run-image-workflow-node-generation.ts:191
+      // 同款,送引擎主体句先过门禁同源剥词(风格语义由底座承担)。
+      const subjectBody = stripDaojieSubjectStyleWordsForTransport(
+        sanitizeExtendedManualPrompt(prompt.trim()),
+      );
       if (!subjectBody) {
         return { phase: "failed", error: "道劫提示词为空，已拒绝生成", polishResult };
       }
