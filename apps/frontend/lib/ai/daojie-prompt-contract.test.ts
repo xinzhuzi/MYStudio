@@ -84,7 +84,8 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
     expect(DAOJIE_RUNTIME_CONTRACT.contractVersion).toBe("ma-gongbi-v1");
     expect(DAOJIE_RUNTIME_CONTRACT.contractSha256).toBe(
       // 1016：画法只含风格；背景、光照与来源状态归三轨类型模块；来源SHA保留历史基线。
-      "7b92945ac2e029ea16cc953f635c008f165be704d8075105737d4016eff2d029",
+      // 1115 补完役 F5② 死锁修：TRACK=scene/prop 否定式→正向直陈(引擎门六连拒病根)，契约文变哈希随迁。
+      "3c892ef0dfb6b5fef156255843f56806383018450d921759a630c64e84a8b41b",
     );
     expect(DAOJIE_RUNTIME_CONTRACT.avoidSeparator).toBe("\nAvoid: ");
     expect(DAOJIE_RUNTIME_CONTRACT.length).toEqual({ warningBelow: 300, min: 300, max: 1600 });

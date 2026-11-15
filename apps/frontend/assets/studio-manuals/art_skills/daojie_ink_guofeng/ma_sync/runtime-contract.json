@@ -1,6 +1,6 @@
 {
   "contractVersion": "ma-gongbi-v1",
-  "contractSha256": "7b92945ac2e029ea16cc953f635c008f165be704d8075105737d4016eff2d029",
+  "contractSha256": "3c892ef0dfb6b5fef156255843f56806383018450d921759a630c64e84a8b41b",
   "syncedAt": "2026-09-18",
   "maSources": [
     {
@@ -127,7 +127,7 @@
     },
     "style.gongbi-track.scene": {
       "moduleId": "style.gongbi-track.scene",
-      "text": "TRACK=scene: 场景为唯一视觉主角；原图已有的人物按原数量/位置/姿态/尺度保留为小型远中景叙事或尺度参照，不得肖像特写、居中海报化、前景英雄位或人物主导光线；原图无人不得新增人物；布局、比例与前中远景不变，仅将画法转为同一国风二维动漫线描设色。 结构线对齐不漂移。 场景类型句：光源方向、明暗和天气依来源场景与时段；建筑、地物的完好或破损状态依来源事实保留。",
+      "text": "TRACK=scene: 场景为唯一视觉主角；原图已有的人物按原数量/位置/姿态/尺度保留为小型远中景叙事或尺度参照——人物恒取远中景叙事位与尺度参照位，肖像特写、居中海报化、前景英雄位与人物主导光线均归人物轨专用；原图无人物时画面恒为纯场景；布局、比例与前中远景不变，仅将画法转为同一国风二维动漫线描设色。 结构线对齐不漂移。 场景类型句：光源方向、明暗和天气依来源场景与时段；建筑、地物的完好或破损状态依来源事实保留。",
       "required": true,
       "singletonKey": "gongbi_style_track",
       "requires": [
@@ -145,7 +145,7 @@
     },
     "style.gongbi-track.prop": {
       "moduleId": "style.gongbi-track.prop",
-      "text": "TRACK=prop：单体 hero；material+silhouette 优先；以动漫道具线描与清晰色面呈现材质；禁止 portrait takeover 和器物 sheet-wrinkle。 器物类型句：背景与照明依来源用途；器物的断裂、缺损、磨损、积尘和血痕依来源事实保留。",
+      "text": "TRACK=prop：单体 hero；material+silhouette 优先；以动漫道具线描与清晰色面呈现材质；portrait takeover 与器物 sheet-wrinkle 形态均归人物轨与织物轨专用，道具恒为单体 hero 陈列。 器物类型句：背景与照明依来源用途；器物的断裂、缺损、磨损、积尘和血痕依来源事实保留。",
       "required": true,
       "singletonKey": "gongbi_style_track",
       "requires": [
