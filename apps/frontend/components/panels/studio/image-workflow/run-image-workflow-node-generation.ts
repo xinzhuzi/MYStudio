@@ -6,6 +6,7 @@ import { runUnclothChain } from "@/lib/assist/image-studio/run-uncloth";
 import { isNsfwProModel } from "@/lib/assist/image-studio/nsfw-request";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
+import { stripDaojieSubjectStyleWordsForTransport } from "@/lib/studio/daojie-style-word-strip";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import {
   assertImageWorkflowContinuityCapability,
@@ -182,7 +183,15 @@ export async function runImageWorkflowNodeGeneration(
   // 参考图随请求透传(与既往回落形态一致);NSFW 破限 use_lora 在 qi21 侧静默忽略
   // (同既往回落)。自由/资产工作流保留节点自选模型。
   const buildRequest = (transport?: "chat") => ({
-    prompt: [compiledFrame?.positive ?? styledPrompt, referenceSheet?.prompt].filter(Boolean).join("\n"),
+    // 1115 A 裁(工笔门禁×L5×分镜样板文):分镜主体句在送往引擎前按门禁同源
+    // 词表剥画风词(风格语义由底座承担;@图N 绑定句=referenceSheet 零触碰;
+    // 分镜表真源零改;剥词留痕进 diagnostics 供装配抽验对账)。
+    prompt: [
+      graph.target.kind === "storyboard"
+        ? stripDaojieSubjectStyleWordsForTransport(compiledFrame?.positive ?? styledPrompt)
+        : (compiledFrame?.positive ?? styledPrompt),
+      referenceSheet?.prompt,
+    ].filter(Boolean).join("\n"),
     model: finalModel,
     aspectRatio: request.aspectRatio,
     // 降载重试(09-15 P3 阶梯第三段):显式降档覆盖;缺省保持图内档位
