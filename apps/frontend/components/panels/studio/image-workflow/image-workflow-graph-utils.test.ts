@@ -19,6 +19,7 @@ import {
   resolveGenerationTargetNodeId,
   splitImageMaterialsByOrigin,
   healStoryboardPromptForCast,
+  stripStoryboardPromptStyleWords,
 } from "./image-workflow-graph-utils";
 
 const context = {
@@ -347,5 +348,45 @@ describe("healStoryboardPromptForCast (R18 存量自愈)", () => {
     expect(healStoryboardPromptForCast(g)).toBe(g);
     const healed = healStoryboardPromptForCast(g, ["独孤剑尘", "女孩", "男孩"]);
     expect(healStoryboardPromptForCast(healed, ["独孤剑尘", "女孩", "男孩"])).toBe(healed);
+  });
+});
+
+describe("storyboard graph-level style-word strip (1115 A 裁补·复用镜实证)", () => {
+  const ctx = {
+    target: { kind: "storyboard" as const, id: "sb-chapter-001-008" },
+    title: "分镜 8",
+    prompt: "独孤剑尘随人流行进、视线平直不停步。",
+    storyboardSourceFingerprint: "fp-s08",
+  };
+
+  it("图内存量 prompt 节点带工笔样板文 → 剥净;干净图幂等不动", () => {
+    const raw = createOpenImageWorkflowGraph(ctx, "道劫");
+    // 模拟复用流:图内 prompt 节点携带未剥样板文(首轮 11:41 绑定形态)
+    const dirty = {
+      ...raw,
+      nodes: raw.nodes.map((node) =>
+        node.type === "prompt" && node.prompt
+          ? {
+              ...node,
+              prompt: `${node.prompt}\n【构图】行进途中擦肩而过;背景具体道具(灯/卷轴/门框/雨帘);工笔线描照亮脸和手。画幅 16:9 双人中景。`,
+            }
+          : node,
+      ),
+    };
+    const stripped = stripStoryboardPromptStyleWords(dirty);
+    expect(stripped).not.toBe(dirty);
+    for (const node of stripped.nodes) {
+      if (node.type === "prompt" && node.prompt) {
+        for (const word of ["工笔", "白描", "连环画", "厚涂", "赛璐璐", "photorealistic"]) {
+          expect(node.prompt.includes(word), `残留画风词 ${word}`).toBe(false);
+        }
+        expect(node.prompt).toContain("照亮脸和手");
+      }
+    }
+    // 幂等:再剥不动
+    expect(stripStoryboardPromptStyleWords(stripped)).toBe(stripped);
+    // 非分镜图零触碰
+    const assetGraph = createAssetImageWorkflowGraph(context, "道劫");
+    expect(stripStoryboardPromptStyleWords(assetGraph)).toBe(assetGraph);
   });
 });

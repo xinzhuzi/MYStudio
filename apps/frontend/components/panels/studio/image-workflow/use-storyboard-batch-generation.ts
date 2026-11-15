@@ -39,6 +39,7 @@ import {
   healStoryboardPromptForCast,
   findStoryboardWorkflowForContext,
   resolveOpenContextGeneratedNodeId,
+  stripStoryboardPromptStyleWords,
 } from "./image-workflow-graph-utils";
 import { runImageWorkflowNodeGeneration } from "./run-image-workflow-node-generation";
 import { landStoryboardContinuity } from "./land-continuity";
@@ -678,6 +679,16 @@ async function generateOneShot(
     ?? graph.nodes.find((node) => node.type === "generated")?.id;
   if (!targetNodeId) {
     throw new Error("工作流缺少成图节点");
+  }
+  // 1115 A 裁补(图级,双保险):新流/复用流统一在生成前把图内 prompt 节点按
+  // 门禁同源词表剥净——复用流提交实证走图内存量值(传输位剥不到),不剥则
+  // 6:4011 门禁按图内旧文拒收(S08/S11 三梯实证)。
+  {
+    const strippedGraph = stripStoryboardPromptStyleWords(graph);
+    if (strippedGraph !== graph) {
+      useStudioStore.getState().upsertImageWorkflow(strippedGraph);
+      graph = strippedGraph;
+    }
   }
   // M3a 多帧:按帧串行生成并逐帧回写;帧间链要求顺序执行,中途失败抛错由批次层记录
   if (emptyFrames.length > 0) {

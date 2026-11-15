@@ -11,6 +11,7 @@ import {
   referenceSlotPosition,
   setGeneratedImageResult,
 } from "@/lib/studio/image-workflow";
+import { stripDaojieSubjectStyleWords } from "@/lib/studio/daojie-style-word-strip";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import {
   EXTENDED_STORYBOARD_STYLE_TOKENS,
@@ -376,6 +377,26 @@ export function ensureStoryboardBindingConsistency(graph: ImageWorkflowGraph): I
  * A 与 B」双人约束)永不刷新——S07 实证 4 人镜被双人模板逼出 5 人。重生复用
  * 前按 shotSemantics.visibleCharacters 对 prompt 节点构图行补跑自适应,幂等。
  */
+/**
+ * 1115 A 裁补(复用镜实证):图级画风词剥净——复用分镜工作流的提交走图内存量
+ * prompt 节点值(引擎侧 400),传输位剥词覆盖不到(11-15 实弹 S08/S11 三梯
+ * 带工笔入引擎实证)。对 prompt 节点逐个按门禁同源词表剥净,幂等;与传输位
+ * (run-image-workflow-node-generation)双保险。分镜真源分片零触碰。
+ */
+export function stripStoryboardPromptStyleWords(graph: ImageWorkflowGraph): ImageWorkflowGraph {
+  if (graph.target.kind !== "storyboard") return graph;
+  let anyChanged = false;
+  const nodes = graph.nodes.map((node) => {
+    if (node.type !== "prompt" || !node.prompt) return node;
+    const { text } = stripDaojieSubjectStyleWords(node.prompt);
+    if (text === node.prompt) return node;
+    anyChanged = true;
+    return { ...node, prompt: text };
+  });
+  if (!anyChanged) return graph;
+  return { ...graph, nodes, updatedAt: Date.now() };
+}
+
 export function healStoryboardPromptForCast(
   graph: ImageWorkflowGraph,
   castNames?: string[],
