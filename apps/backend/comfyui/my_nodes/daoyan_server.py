@@ -30,6 +30,13 @@
         的 160/80 截断仅驾驶舱用,此处独立装配;图/视频 URL 走
         chapter_image 同款引擎可显示路径)
 
+1115 分镜面板「导入导演台视频」数据源:
+  GET /my_daoyan/chapter_videos?chapter=<v>[&project=<pid>]
+      → {chapter,videos:[{seg_id,filename,subfolder,url,size,mtime}],count,
+        error?}(章内逐镜 p3-recavsr 成片纯枚举,不流文件;免 project
+        ——p3 按章键于引擎 output,带 project 不报错;非法 chapter 400;
+        章目录缺=空清单 200 非 error;url 走引擎标准 /view 口)
+
 数据源(地基实读验证,selectorSpec 1114):
 - 项目册=<app-home>/projects/mystudio-project-store.json
   {state:{projects:[{id,name,location}],activeProjectId},version:0}(显示名)
@@ -55,7 +62,7 @@ import sys
 from pathlib import Path
 from urllib.parse import quote
 
-from .nodes.director_executor import OUT_DIR_ROOT
+from .nodes.director_executor import OUT_DIR_ROOT, P3_NAME
 
 _installed = False
 
@@ -224,6 +231,66 @@ def read_run_log(out_root, chapter, limit=500) -> dict:
     except (TypeError, ValueError):
         limit = 500
     return {"chapter": chapter, "path": str(path), "lines": lines[-limit:]}
+
+
+# ── 章成片清单(1115 分镜面板「导入导演台视频」数据源)────────────────
+# 后缀白名单对齐 executor hit()(director_executor.py:107 含 .mkv);
+# _VIDEO_EXTS(详情浮层 media/ai-video/ 口)缺 .mkv——两口径语义不同,
+# 故本地常量,不动存量。
+_P3_VIDEO_EXTS = (".mp4", ".webm", ".mov", ".mkv")
+
+
+def list_chapter_videos(output_root, chapter) -> dict:
+    """章内逐镜 p3-recavsr 成片清单(纯枚举不流文件;注入纪律同 read_run_log)。
+
+    - valid_chapter 守卫复用(非法→error 字段,路由层 400;中文章名放行)
+    - glob video/导演台/{chapter}/*/p3-recavsr*:p1-draft/p2-final 前缀
+      天然不入围
+    - 后缀白名单 .mp4/.webm/.mov/.mkv(hit() 同款):.bak 让名件后缀出局
+      天然排除
+    - 每 seg 取 mtime 最新一枚(rerun 多发并存=最新胜);多 seg 按 id 排序
+    - url=/view?filename&type=output&subfolder(emit_preview 同款引擎
+      标准 output 视图口,query 全 quote(safe='')编码=_media_url/cards.js
+      encodeURIComponent 口径,前端拼引擎 base 直 fetch)
+    - 章目录缺=空清单非 error(「本章还没跑过」是常态非故障,路由 200)
+    """
+    chapter = str(chapter or "")
+    if not valid_chapter(chapter):
+        return {"chapter": chapter, "videos": [], "count": 0,
+                "error": "非法 chapter 参数(拒防路径穿越)"}
+    cdir = Path(output_root) / OUT_DIR_ROOT / chapter
+    if not cdir.is_dir():
+        return {"chapter": chapter, "videos": [], "count": 0}
+    best: dict[str, tuple] = {}
+    try:
+        for path in cdir.glob(f"*/{P3_NAME}*"):
+            if not path.is_file() \
+                    or path.suffix.lower() not in _P3_VIDEO_EXTS:
+                continue
+            try:
+                st = path.stat()
+            except OSError:
+                continue
+            key = (int(st.st_mtime), path.name)
+            cur = best.get(path.parent.name)
+            if cur is None or key > cur[0]:
+                best[path.parent.name] = (key, path, st)
+    except OSError:
+        pass
+    videos = []
+    for seg_id in sorted(best):
+        (_key, path, st) = best[seg_id]
+        subfolder = f"{OUT_DIR_ROOT}/{chapter}/{seg_id}"
+        videos.append({
+            "seg_id": seg_id,
+            "filename": path.name,
+            "subfolder": subfolder,
+            "url": (f"/view?filename={quote(path.name, safe='')}"
+                    f"&type=output&subfolder={quote(subfolder, safe='')}"),
+            "size": st.st_size,
+            "mtime": int(st.st_mtime),
+        })
+    return {"chapter": chapter, "videos": videos, "count": len(videos)}
 
 
 def _output_root() -> Path:
@@ -638,7 +705,7 @@ def install() -> None:
 
     清单(与尾部 print 一对一,1115 修正):projects/chapters/logs/
     chapter_data/chapter_image/import_storyboard(POST)/input_media/
-    upload_audio(POST)/shot_detail。"""
+    upload_audio(POST)/shot_detail/chapter_videos(1115 分镜面板导入)。"""
     global _installed
     if _installed:
         return
@@ -786,14 +853,31 @@ def install() -> None:
             except Exception as error:  # noqa: BLE001
                 return web.json_response({"error": str(error)}, status=500)
 
+        @PromptServer.instance.routes.get("/my_daoyan/chapter_videos")
+        async def _chapter_videos(request):  # noqa: ANN202 - aiohttp handler
+            try:
+                # project 免参:p3 产物按章键于引擎 output(OUT_DIR_ROOT=
+                # {chapter}/{seg_id},director_executor.py:61),章值已够
+                # 定位;带 project 不报错(调用方习惯参数兼容)
+                chapter = request.rel_url.query.get("chapter", "")
+                data = list_chapter_videos(_output_root(), chapter)
+                if data.get("error"):
+                    return web.json_response(data, status=400)
+                return web.json_response(data)
+            except Exception as error:  # noqa: BLE001
+                return web.json_response(
+                    {"chapter": "", "videos": [], "count": 0,
+                     "error": str(error)}, status=500)
+
         _installed = True
-        # 1115 print 修正:与实际 add_route 清单一一对齐(八存量+shot_detail;
-        # 旧 print 悬「、」且漏 chapter_data/chapter_image/import_storyboard)
-        print("[daoyan] 面板路由已挂载(9):/my_daoyan/projects、"
+        # 1115 print 修正:与实际 add_route 清单一一对齐(八存量+shot_detail
+        # +chapter_videos;旧 print 悬「、」且漏 chapter_data/chapter_image/
+        # import_storyboard)
+        print("[daoyan] 面板路由已挂载(10):/my_daoyan/projects、"
               "/my_daoyan/chapters、/my_daoyan/logs、/my_daoyan/chapter_data、"
               "/my_daoyan/chapter_image、/my_daoyan/import_storyboard、"
               "/my_daoyan/input_media、/my_daoyan/upload_audio、"
-              "/my_daoyan/shot_detail", flush=True)
+              "/my_daoyan/shot_detail、/my_daoyan/chapter_videos", flush=True)
     except Exception as error:  # noqa: BLE001 - 引擎侧任何失败不挡装载
         print(f"[daoyan] 面板路由挂载失败(不影响节点与出图):{error}",
               flush=True)

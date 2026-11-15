@@ -191,7 +191,8 @@ def test_install_routes_shape(tmp_path, monkeypatch):
                            "/my_daoyan/import_storyboard",
                            "/my_daoyan/input_media",
                            "/my_daoyan/upload_audio",
-                           "/my_daoyan/shot_detail"}  # 1115 详情路由计入
+                           "/my_daoyan/shot_detail",
+                           "/my_daoyan/chapter_videos"}  # 1115 详情+章成片清单路由计入
 
     # projects:200+activeProjectId
     out = asyncio.run(routes["/my_daoyan/projects"](_Req({})))
@@ -535,4 +536,185 @@ def test_install_shot_detail_route_and_print(tmp_path, monkeypatch, capsys):
     noproj = asyncio.run(routes["/my_daoyan/shot_detail"](
         _Req({"project": "zz", "chapter": "chapter-001"})))
     assert noproj.status == 404 and noproj.payload["error"]
+
+
+# ══ 1115 分镜面板「导入导演台视频」:chapter_videos 章成片清单 ═══════
+
+_MP4_PAYLOAD = b"\x00\x00\x00\x18ftypmp42"
+
+
+def _mk_video_tree(tmp_path):
+    """tmp output 树:两 seg 各一枚 p3 mp4(同 _mk_app_home 注入纪律)。"""
+    out = tmp_path / "out"
+    for seg in ("seg-001", "seg-002"):
+        d = out / "video/导演台" / "chapter-001" / seg
+        d.mkdir(parents=True)
+        (d / "p3-recavsr-001.mp4").write_bytes(_MP4_PAYLOAD)
+    return out
+
+
+def test_list_chapter_videos_enumerate_and_url(tmp_path):
+    """正常枚举:多 seg 按 id 排序;行字段六件;url=/view 口 quote 逐段。"""
+    out = _mk_video_tree(tmp_path)
+    data = ds.list_chapter_videos(out, "chapter-001")
+    assert data["chapter"] == "chapter-001"
+    assert data["count"] == 2 and not data.get("error")
+    assert [v["seg_id"] for v in data["videos"]] == ["seg-001", "seg-002"]
+    v = data["videos"][0]
+    assert v["filename"] == "p3-recavsr-001.mp4"
+    assert v["subfolder"] == "video/导演台/chapter-001/seg-001"
+    assert v["size"] == len(_MP4_PAYLOAD) and isinstance(v["mtime"], int)
+    # url 形状=emit_preview 同款 /view 口(query 全 quote(safe=''):
+    # 斜杠 %2F、中文百分号编码,=验收口径 subfolder=video%2F导演台%2F{章}%2F{seg})
+    from urllib.parse import quote
+    assert v["url"] == (
+        f"/view?filename={quote('p3-recavsr-001.mp4', safe='')}"
+        f"&type=output&subfolder="
+        f"{quote('video/导演台/chapter-001/seg-001', safe='')}")
+
+
+def test_list_chapter_videos_latest_and_exclusions(tmp_path):
+    """同 seg 多发:.bak 让名件后缀出局;白名单内取 mtime 最新;p1/p2
+    前缀 glob 不入围;.txt/.latent 白名单出局。"""
+    out = tmp_path / "out"
+    seg = out / "video/导演台" / "chapter-001" / "seg-001"
+    seg.mkdir(parents=True)
+    old = seg / "p3-recavsr-old.mp4"
+    new = seg / "p3-recavsr-new.mp4"
+    bak = seg / "p3-recavsr-new.mp4.bak"  # rerun 让名件
+    old.write_bytes(b"o")
+    new.write_bytes(b"n")
+    bak.write_bytes(b"b")
+    (seg / "p1-draft.mp4").write_bytes(b"1")  # 前缀不符 glob
+    (seg / "p2-final.mp4").write_bytes(b"2")
+    (seg / "p3-recavsr-x.txt").write_bytes(b"t")  # 前缀符但后缀出局
+    (seg / "p3-recavsr-y.latent").write_bytes(b"l")
+    import os
+    os.utime(old, (100, 100))
+    os.utime(new, (200, 200))
+    os.utime(bak, (300, 300))  # .bak mtime 最新但后缀白名单出局
+    data = ds.list_chapter_videos(out, "chapter-001")
+    assert data["count"] == 1
+    v = data["videos"][0]
+    assert v["seg_id"] == "seg-001"
+    assert v["filename"] == "p3-recavsr-new.mp4"  # 白名单内最新胜
+    assert v["mtime"] == 200
+
+
+def test_list_chapter_videos_whitelist_covers_mkv(tmp_path):
+    """hit() 口径四后缀全收(.mkv 是 _VIDEO_EXTS 缺口,本地常量钉)。"""
+    out = tmp_path / "out"
+    seg = out / "video/导演台" / "c1" / "seg-1"
+    seg.mkdir(parents=True)
+    import os
+    for name, mtime in (("p3-recavsr.mkv", 300),
+                        ("p3-recavsr-a.webm", 100),
+                        ("p3-recavsr-b.mov", 200)):
+        f = seg / name
+        f.write_bytes(b"x")
+        os.utime(f, (mtime, mtime))
+    data = ds.list_chapter_videos(out, "c1")
+    assert data["count"] == 1  # 同 seg 恒一枚
+    assert data["videos"][0]["filename"] == "p3-recavsr.mkv"  # 最新胜=.mkv 在案
+    # .mkv 单独 seg 亦入围(非 mp4 不弃)
+    seg2 = out / "video/导演台" / "c1" / "seg-2"
+    seg2.mkdir(parents=True)
+    (seg2 / "p3-recavsr-only.mkv").write_bytes(b"x")
+    data2 = ds.list_chapter_videos(out, "c1")
+    assert {v["seg_id"] for v in data2["videos"]} == {"seg-1", "seg-2"}
+
+
+def test_list_chapter_videos_guards_and_empty(tmp_path):
+    """非法 chapter 拒收(/、..、空、>80);章目录缺=空清单非 error;
+    空 seg 目录与无 p3 件不产行。"""
+    out = tmp_path / "out"
+    for bad in ("a/b", "..", "", "x" * 81):
+        data = ds.list_chapter_videos(out, bad)
+        assert data["videos"] == [] and data["count"] == 0
+        assert data.get("error"), repr(bad)
+    miss = ds.list_chapter_videos(out, "chapter-404")  # 还没跑过=常态
+    assert miss == {"chapter": "chapter-404", "videos": [], "count": 0}
+    (out / "video/导演台" / "chapter-001" / "seg-empty").mkdir(parents=True)
+    seg_log = out / "video/导演台" / "chapter-001" / "seg-log"
+    seg_log.mkdir(parents=True)
+    (seg_log / "run-log.txt").write_text("x", encoding="utf-8")  # 非 p3 件
+    data = ds.list_chapter_videos(out, "chapter-001")
+    assert data["videos"] == [] and data["count"] == 0
+
+
+def test_install_chapter_videos_route_and_print(tmp_path, monkeypatch,
+                                                capsys):
+    """路由挂载+响应形状(200 枚举/400 非法/空 200/带 project 不报错)
+    +print 清单十条逐名对齐。"""
+    routes: dict = {}
+    aiohttp = types.ModuleType("aiohttp")
+
+    class _Web:
+        @staticmethod
+        def json_response(data, status=200):
+            return _Resp(data, status)
+
+    aiohttp.web = _Web()
+
+    class _Routes:
+        def get(self, path):
+            def deco(fn):
+                routes[path] = fn
+                return fn
+            return deco
+
+        post = get
+
+    server = types.ModuleType("server")
+    server.PromptServer = types.SimpleNamespace(
+        instance=types.SimpleNamespace(routes=_Routes()))
+    monkeypatch.setitem(sys.modules, "aiohttp", aiohttp)
+    monkeypatch.setitem(sys.modules, "server", server)
+    monkeypatch.setattr(ds, "_installed", False)
+    ds.install()
+
+    # print 清单 10 条:十条路由逐名在案+计数 (10) 对齐+不悬「、」
+    printed = capsys.readouterr().out
+    for name in ("/my_daoyan/projects", "/my_daoyan/chapters",
+                 "/my_daoyan/logs", "/my_daoyan/chapter_data",
+                 "/my_daoyan/chapter_image", "/my_daoyan/import_storyboard",
+                 "/my_daoyan/input_media", "/my_daoyan/upload_audio",
+                 "/my_daoyan/shot_detail", "/my_daoyan/chapter_videos"):
+        assert name in printed, name
+    assert "(10)" in printed
+    assert not printed.rstrip("\n").endswith("、")
+
+    # 伪输出根注入(folder_paths 惰性位)
+    out_root = tmp_path / "outroot"
+    for seg in ("seg-001", "seg-002"):
+        d = out_root / "video/导演台" / "chapter-001" / seg
+        d.mkdir(parents=True)
+        (d / "p3-recavsr-001.mp4").write_bytes(_MP4_PAYLOAD)
+    fake_fp = types.ModuleType("folder_paths")
+    fake_fp.get_output_directory = lambda: str(out_root)
+    monkeypatch.setitem(sys.modules, "folder_paths", fake_fp)
+
+    # 200:两 seg 枚举+行字段六件+url 形状;带 project 不报错(兼容参数)
+    ok = asyncio.run(routes["/my_daoyan/chapter_videos"](
+        _Req({"chapter": "chapter-001", "project": "p1"})))
+    assert ok.status == 200
+    assert ok.payload["count"] == 2
+    row = ok.payload["videos"][0]
+    assert row["seg_id"] == "seg-001"
+    assert set(row) == {"seg_id", "filename", "subfolder", "url",
+                        "size", "mtime"}
+    assert row["url"].startswith("/view?filename=")
+    assert "&type=output&subfolder=video%2F" in row["url"]
+    assert "%E5%AF%BC%E6%BC%94%E5%8F%B0" in row["url"]  # 「导演台」quote 在案
+
+    # 400:非法 chapter(防穿越拒收)
+    bad = asyncio.run(routes["/my_daoyan/chapter_videos"](
+        _Req({"chapter": "a/b"})))
+    assert bad.status == 400 and bad.payload["error"]
+
+    # 200 空清单:章目录缺非 500
+    miss = asyncio.run(routes["/my_daoyan/chapter_videos"](
+        _Req({"chapter": "chapter-404"})))
+    assert miss.status == 200
+    assert miss.payload["videos"] == [] and miss.payload["count"] == 0
 

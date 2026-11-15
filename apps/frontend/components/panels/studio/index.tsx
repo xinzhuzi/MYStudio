@@ -9,7 +9,9 @@ import { WorkbenchTab } from "./WorkbenchTab";
 import { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
 import { ComfyCanvasSwap } from "../assist/comfy-canvas/ComfyCanvasSwap";
 import { useStudioViewModel } from "./useStudioViewModel";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { importDaoyanChapterVideos } from "@/lib/assist/image-studio/daoyan-video-import";
 import { NodeDocViewer } from "./NodeDocViewer";
 import { ScriptEditorDialog } from "./ScriptEditorDialog";
 import { useStoryboardBatchGeneration } from "./image-workflow/use-storyboard-batch-generation";
@@ -32,6 +34,51 @@ export function StudioView() {
   const storyboardH3VideoBatch = useStoryboardH3VideoBatch({
     storyboards: viewModel.chapterStoryboards,
   });
+  // 导演台 p3 视频导入(1115 实弹 FR,App 侧):引擎 /my_daoyan/chapter_videos 清单
+  // →逐镜下载 exports/{章}/{镜}/daoyan-p3.mp4 →updateStoryboard 挂当前视频;
+  // unmatched 不落库只报告(D-1:章自动视频 continuityPolicy=required,自动新增
+  // 无 continuityState 的分镜会毒化整章编译)。最小面:busy+run 两个键。
+  const [daoyanImportBusy, setDaoyanImportBusy] = useState(false);
+  const daoyanImport = useMemo(
+    () => ({
+      busy: daoyanImportBusy,
+      run: () => {
+        if (daoyanImportBusy) return;
+        const projectId = viewModel.projectId;
+        const chapterId = viewModel.productionEpisodeId;
+        if (!projectId || !chapterId) {
+          toast.error("请先打开项目并选择生产章节,再导入导演台视频");
+          return;
+        }
+        setDaoyanImportBusy(true);
+        void importDaoyanChapterVideos({
+          chapterId,
+          projectId,
+          storyboards: viewModel.chapterStoryboards,
+        })
+          .then((result) => {
+            const summary = [`已导入 ${result.updated} 镜`];
+            if (result.unchanged > 0) summary.push(`${result.unchanged} 镜同片已跳过`);
+            if (result.skippedUnmatched.length > 0) {
+              summary.push(
+                `${result.skippedUnmatched.length} 个引擎片未匹配本章分镜(${result.skippedUnmatched
+                  .map((row) => row.segId)
+                  .slice(0, 3)
+                  .join("、")}${result.skippedUnmatched.length > 3 ? "等" : ""})`,
+              );
+            }
+            if (result.failed.length > 0) summary.push(`${result.failed.length} 镜失败`);
+            if (result.failed.length > 0) toast.warning(`导演台视频导入:${summary.join(",")}`);
+            else toast.success(`导演台视频导入:${summary.join(",")}`);
+          })
+          .catch((error: unknown) => {
+            toast.error(`导演台视频导入失败:${error instanceof Error ? error.message : String(error)}`);
+          })
+          .finally(() => setDaoyanImportBusy(false));
+      },
+    }),
+    [daoyanImportBusy, viewModel.projectId, viewModel.productionEpisodeId, viewModel.chapterStoryboards],
+  );
   // 分镜素材自动绑定(10-11 批4):面板按钮+例外清单注入
   const storyboardAssetBinding = useStoryboardAssetBinding(viewModel.chapterStoryboards);
   // 章级流水线(10-11 批5):串资产→衍生→绑定;挂载即重启重算(断点续跑);
@@ -209,6 +256,7 @@ export function StudioView() {
                   stop: storyboardH3VideoBatch.stop,
                   resumable: storyboardH3VideoBatch.resumable,
                 }}
+                daoyanImport={daoyanImport}
                 assetBinding={storyboardAssetBinding}
                 pipeline={{
                   running: chapterPipeline.running,

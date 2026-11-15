@@ -53,6 +53,7 @@ export function StoryboardPanelTab({
   assetBinding,
   pipeline,
   h3Batch,
+  daoyanImport,
 }: {
   storyboards: StoryboardItem[];
   onOpenImageWorkflow: (context: ImageWorkflowOpenContext) => void;
@@ -87,6 +88,13 @@ export function StoryboardPanelTab({
     start: (opts?: { tier?: "480p" | "960p"; skipShotIds?: string[] }) => void;
     stop: () => void;
     resumable?: { shotIndex: number; remaining: number } | null;
+  };
+  /** 导演台 p3 视频导入(1115 实弹 FR,App 侧):引擎清单→逐镜下载落项目挂当前视频;
+   *  unmatched 只报告不落库(D-1);挂载点 StudioView 局部 hook 注入
+   *  (数据源=projectId+productionEpisodeId+chapterStoryboards)。 */
+  daoyanImport?: {
+    busy: boolean;
+    run: () => void;
   };
   /** 分镜素材自动绑定(10-11 批4):按钮+例外清单,挂载点 useStoryboardAssetBinding 注入 */
   assetBinding?: {
@@ -481,6 +489,18 @@ export function StoryboardPanelTab({
                 </Button>
               )}
             </>
+          ) : null}
+          {daoyanImport ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              data-storyboard-panel-daoyan-import
+              disabled={daoyanImport.busy}
+              onClick={daoyanImport.run}
+              title="拉取引擎导演台本章 p3 成片清单,逐镜下载落项目并挂为分镜当前视频(未匹配本章分镜的引擎片只报告不落库;重导同片幂等跳过)"
+            >
+              {daoyanImport.busy ? "导入中…" : "导入导演台视频"}
+            </Button>
           ) : null}
           {pipeline ? (
             <Button
