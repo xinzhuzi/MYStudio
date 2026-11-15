@@ -280,7 +280,12 @@ export function StudioView() {
                   status: viewModel.chapterAutoVideoStatus,
                   running: viewModel.chapterAutoVideoRunning,
                   run: () => void viewModel.handleRunChapterAutoVideo(),
-                  openFinal: viewModel.handleOpenFinalVideo,
+                  // 1116 末裁①坏钮修:openFinal 恒传函数真值→面板运行钮结构性永不渲染
+                  // (StoryboardPanelTab openFinal 分支恒胜)。改按「既有成品片」条件传
+                  // (status.finalPath 在=显打开钮;不在=undefined=渲染运行钮)。
+                  openFinal: viewModel.chapterAutoVideoStatus?.finalPath
+                    ? viewModel.handleOpenFinalVideo
+                    : undefined,
                 }}
               />
             </TabsContent>

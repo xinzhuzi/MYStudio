@@ -408,3 +408,33 @@ describe("StoryboardPanelTab 孤儿导入入口(10-27 件三,§14.3.2/§14.3.4)"
     expect(start).toHaveBeenCalledWith({ tier: "960p" });
   });
 });
+
+describe("预看成片双钮门(1116 末裁①坏钮修):openFinal 按成品存在态条件传", () => {
+  afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+  it("有旧成品(openFinal 在传)→显「打开预看成片」,运行钮不渲染", () => {
+    useProjectStore.setState({ activeProjectId: "p1" });
+    render(
+      <StoryboardPanelTab
+        storyboards={[shot(1, "/p/1.png")]}
+        onOpenImageWorkflow={() => undefined}
+        chapterAutoVideo={{ status: { stage: "idle", detail: "" }, running: false, run: vi.fn(), openFinal: vi.fn() }}
+      />,
+    );
+    expect(screen.getByText("打开预看成片")).toBeTruthy();
+    expect(document.querySelector("[data-storyboard-panel-auto-video-run]")).toBeNull();
+    expect(document.querySelector("[data-storyboard-panel-auto-video-open]")).toBeTruthy();
+  });
+  it("无成品(openFinal=undefined,接线=index.tsx 按 status.finalPath 条件传)→运行钮渲染", () => {
+    useProjectStore.setState({ activeProjectId: "p1" });
+    const run = vi.fn();
+    render(
+      <StoryboardPanelTab
+        storyboards={[shot(1, "/p/1.png")]}
+        onOpenImageWorkflow={() => undefined}
+        chapterAutoVideo={{ status: { stage: "idle", detail: "" }, running: false, run, openFinal: undefined }}
+      />,
+    );
+    expect(document.querySelector("[data-storyboard-panel-auto-video-run]")).toBeTruthy();
+    expect(document.querySelector("[data-storyboard-panel-auto-video-open]")).toBeNull();
+  });
+});
