@@ -303,13 +303,17 @@ export function buildCanonicalTransportInstruction(input: {
   const operation = `绘制一张全新的单格剧情画面：${slots.map(nameSlot).join("，")}；${variationBody}`;
 
   // 保真段(「在此基础上，完整保留…」逐类指图;09 §四③;前帧=画面连续性承接)。
+  // 1116 C1 实弹污染复现修(第六病理二代):角色槽追加「仅出现一次」硬句
+  // (S01 单姿参考被复制成转面稿四副本)+人格扩散防线在收束句(S02 矿奴
+  // 被画成参考者面孔服装)——1115 拼板守卫句在拼板退役时一并退役,此处
+  // 以原生参考形态等价重建。
   const fidelity = slots
     .map((slot) => {
       const title = normalizeFullwidthPunctuation(slot.title.trim());
       if (slot.role === "character") {
         return slots.length >= 2
-          ? `完整保留<image${slot.slot}>中${title}的面部身份，发型与服装配饰`
-          : `完整保留参考图中${title}的面部身份，发型与服装配饰`;
+          ? `完整保留<image${slot.slot}>中${title}的面部身份，发型与服装配饰，且${title}在全画面中仅出现一次`
+          : `完整保留参考图中${title}的面部身份，发型与服装配饰，且${title}在全画面中仅出现一次`;
       }
       if (slot.role === "scene") {
         return slots.length >= 2
@@ -322,8 +326,10 @@ export function buildCanonicalTransportInstruction(input: {
     })
     .join("，");
 
-  // 收束句(肯定式枚举收尾;防 Leakage——参考图仅取点名要素,全新构图呈现)。
-  const closing = "各参考图仅取上述点名要素，画面以全新构图呈现";
+  // 收束句(肯定式枚举收尾;防 Leakage——参考图仅取点名要素,全新构图呈现;
+  // 1116 二代污染修:+人格扩散防线(其他人物禁沿用参考面孔服装)+禁绘参考
+  // 排布(多视图/构图/背景不入画))。
+  const closing = "各参考图仅取上述点名要素，画面中其他人物一律使用各自剧情设定的相貌与衣着，不沿用任何参考图的面孔与服装，也不绘制参考图的构图排布、背景与多视角形态，画面以全新构图呈现";
   const prompt = [operation, `在此基础上，${fidelity}`, closing].join("；") + "。";
   return { genre: "i2i", prompt, slots };
 }
