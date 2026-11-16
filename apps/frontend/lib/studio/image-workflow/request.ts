@@ -212,38 +212,53 @@ function mergeReferenceNegativePrompt(
   return parts.length ? [...new Set(parts)].join(", ") : undefined;
 }
 
-/** 分镜编排已将全部有序参考投影为一张图；不代表模型支持原生多参考。 */
-export interface StoryboardSingleImageTransport {
-  kind: "storyboard-single-image";
-  imageUrl: string;
+/**
+ * 分镜原生多参考传输(1116 换线正典,PRD §4.5 已裁槽位):参考不再塌成单张拼板
+ * (storyboard-single-image 契约随拼板退役),按 §4.5 槽位映射以原生 image_1/2/3
+ * (≤3)直传引擎;道具与超额角色不入图,随指令文字承载。
+ */
+export interface StoryboardNativeReferencesTransport {
+  kind: "storyboard-native-references";
+  /** 槽位图(dataURL,槽序 1..N,N≤3);与 slots 一一对应。 */
+  imageUrls: string[];
+  /** 实际占槽明细(槽号/角色型/资产名);指令 <imageN> 点名同源。 */
+  slots: Array<{ slot: number; role: "character" | "scene" | "previous-frame"; title: string; imageUrl: string }>;
+  /** 全部参考原图(含被裁出槽者);与 request.referenceImages 逐项一致。 */
   sourceReferenceImages: string[];
-  mappings: { order: number; imageUrl: string }[];
 }
 
 export function assertImageWorkflowContinuityCapability(
   request: ImageWorkflowGenerationRequest,
-  transport?: StoryboardSingleImageTransport,
+  transport?: StoryboardNativeReferencesTransport,
 ) {
   if (transport) {
-    // 窄例外只消费真实 Qwen 最终请求，实际传输图与完整投影收据必须相符。
-    if (request.model !== "qwen-image-2-1" || transport.kind !== "storyboard-single-image"
-      || request.referenceImages.length !== 1 || !transport.imageUrl
-      || request.referenceImages[0] !== transport.imageUrl) {
-      throw new Error("分镜单图传输契约与实际模型/传输图不一致");
+    // 窄例外只消费真实 Qwen 最终请求:模型对齐+传输图与槽位收据相符。
+    if (request.model !== "qwen-image-2-1" || transport.kind !== "storyboard-native-references") {
+      throw new Error("分镜多参考传输契约与实际模型不一致");
     }
-    const manifest = request.orderedReferenceManifest;
-    if (!manifest.length || transport.sourceReferenceImages.length !== manifest.length
-      || transport.mappings.length !== manifest.length) {
-      throw new Error("分镜单图传输参考数量或映射数量不一致");
+    const { imageUrls, slots, sourceReferenceImages } = transport;
+    if (imageUrls.length < 1 || imageUrls.length > 3 || imageUrls.length !== slots.length) {
+      throw new Error("分镜多参考传输槽位数量不一致(须 1–3 槽)");
     }
-    // 来源 order 是排序键（上游成图使用 MAX_SAFE_INTEGER），格位才是 1..N。
-    if (manifest.some((reference, index) => !Number.isInteger(reference.order)
-      || (index > 0 && reference.order <= manifest[index - 1].order)
-      || !reference.imageUrl || transport.sourceReferenceImages[index] !== reference.imageUrl
-      || transport.mappings[index]?.order !== index + 1
-      || transport.mappings[index]?.imageUrl !== reference.imageUrl)) {
-      throw new Error("分镜单图传输参考顺序或映射不一致");
+    if (slots.some((slot, index) =>
+      slot.slot !== index + 1
+      || !slot.title.trim()
+      || !slot.imageUrl
+      || imageUrls[index] !== slot.imageUrl)) {
+      throw new Error("分镜多参考传输槽位序号或映射不一致");
     }
+    // 最终请求参考=槽位图本身(引擎只见占槽图);来源参考为槽位母集
+    // (被 §4.5 裁出者仍在来源清单,不在传输数组)。
+    if (request.referenceImages.length !== imageUrls.length
+      || request.referenceImages.some((url, index) => url !== imageUrls[index])) {
+      throw new Error("分镜多参考传输与最终请求参考不一致");
+    }
+    if (imageUrls.some((url) => !sourceReferenceImages.includes(url))) {
+      throw new Error("分镜多参考传输含来源外图片");
+    }
+    // 连续性参考被 §4.5 槽位裁出(超额角色/道具)不在此拦——1116 三裁①明文
+    // 「道具与超额角色不入图,走指令文字承载」;裁出名单由槽位映射层落
+    // diagnostics 留痕(slot-dropped),契约层只管结构一致性。
     return;
   }
   if (!request.continuityRequired) return;

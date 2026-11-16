@@ -33,9 +33,9 @@ const resolvedReferences = vi.hoisted(() => ({ value: [] as Array<{ imageUrl: st
 vi.mock("./storyboard-asset-references", () => ({
   resolveStoryboardAssetReferences: async () => resolvedReferences.value,
 }));
-// jsdom 没有 Canvas；仅替换排版边界，保留真实请求装配、来源围栏和落库。
-const referenceSheet = vi.hoisted(() => vi.fn());
-vi.mock("./storyboard-reference-sheet", () => ({ buildStoryboardReferenceSheet: referenceSheet }));
+vi.mock("./storyboard-scene-landing", () => ({
+  ensureStoryboardSceneAssetsLanded: async () => undefined,
+}));
 
 import { useStoryboardBatchGeneration } from "./use-storyboard-batch-generation";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -70,16 +70,6 @@ function resetStore(storyboards: StoryboardItem[]) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  referenceSheet.mockImplementation(async ({ referenceImages, graph }: {
-    referenceImages: string[]; graph: ImageWorkflowGraph;
-  }) => ({
-    imageUrl: "data:image/png;base64,U0hFRVQ=",
-    mappings: referenceImages.map((imageUrl, index) => ({ order: index + 1, imageUrl })),
-    prompt: referenceImages.map((url, index) => {
-      const node = graph.nodes.find((item) => item.type === "reference" && item.imageUrl === url);
-      return `图${index + 1}对应拼板第${index + 1}格：${node?.title ?? "上游成图"}`;
-    }).join("；"),
-  }));
   useProjectStore.setState({ ...initialProjectState, activeProjectId: "proj" });
   // 断点续跑会话隔离:逐用例清空持久化会话
   useStoryboardBatchSessionStore.setState({ session: null });
@@ -154,12 +144,17 @@ describe("useStoryboardBatchGeneration(stale 完整性与来源隔离)", () => {
     expect(saveImage).toHaveBeenCalledTimes(2);
     expect(useStudioStore.getState().storyboards[0].keyframes?.map((frame) => frame.mediaRef.path)).toEqual(frameUrls);
     expect(generateImageMock.mock.calls.map(([params]) => params.model)).toEqual(["qwen-image-2-1", "qwen-image-2-1"]);
-    expect(generateImageMock.mock.calls[1][0].referenceImages).toEqual(["data:image/png;base64,U0hFRVQ="]);
-    expect(referenceSheet).toHaveBeenCalledTimes(2);
-    expect(referenceSheet.mock.calls[0][0].referenceImages).toEqual([sourceUrl]);
-    expect(referenceSheet.mock.calls[0][0].aspectRatio).toBe("16:9");
-    expect(referenceSheet.mock.calls[1][0].referenceImages).toEqual([sourceUrl, frameUrls[0]]);
-    expect(referenceSheet.mock.calls[1][0].aspectRatio).toBe("16:9");
+    // 1116 换线:帧1=单场景参考(N=1 自然指称,禁标签);帧2=场景+前帧(N=2
+    // <imageN> 分工点名)——参考按 §4.5 槽位原生直传,不再塌拼板。
+    expect(generateImageMock.mock.calls[0][0].referenceImages).toEqual([sourceUrl]);
+    expect(generateImageMock.mock.calls[0][0].prompt).toContain("参考图中的场景为场景来源");
+    expect(generateImageMock.mock.calls[0][0].prompt).not.toMatch(/<image\d+>/);
+    expect(generateImageMock.mock.calls[1][0].referenceImages).toEqual([sourceUrl, "QQ=="]);
+    expect(generateImageMock.mock.calls[1][0].prompt).toContain("<image1>为场景的场景来源");
+    expect(generateImageMock.mock.calls[1][0].prompt).toContain("<image2>为上一帧画面的上一帧画面来源");
+    // 负面退役(正典三源 merge 引擎承担)+raw 直传
+    expect(generateImageMock.mock.calls[0][0].negativePrompt).toBeUndefined();
+    expect(generateImageMock.mock.calls[0][0].promptPolicy).toBe("raw");
     const finalGraph = useStudioStore.getState().imageWorkflows[0];
     const second = finalGraph.nodes.find((node) => node.type === "generated" && node.frameId === "sb-1-kf-2")!;
     const request = buildImageWorkflowGenerationRequest(finalGraph, second.id);
@@ -563,10 +558,9 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     act(() => result.current.start());
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
 
-    // 择优:生成走了带参考的 wf-rich(其既有参考直接生效)
-    expect(referenceSheet.mock.calls[0]?.[0]?.referenceImages).toEqual(["file://assets/ref-zhaosi.png"]);
-    expect(referenceSheet.mock.calls[0]?.[0]?.aspectRatio).toBe("16:9");
-    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toEqual(["data:image/png;base64,U0hFRVQ="]);
+    // 择优:生成走了带参考的 wf-rich(其既有参考直接生效,§4.5 单角色参考=槽1)
+    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toEqual(["file://assets/ref-zhaosi.png"]);
+    expect(generateImageMock.mock.calls[0]?.[0]?.prompt).toContain("参考图中的监工赵四为身份来源");
     // 空壳 wf-bare 未被补挂(未被选中)
     const bareInStore = useStudioStore.getState().imageWorkflows.find((g) => g.id === "wf-bare");
     expect(bareInStore?.nodes.some((n) => n.type === "reference")).toBe(false);
@@ -590,11 +584,12 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     const stored = useStudioStore.getState().imageWorkflows.find((g) => g.id === "wf-bare");
     const refTitles = stored?.nodes.filter((n) => n.type === "reference").map((n) => n.title);
     expect(refTitles).toEqual(["金水河码头", "监工赵四"]);
-    expect(referenceSheet.mock.calls[0]?.[0]?.referenceImages).toEqual([
-      "file://assets/ref-scene.png", "file://assets/ref-zhaosi.png",
+    // 1116 换线:参考按 §4.5 槽位原生直传——角色恒槽1(171 主参考位),场景槽2
+    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toEqual([
+      "file://assets/ref-zhaosi.png", "file://assets/ref-scene.png",
     ]);
-    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toEqual(["data:image/png;base64,U0hFRVQ="]);
-    expect(generateImageMock.mock.calls[0]?.[0]?.prompt).toContain("图1对应拼板第1格：金水河码头；图2对应拼板第2格：监工赵四");
+    expect(generateImageMock.mock.calls[0]?.[0]?.prompt).toContain("<image1>为监工赵四的身份来源");
+    expect(generateImageMock.mock.calls[0]?.[0]?.prompt).toContain("<image2>为金水河码头的场景来源");
     // 补挂的参考连向成图节点
     const genId = stored?.nodes.find((n) => n.type === "generated")?.id;
     expect(stored?.edges.some((e) => e.source === "existing-ref" || (e.target === genId && e.source !== "existing-ref"))).toBe(true);
@@ -641,9 +636,8 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     );
     act(() => result.current.start());
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
-    expect(referenceSheet.mock.calls[0]?.[0]?.referenceImages).toEqual(["file://assets/ref-zhaosi.png"]);
-    expect(referenceSheet.mock.calls[0]?.[0]?.aspectRatio).toBe("16:9");
-    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toEqual(["data:image/png;base64,U0hFRVQ="]);
+    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toEqual(["file://assets/ref-zhaosi.png"]);
+    expect(generateImageMock.mock.calls[0]?.[0]?.prompt).toContain("参考图中的监工赵四为身份来源");
   });
   it("rejects a fingerprintless cross-generation workflow whose references are outside the current shot list (S20 形态)", async () => {
     resetStore([shot({ id: "sb-1", index: 1, sourceFingerprint: "fp-real", associateAssetsNames: ["道口镇街巷", "独孤剑尘"] })]);
@@ -671,15 +665,13 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
 
     // 跨代流被拒→不选它→走参考补挂?补挂在选中图上——选中集为空时建新流:
     // 断言生成参考=当前清单解析出的街巷(而非客栈)
-    const sheetInput = referenceSheet.mock.calls[0]?.[0];
-    expect(sheetInput?.referenceImages).toEqual(["file://assets/street.png"]);
-    expect(sheetInput?.referenceImages).not.toContain("file://assets/inn.png");
-    expect(sheetInput?.aspectRatio).toBe("16:9");
     const call = generateImageMock.mock.calls[0]?.[0];
-    expect(call?.referenceImages).toEqual(["data:image/png;base64,U0hFRVQ="]);
+    expect(call?.referenceImages).toEqual(["file://assets/street.png"]);
+    expect(call?.referenceImages).not.toContain("file://assets/inn.png");
     expect(call?.aspectRatio).toBe("16:9");
+    expect(call?.prompt).toContain("参考图中的道口镇街巷为场景来源");
   });
-  it("backfilled references regenerate a matching @图 binding head (S15 装配门禁)", async () => {
+  it("backfilled references + canonical subject migrate the bare workflow prompt (1116 换线,@图N 头段退役)", async () => {
     resetStore([shot({ id: "sb-1", index: 1 })]);
     resolvedReferences.value = [
       { imageUrl: "file://assets/street.png", title: "道口镇街巷", assetType: "scene", assetId: "sc-1" },
@@ -696,8 +688,11 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
 
     const stored = useStudioStore.getState().imageWorkflows.find((g) => g.id === "wf-bare");
     const prompt = stored?.nodes.find((n) => n.type === "prompt")?.prompt ?? "";
-    expect(prompt.startsWith("@图1 为道口镇街巷场景；@图2 为掌柜角色")).toBe(true);
-    expect(prompt).toContain("测试画面");
+    // 旧代流提示词迁移为正典主体句(五项序;videoDesc 为动作事实源)并盖戳
+    expect(prompt).toContain("矿奴队列压过石板。");
+    expect(prompt).not.toContain("@图");
+    expect(prompt).not.toContain("【画面】");
+    expect(stored?.assemblyTrace?.canonicalLine).toBe(true);
   });
   it("pre-flight rejects a broken reference before touching the provider (不烧配额)", async () => {
     resetStore([shot({ id: "sb-1", index: 1 })]);
@@ -730,13 +725,11 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     }
   });
 
-  it("pre-flight rejects an over-length prompt before touching the provider", async () => {
-    resetStore([shot({ id: "sb-1", index: 1 })]);
-    const longGraph = createBareStoryboardGraph("sb-1", "wf-bare");
-    for (const n of longGraph.nodes as never as Array<{ type?: string; prompt?: string }>) {
-      if (n.type === "prompt") n.prompt = "长".repeat(1650);
-    }
-    useStudioStore.setState({ imageWorkflows: [longGraph] });
+  it("pre-flight rejects an over-length canonical subject before touching the provider", async () => {
+    // 1116 换线:图内 prompt 节点由正典生成器统一产出/迁移,超长门守的是
+    // 正典主体句本身(如身份段超长)——videoDesc 超长形态直测。
+    resetStore([shot({ id: "sb-1", index: 1, videoDesc: `矿奴队列压过石板，${"长".repeat(1650)}` })]);
+    useStudioStore.setState({ imageWorkflows: [createBareStoryboardGraph("sb-1", "wf-bare")] });
     resolvedReferences.value = [];
 
     const { result } = renderHook(() =>

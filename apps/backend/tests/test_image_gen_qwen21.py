@@ -35,10 +35,10 @@ class Qwen21RegistrationTests(unittest.TestCase):
         self.assertIs(pipeline._ENGINE_BY_LAYOUT["qwen21-viggle"], qwen21)
 
     def test_reference_supported_flags(self) -> None:
-        # 10-19 图生图·道劫美术风格转换(D3):单参考放开(SUPPORTS_REFERENCE=True 走 i2i 分流),
-        # 多参考仍关(恒单参考,--enable-ref3 语义不在本役)
+        # 10-19 图生图·道劫美术风格转换(D3):单参考放开(SUPPORTS_REFERENCE=True 走 i2i 分流);
+        # 1116 §五.4 三槽正典:原生三参考放开(>3 张由 generate 拒)
         self.assertTrue(qwen21.SUPPORTS_REFERENCE)
-        self.assertFalse(qwen21.SUPPORTS_MULTI_REFERENCE)
+        self.assertTrue(qwen21.SUPPORTS_MULTI_REFERENCE)
 
 
 class Qwen21TemplateContractTests(unittest.TestCase):
@@ -147,7 +147,9 @@ class Qwen21TemplateContractTests(unittest.TestCase):
 
 class Qwen21I2iTemplateContractTests(unittest.TestCase):
     """10-19 图生图·道劫美术风格转换:i2i API 模板契约(由 build 脚本 --target i2i 从
-    qi21-道劫-i2i.json 展平生成;快照=画布现值锁——组装用途=自由出图、Turbo 8步、
+    qi21-道劫-i2i.json 展平生成;1116 §五.4 三槽手术=画布投影+三参考链常驻——
+    [11]/[17]+[12]/[18] 从画布版逐字移植、4015 绑 image_2/3、references 三 slot,
+    不足三张由桥按张数剪链;快照=画布现值锁——组装用途=自由出图、Turbo 8步、
     PE 关、SeedVR2 2K 链在场(10-21 重生成后现状),运行时才覆写组装用途=道劫美术
     风格转换或道劫美术类型(10-22 型层注入)。"""
 
@@ -166,24 +168,37 @@ class Qwen21I2iTemplateContractTests(unittest.TestCase):
         seed_binding = inputs["seed"]
         self.assertEqual((seed_binding["node"], seed_binding["field"]), ("7:7014", "value"))
         self.assertEqual(self.graph["7:7014"]["class_type"], "PrimitiveInt")
-        # references→[10].image(LoadImage 恰 1 个=激活槽 [10])
+        # 1116 §五.4 三槽手术:references 三绑定 slot0/1/2 → [10]/[11]/[12]
         references = inputs.get("references")
         self.assertIsInstance(references, list)
-        self.assertEqual(len(references), 1)
-        ref = references[0]
-        self.assertEqual((ref["node"], ref["slot"], ref["field"]), ("10", 0, "image"))
-        self.assertEqual(ref["class_type"], "LoadImage")
+        self.assertEqual(len(references), 3)
+        for ref, (node_id, slot) in zip(references, (("10", 0), ("11", 1), ("12", 2))):
+            self.assertEqual((ref["node"], ref["slot"], ref["field"]), (node_id, slot, "image"))
+            self.assertEqual(ref["class_type"], "LoadImage")
         load_images = sorted(key for key, node in self.graph.items() if node["class_type"] == "LoadImage")
-        # selected_graph 按现画布旁路状态裁去第二/第三参考，保留第一参考与超分链。
-        self.assertEqual(load_images, ["10"])
+        # 三参考链常驻(画布 11/12 旁路态的激活直投;505 透明锚仍不入桥模板)
+        self.assertEqual(load_images, ["10", "11", "12"])
         self.assertEqual(self.graph["4015"]["inputs"]["images.image_1"], ["16", 0])
-        self.assertNotIn("images.image_2", self.graph["4015"]["inputs"])
-        self.assertNotIn("images.image_3", self.graph["4015"]["inputs"])
+        self.assertEqual(self.graph["4015"]["inputs"]["images.image_2"], ["17", 0])
+        self.assertEqual(self.graph["4015"]["inputs"]["images.image_3"], ["18", 0])
+        # 预缩链逐字=画布版(16/17/18 同参;lanczos 1MP 32 步)
+        for scale_id, src_id in (("16", "10"), ("17", "11"), ("18", "12")):
+            node = self.graph[scale_id]
+            self.assertEqual(node["class_type"], "ImageScaleToTotalPixels", scale_id)
+            self.assertEqual(node["inputs"]["image"], [src_id, 0], scale_id)
+            self.assertEqual(
+                (node["inputs"]["upscale_method"], node["inputs"]["megapixels"],
+                 node["inputs"]["resolution_steps"]),
+                ("lanczos", 1, 32), scale_id,
+            )
+        # 171 加速编码恒单主参考(grill 1116 硬事实:加速臂只吃 image_1,不吃 image_2/3)
+        self.assertEqual(self.graph["171"]["inputs"]["images.image_1"], ["16", 0])
+        self.assertNotIn("images.image_2", self.graph["171"]["inputs"])
+        self.assertNotIn("images.image_3", self.graph["171"]["inputs"])
         self.assertIn("image", self.graph["10"]["inputs"])
         self.assertEqual(self.graph["504"]["class_type"], "SaveImage")
         self.assertIn("503:7401", self.graph)
-        for absent in ("11", "12", "17", "505"):
-            self.assertNotIn(absent, self.graph, absent)
+        self.assertNotIn("505", self.graph)  # 透明锚(画布旁路件)不入桥模板
         # SaveImage [8] 在场(唯一产物口;504 缺席→_prefer_upscaled_output 自然回落 8)
         self.assertEqual(self.graph["8"]["class_type"], "SaveImage")
 
@@ -264,7 +279,8 @@ class Qwen21I2iGenerateTests(unittest.TestCase):
         # 4022 画幅路由=快照值自由出图=恒跟参考画幅)——10-22 型层注入的回归锁
         self.assertEqual(graph_one["6:4010"]["inputs"]["base"], "人物海报")
         self.assertEqual(graph_one["6:4022"]["inputs"]["组装用途"], "自由出图")
-        # 单参考净化:[11]/[17] demo 链物理摘除+编码器 image_2 槽清空
+        # 单参考净化(1116 单源在桥 instantiate_template 按数剪链):1 张请求
+        # [11]/[17]/[12]/[18] 链物理摘除+编码器 image_2/3 槽清空
         self.assertNotIn("11", graph_one)
         self.assertNotIn("17", graph_one)
         self.assertNotIn("images.image_2", graph_one["4015"]["inputs"])
@@ -299,7 +315,9 @@ class Qwen21I2iGenerateTests(unittest.TestCase):
         self.assertNotIn("17", graph)
         self.assertNotIn("images.image_2", graph["4015"]["inputs"])
 
-    def test_i2i_rejects_multi_reference(self) -> None:
+    def test_i2i_rejects_fourth_reference(self) -> None:
+        # 1116 §五.4 七刀①:拒线从「>1 拒」改「>3 拒」——三槽正典下 1-3 张全放,
+        # 第四张拒(原生三参考槽上限)
         from image_gen.pipeline import PipelineError
 
         with patch.object(qwen21, "resolve_big_files", return_value={"comfyui_version": "0.41.2"}), patch(
@@ -309,9 +327,40 @@ class Qwen21I2iGenerateTests(unittest.TestCase):
                 qwen21.generate(
                     "指令", "1:1", None, 8, None,
                     reference_b64="c2Vjb25kcmVm",
-                    reference_images_b64=["cmVmMQ==", "cmVmMg=="],
+                    reference_images_b64=["cmVmMQ==", "cmVmMg==", "cmVmMw==", "cmVmNA=="],
                 )
         self.assertEqual(caught.exception.code, "reference-unsupported")
+
+    def test_i2i_multi_reference_chain_matrix(self) -> None:
+        # 1116 §五.4 七刀⑤按数剪链矩阵:3 张全留 / 2 张剪三链摘 image_3 /
+        # 1 张剪二三链摘 image_2+3;上传逐张循环(七刀②);全列表注入 slot0/1/2(③)
+        for count, expect_in, expect_out, expect_slots in (
+            (3, ("10", "11", "12", "16", "17", "18"), (), ("images.image_1", "images.image_2", "images.image_3")),
+            (2, ("10", "11", "16", "17"), ("12", "18"), ("images.image_1", "images.image_2")),
+            (1, ("10", "16"), ("11", "12", "17", "18"), ("images.image_1",)),
+        ):
+            refs = ["cmVmMQ==", "cmVmMg==", "cmVmMw=="][:count]
+            graph, _, upload_mock = self._run_generate(
+                prompt=f"{count} 参考指令", aspect_ratio="1:1", negative_prompt=None,
+                steps=8, seed=42, reference_b64=refs[0], reference_images_b64=refs,
+            )
+            self.assertEqual(upload_mock.call_count, count, count)
+            for node_id in expect_in:
+                self.assertIn(node_id, graph, f"{count} 张: {node_id} 应在场")
+            for node_id in expect_out:
+                self.assertNotIn(node_id, graph, f"{count} 张: {node_id} 应剪除")
+            encode_inputs = graph["4015"]["inputs"]
+            for slot in expect_slots:
+                self.assertIn(slot, encode_inputs, f"{count} 张: 4015.{slot} 应保留")
+            for slot in ("images.image_1", "images.image_2", "images.image_3"):
+                if slot not in expect_slots:
+                    self.assertNotIn(slot, encode_inputs, f"{count} 张: 4015.{slot} 应摘除")
+            # 每张参考落到对应槽位节点(上传 mock 恒返同名 → 在场 LoadImage 值统一)
+            for node_id in ("10", "11", "12"):
+                if node_id in graph:
+                    self.assertEqual(graph[node_id]["inputs"]["image"], "qwen21-i2i-uploaded.png", node_id)
+            # 171 加速编码恒单主参考(剪链不影响)
+            self.assertEqual(graph["171"]["inputs"]["images.image_1"], ["16", 0])
 
     def test_t2i_path_unchanged_without_reference(self) -> None:
         # 回归锁:无参考图走原 t2i 路(t2i 模板实例化+E 臂默认补注后原样提交,不上传参考图;

@@ -307,6 +307,10 @@ export interface ImageWorkflowOpenContext {
     assetType: ImageWorkflowAssetTargetType;
     assetId?: string;
   }>;
+  /** 1116 换线正典:分镜目标的正典体裁化主体句(§4.1-4.2 生成器五项序产出,
+   * 调用方异步装配后传入建流);缺省回落裸 prompt(fail-safe)。
+   * 传输期体裁路由(i2i 指令/t2i 主体句)由 run 层按 §4.5 槽位另行装配。 */
+  canonicalSubject?: string;
 }
 
 export interface AssetImageWorkflowContext extends ImageWorkflowOpenContext {
@@ -690,6 +694,9 @@ export interface ImageWorkflowGraph {
     negativeApplied?: boolean;
     styleTokenCount?: number;
     assetReferenceTitles?: string[];
+    /** 1116 换线正典:该流提示词=正典体裁化主体句(五项序生成器产物),
+     * @图N 绑定句重写/手册装配对恒流退役;旧代流经迁移函数改写后盖戳。 */
+    canonicalLine?: boolean;
   };
   nodes: ImageWorkflowNode[];
   edges: ImageWorkflowEdge[];

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { createAssetImageWorkflowGraph } from "@/lib/studio/image-workflow";
 import {
   resetExtendedManualContentCache,
-  warmExtendedManualFactionData,
   warmExtendedManualStyleTokens,
 } from "@/lib/studio/visual-manual-style-tokens";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -14,11 +13,11 @@ import {
   focusNodeIdsForGenerated,
   imageWorkflowTargetKey,
   matchesStoryboardOpenContext,
+  migrateStoryboardPromptToCanonical,
   nextNodePosition,
   resolveActionGeneratedNode,
   resolveGenerationTargetNodeId,
   splitImageMaterialsByOrigin,
-  healStoryboardPromptForCast,
   stripStoryboardPromptStyleWords,
 } from "./image-workflow-graph-utils";
 
@@ -117,120 +116,101 @@ describe("storyboard open-context fingerprint matching", () => {
   });
 });
 
-describe("storyboard workflow style-token prefill", () => {
+describe("storyboard canonical line build (1116 换线正典)", () => {
   const storyboardContext = {
     target: { kind: "storyboard" as const, id: "sb-chapter-001-001" },
     title: "分镜 1",
     prompt: "船桩压住前景，铁链横穿石板。",
   };
 
-  it("prefills storyboard prompts with the active visual manual style tokens (visible = sent)", async () => {
-    await warmExtendedManualStyleTokens(
-      "<!-- storyboard-image-style-tokens:start -->\n水墨国风\n毛笔皴擦\n<!-- storyboard-image-style-tokens:end -->\n",
+  it("canonicalSubject 在场 → prompt 节点=体裁化主体句,负面不预填,盖 canonicalLine 戳", () => {
+    const graph = createOpenImageWorkflowGraph(
+      { ...storyboardContext, canonicalSubject: "青年刀修晏燎，玄色劲装束袖束腰；拖链前行，回头看向老苦力，灵矿坑道葬玉，夜，压抑。" },
+      "道劫",
     );
-    const previous = useStudioStore.getState().workflowConfig;
-    useStudioStore.setState({ workflowConfig: { ...previous, visualManualId: "daojie_ink_guofeng" } });
-    try {
-      const graph = createOpenImageWorkflowGraph(storyboardContext, "道劫");
-      const promptNode = graph.nodes.find((node) => node.type === "prompt")!;
-      expect(promptNode.prompt).toContain("船桩压住前景");
-      expect(promptNode.prompt).toContain("水墨国风");
-      expect(promptNode.prompt).toContain("毛笔皴擦");
-    } finally {
-      useStudioStore.setState({ workflowConfig: previous });
-      resetExtendedManualContentCache();
-      await warmExtendedManualStyleTokens("");
-    }
+    const promptNode = graph.nodes.find((node) => node.type === "prompt")!;
+    expect(promptNode.prompt).toContain("青年刀修晏燎，玄色劲装束袖束腰");
+    expect(promptNode.prompt).toContain("灵矿坑道葬玉");
+    // App 层装配退役:无手册风格 token/无【画面】【构图】段/负面零预填
+    expect(promptNode.prompt).not.toContain("【画面】");
+    expect(promptNode.prompt).not.toContain("【构图】");
+    expect(promptNode.negativePrompt).toBeUndefined();
+    expect(graph.assemblyTrace).toMatchObject({ canonicalLine: true });
   });
 
-  it("keeps non-storyboard and unstyled-manual prompts untouched", async () => {
-    await warmExtendedManualStyleTokens("");
+  it("canonicalSubject 缺席 → 回落裸描述(fail-safe),非分镜目标零变化", async () => {
+    await warmExtendedManualStyleTokens(
+      "<!-- storyboard-image-style-tokens:start -->\n水墨国风\n<!-- storyboard-image-style-tokens:end -->\n",
+    );
+    {
+      const previous = useStudioStore.getState().workflowConfig;
+      useStudioStore.setState({ workflowConfig: { ...previous, visualManualId: "daojie_ink_guofeng" } });
+      try {
+        const graph = createOpenImageWorkflowGraph(storyboardContext, "道劫");
+        const promptNode = graph.nodes.find((node) => node.type === "prompt")!;
+        // 换线后手册风格锁不再拼入(风格语义由引擎底座承担)
+        expect(promptNode.prompt).toBe("船桩压住前景，铁链横穿石板。");
+        expect(promptNode.prompt).not.toContain("水墨国风");
+        expect(promptNode.negativePrompt).toBeUndefined();
+      } finally {
+        useStudioStore.setState({ workflowConfig: previous });
+        resetExtendedManualContentCache();
+        await warmExtendedManualStyleTokens("");
+      }
+    }
     const assetGraph = createOpenImageWorkflowGraph(context, "道劫");
     const assetPrompt = assetGraph.nodes.find((node) => node.type === "prompt")!;
     expect(assetPrompt.prompt).toBe("水墨国风角色设定");
     expect(assetPrompt.negativePrompt).toBeUndefined();
-
-    const previous = useStudioStore.getState().workflowConfig;
-    useStudioStore.setState({ workflowConfig: { ...previous, visualManualId: undefined } });
-    try {
-      const graph = createOpenImageWorkflowGraph(storyboardContext, "道劫");
-      const promptNode = graph.nodes.find((node) => node.type === "prompt")!;
-      expect(promptNode.prompt).toBe("船桩压住前景，铁链横穿石板。");
-    } finally {
-      useStudioStore.setState({ workflowConfig: previous });
-    }
   });
 
-  it("assembles structured frame prompts with negative prefill and asset references", async () => {
-    await warmExtendedManualStyleTokens([
-      "<!-- storyboard-image-style-tokens:start -->",
-      "Chinese ink wash painting style",
-      "<!-- storyboard-image-style-tokens:end -->",
-      "<!-- storyboard-frame-negative:start -->",
-      "photorealistic photography, paper-wrinkle texture, watermark",
-      "<!-- storyboard-frame-negative:end -->",
-      "## 成片模板速查",
-      "### 21. 水墨战斗瞬间",
-      "适用：动作图、技能击中。要点：劈斩动作方向明确；画幅 16:9 动态中景。",
-      "### 07. 国风漫剧电影帧",
-      "适用：通用剧情帧。要点：主体明确；画幅 16:9。",
-    ].join("\n"));
-    const previous = useStudioStore.getState().workflowConfig;
-    useStudioStore.setState({ workflowConfig: { ...previous, visualManualId: "daojie_ink_guofeng" } });
-    try {
-      await warmExtendedManualFactionData([
-        "<!-- storyboard-faction-members:start -->",
-        '{"监工赵四":"人族","金水河码头":"人族"}',
-        "<!-- storyboard-faction-members:end -->",
-        "<!-- storyboard-faction-palette:start -->",
-        '{"人族":{"person":"底色米白+主色赭石+点睛朱红","scene":"底色米白+主色赭石+点睛藤黄"}}',
-        "<!-- storyboard-faction-palette:end -->",
-      ].join("\n"));
-      const graph = createOpenImageWorkflowGraph(
-        {
-          ...storyboardContext,
-          prompt: "皮鞭劈落，剑光交击，矿奴奔逃。",
-          storyboardLines: "赵四：都给我快些！",
-          assetReferences: [
-            { imageUrl: "project-file://dao/scenes/dock.png", title: "金水河码头", assetType: "scene", assetId: "scene-1" },
-            { imageUrl: "project-file://dao/roles/zhao.png", title: "监工赵四", assetType: "character", assetId: "role-1" },
-          ],
-        },
-        "道劫",
-      );
-      const promptNode = graph.nodes.find((node) => node.type === "prompt")!;
-      expect(promptNode.prompt).toContain("【画面】皮鞭劈落");
-      expect(promptNode.prompt).toContain("【构图】适用：动作图");
-      expect(promptNode.prompt).toContain("【色彩】阵营色彩职责");
-      expect(promptNode.prompt).toContain("(人族·人物)底色米白+主色赭石+点睛朱红");
-      expect(promptNode.prompt).toContain("(人族·场景)底色米白+主色赭石+点睛藤黄");
-      expect(promptNode.prompt).toContain("Chinese ink wash painting style");
-      expect(promptNode.negativePrompt).toContain("photorealistic photography");
-      expect(promptNode.negativePrompt).toContain("watermark");
-      expect(graph.assemblyTrace).toMatchObject({
-        manualId: "daojie_ink_guofeng",
-        templateId: "21",
-        factions: ["人族"],
-        negativeApplied: true,
-        styleTokenCount: 1,
-        assetReferenceTitles: ["金水河码头", "监工赵四"],
-      });
+  it("资产参考照常挂载(挂载序=continuityOrder 源,槽位映射归传输层)", () => {
+    const graph = createOpenImageWorkflowGraph(
+      {
+        ...storyboardContext,
+        canonicalSubject: "皮鞭劈落，剑光交击，矿奴奔逃。",
+        assetReferences: [
+          { imageUrl: "project-file://dao/scenes/dock.png", title: "金水河码头", assetType: "scene", assetId: "scene-1" },
+          { imageUrl: "project-file://dao/roles/zhao.png", title: "监工赵四", assetType: "character", assetId: "role-1" },
+        ],
+      },
+      "道劫",
+    );
+    const assetRefs = graph.nodes.filter(
+      (node): node is Extract<typeof node, { type: "reference" }> =>
+        node.type === "reference"
+        && (node.title === "金水河码头" || node.title === "监工赵四"),
+    );
+    expect(assetRefs).toHaveLength(2);
+    expect(assetRefs.map((node) => node.continuityOrder)).toEqual([1, 2]);
+    const generated = graph.nodes.find((node) => node.type === "generated")!;
+    expect(graph.edges.some((edge) => edge.source === assetRefs[0]!.id && edge.target === generated.id)).toBe(true);
+    expect(graph.edges.some((edge) => edge.source === assetRefs[1]!.id && edge.target === generated.id)).toBe(true);
+    expect(graph.assemblyTrace).toMatchObject({
+      canonicalLine: true,
+      assetReferenceTitles: ["金水河码头", "监工赵四"],
+    });
+  });
 
-      const assetRefs = graph.nodes.filter(
-        (node): node is Extract<typeof node, { type: "reference" }> =>
-          node.type === "reference"
-          && (node.title === "金水河码头" || node.title === "监工赵四"),
-      );
-      expect(assetRefs).toHaveLength(2);
-      expect(assetRefs.map((node) => node.continuityOrder)).toEqual([1, 2]);
-      const generated = graph.nodes.find((node) => node.type === "generated")!;
-      expect(graph.edges.some((edge) => edge.source === assetRefs[0]!.id && edge.target === generated.id)).toBe(true);
-      expect(graph.edges.some((edge) => edge.source === assetRefs[1]!.id && edge.target === generated.id)).toBe(true);
-    } finally {
-      useStudioStore.setState({ workflowConfig: previous });
-      resetExtendedManualContentCache();
-      await warmExtendedManualStyleTokens("");
-    }
+  it("migrateStoryboardPromptToCanonical:旧代流改写+盖戳+帧时刻后缀保留,幂等", () => {
+    const base = {
+      id: "wf-m", name: "m", target: { kind: "storyboard" as const, id: "sb-1" },
+      nodes: [
+        { id: "p1", type: "prompt" as const, prompt: "@图1 为金水码头场景\n【画面】旧装配体\n\n【本帧时刻·第2/3帧·约6s】晏燎拖链前行" },
+        { id: "g1", type: "generated" as const },
+      ],
+      edges: [],
+      createdAt: 0, updatedAt: 0,
+    } as never as Parameters<typeof migrateStoryboardPromptToCanonical>[0];
+    const canonical = "青年刀修晏燎，玄色劲装束袖束腰；拖链前行。";
+    const migrated = migrateStoryboardPromptToCanonical(base, canonical);
+    const prompt = (migrated.nodes[0] as { prompt: string }).prompt;
+    expect(prompt).toContain(canonical);
+    expect(prompt).not.toContain("【画面】旧装配体");
+    expect(prompt).toContain("【本帧时刻·第2/3帧·约6s】晏燎拖链前行");
+    expect(migrated.assemblyTrace?.canonicalLine).toBe(true);
+    // 幂等:再迁移零改动
+    expect(migrateStoryboardPromptToCanonical(migrated, canonical)).toBe(migrated);
   });
 });
 
@@ -330,31 +310,6 @@ describe("ensureStoryboardAssetReferences (L3 资产维度+集差/替换, 11-15)
   it("③ 资产参考齐备一致 → 幂等原样返回", () => {
     const first = ensureStoryboardAssetReferences(makeGraph(), refs);
     expect(ensureStoryboardAssetReferences(first, refs)).toBe(first);
-  });
-});
-
-describe("healStoryboardPromptForCast (R18 存量自愈)", () => {
-  const OLD_PROMPT = "@图1 为金水塾馆场景\n【构图】适用：谈判。要点：只有角色 A 与 B；画幅 16:9 双人中景。\n【画面】三人同框";
-  function makeGraph(prompt: string) {
-    return {
-      id: "wf-1", name: "t", target: { kind: "storyboard", id: "sb-1" }, nodes: [
-        { id: "p1", type: "prompt", prompt },
-        { id: "g1", type: "generated" },
-      ], edges: [],
-    } as never;
-  }
-  it("老流双人约束按 3 人改写", () => {
-    const healed = healStoryboardPromptForCast(makeGraph(OLD_PROMPT), ["独孤剑尘", "女孩", "男孩"]);
-    const p = (healed.nodes[0] as { prompt: string }).prompt;
-    expect(p).toContain("共3名角色同框");
-    expect(p).not.toContain("只有角色 A 与 B");
-  });
-  it("n=2/缺省/已治愈:幂等原样返回", () => {
-    const g = makeGraph(OLD_PROMPT);
-    expect(healStoryboardPromptForCast(g, ["甲", "乙"])).toBe(g);
-    expect(healStoryboardPromptForCast(g)).toBe(g);
-    const healed = healStoryboardPromptForCast(g, ["独孤剑尘", "女孩", "男孩"]);
-    expect(healStoryboardPromptForCast(healed, ["独孤剑尘", "女孩", "男孩"])).toBe(healed);
   });
 });
 

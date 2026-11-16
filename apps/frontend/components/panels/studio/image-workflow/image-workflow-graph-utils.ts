@@ -13,24 +13,8 @@ import {
 } from "@/lib/studio/image-workflow";
 import { stripDaojieSubjectStyleWords } from "@/lib/studio/daojie-style-word-strip";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
-import {
-  EXTENDED_STORYBOARD_STYLE_TOKENS,
-  getExtendedStoryboardFactionData,
-  getExtendedStoryboardFrameNegative,
-  getExtendedStoryboardManualContent,
-  withActiveVisualManualStoryboardStyleTokens,
-} from "@/lib/studio/visual-manual-style-tokens";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { DEFAULT_REMOTION_RENDER_SETTINGS } from "@/lib/studio/remotion/remotion-workspace-storage";
-import {
-  adaptTemplateBriefToCastCount,
-  adaptTemplateBriefToShotMotion,
-  buildStoryboardFactionColorSection,
-  buildStoryboardFramePrompt,
-  resolveAssetFaction,
-  parseStoryboardFrameTemplates,
-  selectStoryboardFrameTemplate,
-} from "@/lib/studio/storyboard-frame-prompt";
 import type {
   AssetImageWorkflowContext,
   ImageWorkflowGeneratedNode,
@@ -338,6 +322,10 @@ export function ensureStoryboardAssetReferences(
  */
 export function ensureStoryboardBindingConsistency(graph: ImageWorkflowGraph): ImageWorkflowGraph {
   if (graph.target.kind !== "storyboard") return graph;
+  // 1116 换线:正典线提示词=体裁化主体句,无 @图N 头段——绑定句重写整链退役
+  // (参考分工由 §4.5 槽位映射+指令 <imageN> 点名承担);旧代流在批量链建流期
+  // 统一改写为正典主体句并盖 canonicalLine 戳,此后不再进本门。
+  if (graph.assemblyTrace?.canonicalLine) return graph;
   const mainGen = graph.nodes.find(
     (node) => node.type === "generated"
       && !node.title?.includes("背景板") && !node.title?.includes("净底"),
@@ -382,16 +370,12 @@ export function ensureStoryboardBindingConsistency(graph: ImageWorkflowGraph): I
 }
 
 /**
- * 存量工作流构图段自愈(08-29 R18 存量盲区根修):建流期的人物数自适应只覆盖
- * 新建流;R21 让同代工作流持续复用后,修复前建的老流(构图段仍是「只有角色
- * A 与 B」双人约束)永不刷新——S07 实证 4 人镜被双人模板逼出 5 人。重生复用
- * 前按 shotSemantics.visibleCharacters 对 prompt 节点构图行补跑自适应,幂等。
- */
-/**
  * 1115 A 裁补(复用镜实证):图级画风词剥净——复用分镜工作流的提交走图内存量
  * prompt 节点值(引擎侧 400),传输位剥词覆盖不到(11-15 实弹 S08/S11 三梯
  * 带工笔入引擎实证)。对 prompt 节点逐个按门禁同源词表剥净,幂等;与传输位
  * (run-image-workflow-node-generation)双保险。分镜真源分片零触碰。
+ * 1116 换线:正典主体句由生成器纪律断言保证零画风词(违例传输前拦截),本函数
+ * 对正典流恒为 no-op,留作旧代存量流的双保险。
  */
 export function stripStoryboardPromptStyleWords(graph: ImageWorkflowGraph): ImageWorkflowGraph {
   if (graph.target.kind !== "storyboard") return graph;
@@ -407,33 +391,33 @@ export function stripStoryboardPromptStyleWords(graph: ImageWorkflowGraph): Imag
   return { ...graph, nodes, updatedAt: Date.now() };
 }
 
-export function healStoryboardPromptForCast(
+/**
+ * 存量分镜流提示词迁移到正典线(1116 换线):复用旧代流(手册装配体/带 @图N
+ * 头段)时把 prompt 节点基准段改写为正典主体句、盖 canonicalLine 戳;多帧流
+ * 的【本帧时刻】帧差异后缀逐字保留。幂等:已是正典文(基准段一致)零改动。
+ */
+export function migrateStoryboardPromptToCanonical(
   graph: ImageWorkflowGraph,
-  castNames?: string[],
-  frameText?: string,
+  canonicalSubject: string,
 ): ImageWorkflowGraph {
   if (graph.target.kind !== "storyboard") return graph;
-  const names = (castNames ?? []).map((name) => name.trim()).filter(Boolean);
+  const subject = canonicalSubject.trim();
+  if (!subject) return graph;
   let anyChanged = false;
   const nodes = graph.nodes.map((node) => {
     if (node.type !== "prompt" || !node.prompt) return node;
-    let nodeChanged = false;
-    const lines = node.prompt.split("\n");
-    for (let i = 0; i < lines.length; i += 1) {
-      if (!lines[i]!.startsWith("【构图】")) continue;
-      // 双重自愈:镜头类型(行进镜去对峙化) → 人数(双人约束按 cast 改写)
-      const healed = adaptTemplateBriefToCastCount(
-        adaptTemplateBriefToShotMotion(lines[i]!, frameText ?? ""),
-        names,
-      );
-      if (healed !== lines[i]) { lines[i] = healed; nodeChanged = true; }
-    }
-    if (!nodeChanged) return node;
+    const markerIndex = node.prompt.indexOf("【本帧时刻");
+    const suffix = markerIndex >= 0 ? node.prompt.slice(markerIndex) : "";
+    const next = suffix ? `${subject}\n\n${suffix}` : subject;
+    if (next === node.prompt) return node;
     anyChanged = true;
-    return { ...node, prompt: lines.join("\n") };
+    return { ...node, prompt: next };
   });
-  if (!anyChanged) return graph;
-  return { ...graph, nodes, updatedAt: Date.now() };
+  const trace = graph.assemblyTrace?.canonicalLine
+    ? graph.assemblyTrace
+    : { ...graph.assemblyTrace, canonicalLine: true };
+  if (!anyChanged && graph.assemblyTrace?.canonicalLine) return graph;
+  return { ...graph, nodes, assemblyTrace: trace, updatedAt: Date.now() };
 }
 
 export function assetWorkflowContextKey(context: ImageWorkflowOpenContext) {
@@ -458,64 +442,28 @@ export function createOpenImageWorkflowGraph(
   if (context.storyboardSourceFingerprint) {
     graph = { ...graph, targetSourceFingerprint: context.storyboardSourceFingerprint };
   }
-  // 分镜工作流三件套(ma-gongbi-v1 手册资产,全部 fail-empty):
-  // ① 提示词按手册装配顺序结构化(【画面】+【构图】模板要点),再挂视觉手册风格锁
-  //    (生成链路幂等不双拼;手册未预热时退化裸描述,行为不变);
-  // ② Negative Prompt 预填五类英文负面词;
-  // ③ 关联资产参考图自动挂载(场景在前角色在后,order 1..k)。
+  // 分镜工作流(1116 换线正典,PRD §四/§五.2):
+  // ① 提示词=正典体裁化主体句(§4.1-4.2 生成器五项序产出,由调用方异步装配
+  //    经 context.canonicalSubject 传入建流)——App 手册装配(帧模板【构图】段/
+  //    手册风格锁/阵营色彩段/台词段)整链退役,底座/类型句/负面由引擎正典装配
+  //    链注入;上下文未带(测试/异常路径)回落裸描述,fail-safe;
+  // ② Negative Prompt 退役(正典三源 merge 引擎承担,prompt 节点不再预填);
+  // ③ 关联资产参考图自动挂载(场景在前角色在后,order 1..k;传输期按 §4.5
+  //    槽位映射重排,挂载序即 continuityOrder 源)。
   const isStoryboard = context.target.kind === "storyboard";
-  const frameTemplate = isStoryboard
-    ? selectStoryboardFrameTemplate(
-        [context.prompt ?? "", context.storyboardLines ?? ""].join("\n"),
-        parseStoryboardFrameTemplates(getExtendedStoryboardManualContent()),
-      )
-    : null;
-  // 阵营色彩职责:参考资产按轨道分桶查阵营(场景→scene 轨/角色→person 轨)
-  const factionData = getExtendedStoryboardFactionData();
-  const sceneRefNames = context.assetReferences?.filter((ref) => ref.assetType === "scene").map((ref) => ref.title);
-  const personRefNames = context.assetReferences?.filter((ref) => ref.assetType === "character").map((ref) => ref.title);
-  const propRefNames = context.assetReferences?.filter((ref) => ref.assetType === "prop").map((ref) => ref.title);
-  const colorSection = isStoryboard && frameTemplate
-    ? buildStoryboardFactionColorSection(
-        { sceneNames: sceneRefNames, personNames: personRefNames, propNames: propRefNames },
-        factionData,
-      )
-    : "";
-  // 装配溯源(UI「风格依据」展示源):命中了哪些手册资产一目了然
   if (isStoryboard) {
-    const tracedFactions = [...(personRefNames ?? []), ...(sceneRefNames ?? [])]
-      .map((name) => resolveAssetFaction(name, factionData.members))
-      .filter((factionName): factionName is string => Boolean(factionName));
     graph = {
       ...graph,
       assemblyTrace: {
+        canonicalLine: true,
         manualId: useStudioStore.getState().workflowConfig.visualManualId,
-        templateId: frameTemplate?.id,
-        templateTitle: frameTemplate?.title,
-        factions: [...new Set(tracedFactions)],
-        factionTracks: colorSection
-          ? [personRefNames?.length ? "person" : "", sceneRefNames?.length ? "scene" : ""].filter(Boolean)
-          : [],
-        negativeApplied: Boolean(getExtendedStoryboardFrameNegative()),
-        styleTokenCount: frameTemplate ? EXTENDED_STORYBOARD_STYLE_TOKENS.length : 0,
         assetReferenceTitles: context.assetReferences?.map((ref) => ref.title),
       },
     };
   }
-  const basePrompt = isStoryboard
-    ? buildStoryboardFramePrompt({
-        description: context.prompt ?? "",
-        lines: context.storyboardLines,
-        template: frameTemplate,
-        // R18:构图模板按画面人数自适应(三人镜/单人镜不再被双人模板锁死)
-        castNames: context.storyboardVisibleCharacters,
-        colorSection,
-      })
-    : (context.prompt ?? "");
   const prompt = isStoryboard
-    ? withActiveVisualManualStoryboardStyleTokens(basePrompt)
-    : basePrompt;
-  const negativePrompt = isStoryboard ? getExtendedStoryboardFrameNegative() : undefined;
+    ? (context.canonicalSubject?.trim() || context.prompt || "")
+    : (context.prompt ?? "");
   const generatedNodeId = createId("gen");
   const promptNodeId = createId("prompt");
   const referenceImagePath = context.sourceImagePath || context.resultImagePath;
@@ -563,7 +511,6 @@ export function createOpenImageWorkflowGraph(
     id: promptNodeId,
     title: "图片生成",
     prompt,
-    negativePrompt: negativePrompt || undefined,
     aspectRatio: genAspectRatio,
     resolution: imageSettings.defaultResolution,
     targetNodeId: generatedNodeId,
@@ -643,8 +590,7 @@ export function createOpenImageWorkflowGraph(
         id: framePromptId,
         title: `图片生成·帧${index + 1}`,
         prompt: `${prompt}${momentOf(index)}`,
-        negativePrompt: negativePrompt || undefined,
-        aspectRatio: genAspectRatio,
+            aspectRatio: genAspectRatio,
         resolution: imageSettings.defaultResolution,
         targetNodeId: frameGenId,
         position: promptSlotPosition(index),

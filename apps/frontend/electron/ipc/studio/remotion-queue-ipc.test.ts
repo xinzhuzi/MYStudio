@@ -104,4 +104,49 @@ describe("Remotion queue IPC", () => {
       currentShotSlots: [slot],
     })).toBeUndefined();
   });
+
+  // 1116 P4 墙一契约钉:remotion-queue-get payload 恰为 {projectId,chapterId} 两键。
+  // 07:10 装机一次性「queue scope 请求字段无效」因日志无录 payload 不可诊断——
+  // 此处钉死形状边界:恰两键通过,多键/缺键/非对象一律拒,且报错携带实发键名。
+  it("rejects remotion-queue-get payloads that are not exactly {projectId, chapterId}", async () => {
+    const queue = {
+      subscribe: vi.fn(() => vi.fn()),
+      init: vi.fn(async () => undefined),
+      getJobs: vi.fn(() => []),
+      getConcurrency: vi.fn(() => 1),
+      getPersistenceError: vi.fn(() => undefined),
+    };
+    registerRemotionQueueIpcHandlers(queue as never);
+    const handler = electronState.handlers.get(REMOTION_QUEUE_GET_CHANNEL)!;
+
+    // 恰两键通过(字符串shorthand与显式键序无关)
+    await expect(handler({}, { projectId: "project-a", chapterId: "chapter-1" }))
+      .resolves.toMatchObject({ projectId: "project-a", chapterId: "chapter-1", jobs: [] });
+
+    // 多键拒(含疑似从 enqueue-chapter-scenes 串台的多余字段)
+    await expect(handler({}, { projectId: "project-a", chapterId: "chapter-1", editingRevision: 3 }))
+      .rejects.toThrow("queue scope 请求字段无效");
+    await expect(handler({}, { projectId: "project-a", chapterId: "chapter-1", extra: true }))
+      .rejects.toThrow("queue scope 请求字段无效");
+
+    // 缺键拒
+    await expect(handler({}, { projectId: "project-a" }))
+      .rejects.toThrow("queue scope 请求字段无效");
+    await expect(handler({}, { chapterId: "chapter-1" }))
+      .rejects.toThrow("queue scope 请求字段无效");
+    await expect(handler({}, {}))
+      .rejects.toThrow("queue scope 请求字段无效");
+
+    // 非对象拒(undefined/null/array/string)
+    await expect(handler({}, undefined)).rejects.toThrow("queue scope 请求字段无效");
+    await expect(handler({}, null)).rejects.toThrow("queue scope 请求字段无效");
+    await expect(handler({}, ["project-a", "chapter-1"])).rejects.toThrow("queue scope 请求字段无效");
+    await expect(handler({}, "project-a")).rejects.toThrow("queue scope 请求字段无效");
+
+    // 报错可见性:实发形状(键名,不出值)必须出现在错文中——1116 墙一复发时日志自证
+    await expect(handler({}, { projectId: "p", chapterId: "c", editingRevision: 3 }))
+      .rejects.toThrow("editingRevision");
+    await expect(handler({}, undefined))
+      .rejects.toThrow("非对象");
+  });
 });

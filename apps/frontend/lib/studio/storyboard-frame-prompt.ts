@@ -1,82 +1,14 @@
 /**
- * 分镜帧生图提示词装配 — ma-gongbi-v1 手册资产的运行时消费层。
+ * 分镜色彩/温感工具 — 阵营配色与温感判定的运行时消费层。
  *
- * 数据全部来自道劫视觉手册 art_prompt/art_storyboard_video.md(fail-empty):
- * - 成片模板速查(`### NN. 标题` + 段落,契约测试 daojie-manual-contract 保证结构)
- * - prefix.md「提示词装配顺序」的正文段结构:【画面】题材正文 +【构图】景别/画幅要点
- * - 风格 token 与五类负面词由 visual-manual-style-tokens 单独注入,本模块不重复
- *
- * 装配原则(手册三段式):题材正文只写事实与构图,负面全部进 Negative Prompt 段;
- * 长度天然收敛(画面 50-120 + 模板要点 + 风格 token 落在 300-800 目标)。
+ * 1116 换线正典(PRD 11-16-storyboard-canonical-line §4.4):本模块的帧装配路
+ * (成片模板解析/选型、【画面】+【构图】段装配、行进镜/人数自适应、画外音过滤)
+ * 整链退役——分镜主体句改由正典生成器(storyboard-canonical-prompt.ts)产出,
+ * 底座/类型句/负面由引擎正典装配链注入。保留件=仍被下游消费的色彩/温感工具:
+ * - 阵营色明文行(正典主体句的落点色锚来源,§4.2 色锚=明文设定色级)
+ * - 逐镜配色锚/温感投票/主导阵营(成片调色冲突检测 chapter-grade-conflict、
+ *   章自动成片 useChapterAutoVideoActions 消费)
  */
-
-export interface StoryboardFrameTemplate {
-  id: string;
-  title: string;
-  /** 模板要点段(适用/要点/画幅,原样注入【构图】)。 */
-  brief: string;
-}
-
-/** 解析手册「成片模板速查」:`### NN. 标题` 标题 + 后续段落(到下一个标题止)。 */
-export function parseStoryboardFrameTemplates(content: string): StoryboardFrameTemplate[] {
-  const lines = content.split(/\r?\n/);
-  const templates: StoryboardFrameTemplate[] = [];
-  let current: { id: string; title: string; briefLines: string[] } | null = null;
-  for (const line of lines) {
-    const match = /^###\s+(\d+)\.\s*(.+)$/.exec(line.trim());
-    if (match) {
-      if (current) templates.push(finishTemplate(current));
-      current = { id: match[1]!, title: match[2]!.trim(), briefLines: [] };
-      continue;
-    }
-    if (current) {
-      if (line.startsWith('#')) {
-        templates.push(finishTemplate(current));
-        current = null;
-        continue;
-      }
-      current.briefLines.push(line);
-    }
-  }
-  if (current) templates.push(finishTemplate(current));
-  return templates.filter((template) => template.brief);
-}
-
-function finishTemplate(current: { id: string; title: string; briefLines: string[] }): StoryboardFrameTemplate {
-  return {
-    id: current.id,
-    title: current.title,
-    brief: current.briefLines.join("\n").replace(/\n{2,}/g, "\n").trim(),
-  };
-}
-
-/** 镜头文本(画面描述+台词)→ 模板选型规则;命中顺序=优先级,缺省回落 07 国风漫剧电影帧。 */
-const TEMPLATE_RULES: Array<{ id: string; pattern: RegExp }> = [
-  { id: "26", pattern: /(谈判|对峙|师徒|质问|密谈|低声|耳语|问道|喝道|回道|说道|答道|：[^"\n]{2,})/ },
-  { id: "21", pattern: /(劈|斩|掌击|挥鞭|皮鞭|拔剑|出剑|冲杀|搏|交手|击中|闪身|暴起|拳头)/ },
-  { id: "31", pattern: /(灵气|丹田|剑光|灵光|经脉|气息|修为|境界|灵根|灵矿|法印|符箓)/ },
-  { id: "09", pattern: /(雨夜|夜雨|冷雨|暴雨|雨幕)/ },
-  { id: "13", pattern: /(官府|官像|威压|殿堂|审判|戒律|监工)/ },
-  { id: "28", pattern: /(卷轴|古籍|档案|书信|地图|账册|令牌文字)/ },
-  { id: "30", pattern: /(孤影|独行|独自一人|独自|只身)/ },
-  { id: "02", pattern: /(长卷|山河|远山|江面|全境|群山)/ },
-];
-const DEFAULT_TEMPLATE_ID = "07";
-
-export function selectStoryboardFrameTemplate(
-  frameText: string,
-  templates: StoryboardFrameTemplate[],
-): StoryboardFrameTemplate | null {
-  if (!templates.length) return null;
-  const byId = new Map(templates.map((template) => [template.id, template]));
-  for (const rule of TEMPLATE_RULES) {
-    if (rule.pattern.test(frameText)) {
-      const hit = byId.get(rule.id);
-      if (hit) return hit;
-    }
-  }
-  return byId.get(DEFAULT_TEMPLATE_ID) ?? null;
-}
 
 /**
  * 复合资产名拆分(08-28 无色根修):资产标题常为「李先生;管事」「监工赵四;赵四」
@@ -272,104 +204,9 @@ export function chapterFactionTemperature(
 }
 
 /**
- * 构图模板镜头类型自适应(08-29 S04 类根修):「谈判、冲突、师徒、对峙」模板
- * 会把行走/擦肩/独行/队列镜硬拗成双人对峙戏(S04 实证:行走镜被画成对峙站位,
- * 角色形象被对手戏路子带偏)。正文命中行进语义时改写适用域与张力句,幂等。
+ * 构图模板镜头类型自适应(08-29 S04 类根修)与人物数自适应(08-28 R18)、
+ * 台词语境画外音过滤、【画面】+【构图】段装配(buildStoryboardFramePrompt)、
+ * 成片模板解析/选型(parseStoryboardFrameTemplates/selectStoryboardFrameTemplate)
+ * ——1116 换线正典(PRD §4.4)整链退役,真源移除;分镜主体句改由
+ * storyboard-canonical-prompt.ts 生成器产出。
  */
-const SHOT_MOTION_PATTERN = /(走过|行走|前行|沿街|沿码头|擦肩|擦过|独行|穿过|穿巷|队列|拖链|离场|赶路|迈步|踱|走进)/;
-
-export function adaptTemplateBriefToShotMotion(brief: string, frameText: string): string {
-  if (!SHOT_MOTION_PATTERN.test(frameText)) return brief;
-  let out = brief;
-  if (out.includes("适用：谈判、冲突、师徒、对峙。")) {
-    out = out.replace("适用：谈判、冲突、师徒、对峙。", "适用：行进途中、擦肩而过。");
-  }
-  if (out.includes("眼神方向和手部动作说明关系张力")) {
-    out = out.replace("眼神方向和手部动作说明关系张力", "人物保持行进姿态与身体朝向，动作自然连贯");
-  }
-  return out;
-}
-
-/**
- * 台词语境画外音过滤(08-29 修正):OS/（V.S.）说话人的台词属明确画外音,
- * 原样注入会被模型画进画面(S34 宗门弟子 V.S. 实证);旁白具氛围价值且无
- * 实害故保留。过滤后只留画面内角色与旁白;全为 OS/V.S. 时语境段不注入。
- */
-export function filterVoiceoverDialogue(lines?: string): string {
-  if (!lines?.trim()) return "";
-  const kept = lines.split(/<br\s*\/?>|\n/).filter((segment) => {
-    const match = /^([^：:]{1,16})[：:]/.exec(segment.trim());
-    if (!match) return true;
-    const speaker = match[1]!.trim();
-    return !(/^(?:OS|画外音)/.test(speaker) || /（V\.S\.）|V\.S\.?$/.test(speaker));
-  });
-  return kept.map((segment) => segment.trim()).filter(Boolean).join("\n");
-}
-
-/**
- * 构图模板人物数自适应(08-28 R18 根修):手册模板要点常写死「只有角色 A 与 B…
- * 双人中景」,三人镜(S21)/单人镜(S35)被套双人模板 → 模型每轮按 2 人画、丢角色
- * 丢身份(跨数月同失败形态实证)。按 shotSemantics.visibleCharacters 的人数改写
- * 人物数约束;人数=2 或缺省不改(fail-safe,无语义数据的旧镜保持原行为)。
- * 幂等:不含「只有角色 A 与 B」条款的模板原样返回。
- */
-export function adaptTemplateBriefToCastCount(
-  brief: string,
-  castNames?: string[],
-): string {
-  if (!brief.includes("只有角色 A 与 B")) return brief;
-  const names = (castNames ?? []).map((name) => name.trim()).filter(Boolean);
-  const count = names.length;
-  if (count === 0 || count === 2) return brief;
-  if (count === 1) {
-    return brief
-      .replace("只有角色 A 与 B", `只有${names[0]}一人`)
-      .replace("双人中景", "单人中景");
-  }
-  const nameList = names.slice(0, 4).join("、") + (count > 4 ? "等" : "");
-  return brief
-    .replace("只有角色 A 与 B", `${nameList}共${count}名角色同框`)
-    .replace("双人中景", `${count}人中景`);
-}
-
-/**
- * 按手册装配顺序组装分镜帧正文:【画面】题材事实 +【构图】模板要点(+【色彩】阵营职责)。
- * 模板要点先经镜头类型自适应(08-29 行进镜)与人物数自适应(R18);
- * 台词语境过滤画外音说话人(旁白/OS/V.S. 不入画)。
- * 风格 token 由调用方(withActiveVisualManualStoryboardStyleTokens)追加,负面词
- * 走 Negative Prompt,均不在本函数重复。手册未预热(无模板)时退化为裸描述。
- */
-export function buildStoryboardFramePrompt(input: {
-  description: string;
-  lines?: string;
-  template: StoryboardFrameTemplate | null;
-  colorSection?: string;
-  /** 画面可见角色名(shotSemantics.visibleCharacters);缺省不做人物数自适应 */
-  castNames?: string[];
-}): string {
-  const description = input.description.trim();
-  if (!input.template) return description;
-  const inFrameDialogue = filterVoiceoverDialogue(input.lines);
-  const dialogueHint = inFrameDialogue
-    ? `\n【台词语境】${inFrameDialogue.slice(0, 80)}`
-    : "";
-  // H3 视频线对口型:具名角色台词(说话人在画面内)才钉近景正面;旁白/OS/V.S.
-  // 是画外音,不触发(09-14 上游产线 H3 对齐)。
-  const lipSyncFraming = inFrameDialogue.split("\n").some((segment) => {
-    const speaker = /^([^：:]{1,16})[：:]/.exec(segment.trim())?.[1]?.trim() ?? "";
-    return speaker !== "" && !/^(?:OS|画外音|旁白)/.test(speaker) && !/（V\.S\.）|V\.S\.?$/.test(speaker);
-  })
-    ? ";有台词:近景或中近景,说话人物正面朝向镜头,留出口型空间"
-    : "";
-  const colorPart = input.colorSection?.trim() ? `\n${input.colorSection.trim()}` : "";
-  const motionAdapted = adaptTemplateBriefToShotMotion(
-    input.template.brief.replace(/\n+/g, " "),
-    `${input.description}\n${input.lines ?? ""}`,
-  );
-  return [
-    `【画面】${description}`,
-    `【构图】${adaptTemplateBriefToCastCount(motionAdapted, input.castNames)}${lipSyncFraming}`,
-    colorPart.trim(),
-    dialogueHint.trim(),
-  ].filter(Boolean).join("\n");
-}

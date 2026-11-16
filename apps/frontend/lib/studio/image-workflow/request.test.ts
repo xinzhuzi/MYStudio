@@ -5,7 +5,7 @@ import {
   buildImageWorkflowGenerationRequest,
 } from "@/lib/studio/image-workflow/request";
 import type { ImageWorkflowGraph, ImageWorkflowGeneratedNode, ImageWorkflowPromptNode } from "@/types/studio";
-import type { ImageWorkflowGenerationRequest, StoryboardSingleImageTransport } from "./request";
+import type { ImageWorkflowGenerationRequest, StoryboardNativeReferencesTransport } from "./request";
 
 /** 08-30 功能转移裁定的回归锁:参数权威归成图节点,存量图回落提示词节点。 */
 
@@ -107,65 +107,62 @@ describe("assertImageWorkflowContinuityCapability 模型白名单", () => {
   });
 });
 
-describe("Qwen 显式单图传输契约", () => {
-  function projected(count = 2) {
-    const sources = Array.from({ length: count }, (_, index) => `source-${index + 1}`);
-    const mappings = sources.map((imageUrl, index) => ({ order: index + 1, imageUrl }));
+describe("Qwen 分镜原生多参考传输契约(1116 换线,§4.5 槽位)", () => {
+  function projected(slotCount = 2, sourceCount = 3) {
+    const sources = Array.from({ length: sourceCount }, (_, index) => `source-${index + 1}`);
+    const manifestOrders = [7, 23, Number.MAX_SAFE_INTEGER];
     const request: ImageWorkflowGenerationRequest = {
       prompt: "剧情", model: "qwen-image-2-1", aspectRatio: "16:9",
-      referenceImages: [count === 1 ? sources[0] : "data:image/png;base64,sheet"],
-      orderedReferenceManifest: mappings.map((entry) => ({ ...entry, versionId: "v1" })),
+      referenceImages: sources.slice(0, slotCount),
+      orderedReferenceManifest: sources.map((imageUrl, index) => ({
+        order: manifestOrders[index], imageUrl, versionId: "v1",
+      })),
       continuityRequired: true, previousApprovedFrameIncluded: false,
     };
-    const transport: StoryboardSingleImageTransport = {
-      kind: "storyboard-single-image", imageUrl: request.referenceImages[0],
-      sourceReferenceImages: sources, mappings,
+    const roles = ["character", "scene", "previous-frame"] as const;
+    const transport: StoryboardNativeReferencesTransport = {
+      kind: "storyboard-native-references",
+      imageUrls: sources.slice(0, slotCount),
+      slots: sources.slice(0, slotCount).map((imageUrl, index) => ({
+        slot: index + 1, role: roles[index], title: `资产${index + 1}`, imageUrl,
+      })),
+      sourceReferenceImages: sources,
     };
     return { request, transport };
   }
 
-  it.each([1, 2])("完整 %i 参考投影允许真实 Qwen 单图传输", (count) => {
-    const { request, transport } = projected(count);
+  it.each([1, 2, 3])("%i 槽原生多参考传输允许真实 Qwen 请求", (slots) => {
+    const { request, transport } = projected(slots);
     expect(() => assertImageWorkflowContinuityCapability(request, transport)).not.toThrow();
   });
 
-  it.each([[1, Number.MAX_SAFE_INTEGER], [7, 23]])("来源原始排序 %j 保留，拼板格位按数组位置核验", (...orders) => {
-    const { request, transport } = projected();
-    request.orderedReferenceManifest.forEach((entry, index) => { entry.order = orders[index]; });
-    request.orderedReferenceManifest[1].referenceRole = "previous-approved-frame";
-    const before = structuredClone({ request, transport });
+  it("§4.5 裁出参考(道具/超额角色)不阻断——裁出名单归映射层留痕", () => {
+    const { request, transport } = projected(2, 3);
+    // source-3 被裁出槽但仍在来源参考中:契约只核结构
     expect(() => assertImageWorkflowContinuityCapability(request, transport)).not.toThrow();
-    expect({ request, transport }).toEqual(before);
   });
 
-  it.each([[1, 1], [2, 1], [1, NaN], [1, Infinity], [1, 1.5]])("拒绝非严格递增有限整数来源排序 %j", (...orders) => {
+  it.each(["零槽", "四槽", "槽位序断", "槽位URL断", "槽位名空"])("拒绝%s结构错误", (fault) => {
     const { request, transport } = projected();
-    request.orderedReferenceManifest.forEach((entry, index) => { entry.order = orders[index]; });
+    if (fault === "零槽") { transport.imageUrls = []; transport.slots = []; }
+    if (fault === "四槽") {
+      transport.imageUrls = ["s1", "s2", "s3", "source-3"];
+      transport.slots = [1, 2, 3, 4].map((slot) => ({ slot, role: "character" as const, title: `t${slot}`, imageUrl: `s${slot}` }));
+    }
+    if (fault === "槽位序断") { transport.slots[1]!.slot = 3; }
+    if (fault === "槽位URL断") { transport.slots[1]!.imageUrl = "missing"; }
+    if (fault === "槽位名空") { transport.slots[1]!.title = "  "; }
     expect(() => assertImageWorkflowContinuityCapability(request, transport)).toThrow();
   });
 
-  it("来源顺序含上游成图时仍拒绝原始排序号冒充拼板格位", () => {
+  it.each(["传输来源外图片", "最终请求参考与传输不一致"])("拒绝%s", (fault) => {
     const { request, transport } = projected();
-    request.orderedReferenceManifest[1].order = Number.MAX_SAFE_INTEGER;
-    transport.mappings[1].order = Number.MAX_SAFE_INTEGER;
-    expect(() => assertImageWorkflowContinuityCapability(request, transport)).toThrow();
-  });
-
-  it.each([1, 2])("Qwen 的 %i 张版本参考未提供契约时仍拒绝", (count) => {
-    expect(() => assertImageWorkflowContinuityCapability(projected(count).request)).toThrow("未通过多参考图连续性能力门禁");
-  });
-
-  it.each(["实际传输数量", "实际传输URL", "原参考数量", "manifest数量", "manifest顺序", "原参考顺序", "缺映射", "映射顺序", "映射URL"])("拒绝%s错误", (fault) => {
-    const { request, transport } = projected();
-    if (fault === "实际传输数量") request.referenceImages.push("extra");
-    if (fault === "实际传输URL") request.referenceImages[0] = "different-sheet";
-    if (fault === "原参考数量") transport.sourceReferenceImages.pop();
-    if (fault === "manifest数量") request.orderedReferenceManifest.pop();
-    if (fault === "manifest顺序") request.orderedReferenceManifest[1].order = 1;
-    if (fault === "原参考顺序") transport.sourceReferenceImages.reverse();
-    if (fault === "缺映射") transport.mappings.pop();
-    if (fault === "映射顺序") transport.mappings.reverse();
-    if (fault === "映射URL") transport.mappings[1].imageUrl = "missing";
+    if (fault === "传输来源外图片") {
+      transport.imageUrls = ["source-1", "intruder"];
+      transport.slots[1]!.imageUrl = "intruder";
+      request.referenceImages = [...transport.imageUrls];
+    }
+    if (fault === "最终请求参考与传输不一致") request.referenceImages = ["source-1"];
     expect(() => assertImageWorkflowContinuityCapability(request, transport)).toThrow();
   });
 
@@ -177,6 +174,9 @@ describe("Qwen 显式单图传输契约", () => {
   it.each(["gpt-image-2", "comfyui-bridge"])("%s 原始多参考兼容，无契约且仍核连续顺序", (model) => {
     const { request, transport } = projected(); request.model = model;
     request.referenceImages = transport.sourceReferenceImages;
+    request.orderedReferenceManifest = request.referenceImages.map((imageUrl, index) => ({
+      order: index + 1, imageUrl, versionId: "v1",
+    }));
     expect(() => assertImageWorkflowContinuityCapability(request)).not.toThrow();
     request.orderedReferenceManifest[1].order = 3;
     expect(() => assertImageWorkflowContinuityCapability(request)).toThrow("顺序不连续");

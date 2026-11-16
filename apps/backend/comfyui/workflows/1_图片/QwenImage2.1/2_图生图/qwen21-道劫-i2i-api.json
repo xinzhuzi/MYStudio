@@ -19,6 +19,18 @@
         "slot": 0,
         "field": "image",
         "class_type": "LoadImage"
+      },
+      {
+        "node": "11",
+        "slot": 1,
+        "field": "image",
+        "class_type": "LoadImage"
+      },
+      {
+        "node": "12",
+        "slot": 2,
+        "field": "image",
+        "class_type": "LoadImage"
       }
     ]
   },
@@ -176,6 +188,14 @@
         ],
         "vae": [
           "3",
+          0
+        ],
+        "images.image_2": [
+          "17",
+          0
+        ],
+        "images.image_3": [
+          "18",
           0
         ]
       }
@@ -521,6 +541,42 @@
         "alpha": [
           "7500:7506",
           1
+        ]
+      }
+    },
+    "11": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "clothing_light_blue_denim_shirt.png"
+      }
+    },
+    "12": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": ""
+      }
+    },
+    "17": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "upscale_method": "lanczos",
+        "megapixels": 1,
+        "resolution_steps": 32,
+        "image": [
+          "11",
+          0
+        ]
+      }
+    },
+    "18": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "upscale_method": "lanczos",
+        "megapixels": 1,
+        "resolution_steps": 32,
+        "image": [
+          "12",
+          0
         ]
       }
     }

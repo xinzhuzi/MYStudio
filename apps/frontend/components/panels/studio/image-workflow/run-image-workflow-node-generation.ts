@@ -6,7 +6,6 @@ import { runUnclothChain } from "@/lib/assist/image-studio/run-uncloth";
 import { isNsfwProModel } from "@/lib/assist/image-studio/nsfw-request";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
-import { stripDaojieSubjectStyleWordsForTransport } from "@/lib/studio/daojie-style-word-strip";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import {
   assertImageWorkflowContinuityCapability,
@@ -16,13 +15,14 @@ import {
   updateImageWorkflowNode,
 } from "@/lib/studio/image-workflow";
 import {
-  compileActiveDaojieStoryboardFramePrompt,
-  withActiveVisualManualStoryboardStyleTokens,
-} from "@/lib/studio/visual-manual-style-tokens";
+  findSubjectOverlapBlocks,
+  getStoryboardBaseSubjectText,
+  lintCanonicalPrompt,
+} from "@/lib/studio/storyboard-canonical-prompt";
+import { buildStoryboardCanonicalTransportInput } from "./storyboard-canonical-context";
 import { useProjectStore } from "@/stores/project/project-store";
 import { resolveBoundTemplateForGeneration } from "@/stores/settings/workflow-bindings-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
-import { buildStoryboardReferenceSheet } from "./storyboard-reference-sheet";
 import type {
   ImageWorkflowNode, ImageWorkflowGraph } from "@/types/studio";
 import {
@@ -31,20 +31,6 @@ import {
   prepareReferenceImages,
   workflowImageRelativePath,
 } from "./image-workflow-file-utils";
-
-/**
- * 编译形态冗余段剥离(旧 800 门死锁解除,08-24;门上限现为 1600): 只剥 request
- * 组装层为「自由画布可读提示词」内嵌的参考锚点段——编译链的参考约束走
- * @图N+图本体+帧负面,这些段在该形态下纯冗余(旧 800 门时代必然撑爆)。
- * 非编译链(enhanced)不受影响。
- */
-function stripCompiledFrameRedundantSections(prompt: string): string {
-  return prompt
-    .replace(/【多视图身份锁】[^【]*/g, "")
-    .replace(/【资产圣经】[^【]*/g, "")
-    .replace(/\n{2,}/g, "\n")
-    .trim();
-}
 
 /**
  * 单节点生图核心(自 use-image-workflow-generation.generateNode 提取,行为零变化):
@@ -136,68 +122,94 @@ export async function runImageWorkflowNodeGeneration(
     return await assetBridge.readImageDataUrl(assetId).catch(() => null) ?? url;
   }));
   const referenceImages = await prepareReferenceImages(resolvedReferenceUrls);
-  const referenceSheet = isStoryboard && request.referenceImages.length > 0
-    ? await buildStoryboardReferenceSheet({ graph, targetNodeId,
-        referenceImages: request.referenceImages, preparedReferenceImages: referenceImages,
-        aspectRatio: request.aspectRatio })
-    : null;
-  const transportReferenceImages = referenceSheet ? [referenceSheet.imageUrl] : referenceImages;
+  // —— 分镜换线正典传输(1116,PRD §五.3/§4.5)——
+  // 体裁路由:零槽=t2i 主体句(07 五项序);有槽=i2i 指令体(09 篇,分镜=无画布
+  // 造新图,参考全=identity source)。App 层装配/手册风格锁/帧编译/拼板塌缩
+  // 全退役——400 只装体裁化句,底座/类型句/负面/透明/画幅由正典装配链(引擎)
+  // 注入。参考按 §4.5 槽位(image_1=主角/image_2=场景/image_3=前帧或次角色)
+  // 原生多张 dataURL 直传;负面退役(正典三源 merge 引擎承担)。
+  let transportReferenceImages = referenceImages;
+  let canonicalPrompt: string | null = null;
   if (isStoryboard) {
-    assertImageWorkflowContinuityCapability({ ...request, model: finalModel, referenceImages: transportReferenceImages },
-      request.continuityRequired && request.referenceImages.length ? {
-        kind: "storyboard-single-image",
-        imageUrl: transportReferenceImages[0],
-        sourceReferenceImages: request.referenceImages,
-        mappings: referenceSheet?.mappings ?? request.referenceImages.map((imageUrl, index) => ({ order: index + 1, imageUrl })),
-      } : undefined);
+    const shot = useStudioStore.getState().storyboards.find((item) => item.id === graph.target.id);
+    if (!shot) throw new Error("分镜行已不存在,无法按正典体裁装配提示词(请重新打开该分镜)");
+    const { instruction, mapping } = await buildStoryboardCanonicalTransportInput(shot, graph, targetNodeId);
+    // 硬纪律门(§4.2,建流/传输同源断言):违规=引擎 1017 运行时门必拒,
+    // 网络前拦截省一次排队烧图。
+    const violations = lintCanonicalPrompt(instruction.prompt, instruction.genre, mapping.slots.length);
+    if (violations.length) {
+      void logEvent({
+        level: "warn",
+        category: "ai",
+        operationId: createOperationId("storyboard-canonical-lint"),
+        message: "Storyboard canonical prompt rejected by discipline lint",
+        context: { shotId: shot.id, shotIndex: shot.index, violations },
+      });
+      throw new Error(`分镜正典提示词未过体裁断言:${violations.map((v) => `${v.rule}(${v.detail})`).join("、")}`);
+    }
+    // 重叠预检(宪法§十/§4.2):与型底座 ≥10 字公共子串=重复块,须去重后重发。
+    const overlaps = findSubjectOverlapBlocks(instruction.prompt, getStoryboardBaseSubjectText());
+    if (overlaps.length) {
+      void logEvent({
+        level: "warn",
+        category: "ai",
+        operationId: createOperationId("storyboard-canonical-overlap"),
+        message: "Storyboard canonical prompt rejected by base overlap precheck",
+        context: { shotId: shot.id, shotIndex: shot.index, overlaps },
+      });
+      throw new Error(`分镜正典提示词与型底座重叠(≥10 字重复块 ${overlaps.length} 处),须去重:…${overlaps[0]!.block}…`);
+    }
+    canonicalPrompt = instruction.prompt;
+    if (mapping.slots.length) {
+      // 槽位图 dataURL 解析+准备(节点只存轻量受管路径,传输才转 base64,
+      // 持久化纪律与资产参考同口径)。
+      const resolvedSlotUrls = await Promise.all(mapping.slots.map(async (slot) => {
+        const assetId = assetRefIdsByUrl.get(slot.imageUrl);
+        if (!assetId || !assetBridge?.readImageDataUrl) return slot.imageUrl;
+        return await assetBridge.readImageDataUrl(assetId).catch(() => null) ?? slot.imageUrl;
+      }));
+      transportReferenceImages = await prepareReferenceImages(resolvedSlotUrls);
+      assertImageWorkflowContinuityCapability(
+        { ...request, model: finalModel, referenceImages: transportReferenceImages },
+        {
+          kind: "storyboard-native-references",
+          imageUrls: transportReferenceImages,
+          slots: mapping.slots.map((slot, index) => ({
+            slot: slot.slot, role: slot.role, title: slot.title, imageUrl: transportReferenceImages[index]!,
+          })),
+          // 来源参考=全量参考的已解析形态(dataURL/base64,与槽位图同一解析路),
+          // 槽位子集核验才同域可比(原始 file:// 与传输 dataURL 不可直接相等)。
+          sourceReferenceImages: referenceImages,
+        },
+      );
+    } else {
+      // 零槽(t2i 路):参考全裁出(§4.5 纯道具镜)——传输零参考,连续性
+      // 断言按零参考形态核(无版本参考在飞)。
+      transportReferenceImages = [];
+      assertImageWorkflowContinuityCapability({
+        ...request, model: finalModel, referenceImages: [], continuityRequired: false,
+      });
+    }
   }
-  // 分镜帧生图接入所选视觉手册风格锁(扩展手册: sanitize+水墨 token);
-  // 仅限 storyboard 工作流,自由/资产工作流提示词不做覆盖。
-  const styledPrompt = graph.target.kind === "storyboard"
-    ? withActiveVisualManualStoryboardStyleTokens(request.prompt)
-    : request.prompt;
-  // 道劫手册:分镜帧最终正文经 ma-gongbi-v1 编译(唯一 Avoid+负面唯一所有者+1600 门)后
-  // 以 raw 策略直传;非道劫(或非分镜)保持既有 enhanced 传输与分离负面。
-  // 传输通道分流(10-19):本地 cfg=1 引擎链(10-19 B 裁定:分镜原生 qwen-image-2-1,
-  // qi21 桥模板无 negative 绑定且负面在 cfg=1 下数学不参与采样)取
-  // compiled.positive/negative 分离通道——providerPrompt 的 Avoid 尾段若混入正向
-  // 会以正向 token 进编码器(反向污染);
-  // providerPrompt 保留为云端传输形态(云端消费方现状冻结,实弹候令)。
-  // 旧 800 门死锁解除(08-24 实证): request 组装层内嵌的【资产圣经】【多视图身份锁】
-  // 锚点段(~800+ 字符)在旧 800 门下会把任何正文顶爆(203 正文+锚点=1277 仍拒)。编译形
-  // 态下参考约束已由 @图N 标记+参考图本体+帧负面承担,锚点段冗余——进编译前剥离
-  // (S08 直连同款口径实证: 无锚点段+@图N+4 参考图=形象六项全对)。
-  const compiledFrame = graph.target.kind === "storyboard"
-    ? await compileActiveDaojieStoryboardFramePrompt(
-        hardenReferenceAnchors(stripCompiledFrameRedundantSections(styledPrompt)))
-    : null;
   const node = graph.nodes.find((item) => item.id === targetNodeId);
   const chapterId = chapterScopeForWorkflowTarget(
     graph.target,
     useStudioStore.getState().storyboards,
   );
   // 10-19 用户裁定(B):分镜生图原生走 qwen-image-2-1(qi21-道劫-t2i,mikkoani×0.8)。
-  // 09-14 K2 桥路由就此退役——实弹定谳 K2 三模型(krea2_turbo/Engineer/HDR VAE)
-  // 自引擎装机以来全缺,K2 桥从未出过图,分镜帧实际一直由桥失败回落渲染成本路
-  // (10-19-daojie-krea2-style-align);现转正,K2 道劫模板转档案(件保留清单标注)。
-  // 参考图随请求透传(与既往回落形态一致);NSFW 破限 use_lora 在 qi21 侧静默忽略
-  // (同既往回落)。自由/资产工作流保留节点自选模型。
+  // 09-14 K2 桥路由就此退役;1116 换线后分镜请求恒 qi21+base_type=分镜剧情图,
+  // 底座/类型句/负面/透明/画幅全由引擎正典装配链注入。自由/资产工作流保留
+  // 节点自选模型。
   const buildRequest = (transport?: "chat") => ({
-    // 1115 A 裁(工笔门禁×L5×分镜样板文):分镜主体句在送往引擎前按门禁同源
-    // 词表剥画风词(风格语义由底座承担;@图N 绑定句=referenceSheet 零触碰;
-    // 分镜表真源零改;剥词留痕进 diagnostics 供装配抽验对账)。
-    prompt: [
-      graph.target.kind === "storyboard"
-        ? stripDaojieSubjectStyleWordsForTransport(compiledFrame?.positive ?? styledPrompt)
-        : (compiledFrame?.positive ?? styledPrompt),
-      referenceSheet?.prompt,
-    ].filter(Boolean).join("\n"),
+    prompt: isStoryboard ? canonicalPrompt! : request.prompt,
     model: finalModel,
     aspectRatio: request.aspectRatio,
     // 降载重试(09-15 P3 阶梯第三段):显式降档覆盖;缺省保持图内档位
     resolution: input.degradedResolution ?? request.resolution,
-    negativePrompt: compiledFrame?.negative ?? request.negativePrompt,
-    promptPolicy: (compiledFrame ? "raw" : undefined) as "raw" | undefined,
+    // 分镜负面退役(1116 换线):正典三源 merge(底座负面+型负面+主体句负面)
+    // 由引擎装配链承担,App 传输不再携带;自由/资产工作流负面照旧。
+    negativePrompt: isStoryboard ? undefined : request.negativePrompt,
+    promptPolicy: (isStoryboard ? "raw" : undefined) as "raw" | undefined,
     referenceImages: transportReferenceImages,
     // NSFW破限链(09-07):use_lora 经 extraParams 进请求体,引擎层与全局
     // 专业流开关或关系合并(ai-sdk-bridge Object.assign 透传);
@@ -346,20 +358,4 @@ export async function runImageWorkflowNodeGeneration(
   input.assertStillCurrent?.();
   useStudioStore.getState().upsertImageWorkflow(updated);
   return { imageUrl: saved.url };
-}
-
-/**
- * 参考身份硬锚(2026-08-25 参考遵循度抽检根修): chat 回退通道对参考图遵循
- * 偏松+文字锚点段已剥离,人物细节漂移(S44 白发画成黑发/S4 赵四形象漂移
- * 实证)。发送时把 @图N 头段升级为硬锚句式,幂等(已是硬锚不再加),仅作用于
- * 头段的绑定行,不改正文/不涨字数门(每行+~8 字,82 镜最大头段 4 行≈32 字)。
- */
-function hardenReferenceAnchors(prompt: string): string {
-  return prompt.replace(
-    // 名字段允许半角分号:复合资产名「李先生;管事」不可再截断(08-28 无色根修),
-    // 全角「；」仍是参考行分隔符、半/全角逗号仍排除。
-    /@图(\d+)\s*为([^,，；\n]*?)(角色|场景|道具)(?![^\n]*一致)/g,
-    (_line, num: string, name: string, kind: string) =>
-      `@图${num} 为${name}${kind}，外观须与@图${num}一致`,
-  );
 }

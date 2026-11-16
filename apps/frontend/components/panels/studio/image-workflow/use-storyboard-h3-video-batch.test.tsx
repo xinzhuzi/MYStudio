@@ -6,6 +6,9 @@
 // cancel/回收窗不被打断)/断点续跑跳过 failedShotIds/防休眠起止/MPS 退化
 // 告警/收尾 toast 文案。
 import { act, renderHook } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import process from "node:process";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StoryboardItem } from "@/types/studio";
 
@@ -594,7 +597,8 @@ describe("runStoryboardH3ShotVideo(镜级重生成 force 路径)", () => {
 const PNG_960_544 = "iVBORw0KGgoAAAANSUhEUgAAA8AAAAIgCAIAAADFh5f6AAAAAElFTkSuQmCC";
 
 describe("runStoryboardH3ShotVideoStep(三采两段拆链,1112 recavsr-mainline)", () => {
-  /** 两段引擎状态机:段A complete 带 nodeId=4 终档产物;段B complete 带 340 终档。
+  /** 两段引擎状态机(45faa181 千位段编号同构 mock,1116 门禁红实录摘伪造掩盖):
+   *  段A complete 带 nodeId=2061 一采预览+3071 终档产物;段B complete 带 4003 终档。
    *  GET 恒回 complete(假时钟不推进 sleep,首轮即终态——照既有 programEngine 范式)。
    *  返回提交体捕获数组(断言段A/段B 图形状)。 */
   function programSancaiEngine(executeBodies: Array<Record<string, unknown>>): void {
@@ -611,12 +615,12 @@ describe("runStoryboardH3ShotVideoStep(三采两段拆链,1112 recavsr-mainline)
             status: "complete",
             result: {
               videos: [
-                { nodeId: "204", filename: "ambient-p1_00001_.mp4", subfolder: "video/漫影/chapter-001/a", type: "output" },
-                { nodeId: "4", filename: "ambient_00002_.mp4", subfolder: "video/漫影/chapter-001/a", type: "output" },
+                { nodeId: "2061", filename: "ambient-p1_00001_.mp4", subfolder: "video/漫影/chapter-001/a", type: "output" },
+                { nodeId: "3071", filename: "ambient_00002_.mp4", subfolder: "video/漫影/chapter-001/a", type: "output" },
               ],
             },
           }
-          : { status: "complete", result: { videos: [{ nodeId: "340", filename: "ambient_00001_.mp4", subfolder: "video/漫影/chapter-001/a", type: "output" }] } };
+          : { status: "complete", result: { videos: [{ nodeId: "4003", filename: "ambient_00001_.mp4", subfolder: "video/漫影/chapter-001/a", type: "output" }] } };
       }
       throw new Error(`unexpected ${method} ${path}`);
     });
@@ -638,31 +642,32 @@ describe("runStoryboardH3ShotVideoStep(三采两段拆链,1112 recavsr-mainline)
     expect(engineFreeMock).toHaveBeenCalledTimes(1);
     const stageA = executeBodies[0]!.graph as Record<string, { class_type: string; inputs: Record<string, unknown> }>;
     const stageB = executeBodies[1]!.graph as Record<string, { class_type: string; inputs: Record<string, unknown> }>;
-    // 段A=一二采(无三采链节点;219=true=i2v 臂;AR 阶梯 960×544/1440×832)
-    expect(stageA["338"]).toBeUndefined();
-    expect(stageA["339"]).toBeUndefined();
-    expect(stageA["340"]).toBeUndefined();
-    expect(stageA["219"]!.inputs.value).toBe(true);
-    expect(stageA["220"]!.inputs.width).toBe(960);
-    expect(stageA["220"]!.inputs.height).toBe(544);
-    expect(stageA["16"]!.inputs.width).toBe(960);
-    expect(stageA["16"]!.inputs.height).toBe(544);
-    expect(stageA["208"]!.inputs.width).toBe(1440);
-    expect(stageA["208"]!.inputs.height).toBe(832);
-    expect(stageA["206"]!.inputs["mode.width"]).toBe(1440);
-    expect(stageA["206"]!.inputs["mode.height"]).toBe(832);
-    // 段B=三采(300.file=段A nodeId=4 终档注解名;339.video←300;MyShot 100 连 340)
+    // 段A=一二采(无三采链节点;1061=true=i2v 臂;AR 阶梯 960×544/1440×832;
+    // 节点号=45faa181 千位段正典:一采 2000 段/二采 3000 段/加载 1000 段)
+    expect(stageA["4001"]).toBeUndefined();
+    expect(stageA["4002"]).toBeUndefined();
+    expect(stageA["4003"]).toBeUndefined();
+    expect(stageA["1061"]!.inputs.value).toBe(true);
+    expect(stageA["2002"]!.inputs.width).toBe(960);
+    expect(stageA["2002"]!.inputs.height).toBe(544);
+    expect(stageA["2001"]!.inputs.width).toBe(960);
+    expect(stageA["2001"]!.inputs.height).toBe(544);
+    expect(stageA["3031"]!.inputs.width).toBe(1440);
+    expect(stageA["3031"]!.inputs.height).toBe(832);
+    expect(stageA["3002"]!.inputs["mode.width"]).toBe(1440);
+    expect(stageA["3002"]!.inputs["mode.height"]).toBe(832);
+    // 段B=三采(300.file=段A nodeId=3071 终档注解名;4002.video←300;MyShot 3061 连 4003)
     expect(stageB["300"]!.class_type).toBe("LoadVideo");
     expect(stageB["300"]!.inputs.file).toBe("video/漫影/chapter-001/a/ambient_00002_.mp4 [output]");
-    expect(stageB["339"]!.inputs.video).toEqual(["300", 0]);
-    expect(stageB["340"]!.inputs.filename_prefix).toBe(String(stageA["4"]!.inputs.filename_prefix));
-    expect(stageB["100"]!.class_type).toBe("MyShot");
-    expect(stageB["100"]!.inputs.video).toEqual(["340", 0]);
-    expect(stageB["100"]!.inputs.shot_id).toBe("a");
+    expect(stageB["4002"]!.inputs.video).toEqual(["300", 0]);
+    expect(stageB["4003"]!.inputs.filename_prefix).toBe(String(stageA["3071"]!.inputs.filename_prefix));
+    expect(stageB["3061"]!.class_type).toBe("MyShot");
+    expect(stageB["3061"]!.inputs.video).toEqual(["4003", 0]);
+    expect(stageB["3061"]!.inputs.shot_id).toBe("a");
     expect(toast.success).toHaveBeenCalledWith(expect.stringContaining("已出片并回收"));
   });
 
-  it("段A 完成但缺 nodeId=4 终档产物→抛错不发段B(零拷贝通道断链显式失败)", async () => {
+  it("段A 完成但缺 nodeId=3071 终档产物→抛错不发段B(零拷贝通道断链显式失败)", async () => {
     seedShots([shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" } })]);
     readB64Mock.mockResolvedValue(PNG_960_544);
     const executeBodies: Array<Record<string, unknown>> = [];
@@ -674,7 +679,7 @@ describe("runStoryboardH3ShotVideoStep(三采两段拆链,1112 recavsr-mainline)
         return { jobId: `job-${jobSeq}` };
       }
       if (method === "GET" && path.startsWith("/comfy/jobs/")) {
-        return { status: "complete", result: { videos: [{ nodeId: "204", filename: "p1.mp4", subfolder: "" }] } };
+        return { status: "complete", result: { videos: [{ nodeId: "2061", filename: "p1.mp4", subfolder: "" }] } };
       }
       throw new Error(`unexpected ${method} ${path}`);
     });
@@ -706,6 +711,20 @@ describe("runStoryboardH3ShotVideoStep(三采两段拆链,1112 recavsr-mainline)
     await runStoryboardH3ShotVideo(useStudioStore.getState().storyboards[0]!, { tier: "480p" });
     expect(executeBodies.length).toBe(1);
     expect(engineFreeMock).not.toHaveBeenCalled();
+  });
+
+  it("编排器终档锚=SANCAI_CANVAS_ANCHORS 单源(禁裸号找终档——1116 门禁红实录防回归钉)", () => {
+    // 45faa181 千位段重编号漏随迁暗雷:编排器曾以裸字符串 "4" 找段A终档,新母体
+    // (终档=3071)实弹必抛「未取到终档产物」三采永不跑,测试 mock 伪造 nodeId=4
+    // 掩盖两年号漂移。本钉锁编排器恒走锚表派生,重编号再漏随迁即红。
+    // (jsdom 环境 import.meta.url 非 file scheme,按 vitest cwd=apps/ 解析)
+    const source = readFileSync(
+      resolve(process.cwd(), "frontend/components/panels/studio/image-workflow/use-storyboard-h3-video-batch.ts"),
+      "utf8",
+    );
+    expect(source).toContain('video.nodeId === String(SANCAI_CANVAS_ANCHORS.saveVideo)');
+    expect(source).not.toContain('video.nodeId === "4"');
+    expect(source).toContain("SANCAI_CANVAS_ANCHORS,");
   });
 });
 

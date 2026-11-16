@@ -34,13 +34,17 @@ import { buildStoryboardItemOpenContext } from "../storyboard-open-context";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { resolveStoryboardAssetReferences } from "./storyboard-asset-references";
 import {
+  buildStoryboardCanonicalContext,
+} from "./storyboard-canonical-context";
+import {
   createOpenImageWorkflowGraph,
   ensureStoryboardAssetReferences,
-  healStoryboardPromptForCast,
   findStoryboardWorkflowForContext,
+  migrateStoryboardPromptToCanonical,
   resolveOpenContextGeneratedNodeId,
   stripStoryboardPromptStyleWords,
 } from "./image-workflow-graph-utils";
+import { ensureStoryboardSceneAssetsLanded } from "./storyboard-scene-landing";
 import { runImageWorkflowNodeGeneration } from "./run-image-workflow-node-generation";
 import { landStoryboardContinuity } from "./land-continuity";
 
@@ -638,6 +642,14 @@ async function generateOneShot(
   }
   const context = buildStoryboardItemOpenContext({ ...shot, mediaRef: shot.stale ? undefined : shot.mediaRef });
   const store = useStudioStore.getState();
+  // scene 落地驱动(1116,PRD §五.5):分镜关联场景走产品正路入库/出图
+  // (storeRowInAssetLibrary 同款 assets:add / generateAsset→收尾入库),禁直写
+  // SQLite;幂等(库内已有图零动作),fail-open 不阻断生图主链。
+  await ensureStoryboardSceneAssetsLanded(shot);
+  guard.assertCurrent();
+  // 1116 换线正典:主体句=生成器五项序产出(§4.1-4.2),建流/迁移共用同源产物。
+  const canonical = await buildStoryboardCanonicalContext(shot);
+  guard.assertCurrent();
   // 身份防线:择优复用(有参考节点的旧代/新代并存时优先带参考者),
   // 选中者无参考而分镜带资产清单→重解析补挂(S08 实证:空参考会让
   // 模型自由发挥角色形象,监工被画成主角剑客相)
@@ -646,20 +658,9 @@ async function generateOneShot(
     const assetReferences = (await resolveStoryboardAssetReferences(shot).catch(() => [])) ?? [];
     logStoryboardReferenceBudget(shot, assetReferences);
     guard.assertCurrent();
-    graph = createOpenImageWorkflowGraph({ ...context, assetReferences }, projectName);
+    graph = createOpenImageWorkflowGraph({ ...context, assetReferences, canonicalSubject: canonical.sentence.text }, projectName);
     useStudioStore.getState().upsertImageWorkflow(graph);
   } else {
-    // 存量流自愈(08-29):R21 复用机制下,修复前建的老流构图段仍是双人约束
-    // (S07 实证 4 人镜被逼出 5 人)——重生前按画面人数补跑自适应,幂等
-    const healed = healStoryboardPromptForCast(
-      graph,
-      (shot.shotSemantics?.visibleCharacters ?? []).map((character) => character.name),
-      [shot.videoDesc, shot.prompt, shot.lines].filter(Boolean).join("\n"),
-    );
-    if (healed !== graph) {
-      useStudioStore.getState().upsertImageWorkflow(healed);
-      graph = healed;
-    }
     // L3(11-15 断点③):补挂门改资产维度——旧门「图内零任意 reference 才补挂」
     // 让带杂参考(当前分镜参考图/分镜帧/手动 project-file)而零资产参考的图
     // 永久粘死;现判「图内零 source.kind==='asset' 参考节点」,集差/替换语义
@@ -673,6 +674,13 @@ async function generateOneShot(
         useStudioStore.getState().upsertImageWorkflow(ensured);
         graph = ensured;
       }
+    }
+    // 1116 换线:存量流(手册装配体/@图N 头段)提示词迁移到正典主体句+盖戳;
+    // 幂等(基准段一致零改动),【本帧时刻】帧差异后缀逐字保留。
+    const migrated = migrateStoryboardPromptToCanonical(graph, canonical.sentence.text);
+    if (migrated !== graph) {
+      useStudioStore.getState().upsertImageWorkflow(migrated);
+      graph = migrated;
     }
   }
   const targetNodeId = resolveOpenContextGeneratedNodeId(graph, context)

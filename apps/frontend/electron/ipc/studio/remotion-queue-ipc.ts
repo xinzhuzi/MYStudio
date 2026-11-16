@@ -101,11 +101,22 @@ export function registerRemotionQueueIpcHandlers(
 }
 
 function parseScope(value: unknown): RemotionQueueScopeRequest {
-  if (!isRecord(value) || !hasOnlyKeys(value, ["projectId", "chapterId"])) throw new Error("queue scope 请求字段无效");
+  if (!isRecord(value) || !hasOnlyKeys(value, ["projectId", "chapterId"])) {
+    // 1116 P4 墙一:07:10 装机一次性报错因文案不含实发形状而不可诊断(诊断日志
+    // 无录 payload、装机分片已失)。附实发形状(仅键名不出值),下次复发日志自证。
+    throw new Error(`queue scope 请求字段无效: 期望恰为 projectId,chapterId 两键,实际收到 ${describeIpcPayloadShape(value)}`);
+  }
   return {
     projectId: parseId(value.projectId, "projectId"),
     chapterId: parseId(value.chapterId, "chapterId"),
   };
+}
+
+/** IPC 形状描述(只列键名,永不带值)——排障可见性专用。 */
+function describeIpcPayloadShape(value: unknown): string {
+  if (!isRecord(value)) return `非对象(${Array.isArray(value) ? "array" : typeof value})`;
+  const keys = Object.keys(value);
+  return keys.length === 0 ? "空对象" : `键 [${keys.join(",")}]`;
 }
 
 function parseJob(value: unknown): RemotionQueueJobRequest {

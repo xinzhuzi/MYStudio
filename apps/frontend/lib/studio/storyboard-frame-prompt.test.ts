@@ -1,165 +1,17 @@
 import { readFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
-  adaptTemplateBriefToCastCount,
-  adaptTemplateBriefToShotMotion,
   buildShotColorMoodLine,
   buildStoryboardFactionColorSection,
-  buildStoryboardFramePrompt,
   chapterFactionTemperature,
   classifyFactionPaletteTemperature,
   dominantChapterFaction,
-  filterVoiceoverDialogue,
-  parseStoryboardFrameTemplates,
-  selectStoryboardFrameTemplate,
 } from "./storyboard-frame-prompt";
 
-const MANUAL_SAMPLE = [
-  "## 成片模板速查（按用途只选 1 个，骨架要点版）",
-  "### 02. 青绿山水长卷人物",
-  "适用：山川全境、行旅长卷。要点：远景层叠；画幅 16:9 横卷。",
-  "",
-  "### 07. 国风漫剧电影帧",
-  "适用：通用剧情帧。要点：主体明确，背景三层；画幅 16:9。",
-  "",
-  "### 21. 水墨战斗瞬间",
-  "适用：动作图、技能击中、漫剧高潮。要点：劈斩动作方向明确重心真实；画幅 16:9 动态中景。",
-  "",
-  "### 26. 双人对话电影帧",
-  "适用：谈判、冲突、师徒、对峙。要点：只有角色 A 与 B；眼神方向和手部动作说明关系张力；画幅 16:9 双人中景。",
-  "",
-  "### 31. 水墨灵气特写",
-  "适用：灵气、经脉、丹田。要点：淡彩灵气沿经脉；画幅 16:9 特写。",
-  "",
-  "## 提示词质量增强",
-  "后续内容不应进入模板。",
-].join("\n");
-
-// Import only the production pure-Python gate; no engine, model or workflow runtime.
-const FULL_SUBJECT_GATE_PROBE = `
-import importlib.util, json, sys
-spec = importlib.util.spec_from_file_location("offline_gate", sys.argv[1])
-gate = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(gate)
-gate.assert_prompt_gates(json.load(sys.stdin), is_subject=True, negation_only=False)
-`;
-
-describe("repository template briefs through the full subject gate", () => {
-  const manual = readFileSync(new URL(
-    "../../assets/studio-manuals/art_skills/daojie_ink_guofeng/art_prompt/art_storyboard_video.md",
-    import.meta.url,
-  ), "utf8");
-  const templates = parseStoryboardFrameTemplates(manual);
-  const gatePath = fileURLToPath(new URL(
-    "../../../backend/comfyui/my_nodes/nodes/_gongbi_gate.py", import.meta.url,
-  ));
-
-  it("retains the twelve template identifiers and order", () => {
-    expect(templates.map(({ id }) => id)).toEqual([
-      "02", "03", "07", "09", "13", "21", "24", "25", "26", "28", "30", "31",
-    ]);
-  });
-
-  it.each([
-    ["07", "石台位于庭院中央。"],
-    ["09", "雨夜，石台位于庭院中央。"],
-    ["26", "两人隔桌谈判。"],
-  ])("selected template %s builds a full-gate-compatible prompt", (id, selectionText) => {
-    const template = selectStoryboardFrameTemplate(selectionText, templates);
-    expect(template?.id).toBe(id);
-    const prompt = buildStoryboardFramePrompt({
-      description: "石台位于庭院中央。", template,
-    });
-    const result = spawnSync("python3", ["-I", "-B", "-c", FULL_SUBJECT_GATE_PROBE, gatePath], {
-      input: JSON.stringify(prompt), encoding: "utf8", timeout: 5000,
-    });
-    expect(result.error).toBeUndefined();
-    expect(result.status, result.stderr).toBe(0);
-  });
-
-  it.each(["深不见底", "听不见"])("preserves factual wording %s for a separate gate policy", (fact) => {
-    const prompt = buildStoryboardFramePrompt({
-      description: fact, template: templates.find(({ id }) => id === "07") ?? null,
-    });
-    expect(prompt).toContain(`【画面】${fact}`);
-    const result = spawnSync("python3", ["-I", "-B", "-c", FULL_SUBJECT_GATE_PROBE, gatePath], {
-      input: JSON.stringify(prompt), encoding: "utf8", timeout: 5000,
-    });
-    expect(result.error).toBeUndefined();
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("否定式「不见」");
-  });
-});
-
-describe("storyboard frame template parsing", () => {
-  it("parses ### NN. sections with brief paragraphs only", () => {
-    const templates = parseStoryboardFrameTemplates(MANUAL_SAMPLE);
-    expect(templates.map(({ id }) => id)).toEqual(["02", "07", "21", "26", "31"]);
-    expect(templates[0]).toMatchObject({ id: "02", title: "青绿山水长卷人物" });
-    expect(templates[0]!.brief).toContain("远景层叠");
-    expect(templates[4]!.brief).toContain("淡彩灵气");
-  });
-
-  it("returns empty for content without template headings (fail-empty)", () => {
-    expect(parseStoryboardFrameTemplates("## 别的章节\n正文")).toEqual([]);
-  });
-});
-
-describe("storyboard frame template selection", () => {
-  const templates = parseStoryboardFrameTemplates(MANUAL_SAMPLE);
-
-  it("routes combat/spirit/dialogue cues to their templates", () => {
-    expect(selectStoryboardFrameTemplate("皮鞭劈落，剑光交击", templates)?.id).toBe("21");
-    expect(selectStoryboardFrameTemplate("丹田灵气沿经脉流转", templates)?.id).toBe("31");
-    expect(selectStoryboardFrameTemplate("画面静止\n赵四：都给我快些！", templates)?.id).toBe("26");
-  });
-
-  it("falls back to the generic cinema-frame template 07", () => {
-    expect(selectStoryboardFrameTemplate("船桩压住前景，铁链横穿石板", templates)?.id).toBe("07");
-    expect(selectStoryboardFrameTemplate("任意", [])).toBeNull();
-  });
-});
-
-describe("storyboard frame prompt assembly", () => {
-  const templates = parseStoryboardFrameTemplates(MANUAL_SAMPLE);
-
-  it("assembles structured body with scene and composition sections", () => {
-    const prompt = buildStoryboardFramePrompt({
-      description: "船桩压住前景，铁链横穿石板；矿奴弯腰搬动藤筐。",
-      lines: "旁白：铁链一节接一节。",
-      template: selectStoryboardFrameTemplate("船桩压住前景，铁链横穿石板", templates),
-    });
-    expect(prompt).toContain("【画面】船桩压住前景");
-    expect(prompt).toContain("【构图】适用：通用剧情帧");
-    expect(prompt).toContain("【台词语境】旁白：铁链一节接一节");
-  });
-
-  it("degrades to the bare description without a template", () => {
-    expect(buildStoryboardFramePrompt({
-      description: "矿场远景。",
-      template: null,
-    })).toBe("矿场远景。");
-  });
-
-  it("pins lip-sync framing for in-frame dialogue only (09-14 H3 alignment)", () => {
-    const template = selectStoryboardFrameTemplate("船桩压住前景，铁链横穿石板", templates);
-    const withDialogue = buildStoryboardFramePrompt({
-      description: "掌柜抬眼，独孤剑尘立在门口。",
-      lines: "掌柜：客官，外头雨大。",
-      template,
-    });
-    expect(withDialogue).toContain("正面朝向镜头");
-    expect(withDialogue).toContain("口型");
-    const voiceoverOnly = buildStoryboardFramePrompt({
-      description: "船桩压住前景，铁链横穿石板。",
-      lines: "旁白：铁链一节接一节。",
-      template,
-    });
-    expect(voiceoverOnly).not.toContain("口型");
-  });
-});
+// 1116 换线正典(PRD 11-16-storyboard-canonical-line §4.4):帧装配路(模板解析/
+// 选型/【画面】+【构图】装配/行进镜与人数自适应/画外音过滤)随旧链退役,对应
+// describe 移除;保留件=色彩/温感工具(正典主体句落点色锚来源+成片调色冲突
+// 检测/章自动成片消费面)。
 
 describe("storyboard faction color section", () => {
   const faction = {
@@ -201,7 +53,7 @@ describe("storyboard faction color section", () => {
       { sceneNames: ["金水河码头"], personNames: ["独孤剑尘"] },
       withProp,
     )).not.toContain("道具");
-    // 仅有道具名仍是默认 not_applicable；不得因参考资产存在就自动开启 prop 色。
+    // 仅有道具名仍是默认 not_applicable;不得因参考资产存在就自动开启 prop 色。
     expect(buildStoryboardFactionColorSection(
       { propNames: ["戒律碑"] },
       { ...withProp, members: { ...withProp.members, 戒律碑: "万劫圣宗" } },
@@ -221,64 +73,6 @@ describe("storyboard faction color section", () => {
     // 源码层声明条件注入政策(合同声明与实现互锁)
     const source = readFileSync(new URL("./storyboard-frame-prompt.ts", import.meta.url), "utf8");
     expect(source).toContain("not_applicable");
-  });
-
-  it("feeds the color section into the frame prompt between composition and dialogue", () => {
-    const templates = parseStoryboardFrameTemplates(MANUAL_SAMPLE);
-    const prompt = buildStoryboardFramePrompt({
-      description: "剑尘立于码头。",
-      lines: "独孤剑尘OS：归元，为谁而鸣？",
-      template: selectStoryboardFrameTemplate("剑尘立于码头。", templates),
-      colorSection: buildStoryboardFactionColorSection({ personNames: ["独孤剑尘"] }, faction),
-    });
-    expect(prompt.indexOf("【构图】")).toBeLessThan(prompt.indexOf("【色彩】"));
-    expect(prompt.indexOf("【色彩】")).toBeLessThan(prompt.indexOf("【台词语境】"));
-  });
-});
-
-describe("adaptTemplateBriefToCastCount (R18 构图人物数自适应)", () => {
-  const BRIEF = "适用：谈判、冲突、师徒、对峙。要点：只有角色 A 与 B；明确前后或左右关系；工笔线描照亮脸和手。画幅 16:9 双人中景。";
-
-  it("n=1:双人约束改单人,双人中景改单人中景", () => {
-    const out = adaptTemplateBriefToCastCount(BRIEF, ["独孤剑尘"]);
-    expect(out).toContain("只有独孤剑尘一人");
-    expect(out).toContain("单人中景");
-    expect(out).not.toContain("只有角色 A 与 B");
-    expect(out).not.toContain("双人中景");
-  });
-
-  it("n=2或缺省:原样返回(fail-safe)", () => {
-    expect(adaptTemplateBriefToCastCount(BRIEF, ["独孤剑尘", "管事"])).toBe(BRIEF);
-    expect(adaptTemplateBriefToCastCount(BRIEF)).toBe(BRIEF);
-    expect(adaptTemplateBriefToCastCount(BRIEF, [])).toBe(BRIEF);
-  });
-
-  it("n=3:列名+三人中景", () => {
-    const out = adaptTemplateBriefToCastCount(BRIEF, ["独孤剑尘", "女孩", "男孩"]);
-    expect(out).toContain("独孤剑尘、女孩、男孩共3名角色同框");
-    expect(out).toContain("3人中景");
-  });
-
-  it("n>4:前4名+「等」", () => {
-    const out = adaptTemplateBriefToCastCount(BRIEF, ["甲", "乙", "丙", "丁", "戊"]);
-    expect(out).toContain("甲、乙、丙、丁等共5名角色同框");
-    expect(out).toContain("5人中景");
-  });
-
-  it("无双人条款的模板原样返回(幂等)", () => {
-    const plain = "适用：山川全境。要点：远景层叠；画幅 16:9 横卷。";
-    expect(adaptTemplateBriefToCastCount(plain, ["独孤剑尘"])).toBe(plain);
-  });
-
-  it("buildStoryboardFramePrompt 接线:castNames 传导到【构图】段", () => {
-    const templates = parseStoryboardFrameTemplates(MANUAL_SAMPLE);
-    const dialogue = templates.find((t) => t.id === "26") ?? templates[0]!;
-    const prompt = buildStoryboardFramePrompt({
-      description: "独孤握拳松拳",
-      template: { ...dialogue, brief: BRIEF },
-      castNames: ["独孤剑尘"],
-    });
-    expect(prompt).toContain("只有独孤剑尘一人");
   });
 });
 
@@ -397,32 +191,5 @@ describe("dominantChapterFaction / chapterFactionTemperature", () => {
       [{ associateAssetsNames: ["金水河码头"] }],
       { members: {}, palette: {} },
     )).toEqual({ temperature: "neutral" });
-  });
-});
-
-describe("adaptTemplateBriefToShotMotion (S04 行进镜根修)", () => {
-  const DUAL = "适用：谈判、冲突、师徒、对峙。要点：只有角色 A 与 B；明确前后或左右关系，眼神方向和手部动作说明关系张力；工笔线描照亮脸和手。画幅 16:9 双人中景。";
-  it("行进文本:对峙域改行进域,张力句改行进姿态", () => {
-    const out = adaptTemplateBriefToShotMotion(DUAL, "独孤沿街向右行走，藤筐从旁擦过");
-    expect(out).toContain("适用：行进途中、擦肩而过。");
-    expect(out).toContain("人物保持行进姿态与身体朝向");
-    expect(out).not.toContain("对峙");
-  });
-  it("非行进文本:原样返回(幂等)", () => {
-    expect(adaptTemplateBriefToShotMotion(DUAL, "两人隔桌对坐交谈")).toBe(DUAL);
-  });
-});
-
-describe("filterVoiceoverDialogue (画外音过滤)", () => {
-  it("OS/V.S. 被滤除,画面内台词与旁白保留", () => {
-    const out = filterVoiceoverDialogue("OS（独孤剑尘，克制）：不是每一鞭，都值得我拔剑。<br>管事：半个时辰。");
-    expect(out).toBe("管事：半个时辰。");
-  });
-  it("旁白保留(氛围价值),V.S. 滤除", () => {
-    const out = filterVoiceoverDialogue("旁白：铁链从码头进入街巷。<br>宗门弟子（V.S.）：明年矿供，还能翻倍。");
-    expect(out).toBe("旁白：铁链从码头进入街巷。");
-  });
-  it("无冒号段落原样保留", () => {
-    expect(filterVoiceoverDialogue("啊！")).toBe("啊！");
   });
 });

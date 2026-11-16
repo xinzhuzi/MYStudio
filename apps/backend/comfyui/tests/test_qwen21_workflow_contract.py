@@ -6503,9 +6503,14 @@ def test_bridge_template_reflatten_equality_1019():
     """1019 深查定谳入锁(用户令「必须深度查看与主工作流是否有区别…必须保持一致」):
     桥契约模板恒=画布的忠实机器投影——用重展平脚本现机制把画布内存再展(零落盘),
     须与盘上模板 graph 深度全等;t2i(force_upscale=True)/i2i(False)双路。
-    本锁红=画布动了模板没跟(1018-1019 mikkoani 漏挂同病根),正路=重跑
+    1116 §五.4 三槽手术(i2i 路):盘上 i2i 模板=画布重展平+三参考链手术层——画布
+    [11]/[17]/[12]/[18] 旁路态(mode 4)被 flatten 裁去,手术层按画布节点定义逐字
+    移植补回+4015 绑 image_2/3(11/12 demo 值=画布现值;运行时由桥按张数剪链)。
+    本锁红=画布动了模板没跟(1018-1019 mikkoani 漏挂同病根)或手术层与画布现值
+    漂移(节点参数/连线拓扑任一变动),正路=重跑
     apps/build/scripts/qwen21_bridge_template_build.py --target <t2i|i2i>
-    (模板是生成物,永不手改);引擎节点面(input 签名)变更时须重取快照:
+    后重施三槽手术(手术源码=引擎侧 qwen21.py 注释指涉的本测试常量,双侧同源);
+    引擎节点面(input 签名)变更时须重取快照:
     curl http://127.0.0.1:<manifest口>/object_info 取本锁涉类子集回写
     tests/fixtures/qi21_object_info_snapshot.json(82KB 瘦身件,全量 6.4MB 不入仓)。"""
     import sys as _sys
@@ -6518,16 +6523,32 @@ def test_bridge_template_reflatten_equality_1019():
     _spec.loader.exec_module(_mod)
     schemas = json.loads((_TESTS_DIR / "fixtures" / "qi21_object_info_snapshot.json")
                          .read_text(encoding="utf-8"))
+    # 1116 三槽手术层常量(与盘上模板手术内容单源;画布 11/12/17/18 旁路态直投)
+    i2i_three_slot_nodes = {
+        "11": {"class_type": "LoadImage", "inputs": {"image": "clothing_light_blue_denim_shirt.png"}},
+        "12": {"class_type": "LoadImage", "inputs": {"image": ""}},
+        "17": {"class_type": "ImageScaleToTotalPixels", "inputs": {
+            "upscale_method": "lanczos", "megapixels": 1, "resolution_steps": 32,
+            "image": ["11", 0]}},
+        "18": {"class_type": "ImageScaleToTotalPixels", "inputs": {
+            "upscale_method": "lanczos", "megapixels": 1, "resolution_steps": 32,
+            "image": ["12", 0]}},
+    }
     for canvas_path, out_path, force in (
             (QI21, _IMG_DIR / "QwenImage2.1" / "1_文生图" / "qwen21-道劫-t2i-api.json", True),
             (_IMG_DIR / "QwenImage2.1" / "2_图生图" / "qi21-道劫-i2i.json",
              _IMG_DIR / "QwenImage2.1" / "2_图生图" / "qwen21-道劫-i2i-api.json", False)):
         graph, _meta = _mod.build_graph(schemas, json.loads(canvas_path.read_text(encoding="utf-8")),
                                         force_upscale=force)
+        if not force:
+            # i2i 路:重展平产物叠加三槽手术层后与盘上比(手术常量即上方单源)
+            graph.update(json.loads(json.dumps(i2i_three_slot_nodes)))
+            graph["4015"]["inputs"]["images.image_2"] = ["17", 0]
+            graph["4015"]["inputs"]["images.image_3"] = ["18", 0]
         disk = json.loads(out_path.read_text(encoding="utf-8"))["graph"]
         assert graph == disk, (
             f"{out_path.name} 与画布内存重展平不一致——画布改动后须重跑 "
             f"qwen21_bridge_template_build.py --target "
-            f"{'t2i' if force else 'i2i'} 再提交(模板是生成物永不手改);"
+            f"{'t2i' if force else 'i2i'}(i2i 须再施三槽手术)后提交(模板是生成物永不手改);"
             f"首个差异节点: "
             f"{next((k for k in sorted(set(graph) | set(disk)) if graph.get(k) != disk.get(k)), '?')}")

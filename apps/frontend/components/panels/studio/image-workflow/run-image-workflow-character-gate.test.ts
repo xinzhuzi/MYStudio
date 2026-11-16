@@ -20,17 +20,12 @@ function installBridge(bridge: { probe?: AnyMock; run?: AnyMock } | null): { pro
   return full;
 }
 
-// 1103 main-reds 修:jsdom 无 canvas 实现,分镜参考拼板(getContext('2d')=null)在测试环境
-// 不可真跑——桩掉拼板模块(闸门 4 测意图=分流逻辑,非拼板像素;返回体契约照
-// storyboard-reference-sheet.ts:122-131,消费点 run-image-workflow-node-generation.ts:139-152)
-vi.mock("@/components/panels/studio/image-workflow/storyboard-reference-sheet", () => ({
-  buildStoryboardReferenceSheet: vi.fn(async (input: { referenceImages: unknown[] }) => ({
-    imageUrl: "data:image/png;base64,ZmFrZVBuZw==",
-    mappings: (input?.referenceImages ?? []).map((_url: unknown, index: number) => ({
-      order: index + 1,
-      imageUrl: "data:image/png;base64,ZmFrZVBuZw==",
-    })),
-    prompt: "【分镜拼板桩】jsdom 无 canvas 实现的测试替身",
+// 1116 换线:拼板模块已退役(参考按 §4.5 槽位原生直传)——闸门 4 测意图=分流
+// 逻辑,非传输像素;分镜正典装配按零参考形态桩化(体裁路由=t2i 直通)。
+vi.mock("@/components/panels/studio/image-workflow/storyboard-canonical-context", () => ({
+  buildStoryboardCanonicalTransportInput: vi.fn(async () => ({
+    instruction: { genre: "t2i" as const, prompt: "体裁化主体句。", slots: [] },
+    mapping: { slots: [], dropped: [] },
   })),
 }));
 vi.mock("@/lib/studio/image-workflow-references", () => ({
@@ -40,7 +35,12 @@ vi.mock("@/lib/bridge/studio-assets", () => ({
   getStudioAssetsBridge: () => undefined,
 }));
 vi.mock("@/stores/studio/studio-store", () => ({
-  useStudioStore: { getState: () => ({ upsertImageWorkflow: vi.fn(), imageWorkflows: [] }) },
+  useStudioStore: {
+    getState: () => ({
+      upsertImageWorkflow: vi.fn(), imageWorkflows: [],
+      storyboards: [{ id: "sb-1", videoDesc: "正文", prompt: "正文" }],
+    }),
+  },
 }));
 vi.mock("@/lib/studio/image-workflow", () => ({
   assertImageWorkflowContinuityCapability: vi.fn(),
@@ -80,6 +80,7 @@ vi.mock("@/lib/studio/visual-manual-style-tokens", () => ({
   withActiveVisualManualStoryboardStyleTokens: (prompt: string) => prompt,
   isExtendedVisualManualPromptActive: () => false,
   compileActiveDaojieStoryboardFramePrompt: vi.fn(async (p: string) => p),
+  getExtendedStoryboardFactionData: () => ({ members: {}, palette: {} }),
 }));
 vi.mock("@/lib/diagnostics/logger", () => ({
   createOperationId: (name: string) => `op-${name}`,

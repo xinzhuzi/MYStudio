@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+// 1116 P4 墙二根修钉:run 入口必须幂等 ensure TTS runtime(惰性启动缺口)
+const startTtsRuntimeMock = vi.fn(() => Promise.resolve({ ok: true } as never));
+vi.mock("@/lib/tts/client", () => ({ startTtsRuntime: () => startTtsRuntimeMock() }));
 import {
   ChapterTtsCancellationController,
   prepareChapterMedia,
@@ -282,6 +285,18 @@ function createDependencies(options: { missingMedia?: boolean; storyboardCount?:
 }
 
 describe("chapter auto video orchestration", () => {
+  it("ensures TTS runtime once at run entry (1116 P4 wall-2 root fix; lazy-start gap)", async () => {
+    const { dependencies } = createDependencies();
+    startTtsRuntimeMock.mockClear();
+    await runChapterAutoVideo({ projectId: "project-1", episodeId: "chapter-001", dependencies });
+    expect(startTtsRuntimeMock).toHaveBeenCalledTimes(1);
+    // ensure 失败不拦主链(prepare 探测兜底报具体错)
+    startTtsRuntimeMock.mockClear();
+    startTtsRuntimeMock.mockRejectedValueOnce(new Error("spawn failed"));
+    await runChapterAutoVideo({ projectId: "project-1", episodeId: "chapter-001", dependencies });
+    expect(startTtsRuntimeMock).toHaveBeenCalledTimes(1);
+  });
+
   it("prepares reusable storyboard media without rendering or merging", async () => {
     const { dependencies, calls } = createDependencies();
     const statuses: string[] = [];

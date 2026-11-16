@@ -96,7 +96,10 @@ describe("studio workflow tabs", () => {
     // 成片按钮文案迁面板;10-27 H3 双通道 P2b 文案归位「预看成片」(通道A 审片位,Q5)
     expect(indexSource).toContain("status: viewModel.chapterAutoVideoStatus");
     expect(indexSource).toContain("run: () => void viewModel.handleRunChapterAutoVideo()");
-    expect(indexSource).toContain("openFinal: viewModel.handleOpenFinalVideo");
+    // 1116 末裁①坏钮修(36e5cdf2):openFinal 改按「既有成品片」条件传——
+    // finalPath 在=打开钮(handleOpenFinalVideo 真值)/不在=undefined=运行钮
+    expect(indexSource).toContain("openFinal: viewModel.chapterAutoVideoStatus?.finalPath");
+    expect(indexSource).toContain("? viewModel.handleOpenFinalVideo");
     expect(canvasSource).toContain("预看成片");
     expect(canvasSource).toContain("预看成片合成中");
     expect(canvasSource).toContain("打开预看成片");

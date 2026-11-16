@@ -19,6 +19,7 @@ import {
   resolveSancaiStageTimeoutS,
   parseImageSizeFromB64,
   applySancaiStageBSource,
+  SANCAI_CANVAS_ANCHORS,
   type ShotH3SancaiApiWorkflowResult,
 } from "@/lib/assist/image-studio/h3-shot-video-workflow";
 import { batchDispatchableH3Recipes, type H3ResolutionTier } from "@/lib/assist/image-studio/h3-workflow-recipes";
@@ -265,8 +266,8 @@ async function powerSaveStop(): Promise<void> {
  *  失败分类抛出:kind="engine"(不重掷)/"reclaim"(仅重试消费过仍失败)/"assembled"(组装/自检门)。
  *  recipeId(§14.1.4 multiseg/W10 fasth3;1112 三采):经 buildShotH3ApiWorkflowForRecipe
  *  注册表分派——sancai 族走两段拆链(Note103 法则①:段A 一二采一发→POST /free→段B
- *  三采独立一发;段B 视频源=段A result.videos 里 nodeId=4 终档的 [output] 注解名,
- *  零拷贝直读输出目录);i2v 族按模板对(缺省=旧 H3 线);multiseg 走分段组装器。
+ *  三采独立一发;段B 视频源=段A result.videos 里 saveVideo 锚(3071)终档的 [output]
+ *  注解名,零拷贝直读输出目录);i2v 族按模板对(缺省=旧 H3 线);multiseg 走分段组装器。
  *  onJobId:每段提交引擎后即回调——批量 stop 硬取消追踪两段共用(单镜 force
  *  不接停止 UI,天然不需要,PRD §14.2.3)。 */
 export async function runStoryboardH3ShotVideoStep(input: {
@@ -317,9 +318,13 @@ export async function runStoryboardH3ShotVideoStep(input: {
       originProjectId: input.originProjectId,
       onJobId: input.onJobId,
     });
-    const finalVideo = (resultA.videos ?? []).find((video) => video.nodeId === "4" && video.filename);
+    // 段A 终档节点=锚表单源(45faa181 千位段重编号:4→3071;锚表随重编号免疫,
+    // 1116 门禁红实录抢救的 C 阶段前置修复——旧裸号 "4" 在新母体必扑空=三采永不跑)
+    const finalVideo = (resultA.videos ?? []).find(
+      (video) => video.nodeId === String(SANCAI_CANVAS_ANCHORS.saveVideo) && video.filename,
+    );
     if (!finalVideo?.filename) {
-      throw new Error("一二采已完成但未取到终档产物(SaveVideo 节点 4 的输出缺失),无法衔接三采");
+      throw new Error(`一二采已完成但未取到终档产物(SaveVideo 节点 ${SANCAI_CANVAS_ANCHORS.saveVideo} 的输出缺失),无法衔接三采`);
     }
     // 段间 /free(卸载 H3 全家桶防三采被饿;发后即忘——失败吞错不阻断段B)
     await requestComfyEngineFree();

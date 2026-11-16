@@ -5,9 +5,11 @@
 +加速子图[7] 默认官方 Turbo 8步(LoRA×1.0、官方 sigma、BasicGuider)
 +SeedVR2 2K 超分双产物;生成器=
 apps/build/scripts/qwen21_bridge_template_build.py,型/档随画布现值)。
-10-19 图生图·道劫美术风格转换:带参考图走 qwen21_道劫_i2i_api(qi21-道劫-i2i.json 展平,
-单参考 [10];快照=画布现值,运行时覆写 6:4011 组装用途=道劫美术风格转换——底座由装配层
-自动追加;seed 每次随机,fire 铁令);无参考走原 t2i 路(逐字节不变)。
+10-19 图生图·道劫美术风格转换:带参考图走 qwen21_道劫_i2i_api(qi21-道劫-i2i.json 展平;
+1116 §五.4 三槽手术:模板常驻原生三参考链 [10]/[16]+[11]/[17]+[12]/[18]→4015
+images.image_1/2/3,不足三张由桥按张数剪链;快照=画布现值,运行时覆写 6:4011 组装用途=
+道劫美术风格转换——底座由装配层自动追加;seed 每次随机,fire 铁令);无参考走原 t2i 路
+(逐字节不变)。
 10-22 图生图·型层注入:ctx 带 base_type 时 i2i 路切「道劫美术类型」全拼档——
 apply_base_type 注 6:4010 型选择,6:4011/6:4022 组装用途同覆写(4022=画幅路由,
 型画幅 vs 参考画幅),RGBA 由 6:180 连线 6:4010 自动跟型;首用例=角色弹窗表情差分。
@@ -44,7 +46,9 @@ from .comfyui_bridge import (
 MODEL_NAME = "qwen-image-2-1"
 LAYOUT = "qwen21-viggle"
 SUPPORTS_REFERENCE = True
-SUPPORTS_MULTI_REFERENCE = False
+# 1116 分镜正典线(§五.4 七刀):i2i 原生三参考放开(槽位=image_1 主角立绘/
+# image_2 场景/image_3 前帧或次角色,prd §4.5;>3 张由 generate 内拒)
+SUPPORTS_MULTI_REFERENCE = True
 
 SPEC = {
     "label": "Qwen-Image-2.1",
@@ -293,37 +297,36 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
     forced_template = ctx.get("template") if isinstance(ctx.get("template"), str) else None
 
     if references:
-        # 10-19 图生图·道劫美术风格转换(D3/D4):恒单参考;模板快照=画布现值,仅运行时
-        # 覆写组装用途=道劫美术风格转换(底座由装配层追加);seed 每次随机(fire 铁令)
-        if len(references) > 1:
+        # 10-19 图生图·道劫美术风格转换(D3/D4)→1116 三槽正典(§五.4):原生三参考
+        # (image_1/2/3,prd §4.5 槽位案);模板快照=画布现值,仅运行时覆写组装用途=
+        # 道劫美术风格转换(底座由装配层追加);seed 每次随机(fire 铁令)
+        if len(references) > 3:
             raise _pipeline_error(
                 "reference-unsupported",
-                "Qwen-Image-2.1 本地渠道图生图仅支持单参考图(道劫美术风格转换)。",
+                "Qwen-Image-2.1 本地渠道图生图最多支持三张参考图(原生三参考槽)。",
             )
         template_key = forced_template or TEMPLATE_NAME_I2I
         template = load_template(template_key)
         _warn_if_version_below_min(stats, template)
-        check_cancelled()
-        upload_name = _upload_image(
-            f"{bridge_url()}/upload/image",
-            references[0],
-            f"qwen21-i2i-{uuid.uuid4().hex}.png",
-        ).get("name")
-        if not isinstance(upload_name, str) or not upload_name:
-            raise _pipeline_error("bridge-execution-failed", "ComfyUI 未返回参考图文件名")
+        # 循环上传全参(1116 七刀②):逐张传引擎 input,文件名逐张随机;
+        # 每张前查取消(照 comfyui_bridge.generate 上传循环先例)
+        upload_names: list[str] = []
+        for reference in references:
+            check_cancelled()
+            upload_name = _upload_image(
+                f"{bridge_url()}/upload/image",
+                reference,
+                f"qwen21-i2i-{uuid.uuid4().hex}.png",
+            ).get("name")
+            if not isinstance(upload_name, str) or not upload_name:
+                raise _pipeline_error("bridge-execution-failed", "ComfyUI 未返回参考图文件名")
+            upload_names.append(upload_name)
         seed = seed if seed is not None else random.randint(1, 2**31 - 1)
-        # 负面不传(cfg=1;模板无 negative_prompt 绑定,显式 None 表态)
-        graph = instantiate_template(template, prompt, None, steps, seed, aspect_ratio, [upload_name])
-        # 单参考语义硬保证:10-21 模板落库带 [11]→[17]→4015.images.image_2
-        # demo 图常驻链=隐藏第二参考污染编码器(画布域「单参考必旁路 [11]」
-        # 纪律在快照上失守);桥为单参考路,提交前物理摘除=与画布旁路等价;
-        # 模板重生成剪净后此段幂等无害。
-        for orphan in ("11", "17"):
-            graph.pop(orphan, None)
-        encode_inputs = graph.get("4015", {}).get("inputs")
-        if isinstance(encode_inputs, dict):
-            encode_inputs.pop("images.image_2", None)
-            encode_inputs.pop("images.image_3", None)
+        # 负面不传(cfg=1;模板无 negative_prompt 绑定,显式 None 表态);
+        # 全列表注入(1116 七刀③):references 绑定 slot0/1/2→[10]/[11]/[12];
+        # 未满三张的余链由 instantiate_template 按张数剪(1116 七刀⑤,与画布
+        # 旁路等价)——旧 qwen21 侧剪链段随七刀④退役,单源在桥。
+        graph = instantiate_template(template, prompt, None, steps, seed, aspect_ratio, upload_names)
         assembly = graph.get("6:4011")
         if not isinstance(assembly, dict) or "组装用途" not in assembly.get("inputs", {}):
             # fail-closed 防模板文件手术漂移(快照重构须重跑 build --target i2i)

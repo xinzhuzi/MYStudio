@@ -1,4 +1,5 @@
 import { assertStoryboardSpeech, type VoiceoverCharacterIdentity } from "./chapter-voiceover";
+import { startTtsRuntime } from "@/lib/tts/client";
 import type {
   ContinuityAssetVersion,
   StoryboardItem,
@@ -343,6 +344,12 @@ export async function runChapterAutoVideo({
   try {
     console.error("[chapter-auto-video] runChapterAutoVideo 进入, projectId =", projectId);
     if (!projectId) throw new Error("Remotion 自动成片缺少 projectId");
+    // 1116 P4 墙二根修:TTS sidecar 惰性启动缺口——本链此前从不拉起 runtime,
+    // prepare 的 17593 健康探测必败(1116 两次发车实录:sidecars 无新日志=
+    // spawn 从未发生)。入口幂等 ensure 一次;失败不拦(交由 prepare 探测报具体错)。
+    try { await startTtsRuntime(); } catch (error) {
+      console.warn("[chapter-auto-video] TTS runtime ensure 失败,交由 prepare 探测报错:", error);
+    }
     const prepared = await prepareChapterMedia({
       projectId,
       episodeId,
