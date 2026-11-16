@@ -527,6 +527,21 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     expect(result.current.state.running).toBe(false);
   });
 
+  it("force-regen 全量重出:已齐备(零缺帧)镜也整队重生成(1116 重出入口)", async () => {
+    resetStore([
+      shot({ id: "sb-1", index: 1, mediaRef: { kind: "image", path: "project-file://a.png" } as StoryboardItem["mediaRef"] }),
+    ]);
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/ok.png" });
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
+    );
+    act(() => result.current.start({ forceRegenerate: true }));
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 4000 });
+    expect(generateImageMock).toHaveBeenCalledTimes(1); // 零缺帧镜在 force 下照样生成
+    expect(toast.info).not.toHaveBeenCalledWith("所有分镜画面均已齐备");
+    expect(result.current.state.done).toBe(1);
+  });
+
   it("prefers the reference-bearing workflow when duplicate matches exist, and backfills references on a bare one (身份防线)", async () => {
     resetStore([shot({ id: "sb-1", index: 1 })]);
     resolvedReferences.value = [

@@ -158,7 +158,7 @@ export function useStoryboardBatchGeneration(input: {
     toast.info("停止中:当前分镜完成后停下");
   }, []);
 
-  const start = useCallback(() => {
+  const start = useCallback((options?: { forceRegenerate?: boolean }) => {
     if (runningRef.current || liveBatchRunning) return;
     // 队列快照:执行期不重算(中途已生成的不重复;外部并发写入按镜级幂等收敛)。
     // M3a:计数单位改帧——单帧镜(无 keyframes)=1 帧缺图即入队;多帧镜按缺图帧数计
@@ -178,9 +178,15 @@ export function useStoryboardBatchGeneration(input: {
     const eligible = storyboards.filter((item) => item.index >= fromShotIndex)
       .map((item) => useStudioStore.getState().storyboards.find((current) => current.id === item.id) ?? item);
     for (const shot of eligible) finalizeRecoveredShot(shot);
+    // 1116 force-regen(全量重出):绕过缺帧过滤,已齐备镜也整队重生成——
+    // missingFrames 记全帧数(与实际生成帧数一致,进度口径不虚)。
+    const forceRegenerate = options?.forceRegenerate === true;
     const frameQueue = eligible
-      .map((item) => ({ shot: item, missingFrames: countMissingFrames(item) }))
-      .filter((entry) => entry.missingFrames > 0)
+      .map((item) => ({
+        shot: item,
+        missingFrames: forceRegenerate ? (item.keyframes?.length ?? 1) : countMissingFrames(item),
+      }))
+      .filter((entry) => forceRegenerate || entry.missingFrames > 0)
       .sort((a, b) => a.shot.index - b.shot.index);
     const guards = createBatchSourceGuards(frameQueue.map(({ shot }) => shot));
     const priorDone = resumeRecord ? resumeRecord.doneFrames : 0;
@@ -257,12 +263,13 @@ export function useStoryboardBatchGeneration(input: {
           attempt: async (stage) => {
             try {
               guards.get(shot.id)!.assertCurrent();
-              await withPromptIdCapture(queueChannel, promptIdTracker, () =>
-                generateOneShot(shot, projectName, {
-                  guard: guards.get(shot.id)!,
-                  onFrameStart: (label) => setState((previous) => ({ ...previous, currentFrameLabel: label })),
-                  degradedResolution: stage === "degraded" ? STORYBOARD_BATCH_DEGRADED_RESOLUTION : undefined,
-                }));
+                  await withPromptIdCapture(queueChannel, promptIdTracker, () =>
+                    generateOneShot(shot, projectName, {
+                      guard: guards.get(shot.id)!,
+                      onFrameStart: (label) => setState((previous) => ({ ...previous, currentFrameLabel: label })),
+                      degradedResolution: stage === "degraded" ? STORYBOARD_BATCH_DEGRADED_RESOLUTION : undefined,
+                      forceRegenerate,
+                    }));
             } catch (error) {
               if (error instanceof BatchSourceChangedError) stopRequestedRef.current = true;
               // 阶梯段失败入诊断日志(重试不出声打扰用户,但排障要可见)
@@ -633,13 +640,17 @@ async function generateOneShot(
     onFrameStart?: (label: string) => void;
     /** 失败回退阶梯第三段:降载降分辨率(缺省=不降)。 */
     degradedResolution?: string;
+    /** 全量重出(1116):绕过 frameNeedsGeneration 过滤,多帧镜全部帧重生成。 */
+    forceRegenerate?: boolean;
     guard: ReturnType<typeof createBatchSourceGuard>;
   },
 ): Promise<void> {
   const guard = hooks!.guard;
   guard.assertCurrent();
   shot = useStudioStore.getState().storyboards.find((item) => item.id === shot.id)!;
-  const emptyFrames = (shot.keyframes ?? []).filter((frame) => frameNeedsGeneration(shot, frame));
+  const emptyFrames = hooks?.forceRegenerate
+    ? (shot.keyframes ?? [])
+    : (shot.keyframes ?? []).filter((frame) => frameNeedsGeneration(shot, frame));
   if (shot.keyframes?.length && emptyFrames.length === 0) {
     guard.write(() => finalizeRecoveredShot(shot));
     return;

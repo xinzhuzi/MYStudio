@@ -68,7 +68,7 @@ export function StoryboardPanelTab({
   /** 一键生图(串行批量)状态与控制,由挂载点 useStoryboardBatchGeneration 注入 */
   batch?: {
     state: StoryboardBatchGenerationState;
-    start: () => void;
+    start: (options?: { forceRegenerate?: boolean }) => void;
     stop: () => void;
     /** 断点续跑(09-15 P3):上次中断的批量,从游标镜继续 */
     resumable?: StoryboardBatchResumeInfo | null;
@@ -141,6 +141,8 @@ export function StoryboardPanelTab({
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   // H3 出片内联确认(10-27 N1:两步防误触——首点展开确认条,二次确认才发车)
   const [h3ConfirmOpen, setH3ConfirmOpen] = useState(false);
+  // 一键生图全量重出确认(1116 force-regen:同 N1 两步范式,破坏性批量动作防误触)
+  const [batchForceConfirmOpen, setBatchForceConfirmOpen] = useState(false);
   const [h3Tier, setH3Tier] = useState<"480p" | "960p">("960p");
   const h3Plan = useMemo(() => planStoryboardH3VideoBatch(ordered), [ordered]);
   const h3ReadyRecipes = useMemo(() => batchDispatchableH3Recipes(), []);
@@ -633,7 +635,7 @@ export function StoryboardPanelTab({
               variant="outline"
               data-storyboard-panel-generate
               title={`从第 ${batch.resumable.shotIndex} 镜继续,还差 ${batch.resumable.remainingFrames} 帧画面`}
-              onClick={batch.start}
+              onClick={() => batch.start()}
             >
               <ImageIcon className="h-3.5 w-3.5" />
               继续生图
@@ -644,11 +646,50 @@ export function StoryboardPanelTab({
               variant="paid"
               data-storyboard-panel-generate
               title={`串行生成剩余 ${remaining} 个未生成分镜`}
-              onClick={batch.start}
+              onClick={() => batch.start()}
             >
               <ImageIcon className="h-3.5 w-3.5" />
               一键生图
             </Button>
+          ) : ordered.length > 0 ? (
+            /* 全量重出(1116 force-regen):画面全齐时的唯一重出入口——两步确认,
+             * 当前画面入库为历史版本(版本对可回看),非删除。 */
+            batchForceConfirmOpen ? (
+              <span className="inline-flex items-center gap-2" data-storyboard-panel-batch-regen-confirm>
+                <span className="text-xs text-muted-foreground">
+                  {`重出全部 ${ordered.length} 镜画面?当前画面入库为历史版本(版本对可回看)`}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  data-storyboard-panel-batch-regen-confirm-accept
+                  onClick={() => {
+                    setBatchForceConfirmOpen(false);
+                    batch.start({ forceRegenerate: true });
+                  }}
+                >
+                  重出
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  data-storyboard-panel-batch-regen-confirm-cancel
+                  onClick={() => setBatchForceConfirmOpen(false)}
+                >
+                  取消
+                </Button>
+              </span>
+            ) : (
+              <Button
+                size="sm"
+                variant="ghost"
+                data-storyboard-panel-batch-regen
+                onClick={() => setBatchForceConfirmOpen(true)}
+                title="全量重出:所有分镜画面重新生成(当前画面入库为历史版本,版本对可回看)"
+              >
+                重出全部
+              </Button>
+            )
           ) : null
         ) : null}
       </div>
