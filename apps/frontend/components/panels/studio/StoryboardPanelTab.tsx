@@ -21,12 +21,19 @@ import type {
 } from "./image-workflow/use-storyboard-batch-generation";
 import type { StoryboardH3VideoBatchState } from "./image-workflow/use-storyboard-h3-video-batch";
 import { planStoryboardH3VideoBatch } from "./image-workflow/use-storyboard-h3-video-batch";
+import { countShotsNeedingBatchGeneration } from "./image-workflow/use-storyboard-batch-generation";
 import { batchDispatchableH3Recipes } from "@/lib/assist/image-studio/h3-workflow-recipes";
 import {
   importH3OrphanVideos,
   scanH3OrphanVideos,
   type H3OrphanFile,
 } from "@/lib/assist/image-studio/h3-orphan-importer";
+import {
+  landFireArchiveH3Videos,
+  pairFireArchiveH3Videos,
+} from "@/lib/assist/image-studio/h3-shot-landing";
+import { getProjectFilesBridge } from "@/lib/bridge/project-files";
+import { buildProjectFileUrl, parseProjectFileUrl } from "@/lib/upscale/project-file-url";
 import type { StoryboardBindingRunView } from "./storyboard-asset-binding";
 import type { ChapterPipelineRunView } from "./chapter-pipeline";
 import { ChapterAcceptanceBanner } from "./ChapterAcceptanceBanner";
@@ -120,7 +127,10 @@ export function StoryboardPanelTab({
 }) {
   const ordered = storyboards.slice().sort((a, b) => a.index - b.index);
   const withImage = ordered.filter((item) => item.mediaRef?.kind === "image").length;
-  const remaining = ordered.length - withImage;
+  // 1116 四散件③:钮门与批量真门同源(stale/指纹漂移的已有图镜也计入)——
+  // 旧口径 ordered.length - withImage 在 stale 态判 0 缺,钮整只消失而批量真
+  // 门其实有活,两门错位。
+  const remaining = countShotsNeedingBatchGeneration(ordered);
   // 版本对入口(09-15 P1b):图=关键帧两帧对比;视频=当前版 vs 上一版候选
   const videoCandidates = useStudioStore((state) => state.videoCandidates);
   const [framesCompareShotId, setFramesCompareShotId] = useState<string | null>(null);
@@ -297,6 +307,61 @@ export function StoryboardPanelTab({
     }
   };
 
+  /** F2⑤ 存量回流(1116 接线,93775cd7 配对/挂载工具入口化):远端批量「入库成功
+   *  但直落未成」的存量片住媒体库 media/ai-video 域(名=full/ambient_ 前缀+尾时间
+   *  戳,不含镜 id)——按镜 index 升序↔入库时间戳升序 1:1 配对挂载;条数不等或
+   *  policy 交叉不符=宁缺勿错零盲配(配对器内置断言)。 */
+  const runH3ArchiveBackfill = async () => {
+    if (h3ImportBusy || h3ImportPending) return;
+    const projectId = activeProjectId;
+    if (!projectId) {
+      toast.error("请先打开回写目标项目");
+      return;
+    }
+    setH3ImportBusy(true);
+    try {
+      const bridge = getProjectFilesBridge();
+      if (!bridge) throw new Error("项目文件桥不可用(仅桌面应用支持存量回流)");
+      const reply = await bridge.list({ projectId, relativePath: "media/ai-video" });
+      if (!reply.success) throw new Error(reply.error ?? "媒体库视频目录列举失败");
+      const mountedRelPaths = new Set(
+        useStudioStore
+          .getState()
+          .videoCandidates.filter((entry) => entry.provider === "h3-comfyui" && typeof entry.filePath === "string")
+          .map((entry) => parseProjectFileUrl(entry.filePath as string)?.relativePath)
+          .filter((value): value is string => typeof value === "string"),
+      );
+      // bridge.list 回的是相对根的路径;拼回项目根全径再与候选对拍
+      const entries = (reply.files ?? [])
+        .map((listed) => `media/ai-video/${listed.replace(/\\/g, "/")}`)
+        .filter((rel) => {
+          const name = rel.split("/").pop() ?? "";
+          return /^(full|ambient)_/.test(name) && /\.(mp4|webm|mov|mkv)$/.test(name) && !mountedRelPaths.has(rel);
+        })
+        .map((rel) => ({ name: rel.split("/").pop() as string, url: buildProjectFileUrl(projectId, rel) }));
+      const pendingShots = ordered.filter((item) => item.mediaRef?.kind !== "video");
+      const pairing = pairFireArchiveH3Videos(pendingShots, entries);
+      if (pairing.countMismatch || pairing.pairs.length === 0) {
+        toast.info(
+          `存量回流未执行:媒体库未挂载片 ${entries.length} 片与待挂镜 ${pendingShots.length} 镜条数不等(1:1 宁缺勿错,不盲配)`,
+        );
+        return;
+      }
+      const { landed, report } = await landFireArchiveH3Videos(pairing.pairs);
+      const mismatched = report.filter((entry) => entry.status === "policy-mismatch").length;
+      const already = report.filter((entry) => entry.status === "already-video").length;
+      toast.success(
+        `存量配对挂载 ${landed} 镜` +
+          (mismatched > 0 ? `,${mismatched} 镜政策不符跳过` : "") +
+          (already > 0 ? `,${already} 镜已是视频` : ""),
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setH3ImportBusy(false);
+    }
+  };
+
   return (
     <>
       <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col" data-storyboard-panel-tab>
@@ -359,6 +424,18 @@ export function StoryboardPanelTab({
                   title="扫描项目盘上 remotion/outputs/shots 未挂载的 H3 片并导入为候选(只挂候选不动当前视频,未逐一验播)"
                 >
                   {h3ImportBusy ? "扫描中…" : "导入盘上 H3 片"}
+                </Button>
+              ) : null}
+              {!h3Batch.state.running && !h3ConfirmOpen ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  data-storyboard-panel-h3-archive-backfill
+                  disabled={h3ImportBusy}
+                  onClick={() => void runH3ArchiveBackfill()}
+                  title="存量回流:媒体库未挂载的远端批量片按镜序↔入库序 1:1 配对挂载(条数不等零挂,宁缺勿错;F2⑤)"
+                >
+                  存量回流
                 </Button>
               ) : null}
               {h3ImportPending ? (

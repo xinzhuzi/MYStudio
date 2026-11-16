@@ -201,7 +201,7 @@ def _history_collect(
                 bucket.append({
                     "nodeId": str(node_id),
                     "filename": image["filename"],
-                    "subfolder": str(image.get("subfolder", "") or ""),
+                    "subfolder": _norm_subfolder(image.get("subfolder", "")),
                     "type": str(image.get("type", "output") or "output"),
                 })
         for audio in output.get("audio", []):
@@ -209,7 +209,7 @@ def _history_collect(
                 audios.append({
                     "nodeId": str(node_id),
                     "filename": audio["filename"],
-                    "subfolder": str(audio.get("subfolder", "") or ""),
+                    "subfolder": _norm_subfolder(audio.get("subfolder", "")),
                     "type": str(audio.get("type", "output") or "output"),
                 })
         for video in output.get("videos", []):
@@ -217,7 +217,7 @@ def _history_collect(
                 videos.append({
                     "nodeId": str(node_id),
                     "filename": video["filename"],
-                    "subfolder": str(video.get("subfolder", "") or ""),
+                    "subfolder": _norm_subfolder(video.get("subfolder", "")),
                     "type": str(video.get("type", "output") or "output"),
                 })
         for text in output.get("text", []):
@@ -227,6 +227,18 @@ def _history_collect(
 
 
 # ── 纯函数(单测覆盖):请求体校验与注入 ─────────────────────────────
+
+
+def _norm_subfolder(value: Any) -> str:
+    """引擎侧 subfolder 归一为正斜杠口径。
+
+    ComfyUI folder_paths.get_save_image_path 用 dirname(normpath(filename_prefix))
+    铸 subfolder——Windows 上 normpath 把正斜杠全数翻成反斜杠(引擎侧实读
+    folder_paths.py:556 实证;盘面 video/漫影/chapter-001/sb-… 目录树与提交侧
+    正斜杠注入两证闭合)。消费端白名单(video/漫影/{章}/{镜})恒正斜杠严格
+    相等,不归一=远端 Win 引擎回包恒脱靶(1116 F2③ 实弹 38/38 根因)。"""
+    return str(value or "").replace("\\", "/")
+
 
 def validate_execute_request(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     """校验并拆出 (graph, strings, images)。非法形状给大白话 ValueError。"""

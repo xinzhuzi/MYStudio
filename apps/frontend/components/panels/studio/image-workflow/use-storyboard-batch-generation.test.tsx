@@ -37,7 +37,7 @@ vi.mock("./storyboard-scene-landing", () => ({
   ensureStoryboardSceneAssetsLanded: async () => undefined,
 }));
 
-import { useStoryboardBatchGeneration } from "./use-storyboard-batch-generation";
+import { countShotsNeedingBatchGeneration, useStoryboardBatchGeneration } from "./use-storyboard-batch-generation";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStoryboardBatchSessionStore } from "@/stores/studio/storyboard-batch-session-store";
@@ -1300,5 +1300,25 @@ describe("runStoryboardSingleShotOnce", () => {
     await expect(run(board)).rejects.toThrow("provider unavailable");
     expect(generateImageMock).toHaveBeenCalledTimes(1);
     expect(useStudioStore.getState().storyboards[0].mediaRef?.path).toBe("project-file://old.png");
+  });
+});
+
+// ── 1116 四散件③:钮门与批量真门同源计数(一键生图按钮显隐口径) ────────────────
+describe("countShotsNeedingBatchGeneration(钮门=批量门同源,1116 四散件③)", () => {
+  it("无图镜/stale 已有图镜计入,干净已有图镜不计——与批量队列同一谓词", () => {
+    const noImage = shot({ id: "sb-door-1", index: 1 });
+    const staleWithImage = shot({
+      id: "sb-door-2", index: 2, stale: true,
+      mediaRef: { kind: "image", path: "project-file://old.png" },
+    });
+    const cleanWithImage = shot({
+      id: "sb-door-3", index: 3,
+      mediaRef: { kind: "image", path: "project-file://fine.png" },
+    });
+    expect(countShotsNeedingBatchGeneration([noImage, staleWithImage, cleanWithImage])).toBe(2);
+    // 旧面板口径(ordered.length - withImage)在「全有图但 stale」判 0 缺把钮隐掉
+    // ——本用例即该错位的回归锚(stale 态钮必须在场)。
+    expect(countShotsNeedingBatchGeneration([staleWithImage])).toBe(1);
+    expect(countShotsNeedingBatchGeneration([cleanWithImage])).toBe(0);
   });
 });

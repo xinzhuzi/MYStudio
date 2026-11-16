@@ -240,6 +240,7 @@ def test_history_collect_returns_videos_alongside_images():
 def test_history_collect_core_savevideo_mp4_in_images_key_routes_to_videos():
     # 10-29 D1 实弹勘正:核心 SaveVideo 的 history 键=images 且 metadata.kind=video
     # (T4 实弹:mp4 曾被当图回流);分流规则=kind==video 或视频后缀。
+    # 1116 F2③ 起 subfolder 边界归一为正斜杠(Win normpath 反斜杠形状也归一)。
     history = {"p": {"status": {"status_str": "success"}, "outputs": {
         "4": {"images": [{
             "filename": "t4-remote_00001_.mp4",
@@ -252,7 +253,22 @@ def test_history_collect_core_savevideo_mp4_in_images_key_routes_to_videos():
     assert state == "success"
     assert images == []
     assert videos == [{"nodeId": "4", "filename": "t4-remote_00001_.mp4",
-                       "subfolder": "video\\漫影\\chapter-001\\S01", "type": "output"}]
+                       "subfolder": "video/漫影/chapter-001/S01", "type": "output"}]
+
+
+def test_history_collect_normalizes_win_backslash_subfolder_all_buckets():
+    # 1116 F2③ 实弹根因:Win 引擎 folder_paths.get_save_image_path 用
+    # dirname(normpath(prefix)) 铸 subfolder → 反斜杠回包;消费端白名单恒正斜杠
+    # 严格相等 → 远端直落 38/38 脱靶。边界归一覆盖 images/audio/videos 三桶。
+    history = {"p": {"status": {"status_str": "success"}, "outputs": {
+        "1": {"images": [{"filename": "a.png", "subfolder": "video\\漫影\\ep\\sb-a", "type": "output"}]},
+        "2": {"audio": [{"filename": "t.wav", "subfolder": "audio\\漫影\\ep", "type": "output"}]},
+        "3": {"videos": [{"filename": "v.mp4", "subfolder": "video\\漫影\\ep\\sb-a", "type": "output"}]},
+    }}}
+    _state, images, audios, _texts, videos = _history_collect(history, "p")
+    assert images[0]["subfolder"] == "video/漫影/ep/sb-a"
+    assert audios[0]["subfolder"] == "audio/漫影/ep"
+    assert videos[0]["subfolder"] == "video/漫影/ep/sb-a"
 
 
 def test_history_collect_pending_and_error_shapes_unchanged():

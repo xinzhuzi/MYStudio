@@ -137,7 +137,10 @@ function videoPolicy(item: ComfyBridgeWritebackItem): string {
 
 function assertVideoSubfolder(item: ComfyBridgeWritebackItem, storyboard: StoryboardItem): void {
   const expected = `video/漫影/${storyboard.episodeId}/${storyboard.id}`;
-  if (item.meta?.subfolder !== expected) throw new Error("视频回写产物路径不在白名单");
+  // 1116 F2③ 同源容错:Win 引擎 normpath 反斜杠回包(与批量器直落匹配同修;
+  // execute.py 边界归一为正,此处双保险防旧引擎侧形状)。
+  const actual = String(item.meta?.subfolder ?? "").replace(/\\/g, "/");
+  if (actual !== expected) throw new Error("视频回写产物路径不在白名单");
 }
 
 let pendingAck: number[] = [];

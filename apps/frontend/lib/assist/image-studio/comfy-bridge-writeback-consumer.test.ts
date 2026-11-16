@@ -644,6 +644,32 @@ describe("consumeComfyBridgeWritebacks", () => {
     },
   );
 
+  it("1116 F2③:Win 引擎反斜杠 subfolder 白名单放行(normpath 形状容错,与批量器直落同修)", async () => {
+    const { client, calls } = makeClient([{
+      id: 9,
+      videoB64: "aGk=",
+      shotTarget: "S01",
+      // Win folder_paths dirname(normpath()) 实弹形状(1116 引擎侧实读实证)
+      meta: { kind: "video", subfolder: "video\\漫影\\ep-1\\sb-a", policy: "ambient" },
+    }]);
+    const written: string[] = [];
+    const { deps, appliedVideos, notified } = makeDeps({
+      client,
+      writeProjectBinary: async (_projectId, relativePath) => {
+        written.push(relativePath);
+        return { success: true, url: "project-file://project-1/remotion/video.mp4" };
+      },
+      probeVideoDuration: async () => 1_000_000,
+    });
+
+    await consumeComfyBridgeWritebacks(deps);
+
+    expect(written).toHaveLength(1);
+    expect(appliedVideos).toHaveLength(1);
+    expect(notified.filter((item) => item.kind === "error")).toHaveLength(0);
+    expect(calls.acks).toHaveLength(1);
+  });
+
   it("client 失联:静默零处理(轮询面)", async () => {
     const { deps } = makeDeps({
       client: {

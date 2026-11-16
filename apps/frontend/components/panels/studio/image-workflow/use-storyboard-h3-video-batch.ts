@@ -137,7 +137,12 @@ async function persistRemoteShotVideos(
     console.warn("[h3-video-batch] 远端引擎视频回流入库部分失败(产物仍在引擎输出目录)", summary);
   }
   const expectedSubfolder = `video/漫影/${shot.episodeId}/${shot.id}`;
-  const matched = (summary.items ?? []).find((item) => item.subfolder === expectedSubfolder && item.url);
+  // 1116 F2③ 实弹归因:Win 引擎 folder_paths normpath 铸反斜杠回包(38/38 脱靶
+  // 根因)——execute.py 已在边界归一,此处对 item.subfolder 再容错一次(双保险,
+  // 旧装机侧未带边界归一时直落仍活)。
+  const matched = (summary.items ?? []).find(
+    (item) => (item.subfolder ?? "").replace(/\\/g, "/") === expectedSubfolder && item.url,
+  );
   return { landedUrl: matched?.url ?? null };
 }
 

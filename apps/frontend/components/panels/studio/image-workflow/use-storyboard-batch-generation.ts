@@ -428,6 +428,14 @@ function countMissingFrames(shot: StoryboardItem): number {
   return shot.keyframes.filter((frame) => frameNeedsGeneration(shot, frame)).length;
 }
 
+/** 需批量生成的镜数(1116 四散件③):分镜面板一键生图按钮的显隐计数——与批量
+ *  执行队列同源(countMissingFrames>0 同一谓词)。此前面板按「无图镜数」判
+ *  (ordered.length - withImage),批量真门却把 stale/指纹漂移的已有图镜也纳入
+ *  →stale 态钮隐=两门错位(一键生图判 0 缺全跳同根)。 */
+export function countShotsNeedingBatchGeneration(shots: StoryboardItem[]): number {
+  return shots.filter((shot) => countMissingFrames(shot) > 0).length;
+}
+
 /** stale 的旧 URI 不算完成;同一失效时点之后、同源工作流的已落帧可续跑。
  * W2:指纹漂移(脏而未标)与 stale 同门——漂移镜没有失效时点,既有帧全部重生成。 */
 function frameNeedsGeneration(shot: StoryboardItem, frame: NonNullable<StoryboardItem["keyframes"]>[number]): boolean {

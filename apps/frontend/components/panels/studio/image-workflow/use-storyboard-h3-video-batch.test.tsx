@@ -857,6 +857,38 @@ describe("useStoryboardH3VideoBatch(远端 settings 产物回流,T16 复核 gap2
     expect(candidates[0]?.state).toBe("ready");
   });
 
+  it("1116 F2③:Win 引擎反斜杠 subfolder 回包仍直落(normpath 形状容错;38/38 脱靶根因回归)", async () => {
+    seedShots([
+      shot({ id: "a", index: 1, trackKey: "track-a", trackId: "track-a", mediaRef: { kind: "image", path: "p1" }, lines: "独孤剑尘：台词入镜。" }),
+    ]);
+    programEngineWithVideos([
+      // Win folder_paths dirname(normpath()) 实弹形状(引擎侧实读+盘面目录树两证)
+      { nodeId: "21", filename: "full_00001_.mp4", subfolder: "video\\漫影\\chapter-001\\a", b64: "QUJD" },
+    ]);
+    consumeMock.mockResolvedValue({ processed: 0, landed: 0 });
+    getRemoteEngineMock.mockResolvedValue({ url: "http://192.168.0.101:17598", effective: "http://192.168.0.101:17598", source: "settings" });
+    // 旧装机侧 sidecar 未带边界归一时,items.subfolder 仍是反斜杠形状——前端容错兜住
+    persistVideosMock.mockResolvedValue({
+      persisted: 1,
+      failed: 0,
+      items: [{
+        url: "project-file://proj-1/media/ai-video/2026-11/comfy_video_1.mp4",
+        engineFilename: "full_00001_.mp4",
+        subfolder: "video\\漫影\\chapter-001\\a",
+      }],
+    });
+    const { result } = renderHook(() => useStoryboardH3VideoBatch({
+      storyboards: useStudioStore.getState().storyboards,
+    }));
+    act(() => { result.current.start({ tier: "480p" }); });
+    await pumpUntilDone(result);
+    expect(result.current.state.done).toBe(1);
+    expect(result.current.state.failed).toBe(0);
+    const shotState = useStudioStore.getState().storyboards.find((item) => item.id === "a");
+    expect(shotState?.mediaRef).toEqual({ kind: "video", path: "project-file://proj-1/media/ai-video/2026-11/comfy_video_1.mp4" });
+    expect(shotState?.h3AudioPolicy).toBe("full");
+  });
+
   it("远端回流入库但镜绑定不在白名单:不直落,回落收件箱回收链(本地链语义不变)", async () => {
     seedShots([
       shot({ id: "a", index: 1, trackKey: "track-a", trackId: "track-a", mediaRef: { kind: "image", path: "p1" }, lines: "独孤剑尘：台词入镜。" }),
