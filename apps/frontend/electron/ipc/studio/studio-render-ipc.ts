@@ -28,7 +28,8 @@ export interface StudioMediaProbeEvidence {
 }
 
 export async function probeStudioMediaEvidence(resolvedPath: string): Promise<StudioMediaProbeEvidence> {
-  const { stdout } = await execFileAsync("ffprobe", [
+  const ffprobePath = process.env.MYSTUDIO_FFPROBE_PATH ?? "ffprobe";
+  const { stdout } = await execFileAsync(ffprobePath, [
     "-v", "error", "-show_entries", "format=duration:stream=codec_type", "-of", "json", resolvedPath,
   ], { maxBuffer: 4 * 1024 * 1024 });
   const probe = JSON.parse(stdout || "{}") as {
