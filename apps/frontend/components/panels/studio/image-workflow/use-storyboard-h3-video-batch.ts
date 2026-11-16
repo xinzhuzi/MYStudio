@@ -380,6 +380,14 @@ export interface StoryboardH3VideoBatchStartOptions {
   skipShotIds?: string[];
 }
 
+/** 1116 §七 用户口径(终裁):分镜批量视频按镜时长路由正典线——≤15s 常规镜=
+ * 三采-单镜(sancai-i2v,首帧锚定三段链);>15s 长镜=一镜到底-分段(multiseg)。
+ * i2v-31 单段直出=快速预览档,禁再做批量缺省(1115 实弹 19 支直出片教训)。 */
+export function autoRecipeForStoryboards(storyboards: StoryboardItem[]): string {
+  const over15 = storyboards.some((item) => (item.durationTarget ?? item.duration ?? 0) > 15);
+  return over15 ? "my-h3-multiseg" : "my-h3-sancai-i2v";
+}
+
 /** 镜级重生成(D6):单镜 force 路径,复用同一组装+执行+回收函数;
  *  供分镜详情卡「重生成视频(H3)」按钮调用。recipeId 缺省链(§14.1.4 D6 延伸):
  *  显式传入 > 会话 store 上次配方(与批量续跑同轨)> DEFAULT_H3_RECIPE_ID;
@@ -449,10 +457,13 @@ export function useStoryboardH3VideoBatch(input: { storyboards: StoryboardItem[]
     const resumeRecord = persisted && persisted.episodeId === episodeId && persisted.projectId === projectId
       ? persisted
       : null;
-    // 配方解析(10-27 windows-fasth3-mainline 接线 + §14.1.4 multiseg):显式传入 > 续跑会话在档
-    // (防中断续跑静默切配方)> ready 首件缺省;须可 API 派发(注册表 ready 门在前,本门在后:
-    // i2v 族=bundle 模板对,multiseg=注册表 ready 的分段组装器件;未知/画布登记件禁发车)。
-    const recipeId = opts.recipeId ?? resumeRecord?.recipeId ?? ready[0]!.id;
+    // 配方解析(10-27 windows-fasth3-mainline 接线 + §14.1.4 multiseg + 1116 §七时长路由):
+    // 显式传入 > 续跑会话在档(防中断续跑静默切配方)> 按镜时长自动路由(≤15s 全 sancai-i2v/
+    // 任一 >15s multiseg;1116 正典口径,i2v-31 只做显式预览档)> ready 首件缺省;
+    // 须可 API 派发(注册表 ready 门在前,本门在后)。
+    const autoRecipe = autoRecipeForStoryboards(storyboards);
+    const recipeId = opts.recipeId ?? resumeRecord?.recipeId ?? (
+      h3BatchDispatchableRecipeIds().includes(autoRecipe) ? autoRecipe : ready[0]!.id);
     if (!h3BatchDispatchableRecipeIds().includes(recipeId)) {
       toast.error(`工作流配方 ${recipeId} 没有 API 模板,无法批量派发(可派发:${h3BatchDispatchableRecipeIds().join(" / ")})`);
       return;

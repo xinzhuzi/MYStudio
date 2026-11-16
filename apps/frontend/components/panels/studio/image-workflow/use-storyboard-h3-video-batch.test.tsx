@@ -38,7 +38,7 @@ vi.mock("@/lib/assist/image-studio/storyboard-overview-sync", () => ({ readStory
 vi.mock("@/components/panels/settings/comfy-engine/comfy-engine-contract", () => ({ getComfyEngineClient: () => ({}) }));
 vi.mock("sonner", () => ({ toast }));
 
-import { useStoryboardH3VideoBatch, planStoryboardH3VideoBatch, runStoryboardH3ShotVideo } from "./use-storyboard-h3-video-batch";
+import { useStoryboardH3VideoBatch, planStoryboardH3VideoBatch, runStoryboardH3ShotVideo, autoRecipeForStoryboards } from "./use-storyboard-h3-video-batch";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStoryboardH3VideoSessionStore } from "@/stores/studio/storyboard-h3-video-session-store";
@@ -141,6 +141,22 @@ async function pumpUntilDone(hook: { current: { state: { running: boolean } } },
   expect(hook.current.state.running).toBe(false);
 }
 
+describe("autoRecipeForStoryboards(1116 §七时长路由:≤15s 全 sancai-i2v/任一>15s multiseg;i2v-31 禁缺省)", () => {
+  it("全 ≤15s → 三采-单镜(首帧锚定);空时长按 0 归 ≤15s 族", () => {
+    expect(autoRecipeForStoryboards([
+      shot({ id: "a", durationTarget: 10 }),
+      shot({ id: "b", duration: 15 }),
+      shot({ id: "c" }),
+    ])).toBe("my-h3-sancai-i2v");
+  });
+  it("任一镜 >15s → 一镜到底-分段", () => {
+    expect(autoRecipeForStoryboards([
+      shot({ id: "a", durationTarget: 5 }),
+      shot({ id: "b", durationTarget: 20 }),
+    ])).toBe("my-h3-multiseg");
+  });
+});
+
 describe("planStoryboardH3VideoBatch(发车计划纯函数)", () => {
   it("候选=有首帧 image 镜;缺帧/已是 video 分开计数;超 15s 列截断", () => {
     const plan = planStoryboardH3VideoBatch([
@@ -167,7 +183,7 @@ describe("useStoryboardH3VideoBatch(串行批量)", () => {
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start({ tier: "480p" }); });
+    act(() => { result.current.start({ tier: "480p", recipeId: "my-h3-i2v-31" }); });
     expect(result.current.state.running).toBe(true);
     await pumpUntilDone(result);
     expect(result.current.state.done).toBe(2);
@@ -196,7 +212,7 @@ describe("useStoryboardH3VideoBatch(串行批量)", () => {
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start(); });
+    act(() => { result.current.start({ recipeId: "my-h3-i2v-31" }); });
     await pumpUntilDone(result);
     expect(result.current.state.done).toBe(1);
     expect(result.current.state.failed).toBe(1);
@@ -226,7 +242,7 @@ describe("useStoryboardH3VideoBatch(串行批量)", () => {
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start(); });
+    act(() => { result.current.start({ recipeId: "my-h3-i2v-31" }); });
     await pumpUntilDone(result);
     expect(result.current.state.total).toBe(1);
     expect(result.current.state.done).toBe(1);
@@ -290,7 +306,7 @@ describe("useStoryboardH3VideoBatch(串行批量)", () => {
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start(); }); // 不带 recipeId
+    act(() => { result.current.start(); }); // 不带 recipeId(测 session 在档配方复用)
     await pumpUntilDone(result);
     expect(result.current.state.done).toBe(1);
     const graph = (bodies[0]!.graph ?? {}) as Record<string, { inputs: Record<string, unknown> }>;
@@ -320,7 +336,7 @@ describe("useStoryboardH3VideoBatch(串行批量)", () => {
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start(); });
+    act(() => { result.current.start({ recipeId: "my-h3-i2v-31" }); });
     const infoArg = toast.info.mock.calls[0]?.[0] ?? "";
     expect(infoArg).toContain("2 镜可出片");
     expect(infoArg).toContain("1 镜缺首帧已跳过");
@@ -345,7 +361,7 @@ describe("useStoryboardH3VideoBatch(串行批量)", () => {
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start(); });
+    act(() => { result.current.start({ recipeId: "my-h3-i2v-31" }); });
     await pumpUntilDone(result);
     expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining("MPS 退化"));
   });
@@ -387,7 +403,7 @@ describe("useStoryboardH3VideoBatch(硬取消停止,PRD §14.2 Q2 兑现)", () =
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start({ tier: "480p" }); });
+    act(() => { result.current.start({ tier: "480p", recipeId: "my-h3-i2v-31" }); });
     // 泵一步让 POST 落定+onJobId 记上(此时 job=running,轮询睡 5s)
     await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
     act(() => { result.current.stop(); });
@@ -425,7 +441,7 @@ describe("useStoryboardH3VideoBatch(硬取消停止,PRD §14.2 Q2 兑现)", () =
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start({ tier: "480p" }); });
+    act(() => { result.current.start({ tier: "480p", recipeId: "my-h3-i2v-31" }); });
     await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
     expect(releaseB64).toBeTruthy(); // 已进入组装段
     act(() => { result.current.stop(); }); // jobId 未记 → 不发 cancel(降级软停)
@@ -478,7 +494,7 @@ describe("useStoryboardH3VideoBatch(硬取消停止,PRD §14.2 Q2 兑现)", () =
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start({ tier: "480p" }); });
+    act(() => { result.current.start({ tier: "480p", recipeId: "my-h3-i2v-31" }); });
     // 泵到 job complete+进入回收窗(第一次 consume 未落账,回收睡 5s)
     await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
     act(() => { result.current.stop(); });
@@ -509,7 +525,7 @@ describe("useStoryboardH3VideoBatch(硬取消停止,PRD §14.2 Q2 兑现)", () =
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start({ tier: "480p" }); });
+    act(() => { result.current.start({ tier: "480p", recipeId: "my-h3-i2v-31" }); });
     await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
     act(() => { result.current.stop(); });
     act(() => { result.current.stop(); }); // 双击:jobId 已被首次 stop 读走 → 不再发
@@ -531,7 +547,7 @@ describe("useStoryboardH3VideoBatch(发车前孤儿对拍 skipShotIds,PRD §14.3
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start({ skipShotIds: ["a", "c"] }); });
+    act(() => { result.current.start({ recipeId: "my-h3-i2v-31", skipShotIds: ["a", "c"] }); });
     const infoArg = toast.info.mock.calls[0]?.[0] ?? "";
     expect(infoArg).toContain("1 镜可出片");
     expect(infoArg).toContain("盘上已有片跳过 2 镜");
@@ -546,7 +562,7 @@ describe("useStoryboardH3VideoBatch(发车前孤儿对拍 skipShotIds,PRD §14.3
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start({ skipShotIds: ["a"] }); });
+    act(() => { result.current.start({ recipeId: "my-h3-i2v-31", skipShotIds: ["a"] }); });
     const infoArg = toast.info.mock.calls[0]?.[0] ?? "";
     expect(infoArg).toContain("本轮无可出片镜");
     expect(infoArg).toContain("1 镜已按盘上既有片跳过");
@@ -564,7 +580,7 @@ describe("useStoryboardH3VideoBatch(发车前孤儿对拍 skipShotIds,PRD §14.3
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start({ skipShotIds: ["not-a-shot"] }); });
+    act(() => { result.current.start({ recipeId: "my-h3-i2v-31", skipShotIds: ["not-a-shot"] }); });
     const infoArg = toast.info.mock.calls[0]?.[0] ?? "";
     expect(infoArg).toContain("2 镜可出片");
     expect(infoArg).not.toContain("盘上已有片跳过");
@@ -754,7 +770,7 @@ describe("useStoryboardH3VideoBatch(远端 settings 产物回流,T16 复核 gap2
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start({ tier: "480p" }); });
+    act(() => { result.current.start({ tier: "480p", recipeId: "my-h3-i2v-31" }); });
     await pumpUntilDone(result);
     expect(result.current.state.done).toBe(2);
     expect(persistVideosMock).toHaveBeenCalledTimes(2); // 逐镜各入库一次
@@ -779,7 +795,7 @@ describe("useStoryboardH3VideoBatch(远端 settings 产物回流,T16 复核 gap2
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start({ tier: "480p" }); });
+    act(() => { result.current.start({ tier: "480p", recipeId: "my-h3-i2v-31" }); });
     await pumpUntilDone(result);
     expect(result.current.state.done).toBe(3);
     expect(getRemoteEngineMock).toHaveBeenCalledTimes(3); // 判定被咨询(有 videos 才到这门)
@@ -794,7 +810,7 @@ describe("useStoryboardH3VideoBatch(远端 settings 产物回流,T16 复核 gap2
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start({ tier: "480p" }); });
+    act(() => { result.current.start({ tier: "480p", recipeId: "my-h3-i2v-31" }); });
     await pumpUntilDone(result);
     expect(result.current.state.done).toBe(1); // 判定失败不炸镜(按非 settings 跳过)
     expect(persistVideosMock).not.toHaveBeenCalled();
@@ -808,7 +824,7 @@ describe("useStoryboardH3VideoBatch(远端 settings 产物回流,T16 复核 gap2
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start({ tier: "480p" }); });
+    act(() => { result.current.start({ tier: "480p", recipeId: "my-h3-i2v-31" }); });
     await pumpUntilDone(result);
     expect(result.current.state.done).toBe(1);
     expect(getRemoteEngineMock).not.toHaveBeenCalled(); // 无产物不探活
@@ -840,7 +856,7 @@ describe("useStoryboardH3VideoBatch(远端 settings 产物回流,T16 复核 gap2
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start({ tier: "480p" }); });
+    act(() => { result.current.start({ tier: "480p", recipeId: "my-h3-i2v-31" }); });
     await pumpUntilDone(result);
     expect(result.current.state.done).toBe(1);
     expect(result.current.state.failed).toBe(0);
@@ -880,7 +896,7 @@ describe("useStoryboardH3VideoBatch(远端 settings 产物回流,T16 复核 gap2
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start({ tier: "480p" }); });
+    act(() => { result.current.start({ tier: "480p", recipeId: "my-h3-i2v-31" }); });
     await pumpUntilDone(result);
     expect(result.current.state.done).toBe(1);
     expect(result.current.state.failed).toBe(0);
@@ -904,7 +920,7 @@ describe("useStoryboardH3VideoBatch(远端 settings 产物回流,T16 复核 gap2
     const { result } = renderHook(() => useStoryboardH3VideoBatch({
       storyboards: useStudioStore.getState().storyboards,
     }));
-    act(() => { result.current.start({ tier: "480p" }); });
+    act(() => { result.current.start({ tier: "480p", recipeId: "my-h3-i2v-31" }); });
     await pumpUntilDone(result);
     expect(result.current.state.done).toBe(1); // 收件箱链兜住(判据=回收轮询见新候选)
     expect(result.current.state.failed).toBe(0);
