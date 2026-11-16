@@ -25,6 +25,9 @@ export const DAOJIE_SUBJECT_STYLE_WORDS: readonly string[] = [
   "厚涂",
   "赛璐璐",
   "photorealistic",
+  // 1116 C1 三发修:引擎 1017 门另有独立「写实」检查(_gongbi_gate.py:139,
+  // 不在 _STYLE_WORDS)——App 剥词表须与门禁全量同步,漏词=剥不净→任务级拒。
+  "写实",
 ];
 
 export interface DaojieSubjectStripResult {

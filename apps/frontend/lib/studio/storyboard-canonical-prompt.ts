@@ -185,7 +185,12 @@ export function buildCanonicalSubjectSentence(input: CanonicalSubjectInput): Can
     .map((part) => (part.endsWith("。") ? part.slice(0, -1) : part))
     .join("，") + "。";
 
-  return { text, warnings };
+  // 1116 C1 三发修:出口前剥画风词(剧本语料渗入实录;引擎 1017 门同源兜底)。
+  const strippedResult = stripStyleWordsFromSubject(text);
+  if (Object.keys(strippedResult.stripped).length) {
+    warnings.push(`已剥画风词:${Object.entries(strippedResult.stripped).map(([w, n]) => `${w}×${n}`).join("、")}`);
+  }
+  return { text: strippedResult.text, warnings };
 }
 
 // ─── §4.5 槽位映射(已裁) ───
@@ -277,6 +282,20 @@ export interface CanonicalTransportInstruction {
  * 硬约束=操作段与保真段两段在场(09 §四段序两式裁定);身份不变量指图不描字
  * (09 四条结构铁律②——身份段不重描,由 <imageN> 携带)。
  */
+/** 1116 C1 三发修:主体句出口前剥画风词(含引擎门独立「写实」检查;剧本
+ * requirements「配音沉稳写实」等语料经 videoDesc/台词语境渗入主体句实录)。
+ * 剥词与 1015 A 裁同款:词剥掉,结构不动,引擎门兜底。 */
+function stripStyleWordsFromSubject(text: string): { text: string; stripped: Record<string, number> } {
+  const stripped: Record<string, number> = {};
+  let out = text;
+  for (const word of DAOJIE_SUBJECT_STYLE_WORDS) {
+    if (!out.includes(word)) continue;
+    stripped[word] = (stripped[word] ?? 0) + out.split(word).length - 1;
+    out = out.split(word).join("");
+  }
+  return { text: out, stripped };
+}
+
 export function buildCanonicalTransportInstruction(input: {
   subject: CanonicalSubjectInput;
   slots: CanonicalReferenceSlot[];
