@@ -58,6 +58,47 @@ describe("assembleBoundaryIntents priority chain", () => {
     expect(result.intents[0]).toMatchObject({ fromShotId: "shot-2", toShotId: "shot-3", effectId: "crossfade" });
   });
 
+  it("matches plan scene-level lines via sourceEvidence.scene.index when trackKey carries no scene", () => {
+    const result = assembleBoundaryIntents({
+      storyboards: [1, 2, 3].map((index) => ({
+        id: `shot-${index}`,
+        index,
+        trackKey: `001-${index}`,
+        sourceEvidence: { scene: { index: index <= 2 ? 1 : 2 } },
+      })),
+      scriptPlanTransitions: "- Sc 1 → Sc 2：风格词=灵气色彩；氛围词=阴谋",
+      shotDurationUsById: DURATIONS,
+    });
+    expect(result.intents).toHaveLength(1);
+    expect(result.intents[0]).toMatchObject({ fromShotId: "shot-2", toShotId: "shot-3", effectId: "crossfade" });
+    expect(result.warnings).toHaveLength(0);
+  });
+
+  it("warns when plan has scene-level lines but storyboards carry no scene info", () => {
+    const result = assembleBoundaryIntents({
+      storyboards: [1, 2, 3].map((index) => ({ id: `shot-${index}`, index, trackKey: `001-${index}` })),
+      scriptPlanTransitions: "- Sc 1 → Sc 2：风格词=灵气色彩；氛围词=阴谋",
+      shotDurationUsById: DURATIONS,
+    });
+    expect(result.intents).toHaveLength(0);
+    expect(result.warnings.some((warning) => warning.includes("场级意图全部未生效"))).toBe(true);
+  });
+
+  it("warns when a matched scene-level style word misses the vocabulary", () => {
+    const result = assembleBoundaryIntents({
+      storyboards: [1, 2, 3].map((index) => ({
+        id: `shot-${index}`,
+        index,
+        trackKey: `001-${index}`,
+        sourceEvidence: { scene: { index: index <= 2 ? 1 : 2 } },
+      })),
+      scriptPlanTransitions: "- Sc 1 → Sc 2：风格词=螺旋升天；氛围词=阴谋",
+      shotDurationUsById: DURATIONS,
+    });
+    expect(result.intents).toHaveLength(0);
+    expect(result.warnings.some((warning) => warning.includes("场级意图风格词未命中词表"))).toBe(true);
+  });
+
   it("no intents and no warnings when nothing is expressed (hard cuts)", () => {
     const result = assembleBoundaryIntents({ storyboards: storyboards(), shotDurationUsById: DURATIONS });
     expect(result.intents).toHaveLength(0);

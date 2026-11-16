@@ -286,7 +286,7 @@ async function buildBoundaryIntents(
   const store = readStudioWorkflowStoreState(projectDir);
   if (!store) return [];
   const state = store.state as {
-    storyboards?: Array<{ id: string; episodeId: string; index: number; trackKey?: string; shotSemantics?: { transitionToNext?: { styleWord: string; moodWord?: string } } }>;
+    storyboards?: Array<{ id: string; episodeId: string; index: number; trackKey?: string; sourceEvidence?: { scene?: { index?: number } }; shotSemantics?: { transitionToNext?: { styleWord: string; moodWord?: string } } }>;
     scriptPlans?: Array<{ episodeId?: string; transitions?: string }>;
   };
   const plan = (state.scriptPlans ?? []).find((candidate) => candidate.episodeId === chapterId);

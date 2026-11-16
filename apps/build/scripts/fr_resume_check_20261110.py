@@ -12,6 +12,7 @@ baseline = json.loads((research / ledger['baseline']).read_text())
 sources = {item['chapter']: item for volume in baseline['volumes']
            for item in volume['chapters']}
 closed = []
+current_review_closed = []
 historical_closed = []
 errors = []
 for row in ledger['volume1']['chapters']:
@@ -19,16 +20,53 @@ for row in ledger['volume1']['chapters']:
     if row['status'] != 'offline_content_closed_current_sha' and not historical:
         continue
     chapter = row['chapter']
-    if row['current_independent_pass'] is not True or row['main_fresh_exit_code'] != 0:
-        errors.append({'chapter': chapter, 'error': 'missing independent or main acceptance'})
+    if row.get('current_independent_pass') is not True:
+        errors.append({'chapter': chapter, 'error': 'missing independent acceptance'})
         continue
-    missing = [name for name in row['evidence'] if not (research / name).is_file()]
+    evidence = row.get('evidence', [])
+    # Older rows used named evidence fields before the common evidence array was added.
+    if not evidence:
+        evidence = [row[key] for key in ('evidence_audit', 'full_review_evidence',
+                                         'targeted_sourcecheck_evidence',
+                                         'main_fresh_evidence')
+                    if isinstance(row.get(key), str)]
+    missing = [name for name in evidence if not (research / name).is_file()]
     if missing:
         errors.append({'chapter': chapter, 'missing_evidence': missing})
         continue
-    fresh_path = research / (row['historical_fresh_file'] if historical
-                             else f'chapter{chapter:03d}-mainfresh-20261110.json')
-    if fresh_path.name not in row['evidence']:
+
+    main_exit = row.get('main_fresh_exit_code')
+    main_name = row.get('historical_fresh_file') if historical else row.get('main_fresh_evidence')
+    if main_name is None:
+        linked_main = [name for name in evidence if 'mainfresh' in name and name.endswith('.json')]
+        if linked_main:
+            main_name = linked_main[-1]
+            main_exit = 0
+    # Current-review closures have a report and current SHA, but no legacy mainfresh JSON.
+    if main_exit is None:
+        source = sources[chapter]
+        source_sha = hashlib.sha256(Path(source['path']).read_bytes()).hexdigest()
+        differences = []
+        if source_sha != source['sha256']:
+            differences.append('source')
+        for role, entry in row['files'].items():
+            content = Path(entry['path']).read_bytes()
+            sha = hashlib.sha256(content).hexdigest()
+            if sha != entry['sha256']:
+                differences.append(role)
+            if len(content) != entry['bytes']:
+                differences.append(role + ':bytes')
+        if differences:
+            errors.append({'chapter': chapter, 'changed_inputs': differences})
+        else:
+            current_review_closed.append(chapter)
+        continue
+
+    if main_exit != 0:
+        errors.append({'chapter': chapter, 'error': 'main fresh did not pass'})
+        continue
+    fresh_path = research / (main_name or f'chapter{chapter:03d}-mainfresh-20261110.json')
+    if fresh_path.name not in evidence:
         errors.append({'chapter': chapter, 'error': 'main fresh not linked'})
         continue
     fresh = json.loads(fresh_path.read_text())
@@ -45,13 +83,39 @@ for row in ledger['volume1']['chapters']:
     source = sources[chapter]
     source_sha = hashlib.sha256(Path(source['path']).read_bytes()).hexdigest()
     differences = []
-    fresh_hashes = fresh[row.get('fresh_hash_field', 'input_sha256')]
-    if source_sha != fresh['source_sha256'] or source_sha != source['sha256']:
-        differences.append('source')
+    fresh_source_sha = fresh.get('source_sha256')
+    if isinstance(fresh_source_sha, dict):
+        fresh_source_sha = fresh_source_sha.get(str(chapter))
+    if fresh_source_sha is None and isinstance(fresh.get('source'), dict):
+        fresh_source_sha = fresh['source'].get('sha256')
+    if fresh_source_sha is not None and source_sha != fresh_source_sha:
+        differences.append('source:fresh')
+    if source_sha != source['sha256']:
+        differences.append('source:baseline')
+
+    # Historical fresh reports use three equivalent input layouts:
+    # role keyed input_sha256, basename keyed inputs, or role keyed primary entries.
+    fresh_hashes = fresh.get(row.get('fresh_hash_field', 'input_sha256'))
+    if not isinstance(fresh_hashes, dict):
+        fresh_hashes = fresh.get('inputs', {})
+    if not isinstance(fresh_hashes, dict) and isinstance(fresh.get('primary'), dict):
+        fresh_hashes = fresh['primary']
+    if not isinstance(fresh_hashes, dict):
+        fresh_hashes = {}
+    def fresh_role_sha(role, entry):
+        value = fresh_hashes.get(role)
+        if isinstance(value, dict):
+            value = value.get('sha256')
+        if value is None:
+            value = fresh_hashes.get(Path(entry['path']).name)
+        if isinstance(value, dict):
+            value = value.get('sha256')
+        return value
     for role, entry in row['files'].items():
         content = Path(entry['path']).read_bytes()
         sha = hashlib.sha256(content).hexdigest()
-        if sha != entry['sha256'] or sha != fresh_hashes[role]:
+        expected = fresh_role_sha(role, entry)
+        if sha != entry['sha256'] or (expected is not None and sha != expected):
             differences.append(role)
         if len(content) != entry['bytes']:
             differences.append(role + ':bytes')
@@ -74,8 +138,8 @@ for row in ledger['volume1']['chapters']:
     else:
         (historical_closed if historical else closed).append(chapter)
 declared = ledger['volume1']['current_run_closed_chapters']
-if sorted(declared) != sorted(closed):
-    errors.append({'declared_closed': declared, 'verified_reusable': closed})
+if sorted(declared) != sorted(closed + current_review_closed):
+    errors.append({'declared_closed': declared, 'verified_reusable': sorted(closed + current_review_closed)})
 historical_declared = ledger['volume1'].get('historical_reused_closed_chapters', [])
 if sorted(historical_declared) != sorted(historical_closed):
     errors.append({'declared_historical': historical_declared,
@@ -86,6 +150,7 @@ if metadata['offlineTrack']['ledger'] != 'research/fr-volumes-current-20261110.j
 result = {
     'pass': not errors,
     'reusable_closed_chapters': closed,
+    'reusable_current_review_chapters': current_review_closed,
     'reusable_historical_chapters': historical_closed,
     'action': 'skip unchanged completed work; reopen only on changed inputs or new concrete findings',
     'errors': errors,
@@ -98,7 +163,7 @@ result = {
     'evidence_audited_pending_content': [item['chapter'] for item in ledger['volume1']['chapters']
                                         if item['status'] == 'historical_evidence_audited_content_review_pending'],
     'volume2': ledger['volume2']['status'],
-    'boundary': 'Evidence identity check only; no repair, semantic rereview, TTS or production test.'
+    'boundary': 'Evidence identity check only; current-review rows are static evidence reuse and do not imply legacy mainfresh, TTS or production acceptance.'
 }
 print(json.dumps(result, ensure_ascii=False, indent=2))
 sys.exit(0 if result['pass'] else 1)

@@ -12,6 +12,14 @@ export interface BoundaryIntentStoryboardInput {
   id: string;
   index: number;
   trackKey?: string;
+  /**
+   * 分镜表场头来源（storyboard-table.ts parseStoryboardTable 已写入的
+   * `## 场N：` 场号）。场级转场意图按它匹配；生产 trackKey 恒为
+   * `{ep}-{index}`，不含场号。
+   */
+  sourceEvidence?: {
+    scene?: { index?: number };
+  };
   shotSemantics?: {
     transitionToNext?: { styleWord: string; moodWord?: string };
   };
@@ -65,10 +73,14 @@ export function assembleBoundaryIntents(
   const storyboards = [...input.storyboards].sort((left, right) => left.index - right.index);
   const sceneByShotId = new Map<string, number>();
   for (const storyboard of storyboards) {
-    const match = typeof storyboard.trackKey === "string" ? /scene-(\d+)$/.exec(storyboard.trackKey) : null;
-    if (match) sceneByShotId.set(storyboard.id, Number(match[1]));
+    const sceneIndex = resolveStoryboardSceneIndex(storyboard);
+    if (sceneIndex !== undefined) sceneByShotId.set(storyboard.id, sceneIndex);
   }
   const sceneIntents = parseDirectorPlanBoundaryIntents(input.scriptPlanTransitions);
+  const hasSceneLevelIntents = sceneIntents.some(
+    (candidate) => candidate.fromScene !== undefined && candidate.toScene !== undefined,
+  );
+  let sceneLevelMatches = 0;
   const intents: VideoUseBoundaryIntentV1[] = [];
   // 08-22 转场密度裁定:同款 effectId 在任意连续 5 个边界内不得重复。
   // 违反的意图不发出(该边界回落硬切),与「未命中词表保持硬切」同一语义。
@@ -179,8 +191,12 @@ export function assembleBoundaryIntents(
       }
       continue;
     }
+    sceneLevelMatches += 1;
     const transition = styleWordTransition(sceneIntent.styleWord);
-    if (!transition) continue;
+    if (!transition) {
+      warnings.push(`镜 ${from.index}→${to.index} 场级意图风格词未命中词表(${sceneIntent.styleWord})，边界保持硬切`);
+      continue;
+    }
     emitIntent({
       fromShotId: from.id,
       toShotId: to.id,
@@ -190,7 +206,21 @@ export function assembleBoundaryIntents(
       ...(sceneIntent.moodWord ? { moodWord: sceneIntent.moodWord } : {}),
     }, position, `场景计划 ${sceneIntent.styleWord}`);
   }
+  if (hasSceneLevelIntents && sceneLevelMatches === 0) {
+    warnings.push(
+      "导演计划⑥段含场级转场意图，但没有任何相邻分镜对命中场号（分镜缺 sourceEvidence.scene.index 或两侧场号不一致），场级意图全部未生效",
+    );
+  }
   return { intents, warnings };
+}
+
+/** 场号来源：优先分镜表场头来源 sourceEvidence.scene.index（生产 trackKey 恒为
+ *  `{ep}-{index}` 不含场号）；`scene-N` 旧键仅作历史数据回落。 */
+function resolveStoryboardSceneIndex(storyboard: BoundaryIntentStoryboardInput): number | undefined {
+  const evidenceIndex = storyboard.sourceEvidence?.scene?.index;
+  if (typeof evidenceIndex === "number" && Number.isFinite(evidenceIndex)) return evidenceIndex;
+  const match = typeof storyboard.trackKey === "string" ? /scene-(\d+)$/.exec(storyboard.trackKey) : null;
+  return match ? Number(match[1]) : undefined;
 }
 
 /** 链尾启发式兜底：source=heuristic 的 transitionOut（blackout/impact-frame 两档）。 */

@@ -99,10 +99,10 @@ export function buildStoryboardTableMessages(input: BuildStoryboardTableInput): 
     "分镜配音硬约束：每条分镜必须填写台词字段——台词/旁白照剧本逐字照录，本场纯视觉镜写「无台词」（禁止为凑字段编造旁白，细则见下条）——作为后续配音、TTS 和角色音色绑定的输入。",
     "角色台词保留 `角色名：台词内容`；旁白/OS/VO 照剧本原文写 `旁白：内容`（逐字照录，不另造旁白）；本场确无任何语音的纯视觉镜写 `无台词`（纯视觉段连续 ≤15 秒），禁止为凑字段编造旁白。",
     "分镜序号铁律：全表分镜序号从 1 起全局连续递增（1..N），不得按场/按片段重置编号（2026-08-22 实证：逐场重编号会被解析整表拒绝）。",
-    `时长预算（H3 视频线）：单集总时长 ${durationBudget}；每镜基准 8~15 秒、一镜承载 2~4 句台词——H3 成片按 17k+5 帧网格量化，最短一镜约 5.2 秒；台词与动作必须写足该时长的内容量，禁 2–3 秒空镜过场（2026-10-10 裁定）。`,
+    `时长预算（H3 视频线）：单集总时长 ${durationBudget}；每镜基准 8~15 秒、一镜承载 2~4 句台词——H3 成片按 17k+5 帧网格量化，最短一镜约 5.2 秒；台词、停顿与镜头停留要把时长撑满，禁 2–3 秒空镜过场；画面描述只写一个可见的戏眼/动作，时长由台词与停留承担，不为一镜堆叠多个复合交互动作（2026-10-10 裁定；11-16 单一戏眼对齐）。`,
   ].join("\n");
   return {
-    system: [skill, input.bibleContext, input.manualContext, voiceoverGuard, input.scriptPlanContext, strict ? daojieCharacterExpressionGuidance("storyboard") : "", strict ? daojieFidelityBoundary("storyboard") : ""].filter(Boolean).join("\n\n---\n\n"),
+    system: [skill, input.bibleContext, input.manualContext, voiceoverGuard, strict ? daojieCharacterExpressionGuidance("storyboard") : "", strict ? daojieFidelityBoundary("storyboard") : ""].filter(Boolean).join("\n\n---\n\n"),
     user: [
       `当前集ID：${input.episodeId}`,
       input.scriptPlanContext ? `导演规划要点：\n${input.scriptPlanContext}` : "",

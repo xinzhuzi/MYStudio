@@ -396,11 +396,11 @@ export interface DirectorPlanBoundaryIntent {
 //   （取首数会把 1-1/1-2 折成同场=语义反转）;
 // - 跨主场组（主数不等,如 `Sc 1-2 → Sc 2-1`）或混合写法（`Sc 2 → Sc 3-1`）按**主数**——
 //   旧「尾数 ?? 主数」把跨组边界映射成 2→1(方向反转+与 Sc 2→Sc 1 撞号),组号不同的
-//   尾数不可比。场级匹配下游键 `scene-(\d+)`（boundary-intent-assembly.ts:68）无现役
-//   构造点——现行分镜 trackKey 实为 `{ep}-{index}`;若未来 trackKey 归一为 scene-N 序数,
-//   同组尾数即该序数、跨组主数即组序数,前向兼容。纯 `Sc1` 写法主数即全部,行为与旧
-//   正则逐位一致。连字符集外的 U+2010 等变体不在此放行——由 parseDirectorPlan 的
-//   「写法不识别」warning 显式发声(R11:不静默),不静默吞。
+//   尾数不可比。场级匹配下游键自 11-16 起接分镜条目 sourceEvidence.scene.index（分镜表
+//   `## 场N：` 场头,storyboard-table.ts parseStoryboardTable 写入;boundary-intent-assembly.ts
+//   resolveStoryboardSceneIndex 优先取它,`scene-(\d+)` 旧键仅作历史数据回落）。零匹配时
+//   装配层发 warning,不静默丢弃。纯 `Sc1` 写法主数即全部,行为与旧正则逐位一致。连字符集外的
+//   U+2010 等变体不在此放行——由 parseDirectorPlan 的「写法不识别」warning 显式发声(R11:不静默),不静默吞。
 const SCENE_BOUNDARY_INTENT_PATTERN =
   /-?\s*Sc\s*(\d+)(?:\s*[-－—–]\s*(\d+))?\s*(?:→|->)\s*Sc\s*(\d+)(?:\s*[-－—–]\s*(\d+))?\s*[:：]\s*风格词\s*[:：=]\s*([^;；\n]+?)\s*[;；]\s*氛围词\s*[:：=]\s*([^\n]+)/g;
 const SHOT_BOUNDARY_INTENT_PATTERN =

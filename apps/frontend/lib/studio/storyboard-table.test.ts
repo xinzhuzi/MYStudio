@@ -544,6 +544,8 @@ describe("studio storyboard table messages", () => {
     expect(messages.system).toContain("分镜表");
     expect(messages.user).toContain("苏晚卿冷笑");
     expect(messages.user).toContain("高潮段快切");
+    // B3（11-16）：scriptPlanContext 只注入 user 侧「导演规划要点」，system 不再重复。
+    expect(messages.system).not.toContain("高潮段快切");
   });
 
   it("requires dialogue and narration fields for later voice assignment", () => {
