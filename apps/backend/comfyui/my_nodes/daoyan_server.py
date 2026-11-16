@@ -853,7 +853,7 @@ def install() -> None:
         # CORS(1116 审计 B3/E11 blocker 修):App 渲染窗跨域 fetch 首跳即死。
         # on_response_prepare 信号=运行中可挂(中间件列表启动后冻结不可追)
         try:
-            _app = PromptServer.instance.web_app
+            _app = PromptServer.instance.app
             if _app and not getattr(_app, "_daoyan_cors", False):
                 async def _daoyan_cors_prepare(request, response):
                     origin = request.headers.get("Origin", "")
