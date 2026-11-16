@@ -1,9 +1,28 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveStoryboardAssetReferences } from "./storyboard-asset-references";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 
 vi.mock("@/lib/bridge/studio-assets", () => ({
   getStudioAssetsBridge: vi.fn(),
+}));
+
+// ── 1117 C2 G1/G5:场景五级序与衍生预划经 canonical-context 消费 store——注入桩。 ──
+const sceneState = vi.hoisted(() => ({ scenes: [] as Array<Record<string, unknown>> }));
+vi.mock("@/stores/library/scene-store", () => ({
+  useSceneStore: { getState: () => sceneState },
+}));
+const characterState = vi.hoisted(() => ({ characters: [] as Array<Record<string, unknown>> }));
+vi.mock("@/stores/library/character-library-store", () => ({
+  useCharacterLibraryStore: { getState: () => characterState },
+}));
+vi.mock("@/stores/project/project-store", () => ({
+  useProjectStore: { getState: () => ({ activeProjectId: "p1" }) },
+}));
+const studioAgentState = vi.hoisted(() => ({
+  agentWorkData: [] as Array<Record<string, unknown>>,
+}));
+vi.mock("@/stores/studio/studio-store", () => ({
+  useStudioStore: { getState: () => studioAgentState },
 }));
 
 const bridgeMock = vi.mocked(getStudioAssetsBridge);
@@ -275,3 +294,99 @@ describe("resolveStoryboardAssetReferences", () => {
   });
 });
 
+
+// ─── 1117 C2:off-frame 第四源(visibleCharacters 提名)/场景名前置/衍生优先 ───
+
+describe("resolveStoryboardAssetReferences 1117 C2 联动", () => {
+  beforeEach(() => {
+    sceneState.scenes = [];
+    characterState.characters = [];
+    studioAgentState.agentWorkData = [];
+  });
+
+  it("B5:visibleCharacters 名单=提名(S11 晏燎参考恢复——videoDesc 只写「孩子们」)", async () => {
+    bridgeMock.mockReturnValue(makeBridge({
+      role: [{ name: "晏燎" }, { name: "管事" }],
+    }));
+    const refs = await resolveStoryboardAssetReferences({
+      associateAssetsNames: ["管事", "晏燎"],
+      videoDesc: "管事蹲到第一排按背,孩子们憋笑。",
+      shotSemantics: {
+        sceneViewpointId: "hall-night-v1", personFree: false,
+        visibleCharacters: [
+          { name: "管事", position: "前排", orientation: "正面", actionIn: "按背", actionOut: "直身" },
+          { name: "晏燎", position: "北墙角落", orientation: "正面", actionIn: "盘坐", actionOut: "不动" },
+        ],
+        visibleProps: [], actionIn: "入画", actionOut: "出画",
+      },
+    } as never);
+    // 晏燎:文本零点名但语义在场=提名→参考保留(旧滤网会滤掉)
+    expect(refs?.map((ref) => ref.title).sort()).toEqual(["晏燎", "管事"]);
+  });
+
+  it("G3:G1 解析场景名前置进 scene 发查询名单(S12 id 命中金水塾馆,场景节点恢复可挂)", async () => {
+    sceneState.scenes = [
+      { id: "scene_1780296482374_jew094y", name: "金水塾馆", location: "金水塾馆", projectId: "p1" },
+    ];
+    const bridge = makeBridge({
+      scene: [{ name: "金水塾馆" }],
+      role: [{ name: "独孤剑尘" }],
+    });
+    bridgeMock.mockReturnValue(bridge);
+    const refs = await resolveStoryboardAssetReferences({
+      associateAssetsIds: ["scene_1780296482374_jew094y"],
+      associateAssetsNames: ["独孤剑尘"],
+      videoDesc: "独孤剑尘捏笔落灰、转身开讲。",
+    } as never);
+    const sceneCall = (bridge as unknown as { batchMatch: { mock: { calls: Array<[{ type: string; names: string[] }]> } } })
+      .batchMatch.mock.calls.find(([payload]) => payload.type === "scene");
+    expect(sceneCall?.[0].names[0]).toBe("金水塾馆");
+    expect(refs?.map((ref) => [ref.title, ref.assetType])).toEqual([
+      ["金水塾馆", "scene"],
+      ["独孤剑尘", "character"],
+    ]);
+  });
+
+  it("G5①:规划⑦衍生行带图=角色参考改挂衍生行(基础行留 derived-preferred 痕)", async () => {
+    characterState.characters = [{ id: "c1", name: "晏燎", projectId: "p1" }];
+    studioAgentState.agentWorkData = [{
+      id: "work-1", key: "directorPlan", episodeId: "chapter-001",
+      data: "## ⑦ 衍生资产预划清单\n| 资产名 | 衍生状态 |\n| 晏燎·夜课少年 | 基础态锁定:灰布短褐 |",
+      createdAt: 1, updatedAt: 1,
+    }];
+    const bridge = makeBridge({
+      role: [{ name: "晏燎", previewUrl: "file:///assets/role/晏燎/主图人脸.png" }],
+    });
+    // 衍生单发:名字=复合名时返回衍生行(带图)
+    const batchMatchFn = (bridge as unknown as { batchMatch: ReturnType<typeof vi.fn> }).batchMatch;
+    batchMatchFn.mockImplementation(async (payload: { type: string; names: string[] }) => {
+        if (payload.type === "role" && payload.names.includes("晏燎·夜课少年")) {
+          return [{
+            name: "晏燎·夜课少年",
+            asset: {
+              id: "derived-1", name: "晏燎·夜课少年",
+              previewUrl: "file:///assets/role/晏燎/晏燎·夜课少年_人物图_v1.png",
+            },
+          }];
+        }
+        if (payload.type === "role") {
+          return [{ name: "晏燎", asset: { id: "base-1", name: "晏燎", previewUrl: "file:///assets/role/晏燎/主图人脸.png" } }];
+        }
+        return [];
+      });
+    bridgeMock.mockReturnValue(bridge);
+    const refs = await resolveStoryboardAssetReferences({
+      associateAssetsNames: ["晏燎"],
+      videoDesc: "晏燎盘坐呼吸。",
+      shotSemantics: {
+        sceneViewpointId: "v1", personFree: false,
+        visibleCharacters: [{ name: "晏燎", position: "角落", orientation: "正面", actionIn: "盘坐", actionOut: "不动" }],
+        visibleProps: [], actionIn: "入画", actionOut: "出画",
+      },
+    } as never);
+    expect(refs?.[0]).toMatchObject({
+      title: "晏燎·夜课少年",
+      imageUrl: "file:///assets/role/晏燎/晏燎·夜课少年_人物图_v1.png",
+    });
+  });
+});

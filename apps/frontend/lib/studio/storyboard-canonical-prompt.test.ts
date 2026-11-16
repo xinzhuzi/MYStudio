@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCanonicalSubjectSentence,
+  assertCanonicalAnchors,
   buildCanonicalTransportInstruction,
   CANONICAL_TEXT_REQUIREMENT_BLOCK,
   findSubjectOverlapBlocks,
@@ -295,5 +296,115 @@ describe("findSubjectOverlapBlocks(宪法 §十预检,daojie_subject_overlap.py 
 
   it("底座缺席时预检降级不拦(fail-open,空串)", () => {
     expect(findSubjectOverlapBlocks("任意主体句", "")).toEqual([]);
+  });
+});
+
+// ─── 1117 C2 门A:剧情锚词断言(场景名/时辰词族/主角名,缺=拒发) ──────────────
+
+describe("assertCanonicalAnchors(1117 C2 门A)", () => {
+  const anchoredPrompt = "青年刀修晏燎立于金水塾馆，两盏油灯，夜，孩童盘坐。";
+
+  it("三锚齐备=过(空违规清单)", () => {
+    expect(
+      assertCanonicalAnchors(anchoredPrompt, {
+        sceneName: "金水塾馆",
+        timeOfDay: "夜",
+        protagonist: "晏燎",
+      }),
+    ).toEqual([]);
+  });
+
+  it("缺场景名=拒(scene-name)", () => {
+    const violations = assertCanonicalAnchors("晏燎立于夜色中", {
+      sceneName: "金水塾馆",
+      timeOfDay: "夜",
+      protagonist: "晏燎",
+    });
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({ anchor: "scene-name" });
+  });
+
+  it("缺时辰=拒(time-of-day);同义词族命中=过(夜↔深夜/入夜/夜里)", () => {
+    const anchors = { sceneName: "金水塾馆", timeOfDay: "夜", protagonist: "晏燎" };
+    expect(assertCanonicalAnchors("晏燎立于金水塾馆白墙前。", anchors)[0]).toMatchObject({
+      anchor: "time-of-day",
+    });
+    // 族内同义写法互认
+    expect(
+      assertCanonicalAnchors("晏燎立于金水塾馆，入夜后灯亮。", anchors),
+    ).toEqual([]);
+    expect(
+      assertCanonicalAnchors("晏燎立于金水塾馆，深夜灯下。", anchors),
+    ).toEqual([]);
+    // 暮族:黄昏/傍晚互认
+    expect(
+      assertCanonicalAnchors("晏燎立于金水塾馆，黄昏灯下。", { ...anchors, timeOfDay: "暮" }),
+    ).toEqual([]);
+  });
+
+  it("缺主角=拒(protagonist);零角色镜 identities 兜位=按兜位名核", () => {
+    const anchors = { sceneName: "金水塾馆", timeOfDay: "夜", protagonist: "独孤剑尘" };
+    expect(assertCanonicalAnchors("金水塾馆夜灯下少年盘坐。", anchors)[0]).toMatchObject({
+      anchor: "protagonist",
+    });
+    // 零角色镜由调用方传 identities 首位兜位——锚在句中即过
+    expect(assertCanonicalAnchors("独孤剑尘立于金水塾馆夜灯下。", anchors)).toEqual([]);
+  });
+
+  it("态行名命中基础名或态行名均认(S12 金水塾馆·夜内态)", () => {
+    expect(
+      assertCanonicalAnchors("金水塾馆两盏油灯夜。", {
+        sceneName: "金水塾馆·夜内态：两盏油灯·墨板·盘坐孩童",
+        timeOfDay: "夜",
+        protagonist: "晏燎",
+      }).filter((v) => v.anchor === "scene-name"),
+    ).toEqual([]);
+  });
+
+  it("锚未解析(require 缺省全 true)=拒;调用方可按镜型关断言", () => {
+    const violations = assertCanonicalAnchors("任意画面。", {});
+    expect(violations.map((v) => v.anchor)).toEqual(["scene-name", "time-of-day", "protagonist"]);
+    expect(assertCanonicalAnchors("任意画面。", {}, { requireProtagonist: false }).map((v) => v.anchor))
+      .toEqual(["scene-name", "time-of-day"]);
+  });
+});
+
+// ─── 1117 C2:B3 环境句萃取并入环境槽 / G5 形态句进动作槽尾 / S12 双写去重 ────
+
+describe("buildCanonicalSubjectSentence 1117 C2 扩展", () => {
+  it("environmentClauses 并入环境槽(殿后,在场景四要素之后)", () => {
+    const { text } = buildCanonicalSubjectSentence(
+      subjectInput({ environmentClauses: ["屋内两盏歪芯油灯", "墨板是拿门板刷了一层墨汁凑的"] }),
+    );
+    expect(text).toContain("屋内两盏歪芯油灯");
+    expect(text).toContain("墨板是拿门板刷了一层墨汁凑的");
+    expect(text.indexOf("屋内两盏歪芯油灯")).toBeGreaterThan(text.indexOf("灵矿坑道葬玉"));
+  });
+
+  it("derivedStateNotes 进动作槽尾(G5 衍生行缺席文字承载;身份段不改写)", () => {
+    const { text } = buildCanonicalSubjectSentence(
+      subjectInput({ derivedStateNotes: ["「晏燎·夜课少年」:灰布短褐袖口短一截、露趾草鞋冻疮"] }),
+    );
+    // 形态句经全角归一(半角冒号→全角),词面逐字保留
+    expect(text).toContain("「晏燎·夜课少年」：灰布短褐袖口短一截、露趾草鞋冻疮");
+    // 动作槽尾=在环境槽(灵矿坑道葬玉)之前
+    expect(text.indexOf("夜课少年")).toBeGreaterThan(text.indexOf("拖着锁链"));
+    expect(text.indexOf("夜课少年")).toBeLessThan(text.indexOf("灵矿坑道葬玉"));
+    expect(text).toContain(IDENTITY_YANLIAO.paragraph);
+  });
+
+  it("sceneText 同段去重(S12 晏燎静室×2 实录修)", () => {
+    const { text } = buildCanonicalSubjectSentence(
+      subjectInput({ scene: { name: "晏燎静室", location: "晏燎静室", time: "夜" } }),
+    );
+    expect(text.match(/晏燎静室/g)).toHaveLength(1);
+  });
+
+  it("环境槽全源去重:场景四要素与萃取句重复只入一次", () => {
+    const { text } = buildCanonicalSubjectSentence(
+      subjectInput({ environmentClauses: ["夜"], lighting: undefined, factionColorLines: [] }),
+    );
+    // scene.time=夜 与萃取句「夜」重复——环境槽内只一次
+    expect(text.match(/夜/g)?.length).toBe(1);
   });
 });

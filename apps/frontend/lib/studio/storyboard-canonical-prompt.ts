@@ -81,6 +81,17 @@ export interface CanonicalSubjectInput {
   lighting?: string;
   /** 阵营色明文行(如「(人族·人物)主色赭石+辅色栗褐+点睛藤黄」;明文设定色级,逐字)。 */
   factionColorLines?: string[];
+  /**
+   * 1117 C2(B3):画面描述列(prompt)环境句萃取产物——videoDesc 在位时
+   * prompt 列不再整段弃,分句剔除人物子句后含环境物词的余句并入环境槽。
+   */
+  environmentClauses?: string[];
+  /**
+   * 1117 C2(G5):衍生态形态句(规划⑦态描述逐字,如「晏燎·夜课少年:灰布短褐
+   * 袖口短一截…」)——衍生行缺席(无参考图可挂)时文字承载,进动作槽尾;
+   * 身份段禁改写纪律不破。
+   */
+  derivedStateNotes?: string[];
 }
 
 export interface CanonicalSubjectSentence {
@@ -152,20 +163,39 @@ export function buildCanonicalSubjectSentence(input: CanonicalSubjectInput): Can
         .join("至"),
     ].filter(Boolean).join("，"))
     .join("；");
-  const actionText = [description, semanticText, input.momentNote?.trim() ? normalizeFullwidthPunctuation(input.momentNote.trim()) : ""]
+  const actionText = [
+    description,
+    semanticText,
+    input.momentNote?.trim() ? normalizeFullwidthPunctuation(input.momentNote.trim()) : "",
+    // 1117 C2(G5):衍生态形态句进动作槽尾(文字承载;衍生行带图时由参考图
+    // 承担,不写此句)。
+    ...(input.derivedStateNotes ?? [])
+      .map((note) => note.trim())
+      .filter(Boolean)
+      .map((note) => normalizeFullwidthPunctuation(note)),
+  ]
     .filter(Boolean)
     .join("；");
 
   // ④ 环境与场景元素(§7 场景定场:地点+天候+氛围)。
+  // 1117 C2(S12 双写修):同段去重——态行名与 location 同文(晏燎静室×2
+  // 实录)只入一次;B3 环境句萃取余句殿后并入。
   const scene = input.scene;
-  const sceneText = scene
+  const sceneParts = scene
     ? [
         normalizeFullwidthPunctuation(scene.name.trim()),
         scene.location?.trim() ? normalizeFullwidthPunctuation(scene.location.trim()) : "",
         scene.time?.trim() ? normalizeFullwidthPunctuation(scene.time.trim()) : "",
         scene.atmosphere?.trim() ? normalizeFullwidthPunctuation(scene.atmosphere.trim()) : "",
-      ].filter(Boolean).join("，")
-    : "";
+      ].filter(Boolean)
+    : [];
+  const environmentParts = (input.environmentClauses ?? [])
+    .map((clause) => clause.trim())
+    .filter(Boolean)
+    .map((clause) => normalizeFullwidthPunctuation(clause));
+  const sceneText = [...sceneParts, ...environmentParts]
+    .filter((part, index, all) => all.indexOf(part) === index)
+    .join("，");
 
   // ⑤ 光色叙事与落点色锚(07 §八:来源事实中的时段/光源/方向/落点可写;
   // 阵营色=明文设定色逐字,PRD §三迁移)。
@@ -360,8 +390,9 @@ export interface CanonicalDisciplineViolation {
   detail: string;
 }
 
-/** 写实族词(十型 §0.3「写实词与程式词禁」;门禁画风词表之外的同族补充)。 */
-const REALISM_WORDS = ["照片级", "写实", "胶片感", "镜头感", "photorealistic"] as const;
+/** 写实族词(十型 §0.3「写实词与程式词禁」;门禁画风词表之外的同族补充)。
+ * 1117 C2(断点B)起导出:场景轨送门前硬 lint 与分镜链 lintCanonicalPrompt 同源。 */
+export const REALISM_WORDS = ["照片级", "写实", "胶片感", "镜头感", "photorealistic"] as const;
 /** 摄影布光术语(07 §八 D7;禁色温值/打光/体积光/景深虚化)。1116 A/B 实弹勘误:
  * 「景深」单列=过度拦截(误拦「右上景深尽头」空间语义;引擎 1017 门亦只禁连用形态),
  * 对齐宪法 D7 原文=「景深虚化」整词拦截,「虚化」单独仍拦。 */
@@ -442,6 +473,98 @@ export function lintCanonicalPrompt(
   const withoutTags = prompt.replace(/<image\d+>/g, "");
   if (/[,.!?;:]/.test(withoutTags)) {
     violations.push({ rule: "fullwidth-punctuation", detail: "含半角标点" });
+  }
+  return violations;
+}
+
+// ─── 剧情锚词断言(1117 C2 门A:场景名/时辰词族/主角名,缺=拒发) ───
+
+/**
+ * 时辰同义词族(门A ②口径):解析词与 400 文本按族互认——族首=规范词,
+ * 族成员=同义写法(夜↔夜晚/夜间/夜里/入夜/深夜,日↔白日/白天/正午/日间,
+ * 晨↔清晨,暮↔黄昏/傍晚)。词不在任何族=精确包含认。
+ */
+export const CANONICAL_TIME_OF_DAY_FAMILIES: Readonly<Record<string, readonly string[]>> = {
+  夜: ["夜", "夜晚", "夜间", "夜里", "入夜", "深夜"],
+  日: ["日", "白日", "白天", "正午", "日间"],
+  晨: ["晨", "清晨"],
+  暮: ["暮", "黄昏", "傍晚"],
+};
+
+/** 词→所属族成员集(含子串归族,如「夜色」→夜族;无族=仅自身)。 */
+function timeOfDaySynonyms(word: string): readonly string[] {
+  const trimmed = word.trim();
+  if (!trimmed) return [];
+  for (const members of Object.values(CANONICAL_TIME_OF_DAY_FAMILIES)) {
+    if (members.includes(trimmed)) return members;
+    if (members.some((member) => member.length >= 2 && trimmed.includes(member))) return members;
+  }
+  return [trimmed];
+}
+
+export interface CanonicalAnchorSet {
+  /** 场景锚(态行名或基础名;态行命中基础名亦认)。缺省=不要求(调用方可强制)。 */
+  sceneName?: string;
+  /** 时辰锚(五源序解析产物;按同义词族在 400 认)。 */
+  timeOfDay?: string;
+  /** 主角锚(image_1 角色槽 title;零角色镜取 identities 首位)。 */
+  protagonist?: string;
+}
+
+export interface CanonicalAnchorAssertionOptions {
+  /** 锚未解析(anchors 值缺席)是否拒发;缺省全 true。 */
+  requireScene?: boolean;
+  requireTime?: boolean;
+  requireProtagonist?: boolean;
+}
+
+export interface CanonicalAnchorViolation {
+  anchor: "scene-name" | "time-of-day" | "protagonist";
+  detail: string;
+}
+
+/**
+ * 门A 剧情锚词断言(纯函数;1117 C2「出的分镜图必须剧情符合当前镜」机器
+ * 验收):①400 全文含场景名(态行名/基础名任一);②含时辰同义词族任一成员;
+ * ③含主角名。调用方(传输层)缺一=throw 拒发+diagnostics warn。
+ */
+export function assertCanonicalAnchors(
+  prompt: string,
+  anchors: CanonicalAnchorSet,
+  options: CanonicalAnchorAssertionOptions = {},
+): CanonicalAnchorViolation[] {
+  const violations: CanonicalAnchorViolation[] = [];
+  const requireScene = options.requireScene ?? true;
+  const requireTime = options.requireTime ?? true;
+  const requireProtagonist = options.requireProtagonist ?? true;
+
+  if (requireScene) {
+    const name = anchors.sceneName?.trim();
+    if (!name) {
+      violations.push({ anchor: "scene-name", detail: "场景锚未解析(五级序全断)" });
+    } else {
+      // 态行「金水塾馆·夜内态：…」命中基础名「金水塾馆」或全名均认。
+      const baseName = name.split("·")[0]?.trim() || name;
+      if (!prompt.includes(name) && !prompt.includes(baseName)) {
+        violations.push({ anchor: "scene-name", detail: `400 缺场景名「${name}」` });
+      }
+    }
+  }
+  if (requireTime) {
+    const time = anchors.timeOfDay?.trim();
+    if (!time) {
+      violations.push({ anchor: "time-of-day", detail: "时辰锚未解析(五源序全空)" });
+    } else if (!timeOfDaySynonyms(time).some((word) => prompt.includes(word))) {
+      violations.push({ anchor: "time-of-day", detail: `400 缺时辰词族「${time}」` });
+    }
+  }
+  if (requireProtagonist) {
+    const protagonist = anchors.protagonist?.trim();
+    if (!protagonist) {
+      violations.push({ anchor: "protagonist", detail: "主角锚未解析(零角色且零身份段)" });
+    } else if (!prompt.includes(protagonist)) {
+      violations.push({ anchor: "protagonist", detail: `400 缺主角名「${protagonist}」` });
+    }
   }
   return violations;
 }

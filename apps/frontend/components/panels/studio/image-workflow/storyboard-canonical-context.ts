@@ -17,8 +17,11 @@ import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import {
   buildCanonicalSubjectSentence,
   buildCanonicalTransportInstruction,
+  CANONICAL_TIME_OF_DAY_FAMILIES,
   mapCanonicalReferenceSlots,
+  type CanonicalAnchorSet,
   type CanonicalIdentityParagraph,
+  type CanonicalSceneFact,
   type CanonicalSubjectInput,
 } from "@/lib/studio/storyboard-canonical-prompt";
 import {
@@ -29,7 +32,9 @@ import { getExtendedStoryboardFactionData } from "@/lib/studio/visual-manual-sty
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
 import { useProjectStore } from "@/stores/project/project-store";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import type { ImageWorkflowGraph, StoryboardItem } from "@/types/studio";
+import type { Scene } from "@/stores/library/scene-store";
 
 /** promptOverrides「分镜剧情图」键(§4.3 定谳落点;存储层无枚举约束)。 */
 export const STORYBOARD_IDENTITY_OVERRIDE_KEY = "分镜剧情图";
@@ -55,7 +60,7 @@ function nameMatches(query: string, candidateName: string): boolean {
 }
 
 /** 三库场景行匹配(复合名拆段+双向包含;scene 落地驱动与场景事实共用)。 */
-export function findSceneRowForNames(names: string[]): ReturnType<typeof useSceneStore.getState>["scenes"][number] | null {
+export function findSceneRowForNames(names: string[]): Scene | null {
   if (!names.length) return null;
   const projectId = useProjectStore.getState().activeProjectId;
   const scenes = useSceneStore
@@ -64,16 +69,304 @@ export function findSceneRowForNames(names: string[]): ReturnType<typeof useScen
   return scenes.find((scene) => names.some((name) => nameMatches(name, scene.name))) ?? null;
 }
 
-/** 三库场景事实(§7 场景定场:名称+地点+天候+氛围;查无=null 不编造)。 */
-function resolveSceneFact(shot: Pick<StoryboardItem, "associateAssetsNames">) {
-  const hit = findSceneRowForNames(shot.associateAssetsNames ?? []);
-  if (!hit) return null;
-  return {
-    name: hit.name,
-    location: hit.location || undefined,
-    time: hit.time || undefined,
-    atmosphere: hit.atmosphere || undefined,
-  };
+// ─── 1117 C2 G1:场景五级序解析 + 时辰五源序解析(剧情锚定主修) ─────────────
+// 断链档案(B1/B4/B2,S8-S12 实弹定谳):①S12 associateAssetsIds 有金水塾馆 id
+// (scene_…jew094y)而装配层只读名字→id 在名不在链断;②row.scene 落库丢弃;
+//③「晏燎」子串误中「晏燎静室」(角色名⊂场景名双向包含的结构性误配);④
+// scene.time 库内 0/493+行无 continuityState=时辰双路恒空,夜只散活在 prompt
+// 首字/slug。五级序+五源序把两链接通;未知项仍不猜不写。
+
+/** 五级序/五源序可解析的分镜子集(缺省全 undefined=各级自然跳过)。 */
+export type StoryboardSceneResolvableShot = Partial<
+  Pick<
+    StoryboardItem,
+    | "associateAssetsIds"
+    | "associateAssetsNames"
+    | "sceneName"
+    | "timeOfDay"
+    | "prompt"
+    | "videoDesc"
+    | "shotSemantics"
+    | "continuityState"
+    | "episodeId"
+  >
+>;
+
+/** 查询词命中角色库者不得作场景名参与子串匹配(B4:晏燎→晏燎静室根除)。 */
+function isCharacterLibraryName(name: string): boolean {
+  const projectId = useProjectStore.getState().activeProjectId;
+  const library = useCharacterLibraryStore.getState().characters;
+  return library.some(
+    (entry) =>
+      nameMatches(name, entry.name)
+      && (!projectId || !entry.projectId || entry.projectId === projectId),
+  );
+}
+
+function projectScenes(): Scene[] {
+  const projectId = useProjectStore.getState().activeProjectId;
+  return useSceneStore
+    .getState()
+    .scenes.filter((scene) => !projectId || !scene.projectId || scene.projectId === projectId);
+}
+
+/** 场景行基础名(态行「金水塾馆·夜内态：…」→「金水塾馆」)。 */
+export function sceneBaseName(name: string): string {
+  return name.split("·")[0]?.trim() || name.trim();
+}
+
+/** 时辰词同义词族成员集(词不在任何族=仅自身;与门A同源族表)。 */
+export function sceneTimeOfDaySynonyms(word: string): string[] {
+  const trimmed = word.trim();
+  if (!trimmed) return [];
+  for (const members of Object.values(CANONICAL_TIME_OF_DAY_FAMILIES)) {
+    if (members.includes(trimmed)) return [...members];
+    if (members.some((member) => member.length >= 2 && trimmed.includes(member))) return [...members];
+  }
+  return [trimmed];
+}
+
+/** sceneViewpointId slug 时段 token(jinshui-shuguan-hall-night-v1→夜;存量行可回填)。 */
+const SLUG_TIME_TOKENS: Record<string, string> = {
+  night: "夜",
+  day: "日",
+  noon: "日",
+  dawn: "晨",
+  morning: "晨",
+  dusk: "暮",
+  evening: "暮",
+};
+
+/** 全时辰族词全文探针(最早出现位优先,同位长词优先;命中=该词)。 */
+function probeTimeWord(text: string): string | undefined {
+  const words = Object.values(CANONICAL_TIME_OF_DAY_FAMILIES).flat();
+  let best: { word: string; index: number } | undefined;
+  for (const word of words) {
+    const index = text.indexOf(word);
+    if (index < 0) continue;
+    if (!best || index < best.index || (index === best.index && word.length > best.word.length)) {
+      best = { word, index };
+    }
+  }
+  return best?.word;
+}
+
+/**
+ * 时辰五源序解析(1117 C2 B2 主修;纯函数消费 store,测试可注入态):
+ * ㊠shot.timeOfDay(场头时辰落库,正路)→㊡continuityState.lighting(设计槽
+ * 保位)→㊢sceneViewpointId slug 时段 token→㊣prompt/videoDesc 时辰词探针
+ * (S9 首字「夜。」)→㊤场景行 time/态行名标记(夜内态/晨雾态)。
+ */
+export function resolveShotTimeOfDay(
+  shot: StoryboardSceneResolvableShot,
+  sceneRow?: Scene | null,
+): string | undefined {
+  // ㊠ 新字段(正路:剧本场头「夜/内」→分镜表场头「｜时辰:夜·内」→落库)。
+  const direct = shot.timeOfDay?.trim();
+  if (direct) return direct;
+  // ㊡ 设计槽保位(存量行无 continuityState=自然跳过)。
+  const lighting = shot.continuityState?.lighting?.trim();
+  if (lighting) {
+    const probed = probeTimeWord(lighting);
+    if (probed) return probed;
+  }
+  // ㊢ slug 时段 token(-night-→夜;视觉连续性域既有真源回填)。
+  const slug = shot.shotSemantics?.sceneViewpointId?.trim();
+  if (slug) {
+    for (const segment of slug.split(/[-_]/)) {
+      const token = SLUG_TIME_TOKENS[segment.toLowerCase()];
+      if (token) return token;
+    }
+  }
+  // ㊣ 画面文本时辰词探针(S9 prompt 首字「夜。」;videoDesc 同查)。
+  const text = [shot.videoDesc, shot.prompt].filter(Boolean).join("\n");
+  if (text) {
+    const probed = probeTimeWord(text);
+    if (probed) return probed;
+  }
+  // ㊤ 场景行 time/态行名标记(夜内态/晨雾态)。
+  if (sceneRow) {
+    if (sceneRow.time?.trim()) {
+      const probed = probeTimeWord(sceneRow.time);
+      if (probed) return probed;
+    }
+    const suffix = sceneRow.name.split("·").slice(1).join("·");
+    if (suffix) {
+      const probed = probeTimeWord(suffix);
+      if (probed) return probed;
+    }
+  }
+  return undefined;
+}
+
+/** 态行优选(㊄):同名基础行与「·夜内态」派生行并存时按时辰选态行(带图态行在册实证 mp381wo)。 */
+function preferSceneStateRow(row: Scene, timeOfDay: string | undefined, scenes: Scene[]): Scene {
+  const base = sceneBaseName(row.name);
+  if (row.name === base && !timeOfDay) return row;
+  const synonyms = timeOfDay ? sceneTimeOfDaySynonyms(timeOfDay) : [];
+  const siblings = scenes.filter((scene) => scene.name !== row.name && sceneBaseName(scene.name) === base);
+  if (!siblings.length) return row;
+  // 时辰已知:挑态名(·后段)含时辰族词的派生行;未知/无匹配=基础行。
+  for (const sibling of siblings) {
+    const suffix = sibling.name.split("·").slice(1).join("·");
+    if (suffix && synonyms.some((word) => suffix.includes(word))) return sibling;
+  }
+  return row;
+}
+
+export interface ResolvedStoryboardScene {
+  /** 态行优选后的三库行(null=五级序全断)。 */
+  row: Scene | null;
+  fact: CanonicalSceneFact | null;
+  source: "asset-id" | "scene-name-field" | "text-probe" | "name-match" | null;
+  timeOfDay?: string;
+  warnings: string[];
+}
+
+/**
+ * 场景五级序解析(1117 C2 B1/B4 主修):
+ * ㊠associateAssetsIds scene_ 前缀 id 精确命中(S12 金水塾馆 id 在行而未被读)
+ * →㊡sceneName 新字段(分镜表场景列落库)→㊢prompt/videoDesc 场名探针(三库
+ * 行名 includes,回填 S8/S9)→㊣名匹配+守卫(角色库命中查询词不作场景名,
+ * 晏燎⊂晏燎静室根除)→㊤态行优选(按时辰选「·夜内态」派生行)。
+ */
+export function resolveStoryboardScene(shot: StoryboardSceneResolvableShot): ResolvedStoryboardScene {
+  const warnings: string[] = [];
+  const scenes = projectScenes();
+  let row: Scene | null = null;
+  let source: ResolvedStoryboardScene["source"] = null;
+
+  // ㊠ id 精确命中(associateAssetsIds 的 scene_ 前缀)。
+  const sceneIds = (shot.associateAssetsIds ?? []).filter((id) => id.startsWith("scene_"));
+  if (sceneIds.length) {
+    row = scenes.find((scene) => sceneIds.includes(scene.id)) ?? null;
+    if (row) source = "asset-id";
+  }
+  // ㊡ sceneName 新字段(精确名优先,复合名双向包含兜底)。
+  if (!row) {
+    const sceneName = shot.sceneName?.trim();
+    if (sceneName) {
+      row = scenes.find((scene) => scene.name === sceneName)
+        ?? scenes.find((scene) => nameMatches(sceneName, scene.name)) ?? null;
+      if (row) source = "scene-name-field";
+    }
+  }
+  // ㊢ 画面文本场名探针(三库行名 includes 文本;多命中取最长名=最具体)。
+  if (!row) {
+    const text = [shot.videoDesc, shot.prompt].filter(Boolean).join("\n");
+    if (text) {
+      const hits = scenes
+        .filter((scene) => scene.name.trim().length >= 2 && text.includes(scene.name.trim()))
+        .sort((left, right) => right.name.trim().length - left.name.trim().length);
+      if (hits.length) {
+        row = hits[0]!;
+        source = "text-probe";
+      }
+    }
+  }
+  // ㊣ 名匹配+角色守卫(B4:查询词命中角色库者不得作场景名)。
+  if (!row) {
+    const guardedNames = (shot.associateAssetsNames ?? [])
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .filter((name) => !isCharacterLibraryName(name));
+    const excluded = (shot.associateAssetsNames ?? []).filter((name) => isCharacterLibraryName(name));
+    if (excluded.length) warnings.push(`scene-query-guarded:${excluded.join("、")}`);
+    row = findSceneRowForNames(guardedNames);
+    if (row) source = "name-match";
+  }
+
+  // 时辰(㊤源含行内标记)→态行优选(㊄)。
+  const timeOfDay = resolveShotTimeOfDay(shot, row);
+  const finalRow = row ? preferSceneStateRow(row, timeOfDay, scenes) : null;
+  if (finalRow !== row && finalRow) warnings.push(`scene-state-row:${sceneBaseName(row!.name)}→${finalRow.name}`);
+
+  const fact: CanonicalSceneFact | null = finalRow
+    ? {
+        name: finalRow.name,
+        location: finalRow.location || undefined,
+        time: timeOfDay || finalRow.time || undefined,
+        atmosphere: finalRow.atmosphere || undefined,
+      }
+    : null;
+  return { row: finalRow, fact, source, ...(timeOfDay ? { timeOfDay } : {}), warnings };
+}
+
+// ─── 1117 C2 B3:画面描述列环境句萃取(videoDesc 在位时 prompt 列不再整段弃) ───
+// S10 实弹:prompt「屋内灯下:墨板…孩子…」整段丢弃→纯山水;分句剔除含可见
+// 角色名的子句,余句含环境物词才并入(来源事实词面,不编造)。
+const ENVIRONMENT_CLAUSE_WORDS: readonly string[] = [
+  "灯", "屋内", "门", "窗", "风", "墨板", "孩童", "孩子", "院", "街", "桌", "床", "檐",
+  "雾", "尘", "堂", "廊", "墙", "火", "青瓦", "房", "雨", "油灯", "走廊", "角落", "队列",
+];
+
+/** 分句(句级 [。;；\n]);含可见角色名的子句剔除,余句含环境物词才收。 */
+export function extractEnvironmentClauses(
+  promptText: string,
+  characterNames: readonly string[],
+): string[] {
+  const names = characterNames.map((name) => name.trim()).filter((name) => name.length >= 2);
+  return promptText
+    .split(/[。;；\n]/)
+    .map((clause) => clause.trim())
+    .filter(Boolean)
+    .filter((clause) => !names.some((name) => clause.includes(name)))
+    .filter((clause) => ENVIRONMENT_CLAUSE_WORDS.some((word) => clause.includes(word)));
+}
+
+// ─── 1117 C2 G5:导演规划⑦衍生资产预划清单(最新 directorPlan data 文本解析) ───
+export interface DerivedAssetPlanEntry {
+  /** 复合名(晏燎·夜课少年);无「·」行=基础态确认(归元断剑),baseName=全名。 */
+  compoundName: string;
+  baseName: string;
+  /** 衍生状态列原文(逐字,如「基础态锁定:灰布短褐袖口短一截、…」)。 */
+  stateText: string;
+  kind: "role" | "scene" | "tool";
+}
+
+/**
+ * 规划⑦清单读取(最新版 directorPlan;agent-work-data data 文本里的
+ * 「## ⑦ 衍生资产预划清单」markdown 表)。kind=衍生状态列词面(场景时间态
+ * →scene/道具→tool/其余→role)。查无=空数组(消费方 fail-open)。
+ */
+export function collectDerivedAssetPlanEntries(episodeId?: string): DerivedAssetPlanEntry[] {
+  const entries = (useStudioStore.getState().agentWorkData ?? [])
+    .filter((item) => item.key === "directorPlan" && (!item.episodeId || !episodeId || item.episodeId === episodeId));
+  const latest = [...entries].sort((left, right) => right.updatedAt - left.updatedAt)[0];
+  if (!latest) return [];
+  const marker = latest.data.indexOf("衍生资产预划清单");
+  if (marker < 0) return [];
+  const section = latest.data.slice(marker);
+  const rows: DerivedAssetPlanEntry[] = [];
+  for (const line of section.split(/\r?\n/)) {
+    const cells = line.trim().startsWith("|")
+      ? line.trim().slice(1, -1).split("|").map((cell) => cell.trim())
+      : [];
+    if (cells.length < 2) continue;
+    const compoundName = cells[0] ?? "";
+    const stateText = cells[1] ?? "";
+    if (!compoundName || !stateText || compoundName === "资产名" || compoundName.startsWith("-")) continue;
+    const kind: DerivedAssetPlanEntry["kind"] = stateText.includes("场景") ? "scene"
+      : stateText.includes("道具") ? "tool" : "role";
+    rows.push({
+      compoundName,
+      baseName: sceneBaseName(compoundName),
+      stateText,
+      kind,
+    });
+  }
+  return rows;
+}
+
+/** 角色名的衍生预划项(名单/复合名按 nameMatches 双向互认)。 */
+export function findDerivedPlanEntryForCharacter(
+  entries: readonly DerivedAssetPlanEntry[],
+  characterName: string,
+): DerivedAssetPlanEntry | undefined {
+  return entries.find(
+    (entry) => entry.kind === "role"
+      && (entry.baseName === characterName || nameMatches(characterName, entry.baseName)),
+  );
 }
 
 /**
@@ -134,6 +427,12 @@ function resolveFactionColorLines(shot: StoryboardItem): string[] {
 export interface StoryboardCanonicalContextResult {
   subject: CanonicalSubjectInput;
   sentence: ReturnType<typeof buildCanonicalSubjectSentence>;
+  /** 1117 C2:装配层全量告警(主体句告警+场景/时辰/衍生/道具萃取留痕)。 */
+  warnings: string[];
+  /** 1117 C2 门A 锚词集合(场景/时辰;主角锚在传输期并槽位 title)。 */
+  anchors: Omit<CanonicalAnchorSet, "protagonist"> & { protagonist?: string };
+  /** 门A 软断言名单(visibleCharacters 全名;缺名=warn 留痕不拒发)。 */
+  anchorSoftNames: string[];
 }
 
 /** 建流期正典主体句上下文(主体句=图内 prompt 节点值;装配告警留痕)。 */
@@ -142,6 +441,65 @@ export async function buildStoryboardCanonicalContext(
 ): Promise<StoryboardCanonicalContextResult> {
   const visibleCharacters = shot.shotSemantics?.visibleCharacters ?? [];
   const identities = await resolveIdentityParagraphs(visibleCharacters.map((character) => character.name));
+
+  // 1117 C2 G1:场景五级序+时辰五源序(态行优选含在内)。
+  const sceneResolution = resolveStoryboardScene(shot);
+
+  // 1117 C2 B3:videoDesc 在位时 prompt 列环境句萃取兜底(不再整段弃)。
+  const environmentClauses = shot.videoDesc?.trim() && shot.prompt?.trim() && shot.prompt.trim() !== shot.videoDesc.trim()
+    ? extractEnvironmentClauses(shot.prompt, visibleCharacters.map((character) => character.name))
+    : [];
+
+  // 1117 C2 要素⑤:visibleProps 空而镜点名 tool 资产时,name-only 并入配器句
+  // (位置/状态未知不猜;§4.5 道具恒不入参考槽维持)。
+  let visibleProps: NonNullable<CanonicalSubjectInput["visibleProps"]> =
+    (shot.shotSemantics?.visibleProps ?? []).map((prop) => ({
+      name: prop.name,
+      position: prop.position || undefined,
+      state: prop.state || undefined,
+    }));
+  const propWarnings: string[] = [];
+  if (!visibleProps.length && (shot.associateAssetsNames ?? []).length) {
+    const bridge = getStudioAssetsBridge();
+    if (bridge?.batchMatch) {
+      const toolMatches = await bridge
+        .batchMatch({ type: "tool", names: shot.associateAssetsNames ?? [] })
+        .catch(() => [] as Array<{ name: string; asset: unknown }>);
+      const toolProps = (toolMatches ?? [])
+        .map((entry) => (entry as { asset?: { name?: string } }).asset?.name || entry.name)
+        .filter(Boolean)
+        .map((name) => ({ name }));
+      if (toolProps.length) {
+        visibleProps = toolProps;
+        propWarnings.push(`tool-prop-name-only:${toolProps.map((prop) => prop.name).join("、")}`);
+      }
+    }
+  }
+
+  // 1117 C2 G5③:衍生行缺席(无图可挂)时形态句文字承载进动作槽尾+warn。
+  const derivedStateNotes: string[] = [];
+  const derivedWarnings: string[] = [];
+  if (visibleCharacters.length) {
+    const planEntries = collectDerivedAssetPlanEntries(shot.episodeId);
+    const bridge = getStudioAssetsBridge();
+    if (planEntries.length && bridge?.getByName) {
+      for (const character of visibleCharacters) {
+        const entry = findDerivedPlanEntryForCharacter(planEntries, character.name);
+        if (!entry) continue;
+        const derivedAsset = await bridge
+          .getByName({ type: "role", name: entry.compoundName })
+          .catch(() => null);
+        const derivedHasImage = Boolean(
+          derivedAsset && (derivedAsset.previewUrl || derivedAsset.thumbnailUrl || derivedAsset.filePath),
+        );
+        if (!derivedHasImage) {
+          derivedStateNotes.push(`「${entry.compoundName}」:${entry.stateText}`);
+          derivedWarnings.push(`derived-missing:${entry.compoundName}`);
+        }
+      }
+    }
+  }
+
   const subject: CanonicalSubjectInput = {
     description: shot.videoDesc || shot.prompt || "",
     identities,
@@ -152,26 +510,35 @@ export async function buildStoryboardCanonicalContext(
       actionIn: character.actionIn || undefined,
       actionOut: character.actionOut || undefined,
     })),
-    visibleProps: (shot.shotSemantics?.visibleProps ?? []).map((prop) => ({
-      name: prop.name,
-      position: prop.position || undefined,
-      state: prop.state || undefined,
-    })),
-    scene: resolveSceneFact(shot),
+    visibleProps,
+    scene: sceneResolution.fact,
+    ...(environmentClauses.length ? { environmentClauses } : {}),
+    ...(derivedStateNotes.length ? { derivedStateNotes } : {}),
     lighting: shot.continuityState?.lighting || undefined,
     factionColorLines: resolveFactionColorLines(shot),
   };
   const sentence = buildCanonicalSubjectSentence(subject);
-  if (sentence.warnings.length) {
+  const warnings = [...sentence.warnings, ...sceneResolution.warnings, ...propWarnings, ...derivedWarnings];
+  if (warnings.length) {
     void logEvent({
       level: "warn",
       category: "ai",
       operationId: createOperationId("storyboard-canonical-subject"),
       message: "Storyboard canonical subject assembled with fact gaps",
-      context: { shotId: shot.id, shotIndex: shot.index, warnings: sentence.warnings },
+      context: { shotId: shot.id, shotIndex: shot.index, warnings },
     });
   }
-  return { subject, sentence };
+  return {
+    subject,
+    sentence,
+    warnings,
+    anchors: {
+      ...(sceneResolution.fact ? { sceneName: sceneResolution.fact.name } : {}),
+      ...(sceneResolution.timeOfDay ? { timeOfDay: sceneResolution.timeOfDay } : {}),
+      ...(identities[0]?.name ? { protagonist: identities[0]?.name } : {}),
+    },
+    anchorSoftNames: visibleCharacters.map((character) => character.name).filter(Boolean),
+  };
 }
 
 // ─── 传输期槽位源提取(§4.5) ───
@@ -228,6 +595,10 @@ export interface StoryboardCanonicalTransportInput {
   instruction: ReturnType<typeof buildCanonicalTransportInstruction>;
   /** §4.5 槽位映射结果(含裁出名单)。 */
   mapping: ReturnType<typeof mapCanonicalReferenceSlots>;
+  /** 1117 C2 门A 锚词集合:主角锚=image_1 角色槽 title(零角色镜取 identities 首位)。 */
+  anchors: CanonicalAnchorSet;
+  /** 门A 软断言名单(visibleCharacters 全名;缺名=warn 可观测)。 */
+  anchorSoftNames: string[];
 }
 
 /**
@@ -246,7 +617,7 @@ export async function buildStoryboardCanonicalTransportInput(
   const momentNote = frameId
     ? shot.keyframes?.find((frame) => frame.frameId === frameId)?.momentDescription
     : undefined;
-  const { subject } = await buildStoryboardCanonicalContext(shot);
+  const { subject, anchors: contextAnchors, anchorSoftNames } = await buildStoryboardCanonicalContext(shot);
   const effectiveSubject = momentNote?.trim()
     ? { ...subject, momentNote: momentNote.trim() }
     : subject;
@@ -260,6 +631,12 @@ export async function buildStoryboardCanonicalTransportInput(
       .map((slot, index) => ({ ...slot, slot: (index + 1) as 1 | 2 | 3 }));
     mapping.slots = kept;
   }
+  // 1117 C2 门A:主角锚=角色槽 title(丢槽重排后按存活槽取,零角色镜取
+  // identities 首位;衍生复合名「晏燎·夜课少年」取基础名——主体句身份段写
+  // 的是角色名,锚词同面)。
+  const protagonistSlotTitle = mapping.slots.find((slot) => slot.role === "character")?.title;
+  const protagonist = (protagonistSlotTitle ? sceneBaseName(protagonistSlotTitle) : undefined)
+    ?? contextAnchors.protagonist;
   if (mapping.dropped.length) {
     void logEvent({
       level: "info",
@@ -277,6 +654,11 @@ export async function buildStoryboardCanonicalTransportInput(
   return {
     instruction: buildCanonicalTransportInstruction({ subject: effectiveSubject, slots: mapping.slots }),
     mapping,
+    anchors: {
+      ...contextAnchors,
+      ...(protagonist ? { protagonist } : {}),
+    },
+    anchorSoftNames,
   };
 }
 

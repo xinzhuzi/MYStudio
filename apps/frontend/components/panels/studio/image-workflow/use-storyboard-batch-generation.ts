@@ -664,7 +664,17 @@ async function generateOneShot(
   // scene 落地驱动(1116,PRD §五.5):分镜关联场景走产品正路入库/出图
   // (storeRowInAssetLibrary 同款 assets:add / generateAsset→收尾入库),禁直写
   // SQLite;幂等(库内已有图零动作),fail-open 不阻断生图主链。
+  // 1117 C2 G5②:衍生资产落地管道(导演规划⑦清单→assets:add 只建行不烧卡,
+  // 幂等 fail-open)同点 pre-flight——0 衍生行缺口在此闭环。
   await ensureStoryboardSceneAssetsLanded(shot);
+  // G5② 衍生落地(自身 fail-open):部分模块形(仅桩化场景落地的旧形测试床)
+  // 无该导出,缺席=跳过,不断生图主链。
+  try {
+    const sceneLanding = await import("./storyboard-scene-landing");
+    await sceneLanding.ensureStoryboardDerivedAssetsLanded?.(shot);
+  } catch {
+    // fail-open:衍生落行缺位不阻断分镜生图
+  }
   guard.assertCurrent();
   // 1116 换线正典:主体句=生成器五项序产出(§4.1-4.2),建流/迁移共用同源产物。
   const canonical = await buildStoryboardCanonicalContext(shot);

@@ -40,7 +40,17 @@ vi.mock("./storyboard-scene-landing", () => ({
 import { countShotsNeedingBatchGeneration, useStoryboardBatchGeneration } from "./use-storyboard-batch-generation";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useProjectStore } from "@/stores/project/project-store";
+import { useSceneStore } from "@/stores/library/scene-store";
 import { useStoryboardBatchSessionStore } from "@/stores/studio/storyboard-batch-session-store";
+
+const initialSceneState = useSceneStore.getState();
+/** 1117 C2 门A:给合成镜种场景行(五级序㊡/㊢ 需三库行在册)+时辰锚。 */
+function seedScene(name: string) {
+  useSceneStore.setState({
+    ...initialSceneState,
+    scenes: [{ id: `scene-${name}`, name, location: name, projectId: "proj", createdAt: 0, updatedAt: 0 } as never],
+  } as never);
+}
 
 const initialStudioState = useStudioStore.getState();
 const initialProjectState = useProjectStore.getState();
@@ -83,6 +93,7 @@ beforeEach(() => {
 afterEach(() => {
   useStudioStore.setState(initialStudioState, true);
   useProjectStore.setState(initialProjectState, true);
+  useSceneStore.setState(initialSceneState, true);
   useStoryboardBatchSessionStore.setState({ session: null });
 });
 
@@ -185,6 +196,9 @@ describe("useStoryboardBatchGeneration(stale 完整性与来源隔离)", () => {
   // 验尸:5 镜 lines 变而 sourceFingerprint 逐字节未变)不得被当新鲜跳过。
   // 桩抄 store 分片真源形态(snap-20261111 storyboards-002:sb-chapter-001-009)。
   it("指纹漂移(脏而未标)的单帧镜纳入批量重生成,不再冒充齐备", async () => {
+    // 1117 C2 门A 改钉:该镜 prompt 自带「夜+金水塾馆」锚词——种三库场景行
+    // 后五级序可解析,生成照走且 400 含锚;无场景行形态由门A 拒发留痕。
+    seedScene("金水塾馆");
     const sb = shot({
       id: "sb-chapter-001-009",
       prompt: "夜。金水塾馆三间青瓦房围一方小院，门楣上朽烂的木匾墨迹漫漶。",
@@ -543,7 +557,8 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
   });
 
   it("prefers the reference-bearing workflow when duplicate matches exist, and backfills references on a bare one (身份防线)", async () => {
-    resetStore([shot({ id: "sb-1", index: 1 })]);
+    seedScene("金水河码头");
+    resetStore([shot({ id: "sb-1", index: 1, sceneName: "金水河码头", timeOfDay: "夜" } as Partial<StoryboardItem>)]);
     resolvedReferences.value = [
       { imageUrl: "file://assets/ref-scene.png", title: "金水河码头", assetType: "scene", assetId: "sc-1" },
       { imageUrl: "file://assets/ref-zhaosi.png", title: "监工赵四", assetType: "character", assetId: "ch-1" },
@@ -582,7 +597,8 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
   });
 
   it("backfills resolved references onto a bare matched workflow before generating (S08 形态修复)", async () => {
-    resetStore([shot({ id: "sb-1", index: 1 })]);
+    seedScene("金水河码头");
+    resetStore([shot({ id: "sb-1", index: 1, sceneName: "金水河码头", timeOfDay: "夜" } as Partial<StoryboardItem>)]);
     resolvedReferences.value = [
       { imageUrl: "file://assets/ref-scene.png", title: "金水河码头", assetType: "scene", assetId: "sc-1" },
       { imageUrl: "file://assets/ref-zhaosi.png", title: "监工赵四", assetType: "character", assetId: "ch-1" },
@@ -626,7 +642,8 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
   });
 
   it("picks the fingerprintless reference-bearing workflow over a fingerprint-matched bare one (S08 真实形态)", async () => {
-    resetStore([shot({ id: "sb-1", index: 1, sourceFingerprint: "fp-real" })]);
+    seedScene("金水河码头");
+    resetStore([shot({ id: "sb-1", index: 1, sourceFingerprint: "fp-real", sceneName: "金水河码头", timeOfDay: "夜" } as Partial<StoryboardItem>)]);
     // 旧代:指纹匹配但零参考(排在数组前);新代:无指纹+带参考(直连脚本建流形态)
     const bare = createBareStoryboardGraph("sb-1", "wf-bare");
     const rich = {

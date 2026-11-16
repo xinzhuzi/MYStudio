@@ -15,9 +15,12 @@ import {
   updateImageWorkflowNode,
 } from "@/lib/studio/image-workflow";
 import {
+  assertCanonicalAnchors,
   findSubjectOverlapBlocks,
   getStoryboardBaseSubjectText,
   lintCanonicalPrompt,
+  type CanonicalAnchorSet,
+  type CanonicalAnchorViolation,
 } from "@/lib/studio/storyboard-canonical-prompt";
 import { buildStoryboardCanonicalTransportInput, cropSlotReferenceToSinglePose } from "./storyboard-canonical-context";
 import { useProjectStore } from "@/stores/project/project-store";
@@ -133,7 +136,54 @@ export async function runImageWorkflowNodeGeneration(
   if (isStoryboard) {
     const shot = useStudioStore.getState().storyboards.find((item) => item.id === graph.target.id);
     if (!shot) throw new Error("分镜行已不存在,无法按正典体裁装配提示词(请重新打开该分镜)");
-    const { instruction, mapping } = await buildStoryboardCanonicalTransportInput(shot, graph, targetNodeId);
+    const { instruction, mapping, anchors, anchorSoftNames } = await buildStoryboardCanonicalTransportInput(shot, graph, targetNodeId);
+    // 门A(1117 C2 剧情锚词断言,机器可判):场景名/时辰词族/主角名三硬项缺一
+    // =拒发+diagnostics warn(shotId/violations 结构化);visibleCharacters 全
+    // 名单=软断言 warn 留痕(防群像镜丢人可观测,不拒发)。零角色镜(personFree
+    // 且零身份段)主角锚不要求。单发=批量共用本函数一点覆盖;排位在体裁断言/
+    // 重叠预检之后(先保既有门,锚词门是加法不是替换)。
+    const assertAnchors = (prompt: string, anchorSetInput: CanonicalAnchorSet | undefined): void => {
+      // 锚集合缺席(调用方/测试桩只给 instruction+mapping)按空集处理:
+      // 不因字段缺位崩传输链。
+      const anchorSet: CanonicalAnchorSet = anchorSetInput ?? {};
+      // 三锚全未解析=该镜无任何可锚信号(合成镜/无语义无场景无主角的最小行),
+      // 硬拒会把零信息镜变成不可生成——门A 只在「至少一锚已解析」时全量硬断
+      // (真实剧情镜恒有主角锚,场/时缺=断链,拒发留痕逼数据修复);全未解析镜
+      // 的可观测性由场景落地驱动 scene-unresolved warn 承担。
+      const anyAnchorResolved = Boolean(anchorSet.sceneName || anchorSet.timeOfDay || anchorSet.protagonist);
+      if (!anyAnchorResolved) {
+        logMissingNames(prompt);
+        return;
+      }
+      const anchorViolations: CanonicalAnchorViolation[] = assertCanonicalAnchors(prompt, anchorSet, {
+        requireScene: true,
+        requireTime: true,
+        requireProtagonist: Boolean(anchorSet.protagonist),
+      });
+      if (anchorViolations.length) {
+        void logEvent({
+          level: "warn",
+          category: "ai",
+          operationId: createOperationId("storyboard-canonical-anchors"),
+          message: "Storyboard canonical prompt rejected by anchor assertion (gate A)",
+          context: { shotId: shot.id, shotIndex: shot.index, violations: anchorViolations, anchors: anchorSet },
+        });
+        throw new Error(`分镜正典提示词未过剧情锚词断言:${anchorViolations.map((v) => `${v.anchor}(${v.detail})`).join("、")}`);
+      }
+      logMissingNames(prompt);
+    };
+    const logMissingNames = (prompt: string): void => {
+      const missingNames = (anchorSoftNames ?? []).filter((name) => name && !prompt.includes(name));
+      if (missingNames.length) {
+        void logEvent({
+          level: "warn",
+          category: "ai",
+          operationId: createOperationId("storyboard-canonical-anchor-soft"),
+          message: "Storyboard canonical prompt missing visible character names (soft)",
+          context: { shotId: shot.id, shotIndex: shot.index, missingNames },
+        });
+      }
+    };
     // 硬纪律门(§4.2,建流/传输同源断言):违规=引擎 1017 运行时门必拒,
     // 网络前拦截省一次排队烧图。
     const violations = lintCanonicalPrompt(instruction.prompt, instruction.genre, mapping.slots.length);
@@ -159,6 +209,9 @@ export async function runImageWorkflowNodeGeneration(
       });
       throw new Error(`分镜正典提示词与型底座重叠(≥10 字重复块 ${overlaps.length} 处),须去重:…${overlaps[0]!.block}…`);
     }
+    // 锚集合字段缺席(旧形桩/非正典装配路径)=门A 不适用;真实装配链恒给
+    // anchors(含空集)——生产路径三硬项 fail-closed 不变。
+    if (anchors) assertAnchors(instruction.prompt, anchors);
     canonicalPrompt = instruction.prompt;
     if (mapping.slots.length) {
       // 槽位图 dataURL 解析+准备(节点只存轻量受管路径,传输才转 base64,
@@ -168,6 +221,15 @@ export async function runImageWorkflowNodeGeneration(
       // 留痕+指令体重排,宁缺勿染)——赵四类无单姿资产整卡入 image_1=
       // 转面稿四副本。
       const resolvedSlotUrls = await Promise.all(mapping.slots.map(async (slot) => {
+        // 1117 C2 断点C 修:URL 直读优先——节点选中 URL(图库单姿/态行图,
+        // S12 元婴期_正视图)即槽图真身;asset-file://+project-file:// 域走
+        // 既有 readUrlDataUrl 桥(受管根校验在主进程)。assetId 折叠回读
+        // (readImageDataUrl 只读行级 filePath 主图)降为兜底——单姿优选/
+        // 阶段选择不再被一根 assetId 管道静默短路(像素级定谳 MAD 0.7 实证)。
+        const direct = assetBridge?.readUrlDataUrl
+          ? await assetBridge.readUrlDataUrl(slot.imageUrl).catch(() => null)
+          : null;
+        if (direct) return direct;
         const assetId = assetRefIdsByUrl.get(slot.imageUrl);
         if (!assetId || !assetBridge?.readImageDataUrl) return slot.imageUrl;
         return await assetBridge.readImageDataUrl(assetId).catch(() => null) ?? slot.imageUrl;
@@ -212,7 +274,30 @@ export async function runImageWorkflowNodeGeneration(
         const rebuilt = await buildStoryboardCanonicalTransportInput(shot, graph, targetNodeId, dropSlotIndexes);
         canonicalPrompt = rebuilt.instruction.prompt;
         effectiveSlots = rebuilt.mapping.slots;
+        // 1117 C2 门A:丢槽重排后的终稿复验(主角锚随存活槽重取,宁缺勿染
+        // 与锚词门双卡);锚集合缺席同上不适用。
+        if (rebuilt.anchors) assertAnchors(rebuilt.instruction.prompt, rebuilt.anchors);
       }
+      // 门B(1117 C2 参考槽对账记录,门C 审计脚本消费):槽真身=节点选中
+      // URL(断点C 直读),场景/角色槽位 vs dropped 名单 vs 锚词集合逐镜留痕
+      // ——图内场景参考节点有图必在槽∨dropped(mapCanonicalReferenceSlots
+      // 结构保证),此记录把对账面变成机器可审计。
+      void logEvent({
+        level: "info",
+        category: "workflow",
+        operationId: createOperationId("storyboard-slot-reconciliation"),
+        message: "Storyboard canonical slot reconciliation (gate B record)",
+        context: {
+          shotId: shot.id,
+          shotIndex: shot.index,
+          anchors,
+          slots: effectiveSlots.map((slot) => ({
+            slot: slot.slot, role: slot.role, title: slot.title,
+            imageUrl: slot.imageUrl,
+          })),
+          dropped: mapping.dropped,
+        },
+      });
       const keptUrls = croppedSlotUrls.filter((url): url is string => url !== null);
       transportReferenceImages = await prepareReferenceImages(keptUrls);
       assertImageWorkflowContinuityCapability(

@@ -47,6 +47,8 @@ export interface StoryboardTableRow {
   segmentTitle?: string;
   description: string;
   scene: string;
+  /** 1117 C2(B2 主修):场头时辰(「## 场N:场景名｜时辰:夜·内」扩捕);存量 7/8/14/15 列无=undefined 零回归。 */
+  timeOfDay?: string;
   associateAssetsNames: string[];
   duration: number;
   shotSize: string;
@@ -100,6 +102,14 @@ export function buildStoryboardTableMessages(input: BuildStoryboardTableInput): 
     "角色台词保留 `角色名：台词内容`；旁白/OS/VO 照剧本原文写 `旁白：内容`（逐字照录，不另造旁白）；本场确无任何语音的纯视觉镜写 `无台词`（纯视觉段连续 ≤15 秒），禁止为凑字段编造旁白。",
     "分镜序号铁律：全表分镜序号从 1 起全局连续递增（1..N），不得按场/按片段重置编号（2026-08-22 实证：逐场重编号会被解析整表拒绝）。",
     `时长预算（H3 视频线）：单集总时长 ${durationBudget}；每镜基准 8~15 秒、一镜承载 2~4 句台词——H3 成片按 17k+5 帧网格量化，最短一镜约 5.2 秒；台词、停顿与镜头停留要把时长撑满，禁 2–3 秒空镜过场；画面描述只写一个可见的戏眼/动作，时长由台词与停留承担，不为一镜堆叠多个复合交互动作（2026-10-10 裁定；11-16 单一戏眼对齐）。`,
+    // 1117 C2 剧情锚定铁律(B1/B2 生成侧根治):场头承载时辰/内外景(源自剧本
+    // 场头「金水塾馆 夜/内」),逐镜落库结构字段——散文化(「夜。」)与 slug
+    // (-night-)只是兜底回填路,不是正路。
+    "场头铁律（1117 C2）：每场标题必须写「## 场N：场景名｜时辰:时辰词·内/外｜参演角色：…」——时辰词从剧本场头逐字照录（夜/清晨/晨/日/白日/正午/黄昏/傍晚/暮），内外景标注内或外；场景名与剧本场头逐字一致，不得改写。",
+    // 1117 C2(B6):出镜语义名单口径=场头在场∩镜内可见(镜外者不列),
+    // 与 App 侧参考图 off-frame 滤网同向;drama 镜头段不点名(「那一片黑影」)
+    // 时仍须按在场事实列出镜语义。
+    "出镜语义铁律（1117 C2）：出镜语义 JSON 的 visibleCharacters = 场头在场人物 ∩ 本镜画面内可见者——镜外者不列（off-frame 防线），但画面内可见而镜头段落未点名者必须列出（名字/站位/朝向/入镜出镜动作逐人写实，禁漏在场者）。",
   ].join("\n");
   return {
     system: [skill, input.bibleContext, input.manualContext, voiceoverGuard, strict ? daojieCharacterExpressionGuidance("storyboard") : "", strict ? daojieFidelityBoundary("storyboard") : ""].filter(Boolean).join("\n\n---\n\n"),
@@ -130,6 +140,7 @@ export function parseStoryboardTable(
   const warnings: string[] = [];
   let currentScene = "";
   let currentSceneIndex: number | undefined;
+  let currentSceneTimeOfDay: string | undefined;
   let currentSegmentTitle = "";
   let currentAssetNames: string[] = [];
   let currentAssetNamesKind: "sceneRoles" | "explicit" = "explicit";
@@ -142,6 +153,7 @@ export function parseStoryboardTable(
     if (sceneMeta) {
       currentScene = sceneMeta.scene;
       currentSceneIndex = sceneMeta.index;
+      currentSceneTimeOfDay = sceneMeta.timeOfDay;
       currentSegmentTitle = "";
       currentAssetNames = sceneMeta.roles;
       currentAssetNamesKind = "sceneRoles";
@@ -215,6 +227,8 @@ export function parseStoryboardTable(
       errors.push(`列数不符（应为15列、14列、8列或7列，实为${fields.length}）：${line}`);
       continue;
     }
+    // 1117 C2(B2):场头时辰随场块落行(存量场头无时辰段=undefined 零回归)。
+    if (currentSceneTimeOfDay && !row.timeOfDay) row.timeOfDay = currentSceneTimeOfDay;
     if (currentSceneIndex !== undefined) {
       row.sceneIndex = currentSceneIndex;
       row.sourceEvidence = {
@@ -297,6 +311,12 @@ export function toStoryboardItems(
       prompt: row.description,
       videoDesc: row.action,
       assetIds: row.associateAssetsIds,
+      // 1117 C2(B1 主修):分镜表「场景」列落库——此前 row.scene 在解析层存活
+      // (:49)而落库丢弃=场景链断根因;五级序场景解析第㊁级消费。空场景列=
+      // undefined(零回归)。
+      ...(row.scene?.trim() ? { sceneName: row.scene.trim() } : {}),
+      // 1117 C2(B2):场头时辰落库(五源序时辰解析第一源);存量行无=undefined。
+      ...(row.timeOfDay?.trim() ? { timeOfDay: row.timeOfDay.trim() } : {}),
       // Fresh rows replace previous provenance even when no explicit heading exists.
       sourceEvidence: row.sourceEvidence,
       shouldGenerateImage: true,
@@ -357,17 +377,23 @@ export function serializeStoryboardTable(items: readonly StoryboardItem[]): stri
   let previousScene: NonNullable<StoryboardItem["sourceEvidence"]>["scene"];
   const rows = ordered.flatMap((item) => {
     const scene = item.sourceEvidence?.scene;
+    // 1117 C2(B1/B2 往返):场头带时辰(有值才带,存量零扰动);场景列投影
+    // item.sceneName 优先/sourceEvidence.scene 兜底。
+    const headingTime = item.timeOfDay?.trim();
     const headings = scene
       ? previousScene?.index === scene.index && previousScene.name === scene.name
         ? []
-        : [`## 场${scene.index}：${scene.name}`]
+        : [`## 场${scene.index}：${scene.name}${headingTime ? `｜时辰:${headingTime}` : ""}`]
       // An unnumbered heading clears parser context without inventing evidence.
       : previousScene ? ["## 场：—"] : [];
     previousScene = scene;
     const row = [
       item.index,
       item.prompt,
-      scene?.name || item.trackKey || "—",
+      // 1117 C2(B1 往返):有场头溯源时投影场头名(旧测试钉:heading 名优先,
+      // 不因场景列降级);无溯源(新落库场景列/存量无场头)才落 sceneName,
+      // 使 serialize→parse 往返保住 sceneName 五级序第㊁级;再兜 trackKey。
+      scene?.name || item.sceneName || item.trackKey || "—",
       formatTableList(item.associateAssetsNames),
       formatTableValue(item.duration),
       item.shotSemantics?.shotSize || "—",
@@ -481,6 +507,12 @@ function buildGroupedRow(
   collectLightingWarnings(soundRaw, "音效", warnings);
 
   const description = stripLightingTerms(descriptionRaw);
+  // 1117 C2(B6 生成侧滤网修):出镜语义已解析时并入名单再滤——镜内可见是语义
+  // 权威,drama 镜头段不点名(S10 类行「那一片黑影」)不再把在场角色在生成
+  // 即丢;镜外者仍由文本过滤(off-frame 防线 08-24 S08 实证保持)。
+  const shotSemantics = fields.length === 8
+    ? parseShotSemantics(fields[7]!, index, errors ?? [])
+    : undefined;
   return {
     index,
     sceneIndex: context.sceneIndex,
@@ -491,6 +523,7 @@ function buildGroupedRow(
       context.assetNames,
       context.assetNamesKind ?? "explicit",
       [fields[1], fields[5], fields[6]].filter(Boolean).join("\n"),
+      shotSemantics?.visibleCharacters.map((character) => character.name),
     ),
     duration: parseDuration(fields[2]!),
     shotSize: fields[3]!,
@@ -502,9 +535,7 @@ function buildGroupedRow(
     lines: fields[5]!,
     sound: stripLightingTerms(soundRaw),
     associateAssetsIds: context.assetIds,
-    shotSemantics: fields.length === 8
-      ? parseShotSemantics(fields[7]!, index, errors ?? [])
-      : undefined,
+    shotSemantics,
   };
 }
 
@@ -616,13 +647,21 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function parseSceneHeading(line: string): { index?: number; scene: string; roles: string[] } | null {
-  const match = line.match(/^##\s*场\s*(\d+)?[：:]\s*(.+?)(?:\s*[｜|]\s*参演角色[：:]\s*(.+))?$/);
+function parseSceneHeading(line: string): { index?: number; scene: string; timeOfDay?: string; roles: string[] } | null {
+  // 1117 C2(B2 生成侧根治):场头扩捕「## 场N:场景名｜时辰:夜·内｜参演角色:…」
+  // ——时辰源自剧本场头「金水塾馆 夜/内」,取「·/、/／/␣」前首词(夜·内→夜);
+  // 无时辰段的旧场头(存量协议)零影响。
+  const match = line.match(
+    /^##\s*场\s*(\d+)?[：:]\s*(.+?)(?:\s*[｜|]\s*时辰[：:]\s*([^｜|]*))?(?:\s*[｜|]\s*参演角色[：:]\s*(.+))?$/,
+  );
   if (!match) return null;
+  const rawTime = (match[3] ?? "").trim();
+  const timeOfDay = rawTime ? rawTime.split(/[·、／\/.．\s]+/)[0]?.trim() || undefined : undefined;
   return {
     index: match[1] ? Number.parseInt(match[1], 10) : undefined,
     scene: (match[2] ?? "").trim(),
-    roles: splitBracketList(match[3] ?? ""),
+    ...(timeOfDay ? { timeOfDay } : {}),
+    roles: splitBracketList(match[4] ?? ""),
   };
 }
 
@@ -655,10 +694,18 @@ function filterSceneRolesToFrame(
   names: string[],
   kind: "sceneRoles" | "explicit",
   frameText: string,
+  /** 1117 C2(B6):出镜语义 visibleCharacters 名单——语义在场=镜内可见,直通过滤。 */
+  semanticNames?: string[],
 ): string[] {
   if (kind !== "sceneRoles" || names.length === 0) return names;
+  // 语义在场=镜内可见(权威),与文本提名并行保留(语义名与段名单名按双向
+  // 包含互认,「监工赵四」vs「赵四」);两者皆无=画面外,滤除。
+  const semantic = (semanticNames ?? []).map((name) => name.trim()).filter(Boolean);
+  const semanticHit = (name: string): boolean =>
+    semantic.some((candidate) => name === candidate
+      || (name.length >= 2 && candidate.length >= 2
+        && (name.includes(candidate) || candidate.includes(name))));
   const text = frameText.replace(/\s+/g, "");
-  if (!text) return names;
   const mentioned = (name: string): boolean => {
     if (!name) return false;
     const probes = new Set<string>([name]);
@@ -672,7 +719,8 @@ function filterSceneRolesToFrame(
     }
     return false;
   };
-  return names.filter((name) => mentioned(name));
+  if (!text) return names;
+  return names.filter((name) => semanticHit(name) || mentioned(name));
 }
 
 function splitBracketList(value: string): string[] {

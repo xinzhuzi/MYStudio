@@ -647,7 +647,9 @@ describe("explicit production scene association", () => {
     const reparsed = parseStoryboardTable(serialized, "chapter-001", { requireShotSemantics: true });
     expect(reparsed.errors).toEqual([]);
     expect(reparsed.rows.map(item => item.sourceEvidence)).toEqual(original.map(item => item.sourceEvidence));
-    expect(reparsed.rows[1]?.scene).toBe(original[1]?.trackKey);
+    // 1117 C2(B1):场景列落库后,无场头行的场景格投影 sceneName(原=trackKey
+    // 钉的是「落库丢弃」旧行为);不造场头/不造溯源两道防线断言不变。
+    expect(reparsed.rows[1]?.scene).toBe("金水塾馆");
   });
 
   it("keeps unheaded legacy serialization free of invented production scene headings", () => {
@@ -656,7 +658,8 @@ describe("explicit production scene association", () => {
     const reparsed = parseStoryboardTable(serialized, "chapter-001", { requireShotSemantics: true });
     expect(serialized).not.toContain("## 场");
     expect(reparsed.errors).toEqual([]);
-    expect(reparsed.rows[0]?.scene).toBe(original[0]?.trackKey);
+    // 1117 C2(B1):场景格投影 sceneName(原=trackKey);零造场头+零造溯源不变
+    expect(reparsed.rows[0]?.scene).toBe("金水塾馆");
     expect(reparsed.rows[0]?.sourceEvidence).toBeUndefined();
   });
 
@@ -702,4 +705,104 @@ it("keeps mixed raw lines, canonical utterances and original nineteen shot IDs",
   expect(result[0].lines).toBe(rows[0].lines);
   expect(result[0].speechUtterances?.map(p => p.speakerId)).toEqual(["narrator", "character:dugu"]);
   expect(result[0].ttsSpokenText).toBe("风起。 借灯。");
+});
+
+// ─── 1117 C2 G1(B1/B2/B6):场头时辰扩捕+场景列落库+语义名单并入镜级滤网 ──────
+
+describe("1117 C2 场头时辰与场景列落库", () => {
+  const semantic = JSON.stringify({
+    sceneViewpointId: "hall-night-v1", personFree: false,
+    visibleCharacters: [{ name: "晏燎", position: "北墙角落", orientation: "正面", actionIn: "盘坐", actionOut: "呼吸" }],
+    visibleProps: [], actionIn: "入画", actionOut: "出画",
+  });
+
+  it("场头「## 场N:场景名｜时辰:夜·内｜参演角色:…」扩捕:时辰取首词(夜·内→夜)", () => {
+    const md = [
+      "## 场3:金水塾馆｜时辰:夜·内｜参演角色:独孤剑尘、管事、晏燎",
+      "| 1 | 墨板前开讲 | 5 | 中景 | 静止 | 独孤剑尘：起。 | 无 |",
+    ].join("\n");
+    const { rows, errors } = parseStoryboardTable(md, "chapter-001");
+    expect(errors).toEqual([]);
+    expect(rows[0]).toMatchObject({ scene: "金水塾馆", timeOfDay: "夜" });
+  });
+
+  it("15 列:场景列→item.sceneName 落库(B1 主修),场头时辰→item.timeOfDay(B2)", () => {
+    const parsed = parseStoryboardTable([
+      "## 场4：金水塾馆｜时辰:夜·内",
+      `| 1 | 屋内灯下 | 金水塾馆 | [独孤剑尘] | 6 | 中景 | 静止 | 开讲 | 正面 | 中景 | 平静 | 无台词 | 无 | [scene_j, char_d] | ${semantic} |`,
+    ].join("\n"), "chapter-001");
+    const items = toStoryboardItems(parsed.rows, "chapter-001", []);
+    expect(items[0]?.sceneName).toBe("金水塾馆");
+    expect(items[0]?.timeOfDay).toBe("夜");
+  });
+
+  it("存量 7 列协议(无时辰场头):timeOfDay=undefined 零回归", () => {
+    const md = [
+      "## 场1：金水河码头",
+      "| 1 | 河雾压低 | 4 | 远景 | 缓推 | 旁白：河雾压低。 | 水声 |",
+    ].join("\n");
+    const { rows, errors } = parseStoryboardTable(md, "chapter-001");
+    expect(errors).toEqual([]);
+    expect(rows[0]?.timeOfDay).toBeUndefined();
+    expect(toStoryboardItems(rows, "chapter-001", [])[0]?.timeOfDay).toBeUndefined();
+  });
+
+  it("serialize 往返:新列(场景列 sceneName 优先+场头带时辰)不丢", () => {
+    const parsed = parseStoryboardTable([
+      "## 场4：金水塾馆｜时辰:夜·内",
+      `| 1 | 屋内灯下 | 金水塾馆 | [独孤剑尘] | 6 | 中景 | 静止 | 开讲 | 正面 | 中景 | 平静 | 无台词 | 无 | [] | ${semantic} |`,
+    ].join("\n"), "chapter-001");
+    const items = toStoryboardItems(parsed.rows, "chapter-001", []);
+    const serialized = serializeStoryboardTable(items);
+    expect(serialized).toContain("## 场4：金水塾馆｜时辰:夜");
+    const reparsed = parseStoryboardTable(serialized, "chapter-001");
+    expect(reparsed.errors).toEqual([]);
+    expect(reparsed.rows[0]).toMatchObject({ scene: "金水塾馆", timeOfDay: "夜" });
+    const roundItems = toStoryboardItems(reparsed.rows, "chapter-001", []);
+    expect(roundItems[0]?.sceneName).toBe("金水塾馆");
+    expect(roundItems[0]?.timeOfDay).toBe("夜");
+  });
+
+  it("B6:出镜语义已解析时 visibleCharacters 名单并入镜级滤网(drama 段不点名不再丢人)", () => {
+    const twoPersonSemantic = JSON.stringify({
+      sceneViewpointId: "hall-night-v1", personFree: false,
+      visibleCharacters: [
+        { name: "独孤剑尘", position: "墨板前", orientation: "正面", actionIn: "开讲", actionOut: "停讲" },
+        { name: "晏燎", position: "北墙角落", orientation: "正面", actionIn: "盘坐", actionOut: "呼吸" },
+      ],
+      visibleProps: [], actionIn: "入画", actionOut: "出画",
+    });
+    const md = [
+      "## 场3：金水塾馆｜参演角色：[独孤剑尘, 管事, 晏燎]",
+      `| 1 | 那一片黑影盘坐,只一角灯焰定向 | 5 | 全景 | 静止 | 无 | 灯焰声 | ${twoPersonSemantic} |`,
+    ].join("\n");
+    const { rows, errors } = parseStoryboardTable(md, "chapter-001");
+    expect(errors).toEqual([]);
+    // 画面文本零提名,但语义 JSON 明列独孤剑尘+晏燎→双保留(S10 类行不丢人)
+    expect(rows[0]?.associateAssetsNames).toContain("晏燎");
+    expect(rows[0]?.associateAssetsNames).toContain("独孤剑尘");
+    // 管事:语义不在场+文本零提名=镜外,滤除(S08 防线不破)
+    expect(rows[0]?.associateAssetsNames).not.toContain("管事");
+  });
+
+  it("B6:镜外者仍被滤(语义与文本双缺,S08 防线不破)", () => {
+    const personFreeSemantic = JSON.stringify({
+      sceneViewpointId: "hall-day-v1", personFree: true,
+      visibleCharacters: [], visibleProps: [], actionIn: "入画", actionOut: "出画",
+    });
+    const md = [
+      "## 场2：顺风街当铺｜参演角色：[独孤剑尘, 赵四]",
+      `| 1 | 柜台高差压下,街面空旷 | 4 | 中景 | 静止 | 无 | 市声 | ${personFreeSemantic} |`,
+    ].join("\n");
+    const { rows } = parseStoryboardTable(md, "chapter-001");
+    expect(rows[0]?.associateAssetsNames).toEqual([]);
+  });
+
+  it("场头铁律进 buildStoryboardTableMessages(时辰/内外景+出镜语义口径)", () => {
+    const messages = buildStoryboardTableMessages({ episodeId: "e1", scriptText: "剧本" });
+    expect(messages.system).toContain("场头铁律");
+    expect(messages.system).toContain("时辰:");
+    expect(messages.system).toContain("出镜语义铁律");
+    expect(messages.system).toContain("镜外者不列");
+  });
 });

@@ -6,7 +6,8 @@ import type { ImageAspectRatio, ImageResolution } from "@/lib/ai/image-size-pres
 export type { AssetType } from "@/lib/ai/prompt-polisher";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import { DaojiePromptContractError, compileDaojiePrompt, lintDaojieSubjectRisks } from "@/lib/ai/daojie-prompt-contract";
-import { stripDaojieSubjectStyleWordsForTransport } from "@/lib/studio/daojie-style-word-strip";
+import { DAOJIE_SUBJECT_STYLE_WORDS, stripDaojieSubjectStyleWordsForTransport } from "@/lib/studio/daojie-style-word-strip";
+import { REALISM_WORDS } from "@/lib/studio/storyboard-canonical-prompt";
 import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
 import { AssetType, PolishRequest, PolishResult, batchPolishAssetPrompts, polishAssetPrompt, sanitizeExtendedManualPrompt, selectDaojiePaletteSchemeForAsset } from "@/lib/ai/prompt-polisher";
 import { applyMatchedAssets, collectAndMatchAssets, markAssetsPolishing, saveGeneratedAssetImage, updateStoreWithResult, writePolishErrorToStore, writePolishResultToStore } from "./asset-generation-store-writers";
@@ -217,6 +218,32 @@ export async function generateAsset(
       }
       prompt = compiled.providerPrompt;
       negativePrompt = undefined;
+      // 1117 C2 断点B(场景轨门禁存活,改生成侧·引擎 4013 零改):编译包装层
+      // (style.gongbi-base 模块文,sha256 契约真源)自带工笔/白描/连环画——
+      // 引擎 t2i 节点对整个正向提示词按主体句门全查(my_qi21_api_pe:1143
+      // is_subject=True),12 连拒实证。送门前同款剥(传输位剥词,契约真源
+      // 不动,风格语义由底座承担)+同源词表硬 lint(lintCanonicalPrompt 同表:
+      // DAOJIE_SUBJECT_STYLE_WORDS+REALISM_WORDS),残留=拒发留痕不排队烧图。
+      {
+        const gateStripped = stripDaojieSubjectStyleWordsForTransport(prompt);
+        const gateLintHits = [...DAOJIE_SUBJECT_STYLE_WORDS, ...REALISM_WORDS]
+          .filter((word) => gateStripped.includes(word));
+        if (gateLintHits.length) {
+          void logEvent({
+            level: "warn",
+            category: "ai",
+            operationId: createOperationId("daojie-asset-gate-lint"),
+            message: "Daojie asset prompt rejected before provider (style words survived strip)",
+            context: { assetName: task.name, track: task.assetType, hits: gateLintHits },
+          });
+          return {
+            phase: "failed",
+            error: `道劫资产提示词送门前硬 lint 未过(画风词残留:${gateLintHits.join("、")}),已拒发`,
+            polishResult,
+          };
+        }
+        prompt = gateStripped;
+      }
       promptPolicy = "raw";
     }
 

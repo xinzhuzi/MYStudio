@@ -1,6 +1,12 @@
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
+import {
+  collectDerivedAssetPlanEntries,
+  findDerivedPlanEntryForCharacter,
+  resolveStoryboardScene,
+  sceneBaseName,
+} from "./storyboard-canonical-context";
 
 /**
  * 分镜关联资产 → 参考图解析(P2 自动挂载)。
@@ -26,15 +32,27 @@ import type { ImageWorkflowOpenContext, StoryboardItem } from "@/types/studio";
  */
 export async function resolveStoryboardAssetReferences(
   storyboard: Pick<StoryboardItem, "associateAssetsNames">
-    & Partial<Pick<StoryboardItem, "videoDesc" | "prompt" | "lines" | "id">> | undefined,
+    & Partial<Pick<StoryboardItem, "videoDesc" | "prompt" | "lines" | "id" | "sceneName" | "timeOfDay" | "associateAssetsIds" | "shotSemantics" | "episodeId">> | undefined,
 ): Promise<ImageWorkflowOpenContext["assetReferences"]> {
   const names = storyboard?.associateAssetsNames ?? [];
-  if (!names.length) return [];
+  // 1117 C2 G3:场景名前置——G1 五级序解析出的场景名(id 命中/sceneName 落库/
+  // 文本探针/守卫名匹配+态行优选)进 scene 发查询名单,S8-S12 场景节点恢复
+  // 可挂(此前只吃 associateAssetsNames 名字,场景名不在即空转)。
+  const sceneResolution = storyboard ? resolveStoryboardScene(storyboard) : null;
+  const sceneQueryNames = sceneResolution?.fact
+    ? [sceneResolution.fact.name, sceneBaseName(sceneResolution.fact.name), ...names]
+        .filter(Boolean).filter((name, index, all) => all.indexOf(name) === index)
+    : names;
+  if (!names.length && !sceneQueryNames.length) return [];
   // 画面文本(身份防线 08-24 S08 实证): associateAssetsNames 记的是「镜所在
   // 场景的在场实体」,可能含画面外角色(如 S08 的独孤剑尘)——角色参考必须
   // 只挂画面描述/台词中提及者,否则参考图+身份锚点会把画面外主角画进镜里
   // 或顶替画面角色形象。场景/道具不滤(挂入帮画面画对环境与道具)。
-  const frameText = [storyboard?.videoDesc, storyboard?.prompt, storyboard?.lines]
+  // 1117 C2(B5):第四源=visibleCharacters 名单——语义在场=镜内可见=提名
+  // (S11 晏燎:videoDesc 只写「孩子们」不点名,语义 JSON 明列晏燎,参考图
+  // 被滤=口径错位;滤网认语义也认文本,镜外者仍守文本防线)。
+  const semanticNames = storyboard?.shotSemantics?.visibleCharacters.map((character) => character.name) ?? [];
+  const frameText = [storyboard?.videoDesc, storyboard?.prompt, storyboard?.lines, semanticNames.join("\n")]
     .filter(Boolean).join("\n");
   // 无画面文本(最小调用/无描述)时不过滤——维持既有行为;有文本才执行画面过滤
   const hasFrameText = frameText.trim().length > 0;
@@ -56,12 +74,41 @@ export async function resolveStoryboardAssetReferences(
   }
 
   const matches = await Promise.all([
-    bridge.batchMatch({ type: "scene", names }),
+    // 1117 C2 G3:scene 发=G1 解析名前置的 sceneQueryNames(id 命中/落库场景
+    // 名/文本探针回填;态行名+基础名双查)。
+    bridge.batchMatch({ type: "scene", names: sceneQueryNames }),
     bridge.batchMatch({ type: "role", names }),
     // L1 道具第三发(11-15 断点①):DB 实型 tool 从未被查询——道具参考图在
     // 全链任何一环都不可能挂载;桥查询词 "tool",引用层落 "prop"(见头注两词分工)
     bridge.batchMatch({ type: "tool", names }),
   ].map((call) => call.catch(() => [] as Array<{ name: string; asset: unknown }>)));
+
+  // 1117 C2 G5①:role 发衍生优先——规划⑦复合名(「晏燎·夜课少年」)单发
+  // 查询,命中带图=该基础名的角色参考改挂衍生行(nameMatches 双向包含天然
+  // 命中;显式第二发防与基础名混发后 pickBestAssetRow completeness 择优
+  // 不确定——衍生先查先中即定)。
+  const derivedPlanEntries = semanticNames.length ? collectDerivedAssetPlanEntries(storyboard?.episodeId) : [];
+  const derivedCompoundNames: string[] = [];
+  for (const name of semanticNames) {
+    const entry = findDerivedPlanEntryForCharacter(derivedPlanEntries, name);
+    if (entry) derivedCompoundNames.push(entry.compoundName);
+  }
+  const derivedRoleMatches = derivedCompoundNames.length
+    ? await bridge
+        .batchMatch({ type: "role", names: derivedCompoundNames })
+        .catch(() => [] as Array<{ name: string; asset: unknown }>)
+    : [];
+  const derivedByBaseName = new Map<string, { title: string; imageUrl: string }>();
+  for (const entry of derivedRoleMatches) {
+    const asset = entry.asset as {
+      name?: string; previewUrl?: string; thumbnailUrl?: string;
+      images?: Array<{ name?: string; url?: string }>;
+    } | null;
+    const imageUrl = pickSingleViewAssetImage(asset, "character") ?? asset?.previewUrl ?? asset?.thumbnailUrl ?? "";
+    const title = asset?.name || entry.name;
+    if (!imageUrl || /^(?:data|blob):/i.test(imageUrl)) continue;
+    derivedByBaseName.set(sceneBaseName(title), { title, imageUrl });
+  }
 
   const references: NonNullable<ImageWorkflowOpenContext["assetReferences"]> = [];
   const seen = new Set<string>();
@@ -109,8 +156,20 @@ export async function resolveStoryboardAssetReferences(
       // 裁切兜底,storyboard-reference-sheet singlePoseCropRect)。
       const imageUrl = pickSingleViewAssetImage(asset, assetType)
         ?? asset?.previewUrl ?? asset?.thumbnailUrl ?? "";
-      const title = asset?.name || entry.name;
-      if (!imageUrl || /^(?:data|blob):/i.test(imageUrl) || seen.has(title)) {
+      let title = asset?.name || entry.name;
+      // 1117 C2 G5①:衍生行优先(带图)——基础名命中的角色参考改挂规划⑦衍生
+      // 行(单姿优选已在衍生匹配侧同款施加);衍生行缺席=维持基础行,形态句
+      // 由正典装配层文字承载(buildStoryboardCanonicalContext derived-missing)。
+      let effectiveImageUrl = imageUrl;
+      if (assetType === "character" && derivedByBaseName.size) {
+        const derived = derivedByBaseName.get(sceneBaseName(title));
+        if (derived && !seen.has(derived.title)) {
+          skipped.push({ title, assetType, reason: `derived-preferred:${derived.title}` });
+          title = derived.title;
+          effectiveImageUrl = derived.imageUrl;
+        }
+      }
+      if (!effectiveImageUrl || /^(?:data|blob):/i.test(effectiveImageUrl) || seen.has(title)) {
         skipped.push({ title, assetType, reason: "no-image-or-dup" });
         continue;
       }
@@ -119,7 +178,7 @@ export async function resolveStoryboardAssetReferences(
         continue;
       }
       seen.add(title);
-      references.push({ imageUrl, title, assetType, assetId: asset?.id });
+      references.push({ imageUrl: effectiveImageUrl, title, assetType, assetId: asset?.id });
       added += 1;
     }
   };

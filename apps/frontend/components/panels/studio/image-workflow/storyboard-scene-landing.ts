@@ -17,23 +17,33 @@
  */
 
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
+import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import { generateAsset, type AssetGenerationTask } from "@/lib/studio/asset-generation-orchestrator";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { Scene } from "@/stores/library/scene-store";
 import type { StoryboardItem } from "@/types/studio";
-import { findSceneRowForNames } from "./storyboard-canonical-context";
+import {
+  collectDerivedAssetPlanEntries,
+  resolveStoryboardScene,
+  type StoryboardSceneResolvableShot,
+} from "./storyboard-canonical-context";
 
 /** 本会话生成失败的场景名(不重试:逐镜重试=连续烧卡)。 */
 const failedSceneNames = new Set<string>();
 /** 生成中场景名(单镜+批量并发防双发)。 */
 const inFlightSceneNames = new Set<string>();
+/** 本会话已落行/落图的衍生复合名(幂等集,跨镜去重)。 */
+const landedDerivedNames = new Set<string>();
+
+type SceneLandingShot = Pick<StoryboardItem, "id" | "index">
+  & Partial<Pick<StoryboardItem, "associateAssetsNames" | "associateAssetsIds" | "sceneName" | "timeOfDay" | "prompt" | "videoDesc" | "shotSemantics" | "continuityState" | "episodeId">>;
 
 interface SceneLandingReport {
   shotId: string;
   sceneName: string;
-  action: "already-landed" | "row-created" | "row-create-failed" | "image-generated" | "image-generation-failed" | "skipped-no-visual-manual" | "skipped-in-flight" | "skipped-failed-this-session" | "skipped-no-bridge" | "skipped-no-scene-row";
+  action: "already-landed" | "row-created" | "row-create-failed" | "image-generated" | "image-generation-failed" | "image-imported" | "image-import-failed" | "scene-unresolved" | "skipped-no-visual-manual" | "skipped-in-flight" | "skipped-failed-this-session" | "skipped-no-bridge" | "skipped-no-scene-row";
   detail?: string;
 }
 
@@ -97,14 +107,35 @@ async function generateSceneImage(
   return true;
 }
 
+/** 态行 referenceImage(project-file://)→受管绝对路径(桥面解析,渲染层零路径推算)。 */
+async function resolveSceneReferenceImagePath(referenceImage: string): Promise<string | null> {
+  const bridge = getProjectFilesBridge();
+  if (!bridge?.getAbsolutePath) return null;
+  return await bridge.getAbsolutePath(referenceImage).catch(() => null);
+}
+
 /**
- * 分镜场景落地驱动:该镜关联场景(三库行在场)在资产库无行/无图时,按产品
- * 正路入库+出图。纯道具/无场景镜零动作。fail-open:任何失败只留痕,不抛错。
+ * 分镜场景落地驱动:该镜关联场景(三库行在场,G1 五级序解析+态行优选)在
+ * 资产库无行/无图时按产品正路入库+出图;态行带 referenceImage(三库既有
+ * 衍生场景态图,金水塾馆·夜内态 mp381wo 实证)优先导入既有图(免烧卡),
+ * 无图可导才 generateSceneImage。纯道具/无场景镜零动作;场景链全断=
+ * scene-unresolved 留痕(与门A 拒发门双痕互证)。fail-open:任何失败只留痕。
  */
-export async function ensureStoryboardSceneAssetsLanded(shot: Pick<StoryboardItem, "id" | "index" | "associateAssetsNames">): Promise<void> {
+export async function ensureStoryboardSceneAssetsLanded(shot: SceneLandingShot): Promise<void> {
   try {
-    const scene = findSceneRowForNames(shot.associateAssetsNames ?? []);
-    if (!scene) return;
+    const resolution = resolveStoryboardScene(shot as StoryboardSceneResolvableShot);
+    const scene = resolution.row;
+    if (!scene) {
+      // 1117 C2 G3③:场景链全断(id/sceneName/探针/守卫名匹配五级全空)留痕
+      // ——门A 拒发(场景锚未解析)与此双痕互证,排障不再靠猜。
+      report({
+        shotId: shot.id,
+        sceneName: shot.sceneName || (shot.associateAssetsNames ?? []).join("、") || "—",
+        action: "scene-unresolved",
+        detail: resolution.warnings.join(";") || undefined,
+      });
+      return;
+    }
     const bridge = getStudioAssetsBridge();
     if (!bridge?.getByName) {
       report({ shotId: shot.id, sceneName: scene.name, action: "skipped-no-bridge" });
@@ -114,6 +145,31 @@ export async function ensureStoryboardSceneAssetsLanded(shot: Pick<StoryboardIte
     if (assetHasUsableImage(existing)) {
       report({ shotId: shot.id, sceneName: scene.name, action: "already-landed" });
       return;
+    }
+    // 1117 C2 G3②:态行 referenceImage 优先导入既有图(bridge.add 建行+
+    // replaceImage 导入,免烧卡);无图可导才走生成。
+    const referenceImage = scene.referenceImage?.trim();
+    if (referenceImage) {
+      const sourcePath = await resolveSceneReferenceImagePath(referenceImage);
+      if (sourcePath) {
+        if (existing?.id) {
+          const replaced = await bridge.replaceImage?.({ assetId: existing.id, sourceFilePath: sourcePath }).catch(() => null);
+          if (replaced) {
+            report({ shotId: shot.id, sceneName: scene.name, action: "image-imported" });
+            return;
+          }
+        } else {
+          const created = await bridge.add({
+            type: "scene", name: scene.name, sourceFilePath: sourcePath,
+            description: scene.atmosphere || scene.location || scene.name,
+          }).catch(() => null);
+          if (created) {
+            report({ shotId: shot.id, sceneName: scene.name, action: "image-imported" });
+            return;
+          }
+        }
+      }
+      report({ shotId: shot.id, sceneName: scene.name, action: "image-import-failed" });
     }
     const { created, assetId } = await landSceneRow(scene);
     const targetAssetId = assetId ?? existing?.id;
@@ -157,8 +213,65 @@ export async function ensureStoryboardSceneAssetsLanded(shot: Pick<StoryboardIte
   }
 }
 
-/** 测试复位:清会话级失败/在飞集合。 */
+/**
+ * 1117 C2 G5② 衍生资产落地管道:批量链 pre-flight 按导演规划⑦清单为角色
+ * (及道具)衍生态补 assets.db 行(0 行缺口,「晏燎·夜课少年」实证)——
+ * assets:add 建行产品路,默认只建行不烧卡(图由资产轨/衍生链后续生成);
+ * 场景态已落三库(金水塾馆·夜内态等)零动作。幂等(库内有行跳过+会话集
+ * 去重),fail-open 不阻断生图主链。
+ */
+export async function ensureStoryboardDerivedAssetsLanded(shot: SceneLandingShot): Promise<void> {
+  try {
+    const entries = collectDerivedAssetPlanEntries(shot.episodeId);
+    if (!entries.length) return;
+    const bridge = getStudioAssetsBridge();
+    if (!bridge?.add || !bridge.getByName) return;
+    for (const entry of entries) {
+      if (entry.kind === "scene") continue; // 场景态已落三库,走场景落地驱动
+      if (landedDerivedNames.has(entry.compoundName)) continue;
+      landedDerivedNames.add(entry.compoundName);
+      const existing = await bridge.getByName({
+        type: entry.kind, name: entry.compoundName,
+      } as { type: "role" | "tool"; name: string }).catch(() => null);
+      if (existing) continue;
+      const created = await bridge.add({
+        type: entry.kind,
+        name: entry.compoundName,
+        description: `${entry.baseName} 衍生态:${entry.stateText}`,
+      }).catch(() => null);
+      void logEvent({
+        level: created ? "info" : "warn",
+        category: "asset",
+        operationId: createOperationId("storyboard-derived-landing"),
+        message: created
+          ? "Storyboard derived asset row landed (plan ⑦)"
+          : "Storyboard derived asset row landing failed (fail-open)",
+        context: {
+          shotId: shot.id,
+          compoundName: entry.compoundName,
+          kind: entry.kind,
+          stateText: entry.stateText,
+        },
+      });
+    }
+  } catch (error) {
+    // fail-open:衍生落地不阻断分镜生图主链
+    void logEvent({
+      level: "warn",
+      category: "asset",
+      operationId: createOperationId("storyboard-derived-landing"),
+      message: "Storyboard derived asset landing errored (fail-open)",
+      context: {
+        shotId: shot.id,
+        reason: error instanceof Error ? error.message : String(error),
+      },
+    });
+  }
+}
+
+/** 测试复位:清会话级失败/在飞/衍生幂等集合。 */
 export function resetSceneLandingSessionState(): void {
   failedSceneNames.clear();
   inFlightSceneNames.clear();
+  landedDerivedNames.clear();
 }
