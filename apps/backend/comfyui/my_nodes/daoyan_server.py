@@ -851,25 +851,28 @@ def install() -> None:
         from server import PromptServer
 
         # CORS 中间件(1116 审计 B3/E11 blocker 修):App 渲染窗跨域 fetch
-        # 引擎路由全链首跳即死——在 web 应用层挂 CORS 头(对标 bridge_sidepanel.py:7
-        # 自宅 CORS 回显先例;引擎官方 --enable-cors-header flag 走不到 EngineDurable)
+        # 引擎路由首跳即死——aiohttp 标准 middleware 签名 (request, handler)
         try:
-            _orig_web_app = PromptServer.instance.web_app
-            if _orig_web_app and not getattr(_orig_web_app, "_daoyan_cors", False):
-                @web.middleware("response")
-                async def _daoyan_cors_headers(request, response):
+            _app = PromptServer.instance.web_app
+            if _app and not getattr(_app, "_daoyan_cors", False):
+                @web.middleware
+                async def _daoyan_cors_middleware(request, handler):
+                    if request.method == "OPTIONS":
+                        resp = web.Response(status=204)
+                    else:
+                        resp = await handler(request)
                     origin = request.headers.get("Origin", "")
                     if origin:
-                        response.headers["Access-Control-Allow-Origin"] = origin
-                        response.headers["Access-Control-Allow-Methods"] = (
+                        resp.headers["Access-Control-Allow-Origin"] = origin
+                        resp.headers["Access-Control-Allow-Methods"] = (
                             "GET,POST,OPTIONS")
-                        response.headers["Access-Control-Allow-Headers"] = (
+                        resp.headers["Access-Control-Allow-Headers"] = (
                             "Content-Type,X-Filename,Authorization,"
                             "X-Manying-Image-Token,Bearer")
-                    return response
-                _orig_web_app._daoyan_cors = True
-                print("[daoyan] CORS middleware attached (App-side fetch bridge)",
-                      flush=True)
+                    return resp
+                _app.middlewares.append(_daoyan_cors_middleware)
+                _app._daoyan_cors = True
+                print("[daoyan] CORS middleware attached", flush=True)
         except Exception as _cors_err:
             print(f"[daoyan] CORS middleware failed (non-fatal): {_cors_err}",
                   flush=True)
