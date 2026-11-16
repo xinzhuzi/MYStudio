@@ -176,7 +176,21 @@ export async function runImageWorkflowNodeGeneration(
       const dropSlotIndexes: number[] = [];
       for (const [index, slot] of mapping.slots.entries()) {
         const resolved = resolvedSlotUrls[index]!;
-        if (!resolved.startsWith("data:")) { croppedSlotUrls.push(resolved); continue; }
+        if (!resolved.startsWith("data:")) {
+          // 未解析为 dataURL 的槽无法解码裁切,原样入链;角色横幅卡若走到这里
+          // 会绕过单姿化(第六病理风险),留痕便于排障(§4.5 道具不入槽)。
+          if (slot.role === "character") {
+            void logEvent({
+              level: "warn",
+              category: "ai",
+              operationId: createOperationId("storyboard-slot-pose-crop-skipped"),
+              message: "Storyboard slot reference skipped single-pose crop: unresolved non-data URL",
+              context: { shotId: graph.target.id, slot: slot.slot, role: slot.role, title: slot.title },
+            });
+          }
+          croppedSlotUrls.push(resolved);
+          continue;
+        }
         const cropped = await cropSlotReferenceToSinglePose(resolved, slot.role);
         if (cropped !== null) {
           croppedSlotUrls.push(cropped);

@@ -287,12 +287,20 @@ export async function buildStoryboardCanonicalTransportInput(
 // Win history 实证守卫句在链仍压不住)。算法原样移植:探针列占用分析,
 // 最左连续内容块(零桥接)=正面单姿;横幅(宽>高)才裁;场景恒不裁;
 // 检测失败=丢槽留痕(宁缺勿染,禁整卡入参考)。
+// 2d312474 原语义:竖幅已是单姿→原图保留;横幅裁不出→整图兜底(拼板贴格)。
+// 本层取消整图兜底(整卡入参考即病理),但竖幅仍必须原样保留——竖幅被当
+// 「裁切失败」丢槽会抽掉主角立绘(image_1),身份参考归零。
 const POSE_PROBE_WIDTH = 512;
 const POSE_BG_COLOR_DISTANCE = 60;
 const POSE_CONTENT_COLUMN_RATIO = 0.12;
 
+export interface StoryboardCropImageSource {
+  naturalWidth: number;
+  naturalHeight: number;
+}
+
 function singlePoseCropRect(
-  image: HTMLImageElement,
+  image: StoryboardCropImageSource,
 ): { sx: number; sy: number; sw: number; sh: number } | null {
   const fullWidth = image.naturalWidth;
   const fullHeight = image.naturalHeight;
@@ -306,7 +314,7 @@ function singlePoseCropRect(
     canvas.height = probeHeight;
     analysis = canvas.getContext("2d", { willReadFrequently: true });
     if (!analysis || typeof analysis.getImageData !== "function" || typeof analysis.drawImage !== "function") return null;
-    analysis.drawImage(image, 0, 0, probeWidth, probeHeight);
+    analysis.drawImage(image as CanvasImageSource, 0, 0, probeWidth, probeHeight);
   } catch {
     return null;
   }
@@ -362,20 +370,19 @@ function singlePoseCropRect(
 }
 
 /** 槽位参考单姿化:character/prop 的横幅多视图卡 → canvas 裁正面单格 dataURL。
- * 竖幅(已是单姿)/场景/裁切失败=丢槽(留痕,宁缺勿染,禁整卡入参考)。 */
+ *  竖幅(已是单姿立绘)= 原图保留(2d312474 原语义,禁丢槽);场景/前帧恒不裁;
+ *  横幅裁不出=丢槽(留痕,宁缺勿染,禁整卡入参考)。 */
 export async function cropSlotReferenceToSinglePose(
   dataUrl: string,
   role: string,
+  loadImage: (source: string) => Promise<StoryboardCropImageSource | null> = loadCropSourceImage,
 ): Promise<string | null> {
   if (role !== "character" && role !== "prop") return dataUrl;
-  const image = await new Promise<HTMLImageElement | null>((resolve) => {
-    const img = new Image();
-    const timer = setTimeout(() => resolve(null), 3000); // 解码超时兜底(异常环境不挂链)
-    img.onload = () => { clearTimeout(timer); resolve(img); };
-    img.onerror = () => { clearTimeout(timer); resolve(null); };
-    img.src = dataUrl;
-  });
+  const image = await loadImage(dataUrl);
   if (!image) return null;
+  // 竖幅单姿立绘原样保留——不能并入「裁切失败=丢槽」,否则 image_1 主角
+  // 立绘被抽走,身份参考归零。
+  if (image.naturalWidth <= image.naturalHeight) return dataUrl;
   const rect = singlePoseCropRect(image);
   if (!rect) return null;
   try {
@@ -384,9 +391,19 @@ export async function cropSlotReferenceToSinglePose(
     canvas.height = rect.sh;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
-    ctx.drawImage(image, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, rect.sw, rect.sh);
+    ctx.drawImage(image as CanvasImageSource, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, rect.sw, rect.sh);
     return canvas.toDataURL("image/png");
   } catch {
     return null;
   }
+}
+
+async function loadCropSourceImage(dataUrl: string): Promise<StoryboardCropImageSource | null> {
+  return new Promise<HTMLImageElement | null>((resolve) => {
+    const img = new Image();
+    const timer = setTimeout(() => resolve(null), 3000); // 解码超时兜底(异常环境不挂链)
+    img.onload = () => { clearTimeout(timer); resolve(img); };
+    img.onerror = () => { clearTimeout(timer); resolve(null); };
+    img.src = dataUrl;
+  });
 }

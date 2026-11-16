@@ -8,8 +8,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./storyboard-canonical-context", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./storyboard-canonical-context")>();
-  return { ...actual, cropSlotReferenceToSinglePose: async (dataUrl: string) => dataUrl };
-});import { runImageWorkflowNodeGeneration } from "./run-image-workflow-node-generation";
+  return { ...actual, cropSlotReferenceToSinglePose: vi.fn(async (dataUrl: string) => dataUrl) };
+});import { cropSlotReferenceToSinglePose } from "./storyboard-canonical-context";
+import { runImageWorkflowNodeGeneration } from "./run-image-workflow-node-generation";
 import type { ImageWorkflowGraph, StoryboardItem } from "@/types/studio";
 import * as realRequest from "@/lib/studio/image-workflow/request";
 
@@ -211,6 +212,34 @@ describe("runImageWorkflowNodeGeneration 分镜正典传输边界(1116 换线)",
     expect(params.prompt).not.toContain("【画面】");
     expect(params.prompt).not.toContain("gongbi");
     expect(params.negativePrompt).toBeUndefined();
+  });
+
+  it("单姿裁切失败=丢槽并重排 <imageN>(宁缺勿染,禁整卡入参考)", async () => {
+    const graph = {
+      id: "crop-drop-wf", target: { kind: "storyboard", id: "sb-1" },
+      nodes: [
+        { id: "ref-c1", type: "reference", title: "赵四", imageUrl: "data:image/png;base64,card-banner", continuityOrder: 1, source: { kind: "asset", assetType: "character", id: "asset-c1" } },
+        { id: "ref-s1", type: "reference", title: "码头", imageUrl: "data:image/png;base64,scene", continuityOrder: 1, source: { kind: "asset", assetType: "scene", id: "asset-s1" } },
+        { id: "ref-c2", type: "reference", title: "管事", imageUrl: "data:image/png;base64,char2", continuityOrder: 2, source: { kind: "asset", assetType: "character", id: "asset-c2" } },
+        { id: "gen-1", type: "generated", title: "成图", prompt: "p", aspectRatio: "16:9" },
+      ],
+      edges: ["ref-c1", "ref-s1", "ref-c2"].map((source) => ({ source, target: "gen-1" })),
+    } as ImageWorkflowGraph;
+    const workflow = await import("@/lib/studio/image-workflow");
+    vi.mocked(workflow.buildImageWorkflowGenerationRequest).mockImplementationOnce(realRequest.buildImageWorkflowGenerationRequest);
+    vi.mocked(workflow.assertImageWorkflowContinuityCapability).mockImplementationOnce(realRequest.assertImageWorkflowContinuityCapability);
+    const crop = vi.mocked(cropSlotReferenceToSinglePose);
+    crop.mockReset();
+    crop.mockImplementation(async (dataUrl: string) => (dataUrl.endsWith("card-banner") ? null : dataUrl));
+    const { aiManager } = await import("@/lib/ai/ai-manager");
+    await runImageWorkflowNodeGeneration(graph, "gen-1", { addMaterial: () => "mat-1" });
+    const sent = vi.mocked(aiManager.generateImage).mock.calls[0][0];
+    // 主角横幅卡裁不出 → 丢槽;场景/次角色补位并按新槽号点名
+    expect(sent.referenceImages).toEqual(["data:image/png;base64,scene", "data:image/png;base64,char2"]);
+    expect(sent.prompt).toContain("<image1>为码头的场景来源");
+    expect(sent.prompt).toContain("<image2>为管事的身份来源");
+    expect(sent.prompt).not.toContain("<image3>");
+    expect(sent.prompt).not.toContain("赵四");
   });
 
   it("分镜参考(纯道具镜)道具不入图:槽位空走 t2i,道具走指令文字", async () => {
