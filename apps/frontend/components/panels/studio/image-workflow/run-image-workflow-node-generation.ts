@@ -19,7 +19,7 @@ import {
   getStoryboardBaseSubjectText,
   lintCanonicalPrompt,
 } from "@/lib/studio/storyboard-canonical-prompt";
-import { buildStoryboardCanonicalTransportInput } from "./storyboard-canonical-context";
+import { buildStoryboardCanonicalTransportInput, cropSlotReferenceToSinglePose } from "./storyboard-canonical-context";
 import { useProjectStore } from "@/stores/project/project-store";
 import { resolveBoundTemplateForGeneration } from "@/stores/settings/workflow-bindings-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -163,18 +163,50 @@ export async function runImageWorkflowNodeGeneration(
     if (mapping.slots.length) {
       // 槽位图 dataURL 解析+准备(节点只存轻量受管路径,传输才转 base64,
       // 持久化纪律与资产参考同口径)。
+      // 1116 第六病理三代修:角色/道具横幅多视图卡出图前裁正面单姿
+      // (命令原文「只有设定卡时裁/选正面单姿,禁整卡」;裁切失败=丢槽
+      // 留痕+指令体重排,宁缺勿染)——赵四类无单姿资产整卡入 image_1=
+      // 转面稿四副本。
       const resolvedSlotUrls = await Promise.all(mapping.slots.map(async (slot) => {
         const assetId = assetRefIdsByUrl.get(slot.imageUrl);
         if (!assetId || !assetBridge?.readImageDataUrl) return slot.imageUrl;
         return await assetBridge.readImageDataUrl(assetId).catch(() => null) ?? slot.imageUrl;
       }));
-      transportReferenceImages = await prepareReferenceImages(resolvedSlotUrls);
+      const croppedSlotUrls: Array<string | null> = [];
+      const dropSlotIndexes: number[] = [];
+      for (const [index, slot] of mapping.slots.entries()) {
+        const resolved = resolvedSlotUrls[index]!;
+        if (!resolved.startsWith("data:")) { croppedSlotUrls.push(resolved); continue; }
+        const cropped = await cropSlotReferenceToSinglePose(resolved, slot.role);
+        if (cropped !== null) {
+          croppedSlotUrls.push(cropped);
+        } else {
+          // 横幅卡裁不出单姿=丢槽留痕,禁整卡入参考(丢槽重排在 context 件)。
+          dropSlotIndexes.push(index);
+          croppedSlotUrls.push(null);
+          void logEvent({
+            level: "warn",
+            category: "ai",
+            operationId: createOperationId("storyboard-slot-pose-crop-failed"),
+            message: "Storyboard slot reference dropped: multi-view card failed single-pose crop",
+            context: { shotId: graph.target.id, slot: slot.slot, role: slot.role, title: slot.title },
+          });
+        }
+      }
+      let effectiveSlots = mapping.slots;
+      if (dropSlotIndexes.length) {
+        const rebuilt = await buildStoryboardCanonicalTransportInput(shot, graph, targetNodeId, dropSlotIndexes);
+        canonicalPrompt = rebuilt.instruction.prompt;
+        effectiveSlots = rebuilt.mapping.slots;
+      }
+      const keptUrls = croppedSlotUrls.filter((url): url is string => url !== null);
+      transportReferenceImages = await prepareReferenceImages(keptUrls);
       assertImageWorkflowContinuityCapability(
         { ...request, model: finalModel, referenceImages: transportReferenceImages },
         {
           kind: "storyboard-native-references",
           imageUrls: transportReferenceImages,
-          slots: mapping.slots.map((slot, index) => ({
+          slots: effectiveSlots.map((slot, index) => ({
             slot: slot.slot, role: slot.role, title: slot.title, imageUrl: transportReferenceImages[index]!,
           })),
           // 来源参考=全量参考的已解析形态(dataURL/base64,与槽位图同一解析路),

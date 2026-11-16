@@ -6,7 +6,10 @@
  * (storyboard-native-references 契约);非分镜(自由/资产)链零变化。
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { runImageWorkflowNodeGeneration } from "./run-image-workflow-node-generation";
+vi.mock("./storyboard-canonical-context", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./storyboard-canonical-context")>();
+  return { ...actual, cropSlotReferenceToSinglePose: async (dataUrl: string) => dataUrl };
+});import { runImageWorkflowNodeGeneration } from "./run-image-workflow-node-generation";
 import type { ImageWorkflowGraph, StoryboardItem } from "@/types/studio";
 import * as realRequest from "@/lib/studio/image-workflow/request";
 

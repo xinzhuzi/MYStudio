@@ -239,6 +239,7 @@ export async function buildStoryboardCanonicalTransportInput(
   shot: StoryboardItem,
   graph: ImageWorkflowGraph,
   targetNodeId: string,
+  dropSlotIndexes: number[] = [],
 ): Promise<StoryboardCanonicalTransportInput> {
   const targetNode = graph.nodes.find((node) => node.id === targetNodeId);
   const frameId = targetNode?.type === "generated" ? targetNode.frameId : undefined;
@@ -250,6 +251,15 @@ export async function buildStoryboardCanonicalTransportInput(
     ? { ...subject, momentNote: momentNote.trim() }
     : subject;
   const mapping = mapCanonicalReferenceSlots(extractCanonicalSlotSources(graph, targetNodeId));
+  // 1116 三代修:传输层单姿裁切失败的槽(dropSlotIndexes,0 基)在此剔除并
+  // 重编号——指令体的 <imageN> 编号与实际入槽图恒连续同构(宁缺勿染)。
+  if (dropSlotIndexes.length) {
+    const dropped = new Set(dropSlotIndexes);
+    const kept = mapping.slots
+      .filter((_, index) => !dropped.has(index))
+      .map((slot, index) => ({ ...slot, slot: (index + 1) as 1 | 2 | 3 }));
+    mapping.slots = kept;
+  }
   if (mapping.dropped.length) {
     void logEvent({
       level: "info",
@@ -268,4 +278,115 @@ export async function buildStoryboardCanonicalTransportInput(
     instruction: buildCanonicalTransportInstruction({ subject: effectiveSubject, slots: mapping.slots }),
     mapping,
   };
+}
+
+// ── 单姿裁切(1116 第六病理三代修,移植自 2d312474 拼板层 singlePoseCropRect)──
+// 命令原文(1115):「只有设定卡时,出图前裁/选正面单姿为参考,禁整卡」。
+// 拼板退役时该刀被误删——赵四类无 _人物图_/_正视图_ 单姿资产,主图=横幅
+// 多视图卡整卡进 image_1 → 引擎翻拍整卡=转面稿四副本(C1 二发 4/6 污染,
+// Win history 实证守卫句在链仍压不住)。算法原样移植:探针列占用分析,
+// 最左连续内容块(零桥接)=正面单姿;横幅(宽>高)才裁;场景恒不裁;
+// 检测失败=丢槽留痕(宁缺勿染,禁整卡入参考)。
+const POSE_PROBE_WIDTH = 512;
+const POSE_BG_COLOR_DISTANCE = 60;
+const POSE_CONTENT_COLUMN_RATIO = 0.12;
+
+function singlePoseCropRect(
+  image: HTMLImageElement,
+): { sx: number; sy: number; sw: number; sh: number } | null {
+  const fullWidth = image.naturalWidth;
+  const fullHeight = image.naturalHeight;
+  if (!fullWidth || !fullHeight || fullWidth <= fullHeight) return null;
+  const probeWidth = Math.min(POSE_PROBE_WIDTH, fullWidth);
+  const probeHeight = Math.max(1, Math.round(fullHeight * probeWidth / fullWidth));
+  let analysis: CanvasRenderingContext2D | null = null;
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = probeWidth;
+    canvas.height = probeHeight;
+    analysis = canvas.getContext("2d", { willReadFrequently: true });
+    if (!analysis || typeof analysis.getImageData !== "function" || typeof analysis.drawImage !== "function") return null;
+    analysis.drawImage(image, 0, 0, probeWidth, probeHeight);
+  } catch {
+    return null;
+  }
+  let pixels: Uint8ClampedArray;
+  try {
+    pixels = analysis.getImageData(0, 0, probeWidth, probeHeight).data;
+  } catch {
+    return null;
+  }
+  const sample = (x: number, y: number): [number, number, number] => {
+    const at = (y * probeWidth + x) * 4;
+    return [pixels[at]!, pixels[at + 1]!, pixels[at + 2]!];
+  };
+  const corners: Array<[number, number, number]> = [];
+  for (const [cx, cy] of [[2, 2], [probeWidth - 3, 2], [2, probeHeight - 3], [probeWidth - 3, probeHeight - 3]] as const) {
+    corners.push(sample(Math.max(0, Math.min(probeWidth - 1, cx)), Math.max(0, Math.min(probeHeight - 1, cy))));
+  }
+  const bg = corners.reduce(
+    (acc, c) => [acc[0] + c[0] / 4, acc[1] + c[1] / 4, acc[2] + c[2] / 4] as [number, number, number],
+    [0, 0, 0] as [number, number, number],
+  );
+  const bandTop = Math.floor(probeHeight * 0.15);
+  const bandBottom = Math.max(bandTop + 1, Math.floor(probeHeight * 0.9));
+  const isBackground = (x: number, y: number): boolean => {
+    const [r, g, b] = sample(x, y);
+    const dr = r - bg[0]!, dg = g - bg[1]!, db = b - bg[2]!;
+    return Math.sqrt(dr * dr + dg * dg + db * db) < POSE_BG_COLOR_DISTANCE;
+  };
+  const hasContent = new Array<boolean>(probeWidth);
+  for (let x = 0; x < probeWidth; x += 1) {
+    let content = 0;
+    for (let y = bandTop; y < bandBottom; y += 1) {
+      if (!isBackground(x, y)) content += 1;
+    }
+    hasContent[x] = content / (bandBottom - bandTop) >= POSE_CONTENT_COLUMN_RATIO;
+  }
+  let first = -1;
+  let last = -1;
+  for (let x = 0; x < probeWidth; x += 1) {
+    if (hasContent[x]) { first = x; break; }
+  }
+  if (first < 0) return null;
+  for (let x = first + 1; x < probeWidth; x += 1) {
+    if (!hasContent[x]) break;
+    last = x;
+  }
+  if (last < first + 2) return null;
+  const bandRatio = (last - first + 1) / probeWidth;
+  if (bandRatio < 0.08 || bandRatio > 0.92) return null;
+  const sx = Math.round(first * fullWidth / probeWidth);
+  const sw = Math.round((last - first + 1) * fullWidth / probeWidth);
+  return { sx, sy: 0, sw, sh: fullHeight };
+}
+
+/** 槽位参考单姿化:character/prop 的横幅多视图卡 → canvas 裁正面单格 dataURL。
+ * 竖幅(已是单姿)/场景/裁切失败=丢槽(留痕,宁缺勿染,禁整卡入参考)。 */
+export async function cropSlotReferenceToSinglePose(
+  dataUrl: string,
+  role: string,
+): Promise<string | null> {
+  if (role !== "character" && role !== "prop") return dataUrl;
+  const image = await new Promise<HTMLImageElement | null>((resolve) => {
+    const img = new Image();
+    const timer = setTimeout(() => resolve(null), 3000); // 解码超时兜底(异常环境不挂链)
+    img.onload = () => { clearTimeout(timer); resolve(img); };
+    img.onerror = () => { clearTimeout(timer); resolve(null); };
+    img.src = dataUrl;
+  });
+  if (!image) return null;
+  const rect = singlePoseCropRect(image);
+  if (!rect) return null;
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = rect.sw;
+    canvas.height = rect.sh;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(image, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, rect.sw, rect.sh);
+    return canvas.toDataURL("image/png");
+  } catch {
+    return null;
+  }
 }
