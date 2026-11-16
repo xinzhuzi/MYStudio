@@ -74,6 +74,17 @@ describe("full 政策只注角色行 + 音色锚(D1)", () => {
     const r = buildShotH3Prompt({ videoDesc: "远景", lines: "旁白：风起。", durationSec: 6 }, "ambient");
     expect(r.prompt).toContain("lips stay closed");
   });
+  it("i2v 装配序(1115 superi J6/J7):身份句领衔+运镜前置,desc 在后", () => {
+    const r = buildShotH3Prompt(
+      { videoDesc: "雨夜石桥对峙", action: "甲拔刀", cameraMove: "推", shotSize: "中景", durationSec: 6 },
+      "ambient",
+    );
+    const desc = r.prompt.slice(r.prompt.indexOf("[Shot 1] "));
+    expect(desc).toContain("second cinematic clip.");
+    expect(desc.indexOf("The camera uses a Push In.")).toBeGreaterThan(-1);
+    expect(desc.indexOf("The camera uses a Push In.")).toBeLessThan(desc.indexOf("雨夜石桥对峙"));
+    expect(desc.indexOf("second cinematic clip.")).toBeLessThan(desc.indexOf("雨夜石桥对峙"));
+  });
 });
 
 describe("buildShotH3Prompt", () => {
@@ -292,6 +303,17 @@ describe("buildShotH3MultisegPrompt(分段组装,插件 h3_utils 解析契约)",
     expect(bare.soundscape).toBe("Minimal ambient sound only.");
     const noSound = buildShotH3MultisegPrompt({ videoDesc: "剑修立于竹林。", durationTarget: 5, policy: "ambient" });
     expect(noSound.soundscape).toBe("Quiet ambience matching the scene.");
+  });
+
+  it("无台词段缺省防线(1115 superi J1):ambient 段含 lips stay closed;full 有台词段不含", () => {
+    const amb = buildShotH3MultisegPrompt({ videoDesc: "剑修立于竹林。", durationTarget: 20, policy: "ambient" });
+    expect(amb.segments[0]?.text ?? "").toContain("No dialogue in this clip; the characters' lips stay closed.");
+    expect(amb.longPrompt).toContain("段1:10.125秒\n[Shot 1] 剑修立于竹林。 No dialogue");
+    const lines = "甲：先走。\n乙：我知道。\n甲：小心脚下。\n乙：多谢。";
+    const full = buildShotH3MultisegPrompt({ videoDesc: "雨夜石桥对峙。", durationTarget: 20, lines, policy: "full" });
+    for (const seg of full.segments) {
+      expect(seg.text).not.toContain("lips stay closed");
+    }
   });
 
   it("policy=full:台词逐字入段且整句分配(句边界切,单句永不跨段)+说话人编号跨段一致+逐字过门", () => {

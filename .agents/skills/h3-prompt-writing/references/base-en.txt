@@ -81,6 +81,8 @@ At the beginning of `[Shot 1]`, state the overall style and initial composition.
 [Shot 1] Live-action, cinematic, a medium-wide shot frames...
 ```
 
+**Aliveness: one small task + one beat of involuntary reaction + one emotional landing point 「1115 superi 吸收」** — a person who only stands and waits reads fake; being "idle" is the biggest aliveness tell. Give every on-screen person, inside the timeline prose itself: (1) **one small task in hand** — a minor physical business they are mid-way through (wiping the counter, folding a strap, thumbing the edge of a sleeve); (2) **one beat of involuntary reaction** — a micro-reaction readable at the current shot size, following the four-step recipe in `references/craft-external-1107.md` §B-1 (trigger → one emotion word → two readable leaks → land and hold); (3) **an emotional landing point** — the place where the feeling settles and stays. Example: *While listening, she keeps wiping the counter in slow circles with the gray cloth; when the name is spoken her hand stops mid-wipe for a beat, then resumes slower, her gaze settling on the rain-streaked window.* Criteria source: `docs/comfyui-kb/参考_提示词工程/刺猬星球super-i/知识库.md` §四 活人感; worked micro-action example: 同夹 `帧内提示词原文.md` #24.
+
 ### 4.2 Shots and Cuts
 
 Do not add a timestamp to the first shot. Use sequential shot numbers for later shots, and begin each one with a strictly increasing cut time that falls within the video duration:
@@ -164,6 +166,35 @@ Use 1–3 English sentences to describe background music that the characters can
 ```text
 non_diegetic_music: Sparse piano notes at a slow tempo, joined by sustained low strings that gradually increase in volume before fading out.
 ```
+
+> Note: the four subsections below (§4.8–§4.11) and the aliveness entry in §4.1, all marked 「1115 superi 吸收」, are ManyStudio absorbed criteria (2026-11-15) from the superi knowledge base — writing technique only; they add no fields and change no official structure or section order. In full-reference mode, apply the same rules inside `detailed_description`.
+
+### 4.8 Default-Guard Lines 「1115 superi 吸收」
+
+H3 has no negative-prompt channel: whatever the prompt leaves unset, the model fills with its own defaults (texture, glow, added music, extra bystanders). Write the guards as plain declarative sentences inside the fields they protect. Three landed forms:
+
+1. **Explicit `N/A` for unused layers** — write `non_diegetic_music: N/A` when there is no score; an empty layer can invite music (§4.7; `references/craft-external-1107.md` §B-7).
+2. **Medium guard in the style sentence** — for non-live-action styles, say what the medium is *not* in the first sentence (`A 2D hand-drawn anime animation ... not live-action, not photographed, no real actors`) and restate the medium after every `[Shot N]` (`references/craft-external-1107.md` §A-1).
+3. **Tail guard line for non-generation items** — close the shot with one short sentence listing what must not appear. Landed precedents: `No text or logos.` (official AIMixer-r2v sample, adopted in the daoyan struct template `apps/backend/comfyui/my_nodes/web/daoyan/prompt.js`) and `No dialogue in this clip; the characters' lips stay closed.` (app assembler for silent shots, `apps/frontend/lib/assist/image-studio/h3-shot-prompt.ts`).
+
+Keep only the guards that apply — one per real risk; a guard dump dilutes them all. Example: *No on-screen text, captions, or watermarks appear, and no passers-by enter the frame.* Criteria source: `docs/comfyui-kb/参考_提示词工程/刺猬星球super-i/知识库.md` §一.1 误解机制; positive-prohibition video precedents: 同夹 `帧内提示词原文.md` #13/#14.
+
+### 4.9 Light: Direction + Lit Object + Shadow Result 「1115 superi 吸收」
+
+Feeling words like `soft lighting` or `cinematic lighting` are not executable — write light as physics. Every light statement carries three elements: **direction/source** (where the light comes from, with a physical motive — a window, a lantern, the low sun; never a sourceless even fill or "AI white light"), **lit object** (what it actually strikes: her face, the folding quilt, the sword shoulder), and **shadow result** (the visible shading it leaves: where shadows fall, how they are shaped, the falloff from lit to unlit). This generalizes the fight-only discipline of `references/action-en.txt` §9 to every shot. Example: *Low morning sun enters through the left window, warms the side of her face and the quilt she is folding, and leaves the rest of the room in cool, soft shadow.* In flat-color styles, write the shadow result as deeper or cooler color planes instead of photographic cast-shadow terms. Criteria source: `docs/comfyui-kb/参考_提示词工程/刺猬星球super-i/知识库.md` §三 光线; worked three-element example: 同夹 `帧内提示词原文.md` #32.
+
+### 4.10 Environment Causal Sentences 「1115 superi 吸收」
+
+Element lists ("a room with a table, a lamp, rain outside") read flat. Replace or augment them with one or two **because-X-therefore-Y mechanism sentences**: state the cause (a lamp just lit, the rain just ended, snow reflecting the sky) and land the consequence on the **color layer** — the hue/value shift it leaves on nearby surfaces — so the sentence stays compatible with the flat-color canon. The model treats the stated effect as already existing and completes the scene around it. Example: *Because the lantern under the eaves has just been lit, the snow on the near steps carries a warm amber cast that fades to cool blue toward the far rail.* Criteria source: `docs/comfyui-kb/参考_提示词工程/刺猬星球super-i/知识库.md` §一.8 假因果词(状态因果)与 §三 环境光(写因果逻辑).
+
+### 4.11 Foreground Occlusion and Air Medium 「1115 superi 吸收」
+
+"Too clean" is the biggest AI tell in generated frames. Give the frame both layers, written as solid visible matter:
+
+- **Near-field occlusion layer** — one physical occluder entering the frame edge between lens and subject (a branch, an eave corner, a passing shoulder or back), placed in the foreground band with its own color and texture.
+- **Air medium** — one airborne medium (mist, drifting snow, dust motes, cooking smoke, petals) plus what it visibly does to the air and the far plane.
+
+This generalizes `references/action-en.txt` §3 (foreground band) and §8 (air-medium vocabulary) beyond action shots. **Flat-paint caliber**: the storyboard pipeline's style contract (`styleContractVersion=daojie-gongbi-v2`, `apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/art_prompt/art_storyboard_video.md`) forbids depth-of-field blur in composition clauses — depth comes from layering and pale far planes, and blur is applied at the render stage from the depth map, so never write `blurred foreground`, `bokeh`, or `shallow depth of field`; write occluders as solid matter. Even in photographic styles, never label "the foreground is blurred" — name the occluder, and state any softness as its own separate result. Example: *A dark pine branch crosses the upper-left corner of the frame in front of her, and thin morning mist drifts across the courtyard, paling the far wall to a flat light-gray plane.* Criteria source: `docs/comfyui-kb/参考_提示词工程/刺猬星球super-i/知识库.md` §三 前景遮挡(物理遮挡/氛围遮挡/语义顺序陷阱); worked layered example: 同夹 `帧内提示词原文.md` #34.
 
 ## 5. Cases
 

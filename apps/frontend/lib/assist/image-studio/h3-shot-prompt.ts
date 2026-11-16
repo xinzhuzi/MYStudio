@@ -148,9 +148,15 @@ function renderDialogue(lines: string | undefined, seconds: number, voiceMood?: 
 }
 
 function formatDescription(input: H3PromptInput, policy: H3AudioPolicy, seconds: number): string {
-  const parts = [input.shotSize?.trim(), input.videoDesc.trim(), input.action?.trim()].filter(Boolean);
+  // 1115 superi 审计件#6/#10 装配序单点改(J6 身份句领衔+J7 运镜前置):
+  // 首句=时长媒介身份定调,镜头先于动作存在(camera 前置包裹),desc/action 随后。
   const camera = mapH3CameraMove(input.cameraMove);
-  if (camera) parts.push(`The camera uses a ${camera}.`);
+  const lead = [
+    `A ${seconds}-second cinematic clip.`,
+    camera ? `The camera uses a ${camera}.` : "",
+    input.shotSize?.trim() ?? "",
+  ].filter(Boolean);
+  const parts = [...lead, input.videoDesc.trim(), input.action?.trim()].filter(Boolean);
   const dialogue = policy === "full" ? renderDialogue(input.lines, seconds, input.voiceMood) : "";
   if (dialogue) parts.push(dialogue);
   else parts.push("No dialogue in this clip; the characters' lips stay closed.");
@@ -369,9 +375,11 @@ export function buildShotH3MultisegPrompt(input: H3MultisegPromptInput): H3Multi
       return `${speaker} (S${speakerIds.get(line.speaker || "S1")}) says${moodAnchor}: <d>[Chinese] ${line.text}</d>`;
     });
     const eventSeconds = Math.max(0, Math.ceil((segmentFrames / fps) * 0.4));
+    // 1115 superi 审计件#7(J1):无台词段补 i2v 同款缺省防线(段内文本追加,
+    // 标签行「段N:{秒}秒」独占契约不动,过 h3_utils _split_by_tag)。
     const dialogueBlock = dialogue.length > 0
       ? ` ${dialogue.join(" ")} At 00:${String(eventSeconds).padStart(2, "0")}.000.`
-      : "";
+      : " No dialogue in this clip; the characters' lips stay closed.";
     const text = `[Shot 1] ${anchor}${description}${dialogueBlock}`;
     return { index: i + 1, frames: segmentFrames, secondsText, text };
   });

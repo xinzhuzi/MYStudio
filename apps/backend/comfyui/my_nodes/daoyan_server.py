@@ -649,8 +649,138 @@ def shot_detail(location: Path, chapter: str, shot_id: str = "",
     return {"error": f"镜 {shot_id} 不在分片并集(表/分片换代?请重开工作流)"}
 
 
+# ── 带出链出词层(1115 superi 审计件#9 拟改法2:J6/J7/J1 吸收)──────────
+# 官方协议参照(workflows/2_视频/H3视频/7_测试/):AIMixer-r2v.json 尾行
+# 「No text or logos.」(H3 无负向口下的正向否定防线=J1)+ AIMixer-
+# external-groups-i2v.json 首句「15秒，16:9横版视频。」(时长规格+格式+
+# 媒介身份式开头=J6);面板骨架(web/daoyan/prompt.js STRUCT_TEMPLATE,
+# 1115 已换血)同口径。带出链不再 videoDesc 单段直落 description,分发
+# 预填:summary=身份首句(J6)+场景身份(画面描述列),description=运镜
+# 句前置到动作之前(J7)+尾补否定线(J1)。retention/soundscape 分镜表
+# 无对应列,恒空待面板手填/插入结构模板——「只填空段不覆盖已有内容」
+# 语义不动(带出=新组创建,无已有内容可覆盖;assemble_prompt 纯拼接零改)。
+
+PROMPT_GUARD_LINE = "No text or logos."
+_GUARD_RE = re.compile(r"no\s+text\s+or\s+logos", re.I)
+
+# 英文受控运镜词透传判定(词表对齐 App 链 h3-shot-prompt.ts
+# mapH3CameraMove——两链同模(H3)同词,禁各说各话)
+_CAMERA_EN_RE = re.compile(
+    r"push\s*in|pull\s*out|pan\s+(?:left|right)|truck|tracking\s+shot"
+    r"|pedestal\s+(?:up|down)|tilt\s+(?:up|down)|arc\s+shot"
+    r"|zoom\s+(?:in|out)", re.I)
+
+# 分镜域运镜 17 值枚举真源=App 链 camera-move-bridge.ts
+# STORYBOARD_CAMERA_MOVE_IDS(10-10 批C 词表;LLM 出的分镜表即此枚举),
+# 直投会出「The camera uses a static.」病句——查表归一为受控词。
+STATIC_HOLD = "Static Hold"  # 固定机位=刻意静止的显式决策(桥注释口径)
+_CAMERA_ENUM = {
+    "static": STATIC_HOLD,
+    "tracking": "Tracking Shot",
+    "orbit": "Arc Shot",
+    "zoom-in": "Zoom In",
+    "zoom-out": "Zoom Out",
+    "pan-left": "Pan Left",
+    "pan-right": "Pan Right",
+    "tilt-up": "Tilt Up",
+    "tilt-down": "Tilt Down",
+    "dolly-in": "Dolly In",
+    "dolly-out": "Dolly Out",
+    "truck-left": "Truck Left",
+    "truck-right": "Truck Right",
+    "crane-up": "Crane Up",
+    "crane-down": "Crane Down",
+    "drone-aerial": "Aerial Shot",
+    "360-roll": "360 Roll",
+}
+
+
+def map_camera_move(value) -> str:
+    """分镜运镜词归一:①17 值枚举 id 查表(camera-move-bridge 词表);
+    ②英文受控词透传不改写;③中文→英文受控词(词表逐条对齐 App 链
+    mapH3CameraMove,含变焦/推/拉/摇/移/跟/升/降/俯/仰/环绕/固定);
+    未知词原样透传;空=空。"""
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    hit = _CAMERA_ENUM.get(raw.lower())
+    if hit:
+        return hit
+    if _CAMERA_EN_RE.search(raw):
+        return raw
+    if "固定" in raw or "静止" in raw:
+        return STATIC_HOLD
+    if "变焦" in raw:
+        return "Zoom Out" if re.search(r"拉远|出", raw) else "Zoom In"
+    if "推" in raw:
+        return "Push In"
+    if "拉" in raw:
+        return "Pull Out"
+    if "摇" in raw:
+        if "左" in raw:
+            return "Pan Left"
+        if "右" in raw:
+            return "Pan Right"
+        return "Pan"
+    if "横移" in raw or "移" in raw:
+        if "左" in raw:
+            return "Truck Left"
+        if "右" in raw:
+            return "Truck Right"
+        return "Truck"
+    if "跟拍" in raw or "跟" in raw:
+        return "Tracking Shot"
+    if "升" in raw:
+        return "Pedestal Up"
+    if "降" in raw:
+        return "Pedestal Down"
+    if "俯" in raw:
+        return "Tilt Down"
+    if "仰" in raw:
+        return "Tilt Up"
+    if "环绕" in raw or "弧" in raw:
+        return "Arc Shot"
+    return raw
+
+
+def _summary_prefill(seconds: float, scene: str) -> str:
+    """summary 预填(J6 身份首句):时长规格+格式媒介(16:9 横版,产线
+    960×544→1440×832 恒横版)+场景身份(分镜画面描述列;缺=仅规格句,
+    首句恒身份不落「谁在干嘛」)。"""
+    head = f"{seconds:g}秒，16:9横版视频。"
+    scene = str(scene or "").strip()
+    return head + scene if scene else head
+
+
+def _description_prefill(desc: str, camera_move) -> str:
+    """description 预填(J7 运镜前置+J1 否定线):运镜句先于动作正文
+    (镜头先于动作存在;固定机位=持静句不加「uses a」病句);尾补
+    「No text or logos.」(官方 r2v 样例口径;已含该守卫线不重复补);
+    零运镜零正文=空段待手填(不硬造内容)。"""
+    parts = []
+    camera = map_camera_move(camera_move)
+    if camera == STATIC_HOLD:
+        parts.append("The camera holds still.")
+    elif camera:
+        parts.append(f"The camera uses a {camera}.")
+    text = str(desc or "").strip()
+    if text:
+        parts.append(text)
+    if not parts:
+        return ""
+    if not _GUARD_RE.search(" ".join(parts)):
+        parts.append(PROMPT_GUARD_LINE)
+    return " ".join(parts)
+
+
 def import_storyboard(location: Path, chapter: str, input_dir: Path) -> dict:
-    """分镜表→时间线组:镜行映射 segment+分镜图拷入 input/(自动带出来)。"""
+    """分镜表→时间线组:镜行映射 segment+分镜图拷入 input/(自动带出来)。
+
+    1115 带出链出词层下沉(审计件#9 拟改法2):videoDesc 不再单段直落,
+    四段分发预填——summary=时长/格式/媒介身份首句+画面描述列作场景身份
+    (J6);description=运镜句(shotSemantics.cameraMove,中文归一英文受控
+    词)前置到动作正文之前+尾补否定线(J7/J1);retention/soundscape 无
+    对应列恒空(面板「插入结构模板」只填空段接管)。"""
     if not chapter or not valid_chapter(chapter):
         return {"ok": False, "error": "非法 chapter 参数", "segments": []}
     cdir = location / "store" / "studio-workflow" / "chapters" / chapter
@@ -686,14 +816,21 @@ def import_storyboard(location: Path, chapter: str, input_dir: Path) -> dict:
                     target.write_bytes(data)
                 images = [name]
                 copied.append(name)
-        desc = str(shot.get("videoDesc") or "").strip() \
-            or str(shot.get("prompt") or "").strip()
+        frame_desc = str(shot.get("prompt") or "").strip()
+        desc = str(shot.get("videoDesc") or "").strip() or frame_desc
+        # 场景身份=画面描述列;它已任描述体(videoDesc 缺)时不重复入 summary
+        scene = frame_desc if frame_desc and frame_desc != desc else ""
+        sem = shot.get("shotSemantics") if isinstance(
+            shot.get("shotSemantics"), dict) else {}
         segments.append({
             "id": str(shot.get("id") or f"sb-{chapter}-{idx:03d}"),
             "mode": "r2v", "seconds": seconds, "seed": None,
             "rerun": False,
-            "prompt": {"summary": "", "retention": "",
-                       "description": desc, "soundscape": ""},
+            "prompt": {"summary": _summary_prefill(seconds, scene),
+                       "retention": "",
+                       "description": _description_prefill(
+                           desc, sem.get("cameraMove")),
+                       "soundscape": ""},
             "images": images,
         })
     return {"ok": True, "segments": segments, "copied": copied,

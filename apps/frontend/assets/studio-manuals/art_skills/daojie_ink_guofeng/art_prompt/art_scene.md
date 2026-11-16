@@ -131,6 +131,10 @@ metaData: art_skills
 
 **Negative Prompt 基线**：全局五类 + people, person, human figures, characters, human silhouette, hands, multi-panel layout, split screen, grid layout, washed-out greyscale monochrome, text
 
+### 环境因果句（1115 吸收）
+
+七段公式第 5 段写材质天气时，在元素罗列之外补 1–2 句「因 X 故 Y」的环境因果句，让环境自己交代状态而非清单式堆叠。因果句只落色彩层，不引入光影虚化语汇（服从 R7/R9/X9 硬裁定）。例：「灵雨过后，石阶与瓦色转深；檐下灯笼亮起，近处墙面晕开一圈暖色；晨雾压低，远景色层退为整块淡青。」
+
 ---
 
 ## 七、约束规则

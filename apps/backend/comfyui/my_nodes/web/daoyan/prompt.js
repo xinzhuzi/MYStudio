@@ -56,11 +56,13 @@
     { key: "soundscape", label: "声景", hint: "soundscape", ph: "Ambience and sound cues: wind, footsteps, distant traffic, score mood." },
   ];
 
-  /** 结构模板骨架(PRD R1.6 一键插入;只填空段,已有内容不覆盖) */
+  /** 结构模板骨架(PRD R1.6 一键插入;只填空段,已有内容不覆盖)。
+   *  1115 superi 审计件#9 换血(J6 身份首句/J7 运镜前置/J1 否定防线,
+   *  对齐官方样例 AIMixer-r2v「No text or logos」与 external-groups 媒介身份首句)。 */
   var STRUCT_TEMPLATE = {
-    summary: "[summary] One-line shot summary: subject, action, camera move.",
+    summary: "[summary] Identity first, one clause: duration, format, scene and era (e.g. '15s 16:9 live-action, rainy night office'); then one-line subject and action.",
     retention: "[retention] Keep from reference images: identity, outfit, palette, props.",
-    description: "[description] Framing (wide/medium/close); lighting; motion beats 1-2-3; environment details; camera move.",
+    description: "[description] Camera move first — the shot exists before the action (e.g. 'slow push-in'); then framing (wide/medium/close), lighting (direction, what it lands on, resulting shadows), motion beats 1-2-3, environment details; end with the guard line: No text or logos.",
     soundscape: "[soundscape] Base ambience; foreground foley; music mood; silences.",
   };
 

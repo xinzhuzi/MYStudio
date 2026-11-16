@@ -131,6 +131,14 @@
 国风二维动漫手绘修仙，Chinese guofeng 2D anime xianxia，fine colored line art，ground and lighting consistent with the source scene and time，bright yet harmonious mineral-color palette with soft cyan-green and vermilion accents，flat layered color fields，spiritual aura as soft color glow，clear layered composition，clean finished image，readable detail。
 视频提示词必须补充镜头运动、主体运动、起承转合、淡墨空气透视变化、光影连续性和首尾帧一致性；补充 ink-wash motion, temporal continuity, stable composition, consistent subject identity。
 
+### 视频提示词装配序（1115 吸收）
+
+1. **身份定调先行**——开头一句交代场景/时代/媒介（例：「修仙世界雨夜竹林，国风二维动漫手绘」），再写人物动作；
+2. **运镜前置**——镜头运动写在动作之前，让动作发生在已存在的镜头里，而非镜头追动作；
+3. **每镜锁结尾**——分段生成时，下一段开头承接上一段结尾画面与人物状态（与 multiseg 承接锚定语同口径）；
+4. **活人感**——人物带一件顺手小事或下意识反应（按剑/理袖/回眸），避免纯站桩。
+以上均以分镜表与来源事实为准，不虚构。
+
 ### 反向规避提示词
 
 low quality, 3D render, CGI, photorealistic, neon cyberpunk palette, western fantasy, sci-fi, modern city, plastic texture, messy ink, bad anatomy, watermark, text, signature。

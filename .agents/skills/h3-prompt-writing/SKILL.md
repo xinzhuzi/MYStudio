@@ -95,3 +95,4 @@ LLM 直投链（非 App 组装链）的 system prompt 有**导演层规则包升
 - Prefer concrete visual and audio details over abstract words like "cinematic" or "beautiful".
 - When using keyframes (I2VA / FL2VA / L2VA), clearly state how the first and/or last frame connects to the timeline.
 - Write `non_diegetic_music: N/A` explicitly when there is no score; leaving it empty can invite music (`references/craft-external-1107.md` §B-7).
+- `references/base-en.txt` §4.8–§4.11 and the aliveness entry in §4.1 (all marked 「1115 superi 吸收」, 2026-11-15) are absorbed writing criteria from the superi knowledge base (`docs/comfyui-kb/参考_提示词工程/刺猬星球super-i/`; hub skill `.agents/skills/superi-prompt/`): default-guard lines, light's three elements, environment causal sentences, aliveness, foreground occlusion + air medium. They refine how the description body is written — technique only, no structural change.
