@@ -850,31 +850,25 @@ def install() -> None:
         from aiohttp import web
         from server import PromptServer
 
-        # CORS 中间件(1116 审计 B3/E11 blocker 修):App 渲染窗跨域 fetch
-        # 引擎路由首跳即死——aiohttp 标准 middleware 签名 (request, handler)
+        # CORS(1116 审计 B3/E11 blocker 修):App 渲染窗跨域 fetch 首跳即死。
+        # on_response_prepare 信号=运行中可挂(中间件列表启动后冻结不可追)
         try:
             _app = PromptServer.instance.web_app
             if _app and not getattr(_app, "_daoyan_cors", False):
-                @web.middleware
-                async def _daoyan_cors_middleware(request, handler):
-                    if request.method == "OPTIONS":
-                        resp = web.Response(status=204)
-                    else:
-                        resp = await handler(request)
+                async def _daoyan_cors_prepare(request, response):
                     origin = request.headers.get("Origin", "")
                     if origin:
-                        resp.headers["Access-Control-Allow-Origin"] = origin
-                        resp.headers["Access-Control-Allow-Methods"] = (
+                        response.headers["Access-Control-Allow-Origin"] = origin
+                        response.headers["Access-Control-Allow-Methods"] = (
                             "GET,POST,OPTIONS")
-                        resp.headers["Access-Control-Allow-Headers"] = (
+                        response.headers["Access-Control-Allow-Headers"] = (
                             "Content-Type,X-Filename,Authorization,"
                             "X-Manying-Image-Token,Bearer")
-                    return resp
-                _app.middlewares.append(_daoyan_cors_middleware)
+                _app.on_response_prepare.append(_daoyan_cors_prepare)
                 _app._daoyan_cors = True
-                print("[daoyan] CORS middleware attached", flush=True)
+                print("[daoyan] CORS on_response_prepare attached", flush=True)
         except Exception as _cors_err:
-            print(f"[daoyan] CORS middleware failed (non-fatal): {_cors_err}",
+            print(f"[daoyan] CORS attach failed (non-fatal): {_cors_err}",
                   flush=True)
 
         @PromptServer.instance.routes.get("/my_daoyan/projects")
