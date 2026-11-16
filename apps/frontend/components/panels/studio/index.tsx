@@ -69,7 +69,10 @@ export function StudioView() {
             }
             if (result.failed.length > 0) summary.push(`${result.failed.length} 镜失败`);
             if (result.failed.length > 0) toast.warning(`导演台视频导入:${summary.join(",")}`);
-            else toast.success(`导演台视频导入:${summary.join(",")}`);
+            else {
+              toast.success(`导演台视频导入:${summary.join(",")}`);
+              toast.info("已导入的镜需重新视觉审核后方可入章成片");
+            }
           })
           .catch((error: unknown) => {
             toast.error(`导演台视频导入失败:${error instanceof Error ? error.message : String(error)}`);
