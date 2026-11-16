@@ -2339,8 +2339,12 @@ class EngineManager:
         # 可更新判定(09-09 提交口径优先):有本地 sha 时只看 master HEAD 差
         # (tag 也打在 master 上,master 同步=release 必同步;且避免 describe
         # 版本串被 release 口径误报)。无 sha(旧账/异常)回落 release tag 口径。
+        # 1116 B9 修:钉版(pinned=True)引擎=用户锁定版本,跳过 master 比对
+        # (钉版 0.45.2 对 master 永久 diverging 红是假警报,非真可更新)。
         ahead_by = None
-        if head_sha and local_sha:
+        if engine.get("pinned"):
+            update_available = False
+        elif head_sha and local_sha:
             update_available = head_sha != local_sha
             if update_available:
                 ahead_by = self._commits_ahead(local_sha)
@@ -2351,6 +2355,7 @@ class EngineManager:
             "current": current, "latest": latest,
             "headSha": head_sha, "aheadBy": ahead_by,
             "updateAvailable": update_available,
+            "pinned": bool(engine.get("pinned")),
             "checkedAt": checked_at,
         }
         # 09-08 检查结果落账(照 Comfy Desktop 更新页语义):sidecar 重启后
