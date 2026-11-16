@@ -257,6 +257,45 @@ def _engine_busy(port: int = 17000, timeout: float = 5.0) -> bool:
     return bool(q.get('queue_running') or q.get('queue_pending'))
 
 
+def _engine_port_up(timeout=3.0):
+    """17000 端口快探(单发,非轮询):引擎已监听=True。"""
+    try:
+        urllib.request.urlopen('http://127.0.0.1:17000/system_stats', timeout=timeout)
+        return True
+    except Exception:
+        return False
+
+
+def _engine_proc_alive():
+    """引擎进程在位探测(启动窗口态:进程在、端口未开)。
+
+    CommandLine 含 ComfyUI main.py 且带 --port 17000(斜杠双态正则,与
+    heal_watch killer 同款)。Count 用 Measure-Object——@($ps).Count 在
+    $ps 为 $null 时是 1(假阳坑)。探测失败按不在位处理(fail-open=退回
+    旧无门行为,零新增风险)。"""
+    probe = ("(Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match "
+             "'ComfyUI[/\\\\]main\\.py' -and $_.CommandLine -match '--port[ ]+17000' } | "
+             "Measure-Object).Count")
+    try:
+        r = subprocess.run(['powershell', '-NoProfile', '-NonInteractive', '-Command', probe],
+                           capture_output=True, timeout=30)
+    except Exception:
+        return False
+    out = (r.stdout or b'').decode('utf-8', errors='replace').strip()
+    return out.isdigit() and int(out) > 0
+
+
+def _engine_in_place():
+    """引擎在位=已监听 或 进程在跑(启动窗口)。
+
+    1116 端口在位跳过门的判定真身:EngineDurable 被 Win 侧 MYStudio 一天触发
+    ~50 次(1114 账,含 13s×13 连发簇),每次 main() 无条件 spawn 撞 17000 →
+    短命重复 venv python churn。双态覆盖「引擎已就绪」与「上一次 spawn 尚在
+    启动期(端口未开)」两个窗口,谁触发都免疫。deploy-dual 杀引擎(B3)→
+    /Run(B7)隔整个 robocopy 装机(分钟级),无进程残留竞态。"""
+    return _engine_port_up() or _engine_proc_alive()
+
+
 def _missing_modules(log_offset):
     """读本次启动日志段,提取「No module named」欠件插件→缺失模块映射。"""
     missing = {}
@@ -272,6 +311,12 @@ def _missing_modules(log_offset):
 
 
 def main():
+    # 0)端口在位跳过门(1116,EngineDurable 重触发免疫):引擎已在跑/启动中 →
+    #   本轮 /Run 直接收工——不 spawn 第二本撞 17000,也不 reconcile(在忙引擎
+    #   脚下换依赖文件正是 1113 heal 让行门要防的事;缺件对账留给下次冷启动)。
+    if _engine_in_place():
+        _say('skip: engine already in place on 17000 — re-trigger ignored (1116 port gate)')
+        return
     # spawn 标记行落引擎日志:TESSERA_SCRATCH 注入生效的直接证据(1104)
     _say('spawn TESSERA_SCRATCH=%s' % env['TESSERA_SCRATCH'])
     # ①启动前依赖对账(sha256 戳;变更件自动装)
