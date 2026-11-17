@@ -499,6 +499,9 @@ export async function buildStoryboardCanonicalContext(
           derivedAsset && (derivedAsset.previewUrl || derivedAsset.thumbnailUrl || derivedAsset.filePath),
         );
         if (!derivedHasImage) {
+          // 1117 第十刀A:调度/持法类注记不入画(「蛇皮鞭两种持法(搭肩/绕肩,
+          // 属调度非换装)」实录=明示两种姿势→双副本;画单帧只取穿着态)。
+          if (/持法|属调度|姿势调度/.test(entry.stateText)) continue;
           derivedStateNotes.push(`「${entry.compoundName}」:${entry.stateText}`);
           derivedWarnings.push(`derived-missing:${entry.compoundName}`);
         }
@@ -631,18 +634,30 @@ export async function buildStoryboardCanonicalTransportInput(
   const momentNote = frameId
     ? shot.keyframes?.find((frame) => frame.frameId === frameId)?.momentDescription
     : undefined;
-  const { subject, anchors: contextAnchors, anchorSoftNames } = await buildStoryboardCanonicalContext(shot);
-  const effectiveSubject = momentNote?.trim()
-    ? { ...subject, momentNote: momentNote.trim() }
-    : subject;
   // 1117 第九刀:有名有姓在场人物=1 的镜,角色参考全弃(同人副本根;
   // 场景参考保留顶槽)。多帧镜不弃(帧间链身份连续优先)。
-  const castNames = ((shot.shotSemantics?.visibleCharacters ?? []) as Array<{ name?: string }>)
-    .map((character) => (character.name ?? "").trim())
-    .filter(Boolean);
+  const castSemantics = ((shot.shotSemantics?.visibleCharacters ?? []) as Array<{
+    name?: string; actionIn?: string;
+  }>);
+  const castNames = castSemantics.map((character) => (character.name ?? "").trim()).filter(Boolean);
   // vc 语义数据缺席(undefined/空)=未知形态,不触发弃参考(合成测试床/旧分片);
   // 恰好 1 名有名角色=真单角色镜 → 弃角色参考(宁缺勿染)。
   const singleCast = castNames.length === 1;
+  // 1117 第十刀B:单角色镜单时刻框定——分镜帧=一个瞬间,videoDesc 的多动作
+  // 枚举(「挥鞭…、舔唇、拨筹」)+道具动作句=「多名各做一动」误读实录(S02
+  // 双赵四=动作拆人,提示词语义病灶);有 actionIn 时以「{名}正在{actionIn}」
+  // 单一此刻帧替换枚举,环境/光色/阵营句保留。
+  const shotForPrompt = singleCast && !frameId && castSemantics[0]?.name?.trim() && castSemantics[0]?.actionIn?.trim()
+    ? {
+        ...shot,
+        videoDesc: `${castSemantics[0].name!.trim()}正在${castSemantics[0].actionIn!.trim()}`,
+        prompt: `${castSemantics[0].name!.trim()}正在${castSemantics[0].actionIn!.trim()}`,
+      }
+    : shot;
+  const { subject, anchors: contextAnchors, anchorSoftNames } = await buildStoryboardCanonicalContext(shotForPrompt);
+  const effectiveSubject = momentNote?.trim()
+    ? { ...subject, momentNote: momentNote.trim() }
+    : subject;
   const mapping = mapCanonicalReferenceSlots({
     ...extractCanonicalSlotSources(graph, targetNodeId),
     singleCastTextIdentity: singleCast && !frameId,

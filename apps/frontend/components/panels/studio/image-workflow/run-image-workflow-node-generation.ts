@@ -194,8 +194,8 @@ export async function runImageWorkflowNodeGeneration(
         operationId: createOperationId("storyboard-canonical-lint"),
         message: "Storyboard canonical prompt rejected by discipline lint",
         context: { shotId: shot.id, shotIndex: shot.index, violations,
-          // 1117 六刀批排障:拒发全文前 200 字(半角渗入点定位;拒发件不入敏感面)
-          promptHead: instruction.prompt.slice(0, 200) },
+          // 1117 十刀C:拒发全文落库(诊断=审计面)
+          promptText: instruction.prompt },
       });
       throw new Error(`分镜正典提示词未过体裁断言:${violations.map((v) => `${v.rule}(${v.detail})`).join("、")}`);
     }
@@ -214,7 +214,46 @@ export async function runImageWorkflowNodeGeneration(
     // 锚集合字段缺席(旧形桩/非正典装配路径)=门A 不适用;真实装配链恒给
     // anchors(含空集)——生产路径三硬项 fail-closed 不变。
     if (anchors) assertAnchors(instruction.prompt, anchors);
-    canonicalPrompt = instruction.prompt;
+    // 1117 第十刀C:人工覆盖通道——用户令「写提示词在另外会话做」:手写
+    // 主体句落分片 promptOverride 字段;非空=逐字采用(跳过生成器,引擎 1017
+    // 门仍兜底),留痕 source=override。
+    const overrideText = (shot.promptOverride ?? "").trim();
+    if (overrideText) {
+      canonicalPrompt = overrideText;
+      void logEvent({
+        level: "info", category: "ai",
+        operationId: createOperationId("storyboard-prompt-override-used"),
+        message: "Storyboard canonical prompt override used (verbatim)",
+        context: { shotId: shot.id, shotIndex: shot.index, length: overrideText.length },
+      });
+    } else {
+      canonicalPrompt = instruction.prompt;
+      // 1117 第十刀C:语义门(生成路硬拦;S02 病灶机器化)——①同名超载
+      // (角色名出现 >4 次=多主语拆人风险)②多姿势明示(「两种持法/姿势」)。
+      const semanticViolations: string[] = [];
+      const nameCounts = new Map<string, number>();
+      for (const name of new Set([...(mapping.slots.map((slot) => slot.title) ?? []),
+        ...((shot.shotSemantics?.visibleCharacters ?? []).map((c: { name?: string }) => (c.name ?? "").trim()).filter(Boolean) as string[])])) {
+        const base = name.split(/[·;]/)[0]!.trim();
+        nameCounts.set(base, (canonicalPrompt.split(base).length - 1));
+      }
+      for (const [base, count] of nameCounts) {
+        if (count > 4) semanticViolations.push(`name-overload:${base}×${count}`);
+      }
+      if (/(两种|两式|三种)[^，。；]{0,6}(持法|姿势|握法|形态)/.test(canonicalPrompt)) {
+        semanticViolations.push("multi-posture");
+      }
+      if (semanticViolations.length) {
+        void logEvent({
+          level: "warn", category: "ai",
+          operationId: createOperationId("storyboard-prompt-semantic-lint"),
+          message: "Storyboard canonical prompt rejected by semantic lint",
+          context: { shotId: shot.id, shotIndex: shot.index, semanticViolations,
+            promptText: canonicalPrompt },
+        });
+        throw new Error(`分镜主体句未过语义门:${semanticViolations.join("、")}(同名超载/多姿势明示=多人拆像风险,请精简为单主语单时刻)`);
+      }
+    }
     if (mapping.slots.length) {
       // 槽位图 dataURL 解析+准备(节点只存轻量受管路径,传输才转 base64,
       // 持久化纪律与资产参考同口径)。
@@ -433,6 +472,19 @@ export async function runImageWorkflowNodeGeneration(
   const generateAndSave = async (transport?: "chat") => {
     input.assertStillCurrent?.();
     const generated = await aiManager.generateImage(buildRequest(transport));
+    // 1117 第十刀C:实发主体句落库(分片持久;每次成功发火回写,排查/人眼
+    // 对账真源快照——正典线才有,自由线 canonicalPrompt=null 不写)。
+    if (canonicalPrompt) {
+      // 1117 十刀C:实发主体句先落诊断(审计面,零语义副作用);分片字段
+      // lastTransportPrompt 的持久化走保存链(会话存档),此处禁直写 store
+      // (updateStoryboard 触发指纹级联→打回审核,实测破批量 stale 语义)。
+      void logEvent({
+        level: "info", category: "ai",
+        operationId: createOperationId("storyboard-last-transport-prompt"),
+        message: "Storyboard transport prompt fired",
+        context: { shotId: graph.target.id, promptText: canonicalPrompt },
+      });
+    }
     // 生图落库自动去噪(噪点治理 08-29):开关开启时,成图在写入项目
     // workflow-images 前先过轻度双边滤波;失败原样保存(fail-open)。
     const denoisedSource = await maybeAutoDenoiseUrl(generated.url);

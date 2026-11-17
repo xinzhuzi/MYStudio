@@ -188,6 +188,13 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
   duration: number;
   prompt: string;
   videoDesc: string;
+  /** 1117 第十刀:人工正典主体句覆盖(用户令「写提示词在另外会话做」)——
+   * 非空=传输层逐字采用(跳过生成器,仍过引擎 1017 门),分片持久=可审计
+   * 可回放;空/缺=走生成器默认路。 */
+  promptOverride?: string;
+  /** 1117 第十刀:最近一次实发传输主体句全文落库(每次成功发火回写;
+   * 排查/人眼对账的真源快照)。 */
+  lastTransportPrompt?: string;
   assetIds: string[];
   mediaRef?: StoryboardMediaRef;
   /** 仅 video 镜有意义；缺省为 tts-stack（配音主导）。 */
@@ -238,6 +245,26 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
   voiceMatch?: "fixed" | "ai-selected";
   sound?: string;
   shotSemantics?: StoryboardShotSemantics;
+  /**
+   * 1117 C2 剧情锚定(B1 主修):分镜表「场景」列落库(toStoryboardItems 映射
+   * row.scene)。LLM 表每行场景列有值而落库丢弃=场景链断的根因——正典装配
+   * 五级序场景解析第㊁级消费。additive:存量行无此字段=undefined 零迁移;
+   * 不进 sourceFingerprint(防全量 stale)。
+   */
+  sceneName?: string;
+  /**
+   * 1117 C2 剧情锚定(B2 主修):场头时辰(源自剧本场头「金水塾馆 夜/内」,
+   * parseSceneHeading 扩捕「｜时辰:夜·内」)。五源序时辰解析第一源消费。
+   * additive:存量行无此字段=undefined 零迁移;不进 sourceFingerprint。
+   */
+  timeOfDay?: string;
+  /**
+   * 1117 C2(类型补账):分镜表「引用资产ID」列的 scene_/char_ 前缀 id 全量
+   * (存量分片在档而类型漏记——storyboard-preview-model/studio-flow-data 各自
+   * 本地补型实证)。五级序场景解析第㊠级(id 精确命中)消费;不进
+   * sourceFingerprint。展示域既有读取零改。
+   */
+  associateAssetsIds?: string[];
   styleContractVersion?: string;
   /** Explicit subtitle ownership for this visual interval. */
   subtitleAuthority?: SubtitleAuthority;
