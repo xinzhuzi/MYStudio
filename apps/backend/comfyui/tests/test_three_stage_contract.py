@@ -17,7 +17,7 @@ fork pika-单镜视频-ref2v.json 出生)(GUI 格式)。
      +kitchen+lcm+BasicScheduler simple/3步/dn0.2(TaoMate 二采必须 LCM,Euler→
      片尾字幕乱码红线);[3071] SaveVideo 锚移挂二采产物=默认终档(五段前缀+MyShot
      回写契约不变,组装器 buildShotRefWorkflowFromTemplate 兼容)。
-  ③ 三采超分 = ReCaVSR 主线(scale2:1440×832→2880×1664,交付层归一 1080)。
+  ③ 三采超分 = ReCaVSR 主线(scale2.667:1440×832→3840×2220=4K UHD 宽,1117 用户令三采默认 4K)。
      1113 手术重放(trellis 11-13-sancai-workflow-surgery-replay,自 875124ad 原版重放):
      TESSERA 38 节点整组出主线(零跨界,参数契约随独立件 7_测试/TESSERA-超分-1080p.json
      由 test_tessera_upscale_contract 把守);RelayVSR 旁路 [268][269]+监控死端 [264][265]
@@ -332,6 +332,7 @@ def test_single_shot_dir_inventory():
     1112 用户令:1_漫影自研 下不设子文件夹;归档语义由文件名后缀承载。"""
     expected = [
         "一镜到底-分段.json",
+        "三采-单镜-小脸修复.json",
         "三采-单镜.json",
         "导演台.json",
     ]
@@ -368,7 +369,7 @@ def test_stage3_relayvsr_inline_group():
 
 def test_stage3_recavsr_mainline_arm():
     """1111 换防主线臂:[4001]ReCaVSRLoader(int8 ConvRot)→[4002]ReCaVSRUpscale
-    (scale2/fast/flashdecoder)→[4003]SaveVideo(p3-recavsr);二采[3053]直喂;
+    (scale2.667/fast/flashdecoder)→[4003]SaveVideo(p3-recavsr);二采[3053]直喂;
     1440×832→2880×1664,交付层归一 1080(对称旧口径);实弹=同档对拍 59.1s vs
     RelayVSR 185.6s(3.14×),PSNR 对源保真 35.7(生成系加细节)。"""
     d, nodes, links = _load()
@@ -377,7 +378,7 @@ def test_stage3_recavsr_mainline_arm():
     assert nodes[4002]["type"] == "ReCaVSRUpscale"
     assert nodes[4002]["mode"] == 0
     w = nodes[4002]["widgets_values"]
-    assert w[0] == 2, "scale=2:1440×832→2880×1664"
+    assert abs(w[0] - 2.667) < 1e-6, "scale=2.667:1440×832→3840×2220(4K UHD 宽)"
     assert w[5] == "fast" and w[4] == "flashdecoder", "kernels=fast / decoder=flashdecoder"
     assert nodes[4003]["type"] == "SaveVideo" and nodes[4003]["mode"] == 0
     assert nodes[4003]["widgets_values"][0] == "video/漫影/chapter-001/sb-chapter-001-001/p3-recavsr"

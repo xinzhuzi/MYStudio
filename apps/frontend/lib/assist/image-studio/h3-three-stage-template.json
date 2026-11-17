@@ -3428,7 +3428,7 @@
         "Node name for S&R": "ReCaVSRUpscale"
       },
       "widgets_values": [
-        2,
+        2.667,
         "none",
         42,
         "fixed",

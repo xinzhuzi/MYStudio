@@ -1791,7 +1791,7 @@
         "Node name for S&R": "ReCaVSRUpscale"
       },
       "widgets_values": [
-        2,
+        2.667,
         "none",
         42,
         "fixed",
@@ -1833,7 +1833,7 @@
         "auto",
         "auto"
       ],
-      "title": "p3 终档(2880×1664)"
+      "title": "p3 终档(3840×2220)"
     },
     {
       "id": 9999,

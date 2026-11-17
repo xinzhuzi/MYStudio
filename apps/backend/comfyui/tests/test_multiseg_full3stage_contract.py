@@ -2,7 +2,7 @@
 
 被测对象 = 仓库真源 `2_视频/H3视频/1_漫影自研/一镜到底-分段.json`
 (1114 用户裁定「都过三采」:分段生成(一采)→ TaoMate 精修(二采 1440×832)→
-ReCaVSR 超分(三采 2880×1664 终档);与 三采-单镜.json 分工=单镜 ≤15s 高质线 /
+ReCaVSR 超分(三采 3840×2220=4K 终档,1117 默认改 4K);与 三采-单镜.json 分工=单镜 ≤15s 高质线 /
 本件任意时长全梯线)。镜像样板 test_three_stage_contract.py 模式:零引擎依赖纯静态。
 
 契约(PRD R2 七件):
@@ -174,8 +174,8 @@ def test_stage3_inline_factory():
         "link44 应 3053.0→4002.1(内联直喂)"
     assert nodes[3053]["outputs"][0]["links"] == [42, 44], "[3053] 扇出应 [42,44]"
     assert nodes[4001]["widgets_values"] == ["transformer_int8_convrot.safetensors"]
-    assert nodes[4002]["widgets_values"] == [2, "none", 42, "fixed", "flashdecoder",
-                                             "fast", False, "auto", 30], "4002 九元组逐值"
+    assert nodes[4002]["widgets_values"] == [2.667, "none", 42, "fixed", "flashdecoder",
+                                             "fast", False, "auto", 30], "4002 九元组逐值(1117 三采默认 4K:scale2.667→3840×2220)"
     assert nodes[4003]["widgets_values"][0] == P3_PREFIX
 
 
