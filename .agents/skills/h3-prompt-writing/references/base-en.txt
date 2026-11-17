@@ -147,6 +147,8 @@ When the same line of dialogue or lyrics crosses a cut, use `<scenetrans>` at th
 
 Place any banner, sign, label, subtitle, or neon text that is actually visible on screen in English double quotation marks. Preserve the original text and punctuation verbatim, without translation.
 
+**Why verbatim 「1117 AtlasCloud 吸收」** — a string spelled out in the prompt renders clean; text merely referred to ("HUD elements", "some labels") returns as letter-shaped noise, because the model paints the *texture* of writing without ever receiving the string. Pair every must-read string with the guard trio: no misspellings, no additional on-screen text, no captions. Source: `references/craft-external-1107.md` §F-1.
+
 ```text
 A red neon sign reading "营业中" glows above the doorway.
 ```

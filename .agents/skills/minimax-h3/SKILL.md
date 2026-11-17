@@ -92,7 +92,9 @@ The young woman with a quiet, breathy voice (S1) says: <d>[English] I get off at
 
 Without `<d>` the model is never told the exact words and improvises phonetics. Voiceover needs the exact phrase
 `says in an off-screen voiceover` plus a statement that the lips stay closed. Use `<scenetrans>` when a line
-crosses a cut, `<cutoff>` when speech is truncated by the end. On-screen text goes in double quotes, verbatim.
+crosses a cut, `<cutoff>` when speech is truncated by the end. On-screen text goes in double quotes, verbatim — a string spelled
+out renders clean; text merely referred to ("HUD elements") comes back as letter-shaped noise (1117 AtlasCloud
+absorption, details in `../h3-prompt-writing/references/craft-external-1107.md` §F-1).
 
 **Manying pipeline ruling (2026-10-11): narrator lines never enter the H3 prompt.** The app derives the audio
 policy per shot — `dialogueAudioPolicy(lines)` in `apps/frontend/lib/assist/image-studio/h3-shot-prompt.ts`:
@@ -111,6 +113,10 @@ character-line texts only, enforced under `full` by `assertPlannedTextVerbatimGa
 Motion type plus amplitude plus speed, and medium amplitude at normal speed is the default you simply omit:
 `Zoom In/Out`, `Push In/Pull Out`, `Pan Left/Right`, `Truck Left/Right`, `Tilt Up/Down`, `Pedestal Up/Down`,
 `Arc Shot`, `Tracking Shot`.
+
+Omitting motion is not refusing it: an unspecified camera drifts into an unrequested slow push-in, so a locked
+frame is written out explicitly (`locked-off static shot, no push, no cut` — 1117 AtlasCloud, details in
+`../h3-prompt-writing/references/craft-external-1107.md` §F-2).
 
 ## Reference-to-video: label every file with a job
 
@@ -172,6 +178,9 @@ Note their examples use a `[0-3s]` beat style, which is a readable shorthand rat
   real detail; the official 2K route is a hosted regenerate pass that is not open.
 - **Duration:** trained and tested 5 to 15 s (the hosted API accepts any integer 4–15). Longer runs but is
   untrained territory.
+- **Prompt budget:** official cap 7,000 characters; the 45 official examples run ~130 Chinese characters median
+  (longest 657/858) — length is the description work you refuse to delegate to reference images (1117 AtlasCloud
+  survey). Hosted billing is per generated second, so negatives and spelled-out text cost nothing.
 - **Speed:** the open release ships **full attention only**; sparse attention is promised later. This is why it
   is slow, and why the community acceleration below matters.
 - **Licence:** open weights, not open source, and the territory clause is unusually strict. See `MODELS.md`.
@@ -181,6 +190,7 @@ Note their examples use a `[0-3s]` beat style, which is a readable shorthand rat
 | Symptom | Most likely cause |
 |---|---|
 | Speech is fluent-sounding nonsense | The line is not inside `<d>[Language] ... </d>` |
+| On-screen text is letter-shaped noise | The string was never spelled out verbatim in double quotes; spell it and add the guard trio (no misspellings, no extra text, no captions) |
 | Face drifts across the clip | No `<Subject N>` binding the identity source, or refs at the wrong scale after an upscale |
 | Audio garbles after a latent upscale | `audio_denoise` left at its default 1.0 (inferred cause, not measured); audio settles late, so run more of the schedule in pass 1 |
 | Wrong face animated in a crowd | Reference sizing set to `match` when identity needed `max` |
