@@ -142,21 +142,24 @@ def test_stage2_wiring_slot1():
 
 
 def test_single_source_fanout():
-    """单源扇出:UNETLoader 全图唯一(34)扇出 {41,1021};KSamplerSelect/RandomNoise 各恰一。"""
+    """单源扇出:UNETLoader 全图唯一(34)扇出 {41,1021,5006}(1118 修脸臂复用 34,禁第二 loader);
+    KSamplerSelect/RandomNoise 正片各恰一(1046/3022/3040)+ 修脸臂自带 5017/5016(seed 42 同 3040)。"""
     d, nodes, _ = _load()
     unets = [n for n in nodes.values() if n["type"] == "UNETLoader"]
     assert len(unets) == 1 and unets[0]["id"] == 34, "底模恒单源(Cobijada 一件双能)"
     fed = {l[3] for l in d["links"] if l[1] == 34 and l[5] == "MODEL"}
-    assert fed == {41, 1021}, "[34] 应扇出一采 pika 臂 + 二采 taomate 臂"
+    assert fed == {41, 1021, 5006}, "[34] 应扇出一采 pika 臂 + 二采 taomate 臂 + 四采修脸臂(1118)"
     ksel = sorted((n for n in nodes.values() if n["type"] == "KSamplerSelect"), key=lambda n: n["id"])
-    assert [n["id"] for n in ksel] == [1046, 3022], "KSamplerSelect 两枚(1115 正典臂:一采 1046 + 二采 3022,均 lcm)"
-    noise = [n for n in nodes.values() if n["type"] == "RandomNoise"]
-    assert len(noise) == 1 and noise[0]["id"] == 3040, "RandomNoise 恰一"
-    # VAE 视频单源(7)扇出 101/6/3031/3051;音频 VAE 单源(13)扇出 101/2/3031/3052
+    assert [n["id"] for n in ksel] == [1046, 3022, 5017], \
+        "KSamplerSelect 三枚(1115 正典臂:一采 1046 + 二采 3022,均 lcm;1118 修脸臂 5017 同 lcm)"
+    noise = {n["id"]: n["widgets_values"] for n in nodes.values() if n["type"] == "RandomNoise"}
+    assert sorted(noise) == [3040, 5016] and noise[5016] == noise[3040] == [42, "fixed"], \
+        "RandomNoise 正片 3040 恰一 + 修脸臂 5016(seed 42 同源)"
+    # VAE 视频单源(7)扇出 101/6/3031/3051+修脸 5012/5013/5021;音频 VAE 单源(13)扇出 101/2/3031/3052+修脸 5012/5014
     fed7 = {l[3] for l in d["links"] if l[1] == 7 and l[5] == "VAE"}
-    assert fed7 == {101, 6, 3031, 3051}, f"[7] 扇出漂移: {fed7}"
+    assert fed7 == {101, 6, 3031, 3051, 5012, 5013, 5021}, f"[7] 扇出漂移: {fed7}"
     fed13 = {l[3] for l in d["links"] if l[1] == 13 and l[5] == "VAE"}
-    assert fed13 == {101, 2, 3031, 3052}, f"[13] 扇出漂移: {fed13}"
+    assert fed13 == {101, 2, 3031, 3052, 5012, 5014}, f"[13] 扇出漂移: {fed13}"
 
 
 def test_stage3_inline_factory():
@@ -172,7 +175,8 @@ def test_stage3_inline_factory():
     l44 = links.get(44)
     assert l44 and (l44[1], l44[2], l44[3], l44[4]) == (3053, 0, 4002, 1), \
         "link44 应 3053.0→4002.1(内联直喂)"
-    assert nodes[3053]["outputs"][0]["links"] == [42, 44], "[3053] 扇出应 [42,44]"
+    assert nodes[3053]["outputs"][0]["links"] == [42, 44, 54, 55], \
+        "[3053] 扇出应 [42,44,54,55](1118 修脸组:5002 拆帧 + 5100 终档直通臂)"
     assert nodes[4001]["widgets_values"] == ["transformer_int8_convrot.safetensors"]
     assert nodes[4002]["widgets_values"] == [2.667, "none", 42, "fixed", "flashdecoder",
                                              "fast", False, "auto", 30], "4002 九元组逐值(1117 三采默认 4K:scale2.667→3840×2220)"
@@ -206,7 +210,8 @@ def test_links_bidirectional():
         for i in n.get("inputs", []):
             assert i.get("link") is None or i["link"] in link_ids, \
                 f"[{nid}] 输入槽 {i['name']} 悬空登记 {i.get('link')}"
-    assert d["last_node_id"] == 4003 and d["last_link_id"] == 53, "计数器(14+31+8 臂线−1 改道=52)"
+    assert d["last_node_id"] == 9999 and d["last_link_id"] == 91, \
+        "计数器(14+31+8 臂线−1 改道=52;1118 修脸组 +38 链=91,node 计数含 README 9999)"
 
 
 def test_groups_five_bands():
@@ -214,9 +219,9 @@ def test_groups_five_bands():
     两两不交、罩全(MarkdownNote 豁免)、尺寸非正=退化红线。"""
     d, nodes, _ = _load()
     gs = d["groups"]
-    assert len(gs) == 6, "六组横排(1115 增⑥一采正典臂)"
+    assert len(gs) == 8, "八组横排(1115 六组 + 1118 修脸组两只:四采修脸组/终档组)"
     titles = "".join(g["title"] for g in gs)
-    for kw in ("加载模型", "一采分段", "一采直出", "二采精修", "三采超分"):
+    for kw in ("加载模型", "一采分段", "一采直出", "二采精修", "三采超分", "四采修脸组", "终档组"):
         assert kw in titles, f"五组标题缺: {kw}"
     for g in gs:
         x, y, w, h = g["bounding"]
@@ -252,3 +257,45 @@ def test_no_negative_no_leftward():
         sx = nodes[l[1]]["pos"][0]
         tx = nodes[l[3]]["pos"][0]
         assert tx > sx, f"link {l[0]} 左向线 [{l[1]}]→[{l[3]}]"
+
+
+def test_facerefine_group_inline_bypass():
+    """四采修脸组(1118 内置·默认旁路;生成器 multiseg_inline_facerefine_build_1118.py):
+    开关默认 False / 5006 复用 34 / 5012 宽高=5011 出口联线 / length 与 3031 同源同值 /
+    5100 极性 on_true=修脸·on_false=3053 直通 / 组框罩全。"""
+    d, nodes, links = _load()
+    OWN = {25: "PrimitiveStringMultiline", 1065: "PrimitiveBoolean",
+           5002: "GetVideoComponents", 5006: "LoraLoaderModelOnly",
+           5011: "H3FaceTrackCrop", 5012: "MiniMaxH3ReferenceToVideo",
+           5013: "H3InjectVideoLatent", 5014: "MiniMaxH3NativeAudioLock",
+           5015: "H3PerFrameDenoise", 5016: "RandomNoise", 5017: "KSamplerSelect",
+           5018: "BasicScheduler", 5019: "BasicGuider", 5020: "SamplerCustomAdvanced",
+           5021: "VAEDecode", 5022: "H3FaceStitch", 5023: "CreateVideo",
+           5100: "ComfySwitchNode", 4100: "SaveVideo"}
+    for nid, ntype in OWN.items():
+        assert nid in nodes and nodes[nid]["type"] == ntype, f"[{nid}] 应为 {ntype}"
+
+    def src_of(nid, slot):
+        lid = next(s["link"] for s in nodes[nid]["inputs"] if s["name"] == slot)
+        l = links[lid]
+        return l[1], nodes[l[1]]["outputs"][l[2]]["name"]
+
+    assert nodes[1065]["widgets_values"] == [False], "修脸开关默认 False=旁路(50xx 臂惰性剪除)"
+    assert src_of(5002, "video")[0] == 3053, "5002 拆帧源=3053(二采 p2 出片口)"
+    assert src_of(5006, "model")[0] == 34, "5006 LoRA 复用唯一 UNETLoader 34(禁第二 loader)"
+    assert src_of(5012, "width") == (5011, "canvas_w"), "5012.width=5011.canvas_w 出口联线勿手填"
+    assert src_of(5012, "height") == (5011, "canvas_h"), "5012.height=5011.canvas_h 出口联线勿手填"
+    assert nodes[5012]["widgets_values"][3] == nodes[3031]["widgets_values"][3] == 56, \
+        "5012.length 与 3031.length 同源同值(本件无帧数图出口,widget 同步纪律)"
+    assert src_of(5100, "on_true")[0] == 5023 and src_of(5100, "on_false")[0] == 3053 \
+        and src_of(5100, "switch")[0] == 1065, "5100 极性:真=修脸片/假=3053 直通(1118 双态实测定谳)"
+    assert src_of(4100, "video")[0] == 5100
+    assert nodes[4100]["widgets_values"][0] == "video/H3/分段视频/p-final", "p-final 终档前缀"
+    assert bool(nodes[25]["widgets_values"][0].strip()), "#25 修脸身份提示词默认通用句非空"
+    for nid, ntype in OWN.items():
+        n = nodes[nid]
+        covered = any(g["bounding"][0] <= n["pos"][0] and g["bounding"][1] <= n["pos"][1]
+                      and n["pos"][0] + n["size"][0] <= g["bounding"][0] + g["bounding"][2]
+                      and n["pos"][1] + n["size"][1] <= g["bounding"][1] + g["bounding"][3]
+                      for g in d["groups"])
+        assert covered, f"[{nid}] 修脸组节点未被组框罩全"

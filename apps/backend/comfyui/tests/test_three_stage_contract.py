@@ -160,19 +160,20 @@ def test_stage2_model_mainline_passes_through_chunkffn():
 
 def test_stage2_single_source_fanout_no_duplicate():
     """零真重复:[2022] lcm 与 [54] 噪声单源扇出供两段采样器;VAE/TE 同源扇出;
-    底模单源:[1001] Cobijada 扇出 pika/taomate 双 LoRA 臂(1105 统一改造)。"""
+    底模单源:[1001] Cobijada 扇出 pika/taomate 双 LoRA 臂(1105 统一改造;
+    1118 四采修脸臂 5006 复用同源——全图恒单 UNETLoader,禁双载显存爆)。"""
     d, nodes, links = _load()
     unets = [n for n in nodes.values() if n["type"] == "UNETLoader" and n["id"] < 9000]
-    assert len(unets) == 1 and unets[0]["id"] == 1001, "默认路径底模恒单源(Cobijada 统一;i2v 臂为 LoRA 分支非独立底模)"
+    assert len(unets) == 1 and unets[0]["id"] == 1001, "默认路径底模恒单源(Cobijada 统一;i2v 臂为 LoRA 分支非独立底模;四采臂 5006 亦复用,禁第二个 UNETLoader)"
     fed = {l[3] for l in d["links"] if l[1] == 1001 and l[5] == "MODEL"}
-    assert fed == {1011, 1021, 1012}, "Cobijada 扇出三 LoRA 臂;调度器[2021/3041]改吃 σshift 后模型(1110 σ接线定谳,见 test_sigma_feed_scheduler_gets_shifted_model)"
+    assert fed == {1011, 1021, 1012, 5006}, "Cobijada 扇出三 LoRA 臂+四采修脸臂 5006(1118);调度器[2021/3041]改吃 σshift 后模型(1110 σ接线定谳,见 test_sigma_feed_scheduler_gets_shifted_model)"
     samplers = []
     for l in d["links"]:
         if l[1] == 2022 and l[5] == "SAMPLER":
             samplers.append(l[3])
     assert sorted(samplers) == [2032, 3043], "KSamplerSelect(lcm) 应单源扇出至一采/二采"
-    ksel = [n for n in nodes.values() if n["type"] == "KSamplerSelect" and n["id"] < 9000]
-    assert len(ksel) == 1, "一采+二采共享一个 KSamplerSelect(零真重复)"
+    ksel = sorted(n["id"] for n in nodes.values() if n["type"] == "KSamplerSelect" and n["id"] < 9000)
+    assert ksel == [2022, 5017], "主链(一采+二采)共享 [2022](零真重复);四采修脸臂独立 [5017] lcm(1118,5000 段分区)"
     # 默认路径(①+②,id<300)视频 VAE 单源;1113 手术后 ≥300 仅剩 ReCaVSR 三件,
     # ③组自足 VAELoader 已随 TESSERA 整组出主线(零残留)
     vae_video = [n for n in nodes.values() if n["id"] < 9000 and n["type"] == "VAELoader"
@@ -246,12 +247,13 @@ def test_links_bidirectional_consistency():
 
 def test_groups_three_bands_non_overlap():
     """1113 手术后=五组横排:加载模型→输入→一阶段采样→二阶段放大→三采超分;
+    1118 增两只:四采修脸组(5000 段·默认旁路)+终档组(5100/4100 p-final),共七组;
     两两不交,标题口径正确(TESSERA/RelayVSR 已出主线,标题不得再含);
     罩全门(1113 刻碑:负高度组框实弹事故——深度阶梯改版丢 g_max_y 更新行,五组高度全 -20,
     画布上组框退化成标题条、节点全部框外;检查器不查组覆盖须自算,此处入契约)。"""
     d, nodes, _ = _load()
     gs = d["groups"]
-    assert len(gs) == 5, "五组=加载模型/输入/一阶段采样/二阶段放大/三采超分(1113 手术终态)"
+    assert len(gs) == 7, "七组=加载模型/输入/一阶段采样/二阶段放大/三采超分+四采修脸+终档(1118 内置修脸臂)"
     assert any("三采超分" in g["title"] for g in gs), "三采超分组必须在册"
     assert any("ReCaVSR" in g["title"] for g in gs), "ReCaVSR 主线组必须在册"
     for g in gs:
@@ -272,8 +274,8 @@ def test_groups_three_bands_non_overlap():
             oy = a[1] < b[1] + b[3] and b[1] < a[1] + a[3]
             assert not (ox and oy), f"组框重叠: {gs[i]['title']} × {gs[j]['title']}"
     titles = "".join(g["title"] for g in gs)
-    for kw in ("加载模型", "输入", "一阶段采样", "二阶段放大", "三采超分"):
-        assert kw in titles, f"五组标题缺: {kw}"
+    for kw in ("加载模型", "输入", "一阶段采样", "二阶段放大", "三采超分", "四采修脸", "终档"):
+        assert kw in titles, f"七组标题缺: {kw}"
     for gone in ("TESSERA", "RelayVSR"):
         assert gone not in titles, f"{gone} 已出主线,组标题不得残留"
 
@@ -322,7 +324,7 @@ def test_absorbed_fl2v_firstframe_mode():
     assert links[nodes[2032]["inputs"][4]["link"]][1] == 2012
     # 首帧槽:[9]→[2002].first_frame(i2v 臂)+[9]→[16].ref_image_0(r2v 臂)双吃
     f9 = sorted(l[3] for l in d["links"] if l[1] == 1)
-    assert f9 == [2001, 2002, 3031], "[1] 应喂 r2v[2001]/i2v首帧[2002]/二采条件[3031] 三处"
+    assert f9 == [2001, 2002, 3031, 5012], "[1] 应喂 r2v[2001]/i2v首帧[2002]/二采条件[3031]/四采条件[5012] 四处(1118)"
 
 
 def test_single_shot_dir_inventory():
@@ -354,6 +356,61 @@ def test_sigma_feed_scheduler_gets_shifted_model():
         return srcs[0]
     assert model_src(2021) == 1051, "一采调度器[2021]必须吃[1051]σshift[6,3]后的模型"
     assert model_src(3041) == 3021, "二采调度器[3041]必须吃[3021]σshift[12,3]后的模型"
+
+
+def test_facerefine_inline_arm_1118():
+    """1118 四采修脸臂内置(11-17-facerefine-inline-bypass):19 节点默认旁路,画布 66→85
+    (PRD §1.1 标题「66+21=87」为修订前残数=19+已删 5001/5005,生成器 sancai_inline_
+    facerefine_build_1118 自检对账注记 画布85/API83)。[1065] False 时 50xx 臂被引擎
+    惰性剪除,终档 4100=p3 直通;True 时三采出片内部走进修脸→终档一条线。结构契约:
+    节点数 85/开关默认 False/恒单 UNETLoader(5006←1001 复用,PRD 单向门#2 显存修订)/
+    5012 画布宽高=5011 追踪器出口联线(禁手填)/5100 极性 on_true=5023 修脸片·on_false=
+    4002 p3 直通。prune 执行面不在静态测试面,由探针跑架 inline_fire_runner_1118 双态
+    实弹把门——1118 双态探针已落定(引擎 history pid 8afe0df4/146293f2+产物复测:
+    旁路 p-final≡p3 MD5 逐字节一致、修脸远端 t=1s 帧 >12 差分 24,467px),极性与接线
+    一致,防 wf2api 反转坑。"""
+    d, nodes, links = _load()
+    arm = {25, 1065, 4100, 5002, 5006, 5011, 5012, 5013, 5014, 5015,
+           5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5100}
+    assert arm <= set(nodes), f"四采臂缺件: {arm - set(nodes)}"
+    assert len(nodes) == 85, \
+        "画布节点数=85(66+19 四采臂;PRD「66+21=87」为修订前残数,生成器对账注记)"
+    assert nodes[1065]["type"] == "PrimitiveBoolean" and nodes[1065]["widgets_values"] == [False], \
+        "[1065] 四采开关出厂必须 False(默认旁路,PRD 单向门#1)"
+    assert nodes[25]["type"] == "PrimitiveStringMultiline" and \
+        isinstance(nodes[25]["widgets_values"][0], str) and nodes[25]["widgets_values"][0].strip(), \
+        "[25] 修脸身份提示词默认通用句非空"
+
+    def src_of(nid, slot_name):
+        s = next(e for e in nodes[nid]["inputs"] if e["name"] == slot_name)
+        assert s.get("link") is not None, f"[{nid}].{slot_name} 未连线"
+        return links[s["link"]]
+
+    assert src_of(5002, "video")[1] == 4002, "[5002] 拆帧必须内存态直吃 [4002](零文件竞态)"
+    assert src_of(5006, "model")[1] == 1001, "[5006] LoRA 必须复用 [1001] 单 loader"
+    wl, hl = src_of(5012, "width"), src_of(5012, "height")
+    assert (wl[1], nodes[5011]["outputs"][wl[2]]["name"]) == (5011, "canvas_w"), \
+        "[5012].width 必须吃 [5011] canvas_w 出口联线(禁手填)"
+    assert (hl[1], nodes[5011]["outputs"][hl[2]]["name"]) == (5011, "canvas_h"), \
+        "[5012].height 必须吃 [5011] canvas_h 出口联线"
+    assert src_of(5012, "length")[1] == 52 and src_of(5012, "ref_images.ref_image_0")[1] == 1 \
+        and src_of(5012, "prompt")[1] == 25, "[5012] length←[52]/主图←[1]/提示词←[25]"
+    assert src_of(5014, "audio")[1] == 5002, "[5014] 音轨锁吃 [5002]②音轨"
+    assert nodes[5015]["widgets_values"][3:5] == [60.0, 200.0], "[5015] 逐帧 denoise 60/200(4K 源口径)"
+    assert nodes[5018]["widgets_values"] == ["simple", 8, 0.45], "[5018] 修脸采样 simple/8步/0.45"
+    assert nodes[5022]["widgets_values"][1:3] == [16, 24], "[5022] 贴回 mask_dilation=16/feather=24"
+    sw = {i["name"]: links[i["link"]] for i in nodes[5100]["inputs"]}
+    assert nodes[5100]["type"] == "ComfySwitchNode"
+    assert sw["switch"][1] == 1065 and sw["on_true"][1] == 5023 and sw["on_false"][1] == 4002, \
+        "[5100] 极性:switch←[1065]/on_true←[5023]修脸片/on_false←[4002]p3 直通" \
+        "(1118 双态实测定谳:False=p-final≡p3 MD5 逐字节直通/True=修脸片;勿改防 wf2api 反转坑)"
+    assert src_of(4100, "video")[1] == 5100, "[4100] 终档吃 [5100] 出口"
+    assert nodes[4100]["widgets_values"][0] == "video/漫影/chapter-001/sb-chapter-001-001/p-final", \
+        "[4100] 终档 prefix=p-final(纯增量口;3061/3071 锚零改动,PRD 单向门#3)"
+    md9999_fr = nodes[9999]["widgets_values"][0]
+    assert "## 四采修脸(内置·默认旁路·1118)" in md9999_fr, "README 9999「四采修脸」调用段必须在册"
+    assert "bypass(1065=false)=直通" in md9999_fr and "repair(1065=true)=修脸" in md9999_fr, \
+        "README 9999 极性口径=1118 双态实测定谳(bypass=直通/repair=修脸),外部参数 1065+25"
 
 
 def test_stage3_relayvsr_inline_group():
