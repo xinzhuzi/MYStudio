@@ -655,6 +655,23 @@
         "T8DramaScene",
         "T8DramaDecode"
       ]
+    },
+    {
+      "id": "ComfyUI-H3-FaceRefine",
+      "name": "H3 远景小脸修复",
+      "desc_zh": "MiniMax H3 视频远景小脸崩坏修复:逐帧人脸追踪(YOLO)+归一化裁剪+AV-latent 注入重画+按脸尺寸逐帧 denoise+羽化贴回;单人/多人(身份参考 InsightFace)。",
+      "category": "H3 视频引擎",
+      "repo": "https://github.com/Carasibana/ComfyUI-H3-FaceRefine",
+      "verified_license": "MIT",
+      "provides": [
+        "H3FaceTrackCrop",
+        "H3InjectVideoLatent",
+        "H3PerFrameDenoise",
+        "H3FaceStitch",
+        "H3FaceMaskSAM",
+        "H3SelectIdentityFace",
+        "H3FaceTransformInfo"
+      ]
     }
   ]
 }

@@ -264,6 +264,10 @@
     {
       "name": "ComfyUI-H3-Context-Noise",
       "url": "https://github.com/beijinren/ComfyUI-H3-Context-Noise.git"
+    },
+    {
+      "name": "ComfyUI-H3-FaceRefine",
+      "url": "https://github.com/Carasibana/ComfyUI-H3-FaceRefine.git"
     }
   ]
 }
