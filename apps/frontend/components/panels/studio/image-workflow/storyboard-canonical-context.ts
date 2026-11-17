@@ -387,10 +387,15 @@ async function resolveIdentityParagraphs(
         const asset = await bridge.getByName({ type: "role", name });
         const override = parsePromptOverride(asset?.promptOverrides, STORYBOARD_IDENTITY_OVERRIDE_KEY);
         if (override) identity = { name, paragraph: override, origin: "asset-override" };
-        // 1117 第五病理刀①:资产库 description=外观真源(发色/体型/服装逐字,
-        // 如赵四「青灰色粗布短褐…」/独孤剑尘「一夜全白」)——override 缺席时
-        // 直接吃 description(此前只回落三库,库外观陈旧=角色跨镜漂移)。
-        else if (asset?.description?.trim()) {
+        // 1117 第十四刀(用户抓真根):资产库 **prompt 列=生图提示词真源**——
+        // 资产生成线吃的就是这列(晏燎 318 字/铁山 1027 字完整视觉身份在
+        // 此;description 列只是性格概述,半数空或垃圾)。五刀①接错列
+        // (description)=分镜线从未用上生图逻辑的直接根因。
+        // 取用序:prompt(视觉真源)>description(性格补位);origin 沿用
+        // asset-description 兼容消费面。
+        else if ((asset?.prompt ?? "").trim()) {
+          identity = { name, paragraph: (asset?.prompt ?? "").trim(), origin: "asset-description" };
+        } else if (asset?.description?.trim()) {
           identity = { name, paragraph: asset.description.trim(), origin: "asset-description" };
         }
       } catch {
