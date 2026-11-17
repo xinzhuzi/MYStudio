@@ -91,7 +91,10 @@ function stubCanvas(contentStart: number, contentEnd: number) {
 }
 
 describe("cropSlotReferenceToSinglePose", () => {
-  it("竖幅单姿立绘原图保留,不丢槽", async () => {
+  it("竖幅单姿立绘原图保留,不丢槽(1117 残项③:竖幅先探竖排多视图,整幅单内容=保留)", async () => {
+    // 竖幅探针内容带=横向满幅(fillPixels 按 x∈[start,end) 前景;竖幅竖排分析
+    // 逐行探中带,满幅内容→isSinglePoseFullFrame 单内容判定=原图保留。
+    stubCanvas(4, 508); // 窄背景边框防四角取样全前景(满幅被误判全背景)
     const load = loader(VERTICAL);
     const result = await cropSlotReferenceToSinglePose("data:image/png;base64,VERTICAL", "character", load);
     expect(result).toBe("data:image/png;base64,VERTICAL");

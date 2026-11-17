@@ -161,8 +161,9 @@ describe("版本参考经真实 builder 和能力门的分镜原生多参考传�
       expect.objectContaining({
         kind: "storyboard-native-references", imageUrls: sources, sourceReferenceImages: sources,
         slots: [
-          { slot: 1, role: "scene", title: "场景", imageUrl: sources[0] },
-          { slot: 2, role: "previous-frame", title: "上一帧画面", imageUrl: sources[1] },
+          // 1117 残项①:槽携带 sourceUrl 血缘(场景=解析原图自身,前帧同)
+          { slot: 1, role: "scene", title: "场景", imageUrl: sources[0], sourceUrl: sources[0] },
+          { slot: 2, role: "previous-frame", title: "上一帧画面", imageUrl: sources[1], sourceUrl: sources[1] },
         ],
       }),
     );

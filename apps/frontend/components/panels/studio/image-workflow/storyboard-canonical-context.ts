@@ -751,6 +751,129 @@ function singlePoseCropRect(
   return { sx, sy: 0, sw, sh: fullHeight };
 }
 
+/** 1117 残项③:竖排多视图卡分析(竖幅 3 视图+2 配色形态)——按行带内容
+ * 占用探测,最上连续内容块=首格(竖排版式正面);行占用分析复用横向
+ * 探针参数,行列互换。 */
+function singlePoseCropRectVertical(
+  image: StoryboardCropImageSource,
+): { sx: number; sy: number; sw: number; sh: number } | null {
+  const fullWidth = image.naturalWidth;
+  const fullHeight = image.naturalHeight;
+  if (!fullWidth || !fullHeight || fullHeight <= fullWidth) return null;
+  const probeHeight = Math.min(POSE_PROBE_WIDTH, fullHeight);
+  const probeWidth = Math.max(1, Math.round(fullWidth * probeHeight / fullHeight));
+  let analysis: CanvasRenderingContext2D | null = null;
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = probeWidth;
+    canvas.height = probeHeight;
+    analysis = canvas.getContext("2d", { willReadFrequently: true });
+    if (!analysis || typeof analysis.getImageData !== "function") return null;
+    analysis.drawImage(image as CanvasImageSource, 0, 0, probeWidth, probeHeight);
+  } catch {
+    return null;
+  }
+  let pixels: Uint8ClampedArray;
+  try {
+    pixels = analysis.getImageData(0, 0, probeWidth, probeHeight).data;
+  } catch {
+    return null;
+  }
+  const sample = (x: number, y: number): [number, number, number] => {
+    const at = (y * probeWidth + x) * 4;
+    return [pixels[at]!, pixels[at + 1]!, pixels[at + 2]!];
+  };
+  const corners: Array<[number, number, number]> = [];
+  for (const [cx, cy] of [[2, 2], [probeWidth - 3, 2], [2, probeHeight - 3], [probeWidth - 3, probeHeight - 3]] as const) {
+    corners.push(sample(Math.max(0, Math.min(probeWidth - 1, cx)), Math.max(0, Math.min(probeHeight - 1, cy))));
+  }
+  const bg = corners.reduce(
+    (acc, c) => [acc[0] + c[0] / 4, acc[1] + c[1] / 4, acc[2] + c[2] / 4] as [number, number, number],
+    [0, 0, 0] as [number, number, number],
+  );
+  const bandLeft = Math.floor(probeWidth * 0.15);
+  const bandRight = Math.max(bandLeft + 1, Math.floor(probeWidth * 0.9));
+  const isBackground = (x: number, y: number): boolean => {
+    const [r, g, b] = sample(x, y);
+    const dr = r - bg[0]!, dg = g - bg[1]!, db = b - bg[2]!;
+    return Math.sqrt(dr * dr + dg * dg + db * db) < POSE_BG_COLOR_DISTANCE;
+  };
+  const hasContent = new Array<boolean>(probeHeight);
+  for (let y = 0; y < probeHeight; y += 1) {
+    let content = 0;
+    for (let x = bandLeft; x < bandRight; x += 1) {
+      if (!isBackground(x, y)) content += 1;
+    }
+    hasContent[y] = content / (bandRight - bandLeft) >= POSE_CONTENT_COLUMN_RATIO;
+  }
+  let first = -1;
+  let last = -1;
+  for (let y = 0; y < probeHeight; y += 1) {
+    if (hasContent[y]) { first = y; break; }
+  }
+  if (first < 0) return null;
+  for (let y = first + 1; y < probeHeight; y += 1) {
+    if (!hasContent[y]) break;
+    last = y;
+  }
+  if (last < first + 2) return null;
+  const bandRatio = (last - first + 1) / probeHeight;
+  if (bandRatio < 0.08 || bandRatio > 0.92) return null;
+  const sy = Math.round(first * fullHeight / probeHeight);
+  const sh = Math.round((last - first + 1) * fullHeight / probeHeight);
+  return { sx: 0, sy, sw: fullWidth, sh };
+}
+
+/** 整幅单内容判定(裁不出块时的单姿残余语义):中心十字带内容占用 >85%。
+ */
+function isSinglePoseFullFrame(image: StoryboardCropImageSource): boolean {
+  const fullWidth = image.naturalWidth;
+  const fullHeight = image.naturalHeight;
+  if (!fullWidth || !fullHeight) return false;
+  const w = Math.min(64, fullWidth);
+  const h = Math.max(1, Math.round(fullHeight * w / fullWidth));
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return false;
+    ctx.drawImage(image as CanvasImageSource, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const sample = (x: number, y: number): [number, number, number] => {
+      const at = (y * w + x) * 4;
+      return [data[at]!, data[at + 1]!, data[at + 2]!];
+    };
+    const corners = [[2, 2], [w - 3, 2], [2, h - 3], [w - 3, h - 3]] as const;
+    const bg = corners.reduce(
+      (acc, [cx, cy]) => {
+        const c = sample(Math.max(0, Math.min(w - 1, cx)), Math.max(0, Math.min(h - 1, cy)));
+        return [acc[0] + c[0] / 4, acc[1] + c[1] / 4, acc[2] + c[2] / 4] as [number, number, number];
+      },
+      [0, 0, 0] as [number, number, number],
+    );
+    const midX = Math.floor(w / 2);
+    const midY = Math.floor(h / 2);
+    let occupied = 0;
+    let total = 0;
+    for (let y = 0; y < h; y += 1) {
+      const [r, g, b] = sample(midX, y);
+      total += 1;
+      const dr = r - bg[0]!, dg = g - bg[1]!, db = b - bg[2]!;
+      if (Math.sqrt(dr * dr + dg * dg + db * db) >= POSE_BG_COLOR_DISTANCE) occupied += 1;
+    }
+    for (let x = 0; x < w; x += 1) {
+      const [r, g, b] = sample(x, midY);
+      total += 1;
+      const dr = r - bg[0]!, dg = g - bg[1]!, db = b - bg[2]!;
+      if (Math.sqrt(dr * dr + dg * dg + db * db) >= POSE_BG_COLOR_DISTANCE) occupied += 1;
+    }
+    return occupied / total > 0.85;
+  } catch {
+    return false;
+  }
+}
+
 /** 槽位参考单姿化:character/prop 的横幅多视图卡 → canvas 裁正面单格 dataURL。
  *  竖幅(已是单姿立绘)= 原图保留(2d312474 原语义,禁丢槽);场景/前帧恒不裁;
  *  横幅裁不出=丢槽(留痕,宁缺勿染,禁整卡入参考)。 */
@@ -762,11 +885,14 @@ export async function cropSlotReferenceToSinglePose(
   if (role !== "character" && role !== "prop") return dataUrl;
   const image = await loadImage(dataUrl);
   if (!image) return null;
-  // 竖幅单姿立绘原样保留——不能并入「裁切失败=丢槽」,否则 image_1 主角
-  // 立绘被抽走,身份参考归零。
-  if (image.naturalWidth <= image.naturalHeight) return dataUrl;
-  const rect = singlePoseCropRect(image);
-  if (!rect) return null;
+  // 1117 残项③:S10 复发实录——「竖幅=单姿」假设不成立(独孤剑尘资产=
+  // 竖幅 3 视图+2 配色,整卡直传→版式复制)。横幅走横向裁(原),竖幅先探
+  // 竖排多视图(singlePoseCropRectVertical),两路都无块=整幅单内容判定
+  // (占幅 >85%=真单姿保留,否则丢槽宁缺勿染)。
+  const rect = image.naturalWidth > image.naturalHeight
+    ? singlePoseCropRect(image)
+    : singlePoseCropRectVertical(image);
+  if (!rect) return isSinglePoseFullFrame(image) ? dataUrl : null;
   try {
     const canvas = document.createElement("canvas");
     canvas.width = rect.sw;

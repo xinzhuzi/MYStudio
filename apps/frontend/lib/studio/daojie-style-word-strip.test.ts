@@ -19,8 +19,15 @@ function gateStyleWordsFromPythonSource(): string[] {
 }
 
 describe("daojie subject style word strip (1115 A 裁)", () => {
-  it("词表与引擎门禁 _gongbi_gate.py:_STYLE_WORDS 逐字同步(漂移即红)", () => {
-    expect([...DAOJIE_SUBJECT_STYLE_WORDS]).toEqual(gateStyleWordsFromPythonSource());
+  it("词表与引擎门禁 _gongbi_gate.py:_STYLE_WORDS 逐字同步 + 门禁各族补丁词为超集(漂移即红)", () => {
+    // 1117 残项②:App 表=引擎 _STYLE_WORDS ∪ 门内独立检查词(写实)/光学词
+    // (虚化)/否定式高险子串(没有/不能/不得/不要/禁止/看不见)——引擎门各族
+    // 完整正则在 _gongbi_gate,App 只需「引擎词 ⊆ App 词」方向同步锁。
+    const engineWords = gateStyleWordsFromPythonSource();
+    for (const word of engineWords) expect(DAOJIE_SUBJECT_STYLE_WORDS).toContain(word);
+    expect(DAOJIE_SUBJECT_STYLE_WORDS).toContain("写实");
+    expect(DAOJIE_SUBJECT_STYLE_WORDS).toContain("虚化");
+    expect(DAOJIE_SUBJECT_STYLE_WORDS).toContain("没有");
   });
 
   it("含「工笔线描照亮脸和手」样板文的分镜主体句,剥离产物零画风词命中", () => {

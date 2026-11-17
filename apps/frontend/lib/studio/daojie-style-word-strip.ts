@@ -28,6 +28,16 @@ export const DAOJIE_SUBJECT_STYLE_WORDS: readonly string[] = [
   // 1116 C1 三发修:引擎 1017 门另有独立「写实」检查(_gongbi_gate.py:139,
   // 不在 _STYLE_WORDS)——App 剥词表须与门禁全量同步,漏词=剥不净→任务级拒。
   "写实",
+  // 1117 残项②:锚定实弹 S08「虚化」(PHOTO_LIGHTING 剥词表 vs 体裁 lint 词表
+  // 两表不同源实录)/S15「没有」(否定式 _NEG 族词渗入)——门禁三族(画风/光学/
+  // 否定)全量对齐,_NEG 为正则族取高险子串,完整族以引擎 _gongbi_gate._NEG 为准。
+  "虚化",
+  "没有",
+  "不能",
+  "不得",
+  "不要",
+  "禁止",
+  "看不见",
 ];
 
 export interface DaojieSubjectStripResult {

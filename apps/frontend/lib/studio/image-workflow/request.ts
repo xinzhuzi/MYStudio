@@ -222,7 +222,9 @@ export interface StoryboardNativeReferencesTransport {
   /** 槽位图(dataURL,槽序 1..N,N≤3);与 slots 一一对应。 */
   imageUrls: string[];
   /** 实际占槽明细(槽号/角色型/资产名);指令 <imageN> 点名同源。 */
-  slots: Array<{ slot: number; role: "character" | "scene" | "previous-frame"; title: string; imageUrl: string }>;
+  slots: Array<{ slot: number; role: "character" | "scene" | "previous-frame"; title: string; imageUrl: string;
+    /** 1117 残项①:该槽裁切/衍生前的已解析原图(dataURL);缺席=无衍生,字面比对。 */
+    sourceUrl?: string }>;
   /** 全部参考原图(含被裁出槽者);与 request.referenceImages 逐项一致。 */
   sourceReferenceImages: string[];
 }
@@ -253,7 +255,13 @@ export function assertImageWorkflowContinuityCapability(
       || request.referenceImages.some((url, index) => url !== imageUrls[index])) {
       throw new Error("分镜多参考传输与最终请求参考不一致");
     }
-    if (imageUrls.some((url) => !sourceReferenceImages.includes(url))) {
+    // 1117 残项①根修:裁切产物(canvas 新 dataURL)对来源集是「衍生物」而非
+    // 字面成员——字符串相等断言必误杀裁切镜(1117 锚定实弹 10 镜秒拒实录)。
+    // 来源集语义放宽为「血缘母集」:槽位图∈来源集,或其来源槽的已解析图∈
+    // 来源集(裁切/缩放等传输层衍生合法);槽位-来源映射由调用方随槽携带
+    // (sourceUrl 缺席=该槽无裁切,回退字面比对,老语义兼容)。
+    if (imageUrls.some((url, index) => !sourceReferenceImages.includes(url)
+      && !(slots[index]?.sourceUrl && sourceReferenceImages.includes(slots[index]!.sourceUrl)))) {
       throw new Error("分镜多参考传输含来源外图片");
     }
     // 连续性参考被 §4.5 槽位裁出(超额角色/道具)不在此拦——1116 三裁①明文

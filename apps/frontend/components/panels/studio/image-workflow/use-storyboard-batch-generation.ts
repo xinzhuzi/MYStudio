@@ -258,6 +258,7 @@ export function useStoryboardBatchGeneration(input: {
         }
         const shot = entry.shot;
         setState((previous) => ({ ...previous, currentShotIndex: shot.index }));
+        const doneAtShotStart = done;
         const ladder = await runStoryboardBatchLadder({
           shouldAbort: () => stopRequestedRef.current,
           attempt: async (stage) => {
@@ -267,6 +268,7 @@ export function useStoryboardBatchGeneration(input: {
                     generateOneShot(shot, projectName, {
                       guard: guards.get(shot.id)!,
                       onFrameStart: (label) => setState((previous) => ({ ...previous, currentFrameLabel: label })),
+                      onFrameDone: () => { done += 1; setState((previous) => ({ ...previous, done: done + failed })); },
                       degradedResolution: stage === "degraded" ? STORYBOARD_BATCH_DEGRADED_RESOLUTION : undefined,
                       forceRegenerate,
                     }));
@@ -289,7 +291,10 @@ export function useStoryboardBatchGeneration(input: {
           },
         });
         if (ladder.ok) {
-          done += entry.missingFrames;
+          // 1117 残项④:onFrameDone 已逐帧 +1,整镜聚合改为补差防双计
+          // (阶梯重试场景帧回调可能缺席;补差= max(0, missing-已计))。
+          const counted = done - doneAtShotStart;
+          if (counted < entry.missingFrames) done += entry.missingFrames - counted;
           void logEvent({
             level: "info",
             category: "ai",
@@ -638,6 +643,9 @@ async function generateOneShot(
   projectName: string,
   hooks?: {
     onFrameStart?: (label: string) => void;
+  /** 1117 残项④:帧粒度完成回调(单帧镜与多帧镜每帧毕各一次)——面板/日志
+   *  done 逐帧可观测(整镜聚合 done+= 保留,终态对账不變)。 */
+  onFrameDone?: (label: string) => void;
     /** 失败回退阶梯第三段:降载降分辨率(缺省=不降)。 */
     degradedResolution?: string;
     /** 全量重出(1116):绕过 frameNeedsGeneration 过滤,多帧镜全部帧重生成。 */
@@ -739,6 +747,7 @@ async function generateOneShot(
       }
       await runFrameGenerationAndWriteback(graph, shot, frame, frameNodeId, guard, hooks?.degradedResolution);
       graph = useStudioStore.getState().imageWorkflows.find((item) => item.id === graph!.id) ?? graph;
+      hooks?.onFrameDone?.(`S${String(shot.index).padStart(2, "0")}-${frame.frameId.slice(-3)}`);
     }
     return;
   }
@@ -766,6 +775,7 @@ async function generateOneShot(
     degradedResolution: hooks?.degradedResolution,
     guard,
   });
+  hooks?.onFrameDone?.(`S${String(shot.index).padStart(2, "0")}-main`);
   if (!imageUrl) throw new Error("生成结果为空");
   guard.assertCurrent();
   // 分镜回写:核心函数已 upsert 含 resultUrl 的最新代图,直接组 patch

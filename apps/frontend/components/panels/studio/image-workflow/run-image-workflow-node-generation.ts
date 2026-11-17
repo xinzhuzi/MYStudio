@@ -298,6 +298,11 @@ export async function runImageWorkflowNodeGeneration(
           dropped: mapping.dropped,
         },
       });
+      // 1117 残项①:存活槽→其已解析原图的血缘映射(裁切产物契约门比对用)。
+      const keptSourceUrls: Array<string> = [];
+      croppedSlotUrls.forEach((url, index) => {
+        if (url !== null) keptSourceUrls.push(resolvedSlotUrls[index]!);
+      });
       const keptUrls = croppedSlotUrls.filter((url): url is string => url !== null);
       transportReferenceImages = await prepareReferenceImages(keptUrls);
       assertImageWorkflowContinuityCapability(
@@ -307,6 +312,9 @@ export async function runImageWorkflowNodeGeneration(
           imageUrls: transportReferenceImages,
           slots: effectiveSlots.map((slot, index) => ({
             slot: slot.slot, role: slot.role, title: slot.title, imageUrl: transportReferenceImages[index]!,
+            // 1117 残项①:携带该槽已解析原图作血缘来源(裁切产物经它过
+            // 契约门「槽位-来源映射」比对;未裁槽 sourceUrl=自身)。
+            sourceUrl: keptSourceUrls[index],
           })),
           // 来源参考=全量参考的已解析形态(dataURL/base64,与槽位图同一解析路),
           // 槽位子集核验才同域可比(原始 file:// 与传输 dataURL 不可直接相等)。
