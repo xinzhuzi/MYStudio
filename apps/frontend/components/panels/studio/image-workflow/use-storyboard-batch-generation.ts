@@ -555,7 +555,9 @@ async function reviewFrame(
         role: ((ref.assetKind as string) ?? "character") as "scene" | "character" | "prop",
         assetName: ref.assetName ?? ref.assetId,
       }));
-    if (referenceImages.length === 0) return null;
+    // 1117 第十三刀B:零参考不再静默跳过——九刀单角色镜弃参考后无参考可审,
+    // 21:07 批 8/19 克隆直进成品实录;worker 零参考模式跑克隆/文字/噪点三项
+    // (身份比对仍属盲区,uncovered 留痕照旧)。
     const artifact = await bridge.run({
       schemaVersion: 1,
       projectId: useProjectStore.getState().activeProjectId ?? "unknown",
@@ -618,6 +620,9 @@ async function generateWithVlmReview(
       },
       degradedResolution: opts.degradedResolution,
       assertStillCurrent: opts.guard.assertCurrent,
+      // 1117 第十三刀B:批量链产后审核走本件 reviewFrame(预审+重生梯),
+      // 跳过节点级闸门防同一张图双跑 VLM。
+      skipCharacterGate: true,
     });
     opts.guard.assertCurrent();
     if (!imageUrl) throw new Error("生成结果为空");

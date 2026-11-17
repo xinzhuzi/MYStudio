@@ -2,6 +2,11 @@ import type { DiagnosticsLogError } from "@/types/diagnostics";
 
 const MAX_STRING_LENGTH = 1024;
 const MAX_PROMPT_PREVIEW = 120;
+/** 1117 第十三刀C:实发/拒发提示词全文豁免口(分镜语义验尸须逐字可取,
+ * 120 字预览=渗入点常在其后——第七刀同款坑)。独立键名白名单,不放宽
+ * 一般 prompt 键的压缩纪律;仍设硬顶防日志失控。 */
+const MAX_PROMPT_FULL_TEXT = 4096;
+const PROMPT_FULL_TEXT_KEY = "promptFullText";
 const SECRET_KEY_PATTERN = /(authorization|api[-_]?key|x-api-key|token|secret|password|access[-_]?key|bearer)/i;
 const PROMPT_KEY_PATTERN = /(prompt|messages?|content|referenceText)/i;
 
@@ -53,6 +58,12 @@ function sanitizeString(key: string | undefined, value: string) {
     };
   }
   if (/^https?:\/\//i.test(value)) return sanitizeUrl(value);
+  if (key === PROMPT_FULL_TEXT_KEY) {
+    // 全文豁免:超硬顶才截(带 hash 可对账)。
+    return value.length <= MAX_PROMPT_FULL_TEXT
+      ? value
+      : { promptLength: value.length, promptHash: hashText(value), promptText: value.slice(0, MAX_PROMPT_FULL_TEXT), truncated: true };
+  }
   if (key && PROMPT_KEY_PATTERN.test(key) && value.length > MAX_PROMPT_PREVIEW) {
     return summarizePrompt(value);
   }

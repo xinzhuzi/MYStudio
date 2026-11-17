@@ -26,6 +26,9 @@ export interface VlmReviewChecks {
   costume_ok: boolean;
   scene_ok: boolean;
   prop_ok: boolean;
+  /** 1117 第十三刀B:同一角色多份=克隆(双胞胎式并排/多视图排布/设定卡翻拍);
+   * 同款制服群演/孩童群像不算。零参考单图模式同样产出此项。 */
+  clone_ok: boolean;
   text_watermark_ok: boolean;
   noise_clean_ok: boolean;
 }

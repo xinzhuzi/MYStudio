@@ -58,6 +58,22 @@ def _build_review_prompt(
     expected_characters: list[str],
     reference_count: int,
 ) -> str:
+    # 1117 第十三刀B:新增 clone_ok(同一角色多份=克隆;同款制服群演/孩童群像不算);
+    # 零参考模式只查不依赖参考的三项(克隆/文字水印/噪点)——九刀弃参考的单角色镜
+    # 不再跳过产后检查(21:07 批 8/19 克隆直进成品实录)。
+    if reference_count <= 0:
+        return f"""你是动画分镜图的质量审核员。这张图是生成的分镜图,本单没有参考图,只检查以下不依赖参考图的项:
+
+1. clone_ok: 画面中是否存在同一角色重复出现——同脸/同发型/同服装的同一人物出现两份及以上(双胞胎式并排、正/侧/背多视图排布、角色设定卡被整版翻拍进画面)?合理的相似群像(同款制服的工人/士兵、孩童群像、路人)不算重复。
+2. text_watermark_ok: 画面中是否有不该出现的文字、水印或杂乱元素?
+3. noise_clean_ok: 画面是否干净(无斑驳噪点、霉斑、杂色颗粒;正常的水墨笔触和飞白不算噪点)?
+
+期望画面内容:{expected_content}
+期望出现的角色:{", ".join(expected_characters) if expected_characters else "无特定角色"}
+
+请严格用以下 JSON 格式回答(不要添加其他文字):
+{{"clone_ok": true或false, "text_watermark_ok": true或false, "noise_clean_ok": true或false,
+  "reasons": ["中文理由1", "中文理由2"]}}"""
     return f"""你是动画分镜图的质量审核员。第一张图是生成的分镜图,后续{reference_count}张是资产参考图。
 
 请对比分镜图与参考图,逐项判断:
@@ -66,15 +82,16 @@ def _build_review_prompt(
 2. costume_ok: 角色穿着的服装是否与参考图一致(颜色、款式、材质)?
 3. scene_ok: 画面中的场景是否与场景参考图匹配(布局、色调、氛围)?
 4. prop_ok: 画面中的道具是否与参考图中的道具匹配(位置、状态)?
-5. text_watermark_ok: 画面中是否有不该出现的文字、水印或杂乱元素?
-6. noise_clean_ok: 画面是否干净(无斑驳噪点、霉斑、杂色颗粒;正常的水墨笔触和飞白不算噪点)?
+5. clone_ok: 画面中是否存在同一角色重复出现——同脸/同发型/同服装的同一人物出现两份及以上(双胞胎式并排、正/侧/背多视图排布、角色设定卡被整版翻拍进画面)?合理的相似群像(同款制服的工人/士兵、孩童群像、路人)不算重复。
+6. text_watermark_ok: 画面中是否有不该出现的文字、水印或杂乱元素?
+7. noise_clean_ok: 画面是否干净(无斑驳噪点、霉斑、杂色颗粒;正常的水墨笔触和飞白不算噪点)?
 
 期望画面内容:{expected_content}
 期望出现的角色:{", ".join(expected_characters) if expected_characters else "无特定角色"}
 
 请严格用以下 JSON 格式回答(不要添加其他文字):
 {{"character_ok": true或false, "costume_ok": true或false, "scene_ok": true或false,
-  "prop_ok": true或false, "text_watermark_ok": true或false, "noise_clean_ok": true或false,
+  "prop_ok": true或false, "clone_ok": true或false, "text_watermark_ok": true或false, "noise_clean_ok": true或false,
   "reasons": ["中文理由1", "中文理由2"]}}"""
 
 
@@ -94,7 +111,7 @@ def _parse_vlm_json(response: str) -> dict[str, Any]:
     except json.JSONDecodeError as exc:
         raise VlmReviewError("vlm-parse-failed", f"VLM JSON 解析失败: {exc}")
     checks: dict[str, Any] = {}
-    for key in ("character_ok", "costume_ok", "scene_ok", "prop_ok", "text_watermark_ok", "noise_clean_ok"):
+    for key in ("character_ok", "costume_ok", "scene_ok", "prop_ok", "clone_ok", "text_watermark_ok", "noise_clean_ok"):
         checks[key] = bool(data.get(key, True))  # 默认 True(缺项不误杀)
     checks["reasons"] = [str(r) for r in data.get("reasons", []) if str(r).strip()]
     return checks
@@ -139,14 +156,8 @@ def review_image(
         from mlx_vlm.prompt_utils import apply_chat_template
 
         images = [str(gen)] + [str(Path(p)) for p in reference_paths if Path(p).is_file()]
-        if len(images) < 2:
-            return {
-                "status": "blocked",
-                "code": "no-reference-images",
-                "message": "无有效参考图,比对无意义",
-                "inputSha256": input_sha,
-                "generatedAt": int(time.time() * 1000),
-            }
+        # 1117 第十三刀B:零参考不再 blocked——单图跑克隆/文字/噪点三项
+        # (九刀弃参考的单角色镜此前在渲染层早退+此处双盲,克隆直进成品)。
 
         raw_prompt = _build_review_prompt(
             expected_content, expected_characters, len(images) - 1
@@ -170,7 +181,7 @@ def review_image(
 
         all_ok = all(
             checks[k]
-            for k in ("character_ok", "costume_ok", "scene_ok", "prop_ok", "text_watermark_ok", "noise_clean_ok")
+            for k in ("character_ok", "costume_ok", "scene_ok", "prop_ok", "clone_ok", "text_watermark_ok", "noise_clean_ok")
         )
         return {
             "status": "accepted" if all_ok else "rejected",

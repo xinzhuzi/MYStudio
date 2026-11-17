@@ -111,9 +111,9 @@ def main() -> int:
     # cut_detection, cut_threshold, identity_clip_vision(链), absent_shots, X, Y, frame_index, face_pick(链)
     tc["widgets_values"] = [768, 768] if tc_wv is None else tc_wv  # 保底
     # 直接按已知默认重建(与实弹器同参):
-    tc["widgets_values"] = ["face_yolov8m.pt", 0.35, 2.5, 768, 768, "auto_capped_768",
+    tc["widgets_values"] = ["face_yolov8m.pt", 0.15, 2.5, 768, 768, "auto_capped_768",
                             21, 51, "gaussian", "per_frame", True, 0.28, "largest_face",
-                            "none", 0.5, 0, "insightface", "none", 3.0, "off", 0, 0, 0]
+                            "segm\\person_yolov8m-seg.pt", 0.5, 0, "insightface", "none", 3.0, "off", 0, 0, 0]
 
     # ---- 连线(名寻槽,禁猜索引) ----
     next_link = max((l[0] for l in S["links"]), default=0) + 1
@@ -180,6 +180,12 @@ def main() -> int:
         dst["inputs"][di].setdefault("links", []).append(next_link)
         dst["inputs"][di]["link"] = next_link
         next_link += 1
+
+    # 5015 强度曲线按 4K 源口径重标定(30/120→60/200,按值替换防槽位错)
+    pfd = next(n for n in new_nodes if n["id"] == 5015)
+    pfd_wv = pfd.get("widgets_values")
+    if isinstance(pfd_wv, list):
+        pfd["widgets_values"] = [60.0 if v == 30.0 else (200.0 if v == 120.0 else v) for v in pfd_wv]
 
     # 5012 widgets 中的宽高/长度已被联线接管(canvas 联动正典)
 

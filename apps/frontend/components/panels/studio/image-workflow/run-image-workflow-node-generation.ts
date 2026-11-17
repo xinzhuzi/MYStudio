@@ -54,6 +54,11 @@ export async function runImageWorkflowNodeGeneration(
     degradedResolution?: string;
     /** 同步核验调用方冻结的项目/章节/上游来源；过期时抛错拒写。 */
     assertStillCurrent?: () => void;
+    /**
+     * 1117 第十三刀B:调用方自带产后审核时跳过节点级 VLM 闸门(批量链
+     * reviewFrame 预审+重生梯即自带;不跳=同一张图双跑 VLM)。
+     */
+    skipCharacterGate?: boolean;
   },
 ): Promise<{ imageUrl: string }> {
   // 无衣物链分流(09-04 通用化,与图片工作室同源):成图有 uncloth 上游且
@@ -228,8 +233,12 @@ export async function runImageWorkflowNodeGeneration(
       });
     } else {
       canonicalPrompt = instruction.prompt;
-      // 1117 第十刀C:语义门(生成路硬拦;S02 病灶机器化)——①同名超载
-      // (角色名出现 >4 次=多主语拆人风险)②多姿势明示(「两种持法/姿势」)。
+    }
+    // 1117 第十三刀A:出口语义门统一——override/生成器同门(此前门在 else
+    // 分支,人工覆盖整门绕过:S4/S9/S16=20:38 拒发同哈希文本经 override 直
+    // 发克隆照出实录)。逐字采用不变,违者拒发不改写;丢槽重排后的终稿复跑
+    // 同门(重排会替换 canonicalPrompt,首跑不算数)。
+    const assertTransportSemanticLint = (text: string): void => {
       const semanticViolations: string[] = [];
       // 1117 第十二刀:语义门只数动作句——「{名}正在」是单时刻正解形态,
       // 一人一行;同名第二行=动作枚举拆人(病灶本体)。slot 点名/道具句/
@@ -237,10 +246,19 @@ export async function runImageWorkflowNodeGeneration(
       for (const name of new Set([...(mapping.slots.map((slot) => slot.title) ?? []),
         ...((shot.shotSemantics?.visibleCharacters ?? []).map((c: { name?: string }) => (c.name ?? "").trim()).filter(Boolean) as string[])])) {
         const base = name.split(/[·;]/)[0]!.trim();
-        const actionClauses = canonicalPrompt.split(`${base}正在`).length - 1;
+        if (!base) continue;
+        let actionClauses = text.split(`${base}正在`).length - 1;
+        // 1117 第十三刀A:衍生移动弧「{名}，(动)…至…」无「正在」字样,十二刀
+        // 门不可见(S12「正在起身…」+「，起身…至…回眸」双动作弧实录)——弧式
+        // 第二动作句并计入数;身份/衣着从句(名，身着/披…)动词表外不数。
+        const arcPattern = new RegExp(
+          `${base.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}，[^。；]{0,16}(起|走|坐|转|抬|挥|回|迈|停|执|望|持|盘|涌|伸|劈|扫|翻|拔|踏|跪|站|行|出|入)`,
+          "g",
+        );
+        actionClauses += [...text.matchAll(arcPattern)].length;
         if (actionClauses > 1) semanticViolations.push(`action-split:${base}×${actionClauses}`);
       }
-      if (/(两种|两式|三种)[^，。；]{0,6}(持法|姿势|握法|形态)/.test(canonicalPrompt)) {
+      if (/(两种|两式|三种)[^，。；]{0,6}(持法|姿势|握法|形态)/.test(text)) {
         semanticViolations.push("multi-posture");
       }
       if (semanticViolations.length) {
@@ -249,11 +267,14 @@ export async function runImageWorkflowNodeGeneration(
           operationId: createOperationId("storyboard-prompt-semantic-lint"),
           message: "Storyboard canonical prompt rejected by semantic lint",
           context: { shotId: shot.id, shotIndex: shot.index, semanticViolations,
-            promptText: canonicalPrompt },
+            promptText: text,
+            // 1117 第十三刀C:全文豁免口(120 字预览截断=验尸盲区,同第七刀坑)。
+            promptFullText: text },
         });
         throw new Error(`分镜主体句未过语义门:${semanticViolations.join("、")}(同名超载/多姿势明示=多人拆像风险,请精简为单主语单时刻)`);
       }
-    }
+    };
+    assertTransportSemanticLint(canonicalPrompt);
     if (mapping.slots.length) {
       // 槽位图 dataURL 解析+准备(节点只存轻量受管路径,传输才转 base64,
       // 持久化纪律与资产参考同口径)。
@@ -314,6 +335,9 @@ export async function runImageWorkflowNodeGeneration(
       if (dropSlotIndexes.length) {
         const rebuilt = await buildStoryboardCanonicalTransportInput(shot, graph, targetNodeId, dropSlotIndexes);
         canonicalPrompt = rebuilt.instruction.prompt;
+        // 1117 第十三刀A:丢槽重排替换了终稿文本——语义门对终稿复跑
+        // (重排后的 instruction.prompt 未过首跑,不豁免)。
+        assertTransportSemanticLint(canonicalPrompt);
         effectiveSlots = rebuilt.mapping.slots;
         // 1117 C2 门A:丢槽重排后的终稿复验(主角锚随存活槽重取,宁缺勿染
         // 与锚词门双卡);锚集合缺席同上不适用。
@@ -412,20 +436,39 @@ export async function runImageWorkflowNodeGeneration(
   });
   /**
    * 人物一致性硬闸门(08-30 用户裁定):单节点成图在节点置 ready 前拦截。
-   * - 仅当挂了角色类参考图且 VLM 模型就绪时生效;
-   * - character_ok=false → 抛错(节点 failed,文件留盘作证据但不进任何下游);
+   * - 1117 第十三刀B:不再「仅角色参考镜」生效——克隆检测不依赖参考,零参考
+   *   镜(九刀单角色弃参考的主力形态)同样过门;VLM 未就绪落 warn 留痕(此前
+   *   probe 不过静默返回,21:07 批诊断零 gate 事件=整晚黑灯实录);
+   * - character_ok=false / clone_ok=false → 抛错(节点 failed,文件留盘作证据
+   *   但不进任何下游);
    * - VLM 缺模型/审核异常一律 fail-open 放行(与批量链同语义)。
    */
   const assertCharacterGate = async (imageUrl: string): Promise<void> => {
     const bridge = typeof window !== "undefined" ? window.vlmReview : undefined;
-    if (!bridge?.run) return;
+    const gateSkipped = (reason: string) => {
+      void logEvent({
+        level: "warn",
+        category: "ai",
+        operationId: createOperationId("character-gate-skipped"),
+        message: "Character gate skipped (VLM runtime not ready)",
+        context: { targetNodeId, reason },
+      });
+    };
+    if (!bridge?.run) {
+      gateSkipped("bridge-missing");
+      return;
+    }
     let probeOk = false;
     try {
       probeOk = (await bridge.probe()).status === "ready";
     } catch {
+      gateSkipped("probe-threw");
       return;
     }
-    if (!probeOk) return;
+    if (!probeOk) {
+      gateSkipped("probe-not-ready");
+      return;
+    }
     const byId = new Map(graph.nodes.map((n) => [n.id, n]));
     // 塌缩视图(09-09):闸门按「实际发往引擎的参考」核验,与 request 同口径
     const refNodes = collapseTransparentNodes(graph).edges
@@ -441,7 +484,14 @@ export async function runImageWorkflowNodeGeneration(
       assetName: refNode.title,
     }));
     const characterRefs = refs.filter((ref) => ref.role === "character");
-    if (characterRefs.length === 0) return;
+    // 1117 第十三刀B:期望角色并入场记 vc 名单(零参考镜的角色名也要给 VLM,
+    // 克隆判定需要知道「谁是该唯一在场的人」)。shot 属正典分支作用域,此处
+    // 从 store 现查(闸门函数对非分镜流同样安全)。
+    const shotRow = useStudioStore.getState().storyboards.find((item) => item.id === graph.target.id);
+    const vcNames = ((shotRow?.shotSemantics?.visibleCharacters ?? []) as Array<{ name?: string }>)
+      .map((c) => (c.name ?? "").trim().split(/[·;]/)[0]!.trim())
+      .filter(Boolean);
+    const expectedCharacters = [...new Set([...characterRefs.map((ref) => ref.assetName.split(/[·;]/)[0]!.trim()), ...vcNames])].filter(Boolean);
     try {
       const artifact = await bridge.run({
         schemaVersion: 1,
@@ -450,21 +500,30 @@ export async function runImageWorkflowNodeGeneration(
         generatedImagePath: imageUrl,
         referenceImages: refs,
         expectedContent: request.prompt,
-        expectedCharacters: characterRefs.map((ref) => ref.assetName),
+        expectedCharacters,
       });
+      const gateFailures: string[] = [];
       if (artifact.status === "rejected" && artifact.checks.character_ok === false) {
+        gateFailures.push("人物一致性未过（VLM 闸门）");
+      }
+      // 1117 第十三刀B:克隆=同脸/同装同一人 ≥2 份(设定卡翻拍/动作拆给两份)。
+      if (artifact.status === "rejected" && artifact.checks.clone_ok === false) {
+        gateFailures.push("画面克隆未过（VLM 闸门）");
+      }
+      if (gateFailures.length) {
         const reasons = (artifact.reasons ?? []).join("；");
         void logEvent({
           level: "warn",
           category: "ai",
           operationId: createOperationId("character-gate-rejected"),
           message: "Character gate rejected generated image",
-          context: { targetNodeId, reasons, references: characterRefs.length },
+          context: { targetNodeId, reasons, references: characterRefs.length,
+            checks: artifact.checks, expectedCharacters },
         });
-        throw new Error(`人物一致性未过（VLM 闸门）：${reasons || "成图角色与参考不一致"}`);
+        throw new Error(`${gateFailures.join("；")}：${reasons || (gateFailures[0]!.includes("克隆") ? "同一角色出现多份" : "成图角色与参考不一致")}`);
       }
     } catch (error) {
-      if (error instanceof Error && error.message.startsWith("人物一致性未过")) throw error;
+      if (error instanceof Error && (error.message.startsWith("人物一致性未过") || error.message.startsWith("画面克隆未过"))) throw error;
       // VLM 审核 runtime 异常:fail-open
     }
   };
@@ -482,7 +541,9 @@ export async function runImageWorkflowNodeGeneration(
         level: "info", category: "ai",
         operationId: createOperationId("storyboard-last-transport-prompt"),
         message: "Storyboard transport prompt fired",
-        context: { shotId: graph.target.id, promptText: canonicalPrompt },
+        context: { shotId: graph.target.id, promptText: canonicalPrompt,
+          // 1117 第十三刀C:实发全文落库(拒发/实发同口径,离线可逐字对账)。
+          promptFullText: canonicalPrompt },
       });
     }
     // 生图落库自动去噪(噪点治理 08-29):开关开启时,成图在写入项目
@@ -503,7 +564,7 @@ export async function runImageWorkflowNodeGeneration(
   };
   const generateAndGate = async (transport?: "chat") => {
     const outcome = await generateAndSave(transport);
-    if (outcome.saved?.success && outcome.saved.url) {
+    if (outcome.saved?.success && outcome.saved.url && !input.skipCharacterGate) {
       await assertCharacterGate(outcome.saved.url);
     }
     return outcome;
