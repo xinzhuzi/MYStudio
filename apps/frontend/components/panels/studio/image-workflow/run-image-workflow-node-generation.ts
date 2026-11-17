@@ -231,18 +231,14 @@ export async function runImageWorkflowNodeGeneration(
       // 1117 第十刀C:语义门(生成路硬拦;S02 病灶机器化)——①同名超载
       // (角色名出现 >4 次=多主语拆人风险)②多姿势明示(「两种持法/姿势」)。
       const semanticViolations: string[] = [];
-      // 1117 第十一刀B:计数域=动作区(首个「；在此基础上」之前)——slot 点名/
-      // 保真段是结构位,双角色镜 4-5 次结构位属正常;动作区同名 >3 次=动作
-      // 枚举超载(拆人风险)才拒。
-      const actionRegion = canonicalPrompt.split("；在此基础上")[0] ?? canonicalPrompt;
-      const nameCounts = new Map<string, number>();
+      // 1117 第十二刀:语义门只数动作句——「{名}正在」是单时刻正解形态,
+      // 一人一行;同名第二行=动作枚举拆人(病灶本体)。slot 点名/道具句/
+      // 衍生注/保真段的结构位点名不数(十一刀批 ×4-5 误拦 13 镜实录)。
       for (const name of new Set([...(mapping.slots.map((slot) => slot.title) ?? []),
         ...((shot.shotSemantics?.visibleCharacters ?? []).map((c: { name?: string }) => (c.name ?? "").trim()).filter(Boolean) as string[])])) {
         const base = name.split(/[·;]/)[0]!.trim();
-        nameCounts.set(base, (actionRegion.split(base).length - 1));
-      }
-      for (const [base, count] of nameCounts) {
-        if (count > 3) semanticViolations.push(`name-overload:${base}×${count}`);
+        const actionClauses = canonicalPrompt.split(`${base}正在`).length - 1;
+        if (actionClauses > 1) semanticViolations.push(`action-split:${base}×${actionClauses}`);
       }
       if (/(两种|两式|三种)[^，。；]{0,6}(持法|姿势|握法|形态)/.test(canonicalPrompt)) {
         semanticViolations.push("multi-posture");
