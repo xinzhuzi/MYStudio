@@ -2339,11 +2339,22 @@ class EngineManager:
         # 可更新判定(09-09 提交口径优先):有本地 sha 时只看 master HEAD 差
         # (tag 也打在 master 上,master 同步=release 必同步;且避免 describe
         # 版本串被 release 口径误报)。无 sha(旧账/异常)回落 release tag 口径。
-        # 1116 B9 修:钉版(pinned=True)引擎=用户锁定版本,跳过 master 比对
-        # (钉版 0.45.2 对 master 永久 diverging 红是假警报,非真可更新)。
+        # 1117 判据换钉定版(engine-sync-pin-verdict):钉版(pinned=True)基线=
+        # 钉定 tag 的上游 commit sha(annotated tag 取 peeled ^{} 行,lightweight
+        # tag 本行即 commit),不再比对 master——0.45.2 对 master 永久 diverging=
+        # 假警报(1116 B9 永绿修只堵了假红,连漂移也被静默吞)。绿=local==钉定
+        # sha;红=local 漂移(引擎家 git 恒 0 改动铁律被破,真分叉需人工决策=回钉);
+        # 钉定 tag 落后于上游新 tag 不红不催(换钉=人工决策)。
+        # 断网取不到钉定 sha / 本地 sha 缺失:静默不误报(绿)。
         ahead_by = None
+        pinned_sha: str | None = None
         if engine.get("pinned"):
-            update_available = False
+            for line in lines:
+                if line.endswith(f"\trefs/tags/{current}^{{}}"):
+                    pinned_sha = line.split()[0]  # annotated tag:peeled commit sha(优先)
+                elif line.endswith(f"\trefs/tags/{current}") and pinned_sha is None:
+                    pinned_sha = line.split()[0]  # lightweight tag:本行即 commit sha
+            update_available = bool(pinned_sha and local_sha and local_sha != pinned_sha)
         elif head_sha and local_sha:
             update_available = head_sha != local_sha
             if update_available:
@@ -2356,6 +2367,7 @@ class EngineManager:
             "headSha": head_sha, "aheadBy": ahead_by,
             "updateAvailable": update_available,
             "pinned": bool(engine.get("pinned")),
+            "pinnedSha": pinned_sha,
             "checkedAt": checked_at,
         }
         # 09-08 检查结果落账(照 Comfy Desktop 更新页语义):sidecar 重启后
@@ -2364,7 +2376,7 @@ class EngineManager:
 
             def _record_check(m: dict) -> None:
                 eng = m.get("engine") if isinstance(m.get("engine"), dict) else {}
-                eng["lastCheck"] = {"at": checked_at, "latest": latest, "headSha": head_sha, "aheadBy": ahead_by}
+                eng["lastCheck"] = {"at": checked_at, "latest": latest, "headSha": head_sha, "aheadBy": ahead_by, "pinnedSha": pinned_sha}
                 m["engine"] = eng
 
             cm.mutate_manifest(_record_check)
@@ -2414,10 +2426,23 @@ class EngineManager:
         # 本地 sha 实时优先(源码 HEAD 现查,账本滞后自愈):更新中断后账本旧值
         # 不再遮蔽真值造成目标误判(09-11 实弹:tag/master 目标摇摆的放大器)
         local_sha = self._local_engine_sha(engine) or engine.get("sha")
-        # 更新目标优先 master HEAD(提交口径);master 无差时回落最新 release tag
-        target, label = (head_sha, f"master({str(head_sha)[:7]})") if (head_sha and local_sha and head_sha != local_sha) else (latest, latest)
-        if not target or (target == local_sha or (target == latest and latest == engine.get("version"))):
-            raise EngineOpError("当前已是最新版本,无需更新")
+        # 1117 钉版判据(engine-sync-pin-verdict):钉版引擎更新目标恒=钉定 tag
+        # (漂移修复=回钉;_update_job tag 分支 fetch tag+checkout --force 天然幂等),
+        # 禁拉 master——钉版对 master 永久分叉,拉 master=破钉;钉定 tag 落后于
+        # 上游新 tag 不自动升(换钉=人工决策)。
+        if engine.get("pinned"):
+            pinned_tag = engine.get("version")
+            pinned_sha = self._last_check.get("pinnedSha")
+            if not pinned_tag:
+                raise EngineOpError("钉定版信息缺失(账本 engine.version 为空),无法更新")
+            if pinned_sha and local_sha and local_sha == pinned_sha:
+                raise EngineOpError("当前已是最新版本,无需更新")
+            target, label = pinned_tag, f"钉定版({pinned_tag})"
+        else:
+            # 更新目标优先 master HEAD(提交口径);master 无差时回落最新 release tag
+            target, label = (head_sha, f"master({str(head_sha)[:7]})") if (head_sha and local_sha and head_sha != local_sha) else (latest, latest)
+            if not target or (target == local_sha or (target == latest and latest == engine.get("version"))):
+                raise EngineOpError("当前已是最新版本,无需更新")
         if not _TORCH_UPGRADE_LOCK.acquire(blocking=False):
             raise EngineOpError("PyTorch 升级进行中，暂停引擎更新")
         try:
