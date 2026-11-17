@@ -293,7 +293,11 @@ export function AssetsTab(props: {
       addCharacter({
         name,
         description: prompt,
-        visualTraits: prompt,
+        // 1118 E1(同型候选1):visualTraits=视觉提示词槽,建壳阶段无视觉
+        // 事实——note/名字是性格/标签文本,占槽后下游 skipPolish 直拿它出图
+        // (非视觉文本占视觉真源槽=第十四刀同族)。显式空串(Check 类型必填),
+        // 语义=留空,生成走润色链补视觉。
+        visualTraits: "",
         projectId: activeProjectId ?? undefined,
         role: note,
         traits: note,

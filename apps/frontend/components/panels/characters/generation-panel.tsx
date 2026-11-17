@@ -383,8 +383,10 @@ export function GenerationPanel({ onCharacterCreated }: GenerationPanelProps) {
         imageUrl: localPath,
       });
 
-      const visualTraits = `${name} character, ${description.substring(0, 200)}`;
-      updateCharacter(previewCharacterId, { visualTraits });
+      // 1118 E1(同型候选1):禁把「名字+性格概述前200字」拼成伪视觉词写进
+      // visualTraits(视觉真源槽)——性格概述非视觉事实,占槽即污染下游生图。
+      // 视觉槽留给润色链/库 prompt 列真源;此步只存视图不写 visualTraits。
+      updateCharacter(previewCharacterId, {});
 
       // 同步归档到素材库 AI图片 文件夹
       const aiFolderId = getOrCreateCategoryFolder('ai-image');

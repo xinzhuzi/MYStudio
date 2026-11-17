@@ -395,14 +395,17 @@ async function toAssetLibraryAddPayload(row: AssetRow) {
   const image = getRowImage(row);
   const sourceFilePath = await resolveAssetSourceFilePath(image);
   const description = getRowDescription(row) || row.note || row.name;
-  const prompt = getRowPrompt(row) || description;
+  // 1118 E4(同型候选4·手动入库假真源):description(性格概述)不再回落进
+  // prompt 列——prompt=生图提示词真源(第十四刀定谳),无真源就留空等润色链
+  // 回写;把性格概述写进去=污染真源列。
+  const prompt = getRowPrompt(row);
   const setting = getAssetLibrarySetting(row);
   return {
     type: toRuntimeAssetType(row.type),
     name: row.name,
     ...(sourceFilePath ? { sourceFilePath } : {}),
     description,
-    prompt,
+    ...(prompt ? { prompt } : {}),
     setting,
   };
 }
@@ -562,7 +565,10 @@ function toRoleAssetSummary(row: AssetRow): StudioAssetSummary | null {
     name: character?.name ?? libraryRole?.name ?? row.name,
     description: fields,
     setting: fields,
-    prompt: character?.visualTraits || character?.description || libraryRole?.prompt || row.note,
+    // 1118 E2(同型候选2·配音链真源序):libraryRole.prompt(资产库 prompt 列=
+    // 生图提示词视觉真源,第十四刀定谳)提到 character.description(性格概述)之前;
+    // visualTraits 仍居首(库内已润色的视觉槽)。row.note 兜底不变。
+    prompt: character?.visualTraits || libraryRole?.prompt || character?.description || row.note,
     thumbnailUrl: character?.thumbnailUrl || character?.views?.[0]?.imageUrl || libraryRole?.thumbnailUrl,
     tags: character?.tags ?? libraryRole?.tags,
   };

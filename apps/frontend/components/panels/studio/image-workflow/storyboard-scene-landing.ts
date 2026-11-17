@@ -238,6 +238,11 @@ export async function ensureStoryboardDerivedAssetsLanded(shot: SceneLandingShot
         type: entry.kind,
         name: entry.compoundName,
         description: `${entry.baseName} 衍生态:${entry.stateText}`,
+        // 1118 E3(同型候选3·衍生行 prompt 留空雷):着装态即视觉事实——
+        // stateText(逐字)写进 prompt 列(视觉真源)。此前只写 description,
+        // 复合名被身份链命中时 prompt 空回落 description=把「X 衍生态:」
+        // 调度注记当视觉身份段。调度词(持法/姿势)消费侧十三刀②已拦。
+        prompt: entry.stateText,
       }).catch(() => null);
       void logEvent({
         level: created ? "info" : "warn",
