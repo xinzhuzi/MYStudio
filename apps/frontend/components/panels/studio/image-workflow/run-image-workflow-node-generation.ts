@@ -193,7 +193,9 @@ export async function runImageWorkflowNodeGeneration(
         category: "ai",
         operationId: createOperationId("storyboard-canonical-lint"),
         message: "Storyboard canonical prompt rejected by discipline lint",
-        context: { shotId: shot.id, shotIndex: shot.index, violations },
+        context: { shotId: shot.id, shotIndex: shot.index, violations,
+          // 1117 六刀批排障:拒发全文前 200 字(半角渗入点定位;拒发件不入敏感面)
+          promptHead: instruction.prompt.slice(0, 200) },
       });
       throw new Error(`分镜正典提示词未过体裁断言:${violations.map((v) => `${v.rule}(${v.detail})`).join("、")}`);
     }
