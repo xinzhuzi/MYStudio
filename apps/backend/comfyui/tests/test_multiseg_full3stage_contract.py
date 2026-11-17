@@ -151,7 +151,9 @@ def test_single_source_fanout():
     unets = [n for n in nodes.values() if n["type"] == "UNETLoader"]
     assert len(unets) == 1 and unets[0]["id"] == 34, "底模恒单源(Cobijada 一件双能)"
     fed = {l[3] for l in d["links"] if l[1] == 34 and l[5] == "MODEL"}
-    assert fed == {41, 1021, 5006}, "[34] 应扇出一采 pika 臂 + 二采 taomate 臂 + 四采修脸臂(1118)"
+    assert fed == {1066}, "[34]→[1066]LowVRAM 单下家(1118 lowvram 插桩)"
+    fan = {l[3] for l in d["links"] if l[1] == 1066 and l[5] == "MODEL"}
+    assert fan == {41, 1021, 5006}, "[1066] 扇出一采 pika 臂 + 二采 taomate 臂 + 四采修脸臂"
     ksel = sorted((n for n in nodes.values() if n["type"] == "KSamplerSelect"), key=lambda n: n["id"])
     assert [n["id"] for n in ksel] == [1046, 3022, 5017], \
         "KSamplerSelect 三枚(1115 正典臂:一采 1046 + 二采 3022,均 lcm;1118 修脸臂 5017 同 lcm)"
@@ -213,8 +215,8 @@ def test_links_bidirectional():
         for i in n.get("inputs", []):
             assert i.get("link") is None or i["link"] in link_ids, \
                 f"[{nid}] 输入槽 {i['name']} 悬空登记 {i.get('link')}"
-    assert d["last_node_id"] == 9999 and d["last_link_id"] == 91, \
-        "计数器(14+31+8 臂线−1 改道=52;1118 修脸组 +38 链=91,node 计数含 README 9999)"
+    assert d["last_node_id"] == 9999 and d["last_link_id"] == 92, \
+        "计数器(14+31+8 臂线−1 改道=52;1118 修脸组 +38 链=91;lowvram +1=92,node 计数含 README 9999)"
 
 
 def test_groups_five_bands():
