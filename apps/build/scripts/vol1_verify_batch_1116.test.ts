@@ -80,6 +80,21 @@ for (const ch of CHAPTERS) {
         expect(vs.length).toBeGreaterThanOrEqual(14);
         item.voiceStyle = vs;
       }
+      // 硬门A:标签逗号陷阱——speaker=旁白 但 lines 以「名（…）:」标签开头 = 括注带逗号致解析回退,标签漏进 TTS
+      for (const item of items) {
+        const trapped = item.speaker === "旁白" && /^([^：:（）]{1,40})（[^）]+）[：:]/.test(item.lines ?? "");
+        expect(trapped, `${ch} 镜${item.index} 标签逗号陷阱(括注内逗号致旁白回退+TTS标签泄漏): ${(item.lines ?? "").slice(0, 24)}`).toBe(false);
+      }
+      // 硬门C:双说话人同格——句末(。！？…)后出现第二个「名(注)?:」标签 = 第二说话人标签漏进 TTS
+      const SECOND_LABEL_RE = /(?:。|！|？|…)\s*(?:V\.S\.|OS|旁白)?[^：:，。！？\s]{1,12}(?:（[^）]{1,24}）)?[：:]/;
+      for (const row of parsed.rows) {
+        const m = (row.lines ?? "").match(SECOND_LABEL_RE);
+        expect(m, `${ch} 镜${row.index} 双说话人同格(标签漏进 TTS): ${(row.lines ?? "").slice(0, 30)}`).toBeNull();
+      }
+      // 硬门B:J5 环境因果句下限(宽口径)
+      const j5 = items.filter((item) => /(因[^。]{2,20}(便|就|而|凝|沉|渗|浸|晕)|越[^。]{1,8}越|色层|色深|之处)/.test(item.prompt)).length;
+      console.log(`[${ch}] J5=${j5}/${items.length}`);
+      expect(j5, `${ch} J5 环境因果句 ${j5} 条低于下限 3`).toBeGreaterThanOrEqual(3);
       const total = items.reduce((acc, item) => acc + item.duration, 0);
       console.log(`[${ch}] items=${items.length} Σ=${total.toFixed(1)}s ids ${items[0]!.id}→${items.at(-1)!.id}`);
 
