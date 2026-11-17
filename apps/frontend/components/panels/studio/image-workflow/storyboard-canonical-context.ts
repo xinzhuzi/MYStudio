@@ -370,6 +370,30 @@ export function findDerivedPlanEntryForCharacter(
 }
 
 /**
+ * 资产 prompt 列洗版(1118 十五刀A):prompt 列=资产库完整文生图提示词,自带
+ * 负面指令句(铁山「图中不要有任何文字，禁止写实摄影」/归元断剑「严禁照片级
+ * 真实感」实录)、多行排版、画幅段(「21:9 横幅」=画幅义非画面文字,S1 涉字
+ * 误杀实录)、英文资产标签(「character design sheet」)——十四刀整段采用后拼
+ * 进主体句,被体裁门全文扫描误杀(style-word/single-paragraph/text-
+ * requirement-block 三拒实录)。身份段只取正向视觉文:**逗号段级**清洗(句
+ * 级整剔会把带一个禁词的逗号流大句整句误杀——铁山 1027 字洗后归零实录),
+ * 指令段/画幅段/布光段/英文标签段剔,段间逗号重组,不改写保留段。
+ */
+export function sanitizeAssetPromptForIdentity(text: string): string {
+  const flat = text.replace(/\r|\n/g, ",").replace(/,{2,}/g, ",").trim();
+  const segments = flat.split(/[,，、;；。]/);
+  const kept = segments.map((segment) => segment.trim()).filter(Boolean).filter((segment) => {
+    if (/\d+\s*[:：×xX]\s*\d+/.test(segment)) return false; // 画幅比(21:9)
+    if (/横幅|竖幅|宽幅|画幅|头身比|分辨率|比例/.test(segment)) return false;
+    if (/不要|禁[止用]|严禁|避免|不得|无文字|图中不|画面不|去除|抹掉/.test(segment)) return false;
+    if (/[a-zA-Z]{3,}/.test(segment)) return false; // 英文资产标签(character design sheet)
+    if (/散光|柔光|打光|布光|光源/.test(segment)) return false; // 布光指令(型层域)
+    return true;
+  });
+  return kept.join(",");
+}
+
+/**
  * 身份段解析(§4.3):逐可见角色①资产库 promptOverrides 键(逐字搬运)
  * →②角色库中文视觉字段回落。缺桥/缺行/缺槽回落下一级,全缺=absent 告警。
  */
@@ -392,9 +416,11 @@ async function resolveIdentityParagraphs(
         // 此;description 列只是性格概述,半数空或垃圾)。五刀①接错列
         // (description)=分镜线从未用上生图逻辑的直接根因。
         // 取用序:prompt(视觉真源)>description(性格补位);origin 沿用
-        // asset-description 兼容消费面。
+        // asset-description 兼容消费面。1118 十五刀A:prompt 列先洗版(负面
+        // 指令句/换行剔除),只进正向视觉身份。
         else if ((asset?.prompt ?? "").trim()) {
-          identity = { name, paragraph: (asset?.prompt ?? "").trim(), origin: "asset-description" };
+          const sanitized = sanitizeAssetPromptForIdentity(asset!.prompt!);
+          if (sanitized) identity = { name, paragraph: sanitized, origin: "asset-description" };
         } else if (asset?.description?.trim()) {
           identity = { name, paragraph: asset.description.trim(), origin: "asset-description" };
         }

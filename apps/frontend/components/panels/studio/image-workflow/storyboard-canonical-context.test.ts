@@ -48,6 +48,7 @@ import {
   resolveShotTimeOfDay,
   resolveStoryboardScene,
   cropSlotReferenceToSinglePose,
+  sanitizeAssetPromptForIdentity,
   type StoryboardCropImageSource,
 } from "./storyboard-canonical-context";
 import type { StoryboardItem } from "@/types/studio";
@@ -408,5 +409,34 @@ describe("第九刀:vc 缺席不触发弃参考(未知≠单角色)", () => {
     delete (bare as { shotSemantics?: unknown }).shotSemantics;
     const ctx = await buildStoryboardCanonicalContext(bare);
     expect(ctx).toBeTruthy();
+  });
+});
+
+describe("十五刀A:sanitizeAssetPromptForIdentity(资产 prompt 列洗版)", () => {
+  it("① 铁山实录:负面指令句/换行/英文标签剔,正向视觉文保留(1027→非零)", () => {
+    const raw = "男性角色四视图设定图，水墨国风，修仙古韵，工笔线描，写意晕染，宣纸绢本质感，\ncharacter design sheet, character turnaround,\n面容粗犷坚毅，眉眼沉重而刚烈，图中不要有任何文字，禁止写实摄影，严禁照片级真实感，严禁高饱和动漫";
+    const out = sanitizeAssetPromptForIdentity(raw);
+    expect(out).toContain("水墨国风");
+    expect(out).toContain("面容粗犷坚毅");
+    expect(out).not.toContain("不要");
+    expect(out).not.toContain("禁");
+    expect(out).not.toContain("写实");
+    expect(out).not.toContain("照片级");
+    expect(out).not.toContain("character");
+    expect(out).not.toMatch(/[\r\n]/);
+  });
+
+  it("② 赵四实录:画幅段(21:9 横幅)与布光段剔,身份特征词保留", () => {
+    const raw = "约三十岁的男性码头监工,凶横刻薄,宽方厚重脸、浓眉压眼、眼神严厉,肤色黝黑粗糙,21:9 横幅,均匀柔和散光,四视图面容完全一致";
+    const out = sanitizeAssetPromptForIdentity(raw);
+    expect(out).toContain("凶横刻薄");
+    expect(out).toContain("浓眉压眼");
+    expect(out).not.toContain("横幅");
+    expect(out).not.toContain("21:9");
+    expect(out).not.toContain("散光");
+  });
+
+  it("③ 全指令文(铁山纯负面尾部) → 空串=回落 description 取用序", () => {
+    expect(sanitizeAssetPromptForIdentity("图中不要有任何文字，禁止写实摄影，严禁照片级真实感")).toBe("");
   });
 });

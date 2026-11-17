@@ -255,7 +255,26 @@ export async function runImageWorkflowNodeGeneration(
           `${base.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}，[^。；]{0,16}(起|走|坐|转|抬|挥|回|迈|停|执|望|持|盘|涌|伸|劈|扫|翻|拔|踏|跪|站|行|出|入)`,
           "g",
         );
-        actionClauses += [...text.matchAll(arcPattern)].length;
+        // 1118 十五刀B:弧式加算同源豁免——装配正典双区(「{名}正在X」动作句
+        // +「{名}，X至Y」同动作移动弧补述)是单时刻的一体两写,非第二动作
+        // (S3 赵四「正在鞭梢扬起」+「，鞭梢扬起至青盐水珠甩出细线」误拦实录;
+        // 「算盘」名词误中动词表「盘」同理)。豁免判据=弧段(「{名}，」后至
+        //「至」前)与「正在」句动作段共享≥3 字连续串;不同源弧(独立第二动
+        // 作)仍计,十三刀 S12 病灶(正在起身 vs ，回眸凝望)拦力不减。
+        const escapedBase = base.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const zhengzaiActions = [...text.matchAll(new RegExp(`${escapedBase}正在([^。；，]{0,20})`, "g"))]
+          .map((m) => m[1] ?? "");
+        const sharesRun = (a: string, b: string): boolean => {
+          for (let i = 0; i + 3 <= a.length; i += 1) {
+            if (b.includes(a.slice(i, i + 3))) return true;
+          }
+          return false;
+        };
+        for (const arcMatch of text.matchAll(arcPattern)) {
+          const arcSegment = (arcMatch[0].slice(base.length + 1).split("至")[0] ?? "").trim();
+          if (arcSegment && zhengzaiActions.some((action) => sharesRun(action, arcSegment))) continue;
+          actionClauses += 1;
+        }
         if (actionClauses > 1) semanticViolations.push(`action-split:${base}×${actionClauses}`);
       }
       if (/(两种|两式|三种)[^，。；]{0,6}(持法|姿势|握法|形态)/.test(text)) {

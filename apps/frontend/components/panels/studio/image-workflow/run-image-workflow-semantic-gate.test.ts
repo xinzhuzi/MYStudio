@@ -127,24 +127,45 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("出口语义门(十三刀A:override 同门+弧式第二动作句)", () => {
-  it("① override 双动作(正在+衍生弧) → 拒发 action-split(S12 实录形态)", async () => {
+describe("出口语义门(十三刀A:override 同门+弧式第二动作句;十五刀B:同源延伸弧豁免)", () => {
+  // 1118 十五刀B 裁定迁移:正典装配链双区(「正在X」+「，X至Y」)为单时刻
+  // 一体两写(1118 装机批量 S2/S3/S4/S6 误拦实录;四断言口径=「正在」恰1条
+  // 已满足)——S12「回眸」终点动势属数据域 actionIn 选段(E8),非门死拦域。
+  // ①② 断言由拒发改放行;拦力转移至「不同源弧」(新⑤)。
+  it("① override 同源延伸弧(正在X+，X至Y) → 放行(十五刀B 豁免)", async () => {
     installBridge();
     setStoryboardRow({ promptOverride: ARCS12_SNIPPET });
-    await expect(
-      runImageWorkflowNodeGeneration(makeGraph(), "gen-1", runInput),
-    ).rejects.toThrow(/语义门.*action-split:独孤剑尘×2/);
+    const result = await runImageWorkflowNodeGeneration(makeGraph(), "gen-1", runInput);
+    expect(result.imageUrl).toContain("project-file://");
   });
 
-  it("② 生成器双动作(正在+衍生弧) → 同样拒发(弧式并入计数)", async () => {
+  it("② 生成器同源延伸弧 → 同样放行", async () => {
     installBridge();
     vi.mocked(buildStoryboardCanonicalTransportInput).mockImplementation(async () => ({
       instruction: { genre: "t2i" as const, prompt: ARCS12_SNIPPET, slots: [] },
       mapping: { slots: [], dropped: [] },
     }) as never);
+    const result = await runImageWorkflowNodeGeneration(makeGraph(), "gen-1", runInput);
+    expect(result.imageUrl).toContain("project-file://");
+  });
+
+  it("⑤ 不同源弧=独立第二动作(正在喝茶+，挥剑至…) → 拒发(拦力不减)", async () => {
+    installBridge();
+    setStoryboardRow({
+      promptOverride: "独孤剑尘正在低头饮茶；独孤剑尘，拔剑挥出至剑光扫过半张桌",
+    });
     await expect(
       runImageWorkflowNodeGeneration(makeGraph(), "gen-1", runInput),
     ).rejects.toThrow(/语义门.*action-split:独孤剑尘×2/);
+  });
+
+  it("⑥ 状态句弧式误命中(正在只露双眼+，只露一双眼…至=S6 实录) → 放行", async () => {
+    installBridge();
+    setStoryboardRow({
+      promptOverride: "钱掌柜正在只露一双眼与半只拨算盘的手；钱掌柜，只露一双眼与半只拨算盘的手至说罢贬斥",
+    });
+    const result = await runImageWorkflowNodeGeneration(makeGraph(), "gen-1", runInput);
+    expect(result.imageUrl).toContain("project-file://");
   });
 
   it("③ override 单动作句+衣着从句 → 过门不误拦(十一刀教训)", async () => {
