@@ -643,15 +643,22 @@ export async function buildStoryboardCanonicalTransportInput(
   // vc 语义数据缺席(undefined/空)=未知形态,不触发弃参考(合成测试床/旧分片);
   // 恰好 1 名有名角色=真单角色镜 → 弃角色参考(宁缺勿染)。
   const singleCast = castNames.length === 1;
-  // 1117 第十刀B:单角色镜单时刻框定——分镜帧=一个瞬间,videoDesc 的多动作
-  // 枚举(「挥鞭…、舔唇、拨筹」)+道具动作句=「多名各做一动」误读实录(S02
-  // 双赵四=动作拆人,提示词语义病灶);有 actionIn 时以「{名}正在{actionIn}」
-  // 单一此刻帧替换枚举,环境/光色/阵营句保留。
-  const shotForPrompt = singleCast && !frameId && castSemantics[0]?.name?.trim() && castSemantics[0]?.actionIn?.trim()
+  // 1117 第十一刀A(十刀B 泛化):全部镜单时刻框定——分镜帧=一个瞬间,
+  // 动作唯一权威=vc actionIn(镜头入点),每角色「{名}正在{actionIn}」一行;
+  // videoDesc 的多动作枚举(「挥鞭…、舔唇、拨筹」/「踱步扫视、发话」)不再
+  // 进动作槽(双副本主根,S02/S9 双实录),仅作环境萃取源(environmentClauses
+  // 在 buildStoryboardCanonicalContext 内独立抽取,环境/光色/阵营句保留)。
+  // 多帧镜不框定(帧时刻由 momentNote 承担)。
+  const actionLines = castSemantics
+    .map((c) => c.name?.trim() && c.actionIn?.trim()
+      ? `${c.name.trim()}正在${c.actionIn.trim()}`
+      : "")
+    .filter(Boolean);
+  const shotForPrompt = !frameId && actionLines.length
     ? {
         ...shot,
-        videoDesc: `${castSemantics[0].name!.trim()}正在${castSemantics[0].actionIn!.trim()}`,
-        prompt: `${castSemantics[0].name!.trim()}正在${castSemantics[0].actionIn!.trim()}`,
+        videoDesc: actionLines.join("；"),
+        prompt: actionLines.join("；"),
       }
     : shot;
   const { subject, anchors: contextAnchors, anchorSoftNames } = await buildStoryboardCanonicalContext(shotForPrompt);
