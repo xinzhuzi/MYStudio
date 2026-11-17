@@ -25,6 +25,7 @@ import { DAOJIE_SUBJECT_STYLE_WORDS } from "@/lib/studio/daojie-style-word-strip
 /** 身份段来源分级(§4.3 定谳:落点=assets.promptOverrides「分镜剧情图」键)。 */
 export type CanonicalIdentityOrigin =
   | "asset-override"
+  | "asset-description"
   | "character-library"
   | "absent";
 
@@ -268,20 +269,27 @@ export function mapCanonicalReferenceSlots(input: CanonicalSlotMappingInput): Ca
       ],
     };
   }
-  // image_2=场景图;无场景时次角色。
-  if (scenes.length) {
+  // image_2=场景图;无场景时次角色。1117 第五病理刀④:多角色镜(≥2 上镜
+  // 角色)次角色优先于场景占 image_2——群像身份锁(单参考锁不住「别人不能
+  // 长主角的脸/赵四跨镜漂移」;场景退 image_3 或指令文字,S3/S4 白发路人
+  // 实录)。前帧镜维持原序(多帧续帧链优先)。
+  const multiCast = characters.length >= 2;
+  if (!multiCast && scenes.length) {
     const scene = scenes.shift()!;
     slots.push({ slot: nextSlot(), role: "scene", title: scene.title, imageUrl: scene.imageUrl });
   } else if (characters.length) {
     const next = characters.shift()!;
     slots.push({ slot: nextSlot(), role: "character", title: next.title, imageUrl: next.imageUrl });
   }
-  // image_3=前帧图(多帧续帧)或次角色。
+  // image_3=前帧图(多帧续帧)或次角色/场景(刀④多角色镜场景让位后此补)。
   if (input.previousFrameImageUrl) {
     slots.push({ slot: nextSlot(), role: "previous-frame", title: "上一帧画面", imageUrl: input.previousFrameImageUrl });
   } else if (characters.length) {
     const next = characters.shift()!;
     slots.push({ slot: nextSlot(), role: "character", title: next.title, imageUrl: next.imageUrl });
+  } else if (scenes.length) {
+    const scene = scenes.shift()!;
+    slots.push({ slot: nextSlot(), role: "scene", title: scene.title, imageUrl: scene.imageUrl });
   }
   dropped.push(
     ...input.props.map((prop) => ({ title: prop.title, reason: "prop-not-transported" })),
@@ -378,8 +386,17 @@ export function buildCanonicalTransportInstruction(input: {
   // 收束句(肯定式枚举收尾;防 Leakage——参考图仅取点名要素,全新构图呈现;
   // 1116 二代污染修:+人格扩散防线(其他人物禁沿用参考面孔服装)+禁绘参考
   // 排布(多视图/构图/背景不入画))。
-  const closing = "各参考图仅取上述点名要素，画面中其他人物一律使用各自剧情设定的相貌与衣着，不沿用任何参考图的面孔与服装，也不绘制参考图的构图排布、背景与多视角形态，画面以全新构图呈现";
-  const prompt = [operation, `在此基础上，${fidelity}`, closing].join("；") + "。";
+  const closing = "各参考图仅取上述点名要素，画面中其他人物一律使用各自剧情设定的相貌与衣着，不沿用任何参考图的面孔与服装，也不绘制参考图的构图排布、背景与多视角形态，画面中所有区域均为图像与绘画元素，不添加文字，画面以全新构图呈现";
+  // 1117 第五病理刀②:银白发泄漏防线——主角白发经 <imageN> 参考与身份段
+  // 锁定后,其余未点名人物禁止继承该特征(4/5 图白发路人实录)。白发独占句
+  // 仅在有银白发身份段在场的镜挂(S1/S2 无白发主角镜不挂,防反向误伤)。
+  const silverHairPresent = input.subject.identities.some((identity) =>
+    /白发|银发|须发皆白/.test(identity.paragraph));
+  const hairGuard = silverHairPresent
+    ? "画面中只有上述点名角色允许白发,其余所有人物一律为黑发或深棕发"
+    : "";
+  const prompt = [operation, `在此基础上，${fidelity}`, closing, hairGuard]
+    .filter(Boolean).join("；") + "。";
   return { genre: "i2i", prompt, slots };
 }
 
@@ -408,7 +425,7 @@ const NEGATION_PATTERN = /禁止|不要|不得|不许|避免|不能|没有|不�
  * 单字「或」的动词/副词用法(或许/或已)不误杀,更深判定归引擎门)。 */
 const AMBIGUOUS_PATTERN = /(?:或者|或是|还是)/;
 /** 画面内中文文字触发词(07 §二A;涉画面文字展示须顶部逐字携带官方块)。 */
-const IN_FRAME_TEXT_PATTERN = /招牌|匾额|题字|字幕|刻字|标签文字/;
+const IN_FRAME_TEXT_PATTERN = /招牌|匾额|题字|字幕|刻字|标签文字|横幅/;
 /** 官方【文字要求】块(07 §二A 官方逐字,禁改写)。 */
 export const CANONICAL_TEXT_REQUIREMENT_BLOCK =
   "【文字要求】画面中所有文字必须是以上明确指定的中文，逐字准确、清晰可读、无错字无乱码；不要生成任何未指定的多余文字。";

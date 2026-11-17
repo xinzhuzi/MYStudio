@@ -387,6 +387,12 @@ async function resolveIdentityParagraphs(
         const asset = await bridge.getByName({ type: "role", name });
         const override = parsePromptOverride(asset?.promptOverrides, STORYBOARD_IDENTITY_OVERRIDE_KEY);
         if (override) identity = { name, paragraph: override, origin: "asset-override" };
+        // 1117 第五病理刀①:资产库 description=外观真源(发色/体型/服装逐字,
+        // 如赵四「青灰色粗布短褐…」/独孤剑尘「一夜全白」)——override 缺席时
+        // 直接吃 description(此前只回落三库,库外观陈旧=角色跨镜漂移)。
+        else if (asset?.description?.trim()) {
+          identity = { name, paragraph: asset.description.trim(), origin: "asset-description" };
+        }
       } catch {
         // 桥查询失败回落三库,不留痕阻断(建流 fail-safe)
       }
