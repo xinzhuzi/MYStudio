@@ -31,7 +31,7 @@ Return one item per source storyboard, in source order:
   "line": "傍晚，金水河码头被太一宗火印压醒。",
   "ttsSpokenText": "傍晚，金水河码头被太一宗火印压醒。",
   "durationTarget": 4.2,
-  "voiceStyle": "电影级中文旁白，厚重、克制、停顿自然。",
+  "voiceStyle": "中文旁白配音，沉郁基调，音量克制，语速沉稳，句间停顿自然。",
   "requiresFixedVoice": true
 }
 ```
