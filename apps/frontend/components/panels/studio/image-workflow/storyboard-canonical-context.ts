@@ -563,7 +563,13 @@ export interface CanonicalSlotSources {
  * (continuityOrder 升序=主角在前),上游成图边=前帧。与 request 组装层
  * (buildImageWorkflowGenerationRequest)同口径收参。
  */
-export function extractCanonicalSlotSources(
+export /** 槽位标题标点归一(半角分隔→全角;内容词逐字)。 */
+function normalizeFullwidthPunctuationForTitle(text: string): string {
+  return text.replace(/,/g, "，").replace(/;/g, "；").replace(/:/g, "：")
+    .replace(/\(/g, "（").replace(/\)/g, "）").replace(/\./g, "。");
+}
+
+function extractCanonicalSlotSources(
   graph: ImageWorkflowGraph,
   targetNodeId: string,
 ): CanonicalSlotSources {
@@ -582,7 +588,9 @@ export function extractCanonicalSlotSources(
       ((left.type === "reference" ? left.continuityOrder : Number.MAX_SAFE_INTEGER) ?? Number.MAX_SAFE_INTEGER)
       - ((right.type === "reference" ? right.continuityOrder : Number.MAX_SAFE_INTEGER) ?? Number.MAX_SAFE_INTEGER))
     .map((node) => ({
-      title: (node.type === "reference" ? node.title : "") ?? "",
+      // 1117 五刀批残留修:资产复合名可含半角分隔(「李先生;管事」实录)——
+      // 槽 title 出口统一归一,杜绝半角渗入传输指令体(lint 全角门拒 14 镜根)。
+      title: normalizeFullwidthPunctuationForTitle((node.type === "reference" ? node.title : "") ?? ""),
       imageUrl: (node.type === "reference" ? node.imageUrl : "") ?? "",
     }));
   const previousFrame = upstream.find(
