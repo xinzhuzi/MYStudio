@@ -393,3 +393,20 @@ describe("collectDerivedAssetPlanEntries(规划⑦ 清单解析)", () => {
     expect(collectDerivedAssetPlanEntries("chapter-001")).toEqual([]);
   });
 });
+
+function storyboardShotFixture() {
+  return {
+    id: "sb-9k", episodeId: "chapter-001", index: 1,
+    trackKey: "001-1", trackId: "", duration: 6,
+    prompt: "赵四立于高台挥鞭呵斥。", videoDesc: "赵四立于高台挥鞭呵斥。",
+    assetIds: [], state: "idle",
+  } as unknown as import("@/types/studio").StoryboardItem;
+}
+describe("第九刀:vc 缺席不触发弃参考(未知≠单角色)", () => {
+  it("无 shotSemantics → 正常构建 context 不抛错", async () => {
+    const bare = storyboardShotFixture();
+    delete (bare as { shotSemantics?: unknown }).shotSemantics;
+    const ctx = await buildStoryboardCanonicalContext(bare);
+    expect(ctx).toBeTruthy();
+  });
+});

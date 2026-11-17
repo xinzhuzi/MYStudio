@@ -249,6 +249,11 @@ export interface CanonicalSlotMappingInput {
   props: Array<{ title: string; imageUrl: string }>;
   /** 多帧续帧链上一帧成图(gen(k-1)→gen(k));恒槽 3 候补。 */
   previousFrameImageUrl?: string;
+  /** 1117 第九刀:单角色镜(有名有姓在场人物=1)角色参考全弃——立绘参考
+   * 的 reference 引力=同人副本根(S02 双赵四/S10 立绘混入八刀批实录,prompt
+   * 守卫三连仍压不住);身份由文字身份段承担(资产 description 已全量进句)。
+   * 场景参考保留(场景锚),角色槽让位场景顶 image_1。 */
+  singleCastTextIdentity?: boolean;
 }
 
 export interface CanonicalSlotMapping {
@@ -262,7 +267,13 @@ export interface CanonicalSlotMapping {
 export function mapCanonicalReferenceSlots(input: CanonicalSlotMappingInput): CanonicalSlotMapping {
   const slots: CanonicalReferenceSlot[] = [];
   const dropped: CanonicalSlotMapping["dropped"] = [];
-  const characters = [...input.characters];
+  // 1117 第九刀:单角色镜角色参考全弃(宁缺勿染;身份走文字)。
+  if (input.singleCastTextIdentity && input.characters.length) {
+    dropped.push(...input.characters.map((character) => ({
+      title: character.title, reason: "single-cast-text-identity",
+    })));
+  }
+  const characters = input.singleCastTextIdentity ? [] : [...input.characters];
   const scenes = [...input.scenes];
   // 槽序=占槽优先序:主角立绘→场景→前帧/次角色;前位缺席时后位依序上补
   // (物理槽 image_1/2/3 恒连续占用,<imageN> 标签与槽号一一对应)。

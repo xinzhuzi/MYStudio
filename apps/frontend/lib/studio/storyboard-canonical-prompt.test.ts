@@ -410,3 +410,28 @@ describe("buildCanonicalSubjectSentence 1117 C2 扩展", () => {
     expect(text.match(/夜/g)?.length).toBe(1);
   });
 });
+
+describe("第九刀:单角色镜弃角色参考(宁缺勿染)", () => {
+  it("singleCastTextIdentity → 角色全转 dropped(single-cast-text-identity),场景顶槽1", () => {
+    const { slots, dropped } = mapCanonicalReferenceSlots({
+      characters: [{ title: "赵四", imageUrl: "file://a.png" }],
+      scenes: [{ title: "金水河码头", imageUrl: "file://s.png" }],
+      props: [],
+      singleCastTextIdentity: true,
+    });
+    expect(slots).toHaveLength(1);
+    expect(slots[0]).toMatchObject({ slot: 1, role: "scene", title: "金水河码头" });
+    expect(dropped).toContainEqual({ title: "赵四", reason: "single-cast-text-identity" });
+  });
+  it("多角色镜不受影响(旗关)——角色照常占槽", () => {
+    const { slots, dropped } = mapCanonicalReferenceSlots({
+      characters: [
+        { title: "独孤剑尘", imageUrl: "file://a.png" },
+        { title: "赵四", imageUrl: "file://b.png" },
+      ],
+      scenes: [], props: [],
+    });
+    expect(slots[0]).toMatchObject({ role: "character", title: "独孤剑尘" });
+    expect(dropped.filter((d) => d.reason === "single-cast-text-identity")).toHaveLength(0);
+  });
+});

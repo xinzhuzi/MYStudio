@@ -635,7 +635,18 @@ export async function buildStoryboardCanonicalTransportInput(
   const effectiveSubject = momentNote?.trim()
     ? { ...subject, momentNote: momentNote.trim() }
     : subject;
-  const mapping = mapCanonicalReferenceSlots(extractCanonicalSlotSources(graph, targetNodeId));
+  // 1117 第九刀:有名有姓在场人物=1 的镜,角色参考全弃(同人副本根;
+  // 场景参考保留顶槽)。多帧镜不弃(帧间链身份连续优先)。
+  const castNames = ((shot.shotSemantics?.visibleCharacters ?? []) as Array<{ name?: string }>)
+    .map((character) => (character.name ?? "").trim())
+    .filter(Boolean);
+  // vc 语义数据缺席(undefined/空)=未知形态,不触发弃参考(合成测试床/旧分片);
+  // 恰好 1 名有名角色=真单角色镜 → 弃角色参考(宁缺勿染)。
+  const singleCast = castNames.length === 1;
+  const mapping = mapCanonicalReferenceSlots({
+    ...extractCanonicalSlotSources(graph, targetNodeId),
+    singleCastTextIdentity: singleCast && !frameId,
+  });
   // 1116 三代修:传输层单姿裁切失败的槽(dropSlotIndexes,0 基)在此剔除并
   // 重编号——指令体的 <imageN> 编号与实际入槽图恒连续同构(宁缺勿染)。
   if (dropSlotIndexes.length) {
