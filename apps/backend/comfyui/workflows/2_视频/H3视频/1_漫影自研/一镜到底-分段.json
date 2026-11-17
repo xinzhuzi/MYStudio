@@ -1,8 +1,8 @@
 {
   "id": "h3-autocontext-multiseg",
   "revision": 1,
-  "last_node_id": 4003,
-  "last_link_id": 53,
+  "last_node_id": 9999,
+  "last_link_id": 92,
   "nodes": [
     {
       "id": 2,
@@ -149,7 +149,10 @@
             4,
             8,
             24,
-            38
+            38,
+            68,
+            69,
+            70
           ],
           "slot_index": 0
         }
@@ -186,7 +189,9 @@
             5,
             10,
             25,
-            39
+            39,
+            71,
+            72
           ],
           "slot_index": 0
         }
@@ -221,7 +226,8 @@
           "type": "CLIP",
           "links": [
             3,
-            23
+            23,
+            73
           ],
           "slot_index": 0
         }
@@ -256,8 +262,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            1,
-            15
+            92
           ],
           "slot_index": 0
         }
@@ -1133,10 +1138,10 @@
         "Node name for S&R": "MiniMaxChunkFeedForward"
       },
       "widgets_values": [
-        1,
+        2,
         4096
       ],
-      "title": "H3 Chunk FFN(削峰·出厂 chunks=1 恒等)"
+      "title": "H3 Chunk FFN(削峰·1118 激活 chunks=2)"
     },
     {
       "id": 3021,
@@ -1665,7 +1670,9 @@
           "type": "VIDEO",
           "links": [
             42,
-            44
+            44,
+            54,
+            55
           ]
         }
       ],
@@ -1855,15 +1862,1222 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "# 一镜到底-分段 · 全链三采(1114 用户裁定「都过三采」)\n\n## 件用途\n分段生成(一采,绕 15s 封顶)→ 二采 TaoMate 精修(1440×832)→ 三采 ReCaVSR 超分(2880×1664 终档)。与 三采-单镜.json 分工:单镜 ≤15s 高质线 / 本件任意时长全梯线。\n\n## 操作手册(1115 实弹勘误终态:两步法)\n**第 1 步 整图直跑(段B 出厂旁路)**:Run 一按出 p1(960×544)+p2(1440×832)。\n**第 2 步 三采**:激活 4001/4002/4003 三节点 → **选中段B 节点局部执行**(引擎缓存复用,只烧 ReCaVSR ~1min)。\n⚠ **整图一发含段B = 禁**(1115 实弹崩溃实证:全链驻留下 ReCaVSR 上卡即原生崩引擎,引擎日志 17:04:42 零 traceback);App 派发/批量/livefire 恒走 API 两发拆链+间中 `POST /free {\"unload_models\": true}`(Note103 运行法则)。\n\n## 同步点三则(手改必读)\n1. 改分段时长必须按帧数公式同步 [3031].length(targets→snap17 网格→Σnew,出厂 2×1秒=56),实跑以 p1 ffprobe 实测帧数双核对(雷#13/#17);\n2. [3030] 与 [100] 提示词是两份拷贝,手改同频(雷#14,契约测试出厂态断言同文);\n3. 组框五组横排与布局 est 宪法由 `apps/build/scripts/multiseg_full3stage_extend.py --verify` 把门,改版后整体重跑(雷#7)。\n\n## 模型/配方速查(1115 B3 定谳)\n一采=**正典全配方臂**:turbo@1.0+sol-attn τ1.3+ChunkFFN[2]+kitchen+σshift[**6,3**]+**lcm**+simple/8(Pika 必须 lcm=全库正典;裸 euler 已废,B3 实弹 p1 胜/p2 平);二采=taomate@0.7+sol-attn τ1.3+σshift[12,3]+kitchen+lcm+simple/3步/dn0.2(UP 定谳);三采=ReCaVSR scale2 int8 ConvRot。seed=42 复现。⚠ 段缓存指纹不含外接 sampler——A/B 试验须 enable_cache=False(1115 实证)。"
+        "# 一镜到底-分段 · 全链三采(1114 用户裁定「都过三采」)\n\n## 件用途\n分段生成(一采,绕 15s 封顶)→ 二采 TaoMate 精修(1440×832)→ 三采 ReCaVSR 超分(2880×1664 终档)。与 三采-单镜.json 分工:单镜 ≤15s 高质线 / 本件任意时长全梯线。\n\n## 操作手册(1115 实弹勘误终态:两步法)\n**第 1 步 整图直跑(段B 出厂旁路)**:Run 一按出 p1(960×544)+p2(1440×832)。\n**第 2 步 三采**:激活 4001/4002/4003 三节点 → **选中段B 节点局部执行**(引擎缓存复用,只烧 ReCaVSR ~1min)。\n⚠ **整图一发含段B = 禁**(1115 实弹崩溃实证:全链驻留下 ReCaVSR 上卡即原生崩引擎,引擎日志 17:04:42 零 traceback);App 派发/批量/livefire 恒走 API 两发拆链+间中 `POST /free {\"unload_models\": true}`(Note103 运行法则)。\n\n## 同步点三则(手改必读)\n1. 改分段时长必须按帧数公式同步 [3031].length(targets→snap17 网格→Σnew,出厂 2×1秒=56),实跑以 p1 ffprobe 实测帧数双核对(雷#13/#17);\n2. [3030] 与 [100] 提示词是两份拷贝,手改同频(雷#14,契约测试出厂态断言同文);\n3. 组框五组横排与布局 est 宪法由 `apps/build/scripts/multiseg_full3stage_extend.py --verify` 把门,改版后整体重跑(雷#7)。\n\n## 模型/配方速查(1115 B3 定谳)\n一采=**正典全配方臂**:turbo@1.0+sol-attn τ1.3+ChunkFFN[2]+kitchen+σshift[**6,3**]+**lcm**+simple/8(Pika 必须 lcm=全库正典;裸 euler 已废,B3 实弹 p1 胜/p2 平);二采=taomate@0.7+sol-attn τ1.3+σshift[12,3]+kitchen+lcm+simple/3步/dn0.2(UP 定谳);三采=ReCaVSR scale2 int8 ConvRot。seed=42 复现。⚠ 段缓存指纹不含外接 sampler——A/B 试验须 enable_cache=False(1115 实证)。\n\n---\n\n## 四采修脸(内置·默认旁路·1118 multiseg)\n\n- **开关 #1065「四采修脸」**:默认 **False=旁路**——终档 4100 p-final=3053 二采 p2 直通,50xx 臂被引擎惰性剪除\n  (0.45.2 实证,同 三采-单镜 1118 双态探针口径),零成本;**True=二采出片内部走进修脸→终档一条线**\n- **#25 修脸身份提示词**:默认通用句;外部按角色覆写(参照正片人物五官特征)\n- **臂拓扑**(同 三采-单镜 1118 §1.1):5002 拆 3053(帧①+音轨②)→ 5011 追踪裁剪(face_yolov8m\n  conf0.15/兜底 segm\\person_yolov8m-seg.pt/largest_face)→ 5012 H3 重画(**宽高=5011 出口联线勿手填**/\n  参考图=零参考出厂/提示词=#25)→ 5013 注入真实帧 → 5014 音轨锁(audio←5002②)→ 5015 逐帧 denoise\n  (60/200px)→ 5016-5020 采样(seed 42 同 3040/lcm/simple/8步/0.45)→ 5021 解码 → 5022 贴回(16/24)\n  → 5023 合成 → 5100 终档选择 → 4100 p-final\n- **帧数同步纪律(本件专属)**:本件无帧数图出口——改 [3031].length 必须同步 [5012].length\n  (出厂两处皆 56;livefire/发车器覆写 3031.length 时同步覆写 5012.length)\n- **极性口径**(同三采 1118 双态实测定谳):5100 on_true=修脸片(1065=true)/on_false=3053 p2 直通\n  (1065=false),勿手改(防 wf2api 反转坑)\n- **显存纪律**:5006 LoRA 挂 34 单 loader(全图禁第二个 UNETLoader);p1/p2 两档照常落盘,段B\n  4001-4003 mode4 与 MyShot/3071 零改动(修脸组与段B 正交)\n- **生效面**:仓库/引擎直投即时生效;装机 App 面候打包窗口另役同步\n- **改版顺序**:本组手术入口=apps/build/scripts/multiseg_inline_facerefine_build_1118.py(幂等);\n  multiseg_full3stage_extend.py 无参重跑会抹本组(其只透传 12 锚点+自建 29),抹后重跑本生成器即恢复\n"
       ],
       "title": "README(恒居组外)"
+    },
+    {
+      "id": 25,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        11300,
+        2100
+      ],
+      "size": [
+        430,
+        200
+      ],
+      "flags": {},
+      "order": 41,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "值",
+          "name": "value",
+          "type": "STRING",
+          "widget": {
+            "name": "value"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "字符串",
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            74
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfy-core",
+        "ver": "0.33.2"
+      },
+      "widgets_values": [
+        "The same person as in the video: sharp detailed facial features, clear bright eyes, well-defined facial contour, refined natural skin texture, clean hair edges; keep the exact facial identity, skin tone and lighting direction unchanged, no character redesign."
+      ],
+      "color": "#232",
+      "bgcolor": "#353",
+      "title": "⑦ 修脸身份提示词(四采·默认通用句·调用方覆写)"
+    },
+    {
+      "id": 1065,
+      "type": "PrimitiveBoolean",
+      "pos": [
+        11760,
+        2100
+      ],
+      "size": [
+        300,
+        120
+      ],
+      "flags": {},
+      "order": 42,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "value",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "value"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "BOOLEAN",
+          "type": "BOOLEAN",
+          "links": [
+            90
+          ]
+        }
+      ],
+      "widgets_values": [
+        false
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveBoolean"
+      },
+      "title": "四采修脸:False 关(默认旁路)/ True 开"
+    },
+    {
+      "id": 5002,
+      "type": "GetVideoComponents",
+      "pos": [
+        11300,
+        1000
+      ],
+      "size": [
+        270,
+        100
+      ],
+      "flags": {},
+      "order": 43,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 54
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            56,
+            57
+          ]
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            58,
+            59
+          ]
+        },
+        {
+          "name": "fps",
+          "type": "FLOAT"
+        },
+        {
+          "name": "bit_depth",
+          "type": "COMBO"
+        },
+        {
+          "name": "color_space",
+          "type": "COMBO"
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "GetVideoComponents"
+      },
+      "title": "四采·拆帧拆音(←3053 二采出片)"
+    },
+    {
+      "id": 5006,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        12950,
+        1000
+      ],
+      "size": [
+        400,
+        148
+      ],
+      "flags": {},
+      "order": 44,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 60
+        },
+        {
+          "localized_name": "lora_name",
+          "name": "lora_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "lora_name"
+          }
+        },
+        {
+          "localized_name": "strength_model",
+          "name": "strength_model",
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_model"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            61
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0",
+        "models": [
+          {
+            "name": "pika_h3_flex_fl2va_v1_bf16.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/loras/pika_h3_flex_fl2va_v1_bf16.safetensors",
+            "directory": "loras"
+          }
+        ]
+      },
+      "widgets_values": [
+        "pika_turbo_8step_fl2va.safetensors",
+        1
+      ],
+      "title": "四采·Pika turbo 8step LoRA(复用 34)"
+    },
+    {
+      "id": 5011,
+      "type": "H3FaceTrackCrop",
+      "pos": [
+        11660,
+        1000
+      ],
+      "size": [
+        360,
+        600
+      ],
+      "flags": {},
+      "order": 45,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 56
+        },
+        {
+          "name": "identity_reference",
+          "shape": 7,
+          "type": "IMAGE"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "crops",
+          "type": "IMAGE",
+          "links": [
+            62
+          ]
+        },
+        {
+          "name": "transform",
+          "type": "H3FACEXFORM",
+          "links": [
+            63,
+            64
+          ]
+        },
+        {
+          "name": "preview",
+          "type": "IMAGE"
+        },
+        {
+          "name": "report",
+          "type": "STRING"
+        },
+        {
+          "name": "canvas_w",
+          "type": "INT",
+          "links": [
+            65
+          ]
+        },
+        {
+          "name": "canvas_h",
+          "type": "INT",
+          "links": [
+            66
+          ]
+        },
+        {
+          "name": "frame_count",
+          "type": "INT"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "H3FaceTrackCrop"
+      },
+      "widgets_values": [
+        "face_yolov8m.pt",
+        0.15,
+        2.5,
+        768,
+        768,
+        "auto_capped_768",
+        21,
+        51,
+        "gaussian",
+        "per_frame",
+        true,
+        0.28,
+        "largest_face",
+        "segm\\person_yolov8m-seg.pt",
+        0.5,
+        0,
+        "insightface",
+        "none",
+        3.0,
+        "off",
+        0,
+        0,
+        0
+      ],
+      "color": "#322",
+      "bgcolor": "#533",
+      "title": "四采·人脸追踪裁剪"
+    },
+    {
+      "id": 5012,
+      "type": "MiniMaxH3ReferenceToVideo",
+      "pos": [
+        12080,
+        1000
+      ],
+      "size": [
+        400,
+        622
+      ],
+      "flags": {},
+      "order": 46,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 73
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 68
+        },
+        {
+          "name": "audio_vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 71
+        },
+        {
+          "label": "ref_image_0",
+          "name": "ref_images.ref_image_0",
+          "shape": 7,
+          "type": "IMAGE"
+        },
+        {
+          "label": "ref_image_1",
+          "name": "ref_images.ref_image_1",
+          "shape": 7,
+          "type": "IMAGE"
+        },
+        {
+          "label": "ref_image_2",
+          "name": "ref_images.ref_image_2",
+          "shape": 7,
+          "type": "IMAGE"
+        },
+        {
+          "label": "ref_image_3",
+          "name": "ref_images.ref_image_3",
+          "shape": 7,
+          "type": "IMAGE"
+        },
+        {
+          "label": "ref_image_4",
+          "name": "ref_images.ref_image_4",
+          "shape": 7,
+          "type": "IMAGE"
+        },
+        {
+          "label": "ref_video_0",
+          "name": "ref_videos.ref_video_0",
+          "shape": 7,
+          "type": "IMAGE"
+        },
+        {
+          "label": "ref_video_audio_0",
+          "name": "ref_video_audios.ref_video_audio_0",
+          "shape": 7,
+          "type": "AUDIO"
+        },
+        {
+          "label": "ref_audio_0",
+          "name": "ref_audios.ref_audio_0",
+          "shape": 7,
+          "type": "AUDIO"
+        },
+        {
+          "name": "ref_audios.ref_audio_1",
+          "shape": 7,
+          "type": "AUDIO"
+        },
+        {
+          "name": "ref_audios.ref_audio_2",
+          "shape": 7,
+          "type": "AUDIO"
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": 74
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": 65
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": 66
+        },
+        {
+          "name": "length",
+          "type": "INT",
+          "widget": {
+            "name": "length"
+          }
+        },
+        {
+          "label": "ref_image_5",
+          "name": "ref_images.ref_image_5",
+          "shape": 7,
+          "type": "IMAGE"
+        },
+        {
+          "label": "ref_image_6",
+          "name": "ref_images.ref_image_6",
+          "shape": 7,
+          "type": "IMAGE"
+        },
+        {
+          "label": "ref_image_7",
+          "name": "ref_images.ref_image_7",
+          "shape": 7,
+          "type": "IMAGE"
+        },
+        {
+          "label": "ref_image_8",
+          "name": "ref_images.ref_image_8",
+          "shape": 7,
+          "type": "IMAGE"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            80
+          ]
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            67
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3ReferenceToVideo",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "",
+        768,
+        768,
+        56,
+        "max"
+      ],
+      "color": "#322",
+      "bgcolor": "#533",
+      "title": "四采·H3 重画条件(画布=追踪器出口)"
+    },
+    {
+      "id": 5013,
+      "type": "H3InjectVideoLatent",
+      "pos": [
+        12560,
+        1000
+      ],
+      "size": [
+        330,
+        105
+      ],
+      "flags": {},
+      "order": 47,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "av_latent",
+          "type": "LATENT",
+          "link": 67
+        },
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 62
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 69
+        }
+      ],
+      "outputs": [
+        {
+          "name": "av_latent",
+          "type": "LATENT",
+          "links": [
+            75
+          ]
+        },
+        {
+          "name": "report",
+          "type": "STRING"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "H3InjectVideoLatent"
+      },
+      "widgets_values": [],
+      "color": "#322",
+      "bgcolor": "#533",
+      "title": "四采·注入真实帧"
+    },
+    {
+      "id": 5014,
+      "type": "MiniMaxH3NativeAudioLock",
+      "pos": [
+        13410,
+        1000
+      ],
+      "size": [
+        330,
+        120
+      ],
+      "flags": {},
+      "order": 48,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 61
+        },
+        {
+          "name": "av_latent",
+          "type": "LATENT",
+          "link": 75
+        },
+        {
+          "name": "audio_vae",
+          "type": "VAE",
+          "link": 72
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 58
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            76
+          ]
+        },
+        {
+          "name": "av_latent",
+          "type": "LATENT",
+          "links": [
+            77
+          ]
+        },
+        {
+          "name": "exact_audio",
+          "type": "AUDIO"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3NativeAudioLock"
+      },
+      "widgets_values": [],
+      "color": "#232",
+      "bgcolor": "#353",
+      "title": "四采·音轨锁"
+    },
+    {
+      "id": 5015,
+      "type": "H3PerFrameDenoise",
+      "pos": [
+        13820,
+        1000
+      ],
+      "size": [
+        330,
+        240
+      ],
+      "flags": {},
+      "order": 49,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 76
+        },
+        {
+          "name": "av_latent",
+          "type": "LATENT",
+          "link": 77
+        },
+        {
+          "name": "transform",
+          "type": "H3FACEXFORM",
+          "link": 63
+        }
+      ],
+      "outputs": [
+        {
+          "name": "av_latent",
+          "type": "LATENT",
+          "links": [
+            85
+          ]
+        },
+        {
+          "name": "report",
+          "type": "STRING"
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            78,
+            79
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "H3PerFrameDenoise"
+      },
+      "widgets_values": [
+        1.0,
+        0.35,
+        "absolute_px",
+        60.0,
+        200.0,
+        1,
+        9
+      ],
+      "color": "#322",
+      "bgcolor": "#533",
+      "title": "四采·逐帧 denoise(60/200)"
+    },
+    {
+      "id": 5016,
+      "type": "RandomNoise",
+      "pos": [
+        14230,
+        1200
+      ],
+      "size": [
+        360,
+        148
+      ],
+      "flags": {},
+      "order": 50,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "links": [
+            81
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RandomNoise",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        42,
+        "fixed"
+      ],
+      "title": "四采·噪声(同源 #54)"
+    },
+    {
+      "id": 5017,
+      "type": "KSamplerSelect",
+      "pos": [
+        14230,
+        1420
+      ],
+      "size": [
+        370,
+        118
+      ],
+      "flags": {},
+      "order": 51,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            83
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "lcm"
+      ],
+      "title": "四采·采样器(lcm)"
+    },
+    {
+      "id": 5018,
+      "type": "BasicScheduler",
+      "pos": [
+        14230,
+        1620
+      ],
+      "size": [
+        315,
+        178
+      ],
+      "flags": {},
+      "order": 52,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 78
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "slot_index": 0,
+          "links": [
+            84
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicScheduler"
+      },
+      "widgets_values": [
+        "simple",
+        8,
+        0.45
+      ],
+      "title": "四采·调度 simple/8步/0.45"
+    },
+    {
+      "id": 5019,
+      "type": "BasicGuider",
+      "pos": [
+        14230,
+        1860
+      ],
+      "size": [
+        360,
+        112
+      ],
+      "flags": {},
+      "order": 53,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 79
+        },
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 80
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "links": [
+            82
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicGuider",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "title": "四采·引导器"
+    },
+    {
+      "id": 5020,
+      "type": "SamplerCustomAdvanced",
+      "pos": [
+        14680,
+        1000
+      ],
+      "size": [
+        250,
+        184
+      ],
+      "flags": {},
+      "order": 54,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise",
+          "type": "NOISE",
+          "link": 81
+        },
+        {
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 82
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 83
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 84
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 85
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "links": [
+            86
+          ]
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT"
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SamplerCustomAdvanced",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "title": "四采·采样"
+    },
+    {
+      "id": 5021,
+      "type": "VAEDecode",
+      "pos": [
+        15010,
+        1000
+      ],
+      "size": [
+        250,
+        112
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 55,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 86
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 70
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            87
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "title": "四采·解码"
+    },
+    {
+      "id": 5022,
+      "type": "H3FaceStitch",
+      "pos": [
+        15340,
+        1000
+      ],
+      "size": [
+        330,
+        270
+      ],
+      "flags": {},
+      "order": 56,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "base_images",
+          "type": "IMAGE",
+          "link": 57
+        },
+        {
+          "name": "refined_crops",
+          "type": "IMAGE",
+          "link": 87
+        },
+        {
+          "name": "transform",
+          "type": "H3FACEXFORM",
+          "link": 64
+        },
+        {
+          "name": "masks",
+          "shape": 7,
+          "type": "MASK"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            88
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "H3FaceStitch"
+      },
+      "widgets_values": [
+        "face_only",
+        16,
+        24,
+        1,
+        1,
+        "fade_out",
+        false
+      ],
+      "color": "#322",
+      "bgcolor": "#533",
+      "title": "四采·贴回"
+    },
+    {
+      "id": 5023,
+      "type": "CreateVideo",
+      "pos": [
+        15750,
+        1000
+      ],
+      "size": [
+        270,
+        232
+      ],
+      "flags": {},
+      "order": 57,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 88
+        },
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 59
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            89
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateVideo",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        24,
+        8,
+        "sRGB",
+        "none"
+      ],
+      "title": "四采·合成视频"
+    },
+    {
+      "id": 5100,
+      "type": "ComfySwitchNode",
+      "pos": [
+        16220,
+        1000
+      ],
+      "size": [
+        270,
+        166
+      ],
+      "flags": {},
+      "order": 58,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "switch"
+          },
+          "link": 90
+        },
+        {
+          "name": "on_false",
+          "type": "COMFY_MATCHTYPE_V3",
+          "link": 55
+        },
+        {
+          "name": "on_true",
+          "type": "COMFY_MATCHTYPE_V3",
+          "link": 89
+        }
+      ],
+      "outputs": [
+        {
+          "name": "COMFY_MATCHTYPE_V3",
+          "type": "COMFY_MATCHTYPE_V3",
+          "links": [
+            91
+          ]
+        }
+      ],
+      "widgets_values": [
+        false
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "title": "终档选择(1065:真=修脸片/假=p3 直通)"
+    },
+    {
+      "id": 4100,
+      "type": "SaveVideo",
+      "pos": [
+        16560,
+        1000
+      ],
+      "size": [
+        283,
+        564
+      ],
+      "flags": {},
+      "order": 59,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "video",
+          "name": "video",
+          "type": "VIDEO",
+          "link": 91
+        },
+        {
+          "localized_name": "filename_prefix",
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          }
+        },
+        {
+          "localized_name": "format",
+          "name": "format",
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "format"
+          }
+        },
+        {
+          "localized_name": "codec",
+          "name": "format.codec",
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "format.codec"
+          }
+        },
+        {
+          "localized_name": "codec",
+          "name": "codec",
+          "shape": 7,
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "codec"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "video",
+          "name": "video",
+          "type": "VIDEO"
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "video/H3/分段视频/p-final",
+        "auto",
+        "auto",
+        "auto"
+      ],
+      "title": "终档保存 p-final"
+    },
+    {
+      "id": 1066,
+      "type": "MiniMaxLowVRAMAttention",
+      "pos": [
+        300,
+        1500
+      ],
+      "size": [
+        300,
+        130
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 92
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1,
+            15,
+            60
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxLowVRAMAttention",
+        "cnr_id": "comfyui-kjnodes"
+      },
+      "widgets_values": [
+        2
+      ],
+      "title": "H3 Low VRAM Attn(削峰·头分块 1118)"
     }
   ],
   "links": [
     [
       1,
-      34,
+      1066,
       0,
       41,
       0,
@@ -1967,7 +3181,7 @@
     ],
     [
       15,
-      34,
+      1066,
       0,
       1021,
       0,
@@ -2276,6 +3490,318 @@
       101,
       6,
       "SIGMAS"
+    ],
+    [
+      54,
+      3053,
+      0,
+      5002,
+      0,
+      "VIDEO"
+    ],
+    [
+      55,
+      3053,
+      0,
+      5100,
+      1,
+      "COMFY_MATCHTYPE_V3"
+    ],
+    [
+      56,
+      5002,
+      0,
+      5011,
+      0,
+      "IMAGE"
+    ],
+    [
+      57,
+      5002,
+      0,
+      5022,
+      0,
+      "IMAGE"
+    ],
+    [
+      58,
+      5002,
+      1,
+      5014,
+      3,
+      "AUDIO"
+    ],
+    [
+      59,
+      5002,
+      1,
+      5023,
+      1,
+      "AUDIO"
+    ],
+    [
+      60,
+      1066,
+      0,
+      5006,
+      0,
+      "MODEL"
+    ],
+    [
+      61,
+      5006,
+      0,
+      5014,
+      0,
+      "MODEL"
+    ],
+    [
+      62,
+      5011,
+      0,
+      5013,
+      1,
+      "IMAGE"
+    ],
+    [
+      63,
+      5011,
+      1,
+      5015,
+      2,
+      "H3FACEXFORM"
+    ],
+    [
+      64,
+      5011,
+      1,
+      5022,
+      2,
+      "H3FACEXFORM"
+    ],
+    [
+      65,
+      5011,
+      4,
+      5012,
+      14,
+      "INT"
+    ],
+    [
+      66,
+      5011,
+      5,
+      5012,
+      15,
+      "INT"
+    ],
+    [
+      67,
+      5012,
+      1,
+      5013,
+      0,
+      "LATENT"
+    ],
+    [
+      68,
+      7,
+      0,
+      5012,
+      1,
+      "VAE"
+    ],
+    [
+      69,
+      7,
+      0,
+      5013,
+      2,
+      "VAE"
+    ],
+    [
+      70,
+      7,
+      0,
+      5021,
+      1,
+      "VAE"
+    ],
+    [
+      71,
+      13,
+      0,
+      5012,
+      2,
+      "VAE"
+    ],
+    [
+      72,
+      13,
+      0,
+      5014,
+      2,
+      "VAE"
+    ],
+    [
+      73,
+      21,
+      0,
+      5012,
+      0,
+      "CLIP"
+    ],
+    [
+      74,
+      25,
+      0,
+      5012,
+      13,
+      "STRING"
+    ],
+    [
+      75,
+      5013,
+      0,
+      5014,
+      1,
+      "LATENT"
+    ],
+    [
+      76,
+      5014,
+      0,
+      5015,
+      0,
+      "MODEL"
+    ],
+    [
+      77,
+      5014,
+      1,
+      5015,
+      1,
+      "LATENT"
+    ],
+    [
+      78,
+      5015,
+      2,
+      5018,
+      0,
+      "MODEL"
+    ],
+    [
+      79,
+      5015,
+      2,
+      5019,
+      0,
+      "MODEL"
+    ],
+    [
+      80,
+      5012,
+      0,
+      5019,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      81,
+      5016,
+      0,
+      5020,
+      0,
+      "NOISE"
+    ],
+    [
+      82,
+      5019,
+      0,
+      5020,
+      1,
+      "GUIDER"
+    ],
+    [
+      83,
+      5017,
+      0,
+      5020,
+      2,
+      "SAMPLER"
+    ],
+    [
+      84,
+      5018,
+      0,
+      5020,
+      3,
+      "SIGMAS"
+    ],
+    [
+      85,
+      5015,
+      0,
+      5020,
+      4,
+      "LATENT"
+    ],
+    [
+      86,
+      5020,
+      0,
+      5021,
+      0,
+      "LATENT"
+    ],
+    [
+      87,
+      5021,
+      0,
+      5022,
+      1,
+      "IMAGE"
+    ],
+    [
+      88,
+      5022,
+      0,
+      5023,
+      0,
+      "IMAGE"
+    ],
+    [
+      89,
+      5023,
+      0,
+      5100,
+      2,
+      "COMFY_MATCHTYPE_V3"
+    ],
+    [
+      90,
+      1065,
+      0,
+      5100,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      91,
+      5100,
+      0,
+      4100,
+      0,
+      "VIDEO"
+    ],
+    [
+      92,
+      34,
+      0,
+      1066,
+      0,
+      "MODEL"
     ]
   ],
   "groups": [
@@ -2356,6 +3882,32 @@
       "color": "#335588",
       "flags": {},
       "order": 5
+    },
+    {
+      "id": 16,
+      "title": "四采修脸组(5000 段·默认旁路·1118 multiseg)",
+      "bounding": [
+        11240,
+        920,
+        4780,
+        1420
+      ],
+      "color": "#995588",
+      "flags": {},
+      "order": 7
+    },
+    {
+      "id": 17,
+      "title": "终档组(p-final·四采开关·1118 multiseg)",
+      "bounding": [
+        16160,
+        920,
+        683,
+        684
+      ],
+      "color": "#557799",
+      "flags": {},
+      "order": 8
     }
   ],
   "config": {},

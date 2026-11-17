@@ -563,6 +563,10 @@ I2I_NODE_TYPE_WHITELIST = {
     "SolidMask", "ThresholdMask",
     # 1015 画幅按型联动:[4018] 画幅建议器(九型宽高直通+手动成对优先)
     "MyQi21WhSuggest",
+    # 1117 Gem ② 分块超分链五新类入册(KSampler/LoraLoaderModelOnly 已在册;
+    # 3_社区模板守卫三件+ItsGem 拼缝两件,宿主 i2i 主图平铺形)
+    "GemTiledUpscale", "GemTiledUpscaleStitch", "GetImageSize",
+    "ComfyMathExpression", "ImageScaleBy",
     # 超分子图内部件(1018 终版删 A/B/C:tiled VAE 族+ESRGAN/LatentUpscale/
     # USDU 件全部出册随删,回潮即红;PrimitiveInt/ImageScaleToTotalPixels
     # 已在册;D=SeedVR2 三件已册见上)
@@ -2344,19 +2348,31 @@ class TestLoaderTriple:
     def test_unet_loader_exact_file(self):
         for name, graph in GRAPHS.items():
             loaders = _by_type(graph, "UNETLoader")
-            assert len(loaders) == 1, f"{name}: UNETLoader 应恰 1 个"
+            # 1117 Gem ② 接棒:qi21/i2i 另带独立栈 [8111] int8 UNET(与主链零共享)
+            extra = 1 if name in ("qi21", "i2i") else 0
+            assert len(loaders) == 1 + extra, \
+                f"{name}: UNETLoader 应恰 {1 + extra} 个(1117 Gem ② 独立栈 +{extra})"
             assert _widget(loaders[0], 0) == UNET_FILE, \
                 f"{name}: unet_name 应逐字 {UNET_FILE!r}"
+            if extra:
+                assert [n["id"] for n in loaders if n["id"] != 1] == [8111] and \
+                    _widget(loaders[-1], 0) == "qwen_image_2.1_int8_convrot.safetensors", \
+                    f"{name}: Gem 独立 UNET 应恰 [8111] int8_convrot"
 
     def test_clip_loader_exact_file_and_type(self):
         for name, graph in GRAPHS.items():
             loaders = _by_type(graph, "CLIPLoader")
-            expected = 2 if name == "t2i" else 1  # 通用 t2i 带 PE 组=2;道劫三件 1002 ⑬ 后=1
-            assert len(loaders) == expected, f"{name}: 主图 CLIPLoader 应恰 {expected} 个(1002 ⑬)"
+            # 通用 t2i 带 PE 组=2;道劫三件 1002 ⑬ 后=1;1117 Gem ② qi21/i2i +[8114]
+            gem_extra = 1 if name in ("qi21", "i2i") else 0
+            expected = (2 if name == "t2i" else 1) + gem_extra
+            assert len(loaders) == expected, f"{name}: 主图 CLIPLoader 应恰 {expected} 个(1002 ⑬;1117 +{gem_extra})"
             main = [n for n in loaders if _widget(n, 0) == CLIP_FILE]
             assert len(main) == 1, f"{name}: 主 CLIP(qwen3vl_8b_bf16_heretic)应恰 1 个"
             assert _widget(main[0], 1) == "qwen_image", \
                 f"{name}: 主 CLIPLoader type 必须为 qwen_image"
+            if gem_extra:
+                assert [n["id"] for n in loaders if _widget(n, 0) != CLIP_FILE] == [8114], \
+                    f"{name}: Gem 独立 CLIP 应恰 [8114] int8_convrot"
 
     def test_pe_clip_loader_exact_file_and_type(self):
         pe_files = {"t2i": PE_CLIP_FILE, "edit": PE_I2I_CLIP_FILE, "i2i": PE_I2I_CLIP_FILE}
@@ -2374,11 +2390,19 @@ class TestLoaderTriple:
         for name, graph in GRAPHS.items():
             loader_type = "VAELoaderKJ" if name in ("i2i", "edit") else "VAELoader"
             loaders = _by_type(graph, loader_type)
-            assert len(loaders) == 1, f"{name}: {loader_type} 应恰 1 个"
+            # 1117 Gem ② 接棒:qi21 主图另带 [8115] Gem 独立 VAE(qwen_image_2.1_vae_bf16,
+            # Gem 源件逐字;主链 texture-fix 口径不变);i2i 主 VAE=VAELoaderKJ 不涉
+            gem_extra = 1 if (name == "qi21" and loader_type == "VAELoader") else 0
+            assert len(loaders) == 1 + gem_extra, \
+                f"{name}: {loader_type} 应恰 {1 + gem_extra} 个(1117 Gem ② +{gem_extra})"
             # 1018 用户令:全域单 VAE(texture-fix);原版 qwen_image_2.1_vae_bf16 退役
             want = VAE_FILE
             assert _widget(loaders[0], 0) == want, \
                 f"{name}: vae_name 应逐字 {want!r}"
+            if gem_extra:
+                assert [n["id"] for n in loaders if n["id"] != 3] == [8115] and \
+                    _widget(loaders[-1], 0) == "qwen_image_2.1_vae_bf16.safetensors", \
+                    "qi21: Gem 独立 VAE 应恰 [8115] qwen_image_2.1_vae_bf16(Gem 源件逐字)"
 
 
 # ── 3. KSampler 参数(cfg=1.0 / euler+simple / denoise=1.0;0929 并行化:道劫三件
@@ -2397,8 +2421,14 @@ class TestSamplerContract:
                 assert 25 <= wv[K_SAMPLER_WV["steps"]] <= 50, \
                     f"{name}: steps 应在官方区间 25-50(模板 25 起手)"
             else:   # 道劫三件(0929 S3 收装):双支路采样器=40 直出+359 viggle,全在加速子图
-                assert not _by_type(graph, "KSampler"), \
-                    f"{name}: 主图应零 KSampler(0929 S3:支路机构收进加速子图)"
+                # 1117 Gem ② 接棒:qi21/i2i 主图另恰 [8118] Gem 6步件(独立栈尾;
+                # euler/simple/denoise1 与产线口径同,下方循环同判)
+                if name in ("qi21", "i2i"):
+                    assert [n["id"] for n in _by_type(graph, "KSampler")] == [8118], \
+                        f"{name}: 主图 KSampler 应恰 [8118] Gem ② 6步件(1117 例外),得 {[n['id'] for n in _by_type(graph, 'KSampler')]}"
+                else:
+                    assert not _by_type(graph, "KSampler"), \
+                        f"{name}: 主图应零 KSampler(0929 S3:支路机构收进加速子图)"
                 samplers = [n for n in _xsg(graph)["nodes"] if n["type"] == "KSampler"]
                 # 1008 官方参数化(qi21)/1014 随批(i2i)/1016edit9 随批(edit):viggle 支路=官方链
                 # 1101 Phase1(t2i)/Phase2(i2i·edit) 案B:E 尾+KSampler [7045] cfg4
@@ -2526,6 +2556,11 @@ class TestTopology:
             orphans = sorted(
                 nodes[i]["type"] for i in nodes
                 if i not in seen and nodes[i]["type"] not in display_endpoints
+                # 1117 Gem ② 接棒:SeedVR 宿主 [503] 节点级 mode4 旁路= sanctioned
+                # 僵尸尾档(输出只喂旁路对比件,零删可复活;mode 回 0+重建 [503]→[504]
+                # 线即恢复可达)——mode 位门控豁免,复活即自退休
+                and not (name in ("qi21", "i2i") and i == SVR2_UP
+                         and nodes[i].get("mode") == 4)
                 # 1025 my21fast:级联删 4015N 后其独食垫脚 Reroute(4204)出线摘空
                 # ——计划钦点保留节点本体(仅摘 origin 槽);零出线=可证惰性死端,
                 # 不构成可达性违例(出线非空仍按孤儿报)
@@ -2691,11 +2726,16 @@ class TestCanvasDiscipline:
             nodes = _nodes(graph)
             # 1015 用户手工重排:[4] 右移过 [6] 后画幅回送臂 229/230 右向化——
             # i2i 豁免集就此退役恒空(改善非回退;主图全域恒向右)
+            # 1117 Gem ② 接棒:⑤b 组框=三列纵排岛(守卫列/加载器列/超分列)+出口
+            # 回送既有 [504](右到左)——岛内 20 线(8217-8236)横流纪律豁免,
+            # 锚定集扩容即红(岛外回潮仍逐线直断)
+            gem_island = ({l[0] for l in GEM_TAIL_LINKS}
+                          if name in ("qi21", "i2i") else set())
             host_allowed: set[int] = set()
             host_leftward: list[int] = []
             for link in graph["links"]:
                 origin, target = nodes[link[1]], nodes[link[3]]
-                ok = target["pos"][0] > origin["pos"][0]
+                ok = target["pos"][0] > origin["pos"][0] or link[0] in gem_island
                 if name in ("i2i", "edit"):
                     if not ok:
                         host_leftward.append(link[0])
@@ -3807,19 +3847,24 @@ class TestQi21SubgraphContract:
         # 1004 Phase D(历史):主编码+负向编码两件迁主图;1025 my21fast 手术收单——
         # [4015] 换类 MyQi21FastEncode,[4015N(=4016)] 级联删(209/4304 随除籍)
         main_tes = [n for n in graph["nodes"] if n["type"] in TE_CLASSES]
-        assert {n["id"] for n in main_tes} == {QI21_MAIN_TE_ID}, \
-            f"qi21 主图应恰 1 个 TE=[{QI21_MAIN_TE_ID}]主编码(1025 术后 MyQi21FastEncode," \
-            f"4015N 已级联删),得 {[n['id'] for n in main_tes]}"
-        assert main_tes[0]["type"] == "MyQi21FastEncode", \
-            f"qi21 主图 TE 现型应 MyQi21FastEncode(1025 手术),得 {main_tes[0]['type']}"
-        for banned in ("ComfySwitchNode", "KSampler", "LoraLoaderModelOnly",
-                       SPEED_SELECT_CLASS, "PrimitiveInt",
-                       "RegexExtract", "ComfyNumberConvert", "ComfyMathExpression",
-                       "PrimitiveBoolean"):
+        assert {n["id"]: n["type"] for n in main_tes} == \
+            {QI21_MAIN_TE_ID: "MyQi21FastEncode", 8117: "TextEncodeQwenImage21"}, \
+            f"qi21 主图应恰 2 个 TE=[{QI21_MAIN_TE_ID}]主编码+[8117] Gem ② 修复编码" \
+            f"(1117 Gem 分块超分链;4015N 已级联删),得 {[(n['id'], n['type']) for n in main_tes]}"
+        for banned in ("ComfySwitchNode", SPEED_SELECT_CLASS, "PrimitiveInt",
+                       "RegexExtract", "ComfyNumberConvert", "PrimitiveBoolean"):
             # T8_CLASS 随 FunAcc 臂退役(1016turbo)出禁面——主图禁面不增官方
             # 采样件类型; census 断言双保险
             hit = [n["id"] for n in _by_type(graph, banned)]
             assert not hit, f"qi21 主图应零 {banned}(0929 S3:机构全在子图),得 {hit}"
+        # 1117 Gem ② 链主图例外(禁面钉成员、白名册钉类型,两不矛盾):
+        # KSampler/LoraLoaderModelOnly/ComfyMathExpression 三类只准 Gem 集成员在场
+        assert [n["id"] for n in _by_type(graph, "KSampler")] == [8118], \
+            "qi21 主图 KSampler 应恰 [8118] Gem ② 6步件(1117 例外,其余仍在子图)"
+        assert sorted(n["id"] for n in _by_type(graph, "LoraLoaderModelOnly")) == [8112, 8113], \
+            "qi21 主图 LoraLoaderModelOnly 应恰 Gem ② viggle+ItsGem 二件(1117 例外)"
+        assert [n["id"] for n in _by_type(graph, "ComfyMathExpression")] == [8109], \
+            "qi21 主图 ComfyMathExpression 应恰 [8109] Gem ② 守卫件(1117 例外)"
         # 0928 W2 反转:主图零 PE 件(PE 链收进 [40] 子图)
         pe_nodes = _by_type(graph, QI21_PE_CLASS)
         assert not pe_nodes, \
@@ -3894,6 +3939,10 @@ class TestQi21SubgraphContract:
             # 1002 衔接批㉕㉖:SeedVR2 放大尾档四件组+rgthree 对比件入册(主图输出区)
             "SeedVR2LoadDiTModel", "SeedVR2LoadVAEModel", "SeedVR2VideoUpscaler",
             "Image Comparer (rgthree)",
+            # 1117 Gem ② 分块超分链七类入册(守卫三件+拼缝两件+KSampler/
+            # LoraLoaderModelOnly 独立栈;禁面改钉成员=例外只准 8108-8120 集)
+            "GemTiledUpscale", "GemTiledUpscaleStitch", "GetImageSize",
+            "ComfyMathExpression", "ImageScaleBy", "KSampler", "LoraLoaderModelOnly",
             # 1004 Phase D:编码器/画幅建议器迁主图(装配块旁三件 [4015][4015N][4018];
             # 1025 my21fast:[4015] 换类 MyQi21FastEncode+4015N 级联删,新类入册)
             "TextEncodeQwenImage21", "MyQi21FastEncode", "MyQi21WhSuggest",
@@ -4513,9 +4562,9 @@ class TestQi21SubgraphContract:
         # 1008 用户令:加速子图重新分组=六框罩三支路+seed+选择(推翻 1001 ③ 全域清空)
         assert 1 <= len(xsg["groups"]) <= 7, \
             f"加速子图 group 预算 ≤7(1008 令分组+1108 ⑦Pruna 臂候列组),得 {len(xsg['groups'])}"
-        assert len(graph["groups"]) <= 5, \
-            f"主图 group 应≤5(四块口径+1002 衔接批㉕ ⑤SeedVR2放大尾档组框=Ctrl+B 整组旁路" \
-            f"语义载体,拓扑变更合法重立),得 {len(graph['groups'])}"
+        assert len(graph["groups"]) <= 6, \
+            f"主图 group 应≤6(四块口径+1002 衔接批㉕ ⑤SeedVR2放大尾档组框=Ctrl+B 整组旁路" \
+            f"语义载体,拓扑变更合法重立;1117 Gem ② 接棒增⑤b 组框),得 {len(graph['groups'])}"
         for scope, nodes in (("主图", graph["nodes"]), ("装配子图", sg["nodes"]),
                              ("加速子图", xsg["nodes"])):
             for i in range(len(nodes)):
@@ -4969,8 +5018,10 @@ class TestI2IContract:
         子图——直出 KSampler 恒 40 步(道劫产线完整档);viggle=SamplerCustomAdvanced
         官方9步双段(σ表九点+SplitSigmas@7 切段,面板 σ表=生效值,步数在表不在 widget);
         seed=单源 [7014](0,fixed,风格迭代可复现,随 qi21 口径)。"""
-        assert not _by_type(GRAPHS["i2i"], "KSampler"), \
-            "i2i 主图应零 KSampler(0929 S3:支路机构收进加速子图)"
+        # 1117 Gem ② 接棒:主图 KSampler 从零禁改恰 [8118](Gem ② 6步件例外;
+        # 加速子图两 KSampler 恒 40 步不受本断言影响,下方 samplers 只查子图)
+        assert [n["id"] for n in _by_type(GRAPHS["i2i"], "KSampler")] == [8118], \
+            "i2i 主图 KSampler 应恰 [8118] Gem ② 6步件(1117 例外,其余仍在子图)"
         samplers = [n for n in _xsg(GRAPHS["i2i"])["nodes"] if n["type"] == "KSampler"]
         # 1101 Phase2 案B:E 尾+KSampler [7045](40步 cfg4)——直出+E 两 KSampler 恒 40
         assert sorted(s["widgets_values"][K_SAMPLER_WV["steps"]] for s in samplers) \
@@ -5163,8 +5214,9 @@ class TestI2IContract:
         # 1002 ⑬:pe_clip 槽撤+主图零 PE TE(迁子图 [4019])
         assert "pe_clip" not in [i["name"] for i in host["inputs"]], \
             "宿主应无 pe_clip 槽(1002 ⑬)"
-        assert not [n for n in graph["nodes"] if n["type"] == "CLIPLoader"
-                    and n["id"] != 2], "主图应仅 [2] 主TE(⑬)"
+        # 1002 ⑬:主图零 PE TE;1117 Gem ② 例外:另恰 [8114] 独立 CLIP(int8_convrot)
+        assert [n["id"] for n in graph["nodes"] if n["type"] == "CLIPLoader"
+                and n["id"] != 2] == [8114], "主图应仅 [2] 主TE+Gem ② [8114](⑬;1117)"
 
     def test_i2i_pe_chain_never_eats_assembly(self):
         """防环红线(map §六;§10.9 依赖环裁定=t2i 实战教训):i2i PE 链六件
@@ -5374,8 +5426,9 @@ class TestI2IContract:
             # 2015 编码器出子图:[171] 迁主画布,子图可达性 dry-run 不适用——
             # 正源分线真锚=上方根域接线表(link279 [4015] 多参考/link282 [171] 单参考)
             te1_asg=None,
-            banned_main_types=("easy compare", "KSampler", "LoraLoaderModelOnly",
-                               SPEED_SELECT_CLASS, "PrimitiveInt"),
+            # 1117 Gem ② 接棒:KSampler/LoraLoaderModelOnly 出禁面(主图恰 Gem 集
+            # [8118]/[8112,8113],成员级例外由 TestGemTailContract1117 钉)
+            banned_main_types=("easy compare", SPEED_SELECT_CLASS, "PrimitiveInt"),
             # T8_CLASS 随 FunAcc 臂退役(1016turbo)出禁面——主图禁面不增官方
             # 采样件类型; census 断言双保险
             # 旧注入式件 id 锚(0929 并行化拆除):171-174/183-185 已随 0928 PE 迁
@@ -5780,17 +5833,17 @@ class TestSeedVR2TailContract1002:
                 assert out5 == [7930], \
                     f"qi21: [5] 应只扇出 [7500 洗底宿主](1108 二采退役恢复直连),得 {out5}"
                 out_w = sorted(l[3] for l in graph["links"] if l[1] == T2I_WASH_HOST)
-                assert out_w == sorted([8, SVR2_CMP, SVR2_UP]), \
-                    f"qi21: [7500] 应扇出 [8]+[505]+[503](洗底后三消费),得 {out_w}"
+                assert out_w == sorted([8, SVR2_CMP, SVR2_UP, 8108, 8110]), \
+                    f"qi21: [7500] 应扇出 [8]+[505]+[503]+[8108]+[8110](洗底后五消费,1117 Gem 双入口=守卫+预缩放),得 {out_w}"
             else:
                 out5 = sorted(l[0] for l in graph["links"] if l[1] == 5)
                 assert out5 == [219], \
                     f"i2i: [5] 应只扇出 [7500 洗底宿主](1022 收装;旧平铺直连随令翻篇),得 {out5}"
                 out_w = sorted(l[3] for l in graph["links"] if l[1] == T2I_WASH_HOST)
-                assert out_w == sorted([8, SVR2_UP]), \
-                    f"i2i: [7500] 应扇出 [8]+[503](洗底后双消费),得 {out_w}"
-            assert _input_src(nodes, links, SVR2_SAVE, "images") == SVR2_UP, \
-                f"{name}: [{SVR2_SAVE}].images 应接 [{SVR2_UP}] 宿主 2K 产物"
+                assert out_w == sorted([8, SVR2_UP, 8108, 8110]), \
+                    f"i2i: [7500] 应扇出 [8]+[503]+[8108]+[8110](洗底后四消费,1117 Gem 双入口),得 {out_w}"
+            assert _input_src(nodes, links, SVR2_SAVE, "images") == 8120, \
+                f"{name}: [{SVR2_SAVE}].images 应接 [8120] GemTiledUpscaleStitch 2K 产物(1117 Gem ② 接棒)"
 
     def test_comparer_t2i_only(self):
         graph = GRAPHS["qi21"]
@@ -5802,10 +5855,11 @@ class TestSeedVR2TailContract1002:
             "[505].image_a 应接 [7500] 洗底后直出图(1022 起;与 [8] 存盘同源,放大前)"
         assert _input_src(nodes, links, SVR2_CMP, "image_b") == SVR2_UP, \
             "[505].image_b 应接 [503] 2K 图(放大后,滑帘对比细节增益)"
+        # 1117 Gem ② 接棒:[504] 改吃 [8120](旧式 [503]→[504] 线 205 已摘),
+        # [503] 出扇出只剩对比件一线——504 侧不再进本断言(否则 RHS 混入 8236 必红)
         up_out = sorted(nodes[SVR2_UP]["outputs"][0]["links"] or [])
-        assert up_out == sorted([_link_of(nodes, links, SVR2_SAVE, "images"),
-                                 _link_of(nodes, links, SVR2_CMP, "image_b")]), \
-            f"[503] 输出应恰扇出 [504]+[505](存盘+对比),得 {up_out}"
+        assert up_out == sorted([_link_of(nodes, links, SVR2_CMP, "image_b")]), \
+            f"[503] 输出应恰扇出 [505](对比;2K 存盘改吃 Gem [8120],1117),得 {up_out}"
 
     def test_wash_subgraph_1022(self):
         """1022 洗底子图(t2i 先收/i2i 随收;用户令「洗底链做成子图」+「(i2i)
@@ -5886,6 +5940,150 @@ class TestSeedVR2TailContract1002:
                 f"{name}: 速查卡缺 Ctrl+B 整组旁路指引"
 
 
+# ── 6g-2. Gem 分块超分尾档契约(1117 手术;真源=社区件 qwen21_Gem_Face_zoom_V1.json
+# ② 链移植:防大图守卫三件(平铺形,源件住子图容器)+独立加载器栈(int8 UNET→
+# viggle r256→ItsGem face)→GemTiledUpscale(10MP/2MP tile)→TextEncodeQwenImage21
+# 修复提示词→KSampler 6步→VAEDecode→GemTiledUpscaleStitch 拼缝,出口接既有
+# SaveImage[504];SeedVR 整链节点级 mode4 旁路零删可复活;手术脚本
+# apps/build/scripts/qi21_daojie_gem_tiled_graft_1117.py)─────────────────
+
+GEM_TAIL_IDS = tuple(range(8108, 8121))          # 13 节点统一段(两件同构)
+GEM_TAIL_TYPES = {
+    8108: "GetImageSize", 8109: "ComfyMathExpression", 8110: "ImageScaleBy",
+    8111: "UNETLoader", 8112: "LoraLoaderModelOnly", 8113: "LoraLoaderModelOnly",
+    8114: "CLIPLoader", 8115: "VAELoader", 8116: "GemTiledUpscale",
+    8117: "TextEncodeQwenImage21", 8118: "KSampler", 8119: "VAEDecode",
+    8120: "GemTiledUpscaleStitch",
+}
+# widgets 逐位钉(None=整键省略 widgets_values;8112/8113 裸名 r256/ItsGem——
+# 源件 named 是 r128 假名与 qwen21\ 前缀假名,画布不落 named)
+GEM_TAIL_WIDGETS = {
+    8108: None,
+    8109: ["min(1, 1024 / max(a, b))"],
+    8110: ["lanczos", 1],
+    8111: ["qwen_image_2.1_int8_convrot.safetensors", "default"],
+    8112: ["Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors", 1],
+    8113: ["qwen_image_21_ItsGem_face_lora_v1.safetensors", 1],
+    8114: ["qwen3vl_8b_int8_convrot.safetensors", "qwen_image", "default"],
+    8115: ["qwen_image_2.1_vae_bf16.safetensors"],
+    8116: [10, 2, 256, 32, 64, True],
+    8117: ["Restore the photo: remove blur, noise and compression artifacts, "
+           "recover sharp natural facial detail, clean skin texture, hair strands "
+           "and lip texture, keeping the same composition, identity and people.", "", 0],
+    8118: [0, "fixed", 6, 1, "euler", "simple", 1],
+    8119: None,
+    8120: [1, "translation", 64, 0],
+}
+# 20 根新线逐根钉(8217-8236;末根=② 链出口接 [504])
+GEM_TAIL_LINKS = (
+    (8217, 7500, 0, 8108, 0, "IMAGE"),
+    (8218, 7500, 0, 8110, 0, "IMAGE"),
+    (8219, 8108, 0, 8109, 0, "INT"),
+    (8220, 8108, 1, 8109, 1, "INT"),
+    (8221, 8109, 0, 8110, 2, "FLOAT"),
+    (8222, 8110, 0, 8116, 0, "IMAGE"),
+    (8223, 8111, 0, 8112, 0, "MODEL"),
+    (8224, 8112, 0, 8113, 0, "MODEL"),
+    (8225, 8113, 0, 8118, 0, "MODEL"),
+    (8226, 8114, 0, 8117, 0, "CLIP"),
+    (8227, 8115, 0, 8117, 4, "VAE"),
+    (8228, 8116, 0, 8117, 1, "IMAGE"),
+    (8229, 8117, 0, 8118, 1, "CONDITIONING"),
+    (8230, 8117, 1, 8118, 2, "CONDITIONING"),
+    (8231, 8117, 2, 8118, 3, "LATENT"),
+    (8232, 8118, 0, 8119, 0, "LATENT"),
+    (8233, 8115, 0, 8119, 1, "VAE"),
+    (8234, 8119, 0, 8120, 0, "IMAGE"),
+    (8235, 8116, 1, 8120, 1, "ITSGEM_TILE_STITCHER"),
+    (8236, 8120, 0, 504, 0, "IMAGE"),
+)
+GEM_TAIL_GROUP_TITLE = "道劫·⑤b·Gem分块超分·2K"
+
+
+class TestGemTailContract1117:
+    """1117 Gem ② 分块超分尾档锚(t2i/i2i 同构):13 节点 type+widgets 逐位、
+    20 根接线逐根、504.images←[8120]、独立加载器栈零共享(8111-8115 不吃主链/
+    子图任何节点)、SeedVR 位 mode4(503+子图内四节点,零删可复活)、⑤b 组罩全
+    13 节点。"""
+
+    def test_gem_nodes_widgets_bitwise(self):
+        for name in ("qi21", "i2i"):
+            nodes = _nodes(GRAPHS[name])
+            for nid in GEM_TAIL_IDS:
+                n = nodes[nid]
+                assert n["type"] == GEM_TAIL_TYPES[nid], \
+                    f"{name}: [{nid}] 应 {GEM_TAIL_TYPES[nid]},得 {n['type']}"
+                assert n.get("mode", 0) == 0, \
+                    f"{name}: [{nid}] 应 mode0 常开(Gem ② 在役),得 {n.get('mode')}"
+                if GEM_TAIL_WIDGETS[nid] is None:
+                    assert "widgets_values" not in n, \
+                        f"{name}: [{nid}] 应整键省略 widgets_values(null=flatten TypeError)"
+                else:
+                    assert n["widgets_values"] == GEM_TAIL_WIDGETS[nid], \
+                        f"{name}: [{nid}] widgets 漂移,得 {n.get('widgets_values')}"
+                assert "widgets_values_named" not in n, \
+                    f"{name}: [{nid}] 不得带 named(源件 r128/qwen21\\ 假名覆盖陷阱)"
+
+    def test_gem_wiring_and_save_rewire(self):
+        for name, old_link in (("qi21", 205), ("i2i", 204)):
+            graph = GRAPHS[name]
+            nodes, links = _nodes(graph), _links(graph)
+            got = {l[0]: tuple(l) for l in graph["links"] if 8217 <= l[0] <= 8236}
+            assert got == {l[0]: l for l in GEM_TAIL_LINKS}, \
+                f"{name}: 8217-8236 接线漂移,得 {got}"
+            assert old_link not in links, \
+                f"{name}: 旧线 {old_link}([503]→[504]) 应已摘除"
+            assert _input_src(nodes, links, SVR2_SAVE, "images") == 8120, \
+                f"{name}: [504].images 应接 [8120] 拼缝产物"
+            assert nodes[SVR2_SAVE]["widgets_values"] == [SVR2_SAVE_PREFIX], \
+                f"{name}: [504] 前缀应 {SVR2_SAVE_PREFIX!r}(沿用)"
+
+    def test_gem_loader_stack_isolated(self):
+        """独立加载器栈零共享:8111-8115 连线源只准栈内(8111/8112/8113),
+        不吃主链 [1]/[2]/[3]/[9] 或任何子图节点——双份显存并存是方案明账。"""
+        for name in ("qi21", "i2i"):
+            graph = GRAPHS[name]
+            nodes, links = _nodes(graph), _links(graph)
+            for nid in (8111, 8112, 8113, 8114, 8115):
+                for entry in nodes[nid].get("inputs") or []:
+                    if entry.get("link") is None:
+                        continue
+                    src = links[entry["link"]][1]
+                    assert src in (8111, 8112), \
+                        f"{name}: [{nid}].{entry['name']} 连线源 [{src}] 应栈内(独立栈零共享),得非栈源"
+
+    def test_seedvr_chain_bypassed_but_present(self):
+        """SeedVR 位 mode4:顶层宿主 [503]+子图内四节点(type 不变=零删可复活;
+        复活三步=mode 回 0+重建 [503]→[504] 线顶替 8236+重跑双胞胎)。"""
+        for name in ("qi21", "i2i"):
+            graph = GRAPHS[name]
+            nodes = _nodes(graph)
+            assert nodes[SVR2_UP].get("mode") == 4, \
+                f"{name}: [503] 应节点级 mode4(1117 Gem 接棒,SeedVR 旁路),得 {nodes[SVR2_UP].get('mode')}"
+            sgD = next(sg for sg in _sgs(graph) if sg["name"] == UP4["D"]["name"])
+            dn = _sg_nodes(sgD)
+            for nid, cls in ((SVR2_DIT, "SeedVR2LoadDiTModel"),
+                             (SVR2_VAE, "SeedVR2LoadVAEModel"),
+                             (7401, "SeedVR2VideoUpscaler"), (7402, "PrimitiveInt")):
+                assert dn[nid]["type"] == cls and dn[nid].get("mode") == 4, \
+                    f"{name}: SeedVR 子图 [{nid}] 应 {cls}/mode4,得 {dn[nid]['type']}/{dn[nid].get('mode')}"
+
+    def test_gem_group_covers_exactly(self):
+        for name in ("qi21", "i2i"):
+            graph = GRAPHS[name]
+            grp = [g for g in graph["groups"] if g.get("title") == GEM_TAIL_GROUP_TITLE]
+            assert len(grp) == 1, f"{name}: ⑤b 组框应恰 1 枚,得 {[g.get('title') for g in graph['groups']]}"
+            g = grp[0]
+            assert "mode" not in g, f"{name}: ⑤b 组框不得带 mode(默认激活)"
+            bx, by, bw, bh = g["bounding"]
+            inside = [n["id"] for n in graph["nodes"]
+                      if bx <= n["pos"][0] and by <= n["pos"][1]
+                      and n["pos"][0] + n["size"][0] <= bx + bw
+                      and n["pos"][1] + n["size"][1] <= by + bh]
+            assert sorted(inside) == sorted(GEM_TAIL_IDS), \
+                f"{name}: ⑤b 组框应恰罩 13 新节点,得 {sorted(inside)}"
+
+
 # ── 6h. 超分四法宿主母线契约(1017up4 接线役;prd R1-R3;手术脚本
 # qi21_upscale_subgraph_1017.py=S2 唯一写点;S1 旁路直通探针 GREEN
 # 在案 research/s1-probe-result.md)──────────────────────────────────
@@ -5930,18 +6128,20 @@ class TestUpscaleFourWays1017:
                 assert len(got) == 1, \
                     f"{name}: 母线 [{a}]:0→[{b}]:0 应恰一 IMAGE 线,得 {got}"
             # 1018 终版:B 删——model/pos/neg/vae 四槽扇出随宿主出册(回潮即红)
-            # D 出扇出:[504](两件)+[505](t2i;对比件零改)
+            # D 出扇出:1117 Gem ② 接棒摘 [503]→[504] 线(t2i 205/i2i 204)——
+            # t2i 只余对比件 207,i2i 清空(2K 存盘改吃 Gem [8120])
             dl = nodes[UP4["D"]["host"][name]]["outputs"][0]["links"]
-            want = [205, 207] if name == "qi21" else [204]
+            want = [207] if name == "qi21" else []
             assert sorted(dl) == sorted(want), \
-                f"{name}: D 宿主出扇出应 {want}(links 205/207·204 原样),得 {dl}"
+                f"{name}: D 宿主出扇出应 {want}(1117 摘 205/204 后),得 {dl}"
 
     def test_at_most_one_active_invariant_and_defaults(self):
         """至多一激活不变量+默认态锚(design §7 #8:写成「恰一」会在 t2i 默认
         零激活态自红,故上位断言=至多一;默认态另行钉死)。
-        2021 组级开关令(i2i):⑤组组级 mode4=单点开关,[503]/[504] 节点常开
-        mode0——激活判定用「有效 mode」:节点 mode0 且整体落入 mode4/2 组框
-        内=被组旁路(与引擎前端组模式同语义)。"""
+        2021 组级开关令(i2i):⑤组组级 mode4=单点开关;1117 Gem ② 接棒令:
+        [503] 升节点级 mode4(零删可复活,复活=mode 回 0+重建 [503]→[504] 线),
+        [504] 常开 mode0(改吃 Gem [8120])——激活判定用「有效 mode」:节点
+        mode0 且整体落入 mode4/2 组框内=被组旁路(与引擎前端组模式同语义)。"""
 
         def _eff_mode(graph: dict, nodes: dict, nid: int) -> int:
             n = nodes[nid]
@@ -5973,10 +6173,10 @@ class TestUpscaleFourWays1017:
                 grp5 = next(g for g in graph["groups"]
                             if g["title"].startswith(SVR2_GROUP_TITLE))
                 assert grp5.get("mode") == 4 and nodes[SVR2_SAVE]["mode"] == 0 \
-                    and nodes[UP4["D"]["host"][name]]["mode"] == 0 \
+                    and nodes[UP4["D"]["host"][name]]["mode"] == 4 \
                     and nodes[SVR2_CMP]["mode"] == 4, \
-                    "qi21: ⑤组应组级旁路(mode4)而 [503]/[504] 节点常开(1023 组级化令,随 i2i 2021 形态);" \
-                    "[505] 对比件维持节点 mode4(桥生成器 rgthree 件无 object_info 条目,维持=生成路安全)"
+                    "qi21: ⑤组组级旁路(mode4)+[503] 节点级 mode4(1117 Gem ② 接棒,SeedVR 零删可复活);" \
+                    "[504] 常开 mode0(改吃 Gem [8120]);[505] 对比件维持节点 mode4(生成路安全)"
             else:
                 # 2021 用户令「分组旁路,不逐节点旁路」:i2i ⑤组升组级 mode4 单点
                 # 开关,[503]/[504] 节点常开——手改一处即切整组
@@ -5985,8 +6185,9 @@ class TestUpscaleFourWays1017:
                 grp5 = next(g for g in graph["groups"]
                             if g["title"].startswith(SVR2_GROUP_TITLE))
                 assert grp5.get("mode") == 4 and nodes[SVR2_SAVE]["mode"] == 0 \
-                    and nodes[UP4["D"]["host"][name]]["mode"] == 0, \
-                    "i2i: ⑤组应组级旁路(mode4)而 [503]/[504] 节点常开(2021 组级开关令)"
+                    and nodes[UP4["D"]["host"][name]]["mode"] == 4, \
+                    "i2i: ⑤组组级旁路(mode4)+[503] 节点级 mode4(1117 Gem ② 接棒);" \
+                    "[504] 常开 mode0(改吃 Gem [8120])"
 
     def test_seed_single_source_primitives_and_io_link_ids(self):
         """seed 单源锚(design §7 #7):四定义内 PrimitiveInt(7101/7204/7302/7402)
@@ -6502,7 +6703,8 @@ def test_bridge_api_template_style_lora_1019():
 def test_bridge_template_reflatten_equality_1019():
     """1019 深查定谳入锁(用户令「必须深度查看与主工作流是否有区别…必须保持一致」):
     桥契约模板恒=画布的忠实机器投影——用重展平脚本现机制把画布内存再展(零落盘),
-    须与盘上模板 graph 深度全等;t2i(force_upscale=True)/i2i(False)双路。
+    须与盘上模板 graph 深度全等;t2i/i2i 双路均 force_upscale=False(1117 Gem ②
+    接棒:503 节点级 mode4 旁路即旁路,与生成器 TARGETS 同笔)。
     1116 §五.4 三槽手术(i2i 路):盘上 i2i 模板=画布重展平+三参考链手术层——画布
     [11]/[17]/[12]/[18] 旁路态(mode 4)被 flatten 裁去,手术层按画布节点定义逐字
     移植补回+4015 绑 image_2/3(11/12 demo 值=画布现值;运行时由桥按张数剪链)。
@@ -6534,13 +6736,14 @@ def test_bridge_template_reflatten_equality_1019():
             "upscale_method": "lanczos", "megapixels": 1, "resolution_steps": 32,
             "image": ["12", 0]}},
     }
-    for canvas_path, out_path, force in (
-            (QI21, _IMG_DIR / "QwenImage2.1" / "1_文生图" / "qwen21-道劫-t2i-api.json", True),
+    for canvas_path, out_path, is_i2i in (
+            (QI21, _IMG_DIR / "QwenImage2.1" / "1_文生图" / "qwen21-道劫-t2i-api.json", False),
             (_IMG_DIR / "QwenImage2.1" / "2_图生图" / "qi21-道劫-i2i.json",
-             _IMG_DIR / "QwenImage2.1" / "2_图生图" / "qwen21-道劫-i2i-api.json", False)):
+             _IMG_DIR / "QwenImage2.1" / "2_图生图" / "qwen21-道劫-i2i-api.json", True)):
+        # 1117 起两路均 force_upscale=False(生成器 TARGETS 同笔);三槽手术层=i2i 专属
         graph, _meta = _mod.build_graph(schemas, json.loads(canvas_path.read_text(encoding="utf-8")),
-                                        force_upscale=force)
-        if not force:
+                                        force_upscale=False)
+        if is_i2i:
             # i2i 路:重展平产物叠加三槽手术层后与盘上比(手术常量即上方单源)
             graph.update(json.loads(json.dumps(i2i_three_slot_nodes)))
             graph["4015"]["inputs"]["images.image_2"] = ["17", 0]
@@ -6549,6 +6752,6 @@ def test_bridge_template_reflatten_equality_1019():
         assert graph == disk, (
             f"{out_path.name} 与画布内存重展平不一致——画布改动后须重跑 "
             f"qwen21_bridge_template_build.py --target "
-            f"{'t2i' if force else 'i2i'}(i2i 须再施三槽手术)后提交(模板是生成物永不手改);"
+            f"{'i2i' if is_i2i else 't2i'}(i2i 须再施三槽手术)后提交(模板是生成物永不手改);"
             f"首个差异节点: "
             f"{next((k for k in sorted(set(graph) | set(disk)) if graph.get(k) != disk.get(k)), '?')}")

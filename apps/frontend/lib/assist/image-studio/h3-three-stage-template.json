@@ -2,7 +2,7 @@
   "id": "recavsr-three-stage-1111",
   "revision": 0,
   "last_node_id": 9999,
-  "last_link_id": 794,
+  "last_link_id": 795,
   "nodes": [
     {
       "id": 1,
@@ -1853,7 +1853,7 @@
           "name": "COMFY_MATCHTYPE_V3",
           "type": "COMFY_MATCHTYPE_V3",
           "links": [
-            773
+            795
           ]
         }
       ],
@@ -2927,10 +2927,10 @@
         "ver": "ab72eda7ffad6280422d71ab7d54d3fb87c0ba18"
       },
       "widgets_values": [
-        1,
+        2,
         4096
       ],
-      "title": "H3 Chunk FFN(削峰·出厂 chunks=1 恒等)"
+      "title": "H3 Chunk FFN(削峰·1118 激活 chunks=2)"
     },
     {
       "id": 2021,
@@ -3942,6 +3942,45 @@
         "Node name for S&R": "GetVideoComponents"
       },
       "title": "⑤ 视频拆帧桥(与⑤联动)"
+    },
+    {
+      "id": 1072,
+      "type": "MiniMaxLowVRAMAttention",
+      "pos": [
+        2830,
+        2480
+      ],
+      "size": [
+        300,
+        130
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 795
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            773
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxLowVRAMAttention",
+        "cnr_id": "comfyui-kjnodes"
+      },
+      "widgets_values": [
+        2
+      ],
+      "title": "H3 Low VRAM Attn(削峰·头分块 1118)"
     }
   ],
   "links": [
@@ -4619,7 +4658,7 @@
     ],
     [
       773,
-      1062,
+      1072,
       0,
       1071,
       0,
@@ -4760,6 +4799,14 @@
       2001,
       8,
       "IMAGE"
+    ],
+    [
+      795,
+      1062,
+      0,
+      1072,
+      0,
+      "MODEL"
     ]
   ],
   "groups": [
@@ -4769,7 +4816,7 @@
       "bounding": [
         70,
         40,
-        2235,
+        3070,
         2660
       ],
       "color": "#884666",

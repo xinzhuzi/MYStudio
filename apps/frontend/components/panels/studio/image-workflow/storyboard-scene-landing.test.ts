@@ -230,6 +230,8 @@ describe("ensureStoryboardDerivedAssetsLanded(G5② 衍生落行管道)", () => 
     expect(assetsBridge.add).toHaveBeenCalledWith(expect.objectContaining({
       type: "role", name: "晏燎·夜课少年",
       description: expect.stringContaining("灰布短褐袖口短一截"),
+      // 1118 E3:着装态=视觉事实,stateText 逐字落 prompt 列(禁只写 description 留空雷)
+      prompt: "基础态锁定：灰布短褐袖口短一截",
     }));
     expect(generateAssetMock).not.toHaveBeenCalled();
   });

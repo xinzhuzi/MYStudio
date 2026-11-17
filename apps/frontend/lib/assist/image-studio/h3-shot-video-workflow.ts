@@ -680,6 +680,27 @@ export function computeSancaiResolutionLadder(width: number, height: number): Sa
 /** 段A(一二采)节点集=59 塑形图全链减三采链(Win 实弹 ar10s_stage12 同款 56 节点)。 */
 const SANCAI_STAGE_B_NODE_IDS = ["4001", "4002", "4003"] as const;
 
+/** 1118 四采修脸臂 19 节点(1065 开关,trellis 11-17-facerefine-inline-bypass):
+ *  模板 5002.video 与 5100.on_false 引用 ["4002",0]——段A 删 4001-4003 后必悬空
+ *  (引擎 validate_inputs KeyError '4002' 拒单,1065=false 旁路态同断,1118 实证)。
+ *  App 两段式暂不开放修脸(PRD 手段≠目标核:编排器成熟可两段透明串联再接管),
+ *  段A/段B 整臂摘除=App 路零漂移;API 直投面(inline_fire_runner_1118)用完整模板双态直开。 */
+const SANCAI_FACEREFINE_NODE_IDS = ["25", "1065", "4100", "5002", "5006", "5011", "5012", "5013",
+  "5014", "5015", "5016", "5017", "5018", "5019", "5020", "5021", "5022", "5023", "5100"] as const;
+
+/** 防悬空运行时门(1118 补防:组装器删节点必须有配套改写;测试不设防=静默坏到实弹):
+ *  图内任何 inputs 的 [id, slot] 数组引用,id 不在图内即 throw——等价引擎
+ *  validate_inputs 的 KeyError 拒单,把断点从引擎侧搬回组装期。 */
+export function assertNoDanglingRefs(graph: ApiGraph, label: string): void {
+  for (const [id, node] of Object.entries(graph)) {
+    for (const [slot, value] of Object.entries(node.inputs)) {
+      if (Array.isArray(value) && typeof value[0] === "string" && !(value[0] in graph)) {
+        throw new Error(`${label} 悬空引用: 节点 ${id}(${node.class_type}).${slot} → ["${value[0]}", …] 不在图内`);
+      }
+    }
+  }
+}
+
 /** 三采 API 档输入:画布档输入 + 两段档扩展(r2v 臂选择/refs/首帧像素——AR 阶梯源)。 */
 export interface ShotH3SancaiApiWorkflowInput extends ShotH3ApiWorkflowInput {
   /** true=r2v 多参考臂(219=false→16 号 MiniMaxH3ReferenceToVideo,提示词六段式);
@@ -821,7 +842,9 @@ export function buildShotH3SancaiApiWorkflow(input: ShotH3SancaiApiWorkflowInput
   // ——r2v 臂 ref-{policy}/i2v 臂 {policy},与既有单段线完全同构;204={prefix}-p1
   // 一采预览;段B 340=同 prefix 终档落账,subfolder 恒四段过 consumer 白名单)
   const prefix = String(widgetOf(3071, "SaveVideo"));
-  for (const id of SANCAI_STAGE_B_NODE_IDS) {
+  // 段A=一二采:删三采链 4001-4003 + 四采修脸臂整臂(1118;臂内 5002/5100 引用 4002,
+  // 不删=悬空拒单;App 路开放修脸候编排器两段透明串联另役)
+  for (const id of [...SANCAI_STAGE_B_NODE_IDS, ...SANCAI_FACEREFINE_NODE_IDS]) {
     if (!apiGraph[id]) throw new Error(`h3-three-stage-template.api.json drift: node ${id} missing`);
     delete apiGraph[id];
   }
@@ -893,5 +916,7 @@ export function buildShotH3SancaiApiWorkflow(input: ShotH3SancaiApiWorkflowInput
   };
 
   const images = input.firstFrameB64 ? [{ key: "1.image", name: imageName, b64: input.firstFrameB64 }] : [];
+  assertNoDanglingRefs(apiGraph, "三采段A");
+  assertNoDanglingRefs(stageBGraph, "三采段B");
   return { apiGraph, uiWorkflow: base.ui, images, stageBGraph, report: base.report };
 }

@@ -190,8 +190,11 @@ def selected_graph(graph: dict, outputs: list[str]) -> dict:
 def build_graph(info: dict | None = None, workflow: dict | None = None, force_upscale: bool = True) -> tuple[dict, dict]:
     """Keep the App's established dual outputs even when the GUI upscale group is bypassed.
 
-    force_upscale=False(10-19 i2i):保持画布现值——SeedVR2 宿主[503]/SaveImage[504]
-    旁路即旁路,单产物走 SaveImage[8](引擎侧 _prefer_upscaled_output 自然回落 8)。"""
+    force_upscale=False(10-19 i2i;1117 起两路同口径):保持画布现值——SeedVR2 宿主
+    [503]/SaveImage[504] 旁路即旁路,单产物走 SaveImage[8](引擎侧
+    _prefer_upscaled_output 自然回落 8)。1117 Gem ② 分块超分接棒后 t2i 同改 False:
+    [503] 节点级 mode4 旁路不再强置回 0(否则与 Gem 链双超分并存),[504] 改吃
+    [8120] GemTiledUpscaleStitch 产物双存图常态恢复。"""
     source = workflow if workflow is not None else json.loads(CANVAS.read_text(encoding='utf-8'))
     saved_workflow: dict = json.loads(json.dumps(source))
     if force_upscale:
@@ -281,13 +284,33 @@ TEMPLATE_I2I = {
     "inputs": {
         "prompt": {"node": "400", "field": "value", "class_type": "PrimitiveStringMultiline"},
         "seed": {"node": "7:7014", "field": "value", "class_type": "PrimitiveInt"},
-        "references": [{"node": "10", "slot": 0, "field": "image", "class_type": "LoadImage"}],
+        # 1116 三槽手术回写(修生成器与孪生件漂移):references 恒 3 条绑定,
+        # 运行时由桥按张数剪链;与 test_bridge_template_reflatten_equality_1019 单源。
+        "references": [{"node": "10", "slot": 0, "field": "image", "class_type": "LoadImage"},
+                       {"node": "11", "slot": 1, "field": "image", "class_type": "LoadImage"},
+                       {"node": "12", "slot": 2, "field": "image", "class_type": "LoadImage"}],
     },
 }
 
 TARGETS = {
-    't2i': {'canvas': CANVAS, 'out': OUT, 'template': TEMPLATE, 'force_upscale': True},
+    # 1117 Gem ② 接棒:t2i force_upscale True→False(503 节点级 mode4 旁路即旁路)
+    't2i': {'canvas': CANVAS, 'out': OUT, 'template': TEMPLATE, 'force_upscale': False},
     'i2i': {'canvas': CANVAS_I2I, 'out': OUT_I2I, 'template': TEMPLATE_I2I, 'force_upscale': False},
+}
+
+
+# 1116 三槽手术层(逐字单源=test_bridge_template_reflatten_equality_1019 内
+# i2i_three_slot_nodes 常量;画布 11/12/17/18 旁路态被 flatten 裁去,生成期固化补回,
+# 4015 绑 image_2/3——运行时由桥按张数剪链;任一侧单改即 reflatten 红)。
+I2I_THREE_SLOT_NODES = {
+    "11": {"class_type": "LoadImage", "inputs": {"image": "clothing_light_blue_denim_shirt.png"}},
+    "12": {"class_type": "LoadImage", "inputs": {"image": ""}},
+    "17": {"class_type": "ImageScaleToTotalPixels", "inputs": {
+        "upscale_method": "lanczos", "megapixels": 1, "resolution_steps": 32,
+        "image": ["11", 0]}},
+    "18": {"class_type": "ImageScaleToTotalPixels", "inputs": {
+        "upscale_method": "lanczos", "megapixels": 1, "resolution_steps": 32,
+        "image": ["12", 0]}},
 }
 
 
@@ -364,6 +387,12 @@ def main() -> None:
     previous_template = out.read_bytes() if out.exists() else None
     schemas = object_info(args.object_info)
     graph, meta = build_graph(schemas, json.loads(source_bytes), force_upscale=target['force_upscale'])
+    if args.target == 'i2i':
+        # 1116 三槽手术层固化(此前只活在孪生件与 reflatten 测试里,生成器重跑会缩回
+        # 1 条 references 漂移;1117 起单源住生成器,测试侧常量与本处逐字一致)
+        graph.update(json.loads(json.dumps(I2I_THREE_SLOT_NODES)))
+        graph["4015"]["inputs"]["images.image_2"] = ["17", 0]
+        graph["4015"]["inputs"]["images.image_3"] = ["18", 0]
     check_object_info(graph, schemas)
     template = {**target['template'], "graph": graph}
     if canvas.read_bytes() != source_bytes or (out.read_bytes() if out.exists() else None) != previous_template:

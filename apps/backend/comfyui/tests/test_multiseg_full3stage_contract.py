@@ -87,7 +87,7 @@ def test_stage2_recipe_values():
     assert nodes[1033]["type"] == "BlockSparseAttention"
     assert nodes[1033]["widgets_values"] == ["sol-attn", 1.3, 0, 1, "", 12288, 256,
                                              "exact_kv_and_rows", False]
-    assert nodes[3011]["widgets_values"] == [1, 4096], "ChunkFFN 出厂恒等(chunks=1)"
+    assert nodes[3011]["widgets_values"] == [2, 4096], "ChunkFFN 1118 激活(chunks 1→2,削峰)"
     assert nodes[3021]["widgets_values"] == [12, 3]
     assert nodes[3022]["widgets_values"] == ["lcm"], "TaoMate 二采必须 LCM(雷#1)"
     assert nodes[3041]["widgets_values"] == ["simple", 3, 0.2]
@@ -123,7 +123,10 @@ def test_stage2_wiring_slot1():
     assert src_of(3043, 2) == (3022, 0) and src_of(3043, 3) == (3041, 0)
     assert nodes[3043]["type"] == "SamplerCustomAdvanced"
     # 模型链
-    assert src_of(1021, 0) == (34, 0), "二采支从 [34] 统一底模分叉(不新增 UNETLoader)"
+    assert nodes[1066]["type"] == "MiniMaxLowVRAMAttention", "1118 削峰:统一底模后先过 LowVRAM 头分块"
+    assert nodes[1066]["widgets_values"] == [2], "head_chunks=2"
+    assert src_of(1066, 0) == (34, 0), "34→1066(LowVRAM)三扇出前插桩(1118)"
+    assert src_of(1021, 0) == (1066, 0), "二采支从 [1066] 分叉(不新增 UNETLoader)"
     assert src_of(1033, 0) == (1021, 0) and src_of(3011, 0) == (1033, 0)
     assert src_of(3021, 0) == (3011, 0)
     assert sorted(l[3] for l in d["links"] if l[1] == 3021 and l[5] == "MODEL") == [3041, 3044], \

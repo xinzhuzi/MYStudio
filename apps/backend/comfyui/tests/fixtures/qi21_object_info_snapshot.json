@@ -5302,5 +5302,393 @@
   "output_node": false,
   "has_intermediate_output": false,
   "search_aliases": []
+ },
+ "GemTiledUpscale": {
+  "input": {
+   "required": {
+    "image": [
+     "IMAGE",
+     {
+      "tooltip": "要放大并切成 tile 的图。"
+     }
+    ],
+    "megapixels": [
+     "FLOAT",
+     {
+      "default": 4.0,
+      "min": 0.0,
+      "max": 64.0,
+      "step": 0.05,
+      "tooltip": "成图尺寸（百万像素）。0 = 保持原尺寸。"
+     }
+    ]
+   },
+   "optional": {
+    "upscale_model": [
+     "UPSCALE_MODEL",
+     {
+      "tooltip": "可选：放大模型，先放大再切 tile；不接则普通 lanczos 放大。"
+     }
+    ],
+    "tile_megapixels": [
+     "FLOAT",
+     {
+      "default": 2.0,
+      "min": 0.25,
+      "max": 16.0,
+      "step": 0.05,
+      "tooltip": "单 tile 最大重绘尺寸。Qwen Image 2.1 / Krea 2 用 2，SDXL 用 1。超过 2048x2048 上限时会被 enforce_qwen_tile_limit 自动调低。"
+     }
+    ],
+    "overlap": [
+     "INT",
+     {
+      "default": 128,
+      "min": 0,
+      "max": 1024,
+      "step": 8,
+      "tooltip": "相邻 tile 共享的像素宽；拼缝在这条带上混合。"
+     }
+    ],
+    "multiple": [
+     "INT",
+     {
+      "default": 32,
+      "min": 1,
+      "max": 256,
+      "step": 1,
+      "tooltip": "每个 tile 的宽高都是它的倍数。32 适配 Qwen Image 2.1。"
+     }
+    ],
+    "max_growth": [
+     "FLOAT",
+     {
+      "default": 8.0,
+      "min": 1.0,
+      "max": 64.0,
+      "step": 0.5,
+      "tooltip": "小图重绘不超过自身 megapixels 的多少倍；超出部分普通放大。"
+     }
+    ],
+    "enforce_qwen_tile_limit": [
+     "BOOLEAN",
+     {
+      "default": true,
+      "tooltip": "防呆：单 tile 超过安全工作点（4.6MP，对齐 AusBoss 口径，官方硬上限 4.19MP）时，自动调低 tile_megapixels 并写入 report 提示；关闭则完全按填的参数切。"
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "image",
+    "megapixels"
+   ],
+   "optional": [
+    "upscale_model",
+    "tile_megapixels",
+    "overlap",
+    "multiple",
+    "max_growth",
+    "enforce_qwen_tile_limit"
+   ]
+  },
+  "is_input_list": false,
+  "output": [
+   "IMAGE",
+   "ITSGEM_TILE_STITCHER",
+   "IMAGE",
+   "INT",
+   "INT",
+   "STRING"
+  ],
+  "output_is_list": [
+   true,
+   false,
+   false,
+   false,
+   false,
+   false
+  ],
+  "output_name": [
+   "tiles",
+   "stitcher",
+   "before",
+   "width",
+   "height",
+   "report"
+  ],
+  "name": "GemTiledUpscale",
+  "display_name": "Tiled Upscale (ItsGemTools)",
+  "description": "按 megapixels 设定成图尺寸，把图切成模型能一次重绘的 tile（32 对齐）。把 tiles 送进采样器重绘，再接 GemTiledUpscaleStitch 拼回。Stitch 端自带亚像素几何配准，适配 QwenImage 2.1 + 自训 LoRA。",
+  "python_module": "custom_nodes.ItsGemTools",
+  "category": "ItsGemTools/image",
+  "output_node": false,
+  "has_intermediate_output": false,
+  "output_tooltips": [
+   "The tiles, one after another. Nodes after this run once per tile.",
+   "GemTiledUpscaleStitch 拼回所需的 stitcher。",
+   "普通放大到成图尺寸的原图：重绘前的对照图。",
+   "成图宽（像素）。",
+   "成图高（像素）。",
+   "这次放大做了什么，一两句话。"
+  ],
+  "search_aliases": []
+ },
+ "GemTiledUpscaleStitch": {
+  "input": {
+   "required": {
+    "tiles": [
+     "IMAGE",
+     {
+      "tooltip": "重绘后的 tiles，按 GemTiledUpscale 给出的顺序。"
+     }
+    ],
+    "stitcher": [
+     "ITSGEM_TILE_STITCHER",
+     {
+      "tooltip": "GemTiledUpscale 输出的 stitcher。"
+     }
+    ]
+   },
+   "optional": {
+    "keep_colors": [
+     "FLOAT",
+     {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.05,
+      "tooltip": "1 保持原图颜色（每 tile 匹配源 tile 颜色）；0 关。"
+     }
+    ],
+    "align_mode": [
+     [
+      "translation",
+      "off"
+     ],
+     {
+      "default": "translation",
+      "tooltip": "translation：重绘 tile 与源 tile 亚像素平移配准后再混合（默认，适配自训 LoRA）；off：原版行为。"
+     }
+    ],
+    "max_align_shift": [
+     "INT",
+     {
+      "default": 64,
+      "min": 1,
+      "max": 256,
+      "step": 1,
+      "tooltip": "配准位移超过该像素数判为不可靠并跳过，防止错误配准。zoom/重构图漂移大的工作流可调大。"
+     }
+    ],
+    "blend_band": [
+     "INT",
+     {
+      "default": 0,
+      "min": 0,
+      "max": 256,
+      "step": 8,
+      "tooltip": "接缝混合模式。0 = 全带对称渐变（默认、推荐）：共享区两 tile 权重 0↔1 横跨整个 overlap、权重和恒=1，用相邻 tile 平均天然稀释单 tile 随机幻觉（幽灵下巴），配准先对齐几何故无重影，与 AusBoss 一致。>0 = 窄带独占（可选）：后写 tile 独占 overlap 主体、仅边界 band 内衔接，仅在全带确实出现重影且无幻觉时使用，值为渐变带宽。"
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "tiles",
+    "stitcher"
+   ],
+   "optional": [
+    "keep_colors",
+    "align_mode",
+    "max_align_shift",
+    "blend_band"
+   ]
+  },
+  "is_input_list": true,
+  "output": [
+   "IMAGE",
+   "STRING"
+  ],
+  "output_is_list": [
+   true,
+   false
+  ],
+  "output_name": [
+   "image",
+   "diagnostics"
+  ],
+  "name": "GemTiledUpscaleStitch",
+  "display_name": "Tiled Upscale Stitch (ItsGemTools)",
+  "description": "把 GemTiledUpscale 的 tiles 重绘结果拼回成图。相比原版新增亚像素几何配准（align_mode=translation）：每个重绘 tile 先与源 tile 配准归位再混合，根治接缝偏移 / 重影，适配 QwenImage 2.1 + 自训 LoRA。",
+  "python_module": "custom_nodes.ItsGemTools",
+  "category": "ItsGemTools/image",
+  "output_node": false,
+  "has_intermediate_output": false,
+  "output_tooltips": [
+   "拼回并调整到目标尺寸的成图。输入多张图时输出列表，各一张成图。",
+   "逐 tile 配准诊断：每个 tile 的估计位移 / 跳过原因，排查偏移用。"
+  ],
+  "search_aliases": []
+ },
+ "ComfyMathExpression": {
+  "input": {
+   "required": {
+    "expression": [
+     "STRING",
+     {
+      "default": "a + b",
+      "multiline": true
+     }
+    ],
+    "values": [
+     "COMFY_AUTOGROW_V3",
+     {
+      "template": {
+       "input": {
+        "required": {
+         "value": [
+          "FLOAT,INT,BOOLEAN",
+          {}
+         ]
+        }
+       },
+       "names": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "p",
+        "q",
+        "r",
+        "s",
+        "t",
+        "u",
+        "v",
+        "w",
+        "x",
+        "y",
+        "z"
+       ],
+       "min": 1
+      }
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "expression",
+    "values"
+   ]
+  },
+  "is_input_list": false,
+  "output": [
+   "FLOAT",
+   "INT",
+   "BOOLEAN"
+  ],
+  "output_is_list": [
+   false,
+   false,
+   false
+  ],
+  "output_name": [
+   "FLOAT",
+   "INT",
+   "BOOL"
+  ],
+  "output_tooltips": [
+   null,
+   null,
+   null
+  ],
+  "output_matchtypes": null,
+  "name": "ComfyMathExpression",
+  "display_name": "Math Expression",
+  "description": "",
+  "python_module": "comfy_extras.nodes_math",
+  "category": "utilities",
+  "output_node": false,
+  "deprecated": false,
+  "experimental": false,
+  "dev_only": false,
+  "api_node": false,
+  "price_badge": null,
+  "search_aliases": [
+   "math",
+   "expression",
+   "formula",
+   "calculate",
+   "calculator",
+   "eval"
+  ],
+  "essentials_category": null,
+  "has_intermediate_output": false
+ },
+ "ImageScaleBy": {
+  "input": {
+   "required": {
+    "image": [
+     "IMAGE"
+    ],
+    "upscale_method": [
+     [
+      "nearest-exact",
+      "bilinear",
+      "area",
+      "bicubic",
+      "lanczos"
+     ]
+    ],
+    "scale_by": [
+     "FLOAT",
+     {
+      "default": 1.0,
+      "min": 0.01,
+      "max": 8.0,
+      "step": 0.01
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "image",
+    "upscale_method",
+    "scale_by"
+   ]
+  },
+  "is_input_list": false,
+  "output": [
+   "IMAGE"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "IMAGE"
+  ],
+  "name": "ImageScaleBy",
+  "display_name": "Upscale Image By",
+  "description": "",
+  "python_module": "nodes",
+  "category": "image/upscaling",
+  "output_node": false,
+  "has_intermediate_output": false,
+  "search_aliases": [],
+  "essentials_category": "Image Tools"
  }
 }

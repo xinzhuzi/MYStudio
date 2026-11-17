@@ -567,9 +567,9 @@ describe("Windows Pika ref2va 主力线通道(1101)", () => {
 // ── multiseg 适配(PRD 10-27 §14.1;my-h3-multiseg needs-adaptation→ready)──────────────────────
 
 describe("h3-multiseg-template.api.json 契约(PRD §14.1.2,--preset multiseg 脚本产物)", () => {
-  it("API 节点数=14(12+2 四针适配:9 LoadImage+103 MyShot;无 note 类,UI 节点全进)", () => {
-    expect(Object.keys(multisegApi)).toHaveLength(14);
-    expect(Object.keys(multisegApi).map(Number).sort((a, b) => a - b)).toEqual([2, 4, 6, 7, 9, 13, 21, 34, 36, 41, 100, 101, 102, 103]);
+  it("API 节点数=33(12+2 四针适配:9 LoadImage+103 MyShot;无 note 类,UI 节点全进;1118 +19 四采修脸组默认旁路)", () => {
+    expect(Object.keys(multisegApi)).toHaveLength(33);
+    expect(Object.keys(multisegApi).map(Number).sort((a, b) => a - b)).toEqual([2, 4, 6, 7, 9, 13, 21, 25, 34, 36, 41, 100, 101, 102, 103, 1065, 4100, 5002, 5006, 5011, 5012, 5013, 5014, 5015, 5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5100]);
   });
 
   it("锚断言全中(§14.1.2 ②:与 1025 multiseg 实弹手写 API 图逐键同形)", () => {
@@ -756,6 +756,7 @@ import sancaiTemplateJson from "./h3-three-stage-template.json";
 import sancaiApiTemplateJson from "./h3-three-stage-template.api.json";
 import {
   applySancaiStageBSource,
+  assertNoDanglingRefs,
   buildShotH3SancaiApiWorkflow,
   computeSancaiResolutionLadder,
   h3BatchDispatchableRecipeIds as sancaiDispatchable,
@@ -874,6 +875,45 @@ describe("buildShotH3SancaiApiWorkflow(三采两段组装)", () => {
     // 1:1 阶梯判例
     expect(stageA["2001"]!.inputs.width).toBe(736);
     expect(stageA["3031"]!.inputs.width).toBe(1088);
+  });
+
+  it("1118 四采修脸臂:段A/段B 整臂摘除+全图零悬空引用(模板 5002/5100 引用 4002,段A 删 4002 不摘臂=引擎 validate_inputs 拒单)", () => {
+    const result = buildShotH3SancaiApiWorkflow({
+      shot: makeShot() as never,
+      chapterId: "chapter-001",
+      chapterLabel: "第一章",
+      r2v: false,
+      frameWidth: 960,
+      frameHeight: 544,
+    });
+    for (const id of ["25", "1065", "4100", "5002", "5006", "5011", "5012", "5013", "5014",
+      "5015", "5016", "5017", "5018", "5019", "5020", "5021", "5022", "5023", "5100"]) {
+      expect(result.apiGraph[id], `段A 应摘除 ${id}`).toBeUndefined();
+      expect(result.stageBGraph[id], `段B 应摘除 ${id}`).toBeUndefined();
+    }
+    // 防悬空门=等价引擎 validate_inputs 拒单的组装期前置断点(双臂 r2v/i2v 均过)
+    expect(() => assertNoDanglingRefs(result.apiGraph, "三采段A")).not.toThrow();
+    expect(() => assertNoDanglingRefs(result.stageBGraph, "三采段B")).not.toThrow();
+    const r2v = buildShotH3SancaiApiWorkflow({
+      shot: makeShot() as never,
+      chapterId: "chapter-001",
+      chapterLabel: "第一章",
+      r2v: true,
+      refs: [{ name: "角色A", kind: "character", imageName: "ref-a.jpg" }],
+      frameWidth: 960,
+      frameHeight: 544,
+    });
+    expect(() => assertNoDanglingRefs(r2v.apiGraph, "三采段A(r2v)")).not.toThrow();
+  });
+
+  it("assertNoDanglingRefs 门自证:悬空 [id,slot] 引用必 throw(1118 补防,测试不设防=静默坏到实弹)", () => {
+    expect(() => assertNoDanglingRefs(
+      { "4003": { class_type: "SaveVideo", inputs: { video: ["4002", 0], filename_prefix: "x" } } },
+      "样例")).toThrow("悬空引用");
+    expect(() => assertNoDanglingRefs(
+      { "4002": { class_type: "ReCaVSRUpscale", inputs: { video: ["300", 0] } },
+        "300": { class_type: "LoadVideo", inputs: { file: "" } } },
+      "样例")).not.toThrow();
   });
 
   it("applySancaiStageBSource 回填零拷贝注解名(段A 终档→段B 300.file)", () => {

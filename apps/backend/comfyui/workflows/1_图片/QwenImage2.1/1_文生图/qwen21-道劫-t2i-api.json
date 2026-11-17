@@ -104,7 +104,7 @@
       "inputs": {
         "filename_prefix": "MYStudio-2K",
         "images": [
-          "503:7401",
+          "8120",
           0
         ]
       }
@@ -143,6 +143,178 @@
       "class_type": "PrimitiveStringMultiline",
       "inputs": {
         "value": ""
+      }
+    },
+    "8108": {
+      "class_type": "GetImageSize",
+      "inputs": {
+        "image": [
+          "7500:7510",
+          0
+        ]
+      }
+    },
+    "8109": {
+      "class_type": "ComfyMathExpression",
+      "inputs": {
+        "expression": "min(1, 1024 / max(a, b))",
+        "values.a": [
+          "8108",
+          0
+        ],
+        "values.b": [
+          "8108",
+          1
+        ]
+      }
+    },
+    "8110": {
+      "class_type": "ImageScaleBy",
+      "inputs": {
+        "upscale_method": "lanczos",
+        "scale_by": [
+          "8109",
+          0
+        ],
+        "image": [
+          "7500:7510",
+          0
+        ]
+      }
+    },
+    "8111": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "qwen_image_2.1_int8_convrot.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "8112": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors",
+        "strength_model": 1,
+        "model": [
+          "8111",
+          0
+        ]
+      }
+    },
+    "8113": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "qwen_image_21_ItsGem_face_lora_v1.safetensors",
+        "strength_model": 1,
+        "model": [
+          "8112",
+          0
+        ]
+      }
+    },
+    "8114": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+        "type": "qwen_image",
+        "device": "default"
+      }
+    },
+    "8115": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+      }
+    },
+    "8116": {
+      "class_type": "GemTiledUpscale",
+      "inputs": {
+        "megapixels": 10,
+        "tile_megapixels": 2,
+        "overlap": 256,
+        "multiple": 32,
+        "max_growth": 64,
+        "enforce_qwen_tile_limit": true,
+        "image": [
+          "8110",
+          0
+        ]
+      }
+    },
+    "8117": {
+      "class_type": "TextEncodeQwenImage21",
+      "inputs": {
+        "prompt": "Restore the photo: remove blur, noise and compression artifacts, recover sharp natural facial detail, clean skin texture, hair strands and lip texture, keeping the same composition, identity and people.",
+        "negative_prompt": "",
+        "resolution": 0,
+        "clip": [
+          "8114",
+          0
+        ],
+        "images.image_1": [
+          "8116",
+          0
+        ],
+        "vae": [
+          "8115",
+          0
+        ]
+      }
+    },
+    "8118": {
+      "class_type": "KSampler",
+      "inputs": {
+        "seed": 0,
+        "steps": 6,
+        "cfg": 1,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1,
+        "model": [
+          "8113",
+          0
+        ],
+        "positive": [
+          "8117",
+          0
+        ],
+        "negative": [
+          "8117",
+          1
+        ],
+        "latent_image": [
+          "8117",
+          2
+        ]
+      }
+    },
+    "8119": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "8118",
+          0
+        ],
+        "vae": [
+          "8115",
+          0
+        ]
+      }
+    },
+    "8120": {
+      "class_type": "GemTiledUpscaleStitch",
+      "inputs": {
+        "keep_colors": 1,
+        "align_mode": "translation",
+        "max_align_shift": 64,
+        "blend_band": 0,
+        "tiles": [
+          "8119",
+          0
+        ],
+        "stitcher": [
+          "8116",
+          1
+        ]
       }
     },
     "6:4010": {
@@ -348,72 +520,6 @@
           "4",
           0
         ]
-      }
-    },
-    "503:501": {
-      "class_type": "SeedVR2LoadDiTModel",
-      "inputs": {
-        "model": "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
-        "device": "cuda:0",
-        "blocks_to_swap": 0,
-        "swap_io_components": false,
-        "offload_device": "none",
-        "cache_model": false,
-        "attention_mode": "sdpa"
-      }
-    },
-    "503:502": {
-      "class_type": "SeedVR2LoadVAEModel",
-      "inputs": {
-        "model": "ema_vae_fp16.safetensors",
-        "device": "cuda:0",
-        "encode_tiled": true,
-        "encode_tile_size": 512,
-        "encode_tile_overlap": 160,
-        "decode_tiled": true,
-        "decode_tile_size": 512,
-        "decode_tile_overlap": 160,
-        "tile_debug": "false",
-        "offload_device": "none",
-        "cache_model": false
-      }
-    },
-    "503:7401": {
-      "class_type": "SeedVR2VideoUpscaler",
-      "inputs": {
-        "seed": [
-          "503:7402",
-          0
-        ],
-        "resolution": 2048,
-        "max_resolution": 4096,
-        "batch_size": 1,
-        "uniform_batch_size": false,
-        "color_correction": "lab",
-        "temporal_overlap": 0,
-        "prepend_frames": 0,
-        "input_noise_scale": 0,
-        "latent_noise_scale": 0,
-        "offload_device": "none",
-        "enable_debug": false,
-        "image": [
-          "7500:7510",
-          0
-        ],
-        "dit": [
-          "503:501",
-          0
-        ],
-        "vae": [
-          "503:502",
-          0
-        ]
-      }
-    },
-    "503:7402": {
-      "class_type": "PrimitiveInt",
-      "inputs": {
-        "value": 0
       }
     },
     "7500:7506": {

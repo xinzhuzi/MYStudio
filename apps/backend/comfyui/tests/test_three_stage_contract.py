@@ -145,7 +145,7 @@ def test_stage2_model_mainline_passes_through_chunkffn():
     d, nodes, links = _load()
     assert nodes[3011]["type"] == "MiniMaxChunkFeedForward"
     assert nodes[3011]["mode"] == 0, "旁路靠 chunks=1(恒等),不靠 mode 静默"
-    assert nodes[3011]["widgets_values"][0] == 1, "chunks 出厂恒 1(=上游 min)"
+    assert nodes[3011]["widgets_values"][0] == 2, "chunks=2(1118 lowvram 役激活削峰)"
     assert nodes[3011]["widgets_values"][1] == 4096, "seq_threshold 留节点默认"
     assert [i["name"] for i in nodes[3011]["inputs"]] == ["model"], "只留 model 口,widget 走面板"
     up = links[nodes[3011]["inputs"][0]["link"]]
