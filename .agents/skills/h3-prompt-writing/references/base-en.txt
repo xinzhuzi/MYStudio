@@ -198,6 +198,18 @@ Element lists ("a room with a table, a lamp, rain outside") read flat. Replace o
 
 This generalizes `references/action-en.txt` §3 (foreground band) and §8 (air-medium vocabulary) beyond action shots. **Flat-paint caliber**: the storyboard pipeline's style contract (`styleContractVersion=daojie-gongbi-v2`, `apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/art_prompt/art_storyboard_video.md`) forbids depth-of-field blur in composition clauses — depth comes from layering and pale far planes, and blur is applied at the render stage from the depth map, so never write `blurred foreground`, `bokeh`, or `shallow depth of field`; write occluders as solid matter. Even in photographic styles, never label "the foreground is blurred" — name the occluder, and state any softness as its own separate result. Example: *A dark pine branch crosses the upper-left corner of the frame in front of her, and thin morning mist drifts across the courtyard, paling the far wall to a flat light-gray plane.* Criteria source: `docs/comfyui-kb/参考_提示词工程/刺猬星球super-i/知识库.md` §三 前景遮挡(物理遮挡/氛围遮挡/语义顺序陷阱); worked layered example: 同夹 `帧内提示词原文.md` #34.
 
+### 4.12 Performance Under Pressure 「1117 洋子吸收」
+
+Applies to every shot where a person acts (dialogue, confrontation, waiting, reaction) — not only fight shots (action-en covers those). Five rules:
+
+- **Behavior under pressure, not display of emotion.** Write what the body does under the pressure (goal + obstacle + tactic), never the emotion label. A character's goal is **a verb aimed at the other person** (to persuade, to corner, to stall).
+- **Distance is quantized and dramatic.** Intimate <0.5 m / personal 0.5–1.2 m / social 1.2–3.5 m / public >3.5 m. **A change of distance is a beat change** — write it as a from-X-to-Y process, and let the strongest lines land from the closest or farthest band, not the middle.
+- **Small actions need triggers.** Formula: [small action] + [when/why it fires]. A gesture with no trigger is decoration; the strongest emphasis is **the character stopping** a habitual action mid-way.
+- **Eyes carry the performance.** Dead-fish eyes are the most common AI acting failure: give gaze a target it tracks, natural blink texture, eye-light, and let the eyes arrive at the target **slightly before the head turns**.
+- **States, not transitions.** Models can render "happening", not "becoming" — write the visible state of the change's endpoint, not the changing itself.
+
+Bar: every close-up should read as a live person (two layers of truth playing at once), not a reciting figure. Source: 洋子 V3.3.1 film-acting (定谳档 `.trellis/tasks/archive/2026-11/11-04-yangzi-toolkit-absorb/research/R1-解构与三分定谳-1117.md` #7); fight-domain kinships in `references/action-en.txt` §1/§5.
+
 ## 5. Cases
 
 ### Case 1: T2VA
