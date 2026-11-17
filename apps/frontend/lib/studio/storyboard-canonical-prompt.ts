@@ -113,7 +113,10 @@ function normalizeFullwidthPunctuation(text: string): string {
     .replace(/;/g, "；")
     .replace(/:/g, "：")
     .replace(/!/g, "！")
-    .replace(/\?/g, "？");
+    .replace(/\?/g, "？")
+    // 1117 七刀批:S8-S19 连拒实录——lint 集含「.」而归一漏「.」(衍生预划
+    // 「v1.」等英文句点渗入;离线复现净=agentWorkData 空态,真机有数据)。
+    .replace(/\./g, "。");
 }
 
 /** t2i 五项序主体句(纯函数)。 */
@@ -221,7 +224,7 @@ export function buildCanonicalSubjectSentence(input: CanonicalSubjectInput): Can
   if (Object.keys(strippedResult.stripped).length) {
     warnings.push(`已剥画风词:${Object.entries(strippedResult.stripped).map(([w, n]) => `${w}×${n}`).join("、")}`);
   }
-  return { text: strippedResult.text, warnings };
+  return { text: normalizeFullwidthPunctuation(strippedResult.text), warnings };
 }
 
 // ─── §4.5 槽位映射(已裁) ───
@@ -395,8 +398,9 @@ export function buildCanonicalTransportInstruction(input: {
   const hairGuard = silverHairPresent
     ? "画面中只有上述点名角色允许白发,其余所有人物一律为黑发或深棕发"
     : "";
-  const prompt = [operation, `在此基础上，${fidelity}`, closing, hairGuard]
-    .filter(Boolean).join("；") + "。";
+  const prompt = normalizeFullwidthPunctuation(
+    [operation, `在此基础上，${fidelity}`, closing, hairGuard]
+      .filter(Boolean).join("；") + "。");
   return { genre: "i2i", prompt, slots };
 }
 
