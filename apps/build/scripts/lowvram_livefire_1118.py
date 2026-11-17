@@ -8,12 +8,17 @@ G1 逐位一致=三口产物 MD5 全等;G2 时长=两发 wall 账;G3 显存=轮�
 """
 import hashlib
 import json
+import os
 import sys
 import threading
 import time
 import urllib.request
 
+for k in ("http_proxy", "https_proxy", "all_proxy", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"):
+    os.environ.pop(k, None)
+
 BASE = "http://192.168.0.101:17000"
+OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "output", "lowvram-1118")
 FINGERPRINT = ("ReCaVSRUpscale",)  # 1118 实测:history 七支完链=72 节点(含 1062/1071/3011+ReCaVSR)
 
 
@@ -87,15 +92,24 @@ class VramPoller:
         return self.peak_free
 
 
+def queue_state():
+    try:
+        q = http("/queue", timeout=8)
+        return [len(q.get("queue_running", [])), len(q.get("queue_pending", []))]
+    except Exception:
+        return [-1, -1]
+
+
 def run_arm(tag, graph):
     poller = VramPoller()
     poller.start()
     t0 = time.time()
+    qb = queue_state()
     resp = http("/prompt", {"prompt": graph, "client_id": f"lowvram-{tag}"})
     errs = resp.get("node_errors") or {}
     if errs:
         print(f"[{tag}] node_errors: {list(errs)[:6]}")
-        return None, None, None
+        return None, None, None, qb, [-1, -1]
     pid = resp["prompt_id"]
     print(f"[{tag}] prompt_id={pid} 已入队 {time.strftime('%H:%M:%S')}")
     while True:
@@ -108,10 +122,11 @@ def run_arm(tag, graph):
                 break
             if st.get("status_str") in ("error",):
                 print(f"[{tag}] ERROR:", json.dumps(st)[:400])
-                return None, None, None
+                return None, None, None, qb, [-1, -1]
         sys.stdout.write(f"[{tag}] …{int(time.time()-t0)}s\r")
     wall = time.time() - t0
     peak_free = poller.finish()
+    qa = queue_state()
     outs = {}
     for oid, ovals in (rec.get("outputs") or {}).items():
         for kind in ("images", "gifs", "videos"):
@@ -120,10 +135,10 @@ def run_arm(tag, graph):
                 if fn:
                     sub = item.get("subfolder", "")
                     outs[f"{sub}/{fn}"] = md5_view(fn, sub)
-    print(f"[{tag}] wall={wall:.1f}s vram_free谷={peak_free} 产物 {len(outs)} 口")
+    print(f"[{tag}] wall={wall:.1f}s vram_free谷={peak_free} queue {qb}->{qa} 产物 {len(outs)} 口")
     for k, v in sorted(outs.items()):
         print(f"    {v}  {k}")
-    return wall, peak_free, outs
+    return wall, peak_free, outs, qb, qa
 
 
 def main():
@@ -145,13 +160,14 @@ def main():
     g2["1071"]["inputs"]["model"] = ["1072", 0]
     g2["3011"]["inputs"]["chunks"] = 2
     if resume:
-        w1, v1, o1 = None, None, resume
+        w1, v1, o1, qb1, qa1 = None, None, resume, [-1, -1], [-1, -1]
     else:
-        w1, v1, o1 = run_arm("A挂前", base_graph)
-        json.dump(o1, open("/tmp/lowvram_armA_md5.json", "w"))
-    w2, v2, o2 = run_arm("B挂后", g2)
+        w1, v1, o1, qb1, qa1 = run_arm("A挂前", base_graph)
+        if o1:
+            json.dump(o1, open("/tmp/lowvram_armA_md5.json", "w"))
+    w2, v2, o2, qb2, qa2 = run_arm("B挂后", g2)
     if not (o1 and o2):
-        sys.exit(1)
+        sys.exit(2)
     print("\n== G1 逐位对账 ==")
     ok = True
     for k in sorted(set(o1) & set(o2)):
@@ -159,8 +175,22 @@ def main():
         ok &= same
         print(f"  {'✓' if same else '✗'} {k}: {o1[k]} vs {o2[k]}")
     print("G1", "PASS(逐位一致)" if ok else "FAIL(有差分→停手找根因)")
-    print(f"\n== G2 时长 == A={w1:.1f}s B={w2:.1f}s Δ={(w2-w1)/w1*100:+.1f}%")
+    delta = (w2 - w1) / w1 * 100 if w1 else None
+    print(f"\n== G2 时长 == A={w1:.1f}s B={w2:.1f}s Δ={delta:+.1f}%" if delta is not None
+          else f"\n== G2 时长 == A=复用断点档 B={w2:.1f}s")
     print(f"== G3 显存(vram_free 谷,越小=峰值越高)== A={v1} B={v2}")
+    # 结果落盘(workflow 消费真源):apps/output/lowvram-1118/result.json
+    os.makedirs(OUT_DIR, exist_ok=True)
+    result = {
+        "g1_pass": ok,
+        "armA": {"wall_s": w1, "vram_free_trough": v1, "md5": o1, "queue_before": qb1, "queue_after": qa1},
+        "armB": {"wall_s": w2, "vram_free_trough": v2, "md5": o2, "queue_before": qb2, "queue_after": qa2},
+        "duration_delta_pct": delta,
+        "base_prompt": pid0,
+        "ran_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    json.dump(result, open(os.path.join(OUT_DIR, "result.json"), "w"), ensure_ascii=False, indent=2)
+    print(f"result.json -> {os.path.join(OUT_DIR, 'result.json')}")
 
 
 if __name__ == "__main__":
