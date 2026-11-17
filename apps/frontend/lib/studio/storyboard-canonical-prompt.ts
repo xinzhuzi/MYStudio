@@ -155,17 +155,30 @@ export function buildCanonicalSubjectSentence(input: CanonicalSubjectInput): Can
   const described = new Set(
     [...named].filter((name) => description.includes(name) || identityText.includes(name)),
   );
+  // 1117 第八刀(第五病理残项):动作锚恒进句——「名字在 videoDesc 出现过」
+  // 不等于「该角色的动作语义已覆盖」,S1 实录:vc「一脚踩着断锚立于高台」因
+  // videoDesc 有「踩断锚」整段弃用→模型只吃短句→静坐盘鞭。改:未点名角色
+  // 保留全语义句(位置/朝向/动作);已点名角色位置朝向仍可省(画面自带),
+  // 动作串(actionIn 至 actionOut)恒进句(动作是分镜的时间锚,丢=镜不成镜)。
   const semanticText = input.visibleCharacters
-    .filter((character) => character.name.trim() && !described.has(character.name.trim()))
-    .map((character) => [
-      normalizeFullwidthPunctuation(character.name.trim()),
-      character.position?.trim() ? `位于${normalizeFullwidthPunctuation(character.position.trim())}` : "",
-      character.orientation?.trim() ? normalizeFullwidthPunctuation(character.orientation.trim()) : "",
-      [character.actionIn?.trim(), character.actionOut?.trim()]
+    .filter((character) => character.name.trim())
+    .map((character) => {
+      const name = normalizeFullwidthPunctuation(character.name.trim());
+      const action = [character.actionIn?.trim(), character.actionOut?.trim()]
         .filter((fact): fact is string => Boolean(fact))
         .map((fact) => normalizeFullwidthPunctuation(fact))
-        .join("至"),
-    ].filter(Boolean).join("，"))
+        .join("至");
+      if (described.has(character.name.trim())) {
+        return action ? `${name}，${action}` : "";
+      }
+      return [
+        name,
+        character.position?.trim() ? `位于${normalizeFullwidthPunctuation(character.position.trim())}` : "",
+        character.orientation?.trim() ? normalizeFullwidthPunctuation(character.orientation.trim()) : "",
+        action,
+      ].filter(Boolean).join("，");
+    })
+    .filter(Boolean)
     .join("；");
   const actionText = [
     description,
