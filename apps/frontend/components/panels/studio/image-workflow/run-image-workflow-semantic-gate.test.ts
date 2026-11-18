@@ -185,3 +185,32 @@ describe("出口语义门(十三刀A:override 同门+弧式第二动作句;十�
     ).rejects.toThrow(/语义门.*multi-posture/);
   });
 });
+
+describe("二十刀:弧段取原文整段(S10-12 同源弧连环拒根修)", () => {
+  it("⑦ S11 实录:管事正在来回踱步+弧，来回踱步至… → 放行", async () => {
+    installBridge();
+    setStoryboardRow({
+      promptOverride: "管事正在来回踱步，转头见来客；管事，来回踱步至咳了一声立于门口；管事攥一叠竹筹",
+    });
+    const result = await runImageWorkflowNodeGeneration(makeGraph(), "gen-1", runInput);
+    expect(result.imageUrl).toContain("project-file://");
+  });
+
+  it("⑧ S12 实录:晏燎正在盘坐墨形纹丝不动+弧，盘坐墨形纹丝不动至… → 放行", async () => {
+    installBridge();
+    setStoryboardRow({
+      promptOverride: "晏燎正在盘坐墨形纹丝不动；晏燎，盘坐墨形纹丝不动至满屋笑闹中仍盘坐不动",
+    });
+    const result = await runImageWorkflowNodeGeneration(makeGraph(), "gen-1", runInput);
+    expect(result.imageUrl).toContain("project-file://");
+  });
+
+  it("⑨ S10 实录:走到灯下捏笔弧(动词字早截形) → 放行", async () => {
+    installBridge();
+    setStoryboardRow({
+      promptOverride: "独孤剑尘正在走到灯下捏了捏白土笔；独孤剑尘，走到灯下捏了捏白土笔至笔断两截捏在指间",
+    });
+    const result = await runImageWorkflowNodeGeneration(makeGraph(), "gen-1", runInput);
+    expect(result.imageUrl).toContain("project-file://");
+  });
+});

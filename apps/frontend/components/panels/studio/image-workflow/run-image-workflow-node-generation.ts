@@ -271,7 +271,13 @@ export async function runImageWorkflowNodeGeneration(
           return false;
         };
         for (const arcMatch of text.matchAll(arcPattern)) {
-          const arcSegment = (arcMatch[0].slice(base.length + 1).split("至")[0] ?? "").trim();
+          // 1118 二十刀(十五刀B bug 根修):arcSegment 不得取 match[0]——弧式
+          // 正则匹配止于动词字(「晏燎，盘坐」两三字),sharesRun 的 3 字滑窗比
+          // 段长还长→同源豁免结构性永不成立(S10-12 三镜真同源弧连环拒实录:
+          // 正在「盘坐墨形纹丝不动」vs 弧「，盘坐墨形纹丝不动至…」全同串仍拒)。
+          // 正解=从原文「{名}，」起点取至「至」前整段(限 24 字防跨句吃远)。
+          const after = text.slice((arcMatch.index ?? 0) + base.length + 1);
+          const arcSegment = (after.split("至")[0] ?? "").slice(0, 24).trim();
           if (arcSegment && zhengzaiActions.some((action) => sharesRun(action, arcSegment))) continue;
           actionClauses += 1;
         }
