@@ -24,7 +24,7 @@
       "id": 55,
       "type": "UNETLoader",
       "pos": [
-        60,
+        80,
         80
       ],
       "size": [
@@ -70,7 +70,7 @@
       "id": 164,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        4640,
+        4660,
         80
       ],
       "size": [
@@ -123,7 +123,7 @@
       "id": 131,
       "type": "Reroute",
       "pos": [
-        1240,
+        1260,
         866
       ],
       "size": [
@@ -163,7 +163,7 @@
       "id": 56,
       "type": "CLIPLoader",
       "pos": [
-        60,
+        80,
         300
       ],
       "size": [
@@ -217,7 +217,7 @@
       "id": 57,
       "type": "VAELoader",
       "pos": [
-        60,
+        80,
         500
       ],
       "size": [
@@ -269,7 +269,7 @@
       "id": 72,
       "type": "LoadImage",
       "pos": [
-        60,
+        80,
         760
       ],
       "size": [
@@ -314,7 +314,7 @@
       "id": 123,
       "type": "ImageResizeKJv2",
       "pos": [
-        640,
+        660,
         760
       ],
       "size": [
@@ -381,7 +381,7 @@
       "id": 73,
       "type": "VAEEncode",
       "pos": [
-        970,
+        990,
         760
       ],
       "size": [
@@ -430,7 +430,7 @@
       "id": 184,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        60,
+        80,
         1560
       ],
       "size": [
@@ -468,7 +468,7 @@
       "id": 162,
       "type": "TextGenerate",
       "pos": [
-        60,
+        80,
         4600
       ],
       "size": [
@@ -549,7 +549,7 @@
       "id": 163,
       "type": "PreviewAny",
       "pos": [
-        1480,
+        1500,
         1560
       ],
       "size": [
@@ -590,7 +590,7 @@
       "id": 120,
       "type": "Krea2EditModelPatch",
       "pos": [
-        1340,
+        1360,
         760
       ],
       "size": [
@@ -677,7 +677,7 @@
       "id": 119,
       "type": "Krea2EditGroundedEncode",
       "pos": [
-        1700,
+        1720,
         760
       ],
       "size": [
@@ -746,7 +746,7 @@
       "id": 85,
       "type": "Krea2EditGroundedEncode",
       "pos": [
-        2060,
+        2080,
         760
       ],
       "size": [
@@ -820,7 +820,7 @@
       "id": 64,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        2060,
+        2080,
         1110
       ],
       "size": [
@@ -863,7 +863,7 @@
       "id": 156,
       "type": "EmptySD3LatentImage",
       "pos": [
-        1700,
+        1720,
         1110
       ],
       "size": [
@@ -909,7 +909,7 @@
       "id": 53,
       "type": "KSampler",
       "pos": [
-        2660,
+        2680,
         760
       ],
       "size": [
@@ -983,7 +983,7 @@
       "id": 54,
       "type": "VAEDecode",
       "pos": [
-        3040,
+        3060,
         760
       ],
       "size": [
@@ -1035,7 +1035,7 @@
       "id": 29,
       "type": "SaveImage",
       "pos": [
-        3040,
+        3060,
         860
       ],
       "size": [
@@ -1077,7 +1077,7 @@
       "id": 137,
       "type": "AddLabel",
       "pos": [
-        3820,
+        3840,
         760
       ],
       "size": [
@@ -1137,7 +1137,7 @@
       "id": 138,
       "type": "AddLabel",
       "pos": [
-        4150,
+        4170,
         760
       ],
       "size": [
@@ -1197,7 +1197,7 @@
       "id": 125,
       "type": "ImageConcatMulti",
       "pos": [
-        3820,
+        3840,
         1090
       ],
       "size": [
@@ -1250,7 +1250,7 @@
       "id": 126,
       "type": "PreviewImage",
       "pos": [
-        4150,
+        4170,
         1090
       ],
       "size": [
@@ -1290,7 +1290,7 @@
       "id": 301,
       "type": "MarkdownNote",
       "pos": [
-        2160,
+        2180,
         1560
       ],
       "size": [
@@ -1312,7 +1312,7 @@
       "id": 302,
       "type": "MarkdownNote",
       "pos": [
-        640,
+        660,
         300
       ],
       "size": [
@@ -1334,7 +1334,7 @@
       "id": 303,
       "type": "MarkdownNote",
       "pos": [
-        2780,
+        2800,
         1560
       ],
       "size": [
@@ -1356,7 +1356,7 @@
       "id": 90,
       "type": "MyDaojieLoraStack",
       "pos": [
-        5100,
+        5120,
         80
       ],
       "size": [
@@ -1431,7 +1431,7 @@
       "id": 304,
       "type": "MyDaojieBase",
       "pos": [
-        1800,
+        1820,
         4600
       ],
       "size": [
@@ -1511,7 +1511,7 @@
       "id": 305,
       "type": "StringConcatenate",
       "pos": [
-        940,
+        960,
         4600
       ],
       "size": [
@@ -1564,7 +1564,7 @@
       "id": 306,
       "type": "easy showAnything",
       "pos": [
-        1800,
+        1820,
         5100
       ],
       "size": [
@@ -1602,7 +1602,7 @@
       "id": 307,
       "type": "MyCharsheetLabels",
       "pos": [
-        4770,
+        4790,
         760
       ],
       "size": [
@@ -1647,7 +1647,7 @@
       "id": 308,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        60,
+        80,
         2320
       ],
       "size": [
@@ -1680,7 +1680,7 @@
       "id": 400,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        800,
+        820,
         2000
       ],
       "size": [
@@ -1712,7 +1712,7 @@
       "id": 404,
       "type": "Krea2EditGroundedEncode",
       "pos": [
-        1220,
+        1240,
         2000
       ],
       "size": [
@@ -1762,7 +1762,7 @@
       "id": 408,
       "type": "KSampler",
       "pos": [
-        1700,
+        1720,
         2000
       ],
       "size": [
@@ -1830,7 +1830,7 @@
       "id": 412,
       "type": "VAEDecode",
       "pos": [
-        2100,
+        2120,
         2000
       ],
       "size": [
@@ -1869,7 +1869,7 @@
       "id": 416,
       "type": "EmptySD3LatentImage",
       "pos": [
-        2400,
+        2420,
         2000
       ],
       "size": [
@@ -1903,7 +1903,7 @@
       "id": 401,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        800,
+        820,
         2600
       ],
       "size": [
@@ -1935,7 +1935,7 @@
       "id": 405,
       "type": "Krea2EditGroundedEncode",
       "pos": [
-        1220,
+        1240,
         2600
       ],
       "size": [
@@ -1985,7 +1985,7 @@
       "id": 409,
       "type": "KSampler",
       "pos": [
-        1700,
+        1720,
         2600
       ],
       "size": [
@@ -2053,7 +2053,7 @@
       "id": 413,
       "type": "VAEDecode",
       "pos": [
-        2100,
+        2120,
         2600
       ],
       "size": [
@@ -2092,7 +2092,7 @@
       "id": 417,
       "type": "EmptySD3LatentImage",
       "pos": [
-        2400,
+        2420,
         2600
       ],
       "size": [
@@ -2126,7 +2126,7 @@
       "id": 402,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        800,
+        820,
         3200
       ],
       "size": [
@@ -2158,7 +2158,7 @@
       "id": 406,
       "type": "Krea2EditGroundedEncode",
       "pos": [
-        1220,
+        1240,
         3200
       ],
       "size": [
@@ -2208,7 +2208,7 @@
       "id": 410,
       "type": "KSampler",
       "pos": [
-        1700,
+        1720,
         3200
       ],
       "size": [
@@ -2276,7 +2276,7 @@
       "id": 414,
       "type": "VAEDecode",
       "pos": [
-        2100,
+        2120,
         3200
       ],
       "size": [
@@ -2315,7 +2315,7 @@
       "id": 418,
       "type": "EmptySD3LatentImage",
       "pos": [
-        2400,
+        2420,
         3200
       ],
       "size": [
@@ -2349,7 +2349,7 @@
       "id": 403,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        800,
+        820,
         3800
       ],
       "size": [
@@ -2381,7 +2381,7 @@
       "id": 407,
       "type": "Krea2EditGroundedEncode",
       "pos": [
-        1220,
+        1240,
         3800
       ],
       "size": [
@@ -2431,7 +2431,7 @@
       "id": 411,
       "type": "KSampler",
       "pos": [
-        1700,
+        1720,
         3800
       ],
       "size": [
@@ -2499,7 +2499,7 @@
       "id": 415,
       "type": "VAEDecode",
       "pos": [
-        2100,
+        2120,
         3800
       ],
       "size": [
@@ -2538,7 +2538,7 @@
       "id": 419,
       "type": "EmptySD3LatentImage",
       "pos": [
-        2400,
+        2420,
         3800
       ],
       "size": [
@@ -3159,17 +3159,17 @@
     {
       "title": "① 模型与道劫 LoRA 栈([90] 设定板档=人物组五件;charsheet [164] 独立恒挂,官方挂法=栈出→[164]→ModelPatch;[304] 底座负向合并;原 8 件链副本 -专家模式.json)",
       "bounding": [
-        40,
+        60,
         40,
         5520,
-        1300
+        620
       ],
       "color": "#8a5fb0"
     },
     {
       "title": "② 参考图臂(1024² 统一,一图六用)",
       "bounding": [
-        20,
+        40,
         700,
         1230,
         540
@@ -3179,7 +3179,7 @@
     {
       "title": "③ 补丁与条件(正=官方模板+道劫锚;负=道劫基线同图接地)",
       "bounding": [
-        1300,
+        1320,
         700,
         1280,
         650
@@ -3189,7 +3189,7 @@
     {
       "title": "④ 采样与出图(LCM/simple/10步/cfg1/1536×1024)",
       "bounding": [
-        2620,
+        2640,
         700,
         1080,
         760
@@ -3199,9 +3199,9 @@
     {
       "title": "⑤ 输入/输出对比(仅预览,不在存盘路径)",
       "bounding": [
-        3780,
+        3800,
         700,
-        1020,
+        1340,
         930
       ],
       "color": "#4a6e8a"
@@ -3209,7 +3209,7 @@
     {
       "title": "⑥ VLM 提示词生成(已激活[v3 实证]:读参考图自动重写身份锁,脸部更贴输入;换图无需手改锁)",
       "bounding": [
-        20,
+        40,
         1500,
         2010,
         730

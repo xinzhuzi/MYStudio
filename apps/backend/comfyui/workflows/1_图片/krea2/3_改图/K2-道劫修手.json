@@ -8,7 +8,7 @@
       "id": 1,
       "type": "LoadImage",
       "pos": [
-        40,
+        80,
         80
       ],
       "size": [
@@ -76,7 +76,7 @@
       "id": 2,
       "type": "FashnHumanParserMask",
       "pos": [
-        640,
+        680,
         80
       ],
       "size": [
@@ -132,7 +132,7 @@
       "id": 3,
       "type": "MaskComposite",
       "pos": [
-        640,
+        680,
         380
       ],
       "size": [
@@ -211,7 +211,7 @@
       "id": 4,
       "type": "GrowMask",
       "pos": [
-        640,
+        680,
         550
       ],
       "size": [
@@ -276,7 +276,7 @@
       "id": 5,
       "type": "ImageScaleToTotalPixels",
       "pos": [
-        40,
+        80,
         540
       ],
       "size": [
@@ -343,7 +343,7 @@
       "id": 6,
       "type": "VAEEncode",
       "pos": [
-        1060,
+        1100,
         380
       ],
       "size": [
@@ -388,7 +388,7 @@
       "id": 7,
       "type": "VAELoader",
       "pos": [
-        1060,
+        1100,
         500
       ],
       "size": [
@@ -445,7 +445,7 @@
       "id": 8,
       "type": "SetLatentNoiseMask",
       "pos": [
-        1060,
+        1100,
         620
       ],
       "size": [
@@ -490,7 +490,7 @@
       "id": 9,
       "type": "UNETLoader",
       "pos": [
-        1440,
+        1480,
         80
       ],
       "size": [
@@ -559,7 +559,7 @@
       "id": 10,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        1440,
+        1480,
         230
       ],
       "size": [
@@ -621,7 +621,7 @@
       "id": 11,
       "type": "CLIPLoader",
       "pos": [
-        1440,
+        1480,
         400
       ],
       "size": [
@@ -700,7 +700,7 @@
       "id": 12,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        40,
+        80,
         740
       ],
       "size": [
@@ -747,7 +747,7 @@
       "id": 13,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        40,
+        80,
         980
       ],
       "size": [
@@ -794,7 +794,7 @@
       "id": 14,
       "type": "StringConcatenate",
       "pos": [
-        660,
+        700,
         740
       ],
       "size": [
@@ -857,7 +857,7 @@
       "id": 15,
       "type": "CLIPTextEncode",
       "pos": [
-        1060,
+        1100,
         740
       ],
       "size": [
@@ -909,7 +909,7 @@
       "id": 16,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        660,
+        700,
         910
       ],
       "size": [
@@ -956,7 +956,7 @@
       "id": 17,
       "type": "CLIPTextEncode",
       "pos": [
-        1060,
+        1100,
         910
       ],
       "size": [
@@ -1008,7 +1008,7 @@
       "id": 18,
       "type": "KSampler",
       "pos": [
-        1440,
+        1480,
         560
       ],
       "size": [
@@ -1131,7 +1131,7 @@
       "id": 20,
       "type": "VAEDecode",
       "pos": [
-        1860,
+        1900,
         560
       ],
       "size": [
@@ -1176,7 +1176,7 @@
       "id": 23,
       "type": "ImageCompositeMasked",
       "pos": [
-        1860,
+        1900,
         690
       ],
       "size": [
@@ -1261,7 +1261,7 @@
       "id": 21,
       "type": "SaveImage",
       "pos": [
-        1860,
+        1900,
         930
       ],
       "size": [
@@ -1300,7 +1300,7 @@
       "id": 25,
       "type": "MarkdownNote",
       "pos": [
-        2300,
+        2340,
         80
       ],
       "size": [
@@ -1538,7 +1538,7 @@
     {
       "title": "① 载图定标",
       "bounding": [
-        20,
+        60,
         40,
         400,
         660
@@ -1550,7 +1550,7 @@
     {
       "title": "② 手部掩码(FASHN自动∪手涂→外扩)",
       "bounding": [
-        620,
+        660,
         40,
         440,
         660
@@ -1562,7 +1562,7 @@
     {
       "title": "③ 采样修复(turbo+蒸馏,锁区重绘)",
       "bounding": [
-        1420,
+        1460,
         40,
         400,
         820
@@ -1574,9 +1574,9 @@
     {
       "title": "④ 提示词(道劫底座+修手指令)",
       "bounding": [
-        20,
+        60,
         700,
-        1420,
+        1400,
         500
       ],
       "color": "#4d9e6a",
@@ -1586,7 +1586,7 @@
     {
       "title": "⑤ 合成保存(掩码外=原图)",
       "bounding": [
-        1840,
+        1880,
         500,
         400,
         750
