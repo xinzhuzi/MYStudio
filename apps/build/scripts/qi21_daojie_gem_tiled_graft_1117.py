@@ -6,6 +6,9 @@
      mode=0,槽名/widgets 逐位照 Gem 源件 qwen21_Gem_Face_zoom_V1.json 的 ② 链
      donor——守卫三件平铺自源件「防大图检查」子图 88c48041,主链取 viggle→ItsGem
      face 分支:445/545/555/438/439/431/441_413/556/557/558);
+     1118 B 案(用户令):8113 换挂主链同款 qi21-mikkoani@0.6——ItsGem 人脸 LoRA
+     是照片域先验,实弹验证会把道劫动漫脸重绘成半写实(视线翻转),动漫先验须进
+     超分段;受制裁偏离见 DEVIATIONS(该件豁免 Gem donor 对拍,只钉蓝图);
   2. 新增 20 根顶层 link(8217-8236),摘 SeedVR 宿主 503→SaveImage 504 的旧线
      (t2i link205 / i2i link204),504.images 改接 8120(GemTiledUpscaleStitch);
   3. SeedVR 整链置 mode=4(零删可复活):顶层 503 + 两画布 definitions.subgraphs
@@ -93,7 +96,7 @@ SIZES = {
 TITLES = {
     8108: "[8108] Gem②·守卫·取尺寸", 8109: "[8109] Gem②·守卫·缩放系数",
     8110: "[8110] Gem②·守卫·预缩放", 8111: "[8111] Gem②·独立UNET int8",
-    8112: "[8112] Gem②·viggle turbo r256 ×1", 8113: "[8113] Gem②·ItsGem face ×1",
+    8112: "[8112] Gem②·viggle turbo r256 ×1", 8113: "[8113] Gem②·mikkoani ×0.6(1118B)",
     8114: "[8114] Gem②·独立CLIP int8", 8115: "[8115] Gem②·独立VAE bf16",
     8116: "[8116] Gem②·分块超分 10MP", 8117: "[8117] Gem②·修复提示词编码",
     8118: "[8118] Gem②·KSampler 6步", 8119: "[8119] Gem②·解码",
@@ -106,7 +109,7 @@ WIDGETS = {
     8110: ["lanczos", 1],
     8111: ["qwen_image_2.1_int8_convrot.safetensors", "default"],
     8112: ["Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors", 1],
-    8113: ["qwen_image_21_ItsGem_face_lora_v1.safetensors", 1],
+    8113: ["qi21-mikkoani.safetensors", 0.6],  # 1118 B 案换挂(原 ItsGem face ×1)
     8114: ["qwen3vl_8b_int8_convrot.safetensors", "qwen_image", "default"],
     8115: ["qwen_image_2.1_vae_bf16.safetensors"],
     8116: [10, 2, 256, 32, 64, True],
@@ -116,6 +119,11 @@ WIDGETS = {
     8118: [0, "fixed", 6, 1, "euler", "simple", 1],
     8119: None,
     8120: [1, "translation", 64, 0],
+}
+# 1118 B 案受制裁偏离表:键=新链节点 id,值=偏离缘由。偏离件 widgets 只钉本表
+# (WIDGETS),豁免「== Gem 源件 donor 现值」双源对拍(load_gem_donors/verify A)。
+DEVIATIONS = {
+    8113: "1118 用户令 B 案:换挂主链同款动漫 LoRA mikkoani@0.6,治超分段动漫感流失",
 }
 POS = {
     "t2i": {8108: [9220, 1660], 8109: [9220, 1900], 8110: [9220, 2220],
@@ -195,7 +203,10 @@ def load_gem_donors() -> dict:
         src = sub_nodes if scope == "sub" else top_nodes
         need(did in src, f"Gem 源件缺 donor {scope}:{did!r}(手术真源被动的,先查源件)")
         donors[nid] = src[did]
-        # 断言 A(半):方案 widgets 表 == Gem 源件 donor 现值(逐位)
+        # 断言 A(半):方案 widgets 表 == Gem 源件 donor 现值(逐位;1118 B 案
+        # 偏离件豁免——widgets 真源=DEVIATIONS/WIDGETS 蓝图,不再照源件)
+        if nid in DEVIATIONS:
+            continue
         if WIDGETS[nid] is None:
             need("widgets_values" not in donors[nid],
                  f"8{nid} 方案=无 widgets_values,但 Gem donor {did} 带该键(方案/源件漂移)")
@@ -271,6 +282,17 @@ def surgery_canvas(name: str, donors: dict) -> dict:
                 continue
             wf["nodes"].append(build_new_node(nid, donors[nid], POS[name][nid], order))
             order += 1
+
+    # —— 1b) 新链节点按蓝图回灌 widgets/title(1118 B 案调参口,幂等;pos/size/mode 不动) ——
+    nodes = {n["id"]: n for n in wf["nodes"]}
+    for nid in NEW_IDS:
+        cur = nodes[nid]
+        if WIDGETS[nid] is None:
+            cur.pop("widgets_values", None)
+        else:
+            cur["widgets_values"] = copy.deepcopy(WIDGETS[nid])
+        cur.pop("widgets_values_named", None)
+        cur["title"] = TITLES[nid]
 
     # —— 2) 摘旧线 + 端点改挂 ——
     old = OLD_LINK[name]
@@ -465,6 +487,10 @@ def verify_canvas(name: str, before: dict, wf: dict, donors: dict) -> None:
         if WIDGETS[nid] is None:
             need("widgets_values" not in n, f"{name}:{nid} 应整键省略 widgets_values(null=flatten TypeError)")
             need("widgets_values" not in d, f"{name}:{nid} donor 带 widgets_values 与方案冲突")
+        elif nid in DEVIATIONS:
+            # 1118 B 案偏离件:只钉蓝图,不对拍 Gem donor(源件仍是 ItsGem face)
+            need(n.get("widgets_values") == WIDGETS[nid],
+                 f"{name}:{nid} widgets ≠ 蓝图(1118 B 案偏离件): {n.get('widgets_values')!r}")
         else:
             need(n.get("widgets_values") == WIDGETS[nid] == d.get("widgets_values"),
                  f"{name}:{nid} widgets 三源不一致: {n.get('widgets_values')!r}")
@@ -540,6 +566,8 @@ def verify_canvas(name: str, before: dict, wf: dict, donors: dict) -> None:
     for nid, b in b_nodes.items():
         cur = nodes.get(nid)
         need(cur is not None, f"{name}: 术前节点 {nid} 不得消失")
+        if nid in NEW_IDS:
+            continue  # 新链节点由断言 A 按蓝图逐位钉(1118 B 案调参口,F 只保既有件)
         if nid == 503:
             exp = copy.deepcopy(b)
             exp["mode"] = 4
@@ -645,8 +673,9 @@ def verify_snapshot(embed: dict) -> None:
         need(set(before) <= set(snap), "快照原有类不得消失")
         for k, v in before.items():
             need(snap[k] == v, f"快照原有类被改动: {k}")
-    need(len(snap) == (66 if before is None else len(before)) + 4,
-         f"快照类数应 +4(得 {len(snap)})")
+    base = 66 if before is None else len(before)
+    need(len(snap) in (base, base + 4),
+         f"快照类数应 base 或 base+4(幂等重跑;HEAD 已含四类则=base;base={base},得 {len(snap)})")
 
 
 def verify_twins() -> None:

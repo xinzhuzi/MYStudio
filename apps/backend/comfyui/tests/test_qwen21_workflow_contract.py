@@ -3862,7 +3862,7 @@ class TestQi21SubgraphContract:
         assert [n["id"] for n in _by_type(graph, "KSampler")] == [8118], \
             "qi21 主图 KSampler 应恰 [8118] Gem ② 6步件(1117 例外,其余仍在子图)"
         assert sorted(n["id"] for n in _by_type(graph, "LoraLoaderModelOnly")) == [8112, 8113], \
-            "qi21 主图 LoraLoaderModelOnly 应恰 Gem ② viggle+ItsGem 二件(1117 例外)"
+            "qi21 主图 LoraLoaderModelOnly 应恰 Gem ② viggle+mikkoani 二件(1117 例外/1118 B 案换挂)"
         assert [n["id"] for n in _by_type(graph, "ComfyMathExpression")] == [8109], \
             "qi21 主图 ComfyMathExpression 应恰 [8109] Gem ② 守卫件(1117 例外)"
         # 0928 W2 反转:主图零 PE 件(PE 链收进 [40] 子图)
@@ -5942,7 +5942,7 @@ class TestSeedVR2TailContract1002:
 
 # ── 6g-2. Gem 分块超分尾档契约(1117 手术;真源=社区件 qwen21_Gem_Face_zoom_V1.json
 # ② 链移植:防大图守卫三件(平铺形,源件住子图容器)+独立加载器栈(int8 UNET→
-# viggle r256→ItsGem face)→GemTiledUpscale(10MP/2MP tile)→TextEncodeQwenImage21
+# viggle r256→mikkoani@0.6,1118 B 案换挂治动漫感流失)→GemTiledUpscale(10MP/2MP tile)→TextEncodeQwenImage21
 # 修复提示词→KSampler 6步→VAEDecode→GemTiledUpscaleStitch 拼缝,出口接既有
 # SaveImage[504];SeedVR 整链节点级 mode4 旁路零删可复活;手术脚本
 # apps/build/scripts/qi21_daojie_gem_tiled_graft_1117.py)─────────────────
@@ -5955,7 +5955,8 @@ GEM_TAIL_TYPES = {
     8117: "TextEncodeQwenImage21", 8118: "KSampler", 8119: "VAEDecode",
     8120: "GemTiledUpscaleStitch",
 }
-# widgets 逐位钉(None=整键省略 widgets_values;8112/8113 裸名 r256/ItsGem——
+# widgets 逐位钉(None=整键省略 widgets_values;8112 裸名 r256;8113=1118 B 案
+# 换挂主链同款 mikkoani@0.6(受制裁偏离,不照源件 donor;源件仍是 ItsGem face ×1)——
 # 源件 named 是 r128 假名与 qwen21\ 前缀假名,画布不落 named)
 GEM_TAIL_WIDGETS = {
     8108: None,
@@ -5963,7 +5964,7 @@ GEM_TAIL_WIDGETS = {
     8110: ["lanczos", 1],
     8111: ["qwen_image_2.1_int8_convrot.safetensors", "default"],
     8112: ["Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors", 1],
-    8113: ["qwen_image_21_ItsGem_face_lora_v1.safetensors", 1],
+    8113: ["qi21-mikkoani.safetensors", 0.6],
     8114: ["qwen3vl_8b_int8_convrot.safetensors", "qwen_image", "default"],
     8115: ["qwen_image_2.1_vae_bf16.safetensors"],
     8116: [10, 2, 256, 32, 64, True],

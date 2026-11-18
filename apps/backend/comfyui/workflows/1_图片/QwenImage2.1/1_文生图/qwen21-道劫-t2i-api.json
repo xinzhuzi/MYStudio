@@ -203,8 +203,8 @@
     "8113": {
       "class_type": "LoraLoaderModelOnly",
       "inputs": {
-        "lora_name": "qwen_image_21_ItsGem_face_lora_v1.safetensors",
-        "strength_model": 1,
+        "lora_name": "qi21-mikkoani.safetensors",
+        "strength_model": 0.6,
         "model": [
           "8112",
           0

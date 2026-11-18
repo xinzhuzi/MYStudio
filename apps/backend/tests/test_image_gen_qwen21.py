@@ -321,6 +321,54 @@ class Qwen21I2iGenerateTests(unittest.TestCase):
         self.assertNotIn("17", graph)
         self.assertNotIn("images.image_2", graph["4015"]["inputs"])
 
+    def test_i2i_super_native_type_canvas_capped(self) -> None:
+        # 1118 碎格根修:人物海报 override 1536×2048(3.15MP)超安全档 →
+        # node4 EmptyLatentImage 字面量压回 ≤1.25MP,3:4 纵横比保持,/32 对齐
+        graph, _, _ = self._run_generate(
+            prompt="海报指令", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=7,
+            reference_b64="aWlpcmVmaW9uZQ==", base_type="人物海报",
+        )
+        latent = graph["4"]["inputs"]
+        self.assertIsInstance(latent["width"], int)
+        self.assertIsInstance(latent["height"], int)
+        self.assertLessEqual(latent["width"] * latent["height"], 1_250_000)
+        self.assertGreater(latent["width"] * latent["height"], 900_000)
+        self.assertAlmostEqual(latent["width"] / latent["height"], 0.75, delta=0.03)
+        self.assertEqual(latent["width"] % 32, 0)
+        self.assertEqual(latent["height"] % 32, 0)
+
+    def test_i2i_safe_type_canvas_untouched(self) -> None:
+        # 道具(1:1 1.0MP 公式型)安全档内零注入:node4 仍连 WhSuggest 型画幅
+        graph, _, _ = self._run_generate(
+            prompt="道具指令", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=7,
+            reference_b64="aWlpcmVmaW9uZQ==", base_type="道具",
+        )
+        self.assertEqual(graph["4"]["inputs"]["width"], ["6:4018", 0])
+        self.assertEqual(graph["4"]["inputs"]["height"], ["6:4018", 1])
+
+    def test_i2i_manual_size_capped_when_super_native(self) -> None:
+        # type-shot 横幅手动 1824×1024(1.87MP)超安全档:压回保 16:9;
+        # WhSuggest 手动槽照旧由 apply_manual_size 写入(原值不被改写)
+        graph, _, _ = self._run_generate(
+            prompt="横幅指令", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=7,
+            reference_b64="aWlpcmVmaW9uZQ==", base_type="人物海报",
+            manual_width=1824, manual_height=1024,
+        )
+        latent = graph["4"]["inputs"]
+        self.assertIsInstance(latent["width"], int)
+        self.assertLessEqual(latent["width"] * latent["height"], 1_250_000)
+        self.assertAlmostEqual(latent["width"] / latent["height"], 1824 / 1024, delta=0.05)
+        self.assertEqual(graph["6:4018"]["inputs"]["手动宽"], 1824)
+        self.assertEqual(graph["6:4018"]["inputs"]["手动高"], 1024)
+
+    def test_i2i_unknown_type_fails_open(self) -> None:
+        # 型不在册(表解析 fail-open):零注入回退旧行为,node4 连线原样
+        graph, _, _ = self._run_generate(
+            prompt="未知型指令", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=7,
+            reference_b64="aWlpcmVmaW9uZQ==", base_type="不存在的型",
+        )
+        self.assertEqual(graph["4"]["inputs"]["width"], ["6:4018", 0])
+
     def test_i2i_rejects_fourth_reference(self) -> None:
         # 1116 §五.4 七刀①:拒线从「>1 拒」改「>3 拒」——三槽正典下 1-3 张全放,
         # 第四张拒(原生三参考槽上限)

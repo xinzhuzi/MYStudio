@@ -1397,13 +1397,13 @@
           ]
         }
       ],
-      "title": "[8113] Gem②·ItsGem face ×1",
+      "title": "[8113] Gem②·mikkoani ×0.6(1118B)",
       "properties": {
         "Node name for S&R": "LoraLoaderModelOnly"
       },
       "widgets_values": [
-        "qwen_image_21_ItsGem_face_lora_v1.safetensors",
-        1
+        "qi21-mikkoani.safetensors",
+        0.6
       ]
     },
     {

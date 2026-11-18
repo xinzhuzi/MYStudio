@@ -17,6 +17,7 @@ apply_base_type 注 6:4010 型选择,6:4011/6:4022 组装用途同覆写(4022=�
 from __future__ import annotations
 
 import base64
+import json
 import math
 import os
 import random
@@ -266,6 +267,91 @@ def apply_manual_size(graph: dict[str, Any], width: Any, height: Any) -> None:
             node["inputs"]["手动高"] = h
 
 
+# ── 1118 超原生网格伪影根修(i2i 带参考画幅安全档)──────────────────────────
+# 分辨弹四发定谳(同 seed/参考/提示词控变量):QwenImage2.1 参考编辑路(i2i)
+# 目标画幅超原生(>~1.4MP)时背景整片 voronoi 碎格化(黑描边+高饱和撞色)——
+# 1536×2048 必碎/1024×1344 与 896×1184 干净/文生图 3.15MP 无参考不碎(纯
+# t2i 路不受限,勿动)。修法=1117 用户令「大图=1MP 甜点+件内超分拨大」正典:
+# 生成段压回安全档,大图由件内 Gem② 分块超分链恒出 10MP(链对入口画幅无感,
+# 1118 实弹 1MP/3.15MP 进均 10.0MP)——压幅不缩交付(桥 _prefer_upscaled_output
+# 优先取 [504] 超分产物)。
+_I2I_REF_SAFE_MP = 1.25
+
+
+def _daojie_type_canvas(base_type: str) -> tuple[int, int] | None:
+    """qi21_bases.json 型画幅两出:resolution_override 直出,缺则
+    aspect_ratio×megapixels 公式自算(口径=引擎侧 my_qi21_base._width_height_of/
+    native_px:MP 按 1024² 计,边长 8 对齐;此处只供压幅判定用,取整差异无碍)。
+    解析链=MYSTUDIO_DAOJIE_DATA env → 仓内真源(engine_manager 同款路径);
+    表缺/型不在册/数据非法=None(fail-open:调用方跳过压幅,回退型画幅旧行为)。"""
+    candidates: list[Path] = []
+    env_home = os.environ.get("MYSTUDIO_DAOJIE_DATA")
+    if env_home:
+        candidates.append(Path(env_home))
+    candidates.append(Path(__file__).resolve().parents[3]
+                      / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json")
+    for home in candidates:
+        try:
+            data = json.loads((home / "qi21_bases.json").read_text(encoding="utf-8"))
+            entries = data.get("types", []) if isinstance(data, dict) else []
+        except (OSError, ValueError):
+            continue
+        for entry in entries:
+            if not (isinstance(entry, dict) and entry.get("zh") == base_type):
+                continue
+            override = entry.get("resolution_override")
+            if (isinstance(override, (list, tuple)) and len(override) == 2
+                    and all(isinstance(v, int) and not isinstance(v, bool) and v > 0
+                            for v in override)):
+                return int(override[0]), int(override[1])
+            try:
+                aw_s, ah_s = str(entry.get("aspect_ratio") or "").strip().split()[0].split(":")
+                aw, ah = float(aw_s), float(ah_s)
+                mp = float(entry.get("megapixels"))
+            except (IndexError, TypeError, ValueError):
+                return None
+            if aw <= 0 or ah <= 0 or mp <= 0:
+                return None
+            edge = math.sqrt(1024 * 1024 * mp)
+            return int(round(edge * aw / ah / 8)) * 8, int(round(edge * ah / aw / 8)) * 8
+    return None
+
+
+def apply_ref_safe_canvas(graph: dict[str, Any], base_type: Any,
+                          manual_width: Any, manual_height: Any) -> None:
+    """i2i 参考图在场 + 型层注入路(TYPE_FULL 型画幅)时:有效画幅(手动成对值
+    优先 > 型画幅)超安全档则按**原纵横比**压回 ≤_I2I_REF_SAFE_MP,以字面量
+    注入 EmptyLatentImage(替换 [6:4018] WhSuggest 连线——其短边≥1024 地板
+    在 16:9 下压不进安全档)。≤安全档零动作(型画幅/手动语义原样,如 道具
+    1:1 1MP);表缺/型不在册/数据非法零动作(fail-open 回退旧行为)。手动值
+    成对才作数(WhSuggest 同款纪律,半填=交给 WhSuggest 中文报错)。"""
+    try:
+        mw = int(manual_width) if manual_width is not None else 0
+        mh = int(manual_height) if manual_height is not None else 0
+    except (TypeError, ValueError):
+        mw = mh = 0
+    if mw > 0 and mh > 0:
+        eff_w, eff_h = mw, mh
+    else:
+        if not (isinstance(base_type, str) and base_type.strip()):
+            return
+        dims = _daojie_type_canvas(base_type.strip())
+        if dims is None:
+            return
+        eff_w, eff_h = dims
+    cap_px = _I2I_REF_SAFE_MP * 1_000_000
+    if eff_w <= 0 or eff_h <= 0 or eff_w * eff_h <= cap_px:
+        return
+    scale = math.sqrt(cap_px / (eff_w * eff_h))
+    w32 = max(int(eff_w * scale) // 32 * 32, 64)
+    h32 = max(int(eff_h * scale) // 32 * 32, 64)
+    for node in graph.values():
+        if isinstance(node, dict) and node.get("class_type") == "EmptyLatentImage":
+            node.setdefault("inputs", {})["width"] = w32
+            node["inputs"]["height"] = h32
+            return
+
+
 def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps: int, seed: int | None, reference_b64: str | None = None, **ctx: Any) -> str:
     from image_gen.pipeline import is_generation_cancelled
 
@@ -352,6 +438,10 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
             assembly["inputs"]["组装用途"] = ASSEMBLY_PURPOSE_TYPE_FULL
             # 1108 拉齐:i2i ⑦Pruna 臂已入列,手型默认随 t2i=档4(在 apply_base_type 之后)
             apply_hand_speed_mode(graph, base_type, hand_default=SPEED_MODE_PRUNA)
+            # 1118 碎格根修:超安全档的型/手动画幅按原纵横比压回 ≤1.25MP
+            # (字面量注入 EmptyLatentImage,头注见 apply_ref_safe_canvas)
+            apply_ref_safe_canvas(graph, base_type,
+                                  ctx.get("manual_width"), ctx.get("manual_height"))
         else:
             # 缺省=道劫美术风格转换(指令+底座两段),既有画风转换/人脸/表情差分
             # 调用零回归(10-19 口径全量向后兼容)
