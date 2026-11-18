@@ -150,7 +150,7 @@ def build_prompt(oi: dict, a) -> dict:
       select="closest_to_xy", fallback_detector="segm\\person_yolov8m-seg.pt",
       fallback_head_frac=0.5, select_index=0, identity_model="clip_vision",
       cut_detection="none", cut_threshold=3.0, absent_shots="off",
-      X=1920, Y=850, frame_index=80, identity_clip_vision=["800", 0])
+      X=1920, Y=900, frame_index=170, identity_clip_vision=["800", 0])
 
     # H3 重画(画布=追踪器动态画布,须连线不能手填)
     # 实测 schema:REF 节点不吃 model(模型只走采样链);
