@@ -318,7 +318,8 @@ def test_absorbed_fl2v_firstframe_mode():
         assert "audio_vae" not in ins or sid != 2002, "可达性哨(2002 无开关槽)"
     # 三 Seam 出口:底模→[1071]taeh3 预览器→[2031].model(1108 用户令装 taeh3) / 条件→[2031].conditioning / 潜空间→[2032].latent_image
     assert nodes[1071]["type"] == "ModelPreviewOverrideKJ" and nodes[1071]["widgets_values"][5] == "taeh3.safetensors"
-    assert links[nodes[1071]["inputs"][0]["link"]][1] == 1062, "预览器应吃三 Seam 底模出口"
+    assert links[nodes[1071]["inputs"][0]["link"]][1] == 1072, \
+        "预览器应吃三 Seam 底模出口(81f8909f lowvram 插桩后经 1072 头分块收束点,随迁漏笔 1118 补)"
     assert links[nodes[2031]["inputs"][0]["link"]][1] == 1071
     assert links[nodes[2031]["inputs"][1]["link"]][1] == 2011
     assert links[nodes[2032]["inputs"][4]["link"]][1] == 2012
@@ -328,13 +329,12 @@ def test_absorbed_fl2v_firstframe_mode():
 
 
 def test_single_shot_dir_inventory():
-    """1_漫影自研 件册(1112 扁平化+历史档外迁裁定:零子夹,六件平铺):主线 三采-单镜.json
-    (1111 换防退役件 三采-单镜-RelayVSR-1110.json 已移 7_测试/ 留档)+ 1105 被吸收旧主线 pika-{fl2v,ref2v}.json
-    +首跑样本 单镜视频 · chapter-001 · S01.json + 导演台.json + h3-autocontext-multiseg.json。
+    """1_漫影自研 件册(1112 扁平化+历史档外迁裁定:零子夹):主线 三采-单镜.json
+    (1111 换防退役件 三采-单镜-RelayVSR-1110.json 已移 7_测试/ 留档;1118 df4162c8 又迁出
+    三采-单镜-小脸修复.json=克隆模板件归 7_测试/,现册=一镜到底-分段+三采-单镜+导演台 三件)。
     1112 用户令:1_漫影自研 下不设子文件夹;归档语义由文件名后缀承载。"""
     expected = [
         "一镜到底-分段.json",
-        "三采-单镜-小脸修复.json",
         "三采-单镜.json",
         "导演台.json",
     ]
@@ -359,11 +359,13 @@ def test_sigma_feed_scheduler_gets_shifted_model():
 
 
 def test_facerefine_inline_arm_1118():
-    """1118 四采修脸臂内置(11-17-facerefine-inline-bypass):19 节点默认旁路,画布 66→85
-    (PRD §1.1 标题「66+21=87」为修订前残数=19+已删 5001/5005,生成器 sancai_inline_
-    facerefine_build_1118 自检对账注记 画布85/API83)。[1065] False 时 50xx 臂被引擎
-    惰性剪除,终档 4100=p3 直通;True 时三采出片内部走进修脸→终档一条线。结构契约:
-    节点数 85/开关默认 False/恒单 UNETLoader(5006←1001 复用,PRD 单向门#2 显存修订)/
+    """1118 四采修脸臂内置(11-17-facerefine-inline-bypass):19 节点默认旁路,画布 66→86
+    (66+19 臂+lowvram役#1072;PRD §1.1 标题「66+21=87」为修订前残数=19+已删 5001/5005,
+    生成器 sancai_inline_facerefine_build_1118 自检对账注记 画布86/API84)。[1065] False 时
+    50xx 臂被引擎惰性剪除,终档 4100=p3 直通;True 时走进修脸→终档一条线。结构契约:
+    节点数 86/开关默认 False/恒单 UNETLoader(5006←1001 复用,PRD 单向门#2 显存修订)/
+    5002 拆帧源=3053(二采 p2 出片口,1118 门禁红根修对齐 multiseg 同臂口径;4002 仍喂
+    5100.on_false=p3 直通)/
     5012 画布宽高=5011 追踪器出口联线(禁手填)/5100 极性 on_true=5023 修脸片·on_false=
     4002 p3 直通。prune 执行面不在静态测试面,由探针跑架 inline_fire_runner_1118 双态
     实弹把门——1118 双态探针已落定(引擎 history pid 8afe0df4/146293f2+产物复测:
@@ -373,8 +375,8 @@ def test_facerefine_inline_arm_1118():
     arm = {25, 1065, 4100, 5002, 5006, 5011, 5012, 5013, 5014, 5015,
            5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5100}
     assert arm <= set(nodes), f"四采臂缺件: {arm - set(nodes)}"
-    assert len(nodes) == 85, \
-        "画布节点数=85(66+19 四采臂;PRD「66+21=87」为修订前残数,生成器对账注记)"
+    assert len(nodes) == 86, \
+        "画布节点数=86(66+19 四采臂+lowvram役#1072;PRD「66+21=87」为修订前残数,生成器对账注记)"
     assert nodes[1065]["type"] == "PrimitiveBoolean" and nodes[1065]["widgets_values"] == [False], \
         "[1065] 四采开关出厂必须 False(默认旁路,PRD 单向门#1)"
     assert nodes[25]["type"] == "PrimitiveStringMultiline" and \
@@ -386,7 +388,8 @@ def test_facerefine_inline_arm_1118():
         assert s.get("link") is not None, f"[{nid}].{slot_name} 未连线"
         return links[s["link"]]
 
-    assert src_of(5002, "video")[1] == 4002, "[5002] 拆帧必须内存态直吃 [4002](零文件竞态)"
+    assert src_of(5002, "video")[1] == 3053, \
+        "[5002] 拆帧必须内存态直吃 [3053](二采 p2 出片口;1118 门禁红根修,对齐 multiseg 同臂口径)"
     assert src_of(5006, "model")[1] == 1001, "[5006] LoRA 必须复用 [1001] 单 loader"
     wl, hl = src_of(5012, "width"), src_of(5012, "height")
     assert (wl[1], nodes[5011]["outputs"][wl[2]]["name"]) == (5011, "canvas_w"), \

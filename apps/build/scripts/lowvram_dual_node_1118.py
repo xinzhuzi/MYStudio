@@ -153,7 +153,7 @@ def patch_api():
 def main():
     ok = True
     print("== 三采-单镜主线 ==")
-    ok &= patch_gui(SANCAI, 1072, 1062, "加载模型", [2830, 2480], "sancai")
+    ok &= patch_gui(SANCAI, 1072, 1062, "加载模型", [2830, 2520], "sancai")  # 1118 布局治理:2480→2520(1071 est 底 2440+80)
     print("== App 画布模板(GUI 镜像)==")
     ok &= patch_gui(TPL_GUI, 1072, 1062, "加载模型", [2830, 2480], "tpl-gui")
     print("== App API 模板 ==")

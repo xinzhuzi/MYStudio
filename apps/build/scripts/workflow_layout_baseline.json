@@ -66,6 +66,30 @@
           "occlusion": 15
         }
       }
+    },
+    "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json": {
+      "scopes": {
+        "main": {
+          "crossings": 981,
+          "occlusion": 75
+        }
+      }
+    },
+    "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/一镜到底-分段.json": {
+      "scopes": {
+        "main": {
+          "crossings": 179,
+          "occlusion": 16
+        }
+      }
+    },
+    "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试/三采-单镜-小脸修复.json": {
+      "scopes": {
+        "main": {
+          "crossings": 861,
+          "occlusion": 68
+        }
+      }
     }
   }
 }

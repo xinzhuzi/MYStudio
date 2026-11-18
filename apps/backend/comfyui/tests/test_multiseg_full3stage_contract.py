@@ -287,7 +287,8 @@ def test_facerefine_group_inline_bypass():
 
     assert nodes[1065]["widgets_values"] == [False], "修脸开关默认 False=旁路(50xx 臂惰性剪除)"
     assert src_of(5002, "video")[0] == 3053, "5002 拆帧源=3053(二采 p2 出片口)"
-    assert src_of(5006, "model")[0] == 34, "5006 LoRA 复用唯一 UNETLoader 34(禁第二 loader)"
+    assert src_of(5006, "model")[0] == 1066, \
+        "5006 LoRA 复用唯一 UNETLoader 链(81f8909f lowvram 插桩后经 1066 头分块收束点=34 扇出之后,随迁漏笔 1118 补)"
     assert src_of(5012, "width") == (5011, "canvas_w"), "5012.width=5011.canvas_w 出口联线勿手填"
     assert src_of(5012, "height") == (5011, "canvas_h"), "5012.height=5011.canvas_h 出口联线勿手填"
     assert nodes[5012]["widgets_values"][3] == nodes[3031]["widgets_values"][3] == 56, \

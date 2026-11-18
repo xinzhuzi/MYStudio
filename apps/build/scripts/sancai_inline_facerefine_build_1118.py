@@ -6,7 +6,8 @@
 
   #25   修脸身份提示词 PrimitiveStringMultiline(默认通用句,调用方按角色覆写)
   #1065 四采开关 PrimitiveBoolean(默认 False=旁路;False 时 50xx 臂被引擎惰性剪除)
-  5002  GetVideoComponents ← 4002 VIDEO(帧①+音轨②,零文件竞态)
+  5002  GetVideoComponents ← 3053 VIDEO(二采 p2 出片·帧①+音轨②,零文件竞态;1118 门禁红根修
+        对齐 multiseg 同臂口径,4002 仍喂 5100.on_false=p3 直通)
   5006  LoraLoaderModelOnly(model←1001,pika_turbo_8step_fl2va@1.0;全图禁第二个 UNETLoader)
   5011  H3FaceTrackCrop(face_yolov8m conf0.15/兜底 segm\\person_yolov8m-seg.pt/largest_face)
   5012  MiniMaxH3ReferenceToVideo(宽高=5011 canvas_w/canvas_h 出口联线勿手填;length←#52;
@@ -42,7 +43,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 CANVAS = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json"
 API = REPO / "apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json"
-CLONE = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜-小脸修复.json"
+CLONE = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试/三采-单镜-小脸修复.json"  # df4162c8 迁 7_测试/
 
 PREFIX_P_FINAL = "video/漫影/chapter-001/sb-chapter-001-001/p-final"
 IDENTITY = (
@@ -72,7 +73,7 @@ README_SECTION = README_MARK + """
 - **开关 #1065「四采修脸」**:默认 **False=旁路**——终档 4100 p-final=三采 p3 直通,50xx 臂被引擎惰性剪除(0.45.2 实证;1118 双态探针旁路态全链 264.3s 恰=纯三采一链,臂零叠加),零成本;**True=三采出片内部走进修脸→终档一条线**(外部只传参数,内部处理流程)
 - **#25 修脸身份提示词**:默认通用句;外部按角色覆写(角色五官特征文,参照 #1 主图人物)
 - **API 直调**:`g["1065"]["inputs"]["value"]=true` + `g["25"]["inputs"]["value"]="<角色五官特征句>"`,其余注入点与现行三采调用完全一致(图1/21/51/54/31/41)
-- **臂拓扑**:5002 拆 4002(帧①+音轨②)→ 5011 追踪裁剪(face_yolov8m conf0.15/兜底 segm\\person_yolov8m-seg.pt/largest_face)→ 5012 H3 重画(**宽高=5011 出口联线勿手填**/length=#52/参考图=#1/提示词=#25)→ 5013 注入真实帧 → 5014 音轨锁(audio←5002②)→ 5015 逐帧 denoise(60/200px)→ 5016-5020 采样(seed 同 #54/lcm/simple/8步/0.45)→ 5021 解码 → 5022 贴回(16/24)→ 5023 合成 → 5100 终档选择 → 4100 p-final
+- **臂拓扑**:5002 拆 3053(二采 p2 出片·帧①+音轨②)→ 5011 追踪裁剪(face_yolov8m conf0.15/兜底 segm\\person_yolov8m-seg.pt/largest_face)→ 5012 H3 重画(**宽高=5011 出口联线勿手填**/length=#52/参考图=#1/提示词=#25)→ 5013 注入真实帧 → 5014 音轨锁(audio←5002②)→ 5015 逐帧 denoise(60/200px)→ 5016-5020 采样(seed 同 #54/lcm/simple/8步/0.45)→ 5021 解码 → 5022 贴回(16/24)→ 5023 合成 → 5100 终档选择 → 4100 p-final
 - **极性口径(1118 双态实测定谳)**:**bypass(1065=false)=直通**——p-final 与 p3 MD5 逐字节一致(帧差 0px);**repair(1065=true)=修脸**——远端 t=1s 帧 >12 差分 24,467px;5100 接线 on_true=修脸片(1065=true)/ on_false=p3 直通(1065=false)与实测一致,勿手改(防 wf2api 反转坑)
 - **显存纪律**:5006 LoRA 挂 1001 单 loader(全图禁第二个 UNETLoader);p1/p2/p3 两态照常落盘(诊断链完整),MyShot 3061 锚与 3071 零改动
 - **生效面**:仓库/引擎直投即时生效;装机 App 面候打包窗口另役同步
@@ -94,15 +95,19 @@ TITLE = {
     5023: "四采·合成视频", 5100: "终档选择(1065:真=修脸片/假=p3 直通)", 4100: "终档保存 p-final",
 }
 # 布局=拓扑分层列(x 严格右向,契约 test_no_negative_zone_and_no_leftward 刻碑:全链恒向右):
-# 4002(6533)→5002→5011→5012→5013→5006→5014→5015→[5016/5017/5018/5019 同列纵堆,互无边]
-# →5020→5021→5022→5023→5100→4100;25/1065 仅出边(→5012/→5100)且被链位钉在臂左端,
-# 归四采修脸组输入位(与 5100 同框必横跨整臂=组框相交,故终档组=5100+4100)。
+# 4002(6533)→5002(7200,x0 右移让开 4003 右缘 6843,4002→5002 线不再斜穿 4003)→5011→5012
+# →5013→5006→5014→5015→[5016/5019/5017/5018 同列纵堆,行序=5020 输入槽序 noise/guider/
+# sampler/sigmas(⑧1 槽序对齐,扇入零交叉)]→5020→5021→5022→5023→5100→4100;
+# 列步进=est 宽+200(同行净距恰 200)、纵堆同列净距恰 80(x 全等);25 寄生 5011 est 箱底
+# (右缘齐 5012 左缘→竖向线零遮挡)、1065 寄生 5100 左下(短线上行,躲 5023→5100 横线;
+# 1065 归四采修脸组框——若与 5100 同框,组框左伸必与四采组相交)。1118 布局治理役
+# (apps/build/scripts/workflow_layout_fix_sancai_band_1118.py)立,重跑本生成器字节复原。
 POS = {
-    5002: [6600, 5900], 5011: [6940, 5900], 5012: [7360, 5900], 5013: [7840, 5900],
-    5006: [8230, 5900], 5014: [8670, 5900], 5015: [9080, 5900],
-    5016: [9490, 6100], 5017: [9490, 6320], 5018: [9490, 6520], 5019: [9490, 6760],
-    5020: [9940, 5900], 5021: [10270, 5900], 5022: [10600, 5900], 5023: [11010, 5900],
-    5100: [11480, 5900], 4100: [11820, 5900], 25: [6600, 6900], 1065: [7060, 6900],
+    5002: [7200, 5900], 5011: [7670, 5900], 5012: [8230, 5900], 5013: [8830, 5900],
+    5006: [9360, 5900], 5014: [9960, 5900], 5015: [10490, 5900],
+    5016: [11020, 6400], 5019: [11020, 6628], 5017: [11020, 6820], 5018: [11020, 7018],
+    5020: [11590, 5900], 5021: [12040, 5900], 5022: [12490, 5900], 5023: [13020, 5900],
+    5100: [13490, 5900], 4100: [13960, 5900], 25: [7800, 6902], 1065: [12960, 6270],
 }
 SIZE = {
     5002: [270, 100], 5011: [360, 600], 5006: [400, 148], 5012: [400, 622],
@@ -129,7 +134,7 @@ WIDGETS: dict[int, list | None] = {
 
 # ---- 连线(src_id, src出口槽名, dst_id, dst输入槽名)----
 WIRING = [
-    (4002, "VIDEO", 5002, "video"),
+    (3053, "VIDEO", 5002, "video"),
     (4002, "VIDEO", 5100, "on_false"),
     (5002, "images", 5011, "images"),
     (5002, "images", 5022, "base_images"),
@@ -175,7 +180,7 @@ WIRING = [
 API_NEW: dict[str, dict] = {
     "25": {"class_type": "PrimitiveStringMultiline", "inputs": {"value": IDENTITY}},
     "1065": {"class_type": "PrimitiveBoolean", "inputs": {"value": False}},
-    "5002": {"class_type": "GetVideoComponents", "inputs": {"video": ["4002", 0]}},
+    "5002": {"class_type": "GetVideoComponents", "inputs": {"video": ["3053", 0]}},
     "5006": {"class_type": "LoraLoaderModelOnly", "inputs": {
         "model": ["1001", 0], "lora_name": "pika_turbo_8step_fl2va.safetensors", "strength_model": 1}},
     "5011": {"class_type": "H3FaceTrackCrop", "inputs": {
@@ -367,9 +372,10 @@ def check() -> int:
     n_canvas, n_api = len(S["nodes"]), len(A)
     print(f"[CHECK] 画布节点 {n_canvas}(66+{n_canvas-66}) / API 节点 {n_api}(64+{n_api-64})")
     print("  NOTE  节点数口径:PRD §1.1 标题「66+21=87」为修订前残数(21=19+已删 5001 LoadVideo/"
-          "5005 UNETLoader);按 §1.1 拓扑枚举报 19 → 画布 85 / API 83,自检按拓扑枚举断言")
-    ok(n_canvas == 85, f"画布节点数=85(拓扑枚举 66+19),实际 {n_canvas}")
-    ok(n_api == 83, f"API 节点数=83(64+19),实际 {n_api}")
+          "5005 UNETLoader);按 §1.1 拓扑枚举报 19;另有 lowvram役(81f8909f)#1072 插桩 1 件"
+          "不在本组剥离面 → 画布 86 / API 84,自检按现役文件断言")
+    ok(n_canvas == 86, f"画布节点数=86(66+19 臂+lowvram#1072),实际 {n_canvas}")
+    ok(n_api == 84, f"API 节点数=84(64+19 臂+lowvram#1072),实际 {n_api}")
 
     ids = [n["id"] for n in S["nodes"]]
     ok(len(ids) == len(set(ids)), "画布节点 id 唯一")
@@ -421,11 +427,11 @@ def check() -> int:
         l = src_of(next(n for n in S["nodes"] if n["id"] == nid), in_name)
         return bool(l) and l[1] == want_src
 
-    ok(wired(5002, "video", 4002) and wired(5100, "on_false", 4002) and wired(5100, "on_true", 5023)
+    ok(wired(5002, "video", 3053) and wired(5100, "on_false", 4002) and wired(5100, "on_true", 5023)
        and wired(5100, "switch", 1065) and wired(4100, "video", 5100) and wired(5006, "model", 1001)
        and wired(5014, "audio", 5002) and wired(5019, "conditioning", 5012)
-       and wired(5020, "noise", 5016), "关键联线拓扑(5002←4002/5100 双臂+开关/4100←5100/5006←1001/5014.audio←5002②/5019←5012/5020←5016)")
-    ok(A["5002"]["inputs"]["video"] == ["4002", 0] and A["5100"]["inputs"]["on_false"] == ["4002", 0]
+       and wired(5020, "noise", 5016), "关键联线拓扑(5002←3053/5100 双臂+开关/4100←5100/5006←1001/5014.audio←5002②/5019←5012/5020←5016)")
+    ok(A["5002"]["inputs"]["video"] == ["3053", 0] and A["5100"]["inputs"]["on_false"] == ["4002", 0]
        and A["5100"]["inputs"]["on_true"] == ["5023", 0] and A["4100"]["inputs"]["video"] == ["5100", 0]
        and A["5006"]["inputs"]["model"] == ["1001", 0], "API 关键拓扑同构")
 
@@ -454,7 +460,7 @@ def main() -> int:
     write_json(CANVAS, S)
     A = build_api(json.loads(API.read_text(encoding="utf-8")))
     write_json(API, A)
-    print(f"[OK] 画布 {CANVAS.name}:{len(S['nodes'])} 节点(66+19)/ {len(S['links'])} 链 / {len(S['groups'])} 组")
+    print(f"[OK] 画布 {CANVAS.name}:{len(S['nodes'])} 节点(66+19 臂+lowvram#1072)/ {len(S['links'])} 链 / {len(S['groups'])} 组")
     print(f"[OK] API {API.name}:{len(A)} 节点(64+19)")
     return check()
 
