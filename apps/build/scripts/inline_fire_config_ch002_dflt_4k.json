@@ -905,13 +905,18 @@
    "smooth_method": "gaussian",
    "size_mode": "per_frame",
    "identity_track": true,
-   "identity_threshold": 0.28,
+   "identity_threshold": 0.0,
    "select": "closest_to_xy",
    "fallback_detector": "segm\\person_yolov8m-seg.pt",
    "fallback_head_frac": 0.5,
    "X": 1920,
-   "Y": 1400,
-   "frame_index": 80
+   "Y": 850,
+   "frame_index": 80,
+   "identity_model": "clip_vision",
+   "identity_clip_vision": [
+    "800",
+    0
+   ]
   }
  },
  "5012": {
@@ -1167,6 +1172,12 @@
     0
    ],
    "head_chunks": 2
+  }
+ },
+ "800": {
+  "class_type": "CLIPVisionLoader",
+  "inputs": {
+   "clip_name": "clip_vision_g.safetensors"
   }
  }
 }
