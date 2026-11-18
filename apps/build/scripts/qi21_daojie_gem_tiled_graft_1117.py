@@ -125,17 +125,26 @@ WIDGETS = {
 DEVIATIONS = {
     8113: "1118 用户令 B 案:换挂主链同款动漫 LoRA mikkoani@0.6,治超分段动漫感流失",
 }
+# 1118晚 立宪重排(node-graph layout_check 0928 口径;规划器网格搜+CLI 仲裁,
+# 解析修正版:--json 抑制逐条判项文本,过滤须跑无 --json 模式):
+# 主车道 x 严格递增(8108→8109→8110→8116→8117→8118→8119)+ 加载器双行落缝
+# (CLIP/VAE 行 A+560 落 8117 左,LoRA 级联行 A+960 于 8118 左下)+ 8120 上跨(A-600)。
+# 终态我方判项:est_overlap=0;leftward 仅 8236(两件结构豁免:504 锁位画布中段,
+# 链 x 单调递增不可回左;t2i 走廊 2848px/i2i 4080px 均小于链宽 ~7000px);
+# occlusion 残 2(7500→链头进场线 8217/8218,源节点 7500 位置不可移=弱判项);
+# est_spacing 残 1(8112/8113 est 深度差同列间隙,平铺族固有);crossings 残量
+# +7(全归因我方 20 线,剥线即回术前基线 10/43;全零需 Reroute 拓扑=契约变更,记后续项)。
 POS = {
-    "t2i": {8108: [9220, 1660], 8109: [9220, 1900], 8110: [9220, 2220],
-            8111: [9820, 1660], 8112: [9820, 1820], 8113: [9820, 1980],
-            8114: [9820, 2140], 8115: [9820, 2320], 8116: [10460, 1660],
-            8117: [10460, 2020], 8118: [10460, 2470], 8119: [10460, 2810],
-            8120: [10460, 2950]},
-    "i2i": {8108: [12900, 1850], 8109: [12900, 2090], 8110: [12900, 2410],
-            8111: [13500, 1850], 8112: [13500, 2010], 8113: [13500, 2170],
-            8114: [13500, 2330], 8115: [13500, 2510], 8116: [14140, 1850],
-            8117: [14140, 2210], 8118: [14140, 2660], 8119: [14140, 3000],
-            8120: [14140, 3140]},
+    "t2i": {8108: [9300, 3600], 8109: [9870, 3600], 8110: [10590, 3600],
+            8111: [10755, 4160], 8112: [11429, 4560], 8113: [12103, 4560],
+            8114: [11349, 4160], 8115: [11709, 4160], 8116: [11160, 3600],
+            8117: [11769, 3600], 8118: [12517, 3600], 8119: [13107, 3600],
+            8120: [13708, 3000]},
+    "i2i": {8108: [9400, 3100], 8109: [9970, 3100], 8110: [10690, 3100],
+            8111: [10855, 3660], 8112: [11529, 4060], 8113: [12203, 4060],
+            8114: [11449, 3660], 8115: [11809, 3660], 8116: [11260, 3100],
+            8117: [11869, 3100], 8118: [12617, 3100], 8119: [13207, 3100],
+            8120: [13808, 2500]},
 }
 CANVASES = {"t2i": T2I, "i2i": I2I}
 
@@ -166,8 +175,8 @@ OLD_LINK = {"t2i": 205, "i2i": 204}  # [旧id,503,0,504,0,'IMAGE'] 摘除
 
 GROUP_TITLE = "道劫·⑤b·Gem分块超分·2K"
 GROUPS = {
-    "t2i": {"id": 7, "title": GROUP_TITLE, "bounding": [9160, 1600, 1788, 1560], "color": "#b58b2a"},
-    "i2i": {"id": 7, "title": GROUP_TITLE, "bounding": [12840, 1790, 1788, 1560], "color": "#a88040"},
+    "t2i": {"id": 7, "title": GROUP_TITLE, "bounding": [9260, 2940, 4777, 1762], "color": "#b58b2a"},
+    "i2i": {"id": 7, "title": GROUP_TITLE, "bounding": [9360, 2440, 4777, 1762], "color": "#a88040"},
 }
 SVR2_GROUP_PREFIX = "道劫·⑤超分尾档"  # 尾档选择器 startswith 锚(新组题名不得误触)
 
@@ -283,7 +292,8 @@ def surgery_canvas(name: str, donors: dict) -> dict:
             wf["nodes"].append(build_new_node(nid, donors[nid], POS[name][nid], order))
             order += 1
 
-    # —— 1b) 新链节点按蓝图回灌 widgets/title(1118 B 案调参口,幂等;pos/size/mode 不动) ——
+    # —— 1b) 新链节点按蓝图回灌 widgets/title/pos(1118 B 案调参口+立宪重排口,
+    #     幂等;size/mode 不动;pos 恒取 POS 表=立宪坐标单源) ——
     nodes = {n["id"]: n for n in wf["nodes"]}
     for nid in NEW_IDS:
         cur = nodes[nid]
@@ -293,6 +303,7 @@ def surgery_canvas(name: str, donors: dict) -> dict:
             cur["widgets_values"] = copy.deepcopy(WIDGETS[nid])
         cur.pop("widgets_values_named", None)
         cur["title"] = TITLES[nid]
+        cur["pos"] = list(POS[name][nid])
 
     # —— 2) 摘旧线 + 端点改挂 ——
     old = OLD_LINK[name]
@@ -323,9 +334,12 @@ def surgery_canvas(name: str, donors: dict) -> dict:
         if sg_nodes[i].get("mode", 0) == 0:
             sg_nodes[i]["mode"] = 4
 
-    # —— 5) 组框 + 计数器 ——
-    if not any(g["id"] == 7 and g["title"] == GROUP_TITLE for g in wf["groups"]):
+    # —— 5) 组框 + 计数器(幂等回灌 bounding=立宪坐标单源) ——
+    grp7 = next((g for g in wf["groups"] if g["id"] == 7 and g["title"] == GROUP_TITLE), None)
+    if grp7 is None:
         wf["groups"].append(copy.deepcopy(GROUPS[name]))
+    else:
+        grp7["bounding"] = list(GROUPS[name]["bounding"])
     wf["last_node_id"] = max(wf["last_node_id"], 8120)
     wf["last_link_id"] = max(wf["last_link_id"], 8236)
     return before, wf
