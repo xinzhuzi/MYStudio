@@ -42,13 +42,23 @@ def _looks_like_managed_python(executable: Path) -> bool:
     return executable.name.startswith("python") and executable.parent.name == "bin" and executable.parent.parent.name == "python"
 
 
+def _looks_like_managed_python_win(executable: Path) -> bool:
+    # Win 装机托管布局 = <storageBase>/python/python.exe(indygreg Win 包无 bin/
+    # 层,解释器直居 python/ 内)。1118 实弹:Win sidecar 以此布局运行而 ② 的
+    # bin/ 判定不中 → 环境注入缺失时整条解算坠落开发兜底 ~/.manying-dev →
+    # cm 全链失明(engineOnline=False/桥 17598 回落/manifest 读不到 port)。
+    # 放 ④ 位=主进程显式注入(model-dir)恒先于此,存量注入路径零翻转。
+    return executable.name.lower().startswith("python") and executable.parent.name == "python"
+
+
 def storage_root() -> Path:
     """解析应用存储根(<userData>)——与 sidecar 托管 python 同一套解析。
 
     优先级:① MYSTUDIO_COMFYUI_HOME(显式覆写,直接当 comfyui 家,测试用)
     之外的根解析:② 托管 python 布局(运行中的解释器即 <userData>/python/bin/python3)
     ③ MYSTUDIO_IMAGE_MODEL_DIR 主进程注入的 <userData>/model/imagegen 布局
-    ④ 纯开发兜底 ~/.manying-dev(comfy_home 再拼 comfyui/)。
+    ④ Win 托管 python 布局(<userData>/python/python.exe,1118 补;注入态恒先于此)
+    ⑤ 纯开发兜底 ~/.manying-dev(comfy_home 再拼 comfyui/)。
     """
     executable = Path(sys.executable).resolve()
     if _looks_like_managed_python(executable):
@@ -59,6 +69,8 @@ def storage_root() -> Path:
         # getModelCacheDir 默认布局 = <storageBase>/model/imagegen(两级上推)
         if model_path.parent.name == "model":
             return model_path.parent.parent
+    if _looks_like_managed_python_win(executable):
+        return executable.parent  # 同 ② 形状:返回 <userData>/python 运行时本身,user_data_root 上提
     return Path.home() / ".manying-dev"
 
 

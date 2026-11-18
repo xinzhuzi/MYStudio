@@ -369,3 +369,46 @@ def test_i2i_single_reference_prunes_ref2_chain_1021():
     assert "images.image_2" not in graph["4015"]["inputs"]
     assert graph["10"]["inputs"]["image"] == "uploaded-ref.png"
     assert graph["4015"]["inputs"]["images.image_1"] == ["16", 0]
+
+
+# ── storage_root 布局解析(1118 Win 装机 sidecar 失明根修) ──────────────
+class TestStorageRootLayouts:
+    """②Mac bin/ 布局恒在;③主进程注入恒先于 ④Win 布局(存量注入零翻转);
+    ④Win 装机 <userData>/python/python.exe 直居布局补齐;⑤venv 照旧兜底。"""
+
+    @staticmethod
+    def _exe(tmp_path, *segs, name):
+        exe = tmp_path.joinpath(*segs, name)
+        exe.parent.mkdir(parents=True, exist_ok=True)
+        exe.touch()
+        return exe
+
+    def _patch(self, monkeypatch, exe):
+        monkeypatch.delenv("MYSTUDIO_COMFYUI_HOME", raising=False)
+        monkeypatch.delenv("MYSTUDIO_IMAGE_MODEL_DIR", raising=False)
+        monkeypatch.setattr(cm.sys, "executable", str(exe))
+
+    def test_win_layout_resolves_user_data(self, tmp_path, monkeypatch):
+        exe = self._exe(tmp_path, "ud", "python", name="python.exe")
+        self._patch(monkeypatch, exe)
+        assert cm.storage_root() == tmp_path / "ud" / "python"  # 同 ② 形状=运行时目录本身
+        assert cm.user_data_root() == tmp_path / "ud"
+        assert cm.comfy_home() == tmp_path / "ud" / "comfyui"  # 1118 修的正是这条:manifest 的家
+
+    def test_env_injection_wins_over_win_layout(self, tmp_path, monkeypatch):
+        exe = self._exe(tmp_path, "ud", "python", name="python.exe")
+        self._patch(monkeypatch, exe)
+        (tmp_path / "base" / "model" / "imagegen").mkdir(parents=True)
+        monkeypatch.setenv("MYSTUDIO_IMAGE_MODEL_DIR", str(tmp_path / "base" / "model" / "imagegen"))
+        assert cm.storage_root() == tmp_path / "base"
+
+    def test_mac_layout_unchanged(self, tmp_path, monkeypatch):
+        exe = self._exe(tmp_path, "ud", "python", "bin", name="python3")
+        self._patch(monkeypatch, exe)
+        assert cm.storage_root() == tmp_path / "ud" / "python"
+        assert cm.user_data_root() == tmp_path / "ud"
+
+    def test_venv_still_falls_back(self, tmp_path, monkeypatch):
+        exe = self._exe(tmp_path, ".venv", "bin", name="python")
+        self._patch(monkeypatch, exe)
+        assert cm.storage_root().name == ".manying-dev"

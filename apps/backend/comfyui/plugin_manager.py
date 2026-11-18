@@ -1562,23 +1562,38 @@ PE_CLIP_ALIAS_GROUPS: tuple[tuple[str, str], ...] = (
 
 
 def _engine_clip_loader_names(timeout: float = 3.0) -> set[str] | None:
-    """当前生效引擎 CLIPLoader 可选 clip_name 清单;不可达/结构异常=None。"""
+    """当前生效引擎 CLIPLoader 可选 clip_name 清单;不可达/结构异常=None。
+
+    候选阶梯:bridge_url(远端联邦/本地桥解算)→ engine_manager().engine_url()
+    (自管实例运行口/账本口)。取数走 urlopen_outbound(回环恒直连——plain
+    urlopen 在带系统/环境代理的机器上会把 127.0.0.1 引擎探活吸进代理误判挂)。
+    """
+    candidates: list[str] = []
     try:
         from engines.image_engine.comfyui_bridge import bridge_url  # 惰性导入防环(同 engine_manager 范式)
-        req = request.Request(
-            f"{bridge_url()}/object_info/CLIPLoader",
-            headers={"User-Agent": "MYStudio-comfy-host/1.0"},
-        )
-        with request.urlopen(req, timeout=timeout) as response:
-            info = json.loads(response.read().decode("utf-8"))
-    except (OSError, error.URLError, json.JSONDecodeError, ValueError, EngineOpError):
-        return None
+        candidates.append(bridge_url())
+    except Exception:  # noqa: BLE001 — 解析链任何失败都降级下一候选
+        pass
     try:
-        combo = info["CLIPLoader"]["input"]["required"]["clip_name"][0]
-    except (TypeError, KeyError, IndexError):
-        return None
-    names = {name for name in combo if isinstance(name, str)}
-    return names or None
+        candidates.append(engine_manager().engine_url())
+    except Exception:  # noqa: BLE001 — 同上
+        pass
+    for base in dict.fromkeys(candidates):
+        try:
+            req = request.Request(
+                f"{base}/object_info/CLIPLoader",
+                headers={"User-Agent": "MYStudio-comfy-host/1.0"},
+            )
+            with urlopen_outbound(req, timeout=timeout) as response:
+                info = json.loads(response.read().decode("utf-8"))
+            combo = info["CLIPLoader"]["input"]["required"]["clip_name"][0]
+        except (OSError, error.URLError, json.JSONDecodeError, ValueError,
+                TypeError, KeyError, IndexError):
+            continue
+        names = {name for name in combo if isinstance(name, str)}
+        if names:
+            return names
+    return None
 
 
 def _adapt_pe_clip_names(content: str) -> str:

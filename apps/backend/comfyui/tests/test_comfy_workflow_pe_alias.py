@@ -138,7 +138,7 @@ class TestRealRepoCanvas:
 
 
 class TestEngineClipNamesProbe:
-    """探测函数本体:假 urlopen 验解析/fail-open,零网络。"""
+    """探测函数本体:假 urlopen_outbound 验解析/阶梯/fail-open,零网络。"""
 
     @staticmethod
     def _fake_urlopen(monkeypatch, payload):
@@ -154,10 +154,14 @@ class TestEngineClipNamesProbe:
 
             def __exit__(self, *args):
                 return False
-        monkeypatch.setattr(pm.request, "urlopen",
+        monkeypatch.setattr(pm, "urlopen_outbound",
                             lambda req, timeout: _Resp(json.dumps(payload).encode("utf-8")))
         monkeypatch.setattr("engines.image_engine.comfyui_bridge.bridge_url",
                             lambda: "http://127.0.0.1:17000", raising=False)
+
+        def _no_engine():
+            raise pm.EngineOpError("无自管实例")
+        monkeypatch.setattr(pm, "engine_manager", _no_engine)
 
     def test_extracts_combo(self, monkeypatch):
         self._fake_urlopen(monkeypatch, {"CLIPLoader": {"input": {"required": {
@@ -171,5 +175,36 @@ class TestEngineClipNamesProbe:
     def test_unreachable_returns_none(self, monkeypatch):
         def _boom(req, timeout):
             raise OSError("engine down")
-        monkeypatch.setattr(pm.request, "urlopen", _boom)
+        monkeypatch.setattr(pm, "urlopen_outbound", _boom)
+        monkeypatch.setattr("engines.image_engine.comfyui_bridge.bridge_url",
+                            lambda: "http://127.0.0.1:17000", raising=False)
+
+        def _no_engine():
+            raise pm.EngineOpError("无自管实例")
+        monkeypatch.setattr(pm, "engine_manager", _no_engine)
         assert pm._engine_clip_loader_names() is None
+
+    def test_second_candidate_rescues(self, monkeypatch, tmp_path):
+        """桥解算坠落死口(17598)时,阶梯二段 engine_url 救回。"""
+        seen = []
+
+        def _fake(req, timeout):
+            seen.append(req.full_url)
+            if "17598" in req.full_url:
+                raise OSError("dead port")
+            return type("R", (), {
+                "read": lambda s: json.dumps({"CLIPLoader": {"input": {"required": {
+                    "clip_name": [["x.safetensors"], {}]}}}}).encode("utf-8"),
+                "__enter__": lambda s: s, "__exit__": lambda s, *a: False})()
+
+        class _FakeEngine:
+            @staticmethod
+            def engine_url():
+                return "http://127.0.0.1:17000"
+
+        monkeypatch.setattr(pm, "urlopen_outbound", _fake)
+        monkeypatch.setattr("engines.image_engine.comfyui_bridge.bridge_url",
+                            lambda: "http://127.0.0.1:17598", raising=False)
+        monkeypatch.setattr(pm, "engine_manager", lambda: _FakeEngine())
+        assert pm._engine_clip_loader_names() == {"x.safetensors"}
+        assert seen[0].endswith("17598/object_info/CLIPLoader")
