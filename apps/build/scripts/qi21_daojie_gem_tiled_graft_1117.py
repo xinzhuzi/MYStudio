@@ -164,9 +164,9 @@ MOVE_USER = {
 }
 # 既有组框修正(按题名锚定;⑤ 縮为 503[+505] 贴身框/加速区縮为主体贴身框)
 GROUP_FIX = {
-    "t2i": {"道劫·⑤超分尾档·2K": [7260, 3890, 990, 1180],
+    "t2i": {"道劫·⑤超分尾档": [7260, 3890, 990, 1180],
             "道劫·加速区③": [4024, 1615, 1415, 1100]},
-    "i2i": {"道劫·⑤超分尾档·2K": [8360, 3840, 440, 518],
+    "i2i": {"道劫·⑤超分尾档": [8360, 3840, 440, 518],
             "道劫·加速区③": [6560, 710, 840, 700]},
 }
 CANVASES = {"t2i": T2I, "i2i": I2I}
@@ -372,6 +372,9 @@ def surgery_canvas(name: str, donors: dict) -> dict:
     for nid, pos in MOVE_USER[name].items():
         nodes[nid]["pos"] = list(pos)
     for g in wf["groups"]:
+        # 1118末 ⑤组正名:去「·2K」尾注(用户令,终图像素不定;前缀锚幂等就地改)
+        if g.get("title", "").startswith(SVR2_GROUP_PREFIX) and g["title"] != SVR2_GROUP_PREFIX:
+            g["title"] = SVR2_GROUP_PREFIX
         fix = GROUP_FIX[name].get(g.get("title", ""))
         if fix is not None:
             g["bounding"] = list(fix)
