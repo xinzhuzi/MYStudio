@@ -33,7 +33,7 @@ ARM_ROWS = [10, 35, 15, 20, 25, 30, 40, 45, 70, 80, 90, 100, 110]
 
 POS_NEW = {
     1: (X["c0"], 80), 2: (X["c0"], 428), 3: (X["c0"], 806), 4: (X["c0"], 1184),
-    52: (X["note"], 7600), 55: (X["c0"], 2600), 60: (X["c0"], 4000),
+    52: (X["note"], 7600), 55: (X["c0"], 1440), 60: (X["c0"], 4000),
     5: (X["c1"], 80), 6: (X["c2"], 380), 7: (X["c3"], 80), 8: (X["c4"], 80),
     65: (X["d"], 80), 66: (X["d"], 308),
     50: (X["comp"], 9600), 51: (X["save"], 9700),
@@ -85,6 +85,10 @@ GROUP_NEW = {
     "①b": [5160, 20, 420, 556],
     "⑤ ": [5660, 9540, 1040, 740],
 }
+# i2i 多一件 LoadImage(55) 落在装载列 4 号位下方，① 组框随之下探（仍只此一框）
+GROUP_NEW_OVERRIDE = {
+    "道劫-角色设定卡-i2i.json": {"① ": [640, 20, 420, 1888]},
+}
 
 
 class Fail(Exception):
@@ -110,6 +114,9 @@ def plan(name):
     if _dump(wf) != raw:
         raise Fail("JSON 序列化往返与原字节不一致（缩进/尾换行口径变化），拒绝改写")
 
+    group_new = dict(GROUP_NEW)
+    group_new.update(GROUP_NEW_OVERRIDE.get(name, {}))
+
     nodes = {n["id"]: n for n in wf["nodes"]}
     unknown = set(nodes) - set(POS_NEW)
     if unknown:
@@ -134,16 +141,16 @@ def plan(name):
     grp_state, seen = set(), []
     for g in wf.get("groups", []):
         key = g.get("title", "")[:2]
-        if key not in GROUP_NEW:
+        if key not in group_new:
             raise Fail("分组未登记：%r" % g.get("title"))
         seen.append(key)
-        if _box_eq(g["bounding"], GROUP_NEW[key]):
+        if _box_eq(g["bounding"], group_new[key]):
             grp_state.add("new")
         elif _box_eq(g["bounding"], GROUP_OLD[key]):
             grp_state.add("old")
         else:
             raise Fail("分组 %s bounding 既非修前也非修后：%r" % (key, g["bounding"]))
-    if sorted(seen) != sorted(GROUP_NEW):
+    if sorted(seen) != sorted(group_new):
         raise Fail("分组集合与登记表不一致：%s" % sorted(seen))
     if len(grp_state) != 1:
         raise Fail("分组处于修前/修后混合态，拒绝继续")
@@ -156,7 +163,7 @@ def plan(name):
     for nid, node in nodes.items():
         node["pos"] = [POS_NEW[nid][0], POS_NEW[nid][1]]
     for g in wf["groups"]:
-        g["bounding"] = list(GROUP_NEW[g["title"][:2]])
+        g["bounding"] = list(group_new[g["title"][:2]])
     return path, wf, "old"
 
 
