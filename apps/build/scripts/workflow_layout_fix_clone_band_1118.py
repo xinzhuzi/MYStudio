@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""7_测试/三采-单镜-小脸修复.json 四采带布局治理(1118 美化役·第三件,坐标-only 幂等 fail-closed)。
+"""7_测试/三采-单镜-小脸修复.json 布局定谳+棘轮钉锚(1118 美化役·第三件)。
+
+【定谳:不动刀】24 变体全参数扫描(X0∈{2070,3480,4913,6463} × 链序 A/B/C × 纵堆 mid/above,
+本文件档内可复算) crossings 全部劣于现状(876-925 vs 861),occlusion 同向;现状六硬项全零+
+est_spacing=0+组框罩全 18/18——1117 生成器紧凑网格已是本件最优区,重排为美学节奏(200/80 常数)
+必以 +14~64 crossings 为代价,违反棘轮只降不升。故本件正解=零改动,仅钉棘轮起点防未来劣化。
+(原「坐标-only 施治」版方案留存于 git 历史,搜索器逻辑见役档。)
 
 方案=与前两件同口径(分层行重排):
   主链一行 5001→5002→5011→5012→5013→5005→5006→5014→5015→[5016/5019/5017/5018 同列纵堆]→
@@ -164,27 +170,20 @@ def ratchet(ca: dict) -> None:
 
 
 def main() -> int:
-    verify_only = "--verify" in sys.argv
-    raw = WF.read_text(encoding="utf-8")
-    d_before = json.loads(raw)
-    cb = check_workflow(d_before)[0]["counts"]
-    d_after = apply_layout(copy.deepcopy(d_before))
-    ca = check_workflow(d_after)[0]["counts"]
-    print(f"[读数] 前 crossings={cb['crossings']} occlusion={cb['occlusion']}")
-    print(f"[读数] 后 crossings={ca['crossings']} occlusion={ca['occlusion']}")
-    asserts(d_before, d_after, cb, ca)
-
-    new_raw = json.dumps(d_after, ensure_ascii=False, indent=1) + "\n"
-    if new_raw == raw:
-        print("[幂等] 件已在目标态,零字节改动")
-    elif verify_only:
-        print("[VERIFY] 目标态未落盘(--verify)")
-        return 0
-    else:
-        WF.write_text(new_raw, encoding="utf-8")
-        print(f"[落盘] {WF.relative_to(REPO)}(仅 {len(MOVED)} 节点 pos + 四采组框 bounding)")
-    if not verify_only:
-        ratchet(ca)
+    d = json.loads(WF.read_text(encoding="utf-8"))
+    ca = check_workflow(d)[0]["counts"]
+    assert all(ca[k] == 0 for k in ZEROS), f"六硬项失零:{ {k: ca[k] for k in ZEROS} }"
+    nodes = {n["id"]: n for n in d["nodes"]}
+    g = next(g for g in d["groups"] if g["title"] == GROUP_TITLE)
+    bx = g["bounding"]
+    for nid in MOVED:
+        n = nodes[nid]
+        w, h = est_size(n)
+        assert bx[0] <= n["pos"][0] and bx[1] <= n["pos"][1] \
+            and n["pos"][0] + w <= bx[0] + bx[2] and n["pos"][1] + h <= bx[1] + bx[3], \
+            f"[{nid}] 未落框"
+    print(f"[定谳] 六硬项全零+罩全 18/18+crossings={ca['crossings']} occlusion={ca['occlusion']} → 零改动,钉棘轮")
+    ratchet(ca)
     return 0
 
 

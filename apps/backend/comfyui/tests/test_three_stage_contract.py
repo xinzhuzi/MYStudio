@@ -375,8 +375,8 @@ def test_facerefine_inline_arm_1118():
     arm = {25, 1065, 4100, 5002, 5006, 5011, 5012, 5013, 5014, 5015,
            5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5100}
     assert arm <= set(nodes), f"四采臂缺件: {arm - set(nodes)}"
-    assert len(nodes) == 86, \
-        "画布节点数=86(66+19 四采臂+lowvram役#1072;PRD「66+21=87」为修订前残数,生成器对账注记)"
+    assert len(nodes) == 87, \
+        "画布节点数=87(66+19 四采臂+lowvram役#1072+clip_vision#800;1118 追踪参数同步役)"
     assert nodes[1065]["type"] == "PrimitiveBoolean" and nodes[1065]["widgets_values"] == [False], \
         "[1065] 四采开关出厂必须 False(默认旁路,PRD 单向门#1)"
     assert nodes[25]["type"] == "PrimitiveStringMultiline" and \

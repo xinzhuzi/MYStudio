@@ -189,6 +189,33 @@
       ]
     }
   },
+  "5030": {
+    "class_type": "GetVideoComponents",
+    "inputs": {
+      "video": [
+        "36",
+        0
+      ]
+    }
+  },
+  "5031": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "5030",
+        0
+      ],
+      "audio": [
+        "5030",
+        1
+      ],
+      "fps": 24,
+      "bit_depth": "auto",
+      "color_space": "sRGB",
+      "chroma_subsampling": "auto",
+      "codec": "none"
+    }
+  },
   "25": {
     "class_type": "PrimitiveStringMultiline",
     "inputs": {
@@ -205,7 +232,7 @@
     "class_type": "GetVideoComponents",
     "inputs": {
       "video": [
-        "36",
+        "5031",
         0
       ]
     }
@@ -239,8 +266,16 @@
       "smooth_method": "gaussian",
       "size_mode": "per_frame",
       "identity_track": true,
-      "identity_threshold": 0.28,
-      "select": "largest_face",
+      "identity_threshold": 0.0,
+      "select": "closest_to_xy",
+      "X": 1920,
+      "Y": 900,
+      "frame_index": 170,
+      "identity_model": "clip_vision",
+      "identity_clip_vision": [
+        800,
+        0
+      ],
       "fallback_detector": "segm\\person_yolov8m-seg.pt",
       "fallback_head_frac": 0.5
     }
@@ -466,7 +501,7 @@
         0
       ],
       "on_false": [
-        "36",
+        "5031",
         0
       ],
       "on_true": [

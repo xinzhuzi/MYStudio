@@ -2,7 +2,7 @@
   "id": "h3-autocontext-multiseg",
   "revision": 1,
   "last_node_id": 9999,
-  "last_link_id": 92,
+  "last_link_id": 130,
   "nodes": [
     {
       "id": 2,
@@ -150,9 +150,9 @@
             8,
             24,
             38,
-            68,
-            69,
-            70
+            107,
+            108,
+            109
           ],
           "slot_index": 0
         }
@@ -190,8 +190,8 @@
             10,
             25,
             39,
-            71,
-            72
+            110,
+            111
           ],
           "slot_index": 0
         }
@@ -227,7 +227,7 @@
           "links": [
             3,
             23,
-            73
+            112
           ],
           "slot_index": 0
         }
@@ -1671,8 +1671,8 @@
           "links": [
             42,
             44,
-            54,
-            55
+            93,
+            94
           ]
         }
       ],
@@ -1867,6 +1867,47 @@
       "title": "README(恒居组外)"
     },
     {
+      "id": 1066,
+      "type": "MiniMaxLowVRAMAttention",
+      "pos": [
+        300,
+        1500
+      ],
+      "size": [
+        300,
+        130
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 92
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1,
+            15,
+            99
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxLowVRAMAttention",
+        "cnr_id": "comfyui-kjnodes"
+      },
+      "widgets_values": [
+        2
+      ],
+      "title": "H3 Low VRAM Attn(削峰·头分块 1118)"
+    },
+    {
       "id": 25,
       "type": "PrimitiveStringMultiline",
       "pos": [
@@ -1896,7 +1937,7 @@
           "name": "STRING",
           "type": "STRING",
           "links": [
-            74
+            113
           ]
         }
       ],
@@ -1945,7 +1986,7 @@
           "name": "BOOLEAN",
           "type": "BOOLEAN",
           "links": [
-            90
+            129
           ]
         }
       ],
@@ -1975,7 +2016,7 @@
         {
           "name": "video",
           "type": "VIDEO",
-          "link": 54
+          "link": 93
         }
       ],
       "outputs": [
@@ -1983,16 +2024,16 @@
           "name": "images",
           "type": "IMAGE",
           "links": [
-            56,
-            57
+            95,
+            96
           ]
         },
         {
           "name": "audio",
           "type": "AUDIO",
           "links": [
-            58,
-            59
+            97,
+            98
           ]
         },
         {
@@ -2033,7 +2074,7 @@
           "localized_name": "model",
           "name": "model",
           "type": "MODEL",
-          "link": 60
+          "link": 99
         },
         {
           "localized_name": "lora_name",
@@ -2058,7 +2099,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            61
+            100
           ]
         }
       ],
@@ -2098,7 +2139,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 56
+          "link": 95
         },
         {
           "name": "identity_reference",
@@ -2111,15 +2152,15 @@
           "name": "crops",
           "type": "IMAGE",
           "links": [
-            62
+            101
           ]
         },
         {
           "name": "transform",
           "type": "H3FACEXFORM",
           "links": [
-            63,
-            64
+            102,
+            103
           ]
         },
         {
@@ -2134,14 +2175,14 @@
           "name": "canvas_w",
           "type": "INT",
           "links": [
-            65
+            104
           ]
         },
         {
           "name": "canvas_h",
           "type": "INT",
           "links": [
-            66
+            105
           ]
         },
         {
@@ -2165,7 +2206,7 @@
         "per_frame",
         true,
         0.28,
-        "largest_face",
+        "closest_to_xy",
         "segm\\person_yolov8m-seg.pt",
         0.5,
         0,
@@ -2173,9 +2214,9 @@
         "none",
         3.0,
         "off",
-        0,
-        0,
-        0
+        1920,
+        900,
+        170
       ],
       "color": "#322",
       "bgcolor": "#533",
@@ -2199,19 +2240,19 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 73
+          "link": 112
         },
         {
           "name": "vae",
           "shape": 7,
           "type": "VAE",
-          "link": 68
+          "link": 107
         },
         {
           "name": "audio_vae",
           "shape": 7,
           "type": "VAE",
-          "link": 71
+          "link": 110
         },
         {
           "label": "ref_image_0",
@@ -2277,7 +2318,7 @@
           "widget": {
             "name": "prompt"
           },
-          "link": 74
+          "link": 113
         },
         {
           "name": "width",
@@ -2285,7 +2326,7 @@
           "widget": {
             "name": "width"
           },
-          "link": 65
+          "link": 104
         },
         {
           "name": "height",
@@ -2293,7 +2334,7 @@
           "widget": {
             "name": "height"
           },
-          "link": 66
+          "link": 105
         },
         {
           "name": "length",
@@ -2332,14 +2373,14 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            80
+            119
           ]
         },
         {
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            67
+            106
           ]
         }
       ],
@@ -2377,17 +2418,17 @@
         {
           "name": "av_latent",
           "type": "LATENT",
-          "link": 67
+          "link": 106
         },
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 62
+          "link": 101
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 69
+          "link": 108
         }
       ],
       "outputs": [
@@ -2395,7 +2436,7 @@
           "name": "av_latent",
           "type": "LATENT",
           "links": [
-            75
+            114
           ]
         },
         {
@@ -2429,22 +2470,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 61
+          "link": 100
         },
         {
           "name": "av_latent",
           "type": "LATENT",
-          "link": 75
+          "link": 114
         },
         {
           "name": "audio_vae",
           "type": "VAE",
-          "link": 72
+          "link": 111
         },
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 58
+          "link": 97
         }
       ],
       "outputs": [
@@ -2452,14 +2493,14 @@
           "name": "model",
           "type": "MODEL",
           "links": [
-            76
+            115
           ]
         },
         {
           "name": "av_latent",
           "type": "LATENT",
           "links": [
-            77
+            116
           ]
         },
         {
@@ -2493,17 +2534,17 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 76
+          "link": 115
         },
         {
           "name": "av_latent",
           "type": "LATENT",
-          "link": 77
+          "link": 116
         },
         {
           "name": "transform",
           "type": "H3FACEXFORM",
-          "link": 63
+          "link": 102
         }
       ],
       "outputs": [
@@ -2511,7 +2552,7 @@
           "name": "av_latent",
           "type": "LATENT",
           "links": [
-            85
+            124
           ]
         },
         {
@@ -2522,8 +2563,8 @@
           "name": "model",
           "type": "MODEL",
           "links": [
-            78,
-            79
+            117,
+            118
           ]
         }
       ],
@@ -2563,7 +2604,7 @@
           "name": "NOISE",
           "type": "NOISE",
           "links": [
-            81
+            120
           ]
         }
       ],
@@ -2598,7 +2639,7 @@
           "name": "SAMPLER",
           "type": "SAMPLER",
           "links": [
-            83
+            122
           ]
         }
       ],
@@ -2630,7 +2671,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 78
+          "link": 117
         }
       ],
       "outputs": [
@@ -2639,7 +2680,7 @@
           "type": "SIGMAS",
           "slot_index": 0,
           "links": [
-            84
+            123
           ]
         }
       ],
@@ -2671,12 +2712,12 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 79
+          "link": 118
         },
         {
           "name": "conditioning",
           "type": "CONDITIONING",
-          "link": 80
+          "link": 119
         }
       ],
       "outputs": [
@@ -2684,7 +2725,7 @@
           "name": "GUIDER",
           "type": "GUIDER",
           "links": [
-            82
+            121
           ]
         }
       ],
@@ -2713,27 +2754,27 @@
         {
           "name": "noise",
           "type": "NOISE",
-          "link": 81
+          "link": 120
         },
         {
           "name": "guider",
           "type": "GUIDER",
-          "link": 82
+          "link": 121
         },
         {
           "name": "sampler",
           "type": "SAMPLER",
-          "link": 83
+          "link": 122
         },
         {
           "name": "sigmas",
           "type": "SIGMAS",
-          "link": 84
+          "link": 123
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 85
+          "link": 124
         }
       ],
       "outputs": [
@@ -2741,7 +2782,7 @@
           "name": "output",
           "type": "LATENT",
           "links": [
-            86
+            125
           ]
         },
         {
@@ -2776,12 +2817,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 86
+          "link": 125
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 70
+          "link": 109
         }
       ],
       "outputs": [
@@ -2789,7 +2830,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            87
+            126
           ]
         }
       ],
@@ -2818,17 +2859,17 @@
         {
           "name": "base_images",
           "type": "IMAGE",
-          "link": 57
+          "link": 96
         },
         {
           "name": "refined_crops",
           "type": "IMAGE",
-          "link": 87
+          "link": 126
         },
         {
           "name": "transform",
           "type": "H3FACEXFORM",
-          "link": 64
+          "link": 103
         },
         {
           "name": "masks",
@@ -2841,7 +2882,7 @@
           "name": "images",
           "type": "IMAGE",
           "links": [
-            88
+            127
           ]
         }
       ],
@@ -2879,13 +2920,13 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 88
+          "link": 127
         },
         {
           "name": "audio",
           "shape": 7,
           "type": "AUDIO",
-          "link": 59
+          "link": 98
         }
       ],
       "outputs": [
@@ -2893,7 +2934,7 @@
           "name": "VIDEO",
           "type": "VIDEO",
           "links": [
-            89
+            128
           ]
         }
       ],
@@ -2931,17 +2972,17 @@
           "widget": {
             "name": "switch"
           },
-          "link": 90
+          "link": 129
         },
         {
           "name": "on_false",
           "type": "COMFY_MATCHTYPE_V3",
-          "link": 55
+          "link": 94
         },
         {
           "name": "on_true",
           "type": "COMFY_MATCHTYPE_V3",
-          "link": 89
+          "link": 128
         }
       ],
       "outputs": [
@@ -2949,7 +2990,7 @@
           "name": "COMFY_MATCHTYPE_V3",
           "type": "COMFY_MATCHTYPE_V3",
           "links": [
-            91
+            130
           ]
         }
       ],
@@ -2980,7 +3021,7 @@
           "localized_name": "video",
           "name": "video",
           "type": "VIDEO",
-          "link": 91
+          "link": 130
         },
         {
           "localized_name": "filename_prefix",
@@ -3031,47 +3072,6 @@
         "auto"
       ],
       "title": "终档保存 p-final"
-    },
-    {
-      "id": 1066,
-      "type": "MiniMaxLowVRAMAttention",
-      "pos": [
-        300,
-        1500
-      ],
-      "size": [
-        300,
-        130
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 92
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            1,
-            15,
-            60
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "MiniMaxLowVRAMAttention",
-        "cnr_id": "comfyui-kjnodes"
-      },
-      "widgets_values": [
-        2
-      ],
-      "title": "H3 Low VRAM Attn(削峰·头分块 1118)"
     }
   ],
   "links": [
@@ -3492,7 +3492,15 @@
       "SIGMAS"
     ],
     [
-      54,
+      92,
+      34,
+      0,
+      1066,
+      0,
+      "MODEL"
+    ],
+    [
+      93,
       3053,
       0,
       5002,
@@ -3500,7 +3508,7 @@
       "VIDEO"
     ],
     [
-      55,
+      94,
       3053,
       0,
       5100,
@@ -3508,7 +3516,7 @@
       "COMFY_MATCHTYPE_V3"
     ],
     [
-      56,
+      95,
       5002,
       0,
       5011,
@@ -3516,7 +3524,7 @@
       "IMAGE"
     ],
     [
-      57,
+      96,
       5002,
       0,
       5022,
@@ -3524,7 +3532,7 @@
       "IMAGE"
     ],
     [
-      58,
+      97,
       5002,
       1,
       5014,
@@ -3532,7 +3540,7 @@
       "AUDIO"
     ],
     [
-      59,
+      98,
       5002,
       1,
       5023,
@@ -3540,7 +3548,7 @@
       "AUDIO"
     ],
     [
-      60,
+      99,
       1066,
       0,
       5006,
@@ -3548,7 +3556,7 @@
       "MODEL"
     ],
     [
-      61,
+      100,
       5006,
       0,
       5014,
@@ -3556,7 +3564,7 @@
       "MODEL"
     ],
     [
-      62,
+      101,
       5011,
       0,
       5013,
@@ -3564,7 +3572,7 @@
       "IMAGE"
     ],
     [
-      63,
+      102,
       5011,
       1,
       5015,
@@ -3572,7 +3580,7 @@
       "H3FACEXFORM"
     ],
     [
-      64,
+      103,
       5011,
       1,
       5022,
@@ -3580,7 +3588,7 @@
       "H3FACEXFORM"
     ],
     [
-      65,
+      104,
       5011,
       4,
       5012,
@@ -3588,7 +3596,7 @@
       "INT"
     ],
     [
-      66,
+      105,
       5011,
       5,
       5012,
@@ -3596,7 +3604,7 @@
       "INT"
     ],
     [
-      67,
+      106,
       5012,
       1,
       5013,
@@ -3604,7 +3612,7 @@
       "LATENT"
     ],
     [
-      68,
+      107,
       7,
       0,
       5012,
@@ -3612,7 +3620,7 @@
       "VAE"
     ],
     [
-      69,
+      108,
       7,
       0,
       5013,
@@ -3620,7 +3628,7 @@
       "VAE"
     ],
     [
-      70,
+      109,
       7,
       0,
       5021,
@@ -3628,7 +3636,7 @@
       "VAE"
     ],
     [
-      71,
+      110,
       13,
       0,
       5012,
@@ -3636,7 +3644,7 @@
       "VAE"
     ],
     [
-      72,
+      111,
       13,
       0,
       5014,
@@ -3644,7 +3652,7 @@
       "VAE"
     ],
     [
-      73,
+      112,
       21,
       0,
       5012,
@@ -3652,7 +3660,7 @@
       "CLIP"
     ],
     [
-      74,
+      113,
       25,
       0,
       5012,
@@ -3660,7 +3668,7 @@
       "STRING"
     ],
     [
-      75,
+      114,
       5013,
       0,
       5014,
@@ -3668,7 +3676,7 @@
       "LATENT"
     ],
     [
-      76,
+      115,
       5014,
       0,
       5015,
@@ -3676,7 +3684,7 @@
       "MODEL"
     ],
     [
-      77,
+      116,
       5014,
       1,
       5015,
@@ -3684,7 +3692,7 @@
       "LATENT"
     ],
     [
-      78,
+      117,
       5015,
       2,
       5018,
@@ -3692,7 +3700,7 @@
       "MODEL"
     ],
     [
-      79,
+      118,
       5015,
       2,
       5019,
@@ -3700,7 +3708,7 @@
       "MODEL"
     ],
     [
-      80,
+      119,
       5012,
       0,
       5019,
@@ -3708,7 +3716,7 @@
       "CONDITIONING"
     ],
     [
-      81,
+      120,
       5016,
       0,
       5020,
@@ -3716,7 +3724,7 @@
       "NOISE"
     ],
     [
-      82,
+      121,
       5019,
       0,
       5020,
@@ -3724,7 +3732,7 @@
       "GUIDER"
     ],
     [
-      83,
+      122,
       5017,
       0,
       5020,
@@ -3732,7 +3740,7 @@
       "SAMPLER"
     ],
     [
-      84,
+      123,
       5018,
       0,
       5020,
@@ -3740,7 +3748,7 @@
       "SIGMAS"
     ],
     [
-      85,
+      124,
       5015,
       0,
       5020,
@@ -3748,7 +3756,7 @@
       "LATENT"
     ],
     [
-      86,
+      125,
       5020,
       0,
       5021,
@@ -3756,7 +3764,7 @@
       "LATENT"
     ],
     [
-      87,
+      126,
       5021,
       0,
       5022,
@@ -3764,7 +3772,7 @@
       "IMAGE"
     ],
     [
-      88,
+      127,
       5022,
       0,
       5023,
@@ -3772,7 +3780,7 @@
       "IMAGE"
     ],
     [
-      89,
+      128,
       5023,
       0,
       5100,
@@ -3780,7 +3788,7 @@
       "COMFY_MATCHTYPE_V3"
     ],
     [
-      90,
+      129,
       1065,
       0,
       5100,
@@ -3788,20 +3796,12 @@
       "BOOLEAN"
     ],
     [
-      91,
+      130,
       5100,
       0,
       4100,
       0,
       "VIDEO"
-    ],
-    [
-      92,
-      34,
-      0,
-      1066,
-      0,
-      "MODEL"
     ]
   ],
   "groups": [

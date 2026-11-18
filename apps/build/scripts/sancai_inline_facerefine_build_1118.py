@@ -120,8 +120,8 @@ WIDGETS: dict[int, list | None] = {
     25: [IDENTITY], 1065: [False],
     5002: None, 5006: ["pika_turbo_8step_fl2va.safetensors", 1],
     5011: ["face_yolov8m.pt", 0.15, 2.5, 768, 768, "auto_capped_768", 21, 51, "gaussian",
-           "per_frame", True, 0.28, "largest_face", "segm\\person_yolov8m-seg.pt", 0.5, 0,
-           "insightface", "none", 3.0, "off", 0, 0, 0],
+           "per_frame", True, 0.0, "closest_to_xy", "segm\\person_yolov8m-seg.pt", 0.5, 0,
+           "clip_vision", "none", 3.0, "off", 1920, 900, 170],
     5012: ["", 768, 768, 124, "max"],
     5013: None, 5014: None,
     5015: [1.0, 0.35, "absolute_px", 60.0, 200.0, 1, 9],
@@ -188,7 +188,9 @@ API_NEW: dict[str, dict] = {
         "canvas_width": 768, "canvas_height": 768, "canvas_mode": "auto_capped_768",
         "smooth_window": 21, "size_smooth_window": 51, "smooth_method": "gaussian",
         "size_mode": "per_frame", "identity_track": True, "identity_threshold": 0.28,
-        "select": "largest_face", "fallback_detector": "segm\\person_yolov8m-seg.pt",
+        "select": "closest_to_xy", "X": 1920, "Y": 900, "frame_index": 170,
+            "identity_model": "clip_vision", "identity_threshold": 0.0,
+            "identity_clip_vision": [800, 0], "fallback_detector": "segm\\person_yolov8m-seg.pt",
         "fallback_head_frac": 0.5}},
     "5012": {"class_type": "MiniMaxH3ReferenceToVideo", "inputs": {
         "clip": ["1002", 0], "vae": ["1003", 0], "audio_vae": ["1004", 0],
@@ -374,8 +376,8 @@ def check() -> int:
     print("  NOTE  节点数口径:PRD §1.1 标题「66+21=87」为修订前残数(21=19+已删 5001 LoadVideo/"
           "5005 UNETLoader);按 §1.1 拓扑枚举报 19;另有 lowvram役(81f8909f)#1072 插桩 1 件"
           "不在本组剥离面 → 画布 86 / API 84,自检按现役文件断言")
-    ok(n_canvas == 86, f"画布节点数=86(66+19 臂+lowvram#1072),实际 {n_canvas}")
-    ok(n_api == 84, f"API 节点数=84(64+19 臂+lowvram#1072),实际 {n_api}")
+    ok(n_canvas == 87, f"画布节点数=87(66+19 臂+lowvram#1072+clip_vision#800),实际 {n_canvas}")
+    ok(n_api == 85, f"API 节点数=85(64+19 臂+lowvram#1072+clip_vision#800),实际 {n_api}")
 
     ids = [n["id"] for n in S["nodes"]]
     ok(len(ids) == len(set(ids)), "画布节点 id 唯一")
@@ -460,7 +462,7 @@ def main() -> int:
     write_json(CANVAS, S)
     A = build_api(json.loads(API.read_text(encoding="utf-8")))
     write_json(API, A)
-    print(f"[OK] 画布 {CANVAS.name}:{len(S['nodes'])} 节点(66+19 臂+lowvram#1072)/ {len(S['links'])} 链 / {len(S['groups'])} 组")
+    print(f"[OK] 画布 {CANVAS.name}:{len(S['nodes'])} 节点(66+19 臂+lowvram#1072+clip_vision#800)/ {len(S['links'])} 链 / {len(S['groups'])} 组")
     print(f"[OK] API {API.name}:{len(A)} 节点(64+19)")
     return check()
 

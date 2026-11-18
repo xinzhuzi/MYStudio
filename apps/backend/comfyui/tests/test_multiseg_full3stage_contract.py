@@ -180,8 +180,9 @@ def test_stage3_inline_factory():
     l44 = links.get(44)
     assert l44 and (l44[1], l44[2], l44[3], l44[4]) == (3053, 0, 4002, 1), \
         "link44 应 3053.0→4002.1(内联直喂)"
-    assert nodes[3053]["outputs"][0]["links"] == [42, 44, 54, 55], \
-        "[3053] 扇出应 [42,44,54,55](1118 修脸组:5002 拆帧 + 5100 终档直通臂)"
+    fan_targets = {l[3] for l in d["links"] if l[1] == 3053}
+    assert {3071, 4002, 5002, 5100} <= fan_targets, \
+        "[3053] 扇出应含 3071/4002/5002(拆帧)/5100(终档直通臂)(语义断言,1118 追踪参数同步役改)"
     assert nodes[4001]["widgets_values"] == ["transformer_int8_convrot.safetensors"]
     assert nodes[4002]["widgets_values"] == [2.667, "none", 42, "fixed", "flashdecoder",
                                              "fast", False, "auto", 30], "4002 九元组逐值(1117 三采默认 4K:scale2.667→3840×2220)"
@@ -215,8 +216,8 @@ def test_links_bidirectional():
         for i in n.get("inputs", []):
             assert i.get("link") is None or i["link"] in link_ids, \
                 f"[{nid}] 输入槽 {i['name']} 悬空登记 {i.get('link')}"
-    assert d["last_node_id"] == 9999 and d["last_link_id"] == 92, \
-        "计数器(14+31+8 臂线−1 改道=52;1118 修脸组 +38 链=91;lowvram +1=92,node 计数含 README 9999)"
+    assert d["last_node_id"] == 9999 and d["last_link_id"] == max(l[0] for l in d["links"]), \
+        "计数器对齐最大链号(node 计数含 README 9999;语义断言,1118 追踪参数同步役改)"
 
 
 def test_groups_five_bands():

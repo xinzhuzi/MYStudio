@@ -7,7 +7,7 @@
 
   链尾终采 VIDEO 出口 = 3053 CreateVideo(二采 p2 出片口;4001-4003 ReCaVSR 出厂 mode4 旁路,
     其 video 输入恰为 3053.VIDEO——修脸组接 3053 与段B 正交,零改动段B)
-  唯一 UNETLoader   = 34   (5006 LoraLoaderModelOnly.model←34 复用,全图仍无第二 UNETLoader)
+  唯一 UNETLoader   = 34   (5006 LoraLoaderModelOnly.model←1066 lowvram 头复用,全图仍无第二 UNETLoader)
   CLIP/视频VAE/音频VAE = 21 / 7 / 13 (101/3031 同源件)
   宽高               = 5011 H3FaceTrackCrop.canvas_w/canvas_h 出口联线(勿手填,同母本)
   帧数               = 本件无帧数图出口(100 H3Parameter 只出 DICT;#52 ComfyMathExpression 是
@@ -18,7 +18,7 @@
                        2-41/100-102/1021-1046/3001-3071/4001-4003/9999 全不撞,零重编号)
 
 节点数:画布 41→60(+19;lowvram役 81f8909f 后又 +1066=61,check 按 61 对账)/API
-h3-multiseg-template.api.json(平铺 prompt dict,已核无 wrapper)14→33(+19)。
+h3-multiseg-template.api.json(平铺 prompt dict,已核无 wrapper)14→35(+19+remux5030/5031)。
 API 侧链尾=36 CreateVideo(一采直出门自己的终采口),5002/5100 接 36。
 
 ⚠ 真源关系(头注刻碑):本件手术入口=本生成器(读盘剥离+重放,幂等);既有
@@ -59,6 +59,12 @@ OWN: dict[int, str] = MB.OWN                # 19 节点规格(id→class_type),�
 WIDGETS = {k: (list(v) if v is not None else None) for k, v in MB.WIDGETS.items()}
 WIDGETS[5012] = ["", 768, 768, LENGTH, "max"]   # length=56 出厂(3031 同值);宽高位被 5011 联线覆盖
 WIDGETS[4100] = [PREFIX_P_FINAL, "auto", "auto", "auto"]  # p-final 前缀换本件口径(勿承三采 chapter-001)
+# 5011 追踪分策(1118 收尾):锚三元组取母本终版(closest_to_xy/1920/900/@f170),身份栈退回
+# insightface+0.28——本件布线密度无余量(490 位仪表扫描实证任何新线必破棘轮),免 CLIPVision
+# 装载器;七发探针定谳 clip_vision 身份全程 never consulted,锚才是根因修复。
+_w = WIDGETS[5011]
+_w[11], _w[16] = 0.28, "insightface"
+WIDGETS[5011] = _w
 
 GROUP_A_TITLE = "四采修脸组(5000 段·默认旁路·1118 multiseg)"
 GROUP_B_TITLE = "终档组(p-final·四采开关·1118 multiseg)"
@@ -115,7 +121,7 @@ WIRING = [
     (5002, "images", 5022, "base_images"),
     (5002, "audio", 5014, "audio"),
     (5002, "audio", 5023, "audio"),
-    (UNET, "MODEL", 5006, "model"),
+    (1066, "MODEL", 5006, "model"),  # 81f8909f lowvram G4:修脸臂模型经 1066 分块收束点(34→1066→5006)
     (5006, "MODEL", 5014, "model"),
     (5011, "crops", 5013, "images"),
     (5011, "transform", 5015, "transform"),
@@ -166,7 +172,7 @@ def api_node(k: str) -> dict:
     d = copy.deepcopy(MB.API_NEW[k])
     ins = d["inputs"]
     if k == "5002":
-        ins["video"] = [str(API_TAIL), 0]
+        ins["video"] = ["5031", 0]  # remux 出口(lazy-switch 禁吃 auto-context 边界 36,1118 探针定谳)
     elif k == "5006":
         ins["model"] = [str(UNET), 0]
     elif k == "5012":
@@ -182,7 +188,7 @@ def api_node(k: str) -> dict:
     elif k == "5021":
         ins["vae"] = [str(VAE_V), 0]
     elif k == "5100":
-        ins["on_false"] = [str(API_TAIL), 0]
+        ins["on_false"] = ["5031", 0]
     elif k == "4100":
         ins["filename_prefix"] = PREFIX_P_FINAL
     return d
@@ -280,6 +286,11 @@ def build_api(A: dict) -> dict:
         A.pop(str(k), None)
     for k in OWN:  # 固定插入序,重跑字节稳定
         A[str(k)] = api_node(str(k))
+    # remux 出口(1118 探针定谳:lazy-switch 禁吃 auto-context 边界 36;常规则链破边界)
+    A["5030"] = {"class_type": "GetVideoComponents", "inputs": {"video": [str(API_TAIL), 0]}}
+    A["5031"] = {"class_type": "CreateVideo", "inputs": {"images": ["5030", 0], "audio": ["5030", 1],
+                  "fps": 24, "bit_depth": "auto", "color_space": "sRGB",
+                  "chroma_subsampling": "auto", "codec": "none"}}
     return A
 
 
@@ -302,7 +313,7 @@ def check() -> int:
     n_canvas, n_api = len(S["nodes"]), len(A)
     print(f"[CHECK] 画布节点 {n_canvas}(41+{n_canvas - 41}) / API 节点 {n_api}(14+{n_api - 14})")
     ok(n_canvas == 61, f"画布节点数=61(41+19 修脸组+lowvram役#1066),实际 {n_canvas}")
-    ok(n_api == 33, f"API 节点数=33(14+19),实际 {n_api}")
+    ok(n_api == 35, f"API 节点数=35(14+19+remux5030/5031),实际 {n_api}")
 
     ids = [n["id"] for n in S["nodes"]]
     idset = set(ids)
@@ -363,8 +374,9 @@ def check() -> int:
        and wired(5014, "audio", 5002) and wired(5019, "conditioning", 5012)
        and wired(5020, "noise", 5016),
        f"关键联线拓扑(5002←{TAIL}/5100 双臂+开关/4100←5100/5006←{UNET}/5014.audio←5002②/5019←5012/5020←5016)")
-    ok(A["5002"]["inputs"]["video"] == [str(API_TAIL), 0]
-       and A["5100"]["inputs"]["on_false"] == [str(API_TAIL), 0]
+    ok(A["5002"]["inputs"]["video"] == ["5031", 0]
+       and A["5100"]["inputs"]["on_false"] == ["5031", 0]
+       and A["5030"]["inputs"]["video"] == [str(API_TAIL), 0]
        and A["5100"]["inputs"]["on_true"] == ["5023", 0]
        and A["4100"]["inputs"]["video"] == ["5100", 0]
        and A["5006"]["inputs"]["model"] == [str(UNET), 0]
