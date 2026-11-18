@@ -440,3 +440,26 @@ describe("十五刀A:sanitizeAssetPromptForIdentity(资产 prompt 列洗版)", (
     expect(sanitizeAssetPromptForIdentity("图中不要有任何文字，禁止写实摄影，严禁照片级真实感")).toBe("");
   });
 });
+
+describe("十六刀:设定图排版指令段剔除(S01/S02 并排四视图实弹根因)", () => {
+  it("① 赵四实录:并排四视图/取景范围/纯色背景/一致性指令全剔", () => {
+    const raw = "约三十岁的男性码头监工，凶横刻薄，宽方厚重脸，宣纸白纯色背景，无场景元素，同一画面从左至右并排四视图：人像特写自头顶至锁骨完整入画，正面，侧面，背面全身立像自头顶至脚底完整入画，四视图面容，体型，发型，基础服装完全一致";
+    const out = sanitizeAssetPromptForIdentity(raw);
+    expect(out).toContain("凶横刻薄");
+    expect(out).not.toContain("并排");
+    expect(out).not.toContain("视图");
+    expect(out).not.toContain("立像");
+    expect(out).not.toContain("纯色背景");
+    expect(out).not.toContain("无场景");
+    expect(out).not.toContain("自头顶");
+    expect(out).not.toContain("完全一致");
+  });
+
+  it("② 铁山首段「四视图设定图」整段剔,水墨视觉文保留", () => {
+    const out = sanitizeAssetPromptForIdentity("男性角色四视图设定图，水墨国风，修仙古韵，面容粗犷坚毅");
+    expect(out).not.toContain("四视图");
+    expect(out).not.toContain("设定图");
+    expect(out).toContain("水墨国风");
+    expect(out).toContain("面容粗犷坚毅");
+  });
+});

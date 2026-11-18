@@ -388,6 +388,16 @@ export function sanitizeAssetPromptForIdentity(text: string): string {
     if (/不要|禁[止用]|严禁|避免|不得|无文字|图中不|画面不|去除|抹掉/.test(segment)) return false;
     if (/[a-zA-Z]{3,}/.test(segment)) return false; // 英文资产标签(character design sheet)
     if (/散光|柔光|打光|布光|光源/.test(segment)) return false; // 布光指令(型层域)
+    // 1118 十六刀:设定图排版指令段(十五刀漏网根因,S01/S02 实弹「并排四视
+    // 图」→模型忠实画 4-5 副本实录)——资产 prompt 列=立绘设定图文体,排版
+    // 语(纯色背景/无场景/并排/视图枚举/取景范围/一致性指令)全部是「怎么排
+    // 版设定图」而非「这个人长什么样」,进分镜正文=明示多副本。段级整剔。
+    if (/并排|视图|视角|多角度/.test(segment)) return false; // 四视图/同一画面并排
+    if (/立像|入画|完整入画|设定图|立绘/.test(segment)) return false;
+    if (/自头顶|至锁骨|至脚底|人像特写/.test(segment)) return false; // 取景范围
+    if (/纯色背景|白背景|无场景|背景为|背景是/.test(segment)) return false; // 设定图布景
+    if (/完全一致|保持一致/.test(segment)) return false; // 视图一致性指令
+    if (/^(正面|侧面|背面|全身|半身|特写|坐像)$/.test(segment)) return false; // 视点枚举段
     return true;
   });
   return kept.join(",");
