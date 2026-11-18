@@ -17,7 +17,8 @@ fail-closed:术前态逐位断言(旧值/新值二态机,半改态或异构态�
 零扰动:before/after 深比对差异恰=四点路径,其余全等。
 
 A 硬边界明示不动清单(断言+深比对双保险,本脚本禁改):
-  [8116]=[10,2,256,32,64,True]、[8120]=[1,"translation",64,0]、
+  [8116]=[8.25,2,256,32,64,True](1118末 4K帽令 10→8.25,HARD_BORDER 与 graft
+  DEVIATIONS 同步,非本换装令所改)、[8120]=[1,"translation",64,0]、
   守卫三件 8108(无 widgets_values)/8109/8110、加载器栈 8111/8113(mikkoani
   0.6)/8114/8115、20 根 link(8217-8236)整表、SeedVR mode4 五节点(503+
   f0a844a8 内四件)、加速子图 7014-7031 全件含 7015 现值「4 · PrunaAI 6步」、
@@ -83,7 +84,7 @@ HARD_BORDER = {
     8113: ["qi21-mikkoani.safetensors", 0.6],      # 1118 B 案,不动
     8114: ["qwen3vl_8b_int8_convrot.safetensors", "qwen_image", "default"],
     8115: ["qwen_image_2.1_vae_bf16.safetensors"],
-    8116: [10, 2, 256, 32, 64, True],
+    8116: [8.25, 2, 256, 32, 64, True],  # 1118末 4K帽令 10→8.25(graft DEVIATIONS 同源)
     8119: None,
     8120: [1, "translation", 64, 0],
 }

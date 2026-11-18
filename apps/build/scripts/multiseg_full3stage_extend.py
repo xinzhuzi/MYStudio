@@ -58,7 +58,7 @@ GROUPS = [
     ("④ 二采精修(TaoMate LoRA 3步·1440×832)",
      [3001, 3002, 3003, 3011, 3021, 3022, 3030, 3031,
       3040, 3041, 3042, 3043, 3044, 3051, 3052, 3053, 3071], "#aa6600"),
-    ("⑤ 三采超分(ReCaVSR scale2·2880×1664)", list(STAGE_B_IDS),        "#335588"),
+    ("⑤ 三采超分(ReCaVSR scale2.667·3840×2220)", list(STAGE_B_IDS),      "#335588"),
 ]
 
 # 布局种子(pos=平面性分析序;经 _compact_layout 压缩到紧凑档节奏后落盘——
@@ -102,7 +102,7 @@ SIZES: dict[int, tuple[float, float]] = {
 README_NOTE = (
     "# 一镜到底-分段 · 全链三采(1114 用户裁定「都过三采」)\n\n"
     "## 件用途\n分段生成(一采,绕 15s 封顶)→ 二采 TaoMate 精修(1440×832)→ 三采 ReCaVSR 超分"
-    "(2880×1664 终档)。与 三采-单镜.json 分工:单镜 ≤15s 高质线 / 本件任意时长全梯线。\n\n"
+    "(3840×2220 终档)。与 三采-单镜.json 分工:单镜 ≤15s 高质线 / 本件任意时长全梯线。\n\n"
     "## 操作手册(1115 实弹勘误终态:两步法)\n"
     "**第 1 步 整图直跑(段B 出厂旁路)**:Run 一按出 p1(960×544)+p2(1440×832)。\n"
     "**第 2 步 三采**:激活 4001/4002/4003 三节点 → **选中段B 节点局部执行**(引擎缓存复用,只烧 ReCaVSR ~1min)。\n"
@@ -115,7 +115,7 @@ README_NOTE = (
     "## 模型/配方速查(1115 B3 定谳)\n一采=**正典全配方臂**:turbo@1.0+sol-attn τ1.3+ChunkFFN[2]+kitchen+"
     "σshift[**6,3**]+**lcm**+simple/8(Pika 必须 lcm=全库正典;裸 euler 已废,B3 实弹 p1 胜/p2 平);"
     "二采=taomate@0.7+sol-attn τ1.3+σshift[12,3]+kitchen+lcm+simple/3步/dn0.2(UP 定谳);"
-    "三采=ReCaVSR scale2 int8 ConvRot。seed=42 复现。⚠ 段缓存指纹不含外接 sampler——"
+    "三采=ReCaVSR scale2.667 int8 ConvRot。seed=42 复现。⚠ 段缓存指纹不含外接 sampler——"
     "A/B 试验须 enable_cache=False(1115 实证)。"
 )
 

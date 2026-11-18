@@ -99,7 +99,7 @@ TITLES = {
     8110: "[8110] Gem②·守卫·预缩放", 8111: "[8111] Gem②·独立UNET int8",
     8112: "[8112] Gem②·viggle turbo r256 ×1", 8113: "[8113] Gem②·mikkoani ×0.6(1118B)",
     8114: "[8114] Gem②·独立CLIP int8", 8115: "[8115] Gem②·独立VAE bf16",
-    8116: "[8116] Gem②·分块超分 10MP", 8117: "[8117] Gem②·修复提示词编码",
+    8116: "[8116] Gem②·分块超分 8.25MP(4K帽)", 8117: "[8117] Gem②·修复提示词编码",
     8118: "[8118] Gem②·KSampler 6步", 8119: "[8119] Gem②·解码",
     8120: "[8120] Gem②·拼缝",
 }
@@ -113,7 +113,7 @@ WIDGETS = {
     8113: ["qi21-mikkoani.safetensors", 0.6],  # 1118 B 案换挂(原 ItsGem face ×1)
     8114: ["qwen3vl_8b_int8_convrot.safetensors", "qwen_image", "default"],
     8115: ["qwen_image_2.1_vae_bf16.safetensors"],
-    8116: [10, 2, 256, 32, 64, True],
+    8116: [8.25, 2, 256, 32, 64, True],  # 1118末 4K帽令 10→8.25(全型长边≤3840 唯一 0.05 档内值)
     8117: ["Upscale this illustration to ultra-high definition: remove blur, "
            "noise and compression artifacts, recover crisp linework, clean "
            "flat color planes and fine detail across figures, garments, "
@@ -134,6 +134,9 @@ DEVIATIONS = {
           "LoRA 本件+步数(1118 用户澄清令),Gem 源件 545/441_413/556 未动故豁免双源对拍",
     8118: "1118 换装令:换官方 turbo r178×1+steps 6→8+超分提示词换装;donor 只取"
           "LoRA 本件+步数(1118 用户澄清令),Gem 源件 545/441_413/556 未动故豁免双源对拍",
+    8116: "1118末 4K帽令:megapixels 10→8.25,GemTiledUpscale 出图=逐边 ceil 无对齐,"
+          "8.25=全型长边严格≤3840 唯一 0.05 档内值;donor 只取结构值域进蓝图"
+          "(照 8112/8117/8118 换装先例;Gem 源件 431 恒 10 禁动)",
 }
 # 1118末 用户四令画布整理(⑤b 上移/⑤ 下移/504 最右/加速区缩短)+立宪重排:
 # 主车道 x 严格递增 + 加载器双行落缝(CLIP/VAE 行 A+560、LoRA 级联 A+960)+ 8120 上跨;
