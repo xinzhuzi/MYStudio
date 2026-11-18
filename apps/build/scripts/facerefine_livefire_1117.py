@@ -125,6 +125,9 @@ def build_prompt(oi: dict, a) -> dict:
     def N(cid, cls, **kw):
         g[str(cid)] = {"class_type": cls, "inputs": kw}
 
+    # CLIP Vision 身份嵌入器(动漫域跨域认人)
+    N(800, "CLIPVisionLoader", clip_name="clip_vision_g.safetensors")
+
     # 源片 + 参考图 + 人声轨
     N(1, "VHS_LoadVideoPath", video=a.video, force_rate=0, frame_load_cap=a.length,
       skip_first_frames=0, select_every_nth=1, format="H3",
@@ -143,9 +146,11 @@ def build_prompt(oi: dict, a) -> dict:
     N(20, "H3FaceTrackCrop", images=["1", 0], detector=det, confidence=0.15,
       crop_factor=2.5, canvas_width=768, canvas_height=768, canvas_mode=canvas_mode,
       smooth_window=21, size_smooth_window=51, smooth_method="gaussian",
-      size_mode="per_frame", identity_track=True, identity_threshold=0.28,
-      select="largest_face", fallback_detector="segm\\person_yolov8m-seg.pt",
-      fallback_head_frac=0.5)
+      size_mode="per_frame", identity_track=True, identity_threshold=0.0,
+      select="closest_to_xy", fallback_detector="segm\\person_yolov8m-seg.pt",
+      fallback_head_frac=0.5, select_index=0, identity_model="clip_vision",
+      cut_detection="none", cut_threshold=3.0, absent_shots="off",
+      X=1920, Y=850, frame_index=80, identity_clip_vision=["800", 0])
 
     # H3 重画(画布=追踪器动态画布,须连线不能手填)
     # 实测 schema:REF 节点不吃 model(模型只走采样链);
