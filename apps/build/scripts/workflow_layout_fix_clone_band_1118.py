@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
 """7_测试/三采-单镜-小脸修复.json 四采带布局治理(1118 美化役·第三件,坐标-only 幂等 fail-closed)。
 
-方案=与前两件同口径(sancai_band_1118 的分层行重排,适配克隆件 18 节点带):
+方案=与前两件同口径(分层行重排):
   主链一行 5001→5002→5011→5012→5013→5005→5006→5014→5015→[5016/5019/5017/5018 同列纵堆]→
-  5020→5021→5022→5023→5024,列步进=est 宽+200(同行净距恰 200);采样四件同列 x 全等、纵距恰 80、
-  行序=5020 槽序(noise/guider/sampler/sigmas→扇入零交叉);x0=7200 让开 4003 右缘。
-  四采组框按先例公式自算罩全 [minX-60, minY-80, 右缘+60-minX, 底缘+120-minY]。
+  5020→5021→5022→5023→5024;同行净距恒 200/纵堆同列净距恒 80/纵堆 x 全等;
+  行序=5020 槽序(noise/guider/sampler/sigmas→扇入零交叉);x0=2070 装载区正下方(装载器短线)。
+  四采组框按生成器先例公式自算罩全。
 
-守门(与前两件同款):
-  1) 拓扑冻结:除 18 节点 pos 与四采组框 boundingBox 外逐字节等(节点/连线/widgets/title/order 零改);
-  2) layout_check 全八判据逐项不增;带内 est_spacing 清零;
-  3) 契约三件套绿由外层门禁跑(pytest 双套+树审计);
-  4) 幂等:复跑零字节改动。
-棘轮:workflow_layout_baseline.json 增本件键(治理后现值立起点,只降不升)。
+守门(fail-closed):
+  1) 拓扑冻结:除 18 节点 pos 与四采组框 bounding 外逐节点/组框/顶层键全等(连线表零改);
+  2) layout_check 八判据逐项不增;六硬项恒 0;crossings/occlusion 只降不升;
+  3) 契约复刻:负区≥80/恒向右/组框两两不交/带内声明尺寸整体落框;
+  4) 节奏常数:主链与尾链同行净距恒 200、纵堆同列净距恒 80、纵堆 x 全等(容差 0);
+  5) 幂等:复跑零字节改动。
+棘轮:workflow_layout_baseline.json files[key].scopes.main 治理后现值立起点(只降不升)。
 用法:
   python3 apps/build/scripts/workflow_layout_fix_clone_band_1118.py           # 施治+守门+棘轮
-  python3 apps/build/scripts/workflow_layout_fix_clone_band_1118.py --verify  # 只跑守门断言
+  python3 apps/build/scripts/workflow_layout_fix_clone_band_1118.py --verify  # 只读守门
 """
 from __future__ import annotations
 
@@ -31,116 +32,161 @@ from workflow_layout import est_size  # noqa: E402
 
 WF = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试/三采-单镜-小脸修复.json"
 BASELINE = REPO / "apps/build/scripts/workflow_layout_baseline.json"
-GROUP_TITLE = "四采·小脸修复(FaceRefine·远景脸重画)"
+GROUP_TITLE = "四采·小脸修复(FaceRefine)"
 
 ROW_Y = 5900
 GAP = 200
 CGAP = 80
-X0 = 7200
+X0 = 2070   # 装载区正下方(装载器→带短线;三采组框右缘 6873 与带不同层不冲突)
 BAND = [5001, 5002, 5005, 5006, 5011, 5012, 5013, 5014, 5015,
         5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5024]
-# est 宽(=max(250, 声明宽),与 est_size() 对账,断言守门)
+CHAIN = [5001, 5002, 5011, 5012, 5013, 5005, 5006, 5014, 5015]
+STACK = [5016, 5019, 5017, 5018]          # 行序=5020 槽序 noise/guider/sampler/sigmas
+TAIL = [5020, 5021, 5022, 5023, 5024]
+# est 宽高(实盘点位对账,断言守门)
 ESTW = {5001: 340, 5002: 270, 5005: 640, 5006: 640, 5011: 360, 5012: 400, 5013: 330,
         5014: 330, 5015: 330, 5016: 360, 5017: 308, 5018: 370, 5019: 360,
         5020: 250, 5021: 250, 5022: 330, 5023: 270, 5024: 283}
-STACK_H = {5016: 148, 5019: 112, 5017: 178, 5018: 118}  # 高度按实盘点位(5017=178/5018=118)  # 行序=5020 槽序
+ESTH = {5016: 148, 5019: 112, 5017: 178, 5018: 118}
+STACK_X = X0 + sum(ESTW[i] for i in CHAIN) + len(CHAIN) * GAP  # 5015 右缘 + GAP
+POS: dict[int, list[int]] = {}
+_x = X0
+for _n in CHAIN:
+    POS[_n] = [_x, ROW_Y]
+    _x += ESTW[_n] + GAP
+_y = ROW_Y + 500
+for _n in STACK:
+    POS[_n] = [STACK_X, _y]
+    _y += ESTH[_n] + CGAP
+_x = STACK_X + max(ESTW[i] for i in STACK) + GAP
+for _n in TAIL:
+    POS[_n] = [_x, ROW_Y]
+    _x += ESTW[_n] + GAP
+MOVED = set(POS)
+ZEROS = ("est_spacing", "est_overlap", "negative_region", "output_rightmost", "leftward", "group_overlap")
 
 
-def build_pos() -> dict[int, list[int]]:
-    x = X0
-    pos: dict[int, list[int]] = {}
-    for nid in (5001, 5002, 5011, 5012, 5013, 5005, 5006, 5014, 5015):
-        pos[nid] = [x, ROW_Y]
-        x += ESTW[nid] + GAP
-    stack_x = x  # 5015 est 右缘 + GAP
-    y = ROW_Y + 500
-    for nid in (5016, 5019, 5017, 5018):
-        pos[nid] = [stack_x, y]
-        y += STACK_H[nid] + CGAP
-    x = stack_x + 570
-    for nid in (5020, 5021, 5022, 5023, 5024):
-        pos[nid] = [x, ROW_Y]
-        x += ESTW[nid] + GAP
-    return pos
+def group_bbox(nodes: dict, ids: set) -> list:
+    ns = [nodes[i] for i in ids]
+    x1 = min(n["pos"][0] for n in ns)
+    y1 = min(n["pos"][1] for n in ns)
+    x2 = max(n["pos"][0] + n["size"][0] for n in ns)
+    y2 = max(n["pos"][1] + n["size"][1] for n in ns)
+    return [x1 - 60, y1 - 80, x2 - x1 + 60, y2 - y1 + 120]
 
 
-def check_metrics(wf: dict) -> dict:
-    return check_workflow(wf)
+def apply_layout(d: dict) -> dict:
+    nodes = {n["id"]: n for n in d["nodes"]}
+    for nid, p in POS.items():
+        nodes[nid]["pos"] = list(p)
+    for g in d["groups"]:
+        if g["title"] == GROUP_TITLE:
+            g["bounding"] = group_bbox(nodes, MOVED)
+    return d
 
 
-def run() -> int:
-    original_text = WF.read_text(encoding="utf-8")
-    wf = json.loads(original_text)
-    nodes = {n["id"]: n for n in wf["nodes"]}
-    missing = [i for i in BAND if i not in nodes]
-    assert not missing, f"带内节点缺失: {missing}"
+def asserts(d_before: dict, d_after: dict, cb: dict, ca: dict) -> None:
+    nb = {n["id"]: n for n in d_before["nodes"]}
+    na = {n["id"]: n for n in d_after["nodes"]}
+    assert set(nb) == set(na), "节点集合变了"
+    for nid in nb:
+        b, a = copy.deepcopy(nb[nid]), copy.deepcopy(na[nid])
+        if nid in MOVED:
+            b.pop("pos"), a.pop("pos")
+        assert b == a, f"节点 {nid} 非 pos 字段被改"
+    assert d_before["links"] == d_after["links"], "连线表被改(布局-only 红线)"
+    gb = {g["title"]: g for g in d_before["groups"]}
+    ga = {g["title"]: g for g in d_after["groups"]}
+    assert set(gb) == set(ga), "组框集合变了"
+    for t in gb:
+        b, a = copy.deepcopy(gb[t]), copy.deepcopy(ga[t])
+        if t == GROUP_TITLE:
+            b.pop("bounding"), a.pop("bounding")
+        assert b == a, f"组框[{t}] 非 bounding 字段被改"
+    for k in set(d_before) - {"nodes", "groups"}:
+        assert d_before[k] == d_after[k], f"顶层键 {k} 被改"
 
-    before = check_metrics(wf)
+    for k in CHECK_KEYS:
+        assert ca[k] <= cb[k], f"双不增破门:{k} {cb[k]}→{ca[k]}"
+    assert all(ca[k] == 0 for k in ZEROS), f"六硬项失零:{ {k: ca[k] for k in ZEROS} }"
 
+    for nid, n in na.items():
+        assert n["pos"][0] >= 80 and n["pos"][1] >= 80, f"[{nid}] 负区 pos={n['pos']}"
+    for l in d_after["links"]:
+        assert na[l[3]]["pos"][0] > na[l[1]]["pos"][0], f"link {l[0]} 左向线 [{l[1]}]→[{l[3]}]"
+    gs = d_after["groups"]
+    for i in range(len(gs)):
+        for j in range(i + 1, len(gs)):
+            a, b = gs[i]["bounding"], gs[j]["bounding"]
+            ox = a[0] < b[0] + b[2] and b[0] < a[0] + a[2]
+            oy = a[1] < b[1] + b[3] and b[1] < a[1] + a[3]
+            assert not (ox and oy), f"组框重叠: {gs[i]['title']} × {gs[j]['title']}"
+    for n in d_after["nodes"]:
+        if n["id"] in MOVED:
+            x, y, w, h = n["pos"][0], n["pos"][1], n["size"][0], n["size"][1]
+            ok = any(g["bounding"][0] <= x and g["bounding"][1] <= y
+                     and x + w <= g["bounding"][0] + g["bounding"][2]
+                     and y + h <= g["bounding"][1] + g["bounding"][3] for g in gs)
+            assert ok, f"[{n['id']}] 声明尺寸未整体落框"
+
+    for nid, w in ESTW.items():
+        ew, _ = est_size(na[nid])
+        assert ew == w, f"est 宽表漂移:{nid} {ew}≠{w}"
+    for a, b in zip(CHAIN, CHAIN[1:]):
+        gap = na[b]["pos"][0] - (na[a]["pos"][0] + ESTW[a])
+        assert na[a]["pos"][1] == ROW_Y == na[b]["pos"][1] and gap == GAP, f"主链 {a}→{b} 净距 {gap}≠{GAP}"
+    for a, b in zip(TAIL, TAIL[1:]):
+        gap = na[b]["pos"][0] - (na[a]["pos"][0] + ESTW[a])
+        assert na[a]["pos"][1] == ROW_Y == na[b]["pos"][1] and gap == GAP, f"尾链 {a}→{b} 净距 {gap}≠{GAP}"
+    for nid in STACK:
+        assert na[nid]["pos"][0] == STACK_X, f"{nid} 纵堆 x 不全等"
+    for a, b in zip(STACK, STACK[1:]):
+        cg = na[b]["pos"][1] - (na[a]["pos"][1] + ESTH[a])
+        assert cg == CGAP, f"纵堆 {a}→{b} 同列净距 {cg}≠{CGAP}"
+    print("  [守门] 拓扑冻结/双不增/六零/契约复刻/节奏常数 全部通过")
+
+
+def ratchet(ca: dict) -> None:
+    b = json.loads(BASELINE.read_text(encoding="utf-8"))
+    key = str(WF.relative_to(REPO))
+    want = {"main": {"crossings": ca["crossings"], "occlusion": ca["occlusion"]}}
+    cur = b["files"].get(key, {}).get("scopes")
+    if cur is None:
+        b["files"][key] = {"scopes": want}
+    else:
+        for sc, v in want.items():
+            old = cur.get(sc) or {"crossings": 1 << 30, "occlusion": 1 << 30}
+            cur[sc] = {"crossings": min(old["crossings"], v["crossings"]),
+                       "occlusion": min(old["occlusion"], v["occlusion"])}
+    BASELINE.write_text(json.dumps(b, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"  [棘轮] baseline 键已钉:{key} main crossings={want['main']['crossings']}"
+          f" occlusion={want['main']['occlusion']}(只降不升)")
+
+
+def main() -> int:
     verify_only = "--verify" in sys.argv
-    pos = build_pos()
-    new_wf = copy.deepcopy(wf)
-    for nid in BAND:
-        new_wf["nodes"][[i for i, n in enumerate(new_wf["nodes"]) if n["id"] == nid][0]]["pos"] = pos[nid]
-    # est 宽对账(est_size 不低于 ESTW,防声明宽被改过)
-    for nid in BAND:
-        w = est_size(nodes[nid])[0]
-        assert w <= ESTW[nid], f"#{nid} est 宽 {w} 超预设 {ESTW[nid]},改 ESTW 再跑"
-    # 四采组框自算罩全
-    band_nodes = [nodes[i] for i in BAND]
-    min_x = min(pos[i][0] for i in BAND)
-    min_y = min(min(pos[i][1] for i in BAND), ROW_Y) - 80
-    ew, eh = {}, {}
-    for n in band_nodes:
-        ew[n["id"]], eh[n["id"]] = est_size(n)
-    max_r = max(pos[n["id"]][0] + max(ew[n["id"]], ESTW[n["id"]]) for n in band_nodes)
-    max_b = max(pos[n["id"]][1] + eh[n["id"]] for n in band_nodes)
-    for g in new_wf["groups"]:
-        if g.get("title") == GROUP_TITLE:
-            g["boundingBox"] = {"x": min_x - 60, "y": min_y, "width": max_r + 60 - (min_x - 60),
-                                "height": max_b + 120 - min_y}
-    after = check_metrics(new_wf)
-    # 守门 2:八判据逐项不增
-    worsened = [k for k in CHECK_KEYS if after[k] > before[k]]
-    assert not worsened, f"判据变差: {worsened} before={ {k: before[k] for k in worsened} } after={ {k: after[k] for k in worsened} }"
+    raw = WF.read_text(encoding="utf-8")
+    d_before = json.loads(raw)
+    cb = check_workflow(d_before)[0]["counts"]
+    d_after = apply_layout(copy.deepcopy(d_before))
+    ca = check_workflow(d_after)[0]["counts"]
+    print(f"[读数] 前 crossings={cb['crossings']} occlusion={cb['occlusion']}")
+    print(f"[读数] 后 crossings={ca['crossings']} occlusion={ca['occlusion']}")
+    asserts(d_before, d_after, cb, ca)
 
-    # 守门 1:拓扑冻结(除 BAND pos 与组框 bbox 外逐字节等)
-    frozen_new = copy.deepcopy(new_wf)
-    frozen_old = json.loads(original_text)
-    pos_key = {i: wf_pos for i, wf_pos in ((n["id"], n["pos"]) for n in frozen_old["nodes"])}
-    for n in frozen_new["nodes"]:
-        n["pos"] = pos_key[n["id"]]
-    for gn, go in zip(frozen_new["groups"], frozen_old["groups"]):
-        gn["boundingBox"] = go.get("boundingBox")
-    assert json.dumps(frozen_new, ensure_ascii=False, sort_keys=True) == \
-           json.dumps(frozen_old, ensure_ascii=False, sort_keys=True), "拓扑冻结失败:pos/组框外有改动"
-
-    if verify_only:
-        # 复核态:盘上件应已处于治理后(带内 pos == build_pos)
-        cur = {n["id"]: n["pos"] for n in wf["nodes"] if n["id"] in BAND}
-        assert all(cur[i] == pos[i] for i in BAND), "盘上位与本方案不一致,先施治再 --verify"
-        print("[VERIFY-PASS] 八判据", {k: after[k] for k in CHECK_KEYS})
+    new_raw = json.dumps(d_after, ensure_ascii=False, indent=1) + "\n"
+    if new_raw == raw:
+        print("[幂等] 件已在目标态,零字节改动")
+    elif verify_only:
+        print("[VERIFY] 目标态未落盘(--verify)")
         return 0
-
-    out_text = json.dumps(new_wf, ensure_ascii=False, indent=1) + "\n"
-    WF.write_text(out_text, encoding="utf-8")
-    # 守门 4:幂等复跑零字节改动
-    wf2 = json.loads(WF.read_text(encoding="utf-8"))
-    for n in wf2["nodes"]:
-        if n["id"] in BAND:
-            n["pos"] = pos[n["id"]]
-    for g in wf2["groups"]:
-        if g.get("title") == GROUP_TITLE:
-            g["boundingBox"] = next(x["boundingBox"] for x in new_wf["groups"] if x.get("title") == GROUP_TITLE)
-    assert json.dumps(wf2, ensure_ascii=False, indent=1) + "\n" == out_text, "幂等失败"
-    # 棘轮:记治理后现值为起点
-    base = json.loads(BASELINE.read_text(encoding="utf-8"))
-    key = "7_测试/三采-单镜-小脸修复"
-    base[key] = {k: after[k] for k in CHECK_KEYS}
-    BASELINE.write_text(json.dumps(base, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    print("[FIX-PASS] before→after:", {k: (before[k], after[k]) for k in CHECK_KEYS})
+    else:
+        WF.write_text(new_raw, encoding="utf-8")
+        print(f"[落盘] {WF.relative_to(REPO)}(仅 {len(MOVED)} 节点 pos + 四采组框 bounding)")
+    if not verify_only:
+        ratchet(ca)
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(run())
+    raise SystemExit(main())

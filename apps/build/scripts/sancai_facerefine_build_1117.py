@@ -5,6 +5,11 @@
   节点对象槽结构移植=两类真源——FaceRefine 五件取作者 Auto_Select 画布(上游 main 版端口面,
   含 PerFrameDenoise model 口),常用件取正典件本体;widgets 按 prd §3.1;组框罩全自算 bbox;
   README 9999 增段。幂等:每次从正典源重生成。
+
+1118 起重跑 fail-closed(勿再作为落盘途径):SRC 正典件已内置四采修脸臂(5000 段 id 被占),
+重跑在自检「节点 id 重复」assert 处先于 OUT.write_text 退出,不会覆写;克隆件布局自 1118 治役起
+由 apps/build/scripts/workflow_layout_fix_sancai_facerefine_band_1118.py 维护,本生成器降为
+拓扑/布局历史真源(OUT/POS_1118/组框字段已同批对齐治役现值)。
 """
 from __future__ import annotations
 
@@ -16,7 +21,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 SRC = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json"
 AUTO = Path("/tmp/bili-bv15eby6fE2E/H3_Face_Refine_Auto_Select.json")  # 作者上游画布
-OUT = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜-小脸修复.json"
+OUT = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试/三采-单镜-小脸修复.json"  # df4162c8 迁 7_测试/
 
 PREFIX_P4 = "video/漫影/chapter-002/sb-chapter-002-016/p4-facerefine"
 README_APPEND = """
@@ -65,10 +70,19 @@ def main() -> int:
     # REF 模板改取正典件 2001(槽超集:prompt/ref_image_0..2/width/height/length 全在)
     tpl["MiniMaxH3ReferenceToVideo"] = strip_links(node_by_type(snodes, "MiniMaxH3ReferenceToVideo"))
 
-    # ---- 布局:三采组下方 ----
-    max_y = max(n["pos"][1] + n.get("size", [0, 0])[1] for n in snodes)
-    base_x = min(n["pos"][0] for n in snodes if n["id"] >= 4001)
-    row_y = max_y + 160
+    # ---- 布局:1118 画布布局役四采带(分层行带,绝对坐标)----
+    # 1117 初版=相对 dx 三排(y_by_id);1118 治役(workflow_layout_fix_sancai_facerefine_band_1118.py)
+    # 改分层行带:x 严格右向消 10 左向线、est 同行净距 200/纵堆 80、采样四件同列纵堆(行序=5020
+    # 槽序 noise/guider/sampler/sigmas,本件 sampler=5018/sigmas=5017)、尾段 5022-5024 二排(y=7100)。
+    # specs 元组第 4 元 dx 就此作废仅存历史,坐标一律以下表为准(与克隆件手术脚本同源)。
+    POS_1118 = {
+        5001: [2130, 5900], 5002: [2670, 5900], 5011: [3140, 5900],
+        5012: [3700, 5900], 5013: [4300, 5900], 5005: [4830, 5900],
+        5006: [5670, 5900], 5014: [6510, 5900], 5015: [7040, 5900],
+        5016: [7570, 6400], 5019: [7570, 6628], 5018: [7570, 6820], 5017: [7570, 7018],
+        5020: [8140, 5900], 5021: [8590, 5900],
+        5022: [9040, 7100], 5023: [9570, 7100], 5024: [10040, 7100],
+    }
 
     specs = [
         # (id, type, widgets, dx)
@@ -91,12 +105,11 @@ def main() -> int:
         (5023, "CreateVideo", [24, 8, "sRGB", "none"], 380),
         (5024, "SaveVideo", [PREFIX_P4, "auto", "video"], 680),
     ]
-    y_by_id = {5011: row_y + 420, 5022: row_y + 840, 5023: row_y + 840, 5024: row_y + 840}
     new_nodes = []
-    for nid, t, wv, dx in specs:
+    for nid, t, wv, dx in specs:   # dx 已废(见 POS_1118 注)
         n = copy.deepcopy(tpl[t])
         n["id"] = nid
-        n["pos"] = [base_x + dx, y_by_id.get(nid, row_y)]
+        n["pos"] = list(POS_1118[nid])
         if wv is not None:
             n["widgets_values"] = wv
         new_nodes.append(n)
@@ -195,10 +208,10 @@ def main() -> int:
     xs = [n["pos"][0] for n in new_nodes]; ys = [n["pos"][1] for n in new_nodes]
     x2 = max(n["pos"][0] + n.get("size", [300, 200])[0] for n in new_nodes)
     y2 = max(n["pos"][1] + n.get("size", [300, 200])[1] for n in new_nodes)
-    S["groups"].append({"id": 105, "title": "四采·小脸修复(FaceRefine·远景脸重画)",
-                        "boundingBox": {"x": min(xs) - 60, "y": min(ys) - 80,
-                                        "width": x2 - min(xs) + 120, "height": y2 - min(ys) + 160},
-                        "color": "#88A", "locked": False})
+    S["groups"].append({"id": 105, "title": "四采·小脸修复(FaceRefine)",
+                        "bounding": [min(xs) - 60, min(ys) - 80,
+                                     x2 - min(xs) + 60, y2 - min(ys) + 120],
+                        "color": "#995588", "flags": {}, "order": 5})
 
     # ---- README 9999 增段 ----
     for n in S["nodes"]:
