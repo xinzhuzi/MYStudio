@@ -62,18 +62,25 @@ def _build_review_prompt(
     # 零参考模式只查不依赖参考的三项(克隆/文字水印/噪点)——九刀弃参考的单角色镜
     # 不再跳过产后检查(21:07 批 8/19 克隆直进成品实录)。
     if reference_count <= 0:
+        # 1118 二十一刀B:克隆判定锚定期望名单——旧措辞把「多视图排布」列进
+        # 克隆形态又给「合理群像豁免」,8B 实测把铁山×3 判成「合理多视图群像」
+        # 放行(S07 废片实录);新措辞=期望角色每位只许出现一次,豁免只给
+        # 不在名单的路人/群演,不给任何「排布合理性」自由裁量。
+        roster = "、".join(expected_characters) if expected_characters else "(无名单,跳过克隆判定记 true)"
         return f"""你是动画分镜图的质量审核员。这张图是生成的分镜图,本单没有参考图,只检查以下不依赖参考图的项:
 
-1. clone_ok: 画面中是否存在同一角色重复出现——同脸/同发型/同服装的同一人物出现两份及以上(双胞胎式并排、正/侧/背多视图排布、角色设定卡被整版翻拍进画面)?合理的相似群像(同款制服的工人/士兵、孩童群像、路人)不算重复。
-2. text_watermark_ok: 画面中是否有不该出现的文字、水印或杂乱元素?
+1. 人物清点与同组判定(机械两步,代码会按你的 JSON 判违规,你只做感知):
+   a. inventory: 逐一清点画面中每个人物,格式「左:黑发白衣持剑者;中:黑发白衣倚柜者;…」,一个都不能漏(含半身/侧身/背影/远处较小的人)。
+   b. same_person_groups: 把清点条目中【完全同一个人物】的归为一组——同脸+同发型+同装束,像同一个人被画了多份(多视角排布/动作分解/复制粘贴/设定卡翻拍);仅制服相似但脸与发型不同的不同人(同款制服的工人/士兵/路人)绝不能归同组。没有同一人多份就给空数组 []。
+2. text_watermark_ok: 画面中是否有不该出现的文字、水印或杂乱元素?(画面里任何可读出的字/伪字/水印都算 false)
 3. noise_clean_ok: 画面是否干净(无斑驳噪点、霉斑、杂色颗粒;正常的水墨笔触和飞白不算噪点)?
 
 期望画面内容:{expected_content}
-期望出现的角色:{", ".join(expected_characters) if expected_characters else "无特定角色"}
 
 请严格用以下 JSON 格式回答(不要添加其他文字):
-{{"clone_ok": true或false, "text_watermark_ok": true或false, "noise_clean_ok": true或false,
-  "reasons": ["中文理由1", "中文理由2"]}}"""
+{{"inventory": "左:…;中:…", "same_person_groups": [["左","中"]](没有则 []),
+  "text_watermark_ok": true或false, "noise_clean_ok": true或false,
+  "reasons": ["清点与分组依据(简述各组为什么是/不是同一人)"]}}"""
     return f"""你是动画分镜图的质量审核员。第一张图是生成的分镜图,后续{reference_count}张是资产参考图。
 
 请对比分镜图与参考图,逐项判断:
@@ -82,7 +89,9 @@ def _build_review_prompt(
 2. costume_ok: 角色穿着的服装是否与参考图一致(颜色、款式、材质)?
 3. scene_ok: 画面中的场景是否与场景参考图匹配(布局、色调、氛围)?
 4. prop_ok: 画面中的道具是否与参考图中的道具匹配(位置、状态)?
-5. clone_ok: 画面中是否存在同一角色重复出现——同脸/同发型/同服装的同一人物出现两份及以上(双胞胎式并排、正/侧/背多视图排布、角色设定卡被整版翻拍进画面)?合理的相似群像(同款制服的工人/士兵、孩童群像、路人)不算重复。
+5. 人物清点与同组判定(代码按你的 JSON 判违规,你只做感知):
+   a. inventory: 逐一清点画面中每个人物「左:黑发白衣持剑者;中:…」,一个不漏(含半身/背影/远处);
+   b. same_person_groups: 把【完全同一个人物】(同脸+同发型+同装束,像同一人被画多份:多视角/动作分解/复制粘贴/设定卡翻拍)的清点条目归一组;仅制服相似的不同人(同款制服工人/士兵/路人)绝不归同组;无则 []。
 6. text_watermark_ok: 画面中是否有不该出现的文字、水印或杂乱元素?
 7. noise_clean_ok: 画面是否干净(无斑驳噪点、霉斑、杂色颗粒;正常的水墨笔触和飞白不算噪点)?
 
@@ -91,8 +100,10 @@ def _build_review_prompt(
 
 请严格用以下 JSON 格式回答(不要添加其他文字):
 {{"character_ok": true或false, "costume_ok": true或false, "scene_ok": true或false,
-  "prop_ok": true或false, "clone_ok": true或false, "text_watermark_ok": true或false, "noise_clean_ok": true或false,
-  "reasons": ["中文理由1", "中文理由2"]}}"""
+  "prop_ok": true或false,
+  "inventory": "左:…;中:…", "same_person_groups": [["左","中"]](没有则 []),
+  "text_watermark_ok": true或false, "noise_clean_ok": true或false,
+  "reasons": ["各组为什么是/不是同一人(简述)"]}}"""
 
 
 def _parse_vlm_json(response: str) -> dict[str, Any]:
@@ -114,6 +125,10 @@ def _parse_vlm_json(response: str) -> dict[str, Any]:
     for key in ("character_ok", "costume_ok", "scene_ok", "prop_ok", "clone_ok", "text_watermark_ok", "noise_clean_ok"):
         checks[key] = bool(data.get(key, True))  # 默认 True(缺项不误杀)
     checks["reasons"] = [str(r) for r in data.get("reasons", []) if str(r).strip()]
+    # 1118 二十一刀C:感知分组透传(判定权在调用方代码,不信任模型 clone_ok)
+    groups = data.get("same_person_groups", [])
+    checks["same_person_groups"] = [g for g in groups if isinstance(g, list)] if isinstance(groups, list) else []
+    checks["inventory"] = str(data.get("inventory", ""))
     return checks
 
 
@@ -180,6 +195,17 @@ def review_image(
         response = result.text if hasattr(result, 'text') else str(result)
         checks = _parse_vlm_json(response)
         reasons = checks.pop("reasons", [])
+        # 1118 二十一刀C:克隆判定权收代码——模型只做感知分组(它看见三铁山仍
+        # 判「不算重复」实录,规则任务被多视图先验带偏);任一同组≥2=同一人
+        # 多份=克隆,证据链(清点+分组)前置进 reasons。
+        groups = checks.pop("same_person_groups", []) or []
+        inventory = checks.pop("inventory", "")
+        duplicate_groups = [g for g in groups if len(g) >= 2]
+        if duplicate_groups:
+            checks["clone_ok"] = False
+            reasons.insert(0, "同一人物多份:" + ";".join("+".join(str(x) for x in g) for g in duplicate_groups))
+        if inventory:
+            reasons.insert(0, f"人物清点:{inventory[:200]}")
 
         all_ok = all(
             checks[k]
