@@ -5000,10 +5000,13 @@ class TestI2IEditHostLayout1003:
             "edit: [8] 应与 [5] 同列相邻(远端推离复发即红)"
 
     def test_i2i_tail_after_output(self):
-        """不变量⑦:i2i ⑤尾档居④输出之后(骨架横向单向流末段:输出→放大尾档)。"""
+        """不变量⑦:i2i ⑤尾档居④输出之后(1118末 用户令改纵向序:⑤b 上/⑤ 下,
+        尾档在输出区右沿之外**或下沿之外**皆顺=骨架末段不回涌输出区)。"""
         nodes = _nodes(GRAPHS["i2i"])
-        assert nodes[8]["pos"][0] + nodes[8]["size"][0] < nodes[503]["pos"][0], \
-            "i2i: ⑤尾档 [503] 应居 ④输出 [8] 右沿之外(骨架末段顺位)"
+        n8, n503 = nodes[8], nodes[503]
+        assert (n8["pos"][0] + n8["size"][0] < n503["pos"][0]
+                or n8["pos"][1] + n8["size"][1] < n503["pos"][1]), \
+            "i2i: ⑤尾档 [503] 应居 ④输出 [8] 右沿或下沿之外(骨架末段顺位)"
 
 
 # ── 6f. i2i 件专属契约(09-24 新增:道劫风格图生图=edit 骨架+九型装配移植;
@@ -5778,9 +5781,21 @@ class TestSeedVR2TailContract1002:
             gy1 = gy0 + grp["bounding"][3]
             # 1017up4 罩集=A/B/C/D 四宿主+[504](+t2i [505]);[501][502] 随迁 D 子图
             # 定义,主图零实体(子图内 groups 恒空=蓝图极简形)
-            cover = [UP4["D"]["host"][name], SVR2_SAVE]
+            cover = [UP4["D"]["host"][name]]
             if name == "qi21":
                 cover.append(SVR2_CMP)
+            # 1118末 用户令:[504] 挪画布最右并出 ⑤ 组(Gem 出图存图常开,画布
+            # 语义对齐运行时——API 孪生不带组框 504 恒活;旧「504 在组内随组
+            # Ctrl+B」语义随 SeedVR 尾档退位而废止)。补断言:504 必在 ⑤ 组外。
+            svr_box = (grp["bounding"][0], grp["bounding"][1],
+                       grp["bounding"][0] + grp["bounding"][2],
+                       grp["bounding"][1] + grp["bounding"][3])
+            save_n = nodes[SVR2_SAVE]
+            assert not (svr_box[0] <= save_n["pos"][0]
+                        and save_n["pos"][0] + save_n["size"][0] <= svr_box[2]
+                        and svr_box[1] <= save_n["pos"][1]
+                        and save_n["pos"][1] + save_n["size"][1] <= svr_box[3]), \
+                f"{name}: [504] 应在 ⑤ 组框之外(1118 用户令=画布最右,Gem 存图常开)"
             for nid in cover:
                 n = nodes[nid]
                 assert (gx0 <= n["pos"][0] and n["pos"][0] + n["size"][0] <= gx1

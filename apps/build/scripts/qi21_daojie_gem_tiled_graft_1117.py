@@ -125,26 +125,39 @@ WIDGETS = {
 DEVIATIONS = {
     8113: "1118 用户令 B 案:换挂主链同款动漫 LoRA mikkoani@0.6,治超分段动漫感流失",
 }
-# 1118晚 立宪重排(node-graph layout_check 0928 口径;规划器网格搜+CLI 仲裁,
-# 解析修正版:--json 抑制逐条判项文本,过滤须跑无 --json 模式):
-# 主车道 x 严格递增(8108→8109→8110→8116→8117→8118→8119)+ 加载器双行落缝
-# (CLIP/VAE 行 A+560 落 8117 左,LoRA 级联行 A+960 于 8118 左下)+ 8120 上跨(A-600)。
-# 终态我方判项:est_overlap=0;leftward 仅 8236(两件结构豁免:504 锁位画布中段,
-# 链 x 单调递增不可回左;t2i 走廊 2848px/i2i 4080px 均小于链宽 ~7000px);
-# occlusion 残 2(7500→链头进场线 8217/8218,源节点 7500 位置不可移=弱判项);
-# est_spacing 残 1(8112/8113 est 深度差同列间隙,平铺族固有);crossings 残量
-# +7(全归因我方 20 线,剥线即回术前基线 10/43;全零需 Reroute 拓扑=契约变更,记后续项)。
+# 1118末 用户四令画布整理(⑤b 上移/⑤ 下移/504 最右/加速区缩短)+立宪重排:
+# 主车道 x 严格递增 + 加载器双行落缝(CLIP/VAE 行 A+560、LoRA 级联 A+960)+ 8120 上跨;
+# 504 挪画布最右(x14400)=8236 随之右流 → leftward 全零(旧「8236 结构豁免」作废);
+# i2i 节点 20 自 y4480 提到加速区主体旁(y1400)=加速区组框 3956→~850;
+# t2i 4018 上提 200px=加速区紧框。终态我方判项:overlap0/leftward0/
+# occ 残2(8218 进场线+8233 VAE 跨车道)/sp 残1(加载器搁板);旧静默尾线
+# (7500→503/505)新增 occlusion 各 2=muted 死线穿越 ④ 输出区,几何不可避
+# (503 下移必过 ④ x 带),记档接受;crossings 净额 t2i+10/i2i+14(用户令
+# 重排优先于棘轮;剥我方线归因口径不变)。
 POS = {
-    "t2i": {8108: [9300, 3600], 8109: [9870, 3600], 8110: [10590, 3600],
-            8111: [10755, 4160], 8112: [11429, 4560], 8113: [12103, 4560],
-            8114: [11349, 4160], 8115: [11709, 4160], 8116: [11160, 3600],
-            8117: [11769, 3600], 8118: [12517, 3600], 8119: [13107, 3600],
-            8120: [13708, 3000]},
-    "i2i": {8108: [9400, 3100], 8109: [9970, 3100], 8110: [10690, 3100],
-            8111: [10855, 3660], 8112: [11529, 4060], 8113: [12203, 4060],
-            8114: [11449, 3660], 8115: [11809, 3660], 8116: [11260, 3100],
-            8117: [11869, 3100], 8118: [12617, 3100], 8119: [13207, 3100],
-            8120: [13808, 2500]},
+    "t2i": {8108: [9300, 1700], 8109: [9870, 1700], 8110: [10590, 1700],
+            8111: [10755, 2260], 8112: [11429, 2660], 8113: [12103, 2660],
+            8114: [11349, 2260], 8115: [11709, 2260], 8116: [11160, 1700],
+            8117: [11769, 1700], 8118: [12517, 1700], 8119: [13107, 1700],
+            8120: [13708, 1100]},
+    "i2i": {8108: [9400, 1500], 8109: [9970, 1500], 8110: [10690, 1500],
+            8111: [10855, 2060], 8112: [11529, 2460], 8113: [12203, 2460],
+            8114: [11449, 2060], 8115: [11809, 2060], 8116: [11260, 1500],
+            8117: [11869, 1500], 8118: [12617, 1500], 8119: [13207, 1500],
+            8120: [13808, 900]},
+}
+# 1118末 用户令:既有件动位(幂等回灌;F 零扰豁免同步)
+MOVE_USER = {
+    "t2i": {503: [7300, 3950], 505: [7750, 4550], 4018: [4064, 2400],
+            504: [14400, 1100]},
+    "i2i": {503: [8400, 3900], 504: [14400, 900], 20: [6600, 1250]},
+}
+# 既有组框修正(按题名锚定;⑤ 縮为 503[+505] 贴身框/加速区縮为主体贴身框)
+GROUP_FIX = {
+    "t2i": {"道劫·⑤超分尾档·2K": [7260, 3890, 990, 1180],
+            "道劫·加速区③": [4024, 1615, 1415, 1100]},
+    "i2i": {"道劫·⑤超分尾档·2K": [8360, 3840, 440, 518],
+            "道劫·加速区③": [6560, 710, 840, 700]},
 }
 CANVASES = {"t2i": T2I, "i2i": I2I}
 
@@ -175,8 +188,8 @@ OLD_LINK = {"t2i": 205, "i2i": 204}  # [旧id,503,0,504,0,'IMAGE'] 摘除
 
 GROUP_TITLE = "道劫·⑤b·Gem分块超分·2K"
 GROUPS = {
-    "t2i": {"id": 7, "title": GROUP_TITLE, "bounding": [9260, 2940, 4777, 1762], "color": "#b58b2a"},
-    "i2i": {"id": 7, "title": GROUP_TITLE, "bounding": [9360, 2440, 4777, 1762], "color": "#a88040"},
+    "t2i": {"id": 7, "title": GROUP_TITLE, "bounding": [9260, 1040, 4777, 1762], "color": "#b58b2a"},
+    "i2i": {"id": 7, "title": GROUP_TITLE, "bounding": [9360, 840, 4777, 1762], "color": "#a88040"},
 }
 SVR2_GROUP_PREFIX = "道劫·⑤超分尾档"  # 尾档选择器 startswith 锚(新组题名不得误触)
 
@@ -340,6 +353,14 @@ def surgery_canvas(name: str, donors: dict) -> dict:
         wf["groups"].append(copy.deepcopy(GROUPS[name]))
     else:
         grp7["bounding"] = list(GROUPS[name]["bounding"])
+
+    # —— 6) 1118末 用户令既有件动位 + 组框修正(幂等回灌) ——
+    for nid, pos in MOVE_USER[name].items():
+        nodes[nid]["pos"] = list(pos)
+    for g in wf["groups"]:
+        fix = GROUP_FIX[name].get(g.get("title", ""))
+        if fix is not None:
+            g["bounding"] = list(fix)
     wf["last_node_id"] = max(wf["last_node_id"], 8120)
     wf["last_link_id"] = max(wf["last_link_id"], 8236)
     return before, wf
@@ -575,25 +596,30 @@ def verify_canvas(name: str, before: dict, wf: dict, donors: dict) -> None:
         need(not (ax < bx + bw and bx < ax + aw and ay < by + bh and by < ay + ah),
              f"{name}: 组框 {g2.get('title')} 与 ⑤b 相交")
 
-    # F. 既有节点零扰动(vs 术前态深比对)
+    # F. 既有节点零扰动(vs 术前态深比对;1118末 用户令动位件豁免 pos)
     b_nodes = {n["id"]: n for n in before["nodes"]}
     for nid, b in b_nodes.items():
         cur = nodes.get(nid)
         need(cur is not None, f"{name}: 术前节点 {nid} 不得消失")
         if nid in NEW_IDS:
             continue  # 新链节点由断言 A 按蓝图逐位钉(1118 B 案调参口,F 只保既有件)
+        moved = MOVE_USER[name].get(nid)
+        if moved is not None:
+            need(cur["pos"] == list(moved), f"{name}: 既有节点 {nid} 应在用户令动位 {moved}(得 {cur['pos']})")
+            b = copy.deepcopy(b)
+            b["pos"] = list(moved)
         if nid == 503:
             exp = copy.deepcopy(b)
             exp["mode"] = 4
             exp["outputs"][0]["links"] = [x for x in (b["outputs"][0].get("links") or [])
                                           if x != old]
-            need(cur == exp, f"{name}: 503 除 mode/出扇出外不得变动")
+            need(cur == exp, f"{name}: 503 除 mode/出扇出/pos 外不得变动")
         elif nid == 504:
             exp = copy.deepcopy(b)
             for i in exp["inputs"]:
                 if i["name"] == "images":
                     i["link"] = 8236
-            need(cur == exp, f"{name}: 504 除 images.link 外不得变动")
+            need(cur == exp, f"{name}: 504 除 images.link/pos 外不得变动")
         elif nid == 7500:
             exp = copy.deepcopy(b)
             exp["outputs"][0]["links"] = list(b["outputs"][0].get("links") or [])
@@ -609,10 +635,28 @@ def verify_canvas(name: str, before: dict, wf: dict, donors: dict) -> None:
     want.update({l[0]: list(l) for l in LINKS})
     need({k: tuple(v) for k, v in links.items()} == {k: tuple(v) for k, v in want.items()},
          f"{name}: links 集合 ≠ 术前-旧线+20新线")
-    # groups = 术前 + 组7(幂等复跑时 before 亦含组7,双侧同滤)
-    need([g2 for g2 in wf["groups"] if g2.get("id") != 7]
-         == [g2 for g2 in before["groups"] if g2.get("id") != 7],
-         f"{name}: 既有组框被扰动")
+    # groups = 术前 + 组7 + 用户令修正框(⑤/加速区;幂等复跑双侧同态)
+    for g2 in wf["groups"]:
+        if g2.get("id") == 7:
+            continue
+        fix = GROUP_FIX[name].get(g2.get("title", ""))
+        if fix is not None:
+            need(g2["bounding"] == list(fix),
+                 f"{name}: 组框「{g2.get('title')}」bounding 应用户令修正值 {fix}(得 {g2.get('bounding')})")
+        else:
+            b_g = next((x for x in before["groups"] if x.get("id") == g2.get("id")), None)
+            need(b_g is not None and g2 == b_g, f"{name}: 既有组框被扰动: {g2.get('title')}")
+    # 1118末 用户令断言:504 出 ⑤ 组且不入 ⑤b;8236 右流(504 在 8120 右侧)
+    g7box = next(g["bounding"] for g in wf["groups"] if g["id"] == 7)
+    svr_box = next(g["bounding"] for g in wf["groups"]
+                   if g.get("title", "").startswith(SVR2_GROUP_PREFIX))
+    p4 = nodes[504]["pos"]; s4 = (nodes[504].get("size") or [380, 330])
+    for tag2, bx in (("⑤b", g7box), ("⑤", svr_box)):
+        need(not (bx[0] <= p4[0] and p4[0] + s4[0] <= bx[0] + bx[2]
+                  and bx[1] <= p4[1] and p4[1] + s4[1] <= bx[1] + bx[3]),
+             f"{name}: 504 不得落入 {tag2} 组框(用户令=画布最右)")
+    need(nodes[504]["pos"][0] > nodes[8120]["pos"][0],
+         f"{name}: 504 应在 8120 右侧(8236 右流)")
     # 子图:仅 f0a844a8 四节点 mode 位;其余子图深比对恒等
     b_sgs = {s["id"]: s for s in before["definitions"]["subgraphs"]}
     for s in wf["definitions"]["subgraphs"]:
