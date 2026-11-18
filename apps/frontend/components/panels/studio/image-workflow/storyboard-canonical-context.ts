@@ -728,11 +728,16 @@ export async function buildStoryboardCanonicalTransportInput(
       ? `${c.name.trim()}正在${c.actionIn.trim()}`
       : "")
     .filter(Boolean);
+  // 1118 二十二刀(活雷1根修):只覆写 videoDesc,**prompt 保留原文**——此前
+  // 两列同覆导致:①环境句萃取条件 prompt!==videoDesc 恒假=环境句全丢(37 语
+  // 义镜实录);②场景㊢/时辰㊣探针吃 actionLines 拿不到原文(ch3-S16「夜」
+  // 必拒实录)。动作语义不回流:动作句权威=actionLines(上方),prompt 原文
+  // 进主体句的口只有环境萃取,而萃取分句剔除含角色名的动作句(extractEnv-
+  // ironmentClauses 契约),十一刀A 注释「环境/光色/阵营句保留」自此兑现。
   const shotForPrompt = !frameId && actionLines.length
     ? {
         ...shot,
         videoDesc: actionLines.join("；"),
-        prompt: actionLines.join("；"),
       }
     : shot;
   const { subject, anchors: contextAnchors, anchorSoftNames } = await buildStoryboardCanonicalContext(shotForPrompt);

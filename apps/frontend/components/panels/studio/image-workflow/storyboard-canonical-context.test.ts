@@ -42,6 +42,7 @@ vi.mock("@/lib/diagnostics/logger", () => ({
 
 import {
   buildStoryboardCanonicalContext,
+  buildStoryboardCanonicalTransportInput,
   collectDerivedAssetPlanEntries,
   extractEnvironmentClauses,
   findDerivedPlanEntryForCharacter,
@@ -495,5 +496,33 @@ describe("十七刀A:白名单结构化提取(要什么取什么,替换黑名单
     expect(out).toContain("提灯");
     expect(out).not.toContain("不要");
     expect(out.length).toBeGreaterThan(0);
+  });
+});
+
+describe("二十二刀:传输期 prompt 原文保留(活雷1)", () => {
+  it("① vc 有 actionIn 时,动作行进传输文而 prompt 原文环境句不被覆写丢失", async () => {
+    const shot = {
+      id: "sb-22k", episodeId: "chapter-003", index: 16,
+      trackKey: "003-16", trackId: "", duration: 6,
+      prompt: "夜,屋内灯下墨板前列着成排孩童。管事逐排搁下碎灵石。",
+      videoDesc: "管事搁石后合册;独孤剑尘蹲下传气;晏燎掌心白芒。",
+      assetIds: [], state: "idle",
+      shotSemantics: {
+        visibleCharacters: [{ name: "管事", actionIn: "逐排搁下碎灵石" }],
+        visibleProps: [],
+      },
+    } as unknown as import("@/types/studio").StoryboardItem;
+    const graph = {
+      id: "wf-22k", name: "t", createdAt: 0, updatedAt: 0,
+      target: { kind: "storyboard", id: "sb-22k" },
+      nodes: [{ id: "gen-1", type: "generated", title: "成图", prompt: "正文", aspectRatio: "16:9", position: { x: 0, y: 0 }, status: "idle", createdAt: 0, updatedAt: 0 }],
+      edges: [],
+    } as unknown as import("@/types/studio").ImageWorkflowGraph;
+    const transport = await buildStoryboardCanonicalTransportInput(shot, graph as never, "gen-1");
+    const text = transport.instruction.prompt;
+    expect(text).toContain("管事正在逐排搁下碎灵石");
+    // prompt 原文环境句(灯/夜)不被 actionLines 覆写吞没
+    expect(text).toContain("灯");
+    expect(text).toContain("夜");
   });
 });
