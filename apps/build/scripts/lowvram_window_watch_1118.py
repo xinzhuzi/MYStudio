@@ -22,7 +22,8 @@ def get(path, timeout=8):
 
 
 def state():
-    """(完链指纹数, 队列 running, pending)——指纹=ReCaVSR+1062/3011 且 chunks==1 的旧结构完链。"""
+    """(完链指纹数, 队列 running, pending)——指纹=ReCaVSR+1062/3011 完链(新旧结构皆可:
+    发弹器 v2 双版本自适应,旧→正注入/新→反注入)。"""
     try:
         h = get("/history?max_items=30")
         fp = 0
@@ -31,8 +32,7 @@ def state():
             if len(p) >= 3 and isinstance(p[2], dict):
                 g = p[2]
                 types = {v.get("class_type") for v in g.values() if isinstance(v, dict)}
-                if ("ReCaVSRUpscale" in types and "1062" in g and "3011" in g
-                        and g["3011"].get("inputs", {}).get("chunks") == 1):
+                if "ReCaVSRUpscale" in types and "1062" in g and "3011" in g:
                     fp += 1
         q = get("/queue")
         return fp, len(q.get("queue_running", [])), len(q.get("queue_pending", []))
