@@ -267,13 +267,12 @@ export interface CanonicalSlotMapping {
 export function mapCanonicalReferenceSlots(input: CanonicalSlotMappingInput): CanonicalSlotMapping {
   const slots: CanonicalReferenceSlot[] = [];
   const dropped: CanonicalSlotMapping["dropped"] = [];
-  // 1117 第九刀:单角色镜角色参考全弃(宁缺勿染;身份走文字)。
-  if (input.singleCastTextIdentity && input.characters.length) {
-    dropped.push(...input.characters.map((character) => ({
-      title: character.title, reason: "single-cast-text-identity",
-    })));
-  }
-  const characters = input.singleCastTextIdentity ? [] : [...input.characters];
+  // 1119 二十三刀(九刀反转·用户 9 镜衣色漂移实录定谳):单角色镜**恢复挂
+  // 主角参考**——九刀弃参考为治「参考引力克隆」,但 1118 六发实证弃参考
+  // 也克隆(底模本征),弃的收益不存在;代价全兑现:T2I 镜无锚→衣色每镜
+  // 独立随机漂(独孤 S03 白袍/S08 青灰同角色两色,资产文图又互相矛盾两头
+  // 拉)。单姿参考=衣色/配饰/身份的共同锚(用户裁 A:文听图,图=真源)。
+  const characters = [...input.characters];
   const scenes = [...input.scenes];
   // 槽序=占槽优先序:主角立绘→场景→前帧/次角色;前位缺席时后位依序上补
   // (物理槽 image_1/2/3 恒连续占用,<imageN> 标签与槽号一一对应)。
