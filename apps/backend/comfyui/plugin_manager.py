@@ -1545,16 +1545,72 @@ def list_workflows(prefix: str | None = None, light: bool = False) -> dict:
     return {"engineOnline": engine_online, "workflows": entries}
 
 
+# ── PE 文本编码器件名按引擎在盘分叉(1118 用户令「按机器分叉指向各自在盘件名」) ──
+# qi21 线 PE 装载器(道劫-i2i/edit 的 [4019]、t2i 的 [11])正典名=Mac 自转
+# bf16 件(0923-24 转制,MPS 用);Win 盘上是官方 int8_convrot 量化件(同角色、
+# 名字不互认)——Win 引擎 UI 的「缺失模型」运行前校验即由此而来。repo 真源
+# 恒正典;read_workflow 服务时按当前生效引擎(bridge_url:本地/远端联邦同解)
+# 的 CLIPLoader 在盘清单把组内缺件名换算成在盘名。换算=字符串级全量替换
+# (widget 与说明卡文案一并),其余字节零动;引擎不可达/组内全缺=fail-open
+# 原样服务(与既有行为一致)。执行链不受影响:PE 默认旁路,桥 API 模板无 PE 口。
+PE_CLIP_ALIAS_GROUPS: tuple[tuple[str, str], ...] = (
+    ("qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors",
+     "qwen3.5_9b_qwen_image_2.1_pe_t2i.int8_convrot.safetensors"),
+    ("qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors",
+     "qwen3.5_9b_qwen_image_2.1_pe_i2i.int8_convrot.safetensors"),
+)
+
+
+def _engine_clip_loader_names(timeout: float = 3.0) -> set[str] | None:
+    """当前生效引擎 CLIPLoader 可选 clip_name 清单;不可达/结构异常=None。"""
+    try:
+        from engines.image_engine.comfyui_bridge import bridge_url  # 惰性导入防环(同 engine_manager 范式)
+        req = request.Request(
+            f"{bridge_url()}/object_info/CLIPLoader",
+            headers={"User-Agent": "MYStudio-comfy-host/1.0"},
+        )
+        with request.urlopen(req, timeout=timeout) as response:
+            info = json.loads(response.read().decode("utf-8"))
+    except (OSError, error.URLError, json.JSONDecodeError, ValueError, EngineOpError):
+        return None
+    try:
+        combo = info["CLIPLoader"]["input"]["required"]["clip_name"][0]
+    except (TypeError, KeyError, IndexError):
+        return None
+    names = {name for name in combo if isinstance(name, str)}
+    return names or None
+
+
+def _adapt_pe_clip_names(content: str) -> str:
+    """PE 件名按引擎在盘换算;无 PE 名/引擎缺查/组内全缺=原样返回。"""
+    if not any(name in content for group in PE_CLIP_ALIAS_GROUPS for name in group):
+        return content
+    available = _engine_clip_loader_names()
+    if not available:
+        return content
+    for group in PE_CLIP_ALIAS_GROUPS:
+        present = [name for name in group if name in available]
+        if not present:
+            continue
+        target = present[0]  # 组内并存取首=bf16 正典优先
+        for name in group:
+            if name != target and name in content:
+                content = content.replace(name, target)
+    return content
+
+
 def read_workflow(workflow_id: str) -> dict:
     if workflow_id.startswith(REPO_ID_PREFIX):
         path = _safe_repo_workflow_id(workflow_id)
         if not path.is_file():
             raise EngineOpError(f"工作流不存在: {workflow_id}")
-        return {"id": workflow_id, "content": path.read_text(encoding="utf-8", errors="replace")}
+        return {"id": workflow_id,
+                "content": _adapt_pe_clip_names(path.read_text(encoding="utf-8", errors="replace"))}
     path = _safe_workflow_id(workflow_id)
     if not path.is_file():
         raise EngineOpError(f"工作流不存在: {workflow_id}")
-    return {"id": workflow_id, "content": path.read_text(encoding="utf-8", errors="replace")}
+    return {"id": workflow_id,
+            "content": _adapt_pe_clip_names(path.read_text(encoding="utf-8", errors="replace"))}
 
 
 def import_workflows(files: list[dict], overwrite: bool = False) -> dict:
