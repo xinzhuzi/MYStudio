@@ -13,7 +13,8 @@
      (t2i link205 / i2i link204),504.images 改接 8120(GemTiledUpscaleStitch);
   3. SeedVR 整链置 mode=4(零删可复活):顶层 503 + 两画布 definitions.subgraphs
      内 f0a844a8 定义 501/502/7401/7402;
-  4. 新组框 id=7「道劫·⑤b·Gem分块超分·2K」罩全 13 节点;last_node_id→8120、
+  4. 新组框 id=7「道劫·⑤b·Gem分块超分」罩全 13 节点(1118 换装令去「·2K」尾;
+     旧名=GROUP_TITLE_OLD,幂等改名支路兼容旧名画布);last_node_id→8120、
      last_link_id→8236;
   5. 蓝图 my_nodes/subgraphs/qi21-道劫-超分-SeedVR2.json 同步 mode 0→4
      (根镜像宿主 id=1 + sg 内四节点;_canon_up4 含 mode,双侧同改恒等);
@@ -108,15 +109,18 @@ WIDGETS = {
     8109: ["min(1, 1024 / max(a, b))"],
     8110: ["lanczos", 1],
     8111: ["qwen_image_2.1_int8_convrot.safetensors", "default"],
-    8112: ["Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors", 1],
+    8112: ["qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors", 1],  # 1118 换装(原 viggle r256)
     8113: ["qi21-mikkoani.safetensors", 0.6],  # 1118 B 案换挂(原 ItsGem face ×1)
     8114: ["qwen3vl_8b_int8_convrot.safetensors", "qwen_image", "default"],
     8115: ["qwen_image_2.1_vae_bf16.safetensors"],
     8116: [10, 2, 256, 32, 64, True],
-    8117: ["Restore the photo: remove blur, noise and compression artifacts, "
-           "recover sharp natural facial detail, clean skin texture, hair strands "
-           "and lip texture, keeping the same composition, identity and people.", "", 0],
-    8118: [0, "fixed", 6, 1, "euler", "simple", 1],
+    8117: ["Upscale this illustration to ultra-high definition: remove blur, "
+           "noise and compression artifacts, recover crisp linework, clean "
+           "flat color planes and fine detail across figures, garments, "
+           "scenery, architecture and props, keeping the same composition, "
+           "characters, identities and hand-drawn Chinese guofeng anime "
+           "style unchanged.", "", 0],  # 1118 换装(原人脸修复域句)
+    8118: [0, "fixed", 8, 1, "euler", "simple", 1],  # 1118 换装 steps 6→8(余六位不动)
     8119: None,
     8120: [1, "translation", 64, 0],
 }
@@ -124,6 +128,12 @@ WIDGETS = {
 # (WIDGETS),豁免「== Gem 源件 donor 现值」双源对拍(load_gem_donors/verify A)。
 DEVIATIONS = {
     8113: "1118 用户令 B 案:换挂主链同款动漫 LoRA mikkoani@0.6,治超分段动漫感流失",
+    8112: "1118 换装令:换官方 turbo r178×1+steps 6→8+超分提示词换装;donor 只取"
+          "LoRA 本件+步数(1118 用户澄清令),Gem 源件 545/441_413/556 未动故豁免双源对拍",
+    8117: "1118 换装令:换官方 turbo r178×1+steps 6→8+超分提示词换装;donor 只取"
+          "LoRA 本件+步数(1118 用户澄清令),Gem 源件 545/441_413/556 未动故豁免双源对拍",
+    8118: "1118 换装令:换官方 turbo r178×1+steps 6→8+超分提示词换装;donor 只取"
+          "LoRA 本件+步数(1118 用户澄清令),Gem 源件 545/441_413/556 未动故豁免双源对拍",
 }
 # 1118末 用户四令画布整理(⑤b 上移/⑤ 下移/504 最右/加速区缩短)+立宪重排:
 # 主车道 x 严格递增 + 加载器双行落缝(CLIP/VAE 行 A+560、LoRA 级联 A+960)+ 8120 上跨;
@@ -186,7 +196,8 @@ LINKS = (
 )
 OLD_LINK = {"t2i": 205, "i2i": 204}  # [旧id,503,0,504,0,'IMAGE'] 摘除
 
-GROUP_TITLE = "道劫·⑤b·Gem分块超分·2K"
+GROUP_TITLE = "道劫·⑤b·Gem分块超分"          # 1118 换装令新名(去「·2K」尾)
+GROUP_TITLE_OLD = "道劫·⑤b·Gem分块超分·2K"    # 旧名:幂等改名支路兼容(295/351/394)
 GROUPS = {
     "t2i": {"id": 7, "title": GROUP_TITLE, "bounding": [9260, 1040, 4777, 1762], "color": "#b58b2a"},
     "i2i": {"id": 7, "title": GROUP_TITLE, "bounding": [9360, 840, 4777, 1762], "color": "#a88040"},
@@ -292,8 +303,9 @@ def surgery_canvas(name: str, donors: dict) -> dict:
     sg_nodes = {n["id"]: n for n in sg["nodes"]}
     need(all(i in sg_nodes for i in SEEDVR_SG_IDS), f"{name}: SeedVR 子图缺节点")
     grp_ids = [g["id"] for g in wf["groups"]]
-    need(7 not in grp_ids or any(g["id"] == 7 and g["title"] == GROUP_TITLE for g in wf["groups"]),
-         f"{name}: 组 id 7 已被异构占用")
+    need(7 not in grp_ids or any(g["id"] == 7 and g["title"] in (GROUP_TITLE, GROUP_TITLE_OLD)
+                                  for g in wf["groups"]),
+         f"{name}: 组 id 7 已被异构占用(题名非新旧名)")
 
     # —— 1) 新节点 ——
     if len(have_new) < len(NEW_IDS):
@@ -348,10 +360,12 @@ def surgery_canvas(name: str, donors: dict) -> dict:
             sg_nodes[i]["mode"] = 4
 
     # —— 5) 组框 + 计数器(幂等回灌 bounding=立宪坐标单源) ——
-    grp7 = next((g for g in wf["groups"] if g["id"] == 7 and g["title"] == GROUP_TITLE), None)
+    grp7 = next((g for g in wf["groups"]
+                 if g["id"] == 7 and g["title"] in (GROUP_TITLE, GROUP_TITLE_OLD)), None)
     if grp7 is None:
         wf["groups"].append(copy.deepcopy(GROUPS[name]))
     else:
+        grp7["title"] = GROUP_TITLE  # 1118 换装改名:命中旧名就地改(防复跑追加重复组 id 7)
         grp7["bounding"] = list(GROUPS[name]["bounding"])
 
     # —— 6) 1118末 用户令既有件动位 + 组框修正(幂等回灌) ——
@@ -391,7 +405,7 @@ def reverse_canvas(name: str) -> None:
         fan = nodes[7500]["outputs"][0]["links"]
         nodes[7500]["outputs"][0]["links"] = [x for x in (fan or []) if x not in (8217, 8218)]
     wf["nodes"] = [n for n in wf["nodes"] if n["id"] not in NEW_IDS]
-    wf["groups"] = [g for g in wf["groups"] if not (g.get("id") == 7 and g.get("title") == GROUP_TITLE)]
+    wf["groups"] = [g for g in wf["groups"] if not (g.get("id") == 7 and g.get("title") in (GROUP_TITLE, GROUP_TITLE_OLD))]
     try:
         sg = sg_of(wf, SEEDVR_SG)
         for n in sg["nodes"]:

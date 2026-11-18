@@ -1862,7 +1862,7 @@
         "Node name for S&R": "LoraLoaderModelOnly"
       },
       "widgets_values": [
-        "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors",
+        "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
         1
       ]
     },
@@ -2285,7 +2285,7 @@
         "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
-        "Restore the photo: remove blur, noise and compression artifacts, recover sharp natural facial detail, clean skin texture, hair strands and lip texture, keeping the same composition, identity and people.",
+        "Upscale this illustration to ultra-high definition: remove blur, noise and compression artifacts, recover crisp linework, clean flat color planes and fine detail across figures, garments, scenery, architecture and props, keeping the same composition, characters, identities and hand-drawn Chinese guofeng anime style unchanged.",
         "",
         0
       ]
@@ -2401,7 +2401,7 @@
       "widgets_values": [
         0,
         "fixed",
-        6,
+        8,
         1,
         "euler",
         "simple",
@@ -3086,7 +3086,7 @@
     },
     {
       "id": 7,
-      "title": "道劫·⑤b·Gem分块超分·2K",
+      "title": "道劫·⑤b·Gem分块超分",
       "bounding": [
         9360,
         840,

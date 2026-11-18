@@ -2421,11 +2421,11 @@ class TestSamplerContract:
                 assert 25 <= wv[K_SAMPLER_WV["steps"]] <= 50, \
                     f"{name}: steps 应在官方区间 25-50(模板 25 起手)"
             else:   # 道劫三件(0929 S3 收装):双支路采样器=40 直出+359 viggle,全在加速子图
-                # 1117 Gem ② 接棒:qi21/i2i 主图另恰 [8118] Gem 6步件(独立栈尾;
+                # 1117 Gem ② 接棒:qi21/i2i 主图另恰 [8118] Gem 8步件(独立栈尾;
                 # euler/simple/denoise1 与产线口径同,下方循环同判)
                 if name in ("qi21", "i2i"):
                     assert [n["id"] for n in _by_type(graph, "KSampler")] == [8118], \
-                        f"{name}: 主图 KSampler 应恰 [8118] Gem ② 6步件(1117 例外),得 {[n['id'] for n in _by_type(graph, 'KSampler')]}"
+                        f"{name}: 主图 KSampler 应恰 [8118] Gem ② 8步件(1117 例外),得 {[n['id'] for n in _by_type(graph, 'KSampler')]}"
                 else:
                     assert not _by_type(graph, "KSampler"), \
                         f"{name}: 主图应零 KSampler(0929 S3:支路机构收进加速子图)"
@@ -3860,9 +3860,9 @@ class TestQi21SubgraphContract:
         # 1117 Gem ② 链主图例外(禁面钉成员、白名册钉类型,两不矛盾):
         # KSampler/LoraLoaderModelOnly/ComfyMathExpression 三类只准 Gem 集成员在场
         assert [n["id"] for n in _by_type(graph, "KSampler")] == [8118], \
-            "qi21 主图 KSampler 应恰 [8118] Gem ② 6步件(1117 例外,其余仍在子图)"
+            "qi21 主图 KSampler 应恰 [8118] Gem ② 8步件(1117 例外,其余仍在子图)"
         assert sorted(n["id"] for n in _by_type(graph, "LoraLoaderModelOnly")) == [8112, 8113], \
-            "qi21 主图 LoraLoaderModelOnly 应恰 Gem ② viggle+mikkoani 二件(1117 例外/1118 B 案换挂)"
+            "qi21 主图 LoraLoaderModelOnly 应恰 Gem ② 官方turbo r178+mikkoani 二件(1118 换装/1118 B 案换挂)"
         assert [n["id"] for n in _by_type(graph, "ComfyMathExpression")] == [8109], \
             "qi21 主图 ComfyMathExpression 应恰 [8109] Gem ② 守卫件(1117 例外)"
         # 0928 W2 反转:主图零 PE 件(PE 链收进 [40] 子图)
@@ -5021,10 +5021,10 @@ class TestI2IContract:
         子图——直出 KSampler 恒 40 步(道劫产线完整档);viggle=SamplerCustomAdvanced
         官方9步双段(σ表九点+SplitSigmas@7 切段,面板 σ表=生效值,步数在表不在 widget);
         seed=单源 [7014](0,fixed,风格迭代可复现,随 qi21 口径)。"""
-        # 1117 Gem ② 接棒:主图 KSampler 从零禁改恰 [8118](Gem ② 6步件例外;
+        # 1117 Gem ② 接棒:主图 KSampler 从零禁改恰 [8118](Gem ② 8步件例外;
         # 加速子图两 KSampler 恒 40 步不受本断言影响,下方 samplers 只查子图)
         assert [n["id"] for n in _by_type(GRAPHS["i2i"], "KSampler")] == [8118], \
-            "i2i 主图 KSampler 应恰 [8118] Gem ② 6步件(1117 例外,其余仍在子图)"
+            "i2i 主图 KSampler 应恰 [8118] Gem ② 8步件(1117 例外,其余仍在子图)"
         samplers = [n for n in _xsg(GRAPHS["i2i"])["nodes"] if n["type"] == "KSampler"]
         # 1101 Phase2 案B:E 尾+KSampler [7045](40步 cfg4)——直出+E 两 KSampler 恒 40
         assert sorted(s["widgets_values"][K_SAMPLER_WV["steps"]] for s in samplers) \
@@ -5957,8 +5957,8 @@ class TestSeedVR2TailContract1002:
 
 # ── 6g-2. Gem 分块超分尾档契约(1117 手术;真源=社区件 qwen21_Gem_Face_zoom_V1.json
 # ② 链移植:防大图守卫三件(平铺形,源件住子图容器)+独立加载器栈(int8 UNET→
-# viggle r256→mikkoani@0.6,1118 B 案换挂治动漫感流失)→GemTiledUpscale(10MP/2MP tile)→TextEncodeQwenImage21
-# 修复提示词→KSampler 6步→VAEDecode→GemTiledUpscaleStitch 拼缝,出口接既有
+# 官方turbo r178→mikkoani@0.6,1118 B 案换挂治动漫感流失)→GemTiledUpscale(10MP/2MP tile)→TextEncodeQwenImage21
+# 修复提示词→KSampler 8步→VAEDecode→GemTiledUpscaleStitch 拼缝,出口接既有
 # SaveImage[504];SeedVR 整链节点级 mode4 旁路零删可复活;手术脚本
 # apps/build/scripts/qi21_daojie_gem_tiled_graft_1117.py)─────────────────
 
@@ -5970,7 +5970,7 @@ GEM_TAIL_TYPES = {
     8117: "TextEncodeQwenImage21", 8118: "KSampler", 8119: "VAEDecode",
     8120: "GemTiledUpscaleStitch",
 }
-# widgets 逐位钉(None=整键省略 widgets_values;8112 裸名 r256;8113=1118 B 案
+# widgets 逐位钉(None=整键省略 widgets_values;8112=turbo r178(1118 换装偏离件);8113=1118 B 案
 # 换挂主链同款 mikkoani@0.6(受制裁偏离,不照源件 donor;源件仍是 ItsGem face ×1)——
 # 源件 named 是 r128 假名与 qwen21\ 前缀假名,画布不落 named)
 GEM_TAIL_WIDGETS = {
@@ -5978,15 +5978,18 @@ GEM_TAIL_WIDGETS = {
     8109: ["min(1, 1024 / max(a, b))"],
     8110: ["lanczos", 1],
     8111: ["qwen_image_2.1_int8_convrot.safetensors", "default"],
-    8112: ["Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors", 1],
+    8112: ["qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors", 1],
     8113: ["qi21-mikkoani.safetensors", 0.6],
     8114: ["qwen3vl_8b_int8_convrot.safetensors", "qwen_image", "default"],
     8115: ["qwen_image_2.1_vae_bf16.safetensors"],
     8116: [10, 2, 256, 32, 64, True],
-    8117: ["Restore the photo: remove blur, noise and compression artifacts, "
-           "recover sharp natural facial detail, clean skin texture, hair strands "
-           "and lip texture, keeping the same composition, identity and people.", "", 0],
-    8118: [0, "fixed", 6, 1, "euler", "simple", 1],
+    8117: ["Upscale this illustration to ultra-high definition: remove blur, "
+           "noise and compression artifacts, recover crisp linework, clean "
+           "flat color planes and fine detail across figures, garments, "
+           "scenery, architecture and props, keeping the same composition, "
+           "characters, identities and hand-drawn Chinese guofeng anime "
+           "style unchanged.", "", 0],
+    8118: [0, "fixed", 8, 1, "euler", "simple", 1],
     8119: None,
     8120: [1, "translation", 64, 0],
 }
@@ -6013,7 +6016,7 @@ GEM_TAIL_LINKS = (
     (8235, 8116, 1, 8120, 1, "ITSGEM_TILE_STITCHER"),
     (8236, 8120, 0, 504, 0, "IMAGE"),
 )
-GEM_TAIL_GROUP_TITLE = "道劫·⑤b·Gem分块超分·2K"
+GEM_TAIL_GROUP_TITLE = "道劫·⑤b·Gem分块超分"
 
 
 class TestGemTailContract1117:
