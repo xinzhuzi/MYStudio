@@ -1,0 +1,420 @@
+{
+ "campaign": "gem-t8-matrix-1118",
+ "gem_cap_megapixels": 8.25,
+ "sources": {
+  "t2iSubject": "docs/prompts/道劫_类型主体句示例.md §1-§14 代码块逐字(建库程序化提取,零手抄)",
+  "i2iInstruction": {
+   "人物海报": "docs/prompts/Qwen-Image-2.1/09-图生图指令写作规范.md:86 例二",
+   "高清人脸": "docs/prompts/Qwen-Image-2.1/09-图生图指令写作规范.md:94 例三"
+  },
+  "special": "qi21_bases.json types[] 机读快照(命名=apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json;fire 时现读为准)",
+  "pending": "场景/表情差分/人脸基准/无衣物定妆 i2iInstruction=任务真源数组逐字;该数组不在仓内(全仓 grep i2iApplicable/t2iSubject 零命中),按『禁猜措辞』留 null 待补,fire 脚本对该四型 i2i 拒发"
+ },
+ "types": [
+  {
+   "type": "人物海报",
+   "t2iSubject": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，足蹬青布道履，乌黑长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门赭石石阶最上一级，身体正面朝向观者、微向左转，重心落于右腿，左脚虚点下一级石阶；左手自然垂于身侧，五指放松；右臂微屈，右手持剑鞘近柄端于身前，五指完全环扣剑鞘，剑身完整收在鞘中，鞘尖朝下、剑柄朝上，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂朱红剑穗，全身仅此一柄长剑；视线越过阶下青灰云海望向远处青绿群山，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
+   "t2iSubjectSource": "道劫_类型主体句示例.md §1 代码块(内容行 30-30)",
+   "i2iInstruction": "画中人物的面部五官与眉眼神态保持同一人的身份不变，将他重绘为十二三岁时的少年模样：一名散修孤儿少年，气质沉默坚韧，眼神沉静，瘦削的脸轮廓分明，肤色微黄，身形瘦韧；玄色（近黑）的头发束成头顶两个小髻的总角，为古代孩童束发形制，以旧布绳系扎，髻心松散，鬓发散乱，额发被汗贴住；身穿青灰粗布短褐，布面洗旧褪色，带着汗渍，袖口短了一截，磨白起边，露出小臂上数道旧擦伤结痂；栗褐色缚裤的裤腿以草绳扎紧；足蹬露趾旧草鞋，脚趾冻疮裂口结痂；去掉颈间玉坠、腕间红绳与腰间布囊，双手空空，发间与腕上素净，仅旧布绳束发、草绳扎裤；自然直立，双臂自然垂于身侧，目视前方，双脚微分；全身正立的构图与原画风格保持不变，其余未提及之处保持原样。",
+   "i2iInstructionStatus": "verbatim-09:86",
+   "i2iApplicable": true,
+   "special": {
+    "aspect_ratio": "3:4 (Portrait Standard)",
+    "megapixels": 3.0,
+    "resolution_override": [
+     1536,
+     2048
+    ],
+    "formula_canvas_qwen21_py": [
+     1536,
+     2048
+    ],
+    "i2i_compress_canvas": [
+     960,
+     1280
+    ],
+    "rgba_positive_present": false,
+    "i2i_routes": [
+     {
+      "name": "高清头像·人物图裁切精修",
+      "entry": "K2-人脸精修-道劫.json",
+      "denoise": 0.35
+     }
+    ],
+    "purpose_anchor": null
+   },
+   "note": "i2i 弹=性别改写编辑(09:86 晏燎例『将他重绘为少年』,ref=§1 女修→输出男少年属有意编辑,目检不判死);i2i 压幅注入 960×1280;i2i 指令源=09:86 逐字"
+  },
+  {
+   "type": "场景",
+   "t2iSubject": "暮春时节的黄昏，天际晕着旧金色暮霭，废弃的上古祭坛深藏在群山环抱的谷底；画面中央九根断裂的赭石色石柱围成半圆，坛心一泓浅潭，水色旧金；前景坛基青灰石阶残缺，阶缝生着零星苔绿；左下角一只倾倒的铜鼎半埋在枯叶里，鼎身覆着青绿铜锈；右下角几块碎裂的石碑斜插在土中，碑面刻纹被苔藓掩去大半；左侧一道赭石色崖壁垂下几缕枯藤；右侧一株老松斜伸出崖缝，松针青绿；中景石柱之间散落断裂的石梁与倾颓的石兽；左上角崖顶残存半截石阙；右上角一线淡朱晚霞横过天际；谷口青灰暮雾正缓缓漫入，远山三重青灰叠影层层退远、层间边界清晰。残阳从画面右上方斜照下来，旧金色光落在石柱顶端，潭面水色与之同一冷暖倾向。",
+   "t2iSubjectSource": "道劫_类型主体句示例.md §2 代码块(内容行 44-44)",
+   "i2iInstruction": null,
+   "i2iInstructionStatus": "PENDING-OWNER-WORDING",
+   "i2iApplicable": true,
+   "special": {
+    "aspect_ratio": "16:9 (Widescreen)",
+    "megapixels": 2.25,
+    "resolution_override": [
+     2048,
+     1152
+    ],
+    "formula_canvas_qwen21_py": [
+     2048,
+     1152
+    ],
+    "i2i_compress_canvas": [
+     1472,
+     832
+    ],
+    "rgba_positive_present": false,
+    "i2i_routes": [
+     {
+      "name": "去噪精修",
+      "entry": "K2-去噪精修.json"
+     }
+    ],
+    "purpose_anchor": "16:9 空镜 hero shot、人眼平视。主体句写地点、季节、时段，并按场景点名留白载体（天空/水面/雪地/雾气/烟霭/暗部择一）；底色色相由主体句按时段天候指定（底座不锁背景明暗）；人物一律交给负向（person/human figure），正向不写否定式。本型参照山水模板气质独立撰写，无第二持有者、无逐字锁。"
+   },
+   "note": "i2i 压幅注入 1472×832;i2i 指令 PENDING-OWNER-WORDING(组自规格,仓内无逐字源)"
+  },
+  {
+   "type": "道具",
+   "t2iSubject": "一柄传承千年的青铜剑，剑身暗金底色上盘绕细密云雷纹，剑格铸成兽首衔环，剑柄缠深红丝绳，穗尾垂一枚带裂纹的灵玉。",
+   "t2iSubjectSource": "道劫_类型主体句示例.md §3 代码块(内容行 54-54)",
+   "i2iInstruction": null,
+   "i2iInstructionStatus": "not-applicable",
+   "i2iApplicable": false,
+   "special": {
+    "aspect_ratio": "1:1 (Square)",
+    "megapixels": 1.0,
+    "resolution_override": null,
+    "formula_canvas_qwen21_py": [
+     1024,
+     1024
+    ],
+    "i2i_compress_canvas": null,
+    "rgba_positive_present": true,
+    "i2i_routes": [],
+    "purpose_anchor": null
+   },
+   "note": "i2i 不适用(i2iApplicable=false);t2i 1:1 1MP=i2i 安全档内型(参照组)"
+  },
+  {
+   "type": "美宣",
+   "t2iSubject": "雷劫降临的至暗时刻，白衣剑修独立孤峰之巅，乌黑长发高束马尾、束发紧实，足蹬玄色云锦履，履口镶旧金缘，履面金线绣流云纹，千层底青灰锁边，腰束石青丝绦；衣袂翻飞、长发激扬；他正面迎向观者、微向左转，重心落于右腿，左脚虚点峰顶石沿；左臂垂落，左手紧握为拳；右手紧持剑鞘近柄端、横于身前，掌心贴实乌木鞘身，五指完全环扣，指节清晰分明，手腕与手背结构自然——白玉剑格、缠灰银丝剑柄、鞘口朱红剑穗激扬翻卷——剑身完整收在鞘中，鞘尖朝下、剑柄朝上，全身仅此一柄长剑；目光直视画面左侧青灰劫云深处；周身金色灵光凝成完整光罩，金芒流转，电弧缠绕周身，九道紫雷近身劈落，碎石悬浮；远景青绿群山与赭石岩壁在雷光明灭中沉浮，翻涌劫云压顶，山脚青灰雾带横陈。",
+   "t2iSubjectSource": "道劫_类型主体句示例.md §4 代码块(内容行 65-65)",
+   "i2iInstruction": null,
+   "i2iInstructionStatus": "not-applicable",
+   "i2iApplicable": false,
+   "special": {
+    "aspect_ratio": "16:9 (Widescreen)",
+    "megapixels": 2.25,
+    "resolution_override": [
+     2048,
+     1152
+    ],
+    "formula_canvas_qwen21_py": [
+     2048,
+     1152
+    ],
+    "i2i_compress_canvas": [
+     1472,
+     832
+    ],
+    "rgba_positive_present": false,
+    "i2i_routes": [],
+    "purpose_anchor": null
+   },
+   "note": "i2i 不适用"
+  },
+  {
+   "type": "人物多视图",
+   "t2iSubject": "青年刀修玄色（近黑）劲装束袖束腰，立领滚青灰边，襟口铜扣旧金，乌黑长发高束马尾，腰束黑革带且带身简洁，双手自然垂于身体两侧，足蹬黑布短靴；剑眉舒展，目光沉稳坚毅。",
+   "t2iSubjectSource": "道劫_类型主体句示例.md §5 代码块(内容行 76-76)",
+   "i2iInstruction": null,
+   "i2iInstructionStatus": "not-applicable",
+   "i2iApplicable": false,
+   "special": {
+    "aspect_ratio": "16:9 (Widescreen)",
+    "megapixels": 1.8,
+    "resolution_override": [
+     1824,
+     1024
+    ],
+    "formula_canvas_qwen21_py": [
+     1824,
+     1024
+    ],
+    "i2i_compress_canvas": [
+     1472,
+     832
+    ],
+    "rgba_positive_present": true,
+    "i2i_routes": [],
+    "purpose_anchor": null
+   },
+   "note": "i2i 不适用;t2i 源 1824×1024,504 期望 3834×2153(ceil 模型)"
+  },
+  {
+   "type": "高清人脸",
+   "t2iSubject": "一位筑基后期的年轻女修面容特写：眉目沉静中带一点锋芒，长发玄色（近黑）半束只簪一支素银簪，几缕碎发垂在颊边，可见衣领为青玉色；神情沉静。",
+   "t2iSubjectSource": "道劫_类型主体句示例.md §6 代码块(内容行 88-88)",
+   "i2iInstruction": "将输入图片中人物的头发颜色由黑色改为蓝色，发丝在受光面呈现鲜明的亮蓝色泽、背光与阴影处呈现饱和的深蓝色调，使新发色与画面既有的光线方向和明暗逻辑完全一致；在此基础上，完整保留该人物原有的长发发型、发长、直发质感与分发缝走向，面部特征与五官比例、自然肤色、表情与视线方向均与输入图完全一致，同时保留身上服装的款式与版型以及所佩戴的全部配饰，背景的样式结构与整体光线也保持不变，本次编辑仅针对头发颜色这一项，并保持原图的取景、构图与人物在画面中的大小和位置完全不变。",
+   "i2iInstructionStatus": "verbatim-09:94",
+   "i2iApplicable": true,
+   "special": {
+    "aspect_ratio": "1:1 (Square)",
+    "megapixels": 1.0,
+    "resolution_override": null,
+    "formula_canvas_qwen21_py": [
+     1024,
+     1024
+    ],
+    "i2i_compress_canvas": null,
+    "rgba_positive_present": true,
+    "i2i_routes": [
+     {
+      "name": "人物图裁切精修",
+      "entry": "K2-人脸精修-道劫.json",
+      "denoise": 0.35,
+      "note": "A/B 档 0.25 更保身份"
+     }
+    ],
+    "purpose_anchor": null
+   },
+   "note": "i2i 压幅不触发(1:1 1MP≤1.25MP,WhSuggest 连线零动作);i2i 指令源=09:94 逐字"
+  },
+  {
+   "type": "分镜剧情图",
+   "t2iSubject": "山雨欲来的渡口，青年刀修玄色劲装束袖束腰，乌黑长发高束马尾，腰侧黑革刀带悬一柄短刀，黑鲨皮鞘、黄铜刀格、缠灰绳刀柄，刀身完整收在鞘中，双手扶在行囊肩带上，第一次背起行囊离乡；老船工收篙回望，江天压满墨青雨云，渡口一盏朱红灯笼是画面唯一的暖色，两人的目光都投向江雾深处层层退远的仙山轮廓。",
+   "t2iSubjectSource": "道劫_类型主体句示例.md §7 代码块(内容行 107-107)",
+   "i2iInstruction": null,
+   "i2iInstructionStatus": "not-applicable",
+   "i2iApplicable": false,
+   "special": {
+    "aspect_ratio": "16:9 (Widescreen)",
+    "megapixels": 2.25,
+    "resolution_override": [
+     2048,
+     1152
+    ],
+    "formula_canvas_qwen21_py": [
+     2048,
+     1152
+    ],
+    "i2i_compress_canvas": [
+     1472,
+     832
+    ],
+    "rgba_positive_present": false,
+    "i2i_routes": [],
+    "purpose_anchor": null
+   },
+   "note": "i2i 不适用"
+  },
+  {
+   "type": "表情差分",
+   "t2iSubject": "青年刀修，肤色温润的浅麦色，剑眉浓黑，乌黑（近黑）长发高束马尾，发色浓黑清晰；九格情绪与五官状态按点位逐格指定——左上格为沉静：双目平和微垂、眉舒展、唇线平直；左中格为含笑：眼角弯起、嘴角上扬轻抿、眉梢微挑；左下格为怒：剑眉倒竖、怒目圆睁、牙关紧咬嘴角下压；中上格为哀：眉梢下垂呈八字、眼睑低垂含泪光、嘴角下弯；中中格为惧：眉毛高挑向眉心收拢、双眼圆睁、唇微张发颤；中下格为凌厉：双眼眯起、眉峰锐利下压、嘴角紧抿；右上格为惊讶：眉毛高高挑起、双眼睁大、唇微张成小圆；右中格为害羞：双颊染红晕、眼帘低垂、嘴角含羞轻抿；右下格为决然：目光坚定直视、眉宇紧锁、嘴角平直。",
+   "t2iSubjectSource": "道劫_类型主体句示例.md §8 代码块(内容行 115-115)",
+   "i2iInstruction": null,
+   "i2iInstructionStatus": "PENDING-OWNER-WORDING",
+   "i2iApplicable": true,
+   "special": {
+    "aspect_ratio": "1:1 (Square)",
+    "megapixels": 1.5,
+    "resolution_override": null,
+    "formula_canvas_qwen21_py": [
+     1256,
+     1256
+    ],
+    "i2i_compress_canvas": [
+     1088,
+     1088
+    ],
+    "rgba_positive_present": true,
+    "i2i_routes": [
+     {
+      "name": "人脸变体",
+      "entry": "K2-表情差分-道劫.json",
+      "denoise": 0.25,
+      "note": "低去噪保面容;A/B 档 0.35 变化更大"
+     }
+    ],
+    "purpose_anchor": "1:1 方形脸部表情差分九宫格，三行三列，九格取景均从头顶至下颌，仅呈现头部。主体句按左上、左中、左下、中上、中中、中下、右上、右中、右下九个点位逐格指定情绪，并为各情绪补充可见的眉眼、眼睑、鼻颊、嘴角与唇形变化；角色身份、发型、正面平视机位与脸部取景一致，情绪差异清晰。默认透明底，格名文字后期添加。"
+   },
+   "note": "i2i 压幅注入 1088×1088;t2i 型画幅期望以实发为准(引擎 WhSuggest 收整,公式 1256 vs 实发 1248 在案);i2i 指令 PENDING-OWNER-WORDING(组自规格,仓内无逐字源)"
+  },
+  {
+   "type": "概念气氛图",
+   "t2iSubject": "千年一次的灵潮涨落之夜，悬浮的碎裂古殿群处在近景、居于画面中央偏右、占画面约半幅，为全图主体；殿身敷压沉一档的青蓝色，殿瓦瓦垄排列整齐，飞檐翘角轮廓完整，檐角悬旧金铃铎、历历可数，梁枋彩画青绿与旧金相间、纹样清晰，殿身裂口与断瓦依来源事实呈现；群殿四周夜雾中万千萤火状灵尘随气流缓缓升腾，暖金与朱红双色的灵光染亮夜雾，粒尘辉光聚于殿群与灵光带；左下一株横生孤松伸向殿群，上方与四周留出整片蓝灰夜空与雾承担画面呼吸。",
+   "t2iSubjectSource": "道劫_类型主体句示例.md §9 代码块(内容行 128-128)",
+   "i2iInstruction": null,
+   "i2iInstructionStatus": "not-applicable",
+   "i2iApplicable": false,
+   "special": {
+    "aspect_ratio": "16:9 (Widescreen)",
+    "megapixels": 2.25,
+    "resolution_override": [
+     2048,
+     1152
+    ],
+    "formula_canvas_qwen21_py": [
+     2048,
+     1152
+    ],
+    "i2i_compress_canvas": [
+     1472,
+     832
+    ],
+    "rgba_positive_present": false,
+    "i2i_routes": [],
+    "purpose_anchor": null
+   },
+   "note": "i2i 不适用"
+  },
+  {
+   "type": "设定卡",
+   "t2iSubject": "【文字要求】画面中所有文字必须是以上明确指定的中文，逐字准确、清晰可读、无错字无乱码；不要生成任何未指定的多余文字。\n青年男性刀修，剑眉星目；玄色劲装束袖束腰配双腿裤装，乌黑长发高束马尾，左腰侧黑革刀带悬一柄短刀，黑鲨皮鞘、黄铜刀格、缠灰绳刀柄，刀身完整收在鞘中，连鞘明显长过前臂。名号「玄刀客」。",
+   "t2iSubjectSource": "道劫_类型主体句示例.md §10 代码块(内容行 143-144)",
+   "i2iInstruction": null,
+   "i2iInstructionStatus": "not-applicable",
+   "i2iApplicable": false,
+   "special": {
+    "aspect_ratio": "16:9 (Widescreen)",
+    "megapixels": 7.91,
+    "resolution_override": [
+     3840,
+     2160
+    ],
+    "formula_canvas_qwen21_py": [
+     3840,
+     2160
+    ],
+    "i2i_compress_canvas": [
+     1472,
+     832
+    ],
+    "rgba_positive_present": false,
+    "i2i_routes": [],
+    "purpose_anchor": null
+   },
+   "note": "t2i 源 3840×2160=8.29MP>新帽 8.25:GemTiledUpscale 对超帽源行为未证(降采样≈3830×2155 或恒等直出),首发实测定谳,目检查降采样伪影;主体句含【文字要求】行+换行保真"
+  },
+  {
+   "type": "3D剖面场景图",
+   "t2iSubject": "两层修仙客栈云来居，整楼上下恰两层：下层堂屋并两张八仙桌与青灰柜台，堂屋左侧酒坛架列旧金酒坛；上层两间客房各一榻一案；一道木梯自堂屋右侧贯通上层。午后晴光，墙体主色旧金、陈设青灰与赭石相衬、背景净空淡墨。",
+   "t2iSubjectSource": "道劫_类型主体句示例.md §11 代码块(内容行 152-152)",
+   "i2iInstruction": null,
+   "i2iInstructionStatus": "not-applicable",
+   "i2iApplicable": false,
+   "special": {
+    "aspect_ratio": "16:9 (Widescreen)",
+    "megapixels": 2.25,
+    "resolution_override": [
+     2048,
+     1152
+    ],
+    "formula_canvas_qwen21_py": [
+     2048,
+     1152
+    ],
+    "i2i_compress_canvas": [
+     1472,
+     832
+    ],
+    "rgba_positive_present": false,
+    "i2i_routes": [
+     {
+      "name": "去噪精修",
+      "entry": "K2-去噪精修.json"
+     }
+    ],
+    "purpose_anchor": null
+   },
+   "note": "i2iApplicable=false:图生图路源缺在案(手册 §11『候实弹后补』);qi21_bases 路由(去噪精修)只录 i2iRoutes 元数据不发弹"
+  },
+  {
+   "type": "人脸基准",
+   "t2iSubject": "一位约十七岁女修的面容：光洁的头颅浑圆周正，柳眉弯细舒展，双瞳漆黑，目光沉稳中透着一股韧劲，鼻梁秀挺，唇色淡朱，肤色为温润的浅麦色，瓜子脸颊带着山野灵秀的气质。",
+   "t2iSubjectSource": "道劫_类型主体句示例.md §12 代码块(内容行 160-160)",
+   "i2iInstruction": null,
+   "i2iInstructionStatus": "PENDING-OWNER-WORDING",
+   "i2iApplicable": true,
+   "special": {
+    "aspect_ratio": "1:1 (Square)",
+    "megapixels": 1.0,
+    "resolution_override": null,
+    "formula_canvas_qwen21_py": [
+     1024,
+     1024
+    ],
+    "i2i_compress_canvas": null,
+    "rgba_positive_present": true,
+    "i2i_routes": [
+     {
+      "name": "人物图裁切精修",
+      "entry": "K2-人脸精修-道劫.json",
+      "denoise": 0.35,
+      "note": "A/B 档 0.25 更保身份"
+     }
+    ],
+    "purpose_anchor": "文生图直出角色统一人脸基准底版。主体句写角色气质五官并带「光洁的头颅」光头正向措辞；取景止颈根，零发型零衣领零衣物，RGBA 透明底。一角色一基准脸，作该角色全部生图的人脸参考。"
+   },
+   "note": "i2i 压幅不触发(1:1 1MP);i2i 指令 PENDING-OWNER-WORDING(无手册成文节,唯一措辞锚=qi21_bases purpose「光洁的头颅」,禁猜措辞)"
+  },
+  {
+   "type": "无衣物定妆",
+   "t2iSubject": "一位约十七岁的女修：瓜子脸，柳眉弯细，双瞳漆黑，目光沉稳中透着一股韧劲；乌黑长发绾成低垂的堕马髻，鬓边碎发收拢齐整；身形纤细匀称，肩线柔和平缓，四肢修长，通体肌肤为健康的浅麦色；每只手恰好五根手指，五指数量准确，指节清晰分明，手腕与手背结构自然；整体气质灵秀沉静，是山野灵根少女。",
+   "t2iSubjectSource": "道劫_类型主体句示例.md §13 代码块(内容行 168-168)",
+   "i2iInstruction": null,
+   "i2iInstructionStatus": "PENDING-OWNER-WORDING",
+   "i2iApplicable": true,
+   "special": {
+    "aspect_ratio": "3:4 (Portrait Standard)",
+    "megapixels": 1.5,
+    "resolution_override": null,
+    "formula_canvas_qwen21_py": [
+     944,
+     1672
+    ],
+    "i2i_compress_canvas": [
+     832,
+     1472
+    ],
+    "rgba_positive_present": true,
+    "i2i_routes": [
+     {
+      "name": "高清头像·人物图裁切精修",
+      "entry": "K2-人脸精修-道劫.json",
+      "denoise": 0.35
+     }
+    ],
+    "purpose_anchor": "文生图直出角色全身素体定妆底版(十境一致性链根):零衣物零配饰零鞋履,发型为恒定身份锚,正面直立,RGBA 透明底;用户盖章后为该角色全身唯一身份真源,此后一切出图皆图生图编辑,面部/发型/体型/站姿永不重画,衣物为唯一变量。"
+   },
+   "note": "i2i 压幅注入 832×1472(vs t2i ref 引擎 native 口径 1088×1448)=横向压扁~25%,qwen21 公式与引擎 native_px 分叉的在案生产行为如实复现,目检不判死;i2i 指令 PENDING-OWNER-WORDING(无手册成文节,唯一措辞锚=qi21_bases purpose「衣物为唯一变量」,禁猜措辞)"
+  },
+  {
+   "type": "自由",
+   "t2iSubject": "暮色里的一方旧金铜香炉，炉口升起一缕笔直的青灰烟气，炉侧宣纸白垫布上摆着三粒朱红丹丸。",
+   "t2iSubjectSource": "道劫_类型主体句示例.md §14 代码块(内容行 176-176)",
+   "i2iInstruction": null,
+   "i2iInstructionStatus": "not-applicable",
+   "i2iApplicable": false,
+   "special": {
+    "aspect_ratio": "1:1 (Square)",
+    "megapixels": 1.0,
+    "resolution_override": null,
+    "formula_canvas_qwen21_py": [
+     1024,
+     1024
+    ],
+    "i2i_compress_canvas": null,
+    "rgba_positive_present": false,
+    "i2i_routes": null,
+    "purpose_anchor": null
+   },
+   "note": "i2i 不适用(自由型=只拼操作与保留项)"
+  }
+ ]
+}

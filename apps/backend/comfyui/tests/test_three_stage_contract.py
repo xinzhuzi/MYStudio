@@ -335,6 +335,7 @@ def test_single_shot_dir_inventory():
     1112 用户令:1_漫影自研 下不设子文件夹;归档语义由文件名后缀承载。"""
     expected = [
         "一镜到底-分段.json",
+        "三采-单镜-修脸.json",
         "三采-单镜.json",
         "导演台.json",
     ]
@@ -388,8 +389,8 @@ def test_facerefine_inline_arm_1118():
         assert s.get("link") is not None, f"[{nid}].{slot_name} 未连线"
         return links[s["link"]]
 
-    assert src_of(5002, "video")[1] == 3053, \
-        "[5002] 拆帧必须内存态直吃 [3053](二采 p2 出片口;1118 门禁红根修,对齐 multiseg 同臂口径)"
+    assert src_of(5002, "video")[1] == 4002, \
+        "[5002] 拆帧必须内存态直吃 [4002](三采 p3 4K;1119 回正=用户裁定「三采 4K 后修脸」+融合役红旗(3053=开修脸丢三采超分);multiseg 3053 是 auto-context 墙专属,三采无此墙禁泛化)"
     assert src_of(5006, "model")[1] == 1001, "[5006] LoRA 必须复用 [1001] 单 loader"
     wl, hl = src_of(5012, "width"), src_of(5012, "height")
     assert (wl[1], nodes[5011]["outputs"][wl[2]]["name"]) == (5011, "canvas_w"), \

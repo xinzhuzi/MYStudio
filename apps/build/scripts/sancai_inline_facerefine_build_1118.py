@@ -134,7 +134,7 @@ WIDGETS: dict[int, list | None] = {
 
 # ---- 连线(src_id, src出口槽名, dst_id, dst输入槽名)----
 WIRING = [
-    (3053, "VIDEO", 5002, "video"),
+    (4002, "VIDEO", 5002, "video"),  # 1119 回正:四采吃 p3 4K(用户裁定「三采 4K 后修脸」;施工员误植 multiseg TAIL=3053 范式=开修脸丢三采超分,融合役红旗)
     (4002, "VIDEO", 5100, "on_false"),
     (5002, "images", 5011, "images"),
     (5002, "images", 5022, "base_images"),
@@ -180,7 +180,7 @@ WIRING = [
 API_NEW: dict[str, dict] = {
     "25": {"class_type": "PrimitiveStringMultiline", "inputs": {"value": IDENTITY}},
     "1065": {"class_type": "PrimitiveBoolean", "inputs": {"value": False}},
-    "5002": {"class_type": "GetVideoComponents", "inputs": {"video": ["3053", 0]}},
+    "5002": {"class_type": "GetVideoComponents", "inputs": {"video": ["4002", 0]}},
     "5006": {"class_type": "LoraLoaderModelOnly", "inputs": {
         "model": ["1001", 0], "lora_name": "pika_turbo_8step_fl2va.safetensors", "strength_model": 1}},
     "5011": {"class_type": "H3FaceTrackCrop", "inputs": {
@@ -429,11 +429,11 @@ def check() -> int:
         l = src_of(next(n for n in S["nodes"] if n["id"] == nid), in_name)
         return bool(l) and l[1] == want_src
 
-    ok(wired(5002, "video", 3053) and wired(5100, "on_false", 4002) and wired(5100, "on_true", 5023)
+    ok(wired(5002, "video", 4002) and wired(5100, "on_false", 4002) and wired(5100, "on_true", 5023)
        and wired(5100, "switch", 1065) and wired(4100, "video", 5100) and wired(5006, "model", 1001)
        and wired(5014, "audio", 5002) and wired(5019, "conditioning", 5012)
        and wired(5020, "noise", 5016), "关键联线拓扑(5002←3053/5100 双臂+开关/4100←5100/5006←1001/5014.audio←5002②/5019←5012/5020←5016)")
-    ok(A["5002"]["inputs"]["video"] == ["3053", 0] and A["5100"]["inputs"]["on_false"] == ["4002", 0]
+    ok(A["5002"]["inputs"]["video"] == ["4002", 0] and A["5100"]["inputs"]["on_false"] == ["4002", 0]
        and A["5100"]["inputs"]["on_true"] == ["5023", 0] and A["4100"]["inputs"]["video"] == ["5100", 0]
        and A["5006"]["inputs"]["model"] == ["1001", 0], "API 关键拓扑同构")
 

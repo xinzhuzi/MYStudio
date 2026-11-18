@@ -228,7 +228,7 @@
     "8116": {
       "class_type": "GemTiledUpscale",
       "inputs": {
-        "megapixels": 10,
+        "megapixels": 8.25,
         "tile_megapixels": 2,
         "overlap": 256,
         "multiple": 32,

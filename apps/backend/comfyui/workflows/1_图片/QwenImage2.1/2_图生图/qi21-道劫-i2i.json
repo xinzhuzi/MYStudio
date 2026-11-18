@@ -2164,12 +2164,12 @@
           "links": null
         }
       ],
-      "title": "[8116] Gem②·分块超分 10MP",
+      "title": "[8116] Gem②·分块超分 8.25MP(4K帽)",
       "properties": {
         "Node name for S&R": "GemTiledUpscale"
       },
       "widgets_values": [
-        10,
+        8.25,
         2,
         256,
         32,

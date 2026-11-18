@@ -5957,7 +5957,7 @@ class TestSeedVR2TailContract1002:
 
 # ── 6g-2. Gem 分块超分尾档契约(1117 手术;真源=社区件 qwen21_Gem_Face_zoom_V1.json
 # ② 链移植:防大图守卫三件(平铺形,源件住子图容器)+独立加载器栈(int8 UNET→
-# 官方turbo r178→mikkoani@0.6,1118 B 案换挂治动漫感流失)→GemTiledUpscale(10MP/2MP tile)→TextEncodeQwenImage21
+# 官方turbo r178→mikkoani@0.6,1118 B 案换挂治动漫感流失)→GemTiledUpscale(8.25MP/2MP tile;出图逐边ceil无对齐)→TextEncodeQwenImage21
 # 修复提示词→KSampler 8步→VAEDecode→GemTiledUpscaleStitch 拼缝,出口接既有
 # SaveImage[504];SeedVR 整链节点级 mode4 旁路零删可复活;手术脚本
 # apps/build/scripts/qi21_daojie_gem_tiled_graft_1117.py)─────────────────
@@ -5982,7 +5982,7 @@ GEM_TAIL_WIDGETS = {
     8113: ["qi21-mikkoani.safetensors", 0.6],
     8114: ["qwen3vl_8b_int8_convrot.safetensors", "qwen_image", "default"],
     8115: ["qwen_image_2.1_vae_bf16.safetensors"],
-    8116: [10, 2, 256, 32, 64, True],
+    8116: [8.25, 2, 256, 32, 64, True],
     8117: ["Upscale this illustration to ultra-high definition: remove blur, "
            "noise and compression artifacts, recover crisp linework, clean "
            "flat color planes and fine detail across figures, garments, "
