@@ -412,3 +412,40 @@ class TestStorageRootLayouts:
         exe = self._exe(tmp_path, ".venv", "bin", name="python")
         self._patch(monkeypatch, exe)
         assert cm.storage_root().name == ".manying-dev"
+
+
+def test_list_repo_source_with_engine_online(tmp_path, monkeypatch):
+    """1118 回归:repo 支路引擎在线时的缺失插件计算(修前引用未定义的
+    `missing` 直接 UnboundLocalError 500——被「引擎离线短路面」长期捂住,
+    Win manifest BOM 失明修活引擎后首爆)。"""
+    _use_tmp_home(tmp_path, monkeypatch)
+    repo = tmp_path / "repo-workflows" / "1_图片"
+    repo.mkdir(parents=True)
+    (repo / "K2-文生图.json").write_text(json.dumps(
+        {"nodes": [{"type": "KSampler"}, {"type": "NoSuchNode"}]}, ensure_ascii=False),
+        encoding="utf-8")
+
+    class _Engine:
+        @staticmethod
+        def is_healthy():
+            return True
+
+        @staticmethod
+        def object_info_names():
+            return {"KSampler"}
+
+    monkeypatch.setattr(pm, "engine_manager", lambda: _Engine())
+    listing = pm.list_workflows()
+    assert listing["engineOnline"] is True
+    by_id = {w["id"]: w for w in listing["workflows"]}
+    assert by_id["repo:1_图片/K2-文生图.json"]["missingNodes"] == ["NoSuchNode"]
+
+
+def test_load_manifest_tolerates_utf8_bom(tmp_path, monkeypatch):
+    """1118 Win 实弹回归:PS 直写的 BOM'd UTF-8 manifest(EF BB BF)不再
+    打回空账本——recorded_port 正常出 17000(修前 JSONDecodeError 静默)。"""
+    home = _use_tmp_home(tmp_path, monkeypatch)
+    home.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps({"schemaVersion": 1, "engine": {"version": "v0.45.2", "port": 17000}})
+    (home / "manifest.json").write_bytes(b"\xef\xbb\xbf" + payload.encode("utf-8"))
+    assert cm.recorded_port() == 17000

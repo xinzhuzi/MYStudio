@@ -269,7 +269,10 @@ def load_manifest() -> dict:
     if cached and cached[0] == fingerprint:
         return cached[1]
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        # utf-8-sig:BOM 容忍读——1118 实弹,Win 侧 manifest 曾被 PowerShell 直写
+        # 成带 BOM 的 UTF-8(EF BB BF),严格 utf-8 读会喂 json.loads 一个 \ufeff
+        # 前缀 → JSONDecodeError → 空账本 → 引擎端口/账本全链失明(静默)。
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError):
         # 账本损坏=按空账本处理,绝不因账本坏阻断引擎探测(体检会报告漂移)
         return default_manifest()

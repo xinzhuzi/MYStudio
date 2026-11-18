@@ -1535,7 +1535,7 @@ def list_workflows(prefix: str | None = None, light: bool = False) -> dict:
         missing_plugins: list[str] | None = None
         if engine_online:
             missing_nodes = sorted(types - object_names)
-            missing_plugins = sorted({node_map[t] for t in missing if t in node_map})
+            missing_plugins = sorted({node_map[t] for t in missing_nodes if t in node_map})
         entries.append({
             "id": rid, "name": wf.stem, "sizeBytes": wf.stat().st_size,
             "nodeCount": workflow_node_count(obj),
