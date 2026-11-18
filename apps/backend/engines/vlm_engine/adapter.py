@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .model_cache import DEFAULT_VLM_MODEL, find_cached_vlm_model
+from .model_cache import DEFAULT_VLM_MODEL, find_any_cached_vlm_model, find_cached_vlm_model
 
 MODEL_NAME = DEFAULT_VLM_MODEL
 REVIEW_TIMEOUT_SECONDS = 30
@@ -130,7 +130,9 @@ def review_image(
 
     # Model discovery
     if model_dir is None:
-        model_dir = find_cached_vlm_model()
+        # 1118 二十一刀:任一在册模型命中即用(老语义只认 DEFAULT,别档已下
+        # 仍 model-not-downloaded=审门黑灯,19 帧裸奔 8 克隆废片实录)。
+        model_dir = find_any_cached_vlm_model()
         if not model_dir:
             return {
                 "status": "blocked",
@@ -185,7 +187,8 @@ def review_image(
         )
         return {
             "status": "accepted" if all_ok else "rejected",
-            "model": MODEL_NAME,
+            # 1118 二十一刀:报告实际命中档(任一在册),不再是常量名
+            "model": Path(model_dir).name,
             "checks": checks,
             "reasons": reasons,
             "inferenceMs": round((time.time() - started) * 1000),

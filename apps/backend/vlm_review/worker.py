@@ -20,7 +20,7 @@ from engines.vlm_engine.model_cache import (
     DEFAULT_VLM_MODEL,
     detect_hardware_profile,
     evaluate_availability,
-    find_cached_vlm_model,
+    find_any_cached_vlm_model,
     scan_vlm_model_inventory,
 )
 
@@ -63,7 +63,8 @@ def _probe() -> dict[str, Any]:
     """Probe runtime dependencies + hardware + model availability."""
     profile = detect_hardware_profile()
     availability = evaluate_availability(profile)
-    model_dir = find_cached_vlm_model()
+    # 1118 二十一刀:任一在册模型命中即 ready(老语义只认 8B,下了别的档仍黑灯)
+    model_dir = find_any_cached_vlm_model()
     inventory = scan_vlm_model_inventory()
     try:
         import mlx_vlm  # noqa: F401

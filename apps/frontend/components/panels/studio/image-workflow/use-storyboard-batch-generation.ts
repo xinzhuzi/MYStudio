@@ -544,10 +544,28 @@ async function reviewFrame(
   shot: StoryboardItem,
 ): Promise<VlmReviewArtifactV1 | null> {
   const bridge = typeof window !== "undefined" ? window.vlmReview : undefined;
-  if (!bridge?.run) return null;
+  // 1118 二十一刀:静默 return null=黑灯裸奔(1117 晚起 Mac 无权重,19 帧
+  // 零审入库,8 克隆废片实录)——bridge 缺席/未就绪一律落 warn 可见。
+  if (!bridge?.run) {
+    void logEvent({
+      level: "warn", category: "ai",
+      operationId: createOperationId("vlm-review-blackout"),
+      message: "VLM 审核黑灯(bridge 缺席),本帧未审直接放行",
+      context: { shotId: shot.id },
+    });
+    return null;
+  }
   try {
     const probe = await bridge.probe();
-    if (probe.status !== "ready") return null;
+    if (probe.status !== "ready") {
+      void logEvent({
+        level: "warn", category: "ai",
+        operationId: createOperationId("vlm-review-blackout"),
+        message: "VLM 审核未就绪(模型/运行时缺),本帧未审直接放行",
+        context: { shotId: shot.id, code: probe.code ?? null },
+      });
+      return null;
+    }
     const referenceImages = (shot.orderedReferenceManifest ?? [])
       .filter((ref) => ref.imagePath)
       .map((ref) => ({

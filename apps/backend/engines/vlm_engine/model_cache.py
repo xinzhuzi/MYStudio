@@ -14,11 +14,21 @@ from pathlib import Path
 from typing import Any
 
 VLM_MODELS: dict[str, dict[str, Any]] = {
+    # 1118 二十一刀:8B 恒正配首位(加载优先)——2B 实测不合格(S07/S05 两帧
+    # reasons 一字不差=复读题干,克隆判定不可信),降为轻量备选留册;审门
+    # prompt 按十三刀B 原配 8B 写,能力对齐。
     "qwen3-vl-8b-instruct-mlx-8bit": {
         "repo_id": "mlx-community/Qwen3-VL-8B-Instruct-8bit",
         "display_name": "Qwen3-VL-8B-Instruct (MLX 8-bit)",
         "size_mb": 9900,
         "description": "8B 视觉语言模型,中文视觉推理最强,MLX 8-bit 提升判断一致性",
+        "requires": "darwin-arm64-mlx",
+    },
+    "qwen3-vl-2b-instruct-mlx-4bit": {
+        "repo_id": "mlx-community/Qwen3-VL-2B-Instruct-4bit",
+        "display_name": "Qwen3-VL-2B-Instruct (MLX 4-bit)",
+        "size_mb": 2100,
+        "description": "2B 轻量备选(1118 实测:多问 JSON 审题会复读题干,判定力不足,仅供快速预筛)",
         "requires": "darwin-arm64-mlx",
     },
 }
@@ -96,6 +106,19 @@ def find_cached_vlm_model(
         candidate = base / model_name
         if _is_valid_model_dir(candidate):
             return str(candidate.resolve())
+    return None
+
+
+def find_any_cached_vlm_model(model_cache_dir: Path | None = None) -> str | None:
+    """1118 二十一刀:按注册表序找任一已缓存模型(轻量档排前=优先命中)。
+
+    老语义 find_cached_vlm_model() 只认 DEFAULT 单名——机器上下了非默认档
+    (如 8B)时 probe/run 仍恒 model-not-downloaded=门黑灯。审门不挑模型,
+    任一在册可用即开。"""
+    for name in VLM_MODELS:
+        found = find_cached_vlm_model(name, model_cache_dir)
+        if found:
+            return found
     return None
 
 

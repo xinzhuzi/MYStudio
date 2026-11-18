@@ -141,6 +141,8 @@ export class VlmReviewRuntimeController {
       const { spawn } = await import("node:child_process");
       const child = spawn(
         this.config.pythonExecutable,
+        // 1118 二十一刀:默认下载回 8B 正配(2B 实测复读题干不合格,
+        // 降注册表轻量备选;probe/加载按注册表任一命中,8B 优先)
         ["-m", "vlm_review.download_model", "--model", "qwen3-vl-8b-instruct-mlx-8bit", "--progress", progressFile],
         { cwd: this.config.backendRoot, env: this.pythonEnv(), stdio: "pipe" },
       );
