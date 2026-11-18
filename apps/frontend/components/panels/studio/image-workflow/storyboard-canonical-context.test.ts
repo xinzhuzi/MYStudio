@@ -426,10 +426,10 @@ describe("十五刀A:sanitizeAssetPromptForIdentity(资产 prompt 列洗版)", (
     expect(out).not.toMatch(/[\r\n]/);
   });
 
-  it("② 赵四实录:画幅段(21:9 横幅)与布光段剔,身份特征词保留", () => {
+  it("② 赵四实录:画幅段(21:9 横幅)与布光段剔,身份特征词保留(1118 十七刀A迁移:性格词=非视觉面,白名单不取)", () => {
     const raw = "约三十岁的男性码头监工,凶横刻薄,宽方厚重脸、浓眉压眼、眼神严厉,肤色黝黑粗糙,21:9 横幅,均匀柔和散光,四视图面容完全一致";
     const out = sanitizeAssetPromptForIdentity(raw);
-    expect(out).toContain("凶横刻薄");
+    expect(out).not.toContain("凶横刻薄");
     expect(out).toContain("浓眉压眼");
     expect(out).not.toContain("横幅");
     expect(out).not.toContain("21:9");
@@ -461,5 +461,39 @@ describe("十六刀:设定图排版指令段剔除(S01/S02 并排四视图实弹
     expect(out).not.toContain("设定图");
     expect(out).toContain("水墨国风");
     expect(out).toContain("面容粗犷坚毅");
+  });
+});
+
+describe("十七刀A:白名单结构化提取(要什么取什么,替换黑名单追赶)", () => {
+  it("① 赵四实录:面容/着装/发保留,性格词与摆姿指令剔,排版语零", () => {
+    const raw = "约三十岁的男性码头监工，凶横刻薄，宽方厚重脸，浓眉压眼，眼神严厉，肤色黝黑粗糙，身形粗壮结实，素颜状态，中性微表情含几分戾气，目视前方，自然站立，双臂自然下垂，双脚微分，身着米白色及膝粗布短袍，腰束青灰布带，足蹬旧布靴，墨黑长发向后梳拢，同一画面从左至右并排四视图，基础服装完全一致";
+    const out = sanitizeAssetPromptForIdentity(raw);
+    expect(out).toContain("宽方厚重脸");
+    expect(out).toContain("浓眉压眼");
+    expect(out).toContain("米白色及膝粗布短袍");
+    expect(out).toContain("墨黑长发");
+    expect(out).not.toContain("凶横刻薄");
+    expect(out).not.toContain("自然站立");
+    expect(out).not.toContain("并排");
+    expect(out).not.toContain("完全一致");
+  });
+
+  it("② 铁山实录:水墨风格段(白名单外)剔,断臂/面容/着装保留", () => {
+    const raw = "男性角色四视图设定图，水墨国风，修仙古韵，工笔线描，写意晕染，面容粗犷坚毅，眉眼沉重而刚烈，左臂自上臂处断去并由空荡衣袖自然垂落，断臂设定在正视图侧视图后视图中保持高度一致，素色道袍长衫，宣纸白底色背景，水墨留白，气韵生动";
+    const out = sanitizeAssetPromptForIdentity(raw);
+    expect(out).toContain("面容粗犷坚毅");
+    expect(out).toContain("断");
+    expect(out).toContain("素色道袍长衫");
+    expect(out).not.toContain("四视图");
+    expect(out).not.toContain("宣纸白底");
+    expect(out).not.toContain("保持高度一致");
+  });
+
+  it("③ 白名单不覆盖的写法 → 回退黑名单清洗,身份段永不为空", () => {
+    const raw = "一名沉默的行路人，衣衫单薄提灯独行，图中不要出现文字";
+    const out = sanitizeAssetPromptForIdentity(raw);
+    expect(out).toContain("提灯");
+    expect(out).not.toContain("不要");
+    expect(out.length).toBeGreaterThan(0);
   });
 });

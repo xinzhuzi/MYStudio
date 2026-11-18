@@ -370,16 +370,12 @@ export function findDerivedPlanEntryForCharacter(
 }
 
 /**
- * 资产 prompt 列洗版(1118 十五刀A):prompt 列=资产库完整文生图提示词,自带
- * 负面指令句(铁山「图中不要有任何文字，禁止写实摄影」/归元断剑「严禁照片级
- * 真实感」实录)、多行排版、画幅段(「21:9 横幅」=画幅义非画面文字,S1 涉字
- * 误杀实录)、英文资产标签(「character design sheet」)——十四刀整段采用后拼
- * 进主体句,被体裁门全文扫描误杀(style-word/single-paragraph/text-
- * requirement-block 三拒实录)。身份段只取正向视觉文:**逗号段级**清洗(句
- * 级整剔会把带一个禁词的逗号流大句整句误杀——铁山 1027 字洗后归零实录),
- * 指令段/画幅段/布光段/英文标签段剔,段间逗号重组,不改写保留段。
+ * 资产 prompt 列洗版(1118 十五刀A/十六刀)——现降级为兜底路径。黑名单逐刀
+ * 追词(S01「并排四视图」实弹)证伪「裁脏词」路线:资产 prompt 列=设定图文体,
+ * 排版/指令语花样追不完。保留作 extractIdentityFacets 白名单提取失败时的
+ * 回退,段级清洗逻辑不变(负面句/画幅/英文标签/布光/排版段剔)。
  */
-export function sanitizeAssetPromptForIdentity(text: string): string {
+function sanitizeAssetPromptForIdentityLegacy(text: string): string {
   const flat = text.replace(/\r|\n/g, ",").replace(/,{2,}/g, ",").trim();
   const segments = flat.split(/[,，、;；。]/);
   const kept = segments.map((segment) => segment.trim()).filter(Boolean).filter((segment) => {
@@ -388,10 +384,6 @@ export function sanitizeAssetPromptForIdentity(text: string): string {
     if (/不要|禁[止用]|严禁|避免|不得|无文字|图中不|画面不|去除|抹掉/.test(segment)) return false;
     if (/[a-zA-Z]{3,}/.test(segment)) return false; // 英文资产标签(character design sheet)
     if (/散光|柔光|打光|布光|光源/.test(segment)) return false; // 布光指令(型层域)
-    // 1118 十六刀:设定图排版指令段(十五刀漏网根因,S01/S02 实弹「并排四视
-    // 图」→模型忠实画 4-5 副本实录)——资产 prompt 列=立绘设定图文体,排版
-    // 语(纯色背景/无场景/并排/视图枚举/取景范围/一致性指令)全部是「怎么排
-    // 版设定图」而非「这个人长什么样」,进分镜正文=明示多副本。段级整剔。
     if (/并排|视图|视角|多角度/.test(segment)) return false; // 四视图/同一画面并排
     if (/立像|入画|完整入画|设定图|立绘/.test(segment)) return false;
     if (/自头顶|至锁骨|至脚底|人像特写/.test(segment)) return false; // 取景范围
@@ -401,6 +393,47 @@ export function sanitizeAssetPromptForIdentity(text: string): string {
     return true;
   });
   return kept.join(",");
+}
+
+/**
+ * 身份白名单(1118 十七刀A):分镜身份段只认「这个人长什么样」的视觉字段,
+ * 不认设定图怎么排版/怎么拍。字段族按资产库实测文本归纳——面容/肤发/体型/
+ * 着装佩携/年龄性别/身体印记;性格词(凶横刻薄)、气质推导语、摆姿指令
+ * (自然站立/目视前方/双手下垂)全族不取。
+ */
+const IDENTITY_FACET_PATTERNS: RegExp[] = [
+  // 面容:脸型五官神情载体
+  /脸|面容|面颊|脸颊|下颌|颚|颧|眉|眼|瞳|鼻|唇|嘴|耳|胡|须|五官|面相|稚气|苍老|皱纹/,
+  // 肤
+  /肤|皮肤/,
+  // 发
+  /发|髻|辫|刘海|发饰/,
+  // 体型:身形骨相
+  /身形|体态|体型|身材|身高|肩|背|腰|四肢|躯干|瘦|壮|胖|结实|纤细|修长|高|矮|敦实|清瘦/,
+  // 着装佩携:衣饰+随身兵械囊包
+  /袍|衫|衣|裤|裙|带|靴|鞋|履|袜|帽|巾|簪|钗|镯|环|佩|囊|包|剑|鞭|刀|棍|杖|拂尘|甲|绳|索|链/,
+  // 年龄性别
+  /岁|男性|女性|男孩|女孩|男童|女童|青年|少年|中年|老年|老者|孩/,
+  // 身体印记:疤痣纹身残缺
+  /疤|痣|痕|纹身|刺青|断臂|残缺|空荡|冻疮|茧/,
+];
+
+/**
+ * 身份段提取(1118 十七刀A):白名单字段族正路,黑名单降级兜底。分镜要的
+ * 是单帧身份描述(这个人长什么样),资产 prompt 列是设定图文体(怎么排版
+ * 一张四视图)——文体转换只能按「要什么取什么」提取,「裁掉什么」的黑名单
+ * 追不完文体花样(S01「并排四视图」→4-5 副本实弹定谳)。白名单产出过短
+ * (<40 字=提取面没盖住该资产写法)时回退黑名单清洗,保证身份段永不为空。
+ */
+export function sanitizeAssetPromptForIdentity(text: string): string {
+  const flat = text.replace(/\r|\n/g, ",").replace(/,{2,}/g, ",").trim();
+  const segments = flat.split(/[,，、;；。]/).map((segment) => segment.trim()).filter(Boolean);
+  const extracted = segments.filter((segment) =>
+    IDENTITY_FACET_PATTERNS.some((pattern) => pattern.test(segment))
+    && !/并排|视图|立像|入画|自头顶|至锁骨|至脚底|背景|底色|完全一致|保持一致|不要|禁[止用]|严禁|避免|不得|[a-zA-Z]{3,}/.test(segment));
+  // 阈值 24:短身份资产(3-4 段≈30 字)仍走白名单;真覆盖不住(<24)才回退
+  if (extracted.join("").length >= 24) return extracted.join(",");
+  return sanitizeAssetPromptForIdentityLegacy(text);
 }
 
 /**

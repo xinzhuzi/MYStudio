@@ -454,6 +454,8 @@ const NEGATION_PATTERN = /禁止|不要|不得|不许|避免|不能|没有|不�
 const AMBIGUOUS_PATTERN = /(?:或者|或是|还是)/;
 /** 画面内中文文字触发词(07 §二A;涉画面文字展示须顶部逐字携带官方块)。 */
 const IN_FRAME_TEXT_PATTERN = /招牌|匾额|题字|字幕|刻字|标签文字|横幅/;
+/** 设定图排版语言(1118 十七刀B;S01/S02「并排四视图」→4-5 副本实弹)。 */
+const SHEET_LAYOUT_PATTERN = /并排|四视图|三视图|多视图|同一画面.{0,8}(正|侧|背)|全身立像|自头顶至(锁骨|脚底)|人像特写|纯色背景|宣纸白底|character turnaround|design sheet/;
 /** 官方【文字要求】块(07 §二A 官方逐字,禁改写)。 */
 export const CANONICAL_TEXT_REQUIREMENT_BLOCK =
   "【文字要求】画面中所有文字必须是以上明确指定的中文，逐字准确、清晰可读、无错字无乱码；不要生成任何未指定的多余文字。";
@@ -494,6 +496,15 @@ export function lintCanonicalPrompt(
   // 画面内中文文字铁律(07 §二A):触发词在场而块缺席=违规。
   if (IN_FRAME_TEXT_PATTERN.test(prompt) && !prompt.startsWith(block)) {
     violations.push({ rule: "text-requirement-block", detail: "涉画面文字而未带官方块" });
+  }
+
+  // 设定图排版语言铁律(1118 十七刀B):主体句是单帧叙事文体,排版指令
+  // (并排/四视图/全身立像/取景范围/纯色背景)混入=模型忠实画设定图多副本
+  // (S01/S02 实弹 4-5 副本实录)。十六刀前该层无门,全靠洗版单防线,黑名单
+  // 漏一词即实弹炸——本门与洗版双保险,任何来源(资产列/衍生行/人工
+  // promptOverride)都拦。
+  if (SHEET_LAYOUT_PATTERN.test(prompt)) {
+    violations.push({ rule: "sheet-format", detail: "设定图排版指令混入分镜正文" });
   }
 
   // 引用契约(09 §二引用规范②③):i2i N≥2 逐槽 <imageN> 标签点名,禁自然指称;

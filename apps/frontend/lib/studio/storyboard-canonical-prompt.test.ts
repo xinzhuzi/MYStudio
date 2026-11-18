@@ -245,6 +245,15 @@ describe("lintCanonicalPrompt(§4.2 硬纪律断言)", () => {
       .not.toContainEqual(expect.objectContaining({ rule: "text-requirement-block" }));
   });
 
+  it("设定图排版指令混入正文违例(1118 十七刀B;S01/S02 并排四视图实弹)", () => {
+    expect(lintCanonicalPrompt("赵四，宽方厚重脸，同一画面从左至右并排四视图。", "t2i", 0))
+      .toContainEqual(expect.objectContaining({ rule: "sheet-format" }));
+    expect(lintCanonicalPrompt("独孤剑尘，清瘦长脸，背面全身立像自头顶至脚底完整入画。", "t2i", 0))
+      .toContainEqual(expect.objectContaining({ rule: "sheet-format" }));
+    expect(lintCanonicalPrompt("赵四，宽方厚重脸，浓眉压眼，正在高台俯瞰劳列。", "t2i", 0))
+      .not.toContainEqual(expect.objectContaining({ rule: "sheet-format" }));
+  });
+
   it("i2i N≥2 引用契约:缺标签/自然指称均违例(09 §二引用规范②)", () => {
     const missing = lintCanonicalPrompt("以两张图里的人物为准，绘制画面。", "i2i", 2);
     expect(missing).toContainEqual(expect.objectContaining({ rule: "image-tag-contract", detail: "缺 <image1> 标签" }));
