@@ -5981,7 +5981,7 @@ GEM_TAIL_WIDGETS = {
     8108: None,
     8109: ["min(1, sqrt(2000000 / (a * b)))"],
     8110: ["lanczos", 1],
-    8111: ["qwen_image_2.1_int8_convrot.safetensors", "default"],
+    8111: ["qwen_image_2.1_bf16.safetensors", "default"],
     8112: ["qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors", 1],
     8113: ["qwen-image-2.1-restore.safetensors", 1.0],
     8114: ["qwen3vl_8b_int8_convrot.safetensors", "qwen_image", "default"],

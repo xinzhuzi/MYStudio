@@ -5,40 +5,43 @@
 「四采修脸臂」19 节点(默认旁路,拓扑=prd §1.1 修订版:内存态直连删 5001 LoadVideo、
 显存修订删 5005 UNETLoader——5006 LoraLoader.model←1001 复用)。
 
-1119 双档扩(PRD V2 §1):同组追加 14 节点,远景(默认)/高清两技术档,出口复制案投切:
+1119 双档扩(PRD V2 §1)→ **V2.1 简化定案(零·五,探针 probe-1119 六发取证)**:
+同组追加 10 节点,远景(默认)/高清两技术档,出口复制案投切。V2 的 14 节点案中
+中链 SLNM 路被 AudioLock 源码级冲掉(ComfyUI-H3-NativeAudioLock/__init__.py:50-54
+lock_audio 无条件覆写 locked["noise_mask"]——上游 SetLatentNoiseMask 带入的 mask 在
+5014 恒被冲掉,恒无效;陶艺对拍 B 臂增益实证全部来自 SAM 贴回 5024.masks+VOSR2),
+**砍 5105/5106/5107(MVEx+SLNM)与 5112(中链 LATENT Switch)**,MVEx 插件(GPL-3.0)
+随之退出依赖面;5013.av_latent→5014 直连复原正典原链:
 
   #25    修脸身份提示词 PrimitiveStringMultiline(默认通用句,调用方按角色覆写)
   #1065  四采开关 PrimitiveBoolean(默认 False=旁路,出厂态不因本役改变)
   #5111  高清修脸子开关 PrimitiveBoolean(默认 **False=远景档**;True=高清档)
          四态矩阵:1065F+5111F=p3 直通(出厂)/1065T+5111F=远景修脸=默认修脸档/
          1065T+5111T=高清修脸/1065F+5111T=非法态(高清段静默剪枝,README 9999 记口径)
-  5002-5023 公共底盘 19 节点(远景臂,widgets 逐位零改;接线仅两处等效改接:
-         5013.av_latent→5014 改经 5112 直通臂、5023→5100.on_true 改经 5113 直通臂,
-         远景态数据流等效 1118 正典;5022.masks 恒悬空=face_only 脸框贴回保真)
-  高清段 9 节点(参数逐位承融合件 1119b,差分扩散 5108 已移除禁回加):
+  5002-5023 公共底盘 19 节点(远景臂,widgets 逐位零改;接线仅一处等效改接:
+         5023→5100.on_true 改经 5113 直通臂,远景态数据流等效 1118 正典
+         (5013.av_latent→5014 直连=原链复原,V2.1 起零改写);5022.masks 恒悬空=
+         face_only 脸框贴回保真)
+  高清段 6 节点(参数逐位承融合件 1119b;差分扩散 5108 已移除禁回加;SLNM 路砍除):
          5101 CheckpointLoaderSimple(sam3.1_multiplex_fp16)→5102 CLIPTextEncode("face")
          →5103 SAM3_VideoTrack(0.5/1/1,images=5011.crops)→5104 SAM3_TrackToMask("0")
-         mask 路A(潜空间限区):5105 MVEx_MaskCleanup→5106 MVEx_MaskToLatentSpace(vae=1003)
-         →5107 SetLatentNoiseMask(samples=5013.av_latent)
-         mask 路B(贴回约束):5104.masks→5024.masks
+         遮罩只走贴回:5104.masks→5024.masks(单出口)
          VOSR2 尾档:5109 VOSR2ModelLoader("VOSR2"/default)→5110 VOSR2Upscale
          (1/300831622214023-**fixed**/wavelet/512/32/1024/32,image=5021.IMAGE)
-  投切/复制 5 节点(出口复制案,5100 先例同构;全官方件零自定义投切,防缓存静默串档):
-         5112 ComfySwitchNode(LATENT 中链,唯一)on_false=5013 直通/on_true=5107→5014
+  投切/复制 4 节点(出口复制案,5100 先例同构;全官方件零自定义投切,防缓存静默串档):
          5113 ComfySwitchNode(VIDEO 出口)on_false=5023 远景/on_true=5025 高清→5100.on_true
          5024 H3FaceStitch 高清复制对(widgets 逐位同 5022;masks=5104 非 5022 悬空)
          5025 CreateVideo 高清复制对(widgets 逐位同 5023)
   5100   ComfySwitchNode(switch←1065,on_false=4002 p3 直通,on_true=5113 出口)
   4100   SaveVideo(p-final)
 
-节点账:画布 87→101(+14)、API 85→99(+14)。组框恒 7 组(扩四采组框罩全,组标题
-更新双档口径)。布局:HD 段居 5000 带下方 y≥7300 两条行带+出口行,全链恒向右
-(含 5103>5011/5107>5013/5110>5021 三处融合件左向后勘)、节点 AABB 零重叠、
+节点账:画布 87→97(+10)、API 85→95(+10)。组框恒 7 组(扩四采组框罩全,组标题
+更新双档口径)。布局:HD 段居 5000 带下方 y≥7300 行带+开关位+出口行,全链恒向右
+(含 5103>5011/5110>5021 两处融合件左向后勘)、节点 AABB 零重叠、
 组框两两不交(A 右缘让开终档组 120px)。
 
-API 模板 +14 同构:命名输入实证源=object_info_17000.json+P1/P2 探针实跑图
-(probe-1119/graph_p1-t.json MVEx method.shrink/method.min_frames 子参键、
-graph_p2-t.json SAM3/H3FaceStitch.masks/ComfySwitchNode 形态);5111 可注入。
+API 模板 +10 同构:命名输入实证源=object_info_17000.json+P1/P2 探针实跑图
+(probe-1119/graph_p2-t.json SAM3/H3FaceStitch.masks/ComfySwitchNode 形态);5111 可注入。
 
 幂等:先从当前正典件剥离本组既往添加(节点 id+触及链+两只组框+README 段,含 1118
 旧组标题过渡剥离,剥离前校验类型防误删他人节点)后整体重放——母本即正典件自身,
@@ -67,7 +70,7 @@ IDENTITY = (
 )
 
 # ---- 本组节点规格(id → class_type);剥离与校验共用;序=重放 order 序 ----
-# 1118 臂 19 件 + 1119 双档 14 件(HD_IDS);multiseg 嫁接件按 HD_IDS 过滤只取 19 件原链。
+# 1118 臂 19 件 + 1119 双档 10 件(HD_IDS,V2.1 砍后);multiseg 嫁接件按 HD_IDS 过滤只取 19 件原链。
 OWN: dict[int, str] = {
     25: "PrimitiveStringMultiline", 1065: "PrimitiveBoolean",
     5002: "GetVideoComponents", 5006: "LoraLoaderModelOnly",
@@ -77,15 +80,20 @@ OWN: dict[int, str] = {
     5018: "BasicScheduler", 5019: "BasicGuider", 5020: "SamplerCustomAdvanced",
     5021: "VAEDecode", 5022: "H3FaceStitch", 5023: "CreateVideo",
     5100: "ComfySwitchNode", 4100: "SaveVideo",
-    # ---- 1119 双档 +14(9 融合段 + 5111/5112/5113 + 5024/5025 复制对)----
+    # ---- 1119 双档 +10(V2.1:6 融合段 + 5111/5113 + 5024/5025 复制对;砍 5105/5106/5107/5112)----
     5101: "CheckpointLoaderSimple", 5102: "CLIPTextEncode",
     5103: "SAM3_VideoTrack", 5104: "SAM3_TrackToMask",
-    5105: "MVEx_MaskCleanup", 5106: "MVEx_MaskToLatentSpace",
-    5107: "SetLatentNoiseMask", 5109: "VOSR2ModelLoader", 5110: "VOSR2Upscale",
-    5111: "PrimitiveBoolean", 5112: "ComfySwitchNode", 5113: "ComfySwitchNode",
+    5109: "VOSR2ModelLoader", 5110: "VOSR2Upscale",
+    5111: "PrimitiveBoolean", 5113: "ComfySwitchNode",
     5024: "H3FaceStitch", 5025: "CreateVideo",
 }
-HD_IDS = {5101, 5102, 5103, 5104, 5105, 5106, 5107, 5109, 5110, 5111, 5112, 5113, 5024, 5025}
+HD_IDS = {5101, 5102, 5103, 5104, 5109, 5110, 5111, 5113, 5024, 5025}
+# V2.1 砍除件(PRD 零·五):SLNM 潜空间遮罩路被 AudioLock 源码级冲掉恒无效,连中链
+# 5112 一并砍——盘上 101 版(V2 全量)重放时须按此剥离(类型校验防误删他人节点)。
+RETIRED: dict[int, str] = {
+    5105: "MVEx_MaskCleanup", 5106: "MVEx_MaskToLatentSpace",
+    5107: "SetLatentNoiseMask", 5112: "ComfySwitchNode",
+}
 
 GROUP_A_TITLE = "四采修脸组(5000 段·远景/高清双档·默认旁路·1118→1119)"
 GROUP_A_TITLE_1118 = "四采修脸组(5000 段·默认旁路·1118)"  # 旧标题,剥离过渡期一并移除
@@ -106,11 +114,12 @@ README_SECTION = README_MARK + """
 
 ### 1119 双档调用(远景=默认 / 高清)
 
-- **#5111「高清修脸」子开关**(默认 **False=远景档**):False 时 5112 中链 LATENT Switch 直通(5013→5014 数据流等效 1118 正典)、5113 出口 VIDEO Switch 直通 5023 远景链、5022.masks 恒悬空(face_only 脸框贴回=正典现状);True 时走 SAM3 遮罩双用(5104→5024.masks 贴回约束 + 5105→5106→5107 潜空间限区)+ VOSR2 高频尾档(5110,control=**fixed** seed 锁 300831622214023 禁 randomize 回抖)→ 5024/5025 高清复制对 → 5113 出口
+- **#5111「高清修脸」子开关**(默认 **False=远景档**):False 时 5013→5014 直连(1118 正典原链)、5113 出口 VIDEO Switch 直通 5023 远景链、5022.masks 恒悬空(face_only 脸框贴回=正典现状);True 时 SAM3 遮罩贴回(5104→5024.masks)+ VOSR2 高频尾档(5110,control=**fixed** seed 锁 300831622214023 禁 randomize 回抖)→ 5024/5025 高清复制对 → 5113 出口
 - **四态矩阵**:1065=False(出厂)→ p3 直通不修脸;1065=True ∧ 5111=False → **远景修脸=默认修脸档**;1065=True ∧ 5111=True → 高清修脸;**1065=False ∧ 5111=True = 非法态**(高清段被计算却在 5100 被丢弃=静默剪枝)——发车器/API 注入前必须拒绝此组合
 - **API 直调(延伸)**:远景档 `g["1065"]...=true`;高清档再加 `g["5111"]["inputs"]["value"]=true`(+#25 身份句)
-- **极性口径延伸(防 wf2api 反转坑)**:5100 on_true=修脸片/on_false=4002 p3 直通;**5112** on_true=5107 遮罩潜空间/on_false=5013 直通;**5113** on_true=5025 高清片/on_false=5023 远景片——三 Switch 均「真=新臂」,勿手改
+- **极性口径延伸(防 wf2api 反转坑)**:5100 on_true=修脸片/on_false=4002 p3 直通;**5113** on_true=5025 高清片/on_false=5023 远景片——两 Switch 均「真=新臂」,勿手改
 - **显存分账**:SAM3 只吃 5011 的 768 crops,VOSR2 只吃 5021 解码 768 画布,5024/5025 与 5022/5023 同量级——新增段无 4K 全帧重采样(4K 内联楔死前科均在 4K 全帧链)
+- **V2.1 砍除记(1119 探针定案)**:潜空间遮罩路(MVEx 清洗/入潜+SetLatentNoiseMask+中链 LATENT Switch)被 AudioLock 源码级冲掉(lock_audio 无条件覆写 noise_mask,恒无效)全砍——SAM3 遮罩只走贴回(5024.masks),5013→5014 直连复原正典原链
 """
 
 # ---- 画布模板来源:正典件既有节点(公共件)/ 克隆件(五件 H3 定制件)/ 硬编码(HD 段 9 件)----
@@ -119,7 +128,7 @@ README_SECTION = README_MARK + """
 TPL_FROM_CANVAS = {5002: 42, 5006: 1012, 5012: 2001, 5016: 54, 5017: 2022, 5018: 2021,
                    5019: 2031, 5020: 2032, 5021: 2041, 5023: 2051, 4100: 4003,
                    5100: 1062, 1065: 1061, 25: 21,
-                   5025: 2051, 5111: 1061, 5112: 1062, 5113: 1062}  # 1119:复制对/双开关克隆同源件
+                   5025: 2051, 5111: 1061, 5113: 1062}  # 1119:复制对/双开关克隆同源件(V2.1 砍 5112 克隆位)
 TPL_FROM_CLONE = {5011: 5011, 5013: 5013, 5014: 5014, 5015: 5015, 5022: 5022, 5024: 5022}
 
 # HD 段 9 件硬编码槽结构(widget 口带 widget 子名;shape=7 悬空可选口;无 link 字段)
@@ -157,39 +166,6 @@ HD_TPL: dict[int, dict] = {
                       {"widget": {"name": "object_indices"}, "name": "object_indices",
                        "label": "object_indices", "type": "STRING", "localized_name": "object_indices"}],
            "outputs": [{"name": "masks", "label": "masks", "type": "MASK", "localized_name": "masks"}]},
-    5105: {"type": "MVEx_MaskCleanup",
-           "inputs": [{"name": "masks", "label": "masks", "type": "MASK", "localized_name": "masks"},
-                      {"widget": {"name": "threshold"}, "name": "threshold", "label": "threshold",
-                       "type": "FLOAT", "localized_name": "threshold"},
-                      {"widget": {"name": "method"}, "name": "method", "label": "method",
-                       "type": "COMFY_DYNAMICCOMBO_V3", "localized_name": "method"},
-                      {"widget": {"name": "method.shrink"}, "name": "method.shrink",
-                       "label": "method.shrink", "type": "INT", "localized_name": "shrink"},
-                      {"widget": {"name": "method.min_frames"}, "name": "method.min_frames",
-                       "label": "method.min_frames", "type": "INT", "localized_name": "min_frames"},
-                      {"widget": {"name": "edge_grow"}, "name": "edge_grow", "label": "edge_grow",
-                       "type": "INT", "localized_name": "edge_grow"}],
-           "outputs": [{"name": "masks", "label": "masks", "type": "MASK", "localized_name": "masks"}]},
-    5106: {"type": "MVEx_MaskToLatentSpace",
-           "inputs": [{"name": "masks", "label": "masks", "type": "MASK", "localized_name": "masks"},
-                      {"shape": 7, "name": "vae", "label": "vae", "type": "VAE", "localized_name": "vae"},
-                      {"widget": {"name": "compression"}, "name": "compression", "label": "compression",
-                       "type": "COMFY_DYNAMICCOMBO_V3", "localized_name": "compression"},
-                      {"widget": {"name": "spatial_method"}, "name": "spatial_method",
-                       "label": "spatial_method", "type": "COMBO", "localized_name": "spatial_method"},
-                      {"widget": {"name": "temporal_method"}, "name": "temporal_method",
-                       "label": "temporal_method", "type": "COMBO", "localized_name": "temporal_method"},
-                      {"widget": {"name": "grow_spatial"}, "name": "grow_spatial", "label": "grow_spatial",
-                       "type": "INT", "localized_name": "grow_spatial"},
-                      {"widget": {"name": "grow_temporal"}, "name": "grow_temporal", "label": "grow_temporal",
-                       "type": "INT", "localized_name": "grow_temporal"},
-                      {"widget": {"name": "grow_temp_mode"}, "name": "grow_temp_mode",
-                       "label": "grow_temp_mode", "type": "COMBO", "localized_name": "grow_temp_mode"}],
-           "outputs": [{"name": "mask", "label": "mask", "type": "MASK", "localized_name": "mask"}]},
-    5107: {"type": "SetLatentNoiseMask",
-           "inputs": [{"name": "samples", "label": "samples", "type": "LATENT", "localized_name": "samples"},
-                      {"name": "mask", "label": "mask", "type": "MASK", "localized_name": "mask"}],
-           "outputs": [{"name": "LATENT", "label": "LATENT", "type": "LATENT", "localized_name": "LATENT"}]},
     5109: {"type": "VOSR2ModelLoader",
            "inputs": [{"widget": {"name": "model"}, "name": "model", "label": "model",
                        "type": "COMBO", "localized_name": "model"},
@@ -229,23 +205,22 @@ TITLE = {
     5023: "四采·合成视频", 5100: "终档选择(1065:真=修脸片/假=p3 直通)", 4100: "终档保存 p-final",
     5101: "四采·SAM3 检查点(高清)", 5102: "四采·SAM3 文本提示(face)",
     5103: "四采·SAM3 视频追踪(高清)", 5104: "四采·SAM3 轨迹转遮罩(高清)",
-    5105: "四采·遮罩清洗(高清)", 5106: "四采·遮罩入潜空间(高清)",
-    5107: "四采·潜空间噪声遮罩(高清)", 5109: "四采·VOSR2 加载器(高清)",
+    5109: "四采·VOSR2 加载器(高清)",
     5110: "四采·VOSR2 满血补频(高清·fixed)",
     5111: "高清修脸:False 远景(默认)/ True 高清",
-    5112: "中链选择 LATENT(5111:真=遮罩潜空间/假=5013 直通)",
     5113: "出口选择 VIDEO(5111:真=5025 高清/假=5023 远景)",
     5024: "四采·贴回(高清)", 5025: "四采·合成视频(高清)",
 }
 # 布局=拓扑分层列(x 严格右向,契约 test_no_negative_zone_and_no_leftward 刻碑:全链恒向右):
 # 主带 y5900 不动(5002→5011→5012→5013→5006→5014→5015→[5016/5019/5017/5018 同列纵堆]→
-# 5020→5021→5022→5023→5100→4100);1119 HD 段=主带下方两条行带+出口行(存量节点零挪动):
-#   y7300 行A(SAM3/mask 链):5101→5102→5103→5104→5105→5106→5107(列步进让 5103>5011/
-#   5107>5013 两处融合件左向后勘);y7600 行B:5111(开关,左于 5112/5113 双扇出)→5112
-#   (中链,<5014.x=9960 使 5112→5014 右向);
-#   右翼 y7300 行A':5109→5110(>5021.x=12040,第三处左向后勘)→y7600 行B':5024(吃 5110)
+# 5020→5021→5022→5023→5100→4100);1119 HD 段(V2.1 砍后)=主带下方行带+开关位+出口行
+# (存量节点零挪动):
+#   y7300 行A(SAM3 链):5101→5102→5103→5104(列步进让 5103>5011 融合件左向后勘);
+#   y7600 开关位:5111(左于 5113 扇出);
+#   右翼 y7300 行A':5109→5110(>5021.x=12040,第二处左向后勘)→y7600 行B':5024(吃 5110)
 #   →5025;y7960 出口行:5113(>5023.x 且 <5100.x,组框 A 右缘让开终档组 120px)。
-# 组框罩全自算:A=[7140,5820,6170,2346](800/25 寄生位恒罩);全图节点 AABB 零重叠。
+#   (V2.1 砍 5105-5107/5112:行A 右段与中链位腾空,不再摆件。)
+# 组框罩全自算;全图节点 AABB 零重叠。
 POS = {
     5002: [7200, 5900], 5011: [7670, 5900], 5012: [8230, 5900], 5013: [8830, 5900],
     5006: [9360, 5900], 5014: [9960, 5900], 5015: [10490, 5900],
@@ -254,8 +229,7 @@ POS = {
     5100: [13490, 5900], 4100: [13960, 5900], 25: [7800, 6902], 1065: [12960, 6270],
     # ---- 1119 HD 段(见上布局注)----
     5101: [7200, 7300], 5102: [7660, 7300], 5103: [8120, 7300], 5104: [8580, 7300],
-    5105: [8960, 7300], 5106: [9380, 7300], 5107: [9820, 7300],
-    5111: [9500, 7600], 5112: [9840, 7600],
+    5111: [9500, 7600],
     5109: [12060, 7300], 5110: [12420, 7300],
     5024: [12520, 7600], 5025: [12900, 7600], 5113: [13040, 7960],
 }

@@ -117,7 +117,7 @@ WIDGETS = {
     # (0,1] ⊆ [0.01,8.0] 上限内(16:9 典型 0.59MP→√3.39≈1.84 亦在内),widget 仅回退值。
     8109: ["min(1, sqrt(2000000 / (a * b)))"],
     8110: ["lanczos", 1],
-    8111: ["qwen_image_2.1_int8_convrot.safetensors", "default"],
+    8111: ["qwen_image_2.1_bf16.safetensors", "default"],  # 1119 用户令:与主链[1]同份bf16,
     8112: ["qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors", 1],  # 1118 换装(原 viggle r256)
     8113: ["qwen-image-2.1-restore.safetensors", 1.0],  # 1119 A弹三代换药(原 mikkoani@0.6←ItsGem face ×1)
     8114: ["qwen3vl_8b_int8_convrot.safetensors", "qwen_image", "default"],
