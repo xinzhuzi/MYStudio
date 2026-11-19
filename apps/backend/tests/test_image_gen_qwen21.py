@@ -62,7 +62,7 @@ class Qwen21TemplateContractTests(unittest.TestCase):
     def test_runs_daojie_production_graph(self) -> None:
         # 现行 GUI/API 契约(1108 默认档4):ApiPE 装配、⑦Pruna 臂(7034 mikkoani→
         # 7110 p_q v0.2×1.0 运行时旁路→六步原表+关CFG)、Gem ② 分块超分接棒 2K
-        # (1117:SeedVR2 节点级 mode4 旁路出模板,[8120] GemTiledUpscaleStitch 喂 [504]);
+        # (v2: [8107] Stitch → [8121] JoinImageWithAlpha → [504];alpha 旁路);
         # E 臂(1101-1108 任默认)随档4 裁枝出模板;7:7027 Fix×0.5 不得回灌。
         classes = {node["class_type"] for node in self.template["graph"].values()}
         self.assertIn("MyQi21ApiPE", classes)
@@ -202,8 +202,8 @@ class Qwen21I2iTemplateContractTests(unittest.TestCase):
         # 1117 Gem ② 接棒:SeedVR 子图整体剪出,2K 产物改吃 [8120] 拼缝件
         self.assertNotIn("503:7401", self.graph)
         self.assertIn("8120", self.graph)
-        self.assertEqual(self.graph["8120"]["class_type"], "GemTiledUpscaleStitch")
-        self.assertEqual(self.graph["504"]["inputs"]["images"], ["8120", 0])
+        self.assertEqual(self.graph["8107"]["class_type"], "GemTiledUpscaleStitch")  # v2: 8120→8107
+        self.assertEqual(self.graph["504"]["inputs"]["images"], ["8121", 0])  # v2: alpha旁路后504←8121(Join)
         self.assertNotIn("505", self.graph)  # 透明锚(画布旁路件)不入桥模板
         # SaveImage [8] 在场(唯一产物口;504 缺席→_prefer_upscaled_output 自然回落 8)
         self.assertEqual(self.graph["8"]["class_type"], "SaveImage")

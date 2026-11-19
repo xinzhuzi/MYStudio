@@ -38,7 +38,7 @@ import uuid as _uuid
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-WF_DIR = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像"
+WF_DIR = REPO / "apps/backend/comfyui/workflows/1_图片/QwenImage2.1"
 BP_DIR = REPO / "apps/backend/comfyui/my_nodes/subgraphs"
 CAMPAIGN = "1016turbo"
 
