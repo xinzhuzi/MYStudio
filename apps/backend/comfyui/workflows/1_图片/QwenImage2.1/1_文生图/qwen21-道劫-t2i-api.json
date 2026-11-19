@@ -102,9 +102,9 @@
     "504": {
       "class_type": "SaveImage",
       "inputs": {
-        "filename_prefix": "MYStudio-2K",
+        "filename_prefix": "道劫-文生图-超分-",
         "images": [
-          "8120",
+          "8107",
           0
         ]
       }
@@ -145,168 +145,141 @@
         "value": ""
       }
     },
-    "8108": {
-      "class_type": "GetImageSize",
+    "8100": {
+      "class_type": "GemTiledUpscale",
       "inputs": {
+        "megapixels": 8.25,
+        "tile_megapixels": 4,
+        "overlap": 256,
+        "multiple": 32,
+        "max_growth": 64,
+        "enforce_qwen_tile_limit": false,
         "image": [
           "7500:7510",
           0
         ]
       }
     },
-    "8109": {
-      "class_type": "ComfyMathExpression",
-      "inputs": {
-        "expression": "min(1, sqrt(2000000 / (a * b)))",
-        "values.a": [
-          "8108",
-          0
-        ],
-        "values.b": [
-          "8108",
-          1
-        ]
-      }
-    },
-    "8110": {
-      "class_type": "ImageScaleBy",
-      "inputs": {
-        "upscale_method": "lanczos",
-        "scale_by": [
-          "8109",
-          0
-        ],
-        "image": [
-          "7500:7510",
-          0
-        ]
-      }
-    },
-    "8112": {
+    "8101": {
       "class_type": "LoraLoaderModelOnly",
       "inputs": {
         "lora_name": "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
-        "strength_model": 1,
+        "strength_model": 1.0,
         "model": [
           "1",
           0
         ]
       }
     },
-    "8113": {
+    "8102": {
       "class_type": "LoraLoaderModelOnly",
       "inputs": {
         "lora_name": "qwen-image-2.1-restore.safetensors",
         "strength_model": 1.0,
         "model": [
-          "8112",
+          "8101",
           0
         ]
       }
     },
-    "8114": {
-      "class_type": "CLIPLoader",
-      "inputs": {
-        "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
-        "type": "qwen_image",
-        "device": "default"
-      }
-    },
-    "8115": {
-      "class_type": "VAELoader",
-      "inputs": {
-        "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
-      }
-    },
-    "8116": {
-      "class_type": "GemTiledUpscale",
-      "inputs": {
-        "megapixels": 8.25,
-        "tile_megapixels": 2,
-        "overlap": 256,
-        "multiple": 32,
-        "max_growth": 64,
-        "enforce_qwen_tile_limit": true,
-        "image": [
-          "8110",
-          0
-        ]
-      }
-    },
-    "8117": {
+    "8104": {
       "class_type": "TextEncodeQwenImage21",
       "inputs": {
-        "prompt": "Restore the illustration: remove blur, noise and compression artifacts and recover sharp, natural detail, ignoring stray marks, specks and smudges, keeping the same composition, people and colors.",
+        "prompt": [
+          "8100",
+          0
+        ],
         "negative_prompt": "",
         "resolution": 0,
         "clip": [
-          "8114",
-          0
-        ],
-        "images.image_1": [
-          "8116",
-          0
-        ],
-        "vae": [
-          "8115",
+          "2",
           0
         ]
       }
     },
-    "8118": {
-      "class_type": "KSampler",
-      "inputs": {
-        "seed": 0,
-        "steps": 8,
-        "cfg": 1,
-        "sampler_name": "euler",
-        "scheduler": "simple",
-        "denoise": 1,
-        "model": [
-          "8113",
-          0
-        ],
-        "positive": [
-          "8117",
-          0
-        ],
-        "negative": [
-          "8117",
-          1
-        ],
-        "latent_image": [
-          "8117",
-          2
-        ]
-      }
-    },
-    "8119": {
+    "8106": {
       "class_type": "VAEDecode",
       "inputs": {
         "samples": [
-          "8118",
+          "8114",
           0
         ],
         "vae": [
-          "8115",
+          "3",
           0
         ]
       }
     },
-    "8120": {
+    "8107": {
       "class_type": "GemTiledUpscaleStitch",
       "inputs": {
-        "keep_colors": 1,
+        "keep_colors": 1.0,
         "align_mode": "translation",
         "max_align_shift": 64,
-        "blend_band": 64,
+        "blend_band": 0,
         "tiles": [
-          "8119",
+          "8106",
           0
         ],
         "stitcher": [
-          "8116",
+          "8100",
           1
+        ]
+      }
+    },
+    "8110": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": 0
+      }
+    },
+    "8111": {
+      "class_type": "BasicGuider",
+      "inputs": {
+        "model": [
+          "8102",
+          0
+        ],
+        "conditioning": [
+          "8104",
+          0
+        ]
+      }
+    },
+    "8112": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "euler"
+      }
+    },
+    "8113": {
+      "class_type": "ManualSigmas",
+      "inputs": {
+        "sigmas": "1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0"
+      }
+    },
+    "8114": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "8110",
+          0
+        ],
+        "guider": [
+          "8111",
+          0
+        ],
+        "sampler": [
+          "8112",
+          0
+        ],
+        "sigmas": [
+          "8113",
+          0
+        ],
+        "latent_image": [
+          "8104",
+          2
         ]
       }
     },

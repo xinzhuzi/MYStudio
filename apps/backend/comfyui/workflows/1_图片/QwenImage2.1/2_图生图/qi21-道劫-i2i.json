@@ -2,7 +2,7 @@
   "id": "8a14d6f0-52b9-4c7d-a3e8-6f1b2c3d4e5f",
   "revision": 0,
   "last_node_id": 8120,
-  "last_link_id": 8236,
+  "last_link_id": 8267,
   "nodes": [
     {
       "id": 1,
@@ -25,7 +25,8 @@
           "type": "MODEL",
           "links": [
             24,
-            8223
+            8223,
+            8250
           ]
         }
       ],
@@ -71,7 +72,8 @@
           "type": "CLIP",
           "links": [
             268,
-            269
+            269,
+            8252
           ]
         }
       ],
@@ -146,7 +148,9 @@
           "links": [
             7801,
             270,
-            271
+            271,
+            8253,
+            8265
           ]
         }
       ],
@@ -1058,7 +1062,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 8236
+          "link": 8267
         }
       ],
       "outputs": [
@@ -1079,10 +1083,7 @@
       },
       "widgets_values": [
         "道劫-图生图-超分-"
-      ],
-      "widgets_values_named": {
-        "filename_prefix": "MYStudio-2K"
-      }
+      ]
     },
     {
       "id": 12,
@@ -1513,7 +1514,8 @@
             226,
             7465,
             8217,
-            8218
+            8218,
+            8254
           ]
         }
       ],
@@ -1565,306 +1567,125 @@
       "title": "[7701] VAE 顶部过线"
     },
     {
-      "id": 8108,
-      "type": "GetImageSize",
+      "id": 8100,
+      "type": "GemTiledUpscale",
       "pos": [
-        9400,
-        1500
+        9200,
+        600
       ],
       "size": [
-        140,
-        124
+        320,
+        120
       ],
-      "flags": {
-        "collapsed": false
-      },
+      "flags": {},
       "order": 36,
       "mode": 0,
       "inputs": [
         {
-          "localized_name": "image",
-          "name": "image",
-          "type": "IMAGE",
-          "link": 8217
+          "name": "slot0",
+          "type": "*",
+          "link": 8254
         }
       ],
       "outputs": [
         {
-          "localized_name": "width",
-          "name": "width",
-          "type": "INT",
+          "name": "slot0",
+          "type": "*",
           "links": [
-            8219
+            8255
           ]
         },
         {
-          "localized_name": "height",
-          "name": "height",
-          "type": "INT",
+          "name": "slot1",
+          "type": "*",
           "links": [
-            8220
+            8256
           ]
-        },
-        {
-          "localized_name": "batch_size",
-          "name": "batch_size",
-          "type": "INT",
-          "links": null
         }
       ],
-      "title": "[8108] Gem②·守卫·取尺寸",
+      "title": "[8100] Gem·分块超分",
       "properties": {
-        "Node name for S&R": "GetImageSize"
-      }
+        "Node name for S&R": "GemTiledUpscale"
+      },
+      "widgets_values": [
+        8.25,
+        4,
+        256,
+        32,
+        64,
+        false
+      ]
     },
     {
-      "id": 8109,
-      "type": "ComfyMathExpression",
+      "id": 8101,
+      "type": "LoraLoaderModelOnly",
       "pos": [
-        9970,
-        1500
+        9600,
+        600
       ],
       "size": [
-        400,
-        200
+        320,
+        120
       ],
-      "flags": {
-        "collapsed": false
-      },
+      "flags": {},
       "order": 37,
       "mode": 0,
       "inputs": [
         {
-          "localized_name": "a",
-          "name": "values.a",
-          "type": "FLOAT,INT,BOOLEAN",
-          "link": 8219
-        },
-        {
-          "localized_name": "b",
-          "name": "values.b",
-          "shape": 7,
-          "type": "FLOAT,INT,BOOLEAN",
-          "link": 8220
-        },
-        {
-          "localized_name": "c",
-          "name": "values.c",
-          "shape": 7,
-          "type": "FLOAT,INT,BOOLEAN",
-          "link": null
-        },
-        {
-          "localized_name": "expression",
-          "name": "expression",
-          "type": "STRING",
-          "widget": {
-            "name": "expression"
-          },
-          "link": null
+          "name": "slot0",
+          "type": "*",
+          "link": 8250
         }
       ],
       "outputs": [
         {
-          "localized_name": "FLOAT",
-          "name": "FLOAT",
-          "type": "FLOAT",
+          "name": "slot0",
+          "type": "*",
           "links": [
-            8221
-          ]
-        },
-        {
-          "localized_name": "INT",
-          "name": "INT",
-          "type": "INT",
-          "links": null
-        },
-        {
-          "localized_name": "BOOL",
-          "name": "BOOL",
-          "type": "BOOLEAN",
-          "links": null
-        }
-      ],
-      "title": "[8109] Gem②·守卫·缩放系数",
-      "properties": {
-        "Node name for S&R": "ComfyMathExpression"
-      },
-      "widgets_values": [
-        "min(1, sqrt(2000000 / (a * b)))"
-      ]
-    },
-    {
-      "id": 8110,
-      "type": "ImageScaleBy",
-      "pos": [
-        10690,
-        1500
-      ],
-      "size": [
-        238,
-        82
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "order": 38,
-      "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "image",
-          "name": "image",
-          "type": "IMAGE",
-          "link": 8218
-        },
-        {
-          "localized_name": "upscale_method",
-          "name": "upscale_method",
-          "type": "COMBO",
-          "widget": {
-            "name": "upscale_method"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "scale_by",
-          "name": "scale_by",
-          "type": "FLOAT",
-          "widget": {
-            "name": "scale_by"
-          },
-          "link": 8221
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "IMAGE",
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            8222
+            8251
           ]
         }
       ],
-      "title": "[8110] Gem②·守卫·预缩放",
-      "properties": {
-        "Node name for S&R": "ImageScaleBy"
-      },
-      "widgets_values": [
-        "lanczos",
-        1
-      ]
-    },
-    {
-      "id": 8112,
-      "type": "LoraLoaderModelOnly",
-      "pos": [
-        11529,
-        2460
-      ],
-      "size": [
-        354,
-        82
-      ],
-      "flags": {},
-      "order": 40,
-      "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "model",
-          "name": "model",
-          "type": "MODEL",
-          "link": 8223
-        },
-        {
-          "localized_name": "lora_name",
-          "name": "lora_name",
-          "type": "COMBO",
-          "widget": {
-            "name": "lora_name"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "strength_model",
-          "name": "strength_model",
-          "type": "FLOAT",
-          "widget": {
-            "name": "strength_model"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "MODEL",
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            8224
-          ]
-        }
-      ],
-      "title": "[8112] Gem②·viggle turbo r256 ×1",
+      "title": "[8101] Gem·turbo r178 ×1",
       "properties": {
         "Node name for S&R": "LoraLoaderModelOnly"
       },
       "widgets_values": [
         "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
-        1
+        1.0
       ]
     },
     {
-      "id": 8113,
+      "id": 8102,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        12203,
-        2460
+        10000,
+        600
       ],
       "size": [
-        354,
-        82
+        320,
+        120
       ],
       "flags": {},
-      "order": 41,
+      "order": 38,
       "mode": 0,
       "inputs": [
         {
-          "localized_name": "model",
-          "name": "model",
-          "type": "MODEL",
-          "link": 8224
-        },
-        {
-          "localized_name": "lora_name",
-          "name": "lora_name",
-          "type": "COMBO",
-          "widget": {
-            "name": "lora_name"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "strength_model",
-          "name": "strength_model",
-          "type": "FLOAT",
-          "widget": {
-            "name": "strength_model"
-          },
-          "link": null
+          "name": "slot0",
+          "type": "*",
+          "link": 8251
         }
       ],
       "outputs": [
         {
-          "localized_name": "MODEL",
-          "name": "MODEL",
-          "type": "MODEL",
+          "name": "slot0",
+          "type": "*",
           "links": [
-            8225
+            8257
           ]
         }
       ],
-      "title": "[8113] Gem②·restore ×1.0(1119A)",
+      "title": "[8102] Gem·restore ×1.0",
       "properties": {
         "Node name for S&R": "LoraLoaderModelOnly"
       },
@@ -1874,133 +1695,168 @@
       ]
     },
     {
-      "id": 8114,
-      "type": "CLIPLoader",
+      "id": 8104,
+      "type": "TextEncodeQwenImage21",
       "pos": [
-        11449,
-        2060
+        10400,
+        600
       ],
       "size": [
-        270,
-        106
+        320,
+        120
+      ],
+      "flags": {},
+      "order": 39,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "slot0",
+          "type": "*",
+          "link": 8252
+        },
+        {
+          "name": "slot1",
+          "type": "*",
+          "link": 8255
+        },
+        {
+          "name": "slot4",
+          "type": "*",
+          "link": 8253
+        }
+      ],
+      "outputs": [
+        {
+          "name": "slot0",
+          "type": "*",
+          "links": [
+            8258
+          ]
+        },
+        {
+          "name": "slot2",
+          "type": "*",
+          "links": [
+            8263
+          ]
+        }
+      ],
+      "title": "[8104] Gem·提示词编码",
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        "Restore the illustration: remove blur, noise and compression artifacts and recover sharp, natural detail, ignoring stray marks, specks and smudges, keeping the same composition, people and colors.",
+        "",
+        0
+      ]
+    },
+    {
+      "id": 8106,
+      "type": "VAEDecode",
+      "pos": [
+        9200,
+        950
+      ],
+      "size": [
+        320,
+        120
+      ],
+      "flags": {},
+      "order": 40,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "slot0",
+          "type": "*",
+          "link": 8264
+        },
+        {
+          "name": "slot1",
+          "type": "*",
+          "link": 8265
+        }
+      ],
+      "outputs": [
+        {
+          "name": "slot0",
+          "type": "*",
+          "links": [
+            8266
+          ]
+        }
+      ],
+      "title": "[8106] Gem·解码",
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 8107,
+      "type": "GemTiledUpscaleStitch",
+      "pos": [
+        9600,
+        950
+      ],
+      "size": [
+        320,
+        120
+      ],
+      "flags": {},
+      "order": 41,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "slot0",
+          "type": "*",
+          "link": 8266
+        },
+        {
+          "name": "slot1",
+          "type": "*",
+          "link": 8256
+        }
+      ],
+      "outputs": [
+        {
+          "name": "slot0",
+          "type": "*",
+          "links": [
+            8267
+          ]
+        }
+      ],
+      "title": "[8107] Gem·拼缝",
+      "properties": {
+        "Node name for S&R": "GemTiledUpscaleStitch"
+      },
+      "widgets_values": [
+        1.0,
+        "translation",
+        64,
+        0
+      ]
+    },
+    {
+      "id": 8100,
+      "type": "GemTiledUpscale",
+      "pos": [
+        9200,
+        600
+      ],
+      "size": [
+        289.23240334830257,
+        278
       ],
       "flags": {},
       "order": 42,
       "mode": 0,
       "inputs": [
         {
-          "localized_name": "clip_name",
-          "name": "clip_name",
-          "type": "COMBO",
-          "widget": {
-            "name": "clip_name"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "type",
-          "name": "type",
-          "type": "COMBO",
-          "widget": {
-            "name": "type"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "device",
-          "name": "device",
-          "shape": 7,
-          "type": "COMBO",
-          "widget": {
-            "name": "device"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "CLIP",
-          "name": "CLIP",
-          "type": "CLIP",
-          "links": [
-            8226
-          ]
-        }
-      ],
-      "title": "[8114] Gem②·独立CLIP int8",
-      "properties": {
-        "Node name for S&R": "CLIPLoader"
-      },
-      "widgets_values": [
-        "qwen3vl_8b_int8_convrot.safetensors",
-        "qwen_image",
-        "default"
-      ]
-    },
-    {
-      "id": 8115,
-      "type": "VAELoader",
-      "pos": [
-        11809,
-        2060
-      ],
-      "size": [
-        270,
-        58
-      ],
-      "flags": {},
-      "order": 43,
-      "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "vae_name",
-          "name": "vae_name",
-          "type": "COMBO",
-          "widget": {
-            "name": "vae_name"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "VAE",
-          "name": "VAE",
-          "type": "VAE",
-          "links": [
-            8227,
-            8233
-          ]
-        }
-      ],
-      "title": "[8115] Gem②·独立VAE bf16",
-      "properties": {
-        "Node name for S&R": "VAELoader"
-      },
-      "widgets_values": [
-        "qwen_image_2.1_vae_bf16.safetensors"
-      ]
-    },
-    {
-      "id": 8116,
-      "type": "GemTiledUpscale",
-      "pos": [
-        11260,
-        1500
-      ],
-      "size": [
-        289,
-        278
-      ],
-      "flags": {},
-      "order": 44,
-      "mode": 0,
-      "inputs": [
-        {
           "localized_name": "image",
           "name": "image",
           "type": "IMAGE",
-          "link": 8222
+          "link": 8254
         },
         {
           "localized_name": "upscale_model",
@@ -2076,7 +1932,7 @@
           "shape": 6,
           "type": "IMAGE",
           "links": [
-            8228
+            8255
           ]
         },
         {
@@ -2084,7 +1940,7 @@
           "name": "stitcher",
           "type": "ITSGEM_TILE_STITCHER",
           "links": [
-            8235
+            8256
           ]
         },
         {
@@ -2097,141 +1953,189 @@
           "localized_name": "width",
           "name": "width",
           "type": "INT",
-          "links": null
+          "links": []
         },
         {
           "localized_name": "height",
           "name": "height",
           "type": "INT",
-          "links": null
+          "links": []
         },
         {
           "localized_name": "report",
           "name": "report",
           "type": "STRING",
-          "links": null
+          "links": []
         }
       ],
-      "title": "[8116] Gem②·分块超分 8.25MP(4K帽)",
       "properties": {
         "Node name for S&R": "GemTiledUpscale"
       },
       "widgets_values": [
         8.25,
-        2,
+        4,
         256,
         32,
         64,
-        true
+        false
+      ],
+      "color": "#8a63d2",
+      "bgcolor": "#241f38",
+      "title": "[8100] Gem·分块超分"
+    },
+    {
+      "id": 8101,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        9600,
+        600
+      ],
+      "size": [
+        353.7805985429203,
+        82
+      ],
+      "flags": {},
+      "order": 43,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 8250
+        },
+        {
+          "name": "lora_name",
+          "type": "COMBO",
+          "link": null
+        },
+        {
+          "name": "strength_model",
+          "type": "FLOAT",
+          "link": null,
+          "widget": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            8251
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "title": "[8101] Gem·turbo r178 ×1",
+      "widgets_values": [
+        "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
+        1.0
       ]
     },
     {
-      "id": 8117,
-      "type": "TextEncodeQwenImage21",
+      "id": 8102,
+      "type": "LoraLoaderModelOnly",
       "pos": [
-        11869,
-        1500
+        10000,
+        600
       ],
       "size": [
-        428,
-        371
+        353.7805985429203,
+        82
+      ],
+      "flags": {},
+      "order": 44,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 8251
+        },
+        {
+          "name": "lora_name",
+          "type": "COMBO",
+          "link": null
+        },
+        {
+          "name": "strength_model",
+          "type": "FLOAT",
+          "link": null,
+          "widget": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            8257
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "title": "[8102] Gem·restore ×1.0",
+      "widgets_values": [
+        "qwen-image-2.1-restore.safetensors",
+        1.0
+      ]
+    },
+    {
+      "id": 8104,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        10400,
+        600
+      ],
+      "size": [
+        320,
+        200
       ],
       "flags": {},
       "order": 45,
       "mode": 0,
       "inputs": [
         {
-          "localized_name": "clip",
           "name": "clip",
           "type": "CLIP",
-          "link": 8226
+          "link": 8252
         },
         {
-          "localized_name": "image_1",
-          "name": "images.image_1",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": 8228
-        },
-        {
-          "localized_name": "image_2",
-          "name": "images.image_2",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "localized_name": "image_3",
-          "name": "images.image_3",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "localized_name": "vae",
-          "name": "vae",
-          "shape": 7,
-          "type": "VAE",
-          "link": 8227
-        },
-        {
-          "localized_name": "prompt",
           "name": "prompt",
           "type": "STRING",
           "widget": {
             "name": "prompt"
           },
-          "link": null
+          "link": 8255
         },
         {
-          "localized_name": "negative_prompt",
           "name": "negative_prompt",
           "type": "STRING",
           "widget": {
             "name": "negative_prompt"
           },
           "link": null
-        },
-        {
-          "localized_name": "resolution",
-          "name": "resolution",
-          "type": "INT",
-          "widget": {
-            "name": "resolution"
-          },
-          "link": null
         }
       ],
       "outputs": [
         {
-          "localized_name": "positive",
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            8229
+            8258
           ]
         },
         {
-          "localized_name": "negative",
           "name": "negative",
           "type": "CONDITIONING",
-          "links": [
-            8230
-          ]
-        },
-        {
-          "localized_name": "latent",
-          "name": "latent",
-          "type": "LATENT",
-          "links": [
-            8231
-          ]
+          "links": []
         }
       ],
-      "title": "[8117] Gem②·修复提示词编码",
-      "properties": {
-        "Node name for S&R": "TextEncodeQwenImage21"
-      },
+      "title": "[8104] Gem·提示词编码",
+      "properties": {},
       "widgets_values": [
         "Restore the illustration: remove blur, noise and compression artifacts and recover sharp, natural detail, ignoring stray marks, specks and smudges, keeping the same composition, people and colors.",
         "",
@@ -2239,192 +2143,69 @@
       ]
     },
     {
-      "id": 8118,
-      "type": "KSampler",
+      "id": 8106,
+      "type": "VAEDecode",
       "pos": [
-        12617,
-        1500
+        9200,
+        950
       ],
       "size": [
-        270,
-        262
+        300,
+        100
       ],
       "flags": {},
       "order": 46,
       "mode": 0,
       "inputs": [
         {
-          "localized_name": "model",
-          "name": "model",
-          "type": "MODEL",
-          "link": 8225
-        },
-        {
-          "localized_name": "positive",
-          "name": "positive",
-          "type": "CONDITIONING",
-          "link": 8229
-        },
-        {
-          "localized_name": "negative",
-          "name": "negative",
-          "type": "CONDITIONING",
-          "link": 8230
-        },
-        {
-          "localized_name": "latent_image",
-          "name": "latent_image",
+          "name": "samples",
           "type": "LATENT",
-          "link": 8231
+          "link": 8264
         },
         {
-          "localized_name": "seed",
-          "name": "seed",
-          "type": "INT",
-          "widget": {
-            "name": "seed"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "steps",
-          "name": "steps",
-          "type": "INT",
-          "widget": {
-            "name": "steps"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "cfg",
-          "name": "cfg",
-          "type": "FLOAT",
-          "widget": {
-            "name": "cfg"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "sampler_name",
-          "name": "sampler_name",
-          "type": "COMBO",
-          "widget": {
-            "name": "sampler_name"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "scheduler",
-          "name": "scheduler",
-          "type": "COMBO",
-          "widget": {
-            "name": "scheduler"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "denoise",
-          "name": "denoise",
-          "type": "FLOAT",
-          "widget": {
-            "name": "denoise"
-          },
-          "link": null
+          "name": "vae",
+          "type": "VAE",
+          "link": 8265
         }
       ],
       "outputs": [
         {
-          "localized_name": "LATENT",
-          "name": "LATENT",
-          "type": "LATENT",
+          "name": "IMAGE",
+          "type": "IMAGE",
           "links": [
-            8232
+            8266
           ]
         }
       ],
-      "title": "[8118] Gem②·KSampler 8步",
-      "properties": {
-        "Node name for S&R": "KSampler"
-      },
-      "widgets_values": [
-        0,
-        "fixed",
-        8,
-        1,
-        "euler",
-        "simple",
-        1
-      ]
+      "title": "[8106] Gem·解码",
+      "properties": {}
     },
     {
-      "id": 8119,
-      "type": "VAEDecode",
+      "id": 8107,
+      "type": "GemTiledUpscaleStitch",
       "pos": [
-        13207,
-        1500
+        9600,
+        950
       ],
       "size": [
-        281,
-        60
+        289.2263854346244,
+        150
       ],
       "flags": {},
       "order": 47,
       "mode": 0,
       "inputs": [
         {
-          "localized_name": "samples",
-          "name": "samples",
-          "type": "LATENT",
-          "link": 8232
-        },
-        {
-          "localized_name": "vae",
-          "name": "vae",
-          "type": "VAE",
-          "link": 8233
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "IMAGE",
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            8234
-          ]
-        }
-      ],
-      "title": "[8119] Gem②·解码",
-      "properties": {
-        "Node name for S&R": "VAEDecode"
-      }
-    },
-    {
-      "id": 8120,
-      "type": "GemTiledUpscaleStitch",
-      "pos": [
-        13808,
-        900
-      ],
-      "size": [
-        289,
-        150
-      ],
-      "flags": {},
-      "order": 48,
-      "mode": 0,
-      "inputs": [
-        {
           "localized_name": "tiles",
           "name": "tiles",
           "type": "IMAGE",
-          "link": 8234
+          "link": 8266
         },
         {
           "localized_name": "stitcher",
           "name": "stitcher",
           "type": "ITSGEM_TILE_STITCHER",
-          "link": 8235
+          "link": 8256
         },
         {
           "localized_name": "keep_colors",
@@ -2474,26 +2255,243 @@
           "shape": 6,
           "type": "IMAGE",
           "links": [
-            8236
+            8267
           ]
         },
         {
           "localized_name": "diagnostics",
           "name": "diagnostics",
           "type": "STRING",
-          "links": []
+          "links": [
+            8267
+          ]
         }
       ],
-      "title": "[8120] Gem②·拼缝",
       "properties": {
         "Node name for S&R": "GemTiledUpscaleStitch"
       },
       "widgets_values": [
-        1,
+        1.0,
         "translation",
         64,
-        64
+        0
+      ],
+      "color": "#8a63d2",
+      "bgcolor": "#241f38",
+      "title": "[8107] Gem·拼缝"
+    },
+    {
+      "id": 8110,
+      "type": "RandomNoise",
+      "pos": [
+        10000,
+        950
+      ],
+      "size": [
+        270,
+        148
+      ],
+      "flags": {},
+      "order": 48,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise_seed",
+          "type": "INT",
+          "widget": true,
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "links": [
+            8259
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RandomNoise"
+      },
+      "title": "[8110] Gem·噪声",
+      "widgets_values": [
+        0,
+        "fixed"
       ]
+    },
+    {
+      "id": 8111,
+      "type": "BasicGuider",
+      "pos": [
+        10400,
+        950
+      ],
+      "size": [
+        270,
+        148
+      ],
+      "flags": {},
+      "order": 49,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 8257
+        },
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 8258
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "links": [
+            8260
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicGuider"
+      },
+      "title": "[8111] Gem·引导器"
+    },
+    {
+      "id": 8112,
+      "type": "KSamplerSelect",
+      "pos": [
+        9200,
+        1300
+      ],
+      "size": [
+        270,
+        148
+      ],
+      "flags": {},
+      "order": 50,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "sampler_name",
+          "type": "COMBO",
+          "widget": true,
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            8261
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "title": "[8112] Gem·采样器",
+      "widgets_values": [
+        "euler"
+      ]
+    },
+    {
+      "id": 8113,
+      "type": "ManualSigmas",
+      "pos": [
+        9600,
+        1300
+      ],
+      "size": [
+        270,
+        148
+      ],
+      "flags": {},
+      "order": 51,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "sigmas",
+          "type": "STRING",
+          "widget": true,
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            8262
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ManualSigmas"
+      },
+      "title": "[8113] Gem·σ表",
+      "widgets_values": [
+        "1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0"
+      ]
+    },
+    {
+      "id": 8114,
+      "type": "SamplerCustomAdvanced",
+      "pos": [
+        10000,
+        1300
+      ],
+      "size": [
+        270,
+        148
+      ],
+      "flags": {},
+      "order": 52,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise",
+          "type": "NOISE",
+          "link": 8259
+        },
+        {
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 8260
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 8261
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 8262
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 8263
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            8264
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SamplerCustomAdvanced"
+      },
+      "title": "[8114] Gem·采样"
     }
   ],
   "links": [
@@ -2810,160 +2808,144 @@
       "VAE"
     ],
     [
-      8217,
-      7500,
-      0,
-      8108,
-      0,
-      "IMAGE"
-    ],
-    [
-      8218,
-      7500,
-      0,
-      8110,
-      0,
-      "IMAGE"
-    ],
-    [
-      8219,
-      8108,
-      0,
-      8109,
-      0,
-      "INT"
-    ],
-    [
-      8220,
-      8108,
+      8250,
       1,
-      8109,
-      1,
-      "INT"
+      0,
+      8101,
+      0,
+      "MODEL"
     ],
     [
-      8221,
-      8109,
+      8251,
+      8101,
       0,
-      8110,
+      8102,
+      0,
+      "MODEL"
+    ],
+    [
+      8252,
       2,
-      "FLOAT"
-    ],
-    [
-      8222,
-      8110,
       0,
-      8116,
-      0,
-      "IMAGE"
-    ],
-    [
-      8223,
-      1,
-      0,
-      8112,
-      0,
-      "MODEL"
-    ],
-    [
-      8224,
-      8112,
-      0,
-      8113,
-      0,
-      "MODEL"
-    ],
-    [
-      8225,
-      8113,
-      0,
-      8118,
-      0,
-      "MODEL"
-    ],
-    [
-      8226,
-      8114,
-      0,
-      8117,
+      8104,
       0,
       "CLIP"
     ],
     [
-      8227,
-      8115,
+      8253,
+      3,
       0,
-      8117,
+      8104,
       4,
       "VAE"
     ],
     [
-      8228,
-      8116,
+      8254,
+      7500,
       0,
-      8117,
-      1,
-      "IMAGE"
-    ],
-    [
-      8229,
-      8117,
-      0,
-      8118,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      8230,
-      8117,
-      1,
-      8118,
-      2,
-      "CONDITIONING"
-    ],
-    [
-      8231,
-      8117,
-      2,
-      8118,
-      3,
-      "LATENT"
-    ],
-    [
-      8232,
-      8118,
-      0,
-      8119,
-      0,
-      "LATENT"
-    ],
-    [
-      8233,
-      8115,
-      0,
-      8119,
-      1,
-      "VAE"
-    ],
-    [
-      8234,
-      8119,
-      0,
-      8120,
+      8100,
       0,
       "IMAGE"
     ],
     [
-      8235,
-      8116,
+      8255,
+      8100,
+      0,
+      8104,
       1,
-      8120,
+      "IMAGE"
+    ],
+    [
+      8256,
+      8100,
+      1,
+      8107,
       1,
       "ITSGEM_TILE_STITCHER"
     ],
     [
-      8236,
-      8120,
+      8257,
+      8102,
+      0,
+      8111,
+      0,
+      "MODEL"
+    ],
+    [
+      8258,
+      8104,
+      0,
+      8111,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      8259,
+      8110,
+      0,
+      8114,
+      0,
+      "NOISE"
+    ],
+    [
+      8260,
+      8111,
+      0,
+      8114,
+      1,
+      "GUIDER"
+    ],
+    [
+      8261,
+      8112,
+      0,
+      8114,
+      2,
+      "SAMPLER"
+    ],
+    [
+      8262,
+      8113,
+      0,
+      8114,
+      3,
+      "SIGMAS"
+    ],
+    [
+      8263,
+      8104,
+      2,
+      8114,
+      4,
+      "LATENT"
+    ],
+    [
+      8264,
+      8114,
+      0,
+      8106,
+      0,
+      "LATENT"
+    ],
+    [
+      8265,
+      3,
+      0,
+      8106,
+      1,
+      "VAE"
+    ],
+    [
+      8266,
+      8106,
+      0,
+      8107,
+      0,
+      "IMAGE"
+    ],
+    [
+      8267,
+      8107,
       0,
       504,
       0,
@@ -3036,12 +3018,12 @@
       "id": 7,
       "title": "道劫·⑤b·Gem分块超分",
       "bounding": [
-        9360,
-        840,
-        4777,
-        1762
+        9160,
+        540,
+        1600,
+        950
       ],
-      "color": "#a88040"
+      "color": "#b58b2a"
     }
   ],
   "definitions": {
