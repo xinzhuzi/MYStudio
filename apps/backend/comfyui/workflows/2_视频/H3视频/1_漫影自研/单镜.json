@@ -2,7 +2,7 @@
   "id": "recavsr-three-stage-1111",
   "revision": 0,
   "last_node_id": 9999,
-  "last_link_id": 899,
+  "last_link_id": 891,
   "nodes": [
     {
       "id": 1,
@@ -794,8 +794,7 @@
             625,
             850,
             851,
-            852,
-            882
+            852
           ]
         }
       ],
@@ -3532,7 +3531,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "# 单镜 · 使用说明\n\n## 三种调用方式\n**A. 分镜调用(App 正路,推荐)**:画布零操作——在漫影 App 分镜界面点生成,组装器自动注入①②③(参考清单≤8张自动截、装配提示词、五段前缀),三采段自动衔接。\n**B. API 直调(开发)**:以 h3-three-stage-template.api.json 为底(段A=一二采/段B=三采)。注入点:[9].image 主图、[110-113/341-344].image 参考图、[14].value 提示词、[219].value(false=r2v/true=i2v)、[345].image 尾帧、[346].file 参考视频;阶梯直填 16/220/208/206 后删[22]。参考实现=frontend lib buildShotH3SancaiApiWorkflow。\n**C. 手动直跑(画布调试)**:最简跑通=「①取消旁路并选图 + ③填正文」→ Queue,其余口保持旁路即合法。\n\n## 输入组逐节点操作(手动视角;App/API 视角见括注)\n| 节点 | 操作 |\n|---|---|\n| ① 分镜帧[9] | 取消旁路(选中 Ctrl+B)→「选择文件上传」选图。它是 r2v 的 Picture 1、i2v 的首帧。(App:自动注入分镜帧) |\n| ② 参考图1-8[110-113/341-344] | 要几张开几张:各自取消旁路+选图,序号=挂接序 <Picture 2..9>;不开的保持旁路(悬空合法)。(App:按分镜引用清单自动填,≤8 超出截断) |\n| ③ 提示词[14] | 点开替换骨架占位为正文(六段式已预置);参考图按挂接序引用。(App:装配文整体覆写本栏) |\n| ④ 尾帧[345] | 仅 i2v 首尾双锚用:取消旁路+选「结束帧」,提示词写首→尾连续动作;不用保持旁路(合法) |\n| ⑤ 参考视频[346]+拆帧桥[347] | 要用必须**两个一起**取消旁路,41 选 24fps、2-15 秒、同画风片段;只开 41 不开 42=桥悬空必跑红;都不用=都保持旁路(出厂态)。App:给了 videoRef 才注入,否则整链摘除 |\n| 时长[20] Float(Duration) | 秒数,默认 5;帧数自动吸附 17k+5 网格(5s=124帧) |\n| 画幅[22] Resolution Selector | 宽高比/百万像素/倍数;改画幅只动这里 |\n| 种子[129] RandomNoise | seed=42 复现用;重摇改这里 |\n| 帧数换算[131] 数学表达式 | 时长→帧数自动换算,勿动 |\n\n## 输出\n三档 mp4:p1 草稿 / p2 终档 / p3 超分终档;MyShot 回写台账。\n\n## 为什么这样设计\n三段阶梯=先快后精(8步起稿秒级出构图,3步精修出质感,超分到 2K);参考图走 TE 参考通道锁身份不占采样步;r2v/i2v 两臂经布尔开关懒切换。\n\n## 注意点\n1. 本链**无负向提示词口**——H3 视频体系不设负向通道,「避免什么」直接写进提示词正文\n2. 参考图=超分+磨皮 4096 产物(图质越高视频越好);≥5张自动降参考尺寸(match)防显存崩,≤4张恒 max 高保真\n3. 帧数恒落 17k+5 网格(默认124帧=5.17秒);seed=42 供复现\n4. 模型/大节点勿动;三路调用均已实弹验证\n\n---\n\n## 四采修脸(内置·默认旁路·1118)\n\n- **开关 #1065「四采修脸」**:默认 **False=旁路**——终档 4100 p-final=三采 p3 直通,50xx 臂被引擎惰性剪除(0.45.2 实证;1118 双态探针旁路态全链 264.3s 恰=纯三采一链,臂零叠加),零成本;**True=三采出片内部走进修脸→终档一条线**(外部只传参数,内部处理流程)\n- **#25 修脸身份提示词**:默认通用句;外部按角色覆写(角色五官特征文,参照 #1 主图人物)\n- **API 直调**:`g[\"1065\"][\"inputs\"][\"value\"]=true` + `g[\"25\"][\"inputs\"][\"value\"]=\"<角色五官特征句>\"`,其余注入点与现行三采调用完全一致(图1/21/51/54/31/41)\n- **臂拓扑**:5002 拆 4002(三采 p3 4K 出片·帧①+音轨②)→ 5011 追踪裁剪(face_yolov8m conf0.15/兜底 segm\\person_yolov8m-seg.pt/largest_face)→ 5012 H3 重画(**宽高=5011 出口联线勿手填**/length=#52/参考图=#1/提示词=#25)→ 5013 注入真实帧 → 5014 音轨锁(audio←5002②)→ 5015 逐帧 denoise(60/200px)→ 5016-5020 采样(seed 同 #54/lcm/simple/8步/0.45)→ 5021 解码 → 5022 贴回(16/24)→ 5023 合成 → 5100 终档选择 → 4100 p-final\n- **极性口径(1118 双态实测定谳)**:**bypass(1065=false)=直通**——p-final 与 p3 MD5 逐字节一致(帧差 0px);**repair(1065=true)=修脸**——远端 t=1s 帧 >12 差分 24,467px;5100 接线 on_true=修脸片(1065=true)/ on_false=p3 直通(1065=false)与实测一致,勿手改(防 wf2api 反转坑)\n- **显存纪律**:5006 LoRA 挂 1001 单 loader(全图禁第二个 UNETLoader);p1/p2/p3 两态照常落盘(诊断链完整),MyShot 3061 锚与 3071 零改动\n- **生效面**:仓库/引擎直投即时生效;装机 App 面候打包窗口另役同步\n\n### 1119 双档调用(远景=默认 / 高清)\n\n- **#5111「高清修脸」子开关**(默认 **False=远景档**):False 时 5112 中链 LATENT Switch 直通(5013→5014 数据流等效 1118 正典)、5113 出口 VIDEO Switch 直通 5023 远景链、5022.masks 恒悬空(face_only 脸框贴回=正典现状);True 时走 SAM3 遮罩双用(5104→5024.masks 贴回约束 + 5105→5106→5107 潜空间限区)+ VOSR2 高频尾档(5110,control=**fixed** seed 锁 300831622214023 禁 randomize 回抖)→ 5024/5025 高清复制对 → 5113 出口\n- **四态矩阵**:1065=False(出厂)→ p3 直通不修脸;1065=True ∧ 5111=False → **远景修脸=默认修脸档**;1065=True ∧ 5111=True → 高清修脸;**1065=False ∧ 5111=True = 非法态**(高清段被计算却在 5100 被丢弃=静默剪枝)——发车器/API 注入前必须拒绝此组合\n- **API 直调(延伸)**:远景档 `g[\"1065\"]...=true`;高清档再加 `g[\"5111\"][\"inputs\"][\"value\"]=true`(+#25 身份句)\n- **极性口径延伸(防 wf2api 反转坑)**:5100 on_true=修脸片/on_false=4002 p3 直通;**5112** on_true=5107 遮罩潜空间/on_false=5013 直通;**5113** on_true=5025 高清片/on_false=5023 远景片——三 Switch 均「真=新臂」,勿手改\n- **显存分账**:SAM3 只吃 5011 的 768 crops,VOSR2 只吃 5021 解码 768 画布,5024/5025 与 5022/5023 同量级——新增段无 4K 全帧重采样(4K 内联楔死前科均在 4K 全帧链)\n"
+        "# 单镜 · 使用说明\n\n## 三种调用方式\n**A. 分镜调用(App 正路,推荐)**:画布零操作——在漫影 App 分镜界面点生成,组装器自动注入①②③(参考清单≤8张自动截、装配提示词、五段前缀),三采段自动衔接。\n**B. API 直调(开发)**:以 h3-three-stage-template.api.json 为底(段A=一二采/段B=三采)。注入点:[9].image 主图、[110-113/341-344].image 参考图、[14].value 提示词、[219].value(false=r2v/true=i2v)、[345].image 尾帧、[346].file 参考视频;阶梯直填 16/220/208/206 后删[22]。参考实现=frontend lib buildShotH3SancaiApiWorkflow。\n**C. 手动直跑(画布调试)**:最简跑通=「①取消旁路并选图 + ③填正文」→ Queue,其余口保持旁路即合法。\n\n## 输入组逐节点操作(手动视角;App/API 视角见括注)\n| 节点 | 操作 |\n|---|---|\n| ① 分镜帧[9] | 取消旁路(选中 Ctrl+B)→「选择文件上传」选图。它是 r2v 的 Picture 1、i2v 的首帧。(App:自动注入分镜帧) |\n| ② 参考图1-8[110-113/341-344] | 要几张开几张:各自取消旁路+选图,序号=挂接序 <Picture 2..9>;不开的保持旁路(悬空合法)。(App:按分镜引用清单自动填,≤8 超出截断) |\n| ③ 提示词[14] | 点开替换骨架占位为正文(六段式已预置);参考图按挂接序引用。(App:装配文整体覆写本栏) |\n| ④ 尾帧[345] | 仅 i2v 首尾双锚用:取消旁路+选「结束帧」,提示词写首→尾连续动作;不用保持旁路(合法) |\n| ⑤ 参考视频[346]+拆帧桥[347] | 要用必须**两个一起**取消旁路,41 选 24fps、2-15 秒、同画风片段;只开 41 不开 42=桥悬空必跑红;都不用=都保持旁路(出厂态)。App:给了 videoRef 才注入,否则整链摘除 |\n| 时长[20] Float(Duration) | 秒数,默认 5;帧数自动吸附 17k+5 网格(5s=124帧) |\n| 画幅[22] Resolution Selector | 宽高比/百万像素/倍数;改画幅只动这里 |\n| 种子[129] RandomNoise | seed=42 复现用;重摇改这里 |\n| 帧数换算[131] 数学表达式 | 时长→帧数自动换算,勿动 |\n\n## 输出\n三档 mp4:p1 草稿 / p2 终档 / p3 超分终档;MyShot 回写台账。\n\n## 为什么这样设计\n三段阶梯=先快后精(8步起稿秒级出构图,3步精修出质感,超分到 2K);参考图走 TE 参考通道锁身份不占采样步;r2v/i2v 两臂经布尔开关懒切换。\n\n## 注意点\n1. 本链**无负向提示词口**——H3 视频体系不设负向通道,「避免什么」直接写进提示词正文\n2. 参考图=超分+磨皮 4096 产物(图质越高视频越好);≥5张自动降参考尺寸(match)防显存崩,≤4张恒 max 高保真\n3. 帧数恒落 17k+5 网格(默认124帧=5.17秒);seed=42 供复现\n4. 模型/大节点勿动;三路调用均已实弹验证\n\n---\n\n## 四采修脸(内置·默认旁路·1118)\n\n- **开关 #1065「四采修脸」**:默认 **False=旁路**——终档 4100 p-final=三采 p3 直通,50xx 臂被引擎惰性剪除(0.45.2 实证;1118 双态探针旁路态全链 264.3s 恰=纯三采一链,臂零叠加),零成本;**True=三采出片内部走进修脸→终档一条线**(外部只传参数,内部处理流程)\n- **#25 修脸身份提示词**:默认通用句;外部按角色覆写(角色五官特征文,参照 #1 主图人物)\n- **API 直调**:`g[\"1065\"][\"inputs\"][\"value\"]=true` + `g[\"25\"][\"inputs\"][\"value\"]=\"<角色五官特征句>\"`,其余注入点与现行三采调用完全一致(图1/21/51/54/31/41)\n- **臂拓扑**:5002 拆 4002(三采 p3 4K 出片·帧①+音轨②)→ 5011 追踪裁剪(face_yolov8m conf0.15/兜底 segm\\person_yolov8m-seg.pt/largest_face)→ 5012 H3 重画(**宽高=5011 出口联线勿手填**/length=#52/参考图=#1/提示词=#25)→ 5013 注入真实帧 → 5014 音轨锁(audio←5002②)→ 5015 逐帧 denoise(60/200px)→ 5016-5020 采样(seed 同 #54/lcm/simple/8步/0.45)→ 5021 解码 → 5022 贴回(16/24)→ 5023 合成 → 5100 终档选择 → 4100 p-final\n- **极性口径(1118 双态实测定谳)**:**bypass(1065=false)=直通**——p-final 与 p3 MD5 逐字节一致(帧差 0px);**repair(1065=true)=修脸**——远端 t=1s 帧 >12 差分 24,467px;5100 接线 on_true=修脸片(1065=true)/ on_false=p3 直通(1065=false)与实测一致,勿手改(防 wf2api 反转坑)\n- **显存纪律**:5006 LoRA 挂 1001 单 loader(全图禁第二个 UNETLoader);p1/p2/p3 两态照常落盘(诊断链完整),MyShot 3061 锚与 3071 零改动\n- **生效面**:仓库/引擎直投即时生效;装机 App 面候打包窗口另役同步\n\n### 1119 双档调用(远景=默认 / 高清)\n\n- **#5111「高清修脸」子开关**(默认 **False=远景档**):False 时 5013→5014 直连(1118 正典原链)、5113 出口 VIDEO Switch 直通 5023 远景链、5022.masks 恒悬空(face_only 脸框贴回=正典现状);True 时 SAM3 遮罩贴回(5104→5024.masks)+ VOSR2 高频尾档(5110,control=**fixed** seed 锁 300831622214023 禁 randomize 回抖)→ 5024/5025 高清复制对 → 5113 出口\n- **四态矩阵**:1065=False(出厂)→ p3 直通不修脸;1065=True ∧ 5111=False → **远景修脸=默认修脸档**;1065=True ∧ 5111=True → 高清修脸;**1065=False ∧ 5111=True = 非法态**(高清段被计算却在 5100 被丢弃=静默剪枝)——发车器/API 注入前必须拒绝此组合\n- **API 直调(延伸)**:远景档 `g[\"1065\"]...=true`;高清档再加 `g[\"5111\"][\"inputs\"][\"value\"]=true`(+#25 身份句)\n- **极性口径延伸(防 wf2api 反转坑)**:5100 on_true=修脸片/on_false=4002 p3 直通;**5113** on_true=5025 高清片/on_false=5023 远景片——两 Switch 均「真=新臂」,勿手改\n- **显存分账**:SAM3 只吃 5011 的 768 crops,VOSR2 只吃 5021 解码 768 画布,5024/5025 与 5022/5023 同量级——新增段无 4K 全帧重采样(4K 内联楔死前科均在 4K 全帧链)\n- **V2.1 砍除记(1119 探针定案)**:潜空间遮罩路(MVEx 清洗/入潜+SetLatentNoiseMask+中链 LATENT Switch)被 AudioLock 源码级冲掉(lock_audio 无条件覆写 noise_mask,恒无效)全砍——SAM3 遮罩只走贴回(5024.masks),5013→5014 直连复原正典原链\n"
       ]
     },
     {
@@ -4097,7 +4096,7 @@
           "name": "BOOLEAN",
           "type": "BOOLEAN",
           "links": [
-            872
+            873
           ]
         }
       ],
@@ -4137,7 +4136,7 @@
           "links": [
             838,
             839,
-            888
+            884
           ]
         },
         {
@@ -4146,7 +4145,7 @@
           "links": [
             840,
             841,
-            891
+            887
           ]
         },
         {
@@ -4266,7 +4265,7 @@
           "type": "IMAGE",
           "links": [
             844,
-            877
+            878
           ]
         },
         {
@@ -4275,7 +4274,7 @@
           "links": [
             845,
             846,
-            889
+            885
           ]
         },
         {
@@ -4490,7 +4489,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            863
+            864
           ]
         },
         {
@@ -4553,8 +4552,7 @@
           "name": "av_latent",
           "type": "LATENT",
           "links": [
-            884,
-            893
+            859
           ]
         },
         {
@@ -4593,7 +4591,7 @@
         {
           "name": "av_latent",
           "type": "LATENT",
-          "link": 896
+          "link": 859
         },
         {
           "name": "audio_vae",
@@ -4611,14 +4609,14 @@
           "name": "model",
           "type": "MODEL",
           "links": [
-            859
+            860
           ]
         },
         {
           "name": "av_latent",
           "type": "LATENT",
           "links": [
-            860
+            861
           ]
         },
         {
@@ -4652,12 +4650,12 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 859
+          "link": 860
         },
         {
           "name": "av_latent",
           "type": "LATENT",
-          "link": 860
+          "link": 861
         },
         {
           "name": "transform",
@@ -4670,7 +4668,7 @@
           "name": "av_latent",
           "type": "LATENT",
           "links": [
-            868
+            869
           ]
         },
         {
@@ -4681,8 +4679,8 @@
           "name": "model",
           "type": "MODEL",
           "links": [
-            861,
-            862
+            862,
+            863
           ]
         }
       ],
@@ -4722,7 +4720,7 @@
           "name": "NOISE",
           "type": "NOISE",
           "links": [
-            864
+            865
           ]
         }
       ],
@@ -4757,7 +4755,7 @@
           "name": "SAMPLER",
           "type": "SAMPLER",
           "links": [
-            866
+            867
           ]
         }
       ],
@@ -4789,7 +4787,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 861
+          "link": 862
         }
       ],
       "outputs": [
@@ -4798,7 +4796,7 @@
           "type": "SIGMAS",
           "slot_index": 0,
           "links": [
-            867
+            868
           ]
         }
       ],
@@ -4830,12 +4828,12 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 862
+          "link": 863
         },
         {
           "name": "conditioning",
           "type": "CONDITIONING",
-          "link": 863
+          "link": 864
         }
       ],
       "outputs": [
@@ -4843,7 +4841,7 @@
           "name": "GUIDER",
           "type": "GUIDER",
           "links": [
-            865
+            866
           ]
         }
       ],
@@ -4872,27 +4870,27 @@
         {
           "name": "noise",
           "type": "NOISE",
-          "link": 864
+          "link": 865
         },
         {
           "name": "guider",
           "type": "GUIDER",
-          "link": 865
+          "link": 866
         },
         {
           "name": "sampler",
           "type": "SAMPLER",
-          "link": 866
+          "link": 867
         },
         {
           "name": "sigmas",
           "type": "SIGMAS",
-          "link": 867
+          "link": 868
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 868
+          "link": 869
         }
       ],
       "outputs": [
@@ -4900,7 +4898,7 @@
           "name": "output",
           "type": "LATENT",
           "links": [
-            869
+            870
           ]
         },
         {
@@ -4935,7 +4933,7 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 869
+          "link": 870
         },
         {
           "name": "vae",
@@ -4948,8 +4946,8 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            870,
-            886
+            871,
+            882
           ]
         }
       ],
@@ -4983,7 +4981,7 @@
         {
           "name": "refined_crops",
           "type": "IMAGE",
-          "link": 870
+          "link": 871
         },
         {
           "name": "transform",
@@ -5001,7 +4999,7 @@
           "name": "images",
           "type": "IMAGE",
           "links": [
-            871
+            872
           ]
         }
       ],
@@ -5039,7 +5037,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 871
+          "link": 872
         },
         {
           "name": "audio",
@@ -5053,7 +5051,7 @@
           "name": "VIDEO",
           "type": "VIDEO",
           "links": [
-            897
+            889
           ]
         }
       ],
@@ -5091,7 +5089,7 @@
           "widget": {
             "name": "switch"
           },
-          "link": 872
+          "link": 873
         },
         {
           "name": "on_false",
@@ -5101,7 +5099,7 @@
         {
           "name": "on_true",
           "type": "COMFY_MATCHTYPE_V3",
-          "link": 899
+          "link": 891
         }
       ],
       "outputs": [
@@ -5109,7 +5107,7 @@
           "name": "COMFY_MATCHTYPE_V3",
           "type": "COMFY_MATCHTYPE_V3",
           "links": [
-            873
+            874
           ]
         }
       ],
@@ -5140,7 +5138,7 @@
           "localized_name": "video",
           "name": "video",
           "type": "VIDEO",
-          "link": 873
+          "link": 874
         },
         {
           "localized_name": "filename_prefix",
@@ -5212,7 +5210,7 @@
           "type": "MODEL",
           "localized_name": "MODEL",
           "links": [
-            874
+            875
           ]
         },
         {
@@ -5221,7 +5219,7 @@
           "type": "CLIP",
           "localized_name": "CLIP",
           "links": [
-            875
+            876
           ]
         },
         {
@@ -5259,7 +5257,7 @@
           "label": "clip",
           "type": "CLIP",
           "localized_name": "clip",
-          "link": 875
+          "link": 876
         },
         {
           "widget": {
@@ -5278,7 +5276,7 @@
           "type": "CONDITIONING",
           "localized_name": "CONDITIONING",
           "links": [
-            876
+            877
           ]
         }
       ],
@@ -5310,14 +5308,14 @@
           "label": "images",
           "type": "IMAGE",
           "localized_name": "images",
-          "link": 877
+          "link": 878
         },
         {
           "name": "model",
           "label": "model",
           "type": "MODEL",
           "localized_name": "model",
-          "link": 874
+          "link": 875
         },
         {
           "shape": 7,
@@ -5332,7 +5330,7 @@
           "label": "conditioning",
           "type": "CONDITIONING",
           "localized_name": "conditioning",
-          "link": 876
+          "link": 877
         },
         {
           "widget": {
@@ -5369,7 +5367,7 @@
           "type": "SAM3_TRACK_DATA",
           "localized_name": "track_data",
           "links": [
-            878
+            879
           ]
         }
       ],
@@ -5403,7 +5401,7 @@
           "label": "track_data",
           "type": "SAM3_TRACK_DATA",
           "localized_name": "track_data",
-          "link": 878
+          "link": 879
         },
         {
           "widget": {
@@ -5422,7 +5420,6 @@
           "type": "MASK",
           "localized_name": "masks",
           "links": [
-            879,
             880
           ]
         }
@@ -5446,253 +5443,6 @@
       "widgets_values": [
         "0"
       ]
-    },
-    {
-      "type": "MVEx_MaskCleanup",
-      "inputs": [
-        {
-          "name": "masks",
-          "label": "masks",
-          "type": "MASK",
-          "localized_name": "masks",
-          "link": 879
-        },
-        {
-          "widget": {
-            "name": "threshold"
-          },
-          "name": "threshold",
-          "label": "threshold",
-          "type": "FLOAT",
-          "localized_name": "threshold"
-        },
-        {
-          "widget": {
-            "name": "method"
-          },
-          "name": "method",
-          "label": "method",
-          "type": "COMFY_DYNAMICCOMBO_V3",
-          "localized_name": "method"
-        },
-        {
-          "widget": {
-            "name": "method.shrink"
-          },
-          "name": "method.shrink",
-          "label": "method.shrink",
-          "type": "INT",
-          "localized_name": "shrink"
-        },
-        {
-          "widget": {
-            "name": "method.min_frames"
-          },
-          "name": "method.min_frames",
-          "label": "method.min_frames",
-          "type": "INT",
-          "localized_name": "min_frames"
-        },
-        {
-          "widget": {
-            "name": "edge_grow"
-          },
-          "name": "edge_grow",
-          "label": "edge_grow",
-          "type": "INT",
-          "localized_name": "edge_grow"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "masks",
-          "label": "masks",
-          "type": "MASK",
-          "localized_name": "masks",
-          "links": [
-            881
-          ]
-        }
-      ],
-      "flags": {},
-      "properties": {
-        "Node name for S&R": "MVEx_MaskCleanup"
-      },
-      "id": 5105,
-      "pos": [
-        8960,
-        7300
-      ],
-      "size": [
-        340,
-        200
-      ],
-      "title": "四采·遮罩清洗(高清)",
-      "mode": 0,
-      "order": 10028,
-      "widgets_values": [
-        0.3,
-        "shrink_grow",
-        12,
-        4,
-        16
-      ]
-    },
-    {
-      "type": "MVEx_MaskToLatentSpace",
-      "inputs": [
-        {
-          "name": "masks",
-          "label": "masks",
-          "type": "MASK",
-          "localized_name": "masks",
-          "link": 881
-        },
-        {
-          "shape": 7,
-          "name": "vae",
-          "label": "vae",
-          "type": "VAE",
-          "localized_name": "vae",
-          "link": 882
-        },
-        {
-          "widget": {
-            "name": "compression"
-          },
-          "name": "compression",
-          "label": "compression",
-          "type": "COMFY_DYNAMICCOMBO_V3",
-          "localized_name": "compression"
-        },
-        {
-          "widget": {
-            "name": "spatial_method"
-          },
-          "name": "spatial_method",
-          "label": "spatial_method",
-          "type": "COMBO",
-          "localized_name": "spatial_method"
-        },
-        {
-          "widget": {
-            "name": "temporal_method"
-          },
-          "name": "temporal_method",
-          "label": "temporal_method",
-          "type": "COMBO",
-          "localized_name": "temporal_method"
-        },
-        {
-          "widget": {
-            "name": "grow_spatial"
-          },
-          "name": "grow_spatial",
-          "label": "grow_spatial",
-          "type": "INT",
-          "localized_name": "grow_spatial"
-        },
-        {
-          "widget": {
-            "name": "grow_temporal"
-          },
-          "name": "grow_temporal",
-          "label": "grow_temporal",
-          "type": "INT",
-          "localized_name": "grow_temporal"
-        },
-        {
-          "widget": {
-            "name": "grow_temp_mode"
-          },
-          "name": "grow_temp_mode",
-          "label": "grow_temp_mode",
-          "type": "COMBO",
-          "localized_name": "grow_temp_mode"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "mask",
-          "label": "mask",
-          "type": "MASK",
-          "localized_name": "mask",
-          "links": [
-            883
-          ]
-        }
-      ],
-      "flags": {},
-      "properties": {
-        "Node name for S&R": "MVEx_MaskToLatentSpace"
-      },
-      "id": 5106,
-      "pos": [
-        9380,
-        7300
-      ],
-      "size": [
-        360,
-        220
-      ],
-      "title": "四采·遮罩入潜空间(高清)",
-      "mode": 0,
-      "order": 10029,
-      "widgets_values": [
-        "auto",
-        "max",
-        "max",
-        36,
-        1,
-        "both"
-      ]
-    },
-    {
-      "type": "SetLatentNoiseMask",
-      "inputs": [
-        {
-          "name": "samples",
-          "label": "samples",
-          "type": "LATENT",
-          "localized_name": "samples",
-          "link": 884
-        },
-        {
-          "name": "mask",
-          "label": "mask",
-          "type": "MASK",
-          "localized_name": "mask",
-          "link": 883
-        }
-      ],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "label": "LATENT",
-          "type": "LATENT",
-          "localized_name": "LATENT",
-          "links": [
-            894
-          ]
-        }
-      ],
-      "flags": {},
-      "properties": {
-        "Node name for S&R": "SetLatentNoiseMask"
-      },
-      "id": 5107,
-      "pos": [
-        9820,
-        7300
-      ],
-      "size": [
-        270,
-        80
-      ],
-      "title": "四采·潜空间噪声遮罩(高清)",
-      "mode": 0,
-      "order": 10030,
-      "widgets_values": []
     },
     {
       "type": "VOSR2ModelLoader",
@@ -5723,7 +5473,7 @@
           "type": "VOSR2_MODEL",
           "localized_name": "model",
           "links": [
-            885
+            881
           ]
         }
       ],
@@ -5742,7 +5492,7 @@
       ],
       "title": "四采·VOSR2 加载器(高清)",
       "mode": 0,
-      "order": 10031,
+      "order": 10028,
       "widgets_values": [
         "VOSR2",
         "default"
@@ -5756,14 +5506,14 @@
           "label": "model",
           "type": "VOSR2_MODEL",
           "localized_name": "model",
-          "link": 885
+          "link": 881
         },
         {
           "name": "image",
           "label": "image",
           "type": "IMAGE",
           "localized_name": "image",
-          "link": 886
+          "link": 882
         },
         {
           "widget": {
@@ -5836,7 +5586,7 @@
           "type": "IMAGE",
           "localized_name": "IMAGE",
           "links": [
-            887
+            883
           ]
         }
       ],
@@ -5855,7 +5605,7 @@
       ],
       "title": "四采·VOSR2 满血补频(高清·fixed)",
       "mode": 0,
-      "order": 10032,
+      "order": 10029,
       "widgets_values": [
         1,
         300831622214023,
@@ -5879,7 +5629,7 @@
         120
       ],
       "flags": {},
-      "order": 10033,
+      "order": 10030,
       "mode": 0,
       "inputs": [
         {
@@ -5895,8 +5645,7 @@
           "name": "BOOLEAN",
           "type": "BOOLEAN",
           "links": [
-            895,
-            898
+            890
           ]
         }
       ],
@@ -5907,57 +5656,6 @@
         "Node name for S&R": "PrimitiveBoolean"
       },
       "title": "高清修脸:False 远景(默认)/ True 高清"
-    },
-    {
-      "id": 5112,
-      "type": "ComfySwitchNode",
-      "pos": [
-        9840,
-        7600
-      ],
-      "size": [
-        270,
-        166
-      ],
-      "flags": {},
-      "order": 10034,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "switch",
-          "type": "BOOLEAN",
-          "widget": {
-            "name": "switch"
-          },
-          "link": 895
-        },
-        {
-          "name": "on_false",
-          "type": "COMFY_MATCHTYPE_V3",
-          "link": 893
-        },
-        {
-          "name": "on_true",
-          "type": "COMFY_MATCHTYPE_V3",
-          "link": 894
-        }
-      ],
-      "outputs": [
-        {
-          "name": "COMFY_MATCHTYPE_V3",
-          "type": "COMFY_MATCHTYPE_V3",
-          "links": [
-            896
-          ]
-        }
-      ],
-      "widgets_values": [
-        false
-      ],
-      "properties": {
-        "Node name for S&R": "ComfySwitchNode"
-      },
-      "title": "中链选择 LATENT(5111:真=遮罩潜空间/假=5013 直通)"
     },
     {
       "id": 5113,
@@ -5971,7 +5669,7 @@
         166
       ],
       "flags": {},
-      "order": 10035,
+      "order": 10031,
       "mode": 0,
       "inputs": [
         {
@@ -5980,17 +5678,17 @@
           "widget": {
             "name": "switch"
           },
-          "link": 898
+          "link": 890
         },
         {
           "name": "on_false",
           "type": "COMFY_MATCHTYPE_V3",
-          "link": 897
+          "link": 889
         },
         {
           "name": "on_true",
           "type": "COMFY_MATCHTYPE_V3",
-          "link": 892
+          "link": 888
         }
       ],
       "outputs": [
@@ -5998,7 +5696,7 @@
           "name": "COMFY_MATCHTYPE_V3",
           "type": "COMFY_MATCHTYPE_V3",
           "links": [
-            899
+            891
           ]
         }
       ],
@@ -6022,23 +5720,23 @@
         270
       ],
       "flags": {},
-      "order": 10036,
+      "order": 10032,
       "mode": 0,
       "inputs": [
         {
           "name": "base_images",
           "type": "IMAGE",
-          "link": 888
+          "link": 884
         },
         {
           "name": "refined_crops",
           "type": "IMAGE",
-          "link": 887
+          "link": 883
         },
         {
           "name": "transform",
           "type": "H3FACEXFORM",
-          "link": 889
+          "link": 885
         },
         {
           "name": "masks",
@@ -6052,7 +5750,7 @@
           "name": "images",
           "type": "IMAGE",
           "links": [
-            890
+            886
           ]
         }
       ],
@@ -6084,19 +5782,19 @@
         232
       ],
       "flags": {},
-      "order": 10037,
+      "order": 10033,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 890
+          "link": 886
         },
         {
           "name": "audio",
           "shape": 7,
           "type": "AUDIO",
-          "link": 891
+          "link": 887
         }
       ],
       "outputs": [
@@ -6104,7 +5802,7 @@
           "name": "VIDEO",
           "type": "VIDEO",
           "links": [
-            892
+            888
           ]
         }
       ],
@@ -7133,6 +6831,14 @@
     ],
     [
       859,
+      5013,
+      0,
+      5014,
+      1,
+      "LATENT"
+    ],
+    [
+      860,
       5014,
       0,
       5015,
@@ -7140,7 +6846,7 @@
       "MODEL"
     ],
     [
-      860,
+      861,
       5014,
       1,
       5015,
@@ -7148,7 +6854,7 @@
       "LATENT"
     ],
     [
-      861,
+      862,
       5015,
       2,
       5018,
@@ -7156,7 +6862,7 @@
       "MODEL"
     ],
     [
-      862,
+      863,
       5015,
       2,
       5019,
@@ -7164,7 +6870,7 @@
       "MODEL"
     ],
     [
-      863,
+      864,
       5012,
       0,
       5019,
@@ -7172,7 +6878,7 @@
       "CONDITIONING"
     ],
     [
-      864,
+      865,
       5016,
       0,
       5020,
@@ -7180,7 +6886,7 @@
       "NOISE"
     ],
     [
-      865,
+      866,
       5019,
       0,
       5020,
@@ -7188,7 +6894,7 @@
       "GUIDER"
     ],
     [
-      866,
+      867,
       5017,
       0,
       5020,
@@ -7196,7 +6902,7 @@
       "SAMPLER"
     ],
     [
-      867,
+      868,
       5018,
       0,
       5020,
@@ -7204,7 +6910,7 @@
       "SIGMAS"
     ],
     [
-      868,
+      869,
       5015,
       0,
       5020,
@@ -7212,7 +6918,7 @@
       "LATENT"
     ],
     [
-      869,
+      870,
       5020,
       0,
       5021,
@@ -7220,7 +6926,7 @@
       "LATENT"
     ],
     [
-      870,
+      871,
       5021,
       0,
       5022,
@@ -7228,7 +6934,7 @@
       "IMAGE"
     ],
     [
-      871,
+      872,
       5022,
       0,
       5023,
@@ -7236,7 +6942,7 @@
       "IMAGE"
     ],
     [
-      872,
+      873,
       1065,
       0,
       5100,
@@ -7244,7 +6950,7 @@
       "BOOLEAN"
     ],
     [
-      873,
+      874,
       5100,
       0,
       4100,
@@ -7252,7 +6958,7 @@
       "VIDEO"
     ],
     [
-      874,
+      875,
       5101,
       0,
       5103,
@@ -7260,7 +6966,7 @@
       "MODEL"
     ],
     [
-      875,
+      876,
       5101,
       1,
       5102,
@@ -7268,7 +6974,7 @@
       "CLIP"
     ],
     [
-      876,
+      877,
       5102,
       0,
       5103,
@@ -7276,7 +6982,7 @@
       "CONDITIONING"
     ],
     [
-      877,
+      878,
       5011,
       0,
       5103,
@@ -7284,20 +6990,12 @@
       "IMAGE"
     ],
     [
-      878,
+      879,
       5103,
       0,
       5104,
       0,
       "SAM3_TRACK_DATA"
-    ],
-    [
-      879,
-      5104,
-      0,
-      5105,
-      0,
-      "MASK"
     ],
     [
       880,
@@ -7309,38 +7007,6 @@
     ],
     [
       881,
-      5105,
-      0,
-      5106,
-      0,
-      "MASK"
-    ],
-    [
-      882,
-      1003,
-      0,
-      5106,
-      1,
-      "VAE"
-    ],
-    [
-      883,
-      5106,
-      0,
-      5107,
-      1,
-      "MASK"
-    ],
-    [
-      884,
-      5013,
-      0,
-      5107,
-      0,
-      "LATENT"
-    ],
-    [
-      885,
       5109,
       0,
       5110,
@@ -7348,7 +7014,7 @@
       "VOSR2_MODEL"
     ],
     [
-      886,
+      882,
       5021,
       0,
       5110,
@@ -7356,7 +7022,7 @@
       "IMAGE"
     ],
     [
-      887,
+      883,
       5110,
       0,
       5024,
@@ -7364,7 +7030,7 @@
       "IMAGE"
     ],
     [
-      888,
+      884,
       5002,
       0,
       5024,
@@ -7372,7 +7038,7 @@
       "IMAGE"
     ],
     [
-      889,
+      885,
       5011,
       1,
       5024,
@@ -7380,7 +7046,7 @@
       "H3FACEXFORM"
     ],
     [
-      890,
+      886,
       5024,
       0,
       5025,
@@ -7388,7 +7054,7 @@
       "IMAGE"
     ],
     [
-      891,
+      887,
       5002,
       1,
       5025,
@@ -7396,7 +7062,7 @@
       "AUDIO"
     ],
     [
-      892,
+      888,
       5025,
       0,
       5113,
@@ -7404,39 +7070,7 @@
       "COMFY_MATCHTYPE_V3"
     ],
     [
-      893,
-      5013,
-      0,
-      5112,
-      1,
-      "COMFY_MATCHTYPE_V3"
-    ],
-    [
-      894,
-      5107,
-      0,
-      5112,
-      2,
-      "COMFY_MATCHTYPE_V3"
-    ],
-    [
-      895,
-      5111,
-      0,
-      5112,
-      0,
-      "BOOLEAN"
-    ],
-    [
-      896,
-      5112,
-      0,
-      5014,
-      1,
-      "LATENT"
-    ],
-    [
-      897,
+      889,
       5023,
       0,
       5113,
@@ -7444,7 +7078,7 @@
       "COMFY_MATCHTYPE_V3"
     ],
     [
-      898,
+      890,
       5111,
       0,
       5113,
@@ -7452,7 +7086,7 @@
       "BOOLEAN"
     ],
     [
-      899,
+      891,
       5113,
       0,
       5100,

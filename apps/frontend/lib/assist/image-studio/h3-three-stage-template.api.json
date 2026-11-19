@@ -998,7 +998,7 @@
         0
       ],
       "av_latent": [
-        "5112",
+        "5013",
         0
       ],
       "audio_vae": [
@@ -1226,52 +1226,6 @@
       "object_indices": "0"
     }
   },
-  "5105": {
-    "class_type": "MVEx_MaskCleanup",
-    "inputs": {
-      "masks": [
-        "5104",
-        0
-      ],
-      "threshold": 0.3,
-      "method": "shrink_grow",
-      "method.shrink": 12,
-      "method.min_frames": 4,
-      "edge_grow": 16
-    }
-  },
-  "5106": {
-    "class_type": "MVEx_MaskToLatentSpace",
-    "inputs": {
-      "masks": [
-        "5105",
-        0
-      ],
-      "vae": [
-        "1003",
-        0
-      ],
-      "compression": "auto",
-      "spatial_method": "max",
-      "temporal_method": "max",
-      "grow_spatial": 36,
-      "grow_temporal": 1,
-      "grow_temp_mode": "both"
-    }
-  },
-  "5107": {
-    "class_type": "SetLatentNoiseMask",
-    "inputs": {
-      "samples": [
-        "5013",
-        0
-      ],
-      "mask": [
-        "5106",
-        0
-      ]
-    }
-  },
   "5109": {
     "class_type": "VOSR2ModelLoader",
     "inputs": {
@@ -1303,23 +1257,6 @@
     "class_type": "PrimitiveBoolean",
     "inputs": {
       "value": false
-    }
-  },
-  "5112": {
-    "class_type": "ComfySwitchNode",
-    "inputs": {
-      "switch": [
-        "5111",
-        0
-      ],
-      "on_false": [
-        "5013",
-        0
-      ],
-      "on_true": [
-        "5107",
-        0
-      ]
     }
   },
   "5113": {

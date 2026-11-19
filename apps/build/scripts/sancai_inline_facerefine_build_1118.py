@@ -44,7 +44,8 @@ API 模板 +10 同构:命名输入实证源=object_info_17000.json+P1/P2 探针�
 (probe-1119/graph_p2-t.json SAM3/H3FaceStitch.masks/ComfySwitchNode 形态);5111 可注入。
 
 幂等:先从当前正典件剥离本组既往添加(节点 id+触及链+两只组框+README 段,含 1118
-旧组标题过渡剥离,剥离前校验类型防误删他人节点)后整体重放——母本即正典件自身,
+旧组标题过渡剥离与 V2.1 砍除件 RETIRED 剥离——盘上 101/99 版(V2 全量)重放即净,
+剥离前校验类型防误删他人节点)后整体重放——母本即正典件自身,
 重跑字节稳定;main 自带双跑字节一致对账(AC6)。
 用法:
   python3 sancai_inline_facerefine_build_1118.py           # 重建两件
@@ -459,7 +460,7 @@ def strip_canvas(S: dict) -> dict:
     for n in list(S["nodes"]):
         if n["id"] in own_ids:
             if n["type"] != expect[n["id"]]:
-                die(f"正典件 #{n['id']} 已被他人占用为 {n['type']}(预期 {expect[n['id']}),拒剥")
+                die(f"正典件 #{n['id']} 已被他人占用为 {n['type']}(预期 {expect[n['id']]}),拒剥")
             S["nodes"].remove(n)
     removed_links = [l for l in S["links"] if l[1] in own_ids or l[3] in own_ids]
     removed_link_ids = {l[0] for l in removed_links}
