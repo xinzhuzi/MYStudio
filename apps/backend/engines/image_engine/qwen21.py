@@ -144,6 +144,8 @@ SPEED_MODE_E_HYBRID = "3 · 混动 40步+缓存"
 # 1108 默认档:⑦Pruna 臂(p_q 6步v0.2×1.0+mikkoani@0.6,六步原表+关CFG);拉齐轮起三件(t2i/i2i/edit)通吃
 SPEED_MODE_PRUNA = "4 · PrunaAI 6步"
 # 有手型名单(10-26 立,1108 随默认指向档4;实测人物海报=虚握剑鞘手部全绿)
+_TYPE_NATIVE_40STEP = frozenset({"美宣"})  # 1119 用户终裁:美宣=原生40步
+
 _HAND_PRUNA_TYPES = frozenset({"无衣物定妆", "人物海报", "人物多视图", "设定卡", "美宣", "自由"})
 # E 臂配方逐字对齐画布加速子图(my_nodes/subgraphs/qi21-道劫-加速子图*.json):
 # 1101 Phase1 案B(用户选定):E 尾 SCA 三件(7041/7042/7043)→单 KSampler [7045] cfg=4
@@ -248,6 +250,30 @@ def apply_hand_speed_mode(graph: dict[str, Any], base_type: Any,
     if speed["inputs"].get("latent_e") == ["7:7045", 0]:
         return  # 已物质化 KSampler 形(1101 Phase1 幂等)
     _materialize_e_hybrid(graph)
+
+
+def _apply_native_40step(graph: dict[str, Any]) -> None:
+    """1119 用户终裁:美宣=原生40步(无加速件,直注 KSampler cfg4/40步)。"""
+    cond = None; latent = None
+    for nid in ("7:7111", "7:7042", "7:7029"):
+        n = graph.get(nid)
+        if isinstance(n, dict):
+            cond = n.get("inputs", {}).get("conditioning")
+            if isinstance(cond, list): break
+    for nid in ("7:7112", "7:7043", "7:7031"):
+        n = graph.get(nid)
+        if isinstance(n, dict):
+            latent = n.get("inputs", {}).get("latent_image")
+            if isinstance(latent, list): break
+    if not isinstance(cond, list) or not isinstance(latent, list): return
+    graph["7500"] = {"class_type": "KSampler", "inputs": {
+        "model": [_MIKKOANI_LORA_NODE, 0],
+        "positive": cond, "negative": [_ENCODER_NODE, 1],
+        "latent_image": latent, "seed": [_SEED_SOURCE_NODE, 0],
+        "steps": 40, "cfg": 4.0,
+        "sampler_name": "euler", "scheduler": "simple", "denoise": 1.0}}
+    if isinstance(graph.get("5"), dict):
+        graph["5"]["inputs"]["samples"] = ["7500", 0]
 
 
 def apply_manual_size(graph: dict[str, Any], width: Any, height: Any) -> None:
@@ -444,6 +470,9 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
             assembly["inputs"]["组装用途"] = ASSEMBLY_PURPOSE_TYPE_FULL
             # 1108 拉齐:i2i ⑦Pruna 臂已入列,手型默认随 t2i=档4(在 apply_base_type 之后)
             apply_hand_speed_mode(graph, base_type, hand_default=SPEED_MODE_PRUNA)
+            # 1119 美宣终裁:原生40步
+            if isinstance(base_type, str) and base_type.strip() in _TYPE_NATIVE_40STEP:
+                _apply_native_40step(graph)
             # 1118 碎格根修:超安全档的型/手动画幅按原纵横比压回 ≤1.25MP
             # (字面量注入 EmptyLatentImage,头注见 apply_ref_safe_canvas)
             apply_ref_safe_canvas(graph, base_type,
@@ -463,6 +492,9 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
         apply_base_type(graph, ctx.get("base_type"))
         # 10-26 有手型默认档;1108:t2i=档4 PrunaAI(用户令,在 apply_base_type 之后)
         apply_hand_speed_mode(graph, ctx.get("base_type"), hand_default=SPEED_MODE_PRUNA)
+        # 1119 美宣终裁:原生40步
+        if isinstance(base_type, str) and base_type.strip() in _TYPE_NATIVE_40STEP:
+            _apply_native_40step(graph)
         # 10-26 画幅手动覆写(横竖皆可裁定;t2i 手动槽优先于九型直通)
         apply_manual_size(graph, ctx.get("manual_width"), ctx.get("manual_height"))
     message = missing_nodes_message(
