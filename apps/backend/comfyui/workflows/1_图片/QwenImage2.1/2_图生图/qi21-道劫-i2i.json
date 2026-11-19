@@ -1574,282 +1574,11 @@
         600
       ],
       "size": [
-        320,
-        120
-      ],
-      "flags": {},
-      "order": 36,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "slot0",
-          "type": "*",
-          "link": 8254
-        }
-      ],
-      "outputs": [
-        {
-          "name": "slot0",
-          "type": "*",
-          "links": [
-            8255
-          ]
-        },
-        {
-          "name": "slot1",
-          "type": "*",
-          "links": [
-            8256
-          ]
-        }
-      ],
-      "title": "[8100] Gem·分块超分",
-      "properties": {
-        "Node name for S&R": "GemTiledUpscale"
-      },
-      "widgets_values": [
-        8.25,
-        4,
-        256,
-        32,
-        64,
-        false
-      ]
-    },
-    {
-      "id": 8101,
-      "type": "LoraLoaderModelOnly",
-      "pos": [
-        9600,
-        600
-      ],
-      "size": [
-        320,
-        120
-      ],
-      "flags": {},
-      "order": 37,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "slot0",
-          "type": "*",
-          "link": 8250
-        }
-      ],
-      "outputs": [
-        {
-          "name": "slot0",
-          "type": "*",
-          "links": [
-            8251
-          ]
-        }
-      ],
-      "title": "[8101] Gem·turbo r178 ×1",
-      "properties": {
-        "Node name for S&R": "LoraLoaderModelOnly"
-      },
-      "widgets_values": [
-        "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
-        1.0
-      ]
-    },
-    {
-      "id": 8102,
-      "type": "LoraLoaderModelOnly",
-      "pos": [
-        10000,
-        600
-      ],
-      "size": [
-        320,
-        120
-      ],
-      "flags": {},
-      "order": 38,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "slot0",
-          "type": "*",
-          "link": 8251
-        }
-      ],
-      "outputs": [
-        {
-          "name": "slot0",
-          "type": "*",
-          "links": [
-            8257
-          ]
-        }
-      ],
-      "title": "[8102] Gem·restore ×1.0",
-      "properties": {
-        "Node name for S&R": "LoraLoaderModelOnly"
-      },
-      "widgets_values": [
-        "qwen-image-2.1-restore.safetensors",
-        1.0
-      ]
-    },
-    {
-      "id": 8104,
-      "type": "TextEncodeQwenImage21",
-      "pos": [
-        10400,
-        600
-      ],
-      "size": [
-        320,
-        120
-      ],
-      "flags": {},
-      "order": 39,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "slot0",
-          "type": "*",
-          "link": 8252
-        },
-        {
-          "name": "slot1",
-          "type": "*",
-          "link": 8255
-        },
-        {
-          "name": "slot4",
-          "type": "*",
-          "link": 8253
-        }
-      ],
-      "outputs": [
-        {
-          "name": "slot0",
-          "type": "*",
-          "links": [
-            8258
-          ]
-        },
-        {
-          "name": "slot2",
-          "type": "*",
-          "links": [
-            8263
-          ]
-        }
-      ],
-      "title": "[8104] Gem·提示词编码",
-      "properties": {
-        "Node name for S&R": "TextEncodeQwenImage21"
-      },
-      "widgets_values": [
-        "Restore the illustration: remove blur, noise and compression artifacts and recover sharp, natural detail, ignoring stray marks, specks and smudges, keeping the same composition, people and colors.",
-        "",
-        0
-      ]
-    },
-    {
-      "id": 8106,
-      "type": "VAEDecode",
-      "pos": [
-        9200,
-        950
-      ],
-      "size": [
-        320,
-        120
-      ],
-      "flags": {},
-      "order": 40,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "slot0",
-          "type": "*",
-          "link": 8264
-        },
-        {
-          "name": "slot1",
-          "type": "*",
-          "link": 8265
-        }
-      ],
-      "outputs": [
-        {
-          "name": "slot0",
-          "type": "*",
-          "links": [
-            8266
-          ]
-        }
-      ],
-      "title": "[8106] Gem·解码",
-      "properties": {
-        "Node name for S&R": "VAEDecode"
-      }
-    },
-    {
-      "id": 8107,
-      "type": "GemTiledUpscaleStitch",
-      "pos": [
-        9600,
-        950
-      ],
-      "size": [
-        320,
-        120
-      ],
-      "flags": {},
-      "order": 41,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "slot0",
-          "type": "*",
-          "link": 8266
-        },
-        {
-          "name": "slot1",
-          "type": "*",
-          "link": 8256
-        }
-      ],
-      "outputs": [
-        {
-          "name": "slot0",
-          "type": "*",
-          "links": [
-            8267
-          ]
-        }
-      ],
-      "title": "[8107] Gem·拼缝",
-      "properties": {
-        "Node name for S&R": "GemTiledUpscaleStitch"
-      },
-      "widgets_values": [
-        1.0,
-        "translation",
-        64,
-        0
-      ]
-    },
-    {
-      "id": 8100,
-      "type": "GemTiledUpscale",
-      "pos": [
-        9200,
-        600
-      ],
-      "size": [
         289.23240334830257,
         278
       ],
       "flags": {},
-      "order": 42,
+      "order": 36,
       "mode": 0,
       "inputs": [
         {
@@ -1995,7 +1724,7 @@
         82
       ],
       "flags": {},
-      "order": 43,
+      "order": 37,
       "mode": 0,
       "inputs": [
         {
@@ -2045,28 +1774,37 @@
         82
       ],
       "flags": {},
-      "order": 44,
+      "order": 38,
       "mode": 0,
       "inputs": [
         {
+          "localized_name": "model",
           "name": "model",
           "type": "MODEL",
           "link": 8251
         },
         {
+          "localized_name": "lora_name",
           "name": "lora_name",
           "type": "COMBO",
+          "widget": {
+            "name": "lora_name"
+          },
           "link": null
         },
         {
+          "localized_name": "strength_model",
           "name": "strength_model",
           "type": "FLOAT",
-          "link": null,
-          "widget": true
+          "widget": {
+            "name": "strength_model"
+          },
+          "link": null
         }
       ],
       "outputs": [
         {
+          "localized_name": "MODEL",
           "name": "MODEL",
           "type": "MODEL",
           "links": [
@@ -2074,10 +1812,10 @@
           ]
         }
       ],
+      "title": "[8102] Gem·restore ×1.0",
       "properties": {
         "Node name for S&R": "LoraLoaderModelOnly"
       },
-      "title": "[8102] Gem·restore ×1.0",
       "widgets_values": [
         "qwen-image-2.1-restore.safetensors",
         1.0
@@ -2091,37 +1829,78 @@
         600
       ],
       "size": [
-        320,
-        200
+        427.7496824166309,
+        370.70437031339105
       ],
       "flags": {},
-      "order": 45,
+      "order": 39,
       "mode": 0,
       "inputs": [
         {
+          "localized_name": "clip",
           "name": "clip",
           "type": "CLIP",
           "link": 8252
         },
         {
+          "localized_name": "image_1",
+          "name": "images.image_1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 8255
+        },
+        {
+          "localized_name": "image_2",
+          "name": "images.image_2",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "image_3",
+          "name": "images.image_3",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 8253
+        },
+        {
+          "localized_name": "prompt",
           "name": "prompt",
           "type": "STRING",
           "widget": {
             "name": "prompt"
           },
-          "link": 8255
+          "link": null
         },
         {
+          "localized_name": "negative_prompt",
           "name": "negative_prompt",
           "type": "STRING",
           "widget": {
             "name": "negative_prompt"
           },
           "link": null
+        },
+        {
+          "localized_name": "resolution",
+          "name": "resolution",
+          "type": "INT",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": null
         }
       ],
       "outputs": [
         {
+          "localized_name": "positive",
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
@@ -2129,13 +1908,24 @@
           ]
         },
         {
+          "localized_name": "negative",
           "name": "negative",
           "type": "CONDITIONING",
           "links": []
+        },
+        {
+          "localized_name": "latent",
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            8263
+          ]
         }
       ],
       "title": "[8104] Gem·提示词编码",
-      "properties": {},
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
       "widgets_values": [
         "Restore the illustration: remove blur, noise and compression artifacts and recover sharp, natural detail, ignoring stray marks, specks and smudges, keeping the same composition, people and colors.",
         "",
@@ -2150,19 +1940,21 @@
         950
       ],
       "size": [
-        300,
-        100
+        281.24320755148483,
+        59.84738003269365
       ],
       "flags": {},
-      "order": 46,
+      "order": 40,
       "mode": 0,
       "inputs": [
         {
+          "localized_name": "samples",
           "name": "samples",
           "type": "LATENT",
           "link": 8264
         },
         {
+          "localized_name": "vae",
           "name": "vae",
           "type": "VAE",
           "link": 8265
@@ -2170,6 +1962,7 @@
       ],
       "outputs": [
         {
+          "localized_name": "IMAGE",
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
@@ -2178,7 +1971,9 @@
         }
       ],
       "title": "[8106] Gem·解码",
-      "properties": {}
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
     },
     {
       "id": 8107,
@@ -2192,7 +1987,7 @@
         150
       ],
       "flags": {},
-      "order": 47,
+      "order": 41,
       "mode": 0,
       "inputs": [
         {
@@ -2292,7 +2087,7 @@
         148
       ],
       "flags": {},
-      "order": 48,
+      "order": 42,
       "mode": 0,
       "inputs": [
         {
@@ -2332,7 +2127,7 @@
         148
       ],
       "flags": {},
-      "order": 49,
+      "order": 43,
       "mode": 0,
       "inputs": [
         {
@@ -2372,7 +2167,7 @@
         148
       ],
       "flags": {},
-      "order": 50,
+      "order": 44,
       "mode": 0,
       "inputs": [
         {
@@ -2411,7 +2206,7 @@
         148
       ],
       "flags": {},
-      "order": 51,
+      "order": 45,
       "mode": 0,
       "inputs": [
         {
@@ -2450,7 +2245,7 @@
         148
       ],
       "flags": {},
-      "order": 52,
+      "order": 46,
       "mode": 0,
       "inputs": [
         {

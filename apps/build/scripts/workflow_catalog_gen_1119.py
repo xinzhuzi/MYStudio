@@ -25,6 +25,7 @@ WF_ROOT = REPO / "apps/backend/comfyui/workflows"
 OUT_MD = REPO / "docs/comfyui-kb/工作流详解.md"
 
 MODEL_EXT = (".safetensors", ".gguf", ".ckpt", ".pt", ".onnx", ".sft", ".bin", ".pth")
+ASSET_EXT = (".png", ".jpg", ".jpeg", ".webp", ".mp4", ".mov", ".webm", ".wav", ".mp3", ".flac", ".aac")
 SAMPLER_TYPES = ("KSampler", "KSamplerAdvanced", "SamplerCustomAdvanced", "H3AutoContextSampler")
 OUTPUT_PREFIX_TYPES = (
     "SaveImage", "SaveImageWithAlpha", "SaveImageAdvanced", "SaveVideo", "SaveAudio",
@@ -71,10 +72,12 @@ def _classify(doc: dict) -> str:
 def _walk_widgets(v, hits: list, kinds: set[str]) -> None:
     """递归收集 widgets/inputs 里像模型文件名/关键参数的字符串。"""
     if isinstance(v, str):
-        low = v.lower()
         if v.endswith(MODEL_EXT):
             hits.append(v)
             kinds.add("model")
+        elif v.lower().endswith(ASSET_EXT):
+            hits.append(v)
+            kinds.add("asset")
     elif isinstance(v, (list, tuple)):
         for x in v:
             _walk_widgets(x, hits, kinds)
@@ -93,24 +96,40 @@ def _node_center_bbox_hit(node: dict, group: dict) -> bool:
     return bb[0] <= cx <= bb[0] + bb[2] and bb[1] <= cy <= bb[1] + bb[3]
 
 
+def _new_sink() -> dict:
+    return {"types": Counter(), "models": set(), "assets": set(), "my_nodes": set(),
+            "samplers": [], "outputs": [], "note_heads": [], "bypassed": 0, "link_total": 0}
+
+
 def _harvest_nodes(nodes: list, links: list | None, sink: dict) -> None:
     link_count = len(links) if isinstance(links, list) else None
     for nd in nodes:
-        sink["types"][nd.get("type", "?")] += 1
+        t = nd.get("type", "")
+        sink["types"][t] += 1
+        if t.startswith("My"):
+            sink["my_nodes"].add(t)
         wv = nd.get("widgets_values")
         if wv:
             hits: list[str] = []
             kinds: set[str] = set()
             _walk_widgets(wv, hits, kinds)
             for h in hits:
-                sink["models"].add(h)
-        t = nd.get("type", "")
+                if h.endswith(MODEL_EXT):
+                    sink["models"].add(h)
+                else:
+                    sink["assets"].add(h)
         if t == "KSampler" and isinstance(wv, list) and len(wv) >= 7:
             # 官方槽序: seed, control, steps, cfg, sampler, scheduler, denoise
             try:
                 sink["samplers"].append(
                     f"{wv[2]}步/cfg{wv[3]}/{wv[4]}/{wv[5]}/dn{wv[6]}"
                 )
+            except (TypeError, IndexError):
+                pass
+        elif t == "BasicScheduler" and isinstance(wv, list) and len(wv) >= 3:
+            # 槽序: scheduler, steps, denoise(SamplerCustomAdvanced 链的步数真身)
+            try:
+                sink["samplers"].append(f"σ:{wv[1]}步/{wv[0]}/dn{wv[2]}")
             except (TypeError, IndexError):
                 pass
         elif t in SAMPLER_TYPES:
@@ -136,22 +155,21 @@ def _harvest_nodes(nodes: list, links: list | None, sink: dict) -> None:
 
 
 def _scan_scope(doc: dict) -> dict:
-    sink = {"types": Counter(), "models": set(), "samplers": [], "outputs": [],
-            "note_heads": [], "bypassed": 0, "link_total": 0}
+    sink = _new_sink()
     _harvest_nodes(doc.get("nodes", []), doc.get("links"), sink)
     groups = []
     for g in doc.get("groups", []):
-        members = sum(1 for nd in doc.get("nodes", []) if _node_center_bbox_hit(nd, g))
+        members = Counter(nd.get("type", "?") for nd in doc.get("nodes", []) if _node_center_bbox_hit(nd, g))
+        members.pop("Reroute", None)
         flag = ""
         if g.get("muted"):
             flag = "(旁路)"
         elif g.get("buried"):
             flag = "(收起)"
-        groups.append((g.get("title", "?"), members, flag))
+        groups.append((g.get("title", "?"), sum(members.values()), flag, members.most_common()))
     subs = []
     for sg in (doc.get("definitions") or {}).get("subgraphs", []):
-        s = {"types": Counter(), "models": set(), "samplers": [], "outputs": [],
-             "note_heads": [], "bypassed": 0, "link_total": 0}
+        s = _new_sink()
         _harvest_nodes(sg.get("nodes", []), sg.get("links"), s)
         subs.append({
             "name": sg.get("name", "?"),
@@ -165,11 +183,13 @@ def _scan_scope(doc: dict) -> dict:
         "groups": groups,
         "subgraphs": subs,
         "models": sorted(sink["models"]),
+        "assets": sorted(sink["assets"]),
+        "my_nodes": sorted(sink["my_nodes"]),
         "samplers": sink["samplers"],
         "outputs": sink["outputs"],
         "note_heads": sink["note_heads"][:3],
         "bypassed": sink["bypassed"],
-        "histogram": [(t, c) for t, c in sink["types"].most_common(10) if t not in SKIP_HISTOGRAM_TYPES],
+        "histogram": [(t, c) for t, c in sink["types"].most_common(12) if t not in SKIP_HISTOGRAM_TYPES],
         "type_total": dict(sink["types"]),
     }
 
@@ -178,28 +198,39 @@ def _scan_api(doc: dict) -> dict:
     graph = doc["graph"] if "graph" in doc and _is_api_graph(doc.get("graph")) else doc
     types = Counter()
     models: set[str] = set()
+    assets: set[str] = set()
+    my_nodes: set[str] = set()
     outputs, samplers = [], []
+    node_count = 0
     for nid, spec in graph.items():
         if not isinstance(spec, dict) or "class_type" not in spec:
             continue  # 桥件混排键(schemaVersion/name/inputs/extra_data 等)
+        node_count += 1
         ct = spec["class_type"]
         types[ct] += 1
+        if ct.startswith("My"):
+            my_nodes.add(ct)
         hits: list[str] = []
         _walk_widgets(spec.get("inputs", {}), hits, set())
-        models.update(hits)
+        for h in hits:
+            (models if h.endswith(MODEL_EXT) else assets).add(h)
         if ct in OUTPUT_PREFIX_TYPES:
             p = spec.get("inputs", {}).get("filename_prefix")
             outputs.append(ct + (f"→{p}" if isinstance(p, str) else ""))
         if ct == "KSampler":
             inp = spec.get("inputs", {})
             samplers.append(f"{inp.get('steps')}步/cfg{inp.get('cfg')}/{inp.get('sampler_name')}/{inp.get('scheduler')}/dn{inp.get('denoise')}")
+        elif ct == "BasicScheduler":
+            inp = spec.get("inputs", {})
+            samplers.append(f"σ:{inp.get('steps')}步/{inp.get('scheduler')}/dn{inp.get('denoise')}")
         elif ct in SAMPLER_TYPES:
             samplers.append(ct)
     return {
-        "nodes": len(graph), "links": None, "groups": [], "subgraphs": [],
-        "models": sorted(models), "samplers": samplers, "outputs": outputs,
+        "nodes": node_count, "links": None, "groups": [], "subgraphs": [],
+        "models": sorted(models), "assets": sorted(assets), "my_nodes": sorted(my_nodes),
+        "samplers": samplers, "outputs": outputs,
         "note_heads": [], "bypassed": 0,
-        "histogram": [(t, c) for t, c in types.most_common(10) if t not in SKIP_HISTOGRAM_TYPES],
+        "histogram": [(t, c) for t, c in types.most_common(12) if t not in SKIP_HISTOGRAM_TYPES],
         "type_total": dict(types),
     }
 
@@ -245,17 +276,33 @@ def _fmt_entry(entry: dict) -> list[str]:
         lines.append(f"- **功能**:{desc}")
     groups = entry.get("groups") or []
     if groups:
-        gs = ";".join(f"{t}{flag}(罩{n})" for t, n, flag in groups)
-        lines.append(f"- **分组**:{gs}")
+        for t, n, flag, comp in groups:
+            comp_s = ""
+            if comp:
+                top = "、".join(f"{ct}×{c}" for ct, c in comp[:6])
+                more = f"等{n}件" if len(comp) > 6 else f"{n}件"
+                comp_s = f":{top}({more})"
+            lines.append(f"- **分组**:{t}{flag}(罩{comp_s or n})")
     subs = entry.get("subgraphs") or []
     if subs:
         gs = ";".join(f"{s['name']}({s['nodes']}节点)" for s in subs)
         lines.append(f"- **子图**:{gs}")
+    hist = entry.get("histogram") or []
+    if hist:
+        lines.append(f"- **节点构成**:{'、'.join(f'{t}×{c}' for t, c in hist[:8])}")
+    mys = entry.get("my_nodes") or []
+    if mys:
+        lines.append(f"- **自研节点**:{', '.join(mys)}")
     models = entry.get("models") or []
     if models:
         show = [m.split("/")[-1].split("\\")[-1] for m in models][:8]
         more = f"(共{len(models)}件)" if len(models) > 8 else ""
         lines.append(f"- **模型/权重**:{', '.join(show)}{more}")
+    assets = entry.get("assets") or []
+    if assets:
+        show = [a.split("/")[-1].split("\\")[-1] for a in assets][:6]
+        more = f"(共{len(assets)}件)" if len(assets) > 6 else ""
+        lines.append(f"- **输入素材**:{', '.join(show)}{more}")
     if entry.get("samplers"):
         lines.append(f"- **采样**:{'; '.join(entry['samplers'][:6])}")
     if entry.get("outputs"):

@@ -77,7 +77,7 @@ LINKS = [
 LINK_IDS = [l[0] for l in LINKS]
 
 # 旧节点清除段(上一代 ⑤b 全部 + 旧线段)
-OLD_NODE_RANGE = set(range(8108, 8121))  # 8108-8120
+OLD_NODE_RANGE = set(range(8100, 8121))  # 8100-8120 全段(涵盖 v1+v2-bug+v2)
 OLD_LINK_RANGE = set(range(8217, 8237))  # 8217-8236
 OLD_GROUP_ID = 7
 
@@ -98,7 +98,7 @@ def surgery(name: str):
     print(f"[gem-v2] 手术 {name} ({path.name})")
 
     # ── 1) 清除旧⑤b ──
-    old_nodes = [n for n in wf["nodes"] if n["id"] in OLD_NODE_RANGE]
+    old_nodes = [n for n in wf["nodes"] if n["id"] in OLD_NODE_RANGE]  # 全段清
     if old_nodes:
         wf["nodes"] = [n for n in wf["nodes"] if n["id"] not in OLD_NODE_RANGE]
         print(f"  清除旧⑤b节点 {len(old_nodes)} 个")
@@ -118,14 +118,11 @@ def surgery(name: str):
     y_base = 800 if name == "t2i" else 600
     for i, nid in enumerate(NEW_IDS):
         ntype, title, widgets = NODES[nid]
-        # 从皮肤件深拷贝同类型节点(取第一个匹配的)
-        tmpl = None
-        for sn in _skin["nodes"]:
-            if sn["type"] == ntype:
-                tmpl = _c.deepcopy(sn)
-                break
-        if tmpl is None:
-            need(False, f"皮肤件缺 {ntype} 模板节点")
+        # 从皮肤件按 ID 直拷(禁按 type 搜——主链有同型节点会抓错)
+        SKIN_MAP = {8100:8100, 8101:8101, 8102:8102, 8104:8104,
+                     8106:8106, 8107:8107, 8110:8110, 8111:8111,
+                     8112:8112, 8113:8113, 8114:8114}
+        tmpl = _c.deepcopy(_skin_nodes[SKIN_MAP[nid]])
         node = tmpl
         node["id"] = nid
         node["title"] = title
@@ -221,7 +218,7 @@ def verify(name: str):
         need(n.get("mode", 0) == 0, f"{name}:{nid} mode 应 0")
 
     # B) 旧节点不在
-    for nid in OLD_NODE_RANGE - set(NEW_IDS):
+    for nid in (set(range(8100, 8121)) - set(NEW_IDS)):
         need(nid not in nodes, f"{name}: 旧节点 {nid} 应已删除")
 
     # C) 全线在+形符
