@@ -520,11 +520,13 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
     if submitted.get("node_errors"):
         print(f"[image-sidecar] qwen21: 任务 {prompt_id} 部分输出校验失败,继续跟踪已接受输出: {str(submitted['node_errors'])[:500]}", flush=True)
     try:
-        timeout_s = float(os.environ.get("MYSTUDIO_COMFYUI_BRIDGE_TIMEOUT_S", "600"))
+        # 1119 二十四刀C:同 comfyui_bridge 600→1500(Gem v2 皮肤件超分慢镜>10min,
+        # 600s 双墙任一打断=S01 三连 interrupted 实录,此处为第二堵墙)
+        timeout_s = float(os.environ.get("MYSTUDIO_COMFYUI_BRIDGE_TIMEOUT_S", "1500"))
     except (TypeError, ValueError, OverflowError):
-        timeout_s = 600.0
+        timeout_s = 1500.0
     if not math.isfinite(timeout_s) or timeout_s <= 0:
-        timeout_s = 600.0
+        timeout_s = 1500.0
     deadline = time.monotonic() + timeout_s
     from image_gen.pipeline import PipelineError as _PipelineError
 
