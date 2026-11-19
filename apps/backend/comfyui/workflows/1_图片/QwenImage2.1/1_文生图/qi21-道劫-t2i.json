@@ -1,8 +1,8 @@
 {
   "id": "7d4a9c31-5e62-4b8a-b1f0-2c8e57a90413",
   "revision": 0,
-  "last_node_id": 8122,
-  "last_link_id": 8272,
+  "last_node_id": 8124,
+  "last_link_id": 8274,
   "nodes": [
     {
       "id": 1,
@@ -1830,7 +1830,7 @@
         {
           "name": "image",
           "type": "IMAGE",
-          "link": 8269
+          "link": 8273
         }
       ],
       "outputs": [
@@ -1875,7 +1875,7 @@
         {
           "name": "alpha",
           "type": "MASK",
-          "link": 8270
+          "link": 8274
         }
       ],
       "outputs": [
@@ -1889,6 +1889,83 @@
       ],
       "properties": {
         "Node name for S&R": "JoinImageWithAlpha"
+      }
+    },
+    {
+      "id": 8123,
+      "type": "MaskToImage",
+      "pos": [
+        8700,
+        850
+      ],
+      "size": [
+        180,
+        50
+      ],
+      "flags": {},
+      "order": 34,
+      "mode": 0,
+      "title": "[8123] MASK→IMAGE",
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 8269
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            8273
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MaskToImage"
+      }
+    },
+    {
+      "id": 8124,
+      "type": "ImageToMask",
+      "pos": [
+        9100,
+        850
+      ],
+      "size": [
+        180,
+        50
+      ],
+      "flags": {},
+      "order": 35,
+      "mode": 0,
+      "title": "[8124] IMAGE→MASK",
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 8270
+        },
+        {
+          "name": "channel",
+          "type": "COMBO"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            8274
+          ]
+        }
+      ],
+      "widgets_values": [
+        "red"
+      ],
+      "properties": {
+        "Node name for S&R": "ImageToMask"
       }
     }
   ],
@@ -2238,28 +2315,44 @@
       "IMAGE"
     ],
     [
-      8269,
-      8120,
-      1,
-      8122,
-      0,
-      "MASK"
-    ],
-    [
-      8270,
-      8122,
-      0,
-      8121,
-      1,
-      "IMAGE"
-    ],
-    [
       8272,
       8121,
       0,
       504,
       0,
       "IMAGE"
+    ],
+    [
+      8269,
+      8120,
+      1,
+      8123,
+      0,
+      "MASK"
+    ],
+    [
+      8273,
+      8123,
+      0,
+      8122,
+      0,
+      "IMAGE"
+    ],
+    [
+      8270,
+      8122,
+      0,
+      8124,
+      0,
+      "IMAGE"
+    ],
+    [
+      8274,
+      8124,
+      0,
+      8121,
+      1,
+      "MASK"
     ]
   ],
   "groups": [

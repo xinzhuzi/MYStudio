@@ -385,8 +385,8 @@
         "megapixels": 8.25,
         "resolution_steps": 32,
         "image": [
-          "8120",
-          1
+          "8123",
+          0
         ]
       }
     },
@@ -398,6 +398,25 @@
           0
         ],
         "alpha": [
+          "8124",
+          0
+        ]
+      }
+    },
+    "8123": {
+      "class_type": "MaskToImage",
+      "inputs": {
+        "mask": [
+          "8120",
+          1
+        ]
+      }
+    },
+    "8124": {
+      "class_type": "ImageToMask",
+      "inputs": {
+        "channel": "red",
+        "image": [
           "8122",
           0
         ]
