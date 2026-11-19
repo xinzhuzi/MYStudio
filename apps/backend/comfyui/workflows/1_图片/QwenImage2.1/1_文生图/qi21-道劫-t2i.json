@@ -579,7 +579,8 @@
       ],
       "widgets_values_named": {
         "速度档位": "4 · PrunaAI 6步",
-        "seed": 0
+        "seed": 0,
+        "mode": "3 · 混动 40步+缓存"
       }
     },
     {
@@ -3552,7 +3553,7 @@
               }
             },
             "widgets_values": [
-              "4 · PrunaAI 6步"
+              "3 · 混动 40步+缓存"
             ],
             "widgets_values_named": {
               "mode": "3 · 混动 40步+缓存"
