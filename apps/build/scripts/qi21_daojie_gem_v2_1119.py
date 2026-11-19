@@ -116,6 +116,16 @@ def surgery(name: str):
     _skin_nodes = {n["id"]: n for n in _skin["nodes"]}
     base_order = max(n.get("order", 0) for n in wf["nodes"] if isinstance(n.get("order"), int)) + 1
     y_base = 800 if name == "t2i" else 600
+    # 1119 布局修正:按皮肤件真尺寸排三行四列(列距≥246/行距≥80,零重叠;
+    # 7500→8100 与 8107→504 两根外线恒右向,岛内线由契约豁免集覆盖)
+    POS = {
+        8100: (9200, y_base),        8101: (9750, y_base),
+        8102: (10350, y_base),       8104: (11000, y_base),
+        8106: (9200, y_base + 460),  8107: (9750, y_base + 460),
+        8110: (10350, y_base + 460), 8111: (11000, y_base + 460),
+        8112: (9200, y_base + 800),  8113: (9750, y_base + 800),
+        8114: (10350, y_base + 800),
+    }
     for i, nid in enumerate(NEW_IDS):
         ntype, title, widgets = NODES[nid]
         # 从皮肤件按 ID 直拷(禁按 type 搜——主链有同型节点会抓错)
@@ -126,7 +136,7 @@ def surgery(name: str):
         node = tmpl
         node["id"] = nid
         node["title"] = title
-        node["pos"] = [9200 + (i % 4) * 400, y_base + (i // 4) * 350]
+        node["pos"] = list(POS[nid])
         node["order"] = base_order + i
         node["mode"] = 0
         if widgets is not None:
@@ -181,11 +191,12 @@ def surgery(name: str):
                     out["links"] = (out.get("links") or []) + [8267]
         print(f"  504 接线→8107, 标题/前缀改")
 
-    # ── 5) 组框 ──
-    xs = [n["pos"][0] for n in wf["nodes"] if n["id"] in NEW_IDS]
-    ys = [n["pos"][1] for n in wf["nodes"] if n["id"] in NEW_IDS]
-    xe = [n["pos"][0] + 320 for n in wf["nodes"] if n["id"] in NEW_IDS]
-    ye = [n["pos"][1] + 150 for n in wf["nodes"] if n["id"] in NEW_IDS]
+    # ── 5) 组框(按节点真尺寸自算 bbox,禁 320/150 估——8104 真宽 428 会漏罩)──
+    _new = [n for n in wf["nodes"] if n["id"] in NEW_IDS]
+    xs = [n["pos"][0] for n in _new]
+    ys = [n["pos"][1] for n in _new]
+    xe = [n["pos"][0] + n["size"][0] for n in _new]
+    ye = [n["pos"][1] + n["size"][1] for n in _new]
     wf["groups"].append({
         "id": 7, "title": GROUP_TITLE,
         "bounding": [min(xs) - 40, min(ys) - 60, max(xe) - min(xs) + 80, max(ye) - min(ys) + 100],
@@ -240,10 +251,17 @@ def verify(name: str):
         need(n504.get("widgets_values", [None])[0] == SAVE_PREFIX[name],
              f"{name}: 504 前缀不符")
 
-    # F) 组框
+    # F) 组框:恰一组+题名+真尺寸罩全 11 节点(明文判据转可执行断言,防估宽漏罩回潮)
     grp = [g for g in wf.get("groups", []) if g.get("id") == 7]
     need(len(grp) == 1 and grp[0]["title"] == GROUP_TITLE,
          f"{name}: 组框7 应恰一组且题名 {GROUP_TITLE}")
+    bx, by, bw, bh = grp[0]["bounding"]
+    inside = [n["id"] for n in wf["nodes"]
+              if bx <= n["pos"][0] and by <= n["pos"][1]
+              and n["pos"][0] + n["size"][0] <= bx + bw
+              and n["pos"][1] + n["size"][1] <= by + bh]
+    need(sorted(inside) == sorted(NEW_IDS),
+         f"{name}: 组框应恰罩 11 新节点,得 {sorted(inside)}")
 
     # G) SeedVR 旁路态不变
     need(503 in nodes and nodes[503].get("mode") == 4,
