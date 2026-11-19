@@ -187,12 +187,17 @@ def _materialize_e_hybrid(graph: dict[str, Any]) -> None:
             "bridge-template-missing",
             f"桥模板缺 E 臂负向/seed 源节点({_ENCODER_NODE}/{_SEED_SOURCE_NODE}),无法补注",
         )
-    # 正源/latent 逐槽镜像现图 E 臂(优先旧 SCA 形 guider/SCA;更旧 Turbo 臂兜底)
+    # 正源/latent 逐槽镜像现图 E 臂(优先旧 SCA 形 guider/SCA;更旧 Turbo 臂兜底;
+    # 1119 修:v2 架构 turbo 路 BasicGuider/SamplerCustomAdvanced 等价槽 fallback)
     def _mirror(node_id: str, slot: str) -> Any:
         node = graph.get(node_id)
         return node.get("inputs", {}).get(slot) if isinstance(node, dict) else None
-    conditioning = _mirror("7:7042", "conditioning") or _mirror("7:7029", "conditioning")
-    latent_image = _mirror("7:7043", "latent_image") or _mirror("7:7031", "latent_image")
+    conditioning = (_mirror("7:7042", "conditioning")
+                    or _mirror("7:7029", "conditioning")
+                    or _mirror("7:7111", "conditioning"))
+    latent_image = (_mirror("7:7043", "latent_image")
+                    or _mirror("7:7031", "latent_image")
+                    or _mirror("7:7112", "latent_image"))
     if not isinstance(conditioning, list) or not isinstance(latent_image, list):
         raise _pipeline_error(
             "bridge-template-missing",
