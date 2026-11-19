@@ -55,10 +55,11 @@ REF_API = 9                 # API 模板 LoadImage(画布件无 LoadImage,零参
 API_TAIL = 36               # API 模板自己的终采 VIDEO 输出节点(CreateVideo 一采直出)
 PREFIX_P_FINAL = "video/H3/分段视频/p-final"
 
-# 1119 双档核验(PRD 3.4,结论回填):母本 1119 起 OWN 扩为 29(+HD_IDS 10 件远景/高清
-# 双档段,V2.1 砍后口径;V2 曾为 33/14——5105/5106/5107/5112 已随 SLNM 路砍除,天然不在),
-# 本件若直接继承会误带 SAM3/VOSR2/投切段进 multiseg——已证带,加节点过滤
-# (只克隆 5000 段修脸原链 19 件);multiseg 不随双档役,双档需求走正典件。
+# 1119 双档核验(PRD 3.4,结论回填):母本 1119 起 OWN 扩为 25(+HD_IDS 6 件远景/高清
+# 双档段,V2.2 砍 SAM3 后口径;V2 曾为 33/14、V2.1 为 29/10——5105/5106/5107/5112 已随
+# SLNM 路砍除,5101-5104 已随 SAM3 支路砍除,均天然不在),本件若直接继承会误带
+# VOSR2/投切段进 multiseg——已证带,加节点过滤(只克隆 5000 段修脸原链 19 件);
+# multiseg 不随双档役,双档需求走正典件(V2.2 复跑 --check 天然适配实证)。
 HD_FILTER = set(getattr(MB, "HD_IDS", set()))
 OWN: dict[int, str] = {k: v for k, v in MB.OWN.items() if k not in HD_FILTER}
 WIDGETS = {k: (list(v) if v is not None else None) for k, v in MB.WIDGETS.items()

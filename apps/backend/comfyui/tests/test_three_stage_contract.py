@@ -249,7 +249,7 @@ def test_links_bidirectional_consistency():
 def test_groups_three_bands_non_overlap():
     """1113 手术后=五组横排:加载模型→输入→一阶段采样→二阶段放大→三采超分;
     1118 增两只:四采修脸组(5000 段)+终档组(5100/4100 p-final),共七组;
-    1119 双档:扩四采组框罩全 10 新件(V2.1 砍后;组数恒 7 不新增第 8 组,组标题更新双档口径;
+    1119 双档:扩四采组框罩全 6 新件(V2.2 砍 SAM3 后;组数恒 7 不新增第 8 组,组标题更新双档口径;
     PRD 3.6 用户裁决=两档同组);两两不交,标题口径正确(TESSERA/RelayVSR 已出主线,标题不得再含);
     罩全门(1113 刻碑:负高度组框实弹事故——深度阶梯改版丢 g_max_y 更新行,五组高度全 -20,
     画布上组框退化成标题条、节点全部框外;检查器不查组覆盖须自算,此处入契约)。"""
@@ -364,10 +364,10 @@ def test_sigma_feed_scheduler_gets_shifted_model():
 
 def test_facerefine_inline_arm_1118():
     """1118 四采修脸臂内置(11-17-facerefine-inline-bypass):19 节点默认旁路;1119 双档扩
-    (11-19-dualmode-facerefine-rename)再 +10(远景/高清双档,V2.1 砍后)=画布 97、API 95
-    (66+19 臂+lowvram役#1072+clip_vision#800+10 双档)。[1065] False 时
+    (11-19-dualmode-facerefine-rename)再 +6(远景/高清双档,V2.2 砍 SAM3 后)=画布 93、API 91
+    (66+19 臂+lowvram役#1072+clip_vision#800+6 双档)。[1065] False 时
     50xx 臂被引擎惰性剪除,终档 4100=p3 直通;True 时走进修脸→终档一条线。结构契约:
-    节点数 97/开关默认 False/恒单 UNETLoader(5006←1001 复用,PRD 单向门#2 显存修订)/
+    节点数 93/开关默认 False/恒单 UNETLoader(5006←1001 复用,PRD 单向门#2 显存修订)/
     5002 拆帧源=4002(三采 p3 4K 出片口,1119 回正=用户裁定「三采 4K 后修脸」;4002 仍喂
     5100.on_false=p3 直通)/
     5012 画布宽高=5011 追踪器出口联线(禁手填)/5100 极性 on_true←5113 出口(1119 等效改接,
@@ -379,8 +379,8 @@ def test_facerefine_inline_arm_1118():
     arm = {25, 1065, 4100, 5002, 5006, 5011, 5012, 5013, 5014, 5015,
            5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5100}
     assert arm <= set(nodes), f"四采臂缺件: {arm - set(nodes)}"
-    assert len(nodes) == 97, \
-        "画布节点数=97(66+19 四采臂+lowvram役#1072+clip_vision#800+10 双档;1119 双档役 V2.1)"
+    assert len(nodes) == 93, \
+        "画布节点数=93(66+19 四采臂+lowvram役#1072+clip_vision#800+6 双档;1119 双档役 V2.2)"
     assert nodes[1065]["type"] == "PrimitiveBoolean" and nodes[1065]["widgets_values"] == [False], \
         "[1065] 四采开关出厂必须 False(默认旁路,PRD 单向门#1)"
     assert nodes[25]["type"] == "PrimitiveStringMultiline" and \
@@ -422,7 +422,8 @@ def test_facerefine_inline_arm_1118():
 
 def test_facerefine_dual_mode_1119():
     """1119 修脸双技术档(11-19-dualmode-facerefine-rename,远景=默认/高清,出口复制案;
-    **V2.1 简化定案**=PRD 零·五,探针 probe-1119 六发取证):
+    **V2.1 简化定案**=PRD 零·五,探针 probe-1119 六发取证;**V2.2 末轮修正**=PRD 零·五·二,
+    高清贴回空贴根因+SAM3 砍除):
     1065(四采总开关,出厂 False)× 5111(高清子开关,出厂 False=远景档)四态矩阵;
     投切全官方件(ComfySwitchNode+PrimitiveBoolean)零自定义投切,防缓存静默串档
     (PRD §1.7)。生成器=apps/build/scripts/sancai_inline_facerefine_build_1118.py(唯一真源,
@@ -430,15 +431,21 @@ def test_facerefine_dual_mode_1119():
     潜空间遮罩路被 AudioLock 源码级冲掉(ComfyUI-H3-NativeAudioLock/__init__.py:50-54
     lock_audio 无条件覆写 noise_mask,上游 SetLatentNoiseMask 带入的 mask 在 5014 恒被冲掉,
     恒无效)——砍 5105/5106/5107(MVEx+SLNM)与 5112(中链 LATENT Switch),MVEx 插件
-    (GPL-3.0)退出依赖面;5013→5014 直连复原正典原链,SAM3 遮罩只走贴回(5104→5024.masks)。
-    静态面断言:节点 87→97/5111 默认 False/远景态数据流等效(5013→5014 直连+5021→5022
-    直连+5022.masks 悬空 face_only 保真+5024/5025 复制对 widgets 逐位同 5022/5023)/
-    5113 极性/高清段 widgets 逐位承融合件 1119b(5110 control=fixed)。实弹面(AC2/AC3/AC5)
-    不在本测试。"""
+    (GPL-3.0)退出依赖面;5013→5014 直连复原正典原链。V2.2 砍除:SAM3 支路(5101-5104)
+    全砍——文检"face"在 5011 的 768 crop 画布零命中(comfy/ldm/sam3/tracker.py:1790-1791
+    packed_masks=None)→SAM3_TrackToMask 静默全零 torch.zeros(comfy_extras/nodes_sam3.py:
+    498-500)→H3FaceStitch masks 分支 mm_≡0 直通空贴(nodes.py:2342-2344);"person"=98.5%
+    全画布人形非脸,提示词修法不可行;两轮素材零正增益(陶艺增益实归 VOSR2+face_only
+    贴回)——**高清档=face_only 贴回+VOSR2**(hd2.mp4 锐度 f60 1.597×/f156 1.822×源反超
+    远景档),sam3.1 权重与 CheckpointLoader 依赖退出,复活路径=initial_mask/bbox 引导
+    SAM3_Detect 另役(PRD 记档)。静态面断言:节点 87→93/5111 默认 False/远景态数据流
+    等效(5013→5014 直连+5021→5022 直连+5022 与 5024 masks 双悬空 face_only 保真+
+    5024/5025 复制对 widgets 逐位同 5022/5023)/5113 极性/高清段 widgets 逐位承融合件
+    1119b(5110 control=fixed)。实弹面(AC1/AC2)不在本测试。"""
     d, nodes, links = _load()
-    hd = {5101, 5102, 5103, 5104, 5109, 5110, 5111, 5113, 5024, 5025}
+    hd = {5109, 5110, 5111, 5113, 5024, 5025}
     assert hd <= set(nodes), f"双档段缺件: {hd - set(nodes)}"
-    assert len(nodes) == 97, "画布节点数=97(87+10 双档,V2.1)"
+    assert len(nodes) == 93, "画布节点数=93(87+6 双档,V2.2 砍 SAM3 后)"
 
     def src_of(nid, slot_name):
         s = next(e for e in nodes[nid]["inputs"] if e["name"] == slot_name)
@@ -447,18 +454,20 @@ def test_facerefine_dual_mode_1119():
 
     assert nodes[5111]["type"] == "PrimitiveBoolean" and nodes[5111]["widgets_values"] == [False], \
         "[5111] 高清子开关出厂必须 False(远景=默认修脸档,PRD 裁决 2)"
-    # V2.1 砍除面:SLNM 路(恒无效)+中链 Switch 随砍,5013→5014 直连复原正典原链
-    for cut in (5105, 5106, 5107, 5108, 5112):
+    # V2.1/V2.2 砍除面:SLNM 路(恒无效)+中链 Switch 随砍;SAM3 支路空贴全砍
+    for cut in (5101, 5102, 5103, 5104, 5105, 5106, 5107, 5108, 5112):
         assert cut not in nodes, \
-            f"[{cut}] V2.1 砍除件不得回加(5105/5106/5107/5112=SLNM 路 AudioLock 冲掉;" \
-            "5108=差分扩散 dn0.45 反噬;探针定案 PRD 零·五)"
+            f"[{cut}] V2.1/V2.2 砍除件不得回加(5105/5106/5107/5112=SLNM 路 AudioLock 冲掉;" \
+            "5101-5104=SAM3 支路 768 crop 画布零命中空贴;5108=差分扩散 dn0.45 反噬;" \
+            "探针定案 PRD 零·五/零·五·二)"
     assert not any(n["type"].startswith("MVEx") or n["type"] == "SetLatentNoiseMask"
                    for n in d["nodes"]), "MVEx/SLNM 类面必须全退(GPL-3.0 插件随役退出依赖面)"
+    assert not any(n["type"].startswith("SAM3") for n in d["nodes"]), \
+        "SAM3 类面必须全退(V2.2:文检 face 零命中→TrackToMask 全零→masks 分支空贴)"
+    assert not any(n["type"] == "CheckpointLoaderSimple" for n in d["nodes"]), \
+        "CheckpointLoader 依赖必须退出(V2.2;sam3.1 权重随 SAM3 支路退役)"
     assert src_of(5014, "av_latent")[1] == 5013, \
         "[5014].av_latent 必须直连 [5013](正典原链复原,V2.1 起 5014 输入零改写)"
-    m04 = next(e for e in nodes[5104]["outputs"] if e["name"] == "masks")
-    assert {links[l][3] for l in (m04.get("links") or [])} == {5024}, \
-        "[5104].masks 单出口=只进 [5024](SLNM 路砍除,SAM3 遮罩只走贴回)"
     # 5113 出口 VIDEO Switch(唯一投切件)
     sw13 = {i["name"]: links[i["link"]] for i in nodes[5113]["inputs"]}
     assert nodes[5113]["type"] == "ComfySwitchNode"
@@ -466,7 +475,7 @@ def test_facerefine_dual_mode_1119():
         "[5113] 出口极性:switch←[5111]/on_false←[5023]远景/on_true←[5025]高清"
     assert src_of(5100, "on_true")[1] == 5113, \
         "[5100].on_true 必须吃 [5113] 出口(原 5023 直连线等效改接)"
-    # 远景臂零语义改写(AC4:远景态=正典现状数据流等效)
+    # 远景臂零语义改写(AC3:远景态=正典现状数据流等效)
     assert src_of(5022, "refined_crops")[1] == 5021, "[5022].refined_crops 直连 [5021](871 线零改写)"
     m22 = next(e for e in nodes[5022]["inputs"] if e["name"] == "masks")
     assert m22.get("link") is None and m22.get("shape") == 7, \
@@ -476,30 +485,28 @@ def test_facerefine_dual_mode_1119():
         "[5024] 高清贴回 widgets 必须逐位同 [5022](出口复制案)"
     assert nodes[5025]["widgets_values"] == nodes[5023]["widgets_values"], \
         "[5025] 高清合成 widgets 必须逐位同 [5023]"
-    # 5024 四进口 + SAM3 遮罩贴回(单出口,只进高清对)
-    assert (src_of(5024, "masks")[1], src_of(5024, "refined_crops")[1],
-            src_of(5024, "base_images")[1], src_of(5024, "transform")[1]) == (5104, 5110, 5002, 5011), \
-        "[5024] masks←[5104](SAM3 贴回约束,只进高清对)/refined_crops←[5110](VOSR2)/base←[5002]/transform←[5011]"
+    # 5024 三进口+masks 悬空(V2.2:SAM3 遮罩源砍除,复制对原样 face_only 贴回)
+    assert (src_of(5024, "refined_crops")[1], src_of(5024, "base_images")[1],
+            src_of(5024, "transform")[1]) == (5110, 5002, 5011), \
+        "[5024] refined_crops←[5110](VOSR2)/base←[5002]/transform←[5011]"
+    m24 = next(e for e in nodes[5024]["inputs"] if e["name"] == "masks")
+    assert m24.get("link") is None and m24.get("shape") == 7, \
+        "[5024].masks 恒悬空 shape7(V2.2 SAM3 砍除:高清贴回=face_only,复制对原样同 [5022])"
     assert (src_of(5025, "images")[1], src_of(5025, "audio")[1]) == (5024, 5002), \
         "[5025] images←[5024]/audio←[5002]②"
-    # 高清段链与参数(逐位承融合件 1119b;差分扩散 5108/SLNM 路 5105-5107 均禁回加)
-    assert (src_of(5103, "images")[1], src_of(5103, "model")[1], src_of(5103, "conditioning")[1]) \
-        == (5011, 5101, 5102), "[5103] SAM3:images←[5011].crops/model←[5101]/conditioning←[5102]"
-    assert src_of(5104, "track_data")[1] == 5103, "[5104] track_data←[5103]"
+    # 高清段链与参数(逐位承融合件 1119b;差分扩散 5108/SLNM 路 5105-5107/SAM3 支路均禁回加)
     assert (src_of(5110, "model")[1], src_of(5110, "image")[1]) == (5109, 5021), \
         "VOSR2 尾档:5109→5110(image←[5021])"
-    assert nodes[5103]["widgets_values"] == [0.5, 1, 1], "[5103] SAM3 widgets=0.5/1/1"
     assert nodes[5109]["widgets_values"] == ["VOSR2", "default"], "[5109] VOSR2 加载 widgets"
     assert nodes[5110]["widgets_values"] == [1, 300831622214023, "fixed", "wavelet", 512, 32, 1024, 32], \
         "[5110] VOSR2 widgets:seed 锁 300831622214023/control=**fixed**(禁 randomize 回抖,任务约束 B③)"
-    assert nodes[5101]["widgets_values"] == ["sam3.1_multiplex_fp16.safetensors"], "[5101] SAM3 检查点"
-    assert nodes[5102]["widgets_values"] == ["face"], "[5102] SAM3 文本提示"
-    # README 1119 调用段(四态矩阵+非法态+极性延伸+V2.1 砍除记)
+    # README 1119 调用段(四态矩阵+非法态+极性延伸+V2.1/V2.2 砍除记)
     md = nodes[9999]["widgets_values"][0]
     assert "### 1119 双档调用(远景=默认 / 高清)" in md and "非法态" in md, \
         "README 9999 必须载 1119 双档调用段(四态矩阵+非法态对策,PRD 修订#15)"
-    assert "5112" not in md and "V2.1 砍除记" in md, \
-        "README 9999 无 5112 残留字样+载 V2.1 砍除记(SLNM 路 AudioLock 冲掉)"
+    assert all(x not in md for x in ("5101", "5102", "5103", "5104", "5112", "sam3.1")) \
+        and "V2.1 砍除记" in md and "V2.2 砍除记" in md, \
+        "README 9999 无 SAM3 节点号/5112/权重残留+载 V2.1/V2.2 砍除记(复活路径记档)"
 
 
 def test_stage3_relayvsr_inline_group():

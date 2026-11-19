@@ -1180,52 +1180,6 @@
       "codec": "auto"
     }
   },
-  "5101": {
-    "class_type": "CheckpointLoaderSimple",
-    "inputs": {
-      "ckpt_name": "sam3.1_multiplex_fp16.safetensors"
-    }
-  },
-  "5102": {
-    "class_type": "CLIPTextEncode",
-    "inputs": {
-      "text": "face",
-      "clip": [
-        "5101",
-        1
-      ]
-    }
-  },
-  "5103": {
-    "class_type": "SAM3_VideoTrack",
-    "inputs": {
-      "images": [
-        "5011",
-        0
-      ],
-      "model": [
-        "5101",
-        0
-      ],
-      "conditioning": [
-        "5102",
-        0
-      ],
-      "detection_threshold": 0.5,
-      "max_objects": 1,
-      "detect_interval": 1
-    }
-  },
-  "5104": {
-    "class_type": "SAM3_TrackToMask",
-    "inputs": {
-      "track_data": [
-        "5103",
-        0
-      ],
-      "object_indices": "0"
-    }
-  },
   "5109": {
     "class_type": "VOSR2ModelLoader",
     "inputs": {
@@ -1290,10 +1244,6 @@
       "transform": [
         "5011",
         1
-      ],
-      "masks": [
-        "5104",
-        0
       ],
       "paste_region": "face_only",
       "mask_dilation": 16,
