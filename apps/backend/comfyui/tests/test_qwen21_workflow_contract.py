@@ -5964,10 +5964,10 @@ GEM_TAIL_WIDGETS = {
     8100: [8.25, 4, 256, 32, 64, False],
     8101: ["qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors", 1.0],
     8102: ["qwen-image-2.1-restore.safetensors", 1.0],
-    8104: ["Restore the illustration: remove blur, noise and compression "
-           "artifacts and recover sharp, natural detail, ignoring stray "
-           "marks, specks and smudges, keeping the same composition, people "
-           "and colors.", "", 0],
+    8104: ["Restore and upscale this illustration to ultra-high definition: "
+           "remove blur, noise and compression artifacts, recover sharp "
+           "natural detail, ignoring stray marks, specks and smudges, "
+           "keeping the same composition, people and colors.", "", 0],
     8106: None,
     8107: [1.0, "translation", 64, 0],
     8110: [0, "fixed"],

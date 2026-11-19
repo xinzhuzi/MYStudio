@@ -24,10 +24,11 @@ T2I = REPO / "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/1_文生图/q
 I2I = REPO / "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/2_图生图/qi21-道劫-i2i.json"
 CANVASES = {"t2i": T2I, "i2i": I2I}
 
-PROMPT_C = ("Restore the illustration: remove blur, noise and compression "
-            "artifacts and recover sharp, natural detail, ignoring stray "
-            "marks, specks and smudges, keeping the same composition, people "
-            "and colors.")
+PROMPT_C = ("Restore and upscale this illustration to ultra-high definition: "
+            "remove blur, noise and compression artifacts, "
+            "recover sharp natural detail, "
+            "ignoring stray marks, specks and smudges, "
+            "keeping the same composition, people and colors.")
 SIGMAS_8STEP = "1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0"
 SAVE_PREFIX = {"t2i": "道劫-文生图-超分-", "i2i": "道劫-图生图-超分-"}
 GROUP_TITLE = "道劫·⑤b·Gem分块超分"

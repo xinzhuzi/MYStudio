@@ -1408,7 +1408,7 @@
         "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
-        "Restore the illustration: remove blur, noise and compression artifacts and recover sharp, natural detail, ignoring stray marks, specks and smudges, keeping the same composition, people and colors.",
+        "Restore and upscale this illustration to ultra-high definition: remove blur, noise and compression artifacts, recover sharp natural detail, ignoring stray marks, specks and smudges, keeping the same composition, people and colors.",
         "",
         0
       ]

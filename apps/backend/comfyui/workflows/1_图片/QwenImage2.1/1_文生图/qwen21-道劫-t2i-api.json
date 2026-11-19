@@ -185,7 +185,7 @@
     "8104": {
       "class_type": "TextEncodeQwenImage21",
       "inputs": {
-        "prompt": "Restore the illustration: remove blur, noise and compression artifacts and recover sharp, natural detail, ignoring stray marks, specks and smudges, keeping the same composition, people and colors.",
+        "prompt": "Restore and upscale this illustration to ultra-high definition: remove blur, noise and compression artifacts, recover sharp natural detail, ignoring stray marks, specks and smudges, keeping the same composition, people and colors.",
         "negative_prompt": "",
         "resolution": 0,
         "clip": [

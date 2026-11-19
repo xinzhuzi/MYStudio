@@ -48,6 +48,68 @@ def _fill_curated() -> None:
 
 
 # ---------------------------------------------------------------------------
+# 插件依赖反推(节点型→插件家族;前缀/子串匹配,未命中=视为 comfy-core 原生不列)
+# ---------------------------------------------------------------------------
+PLUGIN_MAP: list[tuple[str, str]] = [
+    ("My", "自研my-nodes"),
+    ("GemTiled", "ItsGemTools"),
+    ("ViggleTurbo", "viggle-turbo"),
+    ("VNCCS_", "VNCCS_Utils"),
+    ("Dapao", "Dapao-Toolbox"),
+    ("Goohai", "Goohaitools/ImageLibrary"),
+    ("QwenImagePromptOptimizer", "Goohaitools"),
+    ("TextEncodeQwenImage21GH", "Goohaitools"),
+    ("RestoreQwenImage21GH", "Goohaitools"),
+    ("SeeThrough_", "ComfyUI-See-through"),
+    ("H3Face", "ComfyUI-H3-FaceRefine"),
+    ("ReCaVSR", "ReCaVSR插件"),
+    ("RelayVSR", "Comfyui-Relay-VSR"),
+    ("Tessera", "TESSERA插件"),
+    ("MiniMaxH3NativeAudioLock", "H3-NativeAudioLock"),
+    ("MiniMaxH3MotionContext", "H3-Motion-Context"),
+    ("ContextLatentTaperNoise", "H3-Context-Noise"),
+    ("H3AutoContextSampler", "H3-Motion-Context"),
+    ("Remake", "ComfyUI-Viggle-Remake"),
+    ("YuE2", "YuE2插件"),
+    ("SheetSage2", "YuE2插件"),
+    ("T8Drama", "Comfyui-Drama-3"),
+    ("AIO_Preprocessor", "controlnet_aux"),
+    ("DWPreprocessor", "controlnet_aux"),
+    ("Fisher", "Fisher-Pose"),
+    ("QwenFreePose", "Fisher-Pose"),
+    ("AnyAngle", "Fisher-Pose"),
+    ("PoseResult", "Fisher-Pose"),
+    ("RB_", "萝卜自研(未装)"),
+    ("ModelPreviewOverrideKJ", "nodes_kt"),
+    ("NotePlus", "comfy_mtb"),
+    ("DF_Text_Box", "Derfuu"),
+    ("SetNode", "Custom-Scripts"),
+    ("GetNode", "Custom-Scripts"),
+    ("QwenImage21SageAttentionT8", "T8系插件"),
+    ("BlockCacheT8", "T8系插件"),
+    ("SpectrumT8", "T8系插件"),
+    ("easy ", "Easy-Use"),
+    ("CR ", "Comfyroll"),
+    ("Impact", "Impact-Pack"),
+    ("Clownshar", "社区件"),
+]
+PLUGIN_SUBSTR = [("rgthree", "rgthree")]
+
+
+def _plugin_deps(type_total: dict[str, int]) -> list[str]:
+    deps: list[str] = []
+    for t in type_total:
+        if "(rgthree)" in t:
+            deps.append("rgthree")
+            continue
+        for pre, label in PLUGIN_MAP:
+            if t.startswith(pre):
+                deps.append(label)
+                break
+    return sorted(set(deps) - {"comfy-core"})
+
+
+# ---------------------------------------------------------------------------
 # 结构提取
 # ---------------------------------------------------------------------------
 
@@ -132,6 +194,9 @@ def _harvest_nodes(nodes: list, links: list | None, sink: dict) -> None:
                 sink["samplers"].append(f"σ:{wv[1]}步/{wv[0]}/dn{wv[2]}")
             except (TypeError, IndexError):
                 pass
+        elif t == "ManualSigmas" and isinstance(wv, list) and wv and isinstance(wv[0], str):
+            npts = wv[0].count(",") + 1 if wv[0] else 0
+            sink["samplers"].append(f"ManualSigmas σ表{npts}点")
         elif t in SAMPLER_TYPES:
             sink["samplers"].append(t)
         if t in OUTPUT_PREFIX_TYPES:
@@ -173,7 +238,9 @@ def _scan_scope(doc: dict) -> dict:
         _harvest_nodes(sg.get("nodes", []), sg.get("links"), s)
         subs.append({
             "name": sg.get("name", "?"),
+            "id": sg.get("id", ""),
             "nodes": len(sg.get("nodes", [])),
+            "comp": [f"{t}×{c}" for t, c in s["types"].most_common(6) if t != "Reroute"],
             "groups": [(g.get("title", "?"), sum(1 for nd in sg.get("nodes", []) if _node_center_bbox_hit(nd, g))) for g in sg.get("groups", [])],
             "models": sorted(s["models"]),
         })
@@ -276,17 +343,22 @@ def _fmt_entry(entry: dict) -> list[str]:
         lines.append(f"- **功能**:{desc}")
     groups = entry.get("groups") or []
     if groups:
+        sub_names = {s.get("id"): f"⟨子图:{s['name']}⟩" for s in entry.get("subgraphs") or [] if s.get("id")}
         for t, n, flag, comp in groups:
             comp_s = ""
             if comp:
-                top = "、".join(f"{ct}×{c}" for ct, c in comp[:6])
+                top = "、".join(f"{sub_names.get(ct, ct)}×{c}" for ct, c in comp[:6])
                 more = f"等{n}件" if len(comp) > 6 else f"{n}件"
                 comp_s = f":{top}({more})"
             lines.append(f"- **分组**:{t}{flag}(罩{comp_s or n})")
     subs = entry.get("subgraphs") or []
     if subs:
-        gs = ";".join(f"{s['name']}({s['nodes']}节点)" for s in subs)
-        lines.append(f"- **子图**:{gs}")
+        for s in subs:
+            comp = "、".join(s.get("comp") or [])[:120]
+            lines.append(f"- **子图**:{s['name']}({s['nodes']}节点{':' + comp if comp else ''})")
+    deps = _plugin_deps(entry.get("type_total") or {})
+    if deps:
+        lines.append(f"- **插件依赖**:{', '.join(deps)}")
     hist = entry.get("histogram") or []
     if hist:
         lines.append(f"- **节点构成**:{'、'.join(f'{t}×{c}' for t, c in hist[:8])}")
@@ -313,8 +385,220 @@ def _fmt_entry(entry: dict) -> list[str]:
         lines.append(f"- **旁路节点**:{entry['bypassed']} 个(mode≠0,默认不执行)")
     if extra:
         lines.append(f"- **备注**:{extra}")
+    mm = entry.get("mermaid")
+    if mm:
+        lines.append("")
+        lines.append("**主干数据流图**(关键节点+路径压缩;组=分区;边=连线类型):")
+        lines.append("")
+        lines.append(mm)
     lines.append("")
     return lines
+
+
+# ---------------------------------------------------------------------------
+# mermaid 主干数据流图(仅白名单正典件;关键节点+路径压缩,组=mermaid subgraph)
+# ---------------------------------------------------------------------------
+MERMAID_FILES = {
+    "2_视频/H3视频/1_漫影自研/单镜.json",
+    "2_视频/H3视频/1_漫影自研/一镜到底-分段.json",
+    "2_视频/H3视频/1_漫影自研/导演台.json",
+    "1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json",
+    "1_图片/QwenImage2.1/2_图生图/qi21-道劫-i2i.json",
+    "1_图片/QwenImage2.1/1_文生图/t2i-皮肤-超分.json",
+    "1_图片/QwenImage2.1/5_角色设定卡/道劫-角色设定卡-t2i.json",
+    "1_图片/MiniMax/5_角色设定卡/道劫-角色设定卡.json",
+    "1_图片/MossImage/moss-道劫-t2i.json",
+    "2_视频/H3视频/8_数字人/数字人-音频驱动.json",
+}
+
+_IMP_EXACT = {
+    "ComfySwitchNode", "CreateVideo", "ImageCompositor", "SplitImageWithAlpha",
+    "BatchImages", "ConcatenateVideo", "JoinImageWithAlpha", "ColorToMask",
+}
+
+
+def _is_imp(t: str) -> bool:
+    return bool(
+        t
+        and (
+            t in _IMP_EXACT
+            or t.startswith("My")
+            or t.startswith("TextEncode")
+            or "Loader" in t
+            or "LoraLoader" in t
+            or "Save" in t
+            or t.startswith("VAEDecode")
+            or t.startswith("VAEEncode")
+            or t.startswith("KSampler")
+            or "SamplerCustom" in t
+            or "Conditioning" in t
+            or "ReferenceToVideo" in t
+            or "ImageToVideo" in t
+            or "FreePose" in t
+            or len(t) == 36 and t.count("-") == 4  # 子图实例(UUID 型名)
+        )
+    )
+
+
+def _mm_label(s: str) -> str:
+    return s.replace('"', "'").replace("[", "(").replace("]", ")").replace("|", "/")[:60]
+
+
+def _mermaid_gui(doc: dict) -> str:
+    nodes = {nd["id"]: nd for nd in doc.get("nodes", [])}
+    sub_by_id = {sg.get("id"): sg.get("name", "?") for sg in (doc.get("definitions") or {}).get("subgraphs", [])}
+    adj: dict[int, list[tuple[int, str]]] = {}
+    for lk in doc.get("links") or []:
+        # GUI links: [link_id, src_id, src_slot, dst_id, dst_slot, type]
+        try:
+            _, src, _, dst, _, ltype = lk[:6]
+        except (ValueError, TypeError):
+            continue
+        adj.setdefault(src, []).append((dst, ltype))
+    imp = {i for i, nd in nodes.items() if _is_imp(nd.get("type", ""))}
+    if len(imp) > 55:
+        return ""  # 过大不入图
+    edges: set[tuple[int, int, str]] = set()
+    for a in imp:
+        # BFS 穿过非关键节点找下一个关键节点(路径压缩)
+        seen = {a}
+        frontier = [a]
+        for _ in range(6):
+            nxt = []
+            for cur in frontier:
+                for b, lt in adj.get(cur, []):
+                    if b in seen or b not in nodes:
+                        continue
+                    seen.add(b)
+                    if b in imp:
+                        edges.add((a, b, lt))
+                    else:
+                        nxt.append(b)
+            frontier = nxt
+            if not frontier:
+                break
+    group_of: dict[int, str] = {}
+    for g in doc.get("groups", []):
+        for i in imp:
+            if i in nodes and _node_center_bbox_hit(nodes[i], g):
+                group_of.setdefault(i, g.get("title", "?"))
+    by_group: dict[str | None, list[int]] = {}
+    for i in imp:
+        by_group.setdefault(group_of.get(i), []).append(i)
+    lines = ["```mermaid", "graph LR"]
+    for si, (g, ids) in enumerate(by_group.items()):
+        inner = []
+        for i in sorted(ids):
+            nd = nodes[i]
+            t = nd.get("type", "?")
+            label = sub_by_id.get(t, nd.get("title") or t)
+            inner.append(f'    n{i}["{i} · {_mm_label(label)}"]')
+        if g:
+            lines.append(f'    subgraph S{si}["「{_mm_label(g)}」"]')
+            lines.extend(inner)
+            lines.append("    end")
+        else:
+            lines.extend(inner)
+    for a, b, lt in sorted(edges):
+        lines.append(f"    n{a} -->|{lt}| n{b}")
+    lines.append("```")
+    return "\n".join(lines)
+
+
+def _mermaid_api(doc: dict) -> str:
+    graph = doc["graph"] if isinstance(doc.get("graph"), dict) else doc
+    items = [(k, v) for k, v in graph.items() if isinstance(v, dict) and "class_type" in v]
+    if not items or len(items) > 30:
+        return ""
+    by_id = {k: v for k, v in items}
+    lines = ["```mermaid", "graph LR"]
+    for k, v in items:
+        lines.append(f'    n{k}["{k} · {_mm_label(v["class_type"])}"]')
+    for k, v in items:
+        for slot, val in (v.get("inputs") or {}).items():
+            if isinstance(val, list) and val and str(val[0]) in by_id:
+                lines.append(f'    n{val[0]} -->|{slot}| n{k}')
+    lines.append("```")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# 族谱聚类(桥件配对 + 子图蓝图共用 + 节点构成余弦相似)
+# ---------------------------------------------------------------------------
+BRIDGE_ALIASES = {
+    "qwen21-道劫-t2i-api": "qi21-道劫-t2i",
+    "qwen21-道劫-i2i-api": "qi21-道劫-i2i",
+}
+
+
+def _cosine(a: dict[str, int], b: dict[str, int]) -> float:
+    import math
+
+    dot = sum(a.get(k, 0) * b.get(k, 0) for k in set(a) | set(b))
+    na = math.sqrt(sum(v * v for v in a.values()))
+    nb = math.sqrt(sum(v * v for v in b.values()))
+    return dot / (na * nb) if na and nb else 0.0
+
+
+def _build_families(entries: list[dict]) -> list[str]:
+    out = ["## 族谱与共性总览(自动聚类,人工复核后再采信)", ""]
+    # ① 桥件配对
+    stems = {}
+    for e in entries:
+        p = e["path"]
+        stem = p.rsplit("/", 1)[-1][:-5]
+        stems[stem] = p
+    pairs = []
+    for stem, p in stems.items():
+        base = None
+        if stem.endswith("-api"):
+            base = BRIDGE_ALIASES.get(stem) or stem[:-4]
+        if base and base in stems:
+            pairs.append((p, stems[base]))
+    if pairs:
+        out.append("**桥件配对**(GUI 画布件 ↔ API 直投面,改画布件须同步重生成桥):")
+        for a, b in pairs:
+            out.append(f"- `{a}` ↔ `{b}`")
+        out.append("")
+    # ② 子图蓝图共用族
+    blueprint: dict[str, list[str]] = {}
+    for e in entries:
+        for s in e.get("subgraphs") or []:
+            if s.get("name") and s.get("name") != "New Subgraph" and s.get("nodes", 0) >= 5:
+                blueprint.setdefault(s["name"], []).append(e["path"])
+    shared = {k: v for k, v in blueprint.items() if len(v) > 1}
+    if shared:
+        out.append("**子图蓝图共用族**(同名子图=同构蓝图,一处改须全家同步;蓝图真源=my_nodes/subgraphs/):")
+        for name in sorted(shared, key=lambda k: -len(shared[k])):
+            out.append(f"- 「{name}」×{len(set(shared[name]))}:" + ";".join(f"`{p}`" for p in sorted(set(shared[name]))))
+        out.append("")
+    # ③ 余弦相似族(≥0.75 并查集聚类)
+    parent = list(range(len(entries)))
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    idx = {e["path"]: i for i, e in enumerate(entries)}
+    for i in range(len(entries)):
+        for j in range(i + 1, len(entries)):
+            if entries[i]["path"].split("/")[0] != entries[j]["path"].split("/")[0]:
+                continue
+            if _cosine(entries[i].get("type_total") or {}, entries[j].get("type_total") or {}) >= 0.75:
+                parent[find(i)] = find(j)
+    clusters: dict[int, list[str]] = {}
+    for i, e in enumerate(entries):
+        clusters.setdefault(find(i), []).append(e["path"])
+    fams = [sorted(v) for v in clusters.values() if len(v) > 1]
+    fams.sort(key=lambda v: (-len(v), v[0]))
+    if fams:
+        out.append("**结构相似族**(节点构成余弦 ≥0.75 并查集聚类;=同血缘/克隆/孪生线索,非等价声明;仅列最大 14 族,全量用 --json 对账):")
+        for fam in fams[:14]:
+            out.append(f"- ({len(fam)}件):" + ";".join(f"`{Path(p).name}`" for p in fam))
+        out.append("")
+    return out
 
 
 DOMAIN_INTRO = {
@@ -335,6 +619,7 @@ def render(entries: list[dict]) -> str:
         "> 件数核账真源=[漫影工作流清单.md](漫影工作流清单.md)+`apps/build/scripts/workflow_placement_audit.py`,本文档不另立计数权威;分组罩节点数为画布 bbox 近似读数。",
         "",
     ]
+    out.extend(_build_families(entries))
     by_domain: dict[str, list[dict]] = {}
     for e in entries:
         by_domain.setdefault(e["path"].split("/")[0], []).append(e)
@@ -366,6 +651,12 @@ def main() -> int:
         _fill_curated()
     files = sorted(p for p in WF_ROOT.rglob("*.json") if p.name != ".keep.json")
     entries = [scan_file(p) for p in files]
+    for e in entries:
+        if e["path"] in MERMAID_FILES and not e.get("error"):
+            doc = json.loads((WF_ROOT / e["path"]).read_text(encoding="utf-8"))
+            mm = _mermaid_gui(doc) if e["fmt"] == "GUI" else _mermaid_api(doc)
+            if mm:
+                e["mermaid"] = mm
     bad = [e for e in entries if e.get("error")]
     if args.json:
         Path(args.json).write_text(json.dumps(entries, ensure_ascii=False, indent=1), encoding="utf-8")

@@ -112,7 +112,7 @@ CURATED_NOTES: dict[str, dict[str, str]] = {
         "status": "官方模板(SHA256 锚)",
     },
     "1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json": {
-        "desc": "道劫主线文生图(道劫默认件,1117 用户裁定)。双子图架构:提示词类型优化子图(MyQi21DaojieBase 九型选一+MyQi21PromptAssembly 三层装配+PE 改写+RGBA 官方公式)+加速子图(MyQi21SpeedSelect 五档:直出40/viggle/turbo8/混动40步+缓存等);⑤超分尾档=SeedVR2(mode=4 旁路保档,复活才用)+⑤b Gem 分块超分(1119 终态 12 节点:restore@1.0+守卫 2MP+blend_band64+C 句通用超分非磨皮,8112 直吃主链 bf16 零独立加载器)。",
+        "desc": "道劫主线文生图(道劫默认件,1117 用户裁定)。双子图架构:提示词类型优化子图(MyQi21DaojieBase 九型选一+MyQi21PromptAssembly 三层装配+PE 改写+RGBA 官方公式)+加速子图(MyQi21SpeedSelect 五档:直出40/viggle/turbo8/混动40步+缓存等);⑤超分尾档=SeedVR2(mode=4 旁路保档,复活才用)+⑤b Gem 分块超分(1119 v2=照抄皮肤件磨皮后续组同构 11 节点/18 线:零独立加载器直吃主链 bf16,SamplerCustomAdvanced+ManualSigmas σ表,配方=restore@1.0+turbo r178+C 句+4K 帽 8.25MP)。",
         "status": "在役·道劫默认线",
         "note": "默认档=3·混动 40步+缓存(1101 裁定);1118 起大图超分=件内 Gem②普通细节链 10MP;σ表固化 viggle 支路;②④b 洗底·透明除渣子图;装配文真源=qi21_bases.json。",
     },
@@ -165,7 +165,7 @@ CURATED_NOTES: dict[str, dict[str, str]] = {
         "status": "在役",
     },
     "1_图片/QwenImage2.1/2_图生图/qi21-道劫-i2i.json": {
-        "desc": "道劫风格图生图·生修合一(Q2-1 无传统 img2img:图输入即指令编辑零 denoise):双图预缩→BatchImages 双通道(PE 看全图/编码器吃选图)→装配子图(指令占①层:指令+型底座+美术风格底座)→双参考分线(直出臂双参考/加速臂单参考,0928 黑图修复铁则)→⑤b Gem 尾档(1117 起大图超分=件内 Gem②10MP,SeedVR2 mode=4 旁路)。",
+        "desc": "道劫风格图生图·生修合一(Q2-1 无传统 img2img:图输入即指令编辑零 denoise):双图预缩→BatchImages 双通道(PE 看全图/编码器吃选图)→装配子图(指令占①层:指令+型底座+美术风格底座)→双参考分线(直出臂双参考/加速臂单参考,0928 黑图修复铁则)→⑤b Gem 尾档(1119 v2 同 t2i 件 11 节点新式采样;1117 起大图超分=件内 Gem②10MP,SeedVR2 mode=4 旁路)。",
         "status": "在役·道劫默认线",
         "note": "组装用途=道劫美术风格转换;指令起草规范=docs/prompts/Qwen-Image-2.1/09-图生图指令写作规范.md。",
     },
