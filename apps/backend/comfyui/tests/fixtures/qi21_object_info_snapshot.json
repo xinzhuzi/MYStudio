@@ -5690,5 +5690,109 @@
   "has_intermediate_output": false,
   "search_aliases": [],
   "essentials_category": "Image Tools"
+ },
+ "MaskToImage": {
+  "input": {
+   "required": {
+    "mask": [
+     "MASK",
+     {}
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "mask"
+   ]
+  },
+  "is_input_list": false,
+  "output": [
+   "IMAGE"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "IMAGE"
+  ],
+  "output_tooltips": [
+   null
+  ],
+  "output_matchtypes": null,
+  "name": "MaskToImage",
+  "display_name": "Convert Mask to Image",
+  "description": "",
+  "python_module": "comfy_extras.nodes_mask",
+  "category": "image/mask",
+  "output_node": false,
+  "deprecated": false,
+  "experimental": false,
+  "dev_only": false,
+  "api_node": false,
+  "price_badge": null,
+  "search_aliases": [
+   "convert mask"
+  ],
+  "essentials_category": null,
+  "has_intermediate_output": false
+ },
+ "ImageToMask": {
+  "input": {
+   "required": {
+    "image": [
+     "IMAGE",
+     {}
+    ],
+    "channel": [
+     "COMBO",
+     {
+      "multiselect": false,
+      "options": [
+       "red",
+       "green",
+       "blue",
+       "alpha"
+      ]
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "image",
+    "channel"
+   ]
+  },
+  "is_input_list": false,
+  "output": [
+   "MASK"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "MASK"
+  ],
+  "output_tooltips": [
+   null
+  ],
+  "output_matchtypes": null,
+  "name": "ImageToMask",
+  "display_name": "Convert Image to Mask",
+  "description": "",
+  "python_module": "comfy_extras.nodes_mask",
+  "category": "image/mask",
+  "output_node": false,
+  "deprecated": false,
+  "experimental": false,
+  "dev_only": false,
+  "api_node": false,
+  "price_badge": null,
+  "search_aliases": [
+   "extract channel",
+   "channel to mask"
+  ],
+  "essentials_category": null,
+  "has_intermediate_output": false
  }
 }

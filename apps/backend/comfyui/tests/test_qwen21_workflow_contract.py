@@ -567,6 +567,8 @@ I2I_NODE_TYPE_WHITELIST = {
     # 3_社区模板守卫三件+ItsGem 拼缝两件,宿主 i2i 主图平铺形)
     "GemTiledUpscale", "GemTiledUpscaleStitch", "GetImageSize",
     "ComfyMathExpression", "ImageScaleBy",
+    # 1119 P3 alpha 旁路两转换件入册(MASK↔IMAGE 显式转换,防引擎剪枝 Gem 链)
+    "MaskToImage", "ImageToMask",
     # 超分子图内部件(1018 终版删 A/B/C:tiled VAE 族+ESRGAN/LatentUpscale/
     # USDU 件全部出册随删,回潮即红;PrimitiveInt/ImageScaleToTotalPixels
     # 已在册;D=SeedVR2 三件已册见上)
@@ -3927,6 +3929,7 @@ class TestQi21SubgraphContract:
             "RandomNoise", "BasicGuider", "KSamplerSelect", "ManualSigmas",
             "SamplerCustomAdvanced",
             "SplitImageWithAlpha", "JoinImageWithAlpha", "ImageScaleToTotalPixels",
+            "MaskToImage", "ImageToMask",
             # 1004 Phase D:编码器/画幅建议器迁主图(装配块旁三件 [4015][4015N][4018];
             # 1025 my21fast:[4015] 换类 MyQi21FastEncode+4015N 级联删,新类入册)
             "TextEncodeQwenImage21", "MyQi21FastEncode", "MyQi21WhSuggest",
@@ -5952,7 +5955,7 @@ class TestSeedVR2TailContract1002:
 
 GEM_TAIL_IDS = (8100, 8101, 8102, 8104, 8106, 8107,
                 8110, 8111, 8112, 8113, 8114,
-                8120, 8121, 8122)  # 14 节点(1119 v2 皮肤件 11 + P3 alpha 三件)
+                8120, 8121, 8122, 8123, 8124)  # 16 节点(v2 皮肤件 11+P3 alpha 三件+两转换件)
 GEM_TAIL_TYPES = {
     8100: "GemTiledUpscale", 8101: "LoraLoaderModelOnly",
     8102: "LoraLoaderModelOnly", 8104: "TextEncodeQwenImage21",
@@ -5960,7 +5963,8 @@ GEM_TAIL_TYPES = {
     8110: "RandomNoise", 8111: "BasicGuider", 8112: "KSamplerSelect",
     8113: "ManualSigmas", 8114: "SamplerCustomAdvanced",
     8120: "SplitImageWithAlpha", 8121: "JoinImageWithAlpha",
-    8122: "ImageScaleToTotalPixels",
+    8122: "ImageScaleToTotalPixels", 8123: "MaskToImage",
+    8124: "ImageToMask",
 }
 # widgets 逐位钉(None=整键省略 widgets_values,防 flatten TypeError);
 # 8100=皮肤件 4MP 大块口径+8.25MP 4K 帽;8113=官方 8步σ表(与 turbo r178 配对);
@@ -5983,13 +5987,16 @@ GEM_TAIL_WIDGETS = {
            "0.704534, 0.414568, 0"],
     8114: None,
     # 1119 P3 alpha 旁路(透明四型拆 alpha→RGB 走 Gem/Mask 放大→回贴;
-    # 非透明型 mask 全白回贴=恒等无操作)。8122 megapixels=8.25 与 8100 同帽
+    # 非透明型 mask 全白回贴=恒等无操作)。8122 megapixels=8.25 与 8100 同帽;
+    # 71a4cbd6 两转换件(引擎鸭子型直连 MASK→IMAGE 口会剪枝整条 Gem 链,
+    # 8123/8124 显式转换后 8269-8274 全线类型随源槽自洽)
     8120: None,
     8121: None,
     8122: ["lanczos", 8.25, 32],
+    8123: None,
+    8124: ["red"],
 }
-# 22 根线逐根钉(8250-8272;模型链从主链 [1] 直取;8269/8270 类型随源槽——
-# 8269=8120:1(MASK)、8270=8122:0(IMAGE),Mask 过 IMAGE 型缩放件=ComfyUI 鸭子型)
+# 24 根线逐根钉(8250-8274;模型链从主链 [1] 直取;Mask 走 8123→8122→8124 转换链)
 GEM_TAIL_LINKS = (
     (8250, 1, 0, 8101, 0, "MODEL"),
     (8251, 8101, 0, 8102, 0, "MODEL"),
@@ -6010,9 +6017,11 @@ GEM_TAIL_LINKS = (
     (8266, 8106, 0, 8107, 0, "IMAGE"),
     (8267, 8107, 0, 8121, 0, "IMAGE"),
     (8268, 8120, 0, 8100, 0, "IMAGE"),
-    (8269, 8120, 1, 8122, 0, "MASK"),
-    (8270, 8122, 0, 8121, 1, "IMAGE"),
+    (8269, 8120, 1, 8123, 0, "MASK"),
+    (8270, 8122, 0, 8124, 0, "IMAGE"),
     (8272, 8121, 0, 504, 0, "IMAGE"),
+    (8273, 8123, 0, 8122, 0, "IMAGE"),
+    (8274, 8124, 0, 8121, 1, "MASK"),
 )
 GEM_TAIL_GROUP_TITLE = "道劫·⑤b·Gem分块超分"
 
@@ -6046,9 +6055,9 @@ class TestGemTailContract1117:
         for name, old_link in (("qi21", 205), ("i2i", 204)):
             graph = GRAPHS[name]
             nodes, links = _nodes(graph), _links(graph)
-            got = {l[0]: tuple(l) for l in graph["links"] if 8250 <= l[0] <= 8272}
+            got = {l[0]: tuple(l) for l in graph["links"] if 8250 <= l[0] <= 8274}
             assert got == {l[0]: l for l in GEM_TAIL_LINKS}, \
-                f"{name}: 8250-8272 接线漂移,得 {got}"
+                f"{name}: 8250-8274 接线漂移,得 {got}"
             assert old_link not in links, \
                 f"{name}: 旧线 {old_link}([503]→[504]) 应已摘除"
             assert _input_src(nodes, links, SVR2_SAVE, "images") == 8121, \
