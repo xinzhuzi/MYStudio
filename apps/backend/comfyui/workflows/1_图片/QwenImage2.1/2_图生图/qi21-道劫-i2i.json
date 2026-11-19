@@ -1,8 +1,8 @@
 {
   "id": "8a14d6f0-52b9-4c7d-a3e8-6f1b2c3d4e5f",
   "revision": 0,
-  "last_node_id": 8120,
-  "last_link_id": 8267,
+  "last_node_id": 8122,
+  "last_link_id": 8272,
   "nodes": [
     {
       "id": 1,
@@ -1062,7 +1062,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 8267
+          "link": 8272
         }
       ],
       "outputs": [
@@ -1585,7 +1585,7 @@
           "localized_name": "image",
           "name": "image",
           "type": "IMAGE",
-          "link": 8254
+          "link": 8268
         },
         {
           "localized_name": "upscale_model",
@@ -2287,6 +2287,128 @@
         "Node name for S&R": "SamplerCustomAdvanced"
       },
       "title": "[8114] Gem·采样"
+    },
+    {
+      "id": 8120,
+      "type": "SplitImageWithAlpha",
+      "pos": [
+        8900,
+        400
+      ],
+      "size": [
+        200,
+        60
+      ],
+      "flags": {},
+      "order": 47,
+      "mode": 0,
+      "title": "[8120] Gem·透明拆分",
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 8254
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            8268
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            8269
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SplitImageWithAlpha"
+      }
+    },
+    {
+      "id": 8122,
+      "type": "ImageScaleToTotalPixels",
+      "pos": [
+        8900,
+        550
+      ],
+      "size": [
+        240,
+        120
+      ],
+      "flags": {},
+      "order": 48,
+      "mode": 0,
+      "title": "[8122] Gem·MASK放大",
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 8269
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            8270
+          ]
+        }
+      ],
+      "widgets_values": [
+        "lanczos",
+        8.25,
+        32
+      ],
+      "properties": {
+        "Node name for S&R": "ImageScaleToTotalPixels"
+      }
+    },
+    {
+      "id": 8121,
+      "type": "JoinImageWithAlpha",
+      "pos": [
+        11600,
+        400
+      ],
+      "size": [
+        220,
+        80
+      ],
+      "flags": {},
+      "order": 49,
+      "mode": 0,
+      "title": "[8121] Gem·透明回贴",
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 8267
+        },
+        {
+          "name": "alpha",
+          "type": "MASK",
+          "link": 8270
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            8272
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "JoinImageWithAlpha"
+      }
     }
   ],
   "links": [
@@ -2638,7 +2760,7 @@
       8254,
       7500,
       0,
-      8100,
+      8120,
       0,
       "IMAGE"
     ],
@@ -2742,6 +2864,38 @@
       8267,
       8107,
       0,
+      8121,
+      0,
+      "IMAGE"
+    ],
+    [
+      8268,
+      8120,
+      0,
+      8100,
+      0,
+      "IMAGE"
+    ],
+    [
+      8269,
+      8120,
+      1,
+      8122,
+      0,
+      "IMAGE"
+    ],
+    [
+      8270,
+      8122,
+      0,
+      8121,
+      1,
+      "MASK"
+    ],
+    [
+      8272,
+      8121,
+      0,
       504,
       0,
       "IMAGE"
@@ -2813,10 +2967,10 @@
       "id": 7,
       "title": "道劫·⑤b·Gem分块超分",
       "bounding": [
-        9160,
+        8860,
         340,
-        2400,
-        1300
+        3120,
+        1400
       ],
       "color": "#b58b2a"
     }

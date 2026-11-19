@@ -161,7 +161,7 @@
       "inputs": {
         "filename_prefix": "道劫-图生图-超分-",
         "images": [
-          "8107",
+          "8121",
           0
         ]
       }
@@ -236,7 +236,7 @@
         "max_growth": 64,
         "enforce_qwen_tile_limit": false,
         "image": [
-          "7500:7510",
+          "8120",
           0
         ]
       }
@@ -366,6 +366,40 @@
         "latent_image": [
           "8104",
           2
+        ]
+      }
+    },
+    "8120": {
+      "class_type": "SplitImageWithAlpha",
+      "inputs": {
+        "image": [
+          "7500:7510",
+          0
+        ]
+      }
+    },
+    "8122": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "upscale_method": "lanczos",
+        "megapixels": 8.25,
+        "resolution_steps": 32,
+        "image": [
+          "8120",
+          1
+        ]
+      }
+    },
+    "8121": {
+      "class_type": "JoinImageWithAlpha",
+      "inputs": {
+        "image": [
+          "8107",
+          0
+        ],
+        "alpha": [
+          "8122",
+          0
         ]
       }
     },
