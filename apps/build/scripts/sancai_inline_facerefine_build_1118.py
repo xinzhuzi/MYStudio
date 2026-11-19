@@ -240,9 +240,8 @@ SIZE = {
     5021: [250, 112], 5022: [330, 270], 5023: [270, 232],
     25: [430, 200], 1065: [300, 120], 5100: [270, 166], 4100: [283, 564],
     5101: [400, 100], 5102: [400, 170], 5103: [400, 266], 5104: [320, 80],
-    5105: [340, 200], 5106: [360, 220], 5107: [270, 80],
     5109: [320, 82], 5110: [360, 250],
-    5111: [300, 120], 5112: [270, 166], 5113: [270, 166],
+    5111: [300, 120], 5113: [270, 166],
     5024: [330, 270], 5025: [270, 232],
 }
 WIDGETS: dict[int, list | None] = {
@@ -259,35 +258,30 @@ WIDGETS: dict[int, list | None] = {
     5022: ["face_only", 16, 24, 1, 1, "fade_out", False],
     5023: [24, 8, "sRGB", "none"],
     5100: [False], 4100: [PREFIX_P_FINAL, "auto", "auto", "auto"],
-    # ---- 1119 HD 段(逐位承融合件 1119b;5110 control=fixed 禁 randomize)----
+    # ---- 1119 HD 段(逐位承融合件 1119b;5110 control=fixed 禁 randomize;V2.1 砍 5105-5107)----
     5101: ["sam3.1_multiplex_fp16.safetensors"],
     5102: ["face"],
     5103: [0.5, 1, 1],
     5104: ["0"],
-    5105: [0.3, "shrink_grow", 12, 4, 16],
-    5106: ["auto", "max", "max", 36, 1, "both"],
-    5107: [],
     5109: ["VOSR2", "default"],
     5110: [1, 300831622214023, "fixed", "wavelet", 512, 32, 1024, 32],
-    5111: [False], 5112: [False], 5113: [False],
+    5111: [False], 5113: [False],
     5024: ["face_only", 16, 24, 1, 1, "fade_out", False],  # 逐位同 5022(出口复制案)
     5025: [24, 8, "sRGB", "none"],                          # 逐位同 5023
 }
 
 
 def midchain_latent_switch_wiring():
-    """5112 中链 LATENT Switch——**唯一隔离块**(PRD V2 五·1 双态探针 P2 的直接对象)。
+    """V2.1(1119 探针定案,PRD 零·五)已砍空——保留函数名作历史锚。
 
-    1117 式引擎墙(中链 Switch × 自定义节点=引擎级输出剪枝,接线不可修)若被探针
-    证实,只改本函数重立预案(候选:采样链整体复制避中链 Switch/换官方等效节点),
-    禁动其余规格。远景态(5111=False)数据流等效 1118 正典:5013.av_latent 经
-    on_false 直通臂喂 5014(替代原直连线=PRD V2 §1.2「两处等效改接」之一)。"""
-    return [
-        (5013, "av_latent", 5112, "on_false"),
-        (5107, "LATENT", 5112, "on_true"),
-        (5111, "BOOLEAN", 5112, "switch"),
-        (5112, "COMFY_MATCHTYPE_V3", 5014, "av_latent"),
-    ]
+    V2 曾在此布 5112 中链 LATENT Switch(5013.av_latent↔5014 间,PRD V2 五·1 双态
+    探针 P2 的直接对象)。探针六发取证定案:中链 Switch 本身无引擎墙(LATENT 真臂
+    放行,p1z 真帧差 43.58dB),但其 on_true 臂的 SLNM 潜空间遮罩路被 AudioLock
+    **源码级**冲掉(ComfyUI-H3-NativeAudioLock/__init__.py:50-54 lock_audio 无条件
+    覆写 locked["noise_mask"],上游 SetLatentNoiseMask 带入的 mask 在 5014 恒被冲掉,
+    恒无效)——故 5105/5106/5107(MVEx+SLNM)与 5112 一并砍除,5013.av_latent→5014
+    直连复原 1118 正典原链(5014 输入零改写),SAM3 遮罩只走贴回(5104→5024.masks)。"""
+    return []
 
 
 # ---- 连线(src_id, src出口槽名, dst_id, dst输入槽名)----
@@ -315,6 +309,7 @@ WIRING = [
     (1, "IMAGE", 5012, "ref_images.ref_image_0"),
     (25, "STRING", 5012, "prompt"),
     (52, "INT", 5012, "length"),
+    (5013, "av_latent", 5014, "av_latent"),  # 正典原链直连(V2.1 复原:5112 砍除,5014 输入不被改写)
     (5014, "model", 5015, "model"),
     (5014, "av_latent", 5015, "av_latent"),
     (5015, "model", 5018, "model"),
@@ -330,18 +325,13 @@ WIRING = [
     (5022, "images", 5023, "images"),
     (1065, "BOOLEAN", 5100, "switch"),
     (5100, "COMFY_MATCHTYPE_V3", 4100, "video"),
-    # ---- 1119 高清段(SAM3 遮罩双用 + VOSR2 尾档;参数逐位承融合件 1119b)----
+    # ---- 1119 高清段(SAM3 遮罩贴回 + VOSR2 尾档;参数逐位承融合件 1119b;V2.1 砍 SLNM 路)----
     (5101, "MODEL", 5103, "model"),
     (5101, "CLIP", 5102, "clip"),
     (5102, "CONDITIONING", 5103, "conditioning"),
     (5011, "crops", 5103, "images"),
     (5103, "track_data", 5104, "track_data"),
-    (5104, "masks", 5105, "masks"),
-    (5104, "masks", 5024, "masks"),        # mask 路B:贴回约束只进高清复制对,远景臂 5022 恒悬空
-    (5105, "masks", 5106, "masks"),
-    (1003, "VAE", 5106, "vae"),
-    (5106, "mask", 5107, "mask"),
-    (5013, "av_latent", 5107, "samples"),  # mask 路A:潜空间限区
+    (5104, "masks", 5024, "masks"),        # SAM3 遮罩单出口=只进高清复制对贴回(远景臂 5022 恒悬空)
     (5109, "model", 5110, "model"),
     (5021, "IMAGE", 5110, "image"),
     (5110, "IMAGE", 5024, "refined_crops"),
@@ -351,14 +341,13 @@ WIRING = [
     (5002, "audio", 5025, "audio"),
     (5025, "VIDEO", 5113, "on_true"),
     # ---- 1119 投切(出口复制案)----
-    *midchain_latent_switch_wiring(),      # 5112 中链=唯一隔离块(见函数 docstring)
+    *midchain_latent_switch_wiring(),      # V2.1 砍空(5112 连 SLNM 路一并除,见函数 docstring)
     (5023, "VIDEO", 5113, "on_false"),     # 原 5023→5100.on_true 等效改接(远景态直通臂)
     (5111, "BOOLEAN", 5113, "switch"),
     (5113, "COMFY_MATCHTYPE_V3", 5100, "on_true"),
 ]
 
-# ---- API 模板同构节点(平铺 prompt dict;命名输入实证=object_info_17000+P1/P2 探针实跑图;
-#      MVEx 动态 combo 子参键 method.shrink/method.min_frames=探针 graph_p1-t.json 实拉形态)----
+# ---- API 模板同构节点(平铺 prompt dict;命名输入实证=object_info_17000+P1/P2 探针实跑图)----
 API_NEW: dict[str, dict] = {
     "25": {"class_type": "PrimitiveStringMultiline", "inputs": {"value": IDENTITY}},
     "1065": {"class_type": "PrimitiveBoolean", "inputs": {"value": False}},
@@ -382,7 +371,7 @@ API_NEW: dict[str, dict] = {
     "5013": {"class_type": "H3InjectVideoLatent", "inputs": {
         "av_latent": ["5012", 1], "images": ["5011", 0], "vae": ["1003", 0]}},
     "5014": {"class_type": "MiniMaxH3NativeAudioLock", "inputs": {
-        "model": ["5006", 0], "av_latent": ["5112", 0], "audio_vae": ["1004", 0], "audio": ["5002", 1]}},
+        "model": ["5006", 0], "av_latent": ["5013", 0], "audio_vae": ["1004", 0], "audio": ["5002", 1]}},
     "5015": {"class_type": "H3PerFrameDenoise", "inputs": {
         "model": ["5014", 0], "av_latent": ["5014", 1], "transform": ["5011", 1],
         "denoise_multiplier_small_face": 1.0, "denoise_multiplier_large_face": 0.35,
@@ -408,7 +397,7 @@ API_NEW: dict[str, dict] = {
         "switch": ["1065", 0], "on_false": ["4002", 0], "on_true": ["5113", 0]}},
     "4100": {"class_type": "SaveVideo", "inputs": {
         "video": ["5100", 0], "filename_prefix": PREFIX_P_FINAL, "format": "auto", "codec": "auto"}},
-    # ---- 1119 HD 段 +14(SAM3/MVEx/Switch 形态=探针 graph_p1-t/p2-t.json 实拉同构)----
+    # ---- 1119 HD 段 +10(SAM3/Switch 形态=探针 graph_p2-t.json 实拉同构;V2.1 砍 MVEx/SLNM/5112)----
     "5101": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "sam3.1_multiplex_fp16.safetensors"}},
     "5102": {"class_type": "CLIPTextEncode", "inputs": {"text": "face", "clip": ["5101", 1]}},
     "5103": {"class_type": "SAM3_VideoTrack", "inputs": {
@@ -416,22 +405,11 @@ API_NEW: dict[str, dict] = {
         "detection_threshold": 0.5, "max_objects": 1, "detect_interval": 1}},
     "5104": {"class_type": "SAM3_TrackToMask", "inputs": {
         "track_data": ["5103", 0], "object_indices": "0"}},
-    "5105": {"class_type": "MVEx_MaskCleanup", "inputs": {
-        "masks": ["5104", 0], "threshold": 0.3, "method": "shrink_grow",
-        "method.shrink": 12, "method.min_frames": 4, "edge_grow": 16}},
-    "5106": {"class_type": "MVEx_MaskToLatentSpace", "inputs": {
-        "masks": ["5105", 0], "vae": ["1003", 0], "compression": "auto",
-        "spatial_method": "max", "temporal_method": "max", "grow_spatial": 36,
-        "grow_temporal": 1, "grow_temp_mode": "both"}},
-    "5107": {"class_type": "SetLatentNoiseMask", "inputs": {
-        "samples": ["5013", 0], "mask": ["5106", 0]}},
     "5109": {"class_type": "VOSR2ModelLoader", "inputs": {"model": "VOSR2", "dtype": "default"}},
     "5110": {"class_type": "VOSR2Upscale", "inputs": {
         "model": ["5109", 0], "image": ["5021", 0], "upscale": 1, "seed": 300831622214023,
         "color_alignment": "wavelet", "tile_size": 512, "tile_overlap": 32,
         "vae_tile_size": 1024, "vae_tile_overlap": 32}},  # seed 控制位 fixed=画布侧件,API 无此键(object_info 实证)
-    "5112": {"class_type": "ComfySwitchNode", "inputs": {
-        "switch": ["5111", 0], "on_false": ["5013", 0], "on_true": ["5107", 0]}},
     "5113": {"class_type": "ComfySwitchNode", "inputs": {
         "switch": ["5111", 0], "on_false": ["5023", 0], "on_true": ["5025", 0]}},
     "5024": {"class_type": "H3FaceStitch", "inputs": {
@@ -475,12 +453,13 @@ def slot_index(n: dict, section: str, name: str) -> int:
 
 
 def strip_canvas(S: dict) -> dict:
-    """剥离本组既往添加(幂等母本=正典件自身;含 1118 旧组标题过渡剥离)。"""
-    own_ids = set(OWN)
+    """剥离本组既往添加(幂等母本=正典件自身;含 1118 旧组标题过渡剥离+V2.1 砍除件剥离)。"""
+    own_ids = set(OWN) | set(RETIRED)  # RETIRED=V2.1 砍除件:盘上 101 版(V2 全量)重放须一并剥净
+    expect = {**OWN, **RETIRED}
     for n in list(S["nodes"]):
         if n["id"] in own_ids:
-            if n["type"] != OWN[n["id"]]:
-                die(f"正典件 #{n['id']} 已被他人占用为 {n['type']}(预期 {OWN[n['id']]}),拒剥")
+            if n["type"] != expect[n["id"]]:
+                die(f"正典件 #{n['id']} 已被他人占用为 {n['type']}(预期 {expect[n['id']}),拒剥")
             S["nodes"].remove(n)
     removed_links = [l for l in S["links"] if l[1] in own_ids or l[3] in own_ids]
     removed_link_ids = {l[0] for l in removed_links}
@@ -563,7 +542,7 @@ def build_canvas(S: dict, clone_nodes: list) -> dict:
 
 
 def build_api(A: dict) -> dict:
-    for k, ct in OWN.items():
+    for k, ct in {**OWN, **RETIRED}.items():  # RETIRED 同剥(盘上 99 版 V2 残键)
         old = A.get(str(k))
         if old is not None and old.get("class_type") != ct:
             die(f"API 模板节点 {k} 已被他人占用为 {old.get('class_type')}(预期 {ct}),拒剥")
@@ -592,15 +571,16 @@ def check() -> int:
     n_canvas, n_api = len(S["nodes"]), len(A)
     print(f"[CHECK] 画布节点 {n_canvas} / API 节点 {n_api}")
     print("  NOTE  口径:1118 内置 19 臂(66+19+lowvram#1072+clip_vision#800=87)→"
-          " 1119 双档 +14(9 融合段+5111/5112/5113+5024/5025 复制对)=101;API 同构 85→99")
-    ok(n_canvas == 101, f"画布节点数=101(87+14 双档),实际 {n_canvas}")
-    ok(n_api == 99, f"API 节点数=99(85+14),实际 {n_api}")
+          " 1119 双档 +10(V2.1 砍后:6 融合段+5111/5113+5024/5025 复制对)=97;"
+          "API 同构 85→95(画布 97-2 loader 差)")
+    ok(n_canvas == 97, f"画布节点数=97(87+10 双档,V2.1),实际 {n_canvas}")
+    ok(n_api == 95, f"API 节点数=95(85+10,V2.1),实际 {n_api}")
 
     ids = [n["id"] for n in S["nodes"]]
     ok(len(ids) == len(set(ids)), "画布节点 id 唯一")
     idset = set(ids)
     ok(all(l[1] in idset and l[3] in idset for l in S["links"]), "画布无悬空链")
-    ok(all(str(i) in A for i in OWN), "33 新节点(19 臂+14 双档)API/画布两件齐备")
+    ok(all(str(i) in A for i in OWN), "29 新节点(19 臂+10 双档)API/画布两件齐备")
 
     nmap = {n["id"]: n for n in S["nodes"]}
     lk = {l[0]: l for l in S["links"]}
@@ -634,20 +614,24 @@ def check() -> int:
         l = src_of(nid, in_name)
         return bool(l) and l[1] == want_src
 
-    # 5112 中链(隔离块产物)
-    ok(wired(5112, "switch", 5111) and wired(5112, "on_false", 5013) and wired(5112, "on_true", 5107),
-       "5112 中链极性:switch←5111/on_false←5013 直通/on_true←5107 遮罩潜空间")
-    ok(src_of(5014, "av_latent")[1] == 5112, "5014.av_latent←5112 出口(原 859 线等效改接,远景态直通臂)")
-    ok(A["5112"]["inputs"] == {"switch": ["5111", 0], "on_false": ["5013", 0], "on_true": ["5107", 0]},
-       "API 5112 同构")
+    # V2.1 砍除面(SLNM 路被 AudioLock 源码级冲掉恒无效,连中链 5112 一并砍)
+    ok(all(i not in idset for i in RETIRED), "V2.1 砍除件不在画布(5105/5106/5107/5112)")
+    ok(all(str(i) not in A for i in RETIRED), "V2.1 砍除键不在 API 模板(5105/5106/5107/5112)")
+    ok(not any(n["type"].startswith("MVEx") or n["type"] == "SetLatentNoiseMask" for n in S["nodes"]),
+       "MVEx/SLNM 类面退出画布(GPL-3.0 插件随役退出依赖面)")
+    ok(not any(v.get("class_type", "").startswith("MVEx") or v.get("class_type") == "SetLatentNoiseMask"
+               for v in A.values()), "MVEx/SLNM 类面退出 API")
+    ok(src_of(5014, "av_latent")[1] == 5013,
+       "5014.av_latent←5013 直连(正典原链复原,V2.1 起 5014 输入零改写)")
+    ok(A["5014"]["inputs"]["av_latent"] == ["5013", 0], "API 5014.av_latent←5013 直连同构")
     # 5113 出口
     ok(wired(5113, "switch", 5111) and wired(5113, "on_false", 5023) and wired(5113, "on_true", 5025),
        "5113 出口极性:switch←5111/on_false←5023 远景/on_true←5025 高清")
     ok(wired(5100, "on_true", 5113) and wired(5100, "on_false", 4002) and wired(5100, "switch", 1065),
        "5100 极性不变:on_true←5113 出口(原 5023 线等效改接)/on_false←4002/switch←1065")
     ok(A["5113"]["inputs"] == {"switch": ["5111", 0], "on_false": ["5023", 0], "on_true": ["5025", 0]}
-       and A["5100"]["inputs"]["on_true"] == ["5113", 0] and A["5014"]["inputs"]["av_latent"] == ["5112", 0],
-       "API 5113/5100/5014 投切同构")
+       and A["5100"]["inputs"]["on_true"] == ["5113", 0],
+       "API 5113/5100 投切同构")
     # 远景臂零语义改写(AC4)
     ok(wired(5022, "refined_crops", 5021), "远景臂 871 线原样:5022.refined_crops←5021(零语义改写)")
     m22 = next(s for s in nmap[5022]["inputs"] if s["name"] == "masks")
@@ -666,23 +650,23 @@ def check() -> int:
     # HD 段链
     ok(wired(5103, "images", 5011) and wired(5103, "model", 5101) and wired(5103, "conditioning", 5102),
        "5103 SAM3:images←5011.crops/model←5101/conditioning←5102")
-    ok(wired(5104, "track_data", 5103) and wired(5105, "masks", 5104) and wired(5106, "masks", 5105)
-       and wired(5106, "vae", 1003) and wired(5107, "mask", 5106) and wired(5107, "samples", 5013),
-       "mask 路A:5103→5104→5105→5106(vae←1003)→5107(samples←5013)")
+    ok(wired(5104, "track_data", 5103), "5104 track_data←5103")
+    m04 = next(s for s in nmap[5104]["outputs"] if s["name"] == "masks")
+    ok({lk[l][3] for l in (m04.get("links") or [])} == {5024},
+       "5104.masks 单出口=只进 5024(SLNM 路砍除,SAM3 遮罩只走贴回)")
     ok(wired(5110, "model", 5109) and wired(5110, "image", 5021), "VOSR2 尾档:5109→5110(image←5021)")
     ok(nmap[5110]["widgets_values"][2] == "fixed", "5110 control=fixed(seed 锁 300831622214023 禁 randomize)")
-    ok(nmap[5103]["widgets_values"] == [0.5, 1, 1] and nmap[5105]["widgets_values"] == [0.3, "shrink_grow", 12, 4, 16]
-       and nmap[5106]["widgets_values"] == ["auto", "max", "max", 36, 1, "both"]
+    ok(nmap[5103]["widgets_values"] == [0.5, 1, 1]
        and nmap[5109]["widgets_values"] == ["VOSR2", "default"],
-       "HD 段 widgets 逐位承融合件 1119b(5103/5105/5106/5109)")
+       "HD 段 widgets 逐位承融合件 1119b(5103/5109)")
 
     # ---- 布局契约(零左向/零 AABB 重叠/组框)----
     left_bad = [(l[0], l[1], l[3]) for l in S["links"]
                 if nmap[l[3]]["pos"][0] <= nmap[l[1]]["pos"][0]]
     ok(not left_bad, f"全链恒向右(零左向线),违例 {left_bad[:5]}")
-    ok(nmap[5103]["pos"][0] > nmap[5011]["pos"][0] and nmap[5107]["pos"][0] > nmap[5013]["pos"][0]
+    ok(nmap[5103]["pos"][0] > nmap[5011]["pos"][0]
        and nmap[5110]["pos"][0] > nmap[5021]["pos"][0],
-       "三处融合件左向后勘:5103>5011/5107>5013/5110>5021")
+       "两处融合件左向后勘:5103>5011/5110>5021(V2.1 砍 5107,其位腾空)")
     ok(all(n["pos"][0] >= 80 and n["pos"][1] >= 80 for n in S["nodes"]), "零负区(pos≥80)")
     boxes = [(n["id"], n["pos"][0], n["pos"][1], n["pos"][0] + n["size"][0], n["pos"][1] + n["size"][1])
              for n in S["nodes"]]
@@ -708,7 +692,7 @@ def check() -> int:
         if not inside:
             cover = False
             print(f"  ..  #{n['id']} 未被组框罩住")
-    ok(cover, "组框罩全(33 新节点全部落框)")
+    ok(cover, "组框罩全(29 新节点全部落框)")
     gover = []
     for i in range(len(S["groups"])):
         for j in range(i + 1, len(S["groups"])):
@@ -733,6 +717,8 @@ def check() -> int:
     ok(README_MARK in md, "README 9999 已增「四采修脸」段")
     ok("### 1119 双档调用(远景=默认 / 高清)" in md and "非法态" in md,
        "README 9999 已增 1119 双档调用段(四态矩阵+非法态口径)")
+    ok("5112" not in md and "V2.1 砍除记" in md,
+       "README 9999 无 5112 残留字样+载 V2.1 砍除记(SLNM 路 AudioLock 冲掉)")
     ok(S["last_link_id"] == max(l[0] for l in S["links"]), "last_link_id 已对齐最大链号")
 
     if fails:
@@ -753,8 +739,8 @@ def main() -> int:
     write_json(CANVAS, S)
     A = build_api(json.loads(API.read_text(encoding="utf-8")))
     write_json(API, A)
-    print(f"[OK] 画布 {CANVAS.name}:{len(S['nodes'])} 节点(87+14 双档)/ {len(S['links'])} 链 / {len(S['groups'])} 组")
-    print(f"[OK] API {API.name}:{len(A)} 节点(85+14)")
+    print(f"[OK] 画布 {CANVAS.name}:{len(S['nodes'])} 节点(87+10 双档·V2.1)/ {len(S['links'])} 链 / {len(S['groups'])} 组")
+    print(f"[OK] API {API.name}:{len(A)} 节点(85+10·V2.1)")
 
     # 幂等双跑字节一致(AC6):盘上产物再剥再建应逐字节复现
     S2 = build_canvas(strip_canvas(json.loads(CANVAS.read_text(encoding="utf-8"))), clone_nodes)

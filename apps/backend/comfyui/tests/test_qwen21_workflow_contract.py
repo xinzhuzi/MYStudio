@@ -2348,17 +2348,9 @@ class TestLoaderTriple:
     def test_unet_loader_exact_file(self):
         for name, graph in GRAPHS.items():
             loaders = _by_type(graph, "UNETLoader")
-            # 1117 Gem ② 接棒:qi21/i2i 另带独立栈 [8111] int8 UNET(与主链零共享)
-            extra = 1 if name in ("qi21", "i2i") else 0
-            assert len(loaders) == 1 + extra, \
-                f"{name}: UNETLoader 应恰 {1 + extra} 个(1117 Gem ② 独立栈 +{extra})"
-            assert _widget(loaders[0], 0) == UNET_FILE, \
-                f"{name}: unet_name 应逐字 {UNET_FILE!r}"
-            if extra:
-                assert [n["id"] for n in loaders if n["id"] != 1] == [8111] and \
-                    _widget(loaders[-1], 0) == "qwen_image_2.1_int8_convrot.safetensors", \
-                    f"{name}: Gem 独立 UNET 应恰 [8111] int8_convrot"
-
+            # 1119 用户令:删 8111 独立 UNET,8112 直吃主链[1] bf16
+            assert len(loaders) == 1, \
+                f"{name}: UNETLoader 应恰 1 个(主链[1],8111 已删)"
     def test_clip_loader_exact_file_and_type(self):
         for name, graph in GRAPHS.items():
             loaders = _by_type(graph, "CLIPLoader")
@@ -5962,10 +5954,10 @@ class TestSeedVR2TailContract1002:
 # SaveImage[504];SeedVR 整链节点级 mode4 旁路零删可复活;手术脚本
 # apps/build/scripts/qi21_daojie_gem_tiled_graft_1117.py)─────────────────
 
-GEM_TAIL_IDS = tuple(range(8108, 8121))          # 13 节点统一段(两件同构)
+GEM_TAIL_IDS = tuple(n for n in range(8108, 8121) if n != 8111)  # 12 节点(1119 用户令删独立UNET,8112直吃主链[1])
 GEM_TAIL_TYPES = {
     8108: "GetImageSize", 8109: "ComfyMathExpression", 8110: "ImageScaleBy",
-    8111: "UNETLoader", 8112: "LoraLoaderModelOnly", 8113: "LoraLoaderModelOnly",
+    8112: "LoraLoaderModelOnly", 8113: "LoraLoaderModelOnly",
     8114: "CLIPLoader", 8115: "VAELoader", 8116: "GemTiledUpscale",
     8117: "TextEncodeQwenImage21", 8118: "KSampler", 8119: "VAEDecode",
     8120: "GemTiledUpscaleStitch",
@@ -5981,7 +5973,6 @@ GEM_TAIL_WIDGETS = {
     8108: None,
     8109: ["min(1, sqrt(2000000 / (a * b)))"],
     8110: ["lanczos", 1],
-    8111: ["qwen_image_2.1_bf16.safetensors", "default"],
     8112: ["qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors", 1],
     8113: ["qwen-image-2.1-restore.safetensors", 1.0],
     8114: ["qwen3vl_8b_int8_convrot.safetensors", "qwen_image", "default"],
@@ -6003,7 +5994,7 @@ GEM_TAIL_LINKS = (
     (8220, 8108, 1, 8109, 1, "INT"),
     (8221, 8109, 0, 8110, 2, "FLOAT"),
     (8222, 8110, 0, 8116, 0, "IMAGE"),
-    (8223, 8111, 0, 8112, 0, "MODEL"),
+    (8223, 1, 0, 8112, 0, "MODEL"),
     (8224, 8112, 0, 8113, 0, "MODEL"),
     (8225, 8113, 0, 8118, 0, "MODEL"),
     (8226, 8114, 0, 8117, 0, "CLIP"),
@@ -6060,18 +6051,18 @@ class TestGemTailContract1117:
                 f"{name}: [504] 前缀应 {SVR2_SAVE_PREFIX!r}(沿用)"
 
     def test_gem_loader_stack_isolated(self):
-        """独立加载器栈零共享:8111-8115 连线源只准栈内(8111/8112/8113),
-        不吃主链 [1]/[2]/[3]/[9] 或任何子图节点——双份显存并存是方案明账。"""
+        """1119 用户令:删 8111,LoRA 链(8112)直吃主链[1] bf16(参照皮肤件磨皮后续组模式)。
+        8112.model←[1];8113.model←8112;CLIP(8114)/VAE(8115)独立加载。"""
         for name in ("qi21", "i2i"):
             graph = GRAPHS[name]
             nodes, links = _nodes(graph), _links(graph)
-            for nid in (8111, 8112, 8113, 8114, 8115):
-                for entry in nodes[nid].get("inputs") or []:
-                    if entry.get("link") is None:
-                        continue
-                    src = links[entry["link"]][1]
-                    assert src in (8111, 8112), \
-                        f"{name}: [{nid}].{entry['name']} 连线源 [{src}] 应栈内(独立栈零共享),得非栈源"
+            # 8112.model 应来自主链 [1]
+            assert _input_src(nodes, links, 8112, "model") == 1, \
+                f"{name}: [8112].model 应←主链[1](1119 删 8111)"
+            # 8113.model 应来自 8112
+            assert _input_src(nodes, links, 8113, "model") == 8112
+            # 8111 不应存在
+            assert 8111 not in nodes, f"{name}: 8111 应已删除"
 
     def test_seedvr_chain_bypassed_but_present(self):
         """SeedVR 位 mode4:顶层宿主 [503]+子图内四节点(type 不变=零删可复活;

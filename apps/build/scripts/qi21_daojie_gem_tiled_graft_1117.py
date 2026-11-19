@@ -2,7 +2,7 @@
 """qi21 道劫两画布 · Gem 分块超分(② 链)移植手术 · 1117。
 
 手术内容(方案已两轮复核):
-  1. qi21-道劫-t2i.json / qi21-道劫-i2i.json 两画布各植入 13 节点(id 8108-8120,
+  1. qi21-道劫-t2i.json / qi21-道劫-i2i.json 两画布各植入 12 节点(id 8108-8120,
      mode=0,槽名/widgets 逐位照 Gem 源件 qwen21_Gem_Face_zoom_V1.json 的 ② 链
      donor——守卫三件平铺自源件「防大图检查」子图 88c48041,主链取 viggle→ItsGem
      face 分支:445/545/555/438/439/431/441_413/556/557/558);
@@ -28,7 +28,7 @@
 
 widgets_values 键纪律(方案风险 F7):8108/8119 整键省略 widgets_values
 (写 null 即 flatten `node.get('widgets_values', [])` 对 None 迭代 TypeError);
-全部 13 节点不写 widgets_values_named(源件 545 named=r128 假名、447/499/555/567
+全部 12 节点不写 widgets_values_named(源件 545 named=r128 假名、447/499/555/567
 named 带 qwen21\\ 前缀假名,flatten named 静默覆盖裸名 widget 致引擎 404)。
 
 孪生件(qwen21-道劫-*-api.json)不在本脚本手术面——由
@@ -41,11 +41,11 @@ App 测试的配套改动见方案 steps 10/12/13(代码文件,不在本 JSON �
   python3 apps/build/scripts/qi21_daojie_gem_tiled_graft_1117.py --reverse     # 逆手术:复活 SeedVR 链、摘 Gem 链(幂等)
 
 自验断言(真验,非自说自话):
-  A. 13 新节点 widgets 逐位 == Gem 源件 donor 现值(执行/验证时现读源文件对拍)== 方案表;
+  A. 12 新节点 widgets 逐位 == Gem 源件 donor 现值(执行/验证时现读源文件对拍)== 方案表;
   B. SeedVR 节点仍在(503+f0a844a8 内四节点,type 不变)且 mode==4;
   C. 存图改线生效(504.images.link==8236;旧线 205/204 整根缺席;503 出扇出已摘);
   D. 全图 links 可解析(顶层+各子图:端点存在/槽位在界/类型相容/双向登记互逆);
-  E. 组框 7 罩全 13 节点且仅罩这 13 个;
+  E. 组框 7 罩全 12 节点且仅罩这 12 个;
   F. 既有节点零扰动(vs 手术前态/git HEAD 深比对:除 SeedVR mode 五位、503 出扇出、
      504.images.link、7500 出扇出外逐字节深度全等;pos/size/order 一律不动);
   G. 画布几何:节点矩形两两不交(含新节点);⑤b 与既有组框不相交;
@@ -81,12 +81,12 @@ SEEDVR_SG_TYPES = {501: "SeedVR2LoadDiTModel", 502: "SeedVR2LoadVAEModel",
                    7401: "SeedVR2VideoUpscaler", 7402: "PrimitiveInt"}
 GEM_GUARD_SG = "88c48041-0d9e-4877-8ca2-5c4238f87325"
 
-# ── 13 新节点表(id → donor 定位/尺寸/标题/widgets 期望)──────────────────────
+# ── 12 新节点表(id → donor 定位/尺寸/标题/widgets 期望)──────────────────────
 # donor: ("sub", id)=Gem 源件守卫子图 88c48041 内;("top", id)=Gem 源件顶层。
 # widgets 期望=方案表;执行/验证时与 Gem 源件 donor 现值对拍(双源一致才放行)。
 DONOR = {
     8108: ("sub", "460_600"), 8109: ("sub", "460_601"), 8110: ("sub", 425),
-    8111: ("top", 445), 8112: ("top", 545), 8113: ("top", 555),
+    8112: ("top", 545), 8113: ("top", 555),
     8114: ("top", 438), 8115: ("top", 439), 8116: ("top", 431),
     8117: ("top", "441_413"), 8118: ("top", 556), 8119: ("top", 557),
     8120: ("top", 558),
@@ -94,7 +94,7 @@ DONOR = {
 NEW_IDS = tuple(DONOR)
 SIZES = {
     8108: [140, 124], 8109: [400, 200], 8110: [238, 82],
-    8111: [354, 82], 8112: [354, 82], 8113: [354, 82],
+    8112: [354, 82], 8113: [354, 82],
     8114: [270, 106], 8115: [270, 58], 8116: [289, 278],
     8117: [428, 371], 8118: [270, 262], 8119: [281, 60], 8120: [289, 150],
 }
@@ -117,7 +117,6 @@ WIDGETS = {
     # (0,1] ⊆ [0.01,8.0] 上限内(16:9 典型 0.59MP→√3.39≈1.84 亦在内),widget 仅回退值。
     8109: ["min(1, sqrt(2000000 / (a * b)))"],
     8110: ["lanczos", 1],
-    8111: ["qwen_image_2.1_bf16.safetensors", "default"],  # 1119 用户令:与主链[1]同份bf16,
     8112: ["qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors", 1],  # 1118 换装(原 viggle r256)
     8113: ["qwen-image-2.1-restore.safetensors", 1.0],  # 1119 A弹三代换药(原 mikkoani@0.6←ItsGem face ×1)
     8114: ["qwen3vl_8b_int8_convrot.safetensors", "qwen_image", "default"],
@@ -166,12 +165,12 @@ DEVIATIONS = {
 # 重排优先于棘轮;剥我方线归因口径不变)。
 POS = {
     "t2i": {8108: [9300, 1700], 8109: [9870, 1700], 8110: [10590, 1700],
-            8111: [10755, 2260], 8112: [11429, 2660], 8113: [12103, 2660],
+            8112: [11429, 2660], 8113: [12103, 2660],
             8114: [11349, 2260], 8115: [11709, 2260], 8116: [11160, 1700],
             8117: [11769, 1700], 8118: [12517, 1700], 8119: [13107, 1700],
             8120: [13708, 1100]},
     "i2i": {8108: [9400, 1500], 8109: [9970, 1500], 8110: [10690, 1500],
-            8111: [10855, 2060], 8112: [11529, 2460], 8113: [12203, 2460],
+            8112: [11529, 2460], 8113: [12203, 2460],
             8114: [11449, 2060], 8115: [11809, 2060], 8116: [11260, 1500],
             8117: [11869, 1500], 8118: [12617, 1500], 8119: [13207, 1500],
             8120: [13808, 900]},
@@ -199,7 +198,7 @@ LINKS = (
     (8220, 8108, 1, 8109, 1, "INT"),
     (8221, 8109, 0, 8110, 2, "FLOAT"),
     (8222, 8110, 0, 8116, 0, "IMAGE"),
-    (8223, 8111, 0, 8112, 0, "MODEL"),
+    (8223, 1, 0, 8112, 0, "MODEL"),
     (8224, 8112, 0, 8113, 0, "MODEL"),
     (8225, 8113, 0, 8118, 0, "MODEL"),
     (8226, 8114, 0, 8117, 0, "CLIP"),
@@ -326,6 +325,24 @@ def surgery_canvas(name: str, donors: dict) -> dict:
     need(7 not in grp_ids or any(g["id"] == 7 and g["title"] in (GROUP_TITLE, GROUP_TITLE_OLD)
                                   for g in wf["groups"]),
          f"{name}: 组 id 7 已被异构占用(题名非新旧名)")
+
+    # —— 0) 1119 用户令清理:删 8111 独立 UNETLoader,8112 改吃主链 [1] ——
+    nodes = {n["id"]: n for n in wf["nodes"]}
+    if 8111 in nodes:
+        wf["nodes"] = [n for n in wf["nodes"] if n["id"] != 8111]
+        nodes = {n["id"]: n for n in wf["nodes"]}
+        print("[gem-graft]   清理:删 8111 独立 UNETLoader")
+    # 改线:8223 origin 8111→1(幂等)
+    for l in wf["links"]:
+        if l[0] == 8223 and l[1] == 8111:
+            l[1] = 1
+            print("[gem-graft]   改线:8223 origin 8111→[1]")
+    # 8112 输入槽 model 的 link 引用不变(仍是 8223)
+    # node [1] 的出扇出加 8223
+    if 1 in nodes:
+        out1 = nodes[1]["outputs"][0]
+        if 8223 not in (out1.get("links") or []):
+            out1["links"] = (out1.get("links") or []) + [8223]
 
     # —— 1) 新节点 ——
     if len(have_new) < len(NEW_IDS):
@@ -547,7 +564,7 @@ def verify_canvas(name: str, before: dict, wf: dict, donors: dict) -> None:
     nodes = {n["id"]: n for n in wf["nodes"]}
     links = {l[0]: l for l in wf["links"]}
 
-    # A. 13 新节点:type/mode/pos/size/widgets 逐位 == donor 与方案表;槽形照 donor
+    # A. 12 新节点:type/mode/pos/size/widgets 逐位 == donor 与方案表;槽形照 donor
     for nid in NEW_IDS:
         need(nid in nodes, f"{name}: 缺新节点 {nid}")
         n = nodes[nid]
@@ -623,7 +640,7 @@ def verify_canvas(name: str, before: dict, wf: dict, donors: dict) -> None:
         if bx <= x and y >= by and x + w <= bx + bw and y + h <= by + bh:
             inside.append(n["id"])
     need(sorted(inside) == sorted(NEW_IDS),
-         f"{name}: ⑤b 罩集应恰 13 新节点(得 {sorted(inside)})")
+         f"{name}: ⑤b 罩集应恰 12 新节点(得 {sorted(inside)})")
 
     # E2. 504 不被误罩进 ⑤b(既有件零裹挟,上条已保证);组框间不相交
     for g2 in wf["groups"]:
@@ -657,6 +674,13 @@ def verify_canvas(name: str, before: dict, wf: dict, donors: dict) -> None:
                 if i["name"] == "images":
                     i["link"] = 8236
             need(cur == exp, f"{name}: 504 除 images.link/pos 外不得变动")
+        elif nid == 1:
+            exp = copy.deepcopy(b)
+            exp["outputs"][0]["links"] = list(b["outputs"][0].get("links") or [])
+            for add in (8223,):
+                if add not in exp["outputs"][0]["links"]:
+                    exp["outputs"][0]["links"].append(add)
+            need(cur == exp, f"{name}: 1 除出扇出外不得变动")
         elif nid == 7500:
             exp = copy.deepcopy(b)
             exp["outputs"][0]["links"] = list(b["outputs"][0].get("links") or [])

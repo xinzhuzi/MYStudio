@@ -24,7 +24,8 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            97
+            97,
+            8223
           ]
         }
       ],
@@ -1236,59 +1237,6 @@
       ]
     },
     {
-      "id": 8111,
-      "type": "UNETLoader",
-      "pos": [
-        10755,
-        2260
-      ],
-      "size": [
-        354,
-        82
-      ],
-      "flags": {},
-      "order": 23,
-      "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "unet_name",
-          "name": "unet_name",
-          "type": "COMBO",
-          "widget": {
-            "name": "unet_name"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "weight_dtype",
-          "name": "weight_dtype",
-          "type": "COMBO",
-          "widget": {
-            "name": "weight_dtype"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "MODEL",
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            8223
-          ]
-        }
-      ],
-      "title": "[8111] Gem②·独立UNET int8",
-      "properties": {
-        "Node name for S&R": "UNETLoader"
-      },
-      "widgets_values": [
-        "qwen_image_2.1_int8_convrot.safetensors",
-        "default"
-      ]
-    },
-    {
       "id": 8112,
       "type": "LoraLoaderModelOnly",
       "pos": [
@@ -2272,7 +2220,7 @@
     ],
     [
       8223,
-      8111,
+      1,
       0,
       8112,
       0,

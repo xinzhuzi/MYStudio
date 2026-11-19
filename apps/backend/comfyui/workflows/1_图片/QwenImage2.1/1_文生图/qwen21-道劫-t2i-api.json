@@ -182,20 +182,13 @@
         ]
       }
     },
-    "8111": {
-      "class_type": "UNETLoader",
-      "inputs": {
-        "unet_name": "qwen_image_2.1_int8_convrot.safetensors",
-        "weight_dtype": "default"
-      }
-    },
     "8112": {
       "class_type": "LoraLoaderModelOnly",
       "inputs": {
         "lora_name": "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
         "strength_model": 1,
         "model": [
-          "8111",
+          "1",
           0
         ]
       }
