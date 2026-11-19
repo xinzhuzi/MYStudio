@@ -603,10 +603,10 @@
     {
       "zh": "设定卡",
       "aspect_ratio": "16:9 (Widescreen)",
-      "megapixels": 7.91,
+      "megapixels": 2.25,
       "resolution_override": [
-        3840,
-        2160
+        2048,
+        1152
       ],
       "rgba_default": false,
       "purpose": "完整横向角色设定板(1110 固定格式版:五条横带/编号格子/固定句式,全身像全部锁进三视图带,档案密文区取消,乱码温床根除)。位置数量取景由类型句逐格明确。默认不透明。",
