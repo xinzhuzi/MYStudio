@@ -1,0 +1,102 @@
+{
+ "meta": {
+  "far": [
+   3840,
+   2220,
+   24.0,
+   124
+  ],
+  "hd": [
+   3840,
+   2220,
+   24.0,
+   124
+  ]
+ },
+ "frames": {},
+ "table": [
+  {
+   "frame": 16,
+   "box": [
+    660,
+    308,
+    2346,
+    1463
+   ],
+   "a_far_vs_p3": {
+    "rmse_global": 2.069782257080078,
+    "psnr_global": 41.81231003508813,
+    "rmse_face": 2.6716471792435668,
+    "psnr_face": 39.59522152531039,
+    "face_energy_share": 1.6661298274993896
+   },
+   "b_far_vs_hd": {
+    "rmse_global": 26.202327728271484,
+    "psnr_global": 19.76400629745037,
+    "rmse_face": 28.55871530245299,
+    "psnr_face": 19.016030267608016,
+    "face_energy_share": 1.18794846534729
+   },
+   "b_hd_vs_p3": {
+    "rmse_global": 2.2513234615325928,
+    "psnr_global": 41.08204583659158,
+    "rmse_face": 3.220596376481014,
+    "psnr_face": 37.97207760934126,
+    "face_energy_share": 2.0464296340942383
+   },
+   "lap_far_p3": 32.15,
+   "lap_far": 32.07,
+   "lap_hd_p3": 28.06,
+   "lap_hd": 30.68,
+   "lap_ratio_far": 0.998,
+   "lap_ratio_hd": 1.093
+  },
+  {
+   "frame": 112,
+   "box": [
+    1342,
+    263,
+    2208,
+    1187
+   ],
+   "a_far_vs_p3": {
+    "rmse_global": 2.263991117477417,
+    "psnr_global": 41.03330894164448,
+    "rmse_face": 4.225978733440712,
+    "psnr_face": 35.61225746458789,
+    "face_energy_share": 3.4842169284820557
+   },
+   "b_far_vs_hd": {
+    "rmse_global": 23.35464859008789,
+    "psnr_global": 20.763337152245207,
+    "rmse_face": 24.295527243568284,
+    "psnr_face": 20.42027704389865,
+    "face_energy_share": 1.0821962356567383
+   },
+   "b_hd_vs_p3": {
+    "rmse_global": 2.468702554702759,
+    "psnr_global": 40.28142818536117,
+    "rmse_face": 5.3145385421287035,
+    "psnr_face": 33.621492388811916,
+    "face_energy_share": 4.634400844573975
+   },
+   "lap_far_p3": 47.9,
+   "lap_far": 36.92,
+   "lap_hd_p3": 50.36,
+   "lap_hd": 46.55,
+   "lap_ratio_far": 0.771,
+   "lap_ratio_hd": 0.924
+  }
+ ],
+ "p3_cross_run_drift_8bit": {
+  "f16": {
+   "rmse": 25.2,
+   "psnr_db": 20.1
+  },
+  "f112": {
+   "rmse": 22.2,
+   "psnr_db": 21.2
+  },
+  "note": "same seed, two independent full-chain runs (cache miss): upstream regeneration drift ~20-21dB, same magnitude as ring-b; ring-b is therefore drift-dominated, gear diff only bounded"
+ }
+}

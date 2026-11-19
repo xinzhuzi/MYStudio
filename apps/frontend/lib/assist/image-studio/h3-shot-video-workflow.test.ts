@@ -567,9 +567,27 @@ describe("Windows Pika ref2va 主力线通道(1101)", () => {
 // ── multiseg 适配(PRD 10-27 §14.1;my-h3-multiseg needs-adaptation→ready)──────────────────────
 
 describe("h3-multiseg-template.api.json 契约(PRD §14.1.2,--preset multiseg 脚本产物)", () => {
-  it("API 节点数=33(12+2 四针适配:9 LoadImage+103 MyShot;无 note 类,UI 节点全进;1118 +19 四采修脸组默认旁路)", () => {
-    expect(Object.keys(multisegApi)).toHaveLength(33);
-    expect(Object.keys(multisegApi).map(Number).sort((a, b) => a - b)).toEqual([2, 4, 6, 7, 9, 13, 21, 25, 34, 36, 41, 100, 101, 102, 103, 1065, 4100, 5002, 5006, 5011, 5012, 5013, 5014, 5015, 5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5100]);
+  it("API 节点数=41(12+2 四针适配+1118 修脸组 19+remux5030/5031+1119 双档 6;组装器不摘臂,1065=false 惰性剪除)", () => {
+    expect(Object.keys(multisegApi)).toHaveLength(41);
+    expect(Object.keys(multisegApi).map(Number).sort((a, b) => a - b)).toEqual([2, 4, 6, 7, 9, 13, 21, 25, 34, 36, 41, 100, 101, 102, 103, 1065, 4100, 5002, 5006, 5011, 5012, 5013, 5014, 5015, 5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5024, 5025, 5030, 5031, 5100, 5109, 5110, 5111, 5113]);
+  });
+
+  it("1119 双档移植对齐(67 节点画布态的 API 面):5111 默认 False/5100.on_true←5113/5113 出口极性/全图零悬空引用", () => {
+    // 双档出厂态:1065/5111 双 False(远景=默认修脸档,非法态由发车器 inject_switches 拒)
+    expect(multisegApi["1065"].inputs.value).toBe(false);
+    expect(multisegApi["5111"].class_type).toBe("PrimitiveBoolean");
+    expect(multisegApi["5111"].inputs.value).toBe(false);
+    // 投切极性:5113 真=5025 高清/假=5023 远景;5100.on_true 1119 改接 5113
+    expect(multisegApi["5113"].inputs).toMatchObject({
+      switch: ["5111", 0], on_false: ["5023", 0], on_true: ["5025", 0],
+    });
+    expect(multisegApi["5100"].inputs.on_true).toEqual(["5113", 0]);
+    // VOSR2 尾档+复制对同构(5024 无 masks 注入=face_only 贴回)
+    expect(multisegApi["5110"].inputs).toMatchObject({ model: ["5109", 0], image: ["5021", 0], seed: 300831622214023 });
+    expect(multisegApi["5024"].inputs).toMatchObject({ base_images: ["5002", 0], refined_crops: ["5110", 0], transform: ["5011", 1] });
+    expect("masks" in multisegApi["5024"].inputs).toBe(false);
+    // multiseg 组装器不摘臂(整图直投),全图零悬空引用=等价引擎 validate_inputs 的组装期前置断点
+    expect(() => assertNoDanglingRefs(multisegApi, "multiseg API 模板")).not.toThrow();
   });
 
   it("锚断言全中(§14.1.2 ②:与 1025 multiseg 实弹手写 API 图逐键同形)", () => {
@@ -877,7 +895,7 @@ describe("buildShotH3SancaiApiWorkflow(三采两段组装)", () => {
     expect(stageA["3031"]!.inputs.width).toBe(1088);
   });
 
-  it("1118 四采修脸臂:段A/段B 整臂摘除+全图零悬空引用(模板 5002/5100 引用 4002,段A 删 4002 不摘臂=引擎 validate_inputs 拒单)", () => {
+  it("1118/1119 四采修脸臂 25 件:段A/段B 整臂摘除+全图零悬空引用(模板 5002/5100 引用 4002,段A 删 4002 不摘臂=引擎 validate_inputs 拒单;1119 双档六件漏摘=5113 投切悬空活雷)", () => {
     const result = buildShotH3SancaiApiWorkflow({
       shot: makeShot() as never,
       chapterId: "chapter-001",
@@ -887,7 +905,8 @@ describe("buildShotH3SancaiApiWorkflow(三采两段组装)", () => {
       frameHeight: 544,
     });
     for (const id of ["25", "1065", "4100", "5002", "5006", "5011", "5012", "5013", "5014",
-      "5015", "5016", "5017", "5018", "5019", "5020", "5021", "5022", "5023", "5100"]) {
+      "5015", "5016", "5017", "5018", "5019", "5020", "5021", "5022", "5023", "5024", "5025",
+      "5109", "5110", "5111", "5113", "5100"]) {
       expect(result.apiGraph[id], `段A 应摘除 ${id}`).toBeUndefined();
       expect(result.stageBGraph[id], `段B 应摘除 ${id}`).toBeUndefined();
     }

@@ -1,13 +1,13 @@
 {
   "generatedFrom": "git show HEAD:<路径> 提取态(不取工作树态)",
-  "head": "ebf0bf98",
-  "rebuiltAt": "2026-11-11T13:32:41",
+  "head": "f73752b5",
+  "rebuiltAt": "2026-11-19T23:19:07",
   "files": {
     "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json": {
       "scopes": {
         "main": {
-          "crossings": 10,
-          "occlusion": 0
+          "crossings": 54,
+          "occlusion": 12
         },
         "sub:[6] 文本提示词类型优化子图": {
           "crossings": 2,
@@ -30,8 +30,8 @@
     "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/2_图生图/qi21-道劫-i2i.json": {
       "scopes": {
         "main": {
-          "crossings": 43,
-          "occlusion": 0
+          "crossings": 92,
+          "occlusion": 12
         },
         "sub:[6] 文本提示词类型优化子图": {
           "crossings": 3,
@@ -64,30 +64,6 @@
         "sub:道劫·加速子图": {
           "crossings": 60,
           "occlusion": 15
-        }
-      }
-    },
-    "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json": {
-      "scopes": {
-        "main": {
-          "crossings": 981,
-          "occlusion": 75
-        }
-      }
-    },
-    "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/一镜到底-分段.json": {
-      "scopes": {
-        "main": {
-          "crossings": 179,
-          "occlusion": 16
-        }
-      }
-    },
-    "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试/三采-单镜-小脸修复.json": {
-      "scopes": {
-        "main": {
-          "crossings": 861,
-          "occlusion": 68
         }
       }
     }

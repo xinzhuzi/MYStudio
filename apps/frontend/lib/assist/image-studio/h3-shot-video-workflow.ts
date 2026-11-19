@@ -680,13 +680,18 @@ export function computeSancaiResolutionLadder(width: number, height: number): Sa
 /** 段A(一二采)节点集=59 塑形图全链减三采链(Win 实弹 ar10s_stage12 同款 56 节点)。 */
 const SANCAI_STAGE_B_NODE_IDS = ["4001", "4002", "4003"] as const;
 
-/** 1118 四采修脸臂 19 节点(1065 开关,trellis 11-17-facerefine-inline-bypass):
+/** 1118/1119 四采修脸臂 25 节点(1065 总开关+5111 高清子开关;trellis
+ *  11-17-facerefine-inline-bypass + 11-19-dualmode-facerefine-rename):
  *  模板 5002.video 与 5100.on_false 引用 ["4002",0]——段A 删 4001-4003 后必悬空
  *  (引擎 validate_inputs KeyError '4002' 拒单,1065=false 旁路态同断,1118 实证)。
+ *  1119 双档六件(5024/5025 复制对+5109/5110 VOSR2+5111/5113 投切)同臂——5113 出口
+ *  投切引用 5023/5025/5111,漏摘即在 5100.on_true 改接后悬空(1119 活雷:19 件表
+ *  漏六件曾致三采两段组装 assertNoDanglingRefs 运行时 throw)。
  *  App 两段式暂不开放修脸(PRD 手段≠目标核:编排器成熟可两段透明串联再接管),
  *  段A/段B 整臂摘除=App 路零漂移;API 直投面(inline_fire_runner_1118)用完整模板双态直开。 */
 const SANCAI_FACEREFINE_NODE_IDS = ["25", "1065", "4100", "5002", "5006", "5011", "5012", "5013",
-  "5014", "5015", "5016", "5017", "5018", "5019", "5020", "5021", "5022", "5023", "5100"] as const;
+  "5014", "5015", "5016", "5017", "5018", "5019", "5020", "5021", "5022", "5023", "5024", "5025",
+  "5109", "5110", "5111", "5113", "5100"] as const;
 
 /** 防悬空运行时门(1118 补防:组装器删节点必须有配套改写;测试不设防=静默坏到实弹):
  *  图内任何 inputs 的 [id, slot] 数组引用,id 不在图内即 throw——等价引擎

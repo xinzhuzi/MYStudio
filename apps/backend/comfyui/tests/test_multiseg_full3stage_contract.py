@@ -268,7 +268,7 @@ def test_no_negative_no_leftward():
 def test_facerefine_group_inline_bypass():
     """四采修脸组(1118 内置·默认旁路;生成器 multiseg_inline_facerefine_build_1118.py):
     开关默认 False / 5006 复用 34 / 5012 宽高=5011 出口联线 / length 与 3031 同源同值 /
-    5100 极性 on_true=修脸·on_false=3053 直通 / 组框罩全。"""
+    5100 极性 on_true=修脸臂出口(1119 改接 5113)·on_false=3053 直通 / 组框罩全。"""
     d, nodes, links = _load()
     OWN = {25: "PrimitiveStringMultiline", 1065: "PrimitiveBoolean",
            5002: "GetVideoComponents", 5006: "LoraLoaderModelOnly",
@@ -277,7 +277,11 @@ def test_facerefine_group_inline_bypass():
            5015: "H3PerFrameDenoise", 5016: "RandomNoise", 5017: "KSamplerSelect",
            5018: "BasicScheduler", 5019: "BasicGuider", 5020: "SamplerCustomAdvanced",
            5021: "VAEDecode", 5022: "H3FaceStitch", 5023: "CreateVideo",
-           5100: "ComfySwitchNode", 4100: "SaveVideo"}
+           5100: "ComfySwitchNode", 4100: "SaveVideo",
+           # ---- 1119 双档移植六件(同 id 直搬单镜)----
+           5109: "VOSR2ModelLoader", 5110: "VOSR2Upscale",
+           5111: "PrimitiveBoolean", 5113: "ComfySwitchNode",
+           5024: "H3FaceStitch", 5025: "CreateVideo"}
     for nid, ntype in OWN.items():
         assert nid in nodes and nodes[nid]["type"] == ntype, f"[{nid}] 应为 {ntype}"
 
@@ -294,8 +298,9 @@ def test_facerefine_group_inline_bypass():
     assert src_of(5012, "height") == (5011, "canvas_h"), "5012.height=5011.canvas_h 出口联线勿手填"
     assert nodes[5012]["widgets_values"][3] == nodes[3031]["widgets_values"][3] == 56, \
         "5012.length 与 3031.length 同源同值(本件无帧数图出口,widget 同步纪律)"
-    assert src_of(5100, "on_true")[0] == 5023 and src_of(5100, "on_false")[0] == 3053 \
-        and src_of(5100, "switch")[0] == 1065, "5100 极性:真=修脸片/假=3053 直通(1118 双态实测定谳)"
+    assert src_of(5100, "on_true")[0] == 5113 and src_of(5100, "on_false")[0] == 3053 \
+        and src_of(5100, "switch")[0] == 1065, \
+        "5100 极性:真=修脸臂出口(1119 改接 5113,远景态经直通臂等效)/假=3053 直通(1118 双态实测定谳)"
     assert src_of(4100, "video")[0] == 5100
     assert nodes[4100]["widgets_values"][0] == "video/H3/分段视频/p-final", "p-final 终档前缀"
     assert bool(nodes[25]["widgets_values"][0].strip()), "#25 修脸身份提示词默认通用句非空"
@@ -306,3 +311,50 @@ def test_facerefine_group_inline_bypass():
                       and n["pos"][1] + n["size"][1] <= g["bounding"][1] + g["bounding"][3]
                       for g in d["groups"])
         assert covered, f"[{nid}] 修脸组节点未被组框罩全"
+
+
+def test_facerefine_dual_mode_1119():
+    """1119 双档移植(远景=默认/高清;同 id 直搬单镜六件,唯一改线 5100.on_true:5023→5113):
+    节点数 61→67 / 5111 出厂 False=远景档 / 5113 出口极性(真=5025 高清·假=5023 远景)/
+    5024/5025 复制对 widgets 逐位同 5022/5023 / masks 恒悬空 face_only / VOSR2 尾档
+    5109→5110(image←5021,control=fixed 禁 randomize)/ README 9999 语义差异刻碑
+    (multiseg 高清档从二采底放大——三采 mode=4 旁路;单镜从三采 p3 4K)。"""
+    d, nodes, links = _load()
+    assert len(nodes) == 67, f"画布节点数=67(61+1119 双档 6),现 {len(nodes)}"
+    assert nodes[5111]["type"] == "PrimitiveBoolean" and nodes[5111]["widgets_values"] == [False], \
+        "[5111] 高清子开关出厂必须 False(远景=默认修脸档)"
+
+    def src_of(nid, slot):
+        lid = next(s["link"] for s in nodes[nid]["inputs"] if s["name"] == slot)
+        l = links[lid]
+        return l[1], nodes[l[1]]["outputs"][l[2]]["name"]
+
+    # 出口投切极性(两 Switch 均「真=新臂」,防 wf2api 反转坑)
+    assert (src_of(5113, "switch")[0], src_of(5113, "on_false")[0], src_of(5113, "on_true")[0]) \
+        == (5111, 5023, 5025), "[5113] 出口极性:switch←[5111]/on_false←[5023]远景/on_true←[5025]高清"
+    assert src_of(5100, "on_true")[0] == 5113, "[5100].on_true←[5113] 出口(1119 唯一改线,原 5023 等效改接)"
+    # 复制对 widgets 逐位(出口复制案保真)
+    assert nodes[5024]["widgets_values"] == nodes[5022]["widgets_values"], \
+        "[5024] 高清贴回 widgets 必须逐位同 [5022]"
+    assert nodes[5025]["widgets_values"] == nodes[5023]["widgets_values"], \
+        "[5025] widgets 必须逐位同 [5023]"
+    # 5024 三进口 + masks 恒悬空(face_only 贴回;V2.2 砍 SAM3 后复制对原样)
+    assert (src_of(5024, "refined_crops")[0], src_of(5024, "base_images")[0],
+            src_of(5024, "transform")[0]) == (5110, 5002, 5011), \
+        "[5024] refined_crops←[5110](VOSR2)/base←[5002]/transform←[5011]"
+    m24 = next(e for e in nodes[5024]["inputs"] if e["name"] == "masks")
+    assert m24.get("link") is None, "[5024].masks 恒悬空(face_only,同 [5022])"
+    assert (src_of(5025, "images")[0], src_of(5025, "audio")[0]) == (5024, 5002), \
+        "[5025] images←[5024]/audio←[5002]②"
+    # VOSR2 尾档(参数逐位照单镜)
+    assert (src_of(5110, "model")[0], src_of(5110, "image")[0]) == (5109, 5021), \
+        "[5110] model←[5109]/image←[5021] 解码 768 画布"
+    assert nodes[5110]["widgets_values"] == [1, 300831622214023, "fixed", "wavelet", 512, 32, 1024, 32], \
+        "[5110] widgets 逐位照单镜(control=fixed seed 锁 300831622214023 禁 randomize)"
+    assert nodes[5109]["widgets_values"] == ["VOSR2", "default"], "[5109] widgets 逐位照单镜"
+    # 远景臂零语义改写(871 线原样)
+    assert src_of(5022, "refined_crops")[0] == 5021, "[5022].refined_crops←[5021] 远景臂原样"
+    # README 9999 语义差异刻碑
+    md = nodes[9999]["widgets_values"][0]
+    for kw in ("1119 双档调用", "非法态", "二采底", "三采 p3 4K"):
+        assert kw in md, f"README 9999 双档段缺关键内容: {kw}"

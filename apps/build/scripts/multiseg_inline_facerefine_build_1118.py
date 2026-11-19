@@ -17,9 +17,17 @@
   编号               = 沿用母本组号 25/1065/5002/5006/5011-5023/5100/4100(本件既有 id 段
                        2-41/100-102/1021-1046/3001-3071/4001-4003/9999 全不撞,零重编号)
 
-节点数:画布 41→60(+19;lowvram役 81f8909f 后又 +1066=61,check 按 61 对账)/API
-h3-multiseg-template.api.json(平铺 prompt dict,已核无 wrapper)14→35(+19+remux5030/5031)。
-API 侧链尾=36 CreateVideo(一采直出门自己的终采口),5002/5100 接 36。
+节点数:画布 41→60(+19;lowvram役 81f8909f 后又 +1066=61)→1119 双档移植 +6=67
+(check 按 67 对账)/API h3-multiseg-template.api.json(平铺 prompt dict,已核无 wrapper)
+14→35(+19+remux5030/5031)→1119 双档 +6=41。API 侧链尾=36 CreateVideo(一采直出
+门自己的终采口),5002/5100 接 36。
+
+1119 双档移植(11-19-dualmode-facerefine-rename 二役):同 id 直搬单镜六件
+(5109/5110 VOSR2 尾档+5111 高清子开关+5113 出口投切+5024/5025 复制对),参数逐位
+照单镜.json(本生成器自 SRC 克隆即天然逐位);唯一改线 5100.on_true:5023→5113;
+**语义差异(README 9999 刻碑)**:multiseg 高清档从二采底(3053 p2)放大(其三采
+4001-4003 出厂 mode=4 旁路),单镜从三采 p3 4K——两件修脸入口不同,VOSR2 吃的是
+5021 解码 768 画布同款,档位语义一致、上游底不同。
 
 ⚠ 真源关系(头注刻碑):本件手术入口=本生成器(读盘剥离+重放,幂等);既有
 multiseg_full3stage_extend.py 的 build_full3stage_graph 只透传 12 旧锚点+自建 29 节点——
@@ -55,15 +63,14 @@ REF_API = 9                 # API 模板 LoadImage(画布件无 LoadImage,零参
 API_TAIL = 36               # API 模板自己的终采 VIDEO 输出节点(CreateVideo 一采直出)
 PREFIX_P_FINAL = "video/H3/分段视频/p-final"
 
-# 1119 双档核验(PRD 3.4,结论回填):母本 1119 起 OWN 扩为 25(+HD_IDS 6 件远景/高清
-# 双档段,V2.2 砍 SAM3 后口径;V2 曾为 33/14、V2.1 为 29/10——5105/5106/5107/5112 已随
-# SLNM 路砍除,5101-5104 已随 SAM3 支路砍除,均天然不在),本件若直接继承会误带
-# VOSR2/投切段进 multiseg——已证带,加节点过滤(只克隆 5000 段修脸原链 19 件);
-# multiseg 不随双档役,双档需求走正典件(V2.2 复跑 --check 天然适配实证)。
-HD_FILTER = set(getattr(MB, "HD_IDS", set()))
-OWN: dict[int, str] = {k: v for k, v in MB.OWN.items() if k not in HD_FILTER}
-WIDGETS = {k: (list(v) if v is not None else None) for k, v in MB.WIDGETS.items()
-           if k not in HD_FILTER}
+# 1119 双档移植(母本 1119 起 OWN 扩为 25 件):全量继承,不再过滤 HD_IDS——六件
+# (5109/5110 VOSR2 尾档+5111/5113 投切+5024/5025 复制对)同 id 直搬;母本 V2.1/V2.2
+# 砍除面(5105-5107/5112/5101-5104)随 RETIRED 一并防御性剥离(multiseg 盘上天然无,
+# 重跑他人误植即净)。1118 役曾以 HD_FILTER 只取 19 件原链(当时 multiseg 不随双档),
+# 本役开放。
+OWN: dict[int, str] = dict(MB.OWN)
+RETIRED: dict[int, str] = dict(MB.RETIRED)  # V2.1/V2.2 砍除件:multiseg 天然无,防御性同剥
+WIDGETS = {k: (list(v) if v is not None else None) for k, v in MB.WIDGETS.items()}
 WIDGETS[5012] = ["", 768, 768, LENGTH, "max"]   # length=56 出厂(3031 同值);宽高位被 5011 联线覆盖
 WIDGETS[4100] = [PREFIX_P_FINAL, "auto", "auto", "auto"]  # p-final 前缀换本件口径(勿承三采 chapter-001)
 # 5011 追踪分策(1118 收尾):锚三元组取母本终版(closest_to_xy/1920/900/@f170),身份栈退回
@@ -73,9 +80,10 @@ _w = WIDGETS[5011]
 _w[11], _w[16] = 0.28, "insightface"
 WIDGETS[5011] = _w
 
-GROUP_A_TITLE = "四采修脸组(5000 段·默认旁路·1118 multiseg)"
+GROUP_A_TITLE = "四采修脸组(5000 段·远景/高清双档·默认旁路·1118→1119 multiseg)"
+GROUP_A_TITLE_1118 = "四采修脸组(5000 段·默认旁路·1118 multiseg)"  # 1118 旧标题,剥离过渡期一并移除
 GROUP_B_TITLE = "终档组(p-final·四采开关·1118 multiseg)"
-GROUP_A_IDS = set(MB.GROUP_A_IDS) - HD_FILTER  # 25/1065/5002/5006/5011-5023(滤除 1119 双档 10 件)
+GROUP_A_IDS = set(MB.GROUP_A_IDS)           # 25/1065/5002/5006/5011-5025/5109-5111/5113(1119 双档六件入同组)
 GROUP_B_IDS = set(MB.GROUP_B_IDS)           # 5100/4100
 README_MARK = "\n\n---\n\n## 四采修脸(内置·默认旁路·1118 multiseg)"
 README_SECTION = README_MARK + """
@@ -87,16 +95,31 @@ README_SECTION = README_MARK + """
   conf0.15/兜底 segm\\person_yolov8m-seg.pt/largest_face)→ 5012 H3 重画(**宽高=5011 出口联线勿手填**/
   参考图=零参考出厂/提示词=#25)→ 5013 注入真实帧 → 5014 音轨锁(audio←5002②)→ 5015 逐帧 denoise
   (60/200px)→ 5016-5020 采样(seed 42 同 3040/lcm/simple/8步/0.45)→ 5021 解码 → 5022 贴回(16/24)
-  → 5023 合成 → 5100 终档选择 → 4100 p-final
+  → 5023 合成 → 5113 出口选择 → 5100 终档选择 → 4100 p-final
 - **帧数同步纪律(本件专属)**:本件无帧数图出口——改 [3031].length 必须同步 [5012].length
   (出厂两处皆 56;livefire/发车器覆写 3031.length 时同步覆写 5012.length)
-- **极性口径**(同三采 1118 双态实测定谳):5100 on_true=修脸片(1065=true)/on_false=3053 p2 直通
-  (1065=false),勿手改(防 wf2api 反转坑)
+- **极性口径**(同三采 1118 双态实测定谳):5100 on_true=修脸臂出口(1065=true)/on_false=3053 p2 直通
+  (1065=false);5113 on_true=5025 高清片/on_false=5023 远景片——两 Switch 均「真=新臂」,勿手改(防 wf2api 反转坑)
 - **显存纪律**:5006 LoRA 挂 34 单 loader(全图禁第二个 UNETLoader);p1/p2 两档照常落盘,段B
   4001-4003 mode4 与 MyShot/3071 零改动(修脸组与段B 正交)
 - **生效面**:仓库/引擎直投即时生效;装机 App 面候打包窗口另役同步
 - **改版顺序**:本组手术入口=apps/build/scripts/multiseg_inline_facerefine_build_1118.py(幂等);
   multiseg_full3stage_extend.py 无参重跑会抹本组(其只透传 12 锚点+自建 29),抹后重跑本生成器即恢复
+
+### 1119 双档调用(远景=默认 / 高清;multiseg 移植)
+
+- **#5111「高清修脸」子开关**(默认 **False=远景档**):False 时 5113 出口 VIDEO Switch 直通 5023
+  远景链、5022/5024.masks 恒悬空(face_only 脸框贴回=正典现状);True 时 VOSR2 高频尾档
+  (5110,control=**fixed** seed 锁 300831622214023 禁 randomize 回抖)→ 5024/5025 高清复制对
+  (**5024.masks 悬空=face_only 贴回,与 5022 同款**)→ 5113 出口
+- **四态矩阵**:1065=False(出厂)→ p2 直通不修脸;1065=True ∧ 5111=False → **远景修脸=默认修脸档**;
+  1065=True ∧ 5111=True → 高清修脸;**1065=False ∧ 5111=True = 非法态**(高清段被计算却在 5100
+  被丢弃=静默剪枝)——发车器(API 直调)注入前必须拒绝此组合
+- **语义差异(multiseg ↔ 单镜,刻碑)**:multiseg 高清档从**二采底**(3053 p2 出片)放大——本件三采
+  4001-4003 出厂 mode=4 旁路(两步法手册),修脸组接 3053 与段B 正交;单镜从**三采 p3 4K**放大
+  (5002 拆 4002)。两件 VOSR2 均吃 5021 解码 768 画布,档位语义一致、上游底不同
+- **API 直调(延伸)**:远景档 `g["1065"]...=true`;高清档再加 `g["5111"]["inputs"]["value"]=true`
+  (+#25 身份句;1065=false 时发车器拒单)
 """
 
 TITLE = dict(MB.TITLE)
@@ -111,16 +134,24 @@ TITLE[5006] = "四采·Pika turbo 8step LoRA(复用 34)"
 # 落行)→5015→5020→5021→5022→5023(GAP 200 链);R3 y2520 纵堆(5016/5019/5017/5018
 # 行序=5020 输入槽序 noise/guider/sampler/sigmas,x 全等净距恰 80);寄生:25 右缘齐 5012
 # 左缘(y=5011 est 底+80)、1065=5100 左 530(y=5013 est 底+80)。重跑本生成器按本表落位。
+# 1119 双档六件(单镜同构三行带,R3 底 3316 之下):行A' y3480:5109→5110(>5021.x=15150,
+# 5021→5110 线恒右向)→行B' y3800:5024(吃 5110,净距 70)→5025;出口行 y4160:5113
+# (>5023.x=16130 且 <5100.x=16600,组框 A 右缘 16470 让开终档组 x1=16540 恰 70px);
+# 开关位 5111=臂头下方 y3800(左于 5113 扇出,同 单镜「开关位左置」口径)。
 POS = {
     5002: [11300, 1000], 5011: [11770, 1000], 5012: [12330, 1000], 5013: [12930, 1000],
     5006: [12730, 1760], 5014: [13330, 1760], 5015: [13860, 1760],
     5016: [14260, 2520], 5019: [14260, 2748], 5017: [14260, 2940], 5018: [14260, 3138],
     5020: [14700, 1760], 5021: [15150, 1760], 5022: [15600, 1760], 5023: [16130, 1760],
     5100: [16600, 1000], 4100: [17070, 1000], 25: [11900, 2002], 1065: [16070, 1216],
+    # ---- 1119 HD 段(见上布局注;单镜同构六件)----
+    5111: [12060, 3800],
+    5109: [15210, 3480], 5110: [15570, 3480],
+    5024: [15670, 3800], 5025: [16050, 3800], 5113: [16140, 4160],
 }
 SIZE = dict(MB.SIZE)
 
-# ---- 连线(母本 40 条减 ref/length 两条=38;锚=3053/34/21/7/13)----
+# ---- 连线(母本 40 条减 ref/length 两条=38 + 1119 双档 10 条=48;锚=3053/34/21/7/13)----
 WIRING = [
     (TAIL, "VIDEO", 5002, "video"),
     (TAIL, "VIDEO", 5100, "on_false"),
@@ -157,9 +188,21 @@ WIRING = [
     (5020, "output", 5021, "samples"),
     (5021, "IMAGE", 5022, "refined_crops"),
     (5022, "images", 5023, "images"),
-    (5023, "VIDEO", 5100, "on_true"),
     (1065, "BOOLEAN", 5100, "switch"),
     (5100, "COMFY_MATCHTYPE_V3", 4100, "video"),
+    # ---- 1119 高清段(VOSR2 尾档;5024.masks 恒悬空=face_only 贴回,同 单镜 V2.2)----
+    (5109, "model", 5110, "model"),
+    (5021, "IMAGE", 5110, "image"),
+    (5110, "IMAGE", 5024, "refined_crops"),
+    (5002, "images", 5024, "base_images"),
+    (5011, "transform", 5024, "transform"),
+    (5024, "images", 5025, "images"),
+    (5002, "audio", 5025, "audio"),
+    (5025, "VIDEO", 5113, "on_true"),
+    # ---- 1119 投切(出口复制案)----
+    (5023, "VIDEO", 5113, "on_false"),     # 原 5023→5100.on_true 等效改接(远景态直通臂)
+    (5111, "BOOLEAN", 5113, "switch"),
+    (5113, "COMFY_MATCHTYPE_V3", 5100, "on_true"),
 ]
 
 
@@ -202,12 +245,16 @@ def api_node(k: str) -> dict:
 
 
 def strip_canvas(S: dict) -> dict:
-    """剥离本组既往添加(幂等;剥离前校验类型防误删他人节点)。"""
-    own_ids = set(OWN)
+    """剥离本组既往添加(幂等;剥离前校验类型防误删他人节点)。
+
+    own_ids 含 RETIRED(母本 V2.1/V2.2 砍除件)——multiseg 盘上天然无,误植重放即净;
+    组标题含 1118 旧称(双档移植前)过渡剥离。"""
+    own_ids = set(OWN) | set(RETIRED)
+    expect = {**OWN, **RETIRED}
     for n in list(S["nodes"]):
         if n["id"] in own_ids:
-            if n["type"] != OWN[n["id"]]:
-                die(f"画布件 #{n['id']} 已被他人占用为 {n['type']}(预期 {OWN[n['id']]}) ,拒剥")
+            if n["type"] != expect[n["id"]]:
+                die(f"画布件 #{n['id']} 已被他人占用为 {n['type']}(预期 {expect[n['id']]}),拒剥")
             S["nodes"].remove(n)
     removed = [l for l in S["links"] if l[1] in own_ids or l[3] in own_ids]
     removed_ids = {l[0] for l in removed}
@@ -220,7 +267,7 @@ def strip_canvas(S: dict) -> dict:
                 if isinstance(slot.get("links"), list):
                     slot["links"] = [x for x in slot["links"] if x not in removed_ids]
     S["groups"] = [g for g in S.get("groups", [])
-                   if g.get("title") not in (GROUP_A_TITLE, GROUP_B_TITLE)]
+                   if g.get("title") not in (GROUP_A_TITLE, GROUP_A_TITLE_1118, GROUP_B_TITLE)]
     for n in S["nodes"]:
         if n["id"] == 9999:
             md = n["widgets_values"][0]
@@ -262,7 +309,7 @@ def build_canvas(S: dict, src_nodes: list) -> dict:
         dst["inputs"][di]["link"] = next_link
         next_link += 1
     S["last_link_id"] = next_link - 1
-    S["last_node_id"] = max(S["last_node_id"], TAIL, 5100, 4100, 1065)
+    S["last_node_id"] = max(S["last_node_id"], TAIL, 5100, 4100, 1065, 5113)
 
     def group(gid, title, ids, color, order):
         ns = [n for n in new_nodes if n["id"] in ids]
@@ -286,7 +333,7 @@ def build_canvas(S: dict, src_nodes: list) -> dict:
 
 
 def build_api(A: dict) -> dict:
-    for k, ct in OWN.items():
+    for k, ct in {**OWN, **RETIRED}.items():  # RETIRED 同剥(防御性:multiseg 盘上天然无)
         old = A.get(str(k))
         if old is not None and old.get("class_type") != ct:
             die(f"API 模板节点 {k} 已被他人占用为 {old.get('class_type')}(预期 {ct}),拒剥")
@@ -319,18 +366,24 @@ def check() -> int:
 
     n_canvas, n_api = len(S["nodes"]), len(A)
     print(f"[CHECK] 画布节点 {n_canvas}(41+{n_canvas - 41}) / API 节点 {n_api}(14+{n_api - 14})")
-    ok(n_canvas == 61, f"画布节点数=61(41+19 修脸组+lowvram役#1066),实际 {n_canvas}")
-    ok(n_api == 35, f"API 节点数=35(14+19+remux5030/5031),实际 {n_api}")
+    ok(n_canvas == 67, f"画布节点数=67(41+19 修脸组+lowvram役#1066+1119 双档 6),实际 {n_canvas}")
+    ok(n_api == 41, f"API 节点数=41(14+19+remux5030/5031+1119 双档 6),实际 {n_api}")
 
     ids = [n["id"] for n in S["nodes"]]
     idset = set(ids)
     ok(len(ids) == len(idset), "画布节点 id 唯一")
     ok(all(l[1] in idset and l[3] in idset for l in S["links"]), "画布无悬空链")
-    ok(all(str(i) in A for i in OWN), "19 新节点 API/画布两件齐备")
+    ok(all(i not in idset for i in RETIRED), "V2.1/V2.2 砍除件不在画布(防御性剥离面)")
+    ok(all(str(i) not in A for i in RETIRED), "V2.1/V2.2 砍除键不在 API(防御性剥离面)")
+    ok(all(str(i) in A for i in OWN), "25 新节点(19 臂+6 双档)API/画布两件齐备")
 
     ok(next(n for n in S["nodes"] if n["id"] == 1065).get("widgets_values") == [False],
        "画布 #1065 开关默认 False")
     ok(A["1065"]["inputs"]["value"] is False, "API #1065 开关默认 False")
+    b111 = next(n for n in S["nodes"] if n["id"] == 5111)
+    ok(b111["type"] == "PrimitiveBoolean" and b111.get("widgets_values") == [False],
+       "画布 #5111 高清子开关默认 False(远景=默认档)")
+    ok(A["5111"]["inputs"]["value"] is False, "API #5111 默认 False(可注入)")
     unets = [n for n in S["nodes"] if n["type"] == "UNETLoader"]
     ok(len(unets) == 1 and unets[0]["id"] == UNET, f"画布无第二个 UNETLoader(仅 #{UNET})")
     ok(sum(1 for v in A.values() if v["class_type"] == "UNETLoader") == 1,
@@ -369,33 +422,73 @@ def check() -> int:
         if not inside:
             cover = False
             print(f"  ..  #{n['id']} 未被组框罩住")
-    ok(cover, "组框罩全(19 新节点全部落框)")
+    ok(cover, "组框罩全(25 新节点全部落框,双档六件入四采组框不立第三框)")
+    gover = []
+    all_groups = S.get("groups", [])
+    for i in range(len(all_groups)):
+        for j in range(i + 1, len(all_groups)):
+            a, b = all_groups[i]["bounding"], all_groups[j]["bounding"]
+            if a[0] < b[0] + b[2] and b[0] < a[0] + a[2] and a[1] < b[1] + b[3] and b[1] < a[1] + a[3]:
+                gover.append((all_groups[i]["title"], all_groups[j]["title"]))
+    ok(not gover, f"组框两两不交(A 右缘让开终档组),违例 {gover}")
 
     def wired(nid, in_name, want_src):
         l = src_of(nid, in_name)
         return bool(l) and l[1] == want_src
 
-    ok(wired(5002, "video", TAIL) and wired(5100, "on_false", TAIL) and wired(5100, "on_true", 5023)
+    ok(wired(5002, "video", TAIL) and wired(5100, "on_false", TAIL) and wired(5100, "on_true", 5113)
        and wired(5100, "switch", 1065) and wired(4100, "video", 5100)
        and wired(5006, "model", 1066)  # 81f8909f lowvram 插桩后经 1066 头分块收束点=34 扇出之后
        and wired(5014, "audio", 5002) and wired(5019, "conditioning", 5012)
        and wired(5020, "noise", 5016),
-       f"关键联线拓扑(5002←{TAIL}/5100 双臂+开关/4100←5100/5006←{UNET}/5014.audio←5002②/5019←5012/5020←5016)")
+       f"关键联线拓扑(5002←{TAIL}/5100 双臂+开关(1119 改接 on_true←5113)/4100←5100/5006←{UNET}/5014.audio←5002②/5019←5012/5020←5016)")
     ok(A["5002"]["inputs"]["video"] == ["5031", 0]
        and A["5100"]["inputs"]["on_false"] == ["5031", 0]
        and A["5030"]["inputs"]["video"] == [str(API_TAIL), 0]
-       and A["5100"]["inputs"]["on_true"] == ["5023", 0]
+       and A["5100"]["inputs"]["on_true"] == ["5113", 0]
        and A["4100"]["inputs"]["video"] == ["5100", 0]
        and A["5006"]["inputs"]["model"] == [str(UNET), 0]
        and A["5012"]["inputs"]["ref_images.ref_image_0"] == [str(REF_API), 0]
-       and A["5012"]["inputs"]["length"] == LENGTH, "API 关键拓扑同构(链尾 36/UNET 34/参考图 9/length 56)")
+       and A["5012"]["inputs"]["length"] == LENGTH, "API 关键拓扑同构(链尾 36/UNET 34/参考图 9/length 56/5100.on_true←5113)")
 
-    ok(all(A[str(i)]["class_type"] == OWN[i] for i in OWN), "API/画布 19 节点 class_type 同构")
+    # ---- 1119 双档结构契约(同 单镜 test_facerefine_dual_mode_1119 口径)----
+    ok(wired(5113, "switch", 5111) and wired(5113, "on_false", 5023) and wired(5113, "on_true", 5025),
+       "5113 出口极性:switch←5111/on_false←5023 远景/on_true←5025 高清")
+    ok(wired(5110, "model", 5109) and wired(5110, "image", 5021),
+       "VOSR2 尾档:5109→5110(image←5021 解码 768 画布)")
+    ok(nmap[5110]["widgets_values"] == [1, 300831622214023, "fixed", "wavelet", 512, 32, 1024, 32]
+       and nmap[5110]["widgets_values"][2] == "fixed",
+       "5110 widgets 逐位照单镜(control=fixed seed 锁 300831622214023 禁 randomize)")
+    ok(nmap[5109]["widgets_values"] == ["VOSR2", "default"], "5109 widgets 逐位照单镜")
+    ok(nmap[5024]["widgets_values"] == nmap[5022]["widgets_values"],
+       "5024 widgets 逐位同 5022(高清复制对)")
+    ok(nmap[5025]["widgets_values"] == nmap[5023]["widgets_values"], "5025 widgets 逐位同 5023")
+    m24 = next(s for s in nmap[5024]["inputs"] if s["name"] == "masks")
+    ok(m24.get("link") is None, "5024.masks 恒悬空(face_only 贴回,同 5022/单镜 V2.2 口径)")
+    ok(wired(5024, "refined_crops", 5110) and wired(5024, "base_images", 5002)
+       and wired(5024, "transform", 5011),
+       "5024 三进口:refined_crops←5110(VOSR2)/base←5002/transform←5011(masks 悬空)")
+    ok(wired(5025, "images", 5024) and wired(5025, "audio", 5002), "5025:images←5024/audio←5002②")
+    ok("masks" not in A["5024"]["inputs"] and A["5024"]["inputs"]["refined_crops"] == ["5110", 0]
+       and A["5113"]["inputs"] == {"switch": ["5111", 0], "on_false": ["5023", 0], "on_true": ["5025", 0]}
+       and A["5025"]["inputs"]["images"] == ["5024", 0] and A["5025"]["inputs"]["audio"] == ["5002", 1],
+       "API 双档同构(5024 无 masks 注入+5113/5025 投切复制对)")
+
+    # ---- 布局契约(零左向;单镜同构刻碑)----
+    left_bad = [(l[0], l[1], l[3]) for l in S["links"]
+                if nmap[l[3]]["pos"][0] <= nmap[l[1]]["pos"][0]]
+    ok(not left_bad, f"全链恒向右(零左向线),违例 {left_bad[:5]}")
+    ok(nmap[5110]["pos"][0] > nmap[5021]["pos"][0], "5110>5021(5021→5110 线恒右向,单镜同构)")
+
+    ok(all(A[str(i)]["class_type"] == OWN[i] for i in OWN), "API/画布 25 节点 class_type 同构")
     t25 = next(n for n in S["nodes"] if n["id"] == 25)
     ok(bool(t25["widgets_values"][0].strip()) and A["25"]["inputs"]["value"] == t25["widgets_values"][0],
        "#25 默认通用句两件一致且非空")
-    ok(README_MARK in next(n for n in S["nodes"] if n["id"] == 9999)["widgets_values"][0],
-       "README 9999 已增「四采修脸」段")
+    md = next(n for n in S["nodes"] if n["id"] == 9999)["widgets_values"][0]
+    ok(README_MARK in md, "README 9999 已增「四采修脸」段")
+    ok("### 1119 双档调用(远景=默认 / 高清;multiseg 移植)" in md and "非法态" in md
+       and "二采底" in md and "三采 p3 4K" in md,
+       "README 9999 已增 1119 双档段(四态矩阵+非法态+multiseg↔单镜 语义差异刻碑)")
     ok(S["last_link_id"] == max(l[0] for l in S["links"]), "last_link_id 已对齐最大链号")
 
     if fails:
@@ -410,13 +503,24 @@ def check() -> int:
 def main() -> int:
     if "--check" in sys.argv:
         return check()
+    src_nodes = json.loads(SRC.read_text(encoding="utf-8"))["nodes"]
     S = strip_canvas(json.loads(CANVAS.read_text(encoding="utf-8")))
-    S = build_canvas(S, json.loads(SRC.read_text(encoding="utf-8"))["nodes"])
+    S = build_canvas(S, src_nodes)
     write_json(CANVAS, S)
     A = build_api(json.loads(API.read_text(encoding="utf-8")))
     write_json(API, A)
-    print(f"[OK] 画布 {CANVAS.name}:{len(S['nodes'])} 节点(41+19)/ {len(S['links'])} 链 / {len(S['groups'])} 组")
-    print(f"[OK] API {API.name}:{len(A)} 节点(14+19)")
+    print(f"[OK] 画布 {CANVAS.name}:{len(S['nodes'])} 节点(41+19+1119 双档 6)/ {len(S['links'])} 链 / {len(S['groups'])} 组")
+    print(f"[OK] API {API.name}:{len(A)} 节点(14+19+remux2+1119 双档 6)")
+
+    # 幂等双跑字节一致(同母本 AC6):盘上产物再剥再建应逐字节复现
+    S2 = build_canvas(strip_canvas(json.loads(CANVAS.read_text(encoding="utf-8"))), src_nodes)
+    A2 = build_api(json.loads(API.read_text(encoding="utf-8")))
+    idem = (json.dumps(S2, ensure_ascii=False, indent=2) == CANVAS.read_text(encoding="utf-8")
+            and json.dumps(A2, ensure_ascii=False, indent=2) == API.read_text(encoding="utf-8"))
+    if not idem:
+        print("[FATAL] 幂等双跑字节不一致(生成器非确定性,禁改规格迁就)")
+        return 1
+    print("[OK] 幂等双跑字节一致(AC6)")
     return check()
 
 

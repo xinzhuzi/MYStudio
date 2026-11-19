@@ -5,7 +5,8 @@
 
   队列门(GET /queue:空即发;繁忙超观察窗且无同前缀/同 client 在途=降级放行排队;
   同前缀在途才死等到上限——1118 实勘:引擎被并行长任务常年占用,「空才发」不可满足)
-  → 按态注入 g["1065"].value 与 g["25"].value
+  → 按态注入 g["1065"].value 与 g["25"].value(--hd 再注入 g["5111"].value=true;
+     1065=false ∧ 5111=true 非法态拒发,inject_switches 纯函数单测覆盖)
   → POST /prompt → /history 轮询 + /ws 执行节点流取证 → execution_interrupted 则重发(≤--max-resend)
   → 完赛取证:
      bypass:执行节点清单 50xx 前缀计数(须 websocket 证据)+ 终档 p-final 对 p3 同帧差(重编码级)
@@ -18,6 +19,7 @@ cat 远端产物,带重试)。素材已在引擎 input:ycx4k-ref.png / transpare
 用法示例:
   python3 inline_fire_runner_1118.py --config probe.json --state bypass --prefix video/漫影/facerefine-1118/bypass
   python3 inline_fire_runner_1118.py --config probe.json --state repair  --prefix video/漫影/facerefine-1118/repair
+  python3 inline_fire_runner_1118.py --config probe.json --state repair --hd   --prefix video/漫影/facerefine-1119/hd  # 高清修脸档
   python3 inline_fire_runner_1118.py --config probe.json --state bypass --dry-run   # 只看不发
 """
 from __future__ import annotations
@@ -316,6 +318,24 @@ def frame_diff(a: bytes, b: bytes) -> dict:
         return {"mean": round(s / max(total, 1), 4), "changed_px_gt12": changed, "pixels": total}
 
 
+# ---------------- 双开关注入+四态联动校验(1119 双档役,纯函数供单测) ----------------
+def inject_switches(g: dict, state: str, hd: bool) -> str | None:
+    """按态注入 g["1065"]/g["5111"] 并做联动校验;返回拒发错误消息(None=放行)。
+
+    四态矩阵(README 9999 刻碑):1065F+5111F=p3/p2 直通(出厂)·1065T+5111F=远景修脸
+    (默认修脸档)·1065T+5111T=高清修脸·**1065F+5111T=非法态**(高清段被计算却在
+    5100 被丢弃=静默剪枝)——注入前必须拒绝。config 自带 5111=true 而 state=bypass
+    (未开 --hd)同样按非法态拒(发车器对终图状态负责,不透传模板残值)。"""
+    g["1065"]["inputs"]["value"] = (state == "repair")
+    if "5111" not in g:
+        return None if not hd else "config 缺节点 5111(高清修脸须 1119 双档臂 API 模板)"
+    if hd:
+        g["5111"]["inputs"]["value"] = True
+    if g["5111"]["inputs"]["value"] is True and g["1065"]["inputs"]["value"] is not True:
+        return "高清修脸需先开修脸总开关(1065)"
+    return None
+
+
 # ---------------- 主流程 ----------------
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -323,6 +343,9 @@ def main() -> int:
                     help="API 平铺 prompt dict JSON 文件;裸传/缺省=内置 5s 探针装配"
                          "(API 模板+ycx4k-ref.png 全图槽+组装器缺省面同款摘除)")
     ap.add_argument("--state", required=True, choices=["bypass", "repair"])
+    ap.add_argument("--hd", action="store_true",
+                    help="高清修脸档(1119 双档):注入 g[\"5111\"].value=true;须 --state repair"
+                         "(1065=false 时拒发——非法态=高清段静默剪枝)")
     # --prefix/--probe/--identity 均为可选值参数(nargs="?"):发车门 flag 风格裸传不炸
     # (1118 门红判例:--probe 被当无值 flag 传 → expected one argument)
     ap.add_argument("--prefix", nargs="?", const=None, default=None,
@@ -357,7 +380,10 @@ def main() -> int:
             print(json.dumps({"all_pass": False, "error": f"config 缺节点 {need}(须用内置修脸臂的 API 模板)"},
                              ensure_ascii=False))
             return 1
-    g["1065"]["inputs"]["value"] = (a.state == "repair")
+    err = inject_switches(g, a.state, a.hd)  # 1119 双档:5111 可注入+1065/5111 联动校验(非法态拒发)
+    if err:
+        print(json.dumps({"all_pass": False, "error": err}, ensure_ascii=False))
+        return 1
     if a.identity:
         g["25"]["inputs"]["value"] = a.identity
     if a.prefix:

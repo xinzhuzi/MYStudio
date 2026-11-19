@@ -505,7 +505,7 @@
         0
       ],
       "on_true": [
-        "5023",
+        "5113",
         0
       ]
     }
@@ -520,6 +520,97 @@
       "filename_prefix": "video/H3/分段视频/p-final",
       "format": "auto",
       "codec": "auto"
+    }
+  },
+  "5109": {
+    "class_type": "VOSR2ModelLoader",
+    "inputs": {
+      "model": "VOSR2",
+      "dtype": "default"
+    }
+  },
+  "5110": {
+    "class_type": "VOSR2Upscale",
+    "inputs": {
+      "model": [
+        "5109",
+        0
+      ],
+      "image": [
+        "5021",
+        0
+      ],
+      "upscale": 1,
+      "seed": 300831622214023,
+      "color_alignment": "wavelet",
+      "tile_size": 512,
+      "tile_overlap": 32,
+      "vae_tile_size": 1024,
+      "vae_tile_overlap": 32
+    }
+  },
+  "5111": {
+    "class_type": "PrimitiveBoolean",
+    "inputs": {
+      "value": false
+    }
+  },
+  "5113": {
+    "class_type": "ComfySwitchNode",
+    "inputs": {
+      "switch": [
+        "5111",
+        0
+      ],
+      "on_false": [
+        "5023",
+        0
+      ],
+      "on_true": [
+        "5025",
+        0
+      ]
+    }
+  },
+  "5024": {
+    "class_type": "H3FaceStitch",
+    "inputs": {
+      "base_images": [
+        "5002",
+        0
+      ],
+      "refined_crops": [
+        "5110",
+        0
+      ],
+      "transform": [
+        "5011",
+        1
+      ],
+      "paste_region": "face_only",
+      "mask_dilation": 16,
+      "feather": 24,
+      "colour_match": 1.0,
+      "blend": 1.0,
+      "undetected_frames": "fade_out"
+    }
+  },
+  "5025": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "5024",
+        0
+      ],
+      "audio": [
+        "5002",
+        1
+      ],
+      "fps": 24,
+      "bit_depth": "auto",
+      "color_space": "sRGB",
+      "chroma_subsampling": "auto",
+      "codec": "none"
     }
   }
 }
