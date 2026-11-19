@@ -13,6 +13,18 @@ lock_audio 无条件覆写 locked["noise_mask"]——上游 SetLatentNoiseMask �
 **砍 5105/5106/5107(MVEx+SLNM)与 5112(中链 LATENT Switch)**,MVEx 插件(GPL-3.0)
 随之退出依赖面;5013.av_latent→5014 直连复原正典原链:
 
+**V2.2 末轮修正(1119,PRD 零·五·二:高清贴回空贴根因+SAM3 砍除)**:
+SAM3_VideoTrack 文检"face"在 5011 的 768 crop 画布零命中(comfy/ldm/sam3/tracker.py:
+1790-1791 packed_masks=None)→SAM3_TrackToMask 静默返回全零 torch.zeros(comfy_extras/
+nodes_sam3.py:498-500)→H3FaceStitch masks 分支 mm_≡0 直通(nodes.py:2342-2344)
+=**空贴**;探子实证"face"全零/"person"=98.5% 全画布人形非脸,提示词修法不可行。
+修法实证:5024 masks 悬空(内置 face_only=transform.face_rect 路径)+VOSR2 保留→
+hd2 实弹锐度 f60 1.597×/f156 1.822×源反超远景档(1.209/1.197),rmse 10.26/6.36
+真贴回量级。故 **SAM3 支路(5101-5104)四节点全砍**(两轮素材零正增益;写实域其
+独立增益从未被正向拆分实证,陶艺增益实归 VOSR2+face_only 贴回);sam3.1 权重与
+CheckpointLoader 依赖退出;复活路径=未来可靠 mask 源(initial_mask/bbox 引导
+SAM3_Detect)另役记档 PRD。
+
   #25    修脸身份提示词 PrimitiveStringMultiline(默认通用句,调用方按角色覆写)
   #1065  四采开关 PrimitiveBoolean(默认 False=旁路,出厂态不因本役改变)
   #5111  高清修脸子开关 PrimitiveBoolean(默认 **False=远景档**;True=高清档)
@@ -22,22 +34,20 @@ lock_audio 无条件覆写 locked["noise_mask"]——上游 SetLatentNoiseMask �
          5023→5100.on_true 改经 5113 直通臂,远景态数据流等效 1118 正典
          (5013.av_latent→5014 直连=原链复原,V2.1 起零改写);5022.masks 恒悬空=
          face_only 脸框贴回保真)
-  高清段 6 节点(参数逐位承融合件 1119b;差分扩散 5108 已移除禁回加;SLNM 路砍除):
-         5101 CheckpointLoaderSimple(sam3.1_multiplex_fp16)→5102 CLIPTextEncode("face")
-         →5103 SAM3_VideoTrack(0.5/1/1,images=5011.crops)→5104 SAM3_TrackToMask("0")
-         遮罩只走贴回:5104.masks→5024.masks(单出口)
+  高清段 2 节点(V2.2 砍 SAM3 后;差分扩散 5108 已移除禁回加;SLNM 路砍除):
          VOSR2 尾档:5109 VOSR2ModelLoader("VOSR2"/default)→5110 VOSR2Upscale
          (1/300831622214023-**fixed**/wavelet/512/32/1024/32,image=5021.IMAGE)
   投切/复制 4 节点(出口复制案,5100 先例同构;全官方件零自定义投切,防缓存静默串档):
          5113 ComfySwitchNode(VIDEO 出口)on_false=5023 远景/on_true=5025 高清→5100.on_true
-         5024 H3FaceStitch 高清复制对(widgets 逐位同 5022;masks=5104 非 5022 悬空)
+         5024 H3FaceStitch 高清复制对(widgets 逐位同 5022;masks 恒悬空同 5022
+         =face_only 贴回,V2.2 砍 SAM3 后复制对原样)
          5025 CreateVideo 高清复制对(widgets 逐位同 5023)
   5100   ComfySwitchNode(switch←1065,on_false=4002 p3 直通,on_true=5113 出口)
   4100   SaveVideo(p-final)
 
-节点账:画布 87→97(+10)、API 85→95(+10)。组框恒 7 组(扩四采组框罩全,组标题
+节点账:画布 87→93(+6,V2.2)、API 85→91(+6)。组框恒 7 组(扩四采组框罩全,组标题
 更新双档口径)。布局:HD 段居 5000 带下方 y≥7300 行带+开关位+出口行,全链恒向右
-(含 5103>5011/5110>5021 两处融合件左向后勘)、节点 AABB 零重叠、
+(5110>5021 融合件左向后勘;V2.2 砍 5101-5104 后行A SAM3 链腾空)、节点 AABB 零重叠、
 组框两两不交(A 右缘让开终档组 120px)。
 
 API 模板 +10 同构:命名输入实证源=object_info_17000.json+P1/P2 探针实跑图
@@ -71,7 +81,7 @@ IDENTITY = (
 )
 
 # ---- 本组节点规格(id → class_type);剥离与校验共用;序=重放 order 序 ----
-# 1118 臂 19 件 + 1119 双档 10 件(HD_IDS,V2.1 砍后);multiseg 嫁接件按 HD_IDS 过滤只取 19 件原链。
+# 1118 臂 19 件 + 1119 双档 6 件(HD_IDS,V2.2 砍 SAM3 后);multiseg 嫁接件按 HD_IDS 过滤只取 19 件原链。
 OWN: dict[int, str] = {
     25: "PrimitiveStringMultiline", 1065: "PrimitiveBoolean",
     5002: "GetVideoComponents", 5006: "LoraLoaderModelOnly",
@@ -81,19 +91,21 @@ OWN: dict[int, str] = {
     5018: "BasicScheduler", 5019: "BasicGuider", 5020: "SamplerCustomAdvanced",
     5021: "VAEDecode", 5022: "H3FaceStitch", 5023: "CreateVideo",
     5100: "ComfySwitchNode", 4100: "SaveVideo",
-    # ---- 1119 双档 +10(V2.1:6 融合段 + 5111/5113 + 5024/5025 复制对;砍 5105/5106/5107/5112)----
-    5101: "CheckpointLoaderSimple", 5102: "CLIPTextEncode",
-    5103: "SAM3_VideoTrack", 5104: "SAM3_TrackToMask",
+    # ---- 1119 双档 +6(V2.2:2 VOSR2 + 5111/5113 + 5024/5025 复制对;砍 5105-5107/5112/5101-5104)----
     5109: "VOSR2ModelLoader", 5110: "VOSR2Upscale",
     5111: "PrimitiveBoolean", 5113: "ComfySwitchNode",
     5024: "H3FaceStitch", 5025: "CreateVideo",
 }
-HD_IDS = {5101, 5102, 5103, 5104, 5109, 5110, 5111, 5113, 5024, 5025}
+HD_IDS = {5109, 5110, 5111, 5113, 5024, 5025}
 # V2.1 砍除件(PRD 零·五):SLNM 潜空间遮罩路被 AudioLock 源码级冲掉恒无效,连中链
-# 5112 一并砍——盘上 101 版(V2 全量)重放时须按此剥离(类型校验防误删他人节点)。
+# 5112 一并砍;V2.2 砍除件(PRD 零·五·二):SAM3 支路 5101-5104 全砍(文检"face"在
+# 768 crop 画布零命中→TrackToMask 全零→masks 分支空贴;两轮素材零正增益)——盘上
+# 97 版(V2.1 全量)重放时须按此剥离(类型校验防误删他人节点)。
 RETIRED: dict[int, str] = {
     5105: "MVEx_MaskCleanup", 5106: "MVEx_MaskToLatentSpace",
     5107: "SetLatentNoiseMask", 5112: "ComfySwitchNode",
+    5101: "CheckpointLoaderSimple", 5102: "CLIPTextEncode",
+    5103: "SAM3_VideoTrack", 5104: "SAM3_TrackToMask",
 }
 
 GROUP_A_TITLE = "四采修脸组(5000 段·远景/高清双档·默认旁路·1118→1119)"
@@ -115,15 +127,16 @@ README_SECTION = README_MARK + """
 
 ### 1119 双档调用(远景=默认 / 高清)
 
-- **#5111「高清修脸」子开关**(默认 **False=远景档**):False 时 5013→5014 直连(1118 正典原链)、5113 出口 VIDEO Switch 直通 5023 远景链、5022.masks 恒悬空(face_only 脸框贴回=正典现状);True 时 SAM3 遮罩贴回(5104→5024.masks)+ VOSR2 高频尾档(5110,control=**fixed** seed 锁 300831622214023 禁 randomize 回抖)→ 5024/5025 高清复制对 → 5113 出口
+- **#5111「高清修脸」子开关**(默认 **False=远景档**):False 时 5013→5014 直连(1118 正典原链)、5113 出口 VIDEO Switch 直通 5023 远景链、5022.masks 恒悬空(face_only 脸框贴回=正典现状);True 时 VOSR2 高频尾档(5110,control=**fixed** seed 锁 300831622214023 禁 randomize 回抖)→ 5024/5025 高清复制对(**5024.masks 悬空=face_only 贴回,与 5022 同款**)→ 5113 出口
 - **四态矩阵**:1065=False(出厂)→ p3 直通不修脸;1065=True ∧ 5111=False → **远景修脸=默认修脸档**;1065=True ∧ 5111=True → 高清修脸;**1065=False ∧ 5111=True = 非法态**(高清段被计算却在 5100 被丢弃=静默剪枝)——发车器/API 注入前必须拒绝此组合
 - **API 直调(延伸)**:远景档 `g["1065"]...=true`;高清档再加 `g["5111"]["inputs"]["value"]=true`(+#25 身份句)
 - **极性口径延伸(防 wf2api 反转坑)**:5100 on_true=修脸片/on_false=4002 p3 直通;**5113** on_true=5025 高清片/on_false=5023 远景片——两 Switch 均「真=新臂」,勿手改
-- **显存分账**:SAM3 只吃 5011 的 768 crops,VOSR2 只吃 5021 解码 768 画布,5024/5025 与 5022/5023 同量级——新增段无 4K 全帧重采样(4K 内联楔死前科均在 4K 全帧链)
-- **V2.1 砍除记(1119 探针定案)**:潜空间遮罩路(MVEx 清洗/入潜+SetLatentNoiseMask+中链 LATENT Switch)被 AudioLock 源码级冲掉(lock_audio 无条件覆写 noise_mask,恒无效)全砍——SAM3 遮罩只走贴回(5024.masks),5013→5014 直连复原正典原链
+- **显存分账**:VOSR2 只吃 5021 解码 768 画布,5024/5025 与 5022/5023 同量级——新增段无 4K 全帧重采样(4K 内联楔死前科均在 4K 全帧链)
+- **V2.1 砍除记(1119 探针定案)**:潜空间遮罩路(MVEx 清洗/入潜+SetLatentNoiseMask+中链 LATENT Switch)被 AudioLock 源码级冲掉(lock_audio 无条件覆写 noise_mask,恒无效)全砍,5013→5014 直连复原正典原链
+- **V2.2 砍除记(1119 实弹定案)**:SAM3 支路四节点(检查点/文检/追踪/轨迹转遮罩)砍除——文检「face」在 768 crop 画布零命中→轨迹转遮罩静默全零→贴回 masks 分支空贴(源码级根因链;「person」=98.5% 全画布人形非脸,提示词修法不可行),两轮素材零正增益;**高清档=face_only 贴回+VOSR2**(实弹锐度反超远景档)。复活路径:未来可靠 mask 源(initial_mask/bbox 引导 SAM3_Detect)另役再议
 """
 
-# ---- 画布模板来源:正典件既有节点(公共件)/ 克隆件(五件 H3 定制件)/ 硬编码(HD 段 9 件)----
+# ---- 画布模板来源:正典件既有节点(公共件)/ 克隆件(五件 H3 定制件)/ 硬编码(HD 段 2 件)----
 # HD 段结构硬编码自融合件 1119b(参数逐位;融合件已归档不再作模板源,作者件在
 # apps/output 可清亦不依赖)——槽名/形状/位序与 object_info_17000.json 对账。
 TPL_FROM_CANVAS = {5002: 42, 5006: 1012, 5012: 2001, 5016: 54, 5017: 2022, 5018: 2021,
@@ -132,41 +145,8 @@ TPL_FROM_CANVAS = {5002: 42, 5006: 1012, 5012: 2001, 5016: 54, 5017: 2022, 5018:
                    5025: 2051, 5111: 1061, 5113: 1062}  # 1119:复制对/双开关克隆同源件(V2.1 砍 5112 克隆位)
 TPL_FROM_CLONE = {5011: 5011, 5013: 5013, 5014: 5014, 5015: 5015, 5022: 5022, 5024: 5022}
 
-# HD 段 9 件硬编码槽结构(widget 口带 widget 子名;shape=7 悬空可选口;无 link 字段)
+# HD 段 2 件硬编码槽结构(V2.2 砍 SAM3 四件后仅 VOSR2 双件;widget 口带 widget 子名;无 link 字段)
 HD_TPL: dict[int, dict] = {
-    5101: {"type": "CheckpointLoaderSimple",
-           "inputs": [{"widget": {"name": "ckpt_name"}, "name": "ckpt_name", "label": "ckpt_name",
-                       "type": "COMBO", "localized_name": "ckpt_name"}],
-           "outputs": [{"name": "MODEL", "label": "MODEL", "type": "MODEL", "localized_name": "MODEL"},
-                       {"name": "CLIP", "label": "CLIP", "type": "CLIP", "localized_name": "CLIP"},
-                       {"name": "VAE", "label": "VAE", "type": "VAE", "localized_name": "VAE"}]},
-    5102: {"type": "CLIPTextEncode",
-           "inputs": [{"name": "clip", "label": "clip", "type": "CLIP", "localized_name": "clip"},
-                      {"widget": {"name": "text"}, "name": "text", "label": "text",
-                       "type": "STRING", "localized_name": "text"}],
-           "outputs": [{"name": "CONDITIONING", "label": "CONDITIONING", "type": "CONDITIONING",
-                        "localized_name": "CONDITIONING"}]},
-    5103: {"type": "SAM3_VideoTrack",
-           "inputs": [{"name": "images", "label": "images", "type": "IMAGE", "localized_name": "images"},
-                      {"name": "model", "label": "model", "type": "MODEL", "localized_name": "model"},
-                      {"shape": 7, "name": "initial_mask", "label": "initial_mask", "type": "MASK",
-                       "localized_name": "initial_mask"},
-                      {"shape": 7, "name": "conditioning", "label": "conditioning",
-                       "type": "CONDITIONING", "localized_name": "conditioning"},
-                      {"widget": {"name": "detection_threshold"}, "name": "detection_threshold",
-                       "label": "detection_threshold", "type": "FLOAT", "localized_name": "detection_threshold"},
-                      {"widget": {"name": "max_objects"}, "name": "max_objects", "label": "max_objects",
-                       "type": "INT", "localized_name": "max_objects"},
-                      {"widget": {"name": "detect_interval"}, "name": "detect_interval",
-                       "label": "detect_interval", "type": "INT", "localized_name": "detect_interval"}],
-           "outputs": [{"name": "track_data", "label": "track_data", "type": "SAM3_TRACK_DATA",
-                        "localized_name": "track_data"}]},
-    5104: {"type": "SAM3_TrackToMask",
-           "inputs": [{"name": "track_data", "label": "track_data", "type": "SAM3_TRACK_DATA",
-                       "localized_name": "track_data"},
-                      {"widget": {"name": "object_indices"}, "name": "object_indices",
-                       "label": "object_indices", "type": "STRING", "localized_name": "object_indices"}],
-           "outputs": [{"name": "masks", "label": "masks", "type": "MASK", "localized_name": "masks"}]},
     5109: {"type": "VOSR2ModelLoader",
            "inputs": [{"widget": {"name": "model"}, "name": "model", "label": "model",
                        "type": "COMBO", "localized_name": "model"},
@@ -186,10 +166,10 @@ HD_TPL: dict[int, dict] = {
                        "type": "INT", "localized_name": "tile_size"},
                       {"widget": {"name": "tile_overlap"}, "name": "tile_overlap", "label": "tile_overlap",
                        "type": "INT", "localized_name": "tile_overlap"},
-                      {"widget": {"name": "vae_tile_size"}, "name": "vae_tile_size",
-                       "label": "vae_tile_size", "type": "INT", "localized_name": "vae_tile_size"},
-                      {"widget": {"name": "vae_tile_overlap"}, "name": "vae_tile_overlap",
-                       "label": "vae_tile_overlap", "type": "INT", "localized_name": "vae_tile_overlap"}],
+                      {"widget": {"name": "vae_tile_size"}, "name": "vae_tile_size", "label": "vae_tile_size",
+                       "type": "INT", "localized_name": "vae_tile_size"},
+                      {"widget": {"name": "vae_tile_overlap"}, "name": "vae_tile_overlap", "label": "vae_tile_overlap",
+                       "type": "INT", "localized_name": "vae_tile_overlap"}],
            "outputs": [{"name": "IMAGE", "label": "IMAGE", "type": "IMAGE", "localized_name": "IMAGE"}]},
 }
 for _t in HD_TPL.values():
@@ -204,8 +184,6 @@ TITLE = {
     5016: "四采·噪声(同源 #54)", 5017: "四采·采样器(lcm)", 5018: "四采·调度 simple/8步/0.45",
     5019: "四采·引导器", 5020: "四采·采样", 5021: "四采·解码", 5022: "四采·贴回",
     5023: "四采·合成视频", 5100: "终档选择(1065:真=修脸片/假=p3 直通)", 4100: "终档保存 p-final",
-    5101: "四采·SAM3 检查点(高清)", 5102: "四采·SAM3 文本提示(face)",
-    5103: "四采·SAM3 视频追踪(高清)", 5104: "四采·SAM3 轨迹转遮罩(高清)",
     5109: "四采·VOSR2 加载器(高清)",
     5110: "四采·VOSR2 满血补频(高清·fixed)",
     5111: "高清修脸:False 远景(默认)/ True 高清",
@@ -214,13 +192,12 @@ TITLE = {
 }
 # 布局=拓扑分层列(x 严格右向,契约 test_no_negative_zone_and_no_leftward 刻碑:全链恒向右):
 # 主带 y5900 不动(5002→5011→5012→5013→5006→5014→5015→[5016/5019/5017/5018 同列纵堆]→
-# 5020→5021→5022→5023→5100→4100);1119 HD 段(V2.1 砍后)=主带下方行带+开关位+出口行
+# 5020→5021→5022→5023→5100→4100);1119 HD 段(V2.2 砍 SAM3 后)=主带下方行带+开关位+出口行
 # (存量节点零挪动):
-#   y7300 行A(SAM3 链):5101→5102→5103→5104(列步进让 5103>5011 融合件左向后勘);
 #   y7600 开关位:5111(左于 5113 扇出);
-#   右翼 y7300 行A':5109→5110(>5021.x=12040,第二处左向后勘)→y7600 行B':5024(吃 5110)
+#   右翼 y7300 行A':5109→5110(>5021.x=12040,融合件左向后勘)→y7600 行B':5024(吃 5110)
 #   →5025;y7960 出口行:5113(>5023.x 且 <5100.x,组框 A 右缘让开终档组 120px)。
-#   (V2.1 砍 5105-5107/5112:行A 右段与中链位腾空,不再摆件。)
+#   (V2.1 砍 5105-5107/5112;V2.2 砍 5101-5104:y7300 行A SAM3 链腾空,不再摆件。)
 # 组框罩全自算;全图节点 AABB 零重叠。
 POS = {
     5002: [7200, 5900], 5011: [7670, 5900], 5012: [8230, 5900], 5013: [8830, 5900],
@@ -228,8 +205,7 @@ POS = {
     5016: [11020, 6400], 5019: [11020, 6628], 5017: [11020, 6820], 5018: [11020, 7018],
     5020: [11590, 5900], 5021: [12040, 5900], 5022: [12490, 5900], 5023: [13020, 5900],
     5100: [13490, 5900], 4100: [13960, 5900], 25: [7800, 6902], 1065: [12960, 6270],
-    # ---- 1119 HD 段(见上布局注)----
-    5101: [7200, 7300], 5102: [7660, 7300], 5103: [8120, 7300], 5104: [8580, 7300],
+    # ---- 1119 HD 段(见上布局注;V2.2 砍 SAM3 后 6 件)----
     5111: [9500, 7600],
     5109: [12060, 7300], 5110: [12420, 7300],
     5024: [12520, 7600], 5025: [12900, 7600], 5113: [13040, 7960],
@@ -240,7 +216,6 @@ SIZE = {
     5016: [360, 148], 5017: [370, 118], 5018: [315, 178], 5019: [360, 112], 5020: [250, 184],
     5021: [250, 112], 5022: [330, 270], 5023: [270, 232],
     25: [430, 200], 1065: [300, 120], 5100: [270, 166], 4100: [283, 564],
-    5101: [400, 100], 5102: [400, 170], 5103: [400, 266], 5104: [320, 80],
     5109: [320, 82], 5110: [360, 250],
     5111: [300, 120], 5113: [270, 166],
     5024: [330, 270], 5025: [270, 232],
@@ -259,15 +234,11 @@ WIDGETS: dict[int, list | None] = {
     5022: ["face_only", 16, 24, 1, 1, "fade_out", False],
     5023: [24, 8, "sRGB", "none"],
     5100: [False], 4100: [PREFIX_P_FINAL, "auto", "auto", "auto"],
-    # ---- 1119 HD 段(逐位承融合件 1119b;5110 control=fixed 禁 randomize;V2.1 砍 5105-5107)----
-    5101: ["sam3.1_multiplex_fp16.safetensors"],
-    5102: ["face"],
-    5103: [0.5, 1, 1],
-    5104: ["0"],
+    # ---- 1119 HD 段(逐位承融合件 1119b;5110 control=fixed 禁 randomize;V2.2 砍 5101-5104)----
     5109: ["VOSR2", "default"],
     5110: [1, 300831622214023, "fixed", "wavelet", 512, 32, 1024, 32],
     5111: [False], 5113: [False],
-    5024: ["face_only", 16, 24, 1, 1, "fade_out", False],  # 逐位同 5022(出口复制案)
+    5024: ["face_only", 16, 24, 1, 1, "fade_out", False],  # 逐位同 5022(出口复制对原样)
     5025: [24, 8, "sRGB", "none"],                          # 逐位同 5023
 }
 
