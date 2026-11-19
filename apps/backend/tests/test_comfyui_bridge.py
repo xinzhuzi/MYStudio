@@ -173,7 +173,7 @@ class BridgeContractTests(unittest.TestCase):
                 bridge, "_available_node_classes", return_value=_all_template_classes_available()
             ), patch.object(bridge, "_http_json", side_effect=[
                 {"prompt_id": "p-config"}, {}, {},
-            ]) as http_json, patch.object(bridge.time, "monotonic", side_effect=[0.0, 1.0, 601.0]), patch.object(
+            ]) as http_json, patch.object(bridge.time, "monotonic", side_effect=[0.0, 1.0, 1501.0]), patch.object(
                 bridge.time, "sleep"
             ), patch("comfyui.engine_manager.EngineManager.ensure_engine_ready", return_value=True):
                 with self.assertRaises(PipelineError) as caught:
