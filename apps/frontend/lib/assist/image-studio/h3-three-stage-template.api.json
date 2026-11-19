@@ -998,7 +998,7 @@
         0
       ],
       "av_latent": [
-        "5013",
+        "5112",
         0
       ],
       "audio_vae": [
@@ -1163,7 +1163,7 @@
         0
       ],
       "on_true": [
-        "5023",
+        "5113",
         0
       ]
     }
@@ -1178,6 +1178,210 @@
       "filename_prefix": "video/漫影/chapter-001/sb-chapter-001-001/p-final",
       "format": "auto",
       "codec": "auto"
+    }
+  },
+  "5101": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "sam3.1_multiplex_fp16.safetensors"
+    }
+  },
+  "5102": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "face",
+      "clip": [
+        "5101",
+        1
+      ]
+    }
+  },
+  "5103": {
+    "class_type": "SAM3_VideoTrack",
+    "inputs": {
+      "images": [
+        "5011",
+        0
+      ],
+      "model": [
+        "5101",
+        0
+      ],
+      "conditioning": [
+        "5102",
+        0
+      ],
+      "detection_threshold": 0.5,
+      "max_objects": 1,
+      "detect_interval": 1
+    }
+  },
+  "5104": {
+    "class_type": "SAM3_TrackToMask",
+    "inputs": {
+      "track_data": [
+        "5103",
+        0
+      ],
+      "object_indices": "0"
+    }
+  },
+  "5105": {
+    "class_type": "MVEx_MaskCleanup",
+    "inputs": {
+      "masks": [
+        "5104",
+        0
+      ],
+      "threshold": 0.3,
+      "method": "shrink_grow",
+      "method.shrink": 12,
+      "method.min_frames": 4,
+      "edge_grow": 16
+    }
+  },
+  "5106": {
+    "class_type": "MVEx_MaskToLatentSpace",
+    "inputs": {
+      "masks": [
+        "5105",
+        0
+      ],
+      "vae": [
+        "1003",
+        0
+      ],
+      "compression": "auto",
+      "spatial_method": "max",
+      "temporal_method": "max",
+      "grow_spatial": 36,
+      "grow_temporal": 1,
+      "grow_temp_mode": "both"
+    }
+  },
+  "5107": {
+    "class_type": "SetLatentNoiseMask",
+    "inputs": {
+      "samples": [
+        "5013",
+        0
+      ],
+      "mask": [
+        "5106",
+        0
+      ]
+    }
+  },
+  "5109": {
+    "class_type": "VOSR2ModelLoader",
+    "inputs": {
+      "model": "VOSR2",
+      "dtype": "default"
+    }
+  },
+  "5110": {
+    "class_type": "VOSR2Upscale",
+    "inputs": {
+      "model": [
+        "5109",
+        0
+      ],
+      "image": [
+        "5021",
+        0
+      ],
+      "upscale": 1,
+      "seed": 300831622214023,
+      "color_alignment": "wavelet",
+      "tile_size": 512,
+      "tile_overlap": 32,
+      "vae_tile_size": 1024,
+      "vae_tile_overlap": 32
+    }
+  },
+  "5111": {
+    "class_type": "PrimitiveBoolean",
+    "inputs": {
+      "value": false
+    }
+  },
+  "5112": {
+    "class_type": "ComfySwitchNode",
+    "inputs": {
+      "switch": [
+        "5111",
+        0
+      ],
+      "on_false": [
+        "5013",
+        0
+      ],
+      "on_true": [
+        "5107",
+        0
+      ]
+    }
+  },
+  "5113": {
+    "class_type": "ComfySwitchNode",
+    "inputs": {
+      "switch": [
+        "5111",
+        0
+      ],
+      "on_false": [
+        "5023",
+        0
+      ],
+      "on_true": [
+        "5025",
+        0
+      ]
+    }
+  },
+  "5024": {
+    "class_type": "H3FaceStitch",
+    "inputs": {
+      "base_images": [
+        "5002",
+        0
+      ],
+      "refined_crops": [
+        "5110",
+        0
+      ],
+      "transform": [
+        "5011",
+        1
+      ],
+      "masks": [
+        "5104",
+        0
+      ],
+      "paste_region": "face_only",
+      "mask_dilation": 16,
+      "feather": 24,
+      "colour_match": 1.0,
+      "blend": 1.0,
+      "undetected_frames": "fade_out"
+    }
+  },
+  "5025": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "5024",
+        0
+      ],
+      "audio": [
+        "5002",
+        1
+      ],
+      "fps": 24,
+      "bit_depth": "auto",
+      "color_space": "sRGB",
+      "chroma_subsampling": "auto",
+      "codec": "none"
     }
   }
 }

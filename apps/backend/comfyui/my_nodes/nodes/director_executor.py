@@ -6,7 +6,7 @@
 结构借鉴 AIMixer/ComfyUI_MiniMaxH3_Director(Apache-2.0)executor 的
 「计划→逐段循环→finalize」三段式——布局复刻、代码重写;采样内部零重写:
 **直接调引擎在册节点类**(NODE_CLASS_MAPPINGS),配方与接线逐位取自纯净化
-母本(三采-单镜.json,66 节点),按引擎装载语义(widgets_values 位序对
+母本(单镜.json,66 节点),按引擎装载语义(widgets_values 位序对
 required 键序)赋参=与母本实跑逐位同值。
 
 三臂模型链(母本锚点):

@@ -153,7 +153,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     id: "my-h3-sancai-r2v",
     label: "漫影单镜三采 R2V(ReCaVSR 主线,拆链两发)",
     apiTemplate: "./h3-three-stage-template.api.json",
-    uiTemplateRef: "2_视频/H3视频/1_漫影自研/三采-单镜.json",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/单镜.json",
     inputMode: "sancai-r2v",
     anchors: {
       prompt: "21.value",
@@ -171,7 +171,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     id: "my-h3-sancai-i2v",
     label: "漫影单镜三采 I2V(ReCaVSR 主线,拆链两发)",
     apiTemplate: "./h3-three-stage-template.api.json",
-    uiTemplateRef: "2_视频/H3视频/1_漫影自研/三采-单镜.json",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/单镜.json",
     inputMode: "sancai-i2v",
     anchors: {
       prompt: "21.value",

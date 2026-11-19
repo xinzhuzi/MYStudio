@@ -10,7 +10,7 @@ PRD R1.3 终裁:``1_漫影自研/导演台.json`` 重生为**恰一条链(≤8 �
 loader×4 → 导演台节点×1 → CreateVideo → SaveVideo(+1 张最小说明 Note)
 ——零镜头组/零克隆/零预留组,多镜/阶段勾选/素材管理全在面板内。
 
-节点模板逐字段取自纯净化母本(三采-单镜.json,产线验证档):
+节点模板逐字段取自纯净化母本(单镜.json,产线验证档):
 - UNETLoader/CLIPLoader/VAELoader×2 的 widgets 钉值与
   my_nodes DIRECTOR_RECIPE 四件套同源(契约测试交叉核对);
 - CreateVideo widgets [24, 8, "sRGB", "none"] 与母本 [130] 同值

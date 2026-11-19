@@ -166,7 +166,7 @@ def build_prompt(oi: dict, a) -> dict:
     if "prompt" in ref_inputs:
         ref_kw["prompt"] = a.prompt
     if "ref_image_size" in ref_inputs:
-        ref_kw["ref_image_size"] = "max"  # 在役三采-单镜同参
+        ref_kw["ref_image_size"] = "max"  # 在役单镜同参
     for k, idx in (("width", 4), ("height", 5)):
         if k in ref_inputs:
             ref_kw[k] = ["20", idx]  # canvas_w/canvas_h 出口

@@ -1,34 +1,48 @@
 #!/usr/bin/env python3
-"""三采-单镜.json 修脸组内置(默认旁路)生成器(1118,trellis 11-17-facerefine-inline-bypass §1.1/§1.3)。
+"""单镜.json(1119 前旧名=三采-单镜)修脸组内置+双技术档生成器(1118 立·1119 双档扩,trellis 11-19-dualmode-facerefine-rename)。
 
-对正典画布件 + API 模板双输出,同构追加「四采修脸臂」19 节点(拓扑=prd §1.1 修订版:
-内存态直连删 5001 LoadVideo、显存修订删 5005 UNETLoader——5006 LoraLoader.model←1001 复用):
+1118 原役(11-17-facerefine-inline-bypass):正典画布件 + API 模板双输出,同构追加
+「四采修脸臂」19 节点(默认旁路,拓扑=prd §1.1 修订版:内存态直连删 5001 LoadVideo、
+显存修订删 5005 UNETLoader——5006 LoraLoader.model←1001 复用)。
 
-  #25   修脸身份提示词 PrimitiveStringMultiline(默认通用句,调用方按角色覆写)
-  #1065 四采开关 PrimitiveBoolean(默认 False=旁路;False 时 50xx 臂被引擎惰性剪除)
-  5002  GetVideoComponents ← 3053 VIDEO(二采 p2 出片·帧①+音轨②,零文件竞态;1118 门禁红根修
-        对齐 multiseg 同臂口径,4002 仍喂 5100.on_false=p3 直通)
-  5006  LoraLoaderModelOnly(model←1001,pika_turbo_8step_fl2va@1.0;全图禁第二个 UNETLoader)
-  5011  H3FaceTrackCrop(face_yolov8m conf0.15/兜底 segm\\person_yolov8m-seg.pt/largest_face)
-  5012  MiniMaxH3ReferenceToVideo(宽高=5011 canvas_w/canvas_h 出口联线勿手填;length←#52;
-        ref_image_0←#1 主图;prompt←#25;clip/vae/audio_vae←1002/1003/1004)
-  5013  H3InjectVideoLatent(av_latent←5012.LATENT,images←5011.crops,vae←1003)
-  5014  MiniMaxH3NativeAudioLock(model←5006,av_latent←5013,audio←5002②,audio_vae←1004)
-  5015  H3PerFrameDenoise(1.0/0.35/absolute_px/60/200/γ1/9;model←5014.model)
-  5016-5020 采样链(5016 RandomNoise seed42 同 #54;5017 KSamplerSelect lcm;5018 BasicScheduler
-        simple/8步/0.45;5019 BasicGuider(model←5015.model,cond←5012.positive);5020 SamplerCustomAdvanced)
-  5021  VAEDecode(←5020,vae←1003)   5022 H3FaceStitch(face_only/16/24/1.0/1.0/fade_out)
-  5023  CreateVideo(IMAGE←5022,AUDIO←5002②,24fps)
-  5100  ComfySwitchNode(switch←1065,on_true←5023.VIDEO,on_false←4002.VIDEO)
-  4100  SaveVideo(video←5100,prefix=video/漫影/chapter-001/sb-chapter-001-001/p-final)
+1119 双档扩(PRD V2 §1):同组追加 14 节点,远景(默认)/高清两技术档,出口复制案投切:
 
-两只组框(四采修脸组 5000 段/终档组 5100+4100+1065+25 就近)bbox 自算罩全;README 9999 增段。
+  #25    修脸身份提示词 PrimitiveStringMultiline(默认通用句,调用方按角色覆写)
+  #1065  四采开关 PrimitiveBoolean(默认 False=旁路,出厂态不因本役改变)
+  #5111  高清修脸子开关 PrimitiveBoolean(默认 **False=远景档**;True=高清档)
+         四态矩阵:1065F+5111F=p3 直通(出厂)/1065T+5111F=远景修脸=默认修脸档/
+         1065T+5111T=高清修脸/1065F+5111T=非法态(高清段静默剪枝,README 9999 记口径)
+  5002-5023 公共底盘 19 节点(远景臂,widgets 逐位零改;接线仅两处等效改接:
+         5013.av_latent→5014 改经 5112 直通臂、5023→5100.on_true 改经 5113 直通臂,
+         远景态数据流等效 1118 正典;5022.masks 恒悬空=face_only 脸框贴回保真)
+  高清段 9 节点(参数逐位承融合件 1119b,差分扩散 5108 已移除禁回加):
+         5101 CheckpointLoaderSimple(sam3.1_multiplex_fp16)→5102 CLIPTextEncode("face")
+         →5103 SAM3_VideoTrack(0.5/1/1,images=5011.crops)→5104 SAM3_TrackToMask("0")
+         mask 路A(潜空间限区):5105 MVEx_MaskCleanup→5106 MVEx_MaskToLatentSpace(vae=1003)
+         →5107 SetLatentNoiseMask(samples=5013.av_latent)
+         mask 路B(贴回约束):5104.masks→5024.masks
+         VOSR2 尾档:5109 VOSR2ModelLoader("VOSR2"/default)→5110 VOSR2Upscale
+         (1/300831622214023-**fixed**/wavelet/512/32/1024/32,image=5021.IMAGE)
+  投切/复制 5 节点(出口复制案,5100 先例同构;全官方件零自定义投切,防缓存静默串档):
+         5112 ComfySwitchNode(LATENT 中链,唯一)on_false=5013 直通/on_true=5107→5014
+         5113 ComfySwitchNode(VIDEO 出口)on_false=5023 远景/on_true=5025 高清→5100.on_true
+         5024 H3FaceStitch 高清复制对(widgets 逐位同 5022;masks=5104 非 5022 悬空)
+         5025 CreateVideo 高清复制对(widgets 逐位同 5023)
+  5100   ComfySwitchNode(switch←1065,on_false=4002 p3 直通,on_true=5113 出口)
+  4100   SaveVideo(p-final)
 
-节点数口径:prd §1.1 标题「66+21」为修订前残数(21=19+已删 5001/5005);按拓扑枚举报 19,
-画布 66→85、API 64→83。自检按拓扑枚举断言并打印本对账。
+节点账:画布 87→101(+14)、API 85→99(+14)。组框恒 7 组(扩四采组框罩全,组标题
+更新双档口径)。布局:HD 段居 5000 带下方 y≥7300 两条行带+出口行,全链恒向右
+(含 5103>5011/5107>5013/5110>5021 三处融合件左向后勘)、节点 AABB 零重叠、
+组框两两不交(A 右缘让开终档组 120px)。
 
-幂等:先从当前正典件剥离本组既往添加(节点 id+触及链+两只组框+README 段,剥离前校验类型防误删
-他人节点)后整体重放——母本即正典件自身,重跑字节稳定。
+API 模板 +14 同构:命名输入实证源=object_info_17000.json+P1/P2 探针实跑图
+(probe-1119/graph_p1-t.json MVEx method.shrink/method.min_frames 子参键、
+graph_p2-t.json SAM3/H3FaceStitch.masks/ComfySwitchNode 形态);5111 可注入。
+
+幂等:先从当前正典件剥离本组既往添加(节点 id+触及链+两只组框+README 段,含 1118
+旧组标题过渡剥离,剥离前校验类型防误删他人节点)后整体重放——母本即正典件自身,
+重跑字节稳定;main 自带双跑字节一致对账(AC6)。
 用法:
   python3 sancai_inline_facerefine_build_1118.py           # 重建两件
   python3 sancai_inline_facerefine_build_1118.py --check   # 结构自检(读盘上两件)
@@ -41,9 +55,9 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-CANVAS = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json"
+CANVAS = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json"  # 1119 git mv 自 三采-单镜
 API = REPO / "apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json"
-CLONE = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试/三采-单镜-小脸修复.json"  # df4162c8 迁 7_测试/
+CLONE = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试/三采-单镜-小脸修复.json"  # df4162c8 迁 7_测试/(留档名,3.3 豁免)
 
 PREFIX_P_FINAL = "video/漫影/chapter-001/sb-chapter-001-001/p-final"
 IDENTITY = (
@@ -52,7 +66,8 @@ IDENTITY = (
     "exact facial identity, skin tone and lighting direction unchanged, no character redesign."
 )
 
-# ---- 本组节点规格(id → class_type);剥离与校验共用 ----
+# ---- 本组节点规格(id → class_type);剥离与校验共用;序=重放 order 序 ----
+# 1118 臂 19 件 + 1119 双档 14 件(HD_IDS);multiseg 嫁接件按 HD_IDS 过滤只取 19 件原链。
 OWN: dict[int, str] = {
     25: "PrimitiveStringMultiline", 1065: "PrimitiveBoolean",
     5002: "GetVideoComponents", 5006: "LoraLoaderModelOnly",
@@ -62,10 +77,21 @@ OWN: dict[int, str] = {
     5018: "BasicScheduler", 5019: "BasicGuider", 5020: "SamplerCustomAdvanced",
     5021: "VAEDecode", 5022: "H3FaceStitch", 5023: "CreateVideo",
     5100: "ComfySwitchNode", 4100: "SaveVideo",
+    # ---- 1119 双档 +14(9 融合段 + 5111/5112/5113 + 5024/5025 复制对)----
+    5101: "CheckpointLoaderSimple", 5102: "CLIPTextEncode",
+    5103: "SAM3_VideoTrack", 5104: "SAM3_TrackToMask",
+    5105: "MVEx_MaskCleanup", 5106: "MVEx_MaskToLatentSpace",
+    5107: "SetLatentNoiseMask", 5109: "VOSR2ModelLoader", 5110: "VOSR2Upscale",
+    5111: "PrimitiveBoolean", 5112: "ComfySwitchNode", 5113: "ComfySwitchNode",
+    5024: "H3FaceStitch", 5025: "CreateVideo",
 }
-GROUP_A_TITLE = "四采修脸组(5000 段·默认旁路·1118)"
+HD_IDS = {5101, 5102, 5103, 5104, 5105, 5106, 5107, 5109, 5110, 5111, 5112, 5113, 5024, 5025}
+
+GROUP_A_TITLE = "四采修脸组(5000 段·远景/高清双档·默认旁路·1118→1119)"
+GROUP_A_TITLE_1118 = "四采修脸组(5000 段·默认旁路·1118)"  # 旧标题,剥离过渡期一并移除
 GROUP_B_TITLE = "终档组(p-final·四采开关)"
-GROUP_A_IDS = {25, 1065, 5002, 5006, 5011, 5012, 5013, 5014, 5015, 5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023}
+GROUP_A_IDS = {25, 1065, 5002, 5006, 5011, 5012, 5013, 5014, 5015, 5016, 5017, 5018, 5019,
+               5020, 5021, 5022, 5023} | HD_IDS
 GROUP_B_IDS = {5100, 4100}
 README_MARK = "\n\n---\n\n## 四采修脸(内置·默认旁路·1118)"
 README_SECTION = README_MARK + """
@@ -73,17 +99,125 @@ README_SECTION = README_MARK + """
 - **开关 #1065「四采修脸」**:默认 **False=旁路**——终档 4100 p-final=三采 p3 直通,50xx 臂被引擎惰性剪除(0.45.2 实证;1118 双态探针旁路态全链 264.3s 恰=纯三采一链,臂零叠加),零成本;**True=三采出片内部走进修脸→终档一条线**(外部只传参数,内部处理流程)
 - **#25 修脸身份提示词**:默认通用句;外部按角色覆写(角色五官特征文,参照 #1 主图人物)
 - **API 直调**:`g["1065"]["inputs"]["value"]=true` + `g["25"]["inputs"]["value"]="<角色五官特征句>"`,其余注入点与现行三采调用完全一致(图1/21/51/54/31/41)
-- **臂拓扑**:5002 拆 3053(二采 p2 出片·帧①+音轨②)→ 5011 追踪裁剪(face_yolov8m conf0.15/兜底 segm\\person_yolov8m-seg.pt/largest_face)→ 5012 H3 重画(**宽高=5011 出口联线勿手填**/length=#52/参考图=#1/提示词=#25)→ 5013 注入真实帧 → 5014 音轨锁(audio←5002②)→ 5015 逐帧 denoise(60/200px)→ 5016-5020 采样(seed 同 #54/lcm/simple/8步/0.45)→ 5021 解码 → 5022 贴回(16/24)→ 5023 合成 → 5100 终档选择 → 4100 p-final
+- **臂拓扑**:5002 拆 4002(三采 p3 4K 出片·帧①+音轨②)→ 5011 追踪裁剪(face_yolov8m conf0.15/兜底 segm\\person_yolov8m-seg.pt/largest_face)→ 5012 H3 重画(**宽高=5011 出口联线勿手填**/length=#52/参考图=#1/提示词=#25)→ 5013 注入真实帧 → 5014 音轨锁(audio←5002②)→ 5015 逐帧 denoise(60/200px)→ 5016-5020 采样(seed 同 #54/lcm/simple/8步/0.45)→ 5021 解码 → 5022 贴回(16/24)→ 5023 合成 → 5100 终档选择 → 4100 p-final
 - **极性口径(1118 双态实测定谳)**:**bypass(1065=false)=直通**——p-final 与 p3 MD5 逐字节一致(帧差 0px);**repair(1065=true)=修脸**——远端 t=1s 帧 >12 差分 24,467px;5100 接线 on_true=修脸片(1065=true)/ on_false=p3 直通(1065=false)与实测一致,勿手改(防 wf2api 反转坑)
 - **显存纪律**:5006 LoRA 挂 1001 单 loader(全图禁第二个 UNETLoader);p1/p2/p3 两态照常落盘(诊断链完整),MyShot 3061 锚与 3071 零改动
 - **生效面**:仓库/引擎直投即时生效;装机 App 面候打包窗口另役同步
+
+### 1119 双档调用(远景=默认 / 高清)
+
+- **#5111「高清修脸」子开关**(默认 **False=远景档**):False 时 5112 中链 LATENT Switch 直通(5013→5014 数据流等效 1118 正典)、5113 出口 VIDEO Switch 直通 5023 远景链、5022.masks 恒悬空(face_only 脸框贴回=正典现状);True 时走 SAM3 遮罩双用(5104→5024.masks 贴回约束 + 5105→5106→5107 潜空间限区)+ VOSR2 高频尾档(5110,control=**fixed** seed 锁 300831622214023 禁 randomize 回抖)→ 5024/5025 高清复制对 → 5113 出口
+- **四态矩阵**:1065=False(出厂)→ p3 直通不修脸;1065=True ∧ 5111=False → **远景修脸=默认修脸档**;1065=True ∧ 5111=True → 高清修脸;**1065=False ∧ 5111=True = 非法态**(高清段被计算却在 5100 被丢弃=静默剪枝)——发车器/API 注入前必须拒绝此组合
+- **API 直调(延伸)**:远景档 `g["1065"]...=true`;高清档再加 `g["5111"]["inputs"]["value"]=true`(+#25 身份句)
+- **极性口径延伸(防 wf2api 反转坑)**:5100 on_true=修脸片/on_false=4002 p3 直通;**5112** on_true=5107 遮罩潜空间/on_false=5013 直通;**5113** on_true=5025 高清片/on_false=5023 远景片——三 Switch 均「真=新臂」,勿手改
+- **显存分账**:SAM3 只吃 5011 的 768 crops,VOSR2 只吃 5021 解码 768 画布,5024/5025 与 5022/5023 同量级——新增段无 4K 全帧重采样(4K 内联楔死前科均在 4K 全帧链)
 """
 
-# ---- 画布模板来源:正典件既有节点(公共件)/ 克隆件(五件 H3 定制件,widgets 已 1117 实弹调参)----
+# ---- 画布模板来源:正典件既有节点(公共件)/ 克隆件(五件 H3 定制件)/ 硬编码(HD 段 9 件)----
+# HD 段结构硬编码自融合件 1119b(参数逐位;融合件已归档不再作模板源,作者件在
+# apps/output 可清亦不依赖)——槽名/形状/位序与 object_info_17000.json 对账。
 TPL_FROM_CANVAS = {5002: 42, 5006: 1012, 5012: 2001, 5016: 54, 5017: 2022, 5018: 2021,
                    5019: 2031, 5020: 2032, 5021: 2041, 5023: 2051, 4100: 4003,
-                   5100: 1062, 1065: 1061, 25: 21}
-TPL_FROM_CLONE = {5011: 5011, 5013: 5013, 5014: 5014, 5015: 5015, 5022: 5022}
+                   5100: 1062, 1065: 1061, 25: 21,
+                   5025: 2051, 5111: 1061, 5112: 1062, 5113: 1062}  # 1119:复制对/双开关克隆同源件
+TPL_FROM_CLONE = {5011: 5011, 5013: 5013, 5014: 5014, 5015: 5015, 5022: 5022, 5024: 5022}
+
+# HD 段 9 件硬编码槽结构(widget 口带 widget 子名;shape=7 悬空可选口;无 link 字段)
+HD_TPL: dict[int, dict] = {
+    5101: {"type": "CheckpointLoaderSimple",
+           "inputs": [{"widget": {"name": "ckpt_name"}, "name": "ckpt_name", "label": "ckpt_name",
+                       "type": "COMBO", "localized_name": "ckpt_name"}],
+           "outputs": [{"name": "MODEL", "label": "MODEL", "type": "MODEL", "localized_name": "MODEL"},
+                       {"name": "CLIP", "label": "CLIP", "type": "CLIP", "localized_name": "CLIP"},
+                       {"name": "VAE", "label": "VAE", "type": "VAE", "localized_name": "VAE"}]},
+    5102: {"type": "CLIPTextEncode",
+           "inputs": [{"name": "clip", "label": "clip", "type": "CLIP", "localized_name": "clip"},
+                      {"widget": {"name": "text"}, "name": "text", "label": "text",
+                       "type": "STRING", "localized_name": "text"}],
+           "outputs": [{"name": "CONDITIONING", "label": "CONDITIONING", "type": "CONDITIONING",
+                        "localized_name": "CONDITIONING"}]},
+    5103: {"type": "SAM3_VideoTrack",
+           "inputs": [{"name": "images", "label": "images", "type": "IMAGE", "localized_name": "images"},
+                      {"name": "model", "label": "model", "type": "MODEL", "localized_name": "model"},
+                      {"shape": 7, "name": "initial_mask", "label": "initial_mask", "type": "MASK",
+                       "localized_name": "initial_mask"},
+                      {"shape": 7, "name": "conditioning", "label": "conditioning",
+                       "type": "CONDITIONING", "localized_name": "conditioning"},
+                      {"widget": {"name": "detection_threshold"}, "name": "detection_threshold",
+                       "label": "detection_threshold", "type": "FLOAT", "localized_name": "detection_threshold"},
+                      {"widget": {"name": "max_objects"}, "name": "max_objects", "label": "max_objects",
+                       "type": "INT", "localized_name": "max_objects"},
+                      {"widget": {"name": "detect_interval"}, "name": "detect_interval",
+                       "label": "detect_interval", "type": "INT", "localized_name": "detect_interval"}],
+           "outputs": [{"name": "track_data", "label": "track_data", "type": "SAM3_TRACK_DATA",
+                        "localized_name": "track_data"}]},
+    5104: {"type": "SAM3_TrackToMask",
+           "inputs": [{"name": "track_data", "label": "track_data", "type": "SAM3_TRACK_DATA",
+                       "localized_name": "track_data"},
+                      {"widget": {"name": "object_indices"}, "name": "object_indices",
+                       "label": "object_indices", "type": "STRING", "localized_name": "object_indices"}],
+           "outputs": [{"name": "masks", "label": "masks", "type": "MASK", "localized_name": "masks"}]},
+    5105: {"type": "MVEx_MaskCleanup",
+           "inputs": [{"name": "masks", "label": "masks", "type": "MASK", "localized_name": "masks"},
+                      {"widget": {"name": "threshold"}, "name": "threshold", "label": "threshold",
+                       "type": "FLOAT", "localized_name": "threshold"},
+                      {"widget": {"name": "method"}, "name": "method", "label": "method",
+                       "type": "COMFY_DYNAMICCOMBO_V3", "localized_name": "method"},
+                      {"widget": {"name": "method.shrink"}, "name": "method.shrink",
+                       "label": "method.shrink", "type": "INT", "localized_name": "shrink"},
+                      {"widget": {"name": "method.min_frames"}, "name": "method.min_frames",
+                       "label": "method.min_frames", "type": "INT", "localized_name": "min_frames"},
+                      {"widget": {"name": "edge_grow"}, "name": "edge_grow", "label": "edge_grow",
+                       "type": "INT", "localized_name": "edge_grow"}],
+           "outputs": [{"name": "masks", "label": "masks", "type": "MASK", "localized_name": "masks"}]},
+    5106: {"type": "MVEx_MaskToLatentSpace",
+           "inputs": [{"name": "masks", "label": "masks", "type": "MASK", "localized_name": "masks"},
+                      {"shape": 7, "name": "vae", "label": "vae", "type": "VAE", "localized_name": "vae"},
+                      {"widget": {"name": "compression"}, "name": "compression", "label": "compression",
+                       "type": "COMFY_DYNAMICCOMBO_V3", "localized_name": "compression"},
+                      {"widget": {"name": "spatial_method"}, "name": "spatial_method",
+                       "label": "spatial_method", "type": "COMBO", "localized_name": "spatial_method"},
+                      {"widget": {"name": "temporal_method"}, "name": "temporal_method",
+                       "label": "temporal_method", "type": "COMBO", "localized_name": "temporal_method"},
+                      {"widget": {"name": "grow_spatial"}, "name": "grow_spatial", "label": "grow_spatial",
+                       "type": "INT", "localized_name": "grow_spatial"},
+                      {"widget": {"name": "grow_temporal"}, "name": "grow_temporal", "label": "grow_temporal",
+                       "type": "INT", "localized_name": "grow_temporal"},
+                      {"widget": {"name": "grow_temp_mode"}, "name": "grow_temp_mode",
+                       "label": "grow_temp_mode", "type": "COMBO", "localized_name": "grow_temp_mode"}],
+           "outputs": [{"name": "mask", "label": "mask", "type": "MASK", "localized_name": "mask"}]},
+    5107: {"type": "SetLatentNoiseMask",
+           "inputs": [{"name": "samples", "label": "samples", "type": "LATENT", "localized_name": "samples"},
+                      {"name": "mask", "label": "mask", "type": "MASK", "localized_name": "mask"}],
+           "outputs": [{"name": "LATENT", "label": "LATENT", "type": "LATENT", "localized_name": "LATENT"}]},
+    5109: {"type": "VOSR2ModelLoader",
+           "inputs": [{"widget": {"name": "model"}, "name": "model", "label": "model",
+                       "type": "COMBO", "localized_name": "model"},
+                      {"widget": {"name": "dtype"}, "name": "dtype", "label": "dtype",
+                       "type": "COMBO", "localized_name": "dtype"}],
+           "outputs": [{"name": "model", "label": "model", "type": "VOSR2_MODEL", "localized_name": "model"}]},
+    5110: {"type": "VOSR2Upscale",
+           "inputs": [{"name": "model", "label": "model", "type": "VOSR2_MODEL", "localized_name": "model"},
+                      {"name": "image", "label": "image", "type": "IMAGE", "localized_name": "image"},
+                      {"widget": {"name": "upscale"}, "name": "upscale", "label": "upscale",
+                       "type": "INT", "localized_name": "upscale"},
+                      {"widget": {"name": "seed"}, "name": "seed", "label": "seed",
+                       "type": "INT", "localized_name": "seed"},
+                      {"widget": {"name": "color_alignment"}, "name": "color_alignment",
+                       "label": "color_alignment", "type": "COMBO", "localized_name": "color_alignment"},
+                      {"widget": {"name": "tile_size"}, "name": "tile_size", "label": "tile_size",
+                       "type": "INT", "localized_name": "tile_size"},
+                      {"widget": {"name": "tile_overlap"}, "name": "tile_overlap", "label": "tile_overlap",
+                       "type": "INT", "localized_name": "tile_overlap"},
+                      {"widget": {"name": "vae_tile_size"}, "name": "vae_tile_size",
+                       "label": "vae_tile_size", "type": "INT", "localized_name": "vae_tile_size"},
+                      {"widget": {"name": "vae_tile_overlap"}, "name": "vae_tile_overlap",
+                       "label": "vae_tile_overlap", "type": "INT", "localized_name": "vae_tile_overlap"}],
+           "outputs": [{"name": "IMAGE", "label": "IMAGE", "type": "IMAGE", "localized_name": "IMAGE"}]},
+}
+for _t in HD_TPL.values():
+    _t["flags"] = {}
+    _t["properties"] = {"Node name for S&R": _t["type"]}
 
 TITLE = {
     25: "⑦ 修脸身份提示词(四采·默认通用句·调用方覆写)", 1065: "四采修脸:False 关(默认旁路)/ True 开",
@@ -93,21 +227,37 @@ TITLE = {
     5016: "四采·噪声(同源 #54)", 5017: "四采·采样器(lcm)", 5018: "四采·调度 simple/8步/0.45",
     5019: "四采·引导器", 5020: "四采·采样", 5021: "四采·解码", 5022: "四采·贴回",
     5023: "四采·合成视频", 5100: "终档选择(1065:真=修脸片/假=p3 直通)", 4100: "终档保存 p-final",
+    5101: "四采·SAM3 检查点(高清)", 5102: "四采·SAM3 文本提示(face)",
+    5103: "四采·SAM3 视频追踪(高清)", 5104: "四采·SAM3 轨迹转遮罩(高清)",
+    5105: "四采·遮罩清洗(高清)", 5106: "四采·遮罩入潜空间(高清)",
+    5107: "四采·潜空间噪声遮罩(高清)", 5109: "四采·VOSR2 加载器(高清)",
+    5110: "四采·VOSR2 满血补频(高清·fixed)",
+    5111: "高清修脸:False 远景(默认)/ True 高清",
+    5112: "中链选择 LATENT(5111:真=遮罩潜空间/假=5013 直通)",
+    5113: "出口选择 VIDEO(5111:真=5025 高清/假=5023 远景)",
+    5024: "四采·贴回(高清)", 5025: "四采·合成视频(高清)",
 }
 # 布局=拓扑分层列(x 严格右向,契约 test_no_negative_zone_and_no_leftward 刻碑:全链恒向右):
-# 4002(6533)→5002(7200,x0 右移让开 4003 右缘 6843,4002→5002 线不再斜穿 4003)→5011→5012
-# →5013→5006→5014→5015→[5016/5019/5017/5018 同列纵堆,行序=5020 输入槽序 noise/guider/
-# sampler/sigmas(⑧1 槽序对齐,扇入零交叉)]→5020→5021→5022→5023→5100→4100;
-# 列步进=est 宽+200(同行净距恰 200)、纵堆同列净距恰 80(x 全等);25 寄生 5011 est 箱底
-# (右缘齐 5012 左缘→竖向线零遮挡)、1065 寄生 5100 左下(短线上行,躲 5023→5100 横线;
-# 1065 归四采修脸组框——若与 5100 同框,组框左伸必与四采组相交)。1118 布局治理役
-# (apps/build/scripts/workflow_layout_fix_sancai_band_1118.py)立,重跑本生成器字节复原。
+# 主带 y5900 不动(5002→5011→5012→5013→5006→5014→5015→[5016/5019/5017/5018 同列纵堆]→
+# 5020→5021→5022→5023→5100→4100);1119 HD 段=主带下方两条行带+出口行(存量节点零挪动):
+#   y7300 行A(SAM3/mask 链):5101→5102→5103→5104→5105→5106→5107(列步进让 5103>5011/
+#   5107>5013 两处融合件左向后勘);y7600 行B:5111(开关,左于 5112/5113 双扇出)→5112
+#   (中链,<5014.x=9960 使 5112→5014 右向);
+#   右翼 y7300 行A':5109→5110(>5021.x=12040,第三处左向后勘)→y7600 行B':5024(吃 5110)
+#   →5025;y7960 出口行:5113(>5023.x 且 <5100.x,组框 A 右缘让开终档组 120px)。
+# 组框罩全自算:A=[7140,5820,6170,2346](800/25 寄生位恒罩);全图节点 AABB 零重叠。
 POS = {
     5002: [7200, 5900], 5011: [7670, 5900], 5012: [8230, 5900], 5013: [8830, 5900],
     5006: [9360, 5900], 5014: [9960, 5900], 5015: [10490, 5900],
     5016: [11020, 6400], 5019: [11020, 6628], 5017: [11020, 6820], 5018: [11020, 7018],
     5020: [11590, 5900], 5021: [12040, 5900], 5022: [12490, 5900], 5023: [13020, 5900],
     5100: [13490, 5900], 4100: [13960, 5900], 25: [7800, 6902], 1065: [12960, 6270],
+    # ---- 1119 HD 段(见上布局注)----
+    5101: [7200, 7300], 5102: [7660, 7300], 5103: [8120, 7300], 5104: [8580, 7300],
+    5105: [8960, 7300], 5106: [9380, 7300], 5107: [9820, 7300],
+    5111: [9500, 7600], 5112: [9840, 7600],
+    5109: [12060, 7300], 5110: [12420, 7300],
+    5024: [12520, 7600], 5025: [12900, 7600], 5113: [13040, 7960],
 }
 SIZE = {
     5002: [270, 100], 5011: [360, 600], 5006: [400, 148], 5012: [400, 622],
@@ -115,6 +265,11 @@ SIZE = {
     5016: [360, 148], 5017: [370, 118], 5018: [315, 178], 5019: [360, 112], 5020: [250, 184],
     5021: [250, 112], 5022: [330, 270], 5023: [270, 232],
     25: [430, 200], 1065: [300, 120], 5100: [270, 166], 4100: [283, 564],
+    5101: [400, 100], 5102: [400, 170], 5103: [400, 266], 5104: [320, 80],
+    5105: [340, 200], 5106: [360, 220], 5107: [270, 80],
+    5109: [320, 82], 5110: [360, 250],
+    5111: [300, 120], 5112: [270, 166], 5113: [270, 166],
+    5024: [330, 270], 5025: [270, 232],
 }
 WIDGETS: dict[int, list | None] = {
     25: [IDENTITY], 1065: [False],
@@ -130,7 +285,36 @@ WIDGETS: dict[int, list | None] = {
     5022: ["face_only", 16, 24, 1, 1, "fade_out", False],
     5023: [24, 8, "sRGB", "none"],
     5100: [False], 4100: [PREFIX_P_FINAL, "auto", "auto", "auto"],
+    # ---- 1119 HD 段(逐位承融合件 1119b;5110 control=fixed 禁 randomize)----
+    5101: ["sam3.1_multiplex_fp16.safetensors"],
+    5102: ["face"],
+    5103: [0.5, 1, 1],
+    5104: ["0"],
+    5105: [0.3, "shrink_grow", 12, 4, 16],
+    5106: ["auto", "max", "max", 36, 1, "both"],
+    5107: [],
+    5109: ["VOSR2", "default"],
+    5110: [1, 300831622214023, "fixed", "wavelet", 512, 32, 1024, 32],
+    5111: [False], 5112: [False], 5113: [False],
+    5024: ["face_only", 16, 24, 1, 1, "fade_out", False],  # 逐位同 5022(出口复制案)
+    5025: [24, 8, "sRGB", "none"],                          # 逐位同 5023
 }
+
+
+def midchain_latent_switch_wiring():
+    """5112 中链 LATENT Switch——**唯一隔离块**(PRD V2 五·1 双态探针 P2 的直接对象)。
+
+    1117 式引擎墙(中链 Switch × 自定义节点=引擎级输出剪枝,接线不可修)若被探针
+    证实,只改本函数重立预案(候选:采样链整体复制避中链 Switch/换官方等效节点),
+    禁动其余规格。远景态(5111=False)数据流等效 1118 正典:5013.av_latent 经
+    on_false 直通臂喂 5014(替代原直连线=PRD V2 §1.2「两处等效改接」之一)。"""
+    return [
+        (5013, "av_latent", 5112, "on_false"),
+        (5107, "LATENT", 5112, "on_true"),
+        (5111, "BOOLEAN", 5112, "switch"),
+        (5112, "COMFY_MATCHTYPE_V3", 5014, "av_latent"),
+    ]
+
 
 # ---- 连线(src_id, src出口槽名, dst_id, dst输入槽名)----
 WIRING = [
@@ -157,7 +341,6 @@ WIRING = [
     (1, "IMAGE", 5012, "ref_images.ref_image_0"),
     (25, "STRING", 5012, "prompt"),
     (52, "INT", 5012, "length"),
-    (5013, "av_latent", 5014, "av_latent"),
     (5014, "model", 5015, "model"),
     (5014, "av_latent", 5015, "av_latent"),
     (5015, "model", 5018, "model"),
@@ -169,17 +352,43 @@ WIRING = [
     (5018, "SIGMAS", 5020, "sigmas"),
     (5015, "av_latent", 5020, "latent_image"),
     (5020, "output", 5021, "samples"),
-    (5021, "IMAGE", 5022, "refined_crops"),
+    (5021, "IMAGE", 5022, "refined_crops"),  # 远景臂 871 线原样(零语义改写)
     (5022, "images", 5023, "images"),
-    (5023, "VIDEO", 5100, "on_true"),
     (1065, "BOOLEAN", 5100, "switch"),
     (5100, "COMFY_MATCHTYPE_V3", 4100, "video"),
+    # ---- 1119 高清段(SAM3 遮罩双用 + VOSR2 尾档;参数逐位承融合件 1119b)----
+    (5101, "MODEL", 5103, "model"),
+    (5101, "CLIP", 5102, "clip"),
+    (5102, "CONDITIONING", 5103, "conditioning"),
+    (5011, "crops", 5103, "images"),
+    (5103, "track_data", 5104, "track_data"),
+    (5104, "masks", 5105, "masks"),
+    (5104, "masks", 5024, "masks"),        # mask 路B:贴回约束只进高清复制对,远景臂 5022 恒悬空
+    (5105, "masks", 5106, "masks"),
+    (1003, "VAE", 5106, "vae"),
+    (5106, "mask", 5107, "mask"),
+    (5013, "av_latent", 5107, "samples"),  # mask 路A:潜空间限区
+    (5109, "model", 5110, "model"),
+    (5021, "IMAGE", 5110, "image"),
+    (5110, "IMAGE", 5024, "refined_crops"),
+    (5002, "images", 5024, "base_images"),
+    (5011, "transform", 5024, "transform"),
+    (5024, "images", 5025, "images"),
+    (5002, "audio", 5025, "audio"),
+    (5025, "VIDEO", 5113, "on_true"),
+    # ---- 1119 投切(出口复制案)----
+    *midchain_latent_switch_wiring(),      # 5112 中链=唯一隔离块(见函数 docstring)
+    (5023, "VIDEO", 5113, "on_false"),     # 原 5023→5100.on_true 等效改接(远景态直通臂)
+    (5111, "BOOLEAN", 5113, "switch"),
+    (5113, "COMFY_MATCHTYPE_V3", 5100, "on_true"),
 ]
 
-# ---- API 模板同构节点(平铺 prompt dict;槽名以 API 模板 2001 现有 inputs 为真源,REF 用点分)----
+# ---- API 模板同构节点(平铺 prompt dict;命名输入实证=object_info_17000+P1/P2 探针实跑图;
+#      MVEx 动态 combo 子参键 method.shrink/method.min_frames=探针 graph_p1-t.json 实拉形态)----
 API_NEW: dict[str, dict] = {
     "25": {"class_type": "PrimitiveStringMultiline", "inputs": {"value": IDENTITY}},
     "1065": {"class_type": "PrimitiveBoolean", "inputs": {"value": False}},
+    "5111": {"class_type": "PrimitiveBoolean", "inputs": {"value": False}},  # 高清修脸子开关(默认远景)
     "5002": {"class_type": "GetVideoComponents", "inputs": {"video": ["4002", 0]}},
     "5006": {"class_type": "LoraLoaderModelOnly", "inputs": {
         "model": ["1001", 0], "lora_name": "pika_turbo_8step_fl2va.safetensors", "strength_model": 1}},
@@ -191,7 +400,7 @@ API_NEW: dict[str, dict] = {
         "select": "closest_to_xy", "X": 1920, "Y": 900, "frame_index": 170,
             "identity_model": "clip_vision", "identity_threshold": 0.0,
             "identity_clip_vision": [800, 0], "fallback_detector": "segm\\person_yolov8m-seg.pt",
-        "fallback_head_frac": 0.5}},
+            "fallback_head_frac": 0.5}},
     "5012": {"class_type": "MiniMaxH3ReferenceToVideo", "inputs": {
         "clip": ["1002", 0], "vae": ["1003", 0], "audio_vae": ["1004", 0],
         "ref_images.ref_image_0": ["1", 0], "prompt": ["25", 0],
@@ -199,7 +408,7 @@ API_NEW: dict[str, dict] = {
     "5013": {"class_type": "H3InjectVideoLatent", "inputs": {
         "av_latent": ["5012", 1], "images": ["5011", 0], "vae": ["1003", 0]}},
     "5014": {"class_type": "MiniMaxH3NativeAudioLock", "inputs": {
-        "model": ["5006", 0], "av_latent": ["5013", 0], "audio_vae": ["1004", 0], "audio": ["5002", 1]}},
+        "model": ["5006", 0], "av_latent": ["5112", 0], "audio_vae": ["1004", 0], "audio": ["5002", 1]}},
     "5015": {"class_type": "H3PerFrameDenoise", "inputs": {
         "model": ["5014", 0], "av_latent": ["5014", 1], "transform": ["5011", 1],
         "denoise_multiplier_small_face": 1.0, "denoise_multiplier_large_face": 0.35,
@@ -222,9 +431,42 @@ API_NEW: dict[str, dict] = {
         "images": ["5022", 0], "audio": ["5002", 1], "fps": 24, "bit_depth": "auto",
         "color_space": "sRGB", "chroma_subsampling": "auto", "codec": "none"}},
     "5100": {"class_type": "ComfySwitchNode", "inputs": {
-        "switch": ["1065", 0], "on_false": ["4002", 0], "on_true": ["5023", 0]}},
+        "switch": ["1065", 0], "on_false": ["4002", 0], "on_true": ["5113", 0]}},
     "4100": {"class_type": "SaveVideo", "inputs": {
         "video": ["5100", 0], "filename_prefix": PREFIX_P_FINAL, "format": "auto", "codec": "auto"}},
+    # ---- 1119 HD 段 +14(SAM3/MVEx/Switch 形态=探针 graph_p1-t/p2-t.json 实拉同构)----
+    "5101": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "sam3.1_multiplex_fp16.safetensors"}},
+    "5102": {"class_type": "CLIPTextEncode", "inputs": {"text": "face", "clip": ["5101", 1]}},
+    "5103": {"class_type": "SAM3_VideoTrack", "inputs": {
+        "images": ["5011", 0], "model": ["5101", 0], "conditioning": ["5102", 0],
+        "detection_threshold": 0.5, "max_objects": 1, "detect_interval": 1}},
+    "5104": {"class_type": "SAM3_TrackToMask", "inputs": {
+        "track_data": ["5103", 0], "object_indices": "0"}},
+    "5105": {"class_type": "MVEx_MaskCleanup", "inputs": {
+        "masks": ["5104", 0], "threshold": 0.3, "method": "shrink_grow",
+        "method.shrink": 12, "method.min_frames": 4, "edge_grow": 16}},
+    "5106": {"class_type": "MVEx_MaskToLatentSpace", "inputs": {
+        "masks": ["5105", 0], "vae": ["1003", 0], "compression": "auto",
+        "spatial_method": "max", "temporal_method": "max", "grow_spatial": 36,
+        "grow_temporal": 1, "grow_temp_mode": "both"}},
+    "5107": {"class_type": "SetLatentNoiseMask", "inputs": {
+        "samples": ["5013", 0], "mask": ["5106", 0]}},
+    "5109": {"class_type": "VOSR2ModelLoader", "inputs": {"model": "VOSR2", "dtype": "default"}},
+    "5110": {"class_type": "VOSR2Upscale", "inputs": {
+        "model": ["5109", 0], "image": ["5021", 0], "upscale": 1, "seed": 300831622214023,
+        "color_alignment": "wavelet", "tile_size": 512, "tile_overlap": 32,
+        "vae_tile_size": 1024, "vae_tile_overlap": 32}},  # seed 控制位 fixed=画布侧件,API 无此键(object_info 实证)
+    "5112": {"class_type": "ComfySwitchNode", "inputs": {
+        "switch": ["5111", 0], "on_false": ["5013", 0], "on_true": ["5107", 0]}},
+    "5113": {"class_type": "ComfySwitchNode", "inputs": {
+        "switch": ["5111", 0], "on_false": ["5023", 0], "on_true": ["5025", 0]}},
+    "5024": {"class_type": "H3FaceStitch", "inputs": {
+        "base_images": ["5002", 0], "refined_crops": ["5110", 0], "transform": ["5011", 1],
+        "masks": ["5104", 0], "paste_region": "face_only", "mask_dilation": 16, "feather": 24,
+        "colour_match": 1.0, "blend": 1.0, "undetected_frames": "fade_out"}},
+    "5025": {"class_type": "CreateVideo", "inputs": {
+        "images": ["5024", 0], "audio": ["5002", 1], "fps": 24, "bit_depth": "auto",
+        "color_space": "sRGB", "chroma_subsampling": "auto", "codec": "none"}},
 }
 
 
@@ -259,7 +501,7 @@ def slot_index(n: dict, section: str, name: str) -> int:
 
 
 def strip_canvas(S: dict) -> dict:
-    """剥离本组既往添加(幂等母本=正典件自身)。"""
+    """剥离本组既往添加(幂等母本=正典件自身;含 1118 旧组标题过渡剥离)。"""
     own_ids = set(OWN)
     for n in list(S["nodes"]):
         if n["id"] in own_ids:
@@ -277,7 +519,7 @@ def strip_canvas(S: dict) -> dict:
                 if isinstance(slot.get("links"), list):
                     slot["links"] = [x for x in slot["links"] if x not in removed_link_ids]
     S["groups"] = [g for g in S.get("groups", [])
-                   if g.get("title") not in (GROUP_A_TITLE, GROUP_B_TITLE)]
+                   if g.get("title") not in (GROUP_A_TITLE, GROUP_A_TITLE_1118, GROUP_B_TITLE)]
     for n in S["nodes"]:
         if n["id"] == 9999:
             md = n["widgets_values"][0]
@@ -295,6 +537,8 @@ def build_canvas(S: dict, clone_nodes: list) -> dict:
         tpl[new_id] = fresh(node_by_id(S["nodes"], src_id))
     for new_id, src_id in TPL_FROM_CLONE.items():
         tpl[new_id] = fresh(node_by_id(clone_nodes, src_id))
+    for new_id in HD_TPL:  # 1119 HD 段:硬编码结构(融合件已归档不作模板源)
+        tpl[new_id] = copy.deepcopy(HD_TPL[new_id])
 
     base_order = max((n.get("order") or 0) for n in S["nodes"]) + 1
     new_nodes = []
@@ -322,7 +566,7 @@ def build_canvas(S: dict, clone_nodes: list) -> dict:
         dst["inputs"][di]["link"] = next_link
         next_link += 1
     S["last_link_id"] = next_link - 1
-    S["last_node_id"] = max(S["last_node_id"], 4002, 5100, 4100, 1065)
+    S["last_node_id"] = max(S["last_node_id"], 4002, 5100, 4100, 1065, 5113)
 
     def group(title, ids, color):
         ns = [n for n in new_nodes if n["id"] in ids]
@@ -372,34 +616,38 @@ def check() -> int:
             print(f"  FAIL  {msg}")
 
     n_canvas, n_api = len(S["nodes"]), len(A)
-    print(f"[CHECK] 画布节点 {n_canvas}(66+{n_canvas-66}) / API 节点 {n_api}(64+{n_api-64})")
-    print("  NOTE  节点数口径:PRD §1.1 标题「66+21=87」为修订前残数(21=19+已删 5001 LoadVideo/"
-          "5005 UNETLoader);按 §1.1 拓扑枚举报 19;另有 lowvram役(81f8909f)#1072 插桩 1 件"
-          "不在本组剥离面 → 画布 86 / API 84,自检按现役文件断言")
-    ok(n_canvas == 87, f"画布节点数=87(66+19 臂+lowvram#1072+clip_vision#800),实际 {n_canvas}")
-    ok(n_api == 85, f"API 节点数=85(64+19 臂+lowvram#1072+clip_vision#800),实际 {n_api}")
+    print(f"[CHECK] 画布节点 {n_canvas} / API 节点 {n_api}")
+    print("  NOTE  口径:1118 内置 19 臂(66+19+lowvram#1072+clip_vision#800=87)→"
+          " 1119 双档 +14(9 融合段+5111/5112/5113+5024/5025 复制对)=101;API 同构 85→99")
+    ok(n_canvas == 101, f"画布节点数=101(87+14 双档),实际 {n_canvas}")
+    ok(n_api == 99, f"API 节点数=99(85+14),实际 {n_api}")
 
     ids = [n["id"] for n in S["nodes"]]
     ok(len(ids) == len(set(ids)), "画布节点 id 唯一")
     idset = set(ids)
     ok(all(l[1] in idset and l[3] in idset for l in S["links"]), "画布无悬空链")
-    ok(all(str(i) in A for i in OWN), "19 新节点 API/画布两件齐备")
+    ok(all(str(i) in A for i in OWN), "33 新节点(19 臂+14 双档)API/画布两件齐备")
 
-    b65 = next(n for n in S["nodes"] if n["id"] == 1065)
-    ok(b65.get("widgets_values") == [False], "画布 #1065 开关默认 False")
+    nmap = {n["id"]: n for n in S["nodes"]}
+    lk = {l[0]: l for l in S["links"]}
+
+    def src_of(nid, in_name):
+        s = next(s for s in nmap[nid]["inputs"] if s["name"] == in_name)
+        return lk.get(s.get("link"))
+
+    b65 = nmap[1065]
+    ok(b65.get("widgets_values") == [False], "画布 #1065 开关默认 False(出厂旁路不因本役改变)")
     ok(A["1065"]["inputs"]["value"] is False, "API #1065 开关默认 False")
+    b111 = nmap[5111]
+    ok(b111["type"] == "PrimitiveBoolean" and b111.get("widgets_values") == [False],
+       "画布 #5111 高清子开关默认 False(远景=默认档)")
+    ok(A["5111"]["inputs"]["value"] is False, "API #5111 默认 False(可注入)")
     ok(sum(1 for n in S["nodes"] if n["type"] == "UNETLoader") == 1, "画布无第二个 UNETLoader(仅 1001)")
     ok(sum(1 for v in A.values() if v["class_type"] == "UNETLoader") == 1, "API 无第二个 UNETLoader(仅 1001)")
 
-    n5012 = next(n for n in S["nodes"] if n["id"] == 5012)
-    lk = {l[0]: l for l in S["links"]}
-    n5011 = next(n for n in S["nodes"] if n["id"] == 5011)
-
-    def src_of(n, in_name):
-        s = next(s for s in n["inputs"] if s["name"] == in_name)
-        return lk.get(s.get("link"))
-
-    wl, hl = src_of(n5012, "width"), src_of(n5012, "height")
+    n5012 = nmap[5012]
+    n5011 = nmap[5011]
+    wl, hl = src_of(5012, "width"), src_of(5012, "height")
     ok(wl and wl[1] == 5011 and n5011["outputs"][wl[2]]["name"] == "canvas_w",
        "画布 5012.width=5011.canvas_w 出口联线")
     ok(hl and hl[1] == 5011 and n5011["outputs"][hl[2]]["name"] == "canvas_h",
@@ -407,8 +655,74 @@ def check() -> int:
     ok(A["5012"]["inputs"]["width"] == ["5011", 4] and A["5012"]["inputs"]["height"] == ["5011", 5],
        "API 5012 宽高=5011 出口(canvas_w=4/canvas_h=5)")
 
+    # ---- 1119 双档结构契约 ----
+    def wired(nid, in_name, want_src):
+        l = src_of(nid, in_name)
+        return bool(l) and l[1] == want_src
+
+    # 5112 中链(隔离块产物)
+    ok(wired(5112, "switch", 5111) and wired(5112, "on_false", 5013) and wired(5112, "on_true", 5107),
+       "5112 中链极性:switch←5111/on_false←5013 直通/on_true←5107 遮罩潜空间")
+    ok(src_of(5014, "av_latent")[1] == 5112, "5014.av_latent←5112 出口(原 859 线等效改接,远景态直通臂)")
+    ok(A["5112"]["inputs"] == {"switch": ["5111", 0], "on_false": ["5013", 0], "on_true": ["5107", 0]},
+       "API 5112 同构")
+    # 5113 出口
+    ok(wired(5113, "switch", 5111) and wired(5113, "on_false", 5023) and wired(5113, "on_true", 5025),
+       "5113 出口极性:switch←5111/on_false←5023 远景/on_true←5025 高清")
+    ok(wired(5100, "on_true", 5113) and wired(5100, "on_false", 4002) and wired(5100, "switch", 1065),
+       "5100 极性不变:on_true←5113 出口(原 5023 线等效改接)/on_false←4002/switch←1065")
+    ok(A["5113"]["inputs"] == {"switch": ["5111", 0], "on_false": ["5023", 0], "on_true": ["5025", 0]}
+       and A["5100"]["inputs"]["on_true"] == ["5113", 0] and A["5014"]["inputs"]["av_latent"] == ["5112", 0],
+       "API 5113/5100/5014 投切同构")
+    # 远景臂零语义改写(AC4)
+    ok(wired(5022, "refined_crops", 5021), "远景臂 871 线原样:5022.refined_crops←5021(零语义改写)")
+    m22 = next(s for s in nmap[5022]["inputs"] if s["name"] == "masks")
+    ok(m22.get("link") is None and m22.get("shape") == 7,
+       "5022.masks 恒悬空 shape7(face_only 脸框贴回=正典现状保真)")
+    ok(nmap[5024]["widgets_values"] == nmap[5022]["widgets_values"],
+       "5024 widgets 逐位同 5022(高清复制对)")
+    ok(nmap[5025]["widgets_values"] == nmap[5023]["widgets_values"],
+       "5025 widgets 逐位同 5023")
+    ok(wired(5024, "masks", 5104) and wired(5024, "refined_crops", 5110)
+       and wired(5024, "base_images", 5002) and wired(5024, "transform", 5011),
+       "5024 四进口:masks←5104(SAM3 贴回约束)/refined_crops←5110(VOSR2)/base←5002/transform←5011")
+    ok(wired(5025, "images", 5024) and wired(5025, "audio", 5002), "5025:images←5024/audio←5002②")
+    ok(A["5024"]["inputs"]["masks"] == ["5104", 0] and A["5024"]["inputs"]["refined_crops"] == ["5110", 0],
+       "API 5024 masks/refined_crops 同构")
+    # HD 段链
+    ok(wired(5103, "images", 5011) and wired(5103, "model", 5101) and wired(5103, "conditioning", 5102),
+       "5103 SAM3:images←5011.crops/model←5101/conditioning←5102")
+    ok(wired(5104, "track_data", 5103) and wired(5105, "masks", 5104) and wired(5106, "masks", 5105)
+       and wired(5106, "vae", 1003) and wired(5107, "mask", 5106) and wired(5107, "samples", 5013),
+       "mask 路A:5103→5104→5105→5106(vae←1003)→5107(samples←5013)")
+    ok(wired(5110, "model", 5109) and wired(5110, "image", 5021), "VOSR2 尾档:5109→5110(image←5021)")
+    ok(nmap[5110]["widgets_values"][2] == "fixed", "5110 control=fixed(seed 锁 300831622214023 禁 randomize)")
+    ok(nmap[5103]["widgets_values"] == [0.5, 1, 1] and nmap[5105]["widgets_values"] == [0.3, "shrink_grow", 12, 4, 16]
+       and nmap[5106]["widgets_values"] == ["auto", "max", "max", 36, 1, "both"]
+       and nmap[5109]["widgets_values"] == ["VOSR2", "default"],
+       "HD 段 widgets 逐位承融合件 1119b(5103/5105/5106/5109)")
+
+    # ---- 布局契约(零左向/零 AABB 重叠/组框)----
+    left_bad = [(l[0], l[1], l[3]) for l in S["links"]
+                if nmap[l[3]]["pos"][0] <= nmap[l[1]]["pos"][0]]
+    ok(not left_bad, f"全链恒向右(零左向线),违例 {left_bad[:5]}")
+    ok(nmap[5103]["pos"][0] > nmap[5011]["pos"][0] and nmap[5107]["pos"][0] > nmap[5013]["pos"][0]
+       and nmap[5110]["pos"][0] > nmap[5021]["pos"][0],
+       "三处融合件左向后勘:5103>5011/5107>5013/5110>5021")
+    ok(all(n["pos"][0] >= 80 and n["pos"][1] >= 80 for n in S["nodes"]), "零负区(pos≥80)")
+    boxes = [(n["id"], n["pos"][0], n["pos"][1], n["pos"][0] + n["size"][0], n["pos"][1] + n["size"][1])
+             for n in S["nodes"]]
+    overlaps = []
+    for i in range(len(boxes)):
+        for j in range(i + 1, len(boxes)):
+            a, b = boxes[i], boxes[j]
+            if a[1] < b[3] and b[1] < a[3] and a[2] < b[4] and b[2] < a[4]:
+                overlaps.append((a[0], b[0]))
+    ok(not overlaps, f"全图节点 AABB 零重叠,违例 {overlaps[:6]}")
+
     gs = [g for g in S["groups"] if g["title"] in (GROUP_A_TITLE, GROUP_B_TITLE)]
-    ok(len(gs) == 2, "两只组框在位")
+    ok(len(gs) == 2 and len(S["groups"]) == 7,
+       "组框恒 7 组(扩四采组框罩全 14 新件,不新增第 8 组)")
     cover = True
     for n in S["nodes"]:
         if n["id"] not in OWN:
@@ -420,28 +734,31 @@ def check() -> int:
         if not inside:
             cover = False
             print(f"  ..  #{n['id']} 未被组框罩住")
-    ok(cover, "组框罩全(19 新节点全部落框)")
+    ok(cover, "组框罩全(33 新节点全部落框)")
+    gover = []
+    for i in range(len(S["groups"])):
+        for j in range(i + 1, len(S["groups"])):
+            a, b = S["groups"][i]["bounding"], S["groups"][j]["bounding"]
+            if a[0] < b[0] + b[2] and b[0] < a[0] + a[2] and a[1] < b[1] + b[3] and b[1] < a[1] + a[3]:
+                gover.append((S["groups"][i]["title"], S["groups"][j]["title"]))
+    ok(not gover, f"组框两两不交(A 右缘让开终档组),违例 {gover}")
 
     par = all(str(i) in A and A[str(i)]["class_type"] == OWN[i] for i in OWN)
-    ok(par, "API/画布 19 节点 class_type 同构")
+    ok(par, "API/画布 33 节点 class_type 同构")
 
-    def wired(nid, in_name, want_src):
-        l = src_of(next(n for n in S["nodes"] if n["id"] == nid), in_name)
-        return bool(l) and l[1] == want_src
-
-    ok(wired(5002, "video", 4002) and wired(5100, "on_false", 4002) and wired(5100, "on_true", 5023)
-       and wired(5100, "switch", 1065) and wired(4100, "video", 5100) and wired(5006, "model", 1001)
+    ok(wired(5002, "video", 4002) and wired(4100, "video", 5100) and wired(5006, "model", 1001)
        and wired(5014, "audio", 5002) and wired(5019, "conditioning", 5012)
-       and wired(5020, "noise", 5016), "关键联线拓扑(5002←3053/5100 双臂+开关/4100←5100/5006←1001/5014.audio←5002②/5019←5012/5020←5016)")
-    ok(A["5002"]["inputs"]["video"] == ["4002", 0] and A["5100"]["inputs"]["on_false"] == ["4002", 0]
-       and A["5100"]["inputs"]["on_true"] == ["5023", 0] and A["4100"]["inputs"]["video"] == ["5100", 0]
+       and wired(5020, "noise", 5016), "关键联线拓扑(5002←4002/4100←5100/5006←1001/5014.audio←5002②/5019←5012/5020←5016)")
+    ok(A["5002"]["inputs"]["video"] == ["4002", 0] and A["4100"]["inputs"]["video"] == ["5100", 0]
        and A["5006"]["inputs"]["model"] == ["1001", 0], "API 关键拓扑同构")
 
-    t25 = next(n for n in S["nodes"] if n["id"] == 25)
+    t25 = nmap[25]
     ok(bool(t25["widgets_values"][0].strip()) and A["25"]["inputs"]["value"] == t25["widgets_values"][0],
        "#25 默认通用句两件一致且非空")
-    ok(README_MARK in next(n for n in S["nodes"] if n["id"] == 9999)["widgets_values"][0],
-       "README 9999 已增「四采修脸」段")
+    md = nmap[9999]["widgets_values"][0]
+    ok(README_MARK in md, "README 9999 已增「四采修脸」段")
+    ok("### 1119 双档调用(远景=默认 / 高清)" in md and "非法态" in md,
+       "README 9999 已增 1119 双档调用段(四态矩阵+非法态口径)")
     ok(S["last_link_id"] == max(l[0] for l in S["links"]), "last_link_id 已对齐最大链号")
 
     if fails:
@@ -456,14 +773,24 @@ def check() -> int:
 def main() -> int:
     if "--check" in sys.argv:
         return check()
-    S = strip_canvas(json.loads(CANVAS.read_text(encoding="utf-8")))
     clone_nodes = json.loads(CLONE.read_text(encoding="utf-8"))["nodes"]
+    S = strip_canvas(json.loads(CANVAS.read_text(encoding="utf-8")))
     S = build_canvas(S, clone_nodes)
     write_json(CANVAS, S)
     A = build_api(json.loads(API.read_text(encoding="utf-8")))
     write_json(API, A)
-    print(f"[OK] 画布 {CANVAS.name}:{len(S['nodes'])} 节点(66+19 臂+lowvram#1072+clip_vision#800)/ {len(S['links'])} 链 / {len(S['groups'])} 组")
-    print(f"[OK] API {API.name}:{len(A)} 节点(64+19)")
+    print(f"[OK] 画布 {CANVAS.name}:{len(S['nodes'])} 节点(87+14 双档)/ {len(S['links'])} 链 / {len(S['groups'])} 组")
+    print(f"[OK] API {API.name}:{len(A)} 节点(85+14)")
+
+    # 幂等双跑字节一致(AC6):盘上产物再剥再建应逐字节复现
+    S2 = build_canvas(strip_canvas(json.loads(CANVAS.read_text(encoding="utf-8"))), clone_nodes)
+    A2 = build_api(json.loads(API.read_text(encoding="utf-8")))
+    idem = (json.dumps(S2, ensure_ascii=False, indent=2) == CANVAS.read_text(encoding="utf-8")
+            and json.dumps(A2, ensure_ascii=False, indent=2) == API.read_text(encoding="utf-8"))
+    if not idem:
+        print("[FATAL] 幂等双跑字节不一致(生成器非确定性,禁改规格迁就)")
+        return 1
+    print("[OK] 幂等双跑字节一致(AC6)")
     return check()
 
 

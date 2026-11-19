@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""三采-单镜.json 四采带布局治理(1118 美化役·坐标-only 手术脚本,幂等 fail-closed)。
+"""单镜.json 四采带布局治理(1118 美化役·坐标-only 手术脚本,幂等 fail-closed)。
 
 方案=既定美化方案(四采带 ⑧ 分层行重排):
   主链一行 5002→5011→5012→5013→5006→5014→5015→[5016/5019/5017/5018 同列纵堆]→5020→5021→5022→
@@ -35,7 +35,7 @@ sys.path.insert(0, str(REPO / ".zcode/skills/node-graph/tools"))
 from layout_check import CHECK_KEYS, check_workflow  # noqa: E402
 from workflow_layout import est_size  # noqa: E402
 
-WF = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json"
+WF = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json"
 BASELINE = REPO / "apps/build/scripts/workflow_layout_baseline.json"
 
 ROW_Y = 5900

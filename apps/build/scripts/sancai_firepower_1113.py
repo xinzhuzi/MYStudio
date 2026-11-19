@@ -9,7 +9,7 @@ C: r2v 参考视频([119] LoadVideo→[16].ref_videos.ref_video_0,槽已在件;m
 import copy, json, sys
 
 UI_FILES = {
-    'repo': '/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json',
+    'repo': '/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json',
     'twin': '/Users/zhengbingjin/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.json',
 }
 API_FILE = '/Users/zhengbingjin/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json'

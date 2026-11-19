@@ -43,7 +43,7 @@ import sancai_inline_facerefine_build_1118 as MB  # noqa: E402  母本单一真�
 
 CANVAS = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/一镜到底-分段.json"
 API = REPO / "apps/frontend/lib/assist/image-studio/h3-multiseg-template.api.json"
-SRC = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json"  # 模板源(只读)
+SRC = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json"  # 模板源(只读;1119 由 三采-单镜 改名)
 
 # ---- 本件锚点(画布件实勘)----
 TAIL = 3053   # CreateVideo 二采 p2 出片口(mode0;链尾终采 VIDEO 输出节点)
@@ -55,8 +55,13 @@ REF_API = 9                 # API 模板 LoadImage(画布件无 LoadImage,零参
 API_TAIL = 36               # API 模板自己的终采 VIDEO 输出节点(CreateVideo 一采直出)
 PREFIX_P_FINAL = "video/H3/分段视频/p-final"
 
-OWN: dict[int, str] = MB.OWN                # 19 节点规格(id→class_type),与母本同款同号
-WIDGETS = {k: (list(v) if v is not None else None) for k, v in MB.WIDGETS.items()}
+# 1119 双档核验(PRD 3.4,结论回填):母本 1119 起 OWN 扩为 33(+HD_IDS 14 件远景/高清
+# 双档段),本件若直接继承会误带 SAM3/VOSR2/投切段进 multiseg——已证带,加节点过滤
+# (只克隆 5000 段修脸原链 19 件);multiseg 不随双档役,双档需求走正典件。
+HD_FILTER = set(getattr(MB, "HD_IDS", set()))
+OWN: dict[int, str] = {k: v for k, v in MB.OWN.items() if k not in HD_FILTER}
+WIDGETS = {k: (list(v) if v is not None else None) for k, v in MB.WIDGETS.items()
+           if k not in HD_FILTER}
 WIDGETS[5012] = ["", 768, 768, LENGTH, "max"]   # length=56 出厂(3031 同值);宽高位被 5011 联线覆盖
 WIDGETS[4100] = [PREFIX_P_FINAL, "auto", "auto", "auto"]  # p-final 前缀换本件口径(勿承三采 chapter-001)
 # 5011 追踪分策(1118 收尾):锚三元组取母本终版(closest_to_xy/1920/900/@f170),身份栈退回
@@ -68,15 +73,15 @@ WIDGETS[5011] = _w
 
 GROUP_A_TITLE = "四采修脸组(5000 段·默认旁路·1118 multiseg)"
 GROUP_B_TITLE = "终档组(p-final·四采开关·1118 multiseg)"
-GROUP_A_IDS = set(MB.GROUP_A_IDS)           # 25/1065/5002/5006/5011-5023
+GROUP_A_IDS = set(MB.GROUP_A_IDS) - HD_FILTER  # 25/1065/5002/5006/5011-5023(滤除 1119 双档 14 件)
 GROUP_B_IDS = set(MB.GROUP_B_IDS)           # 5100/4100
 README_MARK = "\n\n---\n\n## 四采修脸(内置·默认旁路·1118 multiseg)"
 README_SECTION = README_MARK + """
 
 - **开关 #1065「四采修脸」**:默认 **False=旁路**——终档 4100 p-final=3053 二采 p2 直通,50xx 臂被引擎惰性剪除
-  (0.45.2 实证,同 三采-单镜 1118 双态探针口径),零成本;**True=二采出片内部走进修脸→终档一条线**
+  (0.45.2 实证,同 单镜 1118 双态探针口径),零成本;**True=二采出片内部走进修脸→终档一条线**
 - **#25 修脸身份提示词**:默认通用句;外部按角色覆写(参照正片人物五官特征)
-- **臂拓扑**(同 三采-单镜 1118 §1.1):5002 拆 3053(帧①+音轨②)→ 5011 追踪裁剪(face_yolov8m
+- **臂拓扑**(同 单镜 1118 §1.1):5002 拆 3053(帧①+音轨②)→ 5011 追踪裁剪(face_yolov8m
   conf0.15/兜底 segm\\person_yolov8m-seg.pt/largest_face)→ 5012 H3 重画(**宽高=5011 出口联线勿手填**/
   参考图=零参考出厂/提示词=#25)→ 5013 注入真实帧 → 5014 音轨锁(audio←5002②)→ 5015 逐帧 denoise
   (60/200px)→ 5016-5020 采样(seed 42 同 3040/lcm/simple/8步/0.45)→ 5021 解码 → 5022 贴回(16/24)

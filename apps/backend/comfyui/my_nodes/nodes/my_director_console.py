@@ -16,7 +16,7 @@ PRD R1.5 勾啥跑啥)。
 (批量役 POST /free 同义;model_prefetch 队列清坑随首批实弹验证)。
 
 配方常量焊死表 DIRECTOR_RECIPE(PRD R1.7 锁死档):抽自纯净化母本
-59 节点(三采-单镜.json),与 test_director_console_contract.py
+59 节点(单镜.json),与 test_director_console_contract.py
 §5-5/§5-7 钉值同源;LoRA/底模/TE/VAE 不上面板——乱调即踩乱码红线
 (Euler→片尾乱码)与画质悬崖。
 """

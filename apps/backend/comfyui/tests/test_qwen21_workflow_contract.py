@@ -3862,7 +3862,7 @@ class TestQi21SubgraphContract:
         assert [n["id"] for n in _by_type(graph, "KSampler")] == [8118], \
             "qi21 主图 KSampler 应恰 [8118] Gem ② 8步件(1117 例外,其余仍在子图)"
         assert sorted(n["id"] for n in _by_type(graph, "LoraLoaderModelOnly")) == [8112, 8113], \
-            "qi21 主图 LoraLoaderModelOnly 应恰 Gem ② 官方turbo r178+mikkoani 二件(1118 换装/1118 B 案换挂)"
+            "qi21 主图 LoraLoaderModelOnly 应恰 Gem ② 官方turbo r178+restore 二件(1118 换装/1119 A弹三代换药)"
         assert [n["id"] for n in _by_type(graph, "ComfyMathExpression")] == [8109], \
             "qi21 主图 ComfyMathExpression 应恰 [8109] Gem ② 守卫件(1117 例外)"
         # 0928 W2 反转:主图零 PE 件(PE 链收进 [40] 子图)
@@ -5957,7 +5957,7 @@ class TestSeedVR2TailContract1002:
 
 # ── 6g-2. Gem 分块超分尾档契约(1117 手术;真源=社区件 qwen21_Gem_Face_zoom_V1.json
 # ② 链移植:防大图守卫三件(平铺形,源件住子图容器)+独立加载器栈(int8 UNET→
-# 官方turbo r178→mikkoani@0.6,1118 B 案换挂治动漫感流失)→GemTiledUpscale(8.25MP/2MP tile;出图逐边ceil无对齐)→TextEncodeQwenImage21
+# 官方turbo r178→restore@1.0,1119 A弹三代换药治幻影)→GemTiledUpscale(8.25MP/2MP tile;出图逐边ceil无对齐)→TextEncodeQwenImage21
 # 修复提示词→KSampler 8步→VAEDecode→GemTiledUpscaleStitch 拼缝,出口接既有
 # SaveImage[504];SeedVR 整链节点级 mode4 旁路零删可复活;手术脚本
 # apps/build/scripts/qi21_daojie_gem_tiled_graft_1117.py)─────────────────
@@ -5970,16 +5970,20 @@ GEM_TAIL_TYPES = {
     8117: "TextEncodeQwenImage21", 8118: "KSampler", 8119: "VAEDecode",
     8120: "GemTiledUpscaleStitch",
 }
-# widgets 逐位钉(None=整键省略 widgets_values;8112=turbo r178(1118 换装偏离件);8113=1118 B 案
-# 换挂主链同款 mikkoani@0.6(受制裁偏离,不照源件 donor;源件仍是 ItsGem face ×1)——
+# widgets 逐位钉(None=整键省略 widgets_values)。1119 T8保真A弹三刀(P1/C2 宣判:
+# 四格令覆盖 T8 零动令)——8109 守卫 边长1024锚→面积~2MP 锚(R2/R7①格;8110
+# scale_by slot2 恒接 8221,min(1,…) 值域 (0,1] ⊆ [0.01,8.0] 上限内自洽);
+# 8113 三代换药 mikkoani@0.6→restore@1.0(引擎件=HF1500 版 R1 字节级验明);
+# 8120 blend_band 0→64(R4 官方窄带独占抗双影;overlap 维持 256=B弹候令域);
+# 8117 提示词本轮不动(变体对照候令);偏离谱系=手术脚本 DEVIATIONS 单源——
 # 源件 named 是 r128 假名与 qwen21\ 前缀假名,画布不落 named)
 GEM_TAIL_WIDGETS = {
     8108: None,
-    8109: ["min(1, 1024 / max(a, b))"],
+    8109: ["min(1, sqrt(2000000 / (a * b)))"],
     8110: ["lanczos", 1],
     8111: ["qwen_image_2.1_int8_convrot.safetensors", "default"],
     8112: ["qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors", 1],
-    8113: ["qi21-mikkoani.safetensors", 0.6],
+    8113: ["qwen-image-2.1-restore.safetensors", 1.0],
     8114: ["qwen3vl_8b_int8_convrot.safetensors", "qwen_image", "default"],
     8115: ["qwen_image_2.1_vae_bf16.safetensors"],
     8116: [8.25, 2, 256, 32, 64, True],
@@ -5991,7 +5995,7 @@ GEM_TAIL_WIDGETS = {
            "style unchanged.", "", 0],
     8118: [0, "fixed", 8, 1, "euler", "simple", 1],
     8119: None,
-    8120: [1, "translation", 64, 0],
+    8120: [1, "translation", 64, 64],
 }
 # 20 根新线逐根钉(8217-8236;末根=② 链出口接 [504])
 GEM_TAIL_LINKS = (

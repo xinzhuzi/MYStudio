@@ -45,7 +45,7 @@ EXPECTED_SINGLE_SHOT = sorted([
     "pika-单镜视频-fl2v.json",
     "pika-单镜视频-ref2v.json",
     "三采-单镜-RelayVSR-1110.json",
-    "三采-单镜.json",
+    "单镜.json",
     "单镜视频 · chapter-001 · S01.json",
 ])
 

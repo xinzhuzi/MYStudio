@@ -1,8 +1,9 @@
 """道劫三段链工作流契约测试(11-05-daojie-h3-three-stage)。
 
-被测对象 = 仓库真源 `2_视频/H3视频/1_漫影自研/三采-单镜.json`
+被测对象 = 仓库真源 `2_视频/H3视频/1_漫影自研/单镜.json`
 (1111 用户裁定换防主线:三采主力 RelayVSR→ReCaVSR;1112 用户裁定复名:自研件不用外来技术名,
-挑战臂役暂名 三采-recavsr-单镜.json 复名回 三采-单镜.json;旧 RelayVSR 版主线退役件
+挑战臂役暂名 三采-recavsr-单镜.json 复名回 三采-单镜;1119 用户裁定主线件改名
+(旧名三采-单镜→现名单镜,全仓引用面同步);旧 RelayVSR 版主线退役件
 三采-单镜-RelayVSR-1110.json(1112 吸收归档撤域后与主线同住 0_单镜视频);克隆血统=1110 主线终名(更早 pika-单镜视频-三段链),
 fork pika-单镜视频-ref2v.json 出生)(GUI 格式)。
 
@@ -42,7 +43,7 @@ from pathlib import Path
 import pytest
 
 WF_DIR = Path(__file__).resolve().parents[1] / "workflows" / "2_视频" / "H3视频" / "1_漫影自研"
-WF = WF_DIR / "三采-单镜.json"
+WF = WF_DIR / "单镜.json"  # 1119 git mv 改名(旧名 三采-单镜 随役退役)
 
 PIKA_SIGMAS = "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
 
@@ -247,8 +248,9 @@ def test_links_bidirectional_consistency():
 
 def test_groups_three_bands_non_overlap():
     """1113 手术后=五组横排:加载模型→输入→一阶段采样→二阶段放大→三采超分;
-    1118 增两只:四采修脸组(5000 段·默认旁路)+终档组(5100/4100 p-final),共七组;
-    两两不交,标题口径正确(TESSERA/RelayVSR 已出主线,标题不得再含);
+    1118 增两只:四采修脸组(5000 段)+终档组(5100/4100 p-final),共七组;
+    1119 双档:扩四采组框罩全 14 新件(组数恒 7 不新增第 8 组,组标题更新双档口径;
+    PRD 3.6 用户裁决=两档同组);两两不交,标题口径正确(TESSERA/RelayVSR 已出主线,标题不得再含);
     罩全门(1113 刻碑:负高度组框实弹事故——深度阶梯改版丢 g_max_y 更新行,五组高度全 -20,
     画布上组框退化成标题条、节点全部框外;检查器不查组覆盖须自算,此处入契约)。"""
     d, nodes, _ = _load()
@@ -329,13 +331,15 @@ def test_absorbed_fl2v_firstframe_mode():
 
 
 def test_single_shot_dir_inventory():
-    """1_漫影自研 件册(1112 扁平化+历史档外迁裁定:零子夹):主线 三采-单镜.json
+    """1_漫影自研 件册(1112 扁平化+历史档外迁裁定:零子夹):主线 单镜.json
     (1111 换防退役件 三采-单镜-RelayVSR-1110.json 已移 7_测试/ 留档;1118 df4162c8 又迁出
-    三采-单镜-小脸修复.json=克隆模板件归 7_测试/;1119 三采-单镜-修脸.json=融合修脸件役毕双臂对拍+4K 验活后归 7_测试/,现册=一镜到底-分段+三采-单镜+导演台 三件)。
+    三采-单镜-小脸修复.json=克隆模板件归 7_测试/;1119a 三采-单镜-修脸.json=融合修脸件役毕双臂对拍+4K 验活后归 7_测试/;
+    1119b 主线 git mv 改名(三采-单镜→单镜)+修脸双档内置(远景=默认/高清,四采修脸组同组双档)。
+    现册=一镜到底-分段+单镜+导演台 三件)。
     1112 用户令:1_漫影自研 下不设子文件夹;归档语义由文件名后缀承载。"""
     expected = [
         "一镜到底-分段.json",
-        "三采-单镜.json",
+        "单镜.json",
         "导演台.json",
     ]
     jsons = sorted(p.name for p in WF_DIR.glob("*.json"))
@@ -359,24 +363,24 @@ def test_sigma_feed_scheduler_gets_shifted_model():
 
 
 def test_facerefine_inline_arm_1118():
-    """1118 四采修脸臂内置(11-17-facerefine-inline-bypass):19 节点默认旁路,画布 66→86
-    (66+19 臂+lowvram役#1072;PRD §1.1 标题「66+21=87」为修订前残数=19+已删 5001/5005,
-    生成器 sancai_inline_facerefine_build_1118 自检对账注记 画布86/API84)。[1065] False 时
+    """1118 四采修脸臂内置(11-17-facerefine-inline-bypass):19 节点默认旁路;1119 双档扩
+    (11-19-dualmode-facerefine-rename)再 +14(远景/高清双档)=画布 101、API 99
+    (66+19 臂+lowvram役#1072+clip_vision#800+14 双档)。[1065] False 时
     50xx 臂被引擎惰性剪除,终档 4100=p3 直通;True 时走进修脸→终档一条线。结构契约:
-    节点数 86/开关默认 False/恒单 UNETLoader(5006←1001 复用,PRD 单向门#2 显存修订)/
-    5002 拆帧源=3053(二采 p2 出片口,1118 门禁红根修对齐 multiseg 同臂口径;4002 仍喂
+    节点数 101/开关默认 False/恒单 UNETLoader(5006←1001 复用,PRD 单向门#2 显存修订)/
+    5002 拆帧源=4002(三采 p3 4K 出片口,1119 回正=用户裁定「三采 4K 后修脸」;4002 仍喂
     5100.on_false=p3 直通)/
-    5012 画布宽高=5011 追踪器出口联线(禁手填)/5100 极性 on_true=5023 修脸片·on_false=
-    4002 p3 直通。prune 执行面不在静态测试面,由探针跑架 inline_fire_runner_1118 双态
-    实弹把门——1118 双态探针已落定(引擎 history pid 8afe0df4/146293f2+产物复测:
-    旁路 p-final≡p3 MD5 逐字节一致、修脸远端 t=1s 帧 >12 差分 24,467px),极性与接线
-    一致,防 wf2api 反转坑。"""
+    5012 画布宽高=5011 追踪器出口联线(禁手填)/5100 极性 on_true←5113 出口(1119 等效改接,
+    远景态经 5113 直通臂)·on_false=4002 p3 直通。双档结构契约见 test_facerefine_dual_mode_1119。
+    prune 执行面不在静态测试面,由探针跑架双态实弹把门——1118 双态探针已落定(引擎 history
+    pid 8afe0df4/146293f2+产物复测:旁路 p-final≡p3 MD5 逐字节一致、修脸远端 t=1s 帧 >12
+    差分 24,467px),极性与接线一致,防 wf2api 反转坑。"""
     d, nodes, links = _load()
     arm = {25, 1065, 4100, 5002, 5006, 5011, 5012, 5013, 5014, 5015,
            5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5100}
     assert arm <= set(nodes), f"四采臂缺件: {arm - set(nodes)}"
-    assert len(nodes) == 87, \
-        "画布节点数=87(66+19 四采臂+lowvram役#1072+clip_vision#800;1118 追踪参数同步役)"
+    assert len(nodes) == 101, \
+        "画布节点数=101(66+19 四采臂+lowvram役#1072+clip_vision#800+14 双档;1119 双档役)"
     assert nodes[1065]["type"] == "PrimitiveBoolean" and nodes[1065]["widgets_values"] == [False], \
         "[1065] 四采开关出厂必须 False(默认旁路,PRD 单向门#1)"
     assert nodes[25]["type"] == "PrimitiveStringMultiline" and \
@@ -404,9 +408,9 @@ def test_facerefine_inline_arm_1118():
     assert nodes[5022]["widgets_values"][1:3] == [16, 24], "[5022] 贴回 mask_dilation=16/feather=24"
     sw = {i["name"]: links[i["link"]] for i in nodes[5100]["inputs"]}
     assert nodes[5100]["type"] == "ComfySwitchNode"
-    assert sw["switch"][1] == 1065 and sw["on_true"][1] == 5023 and sw["on_false"][1] == 4002, \
-        "[5100] 极性:switch←[1065]/on_true←[5023]修脸片/on_false←[4002]p3 直通" \
-        "(1118 双态实测定谳:False=p-final≡p3 MD5 逐字节直通/True=修脸片;勿改防 wf2api 反转坑)"
+    assert sw["switch"][1] == 1065 and sw["on_true"][1] == 5113 and sw["on_false"][1] == 4002, \
+        "[5100] 极性:switch←[1065]/on_true←[5113]出口(1119 等效改接,远景态经 5113 直通臂)·" \
+        "on_false←[4002]p3 直通(1118 双态实测定谳:False=p-final≡p3 MD5 逐字节直通/True=修脸片;勿改防 wf2api 反转坑)"
     assert src_of(4100, "video")[1] == 5100, "[4100] 终档吃 [5100] 出口"
     assert nodes[4100]["widgets_values"][0] == "video/漫影/chapter-001/sb-chapter-001-001/p-final", \
         "[4100] 终档 prefix=p-final(纯增量口;3061/3071 锚零改动,PRD 单向门#3)"
@@ -416,9 +420,86 @@ def test_facerefine_inline_arm_1118():
         "README 9999 极性口径=1118 双态实测定谳(bypass=直通/repair=修脸),外部参数 1065+25"
 
 
+def test_facerefine_dual_mode_1119():
+    """1119 修脸双技术档(11-19-dualmode-facerefine-rename,远景=默认/高清,出口复制案):
+    1065(四采总开关,出厂 False)× 5111(高清子开关,出厂 False=远景档)四态矩阵;
+    投切全官方件(ComfySwitchNode×2+PrimitiveBoolean)零自定义投切,防缓存静默串档
+    (PRD §1.7)。生成器=apps/build/scripts/sancai_inline_facerefine_build_1118.py(唯一真源,
+    5112 中链=生成器内隔离块 midchain_latent_switch_wiring,双态探针 P2 若证墙只改该函数)。
+    静态面断言:节点 87→101/5111 默认 False/远景态数据流等效(5021→5022 直连+5022.masks
+    悬空 face_only 保真+5024/5025 复制对 widgets 逐位同 5022/5023)/5112/5113 极性/
+    高清段 widgets 逐位承融合件 1119b(5110 control=fixed)。实弹面(AC2/AC3/AC5)不在本测试。"""
+    d, nodes, links = _load()
+    hd = {5101, 5102, 5103, 5104, 5105, 5106, 5107, 5109, 5110,
+          5111, 5112, 5113, 5024, 5025}
+    assert hd <= set(nodes), f"双档段缺件: {hd - set(nodes)}"
+    assert len(nodes) == 101, "画布节点数=101(87+14 双档)"
+
+    def src_of(nid, slot_name):
+        s = next(e for e in nodes[nid]["inputs"] if e["name"] == slot_name)
+        assert s.get("link") is not None, f"[{nid}].{slot_name} 未连线"
+        return links[s["link"]]
+
+    assert nodes[5111]["type"] == "PrimitiveBoolean" and nodes[5111]["widgets_values"] == [False], \
+        "[5111] 高清子开关出厂必须 False(远景=默认修脸档,PRD 裁决 2)"
+    # 5112 中链 LATENT Switch(唯一;隔离块=探针 P2 对象)
+    sw12 = {i["name"]: links[i["link"]] for i in nodes[5112]["inputs"]}
+    assert nodes[5112]["type"] == "ComfySwitchNode"
+    assert (sw12["switch"][1], sw12["on_false"][1], sw12["on_true"][1]) == (5111, 5013, 5107), \
+        "[5112] 中链极性:switch←[5111]/on_false←[5013]直通(远景态数据流等效 1118)/on_true←[5107]遮罩潜空间"
+    assert src_of(5014, "av_latent")[1] == 5112, \
+        "[5014].av_latent 必须吃 [5112] 出口(原 859 直连线等效改接,PRD §1.2 两处等效改接之一)"
+    # 5113 出口 VIDEO Switch
+    sw13 = {i["name"]: links[i["link"]] for i in nodes[5113]["inputs"]}
+    assert nodes[5113]["type"] == "ComfySwitchNode"
+    assert (sw13["switch"][1], sw13["on_false"][1], sw13["on_true"][1]) == (5111, 5023, 5025), \
+        "[5113] 出口极性:switch←[5111]/on_false←[5023]远景/on_true←[5025]高清"
+    assert src_of(5100, "on_true")[1] == 5113, \
+        "[5100].on_true 必须吃 [5113] 出口(原 5023 直连线等效改接)"
+    # 远景臂零语义改写(AC4:远景态=正典现状数据流等效)
+    assert src_of(5022, "refined_crops")[1] == 5021, "[5022].refined_crops 直连 [5021](871 线零改写)"
+    m22 = next(e for e in nodes[5022]["inputs"] if e["name"] == "masks")
+    assert m22.get("link") is None and m22.get("shape") == 7, \
+        "[5022].masks 恒悬空 shape7(face_only 脸框贴回=正典现状;验尸 V1:全 1 SolidMask≠悬空,禁 mask 投切)"
+    # 高清复制对 widgets 逐位同 5022/5023
+    assert nodes[5024]["widgets_values"] == nodes[5022]["widgets_values"], \
+        "[5024] 高清贴回 widgets 必须逐位同 [5022](出口复制案)"
+    assert nodes[5025]["widgets_values"] == nodes[5023]["widgets_values"], \
+        "[5025] 高清合成 widgets 必须逐位同 [5023]"
+    # 5024 四进口 + SAM3 mask 路B(贴回约束)
+    assert (src_of(5024, "masks")[1], src_of(5024, "refined_crops")[1],
+            src_of(5024, "base_images")[1], src_of(5024, "transform")[1]) == (5104, 5110, 5002, 5011), \
+        "[5024] masks←[5104](SAM3 贴回约束,只进高清对)/refined_crops←[5110](VOSR2)/base←[5002]/transform←[5011]"
+    assert (src_of(5025, "images")[1], src_of(5025, "audio")[1]) == (5024, 5002), \
+        "[5025] images←[5024]/audio←[5002]②"
+    # 高清段链与参数(逐位承融合件 1119b;差分扩散 5108 禁回加)
+    assert (src_of(5103, "images")[1], src_of(5103, "model")[1], src_of(5103, "conditioning")[1]) \
+        == (5011, 5101, 5102), "[5103] SAM3:images←[5011].crops/model←[5101]/conditioning←[5102]"
+    assert (src_of(5104, "track_data")[1], src_of(5105, "masks")[1], src_of(5106, "masks")[1],
+            src_of(5106, "vae")[1], src_of(5107, "mask")[1], src_of(5107, "samples")[1]) \
+        == (5103, 5104, 5105, 1003, 5106, 5013), \
+        "mask 路A(潜空间限区):5103→5104→5105→5106(vae←[1003])→5107(samples←[5013])"
+    assert (src_of(5110, "model")[1], src_of(5110, "image")[1]) == (5109, 5021), \
+        "VOSR2 尾档:5109→5110(image←[5021])"
+    assert 5108 not in nodes, "[5108] 差分扩散已移除(1119 定谳 dn0.45 反噬,禁回加)"
+    assert nodes[5103]["widgets_values"] == [0.5, 1, 1], "[5103] SAM3 widgets=0.5/1/1"
+    assert nodes[5105]["widgets_values"] == [0.3, "shrink_grow", 12, 4, 16], "[5105] MVEx 清洗 widgets"
+    assert nodes[5106]["widgets_values"] == ["auto", "max", "max", 36, 1, "both"], "[5106] MVEx 入潜 widgets"
+    assert nodes[5109]["widgets_values"] == ["VOSR2", "default"], "[5109] VOSR2 加载 widgets"
+    assert nodes[5110]["widgets_values"] == [1, 300831622214023, "fixed", "wavelet", 512, 32, 1024, 32], \
+        "[5110] VOSR2 widgets:seed 锁 300831622214023/control=**fixed**(禁 randomize 回抖,任务约束 B③)"
+    assert nodes[5101]["widgets_values"] == ["sam3.1_multiplex_fp16.safetensors"], "[5101] SAM3 检查点"
+    assert nodes[5102]["widgets_values"] == ["face"], "[5102] SAM3 文本提示"
+    # README 1119 调用段(四态矩阵+非法态+极性延伸)
+    md = nodes[9999]["widgets_values"][0]
+    assert "### 1119 双档调用(远景=默认 / 高清)" in md and "非法态" in md, \
+        "README 9999 必须载 1119 双档调用段(四态矩阵+非法态对策,PRD 修订#15)"
+
+
 def test_stage3_relayvsr_inline_group():
     """1113 用户令「ReCaVSR 已稳不需要兜底,删 RelayVSR 相关节点」:[268][269]
-    删除零残留;回退能力由 7_测试/三采-单镜-RelayVSR-1110.json 存档承载。"""
+    删除零残留;回退能力由 7_测试/三采-单镜-RelayVSR-1110.json 存档承载
+    (1119 历史锚:该件名=1110 主线终名,随 3.3 留档不改名,改名役豁免)。"""
     _, nodes, links = _load()
     relay = [nid for nid, n in nodes.items() if "RelayVSR" in n["type"]]
     assert not relay, f"主线不得残留 RelayVSR 件(1113 用户令删): {relay}"

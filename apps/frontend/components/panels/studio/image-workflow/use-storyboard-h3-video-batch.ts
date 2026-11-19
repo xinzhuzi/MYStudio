@@ -381,7 +381,7 @@ export interface StoryboardH3VideoBatchStartOptions {
 }
 
 /** 1116 §七 用户口径(终裁):分镜批量视频按镜时长路由正典线——≤15s 常规镜=
- * 三采-单镜(sancai-i2v,首帧锚定三段链);>15s 长镜=一镜到底-分段(multiseg)。
+ * 单镜(sancai-i2v,首帧锚定三段链);>15s 长镜=一镜到底-分段(multiseg)。
  * i2v-31 单段直出=快速预览档,禁再做批量缺省(1115 实弹 19 支直出片教训)。 */
 export function autoRecipeForStoryboards(storyboards: StoryboardItem[]): string {
   const over15 = storyboards.some((item) => (item.durationTarget ?? item.duration ?? 0) > 15);

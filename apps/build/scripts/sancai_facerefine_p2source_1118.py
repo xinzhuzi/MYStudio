@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""三采-单镜.json 四采修脸臂拆帧源改吃二采 p2 出片口(1118 门禁红根修,幂等 fail-closed)。
+"""单镜.json 四采修脸臂拆帧源改吃二采 p2 出片口(1118 门禁红根修,幂等 fail-closed)。
 
 门禁实录:test_facerefine_inline_arm_1118 红(节点数 85≠86+5002 源 4002≠3053);multiseg 件
 同臂口径本就是 5002←3053(二采出片口)+契约 test_facerefine_group_inline_bypass 钉同款——本轮
-令三采-单镜.json 对齐:link 795 改源 [4002]→[3053](4002 仍喂 5100.on_false=p3 直通,极性不动)。
+令单镜.json 对齐:link 795 改源 [4002]→[3053](4002 仍喂 5100.on_false=p3 直通,极性不动)。
 
 改动面(拓扑手术,非布局-only):
   画布  link 795 origin 4002→3053 + 双端槽簿记(4002.out0.links 除名 795 / 3053.out0.links 挂 795)
@@ -29,7 +29,7 @@ REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / ".zcode/skills/node-graph/tools"))
 from layout_check import CHECK_KEYS, check_workflow  # noqa: E402
 
-WF = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json"
+WF = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json"
 API = REPO / "apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json"
 BASELINE = REPO / "apps/build/scripts/workflow_layout_baseline.json"
 

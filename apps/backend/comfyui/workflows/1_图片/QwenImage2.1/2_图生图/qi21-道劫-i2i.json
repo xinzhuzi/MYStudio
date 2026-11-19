@@ -1690,7 +1690,7 @@
         "Node name for S&R": "ComfyMathExpression"
       },
       "widgets_values": [
-        "min(1, 1024 / max(a, b))"
+        "min(1, sqrt(2000000 / (a * b)))"
       ]
     },
     {
@@ -1916,13 +1916,13 @@
           ]
         }
       ],
-      "title": "[8113] Gem②·mikkoani ×0.6(1118B)",
+      "title": "[8113] Gem②·restore ×1.0(1119A)",
       "properties": {
         "Node name for S&R": "LoraLoaderModelOnly"
       },
       "widgets_values": [
-        "qi21-mikkoani.safetensors",
-        0.6
+        "qwen-image-2.1-restore.safetensors",
+        1.0
       ]
     },
     {
@@ -2544,7 +2544,7 @@
         1,
         "translation",
         64,
-        0
+        64
       ]
     }
   ],

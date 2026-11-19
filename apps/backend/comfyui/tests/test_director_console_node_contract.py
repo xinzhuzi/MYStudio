@@ -7,7 +7,7 @@
 (节点壳):注册面/显示名「导演台」/四输入口/timeline_data 单通道 widget/
 配方常量焊死表钉值/execute 骨架空转占位帧。
 
-常量真源=纯净化母本 59 节点(三采-单镜.json),与
+常量真源=纯净化母本 59 节点(单镜.json),与
 test_director_console_contract.py §5-5/§5-7 钉值同源(PRD R1.7 锁死档:
 改钉值=偏离产线验证档,须用户令)。零引擎依赖(引擎库懒加载纪律,
 mock torch 验占位帧契约;真 torch 在场时另跑实张量形状)。

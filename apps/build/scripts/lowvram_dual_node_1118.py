@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """1118 h3-lowvram 双节点挂载手术(幂等)。
 
-三采-单镜主线+模板+multiseg:①MiniMaxLowVRAMAttention 插桩(主线=1062开关→1071预览之间;
+单镜主线+模板+multiseg:①MiniMaxLowVRAMAttention 插桩(主线=1062开关→1071预览之间;
 multiseg=UNET#34 三扇出之前)head_chunks=2;②二采 ChunkFFN #3011 chunks 1→2 激活。
 est 四检(节点重叠0/组重叠0/负区0/组罩全)+幂等(已在件则跳过)。
 """
@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-SANCAI = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json"
+SANCAI = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json"
 MULTISEG = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/一镜到底-分段.json"
 TPL_GUI = REPO / "apps/frontend/lib/assist/image-studio/h3-three-stage-template.json"
 TPL_API = REPO / "apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json"
@@ -152,7 +152,7 @@ def patch_api():
 
 def main():
     ok = True
-    print("== 三采-单镜主线 ==")
+    print("== 单镜主线 ==")
     ok &= patch_gui(SANCAI, 1072, 1062, "加载模型", [2830, 2520], "sancai")  # 1118 布局治理:2480→2520(1071 est 底 2440+80)
     print("== App 画布模板(GUI 镜像)==")
     ok &= patch_gui(TPL_GUI, 1072, 1062, "加载模型", [2830, 2480], "tpl-gui")

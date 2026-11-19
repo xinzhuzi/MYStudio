@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""1117 对拍役:克隆三采-单镜.json,三采组(ReCaVSR)换内置 RelayVSR 臂。
+"""1117 对拍役:克隆单镜.json,三采组(ReCaVSR)换内置 RelayVSR 臂。
 外科三步同步:删节点同步清 links+inputs[].link+outputs[].links;新臂输入槽位
 结构逐字克隆自主线既有同类节点(#1001/#1003/#54/#3041/#2022/#3042/#3043/#3053)。
 """
 import json, copy, sys, pathlib
 
-SRC = pathlib.Path('apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json')
+SRC = pathlib.Path('apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json')
 DST = pathlib.Path('apps/backend/comfyui/workflows/2_视频/H3视频/7_测试/三采-单镜-RelayVSR.json')
 UNET, VAE = 'relayvsr_x2_lightx2v_bf16.safetensors', 'relayvsr_flash_x2.safetensors'
 

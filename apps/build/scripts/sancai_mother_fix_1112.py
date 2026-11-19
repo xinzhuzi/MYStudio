@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""三采-单镜(母本)两笔修复(1112 用户令「修」;导演台役已先行修正,母本跟进)。
+"""单镜(母本)两笔修复(1112 用户令「修」;导演台役已先行修正,母本跟进)。
 
 ①F1 开关倒挂:[219]=true 时 ComfySwitchNode 走 on_true,而母本 on_true 接 i2v 臂
   (218←251σshift/221·222←220),与 [219] title/Note103「√=r2v」全文案相反(1105 双模式
@@ -18,7 +18,7 @@ import json
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-WF = REPO / 'apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json'
+WF = REPO / 'apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json'
 SWITCHES = (218, 221, 222)
 R2V_SRC = {16, 140}          # r2v 臂源(kitchen 140 / ReferenceToVideo 16)
 I2V_SRC = {217, 220, 251}    # i2v 臂源(kitchen 217 / ImageToVideo 220 / σshift 251)

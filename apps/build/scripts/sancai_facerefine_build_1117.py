@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """三采-单镜-小脸修复.json 生成器(1117,trellis 11-17-facerefine-sancai-integration §三)。
 
-克隆正典 三采-单镜.json + 追加「四采·小脸修复」组 5001-5024(19 节点):
+克隆正典 单镜.json + 追加「四采·小脸修复」组 5001-5024(19 节点):
   节点对象槽结构移植=两类真源——FaceRefine 五件取作者 Auto_Select 画布(上游 main 版端口面,
   含 PerFrameDenoise model 口),常用件取正典件本体;widgets 按 prd §3.1;组框罩全自算 bbox;
   README 9999 增段。幂等:每次从正典源重生成。
@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-SRC = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json"
+SRC = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json"
 AUTO = Path("/tmp/bili-bv15eby6fE2E/H3_Face_Refine_Auto_Select.json")  # 作者上游画布
 OUT = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试/三采-单镜-小脸修复.json"  # df4162c8 迁 7_测试/
 

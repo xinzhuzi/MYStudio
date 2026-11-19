@@ -67,7 +67,7 @@
         }
       }
     },
-    "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json": {
+    "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json": {
       "scopes": {
         "main": {
           "crossings": 981,

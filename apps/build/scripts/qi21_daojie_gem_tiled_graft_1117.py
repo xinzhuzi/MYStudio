@@ -9,6 +9,10 @@
      1118 B 案(用户令):8113 换挂主链同款 qi21-mikkoani@0.6——ItsGem 人脸 LoRA
      是照片域先验,实弹验证会把道劫动漫脸重绘成半写实(视线翻转),动漫先验须进
      超分段;受制裁偏离见 DEVIATIONS(该件豁免 Gem donor 对拍,只钉蓝图);
+     1119 T8保真A弹(11-19-qi21-t8-superres-fidelity P1/C2 宣判:四格令覆盖 T8
+     零动令)三刀:8113 三代换药 restore@1.0(引擎件=HF1500 版,R1 字节级验明)+
+     8109 守卫 面积~2MP 锚(R2/R7①格)+8120 blend_band 64(R4 官方窄带独占抗双影,
+     overlap 维持 256);8117 提示词本轮不动(变体对照候令);
   2. 新增 20 根顶层 link(8217-8236),摘 SeedVR 宿主 503→SaveImage 504 的旧线
      (t2i link205 / i2i link204),504.images 改接 8120(GemTiledUpscaleStitch);
   3. SeedVR 整链置 mode=4(零删可复活):顶层 503 + 两画布 definitions.subgraphs
@@ -97,7 +101,7 @@ SIZES = {
 TITLES = {
     8108: "[8108] Gem②·守卫·取尺寸", 8109: "[8109] Gem②·守卫·缩放系数",
     8110: "[8110] Gem②·守卫·预缩放", 8111: "[8111] Gem②·独立UNET int8",
-    8112: "[8112] Gem②·viggle turbo r256 ×1", 8113: "[8113] Gem②·mikkoani ×0.6(1118B)",
+    8112: "[8112] Gem②·viggle turbo r256 ×1", 8113: "[8113] Gem②·restore ×1.0(1119A)",
     8114: "[8114] Gem②·独立CLIP int8", 8115: "[8115] Gem②·独立VAE bf16",
     8116: "[8116] Gem②·分块超分 8.25MP(4K帽)", 8117: "[8117] Gem②·修复提示词编码",
     8118: "[8118] Gem②·KSampler 6步", 8119: "[8119] Gem②·解码",
@@ -106,11 +110,16 @@ TITLES = {
 # None = 整键省略 widgets_values(donor 同形;写 null 即 flatten TypeError)
 WIDGETS = {
     8108: None,
-    8109: ["min(1, 1024 / max(a, b))"],
+    # 1119 T8保真A弹(1119 四格令,P1/C2 宣判覆盖 T8 零动令):8109 边长1024锚→
+    # 面积~2MP 锚(R2 正路先放大到 ~2MP 再进链/R7 ①格);8113 三代换药
+    # mikkoani@0.6→restore@1.0(引擎件=HF1500 版,R1 SHA256 65de4f6c… 字节级验明)。
+    # 8110 scale_by 现值 1.0 自洽:slot2 恒接 8221(表达式输出),min(1,…) 值域
+    # (0,1] ⊆ [0.01,8.0] 上限内(16:9 典型 0.59MP→√3.39≈1.84 亦在内),widget 仅回退值。
+    8109: ["min(1, sqrt(2000000 / (a * b)))"],
     8110: ["lanczos", 1],
     8111: ["qwen_image_2.1_int8_convrot.safetensors", "default"],
     8112: ["qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors", 1],  # 1118 换装(原 viggle r256)
-    8113: ["qi21-mikkoani.safetensors", 0.6],  # 1118 B 案换挂(原 ItsGem face ×1)
+    8113: ["qwen-image-2.1-restore.safetensors", 1.0],  # 1119 A弹三代换药(原 mikkoani@0.6←ItsGem face ×1)
     8114: ["qwen3vl_8b_int8_convrot.safetensors", "qwen_image", "default"],
     8115: ["qwen_image_2.1_vae_bf16.safetensors"],
     8116: [8.25, 2, 256, 32, 64, True],  # 1118末 4K帽令 10→8.25(全型长边≤3840 唯一 0.05 档内值)
@@ -122,12 +131,22 @@ WIDGETS = {
            "style unchanged.", "", 0],  # 1118 换装(原人脸修复域句)
     8118: [0, "fixed", 8, 1, "euler", "simple", 1],  # 1118 换装 steps 6→8(余六位不动)
     8119: None,
-    8120: [1, "translation", 64, 0],
+    # 1119 A弹 blend_band 0→64(R4 ItsGemTools 源码官方窄带独占抗双影开关,
+    # 重影带 2×band=128px;8116 overlap 维持 256 不动=B弹候令域)
+    8120: [1, "translation", 64, 64],
 }
-# 1118 B 案受制裁偏离表:键=新链节点 id,值=偏离缘由。偏离件 widgets 只钉本表
-# (WIDGETS),豁免「== Gem 源件 donor 现值」双源对拍(load_gem_donors/verify A)。
+# 受制裁偏离表:键=新链节点 id,值=偏离缘由(谱系逐代在册)。偏离件 widgets 只钉
+# 本表(WIDGETS),豁免「== Gem 源件 donor 现值」双源对拍(load_gem_donors/verify A)。
+# 1119 谱系注记:T8 期「donor 只取 LoRA 本件其余零动」令作用域=1118 换装那一次的
+# donor 采用面,非 ⑤b 参数永久冻结;1119 四格蓝图+换药令显式覆盖(PRD C2 宣判)。
 DEVIATIONS = {
-    8113: "1118 用户令 B 案:换挂主链同款动漫 LoRA mikkoani@0.6,治超分段动漫感流失",
+    8113: "三代谱系:ItsGem face ×1(donor 原值)→mikkoani@0.6(1118 B 案,治超分段"
+          "动漫感流失)→restore@1.0(1119 A弹主刀,R2 起步档=1.0;引擎件=HF1500 版"
+          " SHA256 65de4f6c… 字节级验明 R1);回滚=改表重跑本脚本(幂等)",
+    8109: "1119 A弹:守卫表达式 边长1024锚→面积~2MP 锚 min(1,sqrt(2e6/(a*b)))(R2 正路"
+          "/R7 ①格;1119 四格令覆盖 T8 零动令,C2 宣判);Gem 源件 460_601 现值禁动故豁免双源对拍",
+    8120: "1119 A弹:blend_band 0→64(R4 ItsGemTools 源码官方窄带独占抗双影开关,重影带"
+          "2×band=128px;overlap 维持 256 不动=B弹候令域);Gem 源件 558 现值禁动故豁免双源对拍",
     8112: "1118 换装令:换官方 turbo r178×1+steps 6→8+超分提示词换装;donor 只取"
           "LoRA 本件+步数(1118 用户澄清令),Gem 源件 545/441_413/556 未动故豁免双源对拍",
     8117: "1118 换装令:换官方 turbo r178×1+steps 6→8+超分提示词换装;donor 只取"

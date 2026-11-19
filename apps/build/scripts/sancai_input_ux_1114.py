@@ -7,7 +7,7 @@
 import json, sys
 
 FILES = {
-    'repo': '/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json',
+    'repo': '/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json',
     'twin': '/Users/zhengbingjin/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.json',
 }
 TITLES = {
@@ -23,7 +23,7 @@ GUIDE = ("【在此输入提示词】\nintegrated_multimodal_description: <此�
          "引用参考图用 <Picture 1..9>(节点号即编号) 按挂接序;尾帧模式写「首帧→…→末帧」连续单镜头>\n"
          "overall_soundscape: <环境声>\nnon_diegetic_music: N/A\n"
          "——经漫影App派发时本栏自动注入,手动直跑才需填写")
-README = """# 三采-单镜 · 使用说明
+README = """# 单镜 · 使用说明
 
 ## 三种调用方式
 **A. 分镜调用(App 正路,推荐)**:画布零操作——在漫影 App 分镜界面点生成,组装器自动注入①②③(参考清单≤8张自动截、装配提示词、五段前缀),三采段自动衔接。

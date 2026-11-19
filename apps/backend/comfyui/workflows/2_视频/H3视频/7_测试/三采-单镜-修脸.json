@@ -4607,7 +4607,7 @@
      "name": "model",
      "type": "MODEL",
      "links": [
-      888
+      860
      ]
     },
     {
@@ -4648,7 +4648,7 @@
     {
      "name": "model",
      "type": "MODEL",
-     "link": 889
+     "link": 860
     },
     {
      "name": "av_latent",
@@ -5690,58 +5690,6 @@
    },
    "widgets_values": [],
    "title": "融合·潜空间噪声遮罩(5013→5014 之间)"
-  },
-  {
-   "id": 5108,
-   "type": "DifferentialDiffusion",
-   "pos": [
-    8790,
-    7340
-   ],
-   "size": [
-    300,
-    80
-   ],
-   "flags": {},
-   "order": 10031,
-   "mode": 0,
-   "inputs": [
-    {
-     "name": "model",
-     "link": 888,
-     "label": "model",
-     "type": "MODEL",
-     "localized_name": "model"
-    },
-    {
-     "widget": {
-      "name": "strength"
-     },
-     "shape": 7,
-     "name": "strength",
-     "label": "strength",
-     "type": "FLOAT",
-     "localized_name": "strength"
-    }
-   ],
-   "outputs": [
-    {
-     "name": "MODEL",
-     "links": [
-      889
-     ],
-     "label": "MODEL",
-     "type": "MODEL",
-     "localized_name": "MODEL"
-    }
-   ],
-   "properties": {
-    "Node name for S&R": "DifferentialDiffusion"
-   },
-   "widgets_values": [
-    1
-   ],
-   "title": "融合·差分扩散(5014→5015 之间)"
   },
   {
    "id": 5109,
@@ -6927,6 +6875,14 @@
    "INT"
   ],
   [
+   860,
+   5014,
+   0,
+   5015,
+   0,
+   "MODEL"
+  ],
+  [
    861,
    5014,
    1,
@@ -7135,22 +7091,6 @@
    "LATENT"
   ],
   [
-   888,
-   5014,
-   0,
-   5108,
-   0,
-   "MODEL"
-  ],
-  [
-   889,
-   5108,
-   0,
-   5015,
-   0,
-   "MODEL"
-  ],
-  [
    890,
    5109,
    0,
@@ -7269,7 +7209,7 @@
   },
   {
    "id": 107,
-   "title": "四采·融合段(SAM3遮罩+差分+VOSR2·1118)",
+   "title": "四采·融合段(SAM3遮罩+VOSR2·1119b)",
    "bounding": [
     7140,
     7260,

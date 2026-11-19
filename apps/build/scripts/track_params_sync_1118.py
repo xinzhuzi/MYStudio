@@ -7,7 +7,7 @@
   identity_clip_vision ← CLIPVisionLoader(clip_vision_g.safetensors) 新增节点 #800
 
 同步面:
-  画布三件(三采-单镜 / 一镜到底-分段 / 7_测试 克隆件):widgets 五值 + 5011 加槽 + #800 节点 + 链 + 四采组框罩全复算
+  画布三件(单镜 / 一镜到底-分段 / 7_测试 克隆件):widgets 五值 + 5011 加槽 + #800 节点 + 链 + 四采组框罩全复算
   API 模板(h3-three-stage-template.api.json):inputs 同步 + #800 节点 + 接线
   双生成器(sancai_inline / multiseg_inline):widget 表+装载器发码同步(重生不回啃)
 
@@ -29,7 +29,7 @@ sys.path.insert(0, str(REPO / ".zcode/skills/node-graph/tools"))
 from layout_check import CHECK_KEYS, check_workflow  # noqa: E402
 
 CANVAS_FILES = [
-    ("apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json", "四采修脸组(5000 段·默认旁路·1118)"),
+    ("apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json", "四采修脸组(5000 段·远景/高清双档·默认旁路·1118→1119)"),
     ("apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/一镜到底-分段.json", None),  # 组名自动探测(含「四采」)
     ("apps/backend/comfyui/workflows/2_视频/H3视频/7_测试/三采-单镜-小脸修复.json", "四采·小脸修复(FaceRefine)"),
 ]

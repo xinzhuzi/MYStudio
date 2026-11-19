@@ -191,7 +191,7 @@ def build_prompt(cfg, segs, prompts, audio_name):
                  'inputs': {'model': ['unet', 0], 'lora_name': LORA, 'strength_model': LORA_STRENGTH}}
     model_src = ['lora', 0]
     if cfg.get('accel'):
-        # 1111 加速链 A/B 的 B 臂:我方产线 MODEL 链范式(三采-单镜 r2v 臂同款)
+        # 1111 加速链 A/B 的 B 臂:我方产线 MODEL 链范式(单镜 r2v 臂同款)
         # sol-attn τ1.3(与 kitchen 成对,裸 kitchen 必炸)+ChunkFFN[1,4096](本档<2MP×192f=恒等旁路)+kitchen
         p['solattn'] = {'class_type': 'BlockSparseAttention',
                         'inputs': {'model': ['lora', 0], 'selection': 'sol-attn',

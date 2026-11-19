@@ -7,7 +7,7 @@
 - 恒 7 环节锚点不破:MyStage×7(ids 1-7)+六条 MY_FLOW 链原样;
 - 9999 MarkdownNote 在案(id=9999 唯一、无 inputs/outputs/零连线——
   不进执行图,不碰 widgets_values 序列化契约之外的任何链);
-- last_node_id==9999(三采-单镜.json 同款先例;LiteGraph 落库要求
+- last_node_id==9999(单镜.json 同款先例;LiteGraph 落库要求
   last_node_id 覆盖最大节点 id,App 克隆注入照旧);
 - md 内容=五条速查文案(导航/节点按钮/分镜内容/正文滚动/进度与技能,
   stage-node.js 渲染器按图内 9999 md 直读,缺节点=优雅退化不浮卡)。
@@ -49,7 +49,7 @@ def test_template_has_9999_markdown_note():
     assert note["inputs"] == [] and note["outputs"] == []  # 零连线不进执行图
     # 无任何 link 引用 9999(链表 [id, origin_id, slot, target_id, slot, type])
     assert all(9999 not in (l[1], l[3]) for l in data["links"])
-    # last_node_id 同步覆盖(LiteGraph 落库要求,三采-单镜同款先例)
+    # last_node_id 同步覆盖(LiteGraph 落库要求,单镜同款先例)
     assert data["last_node_id"] == 9999
     assert len(data["nodes"]) == 8  # 7 MyStage + 1 MarkdownNote
 

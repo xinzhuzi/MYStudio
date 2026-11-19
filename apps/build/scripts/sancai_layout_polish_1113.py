@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""三采-单镜 美观布局 v2(1113 用户令「优化美观布局了吗」打假补课)
+"""单镜 美观布局 v2(1113 用户令「优化美观布局了吗」打假补课)
 - 真实 size 重排(此前 est 高度低估→真实间隙<200/遮挡)
 - [338]ReCaVSRLoader 归位三采超分组(砍掉横穿全图的 781 线)
 - 列内排序=邻居平均y启发(减少链线穿同胞)
@@ -10,7 +10,7 @@ import json, sys
 from collections import deque
 
 FILES = {
-    'repo': '/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json',
+    'repo': '/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json',
     'twin': '/Users/zhengbingjin/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.json',
 }
 GROUPS = [

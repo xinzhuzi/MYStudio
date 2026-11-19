@@ -142,7 +142,7 @@ async function pumpUntilDone(hook: { current: { state: { running: boolean } } },
 }
 
 describe("autoRecipeForStoryboards(1116 §七时长路由:≤15s 全 sancai-i2v/任一>15s multiseg;i2v-31 禁缺省)", () => {
-  it("全 ≤15s → 三采-单镜(首帧锚定);空时长按 0 归 ≤15s 族", () => {
+  it("全 ≤15s → 单镜(首帧锚定);空时长按 0 归 ≤15s 族", () => {
     expect(autoRecipeForStoryboards([
       shot({ id: "a", durationTarget: 10 }),
       shot({ id: "b", duration: 15 }),

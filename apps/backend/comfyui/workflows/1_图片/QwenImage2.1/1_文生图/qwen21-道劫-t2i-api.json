@@ -157,7 +157,7 @@
     "8109": {
       "class_type": "ComfyMathExpression",
       "inputs": {
-        "expression": "min(1, 1024 / max(a, b))",
+        "expression": "min(1, sqrt(2000000 / (a * b)))",
         "values.a": [
           "8108",
           0
@@ -203,8 +203,8 @@
     "8113": {
       "class_type": "LoraLoaderModelOnly",
       "inputs": {
-        "lora_name": "qi21-mikkoani.safetensors",
-        "strength_model": 0.6,
+        "lora_name": "qwen-image-2.1-restore.safetensors",
+        "strength_model": 1.0,
         "model": [
           "8112",
           0
@@ -306,7 +306,7 @@
         "keep_colors": 1,
         "align_mode": "translation",
         "max_align_shift": 64,
-        "blend_band": 0,
+        "blend_band": 64,
         "tiles": [
           "8119",
           0

@@ -2,7 +2,7 @@
 
 被测对象 = 仓库真源 `2_视频/H3视频/1_漫影自研/一镜到底-分段.json`
 (1114 用户裁定「都过三采」:分段生成(一采)→ TaoMate 精修(二采 1440×832)→
-ReCaVSR 超分(三采 3840×2220=4K 终档,1117 默认改 4K);与 三采-单镜.json 分工=单镜 ≤15s 高质线 /
+ReCaVSR 超分(三采 3840×2220=4K 终档,1117 默认改 4K);与 单镜.json 分工=单镜 ≤15s 高质线 /
 本件任意时长全梯线)。镜像样板 test_three_stage_contract.py 模式:零引擎依赖纯静态。
 
 契约(PRD R2 七件):
@@ -96,7 +96,7 @@ def test_stage2_recipe_values():
     w = nodes[3031]["widgets_values"]
     assert w[1:3] == [1440, 832], "二采目标 1440×832"
     assert w[3] == 56, "出厂 length=56(帧数公式 2×1秒,雷#13)"
-    assert w[4] == "match", "零参考 ref_image_size 出厂 match(注:三采-单镜用 max 是其参考图在役语境)"
+    assert w[4] == "match", "零参考 ref_image_size 出厂 match(注:单镜用 max 是其参考图在役语境)"
     assert nodes[3053]["widgets_values"] == [24, 8, "sRGB"]
     assert nodes[3071]["widgets_values"][0] == P2_PREFIX
 

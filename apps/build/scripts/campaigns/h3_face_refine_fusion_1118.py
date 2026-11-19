@@ -16,6 +16,11 @@
   python3 apps/build/scripts/campaigns/h3_face_refine_fusion_1118.py --apply   # 写后即验
 
 任一断言失败 → 打印失败项 + exit 1。门禁过不了修生成器,禁改规格迁就。
+
+**1119b 退役(PRD 11-19-dualmode-facerefine-rename §四/grill C4)**:双档段已并入正典
+单镜.json(远景/高清双档,出口复制案),本生成器入口短路 exit 0 不再施工——融合件
+7_测试/三采-单镜-修脸.json 留档归档不随役维护;双档段唯一真源=正典件+
+sancai_inline_facerefine_build_1118.py(重放走它)。AUTHOR 产物在 apps/output 可清。
 """
 
 import argparse
@@ -26,7 +31,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[4]
-CANON = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/三采-单镜.json"
+CANON = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json"  # 1119 改名自 三采-单镜(本件已退役,仅存档)
 AUTHOR = REPO / "apps/output/h3-face-refine-survey-1118/author_workflow.json"
 OUT = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试/三采-单镜-修脸.json"
 
@@ -34,16 +39,16 @@ OUT = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试/三采-�
 # 规格常量(全部硬编码自 fusion-plan.md §1/§2/§3;禁手调,改规格先改方案)
 # ---------------------------------------------------------------------------
 
-NEW_NODE_IDS = [5101, 5102, 5103, 5104, 5105, 5106, 5107, 5108, 5109, 5110]
+NEW_NODE_IDS = [5101, 5102, 5103, 5104, 5105, 5106, 5107, 5109, 5110]  # 1119b: 5108 差分已移除(低dn体制反噬,cmp_1120 实证)
 NEW_NODE_SET = set(NEW_NODE_IDS)
 
 # 新节点 → 作者件参数真源节点(fusion-plan §4)
 AUTHOR_MAP = {
     5101: 233, 5102: 234, 5103: 235, 5104: 236, 5105: 240,
-    5106: 241, 5107: 242, 5108: 254, 5109: 188, 5110: 187,
+    5106: 241, 5107: 242, 5109: 188, 5110: 187,
 }
 
-CUT_LINK_IDS = {859, 860, 871}
+CUT_LINK_IDS = {859, 871}
 
 # 17 条新链元组 [link_id, src_id, src_slot, dst_id, dst_slot, type](§1.x)
 NEW_LINK_TUPLES = [
@@ -59,8 +64,6 @@ NEW_LINK_TUPLES = [
     (885, 5106, 0, 5107, 1, "MASK"),
     (886, 5013, 0, 5107, 0, "LATENT"),
     (887, 5107, 0, 5014, 1, "LATENT"),
-    (888, 5014, 0, 5108, 0, "MODEL"),
-    (889, 5108, 0, 5015, 0, "MODEL"),
     (890, 5109, 0, 5110, 0, "VOSR2_MODEL"),
     (891, 5021, 0, 5110, 1, "IMAGE"),
     (892, 5110, 0, 5022, 1, "IMAGE"),
@@ -83,8 +86,6 @@ NODE_SPECS = {
            "title": "融合·MVEx 遮罩入潜空间"},
     5107: {"type": "SetLatentNoiseMask", "pos": [8500, 7340], "size": [270, 80], "order": 10030,
            "title": "融合·潜空间噪声遮罩(5013→5014 之间)"},
-    5108: {"type": "DifferentialDiffusion", "pos": [8790, 7340], "size": [300, 80], "order": 10031,
-           "title": "融合·差分扩散(5014→5015 之间)"},
     5109: {"type": "VOSR2ModelLoader", "pos": [9140, 7340], "size": [320, 82], "order": 10032,
            "title": "融合·VOSR2 加载器"},
     5110: {"type": "VOSR2Upscale", "pos": [9140, 7462], "size": [360, 250], "order": 10033,
@@ -101,7 +102,6 @@ NODE_IN_LINKS = {
     5105: {"masks": 881},
     5106: {"masks": 883, "vae": 884},
     5107: {"samples": 886, "mask": 885},
-    5108: {"model": 888},
     5109: {},
     5110: {"model": 890, "image": 891},
 }
@@ -115,7 +115,6 @@ NODE_OUT_LINKS = {
     5105: {"masks": [883]},
     5106: {"mask": [885]},
     5107: {"LATENT": [887]},
-    5108: {"MODEL": [889]},
     5109: {"model": [890]},
     5110: {"IMAGE": [892]},
 }
@@ -129,7 +128,6 @@ EXPECTED_WIDGETS = {
     5105: [0.3, "shrink_grow", 12, 4, 16],
     5106: ["auto", "max", "max", 36, 1, "both"],
     5107: [],
-    5108: [1],
     5109: ["VOSR2", "default"],
     5110: [1, 300831622214023, "fixed", "wavelet", 512, 32, 1024, 32],
 }
@@ -145,12 +143,10 @@ NODE_LINK_PATCHES = [
     (5011, ("outputs", 0, "links"), [844], [844, 879]),
     (5013, ("outputs", 0, "links"), [859], [886]),
     (5014, ("inputs", 1, "link"), 859, 887),
-    (5014, ("outputs", 0, "links"), [860], [888]),
-    (5015, ("inputs", 0, "link"), 860, 889),
     (5021, ("outputs", 0, "links"), [871], [891]),
     (5022, ("inputs", 1, "link"), 871, 892),
 ]
-LINK_DELTA_WHITELIST = {5011, 5013, 5014, 5015, 5021, 5022, 1003}
+LINK_DELTA_WHITELIST = {5011, 5013, 5014, 5021, 5022, 1003}
 
 # 5022.masks 原为悬空 shape 7(无 link 键)→ 加挂 882(§2.2 末行)
 MASKS_PORT_PATCH = (5022, ("inputs", 3), 882)
@@ -162,7 +158,7 @@ VAE_OUT_NEW = VAE_OUT_ORIGINAL + [884]
 # G107 新组(§3.3)
 G107 = {
     "id": 107,
-    "title": "四采·融合段(SAM3遮罩+差分+VOSR2·1118)",
+    "title": "四采·融合段(SAM3遮罩+VOSR2·1119b)",
     "bounding": [7140, 7260, 2420, 600],
     "color": "#7766aa",
     "flags": {},
@@ -346,10 +342,10 @@ def verify(canon: dict, author: dict, fused: dict, ck: Checker) -> None:
     f_links = {l[0]: tuple(l) for l in fused["links"]}
 
     # --- A. 规模 ---
-    ck.expect(len(fused["nodes"]) == 97 == len(canon["nodes"]) + len(NEW_NODE_IDS),
+    ck.expect(len(fused["nodes"]) == 96 == len(canon["nodes"]) + len(NEW_NODE_IDS),
               "A.nodes-97", str(len(fused["nodes"])))
-    ck.expect(len(fused["links"]) == 157 == len(canon["links"]) - len(CUT_LINK_IDS) + len(NEW_LINK_TUPLES),
-              "A.links-157", str(len(fused["links"])))
+    ck.expect(len(fused["links"]) == 156 == len(canon["links"]) - len(CUT_LINK_IDS) + len(NEW_LINK_TUPLES),
+              "A.links-156", str(len(fused["links"])))
     ck.expect(set(f_nodes) == set(c_nodes) | NEW_NODE_SET, "A.id-set",
               str(sorted((set(c_nodes) | NEW_NODE_SET) ^ set(f_nodes))))
     ck.expect(fused["last_node_id"] == LAST_NODE_ID_EXPECT, "A.last-node-id-9999",
@@ -364,8 +360,8 @@ def verify(canon: dict, author: dict, fused: dict, ck: Checker) -> None:
                                sorted(((set(c_links) - CUT_LINK_IDS) | NEW_LINK_IDS) - set(f_links))))
     keep_ok = [lid for lid in set(c_links) - CUT_LINK_IDS if f_links.get(lid) == c_links[lid]]
     keep_bad = [lid for lid in set(c_links) - CUT_LINK_IDS if f_links.get(lid) != c_links[lid]]
-    ck.expect(not keep_bad, "B.140-kept-links-bitwise", "漂移链:%r" % (keep_bad,))
-    ck.expect(len(keep_ok) == 140, "B.kept-count-140", str(len(keep_ok)))
+    ck.expect(not keep_bad, "B.kept-links-bitwise", "漂移链:%r" % (keep_bad,))
+    ck.expect(len(keep_ok) == len(canon["links"]) - len(CUT_LINK_IDS), "B.kept-count", str(len(keep_ok)))
     for t in NEW_LINK_TUPLES:
         ck.expect(f_links.get(t[0]) == t, "B.new-link-%d" % t[0],
                   "%r != %r" % (f_links.get(t[0]), t))
@@ -403,9 +399,9 @@ def verify(canon: dict, author: dict, fused: dict, ck: Checker) -> None:
               repr(f_nodes[5011]["outputs"][0]["links"]))
     ck.expect(f_nodes[5013]["outputs"][0]["links"] == [886], "C.5013-out",
               repr(f_nodes[5013]["outputs"][0]["links"]))
-    ck.expect(f_nodes[5014]["inputs"][1]["link"] == 887 and f_nodes[5014]["outputs"][0]["links"] == [888],
+    ck.expect(f_nodes[5014]["inputs"][1]["link"] == 887 and f_nodes[5014]["outputs"][0]["links"] == [860],
               "C.5014-in/out", "%r/%r" % (f_nodes[5014]["inputs"][1]["link"], f_nodes[5014]["outputs"][0]["links"]))
-    ck.expect(f_nodes[5015]["inputs"][0]["link"] == 889, "C.5015-in",
+    ck.expect(f_nodes[5015]["inputs"][0]["link"] == 860, "C.5015-in",
               repr(f_nodes[5015]["inputs"][0]["link"]))
     ck.expect(f_nodes[5021]["outputs"][0]["links"] == [891], "C.5021-out",
               repr(f_nodes[5021]["outputs"][0]["links"]))
@@ -477,7 +473,7 @@ def verify(canon: dict, author: dict, fused: dict, ck: Checker) -> None:
             w, h = n["size"]
             if not (bx[0] <= x and bx[1] <= y and x + w <= bx[0] + bx[2] and y + h <= bx[1] + bx[3]):
                 cover_bad.append(nid)
-        ck.expect(not cover_bad, "G.G107-covers-10-new-nodes", str(cover_bad))
+        ck.expect(not cover_bad, "G.G107-covers-9-new-nodes", str(cover_bad))
         g105 = fused["groups"][5]
         ck.expect(g105["bounding"] == [7140, 5820, 6150, 1416], "G.G105-bbox-untouched",
                   repr(g105["bounding"]))
@@ -495,7 +491,7 @@ def verify(canon: dict, author: dict, fused: dict, ck: Checker) -> None:
             a, b = box(ns[i]), box(ns[j])
             if a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]:
                 overlaps.append((ns[i]["id"], ns[j]["id"]))
-    ck.expect(not overlaps, "H.no-aabb-overlap-97", str(overlaps[:12]))
+    ck.expect(not overlaps, "H.no-aabb-overlap-96", str(overlaps[:12]))
 
     # --- 元. 顶层元数据:除 last_link_id 外零改 ---
     meta = {k: v for k, v in fused.items() if k not in ("nodes", "links", "groups", "last_link_id")}
@@ -512,11 +508,18 @@ def verify(canon: dict, author: dict, fused: dict, ck: Checker) -> None:
 # ---------------------------------------------------------------------------
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="三采-单镜-修脸.json 幂等生成器(fusion 1118)")
+    ap = argparse.ArgumentParser(description="三采-单镜-修脸.json 幂等生成器(fusion 1118;1119b 退役)")
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true", help="干跑:只验不写")
     mode.add_argument("--apply", action="store_true", help="写盘后即验")
     args = ap.parse_args()
+
+    # 1119b 退役短路(grill C4):双档段已并入正典(出口复制案),底座 87 节点口径已演进,
+    # 本件不再施工——防改名后 CANON 旧名 FileNotFoundError 栈崩与双依赖死路,恒 exit 0。
+    print("[RETIRED] 1119b 起由双档正典 单镜.json 取代(远景/高清双档·出口复制案);")
+    print("[RETIRED] 双档段唯一生成器=apps/build/scripts/sancai_inline_facerefine_build_1118.py,重放走它;")
+    print("[RETIRED] 融合件 7_测试/三采-单镜-修脸.json 留档归档不随役维护。本件 no-op 退出。")
+    return 0
 
     canon_md5_before = md5_file(CANON)
     canon_doc = json.loads(CANON.read_text(encoding="utf-8"))
