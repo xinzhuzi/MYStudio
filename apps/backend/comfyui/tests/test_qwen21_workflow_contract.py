@@ -5715,7 +5715,7 @@ SVR2_DIT, SVR2_VAE, SVR2_UP = 501, 502, 503      # ⑤放大尾档四件组(500 
 SVR2_SAVE, SVR2_CMP = 504, 505                    # t2i 另有 [505] 对比件(㉖)
 SVR2_DIT_FILE = "seedvr2_7b_sharp_fp8_e4m3fn.safetensors"
 SVR2_VAE_FILE = "ema_vae_fp16.safetensors"
-SVR2_SAVE_PREFIX = "MYStudio-2K"
+SVR2_SAVE_PREFIX = "道劫-文生图-超分-"
 # 1017up4 超分四法收装:⑤组框改名扩罩(罩 A/B/C/D 四宿主;[501][502][503 旧件]
 # 随迁入 D 子图定义,主图只剩宿主);旧题名留档防回退
 SVR2_GROUP_TITLE = "道劫·⑤超分尾档"   # 1018 删 A/C:四法→B/D 两法

@@ -104,7 +104,7 @@ TITLES = {
     8112: "[8112] Gem②·viggle turbo r256 ×1", 8113: "[8113] Gem②·restore ×1.0(1119A)",
     8114: "[8114] Gem②·独立CLIP int8", 8115: "[8115] Gem②·独立VAE bf16",
     8116: "[8116] Gem②·分块超分 8.25MP(4K帽)", 8117: "[8117] Gem②·修复提示词编码",
-    8118: "[8118] Gem②·KSampler 6步", 8119: "[8119] Gem②·解码",
+    8118: "[8118] Gem②·KSampler 8步", 8119: "[8119] Gem②·解码",
     8120: "[8120] Gem②·拼缝",
 }
 # None = 整键省略 widgets_values(donor 同形;写 null 即 flatten TypeError)
@@ -221,6 +221,7 @@ GROUPS = {
     "t2i": {"id": 7, "title": GROUP_TITLE, "bounding": [9260, 1040, 4777, 1762], "color": "#b58b2a"},
     "i2i": {"id": 7, "title": GROUP_TITLE, "bounding": [9360, 840, 4777, 1762], "color": "#a88040"},
 }
+SAVE_PREFIX = {"t2i": "道劫-文生图-超分-", "i2i": "道劫-图生图-超分-"}
 SVR2_GROUP_PREFIX = "道劫·⑤超分尾档"  # 尾档选择器 startswith 锚(新组题名不得误触)
 
 # ── 四类 object_info 快照补条(1118 自引擎 192.168.0.101:17000 实拉冻结;
@@ -404,6 +405,13 @@ def surgery_canvas(name: str, donors: dict) -> dict:
     else:
         grp7["title"] = GROUP_TITLE  # 1118 换装改名:命中旧名就地改(防复跑追加重复组 id 7)
         grp7["bounding"] = list(GROUPS[name]["bounding"])
+
+    # —— 5b) 1119 用户令:504 标题/前缀正名 + 8118 标签步数正名(幂等) ——
+    n504t = nodes.get(504)
+    if n504t is not None:
+        n504t["title"] = "[504] 放大保存"
+        if n504t.get("widgets_values"):
+            n504t["widgets_values"][0] = SAVE_PREFIX[name]
 
     # —— 6) 1118末 用户令既有件动位 + 组框修正(幂等回灌) ——
     for nid, pos in MOVE_USER[name].items():
@@ -673,7 +681,10 @@ def verify_canvas(name: str, before: dict, wf: dict, donors: dict) -> None:
             for i in exp["inputs"]:
                 if i["name"] == "images":
                     i["link"] = 8236
-            need(cur == exp, f"{name}: 504 除 images.link/pos 外不得变动")
+            exp["title"] = "[504] 放大保存"
+            if exp.get("widgets_values"):
+                exp["widgets_values"][0] = SAVE_PREFIX[name]
+            need(cur == exp, f"{name}: 504 除 images.link/pos/title/prefix 外不得变动")
         elif nid == 1:
             exp = copy.deepcopy(b)
             exp["outputs"][0]["links"] = list(b["outputs"][0].get("links") or [])

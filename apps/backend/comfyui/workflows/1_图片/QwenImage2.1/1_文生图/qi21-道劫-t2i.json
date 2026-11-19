@@ -672,7 +672,7 @@
           "links": []
         }
       ],
-      "title": "[504] 放大保存(2K·MYStudio-2K)",
+      "title": "[504] 放大保存",
       "properties": {
         "Node name for S&R": "SaveImage",
         "ue_properties": {
@@ -682,7 +682,7 @@
         }
       },
       "widgets_values": [
-        "MYStudio-2K"
+        "道劫-文生图-超分-"
       ],
       "widgets_values_named": {
         "filename_prefix": "MYStudio-2K"
@@ -1823,7 +1823,7 @@
           ]
         }
       ],
-      "title": "[8118] Gem②·KSampler 6步",
+      "title": "[8118] Gem②·KSampler 8步",
       "properties": {
         "Node name for S&R": "KSampler"
       },
