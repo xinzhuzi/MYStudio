@@ -123,12 +123,10 @@ WIDGETS = {
     8114: ["qwen3vl_8b_int8_convrot.safetensors", "qwen_image", "default"],
     8115: ["qwen_image_2.1_vae_bf16.safetensors"],
     8116: [8.25, 2, 256, 32, 64, True],  # 1118末 4K帽令 10→8.25(全型长边≤3840 唯一 0.05 档内值)
-    8117: ["Upscale this illustration to ultra-high definition: remove blur, "
-           "noise and compression artifacts, recover crisp linework, clean "
-           "flat color planes and fine detail across figures, garments, "
-           "scenery, architecture and props, keeping the same composition, "
-           "characters, identities and hand-drawn Chinese guofeng anime "
-           "style unchanged.", "", 0],  # 1118 换装(原人脸修复域句)
+    8117: ["Restore the illustration: remove blur, noise and compression "
+           "artifacts and recover sharp, natural detail, ignoring stray "
+           "marks, specks and smudges, keeping the same composition, people "
+           "and colors.", "", 0],  # 1118 换装(原人脸修复域句)
     8118: [0, "fixed", 8, 1, "euler", "simple", 1],  # 1118 换装 steps 6→8(余六位不动)
     8119: None,
     # 1119 A弹 blend_band 0→64(R4 ItsGemTools 源码官方窄带独占抗双影开关,

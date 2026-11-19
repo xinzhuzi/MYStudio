@@ -1766,7 +1766,7 @@
         "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
-        "Upscale this illustration to ultra-high definition: remove blur, noise and compression artifacts, recover crisp linework, clean flat color planes and fine detail across figures, garments, scenery, architecture and props, keeping the same composition, characters, identities and hand-drawn Chinese guofeng anime style unchanged.",
+        "Restore the illustration: remove blur, noise and compression artifacts and recover sharp, natural detail, ignoring stray marks, specks and smudges, keeping the same composition, people and colors.",
         "",
         0
       ]
