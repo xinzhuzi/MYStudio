@@ -78,8 +78,9 @@ DEFAULT_MATRIX = Path(__file__).resolve().parent / "gem_t8_matrix_1118.json"
 CLIENT = "gem-t8-matrix-1118"
 
 NEW_LORA = "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors"
-PROMPT_HEAD = "Upscale this illustration"
-GEM_CAP_MP = 8.25            # 1118末 4K帽令(graft WIDGETS[8116] 同源)
+RESTORE_LORA = "qwen-image-2.1-restore.safetensors"
+PROMPT_HEAD = "Restore and upscale this illustration"  # 1119 v2 C句终稿头(594702e7 用户令:补回超分+超清词)
+GEM_CAP_MP = 8.25            # 1118末 4K帽令(v2 WIDGETS[8100] 同源)
 I2I_REF_SAFE_MP = 1.25       # qwen21.py:278 同值
 HARD_CAP_EDGE = 3840         # 4K 帽:全型长边硬断言
 
@@ -163,16 +164,20 @@ def expect_504(w: int, h: int, mp: float = GEM_CAP_MP) -> tuple[int, int]:
 
 # ── 注入面 ─────────────────────────────────────────────────────────────────
 def self_check(graph: dict, tag: str) -> None:
-    g8112 = graph["8112"]["inputs"]
-    g8117 = graph["8117"]["inputs"]
-    g8118 = graph["8118"]["inputs"]
-    g8116 = graph["8116"]["inputs"]
-    need(g8112.get("lora_name") == NEW_LORA, f"{tag}: 8112 非新 LoRA(得 {g8112.get('lora_name')!r})")
-    need(g8118.get("steps") == 8, f"{tag}: 8118 steps≠8(得 {g8118.get('steps')})")
-    need(str(g8117.get("prompt", "")).startswith(PROMPT_HEAD),
-         f"{tag}: 8117 非新超分句句头")
-    need(g8116.get("megapixels") == GEM_CAP_MP and type(g8116.get("megapixels")) is float,
-         f"{tag}: 8116 megapixels 应 {GEM_CAP_MP}(得 {g8116.get('megapixels')!r})")
+    """1119 v2 锚:⑤b=皮肤件同构 11 节点(8100 系);旧 8112/8116/8117/8118 键应绝迹。"""
+    for gone in ("8116", "8117", "8118"):  # 8112=v2 KSamplerSelect 在役键,勿误判
+        need(gone not in graph, f"{tag}: 旧⑤b键 [{gone}] 应已绝迹(v2 换 8100 系)")
+    g8101 = graph["8101"]["inputs"]
+    g8102 = graph["8102"]["inputs"]
+    g8104 = graph["8104"]["inputs"]
+    g8100 = graph["8100"]["inputs"]
+    need(g8101.get("lora_name") == NEW_LORA, f"{tag}: 8101 非 turbo r178(得 {g8101.get('lora_name')!r})")
+    need(g8102.get("lora_name") == RESTORE_LORA and g8102.get("strength_model") == 1.0,
+         f"{tag}: 8102 应 restore@1.0(得 {g8102.get('lora_name')!r}@{g8102.get('strength_model')})")
+    need(str(g8104.get("prompt", "")).startswith(PROMPT_HEAD),
+         f"{tag}: 8104 非 C 句句头")
+    need(g8100.get("megapixels") == GEM_CAP_MP and type(g8100.get("megapixels")) is float,
+         f"{tag}: 8100 megapixels 应 {GEM_CAP_MP}(得 {g8100.get('megapixels')!r})")
 
 
 def build_t2i(entry: dict) -> tuple[dict, dict]:
@@ -451,7 +456,7 @@ def dry_report(route: str, entry: dict, graph: dict, info: dict) -> None:
         print(f"[dry] 10.image={graph['10']['inputs'].get('image')!r} node4 width/height={graph['4']['inputs'].get('width')!r}/{graph['4']['inputs'].get('height')!r}"
               f" (压幅注入={info.get('inject_canvas')})")
     self_check(graph, f"dry/{route}/{entry['type']}")
-    print("[dry] 发前自证四点 PASS(8112 r178/8118 steps8/8117 句头/8116=8.25)")
+    print("[dry] 发前自证四点 PASS(8101 r178/8102 restore@1.0/8104 C句头/8100=8.25)")
     if route == "t2i":
         # t2i 源画幅=node4 连线(WhSuggest),期望以实发为准;ceil 模型预览按 qi21_bases 公式画幅
         data = json.loads(BASES.read_text(encoding="utf-8"))
@@ -595,7 +600,7 @@ def cmd_check(matrix: dict) -> int:
     for tag, twin in (("t2i", TWIN_T2I), ("i2i", TWIN_I2I)):
         graph = json.loads(twin.read_text(encoding="utf-8"))["graph"]
         self_check(graph, f"check/{tag}")
-        print(f"[check] {tag} 孪生四点自证 PASS(8112 r178/8118 steps8/8117 句头/8116=8.25)")
+        print(f"[check] {tag} 孪生四点自证 PASS(8101 r178/8102 restore@1.0/8104 C句头/8100=8.25)")
     for t, e in matrix.items():
         st = e["i2iInstructionStatus"]
         dims = i2i_compress_dims(t)
@@ -616,18 +621,25 @@ def main() -> int:
     s.add_argument("--matrix", type=Path, default=DEFAULT_MATRIX)
     s.add_argument("--idle-timeout", type=float, default=120, help="队列软门上限(超时照样入队)")
     s.add_argument("--dry-run", action="store_true", help="注入面全构造+断言+状态文件写,不真发零网络")
+    s.add_argument("--outroot", type=Path, default=None,
+                   help="产物根覆写(缺省 gem-t8-matrix-1118;新役单夹归集用)")
     w = sub.add_parser("wait", help="轮询等完成并下载双产物(未完 exit 7 可重入)")
     w.add_argument("type")
     w.add_argument("engine", help="状态文件引擎段(容忍 URL/host:port/slug,如 192.168.0.101:17000)")
     w.add_argument("--matrix", type=Path, default=DEFAULT_MATRIX)
     w.add_argument("--poll-timeout", type=float, default=510)
+    w.add_argument("--outroot", type=Path, default=None)
     a = sub.add_parser("audit", help="从盘上产物重跑断言")
     a.add_argument("type")
     a.add_argument("route", nargs="?", choices=["t2i", "i2i"], default=None)
     a.add_argument("--matrix", type=Path, default=DEFAULT_MATRIX)
+    a.add_argument("--outroot", type=Path, default=None)
     c = sub.add_parser("check", help="矩阵+图件自证(零网络)")
     c.add_argument("--matrix", type=Path, default=DEFAULT_MATRIX)
     args = ap.parse_args()
+    global OUTROOT
+    if getattr(args, "outroot", None) is not None:
+        OUTROOT = args.outroot if args.outroot.is_absolute() else REPO / args.outroot
     if args.cmd == "check":
         return cmd_check(load_matrix(args.matrix))
     matrix = load_matrix(args.matrix)
