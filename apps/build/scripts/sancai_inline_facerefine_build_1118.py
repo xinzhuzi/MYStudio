@@ -681,7 +681,7 @@ def check() -> int:
 
     gs = [g for g in S["groups"] if g["title"] in (GROUP_A_TITLE, GROUP_B_TITLE)]
     ok(len(gs) == 2 and len(S["groups"]) == 7,
-       "组框恒 7 组(扩四采组框罩全 14 新件,不新增第 8 组)")
+       "组框恒 7 组(扩四采组框罩全 10 新件,不新增第 8 组)")
     cover = True
     for n in S["nodes"]:
         if n["id"] not in OWN:
@@ -703,7 +703,7 @@ def check() -> int:
     ok(not gover, f"组框两两不交(A 右缘让开终档组),违例 {gover}")
 
     par = all(str(i) in A and A[str(i)]["class_type"] == OWN[i] for i in OWN)
-    ok(par, "API/画布 33 节点 class_type 同构")
+    ok(par, "API/画布 29 节点 class_type 同构")
 
     ok(wired(5002, "video", 4002) and wired(4100, "video", 5100) and wired(5006, "model", 1001)
        and wired(5014, "audio", 5002) and wired(5019, "conditioning", 5012)
