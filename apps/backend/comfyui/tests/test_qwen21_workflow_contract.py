@@ -3921,10 +3921,12 @@ class TestQi21SubgraphContract:
             "Image Comparer (rgthree)",
             # 1119 v2 照抄皮肤件磨皮后续组:守卫三件(GetImageSize/ComfyMathExpression/
             # ImageScaleBy)+独立加载器+老式 KSampler 全退役;
-            # 新式采样四件+分块两件+LoRA 二件入册(白名册钉类型,禁面另钉成员)
+            # 新式采样四件+分块两件+LoRA 二件入册(白名册钉类型,禁面另钉成员);
+            # 1119 P3 alpha 旁路三件入册(Split/Join/ImageScaleToTotalPixels)
             "GemTiledUpscale", "GemTiledUpscaleStitch", "LoraLoaderModelOnly",
             "RandomNoise", "BasicGuider", "KSamplerSelect", "ManualSigmas",
             "SamplerCustomAdvanced",
+            "SplitImageWithAlpha", "JoinImageWithAlpha", "ImageScaleToTotalPixels",
             # 1004 Phase D:编码器/画幅建议器迁主图(装配块旁三件 [4015][4015N][4018];
             # 1025 my21fast:[4015] 换类 MyQi21FastEncode+4015N 级联删,新类入册)
             "TextEncodeQwenImage21", "MyQi21FastEncode", "MyQi21WhSuggest",
@@ -5525,8 +5527,9 @@ class TestI2IContract:
             assert _widget(enc, TE_WV["resolution"]) == 0, \
                 f"[{enc_id}] resolution 应 0(不重采样,画幅随输入图)"
         scales = {n["id"]: n for n in _by_type(graph, "ImageScaleToTotalPixels")}
-        assert sorted(scales) == list(I2I_SCALE_IDS), \
-            f"预缩件 id 应 {list(I2I_SCALE_IDS)},得 {sorted(scales)}"
+        # 1119 P3 alpha 旁路:[8122] Mask 放大件入册(与输入预缩三件同类不同役)
+        assert sorted(scales) == list(I2I_SCALE_IDS) + [8122], \
+            f"预缩件 id 应 {list(I2I_SCALE_IDS) + [8122]}(P3 +8122),得 {sorted(scales)}"
         assert scales[I2I_SCALE_IDS[0]]["widgets_values"][1] == 1.0, \
             "画布预缩应 1.0MP(1014 定谳:1.5MP 超 viggle σ稳定区=随机黑塌缩;官方编辑甜点≈1MP)"
         assert all(scales[i]["widgets_values"][1] == 1.0 for i in I2I_SCALE_IDS[1:]), \
@@ -5832,17 +5835,17 @@ class TestSeedVR2TailContract1002:
                 assert out5 == [7930], \
                     f"qi21: [5] 应只扇出 [7500 洗底宿主](1108 二采退役恢复直连),得 {out5}"
                 out_w = sorted(l[3] for l in graph["links"] if l[1] == T2I_WASH_HOST)
-                assert out_w == sorted([8, SVR2_CMP, SVR2_UP, 8100]), \
-                    f"qi21: [7500] 应扇出 [8]+[505]+[503]+[8100](洗底后四消费;1119 v2 单入口=分块件自管分辨率),得 {out_w}"
+                assert out_w == sorted([8, SVR2_CMP, SVR2_UP, 8120]), \
+                    f"qi21: [7500] 应扇出 [8]+[505]+[503]+[8120](洗底后四消费;1119 P3 拆 alpha 入口),得 {out_w}"
             else:
                 out5 = sorted(l[0] for l in graph["links"] if l[1] == 5)
                 assert out5 == [219], \
                     f"i2i: [5] 应只扇出 [7500 洗底宿主](1022 收装;旧平铺直连随令翻篇),得 {out5}"
                 out_w = sorted(l[3] for l in graph["links"] if l[1] == T2I_WASH_HOST)
-                assert out_w == sorted([8, SVR2_UP, 8100]), \
-                    f"i2i: [7500] 应扇出 [8]+[503]+[8100](洗底后三消费;1119 v2 单入口),得 {out_w}"
-            assert _input_src(nodes, links, SVR2_SAVE, "images") == 8107, \
-                f"{name}: [{SVR2_SAVE}].images 应接 [8107] GemTiledUpscaleStitch 产物(1119 v2 ⑤b 接棒)"
+                assert out_w == sorted([8, SVR2_UP, 8120]), \
+                    f"i2i: [7500] 应扇出 [8]+[503]+[8120](洗底后三消费;1119 P3 拆 alpha 入口),得 {out_w}"
+            assert _input_src(nodes, links, SVR2_SAVE, "images") == 8121, \
+                f"{name}: [{SVR2_SAVE}].images 应接 [8121] JoinImageWithAlpha 回贴产物(1119 P3 ⑤b 接棒)"
 
     def test_comparer_t2i_only(self):
         graph = GRAPHS["qi21"]
@@ -5948,13 +5951,16 @@ class TestSeedVR2TailContract1002:
 # 节点级 mode4 旁路零删可复活;手术脚本 apps/build/scripts/qi21_daojie_gem_v2_1119.py)──
 
 GEM_TAIL_IDS = (8100, 8101, 8102, 8104, 8106, 8107,
-                8110, 8111, 8112, 8113, 8114)  # 11 节点(1119 v2 照抄皮肤件)
+                8110, 8111, 8112, 8113, 8114,
+                8120, 8121, 8122)  # 14 节点(1119 v2 皮肤件 11 + P3 alpha 三件)
 GEM_TAIL_TYPES = {
     8100: "GemTiledUpscale", 8101: "LoraLoaderModelOnly",
     8102: "LoraLoaderModelOnly", 8104: "TextEncodeQwenImage21",
     8106: "VAEDecode", 8107: "GemTiledUpscaleStitch",
     8110: "RandomNoise", 8111: "BasicGuider", 8112: "KSamplerSelect",
     8113: "ManualSigmas", 8114: "SamplerCustomAdvanced",
+    8120: "SplitImageWithAlpha", 8121: "JoinImageWithAlpha",
+    8122: "ImageScaleToTotalPixels",
 }
 # widgets 逐位钉(None=整键省略 widgets_values,防 flatten TypeError);
 # 8100=皮肤件 4MP 大块口径+8.25MP 4K 帽;8113=官方 8步σ表(与 turbo r178 配对);
@@ -5976,14 +5982,20 @@ GEM_TAIL_WIDGETS = {
     8113: ["1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, "
            "0.704534, 0.414568, 0"],
     8114: None,
+    # 1119 P3 alpha 旁路(透明四型拆 alpha→RGB 走 Gem/Mask 放大→回贴;
+    # 非透明型 mask 全白回贴=恒等无操作)。8122 megapixels=8.25 与 8100 同帽
+    8120: None,
+    8121: None,
+    8122: ["lanczos", 8.25, 32],
 }
-# 18 根新线逐根钉(8250-8267;模型链从主链 [1] 直取,末根=⑤b 出口接 [504])
+# 22 根线逐根钉(8250-8272;模型链从主链 [1] 直取;8269/8270 类型随源槽——
+# 8269=8120:1(MASK)、8270=8122:0(IMAGE),Mask 过 IMAGE 型缩放件=ComfyUI 鸭子型)
 GEM_TAIL_LINKS = (
     (8250, 1, 0, 8101, 0, "MODEL"),
     (8251, 8101, 0, 8102, 0, "MODEL"),
     (8252, 2, 0, 8104, 0, "CLIP"),
     (8253, 3, 0, 8104, 4, "VAE"),
-    (8254, 7500, 0, 8100, 0, "IMAGE"),
+    (8254, 7500, 0, 8120, 0, "IMAGE"),
     (8255, 8100, 0, 8104, 1, "IMAGE"),
     (8256, 8100, 1, 8107, 1, "ITSGEM_TILE_STITCHER"),
     (8257, 8102, 0, 8111, 0, "MODEL"),
@@ -5996,16 +6008,21 @@ GEM_TAIL_LINKS = (
     (8264, 8114, 0, 8106, 0, "LATENT"),
     (8265, 3, 0, 8106, 1, "VAE"),
     (8266, 8106, 0, 8107, 0, "IMAGE"),
-    (8267, 8107, 0, 504, 0, "IMAGE"),
+    (8267, 8107, 0, 8121, 0, "IMAGE"),
+    (8268, 8120, 0, 8100, 0, "IMAGE"),
+    (8269, 8120, 1, 8122, 0, "MASK"),
+    (8270, 8122, 0, 8121, 1, "IMAGE"),
+    (8272, 8121, 0, 504, 0, "IMAGE"),
 )
 GEM_TAIL_GROUP_TITLE = "道劫·⑤b·Gem分块超分"
 
 
 class TestGemTailContract1117:
-    """1119 v2 Gem ⑤b 分块超分尾档锚(t2i/i2i 同构,照抄皮肤件「磨皮后续」组):
-    11 节点 type+widgets 逐位、18 根接线逐根、504.images←[8107]、零独立加载器
-    (MODEL←主链[1]/CLIP←[2]/VAE←[3],一份 bf16 驻缓存)、SeedVR 位 mode4
-    (503+子图内四节点,零删可复活)、⑤b 组罩全 11 节点。"""
+    """1119 v2+P3 Gem ⑤b 分块超分尾档锚(t2i/i2i 同构,照抄皮肤件「磨皮后续」组
+    +alpha 旁路三件):14 节点 type+widgets 逐位、22 根接线逐根、504.images←[8121]
+    (alpha 回贴;非透明型恒等)、零独立加载器(MODEL←主链[1]/CLIP←[2]/VAE←[3],
+    一份 bf16 驻缓存)、SeedVR 位 mode4(503+子图内四节点,零删可复活)、
+    ⑤b 组罩全 14 节点。"""
 
     def test_gem_nodes_widgets_bitwise(self):
         for name in ("qi21", "i2i"):
@@ -6029,13 +6046,13 @@ class TestGemTailContract1117:
         for name, old_link in (("qi21", 205), ("i2i", 204)):
             graph = GRAPHS[name]
             nodes, links = _nodes(graph), _links(graph)
-            got = {l[0]: tuple(l) for l in graph["links"] if 8250 <= l[0] <= 8267}
+            got = {l[0]: tuple(l) for l in graph["links"] if 8250 <= l[0] <= 8272}
             assert got == {l[0]: l for l in GEM_TAIL_LINKS}, \
-                f"{name}: 8250-8267 接线漂移,得 {got}"
+                f"{name}: 8250-8272 接线漂移,得 {got}"
             assert old_link not in links, \
                 f"{name}: 旧线 {old_link}([503]→[504]) 应已摘除"
-            assert _input_src(nodes, links, SVR2_SAVE, "images") == 8107, \
-                f"{name}: [504].images 应接 [8107] 拼缝产物(1119 v2)"
+            assert _input_src(nodes, links, SVR2_SAVE, "images") == 8121, \
+                f"{name}: [504].images 应接 [8121] alpha 回贴产物(1119 P3)"
             want_prefix = SVR2_SAVE_PREFIX if name == "qi21" else SVR2_SAVE_PREFIX_I2I
             assert nodes[SVR2_SAVE]["widgets_values"] == [want_prefix], \
                 f"{name}: [504] 前缀应 {want_prefix!r}(1119 道劫语义正名)"
@@ -6055,7 +6072,8 @@ class TestGemTailContract1117:
             assert _input_src(nodes, links, 8104, "vae") == 3, \
                 f"{name}: [8104].vae 应←主链[3] 主VAE(独立 8115 退役)"
             assert _input_src(nodes, links, 8106, "vae") == 3
-            for gone in (8108, 8109, 8115, 8116, 8117, 8118, 8119, 8120):
+            # 8120-8122=1119 P3 alpha 三件在役勿误判;真退役的是守卫/独立加载器/老采样段
+            for gone in (8108, 8109, 8115, 8116, 8117, 8118, 8119):
                 assert gone not in nodes, f"{name}: 旧⑤b节点 [{gone}] 应已删除(v2)"
 
     def test_seedvr_chain_bypassed_but_present(self):
