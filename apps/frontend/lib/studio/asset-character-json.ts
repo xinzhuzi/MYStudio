@@ -448,7 +448,7 @@ export function parseCharacterPromptCatalog(text: string): CharacterPromptCatalo
       ? { key: "hd_face_base", route: "t2i", routeNote: "人脸基准正射(t2i)", title: "人脸基准", text: faceSubject }
       : null,
     bodyBase: bodySubject
-      ? { key: "body_base", route: "t2i", routeNote: "素体基底(十境链唯一次文生图)", title: "人物基底·素体", text: bodySubject }
+      ? { key: "body_base", route: "t2i", routeNote: "素体基底(十境链唯一次文生图)", title: "无衣物定妆(素体基底)", text: bodySubject }
       : null,
     realms,
   };

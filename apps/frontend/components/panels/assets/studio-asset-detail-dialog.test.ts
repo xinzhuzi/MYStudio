@@ -242,6 +242,8 @@ describe("buildAssetRegenerationPrompt", () => {
     const source = readDialogSources();
 
     expect(source).toContain("function displayAudioPath(path: string): string");
+    // 1120 用户令:清单首序=人脸基准→无衣物定妆(卡名对齐断言在 asset-character-json.test)
+    expect(source).toContain('["人脸基准", "无衣物定妆"]');
     expect(source).toContain("try {\n    return decodeURI(path);\n  } catch {\n    return path;\n  }");
     // 展示位(文本+悬浮 title)双走解码;不得再直出原始编码串
     expect(source.match(/displayAudioPath\(roleVoiceProfile\.referenceAudioPath\)/g)?.length).toBe(2);

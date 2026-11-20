@@ -256,7 +256,7 @@ describe("parseCharacterPromptCatalog(人物提示词目录化)", () => {
     const catalog = parseCharacterPromptCatalog(info?.bundledText ?? "{}");
     expect(catalog).not.toBeNull();
     expect(catalog?.faceBase).toMatchObject({ route: "t2i", title: "人脸基准" });
-    expect(catalog?.bodyBase).toMatchObject({ route: "t2i", title: "人物基底·素体" });
+    expect(catalog?.bodyBase).toMatchObject({ route: "t2i", title: "无衣物定妆(素体基底)" });
     expect(catalog?.realms).toHaveLength(10);
     const jz = findCharacterPromptRealm(catalog, "筑基期");
     expect(jz?.entries.map((e) => e.title)).toEqual([

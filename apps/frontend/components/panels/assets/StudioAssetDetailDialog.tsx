@@ -321,8 +321,14 @@ export function StudioAssetDetailDialog({
       const kind = classifyAssetImage(image);
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    return spectrum.order
-      .filter((kind) => kind !== "早期未分类")
+    // 1120 用户令:清单首序=人脸基准→无衣物定妆(与提示词两卡同序对齐,命名与
+    // 顺序双一致);仅提示词区纯展示序,图片区分节序仍走全局型谱不动
+    const PINNED_RULE_ORDER: AssetImageKind[] = ["人脸基准", "无衣物定妆"];
+    const displayOrder = [
+      ...PINNED_RULE_ORDER.filter((kind) => spectrum.order.includes(kind)),
+      ...spectrum.order.filter((kind) => !PINNED_RULE_ORDER.includes(kind)),
+    ].filter((kind) => kind !== "早期未分类");
+    return displayOrder
       .map((kind) => ({
         kind,
         aspect: ASSET_IMAGE_KIND_ASPECTS[kind],
@@ -1084,7 +1090,7 @@ export function StudioAssetDetailDialog({
                             选择器/本型专用句钮,真源与非真源一律零区头;槽机制转地下,派发照吃槽值) */}
                         {characterPromptCatalog ? (
                           /* 10-26 用户令「展示基础相关的提示词,而不是阶段相关的」+
-                             「不要重复」:面板只显基础两卡(人脸基准/人物基底素体),
+                             「不要重复」:面板只显基础两卡(人脸基准/无衣物定妆(素体基底)),
                              阶段指令不展示(仍住真源JSON,「角色真源JSON」弹窗可查) */
                           <StudioAssetCharacterPrompts catalog={characterPromptCatalog} />
                         ) : focusIsI2iFamily && focusKind && !subjectExpanded ? (

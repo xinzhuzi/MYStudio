@@ -233,7 +233,7 @@ describe("StudioAssetDetailDialog store 位提示词真源接线(repo 角色·�
     // repo 角色:人物提示词面板照旧(catalog 由文本驱动,文本来自 store)。
     // 值断言用 findByText 容一次瞬时兜底渲染:探测链偶发失利时首轮 load 落 repo
     // 种子文本,storePromptInfo 命中后重载即覆写为 store 文本(settled 态为本测语义)。
-    expect(await screen.findByText("人物基底·素体")).toBeTruthy();
+    expect(await screen.findByText("无衣物定妆(素体基底)")).toBeTruthy();
     expect(await screen.findByText(/repo角色的store编辑素体句/)).toBeTruthy();
 
     // 镜像派发吃 store 文本(无衣物定妆 gate→body_base=store 值)
@@ -247,7 +247,7 @@ describe("StudioAssetDetailDialog store 位提示词真源接线(repo 角色·�
 
   it("store 未命中→repo 链照旧(bundled 素体句可派发)", async () => {
     renderDialog(yanliaoAsset());
-    expect(await screen.findByText("人物基底·素体")).toBeTruthy();
+    expect(await screen.findByText("无衣物定妆(素体基底)")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
     await waitFor(() => expect(mocks.typeShot).toHaveBeenCalledTimes(1));
     const subjectText = (mocks.typeShot.mock.calls[0]?.[0] as { subjectText: string }).subjectText;
