@@ -320,7 +320,7 @@ NOTE_TEXT = """## MOSS 道劫 t2i(道劫范式 × MOSS-Image,1108 役)
 
 - **型库=moss_bases.json**(由 qi21_bases.json 派生:6 透明型已带白底句;人物海报带挂载服从句;装配节点 MyQi21PromptAssembly 直复用)
 - **双臂**:左 False=原生臂 50步/CFG3.5/er_sde+观澜@1.0+SLG22(0-0.5);True=DMD 臂 8步/CFG1.0/euler+DMD LoRA@1.0+SLG end0(勿混:DMD 禁高 CFG)
-- **透明型**(道具/多视图/高清人脸/表情差分/人脸基准/无衣物定妆):MOSS=flux2-vae 纯 RGB,型文白底句+「白底转透明」腿(ColorToMask thr32→GrowMask+3/-5 闭运算→ImpactGaussianBlurMask 软边→JoinImageWithAlpha)按型自动启停;GrowMaskWithBlur 接口坑避雷
+- **透明型**(道具/多视图/高清人头/表情差分/人脸基准/无衣物定妆):MOSS=flux2-vae 纯 RGB,型文白底句+「白底转透明」腿(ColorToMask thr32→GrowMask+3/-5 闭运算→ImpactGaussianBlurMask 软边→JoinImageWithAlpha)按型自动启停;GrowMaskWithBlur 接口坑避雷
 - **SeedVR2 2K 尾档**默认旁路;Win 参数(seedvr2_7b_sharp_fp8/swap36/cuda)
 - 模型:moss_image_sft_bf16 + qwen3.5_9b_bf16(moss_image) + flux2-vae(Windows 引擎在位)
 - 例句=道劫 05 库例一(女修·剑在鞘·手部三锁段);门禁与色词纪律同 qi21 线(docs/prompts/道劫_类型主体句示例.md)

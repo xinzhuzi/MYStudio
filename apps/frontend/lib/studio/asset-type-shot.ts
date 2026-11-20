@@ -81,7 +81,7 @@ export const ASSET_TYPE_SHOT_PROFILES: readonly AssetTypeShotProfile[] = [
     aspect: ASSET_IMAGE_KIND_ASPECTS["无衣物定妆"],
     rgba: true,
     // 10-25 用户令(流水线定谳):无衣物定妆=文生图(角色身份源头,主体句+型层承载);
-    // 高清人脸·图生图/表情差分改锚定妆图派生——原 i2i 固定指令(素体保真段)随路退役
+    // 高清人头·图生图/表情差分改锚定妆图派生——原 i2i 固定指令(素体保真段)随路退役
     route: "t2i",
   },
   {

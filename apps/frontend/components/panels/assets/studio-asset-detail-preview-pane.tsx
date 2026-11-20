@@ -90,7 +90,7 @@ interface StudioAssetDetailPreviewPaneProps {
   /** 表情差分相位文案(运行态按钮 title 全文)。 */
   expressionMessage?: string;
   /** 批2(10-24):占位卡「点击生成」CTA 与完整度条核心缺失 chip 的直达生成入口;
-   *  装配方路由(批3 起全型路由:高清人脸/表情差分接既有路,余型走按型出图件)。 */
+   *  装配方路由(批3 起全型路由:高清人头/表情差分接既有路,余型走按型出图件)。 */
   onGenerateByKind?: (kind: AssetImageKind) => void | Promise<void>;
   /** 批3 复审 M 修(Round 3 Q1):完整度两行分级/核心空节红点判定基准=本行自有图集——
    *  族聚显在驾时 images(displayImages)含族兄弟行图,同型图不抵扣本行缺口;缺省回落
@@ -158,7 +158,7 @@ export function StudioAssetDetailPreviewPane({
       : i2iPhase
         ? "正在转换画风，请稍候"
         : facePhase
-          ? (faceMessage || "正在生成高清人脸，请稍候")
+          ? (faceMessage || "正在生成高清人头，请稍候")
           : expressionPhase
             ? "正在生成表情差分，请稍候"
             : typeShotPhase
@@ -178,7 +178,7 @@ export function StudioAssetDetailPreviewPane({
       : i2iPhase
         ? "正在转换画风，请稍候"
         : facePhase
-          ? "正在生成高清人脸，请稍候"
+          ? "正在生成高清人头，请稍候"
           : expressionPhase
             ? (expressionMessage || "正在生成表情差分，请稍候")
             : typeShotPhase
@@ -404,7 +404,7 @@ export function StudioAssetDetailPreviewPane({
     </section>
   );
 
-  /** 高清人脸节头生成钮(10-21 既有功能迁居,守卫/相位文案零变)。 */
+  /** 高清人头节头生成钮(10-21 既有功能迁居,守卫/相位文案零变;旧名高清人脸 1120 改名)。 */
   const renderFaceSectionButtons = () => (
     <>
       <Button
@@ -459,7 +459,7 @@ export function StudioAssetDetailPreviewPane({
           : i2iPhase
             ? "正在转换画风，请稍候"
             : facePhase
-              ? "正在生成高清人脸，请稍候"
+              ? "正在生成高清人头，请稍候"
               : expressionPhase
                 ? "正在生成表情差分，请稍候"
                 : `生成${kind}(${route === "t2i" ? "文生图·型层" : "图生图·型层"})`;
@@ -493,7 +493,7 @@ export function StudioAssetDetailPreviewPane({
   // (非族聚显调用方 displayImages≡本行图集,零行为变化)
   const completenessGroups = groupAssetImagesByKind(completenessImages ?? images, spectrumOrder);
   const completenessCount = (kind: AssetImageKind) => completenessGroups.get(kind)?.length ?? 0;
-  // 批3 按型出图:型档案快查(节头钮/徽标装配用;高清人脸/表情差分既有路恒不收编)
+  // 批3 按型出图:型档案快查(节头钮/徽标装配用;高清人头/表情差分既有路恒不收编)
   const typeShotProfileByKind = new Map(ASSET_TYPE_SHOT_PROFILES.map((profile) => [profile.kind as AssetImageKind, profile]));
 
   /** 完整度总览条(grill Round 1 裁定1 两行分级+Round 3 ⑤ 三轨同款):核心行逐型
