@@ -2478,7 +2478,8 @@ async function verifyAssetVoiceFlow(evaluate) {
     await waitFor(() => (document.body?.innerText || '').includes('尚未分配音色') || (document.body?.innerText || '').includes('音色信息'));
 
     const detailText = (document.body?.innerText || '');
-    const audioPanelButton = Array.from(document.querySelectorAll('.studio-asset-detail-dialog button'))
+    // 1121 a22cdfb9 改版对齐:详情弹窗→独立页(容器类 studio-asset-detail-view)
+    const audioPanelButton = Array.from(document.querySelectorAll('.studio-asset-detail-view button'))
       .find((node) => normalize(node).includes('音色'));
     await waitFor(async () => {
       const result = await window.studioAssets?.list?.({ type: 'audio', search: 'Smoke青年男声', limit: 10 });
@@ -2487,7 +2488,7 @@ async function verifyAssetVoiceFlow(evaluate) {
     const clickedVoicePanel = activate(audioPanelButton);
     await waitFor(() => (document.body?.innerText || '').includes('资产库音频'));
     const searchedVoiceDialog = await searchVoiceAssignDialog('Smoke青年男声');
-    const voiceCandidate = await waitFor(() => Array.from(document.querySelectorAll('[role="dialog"] button[title], .studio-asset-detail-dialog button[title], button[title]'))
+    const voiceCandidate = await waitFor(() => Array.from(document.querySelectorAll('[role="dialog"] button[title], .studio-asset-detail-view button[title], button[title]'))
       .find((node) => (node.getAttribute('title') || '').includes('Smoke青年男声') || normalize(node).includes('Smoke青年男声')), 8000);
     const dialogText = (document.body?.innerText || '');
     const clickedVoiceCandidate = activate(voiceCandidate);
@@ -2498,7 +2499,11 @@ async function verifyAssetVoiceFlow(evaluate) {
     await waitFor(() => (document.body?.innerText || '').includes('克隆音色') || (document.body?.innerText || '').includes('音色信息'));
     const afterBindingText = (document.body?.innerText || '');
     const closedVoiceDialog = await closeTopDialog();
-    const closedRoleDetailDialog = await closeTopDialog();
+    // 1121 详情独立页:返回=页头「返回列表」按钮(不再是第二层 dialog)
+    const roleDetailBack = Array.from(document.querySelectorAll('.studio-asset-detail-view button'))
+      .find((node) => normalize(node).includes('返回列表') || (node.getAttribute('title') || '').includes('返回列表'));
+    const closedRoleDetailDialog = activate(roleDetailBack);
+    await waitFor(() => (document.body?.innerText || '').includes('个人资产库'), 5000);
     const dialogsClosedBeforeAudio = await waitFor(() => document.querySelectorAll('[role="dialog"]').length === 0, 3000);
     const openDialogCountBeforeAudio = document.querySelectorAll('[role="dialog"]').length;
     const clickedAudio = clickButtonByText('配音', true);

@@ -32,6 +32,9 @@ export function AssetsView() {
   const closeDetail = useAssetDetailViewStore((state) => state.close);
 
   const handleSectionChange = (section: AssetSection) => {
+    // 1121 复审 low#7 根修:详情态点侧栏=离开下钻回该区列表(§8-A 文件管理器
+    // 类比;旧形态 detailTarget 压栏=侧栏 inert「点配音无响应」)
+    closeDetail();
     setActiveSection(section);
     setMounted((prev) => {
       if (prev.has(section)) return prev;
