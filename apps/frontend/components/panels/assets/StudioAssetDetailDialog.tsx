@@ -149,6 +149,17 @@ function promptJsonTypeOf(type: StudioAssetKind | undefined): AssetPromptJsonTyp
   return type === "role" || type === "scene" || type === "tool" ? type : undefined;
 }
 
+/** 1120 用户令:参考音频路径展示解码——profile 存的 referenceAudioPath 是
+ * asset-file:// URI(路径段 percent-encode),原样直出是 %E7%94%B7… 天书;
+ * 仅展示层解码(decodeURI 不动 :// 与保留字),存储/传参/引擎解析恒原文。 */
+function displayAudioPath(path: string): string {
+  try {
+    return decodeURI(path);
+  } catch {
+    return path;
+  }
+}
+
 function readMetaCollapsed(): boolean {
   try {
     return window.localStorage?.getItem(META_COLLAPSED_STORAGE_KEY) === "1";
@@ -949,7 +960,7 @@ export function StudioAssetDetailDialog({
                                   <div className="truncate" title={roleVoiceProfile.type === "preset" ? "预设音色" : "克隆音色"}><span className="text-muted-foreground">类型：</span>{roleVoiceProfile.type === "preset" ? "预设音色" : "克隆音色"}</div>
                                   <div className="truncate" title={roleVoiceProfile.defaultEngine}><span className="text-muted-foreground">引擎：</span>{roleVoiceProfile.defaultEngine}</div>
                                   {roleVoiceProfile.presetVoiceId && <div className="truncate" title={roleVoiceProfile.presetVoiceId}><span className="text-muted-foreground">预设：</span>{roleVoiceProfile.presetVoiceId}</div>}
-                                  {roleVoiceProfile.referenceAudioPath && <div className="col-span-2 truncate" title={roleVoiceProfile.referenceAudioPath}><span className="text-muted-foreground">参考音频：</span>{roleVoiceProfile.referenceAudioPath}</div>}
+                                  {roleVoiceProfile.referenceAudioPath && <div className="col-span-2 truncate" title={displayAudioPath(roleVoiceProfile.referenceAudioPath)}><span className="text-muted-foreground">参考音频：</span>{displayAudioPath(roleVoiceProfile.referenceAudioPath)}</div>}
                                   <div className="truncate" title={roleVoiceProfile.id}><span className="text-muted-foreground">Profile：</span>{roleVoiceProfile.id}</div>
                                 </div>
                               </button>

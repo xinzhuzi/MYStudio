@@ -238,6 +238,16 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(source).not.toContain("function RoleVoicePreviewButton(");
   });
 
+  it("1120 用户令:参考音频路径展示层解码(decodeURI),存储/传参恒原文", () => {
+    const source = readDialogSources();
+
+    expect(source).toContain("function displayAudioPath(path: string): string");
+    expect(source).toContain("try {\n    return decodeURI(path);\n  } catch {\n    return path;\n  }");
+    // 展示位(文本+悬浮 title)双走解码;不得再直出原始编码串
+    expect(source.match(/displayAudioPath\(roleVoiceProfile\.referenceAudioPath\)/g)?.length).toBe(2);
+    expect(source).not.toContain("title={roleVoiceProfile.referenceAudioPath}");
+  });
+
   it("1120 版式③:设定入口=按钮(与名字同行),点击弹 MD 编辑(描述+设定同框)", () => {
     const source = readDialogSources();
 
