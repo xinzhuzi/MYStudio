@@ -2498,7 +2498,10 @@ async function verifyAssetVoiceFlow(evaluate) {
     const afterAssignText = (document.body?.innerText || '');
     await waitFor(() => (document.body?.innerText || '').includes('克隆音色') || (document.body?.innerText || '').includes('音色信息'));
     const afterBindingText = (document.body?.innerText || '');
-    const closedVoiceDialog = await closeTopDialog();
+    // 1121 探针容错:分配弹窗「确认分配」后自闭=预期 UX;到此处已零 dialog
+    // 视为已关(旧写法在自闭后找不到 dialog 误报 False;openDialogCountBeforeAudio
+    // 才是「离开前无残留」的真判据)
+    const closedVoiceDialog = document.querySelectorAll('[role="dialog"]').length === 0 || (await closeTopDialog());
     // 1121 详情独立页:返回=页头「返回列表」按钮(不再是第二层 dialog)
     const roleDetailBack = Array.from(document.querySelectorAll('.studio-asset-detail-view button'))
       .find((node) => normalize(node).includes('返回列表') || (node.getAttribute('title') || '').includes('返回列表'));
