@@ -18,6 +18,7 @@ import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import type { AssetImage, AssetImageKind, StudioAssetSummary } from "@/types/studio-assets";
 import { RoleVoiceAssignDialog } from "./RoleVoiceAssignDialog";
 import { RoleVoicePreviewButton } from "./RoleVoicePreviewButton";
+import { StudioAssetSettingDialog } from "./StudioAssetSettingDialog";
 import {
   Box,
   ChevronDown,
@@ -292,6 +293,8 @@ export function StudioAssetDetailDialog({
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   // 10-24 布局重造批1:元信息区折叠态(默认展开;localStorage 记忆)
   const [metaCollapsed, setMetaCollapsed] = useState(readMetaCollapsed);
+  // 1120 版式③:设定 MD 编辑弹窗开合
+  const [settingEditorOpen, setSettingEditorOpen] = useState(false);
   // R4 族聚显展示序:族序(updatedAt 倒序)+ live 新图置顶;本行条目可编辑、
   // 族兄弟只读。familyImages 未提供时恒等 images(资产库面板等调用方零变化)。
   const displayImages = useMemo<FamilyDisplayImageEntry[]>(
@@ -820,8 +823,9 @@ export function StudioAssetDetailDialog({
                 </div>
                 {!metaCollapsed && (
                   <div id="studio-asset-meta-body" className="grid grid-cols-2 gap-3 p-4">
-                    {/* 行1: 名字 | 描述 */}
-                    <section className="min-w-0 space-y-1.5">
+                    {/* 1120 用户令·版式重构③:名字|设定按钮同行 → 音频配置(音色) →
+                     出图提示词;设定点击弹 MD 编辑(描述+设定同框编辑+预览)。 */}
+                    <section className={`min-w-0 space-y-1.5 ${asset.type === "audio" ? "col-span-2" : ""}`}>
                       <div className="text-xs font-medium text-muted-foreground">名字</div>
                       <input
                         className="w-full rounded-md border border-border bg-muted/90 px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
@@ -845,21 +849,42 @@ export function StudioAssetDetailDialog({
                         )}
                       </div>
                     </section>
-                    {/* 1120 修遮挡:space-y+h-full 组合下 textarea 按 section 全高膨胀,
-                        连标签带间距一起顶出 ~20px 溢出,扎进下行音色卡底下被盖——改
-                        flex 纵列 + flex-1,只填标签之下的剩余空间,恒不出框 */}
-                    <section className="flex min-w-0 flex-col gap-1.5">
-                      <div className="shrink-0 text-xs font-medium text-muted-foreground">{asset.type === "audio" ? "说话内容" : "描述"}</div>
-                      <Textarea
-                        value={asset.type === "audio" ? spokenText : draftDescription}
-                        onChange={(event) => {
-                          setDraftDescription(event.target.value);
-                          setRecognizedText(null);
-                        }}
-                        placeholder={asset.type === "audio" ? "暂无口播词句" : "暂无描述"}
-                        className="min-h-[96px] flex-1 resize-none bg-muted/90 text-xs leading-5"
-                      />
-                    </section>
+                    {/* 设定入口(1120 用户令③:与名字同行,按钮弹 MD 编辑) */}
+                    {asset.type !== "audio" && (
+                      <section className="flex min-w-0 flex-col gap-1.5">
+                        <div className="shrink-0 text-xs font-medium text-muted-foreground">设定</div>
+                        <button
+                          type="button"
+                          onClick={() => setSettingEditorOpen(true)}
+                          className="flex h-[38px] w-full items-center justify-between gap-2 rounded-md border border-border bg-muted/90 px-3 text-left text-sm transition-colors outline-none hover:border-primary/50 focus-visible:border-primary"
+                          title="打开设定 Markdown 编辑(描述+设定,源码与预览同框)"
+                        >
+                          <span className="flex min-w-0 items-center gap-2">
+                            <FileText className="h-3.5 w-3.5 shrink-0 text-primary" />
+                            <span className="truncate">{(draftSetting || asset.setting || "").trim() ? "编辑设定(Markdown)" : "编写设定(Markdown)"}</span>
+                          </span>
+                          <span className="shrink-0 text-[11px] text-muted-foreground">MD 编辑</span>
+                        </button>
+                        <div className="truncate text-[11px] text-muted-foreground" title={draftSetting || asset.setting || ""}>
+                          {(draftSetting || asset.setting || "").trim() ? `已含设定 ${(draftSetting || asset.setting || "").length} 字` : "尚未编写设定"}
+                        </div>
+                      </section>
+                    )}
+                    {/* audio 型:无音色/提示词/设定卡,说话内容独占全宽 */}
+                    {asset.type === "audio" && (
+                      <section className="col-span-2 flex min-w-0 flex-col gap-1.5">
+                        <div className="shrink-0 text-xs font-medium text-muted-foreground">说话内容</div>
+                        <Textarea
+                          value={spokenText}
+                          onChange={(event) => {
+                            setDraftDescription(event.target.value);
+                            setRecognizedText(null);
+                          }}
+                          placeholder="暂无口播词句"
+                          className="min-h-[96px] flex-1 resize-none bg-muted/90 text-xs leading-5"
+                        />
+                      </section>
+                    )}
                     {/* 行2: 音色(仅 role,恒全宽)——1120 用户令:人物属性卡撤除,
                      与「设定」合一(属性卡本就是设定文本的只读解析视图,信息本体在
                      设定框,双框展示属冗余);音色不再钉右列,col-span-2 恒全宽 */}
@@ -927,9 +952,9 @@ export function StudioAssetDetailDialog({
                     )}
                     {/* 10-27 用户令「技能之类的确实不应该展示」:技能卡整块撤
                      (数据仍在 DB skills 列,仅弹窗不渲染) */}
-                    {/* 行3: 提示词(10-25 分层面板役 A-2:①主体句+②「提示词构成」折叠组
-                     +③实发终稿桩;替换原「出图提示词」单框区,三轨 role/scene/tool 通用)
-                     | 设定(非 audio) */}
+                    {/* 出图提示词(1120 用户令:设定收进按钮+MD 弹窗后,提示词紧随
+                     音色;10-25 分层面板役 A-2:①主体句+②「提示词构成」折叠组
+                     +③实发终稿桩,三轨 role/scene/tool 通用) */}
                     {asset.type !== "audio" ? (
                       <section className="studio-asset-prompt-region col-span-2 min-w-0 space-y-1.5" aria-label="提示词">
                         {/* R1/R3(10-26 用户令):「查看源提示词/查看实发终稿」收敛到首行紧凑
@@ -1059,19 +1084,6 @@ export function StudioAssetDetailDialog({
                             />
                           </>
                         )}
-                      </section>
-                    ) : null}
-                    {asset.type !== "audio" ? (
-                      <section className="col-span-2 flex min-w-0 flex-col gap-1.5">
-                        {/* 1120 修遮挡:同描述区病灶(h-full 按含标签全高膨胀溢出,扎进
-                            底部保存/删除行),改 flex 纵列 + flex-1 */}
-                        <div className="shrink-0 text-xs font-medium text-muted-foreground">设定</div>
-                        <Textarea
-                          value={draftSetting}
-                          onChange={(event) => setDraftSetting(event.target.value)}
-                          placeholder="暂无设定"
-                          className="min-h-[96px] flex-1 resize-none bg-muted/90 text-xs leading-5"
-                        />
                       </section>
                     ) : null}
                     {/* 行尾: 保存 | 删除(用户点名置顶区) */}
@@ -1209,6 +1221,21 @@ export function StudioAssetDetailDialog({
           linkedSpeakerIds={linkedSpeakerIds}
           open={voiceAssignOpen}
           onOpenChange={setVoiceAssignOpen}
+        />
+      )}
+      {/* 1120 版式③:设定 MD 编辑弹窗(描述+设定同框,应用回填 draft) */}
+      {asset.type !== "audio" && (
+        <StudioAssetSettingDialog
+          open={settingEditorOpen}
+          name={parsedDraftName.primaryName}
+          description={draftDescription}
+          setting={draftSetting}
+          onOpenChange={setSettingEditorOpen}
+          onApply={(next) => {
+            setDraftDescription(next.description);
+            setDraftSetting(next.setting);
+            setRecognizedText(null);
+          }}
         />
       )}
       {/* 10-25 分层面板役:③实发终稿/B-3 查词共用 tEXt 查询弹层(打开=目标非空;
