@@ -385,6 +385,13 @@ def _mk_shard_project(tmp_path):
         "mediaRef": {"kind": "image", "path":
                      "project-file://p1/workflow-images/c1/sb1.png"},
         "associateAssetsNames": ["独孤剑尘", "青盐鞭"],
+        # 1120 绑定三件套:镜级绑定(写入乱序,列按 slot 升序渲染)
+        "assetBindings": [
+            {"assetId": "char-1", "name": "独孤剑尘",
+             "kind": "character", "slot": 2},
+            {"assetId": "scene-1", "name": "夜街", "kind": "scene", "slot": 1},
+            {"assetId": "prop-1", "name": "青盐鞭", "kind": "prop", "slot": 3},
+        ],
         "shotSemantics": {"shotSize": "全景", "cameraMove": "极缓移",
                           "actionIn": "入画", "actionOut": "出画"},
         "orientation": "正面", "spatialRelation": "中轴", "emotion": "紧绷",
@@ -405,22 +412,25 @@ def _mk_shard_project(tmp_path):
     return root
 
 
-def test_shot_detail_fifteen_columns_uncut(tmp_path):
-    """单镜模式:15 列全量(长 prompt 零截断)+imageReady 语义+URL 换算。"""
+def test_shot_detail_sixteen_columns_uncut(tmp_path):
+    """单镜模式:16 列全量(长 prompt 零截断)+imageReady 语义+URL 换算。"""
     root = _mk_shard_project(tmp_path)
     data = ds.shot_detail(root, "chapter-001", "sb-c1-001", "p1")
     shot = data["shot"]
     cols = shot["columns"]
-    assert len(cols) == 15  # 15 列契约
+    assert len(cols) == 16  # 16 列契约
     assert [c[0] for c in cols] == [
         "镜号", "场次", "画面描述", "视频描述", "时长", "景别", "运镜",
         "动作", "朝向", "空间关系", "情绪", "台词", "旁白", "音效",
-        "关联资产"]
+        "关联资产", "绑定参考"]
     by_label = dict(cols)
     assert by_label["画面描述"] == _LONG_PROMPT  # 300 字全量≠160 截断
     assert by_label["台词"] == "台词一" and by_label["旁白"] == "旁白一"
     assert by_label["动作"] == "入画 → 出画"
     assert by_label["关联资产"] == "独孤剑尘、青盐鞭"
+    # 1120 绑定三件套:镜级绑定列(写入乱序→slot 升序,类型映射)
+    assert by_label["绑定参考"] == \
+        "①夜街(场景)、②独孤剑尘(角色)、③青盐鞭(道具)"
     assert shot["imageReady"] is True  # state ready+mediaRef 可定位
     assert shot["imageUrl"] == ("/my_daoyan/chapter_image?project=p1"
                                 "&rel=workflow-images%2Fc1%2Fsb1.png")
@@ -438,6 +448,26 @@ def test_shot_detail_fifteen_columns_uncut(tmp_path):
     # 缺镜/非法章
     assert ds.shot_detail(root, "chapter-001", "sb-xx", "p1").get("error")
     assert ds.shot_detail(root, "../etc", "sb-c1-001").get("error")
+
+
+def test_shot_detail_asset_bindings_column(tmp_path):
+    """1120 绑定三件套:「绑定参考」列 slot 排序+缺席空列+跨分片透传。"""
+    root = _mk_shard_project(tmp_path)
+    # 缺席镜(旧章无 assetBindings)=空列 None(渲染端退化「—」;
+    # 不猜序,不重复「关联资产」纯名字展示)
+    d2 = ds.shot_detail(root, "chapter-001", "sb-c1-002", "p1")
+    assert dict(d2["shot"]["columns"])["绑定参考"] is None
+    # 跨分片透传:后片同 index 整 item 胜,assetBindings 原样到列
+    cdir = root / "store" / "studio-workflow" / "chapters" / "chapter-001"
+    (cdir / "storyboards-003-ccc.json").write_text(json.dumps(
+        {"state": {"storyboards": [{
+            "index": 2, "id": "sb-c1-002", "state": "pending",
+            "prompt": "描述二", "duration": 8,
+            "assetBindings": [{"assetId": "scene-9", "name": "官道",
+                               "kind": "scene", "slot": 1}]}]},
+         "version": 0}, ensure_ascii=False), encoding="utf-8")
+    d2b = ds.shot_detail(root, "chapter-001", "sb-c1-002", "p1")
+    assert dict(d2b["shot"]["columns"])["绑定参考"] == "①官道(场景)"
 
 
 def test_shot_detail_chapter_list_mode(tmp_path):
@@ -528,7 +558,7 @@ def test_install_shot_detail_route_and_print(tmp_path, monkeypatch, capsys):
     one = asyncio.run(routes["/my_daoyan/shot_detail"](
         _Req({"project": "p1", "chapter": "chapter-001",
               "shot_id": "sb-c1-001"})))
-    assert one.status == 200 and len(one.payload["shot"]["columns"]) == 15
+    assert one.status == 200 and len(one.payload["shot"]["columns"]) == 16
     miss = asyncio.run(routes["/my_daoyan/shot_detail"](
         _Req({"project": "p1", "chapter": "chapter-001",
               "shot_id": "sb-xx"})))

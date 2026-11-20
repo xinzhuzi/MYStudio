@@ -40,7 +40,7 @@ afterEach(() => {
 });
 
 describe("ChapterAcceptanceBanner(分镜面板顶部横幅)", () => {
-  it("全绿(资产/衍生零失败+分镜全绑+零 stale)→横幅消失", () => {
+  it("全绿(资产/衍生零失败+分镜全视频就绪+零 stale)→横幅消失", () => {
     useStudioStore.setState({
       mediaTasks: [
         { id: "a", kind: "scriptAsset", status: "success", targetId: "character:x", episodeId: CHAPTER_ID, createdAt: 1, updatedAt: 1 },
@@ -50,7 +50,7 @@ describe("ChapterAcceptanceBanner(分镜面板顶部横幅)", () => {
         {
           id: "sb-1", episodeId: CHAPTER_ID, index: 1, trackKey: "k", trackId: "", duration: 5,
           prompt: "p", videoDesc: "", assetIds: [], associateAssetsNames: [],
-          mediaRef: { kind: "image", path: "local-image://s1.png" }, keyframes: [], state: "idle",
+          mediaRef: { kind: "video", path: "local-image://videos/s1.mp4" }, keyframes: [], state: "idle",
         },
       ] as never,
     });
@@ -86,6 +86,7 @@ describe("ChapterAcceptanceBanner(分镜面板顶部横幅)", () => {
       />,
     );
     expect(container.querySelector("[data-chapter-acceptance-banner='actionable']")).not.toBeNull();
+    expect(screen.getByText(/分镜视频 0\/1（缺视频 1）/)).toBeTruthy();
     expect(screen.getByText(/未绑 1/)).toBeTruthy();
     expect(screen.getByText(/失 1/)).toBeTruthy();
 
@@ -155,7 +156,7 @@ describe("ChapterAcceptanceBanner·source-stale(D-5 消费方呈现)", () => {
         {
           id: "sb-1", episodeId: CHAPTER_ID, index: 1, trackKey: "k", trackId: "", duration: 5,
           prompt: "p", videoDesc: "", assetIds: [], associateAssetsNames: [],
-          mediaRef: { kind: "image", path: "local-image://s1.png" }, keyframes: [], state: "idle",
+          mediaRef: { kind: "video", path: "local-image://videos/s1.mp4" }, keyframes: [], state: "idle",
         },
       ] as never,
     });
@@ -211,6 +212,55 @@ describe("ChapterAcceptanceBanner·source-stale(D-5 消费方呈现)", () => {
 
   it("缺省零漂移:全绿卡不传新 prop → 横幅照旧消失(新闸不误吞)", () => {
     const card = allGreenCardFixture();
+    const { container } = render(
+      <ChapterAcceptanceBanner run={runView({ card })} onRunPipeline={() => undefined} />,
+    );
+    expect(container.querySelector("[data-chapter-acceptance-banner]")).toBeNull();
+  });
+});
+
+describe("ChapterAcceptanceBanner·1120 件二视频主判定(双用降级验收口径)", () => {
+  it("图全绑但零视频→横幅常驻:主计数=分镜视频 0/N(缺视频 N),分镜画面降中间态辅助行仍显示不删除", () => {
+    useStudioStore.setState({
+      mediaTasks: [
+        { id: "a", kind: "scriptAsset", status: "success", targetId: "character:x", episodeId: CHAPTER_ID, createdAt: 1, updatedAt: 1 },
+        { id: "b", kind: "derivedAssetImage", status: "success", targetId: "derived:x:y", episodeId: CHAPTER_ID, createdAt: 1, updatedAt: 1 },
+      ] as never,
+      storyboards: [
+        {
+          id: "sb-1", episodeId: CHAPTER_ID, index: 1, trackKey: "k", trackId: "", duration: 5,
+          prompt: "p", videoDesc: "", assetIds: [], associateAssetsNames: [],
+          mediaRef: { kind: "image", path: "local-image://s1.png" }, keyframes: [], state: "idle",
+        },
+      ] as never,
+    });
+    const card = buildChapterAcceptanceCard(CHAPTER_ID);
+    expect(card.storyboard.videoReady).toBe(0); // 无视频态=主计数缺省,不硬造
+    expect(card.storyboard.ready).toBe(1); // 首帧/参考物料仍在(静态图照常产出)
+    const { container } = render(
+      <ChapterAcceptanceBanner run={runView({ card })} onRunPipeline={() => undefined} />,
+    );
+    expect(container.querySelector("[data-chapter-acceptance-banner='actionable']")).not.toBeNull();
+    expect(screen.getByText(/分镜视频 0\/1（缺视频 1）/)).toBeTruthy();
+    // 既有图计数行保留(降级为中间态辅助,仍显示不删除)
+    expect(screen.getByText(/分镜画面 1\/1/)).toBeTruthy();
+  });
+
+  it("全镜视频就绪(零例外/零失败/零 stale)→横幅消失(主口径转视频后的全绿)", () => {
+    useStudioStore.setState({
+      mediaTasks: [
+        { id: "a", kind: "scriptAsset", status: "success", targetId: "character:x", episodeId: CHAPTER_ID, createdAt: 1, updatedAt: 1 },
+      ] as never,
+      storyboards: [
+        {
+          id: "sb-1", episodeId: CHAPTER_ID, index: 1, trackKey: "k", trackId: "", duration: 5,
+          prompt: "p", videoDesc: "", assetIds: [], associateAssetsNames: [],
+          mediaRef: { kind: "video", path: "local-image://videos/s1.mp4" }, keyframes: [], state: "idle",
+        },
+      ] as never,
+    });
+    const card = buildChapterAcceptanceCard(CHAPTER_ID);
+    expect(card.storyboard.videoReady).toBe(1);
     const { container } = render(
       <ChapterAcceptanceBanner run={runView({ card })} onRunPipeline={() => undefined} />,
     );

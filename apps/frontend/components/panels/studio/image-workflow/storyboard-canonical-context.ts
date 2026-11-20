@@ -39,7 +39,8 @@ import type { Scene } from "@/stores/library/scene-store";
 /** promptOverrides「分镜剧情图」键(§4.3 定谳落点;存储层无枚举约束)。 */
 export const STORYBOARD_IDENTITY_OVERRIDE_KEY = "分镜剧情图";
 
-function parsePromptOverride(raw: string | undefined, key: string): string {
+/** promptOverrides 键解析(JSON 串→键值;1120 件三导出:全文注入模块同键复用)。 */
+export function parsePromptOverride(raw: string | undefined, key: string): string {
   if (!raw) return "";
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
@@ -50,8 +51,9 @@ function parsePromptOverride(raw: string | undefined, key: string): string {
   }
 }
 
-/** 名单匹配(复合资产名「李先生;管事」拆段+双向包含,与资产解析层同口径)。 */
-function nameMatches(query: string, candidateName: string): boolean {
+/** 名单匹配(复合资产名「李先生;管事」拆段+双向包含,与资产解析层同口径)。
+ * 1120 件三导出:设计卡全文注入模块的绑定↔身份段名匹配复用同一口径。 */
+export function nameMatches(query: string, candidateName: string): boolean {
   const q = query.trim();
   const name = candidateName.trim();
   if (!q || !name) return false;
@@ -686,6 +688,12 @@ export interface StoryboardCanonicalTransportInput {
   instruction: ReturnType<typeof buildCanonicalTransportInstruction>;
   /** §4.5 槽位映射结果(含裁出名单)。 */
   mapping: ReturnType<typeof mapCanonicalReferenceSlots>;
+  /**
+   * 1120 件三 A/B 并轨:传输期生效主体句输入(momentNote 已并入的
+   * effectiveSubject)——identity-injection 模式据此重建零身份段基底
+   * (与正典同源同函数,仅 identities 置空)。canonical 模式不消费。
+   */
+  subject: CanonicalSubjectInput;
   /** 1117 C2 门A 锚词集合:主角锚=image_1 角色槽 title(零角色镜取 identities 首位)。 */
   anchors: CanonicalAnchorSet;
   /** 门A 软断言名单(visibleCharacters 全名;缺名=warn 可观测)。 */
@@ -780,6 +788,7 @@ export async function buildStoryboardCanonicalTransportInput(
   return {
     instruction: buildCanonicalTransportInstruction({ subject: effectiveSubject, slots: mapping.slots }),
     mapping,
+    subject: effectiveSubject,
     anchors: {
       ...contextAnchors,
       ...(protagonist ? { protagonist } : {}),

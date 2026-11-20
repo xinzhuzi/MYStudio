@@ -197,6 +197,14 @@ export interface StudioWorkflowConfig {
    */
   atmosphereMode?: "ai" | "off";
   /**
+   * 分镜提示词构句模式（1120 Toonflow 一期件三 A/B 并轨，atmosphereMode 同款
+   * 闭集形态）："canonical"=五项序正典（缺省，默认路径字节级零变化）；
+   * "identity-injection"=设计卡全文注入（主体句零身份段＋「参考 N:<身份段全文>」
+   * 块，Toonflow §3.4 对应物）。按项目持久化；分镜生图发车时传输层读此开关
+   * 选构句。试验开关无 UI 入口（程序置位）；非法值按 canonical 处理。
+   */
+  storyboardPromptMode?: "canonical" | "identity-injection";
+  /**
    * 字幕驱动音效（08-19 音效随字幕）：按字幕句语义分类派生 sfx 音轨。
    * 默认 false（克制）；与已停用的转场音效互不相干。按项目持久化，
    * 一键成片/章节投影创建时注入 renderSettings.subtitleSfxEnabled。

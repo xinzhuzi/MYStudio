@@ -25,7 +25,7 @@
       → 无 shot_id:{chapter,count,shots:[{index,id,title,duration,
         lines,state,imageReady}...]}(整章镜 id 清单=浮层下钻与旧行
         行号对齐兜底双用)
-      → 有 shot_id:{chapter,shot:{id,columns(15 列全量零截断),state,
+      → 有 shot_id:{chapter,shot:{id,columns(16 列全量零截断),state,
         imageReady,imageUrl,videoUrl,revision,stale,...}}(chapter_payload
         的 160/80 截断仅驾驶舱用,此处独立装配;图/视频 URL 走
         chapter_image 同款引擎可显示路径)
@@ -556,7 +556,39 @@ def chapter_image_bytes(location: Path, rel: str):
 
 # ── 单镜/整章镜详情(1115 详情入 ComfyUI:MyStage「详情」浮层数据源)────
 
-# 单镜详情 15 列(分镜表同源列集;label→分片字段映射单源,渲染端零拼)
+# 1120 绑定三件套·件一:「绑定参考」列素材(镜级 assetBindings,
+# slot=1 起参考图顺序;①=slot 序号,类型 scene→场景/character→角色/prop→道具)
+_CIRCLED_SLOTS = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳"
+_ASSET_KIND_LABELS = {"scene": "场景", "character": "角色", "prop": "道具"}
+
+
+def _asset_bindings_text(shot) -> str:
+    """assetBindings 按 slot 升序「①名(类型)」、串(绑定参考列值)。
+
+    缺席/空=空串(旧章不猜序=空列,渲染端退化「—」;不重复「关联资产」
+    纯名字展示)。无效 slot 排尾按位次数字兜底,缺 name 行跳过,不炸。
+    """
+    rows = shot.get("assetBindings")
+    entries = [r for r in rows if isinstance(r, dict)] \
+        if isinstance(rows, list) else []
+
+    def _slot(row):
+        s = row.get("slot")
+        return s if isinstance(s, int) and s > 0 else 0  # 无效=排尾
+
+    parts = []
+    for pos, row in enumerate(sorted(entries, key=_slot), 1):
+        s = _slot(row)
+        mark = _CIRCLED_SLOTS[s - 1] if 0 < s <= len(_CIRCLED_SLOTS) \
+            else f"{pos}."  # 超 20/无效=位次数字兜底
+        name = str(row.get("name") or "").strip()
+        kind = _ASSET_KIND_LABELS.get(str(row.get("kind") or ""))
+        if name:
+            parts.append(f"{mark}{name}({kind})" if kind else f"{mark}{name}")
+    return "、".join(parts)
+
+
+# 单镜详情 16 列(分镜表同源列集;label→分片字段映射单源,渲染端零拼)
 def _shot_columns(shot) -> list:
     sem = shot.get("shotSemantics") if isinstance(
         shot.get("shotSemantics"), dict) else {}
@@ -581,6 +613,8 @@ def _shot_columns(shot) -> list:
         ("旁白", shot.get("line")),
         ("音效", shot.get("sound")),
         ("关联资产", "、".join(shot.get("associateAssetsNames") or []) or None),
+        # 1120 绑定三件套·件一:镜级绑定参考列(置「关联资产」后)
+        ("绑定参考", _asset_bindings_text(shot) or None),
     ]
 
 
@@ -612,7 +646,7 @@ def _video_url(pid: str, media_ref) -> str:
 
 def shot_detail(location: Path, chapter: str, shot_id: str = "",
                 pid: str = "") -> dict:
-    """单镜 15 列全量/整章镜 id 清单(1115 详情浮层数据源,纯函数注入可测)。
+    """单镜 16 列全量/整章镜 id 清单(1115 详情浮层数据源,纯函数注入可测)。
 
     零截断纪律:chapter_payload 的 prompt/videoDesc 160 字、line 80 字截断
     仅驾驶舱用,此处独立装配全量;按 id 精确取(禁行号直取=跨源一致性)。

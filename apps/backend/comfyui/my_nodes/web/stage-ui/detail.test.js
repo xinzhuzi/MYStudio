@@ -99,7 +99,7 @@ test("chapterListHTML: 行带 data-act=shot-detail+data-shot-id;换代警示文�
   assert.match(warned, /表\/分片换代不一致，请重开工作流/);
 });
 
-test("shotHTML: 15 列标签+台词全量+图/视频 URL 属性", () => {
+test("shotHTML: 16 列标签+台词全量+图/视频 URL 属性", () => {
   const shot = {
     id: "sb-c1-001", state: "ready", imageReady: true, revision: 3,
     imageUrl: "/my_daoyan/chapter_image?project=p1&rel=a%2Fb.png",
@@ -110,12 +110,13 @@ test("shotHTML: 15 列标签+台词全量+图/视频 URL 属性", () => {
       ["运镜", "极缓移"], ["动作", "入画 → 出画"], ["朝向", "正面"],
       ["空间关系", "中轴"], ["情绪", "紧绷"], ["台词", "背囊里，归元又是一烫。"],
       ["旁白", "旁白一"], ["音效", "音效:风"], ["关联资产", "独孤剑尘、青盐鞭"],
+      ["绑定参考", "①夜街(场景)、②独孤剑尘(角色)、③青盐鞭(道具)"],
     ],
   };
   const html = shotHTML(shot);
   for (const label of ["镜号", "场次", "画面描述", "视频描述", "时长", "景别",
     "运镜", "动作", "朝向", "空间关系", "情绪", "台词", "旁白", "音效",
-    "关联资产"]) {
+    "关联资产", "绑定参考"]) {
     assert.match(html, new RegExp(`<dt>${label}</dt>`), label);
   }
   assert.match(html, /背囊里，归元又是一烫。/);
@@ -123,6 +124,27 @@ test("shotHTML: 15 列标签+台词全量+图/视频 URL 属性", () => {
   assert.match(html, /src="\/my_daoyan\/chapter_image\?project=p1&amp;rel=a%2Fb\.png"/);
   assert.match(html, /data-act="shot-video"/);
   assert.match(html, /data-url="\/my_daoyan\/chapter_image\?project=p1&amp;rel=c%2Fd\.mp4"/);
+});
+
+// ── 1120 绑定三件套·件一:绑定参考列渲染(后端单源,前端零拼) ─────────
+
+test("shotHTML 绑定参考列:值随列数据直渲;缺席=空列退化「—」", () => {
+  const bound = shotHTML({
+    id: "sb-c1-001",
+    columns: [
+      ["关联资产", "独孤剑尘、青盐鞭"],
+      ["绑定参考", "①夜街(场景)、②独孤剑尘(角色)、③青盐鞭(道具)"],
+    ],
+  });
+  // ①=slot 序号+名+(类型) 整串原样渲染(转义不破坏带圈序号/括号)
+  assert.match(bound, /<dt>绑定参考<\/dt>/);
+  assert.match(bound, /①夜街\(场景\)、②独孤剑尘\(角色\)、③青盐鞭\(道具\)/);
+  // assetBindings 缺席=后端空列(null)→「—」退化,前端不猜序不拼名
+  const empty = shotHTML({
+    id: "sb-c1-002",
+    columns: [["关联资产", null], ["绑定参考", null]],
+  });
+  assert.match(empty, /<dt>绑定参考<\/dt><dd>—<\/dd>/);
 });
 
 // ── 1120 分镜面板退役迁引擎:单镜动作面(桥动作钮 HTML 契约) ───────────

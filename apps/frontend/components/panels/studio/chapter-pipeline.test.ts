@@ -14,6 +14,7 @@ import type { MediaGenerationTask, StoryboardItem } from "@/types/studio";
 import {
   buildChapterAcceptanceCard,
   chapterAcceptanceAllGreen,
+  chapterAcceptanceSummary,
   recomputeChapterPipelineAggregate,
   runChapterPipeline,
   useChapterPipelineStore,
@@ -57,7 +58,14 @@ function mediaTask(overrides: Partial<MediaGenerationTask> = {}): MediaGeneratio
 function makeShot(input: {
   index: number;
   bound?: boolean;
+  /** 1120 件二:video 态镜(mediaRef kind=video,H3 产物回写)。 */
+  video?: boolean;
 }): StoryboardItem {
+  const media = input.video
+    ? { kind: "video" as const, path: `local-image://videos/s${input.index}.mp4` }
+    : input.bound
+      ? { kind: "image" as const, path: `local-image://shots/s${input.index}.png` }
+      : undefined;
   return {
     id: `sb-${input.index}`,
     episodeId: CHAPTER_ID,
@@ -69,9 +77,9 @@ function makeShot(input: {
     videoDesc: "",
     assetIds: [],
     associateAssetsNames: [],
-    mediaRef: input.bound ? { kind: "image", path: `local-image://shots/s${input.index}.png` } : undefined,
-    keyframes: input.bound
-      ? [{ frameId: `sb-${input.index}-kf-1`, mediaRef: { kind: "image", path: `local-image://shots/s${input.index}.png` }, inUs: 0 }]
+    mediaRef: media,
+    keyframes: media
+      ? [{ frameId: `sb-${input.index}-kf-1`, mediaRef: media, inUs: 0 }]
       : [],
     shouldGenerateImage: true,
     state: "idle",
@@ -356,18 +364,18 @@ describe("章验收卡聚合(每 target 最新态;重启重算不编造)", () =>
     const card = buildChapterAcceptanceCard(CHAPTER_ID);
     expect(card.assets).toEqual({ total: 3, success: 2, failed: 1, failedNames: ["prop:青盐鞭"] });
     expect(card.derived).toEqual({ total: 1, success: 0, failed: 1, failedNames: ["derived:断臂散修:重伤"] });
-    expect(card.storyboard).toEqual({ totalShots: 2, ready: 1, unbound: 1, exceptions: 1 });
+    expect(card.storyboard).toEqual({ totalShots: 2, videoReady: 0, ready: 1, unbound: 1, exceptions: 1 });
     expect(card.staleCount).toBe(0); // 无台账=不误报(批6 存量兼容)
     expect(chapterAcceptanceAllGreen(card)).toBe(false);
   });
 
-  it("全绿判定:零失败+零例外+零 stale+分镜全绑(无分镜不算全绿)", () => {
+  it("全绿判定:零失败+零例外+零 stale+全镜视频就绪(1120 件二主口径;无分镜不算全绿)", () => {
     useStudioStore.setState({
       mediaTasks: [
         mediaTask({ kind: "scriptAsset", targetId: "character:x", status: "success" }),
         mediaTask({ kind: "derivedAssetImage", targetId: "derived:x:y", status: "success" }),
       ] as never,
-      storyboards: [makeShot({ index: 1, bound: true }), makeShot({ index: 2, bound: true })] as never,
+      storyboards: [makeShot({ index: 1, video: true }), makeShot({ index: 2, video: true })] as never,
     });
     expect(chapterAcceptanceAllGreen(buildChapterAcceptanceCard(CHAPTER_ID))).toBe(true);
 
@@ -376,12 +384,40 @@ describe("章验收卡聚合(每 target 最新态;重启重算不编造)", () =>
     expect(chapterAcceptanceAllGreen(buildChapterAcceptanceCard(CHAPTER_ID))).toBe(false);
   });
 
+  it("1120 件二视频主判定:图全绑但零视频≠全绿;混合镜主计数=视频,画面降中间态辅助仍计数", () => {
+    useStudioStore.setState({
+      mediaTasks: [
+        mediaTask({ kind: "scriptAsset", targetId: "character:x", status: "success" }),
+        mediaTask({ kind: "derivedAssetImage", targetId: "derived:x:y", status: "success" }),
+      ] as never,
+      // 图全绑(旧主口径的「全绿」态)→ 主口径转视频后不再全绿
+      storyboards: [makeShot({ index: 1, bound: true }), makeShot({ index: 2, bound: true })] as never,
+    });
+    const imageOnly = buildChapterAcceptanceCard(CHAPTER_ID);
+    expect(imageOnly.storyboard).toEqual({ totalShots: 2, videoReady: 0, ready: 2, unbound: 0, exceptions: 0 });
+    expect(chapterAcceptanceAllGreen(imageOnly)).toBe(false);
+
+    // 混合(1 视频+1 图):videoReady=主计数,ready=中间态辅助(视频⇒有画面,2/2)
+    useStudioStore.setState({
+      storyboards: [makeShot({ index: 1, video: true }), makeShot({ index: 2, bound: true })] as never,
+    });
+    const mixed = buildChapterAcceptanceCard(CHAPTER_ID);
+    expect(mixed.storyboard.videoReady).toBe(1);
+    expect(mixed.storyboard.ready).toBe(2);
+    expect(chapterAcceptanceAllGreen(mixed)).toBe(false);
+
+    // 收据同口径:主行=分镜视频,分镜画面降辅助行仍显示(不删既有计数)
+    expect(chapterAcceptanceSummary(mixed)).toContain("分镜视频 1/2");
+    expect(chapterAcceptanceSummary(mixed)).toContain("分镜画面 2/2");
+  });
+
   it("1013 修 RC-6⑥:partial-match(已兜底)不计入需人工例外数——兜底披露不阻断全绿", () => {
     useStudioStore.setState({
       mediaTasks: [
         mediaTask({ kind: "scriptAsset", targetId: "character:x", status: "success" }),
       ] as never,
-      storyboards: [makeShot({ index: 1, bound: true }), makeShot({ index: 2, bound: true })] as never,
+      // 全绿基态按 1120 件二主口径=全镜视频就绪
+      storyboards: [makeShot({ index: 1, video: true }), makeShot({ index: 2, video: true })] as never,
     });
     const partialRow = {
       storyboardId: "sb-1",

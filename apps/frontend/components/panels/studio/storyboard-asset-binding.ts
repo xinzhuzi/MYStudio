@@ -25,7 +25,7 @@ import {
 import { storyboardBindingRelativePath, safePathSegment } from "@/lib/studio/chapter-paths";
 import { saveImageToLocal } from "@/lib/media/image-storage";
 import { useStudioStore } from "@/stores/studio/studio-store";
-import type { StoryboardItem, StoryboardKeyframe } from "@/types/studio";
+import type { StoryboardAssetBinding, StoryboardItem, StoryboardKeyframe } from "@/types/studio";
 import { computeChapterScriptFingerprint, currentScriptFingerprintSnapshot } from "./chapter-pipeline-stale";
 import { nameMatches, normalizeAssetText } from "./asset-matching";
 import {
@@ -114,6 +114,108 @@ export function matchStoryboardBindingAsset(input: {
     }
   }
   return { status: "no-match" };
+}
+
+/**
+ * 1120 件一(镜级绑定契约):收集一镜**全部**命中资产行——不再「首个有命中的
+ * 类型决定」,MATCH_TYPE_ORDER 全类型遍历,类型内按 rows 行序;匹配规则与
+ * matchStoryboardBindingAsset 同源(nameMatches 名+别名+模糊,确定性别名表)。
+ * 只收有图行(getRowImage 非空):slot 语义=参考图顺序,无图行无参考可言,
+ * 缺图行补图后重绑即入列。与单命中语义并存不互扰:首帧绑定(keyframes[0])
+ * 仍走 matchStoryboardBindingAsset,本函数只产 assetBindings 参考序。
+ */
+export function collectStoryboardAssetBindings(input: {
+  names: string[];
+  rows: AssetRow[];
+  /** 角色名 → 别名(实体提取批次口径)。 */
+  characterAliases?: Record<string, string[]>;
+}): StoryboardAssetBinding[] {
+  const names = [...new Set((input.names ?? []).map((name) => name.trim()).filter(Boolean))];
+  if (!names.length) return [];
+  const bindings: StoryboardAssetBinding[] = [];
+  for (const type of MATCH_TYPE_ORDER) {
+    for (const row of input.rows) {
+      if (row.type !== type) continue;
+      const hit = names.some((name) =>
+        nameMatches(
+          name,
+          row.name,
+          row.type === "character" ? input.characterAliases?.[row.name] ?? [] : [],
+        ),
+      );
+      if (!hit || !getRowImage(row)) continue;
+      bindings.push({ assetId: row.id, name: row.name, kind: row.type, slot: bindings.length + 1 });
+    }
+  }
+  return bindings;
+}
+
+/**
+ * 1120 件一读路单一口径:assetBindings 在档(非空)直接用;缺席(旧章)从
+ * associateAssetsNames+资产行推导(collectStoryboardAssetBindings 同规则)。
+ * 不改盘不迁移——推导结果仅供消费,重跑绑定才落档。
+ */
+export function resolveStoryboardAssetBindings(input: {
+  shot: Pick<StoryboardItem, "assetBindings" | "associateAssetsNames">;
+  rows: AssetRow[];
+  characterAliases?: Record<string, string[]>;
+}): StoryboardAssetBinding[] {
+  if (input.shot.assetBindings?.length) return input.shot.assetBindings;
+  return collectStoryboardAssetBindings({
+    names: input.shot.associateAssetsNames ?? [],
+    rows: input.rows,
+    characterAliases: input.characterAliases,
+  });
+}
+
+/** 发车校验失效明细(1120 件一):id 不可解析(行删)/id 漂移(重新提取)/行无图。 */
+export interface StoryboardBindingShipInvalid {
+  binding: StoryboardAssetBinding;
+  reason: "unresolved" | "id-drift" | "no-image";
+}
+
+/**
+ * 1120 件一发车校验:在档 assetBindings 逐条核验 assetId 可解析且行有图
+ * (id+name 双核:name 冗余=失效判断兜底——重新提取可能换 id,行删与 id 漂移
+ * 分开指路)。失效=抛错拒发+例外清单落行(调用方走既有例外清单通道),禁静默。
+ * assetBindings 缺席(旧章)不拦:推导兼容路由消费方自取,推导条目出自现势
+ * 行恒过校验,校验只对在档绑定契约有实效(防绑定后行删/图清的时序漂移)。
+ */
+export function assertStoryboardAssetBindingsShippable(input: {
+  shot: Pick<StoryboardItem, "id" | "index" | "episodeId" | "assetBindings" | "associateAssetsNames">;
+  projectId: string | null;
+}): void {
+  const bindings = input.shot.assetBindings ?? [];
+  if (!bindings.length) return;
+  const rows = buildChapterAssetRows(input.shot.episodeId, input.projectId);
+  const rowById = new Map(rows.map((row) => [row.id, row]));
+  const invalid: StoryboardBindingShipInvalid[] = [];
+  for (const binding of bindings) {
+    const row = rowById.get(binding.assetId);
+    if (row) {
+      if (!getRowImage(row)) invalid.push({ binding, reason: "no-image" });
+      continue;
+    }
+    // id 不可解析:name 兜底双核——同名行在=重新提取换了 id(重跑绑定可愈),
+    // 同名行也不在=资产行已删(需回资产库处理)
+    const sameName = rows.find((row) => row.name === binding.name);
+    invalid.push({ binding, reason: sameName ? "id-drift" : "unresolved" });
+  }
+  if (!invalid.length) return;
+  const details = invalid.map(({ binding, reason }) =>
+    `${binding.name}(${reason === "unresolved" ? "资产行不存在" : reason === "id-drift" ? "资产行已重新提取，请重跑绑定" : "资产行无图"})`,
+  );
+  const label = `S${String(input.shot.index).padStart(2, "0")}`;
+  // 例外清单落行(既有通道,禁重复建设):无 run 造最小报表容器,同镜复报=patch
+  useStoryboardBindingStore.getState().appendExceptionRow(input.shot.episodeId, {
+    storyboardId: input.shot.id,
+    shotIndex: input.shot.index,
+    status: "binding-invalid",
+    statusLabel: EXCEPTION_STATUS_LABELS["binding-invalid"],
+    detail: `${label} 绑定失效：${details.join("、")}`,
+    matchedAssetName: invalid[0]!.binding.name,
+  });
+  throw new Error(`分镜绑定失效，已拒发：${details.join("、")}（例外清单见分镜面板，修复后重跑绑定）`);
 }
 
 // ── 绑定核心:资产图 → 关键帧管线受管路径 → I1 双写 ────────────────────────
@@ -233,6 +335,14 @@ export function storyboardHasVisual(
   return Boolean(shot.keyframes?.[0]?.mediaRef?.path);
 }
 
+/** 镜已出视频=video mediaRef 落账(1120 件二验收主口径;与引擎 _video_url 同源
+ *  判据=kind=video 且 path 可定位,图期=未就绪)。 */
+export function storyboardHasVideo(
+  shot: Pick<StoryboardItem, "mediaRef">,
+): boolean {
+  return shot.mediaRef?.kind === "video" && Boolean(shot.mediaRef.path);
+}
+
 // ── 批次态(例外清单=批5 章验收卡同源消费) ──────────────────────────────────
 
 export type StoryboardBindingExceptionStatus =
@@ -240,7 +350,9 @@ export type StoryboardBindingExceptionStatus =
   | "no-match"
   | "missing-image"
   | "failed"
-  | "partial-match";
+  | "partial-match"
+  /** 1120 件一:在档 assetBindings 发车校验失效(行删/id 漂移/行无图)。 */
+  | "binding-invalid";
 
 export interface StoryboardBindingExceptionRow {
   storyboardId: string;
@@ -283,6 +395,9 @@ interface StoryboardBindingState {
   finishRun: (chapterId: string, report: StoryboardBindingReport) => void;
   patchExceptionRow: (chapterId: string, storyboardId: string, patch: Partial<StoryboardBindingExceptionRow>) => void;
   removeExceptionRow: (chapterId: string, storyboardId: string) => void;
+  /** 1120 件一:绑定批次外的失效披露落账(发车校验)——报表在档=同镜 patch/
+   *  新行 append,无报表=造最小容器;不另建第二例外通道。 */
+  appendExceptionRow: (chapterId: string, row: StoryboardBindingExceptionRow) => void;
   clearRun: (chapterId: string) => void;
 }
 
@@ -359,6 +474,45 @@ export const useStoryboardBindingStore = create<StoryboardBindingState>()((set) 
         },
       };
     }),
+  appendExceptionRow: (chapterId, row) =>
+    set((state) => {
+      const run = state.runsByChapter[chapterId];
+      if (!run?.report) {
+        // 该章未跑过绑定(发车校验先于绑定批次):造最小报表容器承载失效行
+        return {
+          runsByChapter: {
+            ...state.runsByChapter,
+            [chapterId]: {
+              chapterId,
+              status: "done" as const,
+              progress: { done: 0, total: 0, currentShot: "" },
+              report: {
+                chapterId,
+                finishedAt: Date.now(),
+                total: 0,
+                boundCount: 0,
+                readyBefore: 0,
+                readyAfter: 0,
+                fillTriggered: false,
+                exceptions: [row],
+              },
+            },
+          },
+        };
+      }
+      const exists = run.report.exceptions.some((item) => item.storyboardId === row.storyboardId);
+      const exceptions = exists
+        ? run.report.exceptions.map((item) =>
+            item.storyboardId === row.storyboardId ? { ...item, ...row } : item,
+          )
+        : [...run.report.exceptions, row];
+      return {
+        runsByChapter: {
+          ...state.runsByChapter,
+          [chapterId]: { ...run, report: { ...run.report, exceptions } },
+        },
+      };
+    }),
   clearRun: (chapterId) =>
     set((state) => {
       if (!(chapterId in state.runsByChapter)) return state;
@@ -373,6 +527,7 @@ const EXCEPTION_STATUS_LABELS: Record<StoryboardBindingExceptionStatus, string> 
   "missing-image": "缺图",
   failed: "绑定失败",
   "partial-match": "部分命中（已兜底）",
+  "binding-invalid": "绑定失效",
 };
 
 // ── 章级编排 ───────────────────────────────────────────────────────────────
@@ -529,6 +684,8 @@ async function bindShotWithMatch(input: {
         shot,
         match: freshMatch,
         chain,
+        rows: freshRows,
+        characterAliases,
         unmatchedNames: freshMatch.unmatchedNames,
       });
     }
@@ -566,13 +723,23 @@ async function bindShotWithMatch(input: {
     };
   }
 
-  return bindUniqueMatch({ shot, match, chain, unmatchedNames: match.unmatchedNames });
+  return bindUniqueMatch({
+    shot,
+    match,
+    chain,
+    rows,
+    characterAliases,
+    unmatchedNames: match.unmatchedNames,
+  });
 }
 
 async function bindUniqueMatch(input: {
   shot: StoryboardItem;
   match: Extract<StoryboardBindingMatch, { status: "unique" }>;
   chain: RunStoryboardBindingInput;
+  /** 1120 件一:绑定行集(收集 assetBindings 用;补图路径传 freshRows 现势)。 */
+  rows: AssetRow[];
+  characterAliases: Record<string, string[]>;
   /** 1013 修 RC-6④:非精确命中名(可选)——非空=绑定成立但仍需例外披露。 */
   unmatchedNames?: string[];
 }): Promise<ShotBindingOutcome> {
@@ -598,6 +765,17 @@ async function bindUniqueMatch(input: {
         matchedAssetType: match.row.type,
       },
     };
+  }
+  // 1120 件一:镜级绑定契约——首帧绑定成功外,全量有图命中行按 场景→角色→道具
+  // 与行序落 assetBindings(参考序;与 keyframes[0] 单命中双轨并存)。行集非空
+  // 才写(行集空=绑定批次外注入,跳过不误清在档绑定)。
+  const bindings = collectStoryboardAssetBindings({
+    names: shot.associateAssetsNames ?? [],
+    rows: input.rows,
+    characterAliases: input.characterAliases,
+  });
+  if (bindings.length) {
+    useStudioStore.getState().updateStoryboard(shot.id, { assetBindings: bindings });
   }
   if (input.unmatchedNames?.length) {
     // 1013 修 RC-6④:兜底绑定成立但引用未精确命中——同收 partial-match 例外行

@@ -34,6 +34,7 @@ import {
 } from "./chapter-pipeline-stale";
 import {
   runStoryboardAssetBinding,
+  storyboardHasVideo,
   storyboardHasVisual,
   useStoryboardBindingStore,
 } from "./storyboard-asset-binding";
@@ -148,6 +149,11 @@ export interface ChapterAcceptanceCard {
   };
   storyboard: {
     totalShots: number;
+    /** 1120 件二双用降级:验收主口径=视频就绪镜数(mediaRef kind=video,与引擎
+     *  _video_url 同源判据);无视频态=0,不硬造。 */
+    videoReady: number;
+    /** 中间态辅助行(首帧/参考物料语义):有画面(视频/图/首帧)的镜数,
+     *  旧主口径降级保留——仍显示不删除,但不再阻断全绿闸。 */
     ready: number;
     unbound: number;
     /** 绑定例外清单条数(多义/零命中/缺图/绑定失败;部分命中已兜底不计)。 */
@@ -198,6 +204,7 @@ export function buildChapterAcceptanceCard(
   );
   const shots = state.storyboards.filter((item) => item.episodeId === chapterId);
   const ready = shots.filter((shot) => storyboardHasVisual(shot)).length;
+  const videoReady = shots.filter((shot) => storyboardHasVideo(shot)).length;
   // 1013 修 RC-6⑥:partial-match(已兜底绑定)是披露行不是需人工行——章卡
   // 「exceptions」口径=需人工处理的例外数,兜底披露不阻断全绿
   const exceptionRows =
@@ -222,6 +229,7 @@ export function buildChapterAcceptanceCard(
     derived,
     storyboard: {
       totalShots: shots.length,
+      videoReady,
       ready,
       unbound: shots.length - ready,
       exceptions,
@@ -233,7 +241,10 @@ export function buildChapterAcceptanceCard(
   };
 }
 
-/** 全绿=验收卡横幅消失的条件(G10:有未绑/stale/失败常驻,全绿消失)。 */
+/** 全绿=验收卡横幅消失的条件(G10:有未绑/stale/失败常驻,全绿消失)。
+ *  1120 件二:主口径转视频——全绿须全镜视频就绪;unbound(旧图口径)不再
+ *  单独拦。注意 videoReady 不蕴含 ready:H3 落视频只写 mediaRef 不写
+ *  keyframes(h3-shot-landing),未绑数由辅助行披露(1120 复审勘误,闸向不变)。 */
 export function chapterAcceptanceAllGreen(card: ChapterAcceptanceCard): boolean {
   return (
     card.assets.failed === 0 &&
@@ -241,16 +252,18 @@ export function chapterAcceptanceAllGreen(card: ChapterAcceptanceCard): boolean 
     card.storyboard.exceptions === 0 &&
     card.staleCount === 0 &&
     card.storyboard.totalShots > 0 &&
-    card.storyboard.unbound === 0
+    card.storyboard.videoReady === card.storyboard.totalShots
   );
 }
 
-/** 收据/横幅共用的一句话汇总(orb 终态收据 + toast 单一收口同文)。 */
+/** 收据/横幅共用的一句话汇总(orb 终态收据 + toast 单一收口同文)。
+ *  1120 件二:主计数=分镜视频;分镜画面(首帧/参考物料)降中间态辅助仍显示。 */
 export function chapterAcceptanceSummary(card: ChapterAcceptanceCard): string {
   const parts = [
     `资产 ${card.assets.success}/${card.assets.total || 0}`,
     `衍生 ${card.derived.success}/${card.derived.total || 0}`,
-    `分镜 ${card.storyboard.ready}/${card.storyboard.totalShots}`,
+    `分镜视频 ${card.storyboard.videoReady}/${card.storyboard.totalShots}`,
+    `分镜画面 ${card.storyboard.ready}/${card.storyboard.totalShots}`,
   ];
   if (card.staleCount) parts.push(`过期 ${card.staleCount}`);
   return `章流水线：${parts.join(" · ")}`;
@@ -403,6 +416,8 @@ function stepsFromCard(card: ChapterAcceptanceCard): ChapterPipelineStepView[] {
     return {
       key: step.key,
       label: step.label,
+      // 1120 件二:断点续跑步骤态仍按图/画面口径(ready)反推,零改动——
+      // 分镜绑定步产出是图,验收主口径转视频只动横幅/收据,不动续跑语义。
       status:
         card.storyboard.totalShots > 0 && card.storyboard.ready > 0
           ? ("done" as const)
@@ -573,7 +588,8 @@ export async function runChapterPipeline(
     card.derived.failed > 0 ||
     card.storyboard.exceptions > 0 ||
     card.staleCount > 0 ||
-    card.storyboard.unbound > 0;
+    // 1120 件二:验收判定主口径=视频就绪(图未绑不再单独拦,被视频闸蕴含)
+    card.storyboard.videoReady < card.storyboard.totalShots;
   if (hasProblems) {
     toast.warning(chapterAcceptanceSummary(card), {
       id: toastId,

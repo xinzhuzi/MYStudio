@@ -8,6 +8,8 @@
  *   禁止因快照时序漏报过期。
  * - 分镜源过期(staleSourceScriptCount,批6 D5 实况派生)只**阻止全绿消失**、
  *   不产生数据闸:琥珀软提示+同位重跑,软提示不硬拦(裁定④)。
+ * - 1120 件二双用降级:验收主口径=分镜视频就绪(mediaRef kind=video);
+ *   分镜画面(首帧/参考物料)降中间态辅助行,仍显示不删除。
  */
 import { CircleCheck, Loader2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -72,10 +74,14 @@ export function ChapterAcceptanceBanner({
     const assetFailed = card.assets.failed;
     const derivedFailed = card.derived.failed;
     const unbound = card.storyboard.unbound;
+    // 1120 件二:主计数=视频就绪;无视频态=0/N(主计数缺省,不硬造)
+    const videoReady = card.storyboard.videoReady;
+    const videoPending = card.storyboard.totalShots - videoReady;
     const exceptions = card.storyboard.exceptions;
     const summaryParts = [
       `资产 ${card.assets.success}/${card.assets.total || 0}${assetFailed ? `（失 ${assetFailed}）` : ""}`,
       `衍生 ${card.derived.success}/${card.derived.total || 0}${derivedFailed ? `（失 ${derivedFailed}）` : ""}`,
+      `分镜视频 ${videoReady}/${card.storyboard.totalShots}${videoPending ? `（缺视频 ${videoPending}）` : ""}`,
       `分镜画面 ${card.storyboard.ready}/${card.storyboard.totalShots}${unbound ? `（未绑 ${unbound}）` : ""}`,
       exceptions ? `绑定例外 ${exceptions}` : null,
       stale ? `过期 ${stale}（剧本已变更）` : null,

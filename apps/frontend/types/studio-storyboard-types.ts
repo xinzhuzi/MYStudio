@@ -172,6 +172,18 @@ export interface StoryboardTtsJobV1 {
   updatedAt: number;
 }
 
+/**
+ * 镜级资产绑定行(1120 Toonflow 绑定契约,三路共用禁改):资产行稳定 id
+ * (提取批次实体 id 口径)+冗余名(展示与失效判断兜底——重新提取可能换 id,
+ * 发车校验 id+name 双核)。slot=1 起参考序号,排序=参考图顺序。
+ */
+export interface StoryboardAssetBinding {
+  assetId: string;
+  name: string;
+  kind: "scene" | "character" | "prop";
+  slot: number;
+}
+
 export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentity {
   id: string;
   episodeId: string;
@@ -265,6 +277,15 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
    * sourceFingerprint。展示域既有读取零改。
    */
   associateAssetsIds?: string[];
+  /**
+   * 1120 Toonflow 绑定契约(11-20-toonflow-binding-phase1 件一):镜级资产
+   * 绑定行——该镜全部命中资产行按 场景→角色→道具 与行序落档(slot=参考图
+   * 顺序)。写路=runStoryboardAssetBinding 绑定成功时全量收集;读路=缺席
+   * (旧章)时消费方从 associateAssetsNames+资产行推导,零迁移不改盘。
+   * additive:存量行无此字段=undefined;不进 sourceFingerprint(白名单式
+   * 哈希不含它,防全量 stale)。
+   */
+  assetBindings?: StoryboardAssetBinding[];
   styleContractVersion?: string;
   /** Explicit subtitle ownership for this visual interval. */
   subtitleAuthority?: SubtitleAuthority;

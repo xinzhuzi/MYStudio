@@ -21,8 +21,17 @@ import {
   lintCanonicalPrompt,
   type CanonicalAnchorSet,
   type CanonicalAnchorViolation,
+  type CanonicalReferenceSlot,
+  type CanonicalSubjectInput,
 } from "@/lib/studio/storyboard-canonical-prompt";
 import { buildStoryboardCanonicalTransportInput, cropSlotReferenceToSinglePose } from "./storyboard-canonical-context";
+import {
+  buildStoryboardIdentityInjectionPrompt,
+  resolveIdentityFullTexts,
+  resolveStoryboardPromptMode,
+  type StoryboardIdentityInjectionPrompt,
+} from "./storyboard-identity-injection";
+import { assertStoryboardAssetBindingsShippable } from "../storyboard-asset-binding";
 import { useProjectStore } from "@/stores/project/project-store";
 import { resolveBoundTemplateForGeneration } from "@/stores/settings/workflow-bindings-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -141,7 +150,44 @@ export async function runImageWorkflowNodeGeneration(
   if (isStoryboard) {
     const shot = useStudioStore.getState().storyboards.find((item) => item.id === graph.target.id);
     if (!shot) throw new Error("分镜行已不存在,无法按正典体裁装配提示词(请重新打开该分镜)");
-    const { instruction, mapping, anchors, anchorSoftNames } = await buildStoryboardCanonicalTransportInput(shot, graph, targetNodeId);
+    // 1120 件一发车校验(绑定契约,单发/批量共用本点):在档 assetBindings 逐条
+    // 核验 assetId 可解析且行有图(id+name 双核,行删/id 漂移/图清分开指路);
+    // 失效=拒发+例外清单落行(既有 useStoryboardBindingStore 通道),禁静默。
+    // assetBindings 缺席(旧章)=绑定契约未生效,不拦(读路兼容由消费方推导)。
+    assertStoryboardAssetBindingsShippable({ shot, projectId });
+    const { instruction, mapping, subject, anchors, anchorSoftNames } = await buildStoryboardCanonicalTransportInput(shot, graph, targetNodeId);
+    // 1120 件三 A/B 并轨开关(PRD §件三):storyboardPromptMode 落发车配置
+    // (workflowConfig,atmosphereMode 先例;试验开关无 UI 入口,程序置位)。
+    // 缺省=canonical 正典路径字节级零变化;identity-injection=设计卡全文注入
+    // ——主体句零身份段+「参考 N:<全文>」块(Toonflow §3.4 对应物,N=§4.5
+    // 传输槽序:块 N=角色所在送模参考图槽位,与 assetBindings 写路 slot 解耦),
+    // 身份段全文不经白名单洗版(传设定 vs 拆解防崩=本试验的对照变量)。
+    const promptMode = resolveStoryboardPromptMode(
+      useStudioStore.getState().workflowConfig?.storyboardPromptMode,
+    );
+    const injectionIdentities = promptMode === "identity-injection"
+      ? await resolveIdentityFullTexts(
+        ((shot.shotSemantics?.visibleCharacters ?? []) as Array<{ name?: string }>)
+          .map((character) => (character.name ?? "").trim())
+          .filter(Boolean),
+      )
+      : [];
+    // 注入装配(纯函数):丢槽重排后以 rebuilt 入参复跑同构(身份段解析与
+    // 绑定行不随槽位重排变化,复用同一份结果)。
+    const buildInjection = (
+      subjectInput: CanonicalSubjectInput,
+      slots: readonly CanonicalReferenceSlot[],
+      canonicalPromptText: string,
+    ): StoryboardIdentityInjectionPrompt =>
+      buildStoryboardIdentityInjectionPrompt({
+        subject: subjectInput,
+        slots,
+        canonicalInstructionPrompt: canonicalPromptText,
+        identities: injectionIdentities,
+      });
+    const injection = promptMode === "identity-injection"
+      ? buildInjection(subject, mapping.slots, instruction.prompt)
+      : null;
     // 门A(1117 C2 剧情锚词断言,机器可判):场景名/时辰词族/主角名三硬项缺一
     // =拒发+diagnostics warn(shotId/violations 结构化);visibleCharacters 全
     // 名单=软断言 warn 留痕(防群像镜丢人可观测,不拒发)。零角色镜(personFree
@@ -190,8 +236,12 @@ export async function runImageWorkflowNodeGeneration(
       }
     };
     // 硬纪律门(§4.2,建流/传输同源断言):违规=引擎 1017 运行时门必拒,
-    // 网络前拦截省一次排队烧图。
-    const violations = lintCanonicalPrompt(instruction.prompt, instruction.genre, mapping.slots.length);
+    // 网络前拦截省一次排队烧图。1120 件三:identity-injection 模式 lint 基底
+    // =零身份段主体句/i2i 指令体——注入块(设计卡全文)豁免身份段相关断言
+    // (全文含排版/否定式语料是「传设定」模式的本义,非违规);锚词门不在
+    // 此豁免面(下方按终稿全文跑,两模式同门)。
+    const lintText = injection ? injection.base : instruction.prompt;
+    const violations = lintCanonicalPrompt(lintText, instruction.genre, mapping.slots.length);
     if (violations.length) {
       void logEvent({
         level: "warn",
@@ -200,12 +250,13 @@ export async function runImageWorkflowNodeGeneration(
         message: "Storyboard canonical prompt rejected by discipline lint",
         context: { shotId: shot.id, shotIndex: shot.index, violations,
           // 1117 十刀C:拒发全文落库(诊断=审计面)
-          promptText: instruction.prompt },
+          promptText: lintText },
       });
       throw new Error(`分镜正典提示词未过体裁断言:${violations.map((v) => `${v.rule}(${v.detail})`).join("、")}`);
     }
-    // 重叠预检(宪法§十/§4.2):与型底座 ≥10 字公共子串=重复块,须去重后重发。
-    const overlaps = findSubjectOverlapBlocks(instruction.prompt, getStoryboardBaseSubjectText());
+    // 重叠预检(宪法§十/§4.2):与型底座 ≥10 字公共子串=重复块,须去重后重发
+    // (1120 件三:注入模式同跑基底,块面豁免同上)。
+    const overlaps = findSubjectOverlapBlocks(lintText, getStoryboardBaseSubjectText());
     if (overlaps.length) {
       void logEvent({
         level: "warn",
@@ -217,8 +268,9 @@ export async function runImageWorkflowNodeGeneration(
       throw new Error(`分镜正典提示词与型底座重叠(≥10 字重复块 ${overlaps.length} 处),须去重:…${overlaps[0]!.block}…`);
     }
     // 锚集合字段缺席(旧形桩/非正典装配路径)=门A 不适用;真实装配链恒给
-    // anchors(含空集)——生产路径三硬项 fail-closed 不变。
-    if (anchors) assertAnchors(instruction.prompt, anchors);
+    // anchors(含空集)——生产路径三硬项 fail-closed 不变。1120 件三:注入
+    // 模式按终稿全文(基底+参考块)跑——锚词断言两模式都保留。
+    if (anchors) assertAnchors(injection ? injection.prompt : instruction.prompt, anchors);
     // 1117 第十刀C:人工覆盖通道——用户令「写提示词在另外会话做」:手写
     // 主体句落分片 promptOverride 字段;非空=逐字采用(跳过生成器,引擎 1017
     // 门仍兜底),留痕 source=override。
@@ -232,7 +284,7 @@ export async function runImageWorkflowNodeGeneration(
         context: { shotId: shot.id, shotIndex: shot.index, length: overrideText.length },
       });
     } else {
-      canonicalPrompt = instruction.prompt;
+      canonicalPrompt = injection ? injection.prompt : instruction.prompt;
     }
     // 1117 第十三刀A:出口语义门统一——override/生成器同门(此前门在 else
     // 分支,人工覆盖整门绕过:S4/S9/S16=20:38 拒发同哈希文本经 override 直
@@ -299,7 +351,10 @@ export async function runImageWorkflowNodeGeneration(
         throw new Error(`分镜主体句未过语义门:${semanticViolations.join("、")}(同名超载/多姿势明示=多人拆像风险,请精简为单主语单时刻)`);
       }
     };
-    assertTransportSemanticLint(canonicalPrompt);
+    // 1120 件三:identity-injection 模式语义门跑注入基底(块内设计卡语料含
+    // 「{名}，动词」形态会误计动作拆人——身份段相关断言豁免面同体裁门);
+    // 人工覆盖恒按覆盖全文跑(逐字采用,与正典路同门)。
+    assertTransportSemanticLint(overrideText || (injection?.base ?? canonicalPrompt));
     if (mapping.slots.length) {
       // 槽位图 dataURL 解析+准备(节点只存轻量受管路径,传输才转 base64,
       // 持久化纪律与资产参考同口径)。
@@ -359,14 +414,19 @@ export async function runImageWorkflowNodeGeneration(
       let effectiveSlots = mapping.slots;
       if (dropSlotIndexes.length) {
         const rebuilt = await buildStoryboardCanonicalTransportInput(shot, graph, targetNodeId, dropSlotIndexes);
-        canonicalPrompt = rebuilt.instruction.prompt;
+        // 1120 件三:注入模式按 rebuilt 入参复装配(基底随存活槽重选体裁,
+        // 参考块编号随存活槽重排对账——块 N=角色实际所在槽,块文本不变)。
+        const rebuiltInjection = injection
+          ? buildInjection(rebuilt.subject, rebuilt.mapping.slots, rebuilt.instruction.prompt)
+          : null;
+        canonicalPrompt = rebuiltInjection ? rebuiltInjection.prompt : rebuilt.instruction.prompt;
         // 1117 第十三刀A:丢槽重排替换了终稿文本——语义门对终稿复跑
-        // (重排后的 instruction.prompt 未过首跑,不豁免)。
-        assertTransportSemanticLint(canonicalPrompt);
+        // (重排后的 instruction.prompt 未过首跑,不豁免;注入模式跑复装配基底)。
+        assertTransportSemanticLint(rebuiltInjection ? rebuiltInjection.base : canonicalPrompt);
         effectiveSlots = rebuilt.mapping.slots;
         // 1117 C2 门A:丢槽重排后的终稿复验(主角锚随存活槽重取,宁缺勿染
-        // 与锚词门双卡);锚集合缺席同上不适用。
-        if (rebuilt.anchors) assertAnchors(rebuilt.instruction.prompt, rebuilt.anchors);
+        // 与锚词门双卡);锚集合缺席同上不适用。注入模式按复装配终稿全文跑。
+        if (rebuilt.anchors) assertAnchors(canonicalPrompt, rebuilt.anchors);
       }
       // 门B(1117 C2 参考槽对账记录,门C 审计脚本消费):槽真身=节点选中
       // URL(断点C 直读),场景/角色槽位 vs dropped 名单 vs 锚词集合逐镜留痕

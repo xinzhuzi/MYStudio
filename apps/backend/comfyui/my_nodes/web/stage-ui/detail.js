@@ -15,7 +15,7 @@
  * 四模式(resolveDetailRequest 单源分派):
  *   chapterShots 整章镜 id 清单(分镜表/分镜面板「详情」默认,点行下钻;
  *               旧行缺 id 时=行号对齐兜底入口,行数不符示换代警示禁错开镜)
- *   shot        单镜 15 列全量+台词+分镜图+单镜视频(数据走 /my_daoyan/
+ *   shot        单镜 16 列全量+台词+分镜图+单镜视频(数据走 /my_daoyan/
  *               shot_detail 引擎直读路由,零回 App 往返)
  *   asset       衍生资产卡详情(载荷直渲:cover 大图+prompt+state+父子血缘;
  *               不走新路由——引擎不复刻 asset-file:// 解析,防漂移)

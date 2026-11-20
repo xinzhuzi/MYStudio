@@ -78,6 +78,9 @@ const studioState = {
   storyboards: [storyboardShot()],
   imageWorkflows: [],
   agentWorkData: [],
+  // 1120 件一发车校验走 buildChapterAssetRows(真实 store 恒有该字段;空表=
+  // 行集空,在档绑定必失效的可测形态)
+  entityExtractions: [] as Array<Record<string, unknown>>,
   upsertImageWorkflow: vi.fn(),
 };
 vi.mock("@/stores/studio/studio-store", () => ({
@@ -540,5 +543,194 @@ describe("runImageWorkflowNodeGeneration 1117 C2(断点C/门A)", () => {
     expect(sent.prompt).toContain("金水河码头");
     // N=1 自然指称(09 §二:单图禁标签),场景来源点名在
     expect(sent.prompt).toContain("参考图中的金水河码头为场景来源");
+  });
+});
+
+describe("1120 件一:发车校验(在档 assetBindings 失效=拒发+例外清单,禁静默)", () => {
+  beforeEach(() => {
+    // 上一个 describe 的 beforeEach 不跨块:本块自清 mock 计数
+    vi.clearAllMocks();
+  });
+
+  it("绑定行不存在(id+name 双落空)=装配前拒发+binding-invalid 落例外清单", async () => {
+    const { useStoryboardBindingStore } = await import("../storyboard-asset-binding");
+    useStoryboardBindingStore.setState({ runsByChapter: {} });
+    studioState.storyboards = [
+      storyboardShot({
+        assetBindings: [{ assetId: "scene-gone", name: "金水河旧码头", kind: "scene", slot: 1 }],
+      }),
+    ];
+    const { aiManager } = await import("@/lib/ai/ai-manager");
+    try {
+      await expect(
+        runImageWorkflowNodeGeneration(storyboardGraph, "gen-1", { addMaterial: () => "mat-1" }),
+      ).rejects.toThrow("分镜绑定失效");
+      expect(aiManager.generateImage).not.toHaveBeenCalled();
+      const report = useStoryboardBindingStore.getState().runsByChapter["chapter-001"]?.report;
+      expect(report?.exceptions[0]).toMatchObject({
+        storyboardId: "sb-1",
+        status: "binding-invalid",
+        statusLabel: "绑定失效",
+      });
+      expect(report?.exceptions[0]?.detail).toContain("资产行不存在");
+    } finally {
+      // 还原共享 mock 态,不影响同文件其余用例
+      studioState.storyboards = [storyboardShot()];
+    }
+  });
+
+  it("assetBindings 缺席(旧章)=校验放行,既有正典传输行为不变", async () => {
+    const { aiManager } = await import("@/lib/ai/ai-manager");
+    await expect(
+      runImageWorkflowNodeGeneration(storyboardGraph, "gen-1", { addMaterial: () => "mat-1" }),
+    ).resolves.toEqual({ imageUrl: "project-file://w/1.png" });
+    expect(aiManager.generateImage).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── 1120 件三:A/B 并轨开关(storyboardPromptMode;默认 canonical 零变化) ──────────────
+
+describe("1120 件三:A/B 并轨开关(identity-injection 设计卡全文注入)", () => {
+  /** 带可见角色名单的镜(身份段经桥解析;无 actionIn=videoDesc 原文保留)。 */
+  const shotWithCast = (partial: Partial<StoryboardItem> = {}): StoryboardItem =>
+    storyboardShot({
+      shotSemantics: {
+        sceneViewpointId: "", personFree: false,
+        visibleCharacters: [{ name: "独孤剑尘", position: "", orientation: "", actionIn: "", actionOut: "" }],
+        visibleProps: [],
+        actionIn: "", actionOut: "",
+      },
+      ...partial,
+    });
+  /** 资产桥:独孤剑尘设计卡(prompt 列含正典洗版会剔的排版语料)。 */
+  const cardBridge = () => ({
+    getByName: vi.fn(async () => ({
+      prompt: "宽方厚重脸，浓眉压眼，身着米白色及膝粗布短袍，同一画面并排四视图",
+    })),
+  });
+  const setPromptMode = (mode: "identity-injection" | undefined): void => {
+    const config = studioState.workflowConfig as Record<string, unknown>;
+    if (mode) config.storyboardPromptMode = mode;
+    else delete config.storyboardPromptMode;
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    assetsBridgeState.bridge = null;
+    sceneState.scenes = [{ id: "scene-dock", name: "金水河码头", location: "金水河码头", projectId: "dao-project" }];
+    studioState.storyboards = [shotWithCast()];
+    setPromptMode(undefined);
+  });
+
+  it("canonical(缺省默认值):身份段白名单提取后织入五项序首位,无参考块——默认路径形态不变", async () => {
+    assetsBridgeState.bridge = cardBridge();
+    const { aiManager } = await import("@/lib/ai/ai-manager");
+    await runImageWorkflowNodeGeneration(storyboardGraph, "gen-1", { addMaterial: () => "mat-1" });
+    const sent = vi.mocked(aiManager.generateImage).mock.calls[0][0];
+    expect(sent.prompt).toContain("宽方厚重脸");
+    // 正典洗版:排版语料(并排四视图)剔除;无「参考 N：」块
+    expect(sent.prompt).not.toContain("并排");
+    expect(sent.prompt).not.toContain("参考 1：");
+  });
+
+  it("identity-injection:主体句零身份段+「参考 N:<全文>」块(设计卡全文不洗版,块面 lint 豁免)", async () => {
+    setPromptMode("identity-injection");
+    assetsBridgeState.bridge = cardBridge();
+    const { aiManager } = await import("@/lib/ai/ai-manager");
+    await runImageWorkflowNodeGeneration(storyboardGraph, "gen-1", { addMaterial: () => "mat-1" });
+    const sent = vi.mocked(aiManager.generateImage).mock.calls[0][0];
+    // 基底=零身份段主体句:首位=动作槽(videoDesc),身份段不在五项序首位
+    expect(sent.prompt.startsWith("独孤剑尘立于金水河码头")).toBe(true);
+    // 参考块=设计卡全文逐字(含正典洗版会剔的「并排四视图」);块面在场仍过
+    // 体裁门=身份段相关 lint 断言豁免的直接证据(并排若入 lint 必 sheet-format 拒发)
+    expect(sent.prompt).toContain("参考 1：宽方厚重脸，浓眉压眼，身着米白色及膝粗布短袍，同一画面并排四视图");
+    // 锚词断言(场景/时辰/主角名)按终稿全文照常通过
+    expect(sent.prompt).toContain("金水河码头");
+    expect(sent.prompt).toContain("夜");
+  });
+
+  it("混合镜绑定在档:块 N=角色实际传输槽号(恒 image_1),与 assetBindings 写路 slot 解耦", async () => {
+    setPromptMode("identity-injection");
+    assetsBridgeState.bridge = cardBridge();
+    // 绑定在档=写路序(场景 slot1→角色 slot2,collectStoryboardAssetBindings
+    // 全类型序);提取批次行有三库图=件一发车校验放行(绑定有效形态)。
+    studioState.storyboards = [shotWithCast({
+      assetBindings: [
+        { assetId: "scene-dock", name: "金水河码头", kind: "scene", slot: 1 },
+        { assetId: "role-1", name: "独孤剑尘", kind: "character", slot: 2 },
+      ],
+    })];
+    studioState.entityExtractions = [{
+      id: "batch-1", episodeId: "chapter-001",
+      characters: [{ characterId: "role-1", name: "独孤剑尘", aliases: [] }],
+      scenes: [{ sceneId: "scene-dock", name: "金水河码头" }],
+      props: [],
+    }];
+    characterState.characters = [{ name: "独孤剑尘", projectId: "dao-project", thumbnailUrl: "data:image/png;base64,roleRow" }];
+    sceneState.scenes = [{
+      id: "scene-dock", name: "金水河码头", location: "金水河码头", projectId: "dao-project",
+      referenceImage: "data:image/png;base64,sceneRow",
+    }];
+    // 图内参考:场景节点 continuityOrder 在前——传输槽仍角色=image_1(§4.5
+    // 角色优先),与绑定 slot/节点序都不同源,对账面拉满。
+    const sceneRef = {
+      id: "ref-scene", type: "reference" as const, title: "金水河码头",
+      imageUrl: "data:image/png;base64,sceneCard", continuityOrder: 1, continuityVersionId: "scene-v1",
+      source: { kind: "asset" as const, assetType: "scene" as const, id: "scene-dock" },
+    };
+    const roleRef = {
+      id: "ref-role", type: "reference" as const, title: "独孤剑尘",
+      imageUrl: "data:image/png;base64,roleCard", continuityOrder: 2, continuityVersionId: "role-v1",
+      source: { kind: "asset" as const, assetType: "character" as const, id: "role-1" },
+    };
+    const mixedGraph = {
+      id: "mixed-wf", target: { kind: "storyboard", id: "sb-1" },
+      nodes: [sceneRef, roleRef, { id: "gen-1", type: "generated", title: "成图", prompt: "单幅剧情", aspectRatio: "16:9" }],
+      edges: [{ source: sceneRef.id, target: "gen-1" }, { source: roleRef.id, target: "gen-1" }],
+    } as ImageWorkflowGraph;
+    const { aiManager } = await import("@/lib/ai/ai-manager");
+    try {
+      await expect(
+        runImageWorkflowNodeGeneration(mixedGraph, "gen-1", { addMaterial: () => "mat-1" }),
+      ).resolves.toEqual({ imageUrl: "project-file://w/1.png" });
+      const sent = vi.mocked(aiManager.generateImage).mock.calls[0][0];
+      // 传输槽序=角色 image_1→场景 image_2(与节点 continuityOrder/绑定 slot 均无关)
+      expect(sent.referenceImages).toEqual(["data:image/png;base64,roleCard", "data:image/png;base64,sceneCard"]);
+      // 块编号与送模参考图逐槽对账:独孤剑尘设计卡=参考 1(非绑定 slot2——
+      // 旧实现按绑定 slot 会写「参考 2」而 image_2 实为场景图,指鹿为马)
+      expect(sent.prompt).toContain("参考 1：宽方厚重脸，浓眉压眼，身着米白色及膝粗布短袍，同一画面并排四视图");
+      expect(sent.prompt).not.toContain("参考 2：宽方厚重脸");
+      // 与指令 <imageN> 点名同槽不矛盾:image1=角色身份,image2=场景来源
+      expect(sent.prompt).toContain("<image1>为独孤剑尘的身份来源");
+      expect(sent.prompt).toContain("<image2>为金水河码头的场景来源");
+    } finally {
+      // 还原共享 mock 态(件一同款纪律),不影响同文件其余用例
+      studioState.storyboards = [shotWithCast()];
+      studioState.entityExtractions = [];
+      characterState.characters = [];
+      sceneState.scenes = [{ id: "scene-dock", name: "金水河码头", location: "金水河码头", projectId: "dao-project" }];
+    }
+  });
+
+  it("锚词断言两模式都保留:identity-injection 下场景锚断链仍拒发(门A 不豁免)", async () => {
+    setPromptMode("identity-injection");
+    assetsBridgeState.bridge = cardBridge();
+    sceneState.scenes = [];
+    const { aiManager } = await import("@/lib/ai/ai-manager");
+    await expect(
+      runImageWorkflowNodeGeneration(storyboardGraph, "gen-1", { addMaterial: () => "mat-1" }),
+    ).rejects.toThrow("剧情锚词断言");
+    expect(aiManager.generateImage).not.toHaveBeenCalled();
+  });
+
+  it("lint 豁免只限注入块面:基底(零身份段主体句)违规仍拒发(体裁门 fail-closed)", async () => {
+    setPromptMode("identity-injection");
+    assetsBridgeState.bridge = cardBridge();
+    studioState.storyboards = [shotWithCast({ videoDesc: "独孤剑尘立于金水河码头，胶片感照亮脸和手。" })];
+    const { aiManager } = await import("@/lib/ai/ai-manager");
+    await expect(
+      runImageWorkflowNodeGeneration(storyboardGraph, "gen-1", { addMaterial: () => "mat-1" }),
+    ).rejects.toThrow("体裁断言");
+    expect(aiManager.generateImage).not.toHaveBeenCalled();
   });
 });

@@ -19,8 +19,11 @@ import {
 } from "./chapter-pipeline-stale";
 import type { AssetRow } from "./script-asset-generation-model";
 import {
+  assertStoryboardAssetBindingsShippable,
   bindAssetImageAsKeyframe,
+  collectStoryboardAssetBindings,
   matchStoryboardBindingAsset,
+  resolveStoryboardAssetBindings,
   retryStoryboardBindingShot,
   runStoryboardAssetBinding,
   storyboardHasVisual,
@@ -127,6 +130,7 @@ function makeShot(input: {
   associateAssetsNames: string[];
   mediaRef?: StoryboardItem["mediaRef"];
   keyframes?: StoryboardItem["keyframes"];
+  assetBindings?: StoryboardItem["assetBindings"];
 }): StoryboardItem {
   return {
     id: `sb-${CHAPTER_ID}-${String(input.index).padStart(3, "0")}`,
@@ -141,6 +145,7 @@ function makeShot(input: {
     associateAssetsNames: input.associateAssetsNames,
     mediaRef: input.mediaRef,
     keyframes: input.keyframes,
+    assetBindings: input.assetBindings,
     shouldGenerateImage: true,
     state: "idle",
   } as StoryboardItem;
@@ -148,6 +153,71 @@ function makeShot(input: {
 
 function boundImageRef(path: string): StoryboardItem["mediaRef"] {
   return { kind: "image", path };
+}
+
+// ── 章级种子(1120 件一起提升到模块级:绑定/发车校验两域共用) ────────────────
+function seedChapter(input: {
+  shots: StoryboardItem[];
+  rows: AssetRow[];
+  aliases?: Record<string, string[]>;
+}) {
+  const extraction: EntityExtractionResult = {
+    id: "extract-1",
+    episodeId: CHAPTER_ID,
+    sourceId: "src-1",
+    revision: 1,
+    characters: input.rows
+      .filter((row) => row.type === "character")
+      .map((row) => ({
+        characterId: row.id,
+        name: row.name,
+        aliases: input.aliases?.[row.name] ?? [],
+      })),
+    scenes: input.rows
+      .filter((row) => row.type === "scene")
+      .map((row) => ({ sceneId: row.id, name: row.name })),
+    props: input.rows
+      .filter((row) => row.type === "prop")
+      .map((row) => ({ assetId: row.id, name: row.name })),
+  };
+  useStudioStore.setState({
+    storyboards: input.shots,
+    entityExtractions: [extraction],
+  });
+  // buildChapterAssetRows 从三库回填 asset:行注入对应库
+  useSceneStore.setState({
+    scenes: input.rows
+      .filter((row) => row.type === "scene" && row.asset)
+      .map((row) => row.asset as never),
+    folders: [],
+    currentFolderId: null,
+  });
+  useCharacterLibraryStore.setState({
+    characters: input.rows
+      .filter((row) => row.type === "character" && row.asset)
+      .map((row) => row.asset as never),
+    folders: [],
+    currentFolderId: null,
+    selectedCharacterId: null,
+  });
+  usePropsLibraryStore.setState({
+    items: input.rows
+      .filter((row) => row.type === "prop" && row.asset)
+      .map((row) => row.asset as never),
+    folders: [],
+    selectedFolderId: "all",
+  });
+}
+
+function mockProjectBridge() {
+  (window as unknown as Record<string, unknown>).projectFiles = {
+    saveImage: vi.fn().mockImplementation(async ({ relativePath }: { relativePath: string }) => ({
+      success: true,
+      url: `project-file://proj-1/${relativePath}`,
+      size: 100,
+    })),
+    getAbsolutePath: vi.fn().mockResolvedValue("/abs"),
+  };
 }
 
 // ── 1013 修 RC-6 fixtures:兜底绑定+非精确命中例外 ──────────────────────────
@@ -474,70 +544,6 @@ describe("就绪度判定", () => {
 });
 
 describe("章级编排:runStoryboardAssetBinding", () => {
-  function seedChapter(input: {
-    shots: StoryboardItem[];
-    rows: AssetRow[];
-    aliases?: Record<string, string[]>;
-  }) {
-    const extraction: EntityExtractionResult = {
-      id: "extract-1",
-      episodeId: CHAPTER_ID,
-      sourceId: "src-1",
-      revision: 1,
-      characters: input.rows
-        .filter((row) => row.type === "character")
-        .map((row) => ({
-          characterId: row.id,
-          name: row.name,
-          aliases: input.aliases?.[row.name] ?? [],
-        })),
-      scenes: input.rows
-        .filter((row) => row.type === "scene")
-        .map((row) => ({ sceneId: row.id, name: row.name })),
-      props: input.rows
-        .filter((row) => row.type === "prop")
-        .map((row) => ({ assetId: row.id, name: row.name })),
-    };
-    useStudioStore.setState({
-      storyboards: input.shots,
-      entityExtractions: [extraction],
-    });
-    // buildChapterAssetRows 从三库回填 asset:行注入对应库
-    useSceneStore.setState({
-      scenes: input.rows
-        .filter((row) => row.type === "scene" && row.asset)
-        .map((row) => row.asset as never),
-      folders: [],
-      currentFolderId: null,
-    });
-    useCharacterLibraryStore.setState({
-      characters: input.rows
-        .filter((row) => row.type === "character" && row.asset)
-        .map((row) => row.asset as never),
-      folders: [],
-      currentFolderId: null,
-      selectedCharacterId: null,
-    });
-    usePropsLibraryStore.setState({
-      items: input.rows
-        .filter((row) => row.type === "prop" && row.asset)
-        .map((row) => row.asset as never),
-      folders: [],
-      selectedFolderId: "all",
-    });
-  }
-
-  function mockProjectBridge() {
-    (window as unknown as Record<string, unknown>).projectFiles = {
-      saveImage: vi.fn().mockImplementation(async ({ relativePath }: { relativePath: string }) => ({
-        success: true,
-        url: `project-file://proj-1/${relativePath}`,
-        size: 100,
-      })),
-      getAbsolutePath: vi.fn().mockResolvedValue("/abs"),
-    };
-  }
-
   it("唯一命中绑成+多义进例外清单;就绪度计数更新", async () => {
     mockProjectBridge();
     seedChapter({
@@ -892,5 +898,191 @@ describe("章级编排:runStoryboardAssetBinding", () => {
       expect.stringContaining("重绑成功（兜底）"),
       expect.objectContaining({ id: expect.stringContaining("storyboard-binding-retry") }),
     );
+  });
+});
+
+// ── 1120 件一:镜级绑定契约(收集序/读兼容/失效报错) ─────────────────────────
+
+describe("1120 件一:collectStoryboardAssetBindings 全量收集序", () => {
+  it("MATCH_TYPE_ORDER 重排(场景→角色→道具)+类型内行序;slot 1 起连续;缺图行不收", () => {
+    // rows 故意乱序(character→prop→scene):输出仍按 场景→角色→道具
+    const bindings = collectStoryboardAssetBindings({
+      names: ["夜市街口", "悦来客栈", "断臂散修", "断剑"],
+      rows: [HERO_ROW, PROP_ROW, SCENE_ROW, INN_ROW],
+    });
+    expect(bindings).toEqual([
+      // 场景类型内按行序:SCENE_ROW 在 rows 中先于 INN_ROW
+      { assetId: "scene-1", name: "夜市街口", kind: "scene", slot: 1 },
+      { assetId: "scene-inn", name: "悦来客栈", kind: "scene", slot: 2 },
+      { assetId: "char-1", name: "断臂散修", kind: "character", slot: 3 },
+      { assetId: "prop-1", name: "断剑", kind: "prop", slot: 4 },
+    ]);
+  });
+
+  it("缺图行不收(slot 连续不空洞);空引用名=[]", () => {
+    const { row: noImageScene } = bareSceneRow();
+    const bindings = collectStoryboardAssetBindings({
+      names: ["夜市街口", "破庙", "断臂散修"],
+      rows: [noImageScene, SCENE_ROW, HERO_ROW],
+    });
+    // 破庙行无图跳过:slot 2 直接给角色,不因缺图行占位
+    expect(bindings).toEqual([
+      { assetId: "scene-1", name: "夜市街口", kind: "scene", slot: 1 },
+      { assetId: "char-1", name: "断臂散修", kind: "character", slot: 2 },
+    ]);
+    expect(collectStoryboardAssetBindings({ names: [], rows: [SCENE_ROW] })).toEqual([]);
+  });
+
+  it("与单命中语义并存:全量收集不改变 matchStoryboardBindingAsset 结果(首个命中类型)", () => {
+    const rows = [HERO_ROW, PROP_ROW, SCENE_ROW];
+    const match = matchStoryboardBindingAsset({ names: ["夜市街口", "断臂散修", "断剑"], rows });
+    expect(match.status).toBe("unique");
+    if (match.status === "unique") expect(match.row.type).toBe("scene");
+  });
+});
+
+describe("1120 件一:resolveStoryboardAssetBindings 读路兼容", () => {
+  it("assetBindings 在档(非空)=直接用,不再推导(单一口径防混读)", () => {
+    const archived = [
+      { assetId: "scene-1", name: "夜市街口", kind: "scene" as const, slot: 1 },
+    ];
+    const resolved = resolveStoryboardAssetBindings({
+      shot: { assetBindings: archived, associateAssetsNames: ["断臂散修", "断剑"] },
+      rows: [HERO_ROW, PROP_ROW],
+    });
+    expect(resolved).toBe(archived);
+  });
+
+  it("assetBindings 缺席(旧章)=从 associateAssetsNames+资产行推导(不改盘不迁移)", () => {
+    const resolved = resolveStoryboardAssetBindings({
+      shot: { associateAssetsNames: ["夜市街口", "断臂散修"] },
+      rows: [HERO_ROW, SCENE_ROW],
+    });
+    expect(resolved).toEqual([
+      { assetId: "scene-1", name: "夜市街口", kind: "scene", slot: 1 },
+      { assetId: "char-1", name: "断臂散修", kind: "character", slot: 2 },
+    ]);
+    // 推导与收集函数同规则同输出(读路不另造第二口径)
+    expect(resolved).toEqual(
+      collectStoryboardAssetBindings({ names: ["夜市街口", "断臂散修"], rows: [HERO_ROW, SCENE_ROW] }),
+    );
+  });
+});
+
+describe("1120 件一:runStoryboardAssetBinding 绑定成功落 assetBindings(写路)", () => {
+  it("全量有图命中行按序落档(镜级);keyframes[0] 仍首个命中类型(单命中语义不变)", async () => {
+    (window as unknown as Record<string, unknown>).projectFiles = {
+      saveImage: vi.fn().mockImplementation(async ({ relativePath }: { relativePath: string }) => ({
+        success: true,
+        url: `project-file://proj-1/${relativePath}`,
+        size: 100,
+      })),
+      getAbsolutePath: vi.fn().mockResolvedValue("/abs"),
+    };
+    seedChapter({
+      shots: [makeShot({ index: 1, associateAssetsNames: ["夜市街口", "断臂散修", "断剑"] })],
+      rows: [SCENE_ROW, HERO_ROW, PROP_ROW],
+    });
+
+    const report = await runStoryboardAssetBinding({
+      chapterId: CHAPTER_ID,
+      projectId: PROJECT_ID,
+      visualManualId: "ink",
+    });
+
+    expect(report?.boundCount).toBe(1);
+    const shot = useStudioStore.getState().storyboards.find((item) => item.index === 1);
+    // 镜级绑定契约:三命中行全落(场景→角色→道具),不只绑一张图
+    expect(shot?.assetBindings).toEqual([
+      { assetId: "scene-1", name: "夜市街口", kind: "scene", slot: 1 },
+      { assetId: "char-1", name: "断臂散修", kind: "character", slot: 2 },
+      { assetId: "prop-1", name: "断剑", kind: "prop", slot: 3 },
+    ]);
+    // 既有 keyframes[0] 双写不变:首帧=首个命中类型(场景)图
+    expect(shot?.mediaRef?.path).toContain("bindings");
+    expect(shot?.keyframes?.[0]?.mediaRef).toBe(shot?.mediaRef);
+  });
+});
+
+describe("1120 件一:assertStoryboardAssetBindingsShippable 发车校验(失效报错)", () => {
+  it("行删(id+name 双落空)=拒发+例外清单 binding-invalid 落行(无 run 造最小容器)", () => {
+    seedChapter({ shots: [], rows: [SCENE_ROW] });
+    const shot = makeShot({
+      index: 1,
+      associateAssetsNames: ["不存在场景"],
+      assetBindings: [{ assetId: "scene-gone", name: "不存在场景", kind: "scene", slot: 1 }],
+    });
+
+    expect(() =>
+      assertStoryboardAssetBindingsShippable({ shot, projectId: PROJECT_ID }),
+    ).toThrow("资产行不存在");
+    const report = useStoryboardBindingStore.getState().runsByChapter[CHAPTER_ID]?.report;
+    expect(report?.exceptions).toHaveLength(1);
+    expect(report?.exceptions[0]).toMatchObject({
+      storyboardId: shot.id,
+      shotIndex: 1,
+      status: "binding-invalid",
+      statusLabel: "绑定失效",
+      matchedAssetName: "不存在场景",
+    });
+    expect(report?.exceptions[0]?.detail).toContain("S01 绑定失效");
+  });
+
+  it("id 漂移(重新提取换 id,name 兜底命中)=报「已重新提取,请重跑绑定」", () => {
+    seedChapter({ shots: [], rows: [SCENE_ROW] });
+    const shot = makeShot({
+      index: 2,
+      associateAssetsNames: ["夜市街口"],
+      assetBindings: [{ assetId: "scene-old", name: "夜市街口", kind: "scene", slot: 1 }],
+    });
+
+    expect(() =>
+      assertStoryboardAssetBindingsShippable({ shot, projectId: PROJECT_ID }),
+    ).toThrow("资产行已重新提取，请重跑绑定");
+  });
+
+  it("行在但图清(时序漂移)=报「资产行无图」;同镜复报=例外行 patch 不堆叠", () => {
+    seedChapter({ shots: [], rows: [SCENE_ROW] });
+    // 绑定后行图被清:绑定契约失效(时序漂移形态)
+    useSceneStore.setState({
+      scenes: [{ ...sceneAsset(), referenceImage: undefined }],
+      folders: [],
+      currentFolderId: null,
+    });
+    const shot = makeShot({
+      index: 3,
+      associateAssetsNames: ["夜市街口"],
+      assetBindings: [{ assetId: "scene-1", name: "夜市街口", kind: "scene", slot: 1 }],
+    });
+
+    expect(() =>
+      assertStoryboardAssetBindingsShippable({ shot, projectId: PROJECT_ID }),
+    ).toThrow("资产行无图");
+    // 同镜二次复报:patch 更新不 append 堆叠
+    expect(() =>
+      assertStoryboardAssetBindingsShippable({ shot, projectId: PROJECT_ID }),
+    ).toThrow("资产行无图");
+    const report = useStoryboardBindingStore.getState().runsByChapter[CHAPTER_ID]?.report;
+    expect(report?.exceptions).toHaveLength(1);
+  });
+
+  it("放行面:绑定全可解析且有图=不抛;assetBindings 缺席(旧章)=不拦", () => {
+    seedChapter({ shots: [], rows: [SCENE_ROW, HERO_ROW] });
+    const valid = makeShot({
+      index: 4,
+      associateAssetsNames: ["夜市街口", "断臂散修"],
+      assetBindings: [
+        { assetId: "scene-1", name: "夜市街口", kind: "scene", slot: 1 },
+        { assetId: "char-1", name: "断臂散修", kind: "character", slot: 2 },
+      ],
+    });
+    expect(() =>
+      assertStoryboardAssetBindingsShippable({ shot: valid, projectId: PROJECT_ID }),
+    ).not.toThrow();
+    // 旧章(未跑过绑定/无在档契约):不拦,读路兼容由消费方推导
+    const legacy = makeShot({ index: 5, associateAssetsNames: ["夜市街口"] });
+    expect(() =>
+      assertStoryboardAssetBindingsShippable({ shot: legacy, projectId: PROJECT_ID }),
+    ).not.toThrow();
   });
 });

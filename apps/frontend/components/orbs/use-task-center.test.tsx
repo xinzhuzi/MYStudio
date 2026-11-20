@@ -317,7 +317,7 @@ describe("useTaskCenter(pipeline 域:10-11 批5 章流水线+批6 黄标)", () =
               recomputed: false,
               assets: { total: 3, success: 2, failed: 1, failedNames: ["prop:青盐鞭"] },
               derived: { total: 1, success: 1, failed: 0, failedNames: [] },
-              storyboard: { totalShots: 6, ready: 6, unbound: 0, exceptions: 0 },
+              storyboard: { totalShots: 6, videoReady: 6, ready: 6, unbound: 0, exceptions: 0 },
               staleCount: 0,
               staleSampleTargetIds: [],
             },
@@ -330,7 +330,8 @@ describe("useTaskCenter(pipeline 域:10-11 批5 章流水线+批6 黄标)", () =
     const receipt = result.current.recent.find((entry) => entry.source === "pipeline");
     expect(receipt?.status).toBe("failed");
     expect(receipt?.label).toContain("资产 2/3");
-    expect(receipt?.label).toContain("分镜 6/6");
+    expect(receipt?.label).toContain("分镜视频 6/6");
+    expect(receipt?.label).toContain("分镜画面 6/6");
     expect(receipt?.errorReason).toBe("prop:青盐鞭");
   });
 
@@ -356,7 +357,7 @@ describe("useTaskCenter(pipeline 域:10-11 批5 章流水线+批6 黄标)", () =
               recomputed: false,
               assets: { total: 3, success: 3, failed: 0, failedNames: [] },
               derived: { total: 1, success: 1, failed: 0, failedNames: [] },
-              storyboard: { totalShots: 6, ready: 6, unbound: 0, exceptions: 0 },
+              storyboard: { totalShots: 6, videoReady: 6, ready: 6, unbound: 0, exceptions: 0 },
               staleCount: 0,
               staleSampleTargetIds: [],
             },
