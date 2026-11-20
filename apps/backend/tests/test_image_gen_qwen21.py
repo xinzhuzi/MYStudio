@@ -416,6 +416,48 @@ class Qwen21I2iGenerateTests(unittest.TestCase):
             # 171 加速编码恒单主参考(剪链不影响)
             self.assertEqual(graph["171"]["inputs"]["images.image_1"], ["16", 0])
 
+    def test_i2i_multiref_forces_native_40step(self) -> None:
+        # 1120 用户令:i2i ≥2 张参考恒原生40步——正源=[4015]多参考编码槽0
+        # (快档 Pruna 引导器只吃 [171]=image_1,场景/前帧在快档下不生效;
+        # 少步×多参考=黑屏域 0928/1014 铁案)。7500 直注+解码[5]直指;
+        # 1 张=单参考域不触发(默认/手型路由照旧)
+        graph, _, _ = self._run_generate(
+            prompt="双图换上衣", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
+            reference_b64="cmVmMQ==", reference_images_b64=["cmVmMQ==", "cmVmMg=="],
+        )
+        native = graph["7500"]
+        self.assertEqual(native["class_type"], "KSampler")
+        ins = native["inputs"]
+        self.assertEqual(ins["positive"], ["4015", 0])    # 多参考正源(镜像路=[171]单图,弃)
+        self.assertEqual(ins["negative"], ["4015", 1])
+        self.assertEqual(ins["latent_image"], ["20", 0])  # 画幅开关域(同快档镜像源)
+        self.assertEqual(ins["model"], ["7:7034", 0])
+        self.assertEqual(ins["seed"], ["7:7014", 0])      # seed 单源
+        self.assertEqual((ins["steps"], ins["cfg"], ins["denoise"]), (40, 4.0, 1.0))
+        self.assertEqual(graph["5"]["inputs"]["samples"], ["7500", 0])  # 解码直指原生臂
+        # 分镜剧情图+三参考=动机案例:型级路由表无分镜→默认档让位本令
+        sb, _, _ = self._run_generate(
+            prompt="分镜镜1", aspect_ratio="16:9", negative_prompt=None, steps=8, seed=42,
+            reference_b64="cmVmMQ==",
+            reference_images_b64=["cmVmMQ==", "cmVmMg==", "cmVmMw=="],
+            base_type="分镜剧情图",
+        )
+        self.assertEqual(sb["7500"]["inputs"]["positive"], ["4015", 0])
+        # 美宣(型级原生40注臂)×2 参考=7500 同键覆写,最终正源恒多参考
+        mx, _, _ = self._run_generate(
+            prompt="美宣双参考", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
+            reference_b64="cmVmMQ==", reference_images_b64=["cmVmMQ==", "cmVmMg=="],
+            base_type="美宣",
+        )
+        self.assertEqual(mx["7500"]["inputs"]["positive"], ["4015", 0])
+        # 1 张=单参考域,原生覆写不触发(手型路由照旧留守档4)
+        single, _, _ = self._run_generate(
+            prompt="单参考画布轻编辑", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
+            reference_b64="cmVmMQ==", base_type="无衣物定妆",
+        )
+        self.assertNotIn("7500", single)
+        self.assertEqual(single["7:7015"]["inputs"]["mode"], qwen21.SPEED_MODE_PRUNA)
+
     def test_t2i_path_unchanged_without_reference(self) -> None:
         # 回归锁:无参考图走原 t2i 路(t2i 模板实例化+E 臂默认补注后原样提交,不上传参考图;
         # 1101 默认档3后,E 臂补注并入确定性路径,逐字节可复现)

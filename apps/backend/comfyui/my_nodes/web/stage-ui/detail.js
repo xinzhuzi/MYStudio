@@ -116,6 +116,28 @@ export function shotHTML(shot) {
     Number(shot?.revision) > 1 ? badge("rev", `v${shot.revision}`) : "",
     shot?.stale ? badge("fail", "stale") : "",
   ].filter(Boolean).join("");
+  // 1120 分镜面板退役迁引擎:单镜动作面(面板单镜卡出口全量收编为桥动作;
+  // note 编码:open-shot-image=shotId;keyframe-extract=shotId|single|<ts>/
+  // shotId|uniform|<count>;compare-*=shotId;set-audio-mix=shotId|value)
+  const shotId = esc(shot?.id || "");
+  const actBtn = (kind, label, note, title) => `
+      <button type="button" class="dt-btn dt-btn--act" data-act="bridge-action"
+        data-kind="${esc(kind)}" data-note="${esc(note)}"${title ? ` title="${esc(title)}"` : ""}>${esc(label)}</button>`;
+  const actions = shot?.id ? `
+    <div class="dt-act-row">
+      ${actBtn("open-shot-image", "进入图工作流", shotId, "打开本镜图片工作流(编辑/生成)")}
+      ${shot?.videoUrl ? actBtn("keyframe-extract", "存为关键帧", `${shotId}|single|0`, "当前画面存为本镜关键帧") : ""}
+      ${shot?.videoUrl ? actBtn("keyframe-extract", "自动抽帧", `${shotId}|uniform|3`, "均匀抽 3 帧回灌关键帧") : ""}
+      ${actBtn("compare-frames", "对比两帧", shotId, "左右对比本镜第 1、2 帧关键帧")}
+      ${actBtn("compare-video", "对比上一版", shotId, "当前版与上一版并排对比")}
+      ${shot?.videoUrl ? `
+      <label class="dt-mix"><span>混音</span>
+        <select class="dt-select" data-act="audio-mix" data-shot-id="${shotId}">
+          <option value="h3-baked"${shot?.audioMix === "h3-baked" ? " selected" : ""}>用片内声</option>
+          <option value="tts-stack"${(shot?.audioMix ?? "tts-stack") === "tts-stack" ? " selected" : ""}>配音主导</option>
+          <option value="mixed"${shot?.audioMix === "mixed" ? " selected" : ""}>双层混音</option>
+        </select></label>` : ""}
+    </div>` : "";
   return `
     <div class="dt-shot">
       <div class="dt-shot-head"><b>#${String(columns.find(([l]) => l === "镜号")?.[1] ?? "").padStart(2, "0")}</b>
@@ -123,6 +145,7 @@ export function shotHTML(shot) {
       ${image}
       <dl class="dt-cols">${rows}</dl>
       ${video}
+      ${actions}
     </div>`;
 }
 
@@ -247,6 +270,14 @@ const OVERLAY_STYLES = `
   display:inline-flex;align-items:center;gap:6px;padding:0 14px;height:28px;border-radius:8px;
   color:#9ec5fe;background:rgba(110,168,254,.13);border:1px solid rgba(110,168,254,.4);}
 .dt-btn:hover{background:rgba(110,168,254,.22);}
+.dt-act-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px;}
+.dt-act-row .dt-btn{margin-top:0;height:26px;padding:0 10px;font-size:10.5px;}
+.dt-mix{display:inline-flex;align-items:center;gap:5px;margin-left:auto;
+  font-size:10.5px;color:rgba(160,172,190,.85);}
+.dt-select{pointer-events:auto;cursor:pointer;font:600 10.5px/1 inherit;color:rgba(226,232,242,.92);
+  background:rgba(110,168,254,.1);border:1px solid rgba(110,168,254,.35);
+  border-radius:6px;padding:4px 6px;height:26px;}
+.dt-act-status{margin-top:8px;font-size:10.5px;color:rgba(160,172,190,.8);min-height:14px;}
 .dt-back{pointer-events:auto;cursor:pointer;margin-bottom:10px;font:600 11px/1 inherit;
   background:transparent;border:none;color:#9ec5fe;padding:2px 0;}
 .dt-back:hover{text-decoration:underline;}
@@ -277,6 +308,46 @@ const TITLES = {
 let root = null;
 let current = null; // {request, listData}
 let escHandler = null;
+
+// ── 1120 分镜面板退役迁引擎:单镜动作面桥提交 ─────────────────────────
+// 复制 theme.js 常量语义(不 import theme.js——它顶层挂 ComfyUI 全局,
+// node --test 直跑会炸;此处运行时才触 fetch,纯函数测试面零依赖)
+const BRIDGE_URL = ((typeof window !== "undefined"
+  && (window.MY_BRIDGE_URL || window.MANYING_BRIDGE_URL)) || "http://127.0.0.1:17595"
+).replace(/\/$/, "");
+
+function actStatusEl() {
+  return root?.querySelector?.("[data-live='act-status']") || null;
+}
+
+function setActStatus(text, isError = false) {
+  const el = actStatusEl();
+  if (!el) return;
+  el.textContent = text;
+  el.style.color = isError ? "#e06c75" : "";
+}
+
+async function submitBridgeAction(kind, note) {
+  const request = current?.request || {};
+  setActStatus("提交中…");
+  try {
+    const response = await fetch(`${BRIDGE_URL}/comfy/bridge/actions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind,
+        note,
+        originProjectId: request.projectId,
+        originEpisodeId: request.chapter,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    setActStatus(data.duplicate ? "已提交过,等待宿主执行" : "已提交,宿主执行中");
+  } catch (error) {
+    setActStatus(`提交失败(${error?.message || error})`, true);
+  }
+}
 
 function renderShell(title, sub, body) {
   if (!root) return "";
@@ -352,7 +423,8 @@ async function showRequest(request) {
       });
       const back = request.fromList && current.listData
         ? `<button type="button" class="dt-back" data-act="back-list">◀ 返回镜清单</button>` : "";
-      renderShell(TITLES.shot, sub, back + shotHTML(data.shot));
+      const actStatus = `<div class="dt-act-status" data-live="act-status"></div>`;
+      renderShell(TITLES.shot, sub, back + shotHTML(data.shot) + actStatus);
       return true;
     }
     if (request.mode === "asset") {
@@ -403,6 +475,22 @@ function onRootClick(event) {
     const video = window.DaoyanVideo;
     if (video?.open) video.open(actEl.getAttribute("data-url") || "",
       actEl.getAttribute("data-title") || "单镜视频回看");
+    return;
+  }
+  // 1120 单镜动作面:桥动作直发宿主(与节点按钮同通道,note=镜 id 编码)
+  if (act === "bridge-action") {
+    void submitBridgeAction(actEl.getAttribute("data-kind") || "",
+      actEl.getAttribute("data-note") || "");
+  }
+}
+
+function onRootChange(event) {
+  const target = event.target;
+  if (!target || !target.closest) return;
+  const select = target.closest('select[data-act="audio-mix"]');
+  if (select) {
+    void submitBridgeAction("set-audio-mix",
+      `${select.getAttribute("data-shot-id") || ""}|${select.value}`);
   }
 }
 
@@ -418,6 +506,8 @@ export function openDetail(input) {
   if (!root) {
     root = document.createElement("div");
     root.addEventListener("click", onRootClick);
+    // 1120 单镜动作面:混音下拉走 change(select 点击不选值)
+    root.addEventListener("change", onRootChange);
   }
   if (!root.isConnected && document.body?.appendChild) document.body.append(root);
   if (!escHandler) {

@@ -645,6 +645,8 @@ def shot_detail(location: Path, chapter: str, shot_id: str = "",
                 "stale": bool(s.get("stale")),
                 "speaker": s.get("speaker"),
                 "voiceStyle": s.get("voiceStyle"),
+                # 1120 单镜动作面:混音下拉当前值(分片字段;缺=App 默认 tts-stack)
+                "audioMix": s.get("audioMix"),
             }}
     return {"error": f"镜 {shot_id} 不在分片并集(表/分片换代?请重开工作流)"}
 

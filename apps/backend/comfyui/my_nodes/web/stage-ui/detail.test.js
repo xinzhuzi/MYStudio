@@ -125,6 +125,71 @@ test("shotHTML: 15 列标签+台词全量+图/视频 URL 属性", () => {
   assert.match(html, /data-url="\/my_daoyan\/chapter_image\?project=p1&amp;rel=c%2Fd\.mp4"/);
 });
 
+// ── 1120 分镜面板退役迁引擎:单镜动作面(桥动作钮 HTML 契约) ───────────
+
+test("shotHTML 单镜动作面:五类桥动作钮+混音下拉,note=镜 id 编码", () => {
+  const shot = {
+    id: "sb-c1-001", state: "ready", imageReady: true,
+    imageUrl: "/x/a.png", videoUrl: "/x/v.mp4",
+    audioMix: "mixed",
+    columns: [["镜号", 1]],
+  };
+  const html = shotHTML(shot);
+  // 进图工作流(open-shot-image,note=shotId)
+  assert.match(html, /data-kind="open-shot-image"/);
+  assert.match(html, /data-note="sb-c1-001"/);
+  assert.match(html, /进入图工作流/);
+  // 截帧回灌两式(仅视频在场时):single 存帧 / uniform 抽帧
+  const keyframeBtns = html.match(/data-kind="keyframe-extract"/g) || [];
+  assert.equal(keyframeBtns.length, 2);
+  assert.match(html, /data-note="sb-c1-001\|single\|0"/);
+  assert.match(html, /data-note="sb-c1-001\|uniform\|3"/);
+  assert.match(html, /存为关键帧/);
+  assert.match(html, /自动抽帧/);
+  // 版本对双钮(note=shotId)
+  assert.match(html, /data-kind="compare-frames"/);
+  assert.match(html, /data-kind="compare-video"/);
+  assert.match(html, /对比两帧/);
+  assert.match(html, /对比上一版/);
+  // 混音下拉三值+当前值选中(note 编码在 change 侧拼 shotId|value)
+  assert.match(html, /data-act="audio-mix"/);
+  assert.match(html, /data-shot-id="sb-c1-001"/);
+  assert.match(html, /value="h3-baked"/);
+  assert.match(html, /value="tts-stack"/);
+  assert.match(html, /value="mixed" selected/);
+  assert.match(html, /用片内声/);
+  assert.match(html, /配音主导/);
+  assert.match(html, /双层混音/);
+  // 统一动作钮通道:桥按钮挂 data-act="bridge-action"
+  assert.match(html, /data-act="bridge-action"/);
+});
+
+test("shotHTML 单镜动作面降级:无视频=截帧/混音隐藏,进图工作流/对比仍在", () => {
+  const shot = {
+    id: "sb-c1-002", state: "pending", imageReady: false,
+    columns: [["镜号", 2]],
+  };
+  const html = shotHTML(shot);
+  assert.match(html, /data-kind="open-shot-image"/);
+  assert.match(html, /data-kind="compare-frames"/);
+  assert.match(html, /data-kind="compare-video"/);
+  assert.doesNotMatch(html, /data-kind="keyframe-extract"/);
+  assert.doesNotMatch(html, /data-act="audio-mix"/);
+  // 缺 id(换代兜底):零动作面(桥 note 无从编码)
+  assert.doesNotMatch(shotHTML({ columns: [["镜号", 3]] }), /data-act="bridge-action"/);
+});
+
+test("detail.js 源码契约:单镜动作面桥提交与 change 委托在案(stage-node postAction 通道不动)", () => {
+  const src = readFileSync(path.resolve(HERE, "./detail.js"), "utf8");
+  // 桥端点与 sidebar.js 同款(动作直达宿主收件箱)
+  assert.match(src, /\/comfy\/bridge\/actions/);
+  assert.match(src, /originProjectId: request\.projectId/);
+  assert.match(src, /originEpisodeId: request\.chapter/);
+  // select 混音走 change 委托(click 不选值)
+  assert.match(src, /addEventListener\("change", onRootChange\)/);
+  assert.match(src, /submitBridgeAction\("set-audio-mix"/);
+});
+
 test("assetHTML: cover/prompt/state/血缘(D0 扩键);缺键优雅退化", () => {
   const html = assetHTML({
     name: "青盐鞭", typeLabel: "道具", state: "ready", cover: "asset-1.jpg",

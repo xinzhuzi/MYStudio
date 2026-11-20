@@ -49,6 +49,8 @@ LAYOUT = "qwen21-viggle"
 SUPPORTS_REFERENCE = True
 # 1116 分镜正典线(§五.4 七刀):i2i 原生三参考放开(槽位=image_1 主角立绘/
 # image_2 场景/image_3 前帧或次角色,prd §4.5;>3 张由 generate 内拒)
+# 1120 多图令:≥2 张参考恒原生40步(正源=[4015]槽0,快档单图域装不下多图;
+# 见 generate 参考分支与 _apply_native_40step(multiref=True))
 SUPPORTS_MULTI_REFERENCE = True
 
 SPEC = {
@@ -299,15 +301,19 @@ def _apply_turbo_8step(graph: dict[str, Any]) -> None:
     speed["inputs"]["latent_turbo"] = ["7:7131", 0]
 
 
-def _apply_native_40step(graph: dict[str, Any]) -> None:
-    """1119 用户终裁:美宣=原生40步(1120 人物海报入列)。绕过加速子图,直注 KSampler(cfg4/40步)。"""
-    cond = None; latent = None
-    for nid in ("7:7111", "7:7042", "7:7029"):
-        n = graph.get(nid)
-        if isinstance(n, dict):
-            cond = n.get("inputs", {}).get("conditioning")
-            if isinstance(cond, list):
-                break
+def _apply_native_40step(graph: dict[str, Any], multiref: bool = False) -> None:
+    """1119 用户终裁:美宣=原生40步(1120 人物海报入列)。绕过加速子图,直注 KSampler(cfg4/40步)。
+    1120 多图令:multiref=True 正源显式=多参考编码器[4015]槽0——镜像路=[171]单图域
+    看不见 image_2/3,少步×多参考=黑屏域(0928/1014 铁案);[4015] positive 在 API
+    模板零消费者=i2i 多图默认不生效的根,本参数补通(7500 同键覆写=幂等)。"""
+    cond = ["4015", 0] if multiref else None; latent = None
+    if cond is None:  # 显式多参考正源跳过镜像(镜像路=[171]单图域)
+        for nid in ("7:7111", "7:7042", "7:7029"):
+            n = graph.get(nid)
+            if isinstance(n, dict):
+                cond = n.get("inputs", {}).get("conditioning")
+                if isinstance(cond, list):
+                    break
     for nid in ("7:7112", "7:7043", "7:7031"):
         n = graph.get(nid)
         if isinstance(n, dict):
@@ -463,10 +469,14 @@ def edge_anchor_mp(w: int, h: int) -> float:
 
 
 def _edge_canvas(base_type: Any, manual_width: Any, manual_height: Any,
-                 aspect_ratio: Any) -> tuple[int, int] | None:
-    """有效画幅(比例门判据):手动成对值 > 型画幅 > aspect_ratio 字符串比值
-    (照 apply_ref_safe_canvas 优先级语义+L345 同款解析);解析不出=None(门
-    不过零动作)。aspect_ratio 只有比值时归一到千位对,数值仅供比值运算。"""
+                 aspect_ratio: Any,
+                 ref_dims: tuple[int, int] | None = None) -> tuple[int, int] | None:
+    """有效画幅(比例门判据):手动成对值 > 型画幅 > 参考图实幅(i2i) >
+    aspect_ratio 字符串比值(照 apply_ref_safe_canvas 优先级语义+L345 同款解析);
+    解析不出=None(门不过零动作)。aspect_ratio 只有比值时归一到千位对,数值仅供
+    比值运算。1120 高清人脸崩图根修:i2i 无型层任务的输出画幅跟参考图走,App 传输
+    层缺省 aspect="16:9" 会骗过 16:9 族门(晏燎 3:4 参考实录)——参考实幅必须
+    位阶高于 aspect 串,竖/方参考正确落拦候裁。"""
     try:
         mw = int(manual_width) if manual_width is not None else 0
         mh = int(manual_height) if manual_height is not None else 0
@@ -478,6 +488,8 @@ def _edge_canvas(base_type: Any, manual_width: Any, manual_height: Any,
         dims = _daojie_type_canvas(base_type.strip())
         if dims is not None:
             return dims
+    if ref_dims is not None and ref_dims[0] > 0 and ref_dims[1] > 0:
+        return ref_dims
     parts = str(aspect_ratio or "").strip().split()[0].split(":") if aspect_ratio else []
     try:
         aw, ah = float(parts[0]), float(parts[1])
@@ -488,14 +500,29 @@ def _edge_canvas(base_type: Any, manual_width: Any, manual_height: Any,
     return round(aw * 1000), round(ah * 1000)
 
 
+def _b64_image_dims(image_b64: str) -> tuple[int, int] | None:
+    """参考图实幅(i2i 比例门判据用):PIL 头部惰性读宽高,坏图/解码失败=None。"""
+    try:
+        import io as _io
+
+        from PIL import Image
+
+        with Image.open(_io.BytesIO(base64.b64decode(image_b64))) as im:
+            w, h = im.size
+        return (w, h) if w > 0 and h > 0 else None
+    except Exception:  # noqa: BLE001 - 判据缺位=门回退 aspect 串,不拦产线
+        return None
+
+
 def apply_wide_edge_anchor(graph: dict[str, Any], base_type: Any,
                            manual_width: Any, manual_height: Any,
-                           aspect_ratio: Any) -> bool:
+                           aspect_ratio: Any,
+                           ref_dims: tuple[int, int] | None = None) -> bool:
     """P4 ③格:16:9 族比例门过→GemTiledUpscale+ImageScaleToTotalPixels 的
     megapixels 覆写为边锚 MP(两口同值等比,保 alpha 链与主链同构——join 内
     resize_mask 会把 alpha resample 到主链尺寸,覆写不破坏 join 恒稳);门
     不过(竖/方候裁/解析不出)零动作 fail-open+打点。返回=终格微整是否激活。"""
-    dims = _edge_canvas(base_type, manual_width, manual_height, aspect_ratio)
+    dims = _edge_canvas(base_type, manual_width, manual_height, aspect_ratio, ref_dims)
     if dims is None or not ratio_gate(*dims):
         if dims is not None:
             print(f"[image-sidecar] qwen21: P4边锚拦候裁(非16:9族画幅 "
@@ -544,6 +571,34 @@ def final_anchor_resize(content: bytes) -> bytes:
     buffer = _io.BytesIO()
     resized.save(buffer, format="PNG")
     return buffer.getvalue()
+
+
+def _embed_prompt_metadata(png_bytes: bytes, graph: dict[str, Any]) -> bytes:
+    """1120 图↔词溯源:把实发 API 形工作流 JSON 写进 PNG tEXt(keyword=prompt),
+    复刻 ComfyUI SaveImage 元数据约定——sidecar 路产物缺该块导致实发终稿弹窗
+    no-texr(1120 用户实录)。幂等:已带 prompt 块原样返回;任何异常原样返回
+    (观测埋点不阻断产线)。"""
+    try:
+        import io as _io
+
+        from PIL import Image
+        from PIL.PngImagePlugin import PngInfo
+
+        png = Image.open(_io.BytesIO(png_bytes))
+        if "prompt" in (png.info or {}):
+            return png_bytes
+        meta = PngInfo()
+        # 1120 补修:必须默认 ensure_ascii=True(\uXXXX 纯 ASCII)——PIL 对原生中文
+        # 恒落 iTXt 块,而 App 提取器只扫 tEXt(ComfyUI SaveImage 可读正因默认转义)
+        meta.add_text("prompt", json.dumps(graph))
+        buffer = _io.BytesIO()
+        png.save(buffer, format="PNG", pnginfo=meta)
+        out = buffer.getvalue()
+        print(f"[image-sidecar] qwen21: 实发工作流已埋 PNG tEXt(产物 {len(out)}B)", flush=True)
+        return out
+    except Exception as exc:  # noqa: BLE001 - 埋点失败不拦产物
+        print(f"[image-sidecar] qwen21: tEXt 埋点跳过({exc})", flush=True)
+        return png_bytes
 
 
 def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps: int, seed: int | None, reference_b64: str | None = None, **ctx: Any) -> str:
@@ -641,14 +696,23 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
             # 缺省=道劫美术风格转换(指令+底座两段),既有画风转换/人脸/表情差分
             # 调用零回归(10-19 口径全量向后兼容)
             assembly["inputs"]["组装用途"] = ASSEMBLY_PURPOSE_STYLE_TRANSFER
+        # 1120 用户令:i2i ≥2 张参考恒原生40步(正源=[4015]多参考编码槽0)——
+        # 少步蒸馏×多参考=黑屏域,快档注臂镜像 [171] 单图看不见 image_2/3;型级
+        # 路由(美宣/海报/设定卡/手型)与默认档均让位本令(置于 apply_hand_speed_mode
+        # 之后=7500 同键覆写,最终正源恒多参考)
+        if len(upload_names) >= 2:
+            _apply_native_40step(graph, multiref=True)
         # 10-26 画幅手动覆写(横竖皆可裁定;i2i 手动槽优先于九型直通,
         # 4022 型画幅路由保持不动)
         apply_manual_size(graph, ctx.get("manual_width"), ctx.get("manual_height"))
         # 1120 P4 ③格:i2i 链同锚(Gem 链对入口画幅无感,生成段压回安全档
         # 不改交付意图比例;按型/手动比例算 MP,出口恒宽≥3840)
+        # 1120 高清人脸崩图根修:i2i 无型层任务门判据补参考图实幅——App 缺省
+        # aspect="16:9" 曾骗过 16:9 族门(晏燎 3:4 参考实录,Gem 链被拉爆引擎崩)
         wide_anchor = apply_wide_edge_anchor(
             graph, ctx.get("base_type"), ctx.get("manual_width"),
-            ctx.get("manual_height"), aspect_ratio)
+            ctx.get("manual_height"), aspect_ratio,
+            ref_dims=_b64_image_dims(references[0]) if references else None)
     else:
         template_key = forced_template or TEMPLATE_NAME
         template = load_template(template_key)
@@ -679,6 +743,13 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
     from . import engine_health
     engine_health.pre_submit(bridge_url())
     client_id = str(uuid.uuid4())
+    # 1120 观测令:发车参数全文落 sidecar 日志(手动生图核装配输入;base_type 空=风格转换)
+    print(
+        f"[image-sidecar] qwen21 发车: template={template_key} "
+        f"base_type={base_type_value if isinstance(base_type_value, str) and base_type_value.strip() else '(风格转换)'} "
+        f"refs={len(references)} steps={steps} seed={seed} 主体句({len(prompt)}字): {prompt}",
+        flush=True,
+    )
     submitted = _http_json("POST", f"{bridge_url()}/prompt", {"prompt": graph, "client_id": client_id}, timeout=20)
     prompt_id = submitted.get("prompt_id")
     if not isinstance(prompt_id, str) or not prompt_id.strip():
@@ -727,6 +798,10 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
                     # 1120 P4 ④格:终格微整+禁欠终断(≤3% lanczos 到精确
                     # 3840×2160;超容差 raise 不交)
                     content = final_anchor_resize(content)
+                # 1120 图↔词溯源补埋:sidecar 路产物不经引擎 SaveImage 落盘→tEXt
+                # 「prompt」块缺失(实发终稿弹窗 no-texr 实录);此处复刻 SaveImage
+                # 约定把实发 API 形工作流 JSON 写进 tEXt,②区可解构回放
+                content = _embed_prompt_metadata(content, graph)
                 _record(True, history.get(prompt_id) if isinstance(history, dict) else None)
                 return base64.b64encode(content).decode("ascii")
             time.sleep(1)

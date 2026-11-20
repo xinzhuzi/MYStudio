@@ -394,7 +394,7 @@ export function StoryboardSceneFrameSection({
                 isQuadGridGenerating={isQuadGridGenerating}
               />
               {((isStart && scene.imageSource === "ai-generated") || (!isStart && scene.endFrameSource === "ai-generated")) && (
-                <span className={cn("absolute bottom-0.5 left-0.5 text-[8px] font-medium px-1 rounded border backdrop-blur-xs", isStart ? "bg-primary text-primary-foreground border-primary/30" : "bg-warning text-warning-foreground border-warning/30")}>AI</span>
+                <span className={cn("pointer-events-none absolute bottom-0.5 left-0.5 text-[8px] font-medium px-1 rounded border backdrop-blur-xs", isStart ? "bg-primary text-primary-foreground border-primary/30" : "bg-warning text-warning-foreground border-warning/30")}>AI</span>
               )}
             </>
           ) : isGeneratingEnd && !isStart ? (

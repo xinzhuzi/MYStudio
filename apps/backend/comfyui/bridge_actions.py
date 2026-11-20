@@ -31,11 +31,30 @@ ALLOWED_KINDS = (
     "edit-doc",
     "extract-assets",
     "open-shot-video",
+    # 1120 分镜面板退役迁引擎:面板批量/单镜动作全量收编为桥 kind
+    "generate-images-force",      # 批量全量重出(forceRegenerate)
+    "generate-images-stop",       # 批量生图停止(宿主侧幂等:运行中才停)
+    "h3-start",                   # H3 出片发车(note=tier)
+    "h3-stop",                    # H3 出片停止
+    "h3-import-orphans",          # 导入盘上 H3 孤儿片
+    "h3-archive-backfill",        # H3 存量回流
+    "open-final-video",           # 打开预看成片(无成品则宿主 toast)
+    "daoyan-import",              # 导演台视频导入
+    "chapter-pipeline-start",     # 章流水线发车
+    "auto-bind-assets",           # 分镜素材自动绑定
+    "open-shot-image",            # 单镜进图工作流(note=shotId)
+    "keyframe-extract",           # 单镜截帧回灌(note=shotId|mode)
+    "compare-frames",             # 单镜对比两帧(note=shotId)
+    "compare-video",              # 单镜对比上一版(note=shotId)
+    "set-audio-mix",              # 单镜混音选择(note=shotId|value)
 )
 CAP = 20
 
-# 幂等 UI 开合类:每次点击都必须送达(同 kind 不同节点是常态),豁免去重
-DEDUPE_EXEMPT_KINDS = frozenset({"view-doc", "edit-doc", "open-shot-video"})
+# 幂等 UI 开合类:每次点击都必须送达(同 kind 不同节点/单镜是常态),豁免去重
+DEDUPE_EXEMPT_KINDS = frozenset({
+    "view-doc", "edit-doc", "open-shot-video",
+    "open-shot-image", "compare-frames", "compare-video",
+})
 
 
 NOTE_CAP = 2000  # 补充要求字符上限(付费生成的附加指令,09-12 功能差异补齐)

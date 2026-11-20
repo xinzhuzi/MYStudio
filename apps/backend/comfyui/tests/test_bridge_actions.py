@@ -160,6 +160,76 @@ def test_submit_rejects_unknown_kind():
         raise AssertionError("未知动作未拒")
 
 
+def test_panel_migration_kinds_allowed():
+    """1120 分镜面板退役迁引擎:面板批量/单镜动作全量收编为桥 kind。"""
+    for kind in (
+        "generate-images-force",
+        "generate-images-stop",
+        "h3-start",
+        "h3-stop",
+        "h3-import-orphans",
+        "h3-archive-backfill",
+        "open-final-video",
+        "daoyan-import",
+        "chapter-pipeline-start",
+        "auto-bind-assets",
+        "open-shot-image",
+        "keyframe-extract",
+        "compare-frames",
+        "compare-video",
+        "set-audio-mix",
+    ):
+        result = bridge_actions.submit(kind, origin_project_id="project-a", origin_episode_id="episode-1")
+        assert result["duplicate"] is False
+    kinds = {item["kind"] for item in bridge_actions.list_since(0)["items"]}
+    assert kinds >= {
+        "generate-images-force", "generate-images-stop", "h3-start", "h3-stop",
+        "h3-import-orphans", "h3-archive-backfill", "open-final-video", "daoyan-import",
+        "chapter-pipeline-start", "auto-bind-assets", "open-shot-image", "keyframe-extract",
+        "compare-frames", "compare-video", "set-audio-mix",
+    }
+
+
+def test_panel_migration_kinds_still_reject_unknown_variants():
+    """白名单是精确匹配:相近但未收录的 kind 仍拒(防猜测放行)。"""
+    for kind in ("generate-images-all", "h3", "open-shot", "auto-bind"):
+        with pytest.raises(ValueError, match="未知动作类型"):
+            bridge_actions.submit(kind, origin_project_id="project-a", origin_episode_id="episode-1")
+
+
+def test_stop_and_batch_kinds_dedupe_by_kind():
+    """停止/发车/写值类不豁免:同类在途重提=去重(防连点)。"""
+    bridge_actions.submit("generate-images-stop", origin_project_id="project-a", origin_episode_id="episode-1")
+    again = bridge_actions.submit("generate-images-stop", origin_project_id="project-a", origin_episode_id="episode-1")
+    assert again["duplicate"] is True
+    assert len(bridge_actions.list_since(0)["items"]) == 1
+
+
+def test_shot_open_and_compare_kinds_exempt_from_dedupe():
+    """单镜 UI 开合类(open-shot-image/compare-*):同 kind 不同镜逐击送达。"""
+    first = bridge_actions.submit("open-shot-image", "shot-a", origin_project_id="project-a", origin_episode_id="episode-1")
+    second = bridge_actions.submit("open-shot-image", "shot-b", origin_project_id="project-a", origin_episode_id="episode-1")
+    third = bridge_actions.submit("compare-frames", "shot-a", origin_project_id="project-a", origin_episode_id="episode-1")
+    fourth = bridge_actions.submit("compare-video", "shot-a", origin_project_id="project-a", origin_episode_id="episode-1")
+    assert first["duplicate"] is False and second["duplicate"] is False
+    assert second["id"] != first["id"]
+    assert third["duplicate"] is False and fourth["duplicate"] is False
+    assert [item.get("note") for item in bridge_actions.list_since(0)["items"]] == ["shot-a", "shot-b", "shot-a", "shot-a"]
+
+
+def test_set_audio_mix_and_keyframe_extract_dedupe_by_kind():
+    """混音/截帧写值类:同 kind 在途重提=note 更新胜出(最新意图)。"""
+    bridge_actions.submit("set-audio-mix", "shot-a|voice", origin_project_id="project-a", origin_episode_id="episode-1")
+    updated = bridge_actions.submit("set-audio-mix", "shot-a|dual", origin_project_id="project-a", origin_episode_id="episode-1")
+    assert updated["duplicate"] is True
+    assert bridge_actions.list_since(0)["items"][0]["note"] == "shot-a|dual"
+    keyframe = bridge_actions.submit("keyframe-extract", "shot-a|manual", origin_project_id="project-a", origin_episode_id="episode-1")
+    assert keyframe["duplicate"] is False
+    keyframe_again = bridge_actions.submit("keyframe-extract", "shot-a|auto:6", origin_project_id="project-a", origin_episode_id="episode-1")
+    assert keyframe_again["duplicate"] is True
+    assert bridge_actions.list_since(0)["items"][1]["note"] == "shot-a|auto:6"
+
+
 def test_stage_node_action_kinds_allowed():
     """09-12 功能完备:老画布环节动作全量收编(节点按钮→宿主老派发器)。"""
     for kind in (

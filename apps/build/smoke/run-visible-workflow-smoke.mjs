@@ -1252,20 +1252,21 @@ function realProjectWorkflowExpression(
       const interactive = Array.from(document.querySelectorAll('button, [role="menuitem"], [cmdk-item], [role="button"], .dashboard-project-card'));
       const buttonTexts = interactive.map(normalize).filter(Boolean).slice(0, 80);
       const bodyText = normalize(document.body).slice(0, 1600);
-      // 画布节点现在是轻量指针卡;全量分镜入口位于独立 StoryboardPanelTab。
-      // 兼容旧画布瓦片属性,同时采集现行面板卡片属性。
-      const storyboardWorkflowEntries = Array.from(document.querySelectorAll('[data-storyboard-id], [data-storyboard-panel-shot]'));
-      const storyboardWorkflowEntryIds = [...new Set(storyboardWorkflowEntries.map((entry) =>
-        entry.getAttribute('data-storyboard-id') || entry.getAttribute('data-storyboard-panel-shot') || '',
-      ).filter(Boolean))];
+      // 1120 分镜面板退役:面板卡锚与节点指针锚均已退役——单镜图工作流入口=
+      // 引擎桥动作 open-shot-image(宿主消费后切 imageWorkflow 页)。入口计数改
+      // 引擎桥快照镜清单(openRealProjectStoryboardImageWorkflowDetail 点火时
+      // 写入 window.__smokeBridgeShotIds);imageWorkflow 页挂载=第二画布 swap
+      // (storyboard 画布 forceMount 恒 1,imageWorkflow 按需挂载)。
+      const storyboardWorkflowEntryIds = Array.from(window.__smokeBridgeShotIds || []);
       const hasStoryboardNodePointer = Boolean(document.querySelector('[data-node-pointer-enter="storyboard"]'));
+      const canvasSwapCount = document.querySelectorAll('[data-comfy-swap="comfy"]').length;
       return {
         buttonTexts,
         bodyText,
         storyboardWorkflowEntryCount: storyboardWorkflowEntryIds.length,
-        hasLastStoryboardWorkflowEntry: storyboardWorkflowEntryIds.length >= expectedStoryboards ||
-          Boolean(document.querySelector('[aria-label="打开分镜 ' + expectedStoryboards + ' 图片工作流"]')),
+        hasLastStoryboardWorkflowEntry: storyboardWorkflowEntryIds.length >= expectedStoryboards,
         hasStoryboardNodePointer,
+        hasImageWorkflowPageMounted: canvasSwapCount >= 2,
         hasStageSwitcher: Boolean(document.querySelector('[data-workflow-orb]')),
         hasWorkflowTab: buttonTexts.some((text) => text === 'MY 工作流' || text.includes('MY 工作流')),
         hasProjectCard: Boolean(document.querySelector('.dashboard-project-card')),
@@ -2058,27 +2059,66 @@ function realProjectWorkflowExpression(
     const openRealProjectStoryboardImageWorkflowDetail = async () => {
       const storyboardClick = await clickStage({ id: 'storyboard', label: '分镜视频生成' });
       await visibleDelay();
-      // 画布仅保留指针卡;先进入全量分镜面板,再点击当前分镜卡进入图像工作流。
-      const storyboardPanelPointer = document.querySelector('[data-node-pointer-enter="storyboard"]');
-      if (storyboardPanelPointer) {
-        activate(storyboardPanelPointer);
-        await waitFor(() => Boolean(document.querySelector('[data-storyboard-panel-tab]')), 8_000);
+      // 1120 分镜面板退役改道:单镜图工作流入口=引擎桥动作 open-shot-image
+      // (宿主 ComfyCanvas 轮询消费→openAssetImageWorkflow→切 imageWorkflow 页)。
+      // 面板卡锚/节点指针锚均已退役;桥走 sidecar HTTP(鉴权=装机随机令牌,
+      // 与 App 渲染层 comfySidecarRequest 同凭据链 window.imageGenRuntime)。
+      const bridgeBase = window.MYSTUDIO_SMOKE_BRIDGE_URL || 'http://127.0.0.1:17595';
+      const bridgeToken = await (window.imageGenRuntime?.localImageToken?.() || '');
+      const bridgeGet = async (path) => {
+        const res = await fetch(bridgeBase + path, { headers: { Authorization: 'Bearer ' + bridgeToken } });
+        if (!res.ok) throw new Error('bridge GET ' + path + ' HTTP ' + res.status);
+        return res.json();
+      };
+      let workflowId = '';
+      let storyboardId = '';
+      let fired = { ok: false, reason: 'bridge unreachable' };
+      try {
+        const snap = await bridgeGet('/comfy/bridge/storyboards');
+        window.__smokeBridgeShotIds = (snap.shots || []).map((shot) => shot.id).filter(Boolean);
+        const originProjectId = snap.originProjectId || '';
+        const originEpisodeId = snap.currentEpisodeId || '';
+        const shotId = window.__smokeBridgeShotIds[0] || '';
+        if (!originProjectId || !originEpisodeId || !shotId) {
+          fired = { ok: false, reason: 'bridge snapshot incomplete(origin=' + (originProjectId || '?') + ',episode=' + (originEpisodeId || '?') + ',shots=' + window.__smokeBridgeShotIds.length + ')' };
+        } else {
+          const res = await fetch(bridgeBase + '/comfy/bridge/actions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + bridgeToken },
+            body: JSON.stringify({ kind: 'open-shot-image', note: shotId, originProjectId, originEpisodeId }),
+          });
+          const reply = await res.json().catch(() => ({}));
+          fired = res.ok
+            ? { ok: true, duplicate: Boolean(reply.duplicate), shotId }
+            : { ok: false, reason: 'bridge submit HTTP ' + res.status + ' ' + (reply.error || '') };
+          storyboardId = shotId;
+          workflowId = shotId;
+        }
+      } catch (error) {
+        fired = { ok: false, reason: String((error && error.message) || error) };
       }
-      const workflowEntry = document.querySelector('[data-storyboard-panel-shot], [data-storyboard-workflow-image-id]');
-      const workflowId = workflowEntry?.getAttribute('data-storyboard-workflow-image-id') || '';
-      const storyboardId = workflowEntry?.getAttribute('data-storyboard-panel-shot') ||
-        workflowEntry?.getAttribute('data-storyboard-id') || '';
-      const clicked = activate(workflowEntry);
-      if (!clicked) {
+      if (!fired.ok) {
         return {
           ready: false,
           clicked: false,
           workflowId,
           storyboardId,
           stageClicked: Boolean(storyboardClick.clicked),
-          reason: 'real storyboard image workflow image entry was not found',
+          reason: 'bridge open-shot-image failed: ' + fired.reason,
         };
       }
+      // 宿主消费=收件箱条目被 ack 消失;消费后 openAssetImageWorkflow 切
+      // imageWorkflow 页(第二画布 swap 挂载),再交由详情检查面接管
+      await waitFor(async () => {
+        try {
+          const inbox = await bridgeGet('/comfy/bridge/actions');
+          return !(inbox.items || []).some((item) => item.kind === 'open-shot-image') || null;
+        } catch {
+          return null;
+        }
+      }, 30_000);
+      await waitFor(() => document.querySelectorAll('[data-comfy-swap="comfy"]').length >= 2, 15_000);
+      await visibleDelay();
       let lastDetail = null;
       const detail = await waitFor(() => {
         const text = document.body.innerText || '';
