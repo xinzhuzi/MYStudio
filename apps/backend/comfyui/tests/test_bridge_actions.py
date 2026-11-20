@@ -254,6 +254,17 @@ def test_stage_node_action_kinds_allowed():
     }
 
 
+def test_legacy_enqueue_remotion_shots_allowed():
+    """1121 bug2 存量兜底:旧注入画布仍发老画布派发 kind enqueue-remotion-shots
+    (宿主 ComfyCanvasStudio 归一到 onGenerateVideos,与 generate-videos 同钩)——
+    白名单收录使其提交腿不再被拒;去重语义同发车类(防连点,不豁免)。"""
+    result = bridge_actions.submit("enqueue-remotion-shots", origin_project_id="project-a", origin_episode_id="episode-1")
+    assert result["duplicate"] is False
+    again = bridge_actions.submit("enqueue-remotion-shots", origin_project_id="project-a", origin_episode_id="episode-1")
+    assert again["duplicate"] is True
+    assert len(bridge_actions.list_since(0)["items"]) == 1
+
+
 def test_note_roundtrip_and_dedup_update():
     """09-12 B1 补充要求:note 随动作入队/回读;同类在途重提=note 更新胜出。"""
     bridge_actions.reset_for_tests()

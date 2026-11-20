@@ -463,6 +463,11 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
         const handlers: Record<string, [((note: string) => void) | undefined, string?]> = {
           "generate-images": [actions?.onGenerateImages, "侧栏指令:开始批量生图(当前章未生成分镜)"],
           "generate-videos": [actions?.onGenerateVideos, "侧栏指令:开始生成所有分镜视频"],
+          // 1121 bug2 兜底:旧注入存量画布(kept-modified 短路不重注入)仍带
+          // 老画布派发 kind enqueue-remotion-shots——归一到 onGenerateVideos
+          // (宿主同为 handleRunChapterAutoVideo 钩),不再 reportDeferredOnce
+          // 滞留队列;新载荷已统一产 generate-videos(见 stage-payload-map)
+          "enqueue-remotion-shots": [actions?.onGenerateVideos, "节点指令:开始生成所有分镜视频"],
           "generate-director-plan": [actions?.onGenerateDirectorPlan, item.note ? "环节指令:生成导演规划(付费·带补充要求)" : "环节指令:生成导演规划(付费云端)"],
           "generate-storyboard-table": [actions?.onGenerateStoryboardTable, item.note ? "环节指令:生成分镜表(付费·带补充要求)" : "环节指令:生成分镜表(付费云端)"],
           "rebuild-workbench-tracks": [actions?.onRebuildWorkbenchTracks, "环节指令:重建视频轨道"],

@@ -24,6 +24,9 @@ _STATE: dict = {"actions": [], "nextId": 1, "queueId": uuid.uuid4().hex}
 ALLOWED_KINDS = (
     "generate-images",
     "generate-videos",
+    # 1121 bug2 存量兜底:旧注入画布的「一键生成所有视频」仍发老画布派发 kind
+    # (宿主 ComfyCanvasStudio 归一到 onGenerateVideos,与 generate-videos 同钩)
+    "enqueue-remotion-shots",
     "generate-director-plan",
     "generate-storyboard-table",
     "rebuild-workbench-tracks",

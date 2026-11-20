@@ -268,11 +268,21 @@ const DOC_VIEW_LABELS = {
   assets: "详情", storyboard: "详情", storyboardTable: "详情",
   remotionProduction: "详情", workbench: "详情",
 };
+/** 「分镜内容」子图真身(09-14 设计口=旧工作流每镜子图兼容口):现行零实体
+ * 模板(0_分镜/分镜工作流.json 恒无 subgraph 节点)返回 undefined——1121
+ * 实弹③修复:钮/右键按真身在场才摆,不再恒推死钮(点击静默空转)。
+ * DOM 点击与 docButtons/右键菜单三口共用本查找器,目标恒一致。 */
+function shotGridSubgraphRef() {
+  const nodes = window.app?.canvas?.graph?._nodes || [];
+  return nodes.find((n) => n.type !== "MyStage" && n.type !== "ManyingStage" && String(n.title || "").includes("分镜内容"))
+    || nodes.find((n) => n.subgraph && String(n.title || "").includes("分镜内容"));
+}
 const docButtons = (key) => {
   const buttons = [];
   // 分镜面板专属(09-14 用户裁定:按之前设计,分镜内容入口=节点按钮,主图
-  // 不再摆独立子图节点)——本地动作,canvas.openSubgraph 原生进入
-  if (key === "storyboard") buttons.push({ kind: "open-shot-grid", label: "分镜内容" });
+  // 不再摆独立子图节点)——本地动作,canvas.openSubgraph 原生进入;
+  // 仅图内真有带子图的「分镜内容」节点(旧工作流兼容口)才摆钮
+  if (key === "storyboard" && shotGridSubgraphRef()?.subgraph) buttons.push({ kind: "open-shot-grid", label: "分镜内容" });
   if (DOC_VIEWER_KEYS.has(key)) {
     buttons.push({ kind: "view-doc", label: DOC_VIEW_LABELS[key] || "全文", noteKey: key });
   }
@@ -430,9 +440,7 @@ function wireActions(node, el) {
     // 分镜内容(09-14):本地进入子图,不经桥——官方 canvas.openSubgraph
     const kind0 = button.dataset.kind || "";
     if (kind0 === "open-shot-grid") {
-      const nodes = window.app?.canvas?.graph?._nodes || [];
-      const ref = nodes.find((n) => n.type !== "MyStage" && n.type !== "ManyingStage" && String(n.title || "").includes("分镜内容"))
-        || nodes.find((n) => n.subgraph && String(n.title || "").includes("分镜内容"));
+      const ref = shotGridSubgraphRef();
       if (ref && window.app.canvas?.openSubgraph) window.app.canvas.openSubgraph(ref.subgraph, ref);
       return;
     }
@@ -752,7 +760,14 @@ app.registerExtension({
           if (action.kind === "open-shot-grid") {
             options.push({
               content: `漫影 · ${action.label}`,
-              callback: () => { try { window.app?.canvas?.openSubgraph?.(this); } catch (error) { /* 子图缺席静默 */ } },
+              callback: () => {
+                try {
+                  // 1121 修复:与 DOM 路径同参 openSubgraph(子图, 节点)——
+                  // 旧实现传节点本体,即使图内真有分镜子图也进不去
+                  const ref = shotGridSubgraphRef();
+                  if (ref && window.app.canvas?.openSubgraph) window.app.canvas.openSubgraph(ref.subgraph, ref);
+                } catch (error) { /* 子图缺席静默 */ }
+              },
             });
             continue;
           }
@@ -765,16 +780,18 @@ app.registerExtension({
           }
           act(action.label, action.kind, action.noteKey);
         }
-        // 资产环节:抽取/重新抽取(载荷 actions 单源;disabled 同面板语义=
-        // 无剧本时不触发;09-15 排查:衍生资产来源=剧本抽取,非分镜表)
+        // 载荷动作族全量收编(1121 修复:旧实现只收编 extract-assets,
+        // generate-images/-force/-stop、H3 全家、章流水线、导演台导入等无
+        // 菜单第二入口——与 DOM 面板按钮同一 actions 单源/同一 postAction
+        // 通道,双入口一致;disabled 同面板语义;noteKey 过桥=宿主 note,
+        // 如 h3-start 的档位。付费类组稿器为 DOM 面板专属,菜单直发同空
+        // 补充要求语义)
         for (const action of payload.actions || []) {
-          if (action.kind !== "extract-assets") continue;
-          const item = {
+          options.push({
             content: `漫影 · ${action.label}`,
             disabled: Boolean(action.disabled),
-            callback: () => { if (!action.disabled) postAction(action.kind, action.note || null, null, originProjectId, originEpisodeId); },
-          };
-          options.push(item);
+            callback: () => { if (!action.disabled) postAction(action.kind, action.noteKey || null, null, originProjectId, originEpisodeId); },
+          });
         }
       }
       return getExtraMenuOptions?.apply(this, arguments);

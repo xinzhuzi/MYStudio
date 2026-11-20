@@ -689,6 +689,35 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     expect(handlers.onH3Start).toHaveBeenCalledWith("480p");
   });
 
+  it("旧载荷兜底(1121 bug2):enqueue-remotion-shots 归一分发 onGenerateVideos,不滞留队列", async () => {
+    // 旧注入存量画布(kept-modified 短路不重注入)仍带老画布派发 kind——
+    // 修复前 handlerFor 返回 undefined,消费器 reportDeferredOnce 报
+    // 「当前画布视图不处理动作」且动作滞留队列
+    const calls: string[] = [];
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = {
+      ...stubClient({ installed: true, state: "ready", serviceRunning: true, port: 17007 }),
+      getBridgeActions: vi.fn(async (cursor: number) =>
+        cursor === 0
+          ? { cursor: 0, queueId: "legacy-enqueue", items: [
+              { id: 1, kind: "enqueue-remotion-shots", originProjectId: "project-a", originEpisodeId: "episode-1" },
+            ] }
+          : { cursor, items: [] }),
+      ackBridgeActions: vi.fn(async () => 1),
+    } as ComfyEngineClient;
+    const onGenerateVideos = vi.fn(() => calls.push("generate-videos"));
+    render(<ComfyCanvasStudio sidebarActions={{ onGenerateImages: vi.fn(), onGenerateVideos }} />);
+    const webview = (await waitFor(() => {
+      const el = document.querySelector("[data-comfy-canvas-webview]") as
+        (HTMLElement & { executeJavaScript?: (code: string) => Promise<unknown> }) | null;
+      if (!el) throw new Error("webview 未挂");
+      return el;
+    }, { timeout: 3000 }))!;
+    webview.dispatchEvent(new Event("dom-ready"));
+    await waitFor(() => expect(calls).toEqual(["generate-videos"]));
+    expect(onGenerateVideos).toHaveBeenCalledTimes(1);
+    expect(toasts.error).not.toHaveBeenCalledWith(expect.stringContaining("不处理动作 enqueue-remotion-shots"));
+  });
+
   it("StudioView 接线(1120 面板迁移):force 回调带 forceRegenerate:true,hook 原地零搬家", () => {
     // jsdom 环境 import.meta.url 为 http 协议,改走 cwd 相对路径(vitest 恒自 apps 跑)
     const source = readFileSync(

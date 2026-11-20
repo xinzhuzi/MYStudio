@@ -64,6 +64,9 @@ export interface StageNodePayload {
   /** 逐镜队列(全量;视频/配音双状态照老画布 remotionShots) */
   shots?: {
     index: number; label: string;
+    /** 分镜 id(单镜 H3 直达钮 data-h3-shot 用,引擎 shot-production 读
+     * shot.id;两路构建器都必须带——1121 修复:生产映射曾丢此字段致 H3 钮恒缺) */
+    id?: string;
     videoReady: boolean; imageReady: boolean; ttsReady: boolean; sfxReady: boolean;
     revision: number;
     /** 队列实时态(渲染层注入;running 带 progress 0~1,failed/blocked/queued) */
@@ -110,6 +113,53 @@ function wrapFullText(text: string): string[] {
     out.push(line);
   });
   return out.length > 0 ? out : ["暂无内容"];
+}
+
+// ── 1120 分镜面板退役迁引擎:三型节点批量动作族(载荷 actions 单源)──────
+// 回落构建器(buildStageNodePayload)与组件层生产映射器(stage-payload-map
+// 的 mapProductionFlowNodesToStagePayloads)共用同一族,禁两处漂移——
+// 1121 修复:生产路径此前只透传老画布 node.actions,storyboard 模型
+// actions=[] / workbench 模型无 actions / remotionProduction 模型动作是
+// 老画布派发 kind enqueue-remotion-shots(桥 ALLOWED_KINDS 与宿主 handlers
+// 均无消费方),六钮+H3 全家+重建轨道在生产路径全缺席=面板退役后断链。
+/** 分镜面板型:批量生图全家(generate-images 保留首位;stop 常驻,宿主侧
+ * 幂等——非运行态点击仅 toast);生成类 disabled 语义随分镜数。 */
+export function storyboardPanelStageActions(shotsTotal: number): NonNullable<StageNodePayload["actions"]> {
+  return [
+    { kind: "generate-images", label: "一键生图", disabled: shotsTotal === 0 },
+    { kind: "generate-images-force", label: "重出全部画面", paid: true, disabled: shotsTotal === 0 },
+    { kind: "generate-images-stop", label: "停止生图" },
+    { kind: "auto-bind-assets", label: "自动绑定素材", disabled: shotsTotal === 0 },
+    { kind: "chapter-pipeline-start", label: "章流水线" },
+    { kind: "daoyan-import", label: "导入导演台视频" },
+  ];
+}
+
+/** 单镜生产型:通道A generate-videos(章自动视频草稿)+通道B H3 出片全家
+ * (双档直选防误触:档位标签自含时长说明,选档即确认;noteKey=tier 过桥)
+ * +孤儿导入/存量回流(原面板孤儿双择拆为独立动作保语义)。 */
+export function remotionProductionStageActions(
+  shotsTotal: number,
+  allVideos: boolean,
+): NonNullable<StageNodePayload["actions"]> {
+  return [
+    {
+      kind: "generate-videos",
+      label: allVideos ? "分镜视频已完成" : "一键生成所有视频",
+      disabled: shotsTotal === 0 || allVideos,
+    },
+    { kind: "h3-start", label: "H3 出片·480P 草稿", noteKey: "480p", disabled: shotsTotal === 0 },
+    { kind: "h3-start", label: "H3 出片·960P 生产", noteKey: "960p", disabled: shotsTotal === 0 },
+    { kind: "h3-stop", label: "停止 H3 出片" },
+    { kind: "h3-import-orphans", label: "导入盘上 H3 片", disabled: shotsTotal === 0 },
+    { kind: "h3-archive-backfill", label: "H3 存量回流" },
+    { kind: "open-final-video", label: "打开预看成片" },
+  ];
+}
+
+/** 工作台型:重建视频轨道(老画布 rebuild-workbench-tracks 同款回流)。 */
+export function workbenchStageActions(): NonNullable<StageNodePayload["actions"]> {
+  return [{ kind: "rebuild-workbench-tracks", label: "重建视频轨道" }];
 }
 
 /**
@@ -220,16 +270,9 @@ export function buildStageNodePayload(input: {
               { label: "已出片", done: videos, total: shots.length },
             ]
           : undefined,
-        // 1120 分镜面板退役迁引擎:面板批量动作全量收编为节点按钮(既有
-        // generate-images 保留首位;stop 常驻,宿主侧幂等——非运行态点击仅 toast)
-        actions: [
-          { kind: "generate-images", label: "一键生图", disabled: shots.length === 0 },
-          { kind: "generate-images-force", label: "重出全部画面", paid: true, disabled: shots.length === 0 },
-          { kind: "generate-images-stop", label: "停止生图" },
-          { kind: "auto-bind-assets", label: "自动绑定素材", disabled: shots.length === 0 },
-          { kind: "chapter-pipeline-start", label: "章流水线" },
-          { kind: "daoyan-import", label: "导入导演台视频" },
-        ],
+        // 1120 分镜面板退役迁引擎:面板批量动作全量收编为节点按钮(动作族
+        // 单源=storyboardPanelStageActions,生产映射器共用同族)
+        actions: storyboardPanelStageActions(shots.length),
         tiles: shots.map((item) => ({
           index: item.index,
           // 09-14 用户裁定:磁贴只放标号——描述不铺字(悬停 tooltip 走 lines)
@@ -255,21 +298,8 @@ export function buildStageNodePayload(input: {
             ]
           : undefined,
         // 通道A generate-videos(章自动视频草稿)保留;通道B H3 出片全家
-        // (双档直选防误触:档位标签自含时长说明,选档即确认)+孤儿导入/存量
-        // 回流(1120 分镜面板退役迁引擎,原面板孤儿双择拆为独立动作保语义)
-        actions: [
-          {
-            kind: "generate-videos",
-            label: allVideos ? "分镜视频已完成" : "一键生成所有视频",
-            disabled: shots.length === 0 || allVideos,
-          },
-          { kind: "h3-start", label: "H3 出片·480P 草稿", noteKey: "480p", disabled: shots.length === 0 },
-          { kind: "h3-start", label: "H3 出片·960P 生产", noteKey: "960p", disabled: shots.length === 0 },
-          { kind: "h3-stop", label: "停止 H3 出片" },
-          { kind: "h3-import-orphans", label: "导入盘上 H3 片", disabled: shots.length === 0 },
-          { kind: "h3-archive-backfill", label: "H3 存量回流" },
-          { kind: "open-final-video", label: "打开预看成片" },
-        ],
+        // (动作族单源=remotionProductionStageActions,生产映射器共用同族)
+        actions: remotionProductionStageActions(shots.length, allVideos),
         shots: shots.map((item) => ({
           index: item.index,
           id: item.id,
@@ -294,7 +324,7 @@ export function buildStageNodePayload(input: {
           ? [{ label: "轨道完成", done: input.flowData.workbench.tracks.filter((track) => track.state === "ready").length, total: input.flowData.workbench.tracks.length }]
           : undefined,
         finalExport: Boolean(input.flowData.workbench.finalExportPath),
-        actions: [{ kind: "rebuild-workbench-tracks", label: "重建视频轨道" }],
+        actions: workbenchStageActions(),
         tracks: input.flowData.workbench.tracks.map((track) => ({
           name: track.prompt || track.id,
           state: String(track.state),

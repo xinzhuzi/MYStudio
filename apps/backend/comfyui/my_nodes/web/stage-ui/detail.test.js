@@ -310,3 +310,35 @@ test("D5 写死文案退役:HINTS_ITEMS 数组退役,9999 渲染器在案", () =
   assert.match(STAGE_NODE_SRC, /HINTS_NODE_ID/); // 图内 9999 说明节点单源
   assert.match(STAGE_NODE_SRC, /renderMarkdown/); // md 渲染复用 common.js
 });
+
+// ── 1121 修复钉:open-shot-grid 死钮/右键传参/菜单动作族覆盖(源码契约) ──
+
+const MENU_SRC = STAGE_NODE_SRC.slice(
+  STAGE_NODE_SRC.indexOf("getExtraMenuOptions"),
+  STAGE_NODE_SRC.indexOf("onNodeCreated"),
+);
+
+test("1121 分镜内容钮:图内真身(带 subgraph 的「分镜内容」节点)在场才摆,零实体模板不推死钮", () => {
+  // 单源查找器:DOM 点击与 docButtons/右键三口共用,目标恒一致
+  assert.match(STAGE_NODE_SRC, /function shotGridSubgraphRef\(\)/);
+  // 旧实现恒推钮→现行模板(8 节点零 subgraph)点击静默空转=死钮(实弹③)
+  assert.match(STAGE_NODE_SRC,
+    /key === "storyboard" && shotGridSubgraphRef\(\)\?\.subgraph/);
+});
+
+test("1121 右键 open-shot-grid:与 DOM 路径同参 openSubgraph(ref.subgraph, ref),不再传节点本体", () => {
+  // 旧实现 openSubgraph?.(this) 与 DOM 路径签名错位,即使有子图也进不去
+  assert.doesNotMatch(MENU_SRC, /openSubgraph\?\.\(this\)/);
+  assert.match(MENU_SRC, /openSubgraph\(ref\.subgraph, ref\)/);
+});
+
+test("1121 右键菜单:载荷动作族全量收编(不止 extract-assets),noteKey 过桥=宿主 note", () => {
+  // 旧实现 if (action.kind !== "extract-assets") continue——generate-images
+  // (-force/-stop)/H3 全家/章流水线/导演台导入等无菜单第二入口
+  assert.doesNotMatch(MENU_SRC, /kind !== "extract-assets"/);
+  assert.match(MENU_SRC, /for \(const action of payload\.actions \|\| \[\]\)/);
+  assert.match(MENU_SRC, /postAction\(action\.kind, action\.noteKey \|\| null/);
+  // disabled 同面板语义:禁用项灰显且回调不触发
+  assert.match(MENU_SRC, /disabled: Boolean\(action\.disabled\)/);
+  assert.match(MENU_SRC, /if \(!action\.disabled\) postAction/);
+});

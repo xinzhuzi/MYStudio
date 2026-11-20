@@ -11,7 +11,13 @@
  */
 import type { ProductionFlowNodeModel } from "../../studio/workflow-node-model-schema";
 import { shotPreviewName } from "@/lib/assist/image-studio/storyboard-overview-comfy";
-import type { StageNodePayload, PipelineStageKey } from "@/lib/assist/image-studio/storyboard-pipeline-comfy";
+import {
+  remotionProductionStageActions,
+  storyboardPanelStageActions,
+  workbenchStageActions,
+  type StageNodePayload,
+  type PipelineStageKey,
+} from "@/lib/assist/image-studio/storyboard-pipeline-comfy";
 
 const STATUS_TEXT: Record<StageNodePayload["status"], string> = {
   ready: "已完成",
@@ -72,6 +78,43 @@ export function mapProductionFlowNodesToStagePayloads(nodes: ProductionFlowNodeM
   return keys.flatMap((key): StageNodePayload[] => {
     const node = byKey.get(key);
     if (!node) return [];
+    // 单镜生产逐镜队列(提升:actions 禁用态与 shots 载荷同源一份)
+    const remotionShots = key === "remotionProduction" ? (node.remotionShots ?? []) : [];
+    // 环节动作(1121 修复:三型节点=阶段契约动作族单源,与回落构建器同族——
+    // 生产路径此前只透传老画布 node.actions:storyboard 模型 actions=[] /
+    // workbench 模型无 actions / remotionProduction 模型动作是老画布派发 kind
+    // enqueue-remotion-shots(桥 ALLOWED_KINDS 与宿主 handlers 均无消费方,
+    // 活路径唯一钮点击即断链),六钮+H3 全家+重建轨道全缺席;同义钮统一为
+    // 桥 kind generate-videos,故该模型动作不透传)。assets=抽取+透传合并;
+    // 其余型(scriptPlan/storyboardTable)照节点模型逐字透传。
+    let actions: StageNodePayload["actions"];
+    if (key === "storyboard") {
+      actions = storyboardPanelStageActions(node.storyboardTiles?.length ?? 0);
+    } else if (key === "remotionProduction") {
+      actions = remotionProductionStageActions(
+        remotionShots.length,
+        remotionShots.length > 0
+          && remotionShots.every((shot) => shot.status === "succeeded" && Boolean(shot.outputPath)),
+      );
+    } else if (key === "workbench") {
+      actions = workbenchStageActions();
+    } else if (key === "assets") {
+      actions = [
+        { kind: "extract-assets", label: node.assetGroups?.length ? "重新抽取资产" : "抽取资产" },
+        ...(node.actions || []).map((action) => ({
+          kind: action.id, label: action.label,
+          ...(action.paid ? { paid: true } : {}),
+          ...(action.disabled ? { disabled: true } : {}),
+        })),
+      ];
+    } else if (node.actions?.length) {
+      actions = node.actions.map((action) => ({
+        kind: action.id,
+        label: action.label,
+        ...(action.paid ? { paid: true } : {}),
+        ...(action.disabled ? { disabled: true } : {}),
+      }));
+    }
     return [{
       key,
       title: node.label,
@@ -124,8 +167,11 @@ export function mapProductionFlowNodesToStagePayloads(nodes: ProductionFlowNodeM
         })),
       } : {}),
       ...(key === "remotionProduction" && node.remotionShots ? {
-        shots: node.remotionShots.map((shot) => ({
+        shots: remotionShots.map((shot) => ({
           index: shot.index,
+          // 1121 修复:补 id(引擎 shot-production 的单镜 H3 直达钮读
+          // shot.id,此前生产路径丢此字段→H3 小钮恒不渲染)
+          id: shot.shotId,
           label: shot.title || `分镜 ${shot.index}`,
           videoReady: shot.status === "succeeded" && Boolean(shot.outputPath),
           imageReady: Boolean(shot.mediaPath),
@@ -135,16 +181,6 @@ export function mapProductionFlowNodesToStagePayloads(nodes: ProductionFlowNodeM
           ...(shot.status !== "pending" ? { status: shot.status } : {}),
           ...(typeof shot.progress === "number" ? { progress: shot.progress } : {}),
         })),
-      } : {}),
-      ...(key === "assets" ? {
-        actions: [
-          { kind: "extract-assets", label: node.assetGroups?.length ? "重新抽取资产" : "抽取资产" },
-          ...(node.actions || []).map((action) => ({
-            kind: action.id, label: action.label,
-            ...(action.paid ? { paid: true } : {}),
-            ...(action.disabled ? { disabled: true } : {}),
-          })),
-        ],
       } : {}),
       ...(key === "assets" && node.assetGroups ? {
         assets: node.assetGroups.flatMap((group) =>
@@ -176,16 +212,9 @@ export function mapProductionFlowNodesToStagePayloads(nodes: ProductionFlowNodeM
         } : {}),
         ...(node.remotionQueueConcurrency ? { concurrency: node.remotionQueueConcurrency } : {}),
       } : {}),
-      // assets 的 actions 由上方注入块终态产出(抽取+透传合并),通用展开
-      // 让位——后展开会整体覆盖注入块,assets 节点一旦有 actions 抽取键就丢
-      ...(key !== "assets" && node.actions?.length ? {
-        actions: node.actions.map((action) => ({
-          kind: action.id,
-          label: action.label,
-          ...(action.paid ? { paid: true } : {}),
-          ...(action.disabled ? { disabled: true } : {}),
-        })),
-      } : {}),
+      // 环节动作统一收口(上方按 key 计算):三型=阶段契约单源,其余=抽取/
+      // 节点模型透传;无动作(script 等)不落 actions 键
+      ...(actions ? { actions } : {}),
     }];
   });
 }
