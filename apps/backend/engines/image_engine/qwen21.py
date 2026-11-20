@@ -477,12 +477,15 @@ def edge_anchor_mp(w: int, h: int) -> float:
 def _edge_canvas(base_type: Any, manual_width: Any, manual_height: Any,
                  aspect_ratio: Any,
                  ref_dims: tuple[int, int] | None = None) -> tuple[int, int] | None:
-    """有效画幅(比例门判据):手动成对值 > 型画幅 > 参考图实幅(i2i) >
-    aspect_ratio 字符串比值(照 apply_ref_safe_canvas 优先级语义+L345 同款解析);
-    解析不出=None(门不过零动作)。aspect_ratio 只有比值时归一到千位对,数值仅供
-    比值运算。1120 高清人脸崩图根修:i2i 无型层任务的输出画幅跟参考图走,App 传输
-    层缺省 aspect="16:9" 会骗过 16:9 族门(晏燎 3:4 参考实录)——参考实幅必须
-    位阶高于 aspect 串,竖/方参考正确落拦候裁。"""
+    """有效画幅(比例门判据):手动成对值 > 型画幅 > 参考图实幅(i2i)。
+    解析不出=None(门不过零动作)。1120 高清人脸崩图根修:i2i 无型层任务的输出
+    画幅跟参考图走,App 传输层缺省 aspect="16:9" 会骗过 16:9 族门(晏燎 3:4
+    参考实录)——参考实幅必须位阶高于 aspect 串,竖/方参考正确落拦候裁。
+    1121 aspect 串兜底位阶整段退役(第三出口):无型无参考无手动的 t2i,
+    传输层(ai-sdk-bridge)对未指定画幅恒发缺省 "16:9"——伪信号曾三次把非
+    16:9 任务锚成 8.2944MP 巨幅拉爆引擎(晏燎 i2i/独孤带型断层/风格转换);
+    16:9 交付线正主=分镜域(base_type=分镜剧情图,型画幅锚),aspect 兜底
+    无正主,禁再当判据。"""
     try:
         mw = int(manual_width) if manual_width is not None else 0
         mh = int(manual_height) if manual_height is not None else 0
@@ -505,14 +508,7 @@ def _edge_canvas(base_type: Any, manual_width: Any, manual_height: Any,
         return None
     if ref_dims is not None and ref_dims[0] > 0 and ref_dims[1] > 0:
         return ref_dims
-    parts = str(aspect_ratio or "").strip().split()[0].split(":") if aspect_ratio else []
-    try:
-        aw, ah = float(parts[0]), float(parts[1])
-    except (IndexError, TypeError, ValueError):
-        return None
-    if aw <= 0 or ah <= 0:
-        return None
-    return round(aw * 1000), round(ah * 1000)
+    return None
 
 
 def _b64_image_dims(image_b64: str) -> tuple[int, int] | None:

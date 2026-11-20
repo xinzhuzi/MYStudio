@@ -675,11 +675,15 @@ class Qwen21WideEdgeAnchorTests(unittest.TestCase):
             graph, "道具", 1920, 1080, "1:1"))
         self.assertEqual(graph["8100"]["inputs"]["megapixels"], 8.2944)
 
-    def test_aspect_ratio_string_alone_anchors(self) -> None:
-        # 无型无手动:aspect_ratio 字符串比值过门(比值数学与绝对尺寸无涉)
+    def test_aspect_ratio_string_alone_no_longer_anchors(self) -> None:
+        # 1121 第三出口封死:无型无参考无手动,aspect 串(传输层缺省恒 "16:9")
+        # 不再作锚判据——曾把非 16:9 任务锚成 8.2944MP 巨幅拉爆引擎;16:9
+        # 交付线正主=分镜域带 base_type(型画幅锚),aspect 兜底无正主。
         graph = self._t2i_graph()
-        self.assertTrue(qwen21.apply_wide_edge_anchor(graph, None, None, None, "16:9"))
-        self.assertEqual(graph["8100"]["inputs"]["megapixels"], 8.2944)
+        self.assertFalse(qwen21.apply_wide_edge_anchor(graph, None, None, None, "16:9"))
+        # 零动作:两口维持 8.25MP 帽
+        self.assertEqual(graph["8100"]["inputs"]["megapixels"], 8.25)
+        self.assertEqual(graph["8122"]["inputs"]["megapixels"], 8.25)
 
     def test_type_present_but_data_gap_blocks_aspect_fallback(self) -> None:
         # 1121 独孤实录根修(1120 晏燎案同族第二出口):带型注入而型画幅查不到
