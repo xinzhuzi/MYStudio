@@ -633,12 +633,30 @@ class Qwen21WideEdgeAnchorTests(unittest.TestCase):
         )
 
     def test_anchor_overwrites_gem_mp_both_nodes(self) -> None:
-        # 16:9 型(分镜剧情图 2048×1152):8100 GemTiledUpscale+8122
-        # ImageScaleToTotalPixels 两口同值 8.2944(等比同构,alpha 链跟主链)
+        # 16:9 资产型(设定卡 2048×1152):8100 GemTiledUpscale+8122
+        # ImageScaleToTotalPixels 两口同值 8.2944(等比同构,alpha 链跟主链)。
+        # 1121 分镜锚修:例型从分镜剧情图换设定卡(分镜域已改钉型画幅,见下)
         graph = self._t2i_graph()
-        self.assertTrue(qwen21.apply_wide_edge_anchor(graph, "分镜剧情图", None, None, "16:9"))
+        self.assertTrue(qwen21.apply_wide_edge_anchor(graph, "设定卡", None, None, "16:9"))
         self.assertEqual(graph["8100"]["inputs"]["megapixels"], 8.2944)
         self.assertEqual(graph["8122"]["inputs"]["megapixels"], 8.2944)
+
+    def test_storyboard_type_pins_type_canvas_mp(self) -> None:
+        # 1121 分镜锚修:分镜剧情图(分镜域)不进 3840 交付线——升档口
+        # (8100 Gem 8.25/8122 8.25)钉型画幅 2048×1152=2.3593MP;1MP 参考
+        # 压缩口(16/17/18)低于目标零动作;终格微整不激活(返回 False)
+        graph = self._t2i_graph()
+        self.assertFalse(qwen21.apply_wide_edge_anchor(graph, "分镜剧情图", None, None, "16:9"))
+        self.assertEqual(graph["8100"]["inputs"]["megapixels"], 2.3593)
+        self.assertEqual(graph["8122"]["inputs"]["megapixels"], 2.3593)
+        # t2i 模板无 1MP 参考压缩口;i2i 模板的压缩口由集成测试的提交图核
+        # (分镜锚修只压超标口,低于目标零动作——"2 口"打点即证据)
+
+    def test_storyboard_manual_pair_pins_manual_mp(self) -> None:
+        # 分镜域+手动成对值:钉手动画幅 MP(手动语义=用户意图优先,同 _edge_canvas)
+        graph = self._t2i_graph()
+        self.assertFalse(qwen21.apply_wide_edge_anchor(graph, "分镜剧情图", 1920, 1088, "16:9"))
+        self.assertAlmostEqual(graph["8100"]["inputs"]["megapixels"], 2.089, places=3)
 
     def test_square_type_blocked_keeps_825_cap(self) -> None:
         # 竖/方型=用户裁定拦候裁:两口维持 8.25MP 帽,返回 False
@@ -663,9 +681,23 @@ class Qwen21WideEdgeAnchorTests(unittest.TestCase):
         self.assertTrue(qwen21.apply_wide_edge_anchor(graph, None, None, None, "16:9"))
         self.assertEqual(graph["8100"]["inputs"]["megapixels"], 8.2944)
 
+    def test_type_present_but_data_gap_blocks_aspect_fallback(self) -> None:
+        # 1121 独孤实录根修(1120 晏燎案同族第二出口):带型注入而型画幅查不到
+        # (装机 Resources 下仓内真源 json 进 asar,明文件层不可达+env 未设→
+        # 两候选全空)——禁落 aspect 串(传输层缺省 "16:9" 会把 3:4 竖幅型
+        # 锚成 8.2944MP 巨幅,引擎崩+sidecar 收摊+前端连接中断实录)。
+        graph = self._t2i_graph()
+        with patch.object(qwen21, "_daojie_type_canvas", return_value=None):
+            self.assertFalse(qwen21.apply_wide_edge_anchor(
+                graph, "无衣物定妆", None, None, "16:9"))
+        # 零动作:两口维持 8.25MP 帽,未被覆写
+        self.assertEqual(graph["8100"]["inputs"]["megapixels"], 8.25)
+        self.assertEqual(graph["8122"]["inputs"]["megapixels"], 8.25)
+
     def test_generate_t2i_submits_anchored_mp(self) -> None:
-        # generate 集成:t2i 分镜剧情图全链后提交图两口=8.2944(与 1118 碎格
-        # 根修压幅/i2i 安全档共存;mock 取图非 PNG→终格 fail-open 原样)
+        # generate 集成:t2i 设定卡(资产 16:9 型)全链后提交图两口=8.2944
+        # (与 1118 碎格根修压幅/i2i 安全档共存;mock 取图非 PNG→终格 fail-open
+        # 原样)。1121 分镜锚修:例型换设定卡(分镜域钉型画幅 2.3593,见分镜测试)
         submitted = {}
         # 照 Qwen21I2iGenerateTests._run_generate 同款 mock(t2i 无上传面)
         classes: set = set()
@@ -692,12 +724,46 @@ class Qwen21WideEdgeAnchorTests(unittest.TestCase):
             "comfyui.engine_manager.EngineManager.ensure_engine_ready", return_value=True
         ), patch("image_gen.pipeline.is_generation_cancelled", return_value=False):
             result = qwen21.generate(
-                prompt="分镜剧情图主体句", aspect_ratio="16:9", negative_prompt=None,
-                steps=8, seed=42, base_type="分镜剧情图",
+                prompt="设定卡主体句", aspect_ratio="16:9", negative_prompt=None,
+                steps=8, seed=42, base_type="设定卡",
             )
         self.assertEqual(submitted["8100"]["inputs"]["megapixels"], 8.2944)
         self.assertEqual(submitted["8122"]["inputs"]["megapixels"], 8.2944)
         self.assertEqual(result, "dDJpLXBuZw==")  # 非 PNG 终格 fail-open 原样
+
+    def test_generate_t2i_storyboard_pins_type_canvas(self) -> None:
+        # 1121 分镜锚修集成:t2i 分镜剧情图全链后升档两口=型画幅 2.3593
+        # (不进 3840 交付线);1MP 压缩口不动;终格微整不激活
+        submitted = {}
+        classes: set = set()
+        for template in (qwen21.load_template(qwen21.TEMPLATE_NAME),
+                         qwen21.load_template(qwen21.TEMPLATE_NAME_I2I)):
+            classes.update(qwen21.graph_node_classes(template["graph"]))
+        classes.update(qwen21.E_HYBRID_INJECTED_CLASSES)
+
+        def http_json(method, url, payload=None, timeout=2):
+            if url.endswith("/prompt"):
+                submitted.update(payload["prompt"])
+                return {"prompt_id": "p-sb"}
+            if "/history/" in url:
+                return {"p-sb": {"status": {"status_str": "success"}, "outputs": {
+                    "8": {"images": [{"filename": "out.png", "subfolder": "", "type": "output"}]},
+                }}}
+            raise AssertionError(url)
+
+        with patch.object(qwen21, "resolve_big_files", return_value={"comfyui_version": "0.41.2"}), patch.object(
+            qwen21, "_available_node_classes", return_value=frozenset(classes)
+        ), patch.object(qwen21, "_http_json", side_effect=http_json), patch.object(
+            qwen21, "_fetch_bytes", return_value=b"t2i-png"
+        ), patch(
+            "comfyui.engine_manager.EngineManager.ensure_engine_ready", return_value=True
+        ), patch("image_gen.pipeline.is_generation_cancelled", return_value=False):
+            qwen21.generate(
+                prompt="分镜剧情图主体句", aspect_ratio="16:9", negative_prompt=None,
+                steps=8, seed=42, base_type="分镜剧情图",
+            )
+        self.assertEqual(submitted["8100"]["inputs"]["megapixels"], 2.3593)
+        self.assertEqual(submitted["8122"]["inputs"]["megapixels"], 2.3593)
 
     def test_final_anchor_resize_lanczos_to_exact(self) -> None:
         # ④格:3872×2176(多视图源出口)与 3840×2144(精确16:9源出口)均

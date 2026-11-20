@@ -451,6 +451,12 @@ def apply_ref_safe_canvas(graph: dict[str, Any], base_type: Any,
 # (恒宽 3840),与下游平台无涉。
 _EDGE_ANCHOR_W = 3840
 _EDGE_ANCHOR_H = 2160
+# 1121 分镜锚修:分镜域型(base_type)集合——双用降级裁定下分镜图=首帧/参考
+# 物料,不进资产 3840 交付线;型册 resolution_override(2048×1152)=分镜自册
+# 规格(在役 19 张 1920×1088 同档)。P4 边锚曾把全 16:9 族(含分镜剧情图)
+# 推到 8.2944MP×原生40步多参考=25min/张(1121 镜3 两发实录,900s 必超时
+# 被撤);分镜域改钉型画幅 MP,升档口只有超标者被压,1MP 参考压缩口不动。
+_STORYBOARD_BASE_TYPES = frozenset({"分镜剧情图"})
 _EDGE_RATIO_TOL = 0.02   # 16:9 族容差核(罩 1824×1024 +0.2% ~ 1344×768 -1.6%)
 _EDGE_FINAL_TOL = 0.03   # 终格微整门(蓝图终裁 3% 容差,与 alpha 门同位)
 
@@ -488,6 +494,15 @@ def _edge_canvas(base_type: Any, manual_width: Any, manual_height: Any,
         dims = _daojie_type_canvas(base_type.strip())
         if dims is not None:
             return dims
+        # 1121 独孤无衣物定妆实录根修(1120 晏燎案同族第二出口):带型注入而
+        # 型画幅查不到=daojie 数据可达性断裂(装机 Resources 下仓内真源 json
+        # 打进 asar,明文件层不存在;env 候选未设→两候选全空)——若落 aspect
+        # 串(传输层缺省 "16:9")则 3:4 竖幅型被锚成 8.2944MP 巨幅,引擎崩+
+        # sidecar 收摊+前端「连接中断」。数据断层禁猜画幅:直接拦(锚零动作
+        # fail-open 本位),打点供观测。
+        print(f"[image-sidecar] qwen21: P4边锚拦数据断层(base_type={base_type.strip()} "
+              f"型画幅不可达,禁落 aspect 串,零动作)", flush=True)
+        return None
     if ref_dims is not None and ref_dims[0] > 0 and ref_dims[1] > 0:
         return ref_dims
     parts = str(aspect_ratio or "").strip().split()[0].split(":") if aspect_ratio else []
@@ -523,10 +538,33 @@ def apply_wide_edge_anchor(graph: dict[str, Any], base_type: Any,
     resize_mask 会把 alpha resample 到主链尺寸,覆写不破坏 join 恒稳);门
     不过(竖/方候裁/解析不出)零动作 fail-open+打点。返回=终格微整是否激活。"""
     dims = _edge_canvas(base_type, manual_width, manual_height, aspect_ratio, ref_dims)
-    if dims is None or not ratio_gate(*dims):
-        if dims is not None:
-            print(f"[image-sidecar] qwen21: P4边锚拦候裁(非16:9族画幅 "
-                  f"{dims[0]}×{dims[1]},维持 8.25MP 帽)", flush=True)
+    if dims is None:
+        return False
+    if isinstance(base_type, str) and base_type.strip() in _STORYBOARD_BASE_TYPES:
+        # 1121 分镜锚修(见 _STORYBOARD_BASE_TYPES 头注):Gem/升档口钉型画幅
+        # MP,终格微整不激活(3840 交付线与分镜域无涉);参考压缩口(1MP 档)
+        # 当前值低于目标=零动作。
+        target_mp = round(dims[0] * dims[1] / 1_000_000, 4)
+        touched = 0
+        for node in graph.values():
+            if not (isinstance(node, dict)
+                    and node.get("class_type") in ("GemTiledUpscale", "ImageScaleToTotalPixels")):
+                continue
+            inputs = node.setdefault("inputs", {})
+            try:
+                current_value = float(inputs.get("megapixels"))
+            except (TypeError, ValueError):
+                continue
+            if current_value > target_mp:
+                inputs["megapixels"] = target_mp
+                touched += 1
+        if touched:
+            print(f"[image-sidecar] qwen21: 分镜锚修 {touched} 口 megapixels={target_mp}"
+                  f"(分镜域钉型画幅 {dims[0]}×{dims[1]},不进3840交付线)", flush=True)
+        return False
+    if not ratio_gate(*dims):
+        print(f"[image-sidecar] qwen21: P4边锚拦候裁(非16:9族画幅 "
+              f"{dims[0]}×{dims[1]},维持 8.25MP 帽)", flush=True)
         return False
     mp = round(edge_anchor_mp(*dims), 4)
     touched = 0
