@@ -3,7 +3,8 @@
 
 对象:
   - 固定线 960P/SolAttn 二件:加速节点 43/48 插入时压住采样列与装载列;
-  - 3_声音/Yue2 yue2-翻唱-记谱版:PreviewAny 压住 SheetSage2AudioToABC。
+  - (yue2-翻唱-记谱版已在 1120 续转交 workflow_layout_fix_negative_region_1118.py
+    整图平移,本脚本不再承载)
 判定=按存储 size 的非覆盖层节点两两相交归零(Reroute/Note/Primitive 等覆盖层不计)。
 
 用法:
@@ -28,9 +29,6 @@ PLANS = {
     },
     "2_视频/H3视频/2_固定线/社区-480P生成-SolAttn加速-480P直出.json": {
         48: ([1370, 5128], [1370, 4800]),
-    },
-    "3_声音/Yue2/yue2-翻唱-记谱版.json": {
-        14: ([712, 470], [820, 700]),                # PreviewAny 让出记谱节点
     },
 }
 

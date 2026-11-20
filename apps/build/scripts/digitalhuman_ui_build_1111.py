@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """数字人/无限时长 UI 画布件生成器(1111 萝卜件嫁接我方模型的画布直开形态)。
 
-产出两件 → 2_视频/H3视频/1_漫影自研/2_数字人/:
+产出两件 → 2_视频/H3视频/8_数字人/:
   数字人-音频驱动.json      三段展开,AudioLock 双通道(ref_audios+锁音),逐段 SaveVideo+装配说明
   无限时长-循环拼接.json    三段展开,自产音轨 AudioConcat 链+SaveAudio 收口,逐段 SaveVideo
 
@@ -14,13 +14,14 @@
 """
 import argparse
 import copy
+import itertools
 import json
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.normpath(os.path.join(
     HERE, '..', '..', 'backend', 'comfyui', 'workflows',
-    '2_视频', 'H3视频', '1_漫影自研', '2_数字人'))
+    '2_视频', 'H3视频', '8_数字人'))
 
 UNET = 'Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors'
 LORA = 'pika_h3_flex_ref2va_comfy_bf16.safetensors'
@@ -110,6 +111,42 @@ class G:
 
 def out0(nid):
     return nid, 0
+
+
+# 1118 布局役让位表:存桥latent 压在 SaveVideo/AudioConcat 之下,解码音频顶到 RandomNoise;
+# 值即源件实坐标(与两件 JSON 逐字节对齐)。改表须同步重出并跑契约测试。
+POS_ADJUST = {
+    'audio': {
+        '段0·存桥latent': [520, 2750], '段1·存桥latent': [2490, 2850],
+        '段2·存桥latent': [4460, 2850],
+    },
+    'unlimited': {
+        '段0·解码音频': [520, 1930], '段0·存桥latent': [520, 2560],
+        '段1·解码音频': [2490, 1700], '段1·存桥latent': [2490, 2680],
+        '段2·解码音频': [4460, 1700], '段2·存桥latent': [4460, 2680],
+    },
+}
+DECOR = {'Note'}
+
+
+def _apply_layout(doc, variant):
+    adjust = POS_ADJUST[variant]
+    seen = {}
+    for n in doc['nodes']:
+        t = n.get('title')
+        if t in adjust:
+            n['pos'] = list(adjust[t])
+            seen[t] = seen.get(t, 0) + 1
+    assert set(seen) == set(adjust), f'{variant}: 让位表节点未命中 {set(adjust) - set(seen)}'
+    dup = {t: c for t, c in seen.items() if c != 1}
+    assert not dup, f'{variant}: 让位表节点重名 {dup}'
+    rects = [(n['id'], n['type'], *n['pos'], *n['size']) for n in doc['nodes']
+             if n['type'] not in DECOR and n['size'][0] > 0 and n['size'][1] > 0]
+    hits = [((a[0], a[1]), (b[0], b[1])) for a, b in itertools.combinations(rects, 2)
+            if a[2] < b[2] + b[4] and b[2] < a[2] + a[4]
+            and a[3] < b[3] + b[5] and b[3] < a[3] + a[5]]
+    assert not hits, f'{variant}: 画布实节点互压 {hits}'
+    return doc
 
 
 def build(variant: str, accel: bool):
@@ -291,8 +328,9 @@ def build(variant: str, accel: bool):
     usage = USAGE.format(variant='数字人(音频驱动口型)' if is_audio else '无限时长(循环拼接·自产音轨)')
     g.node('Note', '使用说明', [80, 540], [1100, 190], widgets=[usage])
     ymax = max(n['pos'][1] + n['size'][1] for n in g.nodes if n['type'] != 'Note')
-    return {'nodes': g.nodes, 'links': g.links, 'groups': g.groups, 'config': {}, 'extra': {},
-            'version': 0.4, 'last_node_id': g._id, 'last_link_id': g._lid}
+    return _apply_layout(
+        {'nodes': g.nodes, 'links': g.links, 'groups': g.groups, 'config': {}, 'extra': {},
+         'version': 0.4, 'last_node_id': g._id, 'last_link_id': g._lid}, variant)
 
 
 def main():

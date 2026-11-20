@@ -8,8 +8,8 @@
       "id": 12,
       "type": "PrimitiveNode",
       "pos": [
-        90,
-        -745
+        480,
+        80
       ],
       "size": [
         571,
@@ -46,8 +46,8 @@
       "id": 13,
       "type": "PrimitiveNode",
       "pos": [
-        92,
-        -360
+        482,
+        465
       ],
       "size": [
         500,
@@ -84,8 +84,8 @@
       "id": 15,
       "type": "CheckpointLoaderSimple",
       "pos": [
-        -175,
-        75
+        215,
+        900
       ],
       "size": [
         372,
@@ -132,8 +132,8 @@
       "id": 30,
       "type": "LoadAudio",
       "pos": [
-        -310,
-        470
+        80,
+        1295
       ],
       "size": [
         350,
@@ -166,8 +166,8 @@
       "id": 31,
       "type": "AudioEncoderLoader",
       "pos": [
-        55,
-        640
+        445,
+        1465
       ],
       "size": [
         340,
@@ -200,8 +200,8 @@
       "id": 32,
       "type": "SheetSage2AudioToABC",
       "pos": [
-        420,
-        430
+        810,
+        1255
       ],
       "size": [
         400,
@@ -245,8 +245,8 @@
       "id": 14,
       "type": "PreviewAny",
       "pos": [
-        820,
-        700
+        1210,
+        1525
       ],
       "size": [
         444,
@@ -281,8 +281,8 @@
       "id": 22,
       "type": "YuE2GenerateMusic",
       "pos": [
-        980,
-        -140
+        1370,
+        685
       ],
       "size": [
         400,
@@ -374,8 +374,8 @@
       "id": 5,
       "type": "EmptyYuE2LatentAudio",
       "pos": [
-        1290,
-        510
+        1680,
+        1335
       ],
       "size": [
         290,
@@ -419,8 +419,8 @@
       "id": 8,
       "type": "KSampler",
       "pos": [
-        1465,
-        30
+        1855,
+        855
       ],
       "size": [
         330,
@@ -486,8 +486,8 @@
       "id": 17,
       "type": "VAEDecodeAudioTiled",
       "pos": [
-        1880,
-        -125
+        2270,
+        700
       ],
       "size": [
         271,
@@ -533,8 +533,8 @@
       "id": 10,
       "type": "SaveAudioAdvanced",
       "pos": [
-        2220,
-        -135
+        2610,
+        690
       ],
       "size": [
         560,
@@ -573,8 +573,8 @@
       "id": 26,
       "type": "Note",
       "pos": [
-        -310,
-        780
+        80,
+        1605
       ],
       "size": [
         700,
@@ -599,8 +599,8 @@
       "id": 27,
       "type": "Note",
       "pos": [
-        1880,
-        140
+        2270,
+        965
       ],
       "size": [
         700,

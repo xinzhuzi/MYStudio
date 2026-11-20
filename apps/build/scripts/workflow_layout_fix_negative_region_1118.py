@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """1118 画布布局役批次③续:负区清零(纯平移,拓扑/接线/相对几何零改)。
 
-对象:qwen21-charcard-t2i.json(手改件,无生成器归属)。
-口径:画布宪法节点 pos >= 80;整图平移 dx 使 min x 恰落 80,组框同步平移。
+对象:
+  - qwen21-charcard-t2i.json(手改件,无生成器归属);
+  - 3_声音/Yue2 yue2-翻唱-记谱版.json(社区原件,PrimitiveNode 带在 y=-745、LoadAudio 在 x=-310)。
+口径:画布宪法节点 pos >= 80;整图平移使 min 恰落 80,组框同步平移。
 
 用法:
   python3 workflow_layout_fix_negative_region_1118.py           # 手术写入
@@ -19,6 +21,10 @@ PLANS = {
         "dy": 0,     # min node y = 100, 已达标
         # 说明贴片原置 TE 节点右半(1910..2210 × 120..460 压 node 5),下移至空带
         "moves": {708: ([1910, 120], [1790, 700])},
+    },
+    "apps/backend/comfyui/workflows/3_声音/Yue2/yue2-翻唱-记谱版.json": {
+        "dx": 390,   # min node x = -310 -> 80
+        "dy": 825,   # min node y = -745 -> 80
     },
 }
 MIN_POS = 80
