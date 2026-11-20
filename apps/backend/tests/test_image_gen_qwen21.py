@@ -761,3 +761,40 @@ class Qwen21TypeRoutingTests(unittest.TestCase):
         self.assertNotIn("7500", graph)
         self.assertNotIn("7:7128", graph)
         self.assertEqual(graph["5"]["inputs"]["samples"], ["7:7015", 0])
+
+
+class Qwen21I2iWideEdgeAnchorTests(unittest.TestCase):
+    """1120 P4 i2i 分支边锚(与 t2i 对称接线的专项锁)。"""
+
+    def test_i2i_wide_type_anchors_gem_mp(self) -> None:
+        # i2i 带参考+16:9 型(场景 2048×1152):8100/8122 两口同覆 8.2944;
+        # 与 1118 安全档压幅共存(压的是生成段 EmptyLatentImage,锚的是超分帽)
+        submitted: dict = {}
+        classes: set = set()
+        for template in (qwen21.load_template(qwen21.TEMPLATE_NAME),
+                         qwen21.load_template(qwen21.TEMPLATE_NAME_I2I)):
+            classes.update(qwen21.graph_node_classes(template["graph"]))
+        classes.update(qwen21.E_HYBRID_INJECTED_CLASSES)
+
+        def http_json(method, url, payload=None, timeout=2):
+            if url.endswith("/prompt"):
+                submitted.update(payload["prompt"])
+                return {"prompt_id": "p-i2i-edge"}
+            if "/history/" in url:
+                return {"p-i2i-edge": {"status": {"status_str": "success"}, "outputs": {
+                    "8": {"images": [{"filename": "out.png", "subfolder": "", "type": "output"}]},
+                }}}
+            raise AssertionError(url)
+
+        with patch.object(qwen21, "resolve_big_files", return_value={"comfyui_version": "0.41.2"}), patch.object(
+            qwen21, "_available_node_classes", return_value=frozenset(classes)
+        ), patch.object(qwen21, "_http_json", side_effect=http_json), patch.object(
+            qwen21, "_upload_image", return_value={"name": "ref.png"}
+        ), patch.object(qwen21, "_fetch_bytes", return_value=b"i2i-png"
+        ), patch(
+            "comfyui.engine_manager.EngineManager.ensure_engine_ready", return_value=True
+        ), patch("image_gen.pipeline.is_generation_cancelled", return_value=False):
+            qwen21.generate(prompt="场景指令", aspect_ratio="1:1", negative_prompt=None,
+                            steps=8, seed=42, reference_b64="cg==", base_type="场景")
+        self.assertEqual(submitted["8100"]["inputs"]["megapixels"], 8.2944)
+        self.assertEqual(submitted["8122"]["inputs"]["megapixels"], 8.2944)
