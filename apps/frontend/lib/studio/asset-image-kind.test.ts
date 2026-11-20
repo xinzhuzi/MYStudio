@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AssetImageKind } from "@/types/studio-assets";
+import type { AssetImage, AssetImageKind } from "@/types/studio-assets";
 
 import {
   ASSET_IMAGE_KIND_ORDER,
@@ -18,9 +18,10 @@ import {
 
 /** 命名分类表全 pattern(PRD Round 2 A 节逐字:含既有全部产物族)。 */
 const NAME_TABLE_CASES: Array<[string, string]> = [
-  // 高清人脸:_人脸_·_高清大脸_
-  ["晏燎_练气期_人脸_2026年10月21日", "高清人脸"],
-  ["晏燎_练气期_高清大脸_2026年10月21日", "高清人脸"],
+  // 高清人头:_高清人头_(1120 改名新标记)·_人脸_·_高清大脸_(旧标记留作存量别名)
+  ["晏燎_高清人头_2026年11月20日", "高清人头"],
+  ["晏燎_练气期_人脸_2026年10月21日", "高清人头"],
+  ["晏燎_练气期_高清大脸_2026年10月21日", "高清人头"],
   // 表情差分
   ["晏燎_表情差分_v1", "表情差分"],
   ["晏燎_练气期_表情差分_2026年10月24日", "表情差分"],
@@ -97,7 +98,7 @@ const YANLIAO_REALMS = ["练气", "筑基", "金丹", "元婴", "化神", "炼�
 
 /** 实盘镜像 fixture(10-24 实读 MA 库 role/晏燎 行 images[] 全量 32 条逐字同构;
  *  联合收尾复核=sqlite 只读重查同款):三视图/正视图/海报 ×10 境 + 表情差分 1 +
- *  基底 1。库内现值高清人脸 0(盘上 files/role/晏燎/ 亦无该类文件);_基底_ 不在
+ *  基底 1。库内现值高清人头 0(盘上 files/role/晏燎/ 亦无该类文件);_基底_ 不在
  *  PRD A 节逐字命名表内 → 落自由(无映射名落自由=合法终态,10-25 裁定)。 */
 const YANLIAO_DB_32_NAMES: string[] = [
   ...YANLIAO_REALMS.flatMap((realm) => [
@@ -112,22 +113,32 @@ const YANLIAO_DB_32_NAMES: string[] = [
 describe("晏燎实盘镜像 fixture(库内 32 条实测:多视图20[10-25 正视图并入]/海报10[10-25 二令 _海报_ 归位]/美宣0/表情差分1/未分类1/人脸0)", () => {
   it("32 条按型归位:无标记图落自由(10-25 裁定),库内无人脸图", () => {
     expect(YANLIAO_DB_32_NAMES).toHaveLength(32);
-    const counts = { 人物多视图: 0, 人物海报: 0, 美宣: 0, 表情差分: 0, 高清人脸: 0, 自由: 0 };
+    const counts = { 人物多视图: 0, 人物海报: 0, 美宣: 0, 表情差分: 0, 高清人头: 0, 自由: 0 };
     for (const name of YANLIAO_DB_32_NAMES) {
       const kind = classifyAssetImageName(name);
       if (kind in counts) counts[kind as keyof typeof counts] += 1;
     }
     expect(counts).toEqual({
-      人物多视图: 20, 人物海报: 10, 美宣: 0, 表情差分: 1, 高清人脸: 0, 自由: 1,
+      人物多视图: 20, 人物海报: 10, 美宣: 0, 表情差分: 1, 高清人头: 0, 自由: 1,
     });
-    // 完整度条实弹效果如实锁:高清人脸缺失红 chip 属真缺(库内确无),基底沉底未分类节
+    // 完整度条实弹效果如实锁:高清人头缺失红 chip 属真缺(库内确无),基底沉底未分类节
     expect(classifyAssetImageName("晏燎_基底_v1")).toBe("自由");
+  });
+});
+
+describe("1120 型名改名存量归并(高清人脸→高清人头)", () => {
+  it("持久值旧名经别名归并到高清人头(免 DB 迁移;命名标记别名同款)", () => {
+    // 存量旧值已不入 union——as 断言恰是「DB 里躺旧名」的边界语义
+    expect(classifyAssetImage({ name: "随便什么名.png", kind: "高清人脸" } as unknown as Pick<AssetImage, "name" | "kind">)).toBe("高清人头");
+  });
+  it("持久值新名直通", () => {
+    expect(classifyAssetImage({ name: "随便什么名.png", kind: "高清人头" })).toBe("高清人头");
   });
 });
 
 describe("独孤剑尘既有产物族命名归位(真库在档三件套+参考图)", () => {
   it("高清大脸/人物图/多视图按映射归位,参考图落自由(10-25)", () => {
-    expect(classifyAssetImageName("独孤剑尘_高清大脸_2026年10月21日")).toBe("高清人脸");
+    expect(classifyAssetImageName("独孤剑尘_高清大脸_2026年10月21日")).toBe("高清人头");
     expect(classifyAssetImageName("独孤剑尘_人物图_2026年10月21日")).toBe("人物多视图");
     expect(classifyAssetImageName("独孤剑尘_多视图_2026年10月21日")).toBe("人物多视图");
     expect(classifyAssetImageName("独孤剑尘_参考图")).toBe("自由");
@@ -137,7 +148,7 @@ describe("独孤剑尘既有产物族命名归位(真库在档三件套+参考�
 describe("型谱节序与分级常量(grill Round 1 裁定1/2)", () => {
   it("节序=1120 用户令:人脸基准置顶→无衣物定妆次之(与提示词两卡同序),余承裁定2;无未分类节", () => {
     expect(ASSET_IMAGE_KIND_ORDER).toEqual([
-      "人脸基准", "无衣物定妆", "人物海报", "人物多视图", "高清人脸", "表情差分",
+      "人脸基准", "无衣物定妆", "人物海报", "人物多视图", "高清人头", "表情差分",
       "设定卡", "美宣", "自由",
     ]);
   });
@@ -243,7 +254,7 @@ describe("groupAssetImagesByKind · 按型谱节序分组", () => {
 
 describe("单图型集合与替换清扫(10-25 用户令:很多类型最多 1 张,再生成=替换)", () => {
   it("集合=六型(点名三件+同类语义三件);多图型不在集合", () => {
-    for (const kind of ["无衣物定妆", "高清人脸", "表情差分", "人脸基准", "设定卡", "美宣"]) {
+    for (const kind of ["无衣物定妆", "高清人头", "表情差分", "人脸基准", "设定卡", "美宣"]) {
       expect(SINGLE_IMAGE_KINDS.has(kind as AssetImageKind)).toBe(true);
     }
     for (const kind of ["人物海报", "人物多视图", "自由", "场景", "道具"]) {
@@ -254,11 +265,11 @@ describe("单图型集合与替换清扫(10-25 用户令:很多类型最多 1 �
   it("单图型清扫:返回该型全部 filePath(按 classify 三层归型);多图型恒空表", () => {
     const images = [
       { name: "晏燎_高清大脸_v1", filePath: "role/f1.png" },
-      { name: "晏燎_人脸_2026年10月25日", filePath: "role/f2.png", kind: "高清人脸" as const },
+      { name: "晏燎_人脸_2026年10月25日", filePath: "role/f2.png", kind: "高清人头" as const },
       { name: "晏燎_表情差分_v1", filePath: "role/f3.png" },
       { name: "晏燎_金丹期_海报_v1", filePath: "role/p1.png" },
     ];
-    expect(singleKindReplacementFilePaths(images, "高清人脸")).toEqual(["role/f1.png", "role/f2.png"]);
+    expect(singleKindReplacementFilePaths(images, "高清人头")).toEqual(["role/f1.png", "role/f2.png"]);
     expect(singleKindReplacementFilePaths(images, "表情差分")).toEqual(["role/f3.png"]);
     // 多图型(海报分境界族)零干预
     expect(singleKindReplacementFilePaths(images, "人物海报")).toEqual([]);

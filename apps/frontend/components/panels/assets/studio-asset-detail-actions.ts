@@ -81,7 +81,7 @@ export function useStudioAssetDialogActions(ctx: {
   /** 10-19 图生图·画风转换:i2i 相位/文案注入(与一键生成同款状态机拆分)。 */
   setI2iPhase: any;
   setI2iMessage: any;
-  /** 10-21 高清人脸:人脸相位/文案注入(图生图/文生图两路共用一套状态机)。 */
+  /** 10-21 高清人头:人脸相位/文案注入(图生图/文生图两路共用一套状态机)。 */
   facePhase?: string | null;
   setFacePhase: any;
   setFaceMessage: any;
@@ -608,10 +608,10 @@ export function useStudioAssetDialogActions(ctx: {
     }
   };
 
-  /** 10-21 高清人脸(用户令:人物弹窗图生图/文生图两路都要):镜像画风转换尾段
+  /** 10-21 高清人头(用户令:人物弹窗图生图/文生图两路都要):镜像画风转换尾段
    * (写回资产库+asset:updated 广播+get 刷新轮播+完成切新图);相位 3s 自动清。
    * 图生图路=参考图锚身份+固定指令重构头肩特写;文生图路=描述作主体句+
-   * base_type=高清人脸型层(1:1 取景/排布/负面全由型承载)。
+   * base_type=高清人头型层(1:1 取景/排布/负面全由型承载)。
    * 10-24 批3 返值化(true=done/false=守卫拒或失败):供一键补缺队列探成功,
    * 按钮路调用方忽略返回值,对外行为零变。 */
   const runFacePortrait = async (
@@ -657,7 +657,7 @@ export function useStudioAssetDialogActions(ctx: {
         message: "Asset face portrait guard rejected (non-role)",
         context: { assetId: asset.id, assetType: asset.type },
       });
-      toast.error("高清人脸仅角色资产可用");
+      toast.error("高清人头仅角色资产可用");
       return false;
     }
     let referenceImage: string | undefined;
@@ -675,13 +675,13 @@ export function useStudioAssetDialogActions(ctx: {
           message: "Asset face portrait guard rejected (no reference image)",
           context: { assetId: asset.id, displayImageCount: carouselImages.length },
         });
-        toast.error("尚无无衣物定妆图——高清人脸图生图以无衣物定妆为锚，请先「生成无衣物定妆」(文生图)");
+        toast.error("尚无无衣物定妆图——高清人头图生图以无衣物定妆为锚，请先「生成无衣物定妆」(文生图)");
         return false;
       }
     }
-    // Phase C(10-25 追加令):text 路主体句=高清人脸槽覆盖优先,空回退共享链
+    // Phase C(10-25 追加令):text 路主体句=高清人头槽覆盖优先,空回退共享链
     const subjectText = mode === "text"
-      ? (getKindSubjectOverride?.("高清人脸")?.trim() || draftPrompt.trim() || draftDescription.trim() || detail.prompt?.trim() || detail.description?.trim())
+      ? (getKindSubjectOverride?.("高清人头")?.trim() || draftPrompt.trim() || draftDescription.trim() || detail.prompt?.trim() || detail.description?.trim())
       : undefined;
     if (mode === "text" && !subjectText) {
       void logEvent({
@@ -701,7 +701,7 @@ export function useStudioAssetDialogActions(ctx: {
     const dateSuffix = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, "0")}月${String(now.getDate()).padStart(2, "0")}日`;
     const resultImageName = `${inputImageName}_人脸_${dateSuffix}`;
     setFacePhase("generating");
-    setFaceMessage(`正在生成 ${asset.name} 的高清人脸(${modeLabel})...`);
+    setFaceMessage(`正在生成 ${asset.name} 的高清人头(${modeLabel})...`);
     try {
       // R5 生成结果回调计时(全链口径:删旧图/写库/取产物,非纯引擎耗时)
       const startedAt = Date.now();
@@ -713,8 +713,8 @@ export function useStudioAssetDialogActions(ctx: {
           referenceImage,
           subjectText,
           // 追加令:image 路指令覆盖/text 路该型主体句槽(空=既有行为零变)
-          ...(mode === "image" && getInstructionOverride?.("高清人脸")?.trim()
-            ? { instructionOverride: getInstructionOverride?.("高清人脸")?.trim() }
+          ...(mode === "image" && getInstructionOverride?.("高清人头")?.trim()
+            ? { instructionOverride: getInstructionOverride?.("高清人头")?.trim() }
             : {}),
           operationId,
         },
@@ -727,10 +727,10 @@ export function useStudioAssetDialogActions(ctx: {
       );
       if (result.phase === "done") {
         setFacePhase("done");
-        setFaceMessage("高清人脸生成完成！");
+        setFaceMessage("高清人头生成完成！");
         // 10-25 用户令·单图型替换:生成成功先清该型旧图再收编(桥缺席/单条删除失败
         // 不阻断收编——新图照入库,残留旧图下轮再生成时再清)
-        for (const stalePath of singleKindReplacementFilePaths(images, "高清人脸")) {
+        for (const stalePath of singleKindReplacementFilePaths(images, "高清人头")) {
           await getStudioAssetsBridge()?.removeImage?.({ assetId: asset.id, imageFilePath: stalePath });
         }
         const savedToLibrary = await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, resultImageName);
@@ -751,7 +751,7 @@ export function useStudioAssetDialogActions(ctx: {
           } else if (updated) {            const newImgs: AssetImage[] = [];
             if (updated.previewUrl || updated.thumbnailUrl) {
               // 批2(10-24):生成写路落 kind 视图值(名内 _人脸_ 标记为持久兜底)
-              newImgs.push({ name: resultImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl, kind: "高清人脸" });
+              newImgs.push({ name: resultImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl, kind: "高清人头" });
             }
             if (updated.images?.length) {
               newImgs.push(...updated.images);
@@ -775,7 +775,7 @@ export function useStudioAssetDialogActions(ctx: {
         onImageGenerated?.({
           assetId: asset.id,
           assetName: asset.name,
-          kind: "高清人脸",
+          kind: "高清人头",
           stage: undefined,
           subjectText: subjectText ?? null,
           imageName: resultImageName,
@@ -786,15 +786,15 @@ export function useStudioAssetDialogActions(ctx: {
           fromQueue: options?.laneGuard === false,
         });
         if (!savedToLibrary) {
-          toast.warning(`「${asset.name}」高清人脸已生成，但未能写回资产库主图`);
+          toast.warning(`「${asset.name}」高清人头已生成，但未能写回资产库主图`);
         } else {
-          toast.success(`「${asset.name}」高清人脸(${modeLabel})生成完成`);
+          toast.success(`「${asset.name}」高清人头(${modeLabel})生成完成`);
         }
         return true;
       } else {
         setFacePhase("failed");
-        setFaceMessage(`高清人脸生成失败: ${result.error || "未知错误"}`);
-        toast.error(`高清人脸生成失败: ${result.error || "未知错误"}`);
+        setFaceMessage(`高清人头生成失败: ${result.error || "未知错误"}`);
+        toast.error(`高清人头生成失败: ${result.error || "未知错误"}`);
         return false;
       }
     } catch (err: unknown) {
@@ -1393,7 +1393,7 @@ export function useStudioAssetDialogActions(ctx: {
   /** 10-24 批3 一键补缺顺序队列(PRD B 节:聚合相位,逐型完成落图;Round 3 ⑤ 三轨
    * 推广):按本行自有图集+当前资产轨型谱核心计缺失(role 五必备/scene 三核心/tool
    * 道具;planAssetTypeFillMissingQueue;复审 M 修=Q1 不抵扣,展示序族兄弟图不计入),
-   * 逐型派发到各自生成路(高清人脸/表情差分接既有路,余型走 executeTypeShot),任一型
+   * 逐型派发到各自生成路(高清人头/表情差分接既有路,余型走 executeTypeShot),任一型
    * 失败即中止队列(队列失败/取消策略候 Round 3 后续裁定,Phase1 取失败即停);
    * typeShot 相位聚合承载进度文案。 */
   const runFillMissingQueue = async (): Promise<void> => {
@@ -1415,10 +1415,10 @@ export function useStudioAssetDialogActions(ctx: {
       toast.info("核心必备已齐，无需补缺");
       return;
     }
-    // 参考图守卫:队列含 i2i 路型别(高清人脸/表情差分既有路+型档案 i2i 型)且零图才拦
+    // 参考图守卫:队列含 i2i 路型别(高清人头/表情差分既有路+型档案 i2i 型)且零图才拦
     // (Round 3 ⑤:tool 轨核心=道具走 t2i,零图可补;role 轨行为零变化)
     const needsReference = missing.some(
-      (kind) => kind === "高清人脸" || kind === "表情差分" || getAssetTypeShotProfile(kind)?.route === "i2i",
+      (kind) => kind === "高清人头" || kind === "表情差分" || getAssetTypeShotProfile(kind)?.route === "i2i",
     );
     if (needsReference && carouselImages.length === 0) {
       toast.error(`先有${trackNoun}图片才能一键补缺`);
@@ -1428,7 +1428,7 @@ export function useStudioAssetDialogActions(ctx: {
       // 复审 H 修:laneGuard:false——队列入口已持五路守卫+自持聚合相位(typeShotPhase),
       // 底层执行器免统一守卫防逐型派发自拒
       // 10-26 用户令:高清人脸没有文生图,恒走无衣物定妆图生图(缺图内建守卫拦)
-      if (kind === "高清人脸") return runFacePortrait("image", { laneGuard: false });
+      if (kind === "高清人头") return runFacePortrait("image", { laneGuard: false });
       if (kind === "表情差分") return runExpressionSheet({ laneGuard: false });
       return executeTypeShot(kind, { managedLane: false });
     };

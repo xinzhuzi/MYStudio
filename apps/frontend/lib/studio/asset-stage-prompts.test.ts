@@ -228,7 +228,7 @@ describe("clusterAssetStages 显示守卫(distinct 阶段 <2 → 空数组)", ()
 });
 
 describe("buildStageTypeShotImageName 命名器(§3.3:资产名_{阶段}_{型名}_中文日期)", () => {
-  /** 按型出图型档案全型(=ASSET_TYPE_SHOT_PROFILES 11 型;高清人脸/表情差分走既有路不入档案)。 */
+  /** 按型出图型档案全型(=ASSET_TYPE_SHOT_PROFILES 11 型;高清人头/表情差分走既有路不入档案)。 */
   const TYPE_SHOT_KINDS: Array<Exclude<AssetImageKind, "早期未分类">> = [
     "无衣物定妆", "人物海报", "人物多视图", "人脸基准", "自由", "设定卡", "美宣",
     "场景", "概念气氛图", "3D剖面场景图", "道具",

@@ -13,7 +13,9 @@ import type { AssetImage, AssetImageKind, StudioAssetKind } from "@/types/studio
  * apps/build/scripts/campaigns/asset_image_kind_backfill_1024.py 镜像本表,改表两处同步。
  */
 const ASSET_IMAGE_NAME_KIND_TABLE: ReadonlyArray<readonly [AssetImageKind, readonly string[]]> = [
-  ["高清人脸", ["_人脸_", "_高清大脸_"]],
+  // 1120 用户令:「高清人脸」型改名「高清人头」(去肩去衣止颈根)。新标记 _高清人头_
+  // 在前;_人脸_/_高清大脸_ 留作存量名别名归并(10-26 无衣物定妆改名同款先例)。
+  ["高清人头", ["_高清人头_", "_人脸_", "_高清大脸_"]],
   ["表情差分", ["_表情差分_"]],
   // 10-25 用户裁定:正视图/人物图(全身立绘参考图)归人物多视图节,人物海报节只留真海报产物
   // 10-25 用户裁定(二令):海报产物(_海报_ 标记,十境海报战役族)是人物海报,
@@ -43,7 +45,7 @@ export const ASSET_IMAGE_KIND_ORDER: readonly AssetImageKind[] = [
   "无衣物定妆",
   "人物海报",
   "人物多视图",
-  "高清人脸",
+  "高清人头",
   "表情差分",
   "设定卡",
   "美宣",
@@ -55,7 +57,7 @@ export const CORE_ASSET_IMAGE_KINDS: readonly AssetImageKind[] = [
   "无衣物定妆",
   "人物海报",
   "人物多视图",
-  "高清人脸",
+  "高清人头",
   "表情差分",
 ];
 
@@ -75,7 +77,7 @@ export const ASSET_IMAGE_KIND_ASPECTS: Record<Exclude<AssetImageKind, "早期未
   无衣物定妆: "3:4",
   人物海报: "3:4",
   人物多视图: "16:9",
-  高清人脸: "1:1",
+  高清人头: "1:1",
   表情差分: "1:1",
   设定卡: "16:9",
   美宣: "16:9",
@@ -114,7 +116,7 @@ export interface AssetImageKindSpectrum {
 
 /**
  * 三轨型谱表(Round 3 扩展令⑤,归属按十四型真源):
- * - role(不变):核心=无衣物定妆/人物海报/人物多视图/高清人脸/表情差分;扩展=设定卡/美宣/人脸基准/自由;
+ * - role(不变):核心=无衣物定妆/人物海报/人物多视图/高清人头/表情差分;扩展=设定卡/美宣/人脸基准/自由;
  * - scene(新):核心=场景/概念气氛图/3D剖面场景图;扩展=自由;
  * - tool(新):核心=道具(rgba 透明型);扩展=自由。
  */
@@ -145,7 +147,7 @@ export function asAssetImageTrack(type: StudioAssetKind): AssetImageTrack | unde
  */
 export const SINGLE_IMAGE_KINDS: ReadonlySet<AssetImageKind> = new Set([
   "无衣物定妆",
-  "高清人脸",
+  "高清人头",
   "表情差分",
   "人脸基准",
   "设定卡",
@@ -169,7 +171,7 @@ export function singleKindReplacementFilePaths(
 
 /**
  * 型锚图查找(10-25 用户令·派生流水线):返回 images 中该型最新一张(尾部=追加
- * 序最新)的 url/名——高清人脸·图生图与表情差分以无衣物定妆图为锚生图,不再随
+ * 序最新)的 url/名——高清人头·图生图与表情差分以无衣物定妆图为锚生图,不再随
  * 轮播当前图漂。归型走 classifyAssetImage 三层解析;无该型图返回 null。
  */
 export function latestKindImage<T extends Pick<AssetImage, "name" | "kind" | "url">>(
@@ -223,10 +225,17 @@ export function classifyAssetImageName(name: string): AssetImageKind {
   return best ?? "自由";
 }
 
-/** 三层解析单源:持久值(合法且非遗留「早期未分类」)→命名规则→自由。
+/** 存量持久值别名归并(1120 用户令:型名高清人脸→高清人头):改型名后 images[]
+ * 里已持久化的旧 kind 值在此归位,免 DB 迁移(命名标记别名同款思路,10-26 先例)。 */
+const LEGACY_ASSET_IMAGE_KIND_ALIASES: Readonly<Record<string, AssetImageKind>> = {
+  高清人脸: "高清人头",
+};
+
+/** 三层解析单源:持久值(别名归并后合法且非遗留「早期未分类」)→命名规则→自由。
  * 10-25 用户裁定:无类型图落自由;回填脚本持久化的遗留「早期未分类」值在此重解析归自由。 */
 export function classifyAssetImage(entry: Pick<AssetImage, "name" | "kind">): AssetImageKind {
-  if (entry.kind && isAssetImageKind(entry.kind) && entry.kind !== "早期未分类") return entry.kind;
+  const rawKind = entry.kind ? (LEGACY_ASSET_IMAGE_KIND_ALIASES[entry.kind] ?? entry.kind) : entry.kind;
+  if (rawKind && isAssetImageKind(rawKind) && rawKind !== "早期未分类") return rawKind;
   return classifyAssetImageName(entry.name);
 }
 

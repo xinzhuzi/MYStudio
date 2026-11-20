@@ -104,7 +104,7 @@ const ROLE_SECTION_ORDER = [
   "无衣物定妆",
   "人物海报",
   "人物多视图",
-  "高清人脸",
+  "高清人头",
   "表情差分",
   "设定卡",
   "美宣",
@@ -148,7 +148,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区
     expect(within(fullBodySection).getByText("0 张")).toBeTruthy();
     const multiViewSection = screen.getByRole("region", { name: "人物多视图" });
     expect(within(multiViewSection).getByText("16:9")).toBeTruthy();
-    const faceSection = screen.getByRole("region", { name: "高清人脸" });
+    const faceSection = screen.getByRole("region", { name: "高清人头" });
     expect(within(faceSection).getByText("1:1")).toBeTruthy();
     // 10-25 裁定:无标记图落自由节(三层解析兜底)
     const uncategorized = screen.getByRole("region", { name: "自由" });
@@ -251,34 +251,34 @@ describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区
 
 
 
-  // 10-21 高清人脸:两路按钮迁居「高清人脸」节头(守卫/相位文案零变)
-  it("hides the face portrait buttons by default and shows them in the 高清人脸 section header for role assets", () => {
+  // 10-21 高清人头:两路按钮迁居「高清人头」节头(守卫/相位文案零变)
+  it("hides the face portrait buttons by default and shows them in the 高清人头 section header for role assets", () => {
     const hidden = renderPane();
     expect(hidden.queryByRole("button", { name: /人脸·图生图/ })).toBeNull();
     expect(hidden.queryByRole("button", { name: /人脸·文生图/ })).toBeNull();
 
     cleanup();
     const { props } = renderPane({ canFacePortrait: true });
-    const faceSection = screen.getByRole("region", { name: "高清人脸" });
+    const faceSection = screen.getByRole("region", { name: "高清人头" });
     fireEvent.click(within(faceSection).getByRole("button", { name: "人脸·图生图" }));
     expect(props.onFaceFromImage).toHaveBeenCalledTimes(1);
-    // 10-26 用户令:高清人脸没有文生图——文生图钮已删,只剩图生图一路
+    // 10-26 用户令:高清人头没有文生图——文生图钮已删,只剩图生图一路
     expect(within(faceSection).queryByRole("button", { name: "人脸·文生图" })).toBeNull();
   });
 
   it("disables face-from-image without images (text route removed per 10-26 order)", () => {
     renderPane({ canFacePortrait: true, images: [] });
 
-    const faceSection = screen.getByRole("region", { name: "高清人脸" });
+    const faceSection = screen.getByRole("region", { name: "高清人头" });
     const fromImage = within(faceSection).getByRole("button", { name: "人脸·图生图" }) as HTMLButtonElement;
     expect(fromImage.disabled).toBe(true);
     expect(within(faceSection).queryByRole("button", { name: "人脸·文生图" })).toBeNull();
   });
 
   it("shows the spinner and phase text while a face portrait is running", () => {
-    renderPane({ canFacePortrait: true, facePhase: "generating", faceMessage: "正在生成 主角 的高清人脸(图生图)..." });
+    renderPane({ canFacePortrait: true, facePhase: "generating", faceMessage: "正在生成 主角 的高清人头(图生图)..." });
 
-    const faceSection = screen.getByRole("region", { name: "高清人脸" });
+    const faceSection = screen.getByRole("region", { name: "高清人头" });
     const buttons = within(faceSection).getAllByRole("button", { name: /人脸生成中/ });
     expect(buttons).toHaveLength(1);
     for (const button of buttons) {
@@ -291,7 +291,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区
   it("disables both face portrait entries while generation or style transfer is running", () => {
     renderPane({ canFacePortrait: true, generatePhase: "generating" });
 
-    const faceSection = screen.getByRole("region", { name: "高清人脸" });
+    const faceSection = screen.getByRole("region", { name: "高清人头" });
     for (const label of ["人脸·图生图"]) {
       const button = within(faceSection).getByRole("button", { name: label }) as HTMLButtonElement;
       expect(button.disabled).toBe(true);
@@ -386,7 +386,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批2(分类归节+完整度总�
     // 10-25 二令:_海报_ 海报产物归人物海报(美宣节只收 _美宣_ 命名)
     expect(within(poster).getByRole("img", { name: "晏燎_练气期_海报_v1" })).toBeTruthy();
     expect(within(poster).getByText("2 张")).toBeTruthy();
-    const face = screen.getByRole("region", { name: "高清人脸" });
+    const face = screen.getByRole("region", { name: "高清人头" });
     expect(within(face).getByText("1 张")).toBeTruthy();
     const uncategorized = screen.getByRole("region", { name: "自由" });
     expect(within(uncategorized).getByText("1 张")).toBeTruthy();
@@ -433,9 +433,9 @@ describe("StudioAssetDetailPreviewPane · 10-24 批2(分类归节+完整度总�
     fireEvent.click(within(settingCard).getByRole("button", { name: "点击生成" }));
     expect(props.onGenerateByKind).toHaveBeenCalledWith("设定卡");
 
-    // 高清人脸(核心)有图:无红点
-    const face = screen.getByRole("region", { name: "高清人脸" });
-    expect(within(face).queryByLabelText("高清人脸缺失")).toBeNull();
+    // 高清人头(核心)有图:无红点
+    const face = screen.getByRole("region", { name: "高清人头" });
+    expect(within(face).queryByLabelText("高清人头缺失")).toBeNull();
   });
 
   it("完整度条=单「一键生图」按钮(10-26 令:chips/标题全删;缺图才可点,点击派发补缺)", () => {
@@ -478,8 +478,8 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
       fireEvent.click(screen.getByRole("button", { name: `生成${kind}` }));
     }
     expect(onTypeShot.mock.calls.map(([kind]) => kind)).toEqual([...SHOT_KINDS]);
-    // 既有路节(高清人脸/表情差分)恒无型驱动钮(候 Phase 2 收编)
-    expect(screen.queryByRole("button", { name: "生成高清人脸" })).toBeNull();
+    // 既有路节(高清人头/表情差分)恒无型驱动钮(候 Phase 2 收编)
+    expect(screen.queryByRole("button", { name: "生成高清人头" })).toBeNull();
     expect(screen.queryByRole("button", { name: "生成表情差分" })).toBeNull();
   });
 
@@ -518,7 +518,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
       expect(button.getAttribute("title")).toContain("无衣物定妆");
     }
     // 互斥家族随动:人脸双钮/表情差分/一键补缺全禁(10-25 工具行移除,图生图钮退役)
-    const faceSection = screen.getByRole("region", { name: "高清人脸" });
+    const faceSection = screen.getByRole("region", { name: "高清人头" });
     expect((within(faceSection).getByRole("button", { name: "人脸·图生图" }) as HTMLButtonElement).disabled).toBe(true);
     const expressionSection = screen.getByRole("region", { name: "表情差分" });
     expect((within(expressionSection).getByRole("button", { name: "表情差分" }) as HTMLButtonElement).disabled).toBe(true);
@@ -642,7 +642,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     expect(screen.getByText("正在补缺 1/2:无衣物定妆...")).toBeTruthy();
   });
 
-  it("节头型档案徽标:七型节带透明/route 徽标,既有路节(高清人脸/表情差分)恒无", () => {
+  it("节头型档案徽标:七型节带透明/route 徽标,既有路节(高清人头/表情差分)恒无", () => {
     renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn(),
       onFillMissing: vi.fn() });
 
@@ -653,7 +653,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     const sheet = screen.getByRole("region", { name: "设定卡" });
     expect(within(sheet).getByText("t2i")).toBeTruthy();
     expect(within(sheet).queryByText("透明")).toBeNull();
-    const face = screen.getByRole("region", { name: "高清人脸" });
+    const face = screen.getByRole("region", { name: "高清人头" });
     expect(within(face).queryByText("i2i")).toBeNull();
     expect(within(face).queryByText("t2i")).toBeNull();
   });

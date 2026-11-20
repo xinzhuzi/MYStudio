@@ -549,7 +549,7 @@ export function StudioAssetDetailPreviewPane({
             const group = kindGroups.get(kind) ?? [];
             const widthClass = sectionCardWidthClass(aspect);
             const typeShotProfile = typeShotProfileByKind.get(kind);
-            const baseSectionButtons = kind === "高清人脸" && canFacePortrait
+            const baseSectionButtons = kind === "高清人头" && canFacePortrait
               ? renderFaceSectionButtons()
               : kind === "表情差分" && canFacePortrait
                 ? renderExpressionSectionButton()

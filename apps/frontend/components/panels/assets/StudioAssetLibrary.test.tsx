@@ -128,13 +128,13 @@ describe("R4 扩面:卡片详情族聚显(资产库面板)", () => {
  });
 });
 
-describe("10-26 角色卡封面择优(有高清人脸用高清人脸)", () => {
-  it("role 带高清人脸图→卡封面覆写为该图;无→原样", async () => {
+describe("10-26 角色卡封面择优(有高清人头用高清人头)", () => {
+  it("role 带高清人头图→卡封面覆写为该图;无→原样", async () => {
     const withFace: StudioAssetSummary = {
       ...row("晏燎"), thumbnailUrl: "asset-file://role/全身.png",
       images: [
         { name: "晏燎_无衣物定妆_v1", filePath: "role/晏燎/晏燎_无衣物定妆_v1.png", url: "asset-file://role/全身.png", kind: "无衣物定妆" },
-        { name: "晏燎_高清人脸_v1", filePath: "role/晏燎/晏燎_高清人脸_v1.png", url: "asset-file://role/人脸.png", kind: "高清人脸" },
+        { name: "晏燎_高清人头_v1", filePath: "role/晏燎/晏燎_高清人头_v1.png", url: "asset-file://role/人脸.png", kind: "高清人头" },
       ],
     };
     const noFace: StudioAssetSummary = { ...row("小杂役"), thumbnailUrl: "asset-file://role/杂役.png" };

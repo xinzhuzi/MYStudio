@@ -4,7 +4,7 @@
 """漫影 qi21 RGBA 透明开关(MyQi21RgbaSelect,0929 画布治理批 D6 造件)。
 
 D6(任务 09-29-qi21-canvas-batch design §D6)型联动 RGBA 的三态选择件:
-道具/多视图/高清人脸/表情差分四型默认开透明、其余五型默认关(prd 问题⑤
+道具/多视图/高清人头/表情差分四型默认开透明、其余五型默认关(prd 问题⑤
 0929 用户拍板),同时保留用户随时手动开/关的操控权——纯 BOOLEAN 开关表达
 不了「型默认+用户覆盖」双重要求,故退役旧「RGBA透明开关」布尔控件,由本
 三态 combo 取代(宿主面板外露,subgraph-widget-promotion.md 已证 COMBO

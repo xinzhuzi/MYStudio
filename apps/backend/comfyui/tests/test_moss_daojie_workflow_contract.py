@@ -46,7 +46,7 @@ class TestMossBases:
     def test_six_transparent_types_carry_white_bg(self):
         ts = _load(DATA / "moss_bases.json")["types"]
         got = [t["zh"] for t in ts if WHITE in t.get("positive_text", "")]
-        assert got == ["道具", "人物多视图", "高清人脸", "表情差分", "人脸基准", "无衣物定妆"]
+        assert got == ["道具", "人物多视图", "高清人头", "表情差分", "人脸基准", "无衣物定妆"]
         for t in ts:
             if t.get("rgba_default"):
                 assert WHITE in t["positive_text"]

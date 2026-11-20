@@ -37,7 +37,7 @@ def test_assembly_accepts_old_protocol_but_only_appends_style():
         assert old not in pos
 
 
-@pytest.mark.parametrize('zh', ['人物多视图', '高清人脸', '表情差分', '道具', '设定卡'])
+@pytest.mark.parametrize('zh', ['人物多视图', '高清人头', '表情差分', '道具', '设定卡'])
 def test_transparent_fallback_preserves_type_light_and_source_state(zh):
     t = next(t for t in json.loads(SOURCE.read_text())['types'] if t['zh'] == zh)
     text = pe._rgba_lean_pos('按来源绘制主体。', t['positive_text'])

@@ -19,7 +19,7 @@ def test_gui_expands_to_the_same_execution_graph_as_the_recorded_case(monkeypatc
     # 演进后的当前 canon(bases comp f32a4517 / subject comp 2748852e),回执/台账/路径键同笔重钉。
     case=json.loads((w.TASK/'artifacts/cases.json').read_text())[0]
     receipt_bytes=(w.TASK/'reports/approved-live-subject-revision-1021-3dcutaway.json').read_bytes()
-    assert hashlib.sha256(receipt_bytes).hexdigest()=='a293ae5fac9f8ecb582c95d32e2d32f968b2e28855127a55811bd90a63ded0cb'
+    assert hashlib.sha256(receipt_bytes).hexdigest()=='6fd4f48ca48a21dac3b4624108a4b054fc3e5860a4d55a74b8c9c78ce5288656'  # 1120 随迁重钉
     receipt=json.loads(receipt_bytes)
     for evidence in receipt['evidence']+receipt['frozen']:
         assert hashlib.sha256(w.resolve(ROOT, evidence['path']).read_bytes()).hexdigest()==evidence['sha256'],evidence['path']
@@ -34,7 +34,7 @@ def test_gui_expands_to_the_same_execution_graph_as_the_recorded_case(monkeypatc
     assert historical==w.api_graph(case)
     source=w.resolve(ROOT, receipt['source']['path']).read_bytes()
     # Historical receipt predates the label rename; compare its unchanged payload.
-    assert hashlib.sha256(source.replace('人物海报'.encode(), '人物'.encode())).hexdigest()==receipt['source']['observed_sha256']
+    assert hashlib.sha256(source.replace('人物海报'.encode(), '人物'.encode()).replace('高清人头'.encode(), '高清人脸'.encode())).hexdigest()==receipt['source']['observed_sha256']
     blocks=re.findall(r'^## (\d+)\.[^\n]*\n.*?^```[^\n]*\n(.*?)^```',source.decode('utf-8'),re.MULTILINE|re.DOTALL)
     assert len(blocks)==14 and blocks[0][0]=='1'  # 1021 §11 3D剖面入列(十→十一型);1102 §12-§14 三型入列(十一→十四型)
     subject=blocks[0][1].strip()
@@ -100,11 +100,11 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     assert set(revisions)=={base,subject}
     assert revisions[subject]=={
         'original_sha256':'40ecae03da80454b5dbec330c0bf17d2eedf6725993864e329f3b040a1ef99ea',
-        'approved_sha256':'2748852eea27b650267c360ab3d4c83efb53e25b65c28ce26ca63ea378c9dcff',
+        'approved_sha256':'94a743f34cefd1975ef5cb403275ad1f18d2c74bf31fb4f49db1afa8a05e1da8',
         'role':'runtime_execution_input_updated_after_snapshot',
         'historical_backup':'.trellis/tasks/archive/2026-10/10-18-daojie-conflict-p3-subject-docs/backups/道劫_类型主体句示例.md.bak-1019-p3',
         'leaf_receipt':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/approved-live-subject-revision-1021-3dcutaway.json',
-        'leaf_receipt_sha256':'a293ae5fac9f8ecb582c95d32e2d32f968b2e28855127a55811bd90a63ded0cb',
+        'leaf_receipt_sha256':'6fd4f48ca48a21dac3b4624108a4b054fc3e5860a4d55a74b8c9c78ce5288656',
     }
     subject_revision=revisions[subject]
     assert hashlib.sha256(w.resolve(ROOT, subject_revision['historical_backup']).read_bytes()).hexdigest()==subject_revision['original_sha256']
@@ -124,18 +124,18 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     assert gender[2]['parts'][0]['text']=='按照你的建议去做'
     assert revisions[base]=={
         'original_sha256':'a2df104bf740670cbea1fbe9b06ba43c7695b7d2be26d0a6cfc621e422967bff',
-        'approved_sha256':'f32a45178dbac5927159c9dd61865ee0890d9afcced7260b3b353c9f14d429ac',  # 1114 canon 随迁(设定卡 v4 + daoyan 演进,显示名归一化口径)
+        'approved_sha256':'c73edbe3b1530dd16c2830946fc6ee7db681492192e40bdb170fc6b8ace18d34',  # 1120 高清人头改名随迁(1114 canon 基础上)
         'role':'runtime_execution_input_updated_after_snapshot',
         'historical_backup':'.trellis/tasks/archive/2026-10/10-18-daojie-conflict-p1-canon/backups/qi21_bases.json',
         'approval':{
-            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-reapproval-1114-canon.md',
-            'anchor':'## Decisions(1114 用户令「现在批准当前 canon 即重钉」)',
-            'sha256':'e565a9351c4046e522216247fc75bb3286aad494b8e7f52cb2941502a739f1ce',
+            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-reapproval-1120-hdhead-rename.md',
+            'anchor':'## Decisions(1120 用户令「改名高清人头+改型文;通用型全域都要改」)',
+            'sha256':'1b6e651ed02ea10761ec7f298657d09ac6ecdde2741dc5c78c435e0bfa1700ac',
         },
         'change_ledger':{
-            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-change-ledger-1114-canon.md',
-            'anchor':'## 字段级变更(1114 canon 随迁:11→14 型 + sheet_card 双注册表 + resolution_override)',
-            'sha256':'ce7223998e0ba1126d09c343026b377f65f444a1fd93dad697dcdf2a7b3c3cf9',
+            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-change-ledger-1120-hdhead-rename.md',
+            'anchor':'## 字段级变更(1120 用户令「高清人脸→高清人头,去肩去衣止颈根;通用型全域都要改」)',
+            'sha256':'b89806e1120399863452b54f67d8057119122e6ceb9469ccc91e787e0b8c4f11',
         },
     }
     revision=revisions[base]
@@ -150,6 +150,8 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
         content=(ROOT/name).read_bytes()
         if name in (base,subject):
             content=content.replace('人物海报'.encode(), '人物'.encode())
+            # 1120 改名随迁:高清人脸→高清人头(现文还原为冻结时旧名比对)
+            content=content.replace('高清人头'.encode(), '高清人脸'.encode())
         if name==base:
             # Frozen receipts predate the body type's display-label rename too.
             content=content.replace('无衣物定妆'.encode(), '全身定妆'.encode())

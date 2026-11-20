@@ -118,24 +118,24 @@ const TYPE_LABEL = {
 
 /**
  * focusKind 是否属 i2i 族(§4.0 参与矩阵):按型出图 i2i 型(型档案 route=i2i)+
- * 高清人脸/表情差分两专属 handler 型(虽 i2i 但带型层,与按型 i2i 同族)。
+ * 高清人头/表情差分两专属 handler 型(虽 i2i 但带型层,与按型 i2i 同族)。
  * i2i 族聚焦时主体句降灰降权折叠、指令卡显型;t2i 族聚焦时指令卡位换「主体句参与」。
  */
 function isI2iFocusKind(kind: AssetImageKind): boolean {
-  if (kind === "高清人脸" || kind === "表情差分") return true;
+  if (kind === "高清人头" || kind === "表情差分") return true;
   return getAssetTypeShotProfile(kind)?.route === "i2i";
 }
 
 /**
  * 主体句降态行文案(i2i 族聚焦时的折叠钮/收起头一行)。通用=单边「走图生图…
- * 主体句不参与」;高清人脸例外双路并注(§4.0 矩阵行4:文生图路主体句 ✅ 参与,
+ * 主体句不参与」;高清人头例外双路并注(§4.0 矩阵行4:文生图路主体句 ✅ 参与,
  * 图生图路指令即终稿)——文生图入口(onFaceFromText)与零图占位卡分支同样聚焦
  * 本型,单 focusKind 分不出实际走哪路,恒降态单边文案会让文生图路失真
  * (复审修:与型层卡头「仅文生图路注入;图生图路指令即终稿不注型」同款双路口径)。
  */
 function subjectDowngradeNote(kind: AssetImageKind): string {
-  if (kind === "高清人脸") {
-    return "高清人脸双路:文生图路主体句参与;图生图路固定指令即终稿";
+  if (kind === "高清人头") {
+    return "高清人头双路:文生图路主体句参与;图生图路固定指令即终稿";
   }
   return `${kind}走图生图:固定指令锚画面,主体句不参与`;
 }
@@ -600,7 +600,7 @@ export function StudioAssetDetailDialog({
   }, [asset?.id]);
 
   // 10-25 分层面板役 A-1 联动装配方:点击生成入口即聚焦目标型(主体句随 i2i 族
-  // 收拢为降态行,高清人脸双路并注),一键生成/画风转换清空回通用态;生成派发
+  // 收拢为降态行,高清人头双路并注),一键生成/画风转换清空回通用态;生成派发
   // 本身零变。定义在 actions 装配之前:一键补缺队列经 onFillMissingKindFocus
   // 钩子逐型复用(队列直调底层执行器,复审修 A-1 写入点第4项)。
   const focusOnKind = (kind: AssetImageKind) => {
@@ -793,7 +793,7 @@ export function StudioAssetDetailDialog({
   // 10-26 用户令:型层分层/指令卡取源/构成摘要随旧构成区砍除退役)
   const focusIsI2iFamily = focusKind ? isI2iFocusKind(focusKind) : false;
   // Phase C(10-25 追加令):主体句槽派生——槽在场=框绑槽值;eligible=t2i 族或
-  // 高清人脸(其文生图路主体句参与;i2i 族主体句不参与,槽无意义不展示)
+  // 高清人头(其文生图路主体句参与;i2i 族主体句不参与,槽无意义不展示)
   const kindSlotActive = !!focusKind && promptOverridesDraft[focusKind] !== undefined;
   const subjectValue = kindSlotActive && focusKind
     ? (promptOverridesDraft[focusKind] ?? "")
@@ -1185,8 +1185,8 @@ export function StudioAssetDetailDialog({
                 i2iMessage={i2iMessage}
                 generatePhase={generatePhase}
                 onFaceFromImage={() => {
-                  // A-1 写入点:高清人脸双钮→高清人脸
-                  focusOnKind("高清人脸");
+                  // A-1 写入点:高清人头双钮→高清人头
+                  focusOnKind("高清人头");
                   handleFacePortraitFromImage();
                 }}
                 onExpression={() => {
@@ -1206,13 +1206,13 @@ export function StudioAssetDetailDialog({
                 onFillMissing={handleFillMissingQueue}
                 onInspectPrompt={handleInspectPrompt}
                 /* 批3(10-24)+Round 3 ⑤/⑥:占位卡 CTA/完整度缺失 chip 直达生成全型路由
-                 * ——高清人脸按有图择图生图/文生图路,表情差分接既有路,余型走
+                 * ——高清人头按有图择图生图/文生图路,表情差分接既有路,余型走
                  * handleTypeShot 型驱动件(route 分流:设定卡/美宣/道具=t2i+base_type,
                  * 余=i2i+base_type 型层注入,Phase 2 已切)。
                  * 10-25 分层面板 A-1:入口点击即聚焦目标型(focusOnKind 同帧写入) */
                 onGenerateByKind={(kind) => {
                   focusOnKind(kind);
-                  if (kind === "高清人脸") {
+                  if (kind === "高清人头") {
                     // 10-26 用户令:高清人脸没有文生图——恒走无衣物定妆图生图;
                     // 缺定妆图=runFacePortrait 内建守卫拦截并引导先生成定妆
                     handleFacePortraitFromImage();

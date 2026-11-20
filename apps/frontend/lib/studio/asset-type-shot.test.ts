@@ -195,8 +195,8 @@ describe("型档案表(批3 逐型档案+Round 3 ⑤ 三轨 track 归属)", () =
     expect(getAssetTypeShotProfile("3D剖面场景图")?.i2iInstruction).toContain("剖开");
   });
 
-  it("getAssetTypeShotProfile:未入族型名(高清人脸/表情差分/早期未分类)返回 undefined", () => {
-    expect(getAssetTypeShotProfile("高清人脸")).toBeUndefined();
+  it("getAssetTypeShotProfile:未入族型名(高清人头/表情差分/早期未分类)返回 undefined", () => {
+    expect(getAssetTypeShotProfile("高清人头")).toBeUndefined();
     expect(getAssetTypeShotProfile("表情差分")).toBeUndefined();
     expect(getAssetTypeShotProfile("早期未分类")).toBeUndefined();
   });
@@ -346,11 +346,11 @@ describe("generateAssetTypeShot(route 分流实装+Phase 2 型层注入+三轨�
     expect(generateImage).not.toHaveBeenCalled();
   });
 
-  it("守卫:未入族型名 failed 收口(高清人脸/表情差分既有路不收编,候后续役)", async () => {
+  it("守卫:未入族型名 failed 收口(高清人头/表情差分既有路不收编,候后续役)", async () => {
     const result = await generateAssetTypeShot({
       assetId: "a",
       assetName: "x",
-      kind: "高清人脸",
+      kind: "高清人头",
       referenceImage: "asset-file://role/main.png",
     });
     expect(result.phase).toBe("failed");
@@ -430,7 +430,7 @@ describe("planAssetTypeFillMissingQueue(一键补缺顺序队列计划;⑤ 三�
       "无衣物定妆",
       "人物海报",
       "人物多视图",
-      "高清人脸",
+      "高清人头",
       "表情差分",
     ]);
     const onlyExtended = [named("x_设定卡_1"), named("y_人脸基准_1"), named("z_自由_1")];
@@ -438,7 +438,7 @@ describe("planAssetTypeFillMissingQueue(一键补缺顺序队列计划;⑤ 三�
       "无衣物定妆",
       "人物海报",
       "人物多视图",
-      "高清人脸",
+      "高清人头",
       "表情差分",
     ]);
   });

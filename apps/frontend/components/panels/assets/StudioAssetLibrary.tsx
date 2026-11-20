@@ -179,9 +179,9 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
       })
       .map((item) => {
         // 10-26 用户令「角色库外部有高清人脸就用高清人脸表达」:角色卡封面优先
-        // 最新「高清人脸」图(纯展示层覆写,不动 DB 主图);无则原封面不变
+        // 最新「高清人头」图(纯展示层覆写,不动 DB 主图;旧名高清人脸 1120 改名);无则原封面不变
         if (item.type !== "role" || !item.images?.length) return item;
-        const face = latestKindImage(item.images, "高清人脸");
+        const face = latestKindImage(item.images, "高清人头");
         if (!face?.url || item.thumbnailUrl === face.url) return item;
         return { ...item, thumbnailUrl: face.url, previewUrl: face.url };
       });

@@ -89,8 +89,8 @@ describe("rerollAssetImageFromPromptText · B-4 用此词重掷(10-25 追加令)
     expect(r.phase).toBe("done");
     const call = generateImage.mock.calls[0]![0] as unknown as Record<string, unknown>;
     expect(call.referenceImages).toBeUndefined();
-    expect(call.extraParams).toEqual({ base_type: "高清人脸" });
-    expect(r.resultKind).toBe("高清人脸");
+    expect(call.extraParams).toEqual({ base_type: "高清人头" });
+    expect(r.resultKind).toBe("高清人头");
   });
 
   it("守卫:空终稿/三轨外资产/i2i 缺参考图各自拒收(禁静默)", async () => {

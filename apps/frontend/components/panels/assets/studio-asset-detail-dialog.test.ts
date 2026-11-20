@@ -466,7 +466,7 @@ describe("10-24 布局重造批1(竖滑单列+元信息置顶+轮播拆除)", ()
   it("批2 分类归节装配方+批3 全型路由:onGenerateByKind(人脸双择路/表情差分既有路/余型走 handleTypeShot)", () => {
     const dialogSource = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
     expect(dialogSource).toContain("onGenerateByKind=");
-    expect(dialogSource).toContain('kind === "高清人脸"');
+    expect(dialogSource).toContain('kind === "高清人头"');
     expect(dialogSource).toContain("handleFacePortraitFromImage");
     // 10-26 用户令:高清人脸没有文生图——FromText 路整体拔除
     expect(dialogSource).not.toContain("handleFacePortraitFromText");
@@ -476,7 +476,7 @@ describe("10-24 布局重造批1(竖滑单列+元信息置顶+轮播拆除)", ()
     expect(dialogSource).toContain("handleTypeShot(kind)");
     // 生成写路 kind 落值(视图模型层;行级主图持久化候 Round 3 Q2;批3 型驱动件按型名落值)
     const actionsSource = readFileSync(new URL("./studio-asset-detail-actions.ts", import.meta.url), "utf8");
-    expect(actionsSource).toContain('kind: "高清人脸"');
+    expect(actionsSource).toContain('kind: "高清人头"');
     expect(actionsSource).toContain('kind: "表情差分"');
     expect(actionsSource).toContain("url: updated.previewUrl || updated.thumbnailUrl, kind }");
     expect(actionsSource).toContain("classifyAssetImage");
@@ -541,7 +541,7 @@ describe("10-24 批3(按型出图按钮族:typeShot 第五路+全型路由+一�
     expect(source).toContain("planAssetTypeFillMissingQueue");
     expect(source).toContain("runFillMissingQueue");
     // 复审H修:队列派发带 laneGuard:false(队列入口自持五路守卫,底层免闸防自拒)
-    expect(source).toContain('if (kind === "高清人脸") return runFacePortrait(');
+    expect(source).toContain('if (kind === "高清人头") return runFacePortrait(');
     expect(source).toContain('if (kind === "表情差分") return runExpressionSheet({ laneGuard: false })');
     expect(source).toContain("executeTypeShot(kind, { managedLane: false })");
     // 队列复用 typeShot 聚合相位(进度文案逐型推进);失败中止文案在场
@@ -570,7 +570,7 @@ describe("10-24 批3(按型出图按钮族:typeShot 第五路+全型路由+一�
     expect(source).toContain("if (isAnyGenerationLaneBusy()) return false;");
     // 人脸/表情差分带 laneGuard 闸(缺省全相位,队列免闸防逐型派发自拒)
     expect(source).toContain("options?: { laneGuard?: boolean }");
-    expect(source).toContain('if (kind === "高清人脸") return runFacePortrait("image", { laneGuard: false })');
+    expect(source).toContain('if (kind === "高清人头") return runFacePortrait("image", { laneGuard: false })');
     expect(source).toContain("runExpressionSheet({ laneGuard: false })");
     // 直达入口的守卫留痕(与既有 busy 守卫同款日志链)
     expect(source).toContain("Asset face portrait guard rejected (busy-lane)");

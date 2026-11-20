@@ -127,7 +127,7 @@ class TestDaojieBasesSources:
     def test_options_are_nine_in_design_order(self):
         assert OPTIONS_ORDER == [
             "人物海报", "场景", "道具", "美宣", "人物多视图",
-            "高清人脸", "分镜剧情图", "表情差分", "概念气氛图", "设定卡"], \
+            "高清人头", "分镜剧情图", "表情差分", "概念气氛图", "设定卡"], \
             "十型顺序=设计定序(json 条目序;前九型不得重排,1015 设定卡=canon 末位新丁)"
 
     def test_json_positive_matches_0918_fences(self):
@@ -139,11 +139,11 @@ class TestDaojieBasesSources:
         分镜剧情图退出统一立绘锁(4fa15e9 素材+㉗ 重写=单格叙事帧开头,叙事
         画面取景自由、可多人;断言分层职责,不冻结 1004 压平旧文案——与
         test_qwen21_workflow_contract.py:3143 同口径)。"""
-        renwu_xi = {"人物海报", "美宣", "人物多视图", "高清人脸", "表情差分"}
+        renwu_xi = {"人物海报", "美宣", "人物多视图", "高清人头", "表情差分"}
         for name, entry in BASES_BY_NAME.items():
             pt = entry["positive_text"]
             # 1008 用户令:三透明型改各设定图开头(单人立绘=多视图自相矛盾,硬伤清退)
-            _OPEN = {"人物多视图": "同一角色的多视图设定参考图", "高清人脸": "单一角色的正面头肩特写素材",
+            _OPEN = {"人物多视图": "同一角色的多视图设定参考图", "高清人头": "单一角色的正面头颈特写素材",
                      "表情差分": "同一角色的九宫格脸部表情差分表", "美宣": "主体的叙事美宣画面",
                      "设定卡": "同一角色的完整横向角色设定板"}  # 1015 十型新丁:多区档案设定卡开头锁
             if name in _OPEN:

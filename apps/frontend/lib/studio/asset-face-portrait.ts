@@ -3,14 +3,15 @@ import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import { saveGeneratedAssetImage, updateStoreWithResult } from "./asset-generation-store-writers";
 
 /**
- * 角色资产高清人脸 service(10-21 用户令:人物弹窗要生成高清人脸,图生图+文生图都要)。
+ * 角色资产高清人头 service(10-21 用户令:人物弹窗要生成高清人脸,图生图+文生图都要;
+ * 1120 用户令:型名高清人脸→高清人头,去肩去衣止颈根)。
  *
  * 两路接线(零引擎/零工作流改动,全走 qwen-image-2-1 本地渠道既有装配):
  * - 图生图路(mode="image"):轮播当前图作唯一参考,引擎自动路由 i2i 模板
  *   (组装用途=道劫美术风格转换,装配产物=指令+美术风格底座);身份锚在图,指令负责
- *   重构成头肩特写——与「自由出图改上衣」同款重构机理,底座保证画风不跑。
- * - 文生图路(mode="text"):无参考走 t2i 模板,extraParams.base_type=高清人脸
- *   (十型真源 qi21_bases.json 既有型:1:1 正面头肩特写素材,排布语言/负面/
+ *   重构成头颈特写——与「自由出图改上衣」同款重构机理,底座保证画风不跑。
+ * - 文生图路(mode="text"):无参考走 t2i 模板,extraParams.base_type=高清人头
+ *   (十型真源 qi21_bases.json 既有型:1:1 正面头颈特写素材,排布语言/负面/
  *   画幅 WhSuggest 全由型层承载);主体句=角色描述,PE 链自动拼美术风格底座。
  *
  * 纪律与 asset-style-transfer 同源:指令即终稿(promptPolicy=raw,禁传输层
@@ -21,16 +22,16 @@ import { saveGeneratedAssetImage, updateStoreWithResult } from "./asset-generati
 /** 本地直通渠道模型名(与画风转换同渠道,1010「只留 qwen-image-2-1」裁定)。 */
 export const FACE_PORTRAIT_MODEL = "qwen-image-2-1";
 
-/** 文生图路注入的道劫型(十型真源既有「高清人脸」型,1:1 正面头肩特写素材)。 */
-export const FACE_PORTRAIT_BASE_TYPE = "高清人脸";
+/** 文生图路注入的道劫型(十型真源既有型,1120 改名「高清人头」:1:1 正面头颈特写素材)。 */
+export const FACE_PORTRAIT_BASE_TYPE = "高清人头";
 
 /**
- * 图生图路固定指令(取景语言借自「高清人脸」型文:正面平视/直视镜头/
- * 头肩上缘/轮廓完整)。保真段先行+重构段收束;i2i 否定式门只查中文,
+ * 图生图路固定指令(取景语言借自「高清人头」型文:正面平视/直视镜头/
+ * 颈根止取景/轮廓完整,1120 去肩去衣同刀)。保真段先行+重构段收束;i2i 否定式门只查中文,
  * 「不变」为标准保真措辞与画风转换指令同款,过门无虞。
  */
 export const FACE_I2I_INSTRUCTION =
-  "保持画中人物的面部身份、五官特征、发型与气质不变；以正面平视机位生成该角色的高清人脸特写，视线直视镜头，取景为头部与肩部上缘，头顶、发型外轮廓与下颌完整，面部是画面焦点，五官与眉眼轮廓清晰锐利，面部细节密度最高，头发概括为清晰成组的发束。";
+  "保持画中人物的面部身份、五官特征、发型与气质不变；以正面平视机位生成该角色的高清人头特写，视线直视镜头，取景为头部与颈根，头顶、发型外轮廓与下颌完整，下缘止于颈根，面部是画面焦点，五官与眉眼轮廓清晰锐利，面部细节密度最高，头发概括为清晰成组的发束。";
 
 export type AssetFacePortraitMode = "image" | "text";
 
@@ -61,7 +62,7 @@ export interface AssetFacePortraitProgress {
 }
 
 /**
- * 高清人脸生成(角色轨专用):固定式两路 → qwen-image-2-1 本地渠道直通
+ * 高清人头生成(角色轨专用):固定式两路 → qwen-image-2-1 本地渠道直通
  * → 复用 saveGeneratedAssetImage 落盘 + updateStoreWithResult(character 轨)写回。
  * 异常透传为 {phase:"failed", error}(禁静默);成功返回落盘本地路径。
  */
@@ -93,7 +94,7 @@ export async function generateAssetFacePortrait(
   let stage: "generating" | "saving" = "generating";
   const actionLabel = isImageMode ? "图生图" : "文生图";
   try {
-    onProgress?.({ phase: "generating", message: `正在生成 ${task.assetName} 的高清人脸(${actionLabel})...` });
+    onProgress?.({ phase: "generating", message: `正在生成 ${task.assetName} 的高清人头(${actionLabel})...` });
     void logEvent({
       level: "info",
       category: "ai",
@@ -122,7 +123,7 @@ export async function generateAssetFacePortrait(
             model: FACE_PORTRAIT_MODEL,
             prompt,
             promptPolicy: "raw",
-            // 文生图路:型层走 base_type 注入(节点级优先于全局设置),高清人脸型
+            // 文生图路:型层走 base_type 注入(节点级优先于全局设置),高清人头型
             // 承载 1:1 取景/排布语言/型负面,画幅由型层 WhSuggest 建议值决定
             extraParams: { base_type: FACE_PORTRAIT_BASE_TYPE },
           },
@@ -138,7 +139,7 @@ export async function generateAssetFacePortrait(
       return { phase: "failed", error: "图片生成未返回 URL" };
     }
     stage = "saving";
-    onProgress?.({ phase: "saving", message: `正在保存 ${task.assetName} 的高清人脸...` });
+    onProgress?.({ phase: "saving", message: `正在保存 ${task.assetName} 的高清人头...` });
     const localPath = await saveGeneratedAssetImage({
       source: imageResult.url,
       assetType: "character",

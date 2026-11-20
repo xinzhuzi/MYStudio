@@ -99,7 +99,7 @@ def test_r4_color_recipe_base_by_group():
     for zh in ("场景", "分镜剧情图", "概念气氛图"):
         assert _type(b, zh)["color_recipe"]["base"] == "随场景时段", \
             f"铺满型「{zh}」color_recipe.base 应=随场景时段(D6)"
-    for zh in ("道具", "人物多视图", "高清人脸", "表情差分"):
+    for zh in ("道具", "人物多视图", "高清人头", "表情差分"):
         assert _type(b, zh)["color_recipe"]["base"] == "透明", \
             f"RGBA 型「{zh}」color_recipe.base 应=透明(D6;关闭透明时由主体句给简洁底色)"
     for zh in ("人物海报", "美宣"):
@@ -158,5 +158,5 @@ def test_invariants_untouched_by_p1():
     assert b["art_style_base"]["positive_text"].startswith("美术风格底座：国风二维动漫手绘插画。")
     assert b["color_lexicon"]["entries"]["宣纸白"]["ma_id"] == "paper.01"
     assert {e["zh"] for e in b["types"] if e.get("rgba_default") is True} \
-        == {"道具", "人物多视图", "高清人脸", "表情差分", "人脸基准", "无衣物定妆"}  # 1023 无衣物定妆入列(透明族第六型);1022 人脸基准(第五型)
+        == {"道具", "人物多视图", "高清人头", "表情差分", "人脸基准", "无衣物定妆"}  # 1023 无衣物定妆入列(透明族第六型);1022 人脸基准(第五型)
     assert [e["zh"] for e in b["types"]][0] == "人物海报" and len(b["types"]) == 14  # 1023 无衣物定妆入列(十三型+自由)
