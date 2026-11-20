@@ -15,8 +15,8 @@ import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { polishAssetPrompt, type AssetType, type PolishResult } from "@/lib/ai/prompt-polisher";
 import { generateAsset } from "@/lib/studio/asset-generation-orchestrator";
 import { generateAssetStyleTransferImage } from "@/lib/studio/asset-style-transfer";
-import { generateAssetFacePortrait, type AssetFacePortraitMode } from "@/lib/studio/asset-face-portrait";
-import { generateAssetExpressionSheet } from "@/lib/studio/asset-expression-sheet";
+import { FACE_I2I_INSTRUCTION, generateAssetFacePortrait, type AssetFacePortraitMode } from "@/lib/studio/asset-face-portrait";
+import { EXPRESSION_I2I_INSTRUCTION, generateAssetExpressionSheet } from "@/lib/studio/asset-expression-sheet";
 import { generateAssetTypeShot, getAssetTypeShotProfile, planAssetTypeFillMissingQueue } from "@/lib/studio/asset-type-shot";
 import { rerollAssetImageFromPromptText } from "@/lib/studio/asset-prompt-reroll";
 import {
@@ -31,6 +31,8 @@ import type { AssetImageKind } from "@/types/studio-assets";
 import { getAssetImageOpenTarget, getAssetOperationError, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 import { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
 import type { GenerationOutcomeRecord } from "./studio-asset-generation-result-dialog";
+// 1120 按钮态精修:busyTarget 键空间单一真源(pane 内导出,§6 对策3 禁手拼散落)
+import { busyKey } from "./studio-asset-detail-preview-pane";
 
 /**
  * 阶段参考图锚(10-25 阶段矩阵 T3,PRD §3.3):该阶段组内最新一张(任意型)的 url。
@@ -94,6 +96,11 @@ export function useStudioAssetDialogActions(ctx: {
   typeShotPhase?: string | null;
   setTypeShotPhase: any;
   setTypeShotMessage: any;
+  /** 1120 按钮态精修(§2 R2/R3):busyTarget 写入口——spinner 唯一真源(被点钮键)。
+   *  各发起链与 setPhase 同址设键、finally 立即清(失败必复原=AC4 硬门;与相位的
+   *  3s 反馈延迟清解耦)。队列底层执行器(laneGuard/managedLane=false)不设不清,
+   *  队列入口恒持 one-key。 */
+  setBusyTarget?: (target: string | null) => void;
   /** 10-25 分层面板役复审修(A-1 写入点第4项):一键补缺队列逐型派发前的聚焦钩子。
    *  队列内 dispatchKindGeneration 直调底层执行器,不经 Dialog 包装的 focusOnKind
    *  ——经此钩子与生成派发同帧写 focusKind,防面板构成区滞留旧聚焦型/通用态
@@ -172,6 +179,7 @@ export function useStudioAssetDialogActions(ctx: {
     typeShotPhase,
     setTypeShotPhase,
     setTypeShotMessage,
+    setBusyTarget,
     onFillMissingKindFocus,
     getKindSubjectOverride,
     getKindSubjectBlock,
@@ -197,9 +205,15 @@ export function useStudioAssetDialogActions(ctx: {
    *  直达入口(占位卡 CTA/完整度缺失 chip 经 onGenerateByKind)与节头钮/下拉共用
    *  本闸——任一相位在跑(含一键补缺队列聚合的 typeShotPhase)即忙直返,防并发
    *  点火另一路生成(双生成并发/相位文案互踩/完成切新图竞态)。一键补缺队列经
-   *  laneGuard:false 复用底层执行器(队列入口自带五路守卫+自持聚合相位)。 */
+   *  laneGuard:false 复用底层执行器(队列入口自带五路守卫+自持聚合相位)。
+   *  1120 按钮态精修(R1 即刻回 idle):闸口径收窄「运行态」相位——done/failed
+   *  反馈残留窗(3s 自动清前)无任务在跑,不再假忙拒点;互斥语义(§3 同一时刻
+   *  仅一个生成任务)不变:运行态在跑即拒。 */
+  const isLanePhaseRunning = (phase?: string | null): boolean =>
+    phase === "polishing" || phase === "generating" || phase === "saving";
   const isAnyGenerationLaneBusy = (): boolean =>
-    !!(generatePhaseForGuard || i2iPhase || facePhase || expressionPhase || typeShotPhase);
+    isLanePhaseRunning(generatePhaseForGuard) || isLanePhaseRunning(i2iPhase)
+    || isLanePhaseRunning(facePhase) || isLanePhaseRunning(expressionPhase) || isLanePhaseRunning(typeShotPhase);
 
   /** 润色当前资产的提示词 */
   const handlePolishPrompt = async () => {
@@ -326,6 +340,8 @@ export function useStudioAssetDialogActions(ctx: {
     const shouldGeneratePrompt = !existingPrompt;
     setGeneratePhase(shouldGeneratePrompt ? "polishing" : "generating");
     setGenerateMessage(shouldGeneratePrompt ? `正在根据风格生成 ${asset.name} 的出图提示词...` : `正在生成 ${asset.name} 的图片...`);
+    // 1120 按钮态精修(§10.3 设/清同址):setPhase 同址设键,finally 立即清
+    setBusyTarget?.(busyKey.generate);
     try {
       let assetType: AssetType;
       try {
@@ -456,8 +472,12 @@ export function useStudioAssetDialogActions(ctx: {
       setGenerateMessage(err instanceof Error ? err.message : String(err));
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
+      // 1120 按钮态精修:busyTarget 立即清(失败必复原=AC4 硬门,与相位 3s 反馈
+      // 延迟清解耦);相位延迟清带值守守卫——done/failed 窗内再发新车已置运行态
+      // 相位时,旧定时器不得误清(防互斥闸被旧清零提前打开)
+      setBusyTarget?.(null);
       setTimeout(() => {
-        setGeneratePhase(null);
+        setGeneratePhase((current: string | null) => (isLanePhaseRunning(current) ? current : null));
         setGenerateMessage("");
       }, 3000);
     }
@@ -527,6 +547,8 @@ export function useStudioAssetDialogActions(ctx: {
     const resultImageName = `${inputImageName}_${dateSuffix}`;
     setI2iPhase("generating");
     setI2iMessage(`正在转换 ${asset.name} 的画风...`);
+    // 1120 按钮态精修(§10.3 设/清同址):setPhase 同址设键,finally 立即清
+    setBusyTarget?.(busyKey.i2i);
     try {
       const result = await generateAssetStyleTransferImage(
         {
@@ -601,8 +623,11 @@ export function useStudioAssetDialogActions(ctx: {
       setI2iMessage(err instanceof Error ? err.message : String(err));
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
+      // 1120 按钮态精修:busyTarget 立即清(失败必复原=AC4 硬门);相位延迟清
+      // 带值守守卫(新任务运行态不被旧定时器误清)
+      setBusyTarget?.(null);
       setTimeout(() => {
-        setI2iPhase(null);
+        setI2iPhase((current: string | null) => (isLanePhaseRunning(current) ? current : null));
         setI2iMessage("");
       }, 3000);
     }
@@ -616,7 +641,7 @@ export function useStudioAssetDialogActions(ctx: {
    * 按钮路调用方忽略返回值,对外行为零变。 */
   const runFacePortrait = async (
     mode: AssetFacePortraitMode,
-    options?: { laneGuard?: boolean },
+    options?: { laneGuard?: boolean; busyTargetKey?: string },
   ): Promise<boolean> => {
     const operationId = createOperationId("asset-face-portrait");
     const modeLabel = mode === "image" ? "图生图" : "文生图";
@@ -638,8 +663,8 @@ export function useStudioAssetDialogActions(ctx: {
       });
       return false;
     }
-    if (facePhase) {
-      // 在跑直返(按钮已禁,双保险)
+    if (isLanePhaseRunning(facePhase)) {
+      // 在跑直返(按钮已禁,双保险)——复审 M1 修:运行态口径,done/failed 反馈窗不拦
       void logEvent({
         level: "warn",
         category: "asset",
@@ -679,10 +704,10 @@ export function useStudioAssetDialogActions(ctx: {
         return false;
       }
     }
-    // Phase C(10-25 追加令):text 路主体句=高清人头槽覆盖优先,空回退共享链
-    const subjectText = mode === "text"
-      ? (getKindSubjectOverride?.("高清人头")?.trim() || draftPrompt.trim() || draftDescription.trim() || detail.prompt?.trim() || detail.description?.trim())
-      : undefined;
+    // Phase C(10-25 追加令):text 路主体句=高清人头槽覆盖优先,空回退共享链;
+    // 1121 ①段主体词展示:链值两路都取(image 路作 i2i 对照主体句随记录带给弹窗灰显)
+    const subjectChainText = getKindSubjectOverride?.("高清人头")?.trim() || draftPrompt.trim() || draftDescription.trim() || detail.prompt?.trim() || detail.description?.trim();
+    const subjectText = mode === "text" ? subjectChainText : undefined;
     if (mode === "text" && !subjectText) {
       void logEvent({
         level: "warn",
@@ -702,6 +727,12 @@ export function useStudioAssetDialogActions(ctx: {
     const resultImageName = `${inputImageName}_人脸_${dateSuffix}`;
     setFacePhase("generating");
     setFaceMessage(`正在生成 ${asset.name} 的高清人头(${modeLabel})...`);
+    // 1120 按钮态精修(§10.3):setPhase 同址设键(节头钮缺省 face-i2i,占位 CTA
+    // 经 busyTargetKey 传 placeholder 键=候裁2 CTA 自转);队列路 laneGuard:false
+    // 恒不设不清(busyTarget 由队列入口独占 one-key)
+    if (options?.laneGuard !== false) {
+      setBusyTarget?.(options?.busyTargetKey ?? busyKey.faceI2i);
+    }
     try {
       // R5 生成结果回调计时(全链口径:删旧图/写库/取产物,非纯引擎耗时)
       const startedAt = Date.now();
@@ -778,6 +809,13 @@ export function useStudioAssetDialogActions(ctx: {
           kind: "高清人头",
           stage: undefined,
           subjectText: subjectText ?? null,
+          // 1121 ①段主体词展示:image 路(i2i)对照主体句+实发固定指令(覆盖优先,与服务取值同源)
+          ...(mode === "image"
+            ? {
+                subjectTextInactive: subjectChainText,
+                instructionText: getInstructionOverride?.("高清人头")?.trim() || FACE_I2I_INSTRUCTION,
+              }
+            : {}),
           imageName: resultImageName,
           imageLocalPath: result.imageLocalPath,
           managedFilePath: savedToLibrary ? outcomeFilePath : undefined,
@@ -803,19 +841,25 @@ export function useStudioAssetDialogActions(ctx: {
       toast.error(err instanceof Error ? err.message : String(err));
       return false;
     } finally {
+      // 1120 按钮态精修:busyTarget 立即清(与设键同闸:队列路不设不清);相位
+      // 延迟清带值守守卫(新任务运行态不被旧定时器误清)
+      if (options?.laneGuard !== false) {
+        setBusyTarget?.(null);
+      }
       setTimeout(() => {
-        setFacePhase(null);
+        setFacePhase((current: string | null) => (isLanePhaseRunning(current) ? current : null));
         setFaceMessage("");
       }, 3000);
     }
   };
-  const handleFacePortraitFromImage = () => runFacePortrait("image");
+  const handleFacePortraitFromImage = (options?: { busyTargetKey?: string }) =>
+    runFacePortrait("image", options);
 
   /** 10-21 表情差分(用户令:资产库弹窗角色要有表情差分,图生图逻辑):镜像
    * 人脸图生图路(轮播当前图锚身份+固定指令承载九宫格取景语言);命名沿
    * 「废主图名号」令=原图名_表情差分_中文日期;相位 3s 自动清。
    * 10-24 批3 返值化(供一键补缺队列探成功;按钮路对外行为零变)。 */
-  const runExpressionSheet = async (options?: { laneGuard?: boolean }): Promise<boolean> => {
+  const runExpressionSheet = async (options?: { laneGuard?: boolean; busyTargetKey?: string }): Promise<boolean> => {
     const operationId = createOperationId("asset-expression-sheet");
     void logEvent({
       level: "info",
@@ -835,8 +879,8 @@ export function useStudioAssetDialogActions(ctx: {
       });
       return false;
     }
-    if (expressionPhase) {
-      // 在跑直返(按钮已禁,双保险)
+    if (isLanePhaseRunning(expressionPhase)) {
+      // 在跑直返(按钮已禁,双保险)——复审 M1 修:运行态口径
       void logEvent({
         level: "warn",
         category: "asset",
@@ -871,6 +915,9 @@ export function useStudioAssetDialogActions(ctx: {
       toast.error("没有可作参考的图片，请先生成或添加图片");
       return false;
     }
+    // 1121 ①段主体词展示:表情差分恒 i2i——对照主体句(槽覆盖优先,空回退共享链;
+    // 未参与装配)与实发固定指令(覆盖优先)随记录带给弹窗
+    const subjectChainText = getKindSubjectOverride?.("表情差分")?.trim() || draftPrompt.trim() || draftDescription.trim() || detail.prompt?.trim() || detail.description?.trim();
     // 命名沿 10-19「废主图名号」令:图生图=原图名_表情差分_中文日期
     const inputImageName = carouselImages[currentIndex]?.name || asset.name;
     const now = new Date();
@@ -878,6 +925,11 @@ export function useStudioAssetDialogActions(ctx: {
     const resultImageName = `${inputImageName}_表情差分_${dateSuffix}`;
     setExpressionPhase("generating");
     setExpressionMessage(`正在生成 ${asset.name} 的表情差分...`);
+    // 1120 按钮态精修(§10.3):setPhase 同址设键(节头钮缺省 expression,占位
+    // CTA 经 busyTargetKey 传 placeholder 键);队列路 laneGuard:false 不设不清
+    if (options?.laneGuard !== false) {
+      setBusyTarget?.(options?.busyTargetKey ?? busyKey.expression);
+    }
     try {
       // R5 生成结果回调计时(全链口径:删旧图/写库/取产物,非纯引擎耗时)
       const startedAt = Date.now();
@@ -950,6 +1002,8 @@ export function useStudioAssetDialogActions(ctx: {
           kind: "表情差分",
           stage: undefined,
           subjectText: null,
+          subjectTextInactive: subjectChainText,
+          instructionText: getInstructionOverride?.("表情差分")?.trim() || EXPRESSION_I2I_INSTRUCTION,
           imageName: resultImageName,
           imageLocalPath: result.imageLocalPath,
           managedFilePath: savedToLibrary ? outcomeFilePath : undefined,
@@ -975,13 +1029,18 @@ export function useStudioAssetDialogActions(ctx: {
       toast.error(err instanceof Error ? err.message : String(err));
       return false;
     } finally {
+      // 1120 按钮态精修:busyTarget 立即清(与设键同闸);相位延迟清带值守守卫
+      if (options?.laneGuard !== false) {
+        setBusyTarget?.(null);
+      }
       setTimeout(() => {
-        setExpressionPhase(null);
+        setExpressionPhase((current: string | null) => (isLanePhaseRunning(current) ? current : null));
         setExpressionMessage("");
       }, 3000);
     }
   };
-  const handleExpressionSheet = () => runExpressionSheet();
+  const handleExpressionSheet = (options?: { busyTargetKey?: string }) =>
+    runExpressionSheet(options);
 
   /** B-4 用此词重掷(10-25 追加令):以查词/实发终稿弹层的引擎实收正向终稿为指令,
    * 按原路重掷一张(指令逐字/原参考图/注入层在场则原 base_type 重注/seed 新掷)。
@@ -1094,8 +1153,10 @@ export function useStudioAssetDialogActions(ctx: {
       setTypeShotMessage(err instanceof Error ? err.message : String(err));
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
+      // 1120 按钮态精修:重掷非按钮族不设 busyTarget(R2 键空间外);相位延迟清
+      // 带值守守卫(同六链——done/failed 窗内再发新车不被旧定时器误清)
       setTimeout(() => {
-        setTypeShotPhase(null);
+        setTypeShotPhase((current: string | null) => (isLanePhaseRunning(current) ? current : null));
         setTypeShotMessage("");
       }, 3000);
     }
@@ -1115,7 +1176,7 @@ export function useStudioAssetDialogActions(ctx: {
    * 人脸双钮/表情差分/重掷/一键补缺队列不带阶段(PRD §3.3,无阶段语义)。 */
   const executeTypeShot = async (
     kind: AssetImageKind,
-    options?: { managedLane?: boolean; stage?: string },
+    options?: { managedLane?: boolean; stage?: string; busyTargetKey?: string },
   ): Promise<boolean> => {
     const managedLane = options?.managedLane !== false;
     const stage = options?.stage?.trim() || undefined;
@@ -1206,10 +1267,10 @@ export function useStudioAssetDialogActions(ctx: {
         return false;
       }
     }
-    // Phase C(10-25 追加令):t2i 路主体句=该型槽覆盖优先,空回退共享主体句链
-    const subjectText = profile.route === "t2i"
-      ? (getKindSubjectOverride?.(kind)?.trim() || draftPrompt.trim() || draftDescription.trim() || detail.prompt?.trim() || detail.description?.trim())
-      : undefined;
+    // Phase C(10-25 追加令):t2i 路主体句=该型槽覆盖优先,空回退共享主体句链;
+    // 1121 ①段主体词展示:链值两路都取(i2i 路作对照主体句随记录带给弹窗灰显)
+    const subjectChainText = getKindSubjectOverride?.(kind)?.trim() || draftPrompt.trim() || draftDescription.trim() || detail.prompt?.trim() || detail.description?.trim();
+    const subjectText = profile.route === "t2i" ? subjectChainText : undefined;
     // 1120 观测令:t2i 主体句来源链逐级落日志(手动生图核「这句从哪个槽赢的」)
     if (profile.route === "t2i") {
       const chain: Array<[string, string]> = [
@@ -1257,7 +1318,16 @@ export function useStudioAssetDialogActions(ctx: {
     if (managedLane) {
       setTypeShotPhase("generating");
       setTypeShotMessage(`正在生成 ${asset.name} 的${kind}...`);
+      // 1120 按钮态精修(§10.3):setPhase 同址设键——节头钮缺省 section:<kind>,
+      // 占位 CTA 经 busyTargetKey 传 placeholder:<kind>(候裁2 CTA 自转节头不代转);
+      // 队列路 managedLane:false 不设不清(busyTarget 由队列入口独占 one-key)
+      setBusyTarget?.(options?.busyTargetKey ?? busyKey.section(kind));
     }
+    // 1121 ①段固定指令行真值:会话级覆盖优先,空=型档案 i2iInstruction(单点取值,
+    // 发车参数与结果记录同源,防双读漂移)
+    const instructionOverrideText = profile.route === "i2i"
+      ? (getInstructionOverride?.(kind)?.trim() || "")
+      : "";
     try {
       // R5 生成结果回调计时(全链口径:删旧图/写库/取产物,非纯引擎耗时)
       const startedAt = Date.now();
@@ -1270,9 +1340,7 @@ export function useStudioAssetDialogActions(ctx: {
           referenceImage,
           subjectText,
           // 追加令·i2i 指令可编辑:会话级覆盖优先,空=型档案固定指令(既有零变)
-          ...(profile.route === "i2i" && getInstructionOverride?.(kind)?.trim()
-            ? { instructionOverride: getInstructionOverride?.(kind)?.trim() }
-            : {}),
+          ...(instructionOverrideText ? { instructionOverride: instructionOverrideText } : {}),
           // 10-26 横竖皆可(人物海报裁定):会话级取向开→横幅手动画幅
           ...(getLandscapeOrientation?.(kind) ? { orientation: "landscape" as const } : {}),
           operationId,
@@ -1341,6 +1409,13 @@ export function useStudioAssetDialogActions(ctx: {
           kind,
           stage,
           subjectText: subjectText ?? null,
+          // 1121 ①段主体词展示:i2i 路对照主体句+实发固定指令(与发车取值同源)
+          ...(profile.route === "i2i"
+            ? {
+                subjectTextInactive: subjectChainText,
+                instructionText: instructionOverrideText || profile.i2iInstruction || undefined,
+              }
+            : {}),
           imageName: resultImageName,
           imageLocalPath: result.imageLocalPath,
           managedFilePath: savedToLibrary ? outcomeFilePath : undefined,
@@ -1371,8 +1446,11 @@ export function useStudioAssetDialogActions(ctx: {
       return false;
     } finally {
       if (managedLane) {
+        // 1120 按钮态精修:busyTarget 立即清(与设键同闸:managedLane);相位延迟
+        // 清带值守守卫(新任务运行态不被旧定时器误清)
+        setBusyTarget?.(null);
         setTimeout(() => {
-          setTypeShotPhase(null);
+          setTypeShotPhase((current: string | null) => (isLanePhaseRunning(current) ? current : null));
           setTypeShotMessage("");
         }, 3000);
       }
@@ -1382,11 +1460,11 @@ export function useStudioAssetDialogActions(ctx: {
   /** 按型出图公共入口(节头钮/下拉/占位卡 CTA/完整度缺失 chip):五路互斥统一守卫
    *  在跑直返(按钮已禁,双保险;复审 H 修=全相位,非仅自家 typeShotPhase)。
    *  T3(10-25 阶段矩阵):options.stage 透传 executeTypeShot(命名/参考图锚定语义)。 */
-  const runTypeShot = async (kind: AssetImageKind, options?: { stage?: string }): Promise<boolean> => {
+  const runTypeShot = async (kind: AssetImageKind, options?: { stage?: string; busyTargetKey?: string }): Promise<boolean> => {
     if (isAnyGenerationLaneBusy()) return false;
     return executeTypeShot(kind, options);
   };
-  const handleTypeShot = (kind: AssetImageKind, options?: { stage?: string }) => {
+  const handleTypeShot = (kind: AssetImageKind, options?: { stage?: string; busyTargetKey?: string }) => {
     void runTypeShot(kind, options);
   };
 
@@ -1397,7 +1475,9 @@ export function useStudioAssetDialogActions(ctx: {
    * 失败即中止队列(队列失败/取消策略候 Round 3 后续裁定,Phase1 取失败即停);
    * typeShot 相位聚合承载进度文案。 */
   const runFillMissingQueue = async (): Promise<void> => {
-    if (generatePhaseForGuard || i2iPhase || facePhase || expressionPhase || typeShotPhase) {
+    // 复审 M1 修:运行态口径(与 UI busy 闸同源)——done/failed 反馈窗内再点
+    // 一键不误报「有生成任务正在进行」
+    if (isAnyGenerationLaneBusy()) {
       toast.error("有生成任务正在进行，请稍候");
       return;
     }
@@ -1433,6 +1513,11 @@ export function useStudioAssetDialogActions(ctx: {
       return executeTypeShot(kind, { managedLane: false });
     };
     setTypeShotPhase("generating");
+    // 1120 按钮态精修(§10.3/R4):队列入口独占 one-key——循环内底层执行器
+    // (laneGuard/managedLane:false)恒不设不清 busyTarget;各型节头钮不陪转
+    // (候裁1),进度由一键钮旁状态文字逐型播报;循环外 finally 清=中途失败/
+    // 完成皆复原(失败必复原=AC4 硬门)
+    setBusyTarget?.(busyKey.oneKey);
     let completed = 0;
     try {
       for (const kind of missing) {
@@ -1458,8 +1543,10 @@ export function useStudioAssetDialogActions(ctx: {
       // R5 队列收口(末尾汇总定死):成功支(逐发记录已由各执行器 fromQueue 回调累积)
       onFillMissingQueueSettled?.({ total: missing.length, completed });
     } finally {
+      // 1120 按钮态精修:busyTarget 立即清(队列收口);相位延迟清带值守守卫
+      setBusyTarget?.(null);
       setTimeout(() => {
-        setTypeShotPhase(null);
+        setTypeShotPhase((current: string | null) => (isLanePhaseRunning(current) ? current : null));
         setTypeShotMessage("");
       }, 3000);
     }

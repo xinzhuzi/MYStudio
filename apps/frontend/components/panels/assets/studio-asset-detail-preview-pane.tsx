@@ -39,6 +39,27 @@ const SINGLE_SECTION_TITLE = "图片";
 /** 轨道名词(零图 i2i 禁用 title/队列提示用;role 回归文案零变化)。 */
 const TRACK_NOUNS: Record<AssetImageTrack, string> = { role: "角色", scene: "场景", tool: "道具" };
 
+/** 1120 生图按钮忙碌态精修(§2 R2 键空间):busyTarget 键构造单一真源——点击点即键
+ *  (节头钮 section:<kind>/占位 CTA placeholder:<kind>/一键 one-key/人脸 face-i2i/
+ *  表情 expression/旧单镜 generate/画风转换 i2i)。发起处与 setPhase 同址设键,
+ *  finally 清(失败必复原=AC4 硬门);禁手拼散落(§6 对策3:键走本 helper)。 */
+export const busyKey = {
+  section: (kind: AssetImageKind) => `section:${kind}`,
+  placeholder: (kind: AssetImageKind) => `placeholder:${kind}`,
+  oneKey: "one-key",
+  faceI2i: "face-i2i",
+  expression: "expression",
+  generate: "generate",
+  i2i: "i2i",
+} as const;
+
+/** 1120 按钮态精修(R1 即刻回 idle):互斥闸只认「运行态」相位——done/failed 反馈
+ *  残留窗不再禁点(无任务在跑却灰=假忙);互斥语义(§3:同一时刻仅一个生成任务)
+ *  不变:任一路运行态在跑即全族灰禁。导出供宿主折叠摘要「生成中」旗同源收窄
+ *  (完成后反馈窗不再挂「生成中」误导旗)。 */
+const LANE_RUNNING_PHASES = new Set(["polishing", "generating", "saving"]);
+export const isLanePhaseRunning = (phase?: string | null) => LANE_RUNNING_PHASES.has(phase ?? "");
+
 /** 中文计数(完整度两行分级 aria 标签:role=核心五必备/扩展四型恒零回归)。 */
 
 /** 图卡统一高 h-40;宽随型画幅比(3:4≈120px/16:9≈284px/1:1=160px;未分类混排走方卡)。 */
@@ -112,6 +133,10 @@ interface StudioAssetDetailPreviewPaneProps {
   /** R4 族聚显:条目级删除可见性(族兄弟只读条目不显示删除);缺省恒可删
    *  (10-19 用户裁定:主图亦可删——含首位主图)。 */
   isImageRemovable?: (image: AssetImage, index: number) => boolean;
+  /** 1120 按钮态精修(R3 单源):spinner 唯一真源=被点钮键(busyKey 族);五相位
+   *  保留供结果反馈(done/failed 文案)/联动/状态文字消费,spinner 一律只认本键
+   *  ——「任一 phase 在跑→全族 spinner」的旧渲染路径已删(§1 病灶根修)。 */
+  busyTarget?: string | null;
 }
 
 export function StudioAssetDetailPreviewPane({
@@ -145,56 +170,48 @@ export function StudioAssetDetailPreviewPane({
   onFillMissing,
   onInspectPrompt,
   isImageRemovable,
+  busyTarget,
 }: StudioAssetDetailPreviewPaneProps) {
   const hasImagePreview = asset.type !== "audio" && images.length > 0;
   // 10-21 高清人脸/表情差分:与一键生成/画风转换互斥;批3 按型出图=通用第五路
-  const generationBusy = !!i2iPhase || !!generatePhase || !!facePhase || !!expressionPhase || !!typeShotPhase;
+  // 1120 按钮态精修:互斥闸收窄运行态(done/failed 反馈窗即刻回 idle 可点,R1)
+  const generationBusy = isLanePhaseRunning(i2iPhase) || isLanePhaseRunning(generatePhase)
+    || isLanePhaseRunning(facePhase) || isLanePhaseRunning(expressionPhase) || isLanePhaseRunning(typeShotPhase);
   // 人脸·图生图:角色轨+有图;人脸·文生图:角色轨(无图亦可,描述锚身份)
   const faceFromImageDisabled = generationBusy || images.length === 0;
   const faceFromImageTitle = images.length === 0
     ? "先有角色图片才能图生图生成人脸"
-    : generatePhase
+    : isLanePhaseRunning(generatePhase)
       ? "图片生成中，请稍候"
-      : i2iPhase
+      : isLanePhaseRunning(i2iPhase)
         ? "正在转换画风，请稍候"
-        : facePhase
+        : isLanePhaseRunning(facePhase)
           ? (faceMessage || "正在生成高清人头，请稍候")
-          : expressionPhase
+          : isLanePhaseRunning(expressionPhase)
             ? "正在生成表情差分，请稍候"
-            : typeShotPhase
+            : isLanePhaseRunning(typeShotPhase)
               ? (typeShotMessage || "正在按型出图，请稍候")
               : undefined;
-  const facePhaseLabel = facePhase === "done"
-    ? "人脸生成完成"
-    : facePhase === "failed"
-      ? "人脸生成失败"
-      : "人脸生成中…";
+  // 相位 done/failed=结果反馈文案(spinner 只认 busyTarget;generating 不再驱动文案)
+  const faceSettledLabel = facePhase === "done" ? "人脸生成完成" : facePhase === "failed" ? "人脸生成失败" : null;
   // 10-21 表情差分:角色轨+有图(全局选中图锚身份)
   const expressionDisabled = generationBusy || images.length === 0;
   const expressionTitle = images.length === 0
     ? "先有角色图片才能图生图生成表情差分"
-    : generatePhase
+    : isLanePhaseRunning(generatePhase)
       ? "图片生成中，请稍候"
-      : i2iPhase
+      : isLanePhaseRunning(i2iPhase)
         ? "正在转换画风，请稍候"
-        : facePhase
+        : isLanePhaseRunning(facePhase)
           ? "正在生成高清人头，请稍候"
-          : expressionPhase
+          : isLanePhaseRunning(expressionPhase)
             ? (expressionMessage || "正在生成表情差分，请稍候")
-            : typeShotPhase
+            : isLanePhaseRunning(typeShotPhase)
               ? (typeShotMessage || "正在按型出图，请稍候")
               : undefined;
-  const expressionPhaseLabel = expressionPhase === "done"
-    ? "表情差分完成"
-    : expressionPhase === "failed"
-      ? "表情差分失败"
-      : "表情差分生成中…";
+  const expressionSettledLabel = expressionPhase === "done" ? "表情差分完成" : expressionPhase === "failed" ? "表情差分失败" : null;
   // 批3 按型出图:通用第五路(在跑全族禁点;型名/队列进度在 typeShotMessage)
-  const typeShotPhaseLabel = typeShotPhase === "done"
-    ? "生成完成"
-    : typeShotPhase === "failed"
-      ? "生成失败"
-      : "生成中…";
+  const typeShotSettledLabel = typeShotPhase === "done" ? "生成完成" : typeShotPhase === "failed" ? "生成失败" : null;
 
   // audio 轨零动:播报卡/波形/试听转写链路保持原样(10-24 布局令)
   if (asset.type === "audio") {
@@ -327,11 +344,13 @@ export function StudioAssetDetailPreviewPane({
 
   /** 占位卡:虚线边框,型画幅比照图卡;空型槽位恒在(10-24 布局令)。
    *  批2 B 节规格:中央型 icon+「尚无{型名}」+「点击生成」CTA(装配方给
-   *  onGenerateByKind 时);核心型带红色角标(裁定1 红色告警),扩展型灰;hover 高亮。 */
+   *  onGenerateByKind 时);核心型带红色角标(裁定1 红色告警),扩展型灰;hover 高亮。
+   *  1120 按钮态精修:CTA 补 disabled 灰态样式(R3;wiring 原对样式缺);候裁2=
+   *  CTA 被点自身转+变「生成中…」(busyTarget===placeholder:<kind>,节头钮不代转)。 */
   const renderPlaceholderCard = (
     label: string,
     widthClass: string,
-    options?: { kind?: AssetImageKind },
+    options?: { kind?: AssetImageKind; busy?: boolean },
   ) => {
     const isCore = !!options?.kind && CORE_KIND_SET.has(options.kind);
     return (
@@ -351,12 +370,13 @@ export function StudioAssetDetailPreviewPane({
         {options?.kind && onGenerateByKind && (
           <button
             type="button"
-            className="rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 text-[11px] text-primary transition-colors hover:bg-primary/20"
+            className="inline-flex items-center rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 text-[11px] text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary/10"
             onClick={() => onGenerateByKind(options.kind!)}
             disabled={generationBusy}
             title={generationBusy ? "有生成任务正在进行，请稍候" : `生成${options.kind}`}
           >
-            点击生成
+            {options.busy ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+            {options.busy ? "生成中…" : "点击生成"}
           </button>
         )}
       </div>
@@ -379,7 +399,7 @@ export function StudioAssetDetailPreviewPane({
   ) => (
     <section
       key={sectionKey}
-      // 10-25 用户令:每个图片类型节都要有框圈定——统一边框卡(与元信息区卡同语言)
+      // 10-25 用户令:每个图片类型节都要有框圈定——统一边框卡(与基础信息区卡同语言)
       className="studio-asset-image-section space-y-2 rounded-lg border border-border bg-muted/30 p-3"
       aria-label={title}
     >
@@ -390,8 +410,16 @@ export function StudioAssetDetailPreviewPane({
         {sectionMeta?.rgba && (
           <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium text-primary" title="型真源 rgba_default=透明(Phase2 型层注入直出真 Alpha)">透明</Badge>
         )}
+        {/* 1120 R5 route 徽标中文化:展示层映射 i2i→图生图/t2i→文生图,悬浮 title
+            补语义;数据/标识层不动(route 值仍是 ASSET_TYPE_SHOT_PROFILES 真源) */}
         {sectionMeta?.route && (
-          <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium text-muted-foreground">{sectionMeta.route}</Badge>
+          <Badge
+            variant="outline"
+            className="px-1.5 py-0 text-[10px] font-medium text-muted-foreground"
+            title={sectionMeta.route === "i2i" ? "图生图(参考图生成)" : sectionMeta.route === "t2i" ? "文生图(纯文字生成)" : sectionMeta.route}
+          >
+            {sectionMeta.route === "i2i" ? "图生图" : sectionMeta.route === "t2i" ? "文生图" : sectionMeta.route}
+          </Badge>
         )}
         {/* 批2 B 节:核心型空节=节头红点(裁定1 红色告警;批3 复审 M 修:基准=本行图集) */}
         {coreMissing && (
@@ -404,63 +432,74 @@ export function StudioAssetDetailPreviewPane({
     </section>
   );
 
-  /** 高清人头节头生成钮(10-21 既有功能迁居,守卫/相位文案零变;旧名高清人脸 1120 改名)。 */
-  const renderFaceSectionButtons = () => (
-    <>
+  /** 高清人头节头生成钮(10-21 既有功能迁居,守卫/相位文案零变;旧名高清人脸 1120 改名)。
+   *  1120 按钮态精修:spinner+「生成中…」⟺ busyTarget===face-i2i(被点钮);相位
+   *  done/failed 文案=结果反馈保留;队列/占位 CTA 触发的人脸路不代转(键不同)。 */
+  const renderFaceSectionButtons = () => {
+    const busy = busyTarget === busyKey.faceI2i;
+    return (
+      <>
+        <Button
+          variant="default"
+          size="sm"
+          className="h-6 gap-1 text-[11px]"
+          onClick={onFaceFromImage}
+          disabled={faceFromImageDisabled}
+          title={faceFromImageTitle}
+        >
+          {busy ? (
+            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+          ) : (
+            <ScanFace className="mr-1 h-3 w-3" />
+          )}
+          {busy ? "人脸生成中…" : (faceSettledLabel ?? "人脸·图生图")}
+        </Button>
+      </>
+    );
+  };
+
+  /** 表情差分节头生成钮(10-21 既有功能迁居,守卫/相位文案零变;spinner 只认
+   *  busyTarget===expression,1120 按钮态精修)。 */
+  const renderExpressionSectionButton = () => {
+    const busy = busyTarget === busyKey.expression;
+    return (
       <Button
         variant="default"
         size="sm"
         className="h-6 gap-1 text-[11px]"
-        onClick={onFaceFromImage}
-        disabled={faceFromImageDisabled}
-        title={faceFromImageTitle}
+        onClick={onExpression}
+        disabled={expressionDisabled}
+        title={expressionTitle}
       >
-        {facePhase ? (
+        {busy ? (
           <Loader2 className="mr-1 h-3 w-3 animate-spin" />
         ) : (
           <ScanFace className="mr-1 h-3 w-3" />
         )}
-        {facePhase ? facePhaseLabel : "人脸·图生图"}
+        {busy ? "表情差分生成中…" : (expressionSettledLabel ?? "表情差分")}
       </Button>
-    </>
-  );
+    );
+  };
 
-  /** 表情差分节头生成钮(10-21 既有功能迁居,守卫/相位文案零变)。 */
-  const renderExpressionSectionButton = () => (
-    <Button
-      variant="default"
-      size="sm"
-      className="h-6 gap-1 text-[11px]"
-      onClick={onExpression}
-      disabled={expressionDisabled}
-      title={expressionTitle}
-    >
-      {expressionPhase ? (
-        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-      ) : (
-        <ScanFace className="mr-1 h-3 w-3" />
-      )}
-      {expressionPhase ? expressionPhaseLabel : "表情差分"}
-    </Button>
-  );
-
-  /** 批3 按型出图节头生成钮(型驱动通用件派发,型名单一参数):Loader2 相位复用
-   *  (第五路在跑全族禁点+typeShotMessage 进 title);i2i 型零图禁用(title 提示,
-   *  轨道名词随轨),t2i 型(设定卡/美宣/道具)描述锚身份,零图可点。 */
-  const renderTypeShotSectionButton = (kind: AssetImageKind, route: "i2i" | "t2i") => {
+  /** 批3 按型出图节头生成钮(型驱动通用件派发,型名单一参数);i2i 型零图禁用
+   *  (title 提示,轨道名词随轨),t2i 型(设定卡/美宣/道具)描述锚身份,零图可点。
+   *  1120 按钮态精修(§1 病灶根修):spinner+「生成中…」⟺ busyTarget===section:<kind>
+   *  (仅被点钮;一键队列时各型节头不陪转=候裁1,typeShotPhase 只进 title 播报);
+   *  done/failed 相位文案=结果反馈保留。 */
+  const renderTypeShotSectionButton = (kind: AssetImageKind, route: "i2i" | "t2i", busy: boolean) => {
     const needsReference = route === "i2i";
     const disabled = generationBusy || (needsReference && images.length === 0);
     const title = needsReference && images.length === 0
       ? `先有${trackNoun}图片才能图生图生成${kind}`
-      : typeShotPhase
+      : isLanePhaseRunning(typeShotPhase)
         ? (typeShotMessage || `正在生成${kind}，请稍候`)
-        : generatePhase
+        : isLanePhaseRunning(generatePhase)
           ? "图片生成中，请稍候"
-          : i2iPhase
+          : isLanePhaseRunning(i2iPhase)
             ? "正在转换画风，请稍候"
-            : facePhase
+            : isLanePhaseRunning(facePhase)
               ? "正在生成高清人头，请稍候"
-              : expressionPhase
+              : isLanePhaseRunning(expressionPhase)
                 ? "正在生成表情差分，请稍候"
                 : `生成${kind}(${route === "t2i" ? "文生图·型层" : "图生图·型层"})`;
     return (
@@ -472,12 +511,12 @@ export function StudioAssetDetailPreviewPane({
         disabled={disabled}
         title={title}
       >
-        {typeShotPhase ? (
+        {busy ? (
           <Loader2 className="mr-1 h-3 w-3 animate-spin" />
         ) : (
           <Sparkles className="mr-1 h-3 w-3" />
         )}
-        {typeShotPhase ? typeShotPhaseLabel : `生成${kind}`}
+        {busy ? "生成中…" : (typeShotSettledLabel ?? `生成${kind}`)}
       </Button>
     );
   };
@@ -509,7 +548,10 @@ export function StudioAssetDetailPreviewPane({
     const coreKinds = spectrum?.core ?? [];
     const missingCoreCount = coreKinds.filter((kind) => completenessCount(kind) === 0).length;
     if (onFillMissing == null || missingCoreCount === 0) return null;
-    const fillMissingTitle = typeShotPhase
+    // 1120 按钮态精修:spinner ⟺ busyTarget===one-key(被点钮;节头钮触发的
+    // typeShot 跑时它不代转);typeShotPhase 运行态只进 title/状态文字播报(R4)
+    const oneKeyBusy = busyTarget === busyKey.oneKey;
+    const fillMissingTitle = isLanePhaseRunning(typeShotPhase)
       ? (typeShotMessage || "正在生成，请稍候")
       : generationBusy
         ? "有生成任务正在进行，请稍候"
@@ -524,7 +566,7 @@ export function StudioAssetDetailPreviewPane({
         disabled={generationBusy}
         title={fillMissingTitle}
       >
-        {typeShotPhase ? (
+        {oneKeyBusy ? (
           <Loader2 className="h-3 w-3 animate-spin" />
         ) : (
           <Sparkles className="h-3 w-3" />
@@ -554,7 +596,7 @@ export function StudioAssetDetailPreviewPane({
               : kind === "表情差分" && canFacePortrait
                 ? renderExpressionSectionButton()
                 : typeShotProfile && canTypeShot && onTypeShot
-                  ? renderTypeShotSectionButton(kind, typeShotProfile.route)
+                  ? renderTypeShotSectionButton(kind, typeShotProfile.route, busyTarget === busyKey.section(kind))
                   : undefined;
             // 10-26 人物海报画幅开关挪节头(用户令:功能对的,位置要在它管的型旁)
             const sectionButtons = kind === "人物海报" && onTogglePosterLandscape
@@ -575,7 +617,7 @@ export function StudioAssetDetailPreviewPane({
               aspect,
               group.length > 0
                 ? sortStageFirstThenInput(group, (entry) => entry.image.name).map(({ image, index }) => renderImageCard(image, index, widthClass))
-                : renderPlaceholderCard(kind, widthClass, { kind }),
+                : renderPlaceholderCard(kind, widthClass, { kind, busy: busyTarget === busyKey.placeholder(kind) }),
               group.length,
               sectionButtons,
               typeShotProfile ? { rgba: typeShotProfile.rgba, route: typeShotProfile.route } : undefined,

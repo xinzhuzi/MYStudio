@@ -12,7 +12,7 @@ import type { StudioAssetKind, StudioAssetSummary } from "@/types/studio-assets"
 import { latestKindImage } from "@/lib/studio/asset-image-kind";
 import { Box, CheckSquare, Film, Loader2, Map, Mic2, Music2, Plus, RefreshCw, Search, Square, Trash2, UserCircle } from "lucide-react";
 import { toast } from "sonner";
-import { StudioAssetDetailDialog } from "./StudioAssetDetailDialog";
+import { useAssetDetailViewStore } from "@/stores/assets/asset-detail-view-store";
 import { AddAssetDialog } from "./AddAssetDialog";
 import { AssetGenerationBar } from "./AssetGenerationBar";
 import { AudioGroupedGrid } from "./audio-grouped-grid";
@@ -28,7 +28,6 @@ import {
 } from "./role-audio-auto-assign";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
-import { fetchFamilyImageEntries, type FamilyImageEntry } from "@/lib/studio/asset-family-images";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 import {
   resolveCanonicalSpeakerId,
@@ -40,6 +39,11 @@ const PAGE_SIZE = 60;
 // 全局缓存：避免侧边栏切换时重复加载
 const assetCache: Record<string, { items: StudioAssetSummary[]; total: number; timestamp: number }> = {};
 const CACHE_TTL = 60_000; // 60秒内不重新请求
+
+// 1120 详情独立页(§9 候裁3):进详情=列表态组件卸载(滚动回顶),搜索词/分类
+// 筛选经本模块级会话缓存保活(与 assetCache 同款范式;重挂载播种回填,跨
+// 「列表↔详情」往返不丢)。
+const libraryUiStateCache: Partial<Record<StudioAssetKind, { searchInput: string; category: string }>> = {};
 
 function getCacheKey(type: StudioAssetKind, search: string, category = "") {
   return `${type}:${search}:${category}`;
@@ -76,22 +80,28 @@ const ASSET_KIND_CONFIG = {
 export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
   const config = ASSET_KIND_CONFIG[type];
   const Icon = config.icon;
-  const [searchInput, setSearchInput] = useState("");
+  const [searchInput, setSearchInput] = useState(() => libraryUiStateCache[type]?.searchInput ?? "");
   const [search, setSearch] = useState("");
   const [runtimeItems, setRuntimeItems] = useState<StudioAssetSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState("");
-  const [selectedAsset, setSelectedAsset] = useState<StudioAssetSummary | null>(null);
-  const [familyImages, setFamilyImages] = useState<FamilyImageEntry[] | undefined>(undefined);
-  // 族聚显请求序号:连点换卡时晚到的旧族图丢弃(链路排查清单#7 同款竞态,不复制旧缺陷)
-  const familyReqSeqRef = useRef(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
-  const [category, setCategory] = useState<string>(type === "tool" ? TOOL_CATEGORIES[0] : "");
+  const [category, setCategory] = useState<string>(
+    () => libraryUiStateCache[type]?.category ?? (type === "tool" ? TOOL_CATEGORIES[0] : ""),
+  );
   const [isAutoAssigningAudio, setIsAutoAssigningAudio] = useState(false);
   const requestIdRef = useRef(0);
+  // 1120 详情独立页:卡片点击改经 detail-view store 下钻(内嵌详情弹窗退役);
+  // familyImages 族图拉取随详情视图自取(原 handleOpenDetail 的 fetch 迁 View)。
+  const openFromLibrary = useAssetDetailViewStore((state) => state.openFromLibrary);
+
+  // 搜索词/分类筛选写回会话缓存(1120 候裁3 保活;assetCache 模块级同款)
+  useEffect(() => {
+    libraryUiStateCache[type] = { searchInput, category };
+  }, [type, searchInput, category]);
 
   const props = usePropsLibraryStore((state) => state.items);
   const materials = useStudioStore((state) => state.materials);
@@ -106,17 +116,11 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
-  // R4 扩面(10-19 用户装机实测反馈):资产库卡片详情同口径族聚显——开卡即显单图,
-  // 族图异步补齐(role/scene/tool;audio/clip 不聚);查询失败静默回落单图,不阻断详情打开。
+  // 1120 详情独立页:卡片点击=主入口,经 store 下钻(族聚显拉取在详情视图内按
+  // 同键(资产类型+资产名)自取,R4 扩面口径零变化——role/scene/tool 聚,audio/clip 不聚)。
   const handleOpenDetail = useCallback((asset: StudioAssetSummary) => {
-    const seq = ++familyReqSeqRef.current;
-    setFamilyImages(undefined);
-    setSelectedAsset(asset);
-    if (asset.type !== "role" && asset.type !== "scene" && asset.type !== "tool") return;
-    void fetchFamilyImageEntries(getStudioAssetsBridge(), asset.type, asset.name).then((entries) => {
-      if (familyReqSeqRef.current === seq) setFamilyImages(entries);
-    });
-  }, []);
+    openFromLibrary(asset);
+  }, [openFromLibrary]);
 
   const localItems = useMemo(() => {
     const keyword = search.toLocaleLowerCase("zh-Hans-CN");
@@ -500,18 +504,8 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
           onRefresh={() => { delete assetCache[getCacheKey(type, search, category)]; void loadAssets(0, "replace", true); }}
         />
       </div>
-      <StudioAssetDetailDialog
-        asset={selectedAsset}
-        familyImages={familyImages}
-        open={Boolean(selectedAsset)}
-        onOpenChange={(open) => {
-          if (!open) {
-            familyReqSeqRef.current += 1;
-            setFamilyImages(undefined);
-            setSelectedAsset(null);
-          }
-        }}
-      />
+      {/* 1120 详情独立页:内嵌旧详情弹窗退役——卡片点击经
+          detail-view store 下钻,由 AssetsView 二态渲染 StudioAssetDetailView */}
       <AddAssetDialog
         type={type}
         open={isAddOpen}

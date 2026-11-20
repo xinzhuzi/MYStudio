@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 /**
  * 10-24 布局重造批1 · 复审 M2 补件:对话框级保全项(#12-17)render+click 交互测试
- * + 元信息折叠开关与 localStorage 态记忆交互测试(原仅源码字符串断言,复审要求补齐)。
+ * + 基础信息折叠开关与 localStorage 态记忆交互测试(原仅源码字符串断言,复审要求补齐)。
  * 桥/生成编排/润色走 vi.mock 控制桩,弹窗与表单全真实渲染。
  */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { StudioAssetDetailDialog } from "./StudioAssetDetailDialog";
+import { StudioAssetDetailView } from "./StudioAssetDetailView";
 import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useProjectStore } from "@/stores/project/project-store";
@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   delete: vi.fn(),
   get: vi.fn(),
   list: vi.fn(),
+  listFamily: vi.fn(),
   generateAsset: vi.fn(),
   polishAssetPrompt: vi.fn(),
   typeShot: vi.fn(),
@@ -32,6 +33,7 @@ vi.mock("@/lib/bridge/studio-assets", () => ({
     delete: mocks.delete,
     get: mocks.get,
     list: mocks.list,
+    listFamily: mocks.listFamily,
   }),
 }));
 
@@ -88,9 +90,17 @@ function roleAsset(overrides: Partial<StudioAssetSummary> = {}): StudioAssetSumm
 
 function renderDialog(asset: StudioAssetSummary = roleAsset(), onOpenChange = vi.fn()) {
   const view = render(
-    <StudioAssetDetailDialog asset={asset} open onOpenChange={onOpenChange} />,
+    <StudioAssetDetailView asset={asset} onBack={onOpenChange} />,
   );
   return { ...view, onOpenChange };
+}
+
+/** 同宿主 rerender 切资产行(1120 独立页:宿主二态换 target=prop 变更)。 */
+function rerenderWithAsset(
+  view: ReturnType<typeof renderDialog>,
+  asset: StudioAssetSummary,
+) {
+  view.rerender(<StudioAssetDetailView asset={asset} onBack={vi.fn()} />);
 }
 
 beforeEach(() => {
@@ -99,6 +109,7 @@ beforeEach(() => {
   mocks.delete.mockReset().mockResolvedValue(true);
   mocks.get.mockReset().mockResolvedValue(null);
   mocks.list.mockReset().mockResolvedValue({ items: [] });
+  mocks.listFamily.mockReset().mockResolvedValue([]);
   mocks.generateAsset.mockReset().mockResolvedValue({ phase: "failed", error: "stub-fail" });
   mocks.polishAssetPrompt.mockReset().mockResolvedValue({ status: "success", prompt: "润色后的提示词" });
   mocks.typeShot.mockReset().mockResolvedValue({ phase: "failed", error: "stub-fail" });
@@ -116,7 +127,7 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-describe("StudioAssetDetailDialog 交互(10-24 批1 复审 M2:对话框级保全项 render+click)", () => {
+describe("StudioAssetDetailView 交互(10-24 批1 复审 M2:对话框级保全项 render+click)", () => {
   it("#14 保存:编辑名字后点保存,草稿四字段经桥 update 落库", async () => {
     const { onOpenChange } = renderDialog();
 
@@ -143,7 +154,8 @@ describe("StudioAssetDetailDialog 交互(10-24 批1 复审 M2:对话框级保全
     fireEvent.click(screen.getByRole("button", { name: "删除" }));
 
     await waitFor(() => expect(mocks.delete).toHaveBeenCalledWith("role-1"));
-    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    // 1120 独立页:删除成功=返回列表(onBack;旧 onOpenChange(false) 语义随迁)
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalled());
     vi.unstubAllGlobals();
   });
 
@@ -213,7 +225,7 @@ describe("StudioAssetDetailDialog 交互(10-24 批1 复审 M2:对话框级保全
     expect(screen.getByRole("button", { name: "试听音色" })).toBeTruthy();
   });
 
-  it("元信息折叠开关:点选隐藏四行网格留摘要+保存/删除,localStorage 记忆跨渲染", async () => {
+  it("基础信息折叠开关:点选隐藏四行网格留摘要(保存/删除=页头常驻),localStorage 记忆跨渲染", async () => {
     renderDialog();
 
     // 缺省展开:四行网格字段可见(10-25 分层面板:「出图提示词」区改造为「提示词」
@@ -223,9 +235,9 @@ describe("StudioAssetDetailDialog 交互(10-24 批1 复审 M2:对话框级保全
     expect(screen.getByPlaceholderText("暂无出图提示词")).toBeTruthy();
     expect(window.localStorage.getItem("asset-dialog-meta-collapsed")).toBe("0");
 
-    fireEvent.click(screen.getByRole("button", { name: /元信息/ }));
+    fireEvent.click(screen.getByRole("button", { name: "基础信息" }));
 
-    // 折叠:字段隐、摘要(资产名,与标题同名并存)+保存/删除仍在
+    // 折叠:字段隐、摘要(资产名,与页头同名并存)+保存/删除仍可达(页头常驻单真源)
     expect(screen.queryByPlaceholderText("主名字;副名字1;副名字2")).toBeNull();
     expect(screen.queryByPlaceholderText("暂无出图提示词")).toBeNull();
     expect(screen.getAllByText("玄止").length).toBeGreaterThanOrEqual(1);
@@ -237,16 +249,83 @@ describe("StudioAssetDetailDialog 交互(10-24 批1 复审 M2:对话框级保全
     cleanup();
     renderDialog();
     expect(screen.queryByPlaceholderText("主名字;副名字1;副名字2")).toBeNull();
-    expect(screen.getByRole("button", { name: /元信息/ }).getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByRole("button", { name: "基础信息" }).getAttribute("aria-expanded")).toBe("false");
 
     // 再点展开还原,localStorage 回 "0"
-    fireEvent.click(screen.getByRole("button", { name: /元信息/ }));
+    fireEvent.click(screen.getByRole("button", { name: "基础信息" }));
     expect(screen.getByPlaceholderText("主名字;副名字1;副名字2")).toBeTruthy();
     expect(window.localStorage.getItem("asset-dialog-meta-collapsed")).toBe("0");
   });
+
+  it("1120 独立页:页头「返回列表」=唯一返回口(onBack;Esc 不再关详情页)", () => {
+    // 页容器语义:无 Dialog role,Esc 天然不关页(只关页内子弹窗)
+    expect(screen.queryByRole("dialog")).toBeNull();
+    const { onOpenChange } = renderDialog();
+    expect(screen.getByRole("region", { name: "资产详情 玄止" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "返回列表" }));
+    expect(onOpenChange).toHaveBeenCalledTimes(1);
+
+    // Esc 不触发返回(页容器非模态,键盘事件零绑定)
+    fireEvent.keyDown(screen.getByRole("region", { name: "资产详情 玄止" }), { key: "Escape" });
+    expect(onOpenChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("1120 三令2:图片区整区折叠——摘要行(N 型 · M 张)+localStorage 记忆", () => {
+    renderDialog(roleAsset({
+      images: [{ name: "玄止_无衣物定妆_v1", filePath: "role/f1.png", url: "media://f1" }],
+    }));
+
+    // 缺省展开:九型分节视图在场,无摘要行
+    expect(screen.getByRole("button", { name: "一键生图" })).toBeTruthy();
+    expect(window.localStorage.getItem("asset-detail-gallery-collapsed")).toBe("0");
+
+    fireEvent.click(screen.getByRole("button", { name: "图片" }));
+
+    // 折叠:分节视图隐,摘要行在场(型数=型谱计数;张数=展示序)
+    expect(screen.queryByRole("button", { name: "一键生图" })).toBeNull();
+    expect(screen.getByText(/型 · \d+ 张/)).toBeTruthy();
+    expect(window.localStorage.getItem("asset-detail-gallery-collapsed")).toBe("1");
+
+    // 态记忆:重开(重新渲染)仍折叠
+    cleanup();
+    renderDialog(roleAsset({
+      images: [{ name: "玄止_无衣物定妆_v1", filePath: "role/f1.png", url: "media://f1" }],
+    }));
+    expect(screen.queryByRole("button", { name: "一键生图" })).toBeNull();
+    expect(screen.getByRole("button", { name: "图片" }).getAttribute("aria-expanded")).toBe("false");
+
+    // 再点展开还原
+    fireEvent.click(screen.getByRole("button", { name: "图片" }));
+    expect(screen.getByRole("button", { name: "一键生图" })).toBeTruthy();
+    expect(window.localStorage.getItem("asset-detail-gallery-collapsed")).toBe("0");
+  });
+
+  it("1120 R4 随迁:详情视图自取族图(键=资产名),连点换行晚到旧族图丢弃", async () => {
+    // 桥 mock 补 listFamily(族聚显;fetchFamilyImageEntries 已迁 View 内部 effect)
+    const slow = { resolve: undefined as unknown as ((v: unknown[]) => void) | undefined };
+    mocks.listFamily
+      .mockImplementationOnce(
+        () => new Promise((resolve) => { slow.resolve = resolve as (v: unknown[]) => void; }),
+      )
+      .mockResolvedValueOnce([{
+        id: "role-2", name: "独孤剑尘", type: "role", source: "manying-local",
+        previewUrl: "asset-file://role/solo.png", filePath: "role/solo.png",
+      }]);
+
+    const view = renderDialog();
+    await waitFor(() => expect(mocks.listFamily).toHaveBeenCalledWith({ type: "role", name: "玄止" }));
+
+    // 切资产行:晚到的旧族图(玄止族)不得覆盖新行(独孤剑尘族)
+    rerenderWithAsset(view, roleAsset({ id: "role-2", name: "独孤剑尘" }));
+    await act(async () => { slow.resolve?.([]); });
+    await waitFor(() =>
+      expect(mocks.listFamily).toHaveBeenCalledWith({ type: "role", name: "独孤剑尘" }),
+    );
+  });
 });
 
-describe("StudioAssetDetailDialog · 批2(10-24):放大钮预览序列=当前节图集(节内上下张)", () => {
+describe("StudioAssetDetailView · 批2(10-24):放大钮预览序列=当前节图集(节内上下张)", () => {
   /** 同节三图(人物多视图=_三视图_+_正视图_,10-25 裁定正视图并入)+无标记图(早期未分类)。 */
   function typedRoleAsset(): StudioAssetSummary {
     return roleAsset({
@@ -316,7 +395,7 @@ describe("StudioAssetDetailDialog · 批2(10-24):放大钮预览序列=当前节
   });
 });
 
-describe("StudioAssetDetailDialog · 批3(10-24):一键补缺顺序队列交互", () => {
+describe("StudioAssetDetailView · 批3(10-24):一键补缺顺序队列交互", () => {
   /** 多视图✓ 人脸✓ 在场 → 队列计划=[无衣物定妆, 人物海报, 表情差分](核心节序)。 */
   function partiallyCompleteRole(): StudioAssetSummary {
     return roleAsset({

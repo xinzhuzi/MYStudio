@@ -10,11 +10,11 @@ import {
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
-import { parseAssetNames } from "@/lib/studio/asset-names";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
 import { eventBus } from "@/lib/events/event-bus";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
+import { useAssetDetailViewStore } from "@/stores/assets/asset-detail-view-store";
 import type { StudioAssetSummary, StudioAssetKind } from "@/types/studio-assets";
 import { toast } from "sonner";
 import {
@@ -29,9 +29,7 @@ import {
   type AssetRow,
 } from "./script-asset-generation-model";
 import { getAbsoluteImagePath } from "@/lib/media/image-storage";
-import { fetchFamilyImageEntries, type FamilyImageEntry } from "@/lib/studio/asset-family-images";
 import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
-import type { TtsSpeakerId } from "@/types/tts";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 
@@ -50,14 +48,6 @@ export function useScriptAssetGenerationActions({
   productionEpisodeId: string;
   onAssetStored?: (row: AssetRow, asset: StudioAssetSummary) => void;
 }) {
-  const [selectedAsset, setSelectedAsset] = useState<StudioAssetSummary | null>(null);
-  // R4 族聚显(10-19-script-asset-corridor-blank):行打开时取该实体族全部生成图
-  // (batchMatch 同源候选全集,updatedAt 倒序)传入详情弹窗;undefined=桥缺席/失败。
-  const [selectedFamilyImages, setSelectedFamilyImages] = useState<FamilyImageEntry[] | undefined>(undefined);
-  // 从角色行打开详情时,收集该资产全部别名对应的角色库条目 id(共享资产如「李先生;管事」
-  // 拆开的两行都要接住音色):分配时对这些工作流 speaker 键统一双写
-  const [selectedRowLinkedSpeakerIds, setSelectedRowLinkedSpeakerIds] = useState<TtsSpeakerId[]>([]);
-  const [assetDialogOpen, setAssetDialogOpen] = useState(false);
   const [notFoundAsset, setNotFoundAsset] = useState<AssetRow | null>(null);
   // 后台生成中的行 key(同步 ref,不驱动渲染):确认弹窗关闭后生成转后台,
   // 此集合用于拦截同一资产的重复提交(连点/再次打开行时提示而非重复生图)
@@ -72,43 +62,15 @@ export function useScriptAssetGenerationActions({
   // 「落地衍生资产」全链(落地→父图→衍生图)已迁 derived-asset-chain(批3):
   // 本 hook 不再持有该动作;资产生成区按钮直连 runDerivedAssetChain。
 
-  /** 资产名全部分隔符别名解析后,收集项目内所有匹配的角色库条目 speaker 键(共享资产拆开也接得住)。 */
-  const collectLinkedSpeakerIds = useCallback(
-    (asset: StudioAssetSummary | null, fallbackRow?: AssetRow): TtsSpeakerId[] => {
-      const names = new Set(parseAssetNames(asset?.name ?? fallbackRow?.name ?? "").allNames);
-      const ids = useCharacterLibraryStore
-        .getState()
-        .characters.filter(
-          (character) =>
-            (!activeProjectId || character.projectId === activeProjectId) &&
-            names.has(character.name.trim()),
-        )
-        .map((character) => toRoleSpeakerId(character.id));
-      if (fallbackRow?.type === "character" && !ids.includes(toRoleSpeakerId(fallbackRow.id))) {
-        ids.push(toRoleSpeakerId(fallbackRow.id));
-      }
-      return ids;
-    },
-    [activeProjectId],
-  );
-
-  // L6(10-19 修复批):族取数竞态序号守卫(链路排查#7)——快速连开两行时先发
-  // 请求可能后到,晚到的旧族图覆盖新行弹窗(资产库侧同款守卫,两入口同构)。
-  const familyReqSeqRef = useRef(0);
-  /** 打开详情弹窗并异步取族聚显条目(键=行实体名,与本页 batchMatch 重识别同源)。 */
-  const openAssetDetailWithFamily = useCallback(async (asset: StudioAssetSummary, row: AssetRow) => {
-    const seq = ++familyReqSeqRef.current;
-    setSelectedRowLinkedSpeakerIds(collectLinkedSpeakerIds(asset, row));
-    setSelectedAsset(asset);
-    setAssetDialogOpen(true);
-    setSelectedFamilyImages(undefined);
-    const entries = await fetchFamilyImageEntries(getStudioAssetsBridge(), toRuntimeAssetType(row.type), row.name);
-    if (familyReqSeqRef.current === seq) setSelectedFamilyImages(entries);
-  }, [collectLinkedSpeakerIds]);
-
+  // 1120 详情独立页:行点击改经 detail-view store 跨 tab 下钻(openFromScriptTab
+  // =切资产 tab+落 target;族聚显拉取与 linkedSpeakerIds 解析随详情视图自取——
+  // 键同源=资产名,原 openAssetDetailWithFamily 的本地弹窗态整段退役)。
+  const openFromScriptTab = useAssetDetailViewStore((state) => state.openFromScriptTab);
   const handleOpenAsset = useCallback(async (row: AssetRow) => {
     if (row.assetLibrary) {
-      await openAssetDetailWithFamily(row.assetLibrary, row);
+      // 复审 M2 修:character 行带 row.id 入 store,详情页 linkedSpeakerIds
+      // 兜底(资产名≠角色库现名时分配音色双写不断)
+      openFromScriptTab(row.assetLibrary, row.type === "character" ? row.id : undefined);
       return;
     }
     // 该行生成仍在后台进行:提示进度位置,不再弹「资产未找到」诱导重复提交
@@ -122,21 +84,21 @@ export function useScriptAssetGenerationActions({
         name: row.name,
       });
       if (asset) {
-        await openAssetDetailWithFamily(asset, row);
+        openFromScriptTab(asset);
         return;
       }
       // 同源兜底(2026-10-13):App 家库两查均无此行时,用项目库资产合成只读摘要打开,
       // 与卡片缩略图同源,不再落「资产未找到」死胡同;无图可显仍走未找到流程。
       const synthesized = row.asset ? synthesizeAssetSummaryFromRow(row) : null;
       if (synthesized) {
-        await openAssetDetailWithFamily(synthesized, row);
+        openFromScriptTab(synthesized);
         return;
       }
       setNotFoundAsset(row);
     } catch {
       toast.error("查询资产库失败");
     }
-  }, [openAssetDetailWithFamily]);
+  }, [openFromScriptTab]);
 
   const handleStoreInAssetLibrary = useCallback(async (row: AssetRow) => {
     if (row.assetLibrary) return;
@@ -371,13 +333,6 @@ export function useScriptAssetGenerationActions({
   return {
     isAutoAssigningAudio,
     storingAssetKey,
-    selectedAsset,
-    setSelectedAsset,
-    selectedFamilyImages,
-    selectedRowLinkedSpeakerIds,
-    setSelectedRowLinkedSpeakerIds,
-    assetDialogOpen,
-    setAssetDialogOpen,
     notFoundAsset,
     setNotFoundAsset,
     handleOpenAsset,

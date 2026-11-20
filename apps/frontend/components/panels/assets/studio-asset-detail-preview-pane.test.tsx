@@ -275,8 +275,8 @@ describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区
     expect(within(faceSection).queryByRole("button", { name: "人脸·文生图" })).toBeNull();
   });
 
-  it("shows the spinner and phase text while a face portrait is running", () => {
-    renderPane({ canFacePortrait: true, facePhase: "generating", faceMessage: "正在生成 主角 的高清人头(图生图)..." });
+  it("shows the spinner and phase text while a face portrait is running (1120:spinner 只认 busyTarget=face-i2i)", () => {
+    renderPane({ canFacePortrait: true, busyTarget: "face-i2i", facePhase: "generating", faceMessage: "正在生成 主角 的高清人头(图生图)..." });
 
     const faceSection = screen.getByRole("region", { name: "高清人头" });
     const buttons = within(faceSection).getAllByRole("button", { name: /人脸生成中/ });
@@ -286,6 +286,15 @@ describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区
       expect(button.querySelector(".animate-spin")).toBeTruthy();
     }
     expect(within(faceSection).getAllByText("人脸生成中…")).toHaveLength(1);
+  });
+
+  it("1120 按钮态精修:typeShot 在跑时人脸钮不代转(灰禁点+原标签,phase 真值不再驱动 spinner)", () => {
+    renderPane({ canFacePortrait: true, busyTarget: "section:无衣物定妆", typeShotPhase: "generating", typeShotMessage: "正在生成 主角 的无衣物定妆..." });
+
+    const faceSection = screen.getByRole("region", { name: "高清人头" });
+    const button = within(faceSection).getByRole("button", { name: "人脸·图生图" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.querySelector(".animate-spin")).toBeNull();
   });
 
   it("disables both face portrait entries while generation or style transfer is running", () => {
@@ -320,8 +329,8 @@ describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区
     expect(button.getAttribute("title")).toContain("先有角色图片");
   });
 
-  it("shows the spinner and phase text while an expression sheet is running", () => {
-    renderPane({ canFacePortrait: true, expressionPhase: "generating", expressionMessage: "正在生成 主角 的表情差分..." });
+  it("shows the spinner and phase text while an expression sheet is running (1120:spinner 只认 busyTarget=expression)", () => {
+    renderPane({ canFacePortrait: true, busyTarget: "expression", expressionPhase: "generating", expressionMessage: "正在生成 主角 的表情差分..." });
 
     const expressionSection = screen.getByRole("region", { name: "表情差分" });
     const button = within(expressionSection).getByRole("button", { name: "表情差分生成中…" }) as HTMLButtonElement;
@@ -498,31 +507,46 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     expect(promo.disabled).toBe(false);
   });
 
-  it("节头钮相位:typeShotPhase 在跑全族 Loader2+禁点(第五路互斥家族扩容)", () => {
+  it("1120 R1/R3(AC1):节头钮被点=仅该钮 spinner+「生成中…」,其余节头原标签灰禁点不误转(旧全族 spinner 路径已删)", () => {
     renderPane({
       images: [{ name: "主图", filePath: "role/main.png", url: "media://main" }],
       canTypeShot: true,
       canFacePortrait: true,
       onTypeShot: vi.fn(),
       onFillMissing: vi.fn(),
+      busyTarget: "section:无衣物定妆",
       typeShotPhase: "generating",
       typeShotMessage: "正在生成 主角 的无衣物定妆...",
     });
 
-    // 七型节头钮全部转「生成中…」相位:禁点+Loader2+相位文案进 title
+    // 被点钮(无衣物定妆节头):全族唯一「生成中…」——spinner+禁点+相位文案进 title
     const runningButtons = screen.getAllByRole("button", { name: "生成中…" }) as HTMLButtonElement[];
-    expect(runningButtons).toHaveLength(SHOT_KINDS.length);
-    for (const button of runningButtons) {
+    expect(runningButtons).toHaveLength(1);
+    const clickedSection = screen.getByRole("region", { name: "无衣物定妆" });
+    expect(within(clickedSection).getByRole("button", { name: "生成中…" })).toBe(runningButtons[0]);
+    expect(runningButtons[0].disabled).toBe(true);
+    expect(runningButtons[0].querySelector(".animate-spin")).toBeTruthy();
+    expect(runningButtons[0].getAttribute("title")).toContain("无衣物定妆");
+    // 其余六型节头钮:原标签+灰禁点+零 spinner(全局相位不再联动误转=病灶根修)
+    for (const kind of SHOT_KINDS.filter((shotKind) => shotKind !== "无衣物定妆")) {
+      const button = screen.getByRole("button", { name: `生成${kind}` }) as HTMLButtonElement;
       expect(button.disabled).toBe(true);
-      expect(button.querySelector(".animate-spin")).toBeTruthy();
-      expect(button.getAttribute("title")).toContain("无衣物定妆");
+      expect(button.querySelector(".animate-spin")).toBeNull();
     }
-    // 互斥家族随动:人脸双钮/表情差分/一键补缺全禁(10-25 工具行移除,图生图钮退役)
+    // 互斥家族随动:人脸钮/表情差分/一键生图全禁且原标签零转(10-25 工具行移除,图生图钮退役)
     const faceSection = screen.getByRole("region", { name: "高清人头" });
-    expect((within(faceSection).getByRole("button", { name: "人脸·图生图" }) as HTMLButtonElement).disabled).toBe(true);
+    const faceButton = within(faceSection).getByRole("button", { name: "人脸·图生图" }) as HTMLButtonElement;
+    expect(faceButton.disabled).toBe(true);
+    expect(faceButton.querySelector(".animate-spin")).toBeNull();
     const expressionSection = screen.getByRole("region", { name: "表情差分" });
-    expect((within(expressionSection).getByRole("button", { name: "表情差分" }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole("button", { name: "一键生图" }) as HTMLButtonElement).disabled).toBe(true);
+    const expressionButton = within(expressionSection).getByRole("button", { name: "表情差分" }) as HTMLButtonElement;
+    expect(expressionButton.disabled).toBe(true);
+    expect(expressionButton.querySelector(".animate-spin")).toBeNull();
+    const fillButton = screen.getByRole("button", { name: "一键生图" }) as HTMLButtonElement;
+    expect(fillButton.disabled).toBe(true);
+    expect(fillButton.querySelector(".animate-spin")).toBeNull();
+    // 一键钮旁状态文字照旧滚动播报(进度不因「不陪转」失明)
+    expect(screen.getByText("正在生成 主角 的无衣物定妆...")).toBeTruthy();
   });
 
   it("「按型出图」下拉已删(10-26 用户令:与 chip 直达/分节按钮重复);节头钮仍按型派发", () => {
@@ -584,12 +608,14 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     expect(screen.getAllByRole("region").map((region) => region.getAttribute("aria-label"))).toEqual([
       "道具", "自由",
     ]);
-    // 道具=t2i 透明底型:零图可点(无参考需求);节头带透明+t2i 徽标
+    // 道具=t2i 透明底型:零图可点(无参考需求);节头带透明+t2i(1120 R5 展示层
+    // 映射「文生图」)徽标
     const propButton = screen.getByRole("button", { name: "生成道具" }) as HTMLButtonElement;
     expect(propButton.disabled).toBe(false);
     const propSection = screen.getByRole("region", { name: "道具" });
     expect(within(propSection).getAllByText("透明").length).toBeGreaterThanOrEqual(1);
-    expect(within(propSection).getByText("t2i")).toBeTruthy();
+    expect(within(propSection).getByText("文生图")).toBeTruthy();
+    expect(within(propSection).queryByText("t2i")).toBeNull();
     // 10-26:下拉已删;role 型零泄漏仍由分节守卫承担
     expect(screen.queryByRole("button", { name: /生成无衣物定妆/ })).toBeNull();
     // 完整度核心=道具一核心;一键补缺在位
@@ -615,7 +641,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     expect(onTypeShot).not.toHaveBeenCalled();
   });
 
-  it("一键补缺队列钮:五必备全齐禁用(title 已齐);busy 禁用;队列进度文案透出", () => {
+  it("一键补缺队列钮:五必备全齐禁用(title 已齐);busy 禁用;队列进度文案透出(1120:spinner 只认 one-key,候裁1 节头不陪转)", () => {
     // 全齐 fixture:五必备各有其一
     const complete = [
       { name: "a_无衣物定妆_1", filePath: "role/a.png", url: "media://a" },
@@ -628,11 +654,15 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     // 10-26 二次令:全齐=整块不渲染(无灰钮)
     expect(screen.queryByRole("button", { name: "一键生图" })).toBeNull();
 
-    // 队列在跑(聚合相位):禁用+Loader2+进度文案在条内透出
+    // 队列在跑(busyTarget=one-key 被点钮转;聚合相位供状态文字):一键钮禁用+Loader2
+    // +进度文案在条内透出;各型节头钮不陪转(候裁1:严格「点谁谁转」,进度靠状态文字)
     cleanup();
     renderPane({
       images: [],
+      canTypeShot: true,
+      onTypeShot: vi.fn(),
       onFillMissing: vi.fn(),
+      busyTarget: "one-key",
       typeShotPhase: "generating",
       typeShotMessage: "正在补缺 1/2:无衣物定妆...",
     });
@@ -640,22 +670,33 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     expect(running.disabled).toBe(true);
     expect(running.querySelector(".animate-spin")).toBeTruthy();
     expect(screen.getByText("正在补缺 1/2:无衣物定妆...")).toBeTruthy();
+    // 队列当前型(无衣物定妆)节头钮不陪转:原标签+灰禁点+零 spinner
+    const sectionButton = screen.getByRole("button", { name: "生成无衣物定妆" }) as HTMLButtonElement;
+    expect(sectionButton.disabled).toBe(true);
+    expect(sectionButton.querySelector(".animate-spin")).toBeNull();
   });
 
-  it("节头型档案徽标:七型节带透明/route 徽标,既有路节(高清人头/表情差分)恒无", () => {
+  it("节头型档案徽标:七型节带透明/route 徽标(1120 R5 中文:文生图/图生图),既有路节(高清人头/表情差分)恒无", () => {
     renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn(),
       onFillMissing: vi.fn() });
 
-    // 10-25 用户令:无衣物定妆 t2i 化(文生图身份源头)——route 徽标随迁
+    // 10-25 用户令:无衣物定妆 t2i 化(文生图身份源头)——route 徽标随迁(1120 中文化)
     const fullBody = screen.getByRole("region", { name: "无衣物定妆" });
     expect(within(fullBody).getAllByText("透明").length).toBeGreaterThanOrEqual(1);
-    expect(within(fullBody).getByText("t2i")).toBeTruthy();
+    expect(within(fullBody).getByText("文生图")).toBeTruthy();
+    expect(within(fullBody).queryByText("t2i")).toBeNull();
     const sheet = screen.getByRole("region", { name: "设定卡" });
-    expect(within(sheet).getByText("t2i")).toBeTruthy();
+    expect(within(sheet).getByText("文生图")).toBeTruthy();
     expect(within(sheet).queryByText("透明")).toBeNull();
+    // i2i 型(人物海报):展示层映射「图生图」,title 带语义补全
+    const poster = screen.getByRole("region", { name: "人物海报" });
+    expect(within(poster).getByText("图生图")).toBeTruthy();
+    expect(within(poster).queryByText("i2i")).toBeNull();
+    expect(within(poster).getByText("图生图").getAttribute("title")).toBe("图生图(参考图生成)");
+    expect(within(sheet).getByText("文生图").getAttribute("title")).toBe("文生图(纯文字生成)");
     const face = screen.getByRole("region", { name: "高清人头" });
-    expect(within(face).queryByText("i2i")).toBeNull();
-    expect(within(face).queryByText("t2i")).toBeNull();
+    expect(within(face).queryByText("图生图")).toBeNull();
+    expect(within(face).queryByText("文生图")).toBeNull();
   });
 });
 
@@ -747,5 +788,98 @@ describe("10-26 人物海报画幅开关挪节头", () => {
     const posterSection = screen.getByRole("region", { name: "人物海报" });
     const toggle = within(posterSection).getByRole("button", { name: "横幅 16:9" });
     expect(toggle.className).toContain("text-primary");
+  });
+});
+
+describe("StudioAssetDetailPreviewPane · 1120 生图按钮忙碌态精修(单击单转+余者置灰;11-20-asset-gen-button-busy-state)", () => {
+  /** 本行多视图在场 → 无衣物定妆空节(占位 CTA 可达)。 */
+  const PARTIAL_IMAGES = [
+    { name: "晏燎_练气期_三视图_v1", filePath: "role/a1.png", url: "media://a1" },
+  ];
+
+  it("AC3/候裁2:占位 CTA 被点=CTA 自身 spinner+「生成中…」,该型节头钮不代转", () => {
+    renderPane({
+      images: PARTIAL_IMAGES,
+      canTypeShot: true,
+      onTypeShot: vi.fn(),
+      onGenerateByKind: vi.fn(),
+      onFillMissing: vi.fn(),
+      busyTarget: "placeholder:无衣物定妆",
+      typeShotPhase: "generating",
+      typeShotMessage: "正在生成 主角 的无衣物定妆...",
+    });
+
+    // 被点 CTA(无衣物定妆占位卡):spinner+「生成中…」+禁点
+    const fullBody = screen.getByRole("region", { name: "无衣物定妆" });
+    const cta = within(fullBody).getByRole("button", { name: "生成中…" }) as HTMLButtonElement;
+    expect(cta.disabled).toBe(true);
+    expect(cta.querySelector(".animate-spin")).toBeTruthy();
+    // 该型节头钮不代转:原标签+灰禁点+零 spinner
+    const sectionButton = within(fullBody).getByRole("button", { name: "生成无衣物定妆" }) as HTMLButtonElement;
+    expect(sectionButton.disabled).toBe(true);
+    expect(sectionButton.querySelector(".animate-spin")).toBeNull();
+    // 其余占位 CTA 灰禁点+原「点击生成」标签(不陪转)
+    const poster = screen.getByRole("region", { name: "人物海报" });
+    const posterCta = within(poster).getByRole("button", { name: "点击生成" }) as HTMLButtonElement;
+    expect(posterCta.disabled).toBe(true);
+    expect(posterCta.querySelector(".animate-spin")).toBeNull();
+  });
+
+  it("AC6 CTA 灰态样式:互斥在跑时占位 CTA disabled+opacity-50+cursor-not-allowed(wiring 对样式补齐)", () => {
+    renderPane({
+      images: PARTIAL_IMAGES,
+      onGenerateByKind: vi.fn(),
+      onFillMissing: vi.fn(),
+      typeShotPhase: "generating",
+      typeShotMessage: "正在生成 主角 的无衣物定妆...",
+    });
+
+    const fullBody = screen.getByRole("region", { name: "无衣物定妆" });
+    const cta = within(fullBody).getByRole("button", { name: "点击生成" }) as HTMLButtonElement;
+    expect(cta.disabled).toBe(true);
+    expect(cta.getAttribute("title")).toContain("请稍候");
+    // R3:disabled 灰态样式在场(视觉灰=本次补齐;jsdom 不算 CSS,断类名契约)
+    expect(cta.className).toContain("disabled:opacity-50");
+    expect(cta.className).toContain("disabled:cursor-not-allowed");
+  });
+
+  it("AC4 失败复原:busyTarget 清零+failed 相位残留窗=零 spinner+全族即刻可点(done/failed 反馈不禁点)", () => {
+    const { props, rerender } = renderPane({
+      images: PARTIAL_IMAGES,
+      canTypeShot: true,
+      onTypeShot: vi.fn(),
+      onGenerateByKind: vi.fn(),
+      onFillMissing: vi.fn(),
+      busyTarget: "section:无衣物定妆",
+      typeShotPhase: "generating",
+      typeShotMessage: "正在生成 主角 的无衣物定妆...",
+    });
+    // 运行态基线:被点钮在转
+    expect(screen.getAllByRole("button", { name: "生成中…" })).toHaveLength(1);
+
+    // 失败后装配:finally 清 busyTarget(AC4 硬门);相位 failed=结果反馈残留
+    // (3s 窗)但不再禁点——全族即刻可点+零 spinner
+    rerender(<StudioAssetDetailPreviewPane {...props} busyTarget={null} typeShotPhase="failed" typeShotMessage="无衣物定妆生成失败: 引擎拒绝" />);
+    expect(screen.queryByRole("button", { name: "生成中…" })).toBeNull();
+    expect(document.querySelectorAll(".animate-spin").length).toBe(0);
+    // 被点钮(无衣物定妆):失败反馈文案可点零 spinner(done/failed 相位=反馈不禁点;
+    // typeShot 相位文案全族节头共享=既有反馈语义,spinner 归属只认 busyTarget)
+    const failedButtons = screen.getAllByRole("button", { name: "生成失败" }) as HTMLButtonElement[];
+    // 角色谱七型节头钮(无衣物定妆/人物海报/人物多视图/人脸基准/自由/设定卡/美宣)
+    expect(failedButtons.length).toBe(7);
+    for (const button of failedButtons) {
+      expect(button.disabled).toBe(false);
+      expect(button.querySelector(".animate-spin")).toBeNull();
+    }
+    // 占位 CTA 全部回原「点击生成」可点(失败复原=全族即刻可点)
+    for (const cta of screen.getAllByRole("button", { name: "点击生成" }) as HTMLButtonElement[]) {
+      expect(cta.disabled).toBe(false);
+      expect(cta.querySelector(".animate-spin")).toBeNull();
+    }
+    const fillButton = screen.getByRole("button", { name: "一键生图" }) as HTMLButtonElement;
+    expect(fillButton.disabled).toBe(false);
+    expect(fillButton.querySelector(".animate-spin")).toBeNull();
+    // 失败反馈文案保留(相位供结果反馈消费,R3)
+    expect(screen.getByText("无衣物定妆生成失败: 引擎拒绝")).toBeTruthy();
   });
 });

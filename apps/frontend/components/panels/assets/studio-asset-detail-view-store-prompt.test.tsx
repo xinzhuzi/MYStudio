@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * StudioAssetDetailDialog store 位提示词真源接线面测(10-27 应用侧接线):
+ * StudioAssetDetailView store 位提示词真源接线面测(10-27 应用侧接线):
  * - store-only 角色(小杂役,不在 repo glob):『提示词真源JSON』钮出现、主体句
  *   Textarea 仍渲染且 readOnly=false(subjectMirrorActive 仍 false)、派发主体句
  *   仍=DB draftPrompt(零变更)、无衣物定妆 gate 吃 JSON body_baseSubject
@@ -71,7 +71,7 @@ vi.mock("@/lib/ai/prompt-polisher", async (importOriginal) => {
   return { ...original, polishAssetPrompt: mocks.polishAssetPrompt };
 });
 
-import { StudioAssetDetailDialog } from "./StudioAssetDetailDialog";
+import { StudioAssetDetailView } from "./StudioAssetDetailView";
 // 防 vitest 模块跑器并发动态导入竞态(10-27 门禁红根因):源码 getStoreIoContext 内
 // 两个动态 import(@/stores/project/project-store 与 @/lib/bridge/project-files)在
 // 探测链并发首执行时,偶发解析到未 mock 真身(project-files 真身在 jsdom 无桥→
@@ -109,7 +109,7 @@ function stubStoreFiles(files: Record<string, string>): void {
 }
 
 function renderDialog(asset: StudioAssetSummary = roleAsset()) {
-  return render(<StudioAssetDetailDialog asset={asset} open onOpenChange={vi.fn()} />);
+  return render(<StudioAssetDetailView asset={asset} onBack={vi.fn()} />);
 }
 
 beforeEach(() => {
@@ -138,7 +138,7 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-describe("StudioAssetDetailDialog store 位提示词真源接线(store-only 角色)", () => {
+describe("StudioAssetDetailView store 位提示词真源接线(store-only 角色)", () => {
   it("『提示词真源JSON』钮出现;主体句 Textarea 仍渲染且可编辑,值=DB draftPrompt", async () => {
     stubStoreFiles({
       "store/assets/files/prompts/小杂役.json": JSON.stringify({
@@ -217,7 +217,7 @@ describe("StudioAssetDetailDialog store 位提示词真源接线(store-only 角�
   });
 });
 
-describe("StudioAssetDetailDialog store 位提示词真源接线(repo 角色·晏燎)", () => {
+describe("StudioAssetDetailView store 位提示词真源接线(repo 角色·晏燎)", () => {
   function yanliaoAsset(): StudioAssetSummary {
     return roleAsset({ id: "role-yanliao", name: "晏燎", prompt: "陈旧 DB 种子句" });
   }

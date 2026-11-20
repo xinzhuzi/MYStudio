@@ -14,7 +14,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { StudioAssetDetailDialog } from "./StudioAssetDetailDialog";
+import { StudioAssetDetailView } from "./StudioAssetDetailView";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import type { FamilyImageEntry } from "@/lib/studio/asset-family-images";
@@ -137,10 +137,9 @@ function renderDialog(
   familyImages?: FamilyImageEntry[],
 ) {
   return render(
-    <StudioAssetDetailDialog
+    <StudioAssetDetailView
       asset={asset}
-      open
-      onOpenChange={onOpenChange}
+      onBack={onOpenChange}
       familyImages={familyImages}
     />,
   );
@@ -193,20 +192,15 @@ describe("T2 懒读(已随旧构成区退役;源提示词 JSON 弹窗另行覆�
   });
 
   it("关闭重开或切换多阶段资产时不恢复隐藏的 PNG 读取", () => {
+    // 1120 独立页:详情无 open 态(宿主二态挂载/卸载)——「关再开」=unmount+重挂
     const asset = roleAsset({ images: YANLIAO_IMAGES });
-    const onOpenChange = vi.fn();
-    const view = renderDialog(asset, onOpenChange);
+    const onBack = vi.fn();
+    const view = renderDialog(asset, onBack);
     mocks.readImagePromptText.mockClear();
 
-    view.rerender(<StudioAssetDetailDialog asset={asset} open={false} onOpenChange={onOpenChange} />);
-    view.rerender(<StudioAssetDetailDialog asset={asset} open onOpenChange={onOpenChange} />);
-    view.rerender(
-      <StudioAssetDetailDialog
-        asset={roleAsset({ id: "role-2", images: YANLIAO_IMAGES })}
-        open
-        onOpenChange={onOpenChange}
-      />,
-    );
+    view.unmount();
+    renderDialog(asset, onBack);
+    renderDialog(roleAsset({ id: "role-2", images: YANLIAO_IMAGES }), onBack);
 
     expect(mocks.readImagePromptText).not.toHaveBeenCalled();
   });

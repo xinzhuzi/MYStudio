@@ -2346,7 +2346,7 @@ describe("desktop build scripts", () => {
       "frontend/components/panels/studio/useScriptAssetGenerationActions.ts",
     );
     const assetDialog = readBuildFile(
-      "frontend/components/panels/assets/StudioAssetDetailDialog.tsx",
+      "frontend/components/panels/assets/StudioAssetDetailView.tsx",
     );
     const assetOrchestrator = readBuildFile(
       "frontend/lib/studio/asset-generation-orchestrator.ts",

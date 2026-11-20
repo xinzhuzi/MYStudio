@@ -4,15 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useStudioAssetDialogActions } from "./studio-asset-detail-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useAssetDetailViewStore } from "@/stores/assets/asset-detail-view-store";
 import { useFreedomStore } from "@/stores/assist/freedom-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import type { AssetImage, AssetImageKind, StudioAssetSummary } from "@/types/studio-assets";
@@ -20,6 +16,7 @@ import { RoleVoiceAssignDialog } from "./RoleVoiceAssignDialog";
 import { RoleVoicePreviewButton } from "./RoleVoicePreviewButton";
 import { StudioAssetSettingDialog } from "./StudioAssetSettingDialog";
 import {
+  ArrowLeft,
   Box,
   ChevronDown,
   ChevronRight,
@@ -44,6 +41,7 @@ import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import {
+  fetchFamilyImageEntries,
   mergeFamilyDisplayImages,
   type FamilyDisplayImageEntry,
   type FamilyImageEntry,
@@ -56,7 +54,7 @@ import {
   type PromptInspectCandidate,
 } from "@/lib/studio/asset-prompt-inspect";
 import { getAssetTypeShotProfile } from "@/lib/studio/asset-type-shot";
-import { StudioAssetDetailPreviewPane } from "./studio-asset-detail-preview-pane";
+import { StudioAssetDetailPreviewPane, busyKey, isLanePhaseRunning } from "./studio-asset-detail-preview-pane";
 import { StudioAssetSourcePromptDialog } from "./studio-asset-source-prompt-dialog";
 import { StudioAssetCharacterJsonDialog } from "./studio-asset-character-json-dialog";
 import { StudioAssetCharacterPrompts } from "./studio-asset-character-prompts";
@@ -140,8 +138,15 @@ function subjectDowngradeNote(kind: AssetImageKind): string {
   return `${kind}走图生图:固定指令锚画面,主体句不参与`;
 }
 
-/** 10-24 布局重造批1:元信息区折叠态记忆键(grill Round 2 B 裁定;缺省展开)。 */
+/** 10-24 布局重造批1:基础信息区折叠态记忆键(grill Round 2 B 裁定;缺省展开)。
+ * 1120 详情独立页役(§5.3 三令1):区名更名「基础信息」(旧名随弹窗退役,见 git
+ * 留痕)——存储键沿旧键 asset-dialog-meta-collapsed(键名语义偏旧系历史留痕,
+ * 改名不丢用户既有折叠记忆)。 */
 const META_COLLAPSED_STORAGE_KEY = "asset-dialog-meta-collapsed";
+
+/** 1120 详情独立页役(§5.3 三令2):生图区(preview pane)整区折叠态记忆键
+ * (与基础信息区同范式:chevron+标题+计数摘要;缺省展开)。 */
+const GALLERY_COLLAPSED_STORAGE_KEY = "asset-detail-gallery-collapsed";
 
 /** 资产型→提示词真源域型收窄(10-27 接线):真源域只覆盖 role/scene/tool 三轨,
  *  clip/audio 传 undefined(按平铺名探测,与旧角色路语义一致)。 */
@@ -163,6 +168,14 @@ function displayAudioPath(path: string): string {
 function readMetaCollapsed(): boolean {
   try {
     return window.localStorage?.getItem(META_COLLAPSED_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function readGalleryCollapsed(): boolean {
+  try {
+    return window.localStorage?.getItem(GALLERY_COLLAPSED_STORAGE_KEY) === "1";
   } catch {
     return false;
   }
@@ -193,22 +206,24 @@ const FINAL_DRAFT_NOTE_BY_STATUS: Record<FinalDraftProbe["status"], string> = {
 
 /** T3「阶段」选择器「无」哨兵值(Radix Select 值域须字符串;null 语义映射到此)。 */
 
-export function StudioAssetDetailDialog({
+/**
+ * StudioAssetDetailView — 资产详情独立页(1120-asset-detail-standalone-view §5.1):
+ * 弹窗壳(DialogContent)退役为资产 tab 内下钻全页视图,由 AssetsView 按
+ * detail-view store 的 target 二态挂载/卸载(页常在,open 门随壳退役)。
+ * 页头栏常驻「← 返回列表」+资产名+型徽章+保存/删除(唯一真源);
+ * Esc 不再关详情页(只关页内子弹窗,它们仍是合法的瞬态弹窗)。
+ */
+export function StudioAssetDetailView({
   asset,
-  linkedSpeakerIds,
-  open,
-  onOpenChange,
-  familyImages,
+  onBack,
+  familyImages: externalFamilyImages,
 }: {
   asset: StudioAssetSummary | null;
-  /** 从工作流(剧本资产管理)角色行打开时传入全部匹配别名的工作流 speaker 键:
-   *  分配音色时统一双写(共享资产如「李先生;管事」拆开的各角色键都接住),保证工作流试听/成片一致 */
-  linkedSpeakerIds?: TtsSpeakerId[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  /** R4 族聚显(10-19-script-asset-corridor-blank D1+D3):剧本资产行打开时传入
-   *  该实体族全部生成图(batchMatch 同源候选全集,updatedAt 倒序);图集按族序
-   *  聚显,族兄弟条目只读。undefined=桥缺席/查询失败,回落本行单图(旧行为)。 */
+  /** 返回列表(唯一返回口;§5.5 跨 tab 打开时也回资产列表)。 */
+  onBack: () => void;
+  /** R4 族聚显(10-19-script-asset-corridor-blank D1+D3):外部直供族图
+   *  (测试/特殊场景);undefined=由本视图按资产键自取(1120 独立页役:拉取随
+   *  view——两入口同键=资产名,bridge 缺席/查询失败回落本行单图,旧行为)。 */
   familyImages?: FamilyImageEntry[];
 }) {
   const setActiveTab = useMediaPanelStore((state) => state.setActiveTab);
@@ -231,6 +246,11 @@ export function StudioAssetDetailDialog({
   // 10-24 批3 按型出图:通用第五路相位状态机(型名进相位文案;一键补缺队列复用聚合)
   const [typeShotPhase, setTypeShotPhase] = useState<"generating" | "done" | "failed" | null>(null);
   const [typeShotMessage, setTypeShotMessage] = useState("");
+  // 1120 生图按钮忙碌态精修(§10.1):busyTarget=spinner 唯一真源(被点钮键,
+  // busyKey 族);与五相位并存分工——相位供结果反馈/联动/状态文字,busyTarget
+  // 只管「谁在转」(§6 对策2:双源分工注释钉死)。发起链 setPhase 同址设键,
+  // finally 清(失败必复原=AC4 硬门)。
+  const [busyTarget, setBusyTarget] = useState<string | null>(null);
   const [faceMessage, setFaceMessage] = useState("");
   const [voiceAssignOpen, setVoiceAssignOpen] = useState(false);
   // 10-25 分层面板役 A-1:focusKind 联动状态机(null=通用态)。点击生成入口置目标型
@@ -297,13 +317,14 @@ export function StudioAssetDetailDialog({
   // 完成时对照当前弹窗资产,切换过即只入库不回填表单(防 A 产物污染 B 草稿/图集)
   const activeAssetIdRef = useRef<string | null>(asset?.id ?? null);
   activeAssetIdRef.current = asset?.id ?? null;
-  // R5 孤儿防护闸①:宿主开关活取探针(每渲染同步;生成完成回调迟到时对照,宿主已关零作用)
-  const hostOpenRef = useRef(open);
-  hostOpenRef.current = open;
+  // R5 孤儿防护闸①(宿主开关活取探针)随弹窗壳退役:独立页由宿主二态挂载/卸载,
+  // 「宿主关」=组件卸载(React 卸载后 setState 零渲染),跨资产闸①仍在下面接管。
   // 10-19 用户令:点击图卡开全屏缩放预览(MediaPreviewModal,滚轮缩放/双击/拖拽/翻页)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  // 10-24 布局重造批1:元信息区折叠态(默认展开;localStorage 记忆)
+  // 10-24 布局重造批1:基础信息区折叠态(默认展开;localStorage 记忆)
   const [metaCollapsed, setMetaCollapsed] = useState(readMetaCollapsed);
+  // 1120 详情独立页(§5.3 三令2):生图区整区折叠态(默认展开;localStorage 记忆)
+  const [galleryCollapsed, setGalleryCollapsed] = useState(readGalleryCollapsed);
   // 1120 版式③:设定 MD 编辑弹窗开合
   const [settingEditorOpen, setSettingEditorOpen] = useState(false);
   // 1120 用户令·图像规范清单:三轨型谱(核心/扩展)×画幅×本行已有计数——回答
@@ -332,6 +353,28 @@ export function StudioAssetDetailDialog({
         count: counts[kind] ?? 0,
       }));
   }, [asset, images]);
+  // R4 族聚显(1120 独立页役:拉取随 view):进页/切资产按资产键(=两入口
+  // batchMatch 同源键:资产类型+资产名)自取族图;undefined=桥缺席/查询失败,
+  // 回落本行单图。连点换行时晚到的旧族图丢弃(请求序号守卫,链路排查#7 同款)。
+  const [selfFamilyImages, setSelfFamilyImages] = useState<FamilyImageEntry[] | undefined>(undefined);
+  const familyReqSeqRef = useRef(0);
+  useEffect(() => {
+    const seq = ++familyReqSeqRef.current;
+    setSelfFamilyImages(undefined);
+    if (!asset || (asset.type !== "role" && asset.type !== "scene" && asset.type !== "tool")) {
+      return;
+    }
+    let cancelled = false;
+    void fetchFamilyImageEntries(getStudioAssetsBridge(), asset.type, asset.name).then((entries) => {
+      if (!cancelled && familyReqSeqRef.current === seq) setSelfFamilyImages(entries);
+    });
+    return () => {
+      cancelled = true;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asset?.id]);
+  const familyImages = externalFamilyImages !== undefined ? externalFamilyImages : selfFamilyImages;
+
   // R4 族聚显展示序:族序(updatedAt 倒序)+ live 新图置顶;本行条目可编辑、
   // 族兄弟只读。familyImages 未提供时恒等 images(资产库面板等调用方零变化)。
   const displayImages = useMemo<FamilyDisplayImageEntry[]>(
@@ -351,7 +394,7 @@ export function StudioAssetDetailDialog({
   // 重开/切资产/编辑弹窗关闭即重探(缓存随 save invalidate)。探测中=null。
   const [storePromptInfo, setStorePromptInfo] = useState<AssetPromptJsonInfo | null>(null);
   useEffect(() => {
-    if (!open || !asset?.name) {
+    if (!asset?.name) {
       setStorePromptInfo(null);
       return;
     }
@@ -366,7 +409,7 @@ export function StudioAssetDetailDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, asset?.name, asset?.type, characterJsonOpen]);
+  }, [asset?.name, asset?.type, characterJsonOpen]);
   const storePromptHit = storePromptInfo?.origin === "store";
   // 真源接线(10-26 用户令:「提示词应由 JSON 数据化控制+标注文生图/图生图」):
   // 有真源的角色,提示词区=结构化人物提示词面板(随「阶段」联动,逐条路由徽标),
@@ -428,6 +471,44 @@ export function StudioAssetDetailDialog({
     }
   }, [metaCollapsed]);
 
+  useEffect(() => {
+    try {
+      window.localStorage?.setItem(GALLERY_COLLAPSED_STORAGE_KEY, galleryCollapsed ? "1" : "0");
+    } catch {
+      // localStorage 不可用(隐私模式等):折叠态仅会话内生效,不阻断
+    }
+  }, [galleryCollapsed]);
+
+
+  // linkedSpeakerIds(1120 独立页役:计算随弹窗退役迁入 view 消费):资产名全
+  // 分隔符别名解析后收集项目内匹配的角色库条目 speaker 键(共享资产如「李先生;
+  // 管事」拆开的各角色键都接住),分配音色时统一双写,保证工作流试听/成片一致。
+  // 旧 fallbackRow(工作流行 id 兜底键)随两消费方改 store 落 target 而退役——
+  // 名字匹配主体保留(实现期按 PRD §10.5 最小面定)。
+  const linkedProjectId = useProjectStore((state) => state.activeProjectId);
+  const linkedCharacters = useCharacterLibraryStore((state) => state.characters);
+  const detailOrigin = useAssetDetailViewStore((state) => state.origin);
+  const detailSourceRowId = useAssetDetailViewStore((state) => state.sourceRowId);
+  const linkedSpeakerIds = useMemo<TtsSpeakerId[]>(() => {
+    if (asset?.type !== "role") return [];
+    const names = new Set(parseAssetNames(asset.name ?? "").allNames);
+    const ids = linkedCharacters
+      .filter(
+        (character) =>
+          (!linkedProjectId || character.projectId === linkedProjectId) &&
+          names.has(character.name.trim()),
+      )
+      .map((character) => toRoleSpeakerId(character.id));
+    // 复审 M2 修:script-tab 行兜底(旧 collectLinkedSpeakerIds 语义回归)——
+    // 资产名≠角色库现名(改名晚于剧本行生成)时,角色行自身 speaker 键仍入列,
+    // 分配音色双写不静默断
+    if (detailOrigin === "script-tab" && detailSourceRowId) {
+      const fallback = toRoleSpeakerId(detailSourceRowId);
+      if (!ids.includes(fallback)) ids.push(fallback);
+    }
+    return ids;
+  }, [asset?.type, asset?.name, linkedCharacters, linkedProjectId, detailOrigin, detailSourceRowId]);
+
   // 10-24 布局重造:展示序缩短时夹回选中位(删图/家族过滤后选中不悬空)
   useEffect(() => {
     setCurrentIndex((cur) =>
@@ -444,10 +525,6 @@ export function StudioAssetDetailDialog({
   // 生成完成 displayImages 变更即重探(新产物自动成为候选)。竞态用 cancelled 旗
   // 防旧轮探针覆写新一轮结果。
   useEffect(() => {
-    if (!open) {
-      setFinalDraftProbe({ status: "idle" });
-      return;
-    }
     if (!focusKind) {
       setFinalDraftProbe({ status: "idle" });
       return;
@@ -482,26 +559,13 @@ export function StudioAssetDetailDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, focusKind, displayImages]);
+  }, [focusKind, displayImages]);
 
   // 阶段提示词子区已退役；PNG 元数据仅由仍在使用的终稿探针和查词入口读取。
 
-  // 10-19 双弹勘误:弹窗关(无论因)=预览关——previewIndex 不清零→下次开弹窗时
-  // open&&previewIndex 条件双真→Lightbox 与 Dialog 同时弹出
-  // 10-25 分层面板 A-1:focusKind 随弹窗关重置(生命周期:随弹窗开关重置,不持久化);
-  // 10-25 A-2③/B-3:查词/实发终稿弹层随主弹窗关同关(不残留遮罩)
-  useEffect(() => {
-    if (!open) {
-      setPreviewIndex(null);
-      setFocusKind(null);
-      setPromptInspectTarget(null);
-      // R5 结果弹窗随主弹窗关整清(「宿主关时已弹」时序;「关后才弹」由回调守卫拦)
-      setGenerationOutcome(null);
-      queueRecordsRef.current = [];
-      // 生成路阶段选择随弹窗关清理。
-      resetStageState();
-    }
-  }, [open]);
+  // 「弹窗关即清理」effect 随弹窗壳退役(1120 详情独立页):「宿主关」=组件卸载,
+  // state/队列/ref 全随卸载销毁;切资产清理由下方 [asset?.id] effect 接管
+  // (10-19 双弹勘误/10-25 A-1/A-2③/B-3 的关时清语义由「卸载即清」承接)。
 
   useEffect(() => {
     if (!asset) {
@@ -610,12 +674,11 @@ export function StudioAssetDetailDialog({
   };
 
   // R5 生成结果回调(10-26 用户令:每次生成完成自动弹出):四路 done 即发,与 get/
-  // 写回成败无关(写回失败弹窗照弹,②段走降级文案)。孤儿防护双闸——①宿主关后
-  // 回调零作用(hostOpenRef 活取);②跨资产 record 丢弃(单发/队列同闸:单发防旧资产
+  // 写回成败无关(写回失败弹窗照弹,②段走降级文案)。孤儿防护——宿主关闸随弹窗壳
+  // 退役(卸载=关,卸载后 setState 零渲染);跨资产 record 丢弃闸仍在(单发防旧资产
   // 结果弹错宿主,队列防切资产后旧资产汇总盖新宿主——对齐 10-25 深审修哲学;丢弃路
   // 靠既有 toast「已入库;不回填」+库内产物兜底告知)。
   const handleImageGenerated = (record: GenerationOutcomeRecord) => {
-    if (!hostOpenRef.current) return;
     if (record.assetId !== activeAssetIdRef.current) return;
     if (record.fromQueue) {
       queueRecordsRef.current = [...queueRecordsRef.current, record];
@@ -623,12 +686,12 @@ export function StudioAssetDetailDialog({
     }
     setGenerationOutcome({ records: [record], batch: null });
   };
-  // R5 队列收口=末尾汇总(方案定死):恒先清空 ref 防跨会话陈旧累积;宿主关/零记录
-  // 不弹(同资产关后再开=队列继续且汇总照弹,记录连续)。
+  // R5 队列收口=末尾汇总(方案定死):恒先清空 ref 防跨会话陈旧累积;零记录
+  // 不弹(宿主关=卸载,卸载后 setState 零渲染;同资产关后再开=队列继续且汇总照弹)。
   const handleQueueSettled = (batch: { total: number; completed: number; abortedKind?: string }) => {
     const records = queueRecordsRef.current;
     queueRecordsRef.current = [];
-    if (!hostOpenRef.current || records.length === 0) return;
+    if (records.length === 0) return;
     setGenerationOutcome({ records, batch });
   };
 
@@ -642,7 +705,9 @@ export function StudioAssetDetailDialog({
     handleTypeShot: dispatchTypeShot, handleFillMissingQueue, handleRerollFromPrompt,
   } = useStudioAssetDialogActions({
     asset,
-    onOpenChange,
+    // 1120 独立页:actions 内的「关闭宿主」语义(删除成功/打开 ComfyUI 画布)
+    // 由弹窗 onOpenChange(false) 改为返回列表 onBack()
+    onOpenChange: () => onBack(),
     visualManualId,
     detail: fullAsset || asset,
     images,
@@ -685,6 +750,8 @@ export function StudioAssetDetailDialog({
     typeShotPhase,
     setTypeShotPhase,
     setTypeShotMessage,
+    // 1120 按钮态精修(§10.3):busyTarget 写入口(六条发起链设/清同址 try/finally)
+    setBusyTarget,
     onFillMissingKindFocus: focusOnKind,
     onImageGenerated: handleImageGenerated,
     onFillMissingQueueSettled: handleQueueSettled,
@@ -730,11 +797,13 @@ export function StudioAssetDetailDialog({
     resolveThreeTrackAssetType,
   });
 
-  const handleTypeShot = (kind: AssetImageKind) => {
+  const handleTypeShot = (kind: AssetImageKind, options?: { busyTargetKey?: string }) => {
     focusOnKind(kind);
     // T3(10-25 阶段矩阵,PRD §3.3):生成路「阶段」选择随派发同帧透传(命名与 i2i
     // 参考图锚定用;「无」=不带阶段,既有行为)。人脸双钮/表情差分/重掷不经此包装。
-    dispatchTypeShot(kind, { stage: selectedStage ?? undefined });
+    // 1120 按钮态精修:节头钮调用缺省 busyTargetKey(undefined=actions 侧落
+    // section:<kind> 键);占位 CTA 入口显式传 placeholder:<kind>(候裁2 CTA 自转)。
+    dispatchTypeShot(kind, { stage: selectedStage ?? undefined, busyTargetKey: options?.busyTargetKey });
   };
   if (!asset) return null;
 
@@ -809,27 +878,130 @@ export function StudioAssetDetailDialog({
     }
   };
 
+  // 1120 三令2:五路生成相位任一在跑=图片区折叠摘要的「生成中」旗(进度不因折叠失明;
+  // 1120 按钮态精修随迁:同源收窄运行态——done/failed 反馈窗不挂「生成中」误导旗)
+  const isGenerationLaneBusy = isLanePhaseRunning(generatePhase) || isLanePhaseRunning(i2iPhase)
+    || isLanePhaseRunning(facePhase) || isLanePhaseRunning(expressionPhase) || isLanePhaseRunning(typeShotPhase);
+
+  // ② 图片区主体(preview pane 全 props 装配;audio 型播报卡与三轨/clip 图片区共用
+  // 同一装配——1120 三令2 折叠壳只包图片区,audio 照旧随页不折叠)
+  const previewPane = (
+    <StudioAssetDetailPreviewPane
+    asset={asset}
+    images={displayImages}
+    /* 批3 复审 M 修(Round 3 Q1):完整度两行分级/核心红点基准=本行自有图集,
+     * 族聚显(displayImages 含族兄弟行)同型图不抵扣本行缺口;画廊展示序不变 */
+    completenessImages={images}
+    posterLandscape={posterLandscape}
+    onTogglePosterLandscape={togglePosterLandscape}
+    currentIndex={currentIndex}
+    onSelectImage={setCurrentIndex}
+    spokenText={spokenText}
+    audioSrc={audioSrc}
+    Icon={Icon}
+    onImageClick={setPreviewIndex}
+    onTranscribe={handleTranscribe}
+    onRemoveImage={async (image, index) => {
+      // 10-19 删后即时刷新(用户报障):真删成功才过滤展示序(删失败不动);
+      // 索引随展示长度夹回,防删末图后选中位停越界处
+      const wasOwn = images.some((item) => item.filePath === image.filePath);
+      const ok = await handleRemoveImage(image, index);
+      if (ok && !wasOwn) {
+        setRemovedFamilyPaths((prev) => [...prev, image.filePath]);
+        setCurrentIndex((cur) => Math.min(cur, Math.max(displayImages.length - 2, 0)));
+      }
+    }}
+    i2iPhase={i2iPhase}
+    i2iMessage={i2iMessage}
+    generatePhase={generatePhase}
+    onFaceFromImage={() => {
+      // A-1 写入点:高清人头双钮→高清人头
+      focusOnKind("高清人头");
+      handleFacePortraitFromImage();
+    }}
+    onExpression={() => {
+      // A-1 写入点:表情差分→表情差分
+      focusOnKind("表情差分");
+      handleExpressionSheet();
+    }}
+    expressionPhase={expressionPhase}
+    expressionMessage={expressionMessage}
+    facePhase={facePhase}
+    faceMessage={faceMessage}
+    canFacePortrait={canFacePortrait}
+    canTypeShot={canTypeShot}
+    onTypeShot={handleTypeShot}
+    typeShotPhase={typeShotPhase}
+    typeShotMessage={typeShotMessage}
+    /* 1120 按钮态精修(§10.5):spinner 唯一真源键传入(五相位照旧并行供反馈) */
+    busyTarget={busyTarget}
+    onFillMissing={handleFillMissingQueue}
+    onInspectPrompt={handleInspectPrompt}
+    /* 批3(10-24)+Round 3 ⑤/⑥:占位卡 CTA/完整度缺失 chip 直达生成全型路由
+     * ——高清人头按有图择图生图/文生图路,表情差分接既有路,余型走
+     * handleTypeShot 型驱动件(route 分流:设定卡/美宣/道具=t2i+base_type,
+     * 余=i2i+base_type 型层注入,Phase 2 已切)。
+     * 10-25 分层面板 A-1:入口点击即聚焦目标型(focusOnKind 同帧写入) */
+    onGenerateByKind={(kind) => {
+      focusOnKind(kind);
+      // 1120 按钮态精修(候裁2):占位 CTA 被点=CTA 自身转(placeholder:<kind> 键,
+      // 该型节头钮不代转)
+      if (kind === "高清人头") {
+        // 10-26 用户令:高清人脸没有文生图——恒走无衣物定妆图生图;
+        // 缺定妆图=runFacePortrait 内建守卫拦截并引导先生成定妆
+        handleFacePortraitFromImage({ busyTargetKey: busyKey.placeholder(kind) });
+        return;
+      }
+      if (kind === "表情差分") {
+        handleExpressionSheet({ busyTargetKey: busyKey.placeholder(kind) });
+        return;
+      }
+      handleTypeShot(kind, { busyTargetKey: busyKey.placeholder(kind) });
+    }}
+    isImageRemovable={(image) => {
+      const entry = displayImages.find((item) => item.filePath === image.filePath);
+      return entry ? entry.removable : true;
+    }}
+  />);
+
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="studio-asset-detail-dialog h-[92vh] w-[90vw]! max-w-[90vw]! overflow-hidden bg-card/50 p-0">
-        <DialogHeader className={asset.type === "audio" ? "sr-only" : "studio-asset-detail-header border-b border-border px-5 py-4"}>
-          <DialogTitle className={asset.type === "audio" ? "sr-only" : "flex min-w-0 items-center gap-2 text-base"}>
-            <Icon className="h-4 w-4 text-primary" />
-            <span className="truncate">{displayName}</span>
-            <Badge variant="outline" className="ml-1">{TYPE_LABEL[asset.type]}</Badge>
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            查看和编辑资产详情，包括预览、提示词、设定和角色音色绑定。
-          </DialogDescription>
-        </DialogHeader>
+      {/* 1120 详情独立页(§5.1):DialogContent 弹窗壳退役→页容器占满资产 tab 内容区;
+          页头栏=「← 返回列表」+Icon+名+型徽章+保存/删除常驻(原底部行撤,页头单真源——
+          折叠基础信息也不再留保存/删除摘要)。Esc 不再关详情页(弹窗壳拆即天然退役)。 */}
+      <div
+        className="studio-asset-detail-view flex h-full min-h-0 flex-col overflow-hidden bg-card/50"
+        role="region"
+        aria-label={`资产详情 ${displayName}`}
+      >
+        <header className="studio-asset-detail-header flex shrink-0 items-center gap-2 border-b border-border px-5 py-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 shrink-0 gap-1 px-2"
+            onClick={onBack}
+            aria-label="返回列表"
+            title="返回资产列表"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            返回列表
+          </Button>
+          <Icon className="h-4 w-4 shrink-0 text-primary" />
+          <span className="min-w-0 truncate text-base font-semibold" title={displayName}>{displayName}</span>
+          <Badge variant="outline" className="ml-1 shrink-0">{TYPE_LABEL[asset.type]}</Badge>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <Button size="sm" className="h-7" onClick={handleSave}>保存</Button>
+            <Button size="sm" variant="destructive" className="h-7" onClick={handleDelete}>删除</Button>
+          </div>
+        </header>
 
-        {/* 10-24 布局重造批1:竖向滑动单列——① 元信息区置顶(可折叠)→ ② 图片规范区主体 */}
+        {/* 10-24 布局重造批1:竖向滑动单列——① 基础信息区置顶(可折叠)→ ② 图片规范区主体 */}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <ScrollArea className="studio-asset-dialog-scrollbar min-h-0 min-w-0 flex-1 [&>[data-radix-scroll-area-viewport]>div]:block!">
             <div className="min-w-0 space-y-4 p-5">
-              {/* ① 元信息区(原右栏表单上置;紧凑四行网格+可折叠,折叠留摘要+保存/删除) */}
-              <section className="studio-asset-meta-region rounded-lg border border-border bg-muted/30" aria-label="资产元信息">
+              {/* ① 基础信息区(1120 三令1 更名;紧凑四行网格+可折叠,
+                  折叠留摘要;保存/删除=页头常驻单真源,折叠摘要不再重复) */}
+              <section className="studio-asset-meta-region rounded-lg border border-border bg-muted/30" aria-label="资产基础信息">
                 <div className="flex min-w-0 items-center gap-2 border-b border-border/60 px-4 py-2">
                   <button
                     type="button"
@@ -839,7 +1011,7 @@ export function StudioAssetDetailDialog({
                     aria-controls="studio-asset-meta-body"
                   >
                     {metaCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                    元信息
+                    基础信息
                   </button>
                   {metaCollapsed && (
                     <>
@@ -851,10 +1023,6 @@ export function StudioAssetDetailDialog({
                           别名 {parsedDraftName.secondaryNames.length}
                         </span>
                       )}
-                      <div className="flex shrink-0 items-center gap-2">
-                        <Button size="sm" className="h-7" onClick={handleSave}>保存</Button>
-                        <Button size="sm" variant="destructive" className="h-7" onClick={handleDelete}>删除</Button>
-                      </div>
                     </>
                   )}
                 </div>
@@ -1053,9 +1221,11 @@ export function StudioAssetDetailDialog({
                           </div>
                         </div>
                         {/* 1120 用户令·图像规范清单:一表答「该有哪些类型/各几张/
-                            现有几张」;加粗=核心必备,红数字=核心缺失,灰=扩展可选 */}
+                            现有几张」;加粗=核心必备,红数字=核心缺失,灰=扩展可选。
+                            1120 独立页顺手修(§5.4):列沟 gap-x-6 加宽,计数与下一列
+                            名拉开(vision 实测显挤,速读易错配) */}
                         {imageRuleRows.length > 0 && (
-                          <div className="grid grid-cols-3 gap-x-4 gap-y-1 rounded-md border border-border/60 bg-muted/30 px-2.5 py-2 text-[11px]" aria-label="图像规范清单">
+                          <div className="grid grid-cols-3 gap-x-6 gap-y-1 rounded-md border border-border/60 bg-muted/30 px-2.5 py-2 text-[11px]" aria-label="图像规范清单">
                             {imageRuleRows.map((row) => (
                               <div key={row.kind} className="flex min-w-0 items-baseline gap-1.5">
                                 <span
@@ -1133,16 +1303,13 @@ export function StudioAssetDetailDialog({
                         )}
                       </section>
                     ) : null}
-                    {/* 行尾: 保存 | 删除(用户点名置顶区) */}
-                    <div className="col-span-2 mt-2 flex items-center justify-end gap-2 border-t border-border pt-3">
-                      <Button className="min-w-28" onClick={handleSave}>保存</Button>
-                      <Button variant="destructive" className="min-w-28" onClick={handleDelete}>删除</Button>
-                    </div>
+                    {/* 底部保存/删除行已撤(1120 详情独立页:保存/删除上移页头常驻,
+                        一处真源——折叠任意区也不用再留按钮副本;留痕见 git 历史) */}
                   </div>
                 )}
               </section>
 
-              {/* 空壳资产生成引导(元信息区与图片规范区之间,现链路保持) */}
+              {/* 空壳资产生成引导(基础信息区与图片区之间,现链路保持) */}
               {asset.type !== "audio" && !draftDescription.trim() && !draftPrompt.trim() && !draftSetting.trim() && !hasImagePreview && (
                 <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
                   <div className="text-sm font-medium text-foreground">此角色尚无详细数据</div>
@@ -1153,94 +1320,59 @@ export function StudioAssetDetailDialog({
                 </div>
               )}
 
-              {/* ② 图片规范区(垂直滚动主体:role 型节骨架/scene·tool 单节横行/audio 播报卡)。 */}
+              {/* ② 图片区(垂直滚动主体:role 型节骨架/scene·tool 单节横行/audio 播报卡)。 */}
               {/* 10-26 人物海报画幅开关挪「人物海报」节头(位置在它管的型旁)+
                   持久化(localStorage);全局区不再渲染独立行 */}
-              <StudioAssetDetailPreviewPane
-                asset={asset}
-                images={displayImages}
-                /* 批3 复审 M 修(Round 3 Q1):完整度两行分级/核心红点基准=本行自有图集,
-                 * 族聚显(displayImages 含族兄弟行)同型图不抵扣本行缺口;画廊展示序不变 */
-                completenessImages={images}
-                posterLandscape={posterLandscape}
-                onTogglePosterLandscape={togglePosterLandscape}
-                currentIndex={currentIndex}
-                onSelectImage={setCurrentIndex}
-                spokenText={spokenText}
-                audioSrc={audioSrc}
-                Icon={Icon}
-                onImageClick={setPreviewIndex}
-                onTranscribe={handleTranscribe}
-                onRemoveImage={async (image, index) => {
-                  // 10-19 删后即时刷新(用户报障):真删成功才过滤展示序(删失败不动);
-                  // 索引随展示长度夹回,防删末图后选中位停越界处
-                  const wasOwn = images.some((item) => item.filePath === image.filePath);
-                  const ok = await handleRemoveImage(image, index);
-                  if (ok && !wasOwn) {
-                    setRemovedFamilyPaths((prev) => [...prev, image.filePath]);
-                    setCurrentIndex((cur) => Math.min(cur, Math.max(displayImages.length - 2, 0)));
-                  }
-                }}
-                i2iPhase={i2iPhase}
-                i2iMessage={i2iMessage}
-                generatePhase={generatePhase}
-                onFaceFromImage={() => {
-                  // A-1 写入点:高清人头双钮→高清人头
-                  focusOnKind("高清人头");
-                  handleFacePortraitFromImage();
-                }}
-                onExpression={() => {
-                  // A-1 写入点:表情差分→表情差分
-                  focusOnKind("表情差分");
-                  handleExpressionSheet();
-                }}
-                expressionPhase={expressionPhase}
-                expressionMessage={expressionMessage}
-                facePhase={facePhase}
-                faceMessage={faceMessage}
-                canFacePortrait={canFacePortrait}
-                canTypeShot={canTypeShot}
-                onTypeShot={handleTypeShot}
-                typeShotPhase={typeShotPhase}
-                typeShotMessage={typeShotMessage}
-                onFillMissing={handleFillMissingQueue}
-                onInspectPrompt={handleInspectPrompt}
-                /* 批3(10-24)+Round 3 ⑤/⑥:占位卡 CTA/完整度缺失 chip 直达生成全型路由
-                 * ——高清人头按有图择图生图/文生图路,表情差分接既有路,余型走
-                 * handleTypeShot 型驱动件(route 分流:设定卡/美宣/道具=t2i+base_type,
-                 * 余=i2i+base_type 型层注入,Phase 2 已切)。
-                 * 10-25 分层面板 A-1:入口点击即聚焦目标型(focusOnKind 同帧写入) */
-                onGenerateByKind={(kind) => {
-                  focusOnKind(kind);
-                  if (kind === "高清人头") {
-                    // 10-26 用户令:高清人脸没有文生图——恒走无衣物定妆图生图;
-                    // 缺定妆图=runFacePortrait 内建守卫拦截并引导先生成定妆
-                    handleFacePortraitFromImage();
-                    return;
-                  }
-                  if (kind === "表情差分") {
-                    handleExpressionSheet();
-                    return;
-                  }
-                  handleTypeShot(kind);
-                }}
-                isImageRemovable={(image) => {
-                  const entry = displayImages.find((item) => item.filePath === image.filePath);
-                  return entry ? entry.removable : true;
-                }}
-              />
+              {/* 1120 三令2(§5.3):preview pane 外包整区折叠壳(标题「图片」,§9 候裁1/2
+                  已定=整区折叠+文案「图片」;默认展开,localStorage 记忆)——折叠态整区
+                  只留一行摘要(N 型 · M 张;生成中:五路相位任一在跑即增补,进度不因折叠
+                  失明)。audio 型播报卡照旧随页不折叠(§3 非目标:audio 特殊分支语义不迁移)。 */}
+              {asset.type === "audio" ? (
+                previewPane
+              ) : (
+              <section className="studio-asset-gallery-region rounded-lg border border-border bg-muted/30" aria-label="图片">
+                <div className="flex min-w-0 items-center gap-2 border-b border-border/60 px-4 py-2">
+                  <button
+                    type="button"
+                    className="flex shrink-0 items-center gap-1 rounded-md px-1 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                    onClick={() => setGalleryCollapsed((collapsed) => !collapsed)}
+                    aria-expanded={!galleryCollapsed}
+                    aria-controls="studio-asset-gallery-body"
+                  >
+                    {galleryCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    图片
+                  </button>
+                  {galleryCollapsed && (
+                    <>
+                      <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-sm text-muted-foreground">
+                        {imageRuleRows.length > 0
+                          ? `${imageRuleRows.length} 型 · ${displayImages.length} 张`
+                          : `${displayImages.length} 张`}
+                        {isGenerationLaneBusy && (
+                          <span className="inline-flex shrink-0 items-center gap-1 text-primary">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            生成中
+                          </span>
+                        )}
+                      </span>
+                    </>
+                  )}
+                </div>
+                {!galleryCollapsed && <div id="studio-asset-gallery-body">{previewPane}</div>}
+              </section>
+              )}
+
             </div>
           </ScrollArea>
         </div>
-        </DialogContent>
-      </Dialog>
+      </div>
       {/* 10-19 用户令:全屏缩放预览——复用 MediaPreviewModal(滚轮缩放/双击/拖拽/批量翻页) */}
       {/* 弹窗关=预览关:previewIndex 不清零→Lightbox 全屏遮罩残留→堵住所有 UI 点击(10-19 实弹勘误) */}
       {/* 批2 B 节:预览序列=当前节图集(节内上下张)——按点击位的型解析所属节,取该节
           图集与节内局部序;10-25 深审修:三轨(role/scene/tool)均分节=节内序,
           clip/audio 单节=全展示序(Round 3 ⑤ 后 scene/tool 已型谱分节,原 role 限定
           属旧口径)。节内 url 序与 initialIndex 同构产出,根除下标错位隐患。 */}
-      {open && previewIndex !== null && displayImages[previewIndex] && (() => {
+      {previewIndex !== null && displayImages[previewIndex] && (() => {
         const clickedIndex = previewIndex;
         const sectionKind = asset.type !== "clip" && asset.type !== "audio"
           ? classifyAssetImage(displayImages[clickedIndex])
@@ -1296,15 +1428,15 @@ export function StudioAssetDetailDialog({
           (repo 手工真源与 store 位生成件同待遇);宿主关即卸。type 收窄=真源域
           只覆盖 role/scene/tool 三轨,clip/audio 不传(按 undefined 平铺名探测)。 */}
       <StudioAssetCharacterJsonDialog
-        open={open && characterJsonOpen && Boolean(characterJsonInfo || storePromptHit)}
+        open={characterJsonOpen && Boolean(characterJsonInfo || storePromptHit)}
         characterName={asset.name}
         type={promptJsonTypeOf(asset.type)}
         onOpenChange={setCharacterJsonOpen}
       />
-      {/* R5 生成结果弹窗(10-26 用户令:每次生成完成自动弹出)。挂载守卫=宿主开+有
-          记录:宿主关后任何异步竞态漏网 setState 也零渲染(嵌套弹窗已知坑①) */}
+      {/* R5 生成结果弹窗(10-26 用户令:每次生成完成自动弹出)。挂载守卫=有记录
+          (宿主关=页卸载,卸载后任何异步竞态漏网 setState 也零渲染;嵌套弹窗已知坑①) */}
       <StudioAssetGenerationResultDialog
-        open={open && generationOutcome !== null}
+        open={generationOutcome !== null}
         onOpenChange={(next) => {
           if (!next) setGenerationOutcome(null);
         }}

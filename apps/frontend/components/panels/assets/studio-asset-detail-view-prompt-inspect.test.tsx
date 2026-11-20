@@ -11,7 +11,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { StudioAssetDetailDialog } from "./StudioAssetDetailDialog";
+import { StudioAssetDetailView } from "./StudioAssetDetailView";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import type { FamilyImageEntry } from "@/lib/studio/asset-family-images";
@@ -99,10 +99,9 @@ function renderDialog(
   familyImages?: FamilyImageEntry[],
 ) {
   return render(
-    <StudioAssetDetailDialog
+    <StudioAssetDetailView
       asset={asset}
-      open
-      onOpenChange={onOpenChange}
+      onBack={onOpenChange}
       familyImages={familyImages}
     />,
   );
@@ -298,7 +297,7 @@ describe("B-3 查词(图片卡 hover 工具条→共用弹层)", () => {
 
 describe("A-3 润色还原(10-26 用户令:润色/还原钮全砍除)", () => {
   it("润色提示词/还原上次润色前 两钮均不渲染", () => {
-    render(<StudioAssetDetailDialog asset={roleAsset()} open onOpenChange={vi.fn()} />);
+    render(<StudioAssetDetailView asset={roleAsset()} onBack={vi.fn()} />);
     expect(screen.queryByRole("button", { name: /润色/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /还原上次润色前/ })).toBeNull();
   });

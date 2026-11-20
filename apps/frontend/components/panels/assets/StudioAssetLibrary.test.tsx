@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import type { StudioAssetLibrary as Library } from "./StudioAssetLibrary";
-const mocks = vi.hoisted(() => ({ list: vi.fn(), listFamily: vi.fn(), dialogProps: vi.fn(), toastError: vi.fn(), empty: [], action: vi.fn() }));
+const mocks = vi.hoisted(() => ({ list: vi.fn(), listFamily: vi.fn(), toastError: vi.fn(), empty: [], action: vi.fn() }));
 vi.mock("@/lib/bridge/studio-assets", () => ({ getStudioAssetsBridge: () => ({ list: mocks.list, listFamily: mocks.listFamily }) }));
 vi.mock("sonner", () => ({ toast: { error: mocks.toastError } }));
 vi.mock("@/stores/library/props-library-store", () => ({ usePropsLibraryStore: (s: (v: unknown) => unknown) => s({ items: mocks.empty }) }));
@@ -11,7 +11,6 @@ vi.mock("@/stores/studio/studio-store", () => ({ useStudioStore: (s: (v: unknown
 vi.mock("@/stores/project/project-store", () => ({ useProjectStore: (s: (v: unknown) => unknown) => s({ activeProjectId: null }) }));
 vi.mock("@/stores/tts/tts-store", () => ({ useTtsStore: (s: (v: unknown) => unknown) => s({ setActiveProjectId: mocks.action, createVoiceProfile: mocks.action, bindSpeaker: mocks.action }) }));
 vi.mock("@/lib/ai/ai-manager", () => ({ aiManager: {} }));
-vi.mock("./StudioAssetDetailDialog", () => ({ StudioAssetDetailDialog: (p: unknown) => { mocks.dialogProps(p); return null; } }));
 vi.mock("./AddAssetDialog", () => ({ AddAssetDialog: () => null }));
 vi.mock("./AssetGenerationBar", () => ({ AssetGenerationBar: () => null }));
 // Mock only the viewport-dependent grid; exercise the real query controller.
@@ -35,7 +34,13 @@ function deferred() {
 const row = (id: string): StudioAssetSummary => ({ id, name: id, type: "role", source: "manying-local" });
 const result = (...ids: string[]) => ({ items: ids.map(row), total: ids.length });
 let StudioAssetLibrary: typeof Library;
-beforeEach(async () => { vi.resetModules(); vi.resetAllMocks(); ({ StudioAssetLibrary } = await import("./StudioAssetLibrary")); });
+let useAssetDetailViewStore: typeof import("@/stores/assets/asset-detail-view-store")["useAssetDetailViewStore"];
+beforeEach(async () => {
+  vi.resetModules(); vi.resetAllMocks();
+  ({ StudioAssetLibrary } = await import("./StudioAssetLibrary"));
+  ({ useAssetDetailViewStore } = await import("@/stores/assets/asset-detail-view-store"));
+  useAssetDetailViewStore.setState({ target: null, origin: null, closedAt: null });
+});
 afterEach(cleanup);
 async function search(value: string) {
  fireEvent.change(screen.getByPlaceholderText("搜索名称"), { target: { value } });
@@ -86,45 +91,31 @@ describe("asset query lifecycle", () => {
  });
 });
 
-describe("R4 扩面:卡片详情族聚显(资产库面板)", () => {
- const fam = (id: string): StudioAssetSummary =>
-  ({ id, name: id, type: "role", source: "manying-local", previewUrl: `asset-file://role/${id}.png`, filePath: `role/${id}.png` });
- const lastDialog = () => mocks.dialogProps.mock.calls[mocks.dialogProps.mock.calls.length - 1]?.[0] as
-  { asset?: StudioAssetSummary; familyImages?: Array<{ url?: string }> } | undefined;
-
- it("opens a role card with family aggregation fetched by card name", async () => {
+describe("1120 详情独立页:卡片点击经 detail-view store 下钻(主入口)", () => {
+ it("点角色卡→openFromLibrary 落 target+origin(族聚显拉取已随详情视图自取,本层零拉)", async () => {
   mocks.list.mockResolvedValueOnce(result("晏燎"));
-  mocks.listFamily.mockResolvedValueOnce([fam("晏燎"), fam("晏燎_练气期_三视图_v1"), fam("晏燎_共主期_海报_v1")]);
   render(<StudioAssetLibrary type="role" />); await screen.findByText("晏燎");
   fireEvent.click(screen.getByTestId("open-晏燎"));
-  await act(async () => { await new Promise(r => setTimeout(r, 0)); });
-  expect(mocks.listFamily).toHaveBeenCalledWith({ type: "role", name: "晏燎" });
-  expect(lastDialog()?.asset?.name).toBe("晏燎");
-  expect(lastDialog()?.familyImages?.map((e) => e.url)).toEqual([
-   "asset-file://role/晏燎.png", "asset-file://role/晏燎_练气期_三视图_v1.png", "asset-file://role/晏燎_共主期_海报_v1.png",
-  ]);
+  expect(useAssetDetailViewStore.getState().target?.name).toBe("晏燎");
+  expect(useAssetDetailViewStore.getState().origin).toBe("library");
+  // 族拉取迁详情视图后,列表层不再发族查询(覆盖面随迁 view-interaction 族图用例)
+  expect(mocks.listFamily).not.toHaveBeenCalled();
  });
 
- it("does not fetch family for non-aggregating kinds", async () => {
+ it("audio 卡点击同样落位(不聚族判定在视图层,入口统一)", async () => {
   mocks.list.mockResolvedValueOnce({ items: [{ id: "audio-1", name: "旁白", type: "audio", source: "manying-local" }], total: 1 });
   render(<StudioAssetLibrary type="audio" />); await screen.findByText("旁白");
   fireEvent.click(screen.getByTestId("open-audio-1"));
-  await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+  expect(useAssetDetailViewStore.getState().target?.name).toBe("旁白");
   expect(mocks.listFamily).not.toHaveBeenCalled();
-  expect(lastDialog()?.familyImages).toBeUndefined();
  });
 
- it("discards a late family response after switching cards", async () => {
+ it("连点两卡→target 恒为最后点击(下钻目标位单值)", async () => {
   mocks.list.mockResolvedValueOnce(result("晏燎", "独孤剑尘"));
-  const slow = deferred() as unknown as { promise: Promise<StudioAssetSummary[]>; resolve: (v: StudioAssetSummary[]) => void };
-  mocks.listFamily.mockReturnValueOnce(slow.promise).mockResolvedValueOnce([fam("独孤剑尘")]);
   render(<StudioAssetLibrary type="role" />); await screen.findByText("晏燎");
   fireEvent.click(screen.getByTestId("open-晏燎"));
   fireEvent.click(screen.getByTestId("open-独孤剑尘"));
-  await act(async () => { await new Promise(r => setTimeout(r, 0)); });
-  await act(async () => { slow.resolve([fam("晏燎_旧图")]); });
-  expect(lastDialog()?.asset?.name).toBe("独孤剑尘");
-  expect(lastDialog()?.familyImages?.map((e) => e.url)).toEqual(["asset-file://role/独孤剑尘.png"]);
+  expect(useAssetDetailViewStore.getState().target?.name).toBe("独孤剑尘");
  });
 });
 

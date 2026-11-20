@@ -16,44 +16,66 @@
      "components/panels/SettingsPanel.tsx imports components/panels/settings/DevelopmentSettingsContainer",
      "components/panels/SettingsPanel.tsx imports components/panels/settings/StorageSettingsTab",
      "components/panels/SettingsPanel.tsx imports components/panels/settings/PluginSettingsTab",
+     "components/panels/SettingsPanel.tsx imports components/panels/settings/McpSettingsTab",
      "components/panels/SettingsPanel.tsx imports components/panels/settings/ApiSettingsContainer",
      "components/panels/SettingsPanel.tsx imports components/panels/settings/SettingsTabsBar"
     ],
-    "assets → studio": [
-     "components/panels/assets/StudioAssetLibrary.tsx imports components/panels/studio/use-direct-image-upscale"
+    "assist → settings": [
+     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.emptychapter.test.tsx imports components/panels/settings/comfy-engine/mock-comfy-engine-client",
+     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.emptychapter.test.tsx imports components/panels/settings/comfy-engine/useComfyEngineSettings",
+     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.emptychapter.test.tsx imports components/panels/settings/comfy-engine/comfy-engine-contract",
+     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.tsx imports components/panels/settings/comfy-engine/useComfyEngineSettings",
+     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.tsx imports components/panels/settings/comfy-engine/comfy-engine-contract",
+     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.test.tsx imports components/panels/settings/comfy-engine/mock-comfy-engine-client",
+     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.test.tsx imports components/panels/settings/comfy-engine/useComfyEngineSettings",
+     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.test.tsx imports components/panels/settings/comfy-engine/comfy-engine-contract",
+     "components/panels/assist/local-models/LocalModelStudio.tsx imports components/panels/settings/comfy-engine/comfy-engine-contract",
+     "components/panels/assist/local-models/LocalModelStudio.tsx imports components/panels/settings/comfy-engine/useComfyEngineSettings",
+     "components/panels/assist/local-models/LocalModelStudio.test.tsx imports components/panels/settings/comfy-engine/mock-comfy-engine-client",
+     "components/panels/assist/local-models/LocalModelStudio.test.tsx imports components/panels/settings/comfy-engine/comfy-engine-contract"
     ],
     "assist → studio": [
-     "components/panels/assist/image-studio/ImageStudioCanvas.tsx imports components/panels/studio/CanvasViewportControls",
-     "components/panels/assist/image-studio/ImageStudioCanvas.tsx imports components/panels/studio/previews/interaction-defer-hint",
-     "components/panels/assist/image-studio/ImageStudioCanvas.tsx imports components/panels/studio/use-canvas-gesture-kernel"
+     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.tsx imports components/panels/studio/workflow-helpers",
+     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.tsx imports components/panels/studio/workflow-node-model-schema",
+     "components/panels/assist/comfy-canvas/stage-payload-map.ts imports components/panels/studio/workflow-node-model-schema"
     ],
     "overview → studio": [
-     "components/panels/overview/stage-guide.test.ts imports components/panels/studio/workflow-tabs",
-     "components/panels/overview/stage-guide.ts imports components/panels/studio/workflow-tabs"
+     "components/panels/overview/stage-guide.test.ts imports components/panels/studio/workflow-stage/workflow-tabs",
+     "components/panels/overview/stage-guide.ts imports components/panels/studio/workflow-stage/workflow-tabs"
     ],
     "script → media": [
      "components/panels/script/index.tsx imports components/panels/media/ArtifactDeleteDialog"
     ],
     "studio → assets": [
-     "components/panels/studio/ScriptAssetGenerationTab.tsx imports components/panels/assets/StudioAssetDetailDialog",
+     "components/panels/studio/workflow-stage-actions.test.tsx imports components/panels/assets/StudioAssetDetailView",
      "components/panels/studio/useChapterAutoVideoActions.ts imports components/panels/assets/role-audio-auto-assign",
      "components/panels/studio/ScriptAssetGenerationRow.tsx imports components/panels/assets/RoleVoicePreviewButton",
-     "components/panels/studio/useScriptAssetGenerationActions.ts imports components/panels/assets/role-audio-auto-assign"
+     "components/panels/studio/useScriptAssetGenerationActions.ts imports components/panels/assets/role-audio-auto-assign",
+     "components/panels/studio/useChapterAutoVideoActions.test.tsx imports components/panels/assets/role-audio-auto-assign"
     ],
     "studio → assist": [
-     "components/panels/studio/image-workflow/image-workflow-node-card.tsx imports components/panels/assist/ModelSelector"
+     "components/panels/studio/index.tsx imports components/panels/assist/comfy-canvas/ComfyCanvasSwap"
     ],
     "studio → media": [
      "components/panels/studio/NovelTab.tsx imports components/panels/media/ArtifactDeleteDialog"
+    ],
+    "studio → settings": [
+     "components/panels/studio/image-workflow/storyboard-batch-protocols.ts imports components/panels/settings/comfy-engine/comfy-engine-contract",
+     "components/panels/studio/image-workflow/storyboard-batch-protocols.test.ts imports components/panels/settings/comfy-engine/comfy-engine-contract",
+     "components/panels/studio/image-workflow/use-storyboard-h3-video-batch.ts imports components/panels/settings/comfy-engine/comfy-engine-contract"
     ]
    },
-   "edge_count": 8
+   "edge_count": 9
   },
   "frontend_fanout_top": {
    "top": [
     {
      "file": "electron/main/main.ts",
-     "imports": 109
+     "imports": 72
+    },
+    {
+     "file": "components/panels/assets/StudioAssetDetailView.tsx",
+     "imports": 39
     },
     {
      "file": "components/panels/sclass/sclass-scenes.tsx",
@@ -68,15 +90,11 @@
      "imports": 37
     },
     {
+     "file": "components/panels/studio/WorkbenchTab.tsx",
+     "imports": 31
+    },
+    {
      "file": "components/panels/studio/useChapterAutoVideoActions.ts",
-     "imports": 33
-    },
-    {
-     "file": "components/panels/studio/image-workflow/ImageWorkflowCanvas.tsx",
-     "imports": 32
-    },
-    {
-     "file": "electron/preload/preload.ts",
      "imports": 31
     },
     {
@@ -84,15 +102,19 @@
      "imports": 31
     },
     {
-     "file": "components/panels/studio/WorkbenchTab.tsx",
-     "imports": 30
-    },
-    {
-     "file": "components/panels/settings/PluginSettingsTab.tsx",
+     "file": "components/Layout.tsx",
      "imports": 28
     },
     {
-     "file": "components/panels/assets/StudioAssetDetailDialog.tsx",
+     "file": "lib/ai/image-generation-engine.ts",
+     "imports": 28
+    },
+    {
+     "file": "components/panels/studio/index.tsx",
+     "imports": 28
+    },
+    {
+     "file": "components/panels/studio/useProductionPlanningActions.ts",
      "imports": 28
     },
     {
@@ -100,98 +122,57 @@
      "imports": 27
     },
     {
-     "file": "types/electron.d.ts",
+     "file": "components/panels/settings/McpSettingsTab.tsx",
      "imports": 26
-    },
-    {
-     "file": "components/panels/assets/StudioAssetLibrary.tsx",
-     "imports": 26
-    },
-    {
-     "file": "electron/rendering/plugins/remotion/renderer/remotion-chapter-renderer.ts",
-     "imports": 25
     },
     {
      "file": "components/panels/settings/RenderingSettingsTab.tsx",
-     "imports": 25
+     "imports": 26
     },
     {
      "file": "stores/studio/studio-store.ts",
+     "imports": 26
+    },
+    {
+     "file": "components/panels/settings/PluginSettingsTab.tsx",
+     "imports": 25
+    },
+    {
+     "file": "components/panels/media/ArtifactCenter.tsx",
      "imports": 25
     }
    ]
   },
   "backend": {
    "cross_pkg_imports": {
-    "audio_gen → modelscope_hub": [
-     "audio_gen/download_model.py: from modelscope_hub"
+    "engines → image_gen": [
+     "engines/image_engine/krea2.py: from image_gen.pipeline",
+     "engines/image_engine/krea2.py: from image_gen.pipeline",
+     "engines/image_engine/krea2.py: from image_gen.pipeline",
+     "engines/image_engine/qwen21.py: from image_gen.pipeline",
+     "engines/image_engine/qwen21.py: from image_gen.pipeline",
+     "engines/image_engine/comfyui_bridge.py: from image_gen.pipeline",
+     "engines/image_engine/comfyui_bridge.py: from image_gen.pipeline",
+     "engines/image_engine/comfyui_bridge.py: from image_gen.pipeline"
     ],
-    "depth_estimation → modelscope_hub": [
-     "depth_estimation/download_model.py: from modelscope_hub"
-    ],
-    "image_gen → modelscope_hub": [
-     "image_gen/download_model.py: from modelscope_hub"
-    ],
-    "layer_separation → depth_estimation": [
-     "layer_separation/separator.py: from depth_estimation.adapter"
-    ],
-    "sfx_gen → modelscope_hub": [
-     "sfx_gen/download_model.py: from modelscope_hub"
+    "engines → video_qc": [
+     "engines/video_qc_engine/test_dover_mobile_arch.py: from video_qc",
+     "engines/video_qc_engine/test_dover_mobile_arch.py: from video_qc"
     ]
    },
    "sys_path_hacks": [
+    "comfyui/conftest.py",
     "vlm_review/run_full_audit.py",
-    "video_qc/test_dover_mobile_arch.py"
+    "engines/video_qc_engine/test_dover_mobile_arch.py",
+    "comfyui/runs/campaigns/qi21-sysprompt-livefire/probe_ab_1006.py",
+    "image_gen/scripts/uncloth_pipeline.py"
    ],
-   "model_cache_dup_funcs": {
-    "hf_cache_dirs": [
-     "image_gen",
-     "audio_gen",
-     "sfx_gen",
-     "depth_estimation",
-     "tts",
-     "music3_gen"
-    ],
-    "primary_hf_cache_dir": [
-     "image_gen",
-     "audio_gen",
-     "sfx_gen",
-     "depth_estimation",
-     "tts",
-     "music3_gen"
-    ],
-    "repo_cache_dir": [
-     "image_gen",
-     "audio_gen",
-     "sfx_gen",
-     "depth_estimation",
-     "tts",
-     "music3_gen"
-    ],
-    "repo_cache_name": [
-     "image_gen",
-     "audio_gen",
-     "sfx_gen",
-     "depth_estimation",
-     "tts",
-     "music3_gen"
-    ]
-   },
-   "model_cache_pkgs": [
-    "audio_gen",
-    "depth_estimation",
-    "image_gen",
-    "music3_gen",
-    "sfx_gen",
-    "tts",
-    "upscale",
-    "video_qc",
-    "vlm_review"
-   ]
+   "model_cache_dup_funcs": {},
+   "model_cache_pkgs": []
   },
   "electron": {
    "main_ts": {
-    "lines": 1885,
+    "lines": 722,
     "ipcMain_handle_count": 0
    },
    "plugin_cross_imports": {

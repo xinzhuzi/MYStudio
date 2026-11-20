@@ -7,6 +7,8 @@ import { AssetsTab } from "./AssetsTab";
 import { eventBus } from "@/lib/events/event-bus";
 import { ScriptAssetManagementTab } from "./ScriptAssetManagementTab";
 import { ScriptAssetGenerationTab } from "./ScriptAssetGenerationTab";
+import { StudioAssetDetailView } from "@/components/panels/assets/StudioAssetDetailView";
+import { useAssetDetailViewStore } from "@/stores/assets/asset-detail-view-store";
 import { WorkbenchTab } from "./WorkbenchTab";
 import { collectDerivedAssetGenerationTasks, useProductionPlanningActions } from "./useProductionPlanningActions";
 import { useNovelPipelineActions } from "./useNovelPipelineActions";
@@ -27,6 +29,20 @@ import {
   resolveScriptTextForEpisode,
   scriptPlanSourceFingerprint,
 } from "./workflow-helpers";
+
+/** 1120 详情独立页:行点击=跨 tab 下钻(detail-view store 落 target);本文件无
+ *  AssetsView 宿主,点行后手动挂详情视图承接旧「弹窗内交互」链(分配音色双写/
+ *  关闭刷新)。 */
+function renderDetailViewFromStore() {
+  const target = useAssetDetailViewStore.getState().target;
+  if (!target) throw new Error("row click did not set the detail-view target");
+  return render(
+    <StudioAssetDetailView
+      asset={target}
+      onBack={() => useAssetDetailViewStore.getState().close()}
+    />,
+  );
+}
 
 const assetOrchestratorMocks = vi.hoisted(() => ({
   generateAsset: vi.fn(),
@@ -1170,7 +1186,10 @@ describe("workflow stage action surfaces", () => {
     expect(assetsTabSource).not.toContain("runDirectorPlan");
     expect(assetsTabSource).not.toContain("buildSeriesBible");
     expect(moduleSource).not.toContain("RoleVoiceAssignDialog");
-    expect(moduleSource).toContain("StudioAssetDetailDialog");
+    // 1120 详情独立页:行点击改经 detail-view store 跨 tab 下钻(旧详情弹窗退役)
+    expect(moduleSource).not.toContain("StudioAssetDetailDialog");
+    expect(moduleSource).toContain("useAssetDetailViewStore");
+    expect(moduleSource).toContain("openFromScriptTab");
   });
 
   it("renders extraction and generation in one script asset management stage", () => {
@@ -1677,9 +1696,11 @@ describe("workflow stage action surfaces", () => {
     expect(batchMatch).toHaveBeenCalledTimes(1);
 
     // 打开行详情再关闭 → 行绑定按库内最新状态重算(详情里的修改即时反映)
+    // 1120 独立页:行点击经 store 跨 tab 下钻,关闭=返回钮(closedAt 推动本 Tab 订阅静默重跑)
     fireEvent.click(screen.getByText("管事"));
-    await waitFor(() => expect(document.querySelector("[role='dialog']")).toBeTruthy());
-    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(useAssetDetailViewStore.getState().target).toBeTruthy());
+    renderDetailViewFromStore();
+    fireEvent.click(screen.getByRole("button", { name: "返回列表" }));
     await waitFor(() => expect(batchMatch).toHaveBeenCalledTimes(2));
   });
 
@@ -1740,7 +1761,10 @@ describe("workflow stage action surfaces", () => {
     // 从「管事」行打开共享资产详情并分配音色
     await waitFor(() => expect(screen.getAllByText("资产库已存在").length).toBeGreaterThanOrEqual(2));
     fireEvent.click(screen.getByText("管事"));
-    await waitFor(() => expect(document.querySelector("[role='dialog']")).toBeTruthy());
+    // 1120 独立页:手挂详情视图(行点击已落 target),linkedSpeakerIds 由视图按
+    // 资产名别名解析(李先生;管事 拆开两键都接住)
+    await waitFor(() => expect(useAssetDetailViewStore.getState().target).toBeTruthy());
+    renderDetailViewFromStore();
     await waitFor(() => expect(screen.getByText(/尚未分配音色|更换音色/)).toBeTruthy());
     fireEvent.click(screen.getByText(/尚未分配音色|更换音色/));
     await waitFor(() => expect(screen.getByText("共享样本")).toBeTruthy());
@@ -1960,7 +1984,9 @@ describe("workflow stage action surfaces", () => {
     // 挂载静默匹配后行已绑资产库;点行打开详情
     await waitFor(() => expect(screen.getByText("资产库已存在")).toBeTruthy());
     fireEvent.click(screen.getByText("管事"));
-    // 详情弹窗:音色未分配块 → 打开分配对话框
+    // 1120 独立页:手挂详情视图(行点击已落 target),音色分配双写链随视图
+    await waitFor(() => expect(useAssetDetailViewStore.getState().target).toBeTruthy());
+    renderDetailViewFromStore();
     await waitFor(() => expect(screen.getByText(/尚未分配音色/)).toBeTruthy());
     fireEvent.click(screen.getByText(/尚未分配音色/));
     // 分配对话框:选音频 → 确认分配

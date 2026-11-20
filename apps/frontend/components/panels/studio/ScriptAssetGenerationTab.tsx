@@ -11,7 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { StudioAssetDetailDialog } from "@/components/panels/assets/StudioAssetDetailDialog";
+import { useAssetDetailViewStore } from "@/stores/assets/asset-detail-view-store";
 import {
   Boxes,
   Loader2,
@@ -140,13 +140,6 @@ export function ScriptAssetGenerationTab({
 
   const {
     isAutoAssigningAudio,
-    selectedAsset,
-    setSelectedAsset,
-    selectedFamilyImages,
-    selectedRowLinkedSpeakerIds,
-    setSelectedRowLinkedSpeakerIds,
-    assetDialogOpen,
-    setAssetDialogOpen,
     notFoundAsset,
     setNotFoundAsset,
     handleAutoAssignAudio,
@@ -374,6 +367,26 @@ export function ScriptAssetGenerationTab({
     void handleRefreshAssetMatches({ silent: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasAnyRows, productionEpisodeId]);
+
+  // 1120 详情独立页:本 Tab 行点击改跨 tab 下钻(详情页住资产 tab);「关闭详情时
+  // 静默重跑匹配」由本 Tab 订阅 detail-view store 的 closedAt 承接——closedAt 变化
+  // 且 origin=script-tab(关的是本 Tab 打开的详情)即 handleRefreshAssetMatches(
+  // {silent:true}),行为等价旧 onOpenChange(false) 回调。本 Tab 卸载期间(用户在
+  // 资产 tab)订阅随卸载断开,回切时上方「每章首次静默重跑」effect 兜底刷新。
+  const refreshMatchesRef = useRef(handleRefreshAssetMatches);
+  refreshMatchesRef.current = handleRefreshAssetMatches;
+  useEffect(() => {
+    const unsubscribe = useAssetDetailViewStore.subscribe((state, prev) => {
+      if (
+        state.closedAt !== prev.closedAt &&
+        state.closedAt !== null &&
+        state.origin === "script-tab"
+      ) {
+        void refreshMatchesRef.current({ silent: true });
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   return (
     <div className="flex min-h-0 flex-col bg-background/90">
@@ -694,21 +707,9 @@ export function ScriptAssetGenerationTab({
         )}
       </div>
 
-      <StudioAssetDetailDialog
-        asset={selectedAsset}
-        linkedSpeakerIds={selectedRowLinkedSpeakerIds}
-        familyImages={selectedFamilyImages}
-        open={assetDialogOpen}
-        onOpenChange={(open) => {
-          setAssetDialogOpen(open);
-          if (!open) {
-            setSelectedAsset(null);
-            setSelectedRowLinkedSpeakerIds([]);
-            // 详情里的任何修改(提示词/图/信息/配音)在关闭时已落库——静默重跑匹配让行状态即时刷新
-            void handleRefreshAssetMatches({ silent: true });
-          }
-        }}
-      />
+      {/* 1120 详情独立页:内嵌旧详情弹窗退役——行点击经
+          detail-view store 跨 tab 下钻(openFromScriptTab),关闭详情的静默
+          重跑匹配由本组件订阅 store closedAt 承接(见上方 effect) */}
       <AlertDialog
         open={Boolean(notFoundAsset)}
         onOpenChange={(open) => {

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 const readDialogSources = () =>
-  readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8")
+  readFileSync(new URL("./StudioAssetDetailView.tsx", import.meta.url), "utf8")
     + readFileSync(new URL("./studio-asset-detail-actions.ts", import.meta.url), "utf8")
     + readFileSync(new URL("./StudioAssetSettingDialog.tsx", import.meta.url), "utf8");
 
@@ -16,7 +16,7 @@ import {
   resolveThreeTrackAssetType,
   saveGeneratedAssetImageToLibrary,
   updateImagesAfterReplacingMainImage,
-} from "./StudioAssetDetailDialog";
+} from "./StudioAssetDetailView";
 import {
   persistGeneratedAssetPromptToLibrary as canonicalPersistGeneratedAssetPromptToLibrary,
   saveGeneratedAssetImageToLibrary as canonicalSaveGeneratedAssetImageToLibrary,
@@ -402,33 +402,60 @@ describe("buildAssetRegenerationPrompt", () => {
   });
 });
 
-describe("10-24 布局重造批1(竖滑单列+元信息置顶+轮播拆除)", () => {
+describe("10-24 布局重造批1(竖滑单列+基础信息置顶+轮播拆除)", () => {
   const readPaneSource = () => readFileSync(new URL("./studio-asset-detail-preview-pane.tsx", import.meta.url), "utf8");
 
-  it("壳不变(92vh×90vw+overflow-hidden)+双栏拆除为竖向单列滚动", () => {
+  it("1120 独立页:弹窗壳退役=页容器(h-full)+页头返回/保存/删除常驻,竖向单列滚动保持", () => {
     const source = readDialogSources();
-    expect(source).toContain("h-[92vh] w-[90vw]! max-w-[90vw]! overflow-hidden bg-card/50 p-0");
+    // Dialog 壳退役:DialogContent 92vh×90vw 类零残留,页容器占满资产 tab 内容区
+    expect(source).not.toContain("h-[92vh] w-[90vw]!");
+    expect(source).toContain("flex h-full min-h-0 flex-col overflow-hidden bg-card/50");
+    expect(source).toContain('role="region"');
+    // 页头=返回列表+名+型徽章+保存/删除常驻(原底部行撤,页头单真源)
+    expect(source).toContain('aria-label="返回列表"');
+    expect(source.match(/onClick=\{handleSave\}/g)?.length).toBe(1);
+    expect(source.match(/onClick=\{handleDelete\}/g)?.length).toBe(1);
     expect(source).not.toContain("grid-cols-[minmax(280px,420px)_1fr]");
     expect(source).toContain("studio-asset-meta-region");
   });
 
-  it("元信息区四行网格置顶+保存/删除在行尾,可折叠+态记忆(localStorage)", () => {
+  it("基础信息区四行网格置顶,可折叠+态记忆(localStorage 键沿旧)+折叠摘要撤保存/删除", () => {
     const source = readDialogSources();
+    // 1120 三令1:区名更名「基础信息」(旧名零残留,AC2);存储键沿旧键(不丢既有折叠记忆)
     expect(source).toContain('const META_COLLAPSED_STORAGE_KEY = "asset-dialog-meta-collapsed"');
+    expect(source).toContain("基础信息");
+    expect(source).not.toContain("元信息");
     expect(source).toContain("setMetaCollapsed((collapsed) => !collapsed)");
     expect(source).toContain("grid grid-cols-2 gap-3");
-    // 1120 版式③:名字|设定按钮同行 → 音色(仅role) → 提示词 → 保存|删除(设定收进 MD 弹窗)
+    // 1120 版式③:名字|设定按钮同行 → 音色(仅role) → 提示词(设定收进 MD 弹窗)
     expect(source).not.toContain('<StudioAssetRoleAttributes');
     // 10-26 用户令:润色提示词按钮砍除
     expect(source).not.toContain("润色提示词");
-    // 折叠留摘要(资产名+别名数)+保存/删除
+    // 折叠留摘要(资产名+别名数);保存/删除=页头常驻单真源,折叠摘要不再重复
     expect(source).toContain("别名 {parsedDraftName.secondaryNames.length}");
-    // #14/#15 保存/删除两态可达(折叠摘要行+展开行尾)
-    expect(source.match(/onClick=\{handleSave\}/g)?.length).toBeGreaterThanOrEqual(2);
-    expect(source.match(/onClick=\{handleDelete\}/g)?.length).toBeGreaterThanOrEqual(2);
+    // 底部保存/删除行已撤(1120 独立页)
+    expect(source).not.toContain("行尾: 保存");
     // 10-26 R2 令:复制钮砍除(文本框全选即复制)
     expect(source).not.toContain("navigator.clipboard.writeText(draftPrompt)");
     expect(source).not.toContain("disabled={!draftPrompt}");
+  });
+
+  it("1120 三令2:生图区整区折叠壳(标题「图片」+计数摘要+生成中旗,localStorage 记忆)", () => {
+    const source = readDialogSources();
+    expect(source).toContain('const GALLERY_COLLAPSED_STORAGE_KEY = "asset-detail-gallery-collapsed"');
+    expect(source).toContain("setGalleryCollapsed((collapsed) => !collapsed)");
+    // 摘要行:N 型 · M 张(型谱计数);生成中旗(五路相位任一在跑即增补)
+    expect(source).toContain("} 型 · ${displayImages.length} 张`");
+    expect(source).toContain("生成中");
+    expect(source).toContain("isGenerationLaneBusy");
+    // audio 型播报卡照旧随页不折叠(§3 非目标)
+    expect(source).toContain('asset.type === "audio" ? (\n                previewPane');
+  });
+
+  it("1120 §5.4 顺手修:规格清单列沟加宽(计数与下一列名拉开)", () => {
+    const source = readDialogSources();
+    expect(source).toContain("grid grid-cols-3 gap-x-6 gap-y-1");
+    expect(source).not.toContain("grid grid-cols-3 gap-x-4 gap-y-1");
   });
 
   it("轮播拆除:无 Carousel 依赖,currentIndex 语义迁移为全局单选图(订阅链退役)", () => {
@@ -464,7 +491,7 @@ describe("10-24 布局重造批1(竖滑单列+元信息置顶+轮播拆除)", ()
   });
 
   it("批2 分类归节装配方+批3 全型路由:onGenerateByKind(人脸双择路/表情差分既有路/余型走 handleTypeShot)", () => {
-    const dialogSource = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    const dialogSource = readFileSync(new URL("./StudioAssetDetailView.tsx", import.meta.url), "utf8");
     expect(dialogSource).toContain("onGenerateByKind=");
     expect(dialogSource).toContain('kind === "高清人头"');
     expect(dialogSource).toContain("handleFacePortraitFromImage");
@@ -472,8 +499,9 @@ describe("10-24 布局重造批1(竖滑单列+元信息置顶+轮播拆除)", ()
     expect(dialogSource).not.toContain("handleFacePortraitFromText");
     expect(dialogSource).toContain('kind === "表情差分"');
     expect(dialogSource).toContain("handleExpressionSheet");
-    // 批3:余型收尾派发到型驱动件(占位卡 CTA/缺失 chip 直达全型可达)
-    expect(dialogSource).toContain("handleTypeShot(kind)");
+    // 批3:余型收尾派发到型驱动件(占位卡 CTA/缺失 chip 直达全型可达;1120 按钮态
+    // 精修:占位 CTA 传 placeholder 键=候裁2 CTA 自转,节头钮不代转)
+    expect(dialogSource).toContain("handleTypeShot(kind, { busyTargetKey: busyKey.placeholder(kind) })");
     // 生成写路 kind 落值(视图模型层;行级主图持久化候 Round 3 Q2;批3 型驱动件按型名落值)
     const actionsSource = readFileSync(new URL("./studio-asset-detail-actions.ts", import.meta.url), "utf8");
     expect(actionsSource).toContain('kind: "高清人头"');
@@ -483,7 +511,7 @@ describe("10-24 布局重造批1(竖滑单列+元信息置顶+轮播拆除)", ()
   });
 
   it("批2 B 节:放大钮预览序列=当前节图集(节内上下张),url 序与 initialIndex 同构产出", () => {
-    const dialogSource = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    const dialogSource = readFileSync(new URL("./StudioAssetDetailView.tsx", import.meta.url), "utf8");
     expect(dialogSource).toContain("classifyAssetImage(displayImages[clickedIndex])");
     expect(dialogSource).toContain("sectionLocalIndex");
     // 旧全局序+filter(Boolean) 错位链退役
@@ -547,29 +575,32 @@ describe("10-24 批3(按型出图按钮族:typeShot 第五路+全型路由+一�
     // 队列复用 typeShot 聚合相位(进度文案逐型推进);失败中止文案在场
     expect(source).toContain("正在补缺 ${completed + 1}/${missing.length}:${kind}...");
     expect(source).toContain("队列中止");
-    // 互斥守卫:五路任一在跑拒入队
-    expect(source).toContain("if (generatePhaseForGuard || i2iPhase || facePhase || expressionPhase || typeShotPhase)");
+    // 互斥守卫:运行态口径(复审 M1 修——done/failed 反馈窗不拒入队,与
+    // UI busy 闸同源 isAnyGenerationLaneBusy)
+    expect(source).toContain("if (isAnyGenerationLaneBusy())");
   });
 
-  it("既有路返值化零行为变:人脸/表情差分按钮入口签名未动,仅内部 Promise<boolean> 供队列探成功", () => {
+  it("既有路返值化零行为变:人脸/表情差分按钮入口签名未动(1120 按钮态精修增 busyTargetKey 透传占位 CTA 键),仅内部 Promise<boolean> 供队列探成功", () => {
     const source = readActionsSource();
-    expect(source).toContain('const handleFacePortraitFromImage = () => runFacePortrait("image")');
+    expect(source).toContain('const handleFacePortraitFromImage = (options?: { busyTargetKey?: string }) =>\n    runFacePortrait("image", options)');
     // 10-26 用户令:FromText 出口删(引擎侧 text 模式代码留档无调用方)
     expect(source).not.toContain('const handleFacePortraitFromText =');
-    expect(source).toContain("const handleExpressionSheet = () => runExpressionSheet()");
+    expect(source).toContain("const handleExpressionSheet = (options?: { busyTargetKey?: string }) =>\n    runExpressionSheet(options)");
     expect(source).toContain("const runFacePortrait = async (");
     expect(source).toContain("const runExpressionSheet = async (");
   });
 
-  it("复审H修:五路互斥统一守卫——公共入口(runTypeShot/人脸/表情差分)任一相位在跑直返,队列 laneGuard:false 免闸复用底层", () => {
+  it("复审H修:五路互斥统一守卫——公共入口(runTypeShot/人脸/表情差分)任一相位在跑直返,队列 laneGuard:false 免闸复用底层(1120:闸口径收窄运行态相位)", () => {
     const source = readActionsSource();
-    // 统一守卫单源:五相位(generate/i2i/face/expression/typeShot)任一在跑即忙
+    // 统一守卫单源:五相位(generate/i2i/face/expression/typeShot)任一**运行态**在跑
+    // 即忙(1120 按钮态精修 R1:done/failed 反馈残留窗无任务在跑,不再假忙拒点)
     expect(source).toContain("const isAnyGenerationLaneBusy = (): boolean =>");
-    expect(source).toContain("!!(generatePhaseForGuard || i2iPhase || facePhase || expressionPhase || typeShotPhase)");
+    expect(source).toContain("isLanePhaseRunning(generatePhaseForGuard) || isLanePhaseRunning(i2iPhase)");
     // runTypeShot 公共入口=全相位守卫(占位卡 CTA/缺失 chip/节头钮/下拉共用)
     expect(source).toContain("if (isAnyGenerationLaneBusy()) return false;");
-    // 人脸/表情差分带 laneGuard 闸(缺省全相位,队列免闸防逐型派发自拒)
-    expect(source).toContain("options?: { laneGuard?: boolean }");
+    // 人脸/表情差分带 laneGuard 闸(缺省全相位,队列免闸防逐型派发自拒;1120
+    // 按钮态精修:签名增 busyTargetKey 占位 CTA 键透传)
+    expect(source).toContain("options?: { laneGuard?: boolean; busyTargetKey?: string }");
     expect(source).toContain('if (kind === "高清人头") return runFacePortrait("image", { laneGuard: false })');
     expect(source).toContain("runExpressionSheet({ laneGuard: false })");
     // 直达入口的守卫留痕(与既有 busy 守卫同款日志链)
@@ -582,10 +613,68 @@ describe("10-24 批3(按型出图按钮族:typeShot 第五路+全型路由+一�
     // Round 3 ⑤:按轨取谱(缺省 role 谱;plan 第二参=track)
     expect(source).toContain("planAssetTypeFillMissingQueue(images, track)");
     expect(source).not.toContain("planAssetTypeFillMissingQueue(carouselImages");
-    const dialogSource = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    const dialogSource = readFileSync(new URL("./StudioAssetDetailView.tsx", import.meta.url), "utf8");
     expect(dialogSource).toContain("completenessImages={images}");
     const paneSource = readFileSync(new URL("./studio-asset-detail-preview-pane.tsx", import.meta.url), "utf8");
     expect(paneSource).toContain("completenessImages ?? images");
+  });
+});
+
+describe("1120 生图按钮忙碌态精修(busyTarget 键控 spinner:单击单转+余者置灰;11-20-asset-gen-button-busy-state)", () => {
+  const readActionsSource = () => readFileSync(new URL("./studio-asset-detail-actions.ts", import.meta.url), "utf8");
+  const readPaneSource = () => readFileSync(new URL("./studio-asset-detail-preview-pane.tsx", import.meta.url), "utf8");
+
+  it("§10.1/§10.5 装配:宿主持 busyTarget state,ctx 注 setBusyTarget,pane 接 busyTarget(五相位并存分工)", () => {
+    const dialogSource = readDialogSources();
+    expect(dialogSource).toContain("const [busyTarget, setBusyTarget] = useState<string | null>(null)");
+    expect(dialogSource).toContain("setBusyTarget,");
+    expect(dialogSource).toContain("busyTarget={busyTarget}");
+    // 五相位照旧并行(相位供结果反馈/联动/状态文字;spinner 只认 busyTarget)
+    expect(dialogSource).toContain("typeShotPhase={typeShotPhase}");
+  });
+
+  it("§10.2 键空间单一真源:busyKey helper 在 pane 导出,actions 导入(禁手拼散落)", () => {
+    const paneSource = readPaneSource();
+    const actionsSource = readActionsSource();
+    expect(paneSource).toContain("export const busyKey = {");
+    expect(paneSource).toContain('oneKey: "one-key"');
+    expect(paneSource).toContain('faceI2i: "face-i2i"');
+    expect(paneSource).toContain("section: (kind: AssetImageKind) => `section:${kind}`");
+    expect(paneSource).toContain("placeholder: (kind: AssetImageKind) => `placeholder:${kind}`");
+    expect(actionsSource).toContain('import { busyKey } from "./studio-asset-detail-preview-pane";');
+  });
+
+  it("§10.3 设/清同址:六条发起链 setPhase 同址设键(占位 CTA 经 busyTargetKey 换键),finally 立即清(失败必复原=AC4 硬门)", () => {
+    const source = readActionsSource();
+    // 六链设键:generate/i2i/face-i2i/expression/section/one-key
+    expect(source).toContain("setBusyTarget?.(busyKey.generate)");
+    expect(source).toContain("setBusyTarget?.(busyKey.i2i)");
+    expect(source).toContain("setBusyTarget?.(options?.busyTargetKey ?? busyKey.faceI2i)");
+    expect(source).toContain("setBusyTarget?.(options?.busyTargetKey ?? busyKey.expression)");
+    expect(source).toContain("setBusyTarget?.(options?.busyTargetKey ?? busyKey.section(kind))");
+    expect(source).toContain("setBusyTarget?.(busyKey.oneKey)");
+    // 清零恒在 finally(与设键同闸:队列 laneGuard/managedLane=false 不设不清)
+    const clears = source.match(/setBusyTarget\?\.\(null\)/g) ?? [];
+    expect(clears.length).toBe(6);
+    // 队列语义(R4/候裁1):入口 one-key,循环内底层执行器免闸不碰 busyTarget
+    expect(source).toContain('if (kind === "高清人头") return runFacePortrait("image", { laneGuard: false })');
+    expect(source).toContain("executeTypeShot(kind, { managedLane: false })");
+    // 相位 3s 反馈延迟清带值守守卫(done/failed 窗内再发新车不被旧定时器误清)
+    expect((source.match(/isLanePhaseRunning\(current\) \? current : null/g) ?? []).length).toBe(7);
+  });
+
+  it("R3 渲染单源:pane spinner 断言链全部走 busyTarget(旧「phase 真值→spinner」路径零残留)", () => {
+    const paneSource = readPaneSource();
+    expect(paneSource).toContain("busyTarget === busyKey.section(kind)");
+    expect(paneSource).toContain("busyTarget === busyKey.faceI2i");
+    expect(paneSource).toContain("busyTarget === busyKey.expression");
+    expect(paneSource).toContain("busyTarget === busyKey.oneKey");
+    expect(paneSource).toContain("busyTarget === busyKey.placeholder(kind)");
+    // 占位 CTA 灰态样式(R3)
+    expect(paneSource).toContain("disabled:cursor-not-allowed disabled:opacity-50");
+    // route 徽标中文化(R5):展示层映射,数据值不动
+    expect(paneSource).toContain('sectionMeta.route === "i2i" ? "图生图" : sectionMeta.route === "t2i" ? "文生图"');
+    expect(paneSource).toContain('"图生图(参考图生成)"');
   });
 });
 
@@ -664,7 +753,7 @@ describe("R4 族聚显(10-19-script-asset-corridor-blank D1+D3:键=batchMatch �
   });
 
   it("删后即时刷新(10-19 用户报障):真删成功才本地过滤展示序+发 asset:updated", () => {
-    const dialogSource = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    const dialogSource = readFileSync(new URL("./StudioAssetDetailView.tsx", import.meta.url), "utf8");
     expect(dialogSource).toContain("removedFamilyPaths");
     expect(dialogSource).toContain("setRemovedFamilyPaths((prev) => [...prev, image.filePath]");
     expect(dialogSource).toContain("const ok = await handleRemoveImage(image, index)");
@@ -673,13 +762,18 @@ describe("R4 族聚显(10-19-script-asset-corridor-blank D1+D3:键=batchMatch �
     expect(actionsSource).toContain("eventBus.emit(\"asset:updated\", { id: asset.id");
   });
 
-  it("剧本资产行打开详情即取族(键=行实体名,与本页 batchMatch 重识别同源),并透传弹窗", () => {
-    const actionsSource = readFileSync(new URL("../studio/useScriptAssetGenerationActions.ts", import.meta.url), "utf8");
-    expect(actionsSource).toContain(
-      "fetchFamilyImageEntries(getStudioAssetsBridge(), toRuntimeAssetType(row.type), row.name)",
+  it("1120 独立页:族图拉取随详情视图自取(键=资产类型+资产名,两入口同键零分叉)", () => {
+    // View 内自取(fetchFamilyImageEntries 按 asset.type/asset.name;连点换行序号守卫)
+    const viewSource = readDialogSources();
+    expect(viewSource).toContain(
+      "fetchFamilyImageEntries(getStudioAssetsBridge(), asset.type, asset.name)",
     );
+    // 两入口均改经 store 下钻,本地弹窗态/族拉取退役
+    const actionsSource = readFileSync(new URL("../studio/useScriptAssetGenerationActions.ts", import.meta.url), "utf8");
+    expect(actionsSource).not.toContain("fetchFamilyImageEntries");
+    expect(actionsSource).toContain("openFromScriptTab");
     const tabSource = readFileSync(new URL("../studio/ScriptAssetGenerationTab.tsx", import.meta.url), "utf8");
-    expect(tabSource).toContain("familyImages={selectedFamilyImages}");
+    expect(tabSource).not.toContain("familyImages={selectedFamilyImages}");
   });
 });
 
@@ -715,8 +809,8 @@ describe("图生图·画风转换(10-19-daojie-ui-i2i-style-convert:i2iPhase 状
     expect(source).toContain("saveGeneratedAssetImageToLibrary");
     expect(source).toContain('eventBus.emit("asset:updated"');
     expect(source).toContain('getStudioAssetsBridge()!.get(asset.id)');
-    // 相位 3s 自动清
-    expect(source).toMatch(/setI2iPhase\(null\)/);
+        // 相位 3s 自动清(1120 按钮态精修:值守守卫式——运行态新车不被旧定时器误清)
+        expect(source).toMatch(/setI2iPhase\(\(current: string \| null\) =>/);
   });
 
   it("handleImageToImageStyle 按本层惯例打点:operationId 自造贯通 service,守卫拒绝逐因留痕(10-19 用户令)", () => {

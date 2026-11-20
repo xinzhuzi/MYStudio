@@ -577,7 +577,7 @@ Studio 或 queue 重新选择。
 |---|---|
 | `apps/frontend/components/panels/assets/StudioAssetLibrary.tsx` | 资产库列表 |
 | `apps/frontend/components/panels/assets/AddAssetDialog.tsx` | 添加角色、场景、道具等资产 |
-| `apps/frontend/components/panels/assets/StudioAssetDetailDialog.tsx` | 资产/角色详情 |
+| `apps/frontend/components/panels/assets/StudioAssetDetailView.tsx` | 资产/角色详情(1120 独立页) |
 | `apps/frontend/components/panels/assets/PropsLibrary.tsx` | 本地道具目录视图 |
 | `apps/frontend/components/panels/assets/RoleVoiceAssignDialog.tsx` | 角色音色分配弹窗 |
 | `apps/frontend/components/panels/assets/role-audio-auto-assign.ts` | 自动分配音频 |

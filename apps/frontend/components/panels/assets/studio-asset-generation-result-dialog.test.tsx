@@ -12,7 +12,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { StudioAssetDetailDialog } from "./StudioAssetDetailDialog";
+import { StudioAssetDetailView } from "./StudioAssetDetailView";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import type { StudioAssetSummary } from "@/types/studio-assets";
@@ -128,7 +128,7 @@ function partiallyCompleteRole(): StudioAssetSummary {
 }
 
 function renderDialog(asset: StudioAssetSummary = roleAsset(), onOpenChange = vi.fn()) {
-  return render(<StudioAssetDetailDialog asset={asset} open onOpenChange={onOpenChange} />);
+  return render(<StudioAssetDetailView asset={asset} onBack={onOpenChange} />);
 }
 
 beforeEach(() => {
@@ -218,6 +218,57 @@ describe("R5 生成结果弹窗(单发:每次生成完成自动弹出,三段确�
     expect(await screen.findByText("生成结果 · 无衣物定妆")).toBeTruthy();
     expect(await screen.findByText("该图无提示词元数据")).toBeTruthy();
   });
+
+  // 1121 ①段主体词展示重构(R2):t2i 型=主体词标签+全文,无未参与注/固定指令行
+  it("t2i 型①段=主体词全文(labeled):无未参与注、无固定指令行;装配构成首项同源", async () => {
+    mocks.typeShot.mockResolvedValue({ phase: "done", imageLocalPath: "local-image://characters/fullbody.png" });
+    mocks.get.mockResolvedValue({ id: "role-1", filePath: "role/new.png", previewUrl: "media://new", images: [] });
+    mocks.readImagePromptText.mockResolvedValue({ ok: true, text: I2I_WORKFLOW_JSON });
+    renderDialog();
+
+    fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
+
+    expect(await screen.findByText("生成结果 · 无衣物定妆")).toBeTruthy();
+    const inputSection = screen.getByLabelText("输入提示词");
+    expect(within(inputSection).getByText("主体词")).toBeTruthy();
+    expect(within(inputSection).getByText("北境剑修")).toBeTruthy();
+    expect(within(inputSection).queryByText(/未参与装配/)).toBeNull();
+    expect(within(inputSection).queryByText(/固定指令\(锚画面\)全文/)).toBeNull();
+    // 装配构成首项=主体词/固定指令全文(与①段同源数据)
+    const layersSection = screen.getByLabelText("装配构成");
+    expect(within(layersSection).getByText(/主体词\/固定指令全文\(\d+字\)/)).toBeTruthy();
+  });
+
+  // 1121 R4 空态修复:降级文案=信息+指引两行(Empty States=有用信息+动作指引)
+  it("空态=信息+指引两行:原因行+补救指引行(非裸空块)", async () => {
+    mocks.typeShot.mockResolvedValue({ phase: "done", imageLocalPath: "local-image://characters/fullbody.png" });
+    mocks.get.mockResolvedValue({ id: "role-1", filePath: "role/new.png", previewUrl: "media://new", images: [] });
+    renderDialog();
+
+    fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
+
+    expect(await screen.findByText("生成结果 · 无衣物定妆")).toBeTruthy();
+    const finalSection = await waitFor(() => screen.getByLabelText("实发终稿"));
+    expect(await within(finalSection).findByText("该图无提示词元数据")).toBeTruthy();
+    expect(
+      within(finalSection).getByText("引擎侧埋点写回后重开可读;或到提示词区「查看实发终稿」走产物回溯"),
+    ).toBeTruthy();
+  });
+
+  // 1121 R3 编号序列(P5 消):①输入提示词→②装配构成→③实发终稿→④生成结果连续
+  it("编号①→④连续:装配构成并入编号序列", async () => {
+    mocks.typeShot.mockResolvedValue({ phase: "done", imageLocalPath: "local-image://characters/fullbody.png" });
+    mocks.get.mockResolvedValue({ id: "role-1", filePath: "role/new.png", previewUrl: "media://new", images: [] });
+    renderDialog();
+
+    fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
+
+    expect(await screen.findByText("生成结果 · 无衣物定妆")).toBeTruthy();
+    expect(screen.getByText("① 输入提示词")).toBeTruthy();
+    expect(screen.getByText("② 装配构成")).toBeTruthy();
+    expect(screen.getByText("③ 实发终稿(发给模型的最后阶段提示词)")).toBeTruthy();
+    expect(screen.getByText("④ 生成结果")).toBeTruthy();
+  });
 });
 
 describe("R5 批量补缺队列(末尾汇总定死)", () => {
@@ -259,16 +310,19 @@ describe("R5 批量补缺队列(末尾汇总定死)", () => {
     expect(screen.getByTestId(`option-玄止_练气期_三视图_v1_人物海报_${DATE_SUFFIX}`)).toBeTruthy();
     const inputSection = screen.getByLabelText("输入提示词");
     expect(within(inputSection).getByText("北境剑修")).toBeTruthy();
-    // 切到第二记录(i2i 路):①段换固定说明,③段文件名随动
+    // 切到第二记录(i2i 路):①段=主体词对照全文灰显+未参与注+固定指令折叠
+    // (1121 随迁:固定说明单句→双行结构),④段文件名随动
     fireEvent.click(screen.getByTestId(`option-玄止_练气期_三视图_v1_人物海报_${DATE_SUFFIX}`));
     expect(
-      await screen.findByText("人物海报走图生图:固定指令锚画面,主体句不参与"),
+      await screen.findByText("未参与装配——人物海报走图生图,固定指令锚画面"),
     ).toBeTruthy();
+    expect(within(screen.getByLabelText("输入提示词")).getByText("北境剑修")).toBeTruthy();
+    expect(within(screen.getByLabelText("输入提示词")).getByText(/固定指令\(锚画面\)全文\(\d+字\)/)).toBeTruthy();
   });
 });
 
 describe("R5 孤儿防护双闸(blocking#1 钉:防未来回归)", () => {
-  it("宿主关后回调不弹:点生成→rerender open=false→mock 才 resolve→零弹窗", async () => {
+  it("宿主关后回调不弹:点生成→卸载页→mock 才 resolve→零弹窗", async () => {
     let resolveShot: ((value: unknown) => void) | undefined;
     mocks.typeShot.mockImplementation(
       () => new Promise((resolve) => { resolveShot = resolve; }),
@@ -276,10 +330,10 @@ describe("R5 孤儿防护双闸(blocking#1 钉:防未来回归)", () => {
     const view = renderDialog();
 
     fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
-    // 宿主关(hostOpenRef 活取同步 false;!open effect 清结果态/累积池)
-    view.rerender(<StudioAssetDetailDialog asset={roleAsset()} open={false} onOpenChange={vi.fn()} />);
+    // 宿主关=组件卸载(1120 独立页:宿主二态挂载/卸载,open 态退役)
+    view.unmount();
 
-    // 发车 promise 此后才 resolve:完成链照走(save/get 均达),回调被宿主闸拦
+    // 发车 promise 此后才 resolve:完成链照走(save/get 均达),卸载后 setState 零渲染
     await act(async () => {
       resolveShot?.({ phase: "done", imageLocalPath: "local-image://characters/fullbody.png" });
     });
@@ -298,10 +352,10 @@ describe("R5 孤儿防护双闸(blocking#1 钉:防未来回归)", () => {
     fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
     expect(await screen.findByText("生成结果 · 无衣物定妆")).toBeTruthy();
 
-    view.rerender(<StudioAssetDetailDialog asset={roleAsset()} open={false} onOpenChange={vi.fn()} />);
+    view.unmount();
     expect(screen.queryByText("生成结果 · 无衣物定妆")).toBeNull();
 
-    view.rerender(<StudioAssetDetailDialog asset={roleAsset()} open onOpenChange={vi.fn()} />);
+    renderDialog();
     expect(screen.queryByText("生成结果 · 无衣物定妆")).toBeNull();
   });
 });
