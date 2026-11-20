@@ -169,21 +169,26 @@ export function useStoryboardBatchGeneration(input: {
     const episodeId = storyboards.find((item) => item.episodeId)?.episodeId ?? "";
     const projectId = useProjectStore.getState().activeProjectId ?? "";
     const persisted = useStoryboardBatchSessionStore.getState().session;
+    // 1120 单镜重出桥(kind=generate-shot-image,note=shotId):onlyShotId 把
+    // 队列收敛到单镜,该镜按 force 语义重出(现画面入库为历史版本),其余镜零沾。
+    // 与批量会话恒解耦(1120 复核⑤⑥修):①不受断点续跑游标裁剪——点名镜在
+    // 游标之前也是合法重出对象(此前先按 cursor 裁再滤 onlyShotId,游标前的
+    // 点名镜恒队空=误诊「镜不在当前章分镜」+僵尸会话跨重启永久阻塞);②不吞
+    // 中断会话(不继承 priorDone/不覆写/不清场)——停批后重出一镜不再销毁余批
+    // 的「继续生图」候选,进度/汇总 toast 只计本镜实际生成帧数。
+    const forceRegenerate = options?.forceRegenerate === true;
+    const onlyShotId = (options?.onlyShotId ?? "").trim() || null;
     const resumeRecord = persisted
       && persisted.episodeId === episodeId
       && persisted.projectId === projectId
       ? persisted
       : null;
-    const fromShotIndex = resumeRecord ? resumeRecord.cursorShotIndex : 1;
+    const fromShotIndex = resumeRecord && !onlyShotId ? resumeRecord.cursorShotIndex : 1;
     const eligible = storyboards.filter((item) => item.index >= fromShotIndex)
       .map((item) => useStudioStore.getState().storyboards.find((current) => current.id === item.id) ?? item);
     for (const shot of eligible) finalizeRecoveredShot(shot);
     // 1116 force-regen(全量重出):绕过缺帧过滤,已齐备镜也整队重生成——
     // missingFrames 记全帧数(与实际生成帧数一致,进度口径不虚)。
-    // 1120 单镜重出桥(kind=generate-shot-image,note=shotId):onlyShotId 把
-    // 队列收敛到单镜,该镜按 force 语义重出(现画面入库为历史版本),其余镜零沾。
-    const forceRegenerate = options?.forceRegenerate === true;
-    const onlyShotId = (options?.onlyShotId ?? "").trim() || null;
     const shotForce = forceRegenerate || Boolean(onlyShotId);
     const frameQueue = eligible
       .filter((item) => !onlyShotId || item.id === onlyShotId)
@@ -194,7 +199,7 @@ export function useStoryboardBatchGeneration(input: {
       .filter((entry) => shotForce || entry.missingFrames > 0)
       .sort((a, b) => a.shot.index - b.shot.index);
     const guards = createBatchSourceGuards(frameQueue.map(({ shot }) => shot));
-    const priorDone = resumeRecord ? resumeRecord.doneFrames : 0;
+    const priorDone = resumeRecord && !onlyShotId ? resumeRecord.doneFrames : 0;
     const totalFrames = priorDone + frameQueue.reduce((sum, entry) => sum + entry.missingFrames, 0);
     if (frameQueue.length === 0) {
       if (onlyShotId) {
@@ -209,17 +214,22 @@ export function useStoryboardBatchGeneration(input: {
     liveBatchRunning = true;
     stopRequestedRef.current = false;
     setState({ running: true, total: totalFrames, done: priorDone, failed: 0, currentShotIndex: frameQueue[0]!.shot.index });
-    const sessionId = resumeRecord?.sessionId ?? createStoryboardBatchSessionId();
-    useStoryboardBatchSessionStore.getState().beginStoryboardBatchSession({
-      sessionId,
-      projectId,
-      episodeId,
-      cursorShotIndex: frameQueue[0]!.shot.index,
-      totalFrames,
-      doneFrames: priorDone,
-      failedFrames: 0,
-      status: "running",
-    });
+    const sessionId = resumeRecord && !onlyShotId ? resumeRecord.sessionId : createStoryboardBatchSessionId();
+    // 单镜重出零会话(1120 复核⑥修):不覆写持久化会话——旧 sessionId 复用+
+    // done=priorDone 覆写会吞掉中断批量的续跑状态,自然完成清场=「继续生图」
+    // 候选被销毁;游标推进/收尾清场同免(advance/interrupt/clear 全跳过)。
+    if (!onlyShotId) {
+      useStoryboardBatchSessionStore.getState().beginStoryboardBatchSession({
+        sessionId,
+        projectId,
+        episodeId,
+        cursorShotIndex: frameQueue[0]!.shot.index,
+        totalFrames,
+        doneFrames: priorDone,
+        failedFrames: 0,
+        status: "running",
+      });
+    }
     // 批量生命周期入诊断日志(2026-08-25 补齐: 此前只有 4s 即逝的 toast,单镜失败
     // 原因/批量汇总对 diagnostics 完全不可见,排障只能 CDP 抓 DOM——实弹踩坑)
     const batchOperationId = createOperationId("storyboard-batch-generate");
@@ -279,7 +289,11 @@ export function useStoryboardBatchGeneration(input: {
                       onFrameStart: (label) => setState((previous) => ({ ...previous, currentFrameLabel: label })),
                       onFrameDone: () => { done += 1; setState((previous) => ({ ...previous, done: done + failed })); },
                       degradedResolution: stage === "degraded" ? STORYBOARD_BATCH_DEGRADED_RESOLUTION : undefined,
-                      forceRegenerate,
+                      // 1120 复核⑦修:实参改 shotForce(onlyShotId-only 调用原本
+                      // 传 false)——计数层按全帧数入队而生成层按 frameNeedsGeneration
+                      // 过滤,已有图帧不重出+done 补差到全帧数=toast 虚报;force
+                      // 语义(现画面入库为历史版本)与桥/钩注释承诺对齐。
+                      forceRegenerate: shotForce,
                     }));
             } catch (error) {
               if (error instanceof BatchSourceChangedError) stopRequestedRef.current = true;
@@ -329,15 +343,18 @@ export function useStoryboardBatchGeneration(input: {
             failureReporter.report(`分镜 ${shot.index}`, reason);
           }
         }
-        // 游标推进:下一队列镜(尾镜后=本镜+1,续跑即空→清会话)
-        const nextCursor = ladder.aborted && !ladder.ok
-          ? shot.index
-          : frameQueue[queuePosition + 1]?.shot.index ?? shot.index + 1;
-        useStoryboardBatchSessionStore.getState().advanceStoryboardBatchSession({
-          cursorShotIndex: nextCursor,
-          doneFrames: done,
-          failedFrames: failed,
-        });
+        // 游标推进:下一队列镜(尾镜后=本镜+1,续跑即空→清会话);单镜重出零会话
+        // (1120 复核⑥修)——游标倒退到点名镜会污染中断批量的续跑起点。
+        if (!onlyShotId) {
+          const nextCursor = ladder.aborted && !ladder.ok
+            ? shot.index
+            : frameQueue[queuePosition + 1]?.shot.index ?? shot.index + 1;
+          useStoryboardBatchSessionStore.getState().advanceStoryboardBatchSession({
+            cursorShotIndex: nextCursor,
+            doneFrames: done,
+            failedFrames: failed,
+          });
+        }
         setState((previous) => ({ ...previous, done: done + failed, failed, currentFrameLabel: undefined }));
       }
       // 收尾:间隔窗残留防御性清理(停止恰好落在等待返回之后)
@@ -367,10 +384,14 @@ export function useStoryboardBatchGeneration(input: {
       liveBatchRunning = false;
       setState((previous) => ({ ...previous, running: false, currentShotIndex: null }));
       const stopped = stopRequestedRef.current;
-      if (stopped) {
-        useStoryboardBatchSessionStore.getState().interruptStoryboardBatchSession();
-      } else {
-        useStoryboardBatchSessionStore.getState().clearStoryboardBatchSession();
+      // 单镜重出零会话(1120 复核⑥):interrupt/clear 全跳过——自然完成清场会
+      // 销毁中断批量的续跑状态,中断落盘会污染批量游标。
+      if (!onlyShotId) {
+        if (stopped) {
+          useStoryboardBatchSessionStore.getState().interruptStoryboardBatchSession();
+        } else {
+          useStoryboardBatchSessionStore.getState().clearStoryboardBatchSession();
+        }
       }
       void logEvent({
         level: failed > 0 ? "warn" : "info",
@@ -440,9 +461,14 @@ async function withPromptIdCapture(
 /** M3a:缺帧计数——单帧镜无图=1;多帧镜=空槽帧数(mediaRef 缺图视为首帧空)。
  * W2(1112 验尸 .trellis/tasks/11-12-storyboard-asset-refchain-repair):stale 或
  * 「脏而未标」(存档指纹≠现算指纹——离线 CLI 直写改文本不走 merge 链不置脏)
- * 的已有图镜也计缺帧纳入批量,斩断脏镜被当新鲜跳过的 media 冻结。 */
+ * 的已有图镜也计缺帧纳入批量,斩断脏镜被当新鲜跳过的 media 冻结。
+ * 1120 件二修复:video mediaRef(验收主口径)=终态画面,不计缺帧——旧判定
+ * (非 image 恒计 1)在主口径转 video 后首造「已出视频镜每轮批量重烧图+落账
+ * 把 mediaRef 覆盖回 image→videoReady 倒退/全绿翻转」;视频镜的静图仍在
+ * 工作流/物料库,单镜 force 重出不受本过滤影响(shotForce 绕过)。 */
 function countMissingFrames(shot: StoryboardItem): number {
   if (!shot.keyframes?.length) {
+    if (shot.mediaRef?.kind === "video" && shot.mediaRef.path) return 0;
     if (!(shot.mediaRef?.kind === "image" && shot.mediaRef.path)) return 1;
     return shot.stale || storyboardSourceFingerprintDrifted(shot) ? 1 : 0;
   }
@@ -820,7 +846,19 @@ async function generateOneShot(
   guard.write(() => {
     landStoryboardContinuity(shot.id, latest.id, targetNodeId);
     const patch = buildStoryboardImageWorkflowPatch(latest, targetNodeId);
-    useStudioStore.getState().updateStoryboard(shot.id, patch);
+    // 1120 件二修复:已出视频镜(video mediaRef=验收主口径,与 storyboardHasVideo
+    // 同判据)不被图落账覆盖回 image——旧覆盖使 videoReady 倒退/已全绿章翻回
+    // 未全绿(e97159b9 主口径后首爆);静图仍落工作流节点与物料库,镜级指针
+    // 保持 video(视频产出由 H3 链/videoCandidates 台账自有回路,本层禁碰)。
+    const liveShot = useStudioStore.getState().storyboards.find((item) => item.id === shot.id);
+    const mediaSafePatch = liveShot?.mediaRef?.kind === "video" && liveShot.mediaRef.path
+      ? {
+          imageWorkflowId: patch.imageWorkflowId,
+          imageWorkflowNodeId: patch.imageWorkflowNodeId,
+          state: patch.state,
+        }
+      : patch;
+    useStudioStore.getState().updateStoryboard(shot.id, mediaSafePatch);
     if (vlmArtifact) useStudioStore.getState().writeStoryboardVlmReview(shot.id, {
       ...vlmArtifact,
       generatedAt: vlmArtifact.generatedAt || Date.now(),

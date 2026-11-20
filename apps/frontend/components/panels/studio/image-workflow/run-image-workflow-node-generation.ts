@@ -419,6 +419,8 @@ export async function runImageWorkflowNodeGeneration(
         }
       }
       let effectiveSlots = mapping.slots;
+      let rebuiltInstruction: typeof instruction | null = null;
+      let rebuiltInjectionBase: string | null = null;
       if (dropSlotIndexes.length) {
         const rebuilt = await buildStoryboardCanonicalTransportInput(shot, graph, targetNodeId, dropSlotIndexes);
         // 1120 件三:注入模式按 rebuilt 入参复装配(基底随存活槽重选体裁,
@@ -426,6 +428,8 @@ export async function runImageWorkflowNodeGeneration(
         const rebuiltInjection = injection
           ? buildInjection(rebuilt.subject, rebuilt.mapping.slots, rebuilt.instruction.prompt)
           : null;
+        rebuiltInstruction = rebuilt.instruction;
+        rebuiltInjectionBase = rebuiltInjection ? rebuiltInjection.base : null;
         canonicalPrompt = rebuiltInjection ? rebuiltInjection.prompt : rebuilt.instruction.prompt;
         // 1117 第十三刀A:丢槽重排替换了终稿文本——语义门对终稿复跑
         // (重排后的 instruction.prompt 未过首跑,不豁免;注入模式跑复装配基底)。
@@ -435,49 +439,88 @@ export async function runImageWorkflowNodeGeneration(
         // 与锚词门双卡);锚集合缺席同上不适用。注入模式按复装配终稿全文跑。
         if (rebuilt.anchors) assertAnchors(canonicalPrompt, rebuilt.anchors);
       }
-      // 门B(1117 C2 参考槽对账记录,门C 审计脚本消费):槽真身=节点选中
-      // URL(断点C 直读),场景/角色槽位 vs dropped 名单 vs 锚词集合逐镜留痕
-      // ——图内场景参考节点有图必在槽∨dropped(mapCanonicalReferenceSlots
-      // 结构保证),此记录把对账面变成机器可审计。
-      void logEvent({
-        level: "info",
-        category: "workflow",
-        operationId: createOperationId("storyboard-slot-reconciliation"),
-        message: "Storyboard canonical slot reconciliation (gate B record)",
-        context: {
-          shotId: shot.id,
-          shotIndex: shot.index,
-          anchors,
-          slots: effectiveSlots.map((slot) => ({
-            slot: slot.slot, role: slot.role, title: slot.title,
-            imageUrl: slot.imageUrl,
-          })),
-          dropped: mapping.dropped,
-        },
-      });
-      // 1117 残项①:存活槽→其已解析原图的血缘映射(裁切产物契约门比对用)。
-      const keptSourceUrls: Array<string> = [];
-      croppedSlotUrls.forEach((url, index) => {
-        if (url !== null) keptSourceUrls.push(resolvedSlotUrls[index]!);
-      });
-      const keptUrls = croppedSlotUrls.filter((url): url is string => url !== null);
-      transportReferenceImages = await prepareReferenceImages(keptUrls);
-      assertImageWorkflowContinuityCapability(
-        { ...request, model: finalModel, referenceImages: transportReferenceImages },
-        {
-          kind: "storyboard-native-references",
-          imageUrls: transportReferenceImages,
-          slots: effectiveSlots.map((slot, index) => ({
-            slot: slot.slot, role: slot.role, title: slot.title, imageUrl: transportReferenceImages[index]!,
-            // 1117 残项①:携带该槽已解析原图作血缘来源(裁切产物经它过
-            // 契约门「槽位-来源映射」比对;未裁槽 sourceUrl=自身)。
-            sourceUrl: keptSourceUrls[index],
-          })),
-          // 来源参考=全量参考的已解析形态(dataURL/base64,与槽位图同一解析路),
-          // 槽位子集核验才同域可比(原始 file:// 与传输 dataURL 不可直接相等)。
-          sourceReferenceImages: referenceImages,
-        },
-      );
+      if (!effectiveSlots.length) {
+        // 1120 复核④修:全槽裁失(单角色镜唯一槽裁不出单姿等)→降级零槽 t2i
+        // 路,与零槽分支同款断言——此前以空槽数组继续走 transport 分支,
+        // request.ts「槽位数量不一致(须 1–3 槽)」硬抛,镜不可生成且报错误导
+        // (真因=全槽裁失,已逐槽 warn 留痕 storyboard-slot-pose-crop-failed)。
+        // 体裁已随重建翻转为零槽 t2i 主体句(首跑 lint 按原体裁/槽数跑,未覆盖
+        // 此文本)——纪律门/重叠预检对重建文本补跑(注入模式按基底,块面豁免
+        // 与首跑同口径),与零槽原生路同覆盖面。
+        const dropAllLintText = rebuiltInjectionBase ?? canonicalPrompt;
+        const dropAllViolations = lintCanonicalPrompt(
+          dropAllLintText,
+          (rebuiltInstruction ?? instruction).genre,
+          0,
+        );
+        if (dropAllViolations.length) {
+          void logEvent({
+            level: "warn",
+            category: "ai",
+            operationId: createOperationId("storyboard-canonical-lint"),
+            message: "Storyboard canonical prompt rejected by discipline lint",
+            context: {
+              shotId: shot.id,
+              shotIndex: shot.index,
+              violations: dropAllViolations,
+              promptText: dropAllLintText,
+            },
+          });
+          throw new Error(`分镜正典提示词未过体裁断言:${dropAllViolations.map((v) => `${v.rule}(${v.detail})`).join("、")}`);
+        }
+        const dropAllOverlaps = findSubjectOverlapBlocks(dropAllLintText, getStoryboardBaseSubjectText());
+        if (dropAllOverlaps.length) {
+          throw new Error(`分镜正典提示词与型底座重叠(≥10 字重复块 ${dropAllOverlaps.length} 处),须去重:…${dropAllOverlaps[0]!.block}…`);
+        }
+        transportReferenceImages = [];
+        assertImageWorkflowContinuityCapability({
+          ...request, model: finalModel, referenceImages: [], continuityRequired: false,
+        });
+      } else {
+        // 门B(1117 C2 参考槽对账记录,门C 审计脚本消费):槽真身=节点选中
+        // URL(断点C 直读),场景/角色槽位 vs dropped 名单 vs 锚词集合逐镜留痕
+        // ——图内场景参考节点有图必在槽∨dropped(mapCanonicalReferenceSlots
+        // 结构保证),此记录把对账面变成机器可审计。
+        void logEvent({
+          level: "info",
+          category: "workflow",
+          operationId: createOperationId("storyboard-slot-reconciliation"),
+          message: "Storyboard canonical slot reconciliation (gate B record)",
+          context: {
+            shotId: shot.id,
+            shotIndex: shot.index,
+            anchors,
+            slots: effectiveSlots.map((slot) => ({
+              slot: slot.slot, role: slot.role, title: slot.title,
+              imageUrl: slot.imageUrl,
+            })),
+            dropped: mapping.dropped,
+          },
+        });
+        // 1117 残项①:存活槽→其已解析原图的血缘映射(裁切产物契约门比对用)。
+        const keptSourceUrls: Array<string> = [];
+        croppedSlotUrls.forEach((url, index) => {
+          if (url !== null) keptSourceUrls.push(resolvedSlotUrls[index]!);
+        });
+        const keptUrls = croppedSlotUrls.filter((url): url is string => url !== null);
+        transportReferenceImages = await prepareReferenceImages(keptUrls);
+        assertImageWorkflowContinuityCapability(
+          { ...request, model: finalModel, referenceImages: transportReferenceImages },
+          {
+            kind: "storyboard-native-references",
+            imageUrls: transportReferenceImages,
+            slots: effectiveSlots.map((slot, index) => ({
+              slot: slot.slot, role: slot.role, title: slot.title, imageUrl: transportReferenceImages[index]!,
+              // 1117 残项①:携带该槽已解析原图作血缘来源(裁切产物经它过
+              // 契约门「槽位-来源映射」比对;未裁槽 sourceUrl=自身)。
+              sourceUrl: keptSourceUrls[index],
+            })),
+            // 来源参考=全量参考的已解析形态(dataURL/base64,与槽位图同一解析路),
+            // 槽位子集核验才同域可比(原始 file:// 与传输 dataURL 不可直接相等)。
+            sourceReferenceImages: referenceImages,
+          },
+        );
+      }
     } else {
       // 零槽(t2i 路):参考全裁出(§4.5 纯道具镜)——传输零参考,连续性
       // 断言按零参考形态核(无版本参考在飞)。

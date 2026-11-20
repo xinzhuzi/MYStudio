@@ -600,6 +600,9 @@ describe("1120 件一:发车校验(在档 assetBindings 失效=拒发+例外清�
     useStoryboardBindingStore.setState({ runsByChapter: {} });
     studioState.storyboards = [
       storyboardShot({
+        // 1120 复核②起发车校验先核镜阵容(绑定名须出自 associateAssetsNames
+        // ——生产写路 bindShotWithMatch 恒如此);阵容在档+行删=id+name 双落空
+        associateAssetsNames: ["金水河旧码头"],
         assetBindings: [{ assetId: "scene-gone", name: "金水河旧码头", kind: "scene", slot: 1 }],
       }),
     ];
@@ -698,6 +701,8 @@ describe("1120 件三:A/B 并轨开关(identity-injection 设计卡全文注入)
     // 绑定在档=写路序(场景 slot1→角色 slot2,collectStoryboardAssetBindings
     // 全类型序);提取批次行有三库图=件一发车校验放行(绑定有效形态)。
     studioState.storyboards = [shotWithCast({
+      // 1120 复核②镜阵容一致性:绑定名出自 associateAssetsNames(生产写路不变式)
+      associateAssetsNames: ["金水河码头", "独孤剑尘"],
       assetBindings: [
         { assetId: "scene-dock", name: "金水河码头", kind: "scene", slot: 1 },
         { assetId: "role-1", name: "独孤剑尘", kind: "character", slot: 2 },
@@ -775,5 +780,43 @@ describe("1120 件三:A/B 并轨开关(identity-injection 设计卡全文注入)
       runImageWorkflowNodeGeneration(storyboardGraph, "gen-1", { addMaterial: () => "mat-1" }),
     ).rejects.toThrow("体裁断言");
     expect(aiManager.generateImage).not.toHaveBeenCalled();
+  });
+});
+
+// ── 1120 交叉复核④:全槽裁失降级零槽 t2i(原空槽数组走 transport 分支硬抛) ────
+describe("runImageWorkflowNodeGeneration 1120 复核④(全槽裁失降级路)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // 上一 describe 的共享 mock 态复位(件一同款纪律):镜行/提示词模式还原
+    studioState.storyboards = [storyboardShot()];
+    delete (studioState.workflowConfig as Record<string, unknown>).storyboardPromptMode;
+  });
+
+  it("单角色镜唯一槽裁失(全槽裁失)→零槽 t2i 降级:零参考发车,不再「槽位数量不一致(须 1–3 槽)」硬抛", async () => {
+    // 单角色镜形态:唯一角色槽(无场景/前帧),横幅卡裁不出单姿=全槽裁失
+    const graph = {
+      id: "crop-drop-all-wf", target: { kind: "storyboard", id: "sb-1" },
+      nodes: [
+        { id: "ref-c1", type: "reference", title: "赵四", imageUrl: "data:image/png;base64,card-banner", continuityOrder: 1, source: { kind: "asset", assetType: "character", id: "asset-c1" } },
+        { id: "gen-1", type: "generated", title: "成图", prompt: "p", aspectRatio: "16:9" },
+      ],
+      edges: [{ source: "ref-c1", target: "gen-1" }],
+    } as ImageWorkflowGraph;
+    const workflow = await import("@/lib/studio/image-workflow");
+    vi.mocked(workflow.buildImageWorkflowGenerationRequest).mockImplementationOnce(realRequest.buildImageWorkflowGenerationRequest);
+    vi.mocked(workflow.assertImageWorkflowContinuityCapability).mockImplementationOnce(realRequest.assertImageWorkflowContinuityCapability);
+    const crop = vi.mocked(cropSlotReferenceToSinglePose);
+    crop.mockReset();
+    crop.mockImplementation(async () => null); // 唯一角色槽裁失
+    const { aiManager } = await import("@/lib/ai/ai-manager");
+    // 修前:rebuilt.mapping.slots=[] 仍走 transport 分支,血缘门以 imageUrls=[]
+    // 调用→「分镜多参考传输槽位数量不一致(须 1–3 槽)」硬抛(真因=全槽裁失被误导)
+    await expect(
+      runImageWorkflowNodeGeneration(graph, "gen-1", { addMaterial: () => "mat-1" }),
+    ).resolves.toEqual({ imageUrl: "project-file://w/1.png" });
+    const sent = vi.mocked(aiManager.generateImage).mock.calls[0][0];
+    // 零槽 t2i 降级路:传输零参考+主体句形态(无槽位点名)
+    expect(sent.referenceImages).toEqual([]);
+    expect(sent.prompt).not.toMatch(/<image\d+>/);
   });
 });

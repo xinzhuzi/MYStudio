@@ -10,7 +10,9 @@
 
 规则与错题集十二~十四族同源;改规则三处同步(本模块+test_my_qi21_base 门禁
 +错题集 12 篇)。豁免:①【文字要求】/【字体】钦定原文块(用户逐字令,含
-「不要」「无错字」);②「未[指提供带]」装配逻辑条件词;③负向层(否定词合法家)。
+「不要」「无错字」);②「未[指提供带]」装配逻辑条件词;③负向层(否定词合法家);
+④「参考 N：」注入块(1120 件三 identity-injection 设计卡全文逐字,App 装配层
+lint 同源豁免,见 _INJECTION_BLOCK 注)。
 作用域:MyQi21ApiPE=t2i 全路;MyQi21PromptAssembly=「道劫美术类型/无底座出图」
 全查+i2i 路(自由出图/道劫美术风格转换)否定式门(1017 用户令「4,开始做」扩展,
 09 篇两落法豁免退役——「去掉/摘掉」去除操作与肯定枚举本就不在禁词族,
@@ -23,6 +25,14 @@ import re
 
 # 钦定原文块豁免(用户逐字令)
 _VERBATIM = re.compile(r"【文字要求】[^。]*。|【字体】[^。]*。")
+# 1120 件三分镜 identity-injection 试验模式(设计卡全文注入)的「参考 N：」块
+# 豁免:App 装配层 lint 只跑基底(块=角色设计卡全文逐字,含否定式/排版语料是
+# 「传设定」模式的本义,run-image-workflow-node-generation 基底|终稿之分)——
+# 本门与 App 同源豁免,否则引擎 1017 运行时门对同一文本全量检查,A/B 试验出
+# 不了对比图(引擎侧任务级报错)。块恒追加在主体句尾部(App
+# appendIdentityInjectionBlocks),且正典五项序/i2i 指令体恒不产「参考 N：」
+# 形态(App 仓 grep 零命中)——从首个块起整段豁免,非块文本零波及。
+_INJECTION_BLOCK = re.compile(r"参考 [0-9]+：.*$", re.S)
 # 十四族:视觉否定式(直陈化;模型不吃否定词,无大象效应)
 _NEG = re.compile(
     r"不能|不得|不要|不准|禁止|不生成|不画|不拆|不挤占|不造|不强行|不见|"
@@ -112,7 +122,8 @@ def _hair_color_violation(t: str) -> str | None:
 
 
 def _strip_verbatim(text: str) -> str:
-    return _VERBATIM.sub("", text or "")
+    # 门禁检查面=豁免块之外的文本(钦定原文块+注入块);装配输出保持全文。
+    return _INJECTION_BLOCK.sub("", _VERBATIM.sub("", text or ""))
 
 
 def prompt_violations(text: str, *, is_subject: bool, negation_only: bool = False) -> list[str]:

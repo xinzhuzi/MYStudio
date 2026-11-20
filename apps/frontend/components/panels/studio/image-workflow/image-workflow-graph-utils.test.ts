@@ -352,3 +352,70 @@ describe("storyboard graph-level style-word strip (1115 A 裁补·复用镜实�
     expect(stripStoryboardPromptStyleWords(assetGraph)).toBe(assetGraph);
   });
 });
+
+// ── 1120 交叉复核⑧:替换对齐路径的多帧参考接线(帧2..N 资产参考失守根修) ──────
+describe("ensureStoryboardAssetReferences(1120 复核⑧:多帧重用流替换接线)", () => {
+  /** 多帧流形态:杂参考(当前分镜参考图)与旧资产参考建流期连向每一帧
+   * (createOpenImageWorkflowGraph sharedRefSources 语义,graph-utils:598-600)。 */
+  function multiFrameGraph() {
+    return {
+      id: "wf-multiframe", name: "MF", target: { kind: "storyboard", id: "sb-1" },
+      nodes: [
+        {
+          id: "src-ref", type: "reference", title: "当前分镜参考图",
+          imageUrl: "project-file://demo/old.png",
+          source: { kind: "storyboard", id: "sb-1" }, position: { x: 80, y: 40 },
+        },
+        {
+          id: "old-asset", type: "reference", title: "监工赵四",
+          imageUrl: "file:///assets/zhao-v1.png",
+          source: { kind: "asset", assetType: "character", id: "role-1" },
+          continuityOrder: 1, position: { x: 80, y: 120 },
+        },
+        { id: "p1", type: "prompt", prompt: "【画面】赵四扬鞭", position: { x: 80, y: 520 } },
+        { id: "g1", type: "generated", title: "分镜 1 成图 · 帧1/2", frameId: "kf-1", position: { x: 760, y: 40 } },
+        { id: "g2", type: "generated", title: "分镜 1 成图 · 帧2/2", frameId: "kf-2", position: { x: 760, y: 240 } },
+      ],
+      edges: [
+        { id: "src-ref->g1", source: "src-ref", target: "g1" },
+        { id: "src-ref->g2", source: "src-ref", target: "g2" },
+        { id: "old-asset->g1", source: "old-asset", target: "g1" },
+        { id: "old-asset->g2", source: "old-asset", target: "g2" },
+      ],
+    } as never;
+  }
+  const assetRefNodes = (graph: ReturnType<typeof ensureStoryboardAssetReferences>) =>
+    graph.nodes.filter(
+      (node): node is Extract<typeof node, { type: "reference" }> =>
+        node.type === "reference" && node.source?.kind === "asset",
+    );
+
+  it("资产图换代(签名不匹配)替换后:新资产参考连向每一成图节点,杂参考原边不动", () => {
+    const ensured = ensureStoryboardAssetReferences(multiFrameGraph(), [
+      { imageUrl: "file:///assets/zhao-v2.png", title: "监工赵四", assetType: "character" as const, assetId: "role-1" },
+    ]);
+    // 旧资产参考(陈旧 imageUrl)清出,新代入图
+    expect(ensured.nodes.some((node) => node.id === "old-asset")).toBe(false);
+    const newRef = assetRefNodes(ensured)[0]!;
+    expect(newRef.imageUrl).toBe("file:///assets/zhao-v2.png");
+    // 建流期共享参考语义:连向每一帧(request.ts 参考按目标节点边收,
+    // 原实现只连首个 generated=帧2 生成时零资产参考=身份漂移静默错图)
+    expect(ensured.edges.some((edge) => edge.source === newRef.id && edge.target === "g1")).toBe(true);
+    expect(ensured.edges.some((edge) => edge.source === newRef.id && edge.target === "g2")).toBe(true);
+    // 杂参考保留原边(不重接到首帧=收回 1120 恒对齐门的有损扩面)
+    expect(ensured.edges.some((edge) => edge.source === "src-ref" && edge.target === "g1")).toBe(true);
+    expect(ensured.edges.some((edge) => edge.source === "src-ref" && edge.target === "g2")).toBe(true);
+    // 旧资产参考的边确实清出
+    expect(ensured.edges.some((edge) => edge.source === "old-asset")).toBe(false);
+  });
+
+  it("替换后同引用集二次 ensure:幂等原样返回(签名一致零涟漪)", () => {
+    const ensured = ensureStoryboardAssetReferences(multiFrameGraph(), [
+      { imageUrl: "file:///assets/zhao-v2.png", title: "监工赵四", assetType: "character" as const, assetId: "role-1" },
+    ]);
+    // 幂等:同一引用集二次 ensure 原样返回(签名一致)
+    expect(ensureStoryboardAssetReferences(ensured, [
+      { imageUrl: "file:///assets/zhao-v2.png", title: "监工赵四", assetType: "character" as const, assetId: "role-1" },
+    ])).toBe(ensured);
+  });
+});

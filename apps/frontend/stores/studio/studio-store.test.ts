@@ -1303,6 +1303,68 @@ describe("studio workflow store", () => {
     ).not.toContain("sb-ep1-2");
   });
 
+  // 1120 复核②:镜 id 确定性派生(sb-{episodeId}-{index})——分镜表重建造旧
+  // assetBindings 继承到阵容已换的新镜(新表产物不含该键),发车校验旧行仍
+  // 可解析有图即放行=「绑定已核」假象;与发现①叠加=有画面镜死路。
+  it("分镜表重建阵容已换:旧 assetBindings 不被继承;阵容未变重存零扰动", () => {
+    useStudioStore.getState().addStoryboard({
+      id: "sb-ep1-1",
+      episodeId: "ep1",
+      index: 1,
+      trackKey: "old-1",
+      prompt: "旧分镜一",
+      mediaRef: { kind: "image", path: "project-file://frames/old-1.png" },
+      associateAssetsNames: ["断臂散修"],
+      state: "ready",
+    } as never);
+    // addStoryboard 字段白名单不含 assetBindings(1120 件一写点=bindShotWithMatch
+    // /updateStoryboard),绑定契约经 updateStoryboard 落档
+    useStudioStore.getState().updateStoryboard("sb-ep1-1", {
+      assetBindings: [{ assetId: "char-1", name: "断臂散修", kind: "character", slot: 1 }],
+    });
+    // 重生成条目:同 id 同 index、阵容换人(新表产物不含 assetBindings 键)
+    useStudioStore.getState().replaceStoryboardsForEpisode("ep1", [
+      {
+        id: "sb-ep1-1",
+        episodeId: "ep1",
+        index: 1,
+        trackKey: "segment-001",
+        trackId: "",
+        duration: 8,
+        prompt: "当前片段一",
+        videoDesc: "当前片段一的画面",
+        assetIds: ["role-2"],
+        associateAssetsNames: ["监工赵四"],
+        state: "idle",
+      } as never,
+    ]);
+    expect(useStudioStore.getState().storyboards[0]?.assetBindings).toBeUndefined();
+
+    // 对照:阵容未变的重新保存(文本重写)零扰动——绑定契约原样保留
+    useStudioStore.getState().updateStoryboard("sb-ep1-1", {
+      associateAssetsNames: ["监工赵四"],
+      assetBindings: [{ assetId: "char-foreman", name: "监工赵四", kind: "character", slot: 1 }],
+    });
+    useStudioStore.getState().replaceStoryboardsForEpisode("ep1", [
+      {
+        id: "sb-ep1-1",
+        episodeId: "ep1",
+        index: 1,
+        trackKey: "segment-001",
+        trackId: "",
+        duration: 8,
+        prompt: "再次重存的同阵容条目",
+        videoDesc: "当前片段一的画面",
+        assetIds: ["role-2"],
+        associateAssetsNames: ["监工赵四"],
+        state: "idle",
+      } as never,
+    ]);
+    expect(useStudioStore.getState().storyboards[0]?.assetBindings).toEqual([
+      { assetId: "char-foreman", name: "监工赵四", kind: "character", slot: 1 },
+    ]);
+  });
+
   // W1(1112 验尸 .trellis/tasks/11-12-storyboard-asset-refchain-repair):文本层
   // 重生成(toStoryboardItems 产出不含 continuityState/orderedReferenceManifest
   // 键)不得静默继承旧 continuity 层——继承=撕裂(旧锚定 vs 新文本)对指纹比对

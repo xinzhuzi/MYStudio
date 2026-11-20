@@ -20,6 +20,7 @@ import { buildStoryboardItemOpenContext } from "./storyboard-open-context";
 import { saveVideoFramesAsKeyframes } from "@/lib/assist/image-studio/shot-keyframe-extraction";
 import { ShotImageCompareDialog, ShotVideoCompareDialog } from "./shot-compare-dialogs";
 import { ChapterAcceptanceBanner } from "./ChapterAcceptanceBanner";
+import { storyboardHasVideo, storyboardHasVisual } from "./storyboard-asset-binding";
 import { NodeDocViewer } from "./NodeDocViewer";
 import { ScriptEditorDialog } from "./ScriptEditorDialog";
 import { useStoryboardBatchGeneration } from "./image-workflow/use-storyboard-batch-generation";
@@ -203,6 +204,13 @@ export function StudioView() {
     visualManualId: viewModel.workflowConfig.visualManualId,
     storyboards: viewModel.chapterStoryboards,
   });
+  // 横幅实况分镜计数(1120 复核⑪):videoReady/ready 是流水线终态卡快照,
+  // 会话内 H3 落账不重算卡——横幅按实况 Math.max 兜底,禁以旧卡漏报新就绪。
+  const liveStoryboardCounts = useMemo(() => ({
+    totalShots: viewModel.chapterStoryboards.length,
+    videoReady: viewModel.chapterStoryboards.filter(storyboardHasVideo).length,
+    ready: viewModel.chapterStoryboards.filter(storyboardHasVisual).length,
+  }), [viewModel.chapterStoryboards]);
   // 漫影侧栏制作动作宿主侧(09-11 旧画布功能迁移收口):运行中防重入
   const sidebarActions = {
     onGenerateImages: () => {
@@ -448,8 +456,14 @@ export function StudioView() {
                   run={chapterPipeline.run}
                   staleCount={chapterPipeline.staleTasks.length}
                   staleSourceScriptCount={chapterPipeline.staleSourceScriptCount}
+                  liveStoryboardCounts={liveStoryboardCounts}
                   onRunPipeline={chapterPipeline.start}
                   onGoToAssets={() => viewModel.handleStageChange("assets")}
+                  onGenerateVideos={() => {
+                    // 1120 复核⑩:缺视频的修复入口=章自动出视频(与侧栏 onGenerateVideos
+                    // 同源),流水线三步零视频产出清不了该计数。
+                    if (!viewModel.chapterAutoVideoRunning) void viewModel.handleRunChapterAutoVideo();
+                  }}
                   onRegenerateStoryboardTable={() => {
                     void viewModel.handleProductionNodeAction({
                       id: "generate-storyboard-table",

@@ -168,18 +168,59 @@ export function resolveStoryboardAssetBindings(input: {
   });
 }
 
-/** 发车校验失效明细(1120 件一):id 不可解析(行删)/id 漂移(重新提取)/行无图。 */
+/** 发车校验失效明细(1120 件一):id 不可解析(行删)/id 漂移(重新提取)/行无图/
+ * 阵容漂移(镜引用已换,绑定不再出自现镜阵容——1120 复核②)。 */
 export interface StoryboardBindingShipInvalid {
   binding: StoryboardAssetBinding;
-  reason: "unresolved" | "id-drift" | "no-image";
+  reason: "unresolved" | "id-drift" | "no-image" | "lineup-drift";
+}
+
+/**
+ * 在档绑定逐条核验(纯函数,1120 复核①②共用单源):①阵容先行——绑定名与现镜
+ * associateAssetsNames(nameMatches 名+别名,与 collectStoryboardAssetBindings
+ * 写路同规则)零匹配=阵容已换(分镜表重建旧绑定继承等),行可解析有图也失效;
+ * ②行解析——id 可解析核行有图;id 不可解析 name 兜底双核:同名行在=重新提取
+ * 换了 id(重跑绑定可愈),同名行也不在=行已删。发车校验与重跑绑定修复队列
+ * 两消费方同源调用,口径禁分叉。
+ */
+export function findStoryboardBindingInvalidEntries(input: {
+  bindings: StoryboardAssetBinding[];
+  rows: AssetRow[];
+  names: string[];
+  characterAliases: Record<string, string[]>;
+}): StoryboardBindingShipInvalid[] {
+  const names = [...new Set((input.names ?? []).map((name) => name.trim()).filter(Boolean))];
+  const rowById = new Map(input.rows.map((row) => [row.id, row]));
+  const invalid: StoryboardBindingShipInvalid[] = [];
+  for (const binding of input.bindings) {
+    const inLineup = names.some((name) => nameMatches(
+      name,
+      binding.name,
+      binding.kind === "character" ? input.characterAliases[binding.name] ?? [] : [],
+    ));
+    if (!inLineup) {
+      invalid.push({ binding, reason: "lineup-drift" });
+      continue;
+    }
+    const row = rowById.get(binding.assetId);
+    if (row) {
+      if (!getRowImage(row)) invalid.push({ binding, reason: "no-image" });
+      continue;
+    }
+    const sameName = input.rows.find((row) => row.name === binding.name);
+    invalid.push({ binding, reason: sameName ? "id-drift" : "unresolved" });
+  }
+  return invalid;
 }
 
 /**
  * 1120 件一发车校验:在档 assetBindings 逐条核验 assetId 可解析且行有图
  * (id+name 双核:name 冗余=失效判断兜底——重新提取可能换 id,行删与 id 漂移
- * 分开指路)。失效=抛错拒发+例外清单落行(调用方走既有例外清单通道),禁静默。
- * assetBindings 缺席(旧章)不拦:推导兼容路由消费方自取,推导条目出自现势
- * 行恒过校验,校验只对在档绑定契约有实效(防绑定后行删/图清的时序漂移)。
+ * 分开指路;阵容漂移同拒,禁「绑定已核」假象)。失效=抛错拒发+例外清单落行
+ * (调用方走既有例外清单通道),禁静默。assetBindings 缺席(旧章)不拦:推导
+ * 兼容路由消费方自取,推导条目出自现势行恒过校验,校验只对在档绑定契约有
+ * 实效(防绑定后行删/图清/阵容换的时序漂移)。失效后的恢复路径=重跑绑定
+ * (runStoryboardAssetBinding 修复队列重建契约,见该函数注释)。
  */
 export function assertStoryboardAssetBindingsShippable(input: {
   shot: Pick<StoryboardItem, "id" | "index" | "episodeId" | "assetBindings" | "associateAssetsNames">;
@@ -188,22 +229,15 @@ export function assertStoryboardAssetBindingsShippable(input: {
   const bindings = input.shot.assetBindings ?? [];
   if (!bindings.length) return;
   const rows = buildChapterAssetRows(input.shot.episodeId, input.projectId);
-  const rowById = new Map(rows.map((row) => [row.id, row]));
-  const invalid: StoryboardBindingShipInvalid[] = [];
-  for (const binding of bindings) {
-    const row = rowById.get(binding.assetId);
-    if (row) {
-      if (!getRowImage(row)) invalid.push({ binding, reason: "no-image" });
-      continue;
-    }
-    // id 不可解析:name 兜底双核——同名行在=重新提取换了 id(重跑绑定可愈),
-    // 同名行也不在=资产行已删(需回资产库处理)
-    const sameName = rows.find((row) => row.name === binding.name);
-    invalid.push({ binding, reason: sameName ? "id-drift" : "unresolved" });
-  }
+  const invalid = findStoryboardBindingInvalidEntries({
+    bindings,
+    rows,
+    names: input.shot.associateAssetsNames ?? [],
+    characterAliases: buildCharacterAliases(input.shot.episodeId),
+  });
   if (!invalid.length) return;
   const details = invalid.map(({ binding, reason }) =>
-    `${binding.name}(${reason === "unresolved" ? "资产行不存在" : reason === "id-drift" ? "资产行已重新提取，请重跑绑定" : "资产行无图"})`,
+    `${binding.name}(${reason === "unresolved" ? "资产行不存在" : reason === "id-drift" ? "资产行已重新提取，请重跑绑定" : reason === "lineup-drift" ? "镜阵容已变更，请重跑绑定" : "资产行无图"})`,
   );
   const label = `S${String(input.shot.index).padStart(2, "0")}`;
   // 例外清单落行(既有通道,禁重复建设):无 run 造最小报表容器,同镜复报=patch
@@ -802,6 +836,13 @@ async function bindUniqueMatch(input: {
  * 章级自动绑定入口:遍历本章未绑镜(有画面/video 的跳过)→ 匹配→绑定→
  * 缺图触发批2 补图→ 二轮复配。例外清单+就绪度计数落
  * useStoryboardBindingStore(批5 验收卡消费);返回跑完报表。
+ * 1120 复核①修复队列:「修复后重跑绑定」对有画面镜可达——id 漂移/行删后,
+ * 有画面镜(绑定成功过恒有画面)不在 pending 面(原 pending=无画面镜过滤),
+ * 重跑绑定原样跳过=镜不可发车且无 UI 恢复路径(assetBindings 唯一写点
+ * bindShotWithMatch 对有画面镜不可达)。现补第二队列:有画面但绑定契约失效
+ * (lineup-drift/id-drift/unresolved)的镜按现势行集+现镜阵容重建
+ * assetBindings(findStoryboardBindingInvalidEntries 同源判定);行删条目随
+ * 重建自然剔除。no-image 不在重建面(行补图即愈,绑定契约本身有效)。
  */
 export async function runStoryboardAssetBinding(
   input: RunStoryboardBindingInput,
@@ -821,21 +862,31 @@ export async function runStoryboardAssetBinding(
     toast.error("本章尚无分镜：请先生成分镜表");
     return null;
   }
+  const rows = buildChapterAssetRows(chapterId, projectId);
+  const characterAliases = buildCharacterAliases(chapterId);
   const pending = shots.filter((shot) => !storyboardHasVisual(shot));
-  if (!pending.length) {
+  // 修复队列(1120 复核①):有画面但绑定契约失效的镜(同源判定见上注)。
+  const drifted = shots.filter((shot) => {
+    if (!storyboardHasVisual(shot) || !shot.assetBindings?.length) return false;
+    return findStoryboardBindingInvalidEntries({
+      bindings: shot.assetBindings,
+      rows,
+      names: shot.associateAssetsNames ?? [],
+      characterAliases,
+    }).some((entry) => entry.reason !== "no-image");
+  });
+  if (!pending.length && !drifted.length) {
     toast.info(`本章 ${shots.length} 镜均已有画面，无需绑定`);
     return null;
   }
-  const rows = buildChapterAssetRows(chapterId, projectId);
   if (!rows.length) {
     toast.error("本章提取批次没有资产行：请先在「剧本资产管理」完成资产提取");
     return null;
   }
-  const characterAliases = buildCharacterAliases(chapterId);
   const readyBefore = shots.filter(storyboardHasVisual).length;
   const toastId = `storyboard-binding:${chapterId}`;
-  useStoryboardBindingStore.getState().startRun(chapterId, pending.length);
-  toast.loading(`分镜素材绑定发车：${pending.length} 镜待绑`, { id: toastId });
+  useStoryboardBindingStore.getState().startRun(chapterId, pending.length + drifted.length);
+  toast.loading(`分镜素材绑定发车：${pending.length} 镜待绑${drifted.length ? ` · ${drifted.length} 镜重建绑定` : ""}`, { id: toastId });
 
   const exceptions: StoryboardBindingExceptionRow[] = [];
   let boundCount = 0;
@@ -845,12 +896,13 @@ export async function runStoryboardAssetBinding(
   // 二轮起禁再触发——防多镜缺图反复发批)
   let fillUsed = false;
   let done = 0;
+  const totalTargets = pending.length + drifted.length;
 
   try {
     for (const shot of pending) {
       useStoryboardBindingStore
         .getState()
-        .updateProgress(chapterId, done, pending.length, `S${String(shot.index).padStart(2, "0")}`);
+        .updateProgress(chapterId, done, totalTargets, `S${String(shot.index).padStart(2, "0")}`);
       const outcome = await bindShotWithMatch({
         shot,
         rows: buildChapterAssetRows(chapterId, projectId),
@@ -865,7 +917,25 @@ export async function runStoryboardAssetBinding(
       if (outcome.bound) boundCount += 1;
       if (outcome.exception) exceptions.push(outcome.exception);
       done += 1;
-      useStoryboardBindingStore.getState().updateProgress(chapterId, done, pending.length, "");
+      useStoryboardBindingStore.getState().updateProgress(chapterId, done, totalTargets, "");
+    }
+    // 修复队列(1120 复核①):重建失效绑定契约——pending 轮在前,补图(批2)
+    // 产出的新图行可被重建吸收;行集/行别名逐镜现读(与 pending 轮同口径)。
+    for (const shot of drifted) {
+      const label = `S${String(shot.index).padStart(2, "0")}`;
+      const live = useStudioStore.getState().storyboards.find((item) => item.id === shot.id);
+      if (!live) continue;
+      const rebuilt = collectStoryboardAssetBindings({
+        names: live.associateAssetsNames ?? [],
+        rows: buildChapterAssetRows(chapterId, projectId),
+        characterAliases: buildCharacterAliases(chapterId),
+      });
+      // 空集=阵容行全失/全无图:清空在档契约(校验跳过,读路按名推导)。
+      useStudioStore.getState().updateStoryboard(live.id, { assetBindings: rebuilt });
+      useStoryboardBindingStore.getState().removeExceptionRow(chapterId, live.id);
+      boundCount += 1;
+      done += 1;
+      useStoryboardBindingStore.getState().updateProgress(chapterId, done, totalTargets, label);
     }
   } catch (error) {
     // 绑定单镜已自收口;此处兜编排层异常,批次必须收终态(防重入不中毒)
@@ -879,7 +949,7 @@ export async function runStoryboardAssetBinding(
   const report: StoryboardBindingReport = {
     chapterId,
     finishedAt: Date.now(),
-    total: pending.length,
+    total: totalTargets,
     boundCount,
     readyBefore,
     readyAfter,
@@ -890,13 +960,13 @@ export async function runStoryboardAssetBinding(
 
   if (loopError) {
     toast.error(
-      `分镜绑定中断：${loopError instanceof Error ? loopError.message : String(loopError)}（已绑 ${boundCount}/${pending.length}，例外清单见分镜面板）`,
+      `分镜绑定中断：${loopError instanceof Error ? loopError.message : String(loopError)}（已绑 ${boundCount}/${totalTargets}，例外清单见分镜面板）`,
       { id: toastId },
     );
     return report;
   }
 
-  const summary = `分镜素材绑定完成：绑 ${boundCount}/${pending.length} · 就绪 ${readyAfter}/${freshShots.length}`;
+  const summary = `分镜素材绑定完成：绑 ${boundCount}/${totalTargets} · 就绪 ${readyAfter}/${freshShots.length}`;
   const descriptionParts = [
     fillTriggered ? "已触发本章资产补图" : null,
     exceptions.length

@@ -3,9 +3,12 @@
  * design §2.6/G10「双落位」之一;另一落位=任务中心 orb 终态收据):
  * - 有未绑/stale/失败项 → **常驻**横幅(状态可见处动作可达):资产失败→
  *   直达剧本资产管理页处理;stale/未绑 → 一键重跑章流水线(幂等续跑);
+ *   缺视频 → 同位「去出视频」(1120 复核⑩:流水线三步零视频产出,重跑流水
+ *   线清不了该计数,修复回路须指向真产视频入口);
  * - 全绿(资产/衍生零失败+分镜全绑+零 stale+零分镜源过期) → 横幅消失;
  * - stale 口径取实况(批6 派生)与卡内快照的较大者——横幅是行动入口,
- *   禁止因快照时序漏报过期。
+ *   禁止因快照时序漏报过期;videoReady/ready 主计数同纪律实况兜底(1120
+ *   复核⑪:会话内 H3 落账不重算卡,旧快照会漏报新就绪)。
  * - 分镜源过期(staleSourceScriptCount,批6 D5 实况派生)只**阻止全绿消失**、
  *   不产生数据闸:琥珀软提示+同位重跑,软提示不硬拦(裁定④)。
  * - 1120 件二双用降级:验收主口径=分镜视频就绪(mediaRef kind=video);
@@ -15,6 +18,7 @@ import { CircleCheck, Loader2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   chapterAcceptanceAllGreen,
+  type ChapterAcceptanceCard,
   type ChapterPipelineRunView,
 } from "./chapter-pipeline";
 
@@ -32,6 +36,20 @@ export interface ChapterAcceptanceBannerProps {
    * 写点——分镜源过期的修复动作必须指向能清此计数的入口,禁再发章流水线。
    */
   onRegenerateStoryboardTable?: () => void;
+  /**
+   * 分镜视频产出入口(1120 复核⑩修,D-5 同构):章流水线三步(资产/衍生/绑定)
+   * 零视频产出,「重跑章流水线」清不了「缺视频 N」计数——缺视频的修复动作
+   * 必须指向真产视频的入口(章自动出视频/H3 链),禁只留流水线按钮=横幅常驻
+   * 死循环。
+   */
+  onGenerateVideos?: () => void;
+  /**
+   * 实况分镜计数(1120 复核⑪修):videoReady/ready/totalShots 是流水线终态卡
+   * 快照,会话内 H3 落账(landH3ShotVideo 只写 store 不重算卡)后横幅不刷新
+   * ——全章出完视频仍常驻「缺视频 N」。与 stale 的 Math.max 实况兜底同纪律,
+   * 主计数禁以旧卡快照漏报新就绪。
+   */
+  liveStoryboardCounts?: { totalShots: number; videoReady: number; ready: number };
 }
 
 export function ChapterAcceptanceBanner({
@@ -41,6 +59,8 @@ export function ChapterAcceptanceBanner({
   onRunPipeline,
   onGoToAssets,
   onRegenerateStoryboardTable,
+  onGenerateVideos,
+  liveStoryboardCounts,
 }: ChapterAcceptanceBannerProps) {
   if (run?.status === "running") {
     const doneSteps = run.steps.filter((step) => step.status !== "pending" && step.status !== "running").length;
@@ -65,24 +85,39 @@ export function ChapterAcceptanceBanner({
   const card = run?.card;
   const stale = Math.max(card?.staleCount ?? 0, staleCount);
   if (card) {
+    // 实况兜底(1120 复核⑪):主计数与 stale 同纪律取卡快照/实况较大者——
+    // 会话内 H3 落账后卡不重算,旧快照会漏报新就绪的视频/画面;totalShots
+    // 同取较大(分镜表重建加镜后旧卡总数偏小,全绿闸须按现势总数核)。
+    const liveTotal = liveStoryboardCounts?.totalShots ?? 0;
+    const totalShots = Math.max(card.storyboard.totalShots, liveTotal);
+    const videoReady = Math.max(card.storyboard.videoReady, liveStoryboardCounts?.videoReady ?? 0);
+    const ready = Math.max(card.storyboard.ready, liveStoryboardCounts?.ready ?? 0);
+    const effectiveCard: ChapterAcceptanceCard =
+      card.storyboard.totalShots === totalShots
+      && card.storyboard.videoReady === videoReady
+      && card.storyboard.ready === ready
+        ? card
+        : {
+            ...card,
+            storyboard: { ...card.storyboard, totalShots, videoReady, ready, unbound: totalShots - ready },
+          };
     // 全绿消失闸扩一档(D-5):分镜源过期也阻止横幅消失,否则刚改完剧本的
     // 「全绿」假象会吞掉唯一行动入口。
-    if (chapterAcceptanceAllGreen(card) && stale === 0 && staleSourceScriptCount === 0) {
+    if (chapterAcceptanceAllGreen(effectiveCard) && stale === 0 && staleSourceScriptCount === 0) {
       // 全绿消失(G10);brief 收据由 orb 承担,面板不占位
       return null;
     }
     const assetFailed = card.assets.failed;
     const derivedFailed = card.derived.failed;
-    const unbound = card.storyboard.unbound;
+    const unbound = effectiveCard.storyboard.unbound;
     // 1120 件二:主计数=视频就绪;无视频态=0/N(主计数缺省,不硬造)
-    const videoReady = card.storyboard.videoReady;
-    const videoPending = card.storyboard.totalShots - videoReady;
+    const videoPending = totalShots - videoReady;
     const exceptions = card.storyboard.exceptions;
     const summaryParts = [
       `资产 ${card.assets.success}/${card.assets.total || 0}${assetFailed ? `（失 ${assetFailed}）` : ""}`,
       `衍生 ${card.derived.success}/${card.derived.total || 0}${derivedFailed ? `（失 ${derivedFailed}）` : ""}`,
-      `分镜视频 ${videoReady}/${card.storyboard.totalShots}${videoPending ? `（缺视频 ${videoPending}）` : ""}`,
-      `分镜画面 ${card.storyboard.ready}/${card.storyboard.totalShots}${unbound ? `（未绑 ${unbound}）` : ""}`,
+      `分镜视频 ${videoReady}/${totalShots}${videoPending ? `（缺视频 ${videoPending}）` : ""}`,
+      `分镜画面 ${ready}/${totalShots}${unbound ? `（未绑 ${unbound}）` : ""}`,
       exceptions ? `绑定例外 ${exceptions}` : null,
       stale ? `过期 ${stale}（剧本已变更）` : null,
       staleSourceScriptCount ? `分镜源过期 ${staleSourceScriptCount} 镜` : null,
@@ -129,6 +164,18 @@ export function ChapterAcceptanceBanner({
               title="用现势剧本重生成导演分镜表(分镜源过期只有这一步能清账;章流水线不含分镜表生成)"
             >
               重新生成分镜表
+            </Button>
+          ) : null}
+          {videoPending > 0 && onGenerateVideos ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              data-acceptance-generate-videos
+              onClick={onGenerateVideos}
+              title="分镜视频缺口走章自动出视频(H3 链);章流水线三步(资产/衍生/绑定)零视频产出,重跑流水线清不了此计数"
+            >
+              去出视频 {videoPending}·张
             </Button>
           ) : null}
           <Button

@@ -295,9 +295,12 @@ export function ensureStoryboardAssetReferences(
       updatedAt: Date.now(),
     };
   }
+  const addedReferenceIds: string[] = [];
   references.forEach((reference, index) => {
+    const referenceNodeId = createId("asset-ref", Date.now() + index + 1);
+    addedReferenceIds.push(referenceNodeId);
     next = addReferenceImageNode(next, {
-      id: createId("asset-ref", Date.now() + index + 1),
+      id: referenceNodeId,
       title: reference.title,
       imageUrl: reference.imageUrl,
       source: { kind: "asset", assetType: reference.assetType, id: reference.assetId },
@@ -305,10 +308,15 @@ export function ensureStoryboardAssetReferences(
       position: nextStackedPosition(next.nodes, "reference"),
     });
   });
-  const generatedNodeId = next.nodes.find((node) => node.type === "generated")?.id;
-  if (generatedNodeId) {
-    for (const node of next.nodes.filter((item) => item.type === "reference")) {
-      next = connectImageWorkflowNodes(next, { source: node.id, target: generatedNodeId });
+  // 1120 复核⑧修:重建的资产参考按建流期共享参考同款连法——连向**每一**
+  // 成图节点(多帧流帧2..N 也要资产参考:request.ts 参考按目标节点边收,此前
+  // 只连首个 generated=帧1,帧2+生成时零资产参考=角色/场景身份漂移静默错图);
+  // 杂参考(当前分镜参考图/分镜帧/手动 project-file)保留原边不动——原实现顺手
+  // 把全部 reference 重接到首帧,对多帧流是有损扩面,一并收回。
+  const generatedNodeIds = next.nodes.filter((node) => node.type === "generated").map((node) => node.id);
+  for (const sourceId of addedReferenceIds) {
+    for (const targetId of generatedNodeIds) {
+      next = connectImageWorkflowNodes(next, { source: sourceId, target: targetId });
     }
   }
   return ensureStoryboardBindingConsistency(next);

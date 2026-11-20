@@ -545,3 +545,28 @@ def test_no_visual_negation_in_prompts():
     for block in _re.findall(r"```[a-z]*\n(.*?)\n?```", md, _re.S):
         m = BAN.search(strip_verbatim(block))
         assert not m, f"示例库主体句视觉否定「{m.group(0)}」"
+
+
+def test_identity_injection_block_exemption_1120():
+    """1120 件三 identity-injection 注入块豁免(「参考 N：」块=设计卡全文逐字)。
+
+    App 装配层 lint 只跑基底(run-image-workflow-node-generation 基底|终稿之
+    分),块=角色设计卡全文——含否定式/排版语料是「传设定」模式的本义。本门
+    (引擎 1017 运行时)与 App 同源豁免,否则对同一文本全量检查=A/B 试验任务级
+    报错出不了对比图。豁免边界=从首个「参考 N：」块起整段(块恒在主体句尾部,
+    App appendIdentityInjectionBlocks);非块文本的否定式照拒(防过豁免),
+    i2i 指令路(negation_only)同豁免。"""
+    import importlib.util as _ilu
+    _gs = _ilu.spec_from_file_location("gongbi_gate_src_inj", REPO / "apps/backend/comfyui/my_nodes/nodes/_gongbi_gate.py")
+    _gm = _ilu.module_from_spec(_gs); _gs.loader.exec_module(_gm)
+    base = "夜。金水塾馆院中，少年立于檐下。"  # 干净基底(无任何禁词族)
+    assert _gm.prompt_violations(base, is_subject=True) == []
+    block = "参考 1：少年乌黑长发束高髻，不要佩戴护腕，禁止露出纹身。"
+    # 块内否定式(不要/禁止)+配饰无色——注入形态整体豁免(主体句层+i2i 指令层)
+    injected = f"{base}；{block}"
+    assert _gm.prompt_violations(injected, is_subject=True) == []
+    assert _gm.prompt_violations(injected, is_subject=True, negation_only=True) == []
+    # 防过豁免:同样语料不在「参考 N：」块内(无块前缀)照拒
+    bare = "夜。金水塾馆院中，少年立于檐下，不要佩戴护腕，禁止露出纹身。"
+    violations = _gm.prompt_violations(bare, is_subject=True)
+    assert any("否定式" in v for v in violations), violations

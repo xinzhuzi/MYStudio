@@ -1385,3 +1385,136 @@ describe("countShotsNeedingBatchGeneration(钮门=批量门同源,1116 四散件
     expect(countShotsNeedingBatchGeneration([cleanWithImage])).toBe(0);
   });
 });
+
+// ── 1120 交叉复核⑤⑥⑦⑨:单镜重出会话解耦/force 语义/视频镜保护 ───────────────
+describe("useStoryboardBatchGeneration(1120 交叉复核:单镜重出会话解耦+视频镜保护)", () => {
+  beforeEach(() => { resolvedReferences.value = []; generateImageMock.mockReset(); });
+
+  /** 与 hook 同源的会话记录形态(storyboard-batch-session-store)。 */
+  function seedSession(overrides: Partial<{
+    sessionId: string; cursorShotIndex: number; totalFrames: number;
+    doneFrames: number; failedFrames: number; status: "running" | "interrupted";
+  }>) {
+    useStoryboardBatchSessionStore.setState({
+      session: {
+        sessionId: "sb-batch-session-1",
+        projectId: "proj",
+        episodeId: "chapter-001",
+        cursorShotIndex: 3,
+        totalFrames: 3,
+        doneFrames: 2,
+        failedFrames: 0,
+        status: "interrupted",
+        updatedAt: 1,
+        ...overrides,
+      },
+    });
+  }
+
+  it("⑤ 单镜重出不受续跑游标裁剪:点名镜在游标前也重出(原误诊「不在当前章分镜」+僵尸会话跨重启阻塞)", async () => {
+    resetStore([
+      shot({ id: "sb-1", index: 1, mediaRef: { kind: "image", path: "project-file://a.png" } as StoryboardItem["mediaRef"] }),
+      shot({ id: "sb-2", index: 2, mediaRef: { kind: "image", path: "project-file://b.png" } as StoryboardItem["mediaRef"] }),
+      shot({ id: "sb-3", index: 3, mediaRef: { kind: "image", path: "project-file://c.png" } as StoryboardItem["mediaRef"] }),
+    ]);
+    seedSession({ cursorShotIndex: 3 }); // 全有图+游标 3:interrupted 批量遗留
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/ok.png" });
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0 }),
+    );
+    act(() => result.current.start({ onlyShotId: "sb-1" })); // index 1 < 游标 3
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 4000 });
+    expect(generateImageMock).toHaveBeenCalledTimes(1);
+    expect(toast.error).not.toHaveBeenCalledWith("单镜重出:镜不在当前章分镜(章/分片换代?请重开工作流)");
+    expect(useStudioStore.getState().storyboards.find((item) => item.id === "sb-1")?.mediaRef?.path).toContain("gen-out.png");
+  });
+
+  it("⑥ 单镜重出零会话:不吞中断批量的续跑候选,汇总只计本镜实生成帧数", async () => {
+    resetStore([
+      shot({ id: "sb-1", index: 1, mediaRef: { kind: "image", path: "project-file://a.png" } as StoryboardItem["mediaRef"] }),
+      shot({ id: "sb-2", index: 2 }),
+      shot({ id: "sb-3", index: 3, mediaRef: { kind: "image", path: "project-file://c.png" } as StoryboardItem["mediaRef"] }),
+    ]);
+    seedSession({ cursorShotIndex: 2, totalFrames: 2, doneFrames: 1 });
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/ok.png" });
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0 }),
+    );
+    act(() => result.current.start({ onlyShotId: "sb-3" }));
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 4000 });
+    expect(generateImageMock).toHaveBeenCalledTimes(1);
+    // 中断会话原样保留(「继续生图」候选不丢,游标不被单镜覆写/清场)
+    const session = useStoryboardBatchSessionStore.getState().session;
+    expect(session?.sessionId).toBe("sb-batch-session-1");
+    expect(session?.status).toBe("interrupted");
+    expect(session?.cursorShotIndex).toBe(2);
+    expect(session?.doneFrames).toBe(1);
+    expect(result.current.resumable).toEqual({ shotIndex: 2, remainingFrames: 1 });
+    // 汇总只计本镜实生成 1 帧(原吞 priorDone 虚报「成功 2 帧」)
+    const successText = toast.success.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(successText).toContain("成功 1 帧");
+    expect(successText).not.toContain("成功 2 帧");
+  });
+
+  it("⑦ 单镜重出按 force 语义:多帧镜已有图帧也重出(现画面入库为历史版本),计数不虚", async () => {
+    resetStore([
+      shot({
+        id: "sb-1", index: 1, duration: 12,
+        keyframes: [
+          { frameId: "sb-1-kf-1", inUs: 0, mediaRef: { kind: "image", path: "project-file://old-kf-1.png" } },
+          { frameId: "sb-1-kf-2", inUs: 6_000_000, mediaRef: { kind: "image", path: "" } },
+        ],
+      }),
+    ]);
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/ok.png" });
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0 }),
+    );
+    act(() => result.current.start({ onlyShotId: "sb-1" }));
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 4000 });
+    // 全帧重出(原只生缺图帧 1 次+done 补差虚报到 2)
+    expect(generateImageMock).toHaveBeenCalledTimes(2);
+    const landed = useStudioStore.getState().storyboards[0]!;
+    expect(landed.keyframes?.[0]?.mediaRef?.path).toContain("gen-out.png");
+    expect(landed.keyframes?.[1]?.mediaRef?.path).toContain("gen-out.png");
+    const successText = toast.success.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(successText).toContain("成功 2 帧");
+  });
+
+  it("⑨a 已出视频镜不计缺帧:一键生图零生成(原恒入队重烧图+落账覆盖回 image 使 videoReady 倒退)", async () => {
+    const videoShot = shot({
+      id: "sb-1", index: 1,
+      mediaRef: { kind: "video", path: "file://videos/h3-out.mp4" } as StoryboardItem["mediaRef"],
+    });
+    resetStore([videoShot]);
+    expect(countShotsNeedingBatchGeneration([videoShot])).toBe(0);
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0 }),
+    );
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 4000 });
+    expect(generateImageMock).not.toHaveBeenCalled();
+    expect(toast.info).toHaveBeenCalledWith("所有分镜画面均已齐备");
+    expect(useStudioStore.getState().storyboards[0]?.mediaRef?.kind).toBe("video");
+  });
+
+  it("⑨b 单镜重出不把已出视频镜的 mediaRef 覆盖回 image(静图仍生成,工作流接线仍落账)", async () => {
+    resetStore([
+      shot({
+        id: "sb-1", index: 1,
+        mediaRef: { kind: "video", path: "file://videos/h3-out.mp4" } as StoryboardItem["mediaRef"],
+      }),
+    ]);
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/ok.png" });
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫", submitIntervalMs: 0 }),
+    );
+    act(() => result.current.start({ onlyShotId: "sb-1" }));
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 4000 });
+    expect(generateImageMock).toHaveBeenCalledTimes(1); // 静图仍生成(force 语义)
+    const landed = useStudioStore.getState().storyboards[0]!;
+    expect(landed.mediaRef?.kind).toBe("video");
+    expect(landed.mediaRef?.path).toBe("file://videos/h3-out.mp4");
+    expect(landed.imageWorkflowId).toBeTruthy();
+  });
+});

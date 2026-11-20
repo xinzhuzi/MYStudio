@@ -1086,3 +1086,110 @@ describe("1120 件一:assertStoryboardAssetBindingsShippable 发车校验(失效
     ).not.toThrow();
   });
 });
+
+// ── 1120 交叉复核①②:重跑绑定修复队列(有画面镜可达)+镜引用一致性 ────────────
+describe("1120 交叉复核:重跑绑定修复队列+镜引用一致性", () => {
+  it("① 重跑绑定可愈(有画面镜):id 漂移的绑定契约被重建,不再被「均已有画面」短路", async () => {
+    mockProjectBridge();
+    // 资产行重新提取换 id(同名列在,旧 id 不在):绑定成功过的镜恒有画面
+    const reextractedRow: AssetRow = {
+      type: "character",
+      id: "char-1-new",
+      name: "断臂散修",
+      asset: characterAsset({ id: "char-1-new" }),
+    };
+    seedChapter({
+      shots: [
+        makeShot({
+          index: 1,
+          associateAssetsNames: ["断臂散修"],
+          mediaRef: boundImageRef("local-image://shots/existing.png"),
+          assetBindings: [{ assetId: "char-1", name: "断臂散修", kind: "character", slot: 1 }],
+        }),
+      ],
+      rows: [reextractedRow],
+    });
+    // 修前死路:发车校验拒发,「重跑绑定」又跳过有画面镜
+    expect(() =>
+      assertStoryboardAssetBindingsShippable({ shot: useStudioStore.getState().storyboards[0]!, projectId: PROJECT_ID }),
+    ).toThrow("资产行已重新提取，请重跑绑定");
+
+    const report = await runStoryboardAssetBinding({
+      chapterId: CHAPTER_ID,
+      projectId: PROJECT_ID,
+      visualManualId: undefined,
+    });
+
+    // 修复队列接管:无 pending 镜也不短路,报告含修复 1 镜
+    expect(report).toMatchObject({ total: 1, boundCount: 1, readyBefore: 1, readyAfter: 1 });
+    expect(toast.info).not.toHaveBeenCalledWith(expect.stringContaining("无需绑定"));
+    const shot = useStudioStore.getState().storyboards[0]!;
+    expect(shot.assetBindings).toEqual([
+      { assetId: "char-1-new", name: "断臂散修", kind: "character", slot: 1 },
+    ]);
+    // 重建后发车校验放行(「修复后重跑绑定」闭环)
+    expect(() =>
+      assertStoryboardAssetBindingsShippable({ shot, projectId: PROJECT_ID }),
+    ).not.toThrow();
+  });
+
+  it("② 发车校验核镜引用一致性:阵容已换的旧绑定(行可解析有图)拒发,重跑绑定重建后放行", async () => {
+    mockProjectBridge();
+    // 分镜表重建继承形态:镜阵容换人,旧行(监工不在的新名单+断臂散修行仍在有图)
+    seedChapter({
+      shots: [
+        makeShot({
+          index: 1,
+          associateAssetsNames: ["监工赵四"],
+          mediaRef: boundImageRef("local-image://shots/existing.png"),
+          assetBindings: [{ assetId: "char-1", name: "断臂散修", kind: "character", slot: 1 }],
+        }),
+      ],
+      rows: [HERO_ROW, FOREMAN_ROW],
+    });
+    expect(() =>
+      assertStoryboardAssetBindingsShippable({ shot: useStudioStore.getState().storyboards[0]!, projectId: PROJECT_ID }),
+    ).toThrow("镜阵容已变更，请重跑绑定");
+
+    const report = await runStoryboardAssetBinding({
+      chapterId: CHAPTER_ID,
+      projectId: PROJECT_ID,
+      visualManualId: undefined,
+    });
+    expect(report).toMatchObject({ total: 1, boundCount: 1 });
+    const rebuilt = useStudioStore.getState().storyboards[0]!.assetBindings!;
+    expect(rebuilt.map((binding) => binding.name)).toEqual(["监工赵四"]);
+    expect(rebuilt[0]!.assetId).toBe("char-foreman");
+    expect(() =>
+      assertStoryboardAssetBindingsShippable({ shot: useStudioStore.getState().storyboards[0]!, projectId: PROJECT_ID }),
+    ).not.toThrow();
+  });
+
+  it("no-image 类失效不入修复队列(行补图即愈,契约本身有效):全画面章照旧短路", async () => {
+    mockProjectBridge();
+    const imagelessRow: AssetRow = {
+      type: "character",
+      id: "char-1",
+      name: "断臂散修",
+      asset: characterAsset({ id: "char-1", thumbnailUrl: undefined }),
+    };
+    seedChapter({
+      shots: [
+        makeShot({
+          index: 1,
+          associateAssetsNames: ["断臂散修"],
+          mediaRef: boundImageRef("local-image://shots/existing.png"),
+          assetBindings: [{ assetId: "char-1", name: "断臂散修", kind: "character", slot: 1 }],
+        }),
+      ],
+      rows: [imagelessRow],
+    });
+    const report = await runStoryboardAssetBinding({
+      chapterId: CHAPTER_ID,
+      projectId: PROJECT_ID,
+      visualManualId: undefined,
+    });
+    expect(report).toBeNull();
+    expect(toast.info).toHaveBeenCalledWith(expect.stringContaining("无需绑定"));
+  });
+});

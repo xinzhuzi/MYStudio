@@ -267,3 +267,74 @@ describe("ChapterAcceptanceBanner·1120 件二视频主判定(双用降级验收
     expect(container.querySelector("[data-chapter-acceptance-banner]")).toBeNull();
   });
 });
+
+// ── 1120 交叉复核⑩⑪:缺视频修复回路闭合+主计数实况兜底 ───────────────────────
+describe("ChapterAcceptanceBanner·1120 交叉复核(视频回路+实况兜底)", () => {
+  function greenExceptVideoFixture() {
+    useStudioStore.setState({
+      mediaTasks: [
+        { id: "a", kind: "scriptAsset", status: "success", targetId: "character:x", episodeId: CHAPTER_ID, createdAt: 1, updatedAt: 1 },
+      ] as never,
+      storyboards: [
+        {
+          id: "sb-1", episodeId: CHAPTER_ID, index: 1, trackKey: "k", trackId: "", duration: 5,
+          prompt: "p", videoDesc: "", assetIds: [], associateAssetsNames: [],
+          mediaRef: { kind: "image", path: "local-image://s1.png" }, keyframes: [], state: "idle",
+        },
+      ] as never,
+    });
+    return buildChapterAcceptanceCard(CHAPTER_ID); // videoReady=0/1
+  }
+
+  it("⑩ 缺视频计数挂真产视频入口:同位「去出视频」按钮可达(重跑流水线三步零视频产出,清不了此计数)", () => {
+    const card = greenExceptVideoFixture();
+    const onGenerateVideos = vi.fn();
+    const onRunPipeline = vi.fn();
+    const { container } = render(
+      <ChapterAcceptanceBanner
+        run={runView({ card })}
+        onRunPipeline={onRunPipeline}
+        onGenerateVideos={onGenerateVideos}
+      />,
+    );
+    expect(screen.getByText(/分镜视频 0\/1（缺视频 1）/)).toBeTruthy();
+    const button = container.querySelector("[data-acceptance-generate-videos]");
+    expect(button).not.toBeNull();
+    fireEvent.click(button!);
+    expect(onGenerateVideos).toHaveBeenCalledTimes(1);
+    expect(onRunPipeline).not.toHaveBeenCalled();
+    // 未接线时不渲染空按钮
+    const { container: bare } = render(
+      <ChapterAcceptanceBanner run={runView({ card })} onRunPipeline={() => undefined} />,
+    );
+    expect(bare.querySelector("[data-acceptance-generate-videos]")).toBeNull();
+  });
+
+  it("⑪ videoReady/ready 主计数实况兜底:会话内 H3 落账后横幅按实况消失(禁旧卡快照漏报新就绪)", () => {
+    // 卡快照=0/1 视频(流水线终态时刻);实况=H3 已落账 1/1
+    const card = greenExceptVideoFixture();
+    expect(card.storyboard.videoReady).toBe(0);
+    const { container } = render(
+      <ChapterAcceptanceBanner
+        run={runView({ card })}
+        liveStoryboardCounts={{ totalShots: 1, videoReady: 1, ready: 1 }}
+        onRunPipeline={() => undefined}
+      />,
+    );
+    expect(container.querySelector("[data-chapter-acceptance-banner]")).toBeNull();
+  });
+
+  it("⑪ 实况计数刷新显示:出完 2/3 视频横幅计数随实况走(卡快照 0/3 不再常驻虚报)", () => {
+    const card = greenExceptVideoFixture();
+    const { container } = render(
+      <ChapterAcceptanceBanner
+        run={runView({ card })}
+        liveStoryboardCounts={{ totalShots: 3, videoReady: 2, ready: 3 }}
+        onRunPipeline={() => undefined}
+      />,
+    );
+    expect(container.querySelector("[data-chapter-acceptance-banner='actionable']")).not.toBeNull();
+    expect(screen.getByText(/分镜视频 2\/3（缺视频 1）/)).toBeTruthy();
+    expect(screen.getByText(/分镜画面 3\/3/)).toBeTruthy();
+  });
+});

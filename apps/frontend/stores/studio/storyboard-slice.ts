@@ -177,6 +177,18 @@ export function createStoryboardSliceActions(set: SetFn, get: GetFn) {
               next.continuityState = item.continuityState;
               next.orderedReferenceManifest = item.orderedReferenceManifest;
             }
+            // 1120 复核②修:镜 id 确定性派生(sb-{episodeId}-{index}),重跑分镜表
+            // 同 index 恒同 id——新表产物(toStoryboardItems)不含 assetBindings 键,
+            // {...previous} 会把旧绑定整体继承到阵容已换的新镜(发车校验旧行仍
+            // 可解析有图即放行=「绑定已核」假象)。阵容变了才失效(未变的重新
+            // 保存零扰动,与 W1 同纪律);失效后读路按 associateAssetsNames 推导
+            // 兼容(resolveStoryboardAssetBindings),重跑绑定重建契约。
+            if (
+              (previous.associateAssetsNames ?? []).join("\n")
+              !== (item.associateAssetsNames ?? []).join("\n")
+            ) {
+              next.assetBindings = item.assetBindings;
+            }
             return mergeStoryboardReplacement(
               previous,
               next,
