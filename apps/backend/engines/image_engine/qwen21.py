@@ -534,12 +534,14 @@ def apply_wide_edge_anchor(graph: dict[str, Any], base_type: Any,
     resize_mask 会把 alpha resample 到主链尺寸,覆写不破坏 join 恒稳);门
     不过(竖/方候裁/解析不出)零动作 fail-open+打点。返回=终格微整是否激活。"""
     dims = _edge_canvas(base_type, manual_width, manual_height, aspect_ratio, ref_dims)
-    if dims is None:
-        return False
     if isinstance(base_type, str) and base_type.strip() in _STORYBOARD_BASE_TYPES:
         # 1121 分镜锚修(见 _STORYBOARD_BASE_TYPES 头注):Gem/升档口钉型画幅
         # MP,终格微整不激活(3840 交付线与分镜域无涉);参考压缩口(1MP 档)
-        # 当前值低于目标=零动作。
+        # 当前值低于目标=零动作。装机侧 daojie 数据断层(型画幅 JSON 在 asar
+        # 内不可达,_edge_canvas=None/P4 已拦零动作)时分镜域用自册默认画幅
+        # 兜底——分镜锚修不依赖数据可达性(零动作=8.25MP 巨幅慢炸,0731 实弹)。
+        if dims is None:
+            dims = (2048, 1152)
         target_mp = round(dims[0] * dims[1] / 1_000_000, 4)
         touched = 0
         for node in graph.values():
@@ -557,6 +559,8 @@ def apply_wide_edge_anchor(graph: dict[str, Any], base_type: Any,
         if touched:
             print(f"[image-sidecar] qwen21: 分镜锚修 {touched} 口 megapixels={target_mp}"
                   f"(分镜域钉型画幅 {dims[0]}×{dims[1]},不进3840交付线)", flush=True)
+        return False
+    if dims is None:
         return False
     if not ratio_gate(*dims):
         print(f"[image-sidecar] qwen21: P4边锚拦候裁(非16:9族画幅 "
