@@ -133,11 +133,22 @@ export async function runImageWorkflowNodeGeneration(
         && node.source?.kind === "asset" && Boolean(node.source.id))
       .map((node) => [node.imageUrl as string, (node.source as { id: string }).id]),
   );
-  const resolvedReferenceUrls = await Promise.all(request.referenceImages.map(async (url) => {
+  // 1120 血缘门误杀根修:参考解析单一真源——直读节点选中 URL 优先(readUrlDataUrl,
+  // 保 1117 断点C 的单姿/阶段选择语义),assetId 折叠回读(行级主图)降为兜底。
+  // 旧形态=来源集路折叠主图优先+槽位路直读优先,节点钉非主图(阶段/单姿图)时
+  // 两路同节点解出两张图→槽位图恒∉来源集→「含来源外图片」结构性误杀
+  // (分镜 3 三连发实录,22:22 新代码仍在拒)。两路共用本函数,同 URL 必同字节。
+  const resolveManagedReferenceUrl = async (url: string): Promise<string> => {
+    if (url.startsWith("data:")) return url;
+    const direct = assetBridge?.readUrlDataUrl
+      ? await assetBridge.readUrlDataUrl(url).catch(() => null)
+      : null;
+    if (direct) return direct;
     const assetId = assetRefIdsByUrl.get(url);
     if (!assetId || !assetBridge?.readImageDataUrl) return url;
     return await assetBridge.readImageDataUrl(assetId).catch(() => null) ?? url;
-  }));
+  };
+  const resolvedReferenceUrls = await Promise.all(request.referenceImages.map(resolveManagedReferenceUrl));
   const referenceImages = await prepareReferenceImages(resolvedReferenceUrls);
   // —— 分镜换线正典传输(1116,PRD §五.3/§4.5)——
   // 体裁路由:零槽=t2i 主体句(07 五项序);有槽=i2i 指令体(09 篇,分镜=无画布
@@ -368,13 +379,9 @@ export async function runImageWorkflowNodeGeneration(
         // 既有 readUrlDataUrl 桥(受管根校验在主进程)。assetId 折叠回读
         // (readImageDataUrl 只读行级 filePath 主图)降为兜底——单姿优选/
         // 阶段选择不再被一根 assetId 管道静默短路(像素级定谳 MAD 0.7 实证)。
-        const direct = assetBridge?.readUrlDataUrl
-          ? await assetBridge.readUrlDataUrl(slot.imageUrl).catch(() => null)
-          : null;
-        if (direct) return direct;
-        const assetId = assetRefIdsByUrl.get(slot.imageUrl);
-        if (!assetId || !assetBridge?.readImageDataUrl) return slot.imageUrl;
-        return await assetBridge.readImageDataUrl(assetId).catch(() => null) ?? slot.imageUrl;
+        // 1120 血缘门误杀根修:抽共用 resolveManagedReferenceUrl,与来源集路
+        // 同序同字节(两路分叉=节点钉非主图时结构性误杀,见函数头注)。
+        return await resolveManagedReferenceUrl(slot.imageUrl);
       }));
       const croppedSlotUrls: Array<string | null> = [];
       const dropSlotIndexes: number[] = [];

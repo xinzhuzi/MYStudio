@@ -5,7 +5,7 @@
  * (零槽=t2i 主体句/有槽=i2i 指令体),负面退役,参考按 §4.5 槽位原生直传
  * (storyboard-native-references 契约);非分镜(自由/资产)链零变化。
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./storyboard-canonical-context", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./storyboard-canonical-context")>();
   return { ...actual, cropSlotReferenceToSinglePose: vi.fn(async (dataUrl: string) => dataUrl) };
@@ -96,6 +96,11 @@ describe("版本参考经真实 builder 和能力门的分镜原生多参考传�
   beforeEach(() => {
     vi.clearAllMocks();
   });
+  // 1120 根修用例注入 assets 桥 mock;clearAllMocks 清调用不清实现,桥态
+  // 必须显式复位防泄漏到后续用例(桥 null=其余用例的默认形态)。
+  afterEach(() => {
+    assetsBridgeState.bridge = null;
+  });
 
   it.each([1, 2, 3])("%i 张带版本角色参考:§4.5 槽位原生直传(主角=槽1,超额裁出),过 native 契约门", async (count) => {
     const refs = Array.from({ length: count }, (_, index) => ({
@@ -170,6 +175,44 @@ describe("版本参考经真实 builder 和能力门的分镜原生多参考传�
         ],
       }),
     );
+  });
+
+  it("1120 血缘门误杀根修:节点钉非主图(直读≠行级主图)时两路同字节,不再「含来源外图片」", async () => {
+    // 复刻 1120 分镜 3 实录:资产参考节点钉 asset-file:// 阶段图;桥上
+    // readUrlDataUrl(直读钉选图)与 readImageDataUrl(折叠行级主图)返回不同
+    // 字节。旧形态=来源集折叠主图/槽位直读钉选→两路分叉→门必拒;根修后
+    // 两路共用 resolveManagedReferenceUrl(直读优先)→同字节→过门。
+    const pinned = "data:image/png;base64,stageview";
+    const mainImg = "data:image/png;base64,rowmain";
+    const managedUrl = "asset-file://audio/../assets/role/s12-view.png";
+    assetsBridgeState.bridge = {
+      readUrlDataUrl: vi.fn().mockResolvedValue(pinned),
+      readImageDataUrl: vi.fn().mockResolvedValue(mainImg),
+    };
+    const graph = {
+      id: "pinned-asset-wf", target: { kind: "storyboard", id: "sb-1" },
+      nodes: [
+        { id: "ref-1", type: "reference", title: "角色1", imageUrl: managedUrl, continuityOrder: 1,
+          source: { kind: "asset", assetType: "character", id: "asset-pin" } },
+        { id: "gen-1", type: "generated", title: "成图", prompt: "单幅剧情", aspectRatio: "16:9" },
+      ],
+      edges: [{ source: "ref-1", target: "gen-1" }],
+    } as ImageWorkflowGraph;
+    const workflow = await import("@/lib/studio/image-workflow");
+    vi.mocked(workflow.buildImageWorkflowGenerationRequest).mockImplementationOnce(realRequest.buildImageWorkflowGenerationRequest);
+    vi.mocked(workflow.assertImageWorkflowContinuityCapability).mockImplementationOnce(realRequest.assertImageWorkflowContinuityCapability);
+    await expect(runImageWorkflowNodeGeneration(graph, "gen-1", { addMaterial: () => "mat-1" }))
+      .resolves.toEqual({ imageUrl: "project-file://w/1.png" });
+    const { aiManager } = await import("@/lib/ai/ai-manager");
+    const sent = vi.mocked(aiManager.generateImage).mock.calls[0][0];
+    // 直读优先:传输与来源集同为钉选图字节(旧行为主图不在任何一侧)
+    expect(sent.referenceImages).toEqual([pinned]);
+    const transport = vi.mocked(workflow.assertImageWorkflowContinuityCapability).mock.calls[0][1];
+    expect(transport?.sourceReferenceImages).toEqual([pinned]);
+    expect(transport?.slots[0]?.sourceUrl).toBe(pinned);
+    // 折叠回读兜底未被触达(直读已命中)
+    const bridge = assetsBridgeState.bridge as { readImageDataUrl: ReturnType<typeof vi.fn> };
+    expect(bridge.readImageDataUrl).not.toHaveBeenCalled();
   });
 
   it("能力门异常拒绝生成与所有保存写回", async () => {
