@@ -351,3 +351,14 @@ describe("deriveBare 构图段剥除(10-27 用户贴全文实录:四视图/21:9�
     expect(r.subject).not.toMatch(/四视图|横幅|并排|散光|特写|短褐|布裤|布绳|宣纸白|视图/);
   });
 });
+
+describe("deriveBare 挂载物剥除(1120 独孤实录:素体图裸体背包否决案)", () => {
+  it("背负剑包/肩挎背囊挂载段必剥,发型身份保留", () => {
+    const DUGU = "成年男性剑修,清瘦冷峻、沉稳隐忍,带十年流亡的风霜之气。素颜状态,中性微表情含一缕沉静锋芒。身着灰白粗布长袍,腰束棕灰布带,足蹬磨穿的旧草鞋。及腰银白长发半束高髻。背负三层油布剑包、内藏缠布归元断剑,肩挎半旧布背囊,右腕一圈旧链痕。";
+    const r = resolveBareTypeSubjectGate({ kind: "无衣物定妆", bodyBaseSubject: null, fallback: DUGU });
+    expect(r.derived).toBe(true);
+    expect(r.subject).toContain("及腰银白长发半束高髻");
+    expect(r.subject).toContain("通身素体呈现");
+    expect(r.subject).not.toMatch(/剑包|背囊|断剑|链痕|长袍|草鞋/);
+  });
+});

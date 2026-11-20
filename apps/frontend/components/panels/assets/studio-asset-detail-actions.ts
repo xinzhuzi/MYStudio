@@ -1210,6 +1210,30 @@ export function useStudioAssetDialogActions(ctx: {
     const subjectText = profile.route === "t2i"
       ? (getKindSubjectOverride?.(kind)?.trim() || draftPrompt.trim() || draftDescription.trim() || detail.prompt?.trim() || detail.description?.trim())
       : undefined;
+    // 1120 观测令:t2i 主体句来源链逐级落日志(手动生图核「这句从哪个槽赢的」)
+    if (profile.route === "t2i") {
+      const chain: Array<[string, string]> = [
+        ["kind-slot", getKindSubjectOverride?.(kind)?.trim() ?? ""],
+        ["draft-prompt", draftPrompt.trim()],
+        ["draft-description", draftDescription.trim()],
+        ["asset-prompt(db)", detail.prompt?.trim() ?? ""],
+        ["asset-description", detail.description?.trim() ?? ""],
+      ];
+      const winner = chain.find(([, value]) => value) ?? null;
+      void logEvent({
+        level: "info",
+        category: "ai",
+        operationId,
+        message: "Asset type shot subject source resolved",
+        context: {
+          assetId: asset.id,
+          kind,
+          source: winner?.[0] ?? "none",
+          chainChars: Object.fromEntries(chain.map(([key, value]) => [key, value.length])),
+          subjectFull: subjectText ?? "",
+        },
+      });
+    }
     if (profile.route === "t2i" && !subjectText) {
       void logEvent({
         level: "warn",

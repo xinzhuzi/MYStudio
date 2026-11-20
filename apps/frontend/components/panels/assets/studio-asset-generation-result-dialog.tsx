@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
+import { buildPromptLayerSummary, getPromptLayers } from "@/lib/studio/asset-prompt-layers";
 import {
   parseWorkflowPrompt,
   type WorkflowPromptBreakdown,
@@ -201,6 +202,41 @@ export function StudioAssetGenerationResultDialog({
                 {selected.subjectText ?? `${selected.kind}走图生图:固定指令锚画面,主体句不参与`}
               </p>
             </section>
+            {/* 装配构成(1120 用户令:弹窗必须能看到类型词与美术风格底座词):数据=
+                qi21_bases.json 静态真源(与引擎注入同源);查无该型不编造,整区不渲染 */}
+            {(() => {
+              const layers = getPromptLayers(selected.kind);
+              if (!layers) return null;
+              return (
+                <section className="space-y-1 rounded-md border border-border/60 bg-muted/30 p-2.5" aria-label="装配构成">
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-semibold text-foreground">装配构成</span>
+                    <span className="min-w-0 truncate text-[10px] text-muted-foreground" title={buildPromptLayerSummary(selected.kind) ?? ""}>
+                      {buildPromptLayerSummary(selected.kind)}
+                    </span>
+                  </div>
+                  <details className="group">
+                    <summary className="cursor-pointer select-none text-[11px] leading-4 text-muted-foreground transition-colors hover:text-foreground">
+                      类型词全文({layers.type.positiveText.length}字,画幅 {layers.type.aspectRatioShort}{layers.type.rgbaDefault ? "·透明" : ""})
+                    </summary>
+                    <p className="mt-1 max-h-[20vh] overflow-y-auto whitespace-pre-wrap rounded-md border border-border/60 bg-muted/20 p-2 text-[11px] leading-5 text-foreground/85">
+                      {layers.type.positiveText || "(该型无独立型文)"}
+                    </p>
+                  </details>
+                  <details className="group">
+                    <summary className="cursor-pointer select-none text-[11px] leading-4 text-muted-foreground transition-colors hover:text-foreground">
+                      美术风格底座词全文(正{layers.base.positiveText.length}字/负{layers.base.negativeText.length}字)
+                    </summary>
+                    <p className="mt-1 max-h-[20vh] overflow-y-auto whitespace-pre-wrap rounded-md border border-border/60 bg-muted/20 p-2 text-[11px] leading-5 text-foreground/85">
+                      {layers.base.positiveText}
+                    </p>
+                    <p className="mt-1 max-h-[20vh] overflow-y-auto whitespace-pre-wrap rounded-md border border-border/60 bg-muted/20 p-2 text-[10px] leading-4 text-muted-foreground">
+                      [负向]{layers.base.negativeText}
+                    </p>
+                  </details>
+                </section>
+              );
+            })()}
             {/* ② 实发终稿(发给模型的最后一个阶段提示词,自发读刚产物 tEXt) */}
             <section className="space-y-1 rounded-md border border-border/60 bg-muted/30 p-2.5" aria-label="实发终稿">
               <div className="flex flex-wrap items-center gap-1.5">

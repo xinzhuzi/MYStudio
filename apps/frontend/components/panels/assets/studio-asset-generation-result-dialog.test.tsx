@@ -183,6 +183,20 @@ describe("R5 生成结果弹窗(单发:每次生成完成自动弹出,三段确�
     expect(screen.getAllByText(`玄止_无衣物定妆_${DATE_SUFFIX}`).length).toBeGreaterThanOrEqual(1);
   });
 
+  it("装配构成区(1120 用户令:弹窗展示类型词/底座词):型层+底座折叠组在场带字数", async () => {
+    mocks.typeShot.mockResolvedValue({ phase: "done", imageLocalPath: "local-image://characters/fullbody.png" });
+    mocks.get.mockResolvedValue({ id: "role-1", filePath: "role/new.png", previewUrl: "media://new", images: [] });
+    mocks.readImagePromptText.mockResolvedValue({ ok: true, text: I2I_WORKFLOW_JSON });
+    renderDialog();
+
+    fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
+
+    expect(await screen.findByText("生成结果 · 无衣物定妆")).toBeTruthy();
+    const layersSection = screen.getByLabelText("装配构成");
+    expect(within(layersSection).getByText(/类型词全文\(\d+字/)).toBeTruthy();
+    expect(within(layersSection).getByText(/美术风格底座词全文\(正\d+字\/负\d+字\)/)).toBeTruthy();
+  });
+
   it("写回后 get 返 null(机制钉死):弹窗照弹+②段降级文案+零 IPC(非「不弹」)", async () => {
     mocks.typeShot.mockResolvedValue({ phase: "done", imageLocalPath: "local-image://characters/fullbody.png" });
     renderDialog();

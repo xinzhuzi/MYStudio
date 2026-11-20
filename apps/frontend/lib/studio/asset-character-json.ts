@@ -1,4 +1,5 @@
 import { getStudioSkillsBridge } from "@/lib/bridge/studio-skills";
+import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 
 /**
  * 提示词真源 JSON 域(10-26 用户令:弹窗完整展示+可编辑真源 JSON;10-27 接线扩
@@ -484,8 +485,24 @@ export function resolveBareTypeSubjectGate(input: {
 }): { subject?: string; block?: string; derived?: boolean } {
   const { kind, bodyBaseSubject, fallback, slot } = input;
   if (kind !== BARE_TYPE_KIND) return {};
-  if (slot?.trim()) return { subject: slot.trim() };
-  if (bodyBaseSubject) return { subject: bodyBaseSubject };
+  // 1120 观测令:闸口取值来源落诊断日志(手动生图核「主体句从哪来」)
+  const logGate = (source: string, extra?: Record<string, unknown>) => {
+    void logEvent({
+      level: "info",
+      category: "ai",
+      operationId: createOperationId("bare-gate"),
+      message: "Bare type subject gate resolved",
+      context: { source, slotChars: slot?.trim().length ?? 0, bodyBaseChars: bodyBaseSubject?.length ?? 0, fallbackChars: (fallback ?? "").length, ...extra },
+    });
+  };
+  if (slot?.trim()) {
+    logGate("slot");
+    return { subject: slot.trim() };
+  }
+  if (bodyBaseSubject) {
+    logGate("body-base");
+    return { subject: bodyBaseSubject };
+  }
   const text = (fallback ?? "").trim();
   // 10-26 闸漏洞修正(小杂役实录):「赤足/裸足」=光脚≠无衣物(乞丐/杂役穿破衣
   // 光脚是常见形象)——带衣句仅在显式「全身素体」级声明才豁免
@@ -495,21 +512,29 @@ export function resolveBareTypeSubjectGate(input: {
     // 10-27 用户令「不可以自动生成之类的吗」:阻断改自动派生——剥衣物段留身份,
     // 套素体基准尾;派发即用,落「无衣物定妆」本型槽(调用方负责)
     const derived = deriveBareSubjectFromClothed(text);
-    if (derived) return { subject: derived, derived: true };
+    if (derived) {
+      logGate("auto-derived");
+      return { subject: derived, derived: true };
+    }
+    logGate("blocked", { block: "derive-failed" });
     return {
       block:
         "「无衣物定妆」需要素体主体句(全身无衣物);当前主体句含衣物描述且自动剥除失败。请在「角色真源JSON」补素体主体词(body_base.主体词)",
     };
   }
+  logGate(declaresBare ? "fallback-declares-bare" : "no-clothing");
   return {};
 }
 
-/** 衣物段判定:该句段含衣物/穿戴词即剥(腰束/缀补丁等穿戴语同判;发型草绳不算)。 */
+/** 衣物段判定:该句段含衣物/穿戴词即剥(腰束/缀补丁等穿戴语同判;发型草绳不算)。
+ * 1120 独孤实录补挂载词:背负/肩挎/背囊/剑包/包袱/腰悬——挂载物不算衣物词,
+ * 漏剥→素体图裸体背背包(1120 用户实弹否决);腕链痕等身体印记随段共剥不单救。 */
 const CLOTHING_SEGMENT =
-  /衣|袍|装|裙|衫|服|褐|裤|甲|帔|靴|鞋|履|袜|腰束|腰带|腰间|佩戴|缀补丁|持物|手持|握|持一|背景|场景|构图|四视图|三视图|多视图|视图|横幅|并排|散光|人像特写|自头顶至/;
+  /衣|袍|装|裙|衫|服|褐|裤|甲|帔|靴|鞋|履|袜|腰束|腰带|腰间|佩戴|缀补丁|持物|手持|握|持一|背景|场景|构图|四视图|三视图|多视图|视图|横幅|并排|散光|人像特写|自头顶至|背负|肩挎|背囊|剑包|包袱|腰悬/;
 
 /** 自动派生素体主体句:按句号/分号切段,剥衣物/持物/背景段,保留身份·面容·发型·
- * 姿态段,套与真源 body_base 同构的素体基准尾(含引擎门禁「素体」豁免词)。 */
+ * 姿态段,套与真源 body_base 同构的素体基准尾(含引擎门禁「素体」豁免词)。
+ * 1120 观测令:逐段剥/留决策落诊断日志(用户手动生图核逻辑用)。 */
 export function deriveBareSubjectFromClothed(text: string): string | null {
   const segments = text
     .split(/[。;；\n]/)
@@ -526,5 +551,21 @@ export function deriveBareSubjectFromClothed(text: string): string | null {
   const head = kept.join(",");
   const tail =
     "通身素体呈现,肌肤匀净,全身人体比例与解剖结构清晰可读;正面直立站姿,双臂自然垂于身侧,双手放松自然,足部赤裸(素体基准态,鞋履后注入);头顶至足底全身完整入画;图为带透明通道的RGBA透明底素材图,背景全透明";
-  return `${head}。${tail}。`;
+  const derived = `${head}。${tail}。`;
+  void logEvent({
+    level: "info",
+    category: "ai",
+    operationId: createOperationId("bare-derive"),
+    message: "Bare subject derived from clothed prompt",
+    context: {
+      sourceChars: text.length,
+      derivedChars: derived.length,
+      segmentDecisions: segments.map((seg) => {
+        const hit = CLOTHING_SEGMENT.exec(seg)?.[0];
+        return hit ? `剥(命中:${hit})` : "留";
+      }),
+      derivedSubject: derived,
+    },
+  });
+  return derived;
 }

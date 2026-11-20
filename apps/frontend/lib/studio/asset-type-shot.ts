@@ -321,6 +321,11 @@ export async function generateAssetTypeShot(
       route: profile.route,
       chars: prompt.length,
       head: prompt.slice(0, 24),
+      // 1120 观测令:终稿全文入日志(手动生图核装配输入;无衣物定妆带裁剪前字数)
+      subjectFull: prompt,
+      ...(task.kind === "无衣物定妆"
+        ? { stripMultiViewBeforeChars: (task.subjectText || "").trim().length }
+        : {}),
     },
   });
   let stage: "generating" | "saving" = "generating";
