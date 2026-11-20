@@ -262,7 +262,11 @@ export function assertImageWorkflowContinuityCapability(
     // (sourceUrl 缺席=该槽无裁切,回退字面比对,老语义兼容)。
     if (imageUrls.some((url, index) => !sourceReferenceImages.includes(url)
       && !(slots[index]?.sourceUrl && sourceReferenceImages.includes(slots[index]!.sourceUrl)))) {
-      throw new Error("分镜多参考传输含来源外图片");
+      // 1120 单镜重出实弹排障:拒绝时携带槽/来源串前缀(诊断级,60字帽防日志爆)
+      const badIdx = imageUrls.map((_url, index) => index)
+        .filter((index) => !sourceReferenceImages.includes(imageUrls[index]!)
+          && !(slots[index]?.sourceUrl && sourceReferenceImages.includes(slots[index]!.sourceUrl)));
+      throw new Error(`分镜多参考传输含来源外图片 bad=${JSON.stringify(badIdx.map((i) => ({ img: imageUrls[i]?.slice(0, 60), src: slots[i]?.sourceUrl?.slice(0, 60) })))} set=${JSON.stringify(sourceReferenceImages.map((s) => s.slice(0, 60)))}`);
     }
     // 连续性参考被 §4.5 槽位裁出(超额角色/道具)不在此拦——1116 三裁①明文
     // 「道具与超额角色不入图,走指令文字承载」;裁出名单由槽位映射层落
