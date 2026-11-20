@@ -857,21 +857,17 @@ export function StudioAssetDetailDialog({
                         onChange={(event) => setDraftName(event.target.value)}
                         placeholder="主名字;副名字1;副名字2"
                       />
-                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                        <span>主名字:{parsedDraftName.primaryName}</span>
-                        {parsedDraftName.secondaryNames.length > 0 ? (
-                          <>
-                            <span className="mx-0.5">副名字</span>
-                            {parsedDraftName.secondaryNames.map((name) => (
-                              <Badge key={name} variant="outline" className="px-1.5 py-0 text-[10px] font-medium">
-                                {name}
-                              </Badge>
-                            ))}
-                          </>
-                        ) : (
-                          <span>用英文分号 ; 添加副名字</span>
-                        )}
-                      </div>
+                      {/* 1120 用户令·清理:主名字提示/英文分号提示砍除(提示文案),
+                          只留副名字徽章(数据) */}
+                      {parsedDraftName.secondaryNames.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                          {parsedDraftName.secondaryNames.map((name) => (
+                            <Badge key={name} variant="outline" className="px-1.5 py-0 text-[10px] font-medium">
+                              {name}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                     </section>
                     {/* 设定入口(1120 用户令③:与名字同行,按钮弹 MD 编辑) */}
                     {asset.type !== "audio" && (
@@ -880,18 +876,12 @@ export function StudioAssetDetailDialog({
                         <button
                           type="button"
                           onClick={() => setSettingEditorOpen(true)}
-                          className="flex h-[38px] w-full items-center justify-between gap-2 rounded-md border border-border bg-muted/90 px-3 text-left text-sm transition-colors outline-none hover:border-primary/50 focus-visible:border-primary"
+                          className="flex h-[38px] w-full items-center gap-2 rounded-md border border-border bg-muted/90 px-3 text-left text-sm transition-colors outline-none hover:border-primary/50 focus-visible:border-primary"
                           title="打开设定 Markdown 编辑(描述+设定,源码与预览同框)"
                         >
-                          <span className="flex min-w-0 items-center gap-2">
-                            <FileText className="h-3.5 w-3.5 shrink-0 text-primary" />
-                            <span className="truncate">{(draftSetting || asset.setting || "").trim() ? "编辑设定(Markdown)" : "编写设定(Markdown)"}</span>
-                          </span>
-                          <span className="shrink-0 text-[11px] text-muted-foreground">MD 编辑</span>
+                          <FileText className="h-3.5 w-3.5 shrink-0 text-primary" />
+                          <span className="truncate">{(draftSetting || asset.setting || "").trim() ? "编辑设定(Markdown)" : "编写设定(Markdown)"}</span>
                         </button>
-                        <div className="truncate text-[11px] text-muted-foreground" title={draftSetting || asset.setting || ""}>
-                          {(draftSetting || asset.setting || "").trim() ? `已含设定 ${(draftSetting || asset.setting || "").length} 字` : "尚未编写设定"}
-                        </div>
                       </section>
                     )}
                     {/* audio 型:无音色/提示词/设定卡,说话内容独占全宽 */}

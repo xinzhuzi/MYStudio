@@ -40,9 +40,6 @@ export function StudioAssetSettingDialog(props: {
       <DialogContent className="flex h-[88vh] max-w-[92vw] flex-col gap-3 sm:max-w-[92vw]">
         <DialogHeader>
           <DialogTitle className="truncate">设定 · {props.name}</DialogTitle>
-          <p className="text-xs text-muted-foreground">
-            描述与设定(Markdown 源码编辑+预览同框);「应用」回填弹窗草稿,随「保存」入库。
-          </p>
         </DialogHeader>
         <section className="flex shrink-0 flex-col gap-1.5">
           <div className="shrink-0 text-xs font-medium text-muted-foreground">描述</div>
