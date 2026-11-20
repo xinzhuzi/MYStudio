@@ -98,8 +98,9 @@ function renderPane(overrides: Partial<PreviewPaneProps> = {}) {
   return { ...view, props };
 }
 
-/** 节头序(grill Round 1 裁定2:身份链根→常规产物→重版式→工具型→兜底)。 */
+/** 节头序(1120 用户令:人脸基准置顶→无衣物定妆次之;余承 grill Round 1 裁定2)。 */
 const ROLE_SECTION_ORDER = [
+  "人脸基准",
   "无衣物定妆",
   "人物海报",
   "人物多视图",
@@ -107,7 +108,6 @@ const ROLE_SECTION_ORDER = [
   "表情差分",
   "设定卡",
   "美宣",
-  "人脸基准",
   "自由",
 ];
 
@@ -529,8 +529,9 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     const { props } = renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn(),
       onFillMissing: vi.fn() });
     expect(screen.queryByRole("button", { name: /按型出图/ })).toBeNull();
-    // 节头生成钮仍在=onTypeShot 派发不丢
-    const sectionButton = screen.getAllByRole("button", { name: /生成|点击生成/ })[0];
+    // 节头生成钮仍在=onTypeShot 派发不丢(1120 改序后按节定位,不依赖全局首节)
+    const bareSection = screen.getByRole("region", { name: "无衣物定妆" });
+    const sectionButton = within(bareSection).getAllByRole("button", { name: /生成|点击生成/ })[0];
     if (sectionButton) fireEvent.click(sectionButton);
     expect(props.onTypeShot).toHaveBeenCalled();
   });

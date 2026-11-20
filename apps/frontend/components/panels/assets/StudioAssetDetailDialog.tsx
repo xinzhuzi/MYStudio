@@ -321,14 +321,10 @@ export function StudioAssetDetailDialog({
       const kind = classifyAssetImage(image);
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    // 1120 用户令:清单首序=人脸基准→无衣物定妆(与提示词两卡同序对齐,命名与
-    // 顺序双一致);仅提示词区纯展示序,图片区分节序仍走全局型谱不动
-    const PINNED_RULE_ORDER: AssetImageKind[] = ["人脸基准", "无衣物定妆"];
-    const displayOrder = [
-      ...PINNED_RULE_ORDER.filter((kind) => spectrum.order.includes(kind)),
-      ...spectrum.order.filter((kind) => !PINNED_RULE_ORDER.includes(kind)),
-    ].filter((kind) => kind !== "早期未分类");
-    return displayOrder
+    // 1120 用户令:清单序=全局型谱序(人脸基准已置顶于 ASSET_IMAGE_KIND_ORDER,
+    // 提示词清单/图片区分节/两卡全走同一序,零特例)
+    return spectrum.order
+      .filter((kind) => kind !== "早期未分类")
       .map((kind) => ({
         kind,
         aspect: ASSET_IMAGE_KIND_ASPECTS[kind],

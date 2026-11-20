@@ -35,8 +35,11 @@ const ASSET_IMAGE_NAME_KIND_TABLE: ReadonlyArray<readonly [AssetImageKind, reado
   ["自由", ["_自由_"]],
 ];
 
-/** role 轨型谱节序(grill Round 1 裁定2:身份链根→常规产物→重版式→工具型→兜底;10-25 裁定:无类型图落自由,不再有未分类节)。 */
+/** role 轨型谱节序(1120 用户令:人脸基准置顶→无衣物定妆次之,与提示词两卡
+ * 同序;其余承 grill Round 1 裁定2 身份链根→常规产物→重版式→工具型→兜底;
+ * 10-25 裁定:无类型图落自由,不再有未分类节)。 */
 export const ASSET_IMAGE_KIND_ORDER: readonly AssetImageKind[] = [
+  "人脸基准",
   "无衣物定妆",
   "人物海报",
   "人物多视图",
@@ -44,7 +47,6 @@ export const ASSET_IMAGE_KIND_ORDER: readonly AssetImageKind[] = [
   "表情差分",
   "设定卡",
   "美宣",
-  "人脸基准",
   "自由",
 ];
 
