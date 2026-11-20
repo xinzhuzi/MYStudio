@@ -618,9 +618,10 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     act(() => result.current.start());
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
 
-    // 择优:生成走了带参考的 wf-rich(其既有参考直接生效,§4.5 单角色参考=槽1)
-    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toEqual(["file://assets/ref-zhaosi.png"]);
-    expect(generateImageMock.mock.calls[0]?.[0]?.prompt).toContain("参考图中的监工赵四为身份来源");
+    // 择优:生成走了带参考的 wf-rich;1120 恒对齐后其参考集补齐到现镜解析全集
+    // (陈旧子集→全量:主角+场景),§4.5 槽序 image_1=主角,image_2=场景
+    expect(generateImageMock.mock.calls[0]?.[0]?.referenceImages).toEqual(["file://assets/ref-zhaosi.png", "file://assets/ref-scene.png"]);
+    expect(generateImageMock.mock.calls[0]?.[0]?.prompt).toContain("<image1>为监工赵四的身份来源");
     // 空壳 wf-bare 未被补挂(未被选中)
     const bareInStore = useStudioStore.getState().imageWorkflows.find((g) => g.id === "wf-bare");
     expect(bareInStore?.nodes.some((n) => n.type === "reference")).toBe(false);

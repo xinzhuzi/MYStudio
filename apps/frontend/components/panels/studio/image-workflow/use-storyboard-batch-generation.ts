@@ -733,8 +733,11 @@ async function generateOneShot(
     // L3(11-15 断点③):补挂门改资产维度——旧门「图内零任意 reference 才补挂」
     // 让带杂参考(当前分镜参考图/分镜帧/手动 project-file)而零资产参考的图
     // 永久粘死;现判「图内零 source.kind==='asset' 参考节点」,集差/替换语义
-    // 在 ensureStoryboardAssetReferences 内(杂参考保留,资产参考集对齐现镜)
-    if (!graph.nodes.some((node) => node.type === "reference" && node.source?.kind === "asset")) {
+    // 在 ensureStoryboardAssetReferences 内(杂参考保留,资产参考集对齐现镜)。
+    // 1120 单镜重出实弹勘误:门改「恒对齐」——重用图里资产参考节点可能持陈旧
+    // imageUrl(资产图换代后),槽位图∉当轮来源集=传输血缘门拒发(镜3 实录:
+    // 42角色标准化役换图后重出秒拒);ensure 幂等(对齐=零改动),新流零涟漪。
+    {
       const references = (await resolveStoryboardAssetReferences(shot).catch(() => [])) ?? [];
       logStoryboardReferenceBudget(shot, references);
       guard.assertCurrent();
