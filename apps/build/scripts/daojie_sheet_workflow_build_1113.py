@@ -113,6 +113,18 @@ class G:
                 "config": {}, "extra": {}, "version": 0.4, "revision": 0}
 
 
+CANVAS_ORIGIN = (80, 80)  # 画布宪法:节点 pos >= 80
+
+
+def _translate(doc, dx, dy):
+    for n in doc["nodes"]:
+        n["pos"] = [n["pos"][0] + dx, n["pos"][1] + dy]
+    for g_ in doc["groups"]:
+        b = g_["bounding"]
+        g_["bounding"] = [b[0] + dx, b[1] + dy, b[2], b[3]]
+    return doc
+
+
 def build_doc():
     p = _prompts()
     g = G()
@@ -227,7 +239,7 @@ def build_doc():
     g.group("③ 六路分格编辑(指令真源 sheet_card)", [640, 360, 1720, 2450])
     g.group("④ 武器/特效 t2i", [640, 2880, 1720, 900], "#88A")
     g.group("⑤ 固定底框合成(格式一 v1)", [2480, 1180, 1100, 660], "#3A3")
-    return g.build()
+    return _translate(g.build(), *CANVAS_ORIGIN)
 
 
 def check(doc, verbose=True):

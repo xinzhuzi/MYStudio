@@ -8,7 +8,7 @@
    "id": 1,
    "type": "AICG3D_CharacterCardOneClick",
    "pos": [
-    -1260,
+    80,
     120
    ],
    "size": [
@@ -98,7 +98,7 @@
    "id": 2,
    "type": "UNETLoader",
    "pos": [
-    -40,
+    1300,
     100
    ],
    "size": [
@@ -154,7 +154,7 @@
    "id": 3,
    "type": "CLIPLoader",
    "pos": [
-    -40,
+    1300,
     270
    ],
    "size": [
@@ -222,7 +222,7 @@
    "id": 4,
    "type": "VAELoader",
    "pos": [
-    -40,
+    1300,
     480
    ],
    "size": [
@@ -268,7 +268,7 @@
    "id": 5,
    "type": "TextEncodeQwenImage21",
    "pos": [
-    450,
+    1790,
     120
    ],
    "size": [
@@ -365,7 +365,7 @@
    "id": 6,
    "type": "EmptyLatentImage",
    "pos": [
-    450,
+    1790,
     520
    ],
    "size": [
@@ -432,7 +432,7 @@
    "id": 8,
    "type": "VAEDecode",
    "pos": [
-    1660,
+    3000,
     120
    ],
    "size": [
@@ -481,7 +481,7 @@
    "id": 9,
    "type": "PreviewImage",
    "pos": [
-    2180,
+    3520,
     120
    ],
    "size": [
@@ -510,7 +510,7 @@
    "id": 10,
    "type": "SaveImage",
    "pos": [
-    2560,
+    3900,
     960
    ],
    "size": [
@@ -541,7 +541,7 @@
    "id": 14,
    "type": "PreviewImage",
    "pos": [
-    1840,
+    3180,
     900
    ],
    "size": [
@@ -570,7 +570,7 @@
    "type": "LoraLoaderModelOnly",
    "title": "E混动·Turbo LoRA×1.0",
    "pos": [
-    890,
+    2230,
     120
    ],
    "size": [
@@ -612,7 +612,7 @@
    "type": "LazyCache",
    "title": "E混动·步跳缓存0.2/15-95%",
    "pos": [
-    890,
+    2230,
     260
    ],
    "size": [
@@ -655,7 +655,7 @@
    "type": "BasicGuider",
    "title": "E混动·BasicGuider",
    "pos": [
-    890,
+    2230,
     400
    ],
    "size": [
@@ -699,7 +699,7 @@
    "type": "BasicScheduler",
    "title": "E混动·simple 40步",
    "pos": [
-    1190,
+    2530,
     260
    ],
    "size": [
@@ -741,7 +741,7 @@
    "type": "RandomNoise",
    "title": "E混动·种子42(原值)",
    "pos": [
-    1190,
+    2530,
     120
    ],
    "size": [
@@ -775,7 +775,7 @@
    "type": "KSamplerSelect",
    "title": "E混动·euler",
    "pos": [
-    1190,
+    2530,
     400
    ],
    "size": [
@@ -808,7 +808,7 @@
    "type": "SamplerCustomAdvanced",
    "title": "E混动·SamplerCustomAdvanced",
    "pos": [
-    1190,
+    2530,
     540
    ],
    "size": [
@@ -869,8 +869,8 @@
    "id": 708,
    "type": "MarkdownNote",
    "pos": [
-    570,
-    120
+    1790,
+    700
    ],
    "size": [
     300,
@@ -1068,7 +1068,7 @@
    "id": 1,
    "title": "人物提示词",
    "bounding": [
-    -1640,
+    -300,
     20,
     1560,
     680
@@ -1080,7 +1080,7 @@
    "id": 2,
    "title": "千问生成",
    "bounding": [
-    -60,
+    1280,
     20,
     1250,
     680
@@ -1092,7 +1092,7 @@
    "id": 3,
    "title": "自动切片与重排",
    "bounding": [
-    1600,
+    2940,
     20,
     1160,
     1440
