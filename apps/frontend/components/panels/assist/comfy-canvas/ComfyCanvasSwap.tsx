@@ -44,6 +44,8 @@ export function ComfyCanvasSwap({
     /** 1120 分镜面板退役迁引擎:面板批量动作全量回流为节点按钮 */
     onGenerateImagesForce?: () => void;
     onGenerateImagesStop?: () => void;
+    /** 1120 单镜重出桥(generate-shot-image,note=shotId):单镜 force 重出 */
+    onGenerateShotImage?: (shotId?: string) => void;
     onH3Start?: (tier: string) => void;
     onH3Stop?: () => void;
     onH3ImportOrphans?: () => void;

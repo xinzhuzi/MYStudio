@@ -541,6 +541,36 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     expect(result.current.state.running).toBe(false);
   });
 
+  it("1120 单镜重出(onlyShotId):齐备双镜只重出点名镜,其余镜零沾", async () => {
+    resetStore([
+      shot({ id: "sb-1", index: 1, mediaRef: { kind: "image", path: "project-file://keep-1.png" } as StoryboardItem["mediaRef"] }),
+      shot({ id: "sb-2", index: 2, mediaRef: { kind: "image", path: "project-file://keep-2.png" } as StoryboardItem["mediaRef"] }),
+    ]);
+    generateImageMock.mockResolvedValue({ url: "https://provider.test/ok.png" });
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
+    );
+    act(() => result.current.start({ onlyShotId: "sb-2" }));
+    await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 4000 });
+    expect(generateImageMock).toHaveBeenCalledTimes(1); // 只有 sb-2 生成
+    const shots = useStudioStore.getState().storyboards;
+    expect(shots.find((item) => item.id === "sb-2")?.mediaRef?.path).toContain("gen-out.png");
+    expect(shots.find((item) => item.id === "sb-1")?.mediaRef?.path).toBe("project-file://keep-1.png"); // 未点名镜原样
+  });
+
+  it("1120 单镜重出(onlyShotId):点名镜不在当前章=报错拒发零生成", () => {
+    resetStore([
+      shot({ id: "sb-1", index: 1, mediaRef: { kind: "image", path: "project-file://a.png" } as StoryboardItem["mediaRef"] }),
+    ]);
+    const { result } = renderHook(() =>
+      useStoryboardBatchGeneration({ storyboards: useStudioStore.getState().storyboards, projectName: "道劫" }),
+    );
+    act(() => result.current.start({ onlyShotId: "sb-ghost" }));
+    expect(generateImageMock).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("单镜重出:镜不在当前章分镜(章/分片换代?请重开工作流)");
+    expect(result.current.state.running).toBe(false);
+  });
+
   it("force-regen 全量重出:已齐备(零缺帧)镜也整队重生成(1116 重出入口)", async () => {
     resetStore([
       shot({ id: "sb-1", index: 1, mediaRef: { kind: "image", path: "project-file://a.png" } as StoryboardItem["mediaRef"] }),

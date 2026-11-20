@@ -161,6 +161,9 @@ test("shotHTML 单镜动作面:五类桥动作钮+混音下拉,note=镜 id 编�
   assert.match(html, /data-kind="open-shot-image"/);
   assert.match(html, /data-note="sb-c1-001"/);
   assert.match(html, /进入图工作流/);
+  // 1120 单镜重出(generate-shot-image,note=shotId;当前画面入库为历史版本)
+  assert.match(html, /data-kind="generate-shot-image"/);
+  assert.match(html, /重出本镜/);
   // 截帧回灌两式(仅视频在场时):single 存帧 / uniform 抽帧
   const keyframeBtns = html.match(/data-kind="keyframe-extract"/g) || [];
   assert.equal(keyframeBtns.length, 2);

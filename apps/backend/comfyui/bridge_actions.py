@@ -42,6 +42,7 @@ ALLOWED_KINDS = (
     "daoyan-import",              # 导演台视频导入
     "chapter-pipeline-start",     # 章流水线发车
     "auto-bind-assets",           # 分镜素材自动绑定
+    "generate-shot-image",        # 1120 单镜重出(面板退役迁移的单镜出口补齐;note=shotId)
     "open-shot-image",            # 单镜进图工作流(note=shotId)
     "keyframe-extract",           # 单镜截帧回灌(note=shotId|mode)
     "compare-frames",             # 单镜对比两帧(note=shotId)

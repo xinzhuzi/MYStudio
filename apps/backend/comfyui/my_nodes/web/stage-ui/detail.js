@@ -126,6 +126,7 @@ export function shotHTML(shot) {
   const actions = shot?.id ? `
     <div class="dt-act-row">
       ${actBtn("open-shot-image", "进入图工作流", shotId, "打开本镜图片工作流(编辑/生成)")}
+      ${actBtn("generate-shot-image", "重出本镜", shotId, "重出本镜画面(当前画面入库为历史版本)")}
       ${shot?.videoUrl ? actBtn("keyframe-extract", "存为关键帧", `${shotId}|single|0`, "当前画面存为本镜关键帧") : ""}
       ${shot?.videoUrl ? actBtn("keyframe-extract", "自动抽帧", `${shotId}|uniform|3`, "均匀抽 3 帧回灌关键帧") : ""}
       ${actBtn("compare-frames", "对比两帧", shotId, "左右对比本镜第 1、2 帧关键帧")}

@@ -342,6 +342,8 @@ export interface ComfyCanvasStudioProps {
     /** 1120 分镜面板退役迁引擎:面板批量动作全量回流为节点按钮 */
     onGenerateImagesForce?: () => void;
     onGenerateImagesStop?: () => void;
+    /** 1120 单镜重出桥(generate-shot-image,note=shotId):单镜 force 重出 */
+    onGenerateShotImage?: (shotId?: string) => void;
     /** note=tier(480p 草稿/960p 生产,载荷 noteKey 过桥) */
     onH3Start?: (tier: string) => void;
     onH3Stop?: () => void;
@@ -470,6 +472,7 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
           // 1120 分镜面板退役迁引擎:面板批量动作收编为节点按钮
           "generate-images-force": [actions?.onGenerateImagesForce, "节点指令:重出全部画面(当前画面入库为历史版本)"],
           "generate-images-stop": [actions?.onGenerateImagesStop, "节点指令:停止批量生图"],
+          "generate-shot-image": [actions?.onGenerateShotImage, "单镜指令:重出本镜画面(note=shotId,当前画面入库为历史版本)"],
           "h3-start": [actions?.onH3Start, item.note === "480p" ? "节点指令:H3 出片(480P 草稿档)" : "节点指令:H3 出片(960P 生产档)"],
           "h3-stop": [actions?.onH3Stop, "节点指令:停止 H3 出片"],
           "h3-import-orphans": [actions?.onH3ImportOrphans, "节点指令:扫描导入盘上 H3 片"],

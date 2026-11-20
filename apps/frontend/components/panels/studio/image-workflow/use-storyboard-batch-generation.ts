@@ -158,7 +158,7 @@ export function useStoryboardBatchGeneration(input: {
     toast.info("停止中:当前分镜完成后停下");
   }, []);
 
-  const start = useCallback((options?: { forceRegenerate?: boolean }) => {
+  const start = useCallback((options?: { forceRegenerate?: boolean; onlyShotId?: string }) => {
     if (runningRef.current || liveBatchRunning) return;
     // 队列快照:执行期不重算(中途已生成的不重复;外部并发写入按镜级幂等收敛)。
     // M3a:计数单位改帧——单帧镜(无 keyframes)=1 帧缺图即入队;多帧镜按缺图帧数计
@@ -180,18 +180,27 @@ export function useStoryboardBatchGeneration(input: {
     for (const shot of eligible) finalizeRecoveredShot(shot);
     // 1116 force-regen(全量重出):绕过缺帧过滤,已齐备镜也整队重生成——
     // missingFrames 记全帧数(与实际生成帧数一致,进度口径不虚)。
+    // 1120 单镜重出桥(kind=generate-shot-image,note=shotId):onlyShotId 把
+    // 队列收敛到单镜,该镜按 force 语义重出(现画面入库为历史版本),其余镜零沾。
     const forceRegenerate = options?.forceRegenerate === true;
+    const onlyShotId = (options?.onlyShotId ?? "").trim() || null;
+    const shotForce = forceRegenerate || Boolean(onlyShotId);
     const frameQueue = eligible
+      .filter((item) => !onlyShotId || item.id === onlyShotId)
       .map((item) => ({
         shot: item,
-        missingFrames: forceRegenerate ? (item.keyframes?.length ?? 1) : countMissingFrames(item),
+        missingFrames: shotForce ? (item.keyframes?.length ?? 1) : countMissingFrames(item),
       }))
-      .filter((entry) => forceRegenerate || entry.missingFrames > 0)
+      .filter((entry) => shotForce || entry.missingFrames > 0)
       .sort((a, b) => a.shot.index - b.shot.index);
     const guards = createBatchSourceGuards(frameQueue.map(({ shot }) => shot));
     const priorDone = resumeRecord ? resumeRecord.doneFrames : 0;
     const totalFrames = priorDone + frameQueue.reduce((sum, entry) => sum + entry.missingFrames, 0);
     if (frameQueue.length === 0) {
+      if (onlyShotId) {
+        toast.error("单镜重出:镜不在当前章分镜(章/分片换代?请重开工作流)");
+        return;
+      }
       if (resumeRecord) useStoryboardBatchSessionStore.getState().clearStoryboardBatchSession();
       toast.info("所有分镜画面均已齐备");
       return;

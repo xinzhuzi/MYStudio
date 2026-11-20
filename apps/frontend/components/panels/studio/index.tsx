@@ -208,6 +208,14 @@ export function StudioView() {
     onGenerateImages: () => {
       if (!storyboardBatch.state.running) storyboardBatch.start();
     },
+    // 1120 单镜重出桥宿主侧(generate-shot-image,note=shotId):面板退役迁移的
+    // 单镜出口补齐——detail.js 动作面「重出本镜」与本地队列提交同路(批量钩
+    // onlyShotId 收敛队列到单镜,该镜 force 语义重出,当前画面入库为历史版本)。
+    onGenerateShotImage: (shotId?: string) => {
+      const id = (shotId ?? "").trim();
+      if (!id) return;
+      if (!storyboardBatch.state.running) storyboardBatch.start({ onlyShotId: id });
+    },
     onGenerateVideos: () => {
       if (!viewModel.chapterAutoVideoRunning) void viewModel.handleRunChapterAutoVideo();
     },

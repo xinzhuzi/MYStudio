@@ -173,6 +173,7 @@ def test_panel_migration_kinds_allowed():
         "daoyan-import",
         "chapter-pipeline-start",
         "auto-bind-assets",
+        "generate-shot-image",
         "open-shot-image",
         "keyframe-extract",
         "compare-frames",
@@ -185,8 +186,8 @@ def test_panel_migration_kinds_allowed():
     assert kinds >= {
         "generate-images-force", "generate-images-stop", "h3-start", "h3-stop",
         "h3-import-orphans", "h3-archive-backfill", "open-final-video", "daoyan-import",
-        "chapter-pipeline-start", "auto-bind-assets", "open-shot-image", "keyframe-extract",
-        "compare-frames", "compare-video", "set-audio-mix",
+        "chapter-pipeline-start", "auto-bind-assets", "generate-shot-image", "open-shot-image",
+        "keyframe-extract", "compare-frames", "compare-video", "set-audio-mix",
     }
 
 
