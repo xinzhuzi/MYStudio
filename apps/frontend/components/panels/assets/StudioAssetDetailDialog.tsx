@@ -48,7 +48,7 @@ import {
   type FamilyDisplayImageEntry,
   type FamilyImageEntry,
 } from "@/lib/studio/asset-family-images";
-import { classifyAssetImage } from "@/lib/studio/asset-image-kind";
+import { ASSET_IMAGE_KIND_ASPECTS, asAssetImageTrack, classifyAssetImage, getAssetImageKindSpectrum } from "@/lib/studio/asset-image-kind";
 import { parsePromptOverrides } from "@/lib/studio/asset-prompt-layers";
 import {
   buildFinalDraftCandidates,
@@ -295,6 +295,30 @@ export function StudioAssetDetailDialog({
   const [metaCollapsed, setMetaCollapsed] = useState(readMetaCollapsed);
   // 1120 版式③:设定 MD 编辑弹窗开合
   const [settingEditorOpen, setSettingEditorOpen] = useState(false);
+  // 1120 用户令·图像规范清单:三轨型谱(核心/扩展)×画幅×本行已有计数——回答
+  // 「这个人该有哪些类型的图、各有几张、现在几张」;只读账本,生成入口恒在
+  // 图片区占位卡,此处不重复入口(极简)。计数基准=本行 images(与完整度条
+  // 批3 M 修同口径,族兄弟图不抵扣)
+  const imageRuleRows = useMemo(() => {
+    if (!asset) return [] as Array<{ kind: AssetImageKind; aspect: string; core: boolean; count: number }>;
+    const track = asAssetImageTrack(asset.type);
+    if (!track) return [] as Array<{ kind: AssetImageKind; aspect: string; core: boolean; count: number }>;
+    const spectrum = getAssetImageKindSpectrum(track);
+    // 注意:本文件 lucide 导入遮蔽全局 Map,此处用 Record 计数
+    const counts: Partial<Record<AssetImageKind, number>> = {};
+    for (const image of images) {
+      const kind = classifyAssetImage(image);
+      counts[kind] = (counts[kind] ?? 0) + 1;
+    }
+    return spectrum.order
+      .filter((kind) => kind !== "早期未分类")
+      .map((kind) => ({
+        kind,
+        aspect: ASSET_IMAGE_KIND_ASPECTS[kind],
+        core: spectrum.core.includes(kind),
+        count: counts[kind] ?? 0,
+      }));
+  }, [asset, images]);
   // R4 族聚显展示序:族序(updatedAt 倒序)+ live 新图置顶;本行条目可编辑、
   // 族兄弟只读。familyImages 未提供时恒等 images(资产库面板等调用方零变化)。
   const displayImages = useMemo<FamilyDisplayImageEntry[]>(
@@ -1025,6 +1049,26 @@ export function StudioAssetDetailDialog({
                             ) : null}
                           </div>
                         </div>
+                        {/* 1120 用户令·图像规范清单:一表答「该有哪些类型/各几张/
+                            现有几张」;加粗=核心必备,红数字=核心缺失,灰=扩展可选 */}
+                        {imageRuleRows.length > 0 && (
+                          <div className="grid grid-cols-3 gap-x-4 gap-y-1 rounded-md border border-border/60 bg-muted/30 px-2.5 py-2 text-[11px]" aria-label="图像规范清单">
+                            {imageRuleRows.map((row) => (
+                              <div key={row.kind} className="flex min-w-0 items-baseline gap-1.5">
+                                <span
+                                  className={`min-w-0 truncate ${row.core ? "font-medium text-foreground" : "text-muted-foreground"}`}
+                                  title={`${row.kind}(${row.aspect}${row.core ? ",核心必备" : ",扩展可选"})`}
+                                >
+                                  {row.kind}
+                                </span>
+                                <span className="shrink-0 text-[10px] text-muted-foreground/70">{row.aspect}</span>
+                                <span className={`ml-auto shrink-0 tabular-nums ${row.core && row.count === 0 ? "font-semibold text-destructive" : "text-muted-foreground"}`}>
+                                  {row.count}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         {/* ① 主体句(主位可编辑;Phase C:聚焦型可开「本型专用」槽)。
                             头部行旁=T3「阶段」选择器(10-25 阶段矩阵,PRD §3.3):选项=
                             已聚类阶段集+「无」(默认);守卫同子区(<2 阶段不渲染);
