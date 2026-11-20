@@ -5,13 +5,13 @@ import { WORKFLOW_TABS, resolveVisibleWorkflowStage } from "./workflow-tabs";
 
 describe("studio workflow tabs", () => {
   it("keeps model configuration out of the workflow navigation", () => {
+    // 1120 分镜面板退役:storyboardPanel 条目摘除(功能迁引擎节点动作)
     expect(WORKFLOW_TABS.map((tab) => tab.value)).toEqual([
       "manuals",
       "novel",
       "script",
       "assets",
       "storyboard",
-      "storyboardPanel",
       "imageWorkflow",
       "workbench",
     ]);
@@ -21,13 +21,13 @@ describe("studio workflow tabs", () => {
       "剧本生产阶段",
       "剧本资产管理",
       "分镜视频生成",
-      "分镜面板",
       "图像节点图",
       "视频工作台",
     ]);
     expect(WORKFLOW_TABS.some((tab) => tab.label === "配置中心")).toBe(false);
     expect(WORKFLOW_TABS.some((tab) => tab.label === "策划编剧")).toBe(false);
     expect(WORKFLOW_TABS.some((tab) => tab.value === "skill")).toBe(false);
+    expect(WORKFLOW_TABS.some((tab) => tab.value === "storyboardPanel")).toBe(false);
   });
 
   it("falls back to the first visible workflow tab for hidden or stale persisted stages", () => {
@@ -36,6 +36,9 @@ describe("studio workflow tabs", () => {
     expect(resolveVisibleWorkflowStage("skill")).toBe("manuals");
     expect(resolveVisibleWorkflowStage("unknown-stage")).toBe("manuals");
     expect(resolveVisibleWorkflowStage(undefined)).toBe("manuals");
+    // 1120 分镜面板退役:存量落盘 storyboardPanel 水合回落分镜画布
+    // (零迁移成本根修:不回落 manuals 即不触发手册门禁 toast)
+    expect(resolveVisibleWorkflowStage("storyboardPanel")).toBe("storyboard");
   });
 
   it("routes workflow orchestration through the studio view model hook", () => {
@@ -56,7 +59,10 @@ describe("studio workflow tabs", () => {
 
     expect(indexSource).toContain("useStudioViewModel");
     expect(indexSource).not.toContain("useWorkflowStageState");
-    expect(indexSource).not.toContain("useStudioStore");
+    // 1120 口径更新:面板退役后 StudioView 直用 useStudioStore 承载迁入的
+    // 组件级消费(版本对候选订阅/混音直写 updateStoryboard,原在面板组件);
+    // 阶段路由数据面仍禁直连(下三行负向钉保留)
+    expect(indexSource).not.toContain("useWorkflowStageState");
     expect(indexSource).not.toContain("useProjectStore");
     expect(indexSource).not.toContain("setActiveWorkflowTab");
     expect(indexSource).not.toContain("prevProjectIdRef");
@@ -81,9 +87,9 @@ describe("studio workflow tabs", () => {
       fileURLToPath(new URL("../useChapterAutoVideoActions.ts", import.meta.url)),
       "utf8",
     );
-    // 09-09 批8:主画布退役,章视频/超分接线迁入 StoryboardPanelTab(index.tsx 注入)
-    const canvasSource = readFileSync(
-      fileURLToPath(new URL("../StoryboardPanelTab.tsx", import.meta.url)),
+    // 1120 面板退役:章视频接线迁引擎节点动作(载荷 storyboard-pipeline-comfy)
+    const pipelineSource = readFileSync(
+      fileURLToPath(new URL("../../../../lib/assist/image-studio/storyboard-pipeline-comfy.ts", import.meta.url)),
       "utf8",
     );
 
@@ -92,17 +98,17 @@ describe("studio workflow tabs", () => {
     expect(viewModelSource).toContain("handleRunChapterAutoVideo");
     expect(viewModelSource).toContain("enqueue-remotion-shots");
     expect(viewModelSource).toContain("handleOpenFinalVideo");
-    // 09-09 批8:章视频状态经 index.tsx 注入 StoryboardPanelTab.chapterAutoVideo;
-    // 成片按钮文案迁面板;10-27 H3 双通道 P2b 文案归位「预看成片」(通道A 审片位,Q5)
-    expect(indexSource).toContain("status: viewModel.chapterAutoVideoStatus");
-    expect(indexSource).toContain("run: () => void viewModel.handleRunChapterAutoVideo()");
-    // 1116 末裁①坏钮修(36e5cdf2):openFinal 改按「既有成品片」条件传——
-    // finalPath 在=打开钮(handleOpenFinalVideo 真值)/不在=undefined=运行钮
-    expect(indexSource).toContain("openFinal: viewModel.chapterAutoVideoStatus?.finalPath");
-    expect(indexSource).toContain("? viewModel.handleOpenFinalVideo");
-    expect(canvasSource).toContain("预看成片");
-    expect(canvasSource).toContain("预看成片合成中");
-    expect(canvasSource).toContain("打开预看成片");
+    // 1120 章视频接线新宿主:运行出口=桥 generate-videos(宿主 onGenerateVideos
+    // 同链 handleRunChapterAutoVideo);成品打开=桥 open-final-video(宿主按
+    // finalPath 幂等,无成品 toast)
+    expect(indexSource).toContain("onGenerateVideos: () => {");
+    expect(indexSource).toContain("handleRunChapterAutoVideo");
+    expect(indexSource).toContain("onOpenFinalVideo: () => {");
+    expect(indexSource).toContain("viewModel.chapterAutoVideoStatus?.finalPath");
+    expect(pipelineSource).toContain('kind: "generate-videos"');
+    expect(pipelineSource).toContain('kind: "open-final-video"');
+    expect(pipelineSource).toContain("一键生成所有视频");
+    expect(pipelineSource).toContain("打开预看成片");
     expect(hookSource).toContain("runChapterAutoVideo");
     expect(hookSource).toContain("runStoryboardTtsGeneration");
     expect(hookSource).toContain("buildRemotionShotPlans");

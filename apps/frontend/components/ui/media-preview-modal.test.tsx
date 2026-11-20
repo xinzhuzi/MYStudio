@@ -19,7 +19,7 @@ describe("media preview modals", () => {
       />,
     );
 
-    expect(screen.getByAltText("Preview").getAttribute("src")).toBe(
+    expect(screen.getByAltText("预览图片").getAttribute("src")).toBe(
       "https://example.test/preview.png",
     );
     expect(document.body.style.overflow).toBe("hidden");

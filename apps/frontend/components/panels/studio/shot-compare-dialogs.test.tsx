@@ -6,9 +6,10 @@ import {
   ShotVideoCompareDialog,
   shotCompareAvailability,
 } from "./shot-compare-dialogs";
-import { StoryboardPanelTab } from "./StoryboardPanelTab";
 import type { StoryboardItem } from "@/types/studio";
 import type { VideoCandidate } from "@/types/studio-production-types";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { info: vi.fn(), success: vi.fn(), error: vi.fn(), warning: vi.fn() }) }));
 
@@ -126,23 +127,30 @@ describe("ShotVideoCompareDialog", () => {
   });
 });
 
-describe("StoryboardPanelTab 版本对入口接线", () => {
-  it("帧≥2 的镜卡显示「对比两帧」,点击弹 A/B 对比;无入口条件不显示", () => {
+describe("版本对入口接线(1120 面板退役:StudioView 新宿主)", () => {
+  it("帧≥2 的对话框本体可渲染并关闭;挂点=StudioView 桥动作 compare-frames/video 唤起", () => {
     const twoFrames = shot({
       keyframes: [
         { frameId: "sb-1-kf-1", mediaRef: { kind: "image", path: "project-file://p/f1.jpg" }, inUs: 0 },
         { frameId: "sb-1-kf-2", mediaRef: { kind: "image", path: "project-file://p/f2.jpg" }, inUs: 3_000_000 },
       ],
     });
-    const singleFrame = shot({ id: "sb-2", index: 2, mediaRef: { kind: "image", path: "project-file://p/g1.jpg" } });
-    const { container } = render(
-      <StoryboardPanelTab storyboards={[twoFrames, singleFrame]} onOpenImageWorkflow={() => undefined} />,
-    );
-    expect(screen.getByText("对比两帧")).toBeTruthy();
-    expect(screen.queryByText("对比上一版")).toBeNull();
-    fireEvent.click(screen.getByText("对比两帧"));
+    const { container } = render(<ShotImageCompareDialog storyboard={twoFrames} open onClose={() => undefined} />);
     expect(container.querySelector("[data-ab-compare]")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("关闭对比"));
-    expect(container.querySelector("[data-ab-compare]")).toBeNull();
+    expect(container === null).toBe(false);
+
+    // 新宿主接线(源码串,workflow-tabs.test.ts 同款范式):对话框挂 StudioView,
+    // 引擎 shot-detail 对比钮经桥 kind 唤起局部态(面板退役后唯一入口)
+    const indexSource = readFileSync(
+      resolve(process.cwd(), "frontend/components/panels/studio/index.tsx"),
+      "utf8",
+    );
+    expect(indexSource).toContain("onCompareFrames: (shotId: string) => {");
+    expect(indexSource).toContain("onCompareVideo: (shotId: string) => {");
+    expect(indexSource).toContain("<ShotImageCompareDialog");
+    expect(indexSource).toContain("<ShotVideoCompareDialog");
+    // 面板组件退役:不再有 StoryboardPanelTab 渲染挂点
+    expect(indexSource).not.toContain("<StoryboardPanelTab");
   });
 });

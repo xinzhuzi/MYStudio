@@ -61,10 +61,19 @@ export function ShotFrameGenerationSection({
             )}
             onClick={() => onPreviewFrame("start")}
           >
-            <div className="aspect-video bg-muted relative">
+            <button
+              type="button"
+              aria-label="预览起始帧"
+              aria-pressed={previewMode === "start"}
+              onClick={(event) => {
+                event.stopPropagation();
+                onPreviewFrame("start");
+              }}
+              className="aspect-video bg-muted relative block w-full cursor-pointer rounded-lg focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-inset"
+            >
               {hasStartImage ? (
                 <>
-                  <img src={startImageUrl} className="w-full h-full object-cover" />
+                  <img src={startImageUrl} alt="镜头首帧" className="w-full h-full object-cover" />
                   <ResolutionBadge src={startImageUrl} />
                 </>
               ) : (
@@ -77,7 +86,7 @@ export function ShotFrameGenerationSection({
                   <Loader2 className="w-4 h-4 text-foreground animate-spin" />
                 </div>
               )}
-            </div>
+            </button>
             <div className="p-1.5 space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-[10px]">起始帧</span>
@@ -120,10 +129,19 @@ export function ShotFrameGenerationSection({
             )}
             onClick={() => onPreviewFrame("end")}
           >
-            <div className="aspect-video bg-muted relative">
+            <button
+              type="button"
+              aria-label="预览结束帧"
+              aria-pressed={previewMode === "end"}
+              onClick={(event) => {
+                event.stopPropagation();
+                onPreviewFrame("end");
+              }}
+              className="aspect-video bg-muted relative block w-full cursor-pointer rounded-lg focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-inset"
+            >
               {hasEndImage ? (
                 <>
-                  <img src={endImageUrl} className="w-full h-full object-cover" />
+                  <img src={endImageUrl} alt="镜头结束帧" className="w-full h-full object-cover" />
                   <ResolutionBadge src={endImageUrl} />
                 </>
               ) : (
@@ -136,7 +154,7 @@ export function ShotFrameGenerationSection({
                   <Loader2 className="w-4 h-4 text-foreground animate-spin" />
                 </div>
               )}
-            </div>
+            </button>
             <div className="p-1.5 space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-[10px]">结束帧</span>
@@ -186,13 +204,16 @@ export function ShotFrameGenerationSection({
             previewMode === "video" ? "border-primary" : "border-border"
           )}
         >
-          <div
-            className="aspect-video bg-muted relative cursor-pointer"
+          <button
+            type="button"
+            aria-label="预览镜头视频"
+            aria-pressed={previewMode === "video"}
+            className="aspect-video bg-muted relative block w-full cursor-pointer rounded-lg focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-inset"
             onClick={() => onPreviewFrame("video")}
           >
             {hasVideo ? (
               <>
-                <img src={startImageUrl} className="w-full h-full object-cover" />
+                <img src={startImageUrl} alt="镜头首帧" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                   <div className="w-8 h-8 rounded-full bg-background/85 backdrop-blur-xs border border-border/40 flex items-center justify-center">
                     <Play className="w-4 h-4 text-foreground ml-0.5" />
@@ -212,7 +233,7 @@ export function ShotFrameGenerationSection({
                 <Loader2 className="w-5 h-5 text-foreground animate-spin" />
               </div>
             )}
-          </div>
+          </button>
 
           <div className="p-2">
             <Button

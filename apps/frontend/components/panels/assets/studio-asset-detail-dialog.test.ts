@@ -237,16 +237,14 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(source).not.toContain("function RoleVoicePreviewButton(");
   });
 
-  it("delegates role attribute parsing and rendering to the focused leaf", () => {
+  it("1120 用户令:人物属性只读解析卡撤除,与「设定」合一(单一真源)", () => {
     const source = readDialogSources();
 
-    expect(source).toContain(
-      'import { StudioAssetRoleAttributes, parseStudioAssetRoleAttributes } from "./studio-asset-role-attributes";',
-    );
-    expect(source).toContain(
-      '<StudioAssetRoleAttributes setting={draftSetting || asset.setting || ""} />',
-    );
-    expect(source).not.toContain("const fields: { label: string; value: string }[] = [];");
+    expect(source).not.toContain("studio-asset-role-attributes");
+    expect(source).not.toContain("StudioAssetRoleAttributes");
+    expect(source).not.toContain("roleAttributesPresent");
+    // 属性卡信息本体在设定框,弹窗只留「设定」一个设定域文本框
+    expect(source.match(/>设定<\/div>/g)?.length).toBe(1);
   });
 
   it("writes one-click generated images and prompts back to the studio asset library", async () => {
@@ -402,8 +400,8 @@ describe("10-24 布局重造批1(竖滑单列+元信息置顶+轮播拆除)", ()
     expect(source).toContain('const META_COLLAPSED_STORAGE_KEY = "asset-dialog-meta-collapsed"');
     expect(source).toContain("setMetaCollapsed((collapsed) => !collapsed)");
     expect(source).toContain("grid grid-cols-2 gap-3");
-    // 行1 名字|描述,行2 角色属性|音色(仅role),行3 提示词|设定,行尾 保存|删除
-    expect(source).toContain('<StudioAssetRoleAttributes setting={draftSetting || asset.setting || ""} />');
+    // 行1 名字|描述,行2 音色(仅role,恒全宽;1120 属性卡并入设定),行3 提示词,行4 设定,行尾 保存|删除
+    expect(source).not.toContain('<StudioAssetRoleAttributes');
     // 10-26 用户令:润色提示词按钮砍除
     expect(source).not.toContain("润色提示词");
     // 折叠留摘要(资产名+别名数)+保存/删除

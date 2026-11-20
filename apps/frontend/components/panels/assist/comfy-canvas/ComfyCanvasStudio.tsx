@@ -339,6 +339,24 @@ export interface ComfyCanvasStudioProps {
     onEditNodeDoc?: (stageKey: string) => void;
     /** 09-13 用户裁定:衍生资产节点「抽取资产」回流(老剧本资产页同款钩子) */
     onExtractAssets?: () => void;
+    /** 1120 分镜面板退役迁引擎:面板批量动作全量回流为节点按钮 */
+    onGenerateImagesForce?: () => void;
+    onGenerateImagesStop?: () => void;
+    /** note=tier(480p 草稿/960p 生产,载荷 noteKey 过桥) */
+    onH3Start?: (tier: string) => void;
+    onH3Stop?: () => void;
+    onH3ImportOrphans?: () => void;
+    onH3ArchiveBackfill?: () => void;
+    onOpenFinalVideo?: () => void;
+    onDaoyanImport?: () => void;
+    onChapterPipelineStart?: () => void;
+    onAutoBindAssets?: () => void;
+    /** 1120 单镜动作面(引擎 shot-detail 浮层);note=shotId / shotId|mode|arg / shotId|value */
+    onOpenShotImage?: (shotId: string) => void;
+    onCompareFrames?: (shotId: string) => void;
+    onCompareVideo?: (shotId: string) => void;
+    onKeyframeExtract?: (note: string) => void;
+    onSetAudioMix?: (note: string) => void;
   };
   /** 老画布节点模型(viewModel.productionFlowNodes;v4 内容全量喂入) */
   stageFlowNodes?: ProductionFlowNodeModel[];
@@ -449,6 +467,23 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
           "view-doc": [actions?.onViewNodeDoc],
           "edit-doc": [actions?.onEditNodeDoc],
           "extract-assets": [actions?.onExtractAssets, "环节指令:从当前剧本抽取资产"],
+          // 1120 分镜面板退役迁引擎:面板批量动作收编为节点按钮
+          "generate-images-force": [actions?.onGenerateImagesForce, "节点指令:重出全部画面(当前画面入库为历史版本)"],
+          "generate-images-stop": [actions?.onGenerateImagesStop, "节点指令:停止批量生图"],
+          "h3-start": [actions?.onH3Start, item.note === "480p" ? "节点指令:H3 出片(480P 草稿档)" : "节点指令:H3 出片(960P 生产档)"],
+          "h3-stop": [actions?.onH3Stop, "节点指令:停止 H3 出片"],
+          "h3-import-orphans": [actions?.onH3ImportOrphans, "节点指令:扫描导入盘上 H3 片"],
+          "h3-archive-backfill": [actions?.onH3ArchiveBackfill, "节点指令:H3 存量回流"],
+          "open-final-video": [actions?.onOpenFinalVideo],
+          "daoyan-import": [actions?.onDaoyanImport, "节点指令:导入导演台视频"],
+          "chapter-pipeline-start": [actions?.onChapterPipelineStart, "节点指令:章流水线发车"],
+          "auto-bind-assets": [actions?.onAutoBindAssets, "节点指令:自动绑定分镜素材"],
+          // 1120 单镜动作面(引擎 shot-detail 浮层;note=shotId 编码透传)
+          "open-shot-image": [actions?.onOpenShotImage],
+          "compare-frames": [actions?.onCompareFrames],
+          "compare-video": [actions?.onCompareVideo],
+          "keyframe-extract": [actions?.onKeyframeExtract],
+          "set-audio-mix": [actions?.onSetAudioMix],
         };
         const [handler, message] = handlers[item.kind] ?? [];
         if (handler) return () => {

@@ -179,9 +179,7 @@ export function SceneLibrarySelector({
     || selectedViewpoint?.referenceImage || selectedViewpoint?.referenceImageBase64
     || selectedScene?.referenceImage || selectedScene?.contactSheetImage || selectedScene?.referenceImageBase64
     || null;
- 
-  useResolvedImageUrl(previewRefImage);
-  
+
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>

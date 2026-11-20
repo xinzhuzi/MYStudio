@@ -509,7 +509,7 @@ export function ShotPropertiesPanel({
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full bg-muted overflow-hidden">
                         {char.thumbnailUrl ? (
-                          <img src={char.thumbnailUrl} className="w-full h-full object-cover" />
+                          <img src={char.thumbnailUrl} alt={`${char.name} 造型缩略图`} className="w-full h-full object-cover" />
                         ) : (
                           <User className="w-full h-full p-1 text-muted-foreground" />
                         )}

@@ -229,7 +229,7 @@ export function ComfyWidgetField({
             value={current === undefined || current === null ? "" : String(current)}
             disabled
             title={`暂不支持的控件类型:${(schema as { type?: string }).type ?? "未知"}`}
-            className="h-7 w-32 rounded-md border border-border bg-card/80 px-1.5 text-xs text-muted-foreground outline-none"
+            className="h-7 w-32 rounded-md border border-border bg-card/80 px-1.5 text-xs text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
           />
         </label>
       )}
@@ -325,7 +325,7 @@ function ComfyNumberControl({
           onKeyDown={(event) => {
             if (event.key === "Enter") commitDraft();
           }}
-          className="pointer-events-auto h-7 w-20 shrink-0 rounded-md border border-border bg-card/80 px-1.5 text-xs tabular-nums text-foreground outline-none"
+          className="pointer-events-auto h-7 w-20 shrink-0 rounded-md border border-border bg-card/80 px-1.5 text-xs tabular-nums text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
         />
       </label>
       <Slider
@@ -391,7 +391,7 @@ function ComfyComboControl({
           aria-label={label}
           disabled={disabled}
           onChange={(event) => commit(event.target.value)}
-          className="h-7 max-w-[60%] shrink-0 rounded-md border border-border bg-card/80 px-1 text-xs text-foreground outline-none"
+          className="h-7 max-w-[60%] shrink-0 rounded-md border border-border bg-card/80 px-1 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
         >
           {effectiveOptions.map((option) => (
             <option key={option} value={option}>{option}</option>
@@ -434,7 +434,7 @@ function ComfyStringControl({
         disabled={disabled}
         onChange={(event) => commit(event.target.value)}
         rows={2}
-        className="nodrag nopan min-h-[48px] w-full rounded-md border border-border bg-card/80 px-1.5 py-1 text-[11px] leading-5 text-foreground outline-none [field-sizing:content]"
+        className="nodrag nopan min-h-[48px] w-full rounded-md border border-border bg-card/80 px-1.5 py-1 text-[11px] leading-5 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60 [field-sizing:content]"
       />
     </div>
   );

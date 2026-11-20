@@ -108,8 +108,17 @@ export function MediaLibraryList({
           onGenerateScenes={onGenerateScenes}
         >
           <div
-            className="flex items-center gap-2 p-2 rounded hover:bg-accent cursor-pointer"
+            role="button"
+            tabIndex={0}
+            aria-label={`预览素材 ${item.name}`}
+            className="flex items-center gap-2 p-2 rounded hover:bg-accent cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-inset"
             onClick={() => onPreviewMedia(item)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onPreviewMedia(item);
+              }
+            }}
             draggable={item.type === "video"}
             onDragStart={(event) => {
               if (item.type !== "video") return;

@@ -139,7 +139,7 @@ export function ShotGridDetailPanel({
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-muted overflow-hidden">
                           {character.thumbnailUrl ? (
-                            <img src={character.thumbnailUrl} className="w-full h-full object-cover" />
+                            <img src={character.thumbnailUrl} alt={`${character.name} 造型缩略图`} className="w-full h-full object-cover" />
                           ) : (
                             <User className="w-full h-full p-1 text-muted-foreground" />
                           )}
@@ -223,7 +223,7 @@ export function ShotGridDetailPanel({
                 <div className="aspect-video bg-black rounded border border-border overflow-hidden relative">
                   {startImageUrl ? (
                     <>
-                      <img src={startImageUrl} className="w-full h-full object-cover" />
+                      <img src={startImageUrl} alt="镜头首帧" className="w-full h-full object-cover" />
                       <ResolutionBadge src={startImageUrl} />
                     </>
                   ) : (
@@ -265,7 +265,7 @@ export function ShotGridDetailPanel({
                 <div className="aspect-video bg-black rounded border border-border overflow-hidden relative">
                   {endKeyframe?.imageUrl ? (
                     <>
-                      <img src={endKeyframe.imageUrl} className="w-full h-full object-cover" />
+                      <img src={endKeyframe.imageUrl} alt="镜头结束帧" className="w-full h-full object-cover" />
                       <ResolutionBadge src={endKeyframe.imageUrl} />
                     </>
                   ) : (

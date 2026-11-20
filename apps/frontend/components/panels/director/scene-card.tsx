@@ -198,9 +198,19 @@ export function SceneCard({ scene, progress, isPreview, showImage, onRetryImage,
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={isSelected}
+      aria-label={`场景 ${scene.sceneId}`}
       onClick={() => setSelectedScene(isSelected ? null : scene.sceneId)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          setSelectedScene(isSelected ? null : scene.sceneId);
+        }
+      }}
       className={cn(
-        "p-3.5 rounded-xl border border-border bg-card transition-colors cursor-pointer",
+        "p-3.5 rounded-xl border border-border bg-card transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-inset",
         "hover:border-primary/40",
         isSelected && "border-primary bg-primary/5",
         progress?.status === "failed" && "border-destructive/50 bg-destructive/5",

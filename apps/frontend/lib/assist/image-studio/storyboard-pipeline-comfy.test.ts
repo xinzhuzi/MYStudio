@@ -108,10 +108,50 @@ describe("buildStageNodePayload(v2 全量内容,照老 flow 画布)", () => {
       { kind: "generate-director-plan", label: "重新生成导演规划", paid: true, disabled: false },
     ]);
     expect(byKey("storyboardTable").actions![0]).toMatchObject({ kind: "generate-storyboard-table", paid: true });
-    expect(byKey("storyboard").actions).toEqual([{ kind: "generate-images", label: "一键生图", disabled: false }]);
+    expect(byKey("storyboard").actions![0]).toEqual({ kind: "generate-images", label: "一键生图", disabled: false });
     expect(byKey("remotionProduction").actions![0].kind).toBe("generate-videos");
     expect(byKey("workbench").actions![0]).toMatchObject({ kind: "rebuild-workbench-tracks" });
     expect(byKey("script").actions).toBeUndefined();
+  });
+
+  it("面板迁移动作收编(1120 分镜面板退役):storyboard 节点带批量全家,remotionProduction 带 H3 全家", () => {
+    const byKey = (k: string) => payloads.find((p) => p.key === k)!;
+    const storyboardActions = byKey("storyboard").actions!;
+    // 批量五新钮:重出(paid 两步确认)/停止(常驻)/自动绑定/章流水线/导演台导入
+    expect(storyboardActions.map((a) => a.kind)).toEqual([
+      "generate-images", "generate-images-force", "generate-images-stop",
+      "auto-bind-assets", "chapter-pipeline-start", "daoyan-import",
+    ]);
+    const force = storyboardActions.find((a) => a.kind === "generate-images-force")!;
+    expect(force.paid).toBe(true);
+    expect(force.disabled).toBe(false); // 有分镜可重出
+    expect(storyboardActions.find((a) => a.kind === "generate-images-stop")!.disabled).toBeUndefined(); // 常驻,宿主侧幂等
+    // H3 全家归单镜生产节点(通道B 与通道A generate-videos 分置)
+    const remotionActions = byKey("remotionProduction").actions!;
+    expect(remotionActions.map((a) => a.kind)).toEqual([
+      "generate-videos", "h3-start", "h3-start", "h3-stop",
+      "h3-import-orphans", "h3-archive-backfill", "open-final-video",
+    ]);
+    const tiers = remotionActions.filter((a) => a.kind === "h3-start").map((a) => a.noteKey);
+    expect(tiers).toEqual(["480p", "960p"]);
+    expect(remotionActions.filter((a) => a.kind === "h3-start").every((a) => a.disabled === false)).toBe(true);
+    expect(remotionActions.find((a) => a.kind === "h3-stop")!.disabled).toBeUndefined(); // 常驻
+  });
+
+  it("面板迁移动作禁用语义随数据:零分镜时生图/重出/H3 发车全禁用(与面板原口径一致)", () => {
+    const empty = buildStageNodePayload({
+      novelChapters: [], scriptPlans: [], entityExtractions: [], storyboards: [],
+      flowData: { ...flowData, storyboardTable: "" } as never,
+    });
+    const storyboardActions = empty.find((p) => p.key === "storyboard")!.actions!;
+    expect(storyboardActions.find((a) => a.kind === "generate-images")!.disabled).toBe(true);
+    expect(storyboardActions.find((a) => a.kind === "generate-images-force")!.disabled).toBe(true);
+    expect(storyboardActions.find((a) => a.kind === "auto-bind-assets")!.disabled).toBe(true);
+    const remotionActions = empty.find((p) => p.key === "remotionProduction")!.actions!;
+    expect(remotionActions.filter((a) => a.kind === "h3-start").every((a) => a.disabled === true)).toBe(true);
+    // 停止/流水线/导入类不依赖分镜数,保持可用(宿主侧幂等/自有校验)
+    expect(storyboardActions.find((a) => a.kind === "generate-images-stop")!.disabled).toBeUndefined();
+    expect(storyboardActions.find((a) => a.kind === "chapter-pipeline-start")!.disabled).toBeUndefined();
   });
 });
 

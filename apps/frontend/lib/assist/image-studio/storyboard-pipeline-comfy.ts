@@ -74,8 +74,9 @@ export interface StageNodePayload {
   assetGroups?: { characters: string[]; scenes: string[]; props: string[] };
   tracks?: { name: string; state: string; count: number; duration: number; mediaCount: number; videoCount?: number }[];
   finalExport?: boolean;
-  /** 环节动作(09-12 功能完备:老画布节点按钮回流;paid=付费云端金色) */
-  actions?: { kind: string; label: string; paid?: boolean; disabled?: boolean }[];
+  /** 环节动作(09-12 功能完备:老画布节点按钮回流;paid=付费云端金色;
+   * noteKey=动作携带参数,引擎侧 data-note 过桥=宿主 note(如 h3-start 的 tier)) */
+  actions?: { kind: string; label: string; paid?: boolean; disabled?: boolean; noteKey?: string }[];
   /** 参与技能名(老画布 skills 徽标,09-12 v4 全量补全;组件层映射器喂入) */
   skills?: string[];
   /** 技能详情(09-13 用户裁定:技能胶囊可点开详情;与 skills 下标对齐) */
@@ -219,7 +220,16 @@ export function buildStageNodePayload(input: {
               { label: "已出片", done: videos, total: shots.length },
             ]
           : undefined,
-        actions: [{ kind: "generate-images", label: "一键生图", disabled: shots.length === 0 }],
+        // 1120 分镜面板退役迁引擎:面板批量动作全量收编为节点按钮(既有
+        // generate-images 保留首位;stop 常驻,宿主侧幂等——非运行态点击仅 toast)
+        actions: [
+          { kind: "generate-images", label: "一键生图", disabled: shots.length === 0 },
+          { kind: "generate-images-force", label: "重出全部画面", paid: true, disabled: shots.length === 0 },
+          { kind: "generate-images-stop", label: "停止生图" },
+          { kind: "auto-bind-assets", label: "自动绑定素材", disabled: shots.length === 0 },
+          { kind: "chapter-pipeline-start", label: "章流水线" },
+          { kind: "daoyan-import", label: "导入导演台视频" },
+        ],
         tiles: shots.map((item) => ({
           index: item.index,
           // 09-14 用户裁定:磁贴只放标号——描述不铺字(悬停 tooltip 走 lines)
@@ -244,11 +254,22 @@ export function buildStageNodePayload(input: {
               { label: "配音", done: shots.filter((item) => item.ttsJob?.status === "completed").length, total: shots.length },
             ]
           : undefined,
-        actions: [{
-          kind: "generate-videos",
-          label: allVideos ? "分镜视频已完成" : "一键生成所有视频",
-          disabled: shots.length === 0 || allVideos,
-        }],
+        // 通道A generate-videos(章自动视频草稿)保留;通道B H3 出片全家
+        // (双档直选防误触:档位标签自含时长说明,选档即确认)+孤儿导入/存量
+        // 回流(1120 分镜面板退役迁引擎,原面板孤儿双择拆为独立动作保语义)
+        actions: [
+          {
+            kind: "generate-videos",
+            label: allVideos ? "分镜视频已完成" : "一键生成所有视频",
+            disabled: shots.length === 0 || allVideos,
+          },
+          { kind: "h3-start", label: "H3 出片·480P 草稿", noteKey: "480p", disabled: shots.length === 0 },
+          { kind: "h3-start", label: "H3 出片·960P 生产", noteKey: "960p", disabled: shots.length === 0 },
+          { kind: "h3-stop", label: "停止 H3 出片" },
+          { kind: "h3-import-orphans", label: "导入盘上 H3 片", disabled: shots.length === 0 },
+          { kind: "h3-archive-backfill", label: "H3 存量回流" },
+          { kind: "open-final-video", label: "打开预看成片" },
+        ],
         shots: shots.map((item) => ({
           index: item.index,
           id: item.id,

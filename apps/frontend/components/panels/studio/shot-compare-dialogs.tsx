@@ -12,7 +12,7 @@
  * =分镜 keyframes(图)与 videoCandidates(单镜视频);兄弟落位分镜面板目录。
  */
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { X } from "lucide-react";
 import { ABCompare } from "@/components/ui/ab-compare";
 import { ABVideoCompare, type ABVideoMeta } from "@/components/ui/ab-video-compare";
@@ -30,21 +30,53 @@ function CompareOverlay({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // 焦点接管/归还只随挂载跑(不依赖 onClose,避免宿主重渲染把焦点抢回)
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialogRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
+  }, []);
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusables = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), video[controls], [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0]!;
+      const last = focusables[focusables.length - 1]!;
+      if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
+        event.preventDefault();
+        last.focus();
+      }
     };
     document.addEventListener("keydown", handleKeyDown);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
-    };
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
   return (
     <div
-      className="fixed inset-0 z-[998] flex items-center justify-center bg-black/80 p-4"
+      ref={dialogRef}
+      className="fixed inset-0 z-[998] flex items-center justify-center bg-black/80 p-4 outline-none"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      tabIndex={-1}
       data-shot-compare-overlay
     >
       <div
@@ -57,7 +89,7 @@ function CompareOverlay({
             type="button"
             aria-label="关闭对比"
             onClick={onClose}
-            className="rounded-full border border-border/40 bg-background/80 p-2 text-foreground transition-colors hover:bg-background"
+            className="rounded-full border border-border/40 bg-background/80 p-2 text-foreground transition-colors hover:bg-background focus-visible:ring-2 focus-visible:ring-primary/70"
           >
             <X className="h-4 w-4" />
           </button>

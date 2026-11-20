@@ -126,11 +126,13 @@ export function SceneCard({
           )}
           {/* 显示子场景数量 + 展开/收起指示 */}
           {hasChildren && (
-            <div
+            <button
+              type="button"
               className={cn(
-                "absolute top-1 right-1 px-1.5 py-0.5 rounded text-primary-foreground text-[8px] flex items-center gap-0.5 cursor-pointer font-medium",
-                isExpanded ? "bg-primary" : "bg-success"
+                "absolute top-1 right-1 px-1.5 py-0.5 rounded-md text-primary-foreground text-[9px] flex items-center gap-0.5 cursor-pointer font-medium focus-visible:ring-2 focus-visible:ring-primary/70"
               )}
+              aria-expanded={isExpanded}
+              aria-label={`${isExpanded ? "收起" : "展开"} ${childCount} 个子场景`}
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleExpand?.();
@@ -143,12 +145,14 @@ export function SceneCard({
                 <ChevronRight className="h-2.5 w-2.5" />
               )}
               {childCount} 个
-            </div>
+            </button>
           )}
           {/* 父场景预览按钮（有子场景时双击展开，预览通过此按钮） */}
           {hasChildren && resolvedImage && (
-            <div
-              className="absolute bottom-1 right-1 bg-background/80 hover:bg-background text-foreground border border-border/40 backdrop-blur-xs rounded p-1 cursor-pointer transition-colors"
+            <button
+              type="button"
+              className="absolute bottom-1 right-1 bg-background/80 hover:bg-background text-foreground border border-border/40 backdrop-blur-xs rounded-md p-1 cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-primary/70"
+              aria-label="预览父场景大图"
               title="预览大图"
               onClick={(e) => {
                 e.stopPropagation();
@@ -156,7 +160,7 @@ export function SceneCard({
               }}
             >
               <Eye className="h-3 w-3" />
-            </div>
+            </button>
           )}
         </div>
         <div>

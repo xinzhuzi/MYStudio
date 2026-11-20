@@ -41,6 +41,23 @@ export function ComfyCanvasSwap({
     onEditNodeDoc?: (stageKey: string) => void;
     /** 09-13:衍生资产节点「抽取资产」回流 */
     onExtractAssets?: () => void;
+    /** 1120 分镜面板退役迁引擎:面板批量动作全量回流为节点按钮 */
+    onGenerateImagesForce?: () => void;
+    onGenerateImagesStop?: () => void;
+    onH3Start?: (tier: string) => void;
+    onH3Stop?: () => void;
+    onH3ImportOrphans?: () => void;
+    onH3ArchiveBackfill?: () => void;
+    onOpenFinalVideo?: () => void;
+    onDaoyanImport?: () => void;
+    onChapterPipelineStart?: () => void;
+    onAutoBindAssets?: () => void;
+    /** 1120 单镜动作面(引擎 shot-detail 浮层);note=shotId / shotId|mode|arg / shotId|value */
+    onOpenShotImage?: (shotId: string) => void;
+    onCompareFrames?: (shotId: string) => void;
+    onCompareVideo?: (shotId: string) => void;
+    onKeyframeExtract?: (note: string) => void;
+    onSetAudioMix?: (note: string) => void;
   };
 } = {}) {
   return (

@@ -132,7 +132,7 @@ export function Layout() {
   if (!inProject) {
     return (
       <>
-        <TabBar sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
+        <TabBar sidebarCollapsed={sidebarCollapsed} />
         <div className="studio-shell h-full bg-background">
           <div className="studio-main h-full">
             <Suspense fallback={<PanelFallback />}>
@@ -202,7 +202,7 @@ export function Layout() {
   if (fullScreenTabs.includes(activeTab)) {
     return (
       <>
-        <TabBar sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
+        <TabBar sidebarCollapsed={sidebarCollapsed} />
         {/* titlebar-lift-views:背景上提作用域(09-10 标题栏融为一体裁定);
             studio-main/cinematic-route 不得加 overflow-hidden,否则上提表面被裁回 y=40 */}
         <div className="studio-shell h-full flex flex-col bg-background titlebar-lift-views">
@@ -279,7 +279,7 @@ export function Layout() {
 
   return (
     <>
-    <TabBar sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
+    <TabBar sidebarCollapsed={sidebarCollapsed} />
     {/* titlebar-lift-frames:三栏分支背景上提作用域(09-10 标题栏融为一体裁定) */}
     <div className="studio-shell h-full flex flex-col bg-background titlebar-lift-frames">
         <ProjectHeader

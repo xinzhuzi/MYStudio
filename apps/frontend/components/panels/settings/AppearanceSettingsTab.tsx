@@ -265,9 +265,12 @@ export function AppearanceSettingsTab() {
               </div>
               <button
                 type="button"
+                role="switch"
+                aria-checked={enableCyberGrid}
+                aria-label="数码脉冲网格"
                 onClick={toggleCyberGrid}
                 className={cn(
-                  "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                  "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   enableCyberGrid ? "bg-primary" : "bg-muted"
                 )}
               >
@@ -291,9 +294,12 @@ export function AppearanceSettingsTab() {
               </div>
               <button
                 type="button"
+                role="switch"
+                aria-checked={enableFilmVignette}
+                aria-label="胶片暗角与齿孔"
                 onClick={toggleFilmVignette}
                 className={cn(
-                  "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                  "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   enableFilmVignette ? "bg-primary" : "bg-muted"
                 )}
               >
@@ -317,9 +323,12 @@ export function AppearanceSettingsTab() {
               </div>
               <button
                 type="button"
+                role="switch"
+                aria-checked={enableScanlines}
+                aria-label="数字雨背景"
                 onClick={toggleScanlines}
                 className={cn(
-                  "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                  "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   enableScanlines ? "bg-primary" : "bg-muted"
                 )}
               >

@@ -71,7 +71,7 @@ export function UnclothNodeEditor({
           const next = Number(event.target.value);
           if (Number.isFinite(next)) apply(next);
         }}
-        className="h-7 w-20 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none"
+        className="h-7 w-20 rounded-md border border-border bg-card/80 px-1.5 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
       />
     </label>
   );
@@ -86,7 +86,7 @@ export function UnclothNodeEditor({
         <select
           value={params.mode}
           onChange={(e) => patch({ variant: e.target.value as ImageWorkflowUnclothNode["variant"] })}
-          className="h-7 w-24 rounded-md border border-border bg-card/80 px-1 text-xs text-foreground outline-none"
+          className="h-7 w-24 rounded-md border border-border bg-card/80 px-1 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
         >
           <option value="instruct">稳定</option>
           <option value="fine">遮罩</option>
@@ -103,7 +103,7 @@ export function UnclothNodeEditor({
             onChange={(event) => patch({ prompt: event.target.value })}
             placeholder="例:她身上的衣衫整体褪去,露出洁净无瑕疵的裸露肌肤;脸、发型、姿态与背景保持一致"
             rows={5}
-            className="w-full rounded-md border border-border bg-card/80 px-1.5 py-1 text-[11px] text-foreground outline-none"
+            className="w-full rounded-md border border-border bg-card/80 px-1.5 py-1 text-[11px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
           />
           <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
             <input
@@ -123,7 +123,7 @@ export function UnclothNodeEditor({
               value={node.systemPrompt ?? params.systemPrompt ?? ""}
               onChange={(event) => patch({ systemPrompt: event.target.value })}
               rows={3}
-              className="w-full rounded-md border border-border bg-card/80 px-1.5 py-1 text-[11px] text-foreground outline-none"
+              className="w-full rounded-md border border-border bg-card/80 px-1.5 py-1 text-[11px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
             />
           </label>
         </div>
@@ -138,14 +138,14 @@ export function UnclothNodeEditor({
         <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
           <span className="shrink-0">sampler</span>
           <select value={params.sampler} onChange={(e) => patch({ sampler: e.target.value })}
-            className="h-7 w-24 rounded-md border border-border bg-card/80 px-1 text-xs text-foreground outline-none">
+            className="h-7 w-24 rounded-md border border-border bg-card/80 px-1 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60">
             {["euler", "euler_ancestral", "heun", "dpm_2", "dpm_2_ancestral", "lms", "dpm_fast", "dpm_adaptive", "dpmpp_2s_ancestral", "dpmpp_sde", "dpmpp_2m", "dpmpp_2m_sde", "dpmpp_3m_sde", "ddim", "uni_pc", "lcm"].map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         </label>
         <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
           <span className="shrink-0">scheduler</span>
           <select value={params.scheduler} onChange={(e) => patch({ scheduler: e.target.value })}
-            className="h-7 w-24 rounded-md border border-border bg-card/80 px-1 text-xs text-foreground outline-none">
+            className="h-7 w-24 rounded-md border border-border bg-card/80 px-1 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60">
             {["normal", "karras", "exponential", "sgm_uniform", "simple", "ddim_uniform", "beta"].map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         </label>
@@ -169,7 +169,7 @@ export function UnclothNodeEditor({
         <label className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
           <span className="shrink-0">缩放插值</span>
           <select value={params.upscaleMethod} onChange={(e) => patch({ upscaleMethod: e.target.value })}
-            className="h-7 w-24 rounded-md border border-border bg-card/80 px-1 text-[10px] text-foreground outline-none">
+            className="h-7 w-24 rounded-md border border-border bg-card/80 px-1 text-[10px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60">
             {["lanczos", "nearest-exact", "bilinear", "area", "bicubic"].map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         </label>
@@ -207,19 +207,19 @@ export function UnclothNodeEditor({
           <input
             value={params.fashnParts}
             onChange={(event) => patch({ fashnParts: event.target.value })}
-            className="h-7 flex-1 rounded-md border border-border bg-card/80 px-1.5 text-[10px] text-foreground outline-none"
+            className="h-7 flex-1 rounded-md border border-border bg-card/80 px-1.5 text-[10px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
           />
         </label>
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
           <label className="flex items-center gap-1">device
             <select value={params.fashnDevice} onChange={(e) => patch({ fashnDevice: e.target.value })}
-              className="h-6 rounded-md border border-border bg-card/80 px-1 text-[10px] text-foreground outline-none">
+              className="h-6 rounded-md border border-border bg-card/80 px-1 text-[10px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60">
               {["cpu", "mps"].map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </label>
           <label className="flex items-center gap-1">dtype
             <select value={params.fashnDtype} onChange={(e) => patch({ fashnDtype: e.target.value })}
-              className="h-6 rounded-md border border-border bg-card/80 px-1 text-[10px] text-foreground outline-none">
+              className="h-6 rounded-md border border-border bg-card/80 px-1 text-[10px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60">
               {["float32", "float16", "bfloat16"].map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </label>
@@ -254,7 +254,7 @@ export function UnclothNodeEditor({
                 );
                 patch({ loras: next });
               }}
-              className="ml-auto h-7 w-16 rounded-md border border-border bg-card/80 px-1 text-[10px] text-foreground outline-none"
+              className="ml-auto h-7 w-16 rounded-md border border-border bg-card/80 px-1 text-[10px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
             />
           </div>
         ))}
@@ -277,7 +277,7 @@ export function UnclothNodeEditor({
           <select
             value={params.maskDetail.detailMethod}
             onChange={(e) => patch({ maskDetail: { ...params.maskDetail, detailMethod: e.target.value } })}
-            className="h-7 w-24 rounded-md border border-border bg-card/80 px-1 text-[10px] text-foreground outline-none"
+            className="h-7 w-24 rounded-md border border-border bg-card/80 px-1 text-[10px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
           >
             {["GuidedFilter", "PyMatting", "VITMatte", "VITMatte(local)", "PyMatting(local)"].map((m) => (
               <option key={m} value={m}>{m}</option>
@@ -303,7 +303,7 @@ export function UnclothNodeEditor({
                 .filter((item) => Number.isFinite(item)),
             })
           }
-          className="h-7 w-full rounded-md border border-border bg-card/80 px-1.5 text-[10px] text-foreground outline-none"
+          className="h-7 w-full rounded-md border border-border bg-card/80 px-1.5 text-[10px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
         />
       </UnclothParamGroup>
       )}

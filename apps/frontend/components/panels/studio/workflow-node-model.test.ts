@@ -339,7 +339,8 @@ describe("production workflow node model", () => {
       "storyboard",
       "assets",
       "storyboard",
-      "storyboardPanel",
+      // 1120 面板退役:storyboard 节点「进入」归一落分镜画布
+      "storyboard",
       "workbench",
       "workbench",
     ]);

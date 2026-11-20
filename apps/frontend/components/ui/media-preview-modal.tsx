@@ -45,6 +45,31 @@ const ZOOM_STEP = 1.6;
 /** 灯箱全局置顶(10-19 裁定沿用:必须压过 Radix overlay 的层叠上下文)。 */
 const LIGHTBOX_Z_INDEX = 2147483640;
 
+/** Tab 焦点环陷阱:焦点在弹窗内循环,不落到背后的页面控件。 */
+function trapFocusWithin(event: KeyboardEvent, root: HTMLElement | null): void {
+  if (event.key !== "Tab" || !root) return;
+  const focusables = Array.from(
+    root.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), video[controls], [tabindex]:not([tabindex="-1"])',
+    ),
+  );
+  if (focusables.length === 0) {
+    event.preventDefault();
+    root.focus();
+    return;
+  }
+  const first = focusables[0]!;
+  const last = focusables[focusables.length - 1]!;
+  const active = document.activeElement;
+  if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first.focus();
+  } else if (event.shiftKey && (active === first || active === root)) {
+    event.preventDefault();
+    last.focus();
+  }
+}
+
 export function ImagePreviewModal({
   imageUrl,
   imageUrls,
@@ -60,6 +85,7 @@ export function ImagePreviewModal({
   const [scale, setScale] = useState(MIN_SCALE);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<{ pointerId: number; startX: number; startY: number; baseX: number; baseY: number } | null>(null);
 
   // 重开/切图重置(弹窗重开或图组变化不残留上次缩放/平移/翻页)
@@ -111,10 +137,20 @@ export function ImagePreviewModal({
         event.stopPropagation();
         event.preventDefault();
         navigate(1);
+      } else {
+        trapFocusWithin(event, rootRef.current);
       }
     },
     [navigate, onClose],
   );
+
+  // 焦点接管/归还只随开关跑:依赖挂 onClose 会在宿主重渲染时把焦点反复抢回灯箱
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    rootRef.current?.focus();
+    return () => previousFocus?.focus();
+  }, [isOpen]);
 
   // 滚轮缩放须非 passive(preventDefault 阻断页面滚动)——React onWheel 有 passive
   // 风险,恒走原生监听
@@ -187,7 +223,8 @@ export function ImagePreviewModal({
     <div
       // 反穿透:根上拦 pointerdown(React 合成事件冒泡段)——Radix 的 document
       // 级监听泡不到;层叠显式最大值压过一切宿主上下文
-      className="fixed inset-0 flex items-center justify-center bg-black/85"
+      ref={rootRef}
+      className="fixed inset-0 flex items-center justify-center bg-black/85 outline-none"
       style={{ zIndex: LIGHTBOX_Z_INDEX, pointerEvents: "auto" }}
       onPointerDown={stopRoot}
       onClick={onBackdropClick}
@@ -196,6 +233,7 @@ export function ImagePreviewModal({
       role="dialog"
       aria-modal="true"
       aria-label="图片全屏预览"
+      tabIndex={-1}
     >
       {/* 工具栏:像素角标 + 缩放钮 + 关闭X(全部显式事件,永不失效) */}
       <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
@@ -205,7 +243,8 @@ export function ImagePreviewModal({
         <button
           type="button"
           aria-label="缩小"
-          className="rounded-md bg-black/50 p-2 text-white/85 transition-colors hover:bg-black/70"
+          disabled={scale <= MIN_SCALE}
+          className="rounded-md bg-black/50 p-2 text-white/85 transition-colors hover:bg-black/70 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-black/50 focus-visible:ring-2 focus-visible:ring-white/70"
           onClick={(event) => { event.stopPropagation(); zoomBy(1 / ZOOM_STEP); }}
         >
           <Minus className="h-4 w-4" />
@@ -213,7 +252,8 @@ export function ImagePreviewModal({
         <button
           type="button"
           aria-label="放大"
-          className="rounded-md bg-black/50 p-2 text-white/85 transition-colors hover:bg-black/70"
+          disabled={scale >= MAX_SCALE}
+          className="rounded-md bg-black/50 p-2 text-white/85 transition-colors hover:bg-black/70 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-black/50 focus-visible:ring-2 focus-visible:ring-white/70"
           onClick={(event) => { event.stopPropagation(); zoomBy(ZOOM_STEP); }}
         >
           <Plus className="h-4 w-4" />
@@ -281,7 +321,7 @@ export function ImagePreviewModal({
       >
         <img
           src={currentUrl}
-          alt="Preview"
+          alt="预览图片"
           draggable={false}
           className="max-h-[92vh] max-w-[94vw] select-none object-contain transition-transform duration-0"
           style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`, transformOrigin: "center center" }}
@@ -317,9 +357,39 @@ export function VideoPreviewModal({
   keyframeActions,
 }: VideoPreviewModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const disabled = Boolean(keyframeActions?.disabledReason);
   const actionsDisabled = disabled || Boolean(keyframeActions?.busy);
   const tooltip = keyframeActions?.disabledReason ?? (keyframeActions?.busy ? "正在抽帧…" : undefined);
+
+  // 焦点接管/归还只随开关跑:依赖挂 onClose 会在宿主重渲染时把焦点反复抢回弹窗
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialogRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
+  }, [isOpen]);
+
+  // Esc 关窗走 capture 阶段(Esc 不再顺带触发宿主弹窗的关闭);Tab 在弹窗内循环。
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      trapFocusWithin(event, dialogRef.current);
+    };
+    document.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () => document.removeEventListener("keydown", handleKeyDown, { capture: true });
+  }, [isOpen, onClose]);
 
   const reportCurrentTime = () => {
     const currentTime = videoRef.current?.currentTime;
@@ -332,8 +402,13 @@ export function VideoPreviewModal({
 
   return (
     <div
-      className="fixed inset-0 z-[999] bg-black/80 flex items-center justify-center"
+      ref={dialogRef}
+      className="fixed inset-0 z-[999] bg-black/80 flex items-center justify-center outline-none"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="视频预览"
+      tabIndex={-1}
     >
       <div className="relative max-w-[90vw] max-h-[90vh]" onClick={(event) => event.stopPropagation()}>
         <video

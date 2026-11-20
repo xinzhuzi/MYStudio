@@ -129,7 +129,9 @@ export function buildStoryboardPanelNode(ctx: ProductionFlowBuildContext): Produ
     storyboardTiles: ctx.storyboardTiles,
     skills: ctx.storyboardSkills,
     actions: [],
-    targetStage: "storyboardPanel",
+    // 1120 面板退役:节点「进入」落分镜画布(原 storyboardPanel 页已摘;
+    // NodeDocViewer onEnterStage 随此自然指画布)
+    targetStage: "storyboard",
   };
 }
 

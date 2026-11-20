@@ -295,11 +295,6 @@ export function useStudioViewModel() {
     },
     [handleStageChange],
   );
-  const closeAssetImageWorkflow = useCallback(() => {
-    const returnStage = assetImageWorkflowContext?.sourceStage || "storyboard";
-    setAssetImageWorkflowContext(undefined);
-    handleStageChange(returnStage);
-  }, [assetImageWorkflowContext?.sourceStage, handleStageChange]);
 
   return {
     activeWorkflowTab,
@@ -348,7 +343,6 @@ export function useStudioViewModel() {
     handleOpenFinalVideo,
     assetImageWorkflowContext,
     openAssetImageWorkflow,
-    closeAssetImageWorkflow,
     storyboards,
     chapterStoryboards,
     productionTracks,

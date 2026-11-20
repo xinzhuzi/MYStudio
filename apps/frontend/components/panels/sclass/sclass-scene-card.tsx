@@ -197,7 +197,11 @@ export function SClassSceneCard({
         {!isGeneratingAny && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <button className="p-1 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                aria-label={`删除分镜 #${scene.id + 1}`}
+                title="删除分镜"
+                className="p-1 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-primary/60 transition-opacity"
+              >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             </AlertDialogTrigger>

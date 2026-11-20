@@ -79,7 +79,6 @@ export type ProductionFlowStage =
   | "script"
   | "assets"
   | "storyboard"
-  | "storyboardPanel"
   | "workbench";
 export type ProductionFlowNodeStatus =
   | "empty"

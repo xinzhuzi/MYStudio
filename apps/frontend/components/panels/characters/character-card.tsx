@@ -109,12 +109,22 @@ export function CharacterCard({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
+          role="button"
+          tabIndex={0}
+          aria-pressed={isSelected}
+          aria-label={`选择角色 ${character.name}`}
           className={cn(
-            "p-3 rounded-lg border transition-all cursor-pointer",
+            "p-3 rounded-lg border transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-inset",
             "hover:border-primary/40 hover:bg-muted/30",
             isSelected ? "border-primary bg-primary/8 ring-1 ring-primary/30" : "border-border/60 bg-card/60",
           )}
           onClick={onSelect}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onSelect();
+            }
+          }}
           draggable
           onDragStart={handleDragStart}
         >
@@ -289,11 +299,20 @@ export function CharacterCard({
               </div>
             ))}
             {variationCount > 4 && (
-              <div 
-                className="aspect-square rounded-md bg-muted overflow-hidden flex items-center justify-center cursor-pointer hover:bg-muted/80"
+              <div
+                role="button"
+                tabIndex={0}
+                aria-label={`查看全部 ${variationCount} 套造型`}
+                className="aspect-square rounded-md bg-muted overflow-hidden flex items-center justify-center cursor-pointer hover:bg-muted/80 focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-inset"
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowWardrobe(true);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setShowWardrobe(true);
+                  }
                 }}
               >
                 <span className="text-xs text-muted-foreground">+{variationCount - 4}</span>

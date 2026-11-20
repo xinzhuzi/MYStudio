@@ -238,9 +238,19 @@ export function ShotListPanel({ onGenerateImage }: ShotListPanelProps) {
                 return (
                   <div
                     key={shot.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={isSelected}
+                    aria-label={`选择镜头 ${idx + 1}`}
                     onClick={() => selectShot(shot.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        selectShot(shot.id);
+                      }
+                    }}
                     className={cn(
-                      "group relative rounded-lg overflow-hidden cursor-pointer transition-all border",
+                      "group relative rounded-lg overflow-hidden cursor-pointer transition-all border focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-inset",
                       isSelected
                         ? "border-primary ring-2 ring-primary/30"
                         : "border-border hover:border-muted-foreground/50"
@@ -313,9 +323,19 @@ export function ShotListPanel({ onGenerateImage }: ShotListPanelProps) {
                       return (
                         <div
                           key={shot.id}
+                          role="button"
+                          tabIndex={0}
+                          aria-pressed={isSelected}
+                          aria-label={`选择镜头 ${globalIdx + 1}`}
                           onClick={() => selectShot(shot.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              selectShot(shot.id);
+                            }
+                          }}
                           className={cn(
-                            "flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-all",
+                            "flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-all focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-inset",
                             isSelected
                               ? "bg-primary/10 border border-primary/30"
                               : "hover:bg-muted border border-transparent"
@@ -326,6 +346,7 @@ export function ShotListPanel({ onGenerateImage }: ShotListPanelProps) {
                             {hasImage ? (
                               <img
                                 src={startKf?.imageUrl || shot.imageUrl}
+                                alt={`镜头 ${globalIdx + 1} 首帧缩略图`}
                                 className="w-full h-full object-cover"
                               />
                             ) : (

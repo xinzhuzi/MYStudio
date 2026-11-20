@@ -74,13 +74,17 @@ export function AmbientSoundInput({
         </div>
         <button
           onClick={handleSave}
-          className="p-1 hover:bg-primary/10 rounded-md text-primary"
+          aria-label="保存环境音"
+          title="保存"
+          className="p-1 hover:bg-primary/10 rounded-md text-primary focus-visible:ring-2 focus-visible:ring-primary/60"
         >
           <Check className="h-3 w-3" />
         </button>
         <button
           onClick={handleCancel}
-          className="p-1 hover:bg-destructive/10 rounded-md text-muted-foreground hover:text-destructive"
+          aria-label="取消编辑"
+          title="取消"
+          className="p-1 hover:bg-destructive/10 rounded-md text-muted-foreground hover:text-destructive focus-visible:ring-2 focus-visible:ring-primary/60"
         >
           <X className="h-3 w-3" />
         </button>

@@ -18,8 +18,6 @@ import { WORKFLOW_TABS } from "@/components/panels/studio/workflow-stage/workflo
  * `lib/studio/workflow-readiness.ts` (STAGE_DEFS).
  */
 const STAGE_DESCRIPTIONS: Record<string, string> = {
-  storyboardPanel:
-    "浏览当前章节全部分镜,逐镜进入图片工作流生成画面。",
   manuals:
     "选定视觉风格与色彩基调，编写视觉、导演手册，确立全片统一的画面与镜头语言基调。",
   novel:
@@ -48,8 +46,8 @@ export interface OverviewStageGuideEntry {
  * {@link WORKFLOW_TABS} (same order) with a description attached to each.
  */
 export const OVERVIEW_STAGE_GUIDE: OverviewStageGuideEntry[] = WORKFLOW_TABS
-  // 分镜面板是节点图「进入」专属视图(用户裁定:唯一入口),概览阶段卡不列
-  .filter(({ value }) => value !== "storyboardPanel")
+  // 1120 分镜面板页退役:概览阶段卡与页签同源直映(原 storyboardPanel
+  // 排除项随页摘除,恒真 filter 同批清)
   .map(({ value, label, Icon }) => ({
     id: value,
     label,

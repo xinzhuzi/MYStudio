@@ -1494,8 +1494,13 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("hasLastStoryboardWorkflowEntry");
     expect(runnerScript).toContain("data.derivedImageWorkflowsReady >= 3");
     expect(runnerScript).toContain("openRealProjectStoryboardImageWorkflowDetail");
-    expect(runnerScript).toContain("data-storyboard-workflow-image-id");
-    expect(runnerScript).toContain("data-storyboard-id");
+    // 1120 分镜面板退役改道:面板卡锚(data-storyboard-workflow-image-id/
+    // data-storyboard-id)退役,单镜图工作流入口=引擎桥动作 open-shot-image
+    // (宿主消费→openAssetImageWorkflow→imageWorkflow 页)
+    expect(runnerScript).toContain("kind: 'open-shot-image'");
+    expect(runnerScript).toContain("/comfy/bridge/actions");
+    expect(runnerScript).toContain("localImageToken");
+    expect(runnerScript).not.toContain("data-storyboard-panel-shot");
     expect(runnerScript).toContain("openRealProjectDerivativeImageWorkflowDetail");
     expect(runnerScript).toContain("data-asset-workflow-image-id");
     expect(runnerScript).toContain("asset-flow-chapter-001");
@@ -1662,7 +1667,12 @@ describe("desktop build scripts", () => {
       runnerScript.indexOf("await waitFor(() => normalize(document.body).includes(projectName)"),
     );
 
-    expect(storyboardDetail).toContain("if (!clicked) {\n        return {");
+    // 1120 面板退役改道:失败早退=桥点火失败(fired.ok),不再找面板卡 clicked
+    expect(storyboardDetail).toContain("if (!fired.ok) {\n        return {");
+    expect(storyboardDetail).toContain("bridge open-shot-image failed: ");
+    // 宿主消费闸:收件箱 open-shot-image 被 ack 消失 + imageWorkflow 页挂载
+    expect(storyboardDetail).toContain("item.kind === 'open-shot-image'");
+    expect(storyboardDetail).toContain("querySelectorAll('[data-comfy-swap=\"comfy\"]').length >= 2");
     expect(storyboardDetail).toContain(
       "lastDetail = evidence;\n        return evidence.ready ? evidence : null;",
     );

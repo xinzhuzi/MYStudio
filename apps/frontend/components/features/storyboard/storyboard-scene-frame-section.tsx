@@ -80,7 +80,7 @@ function FrameActionButtons({
   const label = kind === "start" ? "首帧" : "尾帧";
   return (
     <div
-      className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover/image:opacity-100 group-hover/endframe:opacity-100 transition-opacity"
+      className="absolute top-1 right-1 z-10 flex gap-1 opacity-0 group-hover/image:opacity-100 group-hover/endframe:opacity-100 focus-within:opacity-100 transition-opacity"
       onClick={(event) => event.stopPropagation()}
     >
       <button
@@ -91,8 +91,9 @@ function FrameActionButtons({
           onAngleSwitch?.(sceneId, kind);
         }}
         disabled={isAngleSwitching}
-        className="p-0.5 rounded-md bg-background/80 hover:bg-background text-foreground border border-border/40 backdrop-blur-xs hover:border-warning/50 hover:text-warning disabled:opacity-50 transition-all"
+        className="p-0.5 rounded-md bg-background/80 hover:bg-background text-foreground border border-border/40 backdrop-blur-xs hover:border-warning/50 hover:text-warning disabled:opacity-50 transition-all focus-visible:ring-2 focus-visible:ring-primary/70"
         title="切换视角"
+        aria-label={`切换${label}视角`}
       >
         <RotateCw className="h-3 w-3" />
       </button>
@@ -104,8 +105,9 @@ function FrameActionButtons({
           onQuadGrid?.(sceneId, kind);
         }}
         disabled={isQuadGridGenerating}
-        className="p-0.5 rounded-md bg-foreground/20 text-foreground hover:bg-primary/60 disabled:opacity-50"
+        className="p-0.5 rounded-md bg-foreground/20 text-foreground hover:bg-primary/60 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-primary/70"
         title="四宫格生成"
+        aria-label={`${label}四宫格生成`}
       >
         <Grid2X2 className="h-3 w-3" />
       </button>
@@ -116,8 +118,9 @@ function FrameActionButtons({
           event.preventDefault();
           onDownload();
         }}
-        className="p-0.5 rounded-md bg-foreground/20 text-foreground hover:bg-primary/60"
+        className="p-0.5 rounded-md bg-foreground/20 text-foreground hover:bg-primary/60 focus-visible:ring-2 focus-visible:ring-primary/70"
         title={`下载${label}`}
+        aria-label={`下载${label}`}
       >
         <Download className="h-3 w-3" />
       </button>
@@ -128,8 +131,9 @@ function FrameActionButtons({
           event.preventDefault();
           onRemove();
         }}
-        className="p-0.5 rounded-md bg-background/80 hover:bg-background text-foreground border border-border/40 backdrop-blur-xs hover:border-destructive/50 hover:text-destructive transition-all"
+        className="p-0.5 rounded-md bg-background/80 hover:bg-background text-foreground border border-border/40 backdrop-blur-xs hover:border-destructive/50 hover:text-destructive transition-all focus-visible:ring-2 focus-visible:ring-primary/70"
         title={`删除${label}`}
+        aria-label={`删除${label}`}
       >
         <X className="h-3 w-3" />
       </button>
@@ -152,7 +156,7 @@ function StopGenerationButton({
         event.stopPropagation();
         onStop?.(sceneId);
       }}
-      className={`${className} px-2 py-0.5 rounded-md bg-destructive/80 hover:bg-destructive text-foreground text-[9px] flex items-center gap-0.5 transition-colors`}
+      className={`${className} px-2 py-0.5 rounded-md bg-destructive/80 hover:bg-destructive text-destructive-foreground text-[9px] flex items-center gap-0.5 transition-colors focus-visible:ring-2 focus-visible:ring-primary/70`}
       title="停止生成"
     >
       <Square className="h-2.5 w-2.5" />停止
@@ -346,19 +350,29 @@ export function StoryboardSceneFrameSection({
             "aspect-video bg-muted rounded-lg cursor-pointer relative group/image group/endframe overflow-hidden border-2 transition-colors",
             imageClass,
           )}
-          onClick={() => {
-            setSelectedFrameTarget(kind);
-            if (hasFrame && url) {
-              setPreviewItem({ type: "image", url, name: `分镜 ${scene.id + 1} ${isStart ? "首帧" : "尾帧"}` });
-            } else {
-              (isStart ? firstFrameInputRef : endFrameInputRef).current?.click();
-            }
-          }}
         >
+          {/* 键盘可达的主操作层:铺满画格,图片/占位内容让点击穿透到它 */}
+          <button
+            type="button"
+            aria-label={
+              hasFrame
+                ? `预览分镜 ${scene.id + 1} ${isStart ? "首帧" : "尾帧"}`
+                : `上传分镜 ${scene.id + 1} ${isStart ? "首帧" : "尾帧"}`
+            }
+            className="absolute inset-0 z-0 rounded-lg focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-inset"
+            onClick={() => {
+              setSelectedFrameTarget(kind);
+              if (hasFrame && url) {
+                setPreviewItem({ type: "image", url, name: `分镜 ${scene.id + 1} ${isStart ? "首帧" : "尾帧"}` });
+              } else {
+                (isStart ? firstFrameInputRef : endFrameInputRef).current?.click();
+              }
+            }}
+          />
           {hasFrame ? (
             <>
               <>
-                <img src={url || ""} alt={`分镜 ${scene.id + 1} ${isStart ? "首帧" : "尾帧"}`} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                <img src={url || ""} alt={`分镜 ${scene.id + 1} ${isStart ? "首帧" : "尾帧"}`} className="pointer-events-none relative w-full h-full object-cover" loading="lazy" decoding="async" />
                 <ResolutionBadge src={url || ""} />
               </>
               <FrameActionButtons

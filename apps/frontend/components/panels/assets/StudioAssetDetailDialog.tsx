@@ -76,7 +76,6 @@ import {
   type GenerationOutcomeRecord,
 } from "./studio-asset-generation-result-dialog";
 import { ImagePreviewModal } from "@/components/ui/media-preview-modal";
-import { StudioAssetRoleAttributes, parseStudioAssetRoleAttributes } from "./studio-asset-role-attributes";
 
 export { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetImageOpenTarget, getAssetOperationError, getAssetSpokenText, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 export { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
@@ -293,8 +292,6 @@ export function StudioAssetDetailDialog({
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   // 10-24 布局重造批1:元信息区折叠态(默认展开;localStorage 记忆)
   const [metaCollapsed, setMetaCollapsed] = useState(readMetaCollapsed);
-  // 10-27 布局修:属性卡可解析字段为空(如英文设定)时整格消,音色顶格全宽
-  const roleAttributesPresent = asset?.type === "role" && parseStudioAssetRoleAttributes(draftSetting || asset?.setting || "").length > 0;
   // R4 族聚显展示序:族序(updatedAt 倒序)+ live 新图置顶;本行条目可编辑、
   // 族兄弟只读。familyImages 未提供时恒等 images(资产库面板等调用方零变化)。
   const displayImages = useMemo<FamilyDisplayImageEntry[]>(
@@ -848,8 +845,11 @@ export function StudioAssetDetailDialog({
                         )}
                       </div>
                     </section>
-                    <section className="min-w-0 space-y-1.5">
-                      <div className="text-xs font-medium text-muted-foreground">{asset.type === "audio" ? "说话内容" : "描述"}</div>
+                    {/* 1120 修遮挡:space-y+h-full 组合下 textarea 按 section 全高膨胀,
+                        连标签带间距一起顶出 ~20px 溢出,扎进下行音色卡底下被盖——改
+                        flex 纵列 + flex-1,只填标签之下的剩余空间,恒不出框 */}
+                    <section className="flex min-w-0 flex-col gap-1.5">
+                      <div className="shrink-0 text-xs font-medium text-muted-foreground">{asset.type === "audio" ? "说话内容" : "描述"}</div>
                       <Textarea
                         value={asset.type === "audio" ? spokenText : draftDescription}
                         onChange={(event) => {
@@ -857,19 +857,14 @@ export function StudioAssetDetailDialog({
                           setRecognizedText(null);
                         }}
                         placeholder={asset.type === "audio" ? "暂无口播词句" : "暂无描述"}
-                        className="h-full min-h-[96px] resize-none bg-muted/90 text-xs leading-5"
+                        className="min-h-[96px] flex-1 resize-none bg-muted/90 text-xs leading-5"
                       />
                     </section>
-                    {/* 行2: 角色属性 | 音色(仅 role)——10-25 二令:音色钉右列(描述正下方),
-                     col-start-2 保属性卡为空(设定无可解析字段)时也恒在描述下方不漂左列;
-                     框只留一层(组件本体自带 border 卡,外层包裹去框去底,防框套框) */}
-                    {asset.type === "role" && roleAttributesPresent && (
-                      <div className="min-w-0">
-                        <StudioAssetRoleAttributes setting={draftSetting || asset.setting || ""} />
-                      </div>
-                    )}
+                    {/* 行2: 音色(仅 role,恒全宽)——1120 用户令:人物属性卡撤除,
+                     与「设定」合一(属性卡本就是设定文本的只读解析视图,信息本体在
+                     设定框,双框展示属冗余);音色不再钉右列,col-span-2 恒全宽 */}
                     {asset.type === "role" && (
-                      <div className={`${roleAttributesPresent ? "col-start-2" : "col-span-2"} min-w-0 h-full`}>
+                      <div className="col-span-2 min-w-0 h-full">
                         {(() => {
                           if (!roleVoiceBinding || !roleVoiceProfile) {
                             return (
@@ -1067,13 +1062,15 @@ export function StudioAssetDetailDialog({
                       </section>
                     ) : null}
                     {asset.type !== "audio" ? (
-                      <section className="col-span-2 min-w-0 space-y-1.5">
-                        <div className="text-xs font-medium text-muted-foreground">设定</div>
+                      <section className="col-span-2 flex min-w-0 flex-col gap-1.5">
+                        {/* 1120 修遮挡:同描述区病灶(h-full 按含标签全高膨胀溢出,扎进
+                            底部保存/删除行),改 flex 纵列 + flex-1 */}
+                        <div className="shrink-0 text-xs font-medium text-muted-foreground">设定</div>
                         <Textarea
                           value={draftSetting}
                           onChange={(event) => setDraftSetting(event.target.value)}
                           placeholder="暂无设定"
-                          className="h-full min-h-[96px] resize-none bg-muted/90 text-xs leading-5"
+                          className="min-h-[96px] flex-1 resize-none bg-muted/90 text-xs leading-5"
                         />
                       </section>
                     ) : null}

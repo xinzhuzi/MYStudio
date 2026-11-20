@@ -1,7 +1,8 @@
 /**
- * 分镜素材自动绑定的面板挂载侧(批4):读章/项目/视觉手册上下文,把
- * storyboard-asset-binding 的编排接成可注入 StoryboardPanelTab 的 props
- * (按钮+例外清单;批5 章验收卡横幅同源消费 useStoryboardBindingStore)。
+ * 分镜素材自动绑定的挂载侧(批4):读章/项目/视觉手册上下文,把
+ * storyboard-asset-binding 的编排接成 StudioView 桥动作可调的 hook
+ * (1120 面板退役:引擎节点按钮 auto-bind-assets → sidebarActions;
+ * 批5 章验收卡横幅同源消费 useStoryboardBindingStore)。
  */
 import { useCallback } from "react";
 import { useProjectStore } from "@/stores/project/project-store";

@@ -3,6 +3,8 @@
 
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { ComfyCanvasStudio, buildCanvasFitScript, buildOverviewOpenScript } from "./ComfyCanvasStudio";
 import { createMockComfyEngineClient } from "@/components/panels/settings/comfy-engine/mock-comfy-engine-client";
 import { resetComfyEngineAutoStartStateForTests, useComfyEngineSettings } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
@@ -628,6 +630,138 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     await act(async () => { polls.forEach((poll) => poll()); });
     await waitFor(() => expect(ack).toHaveBeenCalledTimes(2));
     expect(generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("面板迁移动作(1120 分镜面板退役):force/H3 发车/章流水线等新 kind 分发宿主回调", async () => {
+    const calls: string[] = [];
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = {
+      ...stubClient({ installed: true, state: "ready", serviceRunning: true, port: 17007 }),
+      getBridgeActions: vi.fn(async (cursor: number) =>
+        cursor === 0
+          ? { cursor: 0, queueId: "panel-migration", items: [
+              { id: 1, kind: "generate-images-force", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 2, kind: "h3-start", note: "480p", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 3, kind: "chapter-pipeline-start", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 4, kind: "generate-images-stop", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 5, kind: "h3-stop", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 6, kind: "auto-bind-assets", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 7, kind: "daoyan-import", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 8, kind: "open-final-video", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 9, kind: "h3-import-orphans", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 10, kind: "h3-archive-backfill", originProjectId: "project-a", originEpisodeId: "episode-1" },
+            ] }
+          : { cursor, items: [] }),
+      ackBridgeActions: vi.fn(async () => 10),
+    } as ComfyEngineClient;
+    const handlers = {
+      onGenerateImagesForce: vi.fn(() => calls.push("generate-images-force")),
+      onH3Start: vi.fn((tier: string) => calls.push(`h3-start:${tier}`)),
+      onChapterPipelineStart: vi.fn(() => calls.push("chapter-pipeline-start")),
+      onGenerateImagesStop: vi.fn(() => calls.push("generate-images-stop")),
+      onH3Stop: vi.fn(() => calls.push("h3-stop")),
+      onAutoBindAssets: vi.fn(() => calls.push("auto-bind-assets")),
+      onDaoyanImport: vi.fn(() => calls.push("daoyan-import")),
+      onOpenFinalVideo: vi.fn(() => calls.push("open-final-video")),
+      onH3ImportOrphans: vi.fn(() => calls.push("h3-import-orphans")),
+      onH3ArchiveBackfill: vi.fn(() => calls.push("h3-archive-backfill")),
+    };
+    render(<ComfyCanvasStudio sidebarActions={{ onGenerateImages: vi.fn(), onGenerateVideos: vi.fn(), ...handlers }} />);
+    const webview = (await waitFor(() => {
+      const el = document.querySelector("[data-comfy-canvas-webview]") as
+        (HTMLElement & { executeJavaScript?: (code: string) => Promise<unknown> }) | null;
+      if (!el) throw new Error("webview 未挂");
+      return el;
+    }, { timeout: 3000 }))!;
+    webview.dispatchEvent(new Event("dom-ready"));
+    await waitFor(() => expect(calls).toEqual([
+      "generate-images-force",
+      "h3-start:480p",
+      "chapter-pipeline-start",
+      "generate-images-stop",
+      "h3-stop",
+      "auto-bind-assets",
+      "daoyan-import",
+      "open-final-video",
+      "h3-import-orphans",
+      "h3-archive-backfill",
+    ]));
+    // h3 发车档位经 note 透传(载荷 noteKey → data-note → 桥 note)
+    expect(handlers.onH3Start).toHaveBeenCalledWith("480p");
+  });
+
+  it("StudioView 接线(1120 面板迁移):force 回调带 forceRegenerate:true,hook 原地零搬家", () => {
+    // jsdom 环境 import.meta.url 为 http 协议,改走 cwd 相对路径(vitest 恒自 apps 跑)
+    const source = readFileSync(
+      resolve(process.cwd(), "frontend/components/panels/studio/index.tsx"),
+      "utf8",
+    );
+    // force 语义=全量重出入口(1116 面板同款),hook 留 StudioView(桥唯一宿主落点)
+    expect(source).toContain("onGenerateImagesForce: () => {");
+    expect(source).toContain("storyboardBatch.start({ forceRegenerate: true })");
+    expect(source).toContain("onH3Start: (tier: string) => {");
+    expect(source).toContain("storyboardH3VideoBatch.start({ tier:");
+    expect(source).toContain("onChapterPipelineStart: () => {");
+    expect(source).toContain("chapterPipeline.start();");
+    expect(source).toContain("onAutoBindAssets: () => {");
+    expect(source).toContain("storyboardAssetBinding.start();");
+    expect(source).toContain("onDaoyanImport: () => {");
+    expect(source).toContain("daoyanImport.run();");
+  });
+
+  it("单镜动作面(1120):open-shot-image 等五 kind 分发宿主回调,note=shotId 编码透传", async () => {
+    const calls: string[] = [];
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = {
+      ...stubClient({ installed: true, state: "ready", serviceRunning: true, port: 17007 }),
+      getBridgeActions: vi.fn(async (cursor: number) =>
+        cursor === 0
+          ? { cursor: 0, queueId: "shot-actions", items: [
+              { id: 1, kind: "open-shot-image", note: "sb-1", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 2, kind: "compare-frames", note: "sb-1", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 3, kind: "compare-video", note: "sb-1", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 4, kind: "keyframe-extract", note: "sb-1|uniform|3", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 5, kind: "set-audio-mix", note: "sb-1|mixed", originProjectId: "project-a", originEpisodeId: "episode-1" },
+            ] }
+          : { cursor, items: [] }),
+      ackBridgeActions: vi.fn(async () => 5),
+    } as ComfyEngineClient;
+    const onOpenShotImage = vi.fn((shotId: string) => calls.push(`open-shot-image:${shotId}`));
+    const onCompareFrames = vi.fn((shotId: string) => calls.push(`compare-frames:${shotId}`));
+    const onCompareVideo = vi.fn((shotId: string) => calls.push(`compare-video:${shotId}`));
+    const onKeyframeExtract = vi.fn((note: string) => calls.push(`keyframe-extract:${note}`));
+    const onSetAudioMix = vi.fn((note: string) => calls.push(`set-audio-mix:${note}`));
+    render(<ComfyCanvasStudio sidebarActions={{
+      onGenerateImages: vi.fn(), onGenerateVideos: vi.fn(),
+      onOpenShotImage, onCompareFrames, onCompareVideo, onKeyframeExtract, onSetAudioMix,
+    }} />);
+    const webview = (await waitFor(() => {
+      const el = document.querySelector("[data-comfy-canvas-webview]") as
+        (HTMLElement & { executeJavaScript?: (code: string) => Promise<unknown> }) | null;
+      if (!el) throw new Error("webview 未挂");
+      return el;
+    }, { timeout: 3000 }))!;
+    webview.dispatchEvent(new Event("dom-ready"));
+    await waitFor(() => expect(calls).toEqual([
+      "open-shot-image:sb-1",
+      "compare-frames:sb-1",
+      "compare-video:sb-1",
+      "keyframe-extract:sb-1|uniform|3",
+      "set-audio-mix:sb-1|mixed",
+    ]));
+    expect(onOpenShotImage).toHaveBeenCalledWith("sb-1");
+  });
+
+  it("单镜进图工作流 sourceStage 归一 storyboard(1120:原面板 storyboardPanel 退役)", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "frontend/components/panels/studio/index.tsx"),
+      "utf8",
+    );
+    // sourceStage 归一 storyboard:回跳落分镜画布而非 manuals 回落(根修残留③)
+    expect(source).toContain('sourceStage: "storyboard",');
+    expect(source).toContain('sourceStageLabel: "分镜画布",');
+    expect(source).not.toContain(['sourceStage', '"storyboardPanel"'].join(': '));
+    // 版本对对话框挂点在 StudioView(面板退役后新宿主)
+    expect(source).toContain("<ShotImageCompareDialog");
+    expect(source).toContain("<ShotVideoCompareDialog");
   });
 
   it("无处理器的 models 画布保留制作动作", async () => {

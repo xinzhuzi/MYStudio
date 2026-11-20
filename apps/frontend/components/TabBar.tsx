@@ -15,11 +15,10 @@ export const HELP_REPOSITORY_URL = "https://github.com/xinzhuzi/MYStudio";
 
 interface TabBarProps {
   sidebarCollapsed: boolean;
-  onToggleSidebar: () => void;
 }
 
  
-export function TabBar({ sidebarCollapsed}: TabBarProps) {
+export function TabBar({ sidebarCollapsed }: TabBarProps) {
   const { activeTab, inProject, setActiveTab, setInProject } = useMediaPanelStore();
 
   const sidebarClassName = cn(
@@ -44,6 +43,7 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => { setActiveTab("dashboard"); }}
+                  aria-current={activeTab === "dashboard" ? "page" : undefined}
                   className={cn(
                     "studio-nav-button relative w-full flex flex-col items-center py-1.5 transition-colors rounded-md",
                     activeTab === "dashboard"
@@ -53,7 +53,7 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
                 >
                   {activeTab === "dashboard" && <span className="cinematic-light-guide" aria-hidden="true" />}
                   <LayoutDashboard className="h-5 w-5" />
-                  <span className="text-[9px] leading-tight">项目</span>
+                  <span className="text-[10px] leading-tight">项目</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">项目仪表盘</TooltipContent>
@@ -71,7 +71,7 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
                   className="studio-nav-button w-full flex flex-col items-center py-2 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <HelpCircle className="h-4 w-4" />
-                  <span className="text-[8px]">帮助</span>
+                  <span className="text-[10px]">帮助</span>
                 </a>
               </TooltipTrigger>
               <TooltipContent side="right">使用帮助</TooltipContent>
@@ -82,13 +82,14 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => { setActiveTab("settings"); }}
+                  aria-current={activeTab === "settings" ? "page" : undefined}
                   className={cn(
                     "studio-nav-button w-full flex flex-col items-center py-1.5 transition-colors rounded-md",
                     activeTab === "settings" ? "is-active text-primary" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   <Settings className="h-4 w-4" />
-                  <span className="text-[8px] leading-tight">设置</span>
+                  <span className="text-[10px] leading-tight">设置</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">系统设置</TooltipContent>
@@ -116,7 +117,7 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
                 className="studio-nav-button w-full flex flex-col items-center py-1.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/50 rounded-md"
               >
                 <Home className="h-5 w-5" />
-                <span className="text-[9px] leading-tight">主页</span>
+                <span className="text-[10px] leading-tight">主页</span>
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">返回项目列表</TooltipContent>
@@ -133,6 +134,7 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => { setActiveTab(item.id); }}
+                    aria-current={isActive ? "page" : undefined}
                     className={cn(
                       "studio-nav-button relative w-full flex flex-col items-center py-1.5 transition-colors rounded-md",
                       isActive
@@ -142,7 +144,7 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
                   >
                     {isActive && <span className="cinematic-light-guide" aria-hidden="true" />}
                     <Icon className="h-5 w-5" />
-                    <span className="text-[9px] leading-tight">{item.label}</span>
+                    <span className="text-[10px] leading-tight">{item.label}</span>
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="right">{item.label}</TooltipContent>
@@ -163,7 +165,7 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
                 className="studio-nav-button w-full flex flex-col items-center py-1.5 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <HelpCircle className="h-4 w-4" />
-                <span className="text-[8px] leading-tight">帮助</span>
+                <span className="text-[10px] leading-tight">帮助</span>
               </a>
             </TooltipTrigger>
             <TooltipContent side="right">使用帮助</TooltipContent>
@@ -179,6 +181,7 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => { setActiveTab(item.id); }}
+                    aria-current={isActive ? "page" : undefined}
                     className={cn(
                       "studio-nav-button relative w-full flex flex-col items-center py-1.5 transition-colors rounded-md",
                       isActive ? "is-active text-primary" : "text-muted-foreground hover:text-foreground"
@@ -186,7 +189,7 @@ export function TabBar({ sidebarCollapsed}: TabBarProps) {
                   >
                     {isActive && <span className="cinematic-light-guide" aria-hidden="true" />}
                     <Icon className="h-4 w-4" />
-                    <span className="text-[8px] leading-tight">{item.label}</span>
+                    <span className="text-[10px] leading-tight">{item.label}</span>
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="right">{item.label}</TooltipContent>
