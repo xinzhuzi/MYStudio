@@ -21,8 +21,8 @@ interface EntityExtraction {
 
 for (const ch of CHAPTERS) {
   const dir = `${ROOT}/${ch}`;
-  const ts = 1794822000000 + Number(ch.slice(7)) * 1000;
-  const sourceScript = { entryId: `work-${ts}-ep${ch.slice(7)}v1`, updatedAt: ts };
+  const ts = 1794822000000 + Number(ch.slice(8)) * 1000;
+  const sourceScript = { entryId: `work-${ts}-ep${ch.slice(8)}v1`, updatedAt: ts };
 
   describe(`vol3 ${ch}`, () => {
     it("parse → precheck → rows → voiceStyle 全绿", () => {
