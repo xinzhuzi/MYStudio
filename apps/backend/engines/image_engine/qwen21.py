@@ -144,7 +144,12 @@ SPEED_MODE_E_HYBRID = "3 · 混动 40步+缓存"
 # 1108 默认档:⑦Pruna 臂(p_q 6步v0.2×1.0+mikkoani@0.6,六步原表+关CFG);拉齐轮起三件(t2i/i2i/edit)通吃
 SPEED_MODE_PRUNA = "4 · PrunaAI 6步"
 # 有手型名单(10-26 立,1108 随默认指向档4;实测人物海报=虚握剑鞘手部全绿)
-_TYPE_NATIVE_40STEP = frozenset({"美宣"})  # 1119 用户终裁:美宣=原生40步(唯裸40步两全)
+# 1120 型级路由定谳(十发三臂对拍,产物 qi21-routing-p4-1120):美宣+人物海报=
+# 原生40步(海报 8.6 分碾压 pruna6 7.6,超分增益最大);设定卡=官方Turbo 8步
+# (文字生死线 turbo8 9/10 vs native40 6/10 vs pruna6 3/10 乱码);人物多视图维持
+# PrunaAI(7.8 vs 8.2 险差,6 步拿九成画质+版面最净=性价比);其余型不动。
+_TYPE_NATIVE_40STEP = frozenset({"美宣", "人物海报"})  # 1119 美宣终裁;1120 海报入列
+_TYPE_TURBO_8STEP = frozenset({"设定卡"})  # 1120 文字生死线定谳
 _HAND_PRUNA_TYPES = frozenset({"无衣物定妆", "人物海报", "人物多视图", "设定卡", "美宣", "自由"})
 # E 臂配方逐字对齐画布加速子图(my_nodes/subgraphs/qi21-道劫-加速子图*.json):
 # 1101 Phase1 案B(用户选定):E 尾 SCA 三件(7041/7042/7043)→单 KSampler [7045] cfg=4
@@ -160,8 +165,8 @@ _ENCODER_NODE = "4015"        # MyQi21FastEncode:槽0=正向/槽1=负向(负向�
 _SEED_SOURCE_NODE = "7:7014"  # seed 单源(1101 Phase1 起 E KSampler 直连新扇出)
 # 测试侧 mock 可用类集须并入(真实引擎 object_info 已含,模板类集不含——
 # 旧模板漂移重注路运行时注入 LazyCache/KSampler;KSampler 为核心类,仅
-# mock 类集面需要补,真实引擎零安装动作)。
-E_HYBRID_INJECTED_CLASSES = frozenset({"LazyCache", "BasicScheduler", "KSampler"})
+# mock 类集面需要补,真实引擎零安装动作。1120:Turbo 臂注 ManualSigmas 同理)。
+E_HYBRID_INJECTED_CLASSES = frozenset({"LazyCache", "BasicScheduler", "KSampler", "ManualSigmas"})
 
 
 def _materialize_e_hybrid(graph: dict[str, Any]) -> None:
@@ -245,17 +250,57 @@ def apply_hand_speed_mode(graph: dict[str, Any], base_type: Any,
         speed.setdefault("inputs", {})["mode"] = hand_default
     if not (isinstance(speed, dict) and isinstance(speed.get("inputs", {}).get("mode"), str)
             and speed["inputs"]["mode"] == SPEED_MODE_E_HYBRID):
-        # 1119 美宣终裁:原生40步覆写(在档3检查之前,优先级最高)
+        # 1119 美宣终裁:原生40步覆写(在档3检查之前,优先级最高);
+        # 1120 型级路由:native40 > turbo8 > hand_default(设定卡走官方Turbo臂)
         if isinstance(base_type, str) and base_type.strip() in _TYPE_NATIVE_40STEP:
             _apply_native_40step(graph)
+        elif isinstance(base_type, str) and base_type.strip() in _TYPE_TURBO_8STEP:
+            _apply_turbo_8step(graph)
         return
     if speed["inputs"].get("latent_e") == ["7:7045", 0]:
         return  # 已物质化 KSampler 形(1101 Phase1 幂等)
     _materialize_e_hybrid(graph)
 
 
+_TURBO_LORA_FILE = "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors"
+# 官方 Turbo σ表(画布件 [7030] widgets 逐字镜像;9 值=8 步)
+_TURBO_SIGMAS = "1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0"
+
+
+def _apply_turbo_8step(graph: dict[str, Any]) -> None:
+    """1120 型级路由:设定卡=官方Turbo 8步(文字生死线对拍定谳)。配方=画布
+    加速子图 [7028]-[7031] 真身镜像:r178 LoRA×1.0 直连底模→BasicGuider cfg1
+    纯正向→ManualSigmas 官方σ表→SamplerCustomAdvanced;噪声/采样器共享
+    7:7017/7:7018,latent=[4]。新键 7:7128-31(模板恒缺,防撞);speed 节点
+    mode 切「0 · Turbo 8步」+latent_turbo 接线。镜像源缺=fail-closed。"""
+    for nid in ("7:7017", "7:7018", "7:7015", "7:7112"):
+        if not isinstance(graph.get(nid), dict):
+            raise _pipeline_error(
+                "bridge-template-missing",
+                f"桥模板缺 Turbo 臂共享源节点({nid}),无法注臂",
+            )
+    latent = graph["7:7112"]["inputs"].get("latent_image")  # t2i=[4]/i2i=[20] 域随形
+    if not isinstance(latent, list):
+        raise _pipeline_error(
+            "bridge-template-missing",
+            "桥模板缺 Turbo 臂 latent 镜像槽(7:7112.latent_image),无法注臂",
+        )
+    graph["7:7128"] = {"class_type": "LoraLoaderModelOnly", "inputs": {
+        "lora_name": _TURBO_LORA_FILE, "strength_model": 1.0, "model": ["1", 0]}}
+    graph["7:7129"] = {"class_type": "BasicGuider", "inputs": {
+        "model": ["7:7128", 0], "conditioning": ["4015", 0]}}
+    graph["7:7130"] = {"class_type": "ManualSigmas", "inputs": {"sigmas": _TURBO_SIGMAS}}
+    graph["7:7131"] = {"class_type": "SamplerCustomAdvanced", "inputs": {
+        "noise": ["7:7017", 0], "guider": ["7:7129", 0],
+        "sampler": ["7:7018", 0], "sigmas": ["7:7130", 0],
+        "latent_image": latent}}
+    speed = graph["7:7015"]
+    speed.setdefault("inputs", {})["mode"] = "0 · Turbo 8步"
+    speed["inputs"]["latent_turbo"] = ["7:7131", 0]
+
+
 def _apply_native_40step(graph: dict[str, Any]) -> None:
-    """1119 用户终裁:美宣=原生40步。绕过加速子图,直注 KSampler(cfg4/40步)。"""
+    """1119 用户终裁:美宣=原生40步(1120 人物海报入列)。绕过加速子图,直注 KSampler(cfg4/40步)。"""
     cond = None; latent = None
     for nid in ("7:7111", "7:7042", "7:7029"):
         n = graph.get(nid)
@@ -389,6 +434,118 @@ def apply_ref_safe_canvas(graph: dict[str, Any], base_type: Any,
             return
 
 
+# ── 1120 P4 边长锚+终格断言(trellis 11-19 四格蓝图③④格)──────────────────
+# Gem② 链出口尺寸=GemTiledUpscale 的 megapixels 单口(引擎侧 _gem_megapixel_size
+# 比例误差优先枚举+32 对齐+面积禁欠):8.25MP 时 16:9(2048×1152 源)出口
+# 3808×2144,离恒宽 3840 交付线差 -0.84%。本节=16:9 交付线边锚:按有效画幅算
+# MP 覆写 8100/8122(边长锚经 MP 数学等价,出口恒宽≥3840)+取图后 lanczos
+# 终格微整到精确 3840×2160(边偏差≤3% 才整,禁欠终断;比例门复核不过=上游
+# 异常,原样放行交 output_gate 域分流)。竖/方型=用户既定裁定「非 16:9 资产
+# 图默认拦候裁」(frontier#1):不覆写不微整,只打点。规格只锚产线自身口径
+# (恒宽 3840),与下游平台无涉。
+_EDGE_ANCHOR_W = 3840
+_EDGE_ANCHOR_H = 2160
+_EDGE_RATIO_TOL = 0.02   # 16:9 族容差核(罩 1824×1024 +0.2% ~ 1344×768 -1.6%)
+_EDGE_FINAL_TOL = 0.03   # 终格微整门(蓝图终裁 3% 容差,与 alpha 门同位)
+
+
+def ratio_gate(w: int, h: int) -> bool:
+    """16:9 族容差核(交付线先行门)。竖/方(道具/海报/人脸族)=拦候裁。"""
+    if w <= 0 or h <= 0:
+        return False
+    return abs(w / h - 16 / 9) / (16 / 9) <= _EDGE_RATIO_TOL
+
+
+def edge_anchor_mp(w: int, h: int) -> float:
+    """恒宽边锚 MP:宽 3840 数学等价的兆像素(16:9=3840×2160→8.2944;
+    GemTiledUpscale 只吃 MP 单口,边长锚经此数学等价,出口恒宽≥3840)。"""
+    return _EDGE_ANCHOR_W * (_EDGE_ANCHOR_W * h / w) / 1e6
+
+
+def _edge_canvas(base_type: Any, manual_width: Any, manual_height: Any,
+                 aspect_ratio: Any) -> tuple[int, int] | None:
+    """有效画幅(比例门判据):手动成对值 > 型画幅 > aspect_ratio 字符串比值
+    (照 apply_ref_safe_canvas 优先级语义+L345 同款解析);解析不出=None(门
+    不过零动作)。aspect_ratio 只有比值时归一到千位对,数值仅供比值运算。"""
+    try:
+        mw = int(manual_width) if manual_width is not None else 0
+        mh = int(manual_height) if manual_height is not None else 0
+    except (TypeError, ValueError):
+        mw = mh = 0
+    if mw > 0 and mh > 0:
+        return mw, mh
+    if isinstance(base_type, str) and base_type.strip():
+        dims = _daojie_type_canvas(base_type.strip())
+        if dims is not None:
+            return dims
+    parts = str(aspect_ratio or "").strip().split()[0].split(":") if aspect_ratio else []
+    try:
+        aw, ah = float(parts[0]), float(parts[1])
+    except (IndexError, TypeError, ValueError):
+        return None
+    if aw <= 0 or ah <= 0:
+        return None
+    return round(aw * 1000), round(ah * 1000)
+
+
+def apply_wide_edge_anchor(graph: dict[str, Any], base_type: Any,
+                           manual_width: Any, manual_height: Any,
+                           aspect_ratio: Any) -> bool:
+    """P4 ③格:16:9 族比例门过→GemTiledUpscale+ImageScaleToTotalPixels 的
+    megapixels 覆写为边锚 MP(两口同值等比,保 alpha 链与主链同构——join 内
+    resize_mask 会把 alpha resample 到主链尺寸,覆写不破坏 join 恒稳);门
+    不过(竖/方候裁/解析不出)零动作 fail-open+打点。返回=终格微整是否激活。"""
+    dims = _edge_canvas(base_type, manual_width, manual_height, aspect_ratio)
+    if dims is None or not ratio_gate(*dims):
+        if dims is not None:
+            print(f"[image-sidecar] qwen21: P4边锚拦候裁(非16:9族画幅 "
+                  f"{dims[0]}×{dims[1]},维持 8.25MP 帽)", flush=True)
+        return False
+    mp = round(edge_anchor_mp(*dims), 4)
+    touched = 0
+    for node in graph.values():
+        if isinstance(node, dict) and node.get("class_type") in (
+                "GemTiledUpscale", "ImageScaleToTotalPixels"):
+            node.setdefault("inputs", {})["megapixels"] = mp
+            touched += 1
+    if touched:
+        print(f"[image-sidecar] qwen21: P4边锚覆写 {touched} 口 megapixels={mp}"
+              f"(16:9族 {dims[0]}×{dims[1]},出口恒宽≥3840)", flush=True)
+    return touched > 0
+
+
+def final_anchor_resize(content: bytes) -> bytes:
+    """P4 ④格:终格微整+禁欠终断——lanczos 到精确 3840×2160;边偏差≤3% 才整,
+    超容差 raise(产物不符规格修生成侧,禁移动球门);比例门复核不过/解码失败
+    =原样返回(非 16:9 交付线与坏产物由 output_gate 域分流兜底)。"""
+    try:
+        from PIL import Image
+    except ImportError:
+        return content
+    import io as _io
+    try:
+        image = Image.open(_io.BytesIO(content))
+        w, h = image.size
+    except Exception:
+        return content
+    if not ratio_gate(w, h):
+        return content
+    deviation = max(abs(w - _EDGE_ANCHOR_W) / _EDGE_ANCHOR_W,
+                    abs(h - _EDGE_ANCHOR_H) / _EDGE_ANCHOR_H)
+    if deviation > _EDGE_FINAL_TOL:
+        raise _pipeline_error(
+            "bridge-output-offspec",
+            f"超分出口 {w}×{h} 偏离 3840×2160 交付线 {deviation:.1%}(容差 3%),"
+            "禁欠不交——请检查 Gem 链 megapixels 口",
+        )
+    if (w, h) == (_EDGE_ANCHOR_W, _EDGE_ANCHOR_H):
+        return content
+    resized = image.convert("RGBA").resize((_EDGE_ANCHOR_W, _EDGE_ANCHOR_H), Image.LANCZOS)
+    buffer = _io.BytesIO()
+    resized.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
 def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps: int, seed: int | None, reference_b64: str | None = None, **ctx: Any) -> str:
     from image_gen.pipeline import is_generation_cancelled
 
@@ -418,6 +575,7 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
     # 调用方显式点名 ctx["template"] 时优先于自动路由(值=引擎 API 模板键,前端映射层
     # 已把道劫绑定件转成 qwen21_道劫_{t2i,i2i}_api;缺省 None=自动路由现行为零迁移)
     forced_template = ctx.get("template") if isinstance(ctx.get("template"), str) else None
+    wide_anchor = False  # P4 ③格:比例门过→MP 覆写激活(④格终格跟随)
 
     if references:
         # 10-19 图生图·道劫美术风格转换(D3/D4)→1116 三槽正典(§五.4):原生三参考
@@ -486,6 +644,11 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
         # 10-26 画幅手动覆写(横竖皆可裁定;i2i 手动槽优先于九型直通,
         # 4022 型画幅路由保持不动)
         apply_manual_size(graph, ctx.get("manual_width"), ctx.get("manual_height"))
+        # 1120 P4 ③格:i2i 链同锚(Gem 链对入口画幅无感,生成段压回安全档
+        # 不改交付意图比例;按型/手动比例算 MP,出口恒宽≥3840)
+        wide_anchor = apply_wide_edge_anchor(
+            graph, ctx.get("base_type"), ctx.get("manual_width"),
+            ctx.get("manual_height"), aspect_ratio)
     else:
         template_key = forced_template or TEMPLATE_NAME
         template = load_template(template_key)
@@ -496,6 +659,11 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
         apply_hand_speed_mode(graph, ctx.get("base_type"), hand_default=SPEED_MODE_PRUNA)
         # 10-26 画幅手动覆写(横竖皆可裁定;t2i 手动槽优先于九型直通)
         apply_manual_size(graph, ctx.get("manual_width"), ctx.get("manual_height"))
+        # 1120 P4 ③格:16:9 族边锚覆写(8100/8122 megapixels→恒宽 3840 等
+        # 价 MP;竖/方型拦候裁零动作)
+        wide_anchor = apply_wide_edge_anchor(
+            graph, ctx.get("base_type"), ctx.get("manual_width"),
+            ctx.get("manual_height"), aspect_ratio)
     message = missing_nodes_message(
         [cls for cls in graph_node_classes(graph) if cls not in _available_node_classes()],
         curated_node_class_packs(),
@@ -555,6 +723,10 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
                     check_cancelled(prompt_id)
                     raise
                 check_cancelled(prompt_id)
+                if wide_anchor:
+                    # 1120 P4 ④格:终格微整+禁欠终断(≤3% lanczos 到精确
+                    # 3840×2160;超容差 raise 不交)
+                    content = final_anchor_resize(content)
                 _record(True, history.get(prompt_id) if isinstance(history, dict) else None)
                 return base64.b64encode(content).decode("ascii")
             time.sleep(1)

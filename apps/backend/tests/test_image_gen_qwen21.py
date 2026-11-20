@@ -434,9 +434,10 @@ class Qwen21I2iGenerateTests(unittest.TestCase):
         # 1108 用户令:默认档4 PrunaAI——有手型与默认合一(⑦臂随模板物质化,
         # hand_default=档4 幂等);链=7034 mikkoani→7110 p_q v0.2×1.0(ViggleTurboLora
         # 运行时旁路)→7111 BasicGuider 关CFG+7113 六步原表→7112;E 臂死枝全裁
+        # 1120 型级路由后人物海报走 native40,此测换无衣物定妆(手型留守档4 代表)
         graph, _, _ = self._run_generate(
-            prompt="人物海报主体句", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
-            base_type="人物海报",
+            prompt="定妆主体句", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
+            base_type="无衣物定妆",
         )
         sel = graph["7:7015"]["inputs"]
         self.assertEqual(sel["mode"], qwen21.SPEED_MODE_PRUNA)
@@ -462,9 +463,10 @@ class Qwen21I2iGenerateTests(unittest.TestCase):
         # 1108 拉齐令:i2i ⑦Pruna 臂入列,手型默认随 t2i=档4——
         # 链=7034 mikkoani→7110 p_q×1.0→7111 关CFG+7113 六步原表→7112;
         # 条件=171 单参考域(同②⑤臂),latent=[20] 画幅开关域;E 臂死枝全裁
+        # 1120 型级路由后人物海报走 native40,此测换无衣物定妆
         graph, _, _ = self._run_generate(
-            prompt="人物海报指令", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
-            reference_b64="aWlpcmVmaW9uZQ==", base_type="人物海报",
+            prompt="定妆指令", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
+            reference_b64="aWlpcmVmaW9uZQ==", base_type="无衣物定妆",
         )
         sel = graph["7:7015"]["inputs"]
         self.assertEqual(sel["mode"], qwen21.SPEED_MODE_PRUNA)
@@ -559,3 +561,203 @@ class Qwen21ForcedTemplateContractTests(unittest.TestCase):
         self.assertIn("template_key = forced_template or TEMPLATE_NAME", self.SOURCE)
         # 且两分支都以 template_key 载入(而非仍载常量)
         self.assertIn("template = load_template(template_key)", self.SOURCE)
+
+
+class Qwen21WideEdgeAnchorTests(unittest.TestCase):
+    """1120 P4 边长锚+终格断言(trellis 11-19 四格蓝图③④格):16:9 交付线
+    恒宽 3840——比例门→8100/8122 megapixels 覆写→取图后 lanczos 终格微整
+    +禁欠终断;竖/方型拦候裁零动作。"""
+
+    def test_ratio_gate_boundaries(self) -> None:
+        # 16:9 族容差核 2%:全 16:9 型画幅过,竖/方拦
+        self.assertTrue(qwen21.ratio_gate(2048, 1152))   # 精确 16:9
+        self.assertTrue(qwen21.ratio_gate(1824, 1024))   # 人物多视图 +0.2%
+        self.assertTrue(qwen21.ratio_gate(1344, 768))    # 历史横档 -1.6%
+        self.assertTrue(qwen21.ratio_gate(1920, 1080))
+        self.assertFalse(qwen21.ratio_gate(1080, 1080))  # 道具/人脸族 1:1
+        self.assertFalse(qwen21.ratio_gate(1536, 2048))  # 人物海报 3:4
+        self.assertFalse(qwen21.ratio_gate(0, 0))
+
+    def test_edge_anchor_mp_math(self) -> None:
+        # 恒宽 3840 数学等价:16:9=8.2944(3840×2160);比例族内随 ratio 微变
+        self.assertAlmostEqual(qwen21.edge_anchor_mp(2048, 1152), 8.2944, places=4)
+        self.assertAlmostEqual(qwen21.edge_anchor_mp(16, 9), 8.2944, places=4)
+        # 多视图比例(+0.2%)恒宽等价 MP 与 16:9 同值域
+        self.assertLess(abs(qwen21.edge_anchor_mp(1824, 1024) - 8.2944), 0.03)
+
+    def _t2i_graph(self) -> dict:
+        return qwen21.instantiate_template(
+            qwen21.load_template(qwen21.TEMPLATE_NAME), "p", None, 8, 42, "16:9", []
+        )
+
+    def test_anchor_overwrites_gem_mp_both_nodes(self) -> None:
+        # 16:9 型(分镜剧情图 2048×1152):8100 GemTiledUpscale+8122
+        # ImageScaleToTotalPixels 两口同值 8.2944(等比同构,alpha 链跟主链)
+        graph = self._t2i_graph()
+        self.assertTrue(qwen21.apply_wide_edge_anchor(graph, "分镜剧情图", None, None, "16:9"))
+        self.assertEqual(graph["8100"]["inputs"]["megapixels"], 8.2944)
+        self.assertEqual(graph["8122"]["inputs"]["megapixels"], 8.2944)
+
+    def test_square_type_blocked_keeps_825_cap(self) -> None:
+        # 竖/方型=用户裁定拦候裁:两口维持 8.25MP 帽,返回 False
+        graph = self._t2i_graph()
+        self.assertFalse(qwen21.apply_wide_edge_anchor(graph, "道具", None, None, "1:1"))
+        self.assertEqual(graph["8100"]["inputs"]["megapixels"], 8.25)
+        self.assertEqual(graph["8122"]["inputs"]["megapixels"], 8.25)
+
+    def test_manual_wide_canvas_takes_priority(self) -> None:
+        # 手动成对值优先于型画幅:1080×1080 手动压过 16:9 型(手动语义=用户意图)
+        graph = self._t2i_graph()
+        self.assertFalse(qwen21.apply_wide_edge_anchor(
+            graph, "分镜剧情图", 1080, 1080, "16:9"))
+        graph = self._t2i_graph()
+        self.assertTrue(qwen21.apply_wide_edge_anchor(
+            graph, "道具", 1920, 1080, "1:1"))
+        self.assertEqual(graph["8100"]["inputs"]["megapixels"], 8.2944)
+
+    def test_aspect_ratio_string_alone_anchors(self) -> None:
+        # 无型无手动:aspect_ratio 字符串比值过门(比值数学与绝对尺寸无涉)
+        graph = self._t2i_graph()
+        self.assertTrue(qwen21.apply_wide_edge_anchor(graph, None, None, None, "16:9"))
+        self.assertEqual(graph["8100"]["inputs"]["megapixels"], 8.2944)
+
+    def test_generate_t2i_submits_anchored_mp(self) -> None:
+        # generate 集成:t2i 分镜剧情图全链后提交图两口=8.2944(与 1118 碎格
+        # 根修压幅/i2i 安全档共存;mock 取图非 PNG→终格 fail-open 原样)
+        submitted = {}
+        # 照 Qwen21I2iGenerateTests._run_generate 同款 mock(t2i 无上传面)
+        classes: set = set()
+        for template in (qwen21.load_template(qwen21.TEMPLATE_NAME),
+                         qwen21.load_template(qwen21.TEMPLATE_NAME_I2I)):
+            classes.update(qwen21.graph_node_classes(template["graph"]))
+        classes.update(qwen21.E_HYBRID_INJECTED_CLASSES)
+
+        def http_json(method, url, payload=None, timeout=2):
+            if url.endswith("/prompt"):
+                submitted.update(payload["prompt"])
+                return {"prompt_id": "p-edge"}
+            if "/history/" in url:
+                return {"p-edge": {"status": {"status_str": "success"}, "outputs": {
+                    "8": {"images": [{"filename": "out.png", "subfolder": "", "type": "output"}]},
+                }}}
+            raise AssertionError(url)
+
+        with patch.object(qwen21, "resolve_big_files", return_value={"comfyui_version": "0.41.2"}), patch.object(
+            qwen21, "_available_node_classes", return_value=frozenset(classes)
+        ), patch.object(qwen21, "_http_json", side_effect=http_json), patch.object(
+            qwen21, "_fetch_bytes", return_value=b"t2i-png"
+        ), patch(
+            "comfyui.engine_manager.EngineManager.ensure_engine_ready", return_value=True
+        ), patch("image_gen.pipeline.is_generation_cancelled", return_value=False):
+            result = qwen21.generate(
+                prompt="分镜剧情图主体句", aspect_ratio="16:9", negative_prompt=None,
+                steps=8, seed=42, base_type="分镜剧情图",
+            )
+        self.assertEqual(submitted["8100"]["inputs"]["megapixels"], 8.2944)
+        self.assertEqual(submitted["8122"]["inputs"]["megapixels"], 8.2944)
+        self.assertEqual(result, "dDJpLXBuZw==")  # 非 PNG 终格 fail-open 原样
+
+    def test_final_anchor_resize_lanczos_to_exact(self) -> None:
+        # ④格:3872×2176(多视图源出口)与 3840×2144(精确16:9源出口)均
+        # lanczos 微整到精确 3840×2160 且保 RGBA(P3 出口恒 RGBA)
+        import io
+        from PIL import Image
+        for w, h in ((3872, 2176), (3840, 2144)):
+            src = Image.new("RGBA", (w, h), (120, 80, 200, 255))
+            buf = io.BytesIO()
+            src.save(buf, format="PNG")
+            out = Image.open(io.BytesIO(qwen21.final_anchor_resize(buf.getvalue())))
+            self.assertEqual(out.size, (3840, 2160))
+            self.assertEqual(out.mode, "RGBA")
+
+    def test_final_anchor_resize_already_exact_passthrough(self) -> None:
+        # 已精确 3840×2160:字节原样返回(不重编码)
+        import io
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new("RGBA", (3840, 2160), (10, 20, 30, 255)).save(buf, format="PNG")
+        raw = buf.getvalue()
+        self.assertEqual(qwen21.final_anchor_resize(raw), raw)
+
+    def test_final_anchor_resize_rejects_offspec(self) -> None:
+        # 偏差>3% 禁欠终断:修生成侧,禁移动球门(3600×2000 高差 -7.4%)
+        import io
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new("RGB", (3600, 2000), (0, 0, 0)).save(buf, format="PNG")
+        with self.assertRaises(pipeline.PipelineError):
+            qwen21.final_anchor_resize(buf.getvalue())
+
+    def test_final_anchor_resize_non_wide_passthrough(self) -> None:
+        # 非 16:9 出口(竖/方拦候裁线):原样放行交 output_gate 域分流
+        import io
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new("RGB", (1536, 2048), (0, 0, 0)).save(buf, format="PNG")
+        raw = buf.getvalue()
+        self.assertEqual(qwen21.final_anchor_resize(raw), raw)
+
+
+class Qwen21TypeRoutingTests(unittest.TestCase):
+    """1120 型级加速路由定谳(十发三臂对拍,产物 qi21-routing-p4-1120):
+    人物海报→native40(画质 8.6 碾压)/设定卡→官方Turbo 8步(文字生死线
+    9/10)/人物多视图→PrunaAI 6步(性价比留守)。命名纪律:6步必带 PrunaAI
+    前缀、8步必带官方Turbo 前缀。"""
+
+    def _run_t2i(self, base_type: str) -> dict:
+        submitted: dict = {}
+        classes: set = set()
+        for template in (qwen21.load_template(qwen21.TEMPLATE_NAME),
+                         qwen21.load_template(qwen21.TEMPLATE_NAME_I2I)):
+            classes.update(qwen21.graph_node_classes(template["graph"]))
+        classes.update(qwen21.E_HYBRID_INJECTED_CLASSES)
+
+        def http_json(method, url, payload=None, timeout=2):
+            if url.endswith("/prompt"):
+                submitted.update(payload["prompt"])
+                return {"prompt_id": "p-route"}
+            if "/history/" in url:
+                return {"p-route": {"status": {"status_str": "success"}, "outputs": {
+                    "8": {"images": [{"filename": "out.png", "subfolder": "", "type": "output"}]},
+                }}}
+            raise AssertionError(url)
+
+        with patch.object(qwen21, "resolve_big_files", return_value={"comfyui_version": "0.41.2"}), patch.object(
+            qwen21, "_available_node_classes", return_value=frozenset(classes)
+        ), patch.object(qwen21, "_http_json", side_effect=http_json), patch.object(
+            qwen21, "_fetch_bytes", return_value=b"route-png"
+        ), patch(
+            "comfyui.engine_manager.EngineManager.ensure_engine_ready", return_value=True
+        ), patch("image_gen.pipeline.is_generation_cancelled", return_value=False):
+            qwen21.generate(prompt=f"{base_type}主体句", aspect_ratio="1:1",
+                            negative_prompt=None, steps=8, seed=42, base_type=base_type)
+        return submitted
+
+    def test_poster_routes_native40(self) -> None:
+        graph = self._run_t2i("人物海报")
+        ks = graph["7500"]["inputs"]
+        self.assertEqual((ks["steps"], ks["cfg"]), (40, 4.0))
+        self.assertEqual(ks["model"], ["7:7034", 0])  # mikkoani 链
+        self.assertEqual(graph["5"]["inputs"]["samples"], ["7500", 0])  # 旁路 speed
+
+    def test_charcard_routes_turbo8(self) -> None:
+        graph = self._run_t2i("设定卡")
+        sel = graph["7:7015"]["inputs"]
+        self.assertEqual(sel["mode"], "0 · Turbo 8步")
+        self.assertEqual(sel["latent_turbo"], ["7:7131", 0])
+        lora = graph["7:7128"]["inputs"]
+        self.assertEqual(lora["lora_name"], "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors")
+        self.assertEqual((lora["strength_model"], lora["model"]), (1.0, ["1", 0]))  # 直连底模
+        self.assertEqual(graph["7:7129"]["inputs"]["conditioning"], ["4015", 0])     # 纯正向 cfg1
+        self.assertEqual(len(graph["7:7130"]["inputs"]["sigmas"].split(",")), 9)     # 官方σ表
+        sca = graph["7:7131"]["inputs"]
+        self.assertEqual((sca["noise"], sca["latent_image"]), (["7:7017", 0], ["4", 0]))
+        self.assertNotIn("7500", graph)
+
+    def test_multiview_stays_pruna(self) -> None:
+        graph = self._run_t2i("人物多视图")
+        sel = graph["7:7015"]["inputs"]
+        self.assertEqual(sel["mode"], "4 · PrunaAI 6步")
+        self.assertNotIn("7500", graph)
+        self.assertNotIn("7:7128", graph)
+        self.assertEqual(graph["5"]["inputs"]["samples"], ["7:7015", 0])
