@@ -309,7 +309,7 @@ def test_daojie_base_resolution_outputs_nine_types():
     测试不可 import 引擎库,枚举镜像硬编码于此)、megapixels 全型显式钉
     (1115 门禁修红:旧 1008 快出档掩码「其余五型 1.5」漏追 1110 用户令
     「14型分辨率重设」d7d8c302——人物海报 1536×2048=3.0/概念气氛图
-    2048×1152=2.25/设定卡 3840×2160(4K 底框)=7.91;MP 按 1024² 计随
+    2048×1152=2.25/设定卡同役 4K 证伪回落 2048×1152=2.25;MP 按 1024² 计随
     resolution_override 精确像素换算)、两值与真源家 qi21_bases.json
     types[] 字段一比一(原 daojie_bases.json 退役,锚随迁;新增型不进
     EXPECTED_MP=响亮 KeyError 逼登记,禁静默默认值);正负 STRING=1004
@@ -338,7 +338,7 @@ def test_daojie_base_resolution_outputs_nine_types():
         "分镜剧情图": 2.25,
         "3D剖面场景图": 2.25,
         "概念气氛图": 2.25,  # 1110 d7d8c302:2048×1152
-        "设定卡": 7.91,      # 1110 d7d8c302:3840×2160(4K 固定底框)
+        "设定卡": 2.25,      # 1110 d7d8c302 曾改 4K(7.91);同役「4K 直采证伪」回落 2048×1152(1120 独孤案在册口径),1122 债清随迁
     }
     for entry in bases:
         pos, neg, aspect, megapixels, base_out, _w, _h = node.run(entry["zh"])
