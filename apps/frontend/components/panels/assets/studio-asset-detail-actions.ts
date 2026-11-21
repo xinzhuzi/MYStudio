@@ -33,7 +33,9 @@ import { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary 
 import type { GenerationOutcomeRecord } from "./studio-asset-generation-result-dialog";
 // 1120 按钮态精修:busyTarget 键空间单一真源(pane 内导出,§6 对策3 禁手拼散落)
 // 1121 失败持久态:失败态形状与 busyKey 同源导出(pane 渲染层消费)
-import { busyKey, type AssetTypeShotFailureState } from "./studio-asset-detail-preview-pane";
+// 1121 谓词单源收敛:运行态判定同源导入(原本地字符串三连副本删——两版失同步
+// 风险;行为等价:Set 版 has(phase ?? "") 与三连 === 对 null/undefined/""/done/failed 同值)
+import { busyKey, isLanePhaseRunning, type AssetTypeShotFailureState } from "./studio-asset-detail-preview-pane";
 
 /**
  * 阶段参考图锚(10-25 阶段矩阵 T3,PRD §3.3):该阶段组内最新一张(任意型)的 url。
@@ -216,12 +218,17 @@ export function useStudioAssetDialogActions(ctx: {
    *  laneGuard:false 复用底层执行器(队列入口自带五路守卫+自持聚合相位)。
    *  1120 按钮态精修(R1 即刻回 idle):闸口径收窄「运行态」相位——done/failed
    *  反馈残留窗(3s 自动清前)无任务在跑,不再假忙拒点;互斥语义(§3 同一时刻
-   *  仅一个生成任务)不变:运行态在跑即拒。 */
-  const isLanePhaseRunning = (phase?: string | null): boolean =>
-    phase === "polishing" || phase === "generating" || phase === "saving";
+   *  仅一个生成任务)不变:运行态在跑即拒。(1121 谓词单源收敛:isLanePhaseRunning
+   *  改从 preview-pane 导入——见文件头 import 注释) */
   const isAnyGenerationLaneBusy = (): boolean =>
     isLanePhaseRunning(generatePhaseForGuard) || isLanePhaseRunning(i2iPhase)
     || isLanePhaseRunning(facePhase) || isLanePhaseRunning(expressionPhase) || isLanePhaseRunning(typeShotPhase);
+
+  /** 1121 换靶串台根修·并发窗闭合:busyTarget finally 清零带宿主活性守卫——
+   *  换靶清相位后 B 再发车时,A 在途任务的 finally 不再无条件清掉 B 的合法
+   *  spinner(纯显示层守卫;getActiveAssetId 缺席=旧调用方无探针,保持无条件
+   *  清的既有行为)。 */
+  const isSameHostAsset = (): boolean => !getActiveAssetId || getActiveAssetId() === asset.id;
 
   /** 润色当前资产的提示词 */
   const handlePolishPrompt = async () => {
@@ -483,7 +490,8 @@ export function useStudioAssetDialogActions(ctx: {
       // 1120 按钮态精修:busyTarget 立即清(失败必复原=AC4 硬门,与相位 3s 反馈
       // 延迟清解耦);相位延迟清带值守守卫——done/failed 窗内再发新车已置运行态
       // 相位时,旧定时器不得误清(防互斥闸被旧清零提前打开)
-      setBusyTarget?.(null);
+      // 1121 换靶根修:清零带宿主守卫(换靶后 B 的合法 spinner 不被 A 的尾部清误杀)
+      if (isSameHostAsset()) setBusyTarget?.(null);
       setTimeout(() => {
         setGeneratePhase((current: string | null) => (isLanePhaseRunning(current) ? current : null));
         setGenerateMessage("");
@@ -633,7 +641,8 @@ export function useStudioAssetDialogActions(ctx: {
     } finally {
       // 1120 按钮态精修:busyTarget 立即清(失败必复原=AC4 硬门);相位延迟清
       // 带值守守卫(新任务运行态不被旧定时器误清)
-      setBusyTarget?.(null);
+      // 1121 换靶根修:清零带宿主守卫(换靶后 B 的合法 spinner 不被 A 的尾部清误杀)
+      if (isSameHostAsset()) setBusyTarget?.(null);
       setTimeout(() => {
         setI2iPhase((current: string | null) => (isLanePhaseRunning(current) ? current : null));
         setI2iMessage("");
@@ -851,7 +860,8 @@ export function useStudioAssetDialogActions(ctx: {
     } finally {
       // 1120 按钮态精修:busyTarget 立即清(与设键同闸:队列路不设不清);相位
       // 延迟清带值守守卫(新任务运行态不被旧定时器误清)
-      if (options?.laneGuard !== false) {
+      // 1121 换靶根修:清零带宿主守卫(换靶后 B 的合法 spinner 不被 A 的尾部清误杀)
+      if (options?.laneGuard !== false && isSameHostAsset()) {
         setBusyTarget?.(null);
       }
       setTimeout(() => {
@@ -1038,7 +1048,8 @@ export function useStudioAssetDialogActions(ctx: {
       return false;
     } finally {
       // 1120 按钮态精修:busyTarget 立即清(与设键同闸);相位延迟清带值守守卫
-      if (options?.laneGuard !== false) {
+      // 1121 换靶根修:清零带宿主守卫(换靶后 B 的合法 spinner 不被 A 的尾部清误杀)
+      if (options?.laneGuard !== false && isSameHostAsset()) {
         setBusyTarget?.(null);
       }
       setTimeout(() => {
@@ -1467,7 +1478,8 @@ export function useStudioAssetDialogActions(ctx: {
       if (managedLane) {
         // 1120 按钮态精修:busyTarget 立即清(与设键同闸:managedLane);相位延迟
         // 清带值守守卫(新任务运行态不被旧定时器误清)
-        setBusyTarget?.(null);
+        // 1121 换靶根修:清零带宿主守卫(换靶后 B 的合法 spinner 不被 A 的尾部清误杀)
+        if (isSameHostAsset()) setBusyTarget?.(null);
         setTimeout(() => {
           setTypeShotPhase((current: string | null) => (isLanePhaseRunning(current) ? current : null));
           setTypeShotMessage("");
@@ -1563,7 +1575,8 @@ export function useStudioAssetDialogActions(ctx: {
       onFillMissingQueueSettled?.({ total: missing.length, completed });
     } finally {
       // 1120 按钮态精修:busyTarget 立即清(队列收口);相位延迟清带值守守卫
-      setBusyTarget?.(null);
+      // 1121 换靶根修:清零带宿主守卫(换靶后 B 的合法 spinner 不被 A 的尾部清误杀)
+      if (isSameHostAsset()) setBusyTarget?.(null);
       setTimeout(() => {
         setTypeShotPhase((current: string | null) => (isLanePhaseRunning(current) ? current : null));
         setTypeShotMessage("");

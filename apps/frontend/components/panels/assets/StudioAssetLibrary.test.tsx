@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import type { StudioAssetLibrary as Library } from "./StudioAssetLibrary";
@@ -117,6 +117,34 @@ describe("1120 详情独立页:卡片点击经 detail-view store 下钻(主入�
   fireEvent.click(screen.getByTestId("open-独孤剑尘"));
   expect(useAssetDetailViewStore.getState().target?.name).toBe("独孤剑尘");
  });
+});
+
+describe("1121 搜索词缓存播种(重挂载零闪屏:落地滤镜首拍即带缓存词)", () => {
+  it("搜索后进详情再返回:重挂载首拍即过滤,未过滤项不在场(勿等 180ms debounce,零二次请求)", async () => {
+    // 桩按入参过滤——红绿可分的关键:红态(落地滤镜初值空串)首拍 fetch search=""
+    // 出全量;绿态(播种缓存词)首拍 fetch search="剑" 出过滤批。勿用恒返同批的
+    // mockResolvedValue(红绿同批不可分)。
+    mocks.list.mockImplementation(({ search }: { search?: string }) =>
+      Promise.resolve(search ? result("剑修") : result("剑修", "丹炉")));
+
+    render(<StudioAssetLibrary type="role" />);
+    // 首拍(空词)出全量
+    await screen.findByText("丹炉");
+    // 输入搜索词(210ms 真等:debounce 落地+缓存写回)
+    await search("剑");
+
+    // 模拟进详情=列表卸载(index.tsx 条件渲染),返回=重挂载(模块级缓存保活)
+    cleanup();
+    render(<StudioAssetLibrary type="role" />);
+
+    // 绿态:首渲染即播种缓存词,「丹炉」从未在场;红态:180ms debounce 前
+    // 首拍必是全量(丹炉在场)→ 100ms 短超时等不到消失=红(勿用 fake timers,
+    // 与本文件既有 210ms 真等助手互斥)
+    await waitFor(() => expect(screen.queryByText("丹炉")).toBeNull(), { timeout: 100 });
+    await screen.findByText("剑修");
+    // 参数补面(非计数断言):缓存词确实作为 fetch 参发出过
+    expect(mocks.list).toHaveBeenCalledWith(expect.objectContaining({ search: "剑" }));
+  });
 });
 
 describe("10-26 角色卡封面择优(有高清人头用高清人头)", () => {

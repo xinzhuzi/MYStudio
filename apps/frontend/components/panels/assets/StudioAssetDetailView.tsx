@@ -592,6 +592,21 @@ export function StudioAssetDetailView({
       setInstructionEditOpen(false);
       // 1121 失败持久态:旧资产会话的失败红态不带入新宿主
       setTypeShotFailure(null);
+      // 1121 换靶串台根修:五路生成相位+busyTarget+四路文案随靶清(残留会让新宿主
+      // 挂旧会话的 spinner/进度文案——busyKey 无资产维,section:<kind> 跨资产同键
+      // 命中)。治标范围=换靶瞬间的显示残留:A 在途任务仍走完自身 finally 自清;
+      // A 尾部 done/failed setter 无资产守卫属既有残留,不在本役根治。
+      // (generateMessage 值位从未读取=死码,不清;另四枚 message 确被 pane 消费)
+      setGeneratePhase(null);
+      setI2iPhase(null);
+      setFacePhase(null);
+      setExpressionPhase(null);
+      setTypeShotPhase(null);
+      setBusyTarget(null);
+      setI2iMessage("");
+      setExpressionMessage("");
+      setTypeShotMessage("");
+      setFaceMessage("");
       resetStageState();
       return;
     }
@@ -607,6 +622,21 @@ export function StudioAssetDetailView({
     setPromptInspectTarget(null);
     // 1121 失败持久态:切资产清(旧资产会话的失败红态不带入新资产)
     setTypeShotFailure(null);
+    // 1121 换靶串台根修:五路生成相位+busyTarget+四路文案随切资产清(同 !asset 支;
+    // 残留会让新宿主挂旧会话的 spinner/进度文案——busyKey 无资产维,section:<kind>
+    // 跨资产同键命中)。治标范围=换靶瞬间的显示残留:A 在途任务仍走完自身 finally
+    // 自清;A 尾部 done/failed setter 无资产守卫属既有残留,不在本役根治。
+    // (generateMessage 值位从未读取=死码,不清;另四枚 message 确被 pane 消费)
+    setGeneratePhase(null);
+    setI2iPhase(null);
+    setFacePhase(null);
+    setExpressionPhase(null);
+    setTypeShotPhase(null);
+    setBusyTarget(null);
+    setI2iMessage("");
+    setExpressionMessage("");
+    setTypeShotMessage("");
+    setFaceMessage("");
     // R5 结果弹窗/队列累积随切资产清(旧资产会话的记录不带入新宿主)
     setGenerationOutcome(null);
     queueRecordsRef.current = [];

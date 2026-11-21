@@ -5,7 +5,7 @@ import { ImageIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { StudioAssetDetailPreviewPane } from "./studio-asset-detail-preview-pane";
+import { isLanePhaseRunning, StudioAssetDetailPreviewPane } from "./studio-asset-detail-preview-pane";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 
 // 批3「按型出图」下拉:Radix 交互属原语自件不重测,本文件按仓惯例
@@ -796,6 +796,19 @@ describe("StudioAssetDetailPreviewPane · 1120 生图按钮忙碌态精修(单�
   const PARTIAL_IMAGES = [
     { name: "晏燎_练气期_三视图_v1", filePath: "role/a1.png", url: "media://a1" },
   ];
+
+  // 1121 谓词单源收敛:导出版(唯一真源)六值直测钉语义——运行态三值真,
+  // null/undefined/""/done/failed 全假(互斥闸只认运行态,R1 即刻回 idle)。
+  it("isLanePhaseRunning 导出单源:polishing/generating/saving 真;null/空串/done/failed 假", () => {
+    expect(isLanePhaseRunning("polishing")).toBe(true);
+    expect(isLanePhaseRunning("generating")).toBe(true);
+    expect(isLanePhaseRunning("saving")).toBe(true);
+    expect(isLanePhaseRunning(null)).toBe(false);
+    expect(isLanePhaseRunning(undefined)).toBe(false);
+    expect(isLanePhaseRunning("")).toBe(false);
+    expect(isLanePhaseRunning("done")).toBe(false);
+    expect(isLanePhaseRunning("failed")).toBe(false);
+  });
 
   it("AC3/候裁2:占位 CTA 被点=CTA 自身 spinner+「生成中…」,该型节头钮不代转", () => {
     renderPane({

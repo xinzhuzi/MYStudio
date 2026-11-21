@@ -642,7 +642,10 @@ describe("1120 生图按钮忙碌态精修(busyTarget 键控 spinner:单击单�
     expect(paneSource).toContain("section: (kind: AssetImageKind) => `section:${kind}`");
     expect(paneSource).toContain("placeholder: (kind: AssetImageKind) => `placeholder:${kind}`");
     // 1121 失败持久态随迁:actions 导入增类型(形状与 busyKey 同源导出)
-    expect(actionsSource).toContain('import { busyKey, type AssetTypeShotFailureState } from "./studio-asset-detail-preview-pane";');
+    // 1121 谓词单源收敛:isLanePhaseRunning 同行导入(删 actions 本地字符串三连副本)
+    expect(actionsSource).toContain('import { busyKey, isLanePhaseRunning, type AssetTypeShotFailureState } from "./studio-asset-detail-preview-pane";');
+    // 反断言防双源回流(本地副本复活=两版失同步风险回潮)
+    expect(actionsSource).not.toContain("const isLanePhaseRunning = (phase");
   });
 
   it("§10.3 设/清同址:六条发起链 setPhase 同址设键(占位 CTA 经 busyTargetKey 换键),finally 立即清(失败必复原=AC4 硬门)", () => {

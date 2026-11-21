@@ -4,7 +4,7 @@
  * + 基础信息折叠开关与 localStorage 态记忆交互测试(原仅源码字符串断言,复审要求补齐)。
  * 桥/生成编排/润色走 vi.mock 控制桩,弹窗与表单全真实渲染。
  */
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { StudioAssetDetailView } from "./StudioAssetDetailView";
@@ -476,5 +476,65 @@ describe("StudioAssetDetailView · 批3(10-24):一键补缺顺序队列交互", 
       // 10-25 用户令:定妆 t2i 化——无参考图参(主体句+型层承载)
       referenceImage: undefined,
     });
+  });
+
+  // 1121 换靶串台根修:同宿主直换资产(script tab 点行 B:同实例换 prop,无 key
+  // 无卸载,Layout hidden 保活)后,A 会话的五路生成相位+busyTarget 不得残留进
+  // B 宿主(busyKey 无资产维,section:<kind> 跨资产同名命中→B 挂 A 的 spinner)。
+  it("换靶清残留:A 在途(typeShot 恒 pending)时同宿主直换 B,B 的生成钮零 spinner/零「生成中…」/可点", async () => {
+    // 桩恒 pending:避开 A 尾部 setter 窗口(评审口径——此测只锁「换靶瞬间的显示
+    // 残留」,A 在途任务走完 finally 自清属另一层)
+    mocks.typeShot.mockImplementation(() => new Promise(() => {}));
+
+    const view = renderDialog(roleAsset({
+      images: [{ name: "主图", filePath: "role/main.png", url: "media://main" }],
+    }));
+    fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
+    await waitFor(() => expect(mocks.typeShot).toHaveBeenCalledTimes(1));
+
+    // 同宿主换靶:id 变更触发 [asset?.id] reset effect
+    rerenderWithAsset(view, roleAsset({
+      id: "role-2",
+      name: "独孤剑尘",
+      images: [{ name: "主图", filePath: "role/b-main.png", url: "media://b-main" }],
+    }));
+
+    // B 的节头钮:回原名(残留态显「生成中…」)、可点、零 spinner
+    const button = screen.getByRole("button", { name: "生成无衣物定妆" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+    expect(button.querySelector(".animate-spin")).toBeNull();
+    expect(screen.queryByRole("button", { name: "生成中…" })).toBeNull();
+  });
+
+  // 1121 测试加固(AC4 行为级锁):既有 §10.3 计数断言只数 setBusyTarget?.(null)
+  // 在源码出现 6 次、不验位置——把某条链的清零从 finally 挪进成功支,计数不变仍
+  // 6,「失败必复原」失守无告警(preview-pane.test 的 AC4 是手动喂 busyTarget={null}
+  // 的 rerender,不驱动真实 finally 链)。本用例从真实失败路锁行为:finally 清零
+  // 必须真的发生。主锚=(b) 零 spinner/零「生成中…」;(a)(c) 为回归补面(变异
+  // 下 failed 非运行态,disabled 本就 false、相位闸本就开放,无判别力)。
+  it("AC4 行为锁:按型出图失败后 busyTarget 被 finally 清——钮不滞留「生成中…」,失败反馈不禁点,可再发车", async () => {
+    renderDialog(roleAsset({
+      images: [{ name: "主图", filePath: "role/main.png", url: "media://main" }],
+    }));
+    fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
+
+    // beforeEach 默认失败桩({phase:"failed",error:"stub-fail"}):走失败路+finally
+    await waitFor(() => expect(mocks.typeShot).toHaveBeenCalledTimes(1));
+
+    // 主锚(b):busyTarget 已被 finally 清——全 document 零 spinner、零「生成中…」钮
+    expect(screen.queryByRole("button", { name: "生成中…" })).toBeNull();
+    expect(document.querySelectorAll(".animate-spin").length).toBe(0);
+
+    // 补面(a):1121 失败红态(节头钮+占位 CTA 两颗)不禁点
+    const region = screen.getByRole("region", { name: "无衣物定妆" });
+    const failedButtons = within(region).getAllByRole("button", { name: "生成失败" }) as HTMLButtonElement[];
+    expect(failedButtons.length).toBe(2);
+    for (const failedButton of failedButtons) {
+      expect(failedButton.disabled).toBe(false);
+    }
+
+    // 补面(c):再点可发起(失败相位不拦新任务,第 2 次派发)
+    fireEvent.click(failedButtons[0]);
+    await waitFor(() => expect(mocks.typeShot).toHaveBeenCalledTimes(2));
   });
 });

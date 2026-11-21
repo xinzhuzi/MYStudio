@@ -81,7 +81,11 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
   const config = ASSET_KIND_CONFIG[type];
   const Icon = config.icon;
   const [searchInput, setSearchInput] = useState(() => libraryUiStateCache[type]?.searchInput ?? "");
-  const [search, setSearch] = useState("");
+  // 1121 搜索词缓存播种(重挂载零闪屏):落地滤镜初值同源取缓存词(与 searchInput
+  // 同址播种)——重挂载(进详情=列表卸载)后首拍 fetch 即带缓存词,勿再空串出
+  // 未过滤首页+180ms debounce 二次请求。debounce 首拍 setSearch(同 trim 值)=React
+  // 同值 no-op,不触发二次请求;localItems 首渲染即过滤。
+  const [search, setSearch] = useState(() => libraryUiStateCache[type]?.searchInput?.trim() ?? "");
   const [runtimeItems, setRuntimeItems] = useState<StudioAssetSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
