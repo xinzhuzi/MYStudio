@@ -154,13 +154,43 @@ export function buildCanonicalSubjectSentence(input: CanonicalSubjectInput): Can
 
   // ② 配器部件清单句(07 §四;§4.5:道具不入参考图→指令文字承载)。只有
   // 来源事实(名/位置/状态),颜色材质未知不猜(07 §三「未知项不猜不写」)。
+  // 1121 道具归属绑定根修(用户驳回「独孤剑尘是用剑的」):道具 position
+  // 不含任何在场角色名时,扫角色 actionIn/actionOut 与道具名共享 2+ 字子串
+  // ——唯一命中=前缀「{角色}的」(实弹:青盐鞭「置于画面上缘扬起」无主
+  // →模型把鞭给了最显眼的独孤剑尘,而鞭的主人是赵四,动作段归属在但配
+  // 器段丢失=模型优先跟配器段的空间指令)。position 已含角色名=已绑定
+  // 不动(如「置于独孤剑尘肩上」);多命中/零命中=不猜不加。
+  const charNamesForProp = input.visibleCharacters
+    .map((character) => character.name.trim())
+    .filter(Boolean);
+  const inferPropOwner = (propName: string, position: string): string => {
+    if (charNamesForProp.some((name) => position.includes(name))) return "";
+    const matches = new Set<string>();
+    for (const character of input.visibleCharacters) {
+      const action = [character.actionIn ?? "", character.actionOut ?? ""].join("");
+      if (!action.trim()) continue;
+      for (let i = 0; i < propName.length - 1; i += 1) {
+        if (action.includes(propName.substring(i, i + 2))) {
+          matches.add(character.name.trim());
+          break;
+        }
+      }
+    }
+    return matches.size === 1 ? [...matches][0]! : "";
+  };
   const propText = (input.visibleProps ?? [])
     .filter((prop) => prop.name.trim())
-    .map((prop) => [
-      normalizeFullwidthPunctuation(prop.name.trim()),
-      prop.position?.trim() ? `置于${normalizeFullwidthPunctuation(prop.position.trim())}` : "",
-      prop.state?.trim() ? normalizeFullwidthPunctuation(prop.state.trim()) : "",
-    ].filter(Boolean).join("，"))
+    .map((prop) => {
+      const owner = inferPropOwner(prop.name.trim(), prop.position?.trim() ?? "");
+      const nameText = owner
+        ? `${owner}的${normalizeFullwidthPunctuation(prop.name.trim())}`
+        : normalizeFullwidthPunctuation(prop.name.trim());
+      return [
+        nameText,
+        prop.position?.trim() ? `置于${normalizeFullwidthPunctuation(prop.position.trim())}` : "",
+        prop.state?.trim() ? normalizeFullwidthPunctuation(prop.state.trim()) : "",
+      ].filter(Boolean).join("，");
+    })
     .join("；");
 
   // ③ 动作姿势与视线(videoDesc=剧情动作事实,动词精度;描述未点名的可见角色
