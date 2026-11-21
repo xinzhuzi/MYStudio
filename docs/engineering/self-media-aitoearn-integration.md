@@ -7,7 +7,7 @@ MYStudio keeps the self-media feature as a native Electron domain. The renderer 
 ## Current migration slice
 
 - The read-only AiToEarn snapshot is pinned under `apps/frontend/electron/aitoearn/vendor/aitoearn-core/` with its MIT notice and source manifest. The vendor files are not edited in place.
-- `aitoearn-local` is an explicit adapter seam. `AitoearnLocalPlatformBridge` preserves the four imported Electron modules (`xiaohongshu`, `douyin`, `shipinhao`, `Kwai`) and composes the MYStudio-owned 14-platform registry in `providers/aitoearn-local/platforms/`. Each platform has an independent package entry and manifest. The other ten packages own MYStudio main-process OAuth/API transports derived from the reviewed upstream HTTP contracts; they do not copy the AiToEarn decorator container, Web UI or TypeORM database. The adapter reports `enabled: true` only when a bridge is supplied; each official platform is separately enabled only when its application configuration is complete. Production wiring constructs the bridge with the user-data path, allowed asset roots (`getDataDir()`, `getMediaRoot()`) and configured official transports.
+- `aitoearn-local` is an explicit adapter seam. `AitoearnLocalPlatformBridge` preserves the four imported Electron modules (`xiaohongshu`, `douyin`, `shipinhao`, `Kwai`) and composes the MYStudio-owned 15-platform registry in `providers/aitoearn-local/platforms/`. Each platform has an independent package entry and manifest. The other eleven packages own MYStudio main-process OAuth/API transports derived from the reviewed upstream HTTP contracts; they do not copy the AiToEarn decorator container, Web UI or TypeORM database. The adapter reports `enabled: true` only when a bridge is supplied; each official platform is separately enabled only when its application configuration is complete. Production wiring constructs the bridge with the user-data path, allowed asset roots (`getDataDir()`, `getMediaRoot()`) and configured official transports.
 - The product ships only the Electron-local `aitoearn-local` provider. There is no remote provider or API-key configuration path; an unavailable local bridge remains disabled instead of claiming support.
 - Main-process tasks are normalized per selected account, persisted to the user-data self-media task journal, and rehydrated on startup. Renderer state contains only non-secret account summaries and project-scoped drafts/tasks/history.
 - Bare imports that the snapshot expects from the AiToEarn application are redirected to named shims in `providers/aitoearn-local/compatibility/` through `sharedAlias` in `apps/frontend/config/electron-vite.config.ts`. `sharp` is shimmed as well: the vendor only calls `sharp(buffer).metadata()` to read width/height (`vendor/aitoearn-core/electron/plat/utils/index.ts:38`), and bundling the real native module made the packaged app fail at startup with `Could not load the "sharp" module`. The shim reuses the pure-JS `image-size` reader, so the main bundle ships no `.node` binary.
@@ -30,12 +30,13 @@ MYStudio keeps the self-media feature as a native Electron domain. The renderer 
 | X（Twitter）`twitter` | ✅ 官方媒体上传/发布 | ✅ | MYStudio 侧 | ✅ |
 | Pinterest `pinterest` | ✅ 官方媒体上传（必填 `boardId`） | ✅（必填 `boardId`） | MYStudio 侧 | ✅ |
 | LinkedIn `linkedin` | ✅ 官方素材上传/发布 | ✅ | MYStudio 侧 | ✅ |
+| Google 商家资料 `googleBusiness` | ✅ Local Posts（公网 HTTPS 视频） | ✅ Local Posts（公网 HTTPS 图片，≤10 张） | MYStudio 侧 | ✅ |
 
-`apps/frontend/lib/self-media/capabilities.ts` is the renderer-safe source for the exact 14 platform IDs and currently executable capabilities. `apps/frontend/electron/aitoearn/providers/aitoearn-local/platforms/platform-manifest.ts` owns main-process auth/routing metadata. The native panel shows all 14 platform entries but never shows provider/adapter status; an entry without a configured production transport cannot log in or become a selectable account-backed publish target. The renderer never receives OAuth secrets or raw platform responses. A package without an injected transport throws `transport-unavailable` and cannot create a false successful publish. 定时发布由 MYStudio 的 task runtime 持有任务直到 `scheduledAt`；现有四个平台的取消仍 fail-closed。
+`apps/frontend/lib/self-media/capabilities.ts` is the renderer-safe source for the exact 15 platform IDs and currently executable capabilities. `apps/frontend/electron/aitoearn/providers/aitoearn-local/platforms/platform-manifest.ts` owns main-process auth/routing metadata. The native panel shows all 15 platform entries but never shows provider/adapter status; an entry without a configured production transport cannot log in or become a selectable account-backed publish target. The renderer never receives OAuth secrets or raw platform responses. A package without an injected transport throws `transport-unavailable` and cannot create a false successful publish. 定时发布由 MYStudio 的 task runtime 持有任务直到 `scheduledAt`；现有四个平台的取消仍 fail-closed。
 
 ## Official platform application configuration
 
-The ten official transports are created in `createOfficialPlatformTransports()` and injected by Electron main. Configuration is main-process-only and is never returned through preload. A platform is absent from `availablePlatforms` until its required values are complete.
+The eleven official transports are created in `createOfficialPlatformTransports()` and injected by Electron main. Configuration is main-process-only and is never returned through preload. A platform is absent from `availablePlatforms` until its required values are complete.
 
 | Platform | Environment prefix | Required values |
 |---|---|---|
@@ -49,10 +50,11 @@ The ten official transports are created in `createOfficialPlatformTransports()` 
 | Threads | `MYSTUDIO_SELF_MEDIA_THREADS` | `CLIENT_ID`, `CLIENT_SECRET`, `REDIRECT_URI` |
 | Pinterest | `MYSTUDIO_SELF_MEDIA_PINTEREST` | `CLIENT_ID`, `CLIENT_SECRET`, `REDIRECT_URI` |
 | LinkedIn | `MYSTUDIO_SELF_MEDIA_LINKEDIN` | `CLIENT_ID`, `CLIENT_SECRET`, `REDIRECT_URI` |
+| Google 商家资料 | `MYSTUDIO_SELF_MEDIA_GOOGLE_BUSINESS` | `CLIENT_ID`, `CLIENT_SECRET`, `REDIRECT_URI`; default scope `https://www.googleapis.com/auth/business.manage` |
 
 Append `_SCOPES` to a prefix to override the reviewed default scopes with a whitespace- or comma-separated list. Redirect URIs must be HTTPS, except loopback `http://127.0.0.1` or `http://localhost`. OAuth tokens are encrypted with Electron `safeStorage`; unavailable encryption, malformed credentials and expired tokens fail closed. These environment values are deployment/application credentials, not a renderer-side API-key settings feature.
 
-B站发布前必须在平台选项填写正数分区 ID `tid`；Pinterest 视频和图文均必须填写目标画板 `boardId`。所有远程媒体只接受 HTTPS。TikTok 图文、Facebook 图片、Instagram 和 Threads 由平台主动拉取媒体，因此必须提供平台可访问的公网 HTTPS URL；不能把本地绝对路径当成这些平台的可拉取 URL。
+B站发布前必须在平台选项填写正数分区 ID `tid`；Pinterest 视频和图文均必须填写目标画板 `boardId`。所有远程媒体只接受 HTTPS。TikTok 图文、Facebook 图片、Instagram 和 Threads 由平台主动拉取媒体，因此必须提供平台可访问的公网 HTTPS URL；不能把本地绝对路径当成这些平台的可拉取 URL。Google 商家资料同样由 Local Posts 主动拉取公网 HTTPS 媒体（视频 1 条或图片最多 10 张），一个 OAuth 授权下的每个营业地点各自保存为一个发布账号。
 
 Current automated evidence uses injected `fetch`, mocked OAuth callbacks and encrypted-vault fixtures. It verifies request projection, login/account routing, publish, poll, cancel and fail-closed behavior without external network calls. It does **not** prove platform app review, a real user authorization, quota availability or a live public post; each platform still requires a separately authorized live acceptance run before production certification.
 

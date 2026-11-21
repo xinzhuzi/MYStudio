@@ -7,7 +7,7 @@ import type {
 const NO_PLATFORM_OPTIONS = [] as const;
 
 /**
- * Canonical UI/IPC order for the 14 platforms with MYStudio-owned Electron
+ * Canonical UI/IPC order for the 15 platforms with MYStudio-owned Electron
  * transports in the local provider.
  */
 export const SELF_MEDIA_LOCAL_TRANSPORT_PLATFORMS = [
@@ -25,6 +25,7 @@ export const SELF_MEDIA_LOCAL_TRANSPORT_PLATFORMS = [
   "threads",
   "pinterest",
   "linkedin",
+  "googleBusiness",
 ] as const satisfies readonly SelfMediaPlatform[];
 
 export type SelfMediaLocalTransportPlatform = (typeof SELF_MEDIA_LOCAL_TRANSPORT_PLATFORMS)[number];
@@ -164,6 +165,16 @@ export const SELF_MEDIA_CAPABILITY_MANIFEST = {
     providerId: "aitoearn-local",
     platform: "linkedin",
     displayName: "LinkedIn",
+    supportsVideo: true,
+    supportsImageText: true,
+    supportsScheduling: true,
+    supportsCancellation: true,
+    optionKeys: NO_PLATFORM_OPTIONS,
+  },
+  googleBusiness: {
+    providerId: "aitoearn-local",
+    platform: "googleBusiness",
+    displayName: "Google 商家资料",
     supportsVideo: true,
     supportsImageText: true,
     supportsScheduling: true,

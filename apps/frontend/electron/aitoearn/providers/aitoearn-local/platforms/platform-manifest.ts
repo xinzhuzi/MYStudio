@@ -198,6 +198,15 @@ export const PLATFORM_MANIFESTS = {
     capabilities: videoAndImageText(true, true, true),
     capabilityRouting: apiVideoAndImageTextRouting({ scheduling: "mystudio-task-runtime", polling: "official-api", cancellation: "official-api" }),
   }),
+  googleBusiness: manifest({
+    id: "googleBusiness",
+    providerId: AITOEARN_LOCAL_PROVIDER_ID,
+    displayName: "Google 商家资料",
+    adapterVersion: "0.1.0",
+    authStrategy: "official-oauth",
+    capabilities: videoAndImageText(true, true, true),
+    capabilityRouting: apiVideoAndImageTextRouting({ scheduling: "mystudio-task-runtime", polling: "official-api", cancellation: "official-api" }),
+  }),
 } as const satisfies Readonly<Record<PlatformId, PlatformManifest>>;
 
 export function getPlatformManifest(platformId: PlatformId): PlatformManifest {

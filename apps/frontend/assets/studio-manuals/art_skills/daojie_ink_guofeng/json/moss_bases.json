@@ -80,14 +80,6 @@
     "fast": 8,
     "quality": 50
    },
-   "i2i_routes": [
-    {
-     "name": "高清头像·人物图裁切精修",
-     "entry": "K2-人脸精修-道劫.json",
-     "denoise": 0.35
-    }
-   ],
-   "postprocess": "头像另产:本型出图→K2-人脸精修-道劫(YuNet 裁脸+1.0MP 精修)",
    "color_recipe": {
     "base": "宣纸白",
     "ink": "随主体配色与材质从色卡选取的协调彩线色",
@@ -119,13 +111,6 @@
     "fast": 8,
     "quality": 50
    },
-   "i2i_routes": [
-    {
-     "name": "去噪精修",
-     "entry": "K2-去噪精修.json"
-    }
-   ],
-   "postprocess": "K2-去噪精修 按需;备选画风件=[82]淡彩线描×0.5-0.6/[84]湿画×0.6(与墨洗互斥,同开≤1)",
    "color_recipe": {
     "base": "随场景时段",
     "ink": "随主体配色与材质从色卡选取的协调彩线色",
@@ -159,8 +144,6 @@
     "fast": 8,
     "quality": 50
    },
-   "i2i_routes": [],
-   "postprocess": "四宫格裁单格作物品图;细节特写放大走 K2-SeedVR2修复.json",
    "color_recipe": {
     "base": "透明",
     "ink": "随主体配色与材质从色卡选取的协调彩线色",
@@ -192,8 +175,6 @@
     "fast": 8,
     "quality": 50
    },
-   "i2i_routes": [],
-   "postprocess": "K2-SeedVR2修复.json 按需(超分精修)",
    "color_recipe": {
     "base": "宣纸白",
     "ink": "随主体配色与材质从色卡选取的协调彩线色",
@@ -229,8 +210,6 @@
     "fast": 8,
     "quality": 50
    },
-   "i2i_routes": [],
-   "postprocess": "裁格(人像特写格/正侧背全身格)",
    "resolution_override": [
     1824,
     1024
@@ -268,15 +247,6 @@
     "fast": 8,
     "quality": 50
    },
-   "i2i_routes": [
-    {
-     "name": "人物图裁切精修",
-     "entry": "K2-人脸精修-道劫.json",
-     "denoise": 0.35,
-     "note": "A/B 档 0.25 更保身份"
-    }
-   ],
-   "postprocess": "出图后按 UI 圆/方裁切即头像;同角色跨图同脸由主体句锚定",
    "color_recipe": {
     "base": "透明",
     "ink": "随主体配色与材质从色卡选取的协调彩线色",
@@ -309,8 +279,6 @@
     "fast": 8,
     "quality": 50
    },
-   "i2i_routes": [],
-   "postprocess": "可复用成片模板 03/07/21/26 骨架;主体句可追加连环画句",
    "color_recipe": {
     "base": "随场景时段",
     "ink": "随主体配色与材质从色卡选取的协调彩线色",
@@ -347,15 +315,6 @@
     "fast": 8,
     "quality": 50
    },
-   "i2i_routes": [
-    {
-     "name": "人脸变体",
-     "entry": "K2-表情差分-道劫.json",
-     "denoise": 0.25,
-     "note": "低去噪保面容;A/B 档 0.35 变化更大"
-    }
-   ],
-   "postprocess": "格名文字后期再加(生成期负向已压 text)",
    "color_recipe": {
     "base": "透明",
     "ink": "随主体配色与材质从色卡选取的协调彩线色",
@@ -391,8 +350,6 @@
     "fast": 8,
     "quality": 50
    },
-   "i2i_routes": [],
-   "postprocess": "备选画风件=[84]湿画×0.5-0.6(与墨洗二选一);恒不做跨图一致性要求",
    "color_recipe": {
     "base": "随场景时段",
     "ink": "随主体配色与材质从色卡选取的协调彩线色",
@@ -443,8 +400,6 @@
     "fast": 8,
     "quality": 50
    },
-   "i2i_routes": [],
-   "postprocess": "核对逐区位置、数量、角色及物件一致性；校对中文标签，能力未设定时不虚构效果；文字错误可后期修正。灵兽按来源另做附板。",
    "recipe_version": "v0.5(1030 伪字减文字面:砍人物资料面板、五枚色样保留、主立绘扩至九成;出处=任务池令文「砍资料面板/标签改短词」) | v0.6(1110 用户令「设定卡不要盖章印」:删标题带朱印令与装饰句朱印,负面槽补印章族禁词;半角标点全角归一=清K版存量红)",
    "subject_first": true
   },
@@ -462,13 +417,6 @@
     "fast": 8,
     "quality": 50
    },
-   "i2i_routes": [
-    {
-     "name": "去噪精修",
-     "entry": "K2-去噪精修.json"
-    }
-   ],
-   "postprocess": "K2-去噪精修 按需;备选画风件=[82]淡彩线描×0.5-0.6/[84]湿画×0.6(与墨洗互斥,同开≤1)",
    "color_recipe": {
     "base": "随建筑时段",
     "ink": "随主体配色与材质从色卡选取的协调彩线色",
@@ -502,15 +450,6 @@
     "fast": 8,
     "quality": 50
    },
-   "i2i_routes": [
-    {
-     "name": "人物图裁切精修",
-     "entry": "K2-人脸精修-道劫.json",
-     "denoise": 0.35,
-     "note": "A/B 档 0.25 更保身份"
-    }
-   ],
-   "postprocess": "作角色统一人脸参考供各期生图 i2i 锚脸;头像用途按 UI 圆/方裁切",
    "color_recipe": {
     "base": "透明",
     "ink": "随主体配色与材质从色卡选取的协调彩线色",
@@ -543,14 +482,6 @@
     "fast": 8,
     "quality": 50
    },
-   "i2i_routes": [
-    {
-     "name": "高清头像·人物图裁切精修",
-     "entry": "K2-人脸精修-道劫.json",
-     "denoise": 0.35
-    }
-   ],
-   "postprocess": "4K终版=SeedVR2独立超分(resolution=4096,VAE瓦片256/96)+alpha移植(Lanczos放大贴回+近透明区RGB清零);十境图生图底图用压平衍生版(1023 实弹配方)",
    "color_recipe": {
     "base": "透明",
     "ink": "随主体配色与材质从色卡选取的协调彩线色",
@@ -2452,7 +2383,7 @@
  "moss_variant": {
   "engine": "moss_image_sft_bf16",
   "derived_from": "qi21_bases.json",
-  "source_sha256_16": "e678b849efaa739c",
+  "source_sha256_16": "c0bb9c266bdab410",
   "created": "2026-11-08",
   "edits": [
    "6 透明型+白底句(道具、人物多视图、高清人头、表情差分、人脸基准、无衣物定妆)",

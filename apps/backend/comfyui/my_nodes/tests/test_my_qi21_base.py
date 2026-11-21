@@ -284,7 +284,8 @@ def test_data_file_schema():
         assert isinstance(e["negative_text"], str) and e["negative_text"], zh
         if zh == "自由":
             # 自由型(1001 P1,design §2.1):positive_text 空串=无型底座层(唯一例外;
-            # v3 字段(key/purpose/lora_recipe/steps_hint/i2i_routes/postprocess)不带)
+            # v3 字段(key/purpose/lora_recipe/steps_hint)不带;1121 清档删
+            # i2i_routes/postprocess 两死档)
             assert bt == "", (zh, bt)
             assert e["aspect_ratio"] == "1:1 (Square)"
             assert e["megapixels"] == 1.0

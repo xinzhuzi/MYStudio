@@ -11,6 +11,7 @@ export const OFFICIAL_PLATFORM_IDS = [
   "threads",
   "pinterest",
   "linkedin",
+  "googleBusiness",
 ] as const satisfies readonly PlatformId[];
 
 export type OfficialPlatformId = (typeof OFFICIAL_PLATFORM_IDS)[number];
@@ -34,6 +35,7 @@ const ENV_PREFIX = {
   threads: "THREADS",
   pinterest: "PINTEREST",
   linkedin: "LINKEDIN",
+  googleBusiness: "GOOGLE_BUSINESS",
 } as const satisfies Record<OfficialPlatformId, string>;
 
 const DEFAULT_SCOPES: Readonly<Record<OfficialPlatformId, readonly string[]>> = {
@@ -47,6 +49,7 @@ const DEFAULT_SCOPES: Readonly<Record<OfficialPlatformId, readonly string[]>> = 
   threads: ["threads_basic", "threads_content_publish"],
   pinterest: ["pins:read", "pins:write", "boards:read"],
   linkedin: ["openid", "profile", "email", "w_member_social"],
+  googleBusiness: ["https://www.googleapis.com/auth/business.manage"],
 };
 
 const CLIENT_SECRET_REQUIRED = new Set<OfficialPlatformId>([
@@ -59,6 +62,7 @@ const CLIENT_SECRET_REQUIRED = new Set<OfficialPlatformId>([
   "threads",
   "pinterest",
   "linkedin",
+  "googleBusiness",
 ]);
 
 function required(value: string | undefined): string | null {

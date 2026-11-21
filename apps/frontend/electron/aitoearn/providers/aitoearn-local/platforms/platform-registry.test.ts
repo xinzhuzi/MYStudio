@@ -26,10 +26,11 @@ const expectedPlatforms = [
   ["threads", "Threads", "official-oauth"],
   ["pinterest", "Pinterest", "official-oauth"],
   ["linkedin", "LinkedIn", "official-oauth"],
+  ["googleBusiness", "Google 商家资料", "official-oauth"],
 ] as const;
 
 describe("aitoearn-local platform packages", () => {
-  it("registers the exact 14 upstream platform IDs and display names", () => {
+  it("registers the exact 15 upstream platform IDs and display names", () => {
     expect(PLATFORM_IDS).toEqual(expectedPlatforms.map(([id]) => id));
     expect(SELF_MEDIA_LOCAL_TRANSPORT_PLATFORMS).toEqual(PLATFORM_IDS);
     expect(Object.keys(SELF_MEDIA_CAPABILITY_MANIFEST)).toEqual([...PLATFORM_IDS]);

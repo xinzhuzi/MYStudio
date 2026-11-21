@@ -2,6 +2,7 @@ import type { PlatformAdapterTransport } from "../platform-adapter";
 import type { PlatformId } from "../platform-types";
 import { createBilibiliTransport } from "../bilibili/transport";
 import { createFacebookTransport } from "../facebook/transport";
+import { createGoogleBusinessTransport } from "../googleBusiness/transport";
 import { createInstagramTransport } from "../instagram/transport";
 import { createLinkedinTransport } from "../linkedin/transport";
 import { createPinterestTransport } from "../pinterest/transport";
@@ -25,6 +26,7 @@ const TRANSPORT_FACTORIES = {
   threads: createThreadsTransport,
   pinterest: createPinterestTransport,
   linkedin: createLinkedinTransport,
+  googleBusiness: createGoogleBusinessTransport,
 } as const satisfies Readonly<Record<OfficialPlatformId, (runtime: OfficialTransportRuntime) => PlatformAdapterTransport>>;
 
 export interface OfficialPlatformTransportsOptions {

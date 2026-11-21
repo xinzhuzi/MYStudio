@@ -124,18 +124,18 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     assert gender[2]['parts'][0]['text']=='按照你的建议去做'
     assert revisions[base]=={
         'original_sha256':'a2df104bf740670cbea1fbe9b06ba43c7695b7d2be26d0a6cfc621e422967bff',
-        'approved_sha256':'c73edbe3b1530dd16c2830946fc6ee7db681492192e40bdb170fc6b8ace18d34',  # 1120 高清人头改名随迁(1114 canon 基础上)
+        'approved_sha256':'de49aefee48b366bdeeab347b3aba044625fb41e122d055897e8037fa6177d5e',  # 1121 K2 死档清档(1120 高清人头改名基础上;删 i2i_routes/postprocess)
         'role':'runtime_execution_input_updated_after_snapshot',
         'historical_backup':'.trellis/tasks/archive/2026-10/10-18-daojie-conflict-p1-canon/backups/qi21_bases.json',
         'approval':{
-            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-reapproval-1120-hdhead-rename.md',
-            'anchor':'## Decisions(1120 用户令「改名高清人头+改型文;通用型全域都要改」)',
-            'sha256':'1b6e651ed02ea10761ec7f298657d09ac6ecdde2741dc5c78c435e0bfa1700ac',
+            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-reapproval-1121-i2i-routes-cleanup.md',
+            'anchor':'## Decisions(1121 用户令「那你就清理一下,不要瞎搞啊」)',
+            'sha256':'f293b469f8386b8148334d0cf4c06e8e00443514ca101311d221c86d48604d69',
         },
         'change_ledger':{
-            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-change-ledger-1120-hdhead-rename.md',
-            'anchor':'## 字段级变更(1120 用户令「高清人脸→高清人头,去肩去衣止颈根;通用型全域都要改」)',
-            'sha256':'b89806e1120399863452b54f67d8057119122e6ceb9469ccc91e787e0b8c4f11',
+            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-change-ledger-1121-i2i-routes-cleanup.md',
+            'anchor':'## 字段级变更(1121 用户令「清理 K2 时代死档引用,不要瞎搞」)',
+            'sha256':'e4f8f8f41eab9326591a9c0abbe507e4cfe6fe6263b4f0becc24c6444b5e7b78',
         },
     }
     revision=revisions[base]

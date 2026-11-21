@@ -8,6 +8,9 @@ import {
   createFacebookAdapter,
 } from "./facebook";
 import {
+  createGoogleBusinessAdapter,
+} from "./googleBusiness";
+import {
   createInstagramAdapter,
 } from "./instagram";
 import {
@@ -67,6 +70,7 @@ const PLATFORM_ADAPTER_FACTORIES = {
   threads: createThreadsAdapter,
   pinterest: createPinterestAdapter,
   linkedin: createLinkedinAdapter,
+  googleBusiness: createGoogleBusinessAdapter,
 } as const satisfies Readonly<Record<PlatformId, PlatformAdapterFactory>>;
 
 export interface PlatformAdapterRegistry {

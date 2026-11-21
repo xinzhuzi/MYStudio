@@ -14,7 +14,8 @@ export type SelfMediaPlatform =
   | "instagram"
   | "threads"
   | "pinterest"
-  | "linkedin";
+  | "linkedin"
+  | "googleBusiness";
 
 export type SelfMediaAccountStatus = "online" | "offline" | "expired" | "error";
 export type SelfMediaContentType = "video" | "image-text";

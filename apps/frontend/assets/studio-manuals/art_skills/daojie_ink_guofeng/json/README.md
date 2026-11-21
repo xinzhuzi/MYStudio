@@ -58,8 +58,6 @@
 | `recipe_version` | 配方版本标签——**对应型提示词完成静态+实弹验收后才刷**,禁止先改标签制造已终审假象 |
 | `lora_recipe` | 按型 LoRA 配方——[{file,weight,slot}] 列表(K2 承接字段,Q2.1 线不用) |
 | `steps_hint` | 步数档——{fast,quality} 两档建议步数 |
-| `i2i_routes` | 图生图路由——该型出图后可走的高清精修线清单(K2 承接字段) |
-| `postprocess` | 后处理说明——出图后的加工链文字说明(K2 承接字段) |
 | `color_recipe` | 多彩行预算——{base,ink,stable[],mid[],accent[]} 五职责色词份数制,冲突按 color_lexicon.conflict_order 裁决 |
 
 > 旧 `key` 字段=与 `zh` 同值的冗余双键,1008 R 批删除;唯一消费方(底座节点选型)已改单读 `zh`。
@@ -86,7 +84,7 @@ graph TB
 
 | 文件 | 角色 |
 |---|---|
-| `qi21_bases.json` | **生产真源**:美术风格底座(art_style_base)/十一型+自由=12 条底座(types;1015 设定卡入列;1021 3D剖面场景图入列)/PE扩写指令/清筛词表/分层契约(layer_contract)/色卡词典(color_lexicon);types[] 每型含 K2 承接字段:lora_recipe/steps_hint/i2i_routes/postprocess/recipe_version(数据实存,配方矩阵文档为其投影) |
+| `qi21_bases.json` | **生产真源**:美术风格底座(art_style_base)/十一型+自由=12 条底座(types;1015 设定卡入列;1021 3D剖面场景图入列)/PE扩写指令/清筛词表/分层契约(layer_contract)/色卡词典(color_lexicon);types[] 每型含配方字段:lora_recipe/steps_hint/recipe_version(1121 清档:零消费死档 i2i_routes/postprocess 已删,现行 qi21 域出图走 qwen-image-2-1 装配,K2 辅路引用退役) |
 | `qi21_strip_lexicon.json` | Q2.1 清筛正则表(pattern;与 qi21_bases 内嵌 strip_lexicon 词表并存,非重复;留档件) |
 | `daojie_lora_stack.json` | K2 LoRA 栈序(14条) |
 | `daojie_loras.json` | K2 LoRA 台账(9条) |

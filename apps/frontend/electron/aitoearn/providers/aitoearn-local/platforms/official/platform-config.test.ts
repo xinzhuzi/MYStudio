@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { loadOfficialPlatformConfig, OFFICIAL_PLATFORM_IDS } from "./platform-config";
 
 describe("official platform main-process configuration", () => {
-  it("covers exactly the ten platforms without a vendor Electron transport", () => {
+  it("covers exactly the eleven platforms without a vendor Electron transport", () => {
     expect(OFFICIAL_PLATFORM_IDS).toEqual([
       "tiktok", "youtube", "bilibili", "twitter", "wxGzh",
-      "facebook", "instagram", "threads", "pinterest", "linkedin",
+      "facebook", "instagram", "threads", "pinterest", "linkedin", "googleBusiness",
     ]);
   });
 
@@ -49,5 +49,23 @@ describe("official platform main-process configuration", () => {
       platformId: "wxGzh",
       redirectUri: "http://127.0.0.1/self-media/wechat-official",
     });
+  });
+
+  it("loads Google Business credentials from MYSTUDIO_SELF_MEDIA_GOOGLE_BUSINESS_* with the business.manage scope", () => {
+    expect(loadOfficialPlatformConfig("googleBusiness", {
+      MYSTUDIO_SELF_MEDIA_GOOGLE_BUSINESS_CLIENT_ID: "gb-client",
+      MYSTUDIO_SELF_MEDIA_GOOGLE_BUSINESS_CLIENT_SECRET: "gb-secret",
+      MYSTUDIO_SELF_MEDIA_GOOGLE_BUSINESS_REDIRECT_URI: "https://localhost/oauth/google-business",
+    })).toEqual({
+      platformId: "googleBusiness",
+      clientId: "gb-client",
+      clientSecret: "gb-secret",
+      redirectUri: "https://localhost/oauth/google-business",
+      scopes: ["https://www.googleapis.com/auth/business.manage"],
+    });
+    expect(loadOfficialPlatformConfig("googleBusiness", {
+      MYSTUDIO_SELF_MEDIA_GOOGLE_BUSINESS_CLIENT_ID: "gb-client",
+      MYSTUDIO_SELF_MEDIA_GOOGLE_BUSINESS_REDIRECT_URI: "https://localhost/oauth/google-business",
+    })).toBeNull();
   });
 });

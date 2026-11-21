@@ -22,10 +22,11 @@ const EXPECTED_PLATFORMS = [
   "threads",
   "pinterest",
   "linkedin",
+  "googleBusiness",
 ] as const satisfies readonly SelfMediaPlatform[];
 
 describe("self-media capability manifest", () => {
-  it("contains exactly the shared 14-platform contract", () => {
+  it("contains exactly the shared 15-platform contract", () => {
     expect(Object.keys(SELF_MEDIA_CAPABILITY_MANIFEST)).toEqual([...EXPECTED_PLATFORMS]);
   });
 
@@ -66,15 +67,15 @@ describe("self-media capability manifest", () => {
     });
   });
 
-  it("advertises publishing for all ten official platform transports", () => {
-    for (const platform of ["tiktok", "youtube", "bilibili", "twitter", "wxGzh", "facebook", "instagram", "threads", "pinterest", "linkedin"] as const) {
+  it("advertises publishing for all eleven official platform transports", () => {
+    for (const platform of ["tiktok", "youtube", "bilibili", "twitter", "wxGzh", "facebook", "instagram", "threads", "pinterest", "linkedin", "googleBusiness"] as const) {
       const capability = SELF_MEDIA_CAPABILITY_MANIFEST[platform];
       expect(capability.supportsVideo || capability.supportsImageText).toBe(true);
       expect(capability.supportsScheduling).toBe(true);
     }
   });
 
-  it("keeps the local transport allowlist aligned with the 14-platform contract", () => {
+  it("keeps the local transport allowlist aligned with the 15-platform contract", () => {
     expect(EXPECTED_PLATFORMS.filter((platform) => isSelfMediaLocalTransportPlatform("aitoearn-local", platform))).toEqual([
       "tiktok",
       "douyin",
@@ -90,6 +91,7 @@ describe("self-media capability manifest", () => {
       "threads",
       "pinterest",
       "linkedin",
+      "googleBusiness",
     ]);
     expect(isSelfMediaLocalTransportPlatform("aitoearn-local", "youtube")).toBe(true);
     expect(isSelfMediaLocalTransportPlatform("aitoearn-local", "douyin")).toBe(true);

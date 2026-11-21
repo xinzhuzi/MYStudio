@@ -254,7 +254,10 @@ def test_all_negatives_are_chinese_baseline():
             f"底座「{entry['zh']}」negative_text 应为中文负面基线"
 
 
-# ── v3 九型配方(09-19 C2 单源):lora_recipe/steps_hint/i2i_routes/postprocess ──
+# ── v3 配方字段(09-19 C2 单源;lora_recipe/steps_hint)──
+# 1121 清档:i2i_routes/postprocess=K2 时代零消费死档字段,已从真源删除
+# (现行 qi21 域走 qwen-image-2-1 装配,App/引擎无读取面;K2-人脸精修等辅路
+# 引用随之退役,历史用法档案见 docs/prompts/道劫_类型配方.md)。
 def _v3_entries():
     # 1004 集中化:真源家 types[] 九型(原平铺 list/daojie_bases.json 退役)
     return _bases_entries()
@@ -265,7 +268,7 @@ def test_v3_fields_present_for_all_nine_with_shape():
     正负拆开:positive/negative→positive_text/negative_text 字段名随迁)。"""
     for e in _v3_entries():
         zh = e["zh"]
-        for field in ("lora_recipe", "steps_hint", "i2i_routes", "postprocess"):
+        for field in ("lora_recipe", "steps_hint"):
             assert field in e, (zh, field)
         # 老字段仍在(v3 增量迁移的零改动面;1004 换名后的正负双字段;
         # 1008 R 批删 types[].key 冗余双键(九型 key≡zh 同值),断言随源重锚)
@@ -282,13 +285,6 @@ def test_v3_fields_present_for_all_nine_with_shape():
             assert 0 < item["weight"] <= 1.0, (zh, item)
         assert set(e["steps_hint"]) == {"fast", "quality"}, zh
         assert e["steps_hint"] == {"fast": 4, "quality": 12}, zh
-        assert isinstance(e["i2i_routes"], list), zh
-        for route in e["i2i_routes"]:
-            assert set(route) >= {"name", "entry"} and route["entry"].endswith(".json"), \
-                (zh, route)
-            if "denoise" in route:
-                assert 0 < route["denoise"] < 1, (zh, route)
-        assert isinstance(e["postprocess"], str) and e["postprocess"], zh
 
 
 def test_v3_recipe_mutex_and_rulings():

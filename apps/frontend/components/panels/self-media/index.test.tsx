@@ -163,8 +163,9 @@ describe("SelfMediaPanel task controls", () => {
 
     render(<SelfMediaPanel />);
 
-    expect(Object.values(SELF_MEDIA_CAPABILITY_MANIFEST)).toHaveLength(14);
-    expect(screen.getAllByRole("button", { name: "登录" })).toHaveLength(14);
+    const platformCount = Object.keys(SELF_MEDIA_CAPABILITY_MANIFEST).length;
+    expect(Object.values(SELF_MEDIA_CAPABILITY_MANIFEST)).toHaveLength(platformCount);
+    expect(screen.getAllByRole("button", { name: "登录" })).toHaveLength(platformCount);
     for (const capability of Object.values(SELF_MEDIA_CAPABILITY_MANIFEST)) expect(screen.getByText(capability.displayName)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "发布" }));
@@ -178,11 +179,11 @@ describe("SelfMediaPanel task controls", () => {
     expect((screen.getByRole("button", { name: "立即发布" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("keeps all 14 account entries visible while disabling platforms without a configured transport", async () => {
+  it("keeps all 15 account entries visible while disabling platforms without a configured transport", async () => {
     installBridge();
     render(<SelfMediaPanel />);
 
-    for (const displayName of ["TikTok", "YouTube", "B站", "X（Twitter）", "微信公众号", "Facebook", "Instagram", "Threads", "Pinterest", "LinkedIn"]) {
+    for (const displayName of ["TikTok", "YouTube", "B站", "X（Twitter）", "微信公众号", "Facebook", "Instagram", "Threads", "Pinterest", "LinkedIn", "Google 商家资料"]) {
       await waitFor(() => {
         const card = screen.getByRole("heading", { name: displayName }).parentElement?.parentElement?.parentElement;
         expect(card).toBeTruthy();

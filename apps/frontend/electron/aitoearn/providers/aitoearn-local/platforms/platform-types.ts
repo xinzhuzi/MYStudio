@@ -15,6 +15,7 @@ export const PLATFORM_IDS = [
   "threads",
   "pinterest",
   "linkedin",
+  "googleBusiness",
 ] as const;
 
 export type PlatformId = (typeof PLATFORM_IDS)[number];
