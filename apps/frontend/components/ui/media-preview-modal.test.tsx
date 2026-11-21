@@ -90,6 +90,25 @@ describe("media preview modals", () => {
     }
   });
 
+  // 1121 X 失效终局根修:顶部窗口拖拽区(.project-chrome/.freedom-drag-strip,
+  // -webkit-app-region:drag)不看 z-index,灯箱工具栏(top-3)恰压其上——真鼠标
+  // 点击被 macOS 当窗口拖拽吃掉(仅 Electron 真手指可复现,CDP/裸 Chromium 免疫)。
+  // 灯箱根必须显式 no-drag,否则工具栏四钮(像素角标/缩小/放大/关闭)在窗口顶带恒死。
+  it("窗口拖拽区免疫:灯箱根显式 -webkit-app-region:no-drag(真鼠标 X 可点)", () => {
+    render(
+      <ImagePreviewModal
+        imageUrl="https://example.test/preview.png"
+        isOpen
+        onClose={vi.fn()}
+      />,
+    );
+    const lightboxContainer = document.querySelector("[data-image-preview-lightbox]") as HTMLElement | null;
+    expect(lightboxContainer).toBeTruthy();
+    // jsdom 的 CSSStyleDeclaration 类型缺 Electron 专有属性,断言走运行时取值
+    const region = (lightboxContainer!.style as CSSStyleDeclaration & { WebkitAppRegion?: string }).WebkitAppRegion;
+    expect(region).toBe("no-drag");
+  });
+
   it("renders and closes the video preview through its close control", () => {
     const onClose = vi.fn();
     const { container } = render(

@@ -225,7 +225,12 @@ export function ImagePreviewModal({
       // 级监听泡不到;层叠显式最大值压过一切宿主上下文
       ref={rootRef}
       className="fixed inset-0 flex items-center justify-center bg-black/85 outline-none"
-      style={{ zIndex: LIGHTBOX_Z_INDEX, pointerEvents: "auto" }}
+      // 1121 X 失效终局根修:顶部窗口拖拽区(-webkit-app-region:drag 的
+      // .project-chrome/.freedom-drag-strip)不看 z-index——灯箱工具栏(top-3)
+      // 恰压在该带上,真鼠标点击被 macOS 当窗口拖拽吃掉,按钮永远收不到;
+      // CDP/裸 Chromium 均免疫此层(app-region 为 Electron 专属),仅真手指
+      // 可复现。根显式 no-drag 使灯箱全域(含工具栏四钮)恒可点。
+      style={{ zIndex: LIGHTBOX_Z_INDEX, pointerEvents: "auto", WebkitAppRegion: "no-drag" } as React.CSSProperties}
       onPointerDown={stopRoot}
       onClick={onBackdropClick}
       onDoubleClick={stopRoot}
@@ -404,6 +409,8 @@ export function VideoPreviewModal({
     <div
       ref={dialogRef}
       className="fixed inset-0 z-[999] bg-black/80 flex items-center justify-center outline-none"
+      // 1121 同图片灯箱:顶部拖拽区免疫(no-drag,真鼠标 X 可点)
+      style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
