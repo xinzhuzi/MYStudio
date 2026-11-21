@@ -152,16 +152,24 @@ describe("StudioAssetDetailView store 位提示词真源接线(store-only 角色
     const jsonButton = await screen.findByRole("button", { name: /提示词真源JSON/ });
     expect(jsonButton).toBeTruthy();
 
-    // 主体句 Textarea 原样保留(store-only 不进 repo 目录面板;readOnly=false)
+    // 1121 布局统一:store-only 现在吃同构双卡——素体卡=store JSON 值,
+    // 主体句卡=DB 补位(卡头「编辑」展开原 Textarea,readOnly=false,值=draftPrompt)
+    expect(await screen.findByText("无衣物定妆(素体基底)")).toBeTruthy();
+    expect(await screen.findByText(/store素体主体句甲/)).toBeTruthy();
+    const subjectCard = await screen.findByText("主体句");
+    expect(subjectCard).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: "编辑" })[0]);
     const textarea = await screen.findByPlaceholderText("暂无出图提示词");
     expect((textarea as HTMLTextAreaElement).readOnly).toBe(false);
     // 派发零变更:值=DB draftPrompt(非 JSON 派生句)
     expect((textarea as HTMLTextAreaElement).value).toBe(XIAOZAYI_PROMPT);
   });
 
-  it("store 未命中(无 JSON):钮不出现,主体句框照旧", async () => {
+  it("store 未命中(无 JSON):钮不出现;1121 统一后主体句=DB 回退卡(编辑钮展开框)", async () => {
     renderDialog();
-    // 等一个渲染周期后钮仍缺席
+    // DB 回退双卡就位(主体句卡+编辑口),真源 JSON 钮缺席
+    expect(await screen.findByText("主体句")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "编辑" }));
     await waitFor(() => expect(screen.getByPlaceholderText("暂无出图提示词")).toBeTruthy());
     expect(screen.queryByRole("button", { name: /提示词真源JSON/ })).toBeNull();
   });

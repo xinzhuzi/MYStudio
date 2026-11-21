@@ -59,6 +59,7 @@ import { StudioAssetSourcePromptDialog } from "./studio-asset-source-prompt-dial
 import { StudioAssetCharacterJsonDialog } from "./studio-asset-character-json-dialog";
 import { StudioAssetCharacterPrompts } from "./studio-asset-character-prompts";
 import {
+  deriveBareSubjectFromClothed,
   deriveSubjectFromCharacterJson,
   resolveBareTypeSubjectGate,
   getCharacterJsonInfo,
@@ -67,6 +68,7 @@ import {
   resolveAssetPromptJsonInfo,
   type AssetPromptJsonInfo,
   type AssetPromptJsonType,
+  type CharacterPromptCatalog,
 } from "@/lib/studio/asset-character-json";
 import { StudioAssetPromptTextDialog, type PromptTextInspectTarget } from "./studio-asset-prompt-text-dialog";
 import {
@@ -265,6 +267,9 @@ export function StudioAssetDetailView({
   // A-2 ①:i2i 型聚焦时主体句折叠位(false=折叠为一行「不参与」提示;点开仍可编辑;
   // 每次置焦即回折叠,保证逐入口准确)
   const [subjectExpanded, setSubjectExpanded] = useState(true);
+  // 1121 布局统一:主体句卡「编辑」钮的开合(独立于 i2i 旧 subjectExpanded——
+  // 旧态默认 true 会让 DB 补位卡恒直出 Textarea,破坏双卡统一形态)
+  const [subjectEditorOpen, setSubjectEditorOpen] = useState(false);
   // A-2 ②:「提示词构成」单折叠组默认收起一行摘要(裁定 Q3;展开态记忆视用感再补)
   const [sourcePromptOpen, setSourcePromptOpen] = useState(false);
   const [characterJsonOpen, setCharacterJsonOpen] = useState(false);
@@ -471,9 +476,46 @@ export function StudioAssetDetailView({
     [characterJsonInfo, storePromptHit, characterJsonText],
   );
   const characterPromptCatalog = useMemo(
-    () => characterJsonInfo && characterJsonText !== null ? parseCharacterPromptCatalog(characterJsonText) : null,
-    [characterJsonInfo, characterJsonText],
+    // 1121 布局统一:门槛放宽=repo 真源 ∨ store 位真源(store JSON 同 schema,
+    // Win 侧 201 件即时吃两卡面板;旧门槛 repo-only=Mac 上仅晏燎走两卡、其余
+    // 全员单块正文=用户三报「布局不一致」根源)
+    () => (characterJsonInfo || storePromptHit) && characterJsonText !== null ? parseCharacterPromptCatalog(characterJsonText) : null,
+    [characterJsonInfo, storePromptHit, characterJsonText],
   );
+  // 1121 布局统一(用户令「都统一成晏燎的样子」):无真源 role 用 DB 数据构建
+  // 同构双卡——主体句卡(DB subject,点击可展开编辑,保住原 Textarea 编辑口)+
+  // 素体卡(既有自动派生链 deriveBareSubjectFromClothed);卡名如实不冒充
+  // 真源语义(「主体句」≠「人脸基准」,界面不许撒谎),结构=两折叠卡同款。
+  const fallbackPromptCatalog = useMemo<CharacterPromptCatalog | null>(() => {
+    if (asset?.type !== "role") return null;
+    // repo 真源在途时禁用回退卡:装载窗内抢先渲染会冒充「已无真源」形态,
+    // 且掩掉测试/用户对真源已就位的判据(卡片标题同文)。store-only 不禁:
+    // 其 JSON 常只有 body_base 无 hd_face_base,主体句卡由 DB 回退补位合并。
+    if (characterJsonInfo) return null;
+    const subject = (draftPrompt || "").trim();
+    const bare = subject ? deriveBareSubjectFromClothed(subject) : null;
+    if (!subject && !bare) return null;
+    return {
+      faceBase: subject
+        ? { key: "db-subject", route: "t2i", routeNote: "主体句(DB,点击卡头「编辑」改)", title: "主体句", text: subject }
+        : null,
+      bodyBase: bare
+        ? { key: "db-bare", route: "t2i", routeNote: "素体句(自动派生,剥除衣物)", title: "无衣物定妆(素体基底)", text: bare }
+        : null,
+      realms: [],
+    };
+  }, [asset?.type, draftPrompt, characterJsonInfo]);
+  // 统一渲染目录:真源目录优先;其 faceBase 缺席(store-only 常态)时用 DB
+  // 主体句卡补位——全员恒呈「主体句/人脸基准 + 无衣物定妆(素体基底)」双卡骨架
+  const unifiedPromptCatalog = useMemo<CharacterPromptCatalog | null>(() => {
+    if (characterPromptCatalog) {
+      if (characterPromptCatalog.faceBase || !fallbackPromptCatalog?.faceBase) return characterPromptCatalog;
+      return { ...characterPromptCatalog, faceBase: fallbackPromptCatalog.faceBase };
+    }
+    return fallbackPromptCatalog;
+  }, [characterPromptCatalog, fallbackPromptCatalog]);
+  // 主体句卡可编辑=该卡来自 DB 回退(真源 faceBase 恒只读镜像)
+  const subjectCardEditable = !characterPromptCatalog?.faceBase;
   const subjectMirrorActive = Boolean(characterJsonInfo) && characterSubjectMirror !== null;
   // 派发/保存用主体句(TS 收窄:镜像激活=真源派生句,否则 DB 值)
   const effectiveSubjectPrompt = characterSubjectMirror !== null && Boolean(characterJsonInfo)
@@ -1314,11 +1356,42 @@ export function StudioAssetDetailView({
                             =聚类最高境界,阶段职能退由派发默认承担) */}
                         {/* 10-27 用户令「这些控件不需要展示」:区头行整行不渲染(主体句标签/阶段
                             选择器/本型专用句钮,真源与非真源一律零区头;槽机制转地下,派发照吃槽值) */}
-                        {characterPromptCatalog ? (
+                        {unifiedPromptCatalog ? (
                           /* 10-26 用户令「展示基础相关的提示词,而不是阶段相关的」+
-                             「不要重复」:面板只显基础两卡(人脸基准/无衣物定妆(素体基底)),
-                             阶段指令不展示(仍住真源JSON,「角色真源JSON」弹窗可查) */
-                          <StudioAssetCharacterPrompts catalog={characterPromptCatalog} />
+                             「不要重复」:面板只显基础两卡(人脸基准/主体句+无衣物定妆
+                             (素体基底)),阶段指令不展示(仍住真源JSON,「角色真源JSON」
+                             弹窗可查)。1121 布局统一:真源∨store∨DB 回退全员同构双卡;
+                             主体句卡来自 DB 时卡头带「编辑」(展开原 Textarea,编辑口不丢) */
+                          <>
+                            <StudioAssetCharacterPrompts
+                              catalog={unifiedPromptCatalog}
+                              onEditFace={subjectCardEditable ? () => { setSubjectExpanded(true); setSubjectEditorOpen(true); } : undefined}
+                            />
+                            {subjectEditorOpen && subjectCardEditable && (
+                              <>
+                                {focusIsI2iFamily && focusKind && (
+                                  <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1 text-[11px] leading-4 text-muted-foreground">
+                                    <span className="min-w-0 truncate" title={subjectDowngradeNote(focusKind)}>
+                                      {subjectDowngradeNote(focusKind)}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      className="shrink-0 rounded-md transition-colors hover:text-foreground"
+                                      onClick={() => setSubjectExpanded(false)}
+                                    >
+                                      收起
+                                    </button>
+                                  </div>
+                                )}
+                                <Textarea
+                                  value={subjectValue}
+                                  onChange={(event) => handleSubjectChange(event.target.value)}
+                                  placeholder={kindSlotActive && focusKind ? `本型专用句(仅${focusKind}生成路生效;保存入库)` : "暂无出图提示词"}
+                                  className={`min-h-[96px] resize-none bg-muted/90 text-xs leading-5 ${focusIsI2iFamily ? "opacity-70" : ""}`}
+                                />
+                              </>
+                            )}
+                          </>
                         ) : focusIsI2iFamily && focusKind && !subjectExpanded ? (
                           <button
                             type="button"

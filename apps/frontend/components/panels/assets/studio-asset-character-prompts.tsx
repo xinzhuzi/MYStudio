@@ -18,7 +18,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
  * 型谱命名恒一致(「无衣物定妆」型),各司其职不重复。
  */
 
-function PromptCard({ entry }: { entry: CharacterPromptEntry }) {
+function PromptCard({ entry, onEdit }: { entry: CharacterPromptEntry; onEdit?: () => void }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <button
@@ -30,6 +30,29 @@ function PromptCard({ entry }: { entry: CharacterPromptEntry }) {
     >
       <div className="flex items-center gap-1.5">
         <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground">{entry.title}</span>
+        {/* 1121 布局统一:无真源 role 的主体句卡保编辑口(点击展开原 Textarea;
+            真源角色不传 onEdit=恒只读镜像,语义不变) */}
+        {onEdit ? (
+          <span
+            role="button"
+            tabIndex={0}
+            className="shrink-0 rounded px-1.5 py-px text-[10px] text-primary/80 transition-colors hover:bg-primary/10 hover:text-primary"
+            onClick={(event) => {
+              event.stopPropagation();
+              onEdit();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                event.stopPropagation();
+                onEdit();
+              }
+            }}
+            title="展开编辑该主体句"
+          >
+            编辑
+          </span>
+        ) : null}
         {expanded ? (
           <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
         ) : (
@@ -51,12 +74,16 @@ function PromptCard({ entry }: { entry: CharacterPromptEntry }) {
 
 export function StudioAssetCharacterPrompts({
   catalog,
+  onEditFace,
 }: {
   catalog: CharacterPromptCatalog;
+  /** 1121 布局统一:传入=faceBase 卡(主体句)可编辑(无真源 role 回退路);
+      缺省=真源镜像只读(晏燎等,原语义)。 */
+  onEditFace?: () => void;
 }) {
   return (
     <div className="grid gap-1.5" aria-label="人物提示词(真源JSON)">
-      {catalog.faceBase ? <PromptCard entry={catalog.faceBase} /> : null}
+      {catalog.faceBase ? <PromptCard entry={catalog.faceBase} onEdit={onEditFace} /> : null}
       {catalog.bodyBase ? <PromptCard entry={catalog.bodyBase} /> : null}
     </div>
   );
