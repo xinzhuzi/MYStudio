@@ -7,13 +7,16 @@ import type { FreedomImageParams, GenerationResult } from "./generation-types";
 import {
   extractFreedomImageUrl,
   freedomObservedFetch,
+  FREEDOM_POLL_INTERVAL_MS,
+  FREEDOM_POLL_MAX_ATTEMPTS,
   getFreedomRootBaseUrl,
   pollForFreedomResult,
 } from "./generation-transport";
 import { resolveKlingModelName } from "./generation-model-names";
 
-const IMAGE_POLL_INTERVAL = 2000;
-const IMAGE_POLL_MAX_ATTEMPTS = 60;
+// 轮询预算归一至 generation-transport 单源(1121:750×2s=1500s 对齐产线桥墙,旧 60×2s=120s;含 115/213 两处内联轮询循环同享)
+const IMAGE_POLL_INTERVAL = FREEDOM_POLL_INTERVAL_MS;
+const IMAGE_POLL_MAX_ATTEMPTS = FREEDOM_POLL_MAX_ATTEMPTS;
 
 export type SaveFreedomImage = (url: string, prompt: string) => string | undefined;
 

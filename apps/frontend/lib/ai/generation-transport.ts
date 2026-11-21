@@ -1,5 +1,6 @@
 import { createOperationId } from "@/lib/diagnostics/logger";
 import { observedFetch, type ObservedFetchMeta } from "@/lib/diagnostics/network";
+import { isRetryableHttpStatus } from "@/lib/ai/retry-policy";
 import { uploadBase64Image } from "@/lib/utils/image-upload";
 /**
  * 分层定位(2026-08-29 迁自 lib/assist/freedom-*,Trellis 08-28-freedom-image-engine-rename 批次 A):
@@ -115,6 +116,13 @@ export function extractFreedomVideoUrl(data: FreedomResponseData): string | null
   return null;
 }
 
+/** freedom 通道轮询预算单源(1121 归一):750×2s=1500s,对齐产线桥墙。旧 60×2s=120s 会误杀 571s 级任务。 */
+export const FREEDOM_POLL_INTERVAL_MS = 2000;
+export const FREEDOM_POLL_MAX_ATTEMPTS = 750;
+
+/** 终态错误:404/非重试码/取消族——穿透 catch 直接上抛,不进静默退避 */
+class TerminalPollError extends Error {}
+
 export async function pollForFreedomResult(
   pollUrl: string,
   apiKey: string,
@@ -137,20 +145,33 @@ export async function pollForFreedomResult(
           maxRetries: maxAttempts,
         },
       );
-      if (!response.ok) continue;
+      if (!response.ok) {
+        const httpStatus = typeof response.status === "number" ? response.status : 0;
+        if (httpStatus === 404) {
+          throw new TerminalPollError(`任务不存在或已过期(Task not found)${taskId ? `·任务号 ${taskId}` : ""}`);
+        }
+        if (!isRetryableHttpStatus(httpStatus)) {
+          throw new TerminalPollError(`查询任务状态失败(HTTP ${httpStatus})`);
+        }
+        continue; // 可重试码(429/5xx)烧一轮,交给下一轮
+      }
       const data = await response.json();
       const status = (data.status || data.state || "").toLowerCase();
       if (status === "completed" || status === "succeeded" || status === "success") {
         return extractFreedomImageUrl(data) || extractFreedomVideoUrl(data);
       }
-      if (status === "failed" || status === "error" || status === "cancelled") {
+      if (status === "failed" || status === "error" || status === "cancelled" || status === "canceled" || status === "expired") {
         throw new Error(`Generation failed: ${data.error || data.message || status}`);
       }
     } catch (error: unknown) {
+      if (error instanceof TerminalPollError) throw error;
       const message = error instanceof Error ? error.message : String(error);
       if (message.startsWith("Generation failed")) throw error;
       console.warn(`[Freedom] Poll error (attempt ${attempt + 1}):`, message);
     }
   }
-  return null;
+  // 轮询预算烧尽=超时,抛真因(旧行为返 null→engine 报「接口响应里没有图片地址」假错/adapters 静默 fallback)
+  throw new Error(
+    `图片生成超时(已轮询 ${maxAttempts} 次、约 ${Math.round((maxAttempts * interval) / 1000)} 秒仍未出图)${taskId ? `·任务号 ${taskId}` : ""}`,
+  );
 }

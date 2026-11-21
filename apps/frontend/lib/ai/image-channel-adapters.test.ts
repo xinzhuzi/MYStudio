@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { freedomObservedFetch, pollForFreedomResult } from "./generation-transport";
+import { freedomObservedFetch, FREEDOM_POLL_INTERVAL_MS, FREEDOM_POLL_MAX_ATTEMPTS, pollForFreedomResult } from "./generation-transport";
 import {
   generateViaIdeogramEndpoint,
   generateViaKlingImageEndpoint,
@@ -118,6 +118,6 @@ describe("freedom image provider adapters", () => {
     vi.mocked(pollForFreedomResult).mockResolvedValue("https://image.test/polled.png");
     const pending = generateViaKlingImageEndpoint({ prompt: "poll" }, "kling-image-v2", "key", "https://api.test/v1", vi.fn(), vi.fn(() => "media-poll"));
     await expect(pending).resolves.toMatchObject({ url: "https://image.test/polled.png", taskId: "task-1" });
-    expect(pollForFreedomResult).toHaveBeenCalledWith("https://api.test/kling/v1/images/generations/task-1", "key", 2000, 60);
+    expect(pollForFreedomResult).toHaveBeenCalledWith("https://api.test/kling/v1/images/generations/task-1", "key", FREEDOM_POLL_INTERVAL_MS, FREEDOM_POLL_MAX_ATTEMPTS);
   });
 });

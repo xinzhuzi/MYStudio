@@ -56,6 +56,8 @@ import {
   buildFreedomEndpoint as _buildEndpoint,
   extractFreedomImageUrl as extractImageUrl,
   freedomObservedFetch,
+  FREEDOM_POLL_INTERVAL_MS,
+  FREEDOM_POLL_MAX_ATTEMPTS,
   getFreedomRootBaseUrl as getRootBaseUrl,
   pollForFreedomResult as pollForResult,
 } from './generation-transport';
@@ -203,8 +205,9 @@ export async function ensureLocalImageSidecarRunning(operationId?: string): Prom
 
 // ==================== Constants ====================
 
-const IMAGE_POLL_INTERVAL = 2000;
-const IMAGE_POLL_MAX_ATTEMPTS = 60;
+// 轮询预算归一至 generation-transport 单源(1121:750×2s=1500s 对齐产线桥墙,旧 60×2s=120s)
+const IMAGE_POLL_INTERVAL = FREEDOM_POLL_INTERVAL_MS;
+const IMAGE_POLL_MAX_ATTEMPTS = FREEDOM_POLL_MAX_ATTEMPTS;
 
 // ==================== Retry Logic ====================
 
