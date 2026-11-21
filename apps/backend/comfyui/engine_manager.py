@@ -2341,26 +2341,30 @@ class EngineManager:
         # 版本串被 release 口径误报)。无 sha(旧账/异常)回落 release tag 口径。
         # 1117 判据换钉定版(engine-sync-pin-verdict):钉版(pinned=True)基线=
         # 钉定 tag 的上游 commit sha(annotated tag 取 peeled ^{} 行,lightweight
-        # tag 本行即 commit),不再比对 master——0.45.2 对 master 永久 diverging=
-        # 假警报(1116 B9 永绿修只堵了假红,连漂移也被静默吞)。绿=local==钉定
-        # sha;红=local 漂移(引擎家 git 恒 0 改动铁律被破,真分叉需人工决策=回钉);
-        # 钉定 tag 落后于上游新 tag 不红不催(换钉=人工决策)。
-        # 断网取不到钉定 sha / 本地 sha 缺失:静默不误报(绿)。
+        # tag 本行即 commit)。**1122 用户裁定截 3:改跟随最新 release**——
+        # 「我从来没有让你钉死」:pinned 语义废止,判据统一=本地是否在最新
+        # release tag 的 sha 上(旧钉定版只比自版 tag 的旧语义一并退役)。
+        # 绿=local 在 latest tag sha;红=有新版(含漂移,一并修到最新);
+        # 断网/latest sha 缺失:静默不误报(绿)。pinned 字段保留在账本只作
+        # 安装来源历史记录,判据不再读它。
         ahead_by = None
         pinned_sha: str | None = None
-        if engine.get("pinned"):
-            for line in lines:
-                if line.endswith(f"\trefs/tags/{current}^{{}}"):
-                    pinned_sha = line.split()[0]  # annotated tag:peeled commit sha(优先)
-                elif line.endswith(f"\trefs/tags/{current}") and pinned_sha is None:
-                    pinned_sha = line.split()[0]  # lightweight tag:本行即 commit sha
-            update_available = bool(pinned_sha and local_sha and local_sha != pinned_sha)
-        elif head_sha and local_sha:
-            update_available = head_sha != local_sha
-            if update_available:
-                ahead_by = self._commits_ahead(local_sha)
+        for line in lines:
+            if latest and line.endswith(f"\trefs/tags/{latest}^{{}}"):
+                pinned_sha = line.split()[0]  # annotated tag:peeled commit sha(优先)
+            elif latest and line.endswith(f"\trefs/tags/{latest}") and pinned_sha is None:
+                pinned_sha = line.split()[0]  # lightweight tag:本行即 commit sha
+        if pinned_sha is None:
+            # 断网/最新 tag 行缺失:静默绿不误报
+            update_available = False
+        elif local_sha is None:
+            # 本地 sha 缺(旧账/异常):回落账本 version 语义比较
+            # (version 剥 master 展示标签尾段后与 latest 比)
+            sanitized_current = (current or "").split("---")[0]
+            update_available = _is_upgrade(latest, sanitized_current)
         else:
-            update_available = _is_upgrade(latest, current)
+            # 1122 截 3:绿=本地在最新 release tag 上;红=新版或漂移(统一修)
+            update_available = local_sha != pinned_sha
         checked_at = cm.timestamp_ms()
         self._last_check = {
             "current": current, "latest": latest,
@@ -2426,35 +2430,21 @@ class EngineManager:
         # 本地 sha 实时优先(源码 HEAD 现查,账本滞后自愈):更新中断后账本旧值
         # 不再遮蔽真值造成目标误判(09-11 实弹:tag/master 目标摇摆的放大器)
         local_sha = self._local_engine_sha(engine) or engine.get("sha")
-        # 1117 钉版判据(engine-sync-pin-verdict):钉版引擎更新目标恒=钉定 tag
-        # (漂移修复=回钉;_update_job tag 分支 fetch tag+checkout --force 天然幂等),
-        # 禁拉 master——钉版对 master 永久分叉,拉 master=破钉;钉定 tag 落后于
-        # 上游新 tag 不自动升(换钉=人工决策)。
-        if engine.get("pinned"):
-            pinned_tag = engine.get("version")
-            pinned_sha = self._last_check.get("pinnedSha")
-            if not pinned_tag:
-                raise EngineOpError("钉定版信息缺失(账本 engine.version 为空),无法更新")
-            # 1122 根修(用户三报「每次都报错」):账本 version 可能是 master 轨
-            # 期写入的展示标签(v0.45.3---g102350e,_master_version_label 三横线
-            # 格式)——它不是远端真 tag,直接当 fetch 目标=git 128 couldn't find
-            # remote ref,重试恒炸。剥离 ---尾段回真 tag;剥完仍非 vX.Y 形态
-            # 才是真空值,报大白话。
-            sanitized = pinned_tag.split("---")[0]
-            if sanitized != pinned_tag:
-                pinned_tag = sanitized
-            if not re.fullmatch(r"v\d+(\.\d+)*", pinned_tag):
-                raise EngineOpError(
-                    f"钉定版号异常(账本 engine.version={pinned_tag!r}),无法定位远端 tag;请到引擎家核对 manifest",
-                )
-            if pinned_sha and local_sha and local_sha == pinned_sha:
-                raise EngineOpError("当前已是最新版本,无需更新")
-            target, label = pinned_tag, f"钉定版({pinned_tag})"
-        else:
-            # 更新目标优先 master HEAD(提交口径);master 无差时回落最新 release tag
-            target, label = (head_sha, f"master({str(head_sha)[:7]})") if (head_sha and local_sha and head_sha != local_sha) else (latest, latest)
-            if not target or (target == local_sha or (target == latest and latest == engine.get("version"))):
-                raise EngineOpError("当前已是最新版本,无需更新")
+        # **1122 用户裁定截 3:跟随最新 release,钉定版分支整体退役**——更新
+        # 目标恒=最新 release tag(release 稳定轨道,不拉 master 追提交);旧
+        # pinned=True 分支(回钉/禁追新)废止,账本 pinned 字段仅存历史记录。
+        # 兼容保留:账本 version 为 master 展示标签(vX.Y---gsha,畸形 ref 根
+        # 修史)时,比对口径剥 ---尾段——目标恒为 latest 真 tag,不受影响。
+        target, label = latest, f"最新版({latest})" if latest else (None, None)
+        if not target:
+            raise EngineOpError("无法获取最新 release 版本号(网络?),稍后重试")
+        sanitized_current = (engine.get("version") or "").split("---")[0]
+        # 「已是最新」双口径:本地 sha==最新 tag sha(主判据);或本地 sha 缺
+        # 但账本版本即最新(账本回放口径)。漂移(local≠latest sha)不拒——
+        # 正是要修到最新的场景。
+        latest_sha = self._last_check.get("pinnedSha")
+        if (local_sha and local_sha == latest_sha) or (not local_sha and sanitized_current == latest):
+            raise EngineOpError("当前已是最新版本,无需更新")
         if not _TORCH_UPGRADE_LOCK.acquire(blocking=False):
             raise EngineOpError("PyTorch 升级进行中，暂停引擎更新")
         try:

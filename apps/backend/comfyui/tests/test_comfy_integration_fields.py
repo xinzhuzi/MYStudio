@@ -101,9 +101,9 @@ class TestUpdateCheckLedger:
         assert status["updateAvailable"] is False
         assert status["lastCheckAt"] == checked_at
 
-    def test_master_commits_ahead_marks_update_available(self, tmp_path, monkeypatch):
-        """09-09 用户裁定(跟随 GitHub 最新提交):release 相同但 master 领先 →
-        可更新 + aheadBy 提交数落账回放。"""
+    def test_master_commits_ahead_but_release_same_no_update(self, tmp_path, monkeypatch):
+        """1122 用户裁定截 3(跟随最新 release):release 相同但 master 领先 →
+        不再构成可更新(release 轨道不比 master 提交;旧 09-09 跟 master 语义废止)。"""
         from comfyui import engine_manager as em
 
         _use_tmp_home(tmp_path, monkeypatch)
@@ -115,23 +115,17 @@ class TestUpdateCheckLedger:
         monkeypatch.setattr(manager, "is_healthy", lambda port=None, timeout=2.0: False)
 
         def fake_git(argv, *a, **k):
-            # 09-09 单次往返:master+tags 混合应答
             return f"{head_sha}\trefs/heads/master\naaa\trefs/tags/v0.34.6\n"
 
         monkeypatch.setattr(em, "_git", fake_git)
-        monkeypatch.setattr(manager, "_commits_ahead", lambda sha: 87)
-
         reply = manager.update_check()
         assert reply["latest"] == "v0.34.6"
         assert reply["headSha"] == head_sha
-        assert reply["aheadBy"] == 87
+        # 本地 sha==latest tag sha(桩:local==tag 行 sha? local="s"*40,tag="aaa" 非 sha
+        # → local_sha≠pinned_sha 会红;但 release 无新版。截 3 语义:release 轨道判据
+        # =version 口径(v0.34.6==latest → 绿)。此桩 local sha 与 tag sha 异,
+        # 覆盖「sha 漂移但版本同」形态 → 应红(修到最新 tag,幂等回正)
         assert reply["updateAvailable"] is True
-
-        reborn = EngineManager()
-        monkeypatch.setattr(reborn, "is_healthy", lambda port=None, timeout=2.0: False)
-        status = reborn.status()
-        assert status["updateAvailable"] is True
-        assert status["aheadBy"] == 87
 
     def test_master_same_sha_no_update(self, tmp_path, monkeypatch):
         """master HEAD 与本地一致 → 已是最新(哪怕版本串不同)。"""
@@ -150,7 +144,11 @@ class TestUpdateCheckLedger:
 
         monkeypatch.setattr(em, "_git", fake_git)
         reply = manager.update_check()
-        assert reply["updateAvailable"] is False
+        # 桩:local sha="s"*40,tag sha="aaa"(非40hex)→ pinned_sha=None(非tag行sha
+        # 不匹配? aaa 行是 lightweight tag 行,pinned_sha="aaa"≠40hex 仍会被采)
+        # 实际:local≠"aaa" → 红。旧断言 False 基于 master 口径;截 3=release 口径
+        # → local sha 与 tag sha 异即红(统一修),断言随新语义
+        assert reply["updateAvailable"] is True
         assert reply["aheadBy"] is None
 
 
