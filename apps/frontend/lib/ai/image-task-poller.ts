@@ -24,13 +24,14 @@ export async function pollTaskStatus(
   operationId?: string,
   signal?: AbortSignal,
 ): Promise<string> {
-  const maxAttempts = 120;
+  const maxAttempts = 750; // 750 × 2s = 1500s,对齐产线桥墙口径(240s 旧墙会误杀 571s 级任务)
   const pollInterval = 2000;
   let transientRetryAttempt = 0;
+  let serverProgress: number | undefined; // 最近一次响应携带的服务端真进度(0-99);缺省回落 attempt 推算
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     if (signal?.aborted) throw (signal.reason instanceof Error ? signal.reason : new Error('用户已取消'));
-    const progress = Math.min(Math.floor((attempt / maxAttempts) * 100), 99);
+    const progress = serverProgress ?? Math.min(Math.floor((attempt / maxAttempts) * 100), 99);
     onProgress?.(progress);
     try {
       const rawUrl = customPollUrl || buildEndpoint(baseUrl, `images/generations/${taskId}`);
@@ -50,8 +51,12 @@ export async function pollTaskStatus(
       // new-api job 接口把任务对象包在 job 字段里: {"job": {"status": "...", "assets": [...]}}
       const job = (data.job ?? data.data?.job ?? data) as Record<string, unknown> | undefined;
       const status = (job?.status ?? data.status ?? data.data?.status ?? 'unknown').toString().toLowerCase();
-      const statusMap: Record<string, string> = { pending: 'pending', submitted: 'pending', queued: 'pending', processing: 'processing', running: 'processing', in_progress: 'processing', completed: 'completed', succeeded: 'completed', success: 'completed', failed: 'failed', error: 'failed' };
+      const statusMap: Record<string, string> = { pending: 'pending', submitted: 'pending', queued: 'pending', processing: 'processing', running: 'processing', in_progress: 'processing', completed: 'completed', succeeded: 'completed', success: 'completed', failed: 'failed', error: 'failed', cancelled: 'cancelled', canceled: 'cancelled', expired: 'cancelled' };
       const mappedStatus = statusMap[status] || 'processing';
+      const rawProgress = job?.progress ?? data.progress ?? data.data?.progress;
+      if (typeof rawProgress === 'number' && Number.isFinite(rawProgress)) {
+        serverProgress = Math.min(Math.max(Math.floor(rawProgress), 0), 99);
+      }
       if (mappedStatus === 'completed') {
         onProgress?.(100);
         const images = data.result?.images ?? data.data?.result?.images;
@@ -67,6 +72,9 @@ export async function pollTaskStatus(
       if (mappedStatus === 'failed') {
         const rawError = job?.error ?? job?.message ?? data.error ?? data.error_message ?? data.data?.error;
         throw markTerminalPollError(new Error(rawError ? String(rawError) : '服务端返回任务失败,但未说明原因'));
+      }
+      if (mappedStatus === 'cancelled') {
+        throw markTerminalPollError(new Error(`任务已取消或已过期(status: ${status})·任务号 ${taskId}`));
       }
       transientRetryAttempt = 0;
       await waitForRetry(pollInterval, signal);

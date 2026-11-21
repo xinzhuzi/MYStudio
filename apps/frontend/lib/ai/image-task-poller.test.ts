@@ -111,4 +111,60 @@ describe("pollTaskStatus with new-api job responses", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     warnSpy.mockRestore();
   });
+
+  it("maps cancelled/canceled/expired server statuses to a terminal cancel error", async () => {
+    for (const status of ["cancelled", "canceled", "expired"]) {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ job: { status } }),
+      }));
+
+      await expect(
+        pollTaskStatus(`task_${status}`, "sk-test", "https://fanrenapi.com/v1", undefined, fanrenPollUrl),
+      ).rejects.toThrow(`任务已取消或已过期(status: ${status})`);
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("forwards server-side job progress when present, attempt-based otherwise", async () => {
+    vi.useFakeTimers();
+    const onProgress = vi.fn();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ job: { status: "running", progress: 42 } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ job: { status: "succeeded", assets: [{ proxy_url: "https://cdn.fanrenapi.com/img/p.png" }] } }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const pending = pollTaskStatus("task_prog", "sk-test", "https://fanrenapi.com/v1", onProgress, fanrenPollUrl);
+    const assertion = expect(pending).resolves.toBe("https://cdn.fanrenapi.com/img/p.png");
+    await vi.advanceTimersByTimeAsync(2 * 2000);
+    await assertion;
+
+    // 第 1 轮循环头还没有服务端进度→attempt 推算 0;第 2 轮循环头吃到第 1 轮响应的 42;完成态 100
+    expect(onProgress).toHaveBeenNthCalledWith(1, 0);
+    expect(onProgress).toHaveBeenNthCalledWith(2, 42);
+    expect(onProgress).toHaveBeenLastCalledWith(100);
+  });
+
+  it("gives up after the 1500s budget aligned with the bridge wall", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ job: { status: "queued" } }),
+    }));
+
+    const pending = pollTaskStatus("task_slow", "sk-test", "https://fanrenapi.com/v1", undefined, fanrenPollUrl);
+    const assertion = expect(pending).rejects.toThrow("约 1500 秒");
+    await vi.advanceTimersByTimeAsync(750 * 2000);
+    await assertion;
+  });
 });

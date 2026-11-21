@@ -983,7 +983,7 @@ describe("pollTaskStatus contract", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("times out after the bounded polling window", async () => {
+  it("times out after the bounded polling window (750×2s=1500s,对齐产线桥墙)", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
@@ -991,8 +991,8 @@ describe("pollTaskStatus contract", () => {
       json: async () => ({ status: "processing" }),
     }));
     const pending = pollTaskStatus("task-3", "sk-test", "https://api.test/v1");
-    const rejection = expect(pending).rejects.toThrow("图片生成超时");
-    await vi.advanceTimersByTimeAsync(120 * 2000);
+    const rejection = expect(pending).rejects.toThrow("图片生成超时(已轮询 750 次、约 1500 秒仍未出图)");
+    await vi.advanceTimersByTimeAsync(750 * 2000);
     await rejection;
   });
 
