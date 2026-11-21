@@ -93,6 +93,19 @@ export interface CanonicalSubjectInput {
    * 身份段禁改写纪律不破。
    */
   derivedStateNotes?: string[];
+  /**
+   * 1121 对照修(朝向断头根修):分镜表「朝向」列(shot.orientation)全文——
+   * 镜头语言(朝向/机位关系,四件套核心),进动作槽。此前该列存了但全仓
+   * 零消费(NodeDocViewer 展示列除外),实弹镜3 朝向句「右侧四分之三背侧
+   * 朝镜头」未进句=构图恒平视残根(1119 否决「每镜立绘海报」的同病)。
+   */
+  orientationNote?: string;
+  /**
+   * 1121 对照修(空间关系直进):分镜表「空间关系」列(shot.spatialRelation)
+   * 全文——进环境槽(此前靠 LLM 把空间词写进画面描述正文碰巧覆盖,列本身
+   * 零消费;LLM 某天不写=空间信息丢)。
+   */
+  spatialNote?: string;
 }
 
 export interface CanonicalSubjectSentence {
@@ -184,6 +197,8 @@ export function buildCanonicalSubjectSentence(input: CanonicalSubjectInput): Can
     description,
     semanticText,
     input.momentNote?.trim() ? normalizeFullwidthPunctuation(input.momentNote.trim()) : "",
+    // 1121 对照修:朝向列进动作槽(镜头语言;此前零消费断头)。
+    input.orientationNote?.trim() ? normalizeFullwidthPunctuation(input.orientationNote.trim()) : "",
     // 1117 C2(G5):衍生态形态句进动作槽尾(文字承载;衍生行带图时由参考图
     // 承担,不写此句)。
     ...(input.derivedStateNotes ?? [])
@@ -210,8 +225,11 @@ export function buildCanonicalSubjectSentence(input: CanonicalSubjectInput): Can
     .map((clause) => clause.trim())
     .filter(Boolean)
     .map((clause) => normalizeFullwidthPunctuation(clause));
-  const sceneText = [...sceneParts, ...environmentParts]
-    .filter((part, index, all) => all.indexOf(part) === index)
+  const sceneText = [...sceneParts, ...environmentParts,
+    // 1121 对照修:空间关系列直进环境槽(此前零消费,靠画面描述碰巧覆盖)。
+    input.spatialNote?.trim() ? normalizeFullwidthPunctuation(input.spatialNote.trim()) : "",
+  ]
+    .filter((part, index, all) => all.indexOf(part) === index && part)
     .join("，");
 
   // ⑤ 光色叙事与落点色锚(07 §八:来源事实中的时段/光源/方向/落点可写;
@@ -295,19 +313,20 @@ export function mapCanonicalReferenceSlots(input: CanonicalSlotMappingInput): Ca
       ],
     };
   }
-  // image_2=场景图;无场景时次角色。1117 第五病理刀④:多角色镜(≥2 上镜
-  // 角色)次角色优先于场景占 image_2——群像身份锁(单参考锁不住「别人不能
-  // 长主角的脸/赵四跨镜漂移」;场景退 image_3 或指令文字,S3/S4 白发路人
-  // 实录)。前帧镜维持原序(多帧续帧链优先)。
-  const multiCast = characters.length >= 2;
-  if (!multiCast && scenes.length) {
+  // image_2=场景图(恒优先)。1121 对照修:三角色镜场景图被挤掉(scene-overflow)
+  // →A/B 实弹双图全偏街市≠码头(vision 双确认)——场景资产图锁空间是硬性
+  // 语义(Toonflow「场景图锁空间」同口径),次角色退 image_3/文字(身份已由
+  // 主体句+文字身份段+发色防线承担,实弹三人全可辨)。旧刀④「多角色镜次
+  // 角色优先于场景」就此反转:证据=A/B 对拍场景漂移实锤 vs 群像身份锁在
+  // A/B 实弹中零损失(三人全可辨,克隆=底模本征非缺参考)。
+  if (scenes.length) {
     const scene = scenes.shift()!;
     slots.push({ slot: nextSlot(), role: "scene", title: scene.title, imageUrl: scene.imageUrl });
   } else if (characters.length) {
     const next = characters.shift()!;
     slots.push({ slot: nextSlot(), role: "character", title: next.title, imageUrl: next.imageUrl });
   }
-  // image_3=前帧图(多帧续帧)或次角色/场景(刀④多角色镜场景让位后此补)。
+  // image_3=前帧图(多帧续帧)或次角色(场景已恒保 image_2)。
   if (input.previousFrameImageUrl) {
     slots.push({ slot: nextSlot(), role: "previous-frame", title: "上一帧画面", imageUrl: input.previousFrameImageUrl });
   } else if (characters.length) {

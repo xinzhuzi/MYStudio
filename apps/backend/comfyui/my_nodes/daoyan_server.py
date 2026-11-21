@@ -854,6 +854,12 @@ def import_storyboard(location: Path, chapter: str, input_dir: Path) -> dict:
                 copied.append(name)
         frame_desc = str(shot.get("prompt") or "").strip()
         desc = str(shot.get("videoDesc") or "").strip() or frame_desc
+        # 1121 对照修:台词+speaker 进视频描述(Toonflow 视频提示词含台词
+        # 语速+口播时段;我方视频链此前零台词=模型不知道该镜该说什么/何时
+        # 说)。台词列有值且非「无台词」占位才带;末尾独立行不并正文。
+        lines_raw = str(shot.get("lines") or "").strip()
+        if lines_raw and lines_raw not in ("无台词", "无对白", "无", "—", "-"):
+            desc = f"{desc}；台词：{lines_raw}" if desc else f"台词：{lines_raw}"
         # 场景身份=画面描述列;它已任描述体(videoDesc 缺)时不重复入 summary
         scene = frame_desc if frame_desc and frame_desc != desc else ""
         sem = shot.get("shotSemantics") if isinstance(

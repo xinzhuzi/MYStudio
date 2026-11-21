@@ -599,6 +599,10 @@ export async function buildStoryboardCanonicalContext(
     scene: sceneResolution.fact,
     ...(environmentClauses.length ? { environmentClauses } : {}),
     ...(derivedStateNotes.length ? { derivedStateNotes } : {}),
+    // 1121 对照修:朝向/空间关系列直进(此前零消费断头,分镜表 LLM 写了
+    // 但装配链不取)。朝向=镜头语言进动作槽;空间关系=布局语义进环境槽。
+    orientationNote: (shot.orientation || "").trim() || undefined,
+    spatialNote: (shot.spatialRelation || "").trim() || undefined,
     lighting: shot.continuityState?.lighting || undefined,
     factionColorLines: resolveFactionColorLines(shot),
   };

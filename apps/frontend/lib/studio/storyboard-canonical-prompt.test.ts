@@ -94,16 +94,17 @@ describe("mapCanonicalReferenceSlots(§4.5 已裁槽位映射)", () => {
   const scenes = [{ title: "灵矿坑道葬玉", imageUrl: "file://s1.png" }];
   const props = [{ title: "铁链", imageUrl: "file://p1.png" }];
 
-  it("image_1=主角立绘,image_2=场景,image_3=次角色;道具不入图", () => {
+  it("image_1=主角立绘,image_2=场景(恒保),image_3=次角色;道具不入图", () => {
     const { slots, dropped } = mapCanonicalReferenceSlots({ characters, scenes, props });
     expect(slots).toHaveLength(3);
-    // 1117 第五病理刀④:多角色镜(≥2 上镜角色)次角色优先占槽(槽3=第三角色,
-    // 场景降级溢出=群像身份优先于空间锚)
+    // 1121 对照修:场景图恒保 image_2(锁空间;A/B 实弹双图全偏街市≠码头
+    // =场景溢出实锤);第三角色退文字(身份由主体句+文字身份段承担,实弹
+    // 三人全可辨零损失)
     expect(slots[0]).toMatchObject({ slot: 1, role: "character", title: "晏燎" });
-    expect(slots[1]).toMatchObject({ slot: 2, role: "character", title: "赵四" });
-    expect(slots[2]).toMatchObject({ slot: 3, role: "character", title: "独孤剑尘" });
+    expect(slots[1]).toMatchObject({ slot: 2, role: "scene", title: "灵矿坑道葬玉" });
+    expect(slots[2]).toMatchObject({ slot: 3, role: "character", title: "赵四" });
     expect(dropped).toContainEqual({ title: "铁链", reason: "prop-not-transported" });
-    expect(dropped).toContainEqual({ title: "灵矿坑道葬玉", reason: "scene-overflow" });
+    expect(dropped).toContainEqual({ title: "独孤剑尘", reason: "character-overflow" });
   });
 
   it("多帧续帧:前帧恒槽 3,第三角色让位", () => {

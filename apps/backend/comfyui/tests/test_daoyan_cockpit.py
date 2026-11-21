@@ -123,6 +123,18 @@ def test_import_storyboard_maps_segments(tmp_path):
     assert segs[2]["seconds"] == 15.0  # 30s 钳到产线上限
     assert segs[2]["prompt"]["summary"] == "15秒，16:9横版视频。p3"
     assert segs[2]["images"] == []     # 无图镜=空引用
+    # 1121 对照修:台词进视频描述(lines 有值=「；台词：」拼接;fixture 无
+    # lines 字段=零台词=描述原样不拼——上面三镜即零台词回归面)
+    _cdir = loc / "store" / "studio-workflow" / "chapters" / "chapter-001"
+    (_cdir / "storyboards-003-dialogue.json").write_text(json.dumps(
+        {"state": {"storyboards": [
+            {"index": 4, "id": "sb-001-4", "duration": 5,
+             "videoDesc": "镜四描述", "prompt": "p4",
+             "lines": "赵四（厉声）：台词测试", "line": "",
+             "mediaRef": None}]}}, ensure_ascii=False), encoding="utf-8")
+    r2 = srv.import_storyboard(loc, "chapter-001", input_dir)
+    seg4 = [s for s in r2["segments"] if s["id"] == "sb-001-4"][0]
+    assert "台词：赵四（厉声）：台词测试" in seg4["prompt"]["description"]
     # 幂等:重跑不重复拷
     srv.import_storyboard(loc, "chapter-001", input_dir)
     assert len(list(input_dir.glob("daoyan-sb-*.png"))) == 2
