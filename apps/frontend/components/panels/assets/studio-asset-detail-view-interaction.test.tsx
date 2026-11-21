@@ -506,6 +506,39 @@ describe("StudioAssetDetailView · 批3(10-24):一键补缺顺序队列交互", 
     expect(screen.queryByRole("button", { name: "生成中…" })).toBeNull();
   });
 
+  // 1121 换靶串台根治(尾部写收口):A 在途任务在换靶后才落账(失败),其尾部
+  // 相位/文案/失败持久态写全部对 B 宿主 no-op——B 节头钮恒空闲名可点,零
+  // 「生成失败/生成完成/生成中…」闪现(旧形态:A 的 done/failed setter 无资产
+  // 守卫,直接闪上 B;hostGuarded 包装=12 lane setter 单点收口)。
+  it("换靶尾部写收口:A 在途任务换靶后失败落账,B 零失败闪现(钮恒空闲名)", async () => {
+    let resolveA: (value: { phase: string; error?: string }) => void = () => {};
+    mocks.typeShot.mockImplementation(
+      () => new Promise((resolve) => { resolveA = resolve; }),
+    );
+    const view = renderDialog(roleAsset({
+      images: [{ name: "主图", filePath: "role/main.png", url: "media://main" }],
+    }));
+    fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
+    await waitFor(() => expect(mocks.typeShot).toHaveBeenCalledTimes(1));
+
+    rerenderWithAsset(view, roleAsset({
+      id: "role-2",
+      name: "独孤剑尘",
+      images: [{ name: "主图", filePath: "role/b-main.png", url: "media://b-main" }],
+    }));
+
+    // A 换靶后才失败落账:尾部 failed 相位/文案/typeShotFailure 全 no-op 于 B
+    await act(async () => {
+      resolveA({ phase: "failed", error: "A-asset-failure" });
+    });
+
+    const button = screen.getByRole("button", { name: "生成无衣物定妆" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+    expect(button.querySelector(".animate-spin")).toBeNull();
+    expect(button.textContent).not.toMatch(/生成失败|生成完成|生成中/);
+    expect(screen.queryByRole("button", { name: "生成失败" })).toBeNull();
+  });
+
   // 1121 测试加固(AC4 行为级锁):既有 §10.3 计数断言只数 setBusyTarget?.(null)
   // 在源码出现 6 次、不验位置——把某条链的清零从 finally 挪进成功支,计数不变仍
   // 6,「失败必复原」失守无告警(preview-pane.test 的 AC4 是手动喂 busyTarget={null}

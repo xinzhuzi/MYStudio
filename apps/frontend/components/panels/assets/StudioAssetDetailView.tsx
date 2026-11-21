@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useStudioAssetDialogActions } from "./studio-asset-detail-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -322,6 +322,15 @@ export function StudioAssetDetailView({
   // 完成时对照当前弹窗资产,切换过即只入库不回填表单(防 A 产物污染 B 草稿/图集)
   const activeAssetIdRef = useRef<string | null>(asset?.id ?? null);
   activeAssetIdRef.current = asset?.id ?? null;
+  // 1121 换靶串台根治(尾部写收口):lane 相位/文案 setter 宿主守卫——A 时代闭包
+  // 的异步续体在换靶后的一切尾部写(done/failed/进度文案/3s 延迟清)对 B 宿主
+  // no-op(ref 渲染期同步=守卫恒读最新靶;View 自身 reset effect 直调原始 setter
+  // 不经此层,换靶清零不受阻;dispatch 期写发生在发起帧守卫恒过;与 actions 内
+  // finally 的 isSameHostAsset 同语义双保险)
+  const hostGuarded = <T,>(setter: Dispatch<SetStateAction<T>>): Dispatch<SetStateAction<T>> =>
+    (value) => {
+      if (activeAssetIdRef.current === (asset?.id ?? null)) setter(value);
+    };
   // R5 孤儿防护闸①(宿主开关活取探针)随弹窗壳退役:独立页由宿主二态挂载/卸载,
   // 「宿主关」=组件卸载(React 卸载后 setState 零渲染),跨资产闸①仍在下面接管。
   // 10-19 用户令:点击图卡开全屏缩放预览(MediaPreviewModal,滚轮缩放/双击/拖拽/翻页)
@@ -774,25 +783,26 @@ export function StudioAssetDetailView({
     setFullAsset,
     setImages,
     setCurrentIndex,
-    setGeneratePhase,
-    setGenerateMessage,
+    // 1121 换靶串台根治:lane setter 全走 hostGuarded(见定义处注释)
+    setGeneratePhase: hostGuarded(setGeneratePhase),
+    setGenerateMessage: hostGuarded(setGenerateMessage),
     setRecognizedText,
-    setI2iPhase,
-    setI2iMessage,
+    setI2iPhase: hostGuarded(setI2iPhase),
+    setI2iMessage: hostGuarded(setI2iMessage),
     facePhase,
-    setFacePhase,
-    setFaceMessage,
+    setFacePhase: hostGuarded(setFacePhase),
+    setFaceMessage: hostGuarded(setFaceMessage),
     expressionPhase,
-    setExpressionPhase,
-    setExpressionMessage,
+    setExpressionPhase: hostGuarded(setExpressionPhase),
+    setExpressionMessage: hostGuarded(setExpressionMessage),
     generatePhaseForGuard: generatePhase,
     typeShotPhase,
-    setTypeShotPhase,
-    setTypeShotMessage,
+    setTypeShotPhase: hostGuarded(setTypeShotPhase),
+    setTypeShotMessage: hostGuarded(setTypeShotMessage),
     // 1120 按钮态精修(§10.3):busyTarget 写入口(六条发起链设/清同址 try/finally)
-    setBusyTarget,
+    setBusyTarget: hostGuarded(setBusyTarget),
     // 1121 失败持久态:按型出图失败写入口(失败落/重发清/成功清,own 键控)
-    setTypeShotFailure,
+    setTypeShotFailure: hostGuarded(setTypeShotFailure),
     onFillMissingKindFocus: focusOnKind,
     onImageGenerated: handleImageGenerated,
     onFillMissingQueueSettled: handleQueueSettled,
