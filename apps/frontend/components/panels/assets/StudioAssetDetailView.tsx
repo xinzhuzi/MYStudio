@@ -335,6 +335,13 @@ export function StudioAssetDetailView({
   // 「宿主关」=组件卸载(React 卸载后 setState 零渲染),跨资产闸①仍在下面接管。
   // 10-19 用户令:点击图卡开全屏缩放预览(MediaPreviewModal,滚轮缩放/双击/拖拽/翻页)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  // 1121 灯箱僵死根修(用户实录「点X还是无法关闭」):生成完成时结果弹窗(R5 自动弹)
+  // 开在灯箱(z=2^31)之下不可见——灯箱 X 关掉后结果弹窗顶上,视觉与灯箱几乎同态
+  // (全屏黑+大图),其 X 在 720px 弹窗右上而非屏幕角落,用户点原角落位落空=
+  // 「X 失效」。转移:灯箱 open + outcome 落地 → 灯箱即闭,结果弹窗成唯一前景。
+  useEffect(() => {
+    if (generationOutcome !== null && previewIndex !== null) setPreviewIndex(null);
+  }, [generationOutcome, previewIndex]);
   // 10-24 布局重造批1:基础信息区折叠态(默认展开;localStorage 记忆)
   const [metaCollapsed, setMetaCollapsed] = useState(readMetaCollapsed);
   // 1120 详情独立页(§5.3 三令2):生图区整区折叠态(默认展开;localStorage 记忆)

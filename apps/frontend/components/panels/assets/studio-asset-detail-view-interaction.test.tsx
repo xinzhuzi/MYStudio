@@ -478,6 +478,36 @@ describe("StudioAssetDetailView · 批3(10-24):一键补缺顺序队列交互", 
     });
   });
 
+  // 1121 灯箱僵死根修:灯箱开着的瞬间生成完成,结果弹窗(R5 自动弹)原先开在
+  // 灯箱(z=2^31)之下不可见——灯箱 X 关掉后结果弹窗顶上视觉同态,其 X 在弹窗
+  // 右上而非屏幕角落,用户点原角落落空=「点X还是无法关闭」实录根因。
+  // 修后转移:outcome 落地 + 灯箱 open → 灯箱即闭,结果弹窗成唯一前景。
+  it("灯箱中生成完成:结果弹窗落地即夺前景,灯箱自动闭(不叠不可见双层)", async () => {
+    let resolveShot: (value: { phase: string; imageLocalPath: string }) => void = () => {};
+    mocks.typeShot.mockImplementation(
+      () => new Promise((resolve) => { resolveShot = resolve; }),
+    );
+    renderDialog(roleAsset({
+      images: [{ name: "主图", filePath: "role/main.png", url: "media://main" }],
+    }));
+
+    fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
+    await waitFor(() => expect(mocks.typeShot).toHaveBeenCalledTimes(1));
+
+    // 生成在途时开灯箱(全屏预览钮;harness 里 MediaPreviewModal 为 asset-preview-modal 桩)
+    fireEvent.click(screen.getByRole("button", { name: /^全屏预览/ }));
+    expect(screen.getByTestId("asset-preview-modal")).toBeTruthy();
+
+    // 生成完成(结果弹窗自动弹):灯箱必须即闭,结果弹窗可见
+    await act(async () => {
+      resolveShot({ phase: "done", imageLocalPath: "local-image://characters/fullbody.png" });
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId("asset-preview-modal")).toBeNull();
+      expect(screen.getByText(/生成结果 · 无衣物定妆/)).toBeTruthy();
+    });
+  });
+
   // 1121 换靶串台根修:同宿主直换资产(script tab 点行 B:同实例换 prop,无 key
   // 无卸载,Layout hidden 保活)后,A 会话的五路生成相位+busyTarget 不得残留进
   // B 宿主(busyKey 无资产维,section:<kind> 跨资产同名命中→B 挂 A 的 spinner)。
