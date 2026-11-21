@@ -17,6 +17,7 @@ import { generateAsset } from "@/lib/studio/asset-generation-orchestrator";
 import { generateAssetStyleTransferImage } from "@/lib/studio/asset-style-transfer";
 import { FACE_I2I_INSTRUCTION, generateAssetFacePortrait, type AssetFacePortraitMode } from "@/lib/studio/asset-face-portrait";
 import { EXPRESSION_I2I_INSTRUCTION, generateAssetExpressionSheet } from "@/lib/studio/asset-expression-sheet";
+import { SHEET_CARD_BLINE_KIND } from "@/lib/studio/asset-sheet-card-bline";
 import { generateAssetTypeShot, getAssetTypeShotProfile, planAssetTypeFillMissingQueue } from "@/lib/studio/asset-type-shot";
 import { rerollAssetImageFromPromptText } from "@/lib/studio/asset-prompt-reroll";
 import {
@@ -1253,7 +1254,24 @@ export function useStudioAssetDialogActions(ctx: {
       return false;
     }
     let referenceImage: string | undefined;
-    if (profile.route === "i2i") {
+    // 1121 B 线 master 守卫(裁定A,照高清人头「以无衣物定妆为锚」同款守卫语义):
+    // 设定卡 master=无衣物定妆图(B 线 master 本是「人物海报型全身」,定妆=角色身份
+    // 源头撑得起三视图);缺失=toast 引导先出定妆,不换态(转移表 idle 行,禁发车)
+    if (kind === SHEET_CARD_BLINE_KIND) {
+      const master = latestKindImage(getDisplayImages?.() ?? carouselImages, "无衣物定妆");
+      if (!master?.url) {
+        void logEvent({
+          level: "warn",
+          category: "asset",
+          operationId,
+          message: "Asset type shot guard rejected (sheet card master missing)",
+          context: { assetId: asset.id, kind, displayImageCount: carouselImages.length },
+        });
+        toast.error("尚无无衣物定妆图——设定卡B线以无衣物定妆为锚，请先「生成无衣物定妆」(文生图)");
+        return false;
+      }
+      referenceImage = master.url;
+    } else if (profile.route === "i2i") {
       // T3(10-25 阶段矩阵):选中阶段时参考图默认锚=该阶段组内最新一张(任意型,
       // 身份锚定该阶段形态,防全局轮播停在异阶段图);组空回退轮播当前图(既有行为)
       referenceImage = (stage ? resolveStageReferenceImage(carouselImages, stage) : undefined)

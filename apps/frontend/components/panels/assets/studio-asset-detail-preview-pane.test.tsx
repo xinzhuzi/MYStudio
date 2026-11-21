@@ -492,7 +492,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     expect(screen.queryByRole("button", { name: "生成表情差分" })).toBeNull();
   });
 
-  it("节头钮 gating:i2i 型零图禁用(title 提示),t2i 型(设定卡/美宣)零图可点", () => {
+  it("节头钮 gating:i2i 型零图禁用(title 提示),t2i 型(美宣)零图可点;设定卡(1121 换血)=i2i 档案零图禁用(B线 master 守卫)", () => {
     renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn(),
       onFillMissing: vi.fn() });
 
@@ -501,8 +501,9 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     expect(fullBody.disabled).toBe(false);
     const poster = screen.getByRole("button", { name: "生成人物海报" }) as HTMLButtonElement;
     expect(poster.disabled).toBe(true);
+    // 1121 换血:设定卡档案 route=i2i(master=无衣物定妆为锚,裁定A)——零图禁用同 i2i 族
     const sheet = screen.getByRole("button", { name: "生成设定卡" }) as HTMLButtonElement;
-    expect(sheet.disabled).toBe(false);
+    expect(sheet.disabled).toBe(true);
     const promo = screen.getByRole("button", { name: "生成美宣" }) as HTMLButtonElement;
     expect(promo.disabled).toBe(false);
   });
@@ -686,14 +687,15 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     expect(within(fullBody).getByText("文生图")).toBeTruthy();
     expect(within(fullBody).queryByText("t2i")).toBeNull();
     const sheet = screen.getByRole("region", { name: "设定卡" });
-    expect(within(sheet).getByText("文生图")).toBeTruthy();
+    // 1121 换血:设定卡档案 route=i2i(B线 master 接图)——徽标如实标图生图
+    expect(within(sheet).getByText("图生图")).toBeTruthy();
     expect(within(sheet).queryByText("透明")).toBeNull();
     // i2i 型(人物海报):展示层映射「图生图」,title 带语义补全
     const poster = screen.getByRole("region", { name: "人物海报" });
     expect(within(poster).getByText("图生图")).toBeTruthy();
     expect(within(poster).queryByText("i2i")).toBeNull();
     expect(within(poster).getByText("图生图").getAttribute("title")).toBe("图生图(参考图生成)");
-    expect(within(sheet).getByText("文生图").getAttribute("title")).toBe("文生图(纯文字生成)");
+    expect(within(sheet).getByText("图生图").getAttribute("title")).toBe("图生图(参考图生成)");
     const face = screen.getByRole("region", { name: "高清人头" });
     expect(within(face).queryByText("图生图")).toBeNull();
     expect(within(face).queryByText("文生图")).toBeNull();

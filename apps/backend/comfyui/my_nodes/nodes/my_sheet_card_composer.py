@@ -327,7 +327,11 @@ def compose(cells: dict, palette, title: str, dst: str, fmt: str = "全卡",
     d.text((cw_ - M - 20 - tw - bb[0], M + 12 - bb[1]), title,
            font=tf, fill=INK_TEXT)
 
-    canvas.save(dst)  # RGB 模式保存,PNG 恒无 alpha
+    # 1122 实弹修(晏燎 B线一发):dst 两用=文件路(脚本/金样)与 BytesIO(节点
+    # compose_card 内存路)。PIL 对 BytesIO 无法从扩展名推断格式(文件路版靠
+    # '.png' 后缀),缺 format 即 ValueError: unknown file extension——显式
+    # format="PNG" 两用兼容,文件路行为不变(恒 RGB,PNG 恒无 alpha)。
+    canvas.save(dst, format="PNG")
     return dst
 
 

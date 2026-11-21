@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import type { AssetImage, AssetImageKind } from "@/types/studio-assets";
+import { runSheetCardBLine } from "./asset-sheet-card-bline";
 import {
   saveGeneratedAssetImage,
   updateStoreWithResult,
@@ -18,6 +19,10 @@ import {
   stripMultiViewLayoutClause,
 } from "./asset-type-shot";
 
+vi.mock("./asset-sheet-card-bline", () => ({
+  SHEET_CARD_BLINE_KIND: "设定卡",
+  runSheetCardBLine: vi.fn(),
+}));
 vi.mock("@/lib/ai/ai-manager", () => ({
   aiManager: { generateImage: vi.fn() },
 }));
@@ -122,11 +127,15 @@ describe("型档案表(批3 逐型档案+Round 3 ⑤ 三轨 track 归属)", () =
     ]);
   });
 
-  it("route 分流(10-25 用户令·派生流水线):无衣物定妆+设定卡/美宣/道具=t2i,余型=i2i", () => {
-    const t2iKinds = new Set(["无衣物定妆", "设定卡", "美宣", "道具"]);
+  it("route 分流(10-25 派生流水线;1121 B线换血:设定卡档案 route=i2i 如实,消费走 B线拦截):无衣物定妆+美宣/道具=t2i,余型=i2i", () => {
+    const t2iKinds = new Set(["无衣物定妆", "美宣", "道具"]);
     for (const profile of ASSET_TYPE_SHOT_PROFILES) {
       expect(profile.route).toBe(t2iKinds.has(profile.kind) ? "t2i" : "i2i");
     }
+    // 1121 换血(裁定C):设定卡 t2i 自由版式直射退役——档案 route=i2i(徽章如实标图生图),
+    // compositionRule 版式格句随路退役(版式由 Composer 程序底框承载)
+    const sheet = ASSET_TYPE_SHOT_PROFILES.find((profile) => profile.kind === "设定卡");
+    expect(sheet?.compositionRule).toBeUndefined();
   });
 
   it("画幅/透明档案逐字对齐十型真源 qi21_bases.json(aspect/rgba_default;含 Round 3 ⑤ 四型)", () => {
@@ -149,8 +158,11 @@ describe("型档案表(批3 逐型档案+Round 3 ⑤ 三轨 track 归属)", () =
     }
   });
 
-  it("i2i 八型指令齐备且守纪律(Phase2 瘦身态):保真段先行+单段中文+无否定式词+取景语言已归还型层", () => {
-    for (const profile of ASSET_TYPE_SHOT_PROFILES.filter((item) => item.route === "i2i")) {
+  it("i2i 八型指令齐备且守纪律(Phase2 瘦身态;设定卡除外=B线拦截无单发指令):保真段先行+单段中文+无否定式词+取景语言已归还型层", () => {
+    // 1121 换血:设定卡 route=i2i 但消费被 B线拦截(runSheetCardBLine 整链),无 i2iInstruction
+    const sheetProfile = ASSET_TYPE_SHOT_PROFILES.find((profile) => profile.kind === "设定卡");
+    expect(sheetProfile?.i2iInstruction).toBeUndefined();
+    for (const profile of ASSET_TYPE_SHOT_PROFILES.filter((item) => item.route === "i2i" && item.kind !== "设定卡")) {
       const text = profile.i2iInstruction ?? "";
       expect(text.length).toBeGreaterThan(0);
       // 保真段先行(按轨三变体:人物/场景/通用主体,与画风转换三轨变体同构)
@@ -298,24 +310,23 @@ describe("generateAssetTypeShot(route 分流实装+Phase 2 型层注入+三轨�
     expect(updateStoreWithResult).toHaveBeenCalledWith("asset-tool-1", "prop", expect.anything());
   });
 
-  it("t2i 路(设定卡):描述主体句+base_type 型层注入,零参考图", async () => {
-    generateImage.mockResolvedValue({ url: "data:image/png;base64,Sheet" });
-    vi.mocked(saveGeneratedAssetImage).mockResolvedValue("local-image://characters/sheet.png");
+  it("设定卡=B线拦截(1121 换血):generateAssetTypeShot 转发 runSheetCardBLine,零 aiManager 单发调用", async () => {
+    vi.mocked(runSheetCardBLine).mockResolvedValue({
+      phase: "done",
+      imageLocalPath: "local-image://characters/sheet4k.png",
+      taskId: "sheet-task-1",
+    } as Awaited<ReturnType<typeof runSheetCardBLine>>);
 
     await generateAssetTypeShot({
       assetId: "asset-role-1",
       assetName: "晏燎",
       kind: "设定卡",
       subjectText: "北境剑修,玄色长衣,背负旧债",
+      referenceImage: "asset-file://role/晏燎/晏燎_无衣物定妆_2026年11月21日.png",
     });
 
-    expect(generateImage).toHaveBeenCalledWith({
-      model: ASSET_TYPE_SHOT_MODEL,
-      prompt: "北境剑修,玄色长衣,背负旧债",
-      promptPolicy: "raw",
-      extraParams: { base_type: "设定卡" },
-    });
-    expect(generateImage.mock.calls[0][0]).not.toHaveProperty("referenceImages");
+    expect(runSheetCardBLine).toHaveBeenCalledTimes(1);
+    expect(generateImage).not.toHaveBeenCalled();
   });
 
   it("t2i 路(美宣)同款 base_type 注入(裁定3:t2i 型层正途)", async () => {
@@ -487,8 +498,9 @@ describe("stripMultiViewLayoutClause · 定妆单立绘语义裁尾(10-25 用户
 
     generateImage.mockClear();
     generateImage.mockResolvedValue({ url: "data:image/png;base64,SK" } as never);
+    // 对照型改美宣(1121 换血后设定卡走 B线拦截,不再吃 aiManager 单发路)
     await generateAssetTypeShot({
-      assetId: "a", assetName: "x", kind: "设定卡",
+      assetId: "a", assetName: "x", kind: "美宣",
       subjectText: "少年剑修设定。同一画面从左至右并排四视图:正侧背。",
     });
     const skCall = generateImage.mock.calls[0]![0] as { prompt: string };

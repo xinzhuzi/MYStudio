@@ -4,6 +4,7 @@ import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import type { ImageCategory } from "@/lib/media/image-storage";
 import type { AssetImage, AssetImageKind } from "@/types/studio-assets";
 import { saveGeneratedAssetImage, updateStoreWithResult } from "./asset-generation-store-writers";
+import { SHEET_CARD_BLINE_KIND, runSheetCardBLine } from "./asset-sheet-card-bline";
 import {
   ASSET_IMAGE_KIND_ASPECTS,
   ASSET_IMAGE_KIND_SPECTRA,
@@ -20,8 +21,10 @@ import {
  * Round 3 ⑤ 新增 scene 三型[场景/概念气氛图/3D剖面场景图]+tool 一型[道具,rgba 透明型],
  * 自由=三轨通用),档案字段对齐十型真源 qi21_bases.json(zh 名/画幅/rgba_default/
  * tracks 轨道归属/route)。
- * - route 分流(grill Round 1 裁定3,禁一刀切):设定卡/美宣/道具=t2i+base_type(身份要素
+ * - route 分流(grill Round 1 裁定3,禁一刀切):美宣/道具=t2i+base_type(身份要素
  *   主要来自文字设定,型文收益>参考图收益);余型=i2i(参考图锚身份+型层注入)。
+ *   1121 B 线换血:设定卡 route 归 i2i 但不走本文件 aiManager 单发路——拦截走
+ *   sidecar B 线 i2i 整链(asset-sheet-card-bline,异步任务+进度轮询,PRD R2)。
  * - Phase 2(10-24 Round 3 ⑥,桥役 3718e469 已落地并实弹验收):TYPE_SHOT_I2I_USE_BASE_TYPE
  *   已置 true——i2i 路统一切 extraParams:{base_type} 型层注入(桥覆写 4010 注型+
  *   4011/4022 组装用途→型画幅),终稿=指令+类型句+美术风格底座三段,型负面 merge 进
@@ -131,9 +134,13 @@ export const ASSET_TYPE_SHOT_PROFILES: readonly AssetTypeShotProfile[] = [
     tracks: ["role"],
     aspect: ASSET_IMAGE_KIND_ASPECTS["设定卡"],
     rgba: false,
-    route: "t2i",
-    // 10-26 用户令(设定卡变体):三视图格固有全身禁半身化,落「格内占比饱满+手脚可辨」
-    compositionRule: "版式格人物主体占比饱满,手脚完整可辨(三视图固有全身,禁半身化)",
+    // 1121 B 线换血(PRD 11-21-asset-sheet-bline-i2i,裁定C 直接替换):t2i 自由版式
+    // 直射退役,compositionRule 版式格句随路退役(版式由 Composer 程序底框承载;
+    // 旧 t2i 发车代码在位保留=回滚口,UI 不留双入口)。改走 sidecar B 线 i2i 整链
+    // (道劫-角色设定卡-i2i,布局 qwen21-sheet-i2i):master=无衣物定妆图(裁定A,
+    // 守卫照高清人头「以无衣物定妆为锚」同款),发车分支见 generateAssetTypeShot
+    // 内 SHEET_CARD_BLINE_KIND 拦截;徽章随 route=i2i 如实标图生图
+    route: "i2i",
   },
   {
     kind: "美宣",
@@ -249,10 +256,16 @@ export interface AssetTypeShotTask {
   kind: AssetImageKind;
   /** 图片三轨归属(Round 3 ⑤;缺省 role=既有调用方零变化,落盘/写回随轨分流)。 */
   track?: AssetTypeShotTrack;
-  /** route="i2i" 必填:全局选中图 url(引擎层统一缩略/去 canvas 污染)。 */
+  /** route="i2i" 必填:全局选中图 url(引擎层统一缩略/去 canvas 污染)。
+   * 1121 B 线(设定卡):master=无衣物定妆图 url(裁定A,派发层 latestKindImage 锚定)。 */
   referenceImage?: string;
-  /** route="t2i" 必填:主体描述句(出图提示词优先,描述兜底;按型槽覆盖优先,Phase C)。 */
+  /** route="t2i" 必填:主体描述句(出图提示词优先,描述兜底;按型槽覆盖优先,Phase C)。
+   * 1121 B 线(设定卡)必填:竖线字段式主体句(设定卡槽优先,空=assets.prompt 立绘
+   * 主体句透传,降级可跑——派发层 subjectChainText 同链解析后传入)。 */
   subjectText?: string;
+  /** 1121 B 线(设定卡):取消口(firing/composing 取消→cancelled,已落盘子步保留)。
+   * 现役按钮族无停止钮(UI 零新增),服务端取消/引擎单发纪律经轮询 cancelled 落态。 */
+  signal?: AbortSignal;
   /** route="i2i" 可选:指令覆盖(10-25 追加令·i2i 指令可编辑)。非空时替代型档案
    * i2iInstruction 作为终稿指令发送(指令即终稿纪律不变,promptPolicy 恒 raw);
    * 空/缺省=引擎级固定指令(既有行为零变)。会话态,不持久化。 */
@@ -271,10 +284,15 @@ export interface AssetTypeShotTask {
 }
 
 export interface AssetTypeShotProgress {
-  phase: "generating" | "saving" | "done" | "failed";
+  /** cancelled=1121 B 线(设定卡)新增落点:取消≠失败(已落盘子步保留,重发即续跑)。 */
+  phase: "generating" | "saving" | "done" | "failed" | "cancelled";
   message?: string;
   imageLocalPath?: string;
   error?: string;
+  /** 1121 B 线(设定卡):failed/partial-failed 可续跑标记(已落盘子步在盘)。 */
+  resumable?: boolean;
+  /** 1121 B 线(设定卡):sidecar 任务号(诊断/续跑对账)。 */
+  taskId?: string;
 }
 
 /**
@@ -294,6 +312,27 @@ export async function generateAssetTypeShot(
   }
   const track: AssetTypeShotTrack = task.track ?? "role";
   const saveTarget = TRACK_SAVE_TARGETS[track];
+  // 1121 B 线换血(PRD R2):设定卡拦截走 sidecar B 线 i2i 整链(道劫-角色设定卡-i2i,
+  // 布局 qwen21-sheet-i2i;异步任务+进度轮询裁定B),不经 aiManager 单发路——守卫
+  // (master 定妆图/主体句)与转移表全态在 asset-sheet-card-bline 内闭环
+  if (task.kind === SHEET_CARD_BLINE_KIND) {
+    return runSheetCardBLine(
+      {
+        assetId: task.assetId,
+        assetName: task.assetName,
+        subjectText: (task.subjectText || "").trim(),
+        masterImageUrl: task.referenceImage || "",
+        projectId: task.projectId,
+        chapterId: task.chapterId,
+        isDerivative: task.isDerivative,
+        operationId,
+        signal: task.signal,
+        assetType: saveTarget.assetType,
+        category: saveTarget.category,
+      },
+      onProgress,
+    );
+  }
   const isI2i = profile.route === "i2i";
   // 指令取值(10-25 追加令):i2i 路=会话级覆盖优先,空回退型档案固定指令;
   // 覆盖即终稿(沿用 raw 纪律),日志带 override 标记供审计

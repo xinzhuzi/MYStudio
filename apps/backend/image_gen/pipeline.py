@@ -16,6 +16,7 @@ import os
 import random
 import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +35,7 @@ from engines.image_engine import z_image as _z_image
 from engines.image_engine import qwen as _qwen
 from engines.image_engine import comfyui_bridge as _comfyui_bridge
 from engines.image_engine import qwen21 as _qwen21
+from engines.image_engine import qwen21_sheet as _qwen21_sheet
 
 _lock = threading.Lock()
 # 生成互斥的排队上限(秒):拿不到锁时排队等待,超时按「正忙」拒绝
@@ -52,6 +54,20 @@ def cancel_generation() -> None:
 
 def is_generation_cancelled() -> bool:
     return _CANCEL_EVENT.is_set()
+
+
+# 1121 设定卡 B线 i2i(qwen21_sheet 子步发车)复用的引擎单发互斥口:与
+# generate_image 同一把锁同款排队语义(09-01 浸泡实锤:并发 generate 互踩),
+# 非 generate_image 路径按子步短持——步间放锁,不整任务占死。
+@contextmanager
+def exclusive_generation(timeout_s: float = _GENERATION_LOCK_TIMEOUT_S):
+    """引擎单发互斥(队列式,超时按「正忙」拒;供 B线子步等非单发路径复用)。"""
+    if not _lock.acquire(timeout=timeout_s):
+        raise PipelineError("generation-busy", "图像生成正忙，请稍后重试")
+    try:
+        yield
+    finally:
+        _lock.release()
 
 # Compatibility state for the pre-engine-separation worker API.  The Qwen
 # engine cache remains the single source of truth; exposing the same mapping
@@ -80,11 +96,15 @@ _ENGINE_BY_LAYOUT = {
     "qwen-pointed": _qwen,
     "comfyui-bridge": _comfyui_bridge,
     "qwen21-viggle": _qwen21,
+    # 1121 设定卡 B线 i2i(任务态端点驱动,不走 generate_image 单发分派;
+    # 注册=布局真源+预检闸覆盖,spec 不进 IMAGE_MODELS=设置页模型面零新增)
+    "qwen21-sheet-i2i": _qwen21_sheet,
 }
 
-# 桥布局驱动(comfyui_bridge/qwen21 经同一引擎执行):空片重掷前的 /free 与
-# 退化防线只对它们生效(判据 spec.layout,方案 §3.1)
-_BRIDGE_LAYOUTS = ("comfyui-bridge", "qwen21-viggle")
+# 桥布局驱动(comfyui_bridge/qwen21/qwen21_sheet 经同一引擎执行):空片重掷前的 /free 与
+# 退化防线只对它们生效(判据 spec.layout,方案 §3.1);sheet 布局入列=引擎
+# 预检闸(_preflight_engine_gate)对其生效
+_BRIDGE_LAYOUTS = ("comfyui-bridge", "qwen21-viggle", "qwen21-sheet-i2i")
 
 # 空片/退化错误文案(§5):重掷字样按「实际是否掷过」+MYSTUDIO_COMFYUI_BLANK_RETRY
 # 现值选择——禁止把重掷字样写死在单一常量(第 2 轮 L5:开关关时是假话)

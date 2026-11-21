@@ -469,7 +469,7 @@ class Handler(BaseHTTPRequestHandler):
                     "ok": True,
                     "service": "manying-local-image",
                     "version": __version__,
-                    "routes": ["/health", "/v1/images/generations", "/models/status", "/models/download", "/models/progress-json/{name}", "/comfy/*"],
+                    "routes": ["/health", "/v1/images/generations", "/v1/images/sheet-i2i", "/models/status", "/models/download", "/models/progress-json/{name}", "/comfy/*"],
                 }
             )
             return
@@ -499,6 +499,11 @@ class Handler(BaseHTTPRequestHandler):
             name = path.rsplit("/", 1)[-1]
             self._send_json({"model_name": name, **_get_progress(name)})
             return
+        # 1121 设定卡 B线 i2i(裁定B 异步任务):任务态轮询(盘上子步产物真源
+        # 重建)与终卡取件;契约见 _handle_sheet_i2i_create 头注
+        if path.startswith("/v1/images/sheet-i2i/"):
+            self._handle_sheet_i2i_get(path)
+            return
         if path.startswith("/comfy/"):
             self._comfy("GET", path, {}, parse_qs(urlparse(self.path).query))
             return
@@ -527,6 +532,14 @@ class Handler(BaseHTTPRequestHandler):
 
             cancel_generation()
             self._send_json({"ok": True, "cancelled": True})
+            return
+        # 1121 设定卡 B线 i2i(裁定B 异步任务):POST 建任务/续跑;进度/结果/取消
+        # 见 GET /v1/images/sheet-i2i/{id}[/result] 与 POST .../cancel
+        if path == "/v1/images/sheet-i2i":
+            self._handle_sheet_i2i_create(payload)
+            return
+        if path.startswith("/v1/images/sheet-i2i/") and path.endswith("/cancel"):
+            self._handle_sheet_i2i_cancel(path)
             return
         if path == "/models/download":
             self._handle_download(payload)
@@ -726,6 +739,99 @@ class Handler(BaseHTTPRequestHandler):
                 HTTPStatus.INTERNAL_SERVER_ERROR,
                 f"无衣物管线失败: {exc}",
             )
+
+    # -- 设定卡 B线 i2i(1121 trellis 11-21-asset-sheet-bline-i2i R1;裁定B) --
+    # 契约(布局 qwen21-sheet-i2i;引擎=engines/image_engine/qwen21_sheet):
+    #   POST /v1/images/sheet-i2i {model, prompt(主体句), reference_image(master
+    #        角色图 b64), extra:{角名, sheet_format="全卡", sheet_bg="纯白"},
+    #        taskId?(同 id 重发=续跑,已落盘子步跳过)} → {taskId, status, progress}
+    #   GET  /v1/images/sheet-i2i/{id}        → 任务态(盘上子步产物真源重建;
+    #        status=running/partial-failed/cancelled/done;partial-failed/cancelled
+    #        带 resumable=true,续跑口=同 taskId 再 POST)
+    #   GET  /v1/images/sheet-i2i/{id}/result → {b64_json}(仅 done;未完 409)
+    #   POST /v1/images/sheet-i2i/{id}/cancel → 引擎单发秒杀在途子步,已落盘保留
+    # 任一子步失败=任务级失败可续跑,禁半卡返回(转移表危险语义)。
+
+    def _sheet_error_response(self, exc) -> None:
+        code = getattr(exc, "code", "error")
+        message = str(getattr(exc, "message", exc))
+        if code in ("invalid-prompt", "invalid-input", "invalid-model", "invalid-payload"):
+            status = HTTPStatus.BAD_REQUEST
+        elif code in ("generation-busy", "engine-queue-busy"):
+            status = HTTPStatus.CONFLICT
+        elif code == "bridge-unreachable":
+            status = HTTPStatus.SERVICE_UNAVAILABLE
+        elif code == "sheet-task-not-found":
+            status = HTTPStatus.NOT_FOUND
+        else:
+            status = HTTPStatus.INTERNAL_SERVER_ERROR
+        self._send_error_json(status, message, code)
+
+    def _handle_sheet_i2i_create(self, payload: dict) -> None:
+        from engines.image_engine import qwen21_sheet
+
+        try:
+            doc = qwen21_sheet.start_task(payload)
+        except Exception as exc:  # noqa: BLE001 — PipelineError 归一映射,兜底 500
+            from .pipeline import PipelineError
+
+            if isinstance(exc, PipelineError):
+                self._sheet_error_response(exc)
+            else:
+                self._send_error_json(
+                    HTTPStatus.INTERNAL_SERVER_ERROR, f"B线任务发车失败: {exc}", "sheet-task-failed")
+            return
+        self._send_json(doc)
+
+    def _handle_sheet_i2i_get(self, path: str) -> None:
+        """GET 面两路由:任务态(id)与终卡取件(id/result)。"""
+        from engines.image_engine import qwen21_sheet
+
+        rest = path[len("/v1/images/sheet-i2i/"):]
+        if rest.endswith("/result"):
+            self._handle_sheet_i2i_result(rest[: -len("/result")].strip())
+            return
+        task_id = rest.strip("/")
+        if not task_id or "/" in task_id:
+            self._send_error_json(HTTPStatus.NOT_FOUND, "Route not found")
+            return
+        doc = qwen21_sheet.task_status(task_id)
+        if doc is None:
+            self._send_error_json(HTTPStatus.NOT_FOUND, f"任务不存在: {task_id}", "sheet-task-not-found")
+            return
+        self._send_json(doc)
+
+    def _handle_sheet_i2i_result(self, task_id: str) -> None:
+        from engines.image_engine import qwen21_sheet
+
+        doc = qwen21_sheet.task_status(task_id)
+        if doc is None:
+            self._send_error_json(HTTPStatus.NOT_FOUND, f"任务不存在: {task_id}", "sheet-task-not-found")
+            return
+        b64 = qwen21_sheet.task_result_b64(task_id)
+        if b64 is None:
+            # 禁半卡:终卡未合成(任务在途/失败/取消)即无产物可取
+            self._send_error_json(
+                HTTPStatus.CONFLICT,
+                f"终卡未就绪(状态 {doc.get('status')},进度 {doc.get('progress', {}).get('done')}"
+                f"/{doc.get('progress', {}).get('total')})——部分成功不交付",
+                "sheet-result-not-ready",
+            )
+            return
+        self._send_json({"created": int(time.time()), "data": [{"b64_json": b64}]})
+
+    def _handle_sheet_i2i_cancel(self, path: str) -> None:
+        from engines.image_engine import qwen21_sheet
+
+        task_id = path[len("/v1/images/sheet-i2i/"):-len("/cancel")].strip()
+        if not task_id:
+            self._send_error_json(HTTPStatus.NOT_FOUND, "Route not found")
+            return
+        result = qwen21_sheet.cancel_task(task_id)
+        if result is None:
+            self._send_error_json(HTTPStatus.NOT_FOUND, f"任务不存在: {task_id}", "sheet-task-not-found")
+            return
+        self._send_json(result)
 
     def _handle_download(self, payload: dict) -> None:
         model_name = resolve_image_model_name(str(payload.get("model") or ""))
