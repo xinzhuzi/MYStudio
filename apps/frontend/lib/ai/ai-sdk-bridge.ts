@@ -15,10 +15,9 @@ import { createDescribedFetchError, type NetworkFailureFlags } from "./fetch-err
 import type { ProviderOptions } from "@ai-sdk/provider-utils";
 import { observedFetch, type ObservedFetchMeta } from "../diagnostics/network";
 import {
-  DEFAULT_IMAGE_ASPECT_RATIO,
   DEFAULT_IMAGE_RESOLUTION,
   resolveGptImageSize,
- 
+
   type ImageRequestTemplateName,
 } from "./image-size-presets";
 import { assertImageTransferPayloadSize } from "./image-transfer";
@@ -364,7 +363,12 @@ function buildSdkImagePromptText(prompt: string, negativePrompt: string) {
 export function buildProviderExtensionImageRequestBody(input: BuildImageRequestBodyInput): BuiltImageRequestBody {
   const normalizedPrompt = normalizeImagePromptForGeneration(input);
   const body: Record<string, unknown> = { model: input.model, prompt: normalizedPrompt.prompt, n: input.n ?? 1, stream: false };
-  assignIfDefined(body, "aspect_ratio", input.aspectRatio ?? DEFAULT_IMAGE_ASPECT_RATIO);
+  // 1121 缺省画幅伪信号治本(4492dd8c 第三出口收口):调用方未给 aspectRatio
+  // 时不再替它发缺省 "16:9"——该伪信号曾三次把非 16:9 任务在 sidecar P4 边锚
+  // 锚成 8.2944MP 巨幅拉爆引擎(晏燎 i2i/独孤带型断层/风格转换)。需要显式
+  // 画幅的消费方自己给:云 GPT Image 走 resolveGptImageSize 显式 size;UI 层
+  // 缺省由调用方 imageSettings.defaultAspectRatio 承担(不是传输层暗补)。
+  assignIfDefined(body, "aspect_ratio", input.aspectRatio);
   assignIfDefined(body, "resolution", input.resolution ?? DEFAULT_IMAGE_RESOLUTION);
   assignIfDefined(body, "width", input.width);
   assignIfDefined(body, "height", input.height);

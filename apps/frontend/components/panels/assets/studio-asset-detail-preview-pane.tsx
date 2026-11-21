@@ -53,6 +53,15 @@ export const busyKey = {
   i2i: "i2i",
 } as const;
 
+/** 1121 失败持久态(界面不许撒谎):上次按型出图失败的型与原因。失败 toast/
+ *  3s 相位窗一闪即逝,等待几分钟的用户回来看不到任何失败痕迹——本态持久驻留
+ *  (型键控:该型节头钮/占位 CTA 红边+「生成失败」标签,title=原因全文);
+ *  重发该型/该型成功/切资产即清;与 busyTarget 忙碌态互斥(在跑 spinner 优先)。 */
+export interface AssetTypeShotFailureState {
+  kind: AssetImageKind;
+  reason: string;
+}
+
 /** 1120 按钮态精修(R1 即刻回 idle):互斥闸只认「运行态」相位——done/failed 反馈
  *  残留窗不再禁点(无任务在跑却灰=假忙);互斥语义(§3:同一时刻仅一个生成任务)
  *  不变:任一路运行态在跑即全族灰禁。导出供宿主折叠摘要「生成中」旗同源收窄
@@ -137,6 +146,9 @@ interface StudioAssetDetailPreviewPaneProps {
    *  保留供结果反馈(done/failed 文案)/联动/状态文字消费,spinner 一律只认本键
    *  ——「任一 phase 在跑→全族 spinner」的旧渲染路径已删(§1 病灶根修)。 */
   busyTarget?: string | null;
+  /** 1121 失败持久态:上次按型出图失败的型+原因(型键控红态;null=无失败记录)。
+   *  与 busyTarget 互斥:该型在跑(busy)时红态不渲染,spinner 优先。 */
+  typeShotFailure?: AssetTypeShotFailureState | null;
 }
 
 export function StudioAssetDetailPreviewPane({
@@ -171,6 +183,7 @@ export function StudioAssetDetailPreviewPane({
   onInspectPrompt,
   isImageRemovable,
   busyTarget,
+  typeShotFailure,
 }: StudioAssetDetailPreviewPaneProps) {
   const hasImagePreview = asset.type !== "audio" && images.length > 0;
   // 10-21 高清人脸/表情差分:与一键生成/画风转换互斥;批3 按型出图=通用第五路
@@ -346,13 +359,18 @@ export function StudioAssetDetailPreviewPane({
    *  批2 B 节规格:中央型 icon+「尚无{型名}」+「点击生成」CTA(装配方给
    *  onGenerateByKind 时);核心型带红色角标(裁定1 红色告警),扩展型灰;hover 高亮。
    *  1120 按钮态精修:CTA 补 disabled 灰态样式(R3;wiring 原对样式缺);候裁2=
-   *  CTA 被点自身转+变「生成中…」(busyTarget===placeholder:<kind>,节头钮不代转)。 */
+   *  CTA 被点自身转+变「生成中…」(busyTarget===placeholder:<kind>,节头钮不代转)。
+   *  1121 失败持久态:该型上次失败(!busy 时)=CTA 红边+「生成失败」标签,title=
+   *  原因全文(与忙碌态互斥;重发/成功即清)。 */
   const renderPlaceholderCard = (
     label: string,
     widthClass: string,
     options?: { kind?: AssetImageKind; busy?: boolean },
   ) => {
     const isCore = !!options?.kind && CORE_KIND_SET.has(options.kind);
+    // 1121 失败持久态:型键控;busy 中不渲染红态(互斥清晰)
+    const failureReason = options?.kind && typeShotFailure?.kind === options.kind ? typeShotFailure.reason : null;
+    const failed = !options?.busy && failureReason !== null;
     return (
       <div
         className={`studio-asset-image-placeholder relative flex ${widthClass} shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed px-2 text-center transition-colors ${
@@ -370,13 +388,17 @@ export function StudioAssetDetailPreviewPane({
         {options?.kind && onGenerateByKind && (
           <button
             type="button"
-            className="inline-flex items-center rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 text-[11px] text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary/10"
+            className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+              failed
+                ? "border-destructive/50 bg-destructive/10 text-destructive hover:bg-destructive/20 disabled:hover:bg-destructive/10"
+                : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 disabled:hover:bg-primary/10"
+            }`}
             onClick={() => onGenerateByKind(options.kind!)}
             disabled={generationBusy}
-            title={generationBusy ? "有生成任务正在进行，请稍候" : `生成${options.kind}`}
+            title={failed ? `上次生成失败:${failureReason}` : (generationBusy ? "有生成任务正在进行，请稍候" : `生成${options.kind}`)}
           >
             {options.busy ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
-            {options.busy ? "生成中…" : "点击生成"}
+            {options.busy ? "生成中…" : failed ? "生成失败" : "点击生成"}
           </button>
         )}
       </div>
@@ -485,9 +507,14 @@ export function StudioAssetDetailPreviewPane({
    *  (title 提示,轨道名词随轨),t2i 型(设定卡/美宣/道具)描述锚身份,零图可点。
    *  1120 按钮态精修(§1 病灶根修):spinner+「生成中…」⟺ busyTarget===section:<kind>
    *  (仅被点钮;一键队列时各型节头不陪转=候裁1,typeShotPhase 只进 title 播报);
-   *  done/failed 相位文案=结果反馈保留。 */
+   *  done/failed 相位文案=结果反馈保留。
+   *  1121 失败持久态:该型上次失败(!busy 时)=红边钮+「生成失败」标签,title=原因
+   *  全文(与忙碌态互斥:在跑 spinner 优先,红态不叠;重发/成功即清)。 */
   const renderTypeShotSectionButton = (kind: AssetImageKind, route: "i2i" | "t2i", busy: boolean) => {
     const needsReference = route === "i2i";
+    // 1121 失败持久态:型键控(该型上次失败);busy 中不渲染红态(互斥清晰)
+    const failureReason = typeShotFailure?.kind === kind ? typeShotFailure.reason : null;
+    const failed = !busy && failureReason !== null;
     const disabled = generationBusy || (needsReference && images.length === 0);
     const title = needsReference && images.length === 0
       ? `先有${trackNoun}图片才能图生图生成${kind}`
@@ -501,10 +528,12 @@ export function StudioAssetDetailPreviewPane({
               ? "正在生成高清人头，请稍候"
               : isLanePhaseRunning(expressionPhase)
                 ? "正在生成表情差分，请稍候"
-                : `生成${kind}(${route === "t2i" ? "文生图·型层" : "图生图·型层"})`;
+                : failed
+                  ? `上次生成失败:${failureReason}`
+                  : `生成${kind}(${route === "t2i" ? "文生图·型层" : "图生图·型层"})`;
     return (
       <Button
-        variant="default"
+        variant={failed ? "destructive" : "default"}
         size="sm"
         className="h-6 gap-1 text-[11px]"
         onClick={() => onTypeShot?.(kind)}
@@ -516,7 +545,7 @@ export function StudioAssetDetailPreviewPane({
         ) : (
           <Sparkles className="mr-1 h-3 w-3" />
         )}
-        {busy ? "生成中…" : (typeShotSettledLabel ?? `生成${kind}`)}
+        {busy ? "生成中…" : failed ? "生成失败" : (typeShotSettledLabel ?? `生成${kind}`)}
       </Button>
     );
   };

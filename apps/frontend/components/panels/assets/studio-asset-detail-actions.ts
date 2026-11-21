@@ -32,7 +32,8 @@ import { getAssetImageOpenTarget, getAssetOperationError, updateImagesAfterRepla
 import { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
 import type { GenerationOutcomeRecord } from "./studio-asset-generation-result-dialog";
 // 1120 按钮态精修:busyTarget 键空间单一真源(pane 内导出,§6 对策3 禁手拼散落)
-import { busyKey } from "./studio-asset-detail-preview-pane";
+// 1121 失败持久态:失败态形状与 busyKey 同源导出(pane 渲染层消费)
+import { busyKey, type AssetTypeShotFailureState } from "./studio-asset-detail-preview-pane";
 
 /**
  * 阶段参考图锚(10-25 阶段矩阵 T3,PRD §3.3):该阶段组内最新一张(任意型)的 url。
@@ -101,6 +102,11 @@ export function useStudioAssetDialogActions(ctx: {
    *  3s 反馈延迟清解耦)。队列底层执行器(laneGuard/managedLane=false)不设不清,
    *  队列入口恒持 one-key。 */
   setBusyTarget?: (target: string | null) => void;
+  /** 1121 失败持久态(界面不许撒谎):按型出图失败写入口——失败型键控红态真源
+   *  (节头钮/占位 CTA 消费)。失败 toast/3s 相位窗一闪即逝,等待几分钟的用户回来
+   *  看不到任何失败痕迹;本态持久驻留,重发该型/该型成功清 own,切资产由宿主清。
+   *  与 busyTarget 分工:busy=在跑 spinner(finally 清),failure=上次失败(持久)。 */
+  setTypeShotFailure?: Dispatch<SetStateAction<AssetTypeShotFailureState | null>>;
   /** 10-25 分层面板役复审修(A-1 写入点第4项):一键补缺队列逐型派发前的聚焦钩子。
    *  队列内 dispatchKindGeneration 直调底层执行器,不经 Dialog 包装的 focusOnKind
    *  ——经此钩子与生成派发同帧写 focusKind,防面板构成区滞留旧聚焦型/通用态
@@ -180,6 +186,8 @@ export function useStudioAssetDialogActions(ctx: {
     setTypeShotPhase,
     setTypeShotMessage,
     setBusyTarget,
+    // 1121 失败持久态:按型出图失败写入口(解构入作用域)
+    setTypeShotFailure,
     onFillMissingKindFocus,
     getKindSubjectOverride,
     getKindSubjectBlock,
@@ -1323,6 +1331,9 @@ export function useStudioAssetDialogActions(ctx: {
       // 队列路 managedLane:false 不设不清(busyTarget 由队列入口独占 one-key)
       setBusyTarget?.(options?.busyTargetKey ?? busyKey.section(kind));
     }
+    // 1121 失败持久态:重发该型即清旧失败(own 键控)——新一轮在跑,红态退位给
+    // spinner;队列路同清(逐型重试同语义;他型失败态不受扰)
+    setTypeShotFailure?.((prev) => (prev?.kind === kind ? null : prev));
     // 1121 ①段固定指令行真值:会话级覆盖优先,空=型档案 i2iInstruction(单点取值,
     // 发车参数与结果记录同源,防双读漂移)
     const instructionOverrideText = profile.route === "i2i"
@@ -1359,6 +1370,8 @@ export function useStudioAssetDialogActions(ctx: {
           setTypeShotPhase("done");
           setTypeShotMessage(`${kind}生成完成！`);
         }
+        // 1121 失败持久态:该型成功即清失败红态(own 键控,他型失败态不受扰)
+        setTypeShotFailure?.((prev) => (prev?.kind === kind ? null : prev));
         // 10-25 用户令·单图型替换:生成成功先清该型旧图再收编(桥缺席/单条删除失败
         // 不阻断收编——新图照入库,残留旧图下轮再生成时再清)
         for (const stalePath of singleKindReplacementFilePaths(images, kind)) {
@@ -1434,6 +1447,10 @@ export function useStudioAssetDialogActions(ctx: {
           setTypeShotPhase("failed");
           setTypeShotMessage(`${kind}生成失败: ${result.error || "未知错误"}`);
         }
+        // 1121 失败持久态(界面不许撒谎):失败落持久红态(型键控+原因全文)——
+        // toast/3s 相位窗一闪即逝,等待几分钟的用户回来仍可见;队列路同落(该型
+        // 上次失败语义一致,队列中止文案另发)
+        setTypeShotFailure?.({ kind, reason: result.error || "未知错误" });
         toast.error(`${kind}生成失败: ${result.error || "未知错误"}`);
         return false;
       }
@@ -1442,6 +1459,8 @@ export function useStudioAssetDialogActions(ctx: {
         setTypeShotPhase("failed");
         setTypeShotMessage(err instanceof Error ? err.message : String(err));
       }
+      // 1121 失败持久态:异常路同落(与 else 支同款,原因=异常文案)
+      setTypeShotFailure?.({ kind, reason: err instanceof Error ? err.message : String(err) });
       toast.error(err instanceof Error ? err.message : String(err));
       return false;
     } finally {

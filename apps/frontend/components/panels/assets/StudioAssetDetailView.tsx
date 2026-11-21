@@ -54,7 +54,7 @@ import {
   type PromptInspectCandidate,
 } from "@/lib/studio/asset-prompt-inspect";
 import { getAssetTypeShotProfile } from "@/lib/studio/asset-type-shot";
-import { StudioAssetDetailPreviewPane, busyKey, isLanePhaseRunning } from "./studio-asset-detail-preview-pane";
+import { StudioAssetDetailPreviewPane, busyKey, isLanePhaseRunning, type AssetTypeShotFailureState } from "./studio-asset-detail-preview-pane";
 import { StudioAssetSourcePromptDialog } from "./studio-asset-source-prompt-dialog";
 import { StudioAssetCharacterJsonDialog } from "./studio-asset-character-json-dialog";
 import { StudioAssetCharacterPrompts } from "./studio-asset-character-prompts";
@@ -251,6 +251,11 @@ export function StudioAssetDetailView({
   // 只管「谁在转」(§6 对策2:双源分工注释钉死)。发起链 setPhase 同址设键,
   // finally 清(失败必复原=AC4 硬门)。
   const [busyTarget, setBusyTarget] = useState<string | null>(null);
+  // 1121 失败持久态(界面不许撒谎):上次按型出图失败的型+原因——失败 toast/3s
+  // 相位窗一闪即逝,等待几分钟的用户回来界面已回静止态(1121 实弹实录);本态持久
+  // 驻留(该型节头钮/占位 CTA 红边+「生成失败」+title 原因),重发该型/该型成功/
+  // 切资产即清;与 busyTarget 互斥(渲染层在跑 spinner 优先,红态不叠)。
+  const [typeShotFailure, setTypeShotFailure] = useState<AssetTypeShotFailureState | null>(null);
   const [faceMessage, setFaceMessage] = useState("");
   const [voiceAssignOpen, setVoiceAssignOpen] = useState(false);
   // 10-25 分层面板役 A-1:focusKind 联动状态机(null=通用态)。点击生成入口置目标型
@@ -585,6 +590,8 @@ export function StudioAssetDetailView({
       setPromptOverridesHydrated(false);
       setInstructionDrafts({});
       setInstructionEditOpen(false);
+      // 1121 失败持久态:旧资产会话的失败红态不带入新宿主
+      setTypeShotFailure(null);
       resetStageState();
       return;
     }
@@ -598,6 +605,8 @@ export function StudioAssetDetailView({
     setFocusKind(null);
     setPrePolishPrompt(null);
     setPromptInspectTarget(null);
+    // 1121 失败持久态:切资产清(旧资产会话的失败红态不带入新资产)
+    setTypeShotFailure(null);
     // R5 结果弹窗/队列累积随切资产清(旧资产会话的记录不带入新宿主)
     setGenerationOutcome(null);
     queueRecordsRef.current = [];
@@ -752,6 +761,8 @@ export function StudioAssetDetailView({
     setTypeShotMessage,
     // 1120 按钮态精修(§10.3):busyTarget 写入口(六条发起链设/清同址 try/finally)
     setBusyTarget,
+    // 1121 失败持久态:按型出图失败写入口(失败落/重发清/成功清,own 键控)
+    setTypeShotFailure,
     onFillMissingKindFocus: focusOnKind,
     onImageGenerated: handleImageGenerated,
     onFillMissingQueueSettled: handleQueueSettled,
@@ -935,6 +946,8 @@ export function StudioAssetDetailView({
     typeShotMessage={typeShotMessage}
     /* 1120 按钮态精修(§10.5):spinner 唯一真源键传入(五相位照旧并行供反馈) */
     busyTarget={busyTarget}
+    /* 1121 失败持久态:上次按型出图失败(型键控红态;与 busyTarget 互斥) */
+    typeShotFailure={typeShotFailure}
     onFillMissing={handleFillMissingQueue}
     onInspectPrompt={handleInspectPrompt}
     /* 批3(10-24)+Round 3 ⑤/⑥:占位卡 CTA/完整度缺失 chip 直达生成全型路由

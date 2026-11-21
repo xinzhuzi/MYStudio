@@ -15,7 +15,7 @@ vi.mock("@ai-sdk/deepseek", () => ({ createDeepSeek: vi.fn(() => vi.fn()) }));
 vi.mock("vercel-minimax-ai-provider", () => ({ createMinimax: vi.fn(() => vi.fn()) }));
 vi.mock("ai", () => ({ generateImage: vi.fn(), generateText: vi.fn(), streamText: vi.fn() }));
 
-import { createProviderInstance, firstUsableApiKey, normalizeAnthropicSdkBaseUrl, normalizeGeminiSdkBaseUrl, splitSystemMessages } from "./ai-sdk-bridge";
+import { createProviderInstance, firstUsableApiKey, normalizeAnthropicSdkBaseUrl, normalizeGeminiSdkBaseUrl, splitSystemMessages, buildProviderExtensionImageRequestBody, buildOpenAIImageRequestBody } from "./ai-sdk-bridge";
 
 describe("createProviderInstance anthropic routing", () => {
   beforeEach(() => {
@@ -197,6 +197,78 @@ describe("normalizeAnthropicSdkBaseUrl", () => {
 
   it("returns an empty string unchanged so callers can fall back to the SDK default", () => {
     expect(normalizeAnthropicSdkBaseUrl("")).toBe("");
+  });
+});
+
+// 1121 缺省画幅伪信号治本(4492dd8c 第三出口收口):ai-sdk-bridge.ts:367 曾对
+// 未指定画幅的请求恒发 body.aspect_ratio="16:9"——sidecar P4 边锚三次把它当
+// 真信号把非 16:9 任务锚成 8.2944MP 巨幅拉爆引擎。新契约:调用方没给就不发,
+// 需要显式画幅的消费方自己给(云 GPT Image=resolveGptImageSize 显式 size,
+// UI 缺省=调用方 imageSettings.defaultAspectRatio,不是传输层暗补)。
+describe("provider-extension image body aspect_ratio pseudo-signal retirement", () => {
+  it("passes through the caller-provided aspect ratio verbatim", () => {
+    const { body } = buildProviderExtensionImageRequestBody({
+      model: "qwen21-local",
+      prompt: "主体句",
+      aspectRatio: "3:4",
+      resolution: "2K",
+    });
+
+    expect(body.aspect_ratio).toBe("3:4");
+  });
+
+  it("omits aspect_ratio entirely when the caller does not specify one (no hidden 16:9)", () => {
+    const { body, templateName } = buildProviderExtensionImageRequestBody({
+      model: "qwen21-local",
+      prompt: "主体句",
+      resolution: "2K",
+    });
+
+    expect(templateName).toBe("provider-extension");
+    expect(body).not.toHaveProperty("aspect_ratio");
+  });
+
+  it("omits aspect_ratio for empty-string input as well (assignIfDefined semantics)", () => {
+    const { body } = buildProviderExtensionImageRequestBody({
+      model: "qwen21-local",
+      prompt: "主体句",
+      aspectRatio: "",
+    });
+
+    expect(body).not.toHaveProperty("aspect_ratio");
+  });
+
+  it("keeps the resolution default untouched (only the aspect default was retired)", () => {
+    const { body } = buildProviderExtensionImageRequestBody({
+      model: "qwen21-local",
+      prompt: "主体句",
+    });
+
+    expect(body.resolution).toBe("2K");
+    expect(body).not.toHaveProperty("aspect_ratio");
+  });
+
+  it("non-GPT models routed through buildOpenAIImageRequestBody also omit the field when unspecified", () => {
+    const { body, templateName } = buildOpenAIImageRequestBody({
+      model: "seedream-4",
+      prompt: "主体句",
+    });
+
+    expect(templateName).toBe("provider-extension");
+    expect(body).not.toHaveProperty("aspect_ratio");
+  });
+
+  it("cloud GPT Image models keep an explicit size via resolveGptImageSize even without aspectRatio", () => {
+    // 云模型不靠退役的缺省:OpenAI size 契约必须显式,resolveGptImageSize 内部
+    // 归一(normalize→16:9 档)产 size,不产 aspect_ratio。
+    const { body, templateName } = buildOpenAIImageRequestBody({
+      model: "gpt-image-2",
+      prompt: "storyboard frame",
+    });
+
+    expect(templateName).toBe("openai-size");
+    expect(body.size).toBe("2048x1152");
+    expect(body).not.toHaveProperty("aspect_ratio");
   });
 });
 

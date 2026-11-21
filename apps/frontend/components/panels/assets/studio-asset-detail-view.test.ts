@@ -641,7 +641,8 @@ describe("1120 生图按钮忙碌态精修(busyTarget 键控 spinner:单击单�
     expect(paneSource).toContain('faceI2i: "face-i2i"');
     expect(paneSource).toContain("section: (kind: AssetImageKind) => `section:${kind}`");
     expect(paneSource).toContain("placeholder: (kind: AssetImageKind) => `placeholder:${kind}`");
-    expect(actionsSource).toContain('import { busyKey } from "./studio-asset-detail-preview-pane";');
+    // 1121 失败持久态随迁:actions 导入增类型(形状与 busyKey 同源导出)
+    expect(actionsSource).toContain('import { busyKey, type AssetTypeShotFailureState } from "./studio-asset-detail-preview-pane";');
   });
 
   it("§10.3 设/清同址:六条发起链 setPhase 同址设键(占位 CTA 经 busyTargetKey 换键),finally 立即清(失败必复原=AC4 硬门)", () => {
@@ -675,6 +676,49 @@ describe("1120 生图按钮忙碌态精修(busyTarget 键控 spinner:单击单�
     // route 徽标中文化(R5):展示层映射,数据值不动
     expect(paneSource).toContain('sectionMeta.route === "i2i" ? "图生图" : sectionMeta.route === "t2i" ? "文生图"');
     expect(paneSource).toContain('"图生图(参考图生成)"');
+  });
+});
+
+describe("1121 失败持久态(界面不许撒谎:按型出图失败红态持久驻留,非一闪即逝 toast)", () => {
+  const readActionsSource = () => readFileSync(new URL("./studio-asset-detail-actions.ts", import.meta.url), "utf8");
+  const readPaneSource = () => readFileSync(new URL("./studio-asset-detail-preview-pane.tsx", import.meta.url), "utf8");
+
+  it("装配:宿主持 typeShotFailure state,ctx 注 setTypeShotFailure,pane 接 typeShotFailure(与 busyTarget 分工并存)", () => {
+    const dialogSource = readDialogSources();
+    expect(dialogSource).toContain("const [typeShotFailure, setTypeShotFailure] = useState<AssetTypeShotFailureState | null>(null)");
+    expect(dialogSource).toContain("setTypeShotFailure,");
+    expect(dialogSource).toContain("typeShotFailure={typeShotFailure}");
+    // 切资产清(旧资产会话失败红态不带入新宿主;[asset?.id] effect 两支同清)
+    expect((dialogSource.match(/setTypeShotFailure\(null\)/g) ?? []).length).toBe(2);
+  });
+
+  it("写入点:executeTypeShot 失败/异常落持久红态(型键控+原因),重发该型与该型成功清 own", () => {
+    const source = readActionsSource();
+    // 失败落红(else 支:服务返失败)——toast 之外的持久真源
+    expect(source).toContain('setTypeShotFailure?.({ kind, reason: result.error || "未知错误" });');
+    // 异常路同落(catch 支)
+    expect(source).toContain("setTypeShotFailure?.({ kind, reason: err instanceof Error ? err.message : String(err) });");
+    // 重发该型清 own(队列路同清;他型失败态不受扰)+ 成功清 own
+    expect((source.match(/setTypeShotFailure\?\.\(\(prev\) => \(prev\?\.kind === kind \? null : prev\)\)/g) ?? []).length).toBe(2);
+    // 守卫早退(型档案缺/跨轨/无参考图/无主体句)不落红态——预检引导非生成失败
+    const guardIndex = source.indexOf("if (!profile) {");
+    const tryIndex = source.indexOf("setTypeShotFailure?.((prev) => (prev?.kind === kind ? null : prev));");
+    expect(guardIndex).toBeGreaterThan(-1);
+    expect(tryIndex).toBeGreaterThan(guardIndex);
+  });
+
+  it("渲染契约:pane 型键控红态(节头钮 destructive 变体+占位 CTA 红边),与忙碌态互斥(busy 优先)", () => {
+    const paneSource = readPaneSource();
+    // 型键控判定+互斥(!busy 前置)——节头钮与占位 CTA 同款
+    expect((paneSource.match(/typeShotFailure\?\.kind === (kind|options\.kind)/g) ?? []).length).toBe(2);
+    expect(paneSource).toContain("const failed = !busy && failureReason !== null;");
+    expect(paneSource).toContain("const failed = !options?.busy && failureReason !== null;");
+    // 红态样式:节头钮走 Button destructive 变体;占位 CTA 红边类名
+    expect(paneSource).toContain('variant={failed ? "destructive" : "default"}');
+    expect(paneSource).toContain("border-destructive/50 bg-destructive/10 text-destructive hover:bg-destructive/20");
+    // 标签+title 原因全文(「上次生成失败了+原因」两要素)
+    expect(paneSource).toContain('failed ? "生成失败" : (typeShotSettledLabel ?? `生成${kind}`)');
+    expect((paneSource.match(/`上次生成失败:\$\{failureReason\}`/g) ?? []).length).toBe(2);
   });
 });
 

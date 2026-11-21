@@ -883,3 +883,101 @@ describe("StudioAssetDetailPreviewPane · 1120 生图按钮忙碌态精修(单�
     expect(screen.getByText("无衣物定妆生成失败: 引擎拒绝")).toBeTruthy();
   });
 });
+
+describe("StudioAssetDetailPreviewPane · 1121 失败持久态(界面不许撒谎:失败红态持久驻留,非一闪即逝)", () => {
+  /** 本行仅多视图在场 → 无衣物定妆空节(占位 CTA 可达;1121 实弹路径)。 */
+  const PARTIAL_IMAGES = [
+    { name: "晏燎_练气期_三视图_v1", filePath: "role/a1.png", url: "media://a1" },
+  ];
+  /** 该型已有图 → 节头钮可达(无占位 CTA)。 */
+  const WITH_FULLBODY_IMAGES = [
+    { name: "主图", filePath: "role/main.png", url: "media://main" },
+    { name: "晏燎_练气期_无衣物定妆_v1", filePath: "role/fullbody.png", url: "media://fullbody" },
+  ];
+
+  it("节头钮失败红态:该型钮「生成失败」+title 原因全文+红样式+可点重试;他型零红", () => {
+    renderPane({
+      images: WITH_FULLBODY_IMAGES,
+      canTypeShot: true,
+      onTypeShot: vi.fn(),
+      typeShotFailure: { kind: "无衣物定妆", reason: "连接中断" },
+    });
+
+    const fullBody = screen.getByRole("region", { name: "无衣物定妆" });
+    const failedButton = within(fullBody).getByRole("button", { name: "生成失败" }) as HTMLButtonElement;
+    // 失败≠禁点:重试直达(与 AC4「failed 反馈不禁点」同语义)
+    expect(failedButton.disabled).toBe(false);
+    expect(failedButton.getAttribute("title")).toBe("上次生成失败:连接中断");
+    // 红态样式契约(Button destructive 变体)
+    expect(failedButton.className).toContain("text-destructive");
+    expect(failedButton.querySelector(".animate-spin")).toBeNull();
+    // 他型零红(原标签照旧)
+    const poster = screen.getByRole("region", { name: "人物海报" });
+    expect(within(poster).getByRole("button", { name: "生成人物海报" })).toBeTruthy();
+  });
+
+  it("占位 CTA 失败红态(1121 实弹路径):CTA「生成失败」+title 原因,点击仍派发重试", () => {
+    const onGenerateByKind = vi.fn();
+    renderPane({
+      images: PARTIAL_IMAGES,
+      canTypeShot: true,
+      onTypeShot: vi.fn(),
+      onGenerateByKind,
+      onFillMissing: vi.fn(),
+      typeShotFailure: { kind: "无衣物定妆", reason: "引擎拒绝" },
+    });
+
+    const fullBody = screen.getByRole("region", { name: "无衣物定妆" });
+    // 该型节头钮与占位 CTA 同节并存且同键控红(型键控语义)——按占位卡域定位 CTA
+    const failedButtons = within(fullBody).getAllByRole("button", { name: "生成失败" }) as HTMLButtonElement[];
+    expect(failedButtons).toHaveLength(2);
+    for (const button of failedButtons) {
+      expect(button.disabled).toBe(false);
+      expect(button.getAttribute("title")).toBe("上次生成失败:引擎拒绝");
+      expect(button.className).toContain("text-destructive");
+    }
+    const placeholderCard = within(fullBody).getByLabelText("尚无无衣物定妆") as HTMLElement;
+    const cta = within(placeholderCard).getByRole("button", { name: "生成失败" }) as HTMLButtonElement;
+    // 重试直达:点击照常派发该型生成
+    fireEvent.click(cta);
+    expect(onGenerateByKind).toHaveBeenCalledWith("无衣物定妆");
+    // 他型占位 CTA 原样(点击生成)
+    const poster = screen.getByRole("region", { name: "人物海报" });
+    expect(within(poster).getByRole("button", { name: "点击生成" })).toBeTruthy();
+  });
+
+  it("生命周期:在跑 spinner(非红)→ 失败即红 → 3s 相位窗清后红态仍驻留(持久性核心)→ 清失败态复原", () => {
+    const { props, rerender } = renderPane({
+      images: WITH_FULLBODY_IMAGES,
+      canTypeShot: true,
+      onTypeShot: vi.fn(),
+      // ① 在跑:busyTarget=section 键 + 相位 generating(失败态已被重发清零)
+      busyTarget: "section:无衣物定妆",
+      typeShotPhase: "generating",
+      typeShotMessage: "正在生成 主角 的无衣物定妆...",
+      typeShotFailure: null,
+    });
+    const fullBody = screen.getByRole("region", { name: "无衣物定妆" });
+    const running = within(fullBody).getByRole("button", { name: "生成中…" }) as HTMLButtonElement;
+    expect(running.querySelector(".animate-spin")).toBeTruthy();
+    expect(running.className).not.toContain("text-destructive"); // 忙碌态优先,红态不叠
+
+    // ② 失败瞬间:busyTarget 已清(AC4)+相位 failed(3s 窗)+失败态落红
+    rerender(<StudioAssetDetailPreviewPane {...props} busyTarget={null} typeShotPhase="failed" typeShotMessage="无衣物定妆生成失败: 连接中断" typeShotFailure={{ kind: "无衣物定妆", reason: "连接中断" }} />);
+    let failedButton = within(fullBody).getByRole("button", { name: "生成失败" }) as HTMLButtonElement;
+    expect(failedButton.disabled).toBe(false);
+    expect(failedButton.className).toContain("text-destructive");
+    expect(failedButton.getAttribute("title")).toBe("上次生成失败:连接中断");
+
+    // ③ 3s 相位窗清后(等待几分钟的用户回看时点):红态仍驻留——本役根修断言
+    rerender(<StudioAssetDetailPreviewPane {...props} busyTarget={null} typeShotPhase={null} typeShotMessage="" typeShotFailure={{ kind: "无衣物定妆", reason: "连接中断" }} />);
+    failedButton = within(fullBody).getByRole("button", { name: "生成失败" }) as HTMLButtonElement;
+    expect(failedButton.className).toContain("text-destructive");
+    expect(failedButton.getAttribute("title")).toBe("上次生成失败:连接中断");
+
+    // ④ 失败态清(重发该型/该型成功/切资产):复原原标签
+    rerender(<StudioAssetDetailPreviewPane {...props} busyTarget={null} typeShotPhase={null} typeShotMessage="" typeShotFailure={null} />);
+    expect(within(fullBody).queryByRole("button", { name: "生成失败" })).toBeNull();
+    expect(within(fullBody).getByRole("button", { name: "生成无衣物定妆" })).toBeTruthy();
+  });
+});
