@@ -2435,6 +2435,18 @@ class EngineManager:
             pinned_sha = self._last_check.get("pinnedSha")
             if not pinned_tag:
                 raise EngineOpError("钉定版信息缺失(账本 engine.version 为空),无法更新")
+            # 1122 根修(用户三报「每次都报错」):账本 version 可能是 master 轨
+            # 期写入的展示标签(v0.45.3---g102350e,_master_version_label 三横线
+            # 格式)——它不是远端真 tag,直接当 fetch 目标=git 128 couldn't find
+            # remote ref,重试恒炸。剥离 ---尾段回真 tag;剥完仍非 vX.Y 形态
+            # 才是真空值,报大白话。
+            sanitized = pinned_tag.split("---")[0]
+            if sanitized != pinned_tag:
+                pinned_tag = sanitized
+            if not re.fullmatch(r"v\d+(\.\d+)*", pinned_tag):
+                raise EngineOpError(
+                    f"钉定版号异常(账本 engine.version={pinned_tag!r}),无法定位远端 tag;请到引擎家核对 manifest",
+                )
             if pinned_sha and local_sha and local_sha == pinned_sha:
                 raise EngineOpError("当前已是最新版本,无需更新")
             target, label = pinned_tag, f"钉定版({pinned_tag})"
