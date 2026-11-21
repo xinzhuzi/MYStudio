@@ -64,6 +64,21 @@ describe("Pinterest official transport", () => {
     expect(fetchMock.mock.calls[1]?.[1]?.method).toBe("DELETE");
   });
 
+  it("refuses a platform-issued upload URL that targets a blocked host", async () => {
+    const fetchMock = createFetchMock()
+      .mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3]), { headers: { "content-type": "video/mp4" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ media_id: "media-1", upload_url: "https://169.254.169.254/upload", upload_parameters: {} })));
+    const transport = createPinterestTransport(createRuntime(fetchMock));
+
+    await expect(transport.publish({
+      accountId: "aitoearn-local:pinterest:account-1",
+      contentType: "video",
+      assets: [{ assetId: "video-1", kind: "video", url: "https://assets.test/video.mp4" }],
+      options: { boardId: "board-1" },
+    })).rejects.toThrow("安全策略");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("fails before network when boardId is missing", async () => {
     const transport = createPinterestTransport(createRuntime(createFetchMock()));
     await expect(transport.publish({ accountId: "aitoearn-local:pinterest:account-1", contentType: "image-text", assets: [{ assetId: "image-1", kind: "image", url: "https://assets.test/image.png" }] }))

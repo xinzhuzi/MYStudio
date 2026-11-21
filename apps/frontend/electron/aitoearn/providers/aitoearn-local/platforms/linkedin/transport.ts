@@ -1,3 +1,4 @@
+import { assertSafeOutboundRequestUrl } from "../../../../../security/request-url-guard";
 import type { PlatformAdapterTransport, PlatformPublishRequest } from "../platform-adapter";
 import { assertOAuthCallback, createOAuthState } from "../official/oauth-state";
 import {
@@ -115,7 +116,7 @@ export function createLinkedinTransport(runtime: OfficialTransportRuntime): Plat
         const uploadedPartIds: string[] = [];
         for (const instruction of instructions) {
           const part = asset.bytes.slice(instruction.firstByte, instruction.lastByte + 1);
-          const response = await runtime.fetch(instruction.uploadUrl, {
+          const response = await runtime.fetch(assertSafeOutboundRequestUrl(instruction.uploadUrl), {
             method: "PUT",
             headers: { "content-type": "application/octet-stream", "content-length": String(part.byteLength) },
             body: part.buffer.slice(part.byteOffset, part.byteOffset + part.byteLength) as ArrayBuffer,
@@ -140,7 +141,7 @@ export function createLinkedinTransport(runtime: OfficialTransportRuntime): Plat
             body: JSON.stringify({ initializeUploadRequest: { owner: ownerUrn } }),
           });
           if (!initialized.value?.uploadUrl || !initialized.value.image) throw new Error("LinkedIn 图片上传参数缺失");
-          const response = await runtime.fetch(initialized.value.uploadUrl, {
+          const response = await runtime.fetch(assertSafeOutboundRequestUrl(initialized.value.uploadUrl), {
             method: "PUT",
             headers: { "content-type": "application/octet-stream", "content-length": String(asset.bytes.byteLength) },
             body: asset.bytes.buffer.slice(asset.bytes.byteOffset, asset.bytes.byteOffset + asset.bytes.byteLength) as ArrayBuffer,

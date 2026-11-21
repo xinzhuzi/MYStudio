@@ -466,6 +466,7 @@ export function SelfMediaPanel() {
   const selfMediaProjectId = useSelfMediaStore((state) => state.activeProjectId);
   const replaceProjectTasks = useSelfMediaStore((state) => state.replaceProjectTasks);
   const [section, setSection] = useState<SelfMediaSection>("accounts");
+  const [journalWarning, setJournalWarning] = useState<string | null>(null);
 
   useEffect(() => {
     const bridge = getSelfMediaBridge();
@@ -474,10 +475,14 @@ export function SelfMediaPanel() {
     void bridge.listTasks({ projectId: activeProjectId }).then((reply) => {
       if (
         disposed
-        || !reply.success
         || useProjectStore.getState().activeProjectId !== activeProjectId
         || useSelfMediaStore.getState().activeProjectId !== activeProjectId
       ) return;
+      if (!reply.success) {
+        setJournalWarning(reply.error.message);
+        return;
+      }
+      setJournalWarning(null);
       replaceProjectTasks(activeProjectId, reply.value);
     }).catch(() => undefined);
     return () => {
@@ -498,6 +503,7 @@ export function SelfMediaPanel() {
         <header className="border-b border-border/60 bg-background/50 px-6 py-5 backdrop-blur-xl">
           <div className="mx-auto w-full max-w-7xl">
             <h1 className="text-2xl font-semibold tracking-tight">自媒体发布台</h1>
+            {journalWarning && <p role="alert" className="mt-1 text-xs text-destructive">{journalWarning}</p>}
           </div>
         </header>
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">

@@ -72,4 +72,18 @@ describe("YouTube official transport", () => {
     });
     expect(fetchMock.mock.calls[2]?.[0]).toBe("https://upload.youtube.test/session-1");
   });
+
+  it("refuses a resumable upload session pointing at a metadata host", async () => {
+    const fetchMock = createFetchMock()
+      .mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3]), { headers: { "content-type": "video/mp4" } }))
+      .mockResolvedValueOnce(new Response(null, { status: 200, headers: { location: "https://metadata.google.internal/upload" } }));
+    const transport = createYoutubeTransport(createRuntime(fetchMock));
+
+    await expect(transport.publish({
+      accountId: "aitoearn-local:youtube:account-1",
+      contentType: "video",
+      assets: [{ assetId: "video-1", kind: "video", url: "https://assets.test/video.mp4" }],
+    })).rejects.toThrow("安全策略");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });

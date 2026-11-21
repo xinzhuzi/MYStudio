@@ -31,6 +31,9 @@ describe("official platform transport runtime", () => {
       contentType: "image/png",
     });
     await expect(readOfficialAsset(runtime, "http://assets.example.test/image.png")).rejects.toThrow("HTTPS URL");
+    await expect(readOfficialAsset(runtime, "https://169.254.169.254/latest/meta-data")).rejects.toThrow("安全策略");
+    await expect(readOfficialAsset(runtime, "https://metadata.google.internal/computeMetadata/v1/")).rejects.toThrow("安全策略");
+    expect(runtime.fetch).toHaveBeenCalledTimes(1);
     expect(requireHttpsAssetUrl("https://assets.example.test/image.png")).toBe("https://assets.example.test/image.png");
     expect(() => requireHttpsAssetUrl("file:///tmp/image.png")).toThrow("公网访问");
   });

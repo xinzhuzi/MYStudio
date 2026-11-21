@@ -64,6 +64,13 @@ type ScheduledDraftResult =
   | { success: true; value: SelfMediaDraft }
   | { success: false; message: string };
 
+// 损坏的任务日志必须拒写(含 dispose 强制写),否则下一次持久化会以空任务集
+// 覆盖原文件,定时任务静默丢失。与 local-account-vault 的损坏拒写同口径。
+const TASK_JOURNAL_CORRUPTED = {
+  code: "task-journal-corrupted",
+  message: "自媒体任务日志已损坏或无法读取，已停止写入以防覆盖定时任务——请先备份或删除该文件后重启应用",
+} as const;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object");
 }
@@ -189,36 +196,51 @@ export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, local
   const inFlightActions = new Set<Promise<unknown>>();
   let persistenceChain: Promise<void> = Promise.resolve();
   let disposed = false;
+  let journalFailure: { code: string; message: string } | null = null;
   const loadPersistedTasks = async () => {
     if (!taskStorePath) return;
+    let raw: string;
     try {
-      const raw = await fs.readFile(taskStorePath, "utf8");
-      const parsed: unknown = JSON.parse(raw);
-      const persistedTasks = Array.isArray(parsed)
-        ? parsed
-        : isRecord(parsed) && Array.isArray(parsed.tasks)
-          ? parsed.tasks
-          : [];
-      for (const value of persistedTasks) {
-        const task = decodeTaskRecord(value);
-        if (task) tasks.set(task.id, task);
-      }
-      if (!isRecord(parsed) || !Array.isArray(parsed.scheduledContexts)) return;
-      for (const value of parsed.scheduledContexts) {
-        if (!isRecord(value) || typeof value.taskId !== "string" || !isRecord(value.draft)) continue;
-        const task = tasks.get(value.taskId);
-        if (!task || task.status !== "scheduled" || task.draftId !== value.draft.id || task.projectId !== value.draft.projectId) continue;
-        const sanitized = sanitizeScheduledDraft(value.draft, task.scheduledAt);
-        if (!sanitized.success) continue;
-        scheduledContexts.set(task.id, sanitized.value);
-      }
+      raw = await fs.readFile(taskStorePath, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+      journalFailure = TASK_JOURNAL_CORRUPTED;
+      return;
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
     } catch {
-      // A missing or malformed task journal must not prevent the app from starting.
+      journalFailure = TASK_JOURNAL_CORRUPTED;
+      return;
+    }
+    const persistedTasks = Array.isArray(parsed)
+      ? parsed
+      : isRecord(parsed) && Array.isArray(parsed.tasks)
+        ? parsed.tasks
+        : null;
+    if (!persistedTasks) {
+      journalFailure = TASK_JOURNAL_CORRUPTED;
+      return;
+    }
+    for (const value of persistedTasks) {
+      const task = decodeTaskRecord(value);
+      if (task) tasks.set(task.id, task);
+    }
+    if (!isRecord(parsed) || !Array.isArray(parsed.scheduledContexts)) return;
+    for (const value of parsed.scheduledContexts) {
+      if (!isRecord(value) || typeof value.taskId !== "string" || !isRecord(value.draft)) continue;
+      const task = tasks.get(value.taskId);
+      if (!task || task.status !== "scheduled" || task.draftId !== value.draft.id || task.projectId !== value.draft.projectId) continue;
+      const sanitized = sanitizeScheduledDraft(value.draft, task.scheduledAt);
+      if (!sanitized.success) continue;
+      scheduledContexts.set(task.id, sanitized.value);
     }
   };
   const tasksReady = loadPersistedTasks();
   const persistTasks = (force = false): Promise<void> => {
     if (!taskStorePath) return Promise.resolve();
+    if (journalFailure) return Promise.resolve();
     const operation = persistenceChain.then(async () => {
       if (disposed && !force) return;
       await fs.mkdir(path.dirname(taskStorePath), { recursive: true });
@@ -340,6 +362,7 @@ export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, local
 
   ipcMain.handle(SELF_MEDIA_IPC.listTasks, async (_event, request: SelfMediaListTasksRequest): Promise<SelfMediaTaskListReply> => {
     await tasksReady;
+    if (journalFailure) return disabled(journalFailure.code, journalFailure.message);
     if (!validProjectId(request?.projectId)) return disabled("invalid-project", "项目 ID 无效");
     const value = runtime.list(request.projectId).map(decodeTaskRecord);
     if (value.some((task) => task === null)) return disabled("invalid-task-response", "任务响应无效");
@@ -388,6 +411,7 @@ export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, local
 
   ipcMain.handle(SELF_MEDIA_IPC.createTask, async (_event, request: SelfMediaCreateTaskRequest): Promise<SelfMediaCreateTaskReply> => {
     await tasksReady;
+    if (journalFailure) return disabled(journalFailure.code, journalFailure.message);
     if (disposed) return disabled("provider-disposed", "自媒体 provider 已结束");
     if (!validProjectId(request?.projectId) || request.draft?.projectId !== request.projectId) {
       return disabled("invalid-task-request", "任务项目范围无效");
@@ -463,6 +487,7 @@ export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, local
 
   const runTaskAction = async (request: SelfMediaTaskRequest, action: "poll" | "cancel"): Promise<SelfMediaTaskReply> => {
     await tasksReady;
+    if (journalFailure) return disabled(journalFailure.code, journalFailure.message);
     if (disposed) return disabled("provider-disposed", "自媒体 provider 已结束");
     if (!validProjectId(request?.projectId) || typeof request.taskId !== "string") return disabled("invalid-task-request", "任务请求无效");
     const task = tasks.get(request.taskId);

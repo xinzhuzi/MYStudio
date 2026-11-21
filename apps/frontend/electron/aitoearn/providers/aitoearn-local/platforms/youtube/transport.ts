@@ -1,3 +1,4 @@
+import { assertSafeOutboundRequestUrl } from "../../../../../security/request-url-guard";
 import type { PlatformAdapterTransport, PlatformPublishRequest, PlatformTaskRequest } from "../platform-adapter";
 import { assertOAuthCallback, createOAuthState, createPkcePair } from "../official/oauth-state";
 import {
@@ -104,7 +105,7 @@ export function createYoutubeTransport(runtime: OfficialTransportRuntime): Platf
       if (!init.ok) throw new Error(`YouTube 上传初始化失败 (${init.status})`);
       const uploadUrl = init.headers.get("location");
       if (!uploadUrl) throw new Error("YouTube 上传地址缺失");
-      const uploaded = await runtime.fetch(uploadUrl, {
+      const uploaded = await runtime.fetch(assertSafeOutboundRequestUrl(uploadUrl), {
         method: "PUT",
         headers: { "content-type": asset.contentType, "content-length": String(asset.bytes.byteLength) },
         body: asset.bytes.buffer.slice(asset.bytes.byteOffset, asset.bytes.byteOffset + asset.bytes.byteLength) as ArrayBuffer,

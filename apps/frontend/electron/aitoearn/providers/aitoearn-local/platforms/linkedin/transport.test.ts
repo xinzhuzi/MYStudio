@@ -63,4 +63,18 @@ describe("LinkedIn official transport", () => {
     await expect(transport.cancel({ accountId: "aitoearn-local:linkedin:account-1", taskId: "urn:li:share:1" }))
       .resolves.toMatchObject({ status: "canceled" });
   });
+
+  it("refuses a platform-issued upload URL that targets a blocked host", async () => {
+    const fetchMock = createFetchMock()
+      .mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3]), { headers: { "content-type": "image/png" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ value: { uploadUrl: "https://169.254.169.254/upload", image: "urn:li:image:1" } })));
+    const transport = createLinkedinTransport(createRuntime(fetchMock));
+
+    await expect(transport.publish({
+      accountId: "aitoearn-local:linkedin:account-1",
+      contentType: "image-text",
+      assets: [{ assetId: "image-1", kind: "image", url: "https://assets.test/image.png" }],
+    })).rejects.toThrow("安全策略");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { isPathInsideRoots, resolveSafeLocalAssetPath } from "../../asset-safety";
+import { assertSafeOutboundRequestUrl } from "../../../../../security/request-url-guard";
 import {
   createLocalAccountVault,
   isLocalOAuthAccountCredential,
@@ -197,7 +198,8 @@ export async function readOfficialAsset(runtime: OfficialTransportRuntime, url: 
   }
   const parsed = new URL(url);
   if (parsed.protocol !== "https:") throw new Error("官方平台资产只允许受控本地文件或 HTTPS URL");
-  const response = await runtime.fetch(parsed, { signal: AbortSignal.timeout(10 * 60_000) });
+  const safeUrl = assertSafeOutboundRequestUrl(parsed.toString());
+  const response = await runtime.fetch(safeUrl, { signal: AbortSignal.timeout(10 * 60_000) });
   if (!response.ok) throw new Error(`${runtime.config.platformId} 资产读取失败 (${response.status})`);
   const contentLength = Number(response.headers.get("content-length") ?? 0);
   if (contentLength > MAX_ASSET_BYTES) throw new Error("平台资产超过 512MB 限制");

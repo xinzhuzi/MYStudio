@@ -91,6 +91,8 @@ export function validateSelfMediaDraft(value: unknown): SelfMediaValidationResul
   }
   if (!isNonEmptyStringList(value.accountIds) || value.accountIds.length === 0) {
     issues.push({ path: "accountIds", message: "至少选择一个账号" });
+  } else if (new Set(value.accountIds).size !== value.accountIds.length) {
+    issues.push({ path: "accountIds", message: "账号不能重复选择" });
   }
   if (!isNonEmptyStringList(value.topics)) {
     issues.push({ path: "topics", message: "话题必须是字符串数组" });

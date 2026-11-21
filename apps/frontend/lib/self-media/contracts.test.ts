@@ -37,6 +37,13 @@ describe("validateSelfMediaDraft", () => {
     expect(result).toMatchObject({ success: false });
   });
 
+  it("rejects duplicated account ids so one click cannot create two tasks for the same account", () => {
+    expect(validateSelfMediaDraft(draft({ accountIds: ["account-1", "account-1"] }))).toMatchObject({
+      success: false,
+      issues: [{ path: "accountIds", message: "账号不能重复选择" }],
+    });
+  });
+
   it("accepts a douyin image-text draft because the local bridge implements publishImageWorkApi", () => {
     const result = validateSelfMediaDraft(draft({ contentType: "image-text", platformOptions: { platform: "douyin" }, assets: [{ assetId: "image-1", projectId: "project-1", kind: "image" }] }));
     expect(result).toMatchObject({ success: true });

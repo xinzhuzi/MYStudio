@@ -80,6 +80,20 @@ describe("TikTok official transport", () => {
       .resolves.toMatchObject({ status: "canceled" });
   });
 
+  it("refuses a platform-issued upload URL that targets a blocked host", async () => {
+    const fetchMock = createFetchMock()
+      .mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3]), { headers: { "content-type": "video/mp4" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { publish_id: "publish-1", upload_url: "https://169.254.169.254/upload" } })));
+    const transport = createTiktokTransport(runtimeWithFetch(fetchMock));
+
+    await expect(transport.publish({
+      accountId: "aitoearn-local:tiktok:account-1",
+      contentType: "video",
+      assets: [{ assetId: "video-1", kind: "video", url: "https://assets.test/video.mp4" }],
+    })).rejects.toThrow("安全策略");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("uses TikTok's direct-photo contract only for HTTPS image URLs", async () => {
     const fetchMock = createFetchMock().mockImplementation(async () => new Response(JSON.stringify({ data: { publish_id: "photo-1" } })));
     const transport = createTiktokTransport(runtimeWithFetch(fetchMock));

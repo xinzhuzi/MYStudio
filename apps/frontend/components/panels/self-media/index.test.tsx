@@ -261,6 +261,20 @@ describe("SelfMediaPanel task controls", () => {
     expect((screen.getByRole("button", { name: "图文" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
+  it("surfaces a corrupted task journal instead of silently showing no tasks", async () => {
+    installBridge();
+    window.selfMedia!.listTasks = vi.fn().mockResolvedValue({
+      success: false,
+      error: { code: "task-journal-corrupted", message: "自媒体任务日志已损坏或无法读取，已停止写入以防覆盖定时任务——请先备份或删除该文件后重启应用" },
+    });
+
+    render(<SelfMediaPanel />);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("任务日志已损坏");
+    expect(mocks.replaceProjectTasks).not.toHaveBeenCalled();
+  });
+
   it("rehydrates recovered main-process tasks for the active project", async () => {
     const recovered = createTask({ id: "task-recovered", status: "audit" });
     installBridge();

@@ -1,3 +1,4 @@
+import { assertSafeOutboundRequestUrl } from "../../../../../security/request-url-guard";
 import type {
   PlatformAdapterTransport,
   PlatformPublishRequest,
@@ -152,7 +153,7 @@ export function createTiktokTransport(runtime: OfficialTransportRuntime): Platfo
       for (let index = 0; index < totalChunkCount; index += 1) {
         const start = index * chunkSize;
         const end = Math.min(asset.bytes.byteLength, start + chunkSize);
-        const response = await runtime.fetch(uploadUrl, {
+        const response = await runtime.fetch(assertSafeOutboundRequestUrl(uploadUrl), {
           method: "PUT",
           headers: {
             "content-type": asset.contentType,

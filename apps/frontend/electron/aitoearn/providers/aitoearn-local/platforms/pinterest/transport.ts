@@ -1,3 +1,4 @@
+import { assertSafeOutboundRequestUrl } from "../../../../../security/request-url-guard";
 import type { PlatformAdapterTransport, PlatformPublishRequest } from "../platform-adapter";
 import { assertOAuthCallback, createOAuthState } from "../official/oauth-state";
 import {
@@ -90,7 +91,7 @@ export function createPinterestTransport(runtime: OfficialTransportRuntime): Pla
         for (const [key, value] of Object.entries(upload.upload_parameters)) form.append(key, value);
         const bytes = asset.bytes.buffer.slice(asset.bytes.byteOffset, asset.bytes.byteOffset + asset.bytes.byteLength) as ArrayBuffer;
         form.append("file", new Blob([bytes], { type: asset.contentType }), asset.filename);
-        const uploaded = await runtime.fetch(upload.upload_url, { method: "POST", body: form });
+        const uploaded = await runtime.fetch(assertSafeOutboundRequestUrl(upload.upload_url), { method: "POST", body: form });
         if (!uploaded.ok) throw new Error(`Pinterest 视频上传失败 (${uploaded.status})`);
         let succeeded = false;
         for (let attempt = 0; attempt < 12; attempt += 1) {

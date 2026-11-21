@@ -484,6 +484,63 @@ describe("registerSelfMediaIpcHandlers", () => {
     expect(JSON.parse(journal).tasks).toEqual([validTask]);
   });
 
+  it("rejects duplicated account ids before creating tasks", async () => {
+    const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
+      projectId: "project-1",
+      providerId: "aitoearn-local",
+      draft: { projectId: "project-1", accountIds: ["account-1", "account-1"] },
+    });
+    expect(reply).toMatchObject({ success: false, error: { code: "invalid-draft" } });
+    expect((reply as { error: { message: string } }).error.message).toContain("账号不能重复选择");
+  });
+
+  it("fails closed on a corrupt task journal instead of overwriting it", async () => {
+    const corruptPath = path.join(os.tmpdir(), `mystudio-self-media-corrupt-${process.pid}.json`);
+    const publish = vi.fn(async () => ({ status: "success" as const }));
+    const registry = createSelfMediaProviderRegistry({
+      local: createAitoearnLocalAdapter({
+        listAccounts: async () => [],
+        startLogin: async () => ({ started: true }),
+        publish,
+        poll: async () => ({ status: "success" }),
+        cancel: async () => ({ status: "canceled" }),
+      }),
+    });
+    try {
+      const corrupt = "{not-json";
+      await fs.writeFile(corruptPath, corrupt);
+      const registration = registerSelfMediaIpcHandlers({ registry, taskStorePath: corruptPath });
+      await registration.runtimeReady;
+
+      await expect(handlers.get(SELF_MEDIA_IPC.listTasks)?.({}, { projectId: "project-1" }))
+        .resolves.toMatchObject({ success: false, error: { code: "task-journal-corrupted" } });
+      await expect(handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
+        projectId: "project-1",
+        providerId: "aitoearn-local",
+        draft: { projectId: "project-1" },
+      })).resolves.toMatchObject({ success: false, error: { code: "task-journal-corrupted" } });
+      await expect(handlers.get(SELF_MEDIA_IPC.pollTask)?.({}, { projectId: "project-1", taskId: "task-1" }))
+        .resolves.toMatchObject({ success: false, error: { code: "task-journal-corrupted" } });
+      await expect(handlers.get(SELF_MEDIA_IPC.cancelTask)?.({}, { projectId: "project-1", taskId: "task-1" }))
+        .resolves.toMatchObject({ success: false, error: { code: "task-journal-corrupted" } });
+      expect(publish).not.toHaveBeenCalled();
+
+      await registration.dispose();
+      expect(await fs.readFile(corruptPath, "utf8")).toBe(corrupt);
+
+      const shaped = JSON.stringify({ schemaVersion: 1 });
+      await fs.writeFile(corruptPath, shaped);
+      const second = registerSelfMediaIpcHandlers({ taskStorePath: corruptPath });
+      await second.runtimeReady;
+      await expect(handlers.get(SELF_MEDIA_IPC.listTasks)?.({}, { projectId: "project-1" }))
+        .resolves.toMatchObject({ success: false, error: { code: "task-journal-corrupted" } });
+      await second.dispose();
+      expect(await fs.readFile(corruptPath, "utf8")).toBe(shaped);
+    } finally {
+      await fs.rm(corruptPath, { force: true });
+    }
+  });
+
   it("does not let a late provider cancellation overwrite a terminal task", async () => {
     let resolveCancel!: (result: { status: "canceled" }) => void;
     let markCancelStarted!: () => void;
