@@ -1,8 +1,8 @@
 {
   "id": "recavsr-three-stage-1111",
   "revision": 0,
-  "last_node_id": 9999,
-  "last_link_id": 885,
+  "last_node_id": 10000,
+  "last_link_id": 907,
   "nodes": [
     {
       "id": 1,
@@ -941,7 +941,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            527
+            905
           ]
         }
       ],
@@ -971,8 +971,8 @@
           "name": "SAMPLER",
           "type": "SAMPLER",
           "links": [
-            519,
-            620
+            620,
+            901
           ]
         }
       ],
@@ -1016,12 +1016,12 @@
         {
           "name": "sampler",
           "type": "SAMPLER",
-          "link": 519
+          "link": 903
         },
         {
           "name": "sigmas",
           "type": "SIGMAS",
-          "link": 759
+          "link": 899
         },
         {
           "name": "latent_image",
@@ -1035,7 +1035,8 @@
           "type": "LATENT",
           "links": [
             523,
-            524
+            524,
+            891
           ]
         },
         {
@@ -1070,7 +1071,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 774
+          "link": 895
         },
         {
           "name": "conditioning",
@@ -1248,7 +1249,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 527
+          "link": 907
         },
         {
           "name": "audio",
@@ -1732,7 +1733,8 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            769
+            769,
+            887
           ]
         }
       ],
@@ -2941,7 +2943,7 @@
           "name": "SIGMAS",
           "type": "SIGMAS",
           "links": [
-            759
+            897
           ],
           "slot_index": 0
         }
@@ -3250,7 +3252,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            774
+            893
           ],
           "slot_index": 0
         }
@@ -5562,6 +5564,571 @@
         "none"
       ],
       "title": "四采·合成视频(高清)"
+    },
+    {
+      "id": 9101,
+      "type": "PrimitiveBoolean",
+      "flags": {},
+      "inputs": [
+        {
+          "localized_name": "value",
+          "name": "value",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "BOOLEAN",
+          "name": "BOOLEAN",
+          "type": "BOOLEAN",
+          "links": [
+            892,
+            896,
+            900,
+            904
+          ]
+        }
+      ],
+      "widgets_values": [
+        false
+      ],
+      "pos": [
+        3120,
+        3050
+      ],
+      "size": [
+        210,
+        80
+      ],
+      "properties": {
+        "cnr_id": "",
+        "ver": "0.4.17",
+        "Node name for S&R": "PrimitiveBoolean"
+      },
+      "order": 9101,
+      "mode": 0,
+      "title": "pi-H3 加速档(2步DWD·默认关)"
+    },
+    {
+      "id": 9102,
+      "type": "Load LakonLab Adapter",
+      "pos": [
+        3320,
+        3050
+      ],
+      "size": [
+        270,
+        82
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 887
+        },
+        {
+          "localized_name": "adapter_name",
+          "name": "adapter_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "adapter_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "adapter_strength",
+          "name": "adapter_strength",
+          "type": "FLOAT",
+          "widget": {
+            "name": "adapter_strength"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            888
+          ]
+        }
+      ],
+      "title": "pi-H3 DWD 2步适配器",
+      "properties": {
+        "Node name for S&R": "Load LakonLab Adapter"
+      },
+      "widgets_values": [
+        "pi_h3_2step_dwd_adapter_int8_convrot.safetensors",
+        1.0
+      ]
+    },
+    {
+      "id": 9103,
+      "type": "MiniMaxH3SigmaShift",
+      "pos": [
+        3320,
+        3180
+      ],
+      "size": [
+        315,
+        148
+      ],
+      "flags": {},
+      "order": 1062,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 888
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            889
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3SigmaShift"
+      },
+      "widgets_values": [
+        12,
+        3
+      ],
+      "title": "σshift[12,3] pi-H3"
+    },
+    {
+      "id": 9104,
+      "type": "BlockSparseAttention",
+      "pos": [
+        3320,
+        3310
+      ],
+      "size": [
+        270,
+        358
+      ],
+      "flags": {},
+      "order": 1031,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 889
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            890,
+            894
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.34.0",
+        "Node name for S&R": "BlockSparseAttention"
+      },
+      "widgets_values": [
+        "sol-attn",
+        1,
+        0,
+        1,
+        "",
+        12288,
+        256,
+        "exact_kv_and_rows",
+        false
+      ],
+      "title": "sol-attn τ1 pi-H3"
+    },
+    {
+      "id": 9105,
+      "type": "pi-Flow Scheduler",
+      "pos": [
+        3640,
+        3050
+      ],
+      "size": [
+        281.62109375,
+        130
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 890
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "min_raw_t",
+          "name": "min_raw_t",
+          "type": "FLOAT",
+          "widget": {
+            "name": "min_raw_t"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "max_raw_t",
+          "name": "max_raw_t",
+          "type": "FLOAT",
+          "widget": {
+            "name": "max_raw_t"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "final_step_size_scale",
+          "name": "final_step_size_scale",
+          "type": "FLOAT",
+          "widget": {
+            "name": "final_step_size_scale"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "SIGMAS",
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            898
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "pi-Flow Scheduler"
+      },
+      "widgets_values": [
+        2,
+        0,
+        0.93,
+        0.6
+      ],
+      "title": "pi-Flow 2步"
+    },
+    {
+      "id": 9106,
+      "type": "KSamplerSelect",
+      "pos": [
+        3640,
+        3180
+      ],
+      "size": [
+        370,
+        118
+      ],
+      "flags": {},
+      "order": 3071,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            902
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "euler"
+      ],
+      "widgets_values_named": {
+        "sampler_name": "lcm"
+      },
+      "title": "euler pi-H3"
+    },
+    {
+      "id": 9107,
+      "type": "DWD Decode",
+      "pos": [
+        3640,
+        3310
+      ],
+      "size": [
+        140,
+        26
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "samples",
+          "name": "samples",
+          "type": "LATENT",
+          "link": 891
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            906
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DWD Decode"
+      },
+      "title": "DWD Decode(免VAE)"
+    },
+    {
+      "id": 9108,
+      "type": "ComfySwitchNode",
+      "flags": {},
+      "inputs": [
+        {
+          "localized_name": "switch",
+          "name": "switch",
+          "type": "BOOLEAN",
+          "link": 892
+        },
+        {
+          "localized_name": "on_false",
+          "name": "on_false",
+          "type": "*",
+          "link": 893
+        },
+        {
+          "localized_name": "on_true",
+          "name": "on_true",
+          "type": "*",
+          "link": 894
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "OUTPUT",
+          "name": "output",
+          "type": "*",
+          "links": [
+            895
+          ]
+        }
+      ],
+      "widgets_values": [
+        false
+      ],
+      "pos": [
+        3820,
+        3050
+      ],
+      "size": [
+        180,
+        120
+      ],
+      "properties": {
+        "cnr_id": "",
+        "ver": "0.4.17",
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "order": 9108,
+      "mode": 0,
+      "title": "模型臂开关"
+    },
+    {
+      "id": 9109,
+      "type": "ComfySwitchNode",
+      "flags": {},
+      "inputs": [
+        {
+          "localized_name": "switch",
+          "name": "switch",
+          "type": "BOOLEAN",
+          "link": 896
+        },
+        {
+          "localized_name": "on_false",
+          "name": "on_false",
+          "type": "*",
+          "link": 897
+        },
+        {
+          "localized_name": "on_true",
+          "name": "on_true",
+          "type": "*",
+          "link": 898
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "OUTPUT",
+          "name": "output",
+          "type": "*",
+          "links": [
+            899
+          ]
+        }
+      ],
+      "widgets_values": [
+        false
+      ],
+      "pos": [
+        3820,
+        3200
+      ],
+      "size": [
+        180,
+        120
+      ],
+      "properties": {
+        "cnr_id": "",
+        "ver": "0.4.17",
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "order": 9109,
+      "mode": 0,
+      "title": "σ表开关"
+    },
+    {
+      "id": 9110,
+      "type": "ComfySwitchNode",
+      "flags": {},
+      "inputs": [
+        {
+          "localized_name": "switch",
+          "name": "switch",
+          "type": "BOOLEAN",
+          "link": 900
+        },
+        {
+          "localized_name": "on_false",
+          "name": "on_false",
+          "type": "*",
+          "link": 901
+        },
+        {
+          "localized_name": "on_true",
+          "name": "on_true",
+          "type": "*",
+          "link": 902
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "OUTPUT",
+          "name": "output",
+          "type": "*",
+          "links": [
+            903
+          ]
+        }
+      ],
+      "widgets_values": [
+        false
+      ],
+      "pos": [
+        3820,
+        3350
+      ],
+      "size": [
+        180,
+        120
+      ],
+      "properties": {
+        "cnr_id": "",
+        "ver": "0.4.17",
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "order": 9110,
+      "mode": 0,
+      "title": "采样器开关"
+    },
+    {
+      "id": 9111,
+      "type": "ComfySwitchNode",
+      "flags": {},
+      "inputs": [
+        {
+          "localized_name": "switch",
+          "name": "switch",
+          "type": "BOOLEAN",
+          "link": 904
+        },
+        {
+          "localized_name": "on_false",
+          "name": "on_false",
+          "type": "*",
+          "link": 905
+        },
+        {
+          "localized_name": "on_true",
+          "name": "on_true",
+          "type": "*",
+          "link": 906
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "OUTPUT",
+          "name": "output",
+          "type": "*",
+          "links": [
+            907
+          ]
+        }
+      ],
+      "widgets_values": [
+        false
+      ],
+      "pos": [
+        4560,
+        100
+      ],
+      "size": [
+        180,
+        120
+      ],
+      "properties": {
+        "cnr_id": "",
+        "ver": "0.4.17",
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "order": 9111,
+      "mode": 0,
+      "title": "视频解码开关"
     }
   ],
   "links": [
@@ -5830,14 +6397,6 @@
       "GUIDER"
     ],
     [
-      519,
-      2022,
-      0,
-      2032,
-      2,
-      "SAMPLER"
-    ],
-    [
       523,
       2032,
       0,
@@ -5868,14 +6427,6 @@
       2042,
       1,
       "VAE"
-    ],
-    [
-      527,
-      2041,
-      0,
-      2051,
-      0,
-      "IMAGE"
     ],
     [
       528,
@@ -6166,14 +6717,6 @@
       "MODEL"
     ],
     [
-      759,
-      2021,
-      0,
-      2032,
-      3,
-      "SIGMAS"
-    ],
-    [
       769,
       1012,
       0,
@@ -6242,14 +6785,6 @@
       1072,
       0,
       1071,
-      0,
-      "MODEL"
-    ],
-    [
-      774,
-      1071,
-      0,
-      2031,
       0,
       "MODEL"
     ],
@@ -6788,6 +7323,174 @@
       5100,
       2,
       "COMFY_MATCHTYPE_V3"
+    ],
+    [
+      887,
+      1012,
+      0,
+      9102,
+      0,
+      "MODEL"
+    ],
+    [
+      888,
+      9102,
+      0,
+      9103,
+      0,
+      "MODEL"
+    ],
+    [
+      889,
+      9103,
+      0,
+      9104,
+      0,
+      "MODEL"
+    ],
+    [
+      890,
+      9104,
+      0,
+      9105,
+      0,
+      "MODEL"
+    ],
+    [
+      891,
+      2032,
+      0,
+      9107,
+      0,
+      "LATENT"
+    ],
+    [
+      892,
+      9101,
+      0,
+      9108,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      893,
+      1071,
+      0,
+      9108,
+      1,
+      "MODEL"
+    ],
+    [
+      894,
+      9104,
+      0,
+      9108,
+      2,
+      "MODEL"
+    ],
+    [
+      895,
+      9108,
+      0,
+      2031,
+      0,
+      "MODEL"
+    ],
+    [
+      896,
+      9101,
+      0,
+      9109,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      897,
+      2021,
+      0,
+      9109,
+      1,
+      "SIGMAS"
+    ],
+    [
+      898,
+      9105,
+      0,
+      9109,
+      2,
+      "SIGMAS"
+    ],
+    [
+      899,
+      9109,
+      0,
+      2032,
+      3,
+      "SIGMAS"
+    ],
+    [
+      900,
+      9101,
+      0,
+      9110,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      901,
+      2022,
+      0,
+      9110,
+      1,
+      "SAMPLER"
+    ],
+    [
+      902,
+      9106,
+      0,
+      9110,
+      2,
+      "SAMPLER"
+    ],
+    [
+      903,
+      9110,
+      0,
+      2032,
+      2,
+      "SAMPLER"
+    ],
+    [
+      904,
+      9101,
+      0,
+      9111,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      905,
+      2041,
+      0,
+      9111,
+      1,
+      "IMAGE"
+    ],
+    [
+      906,
+      9107,
+      0,
+      9111,
+      2,
+      "IMAGE"
+    ],
+    [
+      907,
+      9111,
+      0,
+      2051,
+      0,
+      "IMAGE"
     ]
   ],
   "groups": [
@@ -6821,10 +7524,10 @@
       "id": 102,
       "title": "一阶段采样(一采:H3底模+pika LoRA·8步·960×544)",
       "bounding": [
-        3480,
+        3120,
         40,
-        1233,
-        2812
+        1720,
+        3470
       ],
       "color": "#3f789e",
       "flags": {},
