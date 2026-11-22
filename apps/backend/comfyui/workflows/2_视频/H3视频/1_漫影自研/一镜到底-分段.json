@@ -2,7 +2,7 @@
   "id": "h3-autocontext-multiseg",
   "revision": 1,
   "last_node_id": 9999,
-  "last_link_id": 178,
+  "last_link_id": 174,
   "nodes": [
     {
       "id": 2,
@@ -114,7 +114,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            178
+            11
           ],
           "slot_index": 0
         }
@@ -610,7 +610,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 178
+          "link": 11
         }
       ],
       "outputs": [
@@ -3483,8 +3483,8 @@
         false
       ],
       "pos": [
-        2330,
-        4150
+        1500,
+        3450
       ],
       "size": [
         210,
@@ -3497,14 +3497,14 @@
       },
       "order": 9101,
       "mode": 0,
-      "title": "pi-H3 加速档(2步DWD·默认关)"
+      "title": "pi-H3 加速档(4步DWD·默认关)"
     },
     {
       "id": 9102,
       "type": "Load LakonLab Adapter",
       "pos": [
-        2530,
-        4150
+        960,
+        2100
       ],
       "size": [
         270,
@@ -3549,12 +3549,12 @@
           ]
         }
       ],
-      "title": "pi-H3 DWD 2步适配器",
+      "title": "pi-H3 DWD 4步适配器",
       "properties": {
         "Node name for S&R": "Load LakonLab Adapter"
       },
       "widgets_values": [
-        "pi_h3_2step_dwd_adapter_int8_convrot.safetensors",
+        "pi_h3_4step_dwd_adapter_int8_convrot.safetensors",
         1.0
       ]
     },
@@ -3562,8 +3562,8 @@
       "id": 9103,
       "type": "MiniMaxH3SigmaShift",
       "pos": [
-        2530,
-        4280
+        1600,
+        3648
       ],
       "size": [
         315,
@@ -3602,8 +3602,8 @@
       "id": 9104,
       "type": "BlockSparseAttention",
       "pos": [
-        2530,
-        4410
+        1700,
+        3876
       ],
       "size": [
         270,
@@ -3651,8 +3651,8 @@
       "id": 9105,
       "type": "pi-Flow Scheduler",
       "pos": [
-        2850,
-        4150
+        1800,
+        4314
       ],
       "size": [
         281.62109375,
@@ -3719,19 +3719,19 @@
         "Node name for S&R": "pi-Flow Scheduler"
       },
       "widgets_values": [
-        2,
+        4,
         0,
         0.93,
         0.6
       ],
-      "title": "pi-Flow 2步"
+      "title": "pi-Flow 4步"
     },
     {
       "id": 9106,
       "type": "KSamplerSelect",
       "pos": [
-        2850,
-        4280
+        1900,
+        4698
       ],
       "size": [
         370,
@@ -3801,8 +3801,8 @@
         false
       ],
       "pos": [
-        3030,
-        4150
+        2270,
+        4936
       ],
       "size": [
         180,
@@ -3863,8 +3863,8 @@
         false
       ],
       "pos": [
-        3030,
-        4300
+        2270,
+        5182
       ],
       "size": [
         180,
@@ -3925,8 +3925,8 @@
         false
       ],
       "pos": [
-        3030,
-        4450
+        2270,
+        5428
       ],
       "size": [
         180,
@@ -4976,7 +4976,7 @@
       "SAMPLER"
     ],
     [
-      178,
+      11,
       6,
       0,
       102,
@@ -5002,10 +5002,10 @@
       "id": 11,
       "title": "⑥ 一采正典臂(turbo+lcm+sol-attn+ChunkFFN+kitchen+σshift[6,3])",
       "bounding": [
-        1150,
+        1120,
         2840,
-        2160,
-        1770
+        1472,
+        2814
       ],
       "color": "#5f8788",
       "flags": {},

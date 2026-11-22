@@ -1,7 +1,7 @@
 {
   "id": "recavsr-three-stage-1111",
   "revision": 0,
-  "last_node_id": 10000,
+  "last_node_id": 9999,
   "last_link_id": 907,
   "nodes": [
     {
@@ -5597,8 +5597,8 @@
         false
       ],
       "pos": [
-        3120,
-        3050
+        3150,
+        2870
       ],
       "size": [
         210,
@@ -5611,14 +5611,14 @@
       },
       "order": 9101,
       "mode": 0,
-      "title": "pi-H3 加速档(2步DWD·默认关)"
+      "title": "pi-H3 加速档(4步DWD·默认关)"
     },
     {
       "id": 9102,
       "type": "Load LakonLab Adapter",
       "pos": [
-        3320,
-        3050
+        2340,
+        1850
       ],
       "size": [
         270,
@@ -5663,12 +5663,12 @@
           ]
         }
       ],
-      "title": "pi-H3 DWD 2步适配器",
+      "title": "pi-H3 DWD 4步适配器",
       "properties": {
         "Node name for S&R": "Load LakonLab Adapter"
       },
       "widgets_values": [
-        "pi_h3_2step_dwd_adapter_int8_convrot.safetensors",
+        "pi_h3_4step_dwd_adapter_int8_convrot.safetensors",
         1.0
       ]
     },
@@ -5676,8 +5676,8 @@
       "id": 9103,
       "type": "MiniMaxH3SigmaShift",
       "pos": [
-        3320,
-        3180
+        3250,
+        3068
       ],
       "size": [
         315,
@@ -5716,8 +5716,8 @@
       "id": 9104,
       "type": "BlockSparseAttention",
       "pos": [
-        3320,
-        3310
+        3350,
+        3296
       ],
       "size": [
         270,
@@ -5765,8 +5765,8 @@
       "id": 9105,
       "type": "pi-Flow Scheduler",
       "pos": [
-        3640,
-        3050
+        3450,
+        3734
       ],
       "size": [
         281.62109375,
@@ -5833,19 +5833,19 @@
         "Node name for S&R": "pi-Flow Scheduler"
       },
       "widgets_values": [
-        2,
+        4,
         0,
         0.93,
         0.6
       ],
-      "title": "pi-Flow 2步"
+      "title": "pi-Flow 4步"
     },
     {
       "id": 9106,
       "type": "KSamplerSelect",
       "pos": [
-        3640,
-        3180
+        3550,
+        4118
       ],
       "size": [
         370,
@@ -5881,8 +5881,8 @@
       "id": 9107,
       "type": "DWD Decode",
       "pos": [
-        3640,
-        3310
+        3900,
+        3410
       ],
       "size": [
         140,
@@ -5952,8 +5952,8 @@
         false
       ],
       "pos": [
-        3820,
-        3050
+        3560,
+        4356
       ],
       "size": [
         180,
@@ -6006,8 +6006,8 @@
         false
       ],
       "pos": [
-        3820,
-        3200
+        3560,
+        4602
       ],
       "size": [
         180,
@@ -6060,8 +6060,8 @@
         false
       ],
       "pos": [
-        3820,
-        3350
+        3560,
+        4848
       ],
       "size": [
         180,
@@ -6114,8 +6114,8 @@
         false
       ],
       "pos": [
-        4560,
-        100
+        4340,
+        1480
       ],
       "size": [
         180,
@@ -7513,7 +7513,7 @@
       "bounding": [
         1620,
         20,
-        1630,
+        1480,
         2670
       ],
       "color": "#884666",
@@ -7527,7 +7527,7 @@
         3120,
         40,
         1720,
-        3470
+        5034
       ],
       "color": "#3f789e",
       "flags": {},

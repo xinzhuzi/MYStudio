@@ -365,7 +365,7 @@
         false
       ],
       "pos": [
-        80,
+        300,
         1500
       ],
       "size": [
@@ -379,14 +379,14 @@
       },
       "order": 9101,
       "mode": 0,
-      "title": "pi-H3 快道档(2步DWD·默认关)"
+      "title": "pi-H3 快道档(4步DWD·默认关)"
     },
     {
       "id": 9102,
       "type": "Load LakonLab Adapter",
       "pos": [
-        300,
-        1500
+        360,
+        1698
       ],
       "size": [
         270,
@@ -431,12 +431,12 @@
           ]
         }
       ],
-      "title": "pi-H3 DWD 2步",
+      "title": "pi-H3 DWD 4步",
       "properties": {
         "Node name for S&R": "Load LakonLab Adapter"
       },
       "widgets_values": [
-        "pi_h3_2step_dwd_adapter_int8_convrot.safetensors",
+        "pi_h3_4step_dwd_adapter_int8_convrot.safetensors",
         1.0
       ]
     },
@@ -444,8 +444,8 @@
       "id": 9103,
       "type": "MiniMaxH3SigmaShift",
       "pos": [
-        300,
-        1630
+        420,
+        1974
       ],
       "size": [
         315,
@@ -483,8 +483,8 @@
       "id": 9104,
       "type": "BlockSparseAttention",
       "pos": [
-        300,
-        1760
+        480,
+        2202
       ],
       "size": [
         270,
@@ -532,8 +532,8 @@
       "id": 9113,
       "type": "ResolutionSelector",
       "pos": [
-        620,
-        1500
+        540,
+        2640
       ],
       "size": [
         270,
@@ -612,8 +612,8 @@
       "id": 9105,
       "type": "MiniMaxH3ImageToVideo",
       "pos": [
-        940,
-        1500
+        720,
+        3552
       ],
       "size": [
         420,
@@ -719,8 +719,8 @@
       "id": 9106,
       "type": "pi-Flow Scheduler",
       "pos": [
-        620,
-        1630
+        600,
+        2970
       ],
       "size": [
         281.62109375,
@@ -787,18 +787,19 @@
         "Node name for S&R": "pi-Flow Scheduler"
       },
       "widgets_values": [
-        2,
+        4,
         0,
         0.93,
         0.6
-      ]
+      ],
+      "title": "pi-Flow 4步"
     },
     {
       "id": 9107,
       "type": "KSamplerSelect",
       "pos": [
-        620,
-        1760
+        660,
+        3354
       ],
       "size": [
         370,
@@ -833,8 +834,8 @@
       "id": 9108,
       "type": "RandomNoise",
       "pos": [
-        1300,
-        1500
+        780,
+        4092
       ],
       "size": [
         360,
@@ -871,8 +872,8 @@
       "id": 9109,
       "type": "BasicGuider",
       "pos": [
-        1300,
-        1630
+        840,
+        4320
       ],
       "size": [
         360,
@@ -912,8 +913,8 @@
       "id": 9110,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        1300,
-        1760
+        900,
+        4512
       ],
       "size": [
         250,
@@ -973,8 +974,8 @@
       "id": 9111,
       "type": "DWD Decode",
       "pos": [
-        1620,
-        1760
+        960,
+        4776
       ],
       "size": [
         140,
@@ -1044,8 +1045,8 @@
         false
       ],
       "pos": [
-        760,
-        380
+        1020,
+        4944
       ],
       "size": [
         180,
@@ -1265,13 +1266,26 @@
   ],
   "groups": [
     {
-      "title": "pi-H3 快道(2步DWD·默认关·1122)",
+      "title": "加载模型",
+      "id": 9114,
+      "bounding": [
+        50,
+        330,
+        675,
+        1158
+      ],
+      "color": "#884466",
+      "flags": {},
+      "order": 6
+    },
+    {
+      "title": "pi-H3 快道(4步DWD·默认关·1122)",
       "id": 9100,
       "bounding": [
-        80,
-        1480,
-        1900,
-        760
+        270,
+        1450,
+        1150,
+        3720
       ],
       "color": "#3f789e",
       "flags": {},
