@@ -622,7 +622,7 @@
   "4001": {
     "class_type": "ReCaVSRLoader",
     "inputs": {
-      "model_name": "transformer_int8_convrot.safetensors"
+      "transformer": "transformer_int8_convrot.safetensors"
     }
   },
   "4002": {

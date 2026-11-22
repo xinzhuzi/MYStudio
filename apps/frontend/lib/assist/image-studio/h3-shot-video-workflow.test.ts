@@ -578,7 +578,7 @@ describe("h3-multiseg-template.api.json 契约(PRD §14.1.2,--preset multiseg �
       model: ["4001", 0], video: ["5031", 0], scale: 4.0,
       decoder: "flashdecoder", kernels: "fast", kv_offload: false,
     });
-    expect(multisegApi["4001"].inputs.model_name).toBe("transformer_int8_convrot.safetensors");
+    expect(multisegApi["4001"].inputs.transformer).toBe("transformer_int8_convrot.safetensors");
     expect(multisegApi["800"].inputs.clip_name).toBe("clip_vision_g.safetensors");
   });
 

@@ -361,7 +361,7 @@ def build_api(A: dict) -> dict:
     # 1122 用户令:App multiseg 三采后修脸——ReCaVSR 臂(模型原生 4×;960×544→3840×2176 恒宽 3840 锚)
     # + 补 800 CLIPVisionLoader(5011.identity_clip_vision 历史悬空引用,顺手封)
     A["800"] = {"class_type": "CLIPVisionLoader", "inputs": {"clip_name": "clip_vision_g.safetensors"}}
-    A["4001"] = {"class_type": "ReCaVSRLoader", "inputs": {"model_name": "transformer_int8_convrot.safetensors"}}
+    A["4001"] = {"class_type": "ReCaVSRLoader", "inputs": {"transformer": "transformer_int8_convrot.safetensors"}}  # 输入键=transformer(object_info 实锚;model_name 为 400 实弹勘误)
     A["4002"] = {"class_type": "ReCaVSRUpscale", "inputs": {
         "model": ["4001", 0], "video": ["5031", 0],
         "scale": 4.0, "color_fix": "none", "seed": 42,
