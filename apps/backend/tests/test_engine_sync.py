@@ -364,6 +364,23 @@ class ManifestWinVersionTests(unittest.TestCase):
         self.assertIsNone(by_name["pluginB"]["winVersion"])  # Win 缺 → None
         self.assertIsNone(by_name["pluginB"]["winHead"])
 
+    def test_manifest_nongit_plugin_on_win_has_no_head_or_version(self) -> None:
+        """1123 根修:zip 直装件(无 .git)在 Win 盘上存在但读不到自身 HEAD——
+        不得把引擎仓的 HEAD/版本冒充成插件版本(实弹:ItsGemTools 行显示
+        引擎版本 0.46.2)。"""
+        stub = _SshStub(
+            win_dirs={"pluginA", "pluginC"},  # pluginC 在盘但非 git(win_heads 无它)
+            win_heads={WIN_ENGINE: "e" * 40, f"{WIN_NODES}\\pluginA": "a" * 40},
+        )
+        manifest = _service_with_stub(stub).get_engine_sync_manifest()
+        by_name = {item["name"]: item for item in manifest["items"]}
+        self.assertIsNone(by_name["pluginC"]["winHead"])
+        self.assertIsNone(by_name["pluginC"]["winVersion"])
+        self.assertEqual(by_name["pluginC"]["status"], "win-only")
+        # 引擎行不受上溯上限影响(引擎目录自身照常命中)
+        self.assertEqual(by_name["ComfyUI"]["winHead"], "e" * 40)
+        self.assertEqual(by_name["pluginA"]["winVersion"], "a" * 7)
+
 
 class PipRunningPredicateTests(unittest.TestCase):
     """③c 变异 pip 判据(1122 同步全败根修的判据本体,纯函数零 SSH)。"""
@@ -570,7 +587,8 @@ class SyncEngineTests(unittest.TestCase):
         svc = _service_with_stub(stub)
         inner = svc.run_remote_command
         def routed(command, timeout_s=30):
-            if command.startswith("cd /d") and "git fetch origin" in command:
+            # 真实形态:带上溯上限后,非 git 目录内的 fetch 如实报 not a git repository
+            if "GIT_CEILING_DIRECTORIES" in command and "git fetch origin" in command:
                 return (128, "fatal: not a git repository (or any of the parent directories): .git\n")
             return inner(command, timeout_s)
         svc.run_remote_command = routed  # type: ignore[method-assign]
@@ -579,6 +597,41 @@ class SyncEngineTests(unittest.TestCase):
         self.assertEqual(item["action"], "skipped")
         self.assertIn("非 git 仓", item["error"])
         self.assertFalse(any("git pull" in c for c in stub.commands))
+
+    def test_plugin_git_commands_capped_at_plugin_parent_dir(self) -> None:
+        """1123 根修:插件路径的 git 命令一律带 GIT_CEILING_DIRECTORIES=插件目录的
+        父目录——非 git 目录内的 git 不再上溯到引擎仓(误报 diverging/冒出版本)。"""
+        stub = self._stub()
+        svc = _service_with_stub(stub)
+        svc.get_engine_sync_manifest()
+        svc.sync_engine(["pluginA"])
+        prefix = f'set "GIT_CEILING_DIRECTORIES={WIN_NODES}" & '
+        plugin_git = [
+            c for c in stub.commands if "git " in c and f"{WIN_NODES}\\pluginA" in c
+        ]
+        self.assertGreaterEqual(len(plugin_git), 3)  # 读版本+比对+拉取
+        for command in plugin_git:
+            self.assertTrue(command.startswith(prefix), command)
+        # 引擎行:上限=引擎目录的父目录,引擎仓自身照常可读
+        engine_info = [
+            c for c in stub.commands if f'git -C "{WIN_ENGINE}" rev-parse HEAD' in c
+        ]
+        self.assertEqual(len(engine_info), 1)
+        self.assertTrue(
+            engine_info[0].startswith(
+                f'set "GIT_CEILING_DIRECTORIES={svc_mod._WIN_COMFY_ROOT}" & '
+            ),
+            engine_info[0],
+        )
+
+    def test_git_ceiling_is_parent_dir_windows_semantics(self) -> None:
+        # 本模块跑在 macOS:父目录须按 Windows 分隔符解析(Posix Path 不认反斜杠)
+        self.assertEqual(
+            svc_mod.SSHService._git_ceiling(f"{WIN_NODES}\\pluginA"), WIN_NODES
+        )
+        self.assertEqual(
+            svc_mod.SSHService._git_ceiling(WIN_ENGINE), svc_mod._WIN_COMFY_ROOT
+        )
 
     def test_manual_file_entry_without_mac_repo_clones_by_url(self) -> None:
         stub = self._stub()

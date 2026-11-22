@@ -29,7 +29,7 @@ import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from functools import wraps
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from remote_ssh import config as ssh_config
 from remote_ssh.tunnel import TunnelManager
@@ -1060,6 +1060,19 @@ class SSHService:
         )
         return "" if code == 0 else f"账本补记失败(不阻断): {out.strip()[:120]}"
 
+    @staticmethod
+    def _git_ceiling(win_path: str) -> str:
+        """git 找仓上溯上限(1123 根修):=目标目录的父目录。
+
+        git 在目录内执行时会逐级上溯父目录找 .git;zip 直装插件(无 .git)
+        目录内的 git 命令因此实际落在引擎仓上——面板把引擎版本冒充插件版本,
+        拉取分支对引擎仓 fetch/pull 误报 diverging(且引擎仓若可快进会被
+        插件同步悄悄移动)。GIT_CEILING_DIRECTORIES 让 git 只在目标目录内找仓
+        (cwd 恒不被排除,引擎目录自身照常命中)。须用 PureWindowsPath 取父目录:
+        本模块跑在 macOS,Posix Path 不认反斜杠分隔符。
+        """
+        return str(PureWindowsPath(win_path).parent)
+
     def _win_git_info(self, win_path: str) -> tuple[str | None, str | None]:
         """SSH 读 Win 侧 git HEAD+版本(单命令双读,零额外 SSH 往返)。
 
@@ -1067,8 +1080,10 @@ class SSHService:
         剥前导 v(引擎 v0.45.2 → 0.45.2);无 tag 的插件回退短 sha(HEAD 前
         7 位);目录非 git/不存在/超时 → (None, None)。cmd `&` 链 exit code
         =末命令(describe 无 tag 必非 0),故不以 code 作闸,逐段解析。
+        找仓上溯上限见 _git_ceiling(非 git 插件目录不再冒出引擎 HEAD)。
         """
         _, out = self.run_remote_command(
+            f'set "GIT_CEILING_DIRECTORIES={self._git_ceiling(win_path)}" & '
             f'git -C "{win_path}" rev-parse HEAD 2>nul & echo ===V=== & '
             f'git -C "{win_path}" describe --tags --abbrev=0 2>nul', 10
         )
@@ -1423,7 +1438,11 @@ class SSHService:
             # 优化:fetch 后 local HEAD == origin/HEAD = 已最新 → 跳过,省 SSH
             # 往返;落后才 pull。1122 用户令「Win 独有也要能更新」:Q1 旧「保留
             # 不动」退役——Win 独有件按仓自身 origin 拉最新,无 Mac HEAD 也照拉)
+            # 1123 根修:找仓上溯上限=插件目录的父目录——非 git 目录(直装件)
+            # 内的 git 不再落到引擎仓上,如实报「非 git 仓」而非误报 diverging。
+            ceiling = self._git_ceiling(win_path)
             head_code, head_out = self.run_remote_command(
+                f'set "GIT_CEILING_DIRECTORIES={ceiling}" & '
                 f'cd /d "{win_path}" && git fetch origin 2>&1 && '
                 f"git rev-parse HEAD 2>&1 && git rev-parse origin/HEAD 2>&1",
                 self._remaining_timeout(deadline, 60),
@@ -1445,6 +1464,7 @@ class SSHService:
             # 不最新(或比对失败=保守走 pull)→ 从 GitHub 拉最新
             action = "pulled"
             code, out = self.run_remote_command(
+                f'set "GIT_CEILING_DIRECTORIES={ceiling}" & '
                 f'cd /d "{win_path}" && git pull --ff-only 2>&1',
                 self._remaining_timeout(deadline, _ENGINE_SYNC_ITEM_TIMEOUT_S),
             )
