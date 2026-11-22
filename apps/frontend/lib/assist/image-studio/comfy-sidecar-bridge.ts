@@ -1600,6 +1600,9 @@ export interface EngineSyncManifestItem {
   macHead: string | null;
   /** Win 侧 HEAD(null=Win 缺);UI 显前 8 字。 */
   winHead: string | null;
+  /** Win 侧版本(1122 用户令:面板要展示版本)——git describe 最近 tag 剥前导
+   *  v(引擎 0.45.2);无 tag 插件回退短 sha(HEAD 前 7 位);null=Win 缺/不可读。 */
+  winVersion: string | null;
   status: EngineSyncItemStatus;
 }
 
@@ -1617,6 +1620,8 @@ export interface EngineSyncResultItem {
   type: "engine" | "plugin";
   macHead: string | null;
   winHead: string | null;
+  /** 同步后 Win 侧版本(拉最新后落点;failed/timeout 恒 null)。 */
+  winVersion?: string | null;
   action: EngineSyncAction;
   /** true=验证过(Windows 侧目录在+HEAD 可读;1104 裁定不比 Mac HEAD)。 */
   verified: boolean;

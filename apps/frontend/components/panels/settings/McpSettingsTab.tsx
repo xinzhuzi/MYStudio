@@ -847,6 +847,13 @@ export function McpSettingsTab() {
     engineSyncManifest?.items ?? []
   ).filter((item) => item.status !== "skip");
 
+  // 同步完成后回刷清单(1122 版本展示:拉最新后行内版本要跟上;不动勾选态)
+  const refreshEngineSyncManifest = () => {
+    getEngineSyncManifest()
+      .then((manifest) => setEngineSyncManifest(manifest))
+      .catch(() => {}); // 刷新失败静默:行内版本停在旧值,下次开面板自愈
+  };
+
   const toggleEngineSyncItem = (name: string, checked: boolean) => {
     setEngineSyncChecked((prev) => ({ ...prev, [name]: checked }));
   };
@@ -919,6 +926,7 @@ export function McpSettingsTab() {
     }
     setEngineSyncRunning(false);
     setEngineSyncDialog(results);
+    refreshEngineSyncManifest();
     if (results.some((r) => r.action === "failed")) {
       toast.error(
         `引擎同步有 ${results.filter((r) => r.action === "failed").length} 件失败——见结果弹窗`,
@@ -2296,6 +2304,17 @@ export function McpSettingsTab() {
                                         ? "ComfyUI 引擎"
                                         : item.name}
                                     </span>
+                                    {/* 1122 用户令:行内展示版本——git describe
+                                        最近 tag 剥 v(引擎 0.45.2);无 tag 插件
+                                        回退短 sha;Win 缺不显示 */}
+                                    {item.winVersion ? (
+                                      <span
+                                        className="shrink-0 font-mono text-[10px] text-muted-foreground/80"
+                                        data-testid="engine-sync-version"
+                                      >
+                                        {item.winVersion}
+                                      </span>
+                                    ) : null}
                                     {/* 1107 自愈可见化:该插件在 Win 引擎的加载健康
                                         (✅ 已加载/❌ 挂(悬停看挂因)/⚠️ 依赖欠账/
                                         ⚪ 未探(引擎未启或探针失败));引擎行不适用 */}
@@ -2495,6 +2514,14 @@ export function McpSettingsTab() {
                                 : result.action === "skipped"
                                   ? `: ${result.error ?? "跳过"}`
                                   : `: ${result.error ?? "未通过验证"}`}
+                            {result.verified && result.winVersion ? (
+                              <span
+                                className="ml-1 font-mono text-muted-foreground"
+                                data-testid="engine-sync-result-version"
+                              >
+                                → {result.winVersion}
+                              </span>
+                            ) : null}
                             {result.pipError ? (
                               <span
                                 className="mt-0.5 block text-warning"

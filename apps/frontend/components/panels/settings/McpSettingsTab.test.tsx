@@ -2725,6 +2725,7 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
         url: "https://github.com/comfyanonymous/ComfyUI",
         macHead: "aaaa1111bbbb2222",
         winHead: "cccc2222dddd3333",
+        winVersion: "0.45.2",
         status: "both",
       },
       {
@@ -2732,6 +2733,7 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
         url: "https://example.com/a.git",
         macHead: "aaaa000011112222",
         winHead: "aaaa000011112222",
+        winVersion: "aaaa000",
         status: "both",
       },
       {
@@ -2739,6 +2741,7 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
         url: "https://example.com/b.git",
         macHead: "bbbb000011112222",
         winHead: null,
+        winVersion: null,
         status: "mac-only",
       },
       {
@@ -2931,6 +2934,18 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
     ]);
     expect(rows[0].textContent).toContain("ComfyUI 引擎");
     expect(rows[0].textContent).toContain("✅ 已装"); // HEAD 前 8 字
+    // 1122 版本展示:引擎行带 tag 版本,插件行带短 sha 回退,Win 缺行无版本
+    expect(
+      rowOf("ComfyUI").querySelector('[data-testid="engine-sync-version"]')
+        ?.textContent,
+    ).toBe("0.45.2");
+    expect(
+      rowOf("pluginA").querySelector('[data-testid="engine-sync-version"]')
+        ?.textContent,
+    ).toBe("aaaa000");
+    expect(
+      rowOf("pluginB").querySelector('[data-testid="engine-sync-version"]'),
+    ).toBeNull();
     expect(rowOf("pluginB").textContent).toContain("❌ Windows 未装");
     expect(rowOf("seedvr2_videoupscaler").textContent).toContain(
       "⏭️ 跳过(Win 独有)",

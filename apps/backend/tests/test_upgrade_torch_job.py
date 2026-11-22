@@ -35,6 +35,9 @@ def setup_job(monkeypatch, tmp_path):
     def command(script, timeout_s=30):
         if "IndexOf" in script:
             return "0"
+        if "PROCDONE" in script:
+            # 1122 根修后 pip 探针回 PROC|…|PROCDONE 行(旧口径=数字行 0)
+            return "PROCDONE"
         if "SizeRemaining" in script:
             return state["free"]
         if "nvidia-smi" in script:
@@ -951,7 +954,15 @@ def test_install_timeout_monitors_until_matching_versions(monkeypatch):
     monkeypatch.setattr(engine_manager, "jobs", registry)
     monkeypatch.setattr(service.time, "sleep", lambda seconds: None)
     instance = service.SSHService()
-    instance.run_remote_command = Mock(side_effect=[timeout_error(), (0, "1"), (0, "0"), (0, "2.14.1+cu132\n0.29.1+cu132")])
+    installing = base64.b64encode(
+        f'"{service._WIN_VENV_PYTHON}" -m pip install torch==2.14.1+cu132'.encode()
+    ).decode()
+    instance.run_remote_command = Mock(side_effect=[
+        timeout_error(),
+        (0, f"PROC|123|{installing}\nPROCDONE"),  # 监控第1轮:pip 仍在装
+        (0, "PROCDONE"),  # 第2轮:装完了
+        (0, "2.14.1+cu132\n0.29.1+cu132"),
+    ])
     instance._torch_install(["torch==2.14.1+cu132", "torchvision==0.29.1+cu132"], "cu132", registry.create("torch-upgrade"))
     assert instance.run_remote_command.call_count == 4
 
@@ -983,7 +994,13 @@ def test_install_timeout_monitor_limit_remains_unknown(monkeypatch):
     times = iter([0, 1801])
     monkeypatch.setattr(service.time, "monotonic", lambda: next(times))
     instance = service.SSHService()
-    instance.run_remote_command = Mock(side_effect=[timeout_error(), (0, "1")])
+    installing = base64.b64encode(
+        f'"{service._WIN_VENV_PYTHON}" -m pip install torch==2.14.1+cu132'.encode()
+    ).decode()
+    instance.run_remote_command = Mock(side_effect=[
+        timeout_error(),
+        (0, f"PROC|123|{installing}\nPROCDONE"),  # 监控:pip 仍在装 → 超时定格
+    ])
     with pytest.raises(service.TorchInstallUnknownError, match="仍在运行"):
         instance._torch_install(["torch==2.14.1+cu132"], "cu132", registry.create("torch-upgrade"))
     assert instance.run_remote_command.call_count == 2

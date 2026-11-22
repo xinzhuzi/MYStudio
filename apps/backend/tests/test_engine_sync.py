@@ -159,14 +159,16 @@ class _SshStub:
         clone_results: dict[str, tuple[int, str]] | None = None,
         pip_results: dict[str, tuple[int, str]] | None = None,
         pull_results: dict[str, tuple[int, str]] | None = None,
-        pip_running: int = 0,
+        win_procs: list[str] | None = None,
+        win_tags: dict[str, str] | None = None,
     ) -> None:
         self.win_dirs = win_dirs
         self.win_heads = win_heads
         self.clone_results = clone_results or {}
         self.pip_results = pip_results or {}
         self.pull_results = pull_results or {}
-        self.pip_running = pip_running
+        self.win_procs = win_procs or []
+        self.win_tags = win_tags or {}
         self.commands: list[str] = []
         self.timeouts: list[float] = []
 
@@ -175,8 +177,14 @@ class _SshStub:
         self.timeouts.append(timeout_s)
         if "-EncodedCommand " in command:
             script = base64.b64decode(command.split("-EncodedCommand ", 1)[1]).decode("utf-16le")
-            if "Win32_Process" in script and ".Count" in script:
-                return (0, f"{self.pip_running}\n")
+            if "Win32_Process" in script:
+                # 1122 根修后探针回 PROC|pid|b64 行+PROCDONE(变异判据在 Python 侧)
+                lines = [
+                    f"PROC|{1000 + i}|{base64.b64encode(cl.encode('utf-8')).decode()}"
+                    for i, cl in enumerate(self.win_procs)
+                ]
+                lines.append("PROCDONE")
+                return (0, "\n".join(lines) + "\n")
         if "dir /b /ad" in command:
             return (0, "\r\n".join(sorted(self.win_dirs)))
         if "rev-parse HEAD" in command:
@@ -185,8 +193,11 @@ class _SshStub:
             key = match.group(1) if match else command
             if key in self.win_heads:
                 head = self.win_heads[key]
-                return (0, head + "\n") if head else (128, "fatal: not a git repository\n")
-            return (128, "fatal: no path matched\n")
+                if head:
+                    tag = self.win_tags.get(key, "")
+                    return (0, head + "\n===V===\n" + (tag + "\n" if tag else ""))
+                return (128, "===V===\n")  # 实弹:rev-parse 失败走 2>nul,stdout 仅余分隔行
+            return (128, "===V===\n")
         if "git pull" in command:
             for name, result in self.pull_results.items():
                 if name in command:
@@ -295,6 +306,100 @@ class ManifestFourStatesTests(unittest.TestCase):
         self.assertEqual(by_name2["pluginManual"]["winHead"], "winm0head")
 
 
+class ManifestWinVersionTests(unittest.TestCase):
+    """③b 清单版本展示(1122 用户令:面板要展示版本)。"""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.home = _MacHome(Path(self._tmp.name))
+        self.json_path = Path(self._tmp.name) / "engine-sync.json"
+        envs = patch.dict(os.environ, {"MYSTUDIO_ENGINE_SYNC_JSON": str(self.json_path)})
+        envs.start()
+        self.addCleanup(envs.stop)
+        self.comfy = patch("comfyui.manifest.comfy_home", return_value=self.home.root)
+        self.comfy.start()
+        self.addCleanup(self.comfy.stop)
+
+    def test_manifest_carries_win_version_tag_and_short_sha_fallback(self) -> None:
+        stub = _SshStub(
+            win_dirs={"pluginA"},
+            win_heads={
+                WIN_ENGINE: "e" * 40,
+                f"{WIN_NODES}\\pluginA": "a" * 40,
+            },
+            win_tags={WIN_ENGINE: "v0.45.2"},  # pluginA 无 tag → 短 sha 回退
+        )
+        manifest = _service_with_stub(stub).get_engine_sync_manifest()
+        by_name = {item["name"]: item for item in manifest["items"]}
+        self.assertEqual(by_name["ComfyUI"]["winVersion"], "0.45.2")  # 剥前导 v
+        self.assertEqual(by_name["pluginA"]["winVersion"], "a" * 7)  # 无 tag → 短 sha
+        self.assertIsNone(by_name["pluginB"]["winVersion"])  # Win 缺 → None
+        self.assertIsNone(by_name["pluginB"]["winHead"])
+
+
+class PipRunningPredicateTests(unittest.TestCase):
+    """③c 变异 pip 判据(1122 同步全败根修的判据本体,纯函数零 SSH)。"""
+
+    VENV = "E:\\IP\\漫影工作室\\comfyui\\venv\\Scripts\\python.exe"
+
+    @staticmethod
+    def _lines(*cmdlines: str, done: bool = True) -> list[str]:
+        out = [
+            f"PROC|{4000 + i}|{base64.b64encode(cl.encode('utf-8')).decode()}"
+            for i, cl in enumerate(cmdlines)
+        ]
+        if done:
+            out.append("PROCDONE")
+        return out
+
+    def test_mutating_pip_blocks(self) -> None:
+        self.assertTrue(svc_mod._pip_running_from_proc_lines(
+            self._lines(f'"{self.VENV}" -m pip install torch==2.14.1'), self.VENV))
+
+    def test_forward_slash_venv_form_blocks(self) -> None:
+        # engine_task.py 启动形态(正斜杠):真装依赖时也须拦门
+        self.assertTrue(svc_mod._pip_running_from_proc_lines(
+            self._lines("E:/IP/漫影工作室/comfyui/venv/Scripts/python.exe -m pip install triton -i https://pypi.tuna.tsinghua.edu.cn/simple"),
+            self.VENV))
+
+    def test_readonly_pip_show_never_blocks(self) -> None:
+        # 1122 用户实弹症:torch-info 轮询的 pip show 探针曾把门恒关
+        self.assertFalse(svc_mod._pip_running_from_proc_lines(
+            self._lines(f'"{self.VENV}" -m pip show torch'), self.VENV))
+
+    def test_readonly_import_probe_never_blocks(self) -> None:
+        self.assertFalse(svc_mod._pip_running_from_proc_lines(
+            self._lines(f'"{self.VENV}" -c "import torch; print(torch.__version__)"'), self.VENV))
+
+    def test_engine_main_py_never_blocks(self) -> None:
+        self.assertFalse(svc_mod._pip_running_from_proc_lines(
+            self._lines("E:/IP/漫影工作室/comfyui/venv/Scripts/python.exe E:/IP/漫影工作室/comfyui/ComfyUI/main.py --listen 0.0.0.0 --port 17000"),
+            self.VENV))
+        self.assertFalse(svc_mod._pip_running_from_proc_lines(
+            self._lines(f'"{self.VENV}" E:\\IP\\漫影工作室\\comfyui\\ComfyUI\\main.py --port 17000'), self.VENV))
+
+    def test_non_venv_pip_ignored(self) -> None:
+        self.assertFalse(svc_mod._pip_running_from_proc_lines(
+            self._lines('D:\\Python312\\python.exe -m pip install requests'), self.VENV))
+
+    def test_no_python_procs_is_open_gate(self) -> None:
+        # 引擎全停+无探针:PROCDONE 独在 = 合法空清单 → 放行
+        self.assertFalse(svc_mod._pip_running_from_proc_lines(
+            self._lines(done=True), self.VENV))
+
+    def test_missing_procdone_fails_closed(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "无法核实"):
+            svc_mod._pip_running_from_proc_lines(
+                self._lines(f'"{self.VENV}" -m pip show torch', done=False), self.VENV)
+
+    def test_clixml_noise_tolerated(self) -> None:
+        noisy = ["<Obj S=\"progress\">CLIXML 噪声</Obj>"] + self._lines(
+            f'"{self.VENV}" -m pip download torch'
+        )
+        self.assertTrue(svc_mod._pip_running_from_proc_lines(noisy, self.VENV))
+
+
 class SyncEngineTests(unittest.TestCase):
     """④ sync_engine 逐项逻辑(mock SSH;R2 契约 + Q1/Q2/Q3/Q6/C8)。"""
 
@@ -337,7 +442,13 @@ class SyncEngineTests(unittest.TestCase):
         )
 
     def test_sync_defers_when_remote_pip_is_running(self) -> None:
-        stub = _SshStub(set(), {}, pip_running=1)
+        stub = _SshStub(
+            set(), {},
+            win_procs=[
+                '"E:\\IP\\漫影工作室\\comfyui\\venv\\Scripts\\python.exe" -m pip '
+                "install torch==2.14.1 --index-url https://mirror.sjtu.edu.cn/x"
+            ],
+        )
         with self.assertRaisesRegex(RuntimeError, "远端 pip 仍在运行"):
             _service_with_stub(stub).sync_engine(["ComfyUI"])
 

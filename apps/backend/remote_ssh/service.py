@@ -153,6 +153,42 @@ def _torch_any_marker() -> bool:
     return _torch_stuck_marker().exists() or _torch_fallback_marker().exists()
 
 
+# 1122 同步全败根修:变异 pip 判据——只认 install/uninstall/download/wheel 四动词
+_PIP_MUTATING_RE = re.compile(r"-m\s+pip\s+(?:install|uninstall|download|wheel)\b", re.IGNORECASE)
+
+
+def _pip_running_from_proc_lines(lines: list[str], venv_python: str) -> bool:
+    """远端 python 进程清单(PROC|pid|b64cmdline 行)→ 是否有变异 pip 在跑。
+
+    1122 用户实弹:引擎冷重启窗口 torch-info 轮询的只读探针(`-m pip show`/
+    `-c import torch`,反斜杠 venv 形态)近乎常驻,旧判据「命令行含 venv
+    python 即算 pip」把门恒关,引擎同步点一次 500 一次(~50 发全灭)。
+    新判据三重收窄:venv python(斜杠双态归一——engine_task 正斜杠启动)+ 
+    `-m pip` + 变变动词;只读探针与引擎本体(main.py)永不拦门。
+    PROCDONE 缺席=探针失声(CLIXML 噪声吞掉输出),交上层 fail-closed。
+    """
+    venv_norm = venv_python.replace("/", "\\").casefold()
+    saw_done = False
+    for raw in lines:
+        line = raw.strip()
+        if line == "PROCDONE":
+            saw_done = True
+            continue
+        parts = line.split("|", 2)
+        if len(parts) != 3 or parts[0] != "PROC":
+            continue  # CLIXML 进度记录(GBK)等噪声行(1107 实弹同款)
+        try:
+            cmdline = base64.b64decode(parts[2]).decode("utf-8", errors="replace")
+        except (ValueError, UnicodeError):
+            continue
+        norm = cmdline.replace("/", "\\").casefold()
+        if venv_norm in norm and _PIP_MUTATING_RE.search(norm):
+            return True
+    if not saw_done:
+        raise RuntimeError("无法核实远端 pip 状态")
+    return False
+
+
 def _torch_clear_markers() -> None:
     try:
         _torch_stuck_marker().unlink(missing_ok=True)
@@ -987,11 +1023,29 @@ class SSHService:
 
     def _win_git_head(self, win_path: str) -> str | None:
         """SSH 读 Windows 侧 git HEAD(目录非 git/不存在/超时 → None)。"""
-        code, out = self.run_remote_command(
-            f'git -C "{win_path}" rev-parse HEAD 2>nul', 10
+        return self._win_git_info(win_path)[0]
+
+    def _win_git_info(self, win_path: str) -> tuple[str | None, str | None]:
+        """SSH 读 Win 侧 git HEAD+版本(单命令双读,零额外 SSH 往返)。
+
+        版本口径(1122 用户令「同步面板要展示版本」):git describe 最近 tag
+        剥前导 v(引擎 v0.45.2 → 0.45.2);无 tag 的插件回退短 sha(HEAD 前
+        7 位);目录非 git/不存在/超时 → (None, None)。cmd `&` 链 exit code
+        =末命令(describe 无 tag 必非 0),故不以 code 作闸,逐段解析。
+        """
+        _, out = self.run_remote_command(
+            f'git -C "{win_path}" rev-parse HEAD 2>nul & echo ===V=== & '
+            f'git -C "{win_path}" describe --tags --abbrev=0 2>nul', 10
         )
-        head = out.strip().splitlines()[-1].strip() if out.strip() else ""
-        return head if code == 0 and head else None
+        segments = out.split("===V===", 1)
+        if len(segments) < 2:
+            return (None, None)  # ===V=== 恒在(cmd & 无条件续行);缺席=输出被截
+        head_lines = [l.strip() for l in segments[0].splitlines() if l.strip()]
+        head = head_lines[-1] if head_lines else ""
+        tag_lines = [l.strip() for l in segments[1].splitlines() if l.strip()] if len(segments) > 1 else []
+        tag = tag_lines[0] if tag_lines else ""
+        version = re.sub(r"^v+", "", tag) if tag else (head[:7] if head else "")
+        return (head or None, version or None)
 
     @staticmethod
     def _engine_sync_status(mac_present: bool, win_present: bool, name: str) -> str:
@@ -1075,13 +1129,16 @@ class SSHService:
         items: list[dict] = []
         # ComfyUI 引擎条目(恒首行)
         engine_mac_head = _mac_git_head(_mac_custom_nodes_dir().parent)
-        engine_win_head = self._win_git_head(_WIN_COMFY_ROOT + "\\ComfyUI")
+        engine_win_head, engine_win_version = self._win_git_info(
+            _WIN_COMFY_ROOT + "\\ComfyUI"
+        )
         items.append(
             {
                 "name": _ENGINE_SYNC_ENGINE_NAME,
                 "url": doc.get("comfyui", {}).get("repo", _COMFYUI_REPO_URL),
                 "macHead": engine_mac_head,
                 "winHead": engine_win_head,
+                "winVersion": engine_win_version,
                 "status": self._engine_sync_status(
                     engine_mac_head is not None, engine_win_head is not None,
                     _ENGINE_SYNC_ENGINE_NAME,
@@ -1096,13 +1153,19 @@ class SSHService:
         ]:
             name = plugin["name"]
             mac_head = mac_heads.get(name)  # None=Mac 本机无此包(清单手动条目)
-            win_head = self._win_git_head(f"{_WIN_CUSTOM_NODES}\\{name}") if name in win_names else None
+            win_head: str | None = None
+            win_version: str | None = None
+            if name in win_names:
+                win_head, win_version = self._win_git_info(
+                    f"{_WIN_CUSTOM_NODES}\\{name}"
+                )
             items.append(
                 {
                     "name": name,
                     "url": plugin.get("url", ""),
                     "macHead": mac_head,
                     "winHead": win_head,
+                    "winVersion": win_version,
                     # Mac 侧在场=本机有仓,或「清单声明且 Win 缺」(R1 手动条目
                     # 双侧均无时不落 skip——skip 只留给 my-nodes Q2,否则手动新增
                     # 件在面板不可见永无法勾选;清单声明但 Win 已有而 Mac 无仓仍归
@@ -1228,10 +1291,11 @@ class SSHService:
     def _sync_result(
         name: str, type_: str, mac_head: str | None, win_head: str | None,
         action: str, verified: bool, error: str | None = None,
-        pip_error: str | None = None,
+        pip_error: str | None = None, win_version: str | None = None,
     ) -> dict:
         return {
             "name": name, "type": type_, "macHead": mac_head, "winHead": win_head,
+            "winVersion": win_version,
             "action": action, "verified": verified, "error": error, "pipError": pip_error,
         }
 
@@ -1316,12 +1380,12 @@ class SSHService:
         )
         if code != 0:
             pip_error = f"pip install 失败: {out.strip()[:200]}"  # ⚠️ 不阻断(C8)
-        # 验证(1104 裁定口径):只确认目录在+HEAD 可读(_win_git_head 对缺目录/
-        # 非 git/无提交恒 None),不比 Mac HEAD
-        win_head = self._win_git_head(win_path)
+        # 验证(1104 裁定口径):只确认目录在+HEAD 可读(_win_git_info 对缺目录/
+        # 非 git/无提交恒 None),不比 Mac HEAD;winVersion 随回执(1122 版本展示)
+        win_head, win_version = self._win_git_info(win_path)
         verified = win_head is not None
         return self._sync_result(
-            name, kind, mac_head, win_head, action, verified, None, pip_error
+            name, kind, mac_head, win_head, action, verified, None, pip_error, win_version
         )
 
     @contextmanager
@@ -1348,12 +1412,13 @@ class SSHService:
         return output.strip()
 
     def _torch_remote_pip_running(self) -> bool:
-        output = self._torch_command(f"$ErrorActionPreference='Stop'; @((Get-CimInstance Win32_Process -Filter \"Name like 'python%'\") | Where-Object {{ $_.CommandLine -and $_.CommandLine.IndexOf({_torch_quote(_WIN_VENV_PYTHON)}, [StringComparison]::OrdinalIgnoreCase) -ge 0 }}).Count")
-        # CLIXML 进度记录(GBK 中文)会混进 SSH exec stdout,只取纯数字行(1107 用户实弹踩雷)
-        numeric = [l.strip() for l in output.splitlines() if l.strip().isdecimal()]
-        if not numeric:
-            raise RuntimeError("无法核实远端 pip 状态")
-        return int(numeric[0]) > 0
+        output = self._torch_command(
+            "$ErrorActionPreference='Stop'; "
+            "Get-CimInstance Win32_Process -Filter \"Name like 'python%'\" | ForEach-Object { "
+            "if ($_.CommandLine) { 'PROC|' + $_.ProcessId + '|' + "
+            "[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($_.CommandLine)) } }; 'PROCDONE'"
+        )
+        return _pip_running_from_proc_lines(output.splitlines(), _WIN_VENV_PYTHON)
 
     def _torch_pkg_metadata(self, name: str) -> str:
         """包版本探针(pip show 元数据只读,不 import——坏件(如 cu128 旧 torchaudio
