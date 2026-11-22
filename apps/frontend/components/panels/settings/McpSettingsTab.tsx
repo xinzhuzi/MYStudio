@@ -854,6 +854,15 @@ export function McpSettingsTab() {
       .catch(() => {}); // 刷新失败静默:行内版本停在旧值,下次开面板自愈
   };
 
+  // SSH 迟连自愈(1122 实弹踩雷):清单只在挂载时拉一次,SSH 未通=503 扑空,
+  // keeper 翻绿后不补拉=面板恒空。连接态翻绿且清单仍缺/错 → 自动补拉。
+  useEffect(() => {
+    if (sshStatus?.connected && (engineSyncManifest === null || engineSyncError)) {
+      refreshEngineSyncManifest();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 只盯连接态翻转
+  }, [sshStatus?.connected]);
+
   const toggleEngineSyncItem = (name: string, checked: boolean) => {
     setEngineSyncChecked((prev) => ({ ...prev, [name]: checked }));
   };
