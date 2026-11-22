@@ -567,9 +567,19 @@ describe("Windows Pika ref2va 主力线通道(1101)", () => {
 // ── multiseg 适配(PRD 10-27 §14.1;my-h3-multiseg needs-adaptation→ready)──────────────────────
 
 describe("h3-multiseg-template.api.json 契约(PRD §14.1.2,--preset multiseg 脚本产物)", () => {
-  it("API 节点数=41(12+2 四针适配+1118 修脸组 19+remux5030/5031+1119 双档 6;组装器不摘臂,1065=false 惰性剪除)", () => {
-    expect(Object.keys(multisegApi)).toHaveLength(41);
-    expect(Object.keys(multisegApi).map(Number).sort((a, b) => a - b)).toEqual([2, 4, 6, 7, 9, 13, 21, 25, 34, 36, 41, 100, 101, 102, 103, 1065, 4100, 5002, 5006, 5011, 5012, 5013, 5014, 5015, 5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5024, 5025, 5030, 5031, 5100, 5109, 5110, 5111, 5113]);
+  it("API 节点数=44(41+1122 三采臂 800/4001/4002;组装器不摘臂,1065=false 惰性剪除)", () => {
+    expect(Object.keys(multisegApi)).toHaveLength(44);
+    expect(Object.keys(multisegApi).map(Number).sort((a, b) => a - b)).toEqual([2, 4, 6, 7, 9, 13, 21, 25, 34, 36, 41, 100, 101, 102, 103, 1065, 4100, 5002, 5006, 5011, 5012, 5013, 5014, 5015, 5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5024, 5025, 5030, 5031, 5100, 5109, 5110, 5111, 5113, 4001, 4002, 800].map(Number).sort((a, b) => a - b));
+  });
+  it("1122 三采后修脸(用户裁定,与画布同语义):5002←4002/5100.on_false←4002/4002←5031 链+模型原生4×", () => {
+    expect(multisegApi["5002"].inputs.video).toEqual(["4002", 0]);
+    expect(multisegApi["5100"].inputs.on_false).toEqual(["4002", 0]);
+    expect(multisegApi["4002"].inputs).toMatchObject({
+      model: ["4001", 0], video: ["5031", 0], scale: 4.0,
+      decoder: "flashdecoder", kernels: "fast", kv_offload: false,
+    });
+    expect(multisegApi["4001"].inputs.model_name).toBe("transformer_int8_convrot.safetensors");
+    expect(multisegApi["800"].inputs.clip_name).toBe("clip_vision_g.safetensors");
   });
 
   it("1119 双档移植对齐(67 节点画布态的 API 面):5111 默认 False/5100.on_true←5113/5113 出口极性/全图零悬空引用", () => {

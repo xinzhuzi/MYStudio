@@ -189,33 +189,6 @@
       ]
     }
   },
-  "5030": {
-    "class_type": "GetVideoComponents",
-    "inputs": {
-      "video": [
-        "36",
-        0
-      ]
-    }
-  },
-  "5031": {
-    "class_type": "CreateVideo",
-    "inputs": {
-      "images": [
-        "5030",
-        0
-      ],
-      "audio": [
-        "5030",
-        1
-      ],
-      "fps": 24,
-      "bit_depth": "auto",
-      "color_space": "sRGB",
-      "chroma_subsampling": "auto",
-      "codec": "none"
-    }
-  },
   "25": {
     "class_type": "PrimitiveStringMultiline",
     "inputs": {
@@ -232,7 +205,7 @@
     "class_type": "GetVideoComponents",
     "inputs": {
       "video": [
-        "5031",
+        "4002",
         0
       ]
     }
@@ -273,7 +246,7 @@
       "frame_index": 170,
       "identity_model": "clip_vision",
       "identity_clip_vision": [
-        800,
+        "800",
         0
       ],
       "fallback_detector": "segm\\person_yolov8m-seg.pt",
@@ -501,7 +474,7 @@
         0
       ],
       "on_false": [
-        "5031",
+        "4002",
         0
       ],
       "on_true": [
@@ -611,6 +584,66 @@
       "color_space": "sRGB",
       "chroma_subsampling": "auto",
       "codec": "none"
+    }
+  },
+  "5030": {
+    "class_type": "GetVideoComponents",
+    "inputs": {
+      "video": [
+        "36",
+        0
+      ]
+    }
+  },
+  "5031": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "5030",
+        0
+      ],
+      "audio": [
+        "5030",
+        1
+      ],
+      "fps": 24,
+      "bit_depth": "auto",
+      "color_space": "sRGB",
+      "chroma_subsampling": "auto",
+      "codec": "none"
+    }
+  },
+  "800": {
+    "class_type": "CLIPVisionLoader",
+    "inputs": {
+      "clip_name": "clip_vision_g.safetensors"
+    }
+  },
+  "4001": {
+    "class_type": "ReCaVSRLoader",
+    "inputs": {
+      "model_name": "transformer_int8_convrot.safetensors"
+    }
+  },
+  "4002": {
+    "class_type": "ReCaVSRUpscale",
+    "inputs": {
+      "model": [
+        "4001",
+        0
+      ],
+      "video": [
+        "5031",
+        0
+      ],
+      "scale": 4.0,
+      "color_fix": "none",
+      "seed": 42,
+      "decoder": "flashdecoder",
+      "kernels": "fast",
+      "kv_offload": false,
+      "encoder": "auto",
+      "fps": 30
     }
   }
 }

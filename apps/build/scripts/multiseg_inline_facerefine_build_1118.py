@@ -229,7 +229,7 @@ def api_node(k: str) -> dict:
     d = copy.deepcopy(MB.API_NEW[k])
     ins = d["inputs"]
     if k == "5002":
-        ins["video"] = ["5031", 0]  # remux 出口(lazy-switch 禁吃 auto-context 边界 36,1118 探针定谳)
+        ins["video"] = ["4002", 0]  # 1122 用户令:修脸吃三采后(ReCaVSR 4K,与画布同语义);1118 探针的 auto-context 边界由 5031 remux 承担
     elif k == "5006":
         ins["model"] = [str(UNET), 0]
     elif k == "5012":
@@ -240,12 +240,14 @@ def api_node(k: str) -> dict:
         ins["length"] = LENGTH
     elif k == "5013":
         ins["vae"] = [str(VAE_V), 0]
+    elif k == "5011":
+        ins["identity_clip_vision"] = ["800", 0]  # 母本携带 int 800 引用(API 格式须 str,1122 根治历史悬空)
     elif k == "5014":
         ins["audio_vae"] = [str(VAE_A), 0]
     elif k == "5021":
         ins["vae"] = [str(VAE_V), 0]
     elif k == "5100":
-        ins["on_false"] = ["5031", 0]
+        ins["on_false"] = ["4002", 0]  # p3 直通臂同步三采 4K(1122)
     elif k == "4100":
         ins["filename_prefix"] = PREFIX_P_FINAL
     return d
@@ -341,7 +343,10 @@ def build_canvas(S: dict, src_nodes: list) -> dict:
 
 
 def build_api(A: dict) -> dict:
-    for k, ct in {**OWN, **RETIRED}.items():  # RETIRED 同剥(防御性:multiseg 盘上天然无)
+    strip = {**{k: v for k, v in {**OWN, **RETIRED}.items()},
+             5030: "GetVideoComponents", 5031: "CreateVideo",
+             800: "CLIPVisionLoader", 4001: "ReCaVSRLoader", 4002: "ReCaVSRUpscale"}
+    for k, ct in strip.items():  # RETIRED/remux/三采臂同剥(键序确定性:全剥全按固定序重追加)
         old = A.get(str(k))
         if old is not None and old.get("class_type") != ct:
             die(f"API 模板节点 {k} 已被他人占用为 {old.get('class_type')}(预期 {ct}),拒剥")
@@ -353,6 +358,15 @@ def build_api(A: dict) -> dict:
     A["5031"] = {"class_type": "CreateVideo", "inputs": {"images": ["5030", 0], "audio": ["5030", 1],
                   "fps": 24, "bit_depth": "auto", "color_space": "sRGB",
                   "chroma_subsampling": "auto", "codec": "none"}}
+    # 1122 用户令:App multiseg 三采后修脸——ReCaVSR 臂(模型原生 4×;960×544→3840×2176 恒宽 3840 锚)
+    # + 补 800 CLIPVisionLoader(5011.identity_clip_vision 历史悬空引用,顺手封)
+    A["800"] = {"class_type": "CLIPVisionLoader", "inputs": {"clip_name": "clip_vision_g.safetensors"}}
+    A["4001"] = {"class_type": "ReCaVSRLoader", "inputs": {"model_name": "transformer_int8_convrot.safetensors"}}
+    A["4002"] = {"class_type": "ReCaVSRUpscale", "inputs": {
+        "model": ["4001", 0], "video": ["5031", 0],
+        "scale": 4.0, "color_fix": "none", "seed": 42,
+        "decoder": "flashdecoder", "kernels": "fast", "kv_offload": False,
+        "encoder": "auto", "fps": 30}}
     return A
 
 
@@ -375,7 +389,7 @@ def check() -> int:
     n_canvas, n_api = len(S["nodes"]), len(A)
     print(f"[CHECK] 画布节点 {n_canvas}(41+{n_canvas - 41}) / API 节点 {n_api}(14+{n_api - 14})")
     ok(n_canvas == 67, f"画布节点数=67(41+19 修脸组+lowvram役#1066+1119 双档 6),实际 {n_canvas}")
-    ok(n_api == 41, f"API 节点数=41(14+19+remux5030/5031+1119 双档 6),实际 {n_api}")
+    ok(n_api == 44, f"API 节点数=44(14+19+remux5030/5031+1119 双档 6+1122 三采臂 800/4001/4002),实际 {n_api}")
 
     ids = [n["id"] for n in S["nodes"]]
     idset = set(ids)
@@ -450,8 +464,12 @@ def check() -> int:
        and wired(5014, "audio", 5002) and wired(5019, "conditioning", 5012)
        and wired(5020, "noise", 5016),
        f"关键联线拓扑(5002←{P3_SRC} 三采 p3/5100 双臂+开关(1119 改接 on_true←5113)/4100←5100/5006←{UNET}/5014.audio←5002②/5019←5012/5020←5016)")
-    ok(A["5002"]["inputs"]["video"] == ["5031", 0]
-       and A["5100"]["inputs"]["on_false"] == ["5031", 0]
+    ok(A["5002"]["inputs"]["video"] == ["4002", 0]
+       and A["5100"]["inputs"]["on_false"] == ["4002", 0]
+       and A["4002"]["inputs"]["video"] == ["5031", 0]
+       and A["4002"]["inputs"]["model"] == ["4001", 0]
+       and A["4002"]["inputs"]["scale"] == 4.0
+       and A["800"]["class_type"] == "CLIPVisionLoader"
        and A["5030"]["inputs"]["video"] == [str(API_TAIL), 0]
        and A["5100"]["inputs"]["on_true"] == ["5113", 0]
        and A["4100"]["inputs"]["video"] == ["5100", 0]
