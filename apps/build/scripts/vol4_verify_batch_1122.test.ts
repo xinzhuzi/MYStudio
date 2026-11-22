@@ -1,5 +1,5 @@
-/** 第三卷三件套批量验证器(vol3 1120 役工具,门规格与 vol1/vol2 逐字同构,役毕删):
- * VOL3_CH=chapter-838,chapter-839… 一次跑一波——每章:
+/** 第四卷三件套批量验证器(vol4 1122 役工具,门规格与 vol1/vol2/vol3 逐字同构,役毕删):
+ * VOL4_CH=chapter-1278,chapter-1279… 一次跑一波——每章:
  * parseStoryboardTable → extractScriptVoiceLines(drama) → runScriptPrecheck(strict) →
  * toStoryboardItems(entities 人物表) → voicestyle.json 过程参数后处理 → rows.json+verify.json。
  * 五硬断言:errors[]===[] / RED0 / YELLOW0 / 勾销100% / voiceStyle 全覆盖零过期词零情绪结果词。 */
@@ -10,8 +10,8 @@ import { extractScriptVoiceLines } from "@/lib/studio/script-draft-metrics";
 import { runScriptPrecheck } from "@/lib/studio/script-precheck";
 import { DAOJIE_STRICT_DURATION_SECONDS } from "@/lib/studio/daojie-duration-policy";
 
-const ROOT = "/tmp/vol3_batch/ch";
-const CHAPTERS = (process.env.VOL3_CH ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+const ROOT = "/tmp/vol4_batch/ch";
+const CHAPTERS = (process.env.VOL4_CH ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 const BAD_WORDS = ["电影级", "杰作", "获奖", "超高清", "8K"];
 const EMO_WORDS = ["绝望", "愤怒", "悲伤", "开心", "恐惧", "狂喜", "痛哭"];
 
@@ -24,7 +24,7 @@ for (const ch of CHAPTERS) {
   const ts = 1794822000000 + Number(ch.slice(8)) * 1000;
   const sourceScript = { entryId: `work-${ts}-ep${ch.slice(8)}v1`, updatedAt: ts };
 
-  describe(`vol3 ${ch}`, () => {
+  describe(`vol4 ${ch}`, () => {
     it("parse → precheck → rows → voiceStyle 全绿", () => {
       for (const f of ["drama.md", "entities.json", "sbt.md", "directorPlan.md", "voicestyle.json", "novel.md"]) {
         expect(existsSync(`${dir}/${f}`), `${ch} 缺 ${f}`).toBe(true);
@@ -114,5 +114,5 @@ for (const ch of CHAPTERS) {
   });
 }
 if (!CHAPTERS.length) {
-  describe("vol3 batch", () => { it("no chapters given", () => { expect(true).toBe(true); }); });
+  describe("vol4 batch", () => { it("no chapters given", () => { expect(true).toBe(true); }); });
 }

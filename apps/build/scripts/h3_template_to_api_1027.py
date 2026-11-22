@@ -390,14 +390,22 @@ def main() -> None:
     ui_count = len(canvas["nodes"])
     if ui_count != opts.ui_count:
         raise SystemExit(f"template drift: {src.name} UI nodes {ui_count} != {opts.ui_count}")
-    connect_video_writeback(canvas, anchor_id=100)
+    # MyShot 模板族(回灌锚 #100 MyShot + 存盘锚 #4 SaveVideo 双条件)才走回灌与契约断言;
+    # 非模板族(1122 pi-H3 嫁接件等通用 canvas,如单镜 MyShot=#3061 无#4)跳过,
+    # 原生模板路径行为不变。
+    _nodes_by_id = {n["id"]: n for n in canvas["nodes"]}
+    is_myshot_family = (_nodes_by_id.get(4, {}).get("type") == "SaveVideo"
+                        and _nodes_by_id.get(100, {}).get("type") == "MyShot")
+    if is_myshot_family:
+        connect_video_writeback(canvas, anchor_id=100)
     api, skipped = convert(canvas, oi)
     if len(api) != opts.api_count:
         raise SystemExit(f"api contract: {len(api)} nodes != {opts.api_count} (skipped UI-only: {skipped})")
-    if opts.contract == "r2v":
-        assert_r2v_contract(api)
-    else:
-        assert_contract(api)
+    if is_myshot_family:
+        if opts.contract == "r2v":
+            assert_r2v_contract(api)
+        else:
+            assert_contract(api)
     dst.write_text(json.dumps(api, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(f"OK: {dst.relative_to(REPO_ROOT)} ({len(api)} nodes; src={src.name}; UI-only skipped: {', '.join(skipped)})")
     print("anchors: 14.value(str) 20.value(number) 9.image(str) 4.filename_prefix(str) 16.width/16.height 100.MyShot(video→[4,0])")
