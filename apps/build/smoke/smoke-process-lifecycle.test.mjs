@@ -49,14 +49,15 @@ test("resolvePrekillMode 三态:默认=guard/SKIP=skip/FORCE=force;SKIP 优先�
 test("probeRunningInstances:注入 runner,pgrep 命中解析为 pid 数组;零命中/无 stdout=空数组", () => {
   const calls = [];
   const pids = probeRunningInstances({
-    pattern: "漫影工作室.app",
+    pattern: "漫影工作室",
     run: (cmd, args) => {
       calls.push([cmd, args]);
       return { status: 0, stdout: "401\n" };
     },
   });
   assert.deepEqual(pids, [401]);
-  assert.deepEqual(calls, [["pgrep", ["-f", "漫影工作室.app"]]]);
+  // 1122 根修断言:进程名精确匹配(-x),不再 -f 宽匹配误报他链 shell
+  assert.deepEqual(calls, [["pgrep", ["-x", "漫影工作室"]]]);
   assert.deepEqual(
     probeRunningInstances({ run: () => ({ status: 1, stdout: "" }) }),
     [],

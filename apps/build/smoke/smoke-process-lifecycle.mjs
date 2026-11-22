@@ -71,10 +71,15 @@ export function resolvePrekillMode({ skipPrekill = false, prekillForce = false }
   return "guard";
 }
 
-/** pgrep 探测实例 pids(默认真跑 pgrep;测试注入 run)。零命中/无 stdout=空数组。 */
-export function probeRunningInstances({ pattern = "漫影工作室.app", run } = {}) {
+/** pgrep 探测实例 pids(默认真跑 pgrep;测试注入 run)。零命中/无 stdout=空数组。
+ * 1122 根修(与 build-mac 链首守卫同病同修):旧默认 `pgrep -f "漫影工作室.app"`
+ * 宽匹配误报面巨大——任何命令行/env 含该串的进程都算(他链会话 zsh 的
+ * MYSTUDIO_COMFYUI_HOME 路径、装机链自身的检查文本),App 已退仍假红×5 连败。
+ * 改按可执行名精确匹配(-x,进程名=漫影工作室,无 .app 后缀):只认真身;
+ * Electron Helper 进程名不同,不受影响。pattern 参数保留给测试注入旧形态。 */
+export function probeRunningInstances({ pattern = "漫影工作室", run } = {}) {
   const exec = run ?? ((cmd, args) => spawnSync(cmd, args, { encoding: "utf8" }));
-  const probe = exec("pgrep", ["-f", pattern]);
+  const probe = exec("pgrep", ["-x", pattern]);
   return parsePgrepPids(probe?.stdout);
 }
 

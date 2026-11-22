@@ -231,7 +231,9 @@ function stopExistingMYStudioInstances() {
   // TERM→KILL 精确收;探测/盲杀都不再适用于该点,pgrep 在收尾必命中自己拉起
   // 的实例,守卫失效;盲杀会误伤冒烟期间用户新开的实例)。
   if (!prekillForce) {
-    const probe = spawnSync("pgrep", ["-f", "漫影工作室.app"], {
+    // 1122 根修(同 build-mac/install-smoke 守卫):-f 宽匹配误报他链 shell
+    // (env 含 漫影工作室 路径串)与自含文本进程;改 -x 进程名精确匹配。
+    const probe = spawnSync("pgrep", ["-x", "漫影工作室"], {
       cwd: process.cwd(),
       env: process.env,
       encoding: "utf8",
