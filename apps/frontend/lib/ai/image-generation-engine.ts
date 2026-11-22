@@ -62,6 +62,7 @@ import {
   pollForFreedomResult as pollForResult,
 } from './generation-transport';
 import { DEFAULT_IMAGE_ENDPOINT, detectFreedomImageRoute, getImageEndpointPaths } from './image-routing';
+import { LOCAL_IMAGE_SUBMIT_TIMEOUT_MS } from './image-generator-shared';
 import { resolveFreedomFeatureConfig } from './generation-feature-config';
 import { generateFreedomImageViaChat } from './image-channel-chat';
 import { generateMikotoImageViaAsync } from '@/lib/ai/mikoto-async';
@@ -688,9 +689,11 @@ async function generateViaImagesEndpoint(
     endpointFamily: 'freedom-image',
     model,
     templateName: builtRequest.templateName,
-    // 本地推理 1024² 实测 ~186s,1MP 更久:本地通道放宽到 15 分钟(有「停止」
-    // 按钮兜底);云端维持主进程默认(180s)不变
-    ...(provider && isLocalImageProvider(provider) ? { timeoutMs: 900_000 } : {}),
+    // 本地推理 1024² 实测 ~186s,1MP 更久,且任务要在引擎队列里排队(1121 夜
+    // 实弹:排 11 发分镜后 900s 墙判死健康任务):本地通道放宽到 1500s 对齐
+    // 产线桥墙(单源 LOCAL_IMAGE_SUBMIT_TIMEOUT_MS,有「停止」按钮兜底);
+    // 云端维持主进程默认(180s)不变
+    ...(provider && isLocalImageProvider(provider) ? { timeoutMs: LOCAL_IMAGE_SUBMIT_TIMEOUT_MS } : {}),
   });
 
   if (!response.ok) {

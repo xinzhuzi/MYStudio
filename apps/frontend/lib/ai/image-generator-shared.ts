@@ -36,9 +36,13 @@ export const IMAGE_SUBMIT_TIMEOUT_MS = 180_000;
 /**
  * 本地 Q2.1 通道的提交超时豁免(1011 断点C):本地 sidecar 同步跑全管线
  * (t2i+SeedVR2 2K)实测 3.5-4.5min,180s 提交超时会中途 abort 并连带
- * sidecar 取消引擎作业(2K 精修被掐);对齐自由口 generateImage 本地链 900s。
+ * sidecar 取消引擎作业(2K 精修被掐)。1122 抬到 1500s 对齐产线桥墙:
+ * 900s 只按「自身直跑时长」校准,没算引擎排队深度——1121 夜实弹,按型
+ * 出图排在 11 发分镜任务后(引擎又恰逢冷启),15 分钟墙把健康任务判死
+ * (「图片请求超时」,产物未落库);poller/freedom/分镜桥均已 1500s,
+ * 此墙为最后一处未对齐面。有「停止」按钮兜底,不会不可取消。
  */
-export const LOCAL_IMAGE_SUBMIT_TIMEOUT_MS = 900_000;
+export const LOCAL_IMAGE_SUBMIT_TIMEOUT_MS = 1_500_000;
 
 /** 按 provider 判定提交超时:本地通道(platform 或 baseUrl 口径,同 isLocalImageProvider)豁免 900s,其余维持 180s。 */
 export function imageSubmitTimeoutForProvider(

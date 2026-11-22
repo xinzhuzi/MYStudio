@@ -1077,14 +1077,14 @@ describe("pollTaskStatus contract", () => {
   });
 });
 
-describe("imageSubmitTimeoutForProvider (1011 断点C:本地通道提交超时豁免)", () => {
-  it("本地 platform 口径豁免 900s", () => {
-    expect(imageSubmitTimeoutForProvider({ platform: "manying-local-image", baseUrl: "http://127.0.0.1:17595" })).toBe(900_000);
+describe("imageSubmitTimeoutForProvider (1011 断点C:本地通道提交超时豁免;1122 对齐产线桥墙 1500s)", () => {
+  it("本地 platform 口径豁免 1500s", () => {
+    expect(imageSubmitTimeoutForProvider({ platform: "manying-local-image", baseUrl: "http://127.0.0.1:17595" })).toBe(1_500_000);
   });
 
   it("本地 baseUrl 口径(带尾斜杠/空白)同样豁免", () => {
-    expect(imageSubmitTimeoutForProvider({ platform: "custom", baseUrl: "http://127.0.0.1:17595/" })).toBe(900_000);
-    expect(imageSubmitTimeoutForProvider({ platform: undefined, baseUrl: "  http://127.0.0.1:17595//  " })).toBe(900_000);
+    expect(imageSubmitTimeoutForProvider({ platform: "custom", baseUrl: "http://127.0.0.1:17595/" })).toBe(1_500_000);
+    expect(imageSubmitTimeoutForProvider({ platform: undefined, baseUrl: "  http://127.0.0.1:17595//  " })).toBe(1_500_000);
   });
 
   it("云端与其他/缺省维持 180s", () => {
@@ -1093,8 +1093,8 @@ describe("imageSubmitTimeoutForProvider (1011 断点C:本地通道提交超时�
     expect(imageSubmitTimeoutForProvider(null)).toBe(180_000);
   });
 
-  it("导出常量口径:云端 180s / 本地 900s(对齐自由口本地链)", () => {
+  it("导出常量口径:云端 180s / 本地 1500s(1121 夜实弹:排 11 发分镜后 900s 墙判死健康任务,对齐 poller/freedom/分镜桥)", () => {
     expect(IMAGE_SUBMIT_TIMEOUT_MS).toBe(180_000);
-    expect(LOCAL_IMAGE_SUBMIT_TIMEOUT_MS).toBe(900_000);
+    expect(LOCAL_IMAGE_SUBMIT_TIMEOUT_MS).toBe(1_500_000);
   });
 });

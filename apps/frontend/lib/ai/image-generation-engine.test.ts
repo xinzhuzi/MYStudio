@@ -710,7 +710,7 @@ describe("generateImage 模型归属路由", () => {
     expect(fetchMock.mock.calls.every(([url]) => String(url).includes("backup.example"))).toBe(true);
   }, 20000);
 
-  it("本地通道图片请求超时放宽到 15 分钟(实测 1024² 推理 186s > 默认 180s)", async () => {
+  it("本地通道图片请求超时放宽到 25 分钟(1122 对齐产线桥墙:排队深度+冷启后 900s 判死健康任务)", async () => {
     useAPIConfigStore.setState({
       providers: [localProvider],
       featureBindings: { freedom_image: ["manying-local-image:qwen-image-2-1"] },
@@ -730,7 +730,7 @@ describe("generateImage 模型归属路由", () => {
     expect(imageRequest).toHaveBeenCalled();
     const payload = imageRequest.mock.calls[0]?.[0];
     expect(payload.url).toContain("127.0.0.1:17595");
-    expect(payload.timeoutMs).toBe(900_000);
+    expect(payload.timeoutMs).toBe(1_500_000);
   }, 20000);
 
   it("本地 provider 被 store 整表重写洗掉时,按常量合成仍走本地(09-01 用户机器实弹形态)", async () => {
