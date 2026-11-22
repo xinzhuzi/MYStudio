@@ -857,10 +857,16 @@ export function McpSettingsTab() {
     engineSyncManifest?.items ?? []
   ).filter((item) => item.status !== "skip");
 
-  // 同步完成后回刷清单(1122 版本展示:拉最新后行内版本要跟上;不动勾选态)
+  // 清单回拉(同步完成后回刷版本 / SSH 迟连补拉共用)。成功即清除错误态:
+  // 渲染序为「SSH 未连提示 > 错误 > 空清单 > 清单」,不清错误则补拉成功后
+  // 页面仍停在旧的「需先连接 SSH」上(1123 实弹:补拉回 200 而清单不出现)。
+  // 回刷不动勾选态(1122 版本展示:拉最新后行内版本要跟上)。
   const refreshEngineSyncManifest = () => {
     getEngineSyncManifest()
-      .then((manifest) => setEngineSyncManifest(manifest))
+      .then((manifest) => {
+        setEngineSyncManifest(manifest);
+        setEngineSyncError(null);
+      })
       .catch(() => {}); // 刷新失败静默:行内版本停在旧值,下次开面板自愈
   };
 
@@ -2479,8 +2485,7 @@ export function McpSettingsTab() {
                             </Button>
                             <span className="text-xs text-muted-foreground">
                               勾选项从 GitHub 拉最新(Win
-                              已有即更新、缺件即克隆);Win
-                              独有件保留不动;整体超时 30 分钟。
+                              已有即更新、缺件即克隆);整体超时 30 分钟。
                             </span>
                           </div>
                         </div>

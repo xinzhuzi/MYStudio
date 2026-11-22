@@ -3010,6 +3010,83 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
     expect(start.disabled).toBe(true);
   });
 
+  it("SSH 迟连自愈(1123 实弹):首拉 503 → SSH 翻绿后自动补拉并清除错误,清单出现", async () => {
+    // 复刻开机时序:清单挂载即拉(SSH 未通=503 一次);10s 拍 keeper 重连后应自动补拉
+    let sshUp = false;
+    let manifestCalls = 0;
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      const u = String(url);
+      const reply = (payload: unknown, status = 200) =>
+        Promise.resolve({
+          ok: status < 400,
+          status,
+          json: () => Promise.resolve(payload),
+        } as unknown as Response);
+      if (u.includes("/comfy/engine/remote")) {
+        return reply({
+          url: "http://192.168.0.101:17000",
+          effective: "http://192.168.0.101:17000",
+          source: "settings",
+        });
+      }
+      if (u.includes("/comfy/ssh/engine-plugin-health")) {
+        return reply({
+          plugins: {},
+          loadedCount: 0,
+          failedCount: 0,
+          depsFailures: {},
+          probedAt: "now",
+        });
+      }
+      if (u.includes("/comfy/ssh/status")) {
+        return reply(sshUp ? SSH_CONNECTED : { ...SSH_CONNECTED, connected: false });
+      }
+      if (u.includes("/comfy/ssh/engine-sync-manifest")) {
+        manifestCalls += 1;
+        return sshUp
+          ? reply(MANIFEST)
+          : reply(
+              { error: { message: "SSH 未连接", code: "ssh-disconnected" } },
+              503,
+            );
+      }
+      if (u.includes("/comfy/workflows")) {
+        return reply({ engineOnline: false, workflows: [] });
+      }
+      return Promise.reject(new Error("unexpected fetch " + u));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.useFakeTimers();
+    try {
+      render(<McpSettingsTab />);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+      // 首拍:SSH 未连——指路提示;清单只拉过一次(503),无行
+      expect(screen.getByTestId("engine-sync-ssh-hint").textContent).toContain(
+        "需先连接 SSH",
+      );
+      expect(screen.queryByTestId("engine-sync-row")).toBeNull();
+      expect(manifestCalls).toBe(1);
+      // 10s 拍:SSH 重连 → 自动补拉 → 错误清除 → 清单渲染(旧实现:补拉成功
+      // 但错误态不清,页面永远停在「需先连接 SSH」)
+      sshUp = true;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      expect(screen.getAllByTestId("engine-sync-row").length).toBe(5);
+      expect(screen.queryByTestId("engine-sync-error")).toBeNull();
+      expect(screen.queryByTestId("engine-sync-ssh-hint")).toBeNull();
+      expect(manifestCalls).toBeGreaterThanOrEqual(2);
+      // 说明文字与行为一致(1122 用户令 Win 独有件也拉最新):不得再写「保留不动」
+      expect(screen.getByTestId("engine-sync-section").textContent).not.toContain(
+        "独有件保留不动",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("勾选+开始同步:逐件 POST(单件单发=真逐项进度),⏳→✅ 逐行翻绿,POST 体={items:[名]}", async () => {
     // 首件(ComfyUI)挂起受控 promise:钉死「⏳ 同步中」的中途态
     // (ref 对象承载 resolve:TS 流分析不跟踪回调内赋值,裸 let 会被收窄成 null)
