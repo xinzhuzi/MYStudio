@@ -323,9 +323,12 @@ describe("generateAssetTypeShot(route 分流实装+Phase 2 型层注入+三轨�
       kind: "设定卡",
       subjectText: "北境剑修,玄色长衣,背负旧债",
       referenceImage: "asset-file://role/晏燎/晏燎_无衣物定妆_2026年11月21日.png",
+      // 1122 格式入参化:格式档随拦截分支透传 B 线(缺省全卡由 B 线侧兜)
+      sheetFormat: "无装备",
     });
 
     expect(runSheetCardBLine).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(runSheetCardBLine).mock.calls[0][0]).toMatchObject({ sheetFormat: "无装备" });
     expect(generateImage).not.toHaveBeenCalled();
   });
 

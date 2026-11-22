@@ -770,6 +770,96 @@ describe("StudioAssetDetailPreviewPane · 批3 复审 H/M 修(五路互斥直达
   });
 });
 
+describe("StudioAssetDetailPreviewPane · 1122 设定卡格式档四选一(多张化解禁,裁定B:挂设定卡节既有生成入口旁)", () => {
+  /** 两档已占(全卡无格式段历史名+无装备)——已占打点如实标;简版/竖版空档无点。 */
+  const SHEET_IMAGES = [
+    { name: "晏燎_设定卡_2026年11月20日", filePath: "role/s1.png", url: "media://s1" },
+    { name: "晏燎_设定卡_无装备_2026年11月21日", filePath: "role/s2.png", url: "media://s2" },
+  ];
+
+  it("缺省隐藏:未传 sheetCardFormat/onSheetCardFormatChange 不渲染(老调用方零侵入)", () => {
+    renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn(), onFillMissing: vi.fn() });
+    expect(screen.queryByRole("group", { name: "设定卡格式档" })).toBeNull();
+  });
+
+  it("仅设定卡节渲染四选一(缺省全卡选中);其余型节零出现;无生成入口(canTypeShot=false)不渲染", () => {
+    const onSheetCardFormatChange = vi.fn();
+    renderPane({
+      images: [{ name: "主图", filePath: "role/main.png", url: "media://main" }],
+      canTypeShot: true,
+      onTypeShot: vi.fn(),
+      onFillMissing: vi.fn(),
+      sheetCardFormat: "全卡",
+      onSheetCardFormatChange,
+    });
+
+    const sheetSection = screen.getByRole("region", { name: "设定卡" });
+    const selector = within(sheetSection).getByRole("group", { name: "设定卡格式档" });
+    for (const format of ["全卡", "简版", "竖版", "无装备"]) {
+      expect(within(selector).getByRole("button", { name: format })).toBeTruthy();
+    }
+    // 缺省档=全卡选中(aria-pressed 真值,界面不撒谎)
+    expect((within(selector).getByRole("button", { name: "全卡" }) as HTMLButtonElement).getAttribute("aria-pressed")).toBe("true");
+    expect((within(selector).getByRole("button", { name: "竖版" }) as HTMLButtonElement).getAttribute("aria-pressed")).toBe("false");
+    // 其余型节零出现(人物海报节只有画幅开关与生成钮,无格式档组)
+    const posterSection = screen.getByRole("region", { name: "人物海报" });
+    expect(within(posterSection).queryByRole("group", { name: "设定卡格式档" })).toBeNull();
+
+    // 点击派发格式档切换
+    fireEvent.click(within(selector).getByRole("button", { name: "无装备" }));
+    expect(onSheetCardFormatChange).toHaveBeenCalledWith("无装备");
+
+    // 无生成入口(选择器与生成钮同门)=不渲染
+    cleanup();
+    renderPane({
+      images: [],
+      sheetCardFormat: "全卡",
+      onSheetCardFormatChange,
+    });
+    expect(screen.queryByRole("group", { name: "设定卡格式档" })).toBeNull();
+  });
+
+  it("已占档打点如实标(界面不撒谎):已占档 title 注「再生成=替换该档」并带小点;空档无点", () => {
+    renderPane({
+      images: SHEET_IMAGES,
+      canTypeShot: true,
+      onTypeShot: vi.fn(),
+      onFillMissing: vi.fn(),
+      sheetCardFormat: "简版",
+      onSheetCardFormatChange: vi.fn(),
+    });
+
+    const selector = within(screen.getByRole("region", { name: "设定卡" })).getByRole("group", { name: "设定卡格式档" });
+    // 全卡(历史无格式段名归全卡槽)与无装备=已占
+    const occupiedFull = within(selector).getByRole("button", { name: "全卡" }) as HTMLButtonElement;
+    expect(occupiedFull.getAttribute("title")).toBe("全卡(已有,再生成=替换该档)");
+    expect(occupiedFull.querySelector("span.inline-block")).toBeTruthy();
+    const occupiedNoEquip = within(selector).getByRole("button", { name: "无装备" }) as HTMLButtonElement;
+    expect(occupiedNoEquip.getAttribute("title")).toBe("无装备(已有,再生成=替换该档)");
+    // 空档(竖版)无点无「已有」注
+    const empty = within(selector).getByRole("button", { name: "竖版" }) as HTMLButtonElement;
+    expect(empty.getAttribute("title")).toBe("生成竖版档");
+    expect(empty.querySelector("span.inline-block")).toBeNull();
+  });
+
+  it("busy 互斥:任一生成相位在跑=四选一禁点(与生成钮同闸)", () => {
+    renderPane({
+      images: [{ name: "主图", filePath: "role/main.png", url: "media://main" }],
+      canTypeShot: true,
+      onTypeShot: vi.fn(),
+      onFillMissing: vi.fn(),
+      sheetCardFormat: "全卡",
+      onSheetCardFormatChange: vi.fn(),
+      typeShotPhase: "generating",
+      typeShotMessage: "正在生成 主角 的设定卡...",
+    });
+    const selector = within(screen.getByRole("region", { name: "设定卡" })).getByRole("group", { name: "设定卡格式档" });
+    for (const format of ["全卡", "简版", "竖版", "无装备"]) {
+      expect((within(selector).getByRole("button", { name: format }) as HTMLButtonElement).disabled).toBe(true);
+    }
+  });
+});
+
 describe("10-26 人物海报画幅开关挪节头", () => {
   it("只挂「人物海报」节头(与生成钮同排),其他节零出现;点击回调切换", () => {
     const onToggle = vi.fn();

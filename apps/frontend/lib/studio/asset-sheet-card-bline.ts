@@ -4,6 +4,7 @@ import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import type { ImageCategory } from "@/lib/media/image-storage";
 import { readImageAsBase64 } from "@/lib/media/image-storage";
 import { saveGeneratedAssetImage, updateStoreWithResult } from "./asset-generation-store-writers";
+import { SHEET_CARD_FORMAT_DEFAULT, isSheetCardFormat, type SheetCardFormat } from "./asset-image-kind";
 import type { AssetTypeShotProgress } from "./asset-type-shot";
 
 /**
@@ -33,9 +34,13 @@ import type { AssetTypeShotProgress } from "./asset-type-shot";
  * - firing 子步账(进度=step i/14;server running+compose 相位=composing 派生态);
  *   任一子步失败→partial-failed(报错+续跑重入口);
  * - firing 全子步完→composing(程序合成秒级);合成失败→partial-failed(可续跑);
- * - composing 过 alpha/尺寸门禁→saving(4K 卡落盘);saving 收编完→done(单图替换清旧);
- * - saving 收编失败→failed(旧图不动:替换守卫=新卡合成+验收后才清旧,见
- *   replaceSheetCardKindImageAfterAcceptance,失败不动旧图);
+ * - composing 过 alpha/尺寸门禁→saving(4K 卡落盘);saving 收编完→done;
+ * - saving 收编次序(1122 C 接线,多张化解禁 PRD 11-22-asset-sheet-multi):先收编
+ *   验收→成功才清**该格式槽内**旧图(replaceSheetCardKindImageAfterAcceptance,
+ *   由派发层 executeTypeShot 接线调用);收编失败=failed,全槽旧图原位不动
+ *   (未过验收禁删;4K 整卡造价高,失败必须原位保留旧卡)。
+ *   注:多张纪律=格式四档各一槽(同档再生成=槽内替换,异档并存零干预),设定卡
+ *   已摘出 SINGLE_IMAGE_KINDS——本模块零清旧职责,清旧全在派发层守卫内;
  * - firing/composing 取消→cancelled(已落盘子步保留);
  * - App 重启/刷新:store 水合见非终态→partial-failed(poller 役「水合不归一 running」
  *   坑在档——非终态禁归 running,统一归一 partial-failed 保续跑口)。
@@ -50,8 +55,11 @@ export const SHEET_CARD_BLINE_LAYOUT = "qwen21-sheet-i2i";
 /** 提交模型名(server start_task 校验=qwen21.MODEL_NAME,与按型出图同渠道)。 */
 export const SHEET_CARD_BLINE_MODEL = "qwen-image-2-1";
 
-/** Composer 旋钮一期固定值(裁定D:全卡/纯白;格式注册表四档透出候后续令)。 */
-export const SHEET_CARD_FORMAT = "全卡";
+/**
+ * Composer 旋钮(1122 格式入参化,裁定D 后续令到岗):sheet_format 改 runSheetCardBLine
+ * 入参(四档真源 SHEET_CARD_FORMATS/缺省全卡住 asset-image-kind;UI 四选一见设定卡节
+ * 生成入口),本模块不再钉死常量;sheet_bg 一期仍固定纯白(bg 轴未开)。
+ */
 export const SHEET_CARD_BG = "纯白";
 
 /** 子步总数口径(server GENERATION_STEP_COUNT=14,转移表进度分母;轮询回报优先)。 */
@@ -447,6 +455,12 @@ export interface SheetCardBLineRunInput {
   subjectText: string;
   /** master 参考图(无衣物定妆图 url;裁定A)。 */
   masterImageUrl: string;
+  /**
+   * 格式档(1122 格式入参化,裁定A 四档各一槽):全卡/简版/竖版/无装备;缺省=全卡
+   * (真源首键缺省档契约)。透传 extra.sheet_format,并随派发层命名进格式段
+   * (`_设定卡_{格式}_中文日期`)与槽内替换过滤轴。
+   */
+  sheetFormat?: SheetCardFormat;
   projectId?: string;
   chapterId?: string;
   isDerivative?: boolean;
@@ -470,14 +484,19 @@ function describeSheetCardProgress(doc: SheetCardTaskDoc, record: SheetCardBLine
 /**
  * 设定卡 B 线整链执行(提交→轮询→取件→收编):进度走按型出图既有 progress 线
  * (firing/composing→generating+saving 相位,子步账进 message);产物落盘走
- * saveGeneratedAssetImage + updateStoreWithResult(与通用路同款);库内单图替换
- * (清旧)由派发层在收编验收后执行(替换守卫,见 replaceSheetCardKindImageAfterAcceptance)。
+ * saveGeneratedAssetImage + updateStoreWithResult(与通用路同款);库内格式槽清旧
+ * 由派发层在收编验收后执行(替换守卫 replaceSheetCardKindImageAfterAcceptance,
+ * 1122 C 接线——本层零清旧职责)。
  */
 export async function runSheetCardBLine(
   input: SheetCardBLineRunInput,
   onProgress?: (progress: AssetTypeShotProgress) => void,
 ): Promise<AssetTypeShotProgress> {
   const operationId = input.operationId ?? createOperationId("asset-sheet-card-bline");
+  // 格式档缺省全卡(真源首键契约);野值 fail-closed 落缺省(UI 边界已四选一约束)
+  const sheetFormat: SheetCardFormat = isSheetCardFormat(input.sheetFormat)
+    ? input.sheetFormat
+    : SHEET_CARD_FORMAT_DEFAULT;
   // 守卫(belt-and-braces:派发层已拦,service 层再拒一次——禁发车口径单一)
   if (!input.masterImageUrl) {
     return { phase: "failed", error: "设定卡B线缺少无衣物定妆 master 图——请先「生成无衣物定妆」(文生图)" };
@@ -516,6 +535,7 @@ export async function runSheetCardBLine(
         assetId: input.assetId,
         assetName: input.assetName,
         ...(resumeTaskId ? { resumeTaskId } : {}),
+        sheetFormat,
         subjectChars: input.subjectText.length,
         subjectFull: input.subjectText,
       },
@@ -528,7 +548,7 @@ export async function runSheetCardBLine(
         reference_image: masterDataUrl,
         extra: {
           角名: input.assetName,
-          sheet_format: SHEET_CARD_FORMAT,
+          sheet_format: sheetFormat,
           sheet_bg: SHEET_CARD_BG,
         },
         ...(resumeTaskId ? { taskId: resumeTaskId } : {}),
@@ -734,16 +754,22 @@ async function settleCancelled(
   };
 }
 
-// ─── R3 替换守卫 ──────────────────────────────────────────────────────────
+// ─── R3 替换守卫(1122 C 接线:executeTypeShot 设定卡路生产调用)────────────
 
 /**
- * 设定卡单图型替换守卫(R3,转移表 saving 行):新卡合成+验收后才清旧——先收编
- * (写资产库主图),收编成功才逐条清该型旧图;收编失败=旧图不动(未过验收禁删)。
- * 单条旧图删除失败不阻断(新卡已入库,残留旧图下轮再生成时再清——通用路同款纪律)。
- * 与通用路(先清旧再收编)次序相反:4K 整卡造价高,失败时旧卡必须原位保留。
+ * 设定卡格式槽替换守卫(R3,转移表 saving 行;1122 多张化解禁接线转正):新卡
+ * 合成+验收后才清旧——先收编(写资产库主图),收编成功才逐条清**该格式槽内**
+ * 旧图(槽过滤轴在调用方:sheetCardSlotReplacementFilePaths,同档清/异档零干预);
+ * 收编失败=全槽旧图原位不动(未过验收禁删)。单条旧图删除失败不阻断(新卡已入库,
+ * 残留旧图下轮再生成时再清——通用路同款纪律)。与通用路(先清旧再收编)次序相反:
+ * 4K 整卡造价高,失败时旧卡必须原位保留。
+ * stalePaths 两形态:数组=派发前算定的静态清单;函数=收编验收**后**惰性求值
+ * (PRD R3「按刷新库重算」——replace-image 收编会把旧主图归档进 images[] 且归档
+ * 名可带 `_2`,按收编后的刷新库名轴重算防漂移;求值仅发生在验收通过分支,
+ * 收编失败零求值零删除)。
  */
 export async function replaceSheetCardKindImageAfterAcceptance(input: {
-  stalePaths: readonly string[];
+  stalePaths: readonly string[] | (() => Promise<readonly string[]> | readonly string[]);
   saveToLibrary: () => Promise<boolean>;
   removeStale: (imageFilePath: string) => Promise<unknown>;
 }): Promise<boolean> {
@@ -752,7 +778,8 @@ export async function replaceSheetCardKindImageAfterAcceptance(input: {
     // 替换守卫:未过验收(收编失败)禁删旧图
     return false;
   }
-  for (const stalePath of input.stalePaths) {
+  const stalePaths = typeof input.stalePaths === "function" ? await input.stalePaths() : input.stalePaths;
+  for (const stalePath of stalePaths) {
     try {
       await input.removeStale(stalePath);
     } catch {

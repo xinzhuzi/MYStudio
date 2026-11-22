@@ -5,6 +5,8 @@ import {
   ASSET_IMAGE_KIND_ORDER,
   ASSET_IMAGE_KIND_SPECTRA,
   ASSET_IMAGE_KIND_ASPECTS,
+  SHEET_CARD_FORMATS,
+  SHEET_CARD_FORMAT_DEFAULT,
   asAssetImageTrack,
   CORE_ASSET_IMAGE_KINDS,
   EXTENDED_ASSET_IMAGE_KINDS,
@@ -12,6 +14,9 @@ import {
   classifyAssetImageName,
   getAssetImageKindSpectrum,
   groupAssetImagesByKind,
+  isSheetCardFormat,
+  sheetCardSlotFormatOfName,
+  sheetCardSlotReplacementFilePaths,
   SINGLE_IMAGE_KINDS,
   singleKindReplacementFilePaths,
 } from "./asset-image-kind";
@@ -253,25 +258,108 @@ describe("groupAssetImagesByKind · 按型谱节序分组", () => {
 
 
 describe("单图型集合与替换清扫(10-25 用户令:很多类型最多 1 张,再生成=替换)", () => {
-  it("集合=六型(点名三件+同类语义三件);多图型不在集合", () => {
-    for (const kind of ["无衣物定妆", "高清人头", "表情差分", "人脸基准", "设定卡", "美宣"]) {
+  it("集合=五型(1122 设定卡摘除,10-25 预埋扩展口到岗:多张纪律改走格式槽轴);多图型不在集合", () => {
+    for (const kind of ["无衣物定妆", "高清人头", "表情差分", "人脸基准", "美宣"]) {
       expect(SINGLE_IMAGE_KINDS.has(kind as AssetImageKind)).toBe(true);
     }
+    // 1122 多张化解禁(11-22 用户令「设定卡不止1张」):设定卡摘出=通用清旧归零,
+    // 节内多张并存;槽纪律(同档替换/异档零干预)见下方格式槽 describe
+    expect(SINGLE_IMAGE_KINDS.has("设定卡")).toBe(false);
     for (const kind of ["人物海报", "人物多视图", "自由", "场景", "道具"]) {
       expect(SINGLE_IMAGE_KINDS.has(kind as AssetImageKind)).toBe(false);
     }
   });
 
-  it("单图型清扫:返回该型全部 filePath(按 classify 三层归型);多图型恒空表", () => {
+  it("单图型清扫:返回该型全部 filePath(按 classify 三层归型);多图型恒空表;设定卡摘除后恒空表", () => {
     const images = [
       { name: "晏燎_高清大脸_v1", filePath: "role/f1.png" },
       { name: "晏燎_人脸_2026年10月25日", filePath: "role/f2.png", kind: "高清人头" as const },
       { name: "晏燎_表情差分_v1", filePath: "role/f3.png" },
       { name: "晏燎_金丹期_海报_v1", filePath: "role/p1.png" },
+      { name: "晏燎_设定卡_2026年11月20日", filePath: "role/s1.png" },
     ];
     expect(singleKindReplacementFilePaths(images, "高清人头")).toEqual(["role/f1.png", "role/f2.png"]);
     expect(singleKindReplacementFilePaths(images, "表情差分")).toEqual(["role/f3.png"]);
     // 多图型(海报分境界族)零干预
     expect(singleKindReplacementFilePaths(images, "人物海报")).toEqual([]);
+    // 1122 设定卡摘出:通用清旧路对设定卡归零(R1 堆图语义地基)
+    expect(singleKindReplacementFilePaths(images, "设定卡")).toEqual([]);
+  });
+});
+
+describe("设定卡格式槽轴(1122 多张化解禁,裁定A/D/E:四档各一槽+格式段命名+缺省归全卡)", () => {
+  it("四档真源对齐 sheet_card_formats.py formats_list:全卡恒首键=缺省档契约;简版/竖版/无装备", () => {
+    expect(SHEET_CARD_FORMATS).toEqual(["全卡", "简版", "竖版", "无装备"]);
+    expect(SHEET_CARD_FORMAT_DEFAULT).toBe("全卡");
+    expect(SHEET_CARD_FORMATS[0]).toBe(SHEET_CARD_FORMAT_DEFAULT);
+    expect(isSheetCardFormat("竖版")).toBe(true);
+    expect(isSheetCardFormat("无武器")).toBe(false); // 1114 用户令终名=无装备(任务书原写已修正)
+    expect(isSheetCardFormat(null)).toBe(false);
+  });
+
+  it("槽解析=格式段四键精确匹配;无格式段(历史名/归档 _2 名)缺省归全卡槽(裁定E 零迁移)", () => {
+    expect(sheetCardSlotFormatOfName("晏燎_设定卡_全卡_2026年11月22日")).toBe("全卡");
+    expect(sheetCardSlotFormatOfName("晏燎_设定卡_简版_2026年11月22日")).toBe("简版");
+    expect(sheetCardSlotFormatOfName("晏燎_设定卡_竖版_2026年11月22日")).toBe("竖版");
+    expect(sheetCardSlotFormatOfName("晏燎_设定卡_无装备_2026年11月22日")).toBe("无装备");
+    // 历史无格式段名(1121 前产物)归全卡槽
+    expect(sheetCardSlotFormatOfName("晏燎_设定卡_2026年11月21日")).toBe("全卡");
+    expect(sheetCardSlotFormatOfName("晏燎_设定卡")).toBe("全卡");
+    // 归档防撞 `_2` 名:格式段仍在(替换语义正确——归档旧主图同档一并清)
+    expect(sheetCardSlotFormatOfName("晏燎_设定卡_无装备_2026年11月20日_2")).toBe("无装备");
+    expect(sheetCardSlotFormatOfName("晏燎_设定卡_2026年11月20日_2")).toBe("全卡");
+    // 日期段(YYYY年MM月DD日)与四档键恒不撞
+    expect(sheetCardSlotFormatOfName("晏燎_设定卡_2026年11月22日")).toBe("全卡");
+  });
+
+  it("链式名(锚=旧卡名,名内含上一轮 _设定卡_{旧档}_ 标记)取最右格式段——同 classifyAssetImageName 10-25 深审修语义(复审阻塞②:首中判旧档→异档卡归错槽被同档清旧误删)", () => {
+    // 第二次起换档生成:锚名含旧档标记再拼新档(完成 setCurrentIndex(0) 后锚=新卡)
+    expect(sheetCardSlotFormatOfName("晏燎_设定卡_全卡_2026年11月20日_设定卡_竖版_2026年11月22日")).toBe("竖版");
+    expect(sheetCardSlotFormatOfName("晏燎_设定卡_简版_2026年11月21日_设定卡_无装备_2026年11月22日")).toBe("无装备");
+    expect(sheetCardSlotFormatOfName("晏燎_设定卡_竖版_2026年11月20日_设定卡_全卡_2026年11月22日")).toBe("全卡");
+    // 同档续产(全卡→全卡):最右仍全卡
+    expect(sheetCardSlotFormatOfName("晏燎_设定卡_全卡_2026年11月20日_设定卡_全卡_2026年11月22日")).toBe("全卡");
+    // 链式名+归档 _2 尾:最右段照常命中
+    expect(sheetCardSlotFormatOfName("晏燎_设定卡_全卡_2026年11月20日_设定卡_竖版_2026年11月22日_2")).toBe("竖版");
+    // 三代链(全卡→简版→无装备):最右=最近一次生成动作
+    expect(sheetCardSlotFormatOfName("晏燎_设定卡_全卡_2026年11月20日_设定卡_简版_2026年11月21日_设定卡_无装备_2026年11月22日")).toBe("无装备");
+  });
+
+  it("格式槽替换清扫:同档清/异档零干预/归型走 classify/排除新卡本体(R1 槽纪律)", () => {
+    const images = [
+      // 全卡槽×2(其一=收编后行级主图位=新卡本体,须排除)
+      { name: "晏燎_设定卡_全卡_2026年11月22日", filePath: "role/new.png", kind: "设定卡" as const },
+      { name: "晏燎_设定卡_2026年11月20日", filePath: "role/old-full.png" },
+      // 简版槽×1(异档,零干预)
+      { name: "晏燎_设定卡_简版_2026年11月21日", filePath: "role/simple.png" },
+      // 无装备槽×1+归档 _2 名同槽
+      { name: "晏燎_设定卡_无装备_2026年11月20日", filePath: "role/noequip.png" },
+      { name: "晏燎_设定卡_无装备_2026年11月19日_2", filePath: "role/noequip-old.png" },
+      // 链式名(锚=旧全卡卡名拼竖版新档):归竖版槽,全卡清扫不得误收(复审阻塞②)
+      { name: "晏燎_设定卡_全卡_2026年11月20日_设定卡_竖版_2026年11月22日", filePath: "role/chained.png" },
+      // 他型图零干预
+      { name: "晏燎_表情差分_v1", filePath: "role/f3.png" },
+    ];
+    // 同档(全卡)清扫=该槽全部旧图,排除新卡本体;链式名(最右=竖版)不进全卡清单
+    expect(sheetCardSlotReplacementFilePaths(images, "全卡", { excludeFilePath: "role/new.png" }))
+      .toEqual(["role/old-full.png"]);
+    expect(sheetCardSlotReplacementFilePaths(images, "简版")).toEqual(["role/simple.png"]);
+    // 链式名归最右档(竖版)槽——异档 4K 卡不被同档清旧路物理误删
+    expect(sheetCardSlotReplacementFilePaths(images, "竖版")).toEqual(["role/chained.png"]);
+    // 归档 _2 名同槽一并清(替换语义正确)
+    expect(sheetCardSlotReplacementFilePaths(images, "无装备")).toEqual(["role/noequip.png", "role/noequip-old.png"]);
+    // 同 filePath 去重(行级主图与 images[] 条目重复引用不双删;不排除时新卡本体也在列)
+    expect(sheetCardSlotReplacementFilePaths(
+      [...images, { name: "晏燎_设定卡_2026年11月20日", filePath: "role/old-full.png" }],
+      "全卡",
+    )).toEqual(["role/new.png", "role/old-full.png"]);
+  });
+
+  it("异档两张并存节内:分类表多条 _设定卡_ 标记归节天然支持(R1 验收面)", () => {
+    const groups = groupAssetImagesByKind([
+      { name: "晏燎_设定卡_全卡_2026年11月22日" },
+      { name: "晏燎_设定卡_无装备_2026年11月22日" },
+    ]);
+    expect(groups.get("设定卡")).toHaveLength(2);
   });
 });

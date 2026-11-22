@@ -16,10 +16,13 @@ import { Button } from "@/components/ui/button";
 import type { AssetImage, AssetImageKind, StudioAssetSummary } from "@/types/studio-assets";
 import {
   ASSET_IMAGE_KIND_ASPECTS,
+  SHEET_CARD_FORMATS,
   asAssetImageTrack,
   getAssetImageKindSpectrum,
   groupAssetImagesByKind,
+  sheetCardSlotFormatOfName,
   type AssetImageTrack,
+  type SheetCardFormat,
 } from "@/lib/studio/asset-image-kind";
 import { sortStageFirstThenInput } from "@/lib/studio/asset-stage-prompts";
 import { ASSET_TYPE_SHOT_PROFILES } from "@/lib/studio/asset-type-shot";
@@ -83,6 +86,11 @@ interface StudioAssetDetailPreviewPaneProps {
   posterLandscape?: boolean;
   /** 人物海报画幅切换(挂「人物海报」节头;未传不渲染)。 */
   onTogglePosterLandscape?: () => void;
+  /** 1122 设定卡格式档(多张化解禁,裁定B):当前选中档(缺省全卡);随设定卡节生成
+   *  入口四选一消费——仅设定卡节渲染选择器,未传不渲染。 */
+  sheetCardFormat?: SheetCardFormat;
+  /** 设定卡格式档切换(挂「设定卡」节头生成钮旁;已占档打点如实标)。 */
+  onSheetCardFormatChange?: (format: SheetCardFormat) => void;
   asset: StudioAssetSummary;
   images: AssetImage[];
   /** 全局单选图:当前选中位(原轮播 currentIndex 状态机迁移;完成切新图/删图夹回语义不变)。 */
@@ -175,6 +183,8 @@ export function StudioAssetDetailPreviewPane({
   completenessImages,
   posterLandscape,
   onTogglePosterLandscape,
+  sheetCardFormat,
+  onSheetCardFormatChange,
   canTypeShot = false,
   onTypeShot,
   typeShotPhase,
@@ -550,6 +560,43 @@ export function StudioAssetDetailPreviewPane({
     );
   };
 
+  /** 1122 设定卡格式档四选一(多张化解禁,裁定B:紧凑分段选择挂设定卡节既有生成
+   *  入口旁——零新面板零新路由,照 10-26 人物海报画幅开关同款节头钮语言;缺省
+   *  全卡=真源首键契约)。已占档打点(界面不撒谎):该档槽内已有卡=标签带小点,
+   *  title 如实注「再生成=替换该档」;选择随会话记忆,同档再生成=槽内替换、
+   *  异档并存(槽语义见 sheetCardSlotReplacementFilePaths)。 */
+  const renderSheetCardFormatSelector = () => {
+    const occupiedFormats = new Set(
+      (kindGroups.get("设定卡") ?? []).map(({ image }) => sheetCardSlotFormatOfName(image.name)),
+    );
+    return (
+      <div className="flex items-center gap-0.5" role="group" aria-label="设定卡格式档">
+        {SHEET_CARD_FORMATS.map((format) => {
+          const active = format === sheetCardFormat;
+          const occupied = occupiedFormats.has(format);
+          return (
+            <button
+              key={format}
+              type="button"
+              onClick={() => onSheetCardFormatChange?.(format)}
+              disabled={generationBusy}
+              aria-pressed={active}
+              title={occupied ? `${format}(已有,再生成=替换该档)` : `生成${format}档`}
+              className={
+                active
+                  ? "rounded-md border border-primary/50 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  : "rounded-md border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              }
+            >
+              {format}
+              {occupied ? <span aria-hidden="true" className="ml-0.5 inline-block h-1 w-1 rounded-full bg-current align-middle" /> : null}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
   const squareWidth = sectionCardWidthClass(null);
   // 批2 分类归节+Round 3 ⑤ 三轨取谱:全部图经 classifyAssetImage 三层解析按当前资产轨
   // 型谱分组(index=原下标,单选图/预览序列回调仍按全局序)——画廊分节/张数按展示序;
@@ -628,18 +675,25 @@ export function StudioAssetDetailPreviewPane({
                   ? renderTypeShotSectionButton(kind, typeShotProfile.route, busyTarget === busyKey.section(kind))
                   : undefined;
             // 10-26 人物海报画幅开关挪节头(用户令:功能对的,位置要在它管的型旁)
-            const sectionButtons = kind === "人物海报" && onTogglePosterLandscape
-              ? <>{baseSectionButtons}<button
-                  type="button"
-                  onClick={onTogglePosterLandscape}
-                  className={posterLandscape
-                    ? "rounded-md border border-primary/50 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
-                    : "rounded-md border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"}
-                  title={posterLandscape ? "当前横幅 16:9;点击切回竖幅 3:4(跟型)" : "当前竖幅 3:4(跟型);点击切横幅 16:9(选择全局记住)"}
-                >
-                  {posterLandscape ? "横幅 16:9" : "竖幅 3:4"}
-                </button></>
-              : baseSectionButtons;
+            // 1122 设定卡格式档四选一挂节头(裁定B:挂既有生成入口旁,选择器在场
+            //  条件与该节生成钮同门=型档案+canTypeShot+onTypeShot;缺省全卡)
+            const showSheetFormatSelector = kind === "设定卡"
+              && !!typeShotProfile && canTypeShot && !!onTypeShot
+              && sheetCardFormat !== undefined && !!onSheetCardFormatChange;
+            const sectionButtons = showSheetFormatSelector
+              ? <>{baseSectionButtons}{renderSheetCardFormatSelector()}</>
+              : kind === "人物海报" && onTogglePosterLandscape
+                ? <>{baseSectionButtons}<button
+                    type="button"
+                    onClick={onTogglePosterLandscape}
+                    className={posterLandscape
+                      ? "rounded-md border border-primary/50 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
+                      : "rounded-md border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"}
+                    title={posterLandscape ? "当前横幅 16:9;点击切回竖幅 3:4(跟型)" : "当前竖幅 3:4(跟型);点击切横幅 16:9(选择全局记住)"}
+                  >
+                    {posterLandscape ? "横幅 16:9" : "竖幅 3:4"}
+                  </button></>
+                : baseSectionButtons;
             return renderSection(
               kind,
               kind,

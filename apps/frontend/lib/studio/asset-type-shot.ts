@@ -5,6 +5,7 @@ import type { ImageCategory } from "@/lib/media/image-storage";
 import type { AssetImage, AssetImageKind } from "@/types/studio-assets";
 import { saveGeneratedAssetImage, updateStoreWithResult } from "./asset-generation-store-writers";
 import { SHEET_CARD_BLINE_KIND, runSheetCardBLine } from "./asset-sheet-card-bline";
+import type { SheetCardFormat } from "./asset-image-kind";
 import {
   ASSET_IMAGE_KIND_ASPECTS,
   ASSET_IMAGE_KIND_SPECTRA,
@@ -263,6 +264,9 @@ export interface AssetTypeShotTask {
    * 1121 B 线(设定卡)必填:竖线字段式主体句(设定卡槽优先,空=assets.prompt 立绘
    * 主体句透传,降级可跑——派发层 subjectChainText 同链解析后传入)。 */
   subjectText?: string;
+  /** 1122 格式入参化(设定卡 B 线):全卡/简版/竖版/无装备;缺省全卡(真源首键契约)。
+   *  透传 extra.sheet_format(引擎侧既有链路零 diff);非设定卡型忽略。 */
+  sheetFormat?: SheetCardFormat;
   /** 1121 B 线(设定卡):取消口(firing/composing 取消→cancelled,已落盘子步保留)。
    * 现役按钮族无停止钮(UI 零新增),服务端取消/引擎单发纪律经轮询 cancelled 落态。 */
   signal?: AbortSignal;
@@ -322,6 +326,7 @@ export async function generateAssetTypeShot(
         assetName: task.assetName,
         subjectText: (task.subjectText || "").trim(),
         masterImageUrl: task.referenceImage || "",
+        sheetFormat: task.sheetFormat,
         projectId: task.projectId,
         chapterId: task.chapterId,
         isDerivative: task.isDerivative,

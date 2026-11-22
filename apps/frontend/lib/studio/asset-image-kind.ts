@@ -144,13 +144,16 @@ export function asAssetImageTrack(type: StudioAssetKind): AssetImageTrack | unde
  * "等我以后扩展了再搞多张图"):这些型再生成=替换(生成成功先清该型旧图再收编),
  * 多图型(人物海报/人物多视图分境界族、自由、场景/道具族)不受限。以后某型要
  * 支持多张,从此集合摘除即恢复堆图语义。
+ * 1122 多张化解禁(11-22 用户令「设定卡不止1张」,10-25 预埋扩展口到岗):设定卡
+ * 摘出本集合——通用清旧路对设定卡归零(堆图语义地基),多张纪律改走格式槽轴
+ * (四档各一槽,同档再生成=槽内替换,槽语义见 sheetCardSlotReplacementFilePaths;
+ * PRD .trellis/tasks/11-22-asset-sheet-multi)。
  */
 export const SINGLE_IMAGE_KINDS: ReadonlySet<AssetImageKind> = new Set([
   "无衣物定妆",
   "高清人头",
   "表情差分",
   "人脸基准",
-  "设定卡",
   "美宣",
 ]);
 
@@ -167,6 +170,71 @@ export function singleKindReplacementFilePaths(
   return images
     .filter((image) => classifyAssetImage(image) === kind && image.filePath)
     .map((image) => image.filePath!);
+}
+
+// ─── 设定卡格式槽轴(1122 多张化解禁,PRD .trellis/tasks/11-22-asset-sheet-multi)───
+
+/**
+ * 设定卡格式四档(裁定A:格式四档各一张):书写序逐字对齐引擎注册表真源
+ * sheet_card_formats.py formats_list——「全卡」恒首键=缺省档契约(新增格式只能
+ * 尾部追加);简版/竖版(2160×3840)/无装备(1114 用户令,武器区+装备区全撤)。
+ * App 侧消费轴:产物名插格式段(R4 `_设定卡_{格式}_中文日期`)/同档再生成=槽内
+ * 替换(R1)/设定卡节生成入口四选一(R2)。
+ */
+export const SHEET_CARD_FORMATS = ["全卡", "简版", "竖版", "无装备"] as const;
+
+/** 格式档类型(四键字面量并集)。 */
+export type SheetCardFormat = (typeof SHEET_CARD_FORMATS)[number];
+
+/** 缺省档(=真源首键「全卡」契约;历史无格式段名同归此槽,裁定E 零迁移)。 */
+export const SHEET_CARD_FORMAT_DEFAULT: SheetCardFormat = "全卡";
+
+/** 格式档合法校验(UI 选择/持久边界值防野值)。 */
+export function isSheetCardFormat(value: unknown): value is SheetCardFormat {
+  return typeof value === "string" && (SHEET_CARD_FORMATS as readonly string[]).includes(value);
+}
+
+/**
+ * 产物名→格式槽解析(R4):`_设定卡_{格式}_` 四键匹配取**最右**标记;无格式段
+ * (含归档 `_2` 名与历史名)缺省归全卡槽(与缺省档契约同构)。日期段为
+ * `YYYY年MM月DD日` 形,与四档键(仅四个中文词)恒不撞;四键互不为子串。
+ * 最右标记=classifyAssetImageName 10-25 深审修同款语义:设定卡命名锚=轮播当前
+ * 图名(actions inputImageName),锚名常含上一轮 `_设定卡_{旧档}_` 标记,链式名
+ * `…_设定卡_{F1}_日期_设定卡_{F2}_日期` 首中会判成旧档 F1(异档卡归错槽→被同档
+ * 清旧路物理误删),最右=最近一次生成动作的格式档,链式语义恒对。
+ */
+export function sheetCardSlotFormatOfName(name: string): SheetCardFormat {
+  let best: SheetCardFormat | null = null;
+  let bestAt = -1;
+  for (const format of SHEET_CARD_FORMATS) {
+    const at = name.lastIndexOf(`_设定卡_${format}_`);
+    if (at > bestAt) {
+      bestAt = at;
+      best = format;
+    }
+  }
+  return best ?? SHEET_CARD_FORMAT_DEFAULT;
+}
+
+/**
+ * 格式槽替换清扫(1122 槽纪律,R1):设定卡已摘出 SINGLE_IMAGE_KINDS(通用清旧
+ * 归零),同档再生成=仅清该档槽内旧图(异档零干预);归型走 classifyAssetImage
+ * 三层解析(与展示节同口径),槽归属按名内格式段(sheetCardSlotFormatOfName)。
+ * excludeFilePath=收编验收后按刷新库重算时排除新卡本体(行级主图位)。
+ */
+export function sheetCardSlotReplacementFilePaths(
+  images: ReadonlyArray<Pick<AssetImage, "name" | "kind" | "filePath">>,
+  format: SheetCardFormat,
+  options?: { excludeFilePath?: string },
+): string[] {
+  const paths = new Set<string>();
+  for (const image of images) {
+    if (!image.filePath || image.filePath === options?.excludeFilePath) continue;
+    if (classifyAssetImage(image) !== "设定卡") continue;
+    if (sheetCardSlotFormatOfName(image.name) !== format) continue;
+    paths.add(image.filePath);
+  }
+  return [...paths];
 }
 
 /**

@@ -46,7 +46,14 @@ import {
   type FamilyDisplayImageEntry,
   type FamilyImageEntry,
 } from "@/lib/studio/asset-family-images";
-import { ASSET_IMAGE_KIND_ASPECTS, asAssetImageTrack, classifyAssetImage, getAssetImageKindSpectrum } from "@/lib/studio/asset-image-kind";
+import {
+  ASSET_IMAGE_KIND_ASPECTS,
+  SHEET_CARD_FORMAT_DEFAULT,
+  asAssetImageTrack,
+  classifyAssetImage,
+  getAssetImageKindSpectrum,
+  type SheetCardFormat,
+} from "@/lib/studio/asset-image-kind";
 import { parsePromptOverrides } from "@/lib/studio/asset-prompt-layers";
 import {
   buildFinalDraftCandidates,
@@ -295,6 +302,10 @@ export function StudioAssetDetailView({
     try { window.localStorage.setItem("studio-asset-poster-landscape", next ? "1" : "0"); } catch { /* 无痕/受限环境静默 */ }
     return next;
   });
+  // 1122 设定卡格式档(多张化解禁,裁定B):会话级选择(缺省全卡=真源首键契约),
+  // 设定卡节生成入口四选一消费;同档再生成=槽内替换/异档并存(槽语义在 actions
+  // executeTypeShot C 守卫内)。不持久化(会话偏好,照 selectedStage 同款口径)。
+  const [sheetCardFormat, setSheetCardFormat] = useState<SheetCardFormat>(SHEET_CARD_FORMAT_DEFAULT);
   // 指令卡编辑态开合(作用于当前 focusKind;置焦/清焦即收;值位随构成区砍除退役)
   const [, setInstructionEditOpen] = useState(false);
   // ③ 实发终稿(A-2③):探针态+弹层目标(弹层目标亦承载 B-3 查词,共用壳)
@@ -903,7 +914,12 @@ export function StudioAssetDetailView({
     // 参考图锚定用;「无」=不带阶段,既有行为)。人脸双钮/表情差分/重掷不经此包装。
     // 1120 按钮态精修:节头钮调用缺省 busyTargetKey(undefined=actions 侧落
     // section:<kind> 键);占位 CTA 入口显式传 placeholder:<kind>(候裁2 CTA 自转)。
-    dispatchTypeShot(kind, { stage: selectedStage ?? undefined, busyTargetKey: options?.busyTargetKey });
+    // 1122 格式入参化:设定卡四选一值随派发透传(命名格式段/B线 extra/槽内替换轴)。
+    dispatchTypeShot(kind, {
+      stage: selectedStage ?? undefined,
+      busyTargetKey: options?.busyTargetKey,
+      ...(kind === "设定卡" ? { sheetFormat: sheetCardFormat } : {}),
+    });
   };
   if (!asset) return null;
 
@@ -994,6 +1010,9 @@ export function StudioAssetDetailView({
     completenessImages={images}
     posterLandscape={posterLandscape}
     onTogglePosterLandscape={togglePosterLandscape}
+    /* 1122 设定卡格式档四选一(缺省全卡;节头生成入口旁紧凑选择,已占档打点) */
+    sheetCardFormat={sheetCardFormat}
+    onSheetCardFormatChange={setSheetCardFormat}
     currentIndex={currentIndex}
     onSelectImage={setCurrentIndex}
     spokenText={spokenText}

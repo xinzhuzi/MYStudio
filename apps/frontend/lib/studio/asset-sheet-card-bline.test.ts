@@ -4,12 +4,12 @@ import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import { ensureLocalImageSidecarRunning } from "@/lib/ai/image-generation-engine";
 import { readImageAsBase64 } from "@/lib/media/image-storage";
 import { saveGeneratedAssetImage, updateStoreWithResult } from "./asset-generation-store-writers";
+import { SHEET_CARD_FORMATS, SHEET_CARD_FORMAT_DEFAULT } from "./asset-image-kind";
 import {
   SHEET_CARD_BLINE_KIND,
   SHEET_CARD_BLINE_LAYOUT,
   SHEET_CARD_BLINE_MODEL,
   SHEET_CARD_BG,
-  SHEET_CARD_FORMAT,
   SHEET_CARD_TOTAL_STEPS,
   clearSheetCardBLineRecord,
   evaluateSheetCardGate,
@@ -213,7 +213,8 @@ describe("提交契约面(PRD R1 payload;对齐 sidecar 实盘)", () => {
       model: SHEET_CARD_BLINE_MODEL,
       prompt: "北境剑修|玄色长衣|背负旧债",
       reference_image: "data:image/png;base64,TUFTVEVS",
-      extra: { 角名: "晏燎", sheet_format: SHEET_CARD_FORMAT, sheet_bg: SHEET_CARD_BG },
+      // 1122 格式入参化:缺省=全卡(SHEET_CARD_FORMAT 常量已退役,SHEET_CARD_FORMAT_DEFAULT=真源首键)
+      extra: { 角名: "晏燎", sheet_format: SHEET_CARD_FORMAT_DEFAULT, sheet_bg: SHEET_CARD_BG },
     });
     expect(submit.headers?.Authorization).toBe("Bearer test-local-token");
     expect(onProgress).toHaveBeenNthCalledWith(1, { phase: "generating", message: expect.stringContaining("正在提交 晏燎 的设定卡B线任务") });
@@ -222,6 +223,26 @@ describe("提交契约面(PRD R1 payload;对齐 sidecar 实盘)", () => {
     expect(SHEET_CARD_BLINE_LAYOUT).toBe("qwen21-sheet-i2i");
     expect(SHEET_CARD_BLINE_KIND).toBe("设定卡");
     expect(SHEET_CARD_TOTAL_STEPS).toBe(14);
+  });
+
+  it("1122 格式入参化(R2):sheetFormat 四档逐档透传 extra.sheet_format;野值 fail-closed 落缺省全卡", async () => {
+    for (const format of SHEET_CARD_FORMATS) {
+      const { calls } = installFetchRouter({
+        polls: [taskDoc({ status: "cancelled" })],
+        cancelResponse: { cancelled: true, reason: "forwarded" },
+      });
+      await runSheetCardBLine(baseInput({ sheetFormat: format }));
+      const submit = calls.find((call) => call.method === "POST" && call.url.endsWith("/v1/images/sheet-i2i"))!;
+      expect((submit.body as { extra: { sheet_format: string } }).extra.sheet_format).toBe(format);
+    }
+    // 野值(非四档)不透传原值,落缺省档(单一真源首键契约)
+    const { calls } = installFetchRouter({
+      polls: [taskDoc({ status: "cancelled" })],
+      cancelResponse: { cancelled: true, reason: "forwarded" },
+    });
+    await runSheetCardBLine(baseInput({ sheetFormat: "无武器" as never }));
+    const submit = calls.find((call) => call.method === "POST" && call.url.endsWith("/v1/images/sheet-i2i"))!;
+    expect((submit.body as { extra: { sheet_format: string } }).extra.sheet_format).toBe("全卡");
   });
 
   it("master 受管协议走 studioAssets 桥转 data URL(桥失败回落 readImageAsBase64)", async () => {
@@ -483,7 +504,7 @@ describe("水合归一(poller 役坑:非终态禁归 running,统一 partial-fail
   });
 });
 
-describe("R3 替换守卫(转移表 saving 行:新卡合成+验收后才清旧,失败不动旧图)", () => {
+describe("R3 替换守卫(转移表 saving 行:新卡合成+验收后才清旧,失败不动旧图;1122 C 接线转正=生产语义)", () => {
   it("收编失败=旧图零删除(未过验收禁删)", async () => {
     const removeStale = vi.fn();
     const saved = await replaceSheetCardKindImageAfterAcceptance({
@@ -508,6 +529,38 @@ describe("R3 替换守卫(转移表 saving 行:新卡合成+验收后才清旧,�
     expect(removeStale).toHaveBeenCalledTimes(2);
     expect(removeStale).toHaveBeenNthCalledWith(1, "role/old-1.png");
     expect(removeStale).toHaveBeenNthCalledWith(2, "role/old-2.png");
+  });
+
+  it("1122 惰性收集(生产接线形态):stalePaths 函数在收编验收**后**才求值——收编失败零求值(刷新库重算不跑)", async () => {
+    // 收编失败:收集器零调用(未过验收连槽重算都不必跑)
+    const collectRejected = vi.fn(async () => ["role/old.png"]);
+    const removeStale = vi.fn();
+    await replaceSheetCardKindImageAfterAcceptance({
+      stalePaths: collectRejected,
+      saveToLibrary: async () => false,
+      removeStale,
+    });
+    expect(collectRejected).not.toHaveBeenCalled();
+    expect(removeStale).not.toHaveBeenCalled();
+
+    // 收编成功:收集器恰在 save 之后求值一次,清收集结果(按刷新库重算的同槽旧图)
+    const order: string[] = [];
+    const collectAccepted = vi.fn(async () => {
+      order.push("collect");
+      return ["role/slot-old.png"];
+    });
+    await replaceSheetCardKindImageAfterAcceptance({
+      stalePaths: collectAccepted,
+      saveToLibrary: async () => {
+        order.push("save");
+        return true;
+      },
+      removeStale: async (imageFilePath) => {
+        order.push(`remove:${imageFilePath}`);
+      },
+    });
+    expect(order).toEqual(["save", "collect", "remove:role/slot-old.png"]);
+    expect(collectAccepted).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -870,3 +870,34 @@ describe("图生图·画风转换(10-19-daojie-ui-i2i-style-convert:i2iPhase 状
     expect(source).toContain("Asset style transfer guard rejected (no reference image)");
   });
 });
+
+describe("1122 设定卡多张化解禁(裁定A/B/C/D:格式槽轴+守卫接线源序契约;PRD 11-22-asset-sheet-multi)", () => {
+  it("C 守卫接线转正:设定卡路 replaceSheetCardKindImageAfterAcceptance 生产调用(先收编验收→才清该格式槽内旧图)", () => {
+    const source = readDialogSources();
+    // 守卫生产接线在场(1122 前生产零调用=模块头注释撒谎,随役消解)
+    expect(source).toContain("replaceSheetCardKindImageAfterAcceptance({");
+    // 槽清旧=收编验收后按刷新库重算(惰性收集)+排除新卡本体行级主图位
+    expect(source).toContain("stalePaths: async () => {");
+    expect(source).toContain("sheetCardSlotReplacementFilePaths(");
+    expect(source).toContain("excludeFilePath: refreshed.filePath");
+    // 收编在守卫内(saveToLibrary 回调,次序由守卫单测钉:save→collect→remove)
+    expect(source).toContain("saveToLibrary: () => saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, resultImageName)");
+  });
+
+  it("通用替换纪律零动:其余五单图型先清旧后收编(singleKindReplacementFilePaths 原路保留)", () => {
+    const source = readDialogSources();
+    expect(source).toContain("for (const stalePath of singleKindReplacementFilePaths(images, kind))");
+  });
+
+  it("格式参数贯穿派发(R2/B):View 会话态→handleTypeShot→executeTypeShot 命名+B线透传", () => {
+    const source = readDialogSources();
+    // View:会话级格式档(缺省全卡)+派发透传(仅设定卡)
+    expect(source).toContain("const [sheetCardFormat, setSheetCardFormat] = useState<SheetCardFormat>(SHEET_CARD_FORMAT_DEFAULT)");
+    expect(source).toContain('...(kind === "设定卡" ? { sheetFormat: sheetCardFormat } : {})');
+    expect(source).toContain("sheetCardFormat={sheetCardFormat}");
+    expect(source).toContain("onSheetCardFormatChange={setSheetCardFormat}");
+    // executeTypeShot:D 命名插格式段+B线发车带格式(引擎 extra.sheet_format 链路既有)
+    expect(source).toContain("${inputImageName}_${kind}_${sheetFormat}_${dateSuffix}");
+    expect(source).toContain("...(kind === SHEET_CARD_BLINE_KIND ? { sheetFormat } : {})");
+  });
+});

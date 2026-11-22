@@ -17,7 +17,10 @@ import { generateAsset } from "@/lib/studio/asset-generation-orchestrator";
 import { generateAssetStyleTransferImage } from "@/lib/studio/asset-style-transfer";
 import { FACE_I2I_INSTRUCTION, generateAssetFacePortrait, type AssetFacePortraitMode } from "@/lib/studio/asset-face-portrait";
 import { EXPRESSION_I2I_INSTRUCTION, generateAssetExpressionSheet } from "@/lib/studio/asset-expression-sheet";
-import { SHEET_CARD_BLINE_KIND } from "@/lib/studio/asset-sheet-card-bline";
+import {
+  SHEET_CARD_BLINE_KIND,
+  replaceSheetCardKindImageAfterAcceptance,
+} from "@/lib/studio/asset-sheet-card-bline";
 import { generateAssetTypeShot, getAssetTypeShotProfile, planAssetTypeFillMissingQueue } from "@/lib/studio/asset-type-shot";
 import { rerollAssetImageFromPromptText } from "@/lib/studio/asset-prompt-reroll";
 import {
@@ -27,7 +30,13 @@ import {
 } from "@/lib/studio/asset-family-images";
 import { asAssetImageTrack, classifyAssetImage, getAssetImageKindSpectrum } from "@/lib/studio/asset-image-kind";
 import { buildStageTypeShotImageName, extractStageName } from "@/lib/studio/asset-stage-prompts";
-import { latestKindImage, singleKindReplacementFilePaths } from "@/lib/studio/asset-image-kind";
+import {
+  SHEET_CARD_FORMAT_DEFAULT,
+  latestKindImage,
+  sheetCardSlotReplacementFilePaths,
+  singleKindReplacementFilePaths,
+  type SheetCardFormat,
+} from "@/lib/studio/asset-image-kind";
 import type { AssetImageKind } from "@/types/studio-assets";
 import { getAssetImageOpenTarget, getAssetOperationError, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 import { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
@@ -1196,10 +1205,14 @@ export function useStudioAssetDialogActions(ctx: {
    * 人脸双钮/表情差分/重掷/一键补缺队列不带阶段(PRD §3.3,无阶段语义)。 */
   const executeTypeShot = async (
     kind: AssetImageKind,
-    options?: { managedLane?: boolean; stage?: string; busyTargetKey?: string },
+    options?: { managedLane?: boolean; stage?: string; busyTargetKey?: string; sheetFormat?: SheetCardFormat },
   ): Promise<boolean> => {
     const managedLane = options?.managedLane !== false;
     const stage = options?.stage?.trim() || undefined;
+    // 1122 格式入参化(设定卡多张化解禁,裁定A/B/D):四选一值随派发透传——命名插
+    // 格式段(R4)/B 线 extra.sheet_format(R2)/同档槽内替换过滤轴(R1);缺省全卡
+    // (真源首键契约,非设定卡型忽略)
+    const sheetFormat = options?.sheetFormat ?? SHEET_CARD_FORMAT_DEFAULT;
     const profile = getAssetTypeShotProfile(kind);
     const operationId = createOperationId("asset-type-shot");
     void logEvent({
@@ -1215,6 +1228,7 @@ export function useStudioAssetDialogActions(ctx: {
         assetName: asset.name,
         currentIndex,
         ...(stage ? { stage } : {}),
+        ...(kind === SHEET_CARD_BLINE_KIND ? { sheetFormat } : {}),
       },
     });
     if (!profile) {
@@ -1346,12 +1360,16 @@ export function useStudioAssetDialogActions(ctx: {
     // 命名沿 10-19「废主图名号」令:i2i=原图名_{型名}_中文日期;t2i=资产名_{型名}_中文日期
     // T3(10-25 阶段矩阵):带阶段时改 资产名_{阶段}_{型名}_中文日期(T1 命名器;两路同款,
     // 不再锚轮播图名——防旧图名内陈旧标记链式繁殖,产物归组归型由 T1 测试钉)
+    // 1122 R4(设定卡多张化):设定卡插格式段 `_设定卡_{格式}_中文日期`——同日异档
+    // 不重名+格式槽解析真源(无格式段历史名缺省归全卡槽,裁定E)
     const inputImageName = profile.route === "i2i" ? (carouselImages[currentIndex]?.name || asset.name) : asset.name;
     const now = new Date();
     const dateSuffix = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, "0")}月${String(now.getDate()).padStart(2, "0")}日`;
     const resultImageName = stage
       ? buildStageTypeShotImageName(asset.name, stage, profile.kind, dateSuffix)
-      : `${inputImageName}_${kind}_${dateSuffix}`;
+      : kind === SHEET_CARD_BLINE_KIND
+        ? `${inputImageName}_${kind}_${sheetFormat}_${dateSuffix}`
+        : `${inputImageName}_${kind}_${dateSuffix}`;
     if (managedLane) {
       setTypeShotPhase("generating");
       setTypeShotMessage(`正在生成 ${asset.name} 的${kind}...`);
@@ -1379,6 +1397,8 @@ export function useStudioAssetDialogActions(ctx: {
           track,
           referenceImage,
           subjectText,
+          // 1122 格式入参化:设定卡 B 线透传 extra.sheet_format(引擎侧链路既有零 diff)
+          ...(kind === SHEET_CARD_BLINE_KIND ? { sheetFormat } : {}),
           // 追加令·i2i 指令可编辑:会话级覆盖优先,空=型档案固定指令(既有零变)
           ...(instructionOverrideText ? { instructionOverride: instructionOverrideText } : {}),
           // 10-26 横竖皆可(人物海报裁定):会话级取向开→横幅手动画幅
@@ -1401,12 +1421,40 @@ export function useStudioAssetDialogActions(ctx: {
         }
         // 1121 失败持久态:该型成功即清失败红态(own 键控,他型失败态不受扰)
         setTypeShotFailure?.((prev) => (prev?.kind === kind ? null : prev));
-        // 10-25 用户令·单图型替换:生成成功先清该型旧图再收编(桥缺席/单条删除失败
-        // 不阻断收编——新图照入库,残留旧图下轮再生成时再清)
-        for (const stalePath of singleKindReplacementFilePaths(images, kind)) {
-          await getStudioAssetsBridge()?.removeImage?.({ assetId: asset.id, imageFilePath: stalePath });
+        // 单图型替换清扫(10-25 用户令):生成成功先清该型旧图再收编(桥缺席/单条删除
+        // 失败不阻断收编——新图照入库,残留旧图下轮再生成时再清)。
+        // 1122 C 守卫接线(设定卡路次序特化,多张化解禁 PRD 11-22-asset-sheet-multi):
+        // 设定卡已摘出 SINGLE_IMAGE_KINDS(通用清旧归零),改**先收编验收→成功才清
+        // 该格式槽内旧图**(replaceSheetCardKindImageAfterAcceptance 生产转正;槽清旧
+        // 在收编后按刷新库重算——replace-image 收编把旧主图归档进 images[] 且归档名
+        // 可带 _2,按收编后名轴重算防漂移,排除新卡本体行级主图位;收编失败=全槽
+        // 旧图原位不动,4K 整卡造价高未过验收禁删)。
+        let savedToLibrary: boolean;
+        if (kind === SHEET_CARD_BLINE_KIND) {
+          savedToLibrary = await replaceSheetCardKindImageAfterAcceptance({
+            stalePaths: async () => {
+              const refreshed = await getStudioAssetsBridge()?.get?.(asset.id);
+              if (!refreshed) return [];
+              return sheetCardSlotReplacementFilePaths(
+                [
+                  ...(refreshed.filePath ? [{ name: resultImageName, kind, filePath: refreshed.filePath }] : []),
+                  ...(refreshed.images ?? []),
+                ],
+                sheetFormat,
+                { excludeFilePath: refreshed.filePath },
+              );
+            },
+            saveToLibrary: () => saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, resultImageName),
+            removeStale: async (imageFilePath) => {
+              await getStudioAssetsBridge()?.removeImage?.({ assetId: asset.id, imageFilePath });
+            },
+          });
+        } else {
+          for (const stalePath of singleKindReplacementFilePaths(images, kind)) {
+            await getStudioAssetsBridge()?.removeImage?.({ assetId: asset.id, imageFilePath: stalePath });
+          }
+          savedToLibrary = await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, resultImageName);
         }
-        const savedToLibrary = await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, resultImageName);
         // 广播资产库更新:提取区 chip 颜色等依赖资产库缓存的面据此自动刷新
         eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
         // R5 结果回调捕获位:updated.filePath=新产物主图(仅 savedToLibrary 才带给弹窗读 tEXt)
@@ -1508,12 +1556,19 @@ export function useStudioAssetDialogActions(ctx: {
 
   /** 按型出图公共入口(节头钮/下拉/占位卡 CTA/完整度缺失 chip):五路互斥统一守卫
    *  在跑直返(按钮已禁,双保险;复审 H 修=全相位,非仅自家 typeShotPhase)。
-   *  T3(10-25 阶段矩阵):options.stage 透传 executeTypeShot(命名/参考图锚定语义)。 */
-  const runTypeShot = async (kind: AssetImageKind, options?: { stage?: string; busyTargetKey?: string }): Promise<boolean> => {
+   *  T3(10-25 阶段矩阵):options.stage 透传 executeTypeShot(命名/参考图锚定语义)。
+   *  1122 格式入参化:options.sheetFormat 透传(仅设定卡消费,四选一值)。 */
+  const runTypeShot = async (
+    kind: AssetImageKind,
+    options?: { stage?: string; busyTargetKey?: string; sheetFormat?: SheetCardFormat },
+  ): Promise<boolean> => {
     if (isAnyGenerationLaneBusy()) return false;
     return executeTypeShot(kind, options);
   };
-  const handleTypeShot = (kind: AssetImageKind, options?: { stage?: string; busyTargetKey?: string }) => {
+  const handleTypeShot = (
+    kind: AssetImageKind,
+    options?: { stage?: string; busyTargetKey?: string; sheetFormat?: SheetCardFormat },
+  ) => {
     void runTypeShot(kind, options);
   };
 
