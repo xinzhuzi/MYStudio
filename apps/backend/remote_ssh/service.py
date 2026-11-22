@@ -1401,7 +1401,7 @@ class SSHService:
                 note = self._patch_win_engine_ledger(win_path, latest, deadline, shas[-1])
                 return self._sync_result(
                     name, kind, mac_head, shas[-1], "skipped", True,
-                    f"已是最新 release({latest}),跳过" + (f" | {note}" if note else ""),
+                    f"已是最新 release({latest})" + (f" | {note}" if note else ""),
                 )
             action = "pulled"
             code, out = self.run_remote_command(
@@ -1433,7 +1433,8 @@ class SSHService:
                 if len(lines) >= 2 and lines[-2] == lines[-1]:
                     return self._sync_result(
                         name, kind, mac_head, lines[-1], "skipped", True,
-                        "已是最新(HEAD=origin/HEAD),跳过",
+                        # 1122 用户裁定:一致=成功态,措辞显「已是最新」不显「跳过」
+                        "已是最新(与 GitHub 一致)",
                     )
             elif "not a git repository" in head_out:
                 # Win 独有的手工件(zip 直装非 git 仓):拉不了也不算失败,诚实跳过

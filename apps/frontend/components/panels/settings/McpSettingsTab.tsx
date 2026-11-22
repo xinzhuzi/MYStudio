@@ -2440,7 +2440,14 @@ export function McpSettingsTab() {
                                         data-testid="engine-sync-progress"
                                       >
                                         {progress.action === "skipped"
-                                          ? "⏭️ 跳过"
+                                          ? /* 1122 用户裁定:一致=成功态,
+                                               显「已是最新」不显「跳过」;
+                                               真跳过(非 git 仓等)保留 ⏭️ */
+                                            (progress.error ?? "").includes(
+                                              "已是最新",
+                                            )
+                                            ? "✅ 已是最新"
+                                            : "⏭️ 跳过"
                                           : progress.action === "failed" ||
                                               !progress.verified
                                             ? "❌ 失败"
@@ -2510,7 +2517,9 @@ export function McpSettingsTab() {
                           <span className="shrink-0">
                             {result.action === "failed" || !result.verified
                               ? "❌"
-                              : result.action === "skipped"
+                              : /* 1122 用户裁定:一致=成功态(✅),真跳过才 ⏭️ */
+                                result.action === "skipped" &&
+                                  !(result.error ?? "").includes("已是最新")
                                 ? "⏭️"
                                 : "✅"}
                           </span>
