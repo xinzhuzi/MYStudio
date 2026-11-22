@@ -80,19 +80,47 @@ OUT = 'E:/IP/\u6f2b\u5f71\u5de5\u4f5c\u5ba4/comfyui/output'
 CWD = 'E:/IP/\u6f2b\u5f71\u5de5\u4f5c\u5ba4/comfyui/ComfyUI'
 LOG = 'E:/IP/\u6f2b\u5f71\u5de5\u4f5c\u5ba4/comfyui/logs/engine.log'
 log = open(LOG, 'ab')
+def _win_user_profile():
+    """1123 可移植化:显式 env > 当前用户轮廓 > SYSTEM 域反查(漫影工作室标记唯一命中)。
+
+    boot 任务 EngineDurableBootSys 以 SYSTEM 跑,该域 USERPROFILE 恒指
+    systemprofile,不能直接当真实用户轮廓;反查不唯一时退回原值(fail-soft)。
+    """
+    override = os.environ.get('MYSTUDIO_WIN_USERPROFILE', '').strip()
+    if override:
+        return override.rstrip('\\/')
+    home = os.path.expanduser('~').rstrip('\\/')
+    if '\\system32\\config\\systemprofile' not in (home + '\\').lower():
+        return home
+    users_root = os.path.join(os.environ.get('SystemDrive', 'C:') + os.sep, 'Users')
+    try:
+        hits = [
+            os.path.join(users_root, name)
+            for name in os.listdir(users_root)
+            if os.path.isdir(os.path.join(users_root, name, 'AppData', 'Roaming',
+                                          '\u6f2b\u5f71\u5de5\u4f5c\u5ba4'))
+        ]
+    except OSError:
+        return home
+    return hits[0] if len(hits) == 1 else home
+
+
+USER_PROFILE = _win_user_profile()
+_LOCALAPPDATA = os.path.join(USER_PROFILE, 'AppData', 'Local')
 env = dict(os.environ)
-env['TEMP'] = r'C:\Users\ZBJ\AppData\Local\Temp'
-env['TMP'] = r'C:\Users\ZBJ\AppData\Local\Temp'
-env['USERPROFILE'] = r'C:\Users\ZBJ'
-env['LOCALAPPDATA'] = r'C:\Users\ZBJ\AppData\Local'
+env['TEMP'] = os.path.join(_LOCALAPPDATA, 'Temp')
+env['TMP'] = env['TEMP']
+env['USERPROFILE'] = USER_PROFILE
+env['LOCALAPPDATA'] = _LOCALAPPDATA
 env.setdefault('SYSTEMROOT', r'C:\Windows')
 # T13(10-29) MyShot 回写出口:注入 bridge env,对齐 engine_manager launch_env
 # (MYSTUDIO_BRIDGE_URL/MYSTUDIO_BRIDGE_TOKEN 同款注入;令牌单源=sidecar
 # config.json controlToken,electron main getControlToken 落盘的装机 UUID;env
 # MANYING_LOCAL_IMAGE_TOKEN 优先,双缺=空串 fail-closed,与 repo
 # bridge_contract.resolve_bridge_token 同序;本文件零令牌字面量)。
-SIDECAR_CONFIG = ('C:/Users/ZBJ/AppData/Roaming/'
-                  '\u6f2b\u5f71\u5de5\u4f5c\u5ba4/python/profiles/image-gen/config.json')
+SIDECAR_CONFIG = os.path.join(USER_PROFILE, 'AppData', 'Roaming',
+                              '\u6f2b\u5f71\u5de5\u4f5c\u5ba4', 'python', 'profiles',
+                              'image-gen', 'config.json')
 
 
 def _bridge_token():
