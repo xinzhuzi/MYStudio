@@ -12,6 +12,7 @@
 seed=2100+i 逐型定值。产物=apps/output/h3image-smoke-1112/daojie14/。
 """
 from __future__ import annotations
+import os
 
 import json
 import re
@@ -21,7 +22,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 BASES = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
 EXAMPLES = REPO / "docs/prompts/道劫_类型主体句示例.md"
 OUT = REPO / "apps/output/h3image-smoke-1112/daojie14"

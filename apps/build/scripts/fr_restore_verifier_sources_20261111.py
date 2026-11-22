@@ -1,3 +1,4 @@
+import os
 """Recover only source-proven missing verification scripts; never execute them.
 
 The session is parsed as JSONL and JavaScript quoted literals, without eval.
@@ -14,7 +15,7 @@ import re
 ROOT = Path(__file__).resolve().parents[3]
 RESEARCH = ROOT / '.trellis/tasks/10-27-script-narrative-translation-cure/research'
 EVIDENCE = RESEARCH / 'verification-script-recovery-20261111'
-SESSION = Path('/Users/zhengbingjin/.codex/sessions/2026/11/10/rollout-2026-11-10T12-51-38-01a1c3cb-f6ca-7763-80e2-d84b40dd8066_01a1c3cc-26fe-7dc3-90c8-fb13d7ca1737.jsonl')
+SESSION = Path(os.path.expanduser('~/.codex/sessions/2026/11/10/rollout-2026-11-10T12-51-38-01a1c3cb-f6ca-7763-80e2-d84b40dd8066_01a1c3cc-26fe-7dc3-90c8-fb13d7ca1737.jsonl'))
 CHAPTERS = set(range(1, 22)) | {23} | set(range(259, 271))
 
 

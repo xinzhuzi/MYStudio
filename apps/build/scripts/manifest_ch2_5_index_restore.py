@@ -59,7 +59,7 @@ import sys
 import time
 from pathlib import Path
 
-MANIFEST_PATH = Path("/Users/zhengbingjin/Project/IP/MA/store/studio-workflow/manifest.json")
+MANIFEST_PATH = Path(os.path.expanduser("~/Project/IP/MA/store/studio-workflow/manifest.json"))
 BACKUP_PREFIX = "manifest.json.bak-restore-ch2-5-"
 # 安装版 argv 含 .app 路径(含 Electron Helper);dev 主进程 argv0 含仓库内 electron 路径
 APP_PGREP_PATTERNS = (

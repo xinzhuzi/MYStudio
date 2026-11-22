@@ -11,6 +11,7 @@
 守卫:锚恰一次/原子写/回读/备份/幂等;--check 只查。
 """
 from __future__ import annotations
+import os
 
 import argparse
 import hashlib
@@ -21,7 +22,7 @@ import shutil
 import sys
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 HOME = Path.home()
 APP = Path("/Applications/漫影工作室.app/Contents/Resources")
 ENGN = HOME / "Library/Application Support/漫影工作室/comfyui/ComfyUI/custom_nodes/my-nodes"

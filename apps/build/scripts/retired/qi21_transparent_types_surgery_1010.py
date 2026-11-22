@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """透明域配比行收尾手术(1010,用户令「按照你的建议都做」)——多视图+表情差分两处,
 与道具(1010晨)/高清人脸(1010晨)同刀同族。至此透明四型配比行全部透明安全化;
 非透明五型钦定冻结句不动(带背景域基底语义合法)。幂等;五路热刷。"""
@@ -7,12 +8,12 @@ import shutil
 import sys
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 SRC = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
 BRUSH = [
-    Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/comfyui/daojie-data/qi21_bases.json"),
-    Path("/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/daojie-data/qi21_bases.json"),
-    Path("/Users/zhengbingjin/Project/IP/MA/skills/art_skills/daojie_ink_guofeng/json/qi21_bases.json"),
+    Path(os.path.expanduser("~/Library/Application Support/漫影工作室/comfyui/daojie-data/qi21_bases.json")),
+    Path(os.path.expanduser("~/Project/IP/漫影工作室/comfyui/daojie-data/qi21_bases.json")),
+    Path(os.path.expanduser("~/Project/IP/MA/skills/art_skills/daojie_ink_guofeng/json/qi21_bases.json")),
     Path("/Applications/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"),
 ]
 EDITS = {  # zh: (旧串, 新串)

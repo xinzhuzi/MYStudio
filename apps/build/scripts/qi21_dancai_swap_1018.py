@@ -18,6 +18,7 @@
 幂等(全部零命中=exit 3)。--check=只查计数不写。
 """
 from __future__ import annotations
+import os
 
 import argparse
 import hashlib
@@ -26,7 +27,7 @@ import shutil
 import sys
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 HOME = Path.home()
 MANUAL = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng"
 APP_MANUAL = Path("/Applications/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng")

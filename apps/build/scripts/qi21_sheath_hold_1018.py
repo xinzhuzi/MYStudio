@@ -15,6 +15,7 @@ t2i/flux3/K2×2/桥模板/charsheet)+引擎侧两镜像+主体句例文哈希锚
 幂等;--check 只查。
 """
 from __future__ import annotations
+import os
 
 import argparse
 import hashlib
@@ -24,7 +25,7 @@ import shutil
 import sys
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 HOME = Path.home()
 ENGINE_MYNODES = HOME / "Library/Application Support/漫影工作室/comfyui/ComfyUI/custom_nodes/my-nodes"
 BAK = REPO / "apps/output/bak/qi21-sheath-1018"

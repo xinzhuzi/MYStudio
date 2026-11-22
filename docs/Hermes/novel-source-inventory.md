@@ -1,4 +1,4 @@
-# `/Users/zhengbingjin/Project/IP/MA/novel/` 资料盘面
+# `~/Project/IP/MA/novel/` 资料盘面
 
 核验时间：2026-08-17（Asia/Shanghai）。只读取文件名、尺寸、哈希与小范围结构；未把正文原文传入任务资料。
 

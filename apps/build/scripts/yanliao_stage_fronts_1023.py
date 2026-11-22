@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-ROLE = Path('/Users/zhengbingjin/Project/IP/MA/store/assets/files/role/晏燎')
+ROLE = Path(os.path.expanduser('~/Project/IP/MA/store/assets/files/role/晏燎'))
 OUT = ROOT / 'apps/output/晏燎/trial_基准'
 LOG = ROOT / 'apps/output/晏燎/stage_fronts_1023.log'
 TEMPLATE = Path('/tmp/user_fire_graph.json')

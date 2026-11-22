@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-i2i 九型全测扫(2026-10-14 深夜,用户令「9型都测试了吗」)。
 
 逐型发车(正器 qi21_i2i_workflow_fire 子进程):同指令(换袍)/同双参考/PE 关直写/
@@ -17,7 +18,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 FIRE = REPO / "apps/build/scripts/qi21_i2i_workflow_fire.py"
 DOC = REPO / "docs/prompts/道劫_类型主体句示例.md"
 OUT = REPO / "apps/output/i2i-fire-1013/sweep9"

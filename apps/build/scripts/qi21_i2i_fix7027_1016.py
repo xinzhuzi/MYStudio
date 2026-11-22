@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-i2i 补挂 [7027] Fix v2.0·viggle实验臂(2026-10-16,用户令:自 t2i 转入)。
 
 刀:i2i 加速子图 viggle 链前挂同款——-10 model → [7027] Fix×0.5(可旁路) → [7011]
@@ -8,7 +9,7 @@ fail-closed:术前 md5 锚+link246 形态锚;术后 coherence+左向+回读;幂�
 """
 import json, shutil, sys, hashlib
 from pathlib import Path
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 WF = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 T2I = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
 INSTALL = Path("/Applications/漫影工作室.app/Contents/Resources/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json")

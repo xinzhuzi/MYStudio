@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """高清人脸透明漏底三层手术(1010,用户令「认真核查…为什么没有透明背景」;08宪法SOP-1脚本手术)。
 
 病灶(00007实弹,透明率5.4%):终稿「大面积基底选用宣纸白或米白以承托主体」=三层合谋——
@@ -19,19 +20,19 @@ import shutil
 import sys
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 SRC = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
 BP = REPO / "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json"
 
 JSON_BRUSH = [
-    Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/comfyui/daojie-data/qi21_bases.json"),
-    Path("/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/daojie-data/qi21_bases.json"),
-    Path("/Users/zhengbingjin/Project/IP/MA/skills/art_skills/daojie_ink_guofeng/json/qi21_bases.json"),
+    Path(os.path.expanduser("~/Library/Application Support/漫影工作室/comfyui/daojie-data/qi21_bases.json")),
+    Path(os.path.expanduser("~/Project/IP/漫影工作室/comfyui/daojie-data/qi21_bases.json")),
+    Path(os.path.expanduser("~/Project/IP/MA/skills/art_skills/daojie_ink_guofeng/json/qi21_bases.json")),
     Path("/Applications/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"),
 ]
 BP_BRUSH = [
     Path("/Applications/漫影工作室.app/Contents/Resources/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json"),
-    Path("/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/ComfyUI/custom_nodes/my-nodes/subgraphs/qi21-提示词类型优化子图.json"),
+    Path(os.path.expanduser("~/Project/IP/漫影工作室/comfyui/ComfyUI/custom_nodes/my-nodes/subgraphs/qi21-提示词类型优化子图.json")),
 ]
 
 

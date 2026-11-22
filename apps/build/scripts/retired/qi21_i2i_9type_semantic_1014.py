@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-i2i 九型语义分型测试(2026-10-14 深夜;首轮扫缺陷修复;1014 T5 guard 下沉)。
 
 首轮缺陷(用户斥「你不知道切换类型吗」):9 型共用一条换袍指令+同一画布=只测了
@@ -15,7 +16,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 FIRE = REPO / "apps/build/scripts/qi21_i2i_workflow_fire.py"
 OUT = REPO / "apps/output/i2i-fire-1014/sweep9-semantic"
 
@@ -70,7 +71,7 @@ def ensure_engine():
         if engine_up():
             return True
         if attempt == 0:
-            ip = Path("/Users/zhengbingjin/Project/IP/漫影工作室/comfyui")
+            ip = Path(os.path.expanduser("~/Project/IP/漫影工作室/comfyui"))
             subprocess.Popen(
                 [str(ip / "venv/bin/python"), str(ip / "ComfyUI/main.py"),
                  "--listen", "127.0.0.1", "--port", "17001", "--enable-manager",

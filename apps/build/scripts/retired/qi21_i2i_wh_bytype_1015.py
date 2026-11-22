@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-i2i 画幅按型联动手术(2026-10-15,用户令方案一+「自由=画幅随输入图」)。
 
 语义设计(1015 定稿):
@@ -17,7 +18,7 @@ import json
 import sys
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 SG_PREFIX = "[6] 文本提示词类型优化子图"
 

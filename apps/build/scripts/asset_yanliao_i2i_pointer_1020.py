@@ -9,6 +9,7 @@
 """
 
 from __future__ import annotations
+import os
 
 import argparse
 import json
@@ -18,7 +19,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-DB = Path("/Users/zhengbingjin/Project/IP/MA/store/assets/assets.db")
+DB = Path(os.path.expanduser("~/Project/IP/MA/store/assets/assets.db"))
 ASSET_ID = "a985c52a-af2a-4089-a188-39281fa20976"
 FOLDER = "role/晏燎"
 OUT_RE = re.compile(r"_\d{4}年\d{2}月\d{2}日(_\d+)?$")

@@ -3,8 +3,8 @@
 """EP01 剧本镜头原文 → 19 张分镜锚图生图载荷(python3 组,不跑 GPU)。
 
 真源:
-  剧本   /Users/zhengbingjin/Project/IP/MA/novel/drama/chapter-001_漫剧.md (16 镜,四场)
-  槽位   /Users/zhengbingjin/Project/IP/MA/store/studio-workflow/chapters/chapter-001/storyboards-*.json (19 槽,取 index+videoDesc)
+  剧本   ~/Project/IP/MA/novel/drama/chapter-001_漫剧.md (16 镜,四场)
+  槽位   ~/Project/IP/MA/store/studio-workflow/chapters/chapter-001/storyboards-*.json (19 槽,取 index+videoDesc)
   模板   apps/backend/comfyui/workflows/1_图片/MossImage/moss-道劫-t2i-api.json (API 平铺形,剥 _doc)
   底座   apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json (art_style_base)
 
@@ -15,9 +15,9 @@ import os
 import re
 import sys
 
-ROOT = '/Users/zhengbingjin/Project/Github/MYStudio'
-SCRIPT_MD = '/Users/zhengbingjin/Project/IP/MA/novel/drama/chapter-001_漫剧.md'
-SB_GLOB = '/Users/zhengbingjin/Project/IP/MA/store/studio-workflow/chapters/chapter-001/storyboards-*.json'
+ROOT = os.path.expanduser('~/Project/Github/MYStudio')
+SCRIPT_MD = os.path.expanduser('~/Project/IP/MA/novel/drama/chapter-001_漫剧.md')
+SB_GLOB = os.path.expanduser('~/Project/IP/MA/store/studio-workflow/chapters/chapter-001/storyboards-*.json')
 TEMPLATE = os.path.join(ROOT, 'apps/backend/comfyui/workflows/1_图片/MossImage/moss-道劫-t2i-api.json')
 BASES = os.path.join(ROOT, 'apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json')
 OUT_DIR = os.path.join(ROOT, 'apps/output/ep01-director/script-anchors')

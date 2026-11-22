@@ -18,6 +18,7 @@
   判据与主轮同;失败分类重试:连接被拒=等引擎回场再发(至多3发),渲染错=重试1发。
 """
 from __future__ import annotations
+import os
 
 import hashlib
 import importlib.util
@@ -32,7 +33,7 @@ REPO = Path(__file__).resolve().parents[3]
 FIRE = REPO / "apps/build/scripts/my21fast_fire1026_fourcases.py"
 OUT_DIR = REPO / "apps/output/my21fast_fire_1025"
 IMAGES = OUT_DIR / "images"
-ENGINE_LOGS = Path("/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/ComfyUI/user")
+ENGINE_LOGS = Path(os.path.expanduser("~/Project/IP/漫影工作室/comfyui/ComfyUI/user"))
 
 spec = importlib.util.spec_from_file_location("fire", FIRE)
 F = importlib.util.module_from_spec(spec)
@@ -253,7 +254,7 @@ def main() -> int:
     # 引擎死亡蒸发);证据=火线日志+引擎#3 日志[MY出图]+盘上产物
     p = first_image("L2I")
     st = img_stats(p) if p else {}
-    twok = Path("/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/output/MYStudio-2K_00066_.png")
+    twok = Path(os.path.expanduser("~/Project/IP/漫影工作室/comfyui/output/MYStudio-2K_00066_.png"))
     l2_gates["L2I"] = {
         "history_success": True,
         "history_success_evidence": "主轮 04:15:37 轮询实测 status_str=success completed=True 无 execution_error"

@@ -803,7 +803,7 @@ def _parse_entries(raw: str) -> list[str]:
 本机 `~/.hermes/memories/` 下四件:`MEMORY.md`、`USER.md` 与各自的 `.lock`(锁文件,§2.4.1)。`cat ~/.hermes/memories/MEMORY.md` 开头(节选):
 
 ```
-当前项目 > MA: `/Users/zhengbingjin/Project/Unity/MA/` 千年志*道劫 DNF风格2.5D横版ARPG …
+当前项目 > MA: `~/Project/Unity/MA/` 千年志*道劫 DNF风格2.5D横版ARPG …
 §
 .
 §
@@ -2808,7 +2808,7 @@ agent init 答不了依赖提示(CLI 下 prompt_toolkit 占着终端会挂死整
 
 > **本章支撑的支柱**:P12(插件生态信任模型与记忆后端治理——§7.3 的 SHA 钉死/树外 provenance/迁移自愈全在本机落了地)、P11(内置层部署兑现——§7.1 的字符预算键与 §7.2 的 MEMORY.md/USER.md 实体)、P2/P4(库层实况——§7.2 的 WAL state.db 与 FTS 表清单)、P10(多 profile 配置面——§7.1/§7.5 的 profile 作用域键)。支柱编号沿用 `docs/Hermes/hermes-memory-report.md`。
 
-**证据约定**:Hermes 源码引证相对检出门 `~/.hermes/hermes-agent/`(git commit `aa910ca036a9731d16cf51778edbde69230d9725`,2026-10-26,`git log -1` 亲核);配置/库/插件引证绝对路径(`~` = `/Users/zhengbingjin`)。本章全部探测为**只读**:SQLite 一律 `sqlite3 "file:…?mode=ro"` 或 `?immutable=1`(`memory_store.db`/`projects.db`/`shared-state.db`/`verification_evidence.db` 为 WAL+0600 权限,`mode=ro` 仍需建 shm 故报 `unable to open database file (14)`,改 `immutable=1` 成功)——**gateway 正在跑**(PID 28309,`ps -p 28309` 亲核,已运行 5h21m,`~/.hermes/gateway.pid` 记录 `hermes gateway run --external-supervisor`),禁任何写操作。密钥脱敏:凡 `api_key` 字段一律空串(类型 `str`,真实密钥住 `~/.hermes/.env`/钥匙串,本章不写值)。
+**证据约定**:Hermes 源码引证相对检出门 `~/.hermes/hermes-agent/`(git commit `aa910ca036a9731d16cf51778edbde69230d9725`,2026-10-26,`git log -1` 亲核);配置/库/插件引证绝对路径(`~` = 用户主目录)。本章全部探测为**只读**:SQLite 一律 `sqlite3 "file:…?mode=ro"` 或 `?immutable=1`(`memory_store.db`/`projects.db`/`shared-state.db`/`verification_evidence.db` 为 WAL+0600 权限,`mode=ro` 仍需建 shm 故报 `unable to open database file (14)`,改 `immutable=1` 成功)——**gateway 正在跑**(PID 28309,`ps -p 28309` 亲核,已运行 5h21m,`~/.hermes/gateway.pid` 记录 `hermes gateway run --external-supervisor`),禁任何写操作。密钥脱敏:凡 `api_key` 字段一律空串(类型 `str`,真实密钥住 `~/.hermes/.env`/钥匙串,本章不写值)。
 
 ---
 

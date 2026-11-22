@@ -4,7 +4,7 @@ import {join, resolve} from 'node:path';
 import {homedir} from 'node:os';
 import {createRequire} from 'node:module';
 const require = createRequire(import.meta.url);
-const {chromium} = require('/Users/zhengbingjin/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const {chromium} = require(join(homedir(), '.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright'));
 const root = resolve(import.meta.dirname, '../../..');
 const out = join(root, '.trellis/tasks/10-22-bfs-qwen21-color-diagnosis/research/production-sync-1023');
 const inventory = JSON.parse(readFileSync(join(out, 'inventory.json'), 'utf8'));

@@ -25,8 +25,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-SRC = Path("/Users/zhengbingjin/Project/Unity/MA/Design/世界观小说/《道劫》/1.设定集/1.人物角色/1.主角")
-ASSETS_ROOT = Path("/Users/zhengbingjin/Project/IP/MA/store/assets")
+SRC = Path(os.path.expanduser("~/Project/Unity/MA/Design/世界观小说/《道劫》/1.设定集/1.人物角色/1.主角"))
+ASSETS_ROOT = Path(os.path.expanduser("~/Project/IP/MA/store/assets"))
 DST = ASSETS_ROOT / "files" / "role" / "晏燎"
 THUMB = ASSETS_ROOT / "thumbs" / "role" / "晏燎"
 DB = ASSETS_ROOT / "assets.db"

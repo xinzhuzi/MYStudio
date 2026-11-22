@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-i2i ④输出收编+⑤让位+宿主标题复原(2026-10-15,用户令)。
 
 基准=用户手工重排后覆盖的真源(md5 a35a5497;新前端序列化格式,
@@ -21,7 +22,7 @@ import shutil
 import sys
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 INSTALL = Path("/Applications/漫影工作室.app/Contents/Resources/backend/engines/"
                "comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json")

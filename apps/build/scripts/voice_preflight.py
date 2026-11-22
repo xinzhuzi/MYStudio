@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """配音前置门(常驻工具;1029 立,出身 campaigns/storyboard_1027 役,用户通牒:禁人工抓错)——声线选角审计+台词病句扫描。
 产线 SOP:重配音前必跑,FAIL=拒跑 TTS。
 
@@ -20,9 +21,9 @@
 """
 import json, re, sqlite3, sys, glob, subprocess
 
-MA = "/Users/zhengbingjin/Project/IP/MA"
-COLD = "/Users/zhengbingjin/Project/Github/MYStudio/apps/build/scripts/campaigns/storyboard_1027/tts_coldstart.ts"
-SHOTS = "/Users/zhengbingjin/Project/Github/MYStudio/apps/output/storyboard_pipeline_1027/shots.json"
+MA = os.path.expanduser("~/Project/IP/MA")
+COLD = os.path.expanduser("~/Project/Github/MYStudio/apps/build/scripts/campaigns/storyboard_1027/tts_coldstart.ts")
+SHOTS = os.path.expanduser("~/Project/Github/MYStudio/apps/output/storyboard_pipeline_1027/shots.json")
 DB = f"{MA}/TTS/runtime/tts.sqlite"
 
 # 角色人设表(新角色必须登记;ageHint/traits 漏登只降级 warning 不拦)

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """三采输入火力手术(1113,trellis 11-13-sancai-input-firepower)
 A: 参考图 5→9 满配(ref_image_0..8;新卡锚 [114-117])
 B: i2v 尾帧([118]→[220].last_frame,槽已在件)
@@ -9,10 +10,10 @@ C: r2v 参考视频([119] LoadVideo→[16].ref_videos.ref_video_0,槽已在件;m
 import copy, json, sys
 
 UI_FILES = {
-    'repo': '/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json',
-    'twin': '/Users/zhengbingjin/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.json',
+    'repo': os.path.expanduser('~/Project/Github/MYStudio/apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json'),
+    'twin': os.path.expanduser('~/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.json'),
 }
-API_FILE = '/Users/zhengbingjin/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json'
+API_FILE = os.path.expanduser('~/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json')
 CARD_IDS = [341, 342, 343, 344]          # 参考卡锚(ref_image_5..8;114-119 已被现役节点占用)
 END_FRAME_ID, VIDEO_ID = 345, 346        # 尾帧锚 / 参考视频锚
 BRIDGE_ID = 347                         # GetVideoComponents 桥(LoadVideo吐VIDEO,槽吃IMAGE帧)

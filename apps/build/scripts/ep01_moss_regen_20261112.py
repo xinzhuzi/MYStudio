@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """EP01 图像资产役(1112):MOSS 道劫直投定点重出 chapter-001 镜 3/11。
 
 载荷规则(依役单 2026-11-12):
@@ -14,11 +15,11 @@ import time
 import urllib.request
 import urllib.error
 
-REPO = "/Users/zhengbingjin/Project/Github/MYStudio"
+REPO = os.path.expanduser("~/Project/Github/MYStudio")
 TEMPLATE = f"{REPO}/apps/backend/comfyui/workflows/1_图片/MossImage/moss-道劫-t2i-api.json"
 BASES = f"{REPO}/apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
-STORE_003 = "/Users/zhengbingjin/Project/IP/MA/store/studio-workflow/chapters/chapter-001/storyboards-001-5d9afb5d.json"
-STORE_011 = "/Users/zhengbingjin/Project/IP/MA/store/studio-workflow/chapters/chapter-001/storyboards-002-cc679b4c.json"
+STORE_003 = os.path.expanduser("~/Project/IP/MA/store/studio-workflow/chapters/chapter-001/storyboards-001-5d9afb5d.json")
+STORE_011 = os.path.expanduser("~/Project/IP/MA/store/studio-workflow/chapters/chapter-001/storyboards-002-cc679b4c.json")
 API = "http://127.0.0.1:17002"
 SEED_BASE = 1108
 SHOTS = {3: STORE_003, 11: STORE_011}

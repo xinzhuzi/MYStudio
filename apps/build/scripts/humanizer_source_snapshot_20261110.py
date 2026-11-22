@@ -1,3 +1,4 @@
+import os
 """Preserve the 21 named source entries and verify their recorded blob identities."""
 import hashlib
 import json
@@ -8,9 +9,9 @@ TASK = ROOT / '.trellis/tasks/11-10-humanizer-fusion'
 OUT = TASK / 'research/source-snapshots-20261110'
 OUT.mkdir(exist_ok=True)
 entries = [
-    ('lieflat-local', '/Users/zhengbingjin/.agents/skills/lieflat-less-ai-tone/SKILL.md', None),
-    ('human-writing-local', '/Users/zhengbingjin/.agents/skills/human-writing/SKILL.md', None),
-    ('script-doctor-local', '/Users/zhengbingjin/.zcode/skills/script-doctor/SKILL.md', None),
+    ('lieflat-local', os.path.expanduser('~/.agents/skills/lieflat-less-ai-tone/SKILL.md'), None),
+    ('human-writing-local', os.path.expanduser('~/.agents/skills/human-writing/SKILL.md'), None),
+    ('script-doctor-local', os.path.expanduser('~/.zcode/skills/script-doctor/SKILL.md'), None),
     ('op7418', '/tmp/humanizer_sources/op7418--Humanizer-zh.md', 'ef07b54da21a41d4a7e4fe0b0afb928f597eb684'),
     ('story-deslop', '/tmp/humanizer_sources/zenstory-ai--oh-story-claudecode.md', '503e87175aee4451718c9ee412829348f7ef834c'),
     ('mrgediao', '/tmp/humanizer_sources/MrGeDiao--shuorenhua.md', '0dec98237e38c1b41b24704ca8e88ab94a2043d4'),

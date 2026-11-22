@@ -2,6 +2,7 @@
 // 前置: /tmp/ch2_writeback_v4.mjs 已跑(store 有 ch2 分镜分片) + MYSTUDIO_NARRATOR_INPUT=ch2 契约
 // 章清单(manifest)不在此步——visualSource 需帧,归渲染面另轮(w1-cas-chain 分轮口径)
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
 import { readStudioWorkflowStoreState, deriveStorageRoots, resolveTimelineSourcePath } from "./storage-paths";
@@ -11,7 +12,7 @@ import { runScriptPrecheck } from "@/lib/studio/script-precheck";
 import type { PersistedTtsState } from "@/stores/tts/tts-store";
 import type { StoryboardItem } from "@/types/studio-storyboard-types";
 
-const MA = "/Users/zhengbingjin/Project/IP/MA";
+const MA = path.join(os.homedir(), "Project/IP/MA");
 const PID = "49dce4c1-64b1-42de-85c2-9f266698aec4";
 const CID = "chapter-002";
 const sha256 = (s: string) => crypto.createHash("sha256").update(s).digest("hex");

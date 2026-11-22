@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """四型多彩升档手术(1010,用户令「美宣,人物,场景,概念气氛图的类型句也是这样,不要改其他类型」)。
 
 与分镜同款三杠杆,锚串取现行文本(并行会话今晨已升人物/美宣背景句与场景细节句,本手术互补):
@@ -9,12 +10,12 @@ import shutil
 import sys
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 SRC = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
 BRUSH = [
-    Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/comfyui/daojie-data/qi21_bases.json"),
-    Path("/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/daojie-data/qi21_bases.json"),
-    Path("/Users/zhengbingjin/Project/IP/MA/skills/art_skills/daojie_ink_guofeng/json/qi21_bases.json"),
+    Path(os.path.expanduser("~/Library/Application Support/漫影工作室/comfyui/daojie-data/qi21_bases.json")),
+    Path(os.path.expanduser("~/Project/IP/漫影工作室/comfyui/daojie-data/qi21_bases.json")),
+    Path(os.path.expanduser("~/Project/IP/MA/skills/art_skills/daojie_ink_guofeng/json/qi21_bases.json")),
     Path("/Applications/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"),
 ]
 EDITS = {

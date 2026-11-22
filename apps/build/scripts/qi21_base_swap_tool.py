@@ -29,6 +29,7 @@
 护栏:前置形态不符→拒续退出码2;已是新稿→幂等跳过退出码0。
 """
 from __future__ import annotations
+import os
 
 import argparse
 import hashlib
@@ -214,10 +215,10 @@ class Tool:
     def distribute(self) -> None:
         app = Path('/Applications/漫影工作室.app/Contents/Resources')
         release = ROOT / 'apps/release/build/mac-arm64/mac-arm64/漫影工作室.app/Contents/Resources'
-        ma = Path('/Users/zhengbingjin/Project/IP/MA/skills/art_skills/daojie_ink_guofeng')
-        ip = Path('/Users/zhengbingjin/Project/IP/漫影工作室/skills/art_skills/daojie_ink_guofeng')
-        engine_data = Path('/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/daojie-data')
-        engine_nodes = Path('/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/ComfyUI/custom_nodes/my-nodes')
+        ma = Path(os.path.expanduser('~/Project/IP/MA/skills/art_skills/daojie_ink_guofeng'))
+        ip = Path(os.path.expanduser('~/Project/IP/漫影工作室/skills/art_skills/daojie_ink_guofeng'))
+        engine_data = Path(os.path.expanduser('~/Project/IP/漫影工作室/comfyui/daojie-data'))
+        engine_nodes = Path(os.path.expanduser('~/Project/IP/漫影工作室/comfyui/ComfyUI/custom_nodes/my-nodes'))
         manual_rel = 'studio-manuals/art_skills/daojie_ink_guofeng'
         plan: list[tuple[Path, Path]] = []
         for name in self.cfg.get('manual_files_distribute', DEFAULT_MANUAL_DIST):

@@ -1,3 +1,4 @@
+import os
 """Distribute only this revision's files, preserving a backup of every existing target."""
 from pathlib import Path
 import json,hashlib
@@ -7,7 +8,7 @@ rows=json.loads(LEDGER.read_text());sources=[Path(r['path']) for r in rows if Pa
 support=next(p for p in (Path.home()/'Library/Application Support').iterdir() if p.name=='漫影工作室');home=(support/'comfyui').resolve()
 installed=next(p for p in Path('/Applications').iterdir() if p.name=='漫影工作室.app')/'Contents/Resources'
 build=next((ROOT/'apps/release/build/mac-arm64/mac-arm64').glob('*.app'))/'Contents/Resources'
-mirrors=[installed/'studio-manuals/art_skills/daojie_ink_guofeng',build/'studio-manuals/art_skills/daojie_ink_guofeng',Path('/Users/zhengbingjin/Project/IP/MA/skills/art_skills/daojie_ink_guofeng'),support/'skills/art_skills/daojie_ink_guofeng']
+mirrors=[installed/'studio-manuals/art_skills/daojie_ink_guofeng',build/'studio-manuals/art_skills/daojie_ink_guofeng',Path(os.path.expanduser('~/Project/IP/MA/skills/art_skills/daojie_ink_guofeng')),support/'skills/art_skills/daojie_ink_guofeng']
 plan=[]
 for src in sources:
  if src.is_relative_to(MAN):

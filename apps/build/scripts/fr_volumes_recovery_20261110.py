@@ -1,3 +1,4 @@
+import os
 """Extract user intent and bounded history chunks without replaying tool logs."""
 import collections
 import hashlib
@@ -8,8 +9,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 OUT = ROOT / '.trellis/tasks/10-27-script-narrative-translation-cure/research/fr-history-20261110'
 SOURCES = [
-    Path('/Users/zhengbingjin/.codex/sessions/2026/11/02/rollout-2026-11-02T18-13-08-01a19bbf-9b83-7e22-a594-c8d10cba6818.jsonl'),
-    Path('/Users/zhengbingjin/.codex/sessions/2026/11/05/rollout-2026-11-05T15-40-43-01a1aaa7-2778-74e1-9cfb-53438b716784.jsonl'),
+    Path(os.path.expanduser('~/.codex/sessions/2026/11/02/rollout-2026-11-02T18-13-08-01a19bbf-9b83-7e22-a594-c8d10cba6818.jsonl')),
+    Path(os.path.expanduser('~/.codex/sessions/2026/11/05/rollout-2026-11-05T15-40-43-01a1aaa7-2778-74e1-9cfb-53438b716784.jsonl')),
 ]
 OUT.mkdir(exist_ok=True)
 users=[]; manifest=[]

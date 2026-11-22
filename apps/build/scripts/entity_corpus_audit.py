@@ -16,6 +16,7 @@
 """
 
 from __future__ import annotations
+import os
 
 import argparse
 import json
@@ -299,7 +300,7 @@ def write_corpus_file(path: Path, sections: dict[str, list[str]]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--corpus-dir", required=True)
-    parser.add_argument("--drama-dir", default="/Users/zhengbingjin/Project/IP/MA/novel/drama")
+    parser.add_argument("--drama-dir", default=os.path.expanduser("~/Project/IP/MA/novel/drama"))
     parser.add_argument("--total", type=int, default=4125)
     parser.add_argument("--fix", action="store_true")
     parser.add_argument("--report")

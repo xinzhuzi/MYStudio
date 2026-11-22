@@ -1,3 +1,4 @@
+import os
 """Extract the referenced chat's complete visible message history for bounded review."""
 import collections
 import hashlib
@@ -8,8 +9,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 OUT = ROOT / '.trellis/tasks/11-10-humanizer-fusion/research/thread-recovery-20261110'
 SOURCES = [
-    (Path('/Users/zhengbingjin/.codex/sessions/2026/10/25/rollout-2026-10-25T10-53-01-01a170f9-afdb-7543-ac43-01c5196ea2d2_01a170f9-ccfb-7bb0-b644-2de1c6968899.jsonl'), 445452334),
-    (Path('/Users/zhengbingjin/.codex/sessions/2026/11/10/rollout-2026-11-10T01-44-28-01a170f9-afdb-7543-ac43-01c5196ea2d2_01a1c169-5784-7c03-990b-09798a87a851.jsonl'), None),
+    (Path(os.path.expanduser('~/.codex/sessions/2026/10/25/rollout-2026-10-25T10-53-01-01a170f9-afdb-7543-ac43-01c5196ea2d2_01a170f9-ccfb-7bb0-b644-2de1c6968899.jsonl')), 445452334),
+    (Path(os.path.expanduser('~/.codex/sessions/2026/11/10/rollout-2026-11-10T01-44-28-01a170f9-afdb-7543-ac43-01c5196ea2d2_01a1c169-5784-7c03-990b-09798a87a851.jsonl')), None),
 ]
 OUT.mkdir(exist_ok=True)
 counts = collections.Counter()

@@ -1,3 +1,4 @@
+import os
 """Inspect saved PNG metadata locally; no engine calls or production writes."""
 from pathlib import Path
 import json
@@ -5,7 +6,7 @@ import struct
 import zlib
 
 ROOT=Path(__file__).resolve().parents[3]
-IP=next(p for p in Path('/Users/zhengbingjin/Project/IP').iterdir() if p.name=='漫影工作室')
+IP=next(p for p in Path(os.path.expanduser('~/Project/IP')).iterdir() if p.name=='漫影工作室')
 SOURCE=next(p for p in (IP/'comfyui/output').iterdir() if p.name=='QI21道劫文生图__00003_.png')
 OUT=ROOT/'apps/output/automation/qi21-render-style-diagnosis-1016-00003'
 b=SOURCE.read_bytes();offset=8;metadata={}

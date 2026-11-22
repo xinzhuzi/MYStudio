@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import os
 """1019 持械握句 C32 终版全仓镜像清零(执行补尾)。
 
 背景:1018 C32 裁定「虚握挂定的剑鞘上端三分之一处、五指环拢鞘身,重量归绦」后,
@@ -15,7 +16,7 @@ from pathlib import Path
 import shutil
 import sys
 
-ROOT = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+ROOT = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 
 R1_OLD = "右臂自然垂落、右肘微屈，右手握住剑鞘；视线越过"
 R1_NEW = "右臂自然垂落、右肘微屈，右手虚握挂定的剑鞘上端三分之一处、五指环拢鞘身，剑身重量仍由腰间剑绦承担；视线越过"
@@ -55,7 +56,7 @@ LEDGER2 = "- **1019 持械握句镜像清零（C32 执行补尾）**：本库四
 
 REPO_MANUAL = ROOT / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/art_prompt/art_subject_ten_types.md"
 MIRRORS = [
-    Path("/Users/zhengbingjin/Project/IP/漫影工作室/skills/art_skills/daojie_ink_guofeng/art_prompt/art_subject_ten_types.md"),
+    Path(os.path.expanduser("~/Project/IP/漫影工作室/skills/art_skills/daojie_ink_guofeng/art_prompt/art_subject_ten_types.md")),
     Path.home() / "Library/Application Support/漫影工作室/skills/art_skills/daojie_ink_guofeng/art_prompt/art_subject_ten_types.md",
 ]
 

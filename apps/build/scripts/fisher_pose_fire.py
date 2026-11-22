@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """Fisher-Pose 实弹发车器(1010 实弹测试役)。
 
 官方 FisherQwenFreePose 工作流(4_姿势编辑/官方-fisher-pose-无限姿势.json;1108 归位令自 2_图生图 迁入,文件名不变)主链的 API 展平直跑:
@@ -30,10 +31,10 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 ENGINE = "http://127.0.0.1:17001"
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 OUT_DIR = REPO / "apps/output/fisher-pose-test"
 WF = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/4_姿势编辑/官方-fisher-pose-无限姿势.json"
-ENGINE_INPUT = Path("/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/ComfyUI/input")
+ENGINE_INPUT = Path(os.path.expanduser("~/Project/IP/漫影工作室/comfyui/ComfyUI/input"))
 BUILTIN_MANNEQUIN = "/tmp/fisher_builtin_mannequin.png"  # 官方 pose_json 解码件(本会话生成)
 
 PERSON_UPLOAD_NAME = "fisher_pose_person.png"  # image2:my-shot 三人水墨群像右侧白衣年轻人裁片

@@ -6,7 +6,7 @@ P2-P4 全量战役编排器 —— 无人值守链:9 波全量评判(逐波 --ba
 
 用法(发车由主会话在试产门绿后执行,nohup 后台):
     nohup python3 apps/build/scripts/critic_campaign.py \
-        --drama "/Users/zhengbingjin/Project/IP/MA/novel/drama" \
+        --drama "~/Project/IP/MA/novel/drama" \
         --out-root apps/output/daojie-critique-1030 --model high \
         >> apps/output/daojie-critique-1030/campaign.log 2>&1 &
 
@@ -25,7 +25,7 @@ CRITIC = os.path.join(HERE, "screenplay_critic.py")
 CITE = os.path.join(HERE, "critic_citation_check.py")
 COH = os.path.join(HERE, "critic_coherence.py")
 AGG = os.path.join(HERE, "critic_aggregate.py")
-DRAMA_DEFAULT = "/Users/zhengbingjin/Project/IP/MA/novel/drama"
+DRAMA_DEFAULT = os.path.expanduser("~/Project/IP/MA/novel/drama")
 WAVES = [(1, 500), (501, 1000), (1001, 1500), (1501, 2000), (2001, 2500),
          (2501, 3000), (3001, 3500), (3501, 4000), (4001, 4125)]
 SUMMARY_RE = re.compile(r"SUMMARY done=(\d+) new=(\d+) skip=(\d+) fail=(\d+)")

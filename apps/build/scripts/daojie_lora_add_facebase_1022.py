@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """daojie_lora_stack.json + daojie_loras.json 补「人脸基准」档(10-22 人脸基准入列随迁)。
 
 口径:逐槽克隆「高清人脸」preset 列(配方=克隆的 lora_recipe:detail1.0/asianmix0.4/
@@ -8,7 +9,7 @@ loras 台账同克隆追加。fail-closed:前置断言不过即退,文件不动�
 import json, shutil, sys
 from pathlib import Path
 
-ROOT = Path('/Users/zhengbingjin/Project/Github/MYStudio')
+ROOT = Path(os.path.expanduser('~/Project/Github/MYStudio'))
 JDIR = ROOT / 'apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json'
 STACK = JDIR / 'daojie_lora_stack.json'
 LORAS = JDIR / 'daojie_loras.json'

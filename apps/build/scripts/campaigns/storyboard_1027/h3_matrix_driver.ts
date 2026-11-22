@@ -10,14 +10,15 @@
  * →env 胜出;sidecar 未起→缺省 17001(存量独立跑零变化)。
  */
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { buildShotH3ApiWorkflow } from "@/lib/assist/image-studio/h3-shot-video-workflow";
 import { dialogueAudioPolicy } from "@/lib/assist/image-studio/h3-shot-prompt";
 import type { StoryboardItem } from "@/types/studio";
 import { resolveControlToken, resolveEngineTarget } from "./h3_engine_target";
 
-const MA = "/Users/zhengbingjin/Project/IP/MA";
-const OUT = "/Users/zhengbingjin/Project/Github/MYStudio/apps/output/ch1_h3_matrix_1029";
+const MA = path.join(os.homedir(), "Project/IP/MA");
+const OUT = path.join(os.homedir(), "Project/Github/MYStudio/apps/output/ch1_h3_matrix_1029");
 
 const SQUAD = [
   { sid: "001", mood: "凶狠咆哮" },

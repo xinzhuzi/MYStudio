@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """三采输入区 UX v2(1114 用户斥「不合格」补全)
 - [347] 桥出厂旁路化(修复手动直跑必填悬空雷:346旁路时347.video悬空=画布校验红)
 - Note101 README v2:输入组逐节点操作详解 + 三种调用方式(App分镜/API直调/手动)
@@ -7,8 +8,8 @@
 import json, sys
 
 FILES = {
-    'repo': '/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json',
-    'twin': '/Users/zhengbingjin/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.json',
+    'repo': os.path.expanduser('~/Project/Github/MYStudio/apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json'),
+    'twin': os.path.expanduser('~/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.json'),
 }
 TITLES = {
     1: "① 参考图1·主图(必填·选图即跑)",

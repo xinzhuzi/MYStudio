@@ -29,6 +29,7 @@ fail-closed:双臂 graph 深比对,除 LoraLoader 新节点及其重接线外零
   python3 outfit_swap_probe_1026.py --live      # 两臂串行,每发前重查 /queue 忙则等
 """
 from __future__ import annotations
+import os
 
 import argparse
 import copy
@@ -40,7 +41,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 BASE_API = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json"
 OUT_DIR = REPO / "apps/output/outfit_probe_1026"
 ENGINE = "http://127.0.0.1:17001"  # manifest.json engine.port 亲验=17001

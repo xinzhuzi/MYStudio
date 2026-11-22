@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-i2i 透明参考锚 A/B 配对复验探针(1014 役 T7;立项小探针,仿 sweep 骨架)。
 
 设计(1014 定谳「运行间非确定性耦合」如实注):
@@ -29,7 +30,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 FIRE = REPO / "apps/build/scripts/qi21_i2i_workflow_fire.py"
 OUT = REPO / "apps/output/i2i-fire-1014/anchor-probe"  # 根=历史台账(T7);写侧按型落 OUT/<型>/
 ENGINE = "http://127.0.0.1:17001"
@@ -63,7 +64,7 @@ def engine_up():
 
 def ensure_engine():
     """每发前守卫:引擎被并行看门狗回收时自愈拉起(1014 实弹在案)。"""
-    ip = Path("/Users/zhengbingjin/Project/IP/漫影工作室/comfyui")
+    ip = Path(os.path.expanduser("~/Project/IP/漫影工作室/comfyui"))
     for attempt in range(40):
         if engine_up():
             return True

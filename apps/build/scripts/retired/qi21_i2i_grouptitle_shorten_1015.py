@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-i2i 组框标题瘦身(2026-10-15,用户令「又臭又长→缩短,明确」)。
 
 口径:
@@ -17,7 +18,7 @@ import shutil
 import sys
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 INSTALL = Path("/Applications/漫影工作室.app/Contents/Resources/backend/engines/"
                "comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json")

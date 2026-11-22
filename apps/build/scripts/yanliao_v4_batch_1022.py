@@ -1,3 +1,4 @@
+import os
 """晏燎 v4 全量图生图(10-22 用户令):九期×3产物=27发,练气已手验跳过。
 参考图=各自期正视图(prompts.json 参考图字段);v4=操作句+类型词(人脸/多视图)+底座。
 炼虚512x1024长条源特判:人脸/风格转换改道劫美术类型路+手动1024²方形画幅。
@@ -11,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'backend'))
 from engines.image_engine.comfyui_bridge import instantiate_template, load_template
 
 ENGINE = "http://127.0.0.1:17001"
-ROLE = Path('/Users/zhengbingjin/Project/IP/MA/store/assets/files/role/晏燎')
+ROLE = Path(os.path.expanduser('~/Project/IP/MA/store/assets/files/role/晏燎'))
 OUT = Path(__file__).resolve().parents[2] / 'output/晏燎/trial'
 ITEMS = [x for x in json.loads((OUT.parent / 'prompts.json').read_text())['条目'] if x['期'] != '练气']
 

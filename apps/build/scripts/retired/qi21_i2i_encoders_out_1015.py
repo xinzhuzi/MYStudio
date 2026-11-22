@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-i2i 编码器出子图役(2026-10-15,用户令;做完不部署不打包候令)。
 
 结构刀:
@@ -16,7 +17,7 @@ fail-closed:术前 md5 字节锚;术后 coherence+恒向右双域+组零重叠+�
 import json, shutil, sys, hashlib
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 BP = REPO / "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json"
 SG_PREFIX = "[6] 文本提示词类型优化子图"

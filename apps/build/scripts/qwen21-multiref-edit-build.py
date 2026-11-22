@@ -13,11 +13,12 @@
   [clip, images.image_1, vae, images.image_2, images.image_3](2026-10-02 核)。
 """
 import json
+import os
 import uuid
 from pathlib import Path
 
-OUT = Path("/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/"
-           "comfyui/workflows/1_图片/Q2-1图像/2_图生图/qwen21-multiref-edit.json")
+OUT = Path(os.path.expanduser("~/Project/Github/MYStudio/apps/backend/engines/"
+                              "comfyui/workflows/1_图片/Q2-1图像/2_图生图/qwen21-multiref-edit.json"))
 
 PROMPT = (
     "Keep the character and pose in <image1> unchanged, "

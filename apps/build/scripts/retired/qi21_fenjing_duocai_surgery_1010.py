@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """分镜型句多彩升档手术(1010,用户令「好」批准;底座不动=用户令「不动底座」)。
 
 三处(全在型句职责域:细节分配应用句/环境画法应用句/多彩行预算):
@@ -12,12 +13,12 @@ import shutil
 import sys
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 SRC = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
 BRUSH = [
-    Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/comfyui/daojie-data/qi21_bases.json"),
-    Path("/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/daojie-data/qi21_bases.json"),
-    Path("/Users/zhengbingjin/Project/IP/MA/skills/art_skills/daojie_ink_guofeng/json/qi21_bases.json"),
+    Path(os.path.expanduser("~/Library/Application Support/漫影工作室/comfyui/daojie-data/qi21_bases.json")),
+    Path(os.path.expanduser("~/Project/IP/漫影工作室/comfyui/daojie-data/qi21_bases.json")),
+    Path(os.path.expanduser("~/Project/IP/MA/skills/art_skills/daojie_ink_guofeng/json/qi21_bases.json")),
     Path("/Applications/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"),
 ]
 EDITS = [

@@ -53,7 +53,7 @@ DEATH_FAIL_THRESHOLD = 2        # 连续失败次数→判死拉起
 # 拉起命令=1010 人工拉起实证的原命令行原参数,**逐字全带**——--input-directory
 # 曾被漏带致 input 目录漂移(测试员实弹踩过);> 截断重定向日志为原命令既有行为。
 RESPAWN_CMD = (
-    "cd /Users/zhengbingjin/Project/IP/漫影工作室/comfyui && "
+    "cd ~/Project/IP/漫影工作室/comfyui && "
     "nohup ./venv/bin/python ./ComfyUI/main.py "
     "--listen 127.0.0.1 --port 17001 --enable-manager --gpu-only "
     "--reserve-vram 16 --use-pytorch-cross-attention "

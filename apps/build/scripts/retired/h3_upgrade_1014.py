@@ -69,9 +69,9 @@ VAE、文本编码器等其余模型件按方案 skips 零触碰。
 调用且 shell CWD 停在 apps/backend/engines/comfyui/workflows/,Python 加载前即
 Errno 2。脚本内部仓库根按 __file__ 绝对推导、引擎家为绝对常量,找到脚本后与
 CWD 无关,但相对路径寻址脚本本身依赖 CWD):
-    python3 /Users/zhengbingjin/Project/Github/MYStudio/apps/build/scripts/h3_upgrade_1014.py --dry-run
-    python3 /Users/zhengbingjin/Project/Github/MYStudio/apps/build/scripts/h3_upgrade_1014.py --execute
-    python3 /Users/zhengbingjin/Project/Github/MYStudio/apps/build/scripts/h3_upgrade_1014.py --execute --finalize-backup
+    python3 ~/Project/Github/MYStudio/apps/build/scripts/h3_upgrade_1014.py --dry-run
+    python3 ~/Project/Github/MYStudio/apps/build/scripts/h3_upgrade_1014.py --execute
+    python3 ~/Project/Github/MYStudio/apps/build/scripts/h3_upgrade_1014.py --execute --finalize-backup
 
 退出码: 0=所请求阶段全部完成; 2=下载未完(断点已保留,重跑即续传); 1=错误/自检失败。
 stdout 逐行输出 DONE/SKIP/PENDING/FAIL item ... 供看板消费。
@@ -100,7 +100,7 @@ SCRIPT_PATH = Path(__file__).resolve()  # 自荐命令一律绝对路径,避免 
 REPO_ROOT = Path(__file__).resolve().parents[3]  # apps/build/scripts/ → 仓库根
 
 ENGINE_HOME_DEFAULT = Path(
-    "/Users/zhengbingjin/Library/Application Support/漫影工作室/comfyui"
+    os.path.expanduser("~/Library/Application Support/漫影工作室/comfyui")
 )
 
 # 偏差①:见模块 docstring。默认=方案裁定目录;--backup-dir 可覆盖。

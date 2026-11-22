@@ -20,6 +20,7 @@
 断言式施工(先例 §七五关):每个待替结构恰现一次,失配=中止不写。
 """
 from __future__ import annotations
+import os
 
 import argparse
 import copy
@@ -27,7 +28,7 @@ import json
 import sys
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 SUB = REPO / "apps/backend/engines/comfyui/my_nodes/subgraphs"
 T2I = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
 I2I = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"

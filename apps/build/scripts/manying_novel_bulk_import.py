@@ -21,8 +21,8 @@ import re
 import sys
 import glob
 
-SRC_BASE = "/Users/zhengbingjin/Project/Unity/MA/Design/世界观小说/《道劫》/5.正文"
-DST_BASE = "/Users/zhengbingjin/Project/IP/MA/novel/chapters"
+SRC_BASE = os.path.expanduser("~/Project/Unity/MA/Design/世界观小说/《道劫》/5.正文")
+DST_BASE = os.path.expanduser("~/Project/IP/MA/novel/chapters")
 CN_NUM = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]
 
 REF_BLOCK = re.compile(r"^(?:——|---)\s*\n?\[细纲引用\]\([^)]*\)\s*\n?(?:——|---)\s*\n?", re.S)

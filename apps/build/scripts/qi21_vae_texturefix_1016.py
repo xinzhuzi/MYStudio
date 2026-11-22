@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """texture-fix VAE 切换安装(2026-10-16,用户令:文生图+图生图两件)。
 
 [3] VAELoader vae_name:qwen_image_2.1_vae_bf16 → texture_fix_vae_for_qwen_image_2.1_bf16
@@ -7,7 +8,7 @@ fail-closed:术前逐字锚;术后回读;幂等 exit 3。装机副本随打包�
 """
 import json, shutil, sys, hashlib
 from pathlib import Path
-REPO = Path('/Users/zhengbingjin/Project/Github/MYStudio')
+REPO = Path(os.path.expanduser('~/Project/Github/MYStudio'))
 FILES = [
     REPO / 'apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json',
     REPO / 'apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json',

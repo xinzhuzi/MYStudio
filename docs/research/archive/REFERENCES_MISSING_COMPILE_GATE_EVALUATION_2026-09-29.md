@@ -2,7 +2,7 @@
 
 > 定位:[跨镜连续性规范-0928](../comfyui-kb/跨镜连续性规范-0928.md) §七P6 的评估结论落档(**只评估,本轮零代码改动**)。P6 原文方向:「`references.missing` 现为审计报告项……不拦编译;评估是否升为编译阻断,与 §三双保险对齐」,验收要点=「评估结论落档即可(升/不升+理由)」。本文全部结论以代码实读行号与真实 store 干跑实测为据,无凭空推断。
 >
-> 实测时间:2026-09-29;实测对象:装机真实项目 store(`/Users/zhengbingjin/Project/IP/MA`,经 `apps/build/timeline/storage-paths.ts:157 readStudioWorkflowStoreState` 读取,与 automate 链预检同链路);干跑脚本一次性使用后已删,工作树无残留。
+> 实测时间:2026-09-29;实测对象:装机真实项目 store(`~/Project/IP/MA`,经 `apps/build/timeline/storage-paths.ts:157 readStudioWorkflowStoreState` 读取,与 automate 链预检同链路);干跑脚本一次性使用后已删,工作树无残留。
 
 ## 〇、结论先行
 

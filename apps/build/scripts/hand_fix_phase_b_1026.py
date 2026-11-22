@@ -12,7 +12,7 @@ import os
 import sys
 import time
 
-sys.path.insert(0, '/Users/zhengbingjin/Project/Github/MYStudio/apps/backend')
+sys.path.insert(0, os.path.expanduser('~/Project/Github/MYStudio/apps/backend'))
 os.environ['MYSTUDIO_COMFYUI_BRIDGE_URL'] = 'http://127.0.0.1:17001'
 
 import urllib.request
@@ -20,7 +20,7 @@ from PIL import Image, ImageFilter
 
 from engines.image_engine import qwen21
 
-OUT = '/Users/zhengbingjin/Project/Github/MYStudio/apps/output/trial_档位AB_手剑_1026'
+OUT = os.path.expanduser('~/Project/Github/MYStudio/apps/output/trial_档位AB_手剑_1026')
 TARGET = 'probe_美宣_原生档.png'
 HAND_IDX = 1  # h1 = 指数0/糊团
 REPAIR_PROMPT = ('保持画面色调与构图位置不变,将这只手重绘为五指完整、指节清晰、自然放松的手部特写,'

@@ -1,8 +1,9 @@
+import os
 """Migrate only the reviewed asset prompt fields; preserve entity/media data."""
 from pathlib import Path
 import json,copy,re
 from qi21_prompt_revision import OUT, json_write
-S=next(p/'store' for p in Path('/Users/zhengbingjin/Project/IP').iterdir() if p.name=='MA')
+S=next(p/'store' for p in Path(os.path.expanduser('~/Project/IP')).iterdir() if p.name=='MA')
 rows=[]
 for fn,key in [('characters.json','characters'),('scenes.json','scenes'),('props.json','items')]:
  p=S/fn; d=json.loads(p.read_text()); before=copy.deepcopy(d)

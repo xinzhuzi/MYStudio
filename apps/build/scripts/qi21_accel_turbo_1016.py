@@ -28,6 +28,7 @@
 """
 
 from __future__ import annotations
+import os
 
 import argparse
 import copy
@@ -774,7 +775,7 @@ def main() -> None:
     if args.sync_home:
         app_res = (REPO / "apps/release/build/mac-arm64/mac-arm64/漫影工作室.app"
                    "/Contents/Resources/backend/comfyui")
-        engine_home = Path("/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/ComfyUI")
+        engine_home = Path(os.path.expanduser("~/Project/IP/漫影工作室/comfyui/ComfyUI"))
         py_files = [
             REPO / "apps/backend/comfyui/my_nodes/nodes/my_qi21_speed_select.py",
             REPO / "apps/backend/comfyui/my_nodes/__init__.py",

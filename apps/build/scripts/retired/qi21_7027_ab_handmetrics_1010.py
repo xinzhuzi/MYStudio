@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """7027 A/B 双臂产物:手部区裁片+像素指标(1010)。
 
 两臂同 seed 同构图,同尺寸裁片框(人物中下区手带);指标:
@@ -15,7 +16,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-D = Path("/Users/zhengbingjin/Project/Github/MYStudio/apps/output/fisher-pose-test/7027ab")
+D = Path(os.path.expanduser("~/Project/Github/MYStudio/apps/output/fisher-pose-test/7027ab"))
 
 
 def laplacian_var(gray):

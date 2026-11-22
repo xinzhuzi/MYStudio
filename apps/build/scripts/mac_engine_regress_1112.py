@@ -7,6 +7,7 @@
 引擎口=manifest.json engine.port(Mac 冷启动由 App 拉起后本脚本才可跑)。
 """
 from __future__ import annotations
+import os
 
 import json
 import sys
@@ -16,7 +17,7 @@ import urllib.request
 from pathlib import Path
 
 MANIFEST = Path.home() / "Library/Application Support/漫影工作室/comfyui/manifest.json"
-OUT = Path("/Users/zhengbingjin/Project/Github/MYStudio/apps/output/h3image-smoke-1112")
+OUT = Path(os.path.expanduser("~/Project/Github/MYStudio/apps/output/h3image-smoke-1112"))
 PROMPT = "一位青衣女修立于云海石阶之上,水墨国风,大量留白,矿物色"
 
 

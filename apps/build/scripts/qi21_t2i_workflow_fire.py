@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-t2i.json 工作流本体直跑器(1009 用户令:「必须跑 qi21-道劫-t2i.json 工作流,不要瞎搞自己的设计;每次随机种子」)。
 
 不做任何自建图——从工作流 GUI JSON **按其结构展平**成 API 格式发车:
@@ -23,7 +24,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 WF = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
 DOC = REPO / "docs/prompts/道劫_类型主体句示例.md"
 # 1016turbo 官方臂常量(FunAcc 臂退役;LoRA 家=<引擎家>/models/loras,mystudio 映射)

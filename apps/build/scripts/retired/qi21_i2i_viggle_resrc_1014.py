@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-i2i viggle 正源回切手术(2026-10-14 深夜,鉴别矩阵定谳后修复弹)。
 
 定谳链(1014 五探针矩阵+云端视觉终审):
@@ -18,7 +19,7 @@ import json
 import sys
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 
 NOTE_EDITS = [

@@ -1,3 +1,4 @@
+import os
 """晏燎 v5 双参考图生图跑批(10-22 用户令:基准脸+同期正视图,先试练气期)。
 接线:<image1>=晏燎_人脸基准_中性_v1.png(节点10,bindings槽0) + <image2>=同期正视图
 (节点11手填上传名,不剪11/17链;171.image_2 补接["17",0]=双编码器吃双图)。
@@ -15,7 +16,7 @@ sys.path.insert(0, str(ROOT / "apps/backend"))
 from engines.image_engine.comfyui_bridge import instantiate_template, load_template  # noqa: E402
 
 ENGINE = "http://127.0.0.1:17001"
-ROLE = Path("/Users/zhengbingjin/Project/IP/MA/store/assets/files/role/晏燎")
+ROLE = Path(os.path.expanduser("~/Project/IP/MA/store/assets/files/role/晏燎"))
 SRC = ROOT / "apps/output/晏燎"
 OUT = SRC / "trial_基准"
 

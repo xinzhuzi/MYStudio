@@ -14,7 +14,7 @@ import os
 import subprocess
 import sys
 
-REPO = '/Users/zhengbingjin/Project/Github/MYStudio'
+REPO = os.path.expanduser('~/Project/Github/MYStudio')
 CAMP = REPO + '/apps/output/fasth3-upscale-shootout-1028'
 CMP = CAMP + '/compare'
 FRAMES = '/tmp/shootout-frames-1028'

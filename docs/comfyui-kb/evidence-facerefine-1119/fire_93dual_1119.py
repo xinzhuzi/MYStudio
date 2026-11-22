@@ -51,7 +51,7 @@ import uuid
 ENGINE = "http://192.168.0.101:17000"
 CLIENT = "93dual-1119-" + uuid.uuid4().hex[:8]
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = "/Users/zhengbingjin/Project/Github/MYStudio"
+REPO = os.path.expanduser("~/Project/Github/MYStudio")
 WF_FILE = f"{REPO}/apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json"
 
 SRC_FILE = "src_4k_p3.mp4"          # 3840x2220x175 frames, with audio, engine input

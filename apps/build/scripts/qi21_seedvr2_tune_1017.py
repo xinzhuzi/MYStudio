@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """SeedVR2 尾档调优(2026-10-17,用户令:temp 42→1;t2i ⑤组维持默认旁路+确认手动/API 开)。
 
 [503] temp=42→1(官方低温口径:轻退化 AIGC 输入防过度生成/脑补纹路;
@@ -8,7 +9,7 @@ fail-closed:术前锚 temp=42;回读;幂等 exit 3。
 """
 import json, shutil, sys
 from pathlib import Path
-REPO = Path('/Users/zhengbingjin/Project/Github/MYStudio')
+REPO = Path(os.path.expanduser('~/Project/Github/MYStudio'))
 FILES = [
     REPO / 'apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json',
     REPO / 'apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json',

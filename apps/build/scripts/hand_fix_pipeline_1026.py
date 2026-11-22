@@ -19,15 +19,15 @@ import sys
 import time
 import urllib.request
 
-sys.path.insert(0, '/Users/zhengbingjin/Project/Github/MYStudio/apps/backend')
+sys.path.insert(0, os.path.expanduser('~/Project/Github/MYStudio/apps/backend'))
 os.environ.setdefault('MYSTUDIO_COMFYUI_BRIDGE_URL', 'http://127.0.0.1:17001')
 
 from PIL import Image, ImageDraw, ImageFilter
 from ultralytics import YOLO
 
-MODEL = ('/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/ComfyUI/models/'
-         'ultralytics/bbox/hand_yolov8n.pt')
-OUT_DIR = '/Users/zhengbingjin/Project/Github/MYStudio/apps/output/trial_档位AB_手剑_1026'
+MODEL = os.path.expanduser('~/Project/IP/漫影工作室/comfyui/ComfyUI/models/'
+                           'ultralytics/bbox/hand_yolov8n.pt')
+OUT_DIR = os.path.expanduser('~/Project/Github/MYStudio/apps/output/trial_档位AB_手剑_1026')
 BAD_WORDS = ('融合', '多指', '糊团', '穿模')
 REPAIR_TPL = ('保持画面色调与构图位置不变,将这只手重绘为五指完整、指节清晰、自然放松的手部特写,'
               '{ctx}肤色与原画面一致,工笔设色画风')

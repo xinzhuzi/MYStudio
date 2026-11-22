@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """任务B⑤:对比条拼图——三联横条(源|A|B)+人脸/躯干局部放大条。"""
 from __future__ import annotations
+import os
 
 from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-OUT_DIR = Path("/Users/zhengbingjin/Project/Github/MYStudio/apps/output/outfit_probe_1026")
+OUT_DIR = Path(os.path.expanduser("~/Project/Github/MYStudio/apps/output/outfit_probe_1026"))
 SRC_AL = OUT_DIR / "src_aligned.png"
 ARM_A = OUT_DIR / "B_armA_基线.png"
 ARM_B = OUT_DIR / "B_armB_outfit.png"

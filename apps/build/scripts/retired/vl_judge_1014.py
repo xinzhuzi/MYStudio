@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """九型语义产物·本机 VL 判定(2026-10-14;zai 视觉额度耗尽后的本地验收链)。
 判定器=本机 mlx-vlm Qwen3-VL-8B(127.0.0.1:8080,OpenAI 兼容);判据=每型语义清单。
 用法:python3 vl_judge_1014.py → 打印逐型判定+落 sweep9-semantic/vl_verdicts.md"""
@@ -7,7 +8,7 @@ import json
 import urllib.request
 from pathlib import Path
 
-OUT = Path("/Users/zhengbingjin/Project/Github/MYStudio/apps/output/i2i-fire-1013")
+OUT = Path(os.path.expanduser("~/Project/Github/MYStudio/apps/output/i2i-fire-1013"))
 DIRECT = OUT / "semantic_direct"
 VL = "http://127.0.0.1:8080/v1/chat/completions"
 MODEL = "Qwen/Qwen3-VL-8B-Instruct"

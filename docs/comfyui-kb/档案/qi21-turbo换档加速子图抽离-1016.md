@@ -121,7 +121,7 @@ my_nodes/subgraphs/qi21-道劫-加速子图-edit.json
 
 | 项 | 值 | 来源 |
 |---|---|---|
-| 产物图(绝对路径) | `/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/道具-turbo1016首发.png` | fire 脚本 DONE 行,文件在场 1,346,843 B |
+| 产物图(绝对路径) | `~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/道具-turbo1016首发.png` | fire 脚本 DONE 行,文件在场 1,346,843 B |
 | 引擎侧产物名 | `QI21_t2i_wf_00005_.png` | fire stdout `DONE QI21_t2i_wf_00005_.png (80s)` |
 | prompt_id | `850f0f8b-303a-4ef4-81a3-1a092b003467` | fire stdout `queued <pid>` |
 | 宽×高 | **1024 × 1024**(8-bit,彩色型 6=RGBA,道具型 1:1 透明底设计) | PNG IHDR 直读 |
@@ -140,7 +140,7 @@ my_nodes/subgraphs/qi21-道劫-加速子图-edit.json
 
 ## 装配链佐证
 
-- 装配文快照:`/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/道具-turbo1016首发.装配文.txt`(fire 从 history [401] 双显示框取的终稿真值:主体句=青铜剑示例库§3首例;正向终稿含透明格式锁与全量画面语言;负向终稿 367 字风格负向)
+- 装配文快照:`~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/道具-turbo1016首发.装配文.txt`(fire 从 history [401] 双显示框取的终稿真值:主体句=青铜剑示例库§3首例;正向终稿含透明格式锁与全量画面语言;负向终稿 367 字风格负向)
 - 主体句(入图):「一柄传承千年的青铜剑,剑身暗金底色上盘绕细密云雷纹,剑格铸成兽首衔环,剑柄缠深红丝绳,穗尾垂一枚带裂纹的灵玉。」
 
 ## PNG 元数据 prompt 块全文(逐字,34,383 字节,单行紧凑 JSON)
@@ -167,7 +167,7 @@ my_nodes/subgraphs/qi21-道劫-加速子图-edit.json
 
 | 项 | 值 | 来源 |
 |---|---|---|
-| 产物图(绝对路径) | `/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/人物.png` | fire DONE 行;文件在场 2,553,540 B |
+| 产物图(绝对路径) | `~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/人物.png` | fire DONE 行;文件在场 2,553,540 B |
 | 引擎侧产物名 | `QI21_t2i_wf_00006_.png` | fire stdout |
 | prompt_id | `ab581fac-ff97-43d5-9b0b-728c10bae99b` | fire stdout `queued` |
 | 宽×高 | **1088 × 1440**(8-bit,彩色型 6=RGBA) | PNG IHDR 直读 |
@@ -199,7 +199,7 @@ my_nodes/subgraphs/qi21-道劫-加速子图-edit.json
 
 ## 附件
 
-- 装配文快照:`/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/人物.装配文.txt`(fire 取 history [401] 终稿真值)
+- 装配文快照:`~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/人物.装配文.txt`(fire 取 history [401] 终稿真值)
 
 ---
 
@@ -212,7 +212,7 @@ my_nodes/subgraphs/qi21-道劫-加速子图-edit.json
 
 | 项 | 值 | 来源 |
 |---|---|---|
-| 产物图(绝对路径) | `/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/场景.png` | fire DONE 行;文件在场 3,233,842 B |
+| 产物图(绝对路径) | `~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/场景.png` | fire DONE 行;文件在场 3,233,842 B |
 | 引擎侧产物名 | `QI21_t2i_wf_00007_.png` | fire stdout |
 | prompt_id | `89f15f1a-8a14-4240-87be-42f909567566` | fire stdout `queued` |
 | 宽×高 | **1664 × 944**(8-bit,彩色型 6=RGBA) | PNG IHDR 直读 |
@@ -244,7 +244,7 @@ my_nodes/subgraphs/qi21-道劫-加速子图-edit.json
 
 ## 附件
 
-- 装配文快照:`/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/场景.装配文.txt`(fire 取 history [401] 终稿真值)
+- 装配文快照:`~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/场景.装配文.txt`(fire 取 history [401] 终稿真值)
 
 ---
 
@@ -257,7 +257,7 @@ my_nodes/subgraphs/qi21-道劫-加速子图-edit.json
 
 | 项 | 值 | 来源 |
 |---|---|---|
-| 产物图(绝对路径) | `/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/道具.png` | fire DONE 行;文件在场 642,360 B |
+| 产物图(绝对路径) | `~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/道具.png` | fire DONE 行;文件在场 642,360 B |
 | 引擎侧产物名 | `QI21_t2i_wf_00008_.png` | fire stdout |
 | prompt_id | `c040443c-326e-48a7-b730-13532f75e18d` | fire stdout `queued` |
 | 宽×高 | **1024 × 1024**(8-bit,彩色型 6=RGBA) | PNG IHDR 直读 |
@@ -289,7 +289,7 @@ my_nodes/subgraphs/qi21-道劫-加速子图-edit.json
 
 ## 附件
 
-- 装配文快照:`/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/道具.装配文.txt`(fire 取 history [401] 终稿真值)
+- 装配文快照:`~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/道具.装配文.txt`(fire 取 history [401] 终稿真值)
 - 同型首发参照件:`apps/output/bgscope-r3-9types/道具-turbo1016首发.png`(seed=2035662262,80s,含引擎冷加载)
 
 ---
@@ -303,7 +303,7 @@ my_nodes/subgraphs/qi21-道劫-加速子图-edit.json
 
 | 项 | 值 | 来源 |
 |---|---|---|
-| 产物图(绝对路径) | `/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/美宣.png` | fire DONE 行;文件在场 2,861,013 B |
+| 产物图(绝对路径) | `~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/美宣.png` | fire DONE 行;文件在场 2,861,013 B |
 | 引擎侧产物名 | `QI21_t2i_wf_00009_.png` | fire stdout |
 | prompt_id | `49b22597-c589-4bf5-a21b-3ba3eb0819f4` | fire stdout `queued` |
 | 宽×高 | **1920 × 832**(8-bit,彩色型 6=RGBA——本产线 RGBA VAE 统一输出格式,前四发同) | PNG IHDR 直读 |
@@ -335,7 +335,7 @@ my_nodes/subgraphs/qi21-道劫-加速子图-edit.json
 
 ## 附件
 
-- 装配文快照:`/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/美宣.装配文.txt`(fire 取 history [401] 终稿真值)
+- 装配文快照:`~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/美宣.装配文.txt`(fire 取 history [401] 终稿真值)
 
 ---
 
@@ -348,7 +348,7 @@ my_nodes/subgraphs/qi21-道劫-加速子图-edit.json
 
 | 项 | 值 | 来源 |
 |---|---|---|
-| 产物图(绝对路径) | `/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/人物多视图.png` | fire DONE 行;文件在场 2,080,546 B |
+| 产物图(绝对路径) | `~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/人物多视图.png` | fire DONE 行;文件在场 2,080,546 B |
 | 引擎侧产物名 | `QI21_t2i_wf_00010_.png` | fire stdout |
 | prompt_id | `2fd5572b-8028-4c07-8879-7f4cad7933cf` | fire stdout `queued` |
 | 宽×高 | **1632 × 1632**(8-bit,彩色型 6=RGBA) | PNG IHDR 直读 |
@@ -380,7 +380,7 @@ e", "inputs": {"noise_seed": 963027764}}, "7:7018": {"class_type": "KSamplerSele
 
 ## 附件
 
-- 装配文快照:`/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/人物多视图.装配文.txt`(fire 取 history [401] 终稿真值)
+- 装配文快照:`~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/人物多视图.装配文.txt`(fire 取 history [401] 终稿真值)
 
 ---
 
@@ -393,7 +393,7 @@ e", "inputs": {"noise_seed": 963027764}}, "7:7018": {"class_type": "KSamplerSele
 
 | 项 | 值 | 来源 |
 |---|---|---|
-| 产物图(绝对路径) | `/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/高清人脸.png` | fire DONE 行;文件在场 1,511,626 B |
+| 产物图(绝对路径) | `~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/高清人脸.png` | fire DONE 行;文件在场 1,511,626 B |
 | 引擎侧产物名 | `QI21_t2i_wf_00011_.png` | fire stdout |
 | prompt_id | `a5f17a6c-d01e-4004-8831-71744936df66` | fire stdout `queued` |
 | 宽×高 | **1024 × 1024**(8-bit,彩色型 6=RGBA) | PNG IHDR 直读 |
@@ -425,7 +425,7 @@ e", "inputs": {"noise_seed": 600842895}}, "7:7018": {"class_type": "KSamplerSele
 
 ## 附件
 
-- 装配文快照:`/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/高清人脸.装配文.txt`(fire 取 history [401] 终稿真值)
+- 装配文快照:`~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/高清人脸.装配文.txt`(fire 取 history [401] 终稿真值)
 
 ---
 
@@ -438,7 +438,7 @@ e", "inputs": {"noise_seed": 600842895}}, "7:7018": {"class_type": "KSamplerSele
 
 | 项 | 值 | 来源 |
 |---|---|---|
-| 产物图(绝对路径) | `/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/分镜剧情图.png` | fire DONE 行;文件在场 2,673,029 B |
+| 产物图(绝对路径) | `~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/分镜剧情图.png` | fire DONE 行;文件在场 2,673,029 B |
 | 引擎侧产物名 | `QI21_t2i_wf_00012_.png` | fire stdout |
 | prompt_id | `da79c7cc-14e7-4c72-bb81-783bdcfd8af7` | fire stdout `queued` |
 | 宽×高 | **1664 × 944**(8-bit,彩色型 6=RGBA——本产线统一输出格式) | PNG IHDR 直读 |
@@ -470,7 +470,7 @@ e", "inputs": {"noise_seed": 112273253}}, "7:7018": {"class_type": "KSamplerSele
 
 ## 附件
 
-- 装配文快照:`/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/分镜剧情图.装配文.txt`(fire 取 history [401] 终稿真值)
+- 装配文快照:`~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/分镜剧情图.装配文.txt`(fire 取 history [401] 终稿真值)
 
 ---
 
@@ -483,7 +483,7 @@ e", "inputs": {"noise_seed": 112273253}}, "7:7018": {"class_type": "KSamplerSele
 
 | 项 | 值 | 来源 |
 |---|---|---|
-| 产物图(绝对路径) | `/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/表情差分.png` | fire DONE 行;文件在场 2,702,171 B |
+| 产物图(绝对路径) | `~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/表情差分.png` | fire DONE 行;文件在场 2,702,171 B |
 | 引擎侧产物名 | `QI21_t2i_wf_00013_.png` | fire stdout |
 | prompt_id | `6c454d70-e7b7-43b7-8c7c-e7a53c41052c` | fire stdout `queued` |
 | 宽×高 | **1248 × 1248**(8-bit,彩色型 6=RGBA) | PNG IHDR 直读 |
@@ -515,7 +515,7 @@ e", "inputs": {"noise_seed": 112273253}}, "7:7018": {"class_type": "KSamplerSele
 
 ## 附件
 
-- 装配文快照:`/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/表情差分.装配文.txt`(fire 取 history [401] 终稿真值)
+- 装配文快照:`~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/表情差分.装配文.txt`(fire 取 history [401] 终稿真值)
 
 ---
 
@@ -528,7 +528,7 @@ e", "inputs": {"noise_seed": 112273253}}, "7:7018": {"class_type": "KSamplerSele
 
 | 项 | 值 | 来源 |
 |---|---|---|
-| 产物图(绝对路径) | `/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/概念气氛图.png` | fire DONE 行;文件在场 2,506,247 B |
+| 产物图(绝对路径) | `~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/概念气氛图.png` | fire DONE 行;文件在场 2,506,247 B |
 | 引擎侧产物名 | `QI21_t2i_wf_00014_.png` | fire stdout |
 | prompt_id | `ea3e924e-d94d-4692-a96c-b5cc9e3374dc` | fire stdout `queued` |
 | 宽×高 | **1664 × 944**(8-bit,彩色型 6=RGBA) | PNG IHDR 直读 |
@@ -560,7 +560,7 @@ e", "inputs": {"noise_seed": 112273253}}, "7:7018": {"class_type": "KSamplerSele
 
 ## 附件
 
-- 装配文快照:`/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/概念气氛图.装配文.txt`(fire 取 history [401] 终稿真值)
+- 装配文快照:`~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/概念气氛图.装配文.txt`(fire 取 history [401] 终稿真值)
 
 ---
 
@@ -573,7 +573,7 @@ e", "inputs": {"noise_seed": 112273253}}, "7:7018": {"class_type": "KSamplerSele
 
 | 项 | 值 | 来源 |
 |---|---|---|
-| 产物图(绝对路径) | `/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/设定卡-turbo1016.png` | fire DONE 行;文件在场 1,604,221 B |
+| 产物图(绝对路径) | `~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/设定卡-turbo1016.png` | fire DONE 行;文件在场 1,604,221 B |
 | 旧件保全 | 1015 役 `设定卡.png`(11,639,931 B,10-16 04:08)未触碰——本次走专用名,零覆盖 | ls 实测两件并存 |
 | 引擎侧产物名 | `QI21_t2i_wf_00015_.png` | fire stdout |
 | prompt_id | `1ad0564c-558c-4157-af30-20d1d7157168` | fire stdout `queued` |
@@ -607,7 +607,7 @@ e", "inputs": {"noise_seed": 112273253}}, "7:7018": {"class_type": "KSamplerSele
 
 ## 附件
 
-- 装配文快照:`/Users/zhengbingjin/Project/Github/MYStudio/apps/output/bgscope-r3-9types/设定卡-turbo1016.装配文.txt`(fire 取 history [401] 终稿真值)
+- 装配文快照:`~/Project/Github/MYStudio/apps/output/bgscope-r3-9types/设定卡-turbo1016.装配文.txt`(fire 取 history [401] 终稿真值)
 
 ---
 

@@ -44,14 +44,14 @@
       "--fragment-retries",
       "3",
       "-o",
-      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/video.%(ext)s",
+      "~/Project/Github/MYStudio/.tmp/ai-writer-video-1029/video.%(ext)s",
       "https://www.bilibili.com/video/BV1KtHD6kEme"
     ],
     [
       "mv",
       "-f",
-      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/video.danmaku.xml",
-      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/danmaku.xml"
+      "~/Project/Github/MYStudio/.tmp/ai-writer-video-1029/video.danmaku.xml",
+      "~/Project/Github/MYStudio/.tmp/ai-writer-video-1029/danmaku.xml"
     ],
     [
       "ffmpeg",
@@ -59,17 +59,17 @@
       "-nostdin",
       "-y",
       "-i",
-      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/video.mp4",
+      "~/Project/Github/MYStudio/.tmp/ai-writer-video-1029/video.mp4",
       "-vn",
       "-ac",
       "1",
       "-ar",
       "16000",
-      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/audio.wav"
+      "~/Project/Github/MYStudio/.tmp/ai-writer-video-1029/audio.wav"
     ],
     [
       "/opt/homebrew/bin/whisper",
-      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/audio.wav",
+      "~/Project/Github/MYStudio/.tmp/ai-writer-video-1029/audio.wav",
       "--model",
       "small",
       "--language",
@@ -77,15 +77,15 @@
       "--output_format",
       "srt",
       "--output_dir",
-      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029",
+      "~/Project/Github/MYStudio/.tmp/ai-writer-video-1029",
       "--initial_prompt",
       "以下是普通话的句子。"
     ],
     [
       "cp",
       "-f",
-      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/audio.srt",
-      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/transcript.srt"
+      "~/Project/Github/MYStudio/.tmp/ai-writer-video-1029/audio.srt",
+      "~/Project/Github/MYStudio/.tmp/ai-writer-video-1029/transcript.srt"
     ],
     [
       "ffmpeg",
@@ -93,14 +93,14 @@
       "-nostdin",
       "-y",
       "-i",
-      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/video.mp4",
+      "~/Project/Github/MYStudio/.tmp/ai-writer-video-1029/video.mp4",
       "-vf",
       "select='gt(scene,0.15)',showinfo",
       "-fps_mode",
       "vfr",
       "-q:v",
       "2",
-      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/images/frame_%04d.jpg"
+      "~/Project/Github/MYStudio/.tmp/ai-writer-video-1029/images/frame_%04d.jpg"
     ]
   ],
   "generated_at": "2026-10-29T08:51:26",

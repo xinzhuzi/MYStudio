@@ -12,6 +12,7 @@
 stages: core/docs/snapshots/test-anchors/distribute/verify
 """
 from __future__ import annotations
+import os
 
 import hashlib
 import json
@@ -228,10 +229,10 @@ def test_anchors() -> None:
 def distribute() -> None:
     app = Path('/Applications/漫影工作室.app/Contents/Resources')
     release = (ROOT / 'apps/release/build/mac-arm64/mac-arm64/漫影工作室.app/Contents/Resources')
-    ma = Path('/Users/zhengbingjin/Project/IP/MA/skills/art_skills/daojie_ink_guofeng')
-    ip = Path('/Users/zhengbingjin/Project/IP/漫影工作室/skills/art_skills/daojie_ink_guofeng')
-    engine_data = Path('/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/daojie-data')
-    engine_nodes = Path('/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/ComfyUI/custom_nodes/my-nodes')
+    ma = Path(os.path.expanduser('~/Project/IP/MA/skills/art_skills/daojie_ink_guofeng'))
+    ip = Path(os.path.expanduser('~/Project/IP/漫影工作室/skills/art_skills/daojie_ink_guofeng'))
+    engine_data = Path(os.path.expanduser('~/Project/IP/漫影工作室/comfyui/daojie-data'))
+    engine_nodes = Path(os.path.expanduser('~/Project/IP/漫影工作室/comfyui/ComfyUI/custom_nodes/my-nodes'))
     manual = 'studio-manuals/art_skills/daojie_ink_guofeng'
 
     plan: list[tuple[Path, Path]] = []

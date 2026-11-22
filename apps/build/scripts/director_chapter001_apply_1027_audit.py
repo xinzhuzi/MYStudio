@@ -1,5 +1,6 @@
 """Read-only baseline audit for the blocked chapter001 apply slice; never writes projects."""
 from __future__ import annotations
+import os
 
 import argparse
 import hashlib
@@ -7,7 +8,7 @@ import json
 from pathlib import Path
 
 PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec4"
-PROJECT_ROOT = Path("/Users/zhengbingjin/Project/IP/MA")
+PROJECT_ROOT = Path(os.path.expanduser("~/Project/IP/MA"))
 TASK = Path(__file__).resolve().parents[3] / ".trellis/tasks/10-25-daojie-director-rule-conflict-validation"
 
 

@@ -1,3 +1,4 @@
+import os
 """Replay the user's saved generation, pinning final text for an isolated style A/B.
 No production graph rewiring; both requests retain saved graph, model, seed and sampler.
 """
@@ -17,7 +18,7 @@ ROOT=Path(__file__).resolve().parents[3]
 OUT=ROOT/'apps/output/automation/qi21-painterly-ab-1016'
 SAVED=ROOT/'apps/output/automation/qi21-render-style-diagnosis-1016-00003'
 MANUAL=ROOT/'apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng'
-IP=next(p for p in Path('/Users/zhengbingjin/Project/IP').iterdir() if p.name=='漫影工作室')
+IP=next(p for p in Path(os.path.expanduser('~/Project/IP')).iterdir() if p.name=='漫影工作室')
 port=json.loads((IP/'comfyui/manifest.json').read_text())['engine']['port']
 BASE=f'http://127.0.0.1:{port}'
 ORIGINAL=next(p for p in (IP/'comfyui/output').iterdir() if p.name=='QI21道劫文生图__00003_.png')

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-i2i 参考图 5→3 收口手术(2026-10-10,用户令「最多也支持3张,5张太多」)。
 
 背景:1010 晨五槽扩展(qi21_i2i_ref5_1010.py)已随 1752568e/6e693716/367b406f
@@ -24,7 +25,7 @@ import json
 import sys
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 BP = REPO / "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json"
 SG_NAME_PREFIX = "[6] 文本提示词类型优化子图"

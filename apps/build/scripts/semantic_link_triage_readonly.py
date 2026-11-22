@@ -1,3 +1,4 @@
+import os
 """Read-only linkage inventory; optionally create one exclusive research JSON."""
 
 import argparse
@@ -9,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-PROJECT = Path('/Users/zhengbingjin/Project/IP/MA')
+PROJECT = Path(os.path.expanduser('~/Project/IP/MA'))
 TASK = ROOT / '.trellis/tasks/10-19-script-asset-extract-all-chapters'
 AUDIT = ROOT / '.trellis/tasks/10-20-trellis-audit-remediation/research/current-extraction-audit.json'
 OUTPUT = TASK / 'research/semantic-link-triage-data.json'

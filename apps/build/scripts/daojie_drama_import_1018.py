@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """道劫漫剧剧本全本迁移(1018):Unity MA Design → IP/MA novel/drama 一一对应。
 
-源 = /Users/zhengbingjin/Project/Unity/MA/Design/世界观小说/《道劫》/6.长剧/卷XX_*/
+源 = ~/Project/Unity/MA/Design/世界观小说/《道劫》/6.长剧/卷XX_*/
       第N章_漫剧.md  (4125 份已生成剧本,10-16~10-18 批量生成役产物,内容零改动)
-目标 = /Users/zhengbingjin/Project/IP/MA/novel/drama/chapter-NNN_漫剧.md
+目标 = ~/Project/IP/MA/novel/drama/chapter-NNN_漫剧.md
       (NNN 与 novel/chapters/chapter-NNN.md 同 ID 空间:%03d 零填充,>999 自然宽)
 
 规则:只迁移不重生成;逐份 md5 校验;目标已存在且同 md5=幂等跳过,
@@ -11,6 +11,7 @@
 源目录保留不动(是否撤源另令)。
 """
 from __future__ import annotations
+import os
 
 import hashlib
 import re
@@ -18,9 +19,9 @@ import shutil
 import sys
 from pathlib import Path
 
-SRC = Path("/Users/zhengbingjin/Project/Unity/MA/Design/世界观小说/《道劫》/6.长剧")
-DST = Path("/Users/zhengbingjin/Project/IP/MA/novel/drama")
-CHAPTERS = Path("/Users/zhengbingjin/Project/IP/MA/novel/chapters")
+SRC = Path(os.path.expanduser("~/Project/Unity/MA/Design/世界观小说/《道劫》/6.长剧"))
+DST = Path(os.path.expanduser("~/Project/IP/MA/novel/drama"))
+CHAPTERS = Path(os.path.expanduser("~/Project/IP/MA/novel/chapters"))
 EXPECT = set(range(1, 4126))
 PAT = re.compile(r"^第(\d+)章_漫剧\.md$")
 

@@ -20,6 +20,7 @@
 """
 
 from __future__ import annotations
+import os
 
 import bisect
 import json
@@ -27,7 +28,7 @@ import re
 import sys
 from pathlib import Path
 
-MANIFEST_PATH = Path("/Users/zhengbingjin/Project/IP/MA/store/studio-workflow/manifest.json")
+MANIFEST_PATH = Path(os.path.expanduser("~/Project/IP/MA/store/studio-workflow/manifest.json"))
 BACKUP_SUFFIX_RE = re.compile(r"^manifest\.json\.bak-restore-ch2-5-(\d+)$")
 
 EXPECTED_NEW_IDS = {"chapter-002", "chapter-003", "chapter-004", "chapter-005"}

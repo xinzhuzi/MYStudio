@@ -80,7 +80,7 @@
 
 ### 唯一真实空缺（记档，本役不做）
 
-**「出片即响」**——8GB 本本机跑 20-40 分钟是常态，小黑链的计时件只是画布装饰，真正缺的是**完成事件的应用侧通知**。全仓实测 `apps/frontend` + `apps/backend/electron` 零 `new Notification` / 零 `playSound` / 零 `Audio(` 命中；钩子候选=[apps/frontend/components/orbs/use-task-center.ts:188](file:///Users/zhengbingjin/Project/Github/MYStudio/apps/frontend/components/orbs/use-task-center.ts#L188)。已另立 Trellis 役 `11-06-render-notify`(P3)，不并入本役。
+**「出片即响」**——8GB 本本机跑 20-40 分钟是常态，小黑链的计时件只是画布装饰，真正缺的是**完成事件的应用侧通知**。全仓实测 `apps/frontend` + `apps/backend/electron` 零 `new Notification` / 零 `playSound` / 零 `Audio(` 命中；钩子候选=[apps/frontend/components/orbs/use-task-center.ts:188](apps/frontend/components/orbs/use-task-center.ts#L188)。已另立 Trellis 役 `11-06-render-notify`(P3)，不并入本役。
 
 ## 三、执行序（1106 grill 后定稿；本役只做 P0 零下载，实件全部移交对拍役）
 

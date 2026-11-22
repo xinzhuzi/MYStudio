@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-i2i 紫底 P1 洗底链 fail-closed 手术(2026-10-15;1015 役任务②)。
 
 病灶(1014 T7 收据):VAEDecode 出图 alpha=0 区 RGB 非零(紫底)——alpha 通道
@@ -41,7 +42,7 @@ import json
 import sys
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 WF = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 BP = REPO / "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json"
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-i2i 透明参考锚 fail-closed 手术(2026-10-15;1014 透明锚役 T2)。
 
 架构口径(0928 铁案+1014 深夜定谳结构性保持;方案 B 专属锚路,方案 A 硬接
@@ -48,7 +49,7 @@ import struct
 import sys
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 BP = REPO / "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json"
 SEED_DIR = REPO / "apps/backend/engines/comfyui/input_seed"

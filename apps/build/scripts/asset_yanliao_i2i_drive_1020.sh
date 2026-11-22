@@ -2,8 +2,8 @@
 # 晏燎图生图战役·批量驱动(1020):逐张 指针→点火→轮询产物→记账。
 # 用法: bash asset_yanliao_i2i_drive_1020.sh <目标基名...>(首张已完成的不传)
 set -u
-REPO=/Users/zhengbingjin/Project/Github/MYStudio
-DST="/Users/zhengbingjin/Project/IP/MA/store/assets/files/role/晏燎"
+REPO="${MYSTUDIO_REPO_ROOT:-$HOME/Project/Github/MYStudio}"
+DST="${MYSTUDIO_MA_ROOT:-$HOME/Project/IP/MA}/store/assets/files/role/晏燎"
 LOG=/tmp/yanliao-i2i-progress.log
 : > "$LOG"
 

@@ -2,7 +2,7 @@
 """任务B④:数值门——人脸区/躯干区/全图 MAE(源图 vs A臂 / 源图 vs B臂)+双臂互差。
 
 解释器:引擎私有 venv(自带 numpy/PIL):
-  /Users/zhengbingjin/Library/Application Support/漫影工作室/comfyui/venv/bin/python
+  ~/Library/Application Support/漫影工作室/comfyui/venv/bin/python
 
 区域框:按源图(2048×2706)取景手工定(视觉分析百分比换算,落台账):
   人脸区 x≈42% y≈7% w≈13% h≈12% → (860,189,266,325)
@@ -17,6 +17,7 @@
 数值仅供参考,有效性结论以对比条人眼终审为准(终审归用户人眼)。
 """
 from __future__ import annotations
+import os
 
 import json
 from pathlib import Path
@@ -24,7 +25,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-OUT_DIR = Path("/Users/zhengbingjin/Project/Github/MYStudio/apps/output/outfit_probe_1026")
+OUT_DIR = Path(os.path.expanduser("~/Project/Github/MYStudio/apps/output/outfit_probe_1026"))
 SRC = OUT_DIR.parent / "晏燎/trial_基准/晏燎_筑基期_正视图_v1.png"
 ARM_A = OUT_DIR / "B_armA_基线.png"
 ARM_B = OUT_DIR / "B_armB_outfit.png"

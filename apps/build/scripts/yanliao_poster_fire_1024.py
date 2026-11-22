@@ -17,6 +17,7 @@
 依赖:真源晏燎.json / user_fire_template_1023.json / handgate venv(/tmp/handgate-venv)/引擎拉起配方。
 """
 from __future__ import annotations
+import os
 
 import argparse
 import base64
@@ -34,8 +35,8 @@ TRUTH = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofen
 TPL = REPO / "apps/output/晏燎/user_fire_template_1023.json"
 HANDGATE = REPO / "apps/build/scripts/hand_gate_1024.py"
 HANDGATE_PY = "/tmp/handgate-venv/bin/python"
-ENGINE_PY = "/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/venv/bin/python"
-ENGINE_HOME = "/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/ComfyUI"
+ENGINE_PY = os.path.expanduser("~/Project/IP/漫影工作室/comfyui/venv/bin/python")
+ENGINE_HOME = os.path.expanduser("~/Project/IP/漫影工作室/comfyui/ComfyUI")
 ENGINE = "http://127.0.0.1:17002"
 MEGAPIXELS = 2.25
 

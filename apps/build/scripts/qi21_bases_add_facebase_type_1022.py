@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21_bases.json 新增「人脸基准」型(10-22 用户令)。
 
 手术口径:types[] 自由之前插入人脸基准(1021 3D剖面「新型插自由之前」先例);
@@ -10,7 +11,7 @@ fail-closed:任何前置断言失败即退出,真源不动。
 import json, shutil, sys
 from pathlib import Path
 
-ROOT = Path('/Users/zhengbingjin/Project/Github/MYStudio')
+ROOT = Path(os.path.expanduser('~/Project/Github/MYStudio'))
 BASES = ROOT / 'apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json'
 YANLIAO = ROOT / 'apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/晏燎.json'
 BAK_DIR = ROOT / 'apps/output/晏燎/bak'

@@ -68,7 +68,7 @@ def _parse_entries(raw: str) -> list[str]:
 本机 `~/.hermes/memories/` 下四件:`MEMORY.md`、`USER.md` 与各自的 `.lock`(锁文件,§2.4.1)。`cat ~/.hermes/memories/MEMORY.md` 开头(节选):
 
 ```
-当前项目 > MA: `/Users/zhengbingjin/Project/Unity/MA/` 千年志*道劫 DNF风格2.5D横版ARPG …
+当前项目 > MA: `~/Project/Unity/MA/` 千年志*道劫 DNF风格2.5D横版ARPG …
 §
 .
 §

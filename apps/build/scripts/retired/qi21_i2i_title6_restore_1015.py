@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-i2i [6] 宿主标题复原(2026-10-15,第三次)。
 UI 保存顽固症:每次画布保存必吃 [6] 宿主自定义 title([7] 不受累)——
 本脚本=每次用户保存后的标准复原刀(fail-closed,幂等)。"""
 import json, shutil, sys, hashlib
 from pathlib import Path
-WF = Path("/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json")
+WF = Path(os.path.expanduser("~/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"))
 INSTALL = Path("/Applications/漫影工作室.app/Contents/Resources/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json")
 TITLE = "[6] 文本提示词类型优化子图"
 pre = hashlib.md5(WF.read_bytes()).hexdigest()

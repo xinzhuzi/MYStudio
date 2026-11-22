@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """道劫-摆姿-fisher 产线工作流建件(1010;用户令「按照你的建议去做」)。
 
 今日实证终版配方(五发同seed对照+G发全域彩色达标)烙进自研件:
@@ -10,7 +11,7 @@
 import json
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/道劫-摆姿-fisher.json"
 
 UE = {"widget_ue_connectable": {}, "version": "7.8", "input_ue_unconnectable": {}}

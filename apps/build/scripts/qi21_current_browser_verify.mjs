@@ -33,7 +33,7 @@ try {
   const currentTypes = baseSchema.input.required.base[0];
   assert(currentTypes.includes('人物海报') && currentTypes.includes('人脸基准'), 'Current type enum missing expected public types');
   report.currentTypes = currentTypes;
-  const { chromium } = require('/Users/zhengbingjin/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+  const { chromium } = require(join(homedir(), '.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright'));
   const cache = join(homedir(), 'Library/Caches/ms-playwright');
   const build = readdirSync(cache).find(n => n === 'chromium_headless_shell-1243');
   assert(build, 'Known verified Chromium build missing');

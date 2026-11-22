@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """三国望神州·空气句 A/B/C 多轮对照实验驱动件(1018 用户双令:
 「不能直接改提示词,必须做多轮对照实验」+「做实验时,必须记录提示词」)。
 
@@ -33,7 +34,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 ENGINE_HOME = Path.home() / "Library/Application Support/漫影工作室/comfyui"
 BASES = ENGINE_HOME / "daojie-data" / "qi21_bases.json"
 FIRE = REPO / "apps/build/scripts" / "qi21_t2i_workflow_fire.py"

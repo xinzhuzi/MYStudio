@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-i2i [33] 退役+组框零重叠手术(2026-10-15,用户令)。
 
 内容(三刀合一):
@@ -24,7 +25,7 @@ import shutil
 import sys
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 INSTALL = Path("/Applications/漫影工作室.app/Contents/Resources/backend/engines/"
                "comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json")

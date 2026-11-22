@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """h3image_smoke_1112.py — MiniMax H3-Image Win 引擎实弹测试(1112 用户令:测试三遍才结束)。
 
 主机适配(1112 用户令「适配 Windows 主机/显卡,找最合适的模型下载」):
@@ -28,7 +29,7 @@ import urllib.request
 from pathlib import Path
 
 ENGINE = "http://192.168.0.101:17000"
-OUT_DIR = Path("/Users/zhengbingjin/Project/Github/MYStudio/apps/output/h3image-smoke-1112")
+OUT_DIR = Path(os.path.expanduser("~/Project/Github/MYStudio/apps/output/h3image-smoke-1112"))
 
 DIT = "minimax_h3_image_pruned_int8_convrot.safetensors"
 TE = "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"  # 主机适配:盘上在役件
@@ -64,7 +65,7 @@ EDIT_INSTRUCTIONS = {
 
 # 官方 PE system/user 模板:运行时从官方 edit 件直抽全文(零转写误差,
 # [36]=system JSON 契约、[39]=user 扩写模板含 {input text} 占位)
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 OFFICIAL_EDIT = (REPO / "apps/backend/comfyui/workflows/1_图片/MiniMax/"
                  "官方-H3图像-图像编辑.json")
 

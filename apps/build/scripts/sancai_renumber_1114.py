@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """三采全节点千位段编号(1114 用户令:按 1,1000,2000... 分组标号,组内十步留插入位)
 三面:repo真源+UI孪生+API孪生;widgets/连线拓扑零变,仅 id 与引用重映射。"""
 import json, sys
@@ -27,10 +28,10 @@ assert len(M) == 66, len(M)
 assert len(set(M.values())) == 66
 
 UI = {
-    'repo': '/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json',
-    'twin': '/Users/zhengbingjin/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.json',
+    'repo': os.path.expanduser('~/Project/Github/MYStudio/apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json'),
+    'twin': os.path.expanduser('~/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.json'),
 }
-API = '/Users/zhengbingjin/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json'
+API = os.path.expanduser('~/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json')
 
 def renumber_ui(d):
     for n in d['nodes']:

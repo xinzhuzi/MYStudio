@@ -19,7 +19,7 @@ import re
 import sys
 import time
 
-MA = "/Users/zhengbingjin/Project/IP/MA"
+MA = os.path.expanduser("~/Project/IP/MA")
 MIRRORS = os.path.join(MA, "novel/chapters")
 STORE = os.path.join(MA, "store/studio-workflow")
 MANIFEST = os.path.join(STORE, "manifest.json")

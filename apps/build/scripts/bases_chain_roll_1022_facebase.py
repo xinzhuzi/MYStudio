@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """1022 人脸基准入列·flux3 快照链滚(第三链,循 1021 配方)。
 
 original 锚恒不动(a2df104b);滚 approved_sha256+批准锚/台账两证据
@@ -8,7 +9,7 @@ fail-closed:全部前置断言不过即退。
 import hashlib, json, re, sys
 from pathlib import Path
 
-ROOT = Path('/Users/zhengbingjin/Project/Github/MYStudio')
+ROOT = Path(os.path.expanduser('~/Project/Github/MYStudio'))
 TASK = ROOT / '.trellis/tasks/10-16-flux3-daojie-ten-types'
 REV = TASK / 'reports/shared-source-revisions.json'
 TEST = ROOT / 'apps/backend/comfyui/tests/test_flux3_daojie_workflow_contract.py'

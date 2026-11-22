@@ -32,7 +32,7 @@ import time
 
 from screenplay_critic import INDEX_HEADER, load_index, write_index
 
-DEFAULT_DRAMA = "/Users/zhengbingjin/Project/IP/MA/novel/drama"
+DEFAULT_DRAMA = os.path.expanduser("~/Project/IP/MA/novel/drama")
 REPORT_MD_RE = re.compile(r"^chapter-(\d+)\.md$")
 BRACKET_RE = re.compile(r"「([^「」]+)」")
 PROB_LINE_RE = re.compile(r"^\s*-\s*\[P[012]\]")

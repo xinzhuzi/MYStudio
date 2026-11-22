@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """1016 型文层墨字头清理+同步(用户令:按建议六句替换,全链同步)。
 
 六句刀(vs 新底座「色面边界明确平整/色相对比保持清晰/crisp sharp edges」对齐):
@@ -13,7 +14,7 @@ fail-closed:每对词每文件精确计数;术后残留零+回读;幂等 exit 3�
 """
 import json, shutil, sys, hashlib
 from pathlib import Path
-ROOT = Path('/Users/zhengbingjin/Project/Github/MYStudio')
+ROOT = Path(os.path.expanduser('~/Project/Github/MYStudio'))
 OUT = ROOT / 'apps/output/automation/qi21-types-ink-clean-1016'
 PAIRS = [
     ('远景允许淡墨软边与空气过渡', '远景以低饱和色面退开，保留清晰色相层次', 2),
@@ -25,9 +26,9 @@ BASES = [
     ROOT / 'apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json',
     Path('/Applications/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json'),
     ROOT / 'apps/release/build/mac-arm64/mac-arm64/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json',
-    Path('/Users/zhengbingjin/Project/IP/MA/skills/art_skills/daojie_ink_guofeng/json/qi21_bases.json'),
-    Path('/Users/zhengbingjin/Project/IP/漫影工作室/skills/art_skills/daojie_ink_guofeng/json/qi21_bases.json'),
-    Path('/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/daojie-data/qi21_bases.json'),
+    Path(os.path.expanduser('~/Project/IP/MA/skills/art_skills/daojie_ink_guofeng/json/qi21_bases.json')),
+    Path(os.path.expanduser('~/Project/IP/漫影工作室/skills/art_skills/daojie_ink_guofeng/json/qi21_bases.json')),
+    Path(os.path.expanduser('~/Project/IP/漫影工作室/comfyui/daojie-data/qi21_bases.json')),
 ]
 MIRRORS = [
     (ROOT / 'docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md', [('笔墨退居其次', '线描退居其次', 1)]),

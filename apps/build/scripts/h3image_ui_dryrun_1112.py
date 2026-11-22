@@ -8,6 +8,7 @@
 产物/证据=apps/output/h3image-smoke-1112/(ui_canvas.png + ui_run__*.png)。
 """
 from __future__ import annotations
+import os
 
 import importlib.util
 import json
@@ -17,7 +18,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 RUNNER = REPO / "apps/build/scripts/arekejoker_posestudio_cdp_1108.py"
 WF = REPO / "apps/backend/comfyui/workflows/1_图片/MiniMax/官方-H3图像-文生图.json"
 OUT = REPO / "apps/output/h3image-smoke-1112"

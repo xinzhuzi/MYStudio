@@ -11,6 +11,7 @@
 """
 
 from __future__ import annotations
+import os
 
 import argparse
 import json
@@ -250,7 +251,7 @@ def build_rows(chapter: str, drama: Path, glossary: dict[str, str]) -> list[str]
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--corpus-dir", required=True)
-    parser.add_argument("--drama-dir", default="/Users/zhengbingjin/Project/IP/MA/novel/drama")
+    parser.add_argument("--drama-dir", default=os.path.expanduser("~/Project/IP/MA/novel/drama"))
     parser.add_argument("--total", type=int, default=4125)
     parser.add_argument("--limit", type=int, default=0, help="only generate first N missing batches")
     parser.add_argument("--dry-run", action="store_true")

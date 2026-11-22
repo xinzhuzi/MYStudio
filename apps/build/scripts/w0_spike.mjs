@@ -1,3 +1,5 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
 /**
  * W0 机检 spike(一次性,implement.md P0.2):验证 script-draft-metrics.ts 能否脱离 App 独立
  * 跑任意剧本章。只读探查,不并入任何评判程序,不接线。
@@ -10,7 +12,7 @@
 import { readFileSync } from "node:fs";
 import { analyzeScriptDraft, formatScriptDraftMetrics } from "../../frontend/lib/studio/script-draft-metrics.ts";
 
-const argPath = process.argv[2] ?? "/Users/zhengbingjin/Project/IP/MA/novel/drama/chapter-003_漫剧.md";
+const argPath = process.argv[2] ?? join(homedir(), "Project/IP/MA/novel/drama/chapter-003_漫剧.md");
 const text = readFileSync(argPath, "utf8");
 
 // durationMin 从剧本头部「| 时长:N分钟」自述提取(与 App 侧调用同源口径的极简替代);

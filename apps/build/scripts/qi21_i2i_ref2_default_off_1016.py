@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-i2i 默认单参考收口(2026-10-16,用户令:「[17] 默认也不开启,默认只开 1 个参考图」)。
 
 刀:[11] 参考图2·LoadImage + [17] 参考预缩·Scale 翻 mode 0→4(与第三对 [12]+[18]
@@ -8,7 +9,7 @@ fail-closed:术前 md5 锚;术后 mode 矩阵+回读;幂等 exit 3。装机直�
 """
 import json, shutil, sys, hashlib
 from pathlib import Path
-WF = Path("/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json")
+WF = Path(os.path.expanduser("~/Project/Github/MYStudio/apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"))
 INSTALL = Path("/Applications/漫影工作室.app/Contents/Resources/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json")
 PRE_MD5 = "bbc973ee2cd342c71c827b9d4c92200e"
 NOTE_SUBS = [

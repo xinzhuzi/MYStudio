@@ -19,10 +19,10 @@ import urllib.request
 from PIL import Image
 from ultralytics import YOLO
 
-MODEL = ('/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/ComfyUI/models/'
-         'ultralytics/bbox/hand_yolov8n.pt')
+MODEL = os.path.expanduser('~/Project/IP/漫影工作室/comfyui/ComfyUI/models/'
+                           'ultralytics/bbox/hand_yolov8n.pt')
 
-OUT = '/Users/zhengbingjin/Project/Github/MYStudio/apps/output/trial_档位AB_手剑_1026'
+OUT = os.path.expanduser('~/Project/Github/MYStudio/apps/output/trial_档位AB_手剑_1026')
 CROP_DIR = os.path.join(OUT, 'hand_crops')
 os.makedirs(CROP_DIR, exist_ok=True)
 # 本会话已人工判读的地面真值(图名→(手判读摘要, 总判定 pass/collapse))

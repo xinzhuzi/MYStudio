@@ -1,3 +1,4 @@
+import os
 """晏燎十期正视图 i2i 批量役(10-21 用户令):每期四产物,App 同款桥模板路。
 直连引擎 17001(sidecar 已随 App 关闭);官方节点覆写(6:4010 型/6:4011 用途/6:180 透明);
 指令已过门禁四族预检(衣色/鞋履/配饰/发色触发词全避);断点续跑;日志双落。
@@ -12,7 +13,7 @@ sys.path.insert(0, str(ROOT / "apps/backend"))
 from engines.image_engine.comfyui_bridge import instantiate_template, load_template  # noqa: E402
 
 ENGINE = "http://127.0.0.1:17001"
-ROLE_DIR = Path("/Users/zhengbingjin/Project/IP/MA/store/assets/files/role/晏燎")
+ROLE_DIR = Path(os.path.expanduser("~/Project/IP/MA/store/assets/files/role/晏燎"))
 LOG_DIR = ROOT / "apps/output/yanliao-i2i-batch-1021"
 STAGES = [
     ("透明立绘", "自由出图", "人物海报", "true",

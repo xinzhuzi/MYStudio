@@ -30,6 +30,7 @@
 (roundtrip 实证零噪声)。
 """
 from __future__ import annotations
+import os
 
 import hashlib
 import json
@@ -94,7 +95,7 @@ LOCAL_MIRRORS: tuple[Path, ...] = (
     Path.home() / "Library/Application Support/漫影工作室/comfyui/daojie-data",
     Path("/Applications/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng/json"),
     ROOT / "apps/release/build/mac-arm64/mac-arm64/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng/json",
-    Path("/Users/zhengbingjin/Project/IP/MA/skills/art_skills/daojie_ink_guofeng/json"),
+    Path(os.path.expanduser("~/Project/IP/MA/skills/art_skills/daojie_ink_guofeng/json")),
     Path.home() / "Library/Application Support/漫影工作室/skills/art_skills/daojie_ink_guofeng/json",
 )
 

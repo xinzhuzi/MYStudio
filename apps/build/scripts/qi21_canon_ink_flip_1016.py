@@ -7,6 +7,7 @@
 base 负向反单色词、故事线历史件。
 """
 from __future__ import annotations
+import os
 
 import hashlib
 import json
@@ -143,8 +144,8 @@ def core() -> None:
 
 def distribute() -> None:
     bases = [Path('/Applications/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng'),
-             Path('/Users/zhengbingjin/Project/IP/漫影工作室/skills/art_skills/daojie_ink_guofeng'),
-             Path('/Users/zhengbingjin/Project/IP/MA/skills/art_skills/daojie_ink_guofeng')]
+             Path(os.path.expanduser('~/Project/IP/漫影工作室/skills/art_skills/daojie_ink_guofeng')),
+             Path(os.path.expanduser('~/Project/IP/MA/skills/art_skills/daojie_ink_guofeng'))]
     rows = []
     for src, pairs in SWAPS.items():
         rel = src.relative_to(MANUAL)

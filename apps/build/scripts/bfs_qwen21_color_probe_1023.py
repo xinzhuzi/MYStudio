@@ -1,3 +1,4 @@
+import os
 """Read-only CPU probe for the BFS colour chain; writes task research only."""
 import ast
 from enum import Enum
@@ -12,7 +13,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[3]
 TASK = ROOT / '.trellis/tasks/10-22-bfs-qwen21-color-diagnosis'
-HOME_DIR = Path('/Users/zhengbingjin/Project/IP/漫影工作室/comfyui')
+HOME_DIR = Path(os.path.expanduser('~/Project/IP/漫影工作室/comfyui'))
 CORE = HOME_DIR / 'ComfyUI'
 sys.path.insert(0, str(CORE))
 sys.argv = [sys.argv[0], '--cpu']

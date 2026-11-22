@@ -16,6 +16,7 @@ Windows 段(P9 隧道/引擎复位 V5 串/nvidia-smi 采样/scp 即拉)由后续
   python3 upscale_shootout_1028.py --run seedvr2-mac        # 实弹全链
 """
 from __future__ import annotations
+import os
 
 import argparse
 import json
@@ -28,15 +29,15 @@ import urllib.request
 import uuid
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 CAMPAIGN = REPO / "apps/output/fasth3-upscale-shootout-1028"
 SOURCE_VIDEO = REPO / "apps/output/fasth3-livefire-1027/t2v-480p_00001_.mp4"
 ENGINE = "http://127.0.0.1:17001"
 FFMPEG = "/opt/homebrew/bin/ffmpeg"
 FFPROBE = "/opt/homebrew/bin/ffprobe"
 # 引擎家 input/output(实体路径,manifest inputDir/outputDir 直配)
-ENGINE_INPUT = Path("/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/input")
-ENGINE_OUTPUT = Path("/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/output")
+ENGINE_INPUT = Path(os.path.expanduser("~/Project/IP/漫影工作室/comfyui/input"))
+ENGINE_OUTPUT = Path(os.path.expanduser("~/Project/IP/漫影工作室/comfyui/output"))
 
 RUNS = {
     "seedvr2-mac": {

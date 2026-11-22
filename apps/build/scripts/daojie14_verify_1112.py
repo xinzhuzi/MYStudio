@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
+import os
 """daojie14 验收:PIL 逐件尺寸对表 + 拼 4×4 带号接图(供 vision 一次验全)。"""
 from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-OUT = Path("/Users/zhengbingjin/Project/Github/MYStudio/apps/output/h3image-smoke-1112/daojie14")
+OUT = Path(os.path.expanduser("~/Project/Github/MYStudio/apps/output/h3image-smoke-1112/daojie14"))
 EXPECT = {
     0: (1536, 2048, "人物海报"), 1: (2048, 1152, "场景"), 2: (1024, 1024, "道具"),
     3: (2048, 1152, "美宣"), 4: (1824, 1024, "人物多视图"), 5: (1024, 1024, "高清人脸"),

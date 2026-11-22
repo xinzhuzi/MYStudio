@@ -33,7 +33,7 @@ LIB_STATE_KEY = {"character": "characters", "scene": "scenes", "prop": "items"}
 REPO_ROOT = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
-DEFAULT_PROJECT = "/Users/zhengbingjin/Project/IP/MA"
+DEFAULT_PROJECT = os.path.expanduser("~/Project/IP/MA")
 DEFAULT_CORPUS = os.path.join(
     REPO_ROOT, ".trellis/tasks/10-19-extract-all-c3-audit-runs/research/corpus"
 )

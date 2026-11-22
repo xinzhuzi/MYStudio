@@ -1,3 +1,4 @@
+import os
 """Chapter-001 read-only snapshot; default checks, --export writes task evidence only.
 
 No network, model, credentials, storage initialization, migration or project writes.
@@ -11,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-PROJECT_ROOT = Path('/Users/zhengbingjin/Project/IP/MA')
+PROJECT_ROOT = Path(os.path.expanduser('~/Project/IP/MA'))
 PROJECT_ID = '49dce4c1-64b1-42de-85c2-9f266698aec4'
 CHAPTER_ID = 'chapter-001'
 RESEARCH = REPO / '.trellis/tasks/10-25-daojie-director-rule-conflict-validation/research/chapter001-repair-1026'

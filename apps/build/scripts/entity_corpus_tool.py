@@ -11,6 +11,7 @@
 """
 
 from __future__ import annotations
+import os
 
 import argparse
 import json
@@ -232,7 +233,7 @@ def main() -> int:
     p_next = sub.add_parser("next-inputs")
     p_next.add_argument("--corpus-dir", required=True)
     p_next.add_argument("--outdir", required=True)
-    p_next.add_argument("--drama-dir", default="/Users/zhengbingjin/Project/IP/MA/novel/drama")
+    p_next.add_argument("--drama-dir", default=os.path.expanduser("~/Project/IP/MA/novel/drama"))
     p_next.add_argument("--total", type=int, default=4125)
     p_next.add_argument("--size", type=int, default=10)
     p_next.add_argument("--count", type=int, default=8)
@@ -248,7 +249,7 @@ def main() -> int:
     p_make_input = sub.add_parser("make-input")
     p_make_input.add_argument("--start", type=int, required=True)
     p_make_input.add_argument("--end", type=int, required=True)
-    p_make_input.add_argument("--drama-dir", default="/Users/zhengbingjin/Project/IP/MA/novel/drama")
+    p_make_input.add_argument("--drama-dir", default=os.path.expanduser("~/Project/IP/MA/novel/drama"))
     p_make_input.add_argument("--out", required=True)
     p_make_input.set_defaults(func=cmd_make_input)
     p_coverage = sub.add_parser("coverage")

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-t2i [7027] Fix v2.0×0.5 viggle 实验臂 A/B 对照发车器(1010)。
 
 仿 apps/build/scripts/qi21_t2i_workflow_fire.py 的 GUI→API 展平手法,唯一差异=
@@ -25,7 +26,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
 DOC = REPO / "docs/prompts/道劫_类型主体句示例.md"
 OUTDIR = REPO / "apps/output/fisher-pose-test/7027ab"

@@ -1,3 +1,4 @@
+import os
 """One controlled BFS run after the shared queue becomes idle; no production edits."""
 import copy
 import hashlib
@@ -10,7 +11,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[3]
 RESEARCH = ROOT / '.trellis/tasks/10-22-bfs-qwen21-color-diagnosis/research'
-HOME_DIR = Path('/Users/zhengbingjin/Project/IP/漫影工作室/comfyui')
+HOME_DIR = Path(os.path.expanduser('~/Project/IP/漫影工作室/comfyui'))
 manifest = json.loads((HOME_DIR / 'manifest.json').read_text())
 base = f"http://127.0.0.1:{manifest['engine']['port']}"
 

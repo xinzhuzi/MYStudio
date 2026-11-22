@@ -73,7 +73,7 @@ SKILL_JSON_DIR = USER_DATA_DIR / "skills" / "art_skills" / "daojie_ink_guofeng" 
 ASSET_HOME_MARKER = USER_DATA_DIR / "asset-home.json"
 PROJECT_LOCATIONS = USER_DATA_DIR / "project-locations.json"
 # 仅用于报错时的候选提示(本机已知项目根),不参与自动定位。
-KNOWN_PROJECT_ROOT_HINT = "/Users/zhengbingjin/Project/IP/MA"
+KNOWN_PROJECT_ROOT_HINT = os.path.expanduser("~/Project/IP/MA")
 
 MANUAL_PRIORITY_NAME = "晏燎"  # 方案步骤③:repo 源逐字节复制,首跑必落平铺位
 GENERATOR_NAME = os.path.basename(__file__)

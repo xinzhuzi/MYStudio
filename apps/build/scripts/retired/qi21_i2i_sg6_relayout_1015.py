@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 """qi21-道劫-i2i 子图[6] 内部规整化重排(2026-10-15,用户令「规整好看美观」)。
 
 方法论=1008 布局求解器配方:行带骨架(4 带)固定+layout_check 当 oracle 退火搜 x
@@ -12,7 +13,7 @@ fail-closed:术前 md5 锚+回读双终验;幂等 exit 3。
 """
 import json, shutil, sys, hashlib
 from pathlib import Path
-WF = Path("/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json")
+WF = Path(os.path.expanduser("~/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"))
 INSTALL = Path("/Applications/漫影工作室.app/Contents/Resources/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json")
 SG_PREFIX = "[6] 文本提示词类型优化子图"
 PRE_MD5 = "7b370cb7"  # 前缀锚(全长比对见下)

@@ -16,6 +16,7 @@
   python3 superi_j5pilot_fire_1115.py quant                   # alpha+色彩量化 A/B
 """
 from __future__ import annotations
+import os
 
 import json
 import re
@@ -25,7 +26,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path(os.path.expanduser("~/Project/Github/MYStudio"))
 BASES = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
 EXAMPLES = REPO / "docs/prompts/道劫_类型主体句示例.md"
 OUT = REPO / "apps/output/superi_j5pilot_1115"
