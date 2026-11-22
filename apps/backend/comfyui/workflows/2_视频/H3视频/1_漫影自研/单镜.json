@@ -5676,7 +5676,7 @@
       "id": 9103,
       "type": "MiniMaxH3SigmaShift",
       "pos": [
-        2940,
+        3160,
         3148
       ],
       "size": [
@@ -5716,7 +5716,7 @@
       "id": 9104,
       "type": "BlockSparseAttention",
       "pos": [
-        2980,
+        3200,
         3376
       ],
       "size": [
@@ -5765,7 +5765,7 @@
       "id": 9105,
       "type": "pi-Flow Scheduler",
       "pos": [
-        3020,
+        3240,
         3814
       ],
       "size": [
@@ -5844,7 +5844,7 @@
       "id": 9106,
       "type": "KSamplerSelect",
       "pos": [
-        3060,
+        3280,
         4198
       ],
       "size": [
