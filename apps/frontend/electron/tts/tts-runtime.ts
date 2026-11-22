@@ -85,6 +85,15 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     return normalizedDetail === runtimeDir || normalizedDetail === pythonPath;
   };
 
+  // 1122 用户实弹(Win):「TTS Python 依赖」行回放 C:\Users\zbj\...\Programs\
+  // manying-studio\... 红路径——那是早已卸载的历史装机位的化石记录(status:
+  // failed),安装址迁走后 config.installedItems 原样回放成永假红。凡 detail 为
+  // 绝对路径且盘上已不存在 → 视为化石滤除(下次真装依赖会落新记录)。
+  const isLiveInstallItem = (item: TtsRuntimeInstalledItem) => {
+    if (!item.detail || !path.isAbsolute(item.detail)) return true;
+    return fileExists(path.resolve(expandHome(item.detail)));
+  };
+
   const getRuntimeConfig = (): TtsRuntimeConfig => {
     const config = readConfig();
     const envUrl = process.env.MANYING_TTS_PYTHON_RUNTIME_URL?.trim();
@@ -93,7 +102,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
       pythonRuntimeSha256: config.pythonRuntimeSha256 || undefined,
       defaultPythonRuntimeUrl: defaultPythonDownloadUrl() ?? undefined,
       pythonRuntimeDir: runtimePythonDir(),
-      installedItems: (config.installedItems ?? []).filter(isManagedPythonInstallItem),
+      installedItems: (config.installedItems ?? []).filter(isManagedPythonInstallItem).filter(isLiveInstallItem),
     };
   };
 

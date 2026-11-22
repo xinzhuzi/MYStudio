@@ -1418,10 +1418,11 @@ class SSHService:
             # 「可更新」,点更新又被 update_job 按仓实况拒发,两边口径互咬。
             # 幂等补记(只动 engine 三键);警句不阻断,走回执 pipError 位。
             ledger_note = self._patch_win_engine_ledger(win_path, latest, deadline)
-        elif mac_head is not None:
-            # Win 已有(both 插件)→ 先比 HEAD 再决定要不要 pull(1104 优化:
-            # fetch 后 local HEAD == origin/HEAD = 已最新 → 跳过,省 SSH 往返;
-            # 落后才 pull。用户令:已同步的不要每次强制再拉)
+        elif mac_head is not None or win_exists:
+            # Win 已有(both 插件/Win 独有)→ 先比 HEAD 再决定要不要 pull(1104
+            # 优化:fetch 后 local HEAD == origin/HEAD = 已最新 → 跳过,省 SSH
+            # 往返;落后才 pull。1122 用户令「Win 独有也要能更新」:Q1 旧「保留
+            # 不动」退役——Win 独有件按仓自身 origin 拉最新,无 Mac HEAD 也照拉)
             head_code, head_out = self.run_remote_command(
                 f'cd /d "{win_path}" && git fetch origin 2>&1 && '
                 f"git rev-parse HEAD 2>&1 && git rev-parse origin/HEAD 2>&1",
@@ -1434,6 +1435,12 @@ class SSHService:
                         name, kind, mac_head, lines[-1], "skipped", True,
                         "已是最新(HEAD=origin/HEAD),跳过",
                     )
+            elif "not a git repository" in head_out:
+                # Win 独有的手工件(zip 直装非 git 仓):拉不了也不算失败,诚实跳过
+                return self._sync_result(
+                    name, kind, None, None, "skipped", False,
+                    "Win 独有且非 git 仓,保留不动",
+                )
             # 不最新(或比对失败=保守走 pull)→ 从 GitHub 拉最新
             action = "pulled"
             code, out = self.run_remote_command(
@@ -1445,11 +1452,6 @@ class SSHService:
                     name, kind, mac_head, None, "failed", False,
                     f"git pull 失败: {out.strip()[:200]}",
                 )
-        else:
-            # win-only(Q1 并集不删):Win 独有,保留不动
-            return self._sync_result(
-                name, kind, None, None, "skipped", False, "win-only(Win 独有,保留不动)"
-            )
         # 依赖安装(R2⑤):有 requirements.txt 则 PYTHONUTF8=1 venv pip install
         pip_error = None
         code, out = self.run_remote_command(

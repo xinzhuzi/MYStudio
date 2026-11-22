@@ -2948,7 +2948,7 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
     ).toBeNull();
     expect(rowOf("pluginB").textContent).toContain("❌ Windows 未装");
     expect(rowOf("seedvr2_videoupscaler").textContent).toContain(
-      "⏭️ 跳过(Win 独有)",
+      "🪟 Win 独有(拉最新)",
     );
     // 勾选态:both/mac-only 默认勾上(含手动清单件 pluginManual),win-only 恒不勾
     const checkedOf = (name: string) =>
@@ -2958,7 +2958,8 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
     expect(checkedOf("ComfyUI")).toBe("checked");
     expect(checkedOf("pluginB")).toBe("checked");
     expect(checkedOf("pluginManual")).toBe("checked");
-    expect(checkedOf("seedvr2_videoupscaler")).toBe("unchecked");
+    // 1122 用户令「Win 独有也要能更新」:win-only 默认勾上(按仓自身 origin 拉最新)
+    expect(checkedOf("seedvr2_videoupscaler")).toBe("checked");
   });
 
   it("插件健康徽标(1107 自愈可见化):挂件行❌+区头汇总,欠账⚠️,已加载✅,未探⚪", async () => {
@@ -3083,6 +3084,8 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
       ["pluginA"],
       ["pluginB"],
       ["pluginManual"],
+      // 1122 用户令「Win 独有也要能更新」:win-only 默认勾上,一并逐件拉最新
+      ["seedvr2_videoupscaler"],
     ]);
     // 每件带剩余预算(timeoutS>0):整体 30min 超时跨批次生效(1104 复核修+修正)
     expect(

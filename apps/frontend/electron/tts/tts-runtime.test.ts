@@ -1169,14 +1169,20 @@ describe("TTS runtime stale-marker offline self-healing", () => {
       appRoot: "/repo",
       userDataPath: "/user-data",
       storageBasePath: () => "/project-storage",
-      fileExists: (filePath) => filePath.includes("tts/main.py"),
+      fileExists: (filePath) =>
+        filePath.includes("tts/main.py") ||
+        // 活依赖行 resolve 后的路径(死路径 /旧装机位/… 不命中)
+        filePath === "/backend/requirements.txt",
       readTextFile: (filePath) => (
         filePath.endsWith("config.json")
           ? JSON.stringify({
               installedItems: [
                 { label: "Python 运行环境", detail: "python3", status: "skipped" },
                 { label: "Python 运行环境", detail: "/project-storage/runtime/python/python/bin/python3", status: "installed" },
-                { label: "TTS Python 依赖", detail: "/backend/requirements.txt", status: "failed" },
+                // 1122 化石过滤:依赖行 detail 为活路径(盘上存在)才回放
+                { label: "TTS Python 依赖", detail: "/repo/../backend/requirements.txt", status: "failed" },
+                // 死路径(历史装机位残留)→ 滤除,不再永假红回放
+                { label: "TTS Python 依赖", detail: "/旧装机位/backend/requirements.txt", status: "failed" },
               ],
             })
           : null
@@ -1194,6 +1200,7 @@ describe("TTS runtime stale-marker offline self-healing", () => {
       installedItems: expect.arrayContaining([
         expect.objectContaining({ label: "Python 运行环境", detail: "python3" }),
         expect.objectContaining({ label: "Python 运行环境", detail: "/project-storage/runtime/python/python/bin/python3" }),
+        expect.objectContaining({ label: "TTS Python 依赖", detail: "/旧装机位/backend/requirements.txt" }),
       ]),
     });
   });

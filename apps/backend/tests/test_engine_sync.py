@@ -553,11 +553,32 @@ class SyncEngineTests(unittest.TestCase):
         self.assertFalse(any("git pull" in c for c in stub.commands))  # clone 件不 pull
         self.assertFalse(any("reset --hard" in c for c in stub.commands))
 
-    def test_win_only_and_my_nodes_skip_without_touch(self) -> None:
+    def test_win_only_pulls_from_own_origin_my_nodes_skips(self) -> None:
+        """1122 用户令「Win 独有也要能更新」:win-only 件按仓自身 origin 拉最新
+        (Q1 旧「保留不动」退役);my-nodes 仍跳过(Q2)。"""
         stub = self._stub()
         result = _service_with_stub(stub).sync_engine(["pluginC", "my-nodes"])
-        self.assertEqual([r["action"] for r in result["items"]], ["skipped", "skipped"])  # Q1 不删 / Q2 不管
-        self.assertFalse(any("git pull" in c or "git clone" in c for c in stub.commands))
+        self.assertEqual([r["action"] for r in result["items"]], ["pulled", "skipped"])
+        pull = [c for c in stub.commands if "git pull" in c]
+        self.assertEqual(len(pull), 1)
+        self.assertIn(f"{WIN_NODES}\\pluginC", pull[0])
+        self.assertFalse(any("git clone" in c for c in stub.commands))
+
+    def test_win_only_non_git_dir_skips_without_red(self) -> None:
+        # Win 独有的 zip 直装件(非 git 仓):拉不了也不算失败——诚实跳过
+        stub = self._stub()
+        svc = _service_with_stub(stub)
+        inner = svc.run_remote_command
+        def routed(command, timeout_s=30):
+            if command.startswith("cd /d") and "git fetch origin" in command:
+                return (128, "fatal: not a git repository (or any of the parent directories): .git\n")
+            return inner(command, timeout_s)
+        svc.run_remote_command = routed  # type: ignore[method-assign]
+        result = svc.sync_engine(["pluginC"])
+        item = result["items"][0]
+        self.assertEqual(item["action"], "skipped")
+        self.assertIn("非 git 仓", item["error"])
+        self.assertFalse(any("git pull" in c for c in stub.commands))
 
     def test_manual_file_entry_without_mac_repo_clones_by_url(self) -> None:
         stub = self._stub()

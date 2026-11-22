@@ -797,8 +797,8 @@ export function McpSettingsTab() {
 
   // 挂载即取清单(R3):GET manifest → 渲染勾选清单。SSH 未连接(503 ssh-
   // disconnected)/sidecar 未在驾 → 静默留空态+提示,按钮禁用(照 SSH 行范式
-  // 首开设置页不弹错)。win-only 默认取消勾选(Q1 并集不删);skip(my-nodes,
-  // Q2)不渲染。
+  // 首开设置页不弹错)。win-only 默认勾上(1122 用户令「Win 独有也要能更新」,
+  // 同步按仓自身 origin 拉最新);skip(my-nodes,Q2)不渲染。
   useEffect(() => {
     let cancelled = false;
     getEngineSyncManifest()
@@ -810,7 +810,10 @@ export function McpSettingsTab() {
           Object.fromEntries(
             manifest.items
               .filter(
-                (item) => item.status === "both" || item.status === "mac-only",
+                (item) =>
+                  item.status === "both" ||
+                  item.status === "mac-only" ||
+                  item.status === "win-only",
               )
               .map((item) => [item.name, true]),
           ),
@@ -875,9 +878,7 @@ export function McpSettingsTab() {
   // 标「整体超时」。
   const startEngineSync = async () => {
     const names = engineSyncRows
-      .filter(
-        (item) => item.status !== "win-only" && engineSyncChecked[item.name],
-      )
+      .filter((item) => engineSyncChecked[item.name])
       .map((item) => item.name);
     if (
       names.length === 0 ||
@@ -2280,25 +2281,20 @@ export function McpSettingsTab() {
                             >
                               {engineSyncRows.map((item) => {
                                 const progress = engineSyncProgress[item.name];
-                                const winOnly = item.status === "win-only";
                                 return (
                                   <div
                                     key={item.name}
                                     className={cn(
                                       "flex flex-wrap items-center gap-2 rounded-lg border border-border/60 px-2 py-1.5",
-                                      winOnly && "opacity-50",
                                     )}
                                     data-testid="engine-sync-row"
                                     data-name={item.name}
                                   >
                                     <Checkbox
                                       checked={
-                                        winOnly
-                                          ? false
-                                          : (engineSyncChecked[item.name] ??
-                                            false)
+                                        engineSyncChecked[item.name] ?? false
                                       }
-                                      disabled={winOnly || engineSyncRunning}
+                                      disabled={engineSyncRunning}
                                       onCheckedChange={(checked) =>
                                         toggleEngineSyncItem(
                                           item.name,
@@ -2404,7 +2400,7 @@ export function McpSettingsTab() {
                                       {item.status === "mac-only"
                                         ? "❌ Windows 未装"
                                         : item.status === "win-only"
-                                          ? "⏭️ 跳过(Win 独有)"
+                                          ? "🪟 Win 独有(拉最新)"
                                           : "✅ 已装"}
                                     </span>
                                     {/* 逐项进度(Q3:⬜ 等待 / ⏳ 同步中 / ✅ 完成 / ❌ 失败 / ⏭️ 跳过) */}
@@ -2457,9 +2453,7 @@ export function McpSettingsTab() {
                                 !sshStatus?.connected ||
                                 engineSyncRows.length === 0 ||
                                 !engineSyncRows.some(
-                                  (i) =>
-                                    i.status !== "win-only" &&
-                                    engineSyncChecked[i.name],
+                                  (i) => engineSyncChecked[i.name],
                                 )
                               }
                               data-testid="engine-sync-start"
