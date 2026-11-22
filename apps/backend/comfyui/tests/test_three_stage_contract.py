@@ -172,9 +172,7 @@ def test_stage2_single_source_fanout_no_duplicate():
     for l in d["links"]:
         if l[1] == 2022 and l[5] == "SAMPLER":
             samplers.append(l[3])
-    # 1122 pi-H3 加速档嫁接:一采支经 ComfySwitchNode[9110](on_false←2022)直通 2032,
-    # 单源纪律不变(2022 仍唯一喂一采/二采;懒开关未选支路零执行)
-    assert sorted(samplers) == [3043, 9110], "KSamplerSelect(lcm) 单源扇出:二采[3043]+一采开关[9110](1122)"
+    assert sorted(samplers) == [2032, 3043], "KSamplerSelect(lcm) 应单源扇出至一采/二采"
     ksel = sorted(n["id"] for n in nodes.values() if n["type"] == "KSamplerSelect" and n["id"] < 9000)
     assert ksel == [2022, 5017], "主链(一采+二采)共享 [2022](零真重复);四采修脸臂独立 [5017] lcm(1118,5000 段分区)"
     # 默认路径(①+②,id<300)视频 VAE 单源;1113 手术后 ≥300 仅剩 ReCaVSR 三件,
@@ -324,11 +322,7 @@ def test_absorbed_fl2v_firstframe_mode():
     assert nodes[1071]["type"] == "ModelPreviewOverrideKJ" and nodes[1071]["widgets_values"][5] == "taeh3.safetensors"
     assert links[nodes[1071]["inputs"][0]["link"]][1] == 1072, \
         "预览器应吃三 Seam 底模出口(81f8909f lowvram 插桩后经 1072 头分块收束点,随迁漏笔 1118 补)"
-    # 1122 pi-H3 嫁接:2031.model 经 ComfySwitchNode[9108](on_false←1071 预览器)取模型
-    _m = links[nodes[2031]["inputs"][0]["link"]][1]
-    assert _m == 1071 or (_m == 9108 and
-                          links[[i for i in nodes[9108]["inputs"] if i["name"] == "on_false"][0]["link"]][1] == 1071), \
-        "2031.model=1071 直连或经 9108 开关 on_false 直通(1122)"
+    assert links[nodes[2031]["inputs"][0]["link"]][1] == 1071
     assert links[nodes[2031]["inputs"][1]["link"]][1] == 2011
     assert links[nodes[2032]["inputs"][4]["link"]][1] == 2012
     # 首帧槽:[9]→[2002].first_frame(i2v 臂)+[9]→[16].ref_image_0(r2v 臂)双吃
@@ -385,8 +379,8 @@ def test_facerefine_inline_arm_1118():
     arm = {25, 1065, 4100, 5002, 5006, 5011, 5012, 5013, 5014, 5015,
            5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5100}
     assert arm <= set(nodes), f"四采臂缺件: {arm - set(nodes)}"
-    assert len(nodes) == 104, \
-        "画布节点数=104(93+11 pi-H3 加速档 1122;66+19 四采臂+lowvram役#1072+clip_vision#800+6 双档;1119 双档役 V2.2)"
+    assert len(nodes) == 93, \
+        "画布节点数=93(66+19 四采臂+lowvram役#1072+clip_vision#800+6 双档;1119 双档役 V2.2)"
     assert nodes[1065]["type"] == "PrimitiveBoolean" and nodes[1065]["widgets_values"] == [False], \
         "[1065] 四采开关出厂必须 False(默认旁路,PRD 单向门#1)"
     assert nodes[25]["type"] == "PrimitiveStringMultiline" and \
@@ -451,7 +445,7 @@ def test_facerefine_dual_mode_1119():
     d, nodes, links = _load()
     hd = {5109, 5110, 5111, 5113, 5024, 5025}
     assert hd <= set(nodes), f"双档段缺件: {hd - set(nodes)}"
-    assert len(nodes) == 104, "画布节点数=104(93 基座+11 pi-H3 档 1122;87+6 双档 V2.2 砍 SAM3 后)"
+    assert len(nodes) == 93, "画布节点数=93(87+6 双档,V2.2 砍 SAM3 后)"
 
     def src_of(nid, slot_name):
         s = next(e for e in nodes[nid]["inputs"] if e["name"] == slot_name)

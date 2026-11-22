@@ -60,21 +60,12 @@ def test_stage1_canonical_arm():
     101 外接 sampler←1046 lcm + sigmas←1045 simple/8(README :205 官方覆盖门)。"""
     d, nodes, links = _load()
     expect = {46: (41, 0, 1041, 0), 47: (1041, 0, 1042, 0), 48: (1042, 0, 1043, 0),
-              49: (1043, 0, 1044, 0), 52: (1044, 0, 1045, 0)}
+              49: (1043, 0, 1044, 0), 50: (1044, 0, 101, 0), 51: (1046, 0, 101, 5),
+              52: (1044, 0, 1045, 0), 53: (1045, 0, 101, 6)}
     for lid, exp in expect.items():
         l = links.get(lid)
         assert l and (l[1], l[2], l[3], l[4]) == exp, f"一采臂 link{lid} 漂移: 期望 {exp}, 实 {l}"
-    # 1122 pi-H3 加速档嫁接:101 的 model/sampler/sigmas 三口经 ComfySwitchNode
-    # (9108/9110/9109,on_false←1044/1046/1045 直通)接入;单源纪律不变(懒开关)
-    def _sw_passthrough(sw_id, src_id, dst_id, slot):
-        ins = {i["name"]: i for i in nodes[sw_id]["inputs"]}
-        return (links[ins["on_false"]["link"]][1] == src_id and
-                any(l[1] == sw_id and l[3] == dst_id and l[4] == slot for l in d["links"]))
-    assert _sw_passthrough(9108, 1044, 101, 0), "101.model 经 9108(on_false←1044)直通(1122)"
-    assert _sw_passthrough(9110, 1046, 101, 5), "101.sampler 经 9110(on_false←1046)(1122)"
-    assert _sw_passthrough(9109, 1045, 101, 6), "101.sigmas 经 9109(on_false←1045)(1122)"
-    assert 46 in nodes[41]["outputs"][0]["links"] and 2 not in links, \
-        "[41] 出线含 [46](直连废除)+1122 pi-H3 DWD tap(9102)"
+    assert nodes[41]["outputs"][0]["links"] == [46], "[41] 出线应 [46](直连废除)"
     assert 2 not in links, "旧直连 link2 应不存在"
     assert nodes[1044]["widgets_values"] == [6, 3], "σshift 一采值 [6,3]"
     assert nodes[1042]["widgets_values"] == [2, 4096], "ChunkFFN [2,4096](照抄 i2v 臂)"
@@ -164,8 +155,8 @@ def test_single_source_fanout():
     fan = {l[3] for l in d["links"] if l[1] == 1066 and l[5] == "MODEL"}
     assert fan == {41, 1021, 5006}, "[1066] 扇出一采 pika 臂 + 二采 taomate 臂 + 四采修脸臂"
     ksel = sorted((n for n in nodes.values() if n["type"] == "KSamplerSelect"), key=lambda n: n["id"])
-    assert [n["id"] for n in ksel] == [1046, 3022, 5017, 9106], \
-        "KSamplerSelect 四枚(1115 正典臂:一采 1046 + 二采 3022,均 lcm;1118 修脸臂 5017 同 lcm;1122 pi-H3 档 euler 9106)"
+    assert [n["id"] for n in ksel] == [1046, 3022, 5017], \
+        "KSamplerSelect 三枚(1115 正典臂:一采 1046 + 二采 3022,均 lcm;1118 修脸臂 5017 同 lcm)"
     noise = {n["id"]: n["widgets_values"] for n in nodes.values() if n["type"] == "RandomNoise"}
     assert sorted(noise) == [3040, 5016] and noise[5016] == noise[3040] == [42, "fixed"], \
         "RandomNoise 正片 3040 恰一 + 修脸臂 5016(seed 42 同源)"
@@ -252,12 +243,6 @@ def test_groups_five_bands():
     for nid, n in nodes.items():
         if n["type"] == "MarkdownNote":
             continue  # README 恒居组外(罩全豁免)
-        # pi-H3 加速档豁免(1122 布局役终稿):9103/9104/9105 落②⑥间死窗带
-        # (est 竖窗约 460<需求 464)、9110 落 101 左上扇出带——存量 pos 零动+
-        # 拓扑零改约束下组归属不可全满足,层级序取舍组框外;组归属=观感层
-        # (layout_check 无组框-节点判据),存量五带罩全仍全执。
-        if 9101 <= nid <= 9113:
-            continue
         nx, ny = n["pos"]
         covered = any(g["bounding"][0] <= nx and g["bounding"][1] <= ny
                       and nx < g["bounding"][0] + g["bounding"][2]
@@ -335,7 +320,7 @@ def test_facerefine_dual_mode_1119():
     5109→5110(image←5021,control=fixed 禁 randomize)/ README 9999 语义差异刻碑
     (multiseg 高清档从二采底放大——三采 mode=4 旁路;单镜从三采 p3 4K)。"""
     d, nodes, links = _load()
-    assert len(nodes) == 76, f"画布节点数=76(61+1119 双档 6+1122 pi-H3 档 9),现 {len(nodes)}"
+    assert len(nodes) == 67, f"画布节点数=67(61+1119 双档 6),现 {len(nodes)}"
     assert nodes[5111]["type"] == "PrimitiveBoolean" and nodes[5111]["widgets_values"] == [False], \
         "[5111] 高清子开关出厂必须 False(远景=默认修脸档)"
 
