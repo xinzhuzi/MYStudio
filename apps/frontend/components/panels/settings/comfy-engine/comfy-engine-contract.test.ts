@@ -257,13 +257,22 @@ describe("comfyVersionGithubUrl(09-09 版本地址跳转)", () => {
 import { launchArgsWarnings, tokenizeArgsString } from "./comfy-engine-contract";
 
 describe("launch args string helpers", () => {
-  it("tokenize:引号段成词;不成对/反斜杠/空引号段报错(与后端三类硬拒镜像)", () => {
+  it("tokenize:引号段成词;不成对/空引号段报错(与后端两类硬拒镜像)", () => {
     expect(tokenizeArgsString('--a "b c" d').tokens).toEqual(["--a", "b c", "d"]);
     const bad = tokenizeArgsString('"--unbalanced');
     expect(bad.ok).toBe(false);
     expect(bad.error).toContain("引号");
-    expect(tokenizeArgsString("--foo a\\b").ok).toBe(false);
     expect(tokenizeArgsString('--listen ""').ok).toBe(false);
+  });
+
+  it("tokenize:Windows 原生反斜杠路径归一为正斜杠(1122 追平 1111 后端修,不再红字硬拒)", () => {
+    // 用户实弹:启动参数页对生产账本里的 E:\IP\… 永久红「暂不支持反斜杠转义」
+    const r = tokenizeArgsString(
+      "--enable-manager --output-directory E:\\IP\\漫影工作室\\comfyui\\output",
+    );
+    expect(r.ok).toBe(true);
+    expect(r.tokens).toContain("--output-directory");
+    expect(r.tokens).toContain("E:/IP/漫影工作室/comfyui/output");
   });
 
   it("warnings:大众端口黄字;0.0.0.0 红字;正常串零警告", () => {

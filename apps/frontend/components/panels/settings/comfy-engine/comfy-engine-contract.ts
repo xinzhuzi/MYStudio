@@ -593,14 +593,14 @@ export interface LaunchArgsTokenize {
   tokens: string[];
 }
 
-/** 前端镜像校验(与后端 shlex 前置规则一致的三类硬拒:反斜杠/引号不成对/空引号段;
+/** 前端镜像校验(与后端 shlex 前置规则一致的两类硬拒:引号不成对/空引号段;
  * 分词仅按 ASCII 空白——全角空格等会整词透传并在后端被拒,故在此不拆不报)。
+ * 1122 追平 1111 后端修:Windows 原生反斜杠路径(--output-directory E:\IP\…)
+ * 归一为正斜杠再分词,不再硬拒——旧红字把生产账本里的真实 Win 路径判成永久
+ * 错(用户 1122 实弹:启动参数页行内红「暂不支持反斜杠转义」)。
  */
 export function tokenizeArgsString(input: string): LaunchArgsTokenize {
-  const text = input ?? "";
-  if (text.includes("\\")) {
-    return { ok: false, error: "暂不支持反斜杠转义;请用引号包裹含特殊字符的值", tokens: [] };
-  }
+  const text = (input ?? "").replace(/\\/g, "/");
   const tokens: string[] = [];
   let current = "";
   let quote: '"' | "'" | null = null;
