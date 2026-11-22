@@ -901,3 +901,28 @@ describe("1122 设定卡多张化解禁(裁定A/B/C/D:格式槽轴+守卫接线�
     expect(source).toContain("...(kind === SHEET_CARD_BLINE_KIND ? { sheetFormat } : {})");
   });
 });
+
+describe("1122 主体句链重排(draft 滞留跨型泄漏根治)", () => {
+  const readActionsSource = () => readFileSync(new URL("./studio-asset-detail-actions.ts", import.meta.url), "utf8");
+
+  it("t2i 主体句链序=该型槽>正典主卡(db)>滞留草稿>草稿描述>资产描述", () => {
+    const source = readActionsSource();
+    expect(source).toContain(
+      "getKindSubjectOverride?.(kind)?.trim() || detail.prompt?.trim() || draftPrompt.trim() || draftDescription.trim() || detail.description?.trim()",
+    );
+    // 旧序(draft 压 db)退役:1121 夜实弹晏燎设定卡发了滞留素体句,服装成了模型即兴
+    expect(source).not.toContain(
+      "getKindSubjectOverride?.(kind)?.trim() || draftPrompt.trim() || draftDescription.trim() || detail.prompt?.trim()",
+    );
+  });
+
+  it("日志链数组同步新序(source 逐项序)", () => {
+    const source = readActionsSource();
+    const logIdx = source.indexOf('["kind-slot", getKindSubjectOverride');
+    const dbIdx = source.indexOf('["asset-prompt(db)"');
+    const draftIdx = source.indexOf('["draft-prompt", draftPrompt.trim()]');
+    expect(logIdx).toBeGreaterThanOrEqual(0);
+    expect(dbIdx).toBeGreaterThan(logIdx);
+    expect(draftIdx).toBeGreaterThan(dbIdx);
+  });
+});

@@ -1320,15 +1320,19 @@ export function useStudioAssetDialogActions(ctx: {
     }
     // Phase C(10-25 追加令):t2i 路主体句=该型槽覆盖优先,空回退共享主体句链;
     // 1121 ①段主体词展示:链值两路都取(i2i 路作对照主体句随记录带给弹窗灰显)
-    const subjectChainText = getKindSubjectOverride?.(kind)?.trim() || draftPrompt.trim() || draftDescription.trim() || detail.prompt?.trim() || detail.description?.trim();
+    // 1122 链重排(1121 夜实弹):draft-prompt 曾压过 db 主卡——草稿区滞留的
+    // 素体句跨型泄漏(设定卡发了素体句,服装成了模型即兴)。按型取专属主体句
+    // 正路=该型槽>正典主卡(db);滞留草稿降为「无正典时兜底」。自定义出图
+    // 走「编辑→保存(写 db)→发车」,发出去的永远是已保存正典,界面不撒谎。
+    const subjectChainText = getKindSubjectOverride?.(kind)?.trim() || detail.prompt?.trim() || draftPrompt.trim() || draftDescription.trim() || detail.description?.trim();
     const subjectText = profile.route === "t2i" ? subjectChainText : undefined;
     // 1120 观测令:t2i 主体句来源链逐级落日志(手动生图核「这句从哪个槽赢的」)
     if (profile.route === "t2i") {
       const chain: Array<[string, string]> = [
         ["kind-slot", getKindSubjectOverride?.(kind)?.trim() ?? ""],
+        ["asset-prompt(db)", detail.prompt?.trim() ?? ""],
         ["draft-prompt", draftPrompt.trim()],
         ["draft-description", draftDescription.trim()],
-        ["asset-prompt(db)", detail.prompt?.trim() ?? ""],
         ["asset-description", detail.description?.trim() ?? ""],
       ];
       const winner = chain.find(([, value]) => value) ?? null;
