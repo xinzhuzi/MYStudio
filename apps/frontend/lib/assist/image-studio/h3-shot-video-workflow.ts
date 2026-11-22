@@ -242,6 +242,9 @@ export interface ShotH3ApiWorkflowInput extends ShotH3WorkflowInput {
   resolutionTier?: H3ResolutionTier;
   /** 工作流配方 id(h3-workflow-recipes 注册表;缺省=旧 H3 线 my-h3-i2v-31)。 */
   recipeId?: string;
+  /** 1123 用户令:修脸四采按需——true=拨开 1065 修脸总开关,终档文件名自动加「_修脸」后缀;
+   * 缺省 false=一采→二采→三采正典直出,不修脸。 */
+  faceRefine?: boolean;
 }
 
 export interface ShotH3ApiWorkflowResult {
@@ -402,6 +405,12 @@ export function buildShotH3MultisegApiWorkflow(input: ShotH3ApiWorkflowInput): S
   // 1123 正典(用户裁定:一采→二采→三采恒走,修脸四采按需):二采簇随车注入——
   // 3030 提示词与 100 同源(禁模板演示句滞留);二采/修脸 length 同步总帧数(README 9999 刻碑纪律)
   getApiNode(apiGraph, "3030", "PrimitiveStringMultiline").inputs.value = prompt.longPrompt;
+  if (input.faceRefine) {
+    // 1123 用户令:修脸开=1065 拨开 + 终档文件名加「_修脸」后缀(仅此,不搞其他)
+    getApiNode(apiGraph, "1065", "PrimitiveBoolean").inputs.value = true;
+    const finalSaver = getApiNode(apiGraph, "4100", "SaveVideo");
+    finalSaver.inputs.filename_prefix = `${finalSaver.inputs.filename_prefix}_修脸`;  // 同目录仅加后缀
+  }
   const totalFrames = prompt.segments.reduce((sum, segment) => sum + segment.frames, 0);
   getApiNode(apiGraph, "3031", "MiniMaxH3ReferenceToVideo").inputs.length = totalFrames;
   getApiNode(apiGraph, "5012", "MiniMaxH3ReferenceToVideo").inputs.length = totalFrames;

@@ -571,6 +571,16 @@ describe("h3-multiseg-template.api.json 契约(PRD §14.1.2,--preset multiseg �
     expect(Object.keys(multisegApi)).toHaveLength(63);
     expect(Object.keys(multisegApi).map(Number).sort((a, b) => a - b)).toEqual([2, 4, 6, 7, 9, 13, 21, 25, 34, 36, 41, 100, 101, 102, 103, 800, 1021, 1033, 1065, 1066, 3001, 3002, 3003, 3011, 3021, 3022, 3030, 3031, 3040, 3041, 3042, 3043, 3044, 3051, 3052, 3053, 4001, 4002, 4100, 5002, 5006, 5011, 5012, 5013, 5014, 5015, 5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5024, 5025, 5030, 5031, 5100, 5109, 5110, 5111, 5113]);
   });
+  it("1123 修脸命名规则(用户令:修脸的视频加 _修脸 后缀,仅此):默认 1065=false 无后缀;faceRefine=true→1065=true+4100 前缀加 _修脸", () => {
+    const input = { shot: makeShot(), chapterId: "chapter-001", chapterLabel: "第一章 雨夜", originProjectId: "project-a" };
+    const base = buildShotH3MultisegApiWorkflow(input);
+    expect(base.apiGraph["1065"].inputs.value).toBe(false);
+    expect(String(base.apiGraph["4100"].inputs.filename_prefix)).not.toContain("_修脸");
+    const refined = buildShotH3MultisegApiWorkflow({ ...input, faceRefine: true });
+    expect(refined.apiGraph["1065"].inputs.value).toBe(true);
+    expect(String(refined.apiGraph["4100"].inputs.filename_prefix)).toMatch(/p-final_修脸$/);
+  });
+
   it("1123 二采正典簇在位(用户裁定:一采二采三采恒走):taomate 臂+1440×832+latent 升维链+3043 吃 3003", () => {
     expect(multisegApi["1021"].inputs).toMatchObject({ lora_name: "taomate_h3_3step.safetensors", strength_model: 0.7, model: ["1066", 0] });
     expect(multisegApi["3031"].inputs).toMatchObject({ width: 1440, height: 832, length: 56 });
