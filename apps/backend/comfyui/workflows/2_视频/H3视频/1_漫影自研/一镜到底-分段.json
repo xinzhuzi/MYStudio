@@ -3480,7 +3480,7 @@
         }
       ],
       "widgets_values": [
-        false
+        true
       ],
       "pos": [
         1340,
@@ -3497,7 +3497,7 @@
       },
       "order": 9101,
       "mode": 0,
-      "title": "pi-H3 加速档(4步DWD·默认关)"
+      "title": "pi-H3 加速档(4步DWD·默认开)"
     },
     {
       "id": 9102,

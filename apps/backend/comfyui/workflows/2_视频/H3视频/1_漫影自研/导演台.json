@@ -362,7 +362,7 @@
         }
       ],
       "widgets_values": [
-        false
+        true
       ],
       "pos": [
         200,
@@ -379,7 +379,7 @@
       },
       "order": 9101,
       "mode": 0,
-      "title": "pi-H3 快道档(4步DWD·默认关)"
+      "title": "pi-H3 快道档(4步DWD·默认开)"
     },
     {
       "id": 9102,
@@ -1279,7 +1279,7 @@
       "order": 6
     },
     {
-      "title": "pi-H3 快道(4步DWD·默认关·1122)",
+      "title": "pi-H3 快道(4步DWD·默认开·1122)",
       "id": 9100,
       "bounding": [
         170,
