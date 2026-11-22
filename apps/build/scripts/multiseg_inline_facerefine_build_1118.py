@@ -217,6 +217,259 @@ def die(msg: str) -> None:
     sys.exit(f"[FATAL] {msg}")
 
 
+
+# ── 1123 二采正典簇(引擎验证实发图整体烙入;禁手改,改=重导出实发图) ──
+STAGE2_IDS = ['1066', '1033', '3011', '1021', '3001', '3002', '3003', '3030', '3031', '3021', '3022', '3040', '3041', '3042', '3043', '3044', '3051', '3052', '3053']
+STAGE2_NODES = json.loads(r"""{
+ "1066": {
+  "class_type": "MiniMaxLowVRAMAttention",
+  "inputs": {
+   "model": [
+    "34",
+    0
+   ],
+   "head_chunks": 2
+  }
+ },
+ "1033": {
+  "class_type": "BlockSparseAttention",
+  "inputs": {
+   "model": [
+    "1021",
+    0
+   ],
+   "selection": "sol-attn",
+   "selection.tau": 1.3,
+   "start_percent": 0,
+   "end_percent": 1,
+   "dense_blocks": "",
+   "min_tokens": 12288,
+   "extra_tokens": 256,
+   "sink_conditioning": "exact_kv_and_rows",
+   "verbose": false
+  }
+ },
+ "3011": {
+  "class_type": "MiniMaxChunkFeedForward",
+  "inputs": {
+   "model": [
+    "1033",
+    0
+   ],
+   "chunks": 2,
+   "seq_threshold": 4096
+  }
+ },
+ "1021": {
+  "class_type": "LoraLoaderModelOnly",
+  "inputs": {
+   "model": [
+    "1066",
+    0
+   ],
+   "lora_name": "taomate_h3_3step.safetensors",
+   "strength_model": 0.7
+  }
+ },
+ "3001": {
+  "class_type": "LTXVSeparateAVLatent",
+  "inputs": {
+   "av_latent": [
+    "101",
+    1
+   ]
+  }
+ },
+ "3002": {
+  "class_type": "MinimaxH3LatentUpscaler3D",
+  "inputs": {
+   "latent": [
+    "3001",
+    0
+   ],
+   "model_name": "minimax_h3_latent_upscaler_3d_bf16.safetensors",
+   "mode.width": 1440,
+   "mode.height": 832,
+   "align": 32,
+   "enable_temporal_chunking": true,
+   "force_unload": true,
+   "device": "cuda",
+   "precision": "fp16",
+   "mode": "target dimensions"
+  }
+ },
+ "3003": {
+  "class_type": "LTXVConcatAVLatent",
+  "inputs": {
+   "video_latent": [
+    "3002",
+    0
+   ],
+   "audio_latent": [
+    "3001",
+    1
+   ]
+  }
+ },
+ "3030": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": "段1:1秒\n[Shot 1] 中景，固定机位。一位穿深蓝色长袍的年轻剑修站在竹林小径上，微微抬头看向竹梢，晨光从竹叶缝隙洒落，竹叶轻晃。\n\n段2:1秒\n[Shot 1] 他收回视线，抬手把拂过肩头的竹叶轻轻拨开，衣袖摆动，沿小径继续向前走去。\n\noverall_soundscape: 清晨竹林鸟鸣，风吹竹叶沙沙声，脚步踩在落叶上的轻响"
+  }
+ },
+ "3031": {
+  "class_type": "MiniMaxH3ReferenceToVideo",
+  "inputs": {
+   "clip": [
+    "21",
+    0
+   ],
+   "prompt": [
+    "3030",
+    0
+   ],
+   "width": 1440,
+   "height": 832,
+   "length": 56,
+   "ref_image_size": "match",
+   "vae": [
+    "7",
+    0
+   ],
+   "audio_vae": [
+    "13",
+    0
+   ]
+  }
+ },
+ "3021": {
+  "class_type": "MiniMaxH3SigmaShift",
+  "inputs": {
+   "model": [
+    "3011",
+    0
+   ],
+   "shift_video": 12,
+   "shift_audio": 3
+  }
+ },
+ "3022": {
+  "class_type": "KSamplerSelect",
+  "inputs": {
+   "sampler_name": "lcm"
+  }
+ },
+ "3040": {
+  "class_type": "RandomNoise",
+  "inputs": {
+   "noise_seed": 42
+  }
+ },
+ "3041": {
+  "class_type": "BasicScheduler",
+  "inputs": {
+   "model": [
+    "3021",
+    0
+   ],
+   "scheduler": "simple",
+   "steps": 3,
+   "denoise": 0.2
+  }
+ },
+ "3042": {
+  "class_type": "BasicGuider",
+  "inputs": {
+   "model": [
+    "3044",
+    0
+   ],
+   "conditioning": [
+    "3031",
+    0
+   ]
+  }
+ },
+ "3043": {
+  "class_type": "SamplerCustomAdvanced",
+  "inputs": {
+   "noise": [
+    "3040",
+    0
+   ],
+   "guider": [
+    "3042",
+    0
+   ],
+   "sampler": [
+    "3022",
+    0
+   ],
+   "sigmas": [
+    "3041",
+    0
+   ],
+   "latent_image": [
+    "3003",
+    0
+   ]
+  }
+ },
+ "3044": {
+  "class_type": "ModelAttentionBackend",
+  "inputs": {
+   "model": [
+    "3021",
+    0
+   ],
+   "attention": "comfy kitchen attention"
+  }
+ },
+ "3051": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "3043",
+    0
+   ],
+   "vae": [
+    "7",
+    0
+   ]
+  }
+ },
+ "3052": {
+  "class_type": "VAEDecodeAudio",
+  "inputs": {
+   "samples": [
+    "3043",
+    0
+   ],
+   "vae": [
+    "13",
+    0
+   ]
+  }
+ },
+ "3053": {
+  "class_type": "CreateVideo",
+  "inputs": {
+   "images": [
+    "3051",
+    0
+   ],
+   "fps": 24,
+   "audio": [
+    "3052",
+    0
+   ],
+   "bit_depth": 8,
+   "color_space": "sRGB"
+  }
+ }
+}""")
+STAGE2_CLASSES = {'1066': 'MiniMaxLowVRAMAttention', '1033': 'BlockSparseAttention', '3011': 'MiniMaxChunkFeedForward', '1021': 'LoraLoaderModelOnly', '3001': 'LTXVSeparateAVLatent', '3002': 'MinimaxH3LatentUpscaler3D', '3003': 'LTXVConcatAVLatent', '3030': 'PrimitiveStringMultiline', '3031': 'MiniMaxH3ReferenceToVideo', '3021': 'MiniMaxH3SigmaShift', '3022': 'KSamplerSelect', '3040': 'RandomNoise', '3041': 'BasicScheduler', '3042': 'BasicGuider', '3043': 'SamplerCustomAdvanced', '3044': 'ModelAttentionBackend', '3051': 'VAEDecode', '3052': 'VAEDecodeAudio', '3053': 'CreateVideo'}
+
 def node_by_id(nodes, nid):
     for n in nodes:
         if n["id"] == nid:
@@ -345,7 +598,8 @@ def build_canvas(S: dict, src_nodes: list) -> dict:
 def build_api(A: dict) -> dict:
     strip = {**{k: v for k, v in {**OWN, **RETIRED}.items()},
              5030: "GetVideoComponents", 5031: "CreateVideo",
-             800: "CLIPVisionLoader", 4001: "ReCaVSRLoader", 4002: "ReCaVSRUpscale"}
+             800: "CLIPVisionLoader", 4001: "ReCaVSRLoader", 4002: "ReCaVSRUpscale",
+             **STAGE2_CLASSES}
     for k, ct in strip.items():  # RETIRED/remux/三采臂同剥(键序确定性:全剥全按固定序重追加)
         old = A.get(str(k))
         if old is not None and old.get("class_type") != ct:
@@ -358,15 +612,18 @@ def build_api(A: dict) -> dict:
     A["5031"] = {"class_type": "CreateVideo", "inputs": {"images": ["5030", 0], "audio": ["5030", 1],
                   "fps": 24, "bit_depth": "auto", "color_space": "sRGB",
                   "chroma_subsampling": "auto", "codec": "none"}}
-    # 1122 用户令:App multiseg 三采后修脸——ReCaVSR 臂(模型原生 4×;960×544→3840×2176 恒宽 3840 锚)
-    # + 补 800 CLIPVisionLoader(5011.identity_clip_vision 历史悬空引用,顺手封)
+    # 1123 用户令(正典裁定):一采→二采→三采 恒走,修脸四采仅按需——二采簇自引擎验证实发图
+    # (apps/output/pi-h3-test-1121/apptpl3-stage2.json,success 83.5s)整体烙入,键名以引擎 400 实锚为真源
+    for k in STAGE2_IDS:
+        A[k] = copy.deepcopy(STAGE2_NODES[k])
+    # 1122 用户令:App multiseg 三采后修脸——ReCaVSR 臂 + 补 800 CLIPVisionLoader(历史悬空顺手封)
     A["800"] = {"class_type": "CLIPVisionLoader", "inputs": {"clip_name": "clip_vision_g.safetensors"}}
     A["4001"] = {"class_type": "ReCaVSRLoader", "inputs": {"transformer": "transformer_int8_convrot.safetensors"}}  # 输入键=transformer(object_info 实锚;model_name 为 400 实弹勘误)
     A["4002"] = {"class_type": "ReCaVSRUpscale", "inputs": {
-        "model": ["4001", 0], "video": ["5031", 0],
-        "scale": 4.0, "color_fix": "none", "seed": 42,
+        "model": ["4001", 0], "video": ["3053", 0],
+        "scale": 2.667, "color_fix": "none", "seed": 42,
         "decoder": "flashdecoder", "kernels": "fast", "kv_offload": False,
-        "encoder": "auto", "fps": 30}}
+        "encoder": "auto", "fps": 30}}  # 三采吃二采 p2(3053);2.667=1440→3840 恒宽锚(1123 正典)
     return A
 
 
@@ -389,7 +646,7 @@ def check() -> int:
     n_canvas, n_api = len(S["nodes"]), len(A)
     print(f"[CHECK] 画布节点 {n_canvas}(41+{n_canvas - 41}) / API 节点 {n_api}(14+{n_api - 14})")
     ok(n_canvas == 67, f"画布节点数=67(41+19 修脸组+lowvram役#1066+1119 双档 6),实际 {n_canvas}")
-    ok(n_api == 44, f"API 节点数=44(14+19+remux5030/5031+1119 双档 6+1122 三采臂 800/4001/4002),实际 {n_api}")
+    ok(n_api == 63, f"API 节点数=63(44+1123 二采正典簇 19),实际 {n_api}")
 
     ids = [n["id"] for n in S["nodes"]]
     idset = set(ids)
@@ -466,9 +723,13 @@ def check() -> int:
        f"关键联线拓扑(5002←{P3_SRC} 三采 p3/5100 双臂+开关(1119 改接 on_true←5113)/4100←5100/5006←{UNET}/5014.audio←5002②/5019←5012/5020←5016)")
     ok(A["5002"]["inputs"]["video"] == ["4002", 0]
        and A["5100"]["inputs"]["on_false"] == ["4002", 0]
-       and A["4002"]["inputs"]["video"] == ["5031", 0]
+       and A["4002"]["inputs"]["video"] == ["3053", 0]
        and A["4002"]["inputs"]["model"] == ["4001", 0]
-       and A["4002"]["inputs"]["scale"] == 4.0
+       and A["4002"]["inputs"]["scale"] == 2.667
+       and A["3030"]["class_type"] == "PrimitiveStringMultiline"
+       and A["3031"]["inputs"]["width"] == 1440 and A["3031"]["inputs"]["height"] == 832
+       and A["3043"]["inputs"]["latent_image"] == ["3003", 0]
+       and A["3053"]["class_type"] == "CreateVideo"
        and A["800"]["class_type"] == "CLIPVisionLoader"
        and A["5030"]["inputs"]["video"] == [str(API_TAIL), 0]
        and A["5100"]["inputs"]["on_true"] == ["5113", 0]

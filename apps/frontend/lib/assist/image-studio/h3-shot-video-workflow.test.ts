@@ -567,15 +567,21 @@ describe("Windows Pika ref2va 主力线通道(1101)", () => {
 // ── multiseg 适配(PRD 10-27 §14.1;my-h3-multiseg needs-adaptation→ready)──────────────────────
 
 describe("h3-multiseg-template.api.json 契约(PRD §14.1.2,--preset multiseg 脚本产物)", () => {
-  it("API 节点数=44(41+1122 三采臂 800/4001/4002;组装器不摘臂,1065=false 惰性剪除)", () => {
-    expect(Object.keys(multisegApi)).toHaveLength(44);
-    expect(Object.keys(multisegApi).map(Number).sort((a, b) => a - b)).toEqual([2, 4, 6, 7, 9, 13, 21, 25, 34, 36, 41, 100, 101, 102, 103, 1065, 4100, 5002, 5006, 5011, 5012, 5013, 5014, 5015, 5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5024, 5025, 5030, 5031, 5100, 5109, 5110, 5111, 5113, 4001, 4002, 800].map(Number).sort((a, b) => a - b));
+  it("API 节点数=63(44+1123 二采正典簇19;一采→二采→三采恒走,1065=false 惰性剪除)", () => {
+    expect(Object.keys(multisegApi)).toHaveLength(63);
+    expect(Object.keys(multisegApi).map(Number).sort((a, b) => a - b)).toEqual([2, 4, 6, 7, 9, 13, 21, 25, 34, 36, 41, 100, 101, 102, 103, 800, 1021, 1033, 1065, 1066, 3001, 3002, 3003, 3011, 3021, 3022, 3030, 3031, 3040, 3041, 3042, 3043, 3044, 3051, 3052, 3053, 4001, 4002, 4100, 5002, 5006, 5011, 5012, 5013, 5014, 5015, 5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5024, 5025, 5030, 5031, 5100, 5109, 5110, 5111, 5113]);
+  });
+  it("1123 二采正典簇在位(用户裁定:一采二采三采恒走):taomate 臂+1440×832+latent 升维链+3043 吃 3003", () => {
+    expect(multisegApi["1021"].inputs).toMatchObject({ lora_name: "taomate_h3_3step.safetensors", strength_model: 0.7, model: ["1066", 0] });
+    expect(multisegApi["3031"].inputs).toMatchObject({ width: 1440, height: 832, length: 56 });
+    expect(multisegApi["3043"].inputs.latent_image).toEqual(["3003", 0]);
+    expect(multisegApi["3053"].class_type).toBe("CreateVideo");
   });
   it("1122 三采后修脸(用户裁定,与画布同语义):5002←4002/5100.on_false←4002/4002←5031 链+模型原生4×", () => {
     expect(multisegApi["5002"].inputs.video).toEqual(["4002", 0]);
     expect(multisegApi["5100"].inputs.on_false).toEqual(["4002", 0]);
     expect(multisegApi["4002"].inputs).toMatchObject({
-      model: ["4001", 0], video: ["5031", 0], scale: 4.0,
+      model: ["4001", 0], video: ["3053", 0], scale: 2.667,
       decoder: "flashdecoder", kernels: "fast", kv_offload: false,
     });
     expect(multisegApi["4001"].inputs.transformer).toBe("transformer_int8_convrot.safetensors");

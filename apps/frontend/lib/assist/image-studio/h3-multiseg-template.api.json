@@ -613,6 +613,252 @@
       "codec": "none"
     }
   },
+  "1066": {
+    "class_type": "MiniMaxLowVRAMAttention",
+    "inputs": {
+      "model": [
+        "34",
+        0
+      ],
+      "head_chunks": 2
+    }
+  },
+  "1033": {
+    "class_type": "BlockSparseAttention",
+    "inputs": {
+      "model": [
+        "1021",
+        0
+      ],
+      "selection": "sol-attn",
+      "selection.tau": 1.3,
+      "start_percent": 0,
+      "end_percent": 1,
+      "dense_blocks": "",
+      "min_tokens": 12288,
+      "extra_tokens": 256,
+      "sink_conditioning": "exact_kv_and_rows",
+      "verbose": false
+    }
+  },
+  "3011": {
+    "class_type": "MiniMaxChunkFeedForward",
+    "inputs": {
+      "model": [
+        "1033",
+        0
+      ],
+      "chunks": 2,
+      "seq_threshold": 4096
+    }
+  },
+  "1021": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "1066",
+        0
+      ],
+      "lora_name": "taomate_h3_3step.safetensors",
+      "strength_model": 0.7
+    }
+  },
+  "3001": {
+    "class_type": "LTXVSeparateAVLatent",
+    "inputs": {
+      "av_latent": [
+        "101",
+        1
+      ]
+    }
+  },
+  "3002": {
+    "class_type": "MinimaxH3LatentUpscaler3D",
+    "inputs": {
+      "latent": [
+        "3001",
+        0
+      ],
+      "model_name": "minimax_h3_latent_upscaler_3d_bf16.safetensors",
+      "mode.width": 1440,
+      "mode.height": 832,
+      "align": 32,
+      "enable_temporal_chunking": true,
+      "force_unload": true,
+      "device": "cuda",
+      "precision": "fp16",
+      "mode": "target dimensions"
+    }
+  },
+  "3003": {
+    "class_type": "LTXVConcatAVLatent",
+    "inputs": {
+      "video_latent": [
+        "3002",
+        0
+      ],
+      "audio_latent": [
+        "3001",
+        1
+      ]
+    }
+  },
+  "3030": {
+    "class_type": "PrimitiveStringMultiline",
+    "inputs": {
+      "value": "段1:1秒\n[Shot 1] 中景，固定机位。一位穿深蓝色长袍的年轻剑修站在竹林小径上，微微抬头看向竹梢，晨光从竹叶缝隙洒落，竹叶轻晃。\n\n段2:1秒\n[Shot 1] 他收回视线，抬手把拂过肩头的竹叶轻轻拨开，衣袖摆动，沿小径继续向前走去。\n\noverall_soundscape: 清晨竹林鸟鸣，风吹竹叶沙沙声，脚步踩在落叶上的轻响"
+    }
+  },
+  "3031": {
+    "class_type": "MiniMaxH3ReferenceToVideo",
+    "inputs": {
+      "clip": [
+        "21",
+        0
+      ],
+      "prompt": [
+        "3030",
+        0
+      ],
+      "width": 1440,
+      "height": 832,
+      "length": 56,
+      "ref_image_size": "match",
+      "vae": [
+        "7",
+        0
+      ],
+      "audio_vae": [
+        "13",
+        0
+      ]
+    }
+  },
+  "3021": {
+    "class_type": "MiniMaxH3SigmaShift",
+    "inputs": {
+      "model": [
+        "3011",
+        0
+      ],
+      "shift_video": 12,
+      "shift_audio": 3
+    }
+  },
+  "3022": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "lcm"
+    }
+  },
+  "3040": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 42
+    }
+  },
+  "3041": {
+    "class_type": "BasicScheduler",
+    "inputs": {
+      "model": [
+        "3021",
+        0
+      ],
+      "scheduler": "simple",
+      "steps": 3,
+      "denoise": 0.2
+    }
+  },
+  "3042": {
+    "class_type": "BasicGuider",
+    "inputs": {
+      "model": [
+        "3044",
+        0
+      ],
+      "conditioning": [
+        "3031",
+        0
+      ]
+    }
+  },
+  "3043": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "3040",
+        0
+      ],
+      "guider": [
+        "3042",
+        0
+      ],
+      "sampler": [
+        "3022",
+        0
+      ],
+      "sigmas": [
+        "3041",
+        0
+      ],
+      "latent_image": [
+        "3003",
+        0
+      ]
+    }
+  },
+  "3044": {
+    "class_type": "ModelAttentionBackend",
+    "inputs": {
+      "model": [
+        "3021",
+        0
+      ],
+      "attention": "comfy kitchen attention"
+    }
+  },
+  "3051": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "3043",
+        0
+      ],
+      "vae": [
+        "7",
+        0
+      ]
+    }
+  },
+  "3052": {
+    "class_type": "VAEDecodeAudio",
+    "inputs": {
+      "samples": [
+        "3043",
+        0
+      ],
+      "vae": [
+        "13",
+        0
+      ]
+    }
+  },
+  "3053": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "3051",
+        0
+      ],
+      "fps": 24,
+      "audio": [
+        "3052",
+        0
+      ],
+      "bit_depth": 8,
+      "color_space": "sRGB"
+    }
+  },
   "800": {
     "class_type": "CLIPVisionLoader",
     "inputs": {
@@ -633,10 +879,10 @@
         0
       ],
       "video": [
-        "5031",
+        "3053",
         0
       ],
-      "scale": 4.0,
+      "scale": 2.667,
       "color_fix": "none",
       "seed": 42,
       "decoder": "flashdecoder",

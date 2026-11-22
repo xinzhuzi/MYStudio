@@ -399,6 +399,13 @@ export function buildShotH3MultisegApiWorkflow(input: ShotH3ApiWorkflowInput): S
   const myShot = getApiNode(apiGraph, "103", "MyShot");
   myShot.inputs = { ...myShot.inputs, shot_id: shot.id, label, description, media_status: "图✓" };
 
+  // 1123 正典(用户裁定:一采→二采→三采恒走,修脸四采按需):二采簇随车注入——
+  // 3030 提示词与 100 同源(禁模板演示句滞留);二采/修脸 length 同步总帧数(README 9999 刻碑纪律)
+  getApiNode(apiGraph, "3030", "PrimitiveStringMultiline").inputs.value = prompt.longPrompt;
+  const totalFrames = prompt.segments.reduce((sum, segment) => sum + segment.frames, 0);
+  getApiNode(apiGraph, "3031", "MiniMaxH3ReferenceToVideo").inputs.length = totalFrames;
+  getApiNode(apiGraph, "5012", "MiniMaxH3ReferenceToVideo").inputs.length = totalFrames;
+
   const images = input.firstFrameB64 ? [{ key: "9.image", name: imageName, b64: input.firstFrameB64 }] : [];
   return {
     apiGraph,
