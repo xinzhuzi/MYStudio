@@ -926,3 +926,17 @@ describe("1122 主体句链重排(draft 滞留跨型泄漏根治)", () => {
     expect(draftIdx).toBeGreaterThan(dbIdx);
   });
 });
+
+describe("1122 设定卡B线主体句集成缺口(B线=i2i路也要喂subjectText)", () => {
+  const readActionsSource = () => readFileSync(new URL("./studio-asset-detail-actions.ts", import.meta.url), "utf8");
+
+  it("subjectText 门=t2i 路 OR 设定卡B线(装机首实弹:旧门只喂 t2i,B线恒撞缺主体句守卫)", () => {
+    const source = readActionsSource();
+    expect(source).toContain('profile.route === "t2i" || kind === SHEET_CARD_BLINE_KIND ? subjectChainText : undefined');
+  });
+
+  it("来源链日志门同步覆盖B线", () => {
+    const source = readActionsSource();
+    expect(source).toContain('if (profile.route === "t2i" || kind === SHEET_CARD_BLINE_KIND) {');
+  });
+});

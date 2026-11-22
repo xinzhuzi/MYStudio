@@ -1325,9 +1325,11 @@ export function useStudioAssetDialogActions(ctx: {
     // 正路=该型槽>正典主卡(db);滞留草稿降为「无正典时兜底」。自定义出图
     // 走「编辑→保存(写 db)→发车」,发出去的永远是已保存正典,界面不撒谎。
     const subjectChainText = getKindSubjectOverride?.(kind)?.trim() || detail.prompt?.trim() || draftPrompt.trim() || draftDescription.trim() || detail.description?.trim();
-    const subjectText = profile.route === "t2i" ? subjectChainText : undefined;
+    // 1122 B线集成缺口修(装机首实弹):设定卡B线(route=i2i)也要主体句——旧门只在
+    // t2i 路喂,B线拿 undefined 恒撞「设定卡B线缺少主体句」守卫;B线=subjectChainText 同链
+    const subjectText = profile.route === "t2i" || kind === SHEET_CARD_BLINE_KIND ? subjectChainText : undefined;
     // 1120 观测令:t2i 主体句来源链逐级落日志(手动生图核「这句从哪个槽赢的」)
-    if (profile.route === "t2i") {
+    if (profile.route === "t2i" || kind === SHEET_CARD_BLINE_KIND) {
       const chain: Array<[string, string]> = [
         ["kind-slot", getKindSubjectOverride?.(kind)?.trim() ?? ""],
         ["asset-prompt(db)", detail.prompt?.trim() ?? ""],
