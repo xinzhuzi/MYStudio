@@ -87,6 +87,13 @@ elif pgrep -x 漫影工作室 >/dev/null 2>&1; then
 fi
 
 echo "Building mac app from $APPS_DIR"
+# 1123 模板同步门(用户令:模板不许落后源件):打包前对账 6 对模板↔源,
+# 漂移当场红并指路重放;两 pika 对带因待裁(底模分歧)为 skip 非 fail。
+if ! python3 -m pytest backend/comfyui/tests/test_workflow_template_sync.py -q; then
+  echo "[build-mac] 模板同步门红:App 发车模板落后于工作流源件,禁带病打包。" >&2
+  echo "[build-mac] 修复:按上方红项重放对应生成器(如 build/scripts/multiseg_inline_facerefine_build_1118.py)后提交,再重跑本链。" >&2
+  exit 1
+fi
 echo "Command: node ./build/packaging/build-desktop.mjs --mac$BUILD_ARGS"
 
 # shellcheck disable=SC2086

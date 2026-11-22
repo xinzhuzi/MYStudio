@@ -213,6 +213,7 @@
     "video:chapter001:continuity-pilot": "node ./build/chapter_video/automate-chapter001-video.mjs --continuity-pilot",
     "video:chapter001:continuity-full": "node ./build/chapter_video/automate-chapter001-video.mjs --continuity-full-chapter",
     "video:full-pipeline": "MYSTUDIO_FULL_PIPELINE=1 vite-node --config build/timeline/vite-node.config.ts build/timeline/run-full-pipeline.ts",
-    "preview": "electron-vite preview --config frontend/config/electron-vite.config.ts"
+    "preview": "electron-vite preview --config frontend/config/electron-vite.config.ts",
+    "pretest": "python3 -m pytest backend/comfyui/tests/test_workflow_template_sync.py -q"
   }
 }

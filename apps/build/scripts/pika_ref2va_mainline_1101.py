@@ -39,8 +39,8 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-MOTHER = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/4_官方本地模板/官方本地-PikaFlex-REF2VA参考图.json"
-LIB_DIR = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/0_单镜视频"
+MOTHER = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试/官方本地-PikaFlex-REF2VA参考图.json"
+LIB_DIR = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试"
 OUT = LIB_DIR / "pika-单镜视频-ref2v.json"
 FRONTEND_UI_OUT = REPO / "apps/frontend/lib/assist/image-studio/pika-ref-shot-template.json"
 
