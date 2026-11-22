@@ -16,9 +16,11 @@ This skill is an index. Load only the reference file for the current job — do 
 On this host, every worker launch (`channel spawn` or `channel run`, including
 provider defaults from agent cards) MUST use this stable entry:
 
+Run from the repository root (use the script's absolute path from any other cwd):
+
 ```bash
-python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn <channel> --provider codex --as <worker>
-python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel run --provider codex --message-file /tmp/brief.md
+python3 Library/ai/fix-codex-channel-sidebar.py -- channel spawn <channel> --provider codex --as <worker>
+python3 Library/ai/fix-codex-channel-sidebar.py -- channel run --provider codex --message-file /tmp/brief.md
 ```
 
 The entry lives outside bundled skills. Before delegating to the installed CLI,

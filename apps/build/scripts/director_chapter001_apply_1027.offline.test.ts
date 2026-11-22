@@ -1,7 +1,7 @@
 /** Synthetic fixtures; no real approval, project I/O, model or media claims. */
 import { describe, expect, it, vi } from 'vitest';
 import path from 'node:path';
-import { CHAPTER001_PROJECT_ID, chapter001Sha256 as sha, type Chapter001Snapshot, type Chapter001ApplyJob, type Chapter001StageArtifact } from './director_chapter001_bridge_1026.test';
+import { CHAPTER001_PROJECT_ID, CHAPTER001_MA_ROOT, chapter001Sha256 as sha, type Chapter001Snapshot, type Chapter001ApplyJob, type Chapter001StageArtifact } from './director_chapter001_bridge_1026.test';
 import { prepareChapter001Apply1027 } from './director_chapter001_apply_1027.test';
 import { REQUIRED_DIRECTOR_PLAN_SECTIONS } from '@/lib/studio/director-plan';
 import { planStudioWorkflowShards, mergeStudioWorkflowShards } from '@/lib/storage/studio-workflow-shards';
@@ -52,7 +52,7 @@ function fixture() {
 }
 function persistenceFixture() {
   const { snapshot, job } = fixture();
-  const root = '/Users/zhengbingjin/Project/IP/MA';
+  const root = CHAPTER001_MA_ROOT;
   const state = structuredClone(snapshot.envelope.state);
   state.agentWorkData.push({ ...state.agentWorkData[0], id: 'old-first-chapter-work', episodeId: 'chapter-001' });
   state.novelChapters = state.novelChapters.map(chapter => chapter.id === 'chapter-001' ? chapter : { ...chapter, sourceText: 'synthetic archived source' });

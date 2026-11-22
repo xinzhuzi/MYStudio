@@ -3,7 +3,7 @@ import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { it, vi } from 'vitest';
-import { applyChapter001InMemory, validateChapter001Snapshot, CHAPTER001_PROJECT_ID, chapter001Sha256 as sha, type Chapter001ApplyJob, type Chapter001Snapshot } from './director_chapter001_bridge_1026.test';
+import { applyChapter001InMemory, validateChapter001Snapshot, CHAPTER001_PROJECT_ID, CHAPTER001_MA_ROOT, chapter001Sha256 as sha, type Chapter001ApplyJob, type Chapter001Snapshot } from './director_chapter001_bridge_1026.test';
 import { validateChapter001Media1027, type MediaPublicationInput1027, type MediaRead1027 } from './director_chapter001_media_publication_1027.test';
 import { parseStudioWorkflowShardManifest } from '@/lib/storage/studio-workflow-shards';
 
@@ -24,7 +24,7 @@ vi.mock('@/stores/project/project-store', () => ({ useProjectStore: {
 vi.mock('@/stores/app/app-settings-store', () => ({ useAppSettingsStore: { getState: () => ({ resourceSharing: { shareCharacters: true, shareScenes: true, shareMedia: true } }) } }));
 import { createStudioWorkflowShardedStorage, __resetModuleStorageWriteLockForTests } from '@/lib/storage/storage-project-sharded';
 
-export const CHAPTER001_PERSIST_ROOT = '/Users/zhengbingjin/Project/IP/MA';
+export const CHAPTER001_PERSIST_ROOT = CHAPTER001_MA_ROOT;
 const chapter = 'chapter-001';
 const storeName = 'studio-workflow-store';
 const prefix = `_p/${CHAPTER001_PROJECT_ID}/`;

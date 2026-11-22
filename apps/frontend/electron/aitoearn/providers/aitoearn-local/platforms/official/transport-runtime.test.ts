@@ -88,4 +88,90 @@ describe("official platform transport runtime", () => {
     await expect(getOfficialAccount(runtime, "account-expired")).rejects.toThrow("OAuth 凭据已过期");
     await expect(getOfficialAccount(runtime, "account-no-expiry")).rejects.toThrow("OAuth 凭据缺少到期时间");
   });
+
+  function refreshableRecord(overrides: Partial<LocalAccountRecord> = {}): LocalAccountRecord {
+    return {
+      id: "account-refresh",
+      platform: "googleBusiness",
+      providerAccountId: "accounts/1/locations/2",
+      displayName: "续期账号",
+      credential: { kind: "oauth", accessToken: "stale-token", refreshToken: "old-refresh", expiresAt: "2026-07-26T00:00:00.000Z" },
+      updatedAt: "2026-07-27T00:00:00.000Z",
+      ...overrides,
+    };
+  }
+
+  function refreshRuntime(fetchMock: ReturnType<typeof vi.fn>, upsert: ReturnType<typeof vi.fn>, record: LocalAccountRecord, platformId = "googleBusiness") {
+    return {
+      config: { platformId, clientId: "client", clientSecret: "secret", redirectUri: "https://localhost/callback", scopes: [] },
+      fetch: fetchMock,
+      now: () => new Date("2026-07-27T12:00:00.000Z"),
+      vault: {
+        get: vi.fn(async () => record),
+        list: vi.fn(async () => [{ id: record.id, platform: record.platform, displayName: record.displayName, updatedAt: record.updatedAt }]),
+        upsert,
+      },
+    } as unknown as OfficialTransportRuntime;
+  }
+
+  it("refreshes an expired credential and persists the rotated token to the vault", async () => {
+    const record = refreshableRecord();
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ access_token: "fresh-token", refresh_token: "rotated-refresh", expires_in: 3600 })));
+    const upsert = vi.fn(async () => undefined);
+    const runtime = refreshRuntime(fetchMock, upsert, record);
+
+    const account = await getOfficialAccount(runtime, record.id);
+
+    expect(account.credential).toMatchObject({ accessToken: "fresh-token", refreshToken: "rotated-refresh", expiresAt: "2026-07-27T13:00:00.000Z" });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://oauth2.googleapis.com/token");
+    expect(init.method).toBe("POST");
+    expect(String(init.body)).toContain("grant_type=refresh_token");
+    expect(String(init.body)).toContain("refresh_token=old-refresh");
+    expect(String(init.body)).toContain("client_secret=secret");
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+      id: record.id,
+      credential: expect.objectContaining({ accessToken: "fresh-token", refreshToken: "rotated-refresh" }),
+    }));
+  });
+
+  it("fails closed without persisting when the refresh request is rejected", async () => {
+    const record = refreshableRecord();
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 }));
+    const upsert = vi.fn(async () => undefined);
+    const runtime = refreshRuntime(fetchMock, upsert, record);
+
+    await expect(getOfficialAccount(runtime, record.id)).rejects.toThrow("自动续期失败，请重新登录");
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it("refreshes an expired account through listAccounts and reports it online", async () => {
+    const record = refreshableRecord({ platform: "twitter" });
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ access_token: "fresh-token", expires_in: 7200 })));
+    const upsert = vi.fn(async () => undefined);
+    const runtime = refreshRuntime(fetchMock, upsert, record, "twitter");
+
+    await expect(listOfficialAccounts(runtime)).resolves.toEqual([
+      { accountId: record.id, displayName: record.displayName, status: "online" },
+    ]);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://api.twitter.com/2/oauth2/token");
+    expect((init.headers as Record<string, string>).authorization).toBe(`Basic ${Buffer.from("client:secret").toString("base64")}`);
+    expect(upsert).toHaveBeenCalledOnce();
+  });
+
+  it("deduplicates concurrent refreshes for the same account", async () => {
+    const record = refreshableRecord();
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ access_token: "fresh-token", refresh_token: "rotated-refresh", expires_in: 3600 })));
+    const runtime = refreshRuntime(fetchMock, vi.fn(async () => undefined), record);
+
+    const [first, second] = await Promise.all([
+      getOfficialAccount(runtime, record.id),
+      getOfficialAccount(runtime, record.id),
+    ]);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(first.credential.accessToken).toBe("fresh-token");
+    expect(second.credential.accessToken).toBe("fresh-token");
+  });
 });

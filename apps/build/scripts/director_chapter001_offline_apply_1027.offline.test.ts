@@ -1,7 +1,7 @@
 /** Synthetic fixtures; no real approval, project I/O, model or media claims. */
 import { afterEach, describe, expect, it } from 'vitest';
 import path from 'node:path';
-import { CHAPTER001_PROJECT_ID, chapter001Sha256 as sha, type Chapter001Snapshot, type Chapter001ApplyJob, type Chapter001StageArtifact } from './director_chapter001_bridge_1026.test';
+import { CHAPTER001_PROJECT_ID, CHAPTER001_MA_ROOT, CHAPTER001_REGISTRY_PATH, chapter001Sha256 as sha, type Chapter001Snapshot, type Chapter001ApplyJob, type Chapter001StageArtifact } from './director_chapter001_bridge_1026.test';
 import { applyChapter001Offline1027, preflightChapter001Offline1027, offlineBaselineHash1027, OfflineApplyFailure1027, type OfflineApplyOptions, type OfflineFileAdapter } from './director_chapter001_offline_apply_1027.test';
 import { REQUIRED_DIRECTOR_PLAN_SECTIONS } from '@/lib/studio/director-plan';
 import { planStudioWorkflowShards, mergeStudioWorkflowShards } from '@/lib/storage/studio-workflow-shards';
@@ -51,7 +51,7 @@ function fixture() {
 }
 function persistenceFixture() {
   const { snapshot, job } = fixture();
-  const root = '/Users/zhengbingjin/Project/IP/MA';
+  const root = CHAPTER001_MA_ROOT;
   const state = structuredClone(snapshot.envelope.state);
   state.agentWorkData.push({ ...state.agentWorkData[0], id: 'old-first-chapter-work', episodeId: 'chapter-001' });
   state.novelChapters = state.novelChapters.map(chapter => chapter.id === 'chapter-001' ? chapter : { ...chapter, sourceText: 'synthetic archived source' });
@@ -82,7 +82,7 @@ const task = path.resolve(import.meta.dirname,'../../../.trellis/tasks/10-25-dao
 afterEach(async () => { await __resetModuleStorageWriteLockForTests(); });
 async function offlineFixture() {
   const f = persistenceFixture();
-  const registryFile = '/Users/zhengbingjin/Project/IP/漫影工作室/projects/mystudio-project-store.json';
+  const registryFile = CHAPTER001_REGISTRY_PATH;
   const registry = JSON.stringify({state:{projects:[{id:CHAPTER001_PROJECT_ID,location:f.snapshot.projectRoot}]}});
   f.files.set(registryFile,registry);
   const approval = path.join(task,'research/chapter001-offline-apply-1027/synthetic-root-receipt.json');

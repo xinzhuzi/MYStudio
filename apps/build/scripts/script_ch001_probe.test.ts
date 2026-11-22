@@ -16,7 +16,7 @@ import type { NovelChapter } from "@/types/studio";
 /**
  * ch001 两腿探针·腿1(R6/G16/G21):不出网,读本机项目库 chapter-001 → buildStageMessages →
  * prompt dump 落本任务 research/(gitignored,ch001 原文不进仓库)。
- * env 门控:SCRIPT_CH001_STORE=<项目库路径>(如 /Users/zhengbingjin/Project/IP/MA/store/studio-workflow)
+ * env 门控:SCRIPT_CH001_STORE=<项目库路径>(如 $HOME/Project/IP/MA/store/studio-workflow)
  * 时才跑;常规 vitest(不设 env)整组 skip——不污染常规门禁。
  *
  * 同源口径(1012 评审修正):prompt 组装对齐生产链 useScriptStageActions.buildStageMessagesFull——

@@ -115,52 +115,127 @@ function credentialCookies(credential: LocalAccountCredential) {
   }
 }
 
-function redactValue(value: unknown, seen = new WeakSet<object>()): unknown {
-  if (typeof value === "string") return "[redacted]";
-  if (!value || typeof value !== "object") return value;
-  if (seen.has(value)) return "[circular]";
-  seen.add(value);
-  if (Array.isArray(value)) return value.map((item) => redactValue(item, seen));
-  const result: Record<string, unknown> = {};
-  for (const [key, child] of Object.entries(value)) {
-    result[key] = /cookie|token|secret|password|privatekey|webprotect|authorization|localstorage/i.test(key) ? "[redacted]" : redactValue(child, seen);
+const REDACTED = "[redacted]";
+const SECRET_KEY_PATTERN = /cookie|token|secret|password|privatekey|webprotect|authorization|localstorage/i;
+const MIN_SECRET_LENGTH = 4;
+
+function credentialSecrets(cookies: Cookie[], localStorage?: string): string[] {
+  const secrets = cookies.flatMap((cookie) => [cookie.value, `${cookie.name}=${cookie.value}`]);
+  if (localStorage) {
+    secrets.push(localStorage);
+    try {
+      const walk = (value: unknown): void => {
+        if (typeof value === "string") {
+          secrets.push(value);
+          return;
+        }
+        if (value && typeof value === "object") Object.values(value).forEach(walk);
+      };
+      walk(JSON.parse(localStorage));
+    } catch {
+      // localStorage 不是 JSON 时整体字符串已进 secrets
+    }
+  }
+  return secrets.filter((secret) => secret.length >= MIN_SECRET_LENGTH);
+}
+
+function scrubSecrets(text: string, secrets: readonly string[]): string {
+  let result = text;
+  for (const secret of secrets) {
+    if (result.includes(secret)) result = result.split(secret).join(REDACTED);
   }
   return result;
 }
 
-let credentialRedactionQueue = Promise.resolve();
+function containsCredentialShape(value: unknown, seen = new WeakSet<object>()): boolean {
+  if (!value || typeof value !== "object" || seen.has(value)) return false;
+  seen.add(value);
+  if (Array.isArray(value)) return value.some((item) => containsCredentialShape(item, seen));
+  const record = value as Record<string, unknown>;
+  if (typeof record.name === "string" && typeof record.value === "string") return true;
+  return Object.entries(record).some(([key, child]) => SECRET_KEY_PATTERN.test(key) || containsCredentialShape(child, seen));
+}
 
-async function withCredentialRedaction<T>(operation: () => Promise<T>) {
-  let releaseQueue: () => void = () => undefined;
-  const previous = credentialRedactionQueue;
-  credentialRedactionQueue = new Promise<void>((resolve) => { releaseQueue = resolve; });
-  await previous;
-  const original = {
-    log: console.log,
-    error: console.error,
-    warn: console.warn,
-    info: console.info,
-    debug: console.debug,
-    trace: console.trace,
-  };
-  const wrap = (fn: (...args: unknown[]) => void) => (...args: unknown[]) => fn(...args.map((item) => redactValue(item)));
-  console.log = wrap(original.log);
-  console.error = wrap(original.error);
-  console.warn = wrap(original.warn);
-  console.info = wrap(original.info);
-  console.debug = wrap(original.debug);
-  console.trace = wrap(original.trace);
+function redactString(value: string, secrets: readonly string[]): string {
+  const scrubbed = scrubSecrets(value, secrets);
+  if (scrubbed !== value) return scrubbed;
+  const start = value.trimStart().charAt(0);
+  if ((start !== "{" && start !== "[") || value.length > 20_000) return value;
   try {
-    return await operation();
-  } finally {
-    console.log = original.log;
-    console.error = original.error;
-    console.warn = original.warn;
-    console.info = original.info;
-    console.debug = original.debug;
-    console.trace = original.trace;
-    releaseQueue();
+    const parsed: unknown = JSON.parse(value);
+    if (!containsCredentialShape(parsed)) return value;
+    return JSON.stringify(redactValue(parsed, secrets));
+  } catch {
+    return value;
   }
+}
+
+function redactValue(value: unknown, secrets: readonly string[], seen = new WeakSet<object>()): unknown {
+  if (typeof value === "string") return redactString(value, secrets);
+  if (!value || typeof value !== "object") return value;
+  if (value instanceof Error) {
+    const copy = new Error(redactString(value.message, secrets));
+    copy.name = value.name;
+    if (value.stack) copy.stack = redactString(value.stack, secrets);
+    return copy;
+  }
+  if (seen.has(value)) return "[circular]";
+  seen.add(value);
+  if (Array.isArray(value)) return value.map((item) => redactValue(item, secrets, seen));
+  const prototype = Object.getPrototypeOf(value) as object | null;
+  if (prototype !== Object.prototype && prototype !== null) return value;
+  const record = value as Record<string, unknown>;
+  const cookieLike = typeof record.name === "string" && typeof record.value === "string";
+  const result: Record<string, unknown> = {};
+  for (const [key, child] of Object.entries(record)) {
+    result[key] = (cookieLike && key === "value") || SECRET_KEY_PATTERN.test(key)
+      ? REDACTED
+      : redactValue(child, secrets, seen);
+  }
+  return result;
+}
+
+type ConsoleMethod = "log" | "error" | "warn" | "info" | "debug" | "trace";
+const CONSOLE_METHODS: readonly ConsoleMethod[] = ["log", "error", "warn", "info", "debug", "trace"];
+let activeRedactions = 0;
+let installedOriginals: Partial<Record<ConsoleMethod, (...args: unknown[]) => void>> | null = null;
+const activeSecrets = new Set<string>();
+
+function beginCredentialRedaction(secrets: readonly (string | undefined)[]) {
+  for (const secret of secrets) {
+    if (secret) activeSecrets.add(secret);
+  }
+  activeRedactions += 1;
+  if (installedOriginals) return;
+  installedOriginals = {};
+  for (const method of CONSOLE_METHODS) {
+    const original = console[method];
+    installedOriginals[method] = original;
+    console[method] = (...args: unknown[]) => original(...args.map((item) => redactValue(item, [...activeSecrets])));
+  }
+}
+
+function endCredentialRedaction() {
+  activeRedactions -= 1;
+  if (activeRedactions > 0 || !installedOriginals) return;
+  for (const method of CONSOLE_METHODS) {
+    const original = installedOriginals[method];
+    if (original) console[method] = original;
+  }
+  installedOriginals = null;
+  activeSecrets.clear();
+}
+
+function withCredentialRedaction<T>(secrets: readonly (string | undefined)[], operation: () => Promise<T>): Promise<T> {
+  beginCredentialRedaction(secrets);
+  let pending: Promise<T>;
+  try {
+    pending = Promise.resolve(operation());
+  } catch (error) {
+    endCredentialRedaction();
+    throw error;
+  }
+  return pending.finally(endCredentialRedaction);
 }
 
 async function materializeAsset(url: string, tempFiles: string[], allowedAssetRoots: readonly string[], allowedRemoteAssetHosts: readonly string[]) {
@@ -302,7 +377,8 @@ export function createAitoearnLocalPlatformBridge(bridgeOptions: {
         officialProviderError(error);
       }
     }
-    const login = await withCredentialRedaction(async () => {
+    // 登录前拿不到凭据明文,靠结构化脱敏(凭据对象/cookie 形状/敏感键)兜住 vendor 日志
+    const login = await withCredentialRedaction([], async () => {
       if (platform === "xhs") return withLoginWindowCloseCancellation(() => xiaohongshuService.loginOrView("login"));
       if (platform === "douyin") {
         return withDestroyedWindowDevToolsGuard(
@@ -396,7 +472,7 @@ export function createAitoearnLocalPlatformBridge(bridgeOptions: {
       const title = context.draft.title;
       const description = context.draft.description;
       const options = context.draft.platformOptions;
-      const result = await withCredentialRedaction(async () => {
+      const result = await withCredentialRedaction(credentialSecrets(cookies, sessionCredential.localStorage), async () => {
         if (platform === "xhs") {
           const settings = { title, desc: description, topicsDetail: topics.map((topic) => ({ topicId: topic, topicName: topic })), cover: coverPath, visibility_type: visibilityForXhs(context.draft.visibility), proxy: "" };
           if (context.draft.contentType === "image-text") return xiaohongshuService.publishImageWorkApi(JSON.stringify(cookies), imagePaths, settings);
@@ -428,7 +504,7 @@ export function createAitoearnLocalPlatformBridge(bridgeOptions: {
   async function checkOnline(platform: LocalPlatform, cookies: Cookie[]) {
     // 09-10 P1:携明文 cookies 的 vendor 调用必须裹进脱敏守卫——
     // 此前在 withCredentialRedaction 之外执行,vendor 内任何 console 输出即明文落日志。
-    return withCredentialRedaction(async () => {
+    return withCredentialRedaction(credentialSecrets(cookies), async () => {
       if (platform === "xhs") {
         await xiaohongshuService.getUserInfo(cookies);
         return true;

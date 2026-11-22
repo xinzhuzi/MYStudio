@@ -79,6 +79,117 @@ export async function saveOfficialAccount(
   return record;
 }
 
+interface RefreshTokenResponse {
+  access_token?: string;
+  refresh_token?: string;
+  expires_in?: number;
+  scope?: string;
+  token_type?: string;
+  data?: { access_token?: string; refresh_token?: string; expires_in?: number; scope?: string };
+}
+
+function basicAuthHeader(runtime: OfficialTransportRuntime): string {
+  if (!runtime.config.clientSecret) throw new Error(`${runtime.config.platformId} client secret 未配置`);
+  return `Basic ${Buffer.from(`${runtime.config.clientId}:${runtime.config.clientSecret}`).toString("base64")}`;
+}
+
+async function requestRefreshedCredential(
+  runtime: OfficialTransportRuntime,
+  credential: LocalOAuthAccountCredential,
+): Promise<LocalOAuthAccountCredential> {
+  const refreshToken = credential.refreshToken;
+  if (!refreshToken) throw new Error("缺少 refresh token");
+  const formHeaders = { "content-type": "application/x-www-form-urlencoded" };
+  let url: string;
+  let headers: Record<string, string> = formHeaders;
+  let body: Record<string, string>;
+  switch (runtime.config.platformId) {
+    case "googleBusiness":
+    case "youtube":
+      url = "https://oauth2.googleapis.com/token";
+      body = { grant_type: "refresh_token", refresh_token: refreshToken, client_id: runtime.config.clientId };
+      if (runtime.config.clientSecret) body.client_secret = runtime.config.clientSecret;
+      break;
+    case "linkedin":
+      url = "https://www.linkedin.com/oauth/v2/accessToken";
+      body = { grant_type: "refresh_token", refresh_token: refreshToken, client_id: runtime.config.clientId };
+      if (runtime.config.clientSecret) body.client_secret = runtime.config.clientSecret;
+      break;
+    case "tiktok":
+      url = "https://open.tiktokapis.com/v2/oauth/token/";
+      body = { grant_type: "refresh_token", refresh_token: refreshToken, client_key: runtime.config.clientId };
+      if (runtime.config.clientSecret) body.client_secret = runtime.config.clientSecret;
+      break;
+    case "twitter":
+      url = "https://api.twitter.com/2/oauth2/token";
+      if (runtime.config.clientSecret) headers = { ...formHeaders, authorization: basicAuthHeader(runtime) };
+      body = { grant_type: "refresh_token", refresh_token: refreshToken, client_id: runtime.config.clientId };
+      break;
+    case "pinterest":
+      url = "https://api.pinterest.com/v5/oauth/token";
+      headers = { ...formHeaders, authorization: basicAuthHeader(runtime) };
+      body = { grant_type: "refresh_token", refresh_token: refreshToken, continuous_refresh: "true" };
+      break;
+    case "bilibili":
+      url = "https://api.bilibili.com/x/account-oauth2/v1/token";
+      body = { grant_type: "refresh_token", refresh_token: refreshToken, client_id: runtime.config.clientId };
+      if (runtime.config.clientSecret) body.client_secret = runtime.config.clientSecret;
+      break;
+    default:
+      throw new Error(`${runtime.config.platformId} 不支持 OAuth 自动续期`);
+  }
+  const response = await requestJson<RefreshTokenResponse>(runtime, url, {
+    method: "POST",
+    headers,
+    body: new URLSearchParams(body),
+  });
+  const token = response.data ?? response;
+  if (!token.access_token) throw new Error(`${runtime.config.platformId} 续期响应缺少 access token`);
+  return {
+    kind: "oauth",
+    accessToken: token.access_token,
+    refreshToken: token.refresh_token ?? refreshToken,
+    expiresAt: typeof token.expires_in === "number" && token.expires_in > 0
+      ? new Date(runtime.now().getTime() + token.expires_in * 1000).toISOString()
+      : undefined,
+    scope: token.scope ?? credential.scope,
+    tokenType: credential.tokenType,
+  };
+}
+
+// 并发发布/轮询可能同时撞上过期凭据:按账号去重,避免重复续期把轮换后的
+// refresh token 用废(部分平台 refresh token 一次性)。
+const refreshOperations = new Map<string, Promise<LocalOAuthAccountCredential>>();
+
+async function refreshStoredCredential(
+  runtime: OfficialTransportRuntime,
+  record: LocalAccountRecord & { credential: LocalOAuthAccountCredential },
+): Promise<LocalAccountRecord & { credential: LocalOAuthAccountCredential }> {
+  const key = `${runtime.config.platformId}:${record.id}`;
+  let pending = refreshOperations.get(key);
+  if (!pending) {
+    pending = requestRefreshedCredential(runtime, record.credential)
+      .then(async (credential) => {
+        await runtime.vault.upsert({ ...record, credential, updatedAt: runtime.now().toISOString() });
+        return credential;
+      })
+      .finally(() => { refreshOperations.delete(key); });
+    refreshOperations.set(key, pending);
+  }
+  const credential = await pending;
+  return { ...record, credential };
+}
+
+function credentialFailure(platformId: OfficialPlatformId, status: PlatformAccountStatus, credential: LocalOAuthAccountCredential): string {
+  if (status === "expired") return `${platformId} OAuth 凭据已过期`;
+  const reason = credential.expiresAt ? "到期时间无效" : "缺少到期时间";
+  return `${platformId} OAuth 凭据${reason}`;
+}
+
+function credentialError(platformId: OfficialPlatformId, status: PlatformAccountStatus, credential: LocalOAuthAccountCredential): Error {
+  return new Error(`${credentialFailure(platformId, status, credential)}，请重新登录`);
+}
+
 export async function getOfficialAccount(
   runtime: OfficialTransportRuntime,
   accountId: string,
@@ -87,13 +198,21 @@ export async function getOfficialAccount(
   if (!record || record.platform !== runtime.config.platformId || !isLocalOAuthAccountCredential(record.credential)) {
     throw new Error(`${runtime.config.platformId} OAuth 账号不存在或凭据无效`);
   }
-  const status = oauthCredentialStatus(record.credential, runtime.now());
-  if (status === "expired") throw new Error(`${runtime.config.platformId} OAuth 凭据已过期，请重新登录`);
-  if (status === "error") {
-    const reason = record.credential.expiresAt ? "到期时间无效" : "缺少到期时间";
-    throw new Error(`${runtime.config.platformId} OAuth 凭据${reason}，请重新登录`);
+  const account = record as LocalAccountRecord & { credential: LocalOAuthAccountCredential };
+  const status = oauthCredentialStatus(account.credential, runtime.now());
+  if (status === "online") return account;
+  if (!account.credential.refreshToken) throw credentialError(runtime.config.platformId, status, account.credential);
+  let refreshed: LocalAccountRecord & { credential: LocalOAuthAccountCredential };
+  const failure = credentialFailure(runtime.config.platformId, status, account.credential);
+  try {
+    refreshed = await refreshStoredCredential(runtime, account);
+  } catch {
+    throw new Error(`${failure}，自动续期失败，请重新登录`);
   }
-  return record as LocalAccountRecord & { credential: LocalOAuthAccountCredential };
+  if (oauthCredentialStatus(refreshed.credential, runtime.now()) !== "online") {
+    throw new Error(`${failure}，自动续期未取得有效凭据，请重新登录`);
+  }
+  return refreshed;
 }
 
 export function requireProviderAccountId(account: LocalAccountRecord): string {
@@ -109,11 +228,20 @@ export async function listOfficialAccounts(runtime: OfficialTransportRuntime): P
     .filter((account) => account.platform === runtime.config.platformId)
     .map(async (account) => {
       const record = await runtime.vault.get(account.id);
-      const status = record
+      const oauthRecord = record
         && record.platform === runtime.config.platformId
         && isLocalOAuthAccountCredential(record.credential)
-        ? oauthCredentialStatus(record.credential, runtime.now())
-        : "error";
+        ? record as LocalAccountRecord & { credential: LocalOAuthAccountCredential }
+        : null;
+      let status: PlatformAccountStatus = oauthRecord ? oauthCredentialStatus(oauthRecord.credential, runtime.now()) : "error";
+      if (oauthRecord && status !== "online" && oauthRecord.credential.refreshToken) {
+        try {
+          const refreshed = await refreshStoredCredential(runtime, oauthRecord);
+          status = oauthCredentialStatus(refreshed.credential, runtime.now());
+        } catch {
+          // 续期失败保持原状态,不阻断账号列表
+        }
+      }
       return {
         accountId: account.id,
         displayName: account.displayName,

@@ -16,6 +16,7 @@
  */
 import { createHash } from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -26,7 +27,7 @@ import { parseStudioWorkflowShardManifest } from "@/lib/storage/studio-workflow-
 
 const IP_ROOT = process.env.MYSTUDIO_IP_ROOT?.trim()
   ? path.resolve(process.env.MYSTUDIO_IP_ROOT.trim())
-  : "/Users/zhengbingjin/Project/IP";
+  : path.join(os.homedir(), "Project/IP");
 
 interface HolderInfo {
   id?: string;

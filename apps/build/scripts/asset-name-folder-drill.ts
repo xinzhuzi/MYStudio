@@ -2,7 +2,7 @@
  * 资产按名分夹迁移演练入口(10-19-asset-name-folders L3 步12)
  *
  * 定位:对【任意资产根副本】跑迁移+核账并输出五重核账台账——只碰传入的副本根,
- * 绝不触碰生产库(调用方负责先拷贝;生产 MA=/Users/zhengbingjin/Project/IP/MA 只读)。
+ * 绝不触碰生产库(调用方负责先拷贝;生产 MA=~/Project/IP/MA 只读)。
  *
  * Usage(仓根基准):
  *   cd apps && npx vite-node --config build/timeline/vite-node.config.ts \

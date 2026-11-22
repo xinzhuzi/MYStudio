@@ -9,7 +9,7 @@ and translates its output back into channel events.
 
 ```bash
 trellis channel create impl-task --by dispatcher --cwd /path/to/repo
-python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn impl-task --provider codex --as codex-impl --timeout 30m
+python3 Library/ai/fix-codex-channel-sidebar.py -- channel spawn impl-task --provider codex --as codex-impl --timeout 30m
 
 echo "Implement the schema for table X per .trellis/.../prd.md" \
   | trellis channel send impl-task --as dispatcher --to codex-impl --stdin
@@ -92,7 +92,7 @@ Example spawning a check agent against a task directory:
 
 ```bash
 TASK=.trellis/tasks/05-13-example
-python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn cr-example --agent check --provider codex --as check-cx \
+python3 Library/ai/fix-codex-channel-sidebar.py -- channel spawn cr-example --agent check --provider codex --as check-cx \
   --file "$TASK/prd.md" \
   --file "$TASK/design.md" \
   --file "$TASK/implement.md" \
@@ -115,8 +115,8 @@ Use explicit names when multiple workers or providers participate in one
 channel:
 
 ```bash
-python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn cr-feature --agent check --as check-claude
-python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn cr-feature --agent check --provider codex --as check-cx
+python3 Library/ai/fix-codex-channel-sidebar.py -- channel spawn cr-feature --agent check --as check-claude
+python3 Library/ai/fix-codex-channel-sidebar.py -- channel spawn cr-feature --agent check --provider codex --as check-cx
 
 trellis channel wait cr-feature --as main \
   --from check-claude,check-cx --kind done --all --timeout 15m
@@ -170,7 +170,7 @@ truthful.
 
 ```bash
 trellis channel kill impl-task --as claude-impl
-python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn impl-task --as claude-impl --provider claude \
+python3 Library/ai/fix-codex-channel-sidebar.py -- channel spawn impl-task --as claude-impl --provider claude \
   --resume "$(cat ~/.trellis/channels/<bucket>/impl-task/worker.session-id)"
 
 echo "STOP — new instructions: ..." \

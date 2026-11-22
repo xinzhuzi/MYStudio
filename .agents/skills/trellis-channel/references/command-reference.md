@@ -212,7 +212,7 @@ Behavior:
 ### `spawn <name>`
 
 ```bash
-python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel spawn <name>
+python3 Library/ai/fix-codex-channel-sidebar.py -- channel spawn <name>
   [--scope project|global]
   [--agent <agent-name>]                  # loads .trellis/agents/<name>.md
   [--provider claude|codex]               # overrides agent file
@@ -250,7 +250,7 @@ Behavior:
 ### `run [name]`
 
 ```bash
-python3 /Users/zhengbingjin/Project/Github/MYStudio/Library/ai/fix-codex-channel-sidebar.py -- channel run [name?]
+python3 Library/ai/fix-codex-channel-sidebar.py -- channel run [name?]
   [--agent <name>]
   [--provider claude|codex]
   [--as <worker-name>]

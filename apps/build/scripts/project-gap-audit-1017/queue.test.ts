@@ -16,7 +16,7 @@ import {
   type RemotionQueuePersistence,
   type RemotionQueueShotInput,
   resolveHardwareQueueConcurrency,
-} from "/Users/zhengbingjin/Project/Github/MYStudio/apps/frontend/electron/rendering/plugins/remotion/queue/remotion-render-queue";
+} from "@/electron/rendering/plugins/remotion/queue/remotion-render-queue";
 import { createReadyShotJob } from "@/lib/studio/remotion/remotion-job-factory";
 
 class MemoryPersistence implements RemotionQueuePersistence {

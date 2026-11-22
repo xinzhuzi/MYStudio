@@ -2,7 +2,7 @@ import { normalizeContinuityAssetVersion, createHumanContinuityAssetApproval } f
 import { normalizeStoredJson } from '@/electron/storage/pretty-json';
 /** Synthetic fixtures; no real approval, project I/O, model or media claims. */
 import path from 'node:path';
-import { CHAPTER001_PROJECT_ID, chapter001Sha256 as sha, type Chapter001Snapshot, type Chapter001ApplyJob, type Chapter001StageArtifact } from './director_chapter001_bridge_1026.test';
+import { CHAPTER001_PROJECT_ID, CHAPTER001_MA_ROOT, CHAPTER001_REGISTRY_PATH, chapter001Sha256 as sha, type Chapter001Snapshot, type Chapter001ApplyJob, type Chapter001StageArtifact } from './director_chapter001_bridge_1026.test';
 import { preflightChapter001Offline1027, offlineBaselineHash1027, type OfflineApplyOptions, type OfflineFileAdapter } from './director_chapter001_offline_apply_1027.test';
 import { REQUIRED_DIRECTOR_PLAN_SECTIONS } from '@/lib/studio/director-plan';
 import { planStudioWorkflowShards, mergeStudioWorkflowShards } from '@/lib/storage/studio-workflow-shards';
@@ -62,7 +62,7 @@ function fixture() {
 }
 function persistenceFixture() {
   const { snapshot, job } = fixture();
-  const root = '/Users/zhengbingjin/Project/IP/MA';
+  const root = CHAPTER001_MA_ROOT;
   const state = structuredClone(snapshot.envelope.state);
   const scene=normalizeContinuityAssetVersion({assetId:'scene:synthetic',versionId:'synthetic-scene',assetKind:'scene',label:'Synthetic only',referenceImagePaths:['/synthetic-scene.png'],reviewEvidencePaths:['/synthetic-scene-review_thumb.png'],reviewEvidenceSha256:['a'.repeat(64)],reviewEvidenceVerifiedAt:1,sceneViewpointId:'courtyard',spatialLayout:'courtyard',lightingDesign:'day',colorPalette:'ink',structurallyComplete:true,contentFingerprint:'',approved:false,source:'synthetic-only'});
   state.continuityAssetVersions=[createHumanContinuityAssetApproval(scene,{status:'approved',evidencePaths:scene.reviewEvidencePaths!,reviewedAt:1})];
@@ -94,7 +94,7 @@ function persistenceFixture() {
 const task = path.resolve(import.meta.dirname,'../../../.trellis/tasks/10-25-daojie-director-rule-conflict-validation');
 export async function mediaPublicationFixture1027() {
   const f = persistenceFixture();
-  const registryFile = '/Users/zhengbingjin/Project/IP/漫影工作室/projects/mystudio-project-store.json';
+  const registryFile = CHAPTER001_REGISTRY_PATH;
   const registry = JSON.stringify({state:{projects:[{id:CHAPTER001_PROJECT_ID,location:f.snapshot.projectRoot}]}});
   f.files.set(registryFile,registry);
   const approval = path.join(task,'research/chapter001-offline-apply-1027/synthetic-root-receipt.json');

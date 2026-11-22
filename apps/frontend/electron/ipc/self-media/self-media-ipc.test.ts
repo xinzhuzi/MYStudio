@@ -15,6 +15,7 @@ vi.mock("electron", () => ({
   },
   BrowserWindow: {
     getAllWindows: vi.fn(() => [{ isDestroyed: () => false, webContents: { send: sent } }]),
+    fromWebContents: vi.fn(() => ({ isDestroyed: () => false })),
   },
 }));
 
@@ -26,6 +27,9 @@ import { SELF_MEDIA_LOCAL_TRANSPORT_PLATFORMS } from "../../../lib/self-media/ca
 import type { SelfMediaTask } from "../../../types/self-media";
 
 const SELF_MEDIA_PLATFORMS = SELF_MEDIA_LOCAL_TRANSPORT_PLATFORMS;
+
+const trustedFrame = { url: "file:///Applications/app.asar/out/renderer/index.html" };
+const trustedEvent = { senderFrame: trustedFrame, sender: { mainFrame: trustedFrame } };
 
 describe("registerSelfMediaIpcHandlers", () => {
   const taskStorePath = path.join(os.tmpdir(), `mystudio-self-media-${process.pid}.json`);
@@ -43,7 +47,7 @@ describe("registerSelfMediaIpcHandlers", () => {
   });
 
   it("exposes disabled providers without claiming a publish capability", async () => {
-    const reply = await handlers.get(SELF_MEDIA_IPC.listProviders)?.();
+    const reply = await handlers.get(SELF_MEDIA_IPC.listProviders)?.(trustedEvent);
     expect(reply).toEqual({
       success: true,
       value: [
@@ -52,8 +56,27 @@ describe("registerSelfMediaIpcHandlers", () => {
     });
   });
 
+  it("rejects invocations from subframes and non-app renderers", async () => {
+    const mainFrame = { url: "file:///Applications/app.asar/out/renderer/index.html" };
+    const subframeReply = await handlers.get(SELF_MEDIA_IPC.listTasks)?.(
+      { senderFrame: { url: mainFrame.url }, sender: { mainFrame } },
+      { projectId: "project-1" },
+    );
+    expect(subframeReply).toEqual({ success: false, error: { code: "untrusted-sender", message: "拒绝来自非应用渲染帧的自媒体调用" } });
+
+    const externalFrame = { url: "https://evil.example/app" };
+    const externalReply = await handlers.get(SELF_MEDIA_IPC.createTask)?.(
+      { senderFrame: externalFrame, sender: { mainFrame: externalFrame } },
+      { projectId: "project-1", providerId: "aitoearn-local" },
+    );
+    expect(externalReply).toEqual({ success: false, error: { code: "untrusted-sender", message: "拒绝来自非应用渲染帧的自媒体调用" } });
+
+    const legacyReply = await handlers.get(SELF_MEDIA_IPC.cancelTask)?.({}, { projectId: "project-1", taskId: "task-1" });
+    expect(legacyReply).toEqual({ success: false, error: { code: "untrusted-sender", message: "拒绝来自非应用渲染帧的自媒体调用" } });
+  });
+
   it("rejects invalid task payloads before any provider request", async () => {
-    const reply = (await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
+    const reply = (await handlers.get(SELF_MEDIA_IPC.createTask)?.(trustedEvent, {
       projectId: "project-1",
       providerId: "aitoearn-local",
       draft: { projectId: "other-project" },
@@ -62,10 +85,10 @@ describe("registerSelfMediaIpcHandlers", () => {
   });
 
   it("returns invalid-provider when a renderer supplies an unknown provider", async () => {
-    const listReply = await handlers.get(SELF_MEDIA_IPC.listAccounts)?.({}, { projectId: "project-1", providerId: "unknown-provider" });
+    const listReply = await handlers.get(SELF_MEDIA_IPC.listAccounts)?.(trustedEvent, { projectId: "project-1", providerId: "unknown-provider" });
     expect(listReply).toEqual({ success: false, error: { code: "invalid-provider", message: "provider 无效" } });
 
-    const createReply = await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
+    const createReply = await handlers.get(SELF_MEDIA_IPC.createTask)?.(trustedEvent, {
       projectId: "project-1",
       providerId: "unknown-provider",
       draft: { projectId: "project-1", assets: [], accountIds: [] },
@@ -89,11 +112,11 @@ describe("registerSelfMediaIpcHandlers", () => {
     } as unknown as SelfMediaTask;
     registration.tasks.set(malformedTask.id, malformedTask);
 
-    await expect(handlers.get(SELF_MEDIA_IPC.pollTask)?.({}, {
+    await expect(handlers.get(SELF_MEDIA_IPC.pollTask)?.(trustedEvent, {
       projectId: "project-1",
       taskId: malformedTask.id,
     })).resolves.toEqual({ success: false, error: { code: "invalid-provider", message: "provider 无效" } });
-    await expect(handlers.get(SELF_MEDIA_IPC.cancelTask)?.({}, {
+    await expect(handlers.get(SELF_MEDIA_IPC.cancelTask)?.(trustedEvent, {
       projectId: "project-1",
       taskId: malformedTask.id,
     })).resolves.toEqual({ success: false, error: { code: "invalid-provider", message: "provider 无效" } });
@@ -115,7 +138,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       createdAt: "2026-07-27T00:00:00.000Z",
       updatedAt: "2026-07-27T00:00:00.000Z",
     } as never);
-    await expect(handlers.get(SELF_MEDIA_IPC.listTasks)?.({}, { projectId: "project-1" }))
+    await expect(handlers.get(SELF_MEDIA_IPC.listTasks)?.(trustedEvent, { projectId: "project-1" }))
       .resolves.toEqual({ success: false, error: { code: "invalid-task-response", message: "任务响应无效" } });
     await registration.dispose();
   });
@@ -129,7 +152,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       }),
     });
     registerSelfMediaIpcHandlers({ registry });
-    await expect(handlers.get(SELF_MEDIA_IPC.startLogin)?.({}, { projectId: "project-1", providerId: "aitoearn-local", platform: "xhs" }))
+    await expect(handlers.get(SELF_MEDIA_IPC.startLogin)?.(trustedEvent, { projectId: "project-1", providerId: "aitoearn-local", platform: "xhs" }))
       .resolves.toEqual({ success: false, error: { code: "login-failed", message: "平台拒绝登录" } });
   });
 
@@ -147,7 +170,7 @@ describe("registerSelfMediaIpcHandlers", () => {
     registerSelfMediaIpcHandlers({ registry });
 
     for (const platform of SELF_MEDIA_PLATFORMS) {
-      await expect(handlers.get(SELF_MEDIA_IPC.startLogin)?.({}, {
+      await expect(handlers.get(SELF_MEDIA_IPC.startLogin)?.(trustedEvent, {
         projectId: "project-1",
         providerId: "aitoearn-local",
         platform,
@@ -168,7 +191,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       }),
     });
     const registration = registerSelfMediaIpcHandlers({ registry });
-    const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
+    const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.(trustedEvent, {
       projectId: "project-1",
       providerId: "aitoearn-local",
       draft: {
@@ -199,12 +222,12 @@ describe("registerSelfMediaIpcHandlers", () => {
       }),
     });
     registerSelfMediaIpcHandlers({ registry });
-    const reply = await handlers.get(SELF_MEDIA_IPC.listAccounts)?.({}, { projectId: "project-1", providerId: "aitoearn-local" });
+    const reply = await handlers.get(SELF_MEDIA_IPC.listAccounts)?.(trustedEvent, { projectId: "project-1", providerId: "aitoearn-local" });
     expect(reply).toEqual({ success: true, value: [expect.not.objectContaining({ credential: expect.anything() })] });
   });
 
   it("does not persist an ignored API-key-like field", async () => {
-    const reply = await handlers.get(SELF_MEDIA_IPC.configureProvider)?.({}, {
+    const reply = await handlers.get(SELF_MEDIA_IPC.configureProvider)?.(trustedEvent, {
       providerId: "aitoearn-local",
       apiKey: "secret-value",
     });
@@ -222,7 +245,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       }),
     });
     const registration = registerSelfMediaIpcHandlers({ registry });
-    const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
+    const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.(trustedEvent, {
       projectId: "project-1",
       providerId: "aitoearn-local",
       previousTaskId: "missing-task",
@@ -267,7 +290,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       createdAt: "2026-07-26T00:00:00.000Z",
       updatedAt: "2026-07-26T00:00:00.000Z",
     });
-    await expect(handlers.get(SELF_MEDIA_IPC.cancelTask)?.({}, { projectId: "project-1", taskId: "task-running" }))
+    await expect(handlers.get(SELF_MEDIA_IPC.cancelTask)?.(trustedEvent, { projectId: "project-1", taskId: "task-running" }))
       .resolves.toEqual({ success: false, error: { code: "cancel-not-supported", message: "不支持取消" } });
     expect(registration.tasks.get("task-running")?.status).toBe("running");
     await registration.dispose();
@@ -284,7 +307,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       }),
     });
     const registration = registerSelfMediaIpcHandlers({ registry, localBridge: {} as never });
-    const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
+    const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.(trustedEvent, {
       projectId: "project-1",
       providerId: "aitoearn-local",
       draft: {
@@ -340,7 +363,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       }),
     });
     registerSelfMediaIpcHandlers({ registry });
-    const reply = (await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
+    const reply = (await handlers.get(SELF_MEDIA_IPC.createTask)?.(trustedEvent, {
       projectId: "project-1",
       providerId: "aitoearn-local",
       draft: {
@@ -380,7 +403,7 @@ describe("registerSelfMediaIpcHandlers", () => {
         }),
       });
       const first = registerSelfMediaIpcHandlers({ registry, taskStorePath });
-      const created = await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
+      const created = await handlers.get(SELF_MEDIA_IPC.createTask)?.(trustedEvent, {
         projectId: "project-1",
         providerId: "aitoearn-local",
         draft: {
@@ -403,7 +426,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       await first.dispose();
 
       const second = registerSelfMediaIpcHandlers({ registry, taskStorePath });
-      await handlers.get(SELF_MEDIA_IPC.listTasks)?.({}, { projectId: "project-1" });
+      await handlers.get(SELF_MEDIA_IPC.listTasks)?.(trustedEvent, { projectId: "project-1" });
       await second.runtimeReady;
       expect(second.tasks.size).toBe(1);
       expect(second.scheduledContexts.size).toBe(1);
@@ -413,7 +436,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       await second.runtime.waitForIdle();
       expect([...second.tasks.values()][0]?.status).toBe("success");
       expect(publish).toHaveBeenCalledOnce();
-      expect(await handlers.get(SELF_MEDIA_IPC.listTasks)?.({}, { projectId: "project-1" }))
+      expect(await handlers.get(SELF_MEDIA_IPC.listTasks)?.(trustedEvent, { projectId: "project-1" }))
         .toMatchObject({ success: true, value: [{ status: "success" }] });
       await second.dispose();
     } finally {
@@ -432,7 +455,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       }),
     });
     const first = registerSelfMediaIpcHandlers({ registry, taskStorePath });
-    await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
+    await handlers.get(SELF_MEDIA_IPC.createTask)?.(trustedEvent, {
       projectId: "project-1",
       providerId: "aitoearn-local",
       draft: {
@@ -451,7 +474,7 @@ describe("registerSelfMediaIpcHandlers", () => {
     });
     await first.dispose();
     const second = registerSelfMediaIpcHandlers({ registry, taskStorePath });
-    await handlers.get(SELF_MEDIA_IPC.listAccounts)?.({}, { projectId: "project-1", providerId: "aitoearn-local" });
+    await handlers.get(SELF_MEDIA_IPC.listAccounts)?.(trustedEvent, { projectId: "project-1", providerId: "aitoearn-local" });
     expect(second.tasks.size).toBe(1);
     expect(await fs.readFile(taskStorePath, "utf8")).not.toContain("secret-value");
     await second.dispose();
@@ -485,7 +508,7 @@ describe("registerSelfMediaIpcHandlers", () => {
   });
 
   it("rejects duplicated account ids before creating tasks", async () => {
-    const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
+    const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.(trustedEvent, {
       projectId: "project-1",
       providerId: "aitoearn-local",
       draft: { projectId: "project-1", accountIds: ["account-1", "account-1"] },
@@ -512,16 +535,16 @@ describe("registerSelfMediaIpcHandlers", () => {
       const registration = registerSelfMediaIpcHandlers({ registry, taskStorePath: corruptPath });
       await registration.runtimeReady;
 
-      await expect(handlers.get(SELF_MEDIA_IPC.listTasks)?.({}, { projectId: "project-1" }))
+      await expect(handlers.get(SELF_MEDIA_IPC.listTasks)?.(trustedEvent, { projectId: "project-1" }))
         .resolves.toMatchObject({ success: false, error: { code: "task-journal-corrupted" } });
-      await expect(handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
+      await expect(handlers.get(SELF_MEDIA_IPC.createTask)?.(trustedEvent, {
         projectId: "project-1",
         providerId: "aitoearn-local",
         draft: { projectId: "project-1" },
       })).resolves.toMatchObject({ success: false, error: { code: "task-journal-corrupted" } });
-      await expect(handlers.get(SELF_MEDIA_IPC.pollTask)?.({}, { projectId: "project-1", taskId: "task-1" }))
+      await expect(handlers.get(SELF_MEDIA_IPC.pollTask)?.(trustedEvent, { projectId: "project-1", taskId: "task-1" }))
         .resolves.toMatchObject({ success: false, error: { code: "task-journal-corrupted" } });
-      await expect(handlers.get(SELF_MEDIA_IPC.cancelTask)?.({}, { projectId: "project-1", taskId: "task-1" }))
+      await expect(handlers.get(SELF_MEDIA_IPC.cancelTask)?.(trustedEvent, { projectId: "project-1", taskId: "task-1" }))
         .resolves.toMatchObject({ success: false, error: { code: "task-journal-corrupted" } });
       expect(publish).not.toHaveBeenCalled();
 
@@ -532,7 +555,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       await fs.writeFile(corruptPath, shaped);
       const second = registerSelfMediaIpcHandlers({ taskStorePath: corruptPath });
       await second.runtimeReady;
-      await expect(handlers.get(SELF_MEDIA_IPC.listTasks)?.({}, { projectId: "project-1" }))
+      await expect(handlers.get(SELF_MEDIA_IPC.listTasks)?.(trustedEvent, { projectId: "project-1" }))
         .resolves.toMatchObject({ success: false, error: { code: "task-journal-corrupted" } });
       await second.dispose();
       expect(await fs.readFile(corruptPath, "utf8")).toBe(shaped);
@@ -571,7 +594,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       updatedAt: "2026-07-27T00:01:00.000Z",
     };
     registration.tasks.set(running.id, running);
-    const cancellation = handlers.get(SELF_MEDIA_IPC.cancelTask)?.({}, { projectId: "project-1", taskId: running.id });
+    const cancellation = handlers.get(SELF_MEDIA_IPC.cancelTask)?.(trustedEvent, { projectId: "project-1", taskId: running.id });
     await cancelStarted;
     const succeeded = { ...running, status: "success" as const, progress: 100, updatedAt: "2026-07-27T00:02:00.000Z" };
     registration.tasks.set(running.id, succeeded);
@@ -593,7 +616,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       }),
     });
     const registration = registerSelfMediaIpcHandlers({ registry });
-    const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
+    const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.(trustedEvent, {
       projectId: "project-1",
       providerId: "aitoearn-local",
       draft: {
@@ -669,7 +692,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       }),
     });
     const registration = registerSelfMediaIpcHandlers({ registry, taskStorePath });
-    const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
+    const reply = await handlers.get(SELF_MEDIA_IPC.createTask)?.(trustedEvent, {
       projectId: "project-1",
       providerId: "aitoearn-local",
       draft: {
@@ -704,7 +727,7 @@ describe("registerSelfMediaIpcHandlers", () => {
       }),
     });
     const registration = registerSelfMediaIpcHandlers({ registry, taskStorePath });
-    const create = (id: string) => handlers.get(SELF_MEDIA_IPC.createTask)?.({}, {
+    const create = (id: string) => handlers.get(SELF_MEDIA_IPC.createTask)?.(trustedEvent, {
       projectId: "project-1",
       providerId: "aitoearn-local",
       draft: {

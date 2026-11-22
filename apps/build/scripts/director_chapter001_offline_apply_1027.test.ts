@@ -7,7 +7,7 @@ import { mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { it } from 'vitest';
-import { CHAPTER001_PROJECT_ID as pid, chapter001Sha256 as sha, type Chapter001Snapshot, type Chapter001ApplyJob } from './director_chapter001_bridge_1026.test';
+import { CHAPTER001_PROJECT_ID as pid, CHAPTER001_REGISTRY_PATH, chapter001Sha256 as sha, type Chapter001Snapshot, type Chapter001ApplyJob } from './director_chapter001_bridge_1026.test';
 import { CHAPTER001_PERSIST_ROOT as root, dryRunChapter001Persistence } from './director_chapter001_persist_1026.test';
 import { fileStorage } from '@/lib/storage/indexed-db-storage';
 import { createStudioWorkflowShardedStorage } from '@/lib/storage/storage-project-sharded';
@@ -20,7 +20,7 @@ const manifest = 'store/studio-workflow/manifest.json';
 const lock = 'store/.storage-write-lock.json';
 const prefix = `_p/${pid}/`;
 const store = 'studio-workflow-store';
-const registryPath = '/Users/zhengbingjin/Project/IP/漫影工作室/projects/mystudio-project-store.json';
+const registryPath = CHAPTER001_REGISTRY_PATH;
 const claimFile = path.join(task, 'backups/chapter001-offline-apply-1027.claim.json');
 const writerTokens = ['electron', 'mystudio', 'manying-studio', '漫影工作室'];
 export interface OfflineProcess { pid: number; command: string }

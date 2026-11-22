@@ -48,6 +48,7 @@ vi.mock("./compatibility/login-window", () => ({
   withLoginWindowCloseCancellation: <T>(operation: () => Promise<T>) => operation(),
 }));
 
+import { xiaohongshuService } from "@aitoearn/xhs";
 import type { SelfMediaProviderPublishContext } from "../../provider-registry";
 import { SelfMediaProviderError } from "../../provider-registry";
 import { createLocalAccountVault } from "../../local-account-vault";
@@ -175,41 +176,63 @@ describe("AiToEarn local platform bridge", () => {
     } satisfies Partial<SelfMediaProviderError>));
   });
 
-  it("serializes sensitive vendor calls and redacts primitive log strings", async () => {
+  it("keeps sensitive vendor calls concurrent while scrubbing credential-shaped logs", async () => {
+    const cookieJson = JSON.stringify([{ name: "sid", value: "session-secret-value" }]);
     let activeCalls = 0;
     let maxActiveCalls = 0;
     mocks.xhsLogin.mockImplementation(async () => {
       activeCalls += 1;
       maxActiveCalls = Math.max(maxActiveCalls, activeCalls);
-      console.log("session-secret");
-      console.info("info-secret");
-      console.debug("debug-secret");
-      console.trace("trace-secret");
+      console.log("xhs login started");
+      console.log(cookieJson);
+      console.log({ cookie: "opaque-cookie-json", note: "keep" });
       await new Promise((resolve) => setTimeout(resolve, 0));
       activeCalls -= 1;
-      return { success: true, data: { cookie: JSON.stringify([{ name: "sid", value: "session-secret" }]) } };
+      return { success: true, data: { cookie: cookieJson } };
     });
     const consoleLog = vi.spyOn(console, "log").mockImplementation(() => undefined);
-    const consoleInfo = vi.spyOn(console, "info").mockImplementation(() => undefined);
-    const consoleDebug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
-    const consoleTrace = vi.spyOn(console, "trace").mockImplementation(() => undefined);
     try {
       const bridge = createAitoearnLocalPlatformBridge({ userDataPath: root });
       await Promise.all([
         bridge.startLogin("project-1", "xhs"),
         bridge.startLogin("project-1", "xhs"),
       ]);
-      expect(maxActiveCalls).toBe(1);
-      expect(consoleLog).toHaveBeenCalledWith("[redacted]");
-      expect(consoleLog).not.toHaveBeenCalledWith("session-secret");
-      expect(consoleInfo).toHaveBeenCalledWith("[redacted]");
-      expect(consoleDebug).toHaveBeenCalledWith("[redacted]");
-      expect(consoleTrace).toHaveBeenCalledWith("[redacted]");
+      expect(maxActiveCalls).toBe(2);
+      expect(consoleLog).toHaveBeenCalledWith("xhs login started");
+      expect(consoleLog).toHaveBeenCalledWith('[{"name":"sid","value":"[redacted]"}]');
+      expect(consoleLog).toHaveBeenCalledWith({ cookie: "[redacted]", note: "keep" });
+      expect(JSON.stringify(consoleLog.mock.calls)).not.toContain("session-secret-value");
+    } finally {
+      consoleLog.mockRestore();
+    }
+  });
+
+  it("redacts stored cookie values during account checks without erasing diagnostics", async () => {
+    await createLocalAccountVault(root).upsert({
+      id: "xhs-account",
+      platform: "xhs",
+      displayName: "小红书账号",
+      credential: { cookies: [{ name: "sid", value: "stored-cookie-value" }] },
+      updatedAt: "2026-07-27T00:00:00.000Z",
+    });
+    vi.mocked(xiaohongshuService.getUserInfo).mockImplementationOnce(async () => {
+      console.log("check online started");
+      console.log('cookies=[{"name":"sid","value":"stored-cookie-value"}]');
+      console.info({ token: "opaque", stage: "keep" });
+      return {};
+    });
+    const consoleLog = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const consoleInfo = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    try {
+      const bridge = createAitoearnLocalPlatformBridge({ userDataPath: root });
+      await bridge.listAccounts("project-1");
+      expect(consoleLog).toHaveBeenCalledWith("check online started");
+      expect(consoleInfo).toHaveBeenCalledWith({ token: "[redacted]", stage: "keep" });
+      expect(JSON.stringify(consoleLog.mock.calls)).not.toContain("stored-cookie-value");
+      expect(JSON.stringify(consoleInfo.mock.calls)).not.toContain("stored-cookie-value");
     } finally {
       consoleLog.mockRestore();
       consoleInfo.mockRestore();
-      consoleDebug.mockRestore();
-      consoleTrace.mockRestore();
     }
   });
 

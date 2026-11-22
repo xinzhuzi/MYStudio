@@ -1,6 +1,7 @@
 /** Task-only offline apply. No user-project write mode or model transport exists. */
 import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { it } from 'vitest';
@@ -20,8 +21,11 @@ import { markStale, trackSourceFingerprint } from '@/stores/studio/studio-store-
 import type { StudioWorkflowState } from '@/stores/studio/studio-store';
 
 export const CHAPTER001_PROJECT_ID = '49dce4c1-64b1-42de-85c2-9f266698aec4';
+// 本机外部项目真源路径:允许环境变量覆盖,缺省为当前用户 home 下的固定相对位置。
+export const CHAPTER001_MA_ROOT = process.env.MYSTUDIO_MA_ROOT?.trim() || path.join(os.homedir(), 'Project/IP/MA');
+export const CHAPTER001_REGISTRY_PATH = process.env.MYSTUDIO_PROJECT_REGISTRY?.trim() || path.join(os.homedir(), 'Project/IP/漫影工作室/projects/mystudio-project-store.json');
 const chapterId = 'chapter-001';
-const projectRoot = '/Users/zhengbingjin/Project/IP/MA';
+const projectRoot = CHAPTER001_MA_ROOT;
 const research = path.resolve(import.meta.dirname, '../../../.trellis/tasks/10-25-daojie-director-rule-conflict-validation/research/chapter001-repair-1026');
 
 type WindowState = StudioWorkflowState & Record<string, unknown>;

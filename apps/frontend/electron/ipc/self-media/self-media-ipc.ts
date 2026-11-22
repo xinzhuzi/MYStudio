@@ -75,6 +75,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object");
 }
 
+// 只接受本应用主窗口的主框架:开发者服务同源,或打包后的 renderer/index.html。
+// 子框架(iframe)、外部页面、以及非本应用窗口的调用一律拒绝。
+function isTrustedSenderFrame(event: Electron.IpcMainInvokeEvent): boolean {
+  const frame = event?.senderFrame;
+  if (!frame || !event.sender || frame !== event.sender.mainFrame || !frame.url) return false;
+  const window = BrowserWindow.fromWebContents(event.sender);
+  if (!window || window.isDestroyed()) return false;
+  const devServerUrl = process.env.ELECTRON_RENDERER_URL || process.env.VITE_DEV_SERVER_URL;
+  if (devServerUrl) {
+    try {
+      return new URL(frame.url).origin === new URL(devServerUrl).origin;
+    } catch {
+      return false;
+    }
+  }
+  try {
+    const parsed = new URL(frame.url);
+    return parsed.protocol === "file:" && parsed.pathname.endsWith("/renderer/index.html");
+  } catch {
+    return false;
+  }
+}
+
 function decodeTaskRecord(value: unknown): SelfMediaTask | null {
   try {
     return decodeSelfMediaTaskRecord(value);
@@ -280,6 +303,9 @@ export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, local
   ];
   const removeHandlers = () => channels.forEach((channel) => ipcMain.removeHandler(channel));
 
+  const rejectUntrustedSender = (event: Electron.IpcMainInvokeEvent): SelfMediaIpcReply<never> | null =>
+    isTrustedSenderFrame(event) ? null : disabled("untrusted-sender", "拒绝来自非应用渲染帧的自媒体调用");
+
   const emitProgress = (progress: SelfMediaTaskProgressEvent) => {
     let normalized: SelfMediaTaskProgressEvent;
     try {
@@ -355,12 +381,15 @@ export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, local
     // A recoverable task failure is persisted by the runtime; startup must continue.
   });
 
-  ipcMain.handle(SELF_MEDIA_IPC.listProviders, async (): Promise<SelfMediaProviderListReply> => ({
-    success: true,
-    value: registry.list(),
-  }));
+  ipcMain.handle(SELF_MEDIA_IPC.listProviders, async (event): Promise<SelfMediaProviderListReply> => {
+    const rejected = rejectUntrustedSender(event);
+    if (rejected) return rejected;
+    return { success: true, value: registry.list() };
+  });
 
-  ipcMain.handle(SELF_MEDIA_IPC.listTasks, async (_event, request: SelfMediaListTasksRequest): Promise<SelfMediaTaskListReply> => {
+  ipcMain.handle(SELF_MEDIA_IPC.listTasks, async (event, request: SelfMediaListTasksRequest): Promise<SelfMediaTaskListReply> => {
+    const rejected = rejectUntrustedSender(event);
+    if (rejected) return rejected;
     await tasksReady;
     if (journalFailure) return disabled(journalFailure.code, journalFailure.message);
     if (!validProjectId(request?.projectId)) return disabled("invalid-project", "项目 ID 无效");
@@ -369,7 +398,9 @@ export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, local
     return { success: true, value: value as SelfMediaTask[] };
   });
 
-  ipcMain.handle(SELF_MEDIA_IPC.listAccounts, async (_event, request: SelfMediaListAccountsRequest): Promise<SelfMediaAccountListReply> => {
+  ipcMain.handle(SELF_MEDIA_IPC.listAccounts, async (event, request: SelfMediaListAccountsRequest): Promise<SelfMediaAccountListReply> => {
+    const rejected = rejectUntrustedSender(event);
+    if (rejected) return rejected;
     await tasksReady;
     if (!validProjectId(request?.projectId)) return disabled("invalid-project", "项目 ID 无效");
     const providerId = request.providerId ?? "aitoearn-local";
@@ -384,14 +415,18 @@ export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, local
     }
   });
 
-  ipcMain.handle(SELF_MEDIA_IPC.configureProvider, async (_event, request): Promise<SelfMediaConfigureProviderReply> => {
+  ipcMain.handle(SELF_MEDIA_IPC.configureProvider, async (event, request): Promise<SelfMediaConfigureProviderReply> => {
+    const rejected = rejectUntrustedSender(event);
+    if (rejected) return rejected;
     if (request?.providerId !== "aitoearn-local") {
       return disabled("invalid-provider", "provider 无效");
     }
     return { success: true, value: { providerId: request.providerId, configured: true } };
   });
 
-  ipcMain.handle(SELF_MEDIA_IPC.startLogin, async (_event, request: SelfMediaStartLoginRequest): Promise<SelfMediaLoginReply> => {
+  ipcMain.handle(SELF_MEDIA_IPC.startLogin, async (event, request: SelfMediaStartLoginRequest): Promise<SelfMediaLoginReply> => {
+    const rejected = rejectUntrustedSender(event);
+    if (rejected) return rejected;
     await tasksReady;
     if (!validProjectId(request?.projectId) || request.providerId !== "aitoearn-local" || !isSelfMediaPlatform(request.platform)) {
       return disabled("invalid-login-request", "登录请求无效");
@@ -409,7 +444,9 @@ export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, local
     }
   });
 
-  ipcMain.handle(SELF_MEDIA_IPC.createTask, async (_event, request: SelfMediaCreateTaskRequest): Promise<SelfMediaCreateTaskReply> => {
+  ipcMain.handle(SELF_MEDIA_IPC.createTask, async (event, request: SelfMediaCreateTaskRequest): Promise<SelfMediaCreateTaskReply> => {
+    const rejected = rejectUntrustedSender(event);
+    if (rejected) return rejected;
     await tasksReady;
     if (journalFailure) return disabled(journalFailure.code, journalFailure.message);
     if (disposed) return disabled("provider-disposed", "自媒体 provider 已结束");
@@ -545,8 +582,16 @@ export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, local
     }
   };
 
-  ipcMain.handle(SELF_MEDIA_IPC.pollTask, (_event, request: SelfMediaTaskRequest) => runTaskAction(request, "poll"));
-  ipcMain.handle(SELF_MEDIA_IPC.cancelTask, (_event, request: SelfMediaTaskRequest) => runTaskAction(request, "cancel"));
+  ipcMain.handle(SELF_MEDIA_IPC.pollTask, (event, request: SelfMediaTaskRequest) => {
+    const rejected = rejectUntrustedSender(event);
+    if (rejected) return rejected;
+    return runTaskAction(request, "poll");
+  });
+  ipcMain.handle(SELF_MEDIA_IPC.cancelTask, (event, request: SelfMediaTaskRequest) => {
+    const rejected = rejectUntrustedSender(event);
+    if (rejected) return rejected;
+    return runTaskAction(request, "cancel");
+  });
 
   return {
     dispose: async () => {
