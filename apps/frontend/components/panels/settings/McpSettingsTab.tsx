@@ -150,6 +150,13 @@ interface DraftForm {
   enabled: boolean;
 }
 
+// 1122 Win UI 冲突根修(用户实录):远程面板文案曾硬编码「Mac 托管」,在
+// Windows 上仍宣称本机=Mac、还教 Win 用户「录入 Windows 等机器」(把自己
+// 当远端)。托管方标签按实际平台给:Mac 保留原词,其余平台=「本机托管」。
+const ENGINE_HOST_LABEL = navigator.userAgent.includes("Mac")
+  ? "Mac 托管"
+  : "本机托管";
+
 const emptyDraft: DraftForm = {
   name: "",
   transport: "stdio",
@@ -1876,11 +1883,11 @@ export function McpSettingsTab() {
                               aria-hidden
                             />
                             <span className="truncate text-sm font-medium">
-                              本机引擎(Mac 托管)
+                              本机引擎({ENGINE_HOST_LABEL})
                             </span>
                           </span>
                           <span className="block truncate font-mono text-xs text-muted-foreground">
-                            Mac 本机托管 · 启停/模型在「设置 → 本地配置」
+                            {ENGINE_HOST_LABEL} · 启停/模型在「设置 → 本地配置」
                           </span>
                         </span>
                       </button>
@@ -1989,8 +1996,7 @@ export function McpSettingsTab() {
                       className="px-1 text-xs leading-5 text-muted-foreground"
                       data-testid="engine-devices-empty"
                     >
-                      暂无远端设备——点下方「添加设备」录入 Windows
-                      等机器的引擎地址,可配多台随时切换。
+                      暂无远端设备——点下方「添加设备」录入其他机器的引擎地址,可配多台随时切换。
                     </p>
                   )}
                 </div>
