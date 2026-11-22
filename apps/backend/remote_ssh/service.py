@@ -1338,8 +1338,45 @@ class SSHService:
                     name, kind, mac_head, None, "failed", False,
                     f"git clone 失败: {out.strip()[:200]}",
                 )
-        elif kind == "engine" or mac_head is not None:
-            # Win 已有(引擎/both)→ 先比 HEAD 再决定要不要 pull(1104 优化:
+        elif kind == "engine":
+            # 1122 截3语义统一:引擎件对齐最新 release tag(update_job 同款幂等
+            # 流=fetch tag+checkout --force)。旧 git pull --ff-only 在 tag-checkout
+            # (detached)上必炸 diverging(0853 实弹:ComfyUI [failed])。注:cmd 的
+            # ^ 是转义符,tag→commit 解析用 rev-list -n 1,不用 ^{} peel 语法。
+            from comfyui.engine_manager import pick_latest_release
+            code, out = self.run_remote_command(
+                f'cd /d "{win_path}" && git ls-remote --tags origin 2>&1',
+                self._remaining_timeout(deadline, 60),
+            )
+            latest = pick_latest_release(out.splitlines()) if code == 0 else None
+            if not latest:
+                return self._sync_result(
+                    name, kind, mac_head, None, "failed", False,
+                    "无法获取最新 release tag(网络?)",
+                )
+            code, out = self.run_remote_command(
+                f'cd /d "{win_path}" && git fetch origin tag {latest} --force 2>&1 & '
+                f"git rev-parse HEAD 2>nul & git rev-list -n 1 {latest} 2>nul",
+                self._remaining_timeout(deadline, 90),
+            )
+            shas = [l.strip() for l in out.splitlines() if re.fullmatch(r"[0-9a-f]{40}", l.strip())]
+            if len(shas) >= 2 and shas[0] == shas[-1]:
+                return self._sync_result(
+                    name, kind, mac_head, shas[-1], "skipped", True,
+                    f"已是最新 release({latest}),跳过",
+                )
+            action = "pulled"
+            code, out = self.run_remote_command(
+                f'cd /d "{win_path}" && git checkout --force {latest} 2>&1',
+                self._remaining_timeout(deadline, _ENGINE_SYNC_ITEM_TIMEOUT_S),
+            )
+            if code != 0:
+                return self._sync_result(
+                    name, kind, mac_head, None, "failed", False,
+                    f"对齐 {latest} 失败: {out.strip()[:200]}",
+                )
+        elif mac_head is not None:
+            # Win 已有(both 插件)→ 先比 HEAD 再决定要不要 pull(1104 优化:
             # fetch 后 local HEAD == origin/HEAD = 已最新 → 跳过,省 SSH 往返;
             # 落后才 pull。用户令:已同步的不要每次强制再拉)
             head_code, head_out = self.run_remote_command(

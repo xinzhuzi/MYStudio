@@ -161,6 +161,7 @@ class _SshStub:
         pull_results: dict[str, tuple[int, str]] | None = None,
         win_procs: list[str] | None = None,
         win_tags: dict[str, str] | None = None,
+        on_latest_tag: bool = False,
     ) -> None:
         self.win_dirs = win_dirs
         self.win_heads = win_heads
@@ -169,6 +170,7 @@ class _SshStub:
         self.pull_results = pull_results or {}
         self.win_procs = win_procs or []
         self.win_tags = win_tags or {}
+        self.on_latest_tag = on_latest_tag
         self.commands: list[str] = []
         self.timeouts: list[float] = []
 
@@ -187,6 +189,22 @@ class _SshStub:
                 return (0, "\n".join(lines) + "\n")
         if "dir /b /ad" in command:
             return (0, "\r\n".join(sorted(self.win_dirs)))
+        if "ls-remote --tags origin" in command:
+            # 1122 截3:引擎件对齐最新 release tag(ls-remote 取远端 tag 榜)
+            return (0, "".join(
+                f"{'f' * 40}\trefs/tags/{t}\n{'e' * 40}\trefs/tags/{t}^{{}}\n"
+                for t in (self.win_tags.get(WIN_ENGINE, "v0.46.2"),)
+            ))
+        if "rev-list -n 1" in command:
+            # 引擎件「已在最新 tag?」比对(rev-parse HEAD & rev-list tag;
+            # 须先于 fetch 分支——两命令在同一条 exec 里)
+            head = self.win_heads.get(WIN_ENGINE, "e" * 40)
+            tag_sha = "e" * 40 if self.on_latest_tag else "d" * 40
+            return (0, f"{head}\n{tag_sha}\n")
+        if "git fetch origin tag" in command:
+            return (0, " * [new tag] fetched\n")
+        if "git checkout --force" in command:
+            return (0, "Note: switching to 'v0.46.2'.\nHEAD is now at eeeeeee\n")
         if "rev-parse HEAD" in command:
             # 精确路径匹配(引擎路径是插件路径前缀,子串匹配会撞车)
             match = re.search(r'git -C "([^"]+)" rev-parse HEAD', command)
@@ -452,17 +470,21 @@ class SyncEngineTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "远端 pip 仍在运行"):
             _service_with_stub(stub).sync_engine(["ComfyUI"])
 
-    def test_engine_pulled_from_github_via_ff_only(self) -> None:
+    def test_engine_aligned_to_latest_release_tag(self) -> None:
+        """1122 截3语义统一:引擎件=对齐最新 release tag(fetch+checkout --force);
+        旧 git pull --ff-only 在 tag-detached 上必炸 diverging(0853 实弹)。"""
         stub = self._stub(engine="winengine0head")  # Win HEAD 与 Mac HEAD 不同
         result = _service_with_stub(stub).sync_engine(["ComfyUI"])
         item = result["items"][0]
         self.assertEqual((item["type"], item["action"], item["verified"]), ("engine", "pulled", True))
-        pull = [c for c in stub.commands if "git pull" in c]
-        self.assertEqual(len(pull), 1)
-        self.assertIn("--ff-only", pull[0])  # 从 GitHub 拉最新
-        self.assertIn(WIN_ENGINE, pull[0])
+        checkout = [c for c in stub.commands if "git checkout --force" in c]
+        self.assertEqual(len(checkout), 1)  # 从 GitHub 对齐最新 tag
+        self.assertIn("v0.46.2", checkout[0])
+        self.assertIn(WIN_ENGINE, checkout[0])
         # 1104 用户裁定:不 SSH 推 Mac HEAD——整轮零 reset --hard
         self.assertFalse(any("reset --hard" in c for c in stub.commands))
+        # 引擎件不再走插件线的 pull --ff-only
+        self.assertFalse(any("git pull" in c for c in stub.commands))
         # 验证不比 Mac HEAD:Win HEAD≠Mac HEAD 仍 verified(只看 HEAD 可读)
         self.assertNotEqual(item["winHead"], item["macHead"])
         self.assertTrue(item["verified"])
@@ -472,15 +494,25 @@ class SyncEngineTests(unittest.TestCase):
         self.assertIn("PYTHONUTF8=1", pip[0])
         self.assertIn(svc_mod._WIN_VENV_PYTHON, pip[0])
 
+    def test_engine_on_latest_tag_skips(self) -> None:
+        # 已在最新 release tag 上(HEAD==tag commit)→ skipped 不 checkout
+        stub = self._stub(engine="e" * 40)
+        stub.on_latest_tag = True
+        result = _service_with_stub(stub).sync_engine(["ComfyUI"])
+        item = result["items"][0]
+        self.assertEqual(item["action"], "skipped")
+        self.assertIn("已是最新 release", item["error"])
+        self.assertFalse(any("git checkout" in c for c in stub.commands))
+
     def test_engine_sync_works_without_mac_head(self) -> None:
         """1104 裁定随修:引擎不再要求 Mac HEAD 可读(不比 Mac 版本)——
-        Mac 引擎目录非 git(HEAD=None)时照样 pull,不再秒拒。"""
+        Mac 引擎目录非 git(HEAD=None)时照样对齐最新 tag,不再秒拒。"""
         stub = self._stub(engine="winengine0head")
         with patch.object(svc_mod, "_mac_git_head", return_value=None):
             result = _service_with_stub(stub).sync_engine(["ComfyUI"])
         item = result["items"][0]
         self.assertEqual((item["action"], item["verified"]), ("pulled", True))
-        self.assertTrue(any("git pull" in c for c in stub.commands))
+        self.assertTrue(any("git checkout --force" in c for c in stub.commands))
 
     def test_both_plugin_pulled_from_github(self) -> None:
         stub = self._stub(pluginA="wina0head")
