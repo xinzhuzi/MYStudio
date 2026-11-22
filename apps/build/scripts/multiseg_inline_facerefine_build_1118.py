@@ -5,8 +5,8 @@
 开关+终档全部逻辑;本件 import 之为单一真源——OWN/WIDGETS/SIZE/API_NEW/IDENTITY 禁复制两份)。
 任务书(11-17-facerefine-inline-bypass §1.1 接线语义)同款嫁接,锚点按本件实况换:
 
-  链尾终采 VIDEO 出口 = 3053 CreateVideo(二采 p2 出片口;4001-4003 ReCaVSR 出厂 mode4 旁路,
-    其 video 输入恰为 3053.VIDEO——修脸组接 3053 与段B 正交,零改动段B)
+  三采 p3 出口 = 4002 ReCaVSRUpscale(1122 回正:修脸吃三采底,与单镜 5002←4002 同构;
+    4001-4003 出厂激活 mode=0——5002/5100 直吃 4002.VIDEO,修脸组与段B 串联非正交)
   唯一 UNETLoader   = 34   (5006 LoraLoaderModelOnly.model←1066 lowvram 头复用,全图仍无第二 UNETLoader)
   CLIP/视频VAE/音频VAE = 21 / 7 / 13 (101/3031 同源件)
   宽高               = 5011 H3FaceTrackCrop.canvas_w/canvas_h 出口联线(勿手填,同母本)
@@ -25,14 +25,16 @@
 1119 双档移植(11-19-dualmode-facerefine-rename 二役):同 id 直搬单镜六件
 (5109/5110 VOSR2 尾档+5111 高清子开关+5113 出口投切+5024/5025 复制对),参数逐位
 照单镜.json(本生成器自 SRC 克隆即天然逐位);唯一改线 5100.on_true:5023→5113;
-**语义差异(README 9999 刻碑)**:multiseg 高清档从二采底(3053 p2)放大(其三采
-4001-4003 出厂 mode=4 旁路),单镜从三采 p3 4K——两件修脸入口不同,VOSR2 吃的是
-5021 解码 768 画布同款,档位语义一致、上游底不同。
+**1122 回正(README 9999 刻碑)**:multiseg 修脸/高清档改吃三采底(4002 p3 4K,与单镜
+5002←4002 同构;段B mode 4→0 出厂激活随同批解旁路)——两件修脸入口一致,VOSR2 均吃
+5021 解码 768 画布,档位语义与上游底两件一致。
 
 ⚠ 真源关系(头注刻碑):本件手术入口=本生成器(读盘剥离+重放,幂等);既有
 multiseg_full3stage_extend.py 的 build_full3stage_graph 只透传 12 旧锚点+自建 29 节点——
 **重跑 extend(无参写盘)会抹掉本修脸组,抹后重跑本生成器即恢复**(其 --verify 验重建图,
-对盘上嫁接盲,不因本组红绿)。改版顺序恒为:先 extend 后本件。
+对盘上嫁接盲,不因本组红绿)。改版顺序恒为三步链:①extend → ②lowvram_dual_node_1118.py
+(补 1066:link1/link15 改源回 1066+ChunkFFN 激活,幂等)→ ③本件;跳步即断链
+(漏②直接跑本件,WIRING 引用 1066 即崩)。
 
 用法:
   python3 multiseg_inline_facerefine_build_1118.py           # 重建两件
@@ -54,7 +56,8 @@ API = REPO / "apps/frontend/lib/assist/image-studio/h3-multiseg-template.api.jso
 SRC = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json"  # 模板源(只读;1119 由 三采-单镜 改名)
 
 # ---- 本件锚点(画布件实勘)----
-TAIL = 3053   # CreateVideo 二采 p2 出片口(mode0;链尾终采 VIDEO 输出节点)
+TAIL = 3053   # CreateVideo 二采 p2 出片口(mode0;段B/终档直通的历史锚,1122 起修脸不再吃它)
+P3_SRC = 4002  # 1122 回正:三采 p3 4K 出口(ReCaVSRUpscale.VIDEO)——5002/5100 双吃(与单镜同构)
 UNET = 34     # 唯一 UNETLoader
 CLIP, VAE_V, VAE_A = 21, 7, 13
 LENGTH_NODE = 3031          # 帧数同源参照件(5012.length widget 与其 length widget 同值)
@@ -82,29 +85,31 @@ WIDGETS[5011] = _w
 
 GROUP_A_TITLE = "四采修脸组(5000 段·远景/高清双档·默认旁路·1118→1119 multiseg)"
 GROUP_A_TITLE_1118 = "四采修脸组(5000 段·默认旁路·1118 multiseg)"  # 1118 旧标题,剥离过渡期一并移除
-GROUP_B_TITLE = "终档组(p-final·四采开关·1118 multiseg)"
+GROUP_B_TITLE = "终档组"                                            # 1122 用户令改名(旧全名如下,剥离过渡期一并移除)
+GROUP_B_TITLE_1118 = "终档组(p-final·四采开关·1118 multiseg)"      # 1118 旧标题,防重放残留双终档组
 GROUP_A_IDS = set(MB.GROUP_A_IDS)           # 25/1065/5002/5006/5011-5025/5109-5111/5113(1119 双档六件入同组)
 GROUP_B_IDS = set(MB.GROUP_B_IDS)           # 5100/4100
 README_MARK = "\n\n---\n\n## 四采修脸(内置·默认旁路·1118 multiseg)"
 README_SECTION = README_MARK + """
 
-- **开关 #1065「四采修脸」**:默认 **False=旁路**——终档 4100 p-final=3053 二采 p2 直通,50xx 臂被引擎惰性剪除
-  (0.45.2 实证,同 单镜 1118 双态探针口径),零成本;**True=二采出片内部走进修脸→终档一条线**
+- **开关 #1065「四采修脸」**:默认 **False=旁路**——终档 4100 p-final=4002 三采 p3 直通,50xx 臂被引擎惰性剪除
+  (0.45.2 实证,同 单镜 1118 双态探针口径),零成本;**True=三采出片内部走进修脸→终档一条线**
 - **#25 修脸身份提示词**:默认通用句;外部按角色覆写(参照正片人物五官特征)
-- **臂拓扑**(同 单镜 1118 §1.1):5002 拆 3053(帧①+音轨②)→ 5011 追踪裁剪(face_yolov8m
+- **臂拓扑**(同 单镜 1118 §1.1):5002 拆 4002(三采 p3 4K 出片·帧①+音轨②)→ 5011 追踪裁剪(face_yolov8m
   conf0.15/兜底 segm\\person_yolov8m-seg.pt/largest_face)→ 5012 H3 重画(**宽高=5011 出口联线勿手填**/
   参考图=零参考出厂/提示词=#25)→ 5013 注入真实帧 → 5014 音轨锁(audio←5002②)→ 5015 逐帧 denoise
   (60/200px)→ 5016-5020 采样(seed 42 同 3040/lcm/simple/8步/0.45)→ 5021 解码 → 5022 贴回(16/24)
   → 5023 合成 → 5113 出口选择 → 5100 终档选择 → 4100 p-final
 - **帧数同步纪律(本件专属)**:本件无帧数图出口——改 [3031].length 必须同步 [5012].length
   (出厂两处皆 56;livefire/发车器覆写 3031.length 时同步覆写 5012.length)
-- **极性口径**(同三采 1118 双态实测定谳):5100 on_true=修脸臂出口(1065=true)/on_false=3053 p2 直通
+- **极性口径**(同三采 1118 双态实测定谳):5100 on_true=修脸臂出口(1065=true)/on_false=4002 p3 直通
   (1065=false);5113 on_true=5025 高清片/on_false=5023 远景片——两 Switch 均「真=新臂」,勿手改(防 wf2api 反转坑)
-- **显存纪律**:5006 LoRA 挂 34 单 loader(全图禁第二个 UNETLoader);p1/p2 两档照常落盘,段B
-  4001-4003 mode4 与 MyShot/3071 零改动(修脸组与段B 正交)
+- **显存纪律**:5006 LoRA 挂 34 单 loader(全图禁第二个 UNETLoader);p1/p2/p3 三档照常落盘;段B 4001-4003
+  出厂激活(mode=0,1122 用户裁定解旁路,整图一发直出三档)——修脸组直吃 4002 出口,与段B 串联
 - **生效面**:仓库/引擎直投即时生效;装机 App 面候打包窗口另役同步
-- **改版顺序**:本组手术入口=apps/build/scripts/multiseg_inline_facerefine_build_1118.py(幂等);
-  multiseg_full3stage_extend.py 无参重跑会抹本组(其只透传 12 锚点+自建 29),抹后重跑本生成器即恢复
+- **改版顺序(三步链,恒此序)**:①multiseg_full3stage_extend.py(重建 41 节点态)→
+  ②lowvram_dual_node_1118.py(补 1066:link1/link15 改源回 1066+ChunkFFN 激活,幂等)→
+  ③本生成器(重建 67 节点+组16/17+本 README 段);跳步即断链(漏②直接跑本件,WIRING 引用 1066 即崩)
 
 ### 1119 双档调用(远景=默认 / 高清;multiseg 移植)
 
@@ -112,18 +117,18 @@ README_SECTION = README_MARK + """
   远景链、5022/5024.masks 恒悬空(face_only 脸框贴回=正典现状);True 时 VOSR2 高频尾档
   (5110,control=**fixed** seed 锁 300831622214023 禁 randomize 回抖)→ 5024/5025 高清复制对
   (**5024.masks 悬空=face_only 贴回,与 5022 同款**)→ 5113 出口
-- **四态矩阵**:1065=False(出厂)→ p2 直通不修脸;1065=True ∧ 5111=False → **远景修脸=默认修脸档**;
+- **四态矩阵**:1065=False(出厂)→ p3 直通不修脸;1065=True ∧ 5111=False → **远景修脸=默认修脸档**;
   1065=True ∧ 5111=True → 高清修脸;**1065=False ∧ 5111=True = 非法态**(高清段被计算却在 5100
   被丢弃=静默剪枝)——发车器(API 直调)注入前必须拒绝此组合
-- **语义差异(multiseg ↔ 单镜,刻碑)**:multiseg 高清档从**二采底**(3053 p2 出片)放大——本件三采
-  4001-4003 出厂 mode=4 旁路(两步法手册),修脸组接 3053 与段B 正交;单镜从**三采 p3 4K**放大
-  (5002 拆 4002)。两件 VOSR2 均吃 5021 解码 768 画布,档位语义一致、上游底不同
+- **1122 回正(刻碑)**:两件同吃**三采底**——multiseg 修脸入口=4002(三采 p3 4K 出片口,与单镜
+  5002←4002 同构;段B mode 4→0 出厂激活随同批解旁路);VOSR2 均吃 5021 解码 768 画布,
+  档位语义与上游底两件一致
 - **API 直调(延伸)**:远景档 `g["1065"]...=true`;高清档再加 `g["5111"]["inputs"]["value"]=true`
-  (+#25 身份句;1065=false 时发车器拒单)
+  (+#25 身份句;1065=false 时发车器拒单);API 模板链尾=36 一采直出 remux 口,与画布 4002 语义沟另役裁定
 """
 
 TITLE = dict(MB.TITLE)
-TITLE[5002] = "四采·拆帧拆音(←3053 二采出片)"
+TITLE[5002] = "四采·拆帧拆音(←4002 三采 p3 4K)"
 TITLE[5006] = "四采·Pika turbo 8step LoRA(复用 34)"
 
 # 布局=x 严格右向(同三采契约刻碑);新区起 x=11300(组⑤ ReCaVSR 右缘 11060 之外,组框零相交)。
@@ -134,27 +139,29 @@ TITLE[5006] = "四采·Pika turbo 8step LoRA(复用 34)"
 # 落行)→5015→5020→5021→5022→5023(GAP 200 链);R3 y2520 纵堆(5016/5019/5017/5018
 # 行序=5020 输入槽序 noise/guider/sampler/sigmas,x 全等净距恰 80);寄生:25 右缘齐 5012
 # 左缘(y=5011 est 底+80)、1065=5100 左 530(y=5013 est 底+80)。重跑本生成器按本表落位。
-# 1119 双档六件(单镜同构三行带,R3 底 3316 之下):行A' y3480:5109→5110(>5021.x=15150,
-# 5021→5110 线恒右向)→行B' y3800:5024(吃 5110,净距 70)→5025;出口行 y4160:5113
-# (>5023.x=16130 且 <5100.x=16600,组框 A 右缘 16470 让开终档组 x1=16540 恰 70px);
-# 开关位 5111=臂头下方 y3800(左于 5113 扇出,同 单镜「开关位左置」口径)。
+# 1119 双档六件(1122 HD 段下沉错行重排,R3 底 3316 之下阶梯四行,est 零容忍口径):
+#   行A y3480:5109→5110(净距 200;>5021.x=15150 恒右向;5110 est 高 520 底=4000);
+#   行B y4080:5024(吃 5110,x 微进 70 恒右向,纵距 80 清 est_overlap);
+#   行C y4530:5025(x>5024 恒右向,纵距 80);
+#   行D y4842:5113 出口(>5023.x=16130 恒右向且 <5100.x=16600;组框 A 右缘 16400(=5023 右缘)
+#   让开终档组 x1=16540 余 140px);开关位 5111=臂头下方 y3800(左于 5113 扇出,同 单镜「开关位左置」口径)。
 POS = {
     5002: [11300, 1000], 5011: [11770, 1000], 5012: [12330, 1000], 5013: [12930, 1000],
     5006: [12730, 1760], 5014: [13330, 1760], 5015: [13860, 1760],
     5016: [14260, 2520], 5019: [14260, 2748], 5017: [14260, 2940], 5018: [14260, 3138],
     5020: [14700, 1760], 5021: [15150, 1760], 5022: [15600, 1760], 5023: [16130, 1760],
     5100: [16600, 1000], 4100: [17070, 1000], 25: [11900, 2002], 1065: [16070, 1216],
-    # ---- 1119 HD 段(见上布局注;单镜同构六件)----
+    # ---- 1119 HD 段(见上布局注;1122 下沉错行重排)----
     5111: [12060, 3800],
-    5109: [15210, 3480], 5110: [15570, 3480],
-    5024: [15670, 3800], 5025: [16050, 3800], 5113: [16140, 4160],
+    5109: [15210, 3480], 5110: [15730, 3480],
+    5024: [15800, 4080], 5025: [15880, 4530], 5113: [16200, 4842],
 }
 SIZE = dict(MB.SIZE)
 
-# ---- 连线(母本 40 条减 ref/length 两条=38 + 1119 双档 10 条=48;锚=3053/34/21/7/13)----
+# ---- 连线(母本 40 条减 ref/length 两条=38 + 1119 双档 10 条=48;锚=4002/34/21/7/13)----
 WIRING = [
-    (TAIL, "VIDEO", 5002, "video"),
-    (TAIL, "VIDEO", 5100, "on_false"),
+    (P3_SRC, "VIDEO", 5002, "video"),    # 1122 回正:拆帧吃三采 p3 4K(用户裁定,与单镜同构)
+    (P3_SRC, "VIDEO", 5100, "on_false"),  # 旁路态终档=4002 p3 直通(旧 3053 p2 直通废)
     (5002, "images", 5011, "images"),
     (5002, "images", 5022, "base_images"),
     (5002, "audio", 5014, "audio"),
@@ -248,7 +255,7 @@ def strip_canvas(S: dict) -> dict:
     """剥离本组既往添加(幂等;剥离前校验类型防误删他人节点)。
 
     own_ids 含 RETIRED(母本 V2.1/V2.2 砍除件)——multiseg 盘上天然无,误植重放即净;
-    组标题含 1118 旧称(双档移植前)过渡剥离。"""
+    组标题含 1118 旧称(双档移植前)与 1122 改名前终档组旧全名过渡剥离(防双终档组)。"""
     own_ids = set(OWN) | set(RETIRED)
     expect = {**OWN, **RETIRED}
     for n in list(S["nodes"]):
@@ -267,7 +274,8 @@ def strip_canvas(S: dict) -> dict:
                 if isinstance(slot.get("links"), list):
                     slot["links"] = [x for x in slot["links"] if x not in removed_ids]
     S["groups"] = [g for g in S.get("groups", [])
-                   if g.get("title") not in (GROUP_A_TITLE, GROUP_A_TITLE_1118, GROUP_B_TITLE)]
+                   if g.get("title") not in (GROUP_A_TITLE, GROUP_A_TITLE_1118,
+                                             GROUP_B_TITLE, GROUP_B_TITLE_1118)]
     for n in S["nodes"]:
         if n["id"] == 9999:
             md = n["widgets_values"][0]
@@ -436,12 +444,12 @@ def check() -> int:
         l = src_of(nid, in_name)
         return bool(l) and l[1] == want_src
 
-    ok(wired(5002, "video", TAIL) and wired(5100, "on_false", TAIL) and wired(5100, "on_true", 5113)
+    ok(wired(5002, "video", P3_SRC) and wired(5100, "on_false", P3_SRC) and wired(5100, "on_true", 5113)
        and wired(5100, "switch", 1065) and wired(4100, "video", 5100)
        and wired(5006, "model", 1066)  # 81f8909f lowvram 插桩后经 1066 头分块收束点=34 扇出之后
        and wired(5014, "audio", 5002) and wired(5019, "conditioning", 5012)
        and wired(5020, "noise", 5016),
-       f"关键联线拓扑(5002←{TAIL}/5100 双臂+开关(1119 改接 on_true←5113)/4100←5100/5006←{UNET}/5014.audio←5002②/5019←5012/5020←5016)")
+       f"关键联线拓扑(5002←{P3_SRC} 三采 p3/5100 双臂+开关(1119 改接 on_true←5113)/4100←5100/5006←{UNET}/5014.audio←5002②/5019←5012/5020←5016)")
     ok(A["5002"]["inputs"]["video"] == ["5031", 0]
        and A["5100"]["inputs"]["on_false"] == ["5031", 0]
        and A["5030"]["inputs"]["video"] == [str(API_TAIL), 0]
@@ -487,8 +495,8 @@ def check() -> int:
     md = next(n for n in S["nodes"] if n["id"] == 9999)["widgets_values"][0]
     ok(README_MARK in md, "README 9999 已增「四采修脸」段")
     ok("### 1119 双档调用(远景=默认 / 高清;multiseg 移植)" in md and "非法态" in md
-       and "二采底" in md and "三采 p3 4K" in md,
-       "README 9999 已增 1119 双档段(四态矩阵+非法态+multiseg↔单镜 语义差异刻碑)")
+       and "1122 回正" in md and "三采底" in md,
+       "README 9999 已增 1119 双档段(四态矩阵+非法态+1122 回正两件同吃三采底刻碑)")
     ok(S["last_link_id"] == max(l[0] for l in S["links"]), "last_link_id 已对齐最大链号")
 
     if fails:

@@ -7,13 +7,13 @@
 
 手术内容:
   现件 12 节点(34/41/21/7/13/100/101/6/2/102/36/4,p1 链原样)基础上新增 23 节点:
-  二采精修链 1021/1033/3011/3021/3022/3030/3031/3040/3041/3042/3043/3044/3001/3002/3003/
-  3051/3052/3053/3071(1440×832)与三采超分链 4000/4001/4002/4003(×2→2880×1664,
-  出厂旁路 mode=4,文件交接两发正典)。段B LoadVideo 出厂空串占位。
+  二采精修链 1021/1033/3011/3021/3022/3030/3031/3041/3042/3043/3044/3001/3002/3003/
+  3051/3052/3053/3071(1440×832)与三采超分链 4001/4002/4003(scale2.667→3840×2220 4K,
+  出厂激活 mode=0——1122 用户裁定解旁路,整图一发直出 p1/p2/p3;内联接线,无 4000)。
 
 用法:
   python3 apps/build/scripts/multiseg_full3stage_extend.py            # 执行手术(幂等,重跑零 diff)
-  python3 apps/build/scripts/multiseg_full3stage_extend.py --verify   # 只读校验(结构三面/组框/布局/出厂自洽/段B 旁路)
+  python3 apps/build/scripts/multiseg_full3stage_extend.py --verify   # 只读校验(结构三面/组框/布局/出厂自洽/段B 出厂激活)
   python3 apps/build/scripts/multiseg_full3stage_extend.py --emit-api # 导出段A/段B API 存档(确定性摊平,禁 wf2api)
 
 硬契约:主验命令恒为 --verify;无参=执行手术。
@@ -45,7 +45,7 @@ STAGE2_LENGTH = 56            # 出厂=56;判决门 2×5秒=243 由 livefire 覆
 P2_PREFIX = "video/H3/分段视频/p2-final"
 P3_PREFIX = "video/H3/分段视频/p3-recavsr"
 
-STAGE_B_IDS = (4001, 4002, 4003)   # 段B 三采(1115 内联正典:4002.video←3053 直连,整图一发直出 p1/p2/p3)
+STAGE_B_IDS = (4001, 4002, 4003)   # 段B 三采(1122 解旁路:出厂激活 mode=0,4002.video←3053 直连,整图一发直出 p1/p2/p3)
 ORIGINAL_IDS = (34, 41, 21, 7, 13, 100, 101, 6, 2, 102, 36, 4)
 
 # 组框(五组横排,PRD 结构规则;MarkdownNote 9999 恒居组外)
@@ -103,11 +103,15 @@ README_NOTE = (
     "# 一镜到底-分段 · 全链三采(1114 用户裁定「都过三采」)\n\n"
     "## 件用途\n分段生成(一采,绕 15s 封顶)→ 二采 TaoMate 精修(1440×832)→ 三采 ReCaVSR 超分"
     "(3840×2220 终档)。与 单镜.json 分工:单镜 ≤15s 高质线 / 本件任意时长全梯线。\n\n"
-    "## 操作手册(1115 实弹勘误终态:两步法)\n"
-    "**第 1 步 整图直跑(段B 出厂旁路)**:Run 一按出 p1(960×544)+p2(1440×832)。\n"
-    "**第 2 步 三采**:激活 4001/4002/4003 三节点 → **选中段B 节点局部执行**(引擎缓存复用,只烧 ReCaVSR ~1min)。\n"
-    "⚠ **整图一发含段B = 禁**(1115 实弹崩溃实证:全链驻留下 ReCaVSR 上卡即原生崩引擎,引擎日志 17:04:42 零 traceback);"
-    "App 派发/批量/livefire 恒走 API 两发拆链+间中 `POST /free {\"unload_models\": true}`(Note103 运行法则)。\n\n"
+    "## 操作手册(1122 裁定:整图一发直跑)\n"
+    "Run 一按直出 p1(960×544)/p2(1440×832)/p3(3840×2220 4K)+p-final 终档(1065 开关控修脸)。\n"
+    "史鉴:1115 整图一发含段B 曾原生崩引擎(当时 mode=4 全链驻留下 ReCaVSR 上卡,日志 17:04:42 零 traceback)"
+    "而立两步法;1118 起 1066 LowVRAM+ChunkFFN 削峰已改变显存格局,1122 用户裁定解旁路(mode 4→0)恢复整图一发,"
+    "两态实弹复判绿(判据档 apps/output/multiseg-mode0-oneshot-1122/livefire-summary.json:A 态 1065=false 150s"
+    " 四产物齐·p-final≡p3 md5 逐字节直通;B 态 1065=true 200s·p-final≢p3=修脸臂实吃 4002 出片;两态均"
+    " p3/p-final=3840×2220/24fps/56帧);若再崩,回退 mode=4 须用户再裁。\n"
+    "App 派发/批量/livefire 恒走 API 两发拆链+间中 `POST /free {\"unload_models\": true}`(Note103 运行法则,"
+    "显存纪律与 UI 整图一发并行不悖)。\n\n"
     "## 同步点三则(手改必读)\n1. 改分段时长必须按帧数公式同步 [3031].length(targets→snap17 网格→Σnew,"
     "出厂 2×1秒=56),实跑以 p1 ffprobe 实测帧数双核对(雷#13/#17);\n2. [3030] 与 [100] 提示词是两份拷贝,"
     "手改同频(雷#14,契约测试出厂态断言同文);\n3. 组框五组横排与布局 est 宪法由 "
@@ -115,8 +119,8 @@ README_NOTE = (
     "## 模型/配方速查(1115 B3 定谳)\n一采=**正典全配方臂**:turbo@1.0+sol-attn τ1.3+ChunkFFN[2]+kitchen+"
     "σshift[**6,3**]+**lcm**+simple/8(Pika 必须 lcm=全库正典;裸 euler 已废,B3 实弹 p1 胜/p2 平);"
     "二采=taomate@0.7+sol-attn τ1.3+σshift[12,3]+kitchen+lcm+simple/3步/dn0.2(UP 定谳);"
-    "三采=ReCaVSR scale2.667 int8 ConvRot。seed=42 复现。⚠ 段缓存指纹不含外接 sampler——"
-    "A/B 试验须 enable_cache=False(1115 实证)。"
+    "三采=ReCaVSR scale2.667 int8 ConvRot(1122 起与单镜同款 4K 出厂)。seed=42 复现。"
+    "⚠ 段缓存指纹不含外接 sampler——A/B 试验须 enable_cache=False(1115 实证)。"
 )
 
 
@@ -314,18 +318,19 @@ def _new_nodes() -> list[dict]:
               inputs=[_in("video", "VIDEO", 42)],
               outputs=[],
               title="p2 长片(1440×832)"),
-        # —— 段B 三采(1115 实弹勘误终态:出厂旁路 mode=4+内联接线;整图一发含段B=引擎崩,禁)——
+        # —— 段B 三采(1122 用户裁定解旁路:出厂激活 mode=0,整图一发直出 p1/p2/p3;
+        #    scale=2.667 正典=3840×2220 4K,与单镜同款)——
         _node(4001, "ReCaVSRLoader", ["transformer_int8_convrot.safetensors"],
-              outputs=[_out("model", "RECAVSR", [43])], mode=4),
+              outputs=[_out("model", "RECAVSR", [43])]),
         _node(4002, "ReCaVSRUpscale",
-              [2, "none", 42, "fixed", "flashdecoder", "fast", False, "auto", 30],
+              [2.667, "none", 42, "fixed", "flashdecoder", "fast", False, "auto", 30],
               inputs=[_in("model", "RECAVSR", 43), _in("video", "VIDEO", 44),
                       _in("images", "IMAGE", None), _in("vae", "VAE", None)],
-              outputs=[_out("VIDEO", "VIDEO", [45])], mode=4),
+              outputs=[_out("VIDEO", "VIDEO", [45])]),
         _node(4003, "SaveVideo", [P3_PREFIX, "auto", "auto", "auto"],
               inputs=[_in("video", "VIDEO", 45)],
-              outputs=[], mode=4,
-              title="p3 终档(2880×1664)"),
+              outputs=[],
+              title="p3 终档(3840×2220)"),
         _node(9999, "MarkdownNote", [README_NOTE], title="README(恒居组外)"),
     ]
     return nodes
@@ -352,6 +357,25 @@ def _fanout_patch(nodes_by_id: dict[int, dict]) -> None:
     nodes_by_id[101]["outputs"][1]["links"] = [31]                   # denoised_latent → 3001
 
 
+def _harvest_old_links(base: dict) -> list[list]:
+    """收割旧链 1-14(除 2 改道正典臂)并归一化源端。
+
+    1118 lowvram 役后盘面 link1/link15 源=1066(MiniMaxLowVRAMAttention 插桩改源),而重建图
+    无 1066 节点——原样带入即悬空端点(verify ⑥ 对缺端点链曾无守卫直接 KeyError 崩整链;
+    三面登记也破)。归一化:l[1]==1066 的旧链回指 (34, slot0)——1066 出槽 0 MODEL ≡ 34 出槽 0
+    MODEL,中间态三面自洽(_fanout_patch 本就声明 34=[1,15]);随后 lowvram_dual_node_1118.py
+    重跑会把 link1+link15 双双改源回 1066(anchor=34),终态与直改殊途同归。"""
+    out = []
+    for l in base["links"]:
+        if l[0] > ORIGINAL_LINKS_MAX or l[0] == 2:   # 2(41→101)改道正典臂
+            continue
+        l = list(l)
+        if l[1] == 1066:
+            l[1] = 34
+        out.append(l)
+    return out
+
+
 def build_full3stage_graph(base: dict) -> dict:
     """现件(base 含 12 旧节点)→ 术后全链三采图。幂等:重跑(喂术后件)产出逐字节一致。"""
     base_nodes = {n["id"]: n for n in base["nodes"]}
@@ -365,10 +389,8 @@ def build_full3stage_graph(base: dict) -> dict:
     new_nodes = _new_nodes()
     by_id = {n["id"]: n for n in originals + new_nodes}
     _fanout_patch(by_id)
-    old_links_probe = [list(l) for l in base["links"] if l[0] <= ORIGINAL_LINKS_MAX and l[0] != 2]
-    _compact_layout(by_id, sorted(old_links_probe + [list(l) for l in NEW_LINKS], key=lambda l: l[0]))
-
-    old_links = [list(l) for l in base["links"] if l[0] <= ORIGINAL_LINKS_MAX and l[0] != 2]   # 2(41→101)改道正典臂
+    old_links = _harvest_old_links(base)
+    _compact_layout(by_id, sorted(old_links + [list(l) for l in NEW_LINKS], key=lambda l: l[0]))
     links = sorted(old_links + [list(l) for l in NEW_LINKS], key=lambda l: l[0])
 
     ordered = originals + [n for n in new_nodes]
@@ -847,12 +869,12 @@ def verify_graph(d: dict) -> list[str]:
     if "段1:1秒" not in w100[0] or w100[0].count("段1:1秒") != 1 or "段2:1秒" not in w100[0]:
         problems.append("出厂提示词缺 2×1秒 时长标签")
 
-    # ⑤ 段B 出厂旁路+内联接线(1115 实弹勘误终态:整图一发含段B=崩,两步法手册)
+    # ⑤ 段B 出厂激活+内联接线(1122 用户裁定解旁路:mode=0,整图一发直出 p1/p2/p3)
     if 4000 in nodes:
         problems.append("[4000] LoadVideo 应不存在(内联接线正典)")
     for nid in STAGE_B_IDS:
-        if nodes[nid].get("mode") != 4:
-            problems.append(f"[{nid}] 出厂应旁路 mode=4(整图一发含段B=引擎崩,禁)")
+        if nodes[nid].get("mode") != 0:
+            problems.append(f"[{nid}] 出厂应激活 mode=0(1122 用户裁定解旁路,整图一发直出三档)")
     l44 = links.get(44)
     if not l44 or (l44[1], l44[2], l44[3], l44[4]) != (3053, 0, 4002, 1):
         problems.append("段B 内联接线漂移: link44 应 3053.0→4002.1")
@@ -866,6 +888,9 @@ def verify_graph(d: dict) -> list[str]:
         if n["pos"][0] < 80 or n["pos"][1] < 80:
             problems.append(f"[{nid}] 负区 pos={n['pos']}")
     for l in d["links"]:
+        if l[1] not in nodes or l[3] not in nodes:
+            problems.append(f"link {l[0]} 端点缺席 [{l[1]}]→[{l[3]}](悬空链,布局判据跳过)")
+            continue
         if nodes[l[3]]["pos"][0] <= nodes[l[1]]["pos"][0]:
             problems.append(f"link {l[0]} 左向 [{l[1]}]→[{l[3]}]")
     boxes = {nid: (n["pos"][0], n["pos"][1], *_est_size(n)) for nid, n in nodes.items()}
@@ -950,7 +975,7 @@ def main(argv=None) -> int:
         for p in problems[:40]:
             print("  -", p)
         return 1
-    print(f"✅ verify 全绿({len(graph['nodes'])} 节点 {len(graph['links'])} 连线;三面/组框/est 宪法/出厂自洽/段B 旁路)")
+    print(f"✅ verify 全绿({len(graph['nodes'])} 节点 {len(graph['links'])} 连线;三面/组框/est 宪法/出厂自洽/段B 出厂激活)")
     return 0
 
 

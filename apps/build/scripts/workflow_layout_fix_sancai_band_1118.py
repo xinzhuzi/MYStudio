@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# ⚠ 已历史化勿再跑(1122 记档):单镜 终档组已改名「终档组」,本脚本持旧 GROUP_B_TITLE
+# 全名(:69)按标题找组,重跑将找不到组;布局正典由 sancai_inline_facerefine_build_1118.py
+# 重放管辖(HD 段 1122 下沉错行重排)。
 """单镜.json 四采带布局治理(1118 美化役·坐标-only 手术脚本,幂等 fail-closed)。
 
 方案=既定美化方案(四采带 ⑧ 分层行重排):

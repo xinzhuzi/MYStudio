@@ -2,7 +2,7 @@
   "id": "h3-autocontext-multiseg",
   "revision": 1,
   "last_node_id": 9999,
-  "last_link_id": 140,
+  "last_link_id": 102,
   "nodes": [
     {
       "id": 2,
@@ -150,9 +150,9 @@
             8,
             24,
             38,
-            107,
-            108,
-            109
+            69,
+            70,
+            71
           ],
           "slot_index": 0
         }
@@ -190,8 +190,8 @@
             10,
             25,
             39,
-            110,
-            111
+            72,
+            73
           ],
           "slot_index": 0
         }
@@ -227,7 +227,7 @@
           "links": [
             3,
             23,
-            112
+            74
           ],
           "slot_index": 0
         }
@@ -262,7 +262,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            92
+            54
           ],
           "slot_index": 0
         }
@@ -1670,9 +1670,7 @@
           "type": "VIDEO",
           "links": [
             42,
-            44,
-            93,
-            94
+            44
           ]
         }
       ],
@@ -1731,7 +1729,7 @@
       ],
       "flags": {},
       "order": 37,
-      "mode": 4,
+      "mode": 0,
       "inputs": [],
       "outputs": [
         {
@@ -1762,7 +1760,7 @@
       ],
       "flags": {},
       "order": 38,
-      "mode": 4,
+      "mode": 0,
       "inputs": [
         {
           "name": "model",
@@ -1790,7 +1788,9 @@
           "name": "VIDEO",
           "type": "VIDEO",
           "links": [
-            45
+            45,
+            55,
+            56
           ]
         }
       ],
@@ -1822,7 +1822,7 @@
       ],
       "flags": {},
       "order": 39,
-      "mode": 4,
+      "mode": 0,
       "inputs": [
         {
           "name": "video",
@@ -1862,7 +1862,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "# 一镜到底-分段 · 全链三采(1114 用户裁定「都过三采」)\n\n## 件用途\n分段生成(一采,绕 15s 封顶)→ 二采 TaoMate 精修(1440×832)→ 三采 ReCaVSR 超分(3840×2220 终档)。与 单镜.json 分工:单镜 ≤15s 高质线 / 本件任意时长全梯线。\n\n## 操作手册(1115 实弹勘误终态:两步法)\n**第 1 步 整图直跑(段B 出厂旁路)**:Run 一按出 p1(960×544)+p2(1440×832)。\n**第 2 步 三采**:激活 4001/4002/4003 三节点 → **选中段B 节点局部执行**(引擎缓存复用,只烧 ReCaVSR ~1min)。\n⚠ **整图一发含段B = 禁**(1115 实弹崩溃实证:全链驻留下 ReCaVSR 上卡即原生崩引擎,引擎日志 17:04:42 零 traceback);App 派发/批量/livefire 恒走 API 两发拆链+间中 `POST /free {\"unload_models\": true}`(Note103 运行法则)。\n\n## 同步点三则(手改必读)\n1. 改分段时长必须按帧数公式同步 [3031].length(targets→snap17 网格→Σnew,出厂 2×1秒=56),实跑以 p1 ffprobe 实测帧数双核对(雷#13/#17);\n2. [3030] 与 [100] 提示词是两份拷贝,手改同频(雷#14,契约测试出厂态断言同文);\n3. 组框五组横排与布局 est 宪法由 `apps/build/scripts/multiseg_full3stage_extend.py --verify` 把门,改版后整体重跑(雷#7)。\n\n## 模型/配方速查(1115 B3 定谳)\n一采=**正典全配方臂**:turbo@1.0+sol-attn τ1.3+ChunkFFN[2]+kitchen+σshift[**6,3**]+**lcm**+simple/8(Pika 必须 lcm=全库正典;裸 euler 已废,B3 实弹 p1 胜/p2 平);二采=taomate@0.7+sol-attn τ1.3+σshift[12,3]+kitchen+lcm+simple/3步/dn0.2(UP 定谳);三采=ReCaVSR scale2.667 int8 ConvRot。seed=42 复现。⚠ 段缓存指纹不含外接 sampler——A/B 试验须 enable_cache=False(1115 实证)。\n\n---\n\n## 四采修脸(内置·默认旁路·1118 multiseg)\n\n- **开关 #1065「四采修脸」**:默认 **False=旁路**——终档 4100 p-final=3053 二采 p2 直通,50xx 臂被引擎惰性剪除\n  (0.45.2 实证,同 单镜 1118 双态探针口径),零成本;**True=二采出片内部走进修脸→终档一条线**\n- **#25 修脸身份提示词**:默认通用句;外部按角色覆写(参照正片人物五官特征)\n- **臂拓扑**(同 单镜 1118 §1.1):5002 拆 3053(帧①+音轨②)→ 5011 追踪裁剪(face_yolov8m\n  conf0.15/兜底 segm\\person_yolov8m-seg.pt/largest_face)→ 5012 H3 重画(**宽高=5011 出口联线勿手填**/\n  参考图=零参考出厂/提示词=#25)→ 5013 注入真实帧 → 5014 音轨锁(audio←5002②)→ 5015 逐帧 denoise\n  (60/200px)→ 5016-5020 采样(seed 42 同 3040/lcm/simple/8步/0.45)→ 5021 解码 → 5022 贴回(16/24)\n  → 5023 合成 → 5113 出口选择 → 5100 终档选择 → 4100 p-final\n- **帧数同步纪律(本件专属)**:本件无帧数图出口——改 [3031].length 必须同步 [5012].length\n  (出厂两处皆 56;livefire/发车器覆写 3031.length 时同步覆写 5012.length)\n- **极性口径**(同三采 1118 双态实测定谳):5100 on_true=修脸臂出口(1065=true)/on_false=3053 p2 直通\n  (1065=false);5113 on_true=5025 高清片/on_false=5023 远景片——两 Switch 均「真=新臂」,勿手改(防 wf2api 反转坑)\n- **显存纪律**:5006 LoRA 挂 34 单 loader(全图禁第二个 UNETLoader);p1/p2 两档照常落盘,段B\n  4001-4003 mode4 与 MyShot/3071 零改动(修脸组与段B 正交)\n- **生效面**:仓库/引擎直投即时生效;装机 App 面候打包窗口另役同步\n- **改版顺序**:本组手术入口=apps/build/scripts/multiseg_inline_facerefine_build_1118.py(幂等);\n  multiseg_full3stage_extend.py 无参重跑会抹本组(其只透传 12 锚点+自建 29),抹后重跑本生成器即恢复\n\n### 1119 双档调用(远景=默认 / 高清;multiseg 移植)\n\n- **#5111「高清修脸」子开关**(默认 **False=远景档**):False 时 5113 出口 VIDEO Switch 直通 5023\n  远景链、5022/5024.masks 恒悬空(face_only 脸框贴回=正典现状);True 时 VOSR2 高频尾档\n  (5110,control=**fixed** seed 锁 300831622214023 禁 randomize 回抖)→ 5024/5025 高清复制对\n  (**5024.masks 悬空=face_only 贴回,与 5022 同款**)→ 5113 出口\n- **四态矩阵**:1065=False(出厂)→ p2 直通不修脸;1065=True ∧ 5111=False → **远景修脸=默认修脸档**;\n  1065=True ∧ 5111=True → 高清修脸;**1065=False ∧ 5111=True = 非法态**(高清段被计算却在 5100\n  被丢弃=静默剪枝)——发车器(API 直调)注入前必须拒绝此组合\n- **语义差异(multiseg ↔ 单镜,刻碑)**:multiseg 高清档从**二采底**(3053 p2 出片)放大——本件三采\n  4001-4003 出厂 mode=4 旁路(两步法手册),修脸组接 3053 与段B 正交;单镜从**三采 p3 4K**放大\n  (5002 拆 4002)。两件 VOSR2 均吃 5021 解码 768 画布,档位语义一致、上游底不同\n- **API 直调(延伸)**:远景档 `g[\"1065\"]...=true`;高清档再加 `g[\"5111\"][\"inputs\"][\"value\"]=true`\n  (+#25 身份句;1065=false 时发车器拒单)\n"
+        "# 一镜到底-分段 · 全链三采(1114 用户裁定「都过三采」)\n\n## 件用途\n分段生成(一采,绕 15s 封顶)→ 二采 TaoMate 精修(1440×832)→ 三采 ReCaVSR 超分(3840×2220 终档)。与 单镜.json 分工:单镜 ≤15s 高质线 / 本件任意时长全梯线。\n\n## 操作手册(1122 裁定:整图一发直跑)\nRun 一按直出 p1(960×544)/p2(1440×832)/p3(3840×2220 4K)+p-final 终档(1065 开关控修脸)。\n史鉴:1115 整图一发含段B 曾原生崩引擎(当时 mode=4 全链驻留下 ReCaVSR 上卡,日志 17:04:42 零 traceback)而立两步法;1118 起 1066 LowVRAM+ChunkFFN 削峰已改变显存格局,1122 用户裁定解旁路(mode 4→0)恢复整图一发,两态实弹复判绿(判据档 apps/output/multiseg-mode0-oneshot-1122/livefire-summary.json:A 态 1065=false 150s 四产物齐·p-final≡p3 md5 逐字节直通;B 态 1065=true 200s·p-final≢p3=修脸臂实吃 4002 出片;两态均 p3/p-final=3840×2220/24fps/56帧);若再崩,回退 mode=4 须用户再裁。\nApp 派发/批量/livefire 恒走 API 两发拆链+间中 `POST /free {\"unload_models\": true}`(Note103 运行法则,显存纪律与 UI 整图一发并行不悖)。\n\n## 同步点三则(手改必读)\n1. 改分段时长必须按帧数公式同步 [3031].length(targets→snap17 网格→Σnew,出厂 2×1秒=56),实跑以 p1 ffprobe 实测帧数双核对(雷#13/#17);\n2. [3030] 与 [100] 提示词是两份拷贝,手改同频(雷#14,契约测试出厂态断言同文);\n3. 组框五组横排与布局 est 宪法由 `apps/build/scripts/multiseg_full3stage_extend.py --verify` 把门,改版后整体重跑(雷#7)。\n\n## 模型/配方速查(1115 B3 定谳)\n一采=**正典全配方臂**:turbo@1.0+sol-attn τ1.3+ChunkFFN[2]+kitchen+σshift[**6,3**]+**lcm**+simple/8(Pika 必须 lcm=全库正典;裸 euler 已废,B3 实弹 p1 胜/p2 平);二采=taomate@0.7+sol-attn τ1.3+σshift[12,3]+kitchen+lcm+simple/3步/dn0.2(UP 定谳);三采=ReCaVSR scale2.667 int8 ConvRot(1122 起与单镜同款 4K 出厂)。seed=42 复现。⚠ 段缓存指纹不含外接 sampler——A/B 试验须 enable_cache=False(1115 实证)。\n\n---\n\n## 四采修脸(内置·默认旁路·1118 multiseg)\n\n- **开关 #1065「四采修脸」**:默认 **False=旁路**——终档 4100 p-final=4002 三采 p3 直通,50xx 臂被引擎惰性剪除\n  (0.45.2 实证,同 单镜 1118 双态探针口径),零成本;**True=三采出片内部走进修脸→终档一条线**\n- **#25 修脸身份提示词**:默认通用句;外部按角色覆写(参照正片人物五官特征)\n- **臂拓扑**(同 单镜 1118 §1.1):5002 拆 4002(三采 p3 4K 出片·帧①+音轨②)→ 5011 追踪裁剪(face_yolov8m\n  conf0.15/兜底 segm\\person_yolov8m-seg.pt/largest_face)→ 5012 H3 重画(**宽高=5011 出口联线勿手填**/\n  参考图=零参考出厂/提示词=#25)→ 5013 注入真实帧 → 5014 音轨锁(audio←5002②)→ 5015 逐帧 denoise\n  (60/200px)→ 5016-5020 采样(seed 42 同 3040/lcm/simple/8步/0.45)→ 5021 解码 → 5022 贴回(16/24)\n  → 5023 合成 → 5113 出口选择 → 5100 终档选择 → 4100 p-final\n- **帧数同步纪律(本件专属)**:本件无帧数图出口——改 [3031].length 必须同步 [5012].length\n  (出厂两处皆 56;livefire/发车器覆写 3031.length 时同步覆写 5012.length)\n- **极性口径**(同三采 1118 双态实测定谳):5100 on_true=修脸臂出口(1065=true)/on_false=4002 p3 直通\n  (1065=false);5113 on_true=5025 高清片/on_false=5023 远景片——两 Switch 均「真=新臂」,勿手改(防 wf2api 反转坑)\n- **显存纪律**:5006 LoRA 挂 34 单 loader(全图禁第二个 UNETLoader);p1/p2/p3 三档照常落盘;段B 4001-4003\n  出厂激活(mode=0,1122 用户裁定解旁路,整图一发直出三档)——修脸组直吃 4002 出口,与段B 串联\n- **生效面**:仓库/引擎直投即时生效;装机 App 面候打包窗口另役同步\n- **改版顺序(三步链,恒此序)**:①multiseg_full3stage_extend.py(重建 41 节点态)→\n  ②lowvram_dual_node_1118.py(补 1066:link1/link15 改源回 1066+ChunkFFN 激活,幂等)→\n  ③本生成器(重建 67 节点+组16/17+本 README 段);跳步即断链(漏②直接跑本件,WIRING 引用 1066 即崩)\n\n### 1119 双档调用(远景=默认 / 高清;multiseg 移植)\n\n- **#5111「高清修脸」子开关**(默认 **False=远景档**):False 时 5113 出口 VIDEO Switch 直通 5023\n  远景链、5022/5024.masks 恒悬空(face_only 脸框贴回=正典现状);True 时 VOSR2 高频尾档\n  (5110,control=**fixed** seed 锁 300831622214023 禁 randomize 回抖)→ 5024/5025 高清复制对\n  (**5024.masks 悬空=face_only 贴回,与 5022 同款**)→ 5113 出口\n- **四态矩阵**:1065=False(出厂)→ p3 直通不修脸;1065=True ∧ 5111=False → **远景修脸=默认修脸档**;\n  1065=True ∧ 5111=True → 高清修脸;**1065=False ∧ 5111=True = 非法态**(高清段被计算却在 5100\n  被丢弃=静默剪枝)——发车器(API 直调)注入前必须拒绝此组合\n- **1122 回正(刻碑)**:两件同吃**三采底**——multiseg 修脸入口=4002(三采 p3 4K 出片口,与单镜\n  5002←4002 同构;段B mode 4→0 出厂激活随同批解旁路);VOSR2 均吃 5021 解码 768 画布,\n  档位语义与上游底两件一致\n- **API 直调(延伸)**:远景档 `g[\"1065\"]...=true`;高清档再加 `g[\"5111\"][\"inputs\"][\"value\"]=true`\n  (+#25 身份句;1065=false 时发车器拒单);API 模板链尾=36 一采直出 remux 口,与画布 4002 语义沟另役裁定\n"
       ],
       "title": "README(恒居组外)"
     },
@@ -1884,7 +1884,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 92
+          "link": 54
         }
       ],
       "outputs": [
@@ -1894,7 +1894,7 @@
           "links": [
             1,
             15,
-            99
+            61
           ]
         }
       ],
@@ -1937,7 +1937,7 @@
           "name": "STRING",
           "type": "STRING",
           "links": [
-            113
+            75
           ]
         }
       ],
@@ -1986,7 +1986,7 @@
           "name": "BOOLEAN",
           "type": "BOOLEAN",
           "links": [
-            128
+            90
           ]
         }
       ],
@@ -2016,7 +2016,7 @@
         {
           "name": "video",
           "type": "VIDEO",
-          "link": 93
+          "link": 55
         }
       ],
       "outputs": [
@@ -2024,18 +2024,18 @@
           "name": "images",
           "type": "IMAGE",
           "links": [
-            95,
-            96,
-            133
+            57,
+            58,
+            95
           ]
         },
         {
           "name": "audio",
           "type": "AUDIO",
           "links": [
-            97,
-            98,
-            136
+            59,
+            60,
+            98
           ]
         },
         {
@@ -2055,7 +2055,7 @@
         "cnr_id": "comfy-core",
         "Node name for S&R": "GetVideoComponents"
       },
-      "title": "四采·拆帧拆音(←3053 二采出片)"
+      "title": "四采·拆帧拆音(←4002 三采 p3 4K)"
     },
     {
       "id": 5006,
@@ -2076,7 +2076,7 @@
           "localized_name": "model",
           "name": "model",
           "type": "MODEL",
-          "link": 99
+          "link": 61
         },
         {
           "localized_name": "lora_name",
@@ -2101,7 +2101,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            100
+            62
           ]
         }
       ],
@@ -2141,7 +2141,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 95
+          "link": 57
         },
         {
           "name": "identity_reference",
@@ -2154,16 +2154,16 @@
           "name": "crops",
           "type": "IMAGE",
           "links": [
-            101
+            63
           ]
         },
         {
           "name": "transform",
           "type": "H3FACEXFORM",
           "links": [
-            102,
-            103,
-            134
+            64,
+            65,
+            96
           ]
         },
         {
@@ -2178,14 +2178,14 @@
           "name": "canvas_w",
           "type": "INT",
           "links": [
-            104
+            66
           ]
         },
         {
           "name": "canvas_h",
           "type": "INT",
           "links": [
-            105
+            67
           ]
         },
         {
@@ -2243,19 +2243,19 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 112
+          "link": 74
         },
         {
           "name": "vae",
           "shape": 7,
           "type": "VAE",
-          "link": 107
+          "link": 69
         },
         {
           "name": "audio_vae",
           "shape": 7,
           "type": "VAE",
-          "link": 110
+          "link": 72
         },
         {
           "label": "ref_image_0",
@@ -2321,7 +2321,7 @@
           "widget": {
             "name": "prompt"
           },
-          "link": 113
+          "link": 75
         },
         {
           "name": "width",
@@ -2329,7 +2329,7 @@
           "widget": {
             "name": "width"
           },
-          "link": 104
+          "link": 66
         },
         {
           "name": "height",
@@ -2337,7 +2337,7 @@
           "widget": {
             "name": "height"
           },
-          "link": 105
+          "link": 67
         },
         {
           "name": "length",
@@ -2376,14 +2376,14 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            119
+            81
           ]
         },
         {
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            106
+            68
           ]
         }
       ],
@@ -2421,17 +2421,17 @@
         {
           "name": "av_latent",
           "type": "LATENT",
-          "link": 106
+          "link": 68
         },
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 101
+          "link": 63
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 108
+          "link": 70
         }
       ],
       "outputs": [
@@ -2439,7 +2439,7 @@
           "name": "av_latent",
           "type": "LATENT",
           "links": [
-            114
+            76
           ]
         },
         {
@@ -2473,22 +2473,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 100
+          "link": 62
         },
         {
           "name": "av_latent",
           "type": "LATENT",
-          "link": 114
+          "link": 76
         },
         {
           "name": "audio_vae",
           "type": "VAE",
-          "link": 111
+          "link": 73
         },
         {
           "name": "audio",
           "type": "AUDIO",
-          "link": 97
+          "link": 59
         }
       ],
       "outputs": [
@@ -2496,14 +2496,14 @@
           "name": "model",
           "type": "MODEL",
           "links": [
-            115
+            77
           ]
         },
         {
           "name": "av_latent",
           "type": "LATENT",
           "links": [
-            116
+            78
           ]
         },
         {
@@ -2537,17 +2537,17 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 115
+          "link": 77
         },
         {
           "name": "av_latent",
           "type": "LATENT",
-          "link": 116
+          "link": 78
         },
         {
           "name": "transform",
           "type": "H3FACEXFORM",
-          "link": 102
+          "link": 64
         }
       ],
       "outputs": [
@@ -2555,7 +2555,7 @@
           "name": "av_latent",
           "type": "LATENT",
           "links": [
-            124
+            86
           ]
         },
         {
@@ -2566,8 +2566,8 @@
           "name": "model",
           "type": "MODEL",
           "links": [
-            117,
-            118
+            79,
+            80
           ]
         }
       ],
@@ -2607,7 +2607,7 @@
           "name": "NOISE",
           "type": "NOISE",
           "links": [
-            120
+            82
           ]
         }
       ],
@@ -2642,7 +2642,7 @@
           "name": "SAMPLER",
           "type": "SAMPLER",
           "links": [
-            122
+            84
           ]
         }
       ],
@@ -2674,7 +2674,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 117
+          "link": 79
         }
       ],
       "outputs": [
@@ -2683,7 +2683,7 @@
           "type": "SIGMAS",
           "slot_index": 0,
           "links": [
-            123
+            85
           ]
         }
       ],
@@ -2715,12 +2715,12 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 118
+          "link": 80
         },
         {
           "name": "conditioning",
           "type": "CONDITIONING",
-          "link": 119
+          "link": 81
         }
       ],
       "outputs": [
@@ -2728,7 +2728,7 @@
           "name": "GUIDER",
           "type": "GUIDER",
           "links": [
-            121
+            83
           ]
         }
       ],
@@ -2757,27 +2757,27 @@
         {
           "name": "noise",
           "type": "NOISE",
-          "link": 120
+          "link": 82
         },
         {
           "name": "guider",
           "type": "GUIDER",
-          "link": 121
+          "link": 83
         },
         {
           "name": "sampler",
           "type": "SAMPLER",
-          "link": 122
+          "link": 84
         },
         {
           "name": "sigmas",
           "type": "SIGMAS",
-          "link": 123
+          "link": 85
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 124
+          "link": 86
         }
       ],
       "outputs": [
@@ -2785,7 +2785,7 @@
           "name": "output",
           "type": "LATENT",
           "links": [
-            125
+            87
           ]
         },
         {
@@ -2820,12 +2820,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 125
+          "link": 87
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 109
+          "link": 71
         }
       ],
       "outputs": [
@@ -2833,8 +2833,8 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            126,
-            131
+            88,
+            93
           ]
         }
       ],
@@ -2863,17 +2863,17 @@
         {
           "name": "base_images",
           "type": "IMAGE",
-          "link": 96
+          "link": 58
         },
         {
           "name": "refined_crops",
           "type": "IMAGE",
-          "link": 126
+          "link": 88
         },
         {
           "name": "transform",
           "type": "H3FACEXFORM",
-          "link": 103
+          "link": 65
         },
         {
           "name": "masks",
@@ -2886,7 +2886,7 @@
           "name": "images",
           "type": "IMAGE",
           "links": [
-            127
+            89
           ]
         }
       ],
@@ -2924,13 +2924,13 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 127
+          "link": 89
         },
         {
           "name": "audio",
           "shape": 7,
           "type": "AUDIO",
-          "link": 98
+          "link": 60
         }
       ],
       "outputs": [
@@ -2938,7 +2938,7 @@
           "name": "VIDEO",
           "type": "VIDEO",
           "links": [
-            138
+            100
           ]
         }
       ],
@@ -2976,17 +2976,17 @@
           "widget": {
             "name": "switch"
           },
-          "link": 128
+          "link": 90
         },
         {
           "name": "on_false",
           "type": "COMFY_MATCHTYPE_V3",
-          "link": 94
+          "link": 56
         },
         {
           "name": "on_true",
           "type": "COMFY_MATCHTYPE_V3",
-          "link": 140
+          "link": 102
         }
       ],
       "outputs": [
@@ -2994,7 +2994,7 @@
           "name": "COMFY_MATCHTYPE_V3",
           "type": "COMFY_MATCHTYPE_V3",
           "links": [
-            129
+            91
           ]
         }
       ],
@@ -3025,7 +3025,7 @@
           "localized_name": "video",
           "name": "video",
           "type": "VIDEO",
-          "link": 129
+          "link": 91
         },
         {
           "localized_name": "filename_prefix",
@@ -3106,7 +3106,7 @@
           "type": "VOSR2_MODEL",
           "localized_name": "model",
           "links": [
-            130
+            92
           ]
         }
       ],
@@ -3139,14 +3139,14 @@
           "label": "model",
           "type": "VOSR2_MODEL",
           "localized_name": "model",
-          "link": 130
+          "link": 92
         },
         {
           "name": "image",
           "label": "image",
           "type": "IMAGE",
           "localized_name": "image",
-          "link": 131
+          "link": 93
         },
         {
           "widget": {
@@ -3219,7 +3219,7 @@
           "type": "IMAGE",
           "localized_name": "IMAGE",
           "links": [
-            132
+            94
           ]
         }
       ],
@@ -3229,7 +3229,7 @@
       },
       "id": 5110,
       "pos": [
-        15570,
+        15730,
         3480
       ],
       "size": [
@@ -3278,7 +3278,7 @@
           "name": "BOOLEAN",
           "type": "BOOLEAN",
           "links": [
-            139
+            101
           ]
         }
       ],
@@ -3294,8 +3294,8 @@
       "id": 5113,
       "type": "ComfySwitchNode",
       "pos": [
-        16140,
-        4160
+        16200,
+        4842
       ],
       "size": [
         270,
@@ -3311,17 +3311,17 @@
           "widget": {
             "name": "switch"
           },
-          "link": 139
+          "link": 101
         },
         {
           "name": "on_false",
           "type": "COMFY_MATCHTYPE_V3",
-          "link": 138
+          "link": 100
         },
         {
           "name": "on_true",
           "type": "COMFY_MATCHTYPE_V3",
-          "link": 137
+          "link": 99
         }
       ],
       "outputs": [
@@ -3329,7 +3329,7 @@
           "name": "COMFY_MATCHTYPE_V3",
           "type": "COMFY_MATCHTYPE_V3",
           "links": [
-            140
+            102
           ]
         }
       ],
@@ -3345,8 +3345,8 @@
       "id": 5024,
       "type": "H3FaceStitch",
       "pos": [
-        15670,
-        3800
+        15800,
+        4080
       ],
       "size": [
         330,
@@ -3359,17 +3359,17 @@
         {
           "name": "base_images",
           "type": "IMAGE",
-          "link": 133
+          "link": 95
         },
         {
           "name": "refined_crops",
           "type": "IMAGE",
-          "link": 132
+          "link": 94
         },
         {
           "name": "transform",
           "type": "H3FACEXFORM",
-          "link": 134
+          "link": 96
         },
         {
           "name": "masks",
@@ -3382,7 +3382,7 @@
           "name": "images",
           "type": "IMAGE",
           "links": [
-            135
+            97
           ]
         }
       ],
@@ -3406,8 +3406,8 @@
       "id": 5025,
       "type": "CreateVideo",
       "pos": [
-        16050,
-        3800
+        15880,
+        4530
       ],
       "size": [
         270,
@@ -3420,13 +3420,13 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 135
+          "link": 97
         },
         {
           "name": "audio",
           "shape": 7,
           "type": "AUDIO",
-          "link": 136
+          "link": 98
         }
       ],
       "outputs": [
@@ -3434,7 +3434,7 @@
           "name": "VIDEO",
           "type": "VIDEO",
           "links": [
-            137
+            99
           ]
         }
       ],
@@ -3870,7 +3870,7 @@
       "SIGMAS"
     ],
     [
-      92,
+      54,
       34,
       0,
       1066,
@@ -3878,23 +3878,23 @@
       "MODEL"
     ],
     [
-      93,
-      3053,
+      55,
+      4002,
       0,
       5002,
       0,
       "VIDEO"
     ],
     [
-      94,
-      3053,
+      56,
+      4002,
       0,
       5100,
       1,
       "COMFY_MATCHTYPE_V3"
     ],
     [
-      95,
+      57,
       5002,
       0,
       5011,
@@ -3902,7 +3902,7 @@
       "IMAGE"
     ],
     [
-      96,
+      58,
       5002,
       0,
       5022,
@@ -3910,7 +3910,7 @@
       "IMAGE"
     ],
     [
-      97,
+      59,
       5002,
       1,
       5014,
@@ -3918,7 +3918,7 @@
       "AUDIO"
     ],
     [
-      98,
+      60,
       5002,
       1,
       5023,
@@ -3926,7 +3926,7 @@
       "AUDIO"
     ],
     [
-      99,
+      61,
       1066,
       0,
       5006,
@@ -3934,7 +3934,7 @@
       "MODEL"
     ],
     [
-      100,
+      62,
       5006,
       0,
       5014,
@@ -3942,7 +3942,7 @@
       "MODEL"
     ],
     [
-      101,
+      63,
       5011,
       0,
       5013,
@@ -3950,7 +3950,7 @@
       "IMAGE"
     ],
     [
-      102,
+      64,
       5011,
       1,
       5015,
@@ -3958,7 +3958,7 @@
       "H3FACEXFORM"
     ],
     [
-      103,
+      65,
       5011,
       1,
       5022,
@@ -3966,7 +3966,7 @@
       "H3FACEXFORM"
     ],
     [
-      104,
+      66,
       5011,
       4,
       5012,
@@ -3974,7 +3974,7 @@
       "INT"
     ],
     [
-      105,
+      67,
       5011,
       5,
       5012,
@@ -3982,7 +3982,7 @@
       "INT"
     ],
     [
-      106,
+      68,
       5012,
       1,
       5013,
@@ -3990,7 +3990,7 @@
       "LATENT"
     ],
     [
-      107,
+      69,
       7,
       0,
       5012,
@@ -3998,7 +3998,7 @@
       "VAE"
     ],
     [
-      108,
+      70,
       7,
       0,
       5013,
@@ -4006,7 +4006,7 @@
       "VAE"
     ],
     [
-      109,
+      71,
       7,
       0,
       5021,
@@ -4014,7 +4014,7 @@
       "VAE"
     ],
     [
-      110,
+      72,
       13,
       0,
       5012,
@@ -4022,7 +4022,7 @@
       "VAE"
     ],
     [
-      111,
+      73,
       13,
       0,
       5014,
@@ -4030,7 +4030,7 @@
       "VAE"
     ],
     [
-      112,
+      74,
       21,
       0,
       5012,
@@ -4038,7 +4038,7 @@
       "CLIP"
     ],
     [
-      113,
+      75,
       25,
       0,
       5012,
@@ -4046,7 +4046,7 @@
       "STRING"
     ],
     [
-      114,
+      76,
       5013,
       0,
       5014,
@@ -4054,7 +4054,7 @@
       "LATENT"
     ],
     [
-      115,
+      77,
       5014,
       0,
       5015,
@@ -4062,7 +4062,7 @@
       "MODEL"
     ],
     [
-      116,
+      78,
       5014,
       1,
       5015,
@@ -4070,7 +4070,7 @@
       "LATENT"
     ],
     [
-      117,
+      79,
       5015,
       2,
       5018,
@@ -4078,7 +4078,7 @@
       "MODEL"
     ],
     [
-      118,
+      80,
       5015,
       2,
       5019,
@@ -4086,7 +4086,7 @@
       "MODEL"
     ],
     [
-      119,
+      81,
       5012,
       0,
       5019,
@@ -4094,7 +4094,7 @@
       "CONDITIONING"
     ],
     [
-      120,
+      82,
       5016,
       0,
       5020,
@@ -4102,7 +4102,7 @@
       "NOISE"
     ],
     [
-      121,
+      83,
       5019,
       0,
       5020,
@@ -4110,7 +4110,7 @@
       "GUIDER"
     ],
     [
-      122,
+      84,
       5017,
       0,
       5020,
@@ -4118,7 +4118,7 @@
       "SAMPLER"
     ],
     [
-      123,
+      85,
       5018,
       0,
       5020,
@@ -4126,7 +4126,7 @@
       "SIGMAS"
     ],
     [
-      124,
+      86,
       5015,
       0,
       5020,
@@ -4134,7 +4134,7 @@
       "LATENT"
     ],
     [
-      125,
+      87,
       5020,
       0,
       5021,
@@ -4142,7 +4142,7 @@
       "LATENT"
     ],
     [
-      126,
+      88,
       5021,
       0,
       5022,
@@ -4150,7 +4150,7 @@
       "IMAGE"
     ],
     [
-      127,
+      89,
       5022,
       0,
       5023,
@@ -4158,7 +4158,7 @@
       "IMAGE"
     ],
     [
-      128,
+      90,
       1065,
       0,
       5100,
@@ -4166,7 +4166,7 @@
       "BOOLEAN"
     ],
     [
-      129,
+      91,
       5100,
       0,
       4100,
@@ -4174,7 +4174,7 @@
       "VIDEO"
     ],
     [
-      130,
+      92,
       5109,
       0,
       5110,
@@ -4182,7 +4182,7 @@
       "VOSR2_MODEL"
     ],
     [
-      131,
+      93,
       5021,
       0,
       5110,
@@ -4190,7 +4190,7 @@
       "IMAGE"
     ],
     [
-      132,
+      94,
       5110,
       0,
       5024,
@@ -4198,7 +4198,7 @@
       "IMAGE"
     ],
     [
-      133,
+      95,
       5002,
       0,
       5024,
@@ -4206,7 +4206,7 @@
       "IMAGE"
     ],
     [
-      134,
+      96,
       5011,
       1,
       5024,
@@ -4214,7 +4214,7 @@
       "H3FACEXFORM"
     ],
     [
-      135,
+      97,
       5024,
       0,
       5025,
@@ -4222,7 +4222,7 @@
       "IMAGE"
     ],
     [
-      136,
+      98,
       5002,
       1,
       5025,
@@ -4230,7 +4230,7 @@
       "AUDIO"
     ],
     [
-      137,
+      99,
       5025,
       0,
       5113,
@@ -4238,7 +4238,7 @@
       "COMFY_MATCHTYPE_V3"
     ],
     [
-      138,
+      100,
       5023,
       0,
       5113,
@@ -4246,7 +4246,7 @@
       "COMFY_MATCHTYPE_V3"
     ],
     [
-      139,
+      101,
       5111,
       0,
       5113,
@@ -4254,7 +4254,7 @@
       "BOOLEAN"
     ],
     [
-      140,
+      102,
       5113,
       0,
       5100,
@@ -4347,8 +4347,8 @@
       "bounding": [
         11240,
         920,
-        5170,
-        3446
+        5230,
+        4128
       ],
       "color": "#995588",
       "flags": {},
@@ -4356,7 +4356,7 @@
     },
     {
       "id": 17,
-      "title": "终档组(p-final·四采开关·1118 multiseg)",
+      "title": "终档组",
       "bounding": [
         16540,
         920,

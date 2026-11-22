@@ -11,7 +11,7 @@ ReCaVSR 超分(三采 3840×2220=4K 终档,1117 默认改 4K);与 单镜.json �
      3031 1440-832-56-match)
   ③ 101.slot1→3001;音轨直通;3043 五口喂源;模型链 34→1021→1033→3011→3021 双扇出→3041/3044→3042
   ④ 单源扇出:UNETLoader 全图唯一(34)扇出 {41,1021};KSamplerSelect/RandomNoise 各恰一
-  ⑤ 段B 出厂旁路+内联接线(1115 实弹勘误):4001-4003 mode=4,3053→4002 直连;4002 九元组
+  ⑤ 段B 出厂激活+内联接线(1122 用户裁定解旁路):4001-4003 mode=0,3053→4002 直连;4002 九元组
   ⑥ 出厂自洽四元组:100 提示词 2×1秒/total=56/3031.length=56/3030 与 100 同文
   ⑦ 三面一致/五组横排罩全/零负区零左向(镜像样板三件)
 
@@ -168,21 +168,24 @@ def test_single_source_fanout():
 
 
 def test_stage3_inline_factory():
-    """段B 出厂旁路+内联接线(1115 实弹勘误终态):三节点 mode=4,3053→4002 直连保留
-    (两步法手册:整图直跑出 p1/p2→激活段B 选中局部执行=缓存复用;整图一发含段B=引擎崩,禁);
-    4002 九元组逐值;p3 前缀。API 两发拆链由 extend.py build_stageB_api 合成 300 LoadVideo。"""
+    """段B 出厂激活+内联接线(1122 用户裁定解旁路):三节点 mode=0,3053→4002 直连保留
+    (整图一发直出 p1/p2/p3;1115 崩溃史鉴与 1118 削峰后的显存格局见 README 9999 刻碑);
+    4002 九元组逐值(scale2.667=4K 正典);p3 前缀。API 两发拆链由 extend.py build_stageB_api 合成 300 LoadVideo。"""
     d, nodes, links = _load()
     assert 4000 not in nodes, "[4000] LoadVideo 应不存在(1115 内联正典)"
     for nid, ntype in ((4001, "ReCaVSRLoader"),
                        (4002, "ReCaVSRUpscale"), (4003, "SaveVideo")):
         assert nodes[nid]["type"] == ntype, f"[{nid}] 应为 {ntype}"
-        assert nodes[nid]["mode"] == 4, f"[{nid}] 出厂应旁路(1115 实弹勘误:整图一发含段B=引擎崩,两步法)"
+        assert nodes[nid]["mode"] == 0, f"[{nid}] 出厂应激活 mode=0(1122 用户裁定解旁路,整图一发直出三档)"
     l44 = links.get(44)
     assert l44 and (l44[1], l44[2], l44[3], l44[4]) == (3053, 0, 4002, 1), \
         "link44 应 3053.0→4002.1(内联直喂)"
-    fan_targets = {l[3] for l in d["links"] if l[1] == 3053}
-    assert {3071, 4002, 5002, 5100} <= fan_targets, \
-        "[3053] 扇出应含 3071/4002/5002(拆帧)/5100(终档直通臂)(语义断言,1118 追踪参数同步役改)"
+    fan_3053 = {l[3] for l in d["links"] if l[1] == 3053}
+    assert {3071, 4002} <= fan_3053, \
+        "[3053] 扇出应含 3071(p2 存盘)/4002(三采直喂)(1122 回正:5002/5100 改吃 4002)"
+    fan_4002 = {l[3] for l in d["links"] if l[1] == 4002}
+    assert {4003, 5002, 5100} <= fan_4002, \
+        "[4002] 扇出应含 4003(p3 存盘)/5002(四采拆帧)/5100(终档直通臂)(1122 回正,与单镜三扇出同构)"
     assert nodes[4001]["widgets_values"] == ["transformer_int8_convrot.safetensors"]
     assert nodes[4002]["widgets_values"] == [2.667, "none", 42, "fixed", "flashdecoder",
                                              "fast", False, "auto", 30], "4002 九元组逐值(1117 三采默认 4K:scale2.667→3840×2220)"
@@ -268,7 +271,7 @@ def test_no_negative_no_leftward():
 def test_facerefine_group_inline_bypass():
     """四采修脸组(1118 内置·默认旁路;生成器 multiseg_inline_facerefine_build_1118.py):
     开关默认 False / 5006 复用 34 / 5012 宽高=5011 出口联线 / length 与 3031 同源同值 /
-    5100 极性 on_true=修脸臂出口(1119 改接 5113)·on_false=3053 直通 / 组框罩全。"""
+    5100 极性 on_true=修脸臂出口(1119 改接 5113)·on_false=4002 直通(1122 回正) / 组框罩全。"""
     d, nodes, links = _load()
     OWN = {25: "PrimitiveStringMultiline", 1065: "PrimitiveBoolean",
            5002: "GetVideoComponents", 5006: "LoraLoaderModelOnly",
@@ -291,16 +294,17 @@ def test_facerefine_group_inline_bypass():
         return l[1], nodes[l[1]]["outputs"][l[2]]["name"]
 
     assert nodes[1065]["widgets_values"] == [False], "修脸开关默认 False=旁路(50xx 臂惰性剪除)"
-    assert src_of(5002, "video")[0] == 3053, "5002 拆帧源=3053(二采 p2 出片口)"
+    assert src_of(5002, "video")[0] == 4002, \
+        "5002 拆帧源=4002(三采 p3 4K 出片口;1122 回正=用户裁定「修脸必须吃三采之后」,与单镜同构)"
     assert src_of(5006, "model")[0] == 1066, \
         "5006 LoRA 复用唯一 UNETLoader 链(81f8909f lowvram 插桩后经 1066 头分块收束点=34 扇出之后,随迁漏笔 1118 补)"
     assert src_of(5012, "width") == (5011, "canvas_w"), "5012.width=5011.canvas_w 出口联线勿手填"
     assert src_of(5012, "height") == (5011, "canvas_h"), "5012.height=5011.canvas_h 出口联线勿手填"
     assert nodes[5012]["widgets_values"][3] == nodes[3031]["widgets_values"][3] == 56, \
         "5012.length 与 3031.length 同源同值(本件无帧数图出口,widget 同步纪律)"
-    assert src_of(5100, "on_true")[0] == 5113 and src_of(5100, "on_false")[0] == 3053 \
+    assert src_of(5100, "on_true")[0] == 5113 and src_of(5100, "on_false")[0] == 4002 \
         and src_of(5100, "switch")[0] == 1065, \
-        "5100 极性:真=修脸臂出口(1119 改接 5113,远景态经直通臂等效)/假=3053 直通(1118 双态实测定谳)"
+        "5100 极性:真=修脸臂出口(1119 改接 5113,远景态经直通臂等效)/假=4002 p3 直通(1122 回正)"
     assert src_of(4100, "video")[0] == 5100
     assert nodes[4100]["widgets_values"][0] == "video/H3/分段视频/p-final", "p-final 终档前缀"
     assert bool(nodes[25]["widgets_values"][0].strip()), "#25 修脸身份提示词默认通用句非空"
@@ -317,8 +321,8 @@ def test_facerefine_dual_mode_1119():
     """1119 双档移植(远景=默认/高清;同 id 直搬单镜六件,唯一改线 5100.on_true:5023→5113):
     节点数 61→67 / 5111 出厂 False=远景档 / 5113 出口极性(真=5025 高清·假=5023 远景)/
     5024/5025 复制对 widgets 逐位同 5022/5023 / masks 恒悬空 face_only / VOSR2 尾档
-    5109→5110(image←5021,control=fixed 禁 randomize)/ README 9999 语义差异刻碑
-    (multiseg 高清档从二采底放大——三采 mode=4 旁路;单镜从三采 p3 4K)。"""
+    5109→5110(image←5021,control=fixed 禁 randomize)/ README 9999 刻碑
+    (1122 回正:两件同吃三采底——multiseg 修脸入口=4002 与单镜同构,段B mode 4→0 随同批解旁路)。"""
     d, nodes, links = _load()
     assert len(nodes) == 67, f"画布节点数=67(61+1119 双档 6),现 {len(nodes)}"
     assert nodes[5111]["type"] == "PrimitiveBoolean" and nodes[5111]["widgets_values"] == [False], \
@@ -354,7 +358,7 @@ def test_facerefine_dual_mode_1119():
     assert nodes[5109]["widgets_values"] == ["VOSR2", "default"], "[5109] widgets 逐位照单镜"
     # 远景臂零语义改写(871 线原样)
     assert src_of(5022, "refined_crops")[0] == 5021, "[5022].refined_crops←[5021] 远景臂原样"
-    # README 9999 语义差异刻碑
+    # README 9999 1122 回正刻碑
     md = nodes[9999]["widgets_values"][0]
-    for kw in ("1119 双档调用", "非法态", "二采底", "三采 p3 4K"):
+    for kw in ("1119 双档调用", "非法态", "1122 回正", "三采底"):
         assert kw in md, f"README 9999 双档段缺关键内容: {kw}"
