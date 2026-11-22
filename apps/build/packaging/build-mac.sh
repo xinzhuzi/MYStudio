@@ -75,7 +75,11 @@ wait_for_chain_free
 # 自然复跑本预检——重试途中用户开 App=快速失败,期望行为。
 if [ "${MYSTUDIO_SMOKE_SKIP_PREKILL:-0}" = "1" ] || [ "${MYSTUDIO_SMOKE_PREKILL_FORCE:-0}" = "1" ]; then
   echo "Skipping chain-head running-instance precheck (prekill SKIP/FORCE env set)."
-elif pgrep -f "漫影工作室.app" >/dev/null 2>&1; then
+# 1122 根修:旧 pgrep -f "漫影工作室.app" 误报面巨大——任何命令行/env 含该串的
+# 进程都算在驾(别的会话 zsh 带 MYSTUDIO_COMFYUI_HOME 路径、装机链自带的
+# pgrep 检查文本),App 明明已退仍链首假红。改按进程名精确匹配(-x 匹配可执行
+# 名"漫影工作室",不含 .app 后缀)——只认真身。
+elif pgrep -x 漫影工作室 >/dev/null 2>&1; then
   echo "[build-mac] 检测到 漫影工作室 实例正在运行,链首快速失败(构建前拦截,免整链白跑)。" >&2
   echo "[build-mac] 出路一:关闭漫影工作室 App 后重跑。" >&2
   echo "[build-mac] 出路二:确系残留冒烟僵尸,设 MYSTUDIO_SMOKE_PREKILL_FORCE=1 解锁变量,走显式清理后重跑。" >&2
