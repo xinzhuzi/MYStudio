@@ -3092,6 +3092,8 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
       posts.every((p) => typeof p.timeoutS === "number" && p.timeoutS > 0),
     ).toBe(true);
     expect(posts[0].timeoutS).toBeLessThanOrEqual(1800);
+    // 1122 sshd 楔死防僵:单件预算封顶 6min(整段预算的较小者)
+    expect(posts.every((p) => (p.timeoutS ?? 0) <= 360)).toBe(true);
   });
 
   it("完成弹结果 Dialog:逐项 ✅ 文案+重启建议+[重启引擎]→POST /comfy/ssh/restart-engine;⚠️ pip 失败不阻断", async () => {

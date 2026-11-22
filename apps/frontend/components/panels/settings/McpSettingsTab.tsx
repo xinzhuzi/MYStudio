@@ -922,7 +922,11 @@ export function McpSettingsTab() {
       try {
         const reply = await syncEngine(
           [name],
-          Math.max(1, Math.ceil(remainingMs / 1000)),
+          // 1122 sshd 楔死实弹:SSH 通道挂死时后端内层超时不再走火(channel
+          // 阻塞不吃 deadline),HTTP 层若拿整段剩余预算(最长 30min)干等=批次
+          // 长僵(14:50 批第 16 件实证)。单件预算封顶 6min:楔件按超时落
+          // failed,批次继续走,不再死等。
+          Math.min(360, Math.max(1, Math.ceil(remainingMs / 1000))),
         );
         const item = reply.items[0];
         results.push(item);
