@@ -182,7 +182,7 @@ describe("守卫拒(转移表 idle 行:master 图缺失=不换态禁发车;主�
     const { calls } = installFetchRouter({});
     const noMaster = await runSheetCardBLine(baseInput({ masterImageUrl: "" }));
     expect(noMaster.phase).toBe("failed");
-    expect(noMaster.error).toContain("无衣物定妆");
+    expect(noMaster.error).toContain("正视图");
 
     const noSubject = await runSheetCardBLine(baseInput({ subjectText: "   " }));
     expect(noSubject.phase).toBe("failed");

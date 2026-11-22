@@ -1268,11 +1268,11 @@ export function useStudioAssetDialogActions(ctx: {
       return false;
     }
     let referenceImage: string | undefined;
-    // 1121 B 线 master 守卫(裁定A,照高清人头「以无衣物定妆为锚」同款守卫语义):
-    // 设定卡 master=无衣物定妆图(B 线 master 本是「人物海报型全身」,定妆=角色身份
-    // 源头撑得起三视图);缺失=toast 引导先出定妆,不换态(转移表 idle 行,禁发车)
+    // 1121 B 线 master 守卫;1122 用户令修正锚源:设定卡须带装参考(展示服装/装备,
+    // 素体 master=服装全靠即兴=错误方向)——master=人物多视图节正视图(带装全身单姿,
+    // 参考图与设定卡提示词服装段匹配);缺失=toast 引导先出正视图,不换态(禁发车)
     if (kind === SHEET_CARD_BLINE_KIND) {
-      const master = latestKindImage(getDisplayImages?.() ?? carouselImages, "无衣物定妆");
+      const master = latestKindImage(getDisplayImages?.() ?? carouselImages, "人物多视图");
       if (!master?.url) {
         void logEvent({
           level: "warn",
@@ -1281,7 +1281,7 @@ export function useStudioAssetDialogActions(ctx: {
           message: "Asset type shot guard rejected (sheet card master missing)",
           context: { assetId: asset.id, kind, displayImageCount: carouselImages.length },
         });
-        toast.error("尚无无衣物定妆图——设定卡B线以无衣物定妆为锚，请先「生成无衣物定妆」(文生图)");
+        toast.error("尚无正视图——设定卡B线以人物多视图(正视图)为锚，请先生成或补充正视图");
         return false;
       }
       referenceImage = master.url;

@@ -11,7 +11,7 @@ import type { AssetTypeShotProgress } from "./asset-type-shot";
  * 资产库设定卡 B 线 i2i 件 App 侧客户端(1121,PRD .trellis/tasks/11-21-asset-sheet-bline-i2i)。
  *
  * 设定卡生成口换血:t2i 自由版式直射 → QwenImage2.1 域「道劫-角色设定卡-i2i.json」整链
- * (master 接无衣物定妆图 → 五路编辑+武器/特效 t2i → head/表情×5 二级链 →
+ * (master 接人物多视图正视图[1122 用户令修正:须带装参考] → 五路编辑+武器/特效 t2i → head/表情×5 二级链 →
  * MySheetCardComposer 程序底框合成 4K 整卡)。本模块只做 App 层(R2+R3):sidecar
  * 任务接口调用 + 异步任务进度轮询(裁定B,复用按型出图既有 progress 线)+ 转移表
  * 全态 + 4K 卡收编替换守卫。
@@ -453,7 +453,7 @@ export interface SheetCardBLineRunInput {
   assetName: string;
   /** 竖线字段式主体句(降级链已在派发层解析:设定卡槽优先,空=assets.prompt 立绘主体句透传)。 */
   subjectText: string;
-  /** master 参考图(无衣物定妆图 url;裁定A)。 */
+  /** master 参考图(人物多视图节正视图 url;1122 修正裁定:带装参考)。 */
   masterImageUrl: string;
   /**
    * 格式档(1122 格式入参化,裁定A 四档各一槽):全卡/简版/竖版/无装备;缺省=全卡
@@ -499,7 +499,7 @@ export async function runSheetCardBLine(
     : SHEET_CARD_FORMAT_DEFAULT;
   // 守卫(belt-and-braces:派发层已拦,service 层再拒一次——禁发车口径单一)
   if (!input.masterImageUrl) {
-    return { phase: "failed", error: "设定卡B线缺少无衣物定妆 master 图——请先「生成无衣物定妆」(文生图)" };
+    return { phase: "failed", error: "设定卡B线缺少正视图 master 图——请先生成或补充人物多视图(正视图)" };
   }
   if (!input.subjectText.trim()) {
     return { phase: "failed", error: "设定卡B线缺少主体句(设定卡槽或资产提示词)" };

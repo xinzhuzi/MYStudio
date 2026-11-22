@@ -501,7 +501,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     expect(fullBody.disabled).toBe(false);
     const poster = screen.getByRole("button", { name: "生成人物海报" }) as HTMLButtonElement;
     expect(poster.disabled).toBe(true);
-    // 1121 换血:设定卡档案 route=i2i(master=无衣物定妆为锚,裁定A)——零图禁用同 i2i 族
+    // 1121 换血:设定卡档案 route=i2i(1122 修正:master=人物多视图正视图为锚)——零图禁用同 i2i 族
     const sheet = screen.getByRole("button", { name: "生成设定卡" }) as HTMLButtonElement;
     expect(sheet.disabled).toBe(true);
     const promo = screen.getByRole("button", { name: "生成美宣" }) as HTMLButtonElement;
