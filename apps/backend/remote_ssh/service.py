@@ -80,6 +80,8 @@ def _tunnel_local_port_from_cfg() -> int:
 _WIN_COMFY_ROOT = "E:\\IP\\漫影工作室\\comfyui"
 _WIN_CUSTOM_NODES = _WIN_COMFY_ROOT + "\\ComfyUI\\custom_nodes"
 _WIN_VENV_PYTHON = _WIN_COMFY_ROOT + "\\venv\\Scripts\\python.exe"
+# Win 账本补记用的系统 python(engine_task.py 同款;base 缺 venv 包但 stdlib json 足够)
+_WIN_BASE_PYTHON = "D:\\Python312\\python.exe"
 TORCH_TV_MAP = {"2.14.1": "0.29.1", "2.14.0": "0.29.0", "2.13.0": "0.28.0"}
 # 1107 补挂账:升级管线只带 torch/torchvision 漏了 torchaudio,旧件 2.11.0+cu128 在 torch 2.14.1+cu132 下
 # 加载即炸,拖挂 6 插件(MiniMaxH3×3/LayerStyle/LTXVideo/CRT-Nodes)。
@@ -1025,6 +1027,39 @@ class SSHService:
         """SSH 读 Windows 侧 git HEAD(目录非 git/不存在/超时 → None)。"""
         return self._win_git_info(win_path)[0]
 
+    def _patch_win_engine_ledger(self, win_path: str, latest: str, deadline: float, sha: str | None = None) -> str:
+        """Win 引擎账本补记(1122 冲突弹窗根修);返回空=成功,非空=不阻断警句。
+
+        引擎同步移动 Win 引擎仓(checkout tag)后,Win App 账本 manifest.json
+        的 engine.version/sha/lastCheck 若不跟着写,Win 卡会「显旧版+假可更新
+        横幅」而 update_job 按仓实况拒发——两口径互咬。幂等补记(只动 engine
+        三键);失败不阻断同步,警句走回执 pipError 位。"""
+        if not sha:
+            code, out = self.run_remote_command(
+                f'cd /d "{win_path}" & git rev-parse HEAD 2>nul',
+                self._remaining_timeout(deadline, 20),
+            )
+            lines = [l.strip() for l in out.splitlines() if l.strip()]
+            sha = lines[-1] if lines else ""
+        if not re.fullmatch(r"[0-9a-f]{40}", sha):
+            return f"账本补记跳过(HEAD 不可读: {sha[:40] or '空'})"
+        patch = (
+            "import json;"
+            f"p=r'{_WIN_COMFY_ROOT}\\manifest.json';"
+            "d=json.load(open(p,encoding='utf-8'));"
+            "e=d.setdefault('engine',{});"
+            f"e['version']='{latest}';e['sha']='{sha}';"
+            f"e['lastCheck']={{'at':{int(time.time() * 1000)},'latest':'{latest}',"
+            "'headSha':'','aheadBy':None,"
+            f"'pinnedSha':'{sha}'}};"
+            "json.dump(d,open(p,'w',encoding='utf-8'),ensure_ascii=False,indent=2)"
+        )
+        code, out = self.run_remote_command(
+            f'"{_WIN_BASE_PYTHON}" -c "{patch}" 2>&1',
+            self._remaining_timeout(deadline, 20),
+        )
+        return "" if code == 0 else f"账本补记失败(不阻断): {out.strip()[:120]}"
+
     def _win_git_info(self, win_path: str) -> tuple[str | None, str | None]:
         """SSH 读 Win 侧 git HEAD+版本(单命令双读,零额外 SSH 往返)。
 
@@ -1326,6 +1361,7 @@ class SSHService:
         if name in _ENGINE_SYNC_SKIP_NAMES:  # Q2
             return self._sync_result(name, kind, mac_head, None, "skipped", False)
         action: str
+        ledger_note = ""  # 引擎件账本补记警句(1122;空=成功/不适用)
         if not win_exists:
             # Win 缺(mac-only/手动条目)→ clone 新装(清单 URL;单件 300s)
             action = "cloned"
@@ -1361,9 +1397,11 @@ class SSHService:
             )
             shas = [l.strip() for l in out.splitlines() if re.fullmatch(r"[0-9a-f]{40}", l.strip())]
             if len(shas) >= 2 and shas[0] == shas[-1]:
+                # 已在最新 tag:账本仍可能停在旧值(历史移动未补记)——幂等补齐
+                note = self._patch_win_engine_ledger(win_path, latest, deadline, shas[-1])
                 return self._sync_result(
                     name, kind, mac_head, shas[-1], "skipped", True,
-                    f"已是最新 release({latest}),跳过",
+                    f"已是最新 release({latest}),跳过" + (f" | {note}" if note else ""),
                 )
             action = "pulled"
             code, out = self.run_remote_command(
@@ -1375,6 +1413,11 @@ class SSHService:
                     name, kind, mac_head, None, "failed", False,
                     f"对齐 {latest} 失败: {out.strip()[:200]}",
                 )
+            # 1122 冲突弹窗根修:引擎仓被移动,Win 账本同步补记(version/sha/
+            # lastCheck)——否则 Win 卡显旧版,其 status 回放/启动横幅按旧账报
+            # 「可更新」,点更新又被 update_job 按仓实况拒发,两边口径互咬。
+            # 幂等补记(只动 engine 三键);警句不阻断,走回执 pipError 位。
+            ledger_note = self._patch_win_engine_ledger(win_path, latest, deadline)
         elif mac_head is not None:
             # Win 已有(both 插件)→ 先比 HEAD 再决定要不要 pull(1104 优化:
             # fetch 后 local HEAD == origin/HEAD = 已最新 → 跳过,省 SSH 往返;
@@ -1422,7 +1465,8 @@ class SSHService:
         win_head, win_version = self._win_git_info(win_path)
         verified = win_head is not None
         return self._sync_result(
-            name, kind, mac_head, win_head, action, verified, None, pip_error, win_version
+            name, kind, mac_head, win_head, action, verified, None,
+            pip_error or ledger_note or None, win_version,
         )
 
     @contextmanager

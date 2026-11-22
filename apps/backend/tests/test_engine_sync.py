@@ -171,6 +171,7 @@ class _SshStub:
         self.win_procs = win_procs or []
         self.win_tags = win_tags or {}
         self.on_latest_tag = on_latest_tag
+        self.ledger_patches: list[str] = []
         self.commands: list[str] = []
         self.timeouts: list[float] = []
 
@@ -189,6 +190,14 @@ class _SshStub:
                 return (0, "\n".join(lines) + "\n")
         if "dir /b /ad" in command:
             return (0, "\r\n".join(sorted(self.win_dirs)))
+        if "manifest.json" in command and "import json" in command:
+            # 1122 账本补记:引擎仓移动后同步写 Win 账本(python -c 幂等补记)
+            self.ledger_patches.append(command)
+            return (0, "")
+        if command.startswith("cd /d") and "rev-parse HEAD" in command and "rev-list" not in command:
+            # 账本补记前取 HEAD(cd 形态,无 -C,先于通用 rev-parse 分支;
+            # 须排除含 rev-list 的比对命令,免误吞)
+            return (0, "e" * 40 + "\n")
         if "ls-remote --tags origin" in command:
             # 1122 截3:引擎件对齐最新 release tag(ls-remote 取远端 tag 榜)
             return (0, "".join(
@@ -493,9 +502,16 @@ class SyncEngineTests(unittest.TestCase):
         self.assertEqual(len(pip), 1)
         self.assertIn("PYTHONUTF8=1", pip[0])
         self.assertIn(svc_mod._WIN_VENV_PYTHON, pip[0])
+        # 1122 账本补记:引擎仓被移动后同步写 Win 账本(version/sha/lastCheck)
+        self.assertEqual(len(stub.ledger_patches), 1)
+        self.assertIn("e['version']='v0.46.2'", stub.ledger_patches[0])
+        self.assertIn(f"e['sha']='{'e' * 40}'", stub.ledger_patches[0])
+        self.assertIn("'pinnedSha'", stub.ledger_patches[0])
+        self.assertIsNone(item["pipError"])  # 补记成功=零警句
 
     def test_engine_on_latest_tag_skips(self) -> None:
-        # 已在最新 release tag 上(HEAD==tag commit)→ skipped 不 checkout
+        # 已在最新 release tag 上(HEAD==tag commit)→ skipped 不 checkout;
+        # 账本仍幂等补记(历史移动可能没写账)
         stub = self._stub(engine="e" * 40)
         stub.on_latest_tag = True
         result = _service_with_stub(stub).sync_engine(["ComfyUI"])
@@ -503,6 +519,7 @@ class SyncEngineTests(unittest.TestCase):
         self.assertEqual(item["action"], "skipped")
         self.assertIn("已是最新 release", item["error"])
         self.assertFalse(any("git checkout" in c for c in stub.commands))
+        self.assertEqual(len(stub.ledger_patches), 1)
 
     def test_engine_sync_works_without_mac_head(self) -> None:
         """1104 裁定随修:引擎不再要求 Mac HEAD 可读(不比 Mac 版本)——

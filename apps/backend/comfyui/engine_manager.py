@@ -1393,11 +1393,16 @@ class EngineManager:
         persisted_check = engine.get("lastCheck") if isinstance(engine.get("lastCheck"), dict) else {}
         latest_known = self._last_check.get("latest") or persisted_check.get("latest")
         last_check_at = self._last_check.get("checkedAt") or persisted_check.get("at")
-        head_known = self._last_check.get("headSha") or persisted_check.get("headSha")
         ahead_known = self._last_check.get("aheadBy")
         if ahead_known is None:
             ahead_known = persisted_check.get("aheadBy")
         local_sha = engine.get("sha")
+        # 1122 冲突弹窗根修:回放口径与 update_check/update_job 单源(cut3
+        # release 轨道)——比 pinnedSha(最新 release tag 的 commit sha),不再比
+        # headSha(master HEAD):master 领先时旧公式恒报「有新版本」,启动横幅
+        # 「可更新到 X(当前 X)」与 update_job 拒发「已是最新」同屏互咬(1122
+        # 用户实录两弹窗);旧账本 lastCheck 无 pinnedSha 回落版本比(有向不误降级)。
+        pinned_known = self._last_check.get("pinnedSha") or persisted_check.get("pinnedSha")
         # 渲染层状态机补充面(09-08 集成,B 契约需要):默认模型目录(恢复默认)、
         # 安装目录(打开按钮)、needsSetup(源码目录残留=装了一半可继续)、
         # message(出错态大白话通道,一期占位 None)。
@@ -1416,8 +1421,8 @@ class EngineManager:
             "modelsDir": str(cm.configured_models_dir(manifest)),
             "pluginCount": len(cm.plugin_ledger(manifest)),
             "updateAvailable": (
-                (head_known != local_sha)
-                if (head_known and local_sha)
+                (pinned_known != local_sha)
+                if (pinned_known and local_sha)
                 else _is_upgrade(latest_known, engine.get("version"))
             ),
             "aheadBy": ahead_known if isinstance(ahead_known, int) else None,

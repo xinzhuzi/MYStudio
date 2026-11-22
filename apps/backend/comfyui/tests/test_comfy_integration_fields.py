@@ -101,6 +101,38 @@ class TestUpdateCheckLedger:
         assert status["updateAvailable"] is False
         assert status["lastCheckAt"] == checked_at
 
+    def test_replay_pinned_match_green_even_master_ahead(self, tmp_path, monkeypatch):
+        """1122 冲突弹窗根修:回放比 pinnedSha(release tag commit),不再比
+        headSha(master)——master 领先而本地已在最新 tag 时必须绿,否则启动
+        横幅「可更新到 X(当前 X)」与 update_job 拒发「已是最新」同屏互咬。"""
+        _use_tmp_home(tmp_path, monkeypatch)
+        cm.mutate_manifest(lambda m: m.update({
+            "engine": {
+                "version": "v0.46.2", "sha": "a" * 40, "port": 17600,
+                "lastCheck": {"at": cm.timestamp_ms(), "latest": "v0.46.2",
+                              "headSha": "b" * 40, "aheadBy": None, "pinnedSha": "a" * 40},
+            },
+        }))
+        manager = EngineManager()
+        monkeypatch.setattr(manager, "is_healthy", lambda port=None, timeout=2.0: False)
+        status = manager.status()
+        assert status["updateAvailable"] is False
+
+    def test_replay_pinned_mismatch_red(self, tmp_path, monkeypatch):
+        # 本地 sha 与最新 release tag sha 不一致(落后/漂移)→ 回放必须红
+        _use_tmp_home(tmp_path, monkeypatch)
+        cm.mutate_manifest(lambda m: m.update({
+            "engine": {
+                "version": "v0.45.2", "sha": "a" * 40, "port": 17600,
+                "lastCheck": {"at": cm.timestamp_ms(), "latest": "v0.46.2",
+                              "headSha": "b" * 40, "aheadBy": None, "pinnedSha": "c" * 40},
+            },
+        }))
+        manager = EngineManager()
+        monkeypatch.setattr(manager, "is_healthy", lambda port=None, timeout=2.0: False)
+        status = manager.status()
+        assert status["updateAvailable"] is True
+
     def test_master_commits_ahead_but_release_same_no_update(self, tmp_path, monkeypatch):
         """1122 用户裁定截 3(跟随最新 release):release 相同但 master 领先 →
         不再构成可更新(release 轨道不比 master 提交;旧 09-09 跟 master 语义废止)。"""
