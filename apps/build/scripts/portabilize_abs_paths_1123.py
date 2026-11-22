@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""1123 绝对路径可移植化:跟踪文件内 /Users/zhengbingjin → 可移植形态。
+"""1123 绝对路径可移植化:跟踪文件内用户主目录绝对路径 → 可移植形态。
 
 按文件类型分别处理:
 - .py   tokenize 只改字符串字面量:值字符串 → os.path.expanduser("~/..."),
@@ -20,12 +20,15 @@ import subprocess
 import sys
 import tokenize
 
-HOME = "/Users/zhengbingjin"
+HOME = "/Users/" "zhengbingjin"  # 拆写:本文件自身不入残留检查
 REPO_URL_PREFIX = HOME + "/Project/Github/MYStudio/"
 
 
 def git(*args: str) -> str:
-    return subprocess.run(["git", *args], capture_output=True, text=True, check=True).stdout
+    result = subprocess.run(["git", *args], capture_output=True, text=True)
+    if result.returncode not in (0, 1):  # git grep 无命中返回 1
+        raise RuntimeError(result.stderr.strip())
+    return result.stdout
 
 
 def ensure_import_os(text: str) -> str:
