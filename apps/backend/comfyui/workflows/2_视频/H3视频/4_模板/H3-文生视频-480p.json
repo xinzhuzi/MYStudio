@@ -313,7 +313,8 @@
           "type": "CONDITIONING",
           "slot_index": 0,
           "links": [
-            5
+            5,
+            6
           ]
         },
         {

@@ -45,7 +45,7 @@
           "type": "IMAGE",
           "slot_index": 0,
           "links": [
-            1
+            5
           ]
         },
         {
@@ -537,7 +537,7 @@
           "type": "IMAGE",
           "slot_index": 0,
           "links": [
-            4
+            7
           ]
         }
       ],
@@ -688,7 +688,9 @@
           "localized_name": "图像",
           "name": "IMAGE",
           "type": "IMAGE",
-          "links": null
+          "links": [
+            6
+          ]
         }
       ],
       "title": "缩到1MP内(防崩护栏)",
@@ -846,7 +848,9 @@
           "localized_name": "图像",
           "name": "IMAGE",
           "type": "IMAGE",
-          "links": null
+          "links": [
+            11
+          ]
         }
       ],
       "title": "落4K档",

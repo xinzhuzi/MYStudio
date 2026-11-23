@@ -1,7 +1,7 @@
 {
   "id": "e3f2b845-8f2c-4b5a-9caf-eac1029d3e7e",
   "revision": 0,
-  "last_node_id": 708,
+  "last_node_id": 709,
   "last_link_id": 1226,
   "nodes": [
     {
@@ -1641,7 +1641,7 @@
           "input_ue_unconnectable": {},
           "version": "7.8"
         },
-        "detail_info_cache": "━━━━━━━━━━━━━━━━━━━━━━\n📂 文件名称 : minimax-h3_N565_0036.mp4\n📏 物理尺寸 : 704 x 1280\n🎞️ 总帧数量 : 362 帧\n⏱️ 播放时长 : 15 秒\n📉 视频帧率 : 24.0 FPS\n💾 文件体积 : 31.10 MB\n📼 编码格式 : MP4\n━━━━━━━━━━━━━━━━━━━━━━\n✅ 输出路径 : K:\\ComfyUI_windows_portable\\ComfyUI\\output\\minimax-h3_N565_0036.mp4\n━━━━━━━━━━━━━━━━━━━━━━",
+        "detail_info_cache": "━━━━━━━━━━━━━━━━━━━━━━\n📂 文件名称 : minimax-h3_N565_0036.mp4\n📏 物理尺寸 : 704 x 1280\n🎞️ 总帧数量 : 362 帧\n⏱️ 播放时长 : 15 秒\n📉 视频帧率 : 24.0 FPS\n💾 文件体积 : 31.10 MB\n📼 编码格式 : MP4\n━━━━━━━━━━━━━━━━━━━━━━\n✅ 输出路径 : \n━━━━━━━━━━━━━━━━━━━━━━",
         "bz_et_cumulative_time": "14分1秒",
         "painter_output_cache": {
           "filename": "minimax-h3_N565_0036.mp4",
@@ -1731,7 +1731,7 @@
           "type": "output",
           "abs_path": ""
         },
-        "detail_info_cache": "━━━━━━━━━━━━━━━━━━━━━━\n📂 文件名称 : seeds_2_N149_0042.mp4\n📏 物理尺寸 : 576 x 320\n🎞️ 总帧数量 : 362 帧\n⏱️ 播放时长 : 15 秒\n📉 视频帧率 : 24.0 FPS\n💾 文件体积 : 9.50 MB\n📼 编码格式 : MP4\n━━━━━━━━━━━━━━━━━━━━━━\n✅ 输出路径 : K:\\ComfyUI_windows_portable\\ComfyUI\\output\\seeds_2_N149_0042.mp4\n━━━━━━━━━━━━━━━━━━━━━━",
+        "detail_info_cache": "━━━━━━━━━━━━━━━━━━━━━━\n📂 文件名称 : seeds_2_N149_0042.mp4\n📏 物理尺寸 : 576 x 320\n🎞️ 总帧数量 : 362 帧\n⏱️ 播放时长 : 15 秒\n📉 视频帧率 : 24.0 FPS\n💾 文件体积 : 9.50 MB\n📼 编码格式 : MP4\n━━━━━━━━━━━━━━━━━━━━━━\n✅ 输出路径 : \n━━━━━━━━━━━━━━━━━━━━━━",
         "bz_et_cumulative_time": "2分29秒",
         "bz_video_only": false
       },
@@ -1858,7 +1858,7 @@
           "type": "output",
           "abs_path": ""
         },
-        "detail_info_cache": "━━━━━━━━━━━━━━━━━━━━━━\n📂 文件名称 : minimax-h3_N468_0126.mp4\n📏 物理尺寸 : 480 x 864\n🎞️ 总帧数量 : 362 帧\n⏱️ 播放时长 : 15 秒\n📉 视频帧率 : 24.0 FPS\n💾 文件体积 : 16.24 MB\n📼 编码格式 : MP4\n━━━━━━━━━━━━━━━━━━━━━━\n✅ 输出路径 : K:\\ComfyUI_windows_portable\\ComfyUI\\output\\minimax-h3_N468_0126.mp4\n━━━━━━━━━━━━━━━━━━━━━━",
+        "detail_info_cache": "━━━━━━━━━━━━━━━━━━━━━━\n📂 文件名称 : minimax-h3_N468_0126.mp4\n📏 物理尺寸 : 480 x 864\n🎞️ 总帧数量 : 362 帧\n⏱️ 播放时长 : 15 秒\n📉 视频帧率 : 24.0 FPS\n💾 文件体积 : 16.24 MB\n📼 编码格式 : MP4\n━━━━━━━━━━━━━━━━━━━━━━\n✅ 输出路径 : \n━━━━━━━━━━━━━━━━━━━━━━",
         "bz_et_cumulative_time": "6分5秒",
         "bz_video_only": true
       },
@@ -2199,7 +2199,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "来源=夸克包/黑鹤001与宏雷HyLan两期B站视频配套资源;本件依赖 BanZhang 生态插件(BanZhang_*/CSGlide* 等),该生态无公开 GitHub 仓库装不了,打开出现红节点属预期,留档备用;2026-10-01 入库。"
+        "【缺模型·不可跑(Win 引擎无下述件,1123 D11;清单=engine-audit-1123.md)】\n来源=夸克包/黑鹤001与宏雷HyLan两期B站视频配套资源;本件依赖 BanZhang 生态插件(BanZhang_*/CSGlide* 等),该生态无公开 GitHub 仓库装不了,打开出现红节点属预期,留档备用;2026-10-01 入库。"
       ]
     }
   ],

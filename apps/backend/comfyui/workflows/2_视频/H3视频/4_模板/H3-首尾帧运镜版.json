@@ -306,7 +306,8 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            9
+            9,
+            10
           ],
           "slot_index": 0
         },

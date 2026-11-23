@@ -1,8 +1,8 @@
 {
   "id": "t2i-skin-superres-001",
   "revision": 1,
-  "last_node_id": 504,
-  "last_link_id": 15,
+  "last_node_id": 8114,
+  "last_link_id": 9024,
   "nodes": [
     {
       "id": 1,
@@ -369,7 +369,6 @@
           "type": "IMAGE",
           "links": [
             13,
-            14,
             9007
           ]
         }
@@ -739,7 +738,6 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            9004,
             9017
           ]
         }
@@ -840,8 +838,6 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            9010,
-            9011,
             9018
           ]
         },
@@ -856,7 +852,6 @@
           "name": "latent",
           "type": "LATENT",
           "links": [
-            9012,
             9019
           ]
         }
@@ -2790,8 +2785,7 @@
                   103,
                   4313,
                   4323,
-                  4400,
-                  7901
+                  4400
                 ]
               }
             ],

@@ -1,7 +1,7 @@
 {
   "id": "e3f2b845-8f2c-4b5a-9caf-eac1029d3e7e",
   "revision": 0,
-  "last_node_id": 772,
+  "last_node_id": 773,
   "last_link_id": 1253,
   "nodes": [
     {
@@ -1567,7 +1567,7 @@
           "type": "output",
           "abs_path": ""
         },
-        "detail_info_cache": "━━━━━━━━━━━━━━━━━━━━━━\n📂 文件名称 : 二采_N468_0004.mp4\n📏 物理尺寸 : 1248 x 704\n🎞️ 总帧数量 : 481 帧\n⏱️ 播放时长 : 20 秒\n📉 视频帧率 : 24.0 FPS\n💾 文件体积 : 23.52 MB\n📼 编码格式 : MP4\n⚙️ 编码档位 : NVENC 高画质\n━━━━━━━━━━━━━━━━━━━━━━\n✅ 输出路径 : K:\\ComfyUI_windows_portable\\ComfyUI\\output\\二采_N468_0004.mp4\n━━━━━━━━━━━━━━━━━━━━━━",
+        "detail_info_cache": "━━━━━━━━━━━━━━━━━━━━━━\n📂 文件名称 : 二采_N468_0004.mp4\n📏 物理尺寸 : 1248 x 704\n🎞️ 总帧数量 : 481 帧\n⏱️ 播放时长 : 20 秒\n📉 视频帧率 : 24.0 FPS\n💾 文件体积 : 23.52 MB\n📼 编码格式 : MP4\n⚙️ 编码档位 : NVENC 高画质\n━━━━━━━━━━━━━━━━━━━━━━\n✅ 输出路径 : \n━━━━━━━━━━━━━━━━━━━━━━",
         "bz_et_cumulative_time": "18分55秒",
         "bz_video_only": true
       },
@@ -1653,7 +1653,7 @@
           "type": "output",
           "abs_path": ""
         },
-        "detail_info_cache": "━━━━━━━━━━━━━━━━━━━━━━\n📂 文件名称 : 一采_N149_0004.mp4\n📏 物理尺寸 : 832 x 480\n🎞️ 总帧数量 : 481 帧\n⏱️ 播放时长 : 20 秒\n📉 视频帧率 : 24.0 FPS\n💾 文件体积 : 12.05 MB\n📼 编码格式 : MP4\n⚙️ 编码档位 : NVENC 高画质\n━━━━━━━━━━━━━━━━━━━━━━\n✅ 输出路径 : K:\\ComfyUI_windows_portable\\ComfyUI\\output\\一采_N149_0004.mp4\n━━━━━━━━━━━━━━━━━━━━━━",
+        "detail_info_cache": "━━━━━━━━━━━━━━━━━━━━━━\n📂 文件名称 : 一采_N149_0004.mp4\n📏 物理尺寸 : 832 x 480\n🎞️ 总帧数量 : 481 帧\n⏱️ 播放时长 : 20 秒\n📉 视频帧率 : 24.0 FPS\n💾 文件体积 : 12.05 MB\n📼 编码格式 : MP4\n⚙️ 编码档位 : NVENC 高画质\n━━━━━━━━━━━━━━━━━━━━━━\n✅ 输出路径 : \n━━━━━━━━━━━━━━━━━━━━━━",
         "bz_et_cumulative_time": "6分53秒",
         "bz_video_only": true
       },
@@ -1782,7 +1782,7 @@
         }
       },
       "widgets_values": [
-        "K:\\ComfyUI_windows_portable\\ComfyUI\\input",
+        "",
         "minimax-h3_N468_0050.mp4",
         "时间:最新优先",
         170,
@@ -1790,7 +1790,7 @@
         ""
       ],
       "widgets_values_named": {
-        "📂 文件夹路径": "K:\\ComfyUI_windows_portable\\ComfyUI\\input",
+        "📂 文件夹路径": "",
         "📄 指定文件": "minimax-h3_N468_0050.mp4",
         "🔃 排序方式": "时间:最新优先",
         "🔍 缩略图尺寸": 170,
@@ -2075,7 +2075,7 @@
           "input_ue_unconnectable": {},
           "version": "7.8"
         },
-        "detail_info_cache": "━━━━━━━━━━━━━━━━━━━━━━\n📂 文件名称 : 三采_N565_0003.mp4\n📏 物理尺寸 : 1856 x 1056\n🎞️ 总帧数量 : 481 帧\n⏱️ 播放时长 : 20 秒\n📉 视频帧率 : 24.0 FPS\n💾 文件体积 : 39.32 MB\n📼 编码格式 : MP4\n⚙️ 编码档位 : NVENC 高画质\n━━━━━━━━━━━━━━━━━━━━━━\n✅ 输出路径 : K:\\ComfyUI_windows_portable\\ComfyUI\\output\\三采_N565_0003.mp4\n━━━━━━━━━━━━━━━━━━━━━━",
+        "detail_info_cache": "━━━━━━━━━━━━━━━━━━━━━━\n📂 文件名称 : 三采_N565_0003.mp4\n📏 物理尺寸 : 1856 x 1056\n🎞️ 总帧数量 : 481 帧\n⏱️ 播放时长 : 20 秒\n📉 视频帧率 : 24.0 FPS\n💾 文件体积 : 39.32 MB\n📼 编码格式 : MP4\n⚙️ 编码档位 : NVENC 高画质\n━━━━━━━━━━━━━━━━━━━━━━\n✅ 输出路径 : \n━━━━━━━━━━━━━━━━━━━━━━",
         "bz_et_cumulative_time": "53分27秒",
         "painter_output_cache": {
           "filename": "三采_N565_0003.mp4",
@@ -2315,7 +2315,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "来源=夸克包/黑鹤001与宏雷HyLan两期B站视频配套资源;本件依赖 BanZhang 生态插件(BanZhang_*/CSGlide* 等),该生态无公开 GitHub 仓库装不了,打开出现红节点属预期,留档备用;2026-10-01 入库。"
+        "【缺模型·不可跑(Win 引擎无下述件,1123 D11;清单=engine-audit-1123.md)】\n来源=夸克包/黑鹤001与宏雷HyLan两期B站视频配套资源;本件依赖 BanZhang 生态插件(BanZhang_*/CSGlide* 等),该生态无公开 GitHub 仓库装不了,打开出现红节点属预期,留档备用;2026-10-01 入库。"
       ]
     }
   ],
