@@ -181,8 +181,14 @@ try {
     if (row.output) item.exportedNodes = Object.keys(row.output).length;
     report.cases.push(item); save();
 
+    // 画面重绘计数器(只在本无头页面内给画布的逐帧绘制入口打补丁):画布分前后两层,
+    // 取景参数设好后两层不一定当帧重绘完,过早截图会拍到错位的旧帧(1124 实测两张落空)
+    await page.evaluate(() => {
+      const c = window.comfyAPI.app.app.canvas;
+      if (!window.__d17Draw) { let n = 0; const orig = c.draw.bind(c); c.draw = (...args) => { n += 1; return orig(...args); }; window.__d17Draw = () => n; }
+    });
     for (const [id, tag] of SHOT_NODES) {
-      const view = await page.evaluate(id => {
+      const view = await page.evaluate(async id => {
         const app = window.comfyAPI.app.app; const node = app.graph.getNodeById(id); if (!node) return null;
         // 清掉界面右侧的版本兼容警告条等浮层(遮画布,与被测图无关;只动本无头页面的 DOM)
         const overlays = document.querySelectorAll('.p-toast, .comfy-toast');
@@ -193,12 +199,24 @@ try {
         // 以节点为中心取景:四周留 420 画布单位,看得到相邻节点与进出连线;缩放夹在 [0.55, 1] 保证文字可读
         const canvas = app.canvas; const rect = canvas.canvas.getBoundingClientRect(); const m = 420;
         const s = Math.max(0.55, Math.min(1, Math.min(rect.width / (w + 2 * m), rect.height / (h + 2 * m))));
-        canvas.ds.scale = s; canvas.ds.offset = [rect.width / 2 - (x + w / 2) * s, rect.height / 2 - (y + h / 2) * s];
-        canvas.setDirty(true, true);
-        return { group: group?.title ?? null, node: { title: node.title, type: node.type, mode: node.mode, size: [w, h] }, scale: +s.toFixed(3), removedOverlays: removed };
+        const want = [rect.width / 2 - (x + w / 2) * s, rect.height / 2 - (y + h / 2) * s];
+        const before = window.__d17Draw();
+        canvas.ds.scale = s; canvas.ds.offset = want; canvas.setDirty(true, true);
+        // 等画布按新取景确实重绘过(至少 3 帧),再回读取景参数与画布中心像素留证
+        const start = performance.now();
+        while (window.__d17Draw() < before + 3 && performance.now() - start < 4000) await new Promise(r => requestAnimationFrame(r));
+        await new Promise(r => setTimeout(r, 250));
+        const ctx = canvas.canvas.getContext('2d');
+        const applied = [canvas.ds.scale, canvas.ds.offset[0], canvas.ds.offset[1]].map(v => +Number(v).toFixed(3));
+        const want3 = [s, want[0], want[1]].map(v => +Number(v).toFixed(3));
+        return {
+          group: group?.title ?? null, node: { title: node.title, type: node.type, mode: node.mode, pos: [x, y], size: [w, h] },
+          scale: +s.toFixed(3), framesDrawn: window.__d17Draw() - before, framingApplied: JSON.stringify(applied) === JSON.stringify(want3),
+          centrePixel: ctx ? Array.from(ctx.getImageData(Math.round(rect.width / 2), Math.round(rect.height / 2), 1, 1).data).join(',') : null,
+          removedOverlays: removed,
+        };
       }, id);
       if (!view) continue;
-      await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
       mkdirSync(shotsDir, { recursive: true });
       const path = join(shotsDir, `${name}.${tag}.png`);
       await page.screenshot({ path });

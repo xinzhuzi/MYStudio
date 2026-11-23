@@ -42,10 +42,19 @@ OUT = APPS / "frontend/lib/assist/image-studio/h3-multiseg-template.json"
 FILL_POINTS = {4: "SaveVideo", 9: "LoadImage", 100: "H3Parameter", 101: "H3AutoContextSampler", 103: "MyShot"}
 # MyShot 收件箱锚的四个字段(控件序=引擎节点定义序;值取 API 模板同名键)
 MYSHOT_FIELDS = ("shot_id", "label", "description", "media_status")
-# App 专用节点在新界面图里的位置(写死,保证产物确定)。坐标是按「组框内、不压任何画布件节点、
-# 间距 30、pos≥80 不入负区」搜出来的空位:#9 与加载器同类放「① 加载模型」组,#103 接终档存盘放
-# 「终档」组,#800 只给修脸链用放「四采修脸」组。
-NEW_NODE_POS = {9: [440, 80], 103: [16570, 1210], 800: [13310, 970]}
+# App 专用节点在新界面图里的位置(写死,保证产物确定)。坐标按下列约束搜出来的空位(1124 视觉复检后定版):
+# ① 在各自组框内、不压组框标题带(上缘留 40)② 不压任何画布件节点(间距 30)③ pos≥80 不入负区
+# ④ 零左向线(画布件生成器同款契约:来源节点须整个在目标节点左侧)。
+# #9 与加载器同类放「① 加载模型」组;#800 须在 #5011 左侧(落 #5002 正下方);#103 须在 #4100 右侧
+# (「终档组」组框随之加宽把它罩住,见 GROUP_WIDEN)。
+NEW_NODE_POS = {9: [440, 80], 103: [17383, 960], 800: [11300, 1130]}
+NODE_SIZE = {9: [290, 330], 103: [360, 300], 800: [340, 58]}
+# 需要加宽以罩住 App 专用节点的画布件组框:组框 id → 节点号。界面图里该组框只改宽度,其余组框原样。
+GROUP_WIDEN = {17: 103}
+# 组框标题带高度(节点上缘不得落在这条带里)
+GROUP_TITLE_BAND = 40
+# 节点间距/节点与组框内缘的留白
+GROUP_PAD = 30
 NEW_LINK_COUNT = 4
 # 新增连线:(源节点, 源输出口, 目标节点, 目标输入口, 类型);连线号接在画布件高水位之后顺序发
 SPECS = [
@@ -97,7 +106,7 @@ def app_nodes(api: dict) -> list:
         die(f"API 模板 #103 MyShot 缺字段: {MYSHOT_FIELDS}")
     return [
         {
-            "id": 9, "type": "LoadImage", "pos": list(NEW_NODE_POS[9]), "size": [290, 330], "flags": {},
+            "id": 9, "type": "LoadImage", "pos": list(NEW_NODE_POS[9]), "size": list(NODE_SIZE[9]), "flags": {},
             "mode": 4,
             "inputs": [
                 {"localized_name": "图像", "name": "image", "type": "COMBO",
@@ -118,7 +127,7 @@ def app_nodes(api: dict) -> list:
             "widgets_values_named": {"image": first_frame_name, "upload": "image"},
         },
         {
-            "id": 103, "type": "MyShot", "pos": list(NEW_NODE_POS[103]), "size": [360, 300], "flags": {},
+            "id": 103, "type": "MyShot", "pos": list(NEW_NODE_POS[103]), "size": list(NODE_SIZE[103]), "flags": {},
             "mode": 4,
             "inputs": [{"name": "video", "type": "VIDEO", "link": None}],
             "outputs": [], "title": "漫影单镜锚卡",
@@ -128,7 +137,7 @@ def app_nodes(api: dict) -> list:
         {
             # 修脸链的人脸参考视觉编码器。形状照仓内现成的 CLIPVisionLoader 画布节点
             # (官方-fisher-pose-无限姿势.json:带完整输入口条目与核心节点属性标识)
-            "id": 800, "type": "CLIPVisionLoader", "pos": list(NEW_NODE_POS[800]), "size": [340, 58], "flags": {},
+            "id": 800, "type": "CLIPVisionLoader", "pos": list(NEW_NODE_POS[800]), "size": list(NODE_SIZE[800]), "flags": {},
             "mode": 0,
             "inputs": [
                 {"localized_name": "clip_name", "name": "clip_name", "type": "COMBO",
@@ -194,6 +203,14 @@ def build(canvas: dict, api: dict) -> dict:
 
     out["last_node_id"] = max(nodes)
     out["last_link_id"] = max(l[0] for l in out["links"])
+    # 组框加宽:落在画布件组框右缘之外的 App 专用节点,把所属组框加宽罩住(只改宽度,位置/标题不动)
+    groups_by_id = {g["id"]: g for g in out.get("groups", [])}
+    for gid, nid in GROUP_WIDEN.items():
+        if gid not in groups_by_id:
+            die(f"画布件没有组框 #{gid},无法为 #{nid} 加宽")
+        need = nodes[nid]["pos"][0] + nodes[nid]["size"][0] + GROUP_PAD - groups_by_id[gid]["bounding"][0]
+        if groups_by_id[gid]["bounding"][2] < need:
+            groups_by_id[gid]["bounding"][2] = need
     return out
 
 
@@ -270,25 +287,48 @@ def verify(new: dict, canvas: dict, api: dict) -> list:
             problems.append(f"组装器填参数位 #{nid}({typ}) 缺失或类型不符")
     if new["last_link_id"] < max(link_ids) or new["last_node_id"] < max(nodes):
         problems.append("发号器高水位低于图内最大 id")
-    # 新增节点的位置:不压任何节点;落在某个组框内;不在负区
+    # 新增节点的位置:不压任何节点(间距 GROUP_PAD);落在某个组框内且不压组框标题带;不在负区
     def box(n):
         x, y = n["pos"]
         w, h = n.get("size", [220, 120])
         return (x, y, x + w, y + h)
-    def hit(a, b):
-        return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+    def near(a, b):
+        return a[0] < b[2] + GROUP_PAD and b[0] < a[2] + GROUP_PAD and a[1] < b[3] + GROUP_PAD and b[1] < a[3] + GROUP_PAD
     for nid in NEW_NODE_POS:
         b = box(nodes[nid])
-        others = [k for k, v in nodes.items() if k != nid and hit(b, box(v))]
+        others = [k for k, v in nodes.items() if k != nid and near(b, box(v))]
         if others:
-            problems.append(f"新增 #{nid} 压到节点 {others}")
-        covered = any(g["bounding"][0] <= b[0] and b[2] <= g["bounding"][0] + g["bounding"][2]
-                      and g["bounding"][1] <= b[1] and b[3] <= g["bounding"][1] + g["bounding"][3]
+            problems.append(f"新增 #{nid} 压到节点 {others}(或间距不足 {GROUP_PAD})")
+        covered = any(g["bounding"][0] + GROUP_PAD <= b[0] and b[2] <= g["bounding"][0] + g["bounding"][2] - GROUP_PAD
+                      and g["bounding"][1] + GROUP_TITLE_BAND <= b[1] and b[3] <= g["bounding"][1] + g["bounding"][3] - GROUP_PAD
                       for g in new.get("groups", []))
         if not covered:
-            problems.append(f"新增 #{nid} 不在任何组框内")
+            problems.append(f"新增 #{nid} 不在任何组框内(或压组框边缘/标题带)")
         if b[0] < 80 or b[1] < 80:
             problems.append(f"新增 #{nid} 落在负区")
+    # 零左向线(画布件生成器同款契约):新增连线的来源节点须整个在目标节点左侧
+    for src, _, dst, iname, _ in SPECS:
+        if nodes[src]["pos"][0] + nodes[src].get("size", [220, 120])[0] >= nodes[dst]["pos"][0]:
+            problems.append(f"新增连线 #{src}→#{dst}.{iname} 是左向线(来源须在目标左侧)")
+    # 组框:与画布件逐个相同,只有 GROUP_WIDEN 登记的组框只许宽度变大
+    cg = {g["id"]: g for g in canvas.get("groups", [])}
+    ng = {g["id"]: g for g in new.get("groups", [])}
+    if set(cg) != set(ng):
+        problems.append("组框集合与画布件不一致")
+    for gid, g0 in cg.items():
+        g1 = ng.get(gid)
+        if g1 is None:
+            continue
+        diff = {k for k in set(g0) | set(g1) if g0.get(k) != g1.get(k)}
+        if gid not in GROUP_WIDEN:
+            if diff:
+                problems.append(f"组框 #{gid} 被改动:{sorted(diff)}")
+            continue
+        if diff - {"bounding"}:
+            problems.append(f"组框 #{gid} 除宽度外被改动:{sorted(diff - {'bounding'})}")
+        b0, b1 = g0["bounding"], g1["bounding"]
+        if b1[2] < b0[2] or [b1[0], b1[1], b1[3]] != [b0[0], b0[1], b0[3]]:
+            problems.append(f"组框 #{gid} 只许加宽,不许移动/改高")
     return problems
 
 

@@ -24,7 +24,7 @@ const api = apiTemplate as unknown as Record<string, { class_type: string; input
 const fasth3Api = fasth3ApiTemplate as unknown as Record<string, { class_type: string; inputs: Record<string, unknown> }>;
 const multisegApi = multisegApiTemplate as unknown as Record<string, { class_type: string; inputs: Record<string, unknown> }>;
 type UiLink = [number, number, number, number, number, string];
-type UiNode = { id: number; type: string; mode?: number; pos?: number[]; widgets_values?: unknown[]; properties?: Record<string, unknown>; inputs?: Array<{ name: string; link: number | null }> };
+type UiNode = { id: number; type: string; mode?: number; pos?: number[]; size?: number[]; widgets_values?: unknown[]; properties?: Record<string, unknown>; inputs?: Array<{ name: string; link: number | null }> };
 const multisegTemplate = multisegTemplateJson as unknown as { nodes: UiNode[]; links: UiLink[] };
 const multisegCanvas = multisegCanvasJson as unknown as { nodes: UiNode[]; links: UiLink[] };
 // 1123 D17:记账界面图里有意取「执行图值」而非「画布件值」的控件位(节点号 → { 控件位: API 输入键 })。
@@ -785,6 +785,33 @@ describe("h3-multiseg-template.api.json 契约(PRD §14.1.2;1123 起唯一真源
       const canvasInputs = canvasById.get(id)!.inputs ?? [];
       const uiInputs = byId(id).inputs ?? [];
       expect(uiInputs.map((input) => input.name), `#${id} 输入口序`).toEqual([...canvasInputs.map((input) => input.name), appended]);
+    }
+    // 组框:与画布件逐一相同,只有「终档组」为罩住 #103 而加宽(位置/高度/标题不动)
+    type UiGroup = { id: number; title?: string; bounding: number[] };
+    const canvasGroups = new Map((multisegCanvasJson as unknown as { groups?: UiGroup[] }).groups?.map((group) => [group.id, group]));
+    for (const group of (multisegTemplateJson as unknown as { groups?: UiGroup[] }).groups ?? []) {
+      const canvasGroup = canvasGroups.get(group.id);
+      expect(canvasGroup, `组框 ${group.id} 应来自画布件`).toBeDefined();
+      expect({ ...group, bounding: undefined }, `组框 ${group.id} 除宽度外应与画布件相同`).toEqual({ ...canvasGroup, bounding: undefined });
+      const [x, y, width, height] = group.bounding;
+      const [canvasX, canvasY, canvasWidth, canvasHeight] = canvasGroup!.bounding;
+      expect([x, y, height], `组框 ${group.id} 位置与高度`).toEqual([canvasX, canvasY, canvasHeight]);
+      if (group.id === 17) expect(width, "终档组应已加宽罩住 #103").toBeGreaterThan(canvasWidth);
+      else expect(width, `组框 ${group.id} 宽度`).toBe(canvasWidth);
+    }
+    // 布局契约(画布件生成器同款「零左向线」,1124 视觉复检后补):四条 App 专用连线恒向右——
+    // 来源节点整个在目标节点左侧。首版 #800 落在 #5011 右侧、#103 落在 #4100 左侧,线上成了回折的左向线
+    const rightEdge = (id: number) => byId(id).pos![0] + byId(id).size![0];
+    for (const [source, target] of [[9, 101], [9, 5012], [4100, 103], [800, 5011]] as const) {
+      expect(rightEdge(source), `#${source}→#${target} 须向右(来源右缘 < 目标左缘)`).toBeLessThan(byId(target).pos![0]);
+    }
+    // 每个 App 专用节点都在某个组框内,且不压组框标题带(上缘留 40)
+    const uiGroups = (multisegTemplateJson as unknown as { groups?: UiGroup[] }).groups ?? [];
+    for (const id of [9, 103, 800]) {
+      const [x, y] = byId(id).pos!;
+      const [width, height] = byId(id).size!;
+      const inside = uiGroups.some((group) => { const [gx, gy, gw, gh] = group.bounding; return gx <= x && x + width <= gx + gw && gy + 40 <= y && y + height <= gy + gh; });
+      expect(inside, `#${id} 须在组框内且不压标题带`).toBe(true);
     }
   });
 
