@@ -6,8 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type FetchStub = ReturnType<typeof vi.fn>;
 
+// 1123 脚本搬家 campaigns/ 后目录深一层:../../backend → ../../../backend
 const MODULE_URL = new URL(
-  "../../backend/comfyui/my_nodes/web/bridge-action.js",
+  "../../../backend/comfyui/my_nodes/web/bridge-action.js",
   import.meta.url,
 ).href;
 
