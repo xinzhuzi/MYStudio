@@ -173,7 +173,7 @@
 - **路径安全**:`_safe_workflow_id` 拒绝对路径/`..` 穿越;**resolve 纪律**:该函数返回已 resolve 路径,import/rename/move 的 `relative_to` 根必须 `workflows_dir().resolve()` 同源——符号链接前缀(macOS `/var`→`/private/var`)下不同源=嵌套导入 400 且文件已落盘(§30 裁定 29)。
 - **存储设置**:设置→本地配置→ComfyUI 引擎→存储 tab 可改 workflowsDir(engine_manager.set_paths/migrate_paths_job 搬移);paths_status.defaults 用 `configured_workflows_dir(default_manifest())` 保持真默认口径。
 
-## 17. 存量迁移(09-10 打通:画布头部一键入口;**入口已退役**——tree-shake 不进包,本节=史档,见 `docs/comfyui-kb/定制代码地图.md` §二③)
+## 17. 存量迁移(09-10 打通:画布头部一键入口;**入口已退役**——tree-shake 不进包,本节=史档,见 `docs/comfyui-kb/定制代码地图.md` §二③;本节两件源文件已于 2026-11-23 删除,考古用 git log --follow 按文件名取回)
 
 - **入口**:ComfyCanvasSwap 头部「导入存量画布(N)」——N=studio store imageWorkflows 数(N>0 才显示);单飞防连点;三挂载面全生效。
 - **链路**:`migrateWorkflowsToLibraryWithToast`(`FE/lib/assist/image-studio/workflow-migrate-batch.ts`)→ flows=useStudioStore.imageWorkflows → `exportImageWorkflowToComfy` 双格式(UI 格式+API 格式随身 `ui.extra.apiFormat`+`manyingMigration` 报告,库内取用即得)→ 参考图占位上传(best-effort,引擎须在跑;`comfyImageUrlToB64` 读取)→ `transport.importFiles(files, "skip")`。
@@ -185,7 +185,7 @@
 
 - **studio store imageWorkflows 冻结**:旧画布已删但数据不丢(深链照常读写);节点/边 CRUD 单源仍在 `FE/lib/studio/image-workflow/graph-build-mutations.ts`(store 操作与 comfy 注册表桥共用)。
 - **分镜面板批量生图链(生产主力,勿动)**:`use-storyboard-batch-generation.ts` → `run-image-workflow-node-generation.ts`(uncloth 分流预检/NSFW 白名单/连续性门禁/资产圣经拼接/@图N 令牌)→ `request.ts` 组装 → aiManager → 自动去噪(>512² Worker)→ VLM 人物闸门(fail-open;先落盘后闸门)→ 回写(先连续性三件套→patch→updateStoryboard)。构图自愈 healStoryboardPromptForCast 唯一触发点=批量复用存量流重生前。
-- **assist 侧现行生成**:`run-node-generation`/`run-uncloth`(直连 sidecar /v1/images/uncloth)/`comfy-execute`(工作流无头执行,job 化);台账 `history-records.ts`(宁留勿坏/删除双口径;写入侧=上三者)。
+- **assist 侧现行生成**:`components/panels/studio/image-workflow/run-image-workflow-node-generation.ts`/`run-uncloth`(直连 sidecar /v1/images/uncloth)/`comfy-execute`(工作流无头执行,job 化);台账 `history-records.ts`(宁留勿坏/删除双口径;写入侧=上三者)。
 - **取材/超分/回写链**不变:use-image-workflow-upscale(up4x- 幂等单源 lib/upscale/client.ts)、setGeneratedImageResult=衍生过期咽喉。
 
 ## 19. 引擎管理(设置页)
@@ -207,7 +207,7 @@
 |---|---|
 | 改工作流库行为(导入/列表/删除) | `BE/comfyui/plugin_manager.py` + `manifest.py`(目录解析;旧库并入 merge_legacy **已废止勿改**,见 §16 校准②);HTTP 面在 `image_gen/server.py` /comfy/workflows* |
 | 改库目录/存储 | manifest `workflowsDir` 覆写或改 `configured_workflows_dir` 默认;迁移 job 走 engine_manager.set_paths/migrate_paths_job |
-| 改存量迁移(入口已退役=史档勿改) | `FE/lib/assist/image-studio/workflow-migrate-batch.ts`(批)+ `workflow-export-comfy.ts`(导出器) |
+| 改存量迁移(入口已退役=史档勿改) | 已删除(2026-11-23),考古同上 |
 | 改画布槽位/头部 | `comfy-canvas/ComfyCanvasSwap.tsx`;引擎占位/webview/轮询在 `ComfyCanvasStudio.tsx` |
 | 改自有节点 | `BE/comfyui/my_nodes/`(节点+web 扩展+tests;原 manying_nodes 10-03 改名);object_info 验证,勿依赖直 import |
 | 改桥/回写 | 后端 bridge_*.py;渲染层 comfy-bridge-writeback-consumer / storyboard-overview-sync |
@@ -215,7 +215,7 @@
 | 改无头执行工作流 | `FE/lib/assist/image-studio/comfy-execute.ts`(job 化)+ BE execute.py |
 | 调引擎启动/更新/插件 | engine_manager.py(launch args/更新链/实例锁)+ plugin_manager.py |
 | 改 uncloth 默认参数 | `FE/lib/assist/image-studio/uncloth-defaults.ts` |
-| 调生成失败 | 分镜链看 diagnostics logEvent;assist 链 run-node-generation;uncloth 直连 sidecar;参考图过大先查 image-transfer 缩略 |
+| 调生成失败 | 分镜链看 diagnostics logEvent;assist 链 components/panels/studio/image-workflow/run-image-workflow-node-generation.ts;uncloth 直连 sidecar;参考图过大先查 image-transfer 缩略 |
 
 ---
 
