@@ -12,7 +12,7 @@ import type {
 import type { ProjectVoiceBinding, SceneVoiceLine } from "@/types/tts";
 import type { EditingProjectV1, TimelineRenderRecord } from "@/types/editing";
 import { validateTimelineRenderRecord } from "@/lib/studio/editing/validation";
-import { latestAgentWorkEntry } from "@/components/panels/studio/workflow-helpers";
+import { latestAgentWorkEntry } from "@/lib/studio/workflow-helpers";
 
 export type WorkflowStageStatus = "ready" | "active" | "blocked";
 

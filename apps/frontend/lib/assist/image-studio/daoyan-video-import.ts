@@ -12,7 +12,7 @@
 // :449 只取 prompt/references/continuity),连续性指纹零触碰。
 // 全部副作用经 deps 注入,可无头测(样板=comfy-bridge-writeback-consumer)。
 
-import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
+import { getComfyEngineClient } from "./comfy-engine-client";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { resolveEngineBaseUrl } from "@/lib/studio/engine-line/resolve-engine-base-url";
 import { normalizeH3DurationUs } from "@/lib/studio/h3-duration-us";

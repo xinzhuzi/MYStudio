@@ -17,7 +17,7 @@ import {
   parseLedgerJson,
   type LedgerStorage,
 } from "./entity-extraction-ledger";
-import { scriptPlanSourceFingerprint } from "@/components/panels/studio/workflow-helpers";
+import { scriptPlanSourceFingerprint } from "@/lib/studio/workflow-helpers";
 import {
   computeInputFingerprint,
   extractChapterEntities,

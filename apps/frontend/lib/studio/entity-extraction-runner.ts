@@ -81,7 +81,7 @@ import {
 import {
   latestAgentWorkEntry,
   scriptPlanSourceFingerprint,
-} from "@/components/panels/studio/workflow-helpers";
+} from "@/lib/studio/workflow-helpers";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";

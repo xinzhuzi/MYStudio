@@ -1,4 +1,4 @@
-import type { ComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
+import type { ComfyEngineClient } from "@/types/comfy-engine";
 import { logEvent } from "@/lib/diagnostics/logger";
 
 type BridgeAction = NonNullable<Awaited<ReturnType<ComfyEngineClient["getBridgeActions"]>>>["items"][number];

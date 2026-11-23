@@ -18,7 +18,7 @@ import { shotPreview2Name, shotPreview2Source, shotPreviewName } from "@/lib/ass
 import { buildStageNodePayloadFromState } from "@/lib/assist/image-studio/storyboard-pipeline-comfy";
 import { prepareReferenceImageForTransfer } from "@/lib/ai/image-transfer";
 import { shardContentStamp } from "@/lib/storage/studio-workflow-shards";
-import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
+import { getComfyEngineClient } from "./comfy-engine-client";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { StoryboardItem } from "@/types/studio";
 

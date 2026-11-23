@@ -11,7 +11,7 @@
 
 import { toast } from "sonner";
 
-import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
+import { getComfyEngineClient } from "./comfy-engine-client";
 import type {
   ComfyWorkflowImportConflictMode,
   ComfyWorkflowImportFile,

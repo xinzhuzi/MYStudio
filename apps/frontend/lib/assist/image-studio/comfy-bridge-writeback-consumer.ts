@@ -11,7 +11,7 @@
 
 import { toast } from "sonner";
 
-import type { ComfyBridgeWritebackItem } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
+import type { ComfyBridgeWritebackItem } from "@/types/comfy-engine";
 import { persistComfyImage } from "@/lib/assist/image-studio/comfy-execute";
 import { landH3ShotVideo, probeH3VideoDurationUs } from "@/lib/assist/image-studio/h3-shot-landing";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
