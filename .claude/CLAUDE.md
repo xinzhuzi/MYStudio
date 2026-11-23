@@ -184,7 +184,7 @@
 | 4 | **Task 子代理** | 宽而重的探索、跨目录检索、独立核验;必须精简 prompt 并限制范围 |
 | 5 | **Trellis channel** | 多 worker 协作实施/检查(implement/check agent) |
 
-**GitNexus 索引保鲜(0928 立;1123 改口径;1124 按实测再改)**:索引过期 = AGENTS.md 强制的 impact/detect_changes 门禁对最新代码失明(绿灯假象)。收尾/打包前跑 `python3 apps/build/scripts/gitnexus_freshness_check.py --strict`(约 1 秒;过期按内容判断——被收录文件的内容哈希对磁盘,提交号落后但内容没变不算过期;同时查索引是否被写坏、中文切分设置是否一致)。过期时照脚本提示的那条命令刷新。现行工具是预发布版 gitnexus 1.6.13-rc.96(2026-11-24 起):增量刷新实测可用(`GITNEXUS_FTS_CJK_SEGMENTATION=bigram GITNEXUS_ATOMIC_INCREMENTAL=1 node .gitnexus/run.cjs analyze --embeddings 0 --index-only`,约 37 秒);全量重建约 10 分钟。**每次刷新之后都再跑一遍检查脚本**(它认得出索引被写坏的特征);索引损坏只能全量重建。1.6.12 及更早版本的增量会写坏索引,脚本会按建索引的工具版本拦住。索引库能打开不代表内容完好,是否完好只以检查脚本为准。pre-commit 已挂警告位(不拦截)。
+**GitNexus 索引保鲜(0928 立;1123 改口径;1124 按实测再改)**:索引过期 = AGENTS.md 强制的 impact/detect_changes 门禁对最新代码失明(绿灯假象)。收尾/打包前跑 `python3 apps/build/scripts/gitnexus_freshness_check.py --strict`(约 1 秒;过期按内容判断——被收录文件的内容哈希对磁盘,提交号落后但内容没变不算过期;同时查索引是否被写坏、中文切分设置是否一致)。过期时照脚本提示的那条命令刷新。现行工具是预发布版 gitnexus 1.6.13-rc.96(2026-11-24 起;**不要自行更换版本,换版本由用户决定**——rc.252 的全量重建在本机死锁):增量刷新实测可用(`GITNEXUS_FTS_CJK_SEGMENTATION=bigram GITNEXUS_ATOMIC_INCREMENTAL=1 node .gitnexus/run.cjs analyze --embeddings 0 --index-only`,约 37 秒);全量重建约 10 分钟。**每次刷新之后都再跑一遍检查脚本**(它认得出索引被写坏的特征);索引损坏只能全量重建。1.6.12 及更早版本的增量会写坏索引,脚本会按建索引的工具版本拦住。索引库能打开不代表内容完好,是否完好只以检查脚本为准。pre-commit 已挂警告位(不拦截)。
 
 ---
 
