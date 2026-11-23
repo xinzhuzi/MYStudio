@@ -180,3 +180,7 @@ apps/build/runs/
 docs/prompts/Qwen-Image-2.1/images/*
 !docs/prompts/Qwen-Image-2.1/images/README.md
 apps/index.html
+
+# 仓库根层的散件(1123/1124 其他会话遗留的未跟踪产物:只忽略不删除;所属会话收走后可删这两行)
+/.png
+/vibe_images/

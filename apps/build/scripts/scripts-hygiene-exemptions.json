@@ -204,6 +204,11 @@
     "test_fr_resume_support_20261111.py": "在途役占用(10-27-script-narrative-translation-cure)",
     "vol4_verify_batch_1122.test.ts": "在途役占用(11-16-vol1-three-artifacts)",
     "vol5_verify_batch_1123.test.ts": "在途役占用(11-16-vol1-three-artifacts;vol1~vol4 同族 1123 役工具,役毕删;验收裁定按 vol4 同款处置)",
+    "vol6_verify_batch_1123.test.ts": "在途役占用(11-16-vol1-three-artifacts;vol1~vol5 同族 1123 役工具,役毕删;验收裁定按 vol4 同款处置。1124 补登记:这五件 11-23 12:41 新增时未随 vol5 登记,脚本卫生项因此转红)",
+    "vol7_verify_batch_1123.test.ts": "在途役占用(11-16-vol1-three-artifacts;vol1~vol5 同族 1123 役工具,役毕删;验收裁定按 vol4 同款处置。1124 补登记:这五件 11-23 12:41 新增时未随 vol5 登记,脚本卫生项因此转红)",
+    "vol8_verify_batch_1123.test.ts": "在途役占用(11-16-vol1-three-artifacts;vol1~vol5 同族 1123 役工具,役毕删;验收裁定按 vol4 同款处置。1124 补登记:这五件 11-23 12:41 新增时未随 vol5 登记,脚本卫生项因此转红)",
+    "vol9_verify_batch_1123.test.ts": "在途役占用(11-16-vol1-three-artifacts;vol1~vol5 同族 1123 役工具,役毕删;验收裁定按 vol4 同款处置。1124 补登记:这五件 11-23 12:41 新增时未随 vol5 登记,脚本卫生项因此转红)",
+    "vol10_verify_batch_1123.test.ts": "在途役占用(11-16-vol1-three-artifacts;vol1~vol5 同族 1123 役工具,役毕删;验收裁定按 vol4 同款处置。1124 补登记:这五件 11-23 12:41 新增时未随 vol5 登记,脚本卫生项因此转红)",
     "win_nightbatch_guard_1028.ps1": "常驻生产守护件,被 .gitignore 白名单引用"
   }
 }
