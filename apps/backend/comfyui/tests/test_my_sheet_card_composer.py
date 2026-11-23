@@ -36,6 +36,10 @@ STEPS_DIR = (_TESTS.parents[3] / "apps/output/daojie-sheet-b-1112-arch1113"
                else _TESTS.parents[3] / "apps/output/daojie-sheet-b-1112")
 # 金样 e6221c36 的产源步图住归档夹(1113 复测重掷顶位后指针随迁;两处皆无=skip)
 GOLDEN_SHA = "c9677a63de250c25068bbd547fedf14e898c0dec0a2681299415d3eae5f5a691"  # v6+底带收高108(1114 用户令;金样重对;老 e6221c36=v1.1 档随役存档)
+# 注(1124):该金样对应 v7 及以前的默认角标「材质·袍料/材质·护臂」;v8(1124 用户令「改」)把这两处文字换成
+# 「腰部图·中段/腕部图·局部」,默认渲染随之只差这两处角标框。金样的产源步图(apps/output/daojie-sheet-b-1112*)
+# 已不在盘,无法原样重对——步图重新生成时须同时重对 GOLDEN_SHA(几何/分格/字体面仍由本测把关;文字面另有
+# test_label_variants_and_blank_cells_registered_and_inherited 的数据级断言兜住)。
 
 
 def test_placeholder_compose(tmp_path):
@@ -129,7 +133,7 @@ def test_formats_registry_snapshot():
 
 
 # ── 1123 Phase 6:角标变体+留空格随武器类别(全卡版式跟随武器类别)────────────────
-VARIANT_KEYS = ("weapon_a", "weapon_b", "gear_1", "fabric_2", "fabric_3")   # 1124 增 fabric_2(裁自腰部图中段)
+VARIANT_KEYS = ("weapon_a", "weapon_b", "gear_1")   # 只收确与默认不同的键(fabric_2/3 自 1124 起默认即来源写名)
 NO_ABILITY = {"通用": "通用·能力未设定", "包裹": "包裹·能力未设定"}   # 无「能力:」字段时的细化类别
 
 
@@ -139,7 +143,7 @@ def _placeholder_cells():
 
 
 def test_label_variants_and_blank_cells_registered_and_inherited():
-    """真源 labels:两类本体(通用/包裹)各五角标变体;细化类别另加 fx_1「能力未设定」并登记特效两格留空;
+    """真源 labels:两类本体(通用/包裹)各三角标变体;细化类别另加 fx_1「能力未设定」并登记特效两格留空;
     均为既有格键;四格式继承同一份。"""
     tp = sf.truth_path()
     if tp is None:
@@ -151,8 +155,13 @@ def test_label_variants_and_blank_cells_registered_and_inherited():
         assert set(body) == set(VARIANT_KEYS)
         assert lab["variants"][refined] == {**body, "fx_1": "能力未设定"}
         assert {"fx_1", "fx_2"} <= set(lab["blank_cells"][refined]) and base not in lab["blank_cells"]
-    assert lab["variants"]["包裹"]["fabric_3"] == "腕部图·局部"
-    assert lab["variants"]["包裹"]["fabric_2"] == "腰部图·中段"
+    # 1124 用户令「改」:默认角标文字锁(数据级,不依赖机器字体——金样 c9677a63 对应旧角标「材质·袍料/护臂」,
+    # 其产源步图已不在盘,无法重对;文字面由本断言兜住)。fabric_2/fabric_3 裁自腰部/腕部特写图(derive_cells)。
+    assert sf.FORMATS_VERSION == "v8"
+    assert lab["text"]["fabric_1"] == "材质·腰封"
+    assert lab["text"]["fabric_2"] == "腰部图·中段" and lab["text"]["fabric_3"] == "腕部图·局部"
+    for var in lab["variants"]:
+        assert not ({"fabric_2", "fabric_3"} & set(lab["variants"][var])), var    # 与默认相同者不进变体
     for fmt in sf.formats_list():
         got = sf.resolve(fmt)["labels"]
         assert got["variants"] == lab["variants"] and got["blank_cells"] == lab["blank_cells"], fmt
@@ -211,7 +220,7 @@ def test_compose_default_and_unknown_category_are_identical(tmp_path):
         outs.append(dst.read_bytes())
     assert outs[0] == outs[1] == outs[2]
     text = sf.resolve("全卡")["labels"]["text"]
-    assert text["weapon_a"] == "局部·柄首" and text["fabric_3"] == "材质·护臂"
+    assert text["weapon_a"] == "局部·柄首" and text["fabric_3"] == "腕部图·局部"
 
 
 def test_composer_input_types_has_optional_category():

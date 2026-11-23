@@ -37,7 +37,7 @@ log = logging.getLogger(__name__)
 
 _HERE = Path(__file__).resolve()
 
-FORMATS_VERSION = "v7"          # 真源 format_version(读侧不设卡;写侧 bump 走真源 _doc 版本链)
+FORMATS_VERSION = "v8"          # 真源 format_version(读侧不设卡;写侧 bump 走真源 _doc 版本链)
 
 
 class SheetFormatsError(ValueError):
@@ -858,39 +858,31 @@ _FROZEN: dict = {
         "exp_3": "悲伤",
         "exp_4": "惊讶",
         "exp_5": "害羞",
-        "fabric_2": "材质·袍料",
-        "fabric_3": "材质·护臂",
+        "fabric_2": "腰部图·中段",
+        "fabric_3": "腕部图·局部",
         "gear_2": "装备·发带"
       },
       "variants": {
         "通用": {
           "weapon_a": "武器图·左端",
           "weapon_b": "武器图·右端",
-          "gear_1": "武器图·左下",
-          "fabric_2": "腰部图·中段",
-          "fabric_3": "腕部图·局部"
+          "gear_1": "武器图·左下"
         },
         "通用·能力未设定": {
           "weapon_a": "武器图·左端",
           "weapon_b": "武器图·右端",
           "gear_1": "武器图·左下",
-          "fabric_2": "腰部图·中段",
-          "fabric_3": "腕部图·局部",
           "fx_1": "能力未设定"
         },
         "包裹": {
           "weapon_a": "武器图·左端",
           "weapon_b": "武器图·右端",
-          "gear_1": "武器图·左下",
-          "fabric_2": "腰部图·中段",
-          "fabric_3": "腕部图·局部"
+          "gear_1": "武器图·左下"
         },
         "包裹·能力未设定": {
           "weapon_a": "武器图·左端",
           "weapon_b": "武器图·右端",
           "gear_1": "武器图·左下",
-          "fabric_2": "腰部图·中段",
-          "fabric_3": "腕部图·局部",
           "fx_1": "能力未设定"
         }
       },

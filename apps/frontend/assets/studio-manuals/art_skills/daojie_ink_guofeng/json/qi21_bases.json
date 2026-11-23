@@ -1068,9 +1068,9 @@
     }
   },
   "sheet_card_qwen": {
-    "format_version": "v7",
+    "format_version": "v8",
     "engine": "qwen-image-2.1",
-    "_doc": "Qwen 版设定卡分格真源(1113 用户令「单独做这个角色设定卡的提示词」):与 sheet_card(H3-Image)平行独立,提示词按 Qwen 写法(正向直陈+编辑逐部位点名);画布件=QwenImage2.1/5_角色设定卡/道劫-角色设定卡.json(设定卡族归位夹);管线=daojie_sheet_b_pipeline.py --engine qwen;合成器/底框两线共用(格式一 v1);v2(1113 三弹定谳:编辑=官方 multiref 路——参考图进 TE images.image_1 槽+提示词 <image1> 指代,base 模型 25步/cfg1/dn1 无 turbo;dn0.6 编辑不生效/dn1.0 无图参考则身份画风塌,两败俱汰);v3 实验否决(1113 用户令「bf16+官方 turbo」试到底):官方 turbo 蒸馏底模单发 multiref 编辑四项全 PASS 且 114s/步,但连续 4 编辑后引擎崩重启第二次(bf16↔turbo 21G 换模抖动挤爆 24G,engine.log 新启序列实证)——三加速路(viggle-LoRA/GPU-VAE/turbo-ckpt)全否,25 步 base=24G 下唯一稳路,提速正道=H3 线;v4(1113 双文件+背景类型联动令):指令/底座 {背景} 占位,backgrounds 三型表,枢纽单源旋钮;v5(1114):formats 注册表入真源——布局/角标/contain 集数据驱动(sheet_card_formats.py 解释器+内嵌 _FROZEN 冻结快照),渲染字节恒等(金样 e6221c36);1114 用户令「背景切换无意义,纯白或透明即可」→背景表收敛为纯白单档,删绢本仿古/淡青玉版;1114 档3混动嫁接:编辑路 40步cfg4+Fix0.4+LazyCache(AB 实弹定谳,详见 sampler.edit._doc);v7(1123 Phase 6,用户令「按照你的建议,要解决这个问题」):武器格/特效格提示词模板与四个角标按主体句「武器类别」字段切换(类别=剑/通用/包裹)——weapon.templates / effect.templates(有能力字段) / effect.templates_no_ability(无能力字段:合成器按 labels.blank_cells 留空+角标「能力未设定」,不编造能力) / formats.全卡.labels.variants;未声明类别=默认「剑」,模板/角标/金样与 v6 逐字节一致;v7 补(1123):view_mount——非默认类别下 side/back 编辑指令的「佩剑挂载」按类别替换(三视图侧/背视图把剑包画成露柄佩剑=与武器格同源的「带鞘剑」写死);v7 补(1124):类别变体增 fabric_2=腰部图·中段——该格裁自腰部特写图中段(derive_cells),对非默认类别不再标「材质·袍料」(1124 整卡核验:该格画面为腰带,与标签不符);默认类角标未动(1114 命名,改否候用户裁)",
+    "_doc": "Qwen 版设定卡分格真源(1113 用户令「单独做这个角色设定卡的提示词」):与 sheet_card(H3-Image)平行独立,提示词按 Qwen 写法(正向直陈+编辑逐部位点名);画布件=QwenImage2.1/5_角色设定卡/道劫-角色设定卡.json(设定卡族归位夹);管线=daojie_sheet_b_pipeline.py --engine qwen;合成器/底框两线共用(格式一 v1);v2(1113 三弹定谳:编辑=官方 multiref 路——参考图进 TE images.image_1 槽+提示词 <image1> 指代,base 模型 25步/cfg1/dn1 无 turbo;dn0.6 编辑不生效/dn1.0 无图参考则身份画风塌,两败俱汰);v3 实验否决(1113 用户令「bf16+官方 turbo」试到底):官方 turbo 蒸馏底模单发 multiref 编辑四项全 PASS 且 114s/步,但连续 4 编辑后引擎崩重启第二次(bf16↔turbo 21G 换模抖动挤爆 24G,engine.log 新启序列实证)——三加速路(viggle-LoRA/GPU-VAE/turbo-ckpt)全否,25 步 base=24G 下唯一稳路,提速正道=H3 线;v4(1113 双文件+背景类型联动令):指令/底座 {背景} 占位,backgrounds 三型表,枢纽单源旋钮;v5(1114):formats 注册表入真源——布局/角标/contain 集数据驱动(sheet_card_formats.py 解释器+内嵌 _FROZEN 冻结快照),渲染字节恒等(金样 e6221c36);1114 用户令「背景切换无意义,纯白或透明即可」→背景表收敛为纯白单档,删绢本仿古/淡青玉版;1114 档3混动嫁接:编辑路 40步cfg4+Fix0.4+LazyCache(AB 实弹定谳,详见 sampler.edit._doc);v7(1123 Phase 6,用户令「按照你的建议,要解决这个问题」):武器格/特效格提示词模板与四个角标按主体句「武器类别」字段切换(类别=剑/通用/包裹)——weapon.templates / effect.templates(有能力字段) / effect.templates_no_ability(无能力字段:合成器按 labels.blank_cells 留空+角标「能力未设定」,不编造能力) / formats.全卡.labels.variants;未声明类别=默认「剑」,模板/角标/金样与 v6 逐字节一致;v7 补(1123):view_mount——非默认类别下 side/back 编辑指令的「佩剑挂载」按类别替换(三视图侧/背视图把剑包画成露柄佩剑=与武器格同源的「带鞘剑」写死);v7 补(1124):类别变体增 fabric_2=腰部图·中段——该格裁自腰部特写图中段(derive_cells),对非默认类别不再标「材质·袍料」(1124 整卡核验:该格画面为腰带,与标签不符);默认类角标未动(1114 命名,改否候用户裁);v8(1124 用户令「改」):默认角标 fabric_2/fabric_3 由「材质·袍料/材质·护臂」改为来源写名「腰部图·中段/腕部图·局部」——两格自 1114 起裁自腰部特写图中段与腕部特写图中段(derive_cells),旧名对所有角色名不符实;类别变体随之不再带这两键;默认渲染相对 v7 只差这两处角标文字,金样 c9677a63 对应旧角标,样例步图重生成时须重对",
     "models": {
       "unet": "qwen_image_2.1_bf16.safetensors",
       "clip": "qwen3vl_8b_bf16_heretic.safetensors",
@@ -1710,39 +1710,31 @@
             "exp_3": "悲伤",
             "exp_4": "惊讶",
             "exp_5": "害羞",
-            "fabric_2": "材质·袍料",
-            "fabric_3": "材质·护臂",
+            "fabric_2": "腰部图·中段",
+            "fabric_3": "腕部图·局部",
             "gear_2": "装备·发带"
           },
           "variants": {
             "通用": {
               "weapon_a": "武器图·左端",
               "weapon_b": "武器图·右端",
-              "gear_1": "武器图·左下",
-              "fabric_2": "腰部图·中段",
-              "fabric_3": "腕部图·局部"
+              "gear_1": "武器图·左下"
             },
             "通用·能力未设定": {
               "weapon_a": "武器图·左端",
               "weapon_b": "武器图·右端",
               "gear_1": "武器图·左下",
-              "fabric_2": "腰部图·中段",
-              "fabric_3": "腕部图·局部",
               "fx_1": "能力未设定"
             },
             "包裹": {
               "weapon_a": "武器图·左端",
               "weapon_b": "武器图·右端",
-              "gear_1": "武器图·左下",
-              "fabric_2": "腰部图·中段",
-              "fabric_3": "腕部图·局部"
+              "gear_1": "武器图·左下"
             },
             "包裹·能力未设定": {
               "weapon_a": "武器图·左端",
               "weapon_b": "武器图·右端",
               "gear_1": "武器图·左下",
-              "fabric_2": "腰部图·中段",
-              "fabric_3": "腕部图·局部",
               "fx_1": "能力未设定"
             }
           },
