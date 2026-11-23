@@ -672,6 +672,17 @@
         "H3SelectIdentityFace",
         "H3FaceTransformInfo"
       ]
+    },
+    {
+      "id": "comfyui-reavideobreakdown",
+      "name": "视频镜头反推 (Rea Video Breakdown)",
+      "desc_zh": "把任意视频按镜头拆开，VLM 逐镜头分析，输出文生视频提示词和运镜数据（光流实测 pan px/s, zoom %/s）。支持中英文报告。",
+      "category": "视频分析",
+      "repo": "https://github.com/benjiyaya/ComfyUI-ReaVideoBreakdown",
+      "verified_license": "MIT",
+      "provides": [
+        "ReaVideoBreakdown"
+      ]
     }
   ]
 }

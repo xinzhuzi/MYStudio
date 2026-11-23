@@ -1,43 +1,42 @@
 // 09-14 晚间用户裁定(research/0914-late-rulings.md):超分不进工作流——
 // 单段直出模板(h3-shot-template,31 节点,无 LatentUpscaler/LTXV,仅节点 9 首帧槽;1004 深夜用户裁定去 MY- 前缀改名)
-// 10-27 二期 multiseg(PRD §14.1):h3-multiseg-template{,.api}.json=repo 原件四针适配产物(脚本 --preset multiseg)
+// 10-27 二期 multiseg(PRD §14.1):h3-multiseg-template{,.api}.json;1123 D17 起两件均由生成器产出
+// (API 执行图模板=multiseg_inline_facerefine_build_1118.py;记账界面图=multiseg_ui_template_build.py);
+// 组装器在 h3-multiseg-video-workflow.ts,共用底层在 h3-workflow-shared.ts(1123 D17 拆分,本件行数封顶)
 import templateJson from "./h3-shot-template.json";
 import apiTemplateJson from "./h3-shot-template.api.json";
 import fasth3TemplateJson from "./fasth3-shot-template.json";
 import fasth3ApiTemplateJson from "./fasth3-shot-template.api.json";
 import templateRefJson from "./h3-shot-template-ref2va.json";
-import multisegTemplateJson from "./h3-multiseg-template.json";
 import pikaTemplateJson from "./pika-shot-template.json";
 import pikaApiTemplateJson from "./pika-shot-template.api.json";
 import pikaRefTemplateJson from "./pika-ref-shot-template.json";
 import pikaRefApiTemplateJson from "./pika-ref-shot-template.api.json";
-import multisegApiTemplateJson from "./h3-multiseg-template.api.json";
 // 1112 recavsr-mainline:三采主线模板对——GUI 档=repo 主线件原样拷贝语义
 // (103 节点含 TESSERA ③组/300-301 旁路);API 母体=Win 实弹验证过的 59 节点
 // 塑形图(九节点签名塑形:220 削口/260-267 sol-attn/206 target-dim/214-130 auto/266 taeh3)。
 import sancaiTemplateJson from "./h3-three-stage-template.json";
 import sancaiApiTemplateJson from "./h3-three-stage-template.api.json";
 import type { StoryboardItem } from "@/types/studio";
-import { buildShotH3Prompt, buildShotH3MultisegPrompt, buildShotH3RefPrompt, extractPlannedDialogueTexts, verifyPlannedTextVerbatim, type H3AudioPolicy } from "./h3-shot-prompt";
+import { buildShotH3Prompt, buildShotH3RefPrompt, type H3AudioPolicy } from "./h3-shot-prompt";
 import { H3_WORKFLOW_RECIPES, type H3ResolutionTier } from "./h3-workflow-recipes";
+import { buildShotH3MultisegApiWorkflow } from "./h3-multiseg-video-workflow";
+import {
+  type ApiGraph,
+  type H3WorkflowTemplate,
+  type WorkflowNode,
+  assertPlannedTextVerbatimGate,
+  getApiNode,
+  getNode,
+  safeImageId,
+  setFirstWidget,
+  setNamedWidget,
+  shotLabel,
+} from "./h3-workflow-shared";
 
-interface WorkflowNode {
-  id: number;
-  type: string;
-  mode?: number;
-  inputs?: Array<Record<string, unknown>>;
-  outputs?: Array<Record<string, unknown>>;
-  widgets_values?: unknown[];
-  widgets_values_named?: Record<string, unknown>;
-  properties?: Record<string, unknown>;
-}
-
-interface H3WorkflowTemplate {
-  nodes: WorkflowNode[];
-  links?: unknown[][];
-  last_link_id?: number;
-  [key: string]: unknown;
-}
+// ── multiseg API 档(§14.1.4)──────────────────────────────────────────────────────────────────
+// 1123 D17 拆出到 h3-multiseg-video-workflow.ts(本件行数封顶棘轮);此处再导出,调用方导入路径不变。
+export { buildShotH3MultisegApiWorkflow };
 
 type ShotSemanticsForH3 = StoryboardItem["shotSemantics"] & {
   cameraMove?: string;
@@ -97,50 +96,12 @@ export function h3ApiTemplateRecipeIds(): string[] {
   return Object.keys(H3_API_TEMPLATE_PAIRS);
 }
 
-function getNode(template: H3WorkflowTemplate, id: number, type: string): WorkflowNode {
-  const node = template.nodes.find((item) => item.id === id);
-  if (!node || node.type !== type) throw new Error(`h3-shot-template drift: node ${id} must be ${type}`);
-  return node;
-}
-
 export function assertH3TemplateIntegrity(template: { nodes?: unknown }, required: Array<[number, string]> = REQUIRED_NODES): void {
   if (!Array.isArray(template.nodes)) throw new Error("h3-shot-template drift: nodes missing");
   for (const [id, type] of required) {
     const node = template.nodes.find((item): item is { id?: unknown; type?: unknown } => Boolean(item && typeof item === "object" && "id" in item && "type" in item) && (item as { id?: unknown }).id === id);
     if (!node || node.type !== type) throw new Error(`h3-shot-template drift: node ${id} must be ${type}`);
   }
-}
-
-function safeImageId(id: string): string {
-  return id.replace(/[^A-Za-z0-9._-]+/g, "_");
-}
-
-function shotLabel(index: number): string {
-  return `S${String(index).padStart(2, "0")}`;
-}
-
-/** 文案逐字自检门(docs/comfyui-kb/参考_文案逐字自检门.md §一,10-01-a7 代码化):
- * 产出 prompt 之后、注入工作流(=入队派发)之前逐条验「计划文案一字不差在场」,
- * 任一缺席即抛大白话中文错误阻断派发(冒泡至桥消费 onError→toast,不静默不放行)。
- * 清单口径:仅 full 档台词进 prompt 才入清单(与 renderDialogue 同一解析源);
- * ambient/bare 档台词走 TTS 线不进 prompt(「No dialogue」),清单为空不拦。 */
-function assertPlannedTextVerbatimGate(shot: ShotH3WorkflowInput["shot"], policy: H3AudioPolicy, prompt: string): void {
-  const plannedTexts = policy === "full" ? extractPlannedDialogueTexts(shot.lines) : [];
-  const { ok, missing } = verifyPlannedTextVerbatim(prompt, plannedTexts);
-  if (ok) return;
-  const items = missing.map((text) => `「${text}」`).join("");
-  throw new Error(
-    `文案逐字自检未通过,${shotLabel(shot.index)} 这镜已禁止派发:有 ${missing.length} 条计划台词没有一字不差地进入最终提示词——${items}。请回上一环节把文案修正到一字不差(含标点)后再派发。`,
-  );
-}
-
-function setFirstWidget(node: WorkflowNode, value: unknown): void {
-  if (!Array.isArray(node.widgets_values)) throw new Error(`h3-shot-template drift: node ${node.id} widgets_values missing`);
-  node.widgets_values[0] = value;
-}
-
-function setNamedWidget(node: WorkflowNode, key: string, value: unknown): void {
-  if (node.widgets_values_named) node.widgets_values_named[key] = value;
 }
 
 function connectVideoWriteback(template: H3WorkflowTemplate): void {
@@ -257,18 +218,10 @@ export interface ShotH3ApiWorkflowResult {
   report: { shot: number; seconds: number; frames: number; policy: H3AudioPolicy };
 }
 
-type ApiGraph = Record<string, { class_type: string; inputs: Record<string, unknown> }>;
-
 const H3_RESOLUTION_TIERS: Record<"480p" | "960p", readonly [number, number]> = {
   "480p": [608, 352],
   "960p": [1344, 768],
 };
-
-function getApiNode(apiGraph: ApiGraph, id: string, classType: string): { class_type: string; inputs: Record<string, unknown> } {
-  const node = apiGraph[id];
-  if (!node || node.class_type !== classType) throw new Error(`h3-shot-template.api.json drift: node ${id} must be ${classType}`);
-  return node;
-}
 
 /** API 档组装器(§5.2,通道B 批量派发真身;C3 修正:标量出厂直填,不走 strings 通用注入)。
  *  提示词链与画布档完全同源——先跑 buildShotWorkflowFromTemplate(内含 buildShotH3Prompt+
@@ -321,119 +274,6 @@ export function buildShotH3ApiWorkflow(input: ShotH3ApiWorkflowInput): ShotH3Api
 
   const images = input.firstFrameB64 ? [{ key: "9.image", name: String(imageName), b64: input.firstFrameB64 }] : [];
   return { apiGraph, uiWorkflow: base.ui, images, report: base.report };
-}
-
-// ── multiseg API 档(PRD 10-27 §14.1.4;my-h3-multiseg 适配的分段组装器)──────────────────────────
-
-/** multiseg 档位映射(§14.1.4 M5):960×544=模板原厂值,禁擅改比例;不与 i2v-31 的
- *  1344×768 共用——turbo LoRA 名义 768p,960×544 失配属画质问题非正确性问题,实弹判读后候令对齐。 */
-const MULTISEG_RESOLUTION_TIERS: Record<"960p", readonly [number, number]> = { "960p": [960, 544] };
-/** multiseg 适配模板完整性锚(四针产物,脚本 h3_template_to_api_1027.py --preset multiseg 生成)。 */
-const MULTISEG_REQUIRED_NODES: Array<[number, string]> = [
-  [4, "SaveVideo"],
-  [9, "LoadImage"],
-  [100, "H3Parameter"],
-  [101, "H3AutoContextSampler"],
-  [103, "MyShot"],
-];
-
-/** multiseg API 档组装器(§14.1.4):克隆适配 UI 模板(h3-multiseg-template.json,四针产物)
- *  →注入(long_prompt/宽高 960×544/首帧名/五段前缀/MyShot 四字段+properties 三键/激活 9+103)→
- *  读值直填 apiGraph(照 buildShotH3ApiWorkflow「一份组装产两形态」范式,两形态逐字一致)。
- *  提示词=buildShotH3MultisegPrompt(分段大文本)+文案逐字自检门(同门同文案);
- *  无 seconds 锚——时长在分段文本标签行内(§4.1 修订:multiseg 适配后有 firstFrame 潜空间锚)。 */
-export function buildShotH3MultisegApiWorkflow(input: ShotH3ApiWorkflowInput): ShotH3ApiWorkflowResult {
-  const tier = input.resolutionTier ?? "960p";
-  if (tier !== "960p") {
-    throw new Error("my-h3-multiseg 暂只支持 960p 档(960×544 模板原厂比例;480p 属画质对齐议题候令,非档位裁剪)");
-  }
-  const template = JSON.parse(JSON.stringify(multisegTemplateJson)) as H3WorkflowTemplate;
-  for (const [id, type] of MULTISEG_REQUIRED_NODES) {
-    const node = template.nodes.find((item) => item.id === id);
-    if (!node || node.type !== type) throw new Error(`h3-multiseg-template drift: node ${id} must be ${type}`);
-  }
-  const policy = input.policy ?? "ambient";
-  const shot = input.shot;
-  const description = shot.videoDesc.trim() || shot.prompt.trim();
-  const durationSec = shot.durationTarget ?? shot.duration;
-  const prompt = buildShotH3MultisegPrompt({
-    videoDesc: description,
-    durationTarget: durationSec,
-    lines: shot.lines,
-    sound: shot.sound,
-    policy,
-    voiceMood: input.voiceMood,
-    fps: 24, // 模板 100.fps 出厂值,组装恒与模板一致
-  });
-  assertPlannedTextVerbatimGate(shot, policy, prompt.longPrompt);
-  const label = shotLabel(shot.index);
-  const imageName = input.imageName ?? `my-shot-h3-${safeImageId(shot.id)}.jpg`;
-  const prefix = `video/漫影/${input.chapterId}/${shot.id}/${policy}`;
-
-  // 注入 UI 克隆:首帧/前缀/分段提示词/宽高原厂档/MyShot 四字段+properties 三键/激活双旁路节点
-  const saveVideo = getNode(template, 4, "SaveVideo");
-  const firstFrame = getNode(template, 9, "LoadImage");
-  const parameter = getNode(template, 100, "H3Parameter");
-  const anchor = getNode(template, 103, "MyShot");
-  const [width, height] = MULTISEG_RESOLUTION_TIERS["960p"];
-  setFirstWidget(saveVideo, prefix);
-  setNamedWidget(saveVideo, "filename_prefix", prefix);
-  setFirstWidget(firstFrame, imageName);
-  setNamedWidget(firstFrame, "image", imageName);
-  firstFrame.mode = 0; // 适配模板出厂旁路(防占位污染收件箱),组装时激活(i2v 节点 9 同构)
-  if (!Array.isArray(parameter.widgets_values) || parameter.widgets_values.length < 19) {
-    throw new Error("h3-multiseg-template drift: node 100 widgets_values missing");
-  }
-  parameter.widgets_values[0] = prompt.longPrompt;
-  parameter.widgets_values[6] = width;
-  parameter.widgets_values[7] = height;
-  anchor.widgets_values = [shot.id, label, description, "图✓"];
-  anchor.properties = { ...(anchor.properties ?? {}), myPreview: imageName, myOriginProjectId: input.originProjectId ?? "", myOriginEpisodeId: input.chapterId };
-  anchor.mode = 0;
-
-  // 读值直填 apiGraph(锚=object_info 实锚:100.long_prompt/100.width/100.height/4/9/103)
-  const apiGraph = JSON.parse(JSON.stringify(multisegApiTemplateJson)) as ApiGraph;
-  const parameterApi = getApiNode(apiGraph, "100", "H3Parameter");
-  parameterApi.inputs.long_prompt = prompt.longPrompt;
-  parameterApi.inputs.width = width;
-  parameterApi.inputs.height = height;
-  getApiNode(apiGraph, "4", "SaveVideo").inputs.filename_prefix = `${prefix}-p1`;  // D3:一采预览降级 -p1(对齐三采 2061 口径)
-  // D3 已批复(1123):4100=终档=记账件(103 MyShot 锚,前缀含镜号可按镜回收);注入须在
-  // faceRefine 分支之前——_修脸 后缀追加在已注入的前缀上(非模板公共目录值)
-  // 1123 R1/D18-A:4100 第 5 段必须是纯 policy(MyShot my_shot.py 按段校验、
-  // h3-shot-landing 按 policy==="full" 判 h3-baked),禁加 -p-final 等任何后缀
-  getApiNode(apiGraph, "4100", "SaveVideo").inputs.filename_prefix = prefix;
-  getApiNode(apiGraph, "9", "LoadImage").inputs.image = imageName;
-  const myShot = getApiNode(apiGraph, "103", "MyShot");
-  myShot.inputs = { ...myShot.inputs, shot_id: shot.id, label, description, media_status: "图✓" };
-
-  // 1123 正典(用户裁定:一采→二采→三采恒走,修脸四采按需):二采簇随车注入——
-  // 3030 提示词与 100 同源(禁模板演示句滞留);3031.length=总帧数(画布无帧数图出口,手动纪律的 App 路兜底);
-  // 5012.length 已于 D4 改为模板连线 [5011,6](frame_count 实测帧数),组装器覆写已删,禁回写数字断线
-  getApiNode(apiGraph, "3030", "PrimitiveStringMultiline").inputs.value = prompt.longPrompt;
-  if (input.faceRefine) {
-    // 1123 用户令:修脸开=1065 拨开 + 终档文件名加「_修脸」后缀(仅此,不搞其他)
-    getApiNode(apiGraph, "1065", "PrimitiveBoolean").inputs.value = true;
-    const finalSaver = getApiNode(apiGraph, "4100", "SaveVideo");
-    finalSaver.inputs.filename_prefix = `${finalSaver.inputs.filename_prefix}_修脸`;  // D18-A:追加在纯 prefix 上(=…/{policy}_修脸;my_shot.py 剥离后得干净 policy+faceRefined)
-  }
-  const totalFrames = prompt.segments.reduce((sum, segment) => sum + segment.frames, 0);
-  getApiNode(apiGraph, "3031", "MiniMaxH3ReferenceToVideo").inputs.length = totalFrames;
-
-  const images = input.firstFrameB64 ? [{ key: "9.image", name: imageName, b64: input.firstFrameB64 }] : [];
-  return {
-    apiGraph,
-    // D17①(1123 批复:生成器同产 bundle UI 件)改造成本高,按 PRD 低优口径暂注明:本 uiWorkflow
-    // =14 节点适配 UI 件,仅为参数示意(实际执行图=63→67 节点 apiGraph);bundle 化候用户令另役
-    uiWorkflow: template as unknown as Record<string, unknown>,
-    images,
-    report: {
-      shot: shot.index,
-      seconds: prompt.totalSeconds,
-      frames: prompt.segments.reduce((sum, segment) => sum + segment.frames, 0),
-      policy,
-    },
-  };
 }
 
 /** 注册表分派组装器(§14.1.4;1101 pika-ref2va-mainline 增 r2v 分支;1112 recavsr-mainline
