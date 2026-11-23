@@ -4,6 +4,7 @@
 预算:源码文件 ≤500 行(警告线)/ ≤800 行(强制拆分线)。
 豁免:测试(*.test.* / test_*.py / *_test.py)、生成物(*.generated.* / __pycache__)、
 vendor、__fixtures__、数据 spec 类(见豁免清单 json)。
+登记了 caps 的豁免件,行数超过上限仍报 HARD。
 用法:
   python3 file_size_gate.py            # 列清单(警告+超线),超线退出码 1
   python3 file_size_gate.py --json     # 机器可读输出
@@ -39,6 +40,17 @@ def is_exempt(p: Path) -> bool:
     return rel in exemptions
 
 
+def exemption_cap(rel: str) -> int | None:
+    """豁免件的封顶行数(1123 归位役)。清单没有 caps 字段,或该件没有登记,返回 None 即不封顶。"""
+    if not EXEMPT_JSON.exists():
+        return None
+    caps = json.loads(EXEMPT_JSON.read_text(encoding="utf-8")).get("caps") or {}
+    if not isinstance(caps, dict):
+        return None
+    value = caps.get(rel)
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
 def scan() -> list[dict]:
     rows = []
     for pattern, roots in (("py", [REPO / "apps" / "backend"]),
@@ -49,6 +61,13 @@ def scan() -> list[dict]:
                 continue
             for p in root.rglob(f"*.{pattern}"):
                 if is_exempt(p):
+                    rel = str(p.relative_to(REPO))
+                    cap = exemption_cap(rel)
+                    if cap is not None:
+                        n = len(p.read_text(encoding="utf-8", errors="replace").splitlines())
+                        if n > cap:
+                            rows.append({"file": rel, "lines": n, "level": "HARD",
+                                         "note": "豁免超封顶"})
                     continue
                 n = len(p.read_text(encoding="utf-8", errors="replace").splitlines())
                 if n >= WARN:
@@ -69,7 +88,8 @@ if __name__ == "__main__":
         print(f"预算:WARN≥{WARN} 行 / HARD≥{HARD} 行(豁免:测试/生成物/vendor/fixtures)")
         print(f"\nHARD({len(hard)} 个,须拆分或登记豁免):")
         for r in hard:
-            print(f"  {r['lines']:5d}  {r['file']}")
+            note = f"  [{r['note']}]" if r.get("note") else ""
+            print(f"  {r['lines']:5d}  {r['file']}{note}")
         print(f"\nWARN({len(warn)} 个,新改动勿再增行):")
         for r in warn:
             print(f"  {r['lines']:5d}  {r['file']}")
