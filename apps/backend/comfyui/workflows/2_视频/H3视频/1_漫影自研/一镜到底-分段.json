@@ -579,6 +579,7 @@
       "widgets_values": [
         0.0,
         42,
+        "fixed",
         8,
         1.0,
         "euler",

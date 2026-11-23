@@ -679,7 +679,24 @@ def build_canvas(S: dict, src_nodes: list) -> dict:
             md = n["widgets_values"][0]
             if README_MARK not in md:
                 n["widgets_values"][0] = md + README_SECTION
-    return S
+    return fix_seed_control_layout(S)
+
+
+def fix_seed_control_layout(S: dict) -> dict:
+    """1123 D17 探针实证(真实前端加载导出):#101 控件值表漏了 seed 后的「固定」项。
+
+    前端给 seed 控件自动配 control_after_generate 下拉并一并序列化(同画布 4002/5110 均带 "fixed");
+    #101 的表按 10 个标量写,加载后第 3 位(本应给 steps 的 8)落进该下拉,其后整体错位一格
+    (导出 steps=1/cfg="euler"/sampler_name="simple"/scheduler=1/denoise=true/enable_cache=false)。
+    #101 属「本件既有」节点,剥离重放不触及,历史脚本手写从未经前端存盘回写 → 在此规整。
+    幂等:已带该项(第 3 位为字符串)原样;不在两种已知形态内=拒改报错(禁猜)。"""
+    wv = node_by_id(S["nodes"], 101).get("widgets_values")
+    if isinstance(wv, list) and len(wv) == 11 and isinstance(wv[2], str):
+        return S
+    if isinstance(wv, list) and len(wv) == 10 and isinstance(wv[1], int) and not isinstance(wv[2], str):
+        wv.insert(2, "fixed")
+        return S
+    die(f"#101 widgets_values 形态非预期({wv!r}),拒改")
 
 
 def build_api(A: dict) -> dict:
@@ -865,6 +882,8 @@ def check() -> int:
        and nmap[5110]["widgets_values"][2] == "fixed",
        "5110 widgets 逐位照单镜(control=fixed seed 锁 300831622214023 禁 randomize)")
     ok(nmap[5109]["widgets_values"] == ["VOSR2", "default"], "5109 widgets 逐位照单镜")
+    ok(nmap[101]["widgets_values"] == [0.0, 42, "fixed", 8, 1.0, "euler", "simple", 1.0, True, False, False],
+       "101 widgets seed 后带「固定」项(1123 D17:此前漏项,真实前端加载后 steps/cfg 等错位一格)")
     ok(nmap[5024]["widgets_values"] == nmap[5022]["widgets_values"],
        "5024 widgets 逐位同 5022(高清复制对)")
     ok(nmap[5025]["widgets_values"] == nmap[5023]["widgets_values"], "5025 widgets 逐位同 5023")

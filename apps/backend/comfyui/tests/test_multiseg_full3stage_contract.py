@@ -72,7 +72,11 @@ def test_stage1_canonical_arm():
     assert nodes[1046]["widgets_values"] == ["lcm"], "一采采样器=lcm(Pika 必须 lcm)"
     assert nodes[1045]["widgets_values"] == ["simple", 8, 1.0]
     assert nodes[1041]["widgets_values"][1] == 1.3, "sol-attn τ1.3"
-    assert nodes[101]["widgets_values"][4] == "euler", "内置 euler 留作 widget 展示位(被外接覆盖,README :205)"
+    # 1123 D17 探针实证(真实前端加载导出):控件值表须含 seed 后的「固定」项(前端给 seed 自动配
+    # control_after_generate 下拉并一并序列化,同画布 4002/5110/3040 同例)。此前漏项 → 加载后 seed 之后
+    # 整体错位一格(实跑 steps=1/cfg="euler"/…);生成器 fix_seed_control_layout 重放时规整。
+    assert nodes[101]["widgets_values"] == [0.0, 42, "fixed", 8, 1.0, "euler", "simple", 1.0, True, False, False], \
+        "[101] 控件值逐位(seed 后带 fixed;内置 euler 留作 widget 展示位,被外接覆盖,README :205)"
 
 
 def test_stage2_recipe_values():
