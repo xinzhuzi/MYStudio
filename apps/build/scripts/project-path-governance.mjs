@@ -24,7 +24,6 @@ const PROTECTED_PREFIXES = [
   { prefix: '.github', category: 'project-control', reason: 'Repository automation is hard-protected' },
   { prefix: 'docs', category: 'project-documentation', reason: 'Project documentation is hard-protected' },
   { prefix: 'apps/.trellis', category: 'trellis', reason: 'Nested Trellis data is hard-protected' },
-  { prefix: 'apps/index.cjs', category: 'source', reason: 'Application entrypoint is hard-protected' },
   { prefix: 'apps/package.json', category: 'source', reason: 'Application package manifest is hard-protected' },
   { prefix: 'apps/pnpm-lock.yaml', category: 'source', reason: 'Application dependency lockfile is hard-protected' },
   { prefix: 'apps/frontend', category: 'source', reason: 'Frontend source is hard-protected' },

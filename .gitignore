@@ -18,6 +18,10 @@ dist-electron
 out/
 release/
 /output/
+# 1123 归位役:后端产物与缓存目录显式忽略
+apps/backend/output/
+apps/backend/.ruff_cache/
+apps/backend/comfyui/output/
 .zcode/
 # Local workspace artifacts
 # Claude 会话工作脚本(含本机会话路径,不入公开仓;历史件已移 ~/.zcode/mystudio-local/claude-session-scripts/)
@@ -170,6 +174,7 @@ apps/build/scripts/campaigns/
 
 # qi21 教材实弹测具与运行进度件(livefire 家,08规范§8.7 引用;进度/报告件不入库,同 campaigns 惯例)
 apps/backend/comfyui/runs/
+apps/build/runs/
 
 # 77 官方示例图二进制不入库(1017 用户令:大图勿入库 push 撞 181MB 断线;URL 对照表=images/README.md,本地件留存)
 docs/prompts/Qwen-Image-2.1/images/*
