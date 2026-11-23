@@ -196,22 +196,29 @@ try {
         const x = node.pos[0], y = node.pos[1], w = node.size[0], h = node.size[1];
         const boxOf = g => g.bounding ?? g._bounding ?? (g.pos && g.size ? [g.pos[0], g.pos[1], g.size[0], g.size[1]] : null);
         const group = (app.graph.groups || []).find(g => { const b = boxOf(g); return b && b[0] <= x && x + w <= b[0] + b[2] && b[1] <= y && y + h <= b[1] + b[3]; });
-        // 以节点为中心取景:四周留 420 画布单位,看得到相邻节点与进出连线;缩放夹在 [0.55, 1] 保证文字可读
+        // 以节点为中心取景:四周留 420 画布单位,看得到相邻节点与进出连线;缩放夹在 [0.55, 1] 保证文字可读。
+        // 偏移量单位=世界坐标(画布变换是先缩放再平移:屏幕 = (世界 + 偏移) × 缩放);按「屏幕像素」算会在
+        // 坐标大、缩放小时偏出一整屏(1124 踩过:#103/#4100 两张脱靶,而缩放为 1 的 #800 恰好两种算法重合)
         const canvas = app.canvas; const rect = canvas.canvas.getBoundingClientRect(); const m = 420;
         const s = Math.max(0.55, Math.min(1, Math.min(rect.width / (w + 2 * m), rect.height / (h + 2 * m))));
-        const want = [rect.width / 2 - (x + w / 2) * s, rect.height / 2 - (y + h / 2) * s];
+        const want = [rect.width / (2 * s) - (x + w / 2), rect.height / (2 * s) - (y + h / 2)];
         const before = window.__d17Draw();
         canvas.ds.scale = s; canvas.ds.offset = want; canvas.setDirty(true, true);
-        // 等画布按新取景确实重绘过(至少 3 帧),再回读取景参数与画布中心像素留证
+        // 等画布按新取景确实重绘过(至少 3 帧),再回读取景参数与画布可视区域自证
         const start = performance.now();
         while (window.__d17Draw() < before + 3 && performance.now() - start < 4000) await new Promise(r => requestAnimationFrame(r));
         await new Promise(r => setTimeout(r, 250));
         const ctx = canvas.canvas.getContext('2d');
         const applied = [canvas.ds.scale, canvas.ds.offset[0], canvas.ds.offset[1]].map(v => +Number(v).toFixed(3));
         const want3 = [s, want[0], want[1]].map(v => +Number(v).toFixed(3));
+        // 画布自报可视区域(世界坐标 [x, y, 宽, 高])的中心须正是节点中心——取景是否真落在这颗节点上的硬证据
+        const va = Array.from(canvas.visible_area ?? []).map(Number);
+        const visibleCentre = va.length === 4 ? [va[0] + va[2] / 2, va[1] + va[3] / 2] : null;
+        const centred = Boolean(visibleCentre) && Math.abs(visibleCentre[0] - (x + w / 2)) < 2 && Math.abs(visibleCentre[1] - (y + h / 2)) < 2;
         return {
           group: group?.title ?? null, node: { title: node.title, type: node.type, mode: node.mode, pos: [x, y], size: [w, h] },
           scale: +s.toFixed(3), framesDrawn: window.__d17Draw() - before, framingApplied: JSON.stringify(applied) === JSON.stringify(want3),
+          nodeCentred: centred, visibleCentre: visibleCentre?.map(Math.round) ?? null,
           centrePixel: ctx ? Array.from(ctx.getImageData(Math.round(rect.width / 2), Math.round(rect.height / 2), 1, 1).data).join(',') : null,
           removedOverlays: removed,
         };
