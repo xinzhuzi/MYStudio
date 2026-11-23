@@ -172,6 +172,14 @@ class TestCanvas:
         assert len(self.d["nodes"]) == 33 and len(self.d["links"]) == 45
         assert self.d["last_node_id"] == 37 and self.d["last_link_id"] == 45
 
+    def test_link_target_slots_resolve(self):
+        # 1123 #11:link 记录的 target_slot 必须回指目标节点 inputs 的真实索引
+        # (生成器 wire() 曾把 23 条槽位全写 0,画布加载/保存会静默改线)
+        for l in self.d["links"]:
+            lid, _, _, dst, ts, _ = l
+            slots = [k for k, i in enumerate(self.by[dst]["inputs"]) if i.get("link") == lid]
+            assert slots == [ts], f"link {lid}→{dst} 槽位 {ts} 不回指 {slots}"
+
 
 # ── 3. API 直投模板 ────────────────────────────────────────────────
 class TestApi:

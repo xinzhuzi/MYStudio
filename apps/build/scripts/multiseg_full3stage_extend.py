@@ -110,8 +110,9 @@ README_NOTE = (
     "两态实弹复判绿(判据档 apps/output/multiseg-mode0-oneshot-1122/livefire-summary.json:A 态 1065=false 150s"
     " 四产物齐·p-final≡p3 md5 逐字节直通;B 态 1065=true 200s·p-final≢p3=修脸臂实吃 4002 出片;两态均"
     " p3/p-final=3840×2220/24fps/56帧);若再崩,回退 mode=4 须用户再裁。\n"
-    "App 派发/批量/livefire 恒走 API 两发拆链+间中 `POST /free {\"unload_models\": true}`(Note103 运行法则,"
-    "显存纪律与 UI 整图一发并行不悖)。\n\n"
+    "multiseg App 派发/批量路=整图一发(1122 实弹绿,56 帧;1123 D6 裁定③文档对齐代码);"
+    "单镜三采 App 路=段A/段B 拆链+间中 `POST /free {\"unload_models\": true}`;"
+    "长镜(≥10s)整图一发待 #7 长镜两态实弹定谳。\n\n"
     "## 同步点三则(手改必读)\n1. 改分段时长必须按帧数公式同步 [3031].length(targets→snap17 网格→Σnew,"
     "出厂 2×1秒=56),实跑以 p1 ffprobe 实测帧数双核对(雷#13/#17);\n2. [3030] 与 [100] 提示词是两份拷贝,"
     "手改同频(雷#14,契约测试出厂态断言同文);\n3. 组框五组横排与布局 est 宪法由 "
@@ -268,7 +269,7 @@ def _new_nodes() -> list[dict]:
                       _in("height", "INT", None, widget="height"),
                       _in("length", "INT", None, widget="length")],
               outputs=[_out("positive", "CONDITIONING", [22]), _out("LATENT", "LATENT", [])],
-              title="二采条件(零参考纯文生;ref_image_size 出厂 match)"),
+              title="二采条件(零参考纯文生;⚠改分段时长必须同步本件 length——本件无帧数图出口,1123 D5 标红)"),
         _node(3040, "RandomNoise", [42, "fixed"],
               outputs=[_out("NOISE", "NOISE", [27])]),
         _node(3041, "BasicScheduler", ["simple", 3, 0.2],
