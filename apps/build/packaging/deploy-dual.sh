@@ -282,6 +282,53 @@ phase_b() {
     fi
   fi
 
+  # B4.6: 同步道劫数据四件 → 引擎家 daojie-data(1123 Phase 6 补:此前部署链路无任何一处写这里——
+  # B4 只把种子留在安装目录,引擎读的却是引擎家那份,于是每次部署后节点代码恒新、真源恒旧;
+  # 1123 两次实录:高清人头型名引擎不认 / 武器类别新键不在册。Mac 端的补同步只在
+  # engine_manager.start_sync 的 spawn 分支,本脚本走计划任务拉起,不经过它。
+  # 清单=plugin_manager.DAOJIE_DATA_FILES 四件;逐件 临时件→sha256 对拍种子→换入,失败不静默。
+  # 路径按本脚本惯例直接展开进命令串(Windows 侧无 WIN_* 环境变量);WIN_ENGINE_HOME 已含 \comfyui。
+  # ssh_win 丢弃 stderr,故失败原因一律 Write-Output 到 stdout。)
+  if ! dry "同步道劫数据四件 → 引擎家"; then
+    log "Syncing daojie-data (4 files) to engine home..."
+    local dd_ps dd_code=0 dd_seed dd_dest
+    dd_seed="$WIN_INSTALL\\resources\\studio-manuals\\art_skills\\daojie_ink_guofeng\\json"
+    dd_dest="$WIN_ENGINE_HOME\\daojie-data"
+    dd_ps=$(cat <<PSEOF
+\$ErrorActionPreference = 'Stop'
+\$ProgressPreference = 'SilentlyContinue'
+\$seed  = '$dd_seed'
+\$dest  = '$dd_dest'
+try {
+  if (-not (Test-Path -LiteralPath \$seed)) { throw "seed dir missing: \$seed" }
+  New-Item -ItemType Directory -Force -Path \$dest | Out-Null
+  \$n = 0
+  foreach (\$f in 'qi21_bases.json','qi21_strip_lexicon.json','daojie_lora_stack.json','daojie_loras.json') {
+    \$s = Join-Path \$seed \$f; \$d = Join-Path \$dest \$f
+    if (-not (Test-Path -LiteralPath \$s)) { throw "seed missing: \$f" }
+    \$hs = (Get-FileHash -LiteralPath \$s -Algorithm SHA256).Hash
+    if ((Test-Path -LiteralPath \$d) -and ((Get-FileHash -LiteralPath \$d -Algorithm SHA256).Hash -eq \$hs)) { continue }
+    \$tmp = "\$d.tmp"
+    Copy-Item -LiteralPath \$s -Destination \$tmp -Force
+    if ((Get-FileHash -LiteralPath \$tmp -Algorithm SHA256).Hash -ne \$hs) { Remove-Item -LiteralPath \$tmp -Force; throw "sha mismatch after copy: \$f" }
+    Move-Item -LiteralPath \$tmp -Destination \$d -Force
+    \$n++
+  }
+  Write-Output "DAOJIE_DATA_SYNCED=\$n"
+} catch {
+  Write-Output "DAOJIE_DATA_SYNC_FAILED: \$(\$_.Exception.Message)"
+  exit 3
+}
+PSEOF
+)
+    dd_out=$(ssh_win "powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand $(printf '%s' "$dd_ps" | iconv -f UTF-8 -t UTF-16LE | base64 | tr -d '\n')") || dd_code=$?
+    if [ "$dd_code" -eq 0 ]; then
+      log "✅ 道劫数据四件已同步到引擎家 daojie-data(${dd_out})"
+    else
+      die "道劫数据同步失败(exit=$dd_code ${dd_out})——引擎将以旧真源运行"
+    fi
+  fi
+
   # B5: 重启引擎(schtasks 调度域拉起 + 重试探测 /system_stats,最长 120s 每 5s——冷启动加载模型慢)
   if ! dry "重启引擎"; then
     log "Starting engine..."
