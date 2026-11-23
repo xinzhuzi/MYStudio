@@ -1,10 +1,23 @@
-# GitNexus 索引范围(2026-11-23):索引器默认把名为 build 的目录当构建产物跳过,
-# 而 apps/build 在本仓是源码(构建执行器、门禁脚本、打包与冒烟),共 900 余件从未入索引,
-# 导致仓规「改任何符号前跑影响分析」对这一目录无法执行。
-# 第 6 行只放开 apps/build;别处的 build、out、node_modules 等仍按索引器默认规则忽略。
+# GitNexus 索引范围(2026-11-23)
 #
-# 注意:不要在这里写 !apps/build/scripts/campaigns/。该目录被仓库 .gitignore 忽略是有意的
-# (磁盘上 700 余件里混着截图帧、mp4、wav 等战役产物),索引器读 .gitignore 才把它们挡在外面;
-# 加否定规则会连产物一起收进索引(2026-11-23 实测:多收 345 件,含 jpg/mp4/wav),已撤回。
-# 其中已入库的 260 件脚本因此不在索引内,属已知盲区。
+# 一、apps/build 是源码,不是构建产物。索引器默认把名为 build 的目录整个跳过,
+#    导致本仓 apps/build(构建执行器、门禁脚本、打包与冒烟)900 余件从未入索引,
+#    仓规要求的「改动前跑影响分析」对该目录一直无法执行。
+#    第 14 行只放开 apps/build;别处的 build、out、node_modules 等仍按默认规则忽略。
+#
+# 二、apps/build/scripts/campaigns/ 被仓库 .gitignore 整目录忽略(磁盘上混着截图帧、
+#    mp4、wav 等战役产物),索引器同时读 .gitignore。第 15 到 25 行只让索引器把该目录
+#    下的脚本收进来,产物继续挡在外面;不改变 git 自身的忽略行为。
+#    这几行的顺序不能调:放开目录 → 整体忽略 → 放开子目录 → 按类型放开脚本。
+#    (不要简写成一行 !apps/build/scripts/campaigns/:实测会连产物一起收进来 345 件。)
 !apps/build/
+!apps/build/scripts/campaigns/
+apps/build/scripts/campaigns/**
+!apps/build/scripts/campaigns/**/
+!apps/build/scripts/campaigns/**/*.py
+!apps/build/scripts/campaigns/**/*.ts
+!apps/build/scripts/campaigns/**/*.mjs
+!apps/build/scripts/campaigns/**/*.cjs
+!apps/build/scripts/campaigns/**/*.js
+!apps/build/scripts/campaigns/**/*.sh
+!apps/build/scripts/campaigns/**/*.ps1
