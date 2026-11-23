@@ -103,3 +103,59 @@ describe("sanitizeStoryboardBatchSession(持久化水合校验)", () => {
     }
   });
 });
+
+describe("reload 水合(1121 分镜锚修 B腿:legacy 键信封 + running→interrupted 归一)", () => {
+  it("旧格式(裸 record 顶层键,无 session 包裹)load 后水合为现行 {session} 结构,种子字段逐字保留", async () => {
+    // legacy 键信封:记录自身键直接占 state 顶层(无 session 包裹)
+    storage.set("mystudio-storyboard-batch-session", JSON.stringify({
+      state: { ...record({ status: "interrupted" }) },
+      version: 0,
+    }));
+    await useStoryboardBatchSessionStore.persist.rehydrate();
+    expect(useStoryboardBatchSessionStore.getState().session).toEqual(
+      record({ status: "interrupted" }),
+    );
+  });
+
+  it("现行格式 status=running(进程终止没机会落 interrupted)水合归一 interrupted,对齐 H3 同族范式", async () => {
+    storage.set("mystudio-storyboard-batch-session", JSON.stringify({
+      state: { session: record({ status: "running" }) },
+      version: 0,
+    }));
+    await useStoryboardBatchSessionStore.persist.rehydrate();
+    expect(useStoryboardBatchSessionStore.getState().session).toEqual(
+      record({ status: "interrupted" }),
+    );
+  });
+
+  it("裸信封水合后下一次写盘即为现行格式({session} 包裹)", async () => {
+    storage.set("mystudio-storyboard-batch-session", JSON.stringify({
+      state: { ...record({ status: "running" }) },
+      version: 0,
+    }));
+    await useStoryboardBatchSessionStore.persist.rehydrate();
+    useStoryboardBatchSessionStore.getState().advanceStoryboardBatchSession({
+      cursorShotIndex: 4,
+      doneFrames: 3,
+      failedFrames: 0,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const persisted = JSON.parse(storage.get("mystudio-storyboard-batch-session") ?? "{}");
+    // 写盘真源格式:state.session 包裹;状态已归一 interrupted(不再裸放顶层)
+    expect(persisted.state.session).toMatchObject({
+      sessionId: "sb-batch-1",
+      cursorShotIndex: 4,
+      doneFrames: 3,
+      status: "interrupted",
+    });
+  });
+
+  it("现行格式 session:null 保持 null(不因 legacy 回退误造会话)", async () => {
+    storage.set("mystudio-storyboard-batch-session", JSON.stringify({
+      state: { session: null },
+      version: 0,
+    }));
+    await useStoryboardBatchSessionStore.persist.rehydrate();
+    expect(useStoryboardBatchSessionStore.getState().session).toBeNull();
+  });
+});

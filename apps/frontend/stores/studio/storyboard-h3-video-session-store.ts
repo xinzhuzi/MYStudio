@@ -112,8 +112,15 @@ export const useStoryboardH3VideoSessionStore = create<StoryboardH3VideoSessionS
       storage: createJSONStorage(() => fileStorage),
       partialize: (state) => ({ session: state.session }),
       merge: (persisted, current) => {
-        const raw = persisted as { session?: unknown } | undefined;
-        const session = sanitizeStoryboardH3VideoSession(raw?.session);
+        const raw = persisted && typeof persisted === "object"
+          ? (persisted as { session?: unknown })
+          : undefined;
+        // legacy 键信封水合(1121 分镜锚修 B腿,与 storyboard-batch-session-store
+        // 同族归一):session 键缺席时把信封顶层当 legacy 裸记录识别,水合归一到
+        // persist 现行格式({session});sanitize 只认记录形状,现行包裹形在此
+        // 必败回落 null,不会误收。
+        const rawSession = raw?.session !== undefined ? raw.session : raw;
+        const session = sanitizeStoryboardH3VideoSession(rawSession);
         // 水合一律按可续跑处理(进程终止没机会落 interrupted;running 视同 interrupted)
         return { ...current, session: session ? { ...session, status: "interrupted" as const } : null };
       },

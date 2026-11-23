@@ -169,6 +169,16 @@ def assemble(subject: str, name: str, bg: str) -> dict:
     }
     for k in ("side", "back", "face", "head", "wrist", "waist"):
         out[k] = fill(q["edit_instructions"][k])
+    # 非默认类别:side/back 指令的「佩剑挂载」按真源 view_mount 换成类别感知措辞(1123:原四字令模型把
+    # 参考图上正确的油布剑包改成「缠布柄+裸鞘的佩剑」);默认类不替换,指令逐字不变
+    if base != default:
+        vm = q.get("view_mount") or {}
+        mount_default, mount_by = vm.get("default", "佩剑挂载"), vm.get("by_category", {})
+        if base not in mount_by:
+            raise ValueError(f"真源 view_mount.by_category 缺类别 {base!r}(side/back 指令的背负物措辞须在册)")
+        for k in ("side", "back"):
+            if mount_default in out[k]:
+                out[k] = out[k].replace(mount_default, mount_by[base])
     for k in EXP_TAGS:                          # 1114 Skill-5.4 §六 表情参考行
         out[k] = fill(q["edit_instructions"][k])
     # v6 底部信息带:档案行+设计说明行(两行合成一个 STRING 出,程序绘)

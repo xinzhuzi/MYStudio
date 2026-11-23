@@ -10,7 +10,7 @@ import { extractScriptVoiceLines } from "@/lib/studio/script-draft-metrics";
 import { runScriptPrecheck } from "@/lib/studio/script-precheck";
 import { DAOJIE_STRICT_DURATION_SECONDS } from "@/lib/studio/daojie-duration-policy";
 
-const ROOT = "/tmp/vol4_batch/ch";
+const ROOT = "/Users/zhengbingjin/Library/Caches/mystudio/three-artifacts/vol4_batch/ch";
 const CHAPTERS = (process.env.VOL4_CH ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 const BAD_WORDS = ["电影级", "杰作", "获奖", "超高清", "8K"];
 const EMO_WORDS = ["绝望", "愤怒", "悲伤", "开心", "恐惧", "狂喜", "痛哭"];

@@ -170,6 +170,40 @@ def test_unknown_category_raises_with_legal_values():
         assert legal in msg, legal
 
 
+@pytest.mark.parametrize("base", BASES)
+def test_view_mount_phrase_follows_category(base):
+    """② 非默认类:side/back 指令的「佩剑挂载」按真源 view_mount 换成类别措辞;其余编辑指令不变。
+    (1123 三视图同病:原四字令模型把参考图上的油布剑包改成「缠布柄+裸鞘的佩剑」)"""
+    vm = _Q["view_mount"]
+    out = hub.assemble(_s(base), "甲", "纯白")
+    for k in ("side", "back"):
+        assert vm["default"] not in out[k], k
+        assert vm["by_category"][base] in out[k], k
+        assert vm["by_category"][base] + "与水墨国风画法" in out[k], k        # 原位替换,前后文不变
+    for k in ("face", "head", "wrist", "waist"):
+        assert out[k] == _Q["edit_instructions"][k].replace("{背景}", _Q["backgrounds"]["纯白"]["phrase"]), k
+
+
+def test_default_category_keeps_legacy_mount_phrase():
+    """① 默认类「剑」:side/back 指令逐字不变(含「佩剑挂载」)。"""
+    for subject in (S_DEFAULT, S_PROSE, S_FIELDS):
+        out = hub.assemble(subject, "甲", "纯白")
+        for k in ("side", "back"):
+            assert out[k] == _Q["edit_instructions"][k].replace("{背景}", _Q["backgrounds"]["纯白"]["phrase"]), (k, subject[:12])
+            assert _Q["view_mount"]["default"] in out[k]
+
+
+def test_view_mount_truth_consistent():
+    """⑦ 真源 view_mount:每个非默认类别都有措辞;default 四字确在 side/back 原指令里(否则替换不生效)。"""
+    vm = _Q["view_mount"]
+    assert set(vm["by_category"]) == set(BASES) == set(Q_WEAPON["templates"])
+    for k in ("side", "back"):
+        assert vm["default"] in _Q["edit_instructions"][k], k
+        assert vm["default"] not in _Q["edit_instructions"].get("master_i2i", ""), "master 指令本就无此词"
+    for v in vm["by_category"].values():
+        assert v and "剑" not in v, v
+
+
 def test_weapon_name_is_lead_segment():
     """⑥ {weapon_name}=武器字段首段(到首个半角逗号/破折号,截 12 字),规则同档案行。"""
     out = hub.assemble(_s(WRAPPED, "归元"), "独孤剑尘", "纯白")
@@ -212,6 +246,7 @@ def test_truth_category_sets_consistent():
     (lambda q: q["effect"].__setitem__("templates_no_ability", {}), "templates_no_ability"),
     (lambda q: q["formats"]["全卡"]["labels"].__setitem__("variants", {}), "labels.variants"),
     (lambda q: q["formats"]["全卡"]["labels"].__setitem__("blank_cells", {}), "labels.blank_cells"),
+    (lambda q: q.__setitem__("view_mount", {}), "view_mount"),
 ])
 def test_broken_truth_fails_fast(mutate, needle):
     """⑦ 真源缺键=作者级错误:细化类别所指不在册 → 点名报错(不静默出错卡)。"""

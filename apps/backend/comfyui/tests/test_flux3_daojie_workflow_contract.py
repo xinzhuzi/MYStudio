@@ -124,18 +124,18 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     assert gender[2]['parts'][0]['text']=='按照你的建议去做'
     assert revisions[base]=={
         'original_sha256':'a2df104bf740670cbea1fbe9b06ba43c7695b7d2be26d0a6cfc621e422967bff',
-        'approved_sha256':'6fecdf96f9d279052db1f5d3a9c0ae983283f4b3122cf8aa0eca8f9b7bd8720b',  # 1123 设定卡全卡版式跟随武器类别(Phase 6;1121 K2 死档清档基础上;只增 sheet_card_qwen 类别驱动键)
+        'approved_sha256':'7c582b4306f41586c9395dd73a69a42f8f88e45fda297258e215fd49e442df5f',  # 1123 设定卡全卡版式跟随武器类别(Phase 6;1121 K2 死档清档基础上;只增 sheet_card_qwen 类别驱动键)
         'role':'runtime_execution_input_updated_after_snapshot',
         'historical_backup':'.trellis/tasks/archive/2026-10/10-18-daojie-conflict-p1-canon/backups/qi21_bases.json',
         'approval':{
             'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-reapproval-1123-sheet-weapon-category.md',
             'anchor':'## Decisions(1123 用户令「按照你的建议,要解决这个问题」)',
-            'sha256':'c04c5271bcd9f6ee4bf9ec4055d483049d5ce34e5b439b07d4e5b944e7caa1fa',
+            'sha256':'d05dc25c6dc26da18a7089074de7712cebba9a925f8b2d50fc1f14c1b8803d6c',
         },
         'change_ledger':{
             'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-change-ledger-1123-sheet-weapon-category.md',
             'anchor':'## 字段级变更(1123 用户令「按照你的建议,要解决这个问题」)',
-            'sha256':'88f27675dec658af0aa73bc5e9022d9a424ce3ea27a6a58c561c7adf37627615',
+            'sha256':'d024d614b403b676e90ee4d067f523ef8872fb5dcd3500f59eccac9a61c17708',
         },
     }
     revision=revisions[base]

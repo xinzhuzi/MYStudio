@@ -7,6 +7,10 @@
  *
  * 单会话槽:同一时刻至多一条记录;projectId+episodeId 不匹配的旧会话
  * 视为过期(hook 走全新批量并覆写)。
+ *
+ * reload 水合(1121 分镜锚修 B腿):认得 legacy 键信封(裸 record 顶层键)并
+ * 归一到 persist 现行格式({session});running 一律归一 interrupted(进程
+ * 终止没机会落终态,重启后死跑视同可续跑)——与 H3 视频会话 store 同族范式。
  */
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
@@ -112,12 +116,28 @@ export const useStoryboardBatchSessionStore = create<
     {
       name: "mystudio-storyboard-batch-session",
       storage: createJSONStorage(() => fileStorage),
-      merge: (persisted, current) => ({
-        ...current,
-        session: sanitizeStoryboardBatchSession(
-          (persisted as Partial<StoryboardBatchSessionState> | undefined)?.session,
-        ),
-      }),
+      merge: (persisted, current) => {
+        const persistedState = persisted && typeof persisted === "object"
+          ? (persisted as Partial<StoryboardBatchSessionState>)
+          : undefined;
+        // legacy 键信封水合(1121 分镜锚修 B腿):旧数据可能把记录裸放在信封顶层
+        // (record 自身键即 state 键,无 session 包裹)——只认现行 session 键会把
+        // 可续跑种子(游标/进度/状态)整条丢成 null。session 键缺席时把顶层对象
+        // 当 legacy 记录识别,水合归一到 persist 现行格式({session});sanitize
+        // 只认记录形状,现行包裹形在此必败回落 null,不会误收。
+        const rawSession = persistedState?.session !== undefined
+          ? persistedState.session
+          : persistedState;
+        const session = sanitizeStoryboardBatchSession(rawSession);
+        // 水合归一(running→interrupted,对齐同族 storyboard-h3-video-session-store
+        // 范式;poller 役 a88bdad7 修的是 cancelled 建模那半,这半是 store 侧):
+        // 进程终止没机会落 interrupted,reload 后任何 running 都是死跑(批量循环
+        // 是进程内存量,不跨重启),一律视同 interrupted=可续跑。
+        return {
+          ...current,
+          session: session ? { ...session, status: "interrupted" as const } : null,
+        };
+      },
     },
   ),
 );
