@@ -566,19 +566,26 @@ describe("Windows Pika ref2va 主力线通道(1101)", () => {
 
 // ── multiseg 适配(PRD 10-27 §14.1;my-h3-multiseg needs-adaptation→ready)──────────────────────
 
-describe("h3-multiseg-template.api.json 契约(PRD §14.1.2,--preset multiseg 脚本产物)", () => {
-  it("API 节点数=63(44+1123 二采正典簇19;一采→二采→三采恒走,1065=false 惰性剪除)", () => {
-    expect(Object.keys(multisegApi)).toHaveLength(63);
-    expect(Object.keys(multisegApi).map(Number).sort((a, b) => a - b)).toEqual([2, 4, 6, 7, 9, 13, 21, 25, 34, 36, 41, 100, 101, 102, 103, 800, 1021, 1033, 1065, 1066, 3001, 3002, 3003, 3011, 3021, 3022, 3030, 3031, 3040, 3041, 3042, 3043, 3044, 3051, 3052, 3053, 4001, 4002, 4100, 5002, 5006, 5011, 5012, 5013, 5014, 5015, 5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5024, 5025, 5030, 5031, 5100, 5109, 5110, 5111, 5113]);
+describe("h3-multiseg-template.api.json 契约(PRD §14.1.2;1123 起唯一真源=multiseg_inline_facerefine_build_1118.py 烙入制,1027 preset 已废)", () => {
+  it("API 节点数=67(1123 D1=A′:61+一采正典臂 1041-1046;remux 5030/5031 已剔;PRD 写 69 为笔误,以 63-2+6=67 为准)", () => {
+    expect(Object.keys(multisegApi)).toHaveLength(67);
+    expect(Object.keys(multisegApi).map(Number).sort((a, b) => a - b)).toEqual([2, 4, 6, 7, 9, 13, 21, 25, 34, 36, 41, 100, 101, 102, 103, 800, 1021, 1033, 1041, 1042, 1043, 1044, 1045, 1046, 1065, 1066, 3001, 3002, 3003, 3011, 3021, 3022, 3030, 3031, 3040, 3041, 3042, 3043, 3044, 3051, 3052, 3053, 4001, 4002, 4100, 5002, 5006, 5011, 5012, 5013, 5014, 5015, 5016, 5017, 5018, 5019, 5020, 5021, 5022, 5023, 5024, 5025, 5100, 5109, 5110, 5111, 5113]);
+    expect("5030" in multisegApi).toBe(false);
+    expect("5031" in multisegApi).toBe(false); // 1123 #8:4002 已改吃 3053,remux 对纯孤立→生成器剔除
   });
   it("1123 修脸命名规则(用户令:修脸的视频加 _修脸 后缀,仅此):默认 1065=false 无后缀;faceRefine=true→1065=true+4100 前缀加 _修脸", () => {
     const input = { shot: makeShot(), chapterId: "chapter-001", chapterLabel: "第一章 雨夜", originProjectId: "project-a" };
     const base = buildShotH3MultisegApiWorkflow(input);
     expect(base.apiGraph["1065"].inputs.value).toBe(false);
+    // D3 两态各一条:基态终档=已注入的镜号前缀(无中文后缀)
+    expect(base.apiGraph["4100"].inputs.filename_prefix).toBe("video/漫影/chapter-001/sb-chapter-001-001/ambient-p-final");
     expect(String(base.apiGraph["4100"].inputs.filename_prefix)).not.toContain("_修脸");
     const refined = buildShotH3MultisegApiWorkflow({ ...input, faceRefine: true });
     expect(refined.apiGraph["1065"].inputs.value).toBe(true);
     expect(String(refined.apiGraph["4100"].inputs.filename_prefix)).toMatch(/p-final_修脸$/);
+    // K1 用户裁定(1123):_修脸 必须保留——multiseg 终档前缀末段允许中文尾段(白名单特例,禁改后缀);
+    // 运行时零拒绝(safeSegment 只管 projectId/chapterId;K1 核查毕)
+    expect(String(refined.apiGraph["4100"].inputs.filename_prefix)).toMatch(/^video\/漫影\/chapter-001\/sb-chapter-001-001\/[A-Za-z0-9._-]+_修脸$/);
   });
 
   it("1123 二采正典簇在位(用户裁定:一采二采三采恒走):taomate 臂+1440×832+latent 升维链+3043 吃 3003", () => {
@@ -587,7 +594,7 @@ describe("h3-multiseg-template.api.json 契约(PRD §14.1.2,--preset multiseg �
     expect(multisegApi["3043"].inputs.latent_image).toEqual(["3003", 0]);
     expect(multisegApi["3053"].class_type).toBe("CreateVideo");
   });
-  it("1122 三采后修脸(用户裁定,与画布同语义):5002←4002/5100.on_false←4002/4002←5031 链+模型原生4×", () => {
+  it("1122 三采后修脸(用户裁定,与画布同语义):5002←4002/5100.on_false←4002/4002←3053 链+模型原生4×", () => {
     expect(multisegApi["5002"].inputs.video).toEqual(["4002", 0]);
     expect(multisegApi["5100"].inputs.on_false).toEqual(["4002", 0]);
     expect(multisegApi["4002"].inputs).toMatchObject({
@@ -628,13 +635,31 @@ describe("h3-multiseg-template.api.json 契约(PRD §14.1.2,--preset multiseg �
     expect(multisegApi["9"].class_type).toBe("LoadImage");
     expect(multisegApi["9"].inputs.image).toEqual(expect.any(String));
     expect(multisegApi["103"].class_type).toBe("MyShot");
-    expect(multisegApi["103"].inputs.video).toEqual(["4", 0]);
+    expect(multisegApi["103"].inputs.video).toEqual(["4100", 0]); // 1123 #1:MyShot 锚终档(与三采 3061←4003 同语义),不再记一采片
     for (const key of ["shot_id", "label", "description", "media_status"]) {
       expect(key in multisegApi["103"].inputs).toBe(true);
     }
     expect(multisegApi["101"].class_type).toBe("H3AutoContextSampler");
     expect(multisegApi["101"].inputs.first_frame).toEqual(["9", 0]);
     expect(multisegApi["101"].inputs.parameter).toEqual(["100", 0]);
+  });
+
+  it("1123 D1=A′ 一采正典臂烙入(画布 1115 臂同构):41/5006←1066、101 三口外接 1044/1045/1046、lcm+σshift[6,3]", () => {
+    // 模型链:34→1066→{41,1021,5006};一采臂 41→1041 sol-attn→1042 ChunkFFN→1043 kitchen→1044 σshift→101
+    expect(multisegApi["41"].inputs).toMatchObject({ model: ["1066", 0] });
+    expect(multisegApi["5006"].inputs).toMatchObject({ model: ["1066", 0] });
+    expect(multisegApi["101"].inputs.model).toEqual(["1044", 0]);
+    expect(multisegApi["101"].inputs.sampler).toEqual(["1046", 0]); // 动态口真名 sampler(object_info optional 单键)
+    expect(multisegApi["101"].inputs.sigmas).toEqual(["1045", 0]);  // 动态口真名 sigmas
+    // 六节点逐值(画布逐值真源)
+    expect(multisegApi["1046"].inputs).toEqual({ sampler_name: "lcm" }); // Pika 必须 lcm=全库正典
+    expect(multisegApi["1044"].inputs).toMatchObject({ model: ["1043", 0], shift_video: 6, shift_audio: 3 });
+    expect(multisegApi["1045"].inputs).toMatchObject({ model: ["1044", 0], scheduler: "simple", steps: 8, denoise: 1.0 });
+    expect(multisegApi["1043"].inputs).toMatchObject({ model: ["1042", 0], attention: "comfy kitchen attention" });
+    expect(multisegApi["1042"].inputs).toMatchObject({ model: ["1041", 0], chunks: 2, seq_threshold: 4096 });
+    expect(multisegApi["1041"].inputs).toMatchObject({ model: ["41", 0], selection: "sol-attn", "selection.tau": 1.3 });
+    // D4:5012.length=模板连线 frame_count(槽6),组装器不再覆写
+    expect(multisegApi["5012"].inputs.length).toEqual(["5011", 6]);
   });
 
   it("适配 UI 件 h3-multiseg-template.json:四针出厂(双旁路 mode=4/占位五段前缀/连线 15+16/repo 原厂值保真)", () => {
@@ -665,15 +690,19 @@ describe("buildShotH3MultisegApiWorkflow(PRD §14.1.4,一份组装产两形态)"
     expect(result.apiGraph["100"].inputs.width).toBe(960);
     expect(result.apiGraph["100"].inputs.height).toBe(544);
     expect(result.apiGraph["9"].inputs.image).toBe("my-shot-h3-sb-chapter-001-001.jpg");
-    expect(result.apiGraph["4"].inputs.filename_prefix).toBe("video/漫影/chapter-001/sb-chapter-001-001/ambient");
+    expect(result.apiGraph["4"].inputs.filename_prefix).toBe("video/漫影/chapter-001/sb-chapter-001-001/ambient-p1"); // D3:一采预览 -p1
     expect(String(result.apiGraph["4"].inputs.filename_prefix).split("/")).toHaveLength(5);
+    expect(result.apiGraph["4100"].inputs.filename_prefix).toBe("video/漫影/chapter-001/sb-chapter-001-001/ambient-p-final"); // D3:终档=记账件
     expect(result.apiGraph["103"].inputs).toMatchObject({
       shot_id: "sb-chapter-001-001",
       label: "S01",
       description: "雨夜中的石桥",
       media_status: "图✓",
-      video: ["4", 0],
+      video: ["4100", 0], // 1123 #1:台账锚终档
     });
+    // D4:5012.length 保持模板连线(frame_count 实测帧数),组装器覆写已删;3031 仍随车覆写总帧数(画布无出口)
+    expect(result.apiGraph["5012"].inputs.length).toEqual(["5011", 6]);
+    expect(result.apiGraph["3031"].inputs.length).toBe(result.report.frames);
     // 首帧潜空间锚与参数组连线在 API 图出厂在场(适配针1/针2)
     expect(result.apiGraph["101"].inputs.first_frame).toEqual(["9", 0]);
     expect(result.apiGraph["101"].inputs.parameter).toEqual(["100", 0]);
@@ -870,6 +899,10 @@ describe("buildShotH3SancaiApiWorkflow(三采两段组装)", () => {
     expect(stageA["2002"]!.inputs.height).toBe(544);
     expect(stageA["3031"]!.inputs.width).toBe(1440);
     expect(stageA["3031"]!.inputs.height).toBe(832);
+    // 1123 D2=A(#3):二采 3031.length 接 ["52",1] 随时长(与 2001/2002/5012 同源;52=ComfyMathExpression 在段A 保留)
+    // 注:API 模板无重放生成器(K4 核毕,一次性手术脚本族)=手改+本契约测试护+同步门 sancai 指纹对护
+    expect(stageA["3031"]!.inputs.length).toEqual(["52", 1]);
+    expect(stageA["52"]!.class_type).toBe("ComfyMathExpression");
     expect(stageA["3002"]!.inputs["mode.width"]).toBe(1440);
     expect(stageA["3002"]!.inputs["mode.height"]).toBe(832);
     // i2v 臂 110-113 分镜帧补位满槽(208 恒消费 ref_image_1..4)

@@ -253,8 +253,10 @@ def test_groups_five_bands():
         assert covered, f"[{nid}] {n['type']} 不在任何组框内(罩全红线)"
     assert 9999 in nodes and nodes[9999]["type"] == "MarkdownNote", "README Note 在位"
     md = nodes[9999]["widgets_values"][0]
-    for kw in ("两发", "同步点", "3031", "ReCaVSR"):
+    for kw in ("整图一发", "同步点", "3031", "ReCaVSR"):
         assert kw in md, f"README 缺关键内容: {kw}"
+    # 1123 D6(裁定③):App 路口径=multiseg 整图一发(56 帧实弹绿);拆链字样仅存于「单镜三采 App 路」对照句
+    assert "App 派发/批量/livefire 恒走 API 两发拆链" not in md, "README 仍写已废的两发拆链口径(D6 随迁)"
 
 
 def test_no_negative_no_leftward():
@@ -301,7 +303,9 @@ def test_facerefine_group_inline_bypass():
     assert src_of(5012, "width") == (5011, "canvas_w"), "5012.width=5011.canvas_w 出口联线勿手填"
     assert src_of(5012, "height") == (5011, "canvas_h"), "5012.height=5011.canvas_h 出口联线勿手填"
     assert nodes[5012]["widgets_values"][3] == nodes[3031]["widgets_values"][3] == 56, \
-        "5012.length 与 3031.length 同源同值(本件无帧数图出口,widget 同步纪律)"
+        "5012/3031 出厂 widget 同值 56(5012 已接线,widget 退居展示位;3031 手动同步纪律)"
+    assert src_of(5012, "length") == (5011, "frame_count"), \
+        "5012.length=5011.frame_count 出口联线(1123 D4:K2 核毕 frame_count 为 INT 出口,帧数同步图化)"
     assert src_of(5100, "on_true")[0] == 5113 and src_of(5100, "on_false")[0] == 4002 \
         and src_of(5100, "switch")[0] == 1065, \
         "5100 极性:真=修脸臂出口(1119 改接 5113,远景态经直通臂等效)/假=4002 p3 直通(1122 回正)"

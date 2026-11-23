@@ -2,7 +2,7 @@
   "id": "recavsr-three-stage-1111",
   "revision": 0,
   "last_node_id": 9999,
-  "last_link_id": 885,
+  "last_link_id": 886,
   "nodes": [
     {
       "id": 1,
@@ -1327,7 +1327,8 @@
           "links": [
             503,
             569,
-            858
+            858,
+            886
           ]
         },
         {
@@ -2213,7 +2214,7 @@
           "widget": {
             "name": "length"
           },
-          "link": null
+          "link": 886
         },
         {
           "label": "ref_image_5",
@@ -2272,7 +2273,7 @@
       ],
       "color": "#322",
       "bgcolor": "#533",
-      "title": "二采条件(1280×704)"
+      "title": "二采条件(1440×832·App 按 ladder 覆写)"
     },
     {
       "id": 3001,
@@ -2398,7 +2399,7 @@
         "cuda",
         "fp16"
       ],
-      "title": "Latent 放大→1280×704"
+      "title": "Latent 放大→1440×832(App 按 ladder 覆写)"
     },
     {
       "id": 3003,
@@ -6788,6 +6789,14 @@
       5100,
       2,
       "COMFY_MATCHTYPE_V3"
+    ],
+    [
+      886,
+      52,
+      1,
+      3031,
+      16,
+      "INT"
     ]
   ],
   "groups": [

@@ -481,7 +481,10 @@
       ],
       "width": 960,
       "height": 544,
-      "length": 124,
+      "length": [
+        "52",
+        1
+      ],
       "ref_image_size": "max",
       "ref_images.ref_image_5": [
         "15",

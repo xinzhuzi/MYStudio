@@ -146,7 +146,8 @@ PAIRS = [
         "name": "multiseg(一镜到底-分段.json→h3-multiseg-template)",
         "canvas": WORKFLOWS / "2_视频/H3视频/1_漫影自研/一镜到底-分段.json",
         "api": FRONTEND / "h3-multiseg-template.api.json",
-        # multiseg=1118 生成器适配面(画布↔模板结构非同构):策略=生成器幂等重放+git 对账
+        # multiseg=1118 生成器适配面(画布↔模板结构非同构):策略=生成器幂等重放+前后字节对账
+        # (1123 P2:原 git 对账在 D15 无提交工作树下恒误红;字节对账=真「落后生成器」信号)
         "mode": "generator",
         "regen": ["uv", "run", "python", "build/scripts/multiseg_inline_facerefine_build_1118.py"],
         "outputs": ["backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/一镜到底-分段.json",
@@ -163,8 +164,9 @@ PAIRS = [
         "edges": [],
     },
     {
+        # 1123 D16/K7 转正:底模分歧已裁(1105 用户令 637ad539 换芯 Cobijada=模板真源),
+        # 生成器已认 Cobijada(UNET 名+models url 三处覆写)并重放零改写=产物即生成器真身
         "name": "pika(pika-shot-template→.api)",
-        "pending": "底模分歧待用户裁定:模板=Cobijada vs 生成器=官方 fl2va(1123 门禁抓出;生成器路径已修活,重放即换底模,禁擅动)",
         "canvas": FRONTEND / "pika-shot-template.json",
         "api": FRONTEND / "pika-shot-template.api.json",
         "class_allowed": set(),
@@ -172,12 +174,15 @@ PAIRS = [
         "edges": [],
     },
     {
+        # 1123 D16/K7 转正(同上);类谱白名单=1101 直投禁令适配面(生成器 docstring:
+        # MyShot/占位节点不进 API 图——直投无 extraPngInfo;参考槽由组装器按 refs 实数
+        # 动态注入;ResolutionSelector 档位件同属 UI 面):MyShot 1→0 / LoadImage 5→1
+        # (9 号分镜帧留,110-113 参考卡由组装器注入)/ ResolutionSelector 1→0
         "name": "pika-ref(pika-ref-shot-template→.api)",
-        "pending": "底模分歧待用户裁定:模板=Cobijada vs 生成器=官方 ref2va(1123 门禁抓出;生成器路径已修活,重放即换底模,禁擅动)",
         "canvas": FRONTEND / "pika-ref-shot-template.json",
         "api": FRONTEND / "pika-ref-shot-template.api.json",
-        "class_allowed": set(),
-        "class_why": "UI→API 纯转换",
+        "class_allowed": {"MyShot", "LoadImage", "ResolutionSelector"},
+        "class_why": "1101 直投禁令:MyShot/参考占位/档位件不进 API 执行链(组装器动态注入)",
         "edges": [],
     },
     {
@@ -196,13 +201,23 @@ class TestWorkflowTemplateSync(unittest.TestCase):
         if pair.get("pending"):
             self.skipTest(pair["pending"])
         if pair.get("mode") == "generator":
+            # 1123 P2 修(11-23 施工会话):漂移判据=「重放改写字节」本身,替代原 git-status 对账——
+            # 原判据在 D15 无提交工作树(1123 用户裁定:main 直改、禁 git 写)下恒误红(工作树≠HEAD
+            # ≠落后生成器);字节前后对账同强度:任何手改/半改产物必被重放改回=红+可定位,
+            # 重放零改写=产物即生成器真身(与提交状态无关,提交后同样成立)。
+            import hashlib
             import subprocess
             apps = TESTS.parents[2]
+
+            def _snap():
+                return {p: hashlib.sha256((apps / p).read_bytes()).hexdigest() for p in pair["outputs"]}
+
+            before = _snap()
             subprocess.run(pair["regen"], cwd=apps, check=True, capture_output=True, timeout=600)
-            r = subprocess.run(["git", "status", "--porcelain", "--"] + pair["outputs"],
-                               cwd=apps, capture_output=True, text=True, check=True)
-            self.assertEqual(r.stdout.strip(), "",
-                "生成器重放后 git 有改动=画布/模板落后生成器: " + r.stdout)
+            drifted = [p for p, h in _snap().items() if before[p] != h]
+            self.assertEqual(drifted, [],
+                "生成器重放改写产物=画布/模板落后生成器(漂移件已按生成器回正,须回看改动): "
+                + ", ".join(drifted))
         canvas = load_canvas(pair["canvas"])
         api = load_api(pair["api"])
         cnodes, anodes = canvas_nodes(canvas), api_nodes(api)

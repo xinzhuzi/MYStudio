@@ -90,7 +90,7 @@
     "class_type": "LoraLoaderModelOnly",
     "inputs": {
       "model": [
-        "34",
+        "1066",
         0
       ],
       "lora_name": "pika_turbo_8step_fl2va.safetensors",
@@ -125,7 +125,7 @@
     "class_type": "H3AutoContextSampler",
     "inputs": {
       "model": [
-        "41",
+        "1044",
         0
       ],
       "vae": [
@@ -157,6 +157,14 @@
       "first_frame": [
         "9",
         0
+      ],
+      "sampler": [
+        "1046",
+        0
+      ],
+      "sigmas": [
+        "1045",
+        0
       ]
     }
   },
@@ -184,7 +192,7 @@
       "description": "multiseg 批量适配占位",
       "media_status": "图✓",
       "video": [
-        "4",
+        "4100",
         0
       ]
     }
@@ -214,7 +222,7 @@
     "class_type": "LoraLoaderModelOnly",
     "inputs": {
       "model": [
-        "34",
+        "1066",
         0
       ],
       "lora_name": "pika_turbo_8step_fl2va.safetensors",
@@ -284,7 +292,10 @@
         "5011",
         5
       ],
-      "length": 56,
+      "length": [
+        "5011",
+        6
+      ],
       "ref_image_size": "max"
     }
   },
@@ -586,33 +597,6 @@
       "codec": "none"
     }
   },
-  "5030": {
-    "class_type": "GetVideoComponents",
-    "inputs": {
-      "video": [
-        "36",
-        0
-      ]
-    }
-  },
-  "5031": {
-    "class_type": "CreateVideo",
-    "inputs": {
-      "images": [
-        "5030",
-        0
-      ],
-      "audio": [
-        "5030",
-        1
-      ],
-      "fps": 24,
-      "bit_depth": "auto",
-      "color_space": "sRGB",
-      "chroma_subsampling": "auto",
-      "codec": "none"
-    }
-  },
   "1066": {
     "class_type": "MiniMaxLowVRAMAttention",
     "inputs": {
@@ -890,6 +874,74 @@
       "kv_offload": false,
       "encoder": "auto",
       "fps": 30
+    }
+  },
+  "1041": {
+    "class_type": "BlockSparseAttention",
+    "inputs": {
+      "model": [
+        "41",
+        0
+      ],
+      "selection": "sol-attn",
+      "selection.tau": 1.3,
+      "start_percent": 0,
+      "end_percent": 1,
+      "dense_blocks": "",
+      "min_tokens": 12288,
+      "extra_tokens": 256,
+      "sink_conditioning": "exact_kv_and_rows",
+      "verbose": false
+    }
+  },
+  "1042": {
+    "class_type": "MiniMaxChunkFeedForward",
+    "inputs": {
+      "model": [
+        "1041",
+        0
+      ],
+      "chunks": 2,
+      "seq_threshold": 4096
+    }
+  },
+  "1043": {
+    "class_type": "ModelAttentionBackend",
+    "inputs": {
+      "model": [
+        "1042",
+        0
+      ],
+      "attention": "comfy kitchen attention"
+    }
+  },
+  "1044": {
+    "class_type": "MiniMaxH3SigmaShift",
+    "inputs": {
+      "model": [
+        "1043",
+        0
+      ],
+      "shift_video": 6,
+      "shift_audio": 3
+    }
+  },
+  "1045": {
+    "class_type": "BasicScheduler",
+    "inputs": {
+      "model": [
+        "1044",
+        0
+      ],
+      "scheduler": "simple",
+      "steps": 8,
+      "denoise": 1.0
+    }
+  },
+  "1046": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "lcm"
     }
   }
 }

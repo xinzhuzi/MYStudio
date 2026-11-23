@@ -2,7 +2,7 @@
  "id": "h3-face-refine-example",
  "revision": 0,
  "last_node_id": 107,
- "last_link_id": 38,
+ "last_link_id": 39,
  "nodes": [
   {
    "id": 15,
@@ -792,8 +792,7 @@
      "name": "model",
      "type": "MODEL",
      "links": [
-      16,
-      18
+      39
      ]
     },
     {
@@ -838,6 +837,11 @@
    "mode": 0,
    "inputs": [
     {
+     "name": "model",
+     "type": "MODEL",
+     "link": 39
+    },
+    {
      "name": "av_latent",
      "type": "LATENT",
      "link": 23
@@ -860,6 +864,14 @@
      "name": "report",
      "type": "STRING",
      "links": []
+    },
+    {
+     "name": "model",
+     "type": "MODEL",
+     "links": [
+      16,
+      18
+     ]
     }
    ],
    "title": "5b. Per-frame denoise (by face size)",
@@ -1828,8 +1840,8 @@
   ],
   [
    16,
-   13,
-   0,
+   31,
+   2,
    14,
    0,
    "MODEL"
@@ -1844,8 +1856,8 @@
   ],
   [
    18,
-   13,
-   0,
+   31,
+   2,
    16,
    0,
    "MODEL"
@@ -1887,7 +1899,7 @@
    13,
    1,
    31,
-   0,
+   1,
    "LATENT"
   ],
   [
@@ -1895,7 +1907,7 @@
    2,
    1,
    31,
-   1,
+   2,
    "H3FACEXFORM"
   ],
   [
@@ -2009,6 +2021,14 @@
    22,
    3,
    "MASK"
+  ],
+  [
+   39,
+   13,
+   0,
+   31,
+   0,
+   "MODEL"
   ]
  ],
  "groups": [

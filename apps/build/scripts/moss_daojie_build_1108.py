@@ -250,9 +250,16 @@ def build_canvas(subject_example: str, style_base: str) -> dict:
     by_id = {n["id"]: n for n in nodes}
 
     def wire(f, fs, t, ts, ty, iname):
-        lid = link(f, fs, t, ts, ty)
-        by_id[t]["inputs"] = [x for x in by_id[t]["inputs"] if x["name"] != iname]
-        by_id[t]["inputs"].append(_in(iname, ty, lid))
+        # 1123 #11 修复:target_slot=输入条目在目标节点 inputs 的真实索引。
+        # 原实现把调用方 ts(恒 0)抄进 link 记录,45 条连线 23 条槽位回指错;
+        # 改为「同名原地替换、否则追加」,槽位自声明起恒稳定;ts 形参保留但不再采信。
+        ins = by_id[t]["inputs"]
+        idx = next((k for k, x in enumerate(ins) if x["name"] == iname), None)
+        if idx is None:
+            ins.append(_in(iname, ty, None))
+            idx = len(ins) - 1
+        lid = link(f, fs, t, idx, ty)
+        ins[idx] = _in(iname, ty, lid)
         by_id[f]["outputs"][fs]["links"] = (by_id[f]["outputs"][fs].get("links") or []) + [lid]
 
     # 装配:1→4, 2→4, 3→4, 4→5/7/8, 6→7/8

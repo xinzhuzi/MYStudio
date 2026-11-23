@@ -397,27 +397,32 @@ export function buildShotH3MultisegApiWorkflow(input: ShotH3ApiWorkflowInput): S
   parameterApi.inputs.long_prompt = prompt.longPrompt;
   parameterApi.inputs.width = width;
   parameterApi.inputs.height = height;
-  getApiNode(apiGraph, "4", "SaveVideo").inputs.filename_prefix = prefix;
+  getApiNode(apiGraph, "4", "SaveVideo").inputs.filename_prefix = `${prefix}-p1`;  // D3:一采预览降级 -p1(对齐三采 2061 口径)
+  // D3 已批复(1123):4100=终档=记账件(103 MyShot 锚,前缀含镜号可按镜回收);注入须在
+  // faceRefine 分支之前——_修脸 后缀追加在已注入的前缀上(非模板公共目录值)
+  getApiNode(apiGraph, "4100", "SaveVideo").inputs.filename_prefix = `${prefix}-p-final`;
   getApiNode(apiGraph, "9", "LoadImage").inputs.image = imageName;
   const myShot = getApiNode(apiGraph, "103", "MyShot");
   myShot.inputs = { ...myShot.inputs, shot_id: shot.id, label, description, media_status: "图✓" };
 
   // 1123 正典(用户裁定:一采→二采→三采恒走,修脸四采按需):二采簇随车注入——
-  // 3030 提示词与 100 同源(禁模板演示句滞留);二采/修脸 length 同步总帧数(README 9999 刻碑纪律)
+  // 3030 提示词与 100 同源(禁模板演示句滞留);3031.length=总帧数(画布无帧数图出口,手动纪律的 App 路兜底);
+  // 5012.length 已于 D4 改为模板连线 [5011,6](frame_count 实测帧数),组装器覆写已删,禁回写数字断线
   getApiNode(apiGraph, "3030", "PrimitiveStringMultiline").inputs.value = prompt.longPrompt;
   if (input.faceRefine) {
     // 1123 用户令:修脸开=1065 拨开 + 终档文件名加「_修脸」后缀(仅此,不搞其他)
     getApiNode(apiGraph, "1065", "PrimitiveBoolean").inputs.value = true;
     const finalSaver = getApiNode(apiGraph, "4100", "SaveVideo");
-    finalSaver.inputs.filename_prefix = `${finalSaver.inputs.filename_prefix}_修脸`;  // 同目录仅加后缀
+    finalSaver.inputs.filename_prefix = `${finalSaver.inputs.filename_prefix}_修脸`;  // 追加在已注入前缀上(=…-p-final_修脸)
   }
   const totalFrames = prompt.segments.reduce((sum, segment) => sum + segment.frames, 0);
   getApiNode(apiGraph, "3031", "MiniMaxH3ReferenceToVideo").inputs.length = totalFrames;
-  getApiNode(apiGraph, "5012", "MiniMaxH3ReferenceToVideo").inputs.length = totalFrames;
 
   const images = input.firstFrameB64 ? [{ key: "9.image", name: imageName, b64: input.firstFrameB64 }] : [];
   return {
     apiGraph,
+    // D17①(1123 批复:生成器同产 bundle UI 件)改造成本高,按 PRD 低优口径暂注明:本 uiWorkflow
+    // =14 节点适配 UI 件,仅为参数示意(实际执行图=63→67 节点 apiGraph);bundle 化候用户令另役
     uiWorkflow: template as unknown as Record<string, unknown>,
     images,
     report: {

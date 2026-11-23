@@ -6,7 +6,9 @@
 契约换装(全部参数逐字取自母体,2026-11-01 实读):
 - 节点型 = MiniMaxH3ReferenceToVideo(≠ fl2va 线 ImageToVideo!它不走 first_frame 口,
   参考图走 ref_images.ref_image_N autogrow 五槽,引擎实锚见 comfy_extras/nodes_minimax_h3.py)
-- UNET=minimax_h3_ref2va_pruned_int8_convrot(官方 Pika 契约底模)
+- UNET=Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned
+  (1105 用户令全量换芯 637ad539;1123 D16/K7 判例=模板为真源,生成器随模板认 Cobijada,
+   母体仍官方 ref2va——故 widgets/named/models 三处须覆写,防重放回退官方底)
 - LoRA=pika_h3_flex_ref2va_comfy_bf16@1.0(Pika-Labs 适配器,官方仓收录)
 - 采样=KSamplerSelect lcm + ManualSigmas "1.0,0.972973,0.923077,0.8,0.571429,0.333333,0.0"(6-NFE,同 fl2va)
 - TE=qwen3vl_32b_minimax_h3_nvfp4_awq(CLIPLoader type=minimax);VAE=int8_convrot(视频)+fp32(音频)
@@ -44,8 +46,10 @@ LIB_DIR = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试"
 OUT = LIB_DIR / "pika-单镜视频-ref2v.json"
 FRONTEND_UI_OUT = REPO / "apps/frontend/lib/assist/image-studio/pika-ref-shot-template.json"
 
-# ── 官方契约逐字(母体实读)────────────────────────────────────────────
-UNET = "minimax_h3_ref2va_pruned_int8_convrot.safetensors"
+# ── 官方契约逐字(母体实读;底模=1105 Cobijada 换芯,D16/K7 判例模板真源)──
+UNET = "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors"
+UNET_URL = ("https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/"
+            "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors")
 LORA = "pika_h3_flex_ref2va_comfy_bf16.safetensors"
 MANUAL_SIGMAS = "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
 SAMPLER = "lcm"
@@ -109,7 +113,12 @@ def build_canvas() -> dict:
             (119, 120, 121, 122, 123, 125, 126, 127, 128, 130, 131, 145, 147)}
     keep[129] = mother_nodes.pop(129)
     keep[129]["widgets_values"] = [SEED, "fixed"]  # seed42 可复现(母体 randomize 不可复现)
-    # 母体 127/145/123/147/119/120/128 出厂即 Pika ref2va 契约逐字,零改;
+    # 1123 D16:母体 127 三处仍是官方 ref2va 名/url,随 UNET 常量换芯 Cobijada(模板真源)
+    keep[127]["widgets_values"] = [UNET, "default"]
+    keep[127]["widgets_values_named"] = {"unet_name": UNET, "weight_dtype": "default"}
+    keep[127].setdefault("properties", {})["models"] = [
+        {"name": UNET, "url": UNET_URL, "directory": "diffusion_models"}]
+    # 母体 145/123/147/119/120/128 出厂即 Pika ref2va 契约逐字,零改;
     # 130 CreateVideo 母体逐字 [24, 8, "sRGB", "none"];131 秒→帧换算表达式逐字。
 
     # 母体退役件:92 SaveVideo(→锚 4)/115 ResolutionSelector(→锚 22)/117 官方注记

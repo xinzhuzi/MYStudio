@@ -3,7 +3,9 @@
 
 母体 = 官方 PikaFlex-FL2VA 首尾帧模板(definitions.subgraphs[0] 20 节点,1030 役入库)。
 契约换装(全部参数逐字取自母体子图,2026-11-01 实读):
-- UNET=minimax_h3_fl2va_pruned_int8_convrot(官方 Pika 契约底模)
+- UNET=Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned
+  (1105 用户令全量换芯 637ad539;1123 D16/K7 判例=模板为真源,生成器随模板认 Cobijada,
+   母体仍官方 fl2va——故 widgets/named/models 三处须覆写,防重放回退官方底)
 - LoRA=pika_h3_flex_fl2va_comfy_bf16@1.0(Pika-Labs 适配器,官方仓收录)
 - 采样=KSamplerSelect lcm + ManualSigmas "1.0,0.972973,0.923077,0.8,0.571429,0.333333,0.0"(6-NFE)
 - TE=qwen3vl_32b_minimax_h3_nvfp4_awq(CLIPLoader type=minimax)
@@ -35,8 +37,10 @@ LIB_DIR = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试"
 OUT = LIB_DIR / "pika-单镜视频-fl2v.json"
 FRONTEND_UI_OUT = REPO / "apps/frontend/lib/assist/image-studio/pika-shot-template.json"
 
-# ── 官方契约逐字(母体子图实读)────────────────────────────────────────────
-UNET = "minimax_h3_fl2va_pruned_int8_convrot.safetensors"
+# ── 官方契约逐字(母体子图实读;底模=1105 Cobijada 换芯,D16/K7 判例模板真源)──
+UNET = "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors"
+UNET_URL = ("https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/"
+            "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors")
 LORA = "pika_h3_flex_fl2va_comfy_bf16.safetensors"
 MANUAL_SIGMAS = "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
 SAMPLER = "lcm"
@@ -84,6 +88,10 @@ def build_canvas() -> dict:
 
     # ── 官方契约节点(保留母体参数,仅改必要字段)──────────────────────
     sg_nodes[127]["widgets_values"] = [UNET, "default"]  # UNETLoader(契约底模)
+    # 1123 D16:母体 127 三处仍是官方 fl2va 名/url,随 UNET 常量一并换芯(模板真源)
+    sg_nodes[127]["widgets_values_named"] = {"unet_name": UNET, "weight_dtype": "default"}
+    sg_nodes[127].setdefault("properties", {})["models"] = [
+        {"name": UNET, "url": UNET_URL, "directory": "diffusion_models"}]
     sg_nodes[134]["widgets_values"] = [LORA, 1]  # LoRA@1.0
     sg_nodes[123]["widgets_values"] = [SAMPLER]  # KSamplerSelect lcm
     sg_nodes[143]["widgets_values"] = [MANUAL_SIGMAS]  # 6-NFE
@@ -107,8 +115,13 @@ def build_canvas() -> dict:
         "widgets_values": [ATTENTION], "properties": {"Node name for S&R": "ModelAttentionBackend"},
         "inputs": [{"name": "model", "type": "MODEL", "link": None}],
         "outputs": [{"name": "MODEL", "type": "MODEL", "links": [], "slot_index": 0}],
+        "size": [250, 118],  # 1123:前端保存回填的实尺寸入烙(缺 size=生成器落后画布;键序随画布)
     }
     sg_nodes[140] = attn
+    # 132 号 ComfyMathExpression:前端保存给 autogrow 口补 shape=7(values.a 母体缺),入烙保真
+    for _inp in sg_nodes[132].get("inputs") or []:
+        if _inp.get("name", "").startswith("values."):
+            _inp["shape"] = 7
 
     # ── 产线锚点件(从 31 节点骨架借形)───────────────────────────────
     anchor_mother = json.loads((REPO / "apps/frontend/lib/assist/image-studio/h3-shot-template.json").read_text(encoding="utf-8"))
@@ -137,6 +150,8 @@ def build_canvas() -> dict:
     sg_nodes[10] = borrow(9, 10)
     sg_nodes[10]["widgets_values"] = [LAST_FRAME_PLACEHOLDER, "image"]
     sg_nodes[10]["mode"] = 4
+    # 1123 手排值入烙:10 号尾帧锚在画布被下移(5834→6600,前端整数吸附),重放保真
+    sg_nodes[10]["pos"] = [1348, 6600]
     sg_nodes[22] = borrow(22, 22)
     sg_nodes[22]["widgets_values"] = ["16:9 (Widescreen)", 0.2, 32]
     sg_nodes[100] = borrow(100, 100)
@@ -209,20 +224,23 @@ def build_canvas() -> dict:
             o["links"] = []
     canvas["links"] = []
     # 直接写边:每条 EDGES(origin,oslot,target,tname,type)→追加 inputs 槽(如缺)+写 links
+    # 1123 D16 修:target_slot 记「按名命中槽的真实索引」(原记 len(inputs)-1,命中已有槽时
+    # 16 条连线槽位写错——与 moss #11 同族 bug;ref2va 生成器本就用索引,正确)
     for origin, oslot, target, tname, ltype in EDGES:
         tgt = nodes_by_id.get(target)
         src = nodes_by_id.get(origin)
         if not tgt or not src:
             continue
         # 找/造 target 槽(按名匹配;子图节点 inputs 用 UUID 槽名时按序追加)
-        slot = next((i for i in tgt.get("inputs") or [] if i.get("name") == tname), None)
-        if slot is None:
-            slot = {"name": tname, "type": ltype, "link": None}
-            tgt.setdefault("inputs", []).append(slot)
+        idx = next((k for k, i in enumerate(tgt.get("inputs") or []) if i.get("name") == tname), None)
+        if idx is None:
+            tgt.setdefault("inputs", []).append({"name": tname, "type": ltype, "link": None})
+            idx = len(tgt["inputs"]) - 1
+        slot = tgt["inputs"][idx]
         if slot.get("link") is not None:
             continue
         link_id += 1
-        canvas["links"].append([link_id, origin, oslot, target, len(tgt["inputs"]) - 1, ltype])
+        canvas["links"].append([link_id, origin, oslot, target, idx, ltype])
         slot["link"] = link_id
         if not src.get("outputs"):
             src["outputs"] = [{"name": tname.upper(), "type": ltype, "links": []}]

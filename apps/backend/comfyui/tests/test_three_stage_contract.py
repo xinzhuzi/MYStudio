@@ -137,6 +137,23 @@ def test_stage2_up_recipe():
     assert nodes[3043]["type"] == "SamplerCustomAdvanced"
 
 
+def test_stage2_length_wired_to_frame_formula_1123():
+    """1123 #4/D2=A:3031.length 接 [52] ComfyMathExpression.INT(slot1)——二采帧数随时长,
+    与 2001/2002/5012 同源(消恒 124 病:#3);widget 第 3 位保留 124 不删(转输入槽序纪律)。
+    同批:API 模板 h3-three-stage-template.api.json 3031.length=["52",1](K4=无重放生成器,
+    手改+vitest 段A 契约护+同步门 sancai 指纹对护);3002/3031 标题勘正 1440×832。"""
+    d, nodes, links = _load()
+    le = next(s for s in nodes[3031]["inputs"] if s["name"] == "length")
+    assert le.get("link") is not None and "widget" in le, "3031.length 应为 widget 转输入态(带 widget 子名)"
+    l = links[le["link"]]
+    assert (l[1], l[2], l[3], l[4]) == (52, 1, 3031, 16), \
+        f"3031.length 应←[52].INT(slot1),实 link {l}(2001/2002/5012 同源)"
+    assert nodes[52]["type"] == "ComfyMathExpression"
+    assert nodes[3031]["widgets_values"][3] == 124, "widgets_values length 位保留值不删(槽序纪律)"
+    assert nodes[3002]["title"] == "Latent 放大→1440×832(App 按 ladder 覆写)"
+    assert nodes[3031]["title"] == "二采条件(1440×832·App 按 ladder 覆写)"
+
+
 def test_stage2_model_mainline_passes_through_chunkffn():
     """1106 E2 吸收件在位:[3011] MiniMaxChunkFeedForward 恒在 MODEL 主线
     [1021]taomate LoRA → [3011] → [3021]SigmaShift 上,出厂 chunks=1 = 源码恒等旁路

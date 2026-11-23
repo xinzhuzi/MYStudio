@@ -10,17 +10,19 @@
   唯一 UNETLoader   = 34   (5006 LoraLoaderModelOnly.model←1066 lowvram 头复用,全图仍无第二 UNETLoader)
   CLIP/视频VAE/音频VAE = 21 / 7 / 13 (101/3031 同源件)
   宽高               = 5011 H3FaceTrackCrop.canvas_w/canvas_h 出口联线(勿手填,同母本)
-  帧数               = 本件无帧数图出口(100 H3Parameter 只出 DICT;#52 ComfyMathExpression 是
-                       三采件专属)→ 5012.length widget=56 与 3031.length 出厂同值(livefire/
-                       发车器覆写 3031.length 时须同步覆写 5012.length,README 记纪律)
+  帧数               = 5012.length 已接线 ← 5011.frame_count(1123 D4,K2 核毕 INT 出口);
+                       3031.length 无图内出口(100 只出 DICT,#52 是三采件专属)→ 出厂 56 手动同步
+                       (App 路由组装器覆写 3031.length=总帧数;5012 覆写已随 D4 删除)
   参考图             = 画布侧零参考出厂(同 3031 纯文生口径);API 侧接 9 LoadImage
   编号               = 沿用母本组号 25/1065/5002/5006/5011-5023/5100/4100(本件既有 id 段
                        2-41/100-102/1021-1046/3001-3071/4001-4003/9999 全不撞,零重编号)
 
 节点数:画布 41→60(+19;lowvram役 81f8909f 后又 +1066=61)→1119 双档移植 +6=67
 (check 按 67 对账)/API h3-multiseg-template.api.json(平铺 prompt dict,已核无 wrapper)
-14→35(+19+remux5030/5031)→1119 双档 +6=41。API 侧链尾=36 CreateVideo(一采直出
-门自己的终采口),5002/5100 接 36。
+14→33(+19;1123 D1=A′ 剔 remux5030/5031,4002 已改吃 3053 后纯孤立)→1119 双档 +6=39
+→1123 二采正典簇 +19=58→800/4001/4002 +3=61→1123 D1=A′ 一采正典臂 1041-1046 +6=67。
+103 MyShot 锚终档(103.video←4100,#1);41/5006.model←1066、101 三口外接
+(model←1044/sampler←1046/sigmas←1045,画布 1115 正典臂同构)。
 
 1119 双档移植(11-19-dualmode-facerefine-rename 二役):同 id 直搬单镜六件
 (5109/5110 VOSR2 尾档+5111 高清子开关+5113 出口投切+5024/5025 复制对),参数逐位
@@ -63,7 +65,7 @@ CLIP, VAE_V, VAE_A = 21, 7, 13
 LENGTH_NODE = 3031          # 帧数同源参照件(5012.length widget 与其 length widget 同值)
 LENGTH = 56                 # 出厂帧数(2×1秒@24fps→[22,34]→56,multiseg 出厂口径)
 REF_API = 9                 # API 模板 LoadImage(画布件无 LoadImage,零参考出厂)
-API_TAIL = 36               # API 模板自己的终采 VIDEO 输出节点(CreateVideo 一采直出)
+API_TAIL = 36               # API 模板一采直出 CreateVideo(喂 4=一采预览;1123 D1 起 remux 已剔,此锚仅存史)
 PREFIX_P_FINAL = "video/H3/分段视频/p-final"
 
 # 1119 双档移植(母本 1119 起 OWN 扩为 25 件):全量继承,不再过滤 HD_IDS——六件
@@ -100,8 +102,10 @@ README_SECTION = README_MARK + """
   参考图=零参考出厂/提示词=#25)→ 5013 注入真实帧 → 5014 音轨锁(audio←5002②)→ 5015 逐帧 denoise
   (60/200px)→ 5016-5020 采样(seed 42 同 3040/lcm/simple/8步/0.45)→ 5021 解码 → 5022 贴回(16/24)
   → 5023 合成 → 5113 出口选择 → 5100 终档选择 → 4100 p-final
-- **帧数同步纪律(本件专属)**:本件无帧数图出口——改 [3031].length 必须同步 [5012].length
-  (出厂两处皆 56;livefire/发车器覆写 3031.length 时同步覆写 5012.length)
+- **帧数同步纪律(1123 D4/D5 改版)**:[5012].length 已接线 ← [5011].frame_count(INT 出口,
+  K2 核毕)=追踪器实测帧数,自动同步勿手填;唯 [3031].length 无图内总帧数出口(K3 核毕
+  H3AutoContextSampler/H3Parameter 均只出 DICT)——**改分段时长必须手动同步 [3031].length**
+  (出厂 56;App 路由组装器随车覆写 3031.length=总帧数,不受此项影响)
 - **极性口径**(同三采 1118 双态实测定谳):5100 on_true=修脸臂出口(1065=true)/on_false=4002 p3 直通
   (1065=false);5113 on_true=5025 高清片/on_false=5023 远景片——两 Switch 均「真=新臂」,勿手改(防 wf2api 反转坑)
 - **显存纪律**:5006 LoRA 挂 34 单 loader(全图禁第二个 UNETLoader);p1/p2/p3 三档照常落盘;段B 4001-4003
@@ -124,12 +128,15 @@ README_SECTION = README_MARK + """
   5002←4002 同构;段B mode 4→0 出厂激活随同批解旁路);VOSR2 均吃 5021 解码 768 画布,
   档位语义与上游底两件一致
 - **API 直调(延伸)**:远景档 `g["1065"]...=true`;高清档再加 `g["5111"]["inputs"]["value"]=true`
-  (+#25 身份句;1065=false 时发车器拒单);API 模板链尾=36 一采直出 remux 口,与画布 4002 语义沟另役裁定
+  (+#25 身份句;1065=false 时发车器拒单);**1123 D1/D3 起 API 面=一采正典臂烙入(101 外接
+  1044/1045/1046)+MyShot 103 锚 4100 终档+remux 5030/5031 剔除**,4=一采预览(-p1)、
+  4100=终档(-p-final,组装器注入),36 一采直出仅喂 4
 """
 
 TITLE = dict(MB.TITLE)
 TITLE[5002] = "四采·拆帧拆音(←4002 三采 p3 4K)"
 TITLE[5006] = "四采·Pika turbo 8step LoRA(复用 34)"
+TITLE[5016] = "四采·噪声(同源 #3040)"  # 1123 #8:本件无 #54(单镜编号),勘误为 #3040
 
 # 布局=x 严格右向(同三采契约刻碑);新区起 x=11300(组⑤ ReCaVSR 右缘 11060 之外,组框零相交)。
 # 1118 布局治理役(apps/build/scripts/workflow_layout_fix_multiseg_band_1118.py)立分层行带:
@@ -173,6 +180,7 @@ WIRING = [
     (5011, "transform", 5022, "transform"),
     (5011, "canvas_w", 5012, "width"),
     (5011, "canvas_h", 5012, "height"),
+    (5011, "frame_count", 5012, "length"),  # 1123 D4:帧数同步图化(K2 核毕 frame_count=INT 出口),widget 值退居展示位
     (5012, "LATENT", 5013, "av_latent"),
     (VAE_V, "VAE", 5012, "vae"),
     (VAE_V, "VAE", 5013, "vae"),
@@ -470,6 +478,85 @@ STAGE2_NODES = json.loads(r"""{
 }""")
 STAGE2_CLASSES = {'1066': 'MiniMaxLowVRAMAttention', '1033': 'BlockSparseAttention', '3011': 'MiniMaxChunkFeedForward', '1021': 'LoraLoaderModelOnly', '3001': 'LTXVSeparateAVLatent', '3002': 'MinimaxH3LatentUpscaler3D', '3003': 'LTXVConcatAVLatent', '3030': 'PrimitiveStringMultiline', '3031': 'MiniMaxH3ReferenceToVideo', '3021': 'MiniMaxH3SigmaShift', '3022': 'KSamplerSelect', '3040': 'RandomNoise', '3041': 'BasicScheduler', '3042': 'BasicGuider', '3043': 'SamplerCustomAdvanced', '3044': 'ModelAttentionBackend', '3051': 'VAEDecode', '3052': 'VAEDecodeAudio', '3053': 'CreateVideo'}
 
+# ── 1123 D1=A′:一采正典臂 PASS1_ARM(画布 1115 正典臂逐值真源,引擎验证同款类谱;
+#    键名以 STAGE2 同类节点实锚为准——1033/3011/3044/3021/3041/3022 均引擎实发图烙入件) ──
+PASS1_IDS = ['1041', '1042', '1043', '1044', '1045', '1046']
+PASS1_NODES = json.loads(r"""{
+ "1041": {
+  "class_type": "BlockSparseAttention",
+  "inputs": {
+   "model": [
+    "41",
+    0
+   ],
+   "selection": "sol-attn",
+   "selection.tau": 1.3,
+   "start_percent": 0,
+   "end_percent": 1,
+   "dense_blocks": "",
+   "min_tokens": 12288,
+   "extra_tokens": 256,
+   "sink_conditioning": "exact_kv_and_rows",
+   "verbose": false
+  }
+ },
+ "1042": {
+  "class_type": "MiniMaxChunkFeedForward",
+  "inputs": {
+   "model": [
+    "1041",
+    0
+   ],
+   "chunks": 2,
+   "seq_threshold": 4096
+  }
+ },
+ "1043": {
+  "class_type": "ModelAttentionBackend",
+  "inputs": {
+   "model": [
+    "1042",
+    0
+   ],
+   "attention": "comfy kitchen attention"
+  }
+ },
+ "1044": {
+  "class_type": "MiniMaxH3SigmaShift",
+  "inputs": {
+   "model": [
+    "1043",
+    0
+   ],
+   "shift_video": 6,
+   "shift_audio": 3
+  }
+ },
+ "1045": {
+  "class_type": "BasicScheduler",
+  "inputs": {
+   "model": [
+    "1044",
+    0
+   ],
+   "scheduler": "simple",
+   "steps": 8,
+   "denoise": 1.0
+  }
+ },
+ "1046": {
+  "class_type": "KSamplerSelect",
+  "inputs": {
+   "sampler_name": "lcm"
+  }
+ }
+}""")
+PASS1_CLASSES = {'1041': 'BlockSparseAttention', '1042': 'MiniMaxChunkFeedForward',
+                 '1043': 'ModelAttentionBackend', '1044': 'MiniMaxH3SigmaShift',
+                 '1045': 'BasicScheduler', '1046': 'KSamplerSelect'}
+# 基座改写锚(1123 D1=A′):基座节点接线逐口改写,改前校验 class_type 防他人占用
+PASS1_BASE_EXPECT = {"41": "LoraLoaderModelOnly", "101": "H3AutoContextSampler", "103": "MyShot"}
+
 def node_by_id(nodes, nid):
     for n in nodes:
         if n["id"] == nid:
@@ -484,13 +571,13 @@ def api_node(k: str) -> dict:
     if k == "5002":
         ins["video"] = ["4002", 0]  # 1122 用户令:修脸吃三采后(ReCaVSR 4K,与画布同语义);1118 探针的 auto-context 边界由 5031 remux 承担
     elif k == "5006":
-        ins["model"] = [str(UNET), 0]
+        ins["model"] = ["1066", 0]  # 1123 D1:与画布同构经 1066 lowvram 头分块收束点(34→1066→5006)
     elif k == "5012":
         ins["clip"] = [str(CLIP), 0]
         ins["vae"] = [str(VAE_V), 0]
         ins["audio_vae"] = [str(VAE_A), 0]
         ins["ref_images.ref_image_0"] = [str(REF_API), 0]
-        ins["length"] = LENGTH
+        ins["length"] = ["5011", 6]  # 1123 D4:帧数同步图化(frame_count=5011 输出槽6,K2 核毕 INT);widget 56 退居画布展示位
     elif k == "5013":
         ins["vae"] = [str(VAE_V), 0]
     elif k == "5011":
@@ -599,19 +686,16 @@ def build_api(A: dict) -> dict:
     strip = {**{k: v for k, v in {**OWN, **RETIRED}.items()},
              5030: "GetVideoComponents", 5031: "CreateVideo",
              800: "CLIPVisionLoader", 4001: "ReCaVSRLoader", 4002: "ReCaVSRUpscale",
-             **STAGE2_CLASSES}
-    for k, ct in strip.items():  # RETIRED/remux/三采臂同剥(键序确定性:全剥全按固定序重追加)
+             **STAGE2_CLASSES, **PASS1_CLASSES}
+    for k, ct in strip.items():  # RETIRED/remux/三采臂/一采臂同剥(键序确定性:全剥全按固定序重追加)
         old = A.get(str(k))
         if old is not None and old.get("class_type") != ct:
             die(f"API 模板节点 {k} 已被他人占用为 {old.get('class_type')}(预期 {ct}),拒剥")
         A.pop(str(k), None)
     for k in OWN:  # 固定插入序,重跑字节稳定
         A[str(k)] = api_node(str(k))
-    # remux 出口(1118 探针定谳:lazy-switch 禁吃 auto-context 边界 36;常规则链破边界)
-    A["5030"] = {"class_type": "GetVideoComponents", "inputs": {"video": [str(API_TAIL), 0]}}
-    A["5031"] = {"class_type": "CreateVideo", "inputs": {"images": ["5030", 0], "audio": ["5030", 1],
-                  "fps": 24, "bit_depth": "auto", "color_space": "sRGB",
-                  "chroma_subsampling": "auto", "codec": "none"}}
+    # 1123 D1=#8:remux 5030/5031 剔除不再回加(4002 已改吃 3053 后纯孤立;1118 探针场景已随
+    # 1122 三采回正作废——终档链=3053→4002→{5002,5100}→4100,auto-context 边界由三采链承担)
     # 1123 用户令(正典裁定):一采→二采→三采 恒走,修脸四采仅按需——二采簇自引擎验证实发图
     # (apps/output/pi-h3-test-1121/apptpl3-stage2.json,success 83.5s)整体烙入,键名以引擎 400 实锚为真源
     for k in STAGE2_IDS:
@@ -624,6 +708,18 @@ def build_api(A: dict) -> dict:
         "scale": 2.667, "color_fix": "none", "seed": 42,
         "decoder": "flashdecoder", "kernels": "fast", "kv_offload": False,
         "encoder": "auto", "fps": 30}}  # 三采吃二采 p2(3053);2.667=1440→3840 恒宽锚(1123 正典)
+    # 1123 D1=A′:一采正典臂六节点烙入(画布 1115 臂逐值真源;链 41→1041→1042→1043→1044→101)
+    for k in PASS1_IDS:
+        A[k] = copy.deepcopy(PASS1_NODES[k])
+    # 1123 D1=A′+#1:基座接线改写(幂等直写;class_type 先验防漂)
+    for k, ct in PASS1_BASE_EXPECT.items():
+        if A.get(k, {}).get("class_type") != ct:
+            die(f"API 模板基座节点 {k} 已被他人占用为 {A.get(k, {}).get('class_type')}(预期 {ct}),拒改写")
+    A["41"]["inputs"]["model"] = ["1066", 0]      # 一采 LoRA 臂经 lowvram 头(画布 link1 同构)
+    A["101"]["inputs"]["model"] = ["1044", 0]     # 裸 41 直连废除,吃 σshift[6,3] 出口
+    A["101"]["inputs"]["sampler"] = ["1046", 0]   # 外接 lcm(object_info optional 单键,真名 sampler)
+    A["101"]["inputs"]["sigmas"] = ["1045", 0]    # 外接 simple/8/dn1.0(真名 sigmas)
+    A["103"]["inputs"]["video"] = ["4100", 0]     # MyShot 锚终档(#1:与三采 3061←4003 同语义)
     return A
 
 
@@ -646,7 +742,10 @@ def check() -> int:
     n_canvas, n_api = len(S["nodes"]), len(A)
     print(f"[CHECK] 画布节点 {n_canvas}(41+{n_canvas - 41}) / API 节点 {n_api}(14+{n_api - 14})")
     ok(n_canvas == 67, f"画布节点数=67(41+19 修脸组+lowvram役#1066+1119 双档 6),实际 {n_canvas}")
-    ok(n_api == 63, f"API 节点数=63(44+1123 二采正典簇 19),实际 {n_api}")
+    # 1123 D1=A′ 定账:63 − remux5030/5031 两孤立 + PASS1_ARM 六节点 = 67(PRD 写 69 为算术笔误,
+    # 批复实质=「+6 烙入、−2 剔除」,以本行为准)
+    ok(n_api == 67, f"API 节点数=67(61+1123 D1 一采正典臂 6;remux 5030/5031 已剔),实际 {n_api}")
+    ok("5030" not in A and "5031" not in A, "remux 5030/5031 已剔除(1123 #8:4002 改吃 3053 后纯孤立)")
 
     ids = [n["id"] for n in S["nodes"]]
     idset = set(ids)
@@ -680,13 +779,17 @@ def check() -> int:
        "画布 5012.width=5011.canvas_w 出口联线")
     ok(hl and hl[1] == 5011 and nmap[5011]["outputs"][hl[2]]["name"] == "canvas_h",
        "画布 5012.height=5011.canvas_h 出口联线")
+    fl = src_of(5012, "length")
+    ok(fl and fl[1] == 5011 and nmap[5011]["outputs"][fl[2]]["name"] == "frame_count",
+       "画布 5012.length=5011.frame_count 出口联线(1123 D4,帧数同步图化)")
     ok(A["5012"]["inputs"]["width"] == ["5011", 4] and A["5012"]["inputs"]["height"] == ["5011", 5],
        "API 5012 宽高=5011 出口(canvas_w=4/canvas_h=5)")
+    ok(A["5012"]["inputs"]["length"] == ["5011", 6], "API 5012.length=[5011,6] frame_count(1123 D4)")
 
     n3031 = next(n for n in S["nodes"] if n["id"] == LENGTH_NODE)
     n5012 = next(n for n in S["nodes"] if n["id"] == 5012)
     ok(n5012["widgets_values"][3] == LENGTH == n3031["widgets_values"][3],
-       f"5012.length widget={LENGTH} 与 3031.length 同源同值(帧数同步纪律)")
+       f"5012/3031 出厂 widget 同值 {LENGTH}(5012 已接线退居展示位;3031 手动同步纪律)")
 
     gs = [g for g in S["groups"] if g["title"] in (GROUP_A_TITLE, GROUP_B_TITLE)]
     ok(len(gs) == 2, "两只组框在位")
@@ -731,12 +834,27 @@ def check() -> int:
        and A["3043"]["inputs"]["latent_image"] == ["3003", 0]
        and A["3053"]["class_type"] == "CreateVideo"
        and A["800"]["class_type"] == "CLIPVisionLoader"
-       and A["5030"]["inputs"]["video"] == [str(API_TAIL), 0]
        and A["5100"]["inputs"]["on_true"] == ["5113", 0]
        and A["4100"]["inputs"]["video"] == ["5100", 0]
-       and A["5006"]["inputs"]["model"] == [str(UNET), 0]
-       and A["5012"]["inputs"]["ref_images.ref_image_0"] == [str(REF_API), 0]
-       and A["5012"]["inputs"]["length"] == LENGTH, "API 关键拓扑同构(链尾 36/UNET 34/参考图 9/length 56/5100.on_true←5113)")
+       and A["5006"]["inputs"]["model"] == ["1066", 0]
+       and A["5012"]["inputs"]["ref_images.ref_image_0"] == [str(REF_API), 0], "API 关键拓扑同构(参考图 9/5100.on_true←5113/5006←1066)")
+
+    # ---- 1123 D1=A′:一采正典臂 PASS1_ARM(API 面)----
+    ok(A["1041"]["inputs"] == {"model": ["41", 0], "selection": "sol-attn", "selection.tau": 1.3,
+       "start_percent": 0, "end_percent": 1, "dense_blocks": "", "min_tokens": 12288,
+       "extra_tokens": 256, "sink_conditioning": "exact_kv_and_rows", "verbose": False}
+       and A["1042"]["inputs"] == {"model": ["1041", 0], "chunks": 2, "seq_threshold": 4096}
+       and A["1043"]["inputs"] == {"model": ["1042", 0], "attention": "comfy kitchen attention"}
+       and A["1044"]["inputs"] == {"model": ["1043", 0], "shift_video": 6, "shift_audio": 3}
+       and A["1045"]["inputs"] == {"model": ["1044", 0], "scheduler": "simple", "steps": 8, "denoise": 1.0}
+       and A["1046"]["inputs"] == {"sampler_name": "lcm"},
+       "PASS1_ARM 六节点逐值(1041 sol-attn τ1.3/1042 ChunkFFN[2,4096]/1043 kitchen/1044 σshift[6,3]/1045 simple·8·1.0/1046 lcm)")
+    ok(A["41"]["inputs"]["model"] == ["1066", 0]
+       and A["101"]["inputs"]["model"] == ["1044", 0]
+       and A["101"]["inputs"]["sampler"] == ["1046", 0]
+       and A["101"]["inputs"]["sigmas"] == ["1045", 0]
+       and A["103"]["inputs"]["video"] == ["4100", 0],
+       "基座接线改写(41←1066/101 三口外接 1044·1046·1045/103 MyShot 锚 4100 终档)")
 
     # ---- 1119 双档结构契约(同 单镜 test_facerefine_dual_mode_1119 口径)----
     ok(wired(5113, "switch", 5111) and wired(5113, "on_false", 5023) and wired(5113, "on_true", 5025),
@@ -797,7 +915,7 @@ def main() -> int:
     A = build_api(json.loads(API.read_text(encoding="utf-8")))
     write_json(API, A)
     print(f"[OK] 画布 {CANVAS.name}:{len(S['nodes'])} 节点(41+19+1119 双档 6)/ {len(S['links'])} 链 / {len(S['groups'])} 组")
-    print(f"[OK] API {API.name}:{len(A)} 节点(14+19+remux2+1119 双档 6)")
+    print(f"[OK] API {API.name}:{len(A)} 节点(14+19+1119 双档 6+二采簇 19+800/4001/4002+D1 一采臂 6;remux 5030/5031 已剔)")
 
     # 幂等双跑字节一致(同母本 AC6):盘上产物再剥再建应逐字节复现
     S2 = build_canvas(strip_canvas(json.loads(CANVAS.read_text(encoding="utf-8"))), src_nodes)
