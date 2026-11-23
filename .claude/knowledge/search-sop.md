@@ -307,11 +307,21 @@ gitnexus detect-changes -r MYStudio --scope staged
 - 结果过大时优先 `-l`、`-c`、`--max-count`;需要全量统计时用脚本写 JSON(`apps/build/scripts/`),不在对话中搬运全文。
 - `.gitignore` 管 `rg`/`fd` 默认排除;新增产物目录时同步更新。
 - GitNexus 索引数据库在项目根目录生成(`.gitnexus/`,已 gitignore);`.gitnexusrc` 可配置分析选项。索引过时时运行 `node .gitnexus/run.cjs analyze`(无 `run.cjs` 则 `npx gitnexus analyze`)增量更新。
-- ⚠️ **永远不要中断 `gitnexus analyze`**:增量 analyze 被 kill 会损坏 LadybugDB 的 WAL(`lbug.wal`);删 WAL 虽能恢复 query 但会**静默丢失部分文件**。若 analyze 被中断,必须 `gitnexus analyze --force` 全量重建,不要只删 WAL。
-- ✅ **语义向量检索已启用(2026-08-21)**:`gitnexus analyze --embeddings` 生成 embeddings(本地 ONNX,cpu 设备),VECTOR 与 fts 扩展均已安装,`query` 现在是 **BM25+向量 RRF 混合**;首次查询会加载嵌入模型(首查 ~400ms 级,之后更快)。日常增量 analyze 不带 `--embeddings` 也会**保留**已有 embeddings(默认不丢)。
-- ⚠️ **DB 单写者锁排障**:报 `Could not set lock on file` / `WAL checkpoint rotation failed` / `LOAD fts failed` 时,先 `ps aux | rg gitnexus` 查残留 analyze 进程——`--repair-fts` 失败会拉起孤儿 `analyze --force` sidecar 长期持锁(2026-08-21 实证:8 分钟重建期间一切写操作都撞锁)。**等它跑完,勿杀**——杀了会 WAL 毒化,任何写打开都 SIGSEGV;毒化后的征兆还包括**其它会话的 gitnexus 查询进程连环 SIGSEGV**(`~/Library/Logs/DiagnosticReports/` .ips 风暴,~30s 一个);处方 = 改名隔离 `.gitnexus/lbug*` 后 `GITNEXUS_LBUG_EXTENSION_INSTALL=auto analyze --embeddings --force --wal-checkpoint-threshold 67108864` 全量重建。
+- **GitNexus 索引刷新(2026-11-23 按实测重写;工具已从 1.6.6 升级到 1.6.12)**:
+  - **增量刷新是安全的,放心用**:在隔离副本上实测,小提交、连续两次、删 40 改 30 加 20 的大改动,三轮全部通过、无崩溃。
+  - **跑之前看两件事**:没有别的 `analyze` 进程在跑(`pgrep -f 'gitnexus analyze'`);输出落到文件、另读退出码,不要用管道接(`analyze | tail` 会把真实退出码吞掉,这是 08-21 就记过的老坑)。
+  - **analyze 退出码非 0 时,不要重跑。** 先用一个新进程试开索引库:`gitnexus context -r MYStudio <任一符号>`。退出码 0 = 库还健康,只是这次没写完,可以再刷新一次;退出码 139 = 库已被写坏,此时**所有会话**新发起的 GitNexus 查询都会崩,按下一行的重建步骤处理。
+  - **重建步骤**(库被写坏时;约 5–30 分钟,取决于是否带语义向量):确认没有进程占用 `.gitnexus`(`lsof +D .gitnexus` 为空)→ 把 `.gitnexus/lbug` 与 `.gitnexus/lbug.wal` 一起改名移到 `.gitnexus/lbug-quarantine-<日期>/`(只改名不删,可回退)→ `GITNEXUS_LBUG_EXTENSION_INSTALL=auto gitnexus analyze --embeddings 0 --force --wal-checkpoint-threshold 67108864`(`--embeddings 0` 是取消节点数上限;本仓节点数超过默认的 5 万,不带这个参数语义向量会被静默跳过)→ 验收:新鲜度检查通过、新进程查询退出码 0、`.gitnexus` 下没有残留的 `lbug.wal`。
+  - **新版(1.6.12)重建时不会让查询中断**:它先写临时库、完成后再切换,旧库在这期间照常可读;并且加了 `analyze.lock`,两个会话同时刷新时后到的会被拒绝,而不是互相写坏。
+  - **查崩溃报告用时间窗**:`find ~/Library/Logs/DiagnosticReports -maxdepth 1 -name 'node-*.ips' -newermt '<刷新启动的时刻>'`。不要用「比日志文件新」来判断——日志在进程崩溃前就写完了,会漏报。系统会定期把旧报告移进 `Retired/` 子目录,查历史时两个目录都要看。
+- ⚠️ **永远不要中断 `gitnexus analyze`**:analyze 被 kill 会损坏 LadybugDB 的 WAL(`lbug.wal`);删 WAL 虽能恢复 query 但会**静默丢失部分文件**。若 analyze 被中断,按上面的「退出码非 0」步骤处理,不要只删 WAL。
+- **语义向量与向量索引(2026-11-23 实测口径,更正此前的记载)**:本仓现有语义向量 103,137 条;但**向量索引扩展在本机装不上**,原因在上游——1.6.12 锁定的数据库组件是 0.18.3,官方下载站已把 0.18.x 的扩展全部下架(只剩 0.19.0 及以后),而新版扩展与旧组件二进制不兼容(加载时报 `symbol not found`)。后果:语义检索走「精确扫描」回退,只在排名前 10,000 条候选里做语义排序。这是 2026-08 以来的既有状态,不是本次升级引入的。上游在 1.6.13 预发布版里已换用配套的组件(0.21.1),等它出正式版后升级即可解决。**不要自行把 `@ladybugdb/core` 换成 0.19.0 来绕过**:索引库崩溃的根因就在这个组件里,混搭未经作者测试。`gitnexus doctor` 可随时查看当前状态。
+- **索引范围(2026-11-23)**:索引器默认跳过所有名为 `build` 的目录,本仓 `apps/build` 是源码,靠仓库根的 `.gitnexusignore` 放开(该文件里有注释说明,不要往里加 `!apps/build/scripts/campaigns/`,会把截图、视频等产物一起收进索引)。判断索引范围是否对,用对账而不是看新鲜度:按前缀数索引里的文件数,和 `git ls-files <前缀>` 对比;**索引数不应多于 git 跟踪数**(被 `.gitignore` 忽略的目录除外)。索引「新鲜」只说明提交号对上了,不代表范围完整。
+- ⚠️ **DB 单写者锁排障**:报 `Could not set lock on file` / `WAL checkpoint rotation failed` / `LOAD fts failed` 时,先 `ps aux | rg gitnexus` 查残留 analyze 进程。**等它跑完,勿杀**。
 - WAL 轮转报错时可用 `--wal-checkpoint-threshold 67108864`(64MB)降低 checkpoint 频率重试。
 - ⚠️ **别用管道接 analyze 的退出码**:`analyze | tail` 会吞真实 exit code(2026-08-21 实证:原生崩溃被 tail 的 exit 0 掩盖,留下脏 WAL)。
+- **查询命令必须带仓库名**:本机全局登记了 MYStudio、MYSSIA、ComfyUI、MA 四个库,CLI 查询一律带 `-r MYStudio`,MCP 工具带 `repo: "MYStudio"`;不带会报 `Multiple repositories indexed`。`gitnexus cypher` 的返回是 JSON,1.6.12 起输出前面多一行标题,解析时取 `{\n  "markdown"` 起始的那一段。
+- **测试数据库接口时注意它是异步的**:`@ladybugdb/core` 的 `Connection.query()` 返回 Promise。同步发完语句就打印「成功」是假成功——必须 `await`,或改用 `querySync()`(2026-11-23 实证:我因此把一连串失败误读成了成功,绕了很久)。
 - 热路径、排除规则、仓库外路径或网络路由变更时,同步本 SOP 与 `.claude/CLAUDE.md` 铁律 0 的入口摘要;**不要**复制完整配方到其它规则文件。
 
 ---

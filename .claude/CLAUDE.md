@@ -184,7 +184,7 @@
 | 4 | **Task 子代理** | 宽而重的探索、跨目录检索、独立核验;必须精简 prompt 并限制范围 |
 | 5 | **Trellis channel** | 多 worker 协作实施/检查(implement/check agent) |
 
-**GitNexus 索引保鲜(0928 立)**:索引落后 = AGENTS.md 强制的 impact/detect_changes 门禁对最新代码失明(绿灯假象)。收尾/打包前跑 `python3 apps/build/scripts/gitnexus_freshness_check.py --strict`,落后或报「中断的增量标记」时执行 `node .gitnexus/run.cjs analyze --embeddings` 刷新(增量,本地 onnx 免 key);多会话并行时 analyze 可能撞并发墙 exit 1,重跑直至标记清除。pre-commit 已挂警告位(不拦截)。
+**GitNexus 索引保鲜(0928 立;1123 按实测改口径)**:索引落后 = AGENTS.md 强制的 impact/detect_changes 门禁对最新代码失明(绿灯假象)。收尾/打包前跑 `python3 apps/build/scripts/gitnexus_freshness_check.py --strict`,落后时执行 `node .gitnexus/run.cjs analyze --embeddings` 刷新(增量,本地 onnx 免 key;工具已于 2026-11-23 从 1.6.6 升级到 1.6.12,增量刷新实测安全)。**analyze 退出码非 0 时不要重跑**:先用新进程试开索引库(`gitnexus context -r MYStudio <任一符号>`),退出码 0 = 库健康可再刷新;139 = 库已被写坏,所有会话的新查询都会崩,按 `.claude/knowledge/search-sop.md`「GitNexus 索引刷新」一节重建。pre-commit 已挂警告位(不拦截)。
 
 ---
 
@@ -213,7 +213,7 @@
 | 跨层思考 | `.trellis/spec/guides/cross-layer-thinking-guide.md` | 跨层数据流 |
 | 图片外发安全 | `.trellis/spec/guides/image-transfer-safety-guide.md` | 图片外发缩略图/字节门 |
 | 开放任务看板规范 | `.trellis/spec/guides/trellis-open-task-board-guide.md` | 「还有什么任务」输出规则 |
-| **搜索 SOP(权威版)** | `.claude/knowledge/search-sop.md` | 搜索范围/工具/排噪/热路径 + 仓库外五源 + 网络路由(先读后搜) |
+| **搜索 SOP(权威版)** | `.claude/knowledge/search-sop.md` | 搜索范围/工具/排噪/热路径 + 仓库外五源 + 网络路由(先读后搜);含「GitNexus 索引刷新」一节(增量刷新、失败后先试开库再决定、重建步骤、语义向量现状) |
 | **节点图知识(权威版)** | `.claude/knowledge/node-graph-architecture.md` | 节点图通用原理 + 本项目画布架构/任务地图/裁定(画布任务先读) |
 | **UI 截图审计 SOP(权威版)** | `.claude/knowledge/ui-audit-sop.md` | 保温会话铁律:禁每轮 pkill 冷启动/多状态连拍/非引擎页不等引擎 + `cdp-ui-audit-shot.mjs` 用法(截图审计前先读) |
 | 子代理等待协议 | `.claude/knowledge/subagent-waiting-protocol.md` | 铁律 2 派发后的等待/超时/阻塞诊断/失败处理 |
