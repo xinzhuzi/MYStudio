@@ -1535,9 +1535,7 @@
           "localized_name": "diagnostics",
           "name": "diagnostics",
           "type": "STRING",
-          "links": [
-            8267
-          ]
+          "links": []
         }
       ],
       "properties": {
