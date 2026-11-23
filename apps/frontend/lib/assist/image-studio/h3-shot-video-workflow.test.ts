@@ -573,19 +573,21 @@ describe("h3-multiseg-template.api.json 契约(PRD §14.1.2;1123 起唯一真源
     expect("5030" in multisegApi).toBe(false);
     expect("5031" in multisegApi).toBe(false); // 1123 #8:4002 已改吃 3053,remux 对纯孤立→生成器剔除
   });
-  it("1123 修脸命名规则(用户令:修脸的视频加 _修脸 后缀,仅此):默认 1065=false 无后缀;faceRefine=true→1065=true+4100 前缀加 _修脸", () => {
+  it("1123 R1/D18-A 修脸命名:两态 4100 前缀第 5 段=纯 policy(关)/policy+_修脸(开),与 my_shot.py 生产校验一致", () => {
     const input = { shot: makeShot(), chapterId: "chapter-001", chapterLabel: "第一章 雨夜", originProjectId: "project-a" };
     const base = buildShotH3MultisegApiWorkflow(input);
     expect(base.apiGraph["1065"].inputs.value).toBe(false);
     // D3 两态各一条:基态终档=已注入的镜号前缀(无中文后缀)
-    expect(base.apiGraph["4100"].inputs.filename_prefix).toBe("video/漫影/chapter-001/sb-chapter-001-001/ambient-p-final");
+    expect(base.apiGraph["4100"].inputs.filename_prefix).toBe("video/漫影/chapter-001/sb-chapter-001-001/ambient");
     expect(String(base.apiGraph["4100"].inputs.filename_prefix)).not.toContain("_修脸");
+    expect(String(base.apiGraph["4100"].inputs.filename_prefix).split("/")[4]).toBe("ambient");
     const refined = buildShotH3MultisegApiWorkflow({ ...input, faceRefine: true });
     expect(refined.apiGraph["1065"].inputs.value).toBe(true);
-    expect(String(refined.apiGraph["4100"].inputs.filename_prefix)).toMatch(/p-final_修脸$/);
-    // K1 用户裁定(1123):_修脸 必须保留——multiseg 终档前缀末段允许中文尾段(白名单特例,禁改后缀);
+    expect(String(refined.apiGraph["4100"].inputs.filename_prefix)).toBe("video/漫影/chapter-001/sb-chapter-001-001/ambient_修脸");
+    // K1 用户裁定(1123):_修脸 必须保留;D18-A=唯一合法中文尾段,my_shot.py 校验前剥离
     // 运行时零拒绝(safeSegment 只管 projectId/chapterId;K1 核查毕)
-    expect(String(refined.apiGraph["4100"].inputs.filename_prefix)).toMatch(/^video\/漫影\/chapter-001\/sb-chapter-001-001\/[A-Za-z0-9._-]+_修脸$/);
+    expect(String(refined.apiGraph["4100"].inputs.filename_prefix).split("/")[4]).toBe("ambient_修脸");
+    expect(String(refined.apiGraph["4100"].inputs.filename_prefix).endsWith("/ambient_修脸")).toBe(true);
   });
 
   it("1123 二采正典簇在位(用户裁定:一采二采三采恒走):taomate 臂+1440×832+latent 升维链+3043 吃 3003", () => {
@@ -692,7 +694,7 @@ describe("buildShotH3MultisegApiWorkflow(PRD §14.1.4,一份组装产两形态)"
     expect(result.apiGraph["9"].inputs.image).toBe("my-shot-h3-sb-chapter-001-001.jpg");
     expect(result.apiGraph["4"].inputs.filename_prefix).toBe("video/漫影/chapter-001/sb-chapter-001-001/ambient-p1"); // D3:一采预览 -p1
     expect(String(result.apiGraph["4"].inputs.filename_prefix).split("/")).toHaveLength(5);
-    expect(result.apiGraph["4100"].inputs.filename_prefix).toBe("video/漫影/chapter-001/sb-chapter-001-001/ambient-p-final"); // D3:终档=记账件
+    expect(result.apiGraph["4100"].inputs.filename_prefix).toBe("video/漫影/chapter-001/sb-chapter-001-001/ambient"); // R1:第5段=纯 policy(终档=记账件)
     expect(result.apiGraph["103"].inputs).toMatchObject({
       shot_id: "sb-chapter-001-001",
       label: "S01",

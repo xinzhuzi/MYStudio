@@ -400,7 +400,9 @@ export function buildShotH3MultisegApiWorkflow(input: ShotH3ApiWorkflowInput): S
   getApiNode(apiGraph, "4", "SaveVideo").inputs.filename_prefix = `${prefix}-p1`;  // D3:一采预览降级 -p1(对齐三采 2061 口径)
   // D3 已批复(1123):4100=终档=记账件(103 MyShot 锚,前缀含镜号可按镜回收);注入须在
   // faceRefine 分支之前——_修脸 后缀追加在已注入的前缀上(非模板公共目录值)
-  getApiNode(apiGraph, "4100", "SaveVideo").inputs.filename_prefix = `${prefix}-p-final`;
+  // 1123 R1/D18-A:4100 第 5 段必须是纯 policy(MyShot my_shot.py 按段校验、
+  // h3-shot-landing 按 policy==="full" 判 h3-baked),禁加 -p-final 等任何后缀
+  getApiNode(apiGraph, "4100", "SaveVideo").inputs.filename_prefix = prefix;
   getApiNode(apiGraph, "9", "LoadImage").inputs.image = imageName;
   const myShot = getApiNode(apiGraph, "103", "MyShot");
   myShot.inputs = { ...myShot.inputs, shot_id: shot.id, label, description, media_status: "图✓" };
@@ -413,7 +415,7 @@ export function buildShotH3MultisegApiWorkflow(input: ShotH3ApiWorkflowInput): S
     // 1123 用户令:修脸开=1065 拨开 + 终档文件名加「_修脸」后缀(仅此,不搞其他)
     getApiNode(apiGraph, "1065", "PrimitiveBoolean").inputs.value = true;
     const finalSaver = getApiNode(apiGraph, "4100", "SaveVideo");
-    finalSaver.inputs.filename_prefix = `${finalSaver.inputs.filename_prefix}_修脸`;  // 追加在已注入前缀上(=…-p-final_修脸)
+    finalSaver.inputs.filename_prefix = `${finalSaver.inputs.filename_prefix}_修脸`;  // D18-A:追加在纯 prefix 上(=…/{policy}_修脸;my_shot.py 剥离后得干净 policy+faceRefined)
   }
   const totalFrames = prompt.segments.reduce((sum, segment) => sum + segment.frames, 0);
   getApiNode(apiGraph, "3031", "MiniMaxH3ReferenceToVideo").inputs.length = totalFrames;

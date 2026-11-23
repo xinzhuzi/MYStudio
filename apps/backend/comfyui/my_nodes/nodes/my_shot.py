@@ -16,6 +16,27 @@ import re
 from ..bridge import writeback
 
 
+
+def parse_video_prefix(prefix, shot_id: str):
+    """1123 R1/D18-A:SaveVideo 前缀解析——video/漫影/{chapter}/{shot}/{policy}[_修脸]。
+
+    policy 段仅允许 [A-Za-z0-9._-];唯一合法中文尾段为 `_修脸`(用户裁定 D18-A),
+    剥离后置 face_refined=True 并按剥离后的干净 policy 走原校验(消费器拿到恒干净值)。
+    返回 (subfolder, policy, face_refined)。
+    """
+    parts = prefix.split("/") if isinstance(prefix, str) else []
+    if (len(parts) != 5 or parts[:2] != ["video", "漫影"] or parts[3] != shot_id
+            or any(not part.strip() or part in (".", "..") or "\\" in part or "\x00" in part for part in parts)):
+        raise RuntimeError("视频回写需要SaveVideo的明确章节/分镜路径")
+    policy = parts[4]
+    face_refined = False
+    if policy.endswith("_修脸"):
+        policy = policy[: -len("_修脸")]
+        face_refined = True
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", policy):
+        raise RuntimeError("视频回写策略名不合法")
+    return "/".join(parts[:4]), policy, face_refined
+
 class _VideoBuffer(io.BytesIO):
     """Stop an encoder before it grows the bridge payload beyond its byte cap."""
 
@@ -67,13 +88,7 @@ class MyShot:
                 raise RuntimeError("视频回写需要直接连接SaveVideo的视频输出")
             inputs = source.get("inputs")
             prefix = inputs.get("filename_prefix") if isinstance(inputs, dict) else None
-            parts = prefix.split("/") if isinstance(prefix, str) else []
-            if (len(parts) != 5 or parts[:2] != ["video", "漫影"] or parts[3] != shot_id
-                    or any(not part.strip() or part in (".", "..") or "\\" in part or "\x00" in part for part in parts)):
-                raise RuntimeError("视频回写需要SaveVideo的明确章节/分镜路径")
-            policy = parts[4]
-            if not re.fullmatch(r"[A-Za-z0-9._-]+", policy):
-                raise RuntimeError("视频回写策略名不合法")
+            subfolder, policy, face_refined = parse_video_prefix(prefix, shot_id)
             if not callable(getattr(video, "save_to", None)):
                 raise RuntimeError("视频回写收到无效VIDEO输入")
             # Export the supplied object so edits/trim windows remain effective;
@@ -101,9 +116,10 @@ class MyShot:
             accepted = writeback.deliver_video(
                 shot_id,
                 video_b64,
-                "/".join(parts[:4]),
+                subfolder,
                 policy,
                 origin_project_id=origin_project_id,
+                face_refined=face_refined,
             )
             result["videoWriteback"] = accepted.get("id")
         return {
