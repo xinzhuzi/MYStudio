@@ -466,86 +466,6 @@
           "name": "sigmas",
           "type": "SIGMAS",
           "link": 53
-        },
-        {
-          "name": "sampler",
-          "type": "SAMPLER",
-          "link": 51
-        },
-        {
-          "name": "sigmas",
-          "type": "SIGMAS",
-          "link": 53
-        },
-        {
-          "name": "sampler",
-          "type": "SAMPLER",
-          "link": 51
-        },
-        {
-          "name": "sigmas",
-          "type": "SIGMAS",
-          "link": 53
-        },
-        {
-          "name": "sampler",
-          "type": "SAMPLER",
-          "link": 51
-        },
-        {
-          "name": "sigmas",
-          "type": "SIGMAS",
-          "link": 53
-        },
-        {
-          "name": "sampler",
-          "type": "SAMPLER",
-          "link": 51
-        },
-        {
-          "name": "sigmas",
-          "type": "SIGMAS",
-          "link": 53
-        },
-        {
-          "name": "sampler",
-          "type": "SAMPLER",
-          "link": 51
-        },
-        {
-          "name": "sigmas",
-          "type": "SIGMAS",
-          "link": 53
-        },
-        {
-          "name": "sampler",
-          "type": "SAMPLER",
-          "link": 51
-        },
-        {
-          "name": "sigmas",
-          "type": "SIGMAS",
-          "link": 53
-        },
-        {
-          "name": "sampler",
-          "type": "SAMPLER",
-          "link": 51
-        },
-        {
-          "name": "sigmas",
-          "type": "SIGMAS",
-          "link": 53
-        },
-        {
-          "name": "sampler",
-          "type": "SAMPLER",
-          "link": 51
-        },
-        {
-          "name": "sigmas",
-          "type": "SIGMAS",
-          "link": 53
         }
       ],
       "outputs": [
@@ -1863,7 +1783,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "# 一镜到底-分段 · 全链三采(1114 用户裁定「都过三采」)\n\n## 件用途\n分段生成(一采,绕 15s 封顶)→ 二采 TaoMate 精修(1440×832)→ 三采 ReCaVSR 超分(3840×2220 终档)。与 单镜.json 分工:单镜 ≤15s 高质线 / 本件任意时长全梯线。\n\n## 操作手册(1122 裁定:整图一发直跑)\nRun 一按直出 p1(960×544)/p2(1440×832)/p3(3840×2220 4K)+p-final 终档(1065 开关控修脸)。\n史鉴:1115 整图一发含段B 曾原生崩引擎(当时 mode=4 全链驻留下 ReCaVSR 上卡,日志 17:04:42 零 traceback)而立两步法;1118 起 1066 LowVRAM+ChunkFFN 削峰已改变显存格局,1122 用户裁定解旁路(mode 4→0)恢复整图一发,两态实弹复判绿(判据档 apps/output/multiseg-mode0-oneshot-1122/livefire-summary.json:A 态 1065=false 150s 四产物齐·p-final≡p3 md5 逐字节直通;B 态 1065=true 200s·p-final≢p3=修脸臂实吃 4002 出片;两态均 p3/p-final=3840×2220/24fps/56帧);若再崩,回退 mode=4 须用户再裁。\nmultiseg App 派发/批量路=整图一发(1122 实弹绿,56 帧;1123 D6 裁定③文档对齐代码);单镜三采 App 路=段A/段B 拆链+间中 `POST /free {\"unload_models\": true}`;长镜(≥10s)整图一发待 #7 长镜两态实弹定谳。\n\n## 同步点三则(手改必读)\n1. 改分段时长必须按帧数公式同步 [3031].length(targets→snap17 网格→Σnew,出厂 2×1秒=56),实跑以 p1 ffprobe 实测帧数双核对(雷#13/#17);\n2. [3030] 与 [100] 提示词是两份拷贝,手改同频(雷#14,契约测试出厂态断言同文);\n3. 组框五组横排与布局 est 宪法由 `apps/build/scripts/multiseg_full3stage_extend.py --verify` 把门,改版后整体重跑(雷#7)。\n\n## 模型/配方速查(1115 B3 定谳)\n一采=**正典全配方臂**:turbo@1.0+sol-attn τ1.3+ChunkFFN[2]+kitchen+σshift[**6,3**]+**lcm**+simple/8(Pika 必须 lcm=全库正典;裸 euler 已废,B3 实弹 p1 胜/p2 平);二采=taomate@0.7+sol-attn τ1.3+σshift[12,3]+kitchen+lcm+simple/3步/dn0.2(UP 定谳);三采=ReCaVSR scale2.667 int8 ConvRot(1122 起与单镜同款 4K 出厂)。seed=42 复现。⚠ 段缓存指纹不含外接 sampler——A/B 试验须 enable_cache=False(1115 实证)。\n\n---\n\n## 四采修脸(内置·默认旁路·1118 multiseg)\n\n- **开关 #1065「四采修脸」**:默认 **False=旁路**——终档 4100 p-final=4002 三采 p3 直通,50xx 臂被引擎惰性剪除\n  (0.45.2 实证,同 单镜 1118 双态探针口径),零成本;**True=三采出片内部走进修脸→终档一条线**\n- **#25 修脸身份提示词**:默认通用句;外部按角色覆写(参照正片人物五官特征)\n- **臂拓扑**(同 单镜 1118 §1.1):5002 拆 4002(三采 p3 4K 出片·帧①+音轨②)→ 5011 追踪裁剪(face_yolov8m\n  conf0.15/兜底 segm\\person_yolov8m-seg.pt/largest_face)→ 5012 H3 重画(**宽高=5011 出口联线勿手填**/\n  参考图=零参考出厂/提示词=#25)→ 5013 注入真实帧 → 5014 音轨锁(audio←5002②)→ 5015 逐帧 denoise\n  (60/200px)→ 5016-5020 采样(seed 42 同 3040/lcm/simple/8步/0.45)→ 5021 解码 → 5022 贴回(16/24)\n  → 5023 合成 → 5113 出口选择 → 5100 终档选择 → 4100 p-final\n- **帧数同步纪律(1123 D4/D5 改版)**:[5012].length 已接线 ← [5011].frame_count(INT 出口,\n  K2 核毕)=追踪器实测帧数,自动同步勿手填;唯 [3031].length 无图内总帧数出口(K3 核毕\n  H3AutoContextSampler/H3Parameter 均只出 DICT)——**改分段时长必须手动同步 [3031].length**\n  (出厂 56;App 路由组装器随车覆写 3031.length=总帧数,不受此项影响)\n- **极性口径**(同三采 1118 双态实测定谳):5100 on_true=修脸臂出口(1065=true)/on_false=4002 p3 直通\n  (1065=false);5113 on_true=5025 高清片/on_false=5023 远景片——两 Switch 均「真=新臂」,勿手改(防 wf2api 反转坑)\n- **显存纪律**:5006 LoRA 挂 34 单 loader(全图禁第二个 UNETLoader);p1/p2/p3 三档照常落盘;段B 4001-4003\n  出厂激活(mode=0,1122 用户裁定解旁路,整图一发直出三档)——修脸组直吃 4002 出口,与段B 串联\n- **生效面**:仓库/引擎直投即时生效;装机 App 面候打包窗口另役同步\n- **改版顺序(三步链,恒此序)**:①multiseg_full3stage_extend.py(重建 41 节点态)→\n  ②lowvram_dual_node_1118.py(补 1066:link1/link15 改源回 1066+ChunkFFN 激活,幂等)→\n  ③本生成器(重建 67 节点+组16/17+本 README 段);跳步即断链(漏②直接跑本件,WIRING 引用 1066 即崩)\n\n### 1119 双档调用(远景=默认 / 高清;multiseg 移植)\n\n- **#5111「高清修脸」子开关**(默认 **False=远景档**):False 时 5113 出口 VIDEO Switch 直通 5023\n  远景链、5022/5024.masks 恒悬空(face_only 脸框贴回=正典现状);True 时 VOSR2 高频尾档\n  (5110,control=**fixed** seed 锁 300831622214023 禁 randomize 回抖)→ 5024/5025 高清复制对\n  (**5024.masks 悬空=face_only 贴回,与 5022 同款**)→ 5113 出口\n- **四态矩阵**:1065=False(出厂)→ p3 直通不修脸;1065=True ∧ 5111=False → **远景修脸=默认修脸档**;\n  1065=True ∧ 5111=True → 高清修脸;**1065=False ∧ 5111=True = 非法态**(高清段被计算却在 5100\n  被丢弃=静默剪枝)——发车器(API 直调)注入前必须拒绝此组合\n- **1122 回正(刻碑)**:两件同吃**三采底**——multiseg 修脸入口=4002(三采 p3 4K 出片口,与单镜\n  5002←4002 同构;段B mode 4→0 出厂激活随同批解旁路);VOSR2 均吃 5021 解码 768 画布,\n  档位语义与上游底两件一致\n- **API 直调(延伸)**:远景档 `g[\"1065\"]...=true`;高清档再加 `g[\"5111\"][\"inputs\"][\"value\"]=true`\n  (+#25 身份句;1065=false 时发车器拒单);**1123 D1/D3 起 API 面=一采正典臂烙入(101 外接\n  1044/1045/1046)+MyShot 103 锚 4100 终档+remux 5030/5031 剔除**,4=一采预览(-p1)、\n  4100=终档(-p-final,组装器注入),36 一采直出仅喂 4\n"
+        "# 一镜到底-分段 · 全链三采(1114 用户裁定「都过三采」)\n\n## 件用途\n分段生成(一采,绕 15s 封顶)→ 二采 TaoMate 精修(1440×832)→ 三采 ReCaVSR 超分(3840×2220 终档)。与 单镜.json 分工:单镜 ≤15s 高质线 / 本件任意时长全梯线。\n\n## 操作手册(1122 裁定:整图一发直跑)\nRun 一按直出 p1(960×544)/p2(1440×832)/p3(3840×2220 4K)+p-final 终档(1065 开关控修脸)。\n史鉴:1115 整图一发含段B 曾原生崩引擎(当时 mode=4 全链驻留下 ReCaVSR 上卡,日志 17:04:42 零 traceback)而立两步法;1118 起 1066 LowVRAM+ChunkFFN 削峰已改变显存格局,1122 用户裁定解旁路(mode 4→0)恢复整图一发,两态实弹复判绿(判据档 apps/output/multiseg-mode0-oneshot-1122/livefire-summary.json:A 态 1065=false 150s 四产物齐·p-final≡p3 md5 逐字节直通;B 态 1065=true 200s·p-final≢p3=修脸臂实吃 4002 出片;两态均 p3/p-final=3840×2220/24fps/56帧);若再崩,回退 mode=4 须用户再裁。\nmultiseg App 派发/批量路=整图一发(1122 实弹绿,56 帧;1123 D6 裁定③文档对齐代码);单镜三采 App 路=段A/段B 拆链+间中 `POST /free {\"unload_models\": true}`;长镜(≥10s)整图一发同口径(1123 D6 裁定③实弹定谳:15 秒/362 帧两态未崩,判据档 apps/output/_validation-1123/livefire-summary.json)。\n\n## 同步点三则(手改必读)\n1. 改分段时长必须按帧数公式同步 [3031].length(targets→snap17 网格→Σnew,出厂 2×1秒=56),实跑以 p1 ffprobe 实测帧数双核对(雷#13/#17);\n2. [3030] 与 [100] 提示词是两份拷贝,手改同频(雷#14,契约测试出厂态断言同文);\n3. 组框五组横排与布局 est 宪法由 `apps/build/scripts/multiseg_full3stage_extend.py --verify` 把门,改版后整体重跑(雷#7)。\n\n## 模型/配方速查(1115 B3 定谳)\n一采=**正典全配方臂**:turbo@1.0+sol-attn τ1.3+ChunkFFN[2]+kitchen+σshift[**6,3**]+**lcm**+simple/8(Pika 必须 lcm=全库正典;裸 euler 已废,B3 实弹 p1 胜/p2 平);二采=taomate@0.7+sol-attn τ1.3+σshift[12,3]+kitchen+lcm+simple/3步/dn0.2(UP 定谳);三采=ReCaVSR scale2.667 int8 ConvRot(1122 起与单镜同款 4K 出厂)。seed=42 复现。⚠ 段缓存指纹不含外接 sampler——A/B 试验须 enable_cache=False(1115 实证)。\n\n---\n\n## 四采修脸(内置·默认旁路·1118 multiseg)\n\n- **开关 #1065「四采修脸」**:默认 **False=旁路**——终档 4100 p-final=4002 三采 p3 直通,50xx 臂被引擎惰性剪除\n  (0.45.2 实证,同 单镜 1118 双态探针口径),零成本;**True=三采出片内部走进修脸→终档一条线**\n- **#25 修脸身份提示词**:默认通用句;外部按角色覆写(参照正片人物五官特征)\n- **臂拓扑**(同 单镜 1118 §1.1):5002 拆 4002(三采 p3 4K 出片·帧①+音轨②)→ 5011 追踪裁剪(face_yolov8m\n  conf0.15/兜底 segm\\person_yolov8m-seg.pt/largest_face)→ 5012 H3 重画(**宽高=5011 出口联线勿手填**/\n  参考图=零参考出厂/提示词=#25)→ 5013 注入真实帧 → 5014 音轨锁(audio←5002②)→ 5015 逐帧 denoise\n  (60/200px)→ 5016-5020 采样(seed 42 同 3040/lcm/simple/8步/0.45)→ 5021 解码 → 5022 贴回(16/24)\n  → 5023 合成 → 5113 出口选择 → 5100 终档选择 → 4100 p-final\n- **帧数同步纪律(1123 D4/D5 改版)**:[5012].length 已接线 ← [5011].frame_count(INT 出口,\n  K2 核毕)=追踪器实测帧数,自动同步勿手填;唯 [3031].length 无图内总帧数出口(K3 核毕\n  H3AutoContextSampler/H3Parameter 均只出 DICT)——**改分段时长必须手动同步 [3031].length**\n  (出厂 56;App 路由组装器随车覆写 3031.length=总帧数,不受此项影响)\n- **极性口径**(同三采 1118 双态实测定谳):5100 on_true=修脸臂出口(1065=true)/on_false=4002 p3 直通\n  (1065=false);5113 on_true=5025 高清片/on_false=5023 远景片——两 Switch 均「真=新臂」,勿手改(防 wf2api 反转坑)\n- **显存纪律**:5006 LoRA 挂 34 单 loader(全图禁第二个 UNETLoader);p1/p2/p3 三档照常落盘;段B 4001-4003\n  出厂激活(mode=0,1122 用户裁定解旁路,整图一发直出三档)——修脸组直吃 4002 出口,与段B 串联\n- **生效面**:仓库/引擎直投即时生效;装机 App 面已随包同步\n- **改版顺序(三步链,恒此序)**:①multiseg_full3stage_extend.py(重建 41 节点态)→\n  ②lowvram_dual_node_1118.py(补 1066:link1/link15 改源回 1066+ChunkFFN 激活,幂等)→\n  ③本生成器(重建 67 节点+组16/17+本 README 段);跳步即断链(漏②直接跑本件,WIRING 引用 1066 即崩)\n\n### 1119 双档调用(远景=默认 / 高清;multiseg 移植)\n\n- **#5111「高清修脸」子开关**(默认 **False=远景档**):False 时 5113 出口 VIDEO Switch 直通 5023\n  远景链、5022/5024.masks 恒悬空(face_only 脸框贴回=正典现状);True 时 VOSR2 高频尾档\n  (5110,control=**fixed** seed 锁 300831622214023 禁 randomize 回抖)→ 5024/5025 高清复制对\n  (**5024.masks 悬空=face_only 贴回,与 5022 同款**)→ 5113 出口\n- **四态矩阵**:1065=False(出厂)→ p3 直通不修脸;1065=True ∧ 5111=False → **远景修脸=默认修脸档**;\n  1065=True ∧ 5111=True → 高清修脸;**1065=False ∧ 5111=True = 非法态**(高清段被计算却在 5100\n  被丢弃=静默剪枝)——发车器(API 直调)注入前必须拒绝此组合\n- **1122 回正(刻碑)**:两件同吃**三采底**——multiseg 修脸入口=4002(三采 p3 4K 出片口,与单镜\n  5002←4002 同构;段B mode 4→0 出厂激活随同批解旁路);VOSR2 均吃 5021 解码 768 画布,\n  档位语义与上游底两件一致\n- **API 直调(延伸)**:远景档 `g[\"1065\"]...=true`;高清档再加 `g[\"5111\"][\"inputs\"][\"value\"]=true`\n  (+#25 身份句;1065=false 时发车器拒单);**1123 D1/D3 起 API 面=一采正典臂烙入(101 外接\n  1044/1045/1046)+MyShot 103 锚 4100 终档+remux 5030/5031 剔除**,4=一采预览(-p1)、\n  4100=终档(-p-final,组装器注入),36 一采直出仅喂 4\n"
       ],
       "title": "README(恒居组外)"
     },

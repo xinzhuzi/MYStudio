@@ -110,7 +110,7 @@ README_SECTION = README_MARK + """
   (1065=false);5113 on_true=5025 高清片/on_false=5023 远景片——两 Switch 均「真=新臂」,勿手改(防 wf2api 反转坑)
 - **显存纪律**:5006 LoRA 挂 34 单 loader(全图禁第二个 UNETLoader);p1/p2/p3 三档照常落盘;段B 4001-4003
   出厂激活(mode=0,1122 用户裁定解旁路,整图一发直出三档)——修脸组直吃 4002 出口,与段B 串联
-- **生效面**:仓库/引擎直投即时生效;装机 App 面候打包窗口另役同步
+- **生效面**:仓库/引擎直投即时生效;装机 App 面已随包同步
 - **改版顺序(三步链,恒此序)**:①multiseg_full3stage_extend.py(重建 41 节点态)→
   ②lowvram_dual_node_1118.py(补 1066:link1/link15 改源回 1066+ChunkFFN 激活,幂等)→
   ③本生成器(重建 67 节点+组16/17+本 README 段);跳步即断链(漏②直接跑本件,WIRING 引用 1066 即崩)
@@ -679,7 +679,37 @@ def build_canvas(S: dict, src_nodes: list) -> dict:
             md = n["widgets_values"][0]
             if README_MARK not in md:
                 n["widgets_values"][0] = md + README_SECTION
-    return fix_seed_control_layout(S)
+    return dedupe_node_inputs(fix_seed_control_layout(S))
+
+
+# 输入口按名去重的节点:#101 sampler/sigmas 各带 9 个同名口(多出 8 个)——1118 生成器早期版本每重放一次
+# 就追加一对,11-18 起冻结在盘上;现版 slot_index 按名取首个、不再追加,但也不清,故在此规整
+DEDUPE_INPUT_NODES = (101,)
+
+
+def dedupe_node_inputs(S: dict) -> dict:
+    """1124:节点输入口按名去重,只留首个(1123 D17 归档后复查所见)。
+
+    真实前端加载时按名归位(连线按目标槽位号落在首个口上),重复口无害但画布 JSON 与前端存盘件不一致
+    (打开-保存即少 16 个口)。盘上实况:9 个 sampler 口挂的是同一条连线(51),sigmas 同理(53)。
+    口径:重复口与首个口挂同一条连线(或自己没连线)=纯重复,删;挂了不同的连线=拒改报错(禁猜该并到哪);
+    首个口没连线而重复口有=把连线并到首个口。幂等:已无重复=原样。"""
+    for nid in DEDUPE_INPUT_NODES:
+        n = node_by_id(S["nodes"], nid)
+        first, kept = {}, []
+        for slot in n.get("inputs", []):
+            name = slot.get("name")
+            if name not in first:
+                first[name] = slot
+                kept.append(slot)
+                continue
+            dup_link, first_link = slot.get("link"), first[name].get("link")
+            if dup_link is not None and dup_link != first_link and first_link is not None:
+                die(f"#{nid} 重复输入口 {name} 挂了不同的连线({dup_link} ≠ 首口 {first_link}),拒改")
+            if dup_link is not None and first_link is None:
+                first[name]["link"] = dup_link
+        n["inputs"] = kept
+    return S
 
 
 def fix_seed_control_layout(S: dict) -> dict:
@@ -884,6 +914,8 @@ def check() -> int:
     ok(nmap[5109]["widgets_values"] == ["VOSR2", "default"], "5109 widgets 逐位照单镜")
     ok(nmap[101]["widgets_values"] == [0.0, 42, "fixed", 8, 1.0, "euler", "simple", 1.0, True, False, False],
        "101 widgets seed 后带「固定」项(1123 D17:此前漏项,真实前端加载后 steps/cfg 等错位一格)")
+    ok([s["name"] for s in nmap[101]["inputs"]] == ["model", "clip", "vae", "audio_vae", "parameter", "sampler", "sigmas"],
+       "101 输入口 7 个无重复(1124:sampler/sigmas 此前各 9 个,生成器早期版本逐次追加)")
     ok(nmap[5024]["widgets_values"] == nmap[5022]["widgets_values"],
        "5024 widgets 逐位同 5022(高清复制对)")
     ok(nmap[5025]["widgets_values"] == nmap[5023]["widgets_values"], "5025 widgets 逐位同 5023")
