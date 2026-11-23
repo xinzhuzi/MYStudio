@@ -54,7 +54,7 @@ ComfyUI 托管 K2 图像、H3 视频及音乐/修复等节点工作流；本地 
 | 当前位置 | 入口与依赖 | 职责、可写数据与运行位置 | 验证入口 | 不可越界事项 |
 |---|---|---|---|---|
 | `apps/frontend/` | `main.tsx`、`App.tsx`、`electron/main/main.ts`、`electron/preload/preload.ts` | React renderer、Electron main/preload、IPC、应用状态、领域服务和内置 UI 资源；构建输出为 `apps/out/` | `cd apps && npm run typecheck && npm run lint && npm run test` | renderer 不直接使用 Node 文件系统；用户 runtime 不写入源码目录 |
-| `apps/backend/` | `tts.main`、`requirements.txt`、`engines/`；由 Electron 以 `PYTHONPATH` 启动/管控 | 本地 TTS、声音克隆、模型目录探测、转写和运行时 SQLite 的 sidecar 源码及依赖声明；`engines/` 为底层模型引擎层（6 包，见上节；托管引擎在顶层 `backend/comfyui/`）；`remote_ssh/`=11-03 SSH 连接/隧道 sidecar 模块；`face_qc/`/`speech_vad/`=2026-11 在途 QC 模块（未提交）；`common/`=共享基建 | `cd apps && PYTHONPATH=backend python3 -m unittest discover -s backend/tests` | 不是远程 Web 服务；不在 import 阶段下载模型，不把生成物写进 `apps/backend/` |
+| `apps/backend/` | `tts.main`、`requirements.txt`、`engines/`；由 Electron 以 `PYTHONPATH` 启动/管控 | 本地 TTS、声音克隆、模型目录探测、转写和运行时 SQLite 的 sidecar 源码及依赖声明；`engines/` 为底层模型引擎层（6 包，见上节；托管引擎在顶层 `backend/comfyui/`）；`remote_ssh/`=11-03 SSH 连接/隧道 sidecar 模块；`face_qc/`/`speech_vad/`=2026-11 QC 模块（11-07 已入库）；`common/`=共享基建 | `cd apps && PYTHONPATH=backend python3 -m unittest discover -s backend/tests` | 不是远程 Web 服务；不在 import 阶段下载模型，不把生成物写进 `apps/backend/` |
 | `apps/build/` | `packaging/`、`smoke/`、`chapter_video/`、`timeline/`、`shared/` | 构建、安装、smoke、章节视频(Daojie)素材/连续性工具、时间线 CLI 和共享报告辅助；构建中间产物位于 `apps/release/`，导出位置必须显式传入 | `cd apps && npm test -- frontend/config/build-scripts.test.ts`；章节视频 Python 测试在 `build/chapter_video/tests` | 不是应用运行时库；不把用户 Python、模型、缓存或第二套 FFmpeg 时间线规则塞入此目录 |
 | `apps/output/` | 由生成/导出工作流显式写入 | MP4、音频、图片、报告和证据等生成产物 | 由产物生成工作流及其报告验证 | 前端和后端不得 import 其中内容；不得把它作为可提交源码模块 |
 | `apps/Library/` | 不存在（本次盘面核验） | 当前没有模块责任或写入位置 | 不适用 | 不因历史习惯新建该根目录或把工具迁入其中 |
@@ -147,7 +147,7 @@ import renderer components、Zustand store 或 sidecar 源码。产品只使用 
 中的发布包，不复制 `<remotion-source-root>` 源码；`<skills-source-root>`
 仅作为开发规范来源，不进入产品 runtime。
 
-当前固定版本为 Remotion `4.0.499`，Mediabunny 为 `1.50.8`，macOS arm64 compositor
+当前固定版本为 Remotion `4.0.534`，Mediabunny 为 `1.56.1`，macOS arm64 compositor
 与 Remotion 同版。Player 运行在 Electron Chromium 中；MP4 导出才需要 Chrome Headless
 Shell，且只允许用户在设置页主动下载/更新。Headless Shell、Bundler、CLI 和 Skills
 均不进入安装包。固定 Composition bundle 由 `apps/build/remotion/bundle.mjs` 生成到
@@ -158,7 +158,7 @@ Shell，且只允许用户在设置页主动下载/更新。Headless Shell、Bun
 ### HyperFrames 的应用运行时集成边界
 
 HyperFrames 与 Remotion 都可以通过 npm 安装，但不能因此把它们加载进同一个 Electron
-renderer。当前锁文件中的 Electron `43.4.0` 内置 Node 为 `24.18.1`，满足
+renderer。当前锁文件中的 Electron `44.5.1` 内置 Node 24，满足
 `hyperframes@0.7.109` 的 Node.js `>=22` 门槛；产品仍使用独立 worker/profile，隔离 CLI、
 Chrome、临时组合和失败清理，不把 HyperFrames 依赖并入 renderer 图。正确接线是：
 
