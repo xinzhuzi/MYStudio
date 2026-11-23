@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """架构耦合体检——扫前端分层违规/跨域耦合、后端跨包耦合、巨石文件热点。
 
-输出: stdout 摘要 + arch-coupling-report.json(与脚本同目录落盘)。
-只读扫描,不修改任何源码。可反复运行。
+输出: stdout 摘要 + arch-coupling-report.json(落 apps/output/automation/,已 gitignore)。
+不改任何源码;重跑不再覆写已入库的 apps/build/scripts/arch-coupling-report.json(那是历史快照,已停更)。
+可反复运行。
+前端分层段(摘要【1】)已移交 arch_layer_gate.mjs(TypeScript 编译器 API 实现,带只减不增基线);
+本段 LAYER_RULES 的正则规则大半失效,死规则不修,其结果只作参考,现势以 arch_layer_gate 的基线为准。
 """
 from __future__ import annotations
 
@@ -13,7 +16,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 FRONTEND = REPO / "apps" / "frontend"
-OUT = Path(__file__).resolve().parent / "arch-coupling-report.json"
+OUT = REPO / "apps/output/automation/arch-coupling-report.json"
 
 report: dict = {"generated": Path(__file__).name, "sections": {}}
 
@@ -213,6 +216,7 @@ sections = {
     "electron": electron_audit(),
 }
 report["sections"] = sections
+OUT.parent.mkdir(parents=True, exist_ok=True)
 OUT.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
 
 # ---- stdout 摘要(人读)----

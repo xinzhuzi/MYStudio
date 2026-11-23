@@ -4,7 +4,7 @@
 """B线 i2i 设定卡 sidecar 契约(1121 trellis 11-21-asset-sheet-bline-i2i R1)。
 
 被测=engines/image_engine/qwen21_sheet.py(布局 qwen21-sheet-i2i):
-① GUI→API 整图复用保真(点名件 67 节点/171 链逐字节落位;指令恒吃枢纽链接=
+① GUI→API 整图复用保真(点名件 67 节点/172 链逐字节落位;指令恒吃枢纽链接=
   分格指令逐字取 qi21_bases#sheet_card_qwen 真源,sidecar 零手搓;seed=真源表);
 ② 子步表=件依赖图实锚(编辑参考图槽对号:head←side 解码,表情×5←face 解码,
   余←master 解码);
@@ -46,8 +46,9 @@ PAYLOAD = {
 # ── ① GUI→API 整图复用保真 ────────────────────────────────────────────────
 
 def test_gui_to_api_whole_graph_reuse():
-    # 67 节点(含 MarkdownNote 显示件)→ 66 API 节点;171 链逐条落位为边
-    assert len(DOC["nodes"]) == 67 and len(DOC["links"]) == 171
+    # 67 节点(含 MarkdownNote 显示件)→ 66 API 节点;172 链逐条落位为边
+    # (1123 Phase 6 +1:枢纽「武器类别」→合成器)
+    assert len(DOC["nodes"]) == 67 and len(DOC["links"]) == 172
     assert len(API) == 66
     for lid, link in GUI_LINKS.items():
         _, src, src_slot, dst, dst_slot, _ = link[:6]
@@ -157,6 +158,8 @@ def test_step_subgraph_closure_and_taps():
     assert compose[qs.SAVE_NODE]["inputs"]["filename_prefix"] == "道劫设定卡Q/"
     assert _slot_edge(compose[qs.COMPOSER_NODE], "背景") == [qs.HUB_NODE, 17]
     assert _slot_edge(compose[qs.COMPOSER_NODE], "档案") == [qs.HUB_NODE, 19]
+    # 武器类别:枢纽出20→合成器(1123 Phase 6 角标变体;STRING→STRING 走通用闭包)
+    assert _slot_edge(compose[qs.COMPOSER_NODE], "武器类别") == [qs.HUB_NODE, 20]
 
 
 def test_step_subgraph_missing_dep_fails_closed():

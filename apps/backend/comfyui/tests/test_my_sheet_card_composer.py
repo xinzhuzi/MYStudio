@@ -126,3 +126,95 @@ def test_formats_registry_snapshot():
     truth_reg = json.loads(tp.read_text(encoding="utf-8"))["sheet_card_qwen"]["formats"]
     assert truth_reg == sf._FROZEN, \
         f"真源与 _FROZEN 漂移:{tp}(请跑 apps/build/scripts/daojie_sheet_formats_freeze.py 再生)"
+
+
+# ── 1123 Phase 6:角标变体+留空格随武器类别(全卡版式跟随武器类别)────────────────
+VARIANT_KEYS = ("weapon_a", "weapon_b", "gear_1", "fabric_3")
+NO_ABILITY = {"通用": "通用·能力未设定", "包裹": "包裹·能力未设定"}   # 无「能力:」字段时的细化类别
+
+
+def _placeholder_cells():
+    return {k: Image.new("RGB", (900, 600), (i * 13 % 255, i * 29 % 255, i * 47 % 255))
+            for i, k in enumerate(frame.CELL_KEYS)}
+
+
+def test_label_variants_and_blank_cells_registered_and_inherited():
+    """真源 labels:两类本体(通用/包裹)各四角标变体;细化类别另加 fx_1「能力未设定」并登记特效两格留空;
+    均为既有格键;四格式继承同一份。"""
+    tp = sf.truth_path()
+    if tp is None:
+        pytest.skip("真源缺位:variants 半边无意义")
+    lab = sf.resolve("全卡")["labels"]
+    assert set(lab["variants"]) == {"通用", "包裹", *NO_ABILITY.values()}
+    for base, refined in NO_ABILITY.items():
+        four = lab["variants"][base]
+        assert set(four) == set(VARIANT_KEYS)
+        assert lab["variants"][refined] == {**four, "fx_1": "能力未设定"}
+        assert {"fx_1", "fx_2"} <= set(lab["blank_cells"][refined]) and base not in lab["blank_cells"]
+    assert lab["variants"]["包裹"]["fabric_3"] == "腕部图·局部"
+    for fmt in sf.formats_list():
+        got = sf.resolve(fmt)["labels"]
+        assert got["variants"] == lab["variants"] and got["blank_cells"] == lab["blank_cells"], fmt
+
+
+@pytest.mark.parametrize("category,changed", [
+    ("通用", VARIANT_KEYS),
+    ("包裹", VARIANT_KEYS),
+    # 能力未设定:特效两格由程序留空(不吃传入的 effect 图),fx_1 角标换字
+    ("通用·能力未设定", VARIANT_KEYS + ("fx_1", "fx_2")),
+    ("包裹·能力未设定", VARIANT_KEYS + ("fx_1", "fx_2")),
+])
+def test_compose_category_changes_only_registered_cells(tmp_path, category, changed):
+    """类别渲染:与默认渲染的差异只落在换角标/留空的格内(几何/其余格/底带逐字节不变)。"""
+    from PIL import ImageChops, ImageDraw
+    cells, palette = _placeholder_cells(), [(200, 60, 60)] * 5
+    a, b = tmp_path / "a.png", tmp_path / "b.png"
+    frame.compose(cells, palette, "自检", str(a))
+    frame.compose(cells, palette, "自检", str(b), weapon_category=category)
+    ia, ib = Image.open(a).convert("RGB"), Image.open(b).convert("RGB")
+    geo = frame.layout("全卡")
+    for k in changed:
+        assert ImageChops.difference(ia.crop(geo[k]), ib.crop(geo[k])).getbbox(), k
+    mask = Image.new("L", ia.size, 0)
+    d = ImageDraw.Draw(mask)
+    for k in changed:
+        d.rectangle(geo[k], fill=255)
+    outside = ImageChops.multiply(ImageChops.difference(ia, ib).convert("L"),
+                                  ImageChops.invert(mask))
+    assert outside.getbbox() is None, "登记之外的格出现像素差异"
+
+
+def test_compose_blank_cells_are_plain_paper(tmp_path):
+    """能力未设定:特效两格=纸面底色+框线+角标(不吃传入的 effect 图);本体类别不留空。"""
+    import numpy as np
+    cells, palette = _placeholder_cells(), [(200, 60, 60)] * 5
+    geo, paper = frame.layout("全卡"), tuple(frame._bg_color("纯白"))
+    blank, filled = tmp_path / "blank.png", tmp_path / "filled.png"
+    frame.compose(cells, palette, "自检", str(blank), weapon_category="包裹·能力未设定")
+    frame.compose(cells, palette, "自检", str(filled), weapon_category="包裹")
+    ib, ifl = Image.open(blank).convert("RGB"), Image.open(filled).convert("RGB")
+    for k in ("fx_1", "fx_2"):
+        x0, y0, x1, y1 = geo[k]
+        crop = np.asarray(ib.crop((x0 + 6, y0 + 90, x1 - 6, y1 - 6)))    # 避开框线与顶部角标带
+        assert {tuple(int(v) for v in px) for px in crop.reshape(-1, 3)} == {paper}, k
+        assert ifl.getpixel((x0 + 40, y0 + 120)) != paper, k              # 有能力字段=正常贴图
+
+
+def test_compose_default_and_unknown_category_are_identical(tmp_path):
+    """空串/未登记类别=默认角标(与不传逐字节相同)。"""
+    cells, palette = _placeholder_cells(), [(200, 60, 60)] * 5
+    outs = []
+    for i, cat in enumerate(("", "剑", "不存在")):
+        dst = tmp_path / f"{i}.png"
+        frame.compose(cells, palette, "自检", str(dst), weapon_category=cat)
+        outs.append(dst.read_bytes())
+    assert outs[0] == outs[1] == outs[2]
+    text = sf.resolve("全卡")["labels"]["text"]
+    assert text["weapon_a"] == "局部·柄首" and text["fabric_3"] == "材质·护臂"
+
+
+def test_composer_input_types_has_optional_category():
+    """节点输入:『武器类别』为 optional STRING,缺省空串,排在『档案』之后(=widget 承载序)。"""
+    opt = frame.MySheetCardComposer.INPUT_TYPES()["optional"]
+    assert opt["武器类别"] == ("STRING", {"default": "", "multiline": False})
+    assert list(opt)[-2:] == ["档案", "武器类别"]

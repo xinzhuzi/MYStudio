@@ -124,18 +124,18 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     assert gender[2]['parts'][0]['text']=='按照你的建议去做'
     assert revisions[base]=={
         'original_sha256':'a2df104bf740670cbea1fbe9b06ba43c7695b7d2be26d0a6cfc621e422967bff',
-        'approved_sha256':'de49aefee48b366bdeeab347b3aba044625fb41e122d055897e8037fa6177d5e',  # 1121 K2 死档清档(1120 高清人头改名基础上;删 i2i_routes/postprocess)
+        'approved_sha256':'6fecdf96f9d279052db1f5d3a9c0ae983283f4b3122cf8aa0eca8f9b7bd8720b',  # 1123 设定卡全卡版式跟随武器类别(Phase 6;1121 K2 死档清档基础上;只增 sheet_card_qwen 类别驱动键)
         'role':'runtime_execution_input_updated_after_snapshot',
         'historical_backup':'.trellis/tasks/archive/2026-10/10-18-daojie-conflict-p1-canon/backups/qi21_bases.json',
         'approval':{
-            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-reapproval-1121-i2i-routes-cleanup.md',
-            'anchor':'## Decisions(1121 用户令「那你就清理一下,不要瞎搞啊」)',
-            'sha256':'f293b469f8386b8148334d0cf4c06e8e00443514ca101311d221c86d48604d69',
+            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-reapproval-1123-sheet-weapon-category.md',
+            'anchor':'## Decisions(1123 用户令「按照你的建议,要解决这个问题」)',
+            'sha256':'c04c5271bcd9f6ee4bf9ec4055d483049d5ce34e5b439b07d4e5b944e7caa1fa',
         },
         'change_ledger':{
-            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-change-ledger-1121-i2i-routes-cleanup.md',
-            'anchor':'## 字段级变更(1121 用户令「清理 K2 时代死档引用,不要瞎搞」)',
-            'sha256':'e4f8f8f41eab9326591a9c0abbe507e4cfe6fe6263b4f0becc24c6444b5e7b78',
+            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-change-ledger-1123-sheet-weapon-category.md',
+            'anchor':'## 字段级变更(1123 用户令「按照你的建议,要解决这个问题」)',
+            'sha256':'88f27675dec658af0aa73bc5e9022d9a424ce3ea27a6a58c561c7adf37627615',
         },
     }
     revision=revisions[base]

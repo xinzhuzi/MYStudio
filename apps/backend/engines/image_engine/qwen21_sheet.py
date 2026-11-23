@@ -77,7 +77,7 @@ WORKFLOW_PATH = (
 # ── GUI→API 转换(冻结 widget 序表;点名件类集封闭,件漂移=fail-closed 红错)──
 # 序=各节点类 INPUT_TYPES 的 widget 承载序(required+optional,连线型槽不入);
 # 件内节点类恰 13 种(+MarkdownNote 显示件跳过),逐类对照类定义与件内
-# widgets_values 实长核账(171 链全数落位,见 comfyui/tests 契约测试)。
+# widgets_values 实长核账(172 链全数落位,见 comfyui/tests 契约测试)。
 WIDGET_ORDER: dict[str, list[str]] = {
     "UNETLoader": ["unet_name", "weight_dtype"],
     "CLIPLoader": ["clip_name", "type", "device"],
@@ -90,7 +90,7 @@ WIDGET_ORDER: dict[str, list[str]] = {
     "EmptyLatentImage": ["width", "height", "batch_size"],
     "KSampler": ["seed", "steps", "cfg", "sampler_name", "scheduler", "denoise"],
     "VAEDecode": [],
-    "MySheetCardComposer": ["角名", "格式", "背景", "档案"],
+    "MySheetCardComposer": ["角名", "格式", "背景", "档案", "武器类别"],  # 1123 Phase 6 末位追加
     "SaveImage": ["filename_prefix"],
 }
 _SKIP_TYPES = {"MarkdownNote"}

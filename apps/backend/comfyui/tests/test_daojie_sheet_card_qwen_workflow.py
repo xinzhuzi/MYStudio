@@ -27,6 +27,16 @@ _spec = importlib.util.spec_from_file_location("sheet_wf_qgen", _GEN)
 gen = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(gen)
 
+_HUB_SRC = _REPO / "apps/backend/comfyui/my_nodes/nodes/my_sheet_prompt_hub.py"
+
+
+def _hub():
+    """枢纽节点类(按路径裸载;节点件=单真源)。"""
+    s = importlib.util.spec_from_file_location("sheet_hub_wf_test", _HUB_SRC)
+    m = importlib.util.module_from_spec(s)
+    s.loader.exec_module(m)
+    return m
+
 DOC = json.loads(WF.read_text(encoding="utf-8"))
 DOC_I2I = json.loads(WF_I2I.read_text(encoding="utf-8"))
 NODES = {n["id"]: n for n in DOC["nodes"]}
@@ -143,7 +153,7 @@ def test_links_and_multiref_wiring():
     order = ("master", "side", "back", "face", "head",
              "wrist", "waist", "weapon", "effect",
              "exp_1", "exp_2", "exp_3", "exp_4", "exp_5",
-             "背景", "格式", "档案")
+             "背景", "格式", "档案", "武器类别")  # 1123 Phase 6 尾部追加
     assert [i["name"] for i in comp["inputs"]] == list(order)
     # 背景类型:枢纽(slot17)→合成器(slot14) 永不脱钩
     bg_lk = comp["inputs"][14]["link"]
@@ -154,17 +164,22 @@ def test_links_and_multiref_wiring():
     # 档案:枢纽(slot19)→合成器(slot16) v6 底部信息带两行(档案+设计说明)
     arch_lk = comp["inputs"][16]["link"]
     assert LINKS[arch_lk][1] == 60 and LINKS[arch_lk][2] == 19, "档案应=枢纽出19直连"
+    # 武器类别:枢纽(slot20)→合成器(slot17) v7 角标变体(1123 Phase 6)
+    cat_lk = comp["inputs"][17]["link"]
+    assert LINKS[cat_lk][1] == 60 and LINKS[cat_lk][2] == 20, "武器类别应=枢纽出20直连"
     # TE prompt 全部由枢纽链接喂(散装退役)
     for i in list(T2I_IDS.values()) + list(EDIT_IDS.values()):
         plk = _slot(i, "prompt")["link"]
         assert plk is not None and LINKS[plk][1] == 60, f"TE{i} prompt 应吃枢纽"
     hub = NODES[60]
     assert hub["type"] == "MySheetPromptHub"
-    assert len(hub["outputs"]) == 20
+    assert len(hub["outputs"]) == 21
+    # 画布输出槽名==节点类 RETURN_NAMES 逐槽对位(API 图按槽号取值,错位=吃错提示词)
+    assert [o["name"] for o in hub["outputs"]] == list(_hub().MySheetPromptHub.RETURN_NAMES)
     want_src = {"master": 8, "side": 13, "back": 18, "face": 23,
                 "head": 38, "wrist": 28, "waist": 33, "weapon": 43, "effect": 48,
                 "exp_1": 73, "exp_2": 83, "exp_3": 93, "exp_4": 103, "exp_5": 113,
-                "背景": 60, "格式": 60, "档案": 60}
+                "背景": 60, "格式": 60, "档案": 60, "武器类别": 60}
     for slot, key in enumerate(order):
         assert LINKS[comp["inputs"][slot]["link"]][1] == want_src[key], key
     save = next(n for n in DOC["nodes"] if n["type"] == "SaveImage")
@@ -182,7 +197,7 @@ def test_groups_cover_and_note():
                 and g["bounding"][1] <= cy <= g["bounding"][1] + g["bounding"][3]]
         assert len(hits) == 1, f"节点 {n['id']} 组框命中 {len(hits)}"
     text = note["widgets_values"][0]
-    for kw in ("双件", "背景类型联动", "批量"):
+    for kw in ("双件", "背景类型联动", "武器类别联动", "批量"):
         assert kw in text, f"Note 缺法则锚 {kw}"
     # 组框两两不相交(1113 用户令禁遮盖)
     bs = [g["bounding"] for g in DOC["groups"]]

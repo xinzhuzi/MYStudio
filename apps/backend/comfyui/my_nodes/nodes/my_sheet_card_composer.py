@@ -171,7 +171,9 @@ def _place(canvas: Image.Image, draw: ImageDraw.ImageDraw,
     (三视图/整器/眉眼横带=完整优先;1112 教训:cover 裁头/裁两端/裁外眼角)。"""
     x0, y0, x1, y1 = rect
     rw, rh = x1 - x0, y1 - y0
-    if mode == "contain":
+    if img is None:
+        pass                                   # 留空格(1123 Phase 6:能力未设定=程序绘占位,只画框线与角标)
+    elif mode == "contain":
         iw, ih = img.size
         s = min(rw / iw, rh / ih)
         nw, nh = max(1, round(iw * s)), max(1, round(ih * s))
@@ -242,11 +244,13 @@ def derive_cells(imgs: dict) -> dict:
 
 
 def compose(cells: dict, palette, title: str, dst: str, fmt: str = "全卡",
-            bg: str = "纯白", archive: str = "") -> str:
+            bg: str = "纯白", archive: str = "", weapon_category: str = "") -> str:
     """整卡合成(文件路,脚本/金样用;fmt=格式注册表)。缺格断言红;恒 RGB。
 
     版式取数全走 resolve(fmt)(真源 formats 注册表):格序/画布/几何/contain
     集/角标文/角标字号;v6 起底部通栏信息带(archive=档案行,空串=只配色)。
+    v7(1123 Phase 6):weapon_category=武器类别(枢纽产出),非空时把
+    labels.variants[类别] 并进角标文;空串/未登记类别=默认角标。
     """
     assert fmt in FORMATS, fmt
     spec = resolve(fmt)
@@ -258,7 +262,13 @@ def compose(cells: dict, palette, title: str, dst: str, fmt: str = "全卡",
     cw_, ch_ = spec["canvas"]
     paper = _bg_color(bg)
     modes = spec["modes"]
-    labels_text = spec["labels"].get("text", {})
+    labels_text = dict(spec["labels"].get("text", {}))   # 拷贝:不改注册表缓存
+    if weapon_category:
+        labels_text.update(spec["labels"].get("variants", {}).get(weapon_category, {}))
+    # 留空格(1123 Phase 6):能力未设定=技能特效格由程序留空(纸面底色+框线+角标「能力未设定」),
+    # 不交给模型画空白(1123 实弹:让模型出底板=自己造一个人物);真源 labels.blank_cells 按类别登记
+    blanks = set((spec["labels"].get("blank_cells", {}).get(weapon_category) or [])) \
+        if weapon_category else set()
 
     canvas = Image.new("RGB", (cw_, ch_), paper)
     d = ImageDraw.Draw(canvas)
@@ -268,7 +278,7 @@ def compose(cells: dict, palette, title: str, dst: str, fmt: str = "全卡",
     d.rectangle((M, M, cw_ - M, ch_ - M), outline=INK_LINE, width=3)
     # 格裁贴(三视图/整器/眉眼横带=contain 整图入格,其余 cover 裁切)
     for k in keys:
-        _place(canvas, d, cells[k], geo[k], labels_text.get(k),
+        _place(canvas, d, None if k in blanks else cells[k], geo[k], labels_text.get(k),
                focal=cells_focal().get(k, (0.5, 0.5)), label_font=label_font,
                mode=modes[k], paper=paper)
 
@@ -375,6 +385,8 @@ class MySheetCardComposer:
             "exp_1": ("IMAGE",), "exp_2": ("IMAGE",), "exp_3": ("IMAGE",),
             "exp_4": ("IMAGE",), "exp_5": ("IMAGE",),
             "档案": ("STRING", {"default": "", "multiline": False}),
+            # 1123 Phase 6:武器类别(枢纽同源直连;空串=默认角标)——optional 同『档案』裁定
+            "武器类别": ("STRING", {"default": "", "multiline": False}),
         }}
 
     RETURN_TYPES = ("IMAGE",)
@@ -384,7 +396,8 @@ class MySheetCardComposer:
 
     def compose_card(self, master, side, back, face, head, wrist, waist,
                      weapon, effect, 角名, 格式="全卡", 背景="纯白", 档案="",
-                     exp_1=None, exp_2=None, exp_3=None, exp_4=None, exp_5=None):
+                     exp_1=None, exp_2=None, exp_3=None, exp_4=None, exp_5=None,
+                     武器类别=""):
         import numpy as np  # 引擎内必在;懒导入保 Mac 纯文件路测试零 torch 依赖
 
         def to_pil(t):
@@ -410,7 +423,8 @@ class MySheetCardComposer:
 
         import io
         buf = io.BytesIO()
-        compose(cells, palette, 角名, buf, fmt=格式, bg=背景, archive=档案)
+        compose(cells, palette, 角名, buf, fmt=格式, bg=背景, archive=档案,
+                weapon_category=武器类别)
         buf.seek(0)
         card = Image.open(buf).convert("RGB")
 

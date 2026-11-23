@@ -38,6 +38,9 @@ NOTE = """# 道劫·角色设定卡(QwenImage 2.1 版)
 
 ## 输入
 - **主体句**(枢纽节点):竖线字段式「姓名:X|性别:男|服装:...|武器:...」
+- **武器类别**(主体句字段,可选):剑(缺省,与原版一致)/通用(器物原样展示)/包裹(收存时
+  裹紧一体的器物);类别决定武器格、特效格的提示词与底部四个角标;主体句无「能力:」
+  字段时,技能特效格留空并标「能力未设定」(不编造能力)
 - **角名**(枢纽节点):角色名,程序绘到卡片右上角
 - **背景类型**(枢纽节点):纯白单档(1114 用户令背景收敛)——同时控制提示词与画布底色
 
@@ -48,8 +51,11 @@ NOTE = """# 道劫·角色设定卡(QwenImage 2.1 版)
 - **框与字归程序,画归模型**:底框/格线/16 角标/角名由 MySheetCardComposer 程序
   绘制(结构性保证零缺笔零印章);格内画面由 QwenImage 分格生成
 - **提示词单点**:MySheetPromptHub 是画布唯一的提示词入口,运行时热读
-  qi21_bases.json 真源装配三层提示词,15 路输出链接分发到各 TextEncode
+  qi21_bases.json 真源装配三层提示词,21 路输出链接分发到各 TextEncode 与合成器
 - **背景类型联动**:枢纽旋钮→提示词占位填充→同型直连合成器→画布底色同型渲染
+- **武器类别联动**(v7,1123):枢纽从主体句「武器类别」取类别(合法=剑/通用/包裹,未登记
+  立即报错)→武器格/特效格模板按类别取真源→同型直连合成器→角标变体同型切换;无「能力:」
+  字段=细化类别,合成器按真源 labels.blank_cells 把技能特效格留空
 - **档案行**(v6,Skill-5.4 §十 标配信息栏):枢纽从主体句解析 姓名/性别/年龄/
   身份/武器/技能 六短字段→直连合成器→底部通栏信息带程序绘(档案左+配色方案右)
 - **设计说明行**(Skill-5.4 §十④):主体句「设计说明:」字段→底带第二行程序绘
@@ -77,7 +83,7 @@ python3 apps/build/scripts/daojie_sheet_b_pipeline.py --engine qwen \
 def _prompts():
     bases = json.loads(BASES.read_text(encoding="utf-8"))
     q = bases["sheet_card_qwen"]
-    assert q["format_version"] == "v6" and q["engine"] == "qwen-image-2.1"
+    assert q["format_version"] == "v7" and q["engine"] == "qwen-image-2.1"
     style = bases["art_style_base"]["positive_text"]
     style_neg = bases["art_style_base"].get("negative_text", "")
     bgp = q["backgrounds"]["纯白"]["phrase"]  # 画布件烧默认型(旋钮在枢纽)
@@ -109,7 +115,8 @@ HUB = {"master": 0, "master_i2i": 1, "weapon": 2, "effect": 3,
        "side": 4, "back": 5, "face": 6, "head": 7, "wrist": 8, "waist": 9,
        "exp_happy": 10, "exp_angry": 11, "exp_sad": 12,
        "exp_surprise": 13, "exp_shy": 14,
-       "neg_gen": 15, "neg_edit": 16, "bg": 17, "fmt": 18, "arch": 19}
+       "neg_gen": 15, "neg_edit": 16, "bg": 17, "fmt": 18, "arch": 19,
+       "category": 20}   # 1123 Phase 6:武器类别(恒尾追加,直连合成器同名输入)
 
 
 def build_doc(variant: str = "t2i"):
@@ -194,7 +201,7 @@ def build_doc(variant: str = "t2i"):
                 ("指令·害羞", "STRING", []),
                 ("负面·生成", "STRING", []), ("负面·编辑", "STRING", []),
                 ("背景类型", "STRING", []), ("格式", "STRING", []),
-                ("档案", "STRING", [])]
+                ("档案", "STRING", []), ("武器类别", "STRING", [])]
     g.node(60, "MySheetPromptHub", [0, 100], [420, 820],
            [SUBJECT_DEFAULT, NAME_DEFAULT, "纯白", "全卡"],
            {"主体句": SUBJECT_DEFAULT, "角名": NAME_DEFAULT,
@@ -331,9 +338,10 @@ def build_doc(variant: str = "t2i"):
     comp_inputs.append(("背景", "STRING", None))  # 枢纽同源(永不脱钩)
     comp_inputs.append(("格式", "STRING", None))   # 1114 注册表驱动透传
     comp_inputs.append(("档案", "STRING", None))   # v6 底部信息带字段行
+    comp_inputs.append(("武器类别", "STRING", None))  # v7 角标变体(枢纽同源)
     g.node(50, "MySheetCardComposer", [3060, 1260], [420, 620],
-           [NAME_DEFAULT, "全卡", "纯白", ""],
-           {"角名": NAME_DEFAULT, "格式": "全卡", "背景": "纯白", "档案": ""},
+           [NAME_DEFAULT, "全卡", "纯白", "", ""],
+           {"角名": NAME_DEFAULT, "格式": "全卡", "背景": "纯白", "档案": "", "武器类别": ""},
            inputs=comp_inputs,
            outputs=[("设定卡", "IMAGE", [])])
     for slot, s in enumerate(src_ids):
@@ -349,6 +357,8 @@ def build_doc(variant: str = "t2i"):
            ["道劫设定卡Q/"], {"filename_prefix": "道劫设定卡Q/"},
            inputs=[("images", "IMAGE", None)], outputs=[])
     wire(50, 0, 51, 0, "IMAGE")
+    # 武器类别:枢纽→合成器(角标变体;1123 Phase 6)。恒排在既有连线之后=既有链记录与编号不动
+    wire(60, HUB["category"], 50, 17, "STRING")
 
     # Note=README(顶置,组外)
     g.node(52, "MarkdownNote", [0, -800], [800, 600], [NOTE])

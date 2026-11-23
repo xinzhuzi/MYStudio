@@ -308,6 +308,14 @@ def main() -> int:
             and q.get("engine") == "qwen-image-2.1", "sheet_card_qwen 真源缺位/版本漂移"
         bgp = q["backgrounds"]["纯白"]["phrase"]     # v6 占位填充(1114 背景收敛纯白)
         qm, qw, qe = q["master"], q["weapon"], q["effect"]
+        # 1123 Phase 6:武器格/特效格提示词恒走枢纽装配(武器类别驱动的模板切换;本脚本不再
+        # 自拼 positive_template——自拼=看不到「武器类别」,通用类主体句会静默出带鞘剑卡)
+        hub_q_spec = importlib.util.spec_from_file_location(
+            "my_sheet_prompt_hub_q",
+            REPO / "apps/backend/comfyui/my_nodes/nodes/my_sheet_prompt_hub.py")
+        hub_q = importlib.util.module_from_spec(hub_q_spec)
+        hub_q_spec.loader.exec_module(hub_q)
+        hub_q_out = hub_q.assemble(subject_raw, name, "纯白")
     else:
         sc = sheet_cfg(bases)
         m_base = sc["master"]["positive_text"]  # v1.1 起 master 自有净空立绘底座
@@ -331,16 +339,12 @@ def main() -> int:
                 yield tag, "master", None
             yield "head", "side", None
             yield "weapon", None, build_q_t2i(
-                "\n".join([qw["positive_template"].format(
-                                name=name, weapon=f.get("武器", "长剑")),
-                            t_item_q, style_pos]),
+                hub_q_out["weapon"],
                 neg_join(style_neg, qw["negative_text"]),
                 qw["width"], qw["height"], args.seed, f"{pfx}/weapon",
                 q["models"], q["sampler"])
             yield "effect", None, build_q_t2i(
-                "\n".join([qe["positive_template"].format(
-                                ability=f.get("能力", "剑气")),
-                            style_pos]),
+                hub_q_out["effect"],
                 neg_join(style_neg, qe["negative_text"]),
                 qe["width"], qe["height"], args.seed, f"{pfx}/effect",
                 q["models"], q["sampler"])
@@ -424,7 +428,9 @@ def main() -> int:
                                    hub.design_note(subject_raw)) if t)
 
     final = OUT / f"设定卡B线_{name}_3840.png"
-    compose(cells, palette, name, str(final), archive=archive)
+    # 1123 Phase 6:武器类别随行(角标变体);H3 线无类别=空串
+    compose(cells, palette, name, str(final), archive=archive,
+            weapon_category=(hub_q_out["武器类别"] if args.engine == "qwen" else ""))
     print(f"[DONE] {final}")
     return 0
 

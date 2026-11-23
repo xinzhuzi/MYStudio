@@ -63,6 +63,13 @@ ARCHIVE_FIELDS = (("姓名", "姓名"), ("性别", "性别"), ("年龄", "年龄
 ARCHIVE_VALUE_MAX = 12          # 长值(武器全名/能力句)取首段截 12 字,全量仍在格图与主体句
 
 
+def _lead(val: str) -> str:
+    """值取到首个半角逗号/破折号再截 ARCHIVE_VALUE_MAX 字(档案行原实现即此规则;{weapon_name} 同用,行为保持)。"""
+    for sep in (",", "——"):
+        val = val.split(sep)[0]
+    return val[:ARCHIVE_VALUE_MAX]
+
+
 def archive_line(subject: str, name: str) -> str:
     """主体句→底部档案行(逐字段取真源值,值至首个中英逗号/破折号,禁手搓)。"""
     parts = []
@@ -72,15 +79,29 @@ def archive_line(subject: str, name: str) -> str:
             if key != "姓名":
                 continue
             val = name or "沈孤鸿"
-        for sep in (",", ",", "——"):
-            val = val.split(sep)[0]
-        parts.append(f"{label}:{val[:ARCHIVE_VALUE_MAX]}")
+        parts.append(f"{label}:{_lead(val)}")
     return " · ".join(parts)
 
 
 def design_note(subject: str) -> str:
     """主体句「设计说明:」字段→底带第二行(Skill-5.4 §十④ 2-4 短行;缺位=空)。"""
     return _field(subject, "设计说明", "")
+
+
+def weapon_category(subject: str, q: dict) -> str:
+    """武器类别=主体句「武器类别:」字段,缺省=真源默认类(1123 Phase 6)。
+
+    未登记的类别=作者级错误,立即上抛并点名合法值——静默回落到默认类会重新产出
+    带鞘剑卡(独孤剑尘实录),比报错更糟。
+    """
+    w = q["weapon"]
+    default = w.get("default_category", "剑")
+    field = w.get("category_field", "武器类别")
+    cat = _field(subject, field, "").strip() or default
+    legal = [default] + [c for c in w.get("templates", {}) if c != default]
+    if cat not in legal:
+        raise ValueError(f"主体句「{field}」字段值 {cat!r} 不在册(合法:{'/'.join(legal)})")
+    return cat
 
 
 def assemble(subject: str, name: str, bg: str) -> dict:
@@ -97,16 +118,54 @@ def assemble(subject: str, name: str, bg: str) -> dict:
     t_item = next(t["positive_text"] for t in bases["types"]
                   if t["zh"] == q["weapon"].get("type", "道具"))
     name = name or _field(subject, "姓名", "沈孤鸿")
+    # 1123 Phase 6(用户令「按照你的建议,要解决这个问题」):武器格/特效格模板按武器类别
+    # 切换;未声明类别=默认类,走 v6 原模板(逐字节不变)
+    base = weapon_category(subject, q)                 # 主体句声明的类别(剑/通用)
+    default = q["weapon"].get("default_category", "剑")
+    weapon = _field(subject, "武器", "长剑")
+    ability = _field(subject, "能力", "剑气")
+    declared = bool(_field(subject, "能力", ""))
+    weapon_name = _lead(weapon)
+    weapon_tmpl = (q["weapon"]["positive_template"] if base == default
+                   else q["weapon"]["templates"][base])
+    if base == default:
+        category, effect_tmpl = base, q["effect"]["positive_template"]
+    elif declared:
+        category, effect_tmpl = base, q["effect"]["templates"][base]
+    else:
+        # 无「能力:」字段=细化类别(设定板写法技能:能力未提供时能力区留空并标注
+        # 「能力未设定」,不编造能力):合成器按 labels.blank_cells 留空;此处只出纯底板
+        # 文字且不拼美术风格底座(1123 实弹:拼了底板句+风格底座=模型自己造一个人物)
+        category = q["weapon"].get("category_without_ability", {}).get(base, base)
+        no_ability = q["effect"].get("templates_no_ability", {})
+        if category not in no_ability:
+            raise ValueError(f"真源 effect.templates_no_ability 缺类别 {category!r}"
+                             "(weapon.category_without_ability 所指须在册)")
+        effect_tmpl = no_ability[category]
+    if base != default:
+        labels = q.get("formats", {}).get("全卡", {}).get("labels", {})
+        if category not in labels.get("variants", {}):
+            raise ValueError(f"真源 formats.全卡.labels.variants 缺类别 {category!r}(角标变体须在册)")
+        if not declared and "fx_1" not in labels.get("blank_cells", {}).get(category, []):
+            raise ValueError(f"真源 formats.全卡.labels.blank_cells 缺类别 {category!r} 的 fx_1"
+                             "(能力未设定=特效格须留空)")
+    effect_text = (effect_tmpl if (base != default and not declared)
+                   else "\n".join([effect_tmpl.format(ability=ability, weapon_name=weapon_name), style]))
+    # 非默认类别武器格不拼道具型句(真源 weapon.templates_append_type=false,1123 实弹定谳:
+    # 道具型句的「器物正面正交视角完整入画」让模型给器物配托盒/框轨;默认类仍三层不变)
+    append_type = base == default or q["weapon"].get("templates_append_type", True)
+    weapon_layers = [weapon_tmpl.format(name=name, weapon=weapon, weapon_name=weapon_name)]
+    if append_type:
+        weapon_layers.append(t_item)
     out = {
         "master": "\n".join([subject, fill(q["master"]["positive_text"]), style]),
         "master_i2i": fill(q["edit_instructions"]["master_i2i"]),
-        "weapon": "\n".join([q["weapon"]["positive_template"].format(
-            name=name, weapon=_field(subject, "武器", "长剑")), t_item, style]),
-        "effect": "\n".join([q["effect"]["positive_template"].format(
-            ability=_field(subject, "能力", "剑气")), style]),
+        "weapon": "\n".join([*weapon_layers, style]),
+        "effect": effect_text,
         "neg_gen": ",".join(p for p in (style_neg, q["master"]["negative_text"]) if p),
         "neg_edit": ",".join(p for p in (style_neg, q["edit_negative"]) if p),
         "bg": bg,
+        "武器类别": category,
     }
     for k in ("side", "back", "face", "head", "wrist", "waist"):
         out[k] = fill(q["edit_instructions"][k])
@@ -122,7 +181,8 @@ EXP_TAGS = ("exp_happy", "exp_angry", "exp_sad", "exp_surprise", "exp_shy")
 OUT_ORDER = ("master", "master_i2i", "weapon", "effect",
              "side", "back", "face", "head", "wrist", "waist",
              *EXP_TAGS,
-             "neg_gen", "neg_edit", "bg", "格式", "档案")
+             "neg_gen", "neg_edit", "bg", "格式", "档案",
+             "武器类别")   # 1123 Phase 6:恒追加在尾(既有 20 槽位序不动,直连合成器「武器类别」)
 
 
 class MySheetPromptHub:
@@ -151,13 +211,13 @@ class MySheetPromptHub:
             "格式": (_sf.formats_list(), {"default": "全卡"}),
         }}
 
-    RETURN_TYPES = ("STRING",) * 20
+    RETURN_TYPES = ("STRING",) * 21
     RETURN_NAMES = ("正向·master", "指令·master图生图", "正向·武器", "正向·特效",
                     "指令·侧视图", "指令·背视图", "指令·面部", "指令·头部",
                     "指令·腕部", "指令·腰部",
                     "指令·开心", "指令·生气", "指令·悲伤", "指令·惊讶", "指令·害羞",
                     "负面·生成", "负面·编辑", "背景类型",
-                    "格式", "档案")
+                    "格式", "档案", "武器类别")
     FUNCTION = "hub"
     CATEGORY = "道劫/设定卡"
 
