@@ -6,11 +6,8 @@
 // 每次视图切换把「离开的那个模块」推到队首,localStorage 持久化,上限 4 条。
 
 import { useEffect, useRef, useState } from "react";
-import {
-  tabs as KNOWN_TABS,
-  useMediaPanelStore,
-  type Tab,
-} from "@/stores/navigation/media-panel-store";
+import { tabs as KNOWN_TABS } from "@/components/nav-config";
+import { useMediaPanelStore, type Tab } from "@/stores/navigation/media-panel-store";
 
 const RECENT_TABS_KEY = "mystudio.orb.recent-tabs";
 const RECENT_MAX = 4;

@@ -3,7 +3,7 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 import type { ImageWorkflowGraph, ImageWorkflowNsfwNode, ImageWorkflowPromptNode } from "@/types/studio";
-import { collapseTransparentNodes } from "@/lib/studio/image-workflow/graph-build";
+import { collapseTransparentNodes } from "./graph-build";
 
 /**
  * NSFW破限链检测(09-07-nsfw-pro-node):成图节点上游挂 nsfw 节点时,

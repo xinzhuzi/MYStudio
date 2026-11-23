@@ -6,7 +6,7 @@ import {
   setComfySidecarLivenessProbeForTests,
   startEngineTorchUpgrade,
 } from "./comfy-sidecar-bridge";
-import { setLocalImageTokenForTests } from "./local-image-token";
+import { setLocalImageTokenForTests } from "@/lib/ai/local-image-token";
 
 describe("torch upgrade bridge", () => {
   const fetchMock = vi.fn();

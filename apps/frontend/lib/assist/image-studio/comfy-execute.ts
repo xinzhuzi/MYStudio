@@ -27,7 +27,7 @@ import { saveToMediaLibrary } from "@/lib/ai/generation-media";
 import { parseProjectFileUrl } from "@/lib/upscale/project-file-url";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useMediaStore } from "@/stores/media/media-store";
-import { getLocalImageToken, invalidateLocalImageToken } from "@/lib/assist/image-studio/local-image-token";
+import { getLocalImageToken, invalidateLocalImageToken } from "@/lib/ai/local-image-token";
 import type { ImageWorkflowComfyWorkflowNode, ImageWorkflowGraph } from "@/types/studio";
 
 const COMFY_SIDECAR_BASE_URL = "http://127.0.0.1:17595";

@@ -31,7 +31,7 @@ import { persistComfyImage } from "@/lib/assist/image-studio/comfy-execute";
 import {
   getLocalImageToken,
   invalidateLocalImageToken,
-} from "@/lib/assist/image-studio/local-image-token";
+} from "@/lib/ai/local-image-token";
 import { ensureLocalImageSidecarRunning } from "@/lib/ai/image-generation-engine";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useEnginePresetsStore } from "@/stores/settings/engine-presets-store";

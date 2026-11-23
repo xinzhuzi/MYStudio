@@ -8,7 +8,8 @@
  */
 
 import { useProjectStore } from "@/stores/project/project-store";
-import { useMediaPanelStore, stages, type Stage, type Tab } from "@/stores/navigation/media-panel-store";
+import { stages } from "@/components/nav-config";
+import { useMediaPanelStore, type Stage, type Tab } from "@/stores/navigation/media-panel-store";
 import { ChromeControls, SidebarToggleButton } from "@/components/ChromeControls";
 
 const WORKSPACE_LABELS: Partial<Record<Tab, string>> = {

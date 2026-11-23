@@ -1,4 +1,4 @@
-import { getLocalImageToken } from "@/lib/assist/image-studio/local-image-token";
+import { getLocalImageToken } from "@/lib/ai/local-image-token";
 import type { AssetType } from "@/lib/ai/prompt-polisher";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import type { ImageCategory } from "@/lib/media/image-storage";

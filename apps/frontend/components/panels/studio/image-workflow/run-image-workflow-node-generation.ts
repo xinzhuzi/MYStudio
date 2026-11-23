@@ -3,7 +3,7 @@ import { DEFAULT_LOCAL_IMAGE_MODEL } from "@/stores/ai/api-config-provider-helpe
 import { maybeAutoDenoiseUrl } from "@/lib/ai/image-auto-denoise";
 import { buildUnclothChainRequest } from "@/lib/assist/image-studio/uncloth-request";
 import { runUnclothChain } from "@/lib/assist/image-studio/run-uncloth";
-import { isNsfwProModel } from "@/lib/assist/image-studio/nsfw-request";
+import { isNsfwProModel } from "@/lib/studio/image-workflow/nsfw-request";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";

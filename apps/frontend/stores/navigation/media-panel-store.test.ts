@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { mainNavItems, tabs, useMediaPanelStore } from "./media-panel-store";
+import { mainNavItems, tabs } from "@/components/nav-config";
+import { useMediaPanelStore, type Stage, type Tab } from "./media-panel-store";
 
 describe("media panel navigation", () => {
   beforeEach(() => {
@@ -56,5 +57,61 @@ describe("media panel navigation", () => {
       activeTab: "assets",
       inProject: true,
     });
+  });
+
+  it("keeps the stage of every tab that belongs to one", () => {
+    const expectations: Array<[Tab, Stage]> = [
+      ["script", "script"],
+      ["characters", "assets"],
+      ["scenes", "assets"],
+      ["director", "director"],
+      ["sclass", "director"],
+      ["export", "export"],
+    ];
+    for (const resetStage of ["script", "export"] as const) {
+      for (const [tab, stage] of expectations) {
+        useMediaPanelStore.setState({
+          activeTab: "dashboard",
+          activeStage: resetStage,
+          inProject: false,
+          activeEpisodeIndex: null,
+          activeEpisodeScopeKey: null,
+          navigationBackStack: [],
+          navigationForwardStack: [],
+        });
+        useMediaPanelStore.getState().setActiveTab(tab);
+        expect(useMediaPanelStore.getState()).toMatchObject({
+          activeTab: tab,
+          activeStage: stage,
+          inProject: true,
+        });
+      }
+    }
+  });
+
+  it("lands on the first tab of a stage when the stage is switched", () => {
+    const expectations: Array<[Stage, Tab]> = [
+      ["script", "script"],
+      ["assets", "characters"],
+      ["director", "director"],
+      ["export", "export"],
+    ];
+    for (const [stage, tab] of expectations) {
+      useMediaPanelStore.setState({
+        activeTab: "dashboard",
+        activeStage: "script",
+        inProject: false,
+        activeEpisodeIndex: null,
+        activeEpisodeScopeKey: null,
+        navigationBackStack: [],
+        navigationForwardStack: [],
+      });
+      useMediaPanelStore.getState().setActiveStage(stage);
+      expect(useMediaPanelStore.getState()).toMatchObject({
+        activeStage: stage,
+        activeTab: tab,
+        inProject: true,
+      });
+    }
   });
 });

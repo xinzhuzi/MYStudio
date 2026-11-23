@@ -1,23 +1,6 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
-import {
-  BoxesIcon,
-  ClapperboardIcon,
-  UsersIcon,
-  SettingsIcon,
-  MapPinIcon,
-  FileTextIcon,
-  FilmIcon,
-  SparklesIcon,
-  LayoutDashboardIcon,
-  FolderOpenIcon,
-  WorkflowIcon,
-  BookOpenTextIcon,
-  Share2Icon,
-  LucideIcon,
-} from "lucide-react";
-import { LocalModelsIcon } from "@/components/ui/local-models-icon";
 import { create } from "zustand";
 import type {
   CharacterConsistencyElements,
@@ -30,61 +13,25 @@ import type {
 // Tab-based navigation (simpler flat structure)
 export type Tab = "dashboard" | "overview" | "studio" | "script" | "characters" | "scenes" | "freedom" | "director" | "sclass" | "assets" | "media" | "self-media" | "skills" | "export" | "settings";
 
-export interface NavItem {
-  id: Tab;
-  label: string;
-  icon: LucideIcon;
-}
-
-// Main navigation items (top section)
-export const mainNavItems: NavItem[] = [
-  { id: "overview", label: "概览", icon: LayoutDashboardIcon },
-  { id: "studio", label: "MY 工作流", icon: WorkflowIcon }, // 09-11 项目适应命名
-  { id: "skills", label: "技能", icon: BookOpenTextIcon },
-  { id: "assets", label: "资产", icon: FolderOpenIcon },
-  // 09-14 图标换血:大模型弃辅助时代 Palette,改用 ComfyUI 模型库同款 ai-model 图标
-  { id: "freedom", label: "大模型", icon: LocalModelsIcon },
-  { id: "export", label: "导出", icon: FilmIcon },
-  { id: "media", label: "产物", icon: BoxesIcon },
-  { id: "self-media", label: "自媒体", icon: Share2Icon },
-];
-
-// Bottom navigation items
-export const bottomNavItems: NavItem[] = [
-  { id: "settings", label: "设置", icon: SettingsIcon },
-];
-
 // Legacy exports for compatibility
 export type Stage = "script" | "assets" | "director" | "export";
-export interface StageConfig {
-  id: Stage;
-  label: string;
-  icon: LucideIcon;
-  tabs: Tab[];
-}
-export const stages: StageConfig[] = [
-  { id: "script", label: "剧本", icon: FileTextIcon, tabs: ["script"] },
-  { id: "assets", label: "角色与场景", icon: UsersIcon, tabs: ["characters", "scenes"] },
-  { id: "director", label: "导演工作台", icon: ClapperboardIcon, tabs: ["director"] },
-  { id: "export", label: "成片与导出", icon: FilmIcon, tabs: ["export"] },
-];
 
-export const tabs: { [key in Tab]: { icon: LucideIcon; label: string; stage?: Stage } } = {
-  dashboard: { icon: FileTextIcon, label: "项目" },
-  overview: { icon: LayoutDashboardIcon, label: "概览" },
-  studio: { icon: WorkflowIcon, label: "MY 工作流" },
-  script: { icon: FileTextIcon, label: "剧本", stage: "script" },
-  characters: { icon: UsersIcon, label: "角色", stage: "assets" },
-  scenes: { icon: MapPinIcon, label: "场景", stage: "assets" },
-  freedom: { icon: LocalModelsIcon, label: "大模型" },
-  director: { icon: ClapperboardIcon, label: "导演", stage: "director" },
-  sclass: { icon: SparklesIcon, label: "S级", stage: "director" },
-  assets: { icon: FolderOpenIcon, label: "资产" },
-  media: { icon: BoxesIcon, label: "产物" },
-  "self-media": { icon: Share2Icon, label: "自媒体" },
-  skills: { icon: BookOpenTextIcon, label: "技能" },
-  export: { icon: FilmIcon, label: "导出", stage: "export" },
-  settings: { icon: SettingsIcon, label: "设置" },
+/** 纯映射:标签页到阶段的归属;展示配置(图标与文案)在 @/components/nav-config。 */
+export const TAB_STAGE: Partial<Record<Tab, Stage>> = {
+  script: "script",
+  characters: "assets",
+  scenes: "assets",
+  director: "director",
+  sclass: "director",
+  export: "export",
+};
+
+/** 纯映射:阶段之下的标签页,首项即切换阶段时落到的标签页。 */
+export const STAGE_TABS: Record<Stage, Tab[]> = {
+  script: ["script"],
+  assets: ["characters", "scenes"],
+  director: ["director"],
+  export: ["export"],
 };
 
 interface NavigationSnapshot {
@@ -142,12 +89,12 @@ function pushNavigation(
 }
 
 function resolveTabNavigation(state: MediaPanelStore, tab: Tab): NavigationSnapshot {
-  const tabConfig = tabs[tab];
-  if (tabConfig?.stage) {
+  const tabStage = TAB_STAGE[tab];
+  if (tabStage) {
     return {
       ...toNavigationSnapshot(state),
       activeTab: tab,
-      activeStage: tabConfig.stage,
+      activeStage: tabStage,
       inProject: true,
     };
   }
@@ -331,13 +278,13 @@ export const useMediaPanelStore = create<MediaPanelStore>((set, get) => ({
   clearSettingsTabRequest: () => set({ settingsTabRequest: null }),
   setActiveStage: (stage) => {
     // Switch to first tab of the stage
-    const stageConfig = stages.find(s => s.id === stage);
-    if (stageConfig && stageConfig.tabs.length > 0) {
+    const stageTabs = STAGE_TABS[stage];
+    if (stageTabs && stageTabs.length > 0) {
       set((state) =>
         pushNavigation(state, {
           ...toNavigationSnapshot(state),
           activeStage: stage,
-          activeTab: stageConfig.tabs[0],
+          activeTab: stageTabs[0],
           inProject: true,
         }),
       );

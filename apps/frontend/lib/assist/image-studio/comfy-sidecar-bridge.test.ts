@@ -19,7 +19,7 @@ import {
   mapCatalogReply,
   mapWorkflowTree,
 } from "./comfy-sidecar-bridge";
-import { setLocalImageTokenForTests } from "./local-image-token";
+import { setLocalImageTokenForTests } from "@/lib/ai/local-image-token";
 
 // ---------------------------------------------------------------------------
 // fetch 路由桩

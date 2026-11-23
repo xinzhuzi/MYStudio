@@ -19,7 +19,7 @@
  * 其余直连 sidecar 的链路(comfy 桥/uncloth)仍各自经 local-image-token
  * 取令牌组头,不经 FeatureConfig,不在此列。
  */
-import { getLocalImageToken } from '@/lib/assist/image-studio/local-image-token';
+import { getLocalImageToken } from './local-image-token';
 import { isLocalImageProvider } from '@/stores/ai/api-config-provider-helpers';
 import { ApiKeyManager } from '@/lib/ai/core';
 import type { FeatureConfig } from '@/lib/ai/feature-router';

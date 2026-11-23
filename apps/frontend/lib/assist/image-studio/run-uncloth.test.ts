@@ -27,7 +27,7 @@ vi.mock("./history-records", async (importOriginal) => ({
   ...await importOriginal<typeof import("./history-records")>(),
   appendProjectLedger: mocks.appendProjectLedger,
 }));
-vi.mock("./local-image-token", () => ({ getLocalImageToken: async () => "test-token" }));
+vi.mock("@/lib/ai/local-image-token", () => ({ getLocalImageToken: async () => "test-token" }));
 vi.mock("@/lib/media/image-storage", () => ({ readImageAsBase64: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: mocks.toastSuccess } }));
 

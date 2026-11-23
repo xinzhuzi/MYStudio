@@ -8,7 +8,7 @@ import {
   splitPromptEdgesByPolarity,
 } from "@/lib/studio/image-workflow/graph-build";
 import { orderedReferenceSources } from "@/lib/assist/image-studio/reference-order";
-import { findNsfwUpstream, findPromptViaNsfw } from "@/lib/assist/image-studio/nsfw-request";
+import { findNsfwUpstream, findPromptViaNsfw } from "@/lib/studio/image-workflow/nsfw-request";
 import { assertDefaultImageModelConfigured, resolveDefaultImageModel } from "@/lib/ai/default-image-model";
 import type {
   ImageWorkflowGraph,

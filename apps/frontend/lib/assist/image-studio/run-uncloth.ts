@@ -7,7 +7,7 @@ import { appendProjectLedger, ledgerFilenameOf, ledgerMonthFolderOf } from "./hi
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { readImageAsBase64 } from "@/lib/media/image-storage";
 import { useProjectStore } from "@/stores/project/project-store";
-import { getLocalImageToken } from "./local-image-token";
+import { getLocalImageToken } from "@/lib/ai/local-image-token";
 import type { UnclothChainRequest } from "./uncloth-request";
 
 /**

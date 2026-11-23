@@ -11,7 +11,7 @@ import {
   splitPromptEdgesByPolarity,
   type StoryboardOrderedReferenceMetadata,
 } from "./graph-build";
-import { findNsfwUpstream, findPromptViaNsfw } from "@/lib/assist/image-studio/nsfw-request";
+import { findNsfwUpstream, findPromptViaNsfw } from "./nsfw-request";
 import { assertDefaultImageModelConfigured, resolveDefaultImageModel } from "@/lib/ai/default-image-model";
 
 export interface ImageWorkflowGenerationRequest {

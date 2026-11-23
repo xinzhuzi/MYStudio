@@ -34,11 +34,11 @@ import type {
   ComfyBridgeWritebacksReply,
   ComfyBridgeActionsReply,
   ComfyMySyncReply,
-} from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
+} from "@/types/comfy-engine";
 import {
   getLocalImageToken,
   invalidateLocalImageToken,
-} from "@/lib/assist/image-studio/local-image-token";
+} from "@/lib/ai/local-image-token";
 import type {
   ComfyWorkflowDeleteScan,
   ComfyWorkflowImportConflictMode,

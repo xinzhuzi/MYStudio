@@ -32,7 +32,7 @@ import {
  * GET /{id}/result→{data:[{b64_json}]};POST /{id}/cancel)。
  */
 
-vi.mock("@/lib/assist/image-studio/local-image-token", () => ({
+vi.mock("@/lib/ai/local-image-token", () => ({
   getLocalImageToken: vi.fn(async () => "test-local-token"),
 }));
 

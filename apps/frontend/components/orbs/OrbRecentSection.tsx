@@ -20,7 +20,8 @@ import {
   Settings,
 } from "lucide-react";
 import { OrbSection, type OrbSectionProps } from "./OrbSection";
-import { tabs as TAB_LABELS, useMediaPanelStore, type Tab } from "@/stores/navigation/media-panel-store";
+import { tabs as TAB_LABELS } from "@/components/nav-config";
+import { useMediaPanelStore, type Tab } from "@/stores/navigation/media-panel-store";
 
 const ENTRY_ICONS: Partial<Record<Tab, typeof LayoutDashboard>> = {
   dashboard: LayoutDashboard,

@@ -15,7 +15,7 @@ import {
   normalizeResponseUrl,
   toDataImageUrl,
 } from "./image-response";
-import { setLocalImageTokenForTests } from "@/lib/assist/image-studio/local-image-token";
+import { setLocalImageTokenForTests } from "@/lib/ai/local-image-token";
 import { IMAGE_SUBMIT_TIMEOUT_MS, LOCAL_IMAGE_SUBMIT_TIMEOUT_MS, imageSubmitTimeoutForProvider } from "./image-generator-shared";
 
 describe("image response normalization", () => {
