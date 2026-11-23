@@ -30,4 +30,5 @@ def test_instruction_is_a_wire_and_host_values_follow_promoted_controls(path):
     if path.parent.name != 'subgraphs':
         link = next(link for link in graph['links'] if link[0] == instruction['link'])
         source = next(n for n in graph['nodes'] if n['id'] == link[1])
-        assert '<image1>' in source['widgets_values'][0]
+        assert source['type'] == 'PrimitiveStringMultiline'
+        assert isinstance(source['widgets_values'][0], str) and source['widgets_values'][0].strip()

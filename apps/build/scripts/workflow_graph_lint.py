@@ -49,6 +49,11 @@ EXEMPT_FILES = frozenset({
     "skill姿态图放大-扩展整合.json",
     "全能图片编辑-官方PE.json",
     "全能文生图-官方PE.json",
+    # 1123 归位役(单元 J):社区上游件按 path.name 豁免,与上面官方件同一口径。
+    "Qwen21-Turbo-9步-全功能.json",        # 上游原样 AABB,1106 入库即如此
+    "社区-VNCCS姿势-edit.json",            # API 格式展平态,顶层无 nodes/links 属设计
+    "社区-VNCCS姿势-t2i.json",             # 同上
+    "社区-局部换脸天花板-Dapao.json",      # 上游原样 AABB
 })
 
 _OPTIONAL_SHAPE = 7  # litegraph 可选槽位形态(forceInput optional 槽先例)

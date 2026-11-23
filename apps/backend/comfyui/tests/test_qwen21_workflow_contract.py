@@ -2284,7 +2284,9 @@ class TestDefaultEHybrid1101:
 
     @pytest.mark.parametrize("is_i2i", [False, True])
     @pytest.mark.parametrize("steps", [1, 8, 40])
-    @pytest.mark.parametrize("base_type", [entry["zh"] for entry in json.loads(BASES_JSON.read_text())["types"]] + ["", None])
+    # 1123:设定卡自 1120(87a165ab)起由产线路由到官方 Turbo 8 步,该口径由
+    # apps/backend/tests/test_image_gen_qwen21.py 承担;本类只覆盖其余型的默认档。
+    @pytest.mark.parametrize("base_type", [entry["zh"] for entry in json.loads(BASES_JSON.read_text())["types"] if entry["zh"] != "设定卡"] + ["", None])
     def test_template_instantiation_and_mock_submit_default_e_hybrid(self, monkeypatch, is_i2i, steps, base_type):
         from comfyui import engine_manager
         from engines.image_engine import qwen21
