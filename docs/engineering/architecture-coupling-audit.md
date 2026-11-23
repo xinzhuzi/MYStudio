@@ -3,8 +3,8 @@
 
 > 历史体检与实施快照（2026-08-31）：下列文件行数、在途状态、测试结果及机器故障描述仅对应当日，2026-09-20 未重新进行架构全审。当前代码入口查 [开发者架构](./DEVELOPER_ARCHITECTURE.md)，后续改动需重新进行影响分析与验证。
 
-> 体检工具:`apps/build/scripts/architecture_coupling_audit.py`(可反复运行,只读扫描)
-> 明细数据:`apps/build/scripts/arch-coupling-report.json`
+> 体检工具:`apps/build/scripts/architecture_coupling_audit.py`(可反复运行;不改源码,报告写到 `apps/output/automation/`,已 gitignore。前端分层段已移交 `apps/build/scripts/arch_layer_gate.mjs`,本工具【1】段的正则规则大半失效,结果只作参考)
+> 明细数据:`apps/build/scripts/arch-coupling-report.json` 是历史快照,已停更(最后一次入库随 a22cdfb9,2026-11-21),重跑不再覆写它;此后重跑的明细在 `apps/output/automation/arch-coupling-report.json`(不入库)。前端分层的现势以 `apps/build/scripts/arch-layer-gate-baseline.json` 为准
 > 定性验证:GitNexus 图谱本次因 WAL 毒化不可用(MCP 连接断/CLI 卡回放),跨域引用清单由扫描脚本全量枚举,精确到每一条 import 语句,对文件搬移类重构而言比图谱更完备。
 
 ## 结论速览
@@ -16,7 +16,7 @@
 | 3 | 后端 9 包 `model_cache.py` 复制粘贴(2182 行,6 个函数 ≥5 包同名) | 中 | 治疗方案在档,**被在途改动阻塞**(audio/music3/sfx 三包 model_cache.py 正被并行改动) |
 | 4 | `electron/main/main.ts` 1885 行/109 imports 巨石编排文件 | 中 | 报告在档,拆分需单独立项 |
 | 5 | `layer_separation → depth_estimation`、`video_use → tts` 跨包 import | 低 | 报告在档 |
-| 6 | 前端分层铁律(panels→features→ui→hooks→lib 单向;lib 零 React) | — | **违规 0**,08-30 裁定(b4ba766)持续有效 ✅ |
+| 6 | 前端分层铁律(panels→features→ui→hooks→lib 单向;lib 零 React) | — | **规则项 0;lib 指向 components 8 条、stores 指向 components 1 条,现势以 arch-layer-gate 的基线为准**,08-30 裁定(b4ba766)持续有效 ✅ |
 
 ## 明细
 
