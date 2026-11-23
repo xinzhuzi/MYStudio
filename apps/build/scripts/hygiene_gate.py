@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""hygiene 组合门禁段——五件只读 lint 统一编排(只组合现有命令,不复制实现)。
+"""hygiene 组合门禁段——七件只读 lint 统一编排(只组合现有命令,不复制实现)。
 
 出处:2026-09-28 任务 09-28-process-formalization S4-4c(R5.1/R7.2/R7.3;design §1/§3/§12)。
 挂 run-quality-gate.mjs hygiene stage(python-tests 段之后);任一子件 RED → 本段红。
@@ -10,6 +10,8 @@
   3. file_size_gate.py       文件尺寸门禁(纯 check 态) [双平台]
   4. workflow_graph_lint.py  工作流图 lint              [双平台]
   5. docs_current_audit.py   文档链接/命令/路径审计     [仅 darwin;linux 显式 SKIP]
+  6. arch_layer_gate.mjs     前端分层与可达性门禁      [双平台]
+  7. docs_version_lint.py    架构文档版本号锚点 lint   [双平台]
 
 接线裁定(2026-09-28 落定,证据见任务档执行记录):
   - file_size_gate 先验=纯 check(全文零改写路径,scan 只读;默认态即 check,退出码
@@ -24,7 +26,7 @@
     恒红;先以报告态接线(审计照跑、报告照落),严格化待 vendored 豁免机制清债另案。
 
 用法:
-  python3 hygiene_gate.py            # 跑五件,任一 RED 退出 1
+  python3 hygiene_gate.py            # 跑七件,任一 RED 退出 1
   python3 hygiene_gate.py --json     # 同上,另落报告 apps/output/automation/hygiene-gate-report.json
 """
 from __future__ import annotations
@@ -56,6 +58,10 @@ def build_checks(platform: str) -> list[dict]:
         {"name": "docs-current-audit", "platforms": {"darwin"},
          "cmd": [PY, str(SCRIPTS / "docs_current_audit.py"),
                  "--output", str(REPO / "apps/output/automation/docs-current-audit.json")]},
+        {"name": "arch-layer-gate", "platforms": {"darwin", "linux"},
+         "cmd": ["node", str(SCRIPTS / "arch_layer_gate.mjs")]},
+        {"name": "docs-version", "platforms": {"darwin", "linux"},
+         "cmd": [PY, str(SCRIPTS / "docs_version_lint.py")]},
     ]
     # 平台表/前置条件落定 skip_reason(仅此处判定,run_gate 只认结果)
     for check in checks:

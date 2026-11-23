@@ -388,8 +388,8 @@ describe("desktop build scripts", () => {
       executable: "npm",
       args: ["run", "test:py", "--", "--json"],
     });
-    // hygiene 段=五件只读 lint 组合(scripts_hygiene/docs_freshness/file_size_gate/
-    // workflow_graph_lint/docs_current_audit);平台表在 hygiene_gate.py 内部承担。
+    // hygiene 段=七件只读 lint 组合(scripts_hygiene/docs_freshness/file_size_gate/
+    // workflow_graph_lint/docs_current_audit/arch_layer_gate/docs_version_lint);平台表在 hygiene_gate.py 内部承担。
     const hygieneStage = linuxPlan.find((stage: { name: string }) => stage.name === "hygiene");
     expect(hygieneStage).toMatchObject({
       executable: "npm",

@@ -1,0 +1,952 @@
+{
+  "generatedAt": "2026-11-23T00:24:17.498Z",
+  "entries": [
+    "electron/main/main.ts",
+    "electron/rendering/plugins/remotion/browser/remotion-browser-worker.ts",
+    "electron/rendering/plugins/remotion/renderer/remotion-render-worker-entry.ts",
+    "electron/rendering/plugins/hyperframes/hyperframes-worker.ts",
+    "electron/preload/preload.ts",
+    "main.tsx",
+    "electron/rendering/plugins/remotion/composition/entry.tsx",
+    "electron/rendering/plugins/remotion/studio/chapter-studio-projection.ts"
+  ],
+  "layerEdges": [
+    {
+      "from": "hooks/use-toast.ts",
+      "line": 9,
+      "to": "components/ui/toast.tsx",
+      "kind": "type",
+      "rule": "hooks->components"
+    }
+  ],
+  "unreachable": [
+    {
+      "file": "components/BatchProgressOverlay.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/BrandMark.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/WardrobeModal.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/api-manager/AddProviderDialog.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/api-manager/ApiKeyEditorDialog.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/api-manager/EditProviderDialog.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/api-manager/FeatureBindingPanel.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/api-manager/brand-icons/brand-icon-types.ts",
+      "kind": "none"
+    },
+    {
+      "file": "components/api-manager/brand-icons/icons-large.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/api-manager/brand-icons/icons-medium.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/api-manager/brand-icons/icons-small.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/api-manager/brand-icons/index.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/api-manager/index.ts",
+      "kind": "none"
+    },
+    {
+      "file": "components/features/media/draggable-item.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/features/playback/audio-player.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/features/playback/editable-timecode.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/features/playback/video-player.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/assets/PropsLibrary.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/assets/studio-asset-role-skills.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/characters/character-card.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/characters/character-generator.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/director/ambient-sound-input.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/director/api-settings.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/director/shot-frame-generation-section.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/director/shot-grid-card.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/director/shot-grid-detail-panel.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/director/shot-grid-view.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/director/shot-list-panel.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/director/shot-properties-panel.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/director/sound-effect-tags.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/director/use-angle-switch.ts",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/director/use-image-generation.ts",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/director/use-video-generation.ts",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/media/ArtifactTable.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/media/ChapterTree.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/media/artifact-center-filter-bar.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/media/artifact-center-skeleton.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/sclass/sclass-generation-types.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "components/panels/sclass/sclass-trailer-scenes-panel.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/sclass/shot-group-prompt.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/script/export-panel.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/script/shot-breakdown.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/script/shot-list.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/settings/StudioModelConfigPanel.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/settings/VideoQcSettingsSection.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/settings/api/brand-icons/brand-icon-types.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "components/panels/settings/comfy-engine/mock-comfy-engine-client.ts",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/settings/useAudioGenRuntimeSettings.ts",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/settings/useVideoQcRuntimeSettings.ts",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/storyboard-config-toolbar-types.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "components/panels/studio/DirectorPlanSection.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/studio/EditingProposalPanel.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/studio/WorkbenchTrackCard.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/studio/novel-import-guide.ts",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/studio/previews/workbench-lane-preview.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/studio/use-canvas-history.ts",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/studio/use-theme-mini-map.ts",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/studio/useAudioWaveform.ts",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/studio/useProductionRenderActions.ts",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/studio/useRemotionPlayerPreview.ts",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/studio/voice-reference-assets.ts",
+      "kind": "none"
+    },
+    {
+      "file": "components/panels/studio/workflow-asset-types.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "components/panels/studio/workflow-node-registry.ts",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/accordion.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/alert.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/aspect-ratio.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/avatar.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/breadcrumb.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/calendar.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/carousel.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/chart.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/color-picker.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/comfy/comfy-generic-node-card.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/comfy/comfy-port-colors.ts",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/comfy/comfy-widget-controls.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/drawer.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/font-picker.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/form.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/generation-failed-dialog.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/hover-card.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/icon-tile.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/image-timeline-treatment.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/input-otp.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/input-with-back.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/menubar.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/navigation-menu.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/nsfw-node-editor.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/pagination.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/panel-header.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/phone-input.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/sheet.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/sidebar.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/split-button.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/sponsor-button.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/status-pill.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/toast.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/toaster.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "components/ui/uncloth-node-editor.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "config/api-cors-proxy.ts",
+      "kind": "none"
+    },
+    {
+      "file": "config/csp-plugin.ts",
+      "kind": "none"
+    },
+    {
+      "file": "config/electron-vite.config.ts",
+      "kind": "none"
+    },
+    {
+      "file": "config/vite.config.ts",
+      "kind": "none"
+    },
+    {
+      "file": "config/vitest.setup.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/providers/aitoearn-local/compatibility/crc32.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/providers/aitoearn-local/compatibility/crypto-js.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/providers/aitoearn-local/compatibility/electron-log-main.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/providers/aitoearn-local/compatibility/fluent-ffmpeg.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/providers/aitoearn-local/compatibility/image-size.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/providers/aitoearn-local/compatibility/sharp.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/providers/aitoearn-local/compatibility/utils-type.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/providers/aitoearn-local/compatibility/xml2js.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/providers/aitoearn-local/platforms/official/transport-test-helpers.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/commont/plat/douyin/common.douyin.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/commont/regular.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/commont/utils.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/commont/utils.type.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/global/log.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/main/account/BrowserWindow/BrowserWindowItem.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/main/account/BrowserWindow/index.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/main/account/controller.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/main/account/module.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/main/account/service.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/main/plat/PlatformBase.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/main/plat/index.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/main/plat/module.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/main/plat/plat.type.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/main/plat/platforms/Kwai/KwaiPubListener.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/main/plat/platforms/Kwai/index.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/main/plat/platforms/douyin/index.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/main/plat/platforms/wxSph/index.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/main/plat/platforms/xhs/index.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/main/plat/pub/PubItemBase.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/main/plat/pub/PubItemImgText.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/main/plat/pub/PubItemVideo.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/plat/Kwai/index.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/plat/Kwai/kwai.type.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/plat/Kwai/sign/KwaiSign.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/plat/douyin/douyin.type.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/plat/douyin/index.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/plat/requestNet.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/plat/shipinhao/index.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/plat/shipinhao/wxShp.type.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/plat/utils/index.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/plat/xiaohongshu/index.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/plat/xiaohongshu/xiaohongshu.type.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/util/common.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/util/file.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/aitoearn/vendor/aitoearn-core/electron/util/index.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/artifacts/artifact-inventory-content.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/artifacts/artifact-inventory-discrepancy.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/artifacts/artifact-inventory-fingerprint.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/artifacts/artifact-inventory-jobs.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/ipc/shared/ipc-validation.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/rendering/plugins/remotion/composition/Composition.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "electron/rendering/plugins/remotion/composition/RemotionPlayer.tsx",
+      "kind": "none"
+    },
+    {
+      "file": "electron/rendering/plugins/remotion/composition/composition-props.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "electron/rendering/plugins/seedvr2/seedvr2-native-resizer.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/rendering/plugins/videoqc/chapter-qc-fullref.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/rendering/runtime/ffmpeg/timeline-audio-postprocess.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/rendering/runtime/renderer-router.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/tts/tts-runtime-errors.ts",
+      "kind": "none"
+    },
+    {
+      "file": "electron/tts/tts-runtime-fetch.ts",
+      "kind": "none"
+    },
+    {
+      "file": "hooks/use-artifact-scan.ts",
+      "kind": "none"
+    },
+    {
+      "file": "hooks/use-comfy-advanced-nodes.ts",
+      "kind": "none"
+    },
+    {
+      "file": "hooks/use-drag-drop.ts",
+      "kind": "none"
+    },
+    {
+      "file": "hooks/use-highlight-scroll.ts",
+      "kind": "none"
+    },
+    {
+      "file": "hooks/use-mobile.ts",
+      "kind": "none"
+    },
+    {
+      "file": "hooks/use-mouse-button-pan.ts",
+      "kind": "none"
+    },
+    {
+      "file": "hooks/use-screenplay-character-picker.ts",
+      "kind": "none"
+    },
+    {
+      "file": "hooks/use-screenplay-drag-drop.ts",
+      "kind": "none"
+    },
+    {
+      "file": "hooks/use-screenplay-images.ts",
+      "kind": "none"
+    },
+    {
+      "file": "hooks/use-toast.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/ai/generation-types.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "lib/ai/image-response.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/bridge/video-qc-runtime.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/constants/font-constants.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/events/image-generation-events.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/media/video-cache.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/script/recalibrate-scenes.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/script/scene-viewpoint-types.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "lib/script/shot-generator.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/cinematic-preset-ai.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/context.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/continuity-derived.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/editing/audio-waveform.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/editing/effect-preview.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/editing/subtitle-codec.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/editing/timecode.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/image-workflow/assistant-references.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/image-workflow/connect-create.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/image-workflow/crop-geometry.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/image-workflow/extraction-pixels.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/image-workflow/mask-export.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/image-workflow/relation-graph.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/image-workflow/reverse-prompt.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/manuals-images.main-stub.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/music-caption.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/narrative-metrics.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/production-runners.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/remotion/remotion-studio-session-validation.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/remotion/remotion-workspace-test-fixtures.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/remotion/remotion-workspace-validation.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/song-lyrics.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/storyboard-frame-planner.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/video-workflow/stage-machine.ts",
+      "kind": "none"
+    },
+    {
+      "file": "lib/studio/voice-assigner.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "lib/studio/workbench-view-model.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "stores/director/director-config-defaults.ts",
+      "kind": "none"
+    },
+    {
+      "file": "stores/director/director-shot-store.ts",
+      "kind": "none"
+    },
+    {
+      "file": "stores/director/director-store-types.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "stores/navigation/panel-store.ts",
+      "kind": "none"
+    },
+    {
+      "file": "stores/playback/playback-store.ts",
+      "kind": "none"
+    },
+    {
+      "file": "stores/script/script-store-types.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "stores/studio/use-studio-workflow-hydrated.ts",
+      "kind": "none"
+    },
+    {
+      "file": "types/api-image-request.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/artifact-execution.ts",
+      "kind": "none"
+    },
+    {
+      "file": "types/artifacts.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/audio-gen.ts",
+      "kind": "none"
+    },
+    {
+      "file": "types/contracts/vlm-review-workflow.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/diagnostics.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/editing.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/image-gen.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/script.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/self-media.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/source-memory.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/studio-assets.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/studio-production-types.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/studio-storyboard-types.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/studio.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/tts.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/update.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/upscale.ts",
+      "kind": "none"
+    }
+  ]
+}
