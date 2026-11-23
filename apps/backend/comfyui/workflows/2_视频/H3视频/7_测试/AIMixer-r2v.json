@@ -723,7 +723,7 @@
       "title": "MiniMax H3 Director · r2v",
       "properties": {},
       "widgets_values": [
-        "## MiniMax H3 Director — 参考生视频 (r2v)\n\n1. UNET 请使用 **ref2va** 权重（与 fl2va 不同）\n   `minimax_h3_ref2va_pruned_int8_convrot.safetensors`\n2. 在导演台参考图槽位上传 1–N 张参考图\n3. 提示词中使用官方标签：`<Picture 1>` / `<Video 1>` / `<Audio 1>`\n4. Queue Prompt\n"
+        "【缺模型·不可跑(Win 引擎无下述件,1123 D11;清单=engine-audit-1123.md)】\n## MiniMax H3 Director — 参考生视频 (r2v)\n\n1. UNET 请使用 **ref2va** 权重（与 fl2va 不同）\n   `minimax_h3_ref2va_pruned_int8_convrot.safetensors`\n2. 在导演台参考图槽位上传 1–N 张参考图\n3. 提示词中使用官方标签：`<Picture 1>` / `<Video 1>` / `<Audio 1>`\n4. Queue Prompt\n"
       ],
       "color": "#432",
       "bgcolor": "#653"
