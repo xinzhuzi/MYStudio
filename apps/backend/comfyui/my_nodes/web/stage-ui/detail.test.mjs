@@ -3,7 +3,8 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 /**
  * 详情浮层·纯函数断言(stage-ui/detail,1115 详情入 ComfyUI)。
- * 跑法:node --test apps/backend/comfyui/my_nodes/web/stage-ui/detail.test.js
+ * 跑法:node --test apps/backend/comfyui/my_nodes/web/stage-ui/detail.test.mjs
+ * (后缀必须是 .mjs:引擎前端会把扩展目录下的 .js 当插件脚本加载,测试件一被加载就报错;同目录惯例见 web/*.test.mjs)
  * (node --test my_nodes/web 目录扫描亦收入)
  *
  * 机器钉面(方案 D1/D3/D4 分档如实):
