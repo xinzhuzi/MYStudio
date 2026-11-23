@@ -31,7 +31,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
-LIB = ROOT / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试"
+LIB = ROOT / "apps/backend/comfyui/workflows/2_视频/H3视频/6_视频重制"  # 1123 D12 移出
 I2V = LIB / "fasth3-单镜视频-i2v.json"
 T2V = LIB / "fasth3-单镜视频-t2v.json"
 SNAPSHOT = Path(__file__).resolve().parent / "fixtures/fasth3_object_info_snapshot.json"

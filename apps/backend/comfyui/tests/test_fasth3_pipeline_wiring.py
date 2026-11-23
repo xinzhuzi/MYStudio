@@ -3,7 +3,7 @@
 被测对象 = 接线三件(工作流作者产出的 repo 库 UI 件 → 接线员落的前端模板对):
     1. apps/frontend/lib/assist/image-studio/fasth3-shot-template.json     UI 画布档(bundle 面)
     2. apps/frontend/lib/assist/image-studio/fasth3-shot-template.api.json API 图(组装器直填母版)
-    3. 前端 UI 件与 repo 库真源 2_视频/H3视频/7_测试/fasth3-单镜视频-i2v.json
+    3. 前端 UI 件与 repo 库真源 2_视频/H3视频/6_视频重制/fasth3-单镜视频-i2v.json
        的同步契约(UI 真源=repo 库,前端件是组装器 bundle 复制——本测试钉两处不漂移;
        1112 功能重组自 7_FastH3 移入 7_测试 留档)。
 
@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[4]
 FRONTEND_DIR = ROOT / "apps/frontend/lib/assist/image-studio"
 FRONTEND_UI = FRONTEND_DIR / "fasth3-shot-template.json"
 FRONTEND_API = FRONTEND_DIR / "fasth3-shot-template.api.json"
-REPO_LIB_I2V = ROOT / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试/fasth3-单镜视频-i2v.json"
+REPO_LIB_I2V = ROOT / "apps/backend/comfyui/workflows/2_视频/H3视频/6_视频重制/fasth3-单镜视频-i2v.json"
 SNAPSHOT = Path(__file__).resolve().parent / "fixtures/fasth3_object_info_snapshot.json"
 TO_API_SCRIPT = ROOT / "apps/build/scripts/h3_template_to_api_1027.py"
 

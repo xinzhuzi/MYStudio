@@ -67,7 +67,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     id: "my-fasth3-i2v-27",
     label: "漫影单镜 FastH3 I2V(27 节点,Windows 主线)",
     apiTemplate: "./fasth3-shot-template.api.json",
-    uiTemplateRef: "2_视频/H3视频/7_测试/fasth3-单镜视频-i2v.json",
+    uiTemplateRef: "2_视频/H3视频/6_视频重制/fasth3-单镜视频-i2v.json",
     inputMode: "i2v",
     anchors: {
       prompt: "14.value",
@@ -79,15 +79,17 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     },
     resolutionTiers: ["480p", "960p"],
     status: "unverified",
+    // 1123 D11:缺模型·不可跑——fastvideo_fasth3_8step_v2_pruned_int8_convrot 不在 Win 引擎(引擎对账清单 engine-audit-1123.md);补模型前禁实弹。
     notes: "Windows FastH3 主线(8 步蒸馏 DiT R1+VSA 稀疏注意力+kitchen INT8 注意力;模型件=三对齐表 R1-R4,仅 Windows 引擎在册,派发须 env MYSTUDIO_COMFYUI_BRIDGE_URL 指向隧道)。status=unverified:三层硬门(注入锚/回收/引擎层)待实弹验收(计划 §五 B)后升 ready,升前批量派发须显式带 recipeId。超时沿用档位表 480p=900s/960p=2700s(FastH3 N 卡秒级~分钟级,execute 链 MAX_EXECUTE_TIMEOUT_S=2700s 上罩余量足)。前端模板对=fasth3-shot-template{,.api}.json,UI 真源=repo 库 fasth3-单镜视频-i2v.json(契约测试钉同步)。",
   },
   {
     id: "my-fasth3-t2v-26",
     label: "漫影单镜 FastH3 T2V 基础版(26 节点,画布直开)",
-    uiTemplateRef: "2_视频/H3视频/7_测试/fasth3-单镜视频-t2v.json",
+    uiTemplateRef: "2_视频/H3视频/6_视频重制/fasth3-单镜视频-t2v.json",
     inputMode: "t2v",
     resolutionTiers: ["480p"],
     status: "unverified",
+    // 1123 D11:同 i2v 件,fasth3 UNET 缺引擎,补模型前禁实弹。
     notes: "无首帧纯文生(官方 t2v 同形);无 9.image 首帧锚,分镜批量线不适用,仅画布直开。",
   },
   {
@@ -95,7 +97,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     id: "my-pika-fl2v-24",
     label: "漫影单镜 Pika fl2va 主力线(24 API 节点,6-NFE)",
     apiTemplate: "./pika-shot-template.api.json",
-    uiTemplateRef: "2_视频/H3视频/7_测试/pika-单镜视频-fl2v.json",
+    uiTemplateRef: "2_视频/H3视频/6_视频重制/pika-单镜视频-fl2v.json",
     inputMode: "i2v",
     anchors: {
       prompt: "14.value",
@@ -114,7 +116,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     id: "my-pika-ref2v-20",
     label: "漫影单镜 Pika ref2va 参考线(20 API 节点,6-NFE,角色/场景卡)",
     apiTemplate: "./pika-ref-shot-template.api.json",
-    uiTemplateRef: "2_视频/H3视频/7_测试/pika-单镜视频-ref2v.json",
+    uiTemplateRef: "2_视频/H3视频/6_视频重制/pika-单镜视频-ref2v.json",
     inputMode: "r2v",
     anchors: {
       prompt: "14.value",
