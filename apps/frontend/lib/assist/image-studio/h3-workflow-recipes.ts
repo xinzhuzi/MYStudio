@@ -144,7 +144,7 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     },
     resolutionTiers: ["960p"],
     status: "ready",
-    notes: "二期适配完成(§14.1,四针=MyShot 锚 103/首帧潜空间锚 9→101.first_frame/五段前缀/双旁路出厂):适配 UI 件=h3-multiseg-template.json(前端 bundle,repo 原件零改);组装器=buildShotH3MultisegApiWorkflow(分段提示词 buildShotH3MultisegPrompt,无 seconds 锚——时长在分段文本标签行内);档位恒 960×544 模板原厂(M5:与 768p turbo LoRA 失配属画质议题,实弹判读后候令对齐);超时=resolveH3ShotTimeoutS(600+秒×300,clamp 14400);40s 硬顶拒派(M1)。",
+    notes: "二期适配完成(§14.1,四针=MyShot 锚 103/首帧潜空间锚 9→101.first_frame/五段前缀/双旁路出厂):记账界面图=h3-multiseg-template.json(1123 D17 起=画布件 一镜到底-分段.json 原样+App 专用三节点+API 对齐覆写,生成器 build/scripts/multiseg_ui_template_build.py,与画布件/API 模板同受模板同步门管;此前为 14 节点适配小图);组装器=buildShotH3MultisegApiWorkflow(分段提示词 buildShotH3MultisegPrompt,无 seconds 锚——时长在分段文本标签行内);档位恒 960×544 模板原厂(M5:与 768p turbo LoRA 失配属画质议题,实弹判读后候令对齐);超时=resolveH3ShotTimeoutS(600+秒×300,clamp 14400);40s 硬顶拒派(M1)。",
   },
   {
     // 1112 recavsr-mainline(用户终裁「ReCaVSR 非常不错,就做这个主线,三采单镜」):

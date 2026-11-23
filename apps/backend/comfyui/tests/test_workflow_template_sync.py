@@ -9,6 +9,7 @@ MyShot 锚摘除)走白名单逐条注明;任何结构漂移(少一段采/换 lo
 真源关系(1123 盘点):
   单镜.json(画布)            → h3-three-stage-template.api.json
   一镜到底-分段.json(画布)    → h3-multiseg-template.api.json(另有 1118 生成器幂等重放)
+  一镜到底-分段.json + 上行 API → h3-multiseg-template.json(记账界面图;1123 D17 另有界面图生成器幂等重放)
   h3-shot-template.json(UI)  → h3-shot-template.api.json(i2v31)
   pika-shot-template.json    → pika-shot-template.api.json
   pika-ref-shot-template.json→ pika-ref-shot-template.api.json
@@ -154,6 +155,19 @@ PAIRS = [
                      "frontend/lib/assist/image-studio/h3-multiseg-template.api.json"],
         "edges": [("5002", "video", "ReCaVSRUpscale"), ("5100", "on_false", "ReCaVSRUpscale"),
                   ("4002", "video", "CreateVideo")],
+    },
+    {
+        # 1123 D17:multiseg 记账界面图(组装器运行时克隆的发车模板,也是台账/产物元数据里
+        # 「这镜跑的是哪张图」的载体)= 上一对的两个产物(画布件+API 模板)+ App 专用三节点
+        # + API 对齐覆写,由界面图生成器派生。同走生成器重放+字节对账:画布件/API 模板改了
+        # 而界面图没跟上=回正+报红点名。
+        "name": "multiseg-ui(一镜到底-分段.json+.api→h3-multiseg-template.json)",
+        "mode": "generator",
+        "regen": ["uv", "run", "python", "build/scripts/multiseg_ui_template_build.py"],
+        "outputs": ["frontend/lib/assist/image-studio/h3-multiseg-template.json"],
+        "canvas": WORKFLOWS / "2_视频/H3视频/1_漫影自研/一镜到底-分段.json",
+        "api": FRONTEND / "h3-multiseg-template.api.json",
+        "edges": [],
     },
     {
         "name": "i2v31(h3-shot-template→.api)",

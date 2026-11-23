@@ -4,6 +4,8 @@ import apiTemplate from "./h3-shot-template.api.json";
 import fasth3ApiTemplate from "./fasth3-shot-template.api.json";
 import multisegTemplateJson from "./h3-multiseg-template.json";
 import multisegApiTemplate from "./h3-multiseg-template.api.json";
+// 1123 D17:记账界面图 = 本画布件原件 + App 专用三节点(生成器 build/scripts/multiseg_ui_template_build.py)
+import multisegCanvasJson from "../../../../backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/一镜到底-分段.json";
 import { H3_WORKFLOW_RECIPES, batchDispatchableH3Recipes } from "./h3-workflow-recipes";
 import {
   DEFAULT_H3_RECIPE_ID,
@@ -21,7 +23,18 @@ import {
 const api = apiTemplate as unknown as Record<string, { class_type: string; inputs: Record<string, unknown> }>;
 const fasth3Api = fasth3ApiTemplate as unknown as Record<string, { class_type: string; inputs: Record<string, unknown> }>;
 const multisegApi = multisegApiTemplate as unknown as Record<string, { class_type: string; inputs: Record<string, unknown> }>;
-const multisegTemplate = multisegTemplateJson as { nodes: Array<{ id: number; type: string; mode?: number; widgets_values?: unknown[]; inputs?: Array<{ name: string; link: number | null }> }> };
+type UiLink = [number, number, number, number, number, string];
+type UiNode = { id: number; type: string; mode?: number; pos?: number[]; widgets_values?: unknown[]; properties?: Record<string, unknown>; inputs?: Array<{ name: string; link: number | null }> };
+const multisegTemplate = multisegTemplateJson as unknown as { nodes: UiNode[]; links: UiLink[] };
+const multisegCanvas = multisegCanvasJson as unknown as { nodes: UiNode[]; links: UiLink[] };
+// 1123 D17:记账界面图里有意取「执行图值」而非「画布件值」的控件位(节点号 → { 控件位: API 输入键 })。
+// 画布件在这几处与执行图取值不同(各有来历,见生成器 API_ALIGNED 注),界面图是排障时打开的图,
+// 执行的是什么就显示什么。本表与生成器 API_ALIGNED 是同一张表的两份,改一处须改两处。
+const MULTISEG_UI_API_ALIGNED: Record<number, Record<number, string>> = {
+  5011: { 11: "identity_threshold", 16: "identity_model" },
+  5023: { 1: "bit_depth", 3: "chroma_subsampling" },
+  5025: { 1: "bit_depth", 3: "chroma_subsampling" },
+};
 
 function makeShot(overrides: Record<string, unknown> = {}) {
   return {
@@ -664,21 +677,125 @@ describe("h3-multiseg-template.api.json 契约(PRD §14.1.2;1123 起唯一真源
     expect(multisegApi["5012"].inputs.length).toEqual(["5011", 6]);
   });
 
-  it("适配 UI 件 h3-multiseg-template.json:四针出厂(双旁路 mode=4/占位五段前缀/连线 15+16/repo 原厂值保真)", () => {
-    const nodes = multisegTemplate.nodes as Array<{ id: number; type: string; mode?: number; widgets_values?: unknown[]; inputs?: Array<{ name: string; link: number | null }> }>;
-    expect(nodes).toHaveLength(14);
+  it("记账界面图 h3-multiseg-template.json 与 API 模板同源(1123 D17):App 专用两针出厂旁路、各口接到正确的来源节点", () => {
+    const nodes = multisegTemplate.nodes;
+    const links = multisegTemplate.links;
     const byId = (id: number) => nodes.find((node) => node.id === id)!;
+    const byLink = (linkId: number) => links.find((link) => link[0] === linkId)!;
+    const sourceOf = (id: number, inputName: string) => {
+      const linkId = byId(id).inputs?.find((input) => input.name === inputName)?.link;
+      return linkId == null ? null : byLink(linkId)[1];
+    };
+    const uiEdges = new Set(links.map((link) => `${link[1]}>${link[3]}>${byId(link[3]).inputs?.[link[4]]?.name}`));
+
+    // 规模:不再是 14 节点的一采时代小图。节点集合 = API 模板节点 + 画布件自有的三件
+    // (两处中间档存盘 #3071/#4003 与说明卡 #9999,App 发车不执行)
+    expect(nodes.map((node) => node.id).sort((a, b) => a - b)).toEqual(
+      [...new Set([...Object.keys(multisegApi).map(Number), 3071, 4003, 9999])].sort((a, b) => a - b),
+    );
+    for (const [id, node] of Object.entries(multisegApi)) {
+      expect(byId(Number(id))?.type, `界面图缺节点 #${id}`).toBe(node.class_type);
+    }
+    // App 专用两针:出厂旁路(画布直开不执行占位首帧/收件箱锚),组装器填参数的位保持原样
     expect(byId(9).type).toBe("LoadImage");
-    expect(byId(9).mode).toBe(4); // 双旁路出厂:画布直开不执行占位首帧(防污染)
+    expect(byId(9).mode).toBe(4);
+    expect(byId(9).widgets_values?.[0]).toBe(multisegApi["9"].inputs.image);
     expect(byId(103).type).toBe("MyShot");
-    expect(byId(103).mode).toBe(4); // 双旁路出厂:画布直开不执行占位 MyShot(防污染收件箱)
-    expect(byId(103).widgets_values?.[0]).toBe("shot-001");
-    expect(byId(4).widgets_values?.[0]).toBe("video/漫影/chapter-001/shot-001/ambient");
-    expect(byId(101).inputs?.find((input) => input.name === "first_frame")?.link).toBe(15);
-    expect(byId(103).inputs?.find((input) => input.name === "video")?.link).toBe(16);
-    // repo 原厂值保真(§14.1.1「其余出厂值全保原厂」抽钉)
+    expect(byId(103).mode).toBe(4);
+    expect(byId(103).widgets_values).toEqual([multisegApi["103"].inputs.shot_id, multisegApi["103"].inputs.label, multisegApi["103"].inputs.description, multisegApi["103"].inputs.media_status]);
     expect(byId(100).widgets_values?.[6]).toBe(960);
     expect(byId(100).widgets_values?.[9]).toBe(24);
+    // 各口接到正确的来源节点(按来源节点号断言,不钉连线号——连线号随画布件重生成会变)
+    expect(sourceOf(101, "first_frame")).toBe(9);            // 首帧 ← App 首帧图
+    expect(sourceOf(5012, "ref_images.ref_image_0")).toBe(9); // 修脸参考图 ← 同一张首帧
+    expect(sourceOf(103, "video")).toBe(4100);                // 收件箱记账 ← 终档存盘(R1:不是一采 #4)
+    expect(sourceOf(5011, "identity_clip_vision")).toBe(800);  // 人脸参考视觉编码器 ← App 专用 #800
+    // 同源:API 模板的每条连线在界面图里都存在
+    for (const [id, node] of Object.entries(multisegApi)) {
+      for (const [name, value] of Object.entries(node.inputs)) {
+        if (Array.isArray(value)) {
+          expect(uiEdges.has(`${value[0]}>${id}>${name}`), `界面图缺连线 #${value[0]} → #${id}.${name}`).toBe(true);
+        }
+      }
+    }
+    // 结构:连线三处挂接一致(连线表 ↔ 目标 inputs[].link ↔ 源 outputs[].links),连线号唯一、无孤儿引用
+    const find = (id: number) => nodes.find((node) => node.id === id);
+    const outputsOf = (node: UiNode) => (node as unknown as { outputs?: Array<{ links?: Array<number | null> }> }).outputs ?? [];
+    const linkIds = links.map((link) => link[0]);
+    expect(new Set(linkIds).size).toBe(links.length);
+    expect(multisegTemplateJson.last_link_id).toBe(Math.max(...linkIds));
+    expect(multisegTemplateJson.last_node_id).toBe(Math.max(...nodes.map((node) => node.id)));
+    for (const link of links) {
+      expect(find(link[1]), `link${link[0]} 源节点 #${link[1]} 不存在`).toBeDefined();
+      expect(find(link[3]), `link${link[0]} 目标节点 #${link[3]} 不存在`).toBeDefined();
+      expect(find(link[3])?.inputs?.[link[4]]?.link, `link${link[0]} 目标槽位号与 inputs[].link 不一致`).toBe(link[0]);
+      expect(outputsOf(find(link[1])!)[link[2]]?.links ?? [], `link${link[0]} 源输出口未登记`).toContain(link[0]);
+    }
+    for (const node of nodes) {
+      for (const input of node.inputs ?? []) {
+        const linkId = input.link;
+        if (linkId != null) expect(byLink(linkId), `#${node.id}.${input.name} 引用了不存在的连线 ${linkId}`).toBeDefined();
+      }
+      for (const output of outputsOf(node)) {
+        for (const linkId of output.links ?? []) {
+          if (linkId == null) continue;
+          expect(linkIds.includes(linkId), `#${node.id} 输出口登记了不存在的连线 ${linkId}`).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("记账界面图 = 画布件原件 + App 专用三节点(1123 D17;画布件改了而界面图没跟上=本用例红)", () => {
+    const nodes = multisegTemplate.nodes;
+    const byId = (id: number) => nodes.find((node) => node.id === id)!;
+    const canvasNodes = multisegCanvas.nodes;
+    const canvasById = new Map(canvasNodes.map((node) => [node.id, node]));
+    // 节点集合:界面图 − 画布件 = 恰好 App 专用三节点
+    expect(nodes.map((node) => node.id).filter((id) => !canvasById.has(id)).sort((a, b) => a - b)).toEqual([9, 103, 800]);
+    // 画布件每个节点:类型/模式/坐标原样;控件值除「取执行图值」的对齐位外逐一相同
+    for (const canvasNode of canvasNodes) {
+      const uiNode = byId(canvasNode.id);
+      expect(uiNode.type, `#${canvasNode.id} 类型`).toBe(canvasNode.type);
+      expect(uiNode.mode ?? 0, `#${canvasNode.id} 模式`).toBe(canvasNode.mode ?? 0);
+      expect(uiNode.pos, `#${canvasNode.id} 坐标`).toEqual(canvasNode.pos);
+      const aligned = MULTISEG_UI_API_ALIGNED[canvasNode.id] ?? {};
+      if (!Array.isArray(canvasNode.widgets_values)) {
+        // 无控件节点(如 #5002 GetVideoComponents):画布件没有该字段,界面图也不得有
+        expect(uiNode.widgets_values, `#${canvasNode.id} 不应有控件值`).toBe(canvasNode.widgets_values);
+        continue;
+      }
+      const expected = canvasNode.widgets_values.map((value, index) => (index in aligned ? multisegApi[String(canvasNode.id)].inputs[aligned[index]] : value));
+      expect(uiNode.widgets_values, `#${canvasNode.id} 控件值(对齐位取执行图值)`).toEqual(expected);
+    }
+    // 对齐位上画布件确与执行图不同——哪天画布件对齐了执行图,该条就该从两张表里删掉
+    for (const [id, positions] of Object.entries(MULTISEG_UI_API_ALIGNED)) {
+      for (const [index, key] of Object.entries(positions)) {
+        expect(canvasById.get(Number(id))?.widgets_values?.[Number(index)], `#${id}[${index}] 画布件应与执行图不同`).not.toEqual(multisegApi[id].inputs[key]);
+      }
+    }
+    // 1123 D17 探针实证的坑:前端给 seed 控件自动配「固定/随机」下拉并一并序列化,控件值表里
+    // seed 后必须跟一项 "fixed"(同画布 #4002/#5110 同例);漏了=加载后其后全部错位一格
+    expect(byId(101).widgets_values?.slice(0, 3)).toEqual([0.0, 42, "fixed"]);
+    expect(byId(101).widgets_values).toHaveLength(11);
+    // 画布件原有连线逐条不变(含槽位号)
+    const uiLinks = new Map(multisegTemplate.links.map((link) => [link[0], link]));
+    for (const link of multisegCanvas.links) expect(uiLinks.get(link[0]), `画布件 link${link[0]} 被改动`).toEqual(link);
+    // 输入口:只许多出追加在末尾的可选口(前面口的槽位号不动)
+    for (const [id, appended] of [[101, "first_frame"], [5011, "identity_clip_vision"]] as const) {
+      const canvasInputs = canvasById.get(id)!.inputs ?? [];
+      const uiInputs = byId(id).inputs ?? [];
+      expect(uiInputs.map((input) => input.name), `#${id} 输入口序`).toEqual([...canvasInputs.map((input) => input.name), appended]);
+    }
+  });
+
+  it("组装后的记账图:收件箱锚与首帧图被激活,锚接到终档存盘(1123 D17)", () => {
+    const result = buildShotH3MultisegApiWorkflow({ shot: makeShot(), chapterId: "chapter-001", chapterLabel: "第一章 雨夜", originProjectId: "project-a" });
+    const ui = result.uiWorkflow as unknown as { nodes: UiNode[]; links: UiLink[] };
+    const anchor = ui.nodes.find((node) => node.id === 103)!;
+    expect(anchor.mode).toBe(0);
+    const videoLink = anchor.inputs?.find((input) => input.name === "video")?.link;
+    expect(ui.links.find((link) => link[0] === videoLink)?.[1]).toBe(4100);
+    expect(ui.nodes.find((node) => node.id === 9)?.mode).toBe(0);
   });
 });
 
@@ -731,6 +848,46 @@ describe("buildShotH3MultisegApiWorkflow(PRD §14.1.4,一份组装产两形态)"
     expect(second.apiGraph["103"].inputs.shot_id).toBe("sb-x-2");
     expect(String(first.apiGraph["100"].inputs.long_prompt)).toContain("雨夜中的石桥");
     expect(String(second.apiGraph["100"].inputs.long_prompt)).toContain("雪岭孤城");
+  });
+
+  it("两形态逐位一致(1123 D17):界面图克隆的填参位 = apiGraph(默认态/修脸态各核一遍),出厂模板不被污染", () => {
+    // 组装器回写表(节点号, API 输入键, 界面图控件位)——与 h3-shot-video-workflow.ts MULTISEG_UI_MIRROR 同表,
+    // 这里独立再写一遍:节点定义或生成器改动致控件位号漂移时,本用例先红
+    const MIRROR: Array<[string, string, number]> = [
+      ["4", "filename_prefix", 0],    // 一采预览存盘
+      ["4100", "filename_prefix", 0], // 终档存盘
+      ["3030", "value", 0],           // 二采提示词
+      ["3031", "length", 3],          // 二采总帧数
+      ["1065", "value", 0],           // 修脸四采总开关
+    ];
+    const input = { shot: makeShot(), chapterId: "chapter-001", chapterLabel: "第一章 雨夜", originProjectId: "project-a" };
+    for (const faceRefine of [false, true]) {
+      const result = buildShotH3MultisegApiWorkflow({ ...input, faceRefine });
+      const nodes = result.uiWorkflow.nodes as UiNode[];
+      const byId = (id: number) => nodes.find((node) => node.id === id)!;
+      const tag = `修脸=${faceRefine}`;
+      for (const [id, key, index] of MIRROR) {
+        expect(byId(Number(id)).widgets_values?.[index], `#${id}[${index}] vs apiGraph.${key}(${tag})`).toEqual(result.apiGraph[id].inputs[key]);
+      }
+      // 界面图与 apiGraph 各自直填的位
+      expect(byId(100).widgets_values?.[0], tag).toBe(result.apiGraph["100"].inputs.long_prompt);
+      expect(byId(100).widgets_values?.[6], tag).toBe(result.apiGraph["100"].inputs.width);
+      expect(byId(100).widgets_values?.[7], tag).toBe(result.apiGraph["100"].inputs.height);
+      expect(byId(9).widgets_values?.[0], tag).toBe(result.apiGraph["9"].inputs.image);
+      expect(byId(103).widgets_values, tag).toEqual([
+        result.apiGraph["103"].inputs.shot_id, result.apiGraph["103"].inputs.label,
+        result.apiGraph["103"].inputs.description, result.apiGraph["103"].inputs.media_status,
+      ]);
+      // 修脸态的差异如实落进界面图:终档带 _修脸、总开关为真;默认态都不带
+      expect(String(byId(4100).widgets_values?.[0]).endsWith("/ambient_修脸"), tag).toBe(faceRefine);
+      expect(byId(1065).widgets_values?.[0], tag).toBe(faceRefine);
+    }
+    // 出厂模板不被组装污染(深克隆):终档前缀仍是画布件值,双旁路节点仍旁路
+    buildShotH3MultisegApiWorkflow(input);
+    const shipped = multisegTemplate.nodes;
+    expect(shipped.find((node) => node.id === 4100)?.widgets_values?.[0]).toBe(multisegCanvas.nodes.find((node) => node.id === 4100)?.widgets_values?.[0]);
+    expect(shipped.find((node) => node.id === 9)?.mode).toBe(4);
+    expect(shipped.find((node) => node.id === 103)?.mode).toBe(4);
   });
 
   it("images 通道:带 b64 恰一项 9.image;无 b64 空数组", () => {

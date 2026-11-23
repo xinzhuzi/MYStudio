@@ -4,7 +4,8 @@
 三种用法:
   ① 缺省(或 --preset i2v31):旧行为零变(h3-shot-template.json → h3-shot-template.api.json,
      UI 31/API 27)。二期幂等红线(§14.1.2):参数化后重跑须与既有产物逐字节一致。
-  ② --preset multiseg:读 repo 原 UI 件 h3-autocontext-multiseg.json → 四针内存适配
+  ② --preset multiseg:(1123 D17 起已废——拒写盘;两件改由 multiseg_inline_facerefine_build_1118.py
+     与 multiseg_ui_template_build.py 生成,见 main 内说明)原为:读 repo 原 UI 件 h3-autocontext-multiseg.json → 四针内存适配
      (§14.1.1:加 MyShot 锚 103/加首帧锚 9 LoadImage→101.first_frame/五段前缀占位/
      双旁路出厂 mode=4;repo 原件零改)→ 写适配 UI 件 h3-multiseg-template.json →
      object_info 键序转换 → 产 h3-multiseg-template.api.json(12+2=14 节点)。
@@ -362,23 +363,13 @@ def main() -> None:
         raise SystemExit("--preset 与 --src/--dst/--ui-count/--api-count 互斥(预设自带路径与节点数)")
 
     if opts.preset == "multiseg":
-        oi, source = load_object_info(opts.object_info_file, allow_fixture=True)
-        canvas = adapt_multiseg(json.loads(MULTISEG_REPO_SRC.read_text(encoding="utf-8")))
-        assert_multiseg_ui(canvas)
-        MULTISEG_UI_DST.write_text(json.dumps(canvas, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-        api, skipped = convert(canvas, oi)
-        if skipped:
-            raise SystemExit(f"multiseg api contract: 出现 UI-only 节点(预期零): {skipped}")
-        if len(api) != MULTISEG_EXPECTED_API_NODE_COUNT:
-            raise SystemExit(f"multiseg api contract: {len(api)} nodes != {MULTISEG_EXPECTED_API_NODE_COUNT}")
-        assert_multiseg_contract(api)
-        MULTISEG_API_DST.write_text(json.dumps(api, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-        print(f"OK: {MULTISEG_UI_DST.relative_to(REPO_ROOT)} ({len(canvas['nodes'])} UI nodes, repo 原件零改)")
-        print(f"OK: {MULTISEG_API_DST.relative_to(REPO_ROOT)} ({len(api)} nodes)")
-        print("anchors: 100.long_prompt(str) 100.width/height(number 960×544) 100.clip_tag=段1 100.fps=24 "
-              "4.filename_prefix(五段) 9.image(str) 103.MyShot(video→[4,0]) 101.first_frame→[9,0] 101.parameter→[100,0]")
-        print(f"object_info: {source}")
-        return
+        # 1123 D17:本预设已废,拒写盘。multiseg 两件现由生成器产出——API 执行图模板=
+        # multiseg_inline_facerefine_build_1118.py(67 节点:一采+二采+三采+修脸),记账界面图=
+        # multiseg_ui_template_build.py(画布件全图+App 专用三节点)。本预设按 14 节点的一采时代
+        # 旧适配图写盘,一跑即把两件覆盖回去;其源件 h3-autocontext-multiseg.json 也已不在库。
+        raise SystemExit("multiseg 预设已于 1123 D17 废止(会用 14 节点旧适配图覆盖现行模板,已拒绝写盘)。"
+                         "现行产物请重放:API 执行图模板 build/scripts/multiseg_inline_facerefine_build_1118.py;"
+                         "记账界面图 build/scripts/multiseg_ui_template_build.py")
 
     # 缺省/--preset i2v31/FastH3 通用路径(旧行为零变;i2v31 预设享离线键序回落)
     allow_fixture = opts.preset == "i2v31"
