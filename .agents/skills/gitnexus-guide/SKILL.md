@@ -15,7 +15,7 @@ For any task involving code understanding, debugging, impact analysis, or refact
 2. **Match your task to a skill below** and **read that skill file**
 3. **Follow the skill's workflow and checklist**
 
-> If step 1 warns the index is stale, run `node .gitnexus/run.cjs analyze` in the terminal first.
+> If step 1 warns the index is stale, do **not** run a plain `analyze` (that is the incremental refresh, which corrupts the index on gitnexus 1.6.12; verified 2026-11-24, upstream #3421 / #3958). Check with `python3 apps/build/scripts/gitnexus_freshness_check.py --strict`; refresh only with a full rebuild: `node .gitnexus/run.cjs analyze --force --embeddings 0 --index-only` (about 20–35 min; queries keep working while it runs) first.
 
 ## Skills
 

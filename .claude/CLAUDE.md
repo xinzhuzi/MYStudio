@@ -184,7 +184,7 @@
 | 4 | **Task 子代理** | 宽而重的探索、跨目录检索、独立核验;必须精简 prompt 并限制范围 |
 | 5 | **Trellis channel** | 多 worker 协作实施/检查(implement/check agent) |
 
-**GitNexus 索引保鲜(0928 立;1123 按实测改口径)**:索引落后 = AGENTS.md 强制的 impact/detect_changes 门禁对最新代码失明(绿灯假象)。收尾/打包前跑 `python3 apps/build/scripts/gitnexus_freshness_check.py --strict`,落后时执行 `node .gitnexus/run.cjs analyze --embeddings` 刷新(增量,本地 onnx 免 key;工具已于 2026-11-23 从 1.6.6 升级到 1.6.12,增量刷新实测安全)。**analyze 退出码非 0 时不要重跑**:先用新进程试开索引库(`gitnexus context -r MYStudio <任一符号>`),退出码 0 = 库健康可再刷新;139 = 库已被写坏,所有会话的新查询都会崩,按 `.claude/knowledge/search-sop.md`「GitNexus 索引刷新」一节重建。pre-commit 已挂警告位(不拦截)。
+**GitNexus 索引保鲜(0928 立;1123 改口径;1124 按实测再改)**:索引过期 = AGENTS.md 强制的 impact/detect_changes 门禁对最新代码失明(绿灯假象)。收尾/打包前跑 `python3 apps/build/scripts/gitnexus_freshness_check.py --strict`(约 1 秒;过期按内容判断——被收录文件的内容哈希对磁盘,提交号落后但内容没变不算过期;同时查索引是否被写坏)。过期或提示损坏时只做全量重建:`node .gitnexus/run.cjs analyze --force --embeddings 0 --index-only`(例行约 11 分钟,索引被写坏之后约 35 分钟;期间查询不受影响)。**不要跑增量刷新**(不带 `--force` 的 analyze):gitnexus 1.6.12 的增量会把索引写坏(2026-11-24 实测;上游 #3421、#3958,修复只在尚未正式发布的 1.6.13)。索引库能打开不代表内容完好,是否完好只以上述检查脚本为准。pre-commit 已挂警告位(不拦截)。
 
 ---
 

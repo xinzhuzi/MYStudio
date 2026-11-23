@@ -41,7 +41,7 @@ diagnosis.
 4. cypher({statement: "MATCH path..."})                 → Custom traces if needed
 ```
 
-> If "Index is stale" → run `node .gitnexus/run.cjs analyze` in terminal.
+> If "Index is stale" → do **not** run a plain `analyze` (that is the incremental refresh, which corrupts the index on gitnexus 1.6.12; verified 2026-11-24, upstream #3421 / #3958). Check with `python3 apps/build/scripts/gitnexus_freshness_check.py --strict`; refresh only with a full rebuild: `node .gitnexus/run.cjs analyze --force --embeddings 0 --index-only` (about 20–35 min; queries keep working while it runs), then continue.
 
 ## Checklist
 
