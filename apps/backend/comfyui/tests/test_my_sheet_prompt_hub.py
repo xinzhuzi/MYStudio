@@ -232,10 +232,15 @@ def test_truth_category_sets_consistent():
         for k, v in mapping.items():
             assert k in text and v != text[k], (var, k)       # 既有格键,且确与默认角标不同
     for base in BASES:
-        four = set(LABELS["variants"][base])
-        assert len(four) == 4 and set(LABELS["variants"][NO_ABILITY[base]]) == four | {"fx_1"}
+        body = set(LABELS["variants"][base])
+        assert len(body) == 5 and set(LABELS["variants"][NO_ABILITY[base]]) == body | {"fx_1"}
         assert LABELS["variants"][base] == LABELS["variants"][NO_ABILITY[base]] | {} \
             or all(LABELS["variants"][NO_ABILITY[base]][k] == v for k, v in LABELS["variants"][base].items())
+    # 1124:fabric_2 裁自腰部特写图中段(derive_cells),类别变体标如实的来源名;默认类「材质·袍料」=1114 命名,未动
+    for var in LABELS["variants"]:
+        assert LABELS["variants"][var]["fabric_2"] == "腰部图·中段", var
+        assert LABELS["variants"][var]["fabric_3"] == "腕部图·局部", var
+    assert text["fabric_2"] == "材质·袍料" and text["fabric_3"] == "材质·护臂"
     for cells in LABELS["blank_cells"].values():
         assert {"fx_1", "fx_2"} <= set(cells)
     for refined_key in refined:

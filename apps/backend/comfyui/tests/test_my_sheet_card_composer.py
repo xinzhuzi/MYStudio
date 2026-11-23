@@ -129,7 +129,7 @@ def test_formats_registry_snapshot():
 
 
 # ── 1123 Phase 6:角标变体+留空格随武器类别(全卡版式跟随武器类别)────────────────
-VARIANT_KEYS = ("weapon_a", "weapon_b", "gear_1", "fabric_3")
+VARIANT_KEYS = ("weapon_a", "weapon_b", "gear_1", "fabric_2", "fabric_3")   # 1124 增 fabric_2(裁自腰部图中段)
 NO_ABILITY = {"通用": "通用·能力未设定", "包裹": "包裹·能力未设定"}   # 无「能力:」字段时的细化类别
 
 
@@ -139,7 +139,7 @@ def _placeholder_cells():
 
 
 def test_label_variants_and_blank_cells_registered_and_inherited():
-    """真源 labels:两类本体(通用/包裹)各四角标变体;细化类别另加 fx_1「能力未设定」并登记特效两格留空;
+    """真源 labels:两类本体(通用/包裹)各五角标变体;细化类别另加 fx_1「能力未设定」并登记特效两格留空;
     均为既有格键;四格式继承同一份。"""
     tp = sf.truth_path()
     if tp is None:
@@ -147,11 +147,12 @@ def test_label_variants_and_blank_cells_registered_and_inherited():
     lab = sf.resolve("全卡")["labels"]
     assert set(lab["variants"]) == {"通用", "包裹", *NO_ABILITY.values()}
     for base, refined in NO_ABILITY.items():
-        four = lab["variants"][base]
-        assert set(four) == set(VARIANT_KEYS)
-        assert lab["variants"][refined] == {**four, "fx_1": "能力未设定"}
+        body = lab["variants"][base]
+        assert set(body) == set(VARIANT_KEYS)
+        assert lab["variants"][refined] == {**body, "fx_1": "能力未设定"}
         assert {"fx_1", "fx_2"} <= set(lab["blank_cells"][refined]) and base not in lab["blank_cells"]
     assert lab["variants"]["包裹"]["fabric_3"] == "腕部图·局部"
+    assert lab["variants"]["包裹"]["fabric_2"] == "腰部图·中段"
     for fmt in sf.formats_list():
         got = sf.resolve(fmt)["labels"]
         assert got["variants"] == lab["variants"] and got["blank_cells"] == lab["blank_cells"], fmt
