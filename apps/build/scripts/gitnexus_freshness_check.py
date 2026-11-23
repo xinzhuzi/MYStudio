@@ -8,49 +8,79 @@ impact()/detect_changes() 门禁对最新代码全部失明(新函数 resolve_br
 「重跑直至标记清除」。实测推翻:根因是 gitnexus 1.6.6 在增量写入段的原生崩溃,重跑只会再崩。
 同日升级到 1.6.12,当时据「退出码 0、无崩溃」判断增量刷新安全——这个判断是错的。
 
-1124 再勘正(现行口径):
-  * 1.6.12 的增量刷新同样不能用。2026-11-24 00:41 在「索引范围内无并发写入、被收文件全部是
-    合法 UTF-8」的条件下跑了一次增量,索引被写坏:File 表 6,648 行里 5,879 行的 id 与 filePath
-    变成空串,Const 表 4,661 行、Method 表 3,757 行同样,Function 表正文出现非法字符,全文索引
-    两张表没建成。上游 #3421、#3958 是同一类问题;修复落在换用新数据库组件的 1.6.13 预发布版,
-    正式版未发。「新进程试开库退出码 0」只说明库能打开,不代表内容完好。
+1124 经过(三个口径,现行的是最后一个):
+  * 00:41 在 gitnexus 1.6.12 上跑增量,索引被写坏:索引范围内无并发写入、被收文件全部是合法 UTF-8,
+    File 表 6,648 行里 5,879 行的 id 与 filePath 变成空串,Const 表 4,661 行、Method 表 3,757 行同样,
+    Function 表正文出现非法字符,全文索引两张表没建成。上游 #3421、#3958 是同一类问题。
+    「新进程试开库退出码 0」只说明库能打开,不代表内容完好——所以有了下面的完整性检查。
   * 「过期」改按内容判断,不再只比提交号。索引收录的是磁盘上的文件,索引器在 meta.json 里
     记了每个被收录文件的内容哈希(SHA-256)。本机同时有二十来个会话在提交,只比提交号的话
-    重建一结束就「落后」,而一次重建要 8–35 分钟,永远追不上;提交号落后但被收录的文件内容
+    重建一结束就「落后」,而一次重建要 10–35 分钟,永远追不上;提交号落后但被收录的文件内容
     都没变,索引就是最新的。
+  * 现行口径(2026-11-24 02:40 起):工具换成 1.6.13-rc.96(数据库组件 0.21.1),增量刷新实测完好——
+    隔离副本五轮(改 1 / 增 2 删 3 / 改 39 增 10 删 20 / 空增量 / 带原子开关改 1)与真仓库一轮,
+    每轮之后各表编号为空的行都是 0、全文索引无失败、语义向量不丢。1.6.12 上那个写坏缺陷在这个版本
+    没有复现。但证据只有六轮,所以:每次刷新之后都跑一遍 --strict;检查报损坏时全量重建。
 
 检查(全部只读):
   1. 内容比对:meta.fileHashes 里的每个文件,逐个重算 SHA-256;文件没了算「删」,内容不同算「改」;
      索引之后新出现、应当被收录的文件算「新增」。
   2. 完整性(两次只读 COUNT 查询,约 1 秒):apps/ 下的文件节点数不应少于 git 跟踪的源码文件数;
-     不应有 id 或路径为空的 File 行(后者是 1124 写坏事故的直接特征)。
-  3. incrementalInProgress 标记:上次 analyze 没有收尾。
-  4. lbug.wal 残留:提示性报告,非独立判据。
+     不应有 id 或路径为空的 File 行(1.6.12 写坏事故的直接特征)。
+  3. 中文切分设置是否一致:索引是用 GITNEXUS_FTS_CJK_SEGMENTATION=bigram 建的,刷新它的进程
+     也必须带同一个设置,否则工具会先做一次全量重建把模式翻回去(11-24 实测 23 分钟)。
+  4. 增量刷新的保护:索引元数据里记着建索引的工具版本;不是 1.6.13 及以上时,增量刷新禁用
+     (1.6.12 会写坏索引),只提示全量重建。
+  5. incrementalInProgress 标记:上次 analyze 没有收尾。
+  6. lbug.wal 残留:提示性报告,非独立判据。
 
 用法:
   python3 apps/build/scripts/gitnexus_freshness_check.py
       警告模式(默认):只打印,恒 exit 0 —— husky pre-commit 提交位用,绝不阻塞提交;
   python3 apps/build/scripts/gitnexus_freshness_check.py --strict
-      严格模式:内容过期/索引损坏/中断/无索引时 exit 1 —— 收尾仪式/打包前用。
+      严格模式:内容过期/索引损坏/设置不一致/中断/无索引时 exit 1 —— 收尾仪式/打包前用。
 
-刷新命令(都不要省略 --force,不带 --force 的 analyze 是增量,会写坏索引;--index-only 是不让工具在重建结束时
-往仓库里重写说明文件和技能文件,那些文件里「索引过期就跑 analyze」的指引已经改正):
-  node .gitnexus/run.cjs analyze --force --embeddings 0 --index-only
-                                                        完整重建,例行约 11 分钟;向量缓存不可用时(首次或索引被写坏后)约 35 分钟
-  node .gitnexus/run.cjs analyze --force --index-only      约 8 分钟,只比例行的完整重建快三四分钟,而且会丢一部分已有语义向量
-                                                            (2026-11-24 实测 102,728 → 83,706 条),只在赶时间时用
+刷新命令(--index-only 是不让工具在刷新结束时往仓库里重写说明文件和技能文件,那些文件里的指引
+已经按本机实况改正;GITNEXUS_ATOMIC_INCREMENTAL=1 是让增量先写副本、完成后再整体替换,中途失败
+不伤现有库):
+  GITNEXUS_FTS_CJK_SEGMENTATION=bigram GITNEXUS_ATOMIC_INCREMENTAL=1 \
+    node .gitnexus/run.cjs analyze --embeddings 0 --index-only
+      增量刷新,2026-11-24 实测 37 秒(改 1 件);只处理变过的文件,语义向量保留
+  GITNEXUS_FTS_CJK_SEGMENTATION=bigram node .gitnexus/run.cjs analyze --force --embeddings 0 --index-only
+      全量重建,例行约 10 分钟;首次建索引或向量缓存不可用时约 23–35 分钟
 """
 
 import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 
-REFRESH_CMD = "node .gitnexus/run.cjs analyze --force --embeddings 0 --index-only"
-REFRESH_NOTE = ("   不要跑增量刷新(不带 --force 的 analyze):gitnexus 1.6.12 的增量会把索引写坏"
-                "(2026-11-24 实测),详见 .claude/knowledge/search-sop.md「GitNexus 索引刷新」。")
+BIGRAM_ENV = "GITNEXUS_FTS_CJK_SEGMENTATION=bigram"
+FULL_CMD = f"{BIGRAM_ENV} node .gitnexus/run.cjs analyze --force --embeddings 0 --index-only"
+INCR_CMD = (f"{BIGRAM_ENV} GITNEXUS_ATOMIC_INCREMENTAL=1 "
+            "node .gitnexus/run.cjs analyze --embeddings 0 --index-only")
+REFRESH_CMD = INCR_CMD
+# 增量刷新在这个版本起实测完好(见模块文档)。更老的版本里 1.6.12 的增量会写坏索引,1.6.6 的增量原生崩溃。
+MIN_SAFE_INCREMENTAL_VERSION = (1, 6, 13)
+ENV_NOTE = (f"   刷新进程必须带 {BIGRAM_ENV}:索引是用这个设置建的(中文关键词检索),不带的话工具会先做一次"
+            "全量重建把设置翻回去。")
+
+
+def _indexer_version(meta):
+    """建这个索引的工具版本号,解析成可比较的元组;取不到返回 None。"""
+    raw = (meta.get("runnerIdentity") or {}).get("cliVersion") or ""
+    m = re.match(r"^(\d+)\.(\d+)\.(\d+)", str(raw))
+    return tuple(int(x) for x in m.groups()) if m else None
+
+
+def _incremental_allowed(version):
+    """只有实测过增量完好的版本才允许提示增量刷新;版本读不出来时不允许(按最坏情况处理)。"""
+    return version is not None and version >= MIN_SAFE_INCREMENTAL_VERSION
+
+
 MAX_FILE_BYTES = 512 * 1024  # 索引器跳过超过 512KB 的文件
 # 点开头的目录、vendor、测试夹具等是索引器的默认排除,不参与「新增」判断
 EXCLUDED_PARTS = {".git", ".gitnexus", "node_modules", "vendor", "fixtures", "__tests__", "__pycache__",
@@ -209,11 +239,21 @@ def main():
     if os.path.isfile(wal):
         size = os.path.getsize(wal)
         if size > 1024 * 1024:
-            wal_note = f"(注:lbug.wal {size // 1024}KB 残留;重建成功后仍在 = 上次没有正常收尾,见 search-sop)"
+            wal_note = f"(注:lbug.wal {size // 1024}KB 残留;刷新成功后仍在 = 上次没有正常收尾,见 search-sop)"
 
     integrity = _check_index_integrity(repo_root, _tracked_source_count(repo_root))
     emb = meta.get("stats", {}).get("embeddings", 0)
     indexed = str(meta.get("indexedAt") or "")[:19].replace("T", " ")
+    version = _indexer_version(meta)
+    incremental_ok = _incremental_allowed(version)
+    version_text = ".".join(str(x) for x in version) if version else "读不出"
+
+    # 索引不是用 bigram 建的 → 中文关键词检索不生效。这是索引本身的状态,任何时候都报。
+    if meta.get("cjkSegmentation", "none") != "bigram":
+        integrity.append(
+            "⚠️ GitNexus:索引不是用中文切分(bigram)建的,中文关键词检索会返回 0 条。"
+            f"带 {BIGRAM_ENV} 做一次全量重建即可开启:{FULL_CMD}"
+        )
 
     if problems:
         for p in problems:
@@ -221,13 +261,23 @@ def main():
         for p in samples:
             print(f"      {p}")
         if any("incrementalInProgress" in p for p in problems):
-            # 中断不等于「再跑一次增量就好」。库能打开也不代表内容完好:2026-11-24 实测
-            # 试开库退出码 0,同时 File 表已有 5,879 行被写坏。一律用全量重建恢复。
-            print("   上次刷新没有收尾。新进程试开索引库(gitnexus context -r MYStudio <任一符号>)退出码 139 "
-                  "= 库已打不开,所有会话新发起的查询都会崩;退出码 0 = 能读,但内容可能已坏(见下方完整性结果)。"
-                  "两种情况都用全量重建恢复,不要跑增量。")
-        print(f"   刷新(全量重建,例行约 11 分钟,索引被写坏之后约 35 分钟;期间查询不受影响): {REFRESH_CMD} {wal_note}".rstrip())
-        print(REFRESH_NOTE)
+            # 中断不等于「再跑一次就好」。库能打开也不代表内容完好:2026-11-24 实测
+            # 试开库退出码 0,同时 File 表已有 5,879 行被写坏。先看下方完整性结果再决定怎么恢复。
+            print("   上次刷新没有收尾。下方若报「编号或路径是空的」或 apps/ 下文件节点过少,索引已被写坏,只能全量重建;"
+                  "若完整性正常,再跑一次刷新即可。")
+        if integrity:
+            # 索引坏了、设置不对、或建索引的工具版本不允许增量:只给全量重建
+            print(f"   刷新(全量重建,例行约 10 分钟,向量缓存不可用时约 23–35 分钟;期间查询不受影响): {FULL_CMD} {wal_note}".rstrip())
+        elif incremental_ok:
+            print(f"   刷新(增量,2026-11-24 实测 37 秒;期间查询不受影响): {INCR_CMD} {wal_note}".rstrip())
+            print("   跑完后再跑一遍本脚本确认完整性(它认得出索引被写坏的特征)。")
+        else:
+            print(f"   刷新(全量重建,例行约 10 分钟;期间查询不受影响): {FULL_CMD} {wal_note}".rstrip())
+            print(f"   本索引是工具 {version_text} 建的,增量刷新不在实测完好的版本范围内(1.6.13 起),只做全量重建。")
+        if os.environ.get("GITNEXUS_FTS_CJK_SEGMENTATION", "").strip().lower() != "bigram":
+            # 只在索引过期、需要刷新时提一句:检查进程(如提交钩子)本身不需要带这个变量,
+            # 每次提交都报就成了噪音;而要拿上面那条命令去刷新时,变量已经在命令里。
+            print(ENV_NOTE)
         for note in integrity:
             print(note)
         sys.exit(1 if ns.strict else 0)
@@ -236,7 +286,8 @@ def main():
         print(f"✅ GitNexus 索引内容是最新的(提交号落后 {behind} 笔,但被收录的文件在建立索引({indexed}Z)之后没有变过;"
               f"embeddings {emb}){wal_note}")
     else:
-        print(f"✅ GitNexus 索引新鲜(HEAD {head[:12] if head else '?'},embeddings {emb}){wal_note}")
+        print(f"✅ GitNexus 索引新鲜(HEAD {head[:12] if head else '?'},embeddings {emb},"
+              f"建索引的工具 {version_text}){wal_note}")
     for note in integrity:
         print(note)
     if integrity:
@@ -282,8 +333,8 @@ def _check_index_integrity(repo_root, tracked):
             f"⚠️ GitNexus:索引里有 {broken} 个文件节点的编号或路径是空的(正常应为 0),索引已被写坏。"
         )
     if notes:
-        notes.append(f"   恢复办法只有全量重建(索引被写坏后约 35 分钟;期间查询不受影响): {REFRESH_CMD}")
-        notes.append(REFRESH_NOTE.strip())
+        notes.append(f"   恢复办法只有全量重建(索引被写坏后约 23–35 分钟;期间查询不受影响): {FULL_CMD}")
+        notes.append(ENV_NOTE)
     return notes
 
 

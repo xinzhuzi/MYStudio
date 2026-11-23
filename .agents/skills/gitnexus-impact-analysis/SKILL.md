@@ -52,7 +52,7 @@ Repository: <name> (<path>)   Worktree: <path>   Index: <commit>, <n> behind HEA
 4. Assess risk and report to user, echoing repo/worktree/index identity
 ```
 
-> If "Index is stale" → do **not** run a plain `analyze` (that is the incremental refresh, which corrupts the index on gitnexus 1.6.12; verified 2026-11-24, upstream #3421 / #3958). Check with `python3 apps/build/scripts/gitnexus_freshness_check.py --strict`; refresh only with a full rebuild: `node .gitnexus/run.cjs analyze --force --embeddings 0 --index-only` (about 20–35 min; queries keep working while it runs), then continue.
+> If "Index is stale" → run `python3 apps/build/scripts/gitnexus_freshness_check.py --strict` first (content-based staleness + index integrity, ~1 s), then run the exact refresh command it prints. On this machine (gitnexus 1.6.13-rc.96, verified 2026-11-24) that is the incremental refresh `GITNEXUS_FTS_CJK_SEGMENTATION=bigram GITNEXUS_ATOMIC_INCREMENTAL=1 node .gitnexus/run.cjs analyze --embeddings 0 --index-only` (~37 s), or the full rebuild `GITNEXUS_FTS_CJK_SEGMENTATION=bigram node .gitnexus/run.cjs analyze --force --embeddings 0 --index-only` (~10 min) when the index is damaged. Never drop the env var (the index is built with CJK bigram segmentation) and re-run the check afterwards, then continue.
 > If `.gitnexus/run.cjs` is missing, replace `node .gitnexus/run.cjs` with `npx gitnexus` in the fallback commands.
 
 ## Checklist
