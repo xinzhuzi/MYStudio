@@ -1,8 +1,21 @@
 import { existsSync, readFileSync } from "node:fs";
+// 1124 超线文件拆分:详情视图拆出卫星件,拼接清单随拆分扩容(断言本体零改动——
+// 拼接语义不变,文本落在哪个卫星件都算数)。
 const readDialogSources = () =>
-  readFileSync(new URL("./StudioAssetDetailView.tsx", import.meta.url), "utf8")
-    + readFileSync(new URL("./studio-asset-detail-actions.ts", import.meta.url), "utf8")
-    + readFileSync(new URL("./StudioAssetSettingDialog.tsx", import.meta.url), "utf8");
+  [
+    "./StudioAssetDetailView.tsx",
+    "./studio-asset-detail-helpers.ts",
+    "./studio-asset-detail-collapsed.ts",
+    "./studio-asset-detail-family-images.ts",
+    "./studio-asset-detail-prompt-source.ts",
+    "./studio-asset-detail-probe.ts",
+    "./studio-asset-detail-voice.ts",
+    "./studio-asset-detail-hydration.ts",
+    "./studio-asset-detail-meta-region.tsx",
+    "./studio-asset-detail-dialogs.tsx",
+    "./studio-asset-detail-actions.ts",
+    "./StudioAssetSettingDialog.tsx",
+  ].reduce((text, file) => text + readFileSync(new URL(file, import.meta.url), "utf8"), "");
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {

@@ -35,7 +35,6 @@
     "apps/frontend/components/panels/settings/McpSettingsTab.tsx": 4064,
     "apps/backend/remote_ssh/service.py": 2298,
     "apps/backend/comfyui/my_nodes/nodes/sheet_card_formats.py": 1865,
-    "apps/frontend/components/panels/assets/StudioAssetDetailView.tsx": 1621,
     "apps/backend/comfyui/my_nodes/nodes/director_executor.py": 1444,
     "apps/backend/comfyui/my_nodes/daoyan_server.py": 1083,
     "apps/backend/comfyui/my_nodes/line_mode_server.py": 984,
