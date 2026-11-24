@@ -157,6 +157,9 @@ export function mapProductionFlowNodesToStagePayloads(nodes: ProductionFlowNodeM
         // 全量不截断(09-13 用户裁定):磁贴文字溢出交给 CSS ellipsis
         tiles: node.storyboardTiles.map((tile) => ({
           index: tile.index,
+          // 1125 修复:补 id(引擎 storyboard-panel 磁贴行点击读 tile.id,
+          // 此前生产路径丢此字段→data-shot-id 恒空=行点击哑)
+          id: tile.id,
           // 09-14 用户裁定:磁贴只放标号(原 tile.title=描述铺字,弃用)
           title: `S${String(tile.index).padStart(2, "0")}`,
           preview: tile.id ? safePreviewName(tile.id) : undefined,

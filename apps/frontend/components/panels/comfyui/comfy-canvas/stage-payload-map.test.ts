@@ -84,6 +84,12 @@ describe("mapProductionFlowNodesToStagePayloads(1121 修复:生产路径动作�
     expect(remotion.shots![0].id).toBe("sb-1");
   });
 
+  it("bug5:分镜磁贴载荷带 id(storyboardTiles[].id → tiles[].id),磁贴行点击可达", () => {
+    const storyboard = mapProductionFlowNodesToStagePayloads(sevenNodes())
+      .find((p) => p.key === "storyboard")!;
+    expect(storyboard.tiles![0].id).toBe("sb-1");
+  });
+
   it("动作禁用语义随数据:零分镜禁生成类/全就绪禁再生成,停止类常驻", () => {
     const empty = mapProductionFlowNodesToStagePayloads([
       node("storyboard", { storyboardTiles: [] }),

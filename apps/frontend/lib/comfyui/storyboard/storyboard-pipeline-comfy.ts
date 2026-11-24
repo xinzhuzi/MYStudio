@@ -55,7 +55,12 @@ export interface StageNodePayload {
   /** 正文行(生成器已按节点宽换行;≤60 行,超限尾行指路阶段面板) */
   previewLines?: string[];
   /** 分镜 tiles(全量;preview=引擎 input 缩略图名 my-shot-*.jpg) */
-  tiles?: { index: number; title: string; preview?: string; hasImage: boolean; hasVideo: boolean; lines?: string; state?: string }[];
+  tiles?: {
+    /** 分镜 id(磁贴行点击 data-shot-id 用,引擎 storyboard-panel 读
+     * tile.id;两路构建器都必须带——1125 修复:生产映射丢此字段致行点击哑) */
+    id?: string;
+    index: number; title: string; preview?: string; hasImage: boolean; hasVideo: boolean; lines?: string; state?: string;
+  }[];
   /** 分镜表行(照老画布表格预览全字段;解析自 storyboardTable 正文) */
   tableRows?: {
     index: number; scene: string; title: string; duration: number; shotSize: string;
@@ -275,6 +280,9 @@ export function buildStageNodePayload(input: {
         actions: storyboardPanelStageActions(shots.length),
         tiles: shots.map((item) => ({
           index: item.index,
+          // 1125 修复:补 id(引擎 storyboard-panel 磁贴行点击读 tile.id,
+          // 与生产映射器同补,两路构建器都必须带)
+          id: item.id,
           // 09-14 用户裁定:磁贴只放标号——描述不铺字(悬停 tooltip 走 lines)
           title: `S${String(item.index).padStart(2, "0")}`,
           preview: shotPreviewName(item),
