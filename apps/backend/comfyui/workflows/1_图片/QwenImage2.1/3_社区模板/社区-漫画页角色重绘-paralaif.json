@@ -24,6 +24,10 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
+            15,
+            49,
+            50,
+            82,
             107
           ]
         },
@@ -666,18 +670,12 @@
         {
           "name": "panels",
           "type": "IMAGE",
-          "links": [
-            15,
-            49,
-            82
-          ]
+          "links": []
         },
         {
           "name": "clean_page",
           "type": "IMAGE",
-          "links": [
-            50
-          ]
+          "links": []
         }
       ],
       "properties": {
@@ -3962,7 +3960,7 @@
                 "name": "generated_text",
                 "type": "STRING",
                 "links": [
-                  169
+                  171
                 ]
               },
               {
@@ -4093,6 +4091,7 @@
                 "name": "*",
                 "type": "*",
                 "links": [
+                  169,
                   173
                 ]
               }
