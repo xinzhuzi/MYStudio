@@ -3175,6 +3175,8 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
 
   it("完成弹结果 Dialog:逐项 ✅ 文案+重启建议+[重启引擎]→POST /comfy/ssh/restart-engine;⚠️ pip 失败不阻断", async () => {
     const fetchMock = stubEngineSyncFetch({
+      // U3(1125 根修)后的诚实回执契约:在跑引擎=停旧+EngineDurable 拉起成功
+      restartReply: { ok: true, restarted: true, reason: "engine-restarted" },
       syncReply: (name) => ({
         items: [
           {
@@ -3218,8 +3220,9 @@ describe("McpSettingsTab·引擎同步(11-04 engine-sync)", () => {
         ),
       ).toBe(true);
     });
+    // U3(1125 根修):成功 toast 来自真实回执(outcome.message),不再是「发完即报」
     expect(toastMocks.success).toHaveBeenCalledWith(
-      expect.stringContaining("重启指令已发"),
+      expect.stringContaining("引擎已重启"),
     );
   });
 
