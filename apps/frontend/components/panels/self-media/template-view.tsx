@@ -34,7 +34,8 @@ export function TemplateView() {
 
   useEffect(() => {
     loadTemplates();
-  }, [loadTemplates]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 只在挂载时加载一次
 
   const filteredTemplates = selectedProductFilter === "all"
     ? templates
@@ -60,7 +61,9 @@ export function TemplateView() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("确定要删除这个模板吗?")) {
+    // TODO: 替换为应用内确认对话框
+    const confirmed = window.confirm("确定要删除这个模板吗?");
+    if (confirmed) {
       await deleteTemplate(id);
     }
   };
@@ -239,7 +242,8 @@ function TemplateEditor({
 
   const handleSubmit = () => {
     if (!form.name.trim()) {
-      alert("请输入模板名称");
+      // TODO: 替换为 toast 通知或表单验证
+      window.alert("请输入模板名称");
       return;
     }
     onSave(form);

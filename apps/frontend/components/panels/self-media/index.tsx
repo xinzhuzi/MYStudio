@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   AlertCircle,
@@ -107,7 +107,7 @@ function AccountsView() {
   const [loginPlatform, setLoginPlatform] = useState<SelfMediaPlatform | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  async function refreshAccounts() {
+  const refreshAccounts = useCallback(async () => {
     const bridge = getSelfMediaBridge();
     if (!activeProjectId || !bridge) return;
     setLoading(true);
@@ -127,7 +127,7 @@ function AccountsView() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [activeProjectId, setAccounts]);
 
   async function login(platform: SelfMediaPlatform) {
     const bridge = getSelfMediaBridge();
@@ -148,8 +148,7 @@ function AccountsView() {
 
   useEffect(() => {
     refreshAccounts();
-// eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeProjectId]);
+  }, [refreshAccounts]);
 
   return (
     <div className="space-y-4">
@@ -210,7 +209,8 @@ function ComposeView() {
     bridge.list().then((reply) => {
       if (reply.success) useProductStore.getState().setProducts(reply.value);
     }).catch(() => { /* 静默降级,产品下拉为空即可 */ });
-  }, [products.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 只在挂载时加载一次
 
   const capability = useMemo(() => getSelfMediaCapabilities("aitoearn-local", platform), [platform]);
   const supportsCurrentContentType = isSelfMediaPublishable("aitoearn-local", platform, contentType);
@@ -634,7 +634,8 @@ function GlobalHistoryView() {
 
   useEffect(() => {
     loadAllHistory();
-  }, [loadAllHistory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 只在挂载时加载一次
 
   return (
     <div className="space-y-4">
@@ -760,22 +761,6 @@ function ProductsView() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  async function refreshProducts() {
-    const bridge = getProductBridge();
-    if (!bridge) return;
-    setLoading(true);
-    setFeedback(null);
-    try {
-      const reply = await bridge.list();
-      if (!reply.success) throw new Error(reply.error.message);
-      setProducts(reply.value);
-    } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "产品列表加载失败");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function handleSave(product: Product) {
     const bridge = getProductBridge();
     if (!bridge) return;
@@ -822,10 +807,25 @@ function ProductsView() {
     }
   }
 
+  const refreshProducts = useCallback(async () => {
+    const bridge = getProductBridge();
+    if (!bridge) return;
+    setLoading(true);
+    setFeedback(null);
+    try {
+      const reply = await bridge.list();
+      if (!reply.success) throw new Error(reply.error.message);
+      setProducts(reply.value);
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "产品列表加载失败");
+    } finally {
+      setLoading(false);
+    }
+  }, [setProducts, setLoading, setFeedback]);
+
   useEffect(() => {
     refreshProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refreshProducts]);
 
   if (editingProduct) {
     return (
