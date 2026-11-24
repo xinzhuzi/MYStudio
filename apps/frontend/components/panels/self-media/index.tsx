@@ -628,9 +628,21 @@ function GlobalHistoryView() {
   const error = useSelfMediaGlobalStore((state) => state.error);
   const filterProductId = useSelfMediaGlobalStore((state) => state.filterProductId);
   const setFilterProductId = useSelfMediaGlobalStore((state) => state.setFilterProductId);
-  const pagedHistory = useSelfMediaGlobalStore((state) => state.getPagedHistory());
-  const total = useSelfMediaGlobalStore((state) => state.getFilteredTotal());
-  const canLoadMore = useSelfMediaGlobalStore((state) => state.hasMore());
+  const allHistory = useSelfMediaGlobalStore((state) => state.allHistory);
+  const currentPage = useSelfMediaGlobalStore((state) => state.currentPage);
+  const pageSize = useSelfMediaGlobalStore((state) => state.pageSize);
+
+  // 从稳定状态派生计算值，避免 selector 中调用方法导致无限重渲染
+  const filteredHistory = useMemo(
+    () => (filterProductId ? allHistory.filter((r) => r.productId === filterProductId) : allHistory),
+    [allHistory, filterProductId],
+  );
+  const pagedHistory = useMemo(
+    () => filteredHistory.slice(0, currentPage * pageSize),
+    [filteredHistory, currentPage, pageSize],
+  );
+  const total = filteredHistory.length;
+  const canLoadMore = currentPage * pageSize < total;
 
   useEffect(() => {
     loadAllHistory();
