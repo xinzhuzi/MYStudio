@@ -266,7 +266,9 @@ def _imports_for(names, index, keep_future=False):
         if stmt.module == "__future__" and not keep_future:
             continue
         order = [(a.asname or a.name) for a in stmt.names]
-        picked = sorted(wanted, key=order.index)
+        # 原样保留别名:原句 from x import y as z 复刻出来仍须是 y as z(只写 z 会导入不存在的名字)
+        spelling = {(a.asname or a.name): (a.name if not a.asname else f"{a.name} as {a.asname}") for a in stmt.names}
+        picked = [spelling[n] for n in sorted(wanted, key=order.index)]
         one = f"from {module} import {', '.join(picked)}"
         out.append(one if len(one) <= 99 else f"from {module} import (\n" + "".join(f"    {n},\n" for n in picked) + ")")
     return out, missing

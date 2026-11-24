@@ -32,7 +32,6 @@
     "apps/frontend/types/studio-production-types.ts"
   ],
   "caps": {
-    "apps/backend/remote_ssh/service.py": 2298,
     "apps/backend/comfyui/my_nodes/line_mode_server.py": 984
   },
   "notes": "1023 三债清理役立账,共16件=全量超限债务显式登记(非拆分完成):后端5(engine_manager 2771/plugin_manager 1877/krea2 1119/image_gen server 964/api_pe 1440=i2i型层注入役1022增长)+前端11(WorkbenchTab 1479/derived-asset-chain 1085/visual-continuity 994/sidecar-bridge 1017/资产链/渲染设置/Remotion校验等长期存量);各件候役=所属域拆分,拆分完成即从本账除名。1123 归位役立账 15 件,显式登记非拆分完成,各件候役=所属域拆分;sheet_card_formats 的内嵌快照是部署级兜底设计;h3-shot-video-workflow 已于 1123 D17 拆出 multiseg 组装器(h3-multiseg-video-workflow.ts)与共用底层(h3-workflow-shared.ts),972→790 行回到 WARN 档,自 exempt/caps 除名。;1123 Phase 6(设定卡全卡版式跟随武器类别)sheet_card_formats 封顶 1831→1865:_FROZEN 冻结快照随真源 formats.全卡.labels.variants/blank_cells 再生 +34 行(快照=部署级兜底,随真源增长属正当)"
