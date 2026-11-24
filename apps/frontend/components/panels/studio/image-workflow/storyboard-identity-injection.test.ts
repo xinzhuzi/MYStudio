@@ -103,6 +103,62 @@ describe("buildIdentityInjectionReferenceBlocks(参考N块编号=传输槽序)",
     );
     expect(blocks).toEqual(["参考 1：管事相"]);
   });
+
+  it("同名两身份段不得同号(1125 修):首个认领角色槽,后来者补号在全部传输槽之后", () => {
+    // 生产可达:装配层 visibleCharacters 名单只 trim 不去重(run 层 181-183),
+    // resolveIdentityFullTexts 逐名产段——同名两段旧实现 find 恒返同一槽→两块同号。
+    const duplicated = [
+      { name: "赵四", paragraph: "码头监工，肤色黝黑", origin: "asset-description" as const },
+      { name: "赵四", paragraph: "白发拄杖，左颊刀疤", origin: "asset-description" as const },
+    ];
+    expect(buildIdentityInjectionReferenceBlocks(duplicated, [
+      { slot: 1, role: "character", title: "赵四", imageUrl: "data:image/png;base64,z" },
+      { slot: 2, role: "scene", title: "金水河码头", imageUrl: "data:image/png;base64,s" },
+    ])).toEqual([
+      "参考 1：码头监工，肤色黝黑",
+      "参考 3：白发拄杖，左颊刀疤",
+    ]);
+  });
+
+  it("复合槽名两身份段同命中(李先生+管事→「李先生；管事」):第二段补号不撞(禁撞号)", () => {
+    // nameMatches 双向包含:两个不同名都 match 同一复合槽标题→旧实现同得「参考 1」。
+    expect(buildIdentityInjectionReferenceBlocks([
+      { name: "李先生", paragraph: "管事相", origin: "asset-description" },
+      { name: "管事", paragraph: "青布长衫，袖口磨白", origin: "asset-description" },
+    ], [
+      { slot: 1, role: "character", title: "李先生；管事", imageUrl: "data:image/png;base64,l" },
+      { slot: 2, role: "scene", title: "金水河码头", imageUrl: "data:image/png;base64,s" },
+    ])).toEqual([
+      "参考 1：管事相",
+      "参考 3：青布长衫，袖口磨白",
+    ]);
+  });
+
+  it("槽缺席补号连续不撞:多段无槽身份段依序紧接补号,不与传输槽/彼此撞号", () => {
+    const three = [
+      ...identities,
+      { name: "钱五", paragraph: "船夫，蓑衣斗笠", origin: "asset-description" as const },
+    ];
+    expect(buildIdentityInjectionReferenceBlocks(three, [
+      { slot: 1, role: "character", title: "独孤剑尘", imageUrl: "data:image/png;base64,c" },
+      { slot: 2, role: "scene", title: "金水河码头", imageUrl: "data:image/png;base64,s" },
+    ])).toEqual([
+      "参考 1：宽方厚重脸，浓眉压眼，身着米白色及膝粗布短袍，同一画面并排四视图",
+      "参考 3：码头监工，肤色黝黑",
+      "参考 4：船夫，蓑衣斗笠",
+    ]);
+  });
+
+  it("防御:手搓非连续槽入参(超出 mapper 连续契约)时补号取最大槽号之后,不与在档槽撞号", () => {
+    // 补号起点=全部传输槽之后取最大槽号(非总数):本例 slot2 在档,旧按总数
+    // (1)起补会让独孤剑尘补得「参考 2」与赵四的传输槽 2 撞号。
+    expect(buildIdentityInjectionReferenceBlocks(identities, [
+      { slot: 2, role: "character", title: "赵四", imageUrl: "data:image/png;base64,z" },
+    ])).toEqual([
+      "参考 3：宽方厚重脸，浓眉压眼，身着米白色及膝粗布短袍，同一画面并排四视图",
+      "参考 2：码头监工，肤色黝黑",
+    ]);
+  });
 });
 
 describe("appendIdentityInjectionBlocks(合稿形态)", () => {

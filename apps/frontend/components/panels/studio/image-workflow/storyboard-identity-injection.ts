@@ -93,7 +93,10 @@ export async function resolveIdentityFullTexts(
  * 入图,与 assetBindings 写路 slot(场景→角色→道具全量序)不同序,编号以传输
  * 槽为准才与送模参考图逐槽对上。角色身份段按名匹配挂对应角色传输槽号;无
  * 传输槽(超额被裁/零槽 t2i/槽缺席旧章)的身份段按序补号在全部传输槽之后
- * (参考序连续,禁空洞禁撞号)。场景/前帧槽无身份段,不产块(其槽号只占号)。
+ * (参考序连续,禁空洞禁撞号)。槽号认领制(1125 修,1121 复审遗留 medium):
+ * 槽号一经挂块不复用——nameMatches 双向包含,同名两身份段/复合槽名多段
+ * (如「李先生」与「管事」同命中「李先生；管事」)会指向同一角色槽,后来者
+ * 落入补号,禁两块同号。场景/前帧槽无身份段,不产块(其槽号只占号)。
  */
 export function buildIdentityInjectionReferenceBlocks(
   identities: readonly CanonicalIdentityParagraph[],
@@ -101,13 +104,18 @@ export function buildIdentityInjectionReferenceBlocks(
 ): string[] {
   const transportSlots = slots ?? [];
   const characterSlots = transportSlots.filter((slot) => slot.role === "character");
-  // 补号起点=全部传输槽之后(槽序物理连续 1..N,场景/前帧槽也占号,防撞)。
-  let nextSlot = transportSlots.length;
+  // 补号起点=全部传输槽之后(取最大槽号;mapper 槽序物理连续 1..N 时=总数,
+  // 场景/前帧槽也占号——按总数起补在手搓非连续槽入参下会与在档槽撞号)。
+  const claimedSlots = new Set<number>();
+  let nextSlot = Math.max(0, ...transportSlots.map((slot) => slot.slot));
   return identities
     .filter((identity) => identity.paragraph.trim())
     .map((identity) => {
-      const slot = characterSlots.find((candidate) => nameMatches(identity.name, candidate.title));
+      const slot = characterSlots.find(
+        (candidate) => !claimedSlots.has(candidate.slot) && nameMatches(identity.name, candidate.title),
+      );
       const number = slot?.slot ?? (nextSlot += 1);
+      claimedSlots.add(number);
       return `参考 ${number}：${identity.paragraph.trim()}`;
     });
 }
