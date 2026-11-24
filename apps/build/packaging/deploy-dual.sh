@@ -62,12 +62,21 @@ phase_a() {
     local dirty
     dirty=$(cd "$REPO_ROOT" && git status --short | head -5)
     if [ -n "$dirty" ]; then
-      log "⚠️  有未提交变更(前5条):"
-      echo "$dirty"
-      log "请先手动 commit 后再跑本脚本(--skip-push 可跳过推送)"
-      die "存在未提交变更, refuse to continue"
+      # 1125:并行会话的在途件不属本命令发起人、且用户明令立即部署时,可用
+      # DEPLOY_ALLOW_DIRTY=1 显式越过——只放过这道检查,不改变部署内容
+      # (Mac 侧打包用的仍是当时工作树;Windows 侧只拉 origin/main 的已提交代码)。
+      if [ "${DEPLOY_ALLOW_DIRTY:-0}" = "1" ]; then
+        log "⚠️  [用户明令越过] DEPLOY_ALLOW_DIRTY=1:带着未提交变更继续(前5条):"
+        echo "$dirty"
+      else
+        log "⚠️  有未提交变更(前5条):"
+        echo "$dirty"
+        log "请先手动 commit 后再跑本脚本(--skip-push 可跳过推送)"
+        die "存在未提交变更, refuse to continue"
+      fi
+    else
+      log "✅ 工作树干净"
     fi
-    log "✅ 工作树干净"
   fi
 
   # A2: 构建+安装+smoke
