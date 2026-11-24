@@ -104,7 +104,7 @@ MYSTUDIO_REQUIRE_HUMAN_APPROVAL=0 MYSTUDIO_CONTINUITY_POLICY=skip npm run remoti
 
 与 voiceMood 锚的关系——两档按镜选一：
 
-- **档A·全局锚（默认）**：单镜情绪单一时不逐句加注。角色台词经 `apps/frontend/lib/assist/image-studio/h3-shot-prompt.ts` 注入 H3 prompt 时自带每镜全局锚 `says in a <voiceMood> tone:`（voiceMood=storyboard.emotion，口径见 `.agents/skills/h3-prompt-writing/SKILL.md` Manying Pipeline Audio Policy）；旁白/TTS 侧的全局语气由 `voiceStyle` 承担。
+- **档A·全局锚（默认）**：单镜情绪单一时不逐句加注。角色台词经 `apps/frontend/lib/comfyui/h3/h3-shot-prompt.ts` 注入 H3 prompt 时自带每镜全局锚 `says in a <voiceMood> tone:`（voiceMood=storyboard.emotion，口径见 `.agents/skills/h3-prompt-writing/SKILL.md` Manying Pipeline Audio Policy）；旁白/TTS 侧的全局语气由 `voiceStyle` 承担。
 - **档B·逐句标注**：镜内情绪有转折或递进（见「多句台词时间递进」）时逐句加注。标注只住台本/配音指导层：`ttsSpokenText` 恒为净文本（Workflow 第 7 步净化规则不动，普通 TTS 会照读括号）；注入 H3 的角色台词文本同样不带【】，语气仍归 voiceMood 锚。仅当明确走指令跟随型 TTS（Seed Audio 类，帧内件#37）时，才把带标注全文直喂该 TTS。
 
 ### 声音公式（写过程参数，禁情绪结果词）

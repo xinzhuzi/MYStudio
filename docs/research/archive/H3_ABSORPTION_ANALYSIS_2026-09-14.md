@@ -38,7 +38,7 @@
 ### P0-1 官方提示词格式接线(前半已由并行会话落地,余量收窄)
 
 **已落地(09-14)**:`h3-shot-prompt.ts` 的 `buildShotH3Prompt` 已产出 I2V 官方格式——固定首行+`integrated_multimodal_description`/`overall_soundscape`/`non_diegetic_music` 三字段、`<d>[Chinese]` 对白+(S1) 说话人、音频三策略(ambient/full/bare=测试矩阵三开关)、17k+5 帧吸附、中文运镜→官方词表映射;`h3-shot-video-workflow.ts` 将其注入单镜模板。
-**余量**:①FL2VA 双图对齐句(尾帧秒数两位小数)/L2VA 尾帧起播/T2VA 三模式;②Ref2VA 六节结构(subject_definitions…retention_analysis…);③云端口径 `@素材名` 十二角色声明。落点同前:`lib/assist/image-studio/` 扩展 builder+金样本对拍。
+**余量**:①FL2VA 双图对齐句(尾帧秒数两位小数)/L2VA 尾帧起播/T2VA 三模式;②Ref2VA 六节结构(subject_definitions…retention_analysis…);③云端口径 `@素材名` 十二角色声明。落点同前:`lib/comfyui/` 扩展 builder+金样本对拍。
 **来源与合规**:照公开规范自研,不拷官方技能文件(MiniMax-H3 仓库 NO LICENSE)。
 
 ### P0-2 素材调度指令系统(镜级动作的后半)

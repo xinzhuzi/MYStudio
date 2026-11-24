@@ -151,7 +151,8 @@ export function validateSelfMediaDraft(value: unknown): SelfMediaValidationResul
     !isNonEmptyStringList(value.accountIds) ||
     (value.visibility !== "public" && value.visibility !== "private" && value.visibility !== "friends") ||
     !isValidDateString(value.updatedAt) ||
-    (value.scheduledAt !== undefined && typeof value.scheduledAt !== "string")
+    (value.scheduledAt !== undefined && typeof value.scheduledAt !== "string") ||
+    (value.productId !== undefined && typeof value.productId !== "string")
   ) {
     return { success: false, issues: [{ path: "", message: "草稿字段无效" }] };
   }
@@ -174,6 +175,7 @@ export function validateSelfMediaDraft(value: unknown): SelfMediaValidationResul
       visibility: value.visibility,
       platformOptions,
       scheduledAt: value.scheduledAt,
+      productId: typeof value.productId === "string" ? value.productId : undefined,
       updatedAt: value.updatedAt,
     },
   };

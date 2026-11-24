@@ -13,8 +13,8 @@
  *   回 editing;fail 保谱文本(改完可重渲染),reset 清空。
  * busy 态与单发/抽卡共用(组件里 bgmGenerating + chapterAudioBusy 同锁)。
  */
-import { unwrapComfyApiGraph } from "@/lib/assist/image-studio/comfy-workflow-import";
-import type { ComfyExecuteJobReply, ComfyExecutePayload, ComfyExecuteProgress } from "@/lib/assist/image-studio/comfy-execute";
+import { unwrapComfyApiGraph } from "@/lib/comfyui/comfy/comfy-workflow-import";
+import type { ComfyExecuteJobReply, ComfyExecutePayload, ComfyExecuteProgress } from "@/lib/comfyui/comfy/comfy-execute";
 
 /** 库内 ABC-only 出谱 API 工作流(repo 源只读 id;桥模板格式,画布侧栏不可见)。 */
 export const YUE2_ABC_API_WORKFLOW_ID = "repo:3_声音/Yue2/yue2-出谱-abc版-api.json";

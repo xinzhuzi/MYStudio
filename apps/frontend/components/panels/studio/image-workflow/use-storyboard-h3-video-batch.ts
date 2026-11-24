@@ -21,14 +21,14 @@ import {
   applySancaiStageBSource,
   SANCAI_CANVAS_ANCHORS,
   type ShotH3SancaiApiWorkflowResult,
-} from "@/lib/assist/image-studio/h3-shot-video-workflow";
-import { batchDispatchableH3Recipes, type H3ResolutionTier } from "@/lib/assist/image-studio/h3-workflow-recipes";
-import { dialogueAudioPolicy } from "@/lib/assist/image-studio/h3-shot-prompt";
-import { comfySidecarJson, persistComfyVideosFromResult, requestComfyEngineFree, type ComfyExecuteJobReply } from "@/lib/assist/image-studio/comfy-execute";
-import { getRemoteEngine } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
-import { consumeComfyBridgeWritebacks } from "@/lib/assist/image-studio/comfy-bridge-writeback-consumer";
-import { landH3ShotVideo, probeH3VideoDurationUs } from "@/lib/assist/image-studio/h3-shot-landing";
-import { readStoryboardImageB64 } from "@/lib/assist/image-studio/storyboard-overview-sync";
+} from "@/lib/comfyui/h3/h3-shot-video-workflow";
+import { batchDispatchableH3Recipes, type H3ResolutionTier } from "@/lib/comfyui/h3/h3-workflow-recipes";
+import { dialogueAudioPolicy } from "@/lib/comfyui/h3/h3-shot-prompt";
+import { comfySidecarJson, persistComfyVideosFromResult, requestComfyEngineFree, type ComfyExecuteJobReply } from "@/lib/comfyui/comfy/comfy-execute";
+import { getRemoteEngine } from "@/lib/comfyui/comfy/comfy-sidecar-bridge";
+import { consumeComfyBridgeWritebacks } from "@/lib/comfyui/comfy/comfy-bridge-writeback-consumer";
+import { landH3ShotVideo, probeH3VideoDurationUs } from "@/lib/comfyui/h3/h3-shot-landing";
+import { readStoryboardImageB64 } from "@/lib/comfyui/storyboard/storyboard-overview-sync";
 import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useProjectStore } from "@/stores/project/project-store";

@@ -1,14 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   AlertCircle,
+  Box,
   CheckCircle2,
+  Copy,
+  Download,
   FileVideo2,
+  Globe2,
   History,
+  Layers,
+  Link2,
   Loader2,
+  Pencil,
+  Plus,
   Radio,
   RotateCcw,
   Send,
+  Trash2,
   Users2,
   XCircle,
 } from "lucide-react";
@@ -21,6 +30,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useSelfMediaStore } from "@/stores/self-media/self-media-store";
+import { useProductStore } from "@/stores/product/product-store";
+import { useSelfMediaGlobalStore } from "@/stores/self-media/self-media-global-store";
 import {
   getSelfMediaCapabilities,
   isSelfMediaPublishable,
@@ -28,18 +39,32 @@ import {
 } from "@/lib/self-media/capabilities";
 import { validateSelfMediaDraft } from "@/lib/self-media/contracts";
 import type { SelfMediaContentType, SelfMediaDraft, SelfMediaPlatform, SelfMediaProviderSummary, SelfMediaTask } from "@/types/self-media";
+import type { Product, ProductLink, ProductCtaType } from "@/types/product";
+import { BatchPublishView } from "./batch-publish-view";
+import { TemplateView } from "./template-view";
+import { ShowcaseView } from "./showcase-view";
+import { buildUtmUrl, copyUtmToClipboard } from "@/lib/self-media/utm";
 
-type SelfMediaSection = "accounts" | "compose" | "tasks" | "history";
+type SelfMediaSection = "accounts" | "compose" | "batch" | "tasks" | "history" | "products" | "global" | "templates" | "showcase";
 
 function getSelfMediaBridge() {
   return typeof window === "undefined" ? undefined : window.selfMedia;
 }
 
+function getProductBridge() {
+  return typeof window === "undefined" ? undefined : window.productBridge;
+}
+
 const sections: Array<{ id: SelfMediaSection; label: string; icon: typeof Users2 }> = [
   { id: "accounts", label: "账号", icon: Users2 },
   { id: "compose", label: "发布", icon: Send },
+  { id: "batch", label: "全平台", icon: Globe2 },
   { id: "tasks", label: "任务", icon: Radio },
   { id: "history", label: "历史", icon: History },
+  { id: "products", label: "产品", icon: Box },
+  { id: "templates", label: "模板", icon: Pencil },
+  { id: "showcase", label: "展示页", icon: Globe2 },
+  { id: "global", label: "全部产品", icon: Layers },
 ];
 
 const selfMediaPlatformCapabilities = Object.values(SELF_MEDIA_CAPABILITY_MANIFEST);
@@ -157,6 +182,7 @@ function ComposeView() {
   const saveDraft = useSelfMediaStore((state) => state.saveDraft);
   const upsertTask = useSelfMediaStore((state) => state.upsertTask);
   const addHistoryRecord = useSelfMediaStore((state) => state.addHistoryRecord);
+  const products = useProductStore((state) => state.products);
   const [contentType, setContentType] = useState<SelfMediaContentType>("video");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -171,6 +197,20 @@ function ComposeView() {
   const [scheduledAt, setScheduledAt] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [utmBaseUrl, setUtmBaseUrl] = useState("");
+  const [utmCopied, setUtmCopied] = useState(false);
+  const utmCopyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 首次进入 ComposeView 时预加载产品列表(不依赖用户先访问「产品」tab)
+  useEffect(() => {
+    if (products.length > 0) return;
+    const bridge = getProductBridge();
+    if (!bridge) return;
+    bridge.list().then((reply) => {
+      if (reply.success) useProductStore.getState().setProducts(reply.value);
+    }).catch(() => { /* 静默降级,产品下拉为空即可 */ });
+  }, [products.length]);
 
   const capability = useMemo(() => getSelfMediaCapabilities("aitoearn-local", platform), [platform]);
   const supportsCurrentContentType = isSelfMediaPublishable("aitoearn-local", platform, contentType);
@@ -187,6 +227,39 @@ function ComposeView() {
     [assetIds, projectMedia],
   );
   const selectedCover = useMemo(() => projectMedia.find((media) => media.id === coverAssetId && Boolean(media.url)), [coverAssetId, projectMedia]);
+
+  // ─── B4 UTM 推广链接 ────────────────────────────────────────────────────────
+  const selectedProduct = useMemo(
+    () => products.find((p) => p.id === selectedProductId) ?? null,
+    [products, selectedProductId],
+  );
+  const utmUrl = useMemo(() => {
+    if (!utmBaseUrl.trim() || !selectedProduct) return "";
+    return buildUtmUrl(utmBaseUrl.trim(), {
+      source: capability?.displayName ?? platform,
+      medium: "social",
+      campaign: selectedProduct.promotion.utm.campaign || selectedProduct.slug,
+      content: title || undefined,
+    });
+  }, [utmBaseUrl, selectedProduct, capability, platform, title]);
+
+  async function handleCopyUtm() {
+    if (!utmUrl) return;
+    const ok = await copyUtmToClipboard(utmUrl);
+    if (!ok) return;
+    setUtmCopied(true);
+    if (utmCopyTimerRef.current) clearTimeout(utmCopyTimerRef.current);
+    utmCopyTimerRef.current = setTimeout(() => setUtmCopied(false), 2000);
+  }
+
+  const handleProductSelect = (productId: string) => {
+    setSelectedProductId(productId);
+    const product = products.find((p) => p.id === productId);
+    if (product) {
+      setDescription(product.description);
+      setTopics(product.promotion.defaultTags.map((tag) => `#${tag}`).join(" "));
+    }
+  };
   const draft: SelfMediaDraft | null = activeProjectId
     ? {
         id: "self-media-draft-editor",
@@ -278,6 +351,60 @@ function ComposeView() {
           ))}
           <span className="ml-auto text-xs text-muted-foreground">当前平台：{capability?.displayName ?? "未支持"}</span>
         </div>
+        {products.length > 0 && (
+          <label className="block space-y-1.5 text-sm">
+            <span className="text-muted-foreground">关联产品</span>
+            <select
+              aria-label="关联产品"
+              value={selectedProductId}
+              onChange={(event) => handleProductSelect(event.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">不关联产品</option>
+              {products.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {/* B4 推广链接生成器 */}
+        {selectedProduct && (
+          <div className="space-y-2 rounded-lg border border-border/60 bg-background/30 p-3">
+            <div className="flex items-center gap-2">
+              <Link2 className="h-3.5 w-3.5 text-primary" />
+              <span className="text-xs font-medium">推广链接</span>
+              <span className="text-xs text-muted-foreground">
+                source={capability?.displayName ?? platform} · campaign={selectedProduct.promotion.utm.campaign || selectedProduct.slug}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                aria-label="落地页地址"
+                value={utmBaseUrl}
+                onChange={(e) => setUtmBaseUrl(e.target.value)}
+                placeholder="https://example.com/product"
+                className="flex-1 text-xs"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCopyUtm}
+                disabled={!utmUrl}
+                className="gap-1.5"
+              >
+                {utmCopied ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {utmCopied ? "已复制" : "复制"}
+              </Button>
+            </div>
+            {utmUrl && (
+              <p className="truncate text-xs text-muted-foreground" title={utmUrl}>
+                {utmUrl}
+              </p>
+            )}
+          </div>
+        )}
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">标题</span><Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="例如：三分钟看懂这一集" maxLength={100} /></label>
           <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">媒体资产</span>
@@ -442,11 +569,462 @@ function TasksView() {
 function HistoryView() {
   const activeProjectId = useSelfMediaStore((state) => state.activeProjectId);
   const allHistory = useSelfMediaStore((state) => state.history);
+  const products = useProductStore((state) => state.products);
+  const [filterProductId, setFilterProductId] = useState<string>("");
+
   const history = useMemo(
-    () => (activeProjectId ? allHistory.filter((record) => record.projectId === activeProjectId) : []),
-    [activeProjectId, allHistory],
+    () => {
+      let filtered = activeProjectId ? allHistory.filter((record) => record.projectId === activeProjectId) : [];
+      if (filterProductId) {
+        filtered = filtered.filter((record) => record.productId === filterProductId);
+      }
+      return filtered;
+    },
+    [activeProjectId, allHistory, filterProductId],
   );
-  return <RecordList title="发布历史" icon={History} empty="发布完成后，结果与错误证据会保存在当前项目。" items={history.map((record) => ({ id: record.id, title: record.resultUrl ?? record.id, description: `${statusLabel(record.status)} · ${record.updatedAt}${record.error ? ` · ${record.error.code}: ${record.error.message}` : ""}`, status: record.status }))} />;
+
+  return (
+    <div className="space-y-4">
+      {products.length > 0 && (
+        <label className="block space-y-1.5 text-sm">
+          <span className="text-muted-foreground">按产品筛选</span>
+          <select
+            aria-label="按产品筛选历史"
+            value={filterProductId}
+            onChange={(event) => setFilterProductId(event.target.value)}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="">全部产品</option>
+            {products.map((product) => (
+              <option key={product.id} value={product.id}>
+                {product.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <RecordList
+        title="发布历史"
+        icon={History}
+        empty="发布完成后，结果与错误证据会保存在当前项目。"
+        items={history.map((record) => ({
+          id: record.id,
+          title: record.resultUrl ?? record.id,
+          description: `${statusLabel(record.status)} · ${record.updatedAt}${record.error ? ` · ${record.error.code}: ${record.error.message}` : ""}`,
+          status: record.status,
+        }))}
+      />
+    </div>
+  );
+}
+
+/** B3: 跨项目全局历史视图——聚合所有项目的 task history */
+function GlobalHistoryView() {
+  const products = useProductStore((state) => state.products);
+  const loadAllHistory = useSelfMediaGlobalStore((state) => state.loadAllHistory);
+  const loadMore = useSelfMediaGlobalStore((state) => state.loadMore);
+  const loading = useSelfMediaGlobalStore((state) => state.loading);
+  const loaded = useSelfMediaGlobalStore((state) => state.loaded);
+  const error = useSelfMediaGlobalStore((state) => state.error);
+  const filterProductId = useSelfMediaGlobalStore((state) => state.filterProductId);
+  const setFilterProductId = useSelfMediaGlobalStore((state) => state.setFilterProductId);
+  const pagedHistory = useSelfMediaGlobalStore((state) => state.getPagedHistory());
+  const total = useSelfMediaGlobalStore((state) => state.getFilteredTotal());
+  const canLoadMore = useSelfMediaGlobalStore((state) => state.hasMore());
+
+  useEffect(() => {
+    loadAllHistory();
+  }, [loadAllHistory]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <Layers className="h-4 w-4 text-primary" />
+            全部产品历史
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            跨项目聚合发布历史，共 {total} 条记录
+          </p>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => loadAllHistory(true)} disabled={loading}>
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+          刷新
+        </Button>
+      </div>
+
+      {products.length > 0 && (
+        <label className="block space-y-1.5 text-sm">
+          <span className="text-muted-foreground">按产品筛选</span>
+          <select
+            aria-label="按产品筛选全局历史"
+            value={filterProductId}
+            onChange={(event) => setFilterProductId(event.target.value)}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="">全部产品</option>
+            {products.map((product) => (
+              <option key={product.id} value={product.id}>
+                {product.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {error && (
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      )}
+
+      {loading && !loaded ? (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-sm text-muted-foreground">正在加载跨项目历史...</span>
+        </div>
+      ) : pagedHistory.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border/80 px-5 py-10 text-center text-sm text-muted-foreground">
+          {filterProductId ? "该产品暂无发布历史。" : "暂无跨项目发布历史。"}
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2">
+            {pagedHistory.map((record) => (
+              <div
+                key={`${record.projectId}-${record.id}`}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/40 px-3 py-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-medium">{record.resultUrl ?? record.id}</p>
+                    <Badge variant="outline" className="shrink-0 text-xs">
+                      {record.projectName}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
+                    {statusLabel(record.status)} · {record.finishedAt ?? record.updatedAt}
+                    {record.error ? ` · ${record.error.code}: ${record.error.message}` : ""}
+                  </p>
+                </div>
+                <Badge variant={statusVariant(record.status)}>{statusLabel(record.status)}</Badge>
+              </div>
+            ))}
+          </div>
+
+          {canLoadMore && (
+            <div className="flex justify-center pt-4">
+              <Button variant="outline" onClick={loadMore} disabled={loading}>
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "加载更多"}
+              </Button>
+            </div>
+          )}
+
+          <p className="text-center text-xs text-muted-foreground">
+            显示 {pagedHistory.length} / {total} 条记录
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function createEmptyProduct(): Product {
+  const now = Date.now();
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    slug: "",
+    description: "",
+    detail: "",
+    coverImage: "",
+    links: [],
+    tags: [],
+    projectIds: [],
+    brandProfile: { primaryColor: "", tone: [], forbiddenWords: [] },
+    promotion: { defaultTags: [], utm: { campaign: "" }, ctaType: "learn_more" },
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function ProductsView() {
+  const products = useProductStore((state) => state.products);
+  const setProducts = useProductStore((state) => state.setProducts);
+  const upsertProductLocal = useProductStore((state) => state.upsertProduct);
+  const removeProductLocal = useProductStore((state) => state.removeProduct);
+  const setLoading = useProductStore((state) => state.setLoading);
+  const loading = useProductStore((state) => state.loading);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  async function refreshProducts() {
+    const bridge = getProductBridge();
+    if (!bridge) return;
+    setLoading(true);
+    setFeedback(null);
+    try {
+      const reply = await bridge.list();
+      if (!reply.success) throw new Error(reply.error.message);
+      setProducts(reply.value);
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "产品列表加载失败");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSave(product: Product) {
+    const bridge = getProductBridge();
+    if (!bridge) return;
+    setFeedback(null);
+    try {
+      const reply = await bridge.upsert({ product });
+      if (!reply.success) throw new Error(reply.error.message);
+      upsertProductLocal(reply.value);
+      setEditingProduct(null);
+      setFeedback("产品已保存");
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "产品保存失败");
+    }
+  }
+
+  async function handleDelete(id: string) {
+    const bridge = getProductBridge();
+    if (!bridge) return;
+    setFeedback(null);
+    try {
+      const reply = await bridge.delete({ id });
+      if (!reply.success) throw new Error(reply.error.message);
+      removeProductLocal(id);
+      if (editingProduct?.id === id) setEditingProduct(null);
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "产品删除失败");
+    }
+  }
+
+  async function handleExport() {
+    const bridge = getProductBridge();
+    if (!bridge) return;
+    setFeedback(null);
+    try {
+      const reply = await bridge.exportWithDialog();
+      if (!reply.success) throw new Error(reply.error.message);
+      if ("cancelled" in reply.value) {
+        setFeedback("导出已取消");
+      } else {
+        setFeedback(`产品数据已导出到 ${reply.value.savedPath}`);
+      }
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "产品导出失败");
+    }
+  }
+
+  useEffect(() => {
+    refreshProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (editingProduct) {
+    return (
+      <ProductEditForm
+        product={editingProduct}
+        onSave={handleSave}
+        onCancel={() => setEditingProduct(null)}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <Box className="h-4 w-4 text-primary" />产品目录
+          </h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={refreshProducts} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+            刷新
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleExport} disabled={products.length === 0}>
+            <Download className="h-4 w-4" />
+            导出
+          </Button>
+          <Button size="sm" onClick={() => setEditingProduct(createEmptyProduct())}>
+            <Plus className="h-4 w-4" />
+            新增
+          </Button>
+        </div>
+      </div>
+      <div className="space-y-3">
+        {products.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border/80 px-5 py-10 text-center text-sm text-muted-foreground">
+            暂无产品，点击「新增」添加第一个产品
+          </div>
+        ) : (
+          products.map((product) => (
+            <Card key={product.id} className="border-border/70 bg-card/70 shadow-black/5">
+              <CardContent className="flex items-start justify-between gap-4 p-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-sm font-medium">{product.name || "未命名产品"}</span>
+                    <Badge variant="outline">{product.slug}</Badge>
+                  </div>
+                  {product.description && (
+                    <p className="mt-1 truncate text-xs text-muted-foreground">{product.description}</p>
+                  )}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {product.tags.slice(0, 3).map((tag) => (
+                      <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+                    ))}
+                    {product.tags.length > 3 && (
+                      <Badge variant="secondary" className="text-xs">+{product.tags.length - 3}</Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setEditingProduct(product)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleDelete(product.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+      {feedback && (
+        <div className="flex items-start gap-2 rounded-lg border border-border/70 bg-background/50 px-3 py-2 text-xs text-muted-foreground">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          {feedback}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProductEditForm({ product, onSave, onCancel }: { product: Product; onSave: (product: Product) => void; onCancel: () => void }) {
+  const [form, setForm] = useState<Product>(product);
+  const [newLink, setNewLink] = useState<ProductLink>({ label: "", url: "", platform: "web" });
+
+  function updateField<K extends keyof Product>(key: K, value: Product[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function addLink() {
+    if (!newLink.label || !newLink.url) return;
+    updateField("links", [...form.links, newLink]);
+    setNewLink({ label: "", url: "", platform: "web" });
+  }
+
+  function removeLink(index: number) {
+    updateField("links", form.links.filter((_, i) => i !== index));
+  }
+
+  function updateTags(value: string) {
+    updateField("tags", value.split(/[\s,，]+/).filter(Boolean));
+  }
+
+  function updatePromotionDefaultTags(value: string) {
+    updateField("promotion", { ...form.promotion, defaultTags: value.split(/[\s,，]+/).filter(Boolean) });
+  }
+
+  return (
+    <Card className="border-border/70 bg-card/70 shadow-black/10">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Box className="h-4 w-4 text-primary" />
+          {product.name ? "编辑产品" : "新增产品"}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="space-y-1.5 text-sm">
+            <span className="text-muted-foreground">产品名称</span>
+            <Input value={form.name} onChange={(e) => updateField("name", e.target.value)} placeholder="例如：漫影工作室" />
+          </label>
+          <label className="space-y-1.5 text-sm">
+            <span className="text-muted-foreground">URL 标识 (slug)</span>
+            <Input value={form.slug} onChange={(e) => updateField("slug", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))} placeholder="例如：manying-studio" />
+          </label>
+        </div>
+        <label className="block space-y-1.5 text-sm">
+          <span className="text-muted-foreground">一句话描述</span>
+          <Input value={form.description} onChange={(e) => updateField("description", e.target.value)} placeholder="简短描述产品用途" />
+        </label>
+        <label className="block space-y-1.5 text-sm">
+          <span className="text-muted-foreground">详细描述 (Markdown)</span>
+          <Textarea value={form.detail} onChange={(e) => updateField("detail", e.target.value)} rows={4} placeholder="详细的产品介绍，支持 Markdown 格式" />
+        </label>
+        <label className="block space-y-1.5 text-sm">
+          <span className="text-muted-foreground">封面图路径</span>
+          <Input value={form.coverImage} onChange={(e) => updateField("coverImage", e.target.value)} placeholder="/images/product-cover.png" />
+        </label>
+        <label className="block space-y-1.5 text-sm">
+          <span className="text-muted-foreground">标签</span>
+          <Input value={form.tags.join(", ")} onChange={(e) => updateTags(e.target.value)} placeholder="用逗号分隔，例如：视频, 创作, AI" />
+        </label>
+        <div className="space-y-3 rounded-lg border border-border/60 bg-background/30 p-3">
+          <span className="text-sm text-muted-foreground">CTA 链接</span>
+          <div className="space-y-2">
+            {form.links.map((link, index) => (
+              <div key={index} className="flex items-center gap-2 rounded-lg border border-border/60 bg-background/40 px-3 py-2">
+                <span className="truncate text-sm">{link.label}</span>
+                <span className="truncate text-xs text-muted-foreground">{link.url}</span>
+                <Button size="sm" variant="ghost" onClick={() => removeLink(index)}>
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <Input value={newLink.label} onChange={(e) => setNewLink({ ...newLink, label: e.target.value })} placeholder="按钮文字" className="flex-1" />
+            <Input value={newLink.url} onChange={(e) => setNewLink({ ...newLink, url: e.target.value })} placeholder="链接地址" className="flex-2" />
+            <Button size="sm" variant="outline" onClick={addLink} disabled={!newLink.label || !newLink.url}>
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        <div className="space-y-3 rounded-lg border border-border/60 bg-background/30 p-3">
+          <span className="text-sm text-muted-foreground">推广配置</span>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="space-y-1.5 text-sm">
+              <span className="text-muted-foreground">默认话题标签</span>
+              <Input value={form.promotion.defaultTags.join(", ")} onChange={(e) => updatePromotionDefaultTags(e.target.value)} placeholder="用逗号分隔" />
+            </label>
+            <label className="space-y-1.5 text-sm">
+              <span className="text-muted-foreground">UTM Campaign</span>
+              <Input value={form.promotion.utm.campaign} onChange={(e) => updateField("promotion", { ...form.promotion, utm: { campaign: e.target.value } })} placeholder="例如：manying-studio" />
+            </label>
+            <label className="space-y-1.5 text-sm">
+              <span className="text-muted-foreground">CTA 类型</span>
+              <select
+                value={form.promotion.ctaType}
+                onChange={(e) => updateField("promotion", { ...form.promotion, ctaType: e.target.value as ProductCtaType })}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="access">接入</option>
+                <option value="read">阅读</option>
+                <option value="download">下载</option>
+                <option value="learn_more">了解更多</option>
+                <option value="community">加入社区</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-border/60 pt-4">
+          <Button variant="outline" onClick={onCancel}>取消</Button>
+          <Button onClick={() => onSave(form)} disabled={!form.name || !form.slug}>保存</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function RecordList({ title, empty, icon: Icon, items, feedback, renderActions }: { title: string; empty: string; icon: typeof Radio; items: Array<{ id: string; title: string; description: string; status: string; task?: SelfMediaTask }>; feedback?: string | null; renderActions?: (item: { id: string; title: string; description: string; status: string; task: SelfMediaTask }) => ReactNode }) {
@@ -493,8 +1071,13 @@ export function SelfMediaPanel() {
   const sectionContent = {
     accounts: <AccountsView />,
     compose: <ComposeView />,
+    batch: <BatchPublishView />,
     tasks: <TasksView />,
     history: <HistoryView />,
+    products: <ProductsView />,
+    templates: <TemplateView />,
+    showcase: <ShowcaseView />,
+    global: <GlobalHistoryView />,
   }[section];
 
   return (

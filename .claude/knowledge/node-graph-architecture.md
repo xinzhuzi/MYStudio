@@ -130,7 +130,7 @@
 
 | 挂载面 | 位置 | 说明 |
 |---|---|---|
-| 辅助·图片工作室 tab | `FE/components/panels/assist/ImageStudio.tsx`(壳)→ `comfy-canvas/ComfyCanvasSwap` | FreedomView 五 tab(image/video/cinema/tts/comfy)之一 |
+| 辅助·图片工作室 tab | `FE/components/panels/comfyui/ImageStudio.tsx`(壳)→ `comfy-canvas/ComfyCanvasSwap` | FreedomView 五 tab(image/video/cinema/tts/comfy)之一 |
 | 主视图·分镜制作 | `FE/components/panels/studio/index.tsx` storyboard tab → ComfyCanvasSwap | 批8 主视图化 |
 | 主视图·分镜画布 | 同上 imageWorkflow tab → ComfyCanvasSwap(带 onBack) | 资产/分镜深链入口 |
 | 辅助·第六 ComfyUI tab | `comfy-canvas/ComfyCanvasStudio` 直挂 | 完整版(多引擎信息栏) |
@@ -154,8 +154,8 @@
 | `BE/comfyui/bridge_sidepanel.py` | 分镜快照数据面:渲染层周期 POST,webview 内扩展 GET 同址(CORS 回显+令牌);15 分钟 stale 标注 |
 | `BE/comfyui/bridge_inbox.py` | 生成结果收件箱(出图回写业务的落点) |
 | `BE/comfyui/bridge_contract.py` | 令牌单源;`image_gen/server.py` 启动时断言与 LOCAL_TOKEN 一致,漂移即拒绝启动 |
-| `FE/lib/assist/image-studio/comfy-bridge-writeback-consumer.ts` | 渲染层消费收件箱(ComfyCanvasStudio 轮询驱动) |
-| `FE/lib/assist/image-studio/storyboard-overview-sync.ts` | 总览图库保鲜(指纹守卫:分镜未动不导入) |
+| `FE/lib/comfyui/comfy/comfy-bridge-writeback-consumer.ts` | 渲染层消费收件箱(ComfyCanvasStudio 轮询驱动) |
+| `FE/lib/comfyui/storyboard/storyboard-overview-sync.ts` | 总览图库保鲜(指纹守卫:分镜未动不导入) |
 
 ## 16. 工作流库(09-10 打通:sidecar 库=ComfyUI 原生目录)
 
@@ -176,7 +176,7 @@
 ## 17. 存量迁移(09-10 打通:画布头部一键入口;**入口已退役**——tree-shake 不进包,本节=史档,见 `docs/comfyui-kb/定制代码地图.md` §二③;本节两件源文件已于 2026-11-23 删除,考古用 git log --follow 按文件名取回)
 
 - **入口**:ComfyCanvasSwap 头部「导入存量画布(N)」——N=studio store imageWorkflows 数(N>0 才显示);单飞防连点;三挂载面全生效。
-- **链路**:`migrateWorkflowsToLibraryWithToast`(`FE/lib/assist/image-studio/workflow-migrate-batch.ts`)→ flows=useStudioStore.imageWorkflows → `exportImageWorkflowToComfy` 双格式(UI 格式+API 格式随身 `ui.extra.apiFormat`+`manyingMigration` 报告,库内取用即得)→ 参考图占位上传(best-effort,引擎须在跑;`comfyImageUrlToB64` 读取)→ `transport.importFiles(files, "skip")`。
+- **链路**:`migrateWorkflowsToLibraryWithToast`(`FE/lib/comfyui/workflow-migrate-batch.ts`)→ flows=useStudioStore.imageWorkflows → `exportImageWorkflowToComfy` 双格式(UI 格式+API 格式随身 `ui.extra.apiFormat`+`manyingMigration` 报告,库内取用即得)→ 参考图占位上传(best-effort,引擎须在跑;`comfyImageUrlToB64` 读取)→ `transport.importFiles(files, "skip")`。
 - **幂等口径**:无值守入口默认 **skip**(重复点击只补新增流,绝不灌「名 2」副本);keep-both 仅留给显式导入场景。
 - **toast**:成功「N 入库 / M 失败;参考图 K 张…——在 ComfyUI 画布左侧『工作流』里可打开」;总 0 流=info 提示。长任务禁模态(后台跑+toast 铁律)。
 - **实弹验收器**:`workflow-migrate-batch.live.test.ts`(env 门控 `MANYING_MIGRATE_LIVE=1`+sidecar17595+引擎在跑):读真实流文件→全量导出→object_info 校验缺类→抽检≥10 真提交引擎执行→收件箱回写命中。
@@ -212,9 +212,9 @@
 | 改自有节点 | `BE/comfyui/my_nodes/`(节点+web 扩展+tests;原 manying_nodes 10-03 改名);object_info 验证,勿依赖直 import |
 | 改桥/回写 | 后端 bridge_*.py;渲染层 comfy-bridge-writeback-consumer / storyboard-overview-sync |
 | 改分镜批量生图 | use-storyboard-batch-generation → run-image-workflow-node-generation → request.ts(§18 链,全链健在) |
-| 改无头执行工作流 | `FE/lib/assist/image-studio/comfy-execute.ts`(job 化)+ BE execute.py |
+| 改无头执行工作流 | `FE/lib/comfyui/comfy/comfy-execute.ts`(job 化)+ BE execute.py |
 | 调引擎启动/更新/插件 | engine_manager.py(launch args/更新链/实例锁)+ plugin_manager.py |
-| 改 uncloth 默认参数 | `FE/lib/assist/image-studio/uncloth-defaults.ts` |
+| 改 uncloth 默认参数 | `FE/lib/comfyui/image-gen/uncloth-defaults.ts` |
 | 调生成失败 | 分镜链看 diagnostics logEvent;assist 链 components/panels/studio/image-workflow/run-image-workflow-node-generation.ts;uncloth 直连 sidecar;参考图过大先查 image-transfer 缩略 |
 
 ---

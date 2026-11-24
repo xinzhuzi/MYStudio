@@ -15,8 +15,8 @@
  * - 编排器 generateBgmCover:库取工作流/读参考曲/execute/持久化全走依赖注入——
  *   组件里接真引擎,测试里全 mock 不真跑。
  */
-import { unwrapComfyApiGraph } from "@/lib/assist/image-studio/comfy-workflow-import";
-import type { ComfyExecuteJobReply, ComfyExecutePayload, ComfyExecuteProgress } from "@/lib/assist/image-studio/comfy-execute";
+import { unwrapComfyApiGraph } from "@/lib/comfyui/comfy/comfy-workflow-import";
+import type { ComfyExecuteJobReply, ComfyExecutePayload, ComfyExecuteProgress } from "@/lib/comfyui/comfy/comfy-execute";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import { YUE2_BGM_LYRICS_IRON, flacDurationSecondsFromB64 } from "./bgm-batch";
 

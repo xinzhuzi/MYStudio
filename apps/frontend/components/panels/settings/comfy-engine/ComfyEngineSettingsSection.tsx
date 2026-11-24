@@ -39,7 +39,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { ComfyModelsLibrary } from "@/components/panels/settings/comfy-engine/comfy-models/ComfyModelsLibrary";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { getEngineTorchInfo, pollJobUntilTerminal, startEngineTorchUpgrade, type EngineTorchInfo, type SidecarJobReply } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+import { getEngineTorchInfo, pollJobUntilTerminal, startEngineTorchUpgrade, type EngineTorchInfo, type SidecarJobReply } from "@/lib/comfyui/comfy/comfy-sidecar-bridge";
 import {
   COMFY_ENGINE_STAGE_LABELS,
   comfyVersionGithubUrl,

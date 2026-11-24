@@ -33,7 +33,7 @@ CANVAS_FILES = [
     ("apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/一镜到底-分段.json", None),  # 组名自动探测(含「四采」)
     ("apps/backend/comfyui/workflows/2_视频/H3视频/7_测试/三采-单镜-小脸修复.json", "四采·小脸修复(FaceRefine)"),
 ]
-API_TPL = "apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json"
+API_TPL = "apps/frontend/lib/comfyui/h3/templates/h3-three-stage-template.api.json"
 GENERATORS = [
     "apps/build/scripts/sancai_inline_facerefine_build_1118.py",
     "apps/build/scripts/multiseg_inline_facerefine_build_1118.py",

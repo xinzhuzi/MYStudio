@@ -1,4 +1,4 @@
-import { externalNarratorSpokenText } from "@/lib/assist/image-studio/h3-shot-prompt";
+import { externalNarratorSpokenText } from "@/lib/comfyui/h3/h3-shot-prompt";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FixedVoiceTarget, RoleAudioAiMatchRequest, RoleAudioAiMatchResult, RoleImportance, assignAudioToRolesWithAi, buildRoleAudioAiMatchPrompt, buildRoleAudioCandidates, createNarratorVoiceTarget, parseRoleAudioAiMatchResult, planFixedRoleVoices } from "@/components/panels/assets/role-audio-auto-assign";

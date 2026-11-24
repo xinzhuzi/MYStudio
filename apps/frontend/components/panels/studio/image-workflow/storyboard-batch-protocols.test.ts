@@ -10,7 +10,7 @@ const getRemoteEngineMock = vi.hoisted(() => vi.fn(async (): Promise<{
 }> => {
   throw new Error("本地生图服务未运行");
 }));
-vi.mock("@/lib/assist/image-studio/comfy-sidecar-bridge", async (importOriginal) => {
+vi.mock("@/lib/comfyui/comfy/comfy-sidecar-bridge", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
   return { ...actual, getRemoteEngine: getRemoteEngineMock };
 });

@@ -30,7 +30,7 @@ sys.path.insert(0, str(REPO / ".zcode/skills/node-graph/tools"))
 from layout_check import CHECK_KEYS, check_workflow  # noqa: E402
 
 WF = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json"
-API = REPO / "apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json"
+API = REPO / "apps/frontend/lib/comfyui/h3/templates/h3-three-stage-template.api.json"
 BASELINE = REPO / "apps/build/scripts/workflow_layout_baseline.json"
 
 LID = 795

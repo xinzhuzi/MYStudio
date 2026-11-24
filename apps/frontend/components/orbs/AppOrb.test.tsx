@@ -9,7 +9,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { AppOrb } from "./AppOrb";
 import { snapToNearestEdge } from "./use-orb-position";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
-import { useFreedomStore } from "@/stores/assist/freedom-store";
+import { useFreedomStore } from "@/stores/comfyui/freedom-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { toast } from "sonner";
 

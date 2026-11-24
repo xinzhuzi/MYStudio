@@ -20,7 +20,7 @@ import {
   diffNewPendingPromptIds,
   stopStoryboardBatchQueuedJobs,
   type StoryboardBatchEngineQueueChannel,
-} from "@/lib/assist/image-studio/storyboard-batch-engine-queue";
+} from "@/lib/comfyui/storyboard/storyboard-batch-engine-queue";
 import {
   STORYBOARD_BATCH_DEGRADED_RESOLUTION,
   STORYBOARD_BATCH_SHOT_INTERVAL_MS,

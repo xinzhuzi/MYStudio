@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Windows FastH3 QAD R2V 参考线工作流生成器(10-31 rtx-pro-4000 换卡役,repo 工作流作者)。
 
-母体 = apps/frontend/lib/assist/image-studio/h3-shot-template-ref2va.json(34 节点 Mac R2V
+母体 = apps/frontend/lib/comfyui/h3/templates/h3-shot-template-ref2va.json(34 节点 Mac R2V
 骨架;锚点契约 14.value/20.value/9.image/4.filename_prefix/100 MyShot/16.width+height 直填
 +110-113 四参考图槽 原样保留)。
 换芯依据 = FastVideo/FastH3-Omni-NVFP4-QAD-Comfy 官方 README+VALIDATION(魔搭镜像实拉,
@@ -39,13 +39,13 @@ euler/pytorch attention/SigmaShift[12,3] 与官方口径已全对齐,唯一改�
   1. apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/0_单镜视频/fasth3-单镜视频-r2v.json
      ——repo 库 UI 真源(R2V 参考图主形态:9.image→16.ref_images.ref_image_0=分镜帧,
      110-113=角色卡/场景卡槽)
-  2. apps/frontend/lib/assist/image-studio/fasth3-ref-shot-template.json
+  2. apps/frontend/lib/comfyui/fasth3-ref-shot-template.json
      ——前端 bundle UI 件(与 repo 库件同字节,fasth3-shot-template.json 先例)
 
 API 件另由既有转换脚本产出(勿在本脚本重造):
   uv run python build/scripts/h3_template_to_api_1027.py \
     --src backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/0_单镜视频/fasth3-单镜视频-r2v.json \
-    --dst frontend/lib/assist/image-studio/fasth3-ref-shot-template.api.json \
+    --dst frontend/lib/comfyui/fasth3-ref-shot-template.api.json \
     --ui-count 30 --api-count 26 \
     --object-info-file backend/comfyui/tests/fixtures/fasth3_qad_object_info_snapshot.json
 
@@ -60,10 +60,10 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-MOTHER = REPO / "apps/frontend/lib/assist/image-studio/h3-shot-template-ref2va.json"
+MOTHER = REPO / "apps/frontend/lib/comfyui/h3/templates/h3-shot-template-ref2va.json"
 LIB_DIR = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/0_单镜视频"
 R2V_OUT = LIB_DIR / "fasth3-单镜视频-r2v.json"
-FRONTEND_UI_OUT = REPO / "apps/frontend/lib/assist/image-studio/fasth3-ref-shot-template.json"
+FRONTEND_UI_OUT = REPO / "apps/frontend/lib/comfyui/fasth3-ref-shot-template.json"
 
 # ── 三对齐表 Q1-Q4(唯一契约:文件名逐字符对齐,引擎侧并行核账同名件)──────────────────
 Q1_DIT = "fasth3_omniref_qad_nvfp4_comfy.safetensors"                          # UNETLoader.unet_name

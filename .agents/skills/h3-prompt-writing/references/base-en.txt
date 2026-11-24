@@ -177,7 +177,7 @@ H3 has no negative-prompt channel: whatever the prompt leaves unset, the model f
 
 1. **Explicit `N/A` for unused layers** — write `non_diegetic_music: N/A` when there is no score; an empty layer can invite music (§4.7; `references/craft-external-1107.md` §B-7).
 2. **Medium guard in the style sentence** — for non-live-action styles, say what the medium is *not* in the first sentence (`A 2D hand-drawn anime animation ... not live-action, not photographed, no real actors`) and restate the medium after every `[Shot N]` (`references/craft-external-1107.md` §A-1).
-3. **Tail guard line for non-generation items** — close the shot with one short sentence listing what must not appear. Landed precedents: `No text or logos.` (official AIMixer-r2v sample, adopted in the daoyan struct template `apps/backend/comfyui/my_nodes/web/daoyan/prompt.js`) and `No dialogue in this clip; the characters' lips stay closed.` (app assembler for silent shots, `apps/frontend/lib/assist/image-studio/h3-shot-prompt.ts`).
+3. **Tail guard line for non-generation items** — close the shot with one short sentence listing what must not appear. Landed precedents: `No text or logos.` (official AIMixer-r2v sample, adopted in the daoyan struct template `apps/backend/comfyui/my_nodes/web/daoyan/prompt.js`) and `No dialogue in this clip; the characters' lips stay closed.` (app assembler for silent shots, `apps/frontend/lib/comfyui/h3/h3-shot-prompt.ts`).
 
 Keep only the guards that apply — one per real risk; a guard dump dilutes them all. Example: *No on-screen text, captions, or watermarks appear, and no passers-by enter the frame.* Criteria source: `docs/comfyui-kb/参考_提示词工程/刺猬星球super-i/知识库.md` §一.1 误解机制; positive-prohibition video precedents: 同夹 `帧内提示词原文.md` #13/#14.
 

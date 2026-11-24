@@ -11,6 +11,34 @@ import {
   decodeSelfMediaIpcReply,
   decodeSelfMediaProgressEvent,
 } from '../../lib/self-media/ipc-contract'
+import {
+  PRODUCT_IPC,
+} from '../../lib/product/product-ipc-contract'
+import type {
+  ProductListReply,
+  ProductGetReply,
+  ProductUpsertReply,
+  ProductDeleteReply,
+  ProductExportReply,
+  ProductExportWithDialogReply,
+  ProductGetRequest,
+  ProductUpsertRequest,
+  ProductDeleteRequest,
+} from '../../lib/product/product-ipc-contract'
+import {
+  TEMPLATE_IPC,
+} from '../../lib/template/template-ipc-contract'
+import type {
+  TemplateListReply,
+  TemplateGetReply,
+  TemplateUpsertReply,
+  TemplateDeleteReply,
+  TemplateGetRequest,
+  TemplateUpsertRequest,
+  TemplateDeleteRequest,
+  TemplateListByProductRequest,
+  TemplateDeleteByProductRequest,
+} from '../../lib/template/template-ipc-contract'
 import type { TimelineRenderPlan } from '../../types/editing'
 import type { BackendModelStatus, TtsRuntimeCommandResult, TtsRuntimeConfig, TtsRuntimeStatus } from '../../types/tts'
 import type { ExecuteResult, RecoveryQueryResult, MetadataUpdateResult } from '../../types/artifacts'
@@ -647,6 +675,24 @@ contextBridge.exposeInMainWorld('selfMedia', {
     ipcRenderer.on(SELF_MEDIA_IPC.progress, wrapped)
     return () => ipcRenderer.removeListener(SELF_MEDIA_IPC.progress, wrapped)
   },
+})
+
+contextBridge.exposeInMainWorld('productBridge', {
+  list: async (): Promise<ProductListReply> => ipcRenderer.invoke(PRODUCT_IPC.list),
+  get: async (request: ProductGetRequest): Promise<ProductGetReply> => ipcRenderer.invoke(PRODUCT_IPC.get, request),
+  upsert: async (request: ProductUpsertRequest): Promise<ProductUpsertReply> => ipcRenderer.invoke(PRODUCT_IPC.upsert, request),
+  delete: async (request: ProductDeleteRequest): Promise<ProductDeleteReply> => ipcRenderer.invoke(PRODUCT_IPC.delete, request),
+  export: async (): Promise<ProductExportReply> => ipcRenderer.invoke(PRODUCT_IPC.export),
+  exportWithDialog: async (): Promise<ProductExportWithDialogReply> => ipcRenderer.invoke(PRODUCT_IPC.exportWithDialog),
+})
+
+contextBridge.exposeInMainWorld('templateBridge', {
+  list: async (): Promise<TemplateListReply> => ipcRenderer.invoke(TEMPLATE_IPC.list),
+  listByProduct: async (request: TemplateListByProductRequest): Promise<TemplateListReply> => ipcRenderer.invoke(TEMPLATE_IPC.listByProduct, request),
+  get: async (request: TemplateGetRequest): Promise<TemplateGetReply> => ipcRenderer.invoke(TEMPLATE_IPC.get, request),
+  upsert: async (request: TemplateUpsertRequest): Promise<TemplateUpsertReply> => ipcRenderer.invoke(TEMPLATE_IPC.upsert, request),
+  delete: async (request: TemplateDeleteRequest): Promise<TemplateDeleteReply> => ipcRenderer.invoke(TEMPLATE_IPC.delete, request),
+  deleteByProduct: async (request: TemplateDeleteByProductRequest): Promise<TemplateDeleteReply> => ipcRenderer.invoke(TEMPLATE_IPC.deleteByProduct, request),
 })
 
 

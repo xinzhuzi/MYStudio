@@ -11,9 +11,9 @@ import copy, json, sys
 
 UI_FILES = {
     'repo': os.path.expanduser('~/Project/Github/MYStudio/apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json'),
-    'twin': os.path.expanduser('~/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.json'),
+    'twin': os.path.expanduser('~/Project/Github/MYStudio/apps/frontend/lib/comfyui/h3/templates/h3-three-stage-template.json'),
 }
-API_FILE = os.path.expanduser('~/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json')
+API_FILE = os.path.expanduser('~/Project/Github/MYStudio/apps/frontend/lib/comfyui/h3/templates/h3-three-stage-template.api.json')
 CARD_IDS = [341, 342, 343, 344]          # 参考卡锚(ref_image_5..8;114-119 已被现役节点占用)
 END_FRAME_ID, VIDEO_ID = 345, 346        # 尾帧锚 / 参考视频锚
 BRIDGE_ID = 347                         # GetVideoComponents 桥(LoadVideo吐VIDEO,槽吃IMAGE帧)

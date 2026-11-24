@@ -15,7 +15,7 @@ import type {
 } from "@/types/studio";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import { validateRemotionCurrentSlot as validateCurrentSlot } from "@/lib/studio/remotion/remotion-slot-validation";
-import { externalNarratorSpokenText } from "@/lib/assist/image-studio/h3-shot-prompt";
+import { externalNarratorSpokenText } from "@/lib/comfyui/h3/h3-shot-prompt";
 import { validateEditingProject } from "./validation";
 import { resolveSubtitleAuthority, type SubtitleAuthorityIssue } from "../video-workflow/subtitle-authority";
 import type { SubtitleAuthority } from "@/types/editing";

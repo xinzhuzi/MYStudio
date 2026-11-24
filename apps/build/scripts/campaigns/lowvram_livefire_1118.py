@@ -44,7 +44,7 @@ for k in ("http_proxy", "https_proxy", "all_proxy", "HTTP_PROXY", "HTTPS_PROXY",
 BASE = "http://192.168.0.101:17000"
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(HERE, "..", "..", "output", "lowvram-1118")
-TEMPLATE = os.path.join(HERE, "..", "..", "frontend", "lib", "assist", "image-studio",
+TEMPLATE = os.path.join(HERE, "..", "..", "frontend", "lib", "comfyui", "h3", "templates",
                         "h3-three-stage-template.api.json")
 
 WALL_TIMEOUT = 1800   # C5:每臂 wall 超时(实测最长完链 355.5s,留 5 倍余量)

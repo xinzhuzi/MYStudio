@@ -24,7 +24,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import { AppErrorBoundary } from './components/AppErrorBoundary.tsx'
-import { installComfyCloudRelayExecutor } from './lib/assist/image-studio/comfy-cloud-relay-executor.ts'
+import { installComfyCloudRelayExecutor } from './lib/comfyui/comfy/comfy-cloud-relay-executor.ts'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

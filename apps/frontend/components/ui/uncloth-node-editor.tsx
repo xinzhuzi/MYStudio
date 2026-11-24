@@ -9,7 +9,7 @@ import {
   SEGFORMER_PARTS,
   SEGFORMER_PART_LABELS,
   resolveUnclothParams,
-} from "@/lib/assist/image-studio/uncloth-defaults";
+} from "@/lib/comfyui/image-gen/uncloth-defaults";
 import type { ImageWorkflowNode, ImageWorkflowUnclothNode } from "@/types/studio";
 
 /**

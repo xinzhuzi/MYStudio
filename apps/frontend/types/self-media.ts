@@ -75,6 +75,8 @@ export interface SelfMediaDraft {
   visibility: SelfMediaVisibility;
   platformOptions: Record<string, string | number | boolean>;
   scheduledAt?: string;
+  /** B1b: 关联产品 ID(可选,用于历史按产品筛选) */
+  productId?: string;
   updatedAt: string;
 }
 
@@ -100,6 +102,8 @@ export interface SelfMediaTask {
   providerTaskId?: string;
   resultUrl?: string;
   error?: SelfMediaTaskError;
+  /** B1b: 关联产品 ID(可选,用于历史按产品筛选) */
+  productId?: string;
   createdAt: string;
   updatedAt: string;
 }

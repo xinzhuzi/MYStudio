@@ -17,7 +17,7 @@ from pathlib import Path
 
 BASE = "http://127.0.0.1:17001"
 ROOT = Path(__file__).resolve().parents[2]  # apps/
-API_JSON = ROOT / "frontend/lib/assist/image-studio/h3-shot-template.api.json"
+API_JSON = ROOT / "frontend/lib/comfyui/h3/templates/h3-shot-template.api.json"
 HEAD_FRAME = ROOT / "output/bili_h3_unlimited_segments_1025/ch1_head.png"
 PREFIX = "video/livefire-1027/sb-livefire-960p/ambient"
 POLL_S = 15

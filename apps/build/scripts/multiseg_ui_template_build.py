@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """multiseg 记账界面图生成器(1123 D17;trellis 11-23-h3-selfdev-workflow-fixes)。
 
-产物:frontend/lib/assist/image-studio/h3-multiseg-template.json
+产物:frontend/lib/comfyui/h3/templates/h3-multiseg-template.json
   = 画布件 `2_视频/H3视频/1_漫影自研/一镜到底-分段.json` 原样(67 节点;它本身是
     multiseg_inline_facerefine_build_1118.py 的产物)
   + App 专用三节点(#9 首帧图 / #103 收件箱锚 / #800 人脸参考视觉编码器)
@@ -35,8 +35,8 @@ from pathlib import Path
 
 APPS = Path(__file__).resolve().parents[2]
 CANVAS = APPS / "backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/一镜到底-分段.json"
-API = APPS / "frontend/lib/assist/image-studio/h3-multiseg-template.api.json"
-OUT = APPS / "frontend/lib/assist/image-studio/h3-multiseg-template.json"
+API = APPS / "frontend/lib/comfyui/h3/templates/h3-multiseg-template.api.json"
+OUT = APPS / "frontend/lib/comfyui/h3/templates/h3-multiseg-template.json"
 
 # 组装器运行时要填参数的节点号与类型(h3-shot-video-workflow.ts MULTISEG_REQUIRED_NODES + getNode 调用)
 FILL_POINTS = {4: "SaveVideo", 9: "LoadImage", 100: "H3Parameter", 101: "H3AutoContextSampler", 103: "MyShot"}

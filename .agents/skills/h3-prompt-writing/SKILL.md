@@ -45,7 +45,7 @@ Read `references/ref-en.txt` for label rules, retention analysis, and complete e
 
 ## Manying Pipeline Audio Policy (2026-10-11 division of labour)
 
-When the app assembles the prompt (`apps/frontend/lib/assist/image-studio/h3-shot-prompt.ts`), the audio policy is derived per shot instead of hand-picked:
+When the app assembles the prompt (`apps/frontend/lib/comfyui/h3/h3-shot-prompt.ts`), the audio policy is derived per shot instead of hand-picked:
 
 - **Policy:** `dialogueAudioPolicy(lines)` — at least one character line → `full`; narrator-only or no lines → `ambient` (sound bed, "lips stay closed"). Dispatch (`ComfyCanvasStudio`) injects it per shot.
 - **Character/narrator split, one source:** `splitDialogueLines(lines)` — narrator = broad label set (旁白/vo/画外音/解说 via `chapter-voiceover.isNarratorSpeaker`) plus any colon-less whole line; everything else with a colon is a character line.

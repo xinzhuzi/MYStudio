@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """工作流模板同步门禁(1123 用户令:模板不许落后源件,漂移必须当场红+可定位)。
 
-背景:App 发车模板(frontend/lib/assist/image-studio/h3-*.api.json)是画布/UI 源件的
+背景:App 发车模板(frontend/lib/comfyui/h3/templates/h3-*.api.json)是画布/UI 源件的
 「适配形态」(四针适配:提示词占位/图名/前缀),不是裸转换——所以本门不做字节比对,
 做**语义指纹比对**:类谱/lora 谱/调度器谱/布尔默认/关键接线。适配层合法差异(占位文本、
 MyShot 锚摘除)走白名单逐条注明;任何结构漂移(少一段采/换 lora/改步数/换接线)当场红。
@@ -24,7 +24,7 @@ from collections import Counter
 from pathlib import Path
 
 TESTS = Path(__file__).resolve().parent
-FRONTEND = TESTS.parents[2] / "frontend/lib/assist/image-studio"
+FRONTEND = TESTS.parents[2] / "frontend/lib/comfyui/h3/templates"
 WORKFLOWS = TESTS.parents[0] / "workflows"
 UI_ONLY = {"Note", "MarkdownNote", "Reroute"}
 
@@ -152,7 +152,7 @@ PAIRS = [
         "mode": "generator",
         "regen": ["uv", "run", "python", "build/scripts/multiseg_inline_facerefine_build_1118.py"],
         "outputs": ["backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/一镜到底-分段.json",
-                     "frontend/lib/assist/image-studio/h3-multiseg-template.api.json"],
+                     "frontend/lib/comfyui/h3/templates/h3-multiseg-template.api.json"],
         "edges": [("5002", "video", "ReCaVSRUpscale"), ("5100", "on_false", "ReCaVSRUpscale"),
                   ("4002", "video", "CreateVideo")],
     },
@@ -164,7 +164,7 @@ PAIRS = [
         "name": "multiseg-ui(一镜到底-分段.json+.api→h3-multiseg-template.json)",
         "mode": "generator",
         "regen": ["uv", "run", "python", "build/scripts/multiseg_ui_template_build.py"],
-        "outputs": ["frontend/lib/assist/image-studio/h3-multiseg-template.json"],
+        "outputs": ["frontend/lib/comfyui/h3/templates/h3-multiseg-template.json"],
         "canvas": WORKFLOWS / "2_视频/H3视频/1_漫影自研/一镜到底-分段.json",
         "api": FRONTEND / "h3-multiseg-template.api.json",
         "edges": [],

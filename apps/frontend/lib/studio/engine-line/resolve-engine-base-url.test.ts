@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const getRemoteEngineMock = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/assist/image-studio/comfy-sidecar-bridge", async (importOriginal) => {
+vi.mock("@/lib/comfyui/comfy/comfy-sidecar-bridge", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
   return { ...actual, getRemoteEngine: getRemoteEngineMock };
 });

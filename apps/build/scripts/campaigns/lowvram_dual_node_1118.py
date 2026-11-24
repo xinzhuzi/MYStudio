@@ -12,8 +12,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 SANCAI = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json"
 MULTISEG = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/一镜到底-分段.json"
-TPL_GUI = REPO / "apps/frontend/lib/assist/image-studio/h3-three-stage-template.json"
-TPL_API = REPO / "apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json"
+TPL_GUI = REPO / "apps/frontend/lib/comfyui/h3/templates/h3-three-stage-template.json"
+TPL_API = REPO / "apps/frontend/lib/comfyui/h3/templates/h3-three-stage-template.api.json"
 
 NEW_TYPE = "MiniMaxLowVRAMAttention"
 NEW_TITLE = "H3 Low VRAM Attn(削峰·头分块 1118)"

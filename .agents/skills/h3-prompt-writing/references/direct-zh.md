@@ -13,7 +13,7 @@
 | 维度 | 口径 |
 |---|---|
 | 何时用 | 人工在网页/客户端手动生成;中文分镜管线出快速草稿,先看画面动起来;一切拿不到 API/节点入口的场所 |
-| 何时禁用 | 我方产线与 API/节点路径——真源是官方英文字段结构,由组装器 `apps/frontend/lib/assist/image-studio/h3-shot-prompt.ts` 产出,不得拿直投段落顶替 |
+| 何时禁用 | 我方产线与 API/节点路径——真源是官方英文字段结构,由组装器 `apps/frontend/lib/comfyui/h3/h3-shot-prompt.ts` 产出,不得拿直投段落顶替 |
 | 混写禁令 | 两种形态不得出现在同一条提示词里:直投段落零英文字段名;官方结构不做中文字段壳 |
 
 ## §一 五要素固定顺序
@@ -81,7 +81,7 @@
 | 主观视角 | POV | 以角色第一人称所见为画面 |
 | 镜头强震 / 镜头轻震 | Shake Strongly / Shake Slightly | 碰撞冲击瞬间的强 / 轻震动(打斗受力反馈的核心运镜,与 `action-en.txt` §5 ACT 冲击镜头两形对齐) |
 
-词表真源:本仓 `minimax-h3` 技能「Camera is a controlled vocabulary」节;中文→官方词在生产侧的映射实现见 `apps/frontend/lib/assist/image-studio/h3-shot-prompt.ts`,此处仅作背景,直投时人工按上表选词即可。
+词表真源:本仓 `minimax-h3` 技能「Camera is a controlled vocabulary」节;中文→官方词在生产侧的映射实现见 `apps/frontend/lib/comfyui/h3/h3-shot-prompt.ts`,此处仅作背景,直投时人工按上表选词即可。
 
 时序示例(自造,节选,接 §一② 例句一):
 

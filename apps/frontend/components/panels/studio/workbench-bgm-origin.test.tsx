@@ -6,7 +6,7 @@ import type { Mock } from "vitest";
 import { WorkbenchTab } from "./WorkbenchTab";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
-import type { ComfyExecuteJobReply, ComfyExecuteProgress } from "@/lib/assist/image-studio/comfy-execute";
+import type { ComfyExecuteJobReply, ComfyExecuteProgress } from "@/lib/comfyui/comfy/comfy-execute";
 import type { RemotionChapterManifestV2 } from "@/types/remotion-workspace";
 
 const mocks = vi.hoisted(() => ({
@@ -14,11 +14,11 @@ const mocks = vi.hoisted(() => ({
   persistVideos: vi.fn(),
   success: vi.fn(), warning: vi.fn(), fingerprint: vi.fn(), bindingFingerprint: vi.fn(),
 }));
-vi.mock("@/lib/assist/image-studio/comfy-execute", () => ({
+vi.mock("@/lib/comfyui/comfy/comfy-execute", () => ({
   runComfyExecute: mocks.execute, persistComfyAudio: mocks.persist, comfyImageUrlToB64: mocks.readAudio,
   persistComfyVideosFromResult: mocks.persistVideos,
 }));
-vi.mock("@/lib/assist/image-studio/comfy-workflow-library", () => ({
+vi.mock("@/lib/comfyui/comfy/comfy-workflow-library", () => ({
   getComfyWorkflowLibraryTransport: () => ({ content: mocks.content }),
 }));
 vi.mock("@/lib/studio/remotion/remotion-audio-fingerprint", () => ({

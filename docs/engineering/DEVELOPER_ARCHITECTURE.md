@@ -43,7 +43,7 @@ ComfyUI 托管 K2 图像、H3 视频及音乐/修复等节点工作流；本地 
 - **引擎域**：`apps/backend/engines/` 现为 6 包（2026-11-04 核账）——`tts_engine`、`audio_engine`、`sfx_engine`、`image_engine`（本地生图 sidecar，固定端口 17595，含 `comfyui_bridge.py` 工作流模板）、`video_qc_engine`、`vlm_engine`；`upscale_engine`/`depth_engine`/`music3_engine` 已于 09-10 退役（超分/音乐产线归并 ComfyUI、电影级 3D 路线淘汰）。托管引擎主力 `comfyui` 自 10-22 迁至顶层 `apps/backend/comfyui/`（见下条），不在 `engines/` 下。engines 域定位（底层模型引擎层）见 `.claude/knowledge/backend-architecture.md`。
 - **ComfyUI 托管引擎**（`comfyui/`）：`engine_manager.py` 负责安装/启动/健康探测，引擎「家」在 `<userData>/comfyui/`（ComfyUI 源码、独立 venv、`models/`、snapshots、默认 `<源码目录>/user/default/workflows` 用户库（可覆写 `workflowsDir`）、manifest.json、engine.lock）；引擎端口走 17xxx 动态分配（真源=引擎账本/状态，禁大众端口）。0929 起 `start_sync` 以 ps 枚举（自家 venv+`main.py` 双判据，与 manifest 家解析同源现算）实现**动态续接+单实例唯一性**：优先收编漂移口的自家实例并回写账本口；未过收编门（冷启动/令牌失配）先停旧（枚举 pid 兜底、杀前身份复核）再 spawn，绝不 auto-shift 出第二实例；多台自家实例全部停旧后 spawn 一台；restart（allow_adoption=False 的深二级 job 流）拒绝收编与停旧枚举发现；枚举确证 miss（ps 正常跑完零命中）退回旧「账本口孤儿」语义，枚举**不可用**（Windows 无 ps/工具缺失/超时/异常/ps 非零退出=三态 `None`，0929 深审 R1）则拒绝拉起新实例（唯一性不可证，绝不盲启第二台），仅放行不 spawn 的账本口纯收编、令牌失配停旧自愈同拒；`already_running` 快路径（ensure 触达 `start_sync` 且自管进程仍活时的热路径；生图 ensure 在自管引擎健康时于 `ensure_engine_ready` 直接放行、不进此层）放行前同样枚举收敛——多余自家实例停掉、自持保留，枚举不可用/异常/停旧失败只打日志不抛错（0929 深审 R1 快路径窗）——语义细节与已知限制见[定制代码地图·全景节](../comfyui-kb/定制代码地图.md)。`bridge_actions.py` 等提供结果回写桥。
 - **my_nodes 自研节点包**：真源在仓库 `apps/backend/comfyui/my_nodes/`（Python 节点 + `web/` 前端扩展），运行时由 `plugin_manager.sync_my_nodes()` 同步进引擎家。铁律：零改 ComfyUI 本体、全走官方扩展点、引擎家 git 恒 0 改动。四层定制代码位置与生效路径见 [定制代码地图](../comfyui-kb/定制代码地图.md)。
-- **前端**：主导航「大模型」（原「辅助」→「本地模型」，2026-11-03 更名）= 全屏 ComfyUI 工作区（`components/panels/assist/ComfyWorkspace.tsx`，三态：ComfyUI 画布 `comfy-canvas/ComfyCanvasStudio.tsx` webview 嵌自管引擎完整前端 / TTS 配音室 / 漫影生图 `local-models/`）；「MY 工作流」的「分镜视频生成」「图像节点图」页签经 `ComfyCanvasSwap.tsx` 复用同一画布，业务载荷由 `lib/assist/image-studio/storyboard-pipeline-comfy.ts` 等桥接写入。
+- **前端**：主导航「大模型」（原「辅助」→「本地模型」，2026-11-03 更名）= 全屏 ComfyUI 工作区（`components/panels/comfyui/ComfyWorkspace.tsx`，三态：ComfyUI 画布 `comfy-canvas/ComfyCanvasStudio.tsx` webview 嵌自管引擎完整前端 / TTS 配音室 / 漫影生图 `local-models/`）；「MY 工作流」的「分镜视频生成」「图像节点图」页签经 `ComfyCanvasSwap.tsx` 复用同一画布，业务载荷由 `lib/comfyui/storyboard/storyboard-pipeline-comfy.ts` 等桥接写入。
 - **模型统一家（09-10 裁定）**：Node 侧模型路径通过 `electron/storage/model-dirs.ts` 组装为 `<storageBasePath>/comfyui/models/<family>/`；ComfyUI 引擎的实际 `modelsDir` 另允许 manifest 覆写，需核对设置页当前值；08-19 的 `<storageBasePath>/model/<family>/` 规范就此退役。设置→本地配置→ComfyUI 引擎卡「模型」页签 = `comfyui/models` 活清单。
 - 旧 React Flow 画布 2026-09-01 退役删除，画布化操作全走 ComfyUI（历史参照与存续对账见 `.claude/knowledge/node-graph-architecture.md`）。导演/S级/角色/场景等内部工作区仍走云端 AI 链路（`aiManager`），与本地 ComfyUI 产线并行。
 
@@ -249,7 +249,7 @@ video-use 与 HyperFrames 每章默认启用。章节 revision 状态为 `prepar
 | `apps/frontend/components/Dashboard.tsx` | 项目入口/首屏 |
 | `apps/frontend/components/panels/SettingsPanel.tsx` | 设置页、外观、API、统一本地配置、存储、开发入口 |
 | `apps/frontend/components/panels/studio/index.tsx` | MY 工作流主面板（八页签，含两个 ComfyUI 画布页签） |
-| `apps/frontend/components/panels/assist/ComfyWorkspace.tsx` | 「本地模型」全屏 ComfyUI 工作区（画布 / 配音室 / 漫影生图三态） |
+| `apps/frontend/components/panels/comfyui/ComfyWorkspace.tsx` | 「本地模型」全屏 ComfyUI 工作区（画布 / 配音室 / 漫影生图三态） |
 | `apps/frontend/components/panels/assets/` | 资产库、角色详情、音色分配 |
 | `apps/frontend/components/panels/tts/LocalTtsPanel.tsx` | 本地 TTS 管理面板 |
 | `apps/frontend/components/UpdateDialog.tsx` | 应用更新提示弹窗 |

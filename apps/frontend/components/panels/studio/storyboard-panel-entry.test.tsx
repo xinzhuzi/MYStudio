@@ -22,7 +22,7 @@ const INDEX_SOURCE = readFileSync(
   "utf8",
 );
 const PIPELINE_SOURCE = readFileSync(
-  resolve(process.cwd(), "frontend/lib/assist/image-studio/storyboard-pipeline-comfy.ts"),
+  resolve(process.cwd(), "frontend/lib/comfyui/storyboard/storyboard-pipeline-comfy.ts"),
   "utf8",
 );
 

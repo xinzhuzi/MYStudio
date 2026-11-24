@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { buildProjectFileUrl } from "@/lib/artifacts/ref-preview-loader";
 import { getCinematicPresetShortLabel, getStoryboardCinematic } from "@/lib/studio/cinematic-preset";
-import { comfyImageUrlToB64, runComfyExecute, persistComfyAudio, persistComfyVideosFromResult } from "@/lib/assist/image-studio/comfy-execute";
-import { unwrapComfyApiGraph } from "@/lib/assist/image-studio/comfy-workflow-import";
-import { getComfyWorkflowLibraryTransport } from "@/lib/assist/image-studio/comfy-workflow-library";
+import { comfyImageUrlToB64, runComfyExecute, persistComfyAudio, persistComfyVideosFromResult } from "@/lib/comfyui/comfy/comfy-execute";
+import { unwrapComfyApiGraph } from "@/lib/comfyui/comfy/comfy-workflow-import";
+import { getComfyWorkflowLibraryTransport } from "@/lib/comfyui/comfy/comfy-workflow-library";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { ScriptPlan } from "@/types/studio";

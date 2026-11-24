@@ -24,17 +24,17 @@ const powerSave = vi.hoisted(() => ({
 }));
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() }));
 
-vi.mock("@/lib/assist/image-studio/comfy-execute", () => ({
+vi.mock("@/lib/comfyui/comfy/comfy-execute", () => ({
   comfySidecarJson: comfyJsonMock,
   persistComfyVideosFromResult: persistVideosMock,
   requestComfyEngineFree: engineFreeMock,
 }));
-vi.mock("@/lib/assist/image-studio/comfy-sidecar-bridge", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/assist/image-studio/comfy-sidecar-bridge")>();
+vi.mock("@/lib/comfyui/comfy/comfy-sidecar-bridge", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/comfyui/comfy/comfy-sidecar-bridge")>();
   return { ...actual, getRemoteEngine: getRemoteEngineMock };
 });
-vi.mock("@/lib/assist/image-studio/comfy-bridge-writeback-consumer", () => ({ consumeComfyBridgeWritebacks: consumeMock }));
-vi.mock("@/lib/assist/image-studio/storyboard-overview-sync", () => ({ readStoryboardImageB64: readB64Mock }));
+vi.mock("@/lib/comfyui/comfy/comfy-bridge-writeback-consumer", () => ({ consumeComfyBridgeWritebacks: consumeMock }));
+vi.mock("@/lib/comfyui/storyboard/storyboard-overview-sync", () => ({ readStoryboardImageB64: readB64Mock }));
 vi.mock("@/components/panels/settings/comfy-engine/comfy-engine-contract", () => ({ getComfyEngineClient: () => ({}) }));
 vi.mock("sonner", () => ({ toast }));
 
@@ -1034,8 +1034,8 @@ describe("useStoryboardH3VideoBatch(multiseg 分派与超时,PRD §14.1.4)", () 
 
   it("分派经 buildShotH3ApiWorkflowForRecipe:mock 断言参数对(recipeId+首帧 b64+档位)", async () => {
     vi.resetModules();
-    vi.doMock("@/lib/assist/image-studio/h3-shot-video-workflow", async (importOriginal) => {
-      const actual = await importOriginal<typeof import("@/lib/assist/image-studio/h3-shot-video-workflow")>();
+    vi.doMock("@/lib/comfyui/h3/h3-shot-video-workflow", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("@/lib/comfyui/h3/h3-shot-video-workflow")>();
       return { ...actual, buildShotH3ApiWorkflowForRecipe: vi.fn(actual.buildShotH3ApiWorkflowForRecipe) };
     });
     try {
@@ -1043,7 +1043,7 @@ describe("useStoryboardH3VideoBatch(multiseg 分派与超时,PRD §14.1.4)", () 
       const { useStoryboardH3VideoBatch: useBatch } = await import("./use-storyboard-h3-video-batch");
       const { useStudioStore: freshStudio } = await import("@/stores/studio/studio-store");
       const { useProjectStore: freshProject } = await import("@/stores/project/project-store");
-      const workflowModule = await import("@/lib/assist/image-studio/h3-shot-video-workflow");
+      const workflowModule = await import("@/lib/comfyui/h3/h3-shot-video-workflow");
       const forRecipe = workflowModule.buildShotH3ApiWorkflowForRecipe as unknown as ReturnType<typeof vi.fn>;
       const shotA = shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" }, durationTarget: 6 });
       freshStudio.setState({
@@ -1086,7 +1086,7 @@ describe("useStoryboardH3VideoBatch(multiseg 分派与超时,PRD §14.1.4)", () 
       }));
       expect(result.current.state.done).toBe(1);
     } finally {
-      vi.doUnmock("@/lib/assist/image-studio/h3-shot-video-workflow");
+      vi.doUnmock("@/lib/comfyui/h3/h3-shot-video-workflow");
     }
   });
 });

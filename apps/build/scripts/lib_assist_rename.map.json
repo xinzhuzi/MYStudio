@@ -1,0 +1,328 @@
+{
+ "_comment": "lib/assist、stores/assist、panels/assist 三层统一改名为 comfyui,image-studio 拆四个子目录(1124;任务 11-24-apps-architecture-restructure;用户裁定:三层一起改、拆四组、名字统一 comfyui)。moves=移动(带 dir:true 的是整目录);manual=指定文件里的指定字串(基地址拼接、文档里的目录级提法);dir_rules=其余目录级提法。执行脚本 lib_assist_rename.py 默认只演练。",
+ "moves": [
+  {
+   "from": "apps/frontend/lib/assist/image-studio/__snapshots__/comfy-workflow-import.test.ts.snap",
+   "to": "apps/frontend/lib/comfyui/comfy/__snapshots__/comfy-workflow-import.test.ts.snap"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-action-origin.test.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-action-origin.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-bridge-action-consumer.test.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-bridge-action-consumer.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-bridge-action-consumer.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-bridge-action-consumer.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-bridge-writeback-consumer.test.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-bridge-writeback-consumer.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-bridge-writeback-consumer.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-bridge-writeback-consumer.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-cloud-relay-executor.test.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-cloud-relay-executor.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-cloud-relay-executor.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-cloud-relay-executor.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-engine-client.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-engine-client.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-execute.test.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-execute.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-execute.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-execute.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-sidecar-bridge-import-batch.test.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-sidecar-bridge-import-batch.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-sidecar-bridge-torch-upgrade.test.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-sidecar-bridge-torch-upgrade.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-sidecar-bridge.test.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-sidecar-bridge.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-sidecar-bridge.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-sidecar-bridge.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-workflow-import.test.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-workflow-import.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-workflow-import.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-workflow-import.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-workflow-library.test.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-workflow-library.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-workflow-library.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-workflow-library.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/comfy-writeback-origin.test.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/comfy-writeback-origin.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/daoyan-video-import.test.ts",
+   "to": "apps/frontend/lib/comfyui/storyboard/daoyan-video-import.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/daoyan-video-import.ts",
+   "to": "apps/frontend/lib/comfyui/storyboard/daoyan-video-import.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/fasth3-shot-template.api.json",
+   "to": "apps/frontend/lib/comfyui/h3/templates/fasth3-shot-template.api.json"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/fasth3-shot-template.json",
+   "to": "apps/frontend/lib/comfyui/h3/templates/fasth3-shot-template.json"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-multiseg-template.api.json",
+   "to": "apps/frontend/lib/comfyui/h3/templates/h3-multiseg-template.api.json"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-multiseg-template.json",
+   "to": "apps/frontend/lib/comfyui/h3/templates/h3-multiseg-template.json"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-multiseg-video-workflow.ts",
+   "to": "apps/frontend/lib/comfyui/h3/h3-multiseg-video-workflow.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-orphan-importer.test.ts",
+   "to": "apps/frontend/lib/comfyui/h3/h3-orphan-importer.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-orphan-importer.ts",
+   "to": "apps/frontend/lib/comfyui/h3/h3-orphan-importer.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-shot-landing.test.ts",
+   "to": "apps/frontend/lib/comfyui/h3/h3-shot-landing.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-shot-landing.ts",
+   "to": "apps/frontend/lib/comfyui/h3/h3-shot-landing.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-shot-prompt.test.ts",
+   "to": "apps/frontend/lib/comfyui/h3/h3-shot-prompt.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-shot-prompt.ts",
+   "to": "apps/frontend/lib/comfyui/h3/h3-shot-prompt.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-shot-template-ref2va.json",
+   "to": "apps/frontend/lib/comfyui/h3/templates/h3-shot-template-ref2va.json"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-shot-template.api.json",
+   "to": "apps/frontend/lib/comfyui/h3/templates/h3-shot-template.api.json"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-shot-template.json",
+   "to": "apps/frontend/lib/comfyui/h3/templates/h3-shot-template.json"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-shot-video-workflow.test.ts",
+   "to": "apps/frontend/lib/comfyui/h3/h3-shot-video-workflow.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-shot-video-workflow.ts",
+   "to": "apps/frontend/lib/comfyui/h3/h3-shot-video-workflow.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json",
+   "to": "apps/frontend/lib/comfyui/h3/templates/h3-three-stage-template.api.json"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-three-stage-template.json",
+   "to": "apps/frontend/lib/comfyui/h3/templates/h3-three-stage-template.json"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-workflow-recipes.ts",
+   "to": "apps/frontend/lib/comfyui/h3/h3-workflow-recipes.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/h3-workflow-shared.ts",
+   "to": "apps/frontend/lib/comfyui/h3/h3-workflow-shared.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/history-records.test.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/history-records.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/history-records.ts",
+   "to": "apps/frontend/lib/comfyui/comfy/history-records.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/pika-ref-shot-template.api.json",
+   "to": "apps/frontend/lib/comfyui/h3/templates/pika-ref-shot-template.api.json"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/pika-ref-shot-template.json",
+   "to": "apps/frontend/lib/comfyui/h3/templates/pika-ref-shot-template.json"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/pika-shot-template.api.json",
+   "to": "apps/frontend/lib/comfyui/h3/templates/pika-shot-template.api.json"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/pika-shot-template.json",
+   "to": "apps/frontend/lib/comfyui/h3/templates/pika-shot-template.json"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/run-uncloth.test.ts",
+   "to": "apps/frontend/lib/comfyui/image-gen/run-uncloth.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/run-uncloth.ts",
+   "to": "apps/frontend/lib/comfyui/image-gen/run-uncloth.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/shot-keyframe-extraction.test.ts",
+   "to": "apps/frontend/lib/comfyui/storyboard/shot-keyframe-extraction.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/shot-keyframe-extraction.ts",
+   "to": "apps/frontend/lib/comfyui/storyboard/shot-keyframe-extraction.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/storyboard-batch-engine-queue.test.ts",
+   "to": "apps/frontend/lib/comfyui/storyboard/storyboard-batch-engine-queue.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/storyboard-batch-engine-queue.ts",
+   "to": "apps/frontend/lib/comfyui/storyboard/storyboard-batch-engine-queue.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/storyboard-overview-comfy.test.ts",
+   "to": "apps/frontend/lib/comfyui/storyboard/storyboard-overview-comfy.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/storyboard-overview-comfy.ts",
+   "to": "apps/frontend/lib/comfyui/storyboard/storyboard-overview-comfy.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/storyboard-overview-sync.test.ts",
+   "to": "apps/frontend/lib/comfyui/storyboard/storyboard-overview-sync.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/storyboard-overview-sync.ts",
+   "to": "apps/frontend/lib/comfyui/storyboard/storyboard-overview-sync.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/storyboard-pipeline-comfy.test.ts",
+   "to": "apps/frontend/lib/comfyui/storyboard/storyboard-pipeline-comfy.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/storyboard-pipeline-comfy.ts",
+   "to": "apps/frontend/lib/comfyui/storyboard/storyboard-pipeline-comfy.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/uncloth-defaults.ts",
+   "to": "apps/frontend/lib/comfyui/image-gen/uncloth-defaults.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/uncloth-request.test.ts",
+   "to": "apps/frontend/lib/comfyui/image-gen/uncloth-request.test.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/image-studio/uncloth-request.ts",
+   "to": "apps/frontend/lib/comfyui/image-gen/uncloth-request.ts"
+  },
+  {
+   "from": "apps/frontend/lib/assist/model-display-names.ts",
+   "to": "apps/frontend/lib/ai/model-display-names.ts"
+  },
+  {
+   "from": "apps/frontend/stores/assist",
+   "to": "apps/frontend/stores/comfyui",
+   "dir": true
+  },
+  {
+   "from": "apps/frontend/components/panels/assist",
+   "to": "apps/frontend/components/panels/comfyui",
+   "dir": true
+  }
+ ],
+ "manual": [
+  {
+   "file": "apps/backend/comfyui/tests/test_fasth3_pipeline_wiring.py",
+   "old": "\"apps/frontend/lib/assist/image-studio\"",
+   "new": "\"apps/frontend/lib/comfyui/h3/templates\""
+  },
+  {
+   "file": "apps/backend/comfyui/tests/test_workflow_template_sync.py",
+   "old": "frontend/lib/assist/image-studio",
+   "new": "frontend/lib/comfyui/h3/templates"
+  },
+  {
+   "file": "apps/backend/comfyui/my_nodes/tests/test_line_mode_server.py",
+   "old": "\"lib\" / \"assist\" / \"image-studio\"",
+   "new": "\"lib\" / \"comfyui\" / \"h3\" / \"templates\""
+  },
+  {
+   "file": "apps/build/scripts/campaigns/lowvram_livefire_1118.py",
+   "old": "\"lib\", \"assist\", \"image-studio\",",
+   "new": "\"lib\", \"comfyui\", \"h3\", \"templates\","
+  },
+  {
+   "file": ".claude/CLAUDE.md",
+   "old": "实住 `apps/frontend/lib/assist/image-studio/`",
+   "new": "实住 `apps/frontend/lib/comfyui/h3/templates/`(2026-11-24 用户裁定:lib/assist 三层统一改名 comfyui 并按主题拆分,模板随之移入 h3/templates/)"
+  },
+  {
+   "file": "docs/comfyui-kb/定制代码地图.md",
+   "old": "lib/assist/image-studio/{comfy-execute,comfy-bridge-writeback-consumer}.ts",
+   "new": "lib/comfyui/comfy/{comfy-execute,comfy-bridge-writeback-consumer}.ts"
+  },
+  {
+   "file": "docs/comfyui-kb/定制代码地图.md",
+   "old": "│   └ lib/assist/image-studio/* ──HTTP──→ sidecar          │",
+   "new": "│   └ lib/comfyui/*             ──HTTP──→ sidecar          │"
+  },
+  {
+   "file": "apps/frontend/components/panels/studio/index.tsx",
+   "old": "'../assist/comfy-canvas/ComfyCanvasSwap'",
+   "new": "'../comfyui/comfy-canvas/ComfyCanvasSwap'",
+   "_comment": "从兄弟目录用相对路径引用面板目录的写法,规则覆盖不到(类型检查 TS2307 抓到);实际由他会话于 08:24 先行修好,此处留档以保证映射表可重放"
+  }
+ ],
+ "dir_rules": [
+  {
+   "old": "lib/assist/image-studio",
+   "new": "lib/comfyui"
+  },
+  {
+   "old": "stores/assist",
+   "new": "stores/comfyui"
+  },
+  {
+   "old": "panels/assist",
+   "new": "panels/comfyui"
+  }
+ ]
+}

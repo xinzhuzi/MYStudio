@@ -534,7 +534,7 @@ export interface ImageWorkflowNsfwNode extends ImageWorkflowNodeBase {
 }
 
 // ── ComfyUI 生态节点(09-08 二期/三期收官)─────────────────────────────
-// 快照字段均为「节点自持」结构形状,与 lib/assist/image-studio/comfy-workflow-import
+// 快照字段均为「节点自持」结构形状,与 lib/comfyui/comfy/comfy-workflow-import
 // 的 ComfyWorkflowDescriptor、components/ui/comfy 的端口/widget 契约结构兼容
 // (types 层不反向依赖 components,靠结构化类型对齐)。
 

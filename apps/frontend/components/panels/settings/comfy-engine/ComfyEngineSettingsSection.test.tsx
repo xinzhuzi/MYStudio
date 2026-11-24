@@ -58,8 +58,8 @@ const scenarioModels = vi.hoisted(() => ({ reply: null as import("./comfy-engine
 const modelActions = vi.hoisted(() => ({ loadModels: vi.fn(async () => undefined) }));
 const torchActions = vi.hoisted(() => ({ info: vi.fn(), start: vi.fn(), poll: vi.fn() }));
 
-vi.mock("@/lib/assist/image-studio/comfy-sidecar-bridge", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/assist/image-studio/comfy-sidecar-bridge")>();
+vi.mock("@/lib/comfyui/comfy/comfy-sidecar-bridge", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/comfyui/comfy/comfy-sidecar-bridge")>();
   return { ...actual, getEngineTorchInfo: torchActions.info, startEngineTorchUpgrade: torchActions.start, pollJobUntilTerminal: torchActions.poll };
 });
 
@@ -1093,8 +1093,8 @@ describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () =
   });
 
   it("真实任务轮询将路由尾行和终态传到本地升级界面", async () => {
-    const bridge = await vi.importActual<typeof import("@/lib/assist/image-studio/comfy-sidecar-bridge")>(
-      "@/lib/assist/image-studio/comfy-sidecar-bridge",
+    const bridge = await vi.importActual<typeof import("@/lib/comfyui/comfy/comfy-sidecar-bridge")>(
+      "@/lib/comfyui/comfy/comfy-sidecar-bridge",
     );
     const { running, complete } = torchJobRoute;
     const fetchMock = vi.fn()

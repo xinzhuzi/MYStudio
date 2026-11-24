@@ -147,7 +147,7 @@ TEMPLATE_REPLACEMENTS: list[dict] = []
 EDIT_SPECS = [
     {
         "id": "edit:1",
-        "rel": "apps/frontend/lib/assist/image-studio/h3-shot-template.json",
+        "rel": "apps/frontend/lib/comfyui/h3/templates/h3-shot-template.json",
         "plan_count": 2,
     },
     {

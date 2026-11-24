@@ -20,7 +20,7 @@
 
 产出(幂等,重跑字节等价;引擎前端格式,画布直开):
   1. apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/0_单镜视频/pika-单镜视频-fl2v.json
-  2. apps/frontend/lib/assist/image-studio/pika-shot-template.json(同字节)
+  2. apps/frontend/lib/comfyui/h3/templates/pika-shot-template.json(同字节)
 
 不做实弹:纯静态产出;热跑首发+引擎层验收属第二波(候四件模型下载毕)。
 """
@@ -35,7 +35,7 @@ REPO = Path(__file__).resolve().parents[3]
 MOTHER = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试/官方本地-PikaFlex-FL2VA首尾帧.json"
 LIB_DIR = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试"
 OUT = LIB_DIR / "pika-单镜视频-fl2v.json"
-FRONTEND_UI_OUT = REPO / "apps/frontend/lib/assist/image-studio/pika-shot-template.json"
+FRONTEND_UI_OUT = REPO / "apps/frontend/lib/comfyui/h3/templates/pika-shot-template.json"
 
 # ── 官方契约逐字(母体子图实读;底模=1105 Cobijada 换芯,D16/K7 判例模板真源)──
 UNET = "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors"
@@ -124,7 +124,7 @@ def build_canvas() -> dict:
             _inp["shape"] = 7
 
     # ── 产线锚点件(从 31 节点骨架借形)───────────────────────────────
-    anchor_mother = json.loads((REPO / "apps/frontend/lib/assist/image-studio/h3-shot-template.json").read_text(encoding="utf-8"))
+    anchor_mother = json.loads((REPO / "apps/frontend/lib/comfyui/h3/templates/h3-shot-template.json").read_text(encoding="utf-8"))
     am = {n["id"]: n for n in anchor_mother["nodes"]}
 
     def borrow(nid: int, new_id: int) -> dict:

@@ -208,3 +208,27 @@ export function isSelfMediaPublishable(
   const capability = getSelfMediaCapabilities(providerId, platform);
   return Boolean(capability && (contentType === "video" ? capability.supportsVideo : capability.supportsImageText));
 }
+
+// ─── Platform character limits for batch publish auto-trimming ────────────────
+
+/**
+ * Per-platform character limits for description auto-trimming.
+ * Conservative limits based on known platform constraints.
+ */
+export const PLATFORM_CHAR_LIMITS: Record<SelfMediaPlatform, number> = {
+  xhs: 1000,
+  douyin: 300,
+  wxSph: 1000,
+  KWAI: 500,
+  tiktok: 300,
+  youtube: 5000,
+  bilibili: 2000,
+  twitter: 280,
+  wxGzh: 20000,
+  facebook: 5000,
+  instagram: 2200,
+  threads: 500,
+  pinterest: 500,
+  linkedin: 3000,
+  googleBusiness: 1500,
+} as const;

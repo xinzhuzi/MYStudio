@@ -1,10 +1,10 @@
 // ComfyUI 引擎托管一期——渲染层契约门面 + 展示层宿主(1123 三分归位)。
 // 类型与接口的真源在 @/types/comfy-engine;运行时入口的真源在
-// @/lib/assist/image-studio/comfy-engine-client;本文件只留展示纯函数与
+// @/lib/comfyui/comfy/comfy-engine-client;本文件只留展示纯函数与
 // 文案常量,旧导入路径经再导出保持可用。
 
 export * from "@/types/comfy-engine";
-export { getComfyEngineClient } from "@/lib/assist/image-studio/comfy-engine-client";
+export { getComfyEngineClient } from "@/lib/comfyui/comfy/comfy-engine-client";
 import type {
   ComfyCatalogEntry,
   ComfyDoctorReport,

@@ -127,7 +127,7 @@ import {
   type EngineTorchInfo,
   type SidecarJobReply,
   type TorchUpgradeChannel,
-} from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+} from "@/lib/comfyui/comfy/comfy-sidecar-bridge";
 import { SecureVaultBanner } from "./SecureVaultBanner";
 
 type TestState =

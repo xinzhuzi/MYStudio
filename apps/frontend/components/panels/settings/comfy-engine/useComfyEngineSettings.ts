@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { logEvent } from "@/lib/diagnostics/logger";
-import { ComfySidecarHttpError } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+import { ComfySidecarHttpError } from "@/lib/comfyui/comfy/comfy-sidecar-bridge";
 import {
   getComfyEngineClient,
   type ComfyCatalogEntry,

@@ -37,7 +37,7 @@ import {
 } from "./comfy-engine/comfy-engine-contract";
 import { useComfyEngineSettings } from "./comfy-engine/useComfyEngineSettings";
 // 远端引擎接管(1102 Q3/S5):远端生效时页顶提示条——本页维护的是本机备胎引擎。
-import { getRemoteEngine, type ComfyRemoteEngineStatus } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+import { getRemoteEngine, type ComfyRemoteEngineStatus } from "@/lib/comfyui/comfy/comfy-sidecar-bridge";
 import { subscribeRemoteEngineChanged } from "@/lib/studio/engine-line/resolve-engine-base-url";
 // Qwen-Image-2.1 加速资产 09-24 迁入引擎卡(用户裁定「放入对应 comfyui 里面」,
 // 照 09-09 模型页迁卡先例):LoRA 走模型库行内注释(comfy-models-taxonomy),

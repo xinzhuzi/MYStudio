@@ -17,7 +17,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / ".zcode/skills/node-graph/tools"))
-TPL = REPO / "apps/frontend/lib/assist/image-studio/h3-multiseg-template.api.json"
+TPL = REPO / "apps/frontend/lib/comfyui/h3/templates/h3-multiseg-template.api.json"
 E = "http://192.168.0.101:17000"
 
 PROMPT_2X1 = (

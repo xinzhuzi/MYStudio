@@ -29,9 +29,9 @@ assert len(set(M.values())) == 66
 
 UI = {
     'repo': os.path.expanduser('~/Project/Github/MYStudio/apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json'),
-    'twin': os.path.expanduser('~/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.json'),
+    'twin': os.path.expanduser('~/Project/Github/MYStudio/apps/frontend/lib/comfyui/h3/templates/h3-three-stage-template.json'),
 }
-API = os.path.expanduser('~/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json')
+API = os.path.expanduser('~/Project/Github/MYStudio/apps/frontend/lib/comfyui/h3/templates/h3-three-stage-template.api.json')
 
 def renumber_ui(d):
     for n in d['nodes']:

@@ -18,7 +18,7 @@ import {
   useSshPresetsStore,
   type SshPreset,
 } from "@/stores/settings/ssh-presets-store";
-import { setComfySidecarLivenessProbeForTests } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+import { setComfySidecarLivenessProbeForTests } from "@/lib/comfyui/comfy/comfy-sidecar-bridge";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import {
   useWorkflowBindingsStore,

@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useAssetDetailViewStore } from "@/stores/assets/asset-detail-view-store";
-import { useFreedomStore } from "@/stores/assist/freedom-store";
+import { useFreedomStore } from "@/stores/comfyui/freedom-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
 import type { AssetImage, AssetImageKind, StudioAssetSummary } from "@/types/studio-assets";
 import { RoleVoiceAssignDialog } from "./RoleVoiceAssignDialog";

@@ -54,7 +54,7 @@ vi.mock("@/lib/studio/image-workflow", () => ({
   setGeneratedImageResult: vi.fn().mockImplementation((graph) => graph),
   updateImageWorkflowNode: vi.fn().mockImplementation((graph) => graph),
 }));
-vi.mock("@/lib/assist/image-studio/run-uncloth", () => ({
+vi.mock("@/lib/comfyui/image-gen/run-uncloth", () => ({
   runUnclothChain: vi.fn().mockResolvedValue({
     imageUrl: "project-file://media/ai-image/2026-09/uncloth_x_1.png",
     mediaId: "media-unc-1",
@@ -431,7 +431,7 @@ describe("runImageWorkflowNodeGeneration 无衣物链分流(09-04 通用化)", (
   } as never;
 
   it("链齐备:执行 uncloth 管线(双分割+两遍),不走普通 t2i/i2i 通道", async () => {
-    const { runUnclothChain } = await import("@/lib/assist/image-studio/run-uncloth");
+    const { runUnclothChain } = await import("@/lib/comfyui/image-gen/run-uncloth");
     const { aiManager } = await import("@/lib/ai/ai-manager");
 
     const result = await runImageWorkflowNodeGeneration(unclothChainGraph, "gen-1", {
@@ -450,7 +450,7 @@ describe("runImageWorkflowNodeGeneration 无衣物链分流(09-04 通用化)", (
   });
 
   it("无 uncloth 上游:照走普通生成链(不误伤既有路径)", async () => {
-    const { runUnclothChain } = await import("@/lib/assist/image-studio/run-uncloth");
+    const { runUnclothChain } = await import("@/lib/comfyui/image-gen/run-uncloth");
     const { aiManager } = await import("@/lib/ai/ai-manager");
 
     await runImageWorkflowNodeGeneration(freedomGraph, "gen-1", { addMaterial: () => "mat-1" });
@@ -460,7 +460,7 @@ describe("runImageWorkflowNodeGeneration 无衣物链分流(09-04 通用化)", (
   });
 
   it("uncloth 返回前来源变化时拒绝旁路图写回", async () => {
-    const { runUnclothChain } = await import("@/lib/assist/image-studio/run-uncloth");
+    const { runUnclothChain } = await import("@/lib/comfyui/image-gen/run-uncloth");
     let current = true;
     vi.mocked(runUnclothChain).mockImplementationOnce(async (_request, assertStillCurrent) => {
       expect(assertStillCurrent).toBeTypeOf("function");

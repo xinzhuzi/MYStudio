@@ -5,7 +5,7 @@
 
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ComfySidecarHttpError } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+import { ComfySidecarHttpError } from "@/lib/comfyui/comfy/comfy-sidecar-bridge";
 import { createMockComfyEngineClient } from "./mock-comfy-engine-client";
 import { resetComfyEngineAutoStartStateForTests, useComfyEngineSettings } from "./useComfyEngineSettings";
 import type { ComfyEngineClient, ComfyEngineJob } from "./comfy-engine-contract";

@@ -71,7 +71,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 CANVAS = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json"  # 1119 git mv 自 三采-单镜
-API = REPO / "apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json"
+API = REPO / "apps/frontend/lib/comfyui/h3/templates/h3-three-stage-template.api.json"
 CLONE = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/7_测试/三采-单镜-小脸修复.json"  # df4162c8 迁 7_测试/(留档名,3.3 豁免)
 
 PREFIX_P_FINAL = "video/漫影/chapter-001/sb-chapter-001-001/p-final"

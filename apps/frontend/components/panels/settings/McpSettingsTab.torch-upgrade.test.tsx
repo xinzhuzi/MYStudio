@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { McpSettingsTab } from "./McpSettingsTab";
-import { ComfySidecarHttpError } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+import { ComfySidecarHttpError } from "@/lib/comfyui/comfy/comfy-sidecar-bridge";
 import { useEnginePresetsStore } from "@/stores/settings/engine-presets-store";
 import { useSshPresetsStore } from "@/stores/settings/ssh-presets-store";
 
@@ -10,8 +10,8 @@ const mocks = vi.hoisted(() => ({
   remote: vi.fn(), setRemote: vi.fn(), ssh: vi.fn(), info: vi.fn(), start: vi.fn(), poll: vi.fn(), manifest: vi.fn(), sync: vi.fn(), request: vi.fn(),
 }));
 
-vi.mock("@/lib/assist/image-studio/comfy-sidecar-bridge", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/assist/image-studio/comfy-sidecar-bridge")>();
+vi.mock("@/lib/comfyui/comfy/comfy-sidecar-bridge", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/comfyui/comfy/comfy-sidecar-bridge")>();
   return { ...actual, getRemoteEngine: mocks.remote, setRemoteEngine: mocks.setRemote, getComfySshStatus: mocks.ssh,
     getEngineTorchInfo: mocks.info, startEngineTorchUpgrade: mocks.start,
     pollJobUntilTerminal: mocks.poll, getEngineSyncManifest: mocks.manifest, syncEngine: mocks.sync,

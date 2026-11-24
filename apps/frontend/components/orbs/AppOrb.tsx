@@ -19,7 +19,7 @@ import { Compass } from "lucide-react";
 import { ContextMenuItem } from "@/components/ui/context-menu";
 import { tabs as TAB_LABELS } from "@/components/nav-config";
 import { useMediaPanelStore, type Tab } from "@/stores/navigation/media-panel-store";
-import { useFreedomStore, type StudioMode } from "@/stores/assist/freedom-store";
+import { useFreedomStore, type StudioMode } from "@/stores/comfyui/freedom-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useWorkflowReadiness, resolveVisibleWorkflowStage } from "@/components/panels/studio/workflow-stage";
 import { tryResolveProductionEpisodeId } from "@/components/panels/studio/workflow-helpers";

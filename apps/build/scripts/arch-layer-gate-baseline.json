@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-23T00:24:17.498Z",
+  "generatedAt": "2026-11-23T23:39:53.018Z",
   "entries": [
     "electron/main/main.ts",
     "electron/rendering/plugins/remotion/browser/remotion-browser-worker.ts",
@@ -274,10 +274,6 @@
     },
     {
       "file": "components/ui/accordion.tsx",
-      "kind": "none"
-    },
-    {
-      "file": "components/ui/alert.tsx",
       "kind": "none"
     },
     {
@@ -906,6 +902,14 @@
     },
     {
       "file": "types/image-gen.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/product.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/promotion-template.ts",
       "kind": "type-only"
     },
     {

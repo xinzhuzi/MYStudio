@@ -1,0 +1,731 @@
+// Copyright (c) 2025 hotflow2024
+// Licensed under AGPL-3.0-or-later. See LICENSE for details.
+// Commercial licensing available. See COMMERCIAL_LICENSE.md.
+
+/**
+ * ComfyUI 执行通道(09-08 二期/三期收官,流X):
+ * - HTTP:渲染层直连本地生图 sidecar 的 POST /comfy/execute(job 化)+
+ *   GET /comfy/jobs/{id} 轮询 + GET /comfy/engine/object-info?class=X 单类
+ *   schema 拉取(传输细节照 comfy-sidecar-bridge 同款:探活门禁+Bearer+超时)。
+ * - 纯函数:工作流节点上游收集(prompt 正负极性分流/图沿边收集)与执行计划
+ *   构建(graph 解析+widget 值回填+注入点规划),单测覆盖。
+ * - 落盘:输出图按成图节点 mediaRef 模式写项目 media/ai-image/(project-file://)
+ *   + 媒体库条目 + 磁盘 ledger(照 run-node-generation 治理口径);输出视频走
+ *   persistComfyVideo 同惯例落 media/ai-video/(10-29 D1 T7,persist 成功即
+ *   从结果剥离 b64 防 MB 级常驻,G16 前端侧)。
+ */
+
+import { unwrapComfyApiGraph, type ComfyApiWorkflow } from "@/lib/comfyui/comfy/comfy-workflow-import";
+import {
+  appendProjectLedger,
+  ledgerFilenameOf,
+  ledgerMonthFolderOf,
+} from "@/lib/comfyui/comfy/history-records";
+import { getProjectFilesBridge } from "@/lib/bridge/project-files";
+import { readImageAsBase64 } from "@/lib/media/image-storage";
+import { saveToMediaLibrary } from "@/lib/ai/generation-media";
+import { parseProjectFileUrl } from "@/lib/upscale/project-file-url";
+import { useProjectStore } from "@/stores/project/project-store";
+import { useMediaStore } from "@/stores/media/media-store";
+import { getLocalImageToken, invalidateLocalImageToken } from "@/lib/ai/local-image-token";
+import type { ImageWorkflowComfyWorkflowNode, ImageWorkflowGraph } from "@/types/studio";
+
+const COMFY_SIDECAR_BASE_URL = "http://127.0.0.1:17595";
+const DEFAULT_TIMEOUT_MS = 15_000;
+/** 执行 job 轮询:间隔与总上限(后端执行超时 300s,前端放宽到 330s 收尾)。 */
+const JOB_POLL_INTERVAL_MS = 1_500;
+const JOB_POLL_TIMEOUT_MS = 330_000;
+
+/** 引擎无鉴权但 sidecar 有(装机随机令牌,与 comfy-sidecar-bridge 同源) */
+export interface ComfySidecarJsonOptions {
+  body?: unknown;
+  query?: Record<string, string>;
+  timeoutMs?: number;
+}
+
+/** sidecar 探活门禁(照 comfy-sidecar-bridge:未运行零 fetch,避免渲染层网络错误日志) */
+async function sidecarLikelyUp(): Promise<boolean> {
+  try {
+    const bridge = (window as { imageGenRuntime?: { status?: () => Promise<{ running?: boolean }> } })
+      .imageGenRuntime;
+    if (bridge?.status) return Boolean((await bridge.status())?.running);
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+/** sidecar 统一 JSON 请求(探活+Bearer+超时+大白话错误)。 */
+export async function comfySidecarJson<T>(
+  method: "GET" | "POST" | "DELETE",
+  path: string,
+  options: ComfySidecarJsonOptions = {},
+): Promise<T> {
+  if (typeof window !== "undefined" && !(await sidecarLikelyUp())) {
+    throw new Error("本地生图服务未运行,请先在 设置→本地配置 完成「准备运行时」");
+  }
+  const url = new URL(`${COMFY_SIDECAR_BASE_URL}${path}`);
+  for (const [key, value] of Object.entries(options.query ?? {})) {
+    url.searchParams.set(key, value);
+  }
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), {
+      method,
+      headers: {
+        ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
+        Authorization: `Bearer ${await getLocalImageToken()}`,
+      },
+      ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
+      signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (error instanceof DOMException && (error.name === "TimeoutError" || error.name === "AbortError")) {
+      throw new Error("本地生图服务响应超时,请稍后重试");
+    }
+    throw new Error("无法连接本地生图服务,请先在 设置→本地配置 完成「准备运行时」后重试");
+  }
+  // 1103 403 自愈:令牌陈旧(装机循环/sidecar 换代)→失效重取,重试一次;仍 403 才报错
+  if (response.status === 403) {
+    invalidateLocalImageToken();
+    const retryToken = await getLocalImageToken();
+    if (retryToken) {
+      try {
+        response = await fetch(url.toString(), {
+          method,
+          headers: {
+            ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
+            Authorization: `Bearer ${retryToken}`,
+          },
+          ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
+          signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
+        });
+      } catch {
+        /* 重试网络失败走下面的统一错误口径 */
+      }
+    }
+  }
+  const json = (await response.json().catch(() => null)) as
+    | (T & { error?: { message?: string } })
+    | null;
+  if (!response.ok) {
+    throw new Error(json?.error?.message || `请求失败(HTTP ${response.status})`);
+  }
+  if (!json) {
+    throw new Error("本地生图服务应答格式异常");
+  }
+  return json;
+}
+
+// ---------------------------------------------------------------------------
+// 引擎显存释放(1112 recavsr-mainline:三采拆链条间 POST /free)
+// ---------------------------------------------------------------------------
+
+/**
+ * 请求引擎卸载模型并回收显存(sidecar POST /comfy/engine/free → engine_health.
+ * free_memory → 引擎 POST /free {"unload_models":true,"free_memory":true})。
+ * Note103 运行法则①的段间动作:H3 全家桶驻留显存会把三采饿至 2~5s/帧,
+ * 拆链+/free 后 243f≈70s。发后即忘语义:失败只回 false 恒不抛(拆链是优化
+ * 不是正确性依赖,引擎不可达/路由未上不应阻断段B)。
+ */
+export async function requestComfyEngineFree(): Promise<boolean> {
+  try {
+    const reply = await comfySidecarJson<{ freed?: boolean; engineOnline?: boolean }>("POST", "/comfy/engine/free", {
+      timeoutMs: 15_000,
+    });
+    return Boolean(reply?.freed);
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 执行契约类型与 job 轮询
+// ---------------------------------------------------------------------------
+
+/** /comfy/execute 的注入图片(引擎上传后写回文件名) */
+export interface ComfyExecuteImageInput {
+  key: string;
+  name: string;
+  b64: string;
+}
+
+export interface ComfyExecutePayload {
+  graph: ComfyApiWorkflow;
+  inputs: {
+    strings: Record<string, string>;
+    images: ComfyExecuteImageInput[];
+  };
+  /** 执行超时秒数(后端默认 300;音频整曲类长任务放宽,上限 1200)。 */
+  timeoutS?: number;
+}
+
+/** 后端 job 轮询应答(engine_manager jobs 形状) */
+export interface ComfyExecuteJobReply {
+  id?: string;
+  kind?: string;
+  status?: "running" | "complete" | "error";
+  step?: string;
+  message?: string | null;
+  error?: string | null;
+  result?: {
+    promptId?: string;
+    images?: Array<{
+      nodeId?: string;
+      filename?: string;
+      b64: string;
+    }>;
+    /** SaveAudio 类节点产物(09-20 YuE2 BGM 接线;与 images 同收集链) */
+    audios?: Array<{
+      nodeId?: string;
+      filename?: string;
+      b64: string;
+    }>;
+    /** PreviewAny 类节点 ui 文本(09-20 YuE2 出谱流接线;纯 JSON 内联,无 b64) */
+    texts?: Array<{
+      nodeId?: string;
+      text: string;
+    }>;
+    /**
+     * SaveVideo/VHS_VideoCombine 类节点产物(10-29 D1 T7:与 images 同收集链;
+     * 后端 execute.py video_collected 形状 {nodeId,filename,subfolder,type,b64})。
+     * persist 成功后消费方剥离 b64 换 url/persisted(防 MB 级 b64 随结果对象常驻,
+     * G16 前端侧);b64 声明为可选正是为容纳剥离后的形态。
+     */
+    videos?: Array<{
+      nodeId?: string;
+      filename?: string;
+      subfolder?: string;
+      type?: string;
+      b64?: string;
+      /** persist 成功换入的项目受管地址(project-file://,media/ai-video/) */
+      url?: string;
+      persisted?: boolean;
+    }>;
+  } | null;
+}
+
+export type ComfyExecuteStage = "upload" | "queue" | "running" | "collect";
+
+export interface ComfyExecuteProgress {
+  stage: ComfyExecuteStage | "unknown";
+  message: string;
+}
+
+function stageOf(step: unknown): ComfyExecuteStage | "unknown" {
+  return step === "upload" || step === "queue" || step === "running" || step === "collect" ? step : "unknown";
+}
+
+/** 提交执行 job → 轮询到终态;onProgress 逐阶段回报(上传/排队/执行中/收图)。
+ * options.pollTimeoutMs:轮询总上限(默认 330s 收尾;音频整曲类长任务按
+ * payload.timeoutS 放宽时同步放宽,建议 pollTimeoutMs ≥ timeoutS*1000+30s)。 */
+export async function runComfyExecute(
+  payload: ComfyExecutePayload,
+  onProgress?: (progress: ComfyExecuteProgress) => void,
+  options: { pollTimeoutMs?: number } = {},
+): Promise<NonNullable<ComfyExecuteJobReply["result"]>> {
+  const { jobId } = await comfySidecarJson<{ jobId: string }>("POST", "/comfy/execute", {
+    body: payload as unknown as Record<string, unknown>,
+    timeoutMs: 20_000,
+  });
+  const pollTimeoutMs = options.pollTimeoutMs ?? JOB_POLL_TIMEOUT_MS;
+  const deadline = Date.now() + pollTimeoutMs;
+  for (;;) {
+    const job = await comfySidecarJson<ComfyExecuteJobReply>(
+      "GET",
+      `/comfy/jobs/${encodeURIComponent(jobId)}`,
+      { timeoutMs: 10_000 },
+    );
+    if (job.status === "error") {
+      throw new Error(job.error || job.message || "ComfyUI 执行失败");
+    }
+    if (job.status === "complete" && job.result) {
+      return job.result;
+    }
+    if (Date.now() >= deadline) {
+      throw new Error(`ComfyUI 执行超时(${Math.round(pollTimeoutMs / 1000)} 秒),请检查引擎队列后重试`);
+    }
+    onProgress?.({
+      stage: stageOf(job.step),
+      message: job.message ?? "引擎执行中…",
+    });
+    await new Promise((resolve) => setTimeout(resolve, JOB_POLL_INTERVAL_MS));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 纯函数:上游收集与执行计划(单测覆盖)
+// ---------------------------------------------------------------------------
+
+/** 工作流节点上游收集产物(prompt 正负分流 + 图 URL 序列) */
+export interface ComfyUpstreamCollectResult {
+  positivePrompt: string;
+  negativePrompt: string;
+  hasPromptSource: boolean;
+  imageUrls: string[];
+  /** 连了图边但源图缺失(空参考图/未生成的上游)——运行前阻断指路用 */
+  missingImageCount: number;
+}
+
+/** 源节点可提取的图地址(reference.imageUrl / generated.uncloth/comfy*.resultUrl) */
+export function comfyUpstreamImageUrlOf(node: ImageWorkflowGraph["nodes"][number] | undefined): string | undefined {
+  if (!node) return undefined;
+  if (node.type === "reference") return node.imageUrl || undefined;
+  if (
+    node.type === "generated" || node.type === "uncloth"
+    || node.type === "comfy-workflow" || node.type === "comfy-generic"
+  ) {
+    return node.resultUrl || undefined;
+  }
+  return undefined;
+}
+
+/**
+ * 沿边收集上游输入(纯函数):提示词按 prompt 节点的正/负极性分流
+ * (双出口裁定:正口/整节点=正负都供,负口=只供负向);图按边序收集。
+ */
+export function collectComfyUpstream(
+  graph: ImageWorkflowGraph,
+  nodeId: string,
+): ComfyUpstreamCollectResult {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const incoming = graph.edges.filter((edge) => edge.target === nodeId);
+  let positivePrompt = "";
+  let negativePrompt = "";
+  let hasPromptSource = false;
+  const imageUrls: string[] = [];
+  let missingImageCount = 0;
+  for (const edge of incoming) {
+    const source = nodesById.get(edge.source);
+    if (!source) continue;
+    if (source.type === "prompt") {
+      hasPromptSource = true;
+      const onlyNegative = edge.sourceHandle === "negative";
+      if (!onlyNegative && source.prompt.trim()) {
+        positivePrompt = positivePrompt ? `${positivePrompt}\n${source.prompt.trim()}` : source.prompt.trim();
+      }
+      const negativeText = (source.negativePrompt ?? "").trim();
+      if (negativeText) {
+        negativePrompt = negativePrompt
+          ? `${negativePrompt}\n${negativeText}`
+          : negativeText;
+      }
+      continue;
+    }
+    const imageUrl = comfyUpstreamImageUrlOf(source);
+    if (imageUrl) imageUrls.push(imageUrl);
+    else if (source.type === "reference" || source.type === "generated" || source.type === "uncloth"
+      || source.type === "comfy-workflow" || source.type === "comfy-generic") {
+      missingImageCount += 1;
+    }
+  }
+  return { positivePrompt, negativePrompt, hasPromptSource, imageUrls, missingImageCount };
+}
+
+/** 工作流节点执行计划(payload 雏形;图源=库内容 JSON 原文) */
+export type ComfyWorkflowExecutionPlan =
+  | {
+      ok: true;
+      graph: ComfyApiWorkflow;
+      strings: Record<string, string>;
+      /** 待上传图槽位(源 URL 由调用方转 b64) */
+      imageSlots: Array<{ key: string; name: string; sourceUrl: string }>;
+    }
+  | { ok: false; error: string };
+
+/**
+ * 构建执行计划(纯函数):库 JSON → 图深拷贝 → widget 现值回填 → 边界口
+ * 注入规划(prompt-text 口按极性吃上游文本;image 口按序吃上游图)。
+ * 未注入的口保持工作流原值(默认值不动即可跑——二期裁定)。
+ */
+export function planComfyWorkflowExecution(
+  workflowText: string,
+  node: Pick<ImageWorkflowComfyWorkflowNode, "descriptor" | "widgetValues">,
+  upstream: ComfyUpstreamCollectResult,
+): ComfyWorkflowExecutionPlan {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(workflowText);
+  } catch {
+    return { ok: false, error: "工作流库内容不是有效 JSON(库条目可能损坏,请重新导入)" };
+  }
+  const unwrapped = unwrapComfyApiGraph(parsed);
+  if (!unwrapped.ok) return { ok: false, error: unwrapped.error };
+  const graph: ComfyApiWorkflow = JSON.parse(JSON.stringify(unwrapped.graph));
+
+  // widget 现值回填(id=节点号.字段名;缺项保持工作流原值)
+  for (const [widgetId, value] of Object.entries(node.widgetValues ?? {})) {
+    const dot = widgetId.indexOf(".");
+    if (dot <= 0 || value === null || typeof value === "object") continue;
+    const target = graph[widgetId.slice(0, dot)];
+    if (target) {
+      target.inputs[widgetId.slice(dot + 1)] = value;
+    }
+  }
+
+  // 边界口注入规划(prompt-text 按极性;image 按序)
+  const strings: Record<string, string> = {};
+  const imageSlots: Array<{ key: string; name: string; sourceUrl: string }> = [];
+  let imagePortIndex = 0;
+  for (const port of node.descriptor.ports) {
+    if (port.type === "prompt-text") {
+      const text = port.polarity === "negative" ? upstream.negativePrompt : upstream.positivePrompt;
+      if (text.trim()) strings[port.id] = text.trim();
+    } else {
+      const sourceUrl = upstream.imageUrls[imagePortIndex];
+      imagePortIndex += 1;
+      if (sourceUrl) {
+        imageSlots.push({ key: port.id, name: `mystudio-${port.inputKey}.png`, sourceUrl });
+      }
+    }
+  }
+  return { ok: true, graph, strings, imageSlots };
+}
+
+// ---------------------------------------------------------------------------
+// 图片地址 → b64 与落盘(mediaRef 模式)
+// ---------------------------------------------------------------------------
+
+/** 应用侧图片地址(local-image:// / project-file:// / data: / http)→ 纯 b64 */
+export async function comfyImageUrlToB64(url: string): Promise<string> {
+  // project-file/asset-file 同一读 IPC(09-09 阶段2 批3 双 scheme 扩展)
+  if (url.startsWith("project-file://") || url.startsWith("asset-file://")) {
+    const result = await getProjectFilesBridge()?.readAsBase64(url);
+    if (!result?.success || !result.base64) {
+      throw new Error(`项目内图片读取失败:${result?.error || url}`);
+    }
+    const base64 = result.base64;
+    return base64.startsWith("data:") ? base64.slice(base64.indexOf(",") + 1) : base64;
+  }
+  const dataUrl = await readImageAsBase64(url);
+  if (!dataUrl) {
+    throw new Error(`图片读取失败(不在应用存储内或已失效):${url.slice(0, 80)}`);
+  }
+  const comma = dataUrl.indexOf(",");
+  return comma >= 0 && dataUrl.startsWith("data:") ? dataUrl.slice(comma + 1) : dataUrl;
+}
+
+/** b64 → 项目 media/ai-image/ 受管地址 + 媒体库条目 + 磁盘 ledger(失败不阻断回显) */
+export async function persistComfyImage(
+  b64: string,
+  title: string,
+  options: {
+    source?: string;
+    prompt?: string;
+    negativePrompt?: string | null;
+    projectId?: string | null;
+    bridgeItemId?: number;
+    isProjectCurrent?: () => boolean;
+  } = {},
+): Promise<{ url: string | null; mediaId?: string; persisted: boolean }> {
+  const projectId = options.projectId === undefined ? useProjectStore.getState().activeProjectId : options.projectId;
+  let projectChanged = false;
+  const unsubscribe = useProjectStore.subscribe((state, previous) => {
+    if (state.activeProjectId !== previous.activeProjectId) projectChanged = true;
+  });
+  const assertProjectCurrent = () => {
+    if (projectChanged || useProjectStore.getState().activeProjectId !== projectId
+      || options.isProjectCurrent?.() === false) {
+      throw new Error("活动项目已切换,图片回写已暂停");
+    }
+  };
+  try {
+    assertProjectCurrent();
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const seed = title.slice(0, 24).replace(/[^\w\u4e00-\u9fff]+/g, "_").slice(0, 24) || "comfy";
+    const bridgeFilename = options.source === "comfy-bridge" && Number.isSafeInteger(options.bridgeItemId)
+      && (options.bridgeItemId ?? 0) > 0 ? `comfy_bridge_${options.bridgeItemId}.png` : undefined;
+    const filename = bridgeFilename ?? `comfy_${seed}_${Date.now()}.png`;
+    if (projectId && bridgeFilename) {
+      const existing = useMediaStore.getState().mediaFiles.find((media) => {
+        if (media.projectId !== projectId || media.type !== "image" || media.source !== "ai-image" || !media.url) return false;
+        const file = parseProjectFileUrl(media.url);
+        return file?.projectId === projectId && file.relativePath.startsWith("media/ai-image/")
+          && file.relativePath.endsWith(`/${bridgeFilename}`);
+      });
+      if (existing?.url) return { url: existing.url, mediaId: existing.id, persisted: true };
+    }
+    let stableUrl: string | null = null;
+    if (projectId) {
+      const projectFiles = getProjectFilesBridge();
+      if (projectFiles?.saveImage) {
+        const saved = await projectFiles
+          .saveImage({
+            projectId,
+            relativePath: `media/ai-image/${month}/${filename}`,
+            source: `data:image/png;base64,${b64}`,
+          })
+          .catch(() => undefined);
+        if (saved?.success && saved.url && parseProjectFileUrl(saved.url)?.projectId === projectId) {
+          stableUrl = saved.url;
+        }
+      }
+    }
+    assertProjectCurrent();
+    // Bridge items remain in the durable inbox on failure; repeated retries must
+    // not create a new memory-only media entry each time.
+    if (!stableUrl && options.source === "comfy-bridge") return { url: null, persisted: false };
+    const finalUrl = stableUrl ?? `data:image/png;base64,${b64}`;
+    const mediaId = saveToMediaLibrary(finalUrl, title, "ai-image");
+    if (projectId && stableUrl) {
+      void appendProjectLedger({
+        projectId,
+        relativePath: `media/ai-image/${ledgerMonthFolderOf(stableUrl)}/ledger.json`,
+        entry: {
+          ts: Date.now(),
+          prompt: options.prompt ?? title,
+          model: "comfy",
+          file: `${ledgerMonthFolderOf(stableUrl)}/${ledgerFilenameOf(stableUrl)}`,
+          negativePrompt: options.negativePrompt ?? null,
+          aspectRatio: "",
+          resolution: null,
+          references: [],
+          source: options.source ?? "comfy-node",
+        },
+      }).catch(() => undefined);
+    }
+    return { url: stableUrl, mediaId, persisted: stableUrl !== null };
+  } finally {
+    unsubscribe();
+  }
+}
+
+/**
+ * b64 音频 → 项目 media/audio/<月>/ 受管文件(09-20 YuE2 BGM 接线)。
+ * 返回绝对 filePath(供 remotionChapterManifest.importAudio 的 sourcePath)+
+ * project-file:// url;projectId 必须在生成前捕获,活动项目切换不得改变保存目标。
+ * 无项目/写失败/非本项目受管地址均报错,绑定和界面更新由调用方身份守卫控制。
+ */
+export async function persistComfyAudio(
+  b64: string,
+  engineFilename: string,
+  projectId: string,
+): Promise<{ filePath: string; url: string }> {
+  const projectFiles = getProjectFilesBridge();
+  if (!projectId || !projectFiles?.writeBinary) {
+    throw new Error("当前环境无法写入项目音频(需在桌面应用的项目内使用)");
+  }
+  const extension = (engineFilename.split(".").pop() ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const now = new Date();
+  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const filename = `bgm_yue2_${Date.now()}.${extension || "flac"}`;
+  const binary = Uint8Array.from(atob(b64), (char) => char.charCodeAt(0));
+  const bytes = new ArrayBuffer(binary.byteLength);
+  new Uint8Array(bytes).set(binary);
+  const saved = await projectFiles.writeBinary({
+    projectId,
+    relativePath: `media/audio/${month}/${filename}`,
+    bytes,
+  });
+  if (!saved?.success || !saved.filePath) {
+    throw new Error(`生成的音频写入项目失败:${saved?.error || engineFilename}`);
+  }
+  if (!saved.url || parseProjectFileUrl(saved.url)?.projectId !== projectId) {
+    throw new Error("生成结果未返回发起项目的受管音频地址");
+  }
+  return { filePath: saved.filePath, url: saved.url };
+}
+
+/**
+ * b64 视频 → 项目 media/ai-video/<月>/ 受管文件 + 媒体库条目(video 类型)+
+ * 磁盘 ledger(10-29 D1 T7:照 persistComfyImage 三件事惯例做视频版)。
+ * 与 persistComfyImage 的差异:视频无 data: 内存预览降级(MB 级 b64 常驻正是
+ * G16 要防的),写失败只回 {url:null, persisted:false} 不抛错不阻断回显;
+ * projectId 必须为发起项目快照,保存窗口内活动项目已切换时不入媒体库
+ * (防条目错挂;与 persistComfyImage 的 assertProjectCurrent 同目的)。
+ */
+export async function persistComfyVideo(
+  b64: string,
+  engineFilename: string,
+  projectId: string,
+  options: { subfolder?: string } = {},
+): Promise<{ url: string | null; mediaId?: string; persisted: boolean; subfolder?: string }> {
+  const projectFiles = getProjectFilesBridge();
+  if (!projectId || !projectFiles?.writeBinary) {
+    return { url: null, persisted: false };
+  }
+  if (useProjectStore.getState().activeProjectId !== projectId) {
+    return { url: null, persisted: false };
+  }
+  const extension = (engineFilename.split(".").pop() ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8);
+  const now = new Date();
+  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const filename = `comfy_video_${Date.now()}.${extension || "mp4"}`;
+  const binary = Uint8Array.from(atob(b64), (char) => char.charCodeAt(0));
+  const bytes = new ArrayBuffer(binary.byteLength);
+  new Uint8Array(bytes).set(binary);
+  const saved = await projectFiles.writeBinary({
+    projectId,
+    relativePath: `media/ai-video/${month}/${filename}`,
+    bytes,
+  }).catch(() => undefined);
+  if (!saved?.success || !saved.url || parseProjectFileUrl(saved.url)?.projectId !== projectId) {
+    return { url: null, persisted: false };
+  }
+  // 媒体库条目(saveToMediaLibrary)按「当前活动项目」归属落库:写盘等待窗口内
+  // 项目已切换则不入库,文件留在发起项目内但不再挂条目(照 persistComfyImage
+  // 写后 assert 的同款语义,视频侧改为静默失败不阻断)。
+  if (useProjectStore.getState().activeProjectId !== projectId) {
+    return { url: null, persisted: false };
+  }
+  const title = engineFilename || "ComfyUI 视频";
+  const mediaId = saveToMediaLibrary(saved.url, title, "ai-video");
+  void appendProjectLedger({
+    projectId,
+    relativePath: `media/ai-video/${ledgerMonthFolderOf(saved.url)}/ledger.json`,
+    entry: {
+      ts: Date.now(),
+      prompt: title,
+      model: "comfy",
+      file: `${ledgerMonthFolderOf(saved.url)}/${ledgerFilenameOf(saved.url)}`,
+      negativePrompt: null,
+      aspectRatio: "",
+      resolution: null,
+      references: [],
+      source: "comfy-video",
+    },
+  }).catch(() => undefined);
+  return { url: saved.url, mediaId, persisted: true, subfolder: options.subfolder };
+}
+
+export interface ComfyVideoPersistDetail {
+  /** 项目受管地址(media/ai-video/,project-file://) */
+  url: string;
+  /** 引擎产物文件名(SaveVideo 前缀真源) */
+  engineFilename: string;
+  /** 引擎产物镜绑定(video/漫影/{章}/{镜})——1115 F2① 回流保绑定:入库明细不再
+   *  丢弃镜归属,远端直落/存量配对挂载按此把片对回分镜(镜像消费器
+   *  assertVideoSubfolder 白名单口径)。 */
+  subfolder?: string;
+  mediaId?: string;
+}
+
+export interface ComfyVideoPersistSummary {
+  /** 成功入库并已剥离 b64 的条数 */
+  persisted: number;
+  /** 入库失败(b64 保留在结果对象,产物仍在引擎输出目录可重试) */
+  failed: number;
+  /** 逐段入库明细(1115 F2①:subfolder 镜绑定透传;仅成功段入列,失败段 b64 仍在 result) */
+  items: ComfyVideoPersistDetail[];
+}
+
+/**
+ * execute 结果里的 videos 循环入库(T7 消费位共用核):逐段调 persistComfyVideo,
+ * 成功即地剥离该条目的 b64 换 {url, persisted}(G16 前端侧,防 MB 级 b64 随
+ * job result 常驻);任何一段失败只计数不抛错(照「失败不阻断」惯例)。
+ * 已剥离条目(b64 缺失)跳过——重复消费幂等。
+ */
+export async function persistComfyVideosFromResult(
+  result: Pick<NonNullable<ComfyExecuteJobReply["result"]>, "videos">,
+  projectId: string | null,
+): Promise<ComfyVideoPersistSummary> {
+  const summary: ComfyVideoPersistSummary = { persisted: 0, failed: 0, items: [] };
+  for (const video of result.videos ?? []) {
+    if (!video.b64) continue;
+    try {
+      const saved = await persistComfyVideo(
+        video.b64,
+        video.filename ?? `comfy_video_${Date.now()}.mp4`,
+        projectId ?? "",
+        { subfolder: video.subfolder },
+      );
+      if (saved.persisted && saved.url) {
+        delete video.b64;
+        video.url = saved.url;
+        video.persisted = true;
+        summary.persisted += 1;
+        summary.items.push({
+          url: saved.url,
+          engineFilename: video.filename ?? "",
+          subfolder: video.subfolder,
+          mediaId: saved.mediaId,
+        });
+      } else {
+        summary.failed += 1;
+      }
+    } catch {
+      summary.failed += 1;
+    }
+  }
+  return summary;
+}
+
+// ---------------------------------------------------------------------------
+// 工作流节点运行编排(卡上「运行」按钮的执行核;状态回写由调用方落 store)
+// ---------------------------------------------------------------------------
+
+export interface RunComfyWorkflowNodeResult {
+  /** 回填地址:优先项目内受管地址;落盘失败降级 data:(内存预览,持久化时剥离) */
+  imageUrl: string;
+  mediaId?: string;
+  persisted: boolean;
+  imageCount: number;
+  promptId?: string;
+}
+
+/**
+ * 运行工作流节点端到端:库取原文 → 上游收集 → 计划 → b64 转换 → /comfy/execute
+ * → 首图落盘(mediaRef 模式)。进度经 onStage 回报给卡面状态行。
+ */
+export async function runComfyWorkflowNode(
+  graph: ImageWorkflowGraph,
+  nodeId: string,
+  options: {
+    /** 工作流库内容通道(真实=sidecar HTTP;测试=内存 mock) */
+    fetchWorkflowText: (workflowId: string) => Promise<string>;
+    onProgress?: (progress: ComfyExecuteProgress) => void;
+  },
+): Promise<RunComfyWorkflowNodeResult> {
+  const node = graph.nodes.find(
+    (item): item is ImageWorkflowComfyWorkflowNode => item.id === nodeId && item.type === "comfy-workflow",
+  );
+  if (!node) throw new Error("工作流节点不存在");
+  const upstream = collectComfyUpstream(graph, nodeId);
+  if (upstream.missingImageCount > 0) {
+    throw new Error(
+      `有 ${upstream.missingImageCount} 张上游图还没准备好(空参考图或未生成):先上传/生成,或断开连线再运行`,
+    );
+  }
+  const projectId = useProjectStore.getState().activeProjectId;
+  let projectChanged = false;
+  const unsubscribe = useProjectStore.subscribe((state, previous) => {
+    if (state.activeProjectId !== previous.activeProjectId) projectChanged = true;
+  });
+  const isProjectCurrent = () => !projectChanged && useProjectStore.getState().activeProjectId === projectId;
+  const assertProjectCurrent = () => {
+    if (!isProjectCurrent()) throw new Error("活动项目已切换,工作流结果回写已暂停");
+  };
+  try {
+    const workflowText = await options.fetchWorkflowText(node.workflowId);
+    assertProjectCurrent();
+    const plan = planComfyWorkflowExecution(workflowText, node, upstream);
+    if (!plan.ok) throw new Error(plan.error);
+    const images: ComfyExecuteImageInput[] = [];
+    for (const slot of plan.imageSlots) {
+      images.push({ key: slot.key, name: slot.name, b64: await comfyImageUrlToB64(slot.sourceUrl) });
+      assertProjectCurrent();
+    }
+    const result = await runComfyExecute(
+      { graph: plan.graph, inputs: { strings: plan.strings, images } },
+      options.onProgress,
+    );
+    assertProjectCurrent();
+    const outputs = result.images ?? [];
+    if (outputs.length === 0) {
+      throw new Error("工作流已完成但没有输出图片(缺 SaveImage 类输出节点?)");
+    }
+    const title = node.title || "ComfyUI 工作流";
+    const persisted = await persistComfyImage(outputs[0].b64, title, { projectId, isProjectCurrent });
+    assertProjectCurrent();
+    return {
+      imageUrl: persisted.url ?? `data:image/png;base64,${outputs[0].b64}`,
+      mediaId: persisted.mediaId,
+      persisted: persisted.persisted,
+      imageCount: outputs.length,
+      promptId: result.promptId,
+    };
+  } finally {
+    unsubscribe();
+  }
+}

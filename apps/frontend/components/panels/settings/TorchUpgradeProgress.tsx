@@ -1,4 +1,4 @@
-import type { SidecarJobReply } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+import type { SidecarJobReply } from "@/lib/comfyui/comfy/comfy-sidecar-bridge";
 
 const TORCH_STEPS = [
   ["preflight", "预检"], ["snapshot", "快照"], ["stop-engine", "停止引擎"],

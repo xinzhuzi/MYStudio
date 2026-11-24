@@ -19,6 +19,8 @@ import { registerDiagnosticsIpcHandlers } from '../ipc/diagnostics/diagnostics-i
 import { registerRenderHwIpcHandlers } from '../ipc/rendering/render-hw-ipc'
 import { registerApiRequestIpcHandlers } from '../ipc/ai/api-request-ipc'
 import { registerFileExportIpcHandlers } from '../ipc/files/file-export-ipc'
+import { registerProductIpcHandlers } from '../ipc/product/product-ipc'
+import { registerTemplateIpcHandlers } from '../ipc/template/template-ipc'
 import { createDefaultProjectMoveEngine } from '../storage/project-move-engine'
 import { sanitizeExternalUrl } from '../runtime/update-policy'
 import {
@@ -121,3 +123,9 @@ registerApiRequestIpcHandlers({
 })
 
 registerFileExportIpcHandlers({ getDataDir, getMediaRoot })
+
+// B2 产品目录:SQLite products 表与 assets.db 同库,路径走 getDbPath() 配置解析链
+registerProductIpcHandlers()
+
+// B5 推广模板:SQLite promotion_templates 表与 products 表同库,路径走 getDbPath() 配置解析链
+registerTemplateIpcHandlers()

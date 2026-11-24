@@ -3,7 +3,7 @@ import { composeOrderedSpeechAudio } from "./storyboard-speech-wav";
 import type { TtsSpeakerId } from "@/types/tts";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
-import { externalNarratorSpokenText } from "@/lib/assist/image-studio/h3-shot-prompt";
+import { externalNarratorSpokenText } from "@/lib/comfyui/h3/h3-shot-prompt";
 import {
   ensureBackendVoiceProfile,
   cancelGeneration,

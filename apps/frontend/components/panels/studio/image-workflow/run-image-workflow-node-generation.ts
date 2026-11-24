@@ -1,8 +1,8 @@
 import { aiManager } from "@/lib/ai/ai-manager";
 import { DEFAULT_LOCAL_IMAGE_MODEL } from "@/stores/ai/api-config-provider-helpers";
 import { maybeAutoDenoiseUrl } from "@/lib/ai/image-auto-denoise";
-import { buildUnclothChainRequest } from "@/lib/assist/image-studio/uncloth-request";
-import { runUnclothChain } from "@/lib/assist/image-studio/run-uncloth";
+import { buildUnclothChainRequest } from "@/lib/comfyui/image-gen/uncloth-request";
+import { runUnclothChain } from "@/lib/comfyui/image-gen/run-uncloth";
 import { isNsfwProModel } from "@/lib/studio/image-workflow/nsfw-request";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";

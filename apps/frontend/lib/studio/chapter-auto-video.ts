@@ -11,7 +11,7 @@ import type {
   RemotionShotAudioBindingV2,
 } from "@/types/remotion-workspace";
 import { assertVisualContinuityApproved } from "./visual-continuity";
-import { externalNarratorSpokenText } from "@/lib/assist/image-studio/h3-shot-prompt";
+import { externalNarratorSpokenText } from "@/lib/comfyui/h3/h3-shot-prompt";
 
 /** 10-11 音频分工判据:H3 烧录音频在位(mediaRef video=H3 回写直落片,
  * 与 storyboard-adapter selectVisualSource 的 mediaRef-video 分支同源)。

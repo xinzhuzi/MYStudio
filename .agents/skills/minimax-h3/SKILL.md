@@ -97,7 +97,7 @@ out renders clean; text merely referred to ("HUD elements") comes back as letter
 absorption, details in `../h3-prompt-writing/references/craft-external-1107.md` §F-1).
 
 **Manying pipeline ruling (2026-10-11): narrator lines never enter the H3 prompt.** The app derives the audio
-policy per shot — `dialogueAudioPolicy(lines)` in `apps/frontend/lib/assist/image-studio/h3-shot-prompt.ts`:
+policy per shot — `dialogueAudioPolicy(lines)` in `apps/frontend/lib/comfyui/h3/h3-shot-prompt.ts`:
 any character line → `full`, otherwise `ambient` (sound bed, "lips stay closed"). Under `full` the dialogue
 passage injects **character lines only**; narrator lines (broad label set 旁白/vo/画外音/解说 via
 `chapter-voiceover.isNarratorSpeaker`, plus any colon-less whole line — the unified narrator predicate) belong

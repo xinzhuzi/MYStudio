@@ -27,7 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { extractBrandFromModel, getBrandInfo } from "@/lib/ai/core/providers/brand-mapping";
 import { getBrandIcon } from "./brand-icons";
-import { getModelDisplayName } from "@/lib/assist/model-display-names";
+import { getModelDisplayName } from "@/lib/ai/model-display-names";
 import {
   FEATURE_CONFIGS,
   isProviderConfiguredForFeature,

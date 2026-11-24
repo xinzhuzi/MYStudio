@@ -90,7 +90,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 const TASK_KEYS = new Set([
   "id", "attemptId", "draftId", "previousTaskId", "projectId", "providerId", "accountId",
   "sourceAssetIds", "status", "progress", "scheduledAt", "providerTaskId", "resultUrl",
-  "error", "createdAt", "updatedAt",
+  "error", "productId", "createdAt", "updatedAt",
 ]);
 const TASK_ERROR_KEYS = new Set(["code", "message", "providerId", "retryable"]);
 const TASK_RESULT_KEYS = new Set(["status", "progress", "providerTaskId", "resultUrl", "error"]);
@@ -161,6 +161,7 @@ export function isSelfMediaTaskRecord(value: unknown): value is SelfMediaTask {
     && (value.providerTaskId === undefined || typeof value.providerTaskId === "string")
     && (value.resultUrl === undefined || typeof value.resultUrl === "string")
     && (value.error === undefined || isTaskError(value.error))
+    && (value.productId === undefined || typeof value.productId === "string")
     && isValidDateString(value.createdAt)
     && isValidDateString(value.updatedAt);
 }
@@ -185,6 +186,7 @@ export function decodeSelfMediaTaskRecord(value: unknown): SelfMediaTask {
     error: error
       ? { code: error.code, message: error.message, providerId: error.providerId, retryable: error.retryable }
       : undefined,
+    productId: typeof value.productId === "string" ? value.productId : undefined,
     createdAt: value.createdAt as string,
     updatedAt: value.updatedAt as string,
   };

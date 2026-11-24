@@ -54,7 +54,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import sancai_inline_facerefine_build_1118 as MB  # noqa: E402  母本单一真源(在途件,1118 同役族)
 
 CANVAS = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/一镜到底-分段.json"
-API = REPO / "apps/frontend/lib/assist/image-studio/h3-multiseg-template.api.json"
+API = REPO / "apps/frontend/lib/comfyui/h3/templates/h3-multiseg-template.api.json"
 SRC = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json"  # 模板源(只读;1119 由 三采-单镜 改名)
 
 # ---- 本件锚点(画布件实勘)----

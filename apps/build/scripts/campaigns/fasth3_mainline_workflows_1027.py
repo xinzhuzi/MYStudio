@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Windows FastH3 主线工作流生成器(10-27 windows-fasth3-mainline 阶段2,repo 工作流作者)。
 
-母体 = apps/frontend/lib/assist/image-studio/h3-shot-template.json(31 节点单镜骨架;锚点
+母体 = apps/frontend/lib/comfyui/h3/templates/h3-shot-template.json(31 节点单镜骨架;锚点
 契约 14.value/20.value/9.image/4.filename_prefix/100 MyShot/16.width+height 直填 原样保留)。
 换芯依据 = .trellis/tasks/10-27-windows-fasth3-mainline/plan.md §二 三对齐表(模型文件名唯一
 契约)+ §四 W2 换芯表;官方真身 = Windows 引擎 venn 内
@@ -33,7 +33,7 @@ import uuid
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-MOTHER = REPO / "apps/frontend/lib/assist/image-studio/h3-shot-template.json"
+MOTHER = REPO / "apps/frontend/lib/comfyui/h3/templates/h3-shot-template.json"
 LIB_DIR = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/0_单镜视频"
 I2V_OUT = LIB_DIR / "fasth3-单镜视频-i2v.json"
 T2V_OUT = LIB_DIR / "fasth3-单镜视频-t2v.json"

@@ -7,7 +7,7 @@
 // 真源:sidecar GET /comfy/engine/remote(comfy-sidecar-bridge getRemoteEngine;
 // 设置页「引擎地址」写 App 家 remote-engine.json,保存即生效)。
 
-import { getRemoteEngine } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+import { getRemoteEngine } from "@/lib/comfyui/comfy/comfy-sidecar-bridge";
 
 /** 生效引擎 BaseURL:远端配置=settings url;否则=http://127.0.0.1:${本机port} */
 export async function resolveEngineBaseUrl(localPort: number | null): Promise<string> {

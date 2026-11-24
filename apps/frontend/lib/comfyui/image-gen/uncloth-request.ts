@@ -1,0 +1,107 @@
+// Copyright (c) 2025 hotflow2024
+// Licensed under AGPL-3.0-or-later. See LICENSE for details.
+
+import type { ImageWorkflowGraph, ImageWorkflowUnclothNode } from "@/types/studio";
+import { resolveUnclothParams } from "@/lib/comfyui/image-gen/uncloth-defaults";
+import { collapseTransparentNodes, splitPromptEdgesByPolarity } from "@/lib/studio/image-workflow/graph-build";
+
+/**
+ * 无衣物链请求组装(09-04-krea2-uncloth-node):成图节点触发时,上游
+ * uncloth 节点封装的完整管线(双分割+两遍采样)由 sidecar 执行,结果直通
+ * 成图。链式输入(uncloth 的上游 uncloth)按序收集,提示词回落顺序=
+ * uncloth.prompt → 其上游提示词节点。
+ *
+ * 塌缩视图(09-09):旁路 uncloth 的出边穿线给同类输入(回落普通生成由
+ * 调用方兜底);图输入/image-b 口/提示词口经中转与旁路穿透后按真源解析。
+ */
+
+export interface UnclothChainRequest {
+  /** 管线输入图(链式时按序:第一个是最终输入) */
+  inputImageUrl: string;
+  /** 驱动两遍采样的文本 */
+  prompt: string;
+  /** uncloth 节点 id(结果回显) */
+  unclothNodeId: string;
+  /** resolveUnclothParams 的全量生效参数;双参考时附 imageB_b64(主体图) */
+  params: ReturnType<typeof resolveUnclothParams> & { imageB_b64?: string };
+}
+
+export function findUnclothUpstream(
+  graph: ImageWorkflowGraph,
+  generatedNodeId: string,
+): ImageWorkflowUnclothNode | undefined {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  for (const edge of collapseTransparentNodes(graph).edges) {
+    if (edge.target !== generatedNodeId) continue;
+    const source = nodesById.get(edge.source);
+    if (source?.type === "uncloth") return source;
+  }
+  return undefined;
+}
+
+/** 组装管线请求;输入图/文本缺位返回 null(调用方阻断并指路) */
+export function buildUnclothChainRequest(
+  rawGraph: ImageWorkflowGraph,
+  generatedNodeId: string,
+): UnclothChainRequest | { error: string } {
+  const graph = collapseTransparentNodes(rawGraph);
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const uncloth = findUnclothUpstream(graph, generatedNodeId);
+  if (!uncloth) return { error: "未找到无衣物上游" };
+
+  // 图输入:沿 uncloth 上游递归取第一张可用图(链式时取最上游)
+  const imageOf = (nodeId: string, depth = 0): string | undefined => {
+    if (depth > 8) return undefined;
+    for (const edge of graph.edges) {
+      if (edge.target !== nodeId) continue;
+      const source = nodesById.get(edge.source);
+      if (!source) continue;
+      if (source.type === "reference" && source.imageUrl) return source.imageUrl;
+      if (source.type === "generated" && source.resultUrl) return source.resultUrl;
+      if (source.type === "uncloth") {
+        const upstreamImage = imageOf(source.id, depth + 1);
+        if (upstreamImage) return upstreamImage;
+      }
+    }
+    return undefined;
+  };
+  const inputImageUrl = imageOf(uncloth.id);
+  if (!inputImageUrl) return { error: "无衣物节点还没挂输入图:连一张参考图或有结果的成图" };
+
+  // 双参考(09-08 two-input,原版协议:图A=场景/图B=主体):图B 只认显式
+  // image-b 口的边;主体图典型=干净单人参考图(换脸/换装/换场景玩法)
+  const imageBEdge = graph.edges.find(
+    (edge) => edge.target === uncloth.id && edge.targetHandle === "image-b",
+  );
+  // 双参考×遮罩流互斥(09-09):uncloth_pipeline 的 fast/fine 分支不消费
+  // imageB_b64——连线宽容(注册表不拦),请求链在此阻断并指路,不静默丢图B
+  if (imageBEdge && uncloth.variant !== "instruct") {
+    return { error: "双参考图B仅稳定版无衣物支持:把节点档位切到「稳定」,或拔掉图B连线再生成" };
+  }
+  let imageB_b64: string | undefined;
+  if (imageBEdge) {
+    const bSrc = nodesById.get(imageBEdge.source);
+    if (bSrc?.type === "reference" && bSrc.imageUrl) imageB_b64 = bSrc.imageUrl;
+    else if (bSrc?.type === "generated" && bSrc.resultUrl) imageB_b64 = bSrc.resultUrl;
+  }
+
+  // 文本(09-07 口语义终裁:①=正向输入口,②=负向输入口,与提示词节点正/负
+  // 双出口一一对应)——①取正向文本(整节点边取其正向),②取负向文本(整节点
+  // 边取其负向);两流均无独立负向通道(稳定流 Krea2Edit 单框+遮罩流负条件
+  // ZeroOut),负向统一拼「画面避免:」句进指令文本;uncloth.prompt 优先于①;
+  // system_prompt 回归节点编辑器字段(不再占输入口)。
+  const slotPositive = splitPromptEdgesByPolarity(graph, uncloth.id, "prompt-1").positive.join("\n").trim();
+  const slotNegative = splitPromptEdgesByPolarity(graph, uncloth.id, "prompt-2").negative.join(";").trim();
+  const negativeClause = slotNegative ? `\n画面避免:${slotNegative}` : "";
+  const prompt = (uncloth.prompt?.trim() || slotPositive).trim();
+  if (!prompt) return { error: "连线的提示词节点没有文字——①口连正向提示词(或写在节点里)" };
+  const fullPrompt = prompt + negativeClause;
+  const params = resolveUnclothParams(uncloth);
+
+  return {
+    inputImageUrl,
+    prompt: fullPrompt,
+    unclothNodeId: uncloth.id,
+    params: imageB_b64 ? { ...params, imageB_b64 } : params,
+  };
+}

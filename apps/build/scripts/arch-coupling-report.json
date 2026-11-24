@@ -21,23 +21,23 @@
      "components/panels/SettingsPanel.tsx imports components/panels/settings/SettingsTabsBar"
     ],
     "assist → settings": [
-     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.emptychapter.test.tsx imports components/panels/settings/comfy-engine/mock-comfy-engine-client",
-     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.emptychapter.test.tsx imports components/panels/settings/comfy-engine/useComfyEngineSettings",
-     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.emptychapter.test.tsx imports components/panels/settings/comfy-engine/comfy-engine-contract",
-     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.tsx imports components/panels/settings/comfy-engine/useComfyEngineSettings",
-     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.tsx imports components/panels/settings/comfy-engine/comfy-engine-contract",
-     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.test.tsx imports components/panels/settings/comfy-engine/mock-comfy-engine-client",
-     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.test.tsx imports components/panels/settings/comfy-engine/useComfyEngineSettings",
-     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.test.tsx imports components/panels/settings/comfy-engine/comfy-engine-contract",
-     "components/panels/assist/local-models/LocalModelStudio.tsx imports components/panels/settings/comfy-engine/comfy-engine-contract",
-     "components/panels/assist/local-models/LocalModelStudio.tsx imports components/panels/settings/comfy-engine/useComfyEngineSettings",
-     "components/panels/assist/local-models/LocalModelStudio.test.tsx imports components/panels/settings/comfy-engine/mock-comfy-engine-client",
-     "components/panels/assist/local-models/LocalModelStudio.test.tsx imports components/panels/settings/comfy-engine/comfy-engine-contract"
+     "components/panels/comfyui/comfy-canvas/ComfyCanvasStudio.emptychapter.test.tsx imports components/panels/settings/comfy-engine/mock-comfy-engine-client",
+     "components/panels/comfyui/comfy-canvas/ComfyCanvasStudio.emptychapter.test.tsx imports components/panels/settings/comfy-engine/useComfyEngineSettings",
+     "components/panels/comfyui/comfy-canvas/ComfyCanvasStudio.emptychapter.test.tsx imports components/panels/settings/comfy-engine/comfy-engine-contract",
+     "components/panels/comfyui/comfy-canvas/ComfyCanvasStudio.tsx imports components/panels/settings/comfy-engine/useComfyEngineSettings",
+     "components/panels/comfyui/comfy-canvas/ComfyCanvasStudio.tsx imports components/panels/settings/comfy-engine/comfy-engine-contract",
+     "components/panels/comfyui/comfy-canvas/ComfyCanvasStudio.test.tsx imports components/panels/settings/comfy-engine/mock-comfy-engine-client",
+     "components/panels/comfyui/comfy-canvas/ComfyCanvasStudio.test.tsx imports components/panels/settings/comfy-engine/useComfyEngineSettings",
+     "components/panels/comfyui/comfy-canvas/ComfyCanvasStudio.test.tsx imports components/panels/settings/comfy-engine/comfy-engine-contract",
+     "components/panels/comfyui/local-models/LocalModelStudio.tsx imports components/panels/settings/comfy-engine/comfy-engine-contract",
+     "components/panels/comfyui/local-models/LocalModelStudio.tsx imports components/panels/settings/comfy-engine/useComfyEngineSettings",
+     "components/panels/comfyui/local-models/LocalModelStudio.test.tsx imports components/panels/settings/comfy-engine/mock-comfy-engine-client",
+     "components/panels/comfyui/local-models/LocalModelStudio.test.tsx imports components/panels/settings/comfy-engine/comfy-engine-contract"
     ],
     "assist → studio": [
-     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.tsx imports components/panels/studio/workflow-helpers",
-     "components/panels/assist/comfy-canvas/ComfyCanvasStudio.tsx imports components/panels/studio/workflow-node-model-schema",
-     "components/panels/assist/comfy-canvas/stage-payload-map.ts imports components/panels/studio/workflow-node-model-schema"
+     "components/panels/comfyui/comfy-canvas/ComfyCanvasStudio.tsx imports components/panels/studio/workflow-helpers",
+     "components/panels/comfyui/comfy-canvas/ComfyCanvasStudio.tsx imports components/panels/studio/workflow-node-model-schema",
+     "components/panels/comfyui/comfy-canvas/stage-payload-map.ts imports components/panels/studio/workflow-node-model-schema"
     ],
     "overview → studio": [
      "components/panels/overview/stage-guide.test.ts imports components/panels/studio/workflow-stage/workflow-tabs",
@@ -54,7 +54,7 @@
      "components/panels/studio/useChapterAutoVideoActions.test.tsx imports components/panels/assets/role-audio-auto-assign"
     ],
     "studio → assist": [
-     "components/panels/studio/index.tsx imports components/panels/assist/comfy-canvas/ComfyCanvasSwap"
+     "components/panels/studio/index.tsx imports components/panels/comfyui/comfy-canvas/ComfyCanvasSwap"
     ],
     "studio → media": [
      "components/panels/studio/NovelTab.tsx imports components/panels/media/ArtifactDeleteDialog"

@@ -9,7 +9,7 @@
 §四 W2 换芯表;官方参数真身 = Windows 引擎 venn 内
 comfyui_workflow_templates_json/templates/video_fastvideo_fasth3_{t2v,i2v}.json
 (subgraph 展开)与 video_fasth3_ominiref_r2v.json(平铺),本轮 SSH 逐节点核实。
-母体 = apps/frontend/lib/assist/image-studio/h3-shot-template.json(31 节点单镜骨架;
+母体 = apps/frontend/lib/comfyui/h3/templates/h3-shot-template.json(31 节点单镜骨架;
 锚点契约 14.value/20.value/9.image/4.filename_prefix/100 MyShot/16.width+height 直填)。
 
 节点账:i2v = 母体 31 − 5(3 SplitSigmas/17 ModelPreviewOverrideKJ/41 LoRA/48 T8块缓存/

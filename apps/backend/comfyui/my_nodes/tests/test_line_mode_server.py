@@ -27,7 +27,7 @@ lm = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(lm)
 
 _APPS = Path(__file__).resolve().parents[4]
-_IMAGE_STUDIO = _APPS / "frontend" / "lib" / "assist" / "image-studio"
+_IMAGE_STUDIO = _APPS / "frontend" / "lib" / "comfyui" / "h3" / "templates"
 _QWEN21_T2I_API = (_APPS / "backend" / "comfyui" / "workflows" / "1_图片" /
                    "QwenImage2.1" / "1_文生图" / "qwen21-道劫-t2i-api.json")
 _YUE2_OFFICIAL = (_APPS / "backend" / "comfyui" / "workflows" / "3_声音" /

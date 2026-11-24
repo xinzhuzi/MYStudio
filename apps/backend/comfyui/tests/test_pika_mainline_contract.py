@@ -23,8 +23,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[4]
 LIB = ROOT / "apps/backend/comfyui/workflows/2_视频/H3视频/6_视频重制"  # 1123 D12 移出
 UI = LIB / "pika-单镜视频-fl2v.json"
-FRONTEND_UI = ROOT / "apps/frontend/lib/assist/image-studio/pika-shot-template.json"
-FRONTEND_API = ROOT / "apps/frontend/lib/assist/image-studio/pika-shot-template.api.json"
+FRONTEND_UI = ROOT / "apps/frontend/lib/comfyui/h3/templates/pika-shot-template.json"
+FRONTEND_API = ROOT / "apps/frontend/lib/comfyui/h3/templates/pika-shot-template.api.json"
 
 # ── 官方契约(逐字取自 PikaFlex 模板子图)────────────────────────────────
 UNET = "Cobijada_H3_Hybrid_Uncensored_pruned_hybrid_int8_convrot_pruned.safetensors"

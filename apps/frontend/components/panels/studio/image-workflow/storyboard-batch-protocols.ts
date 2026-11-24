@@ -13,7 +13,7 @@ import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/
 import {
   createHttpStoryboardBatchEngineQueueChannel,
   type StoryboardBatchEngineQueueChannel,
-} from "@/lib/assist/image-studio/storyboard-batch-engine-queue";
+} from "@/lib/comfyui/storyboard/storyboard-batch-engine-queue";
 import { resolveEngineBaseUrl } from "@/lib/studio/engine-line/resolve-engine-base-url";
 
 /**

@@ -51,7 +51,7 @@ NEW_IDS = {"25", "1065", "4100", "5002", "5006", "5011", "5012", "5013", "5014",
 # 第二位即 5100 而臂零执行=lazy prune 正常,初版段判定 5000-5199 误伤 5100 即本轮假红根因)
 BYPASS_ARM_NODE_IDS = NEW_IDS - {"1065", "5100", "4100"}
 REPO = Path(__file__).resolve().parents[3]
-API_TEMPLATE = REPO / "apps/frontend/lib/assist/image-studio/h3-three-stage-template.api.json"
+API_TEMPLATE = REPO / "apps/frontend/lib/comfyui/h3/templates/h3-three-stage-template.api.json"
 PROBE_IMAGE = "ycx4k-ref.png"  # 引擎 input 实勘在位(15MB 4K;transparent_ref.png=83B 占位弃用)
 
 

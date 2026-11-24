@@ -83,6 +83,28 @@ import type {
   SelfMediaTaskRequest,
 } from "../lib/self-media/ipc-contract";
 import type {
+  ProductListReply,
+  ProductGetReply,
+  ProductGetRequest,
+  ProductUpsertReply,
+  ProductUpsertRequest,
+  ProductDeleteReply,
+  ProductDeleteRequest,
+  ProductExportReply,
+  ProductExportWithDialogReply,
+} from "../lib/product/product-ipc-contract";
+import type {
+  TemplateListReply,
+  TemplateGetReply,
+  TemplateGetRequest,
+  TemplateUpsertReply,
+  TemplateUpsertRequest,
+  TemplateDeleteReply,
+  TemplateDeleteRequest,
+  TemplateListByProductRequest,
+  TemplateDeleteByProductRequest,
+} from "../lib/template/template-ipc-contract";
+import type {
   ExecuteResult,
   InventoryResult,
   RecoveryQueryResult,
@@ -214,6 +236,22 @@ declare global {
       pollTask: (request: SelfMediaTaskRequest) => Promise<SelfMediaTaskReply>;
       cancelTask: (request: SelfMediaTaskRequest) => Promise<SelfMediaTaskReply>;
       onProgress: (listener: (progress: SelfMediaTaskProgressEvent) => void) => () => void;
+    };
+    productBridge?: {
+      list: () => Promise<ProductListReply>;
+      get: (request: ProductGetRequest) => Promise<ProductGetReply>;
+      upsert: (request: ProductUpsertRequest) => Promise<ProductUpsertReply>;
+      delete: (request: ProductDeleteRequest) => Promise<ProductDeleteReply>;
+      export: () => Promise<ProductExportReply>;
+      exportWithDialog: () => Promise<ProductExportWithDialogReply>;
+    };
+    templateBridge?: {
+      list: () => Promise<TemplateListReply>;
+      listByProduct: (request: TemplateListByProductRequest) => Promise<TemplateListReply>;
+      get: (request: TemplateGetRequest) => Promise<TemplateGetReply>;
+      upsert: (request: TemplateUpsertRequest) => Promise<TemplateUpsertReply>;
+      delete: (request: TemplateDeleteRequest) => Promise<TemplateDeleteReply>;
+      deleteByProduct: (request: TemplateDeleteByProductRequest) => Promise<TemplateDeleteReply>;
     };
     mystudioSmoke?: {
       enabled: boolean;

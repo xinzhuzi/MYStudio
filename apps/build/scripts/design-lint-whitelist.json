@@ -22,7 +22,8 @@
     "components/features/storyboard/angle-switch/AngleController.tsx",
     "components/panels/tts/LocalTtsModelDetailsDialog.tsx",
     "components/ui/chart.tsx",
-    "features/canvas-nodes/mention-picker.tsx"
+    "features/canvas-nodes/mention-picker.tsx",
+    "components/panels/self-media/showcase-view.tsx"
   ],
   "severityOverrides": [
     {
@@ -32,7 +33,7 @@
       "reason": "窗口 chrome(红绿灯/前进后退),形状由 chrome-control-button CSS 自治,非面板按钮"
     },
     {
-      "path": "components/panels/assist/TtsStudio.tsx",
+      "path": "components/panels/comfyui/TtsStudio.tsx",
       "rule": "R7",
       "severity": "warn",
       "reason": "下拉列表行(菜单项),macOS 菜单高亮为通栏方角,刻意不圆"
@@ -86,7 +87,7 @@
       "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
     },
     {
-      "path": "components/panels/assist/VideoStudio.tsx",
+      "path": "components/panels/comfyui/VideoStudio.tsx",
       "rule": "R5",
       "severity": "warn",
       "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
@@ -206,7 +207,7 @@
       "reason": "媒体/图像覆盖层白字(与主题无关,分诊§4 裁定)"
     },
     {
-      "path": "components/panels/assist/image-studio/image-studio-node-card.tsx",
+      "path": "components/panels/comfyui/image-studio/image-studio-node-card.tsx",
       "rule": "R2",
       "severity": "warn",
       "reason": "便利贴节点(09-03 wave3 用户拍板吸收)本质=彩色物件,黄/粉无语义 token;调色盘限定在 STICKY_COLORS 常量单点"

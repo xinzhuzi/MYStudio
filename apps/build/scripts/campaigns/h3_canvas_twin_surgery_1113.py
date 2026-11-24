@@ -4,7 +4,7 @@
 深度阶梯布局)镜像到 App 画布孪生件。
 
 计划:.trellis/tasks/11-13-sancai-workflow-surgery-replay/research/canvas-twin-surgery-plan.md(第2轮)
-患者:apps/frontend/lib/assist/image-studio/h3-three-stage-template.json(下称【孪生】)
+患者:apps/frontend/lib/comfyui/h3/templates/h3-three-stage-template.json(下称【孪生】)
 蓝本:apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json(下称【真源】,只读)
 
 用法:
@@ -38,9 +38,9 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]  # 脚本在 apps/build/scripts/ 下,repo 根为上三级
-TWIN_PATH = REPO / "apps/frontend/lib/assist/image-studio/h3-three-stage-template.json"
+TWIN_PATH = REPO / "apps/frontend/lib/comfyui/h3/templates/h3-three-stage-template.json"
 SRC_PATH = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json"
-TWIN_REL = "apps/frontend/lib/assist/image-studio/h3-three-stage-template.json"
+TWIN_REL = "apps/frontend/lib/comfyui/h3/templates/h3-three-stage-template.json"
 
 # ---- 钉死常量(全部出自计划【实测】/【正典】,禁自造) --------------------------
 SRC_SHA16 = "c5e026476f61b71c"        # 真源文件指纹(漂移即拒跑)

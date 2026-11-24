@@ -55,7 +55,7 @@ i2v31 锚=100,multiseg 适配锚=103)。
     cd apps && uv run python build/scripts/h3_template_to_api_1027.py --preset multiseg
     cd apps && uv run python build/scripts/h3_template_to_api_1027.py \
         --src backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/0_单镜视频/fasth3-单镜视频-i2v.json \
-        --dst frontend/lib/assist/image-studio/fasth3-shot-template.api.json \
+        --dst frontend/lib/comfyui/h3/templates/fasth3-shot-template.api.json \
         --ui-count 27 --api-count 23 \
         --object-info-file backend/comfyui/tests/fixtures/fasth3_object_info_snapshot.json
 """
@@ -71,11 +71,11 @@ from pathlib import Path
 
 ENGINE_OBJECT_INFO = "http://127.0.0.1:17001/object_info"
 REPO_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_SRC = REPO_ROOT / "apps/frontend/lib/assist/image-studio/h3-shot-template.json"
-DEFAULT_DST = REPO_ROOT / "apps/frontend/lib/assist/image-studio/h3-shot-template.api.json"
+DEFAULT_SRC = REPO_ROOT / "apps/frontend/lib/comfyui/h3/templates/h3-shot-template.json"
+DEFAULT_DST = REPO_ROOT / "apps/frontend/lib/comfyui/h3/templates/h3-shot-template.api.json"
 MULTISEG_REPO_SRC = REPO_ROOT / "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/1_分段视频/h3-autocontext-multiseg.json"
-MULTISEG_UI_DST = REPO_ROOT / "apps/frontend/lib/assist/image-studio/h3-multiseg-template.json"
-MULTISEG_API_DST = REPO_ROOT / "apps/frontend/lib/assist/image-studio/h3-multiseg-template.api.json"
+MULTISEG_UI_DST = REPO_ROOT / "apps/frontend/lib/comfyui/h3/templates/h3-multiseg-template.json"
+MULTISEG_API_DST = REPO_ROOT / "apps/frontend/lib/comfyui/h3/templates/h3-multiseg-template.api.json"
 OFFLINE_ORDER_FIXTURE = Path(__file__).resolve().parent / "h3_object_info_order_1027.json"
 
 DEFAULT_UI_NODE_COUNT = 31

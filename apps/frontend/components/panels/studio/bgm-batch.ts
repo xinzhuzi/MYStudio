@@ -11,8 +11,8 @@
  * - 编排器 generateBgmBatch:库取工作流/execute/持久化全走依赖注入——组件里接真
  *   引擎(复用 generateLocalBgm 同一机制),测试里全 mock 不真跑。
  */
-import { unwrapComfyApiGraph, type ComfyApiWorkflow } from "@/lib/assist/image-studio/comfy-workflow-import";
-import type { ComfyExecuteJobReply, ComfyExecutePayload, ComfyExecuteProgress } from "@/lib/assist/image-studio/comfy-execute";
+import { unwrapComfyApiGraph, type ComfyApiWorkflow } from "@/lib/comfyui/comfy/comfy-workflow-import";
+import type { ComfyExecuteJobReply, ComfyExecutePayload, ComfyExecuteProgress } from "@/lib/comfyui/comfy/comfy-execute";
 
 /** 种子基值:与库工作流存量口径同源(YuE2 双生成节点 + KSampler 均为 42)。 */
 export const BGM_BATCH_BASE_SEED = 42;

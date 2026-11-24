@@ -10,7 +10,7 @@
 
 import { ImagePlus, Mic, Palette } from "lucide-react";
 import { OrbSection, type OrbSectionProps } from "./OrbSection";
-import type { StudioMode } from "@/stores/assist/freedom-store";
+import type { StudioMode } from "@/stores/comfyui/freedom-store";
 import { cn } from "@/lib/utils";
 
 const MODE_ENTRIES: ReadonlyArray<{ id: StudioMode; label: string; icon: typeof Palette }> = [

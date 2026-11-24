@@ -15,7 +15,7 @@
 | 参考图编辑桥模板 | `1_图片/krea2/3_改图/krea2-edit-ref.json` | 参考输入和节点参数以当前模板为准 |
 | 降噪与超分 | `1_图片/krea2/6_修复超分/K2-SeedVR2降噪后4K.json` | 先查参数速查及输入分辨率限制 |
 
-`漫影生图` 的标准档使用 `manying_t2i` 桥，默认 8 步、可输入 1–40 步；加速档使用 `manying_t2i_fast`，固定 Krea2 Turbo 与加速 LoRA，步数只有 4/6 两档。它与自由编辑 ComfyUI 画布是两个入口。当前源码见 `apps/frontend/components/panels/assist/local-models/LocalModelStudio.tsx`。
+`漫影生图` 的标准档使用 `manying_t2i` 桥，默认 8 步、可输入 1–40 步；加速档使用 `manying_t2i_fast`，固定 Krea2 Turbo 与加速 LoRA，步数只有 4/6 两档。它与自由编辑 ComfyUI 画布是两个入口。当前源码见 `apps/frontend/components/panels/comfyui/local-models/LocalModelStudio.tsx`。
 
 完整模板清单见 [漫影工作流清单](./comfyui-kb/漫影工作流清单.md)，日常操作见 [大模型页](./panels/LOCAL_MODELS_GUIDE.md)，采样与模型依赖见 [参数速查](./comfyui-kb/参数速查.md)。提示词参考资料位于 `docs/comfyui-kb/参考_提示词工程/`，不属于引擎工作流库。
 

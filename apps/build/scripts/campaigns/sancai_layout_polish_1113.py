@@ -12,7 +12,7 @@ from collections import deque
 
 FILES = {
     'repo': os.path.expanduser('~/Project/Github/MYStudio/apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/单镜.json'),
-    'twin': os.path.expanduser('~/Project/Github/MYStudio/apps/frontend/lib/assist/image-studio/h3-three-stage-template.json'),
+    'twin': os.path.expanduser('~/Project/Github/MYStudio/apps/frontend/lib/comfyui/h3/templates/h3-three-stage-template.json'),
 }
 GROUPS = [
     ('输入',     [53,51,54,52,1,11,12,13,14,21,15,16,17,18,31,41,42], '#335588', 9),  # 1114 组序换位:输入最左,Note101 出组作README

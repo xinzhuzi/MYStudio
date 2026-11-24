@@ -12,8 +12,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildShotH3ApiWorkflow } from "@/lib/assist/image-studio/h3-shot-video-workflow";
-import { dialogueAudioPolicy } from "@/lib/assist/image-studio/h3-shot-prompt";
+import { buildShotH3ApiWorkflow } from "@/lib/comfyui/h3/h3-shot-video-workflow";
+import { dialogueAudioPolicy } from "@/lib/comfyui/h3/h3-shot-prompt";
 import type { StoryboardItem } from "@/types/studio";
 import { resolveControlToken, resolveEngineTarget } from "./h3_engine_target";
 

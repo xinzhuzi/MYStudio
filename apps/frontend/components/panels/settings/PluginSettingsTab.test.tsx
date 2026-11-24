@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const getRemoteEngineMock = vi.hoisted(() => vi.fn(async (): Promise<ComfyRemoteEngineStatus> => {
   throw new Error("本地生图服务未运行");
 }));
-vi.mock("@/lib/assist/image-studio/comfy-sidecar-bridge", async (importOriginal) => {
+vi.mock("@/lib/comfyui/comfy/comfy-sidecar-bridge", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
   return { ...actual, getRemoteEngine: getRemoteEngineMock };
 });
@@ -162,7 +162,7 @@ vi.mock("./RenderingSettingsTab", () => ({
 
 import { PluginSettingsTab } from "./PluginSettingsTab";
 import { REVEAL_SETTINGS_SECTION_EVENT } from "./comfy-engine/comfy-engine-update-reminder";
-import type { ComfyRemoteEngineStatus } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+import type { ComfyRemoteEngineStatus } from "@/lib/comfyui/comfy/comfy-sidecar-bridge";
 import {
   notifyRemoteEngineChanged,
   resetRemoteEngineVersionForTests,

@@ -89,7 +89,7 @@ describe("studio workflow tabs", () => {
     );
     // 1120 面板退役:章视频接线迁引擎节点动作(载荷 storyboard-pipeline-comfy)
     const pipelineSource = readFileSync(
-      fileURLToPath(new URL("../../../../lib/assist/image-studio/storyboard-pipeline-comfy.ts", import.meta.url)),
+      fileURLToPath(new URL("../../../../lib/comfyui/storyboard/storyboard-pipeline-comfy.ts", import.meta.url)),
       "utf8",
     );
 

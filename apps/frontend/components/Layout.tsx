@@ -52,7 +52,7 @@ const ScenesView = lazy(() =>
   import("@/components/panels/scenes").then((m) => ({ default: m.ScenesView })),
 );
 const ComfyWorkspace = lazy(() =>
-  import("@/components/panels/assist").then((m) => ({ default: m.ComfyWorkspace })),
+  import("@/components/panels/comfyui").then((m) => ({ default: m.ComfyWorkspace })),
 );
 const MediaView = lazy(() =>
   import("@/components/panels/media").then((m) => ({ default: m.MediaView })),
