@@ -32,7 +32,6 @@
     "apps/frontend/types/studio-production-types.ts"
   ],
   "caps": {
-    "apps/frontend/components/panels/settings/McpSettingsTab.tsx": 4064,
     "apps/backend/remote_ssh/service.py": 2298,
     "apps/backend/comfyui/my_nodes/nodes/sheet_card_formats.py": 1865,
     "apps/backend/comfyui/my_nodes/nodes/director_executor.py": 1444,
