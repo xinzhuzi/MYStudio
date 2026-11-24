@@ -377,7 +377,9 @@ try {
       return { canvasMode: app.canvas?.links_render_mode ?? null, pcb: window.__pcb.PCB(), activation: window.__myPcbLinkCompat.activation() };
     });
     report.persisted = again;
-    check('③ 换全新上下文再加载仍是 PCB(已持久化)', again.canvasMode === again.pcb && again.activation.activated === true, JSON.stringify(again));
+    // 强信号:reason 必须=already-activated(读到了盘上持久化值)。若=first-run 说明本页又重新切了一遍
+    // (1124 实录:引擎重启后文件回落,弱断言 canvasMode===pcb 两种情况都过得去,假绿)。
+    check('③ 换全新上下文再加载仍是 PCB(已持久化,强信号=already-activated)', again.canvasMode === again.pcb && again.activation.activated === true && again.activation.reason === 'already-activated', JSON.stringify(again));
     await second.context.close();
   }
   report.stage = 'done';
