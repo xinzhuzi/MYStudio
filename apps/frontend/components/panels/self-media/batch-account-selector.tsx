@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { CheckSquare, Square } from "lucide-react";
+import { AlertCircle, CheckSquare, Square, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { SelfMediaAccount } from "@/types/self-media";
@@ -58,8 +58,14 @@ export function BatchAccountSelector({
 
   if (groups.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border/70 px-4 py-6 text-center text-xs text-muted-foreground">
-        没有可用的跨平台账号，请先在"账号"视图连接各平台。
+      <div className="rounded-lg border border-dashed border-border/60 bg-background/30 px-4 py-8 text-center">
+        <Users className="mx-auto h-8 w-8 text-muted-foreground/40" />
+        <p className="mt-3 text-sm font-medium text-muted-foreground">
+          没有可用的跨平台账号
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground/80">
+          请先在"账号"视图连接各平台
+        </p>
       </div>
     );
   }
@@ -72,37 +78,48 @@ export function BatchAccountSelector({
         const someGroupSelected = groupAccountIds.some((id) => selectedAccountIds.includes(id));
 
         return (
-          <div key={group.platform} className="rounded-lg border border-border/60 bg-background/30 p-3">
+          <div
+            key={group.platform}
+            className="rounded-lg border border-border/50 bg-background/40 p-2.5 transition-colors duration-200 hover:border-border/70"
+          >
             <Button
               variant="ghost"
               size="sm"
               onClick={() => togglePlatformGroup(groupAccountIds)}
-              className="flex w-full items-center gap-2 text-left"
+              className="h-auto w-full justify-start gap-2 rounded-md px-2 py-1.5 text-left"
             >
               {allGroupSelected
                 ? <CheckSquare className="h-4 w-4 shrink-0 text-primary" />
                 : someGroupSelected
                   ? <CheckSquare className="h-4 w-4 shrink-0 text-primary/50" />
                   : <Square className="h-4 w-4 shrink-0 text-muted-foreground" />}
-              <span className="text-sm font-medium">{group.displayName}</span>
-              <Badge variant="outline" className="ml-auto text-xs">[{group.abbreviation}]</Badge>
-              <span className="text-xs text-muted-foreground">{group.accounts.length} 账号</span>
+              <span className="text-sm font-semibold text-foreground">{group.displayName}</span>
+              {group.abbreviation !== group.displayName && (
+                <Badge variant="outline" className="text-xs font-normal">{group.abbreviation}</Badge>
+              )}
+              <span className="ml-auto text-xs tabular-nums text-muted-foreground">
+                {group.accounts.length} 个账号
+              </span>
             </Button>
-            <div className="mt-2 space-y-1 pl-6">
+            <div className="mt-1 space-y-0.5 pl-2">
               {group.accounts.map((account) => {
                 const isSelected = selectedAccountIds.includes(account.id);
                 return (
                   <label
                     key={account.id}
-                    className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted/40"
+                    className={`flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors duration-150 hover:bg-muted/40 ${
+                      isSelected ? "bg-primary/5" : ""
+                    }`}
                   >
                     <input
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleAccount(account.id)}
-                      className="h-3.5 w-3.5"
+                      className="h-3.5 w-3.5 accent-primary"
                     />
-                    <span className="truncate">{account.displayName}</span>
+                    <span className={`truncate ${isSelected ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                      {account.displayName}
+                    </span>
                   </label>
                 );
               })}
@@ -111,13 +128,20 @@ export function BatchAccountSelector({
         );
       })}
       {ineligibleAccounts.length > 0 && (
-        <div className="rounded-lg border border-border/40 bg-muted/20 p-2">
-          <p className="mb-1 text-xs text-muted-foreground">以下账号暂不可用：</p>
-          {ineligibleAccounts.map((account) => (
-            <p key={account.id} className="text-xs text-muted-foreground/70">
-              {account.displayName}：{validationMap.get(account.id)?.reason ?? "未知原因"}
-            </p>
-          ))}
+        <div className="rounded-lg border border-border/40 bg-muted/20 p-3">
+          <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+            以下账号暂不可用
+          </p>
+          <ul className="mt-1.5 space-y-1">
+            {ineligibleAccounts.map((account) => (
+              <li key={account.id} className="flex items-baseline gap-1.5 text-xs text-muted-foreground/80">
+                <span className="shrink-0 text-muted-foreground">{account.displayName}</span>
+                <span className="shrink-0 text-muted-foreground/50">·</span>
+                <span className="truncate">{validationMap.get(account.id)?.reason ?? "未知原因"}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

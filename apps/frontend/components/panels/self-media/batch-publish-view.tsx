@@ -362,17 +362,17 @@ export function BatchPublishView() {
   }, [baseDraft, activeProjectId, selectedAccounts, contentType, needsFirstPublishVerification, firstPublishAccount, upsertTask, addHistoryRecord]);
 
   return (
-    <Card className="border-border/70 bg-card/70 shadow-black/10">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Globe2 className="h-4 w-4 text-primary" />
+    <Card className="border-border/50 bg-card/60">
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
+          <Globe2 className="h-5 w-5 text-primary" />
           全平台批量发布
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="mt-1 text-sm text-muted-foreground">
           写一份通用草稿，一键分发到多个平台。自动追加平台标识、执行风控检查。
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-6">
         {/* Content type selector */}
         <div className="flex flex-wrap gap-2">
           {(["video", "image-text"] as const).map((type) => (
@@ -381,6 +381,7 @@ export function BatchPublishView() {
               variant={contentType === type ? "primary" : "outline"}
               size="sm"
               onClick={() => setContentType(type)}
+              className="transition-all duration-200 hover:scale-105"
             >
               {type === "video" ? "视频" : "图文"}
             </Button>
@@ -390,12 +391,12 @@ export function BatchPublishView() {
         {/* B1b: Product association dropdown */}
         {products.length > 0 && (
           <label className="block space-y-1.5 text-sm">
-            <span className="text-muted-foreground">关联产品</span>
+            <span className="font-medium text-foreground">关联产品</span>
             <select
               aria-label="关联产品"
               value={selectedProductId}
               onChange={(event) => handleProductSelect(event.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all duration-200 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               <option value="">不关联产品</option>
               {products.map((product) => (
@@ -410,18 +411,24 @@ export function BatchPublishView() {
         {/* Title & description */}
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-1.5 text-sm">
-            <span className="text-muted-foreground">通用标题</span>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="各平台自动追加标识" maxLength={80} />
+            <span className="font-medium text-foreground">通用标题</span>
+            <Input 
+              value={title} 
+              onChange={(e) => setTitle(e.target.value)} 
+              placeholder="各平台自动追加标识" 
+              maxLength={80}
+              className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
           </label>
           <label className="space-y-1.5 text-sm">
-            <span className="text-muted-foreground">媒体资产</span>
+            <span className="font-medium text-foreground">媒体资产</span>
             <select
               aria-label="媒体资产"
               multiple={contentType === "image-text"}
               size={contentType === "image-text" ? 4 : 1}
               value={contentType === "image-text" ? assetIds : assetIds[0] ?? ""}
               onChange={(e) => setAssetIds(Array.from(e.target.selectedOptions, (o) => o.value))}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all duration-200 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               <option value="" disabled>{projectMedia.length > 0 ? "选择当前项目素材" : "素材库暂无可用"}</option>
               {projectMedia
@@ -432,40 +439,46 @@ export function BatchPublishView() {
         </div>
 
         <label className="block space-y-1.5 text-sm">
-          <span className="text-muted-foreground">通用描述</span>
+          <span className="font-medium text-foreground">通用描述</span>
           <Textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="各平台自动适配字数限制"
             rows={4}
             maxLength={5000}
+            className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </label>
 
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-1.5 text-sm">
-            <span className="text-muted-foreground">话题</span>
-            <Input value={topics} onChange={(e) => setTopics(e.target.value)} placeholder="#漫剧 #剧情解说" />
+            <span className="font-medium text-foreground">话题</span>
+            <Input 
+              value={topics} 
+              onChange={(e) => setTopics(e.target.value)} 
+              placeholder="#漫剧 #剧情解说"
+              className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
           </label>
           <label className="space-y-1.5 text-sm">
-            <span className="text-muted-foreground">封面素材</span>
+            <span className="font-medium text-foreground">封面素材</span>
             <select
               aria-label="封面素材"
               value={coverAssetId}
               onChange={(e) => setCoverAssetId(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all duration-200 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               <option value="">选择封面（视频发布必选）</option>
               {projectMedia.filter((m) => m.type === "image").map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           </label>
           <label className="space-y-1.5 text-sm">
-            <span className="text-muted-foreground">可见范围</span>
+            <span className="font-medium text-foreground">可见范围</span>
             <select
               aria-label="可见范围"
               value={visibility}
               onChange={(e) => setVisibility(e.target.value as "public" | "private" | "friends")}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all duration-200 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               <option value="public">公开</option>
               <option value="private">仅自己</option>
@@ -475,8 +488,8 @@ export function BatchPublishView() {
         </div>
 
         {/* Cross-platform account selector */}
-        <div className="space-y-2 border-t border-border/60 pt-4">
-          <h3 className="flex items-center gap-2 text-sm font-medium">
+        <div className="space-y-3 border-t border-border/40 pt-4">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <Shield className="h-4 w-4 text-primary" />
             跨平台账号选择
           </h3>
@@ -490,12 +503,12 @@ export function BatchPublishView() {
 
         {/* Title previews per platform */}
         {titlePreviews.length > 0 && title && (
-          <div className="space-y-2 rounded-lg border border-border/60 bg-background/30 p-3">
-            <p className="text-xs font-medium text-muted-foreground">各平台标题预览（自动追加标识）</p>
+          <div className="space-y-2 rounded-lg border border-border/40 bg-background/40 p-3">
+            <p className="text-xs font-semibold text-foreground">各平台标题预览（自动追加标识）</p>
             {titlePreviews.map((preview) => (
               <div key={preview.platform} className="flex items-center gap-2 text-sm">
                 <Badge variant="outline" className="shrink-0 text-xs">{preview.displayName}</Badge>
-                <span className="truncate">{preview.previewTitle}</span>
+                <span className="truncate text-muted-foreground">{preview.previewTitle}</span>
               </div>
             ))}
           </div>
@@ -503,26 +516,26 @@ export function BatchPublishView() {
 
         {/* First-publish verification notice */}
         {needsFirstPublishVerification && firstPublishAccount && (
-          <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
-            <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-            <span>
+          <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+            <Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <span className="text-foreground">
               首发验证：将先在 {SELF_MEDIA_CAPABILITY_MANIFEST[firstPublishAccount.platform].displayName}（{firstPublishAccount.displayName}）单发 1 条，成功后再触发其余平台。
             </span>
           </div>
         )}
 
         {/* Risk control notice */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Shield className="h-3.5 w-3.5" />
+        <div className="flex items-center gap-2 rounded-md border border-border/40 bg-background/30 px-3 py-2 text-xs text-muted-foreground">
+          <Shield className="h-3.5 w-3.5 shrink-0 text-primary/70" />
           <span>
             风控：发布间隔 ≥ 5 分钟 · 每账号每日上限 3 条 · 自动追加平台标识
           </span>
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-3 border-t border-border/60 pt-4">
+        <div className="flex items-center gap-3 border-t border-border/40 pt-4">
           <Button
-            className="gap-2"
+            className="gap-2 transition-all duration-200 hover:scale-105"
             onClick={publish}
             disabled={publishing || !baseDraft || selectedAccounts.length === 0 || !getSelfMediaBridge()}
           >
@@ -538,9 +551,9 @@ export function BatchPublishView() {
 
         {/* Progress bar (UX trio #1) */}
         {progress && (
-          <div className="space-y-3 rounded-lg border border-border/60 bg-background/30 p-4">
+          <div className="space-y-3 rounded-lg border border-border/40 bg-background/40 p-4">
             <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">发布进度</span>
+              <span className="font-semibold text-foreground">发布进度</span>
               <span className="text-muted-foreground">
                 已完成 {progress.completed}/{progress.total}
                 {progress.estimatedRemainingMinutes > 0 && ` · 预计剩余 ${progress.estimatedRemainingMinutes} 分钟`}
@@ -554,7 +567,7 @@ export function BatchPublishView() {
               />
             </div>
             {/* Per-item status */}
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               {progress.items.map((item, idx) => (
                 <div key={`${item.platform}-${item.accountId}-${idx}`} className="flex items-center gap-2 text-xs">
                   {item.status === "success" && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />}
@@ -564,7 +577,7 @@ export function BatchPublishView() {
                   {item.status === "skipped" && <AlertCircle className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                   {item.status === "queued-next-day" && <AlertCircle className="h-3.5 w-3.5 shrink-0 text-warning" />}
                   <Badge variant="outline" className="shrink-0 text-[10px]">{SELF_MEDIA_CAPABILITY_MANIFEST[item.platform].displayName}</Badge>
-                  <span className="truncate">{item.displayName}</span>
+                  <span className="truncate text-foreground">{item.displayName}</span>
                   {item.status === "queued-next-day" && <span className="text-xs text-warning">（排队次日）</span>}
                   {item.error && <span className="truncate text-destructive">{item.error}</span>}
                 </div>
@@ -575,8 +588,8 @@ export function BatchPublishView() {
 
         {/* Summary report */}
         {summary && (
-          <div className="space-y-2 rounded-lg border border-border/60 bg-background/50 p-4">
-            <h4 className="text-sm font-medium">发布汇总报告</h4>
+          <div className="space-y-2 rounded-lg border border-border/40 bg-background/50 p-4">
+            <h4 className="text-sm font-semibold text-foreground">发布汇总报告</h4>
             <div className="flex flex-wrap gap-3 text-sm">
               <span className="text-success">✓ 成功 {summary.succeeded}</span>
               <span className="text-destructive">✗ 失败 {summary.failed}</span>
@@ -584,8 +597,8 @@ export function BatchPublishView() {
               <span className="text-muted-foreground">耗时 {summary.duration}</span>
             </div>
             {summary.failures.length > 0 && (
-              <div className="space-y-1 border-t border-border/40 pt-2">
-                <p className="text-xs text-muted-foreground">失败详情：</p>
+              <div className="space-y-1.5 border-t border-border/40 pt-2">
+                <p className="text-xs font-medium text-muted-foreground">失败详情：</p>
                 {summary.failures.map((f, idx) => (
                   <p key={idx} className="text-xs text-destructive">
                     [{SELF_MEDIA_CAPABILITY_MANIFEST[f.platform].displayName}] {f.displayName}：{f.error}
@@ -598,9 +611,9 @@ export function BatchPublishView() {
 
         {/* Feedback */}
         {feedback && (
-          <div className="flex items-start gap-2 rounded-lg border border-border/70 bg-background/50 px-3 py-2 text-xs text-muted-foreground">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            {feedback}
+          <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <span className="text-foreground">{feedback}</span>
           </div>
         )}
       </CardContent>

@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Copy,
   Download,
-  FileVideo2,
   Globe2,
   History,
   Layers,
@@ -151,10 +150,30 @@ function AccountsView() {
   }, [refreshAccounts]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
-        <div><h2 className="flex items-center gap-2 text-base font-semibold"><Users2 className="h-4 w-4 text-primary" />平台账号</h2><p className="mt-1 text-xs text-muted-foreground">管理各平台已连接账号，凭据由 Electron 主进程保管。</p></div>
-        <div className="flex items-center gap-2"><Badge variant="outline">{accounts.length} 个账号</Badge><Button size="sm" variant="outline" onClick={refreshAccounts} disabled={loading || !activeProjectId || !getSelfMediaBridge()}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}刷新</Button></div>
+        <div>
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+            <Users2 className="h-5 w-5 text-primary" />
+            平台账号
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">管理各平台已连接账号，凭据由 Electron 主进程保管</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="text-sm">
+            {accounts.length} 个账号
+          </Badge>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={refreshAccounts} 
+            disabled={loading || !activeProjectId || !getSelfMediaBridge()}
+            className="gap-1.5 transition-all duration-200 hover:scale-105"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+            刷新
+          </Button>
+        </div>
       </div>
       <div className="columns-1 gap-4 md:columns-2 xl:columns-3">
         {selfMediaPlatformCapabilities.map((capability) => {
@@ -163,13 +182,69 @@ function AccountsView() {
           const platformAvailable = provider?.availablePlatforms?.includes(capability.platform) === true;
           const unavailable = provider?.enabled === false || !platformAvailable;
           const emptyLabel = unavailable ? "当前平台暂不可用" : "尚未连接账号";
-          return <Card key={capability.platform} className="mb-4 break-inside-avoid border-border/70 bg-card/70 shadow-black/5">
-            <CardHeader className="pb-3"><div className="flex items-start justify-between gap-2"><div className="flex min-w-0 items-center gap-2"><span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">{capability.displayName.slice(0, 1)}</span><div className="min-w-0"><CardTitle role="heading" aria-level={3} className="truncate text-sm">{capability.displayName}</CardTitle><CardDescription className="mt-1">{platformAccounts.length} 个账号</CardDescription></div></div><Button size="sm" variant="outline" onClick={() => login(capability.platform)} disabled={loading || loginPlatform !== null || unavailable || !getSelfMediaBridge()}>{loginPlatform === capability.platform ? <Loader2 className="h-4 w-4 animate-spin" /> : "登录"}</Button></div><div className="mt-3 flex flex-wrap gap-1.5">{capability.supportsVideo && <Badge variant="secondary">视频</Badge>}{capability.supportsImageText && <Badge variant="secondary">图文</Badge>}{capability.supportsScheduling && <Badge variant="outline">定时</Badge>}</div></CardHeader>
-            <CardContent className="space-y-2">{platformAccounts.length === 0 ? <div className="rounded-lg border border-dashed border-border/70 px-3 py-5 text-center text-xs text-muted-foreground">{emptyLabel}</div> : platformAccounts.map((account) => <div key={account.id} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-background/40 px-3 py-2"><span className="truncate text-sm">{account.displayName}</span><Badge variant={statusVariant(account.status)}>{statusLabel(account.status)}</Badge></div>)}</CardContent>
-          </Card>;
+          return (
+            <Card key={capability.platform} className="mb-4 break-inside-avoid border-border/50 bg-card/60 transition-all duration-200 hover:border-border/70">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span 
+                      aria-hidden="true" 
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-base font-semibold text-primary"
+                    >
+                      {capability.displayName.slice(0, 1)}
+                    </span>
+                    <div className="min-w-0">
+                      <CardTitle role="heading" aria-level={3} className="truncate text-base font-semibold text-foreground">
+                        {capability.displayName}
+                      </CardTitle>
+                      <CardDescription className="mt-1 text-sm">
+                        {platformAccounts.length} 个账号
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => login(capability.platform)} 
+                    disabled={loading || loginPlatform !== null || unavailable || !getSelfMediaBridge()}
+                    className="transition-all duration-200 hover:scale-105"
+                  >
+                    {loginPlatform === capability.platform ? <Loader2 className="h-4 w-4 animate-spin" /> : "登录"}
+                  </Button>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {capability.supportsVideo && <Badge variant="secondary" className="text-xs">视频</Badge>}
+                  {capability.supportsImageText && <Badge variant="secondary" className="text-xs">图文</Badge>}
+                  {capability.supportsScheduling && <Badge variant="outline" className="text-xs">定时</Badge>}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {platformAccounts.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border/60 bg-background/30 px-3 py-5 text-center text-xs text-muted-foreground">
+                    {emptyLabel}
+                  </div>
+                ) : (
+                  platformAccounts.map((account) => (
+                    <div 
+                      key={account.id} 
+                      className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-background/50 px-3 py-2.5 transition-colors hover:bg-background/70"
+                    >
+                      <span className="truncate text-sm font-medium text-foreground">{account.displayName}</span>
+                      <Badge variant={statusVariant(account.status)}>{statusLabel(account.status)}</Badge>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          );
         })}
       </div>
-      {feedback && <p className="text-xs text-muted-foreground">{feedback}</p>}
+      {feedback && (
+        <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+          <span className="text-foreground">{feedback}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -331,12 +406,17 @@ function ComposeView() {
   }
 
   return (
-    <Card className="border-border/70 bg-card/70 shadow-black/10">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base"><FileVideo2 className="h-4 w-4 text-primary" />内容草稿</CardTitle>
-        <CardDescription>先完成 MYStudio 资产与文案校验，再提交到明确选择的平台。</CardDescription>
+    <Card className="border-border/50 bg-card/60">
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
+          <Send className="h-5 w-5 text-primary" />
+          发布
+        </CardTitle>
+        <CardDescription className="mt-1 text-sm text-muted-foreground">
+          创建并发布内容到指定平台
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-6">
         <div className="flex flex-wrap gap-2">
           {(["video", "image-text"] as const).map((type) => (
             <Button
@@ -345,6 +425,7 @@ function ComposeView() {
               size="sm"
               onClick={() => setContentType(type)}
               disabled={type === "video" ? !capability?.supportsVideo : !capability?.supportsImageText}
+              className="transition-all duration-200 hover:scale-105"
             >
               {type === "video" ? "视频" : "图文"}
             </Button>
@@ -353,12 +434,12 @@ function ComposeView() {
         </div>
         {products.length > 0 && (
           <label className="block space-y-1.5 text-sm">
-            <span className="text-muted-foreground">关联产品</span>
+            <span className="font-medium text-foreground">关联产品</span>
             <select
               aria-label="关联产品"
               value={selectedProductId}
               onChange={(event) => handleProductSelect(event.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all duration-200 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               <option value="">不关联产品</option>
               {products.map((product) => (
@@ -371,10 +452,10 @@ function ComposeView() {
         )}
         {/* B4 推广链接生成器 */}
         {selectedProduct && (
-          <div className="space-y-2 rounded-lg border border-border/60 bg-background/30 p-3">
+          <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
             <div className="flex items-center gap-2">
-              <Link2 className="h-3.5 w-3.5 text-primary" />
-              <span className="text-xs font-medium">推广链接</span>
+              <Link2 className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground">推广链接</span>
               <span className="text-xs text-muted-foreground">
                 source={capability?.displayName ?? platform} · campaign={selectedProduct.promotion.utm.campaign || selectedProduct.slug}
               </span>
@@ -385,76 +466,266 @@ function ComposeView() {
                 value={utmBaseUrl}
                 onChange={(e) => setUtmBaseUrl(e.target.value)}
                 placeholder="https://example.com/product"
-                className="flex-1 text-xs"
+                className="flex-1 text-sm transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
               <Button
                 size="sm"
                 variant="outline"
                 onClick={handleCopyUtm}
                 disabled={!utmUrl}
-                className="gap-1.5"
+                className="gap-1.5 transition-all duration-200 hover:scale-105"
               >
-                {utmCopied ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {utmCopied ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
                 {utmCopied ? "已复制" : "复制"}
               </Button>
             </div>
             {utmUrl && (
-              <p className="truncate text-xs text-muted-foreground" title={utmUrl}>
-                {utmUrl}
-              </p>
+              <div className="rounded-md bg-background/60 p-2.5">
+                <p className="break-all text-xs text-muted-foreground" title={utmUrl}>
+                  {utmUrl}
+                </p>
+              </div>
             )}
           </div>
         )}
         <div className="grid gap-4 md:grid-cols-2">
-          <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">标题</span><Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="例如：三分钟看懂这一集" maxLength={100} /></label>
-          <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">媒体资产</span>
-            <select aria-label="媒体资产" multiple={contentType === "image-text"} size={contentType === "image-text" ? 4 : 1} value={contentType === "image-text" ? assetIds : assetIds[0] ?? ""} onChange={(event) => setAssetIds(Array.from(event.target.selectedOptions, (option) => option.value))} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+          <label className="space-y-1.5 text-sm">
+            <span className="font-medium text-foreground">标题</span>
+            <Input 
+              value={title} 
+              onChange={(event) => setTitle(event.target.value)} 
+              placeholder="例如：三分钟看懂这一集" 
+              maxLength={100}
+              className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+          </label>
+          <label className="space-y-1.5 text-sm">
+            <span className="font-medium text-foreground">媒体资产</span>
+            <select 
+              aria-label="媒体资产" 
+              multiple={contentType === "image-text"} 
+              size={contentType === "image-text" ? 4 : 1} 
+              value={contentType === "image-text" ? assetIds : assetIds[0] ?? ""} 
+              onChange={(event) => setAssetIds(Array.from(event.target.selectedOptions, (option) => option.value))} 
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all duration-200 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
               <option value="" disabled>{projectMedia.length > 0 ? "选择当前项目素材" : "素材库暂无可用图片或视频"}</option>
               {projectMedia.filter((media) => contentType === "video" ? media.type === "video" : media.type === "image").map((media) => <option key={media.id} value={media.id}>{media.name}</option>)}
             </select>
           </label>
         </div>
-        <label className="block space-y-1.5 text-sm"><span className="text-muted-foreground">描述</span><Textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="发布描述，不包含凭据或本地绝对路径" rows={4} maxLength={5000} /></label>
+        <label className="block space-y-1.5 text-sm">
+          <span className="font-medium text-foreground">描述</span>
+          <Textarea 
+            value={description} 
+            onChange={(event) => setDescription(event.target.value)} 
+            placeholder="发布描述，不包含凭据或本地绝对路径" 
+            rows={4} 
+            maxLength={5000}
+            className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
+        </label>
         <div className="grid gap-4 md:grid-cols-2">
-          <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">话题</span><Input value={topics} onChange={(event) => setTopics(event.target.value)} placeholder="#漫剧 #剧情解说" /></label>
-          <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">封面素材</span>
-            <select aria-label="封面素材" value={coverAssetId} onChange={(event) => setCoverAssetId(event.target.value)} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+          <label className="space-y-1.5 text-sm">
+            <span className="font-medium text-foreground">话题</span>
+            <Input 
+              value={topics} 
+              onChange={(event) => setTopics(event.target.value)} 
+              placeholder="#漫剧 #剧情解说"
+              className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+          </label>
+          <label className="space-y-1.5 text-sm">
+            <span className="font-medium text-foreground">封面素材</span>
+            <select 
+              aria-label="封面素材" 
+              value={coverAssetId} 
+              onChange={(event) => setCoverAssetId(event.target.value)} 
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all duration-200 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
               <option value="">选择封面（视频发布必选）</option>
               {projectMedia.filter((media) => media.type === "image").map((media) => <option key={media.id} value={media.id}>{media.name}</option>)}
             </select>
           </label>
-          <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">发布方式</span><select aria-label="发布方式" value={publishMode} onChange={(event) => setPublishMode(event.target.value as "immediate" | "scheduled")} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"><option value="immediate">立即发布</option><option value="scheduled" disabled={!capability?.supportsScheduling}>定时发布</option></select>{publishMode === "scheduled" && <Input aria-label="定时发布时间" type="datetime-local" value={scheduledAt ? scheduledAt.slice(0, 16) : ""} onChange={(event) => setScheduledAt(event.target.value ? new Date(event.target.value).toISOString() : "")} disabled={!capability?.supportsScheduling} />}<span className="block text-xs text-muted-foreground">{capability?.supportsScheduling ? "由 MYStudio 保存，到点后提交" : "当前平台不支持定时发布，已安全禁用"}</span></label>
-          <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">可见范围</span><select aria-label="可见范围" value={visibility} onChange={(event) => setVisibility(event.target.value as "public" | "private" | "friends")} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"><option value="public">公开</option><option value="private">仅自己</option><option value="friends">好友可见</option></select></label>
+          <label className="space-y-1.5 text-sm">
+            <span className="font-medium text-foreground">发布方式</span>
+            <select 
+              aria-label="发布方式" 
+              value={publishMode} 
+              onChange={(event) => setPublishMode(event.target.value as "immediate" | "scheduled")} 
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all duration-200 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="immediate">立即发布</option>
+              <option value="scheduled" disabled={!capability?.supportsScheduling}>定时发布</option>
+            </select>
+            {publishMode === "scheduled" && (
+              <Input 
+                aria-label="定时发布时间" 
+                type="datetime-local" 
+                value={scheduledAt ? scheduledAt.slice(0, 16) : ""} 
+                onChange={(event) => setScheduledAt(event.target.value ? new Date(event.target.value).toISOString() : "")} 
+                disabled={!capability?.supportsScheduling}
+                className="mt-2 transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+            )}
+            <span className="block text-xs text-muted-foreground">
+              {capability?.supportsScheduling ? "由 MYStudio 保存，到点后提交" : "当前平台不支持定时发布，已安全禁用"}
+            </span>
+          </label>
+          <label className="space-y-1.5 text-sm">
+            <span className="font-medium text-foreground">可见范围</span>
+            <select 
+              aria-label="可见范围" 
+              value={visibility} 
+              onChange={(event) => setVisibility(event.target.value as "public" | "private" | "friends")} 
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all duration-200 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="public">公开</option>
+              <option value="private">仅自己</option>
+              <option value="friends">好友可见</option>
+            </select>
+          </label>
         </div>
         {capability && capability.optionKeys.length > 0 && (
-          <div className="grid gap-4 rounded-lg border border-border/60 bg-background/30 p-3 md:grid-cols-2">
-            {capability.optionKeys.includes("location") && <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">位置（可选）</span><Input aria-label="平台位置" value={typeof platformOptions.location === "string" ? platformOptions.location : ""} onChange={(event) => setPlatformOptions((current) => ({ ...current, location: event.target.value }))} /></label>}
-            {capability.optionKeys.includes("collection") && <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">合集（可选）</span><Input aria-label="平台合集" value={typeof platformOptions.collection === "string" ? platformOptions.collection : ""} onChange={(event) => setPlatformOptions((current) => ({ ...current, collection: event.target.value }))} /></label>}
-            {capability.optionKeys.includes("allowComment") && <label className="flex items-center gap-2 self-end pb-2 text-sm"><input aria-label="允许评论" type="checkbox" checked={platformOptions.allowComment !== false} onChange={(event) => setPlatformOptions((current) => ({ ...current, allowComment: event.target.checked }))} />允许评论</label>}
-            {capability.optionKeys.includes("tid") && <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">B站分区 ID</span><Input aria-label="B站分区 ID" inputMode="numeric" value={typeof platformOptions.tid === "string" ? platformOptions.tid : ""} onChange={(event) => setPlatformOptions((current) => ({ ...current, tid: event.target.value }))} placeholder="例如：171" /></label>}
-            {capability.optionKeys.includes("boardId") && <label className="space-y-1.5 text-sm"><span className="text-muted-foreground">Pinterest 画板 ID</span><Input aria-label="Pinterest 画板 ID" value={typeof platformOptions.boardId === "string" ? platformOptions.boardId : ""} onChange={(event) => setPlatformOptions((current) => ({ ...current, boardId: event.target.value }))} /></label>}
+          <div className="grid gap-4 rounded-lg border border-border/40 bg-background/40 p-4 md:grid-cols-2">
+            {capability.optionKeys.includes("location") && (
+              <label className="space-y-1.5 text-sm">
+                <span className="font-medium text-foreground">位置（可选）</span>
+                <Input 
+                  aria-label="平台位置" 
+                  value={typeof platformOptions.location === "string" ? platformOptions.location : ""} 
+                  onChange={(event) => setPlatformOptions((current) => ({ ...current, location: event.target.value }))}
+                  className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+            )}
+            {capability.optionKeys.includes("collection") && (
+              <label className="space-y-1.5 text-sm">
+                <span className="font-medium text-foreground">合集（可选）</span>
+                <Input 
+                  aria-label="平台合集" 
+                  value={typeof platformOptions.collection === "string" ? platformOptions.collection : ""} 
+                  onChange={(event) => setPlatformOptions((current) => ({ ...current, collection: event.target.value }))}
+                  className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+            )}
+            {capability.optionKeys.includes("allowComment") && (
+              <label className="flex items-center gap-2 self-end pb-2 text-sm">
+                <input 
+                  aria-label="允许评论" 
+                  type="checkbox" 
+                  checked={platformOptions.allowComment !== false} 
+                  onChange={(event) => setPlatformOptions((current) => ({ ...current, allowComment: event.target.checked }))}
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-2 focus:ring-primary/20"
+                />
+                <span className="font-medium text-foreground">允许评论</span>
+              </label>
+            )}
+            {capability.optionKeys.includes("tid") && (
+              <label className="space-y-1.5 text-sm">
+                <span className="font-medium text-foreground">B站分区 ID</span>
+                <Input 
+                  aria-label="B站分区 ID" 
+                  inputMode="numeric" 
+                  value={typeof platformOptions.tid === "string" ? platformOptions.tid : ""} 
+                  onChange={(event) => setPlatformOptions((current) => ({ ...current, tid: event.target.value }))} 
+                  placeholder="例如：171"
+                  className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+            )}
+            {capability.optionKeys.includes("boardId") && (
+              <label className="space-y-1.5 text-sm">
+                <span className="font-medium text-foreground">Pinterest 画板 ID</span>
+                <Input 
+                  aria-label="Pinterest 画板 ID" 
+                  value={typeof platformOptions.boardId === "string" ? platformOptions.boardId : ""} 
+                  onChange={(event) => setPlatformOptions((current) => ({ ...current, boardId: event.target.value }))}
+                  className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </label>
+            )}
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
-          <span className="text-xs text-muted-foreground">目标平台</span>
-          {selfMediaPlatformCapabilities.map((itemCapability) => {
-            const item = itemCapability.platform;
-            const available = accounts.some((account) => account.platform === item);
-            return <Button key={item} size="sm" variant={platform === item ? "secondary" : "outline"} disabled={!available} onClick={() => {
-              setPlatform(item);
-              if (itemCapability.supportsVideo) setContentType("video");
-              else if (itemCapability.supportsImageText) setContentType("image-text");
-              setAssetIds([]);
-              setCoverAssetId("");
-              setSelectedAccountIds([]);
-              setPlatformOptions({});
-            }}>{itemCapability.displayName}</Button>;
-          })}
-          <Button className="ml-auto gap-2" onClick={save} disabled={!supportsCurrentContentType}><CheckCircle2 className="h-4 w-4" />保存草稿</Button>
-          <Button className="gap-2" onClick={publish} disabled={publishing || !supportsCurrentContentType || !getSelfMediaBridge()}>{publishing && <Loader2 className="h-4 w-4 animate-spin" />}{publishMode === "scheduled" ? "创建定时任务" : "立即发布"}</Button>
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/40 pt-4">
+          <span className="text-sm font-medium text-foreground">目标平台</span>
+          <div className="flex flex-wrap gap-1.5">
+            {selfMediaPlatformCapabilities.map((itemCapability) => {
+              const item = itemCapability.platform;
+              const available = accounts.some((account) => account.platform === item);
+              return (
+                <Button 
+                  key={item} 
+                  size="sm" 
+                  variant={platform === item ? "secondary" : "outline"} 
+                  disabled={!available}
+                  className="transition-all duration-200 hover:scale-105"
+                  onClick={() => {
+                    setPlatform(item);
+                    if (itemCapability.supportsVideo) setContentType("video");
+                    else if (itemCapability.supportsImageText) setContentType("image-text");
+                    setAssetIds([]);
+                    setCoverAssetId("");
+                    setSelectedAccountIds([]);
+                    setPlatformOptions({});
+                  }}
+                >
+                  {itemCapability.displayName}
+                </Button>
+              );
+            })}
+          </div>
+          <div className="ml-auto flex gap-2">
+            <Button 
+              variant="outline"
+              className="gap-2 transition-all duration-200 hover:scale-105" 
+              onClick={save} 
+              disabled={!supportsCurrentContentType}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              保存草稿
+            </Button>
+            <Button 
+              className="gap-2 transition-all duration-200 hover:scale-105"
+              onClick={publish}
+              disabled={publishing || !supportsCurrentContentType || !getSelfMediaBridge()}
+            >
+              {publishing && <Loader2 className="h-4 w-4 animate-spin" />}
+              {publishMode === "scheduled" ? "创建定时任务" : "立即发布"}
+            </Button>
+          </div>
         </div>
-        <div className="rounded-lg border border-border/60 bg-background/30 p-3"><p className="mb-2 text-xs text-muted-foreground">明确选择发布账号（仅展示支持当前内容类型的在线账号）</p>{selectedAccounts.length === 0 ? <p className="text-xs text-muted-foreground">当前平台没有可用账号，请先在“账号”视图连接并刷新。</p> : <div className="grid gap-2 sm:grid-cols-2">{selectedAccounts.map((account) => <label key={account.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={selectedAccountIds.includes(account.id)} onChange={(event) => setSelectedAccountIds((ids) => event.target.checked ? [...ids, account.id] : ids.filter((id) => id !== account.id))} />{account.displayName}</label>)}</div>}</div>
-        {feedback && <div className="flex items-start gap-2 rounded-lg border border-border/70 bg-background/50 px-3 py-2 text-xs text-muted-foreground"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{feedback}</div>}
+        <div className="rounded-lg border border-border/40 bg-background/40 p-4">
+          <p className="mb-3 text-sm font-medium text-foreground">明确选择发布账号</p>
+          <p className="mb-3 text-xs text-muted-foreground">仅展示支持当前内容类型的在线账号</p>
+          {selectedAccounts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">当前平台没有可用账号，请先在"账号"视图连接并刷新。</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {selectedAccounts.map((account) => (
+                <label 
+                  key={account.id} 
+                  className="flex cursor-pointer items-center gap-3 rounded-md border border-border/50 bg-background/60 px-3 py-2.5 text-sm transition-all duration-200 hover:border-primary/50 hover:bg-background/80"
+                >
+                  <input 
+                    type="checkbox" 
+                    checked={selectedAccountIds.includes(account.id)} 
+                    onChange={(event) => setSelectedAccountIds((ids) => event.target.checked ? [...ids, account.id] : ids.filter((id) => id !== account.id))}
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-2 focus:ring-primary/20"
+                  />
+                  <span className="font-medium text-foreground">{account.displayName}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+        {feedback && (
+          <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <span className="text-foreground">{feedback}</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -535,34 +806,55 @@ function TasksView() {
   }
 
   return (
-    <RecordList
-      title="运行中的任务"
-      icon={Radio}
-      empty="当前项目还没有运行任务。"
-      feedback={feedback}
-      items={tasks.map((task) => ({
-        id: task.id,
-        title: "平台发布任务",
-        description: `${statusLabel(task.status)} · ${task.progress}%${task.previousTaskId ? ` · 重试自 ${task.previousTaskId}` : ""}`,
-        status: task.status,
-        task,
-      }))}
-      renderActions={(item) => (
-        <div className="flex shrink-0 items-center gap-2">
-          {(item.task.status === "running" || item.task.status === "scheduled") && (
-            <Button size="sm" variant="destructive" onClick={() => cancelTask(item.task)} disabled={actioningTaskId === item.id || !getSelfMediaBridge()}>
-              {actioningTaskId === item.id ? <Loader2 className="animate-spin" /> : <XCircle />}
-              取消任务
-            </Button>
-          )}
-          {(item.task.status === "failure" || item.task.status === "expired-login") && (
-            <Button size="sm" variant="outline" onClick={() => retryTask(item.task)}>
-              <RotateCcw />重试任务
-            </Button>
-          )}
-        </div>
-      )}
-    />
+    <div className="space-y-6">
+      <div>
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+          <Radio className="h-5 w-5 text-primary" />
+          运行中的任务
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">查看当前项目的任务执行状态</p>
+      </div>
+      <RecordList
+        title="运行中的任务"
+        icon={Radio}
+        empty="当前项目还没有运行任务。"
+        feedback={feedback}
+        items={tasks.map((task) => ({
+          id: task.id,
+          title: "平台发布任务",
+          description: `${statusLabel(task.status)} · ${task.progress}%${task.previousTaskId ? ` · 重试自 ${task.previousTaskId}` : ""}`,
+          status: task.status,
+          task,
+        }))}
+        renderActions={(item) => (
+          <div className="flex shrink-0 items-center gap-2">
+            {(item.task.status === "running" || item.task.status === "scheduled") && (
+              <Button 
+                size="sm" 
+                variant="destructive" 
+                onClick={() => cancelTask(item.task)} 
+                disabled={actioningTaskId === item.id || !getSelfMediaBridge()}
+                className="gap-1.5 transition-all duration-200 hover:scale-105"
+              >
+                {actioningTaskId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                取消任务
+              </Button>
+            )}
+            {(item.task.status === "failure" || item.task.status === "expired-login") && (
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => retryTask(item.task)}
+                className="gap-1.5 transition-all duration-200 hover:scale-105"
+              >
+                <RotateCcw className="h-4 w-4" />
+                重试任务
+              </Button>
+            )}
+          </div>
+        )}
+      />
+    </div>
   );
 }
 
@@ -584,15 +876,22 @@ function HistoryView() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <div>
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+          <History className="h-5 w-5 text-primary" />
+          发布历史
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">查看当前项目的发布历史记录</p>
+      </div>
       {products.length > 0 && (
         <label className="block space-y-1.5 text-sm">
-          <span className="text-muted-foreground">按产品筛选</span>
+          <span className="font-medium text-foreground">按产品筛选</span>
           <select
             aria-label="按产品筛选历史"
             value={filterProductId}
             onChange={(event) => setFilterProductId(event.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all duration-200 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             <option value="">全部产品</option>
             {products.map((product) => (
@@ -650,18 +949,24 @@ function GlobalHistoryView() {
   }, []); // 只在挂载时加载一次
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="flex items-center gap-2 text-base font-semibold">
-            <Layers className="h-4 w-4 text-primary" />
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+            <Layers className="h-5 w-5 text-primary" />
             全部产品历史
           </h2>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             跨项目聚合发布历史，共 {total} 条记录
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => loadAllHistory(true)} disabled={loading}>
+        <Button 
+          size="sm" 
+          variant="outline" 
+          onClick={() => loadAllHistory(true)} 
+          disabled={loading}
+          className="gap-1.5 transition-all duration-200 hover:scale-105"
+        >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
           刷新
         </Button>
@@ -669,12 +974,12 @@ function GlobalHistoryView() {
 
       {products.length > 0 && (
         <label className="block space-y-1.5 text-sm">
-          <span className="text-muted-foreground">按产品筛选</span>
+          <span className="font-medium text-foreground">按产品筛选</span>
           <select
             aria-label="按产品筛选全局历史"
             value={filterProductId}
             onChange={(event) => setFilterProductId(event.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all duration-200 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             <option value="">全部产品</option>
             {products.map((product) => (
@@ -687,50 +992,64 @@ function GlobalHistoryView() {
       )}
 
       {error && (
-        <div className="flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          {error}
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+          <span className="font-medium">{error}</span>
         </div>
       )}
 
       {loading && !loaded ? (
-        <div className="flex items-center justify-center py-10">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          <span className="ml-2 text-sm text-muted-foreground">正在加载跨项目历史...</span>
+        <div className="flex items-center justify-center rounded-lg border border-border/40 bg-background/30 py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-3 text-base text-muted-foreground">正在加载跨项目历史...</span>
         </div>
       ) : pagedHistory.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/80 px-5 py-10 text-center text-sm text-muted-foreground">
-          {filterProductId ? "该产品暂无发布历史。" : "暂无跨项目发布历史。"}
+        <div className="rounded-xl border border-dashed border-border/60 bg-background/30 px-6 py-16 text-center">
+          <History className="mx-auto h-12 w-12 text-muted-foreground/40" />
+          <p className="mt-4 text-base font-medium text-muted-foreground">
+            {filterProductId ? "该产品暂无发布历史" : "暂无跨项目发布历史"}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground/80">
+            {filterProductId ? "请切换筛选条件或查看其他产品" : "发布内容后将在此显示历史记录"}
+          </p>
         </div>
       ) : (
         <>
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {pagedHistory.map((record) => (
               <div
                 key={`${record.projectId}-${record.id}`}
-                className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/40 px-3 py-3"
+                className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/50 px-4 py-3.5 transition-all duration-200 hover:border-border/70 hover:bg-background/70"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-medium">{record.resultUrl ?? record.id}</p>
-                    <Badge variant="outline" className="shrink-0 text-xs">
+                  <div className="flex items-center gap-2.5">
+                    <p className="truncate text-sm font-semibold text-foreground">{record.resultUrl ?? record.id}</p>
+                    <Badge variant="outline" className="shrink-0 text-xs font-medium">
                       {record.projectName}
                     </Badge>
                   </div>
-                  <p className="mt-1 truncate text-xs text-muted-foreground">
+                  <p className="mt-1.5 truncate text-xs text-muted-foreground">
                     {statusLabel(record.status)} · {record.finishedAt ?? record.updatedAt}
                     {record.error ? ` · ${record.error.code}: ${record.error.message}` : ""}
                   </p>
                 </div>
-                <Badge variant={statusVariant(record.status)}>{statusLabel(record.status)}</Badge>
+                <Badge variant={statusVariant(record.status)} className="text-xs font-medium">
+                  {statusLabel(record.status)}
+                </Badge>
               </div>
             ))}
           </div>
 
           {canLoadMore && (
-            <div className="flex justify-center pt-4">
-              <Button variant="outline" onClick={loadMore} disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "加载更多"}
+            <div className="flex justify-center pt-6">
+              <Button 
+                variant="outline" 
+                onClick={loadMore} 
+                disabled={loading}
+                className="gap-1.5 transition-all duration-200 hover:scale-105"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                加载更多
               </Button>
             </div>
           )}
@@ -850,12 +1169,14 @@ function ProductsView() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="flex items-center gap-2 text-base font-semibold">
-            <Box className="h-4 w-4 text-primary" />产品目录
+          <h2 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-foreground">
+            <Box className="h-5 w-5 text-primary" />
+            产品目录
           </h2>
+          <p className="mt-1 text-sm text-muted-foreground">管理您的产品，关联推广内容</p>
         </div>
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={refreshProducts} disabled={loading}>
@@ -874,22 +1195,24 @@ function ProductsView() {
       </div>
       <div className="space-y-3">
         {products.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border/80 px-5 py-10 text-center text-sm text-muted-foreground">
-            暂无产品，点击「新增」添加第一个产品
+          <div className="rounded-xl border border-dashed border-border/60 bg-background/30 px-6 py-12 text-center">
+            <Box className="mx-auto h-12 w-12 text-muted-foreground/40" />
+            <p className="mt-3 text-sm font-medium text-muted-foreground">暂无产品</p>
+            <p className="mt-1 text-xs text-muted-foreground/80">点击「新增」按钮创建第一个产品</p>
           </div>
         ) : (
           products.map((product) => (
-            <Card key={product.id} className="border-border/70 bg-card/70 shadow-black/5">
-              <CardContent className="flex items-start justify-between gap-4 p-4">
+            <Card key={product.id} className="group border-border/50 bg-card/60 transition-all duration-200 hover:border-border/70 hover:bg-card/80">
+              <CardContent className="flex items-start justify-between gap-4 p-5">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium">{product.name || "未命名产品"}</span>
-                    <Badge variant="outline">{product.slug}</Badge>
+                  <div className="flex items-center gap-2.5">
+                    <span className="truncate text-base font-semibold text-foreground">{product.name || "未命名产品"}</span>
+                    <Badge variant="outline" className="text-xs">{product.slug}</Badge>
                   </div>
                   {product.description && (
-                    <p className="mt-1 truncate text-xs text-muted-foreground">{product.description}</p>
+                    <p className="mt-1.5 truncate text-sm text-muted-foreground">{product.description}</p>
                   )}
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <div className="mt-3 flex flex-wrap gap-1.5">
                     {product.tags.slice(0, 3).map((tag) => (
                       <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
                     ))}
@@ -898,11 +1221,11 @@ function ProductsView() {
                     )}
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setEditingProduct(product)}>
+                <div className="flex shrink-0 items-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                  <Button size="sm" variant="ghost" onClick={() => setEditingProduct(product)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => handleDelete(product.id)}>
+                  <Button size="sm" variant="ghost" onClick={() => handleDelete(product.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -912,8 +1235,7 @@ function ProductsView() {
         )}
       </div>
       {feedback && (
-        <div className="flex items-start gap-2 rounded-lg border border-border/70 bg-background/50 px-3 py-2 text-xs text-muted-foreground">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">
           {feedback}
         </div>
       )}
@@ -948,78 +1270,143 @@ function ProductEditForm({ product, onSave, onCancel }: { product: Product; onSa
   }
 
   return (
-    <Card className="border-border/70 bg-card/70 shadow-black/10">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Box className="h-4 w-4 text-primary" />
+    <Card className="border-border/50 bg-card/60">
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
+          <Box className="h-5 w-5 text-primary" />
           {product.name ? "编辑产品" : "新增产品"}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-1.5 text-sm">
-            <span className="text-muted-foreground">产品名称</span>
-            <Input value={form.name} onChange={(e) => updateField("name", e.target.value)} placeholder="例如：漫影工作室" />
+            <span className="font-medium text-foreground">产品名称</span>
+            <Input 
+              value={form.name} 
+              onChange={(e) => updateField("name", e.target.value)} 
+              placeholder="例如：漫影工作室"
+              className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
           </label>
           <label className="space-y-1.5 text-sm">
-            <span className="text-muted-foreground">URL 标识 (slug)</span>
-            <Input value={form.slug} onChange={(e) => updateField("slug", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))} placeholder="例如：manying-studio" />
+            <span className="font-medium text-foreground">URL 标识 (slug)</span>
+            <Input 
+              value={form.slug} 
+              onChange={(e) => updateField("slug", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))} 
+              placeholder="例如：manying-studio"
+              className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
           </label>
         </div>
         <label className="block space-y-1.5 text-sm">
-          <span className="text-muted-foreground">一句话描述</span>
-          <Input value={form.description} onChange={(e) => updateField("description", e.target.value)} placeholder="简短描述产品用途" />
+          <span className="font-medium text-foreground">一句话描述</span>
+          <Input 
+            value={form.description} 
+            onChange={(e) => updateField("description", e.target.value)} 
+            placeholder="简短描述产品用途"
+            className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
         </label>
         <label className="block space-y-1.5 text-sm">
-          <span className="text-muted-foreground">详细描述 (Markdown)</span>
-          <Textarea value={form.detail} onChange={(e) => updateField("detail", e.target.value)} rows={4} placeholder="详细的产品介绍，支持 Markdown 格式" />
+          <span className="font-medium text-foreground">详细描述 (Markdown)</span>
+          <Textarea 
+            value={form.detail} 
+            onChange={(e) => updateField("detail", e.target.value)} 
+            rows={4} 
+            placeholder="详细的产品介绍，支持 Markdown 格式"
+            className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
         </label>
         <label className="block space-y-1.5 text-sm">
-          <span className="text-muted-foreground">封面图路径</span>
-          <Input value={form.coverImage} onChange={(e) => updateField("coverImage", e.target.value)} placeholder="/images/product-cover.png" />
+          <span className="font-medium text-foreground">封面图路径</span>
+          <Input 
+            value={form.coverImage} 
+            onChange={(e) => updateField("coverImage", e.target.value)} 
+            placeholder="/images/product-cover.png"
+            className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
         </label>
         <label className="block space-y-1.5 text-sm">
-          <span className="text-muted-foreground">标签</span>
-          <Input value={form.tags.join(", ")} onChange={(e) => updateTags(e.target.value)} placeholder="用逗号分隔，例如：视频, 创作, AI" />
+          <span className="font-medium text-foreground">标签</span>
+          <Input 
+            value={form.tags.join(", ")} 
+            onChange={(e) => updateTags(e.target.value)} 
+            placeholder="用逗号分隔，例如：视频, 创作, AI"
+            className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
         </label>
-        <div className="space-y-3 rounded-lg border border-border/60 bg-background/30 p-3">
-          <span className="text-sm text-muted-foreground">CTA 链接</span>
+        <div className="space-y-3 rounded-lg border border-border/40 bg-background/40 p-4">
+          <span className="text-sm font-semibold text-foreground">CTA 链接</span>
           <div className="space-y-2">
             {form.links.map((link, index) => (
-              <div key={index} className="flex items-center gap-2 rounded-lg border border-border/60 bg-background/40 px-3 py-2">
-                <span className="truncate text-sm">{link.label}</span>
+              <div 
+                key={index} 
+                className="flex items-center gap-2 rounded-lg border border-border/50 bg-background/60 px-3 py-2.5 transition-all duration-200 hover:border-border/70 hover:bg-background/80"
+              >
+                <span className="truncate text-sm font-medium text-foreground">{link.label}</span>
                 <span className="truncate text-xs text-muted-foreground">{link.url}</span>
-                <Button size="sm" variant="ghost" onClick={() => removeLink(index)}>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  onClick={() => removeLink(index)}
+                  className="ml-auto h-8 w-8 p-0 transition-all duration-200 hover:scale-110 hover:bg-destructive/10 hover:text-destructive"
+                >
                   <XCircle className="h-4 w-4" />
                 </Button>
               </div>
             ))}
           </div>
-          <div className="flex items-center gap-2">
-            <Input value={newLink.label} onChange={(e) => setNewLink({ ...newLink, label: e.target.value })} placeholder="按钮文字" className="flex-1" />
-            <Input value={newLink.url} onChange={(e) => setNewLink({ ...newLink, url: e.target.value })} placeholder="链接地址" className="flex-2" />
-            <Button size="sm" variant="outline" onClick={addLink} disabled={!newLink.label || !newLink.url}>
+          <div className="flex items-center gap-2 pt-2">
+            <Input 
+              value={newLink.label} 
+              onChange={(e) => setNewLink({ ...newLink, label: e.target.value })} 
+              placeholder="按钮文字" 
+              className="flex-1 transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+            <Input 
+              value={newLink.url} 
+              onChange={(e) => setNewLink({ ...newLink, url: e.target.value })} 
+              placeholder="链接地址" 
+              className="flex-2 transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={addLink} 
+              disabled={!newLink.label || !newLink.url}
+              className="transition-all duration-200 hover:scale-105 disabled:opacity-50"
+            >
               <Plus className="h-4 w-4" />
             </Button>
           </div>
         </div>
-        <div className="space-y-3 rounded-lg border border-border/60 bg-background/30 p-3">
-          <span className="text-sm text-muted-foreground">推广配置</span>
+        <div className="space-y-3 rounded-lg border border-border/40 bg-background/40 p-4">
+          <span className="text-sm font-semibold text-foreground">推广配置</span>
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">默认话题标签</span>
-              <Input value={form.promotion.defaultTags.join(", ")} onChange={(e) => updatePromotionDefaultTags(e.target.value)} placeholder="用逗号分隔" />
+              <span className="font-medium text-foreground">默认话题标签</span>
+              <Input 
+                value={form.promotion.defaultTags.join(", ")} 
+                onChange={(e) => updatePromotionDefaultTags(e.target.value)} 
+                placeholder="用逗号分隔"
+                className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
             </label>
             <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">UTM Campaign</span>
-              <Input value={form.promotion.utm.campaign} onChange={(e) => updateField("promotion", { ...form.promotion, utm: { campaign: e.target.value } })} placeholder="例如：manying-studio" />
+              <span className="font-medium text-foreground">UTM Campaign</span>
+              <Input 
+                value={form.promotion.utm.campaign} 
+                onChange={(e) => updateField("promotion", { ...form.promotion, utm: { campaign: e.target.value } })} 
+                placeholder="例如：manying-studio"
+                className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
             </label>
             <label className="space-y-1.5 text-sm">
-              <span className="text-muted-foreground">CTA 类型</span>
+              <span className="font-medium text-foreground">CTA 类型</span>
               <select
                 value={form.promotion.ctaType}
                 onChange={(e) => updateField("promotion", { ...form.promotion, ctaType: e.target.value as ProductCtaType })}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all duration-200 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value="access">接入</option>
                 <option value="read">阅读</option>
@@ -1030,9 +1417,22 @@ function ProductEditForm({ product, onSave, onCancel }: { product: Product; onSa
             </label>
           </div>
         </div>
-        <div className="flex justify-end gap-2 border-t border-border/60 pt-4">
-          <Button variant="outline" onClick={onCancel}>取消</Button>
-          <Button onClick={() => onSave(form)} disabled={!form.name || !form.slug}>保存</Button>
+        <div className="flex justify-end gap-3 border-t border-border/40 pt-5">
+          <Button 
+            variant="outline" 
+            onClick={onCancel}
+            className="transition-all duration-200 hover:scale-105"
+          >
+            取消
+          </Button>
+          <Button 
+            onClick={() => onSave(form)} 
+            disabled={!form.name || !form.slug}
+            className="gap-1.5 transition-all duration-200 hover:scale-105 disabled:opacity-50"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            保存
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -1041,10 +1441,10 @@ function ProductEditForm({ product, onSave, onCancel }: { product: Product; onSa
 
 function RecordList({ title, empty, icon: Icon, items, feedback, renderActions }: { title: string; empty: string; icon: typeof Radio; items: Array<{ id: string; title: string; description: string; status: string; task?: SelfMediaTask }>; feedback?: string | null; renderActions?: (item: { id: string; title: string; description: string; status: string; task: SelfMediaTask }) => ReactNode }) {
   return (
-    <Card className="border-border/70 bg-card/70 shadow-black/10">
-      <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Icon className="h-4 w-4 text-primary" />{title}</CardTitle></CardHeader>
+    <Card className="border-border/50 bg-card/60">
+      <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><Icon className="h-4 w-4 text-primary" />{title}</CardTitle></CardHeader>
       <CardContent>
-        {items.length === 0 ? <div className="rounded-xl border border-dashed border-border/80 px-5 py-10 text-center text-sm text-muted-foreground">{empty}</div> : <div className="space-y-2">{items.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/40 px-3 py-3"><div className="min-w-0"><p className="truncate text-sm font-medium">{item.title}</p><p className="mt-1 truncate text-xs text-muted-foreground">{item.description}</p></div><div className="flex items-center gap-2"><Badge variant={statusVariant(item.status)}>{statusLabel(item.status)}</Badge>{item.task && renderActions?.(item as typeof item & { task: SelfMediaTask })}</div></div>)}</div>}
+        {items.length === 0 ? <div className="rounded-lg border border-dashed border-border/60 px-5 py-10 text-center text-sm text-muted-foreground">{empty}</div> : <div className="space-y-2">{items.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/50 px-3 py-3 transition-colors hover:bg-background/70"><div className="min-w-0"><p className="truncate text-sm font-medium">{item.title}</p><p className="mt-1 truncate text-xs text-muted-foreground">{item.description}</p></div><div className="flex items-center gap-2"><Badge variant={statusVariant(item.status)}>{statusLabel(item.status)}</Badge>{item.task && renderActions?.(item as typeof item & { task: SelfMediaTask })}</div></div>)}</div>}
         {feedback && <p className="mt-3 text-xs text-muted-foreground">{feedback}</p>}
       </CardContent>
     </Card>
@@ -1093,19 +1493,35 @@ export function SelfMediaPanel() {
   }[section];
 
   return (
-    <div className="h-full min-h-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,hsl(var(--primary)/0.12),transparent_34%),linear-gradient(135deg,hsl(var(--background)),hsl(var(--muted)/0.18))]">
+    <div className="h-full min-h-0 overflow-hidden bg-[radial-gradient(ellipse_at_top_right,hsl(var(--primary)/0.08),transparent_50%),radial-gradient(ellipse_at_bottom_left,hsl(var(--accent)/0.05),transparent_50%),hsl(var(--background))]">
       <div className="flex h-full min-h-0 flex-col">
-        <header className="border-b border-border/60 bg-background/50 px-6 py-5 backdrop-blur-xl">
+        <header className="relative border-b border-border/40 bg-background/80 px-6 py-5 backdrop-blur-md">
           <div className="mx-auto w-full max-w-7xl">
-            <h1 className="text-2xl font-semibold tracking-tight">自媒体发布台</h1>
-            {journalWarning && <p role="alert" className="mt-1 text-xs text-destructive">{journalWarning}</p>}
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">自媒体发布台</h1>
+            {journalWarning && <p role="alert" className="mt-1.5 text-xs text-destructive">{journalWarning}</p>}
           </div>
         </header>
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          <nav className="flex shrink-0 gap-2 overflow-x-auto border-b border-border/50 bg-background/25 p-3 md:w-48 md:flex-col md:border-b-0 md:border-r md:p-4">
-            {sections.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => setSection(id)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${section === id ? "bg-primary text-primary-foreground shadow-primary/15" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}><Icon className="h-4 w-4" />{label}</button>)}
+          <nav className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-border/40 bg-background/40 p-3 md:w-56 md:flex-col md:border-b-0 md:border-r md:p-4">
+            {sections.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setSection(id)}
+                className={`flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-sm font-medium transition-all duration-200 ${
+                  section === id
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                }`}
+              >
+                <Icon className={`h-4 w-4 shrink-0 ${section === id ? "text-primary-foreground" : "text-muted-foreground/70"}`} />
+                <span>{label}</span>
+              </button>
+            ))}
           </nav>
-          <ScrollArea className="min-h-0 flex-1"><main className="mx-auto w-full max-w-7xl p-5 md:p-7">{sectionContent}</main></ScrollArea>
+          <ScrollArea className="min-h-0 flex-1">
+            <main className="mx-auto w-full max-w-7xl p-5 md:p-8">{sectionContent}</main>
+          </ScrollArea>
         </div>
       </div>
     </div>

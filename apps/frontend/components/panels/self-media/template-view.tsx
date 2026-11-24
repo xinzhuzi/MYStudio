@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Plus, Pencil, Trash2, AlertTriangle, Eye } from "lucide-react";
+import { AlertTriangle, Check, Eye, EyeOff, FileText, Pencil, Plus, Save, Settings2, ShieldAlert, Trash2, Type } from "lucide-react";
 import { useProductStore } from "@/stores/product/product-store";
 import { useTemplateStore } from "@/stores/template/template-store";
 import type { PromotionTemplate } from "@/types/promotion-template";
@@ -23,7 +23,7 @@ const TEMPLATE_VARIABLES = [
   { key: "{{product.description}}", description: "产品描述" },
   { key: "{{product.link}}", description: "产品链接" },
   { key: "{{date}}", description: "发布日期" },
-  { key: "{{platform}}", description: "平台名称(自动注入)" },
+  { key: "{{platform}}", description: "平台名称（自动注入）" },
 ] as const;
 
 export function TemplateView() {
@@ -62,7 +62,7 @@ export function TemplateView() {
 
   const handleDelete = async (id: string) => {
     // TODO: 替换为应用内确认对话框
-    const confirmed = window.confirm("确定要删除这个模板吗?");
+    const confirmed = window.confirm("确定要删除这个模板吗？");
     if (confirmed) {
       await deleteTemplate(id);
     }
@@ -87,47 +87,71 @@ export function TemplateView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold">推广模板</h2>
-          <p className="text-sm text-muted-foreground">
-            创建可复用的内容模板,自动适配不同平台并执行风控检查
+          <h2 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-foreground">
+            <FileText className="h-5 w-5 text-primary" />
+            推广模板
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            创建可复用的内容模板，自动适配不同平台并执行风控检查
           </p>
         </div>
-        <Button onClick={handleCreateNew} disabled={products.length === 0}>
-          <Plus className="mr-2 h-4 w-4" />
+        <Button 
+          onClick={handleCreateNew} 
+          disabled={products.length === 0}
+          className="gap-1.5 transition-all duration-200 hover:scale-105 disabled:opacity-50"
+        >
+          <Plus className="h-4 w-4" />
           新建模板
         </Button>
       </div>
 
       {products.length === 0 ? (
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            请先在"产品"标签中创建至少一个产品,然后才能创建推广模板。
-          </AlertDescription>
-        </Alert>
+        <div className="rounded-xl border border-dashed border-border/60 bg-background/30 px-6 py-16 text-center">
+          <AlertTriangle className="mx-auto h-12 w-12 text-muted-foreground/40" />
+          <p className="mt-4 text-base font-medium text-muted-foreground">
+            请先创建产品
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground/80">
+            在"产品"标签中创建至少一个产品，然后才能创建推广模板
+          </p>
+        </div>
       ) : (
         <>
-          <Select value={selectedProductFilter} onValueChange={setSelectedProductFilter}>
-            <SelectTrigger className="w-64">
-              <SelectValue placeholder="按产品筛选" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">所有产品</SelectItem>
-              {products.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div>
+            <Label className="text-sm font-medium text-foreground">按产品筛选</Label>
+            <Select value={selectedProductFilter} onValueChange={setSelectedProductFilter}>
+              <SelectTrigger className="mt-2 w-64 transition-all duration-200 hover:border-primary/50 focus:border-primary focus:ring-2 focus:ring-primary/20">
+                <SelectValue placeholder="按产品筛选" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">所有产品</SelectItem>
+                {products.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           {loading ? (
-            <div className="text-center py-12 text-muted-foreground">加载中...</div>
+            <div className="flex items-center justify-center py-16">
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                <span className="text-base">加载中...</span>
+              </div>
+            </div>
           ) : filteredTemplates.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              暂无模板,点击"新建模板"开始创建
+            <div className="rounded-xl border border-dashed border-border/60 bg-background/30 px-6 py-16 text-center">
+              <FileText className="mx-auto h-12 w-12 text-muted-foreground/40" />
+              <p className="mt-4 text-base font-medium text-muted-foreground">
+                暂无模板
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground/80">
+                点击"新建模板"开始创建推广模板
+              </p>
             </div>
           ) : (
             <div className="grid gap-4">
@@ -165,37 +189,47 @@ function TemplateCard({
   const platformLabel = PLATFORM_ABBREVIATION[template.platform] || template.platform;
   
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <CardTitle className="text-lg">{template.name}</CardTitle>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Badge variant="secondary">{productName}</Badge>
-              <Badge variant="outline">{platformLabel}</Badge>
+    <Card className="group border-border/50 bg-card/60 transition-all duration-200 hover:border-border/70 hover:bg-card/80">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <CardTitle className="truncate text-base font-semibold text-foreground">
+              {template.name}
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs font-medium">{productName}</Badge>
+              <Badge variant="outline" className="text-xs">{platformLabel}</Badge>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onEdit}>
-              <Pencil className="mr-1 h-3 w-3" />
-              编辑
+          <div className="flex shrink-0 gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onEdit}
+              className="gap-1 transition-all duration-200 hover:scale-105 hover:bg-primary/10"
+            >
+              <Pencil className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="sm" onClick={onDelete}>
-              <Trash2 className="mr-1 h-3 w-3" />
-              删除
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onDelete}
+              className="gap-1 transition-all duration-200 hover:scale-105 hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-2 text-sm">
-          <div>
-            <span className="font-medium">标题模板:</span>
-            <span className="ml-2 text-muted-foreground">{template.titleTemplate || "(空)"}</span>
+      <CardContent className="pt-0">
+        <div className="space-y-2.5 text-sm">
+          <div className="flex items-start gap-2">
+            <span className="shrink-0 font-medium text-foreground">标题模板:</span>
+            <span className="truncate text-muted-foreground">{template.titleTemplate || "(空)"}</span>
           </div>
-          <div>
-            <span className="font-medium">正文模板:</span>
-            <span className="ml-2 text-muted-foreground line-clamp-2">{template.bodyTemplate || "(空)"}</span>
+          <div className="flex items-start gap-2">
+            <span className="shrink-0 font-medium text-foreground">正文模板:</span>
+            <span className="line-clamp-2 text-muted-foreground">{template.bodyTemplate || "(空)"}</span>
           </div>
           {template.defaultTags.length > 0 && (
             <div className="flex items-center gap-2">
@@ -276,37 +310,47 @@ function TemplateEditor({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">{template.id ? "编辑模板" : "新建模板"}</h2>
-        <div className="flex gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-foreground">
+          <FileText className="h-5 w-5 text-primary" />
+          {template.id ? "编辑模板" : "新建模板"}
+        </h2>
+        <div className="flex shrink-0 gap-2">
           <Button variant="outline" onClick={onCancel}>
             取消
           </Button>
-          <Button onClick={handleSubmit}>保存</Button>
+          <Button onClick={handleSubmit} className="gap-1.5 hover:scale-105">
+            <Save className="h-4 w-4" />
+            保存
+          </Button>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>基本信息</CardTitle>
+      <Card className="border-border/50 bg-card/60">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+            <Settings2 className="h-4 w-4 text-primary" />
+            基本信息
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>模板名称</Label>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-foreground">模板名称</Label>
               <Input
                 value={form.name}
                 onChange={(e) => handleFieldChange("name", e.target.value)}
-                placeholder="例如:小红书种草模板"
+                placeholder="例如：小红书种草模板"
+                className="transition-all duration-200 hover:border-primary/50"
               />
             </div>
-            <div>
-              <Label>关联产品</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-foreground">关联产品</Label>
               <Select
                 value={form.productId}
                 onValueChange={(v) => handleFieldChange("productId", v)}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full transition-all duration-200 hover:border-primary/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -318,13 +362,13 @@ function TemplateEditor({
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>目标平台</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-foreground">目标平台</Label>
               <Select
                 value={form.platform}
                 onValueChange={(v) => handleFieldChange("platform", v as SelfMediaPlatform)}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full transition-all duration-200 hover:border-primary/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -336,14 +380,15 @@ function TemplateEditor({
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>媒体槽位数量</Label>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-foreground">媒体槽位数量</Label>
               <Input
                 type="number"
                 min="0"
                 max="20"
                 value={form.mediaSlots}
                 onChange={(e) => handleFieldChange("mediaSlots", parseInt(e.target.value) || 0)}
+                className="transition-all duration-200 hover:border-primary/50"
               />
             </div>
           </div>
@@ -351,20 +396,20 @@ function TemplateEditor({
       </Card>
 
       {brandProfile && (brandProfile.tone.length > 0 || brandProfile.forbiddenWords.length > 0) && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
+        <Card className="border-border/50 bg-card/60">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+              <ShieldAlert className="h-4 w-4 text-primary" />
               品牌约束
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             {brandProfile.tone.length > 0 && (
-              <div>
-                <Label className="text-sm font-medium">语气关键词</Label>
-                <div className="flex flex-wrap gap-2 mt-1">
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">语气关键词</p>
+                <div className="flex flex-wrap gap-1.5">
                   {brandProfile.tone.map((word) => (
-                    <Badge key={word} variant="secondary">
+                    <Badge key={word} variant="secondary" className="text-xs font-normal">
                       {word}
                     </Badge>
                   ))}
@@ -372,11 +417,11 @@ function TemplateEditor({
               </div>
             )}
             {brandProfile.forbiddenWords.length > 0 && (
-              <div>
-                <Label className="text-sm font-medium">禁用词</Label>
-                <div className="flex flex-wrap gap-2 mt-1">
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">禁用词</p>
+                <div className="flex flex-wrap gap-1.5">
                   {brandProfile.forbiddenWords.map((word) => (
-                    <Badge key={word} variant="destructive">
+                    <Badge key={word} variant="destructive" className="text-xs font-normal">
                       {word}
                     </Badge>
                   ))}
@@ -387,59 +432,72 @@ function TemplateEditor({
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>模板内容</CardTitle>
+      <Card className="border-border/50 bg-card/60">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+            <Type className="h-4 w-4 text-primary" />
+            模板内容
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label>标题模板</Label>
+        <CardContent className="space-y-5">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium text-foreground">标题模板</Label>
             <Textarea
               value={form.titleTemplate}
               onChange={(e) => handleFieldChange("titleTemplate", e.target.value)}
-              placeholder="使用 {{变量}} 插入动态内容,例如:{{product.name}} - {{date}}"
+              placeholder="使用 {{变量}} 插入动态内容，例如：{{product.name}} - {{date}}"
               rows={2}
+              className="transition-all duration-200 hover:border-primary/50"
             />
           </div>
-          <div>
-            <Label>正文模板</Label>
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium text-foreground">正文模板</Label>
             <Textarea
               value={form.bodyTemplate}
               onChange={(e) => handleFieldChange("bodyTemplate", e.target.value)}
               placeholder="使用 {{变量}} 插入动态内容"
               rows={8}
+              className="transition-all duration-200 hover:border-primary/50"
             />
           </div>
-          <div>
-            <Label>可用变量 (点击插入)</Label>
-            <div className="flex flex-wrap gap-2 mt-2">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">可用变量</Label>
+            <div className="flex flex-wrap gap-2">
               {TEMPLATE_VARIABLES.map((v) => (
-                <div key={v.key} className="flex gap-1">
+                <div
+                  key={v.key}
+                  className="flex items-stretch overflow-hidden rounded-lg border border-border/60 bg-card/50 transition-colors duration-200 hover:border-primary/40"
+                >
+                  <span
+                    className="flex items-center bg-foreground/[0.04] px-2.5 font-mono text-xs text-foreground"
+                    title={v.description}
+                  >
+                    {v.key}
+                  </span>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() => insertVariable(v.key, "title")}
-                    className="text-xs"
+                    title={`插入到标题：${v.description}`}
+                    className="h-auto rounded-none border-l border-border/40 px-2 text-xs text-primary/80 hover:bg-primary/10 hover:text-primary"
                   >
-                    {v.key} → 标题
+                    标题
                   </Button>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() => insertVariable(v.key, "body")}
-                    className="text-xs"
+                    title={`插入到正文：${v.description}`}
+                    className="h-auto rounded-none border-l border-border/40 px-2 text-xs text-primary/80 hover:bg-primary/10 hover:text-primary"
                   >
-                    {v.key} → 正文
+                    正文
                   </Button>
                 </div>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              {`{{platform}}`} 变量会自动注入平台名称,实现内容差异化
-            </p>
           </div>
-          <div>
-            <Label>默认标签 (逗号分隔)</Label>
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium text-foreground">默认标签（逗号分隔）</Label>
             <Input
               value={form.defaultTags.join(", ")}
               onChange={(e) =>
@@ -449,52 +507,74 @@ function TemplateEditor({
                 )
               }
               placeholder="标签1, 标签2, 标签3"
+              className="transition-all duration-200 hover:border-primary/50"
             />
+            {form.defaultTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {form.defaultTags.map((tag) => (
+                  <Badge key={tag} variant="outline" className="text-xs font-normal">
+                    #{tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Eye className="h-4 w-4" />
+      <Card className="border-border/50 bg-card/60">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+            <Eye className="h-4 w-4 text-primary" />
             多平台预览
           </CardTitle>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShowPreview(!showPreview)}
+            className="gap-1.5"
           >
+            {showPreview ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             {showPreview ? "隐藏预览" : "显示预览"}
           </Button>
         </CardHeader>
         {showPreview && (
           <CardContent className="space-y-4">
-            <div>
-              <Label>预览平台</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {Object.entries(PLATFORM_ABBREVIATION).map(([key, label]) => (
-                  <Button
-                    key={key}
-                    variant={previewPlatforms.includes(key as SelfMediaPlatform) ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      setPreviewPlatforms((prev) =>
-                        prev.includes(key as SelfMediaPlatform)
-                          ? prev.filter((p) => p !== key)
-                          : [...prev, key as SelfMediaPlatform]
-                      );
-                    }}
-                  >
-                    {label}
-                  </Button>
-                ))}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground">预览平台</Label>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(PLATFORM_ABBREVIATION).map(([key, label]) => {
+                  const active = previewPlatforms.includes(key as SelfMediaPlatform);
+                  return (
+                    <Button
+                      key={key}
+                      variant={active ? "primary" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setPreviewPlatforms((prev) =>
+                          prev.includes(key as SelfMediaPlatform)
+                            ? prev.filter((p) => p !== key)
+                            : [...prev, key as SelfMediaPlatform]
+                        );
+                      }}
+                      className="gap-1.5"
+                    >
+                      {active && <Check className="h-3.5 w-3.5" />}
+                      {label}
+                    </Button>
+                  );
+                })}
               </div>
             </div>
             <div className="space-y-4">
               {previewResults.map((preview) => (
                 <PreviewCard key={preview.platform} preview={preview} />
               ))}
+              {previewResults.length === 0 && (
+                <div className="rounded-lg border border-dashed border-border/60 bg-background/30 px-4 py-6 text-center text-sm text-muted-foreground">
+                  选择至少一个平台以预览效果
+                </div>
+              )}
             </div>
           </CardContent>
         )}
@@ -505,29 +585,29 @@ function TemplateEditor({
 
 function PreviewCard({ preview }: { preview: PlatformPreview }) {
   const hasForbidden = preview.forbiddenHits.length > 0;
-  const charColor = preview.charCount > preview.charLimit ? "text-destructive" : "text-muted-foreground";
+  const overLimit = preview.charCount > preview.charLimit;
 
   return (
-    <Card className="border-l-4 border-l-primary">
-      <CardHeader>
-        <CardTitle className="text-base flex items-center justify-between">
-          <span>{preview.platformName}</span>
-          <span className={`text-sm font-normal ${charColor}`}>
+    <Card className="border-border/50 border-l-4 border-l-primary bg-background/40 transition-colors duration-200 hover:border-border/70">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center justify-between gap-3 text-sm font-semibold text-foreground">
+          <Badge variant="outline" className="text-xs font-medium">{preview.platformName}</Badge>
+          <span className={`text-xs font-medium tabular-nums ${overLimit ? "text-destructive" : "text-muted-foreground"}`}>
             {preview.charCount} / {preview.charLimit} 字符
           </span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2 text-sm">
-        <div>
-          <span className="font-medium">标题:</span>
-          <div className="mt-1 p-2 bg-muted rounded">{preview.title}</div>
+      <CardContent className="space-y-3 text-sm">
+        <div className="space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">标题</span>
+          <div className="rounded-lg bg-muted/40 px-3 py-2 text-foreground">{preview.title}</div>
         </div>
-        <div>
-          <span className="font-medium">正文:</span>
-          <div className="mt-1 p-2 bg-muted rounded whitespace-pre-wrap">{preview.body}</div>
+        <div className="space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">正文</span>
+          <div className="whitespace-pre-wrap rounded-lg bg-muted/40 px-3 py-2 text-foreground">{preview.body}</div>
           {preview.wasTruncated && (
-            <p className="text-xs text-muted-foreground mt-1">
-              (已截断以适应平台字数限制)
+            <p className="text-xs text-muted-foreground/80">
+              已按平台字数限制截断
             </p>
           )}
         </div>
@@ -535,7 +615,7 @@ function PreviewCard({ preview }: { preview: PlatformPreview }) {
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              检测到禁用词: {preview.forbiddenHits.join(", ")}
+              检测到禁用词：{preview.forbiddenHits.join("、")}
             </AlertDescription>
           </Alert>
         )}

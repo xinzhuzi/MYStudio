@@ -41,8 +41,8 @@ export function ShowcaseView() {
       {/* 控制面板 */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">产品展示页</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">产品展示页</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
             配置并导出自包含的 HTML 展示页
           </p>
         </div>
@@ -64,33 +64,36 @@ export function ShowcaseView() {
 
       {/* 配置区 */}
       {!previewMode && (
-        <Card>
+        <Card className="border-border/50 bg-card/60 shadow-sm">
           <CardContent className="space-y-4 pt-6">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium">品牌名称</label>
+                <label className="text-sm font-medium text-foreground">品牌名称</label>
                 <Input
                   value={config.brandName}
                   onChange={(e) => setConfig({ ...config, brandName: e.target.value })}
                   placeholder="MYStudio"
+                  className="transition-colors focus:border-primary/50"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">品牌标语</label>
+                <label className="text-sm font-medium text-foreground">品牌标语</label>
                 <Input
                   value={config.brandTagline}
                   onChange={(e) => setConfig({ ...config, brandTagline: e.target.value })}
                   placeholder="创意工作室 · 数字产品集合"
+                  className="transition-colors focus:border-primary/50"
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">联系邮箱</label>
+              <label className="text-sm font-medium text-foreground">联系邮箱</label>
               <Input
                 type="email"
                 value={config.contactEmail}
                 onChange={(e) => setConfig({ ...config, contactEmail: e.target.value })}
                 placeholder="contact@example.com"
+                className="transition-colors focus:border-primary/50"
               />
             </div>
           </CardContent>
@@ -98,7 +101,7 @@ export function ShowcaseView() {
       )}
 
       {/* 预览区 */}
-      <Card>
+      <Card className="overflow-hidden border-border/50 shadow-lg">
         <CardContent className="p-0">
           <ShowcasePreview products={products} config={config} />
         </CardContent>
@@ -111,15 +114,15 @@ function ShowcasePreview({ products, config }: { products: Product[]; config: Sh
   return (
     <div className="bg-background">
       {/* Hero Section */}
-      <section className="border-b border-border px-8 py-16 text-center">
-        <h1 className="font-heading text-4xl font-bold tracking-tight sm:text-5xl">
+      <section className="border-b border-border/50 px-8 py-20 text-center">
+        <h1 className="font-heading text-5xl font-bold tracking-tight text-foreground sm:text-6xl">
           {config.brandName}
         </h1>
-        <p className="mt-4 text-lg text-muted-foreground">{config.brandTagline}</p>
+        <p className="mt-6 text-lg text-muted-foreground">{config.brandTagline}</p>
       </section>
 
       {/* Products Grid */}
-      <section className="px-8 py-12">
+      <section className="px-8 py-16">
         <div className="mx-auto max-w-6xl">
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {products.map((product) => (
@@ -127,17 +130,18 @@ function ShowcasePreview({ products, config }: { products: Product[]; config: Sh
             ))}
           </div>
           {products.length === 0 && (
-            <div className="rounded-lg border border-dashed border-border p-12 text-center text-muted-foreground">
-              暂无产品，请先在产品目录中添加产品
+            <div className="rounded-xl border-2 border-dashed border-border/60 bg-background/30 p-16 text-center">
+              <p className="text-base font-medium text-muted-foreground">暂无产品</p>
+              <p className="mt-2 text-sm text-muted-foreground/80">请先在产品目录中添加产品</p>
             </div>
           )}
         </div>
       </section>
 
       {/* Footer */}
-      <section className="border-t border-border px-8 py-8 text-center text-sm text-muted-foreground">
-        {config.contactEmail && <p>联系: {config.contactEmail}</p>}
-        <p className="mt-2">© {new Date().getFullYear()} {config.brandName}</p>
+      <section className="border-t border-border/50 px-8 py-10 text-center text-sm text-muted-foreground">
+        {config.contactEmail && <p className="mb-2">联系: {config.contactEmail}</p>}
+        <p>© {new Date().getFullYear()} {config.brandName}</p>
       </section>
     </div>
   );
@@ -145,25 +149,25 @@ function ShowcasePreview({ products, config }: { products: Product[]; config: Sh
 
 function ProductCard({ product }: { product: Product }) {
   return (
-    <Card className="group overflow-hidden border-border transition-all hover:border-primary/50 hover:shadow-lg">
+    <Card className="group overflow-hidden border-border/50 bg-card shadow-sm transition-all duration-300 hover:border-primary/30 hover:shadow-xl">
       {product.coverImage && (
-        <div className="aspect-video overflow-hidden bg-muted">
+        <div className="aspect-video overflow-hidden bg-muted/50">
           <img
             src={product.coverImage}
             alt={product.name}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
           />
         </div>
       )}
-      <CardContent className="space-y-3 p-6">
-        <h3 className="font-heading text-xl font-semibold">{product.name}</h3>
-        <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
+      <CardContent className="space-y-4 p-6">
+        <h3 className="font-heading text-xl font-semibold text-foreground">{product.name}</h3>
+        <p className="text-sm leading-relaxed text-muted-foreground line-clamp-2">{product.description}</p>
         {product.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {product.tags.slice(0, 3).map((tag) => (
               <span
                 key={tag}
-                className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
               >
                 {tag}
               </span>
@@ -178,10 +182,10 @@ function ProductCard({ product }: { product: Product }) {
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
               >
                 {link.label}
-                <ExternalLink className="h-3 w-3" />
+                <ExternalLink className="h-3.5 w-3.5" />
               </a>
             ))}
           </div>
@@ -253,37 +257,37 @@ function generateShowcaseHTML(products: Product[], config: ShowcaseConfig): stri
       const root = document.getElementById('root');
       
       const heroHTML = \`
-        <section class="border-b border-neutral-200 px-8 py-16 text-center">
-          <h1 class="font-heading text-4xl font-bold tracking-tight sm:text-5xl">
+        <section class="border-b border-neutral-200 px-8 py-20 text-center">
+          <h1 class="font-heading text-5xl font-bold tracking-tight sm:text-6xl">
             \${config.brandName}
           </h1>
-          <p class="mt-4 text-lg text-neutral-600">\${config.brandTagline}</p>
+          <p class="mt-6 text-lg text-neutral-600">\${config.brandTagline}</p>
         </section>
       \`;
       
       const productsHTML = products.length > 0 ? products.map(product => \`
-        <div class="group overflow-hidden rounded-lg border border-neutral-200 bg-white transition-all hover:border-blue-500/50 hover:shadow-lg">
+        <div class="group overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm transition-all duration-300 hover:border-blue-500/30 hover:shadow-xl">
           \${product.coverImage ? \`
             <div class="aspect-video overflow-hidden bg-neutral-100">
-              <img src="\${product.coverImage}" alt="\${product.name}" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105">
+              <img src="\${product.coverImage}" alt="\${product.name}" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110">
             </div>
           \` : ''}
-          <div class="space-y-3 p-6">
+          <div class="space-y-4 p-6">
             <h3 class="font-heading text-xl font-semibold">\${product.name}</h3>
-            <p class="text-sm text-neutral-600 line-clamp-2">\${product.description}</p>
+            <p class="text-sm leading-relaxed text-neutral-600 line-clamp-2">\${product.description}</p>
             \${product.tags.length > 0 ? \`
-              <div class="flex flex-wrap gap-1">
+              <div class="flex flex-wrap gap-1.5">
                 \${product.tags.slice(0, 3).map(tag => \`
-                  <span class="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">\${tag}</span>
+                  <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-600">\${tag}</span>
                 \`).join('')}
               </div>
             \` : ''}
             \${product.links.length > 0 ? \`
               <div class="flex flex-wrap gap-2 pt-2">
                 \${product.links.map(link => \`
-                  <a href="\${link.url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
+                  <a href="\${link.url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-100">
                     \${link.label}
-                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
                     </svg>
                   </a>
@@ -292,10 +296,10 @@ function generateShowcaseHTML(products: Product[], config: ShowcaseConfig): stri
             \` : ''}
           </div>
         </div>
-      \`).join('') : '<div class="col-span-full rounded-lg border border-dashed border-neutral-300 p-12 text-center text-neutral-500">暂无产品</div>';
+      \`).join('') : '<div class="col-span-full rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-50/50 p-16 text-center"><p class="text-base font-medium text-neutral-500">暂无产品</p><p class="mt-2 text-sm text-neutral-400">请先在产品目录中添加产品</p></div>';
       
       const productsSectionHTML = \`
-        <section class="px-8 py-12">
+        <section class="px-8 py-16">
           <div class="mx-auto max-w-6xl">
             <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               \${productsHTML}
@@ -305,9 +309,9 @@ function generateShowcaseHTML(products: Product[], config: ShowcaseConfig): stri
       \`;
       
       const footerHTML = \`
-        <section class="border-t border-neutral-200 px-8 py-8 text-center text-sm text-neutral-600">
-          \${config.contactEmail ? \`<p>联系: \${config.contactEmail}</p>\` : ''}
-          <p class="mt-2">© \${new Date().getFullYear()} \${config.brandName}</p>
+        <section class="border-t border-neutral-200 px-8 py-10 text-center text-sm text-neutral-600">
+          \${config.contactEmail ? \`<p class="mb-2">联系: \${config.contactEmail}</p>\` : ''}
+          <p>© \${new Date().getFullYear()} \${config.brandName}</p>
         </section>
       \`;
       
