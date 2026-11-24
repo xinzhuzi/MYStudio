@@ -2,7 +2,9 @@
 """daojie_sheet_formats_freeze.py — 设定卡格式注册表冻结快照再生工具(1114)。
 
 真源 qi21_bases.json#sheet_card_qwen.formats → 重生
-apps/backend/comfyui/my_nodes/nodes/sheet_card_formats.py 的 _FROZEN 字面量。
+apps/backend/comfyui/my_nodes/nodes/sheet_card_formats_frozen.generated.py 的 _FROZEN 字面量
+(1124 超线文件拆分:快照字面量自 sheet_card_formats.py 尾段原样移出;解释器留在原文件,
+按文件路径加载快照)。
 幂等可复现:同真源跑 N 次产出逐字节相同;未来加格式后一键同步快照。
 
 用法:python3 apps/build/scripts/daojie_sheet_formats_freeze.py [--check]
@@ -20,7 +22,10 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 TRUTH = (REPO / "apps/frontend/assets/studio-manuals/art_skills/"
          "daojie_ink_guofeng/json/qi21_bases.json")
+# 解释器(五道校验闸在这里;加载快照按路径,不依赖本脚本的写入目标)
 TARGET = REPO / "apps/backend/comfyui/my_nodes/nodes/sheet_card_formats.py"
+# 快照字面量的家(生成物;尺寸门禁豁免 *.generated.*)
+SNAPSHOT = REPO / "apps/backend/comfyui/my_nodes/nodes/sheet_card_formats_frozen.generated.py"
 
 MARKER = "# ── _FROZEN 冻结快照(由 apps/build/scripts/daojie_sheet_formats_freeze.py 再生;勿手改)──"
 
@@ -46,12 +51,8 @@ def main() -> int:
     reg = json.loads(TRUTH.read_text(encoding="utf-8"))["sheet_card_qwen"]["formats"]
     _module().validate_registry(reg)      # 快照入口同过五道闸(坏真源=明确拒冻)
 
-    src = TARGET.read_text(encoding="utf-8")
-    head, sep, tail = src.partition(MARKER)
-    assert sep, f"{TARGET.name} 缺 _FROZEN 标记行"
-    assert "_FROZEN: dict = " in tail and tail.count("_FROZEN: dict = ") == 1, \
-        "标记行后应只有 _FROZEN 赋值(若模块尾部新增了代码,请先改本脚本的替换范围)"
-    new_src = head + _literal(reg)
+    src = SNAPSHOT.read_text(encoding="utf-8")
+    new_src = _literal(reg)
     ast.parse(new_src)                    # 写前语法闸
 
     if args.check:
@@ -65,7 +66,7 @@ def main() -> int:
         print(f"[FREEZE OK·幂等无变动] {len(reg)} 格式:{list(reg)}")
         return 0
     TARGET.write_text(new_src, encoding="utf-8")
-    print(f"[FREEZE OK·已再生] {len(reg)} 格式:{list(reg)} → {TARGET.relative_to(REPO)}")
+    print(f"[FREEZE OK·已再生] {len(reg)} 格式:{list(reg)} → {SNAPSHOT.relative_to(REPO)}")
     return 0
 
 
