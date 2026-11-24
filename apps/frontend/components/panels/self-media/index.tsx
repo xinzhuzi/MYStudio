@@ -183,7 +183,7 @@ function AccountsView() {
           const unavailable = provider?.enabled === false || !platformAvailable;
           const emptyLabel = unavailable ? "当前平台暂不可用" : "尚未连接账号";
           return (
-            <Card key={capability.platform} className="mb-4 break-inside-avoid border-border/50 bg-card/60 transition-all duration-200 hover:border-border/70">
+            <Card key={capability.platform} className="mb-4 break-inside-avoid border-border/50 bg-card/80 transition-all duration-200 hover:border-border/70">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-3">
@@ -220,14 +220,14 @@ function AccountsView() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {platformAccounts.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-border/60 bg-background/30 px-3 py-5 text-center text-xs text-muted-foreground">
+                  <div className="rounded-lg border border-dashed border-border/60 bg-background/80 px-3 py-5 text-center text-xs text-muted-foreground">
                     {emptyLabel}
                   </div>
                 ) : (
                   platformAccounts.map((account) => (
                     <div 
                       key={account.id} 
-                      className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-background/50 px-3 py-2.5 transition-colors hover:bg-background/70"
+                      className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-background/80 px-3 py-2.5 transition-colors hover:bg-background/90"
                     >
                       <span className="truncate text-sm font-medium text-foreground">{account.displayName}</span>
                       <Badge variant={statusVariant(account.status)}>{statusLabel(account.status)}</Badge>
@@ -240,7 +240,7 @@ function AccountsView() {
         })}
       </div>
       {feedback && (
-        <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+        <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
           <span className="text-foreground">{feedback}</span>
         </div>
@@ -406,7 +406,7 @@ function ComposeView() {
   }
 
   return (
-    <Card className="border-border/50 bg-card/60">
+    <Card className="border-border/50 bg-card/80">
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
           <Send className="h-5 w-5 text-primary" />
@@ -452,7 +452,7 @@ function ComposeView() {
         )}
         {/* B4 推广链接生成器 */}
         {selectedProduct && (
-          <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+          <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/10 p-4">
             <div className="flex items-center gap-2">
               <Link2 className="h-4 w-4 text-primary" />
               <span className="text-sm font-semibold text-foreground">推广链接</span>
@@ -480,7 +480,7 @@ function ComposeView() {
               </Button>
             </div>
             {utmUrl && (
-              <div className="rounded-md bg-background/60 p-2.5">
+              <div className="rounded-md bg-background/80 p-2.5">
                 <p className="break-all text-xs text-muted-foreground" title={utmUrl}>
                   {utmUrl}
                 </p>
@@ -587,7 +587,7 @@ function ComposeView() {
           </label>
         </div>
         {capability && capability.optionKeys.length > 0 && (
-          <div className="grid gap-4 rounded-lg border border-border/40 bg-background/40 p-4 md:grid-cols-2">
+          <div className="grid gap-4 rounded-lg border border-border/40 bg-background/80 p-4 md:grid-cols-2">
             {capability.optionKeys.includes("location") && (
               <label className="space-y-1.5 text-sm">
                 <span className="font-medium text-foreground">位置（可选）</span>
@@ -696,7 +696,7 @@ function ComposeView() {
             </Button>
           </div>
         </div>
-        <div className="rounded-lg border border-border/40 bg-background/40 p-4">
+        <div className="rounded-lg border border-border/40 bg-background/80 p-4">
           <p className="mb-3 text-sm font-medium text-foreground">明确选择发布账号</p>
           <p className="mb-3 text-xs text-muted-foreground">仅展示支持当前内容类型的在线账号</p>
           {selectedAccounts.length === 0 ? (
@@ -706,7 +706,7 @@ function ComposeView() {
               {selectedAccounts.map((account) => (
                 <label 
                   key={account.id} 
-                  className="flex cursor-pointer items-center gap-3 rounded-md border border-border/50 bg-background/60 px-3 py-2.5 text-sm transition-all duration-200 hover:border-primary/50 hover:bg-background/80"
+                  className="flex cursor-pointer items-center gap-3 rounded-md border border-border/50 bg-background/80 px-3 py-2.5 text-sm transition-all duration-200 hover:border-primary/50 hover:bg-background/90"
                 >
                   <input 
                     type="checkbox" 
@@ -721,7 +721,7 @@ function ComposeView() {
           )}
         </div>
         {feedback && (
-          <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+          <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
             <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
             <span className="text-foreground">{feedback}</span>
           </div>
@@ -999,12 +999,12 @@ function GlobalHistoryView() {
       )}
 
       {loading && !loaded ? (
-        <div className="flex items-center justify-center rounded-lg border border-border/40 bg-background/30 py-16">
+        <div className="flex items-center justify-center rounded-lg border border-border/40 bg-background/80 py-16">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <span className="ml-3 text-base text-muted-foreground">正在加载跨项目历史...</span>
         </div>
       ) : pagedHistory.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/60 bg-background/30 px-6 py-16 text-center">
+        <div className="rounded-xl border border-dashed border-border/60 bg-background/80 px-6 py-16 text-center">
           <History className="mx-auto h-12 w-12 text-muted-foreground/40" />
           <p className="mt-4 text-base font-medium text-muted-foreground">
             {filterProductId ? "该产品暂无发布历史" : "暂无跨项目发布历史"}
@@ -1019,7 +1019,7 @@ function GlobalHistoryView() {
             {pagedHistory.map((record) => (
               <div
                 key={`${record.projectId}-${record.id}`}
-                className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/50 px-4 py-3.5 transition-all duration-200 hover:border-border/70 hover:bg-background/70"
+                className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/80 px-4 py-3.5 transition-all duration-200 hover:border-border/70 hover:bg-background/90"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2.5">
@@ -1195,14 +1195,14 @@ function ProductsView() {
       </div>
       <div className="space-y-3">
         {products.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border/60 bg-background/30 px-6 py-12 text-center">
+          <div className="rounded-xl border border-dashed border-border/60 bg-background/80 px-6 py-12 text-center">
             <Box className="mx-auto h-12 w-12 text-muted-foreground/40" />
             <p className="mt-3 text-sm font-medium text-muted-foreground">暂无产品</p>
             <p className="mt-1 text-xs text-muted-foreground/80">点击「新增」按钮创建第一个产品</p>
           </div>
         ) : (
           products.map((product) => (
-            <Card key={product.id} className="group border-border/50 bg-card/60 transition-all duration-200 hover:border-border/70 hover:bg-card/80">
+            <Card key={product.id} className="group border-border/50 bg-card/80 transition-all duration-200 hover:border-border/70 hover:bg-card/90">
               <CardContent className="flex items-start justify-between gap-4 p-5">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2.5">
@@ -1235,7 +1235,7 @@ function ProductsView() {
         )}
       </div>
       {feedback && (
-        <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">
+        <div className="rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">
           {feedback}
         </div>
       )}
@@ -1270,7 +1270,7 @@ function ProductEditForm({ product, onSave, onCancel }: { product: Product; onSa
   }
 
   return (
-    <Card className="border-border/50 bg-card/60">
+    <Card className="border-border/50 bg-card/80">
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
           <Box className="h-5 w-5 text-primary" />
@@ -1335,13 +1335,13 @@ function ProductEditForm({ product, onSave, onCancel }: { product: Product; onSa
             className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </label>
-        <div className="space-y-3 rounded-lg border border-border/40 bg-background/40 p-4">
+        <div className="space-y-3 rounded-lg border border-border/40 bg-background/80 p-4">
           <span className="text-sm font-semibold text-foreground">CTA 链接</span>
           <div className="space-y-2">
             {form.links.map((link, index) => (
               <div 
                 key={index} 
-                className="flex items-center gap-2 rounded-lg border border-border/50 bg-background/60 px-3 py-2.5 transition-all duration-200 hover:border-border/70 hover:bg-background/80"
+                className="flex items-center gap-2 rounded-lg border border-border/50 bg-background/80 px-3 py-2.5 transition-all duration-200 hover:border-border/70 hover:bg-background/90"
               >
                 <span className="truncate text-sm font-medium text-foreground">{link.label}</span>
                 <span className="truncate text-xs text-muted-foreground">{link.url}</span>
@@ -1380,7 +1380,7 @@ function ProductEditForm({ product, onSave, onCancel }: { product: Product; onSa
             </Button>
           </div>
         </div>
-        <div className="space-y-3 rounded-lg border border-border/40 bg-background/40 p-4">
+        <div className="space-y-3 rounded-lg border border-border/40 bg-background/80 p-4">
           <span className="text-sm font-semibold text-foreground">推广配置</span>
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-1.5 text-sm">
@@ -1441,10 +1441,10 @@ function ProductEditForm({ product, onSave, onCancel }: { product: Product; onSa
 
 function RecordList({ title, empty, icon: Icon, items, feedback, renderActions }: { title: string; empty: string; icon: typeof Radio; items: Array<{ id: string; title: string; description: string; status: string; task?: SelfMediaTask }>; feedback?: string | null; renderActions?: (item: { id: string; title: string; description: string; status: string; task: SelfMediaTask }) => ReactNode }) {
   return (
-    <Card className="border-border/50 bg-card/60">
+    <Card className="border-border/50 bg-card/80">
       <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><Icon className="h-4 w-4 text-primary" />{title}</CardTitle></CardHeader>
       <CardContent>
-        {items.length === 0 ? <div className="rounded-lg border border-dashed border-border/60 px-5 py-10 text-center text-sm text-muted-foreground">{empty}</div> : <div className="space-y-2">{items.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/50 px-3 py-3 transition-colors hover:bg-background/70"><div className="min-w-0"><p className="truncate text-sm font-medium">{item.title}</p><p className="mt-1 truncate text-xs text-muted-foreground">{item.description}</p></div><div className="flex items-center gap-2"><Badge variant={statusVariant(item.status)}>{statusLabel(item.status)}</Badge>{item.task && renderActions?.(item as typeof item & { task: SelfMediaTask })}</div></div>)}</div>}
+        {items.length === 0 ? <div className="rounded-lg border border-dashed border-border/60 px-5 py-10 text-center text-sm text-muted-foreground">{empty}</div> : <div className="space-y-2">{items.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/80 px-3 py-3 transition-colors hover:bg-background/90"><div className="min-w-0"><p className="truncate text-sm font-medium">{item.title}</p><p className="mt-1 truncate text-xs text-muted-foreground">{item.description}</p></div><div className="flex items-center gap-2"><Badge variant={statusVariant(item.status)}>{statusLabel(item.status)}</Badge>{item.task && renderActions?.(item as typeof item & { task: SelfMediaTask })}</div></div>)}</div>}
         {feedback && <p className="mt-3 text-xs text-muted-foreground">{feedback}</p>}
       </CardContent>
     </Card>
@@ -1502,7 +1502,7 @@ export function SelfMediaPanel() {
           </div>
         </header>
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          <nav className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-border/40 bg-background/40 p-3 md:w-56 md:flex-col md:border-b-0 md:border-r md:p-4">
+          <nav className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-border/40 bg-background/80 p-3 md:w-56 md:flex-col md:border-b-0 md:border-r md:p-4">
             {sections.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
@@ -1511,7 +1511,7 @@ export function SelfMediaPanel() {
                 className={`flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-sm font-medium transition-all duration-200 ${
                   section === id
                     ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                    : "text-muted-foreground hover:bg-muted/90 hover:text-foreground"
                 }`}
               >
                 <Icon className={`h-4 w-4 shrink-0 ${section === id ? "text-primary-foreground" : "text-muted-foreground/70"}`} />

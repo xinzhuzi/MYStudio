@@ -58,7 +58,7 @@ export function BatchAccountSelector({
 
   if (groups.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border/60 bg-background/30 px-4 py-8 text-center">
+      <div className="rounded-lg border border-dashed border-border/60 bg-background/80 px-4 py-8 text-center">
         <Users className="mx-auto h-8 w-8 text-muted-foreground/40" />
         <p className="mt-3 text-sm font-medium text-muted-foreground">
           没有可用的跨平台账号
@@ -80,7 +80,7 @@ export function BatchAccountSelector({
         return (
           <div
             key={group.platform}
-            className="rounded-lg border border-border/50 bg-background/40 p-2.5 transition-colors duration-200 hover:border-border/70"
+            className="rounded-lg border border-border/50 bg-background/80 p-2.5 transition-colors duration-200 hover:border-border/70"
           >
             <Button
               variant="ghost"
@@ -107,8 +107,8 @@ export function BatchAccountSelector({
                 return (
                   <label
                     key={account.id}
-                    className={`flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors duration-150 hover:bg-muted/40 ${
-                      isSelected ? "bg-primary/5" : ""
+                    className={`flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors duration-150 hover:bg-muted/90 ${
+                      isSelected ? "bg-primary/10" : ""
                     }`}
                   >
                     <input
@@ -128,7 +128,7 @@ export function BatchAccountSelector({
         );
       })}
       {ineligibleAccounts.length > 0 && (
-        <div className="rounded-lg border border-border/40 bg-muted/20 p-3">
+        <div className="rounded-lg border border-border/40 bg-muted/80 p-3">
           <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
             以下账号暂不可用

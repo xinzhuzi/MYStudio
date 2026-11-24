@@ -362,7 +362,7 @@ export function BatchPublishView() {
   }, [baseDraft, activeProjectId, selectedAccounts, contentType, needsFirstPublishVerification, firstPublishAccount, upsertTask, addHistoryRecord]);
 
   return (
-    <Card className="border-border/50 bg-card/60">
+    <Card className="border-border/50 bg-card/80">
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
           <Globe2 className="h-5 w-5 text-primary" />
@@ -503,7 +503,7 @@ export function BatchPublishView() {
 
         {/* Title previews per platform */}
         {titlePreviews.length > 0 && title && (
-          <div className="space-y-2 rounded-lg border border-border/40 bg-background/40 p-3">
+          <div className="space-y-2 rounded-lg border border-border/40 bg-background/80 p-3">
             <p className="text-xs font-semibold text-foreground">各平台标题预览（自动追加标识）</p>
             {titlePreviews.map((preview) => (
               <div key={preview.platform} className="flex items-center gap-2 text-sm">
@@ -516,7 +516,7 @@ export function BatchPublishView() {
 
         {/* First-publish verification notice */}
         {needsFirstPublishVerification && firstPublishAccount && (
-          <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+          <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
             <Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             <span className="text-foreground">
               首发验证：将先在 {SELF_MEDIA_CAPABILITY_MANIFEST[firstPublishAccount.platform].displayName}（{firstPublishAccount.displayName}）单发 1 条，成功后再触发其余平台。
@@ -525,7 +525,7 @@ export function BatchPublishView() {
         )}
 
         {/* Risk control notice */}
-        <div className="flex items-center gap-2 rounded-md border border-border/40 bg-background/30 px-3 py-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 rounded-md border border-border/40 bg-background/80 px-3 py-2 text-xs text-muted-foreground">
           <Shield className="h-3.5 w-3.5 shrink-0 text-primary/70" />
           <span>
             风控：发布间隔 ≥ 5 分钟 · 每账号每日上限 3 条 · 自动追加平台标识
@@ -551,7 +551,7 @@ export function BatchPublishView() {
 
         {/* Progress bar (UX trio #1) */}
         {progress && (
-          <div className="space-y-3 rounded-lg border border-border/40 bg-background/40 p-4">
+          <div className="space-y-3 rounded-lg border border-border/40 bg-background/80 p-4">
             <div className="flex items-center justify-between text-sm">
               <span className="font-semibold text-foreground">发布进度</span>
               <span className="text-muted-foreground">
@@ -588,7 +588,7 @@ export function BatchPublishView() {
 
         {/* Summary report */}
         {summary && (
-          <div className="space-y-2 rounded-lg border border-border/40 bg-background/50 p-4">
+          <div className="space-y-2 rounded-lg border border-border/40 bg-background/80 p-4">
             <h4 className="text-sm font-semibold text-foreground">发布汇总报告</h4>
             <div className="flex flex-wrap gap-3 text-sm">
               <span className="text-success">✓ 成功 {summary.succeeded}</span>
@@ -611,7 +611,7 @@ export function BatchPublishView() {
 
         {/* Feedback */}
         {feedback && (
-          <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+          <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
             <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
             <span className="text-foreground">{feedback}</span>
           </div>

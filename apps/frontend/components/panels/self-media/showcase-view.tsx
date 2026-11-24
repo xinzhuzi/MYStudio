@@ -64,7 +64,7 @@ export function ShowcaseView() {
 
       {/* 配置区 */}
       {!previewMode && (
-        <Card className="border-border/50 bg-card/60 shadow-sm">
+        <Card className="border-border/50 bg-card/80 shadow-sm">
           <CardContent className="space-y-4 pt-6">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
@@ -130,7 +130,7 @@ function ShowcasePreview({ products, config }: { products: Product[]; config: Sh
             ))}
           </div>
           {products.length === 0 && (
-            <div className="rounded-xl border-2 border-dashed border-border/60 bg-background/30 p-16 text-center">
+            <div className="rounded-xl border-2 border-dashed border-border/60 bg-background/80 p-16 text-center">
               <p className="text-base font-medium text-muted-foreground">暂无产品</p>
               <p className="mt-2 text-sm text-muted-foreground/80">请先在产品目录中添加产品</p>
             </div>
@@ -151,7 +151,7 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <Card className="group overflow-hidden border-border/50 bg-card shadow-sm transition-all duration-300 hover:border-primary/30 hover:shadow-xl">
       {product.coverImage && (
-        <div className="aspect-video overflow-hidden bg-muted/50">
+        <div className="aspect-video overflow-hidden bg-muted/80">
           <img
             src={product.coverImage}
             alt={product.name}
@@ -182,7 +182,7 @@ function ProductCard({ product }: { product: Product }) {
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-md bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
               >
                 {link.label}
                 <ExternalLink className="h-3.5 w-3.5" />

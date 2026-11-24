@@ -108,7 +108,7 @@ export function TemplateView() {
       </div>
 
       {products.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/60 bg-background/30 px-6 py-16 text-center">
+        <div className="rounded-xl border border-dashed border-border/60 bg-background/80 px-6 py-16 text-center">
           <AlertTriangle className="mx-auto h-12 w-12 text-muted-foreground/40" />
           <p className="mt-4 text-base font-medium text-muted-foreground">
             请先创建产品
@@ -144,7 +144,7 @@ export function TemplateView() {
               </div>
             </div>
           ) : filteredTemplates.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border/60 bg-background/30 px-6 py-16 text-center">
+            <div className="rounded-xl border border-dashed border-border/60 bg-background/80 px-6 py-16 text-center">
               <FileText className="mx-auto h-12 w-12 text-muted-foreground/40" />
               <p className="mt-4 text-base font-medium text-muted-foreground">
                 暂无模板
@@ -189,7 +189,7 @@ function TemplateCard({
   const platformLabel = PLATFORM_ABBREVIATION[template.platform] || template.platform;
   
   return (
-    <Card className="group border-border/50 bg-card/60 transition-all duration-200 hover:border-border/70 hover:bg-card/80">
+    <Card className="group border-border/50 bg-card/80 transition-all duration-200 hover:border-border/70 hover:bg-card/90">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1 space-y-1.5">
@@ -326,7 +326,7 @@ function TemplateEditor({
         </div>
       </div>
 
-      <Card className="border-border/50 bg-card/60">
+      <Card className="border-border/50 bg-card/80">
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
             <Settings2 className="h-4 w-4 text-primary" />
@@ -396,7 +396,7 @@ function TemplateEditor({
       </Card>
 
       {brandProfile && (brandProfile.tone.length > 0 || brandProfile.forbiddenWords.length > 0) && (
-        <Card className="border-border/50 bg-card/60">
+        <Card className="border-border/50 bg-card/80">
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
               <ShieldAlert className="h-4 w-4 text-primary" />
@@ -432,7 +432,7 @@ function TemplateEditor({
         </Card>
       )}
 
-      <Card className="border-border/50 bg-card/60">
+      <Card className="border-border/50 bg-card/80">
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
             <Type className="h-4 w-4 text-primary" />
@@ -466,7 +466,7 @@ function TemplateEditor({
               {TEMPLATE_VARIABLES.map((v) => (
                 <div
                   key={v.key}
-                  className="flex items-stretch overflow-hidden rounded-lg border border-border/60 bg-card/50 transition-colors duration-200 hover:border-primary/40"
+                  className="flex items-stretch overflow-hidden rounded-lg border border-border/60 bg-card/80 transition-colors duration-200 hover:border-primary/40"
                 >
                   <span
                     className="flex items-center bg-foreground/[0.04] px-2.5 font-mono text-xs text-foreground"
@@ -522,7 +522,7 @@ function TemplateEditor({
         </CardContent>
       </Card>
 
-      <Card className="border-border/50 bg-card/60">
+      <Card className="border-border/50 bg-card/80">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
             <Eye className="h-4 w-4 text-primary" />
@@ -571,7 +571,7 @@ function TemplateEditor({
                 <PreviewCard key={preview.platform} preview={preview} />
               ))}
               {previewResults.length === 0 && (
-                <div className="rounded-lg border border-dashed border-border/60 bg-background/30 px-4 py-6 text-center text-sm text-muted-foreground">
+                <div className="rounded-lg border border-dashed border-border/60 bg-background/80 px-4 py-6 text-center text-sm text-muted-foreground">
                   选择至少一个平台以预览效果
                 </div>
               )}
@@ -588,7 +588,7 @@ function PreviewCard({ preview }: { preview: PlatformPreview }) {
   const overLimit = preview.charCount > preview.charLimit;
 
   return (
-    <Card className="border-border/50 border-l-4 border-l-primary bg-background/40 transition-colors duration-200 hover:border-border/70">
+    <Card className="border-border/50 border-l-4 border-l-primary bg-background/80 transition-colors duration-200 hover:border-border/70">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between gap-3 text-sm font-semibold text-foreground">
           <Badge variant="outline" className="text-xs font-medium">{preview.platformName}</Badge>
@@ -600,11 +600,11 @@ function PreviewCard({ preview }: { preview: PlatformPreview }) {
       <CardContent className="space-y-3 text-sm">
         <div className="space-y-1">
           <span className="text-xs font-medium text-muted-foreground">标题</span>
-          <div className="rounded-lg bg-muted/40 px-3 py-2 text-foreground">{preview.title}</div>
+          <div className="rounded-lg bg-muted/80 px-3 py-2 text-foreground">{preview.title}</div>
         </div>
         <div className="space-y-1">
           <span className="text-xs font-medium text-muted-foreground">正文</span>
-          <div className="whitespace-pre-wrap rounded-lg bg-muted/40 px-3 py-2 text-foreground">{preview.body}</div>
+          <div className="whitespace-pre-wrap rounded-lg bg-muted/80 px-3 py-2 text-foreground">{preview.body}</div>
           {preview.wasTruncated && (
             <p className="text-xs text-muted-foreground/80">
               已按平台字数限制截断
