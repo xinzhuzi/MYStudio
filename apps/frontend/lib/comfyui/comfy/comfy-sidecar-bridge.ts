@@ -1683,14 +1683,17 @@ export async function syncEngine(
   );
 }
 
-export async function restartRemoteEngine(): Promise<{
+/** 重启 Windows 引擎。后端先停后起并轮询就绪(最长 120s),队列非空时拒绝;超时须盖住冷启动。 */
+export type RemoteEngineRestartReply = {
   ok: boolean;
-  output: string;
-}> {
-  return comfySidecarRequest<{ ok: boolean; output: string }>(
-    "POST",
-    "/comfy/ssh/restart-engine",
-  );
+  restarted?: boolean;
+  reason?: string;
+  detail?: string;
+  output?: string;
+};
+
+export async function restartRemoteEngine(): Promise<RemoteEngineRestartReply> {
+  return comfySidecarRequest<RemoteEngineRestartReply>("POST", "/comfy/ssh/restart-engine", { timeoutMs: 240_000 });
 }
 
 export type RemoteMystudioActionReply = {
