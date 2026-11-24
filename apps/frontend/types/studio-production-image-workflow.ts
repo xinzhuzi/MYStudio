@@ -1,0 +1,442 @@
+// 图像工作流图的类型(节点、边、画布、ComfyUI 节点快照)。2026-11-24 超线文件拆分:从 studio-production-types.ts 拆出;入口与导出名不变。
+
+import type { StoryboardKeyframe, CharacterReferenceViewType, StoryboardOrderedReference } from "./studio";
+
+export type ImageWorkflowTargetKind = "free" | "material" | "storyboard" | "asset";
+
+export type ImageWorkflowAssetTargetType = "character" | "scene" | "prop";
+
+export interface ImageWorkflowTarget {
+  kind: ImageWorkflowTargetKind;
+  id?: string;
+  assetType?: ImageWorkflowAssetTargetType;
+  parentId?: string;
+}
+
+export interface ImageWorkflowOpenContext {
+  target: ImageWorkflowTarget;
+  title: string;
+  prompt?: string;
+  sourceImagePath?: string;
+  resultImagePath?: string;
+  imageWorkflowId?: string;
+  sourceStage?: string;
+  sourceStageLabel?: string;
+  sourceLabel?: string;
+  /** 分镜目标的当前内容指纹:用于跳过「同 id 但属于被替换上一代分镜」的旧工作流 */
+  storyboardSourceFingerprint?: string;
+  /** 分镜台词(成片模板选型的对话信号;仅分镜目标消费) */
+  storyboardLines?: string;
+  /** 分镜关键帧序列(M1d):>1 帧时建流克隆 N 对帧节点(帧间链);缺省单帧行为不变 */
+  storyboardKeyframes?: StoryboardKeyframe[];
+  /** 画面可见角色名(shotSemantics.visibleCharacters,M3b/R18):建流时构图模板
+   *  按人数自适应改写「只有角色A与B」双人约束;缺省不改写(fail-safe) */
+  storyboardVisibleCharacters?: string[];
+  /** 当前分镜行的关联资产清单:无指纹工作流的代际校验依据(次优择优内容
+   *  对齐——分镜表换代后同 id 镜内容已换,跨代旧流的参考资产不在当前清单) */
+  associateAssetsNames?: string[];
+  /** 建流时自动挂载的资产参考图(场景在前、角色在后;连续性 order 由建流方重排) */
+  assetReferences?: Array<{
+    imageUrl: string;
+    title: string;
+    assetType: ImageWorkflowAssetTargetType;
+    assetId?: string;
+  }>;
+  /** 1116 换线正典:分镜目标的正典体裁化主体句(§4.1-4.2 生成器五项序产出,
+   * 调用方异步装配后传入建流);缺省回落裸 prompt(fail-safe)。
+   * 传输期体裁路由(i2i 指令/t2i 主体句)由 run 层按 §4.5 槽位另行装配。 */
+  canonicalSubject?: string;
+}
+
+export interface AssetImageWorkflowContext extends ImageWorkflowOpenContext {
+  target: ImageWorkflowTarget & { kind: "asset"; assetType: ImageWorkflowAssetTargetType };
+}
+
+export type ImageWorkflowNodeType = "reference" | "prompt" | "generated" | "uncloth" | "sticky" | "group" | "nsfw" | "comfy-workflow" | "comfy-generic" | "reroute";
+
+export type ImageWorkflowGenerationStatus = "idle" | "queued" | "generating" | "ready" | "failed";
+
+/** ComfyUI 工作流节点/通用节点的运行状态(09-08 二期/三期收官;不复用生成链
+ *  五态——comfy 执行无排队态拆分,running 覆盖上传/执行/收图全程) */
+export type ImageWorkflowComfyNodeStatus = "idle" | "running" | "ready" | "failed";
+
+export interface ImageWorkflowNodePosition {
+  x: number;
+  y: number;
+}
+
+export interface ImageWorkflowNodeBase {
+  id: string;
+  type: ImageWorkflowNodeType;
+  title: string;
+  position: ImageWorkflowNodePosition;
+  createdAt: number;
+  updatedAt: number;
+  /**
+   * 旁路标记(09-09 照 ComfyUI Ctrl+M):true=节点在生成/编译链中被跳过,
+   * 连线视觉保留(穿线而过)。存量子图/链解析统一经 resolveEffectiveSource
+   * 对齐口径;纯 UI 态,不参与任何容量/席位计数。
+   */
+  bypassed?: boolean;
+  /** 手动宽度(NodeResizer 拉伸;缺省=注册表/卡片默认宽;仅宽度,高度随内容) */
+  size?: { width: number };
+}
+
+/**
+ * 取材血缘(09-01-canvas-material-extraction):记录节点由画布上哪张图的
+ * 哪个区域派生而来(crop/split/mask-inpaint/reverse-prompt)。
+ * 全可选——旧数据零迁移;父图更新时由衍生资产时效性体系感知过期。
+ */
+export interface ImageWorkflowDerivationSource {
+  kind: "crop" | "split" | "mask-inpaint" | "reverse-prompt";
+  sourceNodeId: string;
+  /** 归一化区域 [x,y,w,h](crop/split 格框;mask-inpaint 用涂抹包围盒) */
+  region?: { x: number; y: number; width: number; height: number };
+  /** split 格位(第 row 行第 col 列,0 起) */
+  cell?: { row: number; col: number };
+  createdAt: number;
+  /**
+   * 父图已更新标记(09-03-derived-expiry-chain):源节点落新结果时盖上
+   * 该结果的 generatedAt。缺省=未过期;仅提示,不阻断使用。
+   */
+  staleSince?: number;
+}
+
+/**
+ * 无衣物改图节点(09-04-krea2-uncloth-node):ComfyUI「Krea2 无衣物」流
+ * 的完整封装,两档(09-05 快/精分家):fine=双分割(segformer+fashn)并集+
+ * 两遍采样(脱衣+校色)+mkl 色彩对齐+非重绘区像素硬合成;fast=fashn 单
+ * 分割+单遍采样(无后处理,约 1/3 耗时)。由下游成图节点触发,结果直通
+ * 成图(本节点回显 resultUrl)。
+ * 全字段可选+读侧回落工作流默认值(旧画布零迁移);参数默认=工作流现值。
+ */
+export interface ImageWorkflowUnclothNode extends ImageWorkflowNodeBase {
+  type: "uncloth";
+  /** 档位(09-05):缺省 fine;fast/fine=masked SDEdit 双档(已封存,见
+   * uncloth-defaults.ts UNCLOOTH_ARCHIVED);instruct=Krea2Edit 指令编辑
+   * 档(现行,本地引擎仿写,09-06 起三层 LoRA 栈)。 */
+  variant?: "fast" | "fine" | "instruct";
+  // ── instruct 档可调参数(09-06 稳定版工作流现值) ──
+  /** 破限 LoRA Mystic XXX v3 强度(工作流 2.0) */
+  mysticStrength?: number;
+  /** 破限 LoRA pussy 强度(工作流 0.15) */
+  pussyStrength?: number;
+  /** grounded 模板 system 段(缺省=工作流一致性描述句) */
+  systemPrompt?: string;
+  /** 处理结果回显(最终结果落下游成图节点;本字段供卡内预览) */
+  resultUrl?: string;
+  /** 单文本驱动两遍采样(缺省回落输入提示词节点的文本) */
+  prompt?: string;
+  // ── KSampler(两遍共用,工作流逐字段对齐) ──
+  /** 采样步数(工作流 8) */
+  steps?: number;
+  /** cfg(工作流 1=无引导) */
+  cfg?: number;
+  /** sampler 名(工作流 euler) */
+  sampler?: string;
+  /** scheduler 名(工作流 simple) */
+  scheduler?: string;
+  /** 遍1 脱衣 denoise(工作流 0.65) */
+  denoiseUndress?: number;
+  /** 遍1 seed;instruct 档可置 null=每次随机(09-06 工作流 randomize 同义) */
+  seedUndress?: number | null;
+  /** 遍2 校色 denoise(工作流 0.3) */
+  denoiseColor?: number;
+  /** 遍2 seed(工作流 1) */
+  seedColor?: number;
+  // ── GrowMask(工作流 [expand, inverted]) ──
+  /** 遍1 蒙版收缩 px(工作流 -16) */
+  growUndress?: number;
+  /** 遍1 GrowMask 第二参(工作流 true) */
+  growUndressInvert?: boolean;
+  /** 遍2 蒙版外扩 px(工作流 +16) */
+  growColor?: number;
+  /** 遍2 GrowMask 第二参(工作流 true) */
+  growColorInvert?: boolean;
+  // ── ImageScaleToTotalPixels(工作流 [method, megapixels, division]) ──
+  /** 缩放插值(工作流 lanczos) */
+  upscaleMethod?: string;
+  /** 输入图上限(百万像素,工作流 1) */
+  megapixels?: number;
+  /** 除数因子(工作流 1) */
+  divisionFactor?: number;
+  // ── SegformerClothesSetting 17 位(工作流位序:
+  // face/hair/hat/sunglass/left_arm/right_arm/left_leg/right_leg/
+  // left_shoe/right_shoe/upper_clothes/skirt/pants/dress/belt/bag/scarf) ──
+  /** 勾选的部位名列表(ComfyUI 位序名,工作流实勾=左右臂+左右腿+上衣+短裙+裤+连衣裙+腰带) */
+  segformerParts?: string[];
+  /** fashn parser 部位(逗号分隔,工作流 label=top 主标签+extra 六项) */
+  fashnParts?: string;
+  /** fashn device(工作流 cpu) */
+  fashnDevice?: string;
+  /** fashn dtype(工作流 float32) */
+  fashnDtype?: string;
+  // ── SegformerUltraV3 蒙版细节加工(工作流真参数) ──
+  maskDetail?: {
+    /** detail_method(工作流 GuidedFilter) */
+    detailMethod?: string;
+    processDetail?: boolean;
+    detailErode?: number;
+    detailDilate?: number;
+    blackPoint?: number;
+    whitePoint?: number;
+    maxMegapixels?: number;
+  };
+  /** LoRA 五槽(工作流 Power Lora Loader 逐槽对齐:V4/Mystic/空/pussy;强度=当前工作流值) */
+  loras?: Array<{ enabled?: boolean; strength?: number }>;
+  /** 正向 Rebalance 12 权重(工作流当前值) */
+  rebalanceWeights?: number[];
+}
+
+export interface ImageWorkflowReferenceNode extends ImageWorkflowNodeBase {
+  type: "reference";
+  imageUrl: string;
+  derivedFrom?: ImageWorkflowDerivationSource;
+  source?: ImageWorkflowTarget;
+  notes?: string;
+  continuityOrder?: number;
+  continuityVersionId?: string;
+  referenceRole?: StoryboardOrderedReference["referenceRole"];
+  identityAnchors?: StoryboardOrderedReference["identityAnchors"];
+  negativePrompt?: StoryboardOrderedReference["negativePrompt"];
+  wardrobeVersion?: string;
+  characterViewType?: CharacterReferenceViewType;
+  sceneViewpointId?: string;
+}
+
+/**
+ * 批量生成图片组(09-02-batch-image-group):count>1 时产物聚于一个生成节点;
+ * resultUrl 恒=主图(组外消费者零改动),imageBatch 为组内明细。
+ */
+export interface ImageWorkflowImageBatch {
+  images: string[];
+  primaryIndex: number;
+}
+
+export interface ImageWorkflowGeneratedNode extends ImageWorkflowNodeBase {
+  type: "generated";
+  prompt: string;
+  derivedFrom?: ImageWorkflowDerivationSource;
+  imageBatch?: ImageWorkflowImageBatch;
+  negativePrompt?: string;
+  model?: string;
+  /**
+   * 生成参数权威标记(08-30 功能转移裁定):true=模型/画幅/分辨率以
+   * 成图节点自身字段为准;缺省=存量图回落连线提示词节点的旧值。
+   * 用户新建图与在成图节点改参数时置 true。
+   */
+  paramsEdited?: boolean;
+  aspectRatio: string;
+  resolution?: string;
+  resultUrl?: string;
+  resultMediaId?: string;
+  status: ImageWorkflowGenerationStatus;
+  errorReason?: string;
+  generatedAt?: number;
+  /** 关键帧序列(M1d):本节点对应分镜 keyframes 的哪一帧;单帧镜/资产流缺省 */
+  frameId?: string;
+  /** 帧时刻描述(规划器产物):建流时拼进本帧 prompt 的帧差异段 */
+  frameMoment?: string;
+}
+
+export interface ImageWorkflowPromptNode extends ImageWorkflowNodeBase {
+  type: "prompt";
+  prompt: string;
+  derivedFrom?: ImageWorkflowDerivationSource;
+  negativePrompt?: string;
+  model?: string;
+  aspectRatio: string;
+  resolution?: string;
+  targetNodeId?: string;
+}
+
+/**
+ * NSFW破限节点(09-07-nsfw-pro-node):「Krea2-NSFW专业流」的画布连线化。
+ * 提示词 → 本节点 → 成图:成图生成时检测到本节点上游即注入 use_lora,
+ * sidecar Krea2 挂专业流 LoRA 栈(Mystic XXX v3@1.0 + pussy@0.3)+ 12 带
+ * 重平衡(第9带×5)+ cfg=0(后端零改动,链路见 krea2.py PRO_* 常量)。
+ * 一期固定专业流默认栈,零额外参数;强度调节(节点四槽 loras 透传)留二期。
+ */
+export interface ImageWorkflowNsfwNode extends ImageWorkflowNodeBase {
+  type: "nsfw";
+}
+
+// ── ComfyUI 生态节点(09-08 二期/三期收官)─────────────────────────────
+// 快照字段均为「节点自持」结构形状,与 lib/comfyui/comfy/comfy-workflow-import
+// 的 ComfyWorkflowDescriptor、components/ui/comfy 的端口/widget 契约结构兼容
+// (types 层不反向依赖 components,靠结构化类型对齐)。
+
+/** 通用节点端口快照(输入/输出;type=ComfyUI 类型名 IMAGE/MODEL/…) */
+export interface ImageWorkflowComfyPortSnapshot {
+  id: string;
+  label: string;
+  type: string;
+  side: "input" | "output";
+}
+
+/** 通用节点 widget 快照(五类控件配方) */
+export interface ImageWorkflowComfyWidgetSnapshot {
+  id: string;
+  label: string;
+  zhLabel?: string;
+  type: "INT" | "FLOAT" | "COMBO" | "STRING" | "BOOLEAN";
+  default?: number | string | boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: string[];
+  placeholder?: string;
+}
+
+/** 工作流节点边界口快照(descriptor.ports;prompt-text/image 口) */
+export interface ImageWorkflowComfyWorkflowPortSnapshot {
+  id: string;
+  type: "prompt-text" | "image";
+  label: string;
+  nodeId: string;
+  inputKey: string;
+  polarity?: "positive" | "negative";
+}
+
+/** 工作流节点 widget 快照(descriptor.widgets;高级参数折叠区) */
+export interface ImageWorkflowComfyWorkflowWidgetSnapshot {
+  id: string;
+  type: "INT" | "FLOAT" | "COMBO" | "STRING" | "BOOLEAN";
+  label: string;
+  default: number | string | boolean;
+  range?: { min: number; max: number; step?: number };
+  options?: string[];
+  nodeId: string;
+  inputKey: string;
+}
+
+/**
+ * ComfyUI 工作流节点(09-08 二期收官):工作流库导入的 API 格式工作流整体
+ * 成卡。左进 prompt-text/image 口(上游连线注入),右侧出图口;widget 全收
+ * 「高级参数」折叠;执行走 /comfy/execute,输出图回填 resultUrl(mediaRef 模式)。
+ * 持久化字段:type/workflowId/descriptor 快照/widgets 值/输出 mediaRef
+ * (执行时按 workflowId 回库取原文,库条目删除有引用保护扫描兜底)。
+ */
+export interface ImageWorkflowComfyWorkflowNode extends ImageWorkflowNodeBase {
+  type: "comfy-workflow";
+  workflowId: string;
+  /** 工作流库名称快照(标题可被用户改,摘要回落用) */
+  workflowName: string;
+  /** 分析快照(ports/widgets/classTypesUsed/nodeCount;导入时由分析器产出) */
+  descriptor: {
+    ports: ImageWorkflowComfyWorkflowPortSnapshot[];
+    widgets: ImageWorkflowComfyWorkflowWidgetSnapshot[];
+    classTypesUsed: string[];
+    nodeCount: number;
+  };
+  /** widget 现值(id=节点号.字段名;缺项=descriptor 默认即工作流原值) */
+  widgetValues?: Record<string, number | string | boolean>;
+  status: ImageWorkflowComfyNodeStatus;
+  statusMessage?: string;
+  resultUrl?: string;
+  resultMediaId?: string;
+  /** 输出图张数(多图时 resultUrl=第一张) */
+  resultCount?: number;
+}
+
+/**
+ * ComfyUI 通用节点(09-08 三期收官):/object_info 或策展效果包直放的生态
+ * 节点单卡。口由 classType 的 descriptor 决定(卡内动态渲染 Handle);声明层
+ * 连线规则宽松(image+prompt-text 双向容量),类型严格校验留给子图编译器
+ * 执行时(编译器把画布子图编成 API 格式提交 /comfy/execute)。
+ */
+export interface ImageWorkflowComfyGenericNode extends ImageWorkflowNodeBase {
+  type: "comfy-generic";
+  /** ComfyUI class_type(英文原名;title 持中文名) */
+  classType: string;
+  /** 节点声明快照(端口/widget;策展包内置或 object_info 拉取) */
+  descriptor: {
+    ports: ImageWorkflowComfyPortSnapshot[];
+    widgets: ImageWorkflowComfyWidgetSnapshot[];
+  };
+  widgetValues?: Record<string, number | string | boolean>;
+  status: ImageWorkflowComfyNodeStatus;
+  statusMessage?: string;
+  resultUrl?: string;
+  resultMediaId?: string;
+}
+
+export type ImageWorkflowNode =
+  | ImageWorkflowReferenceNode
+  | ImageWorkflowPromptNode
+  | ImageWorkflowGeneratedNode
+  | ImageWorkflowUnclothNode
+  | ImageWorkflowStickyNode
+  | ImageWorkflowGroupNode
+  | ImageWorkflowNsfwNode
+  | ImageWorkflowComfyWorkflowNode
+  | ImageWorkflowComfyGenericNode
+  | ImageWorkflowRerouteNode;
+
+/**
+ * Reroute 中转节点(09-09 照 ComfyUI):纯连线整理件——任意一根进、原样
+ * 一根出,不改变任何链语义。规则/编译/请求解析统一经 resolveEffectiveSource
+ * 穿透(见 graph-build-mutations);零业务字段。
+ */
+export interface ImageWorkflowRerouteNode extends ImageWorkflowNodeBase {
+  type: "reroute";
+}
+
+/** 便利贴节点(09-03 wave3 吸收):画布创作标注,不参与连线域规则 */
+export interface ImageWorkflowStickyNode extends ImageWorkflowNodeBase {
+  type: "sticky";
+  text: string;
+  color: "yellow" | "green" | "blue" | "pink" | "gray";
+}
+
+/** Group 手画框组(09-03 wave3 吸收):纯视觉容器,成员按 groupId 关联 */
+export interface ImageWorkflowGroupNode extends ImageWorkflowNodeBase {
+  type: "group";
+  /** 组内成员节点 id 集合(移动组时带动;拖入吸附时登记) */
+  memberIds: string[];
+  label?: string;
+}
+
+export interface ImageWorkflowEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+  /** React Flow 多输入口连线的落点 handle id(09-07 uncloth 编号口:
+   * image/prompt-1/prompt-2);旧边无值=回落纵向序兼容 */
+  targetHandle?: string;
+  sourceHandle?: string;
+}
+
+export interface ImageWorkflowViewport {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
+export interface ImageWorkflowGraph {
+  id: string;
+  name: string;
+  target: ImageWorkflowTarget;
+  /** 创建时绑定目标的分镜内容指纹(分镜目标);不匹配=属于被替换的上一代分镜,复用判定会跳过 */
+  targetSourceFingerprint?: string;
+  /** 分镜帧生图装配溯源(建流时命中了哪些手册资产;UI「风格依据」展示源) */
+  assemblyTrace?: {
+    manualId?: string;
+    templateId?: string;
+    templateTitle?: string;
+    factions?: string[];
+    factionTracks?: string[];
+    negativeApplied?: boolean;
+    styleTokenCount?: number;
+    assetReferenceTitles?: string[];
+    /** 1116 换线正典:该流提示词=正典体裁化主体句(五项序生成器产物),
+     * @图N 绑定句重写/手册装配对恒流退役;旧代流经迁移函数改写后盖戳。 */
+    canonicalLine?: boolean;
+  };
+  nodes: ImageWorkflowNode[];
+  edges: ImageWorkflowEdge[];
+  viewport?: ImageWorkflowViewport;
+  createdAt: number;
+  updatedAt: number;
+}

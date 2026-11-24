@@ -929,6 +929,14 @@
       "kind": "type-only"
     },
     {
+      "file": "types/studio-production-image-workflow.ts",
+      "kind": "type-only"
+    },
+    {
+      "file": "types/studio-production-script-structure.ts",
+      "kind": "type-only"
+    },
+    {
       "file": "types/studio-production-types.ts",
       "kind": "type-only"
     },
