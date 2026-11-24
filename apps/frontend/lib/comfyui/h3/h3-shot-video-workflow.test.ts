@@ -602,6 +602,18 @@ describe("h3-multiseg-template.api.json 契约(PRD §14.1.2;1123 起唯一真源
     expect(String(refined.apiGraph["4100"].inputs.filename_prefix).split("/")[4]).toBe("ambient_修脸");
     expect(String(refined.apiGraph["4100"].inputs.filename_prefix).endsWith("/ambient_修脸")).toBe(true);
   });
+  it("1124 S5:有对白镜头(policy=full)两态——4100 第 5 段 关=full / 开=full_修脸(full 才触发 h3-baked,是 R1 真正影响台词的那条路)", () => {
+    const input = { shot: makeShot({ lines: "甲：先走。", index: 3 }), chapterId: "chapter-001", chapterLabel: "第一章 雨夜", originProjectId: "project-a", policy: "full" as const };
+    const base = buildShotH3MultisegApiWorkflow(input);
+    expect(base.report.policy).toBe("full");
+    expect(base.apiGraph["1065"].inputs.value).toBe(false);
+    expect(String(base.apiGraph["4100"].inputs.filename_prefix).split("/")).toHaveLength(5);
+    expect(String(base.apiGraph["4100"].inputs.filename_prefix).split("/")[4]).toBe("full"); // 回收侧按 policy==="full" 判 h3-baked:第 5 段必须是裸的 full
+    const refined = buildShotH3MultisegApiWorkflow({ ...input, faceRefine: true });
+    expect(refined.apiGraph["1065"].inputs.value).toBe(true);
+    expect(String(refined.apiGraph["4100"].inputs.filename_prefix)).toBe("video/漫影/chapter-001/sb-chapter-001-001/full_修脸");
+    expect(String(refined.apiGraph["4100"].inputs.filename_prefix).split("/")[4]).toBe("full_修脸"); // my_shot.py 校验前剥离 _修脸 → 干净的 full + faceRefined
+  });
 
   it("1123 二采正典簇在位(用户裁定:一采二采三采恒走):taomate 臂+1440×832+latent 升维链+3043 吃 3003", () => {
     expect(multisegApi["1021"].inputs).toMatchObject({ lora_name: "taomate_h3_3step.safetensors", strength_model: 0.7, model: ["1066", 0] });
