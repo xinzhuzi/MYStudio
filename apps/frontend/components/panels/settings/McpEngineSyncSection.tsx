@@ -47,6 +47,7 @@ export function EngineSyncSection({
   const {
     enginePluginHealth,
     engineRestarting,
+    engineRestartOutcome,
     engineSyncChecked,
     engineSyncDialog,
     engineSyncError,
@@ -419,6 +420,24 @@ export function EngineSyncSection({
                     <p className="text-xs text-muted-foreground">
                       建议: 重启引擎使插件生效。
                     </p>
+                    {/* U3(1125 根修):重启回执落弹窗——ok=false 时把 reason/
+                        detail 显出来(队列忙拒绝/停失败/拉起未就绪),不再无条
+                        件报「重启成功」 */}
+                    {engineRestartOutcome ? (
+                      <p
+                        className={cn(
+                          "text-xs leading-5",
+                          engineRestartOutcome.ok
+                            ? "text-success"
+                            : "text-destructive",
+                        )}
+                        data-testid="engine-sync-restart-outcome"
+                        data-reason={engineRestartOutcome.reason}
+                      >
+                        {engineRestartOutcome.ok ? "✅ " : "❌ "}
+                        {engineRestartOutcome.message}
+                      </p>
+                    ) : null}
                     <DialogFooter>
                       <Button
                         size="sm"
@@ -433,7 +452,7 @@ export function EngineSyncSection({
                         disabled={engineRestarting}
                         data-testid="engine-sync-restart"
                       >
-                        {engineRestarting ? "重启指令中…" : "重启引擎"}
+                        {engineRestarting ? "重启中…" : "重启引擎"}
                       </Button>
                     </DialogFooter>
                   </DialogContent>

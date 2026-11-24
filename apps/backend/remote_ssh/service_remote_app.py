@@ -161,12 +161,123 @@ class RemoteAppMixin:
             result["ok"] = True
         return result
 
-    def restart_remote_engine(self) -> dict:
-        """结果弹窗[重启引擎](R3):SSH schtasks /Run /TN EngineDurable。"""
-        code, out = self.run_remote_command(
-            "schtasks /Run /TN EngineDurable", 30
+    # ── U3(1125 根修)重启引擎:队列守卫 → 在跑先停 → EngineDurable 拉起 → 轮询就绪 ──
+    # 旧实现只 schtasks /Run /TN EngineDurable:引擎在位时计划任务入口直接跳过
+    # (engine_task.py 的端口在位门),界面却报成功——「假成功」缺陷,重写为三步。
+    _RESTART_PROBE_TIMEOUT_S = 15.0   # 单条 curl.exe 探针的 SSH 命令超时
+    _RESTART_STOP_TIMEOUT_S = 30.0    # 停进程 PowerShell 的 SSH 命令超时
+    _RESTART_START_TIMEOUT_S = 30.0   # schtasks /Run 的 SSH 命令超时
+    _RESTART_STOP_CONFIRM_S = 10.0    # 停后确认引擎不再应答的等待上限
+    _RESTART_READY_TIMEOUT_S = 120.0  # 拉起后轮询 /system_stats 就绪的上限
+    _RESTART_POLL_INTERVAL_S = 3.0    # 轮询间隔
+
+    def _remote_engine_answering(self) -> bool:
+        """curl.exe 探 /system_stats(U3;cmd 直发,无 PowerShell CLIXML 污染)。
+
+        引擎在监听并应答(任意 HTTP 状态)=True;连接被拒/超时=False。
+        """
+        code, _ = self.run_remote_command(
+            "curl.exe -s -m 5 -o NUL http://127.0.0.1:17000/system_stats",
+            self._RESTART_PROBE_TIMEOUT_S,
         )
-        return {"ok": code == 0, "output": out.strip()[:500]}
+        return code == 0
+
+    def _remote_engine_queue_depth(self) -> tuple[int, bool]:
+        """curl.exe 查 /queue → (running+pending 总数, 是否拿到有效回执)。
+
+        引擎没在跑时 curl 连接被拒(exit!=0)→ (0, False);回执 JSON 解析不出
+        同样 (0, False)——调用方在引擎仍在应答时把 False 视为「核实不了队列空」
+        拒绝重启,不许在无证据下硬杀。
+        """
+        code, out = self.run_remote_command(
+            "curl.exe -s -m 5 http://127.0.0.1:17000/queue",
+            self._RESTART_PROBE_TIMEOUT_S,
+        )
+        if code != 0:
+            return 0, False
+        try:
+            data = json.loads(out)
+        except ValueError:
+            return 0, False
+        if not isinstance(data, dict):
+            return 0, False
+        depth = 0
+        for key in ("queue_running", "queue_pending"):
+            value = data.get(key)
+            if isinstance(value, list):
+                depth += len(value)
+        return depth, True
+
+    def _stop_remote_engine_processes(self) -> tuple[bool, str]:
+        """按 PID 停引擎 main.py 进程,等它不再应答(U3;deploy-dual B3 同款选靶)。
+
+        PowerShell CIM 选靶:CommandLine 含 main.py 且含 17000 端口的 python
+        进程,逐个 Stop-Process -Id。**禁 taskkill /F /T 树杀**——会连坐误杀
+        SSH 服务,仓内有案底。回 (是否确认停, 停命令输出)。
+        """
+        # Stop-Process 对已消失的 PID 报错也无妨——判据只看引擎是否还在应答
+        _, out = self.run_remote_command(_torch_powershell(
+            '$ErrorActionPreference=\'Stop\'; '
+            'Get-CimInstance Win32_Process -Filter "Name like \'python%\'" | '
+            'Where-Object { $_.CommandLine -match \'main\\.py\' -and $_.CommandLine -match \'17000\' } | '
+            'ForEach-Object { Stop-Process -Id $_.ProcessId -Force }'
+        ), self._RESTART_STOP_TIMEOUT_S)
+        deadline = time.monotonic() + self._RESTART_STOP_CONFIRM_S
+        while True:
+            if not self._remote_engine_answering():
+                return True, out
+            if time.monotonic() >= deadline:
+                return False, out
+            time.sleep(self._RESTART_POLL_INTERVAL_S)
+
+    def restart_remote_engine(self) -> dict:
+        """结果弹窗[重启引擎](R3;U3 1125 根修):队列守卫→在跑先停→拉起→轮询就绪。
+
+        ok 只在引擎最终应答 /system_stats 时为真,不再无条件报成功。reason:
+        ok | queue-busy | queue-unknown | stop-failed | start-failed。
+        """
+        result = {"ok": False, "restarted": False, "reason": "",
+                  "detail": "", "output": ""}
+        # ① 队列守卫:按钮是人在点,拦误操作而不是硬杀(与 deploy-dual 不同)
+        depth, queue_known = self._remote_engine_queue_depth()
+        if depth > 0:
+            result.update(reason="queue-busy", detail=f"队列里有 {depth} 个任务",
+                          output=f"队列里有 {depth} 个任务,未动引擎")
+            return result
+        # ② 引擎在跑吗:在跑则先停(引擎在位时 schtasks 入口会直接跳过——旧缺陷根因)
+        was_answering = self._remote_engine_answering()
+        if was_answering and not queue_known:
+            result.update(reason="queue-unknown",
+                          output="引擎在跑但 /queue 回执解析失败,未核实队列已空,未动引擎")
+            return result
+        if was_answering:
+            stopped, stop_out = self._stop_remote_engine_processes()
+            if not stopped:
+                result.update(reason="stop-failed",
+                              output=f"停进程指令已发但引擎仍在应答: {stop_out.strip()[:300]}")
+                return result
+            result["restarted"] = True
+        # ③ 拉起 + 轮询就绪(最长 120 秒)
+        code, out = self.run_remote_command(
+            f"schtasks /Run /TN {_SCHTASK_ENGINE}", self._RESTART_START_TIMEOUT_S
+        )
+        if code != 0:
+            result.update(reason="start-failed",
+                          output=f"schtasks /Run 失败: {out.strip()[:300]}")
+            return result
+        deadline = time.monotonic() + self._RESTART_READY_TIMEOUT_S
+        while True:
+            if self._remote_engine_answering():
+                verb = "已停旧引擎并由 EngineDurable 拉起" if result["restarted"] \
+                    else "引擎此前未在跑,EngineDurable 已拉起"
+                result.update(ok=True, reason="ok",
+                              output=f"{verb},/system_stats 已应答")
+                return result
+            if time.monotonic() >= deadline:
+                result.update(reason="start-failed",
+                              output=f"拉起指令已发但 {self._RESTART_READY_TIMEOUT_S:.0f} 秒内 /system_stats 未应答")
+                return result
+            time.sleep(self._RESTART_POLL_INTERVAL_S)
 
     def refresh_remote_token(self, timeout_s: float | None = None) -> bool:
         """R2 令牌自愈:SFTP 依次读 tokenConfigPaths → controlToken → 正则校验

@@ -1,14 +1,16 @@
 /**
  * 引擎同步域(1124 超线文件拆分:自 McpSettingsTab 原样搬出):
- * 单真源清单/勾选/逐项同步/结果弹窗/引擎重启。逻辑零改动。
- * 在跑态守卫读镜像 ref(Torch 域每渲染回写)=原闭包上一帧值语义。
+ * 单真源清单/勾选/逐项同步/结果弹窗/引擎重启。在跑态守卫读镜像 ref(Torch
+ * 域每渲染回写)=原闭包上一帧值语义。
+ * 1125 U3 根修:restartEngine 改走真实重启回执(队列守卫/停旧+拉起/轮询就绪),
+ * ok=false 时 reason/detail 落弹窗+toast,不再无条件报成功。
  */
 import { useEffect, useState } from "react";
 import {
+  comfySidecarRequest,
   getEngineSyncManifest,
   getEnginePluginHealth,
   syncEngine,
-  restartRemoteEngine,
   SIDECAR_DOWN_GUIDANCE,
   isSidecarDownError,
   ComfySidecarHttpError,
@@ -19,6 +21,60 @@ import {
   type EngineSyncResultItem,
 } from "@/lib/comfyui/comfy/comfy-sidecar-bridge";
 import { toast } from "sonner";
+
+/** U3(1125 根修)后端 /comfy/ssh/restart-engine 回执:ok 只在引擎最终应答
+ *  /system_stats 时为真(不再无条件报成功);restarted=是否经历了「停旧+拉起」
+ *  (引擎本来没在跑时为 false);reason=ok|queue-busy|queue-unknown|stop-failed|
+ *  start-failed;detail=queue-busy 时的任务数句;output=过程摘要。 */
+type RemoteEngineRestartReply = {
+  ok: boolean;
+  restarted: boolean;
+  reason: string;
+  detail: string;
+  output: string;
+};
+
+/** 弹窗展示用的重启结果(message=含 reason/detail 的人话)。 */
+export type EngineRestartOutcome = {
+  ok: boolean;
+  reason: string;
+  message: string;
+};
+
+const restartOutcomeFrom = (
+  reply: RemoteEngineRestartReply,
+): EngineRestartOutcome => {
+  if (reply.ok && reply.restarted)
+    return {
+      ok: true,
+      reason: reply.reason,
+      message:
+        "引擎已重启:先停旧进程再由 EngineDurable 拉起,/system_stats 已应答",
+    };
+  if (reply.ok)
+    return {
+      ok: true,
+      reason: reply.reason,
+      message: "引擎已就绪:此前未在跑,EngineDurable 直接拉起",
+    };
+  if (reply.reason === "queue-busy")
+    return {
+      ok: false,
+      reason: reply.reason,
+      message: `未重启——${reply.detail || "队列里有任务"}(等队列清空后再试)`,
+    };
+  if (reply.reason === "queue-unknown")
+    return {
+      ok: false,
+      reason: reply.reason,
+      message: `未重启——${reply.output || "未能核实远端队列为空"}`,
+    };
+  return {
+    ok: false,
+    reason: reply.reason,
+    message: `重启未完成(${reply.reason}):${reply.detail || reply.output || "引擎未在限时内就绪"}`,
+  };
+};
 
 export function useEngineSyncAdmin({
   sshConnected,
@@ -51,6 +107,10 @@ export function useEngineSyncAdmin({
     EngineSyncResultItem[] | null
   >(null);
   const [engineRestarting, setEngineRestarting] = useState(false);
+  // U3(1125 根修):重启回执落弹窗(ok=false 时把 reason/detail 显出来,
+  // 不再只报「重启指令中/成功」;null=尚未重启)
+  const [engineRestartOutcome, setEngineRestartOutcome] =
+    useState<EngineRestartOutcome | null>(null);
   // 挂载即取清单(R3):GET manifest → 渲染勾选清单。SSH 未连接(503 ssh-
   // disconnected)/sidecar 未在驾 → 静默留空态+提示,按钮禁用(照 SSH 行范式
   // 首开设置页不弹错)。win-only 默认勾上(1122 用户令「Win 独有也要能更新」,
@@ -207,16 +267,27 @@ export function useEngineSyncAdmin({
       toast.success("引擎同步完成——建议重启引擎使插件生效");
     }
   };
-  // 重启引擎(R3):SSH schtasks /Run /TN EngineDurable(远端 Windows 计划任务)
+  // 重启引擎(R3;U3 1125 根修):后端三步——队列守卫→在跑先停(按 PID
+  // Stop-Process,禁树杀)→EngineDurable 拉起+轮询 /system_stats 最长 120s;
+  // ok 只在引擎最终应答时为真。直调 sidecar 带 240s 超时(缺省 15s 会在
+  // 真重启面前假超时——整程最长约 220s);回执 reason/detail 落弹窗+toast。
   const restartEngine = async () => {
     setEngineRestarting(true);
+    setEngineRestartOutcome(null);
     try {
-      const reply = await restartRemoteEngine();
-      if (reply.ok)
-        toast.success("重启指令已发(EngineDurable),引擎约需 1-2 分钟起");
-      else toast.error(`重启指令失败: ${reply.output || "schtasks 未成功"}`);
+      const reply = await comfySidecarRequest<RemoteEngineRestartReply>(
+        "POST",
+        "/comfy/ssh/restart-engine",
+        { timeoutMs: 240_000 },
+      );
+      const outcome = restartOutcomeFrom(reply);
+      setEngineRestartOutcome(outcome);
+      if (outcome.ok) toast.success(outcome.message);
+      else toast.error(outcome.message);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "重启失败");
+      const message = error instanceof Error ? error.message : "重启失败";
+      setEngineRestartOutcome({ ok: false, reason: "error", message });
+      toast.error(message);
     } finally {
       setEngineRestarting(false);
     }
@@ -228,7 +299,7 @@ export function useEngineSyncAdmin({
   return {
     engineSyncManifest, enginePluginHealth, engineSyncError, engineSyncChecked,
     engineSyncProgress, engineSyncRunning, engineSyncDialog, setEngineSyncDialog,
-    engineRestarting, engineSyncRows, refreshEngineSyncManifest,
-    toggleEngineSyncItem, startEngineSync, restartEngine,
+    engineRestarting, engineRestartOutcome, engineSyncRows,
+    refreshEngineSyncManifest, toggleEngineSyncItem, startEngineSync, restartEngine,
   };
 }
