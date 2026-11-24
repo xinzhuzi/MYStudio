@@ -869,6 +869,10 @@
       "kind": "type-only"
     },
     {
+      "file": "stores/studio/studio-store-types.ts",
+      "kind": "type-only"
+    },
+    {
       "file": "stores/studio/use-studio-workflow-hydrated.ts",
       "kind": "none"
     },

@@ -10,7 +10,8 @@
 //       - 类型一律写成 import type / export type(项目开了 isolatedModules)。
 //       - 要搬走的代码如果还用到留在原文件里的「值」(常量、函数、类、枚举),拒绝执行并列出名字:
 //         那种要么把被依赖的声明一起搬,要么别搬依赖它的声明。只用到「类型」时自动写 import type。
-//       - 默认导出、export { … } 名单、命名空间不能搬;遇到就拒绝,人工处理。
+//       - 默认导出、命名空间不能搬;遇到就拒绝,人工处理。
+//       - export { … } 名单里引用了搬走的名字时,原地把这部分改成从新文件再导出(别名照留);名单里其余名字原地不动。
 //       - 按名字选声明时搬的是整条语句(export const a = 1, b = 2; 会把 a、b 一起搬走)。
 //   在 apps/ 目录下运行(要用到 node_modules 里的 typescript)。
 import ts from "typescript";
@@ -259,13 +260,27 @@ function split(file, newFile, moveNames, header) {
   }
   const movedNames = new Set();
   for (const i of sel) for (const n of namesOf(stmts[i])) movedNames.add(n);
+  // 原文件里 modBack 的位置(导出名单的改写要用)
+  const origDir0 = path.dirname(path.resolve(file)), newDir0 = path.dirname(path.resolve(newFile));
+  const modBack0 = relSpec(origDir0, path.resolve(noExt(newFile)));
+  // export { … } 名单里引用了搬走的名字:原地把这部分改成「从新文件再导出」(别名照留),没搬走的名字留在名单里
+  const exportedViaList = new Set(), listEdits = [];
   stmts.forEach((stmt) => {
-    if (kindOf(stmt) === "exportList" && !stmt.moduleSpecifier) {
-      for (const el of stmt.exportClause.elements) {
-        const local = (el.propertyName ?? el.name).text;
-        if (movedNames.has(local)) fail(`export { … } 名单里有要搬走的名字「${local}」,请人工处理`);
-      }
-    }
+    if (kindOf(stmt) !== "exportList" || stmt.moduleSpecifier) return;
+    const declTypeOnly = stmt.isTypeOnly;
+    const els = [...stmt.exportClause.elements];
+    const movedEls = els.filter((el) => movedNames.has((el.propertyName ?? el.name).text));
+    if (!movedEls.length) return;
+    if (movedEls.some((el) => el.name.text === "default")) fail(`export { … as default } 里有要搬走的名字,请人工处理`);
+    for (const el of movedEls) exportedViaList.add((el.propertyName ?? el.name).text);
+    const stayEls = els.filter((el) => !movedEls.includes(el));
+    const localOf = (el) => (el.propertyName ?? el.name).text;
+    // 再导出类型时,值形式的名单里必须给该名字单独标 type(isolatedModules 的要求)
+    const elemText = (el, isReExport) => `${!declTypeOnly && (el.isTypeOnly || (isReExport && isTypeDecl(decls.get(localOf(el))?.kind))) ? "type " : ""}${el.getText(sf)}`;
+    const parts = [];
+    if (stayEls.length) parts.push(`${declTypeOnly ? "export type" : "export"} { ${stayEls.map((el) => elemText(el, false)).join(", ")} };`);
+    parts.push(`${declTypeOnly ? "export type" : "export"} { ${movedEls.map((el) => elemText(el, true)).join(", ")} } from "${modBack0}";`);
+    listEdits.push({ start: stmt.getStart(sf), end: stmt.getEnd(), text: parts.join("\n") });
   });
   const needTypeFromOrig = new Set(), badValues = new Map();
   for (const i of sel) {
@@ -327,8 +342,9 @@ function split(file, newFile, moveNames, header) {
   const ins = [];
   const tInternal = byKind((k) => isTypeDecl(k)).filter((n) => usedByRemaining.has(n));
   const vInternal = byKind((k) => !isTypeDecl(k)).filter((n) => usedByRemaining.has(n));
-  const tExported = byKind((k) => isTypeDecl(k)).filter((n) => isExported(stmts[decls.get(n).index]));
-  const vExported = byKind((k) => !isTypeDecl(k)).filter((n) => isExported(stmts[decls.get(n).index]));
+  const wasExported = (n) => isExported(stmts[decls.get(n).index]) || exportedViaList.has(n);
+  const tExported = byKind((k) => isTypeDecl(k)).filter((n) => wasExported(n) && !exportedViaList.has(n));
+  const vExported = byKind((k) => !isTypeDecl(k)).filter((n) => wasExported(n) && !exportedViaList.has(n));
   if (tInternal.length) ins.push(lineWithList("import type ", tInternal, ` from "${modBack}";`));
   if (vInternal.length) ins.push(lineWithList("import ", vInternal, ` from "${modBack}";`));
   if (tExported.length) ins.push(lineWithList("export type ", tExported, ` from "${modBack}";`));
@@ -340,6 +356,7 @@ function split(file, newFile, moveNames, header) {
   let anchor = lastImport ? lastImport.getEnd() : (lastDirective ? lastDirective.getEnd() : 0);
   if (sel.has(stmts.indexOf(lastImport))) fail("内部错误:导入语句不可能是被选中的");
   edits.push({ start: anchor, end: anchor, text: "\n" + ins.join("\n") });
+  edits.push(...listEdits);
   let out = text;
   for (const e of edits.sort((a, b) => b.start - a.start)) out = out.slice(0, e.start) + e.text + out.slice(e.end);
   const beforeBlank = out.length;
@@ -355,6 +372,7 @@ function split(file, newFile, moveNames, header) {
   console.log(`    原文件新增: ${ins.length} 条(内部用到的类型 ${tInternal.length}、值 ${vInternal.length};再导出类型 ${tExported.length}、值 ${vExported.length})`);
   if (pruned.removed.length) console.log(`    原文件删掉不再用的导入: ${pruned.removed.join(", ")}`);
   if (pruned.trimmed.length) console.log(`    原文件导入里去掉不再用的名字: ${pruned.trimmed.join(", ")}`);
+  if (exportedViaList.size) console.log(`    原文件的导出名单里有 ${exportedViaList.size} 个搬走的名字,已原地改成从新文件再导出: ${[...exportedViaList].join(", ")}`);
   if (out.length !== beforeBlank) console.log(`    (顺手把删除后留下的连续空行收成一个)`);
   console.log(`    接下来:类型检查、这两个文件的 ESLint、相关测试。`);
 }
