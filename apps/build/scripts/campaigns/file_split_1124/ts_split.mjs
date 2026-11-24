@@ -13,6 +13,8 @@
 //       - 默认导出、命名空间不能搬;遇到就拒绝,人工处理。
 //       - export { … } 名单里引用了搬走的名字时,原地把这部分改成从新文件再导出(别名照留);名单里其余名字原地不动。
 //       - 按名字选声明时搬的是整条语句(export const a = 1, b = 2; 会把 a、b 一起搬走)。
+//   node build/scripts/campaigns/file_split_1124/ts_split.mjs prune <文件>
+//       对已拆过的文件再清一遍不再用到的导入(幂等)。
 //   在 apps/ 目录下运行(要用到 node_modules 里的 typescript)。
 import ts from "typescript";
 import fs from "node:fs";
@@ -214,13 +216,23 @@ function statementText(stmt, sf) {
   return lead + (isExported(stmt) ? "" : "export ") + body;
 }
 
-/** 去掉文件里不再用到的导入(按标识符在其余文本里是否出现判断)。返回 { text, removed, trimmed } */
+/** 去掉文件里不再用到的导入。「还在用」按语法树里真正的引用判断,不看字面出现——
+ *  注释里提到的名字不算用(2026-11-24 实测:按文本判断会把只在注释里出现的导入留下来,类型检查报未使用)。返回 { text, removed, trimmed } */
 function pruneUnusedImports(text, fileName) {
   const scriptKind = fileName.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   const sf = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, scriptKind);
   const imports = sf.statements.filter((s) => ts.isImportDeclaration(s));
-  const rest = sf.statements.filter((s) => !ts.isImportDeclaration(s)).map((s) => s.getFullText(sf)).join("\n");
-  const used = (local) => new RegExp(`(^|[^A-Za-z0-9_$])${local.replace(/\$/g, "\\$")}([^A-Za-z0-9_$]|$)`).test(rest);
+  const usedNames = new Set();
+  for (const stmt of sf.statements) {
+    if (ts.isImportDeclaration(stmt)) continue;
+    if (ts.isExportDeclaration(stmt) && !stmt.moduleSpecifier && stmt.exportClause && ts.isNamedExports(stmt.exportClause)) {
+      // export { A, B as C }:对本地名字的引用
+      for (const el of stmt.exportClause.elements) usedNames.add((el.propertyName ?? el.name).text);
+      continue;
+    }
+    for (const name of referencedIdentifiers(stmt).keys()) usedNames.add(name);
+  }
+  const used = (local) => usedNames.has(local);
   const edits = [], removed = [], trimmed = [];
   for (const stmt of imports) {
     const info = parseImport(stmt);
@@ -380,6 +392,17 @@ function split(file, newFile, moveNames, header) {
 const [mode, file, ...rest] = process.argv.slice(2);
 if (!mode || !file) { console.error("用法见文件头注释"); process.exit(1); }
 if (mode === "analyze") analyze(file);
+else if (mode === "prune") {
+  // 对已拆过的文件再清一遍不再用到的导入(幂等)
+  const before = fs.readFileSync(file, "utf8");
+  const r = pruneUnusedImports(before, file);
+  if (r.text === before) console.log(`没有任何改动: ${file}`);
+  else {
+    fs.writeFileSync(file, r.text);
+    const lines = (x) => x.split("\n").length;
+    console.log(`✓ 已清理 ${file}:${lines(before)} → ${lines(r.text)} 行;删掉的导入: ${r.removed.join(", ") || "无"};去掉的名字: ${r.trimmed.join(", ") || "无"}`);
+  }
+}
 else if (mode === "split") {
   let to = null, header = null, move = [];
   for (let i = 0; i < rest.length; i++) {
