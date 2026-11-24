@@ -41,8 +41,18 @@ function isTemplateInput(value: unknown): value is PromotionTemplate {
   );
 }
 
-export function registerTemplateIpcHandlers(): { dispose: () => void } {
-  ensureTemplatesTable();
+export interface TemplateIpcContext {
+  /** 资产库惰性就绪闸(promotion_templates 表与 assets.db 同库;注册期 basePath 尚未解析)。 */
+  ensureAssetsDatabaseReady: () => void;
+}
+
+export function registerTemplateIpcHandlers(context: TemplateIpcContext): { dispose: () => void } {
+  // 1123 启动崩溃根修:注册期不碰库(资产根由资产 IPC 惰性初始化,启动时恒空),
+  // 建表下移到 handler 首次调用——表已建则按库路径缓存零开销。
+  const ensureReady = () => {
+    context.ensureAssetsDatabaseReady();
+    ensureTemplatesTable();
+  };
 
   const channels = [
     TEMPLATE_IPC.list,
@@ -62,6 +72,7 @@ export function registerTemplateIpcHandlers(): { dispose: () => void } {
     const rejected = rejectUntrustedSender(event);
     if (rejected) return rejected;
     try {
+      ensureReady();
       const value = await listTemplates();
       return { success: true, value };
     } catch (error) {
@@ -76,6 +87,7 @@ export function registerTemplateIpcHandlers(): { dispose: () => void } {
       return { success: false, error: { code: "invalid-request", message: "产品 ID 无效" } };
     }
     try {
+      ensureReady();
       const value = await listTemplatesByProduct(request.productId);
       return { success: true, value };
     } catch (error) {
@@ -90,6 +102,7 @@ export function registerTemplateIpcHandlers(): { dispose: () => void } {
       return { success: false, error: { code: "invalid-request", message: "模板 ID 无效" } };
     }
     try {
+      ensureReady();
       const value = await getTemplate(request.id);
       return { success: true, value };
     } catch (error) {
@@ -104,6 +117,7 @@ export function registerTemplateIpcHandlers(): { dispose: () => void } {
       return { success: false, error: { code: "invalid-template", message: "模板数据无效" } };
     }
     try {
+      ensureReady();
       await upsertTemplate(request.template);
       return { success: true, value: request.template };
     } catch (error) {
@@ -118,6 +132,7 @@ export function registerTemplateIpcHandlers(): { dispose: () => void } {
       return { success: false, error: { code: "invalid-request", message: "模板 ID 无效" } };
     }
     try {
+      ensureReady();
       await deleteTemplate(request.id);
       return { success: true, value: { deleted: true } };
     } catch (error) {
@@ -132,6 +147,7 @@ export function registerTemplateIpcHandlers(): { dispose: () => void } {
       return { success: false, error: { code: "invalid-request", message: "产品 ID 无效" } };
     }
     try {
+      ensureReady();
       await deleteTemplatesByProduct(request.productId);
       return { success: true, value: { deleted: true } };
     } catch (error) {

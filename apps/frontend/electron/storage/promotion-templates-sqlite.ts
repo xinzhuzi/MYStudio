@@ -52,15 +52,18 @@ function safeJsonParse<T>(value: string, fallback: T): T {
 
 /**
  * 幂等建表——存量 assets.db 缺 promotion_templates 表时自动补建;已有则零操作。
+ * 1123:改为按库路径缓存 + handler 期调用(注册期 basePath 为空不能建表)。
  */
+let ensuredDbPath: string | null = null;
 export function ensureTemplatesTable(): void {
   const dbPath = getDbPath();
+  if (ensuredDbPath === dbPath) return;
   const rows = runSqliteJsonSync<Array<{ name: string }>>(
     dbPath,
     `SELECT name FROM sqlite_master WHERE type='table' AND name='${TEMPLATES_TABLE}';`,
   );
-  if (rows.some((row) => row.name === TEMPLATES_TABLE)) return;
-  runSqliteExec(dbPath, `
+  if (!rows.some((row) => row.name === TEMPLATES_TABLE)) {
+    runSqliteExec(dbPath, `
 CREATE TABLE IF NOT EXISTS promotion_templates (
   id TEXT PRIMARY KEY,
   productId TEXT NOT NULL DEFAULT '',
@@ -76,6 +79,8 @@ CREATE TABLE IF NOT EXISTS promotion_templates (
 CREATE INDEX IF NOT EXISTS idx_templates_product ON promotion_templates(productId);
 CREATE INDEX IF NOT EXISTS idx_templates_platform ON promotion_templates(platform);
 `);
+  }
+  ensuredDbPath = dbPath;
 }
 
 export async function listTemplates(): Promise<PromotionTemplate[]> {

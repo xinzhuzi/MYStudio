@@ -58,15 +58,18 @@ function safeJsonParse<T>(value: string, fallback: T): T {
 
 /**
  * 幂等建表——存量 assets.db 缺 products 表时自动补建;已有则零操作。
+ * 1123:改为按库路径缓存 + handler 期调用(注册期 basePath 为空不能建表)。
  */
+let ensuredDbPath: string | null = null;
 export function ensureProductsTable(): void {
   const dbPath = getDbPath();
+  if (ensuredDbPath === dbPath) return;
   const rows = runSqliteJsonSync<Array<{ name: string }>>(
     dbPath,
     `SELECT name FROM sqlite_master WHERE type='table' AND name='${PRODUCTS_TABLE}';`,
   );
-  if (rows.some((row) => row.name === PRODUCTS_TABLE)) return;
-  runSqliteExec(dbPath, `
+  if (!rows.some((row) => row.name === PRODUCTS_TABLE)) {
+    runSqliteExec(dbPath, `
 CREATE TABLE IF NOT EXISTS products (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL DEFAULT '',
@@ -84,6 +87,8 @@ CREATE TABLE IF NOT EXISTS products (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_products_slug ON products(slug);
 `);
+  }
+  ensuredDbPath = dbPath;
 }
 
 export async function listProducts(): Promise<Product[]> {

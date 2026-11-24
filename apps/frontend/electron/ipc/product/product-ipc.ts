@@ -40,8 +40,18 @@ function isProductInput(value: unknown): value is Product {
   );
 }
 
-export function registerProductIpcHandlers(): { dispose: () => void } {
-  ensureProductsTable();
+export interface ProductIpcContext {
+  /** 资产库惰性就绪闸(products 表与 assets.db 同库;注册期 basePath 尚未解析)。 */
+  ensureAssetsDatabaseReady: () => void;
+}
+
+export function registerProductIpcHandlers(context: ProductIpcContext): { dispose: () => void } {
+  // 1123 启动崩溃根修:注册期不碰库(资产根由资产 IPC 惰性初始化,启动时恒空),
+  // 建表下移到 handler 首次调用——表已建则按库路径缓存零开销。
+  const ensureReady = () => {
+    context.ensureAssetsDatabaseReady();
+    ensureProductsTable();
+  };
 
   const channels = [
     PRODUCT_IPC.list,
@@ -61,6 +71,7 @@ export function registerProductIpcHandlers(): { dispose: () => void } {
     const rejected = rejectUntrustedSender(event);
     if (rejected) return rejected;
     try {
+      ensureReady();
       const value = await listProducts();
       return { success: true, value };
     } catch (error) {
@@ -75,6 +86,7 @@ export function registerProductIpcHandlers(): { dispose: () => void } {
       return { success: false, error: { code: "invalid-request", message: "产品 ID 无效" } };
     }
     try {
+      ensureReady();
       const value = await getProduct(request.id);
       return { success: true, value };
     } catch (error) {
@@ -89,6 +101,7 @@ export function registerProductIpcHandlers(): { dispose: () => void } {
       return { success: false, error: { code: "invalid-product", message: "产品数据无效" } };
     }
     try {
+      ensureReady();
       await upsertProduct(request.product);
       return { success: true, value: request.product };
     } catch (error) {
@@ -103,6 +116,7 @@ export function registerProductIpcHandlers(): { dispose: () => void } {
       return { success: false, error: { code: "invalid-request", message: "产品 ID 无效" } };
     }
     try {
+      ensureReady();
       await deleteProduct(request.id);
       return { success: true, value: { deleted: true } };
     } catch (error) {
@@ -114,6 +128,7 @@ export function registerProductIpcHandlers(): { dispose: () => void } {
     const rejected = rejectUntrustedSender(event);
     if (rejected) return rejected;
     try {
+      ensureReady();
       const value = await exportProductsJson();
       return { success: true, value };
     } catch (error) {
@@ -125,6 +140,7 @@ export function registerProductIpcHandlers(): { dispose: () => void } {
     const rejected = rejectUntrustedSender(event);
     if (rejected) return rejected;
     try {
+      ensureReady();
       const products = await exportProductsJson();
       const win = BrowserWindow.fromWebContents(event.sender);
       const dialogOptions = {

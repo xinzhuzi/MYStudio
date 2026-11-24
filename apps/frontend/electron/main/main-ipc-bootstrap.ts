@@ -27,6 +27,7 @@ import {
   getProtocolMimeType as getMimeType,
 } from '../runtime/register-protocol-handlers'
 import { getDataDir, getMediaRoot, getAssetsRoot, getSkillsRoot, getProjectDataRoot, projectLocationStore, storageManager, getStudioManualsSourceRoot, getStudioSkillSyncOptions, resolveStudioSourcePath, blessedDialogPaths } from './main-paths'
+import { ensureAssetsDatabaseReady as ensureAssetsRootReady } from '../storage/assets-sqlite'
 import { readImageSource } from './main-paths'
 import { createDiagnosticsOperationId, diagnosticsLogService, writeDiagnosticsLog } from './main-diagnostics'
 import { resolveAvailableUpdate } from './main-window'
@@ -124,8 +125,13 @@ registerApiRequestIpcHandlers({
 
 registerFileExportIpcHandlers({ getDataDir, getMediaRoot })
 
+// B2/B5(1123 启动崩溃根修):products/promotion_templates 与 assets.db 同库,
+// 但注册发生在资产根解析之前(basePath 恒空,提前建表拼出相对库路径→sqlite 打不开
+// →主进程 uncaught)。改为 handler 首次调用时才惰性就绪资产根与建表。
+const ensureAssetsDatabaseReady = () => ensureAssetsRootReady(getAssetsRoot)
+
 // B2 产品目录:SQLite products 表与 assets.db 同库,路径走 getDbPath() 配置解析链
-registerProductIpcHandlers()
+registerProductIpcHandlers({ ensureAssetsDatabaseReady })
 
 // B5 推广模板:SQLite promotion_templates 表与 products 表同库,路径走 getDbPath() 配置解析链
-registerTemplateIpcHandlers()
+registerTemplateIpcHandlers({ ensureAssetsDatabaseReady })

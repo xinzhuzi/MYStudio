@@ -103,8 +103,28 @@ export function getAssetsDir() {
   return basePath;
 }
 
+/**
+ * 惰性就绪闸(1123):products/promotion_templates 等 assets.db 同库消费方在
+ * handler 首次调用时触发初始化——启动注册期 basePath 恒空,提前建表必炸
+ * (1123 安装包启动即崩就死在 ensureProductsTable 于注册期跑)。资产 IPC 自带
+ * 根健康闸(asset-library-ipc 的 ensureAssetsStorageReady,含诊断留痕),此处
+ * 是给不经过资产 IPC 的旁路消费方的最小等价物;root 变更(项目切换)自动重挂。
+ */
+export function ensureAssetsDatabaseReady(resolveAssetsRoot: () => string): void {
+  const root = resolveAssetsRoot();
+  if (basePath === root) return;
+  initAssetsStorage(root);
+}
+
+/**
+ * 1123 启动崩溃根修:未初始化时 path.join("", "assets.db") 是相对路径,
+ * sqlite3 子进程按主进程 cwd(Finder 启动为 /)解析 → "unable to open
+ * database file"。宁可显式报错,禁止静默拼出相对库路径。
+ */
 export function getDbPath() {
-  return path.join(getAssetsDir(), "assets.db");
+  const dir = getAssetsDir();
+  if (!dir) throw new Error("资产库存储尚未初始化(assets root 为空)");
+  return path.join(dir, "assets.db");
 }
 
 export function getFilesDir() {
