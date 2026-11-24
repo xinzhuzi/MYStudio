@@ -468,8 +468,9 @@ describe("ScriptTab", () => {
     fireEvent.click(screen.getByRole("button", { name: "AI提示词" }));
 
     // 预览:按「一键生成」口径组装(useReviewFeedback=false),不因有审核问题切修订态
-    await waitFor(() =>
-      expect(previewMock).toHaveBeenCalledWith("scriptDraft", chapter, { useReviewFeedback: false }),
+    await waitFor(
+      () => expect(previewMock).toHaveBeenCalledWith("scriptDraft", chapter, { useReviewFeedback: false }),
+      { timeout: 10000 },
     );
     expect(previewMock).not.toHaveBeenCalledWith("scriptDraft", chapter, { useReviewFeedback: true });
     // 标注/摘要:仍为改编态,不带「审核意见(修订模式)」
@@ -662,7 +663,7 @@ describe("ScriptTab", () => {
     await waitFor(() => {
       const summary = screen.getByText(/含：/).textContent ?? "";
       expect(summary).toContain("上一集剧本");
-    });
+    }, { timeout: 10000 });
   });
 });
 
@@ -698,8 +699,10 @@ describe("章选择装载接线(G1)", () => {
     const { rerender } = render(<ScriptTab {...props} />);
 
     fireEvent.click(screen.getByTestId("chapter-select-trigger"));
-    await waitFor(() =>
-      expect(screen.getByTestId("chapter-select-input")).toBeTruthy(),
+    // 同上:选择器挂载等待给足负载余量
+    await waitFor(
+      () => expect(screen.getByTestId("chapter-select-input")).toBeTruthy(),
+      { timeout: 10000 },
     );
     fireEvent.click(screen.getByRole("option", { name: "2. 第二章" }));
     expect(switchSpy).toHaveBeenCalledWith("ch2");
@@ -748,8 +751,11 @@ describe("章选择·可搜索选择器(搜索/直达/cap/装载中)", () => {
 
   const openSelector = async () => {
     fireEvent.click(screen.getByTestId("chapter-select-trigger"));
-    await waitFor(() =>
-      expect(screen.getByTestId("chapter-select-input")).toBeTruthy(),
+    // 全量并行负载下 radix Popover+cmdk 挂载可超 waitFor 默认 1000ms
+    // (@testing-library/dom asyncUtilTimeout:1000)——显式给足,消「找不到 chapter-select-input」偶发
+    await waitFor(
+      () => expect(screen.getByTestId("chapter-select-input")).toBeTruthy(),
+      { timeout: 10000 },
     );
   };
 
@@ -811,6 +817,9 @@ describe("章选择·可搜索选择器(搜索/直达/cap/装载中)", () => {
     expect(screen.queryByTestId("chapter-select-cap-hint")).toBeNull();
   });
 
+  // 全量 vitest 并行负载下,本用例(4125 项渐进渲染 20 轮 + 全量 option 查询)可超
+  // vitest 默认 5000ms 用例预算(vitest 4 resolve.testTimeout ??= 5e3;单跑约 3s)——
+  // 显式给到 20000ms 量级,消「Test timed out」偶发
   it("1115 渐进加载:滚到近底自动 +200,可一路滑到全量 4125,提示行随全量消失;重开面板重置回首批", async () => {
     const many = Array.from({ length: 4125 }, (_, i) => light(i + 1));
     render(<ScriptTab novelChapters={many} {...makeProps()} />);
@@ -843,12 +852,13 @@ describe("章选择·可搜索选择器(搜索/直达/cap/装载中)", () => {
     expect(screen.queryByTestId("chapter-select-cap-hint")).toBeNull();
     // 重开面板重置回首批 100
     fireEvent.click(screen.getByTestId("chapter-select-trigger"));
-    await waitFor(() =>
-      expect(screen.queryByTestId("chapter-select-list")).toBeNull(),
+    await waitFor(
+      () => expect(screen.queryByTestId("chapter-select-list")).toBeNull(),
+      { timeout: 10000 },
     );
     await openSelector();
     expect(screen.getAllByRole("option").length).toBe(100);
-  });
+  }, 20000);
 
   it("键盘路径:ArrowDown 移高亮后 Enter 派发 switchChapter(驱动快路径)", async () => {
     const switchSpy = vi.spyOn(useStudioStore.getState(), "switchChapter");
@@ -948,7 +958,7 @@ describe("组装期占位串防线(G5)", () => {
     await act(async () => {
       resolvePreview?.("# 完整提示词");
     });
-    await waitFor(() => expect(editButton().disabled).toBe(false));
+    await waitFor(() => expect(editButton().disabled).toBe(false), { timeout: 10000 });
   });
 
   // mustFix(10-14 复审):PRD G5 另一半「本地降级版」——livePrompt===""(hook 完整构建失败,
@@ -977,7 +987,7 @@ describe("组装期占位串防线(G5)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "AI提示词" }));
 
-    await waitFor(() => expect(previewMock).toHaveBeenCalled());
+    await waitFor(() => expect(previewMock).toHaveBeenCalled(), { timeout: 10000 });
     const editButton = screen.getByRole("button", { name: "可编辑" }) as HTMLButtonElement;
     expect(editButton.disabled).toBe(true);
     expect(editButton.title).toContain("组装");

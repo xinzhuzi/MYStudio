@@ -15,6 +15,12 @@ import {
   resetRemoteEngineVersionForTests,
 } from "@/lib/studio/engine-line/resolve-engine-base-url";
 
+// 全量 vitest 并行负载下,本文件「多段 waitFor/findBy 轮询串联」的用例可超 vitest 默认
+// 5000ms 用例预算(vitest 4 resolve.testTimeout ??= 5e3;vi.setConfig 写入 worker state
+// config,与 testRunner.config 同一对象,经 runner.config.testTimeout 运行时读取生效)
+// ——本文件用例预算给到 30s,各轮询等待的显式超时见下方各调用点。
+vi.setConfig({ testTimeout: 30000 });
+
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }));
 vi.mock("sonner", () => ({ toast: toasts }));
 
@@ -136,7 +142,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       pushBridgeStoryboards: push,
     };
     render(<ComfyCanvasStudio />);
-    await waitFor(() => expect(push).toHaveBeenCalledWith([], "episode-1", [], "project-a"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith([], "episode-1", [], "project-a"), { timeout: 10000 });
   });
   it("状态查询不到=「确认中」,绝不误报未安装/渲染安装按钮(09-10 实弹根修)", async () => {
     const client = stubClient({ installed: true, state: "ready", serviceRunning: false, port: 17001 });
@@ -147,7 +153,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       }),
     };
     render(<ComfyCanvasStudio />);
-    expect(await screen.findByText(/正在确认引擎状态/)).toBeTruthy();
+    expect(await screen.findByText(/正在确认引擎状态/, undefined, { timeout: 10000 })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "安装引擎" })).toBeNull();
     expect(screen.queryByText(/还没安装 ComfyUI 引擎/)).toBeNull();
   });
@@ -155,7 +161,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
   it("引擎未安装:占位引导+手动安装按钮(绝不自动)", async () => {
     (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({ installed: false, state: "not-installed" });
     render(<ComfyCanvasStudio />);
-    const installButton = await screen.findByRole("button", { name: "安装引擎" });
+    const installButton = await screen.findByRole("button", { name: "安装引擎" }, { timeout: 10000 });
     expect(installButton).toBeTruthy();
   });
 
@@ -173,7 +179,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     // running → webview 就位(全程无成功 toast,不打断用户)
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     expect(startEngine).toHaveBeenCalledTimes(1);
     expect(toasts.success).not.toHaveBeenCalledWith("ComfyUI 引擎服务已启动");
@@ -191,7 +197,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     render(<ComfyCanvasStudio />);
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     await act(async () => undefined);
     expect(startEngine).not.toHaveBeenCalled();
@@ -228,7 +234,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     render(<ComfyCanvasStudio />);
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     // 引擎中途死(非用户停止:stopEngine 未被调,手动停止闩未落)
     alive = false;
@@ -236,10 +242,10 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       polls.forEach((poll) => poll());
     });
     // 轮询翻假 → 挂载确保 effect 谓词重评 → 静默 ensure 复活(恰一发,零 toast)
-    await waitFor(() => expect(starts).toBe(1), { timeout: 3000 });
+    await waitFor(() => expect(starts).toBe(1), { timeout: 10000 });
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     expect(toasts.success).not.toHaveBeenCalledWith("ComfyUI 引擎服务已启动");
     // 后续拍不再重发(30s 失败/成功冷却 + running 谓词)
@@ -266,7 +272,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     render(<ComfyCanvasStudio />);
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     // 设置页实例(同渲染进程,hook module 态共享)执行用户显式停止 → 落闩
     const settings = renderHook(() => useComfyEngineSettings({ client }));
@@ -277,7 +283,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     await act(async () => {
       polls.forEach((poll) => poll());
     });
-    expect(await screen.findByText("ComfyUI 已就绪")).toBeTruthy();
+    expect(await screen.findByText("ComfyUI 已就绪", undefined, { timeout: 10000 })).toBeTruthy();
     expect(screen.getByRole("button", { name: "启动 ComfyUI" })).toBeTruthy();
     // 多拍轮询穿过:绝不自动拉起(闩不过期,ensure 让路)
     for (let i = 0; i < 5; i += 1) {
@@ -319,7 +325,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     render(<ComfyCanvasStudio />);
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     // 用户显式停止 → 落闩 → 画布翻假只观测
     const settings = renderHook(() => useComfyEngineSettings({ client }));
@@ -329,7 +335,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     await act(async () => {
       polls.forEach((poll) => poll());
     });
-    await waitFor(() => expect(screen.getByText("ComfyUI 已就绪")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("ComfyUI 已就绪")).toBeTruthy(), { timeout: 10000 });
     expect(starts).toBe(0);
     // 手动启动成功 → 解闩 + 引擎回跑 → 画布回 webview
     await act(async () => {
@@ -340,7 +346,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     });
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     expect(starts).toBe(1); // 只有手动那一发
     // 引擎再次中途死:闩已解,自动 ensure 恢复
@@ -348,10 +354,10 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     await act(async () => {
       polls.forEach((poll) => poll());
     });
-    await waitFor(() => expect(starts).toBe(2), { timeout: 3000 });
+    await waitFor(() => expect(starts).toBe(2), { timeout: 10000 });
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
   });
 
@@ -375,7 +381,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     const mounted = render(<ComfyCanvasStudio />);
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     mounted.unmount();
     const settled = statusCalls;
@@ -396,7 +402,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     const { rerender } = render(<ComfyCanvasStudio myScope="models" />);
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
       .toBe("http://127.0.0.1:17001/?myScope=models");
@@ -422,7 +428,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     render(<ComfyCanvasStudio />);
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     // 冷载窗口:覆盖层在场并带预期管理(20-30s 冷启告知)
     expect(document.querySelector("[data-comfy-canvas-loading]")).toBeTruthy();
@@ -438,7 +444,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     });
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-loading]")).toBeNull(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     // webview 本体不受覆盖层生命周期影响
     expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy();
@@ -454,7 +460,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     const { rerender } = render(<ComfyCanvasStudio myScope="models" />);
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     const webview = document.querySelector("[data-comfy-canvas-webview]")!;
     // 独立持久会话:ComfyUI 的 localStorage(activePath+草稿)顶签恢复不再串工作流模块
@@ -473,7 +479,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     render(<ComfyCanvasStudio />);
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("useragent")).toBeNull();
   });
@@ -488,7 +494,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     render(<ComfyCanvasStudio />);
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     const webview = document.querySelector("[data-comfy-canvas-webview]")!;
     expect(webview.getAttribute("src")).toBe("http://127.0.0.1:17001/");
@@ -512,7 +518,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
         (HTMLElement & { insertCSS?: (css: string) => Promise<string> }) | null;
       if (!el) throw new Error("webview 未挂");
       return el;
-    }, { timeout: 3000 }))!;
+    }, { timeout: 10000 }))!;
     const injected: string[] = [];
     const scripts: string[] = [];
     webview.insertCSS = (css: string) => {
@@ -543,7 +549,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
         (HTMLElement & { executeJavaScript?: (code: string) => Promise<unknown> }) | null;
       if (!el) throw new Error("webview 未挂");
       return el;
-    }, { timeout: 3000 }))!;
+    }, { timeout: 10000 }))!;
     const scripts: string[] = [];
     webview.executeJavaScript = (code: string) => {
       scripts.push(code);
@@ -598,7 +604,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
         (HTMLElement & { executeJavaScript?: (code: string) => Promise<unknown> }) | null;
       if (!el) throw new Error("webview 未挂");
       return el;
-    }, { timeout: 3000 }))!;
+    }, { timeout: 10000 }))!;
     webview.dispatchEvent(new Event("dom-ready"));
     await waitFor(() => expect(calls).toEqual([
       "dispatch:generate-images",
@@ -607,7 +613,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       "dispatch:generate-storyboard-table",
       "dispatch:rebuild-workbench-tracks",
       "ack:5",
-    ]));
+    ]), { timeout: 10000 });
     expect(onGenerateImages).toHaveBeenCalledTimes(1);
     expect(onGenerateVideos).toHaveBeenCalledTimes(1);
   });
@@ -626,9 +632,9 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       ackBridgeActions: ack,
     };
     render(<ComfyCanvasStudio sidebarActions={{ onGenerateImages: vi.fn(), onGenerateVideos: vi.fn(), onGenerateDirectorPlan: generate }} />);
-    await waitFor(() => expect(ack).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(ack).toHaveBeenCalledTimes(1), { timeout: 10000 });
     await act(async () => { polls.forEach((poll) => poll()); });
-    await waitFor(() => expect(ack).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(ack).toHaveBeenCalledTimes(2), { timeout: 10000 });
     expect(generate).toHaveBeenCalledTimes(1);
   });
 
@@ -671,7 +677,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
         (HTMLElement & { executeJavaScript?: (code: string) => Promise<unknown> }) | null;
       if (!el) throw new Error("webview 未挂");
       return el;
-    }, { timeout: 3000 }))!;
+    }, { timeout: 10000 }))!;
     webview.dispatchEvent(new Event("dom-ready"));
     await waitFor(() => expect(calls).toEqual([
       "generate-images-force",
@@ -684,7 +690,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       "open-final-video",
       "h3-import-orphans",
       "h3-archive-backfill",
-    ]));
+    ]), { timeout: 10000 });
     // h3 发车档位经 note 透传(载荷 noteKey → data-note → 桥 note)
     expect(handlers.onH3Start).toHaveBeenCalledWith("480p");
   });
@@ -711,9 +717,9 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
         (HTMLElement & { executeJavaScript?: (code: string) => Promise<unknown> }) | null;
       if (!el) throw new Error("webview 未挂");
       return el;
-    }, { timeout: 3000 }))!;
+    }, { timeout: 10000 }))!;
     webview.dispatchEvent(new Event("dom-ready"));
-    await waitFor(() => expect(calls).toEqual(["generate-videos"]));
+    await waitFor(() => expect(calls).toEqual(["generate-videos"]), { timeout: 10000 });
     expect(onGenerateVideos).toHaveBeenCalledTimes(1);
     expect(toasts.error).not.toHaveBeenCalledWith(expect.stringContaining("不处理动作 enqueue-remotion-shots"));
   });
@@ -767,7 +773,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
         (HTMLElement & { executeJavaScript?: (code: string) => Promise<unknown> }) | null;
       if (!el) throw new Error("webview 未挂");
       return el;
-    }, { timeout: 3000 }))!;
+    }, { timeout: 10000 }))!;
     webview.dispatchEvent(new Event("dom-ready"));
     await waitFor(() => expect(calls).toEqual([
       "open-shot-image:sb-1",
@@ -775,7 +781,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       "compare-video:sb-1",
       "keyframe-extract:sb-1|uniform|3",
       "set-audio-mix:sb-1|mixed",
-    ]));
+    ]), { timeout: 10000 });
     expect(onOpenShotImage).toHaveBeenCalledWith("sb-1");
   });
 
@@ -798,7 +804,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     const ack = vi.fn(async () => 1);
     (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = { ...stubClient({ installed: true, state: "ready" }), getBridgeActions: list, ackBridgeActions: ack };
     render(<ComfyCanvasStudio myScope="models" />);
-    await waitFor(() => expect(list).toHaveBeenCalled());
+    await waitFor(() => expect(list).toHaveBeenCalled(), { timeout: 10000 });
     await act(async () => undefined);
     expect(ack).not.toHaveBeenCalled();
     expect(toasts.info).not.toHaveBeenCalled();
@@ -813,7 +819,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     const generate = vi.fn();
     (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = { ...stubClient({ installed: true, state: "ready" }), getBridgeActions: list, ackBridgeActions: ack };
     render(<ComfyCanvasStudio sidebarActions={{ onGenerateImages: generate, onGenerateVideos: vi.fn() }} />);
-    await waitFor(() => expect(list).toHaveBeenCalled());
+    await waitFor(() => expect(list).toHaveBeenCalled(), { timeout: 10000 });
     await act(async () => undefined);
     expect(generate).toHaveBeenCalledTimes(1);
     expect(ack).toHaveBeenCalledWith(32, "unsupported", [32]);
@@ -830,9 +836,9 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = client;
     const actions = { onGenerateImages: vi.fn(), onGenerateVideos: vi.fn(), onGenerateDirectorPlan: generate };
     render(<><ComfyCanvasStudio sidebarActions={actions} /><ComfyCanvasStudio sidebarActions={actions} /></>);
-    await waitFor(() => expect(list).toHaveBeenCalled());
+    await waitFor(() => expect(list).toHaveBeenCalled(), { timeout: 10000 });
     await act(async () => { release(); });
-    await waitFor(() => expect(ack).toHaveBeenCalled());
+    await waitFor(() => expect(ack).toHaveBeenCalled(), { timeout: 10000 });
     expect(generate).toHaveBeenCalledTimes(1);
   });
 
@@ -844,7 +850,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     const generate = vi.fn();
     (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = { ...stubClient({ installed: true, state: "ready" }), getBridgeActions: list, ackBridgeActions: ack };
     const mounted = render(<ComfyCanvasStudio sidebarActions={{ onGenerateImages: generate, onGenerateVideos: vi.fn() }} />);
-    await waitFor(() => expect(list).toHaveBeenCalled());
+    await waitFor(() => expect(list).toHaveBeenCalled(), { timeout: 10000 });
     mounted.unmount();
     await act(async () => { release(); });
     expect(generate).not.toHaveBeenCalled();
@@ -862,7 +868,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     const generate = vi.fn();
     (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = { ...stubClient({ installed: true, state: "ready" }), getBridgeActions: list, ackBridgeActions: ack };
     render(<ComfyCanvasStudio sidebarActions={{ onGenerateImages: generate, onGenerateVideos: vi.fn() }} />);
-    await waitFor(() => expect(list).toHaveBeenCalled());
+    await waitFor(() => expect(list).toHaveBeenCalled(), { timeout: 10000 });
     projectState.activeProjectId = "project-b";
     projectListeners.forEach((listener) => listener(projectState));
     if (returnToOriginal) {
@@ -885,7 +891,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     const generate = vi.fn();
     (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = { ...stubClient({ installed: true, state: "ready" }), getBridgeActions: list, ackBridgeActions: ack };
     render(<ComfyCanvasStudio sidebarActions={{ onGenerateImages: generate, onGenerateVideos: vi.fn() }} />);
-    await waitFor(() => expect(list).toHaveBeenCalled());
+    await waitFor(() => expect(list).toHaveBeenCalled(), { timeout: 10000 });
     storeState.novelChapters = [{ id: "chapter-b" }];
     storeState.activeChapterId = "chapter-b"; // D6 后章身份真源=activeChapterId(夹具同步建模)
     studioListeners.forEach((listener) => listener(storeState));
@@ -925,12 +931,12 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
         (HTMLElement & { executeJavaScript?: (code: string) => Promise<unknown> }) | null;
       if (!el) throw new Error("webview 未挂");
       return el;
-    }, { timeout: 3000 }))!;
+    }, { timeout: 10000 }))!;
     webview.dispatchEvent(new Event("dom-ready"));
     await waitFor(() => expect(calls).toEqual([
       "plan:多加两个反派伏笔",
       "table:",
-    ]));
+    ]), { timeout: 10000 });
   });
 
   it.each([false, true, "roundtrip", "chapter", "chapter-roundtrip"])("单镜视频入口:上传中切换=%s 时隔离原项目工作流", async (switchDuringUpload) => {
@@ -985,7 +991,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
         (HTMLElement & { executeJavaScript?: (code: string) => Promise<unknown> }) | null;
       if (!el) throw new Error("webview 未挂");
       return el;
-    }, { timeout: 3000 }))!;
+    }, { timeout: 10000 }))!;
     const scripts: string[] = [];
     webview.executeJavaScript = (code: string) => {
       scripts.push(code);
@@ -993,7 +999,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     };
     releaseActions?.();
     if (switchDuringUpload) {
-      await waitFor(() => expect(toasts.error).toHaveBeenCalledWith(expect.stringContaining("项目已切换")));
+      await waitFor(() => expect(toasts.error).toHaveBeenCalledWith(expect.stringContaining("项目已切换")), { timeout: 10000 });
       expect(scripts.some((script) => script.includes("单镜视频"))).toBe(false);
       return;
     }
@@ -1001,7 +1007,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       const hit = scripts.find((code) => code.includes("单镜视频"));
       if (!hit) throw new Error("单镜视频打开脚本未注入");
       return hit;
-    }, { timeout: 3000 });
+    }, { timeout: 10000 });
     // 全尺寸关键帧以专用名上传(禁用 768px 缩略图当 H3 首帧)
     expect(uploaded).toEqual(["my-shot-h3-sb-9.jpg"]);
     // 库写入位=视频域自研家应用写入位;打开脚本带锚卡与秒数节点载荷
@@ -1010,7 +1016,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     expect(payload).toContain("MyShot"); // 组装器模板含 MyShot 锚点(首帧/回写)
     expect(payload).toContain("myOriginProjectId");
     expect(payload).toContain("project-a");
-    await waitFor(() => expect(toasts.success).toHaveBeenCalled());
+    await waitFor(() => expect(toasts.success).toHaveBeenCalled(), { timeout: 10000 });
   });
 
   it.each(["shot-b", "S01"])("单镜入口只在绑定章节解析目标 %s", async (target) => {
@@ -1039,11 +1045,11 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       const element = document.querySelector("[data-comfy-canvas-webview]");
       if (!element) throw new Error("webview 未挂");
       return element as HTMLElement & { executeJavaScript: (code: string) => Promise<void> };
-    });
+    }, { timeout: 10000 });
     const execute = vi.fn(async (_code: string) => undefined);
     webview.executeJavaScript = execute;
     await act(async () => { release(); });
-    await waitFor(() => expect(ack).toHaveBeenCalled());
+    await waitFor(() => expect(ack).toHaveBeenCalled(), { timeout: 10000 });
     if (target === "shot-b") {
       expect(upload).not.toHaveBeenCalled();
       expect(execute).not.toHaveBeenCalled();
@@ -1067,11 +1073,11 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       const el = document.querySelector("[data-comfy-canvas-webview]") as HTMLElement & { executeJavaScript?: (code: string) => Promise<void> };
       if (!el) throw new Error("webview not mounted");
       return el;
-    });
+    }, { timeout: 10000 });
     const scripts: string[] = [];
     webview.executeJavaScript = async (code) => { scripts.push(code); };
     webview.dispatchEvent(new Event("dom-ready"));
-    await waitFor(() => expect(templateContentMock).toHaveBeenCalled());
+    await waitFor(() => expect(templateContentMock).toHaveBeenCalled(), { timeout: 10000 });
     if (scope === "project") {
       projectState.activeProjectId = "project-b";
       projectListeners.forEach((listener) => listener(projectState));
@@ -1099,7 +1105,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     const push = vi.fn(async () => true);
     (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = { ...stubClient({ installed: true, state: "ready" }), pushBridgeStoryboards: push };
     render(<ComfyCanvasStudio />);
-    await waitFor(() => expect(get).toHaveBeenCalled());
+    await waitFor(() => expect(get).toHaveBeenCalled(), { timeout: 10000 });
     if (scope === "project") {
       projectState.activeProjectId = "project-b";
       projectListeners.forEach((listener) => listener(projectState));
@@ -1135,7 +1141,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
         (HTMLElement & { executeJavaScript?: (code: string) => Promise<unknown> }) | null;
       if (!el) throw new Error("webview 未挂");
       return el;
-    }, { timeout: 3000 }))!;
+    }, { timeout: 10000 }))!;
     const scripts: string[] = [];
     webview.executeJavaScript = (code: string) => {
       scripts.push(code);
@@ -1147,7 +1153,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     const payload = await waitFor(() => {
       if (scripts.length < 3) throw new Error("链工作流载荷未注入");
       return scripts[2];
-    }, { timeout: 3000 });
+    }, { timeout: 10000 });
     // 载荷=链工作流:七环节 MyStage+MY_FLOW 连线+分镜网格+摘要
     expect(payload).toContain('"type":"MyStage"');
     expect(payload).toContain("MyStage"); // 09-14 通用化:模板=7 环节锚点,零 MyShot 实体
@@ -1180,7 +1186,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
         (HTMLElement & { executeJavaScript?: (code: string) => Promise<unknown> }) | null;
       if (!el) throw new Error("webview 未挂");
       return el;
-    }, { timeout: 3000 }))!;
+    }, { timeout: 10000 }))!;
     const scripts: string[] = [];
     webview.executeJavaScript = (code: string) => {
       scripts.push(code);
@@ -1191,7 +1197,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     const payload = await waitFor(() => {
       if (scripts.length < 3) throw new Error("链工作流载荷未注入");
       return scripts[2];
-    }, { timeout: 3000 });
+    }, { timeout: 10000 });
     // 空章仍产出完整七环节链骨架(模板 7 锚点,载荷降档不缺环节)
     expect(payload).toContain('"type":"MyStage"');
     expect((payload.match(/MyStage/g) || []).length).toBeGreaterThanOrEqual(7);
@@ -1229,12 +1235,12 @@ describe("远端引擎接管(1102 S2:src 跟随/可达态/拉起抑制/零重启
     render(<ComfyCanvasStudio />);
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
       .toBe(`${REMOTE_URL}/`);
     // 可达态改探远端探活(不再依赖本机 serviceRunning)
-    await waitFor(() => expect(probeEngineUrlMock).toHaveBeenCalled());
+    await waitFor(() => expect(probeEngineUrlMock).toHaveBeenCalled(), { timeout: 10000 });
     expect(probeEngineUrlMock).toHaveBeenCalledWith(REMOTE_URL);
     // Q2 拉起抑制:本机未跑也绝不自动 startEngine
     await act(async () => undefined);
@@ -1254,7 +1260,7 @@ describe("远端引擎接管(1102 S2:src 跟随/可达态/拉起抑制/零重启
     render(<ComfyCanvasStudio myScope="models" />);
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     const webview = document.querySelector("[data-comfy-canvas-webview]")!;
     expect(webview.getAttribute("src")).toBe(`${REMOTE_URL}/?myScope=models`);
@@ -1278,7 +1284,7 @@ describe("远端引擎接管(1102 S2:src 跟随/可达态/拉起抑制/零重启
       port: 17001,
     });
     render(<ComfyCanvasStudio />);
-    expect(await screen.findByText("远端引擎未就绪")).toBeTruthy();
+    expect(await screen.findByText("远端引擎未就绪", undefined, { timeout: 10000 })).toBeTruthy();
     // 指引含远端地址+测试连接入口(重新测试按钮)
     expect(screen.getByText(new RegExp(REMOTE_URL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))).toBeTruthy();
     expect(screen.getByRole("button", { name: "重新测试连接" })).toBeTruthy();
@@ -1299,7 +1305,7 @@ describe("远端引擎接管(1102 S2:src 跟随/可达态/拉起抑制/零重启
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
         .toBe("http://127.0.0.1:17001/"),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     // 设置页保存远端地址 → 广播 → 同一挂载实例 src 切远端(不重进视图)
     setRemoteConfigured();
@@ -1310,7 +1316,7 @@ describe("远端引擎接管(1102 S2:src 跟随/可达态/拉起抑制/零重启
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
         .toBe(`${REMOTE_URL}/`),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     // 清空回本机 → 再广播 → src 切回本机
     remoteEngineMock.mockImplementation(async () => {
@@ -1322,7 +1328,7 @@ describe("远端引擎接管(1102 S2:src 跟随/可达态/拉起抑制/零重启
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
         .toBe("http://127.0.0.1:17001/"),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     // rerender 防未卸载告警(全程同一实例)
     rerender(<ComfyCanvasStudio />);
@@ -1347,7 +1353,7 @@ describe("远端引擎接管(1102 S2:src 跟随/可达态/拉起抑制/零重启
       render(<ComfyCanvasStudio />);
       await waitFor(
         () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-        { timeout: 3000 },
+        { timeout: 10000 },
       );
       expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
         .toBe(`${REMOTE_URL}/`);
@@ -1370,7 +1376,7 @@ describe("远端引擎接管(1102 S2:src 跟随/可达态/拉起抑制/零重启
     render(<ComfyCanvasStudio />);
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
       .toBe(`${REMOTE_URL}/`);
@@ -1394,12 +1400,12 @@ describe("远端引擎接管(1102 S2:src 跟随/可达态/拉起抑制/零重启
       getJob: vi.fn(async () => runningJob),
     };
     const { rerender } = render(<ComfyCanvasStudio />);
-    const installButton = await screen.findByRole("button", { name: "安装引擎" });
+    const installButton = await screen.findByRole("button", { name: "安装引擎" }, { timeout: 10000 });
     // 点安装→job 恒 running(装到一半用户去配了远端)→本机模式安装进度面板在位
     await act(async () => {
       fireEvent.click(installButton);
     });
-    expect(await screen.findByText(/正在安装引擎/)).toBeTruthy();
+    expect(await screen.findByText(/正在安装引擎/, undefined, { timeout: 10000 })).toBeTruthy();
     // 配远端+探活 ok+广播 → src 就绪即直渲远端,安装进度面板让路
     setRemoteConfigured();
     setRemoteProbeOk(true);
@@ -1409,7 +1415,7 @@ describe("远端引擎接管(1102 S2:src 跟随/可达态/拉起抑制/零重启
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
         .toBe(`${REMOTE_URL}/`),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     expect(screen.queryByText(/正在安装引擎/)).toBeNull();
     rerender(<ComfyCanvasStudio />);
@@ -1427,7 +1433,7 @@ describe("远端引擎接管(1102 S2:src 跟随/可达态/拉起抑制/零重启
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
         .toBe(`${REMOTE_URL}/`),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     // 直切 B 且探活不可达:旧代码 remoteReady 残留 true→B 未经探活被当就绪
     // 直载(破 R2「不可达显指引,不静默」);修后必须重探,失败=占位指引。
@@ -1437,11 +1443,16 @@ describe("远端引擎接管(1102 S2:src 跟随/可达态/拉起抑制/零重启
     act(() => {
       notifyRemoteEngineChanged();
     });
-    expect(await screen.findByText("远端引擎未就绪")).toBeTruthy();
+    expect(await screen.findByText("远端引擎未就绪", undefined, { timeout: 10000 })).toBeTruthy();
     // 指引指向 B(非 A 残留),且 B 已被真探活(非沿用结论)
     expect(screen.getByText(new RegExp(REMOTE_B.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))).toBeTruthy();
-    await waitFor(() => expect(probeEngineUrlMock).toHaveBeenCalledWith(REMOTE_B));
-    expect(document.querySelector("[data-comfy-canvas-webview]")).toBeNull();
+    await waitFor(() => expect(probeEngineUrlMock).toHaveBeenCalledWith(REMOTE_B), { timeout: 10000 });
+    // 断言前的状态就位等待:探活桩被调后远端未就绪态经微任务落 setState 才摘 A 的 webview,
+    // 负载下「探活已调≠已卸载」有竞态窗——轮询等卸载到位(不弱化终态断言,到点仍 null 才绿)
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeNull(),
+      { timeout: 10000 },
+    );
     // 重探闭环(走同一 engineBase 变更重置机制,B→A→B):不可达稳态下
     // remoteReady 本就 false,「重新测试」按钮不产生状态变化(即时重探靠
     // 10s 轮询,真等不划算)——经 A 往返确定性验证「B 只在探活 ok 后上画布」。
@@ -1453,7 +1464,7 @@ describe("远端引擎接管(1102 S2:src 跟随/可达态/拉起抑制/零重启
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
         .toBe(`${REMOTE_URL}/`),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     remoteEngineMock.mockResolvedValue({ url: REMOTE_B, effective: REMOTE_B, source: "settings" });
     act(() => {
@@ -1462,7 +1473,7 @@ describe("远端引擎接管(1102 S2:src 跟随/可达态/拉起抑制/零重启
     await waitFor(
       () => expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
         .toBe(`${REMOTE_B}/`),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     rerender(<ComfyCanvasStudio />);
   });
@@ -1484,7 +1495,7 @@ describe("远端引擎接管(1102 S2:src 跟随/可达态/拉起抑制/零重启
       port: null,
     });
     render(<ComfyCanvasStudio />);
-    expect(await screen.findByText("远端引擎未就绪")).toBeTruthy();
+    expect(await screen.findByText("远端引擎未就绪", undefined, { timeout: 10000 })).toBeTruthy();
     // 安装面板两变体(按钮/进度)零渲染:remoteActive=true 一概旁路
     expect(screen.queryByRole("button", { name: /^安装引擎$|^继续安装$/ })).toBeNull();
     expect(screen.queryByText(/还没安装 ComfyUI 引擎|引擎装了一半/)).toBeNull();
