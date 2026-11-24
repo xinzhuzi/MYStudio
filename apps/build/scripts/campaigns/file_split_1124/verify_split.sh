@@ -36,7 +36,7 @@ fi
 
 if [ ${#TESTS[@]} -gt 0 ]; then
   echo "-- 3. 相关测试 --"
-  python3 "${TESTS[@]}" > $OUT/tests.txt <<'PY'
+  python3 - "${TESTS[@]}" > $OUT/tests.txt <<'PY'
 import os, re, sys
 pats = []
 for a in sys.argv[1:]:
@@ -81,7 +81,7 @@ if [ $rc -ne 0 ]; then FAIL=1; fi
 
 echo "-- 6. 文件尺寸门禁 --"
 python3 build/scripts/file_size_gate.py > $OUT/size.log 2>&1
-python3 "${LINT[@]}" <<'PY'
+python3 - "${LINT[@]}" <<'PY'
 import json, re, sys
 log = open("/tmp/zcode-arch-audit/verify-split/size.log", encoding="utf-8").read()
 mine = set(json.load(open("build/scripts/file-size-gate-exemptions.json", encoding="utf-8"))["caps"]) | set(sys.argv[1:])

@@ -26,7 +26,7 @@ if [ $rc -ne 0 ]; then
   rm -f "$SORTED"; exit 1
 fi
 got=$(git -C "$REPO" show --name-only --format= HEAD | sort -u | wc -l | tr -d ' ')
-left=$(git -C "$REPO" status --short --pathspec-from-file="$SORTED" | wc -l | tr -d ' ')
+left=$(git -C "$REPO" status --short -- $(cat "$SORTED") | wc -l | tr -d ' ')
 echo "✓ $(git -C "$REPO" log -1 --format='%h %s' | cut -c1-150)"
 echo "    提交前 $(git rev-parse --short $H0) → 现在 $(git -C "$REPO" rev-parse --short HEAD) | 本提交 $got 个文件(清单 $want)$( [ "$got" != "$want" ] && echo ' ✗ 不一致' ) | 清单路径下未提交改动 $left 条 | 暂存区 $(git -C "$REPO" diff --cached --name-only | wc -l | tr -d ' ') 条"
 grep -E "Pre-commit passed|files? changed" /tmp/zcode-arch-audit/commit-split.log | cut -c1-120 | sed 's/^/    /'
