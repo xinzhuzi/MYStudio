@@ -60,7 +60,7 @@ export const DEFAULT_LOCAL_IMAGE_PROVIDER_ID = "manying-local-image";
 export const LOCAL_IMAGE_BASE_URL = "http://127.0.0.1:17595";
 /**
  * 本地 provider 的 apiKey 占位(非机密,仅让图片功能不因空 key 跳过该渠道)。
- * 0924 起 sidecar 只认装机随机令牌(取用见 lib/assist/image-studio/
+ * 0924 起 sidecar 只认装机随机令牌(取用见 lib/comfyui/
  * local-image-token;占位串不再被服务端接受),真令牌不落本 store。
  */
 export const LOCAL_IMAGE_API_KEY = "manying-local-image";
