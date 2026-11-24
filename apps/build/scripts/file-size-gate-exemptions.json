@@ -38,7 +38,6 @@
     "apps/frontend/components/panels/assets/StudioAssetDetailView.tsx": 1621,
     "apps/backend/comfyui/my_nodes/nodes/director_executor.py": 1444,
     "apps/backend/comfyui/my_nodes/daoyan_server.py": 1083,
-    "apps/frontend/components/panels/studio/image-workflow/storyboard-canonical-context.ts": 1056,
     "apps/backend/comfyui/my_nodes/line_mode_server.py": 984,
     "apps/backend/engines/image_engine/qwen21.py": 855
   },
