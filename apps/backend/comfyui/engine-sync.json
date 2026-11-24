@@ -272,6 +272,10 @@
     {
       "name": "ComfyUI-ReaVideoBreakdown",
       "url": "https://github.com/benjiyaya/ComfyUI-ReaVideoBreakdown.git"
+    },
+    {
+      "name": "comfyui-pcb",
+      "url": "https://github.com/vtokic/comfyui-pcb"
     }
   ]
 }

@@ -683,6 +683,14 @@
       "provides": [
         "ReaVideoBreakdown"
       ]
+    },
+    {
+      "id": "comfyui-pcb",
+      "name": "PCB 连线自动布线",
+      "desc_zh": "把画布连线画成电路板式直角走线：自动绕开节点、同源的线并排错开、拖动节点松手后自动改道。只改显示，不改工作流数据；卸载后连线恢复曲线。",
+      "category": "效率工具",
+      "repo": "https://github.com/vtokic/comfyui-pcb",
+      "verified_license": "MIT"
     }
   ]
 }
