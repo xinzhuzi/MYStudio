@@ -17,8 +17,10 @@ import { useProjectStore } from "@/stores/project/project-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useSelfMediaStore } from "@/stores/self-media/self-media-store";
 import { useProductStore } from "@/stores/product/product-store";
+import { useTemplateStore } from "@/stores/template/template-store";
 import { SELF_MEDIA_CAPABILITY_MANIFEST } from "@/lib/self-media/capabilities";
 import { validateSelfMediaDraft } from "@/lib/self-media/contracts";
+import { buildTemplateFill, mergeTopicStrings } from "@/lib/self-media/template-engine";
 import type { SelfMediaContentType, SelfMediaDraft } from "@/types/self-media";
 import {
   BATCH_PUBLISH_INTERVAL_MS,
@@ -26,9 +28,11 @@ import {
   buildBatchDrafts,
   buildSummaryReport,
   buildTopicsFromProductDefaultTags,
+  checkBatchTaskLimit,
   createInitialProgress,
   delay,
-  findFirstPublishAccount,
+  findEligibleFirstPublishAccount,
+  getNextDayQueuedAt,
   incrementDailyPublishCount,
   isTerminalTaskStatus,
   shouldDoFirstPublishVerification,
@@ -54,6 +58,7 @@ export function BatchPublishView() {
   const upsertTask = useSelfMediaStore((state) => state.upsertTask);
   const addHistoryRecord = useSelfMediaStore((state) => state.addHistoryRecord);
   const products = useProductStore((state) => state.products);
+  const templates = useTemplateStore((state) => state.templates);
 
   const [contentType, setContentType] = useState<SelfMediaContentType>("video");
   const [title, setTitle] = useState("");
@@ -68,6 +73,7 @@ export function BatchPublishView() {
   const [summary, setSummary] = useState<BatchSummaryReport | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
   // B1b: Preload products on first mount (same pattern as ComposeView)
   useEffect(() => {
@@ -79,9 +85,16 @@ export function BatchPublishView() {
     }).catch(() => { /* silent degrade */ });
   }, [products.length]);
 
+  // B5: Preload templates on first mount (same fire-and-forget pattern as TemplateView)
+  useEffect(() => {
+    if (templates.length > 0) return;
+    void useTemplateStore.getState().loadTemplates();
+  }, [templates.length]);
+
   // B1b: Handle product selection - auto-fill topics from defaultTags
   const handleProductSelect = useCallback((productId: string) => {
     setSelectedProductId(productId);
+    setSelectedTemplateId(""); // 产品切换后模板列表变化,复位选中态
     const product = products.find((p) => p.id === productId);
     if (product && product.promotion.defaultTags.length > 0) {
       setTopics(buildTopicsFromProductDefaultTags(product.promotion.defaultTags));
@@ -108,14 +121,55 @@ export function BatchPublishView() {
     [accounts, selectedAccountIds],
   );
 
+  // B5/L3: templates of the selected product (从模板填充)
+  const productTemplates = useMemo(
+    () => templates.filter((t) => t.productId === selectedProductId),
+    [templates, selectedProductId],
+  );
+
+  // B5/L3: 选中模板即渲染预填。复审修复:标题/描述仅填充空字段,不覆盖用户已输入
+  // 内容(防「先手写再选模板」丢稿);话题走合并天然保留既有内容。
+  const handleTemplateFill = useCallback((templateId: string) => {
+    if (!templateId) return;
+    const template = templates.find((t) => t.id === templateId);
+    const product = products.find((p) => p.id === selectedProductId);
+    if (!template || !product) return;
+    setSelectedTemplateId(templateId);
+    const fill = buildTemplateFill({
+      template,
+      productName: product.name,
+      productDescription: product.description,
+      productLink: product.links[0]?.url,
+      brandProfile: product.brandProfile,
+      // 通用预填:用首个选中账号的平台渲染 {{platform}};发布时各账号仍走差异化/裁剪
+      platform: selectedAccounts[0]?.platform ?? template.platform,
+    });
+    setTitle((current) => (current.trim() ? current : fill.title));
+    setDescription((current) => (current.trim() ? current : fill.description));
+    if (fill.topicString) setTopics((current) => mergeTopicStrings(current, fill.topicString));
+  }, [templates, products, selectedProductId, selectedAccounts]);
+
+  // L2(复审修复): 今日超限(排队次日)账号集合——首发验证选号与 UI 预告都排除它们,
+  // 避免「指定的验证账号恰好排队→静默跳过验证」或 UI 预告与实际行为不符。
+  // 注:基于当前 localStorage 当日计数,publish() 内部会以最新值重算为准。
+  const queuedAccountIds = useMemo(
+    () => new Set(validateBatchAccounts(selectedAccounts, contentType).filter((v) => v.queuedNextDay).map((v) => v.accountId)),
+    [selectedAccounts, contentType],
+  );
+
+  const eligibleAccounts = useMemo(
+    () => selectedAccounts.filter((account) => !queuedAccountIds.has(account.id)),
+    [selectedAccounts, queuedAccountIds],
+  );
+
   const needsFirstPublishVerification = useMemo(
-    () => shouldDoFirstPublishVerification(selectedAccounts),
-    [selectedAccounts],
+    () => shouldDoFirstPublishVerification(eligibleAccounts),
+    [eligibleAccounts],
   );
 
   const firstPublishAccount = useMemo(
-    () => findFirstPublishAccount(selectedAccounts),
-    [selectedAccounts],
+    () => findEligibleFirstPublishAccount(selectedAccounts, queuedAccountIds),
+    [selectedAccounts, queuedAccountIds],
   );
 
   // Preview: show differentiated titles for each selected platform
@@ -173,18 +227,24 @@ export function BatchPublishView() {
       setFeedback("请至少选择一个跨平台账号。");
       return;
     }
+    // L5: 单批次任务数上限拦截(超限不创建任何 task)
+    const batchLimit = checkBatchTaskLimit(selectedAccounts.length);
+    if (batchLimit.exceeded) {
+      setFeedback(`单批次最多 ${batchLimit.limit} 个任务，当前选中 ${batchLimit.count} 个账号，请减少账号后重试。`);
+      return;
+    }
 
     setPublishing(true);
     setFeedback(null);
     setSummary(null);
 
-    // 验证账号,识别超限排队的账号
+    // 验证账号,识别超限排队的账号(以点击时刻的最新计数为准)
     const validations = validateBatchAccounts(selectedAccounts, contentType);
-    const queuedAccountIds = new Set(
+    const queuedIds = new Set(
       validations.filter((v) => v.queuedNextDay).map((v) => v.accountId)
     );
 
-    const batchItems = buildBatchDrafts({ baseDraft, selectedAccounts, queuedAccountIds });
+    const batchItems = buildBatchDrafts({ baseDraft, selectedAccounts, queuedAccountIds: queuedIds });
     let currentProgress = createInitialProgress(batchItems);
     setProgress(currentProgress);
 
@@ -192,10 +252,16 @@ export function BatchPublishView() {
     let firstPublishDone = false;
 
     // ─── First-publish verification ──────────────────────────────
-    // 只要有多个平台就触发,优先用 Twitter,否则用第一个在线账号
-    if (needsFirstPublishVerification && firstPublishAccount) {
+    // L2(复审修复): 验证账号从今日未超限的账号中选(Twitter 优先,否则第一个在线)——
+    // 指定账号排队时回退到其他未排队账号,而非静默跳过验证;全部排队则本轮
+    // 无立即发布项,无需验证(全部转定时)
+    const verificationAccount = findEligibleFirstPublishAccount(selectedAccounts, queuedIds);
+    const needsVerification = shouldDoFirstPublishVerification(
+      selectedAccounts.filter((account) => !queuedIds.has(account.id)),
+    );
+    if (needsVerification && verificationAccount) {
       const firstPublishIdx = batchItems.findIndex(
-        (item) => item.accountId === firstPublishAccount.id,
+        (item) => item.accountId === verificationAccount.id,
       );
 
       if (firstPublishIdx >= 0) {
@@ -281,13 +347,59 @@ export function BatchPublishView() {
     for (let i = 0; i < batchItems.length; i++) {
       const item = batchItems[i];
 
-      // Skip queued-next-day items
+      // L2: 排队次日不再跳过,改走既有定时任务链(scheduledAt=次日 08:05 本地时区,
+      // 见 batch-publish.ts QUEUED_NEXT_DAY_* 常量)。进度面板状态仍显示 queued-next-day。
       if (item.queuedNextDay) {
+        try {
+          const scheduledDraft: SelfMediaDraft = {
+            ...item.draft,
+            scheduledAt: getNextDayQueuedAt().toISOString(),
+          };
+          const validation = validateSelfMediaDraft(scheduledDraft);
+          if (!validation.success) {
+            currentProgress = updateProgressItem(currentProgress, i, {
+              status: "failure",
+              error: `排队次日任务创建失败：${validation.issues.map((iss) => iss.message).join("；")}`,
+            });
+            setProgress({ ...currentProgress });
+            continue;
+          }
+          const reply = await bridge.createTask({
+            projectId: activeProjectId,
+            providerId: "aitoearn-local",
+            draft: validation.value,
+          });
+          if (!reply.success) {
+            currentProgress = updateProgressItem(currentProgress, i, {
+              status: "failure",
+              error: reply.error.message,
+            });
+            setProgress({ ...currentProgress });
+            continue;
+          }
+          reply.value.forEach((t) => {
+            upsertTask(t);
+            if (isTerminalTaskStatus(t.status)) addHistoryRecord({ ...t, finishedAt: t.updatedAt });
+          });
+          // 定时任务已创建,状态保持 queued-next-day(不 incrementDailyPublishCount,
+          // 发布发生在次日,由 task-runtime 到点调度)
+          currentProgress = updateProgressItem(currentProgress, i, {
+            status: "queued-next-day",
+            taskId: reply.value[0]?.id,
+          });
+          setProgress({ ...currentProgress });
+        } catch (error) {
+          currentProgress = updateProgressItem(currentProgress, i, {
+            status: "failure",
+            error: error instanceof Error ? error.message : "排队次日任务创建异常",
+          });
+          setProgress({ ...currentProgress });
+        }
         continue;
       }
 
       // Skip the first-publish account if already done
-      if (firstPublishDone && item.accountId === firstPublishAccount?.id) {
+      if (firstPublishDone && item.accountId === verificationAccount?.id) {
         continue;
       }
 
@@ -359,7 +471,7 @@ export function BatchPublishView() {
 
     setSummary(buildSummaryReport(currentProgress, startedAt));
     setPublishing(false);
-  }, [baseDraft, activeProjectId, selectedAccounts, contentType, needsFirstPublishVerification, firstPublishAccount, upsertTask, addHistoryRecord]);
+  }, [baseDraft, activeProjectId, selectedAccounts, contentType, upsertTask, addHistoryRecord]);
 
   return (
     <Card className="border-border/50 bg-card/80">
@@ -402,6 +514,26 @@ export function BatchPublishView() {
               {products.map((product) => (
                 <option key={product.id} value={product.id}>
                   {product.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {/* B5/L3: 从模板填充——渲染 titleTemplate/bodyTemplate,仅填充空字段 */}
+        {selectedProductId && productTemplates.length > 0 && (
+          <label className="block space-y-1.5 text-sm">
+            <span className="font-medium text-foreground">从模板填充</span>
+            <select
+              aria-label="从模板填充"
+              value={selectedTemplateId}
+              onChange={(event) => handleTemplateFill(event.target.value)}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all duration-200 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="">选择该产品的模板（仅填充空标题/描述）</option>
+              {productTemplates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
                 </option>
               ))}
             </select>
@@ -593,7 +725,8 @@ export function BatchPublishView() {
             <div className="flex flex-wrap gap-3 text-sm">
               <span className="text-success">✓ 成功 {summary.succeeded}</span>
               <span className="text-destructive">✗ 失败 {summary.failed}</span>
-              <span className="text-muted-foreground">⊘ 跳过 {summary.skipped}</span>
+              {summary.skipped > 0 && <span className="text-muted-foreground">⊘ 跳过 {summary.skipped}</span>}
+              {summary.queued > 0 && <span className="text-warning">⏱ 排队次日 {summary.queued}</span>}
               <span className="text-muted-foreground">耗时 {summary.duration}</span>
             </div>
             {summary.failures.length > 0 && (

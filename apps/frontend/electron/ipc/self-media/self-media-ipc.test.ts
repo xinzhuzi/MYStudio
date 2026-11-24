@@ -388,6 +388,41 @@ describe("registerSelfMediaIpcHandlers", () => {
     }
   });
 
+  it("carries the draft productId onto created tasks so product-filtered history matches", async () => {
+    const registry = createSelfMediaProviderRegistry({
+      local: createAitoearnLocalAdapter({
+        listAccounts: async () => [],
+        startLogin: async () => ({ started: true }),
+        publish: async () => ({ status: "success" }),
+        poll: async () => ({ status: "success" }),
+        cancel: async () => ({ status: "canceled" }),
+      }),
+    });
+    registerSelfMediaIpcHandlers({ registry });
+    const reply = (await handlers.get(SELF_MEDIA_IPC.createTask)?.(trustedEvent, {
+      projectId: "project-1",
+      providerId: "aitoearn-local",
+      draft: {
+        id: "draft-with-product",
+        projectId: "project-1",
+        contentType: "video",
+        title: "带产品发布",
+        description: "",
+        topics: [],
+        assets: [{ assetId: "video-1", projectId: "project-1", kind: "video", approvedUrl: "project-file://project-1/video.mp4" }],
+        accountIds: ["account-a"],
+        visibility: "public",
+        platformOptions: {},
+        productId: "product-1",
+        updatedAt: "2026-07-26T00:00:00.000Z",
+      },
+    })) as SelfMediaCreateTaskReply | undefined;
+    expect(reply).toMatchObject({ success: true });
+    if (reply && reply.success) {
+      expect(reply.value.map((task) => task.productId)).toEqual(["product-1"]);
+    }
+  });
+
   it("persists and recovers a local scheduled publish without publishing before its due time", async () => {
     vi.useFakeTimers();
     vi.setSystemTime("2026-07-27T00:00:00.000Z");
@@ -418,6 +453,7 @@ describe("registerSelfMediaIpcHandlers", () => {
           visibility: "public",
           platformOptions: { platform: "xhs" },
           scheduledAt: "2026-07-27T00:00:01.000Z",
+          productId: "product-1",
           updatedAt: "2026-07-27T00:00:00.000Z",
         },
       });
@@ -430,6 +466,8 @@ describe("registerSelfMediaIpcHandlers", () => {
       await second.runtimeReady;
       expect(second.tasks.size).toBe(1);
       expect(second.scheduledContexts.size).toBe(1);
+      expect([...second.tasks.values()][0]?.productId).toBe("product-1");
+      expect([...second.scheduledContexts.values()][0]?.productId).toBe("product-1");
       expect([...second.tasks.values()][0]?.status).toBe("scheduled");
       expect(vi.getTimerCount()).toBe(1);
       await vi.runAllTimersAsync();

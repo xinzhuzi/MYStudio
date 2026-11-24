@@ -126,6 +126,9 @@ function sanitizeScheduledDraft(value: unknown, scheduledAtOverride?: string): S
       visibility: draft.visibility,
       platformOptions,
       scheduledAt,
+      // L1(1125 归档后补检): 定时草稿白名单重建时保留产品关联,
+      // 否则 journal 持久化/恢复往返会把 productId 从发布上下文里丢掉。
+      productId: draft.productId,
       updatedAt: draft.updatedAt,
     },
   };
@@ -167,6 +170,10 @@ function createTask(projectId: string, providerId: SelfMediaTask["providerId"], 
     status: draft.scheduledAt ? "scheduled" : "draft",
     progress: 0,
     scheduledAt: draft.scheduledAt,
+    // L1(1125 归档后补检): 透传草稿的产品关联,否则任务/历史无 productId,
+    // 渲染层「按产品筛选」(index.tsx 两处)永远筛空。重试路径(previousTaskId
+    // 分支)同样经由本函数构造任务,一并覆盖。
+    productId: draft.productId,
     createdAt: now,
     updatedAt: now,
   };

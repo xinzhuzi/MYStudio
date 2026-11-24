@@ -30,6 +30,7 @@ import { useProjectStore } from "@/stores/project/project-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useSelfMediaStore } from "@/stores/self-media/self-media-store";
 import { useProductStore } from "@/stores/product/product-store";
+import { useTemplateStore } from "@/stores/template/template-store";
 import { useSelfMediaGlobalStore } from "@/stores/self-media/self-media-global-store";
 import {
   getSelfMediaCapabilities,
@@ -37,6 +38,8 @@ import {
   SELF_MEDIA_CAPABILITY_MANIFEST,
 } from "@/lib/self-media/capabilities";
 import { validateSelfMediaDraft } from "@/lib/self-media/contracts";
+import { buildTemplateFill, mergeTopicStrings } from "@/lib/self-media/template-engine";
+import { incrementDailyPublishCount, markScheduledPublishCounted } from "@/lib/self-media/batch-publish";
 import type { SelfMediaContentType, SelfMediaDraft, SelfMediaPlatform, SelfMediaProviderSummary, SelfMediaTask } from "@/types/self-media";
 import type { Product, ProductLink, ProductCtaType } from "@/types/product";
 import { BatchPublishView } from "./batch-publish-view";
@@ -257,6 +260,7 @@ function ComposeView() {
   const upsertTask = useSelfMediaStore((state) => state.upsertTask);
   const addHistoryRecord = useSelfMediaStore((state) => state.addHistoryRecord);
   const products = useProductStore((state) => state.products);
+  const templates = useTemplateStore((state) => state.templates);
   const [contentType, setContentType] = useState<SelfMediaContentType>("video");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -272,6 +276,7 @@ function ComposeView() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [utmBaseUrl, setUtmBaseUrl] = useState("");
   const [utmCopied, setUtmCopied] = useState(false);
   const utmCopyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -284,6 +289,13 @@ function ComposeView() {
     bridge.list().then((reply) => {
       if (reply.success) useProductStore.getState().setProducts(reply.value);
     }).catch(() => { /* 静默降级,产品下拉为空即可 */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 只在挂载时加载一次
+
+  // B5/L3: 预加载模板列表(与 TemplateView 相同的 fire-and-forget 范式)
+  useEffect(() => {
+    if (templates.length > 0) return;
+    void useTemplateStore.getState().loadTemplates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 只在挂载时加载一次
 
@@ -308,6 +320,32 @@ function ComposeView() {
     () => products.find((p) => p.id === selectedProductId) ?? null,
     [products, selectedProductId],
   );
+
+  // B5/L3: 当前产品可用模板(从模板填充)
+  const productTemplates = useMemo(
+    () => templates.filter((t) => t.productId === selectedProductId),
+    [templates, selectedProductId],
+  );
+
+  // B5/L3: 选中模板即渲染。复审修复:标题/描述仅填充空字段,不覆盖用户已输入
+  // 内容(防「先手写再选模板」丢稿);话题走合并天然保留既有内容。
+  const handleTemplateFill = useCallback((templateId: string) => {
+    if (!templateId) return;
+    const template = templates.find((t) => t.id === templateId);
+    if (!template || !selectedProduct) return;
+    setSelectedTemplateId(templateId);
+    const fill = buildTemplateFill({
+      template,
+      productName: selectedProduct.name,
+      productDescription: selectedProduct.description,
+      productLink: selectedProduct.links[0]?.url,
+      brandProfile: selectedProduct.brandProfile,
+      platform,
+    });
+    setTitle((current) => (current.trim() ? current : fill.title));
+    setDescription((current) => (current.trim() ? current : fill.description));
+    if (fill.topicString) setTopics((current) => mergeTopicStrings(current, fill.topicString));
+  }, [templates, selectedProduct, platform]);
   const utmUrl = useMemo(() => {
     if (!utmBaseUrl.trim() || !selectedProduct) return "";
     return buildUtmUrl(utmBaseUrl.trim(), {
@@ -329,6 +367,7 @@ function ComposeView() {
 
   const handleProductSelect = (productId: string) => {
     setSelectedProductId(productId);
+    setSelectedTemplateId(""); // 产品切换后模板列表变化,复位选中态
     const product = products.find((p) => p.id === productId);
     if (product) {
       setDescription(product.description);
@@ -354,6 +393,9 @@ function ComposeView() {
           ),
         },
         scheduledAt: publishMode === "scheduled" && capability?.supportsScheduling ? scheduledAt || undefined : undefined,
+        // L1(复审): 单发草稿带上产品关联(与批量路径一致)——IPC 透传只对已带 productId
+        // 的草稿生效;store 草稿经 saveDraft/validateSelfMediaDraft 保留该字段,重试链一并闭合
+        productId: selectedProductId || undefined,
         updatedAt: new Date().toISOString(),
       }
     : null;
@@ -445,6 +487,25 @@ function ComposeView() {
               {products.map((product) => (
                 <option key={product.id} value={product.id}>
                   {product.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {/* B5/L3: 从模板填充——渲染 titleTemplate/bodyTemplate,仅填充空字段 */}
+        {selectedProductId && productTemplates.length > 0 && (
+          <label className="block space-y-1.5 text-sm">
+            <span className="font-medium text-foreground">从模板填充</span>
+            <select
+              aria-label="从模板填充"
+              value={selectedTemplateId}
+              onChange={(event) => handleTemplateFill(event.target.value)}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-all duration-200 hover:border-primary/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="">选择该产品的模板（仅填充空标题/描述）</option>
+              {productTemplates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
                 </option>
               ))}
             </select>
@@ -1479,6 +1540,22 @@ export function SelfMediaPanel() {
       disposed = true;
     };
   }, [activeProjectId, replaceProjectTasks, selfMediaProjectId]);
+
+  // L2(复审修复): 定时任务(排队次日/手动定时)由主进程 task-runtime 到点实发,渲染层
+  // 发布循环不在场,每日计数无人回写。此订阅在面板打开期间常驻(挂载时已拉全量任务),
+  // 定时任务成功即按其账号回写当日计数;立即发布任务无 scheduledAt,仍由发布循环在
+  // 创建时计数,两者互不双计(按 taskId 去重防进度事件重复)。
+  // 已知局限:事件早于任务列表加载到达、或面板整个未打开时漏计;完整闭合需主进程计数。
+  useEffect(() => {
+    const bridge = getSelfMediaBridge();
+    if (!bridge) return;
+    return bridge.onProgress((event) => {
+      if (event.status !== "success") return;
+      const task = useSelfMediaStore.getState().tasks.find((t) => t.id === event.taskId);
+      if (!task?.scheduledAt || !task.accountId) return;
+      if (markScheduledPublishCounted(task.id)) incrementDailyPublishCount(task.accountId);
+    });
+  }, []);
 
   const sectionContent = {
     accounts: <AccountsView />,

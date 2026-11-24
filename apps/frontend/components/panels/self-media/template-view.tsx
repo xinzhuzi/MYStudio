@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,11 +31,32 @@ export function TemplateView() {
   const { templates, loading, loadTemplates, saveTemplate, deleteTemplate } = useTemplateStore();
   const [editingTemplate, setEditingTemplate] = useState<PromotionTemplate | null>(null);
   const [selectedProductFilter, setSelectedProductFilter] = useState<string>("all");
+  // L4: 两步删除确认——第一次点击进入待确认态,3 秒内二次点击才执行;超时自动复位
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const pendingDeleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadTemplates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 只在挂载时加载一次
+
+  useEffect(() => () => {
+    if (pendingDeleteTimerRef.current) clearTimeout(pendingDeleteTimerRef.current);
+  }, []);
+
+  const handleDeleteClick = (id: string) => {
+    if (pendingDeleteId === id) {
+      // 第二次点击:确认删除
+      if (pendingDeleteTimerRef.current) clearTimeout(pendingDeleteTimerRef.current);
+      setPendingDeleteId(null);
+      void deleteTemplate(id);
+      return;
+    }
+    // 第一次点击:进入待确认态,3 秒无操作自动复位
+    if (pendingDeleteTimerRef.current) clearTimeout(pendingDeleteTimerRef.current);
+    setPendingDeleteId(id);
+    pendingDeleteTimerRef.current = setTimeout(() => setPendingDeleteId(null), 3000);
+  };
 
   const filteredTemplates = selectedProductFilter === "all"
     ? templates
@@ -58,14 +79,7 @@ export function TemplateView() {
 
   const handleEdit = (template: PromotionTemplate) => {
     setEditingTemplate({ ...template });
-  };
-
-  const handleDelete = async (id: string) => {
-    // TODO: 替换为应用内确认对话框
-    const confirmed = window.confirm("确定要删除这个模板吗？");
-    if (confirmed) {
-      await deleteTemplate(id);
-    }
+    setPendingDeleteId(null);
   };
 
   const handleSave = async (template: PromotionTemplate) => {
@@ -162,8 +176,9 @@ export function TemplateView() {
                     key={template.id}
                     template={template}
                     productName={product?.name || "未知产品"}
+                    deleteArmed={pendingDeleteId === template.id}
                     onEdit={() => handleEdit(template)}
-                    onDelete={() => handleDelete(template.id)}
+                    onDelete={() => handleDeleteClick(template.id)}
                   />
                 );
               })}
@@ -178,11 +193,14 @@ export function TemplateView() {
 function TemplateCard({
   template,
   productName,
+  deleteArmed,
   onEdit,
   onDelete,
 }: {
   template: PromotionTemplate;
   productName: string;
+  /** 两步确认:第一次点击后为 true,按钮变为「确认删除」态 */
+  deleteArmed: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -210,13 +228,19 @@ function TemplateCard({
             >
               <Pencil className="h-4 w-4" />
             </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={onDelete}
-              className="gap-1 transition-all duration-200 hover:scale-105 hover:bg-destructive/10 hover:text-destructive"
+              aria-label={deleteArmed ? "确认删除" : "删除"}
+              title={deleteArmed ? "再次点击确认删除" : "删除"}
+              className={`gap-1 whitespace-nowrap transition-all duration-200 hover:scale-105 ${
+                deleteArmed
+                  ? "bg-destructive/15 text-destructive"
+                  : "hover:bg-destructive/10 hover:text-destructive"
+              }`}
             >
-              <Trash2 className="h-4 w-4" />
+              {deleteArmed ? <span className="text-xs font-medium">确认删除</span> : <Trash2 className="h-4 w-4" />}
             </Button>
           </div>
         </div>
@@ -261,6 +285,8 @@ function TemplateEditor({
   const { products } = useProductStore();
   const [form, setForm] = useState<PromotionTemplate>(template);
   const [showPreview, setShowPreview] = useState(false);
+  // L4: 校验失败用行内红字提示,替代 window.alert
+  const [nameError, setNameError] = useState<string | null>(null);
   const [previewPlatforms, setPreviewPlatforms] = useState<SelfMediaPlatform[]>([
     "xhs",
     "douyin",
@@ -276,10 +302,10 @@ function TemplateEditor({
 
   const handleSubmit = () => {
     if (!form.name.trim()) {
-      // TODO: 替换为 toast 通知或表单验证
-      window.alert("请输入模板名称");
+      setNameError("请输入模板名称");
       return;
     }
+    setNameError(null);
     onSave(form);
   };
 
@@ -339,10 +365,15 @@ function TemplateEditor({
               <Label className="text-sm font-medium text-foreground">模板名称</Label>
               <Input
                 value={form.name}
-                onChange={(e) => handleFieldChange("name", e.target.value)}
+                onChange={(e) => {
+                  handleFieldChange("name", e.target.value);
+                  if (nameError && e.target.value.trim()) setNameError(null);
+                }}
                 placeholder="例如：小红书种草模板"
-                className="transition-all duration-200 hover:border-primary/50"
+                aria-invalid={nameError ? true : undefined}
+                className={`transition-all duration-200 hover:border-primary/50 ${nameError ? "border-destructive focus:border-destructive focus:ring-destructive/20" : ""}`}
               />
+              {nameError && <p className="text-xs text-destructive">{nameError}</p>}
             </div>
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-foreground">关联产品</Label>

@@ -79,6 +79,43 @@ export const DEFAULT_DAILY_LIMIT_PER_ACCOUNT = 3;
 /** First-publish verification platform (design.md: "默认 X/Twitter"). */
 export const FIRST_PUBLISH_PLATFORM: SelfMediaPlatform = "twitter";
 
+/**
+ * 单批次任务数上限(implement.md 风控项 2:每批次 ≤ 10 个任务)。
+ */
+export const MAX_BATCH_TASKS = 10;
+
+/**
+ * 校验单批次任务数是否超限(纯函数)。
+ * `exceeded` 为 true 时调用方应在创建任何 task 前终止发布。
+ */
+export function checkBatchTaskLimit(
+  count: number,
+  limit: number = MAX_BATCH_TASKS,
+): { exceeded: boolean; count: number; limit: number } {
+  return { exceeded: count > limit, count, limit };
+}
+
+// ─── Queued-next-day scheduling ──────────────────────────────────────────────
+
+/**
+ * 排队次日的定时发布时刻:次日 08:05(本地时区)。
+ * 分钟取 05 有意错开 08:00 整点,降低整点集中提交的风控特征。
+ */
+export const QUEUED_NEXT_DAY_HOUR = 8;
+export const QUEUED_NEXT_DAY_MINUTE = 5;
+
+/**
+ * 计算排队次日任务的实际执行时间(次日 08:05,本地时区)。
+ * 批量发布把超限账号的草稿填入 scheduledAt,走既有 createTask 定时任务链
+ * (task-runtime 按 scheduledAt 调度,无需渲染进程驻留定时器)。
+ */
+export function getNextDayQueuedAt(from: Date = new Date()): Date {
+  const next = new Date(from);
+  next.setDate(next.getDate() + 1);
+  next.setHours(QUEUED_NEXT_DAY_HOUR, QUEUED_NEXT_DAY_MINUTE, 0, 0);
+  return next;
+}
+
 // ─── Risk control: daily limit tracking ──────────────────────────────────────
 
 const DAILY_LIMIT_STORAGE_KEY = "mystudio-self-media-daily-publish-count";
@@ -127,6 +164,21 @@ export function incrementDailyPublishCount(accountId: string): void {
   const record = loadDailyCounts();
   record.counts[accountId] = (record.counts[accountId] ?? 0) + 1;
   saveDailyCounts(record);
+}
+
+// ─── Scheduled-publish daily count (L2 复审修复) ────────────────────────────
+
+/** 本页面会话内已回写每日计数的定时任务 ID(防进度事件重复计数)。 */
+const countedScheduledTaskIds = new Set<string>();
+
+/**
+ * 定时任务成功实发后回写每日计数前调用:首次见到该 taskId 返回 true,之后返回 false。
+ * 立即发布任务不经过此路径(发布循环在创建时已计数),不会双计。
+ */
+export function markScheduledPublishCounted(taskId: string): boolean {
+  if (countedScheduledTaskIds.has(taskId)) return false;
+  countedScheduledTaskIds.add(taskId);
+  return true;
 }
 
 /**
@@ -293,6 +345,8 @@ export interface BatchProgress {
   succeeded: number;
   failed: number;
   skipped: number;
+  /** 排队次日项数(L2 起=已转定时任务的真实发布,不再混入 skipped) */
+  queued: number;
   items: BatchProgressItem[];
   estimatedRemainingMinutes: number;
 }
@@ -305,7 +359,8 @@ export function createInitialProgress(items: BatchDraftItem[]): BatchProgress {
     completed: 0,
     succeeded: 0,
     failed: 0,
-    skipped: queuedCount, // 排队次日的视为跳过(不在本轮发布)
+    skipped: 0,
+    queued: queuedCount, // 排队次日项:本轮将转为定时任务(次日 08:05 实发),不是「跳过」
     items: items.map((item) => ({
       platform: item.platform,
       accountId: item.accountId,
@@ -325,8 +380,11 @@ export function updateProgressItem(
   items[index] = { ...items[index], ...update };
   const succeeded = items.filter((i) => i.status === "success").length;
   const failed = items.filter((i) => i.status === "failure").length;
-  const skipped = items.filter((i) => i.status === "skipped" || i.status === "queued-next-day").length;
-  const completed = succeeded + failed + skipped;
+  const skipped = items.filter((i) => i.status === "skipped").length;
+  const queued = items.filter((i) => i.status === "queued-next-day").length;
+  // 排队项的定时任务创建成功(taskId 已回填)才计入完成;创建前不算
+  const queuedScheduled = items.filter((i) => i.status === "queued-next-day" && i.taskId).length;
+  const completed = succeeded + failed + skipped + queuedScheduled;
   const remaining = progress.total - completed;
   return {
     ...progress,
@@ -335,6 +393,7 @@ export function updateProgressItem(
     succeeded,
     failed,
     skipped,
+    queued,
     estimatedRemainingMinutes: Math.ceil((remaining * BATCH_PUBLISH_INTERVAL_MS) / 60000),
   };
 }
@@ -346,6 +405,8 @@ export interface BatchSummaryReport {
   succeeded: number;
   failed: number;
   skipped: number;
+  /** 排队次日(已转定时任务,次日 08:05 实发)项数 */
+  queued: number;
   failures: Array<{ platform: SelfMediaPlatform; displayName: string; error: string }>;
   duration: string;
 }
@@ -365,7 +426,8 @@ export function buildSummaryReport(progress: BatchProgress, startedAt: Date): Ba
     total: progress.total,
     succeeded: progress.succeeded,
     failed: progress.failed,
-    skipped: progress.skipped,
+    skipped: progress.items.filter((item) => item.status === "skipped").length,
+    queued: progress.items.filter((item) => item.status === "queued-next-day").length,
     failures,
     duration: minutes > 0 ? `${minutes}分${seconds}秒` : `${seconds}秒`,
   };
@@ -390,6 +452,22 @@ export function findFirstPublishAccount(selectedAccounts: SelfMediaAccount[]): S
   if (twitterAccount) return twitterAccount;
   // 退回到第一个在线账号
   return selectedAccounts.find((account) => account.status === "online") ?? null;
+}
+
+/**
+ * L2(复审修复): 首发验证账号从「今日未超限」的账号中选。
+ * findFirstPublishAccount 的 Twitter 优先/首个在线规则不变,但排除排队次日账号:
+ * 它们今日已超限不应实发——若作为验证对象,要么违规实发、要么静默跳过验证
+ * (与「批量前强制在低风险平台单发 1 条」规范冲突)。
+ * 全部排队时返回 null:本轮无立即发布项,无需首发验证(全部转定时)。
+ */
+export function findEligibleFirstPublishAccount(
+  selectedAccounts: SelfMediaAccount[],
+  queuedAccountIds: Set<string>,
+): SelfMediaAccount | null {
+  return findFirstPublishAccount(
+    selectedAccounts.filter((account) => !queuedAccountIds.has(account.id)),
+  );
 }
 
 /**

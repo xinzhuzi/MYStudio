@@ -190,3 +190,56 @@ export function renderMultiPlatformPreview(params: {
     };
   });
 }
+
+// ─── Publish form fill (B5: 模板接入发布流程) ────────────────────────────────
+
+export interface TemplateFormFill {
+  title: string;
+  description: string;
+  /** 模板 defaultTags 渲染成的 "#标签" 空格分隔串 */
+  topicString: string;
+}
+
+/**
+ * 把模板渲染成发布表单可直接填充的标题/描述/话题(design.md §B5「选模板→填充草稿→发布」)。
+ * `{{platform}}` 按传入 platform 渲染:发布视图传当前平台;批量发布无单一平台,
+ * 传首个选中账号平台做通用预填(发布时各账号仍走差异化/字数裁剪)。
+ */
+export function buildTemplateFill(params: {
+  template: PromotionTemplate;
+  productName: string;
+  productDescription: string;
+  productLink?: string;
+  brandProfile?: ProductBrandProfile;
+  platform: SelfMediaPlatform;
+}): TemplateFormFill {
+  const result = renderTemplate({
+    template: { ...params.template, platform: params.platform },
+    productName: params.productName,
+    productDescription: params.productDescription,
+    productLink: params.productLink,
+    brandProfile: params.brandProfile,
+  });
+  return {
+    title: result.title,
+    description: result.body,
+    topicString: result.tags.map((tag) => `#${tag}`).join(" "),
+  };
+}
+
+/**
+ * 把模板话题合并进既有话题串(去重,保持先来后到顺序)。
+ * 两个输入都是空格/逗号分隔的话题串(如 "#漫剧 #剧情解说")。
+ */
+export function mergeTopicStrings(current: string, addition: string): string {
+  const seen = new Set<string>();
+  const parts: string[] = [];
+  for (const raw of `${current} ${addition}`.split(/[\s,，]+/)) {
+    const tag = raw.trim();
+    if (tag && !seen.has(tag)) {
+      seen.add(tag);
+      parts.push(tag);
+    }
+  }
+  return parts.join(" ");
+}
