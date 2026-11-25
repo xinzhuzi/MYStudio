@@ -405,12 +405,12 @@ class ManifestWinVersionTests(unittest.TestCase):
             # 引擎:describe 可用(tag==HEAD 所在)→ 仍走 describe;
             # pluginA:describe 空 → for-each-ref 兜底亮出本地 tag
             win_tags={WIN_ENGINE: "v0.46.3"},
-            win_fallback_tags={f"{WIN_NODES}\\pluginA": "v1.2.3"},
+            win_fallback_tags={f"{WIN_NODES}\\pluginA": "v.1.0.0"},
         )
         manifest = _service_with_stub(stub).get_engine_sync_manifest()
         by_name = {item["name"]: item for item in manifest["items"]}
         self.assertEqual(by_name["ComfyUI"]["winVersion"], "0.46.3")  # describe 优先不变
-        self.assertEqual(by_name["pluginA"]["winVersion"], "1.2.3")  # 兜底 tag,剥前导 v
+        self.assertEqual(by_name["pluginA"]["winVersion"], "1.0.0")  # 兜底 tag,剥前导 v 及可选点
         # 两者皆空才回退短 sha(既有测试覆盖)
 
 

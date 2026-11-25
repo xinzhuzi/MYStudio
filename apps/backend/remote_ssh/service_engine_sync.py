@@ -227,7 +227,9 @@ class EngineSyncMixin:
         head = head_lines[-1] if head_lines else ""
         tag_lines = [l.strip() for l in segments[1].splitlines() if l.strip()] if len(segments) > 1 else []
         tag = tag_lines[0] if tag_lines else ""
-        version = re.sub(r"^v+", "", tag) if tag else (head[:7] if head else "")
+        # 剥前导 v 与其后的可选点(实弹 rgthree-comfy tag=v.1.0.0 → 1.0.0;
+        # 常规 v0.45.2 → 0.45.2 不受影响)
+        version = re.sub(r"^v+\.?", "", tag) if tag else (head[:7] if head else "")
         return (head or None, version or None)
 
     @staticmethod
