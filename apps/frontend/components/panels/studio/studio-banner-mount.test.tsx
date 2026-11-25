@@ -2,18 +2,21 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 /**
- * 章验收横幅·画布新宿主挂点契约(1120 分镜面板退役迁引擎,S6)。
+ * 章验收横幅·画布页宿主摘除契约(1126 用户裁定:画布页顶横幅整体摘除)。
  *
- * 挂点=StudioView storyboard 画布 TabsContent(面板退役后横幅唯一宿主):
- * - 组件行为断言:actionable 卡横幅在场+三回路(重跑流水线/去资产页/分镜表
- *   再生成)可点——组件复用不重写,行为面在组件层既有;此处钉「新宿主接线」;
- * - 源码串断言(workflow-tabs.test.ts 同款范式):横幅挂 storyboard 页内、
- *   goToAssets 回路=handleStageChange("assets")、regenerate 回路=
- *   handleProductionNodeAction(generate-storyboard-table)、断点续跑
- *   hook(useChapterPipelineOrchestrator)仍在 StudioView 防误删。
+ * 沿革:11-20 从旧面板迁到 storyboard 画布 TabsContent;11-25 摆位修
+ * (mt-8 mx-3 让位交通灯+引擎不可达不渲染);11-26 用户实弹驳回——「这不是
+ * 还有横幅吗?」,要的是它不在那儿,不是挪位置 → 挂载整体摘除,状态与待办
+ * 入口归任务中心悬浮球(OrbTasksSection)。组件本体保留未删。
+ *
+ * 本文件钉「摘除」契约(源码串断言,workflow-tabs.test.ts 同款范式):
+ * - index.tsx 不再 import/挂载 ChapterAcceptanceBanner,不再有 canvasRunning 态;
+ * - 画布(ComfyCanvasSwap)与断点续跑 hook(useChapterPipelineOrchestrator)
+ *   仍在 StudioView,防摘横幅时误删生产链;
+ * - 组件文件仍在(仅摘挂载,不是删组件)。
  */
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 const INDEX_SOURCE = readFileSync(
@@ -21,50 +24,34 @@ const INDEX_SOURCE = readFileSync(
   "utf8",
 );
 
-describe("章验收横幅·画布新宿主(S6,1120 面板退役)", () => {
-  it("横幅挂 storyboard 画布 TabsContent 内(画布页在场渲染,非面板页)", () => {
-    // 挂点锚:storyboard TabsContent 与横幅组件同时在场
+describe("章验收横幅·画布页宿主摘除(1126 用户裁定)", () => {
+  it("index.tsx 不再 import 也不再挂载 ChapterAcceptanceBanner", () => {
+    // 注释里允许提到组件名(说明摘除来龙去脉),钉的是「无 import、无 JSX 挂载」
+    expect(INDEX_SOURCE).not.toContain('import { ChapterAcceptanceBanner }');
+    expect(INDEX_SOURCE).not.toMatch(/<ChapterAcceptanceBanner[\s>]/);
+  });
+
+  it("不再有 canvasRunning 态与 onCanvasRunningChange 接线(随横幅一并退役)", () => {
+    expect(INDEX_SOURCE).not.toContain("canvasRunning");
+    expect(INDEX_SOURCE).not.toContain("onCanvasRunningChange");
+  });
+
+  it("画布仍在 storyboard 页(摘横幅不动画布)", () => {
     expect(INDEX_SOURCE).toContain('<TabsContent\n              value="storyboard"');
-    expect(INDEX_SOURCE).toContain("<ChapterAcceptanceBanner");
-    // 横幅位于画布 TabsContent 块内(value="storyboard" 先于组件出现)
-    const tabsAt = INDEX_SOURCE.indexOf('value="storyboard"');
-    const bannerAt = INDEX_SOURCE.indexOf("<ChapterAcceptanceBanner");
-    expect(tabsAt).toBeGreaterThan(-1);
-    expect(bannerAt).toBeGreaterThan(tabsAt);
-    // ComfyCanvasSwap 仍在画布页(横幅是画布附加行,不取代画布)
     expect(INDEX_SOURCE).toContain('<ComfyCanvasSwap autoOpenOverview myScope="workflow"');
-  });
-
-  it("props 接线照搬面板原链:pipeline.start/stale 计数/goToAssets/regenerate", () => {
-    expect(INDEX_SOURCE).toContain("run={chapterPipeline.run}");
-    expect(INDEX_SOURCE).toContain("staleCount={chapterPipeline.staleTasks.length}");
-    expect(INDEX_SOURCE).toContain("staleSourceScriptCount={chapterPipeline.staleSourceScriptCount}");
-    expect(INDEX_SOURCE).toContain("onRunPipeline={chapterPipeline.start}");
-  });
-
-  it("goToAssets 回路=handleStageChange(\"assets\")(剧本资产管理页)", () => {
-    expect(INDEX_SOURCE).toContain('onGoToAssets={() => viewModel.handleStageChange("assets")}');
-  });
-
-  it("regenerate 回路走 handleProductionNodeAction(generate-storyboard-table,D-5 修复回路)", () => {
-    expect(INDEX_SOURCE).toContain("onRegenerateStoryboardTable={() => {");
-    // 分镜表再生成=handleProductionNodeAction(id 同桥 generate-storyboard-table 同链)
-    expect(INDEX_SOURCE).toContain('id: "generate-storyboard-table"');
-    expect(INDEX_SOURCE).toMatch(/onRegenerateStoryboardTable[\s\S]{0,200}id: "generate-storyboard-table"/);
-    // 桥侧同名动作入口仍在(引擎节点按钮→sidebarActions 同链)
-    expect(INDEX_SOURCE).toContain("onGenerateStoryboardTable:");
   });
 
   it("断点续跑 hook 挂载不动:useChapterPipelineOrchestrator 仍在 StudioView", () => {
     expect(INDEX_SOURCE).toContain("useChapterPipelineOrchestrator({");
+    // 侧栏「重跑章流水线」动作入口仍在(pipeline.start 消费点)
+    expect(INDEX_SOURCE).toContain("chapterPipeline.start()");
   });
 
-  it("1125 孤儿浮条根修:引擎不可达(画布 running=false)时横幅不渲染", () => {
-    // 挂载点条件渲染:canvasRunning=false=画布「远端引擎未就绪」空态在屏——
-    // 横幅此时无上下文,隐藏;null(未探明)/true 照常渲染
-    expect(INDEX_SOURCE).toContain("{canvasRunning !== false ? (");
-    // 就绪态信号链:Swap 上抛 running → StudioView setState → 同源判据
-    expect(INDEX_SOURCE).toContain("const [canvasRunning, setCanvasRunning] = useState<boolean | null>(null);");
-    expect(INDEX_SOURCE).toContain('onCanvasRunningChange={setCanvasRunning}');
+  it("组件本体保留(仅摘挂载,不是删组件)", () => {
+    expect(
+      existsSync(
+        resolve(process.cwd(), "frontend/components/panels/studio/ChapterAcceptanceBanner.tsx"),
+      ),
+    ).toBe(true);
   });
 });
