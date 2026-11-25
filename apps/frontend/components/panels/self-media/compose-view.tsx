@@ -547,6 +547,7 @@ export function ComposeView() {
               className="gap-2 transition-all duration-200 hover:scale-105"
               onClick={publish}
               disabled={publishing || !supportsCurrentContentType || !getSelfMediaBridge() || forbiddenHits.length > 0}
+              aria-busy={publishing}
             >
               {publishing && <Loader2 className="h-4 w-4 animate-spin" />}
               {publishMode === "scheduled" ? "创建定时任务" : "立即发布"}
@@ -578,7 +579,7 @@ export function ComposeView() {
           )}
         </div>
         {feedback && (
-          <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
+          <div role="status" className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
             <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
             <span className="text-foreground">{feedback}</span>
           </div>

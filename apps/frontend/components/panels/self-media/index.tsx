@@ -141,6 +141,7 @@ function AccountsView() {
             variant="outline" 
             onClick={refreshAccounts} 
             disabled={loading || !activeProjectId || !getSelfMediaBridge()}
+            aria-busy={loading}
             className="gap-1.5 transition-all duration-200 hover:scale-105"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
@@ -180,6 +181,7 @@ function AccountsView() {
                     variant="outline" 
                     onClick={() => login(capability.platform)} 
                     disabled={loading || loginPlatform !== null || unavailable || !getSelfMediaBridge()}
+                    aria-busy={loginPlatform === capability.platform}
                     className="transition-all duration-200 hover:scale-105"
                   >
                     {loginPlatform === capability.platform ? <Loader2 className="h-4 w-4 animate-spin" /> : "登录"}
@@ -222,7 +224,7 @@ function AccountsView() {
   );
 }
 
-function TasksView() {
+function TasksView({ onCompose }: { onCompose?: () => void }) {
   const activeProjectId = useSelfMediaStore((state) => state.activeProjectId);
   const allTasks = useSelfMediaStore((state) => state.tasks);
   const drafts = useSelfMediaStore((state) => state.drafts ?? []);
@@ -296,6 +298,7 @@ function TasksView() {
         title="运行中的任务"
         icon={Radio}
         empty="当前项目还没有运行任务。"
+        emptyAction={onCompose ? { label: "去发布", onClick: onCompose } : undefined}
         feedback={feedback}
         items={tasks.map((task) => ({
           id: task.id,
@@ -312,6 +315,7 @@ function TasksView() {
                 variant="destructive" 
                 onClick={() => cancelTask(item.task)} 
                 disabled={actioningTaskId === item.id || !getSelfMediaBridge()}
+                aria-busy={actioningTaskId === item.id}
                 className="gap-1.5 transition-all duration-200 hover:scale-105"
               >
                 {actioningTaskId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
@@ -323,6 +327,7 @@ function TasksView() {
                 size="sm" 
                 variant="outline" 
                 onClick={() => retryTask(item.task)}
+                aria-busy={actioningTaskId === item.id}
                 className="gap-1.5 transition-all duration-200 hover:scale-105"
               >
                 <RotateCcw className="h-4 w-4" />
@@ -336,7 +341,7 @@ function TasksView() {
   );
 }
 
-function HistoryView() {
+function HistoryView({ onCompose }: { onCompose?: () => void }) {
   const activeProjectId = useSelfMediaStore((state) => state.activeProjectId);
   const allHistory = useSelfMediaStore((state) => state.history);
   const products = useProductStore((state) => state.products);
@@ -384,6 +389,7 @@ function HistoryView() {
         title="发布历史"
         icon={History}
         empty="发布完成后，结果与错误证据会保存在当前项目。"
+        emptyAction={onCompose ? { label: "去发布", onClick: onCompose } : undefined}
         items={history.map((record) => ({
           id: record.id,
           title: record.resultUrl ?? record.id,
@@ -541,13 +547,18 @@ function GlobalHistoryView() {
   );
 }
 
-function RecordList({ title, empty, icon: Icon, items, feedback, renderActions }: { title: string; empty: string; icon: typeof Radio; items: Array<{ id: string; title: string; description: string; status: string; task?: SelfMediaTask }>; feedback?: string | null; renderActions?: (item: { id: string; title: string; description: string; status: string; task: SelfMediaTask }) => ReactNode }) {
+function RecordList({ title, empty, emptyAction, icon: Icon, items, feedback, renderActions }: { title: string; empty: string; emptyAction?: { label: string; onClick: () => void }; icon: typeof Radio; items: Array<{ id: string; title: string; description: string; status: string; task?: SelfMediaTask }>; feedback?: string | null; renderActions?: (item: { id: string; title: string; description: string; status: string; task: SelfMediaTask }) => ReactNode }) {
   return (
     <Card className="border-border/50 bg-card/80">
       <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><Icon className="h-4 w-4 text-primary" />{title}</CardTitle></CardHeader>
       <CardContent>
-        {items.length === 0 ? <div className="rounded-lg border border-dashed border-border/60 px-5 py-10 text-center text-sm text-muted-foreground">{empty}</div> : <div className="space-y-2">{items.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/80 px-3 py-3 transition-colors hover:bg-background/90"><div className="min-w-0"><p className="truncate text-sm font-medium">{item.title}</p><p className="mt-1 truncate text-xs text-muted-foreground">{item.description}</p></div><div className="flex items-center gap-2"><Badge variant={statusVariant(item.status)}>{statusLabel(item.status)}</Badge>{item.task && renderActions?.(item as typeof item & { task: SelfMediaTask })}</div></div>)}</div>}
-        {feedback && <p className="mt-3 text-xs text-muted-foreground">{feedback}</p>}
+        {items.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/60 px-5 py-10 text-center text-sm text-muted-foreground">
+            <span>{empty}</span>
+            {emptyAction && <Button size="sm" variant="outline" onClick={emptyAction.onClick}>{emptyAction.label}</Button>}
+          </div>
+        ) : <div className="space-y-2">{items.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/80 px-3 py-3 transition-colors hover:bg-background/90"><div className="min-w-0"><p className="truncate text-sm font-medium">{item.title}</p><p className="mt-1 truncate text-xs text-muted-foreground">{item.description}</p></div><div className="flex items-center gap-2"><Badge variant={statusVariant(item.status)}>{statusLabel(item.status)}</Badge>{item.task && renderActions?.(item as typeof item & { task: SelfMediaTask })}</div></div>)}</div>}
+        {feedback && <p role="status" className="mt-3 text-xs text-muted-foreground">{feedback}</p>}
       </CardContent>
     </Card>
   );
@@ -567,8 +578,8 @@ export function SelfMediaPanel() {
     accounts: <AccountsView />,
     compose: <ComposeView />,
     batch: <BatchPublishView />,
-    tasks: <TasksView />,
-    history: <HistoryView />,
+    tasks: <TasksView onCompose={() => setSection("compose")} />,
+    history: <HistoryView onCompose={() => setSection("compose")} />,
     products: <ProductsView />,
     templates: <TemplateView />,
     showcase: <ShowcaseView />,
@@ -578,20 +589,15 @@ export function SelfMediaPanel() {
   return (
     <div className="h-full min-h-0 overflow-hidden bg-[radial-gradient(ellipse_at_top_right,hsl(var(--primary)/0.08),transparent_50%),radial-gradient(ellipse_at_bottom_left,hsl(var(--accent)/0.05),transparent_50%),hsl(var(--background))]">
       <div className="flex h-full min-h-0 flex-col">
-        <header className="relative border-b border-border/40 bg-background/80 px-6 py-5 backdrop-blur-md">
-          <div className="mx-auto w-full max-w-7xl">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">自媒体发布台</h1>
-            {journalWarning && <p role="alert" className="mt-1.5 text-xs text-destructive">{journalWarning}</p>}
-          </div>
-        </header>
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          <nav className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-border/40 bg-background/80 p-3 md:w-56 md:flex-col md:border-b-0 md:border-r md:p-4">
+          <nav aria-label="自媒体分区" className="flex shrink-0 gap-2 overflow-x-auto border-b border-border/40 bg-background/80 p-3 md:w-56 md:flex-col md:border-b-0 md:border-r md:p-4">
             {sections.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setSection(id)}
-                className={`flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-sm font-medium transition-all duration-200 ${
+                aria-current={section === id ? "page" : undefined}
+                className={`flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-left text-sm font-medium transition-all duration-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40 ${
                   section === id
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted/90 hover:text-foreground"
@@ -603,7 +609,10 @@ export function SelfMediaPanel() {
             ))}
           </nav>
           <ScrollArea className="min-h-0 flex-1">
-            <main className="mx-auto w-full max-w-7xl p-5 md:p-8">{sectionContent}</main>
+            <main className="mx-auto w-full max-w-7xl p-5 md:p-8">
+              {journalWarning && <p role="alert" className="mb-3 text-xs text-destructive">{journalWarning}</p>}
+              {sectionContent}
+            </main>
           </ScrollArea>
         </div>
       </div>

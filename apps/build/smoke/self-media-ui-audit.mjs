@@ -87,9 +87,12 @@ export async function pageAudit(action, payload = {}) {
     }
   };
   const findPanel = () => {
-    const heading = [...document.querySelectorAll("h1")].find((node) => squash(node.textContent) === "自媒体发布台");
-    const shell = heading?.closest("header")?.parentElement ?? null;
-    const nav = shell?.querySelector("nav") ?? null;
+    // 1125 用户令:「自媒体发布台」头部控件整体删除。面板壳改以页签导航定位:
+    // 侧栏里第一个按钮的文字是「账号」的那个 nav,就是自媒体面板的页签栏。
+    const nav = [...document.querySelectorAll("nav")].find(
+      (node) => [...node.querySelectorAll("button")].some((button) => squash(button.textContent) === "账号"),
+    ) ?? null;
+    const shell = nav?.parentElement ?? null;
     const main = shell?.querySelector("main") ?? null;
     return shell && nav && main ? { root: shell.parentElement ?? shell, nav, main } : null;
   };

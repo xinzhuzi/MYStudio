@@ -161,7 +161,8 @@ const CORE_ROUTE_CHECKS = [
   },
   {
     label: "自媒体",
-    requiredText: ["自媒体发布台", "账号", "发布", "任务", "历史"],
+    // 1125 用户令:「自媒体发布台」头部控件整体删除,路由检查改以页签文字为准
+    requiredText: ["账号", "发布", "任务", "历史"],
     forbiddenText: ["AiToEarn Web", "OpenClaw"],
   },
 ];

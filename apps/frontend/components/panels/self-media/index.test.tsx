@@ -146,13 +146,41 @@ afterEach(() => {
 });
 
 describe("SelfMediaPanel task controls", () => {
-  it("keeps the self-media header focused on its title", () => {
+  it("does not render a redundant panel header bar (1125 用户令:整体删除)", () => {
     render(<SelfMediaPanel />);
 
-    expect(screen.getByRole("heading", { name: "自媒体发布台" })).toBeTruthy();
+    // 头部「自媒体发布台」工具栏已按用户指令整体删除,面板直接从页签开始
+    expect(screen.queryByRole("heading", { name: "自媒体发布台" })).toBeNull();
     expect(screen.queryByText("Self-media workspace")).toBeNull();
     expect(screen.queryByText("把 MYStudio 产物交给明确的发布 provider，账号、任务、历史与项目一起可追溯。")).toBeNull();
     expect(screen.queryByText("本地优先 · 不嵌入 Web")).toBeNull();
+  });
+
+  it("marks the active section tab with aria-current and names the section navigation", async () => {
+    render(<SelfMediaPanel />);
+
+    const nav = screen.getByRole("navigation", { name: "自媒体分区" });
+    expect(within(nav).getByRole("button", { name: "账号" }).getAttribute("aria-current")).toBe("page");
+    fireEvent.click(within(nav).getByRole("button", { name: "任务" }));
+
+    await waitFor(() => {
+      expect(within(nav).getByRole("button", { name: "任务" }).getAttribute("aria-current")).toBe("page");
+    });
+    expect(within(nav).getByRole("button", { name: "账号" }).getAttribute("aria-current")).toBeNull();
+  });
+
+  it("offers a 去发布 action in the empty task list and switches to the compose section", async () => {
+    installBridge();
+
+    render(<SelfMediaPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "任务" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "去发布" }));
+
+    await waitFor(() => {
+      const nav = screen.getByRole("navigation", { name: "自媒体分区" });
+      expect(within(nav).getByRole("button", { name: "发布" }).getAttribute("aria-current")).toBe("page");
+    });
   });
 
   it("does not expose provider implementation status in the accounts view", () => {
