@@ -46,15 +46,3 @@ export interface Product {
   createdAt: number;
   updatedAt: number;
 }
-
-/** products.json 导出格式(design.md §Phase A 数据源)——与落地页共享数据契约。 */
-export interface ProductExportRecord {
-  slug: string;
-  name: string;
-  description: string;
-  detail: string;
-  coverImage: string;
-  links: ProductLink[];
-  tags: string[];
-  promotion: ProductPromotion;
-}

@@ -72,6 +72,7 @@ import type {
   SelfMediaConfigureProviderRequest,
   SelfMediaCreateTaskRequest,
   SelfMediaCreateTaskReply,
+  SelfMediaDailyPublishStatsReply,
   SelfMediaListAccountsRequest,
   SelfMediaListTasksRequest,
   SelfMediaLoginReply,
@@ -90,8 +91,6 @@ import type {
   ProductUpsertRequest,
   ProductDeleteReply,
   ProductDeleteRequest,
-  ProductExportReply,
-  ProductExportWithDialogReply,
 } from "../lib/product/product-ipc-contract";
 import type {
   TemplateListReply,
@@ -230,6 +229,7 @@ declare global {
       listProviders: () => Promise<SelfMediaProviderListReply>;
       listAccounts: (request: SelfMediaListAccountsRequest) => Promise<SelfMediaAccountListReply>;
       listTasks: (request: SelfMediaListTasksRequest) => Promise<SelfMediaTaskListReply>;
+      dailyPublishStats: () => Promise<SelfMediaDailyPublishStatsReply>;
       configureProvider: (request: SelfMediaConfigureProviderRequest) => Promise<SelfMediaConfigureProviderReply>;
       startLogin: (request: SelfMediaStartLoginRequest) => Promise<SelfMediaLoginReply>;
       createTask: (request: SelfMediaCreateTaskRequest) => Promise<SelfMediaCreateTaskReply>;
@@ -242,8 +242,6 @@ declare global {
       get: (request: ProductGetRequest) => Promise<ProductGetReply>;
       upsert: (request: ProductUpsertRequest) => Promise<ProductUpsertReply>;
       delete: (request: ProductDeleteRequest) => Promise<ProductDeleteReply>;
-      export: () => Promise<ProductExportReply>;
-      exportWithDialog: () => Promise<ProductExportWithDialogReply>;
     };
     templateBridge?: {
       list: () => Promise<TemplateListReply>;

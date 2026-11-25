@@ -8,6 +8,8 @@ import { groupAccountsByPlatform, type BatchAccountValidation, validateBatchAcco
 interface BatchAccountSelectorProps {
   accounts: SelfMediaAccount[];
   contentType: "video" | "image-text";
+  /** L6: 主进程台账的当日计数,由父组件注入(点击发布时的判定以此为同一口径) */
+  dailyCounts?: Record<string, number>;
   selectedAccountIds: string[];
   onSelectionChange: (accountIds: string[]) => void;
 }
@@ -15,12 +17,13 @@ interface BatchAccountSelectorProps {
 export function BatchAccountSelector({
   accounts,
   contentType,
+  dailyCounts,
   selectedAccountIds,
   onSelectionChange,
 }: BatchAccountSelectorProps) {
   const validations = useMemo(
-    () => validateBatchAccounts(accounts, contentType),
-    [accounts, contentType],
+    () => validateBatchAccounts(accounts, contentType, dailyCounts),
+    [accounts, contentType, dailyCounts],
   );
 
   const validationMap = useMemo(

@@ -23,6 +23,21 @@ describe("validateSelfMediaDraft", () => {
     expect(validateSelfMediaDraft(draft())).toMatchObject({ success: true });
   });
 
+  it("accepts and preserves batch fields for scheduled batch drafts (L6)", () => {
+    const result = validateSelfMediaDraft(draft({
+      scheduledAt: "2099-01-01T00:00:00.000Z",
+      batchId: "batch-1",
+      batchRole: "member",
+    }));
+    expect(result).toMatchObject({ success: true, value: { batchId: "batch-1", batchRole: "member" } });
+  });
+
+  it("rejects a batchRole outside the three roles", () => {
+    expect(validateSelfMediaDraft(draft({ batchRole: "chaos" }))).toMatchObject({ success: false });
+    expect(validateSelfMediaDraft(draft({ batchId: "batch-1", batchRole: 3 }))).toMatchObject({ success: false });
+    expect(validateSelfMediaDraft(draft({ batchId: "" }))).toMatchObject({ success: false });
+  });
+
   it("rejects arbitrary filesystem paths and cross-project assets", () => {
     expect(validateSelfMediaDraft(draft({
       assets: [{ assetId: "/tmp/private/video.mp4", projectId: "project-1", kind: "video" }],

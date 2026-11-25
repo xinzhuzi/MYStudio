@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -20,24 +20,23 @@ import { useProductStore } from "@/stores/product/product-store";
 import { useTemplateStore } from "@/stores/template/template-store";
 import { SELF_MEDIA_CAPABILITY_MANIFEST } from "@/lib/self-media/capabilities";
 import { validateSelfMediaDraft } from "@/lib/self-media/contracts";
-import { buildTemplateFill, mergeTopicStrings } from "@/lib/self-media/template-engine";
-import type { SelfMediaContentType, SelfMediaDraft } from "@/types/self-media";
+import { buildTemplateFill, checkForbiddenWords, mergeTopicStrings } from "@/lib/self-media/template-engine";
+import { resolveProductAutoFill, type AutoFillState } from "@/lib/self-media/product-autofill";
+import type { SelfMediaContentType, SelfMediaDraft, SelfMediaTask } from "@/types/self-media";
 import {
-  BATCH_PUBLISH_INTERVAL_MS,
   PLATFORM_ABBREVIATION,
   buildBatchDrafts,
+  buildBatchProgressFromTasks,
+  buildDifferentiatedTitle,
   buildSummaryReport,
   buildTopicsFromProductDefaultTags,
   checkBatchTaskLimit,
-  createInitialProgress,
-  delay,
   findEligibleFirstPublishAccount,
-  getNextDayQueuedAt,
-  incrementDailyPublishCount,
-  isTerminalTaskStatus,
+  isBatchComplete,
+  planBatchSchedule,
   shouldDoFirstPublishVerification,
-  updateProgressItem,
   validateBatchAccounts,
+  type BatchCreationFailure,
   type BatchProgress,
   type BatchSummaryReport,
 } from "@/lib/self-media/batch-publish";
@@ -51,12 +50,30 @@ function getProductBridge() {
   return typeof window === "undefined" ? undefined : window.productBridge;
 }
 
+function newBatchId(): string {
+  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? `batch-${crypto.randomUUID()}`
+    : `batch-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+}
+
+/** 建单回执入账:项目对不上时丢弃该条(进度投影读的是 store 里的任务列表) */
+function adoptCreatedTasks(tasks: readonly SelfMediaTask[]) {
+  const store = useSelfMediaStore.getState();
+  for (const task of tasks) {
+    if (task.projectId !== store.activeProjectId) continue;
+    try {
+      store.upsertTask(task);
+    } catch {
+      return;
+    }
+  }
+}
+
 export function BatchPublishView() {
   const { activeProjectId } = useProjectStore();
   const mediaFiles = useMediaStore((state) => state.mediaFiles);
   const accounts = useSelfMediaStore((state) => state.accounts);
-  const upsertTask = useSelfMediaStore((state) => state.upsertTask);
-  const addHistoryRecord = useSelfMediaStore((state) => state.addHistoryRecord);
+  const tasks = useSelfMediaStore((state) => state.tasks);
   const products = useProductStore((state) => state.products);
   const templates = useTemplateStore((state) => state.templates);
 
@@ -69,11 +86,15 @@ export function BatchPublishView() {
   const [visibility, setVisibility] = useState<"public" | "private" | "friends">("public");
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [publishing, setPublishing] = useState(false);
-  const [progress, setProgress] = useState<BatchProgress | null>(null);
-  const [summary, setSummary] = useState<BatchSummaryReport | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  // L6: 当日计数来自主进程台账(dailyPublishStats IPC),挂载/任务变化/点击发布时刷新
+  const [dailyCounts, setDailyCounts] = useState<Record<string, number>>({});
+  // L6: 本次点击的批次;进度面板是任务列表按 batchId 的投影
+  const [batchId, setBatchId] = useState<string | null>(null);
+  const [creationFailures, setCreationFailures] = useState<BatchCreationFailure[]>([]);
+  const [batchStartedAt, setBatchStartedAt] = useState<Date | null>(null);
 
   // B1b: Preload products on first mount (same pattern as ComposeView)
   useEffect(() => {
@@ -91,15 +112,51 @@ export function BatchPublishView() {
     void useTemplateStore.getState().loadTemplates();
   }, [templates.length]);
 
-  // B1b: Handle product selection - auto-fill topics from defaultTags
+  const refreshDailyCounts = useCallback(async () => {
+    const bridge = getSelfMediaBridge();
+    if (!bridge?.dailyPublishStats) return;
+    const reply = await bridge.dailyPublishStats().catch(() => undefined);
+    if (reply && reply.success) setDailyCounts(reply.value.counts);
+  }, []);
+
+  // 挂载时与任务状态变化时各取一次(选择器里的排队预告要与点击时的判定一致)
+  useEffect(() => {
+    void refreshDailyCounts();
+  }, [refreshDailyCounts, tasks]);
+
+  // A8(1125 补检): 自动填入值记录——话题/描述为空、或仍等于上次自动填入值时才随产品替换,
+  // 新产品无默认话题时清掉残留(不再沿用上一个产品的话题),用户改过的字段不丢稿。
+  const productAutoFillRef = useRef<AutoFillState>({});
+
   const handleProductSelect = useCallback((productId: string) => {
     setSelectedProductId(productId);
     setSelectedTemplateId(""); // 产品切换后模板列表变化,复位选中态
-    const product = products.find((p) => p.id === productId);
-    if (product && product.promotion.defaultTags.length > 0) {
-      setTopics(buildTopicsFromProductDefaultTags(product.promotion.defaultTags));
-    }
-  }, [products]);
+    const product = products.find((p) => p.id === productId) ?? null;
+    const { values, applied } = resolveProductAutoFill({
+      source: product
+        ? {
+            description: product.description,
+            topics: buildTopicsFromProductDefaultTags(product.promotion.defaultTags),
+          }
+        : null,
+      current: { description, topics },
+      lastApplied: productAutoFillRef.current,
+    });
+    productAutoFillRef.current = applied;
+    if (values.description !== undefined) setDescription(values.description);
+    if (values.topics !== undefined) setTopics(values.topics);
+  }, [products, description, topics]);
+
+  // A6(1125 补检): 关联产品后,对当前标题+描述实时检查品牌禁用词;命中即红字提示并禁用发布
+  const selectedProduct = useMemo(
+    () => products.find((p) => p.id === selectedProductId) ?? null,
+    [products, selectedProductId],
+  );
+
+  const forbiddenHits = useMemo(() => {
+    if (!selectedProduct) return [];
+    return checkForbiddenWords(`${title}\n${description}`, selectedProduct.brandProfile?.forbiddenWords ?? []);
+  }, [selectedProduct, title, description]);
 
   const projectMedia = useMemo(
     () => mediaFiles.filter((media) => media.projectId === activeProjectId && (media.type === "video" || media.type === "image") && !media.ephemeral),
@@ -149,12 +206,10 @@ export function BatchPublishView() {
     if (fill.topicString) setTopics((current) => mergeTopicStrings(current, fill.topicString));
   }, [templates, products, selectedProductId, selectedAccounts]);
 
-  // L2(复审修复): 今日超限(排队次日)账号集合——首发验证选号与 UI 预告都排除它们,
-  // 避免「指定的验证账号恰好排队→静默跳过验证」或 UI 预告与实际行为不符。
-  // 注:基于当前 localStorage 当日计数,publish() 内部会以最新值重算为准。
+  // L6: 今日超限(排队次日)账号集合——基于主进程台账的当日计数
   const queuedAccountIds = useMemo(
-    () => new Set(validateBatchAccounts(selectedAccounts, contentType).filter((v) => v.queuedNextDay).map((v) => v.accountId)),
-    [selectedAccounts, contentType],
+    () => new Set(validateBatchAccounts(selectedAccounts, contentType, dailyCounts).filter((v) => v.queuedNextDay).map((v) => v.accountId)),
+    [selectedAccounts, contentType, dailyCounts],
   );
 
   const eligibleAccounts = useMemo(
@@ -173,13 +228,14 @@ export function BatchPublishView() {
   );
 
   // Preview: show differentiated titles for each selected platform
+  // A1(1125 补检): 预览与建单共用 buildDifferentiatedTitle,保证「预览===实发」
   const titlePreviews = useMemo(() => {
     const platforms = new Set(selectedAccounts.map((a) => a.platform));
     return [...platforms].map((platform) => ({
       platform,
       displayName: SELF_MEDIA_CAPABILITY_MANIFEST[platform].displayName,
       abbreviation: PLATFORM_ABBREVIATION[platform],
-      previewTitle: `${title} [${PLATFORM_ABBREVIATION[platform]}]`,
+      previewTitle: buildDifferentiatedTitle(title, platform),
     }));
   }, [selectedAccounts, title]);
 
@@ -213,13 +269,49 @@ export function BatchPublishView() {
     };
   }, [activeProjectId, contentType, title, description, topics, selectedAssets, selectedCover, selectedAccountIds, visibility, selectedProductId, selectedAccounts]);
 
+  // L6: 进度面板=任务列表按 batchId 的投影。本次点击的批次优先;
+  // 重挂载后取本项目任务里 createdAt 最新的那个 batchId。
+  const activeBatchId = useMemo(() => {
+    if (batchId) return batchId;
+    const latest = tasks
+      .filter((task) => task.projectId === activeProjectId && task.batchId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    return latest?.batchId ?? null;
+  }, [batchId, tasks, activeProjectId]);
+
+  const progress: BatchProgress | null = useMemo(() => {
+    if (!activeBatchId) return null;
+    return buildBatchProgressFromTasks({
+      batchId: activeBatchId,
+      tasks,
+      accounts,
+      creationFailures: batchId === activeBatchId ? creationFailures : [],
+    });
+  }, [activeBatchId, batchId, tasks, accounts, creationFailures]);
+
+  const batchBusy = useMemo(
+    () => Boolean(progress && !isBatchComplete(progress)),
+    [progress],
+  );
+
+  // 汇总报告在本批全部结束时显示(排队次日项不算未完)
+  const summary: BatchSummaryReport | null = useMemo(() => {
+    if (!progress || !isBatchComplete(progress)) return null;
+    const startedAt = batchStartedAt
+      ?? new Date(tasks
+        .filter((task) => task.batchId === activeBatchId)
+        .map((task) => task.createdAt)
+        .sort()[0] ?? Date.now());
+    return buildSummaryReport(progress, startedAt);
+  }, [progress, batchStartedAt, tasks, activeBatchId]);
+
   const publish = useCallback(async () => {
     if (!baseDraft || !activeProjectId) {
       setFeedback("请先打开一个项目并填写草稿内容。");
       return;
     }
     const bridge = getSelfMediaBridge();
-    if (!bridge) {
+    if (!bridge?.createTask) {
       setFeedback("当前运行环境没有自媒体主进程桥接。");
       return;
     }
@@ -233,245 +325,107 @@ export function BatchPublishView() {
       setFeedback(`单批次最多 ${batchLimit.limit} 个任务，当前选中 ${batchLimit.count} 个账号，请减少账号后重试。`);
       return;
     }
+    if (batchBusy) {
+      setFeedback("上一批还有未完成的任务，等它们结束后再建新批次。");
+      return;
+    }
 
     setPublishing(true);
     setFeedback(null);
-    setSummary(null);
 
-    // 验证账号,识别超限排队的账号(以点击时刻的最新计数为准)
-    const validations = validateBatchAccounts(selectedAccounts, contentType);
-    const queuedIds = new Set(
-      validations.filter((v) => v.queuedNextDay).map((v) => v.accountId)
-    );
+    // 点击发布时取一次当日计数,排队判定以最新值为准
+    await refreshDailyCounts();
+    const freshCounts = { ...dailyCounts };
+    const freshReply = await bridge.dailyPublishStats?.().catch(() => undefined);
+    if (freshReply && freshReply.success) {
+      Object.assign(freshCounts, freshReply.value.counts);
+      setDailyCounts(freshReply.value.counts);
+    }
+
+    const validations = validateBatchAccounts(selectedAccounts, contentType, freshCounts);
+    const queuedIds = new Set(validations.filter((v) => v.queuedNextDay).map((v) => v.accountId));
 
     const batchItems = buildBatchDrafts({ baseDraft, selectedAccounts, queuedAccountIds: queuedIds });
-    let currentProgress = createInitialProgress(batchItems);
-    setProgress(currentProgress);
-
-    const startedAt = new Date();
-    let firstPublishDone = false;
-
-    // ─── First-publish verification ──────────────────────────────
-    // L2(复审修复): 验证账号从今日未超限的账号中选(Twitter 优先,否则第一个在线)——
-    // 指定账号排队时回退到其他未排队账号,而非静默跳过验证;全部排队则本轮
-    // 无立即发布项,无需验证(全部转定时)
     const verificationAccount = findEligibleFirstPublishAccount(selectedAccounts, queuedIds);
     const needsVerification = shouldDoFirstPublishVerification(
       selectedAccounts.filter((account) => !queuedIds.has(account.id)),
     );
-    if (needsVerification && verificationAccount) {
-      const firstPublishIdx = batchItems.findIndex(
-        (item) => item.accountId === verificationAccount.id,
-      );
 
-      if (firstPublishIdx >= 0) {
-        const firstItem = batchItems[firstPublishIdx];
-        const platformName = SELF_MEDIA_CAPABILITY_MANIFEST[firstItem.platform].displayName;
-        currentProgress = updateProgressItem(currentProgress, firstPublishIdx, { status: "publishing" });
-        setProgress({ ...currentProgress });
+    const nextBatchId = newBatchId();
+    const slots = planBatchSchedule({
+      items: batchItems,
+      now: new Date(),
+      batchId: nextBatchId,
+      verificationAccountId: needsVerification ? verificationAccount?.id ?? null : null,
+    });
 
-        try {
-          const validation = validateSelfMediaDraft(firstItem.draft);
-          if (!validation.success) {
-            currentProgress = updateProgressItem(currentProgress, firstPublishIdx, {
-              status: "failure",
-              error: validation.issues.map((i) => i.message).join("；"),
-            });
-            setProgress({ ...currentProgress });
-            setFeedback("首发验证失败，已终止批量发布。");
-            setSummary(buildSummaryReport(currentProgress, startedAt));
-            setPublishing(false);
-            return;
-          }
+    setBatchId(nextBatchId);
+    setCreationFailures([]);
+    setBatchStartedAt(new Date());
 
-          const reply = await bridge.createTask({
-            projectId: activeProjectId,
-            providerId: "aitoearn-local",
-            draft: validation.value,
-          });
-
-          if (!reply.success) {
-            currentProgress = updateProgressItem(currentProgress, firstPublishIdx, {
-              status: "failure",
-              error: reply.error.message,
-            });
-            setProgress({ ...currentProgress });
-            setFeedback(`首发验证（${platformName}）失败，已终止批量发布。`);
-            setSummary(buildSummaryReport(currentProgress, startedAt));
-            setPublishing(false);
-            return;
-          }
-
-          const tasks = reply.value;
-          const firstTask = tasks[0];
-          if (firstTask && firstTask.status === "failure") {
-            currentProgress = updateProgressItem(currentProgress, firstPublishIdx, {
-              status: "failure",
-              taskId: firstTask.id,
-              error: firstTask.error?.message ?? "首发验证失败",
-            });
-            setProgress({ ...currentProgress });
-            setFeedback(`首发验证（${platformName}）发布失败，已终止批量发布。`);
-            setSummary(buildSummaryReport(currentProgress, startedAt));
-            setPublishing(false);
-            return;
-          }
-
-          // Success: record and proceed with remaining items
-          tasks.forEach((task) => {
-            upsertTask(task);
-            if (isTerminalTaskStatus(task.status)) addHistoryRecord({ ...task, finishedAt: task.updatedAt });
-          });
-          incrementDailyPublishCount(firstItem.accountId);
-          currentProgress = updateProgressItem(currentProgress, firstPublishIdx, {
-            status: "success",
-            taskId: firstTask?.id,
-          });
-          setProgress({ ...currentProgress });
-          firstPublishDone = true;
-        } catch (error) {
-          currentProgress = updateProgressItem(currentProgress, firstPublishIdx, {
-            status: "failure",
-            error: error instanceof Error ? error.message : "首发验证异常",
-          });
-          setProgress({ ...currentProgress });
-          setFeedback(`首发验证（${platformName}）异常，已终止批量发布。`);
-          setSummary(buildSummaryReport(currentProgress, startedAt));
-          setPublishing(false);
-          return;
-        }
-      }
-    }
-
-    // ─── Batch publish remaining items ──────────────────────────
-    for (let i = 0; i < batchItems.length; i++) {
-      const item = batchItems[i];
-
-      // L2: 排队次日不再跳过,改走既有定时任务链(scheduledAt=次日 08:05 本地时区,
-      // 见 batch-publish.ts QUEUED_NEXT_DAY_* 常量)。进度面板状态仍显示 queued-next-day。
-      if (item.queuedNextDay) {
-        try {
-          const scheduledDraft: SelfMediaDraft = {
-            ...item.draft,
-            scheduledAt: getNextDayQueuedAt().toISOString(),
-          };
-          const validation = validateSelfMediaDraft(scheduledDraft);
-          if (!validation.success) {
-            currentProgress = updateProgressItem(currentProgress, i, {
-              status: "failure",
-              error: `排队次日任务创建失败：${validation.issues.map((iss) => iss.message).join("；")}`,
-            });
-            setProgress({ ...currentProgress });
-            continue;
-          }
-          const reply = await bridge.createTask({
-            projectId: activeProjectId,
-            providerId: "aitoearn-local",
-            draft: validation.value,
-          });
-          if (!reply.success) {
-            currentProgress = updateProgressItem(currentProgress, i, {
-              status: "failure",
-              error: reply.error.message,
-            });
-            setProgress({ ...currentProgress });
-            continue;
-          }
-          reply.value.forEach((t) => {
-            upsertTask(t);
-            if (isTerminalTaskStatus(t.status)) addHistoryRecord({ ...t, finishedAt: t.updatedAt });
-          });
-          // 定时任务已创建,状态保持 queued-next-day(不 incrementDailyPublishCount,
-          // 发布发生在次日,由 task-runtime 到点调度)
-          currentProgress = updateProgressItem(currentProgress, i, {
-            status: "queued-next-day",
-            taskId: reply.value[0]?.id,
-          });
-          setProgress({ ...currentProgress });
-        } catch (error) {
-          currentProgress = updateProgressItem(currentProgress, i, {
-            status: "failure",
-            error: error instanceof Error ? error.message : "排队次日任务创建异常",
-          });
-          setProgress({ ...currentProgress });
-        }
-        continue;
-      }
-
-      // Skip the first-publish account if already done
-      if (firstPublishDone && item.accountId === verificationAccount?.id) {
-        continue;
-      }
-
-      // Enforce interval delay between publishes (not before the first one)
-      const isPreviousDone = i > 0 && currentProgress.items[i - 1].status !== "pending";
-      if (isPreviousDone || firstPublishDone) {
-        await delay(BATCH_PUBLISH_INTERVAL_MS);
-      }
-
-      currentProgress = updateProgressItem(currentProgress, i, { status: "publishing" });
-      setProgress({ ...currentProgress });
-
-      try {
-        const validation = validateSelfMediaDraft(item.draft);
+    const failures: BatchCreationFailure[] = [];
+    let aborted = false;
+    for (let index = 0; index < slots.length; index++) {
+      const slot = slots[index];
+      const isFirstVerificationSlot = index === 0 && slot.role === "verification";
+      if (isFirstVerificationSlot) {
+        const platformName = SELF_MEDIA_CAPABILITY_MANIFEST[slot.item.platform]?.displayName ?? slot.item.platform;
+        const abortVerification = (detail: string) => {
+          failures.push({ accountId: slot.item.accountId, platform: slot.item.platform, displayName: slot.item.displayName, error: detail });
+          // 首槽是首发验证且建单失败:不建其余,沿用现有文案
+          setFeedback(`首发验证（${platformName}）失败，已终止批量发布。`);
+          aborted = true;
+        };
+        const validation = validateSelfMediaDraft(slot.draft);
         if (!validation.success) {
-          currentProgress = updateProgressItem(currentProgress, i, {
-            status: "failure",
+          abortVerification(validation.issues.map((i) => i.message).join("；"));
+          break;
+        }
+        try {
+          const reply = await bridge.createTask({ projectId: activeProjectId, providerId: "aitoearn-local", draft: validation.value });
+          if (!reply.success) {
+            abortVerification(reply.error.message);
+            break;
+          }
+          adoptCreatedTasks(reply.value);
+        } catch (error) {
+          abortVerification(error instanceof Error ? error.message : "首发验证建单异常");
+          break;
+        }
+        continue;
+      }
+      try {
+        const validation = validateSelfMediaDraft(slot.draft);
+        if (!validation.success) {
+          failures.push({
+            accountId: slot.item.accountId,
+            platform: slot.item.platform,
+            displayName: slot.item.displayName,
             error: validation.issues.map((iss) => iss.message).join("；"),
           });
-          setProgress({ ...currentProgress });
-          continue; // skip and continue (failure skip per D10)
+          continue; // 失败跳过、继续(D10)
         }
-
-        const reply = await bridge.createTask({
-          projectId: activeProjectId,
-          providerId: "aitoearn-local",
-          draft: validation.value,
-        });
-
+        const reply = await bridge.createTask({ projectId: activeProjectId, providerId: "aitoearn-local", draft: validation.value });
         if (!reply.success) {
-          currentProgress = updateProgressItem(currentProgress, i, {
-            status: "failure",
-            error: reply.error.message,
-          });
-          setProgress({ ...currentProgress });
+          failures.push({ accountId: slot.item.accountId, platform: slot.item.platform, displayName: slot.item.displayName, error: reply.error.message });
           continue;
         }
-
-        const tasks = reply.value;
-        const task = tasks[0];
-        tasks.forEach((t) => {
-          upsertTask(t);
-          if (isTerminalTaskStatus(t.status)) addHistoryRecord({ ...t, finishedAt: t.updatedAt });
-        });
-
-        if (task && task.status === "failure") {
-          currentProgress = updateProgressItem(currentProgress, i, {
-            status: "failure",
-            taskId: task.id,
-            error: task.error?.message ?? "发布失败",
-          });
-        } else {
-          incrementDailyPublishCount(item.accountId);
-          currentProgress = updateProgressItem(currentProgress, i, {
-            status: "success",
-            taskId: task?.id,
-          });
-        }
-        setProgress({ ...currentProgress });
+        adoptCreatedTasks(reply.value);
       } catch (error) {
-        currentProgress = updateProgressItem(currentProgress, i, {
-          status: "failure",
-          error: error instanceof Error ? error.message : "发布异常",
+        failures.push({
+          accountId: slot.item.accountId,
+          platform: slot.item.platform,
+          displayName: slot.item.displayName,
+          error: error instanceof Error ? error.message : "建单异常",
         });
-        setProgress({ ...currentProgress });
-        // Continue to next (failure skip per D10)
       }
     }
-
-    setSummary(buildSummaryReport(currentProgress, startedAt));
+    setCreationFailures(failures);
+    if (!aborted && failures.length > 0) {
+      setFeedback(`${failures.length} 个任务建单失败，详见进度面板。`);
+    }
     setPublishing(false);
-  }, [baseDraft, activeProjectId, selectedAccounts, contentType, upsertTask, addHistoryRecord]);
+  }, [baseDraft, activeProjectId, selectedAccounts, contentType, batchBusy, dailyCounts, refreshDailyCounts]);
 
   return (
     <Card className="border-border/50 bg-card/80">
@@ -544,10 +498,10 @@ export function BatchPublishView() {
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-1.5 text-sm">
             <span className="font-medium text-foreground">通用标题</span>
-            <Input 
-              value={title} 
-              onChange={(e) => setTitle(e.target.value)} 
-              placeholder="各平台自动追加标识" 
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="各平台自动追加标识"
               maxLength={80}
               className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
@@ -581,13 +535,16 @@ export function BatchPublishView() {
             className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </label>
+        {forbiddenHits.length > 0 && (
+          <p className="text-xs text-destructive">禁用词：{forbiddenHits.join("、")}</p>
+        )}
 
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-1.5 text-sm">
             <span className="font-medium text-foreground">话题</span>
-            <Input 
-              value={topics} 
-              onChange={(e) => setTopics(e.target.value)} 
+            <Input
+              value={topics}
+              onChange={(e) => setTopics(e.target.value)}
               placeholder="#漫剧 #剧情解说"
               className="transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
@@ -628,6 +585,7 @@ export function BatchPublishView() {
           <BatchAccountSelector
             accounts={accounts}
             contentType={contentType}
+            dailyCounts={dailyCounts}
             selectedAccountIds={selectedAccountIds}
             onSelectionChange={setSelectedAccountIds}
           />
@@ -669,10 +627,10 @@ export function BatchPublishView() {
           <Button
             className="gap-2 transition-all duration-200 hover:scale-105"
             onClick={publish}
-            disabled={publishing || !baseDraft || selectedAccounts.length === 0 || !getSelfMediaBridge()}
+            disabled={publishing || batchBusy || !baseDraft || selectedAccounts.length === 0 || !getSelfMediaBridge() || forbiddenHits.length > 0}
           >
-            {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-            {publishing ? "发布中…" : "一键全平台发布"}
+            {publishing || batchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
+            {publishing || batchBusy ? "发布中…" : "一键全平台发布"}
           </Button>
           {selectedAccountIds.length > 0 && (
             <span className="text-xs text-muted-foreground">
@@ -681,7 +639,7 @@ export function BatchPublishView() {
           )}
         </div>
 
-        {/* Progress bar (UX trio #1) */}
+        {/* Progress panel: 任务列表按 batchId 的投影 + 建单失败项 */}
         {progress && (
           <div className="space-y-3 rounded-lg border border-border/40 bg-background/80 p-4">
             <div className="flex items-center justify-between text-sm">
@@ -701,14 +659,15 @@ export function BatchPublishView() {
             {/* Per-item status */}
             <div className="space-y-1.5">
               {progress.items.map((item, idx) => (
-                <div key={`${item.platform}-${item.accountId}-${idx}`} className="flex items-center gap-2 text-xs">
+                <div key={`${item.platform ?? "unknown"}-${item.accountId}-${idx}`} className="flex items-center gap-2 text-xs">
                   {item.status === "success" && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />}
                   {item.status === "failure" && <XCircle className="h-3.5 w-3.5 shrink-0 text-destructive" />}
                   {item.status === "publishing" && <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" />}
                   {item.status === "pending" && <span className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border border-muted-foreground/30" />}
                   {item.status === "skipped" && <AlertCircle className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                   {item.status === "queued-next-day" && <AlertCircle className="h-3.5 w-3.5 shrink-0 text-warning" />}
-                  <Badge variant="outline" className="shrink-0 text-[10px]">{SELF_MEDIA_CAPABILITY_MANIFEST[item.platform].displayName}</Badge>
+                  {/* 平台徽标只在有可靠 platform 来源时显示(旧任务缺字段不假定) */}
+                  {item.platform && <Badge variant="outline" className="shrink-0 text-[10px]">{SELF_MEDIA_CAPABILITY_MANIFEST[item.platform].displayName}</Badge>}
                   <span className="truncate text-foreground">{item.displayName}</span>
                   {item.status === "queued-next-day" && <span className="text-xs text-warning">（排队次日）</span>}
                   {item.error && <span className="truncate text-destructive">{item.error}</span>}
@@ -734,7 +693,7 @@ export function BatchPublishView() {
                 <p className="text-xs font-medium text-muted-foreground">失败详情：</p>
                 {summary.failures.map((f, idx) => (
                   <p key={idx} className="text-xs text-destructive">
-                    [{SELF_MEDIA_CAPABILITY_MANIFEST[f.platform].displayName}] {f.displayName}：{f.error}
+                    {f.platform ? `[${SELF_MEDIA_CAPABILITY_MANIFEST[f.platform].displayName}] ` : ""}{f.displayName}：{f.error}
                   </p>
                 ))}
               </div>

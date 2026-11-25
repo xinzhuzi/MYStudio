@@ -1,17 +1,20 @@
 import type {
   SelfMediaAccount,
   SelfMediaDraft,
+  SelfMediaPlatform,
   SelfMediaProviderId,
   SelfMediaProviderSummary,
   SelfMediaTask,
   SelfMediaTaskError,
   SelfMediaTaskStatus,
 } from "@/types/self-media";
+import { getSelfMediaCapabilities } from "./capabilities";
 
 export const SELF_MEDIA_IPC = {
   listProviders: "self-media:list-providers",
   listAccounts: "self-media:list-accounts",
   listTasks: "self-media:list-tasks",
+  dailyPublishStats: "self-media:daily-publish-stats",
   configureProvider: "self-media:configure-provider",
   startLogin: "self-media:start-login",
   createTask: "self-media:create-task",
@@ -82,6 +85,13 @@ export type SelfMediaLoginReply = SelfMediaIpcReply<{ started: boolean }>;
 export type SelfMediaCreateTaskReply = SelfMediaIpcReply<SelfMediaTask[]>;
 export type SelfMediaTaskListReply = SelfMediaIpcReply<SelfMediaTask[]>;
 export type SelfMediaTaskReply = SelfMediaIpcReply<SelfMediaTask>;
+/** L6: 按台账统计的当日发布次数回执(主进程与渲染进程共用口径,见 batch-policy.ts) */
+export interface SelfMediaDailyPublishStats {
+  date: string;
+  limit: number;
+  counts: Record<string, number>;
+}
+export type SelfMediaDailyPublishStatsReply = SelfMediaIpcReply<SelfMediaDailyPublishStats>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -90,7 +100,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 const TASK_KEYS = new Set([
   "id", "attemptId", "draftId", "previousTaskId", "projectId", "providerId", "accountId",
   "sourceAssetIds", "status", "progress", "scheduledAt", "providerTaskId", "resultUrl",
-  "error", "productId", "createdAt", "updatedAt",
+  "error", "productId", "batchId", "batchRole", "platform", "createdAt", "updatedAt",
 ]);
 const TASK_ERROR_KEYS = new Set(["code", "message", "providerId", "retryable"]);
 const TASK_RESULT_KEYS = new Set(["status", "progress", "providerTaskId", "resultUrl", "error"]);
@@ -137,6 +147,15 @@ function isTaskError(value: unknown): value is SelfMediaTaskError {
     && typeof value.retryable === "boolean";
 }
 
+const SELF_MEDIA_BATCH_ROLES: readonly SelfMediaTask["batchRole"][] = ["verification", "member", "queued"];
+
+// L6: 任务记录的 platform 是可选字段,但一旦存在必须是已登记平台——
+// 查不到按无效记录处理,和其它畸形记录一样在加载日志时被丢弃。
+function isRegisteredSelfMediaPlatform(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  return Boolean(getSelfMediaCapabilities("aitoearn-local", value as SelfMediaPlatform));
+}
+
 export function isSelfMediaTaskRecord(value: unknown): value is SelfMediaTask {
   return isRecord(value)
     && hasOnlyKeys(value, TASK_KEYS)
@@ -162,6 +181,9 @@ export function isSelfMediaTaskRecord(value: unknown): value is SelfMediaTask {
     && (value.resultUrl === undefined || typeof value.resultUrl === "string")
     && (value.error === undefined || isTaskError(value.error))
     && (value.productId === undefined || typeof value.productId === "string")
+    && (value.batchId === undefined || (typeof value.batchId === "string" && value.batchId.trim().length > 0))
+    && (value.batchRole === undefined || SELF_MEDIA_BATCH_ROLES.includes(value.batchRole as SelfMediaTask["batchRole"]))
+    && (value.platform === undefined || isRegisteredSelfMediaPlatform(value.platform))
     && isValidDateString(value.createdAt)
     && isValidDateString(value.updatedAt);
 }
@@ -187,6 +209,11 @@ export function decodeSelfMediaTaskRecord(value: unknown): SelfMediaTask {
       ? { code: error.code, message: error.message, providerId: error.providerId, retryable: error.retryable }
       : undefined,
     productId: typeof value.productId === "string" ? value.productId : undefined,
+    batchId: typeof value.batchId === "string" ? value.batchId : undefined,
+    batchRole: typeof value.batchRole === "string" && SELF_MEDIA_BATCH_ROLES.includes(value.batchRole as SelfMediaTask["batchRole"])
+      ? value.batchRole as SelfMediaTask["batchRole"]
+      : undefined,
+    platform: typeof value.platform === "string" ? value.platform as SelfMediaPlatform : undefined,
     createdAt: value.createdAt as string,
     updatedAt: value.updatedAt as string,
   };

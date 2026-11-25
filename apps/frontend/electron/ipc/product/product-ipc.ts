@@ -1,13 +1,11 @@
 /**
- * B2 产品目录 IPC handler——主进程注册产品 CRUD 与导出端点。
+ * B2 产品目录 IPC handler——主进程注册产品 CRUD 端点。
  * 遵循 self-media-ipc.ts 的 trusted-sender 守卫与 reply 信封格式。
  */
-import { BrowserWindow, dialog, ipcMain } from "electron";
-import { writeFile } from "node:fs/promises";
+import { ipcMain } from "electron";
 import {
   deleteProduct,
   ensureProductsTable,
-  exportProductsJson,
   getProduct,
   listProducts,
   upsertProduct,
@@ -16,8 +14,6 @@ import {
   PRODUCT_IPC,
   type ProductDeleteReply,
   type ProductDeleteRequest,
-  type ProductExportReply,
-  type ProductExportWithDialogReply,
   type ProductGetReply,
   type ProductGetRequest,
   type ProductListReply,
@@ -58,8 +54,6 @@ export function registerProductIpcHandlers(context: ProductIpcContext): { dispos
     PRODUCT_IPC.get,
     PRODUCT_IPC.upsert,
     PRODUCT_IPC.delete,
-    PRODUCT_IPC.export,
-    PRODUCT_IPC.exportWithDialog,
   ];
 
   const rejectUntrustedSender = (event: Electron.IpcMainInvokeEvent) => {
@@ -121,43 +115,6 @@ export function registerProductIpcHandlers(context: ProductIpcContext): { dispos
       return { success: true, value: { deleted: true } };
     } catch (error) {
       return { success: false, error: { code: "product-delete-failed", message: error instanceof Error ? error.message : "产品删除失败" } };
-    }
-  });
-
-  ipcMain.handle(PRODUCT_IPC.export, async (event): Promise<ProductExportReply> => {
-    const rejected = rejectUntrustedSender(event);
-    if (rejected) return rejected;
-    try {
-      ensureReady();
-      const value = await exportProductsJson();
-      return { success: true, value };
-    } catch (error) {
-      return { success: false, error: { code: "product-export-failed", message: error instanceof Error ? error.message : "产品导出失败" } };
-    }
-  });
-
-  ipcMain.handle(PRODUCT_IPC.exportWithDialog, async (event): Promise<ProductExportWithDialogReply> => {
-    const rejected = rejectUntrustedSender(event);
-    if (rejected) return rejected;
-    try {
-      ensureReady();
-      const products = await exportProductsJson();
-      const win = BrowserWindow.fromWebContents(event.sender);
-      const dialogOptions = {
-        title: "导出产品数据",
-        defaultPath: "products.json",
-        filters: [{ name: "JSON", extensions: ["json"] }],
-      };
-      const result = win
-        ? await dialog.showSaveDialog(win, dialogOptions)
-        : await dialog.showSaveDialog(dialogOptions);
-      if (result.canceled || !result.filePath) {
-        return { success: true, value: { cancelled: true } };
-      }
-      await writeFile(result.filePath, JSON.stringify(products, null, 2), "utf-8");
-      return { success: true, value: { savedPath: result.filePath } };
-    } catch (error) {
-      return { success: false, error: { code: "product-export-dialog-failed", message: error instanceof Error ? error.message : "产品导出失败" } };
     }
   });
 

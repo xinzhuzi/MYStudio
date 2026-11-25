@@ -135,6 +135,7 @@ seedvr2-restore-probe
 self-media:cancel-task
 self-media:configure-provider
 self-media:create-task
+self-media:daily-publish-stats
 self-media:list-accounts
 self-media:list-providers
 self-media:list-tasks
@@ -248,6 +249,7 @@ const NAMED_IPC_CHANNELS = {
   "SELF_MEDIA_IPC.cancelTask": "self-media:cancel-task",
   "SELF_MEDIA_IPC.configureProvider": "self-media:configure-provider",
   "SELF_MEDIA_IPC.createTask": "self-media:create-task",
+  "SELF_MEDIA_IPC.dailyPublishStats": "self-media:daily-publish-stats",
   "SELF_MEDIA_IPC.listAccounts": "self-media:list-accounts",
   "SELF_MEDIA_IPC.listTasks": "self-media:list-tasks",
   "SELF_MEDIA_IPC.listProviders": "self-media:list-providers",

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { SelfMediaTask } from "@/types/self-media";
 import {
   decodeSelfMediaIpcReply,
   decodeSelfMediaProgressEvent,
@@ -24,6 +25,39 @@ describe("self-media IPC runtime contracts", () => {
     expect(() => decodeSelfMediaIpcReply({
       success: true,
       value: [{ ...task, status: "provider-new-status" }],
+    })).toThrow("Invalid self-media task payload");
+  });
+
+  it("accepts task records with batch fields and a registered platform, round-tripping them (L6)", () => {
+    const decoded = decodeSelfMediaIpcReply<SelfMediaTask>({
+      success: true,
+      value: {
+        ...task,
+        batchId: "batch-1",
+        batchRole: "queued",
+        platform: "xhs",
+      },
+    });
+    if (!decoded.success) throw new Error("expected success");
+    expect(decoded.value).toMatchObject({ batchId: "batch-1", batchRole: "queued", platform: "xhs" });
+  });
+
+  it("accepts task records without the batch fields (legacy journals load as before)", () => {
+    const decoded = decodeSelfMediaIpcReply<SelfMediaTask>({ success: true, value: { ...task } });
+    if (!decoded.success) throw new Error("expected success");
+    expect(decoded.value.batchId).toBeUndefined();
+    expect(decoded.value.batchRole).toBeUndefined();
+    expect(decoded.value.platform).toBeUndefined();
+  });
+
+  it("rejects a task record whose platform is not a registered platform", () => {
+    expect(() => decodeSelfMediaIpcReply({
+      success: true,
+      value: { ...task, platform: "not-a-platform" },
+    })).toThrow("Invalid self-media task payload");
+    expect(() => decodeSelfMediaIpcReply({
+      success: true,
+      value: { ...task, batchRole: "chaos" },
     })).toThrow("Invalid self-media task payload");
   });
 

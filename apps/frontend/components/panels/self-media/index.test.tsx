@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   replaceProjectTasks: vi.fn(),
   setAccounts: vi.fn(),
   accounts: [] as SelfMediaAccount[],
+  progressListeners: [] as Array<(event: { projectId: string; taskId: string; status: string; progress: number }) => void>,
 }));
 
 vi.mock("@/stores/project/project-store", () => ({
@@ -101,6 +102,11 @@ function installBridge(
   });
   const listAccounts = options.listAccounts ?? vi.fn().mockResolvedValue({ success: true, value: [] });
   const startLogin = options.startLogin ?? vi.fn().mockResolvedValue({ success: true, value: { started: true } });
+  mocks.progressListeners = [];
+  const onProgress = vi.fn((listener: (event: { projectId: string; taskId: string; status: string; progress: number }) => void) => {
+    mocks.progressListeners.push(listener);
+    return () => {};
+  });
   Object.defineProperty(window, "selfMedia", {
     configurable: true,
     value: {
@@ -108,12 +114,13 @@ function installBridge(
       listAccounts,
       startLogin,
       listTasks: vi.fn().mockResolvedValue({ success: true, value: mocks.tasks }),
+      dailyPublishStats: vi.fn().mockResolvedValue({ success: true, value: { date: "2026-11-25", limit: 3, counts: {} } }),
       cancelTask,
       createTask,
-      onProgress: vi.fn(() => () => {}),
+      onProgress,
     },
   });
-  return { cancelTask, createTask, listProviders, listAccounts, startLogin };
+  return { cancelTask, createTask, listProviders, listAccounts, startLogin, onProgress };
 }
 
 function openTasks() {
@@ -276,14 +283,95 @@ describe("SelfMediaPanel task controls", () => {
     expect(mocks.replaceProjectTasks).not.toHaveBeenCalled();
   });
 
-  it("rehydrates recovered main-process tasks for the active project", async () => {
+  it("rehydrates recovered main-process tasks into the ledger (merged per task, not wholesale)", async () => {
     const recovered = createTask({ id: "task-recovered", status: "audit" });
     installBridge();
     window.selfMedia!.listTasks = vi.fn().mockResolvedValue({ success: true, value: [recovered] });
 
     render(<SelfMediaPanel />);
 
-    await waitFor(() => expect(mocks.replaceProjectTasks).toHaveBeenCalledWith("project-1", [recovered]));
+    // L6: 面板台账订阅改为逐条合并(upsertTask),不再整体 replaceProjectTasks
+    await waitFor(() => expect(mocks.upsertTask).toHaveBeenCalledWith(recovered));
+    expect(mocks.replaceProjectTasks).not.toHaveBeenCalled();
+  });
+
+  it("hides the retry button for failed batch tasks while keeping it for regular failures", async () => {
+    mocks.tasks = [
+      createTask({ id: "task-batch", status: "failure", progress: 100, batchId: "batch-1", batchRole: "member" }),
+      createTask({ id: "task-plain", attemptId: "attempt-plain", status: "failure", progress: 100 }),
+    ];
+    installBridge();
+
+    openTasks();
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "重试任务" })).toHaveLength(1));
+    // 仅存的「重试任务」属于普通失败任务(task-plain),批次任务没有
+  });
+
+  it("keeps the ledger updatedAt when a progress event arrives (no renderer clock overwrite)", async () => {
+    const task = createTask({ id: "task-live", status: "running", progress: 10, updatedAt: "2026-07-26T05:00:00.000Z" });
+    mocks.tasks = [task];
+    const { onProgress } = installBridge();
+
+    openTasks();
+    await waitFor(() => expect(onProgress).toHaveBeenCalled());
+    mocks.upsertTask.mockClear();
+    const listener = mocks.progressListeners.at(-1)!;
+    listener({ projectId: "project-1", taskId: "task-live", status: "success", progress: 100 });
+
+    expect(mocks.upsertTask).toHaveBeenCalledTimes(1);
+    const written = mocks.upsertTask.mock.calls[0]?.[0] as SelfMediaTask;
+    expect(written.status).toBe("success");
+    expect(written.updatedAt).toBe("2026-07-26T05:00:00.000Z"); // 保留台账时间,不用渲染时钟盖写
+  });
+
+  it("refetches the ledger after a terminal event and brings back error details and result links", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const task = createTask({ id: "task-refetch", status: "running", progress: 40, updatedAt: "2026-07-26T05:00:00.000Z" });
+      mocks.tasks = [task];
+      const { onProgress } = installBridge();
+      const fetched = createTask({
+        id: "task-refetch",
+        status: "failure",
+        progress: 100,
+        updatedAt: "2026-07-26T05:01:00.000Z",
+        resultUrl: "https://example.test/post/1",
+        error: { code: "provider-request-failed", message: "上传失败", providerId: "aitoearn-local" as const, retryable: false },
+      });
+      const listTasks = window.selfMedia!.listTasks as ReturnType<typeof vi.fn>;
+      listTasks.mockResolvedValue({ success: true, value: [fetched] });
+
+      openTasks();
+      await waitFor(() => expect(onProgress).toHaveBeenCalled());
+      const listener = mocks.progressListeners.at(-1)!;
+      listener({ projectId: "project-1", taskId: "task-refetch", status: "failure", progress: 100 });
+
+      // 防抖 500ms 后重取,取回的错误详情/结果链接经合并写入
+      await vi.advanceTimersByTimeAsync(600);
+      await waitFor(() => {
+        const written = mocks.upsertTask.mock.calls.find(([value]) => (value as SelfMediaTask).updatedAt === "2026-07-26T05:01:00.000Z");
+        expect(written).toBeTruthy();
+        expect((written?.[0] as SelfMediaTask).resultUrl).toBe("https://example.test/post/1");
+        expect((written?.[0] as SelfMediaTask).error?.message).toBe("上传失败");
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not overwrite a newer local task when the refetched one is older", async () => {
+    const task = createTask({ id: "task-older", status: "failure", progress: 100, updatedAt: "2026-07-26T05:00:00.000Z" });
+    mocks.tasks = [task];
+    installBridge();
+    const stale = createTask({ id: "task-older", status: "running", progress: 10, updatedAt: "2026-07-26T04:00:00.000Z" });
+    const listTasks = window.selfMedia!.listTasks as ReturnType<typeof vi.fn>;
+    listTasks.mockResolvedValue({ success: true, value: [stale] });
+
+    openTasks();
+
+    // 取来的 updatedAt 比现有任务旧:合并规则把它挡在外面
+    await waitFor(() => expect(listTasks).toHaveBeenCalled());
+    expect(mocks.upsertTask).not.toHaveBeenCalledWith(expect.objectContaining({ updatedAt: "2026-07-26T04:00:00.000Z" }));
   });
 
   it("cancels a running task through the typed bridge and writes the returned task", async () => {
@@ -305,6 +393,9 @@ describe("SelfMediaPanel task controls", () => {
     installBridge(vi.fn().mockResolvedValue({ success: false, error: { code: "provider-error", message: "provider 暂不可用" } }));
 
     openTasks();
+    // 台账初次合并会写一次未变化任务;清掉后再验证取消失败路径不写
+    await waitFor(() => expect(mocks.upsertTask).toHaveBeenCalled());
+    mocks.upsertTask.mockClear();
     fireEvent.click(screen.getByRole("button", { name: "取消任务" }));
 
     expect(await screen.findByText("provider 暂不可用")).toBeTruthy();
@@ -369,6 +460,8 @@ describe("SelfMediaPanel task controls", () => {
     delete (window.selfMedia as { createTask?: unknown }).createTask;
 
     openTasks();
+    await waitFor(() => expect(mocks.upsertTask).toHaveBeenCalled()); // 台账初次合并
+    mocks.upsertTask.mockClear();
     fireEvent.click(screen.getByRole("button", { name: "重试任务" }));
 
     expect(await screen.findByText("当前运行环境缺少创建重试任务所需的自媒体桥接，未创建重试任务。")).toBeTruthy();

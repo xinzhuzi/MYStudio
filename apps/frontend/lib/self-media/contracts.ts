@@ -137,6 +137,13 @@ export function validateSelfMediaDraft(value: unknown): SelfMediaValidationResul
   if (value.visibility !== "public" && value.visibility !== "private" && value.visibility !== "friends") {
     issues.push({ path: "visibility", message: "可见范围无效" });
   }
+  // L6: 批量发布字段——batchId 非空字符串,batchRole 必须是三种角色之一,否则拒
+  if (value.batchId !== undefined && (typeof value.batchId !== "string" || value.batchId.trim().length === 0)) {
+    issues.push({ path: "batchId", message: "批次 ID 必须是非空字符串" });
+  }
+  if (value.batchRole !== undefined && value.batchRole !== "verification" && value.batchRole !== "member" && value.batchRole !== "queued") {
+    issues.push({ path: "batchRole", message: "批次角色无效" });
+  }
   if (!isValidDateString(value.updatedAt)) {
     issues.push({ path: "updatedAt", message: "更新时间无效" });
   }
@@ -152,7 +159,9 @@ export function validateSelfMediaDraft(value: unknown): SelfMediaValidationResul
     (value.visibility !== "public" && value.visibility !== "private" && value.visibility !== "friends") ||
     !isValidDateString(value.updatedAt) ||
     (value.scheduledAt !== undefined && typeof value.scheduledAt !== "string") ||
-    (value.productId !== undefined && typeof value.productId !== "string")
+    (value.productId !== undefined && typeof value.productId !== "string") ||
+    (value.batchId !== undefined && typeof value.batchId !== "string") ||
+    (value.batchRole !== undefined && value.batchRole !== "verification" && value.batchRole !== "member" && value.batchRole !== "queued")
   ) {
     return { success: false, issues: [{ path: "", message: "草稿字段无效" }] };
   }
@@ -176,6 +185,8 @@ export function validateSelfMediaDraft(value: unknown): SelfMediaValidationResul
       platformOptions,
       scheduledAt: value.scheduledAt,
       productId: typeof value.productId === "string" ? value.productId : undefined,
+      batchId: typeof value.batchId === "string" ? value.batchId : undefined,
+      batchRole: value.batchRole === "verification" || value.batchRole === "member" || value.batchRole === "queued" ? value.batchRole : undefined,
       updatedAt: value.updatedAt,
     },
   };

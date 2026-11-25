@@ -3,7 +3,7 @@
  * 路径走 getDbPath() 配置解析链,禁硬编码。
  * 复用 assets-sqlite.ts 的运行器族(runSqliteJson/runSqliteExec/escapeSql)。
  */
-import type { Product, ProductExportRecord } from "../../types/product";
+import type { Product } from "../../types/product";
 import {
   escapeSql,
   getDbPath,
@@ -147,19 +147,4 @@ VALUES (
 export async function deleteProduct(id: string): Promise<void> {
   const dbPath = getDbPath();
   runSqliteExec(dbPath, `DELETE FROM products WHERE id='${escapeSql(id)}';`);
-}
-
-/** 导出 products.json 契约(design.md §Phase A 数据源)——与落地页共享格式。 */
-export async function exportProductsJson(): Promise<ProductExportRecord[]> {
-  const products = await listProducts();
-  return products.map((product): ProductExportRecord => ({
-    slug: product.slug,
-    name: product.name,
-    description: product.description,
-    detail: product.detail,
-    coverImage: product.coverImage,
-    links: product.links,
-    tags: product.tags,
-    promotion: product.promotion,
-  }));
 }

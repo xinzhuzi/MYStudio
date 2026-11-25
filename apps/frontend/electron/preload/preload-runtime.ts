@@ -1,10 +1,10 @@
 import { ipcRenderer, contextBridge, type IpcRendererEvent } from 'electron'
 import type {
   SelfMediaAccountListReply, SelfMediaConfigureProviderRequest, SelfMediaConfigureProviderReply,
-  SelfMediaCreateTaskRequest, SelfMediaCreateTaskReply, SelfMediaListAccountsRequest,
-  SelfMediaListTasksRequest, SelfMediaLoginReply, SelfMediaProviderListReply,
-  SelfMediaStartLoginRequest, SelfMediaTaskListReply, SelfMediaTaskProgressEvent,
-  SelfMediaTaskReply, SelfMediaTaskRequest,
+  SelfMediaCreateTaskRequest, SelfMediaCreateTaskReply, SelfMediaDailyPublishStatsReply,
+  SelfMediaListAccountsRequest, SelfMediaListTasksRequest, SelfMediaLoginReply,
+  SelfMediaProviderListReply, SelfMediaStartLoginRequest, SelfMediaTaskListReply,
+  SelfMediaTaskProgressEvent, SelfMediaTaskReply, SelfMediaTaskRequest,
 } from '../../lib/self-media/ipc-contract'
 import {
   SELF_MEDIA_IPC,
@@ -19,8 +19,6 @@ import type {
   ProductGetReply,
   ProductUpsertReply,
   ProductDeleteReply,
-  ProductExportReply,
-  ProductExportWithDialogReply,
   ProductGetRequest,
   ProductUpsertRequest,
   ProductDeleteRequest,
@@ -654,6 +652,8 @@ contextBridge.exposeInMainWorld('selfMedia', {
     decodeSelfMediaIpcReply(await ipcRenderer.invoke(SELF_MEDIA_IPC.listAccounts, request)),
   listTasks: async (request: SelfMediaListTasksRequest): Promise<SelfMediaTaskListReply> =>
     decodeSelfMediaIpcReply(await ipcRenderer.invoke(SELF_MEDIA_IPC.listTasks, request)),
+  dailyPublishStats: async (): Promise<SelfMediaDailyPublishStatsReply> =>
+    decodeSelfMediaIpcReply(await ipcRenderer.invoke(SELF_MEDIA_IPC.dailyPublishStats)),
   configureProvider: async (request: SelfMediaConfigureProviderRequest): Promise<SelfMediaConfigureProviderReply> =>
     decodeSelfMediaIpcReply(await ipcRenderer.invoke(SELF_MEDIA_IPC.configureProvider, request)),
   startLogin: async (request: SelfMediaStartLoginRequest): Promise<SelfMediaLoginReply> =>
@@ -682,8 +682,6 @@ contextBridge.exposeInMainWorld('productBridge', {
   get: async (request: ProductGetRequest): Promise<ProductGetReply> => ipcRenderer.invoke(PRODUCT_IPC.get, request),
   upsert: async (request: ProductUpsertRequest): Promise<ProductUpsertReply> => ipcRenderer.invoke(PRODUCT_IPC.upsert, request),
   delete: async (request: ProductDeleteRequest): Promise<ProductDeleteReply> => ipcRenderer.invoke(PRODUCT_IPC.delete, request),
-  export: async (): Promise<ProductExportReply> => ipcRenderer.invoke(PRODUCT_IPC.export),
-  exportWithDialog: async (): Promise<ProductExportWithDialogReply> => ipcRenderer.invoke(PRODUCT_IPC.exportWithDialog),
 })
 
 contextBridge.exposeInMainWorld('templateBridge', {

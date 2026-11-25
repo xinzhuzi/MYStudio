@@ -66,6 +66,16 @@ describe("self-media project task recovery", () => {
     expect(useSelfMediaStore.getState().history).toEqual([{ ...completed, finishedAt: completed.updatedAt }]);
   });
 
+  it("keeps batch fields on upserted tasks so renderer projections can regroup by batch (L6)", () => {
+    const batchTask = { ...task("batch-member", "project-1", "scheduled"), batchId: "batch-1", batchRole: "member" as const, platform: "xhs" as const, scheduledAt: "2099-01-01T00:00:00.000Z" };
+    useSelfMediaStore.getState().upsertTask(batchTask);
+    expect(useSelfMediaStore.getState().tasks.find((item) => item.id === "batch-member")).toMatchObject({
+      batchId: "batch-1",
+      batchRole: "member",
+      platform: "xhs",
+    });
+  });
+
   it("hydrates only allowlisted drafts, tasks, and terminal history", () => {
     const completed = task("completed", "project-1", "success");
     const merged = mergeSelfMediaState({

@@ -7,6 +7,7 @@ import {
   isSelfMediaPublishable,
 } from "../../../lib/self-media/capabilities";
 import { containsSelfMediaCredentialLikeKey, validateSelfMediaDraft } from "../../../lib/self-media/contracts";
+import { DEFAULT_DAILY_LIMIT_PER_ACCOUNT, localDayKey, summarizeDailyPublishes } from "../../../lib/self-media/batch-policy";
 import {
   decodeSelfMediaTaskRecord,
   decodeSelfMediaProgressEvent,
@@ -18,6 +19,7 @@ import type {
   SelfMediaConfigureProviderReply,
   SelfMediaCreateTaskReply,
   SelfMediaCreateTaskRequest,
+  SelfMediaDailyPublishStatsReply,
   SelfMediaIpcReply,
   SelfMediaListAccountsRequest,
   SelfMediaListTasksRequest,
@@ -29,6 +31,7 @@ import type {
   SelfMediaTaskReply,
   SelfMediaTaskRequest,
 } from "../../../lib/self-media/ipc-contract";
+import type { DiagnosticsLogEntryInput } from "../../../types/diagnostics";
 import type {
   SelfMediaAssetRef,
   SelfMediaDraft,
@@ -47,12 +50,15 @@ import {
   type SelfMediaResolvedAsset,
 } from "../../aitoearn/provider-registry";
 import { applySelfMediaTaskResult, SelfMediaTaskRuntime } from "../../aitoearn/task-runtime";
+import { createBatchGate } from "./batch-gate";
 
 type SelfMediaIpcContext = {
   registry?: SelfMediaProviderRegistry;
   localBridge?: AitoearnLocalPlatformBridge;
   resolveAsset?: (projectId: string, asset: SelfMediaAssetRef) => Promise<SelfMediaResolvedAsset>;
   taskStorePath?: string;
+  /** L6: 批次任务开始发布的诊断日志写手(main.ts 注入;测试不传就不写) */
+  writeDiagnostic?: (entry: DiagnosticsLogEntryInput) => void;
 };
 
 type ScheduledTaskContext = {
@@ -129,6 +135,9 @@ function sanitizeScheduledDraft(value: unknown, scheduledAtOverride?: string): S
       // L1(1125 归档后补检): 定时草稿白名单重建时保留产品关联,
       // 否则 journal 持久化/恢复往返会把 productId 从发布上下文里丢掉。
       productId: draft.productId,
+      // L6: 批量发布批次字段同样要过 journal 往返,否则重启后批次身份丢失
+      batchId: draft.batchId,
+      batchRole: draft.batchRole,
       updatedAt: draft.updatedAt,
     },
   };
@@ -158,6 +167,7 @@ function createId(prefix: string) {
 
 function createTask(projectId: string, providerId: SelfMediaTask["providerId"], accountId: string, draft: SelfMediaCreateTaskRequest["draft"], previousTaskId?: string): SelfMediaTask {
   const now = new Date().toISOString();
+  const platform = typeof draft.platformOptions.platform === "string" ? draft.platformOptions.platform : undefined;
   return {
     id: createId("self-media-task"),
     attemptId: createId("self-media-attempt"),
@@ -174,6 +184,10 @@ function createTask(projectId: string, providerId: SelfMediaTask["providerId"], 
     // 渲染层「按产品筛选」(index.tsx 两处)永远筛空。重试路径(previousTaskId
     // 分支)同样经由本函数构造任务,一并覆盖。
     productId: draft.productId,
+    // L6: 批次身份与可靠的平台来源(建单时从草稿平台选项抄过来;旧草稿缺省)
+    batchId: draft.batchId,
+    batchRole: draft.batchRole,
+    platform: platform as SelfMediaPlatform | undefined,
     createdAt: now,
     updatedAt: now,
   };
@@ -196,7 +210,7 @@ function isTerminalTaskStatus(status: SelfMediaTaskStatus) {
 }
 
  
-export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, localBridge, resolveAsset, taskStorePath }: SelfMediaIpcContext) {
+export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, localBridge, resolveAsset, taskStorePath, writeDiagnostic }: SelfMediaIpcContext) {
   const registry = suppliedRegistry ?? createSelfMediaProviderRegistry({
     local: createAitoearnLocalAdapter(localBridge),
   });
@@ -282,6 +296,7 @@ export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, local
     SELF_MEDIA_IPC.listProviders,
     SELF_MEDIA_IPC.listAccounts,
     SELF_MEDIA_IPC.listTasks,
+    SELF_MEDIA_IPC.dailyPublishStats,
     SELF_MEDIA_IPC.configureProvider,
     SELF_MEDIA_IPC.startLogin,
     SELF_MEDIA_IPC.createTask,
@@ -338,22 +353,38 @@ export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, local
     });
   };
 
+  // L6: 批量发布闸门与级联。闸门只管带 batchId 的定时任务;级联置败经 runtime.abort
+  // 落地(走 apply 的防篡改检查,逐条 persist+emit)。
+  const gate = createBatchGate({
+    tasks,
+    abort: (task, code, message) => runtime.abort(task, code, message),
+    writeDiagnostic,
+  });
+
   const runtime = new SelfMediaTaskRuntime(
     tasks,
     registry,
     persistTasks,
-    (task) => emitProgress({
-      projectId: task.projectId,
-      taskId: task.id,
-      status: task.status,
-      progress: task.progress,
-    }),
+    (task) => {
+      emitProgress({
+        projectId: task.projectId,
+        taskId: task.id,
+        status: task.status,
+        progress: task.progress,
+      });
+      // L6 级联入口 1: 运行时状态回调里,首发验证进入坏终态即级联
+      void gate.maybeCascade(task);
+    },
     {
+      gateScheduled: gate.gateScheduled,
       executeScheduled: async (task) => {
         const draft = scheduledContexts.get(task.id);
         const adapter = getAdapter(task.providerId);
         if (!draft) throw new SelfMediaProviderError(task.providerId, "schedule-context-missing", "定时任务缺少可恢复的发布上下文");
         if (!adapter) throw new SelfMediaProviderError(task.providerId, "invalid-provider", "provider 无效");
+        // L6 诊断日志:批次任务真正开始发布,给 L11 留实际发送时刻证据
+        const scheduledPlatform = typeof draft.platformOptions.platform === "string" ? draft.platformOptions.platform : undefined;
+        gate.writeStartDiagnostic(task, scheduledPlatform as SelfMediaPlatform | undefined);
         try {
           const dueDraft = { ...draft, scheduledAt: undefined, updatedAt: new Date().toISOString() };
           return await publishTask(adapter, dueDraft, task);
@@ -383,6 +414,15 @@ export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, local
     const value = runtime.list(request.projectId).map(decodeTaskRecord);
     if (value.some((task) => task === null)) return disabled("invalid-task-response", "任务响应无效");
     return { success: true, value: value as SelfMediaTask[] };
+  });
+
+  ipcMain.handle(SELF_MEDIA_IPC.dailyPublishStats, async (event): Promise<SelfMediaDailyPublishStatsReply> => {
+    // L6: 每日次数改由主进程按整本台账统计(账号库是全局的,listTasks 只返回单项目)
+    const rejected = rejectUntrustedSender(event);
+    if (rejected) return rejected;
+    await tasksReady;
+    if (journalFailure) return disabled(journalFailure.code, journalFailure.message);
+    return { success: true, value: summarizeDailyPublishes([...tasks.values()], { dateKey: localDayKey(new Date()), limit: DEFAULT_DAILY_LIMIT_PER_ACCOUNT }) };
   });
 
   ipcMain.handle(SELF_MEDIA_IPC.listAccounts, async (event, request: SelfMediaListAccountsRequest): Promise<SelfMediaAccountListReply> => {
@@ -475,9 +515,14 @@ export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, local
         if (!scheduledDraft?.success) return disabled("invalid-scheduled-context", "定时任务缺少可恢复的发布上下文");
         scheduledContexts.set(task.id, scheduledDraft.value);
         await persistTasks();
+        // L6 级联入口 5: 首发验证已是坏终态时,成员建单即置败(abort 内部 persist+emit)
+        // 并把失败态任务带回回执;未被级联的成员才挂定时。
+        task = await gate.cascadeNewMember(task);
         created.push(task);
-        runtime.schedule(task);
-        emitProgress({ projectId: task.projectId, taskId: task.id, status: task.status, progress: task.progress });
+        if (task.status === "scheduled") {
+          runtime.schedule(task);
+          emitProgress({ projectId: task.projectId, taskId: task.id, status: task.status, progress: task.progress });
+        }
         continue;
       }
       const publication = publishTask(adapter, draft, task);
@@ -526,6 +571,8 @@ export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, local
       tasks.set(canceled.id, canceled);
       await persistTasks();
       emitProgress({ projectId: canceled.projectId, taskId: canceled.id, status: canceled.status, progress: canceled.progress });
+      // L6 级联入口 2: 定时态取消首发验证之后
+      await gate.maybeCascade(canceled);
       return { success: true, value: canceled };
     }
     try {
@@ -551,6 +598,8 @@ export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, local
         tasks.set(next.id, next);
         await persistTasks();
         emitProgress({ projectId: next.projectId, taskId: next.id, status: next.status, progress: next.progress });
+        // L6 级联入口 3: 运行态取消成功之后(取消结果带终态)
+        await gate.maybeCascade(next);
         return { success: true, value };
       } finally {
         inFlightActions.delete(cancellation);
@@ -565,6 +614,8 @@ export function registerSelfMediaIpcHandlers({ registry: suppliedRegistry, local
       tasks.set(failed.id, failed);
       await persistTasks();
       emitProgress({ projectId: failed.projectId, taskId: failed.id, status: failed.status, progress: failed.progress });
+      // L6 级联入口 4: 查询出错把首发验证置败之后
+      await gate.maybeCascade(failed);
       return { success: true, value: failed };
     }
   };

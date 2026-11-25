@@ -411,17 +411,7 @@ function TemplateEditor({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-foreground">媒体槽位数量</Label>
-              <Input
-                type="number"
-                min="0"
-                max="20"
-                value={form.mediaSlots}
-                onChange={(e) => handleFieldChange("mediaSlots", parseInt(e.target.value) || 0)}
-                className="transition-all duration-200 hover:border-primary/50"
-              />
-            </div>
+            {/* B1(1125 补检): 「媒体位数 mediaSlots」全仓无读取方,表单不再录入;数据模型与 DB 列保留 */}
           </div>
         </CardContent>
       </Card>

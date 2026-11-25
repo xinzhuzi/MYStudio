@@ -7,11 +7,24 @@ export type TaskRuntimeClock = () => number;
 export type ScheduledTaskExecutor = (task: SelfMediaTask) => Promise<SelfMediaProviderTaskResult>;
 export type TaskRuntimeErrorMapper = (task: SelfMediaTask, error: unknown) => SelfMediaTaskError;
 
+/**
+ * L6: 定时任务转「发布中」之前闸门的裁决。
+ * execute=放行;delay=顺延指定毫秒后重挂定时再过闸;fail=以给定错误码置败、不外发。
+ */
+export type TaskGateDecision =
+  | { action: "execute" }
+  | { action: "delay"; delayMs: number }
+  | { action: "fail"; code: string; message: string };
+
+export type TaskGate = (task: SelfMediaTask, now: number) => TaskGateDecision | Promise<TaskGateDecision>;
+
 export interface SelfMediaTaskRuntimeOptions {
   now?: TaskRuntimeClock;
   pollIntervalMs?: number;
   executeScheduled?: ScheduledTaskExecutor;
   mapError?: TaskRuntimeErrorMapper;
+  /** L6: 只约束定时链;发布页即时单发不经过闸门。 */
+  gateScheduled?: TaskGate;
 }
 
 const TERMINAL: readonly SelfMediaTaskStatus[] = ["success", "failure", "partial", "audit", "canceled", "expired-login"];
@@ -86,6 +99,18 @@ export class SelfMediaTaskRuntime {
     if (!this.options.executeScheduled) {
       return this.fail(current, "schedule-context-missing", "定时任务缺少可恢复的发布上下文");
     }
+    // L6: 转 running 之前先过闸门。顺延按给定毫秒数 rearm(不能调 schedule——
+    // 它按 task.scheduledAt 算延时,过期任务会得到 0 毫秒的忙等循环)。
+    if (this.options.gateScheduled) {
+      const decision = await this.options.gateScheduled(current, this.now());
+      if (decision.action === "delay") {
+        this.rearm(current, decision.delayMs);
+        return current;
+      }
+      if (decision.action === "fail") {
+        return this.fail(current, decision.code, decision.message);
+      }
+    }
     const running = await this.apply(current, { status: "running", progress: current.progress });
     if (this.disposed || this.tasks.get(running.id) !== running || running.status !== "running") {
       return this.tasks.get(running.id) ?? running;
@@ -127,6 +152,14 @@ export class SelfMediaTaskRuntime {
     this.jobs.delete(taskId);
   }
 
+  /**
+   * L6: 公开给级联用——把任务以给定错误码置败(不可重试)。
+   * 走 apply 的 attemptId/终态防篡改检查,不会覆盖已变化的任务。
+   */
+  abort(task: SelfMediaTask, code: string, message: string): Promise<SelfMediaTask> {
+    return this.fail(task, code, message);
+  }
+
   async waitForIdle(): Promise<void> {
     while (this.inFlight.size > 0) {
       await Promise.allSettled([...this.inFlight]);
@@ -146,6 +179,18 @@ export class SelfMediaTaskRuntime {
       () => this.inFlight.delete(operation),
       () => this.inFlight.delete(operation),
     );
+  }
+
+  /** L6: 顺延后按给定毫秒数重挂定时(到期后再走一次 execute→闸门)。 */
+  private rearm(task: SelfMediaTask, delayMs: number): void {
+    if (this.disposed || isTerminal(task.status)) return;
+    const existing = this.jobs.get(task.id);
+    if (existing) clearTimeout(existing);
+    // Node 对超过 2^31-1ms 的 delay 截断为 1ms,顺延值做上限钳制
+    this.jobs.set(task.id, setTimeout(() => {
+      this.jobs.delete(task.id);
+      this.track(this.execute(task));
+    }, Math.max(0, Math.min(delayMs, SelfMediaTaskRuntime.MAX_TIMER_DELAY_MS))));
   }
 
   private async pollInternal(task: SelfMediaTask): Promise<SelfMediaTask> {

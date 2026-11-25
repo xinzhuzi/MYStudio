@@ -174,6 +174,8 @@ const selfMediaIpc = registerSelfMediaIpcHandlers({
     platformTransports: officialPlatformTransports.transports,
   }),
   taskStorePath: path.join(app.getPath('userData'), 'self-media', 'tasks.json'),
+  // L6(1125 二轮收尾): 批次任务开始发布的诊断日志写手——给 L11 留实际发送时刻证据
+  writeDiagnostic: writeDiagnosticsLog,
   resolveAsset: async (_projectId, asset) => {
     const source = asset.approvedUrl ?? asset.assetId;
     const resolved = resolveStudioSourcePath(source);

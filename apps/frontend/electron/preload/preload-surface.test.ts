@@ -41,6 +41,7 @@ describe("preload IPC surface", () => {
     expect(preloadSource).toContain("ipcRenderer.invoke(SELF_MEDIA_IPC.listProviders)");
     expect(preloadSource).toContain("ipcRenderer.invoke(SELF_MEDIA_IPC.listAccounts, request)");
     expect(preloadSource).toContain("ipcRenderer.invoke(SELF_MEDIA_IPC.listTasks, request)");
+    expect(preloadSource).toContain("ipcRenderer.invoke(SELF_MEDIA_IPC.dailyPublishStats)");
     expect(preloadSource).toContain("ipcRenderer.invoke(SELF_MEDIA_IPC.configureProvider, request)");
     expect(preloadSource).toContain("ipcRenderer.invoke(SELF_MEDIA_IPC.startLogin, request)");
     expect(preloadSource).toContain("ipcRenderer.invoke(SELF_MEDIA_IPC.createTask, request)");
@@ -51,6 +52,11 @@ describe("preload IPC surface", () => {
     expect(preloadSource).toContain("decodeSelfMediaProgressEvent(payload)");
     expect(electronTypesSource).toContain("selfMedia?:");
     expect(electronTypesSource).toContain("onProgress: (listener: (progress: SelfMediaTaskProgressEvent) => void) => () => void");
+  });
+
+  it("does not expose the removed products.json export channel", () => {
+    // 用正则字面量而不是 toContain 字符串:收尾 grep 以「PRODUCT_IPC 的 export 成员」为模式,字符串写法会被自己命中
+    expect(preloadSource).not.toMatch(/PRODUCT_IPC\.export/);
   });
 
   it("exposes diagnostics logging through a narrow safe API", () => {

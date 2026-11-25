@@ -8,14 +8,12 @@ const { handlers, productMocks, ensureAssetsDatabaseReady } = vi.hoisted(() => (
     getProduct: vi.fn(async () => null),
     upsertProduct: vi.fn(),
     deleteProduct: vi.fn(),
-    exportProductsJson: vi.fn(async () => [] as unknown[]),
   },
   ensureAssetsDatabaseReady: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
   BrowserWindow: { fromWebContents: vi.fn(() => null) },
-  dialog: { showSaveDialog: vi.fn() },
   ipcMain: {
     handle: vi.fn((channel: string, handler: (...args: unknown[]) => unknown) => handlers.set(channel, handler)),
     removeHandler: vi.fn(),
