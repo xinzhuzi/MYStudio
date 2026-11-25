@@ -87,7 +87,7 @@
   --popover-foreground: 155 16% 16%;
   
   /* Brand/Primary - 蓝色品牌色 */
-  --primary: 212 100% 48%;        /* #0091ff - 主品牌色 */
+  --primary: 212 100% 46.2%;        /* #006eec - 主品牌色(1126 对比度微调, 原 #0091ff) */
   --primary-foreground: 0 0% 100%;
 
   /* Paid CTA - 浅色模式用深琥珀金,保证淡底描边在纸面上可读 */
@@ -106,7 +106,7 @@
   --accent-foreground: 150 42% 24%;
   
   /* Destructive */
-  --destructive: 0 84% 60%;
+  --destructive: 0 84% 32.5%;
   --destructive-foreground: 0 0% 100%;
   
   /* Borders & Inputs */
@@ -277,7 +277,7 @@
   --border: 36 10% 67%;
   --input: 36 13% 80%;
   --ring: 199 80% 42%;
-  --primary: 199 80% 42%;
+  --primary: 199 80% 37.2%;
   --brand-start: 199 80% 42%;
   --brand-end: 34 56% 46%;
 }
@@ -324,7 +324,7 @@
   
   /* Brand/Primary - 护眼监看蓝 */
   --primary: 200 80% 48%;
-  --primary-foreground: 210 14% 90%;
+  --primary-foreground: 210 14% 3.5%;
 
   /* Paid CTA - 暗色模式用亮金,延续「金色=付费」语言且不随预设漂移 */
   --paid: 42 92% 60%;
@@ -342,8 +342,8 @@
   --accent-foreground: 0 0% 4%;
   
   /* Destructive */
-  --destructive: 0 72% 51%;
-  --destructive-foreground: 0 0% 85%;
+  --destructive: 0 72% 71.5%;
+  --destructive-foreground: 0 0% 3.5%;
   
   /* Borders & Inputs */
   --border: 220 12% 13%;
@@ -441,7 +441,7 @@
   --accent-foreground: 0 0% 95%;
   --border: 218 15% 14%;
   --input: 218 16% 14%;
-  --primary: 212 85% 48%;
+  --primary: 212 85% 50.1%;
   --brand-start: 212 85% 48%;
   --brand-end: 262 75% 62%;
 }

@@ -129,7 +129,7 @@ export function SceneCard({
             <button
               type="button"
               className={cn(
-                "absolute top-1 right-1 px-1.5 py-0.5 rounded-md text-primary-foreground text-[9px] flex items-center gap-0.5 cursor-pointer font-medium focus-visible:ring-2 focus-visible:ring-primary/70"
+                "absolute top-1 right-1 px-1.5 py-0.5 rounded-md bg-primary text-primary-foreground text-[9px] flex items-center gap-0.5 cursor-pointer font-medium focus-visible:ring-2 focus-visible:ring-primary/70"
               )}
               aria-expanded={isExpanded}
               aria-label={`${isExpanded ? "收起" : "展开"} ${childCount} 个子场景`}

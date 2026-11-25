@@ -20,7 +20,7 @@ const buttonVariants = cva(
         "primary-gradient":
           "bg-primary text-primary-foreground hover:brightness-110 active:brightness-90 font-medium",
         destructive:
-          "border border-destructive/25 text-destructive/90 hover:bg-destructive/[0.08] hover:text-destructive active:bg-destructive/[0.14]",
+          "border border-destructive/25 text-destructive hover:bg-destructive/[0.08] hover:text-destructive active:bg-destructive/[0.14]",
         outline:
           "border border-foreground/[0.12] bg-transparent text-foreground/85 hover:bg-foreground/[0.06] hover:text-foreground active:bg-foreground/[0.10]",
         secondary:
