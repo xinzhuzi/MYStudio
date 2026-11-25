@@ -115,11 +115,11 @@
   --ring: 212 100% 48%;
   
   /* Functional colors */
-  --success: 142 76% 36%;         /* 绿色 - 成功 */
+  --success: 142 76% 15.7%;         /* 绿色 - 成功 */
   --success-foreground: 0 0% 100%;
-  --warning: 38 92% 50%;          /* 橙色 - 警告 */
+  --warning: 38 92% 17.1%;          /* 橙色 - 警告 */
   --warning-foreground: 0 0% 100%;
-  --info: 199 89% 48%;            /* 青色 - 信息 */
+  --info: 199 89% 19%;            /* 青色 - 信息 */
   --info-foreground: 0 0% 100%;
   
   /* Brand gradient */
@@ -351,12 +351,12 @@
   --ring: 200 80% 48%;
   
   /* Functional colors */
-  --success: 142 60% 45%;
-  --success-foreground: 0 0% 85%;
+  --success: 142 60% 47.5%;
+  --success-foreground: 0 0% 3.5%;
   --warning: 38 90% 52%;
-  --warning-foreground: 0 0% 10%;
-  --info: 199 75% 45%;
-  --info-foreground: 0 0% 85%;
+  --warning-foreground: 0 0% 3.5%;
+  --info: 199 75% 60%;
+  --info-foreground: 0 0% 3.5%;
   
   /* Brand gradient */
   --brand-start: 200 80% 48%;
