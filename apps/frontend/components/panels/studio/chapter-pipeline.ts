@@ -14,8 +14,11 @@
  *   terminal 任务;重启前残留的 queued/running 任务(执行体已随进程消亡)
  *   首次重算时收口为 failed(禁永久 running 假活),重跑由各层幂等跳过
  *   已成产物(同指纹 succeeded 复用/已有图跳过/已绑镜跳过);
- * - 章验收卡双落位:本模块只产卡(聚合纯函数),落位=任务中心 orb 终态
- *   收据(use-task-center pipeline 域)+ 分镜面板横幅(ChapterAcceptanceBanner);
+ * - 章验收卡落位(1126 裁定:模块状态归各模块节点,不做顶部横幅):本模块只
+ *   产卡(聚合纯函数),落位=任务中心 orb 终态收据(use-task-center pipeline
+ *   域)+ 生产流节点计数(衍生资产/分镜面板节点的 metrics 与警示态,经
+ *   useStudioViewModel→ProductionFlowAcceptanceCounts 传入);原分镜面板
+ *   顶部横幅(ChapterAcceptanceBanner)已退役;
  * - 批6 失效传播接入:发车前盖戳章剧本指纹(发车指纹台账),漂移的已终态
  *   下游任务进卡 staleCount(chapter-pipeline-stale 派生视图)。
  */
