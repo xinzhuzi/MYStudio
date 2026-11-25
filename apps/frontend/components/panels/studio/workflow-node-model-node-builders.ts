@@ -75,6 +75,15 @@ export function buildAssetsNode(ctx: ProductionFlowBuildContext): ProductionFlow
         ? "warning"
         : "ready"
       : "empty",
+    // 1126 节点状态文字:警示态给具体口径(失败项数=资产+衍生任务之和)。
+    // 与 warning 同闸(资产清单非空,1126 独立复核):清单已空(节点 empty)
+    // 时台账遗留失败不挂警示文字,避免「未开始+失败 N 项」自相矛盾;
+    // 非警示态不设 statusText(回落默认「已完成」)。
+    ...(ctx.assetCounts.total > 0
+      && acceptance
+      && acceptance.assets.failed + acceptance.derived.failed > 0
+      ? { statusText: `失败 ${acceptance.assets.failed + acceptance.derived.failed} 项` }
+      : {}),
     metrics: [
       ...ctx.assetMetrics,
       // 验收计数芯片(任务台账口径,与 orb 收据 chapterAcceptanceSummary 同文式)
@@ -139,6 +148,12 @@ export function buildStoryboardPanelNode(ctx: ProductionFlowBuildContext): Produ
         ? "warning"
         : "ready"
       : "empty",
+    // 1126 节点状态文字:警示态给具体口径(缺视频镜数);非警示态不设
+    // statusText(回落默认「已完成」)。staleCount 不上节点(归逐镜徽章与
+    // 任务中心),也不进这行文字。
+    ...(acceptance && acceptance.storyboard.videoReady < acceptance.storyboard.totalShots
+      ? { statusText: `缺视频 ${acceptance.storyboard.totalShots - acceptance.storyboard.videoReady} 镜` }
+      : {}),
     metrics: ctx.chapterStoryboards.length
       ? [
           `${ctx.chapterStoryboards.length} 个分镜`,

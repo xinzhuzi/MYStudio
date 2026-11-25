@@ -615,6 +615,9 @@ describe("production workflow node model", () => {
     expect(assetsNode?.metrics).toContain("衍生 2/3");
     const storyboardNode = failing.nodes.find((node) => node.id === "storyboard");
     expect(storyboardNode?.status).toBe("warning");
+    // 1126 节点状态文字:警示态给具体口径(失败项=资产+衍生之和;缺视频镜数)
+    expect(assetsNode?.statusText).toBe("失败 2 项");
+    expect(storyboardNode?.statusText).toBe("缺视频 1 镜");
     // 「N 个画面」已被「分镜画面 就绪/总数」合并替代,不并列出现
     expect(storyboardNode?.metrics).toEqual([
       "2 个分镜",
@@ -635,6 +638,24 @@ describe("production workflow node model", () => {
     });
     expect(green.nodes.find((node) => node.id === "assets")?.status).toBe("ready");
     expect(green.nodes.find((node) => node.id === "storyboard")?.status).toBe("ready");
+    // 1126 节点状态文字:非警示态不设 statusText,载荷映射回落默认「已完成」
+    expect(green.nodes.find((node) => node.id === "assets")?.statusText).toBeUndefined();
+    expect(green.nodes.find((node) => node.id === "storyboard")?.statusText).toBeUndefined();
+
+    // 1126 独立复核:资产清单已空(assetCounts.total=0)→ 节点 empty,台账
+    // 遗留失败不挂警示文字(不出现「未开始+失败 N 项」自相矛盾组合)
+    const emptied = buildProductionFlowModel({
+      ...baseInput,
+      entityExtractions: [],
+      acceptance: {
+        assets: { total: 0, success: 0, failed: 0 },
+        derived: { total: 3, success: 1, failed: 2 },
+        storyboard: { totalShots: 2, videoReady: 2, ready: 2 },
+      },
+    });
+    const emptiedAssets = emptied.nodes.find((node) => node.id === "assets");
+    expect(emptiedAssets?.status).toBe("empty");
+    expect(emptiedAssets?.statusText).toBeUndefined();
   });
 
   it("does not mark the workbench ready before final export exists", () => {

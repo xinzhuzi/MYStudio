@@ -13,6 +13,9 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { PNG } from "pngjs";
+// 1126 画布启动冒烟:webview guest 探测用 ws 包(apps/node_modules/ws)。
+// 别名导入,不遮蔽 connectWebSocket 用的 Node 全局 WebSocket。
+import WsWebSocket from "ws";
 import { verifyAssetLibraryLayout } from "./asset-library-smoke.mjs";
 import {
   diffSelfStartedPids,
@@ -84,6 +87,15 @@ const ASSET_VOICE_FLOW_TIMEOUT_MS = Number(
 );
 const WORKFLOW_E2E_TIMEOUT_MS = Number(
   process.env.MYSTUDIO_SMOKE_WORKFLOW_E2E_TIMEOUT_MS || 90_000,
+);
+// 1126 画布启动冒烟:webview 真启动检查轮询预算(默认 60s)。
+const WEBVIEW_STARTUP_TIMEOUT_MS = Number(
+  process.env.MYSTUDIO_SMOKE_WEBVIEW_TIMEOUT_MS || 60_000,
+);
+// 1126 独立复核:swap 里 webview 未挂载(占位面板在渲染)时的挂载宽限,
+// 只覆盖挂载时滞——不是启动窗口;超过即判结构性无引擎,降级 skipped。
+const WEBVIEW_MOUNT_GRACE_MS = Number(
+  process.env.MYSTUDIO_SMOKE_WEBVIEW_MOUNT_GRACE_MS || 10_000,
 );
 const AUDIO_METADATA_TIMEOUT_MS = Number(
   process.env.MYSTUDIO_SMOKE_AUDIO_METADATA_TIMEOUT_MS || 10_000,
@@ -836,6 +848,202 @@ function isAllowedOfflinePreviewResourceError(message) {
   );
 }
 
+// 1126 画布启动冒烟「webview 真启动检查」:主窗口 DOM 断言(hasNodeCanvas=
+// [data-comfy-swap] 挂载)不证明 ComfyUI 引擎前端真起来了——引擎侧白屏/
+// 启动失败在宿主 DOM 端不可见。经本脚本既有 debugPort /json/list 通道找
+// type=webview 的 target(Electron <webview> guest),连 ws(apps/node_modules/ws)
+// 轮询 ≤60s:启动成功判据=canvas 数≥1 且 bodyText 长度≥500;连接一旦建立
+// 就保持到轮询窗口结束,期间捕获的 console 错误样本随失败信息一并上报。
+// 两级口径(1126 独立复核,证据链逐环读码闭合):后台打包冒烟不拉 17595
+// sidecar(main.ts `if (!isBackgroundSmoke)`,注释「打包冒烟不背无谓 python
+// 子进程」)→ ComfyCanvasStudio status 恒 null → running 恒 false → <webview>
+// 永不挂载(渲染占位面板)。此环境下「无引擎 UI」是结构性既成事实而非被测
+// 故障,60s 空轮询只会把整条打包冒烟打成永久红灯。故:swap 里查无 webview
+// 元素时先给 MOUNT_GRACE 宽限(只吃挂载时滞),仍无 target 即降级 skipped
+// (带占位证据,不计失败);webview 元素一经挂载(DOM 判定)或宽限内
+// target 突现,照常进 60s 硬门。
+async function probeWebviewStartup(webviewMountState = {}) {
+  const domMounted = Boolean(webviewMountState.webviewMounted);
+  const graceDeadline = Date.now() + WEBVIEW_MOUNT_GRACE_MS;
+  const deadline = Date.now() + WEBVIEW_STARTUP_TIMEOUT_MS;
+  const consoleErrorSamples = [];
+  const recordConsoleErrorSample = (message) => {
+    if (consoleErrorSamples.length >= 5) return;
+    consoleErrorSamples.push(summarizePageError(message));
+  };
+  let webviewTargetCount = 0;
+  let canvasCount = null;
+  let bodyTextLength = null;
+  let socket = null;
+  let messageId = 0;
+  const pendingCalls = new Map();
+  let probeError = "";
+  let skipped = false;
+
+  const callWebview = (method, params = {}) => {
+    const request = new Promise((resolveCall, rejectCall) => {
+      const id = ++messageId;
+      pendingCalls.set(id, { resolve: resolveCall, reject: rejectCall });
+      socket.send(JSON.stringify({ id, method, params }));
+    });
+    return withTimeout(request, `webview ${method}`, 5_000);
+  };
+
+  const closeSocket = () => {
+    if (!socket) return;
+    try {
+      socket.removeAllListeners();
+      socket.close();
+    } catch {
+      // 关闭失败可忽略(下轮重建连接)
+    }
+    socket = null;
+    for (const [, callback] of pendingCalls.entries()) {
+      callback.reject(new Error("webview probe socket closed"));
+    }
+    pendingCalls.clear();
+  };
+
+  try {
+    while (Date.now() < deadline) {
+      if (!socket) {
+        let target = null;
+        try {
+          const targets = await readJson(`http://127.0.0.1:${debugPort}/json/list`);
+          const webviews = Array.isArray(targets)
+            ? targets.filter(
+              (item) => item.type === "webview" && item.webSocketDebuggerUrl,
+            )
+            : [];
+          webviewTargetCount = Math.max(webviewTargetCount, webviews.length);
+          target = webviews[0] ?? null;
+        } catch {
+          // 调试通道未就绪/瞬时抖动,下轮再扫
+        }
+        if (!target) {
+          // 两级口径:DOM 未挂 webview(占位面板)+宽限耗尽+从未见过 target
+          // =结构性无引擎,降级 skipped 不硬失败(证据随返回值进 smokeReport)。
+          // webviewTargetCount>0 挡「target 突现后又消失」——那是真故障,走
+          // 60s 硬门,不降级。
+          if (
+            !domMounted
+            && webviewTargetCount === 0
+            && Date.now() > graceDeadline
+          ) {
+            skipped = true;
+            break;
+          }
+          await sleep(1_000);
+          continue;
+        }
+        try {
+          socket = new WsWebSocket(target.webSocketDebuggerUrl);
+          await new Promise((resolveOpen, rejectOpen) => {
+            socket.once("open", resolveOpen);
+            socket.once("error", rejectOpen);
+          });
+          // 打开后的 error 事件经 close/send 失败路径处理,不再抛出
+          socket.on("error", () => {});
+          socket.on("message", (data) => {
+            let message = null;
+            try {
+              message = JSON.parse(String(data));
+            } catch {
+              return;
+            }
+            if (message.id && pendingCalls.has(message.id)) {
+              const callback = pendingCalls.get(message.id);
+              pendingCalls.delete(message.id);
+              if (message.error) {
+                callback.reject(new Error(JSON.stringify(message.error)));
+              } else {
+                callback.resolve(message.result);
+              }
+              return;
+            }
+            if (
+              message.method === "Runtime.exceptionThrown"
+              || (message.method === "Runtime.consoleAPICalled"
+                && message.params?.type === "error")
+              || (message.method === "Log.entryAdded"
+                && message.params?.entry?.level === "error")
+            ) {
+              recordConsoleErrorSample(message);
+            }
+          });
+          await callWebview("Runtime.enable");
+          await callWebview("Log.enable");
+        } catch (error) {
+          probeError = error instanceof Error ? error.message : String(error);
+          closeSocket();
+          await sleep(1_000);
+          continue;
+        }
+      }
+      // 已连上 webview guest:实测 canvas 数与正文量(白屏=双 0)
+      try {
+        const evaluated = await callWebview("Runtime.evaluate", {
+          returnByValue: true,
+          expression:
+            "(() => ({ canvasCount: document.querySelectorAll('canvas').length, bodyTextLength: (document.body?.innerText || '').trim().length }))()",
+        });
+        if (evaluated?.exceptionDetails) {
+          throw new Error(
+            evaluated.exceptionDetails?.exception?.description
+            || evaluated.exceptionDetails?.text
+            || "webview probe evaluate failed",
+          );
+        }
+        canvasCount = Number(evaluated?.result?.value?.canvasCount ?? 0);
+        bodyTextLength = Number(evaluated?.result?.value?.bodyTextLength ?? 0);
+        probeError = "";
+        if (canvasCount >= 1 && bodyTextLength >= 500) {
+          return {
+            ok: true,
+            webviewTargetCount,
+            canvasCount,
+            bodyTextLength,
+            consoleErrorSamples,
+          };
+        }
+      } catch (error) {
+        // 执行上下文销毁(guest 导航中)等 → 断开重连,下轮再试
+        probeError = error instanceof Error ? error.message : String(error);
+        closeSocket();
+      }
+      await sleep(1_000);
+    }
+  } finally {
+    closeSocket();
+  }
+  if (skipped) {
+    return {
+      ok: false,
+      skipped: true,
+      skipReason:
+        "no <webview> mounted in comfy swap: engine structurally not running in this smoke environment"
+        + " (background packaged smoke does not pull the 17595 sidecar; placeholder panel rendered)",
+      webviewMounted: domMounted,
+      placeholderMarkers: Array.isArray(webviewMountState.placeholderMarkers)
+        ? webviewMountState.placeholderMarkers
+        : [],
+      genericPlaceholder: Boolean(webviewMountState.genericPlaceholder),
+      webviewTargetCount,
+      canvasCount,
+      bodyTextLength,
+      consoleErrorSamples,
+    };
+  }
+  return {
+    ok: false,
+    webviewTargetCount,
+    canvasCount,
+    bodyTextLength,
+    consoleErrorSamples,
+    ...(probeError ? { lastError: probeError } : {}),
+  };
+}
+
 async function inspectPage(pageTarget) {
   const socket = await connectWebSocket(pageTarget.webSocketDebuggerUrl);
   let messageId = 0;
@@ -1105,6 +1313,53 @@ async function inspectPage(pageTarget) {
     const domVisualStats = await captureDomVisualStats(evaluate);
     console.log("[smoke] capturing screenshot");
     const screenshot = await captureVisualStats(send, domVisualStats);
+
+    // 1126 画布启动冒烟:webview 真启动检查(storyboard 阶段断言之后的硬门)。
+    // 先经宿主桥切回分镜阶段挂 ComfyCanvasSwap(引擎 running 时才挂 <webview>),
+    // 探测完切回工作台;后续只剩断言汇总,阶段态不再被消费。
+    console.log("[smoke] checking comfy webview real startup");
+    try {
+      await evaluate(
+        "window.mystudioWorkflowSmoke?.setWorkflowStage?.('storyboard')",
+        "switch to storyboard stage for webview startup check",
+      );
+    } catch (error) {
+      console.warn(
+        `[smoke] storyboard stage switch for webview check failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    // 1126 独立复核:先采 swap 的 DOM 挂载态(<webview> 元素 vs 占位面板)
+    // 作环境判别——占位=本冒烟环境结构性无引擎,探测降级 skipped
+    const webviewMountState = await evaluate(
+      `(() => ({
+        webviewMounted: Boolean(document.querySelector('[data-comfy-canvas-webview]')),
+        placeholderMarkers: [
+          'data-comfy-canvas-checking',
+          'data-comfy-canvas-install',
+          'data-comfy-canvas-start',
+          'data-comfy-canvas-starting',
+          'data-comfy-canvas-resolving',
+        ].filter((attr) => Boolean(document.querySelector('[' + attr + ']'))),
+        genericPlaceholder: Boolean(document.querySelector('[data-comfy-canvas-placeholder]')),
+      }))()`,
+      "comfy webview mount state probe",
+    );
+    const webviewStartup = await probeWebviewStartup(webviewMountState);
+    if (webviewStartup.skipped) {
+      console.log(
+        `[smoke] comfy webview check skipped: ${webviewStartup.skipReason}`
+        + ` (markers: ${(webviewStartup.placeholderMarkers || []).join(", ") || "none"})`,
+      );
+    }
+    try {
+      await evaluate(
+        "window.mystudioWorkflowSmoke?.setWorkflowStage?.('workbench')",
+        "restore workbench stage after webview startup check",
+      );
+    } catch {
+      // 恢复失败可忽略(冒烟收尾不再依赖阶段态)
+    }
+
     return {
       state,
       smokeEnvironment,
@@ -1120,6 +1375,7 @@ async function inspectPage(pageTarget) {
       pluginSettings,
       remotionExport,
       screenshot,
+      webviewStartup,
     };
   } finally {
     for (const [, callback] of pending.entries()) {
@@ -2800,6 +3056,7 @@ function assertHealthy(
   remotionExport,
   remotionArtifact,
   screenshot,
+  webviewStartup,
   allowedErrors,
   foregroundViolation,
 ) {
@@ -2861,6 +3118,24 @@ function assertHealthy(
   if (!storyboardStage?.hasNodeCanvas) {
     failures.push(
       `storyboard video generation React Flow workflow canvas did not render: canvas=${storyboardStage?.hasNodeCanvas}`,
+    );
+  }
+  // 1126 画布启动冒烟(硬门):[data-comfy-swap] 挂载≠webview 真启动——引擎
+  // 前端白屏/启动失败在宿主 DOM 端不可见,须进 guest 实测 canvas 与正文量;
+  // 失败信息带探测窗口捕获的 console 错误样本。skipped=后台打包冒烟结构性
+  // 无引擎(swap 查无 webview 元素、占位面板在渲染),不计失败,证据进
+  // smokeReport;webview 一经挂载,启动失败仍硬失败。
+  if (webviewStartup && !webviewStartup.ok && !webviewStartup.skipped) {
+    const consoleSampleText = (webviewStartup?.consoleErrorSamples ?? [])
+      .map((sample) => JSON.stringify(sample))
+      .join(" | ");
+    failures.push(
+      `comfy webview did not really start within ${WEBVIEW_STARTUP_TIMEOUT_MS}ms: `
+      + `webviews=${webviewStartup?.webviewTargetCount ?? 0}, `
+      + `canvas=${webviewStartup?.canvasCount ?? "n/a"}, `
+      + `bodyText=${webviewStartup?.bodyTextLength ?? "n/a"}`
+      + (webviewStartup?.lastError ? `, lastError=${webviewStartup.lastError}` : "")
+      + (consoleSampleText ? `, consoleErrorSamples=[${consoleSampleText}]` : ""),
     );
   }
   if (generationStage?.hasGenerationNodeCanvas) {
@@ -3184,6 +3459,7 @@ function assertHealthy(
           remotionExport,
           remotionArtifact,
           screenshot,
+          webviewStartup,
           pageErrors: errors.map(summarizePageError),
           allowedPageErrors: allowedErrors.map(summarizePageError),
         },
@@ -3204,8 +3480,13 @@ function assertHealthy(
         ? `, remotionExport=canceled, artifacts=${remotionArtifact.cancellationArtifactsPresent ? "ok" : "missing"}`
         : `, remotionExport=ok, remotionSha256=${remotionArtifact.sha256}`
     : "";
+  // 1126 画布启动冒烟:走到这里 webviewStartup 只可能 ok 或 skipped(否则已
+  // 在 failures 抛出),摘要行如实区分
+  const webviewStartupSummary = webviewStartup?.skipped
+    ? `, webviewStartup=skipped(no-engine env, markers=${(webviewStartup.placeholderMarkers || []).join("+") || "none"})`
+    : ", webviewStartup=ok";
   console.log(
-    `Desktop smoke passed: ${state.title}, rootChildren=${state.rootChildren}, bodyBg=${state.bodyBg}, routes=${routeChecks.length}, workflowE2E=ok${workflowStepwiseSummary}, assetVoiceFlow=ok, scriptAssetGenerationVoiceFlow=ok, pluginSettings=ok${remotionSummary}, whiteRatio=${screenshot.whiteRatio.toFixed(3)}, appBin=${appBin}`,
+    `Desktop smoke passed: ${state.title}, rootChildren=${state.rootChildren}, bodyBg=${state.bodyBg}, routes=${routeChecks.length}, workflowE2E=ok${workflowStepwiseSummary}, assetVoiceFlow=ok, scriptAssetGenerationVoiceFlow=ok, pluginSettings=ok${remotionSummary}${webviewStartupSummary}, whiteRatio=${screenshot.whiteRatio.toFixed(3)}, appBin=${appBin}`,
   );
 }
 
@@ -3314,6 +3595,7 @@ try {
     pluginSettings,
     remotionExport,
     screenshot,
+    webviewStartup,
   } = await inspectPage(page);
   const remotionArtifact = inspectRemotionExportArtifact(remotionExport);
   if (smokeMode === "background") {
@@ -3345,6 +3627,7 @@ try {
       && remotionExport.success
       && remotionArtifact.ok,
     screenshot,
+    webviewStartup,
     pageErrors: errors.map(summarizePageError),
     allowedPageErrors: allowedErrors.map(summarizePageError),
   };
@@ -3362,6 +3645,7 @@ try {
     remotionExport,
     remotionArtifact,
     screenshot,
+    webviewStartup,
     allowedErrors,
     foregroundViolation,
   );

@@ -140,4 +140,15 @@ describe("mapProductionFlowNodesToStagePayloads(1121 修复:生产路径动作�
     expect(assets.map((a) => a.kind)).toEqual(["extract-assets", "generate-director-plan"]);
     expect(assets[0].label).toBe("抽取资产"); // assetGroups 空=首抽文案
   });
+
+  // 1126 节点状态文字:构建器警示态给具体口径(statusText),载荷映射须透传
+  // 优先于默认表;节点不带 statusText 时回落 STATUS_TEXT(如 ready=「已完成」)。
+  it("节点带 statusText 时优先于默认状态表,缺省回落 STATUS_TEXT", () => {
+    const byKey = new Map(mapProductionFlowNodesToStagePayloads([
+      node("assets", { status: "warning", statusText: "失败 2 项" }),
+      node("script", { status: "ready" }),
+    ]).map((p) => [p.key, p]));
+    expect(byKey.get("assets")!.statusText).toBe("失败 2 项");
+    expect(byKey.get("script")!.statusText).toBe("已完成");
+  });
 });

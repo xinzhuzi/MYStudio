@@ -116,7 +116,8 @@ export function mapProductionFlowNodesToStagePayloads(nodes: ProductionFlowNodeM
       title: node.label,
       description: node.description,
       status: node.status as StageNodePayload["status"],
-      statusText: STATUS_TEXT[node.status as StageNodePayload["status"]] ?? node.status,
+      // 节点带 statusText(警示态具体口径)优先;缺省回落 STATUS_TEXT 默认表
+      statusText: node.statusText ?? STATUS_TEXT[node.status as StageNodePayload["status"]] ?? node.status,
       metrics: node.metrics.map(String),
       ...(node.previewTitle ? { previewTitle: node.previewTitle } : {}),
       ...(node.previewLines?.length ? { previewLines: wrapLines(node.previewLines) } : {}),

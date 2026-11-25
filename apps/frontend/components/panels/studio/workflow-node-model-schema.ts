@@ -92,6 +92,9 @@ export interface ProductionFlowNodeModel {
   label: string;
   description: string;
   status: ProductionFlowNodeStatus;
+  /** 节点状态文字(1126):警示态由构建器给具体口径(如「失败 N 项」),
+   * 非警示态不设——载荷映射回落 STATUS_TEXT 默认表(「已完成」等)。 */
+  statusText?: string;
   metrics: string[];
   previewTitle: string;
   previewLines: string[];
