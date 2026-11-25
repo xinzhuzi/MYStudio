@@ -114,9 +114,15 @@ export interface ComfyCanvasStudioProps {
   };
   /** 老画布节点模型(viewModel.productionFlowNodes;v4 内容全量喂入) */
   stageFlowNodes?: ProductionFlowNodeModel[];
+  /**
+   * 1125 章验收横幅联动:画布就绪态(running)上抛宿主——引擎不可达空态时
+   * 宿主隐藏横幅,防无上下文的孤儿浮条。仅值变更时回调(宿主 setState 同值
+   * 短路,零重渲染噪音)。
+   */
+  onCanvasRunningChange?: (running: boolean) => void;
 }
 
-export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarActions, stageFlowNodes }: ComfyCanvasStudioProps = {}) {
+export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarActions, stageFlowNodes, onCanvasRunningChange }: ComfyCanvasStudioProps = {}) {
   const webviewRef = useRef<WebviewElement | null>(null);
   // 1105 D3 走查 UX 补:webview 冷载(远端 20-30s)此前全程无反馈=白屏假死。
   // 覆盖层随 did-start-loading 出,ComfyUI 根节点探针确认 UI 真渲染后撤;
@@ -405,6 +411,13 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
   // running 口径分叉:远端生效=远端探活 ok(本机 serviceRunning 不参与);
   // 本机模式=serviceRunning+port(现行为回归)。
   const running = remoteActive ? remoteReady : status?.serviceRunning === true && Boolean(port);
+  // 1125 章验收横幅联动:running 值变更才上抛(回调走 ref 保新鲜——宿主传
+  // 内联箭头也不至于每渲染重触发 effect)。
+  const onCanvasRunningChangeRef = useRef(onCanvasRunningChange);
+  onCanvasRunningChangeRef.current = onCanvasRunningChange;
+  useEffect(() => {
+    onCanvasRunningChangeRef.current?.(running);
+  }, [running]);
   const src = running && engineBase
     ? `${engineBase}/${myScope ? `?myScope=${myScope}` : ""}`
     : null;

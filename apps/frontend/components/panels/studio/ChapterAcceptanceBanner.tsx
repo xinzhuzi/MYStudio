@@ -11,6 +11,11 @@
  *   复核⑪:会话内 H3 落账不重算卡,旧快照会漏报新就绪)。
  * - 分镜源过期(staleSourceScriptCount,批6 D5 实况派生)只**阻止全绿消失**、
  *   不产生数据闸:琥珀软提示+同位重跑,软提示不硬拦(裁定④)。
+ * - 1125 摆位三修:根类 mt-2→mt-8 mx-3——分镜页 p-0 贴边全屏,横幅曾直抵窗口
+ *   上缘,被 macOS 交通灯(titleBarStyle:'hidden'+trafficLightPosition 16,14,
+ *   占 y≈14-26)叠字(实弹:红/黄/绿钮压住行首图标与「验」「未」二字);mt-8
+ *   让出窗控区,mx-3 内缩成卡片态。引擎不可达空态不渲染=宿主侧条件(画布
+ *   running 经 onCanvasRunningChange 上抛,见 studio/index.tsx 挂载)。
  * - 1120 件二双用降级:验收主口径=分镜视频就绪(mediaRef kind=video);
  *   分镜画面(首帧/参考物料)降中间态辅助行,仍显示不删除。
  */
@@ -67,7 +72,7 @@ export function ChapterAcceptanceBanner({
     const current = run.steps.find((step) => step.status === "running");
     return (
       <div
-        className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-border/60 bg-panel/60 px-3 py-2 text-xs"
+        className="mt-8 mx-3 flex flex-wrap items-center gap-2 rounded-md border border-border/60 bg-panel/60 px-3 py-2 text-xs"
         data-chapter-acceptance-banner="running"
       >
         <span className="inline-flex items-center gap-1.5 text-info">
@@ -124,7 +129,7 @@ export function ChapterAcceptanceBanner({
     ].filter(Boolean);
     return (
       <div
-        className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs"
+        className="mt-8 mx-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs"
         data-chapter-acceptance-banner="actionable"
         role="status"
       >
@@ -196,7 +201,7 @@ export function ChapterAcceptanceBanner({
   if (stale > 0) {
     return (
       <div
-        className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs"
+        className="mt-8 mx-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs"
         data-chapter-acceptance-banner="stale-only"
         role="status"
       >
@@ -223,7 +228,7 @@ export function ChapterAcceptanceBanner({
   if (staleSourceScriptCount > 0) {
     return (
       <div
-        className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs"
+        className="mt-8 mx-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs"
         data-chapter-acceptance-banner="source-stale"
         role="status"
       >

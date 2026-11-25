@@ -562,6 +562,14 @@ class EngineSyncMixin:
                     name, kind, mac_head, None, "failed", False,
                     f"git clone 失败: {out.strip()[:200]}",
                 )
+            # 1125 版本展示根修:新装浅克隆同样不带 tag——clone 成功后补拉
+            # 一次(失败不阻断:装件本体已成功,只损失版本显示);带上溯上限
+            # (1123 根修同款,防非 git 目录冒仓)。
+            self.run_remote_command(
+                f'set "GIT_CEILING_DIRECTORIES={self._git_ceiling(win_path)}" & '
+                f'git -C "{win_path}" fetch --tags origin 2>&1',
+                self._remaining_timeout(deadline, 60),
+            )
         elif kind == "engine":
             # 1122 截3语义统一:引擎件对齐最新 release tag(update_job 同款幂等
             # 流=fetch tag+checkout --force)。旧 git pull --ff-only 在 tag-checkout
@@ -616,7 +624,7 @@ class EngineSyncMixin:
             ceiling = self._git_ceiling(win_path)
             head_code, head_out = self.run_remote_command(
                 f'set "GIT_CEILING_DIRECTORIES={ceiling}" & '
-                f'cd /d "{win_path}" && git fetch origin 2>&1 && '
+                f'cd /d "{win_path}" && git fetch origin --tags 2>&1 && '
                 f"git rev-parse HEAD 2>&1 && git rev-parse origin/HEAD 2>&1",
                 self._remaining_timeout(deadline, 60),
             )
@@ -634,7 +642,11 @@ class EngineSyncMixin:
                     name, kind, None, None, "skipped", False,
                     "Win 独有且非 git 仓,保留不动",
                 )
-            # 不最新(或比对失败=保守走 pull)→ 从 GitHub 拉最新
+            # 不最新(或比对失败=保守走 pull)→ 从 GitHub 拉最新。
+            # 1125 版本展示根修:fetch 带 --tags——存量件多为 --depth 1 浅克隆,
+            # 本地无 tag,git describe 拿不到版本→面板只能回退短哈希(实盘
+            # 81 行 52 行无版本);fetch 输出的 [new tag] 行在 rev-parse 之前,
+            # 「已是最新」比对取末两行不受影响。
             action = "pulled"
             code, out = self.run_remote_command(
                 f'set "GIT_CEILING_DIRECTORIES={ceiling}" & '

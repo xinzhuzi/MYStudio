@@ -58,4 +58,13 @@ describe("章验收横幅·画布新宿主(S6,1120 面板退役)", () => {
   it("断点续跑 hook 挂载不动:useChapterPipelineOrchestrator 仍在 StudioView", () => {
     expect(INDEX_SOURCE).toContain("useChapterPipelineOrchestrator({");
   });
+
+  it("1125 孤儿浮条根修:引擎不可达(画布 running=false)时横幅不渲染", () => {
+    // 挂载点条件渲染:canvasRunning=false=画布「远端引擎未就绪」空态在屏——
+    // 横幅此时无上下文,隐藏;null(未探明)/true 照常渲染
+    expect(INDEX_SOURCE).toContain("{canvasRunning !== false ? (");
+    // 就绪态信号链:Swap 上抛 running → StudioView setState → 同源判据
+    expect(INDEX_SOURCE).toContain("const [canvasRunning, setCanvasRunning] = useState<boolean | null>(null);");
+    expect(INDEX_SOURCE).toContain('onCanvasRunningChange={setCanvasRunning}');
+  });
 });

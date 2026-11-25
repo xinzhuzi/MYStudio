@@ -212,6 +212,11 @@ class _SshStub:
             return (0, f"{head}\n{tag_sha}\n")
         if "git fetch origin tag" in command:
             return (0, " * [new tag] fetched\n")
+        if "fetch --tags origin" in command:
+            # 1125 版本展示:clone 后补拉 tag(浅克隆不带 tag;与引擎分支的
+            # 「git fetch origin tag」和插件比对命令的「git fetch origin --tags」
+            # 子串互不重叠)
+            return (0, " * [new tag] v1.2.3 -> v1.2.3\n")
         if "git checkout --force" in command:
             return (0, "Note: switching to 'v0.46.2'.\nHEAD is now at eeeeeee\n")
         if "rev-parse HEAD" in command:
@@ -559,6 +564,9 @@ class SyncEngineTests(unittest.TestCase):
         self.assertIn("--ff-only", pull[0])
         # 不比 Mac 版本:命令里不许出现 Mac HEAD
         self.assertNotIn(self.home.heads["pluginA"], pull[0])
+        # 1125 版本展示根修:存量件多为浅克隆本地无 tag(面板只显短哈希)——
+        # 比对性 fetch 必带 --tags,拉回后 describe 才亮得出真版本号
+        self.assertTrue(any("git fetch origin --tags" in c for c in stub.commands))
 
     def test_mac_only_plugin_clones_without_pull(self) -> None:
         stub = self._stub()
@@ -569,6 +577,12 @@ class SyncEngineTests(unittest.TestCase):
         self.assertTrue(any("git clone --depth 1 https://example.com/b.git pluginB" in c for c in stub.commands))
         self.assertFalse(any("git pull" in c for c in stub.commands))  # clone 件不 pull
         self.assertFalse(any("reset --hard" in c for c in stub.commands))
+        # 1125 版本展示根修:新装浅克隆同样不带 tag——clone 成功后补拉一次
+        # (带上溯上限,失败不阻断;结果不影响 cloned/verified)
+        tag_fetch = [c for c in stub.commands if "fetch --tags origin" in c]
+        self.assertEqual(len(tag_fetch), 1)
+        self.assertTrue(tag_fetch[0].startswith('set "GIT_CEILING_DIRECTORIES='))
+        self.assertIn(f"{WIN_NODES}\\pluginB", tag_fetch[0])
 
     def test_win_only_pulls_from_own_origin_my_nodes_skips(self) -> None:
         """1122 用户令「Win 独有也要能更新」:win-only 件按仓自身 origin 拉最新

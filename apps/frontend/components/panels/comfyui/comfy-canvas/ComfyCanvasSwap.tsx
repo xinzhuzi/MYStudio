@@ -21,6 +21,7 @@ export function ComfyCanvasSwap({
   myScope,
   sidebarActions,
   stageFlowNodes,
+  onCanvasRunningChange,
 }: {
   /** 工作流阶段(分镜制作)专用:进入即自动打开本章分镜总览 */
   autoOpenOverview?: boolean;
@@ -61,10 +62,12 @@ export function ComfyCanvasSwap({
     onKeyframeExtract?: (note: string) => void;
     onSetAudioMix?: (note: string) => void;
   };
+  /** 1125 章验收横幅联动:画布就绪态上抛(透传 ComfyCanvasStudio) */
+  onCanvasRunningChange?: (running: boolean) => void;
 } = {}) {
   return (
     <div className="flex h-full w-full min-h-0 min-w-0 flex-col" data-comfy-swap="comfy">
-      <ComfyCanvasStudio autoOpenOverview={autoOpenOverview} myScope={myScope} sidebarActions={sidebarActions} stageFlowNodes={stageFlowNodes} />
+      <ComfyCanvasStudio autoOpenOverview={autoOpenOverview} myScope={myScope} sidebarActions={sidebarActions} stageFlowNodes={stageFlowNodes} onCanvasRunningChange={onCanvasRunningChange} />
     </div>
   );
 }

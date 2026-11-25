@@ -38,4 +38,13 @@ describe("ComfyCanvasSwap(换代终态,批6)", () => {
       undefined,
     );
   });
+
+  it("onCanvasRunningChange 透传(1125 章验收横幅联动:引擎不可达时宿主隐横幅)", () => {
+    const onCanvasRunningChange = vi.fn();
+    render(<ComfyCanvasSwap onCanvasRunningChange={onCanvasRunningChange} />);
+    expect(ComfyCanvasStudio).toHaveBeenCalledWith(
+      expect.objectContaining({ onCanvasRunningChange }),
+      undefined,
+    );
+  });
 });

@@ -190,6 +190,9 @@ export function StudioView() {
   const videoCandidates = useStudioStore((state) => state.videoCandidates);
   const [framesCompareShotId, setFramesCompareShotId] = useState<string | null>(null);
   const [videoCompareShotId, setVideoCompareShotId] = useState<string | null>(null);
+  // 1125 章验收横幅联动:画布就绪态(分镜页 ComfyCanvasSwap 上抛;null=尚未探明)。
+  // false=引擎不可达空态在屏——横幅不渲染,防无上下文孤儿浮条。
+  const [canvasRunning, setCanvasRunning] = useState<boolean | null>(null);
   const orderedStoryboards = useMemo(
     () => viewModel.chapterStoryboards.slice().sort((a, b) => a.index - b.index),
     [viewModel.chapterStoryboards],
@@ -223,6 +226,7 @@ export function StudioView() {
       const id = (shotId ?? "").trim();
       if (!id) return;
       if (!storyboardBatch.state.running) storyboardBatch.start({ onlyShotId: id });
+      else toast.info("本轮批量出图进行中,等它结束再重出单镜"); // 1125 L4:批量在跑时不再静默吞掉单镜重出
     },
     onGenerateVideos: () => {
       if (!viewModel.chapterAutoVideoRunning) void viewModel.handleRunChapterAutoVideo();
@@ -451,31 +455,35 @@ export function StudioView() {
             >
               <div className="flex h-full min-h-0 flex-1 flex-col">
                 {/* 1120 章验收横幅迁画布(面板退役新宿主):画布页在场渲染,
-                    props 链=面板原接线同源(pipeline.start/goToAssets/分镜表再生成) */}
-                <ChapterAcceptanceBanner
-                  run={chapterPipeline.run}
-                  staleCount={chapterPipeline.staleTasks.length}
-                  staleSourceScriptCount={chapterPipeline.staleSourceScriptCount}
-                  liveStoryboardCounts={liveStoryboardCounts}
-                  onRunPipeline={chapterPipeline.start}
-                  onGoToAssets={() => viewModel.handleStageChange("assets")}
-                  onGenerateVideos={() => {
-                    // 1120 复核⑩:缺视频的修复入口=章自动出视频(与侧栏 onGenerateVideos
-                    // 同源),流水线三步零视频产出清不了该计数。
-                    if (!viewModel.chapterAutoVideoRunning) void viewModel.handleRunChapterAutoVideo();
-                  }}
-                  onRegenerateStoryboardTable={() => {
-                    void viewModel.handleProductionNodeAction({
-                      id: "generate-storyboard-table",
-                      label: "生成分镜表",
-                      targetStage: "storyboard",
-                      userInstruction: "",
-                    });
-                  }}
-                />
+                    props 链=面板原接线同源(pipeline.start/goToAssets/分镜表再生成)。
+                    1125 摆位修:引擎不可达空态(画布 running=false)不渲染横幅,
+                    防无上下文孤儿浮条;窗控让位/内缩在横幅根类(mt-8 mx-3) */}
+                {canvasRunning !== false ? (
+                  <ChapterAcceptanceBanner
+                    run={chapterPipeline.run}
+                    staleCount={chapterPipeline.staleTasks.length}
+                    staleSourceScriptCount={chapterPipeline.staleSourceScriptCount}
+                    liveStoryboardCounts={liveStoryboardCounts}
+                    onRunPipeline={chapterPipeline.start}
+                    onGoToAssets={() => viewModel.handleStageChange("assets")}
+                    onGenerateVideos={() => {
+                      // 1120 复核⑩:缺视频的修复入口=章自动出视频(与侧栏 onGenerateVideos
+                      // 同源),流水线三步零视频产出清不了该计数。
+                      if (!viewModel.chapterAutoVideoRunning) void viewModel.handleRunChapterAutoVideo();
+                    }}
+                    onRegenerateStoryboardTable={() => {
+                      void viewModel.handleProductionNodeAction({
+                        id: "generate-storyboard-table",
+                        label: "生成分镜表",
+                        targetStage: "storyboard",
+                        userInstruction: "",
+                      });
+                    }}
+                  />
+                ) : null}
                 {/* 09-10 用户裁定:进入工作流阶段即展示本章分镜总览(分镜内容优先);
                     09-11 补裁定:漫影侧栏按模块分内容,工作流模块默认「分镜」页签 */}
-                <ComfyCanvasSwap autoOpenOverview myScope="workflow" sidebarActions={sidebarActions} stageFlowNodes={viewModel.productionFlowNodes} />
+                <ComfyCanvasSwap autoOpenOverview myScope="workflow" onCanvasRunningChange={setCanvasRunning} sidebarActions={sidebarActions} stageFlowNodes={viewModel.productionFlowNodes} />
               </div>
             </TabsContent>
 
