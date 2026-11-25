@@ -9,7 +9,13 @@ regen-thumb-video/design.md §3.7 与 implement.md Task 10 Step 2)。
                 之下 */_work/* 与 .trellis/tasks/11-16-storyboard-canonical-line/prd.md
                 最近 30 分钟无写入(打印两处最新修改时间);必须带
                 --first-frames-approved 才算过(表示用户已看过 19 张首帧并点头——
-                机器查不了的那一半)。
+                机器查不了的那一半);另机检「人审门」(1125 用户令「分镜图必须人审,
+                所有出视频的入口都拦」):待发车的镜在存盘里的 imageReview 须为已批准、
+                「具名角色各只出现一次」已确认、内容指纹与盘上图片字节一致——缺省查
+                试发镜,带 --all-shots 查全部 19 镜(批量阶段)。判据是应用侧
+                apps/frontend/lib/studio/storyboard-image-review-gate.ts 的只读镜像;
+                应用里每个出视频入口都会拦,这里提前如实报告,免得脚本报全过而应用
+                点不动。人审只能用户本人在应用工作台「人审」区点,换图后须重新人审。
   G2 三查       打印试发镜(缺省 S08)的台词、时长、首帧路径与缩略图;断言首帧
                 宽高比 16:9(读 PNG IHDR,±1% 容差;S08 定稿 2048×1152 恰 16:9)。
                 「缩略图」按两条引擎侧同名上传解释并都打印:画布磁贴
@@ -22,6 +28,7 @@ regen-thumb-video/design.md §3.7 与 implement.md Task 10 Step 2)。
 
 用法:
   python3 -I -B ch001_video_gate_1125.py --shot 8 --first-frames-approved
+  python3 -I -B ch001_video_gate_1125.py --shot 8 --first-frames-approved --all-shots   (批量阶段:人审门查全部 19 镜)
 
 防呆:引擎访问恒 build_opener(ProxyHandler({})) 且只读(/system_stats、/queue、
   /object_info);本脚本不写任何文件、不改任何状态。缺 --shot 时按契约试发镜
@@ -31,6 +38,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import hashlib
 import json
 import os
 import re
@@ -51,6 +59,7 @@ ALL_SHOTS = list(range(1, 20))
 FRESH_WINDOW_SEC = 30 * 60
 ASPECT_TARGET = 16 / 9
 ASPECT_TOLERANCE = 0.01  # ±1%(2048×1152 恰中;给 1920×1080 等同比图留余量)
+SHA256_HEX = re.compile(r"^[a-f0-9]{64}$")  # 与应用侧 isValidSha256Hex 同款
 
 
 def fmt_ts(epoch: float) -> str:
@@ -105,11 +114,38 @@ def safe_id(shot_id: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", shot_id)
 
 
+def human_review_issue(shot: dict, local: str):
+    """分镜图人审门(只读镜像;判据真源=应用侧 storyboard-image-review-gate.ts 的
+    storyboardImageReviewIssues + verifyStoryboardImageBytes)。返回 None=放行,否则一句原因。
+    自动结论、VLM 结论在应用里永不计为批准,这里同样不认。"""
+    review = shot.get("imageReview")
+    if not isinstance(review, dict):
+        return "待审(没有人审记录)"
+    status = review.get("status")
+    if status == "rejected":
+        reasons = review.get("reasons") or []
+        return "已被人工驳回%s" % ((":" + str(reasons[0])) if reasons else "")
+    if status != "approved":
+        return "未通过人审(状态 %s)" % status
+    if not review.get("singleAppearancePassed"):
+        return "人审记录缺「具名角色各只出现一次」确认"
+    sha = review.get("contentSha256")
+    if not isinstance(sha, str) or not SHA256_HEX.match(sha):
+        return "人审记录缺少图片内容指纹"
+    with open(local, "rb") as fh:
+        actual = hashlib.sha256(fh.read()).hexdigest()  # 应用侧 sha256FromBase64Image=文件原始字节的 SHA-256
+    if actual != sha:
+        return "图片内容与人审批准时不一致(图已被替换)"
+    return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="ch001 视频段发车门检查(只读;契约 design.md §3.7)")
     parser.add_argument("--shot", type=int, default=8, help="试发镜序号(缺省 8,契约 S08)")
     parser.add_argument("--first-frames-approved", action="store_true",
                         help="用户已看过 19 张首帧并点头;缺此旗标 G1 恒 FAIL")
+    parser.add_argument("--all-shots", action="store_true",
+                        help="批量阶段用:人审门按全部 19 镜查(缺省只查试发镜)")
     args = parser.parse_args()
     if not 1 <= args.shot <= 19:
         print("FAIL 环境异常:--shot %d 不在 1..19" % args.shot, file=sys.stderr)
@@ -170,6 +206,28 @@ def main() -> int:
     else:
         g1_ok = False
         g1_lines.append("✗ 缺 --first-frames-approved:用户还没点头,不算过")
+
+    # 人审门(1125 用户令):应用里每个出视频入口都会拦,这里提前如实报告
+    review_scope = ALL_SHOTS if args.all_shots else [args.shot]
+    blocked = []
+    for i in review_scope:
+        row = rows.get("sb-chapter-001-%03d" % i) or {}
+        try:
+            local = media_ref_local_path(row)
+        except ValueError:
+            blocked.append("S%02d(取不到图片路径)" % i)
+            continue
+        issue = human_review_issue(row, local) if os.path.isfile(local) else "图片文件不在盘"
+        if issue:
+            blocked.append("S%02d(%s)" % (i, issue))
+    if blocked:
+        g1_ok = False
+        g1_lines.append("✗ 人审门未过:%d/%d 镜没有在应用里通过人审——%s"
+                        % (len(blocked), len(review_scope), "; ".join(blocked)))
+        g1_lines.append("  (请在应用工作台「人审」区逐镜看图通过;人审只能用户本人点,换图后须重新人审)")
+    else:
+        g1_lines.append("✓ 人审门:%d/%d 镜的 imageReview 已批准、单次出现已确认、指纹与盘上图片一致"
+                        % (len(review_scope), len(review_scope)))
     gates.append(("G1 首帧定稿", g1_ok, g1_lines))
 
     # ── G2 三查 ──
