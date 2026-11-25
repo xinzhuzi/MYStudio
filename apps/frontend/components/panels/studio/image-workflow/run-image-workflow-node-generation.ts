@@ -183,8 +183,8 @@ export async function runImageWorkflowNodeGeneration(
           .filter(Boolean),
       )
       : [];
-    // 注入装配(纯函数):丢槽重排后以 rebuilt 入参复跑同构(身份段解析与
-    // 绑定行不随槽位重排变化,复用同一份结果)。
+    // 注入装配(纯函数):单次装配(1125 R3 丢槽即拒发后不再有重排复跑,
+    // 身份段解析与绑定行不随槽位变化)。
     const buildInjection = (
       subjectInput: CanonicalSubjectInput,
       slots: readonly CanonicalReferenceSlot[],
@@ -299,8 +299,8 @@ export async function runImageWorkflowNodeGeneration(
     }
     // 1117 第十三刀A:出口语义门统一——override/生成器同门(此前门在 else
     // 分支,人工覆盖整门绕过:S4/S9/S16=20:38 拒发同哈希文本经 override 直
-    // 发克隆照出实录)。逐字采用不变,违者拒发不改写;丢槽重排后的终稿复跑
-    // 同门(重排会替换 canonicalPrompt,首跑不算数)。
+    // 发克隆照出实录)。逐字采用不变,违者拒发不改写(1125 R3 丢槽即拒发后
+    // 终稿不再被重排替换,首跑即终稿)。
     const assertTransportSemanticLint = (text: string): void => {
       const semanticViolations: string[] = [];
       // 1117 第十二刀:语义门只数动作句——「{名}正在」是单时刻正解形态,
@@ -369,10 +369,10 @@ export async function runImageWorkflowNodeGeneration(
     if (mapping.slots.length) {
       // 槽位图 dataURL 解析+准备(节点只存轻量受管路径,传输才转 base64,
       // 持久化纪律与资产参考同口径)。
-      // 1116 第六病理三代修:角色/道具横幅多视图卡出图前裁正面单姿
-      // (命令原文「只有设定卡时裁/选正面单姿,禁整卡」;裁切失败=丢槽
-      // 留痕+指令体重排,宁缺勿染)——赵四类无单姿资产整卡入 image_1=
-      // 转面稿四副本。
+      // 1116 第六病理三代修:角色/道具横幅多视图卡出图前裁正面单姿(命令原文
+      // 「只有设定卡时,裁/选正面单姿,禁整卡」)——赵四类无单姿资产整卡入
+      // image_1=转面稿四副本。1125 R3:裁切失败=丢槽即拒发(宁缺勿染,不重排、
+      // 不降级零槽文生图,点名被丢参考)。
       const resolvedSlotUrls = await Promise.all(mapping.slots.map(async (slot) => {
         // 1117 C2 断点C 修:URL 直读优先——节点选中 URL(图库单姿/态行图,
         // S12 元婴期_正视图)即槽图真身;asset-file://+project-file:// 域走
@@ -383,8 +383,8 @@ export async function runImageWorkflowNodeGeneration(
         // 同序同字节(两路分叉=节点钉非主图时结构性误杀,见函数头注)。
         return await resolveManagedReferenceUrl(slot.imageUrl);
       }));
-      const croppedSlotUrls: Array<string | null> = [];
-      const dropSlotIndexes: number[] = [];
+      const croppedSlotUrls: Array<string> = [];
+      const droppedSlots: Array<{ slot: number; title: string }> = [];
       for (const [index, slot] of mapping.slots.entries()) {
         const resolved = resolvedSlotUrls[index]!;
         if (!resolved.startsWith("data:")) {
@@ -402,13 +402,13 @@ export async function runImageWorkflowNodeGeneration(
           croppedSlotUrls.push(resolved);
           continue;
         }
-        const cropped = await cropSlotReferenceToSinglePose(resolved, slot.role);
+        // 1125 R1:第 4 参带参考图名——文件名单人图类型标记兜底(design §3.1(e))。
+        const cropped = await cropSlotReferenceToSinglePose(resolved, slot.role, undefined, imageNameOfSlot(slot.imageUrl));
         if (cropped !== null) {
           croppedSlotUrls.push(cropped);
         } else {
-          // 横幅卡裁不出单姿=丢槽留痕,禁整卡入参考(丢槽重排在 context 件)。
-          dropSlotIndexes.push(index);
-          croppedSlotUrls.push(null);
+          // 裁不出单人格=丢槽留痕,循环结束即拒发(1125 R3:不再重排/降级)。
+          droppedSlots.push({ slot: slot.slot, title: slot.title });
           void logEvent({
             level: "warn",
             category: "ai",
@@ -418,109 +418,61 @@ export async function runImageWorkflowNodeGeneration(
           });
         }
       }
-      let effectiveSlots = mapping.slots;
-      let rebuiltInstruction: typeof instruction | null = null;
-      let rebuiltInjectionBase: string | null = null;
-      if (dropSlotIndexes.length) {
-        const rebuilt = await buildStoryboardCanonicalTransportInput(shot, graph, targetNodeId, dropSlotIndexes);
-        // 1120 件三:注入模式按 rebuilt 入参复装配(基底随存活槽重选体裁,
-        // 参考块编号随存活槽重排对账——块 N=角色实际所在槽,块文本不变)。
-        const rebuiltInjection = injection
-          ? buildInjection(rebuilt.subject, rebuilt.mapping.slots, rebuilt.instruction.prompt)
-          : null;
-        rebuiltInstruction = rebuilt.instruction;
-        rebuiltInjectionBase = rebuiltInjection ? rebuiltInjection.base : null;
-        canonicalPrompt = rebuiltInjection ? rebuiltInjection.prompt : rebuilt.instruction.prompt;
-        // 1117 第十三刀A:丢槽重排替换了终稿文本——语义门对终稿复跑
-        // (重排后的 instruction.prompt 未过首跑,不豁免;注入模式跑复装配基底)。
-        assertTransportSemanticLint(rebuiltInjection ? rebuiltInjection.base : canonicalPrompt);
-        effectiveSlots = rebuilt.mapping.slots;
-        // 1117 C2 门A:丢槽重排后的终稿复验(主角锚随存活槽重取,宁缺勿染
-        // 与锚词门双卡);锚集合缺席同上不适用。注入模式按复装配终稿全文跑。
-        if (rebuilt.anchors) assertAnchors(canonicalPrompt, rebuilt.anchors);
-      }
-      if (!effectiveSlots.length) {
-        // 1120 复核④修:全槽裁失(单角色镜唯一槽裁不出单姿等)→降级零槽 t2i
-        // 路,与零槽分支同款断言——此前以空槽数组继续走 transport 分支,
-        // request.ts「槽位数量不一致(须 1–3 槽)」硬抛,镜不可生成且报错误导
-        // (真因=全槽裁失,已逐槽 warn 留痕 storyboard-slot-pose-crop-failed)。
-        // 体裁已随重建翻转为零槽 t2i 主体句(首跑 lint 按原体裁/槽数跑,未覆盖
-        // 此文本)——纪律门/重叠预检对重建文本补跑(注入模式按基底,块面豁免
-        // 与首跑同口径),与零槽原生路同覆盖面。
-        const dropAllLintText = rebuiltInjectionBase ?? canonicalPrompt;
-        const dropAllViolations = lintCanonicalPrompt(
-          dropAllLintText,
-          (rebuiltInstruction ?? instruction).genre,
-          0,
-        );
-        if (dropAllViolations.length) {
-          void logEvent({
-            level: "warn",
-            category: "ai",
-            operationId: createOperationId("storyboard-canonical-lint"),
-            message: "Storyboard canonical prompt rejected by discipline lint",
-            context: {
-              shotId: shot.id,
-              shotIndex: shot.index,
-              violations: dropAllViolations,
-              promptText: dropAllLintText,
-            },
-          });
-          throw new Error(`分镜正典提示词未过体裁断言:${dropAllViolations.map((v) => `${v.rule}(${v.detail})`).join("、")}`);
-        }
-        const dropAllOverlaps = findSubjectOverlapBlocks(dropAllLintText, getStoryboardBaseSubjectText());
-        if (dropAllOverlaps.length) {
-          throw new Error(`分镜正典提示词与型底座重叠(≥10 字重复块 ${dropAllOverlaps.length} 处),须去重:…${dropAllOverlaps[0]!.block}…`);
-        }
-        transportReferenceImages = [];
-        assertImageWorkflowContinuityCapability({
-          ...request, model: finalModel, referenceImages: [], continuityRequired: false,
-        });
-      } else {
-        // 门B(1117 C2 参考槽对账记录,门C 审计脚本消费):槽真身=节点选中
-        // URL(断点C 直读),场景/角色槽位 vs dropped 名单 vs 锚词集合逐镜留痕
-        // ——图内场景参考节点有图必在槽∨dropped(mapCanonicalReferenceSlots
-        // 结构保证),此记录把对账面变成机器可审计。
+      if (droppedSlots.length) {
+        // 1125 R3 丢槽即拒发:送模型前拦下(批量阶梯三次快败进汇总,不烧显卡);
+        // 逐张点名被丢参考,替换建议指路单人立绘/留空隙多视图卡。
         void logEvent({
-          level: "info",
-          category: "workflow",
-          operationId: createOperationId("storyboard-slot-reconciliation"),
-          message: "Storyboard canonical slot reconciliation (gate B record)",
-          context: {
-            shotId: shot.id,
-            shotIndex: shot.index,
-            anchors,
-            slots: effectiveSlots.map((slot) => ({
-              slot: slot.slot, role: slot.role, title: slot.title,
-              imageUrl: slot.imageUrl,
-            })),
-            dropped: mapping.dropped,
-          },
+          level: "warn",
+          category: "ai",
+          operationId: createOperationId("storyboard-slot-pose-refused"),
+          message: "Storyboard generation refused: slot references failed single-pose confirmation",
+          context: { shotId: shot.id, shotIndex: shot.index, droppedSlots },
         });
-        // 1117 残项①:存活槽→其已解析原图的血缘映射(裁切产物契约门比对用)。
-        const keptSourceUrls: Array<string> = [];
-        croppedSlotUrls.forEach((url, index) => {
-          if (url !== null) keptSourceUrls.push(resolvedSlotUrls[index]!);
-        });
-        const keptUrls = croppedSlotUrls.filter((url): url is string => url !== null);
-        transportReferenceImages = await prepareReferenceImages(keptUrls);
-        assertImageWorkflowContinuityCapability(
-          { ...request, model: finalModel, referenceImages: transportReferenceImages },
-          {
-            kind: "storyboard-native-references",
-            imageUrls: transportReferenceImages,
-            slots: effectiveSlots.map((slot, index) => ({
-              slot: slot.slot, role: slot.role, title: slot.title, imageUrl: transportReferenceImages[index]!,
-              // 1117 残项①:携带该槽已解析原图作血缘来源(裁切产物经它过
-              // 契约门「槽位-来源映射」比对;未裁槽 sourceUrl=自身)。
-              sourceUrl: keptSourceUrls[index],
-            })),
-            // 来源参考=全量参考的已解析形态(dataURL/base64,与槽位图同一解析路),
-            // 槽位子集核验才同域可比(原始 file:// 与传输 dataURL 不可直接相等)。
-            sourceReferenceImages: referenceImages,
-          },
+        const refused = droppedSlots.map((item) => `第 ${item.slot} 张参考「${item.title}」`).join("、");
+        throw new Error(
+          `${refused}没能确认是单人图(图片打不开、背景不是纯色,或是一张裁不出单人格的多视图卡),已停止出图。`
+          + "请把这张参考换成单人立绘,或换成视图之间留有空隙的多视图设定卡后再试。",
         );
       }
+      // 门B(1117 C2 参考槽对账记录,门C 审计脚本消费):槽真身=节点选中
+      // URL(断点C 直读),场景/角色槽位 vs dropped 名单 vs 锚词集合逐镜留痕
+      // ——图内场景参考节点有图必在槽∨dropped(mapCanonicalReferenceSlots
+      // 结构保证),此记录把对账面变成机器可审计。
+      void logEvent({
+        level: "info",
+        category: "workflow",
+        operationId: createOperationId("storyboard-slot-reconciliation"),
+        message: "Storyboard canonical slot reconciliation (gate B record)",
+        context: {
+          shotId: shot.id,
+          shotIndex: shot.index,
+          anchors,
+          slots: mapping.slots.map((slot) => ({
+            slot: slot.slot, role: slot.role, title: slot.title,
+            imageUrl: slot.imageUrl,
+          })),
+          dropped: mapping.dropped,
+        },
+      });
+      // 1117 残项①:槽→其已解析原图的血缘映射(裁切产物契约门比对用;1125 R3
+      // 拒发保证走到这里的槽全存活,与裁切产物一一对应,无需过滤 null)。
+      transportReferenceImages = await prepareReferenceImages(croppedSlotUrls);
+      assertImageWorkflowContinuityCapability(
+        { ...request, model: finalModel, referenceImages: transportReferenceImages },
+        {
+          kind: "storyboard-native-references",
+          imageUrls: transportReferenceImages,
+          slots: mapping.slots.map((slot, index) => ({
+            slot: slot.slot, role: slot.role, title: slot.title, imageUrl: transportReferenceImages[index]!,
+            // 1117 残项①:携带该槽已解析原图作血缘来源(裁切产物经它过
+            // 契约门「槽位-来源映射」比对;未裁槽 sourceUrl=自身)。
+            sourceUrl: resolvedSlotUrls[index],
+          })),
+          // 来源参考=全量参考的已解析形态(dataURL/base64,与槽位图同一解析路),
+          // 槽位子集核验才同域可比(原始 file:// 与传输 dataURL 不可直接相等)。
+          sourceReferenceImages: referenceImages,
+        },
+      );
     } else {
       // 零槽(t2i 路):参考全裁出(§4.5 纯道具镜)——传输零参考,连续性
       // 断言按零参考形态核(无版本参考在飞)。
@@ -747,4 +699,21 @@ export async function runImageWorkflowNodeGeneration(
   input.assertStillCurrent?.();
   useStudioStore.getState().upsertImageWorkflow(updated);
   return { imageUrl: saved.url };
+}
+
+/** 1125 R1(design §3.1(e)):槽位参考的图名——URL 去查询串、逐段百分号解码后
+ *  的最后一段(data: 与空 URL 返回空串)。单姿判据第 ⑤ 步按文件名单人图
+ *  类型标记兜底,受管路径里的图名(如 asset-file://role/晏燎/元婴期_正视图_v1.png)
+ *  由此取出。 */
+function imageNameOfSlot(url: string): string {
+  if (!url || url.startsWith("data:")) return "";
+  const segments = (url.split("?")[0] ?? "").split("/").filter(Boolean);
+  const decoded = segments.map((segment) => {
+    try {
+      return decodeURIComponent(segment);
+    } catch {
+      return segment;
+    }
+  });
+  return decoded[decoded.length - 1] ?? "";
 }

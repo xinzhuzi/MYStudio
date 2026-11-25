@@ -1,15 +1,24 @@
 // 把分镜槽位的参考图裁成单人姿势(横图、竖图两种裁法与满幅判定)。2026-11-24 超线文件拆分:从 storyboard-canonical-context.ts 拆出;原文件仍是入口,对外导出不变。
-
+//
+// 1125 最终判法(1125-ch001 收尾,design §3.1)六步顺序:
+//  ① 图片打不开(解码失败或 3 秒超时)=丢槽(调用方拒发);
+//  ② 横幅或竖幅:探出 8%–92% 的首个连续内容块=裁首格;
+//  ③ 竖幅或方图:首个连续内容块占高度 >92%=整张保留(单人立绘满高);
+//  ④ 中心十字占用 >85%=整张保留(整幅单内容兜底);
+//  ⑤ 文件名带单人图类型标记(isSinglePoseAssetImageName)=整张保留;
+//  ⑥ 其余=丢槽(调用方拒发)。
+// 方图恒不裁格:方形格子图(表情差分)会被裁成「一排脸」,竖向分析对方图
+// 只回 spanning(整张保留)或 null(走 ④⑤⑥),绝不回 cell。
+//
 // ── 单姿裁切(1116 第六病理三代修,移植自 2d312474 拼板层 singlePoseCropRect)──
 // 命令原文(1115):「只有设定卡时,出图前裁/选正面单姿为参考,禁整卡」。
 // 拼板退役时该刀被误删——赵四类无 _人物图_/_正视图_ 单姿资产,主图=横幅
 // 多视图卡整卡进 image_1 → 引擎翻拍整卡=转面稿四副本(C1 二发 4/6 污染,
 // Win history 实证守卫句在链仍压不住)。算法原样移植:探针列占用分析,
-// 最左连续内容块(零桥接)=正面单姿;横幅(宽>高)才裁;场景恒不裁;
-// 检测失败=丢槽留痕(宁缺勿染,禁整卡入参考)。
-// 2d312474 原语义:竖幅已是单姿→原图保留;横幅裁不出→整图兜底(拼板贴格)。
-// 本层取消整图兜底(整卡入参考即病理),但竖幅仍必须原样保留——竖幅被当
-// 「裁切失败」丢槽会抽掉主角立绘(image_1),身份参考归零。
+// 最左连续内容块(零桥接)=正面单姿;场景恒不裁;宁缺勿染,禁整卡入参考。
+// 2d312474 原语义:竖幅已是单姿→原图保留;1125 起整张保留扩展到 ③④⑤ 三态。
+import { isSinglePoseAssetImageName } from "@/lib/studio/asset-image-kind";
+
 export const POSE_PROBE_WIDTH = 512;
 
 export const POSE_BG_COLOR_DISTANCE = 60;
@@ -91,15 +100,23 @@ export function singlePoseCropRect(
   return { sx, sy: 0, sw, sh: fullHeight };
 }
 
+/** 1125 最终判法:竖向分析三态(cell=多视图卡里的一格;spanning=首块占满
+ *  高度=整张就是一个人;null=没有可用内容块)。方图(fullHeight === fullWidth)
+ *  恒不回 cell——方形格子图(表情差分)会被裁成「一排脸」。 */
+export type SinglePoseVerticalCrop =
+  | { kind: "cell"; sx: number; sy: number; sw: number; sh: number }
+  | { kind: "spanning" }
+  | null;
+
 /** 1117 残项③:竖排多视图卡分析(竖幅 3 视图+2 配色形态)——按行带内容
- * 占用探测,最上连续内容块=首格(竖排版式正面);行占用分析复用横向
- * 探针参数,行列互换。 */
+ *  占用探测,最上连续内容块=首格(竖排版式正面);行占用分析复用横向
+ *  探针参数,行列互换。1125 起返回三态(见 SinglePoseVerticalCrop)。 */
 export function singlePoseCropRectVertical(
   image: StoryboardCropImageSource,
-): { sx: number; sy: number; sw: number; sh: number } | null {
+): SinglePoseVerticalCrop {
   const fullWidth = image.naturalWidth;
   const fullHeight = image.naturalHeight;
-  if (!fullWidth || !fullHeight || fullHeight <= fullWidth) return null;
+  if (!fullWidth || !fullHeight || fullHeight < fullWidth) return null;
   const probeHeight = Math.min(POSE_PROBE_WIDTH, fullHeight);
   const probeWidth = Math.max(1, Math.round(fullWidth * probeHeight / fullHeight));
   let analysis: CanvasRenderingContext2D | null = null;
@@ -158,10 +175,11 @@ export function singlePoseCropRectVertical(
   }
   if (last < first + 2) return null;
   const bandRatio = (last - first + 1) / probeHeight;
-  if (bandRatio < 0.08 || bandRatio > 0.92) return null;
+  if (bandRatio > 0.92) return { kind: "spanning" };
+  if (bandRatio < 0.08 || fullHeight === fullWidth) return null;
   const sy = Math.round(first * fullHeight / probeHeight);
   const sh = Math.round((last - first + 1) * fullHeight / probeHeight);
-  return { sx: 0, sy, sw: fullWidth, sh };
+  return { kind: "cell", sx: 0, sy, sw: fullWidth, sh };
 }
 
 /** 整幅单内容判定(裁不出块时的单姿残余语义):中心十字带内容占用 >85%。
@@ -214,25 +232,38 @@ export function isSinglePoseFullFrame(image: StoryboardCropImageSource): boolean
   }
 }
 
-/** 槽位参考单姿化:character/prop 的横幅多视图卡 → canvas 裁正面单格 dataURL。
- *  竖幅(已是单姿立绘)= 原图保留(2d312474 原语义,禁丢槽);场景/前帧恒不裁;
- *  横幅裁不出=丢槽(留痕,宁缺勿染,禁整卡入参考)。 */
+/** 槽位参考单姿化(1125 最终判法,六步顺序见文件头注):
+ *  ① 图片打不开=丢槽(null,调用方拒发);② 横幅/竖幅探出 8%–92% 首块=裁首格;
+ *  ③ 竖幅或方图首块占高 >92%=整张保留(spanning);④ 中心十字占用 >85%=整张保留;
+ *  ⑤ 文件名单人图类型标记=整张保留;⑥ 其余=丢槽。方图恒不裁格(竖向分析对方图
+ *  只回 spanning/null);场景/前帧恒不裁,原样透传。 */
 export async function cropSlotReferenceToSinglePose(
   dataUrl: string,
   role: string,
   loadImage: (source: string) => Promise<StoryboardCropImageSource | null> = loadCropSourceImage,
+  imageName: string = "",
 ): Promise<string | null> {
   if (role !== "character" && role !== "prop") return dataUrl;
   const image = await loadImage(dataUrl);
   if (!image) return null;
-  // 1117 残项③:S10 复发实录——「竖幅=单姿」假设不成立(独孤剑尘资产=
-  // 竖幅 3 视图+2 配色,整卡直传→版式复制)。横幅走横向裁(原),竖幅先探
-  // 竖排多视图(singlePoseCropRectVertical),两路都无块=整幅单内容判定
-  // (占幅 >85%=真单姿保留,否则丢槽宁缺勿染)。
-  const rect = image.naturalWidth > image.naturalHeight
-    ? singlePoseCropRect(image)
-    : singlePoseCropRectVertical(image);
-  if (!rect) return isSinglePoseFullFrame(image) ? dataUrl : null;
+  if (image.naturalWidth > image.naturalHeight) {
+    // 横幅:横向探块裁最左连续内容块(原路不变);裁不出走 ④⑤ 兜底。
+    const rect = singlePoseCropRect(image);
+    return rect ? cropToDataUrl(image, rect) : keepWholeOrDrop(image, imageName, dataUrl);
+  }
+  // 竖幅/方图:竖向分析三态——spanning=整张保留;cell=裁首格(竖向函数体已
+  // 保证方图不回 cell,这里只是断言不入);null=走 ④(十字占用)⑤(文件名)兜底。
+  const vertical = singlePoseCropRectVertical(image);
+  if (vertical?.kind === "spanning") return dataUrl;
+  if (vertical?.kind === "cell") return cropToDataUrl(image, vertical);
+  return keepWholeOrDrop(image, imageName, dataUrl);
+}
+
+/** 裁格:canvas 按矩形抠出 PNG dataURL(裁不动=null,调用方按丢槽处理)。 */
+function cropToDataUrl(
+  image: StoryboardCropImageSource,
+  rect: { sx: number; sy: number; sw: number; sh: number },
+): string | null {
   try {
     const canvas = document.createElement("canvas");
     canvas.width = rect.sw;
@@ -244,6 +275,14 @@ export async function cropSlotReferenceToSinglePose(
   } catch {
     return null;
   }
+}
+
+/** 兜底(④⑤):中心十字占用 >85%(整幅单内容)或文件名单人图类型标记
+ *  → 整张保留(原 dataURL);否则丢槽(null,调用方拒发)。 */
+function keepWholeOrDrop(image: StoryboardCropImageSource, imageName: string, dataUrl: string): string | null {
+  if (isSinglePoseFullFrame(image)) return dataUrl;
+  if (isSinglePoseAssetImageName(imageName)) return dataUrl;
+  return null;
 }
 
 export async function loadCropSourceImage(dataUrl: string): Promise<StoryboardCropImageSource | null> {

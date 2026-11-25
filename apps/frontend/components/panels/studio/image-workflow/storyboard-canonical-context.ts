@@ -475,7 +475,6 @@ export async function buildStoryboardCanonicalTransportInput(
   shot: StoryboardItem,
   graph: ImageWorkflowGraph,
   targetNodeId: string,
-  dropSlotIndexes: number[] = [],
 ): Promise<StoryboardCanonicalTransportInput> {
   const targetNode = graph.nodes.find((node) => node.id === targetNodeId);
   const frameId = targetNode?.type === "generated" ? targetNode.frameId : undefined;
@@ -522,18 +521,9 @@ export async function buildStoryboardCanonicalTransportInput(
     ...extractCanonicalSlotSources(graph, targetNodeId),
     singleCastTextIdentity: singleCast && !frameId,
   });
-  // 1116 三代修:传输层单姿裁切失败的槽(dropSlotIndexes,0 基)在此剔除并
-  // 重编号——指令体的 <imageN> 编号与实际入槽图恒连续同构(宁缺勿染)。
-  if (dropSlotIndexes.length) {
-    const dropped = new Set(dropSlotIndexes);
-    const kept = mapping.slots
-      .filter((_, index) => !dropped.has(index))
-      .map((slot, index) => ({ ...slot, slot: (index + 1) as 1 | 2 | 3 }));
-    mapping.slots = kept;
-  }
-  // 1117 C2 门A:主角锚=角色槽 title(丢槽重排后按存活槽取,零角色镜取
-  // identities 首位;衍生复合名「晏燎·夜课少年」取基础名——主体句身份段写
-  // 的是角色名,锚词同面)。
+  // 1117 C2 门A:主角锚=角色槽 title(零角色镜取 identities 首位;衍生复合名
+  // 「晏燎·夜课少年」取基础名——主体句身份段写的是角色名,锚词同面)。
+  // 1125 R3:裁切失败的槽不再在此剔除重编号——调用方丢槽即拒发,槽位恒整全。
   const protagonistSlotTitle = mapping.slots.find((slot) => slot.role === "character")?.title;
   const protagonist = (protagonistSlotTitle ? sceneBaseName(protagonistSlotTitle) : undefined)
     ?? contextAnchors.protagonist;

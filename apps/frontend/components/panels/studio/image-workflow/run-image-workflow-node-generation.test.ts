@@ -274,7 +274,7 @@ describe("runImageWorkflowNodeGeneration 分镜正典传输边界(1116 换线)",
     expect(params.negativePrompt).toBeUndefined();
   });
 
-  it("单姿裁切失败=丢槽并重排 <imageN>(宁缺勿染,禁整卡入参考)", async () => {
+  it("单姿裁切失败=拒发并点名,不送模型(1125 R3:丢槽即拒发,不重排)", async () => {
     const graph = {
       id: "crop-drop-wf", target: { kind: "storyboard", id: "sb-1" },
       nodes: [
@@ -285,21 +285,52 @@ describe("runImageWorkflowNodeGeneration 分镜正典传输边界(1116 换线)",
       ],
       edges: ["ref-c1", "ref-s1", "ref-c2"].map((source) => ({ source, target: "gen-1" })),
     } as ImageWorkflowGraph;
-    const workflow = await import("@/lib/studio/image-workflow");
-    vi.mocked(workflow.buildImageWorkflowGenerationRequest).mockImplementationOnce(realRequest.buildImageWorkflowGenerationRequest);
-    vi.mocked(workflow.assertImageWorkflowContinuityCapability).mockImplementationOnce(realRequest.assertImageWorkflowContinuityCapability);
     const crop = vi.mocked(cropSlotReferenceToSinglePose);
     crop.mockReset();
     crop.mockImplementation(async (dataUrl: string) => (dataUrl.endsWith("card-banner") ? null : dataUrl));
     const { aiManager } = await import("@/lib/ai/ai-manager");
-    await runImageWorkflowNodeGeneration(graph, "gen-1", { addMaterial: () => "mat-1" });
-    const sent = vi.mocked(aiManager.generateImage).mock.calls[0][0];
-    // 主角横幅卡裁不出 → 丢槽;场景/次角色补位并按新槽号点名
-    expect(sent.referenceImages).toEqual(["data:image/png;base64,scene", "data:image/png;base64,char2"]);
-    expect(sent.prompt).toContain("<image1>为码头的场景来源");
-    expect(sent.prompt).toContain("<image2>为管事的身份来源");
-    expect(sent.prompt).not.toContain("<image3>");
-    expect(sent.prompt).not.toContain("赵四");
+    await expect(runImageWorkflowNodeGeneration(graph, "gen-1", { addMaterial: () => "mat-1" }))
+      .rejects.toThrow(/第 1 张参考「赵四」没能确认是单人图/);
+    expect(aiManager.generateImage).not.toHaveBeenCalled();
+  });
+
+  it("手写提示词在场且有槽被丢=拒发,手写提示词不会被替换", async () => {
+    studioState.storyboards = [storyboardShot({ promptOverride: "独孤剑尘立于金水河码头，夜雨，按剑远眺。手写定稿全文。" })];
+    const graph = {
+      id: "override-drop-wf", target: { kind: "storyboard", id: "sb-1" },
+      nodes: [
+        { id: "ref-c1", type: "reference", title: "赵四", imageUrl: "data:image/png;base64,card-banner", continuityOrder: 1, source: { kind: "asset", assetType: "character", id: "asset-c1" } },
+        { id: "gen-1", type: "generated", title: "成图", prompt: "p", aspectRatio: "16:9" },
+      ],
+      edges: [{ source: "ref-c1", target: "gen-1" }],
+    } as ImageWorkflowGraph;
+    const crop = vi.mocked(cropSlotReferenceToSinglePose);
+    crop.mockReset();
+    crop.mockImplementation(async (dataUrl: string) => (dataUrl.endsWith("card-banner") ? null : dataUrl));
+    const { aiManager } = await import("@/lib/ai/ai-manager");
+    await expect(runImageWorkflowNodeGeneration(graph, "gen-1", { addMaterial: () => "mat-1" }))
+      .rejects.toThrow(/第 1 张参考「赵四」没能确认是单人图/);
+    expect(aiManager.generateImage).not.toHaveBeenCalled();
+  });
+
+  it("手写提示词在场且参考齐全=逐字采用", async () => {
+    const override = "独孤剑尘立于金水河码头，夜雨，按剑远眺。手写定稿全文。";
+    studioState.storyboards = [storyboardShot({ promptOverride: override })];
+    const graph = {
+      id: "override-kept-wf", target: { kind: "storyboard", id: "sb-1" },
+      nodes: [
+        { id: "ref-1", type: "reference", title: "角色1", imageUrl: "data:image/png;base64,r1", continuityOrder: 1, source: { kind: "asset", assetType: "character", id: "a1" } },
+        { id: "gen-1", type: "generated", title: "成图", prompt: "p", aspectRatio: "16:9" },
+      ],
+      edges: [{ source: "ref-1", target: "gen-1" }],
+    } as ImageWorkflowGraph;
+    const workflow = await import("@/lib/studio/image-workflow");
+    vi.mocked(workflow.buildImageWorkflowGenerationRequest).mockImplementationOnce(realRequest.buildImageWorkflowGenerationRequest);
+    vi.mocked(workflow.assertImageWorkflowContinuityCapability).mockImplementationOnce(realRequest.assertImageWorkflowContinuityCapability);
+    const { aiManager } = await import("@/lib/ai/ai-manager");
+    await expect(runImageWorkflowNodeGeneration(graph, "gen-1", { addMaterial: () => "mat-1" }))
+      .resolves.toEqual({ imageUrl: "project-file://w/1.png" });
+    expect(vi.mocked(aiManager.generateImage).mock.calls[0]![0].prompt).toBe(override);
   });
 
   it("分镜参考(纯道具镜)道具不入图:槽位空走 t2i,道具走指令文字", async () => {
@@ -563,7 +594,7 @@ describe("runImageWorkflowNodeGeneration 1117 C2(断点C/门A)", () => {
     }
   });
 
-  it("门A 复验:丢槽重排后的终稿仍过锚词门(主角锚随存活槽重取)", async () => {
+  it("丢槽即拒发:场景槽健在也不重排、不送模型(1125 R3)", async () => {
     sceneState.scenes = [{ id: "scene-dock", name: "金水河码头", location: "金水河码头", projectId: "dao-project" }];
     const graph = {
       id: "drop-recheck-wf", target: { kind: "storyboard", id: "sb-1" },
@@ -578,14 +609,11 @@ describe("runImageWorkflowNodeGeneration 1117 C2(断点C/门A)", () => {
     crop.mockReset();
     crop.mockImplementation(async (dataUrl: string) => (dataUrl.endsWith("card-banner") ? null : dataUrl));
     const { aiManager } = await import("@/lib/ai/ai-manager");
-    // 主角卡裁切丢槽后:场景顶槽1,场景锚仍在 400(sceneText 恒在主体句)→复验过
+    // 主角卡裁切丢槽:即便场景槽健在也不重排补位,直接拒发点名
     await expect(
       runImageWorkflowNodeGeneration(graph, "gen-1", { addMaterial: () => "mat-1" }),
-    ).resolves.toEqual({ imageUrl: "project-file://w/1.png" });
-    const sent = vi.mocked(aiManager.generateImage).mock.calls[0][0];
-    expect(sent.prompt).toContain("金水河码头");
-    // N=1 自然指称(09 §二:单图禁标签),场景来源点名在
-    expect(sent.prompt).toContain("参考图中的金水河码头为场景来源");
+    ).rejects.toThrow(/第 1 张参考「独孤剑尘」没能确认是单人图/);
+    expect(aiManager.generateImage).not.toHaveBeenCalled();
   });
 });
 
@@ -783,8 +811,8 @@ describe("1120 件三:A/B 并轨开关(identity-injection 设计卡全文注入)
   });
 });
 
-// ── 1120 交叉复核④:全槽裁失降级零槽 t2i(原空槽数组走 transport 分支硬抛) ────
-describe("runImageWorkflowNodeGeneration 1120 复核④(全槽裁失降级路)", () => {
+// ── 1125 R3:丢槽即拒发(1120 复核④ 的全槽裁失降级零槽 t2i 路就此退役)────
+describe("丢槽即拒发(唯一槽裁失)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // 上一 describe 的共享 mock 态复位(件一同款纪律):镜行/提示词模式还原
@@ -792,7 +820,7 @@ describe("runImageWorkflowNodeGeneration 1120 复核④(全槽裁失降级路)",
     delete (studioState.workflowConfig as Record<string, unknown>).storyboardPromptMode;
   });
 
-  it("单角色镜唯一槽裁失(全槽裁失)→零槽 t2i 降级:零参考发车,不再「槽位数量不一致(须 1–3 槽)」硬抛", async () => {
+  it("唯一槽裁失=拒发,不再降级零槽文生图", async () => {
     // 单角色镜形态:唯一角色槽(无场景/前帧),横幅卡裁不出单姿=全槽裁失
     const graph = {
       id: "crop-drop-all-wf", target: { kind: "storyboard", id: "sb-1" },
@@ -809,14 +837,10 @@ describe("runImageWorkflowNodeGeneration 1120 复核④(全槽裁失降级路)",
     crop.mockReset();
     crop.mockImplementation(async () => null); // 唯一角色槽裁失
     const { aiManager } = await import("@/lib/ai/ai-manager");
-    // 修前:rebuilt.mapping.slots=[] 仍走 transport 分支,血缘门以 imageUrls=[]
-    // 调用→「分镜多参考传输槽位数量不一致(须 1–3 槽)」硬抛(真因=全槽裁失被误导)
+    // 1125 R3:裁不出单人格的卡=宁可不出图,不降级零槽文生图(角色身份参考归零)
     await expect(
       runImageWorkflowNodeGeneration(graph, "gen-1", { addMaterial: () => "mat-1" }),
-    ).resolves.toEqual({ imageUrl: "project-file://w/1.png" });
-    const sent = vi.mocked(aiManager.generateImage).mock.calls[0][0];
-    // 零槽 t2i 降级路:传输零参考+主体句形态(无槽位点名)
-    expect(sent.referenceImages).toEqual([]);
-    expect(sent.prompt).not.toMatch(/<image\d+>/);
+    ).rejects.toThrow(/第 1 张参考「赵四」没能确认是单人图/);
+    expect(aiManager.generateImage).not.toHaveBeenCalled();
   });
 });

@@ -92,6 +92,38 @@ function stubCanvas(contentStart: number, contentEnd: number) {
   return { drawImage, getContext, toDataURL };
 }
 
+/** 按比例坐标画若干个前景矩形(其余为背景色):像素落在任一矩形内才是前景。 */
+function stubCanvasBoxes(...boxes: Array<[number, number, number, number]>) {
+  const drawImage = vi.fn();
+  const inside = (x: number, y: number, width: number, height: number): boolean => boxes.some(([x0, y0, x1, y1]) =>
+    x / width >= x0 && x / width < x1 && y / height >= y0 && y / height < y1);
+  const fillPixels = (width: number, height: number): Uint8ClampedArray => {
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const at = (y * width + x) * 4;
+        const value = inside(x, y, width, height) ? 20 : 200;
+        data[at] = value;
+        data[at + 1] = value;
+        data[at + 2] = value;
+        data[at + 3] = 255;
+      }
+    }
+    return data;
+  };
+  const getContext = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(function (
+    this: HTMLCanvasElement,
+  ) {
+    return {
+      drawImage,
+      getImageData: (_x: number, _y: number, width: number, height: number) => ({ data: fillPixels(width, height) }),
+    } as unknown as CanvasRenderingContext2D;
+  } as never);
+  const toDataURL = vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockReturnValue("data:image/png;base64,CROPPED");
+  return { drawImage, getContext, toDataURL };
+}
+const stubCanvasBox = (x0: number, y0: number, x1: number, y1: number) => stubCanvasBoxes([x0, y0, x1, y1]);
+
 describe("cropSlotReferenceToSinglePose", () => {
   it("竖幅单姿立绘原图保留,不丢槽(1117 残项③:竖幅先探竖排多视图,整幅单内容=保留)", async () => {
     // 竖幅探针内容带=横向满幅(fillPixels 按 x∈[start,end) 前景;竖幅竖排分析
@@ -130,6 +162,54 @@ describe("cropSlotReferenceToSinglePose", () => {
   it("解码失败=丢槽(null)", async () => {
     const result = await cropSlotReferenceToSinglePose("data:image/png;base64,BROKEN", "character", loader(null));
     expect(result).toBeNull();
+  });
+
+  it("竖幅单人满高(窄)=整张保留,不裁不丢(1125:首块占高 >92% 判单人立绘)", async () => {
+    const { toDataURL } = stubCanvasBox(0.39, 0.03, 0.61, 0.97);
+    const load = loader({ naturalWidth: 800, naturalHeight: 1200 });
+    const result = await cropSlotReferenceToSinglePose("data:image/png;base64,VERTICAL", "character", load, "");
+    expect(result).toBe("data:image/png;base64,VERTICAL");
+    expect(toDataURL).not.toHaveBeenCalled();
+  });
+
+  it("方图单人满高=整张保留,不裁格(1125:方图恒不裁格,首块占高 >92% 走整张保留)", async () => {
+    const { toDataURL } = stubCanvasBox(0.41, 0.02, 0.59, 0.98);
+    const load = loader({ naturalWidth: 800, naturalHeight: 800 });
+    const result = await cropSlotReferenceToSinglePose("data:image/png;base64,SQUARE", "character", load, "");
+    expect(result).toBe("data:image/png;base64,SQUARE");
+    expect(toDataURL).not.toHaveBeenCalled();
+  });
+
+  it("方图三格竖排=方图不裁格,判丢槽(1125:方图即便探出合格首格也不裁)", async () => {
+    stubCanvasBoxes([0.15, 0.03, 0.85, 0.30], [0.15, 0.37, 0.85, 0.63], [0.15, 0.70, 0.85, 0.97]);
+    const load = loader({ naturalWidth: 800, naturalHeight: 800 });
+    const result = await cropSlotReferenceToSinglePose("data:image/png;base64,SQUARE3", "character", load, "");
+    expect(result).toBeNull();
+  });
+
+  it("探不出首格但文件名标了单人图类型=整张保留(1125:文件名单人标记兜底)", async () => {
+    stubCanvasBox(0.2, 0.02, 0.8, 0.08);
+    const load = loader({ naturalWidth: 600, naturalHeight: 1200 });
+    const result = await cropSlotReferenceToSinglePose(
+      "data:image/png;base64,FLATHEAD", "character", load, "独孤剑尘_人物海报_2026年11月23日.png",
+    );
+    expect(result).toBe("data:image/png;base64,FLATHEAD");
+  });
+
+  it("探不出首格且文件名标的是多视图卡=丢槽(1125:多视图卡名不兜底)", async () => {
+    stubCanvasBox(0.2, 0.02, 0.8, 0.08);
+    const load = loader({ naturalWidth: 600, naturalHeight: 1200 });
+    const result = await cropSlotReferenceToSinglePose(
+      "data:image/png;base64,FLATCARD", "character", load, "晏燎_元婴期_三视图_v1.png",
+    );
+    expect(result).toBeNull();
+  });
+
+  it("竖幅三视图卡仍裁首格(1125:首块占高 8%–92% 且非方图=多视图卡里的一格)", async () => {
+    stubCanvasBoxes([0.15, 0.05, 0.85, 0.32], [0.15, 0.40, 0.85, 0.66], [0.15, 0.73, 0.85, 0.95]);
+    const load = loader({ naturalWidth: 600, naturalHeight: 1200 });
+    const result = await cropSlotReferenceToSinglePose("data:image/png;base64,CARD3V", "character", load, "");
+    expect(result).toBe("data:image/png;base64,CROPPED");
   });
 });
 

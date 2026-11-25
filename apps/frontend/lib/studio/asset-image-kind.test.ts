@@ -15,6 +15,7 @@ import {
   getAssetImageKindSpectrum,
   groupAssetImagesByKind,
   isSheetCardFormat,
+  isSinglePoseAssetImageName,
   sheetCardSlotFormatOfName,
   sheetCardSlotReplacementFilePaths,
   SINGLE_IMAGE_KINDS,
@@ -361,5 +362,24 @@ describe("设定卡格式槽轴(1122 多张化解禁,裁定A/D/E:四档各一槽
       { name: "晏燎_设定卡_无装备_2026年11月22日" },
     ]);
     expect(groups.get("设定卡")).toHaveLength(2);
+  });
+});
+
+describe("isSinglePoseAssetImageName · 整张就是一个主体的图(1125 分镜参考判据)", () => {
+  it("单人图类型为真;多格卡与无标记为假;多个标记取最右", () => {
+    expect(isSinglePoseAssetImageName("独孤剑尘_人物海报_2026年11月23日.png")).toBe(true);
+    expect(isSinglePoseAssetImageName("晏燎_渡劫期_正视图_v1.png")).toBe(true);
+    expect(isSinglePoseAssetImageName("管事_人物图_2026年10月25日.png")).toBe(true);
+    expect(isSinglePoseAssetImageName("独孤剑尘_高清人头_2026年11月23日.png")).toBe(true);
+    expect(isSinglePoseAssetImageName("独孤剑尘_人脸基准_2026年11月23日.png")).toBe(true);
+    expect(isSinglePoseAssetImageName("独孤剑尘_美宣_2026年11月23日.png")).toBe(true);
+    expect(isSinglePoseAssetImageName("独孤剑尘_无衣物定妆_2026年11月21日.png")).toBe(true);
+    expect(isSinglePoseAssetImageName("晏燎_练气期_三视图_v1_人物海报_2026年10月19日.png")).toBe(true);
+    expect(isSinglePoseAssetImageName("晏燎_元婴期_三视图_v1.png")).toBe(false);
+    expect(isSinglePoseAssetImageName("独孤剑尘_人物多视图_2026年11月23日.png")).toBe(false);
+    expect(isSinglePoseAssetImageName("独孤剑尘_人物多视图_背面_2026年11月23日.png")).toBe(false);
+    expect(isSinglePoseAssetImageName("独孤剑尘_设定卡_全卡_2026年11月23日.png")).toBe(false);
+    expect(isSinglePoseAssetImageName("独孤剑尘_表情差分_2026年11月23日.png")).toBe(false);
+    expect(isSinglePoseAssetImageName("上官风_8b8d9271.png")).toBe(false);
   });
 });

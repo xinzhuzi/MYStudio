@@ -293,6 +293,26 @@ export function classifyAssetImageName(name: string): AssetImageKind {
   return best ?? "自由";
 }
 
+/** 整张就是一个主体的图(名字本身说明是单人立绘、人头或海报):分镜参考不裁,直接整张用。
+ *  取最右标记,与 classifyAssetImageName 同口径;「人物多视图」型里的 _正视图_/_人物图_
+ *  是全身立绘,也算单人;其余(三视图、多视图、设定卡、表情差分、无标记)为假。 */
+export function isSinglePoseAssetImageName(name: string): boolean {
+  let bestAt = -1;
+  let single = false;
+  for (const [kind, markers] of ASSET_IMAGE_NAME_KIND_TABLE) {
+    for (const marker of markers) {
+      const at = name.lastIndexOf(marker);
+      if (at > bestAt) {
+        bestAt = at;
+        single = kind === "人物海报" || kind === "美宣" || kind === "无衣物定妆"
+          || kind === "高清人头" || kind === "人脸基准"
+          || (kind === "人物多视图" && (marker === "_正视图_" || marker === "_人物图_"));
+      }
+    }
+  }
+  return single;
+}
+
 /** 存量持久值别名归并(1120 用户令:型名高清人脸→高清人头):改型名后 images[]
  * 里已持久化的旧 kind 值在此归位,免 DB 迁移(命名标记别名同款思路,10-26 先例)。 */
 const LEGACY_ASSET_IMAGE_KIND_ALIASES: Readonly<Record<string, AssetImageKind>> = {

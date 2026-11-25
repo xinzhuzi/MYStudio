@@ -6,6 +6,10 @@
 迁移器产出的 LoadImage 占位名(my-ref-N-hash.png)在此闭环:渲染层
 读项目/资产图→b64→sidecar→本模块转发引擎 /upload/image?overwrite=true
 ——真图以同名落进 input 目录,占位名工作流即开即跑。
+
+1125 实锤(ch-001 收尾 Task 4):引擎(0.46.2 server.py:471)只从表单
+字段读 overwrite——网址参数仅为兼容旧引擎保留;引擎返回名与请求名
+不一致(或带子目录)时必须报错,禁止假报成功。
 """
 
 from __future__ import annotations
