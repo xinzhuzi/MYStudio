@@ -745,7 +745,16 @@ async function main() {
     // 只直接拉起二进制,不回落 LaunchServices:回落模式下子进程是 open,拿不到应用真身的 pid。
     const launch = spawnSmokeApp({
       appBin,
-      args: [`--remote-debugging-port=${debugPort}`, `--user-data-dir=${userDataDir}`],
+      // 禁用后台/遮挡窗口的定时器与渲染节流:审计窗口被用户在用的应用压到后面时,
+      // Chromium 会把被遮挡窗口的定时器密集节流(约 60 倍慢),页面侧每步都靠定时器,
+      // 整轮审计会从几分钟劣化到几十分钟(1126 实测:a6 单状态卡十余分钟、两进程均 0% CPU)。
+      args: [
+        `--remote-debugging-port=${debugPort}`,
+        `--user-data-dir=${userDataDir}`,
+        "--disable-background-timer-throttling",
+        "--disable-renderer-backgrounding",
+        "--disable-backgrounding-occluded-windows",
+      ],
       cwd: process.cwd(),
       env,
       launchMode: "direct",

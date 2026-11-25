@@ -155,7 +155,7 @@ export function ProductsView() {
                     )}
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                <div className="flex shrink-0 items-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
                   <Button size="sm" variant="ghost" onClick={() => setEditingProduct(product)}>
                     <Pencil className="h-4 w-4" />
                   </Button>

@@ -219,7 +219,7 @@ function TemplateCard({
               <Badge variant="outline" className="text-xs">{platformLabel}</Badge>
             </div>
           </div>
-          <div className="flex shrink-0 gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          <div className="flex shrink-0 gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
             <Button 
               variant="ghost" 
               size="sm" 
