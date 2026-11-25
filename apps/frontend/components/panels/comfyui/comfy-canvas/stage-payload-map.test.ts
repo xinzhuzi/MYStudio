@@ -6,6 +6,7 @@
 // 消费方),面板退役后六钮+H3 全家+重建轨道=功能断链;逐镜 shots 丢 id→
 // 单镜 H3 直达钮(引擎 shot-production 读 shot.id)恒不渲染。
 import { describe, expect, it } from "vitest";
+import { shotPreviewName } from "@/lib/comfyui/storyboard/storyboard-overview-comfy";
 import { mapProductionFlowNodesToStagePayloads } from "./stage-payload-map";
 import type {
   ProductionFlowNodeModel,
@@ -88,6 +89,16 @@ describe("mapProductionFlowNodesToStagePayloads(1121 修复:生产路径动作�
     const storyboard = mapProductionFlowNodesToStagePayloads(sevenNodes())
       .find((p) => p.key === "storyboard")!;
     expect(storyboard.tiles![0].id).toBe("sb-1");
+  });
+
+  it("磁贴预览名与上传名同源(1125:my-shot-,不再有 manying-shot-)", () => {
+    const byKey = new Map(mapProductionFlowNodesToStagePayloads(sevenNodes()).map((p) => [p.key, p]));
+    const tile = byKey.get("storyboard")!.tiles![0]!;
+    expect(tile.preview).toBe("my-shot-sb-1.jpg");
+    expect(tile.preview).toBe(shotPreviewName({
+      id: "sb-1",
+      mediaRef: { kind: "image", path: "project-file://p/x.png" },
+    } as never));
   });
 
   it("动作禁用语义随数据:零分镜禁生成类/全就绪禁再生成,停止类常驻", () => {

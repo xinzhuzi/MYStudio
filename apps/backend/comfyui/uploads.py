@@ -44,6 +44,9 @@ def upload_reference(image_b64: str, name: str, timeout: float = 30.0) -> dict:
         b"Content-Type: application/octet-stream\r\n\r\n",
         raw,
         b"\r\n",
+        f"--{boundary}\r\n".encode(),
+        b'Content-Disposition: form-data; name="overwrite"\r\n\r\n',
+        b"true\r\n",
         f"--{boundary}--\r\n".encode(),
     ))
     request = urllib.request.Request(
@@ -59,4 +62,12 @@ def upload_reference(image_b64: str, name: str, timeout: float = 30.0) -> dict:
         raise EngineOpError(f"参考图上传失败(引擎不可达或拒收):{exc};请确认引擎在运行") from exc
     if not isinstance(result, dict) or not result.get("name"):
         raise EngineOpError(f"引擎上传应答异常:{json.dumps(result, ensure_ascii=False)[:120]}")
+    actual_name = result["name"]
+    subfolder = result.get("subfolder")
+    if actual_name != name or subfolder != "":
+        actual_path = f"{subfolder}/{actual_name}" if subfolder else str(actual_name)
+        raise EngineOpError(
+            f"引擎没有按同名覆盖:「{name}」实际存成了「{actual_path}」;"
+            "请确认引擎是 ComfyUI 0.46 及以上后重试"
+        )
     return result

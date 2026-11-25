@@ -63,6 +63,37 @@ def test_upload_posts_multipart_with_overwrite(home):
     assert result["name"] == "my-ref-1-abc.png"
 
 
+def test_upload_sends_overwrite_multipart_field(home):
+    captured = {}
+
+    def fake_urlopen(request, timeout=0):
+        captured["body"] = request.data
+        return _FakeResponse({"name": "a.png", "subfolder": "", "type": "input"})
+
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        uploads.upload_reference(base64.b64encode(b"x").decode(), "a.png")
+
+    assert b'name="overwrite"\r\n\r\ntrue\r\n' in captured["body"]
+
+
+def test_upload_rejects_engine_renamed_file(home):
+    def fake_urlopen(request, timeout=0):
+        return _FakeResponse({"name": "my-ref-1-abc (1).png", "subfolder": "", "type": "input"})
+
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        with pytest.raises(EngineOpError, match="同名覆盖"):
+            uploads.upload_reference(base64.b64encode(b"x").decode(), "my-ref-1-abc.png")
+
+
+def test_upload_rejects_engine_subfolder(home):
+    def fake_urlopen(request, timeout=0):
+        return _FakeResponse({"name": "a.png", "subfolder": "nested", "type": "input"})
+
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        with pytest.raises(EngineOpError, match="同名覆盖"):
+            uploads.upload_reference(base64.b64encode(b"x").decode(), "a.png")
+
+
 def test_upload_rejects_bad_base64_and_empty(home):
     with pytest.raises(EngineOpError, match="base64"):
         uploads.upload_reference("!!!not-base64-checked-len", "a.png")

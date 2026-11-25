@@ -12,11 +12,15 @@
 
 import type { StoryboardItem } from "@/types/studio";
 
+export function shotPreviewNameForId(id: string): string {
+  const safeId = id.replace(/[^A-Za-z0-9._-]+/g, "_");
+  return `my-shot-${safeId}.jpg`;
+}
+
 /** 该镜成图在引擎 input 目录的缩略图名(保鲜同步上传,扩展按名渲染;无图=空) */
 export function shotPreviewName(storyboard: StoryboardItem): string {
   if (storyboard.mediaRef?.kind !== "image" || !storyboard.mediaRef.path) return "";
-  const safeId = storyboard.id.replace(/[^A-Za-z0-9._-]+/g, "_");
-  return `my-shot-${safeId}.jpg`;
+  return shotPreviewNameForId(storyboard.id);
 }
 
 /** 第二关键帧缩略图名(09-14 用户裁定:每镜多张图都上屏——回接后每镜常 2 帧,
@@ -25,8 +29,7 @@ export function shotPreview2Name(storyboard: StoryboardItem): string {
   const frames = (storyboard.keyframes ?? []).filter((frame) => frame.mediaRef?.path);
   const second = frames[1];
   if (!second?.mediaRef?.path) return "";
-  const safeId = storyboard.id.replace(/[^A-Za-z0-9._-]+/g, "_");
-  return `my-shot-${safeId}-k2.jpg`;
+  return `${shotPreviewNameForId(storyboard.id).slice(0, -4)}-k2.jpg`;
 }
 
 /** 帧2 的原始媒体路径(上传源;无=空) */

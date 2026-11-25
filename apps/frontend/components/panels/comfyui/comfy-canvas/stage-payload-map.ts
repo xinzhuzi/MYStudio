@@ -10,7 +10,7 @@
  * actions 逐字透传=与老画布 100% 同口径。autoOpen 与保鲜链共用。
  */
 import type { ProductionFlowNodeModel } from "../../studio/workflow-node-model-schema";
-import { shotPreviewName } from "@/lib/comfyui/storyboard/storyboard-overview-comfy";
+import { shotPreviewName, shotPreviewNameForId } from "@/lib/comfyui/storyboard/storyboard-overview-comfy";
 import {
   remotionProductionStageActions,
   storyboardPanelStageActions,
@@ -63,10 +63,6 @@ function buildProgress(
     return [{ label: "轨道完成", done: node.workbenchTracks.filter((t) => t.state === "ready").length, total: node.workbenchTracks.length }];
   }
   return [];
-}
-
-function safePreviewName(id: string): string {
-  return `manying-shot-${id.replace(/[^A-Za-z0-9._-]+/g, "_")}.jpg`;
 }
 
 /** ProductionFlowNodeModel[] → StageNodePayload[](七环节逐字段映射) */
@@ -162,7 +158,7 @@ export function mapProductionFlowNodesToStagePayloads(nodes: ProductionFlowNodeM
           id: tile.id,
           // 09-14 用户裁定:磁贴只放标号(原 tile.title=描述铺字,弃用)
           title: `S${String(tile.index).padStart(2, "0")}`,
-          preview: tile.id ? safePreviewName(tile.id) : undefined,
+          preview: tile.id ? shotPreviewNameForId(tile.id) : undefined,
           hasImage: Boolean(tile.mediaPath),
           hasVideo: false,
           ...(tile.lines ? { lines: String(tile.lines) } : {}),
