@@ -79,3 +79,17 @@ def test_queue_snapshot_roundtrip_and_clean():
     bridge_sidepanel.update([{"id": "s1", "label": "S01"}], {"currentEpisodeId": "chapter-001"})
     assert bridge_sidepanel.snapshot()["queue"] == []
     bridge_sidepanel.reset_for_tests()
+
+
+def test_human_approved_field_roundtrip_and_default_false():
+    """1125 人审硬门:humanApproved 结论位白名单透传;缺字段一律 False(未审)。"""
+    bridge_sidepanel.update([
+        {"id": "sb-a", "label": "S01", "humanApproved": True},
+        {"id": "sb-b", "label": "S02", "humanApproved": False},
+        {"id": "sb-c", "label": "S03"},  # 旧宿主不带该字段
+    ])
+    shots = {shot["id"]: shot for shot in bridge_sidepanel.snapshot()["shots"]}
+    assert shots["sb-a"]["humanApproved"] is True
+    assert shots["sb-b"]["humanApproved"] is False
+    assert shots["sb-c"]["humanApproved"] is False
+    bridge_sidepanel.reset_for_tests()

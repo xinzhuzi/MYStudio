@@ -63,6 +63,10 @@ export function mergeStoryboardReplacement(previous: StoryboardItem, next: Story
     next.imageWorkflowNodeId !== previous.imageWorkflowNodeId,
   );
   const carriedVisualReview = next.visualReview ?? previous.visualReview;
+  // 1125 人审硬门:图片级批准绑定当次图片字节——mediaRef/图工作流一变,
+  // 旧 imageReview 立即作废回待审(源文本变化不动它:字节没变,重生成时
+  // 自然经 freshWrite 作废)。
+  const carriedImageReview = visualInputChanged ? undefined : (next.imageReview ?? previous.imageReview);
   if (freshWrite) {
     return {
       ...next,
@@ -71,6 +75,7 @@ export function mergeStoryboardReplacement(previous: StoryboardItem, next: Story
       staleSince: undefined,
       sourceFingerprint: nextFingerprint,
       outputVersion: (previous.outputVersion ?? 0) + 1,
+      imageReview: carriedImageReview,
       visualReview: visualInputChanged && carriedVisualReview
         ? {
             ...carriedVisualReview,
@@ -86,6 +91,7 @@ export function mergeStoryboardReplacement(previous: StoryboardItem, next: Story
       ...markStale(next, staleReason),
       sourceFingerprint: nextFingerprint,
       outputVersion: previous.outputVersion,
+      imageReview: carriedImageReview,
       visualReview: carriedVisualReview
         ? {
             ...carriedVisualReview,
@@ -99,6 +105,7 @@ export function mergeStoryboardReplacement(previous: StoryboardItem, next: Story
     ...next,
     sourceFingerprint: nextFingerprint,
     outputVersion: previous.outputVersion,
+    imageReview: carriedImageReview,
     visualReview: carriedVisualReview,
   };
 }

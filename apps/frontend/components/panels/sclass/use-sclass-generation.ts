@@ -25,6 +25,7 @@ import { useCharacterLibraryStore } from "@/stores/library/character-library-sto
 import { useSceneStore } from "@/stores/library/scene-store";
 import { saveVideoLocally, isContentModerationError } from "@/lib/ai/video-generator";
 import { aiManager } from "@/lib/ai/ai-manager";
+import { splitSceneImageReviewApproved } from "@/components/panels/director/split-scene-image-review";
 import { runSClassVideoWithKeyRotation } from "./sclass-video-retry";
 import { prepareSClassGroupGeneration } from "./sclass-generation-prep";
 import {
@@ -137,6 +138,19 @@ export function useSClassGeneration() {
           success: false,
           videoUrl: null,
           error: "组内无场景",
+        };
+      }
+
+      // 1c. 1125 人审硬门:组内每张分镜图须过人审(组视频由组内场景图合成)
+      const unreviewedScenes = groupScenes.filter(
+        (scene: SplitScene) => !splitSceneImageReviewApproved(scene),
+      );
+      if (unreviewedScenes.length > 0) {
+        return {
+          groupId: group.id,
+          success: false,
+          videoUrl: null,
+          error: `组内 ${unreviewedScenes.length} 张分镜图未通过人审(场景 ${unreviewedScenes.map((scene: SplitScene) => scene.id + 1).join("、")})——请先逐张通过人审`,
         };
       }
 

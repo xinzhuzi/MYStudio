@@ -130,6 +130,17 @@ export interface StudioWorkflowActions {
     >,
   ) => void;
   reviewStoryboardHuman: (id: string, review: HumanVisualReviewInput) => void;
+  /** 1125 人审硬门:图片级人审唯一写入口(签名同 StoryboardSlice.reviewStoryboardImage)。 */
+  reviewStoryboardImage: (
+    id: string,
+    input: {
+      status: "approved" | "rejected";
+      singleAppearancePassed: boolean;
+      reasons: string[];
+      imageBase64: string;
+      evidencePath?: string;
+    },
+  ) => Promise<void>;
   writeStoryboardVlmReview: (id: string, artifact: VlmReviewArtifactV1, evidencePath?: string) => void;
   bindStoryboardMedia: (id: string, mediaRef: StoryboardMediaRef, h3DurationUs?: number) => void;
   setStoryboardKeyframes: (

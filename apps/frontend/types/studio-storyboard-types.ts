@@ -126,6 +126,24 @@ export type HumanVisualReviewInput = Omit<
   "reviewer" | "inputFingerprint"
 > & { reviewedAt?: number };
 
+/**
+ * 分镜图片级人审记录(1125 用户令「分镜图必须人审」):与 visualReview(严格
+ * 连续性契约)分轨——本记录只回答「这张图人看过且通过」,是全章节出视频硬门
+ * 的判据;无记录=待审(派生,不落 pending 行)。contentSha256 绑定批准时刻的
+ * 图片字节:发车前重算对账,路径不变内容被换照样拦。
+ */
+export interface StoryboardImageReview {
+  status: "approved" | "rejected";
+  reviewedAt: number;
+  /** 驳回必填原因;通过可为空数组。 */
+  reasons: string[];
+  /** 具名角色各只出现一次(重复人物门):必勾才能通过。 */
+  singleAppearancePassed: boolean;
+  /** 批准/驳回时图片字节 SHA-256(64 hex),由专用 action 计算落库。 */
+  contentSha256: string;
+  evidencePath?: string;
+}
+
 export interface StudioMaterial {
   id: string;
   name: string;
@@ -227,6 +245,8 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
   orderedReferenceManifest?: StoryboardOrderedReference[];
   continuityState?: ShotContinuityState;
   visualReview?: VisualReviewResult;
+  /** 图片级人审记录(1125 硬门真源);缺省=待审。仅经 reviewStoryboardImage 写入。 */
+  imageReview?: StoryboardImageReview;
   audioRef?: StoryboardMediaRef;
   shotAudioBindings?: RemotionShotAudioBindingV2[];
   ttsJob?: StoryboardTtsJobV1;

@@ -11,6 +11,7 @@ import { resolve } from "node:path";
 import process from "node:process";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StoryboardItem } from "@/types/studio";
+import { sha256FromBase64Image } from "@/lib/studio/image-content-hash";
 
 const comfyJsonMock = vi.hoisted(() => vi.fn());
 const consumeMock = vi.hoisted(() => vi.fn());
@@ -38,7 +39,7 @@ vi.mock("@/lib/comfyui/storyboard/storyboard-overview-sync", () => ({ readStoryb
 vi.mock("@/components/panels/settings/comfy-engine/comfy-engine-contract", () => ({ getComfyEngineClient: () => ({}) }));
 vi.mock("sonner", () => ({ toast }));
 
-import { useStoryboardH3VideoBatch, planStoryboardH3VideoBatch, runStoryboardH3ShotVideo, autoRecipeForStoryboards } from "./use-storyboard-h3-video-batch";
+import { useStoryboardH3VideoBatch, planStoryboardH3VideoBatch, runStoryboardH3ShotVideo, runStoryboardH3ShotVideoStep, autoRecipeForStoryboards } from "./use-storyboard-h3-video-batch";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStoryboardH3VideoSessionStore } from "@/stores/studio/storyboard-h3-video-session-store";
@@ -46,8 +47,12 @@ import { useStoryboardH3VideoSessionStore } from "@/stores/studio/storyboard-h3-
 const initialStudioState = useStudioStore.getState();
 const initialProjectState = useProjectStore.getState();
 
+/** readB64Mock 缺省回包 "ZmFrZQ=="("fak")的 SHA-256——fixture 批准指纹与之绑定,
+ *  门禁内容对账在测试里恒过;门禁专属用例再显式拆/换。 */
+const REVIEWED_FRAME_SHA = "b5d54c39e66671c9731b9f471e585d8262cd4f54963f0c93082d8dcf334d4c78";
+
 function shot(partial: Partial<StoryboardItem>): StoryboardItem {
-  return {
+  const base = {
     id: partial.id ?? "sb-1",
     episodeId: "chapter-001",
     index: partial.index ?? 1,
@@ -58,6 +63,11 @@ function shot(partial: Partial<StoryboardItem>): StoryboardItem {
     state: "idle",
     ...partial,
   } as StoryboardItem;
+  // 1125 人审硬门:image 镜缺省视为已人审(门禁专属测试显式传 imageReview 键拆防)
+  if (!("imageReview" in partial) && base.mediaRef?.kind === "image" && base.mediaRef.path) {
+    base.imageReview = { status: "approved", reviewedAt: 1, reasons: [], singleAppearancePassed: true, contentSha256: REVIEWED_FRAME_SHA };
+  }
+  return base;
 }
 
 /** 引擎 job 状态机编程:POST execute→jobId;GET jobs→依次耗尽 states 后停最后态。 */
@@ -158,17 +168,72 @@ describe("autoRecipeForStoryboards(1116 §七时长路由:≤15s 全 sancai-i2v/
 });
 
 describe("planStoryboardH3VideoBatch(发车计划纯函数)", () => {
-  it("候选=有首帧 image 镜;缺帧/已是 video 分开计数;超 15s 列截断", () => {
+  it("候选=有首帧 image 镜;缺帧/已是 video 分开计数;超 15s 列截断;未审镜列拦单", () => {
     const plan = planStoryboardH3VideoBatch([
       shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" } }),
       shot({ id: "b", index: 2, mediaRef: { kind: "video", path: "v" } }),
       shot({ id: "c", index: 3 }),
       shot({ id: "d", index: 4, mediaRef: { kind: "image", path: "p4" }, durationTarget: 18 }),
+      shot({ id: "e", index: 5, mediaRef: { kind: "image", path: "p5" }, imageReview: undefined }),
     ]);
-    expect(plan.candidates.map((item) => item.id)).toEqual(["a", "d"]);
+    expect(plan.candidates.map((item) => item.id)).toEqual(["a", "d", "e"]);
     expect(plan.alreadyVideoCount).toBe(1);
     expect(plan.missingFrameCount).toBe(1);
     expect(plan.truncatedShotIndexes).toEqual([4]);
+    expect(plan.unreviewedShotIndexes).toEqual([5]);
+  });
+});
+
+describe("storyboard-h3-video-batch 人审硬门(1125)", () => {
+  it("未审镜不派发:发车摘要明示拦单;审过镜照常出片", async () => {
+    seedShots([
+      shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" }, imageReview: undefined }),
+      shot({ id: "b", index: 2, mediaRef: { kind: "image", path: "p2" } }),
+    ]);
+    programEngine(["complete"]);
+    programLanding(["b"]);
+    const { result } = renderHook(() => useStoryboardH3VideoBatch({
+      storyboards: useStudioStore.getState().storyboards,
+    }));
+    act(() => { result.current.start({ tier: "480p", recipeId: "my-h3-i2v-31" }); });
+    await pumpUntilDone(result);
+    expect(result.current.state.done).toBe(1);
+    expect(result.current.state.total).toBe(1);
+    const summary = toast.info.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(summary).toContain("1 镜未过人审已拦");
+  });
+
+  it("候选全未审:报错不发车、零引擎入队、零防休眠", async () => {
+    seedShots([shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" }, imageReview: undefined })]);
+    const { result } = renderHook(() => useStoryboardH3VideoBatch({
+      storyboards: useStudioStore.getState().storyboards,
+    }));
+    act(() => { result.current.start({ tier: "480p" }); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    expect(result.current.state.running).toBe(false);
+    expect(comfyJsonMock).not.toHaveBeenCalled();
+    expect(powerSave.start).not.toHaveBeenCalled();
+    const errors = toast.error.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(errors).toContain("未通过图片人审");
+  });
+
+  it("共享步兜底:未审镜直接抛,零组装零入队", async () => {
+    await expect(runStoryboardH3ShotVideoStep({
+      shot: shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" }, imageReview: undefined }),
+      tier: "480p",
+      originProjectId: "proj-1",
+    })).rejects.toThrow("未通过人审");
+    expect(comfyJsonMock).not.toHaveBeenCalled();
+  });
+
+  it("同路径换内容:批准指纹对不上=拦(禁入引擎)", async () => {
+    readB64Mock.mockResolvedValue("c3VycHJpc2U="); // 与批准指纹不同的字节
+    await expect(runStoryboardH3ShotVideoStep({
+      shot: shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" } }),
+      tier: "480p",
+      originProjectId: "proj-1",
+    })).rejects.toThrow("不一致");
+    expect(comfyJsonMock).not.toHaveBeenCalled();
   });
 });
 
@@ -611,6 +676,8 @@ describe("runStoryboardH3ShotVideo(镜级重生成 force 路径)", () => {
 
 /** 960×544 PNG(16:9 判例档:AR 阶梯→960×544→1440×832)。 */
 const PNG_960_544 = "iVBORw0KGgoAAAANSUhEUgAAA8AAAAIgCAIAAADFh5f6AAAAAElFTkSuQmCC";
+// 1125 人审硬门:三采链测试的批准指纹=实际读回的 PNG 字节哈希(内容对账恒过)
+const PNG_960_544_SHA = await sha256FromBase64Image(PNG_960_544);
 
 describe("runStoryboardH3ShotVideoStep(三采两段拆链,1112 recavsr-mainline)", () => {
   /** 两段引擎状态机(45faa181 千位段编号同构 mock,1116 门禁红实录摘伪造掩盖):
@@ -648,7 +715,7 @@ describe("runStoryboardH3ShotVideoStep(三采两段拆链,1112 recavsr-mainline)
   });
 
   it("两段拆链全链:段A(56 节点无三采链)→/free→段B(300.file 注解名+MyShot 连 340)", async () => {
-    seedShots([shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" } })]);
+    seedShots([shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" }, imageReview: { status: "approved", reviewedAt: 1, reasons: [], singleAppearancePassed: true, contentSha256: PNG_960_544_SHA } })]);
     readB64Mock.mockResolvedValue(PNG_960_544);
     const executeBodies: Array<Record<string, unknown>> = [];
     programSancaiEngine(executeBodies);
@@ -684,7 +751,7 @@ describe("runStoryboardH3ShotVideoStep(三采两段拆链,1112 recavsr-mainline)
   });
 
   it("段A 完成但缺 nodeId=3071 终档产物→抛错不发段B(零拷贝通道断链显式失败)", async () => {
-    seedShots([shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" } })]);
+    seedShots([shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" }, imageReview: { status: "approved", reviewedAt: 1, reasons: [], singleAppearancePassed: true, contentSha256: PNG_960_544_SHA } })]);
     readB64Mock.mockResolvedValue(PNG_960_544);
     const executeBodies: Array<Record<string, unknown>> = [];
     let jobSeq = 0;
@@ -706,7 +773,7 @@ describe("runStoryboardH3ShotVideoStep(三采两段拆链,1112 recavsr-mainline)
   });
 
   it("/free 失败(引擎离线)吞错不阻断段B(拆链是优化不是正确性依赖)", async () => {
-    seedShots([shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" } })]);
+    seedShots([shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" }, imageReview: { status: "approved", reviewedAt: 1, reasons: [], singleAppearancePassed: true, contentSha256: PNG_960_544_SHA } })]);
     readB64Mock.mockResolvedValue(PNG_960_544);
     engineFreeMock.mockResolvedValue(false);
     const executeBodies: Array<Record<string, unknown>> = [];

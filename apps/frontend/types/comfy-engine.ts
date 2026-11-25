@@ -331,7 +331,7 @@ export interface ComfyEngineClient {
    *  09-12 B2 续:queue=渲染队列实时快照(宿主从 window.remotionQueue 投影,
    *  画布 stage-node 轮询同端点活更队列徽章,不经保鲜链重写库文件)。 */
   pushBridgeStoryboards(
-    shots: Array<{ id: string; label: string; episodeId?: string; videoReady?: boolean; imageReady?: boolean }>,
+    shots: Array<{ id: string; label: string; episodeId?: string; videoReady?: boolean; imageReady?: boolean; humanApproved?: boolean }>,
     currentEpisodeId?: string,
     queue?: Array<{ index: number; status: string; progress: number }>,
     originProjectId?: string,

@@ -895,6 +895,7 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
         episodeId?: string;
         videoReady?: boolean;
         imageReady?: boolean;
+        humanApproved?: boolean;
       }>,
       currentEpisodeId?: string,
       queue?: Array<{ index: number; status: string; progress: number }>,

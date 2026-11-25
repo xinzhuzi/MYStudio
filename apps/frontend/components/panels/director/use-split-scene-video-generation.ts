@@ -7,6 +7,7 @@ import { getCinematographyProfile } from "@/lib/constants/cinematography-profile
 import { getMediaType, getStylePrompt } from "@/lib/constants/visual-styles";
 import { buildVideoPrompt } from "@/lib/generation/prompt-builder";
 import { persistSceneImage } from "@/lib/utils/image-persist";
+import { splitSceneImageReviewApproved } from "@/components/panels/director/split-scene-image-review";
 import { useAPIConfigStore } from "@/stores/ai/api-config-store";
 import type { DirectorProjectData, DirectorStore, SplitScene } from "@/stores/director/director-store";
 import {
@@ -69,7 +70,6 @@ export function useSplitSceneVideoGeneration({
     const scene = scenes.find((candidate) => candidate.id === sceneId);
     if (!scene) return;
 
- 
     useAPIConfigStore.getState();
     if (process.env.NODE_ENV === "development") {
     }
@@ -106,6 +106,18 @@ export function useSplitSceneVideoGeneration({
     }
 
     if (process.env.NODE_ENV === "development") {
+    }
+
+    // 1125 人审硬门(全入口无豁免;配置门之后、任何状态写入之前):
+    // 首帧图未过人审=不发车(云端 API 零花费)。
+    if (!splitSceneImageReviewApproved(scene)) {
+      updateSplitSceneVideo(sceneId, {
+        videoStatus: "failed",
+        videoProgress: 0,
+        videoError: "分镜图未通过人审——请先在卡片上通过图片人审",
+      });
+      toast.error(`分镜 ${sceneId + 1} 未通过图片人审,禁止出视频——请先点卡片上的「通过人审」`);
+      return;
     }
 
     setIsGenerating(true);
@@ -319,11 +331,25 @@ export function useSplitSceneVideoGeneration({
       toast.warning(`还有 ${scenesWithoutPrompts.length} 个分镜没有提示词，将使用默认提示词`);
     }
 
-    const scenesToGenerate = scenes.filter(
+    const candidates = scenes.filter(
       (scene) => scene.videoStatus === "idle" || scene.videoStatus === "failed",
     );
-    if (scenesToGenerate.length === 0) {
+    if (candidates.length === 0) {
       toast.info("所有分镜已生成或正在生成中");
+      return;
+    }
+    // 1125 人审硬门:未审场景拦在批量外(如实计数,禁假成功)
+    const unreviewed = candidates.filter(
+      (scene) => !splitSceneImageReviewApproved(scene),
+    );
+    const scenesToGenerate = candidates.filter(
+      (scene) => splitSceneImageReviewApproved(scene),
+    );
+    if (unreviewed.length > 0) {
+      toast.warning(`${unreviewed.length} 个分镜未通过图片人审已拦(卡片上通过后可出片)`);
+    }
+    if (scenesToGenerate.length === 0) {
+      toast.error("所有候选分镜均未通过图片人审——请先逐张通过人审");
       return;
     }
 

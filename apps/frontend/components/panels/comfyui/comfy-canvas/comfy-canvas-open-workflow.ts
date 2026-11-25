@@ -22,6 +22,7 @@ import { mapProductionFlowNodesToStagePayloads } from "./stage-payload-map";
 import type { ProductionFlowNodeModel } from "../../studio/workflow-node-model-schema";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useProjectStore } from "@/stores/project/project-store";
+import { storyboardImageReviewIssues, verifyStoryboardImageBytes } from "@/lib/studio/storyboard-image-review-gate";
 
 /**
  * 工作流阶段自动打开分镜总览(09-10 用户裁定:进入工作流阶段,ComfyUI 展示
@@ -171,12 +172,25 @@ export async function openShotVideoWorkflowIntoCanvas(
     toast.error("该镜还没有关键帧");
     return;
   }
+  // 1125 人审硬门:未过图片人审的单镜不开工作流(上传/开图前拦);批准后
+  // 内容哈希对账防同路径换图。
+  const reviewIssue = storyboardImageReviewIssues(shot)[0];
+  if (reviewIssue) {
+    toast.error(reviewIssue);
+    return;
+  }
   const chapter = state.novelChapters.find((item) => item.id === shot.episodeId);
   const chapterLabel = chapter?.title || shot.episodeId;
   const safeId = shot.id.replace(/[^A-Za-z0-9._-]+/g, "_");
   const imageName = `my-shot-h3-${safeId}.jpg`;
   const imageB64 = await readStoryboardImageB64(shot.mediaRef.path);
   if (!isActive()) throw new Error("项目已切换或画布已关闭，请重新打开单镜工作流");
+  // 1125 内容对账:实读字节与批准指纹对账,不符不开工作流(不上传)
+  const contentIssue = (await verifyStoryboardImageBytes(shot, imageB64))[0];
+  if (contentIssue) {
+    toast.error(contentIssue);
+    return;
+  }
   const uploaded = await client.uploadBridgeReference(imageName, imageB64);
   if (!uploaded?.accepted) throw new Error("关键帧上传失败");
   if (!isActive() || useProjectStore.getState().activeProjectId !== originProjectId) throw new Error("项目已切换，请从当前项目重新打开单镜工作流");

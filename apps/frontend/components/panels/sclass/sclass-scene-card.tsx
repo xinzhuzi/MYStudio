@@ -111,6 +111,7 @@ export function SClassSceneCard({
   onGenerateVideo,
   onGenerateEndFrame,
   onRemoveImage,
+  onReviewImage,
   onUploadImage,
   onUpdateField,
   onAngleSwitch,
@@ -236,6 +237,7 @@ export function SClassSceneCard({
         onUpdateEndFrameSceneReference={onUpdateEndFrameSceneReference}
         onGenerateEndFrame={onGenerateEndFrame}
         onRemoveImage={onRemoveImage}
+        onReviewImage={onReviewImage}
         onUploadImage={onUploadImage}
         onAngleSwitch={onAngleSwitch}
         onQuadGrid={onQuadGrid}

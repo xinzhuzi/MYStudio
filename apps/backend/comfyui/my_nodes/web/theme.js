@@ -79,6 +79,7 @@ if (typeof document !== "undefined" && !document.getElementById("my-font-bridge"
 }
 
 import { bridgeFetch } from "./bridge-action.js";
+import { assertHumanReviewForQueue, hasVideoOutputInScope } from "./human-review-gate.js";
 
 const BRIDGE_URL = (window.MY_BRIDGE_URL || window.MANYING_BRIDGE_URL || "http://127.0.0.1:17595").replace(/\/$/, "");
 
@@ -168,6 +169,22 @@ app.registerExtension({
         } else continue;
         if (typeof origin !== "string" || !origin.trim()) {
           throw new Error(`节点 ${id} 未绑定回写项目：请点成图节点或漫影侧栏的「绑定当前项目」；视频请从漫影重新打开单镜工作流`);
+        }
+      }
+      // 1125 人审硬门(引擎侧兜底):视频产出节点(MyShot 带 video/导演台)发车前
+      // 按宿主快照的 humanApproved 位对账;不通过=抛错拦队列(GPU 零花费)。
+      // 快照拉取失败按「无法对账」处理=拦(宁可误拦不漏放);非视频提交零快照往返。
+      if (hasVideoOutputInScope({ output: data?.output, partialExecutionTargets: targets })) {
+        try {
+          let snapshot;
+          try {
+            snapshot = await fetchShots();
+          } catch {
+            snapshot = null;
+          }
+          assertHumanReviewForQueue({ output: data?.output, partialExecutionTargets: targets }, snapshot);
+        } catch (error) {
+          throw new Error(`[人审硬门] ${error?.message || String(error)}`);
         }
       }
       return queuePrompt(number, data, ...rest);

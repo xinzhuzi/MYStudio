@@ -55,6 +55,9 @@ def update(shots: list, payload: dict | None = None) -> dict:
                 # 09-11 续:视频/画面就绪标记(分镜页签的视频分类展示)
                 "videoReady": bool(item.get("videoReady")),
                 "imageReady": bool(item.get("imageReady")),
+                # 1125 人审硬门:宿主门禁现算的图片人审结论位(引擎队列钩子对
+                # MyShot/导演台发车按此对账;缺字段/False 一律按未审处理)
+                "humanApproved": bool(item.get("humanApproved")),
             })
     if len(clean) > 500:
         raise ValueError("shots 超过 500 条上限")

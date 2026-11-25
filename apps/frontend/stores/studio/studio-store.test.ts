@@ -2191,3 +2191,87 @@ describe("switchChapter 重复行压实(P3 读侧去重)", () => {
     }
   });
 });
+
+// 1125 人审硬门:imageReview 唯一写入口 + 直写剥离
+describe("reviewStoryboardImage(图片级人审硬门)", () => {
+  function addImageShot(): string {
+    return useStudioStore.getState().addStoryboard({
+      id: "img-review-1",
+      episodeId: "chapter-001",
+      index: 1,
+      prompt: "待审镜头",
+      mediaRef: { kind: "image", path: "project-file://p1/frames/img-review-1.png" },
+    });
+  }
+
+  it("批准落库:哈希绑定审核字节,勾选必填", async () => {
+    const id = addImageShot();
+    const base64 = "aGVsbG8=";
+    await useStudioStore.getState().reviewStoryboardImage(id, {
+      status: "approved",
+      singleAppearancePassed: true,
+      reasons: [],
+      imageBase64: base64,
+      evidencePath: "project-file://p1/frames/img-review-1.png",
+    });
+    expect(useStudioStore.getState().storyboards.find((item) => item.id === id)?.imageReview)
+      .toMatchObject({
+        status: "approved",
+        singleAppearancePassed: true,
+        contentSha256: "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+        evidencePath: "project-file://p1/frames/img-review-1.png",
+      });
+  });
+
+  it("未勾「具名角色各只出现一次」禁止批准", async () => {
+    const id = addImageShot();
+    await expect(useStudioStore.getState().reviewStoryboardImage(id, {
+      status: "approved",
+      singleAppearancePassed: false,
+      reasons: [],
+      imageBase64: "aGVsbG8=",
+    })).rejects.toThrow("具名角色各只出现一次");
+    expect(useStudioStore.getState().storyboards.find((item) => item.id === id)?.imageReview).toBeUndefined();
+  });
+
+  it("驳回必填原因", async () => {
+    const id = addImageShot();
+    await expect(useStudioStore.getState().reviewStoryboardImage(id, {
+      status: "rejected",
+      singleAppearancePassed: false,
+      reasons: ["   "],
+      imageBase64: "aGVsbG8=",
+    })).rejects.toThrow("驳回时必须填写原因");
+    await useStudioStore.getState().reviewStoryboardImage(id, {
+      status: "rejected",
+      singleAppearancePassed: false,
+      reasons: ["主角画了两个"],
+      imageBase64: "aGVsbG8=",
+    });
+    expect(useStudioStore.getState().storyboards.find((item) => item.id === id)?.imageReview)
+      .toMatchObject({ status: "rejected", reasons: ["主角画了两个"] });
+  });
+
+  it("updateStoryboard 直写 imageReview 被剥离(唯一写入口纪律)", () => {
+    const id = addImageShot();
+    useStudioStore.getState().updateStoryboard(id, {
+      imageReview: { status: "approved", reviewedAt: 1, reasons: [], singleAppearancePassed: true, contentSha256: "b".repeat(64) },
+    });
+    expect(useStudioStore.getState().storyboards.find((item) => item.id === id)?.imageReview).toBeUndefined();
+  });
+
+  it("重生成换图后旧批准作废回待审(mergeStoryboardReplacement 失效链)", async () => {
+    const id = addImageShot();
+    await useStudioStore.getState().reviewStoryboardImage(id, {
+      status: "approved",
+      singleAppearancePassed: true,
+      reasons: [],
+      imageBase64: "aGVsbG8=",
+    });
+    expect(useStudioStore.getState().storyboards.find((item) => item.id === id)?.imageReview?.status).toBe("approved");
+    useStudioStore.getState().updateStoryboard(id, {
+      mediaRef: { kind: "image", path: "project-file://p1/frames/img-review-1-v2.png" },
+    });
+    expect(useStudioStore.getState().storyboards.find((item) => item.id === id)?.imageReview).toBeUndefined();
+  });
+});

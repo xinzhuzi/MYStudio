@@ -409,4 +409,58 @@ describe("storyboard stale chain repair (1112 验尸 W1/W2)", () => {
     expect(healed[2]?.stale).toBeUndefined();
     expect(healed[2]?.visualReview).toBe(undefined);
   });
+
+  // 1125 人审硬门:imageReview 失效链
+  describe("imageReview 失效(图片级人审绑定图片字节)", () => {
+    const imageReview = {
+      status: "approved",
+      reviewedAt: 1,
+      reasons: [],
+      singleAppearancePassed: true,
+      contentSha256: "a".repeat(64),
+    } satisfies NonNullable<StoryboardItem["imageReview"]>;
+
+    it("媒体重生成/换图(freshWrite)=旧批准作废回待审", () => {
+      const previous = storyboard({
+        mediaRef: { kind: "image", path: "/old.png" },
+        imageReview,
+        outputVersion: 2,
+      });
+      const next = storyboard({ mediaRef: { kind: "image", path: "/new.png" } });
+      expect(mergeStoryboardReplacement(previous, next, "stale").imageReview).toBeUndefined();
+    });
+
+    it("同路径换图工作流/节点=同样作废", () => {
+      const previous = storyboard({
+        mediaRef: { kind: "image", path: "/same.png", imageWorkflowId: "wf-1" },
+        imageReview,
+      });
+      const next = storyboard({
+        mediaRef: { kind: "image", path: "/same.png", imageWorkflowId: "wf-2" },
+      });
+      expect(mergeStoryboardReplacement(previous, next, "stale").imageReview).toBeUndefined();
+    });
+
+    it("源文本变化(字节未动)=批准保留(重生成时经 freshWrite 自然作废)", () => {
+      const previous = storyboard({
+        mediaRef: { kind: "image", path: "/same.png" },
+        imageReview,
+        prompt: "old prompt",
+      });
+      const next = storyboard({
+        mediaRef: { kind: "image", path: "/same.png" },
+        prompt: "changed prompt",
+      });
+      expect(mergeStoryboardReplacement(previous, next, "需要重新生成").imageReview).toEqual(imageReview);
+    });
+
+    it("零扰动重存=批准原样携带", () => {
+      const previous = storyboard({
+        mediaRef: { kind: "image", path: "/same.png" },
+        imageReview,
+      });
+      const next = storyboard({ mediaRef: { kind: "image", path: "/same.png" } });
+      expect(mergeStoryboardReplacement(previous, next, "storyboard source changed").imageReview).toEqual(imageReview);
+    });
+  });
 });

@@ -5,6 +5,7 @@ import { buildVideoPrompt } from "@/lib/generation/prompt-builder";
 import { saveVideoToLocal } from "@/lib/media/image-storage";
 import { persistSceneImage } from "@/lib/utils/image-persist";
 import { convertToHttpUrl, extractLastFrameFromVideo, isContentModerationError } from "@/lib/ai/video-generator";
+import { splitSceneImageReviewApproved } from "@/components/panels/director/split-scene-image-review";
 import type { DirectorProjectData, DirectorStore, SplitScene } from "@/stores/director/director-store";
 import { toast } from "sonner";
 
@@ -25,6 +26,17 @@ export function createSClassSingleVideoGenerator(options: SClassSingleVideoGener
   return async (sceneId: number) => {
     const scene = options.scenes.find((candidate) => candidate.id === sceneId);
     if (!scene) return;
+
+    // 1125 人审硬门:分镜图未过人审=不发车(云端 API 零花费)
+    if (!splitSceneImageReviewApproved(scene)) {
+      options.updateSplitSceneVideo(sceneId, {
+        videoStatus: "failed",
+        videoProgress: 0,
+        videoError: "分镜图未通过人审——请先在卡片上通过图片人审",
+      });
+      toast.error(`分镜 ${sceneId + 1} 未通过图片人审,禁止出视频`);
+      return;
+    }
 
     const featureConfig = aiManager.featureConfig("video_generation");
     if (!featureConfig) {

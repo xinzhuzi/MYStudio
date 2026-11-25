@@ -42,6 +42,8 @@ vi.mock("sonner", () => ({
 
 const scene = {
   id: 3,
+  // 1125 人审硬门:批准记录在位才放行(门禁专属行为归 split-scene-image-review.test)
+  imageReview: { status: "approved", approvedAt: 1, reasons: [] },
   imageDataUrl: "local-first-frame",
   imageSource: "uploaded",
   needsEndFrame: false,
@@ -88,7 +90,7 @@ describe("createSClassSingleVideoGenerator", () => {
   });
 
   it("rejects a scene without a first frame before calling the provider", async () => {
-    const result = setup([{ id: 3 } as SplitScene]);
+    const result = setup([{ id: 3, imageReview: { status: "approved", approvedAt: 1, reasons: [] } } as unknown as SplitScene]);
     await result.generate(3);
 
     expect(mocks.error).toHaveBeenCalledWith("分镜 4 没有首帧图片，请先生成图片");

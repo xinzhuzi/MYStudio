@@ -56,6 +56,8 @@ export function createDirectorFrameCascadeActions(
           imageStatus: "completed" as const,
           imageProgress: 100,
           imageError: null,
+          // 1125 人审硬门:首帧图被级联替换=旧批准作废回待审
+          imageReview: undefined,
           ...videoReset,
         };
       });

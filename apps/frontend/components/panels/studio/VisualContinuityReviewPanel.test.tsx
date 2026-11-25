@@ -11,6 +11,12 @@ import {
 } from "@/lib/studio/visual-continuity";
 import { VisualContinuityReviewPanel } from "./VisualContinuityReviewPanel";
 
+// 图片人审读图字节走 comfyImageUrlToB64(真身要 Electron 桥);测试桩恒定返回
+// "hello" 的 base64,哈希断言用已知向量。
+vi.mock("@/lib/comfyui/comfy/comfy-execute", () => ({
+  comfyImageUrlToB64: vi.fn(async () => "aGVsbG8="),
+}));
+
 afterEach(cleanup);
 
 function storyboard(index: number): StoryboardItem {
@@ -528,5 +534,130 @@ describe("VisualContinuityReviewPanel", () => {
       reason: "背部未出现三层油布剑包",
       evidencePaths: ["/bible/dugu-front_thumb.png", "/bible/dugu-three-quarter_thumb.png", "/bible/dugu-side_thumb.png"],
     });
+  });
+});
+
+// 1125 图片人审硬门:图片人审区交互契约
+describe("VisualContinuityReviewPanel 图片人审", () => {
+  const HELLO_SHA = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
+
+  it("待审镜显示人审区;通过必须先勾「具名角色各只出现一次」", async () => {
+    const onReviewImage = vi.fn();
+    render(<VisualContinuityReviewPanel
+      storyboards={[storyboard(1)]}
+      continuityAssetVersions={continuityVersions()}
+      onReview={vi.fn()}
+      onReviewAsset={vi.fn()}
+      onReviewImage={onReviewImage}
+    />);
+
+    expect(screen.getByText("人审 0 / 1")).toBeTruthy();
+    expect(screen.getByText("待审")).toBeTruthy();
+    const approve = screen.getByRole("button", { name: "通过第 1 镜图片人审" }) as HTMLButtonElement;
+    expect(approve.disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /具名角色各只出现一次/ }));
+    expect(approve.disabled).toBe(false);
+    fireEvent.click(approve);
+    await vi.waitFor(() => {
+      expect(onReviewImage).toHaveBeenCalledWith("sb-1", expect.objectContaining({
+        status: "approved",
+        singleAppearancePassed: true,
+        reasons: [],
+        imageBase64: "aGVsbG8=",
+        evidencePath: "/frames/sb-1.png",
+      }));
+    });
+  });
+
+  it("驳回图片必须填原因", async () => {
+    const onReviewImage = vi.fn();
+    render(<VisualContinuityReviewPanel
+      storyboards={[storyboard(1)]}
+      continuityAssetVersions={continuityVersions()}
+      onReview={vi.fn()}
+      onReviewAsset={vi.fn()}
+      onReviewImage={onReviewImage}
+    />);
+
+    const reject = screen.getByRole("button", { name: "驳回第 1 镜图片" }) as HTMLButtonElement;
+    expect(reject.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("图片驳回原因"), { target: { value: "主角画了两个" } });
+    expect(reject.disabled).toBe(false);
+    fireEvent.click(reject);
+    await vi.waitFor(() => {
+      expect(onReviewImage).toHaveBeenCalledWith("sb-1", expect.objectContaining({
+        status: "rejected",
+        reasons: ["主角画了两个"],
+        singleAppearancePassed: false,
+      }));
+    });
+  });
+
+  it("已批准镜显示已通过且条带区进入放行态;通过后自动跳下一待审镜", async () => {
+    const approved = storyboard(1);
+    approved.imageReview = { status: "approved", reviewedAt: 1, reasons: [], singleAppearancePassed: true, contentSha256: HELLO_SHA };
+    const pending = storyboard(2);
+    const onReviewImage = vi.fn();
+    render(<VisualContinuityReviewPanel
+      storyboards={[approved, pending]}
+      continuityAssetVersions={continuityVersions()}
+      onReview={vi.fn()}
+      onReviewAsset={vi.fn()}
+      onReviewImage={onReviewImage}
+    />);
+
+    expect(screen.getByText("人审 1 / 2")).toBeTruthy();
+    // 初始定位到首个图片未审镜(第 2 镜)
+    expect(screen.getByText("当前第 2 / 2 镜")).toBeTruthy();
+    expect(screen.getByText("待审")).toBeTruthy();
+  });
+
+  it("onReviewImage 缺省时人审按钮禁用(不撒谎的不可用态)", () => {
+    render(<VisualContinuityReviewPanel
+      storyboards={[storyboard(1)]}
+      continuityAssetVersions={continuityVersions()}
+      onReview={vi.fn()}
+      onReviewAsset={vi.fn()}
+    />);
+    expect(((screen.getByRole("button", { name: "通过第 1 镜图片人审" })) as HTMLButtonElement).disabled).toBe(true);
+    expect(((screen.getByRole("button", { name: "驳回第 1 镜图片" })) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+// 1125 人审实弹补缺:镜图在面板里只有五百来像素宽,看不清=无法有效人审——点图开全屏预览
+describe("VisualContinuityReviewPanel 全屏预览", () => {
+  function renderPanel() {
+    render(<VisualContinuityReviewPanel
+      storyboards={[storyboard(1), storyboard(2), storyboard(3)]}
+      continuityAssetVersions={continuityVersions()}
+      onReview={vi.fn()}
+      onReviewAsset={vi.fn()}
+    />);
+  }
+
+  it("点当前镜画面开全屏预览;Esc 关闭后遮罩不残留", () => {
+    renderPanel();
+    expect(screen.queryByRole("dialog", { name: "图片全屏预览" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "放大查看当前镜第 1 镜画面" }));
+    expect(screen.getByRole("dialog", { name: "图片全屏预览" })).toBeTruthy();
+    expect(screen.getByAltText("预览图片").getAttribute("src")).toBe("file:///frames/sb-1.png");
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "图片全屏预览" })).toBeNull();
+  });
+
+  it("预览序列=本章有画面的镜:从下一镜进入落在该镜,方向键可逐镜翻页", () => {
+    renderPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: "放大查看下一镜第 2 镜画面" }));
+    expect(screen.getByAltText("预览图片").getAttribute("src")).toBe("file:///frames/sb-2.png");
+
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(screen.getByAltText("预览图片").getAttribute("src")).toBe("file:///frames/sb-3.png");
+
+    fireEvent.click(screen.getByRole("button", { name: "关闭预览" }));
+    expect(screen.queryByRole("dialog", { name: "图片全屏预览" })).toBeNull();
   });
 });

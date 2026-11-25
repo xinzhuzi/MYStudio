@@ -79,6 +79,7 @@ export function WorkbenchTab(props: {
 }) {
   const activeProjectId = useProjectStore((state) => state.activeProjectId);
   const reviewStoryboardHuman = useStudioStore((state) => state.reviewStoryboardHuman);
+  const reviewStoryboardImage = useStudioStore((state) => state.reviewStoryboardImage);
   const continuityAssetVersions = useStudioStore((state) => state.continuityAssetVersions);
   const reviewContinuityAssetVersionHuman = useStudioStore((state) => state.reviewContinuityAssetVersionHuman);
   const chapterId = props.episodeId ?? "episode-1";
@@ -867,6 +868,7 @@ export function WorkbenchTab(props: {
         continuityAssetVersions={continuityAssetVersions}
         onReview={reviewStoryboardHuman}
         onReviewAsset={reviewContinuityAssetVersionHuman}
+        onReviewImage={reviewStoryboardImage}
       />
       <section
         aria-label="video-use 章节执行"

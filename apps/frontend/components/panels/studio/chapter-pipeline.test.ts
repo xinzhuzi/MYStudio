@@ -60,6 +60,8 @@ function makeShot(input: {
   bound?: boolean;
   /** 1120 件二:video 态镜(mediaRef kind=video,H3 产物回写)。 */
   video?: boolean;
+  /** 1125 人审硬门:绑图镜缺省已过人审;显式传 false=待审(门禁用例)。 */
+  reviewed?: boolean;
 }): StoryboardItem {
   const media = input.video
     ? { kind: "video" as const, path: `local-image://videos/s${input.index}.mp4` }
@@ -78,6 +80,10 @@ function makeShot(input: {
     assetIds: [],
     associateAssetsNames: [],
     mediaRef: media,
+    // 1125:图镜缺省已过人审(与 H3 批量测试同规;门禁用例 reviewed:false 拆防)
+    imageReview: media?.kind === "image" && input.reviewed !== false
+      ? { status: "approved", reviewedAt: 1, reasons: [], singleAppearancePassed: true, contentSha256: "e0ccabf029972221e9286d89c7defed59df3b3eeb84156e29d442e397df4596f" }
+      : undefined,
     keyframes: media
       ? [{ frameId: `sb-${input.index}-kf-1`, mediaRef: media, inUs: 0 }]
       : [],
@@ -364,9 +370,34 @@ describe("章验收卡聚合(每 target 最新态;重启重算不编造)", () =>
     const card = buildChapterAcceptanceCard(CHAPTER_ID);
     expect(card.assets).toEqual({ total: 3, success: 2, failed: 1, failedNames: ["prop:青盐鞭"] });
     expect(card.derived).toEqual({ total: 1, success: 0, failed: 1, failedNames: ["derived:断臂散修:重伤"] });
-    expect(card.storyboard).toEqual({ totalShots: 2, videoReady: 0, ready: 1, unbound: 1, exceptions: 1 });
+    expect(card.storyboard).toEqual({ totalShots: 2, videoReady: 0, humanReviewed: 2, ready: 1, unbound: 1, exceptions: 1 });
     expect(card.staleCount).toBe(0); // 无台账=不误报(批6 存量兼容)
     expect(chapterAcceptanceAllGreen(card)).toBe(false);
+  });
+
+  it("1125 人审硬门:未审图镜拉低人审计数令全绿翻红;全过审+全视频=全绿;摘要含人审行", () => {
+    const tasks = [
+      mediaTask({ kind: "scriptAsset", targetId: "character:x", status: "success" }),
+      mediaTask({ kind: "derivedAssetImage", targetId: "derived:x:y", status: "success" }),
+    ] as never;
+    // 一图镜未审 → 人审 1/2 → 全绿翻红(唯一差异=人审位)
+    useStudioStore.setState({
+      mediaTasks: tasks,
+      storyboards: [makeShot({ index: 1, video: true }), makeShot({ index: 2, bound: true, reviewed: false })] as never,
+    });
+    const blocked = buildChapterAcceptanceCard(CHAPTER_ID);
+    expect(blocked.storyboard.humanReviewed).toBe(1);
+    expect(chapterAcceptanceAllGreen(blocked)).toBe(false);
+    expect(chapterAcceptanceSummary(blocked)).toContain("人审 1/2");
+
+    // 全镜过审(视频镜生成时已过门=计过审)→ 全绿恢复
+    useStudioStore.setState({
+      storyboards: [makeShot({ index: 1, video: true }), makeShot({ index: 2, video: true })] as never,
+    });
+    const green = buildChapterAcceptanceCard(CHAPTER_ID);
+    expect(green.storyboard.humanReviewed).toBe(2);
+    expect(chapterAcceptanceAllGreen(green)).toBe(true);
+    expect(chapterAcceptanceSummary(green)).toContain("人审 2/2");
   });
 
   it("全绿判定:零失败+零例外+零 stale+全镜视频就绪(1120 件二主口径;无分镜不算全绿)", () => {
@@ -391,10 +422,10 @@ describe("章验收卡聚合(每 target 最新态;重启重算不编造)", () =>
         mediaTask({ kind: "derivedAssetImage", targetId: "derived:x:y", status: "success" }),
       ] as never,
       // 图全绑(旧主口径的「全绿」态)→ 主口径转视频后不再全绿
-      storyboards: [makeShot({ index: 1, bound: true }), makeShot({ index: 2, bound: true })] as never,
+      storyboards: [makeShot({ index: 1, bound: true, reviewed: false }), makeShot({ index: 2, bound: true, reviewed: false })] as never,
     });
     const imageOnly = buildChapterAcceptanceCard(CHAPTER_ID);
-    expect(imageOnly.storyboard).toEqual({ totalShots: 2, videoReady: 0, ready: 2, unbound: 0, exceptions: 0 });
+    expect(imageOnly.storyboard).toEqual({ totalShots: 2, videoReady: 0, humanReviewed: 0, ready: 2, unbound: 0, exceptions: 0 });
     expect(chapterAcceptanceAllGreen(imageOnly)).toBe(false);
 
     // 混合(1 视频+1 图):videoReady=主计数,ready=中间态辅助(视频⇒有画面,2/2)

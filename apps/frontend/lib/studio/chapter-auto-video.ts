@@ -11,6 +11,7 @@ import type {
   RemotionShotAudioBindingV2,
 } from "@/types/remotion-workspace";
 import { assertVisualContinuityApproved } from "./visual-continuity";
+import { assertStoryboardImagesHumanReviewed } from "./storyboard-image-review-gate";
 import { externalNarratorSpokenText } from "@/lib/comfyui/h3/h3-shot-prompt";
 
 /** 10-11 音频分工判据:H3 烧录音频在位(mediaRef video=H3 回写直落片,
@@ -217,6 +218,9 @@ export async function prepareChapterMedia({
     storyboards = selected;
   }
   const speakerIds = auditVoiceoverStoryboards(storyboards, episodeId, expectedIdentity, dependencies.loadVoiceoverCharacters?.());
+  // 1125 人审硬门(全章节):整章每张分镜图先过图片级人审(重复人物门+内容
+  // 指纹在位);未审镜列号抛错,先于人审勾不进 TTS/队列。
+  assertStoryboardImagesHumanReviewed(allStoryboards);
   // 连续性按整章链校验(子集会切断「上一镜」关系);单镜收窄的只是 TTS/入队范围
   assertVisualContinuityApproved(
     allStoryboards,

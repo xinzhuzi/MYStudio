@@ -21,6 +21,7 @@ import {
 } from "./shot-plan";
 import { resolveSubtitleAuthority } from "../video-workflow/subtitle-authority";
 import { buildProjectFileUrl } from "@/lib/upscale/project-file-url";
+import { computeProjectFileSha256, isValidSha256Hex } from "../image-content-hash";
 
 export interface BuildRemotionShotPlansInput {
   projectId: string;
@@ -350,10 +351,6 @@ function decodePart(value: string): string {
   }
 }
 
-function isValidSha256Hex(value: string | undefined): value is string {
-  return typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
-}
-
 /**
  * 旁路写入（如超分替换分镜图）会把 mediaRef.contentSha256 留空。与 CLI
  * render-shot-slots 的 normalizeMediaRef 同语义：构建前按实际文件补算
@@ -376,25 +373,6 @@ async function recoverMissingMediaFingerprints(
       ? { ...storyboard, mediaRef: { ...media, contentSha256 } }
       : storyboard;
   }));
-}
-
-async function computeProjectFileSha256(
-  bridge: NonNullable<Window["projectFiles"]>,
-  url: string,
-): Promise<string | undefined> {
-  try {
-    const reply = await bridge.readAsBase64(url);
-    if (!reply?.success || !reply.base64) return undefined;
-    const binary = atob(reply.base64.slice(reply.base64.indexOf(",") + 1));
-    const bytes = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-      bytes[index] = binary.charCodeAt(index);
-    }
-    const digest = await crypto.subtle.digest("SHA-256", bytes);
-    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-  } catch {
-    return undefined;
-  }
 }
 
 function isSafeRelativePath(value: string): boolean {

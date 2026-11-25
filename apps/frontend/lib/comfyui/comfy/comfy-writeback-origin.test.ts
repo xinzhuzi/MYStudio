@@ -15,8 +15,14 @@ function loadExtension() {
   // import 行后该名悬空,须按原名注入桩并转手 fetchMock,否则 fetchShots 抛 ReferenceError
   // 被节点回调的 try/catch 吞掉,只剩 alert。
   const bridgeFetch = async (input: unknown, init?: unknown) => fetchMock(input, init);
+  // 1125 人审硬门:装配剥 import 行后 human-review-gate.js 两名悬空,按原名注入
+  // 桩(默认不拉快照/放行)——本文件只测回写绑定语义,门禁行为归
+  // backend my_nodes/tests/test_human_review_gate_queue.py。
+  const hasVideoOutputInScope = vi.fn(() => false);
+  const assertHumanReviewForQueue = vi.fn();
   const context = vm.createContext({
     app, api, window: { confirm, alert: vi.fn() }, fetch: fetchMock, Date, URLSearchParams, bridgeFetch,
+    hasVideoOutputInScope, assertHumanReviewForQueue,
   });
   const source = readFileSync(resolve("backend/comfyui/my_nodes/web/theme.js"), "utf8")
     .replace(/^import .*;$/gm, "")

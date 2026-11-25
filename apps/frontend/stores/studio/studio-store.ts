@@ -429,6 +429,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       updateStoryboard: storyboardSlice.updateStoryboard,
       writeStoryboardAudio: storyboardSlice.writeStoryboardAudio,
       reviewStoryboardHuman: storyboardSlice.reviewStoryboardHuman,
+      reviewStoryboardImage: storyboardSlice.reviewStoryboardImage,
       writeStoryboardVlmReview: storyboardSlice.writeStoryboardVlmReview,
       bindStoryboardMedia: storyboardSlice.bindStoryboardMedia,
       setStoryboardKeyframes: storyboardSlice.setStoryboardKeyframes,

@@ -49,6 +49,9 @@ function approvedSceneVersion(): ContinuityAssetVersion {
   });
 }
 
+/** 1125 人审硬门 fixture:合法 64hex 指纹(值本身不参与对账——prepare 门只查在位)。 */
+const REVIEWED_FRAME_SHA = "e0ccabf029972221e9286d89c7defed59df3b3eeb84156e29d442e397df4596f";
+
 function storyboard(index: number, overrides: Partial<StoryboardItem> = {}): StoryboardItem {
   const sceneVersion = approvedSceneVersion();
   const item: StoryboardItem = {
@@ -124,6 +127,17 @@ function storyboard(index: number, overrides: Partial<StoryboardItem> = {}): Sto
       textWatermarkCheck: { passed: true },
       inputFingerprint: visualReviewInputFingerprint(item),
     });
+  }
+  // 1125 人审硬门:与 visualReview 同规——overrides 未显式给 imageReview 键时
+  // 缺省已批准(门禁专属用例再显式置 undefined/拆掉)。
+  if (!Object.prototype.hasOwnProperty.call(overrides, "imageReview")) {
+    item.imageReview = {
+      status: "approved",
+      reviewedAt: 1,
+      reasons: [],
+      singleAppearancePassed: true,
+      contentSha256: REVIEWED_FRAME_SHA,
+    };
   }
   return item;
 }
@@ -319,6 +333,16 @@ describe("chapter auto video orchestration", () => {
       "media",
       "tts",
     ]);
+  });
+
+  it("blocks whole chapter when any storyboard image lacks human review (1125 hard gate)", async () => {
+    const { dependencies } = createDependencies();
+    dependencies.loadStoryboards = () => [storyboard(1), storyboard(2, { imageReview: undefined })];
+    await expect(prepareChapterMedia({
+      projectId: "project-1",
+      episodeId: "chapter-001",
+      dependencies,
+    })).rejects.toThrow(/1 镜分镜图未通过人审.*S02/s);
   });
 
   it("rejects storyboards with a stale source revision before TTS", async () => {

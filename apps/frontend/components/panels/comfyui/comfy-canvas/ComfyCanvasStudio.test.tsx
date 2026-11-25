@@ -946,6 +946,8 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
         prompt: "备用", duration: 5, durationTarget: 5, lines: "", sound: "雨声",
         shotSemantics: { actionIn: "雨幕落下", actionOut: "水面涟漪" },
         mediaRef: { kind: "image", path: "project-file://frame.png" },
+        // 1125 人审硬门:批准指纹=readStoryboardImageB64 桩回包 "ZnJhbWU="(frame)哈希
+        imageReview: { status: "approved", reviewedAt: 1, reasons: [], singleAppearancePassed: true, contentSha256: "9dff50df08c635815f4b19da10f756605a34a79a48d4ba48712782502975a70e" },
       },
     ] as unknown[];
     storeState.novelChapters = [{ id: "chapter-001", title: "第一章 雨夜" }];
@@ -1023,6 +1025,8 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     const localShot = {
       id: "shot-a", index: 1, episodeId: "chapter-a", videoDesc: "雨夜石桥",
       duration: 5, mediaRef: { kind: "image", path: "project-file://frame.png" },
+      // 1125 人审硬门:批准指纹=readStoryboardImageB64 桩回包 "ZnJhbWU="(frame)哈希
+      imageReview: { status: "approved", reviewedAt: 1, reasons: [], singleAppearancePassed: true, contentSha256: "9dff50df08c635815f4b19da10f756605a34a79a48d4ba48712782502975a70e" },
     };
     storeState.storyboards = [localShot, { ...localShot, id: "shot-b", episodeId: "chapter-b" }];
     storeState.novelChapters = [{ id: "chapter-a" }];

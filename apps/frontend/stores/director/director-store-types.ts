@@ -60,6 +60,9 @@ export interface SplitScene {
   imageStatus: GenerationStatus;
   imageProgress: number; // 0-100
   imageError: string | null;
+  // 1125 人审硬门:首帧图片级人审记录(status=approved 才放行;无记录=待审)。
+  // 首帧图片一变(updateSplitSceneImage/级联)即清空回待审。
+  imageReview?: { status: 'approved' | 'rejected'; approvedAt: number; reasons: string[] };
   
   // ========== 尾帧 (End Frame / End State) ==========
   // 是否需要尾帧（AI 自动判断或用户手动设置）
@@ -350,6 +353,8 @@ export interface DirectorActions {
   
   updateSplitSceneImage: (sceneId: number, imageDataUrl: string, width?: number, height?: number, httpUrl?: string) => void;
   updateSplitSceneImageStatus: (sceneId: number, updates: Partial<Pick<SplitScene, 'imageStatus' | 'imageProgress' | 'imageError'>>) => void;
+  // 1125 人审硬门:首帧图片级人审唯一写入口(批准/驳回;图片一变自动回待审)
+  reviewSplitSceneImage: (sceneId: number, review: { status: 'approved' | 'rejected'; reasons: string[] }) => void;
   updateSplitSceneVideo: (sceneId: number, updates: Partial<Pick<SplitScene, 'videoStatus' | 'videoProgress' | 'videoUrl' | 'videoError' | 'videoMediaId'>>) => void;
   // 尾帧图片上传/更新
   updateSplitSceneEndFrame: (sceneId: number, imageUrl: string | null, source?: 'upload' | 'ai-generated' | 'next-scene' | 'video-extracted' | 'prev-scene-cascade', httpUrl?: string | null) => void;

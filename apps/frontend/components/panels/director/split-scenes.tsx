@@ -154,6 +154,8 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
     // 场景库关联更新方法
     updateSplitSceneReference,
     updateSplitSceneEndFrameReference,
+    // 1125 人审硬门:首帧图片人审唯一写入口
+    reviewSplitSceneImage,
     // 通用字段更新方法（用于双击编辑）
     updateSplitSceneField,
     // 视角切换历史
@@ -508,6 +510,7 @@ export function SplitScenes({ onBack }: SplitScenesProps) {
       onGenerateVideo={handleGenerateSingleVideo}
       onGenerateEndFrame={handleGenerateEndFrameImage}
       onRemoveImage={handleRemoveImage}
+      onReviewImage={reviewSplitSceneImage}
       onUploadImage={handleUploadImage}
       onUpdateField={(id, field, value) => updateSplitSceneField(id, field, value)}
       onAngleSwitch={handleAngleSwitchClick}

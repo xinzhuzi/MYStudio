@@ -27,6 +27,7 @@ import {
 } from "@/lib/studio/engine-line/resolve-engine-base-url";
 import { invalidateOverviewSyncForEngineStart, syncStoryboardOverviewToLibrary } from "@/lib/comfyui/storyboard/storyboard-overview-sync";
 import { buildStageNodePayloadFromState } from "@/lib/comfyui/storyboard/storyboard-pipeline-comfy";
+import { storyboardImageHumanApproved } from "@/lib/studio/storyboard-image-review-gate";
 import { mapProductionFlowNodesToStagePayloads } from "./stage-payload-map";
 import type { ProductionFlowNodeModel } from "../../studio/workflow-node-model-schema";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -304,6 +305,9 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
               episodeId: item.episodeId,
               videoReady: item.mediaRef?.kind === "video" && Boolean(item.mediaRef.path),
               imageReady: item.mediaRef?.kind === "image" && Boolean(item.mediaRef.path),
+              // 1125 人审硬门:宿主门禁现算的图片人审结论位——引擎侧队列钩子
+              // (theme.js)对 MyShot/导演台发车按此对账;缺快照/过期照 origin 规则拒。
+              humanApproved: storyboardImageHumanApproved(item),
             })),
             episodeId,
             queue,

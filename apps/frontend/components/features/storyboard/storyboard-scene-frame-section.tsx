@@ -49,6 +49,8 @@ export interface StoryboardSceneFrameSectionProps {
   onQuadGrid?: (sceneId: number, type: "start" | "end") => void;
   onStopImageGeneration?: (sceneId: number) => void;
   onStopEndFrameGeneration?: (sceneId: number) => void;
+  /** 1125 人审硬门:首帧图片人审唯一入口(批准后才能出视频;图片一变自动回待审)。 */
+  onReviewImage?: (sceneId: number, review: { status: "approved" | "rejected"; reasons: string[] }) => void;
   isAngleSwitching?: boolean;
   isQuadGridGenerating?: boolean;
   isGeneratingAny?: boolean;
@@ -179,6 +181,7 @@ export function StoryboardSceneFrameSection({
   onQuadGrid,
   onStopImageGeneration,
   onStopEndFrameGeneration,
+  onReviewImage,
   isAngleSwitching,
   isQuadGridGenerating,
   isGeneratingAny,
@@ -296,6 +299,31 @@ export function StoryboardSceneFrameSection({
             )}
           </div>
           <div className="flex items-center gap-1">
+            {hasFrame && isStart && (
+              scene.imageReview?.status === "approved" ? (
+                <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-success/20 text-success">人审通过</span>
+              ) : scene.imageReview?.status === "rejected" ? (
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onReviewImage?.(scene.id, { status: "approved", reasons: [] });
+                  }}
+                  className="text-[9px] px-1.5 py-0.5 rounded-md bg-destructive/20 text-destructive hover:bg-destructive/30"
+                >
+                  已驳回·重审
+                </button>
+              ) : (
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onReviewImage?.(scene.id, { status: "approved", reasons: [] });
+                  }}
+                  className="text-[9px] px-1.5 py-0.5 rounded-md bg-success/20 text-success hover:bg-success/30"
+                >
+                  通过人审
+                </button>
+              )
+            )}
             {hasFrame && (
               <>
                 <button

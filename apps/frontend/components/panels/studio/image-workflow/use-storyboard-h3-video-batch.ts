@@ -29,6 +29,10 @@ import { getRemoteEngine } from "@/lib/comfyui/comfy/comfy-sidecar-bridge";
 import { consumeComfyBridgeWritebacks } from "@/lib/comfyui/comfy/comfy-bridge-writeback-consumer";
 import { landH3ShotVideo, probeH3VideoDurationUs } from "@/lib/comfyui/h3/h3-shot-landing";
 import { readStoryboardImageB64 } from "@/lib/comfyui/storyboard/storyboard-overview-sync";
+import {
+  storyboardImageReviewIssues,
+  verifyStoryboardImageBytes,
+} from "@/lib/studio/storyboard-image-review-gate";
 import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useProjectStore } from "@/stores/project/project-store";
@@ -79,6 +83,9 @@ export interface StoryboardH3VideoBatchPlan {
   /** multiseg 专属:超 40s 硬顶拒派镜(index 列表,§14.1.4 M1——不进 queue,
    *  发车摘要列「超 40s 顶拒」;i2v 族恒空)。 */
   rejectedShotIndexes: number[];
+  /** 1125 人审硬门:未过图片人审的候选镜(index 列表)——不进 queue,
+   *  发车摘要列示;工作台人审区通过后下轮可出片。 */
+  unreviewedShotIndexes: number[];
   /** 已是 video 的镜(幂等跳过,不计缺帧) */
   alreadyVideoCount: number;
 }
@@ -100,7 +107,11 @@ export function planStoryboardH3VideoBatch(storyboards: StoryboardItem[], recipe
   const rejectedShotIndexes = isMultiseg
     ? candidates.filter((item) => shotSeconds(item) > MULTISEG_SECONDS_HARD_CAP).map((item) => item.index)
     : [];
-  return { candidates, missingFrameCount, alreadyVideoCount, truncatedShotIndexes, rejectedShotIndexes };
+  // 1125 人审硬门:候选里未过图片人审的镜全部拦下(全章节,无豁免)
+  const unreviewedShotIndexes = candidates
+    .filter((item) => storyboardImageReviewIssues(item).length > 0)
+    .map((item) => item.index);
+  return { candidates, missingFrameCount, alreadyVideoCount, truncatedShotIndexes, rejectedShotIndexes, unreviewedShotIndexes };
 }
 
 /** 远端 settings 模式判定(10-29 D1 T16 复核 gap2):仅设置位配置的远端引擎生效
@@ -286,6 +297,11 @@ export async function runStoryboardH3ShotVideoStep(input: {
   if (shot.mediaRef?.kind !== "image" || !shot.mediaRef.path) {
     throw new Error(`分镜 ${shot.id} 缺少首帧画面,无法出片`);
   }
+  // 1125 人审硬门(共享步兜底:批量预检+单镜 force 都经此):取 store 最新镜
+  // 防批量快照陈旧;未过图片人审=零引擎入队直接抛(组装门语义)。
+  const latestShot = useStudioStore.getState().storyboards.find((item) => item.id === shot.id) ?? shot;
+  const reviewIssue = storyboardImageReviewIssues(latestShot)[0];
+  if (reviewIssue) throw new Error(reviewIssue);
   const state = useStudioStore.getState();
   const chapter = state.novelChapters.find((item) => item.id === shot.episodeId);
   let firstFrameB64: string;
@@ -294,6 +310,9 @@ export async function runStoryboardH3ShotVideoStep(input: {
   } catch (error) {
     throw new Error(`读取首帧失败:${error instanceof Error ? error.message : String(error)}`);
   }
+  // 1125 内容对账:批准绑定图片字节——同路径换图/旁路覆写在发车前现形。
+  const contentIssue = (await verifyStoryboardImageBytes(latestShot, firstFrameB64))[0];
+  if (contentIssue) throw new Error(contentIssue);
   // 1112 三采:AR 阶梯推导需要首帧像素宽高(纯函数解 PNG/JPEG 头)。旧配方
   // 忽略尺寸;三采族解不出(非 PNG/JPEG/损坏头)由分派器的字段门拒派发。
   const frameSize = parseImageSizeFromB64(firstFrameB64);
@@ -478,14 +497,26 @@ export function useStoryboardH3VideoBatch(input: { storyboards: StoryboardItem[]
     // 孤儿对拍跳过(§14.3.2):本轮 start 显式带入的盘上已有片镜,不持久不自动
     const orphanSkipShotIds = new Set(opts.skipShotIds ?? []);
     const orphanSkipCount = plan.candidates.filter((item) => orphanSkipShotIds.has(item.id)).length;
-    const queue = plan.candidates.filter((item) => !skippedShotIds.has(item.id) && !orphanSkipShotIds.has(item.id) && !rejectedShotIds.has(item.id));
+    // 1125 人审硬门预检:未审镜不进 queue(摘要列示);全被拦=直接不发车
+    const unreviewedShotIds = new Set(
+      plan.unreviewedShotIndexes
+        .filter((index) => !skippedShotIds.has(plan.candidates.find((item) => item.index === index)?.id ?? ""))
+        .map((index) => plan.candidates.find((item) => item.index === index)?.id)
+        .filter((id): id is string => Boolean(id)),
+    );
+    const unreviewedCount = unreviewedShotIds.size;
+    const queue = plan.candidates.filter((item) => !skippedShotIds.has(item.id) && !orphanSkipShotIds.has(item.id) && !rejectedShotIds.has(item.id) && !unreviewedShotIds.has(item.id));
     if (queue.length === 0) {
       if (resumeRecord) sessionStore.clearStoryboardH3VideoSession();
-      toast.info(
-        orphanSkipCount > 0
-          ? `本轮无可出片镜:${orphanSkipCount} 镜已按盘上既有片跳过(候选可走版本对查看)`
-          : "所有分镜视频均已齐备(或仅有上轮失败镜——修复后走单镜重生成)",
-      );
+      if (unreviewedCount > 0) {
+        toast.error(`本轮无可出片镜:${unreviewedCount} 镜未通过图片人审(全章节硬门)——请先在工作台「图片人审」区逐镜看图通过`);
+      } else {
+        toast.info(
+          orphanSkipCount > 0
+            ? `本轮无可出片镜:${orphanSkipCount} 镜已按盘上既有片跳过(候选可走版本对查看)`
+            : "所有分镜视频均已齐备(或仅有上轮失败镜——修复后走单镜重生成)",
+        );
+      }
       return;
     }
     // 发车摘要(N1 数据源在面板确认对话;此行为续跑/直发兜底播报,N2 禁静默;
@@ -498,6 +529,7 @@ export function useStoryboardH3VideoBatch(input: { storyboards: StoryboardItem[]
     toast.info(
       `H3 出片:${queue.length} 镜可出片${multisegEstimateMin}`
       + (plan.missingFrameCount > 0 ? `,${plan.missingFrameCount} 镜缺首帧已跳过` : "")
+      + (unreviewedCount > 0 ? `,${unreviewedCount} 镜未过人审已拦(工作台人审区通过后可出片)` : "")
       + (isMultiseg
         ? (plan.rejectedShotIndexes.length > 0 ? `,超 40s 顶拒派:S${plan.rejectedShotIndexes.map((i) => String(i).padStart(2, "0")).join(" S")}` : "")
         : (plan.truncatedShotIndexes.length > 0 ? `,超 15s 封顶截断:S${plan.truncatedShotIndexes.map((i) => String(i).padStart(2, "0")).join(" S")}` : ""))

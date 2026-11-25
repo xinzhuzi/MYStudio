@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Eye, XCircle } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { comfyImageUrlToB64 } from "@/lib/comfyui/comfy/comfy-execute";
+import { storyboardImageReviewIssues } from "@/lib/studio/storyboard-image-review-gate";
 import {
   continuityAssetSafeReviewEvidencePaths,
   isContinuityAssetVersionApproved,
@@ -22,6 +25,7 @@ import type {
   StoryboardOrderedReference,
 } from "@/types/studio";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
+import { ImagePreviewModal } from "@/components/ui/media-preview-modal";
 import { toPreviewSrc } from "@/lib/media/preview-src";
 
 type VisualContinuityReviewPanelProps = {
@@ -33,6 +37,15 @@ type VisualContinuityReviewPanelProps = {
     versionId: string,
     review: HumanContinuityAssetApprovalInput,
   ) => void;
+  /** 图片级人审(1125 硬门)唯一入口:panel 读当前图字节后回调 store action。
+   *  缺省=图片人审按钮禁用(测试桩可不接)。 */
+  onReviewImage?: (storyboardId: string, input: {
+    status: "approved" | "rejected";
+    singleAppearancePassed: boolean;
+    reasons: string[];
+    imageBase64: string;
+    evidencePath?: string;
+  }) => Promise<void>;
 };
 
 function hasCurrentVisualReview(storyboard: StoryboardItem) {
@@ -53,6 +66,7 @@ export function VisualContinuityReviewPanel({
   continuityAssetVersions,
   onReview,
   onReviewAsset,
+  onReviewImage,
 }: VisualContinuityReviewPanelProps) {
   const ordered = useMemo(
     () => [...storyboards].sort((left, right) => left.index - right.index),
@@ -69,6 +83,11 @@ export function VisualContinuityReviewPanel({
   const [transitionPassed, setTransitionPassed] = useState(false);
   const [textWatermarkPassed, setTextWatermarkPassed] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [imageSingleAppearance, setImageSingleAppearance] = useState(false);
+  const [imageRejectionReason, setImageRejectionReason] = useState("");
+  const [imageReviewBusy, setImageReviewBusy] = useState(false);
+  /** 全屏预览打开时所选镜在面板序列里的位置;null=关闭(关闭必须回 null,否则遮罩残留堵住全部点击)。 */
+  const [previewShotPosition, setPreviewShotPosition] = useState<number | null>(null);
 
   useEffect(() => {
     if (!ordered.length) {
@@ -76,7 +95,11 @@ export function VisualContinuityReviewPanel({
       return;
     }
     if (!selectedId || !ordered.some((item) => item.id === selectedId)) {
-      setSelectedId(ordered.find((item) => item.visualReview?.status !== "approved")?.id ?? ordered[0]!.id);
+      setSelectedId(
+        ordered.find((item) => storyboardImageReviewIssues(item).length > 0)?.id
+          ?? ordered.find((item) => item.visualReview?.status !== "approved")?.id
+          ?? ordered[0]!.id,
+      );
     }
   }, [ordered, selectedId]);
 
@@ -87,6 +110,8 @@ export function VisualContinuityReviewPanel({
     setTransitionPassed(false);
     setTextWatermarkPassed(false);
     setRejectionReason("");
+    setImageSingleAppearance(false);
+    setImageRejectionReason("");
   }, [selected?.id]);
 
   if (!selected) return null;
@@ -102,6 +127,15 @@ export function VisualContinuityReviewPanel({
   const currentEvidencePath = firstStoryboardEvidencePath(selected);
   const currentEvidencePaths = currentEvidencePath ? [currentEvidencePath] : [];
   const hasCurrentImage = currentEvidencePaths.length > 0;
+  // 1125 人审实弹补缺:镜图在面板里只有五百来像素宽(原图 3829×2154),看不清
+  // 手/包裹/重复人物——点图开全屏预览,复用 ImagePreviewModal(滚轮缩放/拖拽/
+  // 方向键逐镜翻页)。预览序列=本章有画面的镜,按面板顺序。
+  const previewEntries = ordered
+    .map((item, position) => ({ position, path: firstStoryboardEvidencePath(item) }))
+    .filter((entry): entry is { position: number; path: string } => Boolean(entry.path));
+  const previewIndex = previewShotPosition === null
+    ? null
+    : previewEntries.findIndex((entry) => entry.position === previewShotPosition);
   const canApprove = hasCurrentImage
     && !selected.stale
     && Boolean(selected.continuityState)
@@ -122,6 +156,36 @@ export function VisualContinuityReviewPanel({
     { pending: 0, approved: 0, rejected: 0 },
   );
   const totalShots = ordered.length;
+  // 1125 图片人审硬门:出视频判据=storyboardImageReviewIssues 为空;徽标计数
+  // 只含有图镜(无图镜不属本门,但另一头被「无首帧」拦)。
+  const imageShots = ordered.filter((item) => item.mediaRef?.kind === "image" && item.mediaRef.path?.trim());
+  const imageApprovedCount = imageShots.filter((item) => storyboardImageReviewIssues(item).length === 0).length;
+  const selectedImageIssues = storyboardImageReviewIssues(selected);
+  const selectedImagePath = selected.mediaRef?.kind === "image" ? selected.mediaRef.path?.trim() : undefined;
+
+  const submitImageReview = async (status: "approved" | "rejected") => {
+    if (!onReviewImage || !selectedImagePath || imageReviewBusy) return;
+    setImageReviewBusy(true);
+    try {
+      const imageBase64 = await comfyImageUrlToB64(selectedImagePath);
+      await onReviewImage(selected.id, {
+        status,
+        singleAppearancePassed: imageSingleAppearance,
+        reasons: status === "rejected" ? [imageRejectionReason] : [],
+        imageBase64,
+        evidencePath: selectedImagePath,
+      });
+      if (status === "approved") {
+        const nextPending = ordered.find((item) =>
+          item.id !== selected.id && storyboardImageReviewIssues(item).length > 0);
+        if (nextPending) setSelectedId(nextPending.id);
+      }
+    } catch (error) {
+      toast.error((error as Error).message || "图片人审提交失败");
+    } finally {
+      setImageReviewBusy(false);
+    }
+  };
 
   const submit = (status: "approved" | "rejected") => {
     onReview(selected.id, {
@@ -162,6 +226,15 @@ export function VisualContinuityReviewPanel({
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1.5 text-[11px]" aria-label="视觉审核统计">
           <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary/80">当前第 {selectedPosition + 1} / {totalShots} 镜</Badge>
+          <Badge
+            variant="outline"
+            className={imageApprovedCount === imageShots.length && imageShots.length > 0
+              ? "border-success/40 bg-success/10 text-success/80"
+              : "border-warning/40 bg-warning/10 text-warning/80"}
+            aria-label="图片人审统计"
+          >
+            人审 {imageApprovedCount} / {imageShots.length}
+          </Badge>
           <Badge variant="outline" className="border-warning/40 bg-warning/10 text-warning/80">待审 {statusCounts.pending} / {totalShots}</Badge>
           <Badge variant="outline" className="border-success/40 bg-success/10 text-success/80">通过 {statusCounts.approved} / {totalShots}</Badge>
           <Badge variant="outline" className="border-destructive/40 bg-destructive/10 text-destructive/80">驳回 {statusCounts.rejected} / {totalShots}</Badge>
@@ -180,11 +253,11 @@ export function VisualContinuityReviewPanel({
               "h-8 min-w-10 rounded-lg border px-2 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-warning/40",
               item.id === selected.id
                 ? "border-warning bg-warning text-warning-foreground"
-                : item.visualReview?.status === "approved"
+                : storyboardImageReviewIssues(item).length === 0 && item.mediaRef?.kind === "image"
                   ? "border-success/70 bg-success/40 text-success/80"
-                  : item.visualReview?.status === "rejected"
+                  : item.imageReview?.status === "rejected"
                     ? "border-destructive/70 bg-destructive/40 text-destructive/80"
-                    : "border-border bg-muted/60 text-foreground/80 hover:border-border",
+                    : "border-warning/40 bg-warning/10 text-warning/80 hover:border-border",
             )}
           >
             {String(item.index).padStart(2, "0")}
@@ -195,9 +268,9 @@ export function VisualContinuityReviewPanel({
       <div className="grid gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_310px]">
         <div className="space-y-3">
           <div className="grid gap-2 md:grid-cols-3">
-            <FrameEvidence label="上一镜" storyboard={previous} muted />
-            <FrameEvidence label="当前镜" storyboard={selected} current />
-            <FrameEvidence label="下一镜" storyboard={next} muted />
+            <FrameEvidence label="上一镜" storyboard={previous} muted onOpen={previous ? () => setPreviewShotPosition(selectedPosition - 1) : undefined} />
+            <FrameEvidence label="当前镜" storyboard={selected} current onOpen={() => setPreviewShotPosition(selectedPosition)} />
+            <FrameEvidence label="下一镜" storyboard={next} muted onOpen={next ? () => setPreviewShotPosition(selectedPosition + 1) : undefined} />
           </div>
           <CanonicalAssetEvidence
             references={normalizeOrderedReferences(selected.orderedReferenceManifest)}
@@ -233,6 +306,72 @@ export function VisualContinuityReviewPanel({
         </div>
 
         <div className="space-y-3 rounded-lg border border-border bg-muted/60/60 p-3">
+          <section aria-label="图片人审" className={cn(
+            "rounded-md border px-2.5 py-2",
+            selectedImageIssues.length
+              ? "border-warning/40 bg-warning/20"
+              : "border-success/40 bg-success/20",
+          )}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground/80">
+                {selectedImageIssues.length ? <AlertTriangle className="h-3.5 w-3.5 text-warning" /> : <CheckCircle2 className="h-3.5 w-3.5 text-success" />}
+                图片人审(未通过不能出视频)
+              </div>
+              <Badge
+                variant="outline"
+                className={selectedImageIssues.length
+                  ? "border-warning/50 bg-warning/30 text-warning/80"
+                  : "border-success/50 bg-success/40 text-success/80"}
+              >
+                {selected.imageReview?.status === "approved" ? "已通过" : selected.imageReview?.status === "rejected" ? "已驳回" : "待审"}
+              </Badge>
+            </div>
+            {selected.imageReview?.status === "rejected" && selected.imageReview.reasons[0] ? (
+              <div className="mt-1 text-[10px] text-destructive/90">驳回原因:{selected.imageReview.reasons[0]}</div>
+            ) : null}
+            {selectedImageIssues.length ? (
+              <div className="mt-1 text-[10px] leading-4 text-warning/90">{selectedImageIssues[0]}</div>
+            ) : null}
+            <div className="mt-2 space-y-2">
+              <ReviewCheck
+                label="具名角色各只出现一次(重复人物门)"
+                checked={imageSingleAppearance}
+                onCheckedChange={setImageSingleAppearance}
+              />
+              <div>
+                <label htmlFor={`image-review-reason-${selected.id}`} className="text-[11px] font-medium text-foreground/80">图片驳回原因</label>
+                <Textarea
+                  id={`image-review-reason-${selected.id}`}
+                  value={imageRejectionReason}
+                  onChange={(event) => setImageRejectionReason(event.target.value)}
+                  placeholder="例如:主角画了两个 / 服装与设定不符"
+                  className="mt-1 min-h-14 border-border bg-black/25 text-xs"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  disabled={!onReviewImage || imageReviewBusy || !imageRejectionReason.trim() || !selectedImagePath}
+                  onClick={() => void submitImageReview("rejected")}
+                  aria-label={`驳回第 ${selected.index} 镜图片`}
+                >
+                  <XCircle className="h-4 w-4" />驳回图片
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={!onReviewImage || imageReviewBusy || !imageSingleAppearance || !selectedImagePath}
+                  onClick={() => void submitImageReview("approved")}
+                  aria-label={`通过第 ${selected.index} 镜图片人审`}
+                  className="bg-success text-success-foreground hover:brightness-110"
+                >
+                  <CheckCircle2 className="h-4 w-4" />通过人审
+                </Button>
+              </div>
+            </div>
+          </section>
           <ReviewWarnings
             storyboard={selected}
             contractReasons={[
@@ -313,6 +452,15 @@ export function VisualContinuityReviewPanel({
           </div>
         </div>
       </div>
+      {previewIndex !== null && previewIndex >= 0 && previewEntries[previewIndex] ? (
+        <ImagePreviewModal
+          imageUrl={toPreviewSrc(previewEntries[previewIndex].path)}
+          imageUrls={previewEntries.map((entry) => toPreviewSrc(entry.path))}
+          initialIndex={previewIndex}
+          isOpen
+          onClose={() => setPreviewShotPosition(null)}
+        />
+      ) : null}
     </section>
   );
 }
@@ -521,13 +669,23 @@ function FrameEvidence({
   storyboard,
   current = false,
   muted = false,
+  onOpen,
 }: {
   label: string;
   storyboard?: StoryboardItem;
   current?: boolean;
   muted?: boolean;
+  /** 点图开全屏预览(1125 人审实弹补缺);缺省=纯展示。 */
+  onOpen?: () => void;
 }) {
   const evidencePath = firstStoryboardEvidencePath(storyboard);
+  const image = evidencePath ? (
+    <img
+      src={toPreviewSrc(evidencePath)}
+      alt={`${label}第 ${storyboard?.index ?? "—"} 镜画面`}
+      className="h-full w-full object-contain"
+    />
+  ) : null;
   return (
     <figure className={cn(
       "overflow-hidden rounded-lg border bg-black",
@@ -539,11 +697,16 @@ function FrameEvidence({
       </figcaption>
       <div className="relative aspect-video bg-[radial-gradient(circle_at_50%_45%,#27272a,#09090b_70%)]">
         {evidencePath ? (
-          <img
-            src={toPreviewSrc(evidencePath)}
-            alt={`${label}第 ${storyboard?.index ?? "—"} 镜画面`}
-            className="h-full w-full object-contain"
-          />
+          onOpen ? (
+            <button
+              type="button"
+              onClick={onOpen}
+              aria-label={`放大查看${label}第 ${storyboard?.index ?? "—"} 镜画面`}
+              className="block h-full w-full cursor-zoom-in rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-warning/50"
+            >
+              {image}
+            </button>
+          ) : image
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">无画面证据</div>
         )}

@@ -10,9 +10,11 @@ import type {
   StoryboardMediaRef,
   StoryboardKeyframe,
   HumanVisualReviewInput,
+  StoryboardImageReview,
   ContinuityAssetVersion,
 } from "@/types/studio";
 import type { VlmReviewArtifactV1 } from "@/types/contracts/vlm-review-workflow";
+import { sha256FromBase64Image } from "@/lib/studio/image-content-hash";
 import { createStudioWorkflowId } from "./studio-store-runtime";
 import {
   mergeStoryboardReplacement,
@@ -62,6 +64,23 @@ export interface StoryboardSlice {
     >,
   ) => void;
   reviewStoryboardHuman: (id: string, review: HumanVisualReviewInput) => void;
+  /**
+   * 图片级人审唯一写入口(1125 硬门):批准/驳回当前分镜图。imageBase64=审核时
+   * 实际看到的图片字节(调用点经 readStoryboardImageB64 读盘),action 内计算
+   * SHA-256 落库作发车对账指纹。其余任何代码禁止直写 imageReview
+   * (updateStoryboard 同 visualReview 一并剥离)。
+   */
+  reviewStoryboardImage: (
+    id: string,
+    input: {
+      status: "approved" | "rejected";
+      /** 具名角色各只出现一次(重复人物门);approved 时必须为 true。 */
+      singleAppearancePassed: boolean;
+      reasons: string[];
+      imageBase64: string;
+      evidencePath?: string;
+    },
+  ) => Promise<void>;
   writeStoryboardVlmReview: (id: string, artifact: VlmReviewArtifactV1, evidencePath?: string) => void;
   bindStoryboardMedia: (
     id: string,
@@ -201,7 +220,11 @@ export function createStoryboardSliceActions(set: SetFn, get: GetFn) {
     },
 
     updateStoryboard: (id: string, updates: Partial<StoryboardItem>): void => {
-      const { visualReview: _ignoredVisualReview, ...safeUpdates } = updates;
+      const {
+        visualReview: _ignoredVisualReview,
+        imageReview: _ignoredImageReview,
+        ...safeUpdates
+      } = updates;
       if (Object.keys(safeUpdates).length === 0) return;
       const previous = get().storyboards.find((item) => item.id === id);
       const previousReviewFingerprint = previous
@@ -271,6 +294,49 @@ export function createStoryboardSliceActions(set: SetFn, get: GetFn) {
       set((state) => ({
         storyboards: state.storyboards.map((item) =>
           item.id === id ? { ...item, visualReview } : item,
+        ),
+      }));
+    },
+
+    reviewStoryboardImage: async (
+      id: string,
+      input: {
+        status: "approved" | "rejected";
+        singleAppearancePassed: boolean;
+        reasons: string[];
+        imageBase64: string;
+        evidencePath?: string;
+      },
+    ): Promise<void> => {
+      const storyboard = get().storyboards.find((item) => item.id === id);
+      if (!storyboard) throw new Error(`分镜 ${id} 不存在`);
+      if (storyboard.mediaRef?.kind !== "image" || !storyboard.mediaRef.path?.trim()) {
+        throw new Error(`分镜 ${id} 没有待人审的分镜图`);
+      }
+      const reasons = input.reasons.map((reason) => reason.trim()).filter(Boolean);
+      if (input.status === "approved" && !input.singleAppearancePassed) {
+        throw new Error(`分镜 ${id} 通过人审前必须确认「具名角色各只出现一次」`);
+      }
+      if (input.status === "rejected" && reasons.length === 0) {
+        throw new Error(`分镜 ${id} 驳回时必须填写原因`);
+      }
+      let contentSha256: string;
+      try {
+        contentSha256 = await sha256FromBase64Image(input.imageBase64);
+      } catch (error) {
+        throw new Error(`分镜 ${id} 图片内容指纹计算失败:${(error as Error).message}`);
+      }
+      const imageReview: StoryboardImageReview = {
+        status: input.status,
+        reviewedAt: Date.now(),
+        reasons,
+        singleAppearancePassed: input.status === "approved" ? input.singleAppearancePassed : false,
+        contentSha256,
+        evidencePath: input.evidencePath?.trim() || undefined,
+      };
+      set((state) => ({
+        storyboards: state.storyboards.map((item) =>
+          item.id === id ? { ...item, imageReview } : item,
         ),
       }));
     },

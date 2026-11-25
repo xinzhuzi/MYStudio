@@ -115,6 +115,7 @@ export function SplitSceneCard({
   onGenerateVideo,
   onGenerateEndFrame,
   onRemoveImage,
+  onReviewImage,
   onUploadImage,
   onUpdateField,
   onAngleSwitch,
@@ -248,6 +249,7 @@ export function SplitSceneCard({
         onQuadGrid={onQuadGrid}
         onStopImageGeneration={onStopImageGeneration}
         onStopEndFrameGeneration={onStopEndFrameGeneration}
+        onReviewImage={onReviewImage}
         isAngleSwitching={isAngleSwitching}
         isQuadGridGenerating={isQuadGridGenerating}
         isGeneratingAny={isGeneratingAny}

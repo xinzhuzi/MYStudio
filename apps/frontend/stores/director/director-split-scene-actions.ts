@@ -11,6 +11,7 @@ export type DirectorSplitSceneActions = Pick<
   | "updateSplitScenePrompt"
   | "updateSplitSceneImage"
   | "updateSplitSceneImageStatus"
+  | "reviewSplitSceneImage"
   | "updateSplitSceneVideo"
   | "updateSplitSceneEndFrame"
   | "updateSplitSceneEndFrameStatus"
@@ -171,6 +172,8 @@ export function createDirectorSplitSceneActions(
           imageStatus: 'completed' as const,
           imageProgress: 100,
           imageError: null,
+          // 1125 人审硬门:首帧图一变=旧批准作废回待审
+          imageReview: undefined,
           ...(width !== undefined && { width }),
           ...(height !== undefined && { height }),
         } : scene
@@ -189,6 +192,27 @@ export function createDirectorSplitSceneActions(
       const project = projects[activeProjectId];
       const updated = project.splitScenes.map(scene =>
         scene.id === sceneId ? { ...scene, ...updates } : scene
+      );
+      set({
+        projects: {
+          ...projects,
+          [activeProjectId]: { ...project, splitScenes: updated },
+        },
+      });
+    },
+
+    // 1125 人审硬门:首帧图片级人审唯一写入口(图片一变经 updateSplitSceneImage 自动回待审)
+    reviewSplitSceneImage: (sceneId, review) => {
+      const { activeProjectId, projects } = get();
+      if (!activeProjectId) return;
+      const project = projects[activeProjectId];
+      const updated = project.splitScenes.map(scene =>
+        scene.id === sceneId ? {
+          ...scene,
+          imageReview: review.status === 'approved'
+            ? { status: 'approved' as const, approvedAt: Date.now(), reasons: [] }
+            : { status: 'rejected' as const, approvedAt: Date.now(), reasons: review.reasons.map(reason => reason.trim()).filter(Boolean) },
+        } : scene
       );
       set({
         projects: {
