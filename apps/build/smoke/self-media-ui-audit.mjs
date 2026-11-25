@@ -39,8 +39,8 @@ import { spawnSmokeApp } from "./smoke-launch.mjs";
 import { terminateSpawnedApp } from "./smoke-process-lifecycle.mjs";
 import {
   AUDIT_PROJECT_ID, AUDIT_STATES, DEFAULT_VIEWPORT, EXIT_CODES, SCREENSHOT_THEME_IDS,
-  evaluateContrast, evaluateOverlap, evaluateTruncation, isOwnedTempProfile,
-  planCollectionUnits, resolveExitCode, resolveLaunchGuard,
+  classifyContrastScope, countByScope, evaluateContrast, evaluateOverlap, evaluateTruncation,
+  isOwnedTempProfile, parseThemeTokens, planCollectionUnits, resolveExitCode, resolveLaunchGuard,
 } from "./self-media-ui-audit-rules.mjs";
 
 const LOG_PREFIX = "[ui-audit]";
@@ -166,7 +166,17 @@ export async function pageAudit(action, payload = {}) {
     const presets = [...classes].filter((name) => name.startsWith("theme-preset-"));
     const confirmed = classes.contains(payload.mode)
       && (payload.preset ? presets.includes(`theme-preset-${payload.preset}`) : presets.length === 0);
-    return { ok: confirmed, classes: [...classes] };
+    // 顺手回读这套主题的主色与主色前景:对比度失败项靠它区分「主题 token 级」与「面板自身」。
+    // 用一个不渲染的探针元素把 CSS 变量解析成 rgb 串(Tailwind v4 的 bg-primary / text-primary-foreground 用的就是这两个变量)。
+    const probe = document.createElement("div");
+    probe.style.cssText = "position:absolute;width:0;height:0;overflow:hidden;pointer-events:none;";
+    probe.style.backgroundColor = "var(--color-primary)";
+    probe.style.color = "var(--color-primary-foreground)";
+    document.body.appendChild(probe);
+    const probeStyle = getComputedStyle(probe);
+    const tokens = { primary: probeStyle.backgroundColor, primaryForeground: probeStyle.color };
+    probe.remove();
+    return { ok: confirmed, classes: [...classes], tokens };
   }
 
   if (action === "settle") {
@@ -261,6 +271,8 @@ export async function pageAudit(action, payload = {}) {
         // 行数截断的声明值是 none 或一个正整数;属性读不到(undefined、NaN)按没有声明处理。
         lineClamp: Number(style.webkitLineClamp) > 0,
         image: style.backgroundImage !== "none",
+        // 背景图原串(本仓外壳靠渐变背景图画底色,规则要靠它合成背景;none 不上送)
+        bgImage: style.backgroundImage === "none" ? "" : style.backgroundImage,
         ariaHidden: node.getAttribute("aria-hidden") === "true",
         nativeDisabled: node.matches(":disabled"),
         ariaDisabled: node.getAttribute("aria-disabled") === "true",
@@ -599,6 +611,8 @@ async function auditStates({ client, report, runDir, noScreenshot }) {
       if (!themed?.ok) {
         report.warnings.push({ rule: "runtime", kind: "theme-not-applied", state: state.id, theme: unit.theme.id, classes: themed?.classes ?? null });
       }
+      const themeTokens = parseThemeTokens(themed?.tokens);
+      if (themeTokens) report.themeTokens[unit.theme.id] = themed.tokens;
       await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 1, y: 1 });
       const settled = await settle();
       if (settled.spinnersLeft > 0 || !settled.layoutStable) {
@@ -610,7 +624,10 @@ async function auditStates({ client, report, runDir, noScreenshot }) {
       const context = { state: state.id, tab: state.label, theme: unit.theme.id, viewport: unit.viewport.id };
       for (const rule of unit.rules) {
         const outcome = ruleEvaluators[rule](snapshot, context);
-        report.failures.push(...outcome.failures);
+        // 对比度失败项标归属:theme-token(全应用的主色按钮都是这一对)或 panel(本面板自己的类名选择)
+        report.failures.push(...outcome.failures.map((finding) => (
+          finding.rule === "contrast" ? { ...finding, scope: classifyContrastScope(finding, themeTokens) } : finding
+        )));
         report.warnings.push(...outcome.warnings);
       }
       collectedUnits += 1;
@@ -701,6 +718,7 @@ async function main() {
   const report = {
     generatedAt: new Date().toISOString(), ok: false, exitCode: null, appBin, launchMode: null, noScreenshot,
     states: [], failures: [], warnings: [], runErrors: [], screenshots: [],
+    themeTokens: {}, summary: null,
   };
   let child = null;
   let childState = { exit: null, waitForExit: async () => null };
@@ -773,10 +791,16 @@ async function main() {
   const exitCode = resolveExitCode(report);
   report.exitCode = exitCode;
   report.ok = exitCode === EXIT_CODES.ok;
+  // 归属小计:退出码只看「有没有失败项」,面板自身与主题 token 级各是多少写进 summary,由人判读
+  report.summary = {
+    failures: report.failures.length, warnings: report.warnings.length, runErrors: report.runErrors.length,
+    ...countByScope(report.failures),
+  };
   mkdirSync(runDir, { recursive: true });
   writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
   console.log(
-    `${LOG_PREFIX} 报告:${relative(process.cwd(), reportPath)};失败 ${report.failures.length} 条,`
+    `${LOG_PREFIX} 报告:${relative(process.cwd(), reportPath)};失败 ${report.failures.length} 条`
+    + `(面板自身 ${report.summary.panel}、主题 token 级 ${report.summary.themeToken}、其它规则 ${report.summary.other}),`
     + `警告 ${report.warnings.length} 条,运行错误 ${report.runErrors.length} 条,截图 ${report.screenshots.length} 张;退出码 ${exitCode}`,
   );
   return exitCode;

@@ -356,6 +356,112 @@ export function compositeBackdrop(chain) {
   return { color, coverage: 1 - transparency, approximate, unparsed };
 }
 
+/** 把 computed backgroundImage 按顶层逗号拆成图层串:只有括号外的逗号才分层。 */
+export function splitBackgroundLayers(image) {
+  const text = String(image ?? "").trim();
+  if (!text || text === "none") return [];
+  const layers = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "(") depth += 1;
+    else if (char === ")") depth = Math.max(0, depth - 1);
+    else if (char === "," && depth === 0) {
+      layers.push(text.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  layers.push(text.slice(start).trim());
+  return layers.filter(Boolean);
+}
+
+/** 一段里排在最前面的颜色记号(含函数式写法);方向、形状、位置这些不是颜色的段返回 null。 */
+function leadingColorOf(part) {
+  const match = /^(?:rgba?\([^)]*\)|hsla?\([^)]*\)|color\([^)]*\)|oklab\([^)]*\)|oklch\([^)]*\)|#[0-9a-f]{3,8}|[a-z]+)(?=[\s,]|$)/i.exec(
+    part.trim(),
+  );
+  return match ? parseCssColor(match[0]) : null;
+}
+
+/**
+ * 渐变图层的色停。不是渐变(url 图片等)返回 null:背景无从估计,由调用方记「不确定」。
+ * 方向、形状、中心那几段解析不出颜色,自然跳过;色停的位置不参与判定(按最坏情形取)。
+ */
+export function parseGradientStops(layer) {
+  const text = String(layer ?? "").trim();
+  if (!/^[a-z-]+gradient\(/i.test(text)) return null;
+  return splitBackgroundLayers(text.slice(text.indexOf("(") + 1, text.lastIndexOf(")")))
+    .map(leadingColorOf)
+    .filter(Boolean);
+}
+
+/**
+ * 带背景图的背景合成——对比度规则实际用的那一版。
+ *
+ * 本仓的外壳靠渐变背景图画底色:.studio-shell 带 bg-background,backgroundColor 的计算值
+ * 却是透明的,亮色主题的浅底全在 linear-gradient 里。只认 backgroundColor 会把面板里
+ * 所有文字当成压在外壳的深色上(1125 逐层探针实证:标题被算成 1.24、页签文字被算低到 3.19,
+ * 而真实画面是深字浅底)。
+ *
+ * 渐变按最坏情形折算,不做几何计算:
+ * - 色停全不透明的渐变是一层不透明底,完全盖住下面;背景的可能范围取色停亮度的最低与最高两端;
+ * - 含半透明色停的渐变是一层着色,按其中透明度最大的那个色停叠到下层上(装饰渐变的实际
+ *   浓度随位置变,取最大值是宁可多报、不漏报);
+ * - url 图片这类估不出的图层记 indeterminate:调用方记警告,不判失败也不当作通过;
+ * - 只知道「有背景图」、没有图层串的旧快照,沿用旧口径:照算但标近似。
+ *
+ * 返回 color(亮度最低那一端)、bounds(亮度从低到高的两端)、coverage、approximate、
+ * unparsed、indeterminate。
+ */
+export function compositeBackdropWithImages(chain) {
+  let bounds = [CANVAS_BASE, CANVAS_BASE];
+  let transparency = 1;
+  let inheritedOpacity = 1;
+  let approximate = false;
+  let indeterminate = false;
+  const unparsed = [];
+  const dimmer = (first, second) => (relativeLuminance(first) <= relativeLuminance(second) ? first : second);
+  const brighter = (first, second) => (dimmer(first, second) === first ? second : first);
+  const paint = (layer, alpha) => {
+    bounds = bounds.map((bound) => compositeOver({ ...layer, a: alpha }, bound));
+    transparency *= 1 - alpha;
+  };
+  for (const element of chain) {
+    inheritedOpacity *= opacityOf(element);
+    // 背景色垫底,背景图叠在上面;多张背景图里写在前面的画在上面,所以从最后一张开始合成
+    const background = element.bg ? parseCssColor(element.bg) : null;
+    if (element.bg && !background) unparsed.push(element.bg);
+    if (background) {
+      const layerAlpha = clamp01(background.a * inheritedOpacity);
+      if (layerAlpha > 0) paint(background, layerAlpha);
+    }
+    if (element.image && !element.bgImage) approximate = true;
+    const layers = element.bgImage ? splitBackgroundLayers(element.bgImage) : [];
+    for (const layer of layers.reverse()) {
+      const stops = parseGradientStops(layer);
+      if (!stops || stops.length === 0) {
+        indeterminate = true;
+        continue;
+      }
+      approximate = true;
+      const strongest = stops.reduce((best, stop) => (stop.a > best.a ? stop : best));
+      const layerAlpha = clamp01(strongest.a * inheritedOpacity);
+      if (layerAlpha <= 0) continue;
+      if (stops.every((stop) => stop.a >= 1) && inheritedOpacity >= 1) {
+        // 不透明底:下面的一切都盖住了
+        bounds = [stops.reduce(dimmer), stops.reduce(brighter)];
+        transparency = 0;
+      } else {
+        paint(strongest, layerAlpha);
+      }
+    }
+  }
+  if (transparency > 1e-6) approximate = true;
+  bounds = [dimmer(bounds[0], bounds[1]), brighter(bounds[0], bounds[1])];
+  return { color: bounds[0], bounds, coverage: 1 - transparency, approximate, unparsed, indeterminate };
+}
+
 /** 每个元素的祖先链事实,按元素 id 缓存:同一个快照里同一元素只算一次。 */
 function createFacts(elements) {
   const cache = new Map();
@@ -366,7 +472,7 @@ function createFacts(elements) {
         cache.set(id, {
           chain,
           opacity: multiplyAlong(chain, opacityOf),
-          backdrop: compositeBackdrop(chain),
+          backdrop: compositeBackdropWithImages(chain),
           ariaHidden: chain.some((element) => element.ariaHidden),
           disabled: chain.some((element) => element.nativeDisabled || element.ariaDisabled),
           hidden: chain.some((element) => element.hidden),
@@ -448,13 +554,27 @@ export function evaluateContrast(snapshot, context = {}) {
     if (chainFacts.disabled) continue;
     const { backdrop } = chainFacts;
     noteUnparsed(backdrop.unparsed);
+    if (backdrop.indeterminate) {
+      // 背景里有估不出的图层(url 图片):既不判失败,也不当作通过
+      collector.add("warnings", {
+        rule: "contrast", kind: "indeterminate-backdrop", path: element.path, text: clipText(item.text),
+      });
+      continue;
+    }
     const foreground = parseCssColor(element.color);
     if (!foreground) {
       noteUnparsed([element.color]);
       continue;
     }
-    const painted = compositeOver({ ...foreground, a: foreground.a * chainFacts.opacity }, backdrop.color);
-    const ratio = contrastRatio(painted, backdrop.color);
+    const foregroundAlpha = foreground.a * chainFacts.opacity;
+    // 背景是一个可能的区间(渐变底、多层着色):取对这段文字最不利的那一端
+    const worst = backdrop.bounds
+      .map((bound) => ({
+        bound,
+        ratio: contrastRatio(compositeOver({ ...foreground, a: foregroundAlpha }, bound), bound),
+      }))
+      .reduce((lowest, candidate) => (candidate.ratio < lowest.ratio ? candidate : lowest));
+    const { bound, ratio } = worst;
     const fontSize = Number(element.fontSize) || 0;
     const fontWeight = Number(element.fontWeight) || 400;
     const large = fontSize >= 24 || (fontSize >= 18.66 && fontWeight >= 700);
@@ -469,7 +589,7 @@ export function evaluateContrast(snapshot, context = {}) {
       fontSize,
       fontWeight,
       foreground: element.color,
-      background: roundedColor(backdrop.color),
+      background: roundedColor(bound),
       opacity: rounded(chainFacts.opacity),
       approximate: backdrop.approximate,
     });
@@ -613,6 +733,44 @@ export function resolveLaunchGuard(env) {
 export function resolveExitCode({ runErrors = [], failures = [] } = {}) {
   if (runErrors.length > 0) return EXIT_CODES.runFailed;
   return failures.length > 0 ? EXIT_CODES.findings : EXIT_CODES.ok;
+}
+
+/** 主题的主色与主色前景(页面侧按 rgb 串回读);解析不了或解析出来是全透明(变量未生效)返回 null。 */
+export function parseThemeTokens(tokens) {
+  const primary = tokens ? parseCssColor(tokens.primary) : null;
+  const primaryForeground = tokens ? parseCssColor(tokens.primaryForeground) : null;
+  return primary && primaryForeground && primary.a > 0 && primaryForeground.a > 0
+    ? { primary, primaryForeground }
+    : null;
+}
+
+/**
+ * 对比度失败项的归属。前景与背景正好是主题的「主色前景 压 主色」这一对 → theme-token:
+ * 全应用所有主色按钮都是这一对,不是本面板的类名选择造成的。其余 → panel。
+ */
+export function classifyContrastScope(finding, tokens) {
+  if (!tokens || !finding) return "panel";
+  const foreground = parseCssColor(finding.foreground);
+  const background = finding.background && Number.isFinite(finding.background.r) ? finding.background : null;
+  if (!foreground || !background) return "panel";
+  const near = (first, second) =>
+    ["r", "g", "b"].every((channel) => Math.abs(first[channel] - second[channel]) <= 1.5);
+  return near(foreground, tokens.primaryForeground) && near(background, tokens.primary)
+    ? "theme-token"
+    : "panel";
+}
+
+/** 失败项按归属计数:对比度失败分 panel 与 theme-token,其余规则计 other。 */
+export function countByScope(failures = []) {
+  return failures.reduce(
+    (counts, finding) => {
+      if (finding.rule !== "contrast") counts.other += 1;
+      else if (finding.scope === "theme-token") counts.themeToken += 1;
+      else counts.panel += 1;
+      return counts;
+    },
+    { panel: 0, themeToken: 0, other: 0 },
+  );
 }
 
 /**

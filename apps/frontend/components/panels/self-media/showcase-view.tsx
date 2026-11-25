@@ -63,7 +63,7 @@ export function ShowcaseView() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">产品展示页</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-foreground/80">
             配置并导出自包含的 HTML 展示页
           </p>
         </div>
@@ -157,7 +157,7 @@ export function ShowcaseView() {
                 </div>
               )}
               {socialLinks.length === 0 && (
-                <p className="text-xs text-muted-foreground/80">
+                <p className="text-xs text-muted-foreground">
                   可添加小红书、X、B 站等主页链接,渲染在展示页底部
                 </p>
               )}
@@ -198,7 +198,7 @@ function ShowcasePreview({ products, config }: { products: Product[]; config: Sh
           {products.length === 0 && (
             <div className="rounded-xl border-2 border-dashed border-border/60 bg-background/80 p-16 text-center">
               <p className="text-base font-medium text-muted-foreground">暂无产品</p>
-              <p className="mt-2 text-sm text-muted-foreground/80">请先在产品目录中添加产品</p>
+              <p className="mt-2 text-sm text-muted-foreground">请先在产品目录中添加产品</p>
             </div>
           )}
         </div>

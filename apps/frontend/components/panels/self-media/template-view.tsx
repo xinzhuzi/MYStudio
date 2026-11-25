@@ -107,7 +107,7 @@ export function TemplateView() {
             <FileText className="h-5 w-5 text-primary" />
             推广模板
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-foreground/80">
             创建可复用的内容模板，自动适配不同平台并执行风控检查
           </p>
         </div>
@@ -127,7 +127,7 @@ export function TemplateView() {
           <p className="mt-4 text-base font-medium text-muted-foreground">
             请先创建产品
           </p>
-          <p className="mt-1 text-sm text-muted-foreground/80">
+          <p className="mt-1 text-sm text-muted-foreground">
             在"产品"标签中创建至少一个产品，然后才能创建推广模板
           </p>
         </div>
@@ -163,7 +163,7 @@ export function TemplateView() {
               <p className="mt-4 text-base font-medium text-muted-foreground">
                 暂无模板
               </p>
-              <p className="mt-1 text-sm text-muted-foreground/80">
+              <p className="mt-1 text-sm text-muted-foreground">
                 点击"新建模板"开始创建推广模板
               </p>
             </div>
@@ -500,7 +500,7 @@ function TemplateEditor({
                     size="sm"
                     onClick={() => insertVariable(v.key, "title")}
                     title={`插入到标题：${v.description}`}
-                    className="h-auto rounded-none border-l border-border/40 px-2 text-xs text-primary/80 hover:bg-primary/10 hover:text-primary"
+                    className="h-auto rounded-none border-l border-border/40 px-2 text-xs text-foreground hover:bg-primary/10 hover:text-primary"
                   >
                     标题
                   </Button>
@@ -509,7 +509,7 @@ function TemplateEditor({
                     size="sm"
                     onClick={() => insertVariable(v.key, "body")}
                     title={`插入到正文：${v.description}`}
-                    className="h-auto rounded-none border-l border-border/40 px-2 text-xs text-primary/80 hover:bg-primary/10 hover:text-primary"
+                    className="h-auto rounded-none border-l border-border/40 px-2 text-xs text-foreground hover:bg-primary/10 hover:text-primary"
                   >
                     正文
                   </Button>
@@ -627,7 +627,7 @@ function PreviewCard({ preview }: { preview: PlatformPreview }) {
           <span className="text-xs font-medium text-muted-foreground">正文</span>
           <div className="whitespace-pre-wrap rounded-lg bg-muted/80 px-3 py-2 text-foreground">{preview.body}</div>
           {preview.wasTruncated && (
-            <p className="text-xs text-muted-foreground/80">
+            <p className="text-xs text-muted-foreground">
               已按平台字数限制截断
             </p>
           )}

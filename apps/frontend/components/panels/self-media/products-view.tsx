@@ -114,7 +114,7 @@ export function ProductsView() {
             <Box className="h-5 w-5 text-primary" />
             产品目录
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">管理您的产品，关联推广内容</p>
+          <p className="mt-1 text-sm text-foreground/80">管理您的产品，关联推广内容</p>
         </div>
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={refreshProducts} disabled={loading}>
@@ -132,7 +132,7 @@ export function ProductsView() {
           <div className="rounded-xl border border-dashed border-border/60 bg-background/80 px-6 py-12 text-center">
             <Box className="mx-auto h-12 w-12 text-muted-foreground/40" />
             <p className="mt-3 text-sm font-medium text-muted-foreground">暂无产品</p>
-            <p className="mt-1 text-xs text-muted-foreground/80">点击「新增」按钮创建第一个产品</p>
+            <p className="mt-1 text-xs text-muted-foreground">点击「新增」按钮创建第一个产品</p>
           </div>
         ) : (
           products.map((product) => (

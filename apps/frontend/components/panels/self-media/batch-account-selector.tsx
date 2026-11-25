@@ -66,7 +66,7 @@ export function BatchAccountSelector({
         <p className="mt-3 text-sm font-medium text-muted-foreground">
           没有可用的跨平台账号
         </p>
-        <p className="mt-1 text-xs text-muted-foreground/80">
+        <p className="mt-1 text-xs text-muted-foreground">
           请先在"账号"视图连接各平台
         </p>
       </div>
@@ -138,7 +138,7 @@ export function BatchAccountSelector({
           </p>
           <ul className="mt-1.5 space-y-1">
             {ineligibleAccounts.map((account) => (
-              <li key={account.id} className="flex items-baseline gap-1.5 text-xs text-muted-foreground/80">
+              <li key={account.id} className="flex items-baseline gap-1.5 text-xs text-muted-foreground">
                 <span className="shrink-0 text-muted-foreground">{account.displayName}</span>
                 <span className="shrink-0 text-muted-foreground/50">·</span>
                 <span className="truncate">{validationMap.get(account.id)?.reason ?? "未知原因"}</span>

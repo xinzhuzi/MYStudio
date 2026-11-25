@@ -17,6 +17,7 @@ import {
   AUDIT_PROJECT_ID,
   AUDIT_STATES,
   DEFAULT_VIEWPORT,
+  EXIT_CODES,
   MIN_VIEWPORT,
   SCREENSHOT_THEME_IDS,
   SEED_PRODUCTS,
@@ -27,20 +28,26 @@ import {
   THEMES,
   accumulatedOpacity,
   chainOf,
+  classifyContrastScope,
   clipText,
   compositeBackdrop,
+  compositeBackdropWithImages,
   compositeOver,
   contrastRatio,
+  countByScope,
   evaluateContrast,
   evaluateOverlap,
   evaluateTruncation,
   isAncestorOrSelf,
   isOwnedTempProfile,
   parseCssColor,
+  parseGradientStops,
+  parseThemeTokens,
   planCollectionUnits,
   relativeLuminance,
   resolveExitCode,
   resolveLaunchGuard,
+  splitBackgroundLayers,
   visibleRect,
 } from "./self-media-ui-audit-rules.mjs";
 
@@ -210,6 +217,67 @@ test("compositeBackdrop:背景没铺满、链上有渐变都标近似;认不出�
   assert.equal(unparsed.approximate, false);
 });
 
+// ── 背景图(渐变)合成 ───────────────────────────────────────────────────────
+
+/**
+ * 1125 逐层探针从装机实例实采的 computed backgroundImage(亮色主题):
+ * .studio-shell 带 bg-background,backgroundColor 计算值却是透明的,浅底全靠最后那张不透明渐变。
+ */
+const SHELL_IMAGE = "radial-gradient(circle at 32% 0%, rgba(0, 114, 245, 0.08), rgba(0, 0, 0, 0) 34%), radial-gradient(circle at 80% 18%, rgba(245, 159, 10, 0.07), rgba(0, 0, 0, 0) 26%), linear-gradient(rgba(173, 196, 171, 0.26), rgba(0, 0, 0, 0) 240px), linear-gradient(135deg, rgb(200, 221, 197) 0%, rgb(212, 229, 210) 46%, rgb(200, 221, 197) 100%)";
+const MAIN_IMAGE = "linear-gradient(90deg, rgba(200, 221, 197, 0.08), rgba(0, 0, 0, 0) 18%)";
+const rgbOf = (color) => [color.r, color.g, color.b].map((value) => Math.round(value));
+
+test("splitBackgroundLayers / parseGradientStops:括号内的逗号不分层;方向、形状、位置段跳过;url 图片不是渐变", () => {
+  assert.equal(splitBackgroundLayers(SHELL_IMAGE).length, 4);
+  assert.equal(splitBackgroundLayers(MAIN_IMAGE).length, 1);
+  assert.deepEqual(splitBackgroundLayers("none"), []);
+  assert.deepEqual(splitBackgroundLayers(""), []);
+  const layers = splitBackgroundLayers(SHELL_IMAGE);
+  assert.deepEqual(parseGradientStops(layers[3]).map(rgbOf), [[200, 221, 197], [212, 229, 210], [200, 221, 197]]);
+  const tint = parseGradientStops(layers[0]);
+  assert.deepEqual(tint.map((stop) => [rgbOf(stop), +stop.a.toFixed(2)]), [[[0, 114, 245], 0.08], [[0, 0, 0], 0]]);
+  assert.equal(parseGradientStops('url("file:///cover.png")'), null);
+});
+
+test("compositeBackdropWithImages:实采链——外壳用渐变画浅底,不再把文字算成压在深色上(期望值经独立手算对拍)", () => {
+  // html 米白 → body 与 #root 不透明深色 → .studio-shell(四层背景图) → .studio-main(一层) → 导航条 80% 透明
+  const chain = makeSnapshot([
+    { bg: "rgb(242, 239, 227)" },
+    { bg: "rgb(23, 25, 28)" },
+    { bg: "rgb(23, 25, 28)" },
+    {},
+    { image: true, bgImage: SHELL_IMAGE },
+    {},
+    { image: true, bgImage: MAIN_IMAGE },
+    {},
+    {},
+    {},
+    {},
+    { bg: "oklab(0.875654 -0.0306111 0.0244271 / 0.8)" },
+  ]).elements;
+  const throughMain = compositeBackdropWithImages(chain.slice(0, 7));
+  // 不透明渐变给出两端;三层着色各按最大透明度逐层叠上去
+  assert.deepEqual(throughMain.bounds.map(rgbOf), [[182, 204, 184], [189, 209, 192]]);
+  assert.equal(throughMain.approximate, true);
+  assert.equal(throughMain.indeterminate, false);
+  near(throughMain.coverage, 1);
+  const throughNav = compositeBackdropWithImages(chain);
+  assert.deepEqual(throughNav.bounds.map(rgbOf), [[197, 218, 195], [198, 219, 196]]);
+  // 对照:只认 backgroundColor 的旧口径把同一条链算成 (165,182,163)——比真实画面暗了三十多
+  assert.deepEqual(rgbOf(compositeBackdrop(chain).color), [165, 182, 163]);
+});
+
+test("compositeBackdropWithImages:只有「有背景图」没有图层串的旧快照照算但标近似;url 图片记不确定", () => {
+  const legacy = compositeBackdropWithImages(makeSnapshot([{ bg: "rgb(255, 255, 255)", image: true }]).elements);
+  assert.deepEqual(rgbOf(legacy.color), [255, 255, 255]);
+  assert.equal(legacy.approximate, true);
+  assert.equal(legacy.indeterminate, false);
+  const photo = compositeBackdropWithImages(makeSnapshot([{ bg: "rgb(255, 255, 255)", image: true, bgImage: 'url("a.png")' }]).elements);
+  assert.equal(photo.indeterminate, true);
+  // 估不出的图层不改动已有背景,也不假装通过
+  assert.deepEqual(rgbOf(photo.color), [255, 255, 255]);
+});
+
 test("isAncestorOrSelf / visibleRect:逐轴裁剪;控件盒不被自己的 overflow 裁", () => {
   const { elements } = makeSnapshot([
     { overflowX: "hidden", overflowY: "visible", rect: { x: 100, y: 0, w: 200, h: 800 } },
@@ -322,6 +390,23 @@ test("对比度规则:链上有渐变照算但标近似;认不出的颜色记一
   );
   assert.deepEqual(unknown.failures, []);
   assert.deepEqual(unknown.warnings, [{ rule: "contrast", kind: "unparsed-color", color: "currentColor" }]);
+});
+
+test("对比度规则:背景取可能区间里最不利的一端;估不出的背景图层记不确定警告,不判失败也不当作通过", () => {
+  const onPage = (image, color) => evaluateContrast(
+    makeSnapshot([{ bg: "rgb(23, 25, 28)" }, { image: true, bgImage: image }, { color }], { texts: [text(2, "字")] }),
+  );
+  // 深色字压在渐变画的浅底上:通过(旧口径会把它算成 1.24 并判失败)
+  assert.deepEqual(onPage(SHELL_IMAGE, "rgb(34, 47, 42)"), NONE);
+  // 浅色字压在同一条链上:按最亮的一端判,失败并标近似(这条链止于 .studio-shell,没有 .studio-main 那层着色)
+  const lightOnShell = onPage(SHELL_IMAGE, "rgb(226, 230, 233)");
+  assert.equal(lightOnShell.failures.length, 1);
+  assert.equal(lightOnShell.failures[0].approximate, true);
+  assert.deepEqual(lightOnShell.failures[0].background, { r: 188, g: 208, b: 191, a: 1 });
+  // 背景是 url 图片:估不出,记一条不确定警告
+  const photo = onPage('url("file:///cover.png")', "rgb(34, 47, 42)");
+  assert.deepEqual(photo.failures, []);
+  assert.deepEqual(photo.warnings, [{ rule: "contrast", kind: "indeterminate-backdrop", path: "el#2", text: "字" }]);
 });
 
 // ── 规则二:文本溢出或截断 ──────────────────────────────────────────────────
@@ -670,4 +755,35 @@ test("种子数据:产品与模板的字段照类型给全,时间戳固定,模�
   );
   assert.equal(SEED_TEMPLATE.productId, SEED_PRODUCTS[0].id);
   assert.equal(SEED_TEMPLATE.platform, "xhs");
+});
+
+// ── 失败项归属 ─────────────────────────────────────────────────────────────
+
+test("parseThemeTokens / classifyContrastScope:主色前景压主色记 theme-token,其余记 panel", () => {
+  const tokens = parseThemeTokens({ primary: "rgb(0, 114, 245)", primaryForeground: "rgb(255, 255, 255)" });
+  assert.deepEqual(tokens, { primary: { r: 0, g: 114, b: 245, a: 1 }, primaryForeground: { r: 255, g: 255, b: 255, a: 1 } });
+  // 变量没解析出来(透明或空)时返回 null,调用方一律记 panel
+  assert.equal(parseThemeTokens({ primary: "rgba(0, 0, 0, 0)", primaryForeground: "rgb(255, 255, 255)" }), null);
+  assert.equal(parseThemeTokens(null), null);
+
+  const button = { rule: "contrast", foreground: "rgb(255, 255, 255)", background: { r: 0, g: 114, b: 245, a: 1 } };
+  assert.equal(classifyContrastScope(button, tokens), "theme-token");
+  // 取整带来的一两档偏差不影响归属
+  assert.equal(classifyContrastScope({ ...button, background: { r: 1, g: 115, b: 246, a: 1 } }, tokens), "theme-token");
+  const hint = { rule: "contrast", foreground: "rgb(80, 94, 87)", background: { r: 198, g: 219, b: 196, a: 1 } };
+  assert.equal(classifyContrastScope(hint, tokens), "panel");
+  assert.equal(classifyContrastScope(button, null), "panel");
+});
+
+test("countByScope:对比度失败按归属分计,其它规则计 other;退出码只看有没有失败项", () => {
+  const failures = [
+    { rule: "contrast", scope: "theme-token" },
+    { rule: "contrast", scope: "theme-token" },
+    { rule: "contrast", scope: "panel" },
+    { rule: "navigation" },
+  ];
+  assert.deepEqual(countByScope(failures), { panel: 1, themeToken: 2, other: 1 });
+  assert.deepEqual(countByScope([]), { panel: 0, themeToken: 0, other: 0 });
+  // 只有主题 token 级失败项时退出码仍是「有发现」,不因为归属而放行
+  assert.equal(resolveExitCode({ failures: [{ rule: "contrast", scope: "theme-token" }] }), EXIT_CODES.findings);
 });

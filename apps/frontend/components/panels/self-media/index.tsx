@@ -130,7 +130,7 @@ function AccountsView() {
             <Users2 className="h-5 w-5 text-primary" />
             平台账号
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">管理各平台已连接账号，凭据由 Electron 主进程保管</p>
+          <p className="mt-1 text-sm text-foreground/80">管理各平台已连接账号，凭据由 Electron 主进程保管</p>
         </div>
         <div className="flex items-center gap-3">
           <Badge variant="outline" className="text-sm">
@@ -290,7 +290,7 @@ function TasksView() {
           <Radio className="h-5 w-5 text-primary" />
           运行中的任务
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">查看当前项目的任务执行状态</p>
+        <p className="mt-1 text-sm text-foreground/80">查看当前项目的任务执行状态</p>
       </div>
       <RecordList
         title="运行中的任务"
@@ -360,7 +360,7 @@ function HistoryView() {
           <History className="h-5 w-5 text-primary" />
           发布历史
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">查看当前项目的发布历史记录</p>
+        <p className="mt-1 text-sm text-foreground/80">查看当前项目的发布历史记录</p>
       </div>
       {products.length > 0 && (
         <label className="block space-y-1.5 text-sm">
@@ -434,7 +434,7 @@ function GlobalHistoryView() {
             <Layers className="h-5 w-5 text-primary" />
             全部产品历史
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-foreground/80">
             跨项目聚合发布历史，共 {total} 条记录
           </p>
         </div>
@@ -487,7 +487,7 @@ function GlobalHistoryView() {
           <p className="mt-4 text-base font-medium text-muted-foreground">
             {filterProductId ? "该产品暂无发布历史" : "暂无跨项目发布历史"}
           </p>
-          <p className="mt-1 text-sm text-muted-foreground/80">
+          <p className="mt-1 text-sm text-muted-foreground">
             {filterProductId ? "请切换筛选条件或查看其他产品" : "发布内容后将在此显示历史记录"}
           </p>
         </div>
