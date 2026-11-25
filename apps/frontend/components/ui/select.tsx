@@ -26,7 +26,7 @@ const selectItemVariants = cva(
         default:
           "text-popover-foreground data-[highlighted]:bg-[hsl(var(--accent))] data-[highlighted]:text-accent-foreground data-[highlighted]:opacity-100",
         destructive:
-          "text-destructive data-[highlighted]:bg-[hsl(var(--accent))] data-[highlighted]:text-destructive/90",
+          "text-destructive data-[highlighted]:bg-destructive/15 data-[highlighted]:text-destructive",
       },
     },
     defaultVariants: {

@@ -276,12 +276,12 @@ export function ABCompare({ urlA, urlB, labelA = "A", labelB = "B", height = 420
           </span>
         ) : null}
         {!imageA && imageB ? (
-          <span className="pointer-events-none absolute bottom-2 left-2 rounded bg-destructive/70 px-1.5 py-0.5 text-[11px] text-white" data-ab-compare-missing="a">
+          <span className="pointer-events-none absolute bottom-2 left-2 rounded bg-destructive px-1.5 py-0.5 text-[11px] text-destructive-foreground" data-ab-compare-missing="a">
             {labelA}加载失败
           </span>
         ) : null}
         {imageA && !imageB ? (
-          <span className="pointer-events-none absolute right-2 bottom-2 rounded bg-destructive/70 px-1.5 py-0.5 text-[11px] text-white" data-ab-compare-missing="b">
+          <span className="pointer-events-none absolute right-2 bottom-2 rounded bg-destructive px-1.5 py-0.5 text-[11px] text-destructive-foreground" data-ab-compare-missing="b">
             {labelB}加载失败
           </span>
         ) : null}

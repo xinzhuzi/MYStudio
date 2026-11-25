@@ -85,9 +85,9 @@ function StudioAssetCardComponent({
       {/* 提示词润色状态标签 */}
       {asset.promptState && asset.promptState !== "none" && (
         <span className={`absolute right-1.5 top-1.5 z-10 rounded px-1.5 py-0.5 text-[10px] font-medium ${
-          asset.promptState === "polishing" ? "bg-primary/70 text-primary-foreground"
+          asset.promptState === "polishing" ? "bg-primary text-primary-foreground"
           : asset.promptState === "ready" ? "bg-success/70 text-success-foreground"
-          : asset.promptState === "failed" ? "bg-destructive/70 text-destructive-foreground"
+          : asset.promptState === "failed" ? "bg-destructive text-destructive-foreground"
           : ""
         }`}>
           {asset.promptState === "polishing" && <>● 润色中</>}

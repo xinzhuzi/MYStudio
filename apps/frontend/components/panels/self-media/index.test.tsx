@@ -470,7 +470,9 @@ describe("SelfMediaPanel task controls", () => {
 
     await waitFor(() => expect(cancelTask).toHaveBeenCalledWith({ projectId: "project-1", taskId: "task-1" }));
     expect(mocks.upsertTask).toHaveBeenCalledWith(canceled);
-    expect(screen.getByText("任务 task-1 已取消。")).toBeTruthy();
+    // 提示文案在取消请求返回之后才渲染:上面的 waitFor 只等到「桥接被调用」那一刻,
+    // 这里必须异步等待,满载并发下同步取会抢跑(1126 全量测试偶发一例的根因)
+    expect(await screen.findByText("任务 task-1 已取消。")).toBeTruthy();
   });
 
   it("keeps the task unchanged and surfaces a bridge cancellation error", async () => {
