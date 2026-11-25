@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
@@ -16,6 +16,7 @@ import {
 import { subscribeRemotionShotRenderRequest } from "@/lib/studio/remotion-shot-render-request";
 import type { ImageWorkflowOpenContext } from "@/types/studio";
 import { resolveScriptTextForEpisode, scriptPlanSourceFingerprint, tryResolveProductionEpisodeId } from "./workflow-helpers";
+import { buildChapterAcceptanceCard } from "./chapter-pipeline";
 import { useChapterStoryboards } from "./use-chapter-storyboards";
 import { useNovelPipelineActions } from "./useNovelPipelineActions";
 import { useProductionFlowModel } from "./useProductionFlowModel";
@@ -26,6 +27,7 @@ import { useWorkflowNodeEditor } from "./useWorkflowNodeEditor";
 import { useWorkflowReadiness } from "./workflow-stage/useWorkflowReadiness";
 import { useWorkflowStageState } from "./workflow-stage/useWorkflowStageState";
 import { useChapterAutoVideoActions } from "./useChapterAutoVideoActions";
+import type { ProductionFlowAcceptanceCounts } from "./workflow-asset-types";
 import type { ProductionFlowNodeAction } from "./workflow-node-model";
 
 export function useStudioViewModel() {
@@ -120,6 +122,36 @@ export function useStudioViewModel() {
     ),
   );
   const aspectRatio = seriesBible?.aspectRatio ?? workflowConfig.platformSpec;
+  // 1126 节点验收化:章验收卡计数上生产流节点(资产/衍生任务失败→衍生资产
+  // 节点 warning;分镜视频缺口→分镜面板节点 warning)。buildChapterAcceptanceCard
+  // 是读 store 纯函数,渲染期按章现算;useStudioStore 全订阅保证任务落账/分镜
+  // 变更即重渲染重算。卡对象每次新建,进模型前收敛为原始计数切片并按原始值
+  // memo,计数不变时切片身份稳定,避免 flow model 每渲染全量重建。
+  const chapterAcceptanceCard = buildChapterAcceptanceCard(productionEpisodeId);
+  const productionAcceptanceCounts = useMemo<ProductionFlowAcceptanceCounts>(
+    () => ({
+      assets: chapterAcceptanceCard.assets,
+      derived: chapterAcceptanceCard.derived,
+      storyboard: {
+        totalShots: chapterAcceptanceCard.storyboard.totalShots,
+        videoReady: chapterAcceptanceCard.storyboard.videoReady,
+        ready: chapterAcceptanceCard.storyboard.ready,
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 按原始计数依赖:计数不变则切片身份稳定
+    [
+      productionEpisodeId,
+      chapterAcceptanceCard.assets.total,
+      chapterAcceptanceCard.assets.success,
+      chapterAcceptanceCard.assets.failed,
+      chapterAcceptanceCard.derived.total,
+      chapterAcceptanceCard.derived.success,
+      chapterAcceptanceCard.derived.failed,
+      chapterAcceptanceCard.storyboard.totalShots,
+      chapterAcceptanceCard.storyboard.videoReady,
+      chapterAcceptanceCard.storyboard.ready,
+    ],
+  );
   const workflowReadiness = useWorkflowReadiness({
     workflowConfig,
     novelChapters,
@@ -144,6 +176,7 @@ export function useStudioViewModel() {
     videoCandidates,
     workflowConfig,
     manualCatalog,
+    acceptance: productionAcceptanceCounts,
   });
   const {
     editingWorkflowNodeId,

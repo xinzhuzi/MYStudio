@@ -446,8 +446,9 @@ export function StudioView() {
               <div className="flex h-full min-h-0 flex-1 flex-col">
                 {/* 1126 用户裁定:画布页顶横幅整体摘除(「这不是还有横幅吗?」——
                     要的是它不在那儿,不是挪位置)。章验收状态与待办入口仍在
-                    任务中心悬浮球(OrbTasksSection:已过期 N 项/重跑章流水线),
-                    信息不丢;组件本体保留(ChapterAcceptanceBanner 未删)。 */}
+                    任务中心悬浮球(OrbTasksSection:已过期 N 项/重跑章流水线)
+                    与生产流节点(1126 节点验收化:衍生资产/分镜面板节点 metrics+
+                    warning),信息不丢;组件本体已删(ChapterAcceptanceBanner)。 */}
                 {/* 09-10 用户裁定:进入工作流阶段即展示本章分镜总览(分镜内容优先);
                     09-11 补裁定:漫影侧栏按模块分内容,工作流模块默认「分镜」页签 */}
                 <ComfyCanvasSwap autoOpenOverview myScope="workflow" sidebarActions={sidebarActions} stageFlowNodes={viewModel.productionFlowNodes} />

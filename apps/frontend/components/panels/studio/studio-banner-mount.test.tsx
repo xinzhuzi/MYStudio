@@ -7,13 +7,13 @@
  * 沿革:11-20 从旧面板迁到 storyboard 画布 TabsContent;11-25 摆位修
  * (mt-8 mx-3 让位交通灯+引擎不可达不渲染);11-26 用户实弹驳回——「这不是
  * 还有横幅吗?」,要的是它不在那儿,不是挪位置 → 挂载整体摘除,状态与待办
- * 入口归任务中心悬浮球(OrbTasksSection)。组件本体保留未删。
+ * 入口归任务中心悬浮球(OrbTasksSection)。组件本体已随后续清理删除。
  *
  * 本文件钉「摘除」契约(源码串断言,workflow-tabs.test.ts 同款范式):
  * - index.tsx 不再 import/挂载 ChapterAcceptanceBanner,不再有 canvasRunning 态;
  * - 画布(ComfyCanvasSwap)与断点续跑 hook(useChapterPipelineOrchestrator)
  *   仍在 StudioView,防摘横幅时误删生产链;
- * - 组件文件仍在(仅摘挂载,不是删组件)。
+ * - 组件文件已删除(existsSync=false 钉删除契约)。
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
@@ -47,11 +47,11 @@ describe("章验收横幅·画布页宿主摘除(1126 用户裁定)", () => {
     expect(INDEX_SOURCE).toContain("chapterPipeline.start()");
   });
 
-  it("组件本体保留(仅摘挂载,不是删组件)", () => {
+  it("组件已删除(挂载摘除后组件本体随之退役)", () => {
     expect(
       existsSync(
         resolve(process.cwd(), "frontend/components/panels/studio/ChapterAcceptanceBanner.tsx"),
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 });

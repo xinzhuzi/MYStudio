@@ -550,6 +550,93 @@ describe("production workflow node model", () => {
     expect(workbench?.finalExportPath).toContain("SMOKE_FINAL_EXPORT.mp4");
   });
 
+  // 1126 节点验收化:章验收卡计数经 input.acceptance 上节点——
+  // 资产/衍生任务失败 → 衍生资产节点 ready 转 warning(失败入口沿用节点
+  // 自带 targetStage=assets 的「进入」);分镜视频未全就绪 → 分镜面板节点
+  // warning;分镜画面芯片与原「N 个画面」合并,不堆同义芯片。
+  it("maps chapter acceptance counts onto node metrics and warning status", () => {
+    const baseInput = {
+      agentWorkData: [],
+      entityExtractions: [
+        {
+          id: "extract-1",
+          episodeId: "chapter-001",
+          characters: [
+            { characterId: "char-1", name: "Smoke角色", aliases: [] },
+          ],
+          scenes: [],
+          props: [],
+        },
+      ],
+      scriptPlans: [],
+      storyboards: [
+        {
+          id: "shot-1",
+          episodeId: "chapter-001",
+          index: 1,
+          trackKey: "track-1",
+          trackId: "track-1",
+          duration: 5,
+          prompt: "SMOKE_SHOT_1",
+          videoDesc: "镜头一",
+          assetIds: [],
+          state: "ready" as const,
+          mediaRef: { kind: "video" as const, path: "/tmp/shot-1.mp4" },
+        },
+        {
+          id: "shot-2",
+          episodeId: "chapter-001",
+          index: 2,
+          trackKey: "track-2",
+          trackId: "track-2",
+          duration: 5,
+          prompt: "SMOKE_SHOT_2",
+          videoDesc: "镜头二",
+          assetIds: [],
+          state: "ready" as const,
+          mediaRef: { kind: "image" as const, path: "/tmp/shot-2.png" },
+        },
+      ],
+      productionTracks: [],
+      videoCandidates: [],
+    };
+
+    const failing = buildProductionFlowModel({
+      ...baseInput,
+      acceptance: {
+        assets: { total: 2, success: 1, failed: 1 },
+        derived: { total: 3, success: 2, failed: 1 },
+        storyboard: { totalShots: 2, videoReady: 1, ready: 2 },
+      },
+    });
+    const assetsNode = failing.nodes.find((node) => node.id === "assets");
+    expect(assetsNode?.status).toBe("warning");
+    expect(assetsNode?.metrics).toContain("资产 1/2");
+    expect(assetsNode?.metrics).toContain("衍生 2/3");
+    const storyboardNode = failing.nodes.find((node) => node.id === "storyboard");
+    expect(storyboardNode?.status).toBe("warning");
+    // 「N 个画面」已被「分镜画面 就绪/总数」合并替代,不并列出现
+    expect(storyboardNode?.metrics).toEqual([
+      "2 个分镜",
+      "分镜视频 1/2",
+      "分镜画面 2/2",
+    ]);
+    // 失败处理不新增按钮:assets 节点动作面保持为空,「进入」落 targetStage
+    expect(assetsNode?.actions).toBeUndefined();
+    expect(assetsNode?.targetStage).toBe("assets");
+
+    const green = buildProductionFlowModel({
+      ...baseInput,
+      acceptance: {
+        assets: { total: 2, success: 2, failed: 0 },
+        derived: { total: 3, success: 3, failed: 0 },
+        storyboard: { totalShots: 2, videoReady: 2, ready: 2 },
+      },
+    });
+    expect(green.nodes.find((node) => node.id === "assets")?.status).toBe("ready");
+    expect(green.nodes.find((node) => node.id === "storyboard")?.status).toBe("ready");
+  });
+
   it("does not mark the workbench ready before final export exists", () => {
     const model = buildProductionFlowModel({
       agentWorkData: [],

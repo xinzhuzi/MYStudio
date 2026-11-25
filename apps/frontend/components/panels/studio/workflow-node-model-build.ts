@@ -117,6 +117,7 @@ export function buildProductionFlowModel(
     assetDerivation,
     assetMetrics,
     assetPreviewLines,
+    acceptance: input.acceptance,
     storyboardTableRows: parseStoryboardPreviewRows(flowData.storyboardTable),
     visualStoryboardCount: flowData.storyboard.filter((item) => item.mediaPath).length,
     rendererSummary,

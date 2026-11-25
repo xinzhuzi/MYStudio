@@ -34,6 +34,7 @@ export function useProductionFlowModel({
   videoCandidates,
   workflowConfig,
   manualCatalog,
+  acceptance,
 }: ProductionFlowModelInput): ProductionFlowModel {
   const productionFlowCharacters = useCharacterLibraryStore(
     (state) => state.characters,
@@ -240,6 +241,7 @@ export function useProductionFlowModel({
         manualCatalog,
         rendererSummary,
         assetMediaById: productionFlowAssetMediaById,
+        acceptance,
       }),
     [
       agentWorkData,
@@ -254,6 +256,7 @@ export function useProductionFlowModel({
       videoCandidates,
       workflowConfig,
       manualCatalog,
+      acceptance,
       rendererSummary,
       remotionQueueScope.currentShotSlots,
       remotionQueueScope.error,

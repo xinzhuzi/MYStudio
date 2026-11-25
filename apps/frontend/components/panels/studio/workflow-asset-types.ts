@@ -106,6 +106,17 @@ export type ProductionFlowAssetLibraryMatches = Partial<
   >
 >;
 
+/**
+ * 章验收卡计数切片(1126 节点验收化):buildChapterAcceptanceCard(chapter-pipeline)
+ * 产出的卡里只取节点 metrics/status 需要的原始计数,避免节点模型依赖整卡
+ * (耗时/成本/例外清单不进图)。由 useStudioViewModel 渲染期现算传入。
+ */
+export interface ProductionFlowAcceptanceCounts {
+  assets: { total: number; success: number; failed: number };
+  derived: { total: number; success: number; failed: number };
+  storyboard: { totalShots: number; videoReady: number; ready: number };
+}
+
 export interface ProductionFlowModelInput {
   agentWorkData: AgentWorkData[];
   entityExtractions: EntityExtractionResult[];
@@ -132,5 +143,7 @@ export interface ProductionFlowModelInput {
   workflowConfig?: Pick<StudioWorkflowConfig, "visualManualId" | "directorManualId">;
   manualCatalog?: StudioManualCatalog;
   assetMediaById?: Record<string, ProductionFlowAssetMedia | undefined>;
+  /** 章验收卡计数(1126 节点验收化);缺省=不注入验收芯片与 warning 态(旧调用方/测试兼容)。 */
+  acceptance?: ProductionFlowAcceptanceCounts;
   fileExists?: (filePath: string) => boolean;
 }

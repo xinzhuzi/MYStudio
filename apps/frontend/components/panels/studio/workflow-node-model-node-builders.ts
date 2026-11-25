@@ -63,12 +63,28 @@ export function buildScriptPlanNode(ctx: ProductionFlowBuildContext): Production
 }
 
 export function buildAssetsNode(ctx: ProductionFlowBuildContext): ProductionFlowNodeModel {
+  const acceptance = ctx.acceptance;
   return {
     id: "assets",
     label: "衍生资产",
     description: "从剧本抽取角色、场景、道具，并作为分镜画面引用。",
-    status: ctx.assetCounts.total > 0 ? "ready" : "empty",
-    metrics: ctx.assetMetrics,
+    // 1126 节点验收化:资产/衍生任务有失败 → ready 转 warning(失败处理入口
+    // 沿用节点自带 targetStage=assets 的「进入」,不另设按钮)
+    status: ctx.assetCounts.total > 0
+      ? acceptance && (acceptance.assets.failed > 0 || acceptance.derived.failed > 0)
+        ? "warning"
+        : "ready"
+      : "empty",
+    metrics: [
+      ...ctx.assetMetrics,
+      // 验收计数芯片(任务台账口径,与 orb 收据 chapterAcceptanceSummary 同文式)
+      ...(acceptance
+        ? [
+            `资产 ${acceptance.assets.success}/${acceptance.assets.total}`,
+            `衍生 ${acceptance.derived.success}/${acceptance.derived.total}`,
+          ]
+        : []),
+    ],
     previewTitle: "剧本资产",
     previewLines: ctx.assetPreviewLines.length
       ? ctx.assetPreviewLines
@@ -110,15 +126,29 @@ export function buildStoryboardTableNode(ctx: ProductionFlowBuildContext): Produ
 }
 
 export function buildStoryboardPanelNode(ctx: ProductionFlowBuildContext): ProductionFlowNodeModel {
+  const acceptance = ctx.acceptance;
   return {
     id: "storyboard",
     label: "分镜面板",
     description: "分镜图、台词、配音与视频节点绑定。",
-    status: ctx.chapterStoryboards.length > 0 ? "ready" : "empty",
+    // 1126 节点验收化:有镜但视频未全就绪 → ready 转 warning(出视频动作
+    // 沿用侧栏既有通道,节点不另设按钮;staleCount 不上节点,仍归逐镜徽章
+    // 与任务中心「已过期 N 项」)
+    status: ctx.chapterStoryboards.length > 0
+      ? acceptance && acceptance.storyboard.videoReady < acceptance.storyboard.totalShots
+        ? "warning"
+        : "ready"
+      : "empty",
     metrics: ctx.chapterStoryboards.length
       ? [
           `${ctx.chapterStoryboards.length} 个分镜`,
-          `${ctx.visualStoryboardCount} 个画面`,
+          ...(acceptance
+            ? [
+                `分镜视频 ${acceptance.storyboard.videoReady}/${acceptance.storyboard.totalShots}`,
+                // 原「N 个画面」与验收卡「分镜画面 就绪/总数」同义,合并成一个芯片
+                `分镜画面 ${acceptance.storyboard.ready}/${acceptance.storyboard.totalShots}`,
+              ]
+            : [`${ctx.visualStoryboardCount} 个画面`]),
         ]
       : ["待生成分镜"],
     previewTitle: "分镜面板",

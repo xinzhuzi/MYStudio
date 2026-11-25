@@ -26,10 +26,11 @@ import {
  
 } from "./workflow-asset-derivation-model";
 import type {
- 
+
   ProductionFlowAssetGroup,
- 
+
   ProductionFlowAssetSummary,
+  ProductionFlowAcceptanceCounts,
   ProductionFlowModelInput,
 } from "./workflow-asset-types";
 
@@ -262,6 +263,8 @@ export type ProductionFlowBuildContext = {
   assetDerivation: ReturnType<typeof buildAssetDerivationModel>;
   assetMetrics: string[];
   assetPreviewLines: string[];
+  /** 章验收卡计数切片(1126 节点验收化);缺省=节点不注入验收芯片/warning。 */
+  acceptance?: ProductionFlowAcceptanceCounts;
   storyboardTableRows: ProductionFlowTableRow[];
   visualStoryboardCount: number;
   rendererSummary: ProductionFlowRendererSummary;
