@@ -30,7 +30,7 @@
  * 运行时行为尚未实跑:首次探针要确认的事见任务档 implement.md 第 5 节。
  */
 
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, relative, resolve } from "node:path";
@@ -46,7 +46,9 @@ import {
 const LOG_PREFIX = "[ui-audit]";
 /** 应用壳侧栏里进自媒体面板的按钮文字。 */
 const NAV_LABEL = "自媒体";
-const CDP_CALL_TIMEOUT_MS = 10_000;
+// CDP 单次调用上限必须大于页面侧动作的内部超时(NAVIGATION_TIMEOUT_MS 等 10s),
+// 否则页面侧「等不到就优雅返回失败」的路径会先撞死在 CDP 超时上,真实原因被吃掉(1125 首跑实证)。
+const CDP_CALL_TIMEOUT_MS = 20_000;
 const SCREENSHOT_TIMEOUT_MS = 30_000;
 const PAGE_TARGET_TIMEOUT_MS = 15_000;
 const DOCUMENT_READY_TIMEOUT_MS = 30_000;
@@ -75,6 +77,27 @@ export async function pageAudit(action, payload = {}) {
   const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
   const squash = (text) => (text || "").replace(/\s+/g, " ").trim();
   const box = (rect) => ({ x: rect.x, y: rect.y, w: rect.width, h: rect.height });
+  // 颜色规范化:Tailwind v4 的透明度修饰符(/80 等)编译成 color-mix,Chrome 把 computed
+  // backgroundColor/color 序列化成 oklab(...)。Node 侧 parseCssColor 不认识 oklab,层会被
+  // 整个丢弃,合成背景跌到更深的底层 → 对比度被系统性算低(1125 首跑 2143 条误报的根因,
+  // 元素级探针取证:同一文字真实像素比 5.3,规则算 3.2)。canvas 的 fillStyle 对任何
+  // 现代色串都会按旧式 rgb/rgba 回读,页面侧先规范化再上送。
+  const colorCanvas = document.createElement("canvas");
+  colorCanvas.width = 1;
+  colorCanvas.height = 1;
+  const colorCtx = colorCanvas.getContext("2d");
+  const COLOR_SENTINEL = "rgb(1, 2, 3)";
+  const toLegacyColor = (value) => {
+    if (typeof value !== "string" || !value || value === "none") return value;
+    colorCtx.fillStyle = COLOR_SENTINEL;
+    try {
+      colorCtx.fillStyle = value;
+    } catch {
+      return value;
+    }
+    const normalized = colorCtx.fillStyle;
+    return normalized === COLOR_SENTINEL && value !== COLOR_SENTINEL ? value : normalized;
+  };
   const waitFor = async (probe, timeoutMs) => {
     const deadline = Date.now() + timeoutMs;
     for (;;) {
@@ -98,10 +121,19 @@ export async function pageAudit(action, payload = {}) {
     // 首屏可能是仪表盘(有项目卡片),也可能已经停在项目里。仪表盘上可能同时有默认项目和
     // 预建恢复的审计项目(卡片按 updatedAt 倒序,次序不保证),所以按 data-project-card
     // 的项目 ID 精确点中;种子任务都挂在审计项目下,点错卡片任务就进不了当前项目。
+    // 「已在项目里」的判据必须是项目级导航(概览/MY 工作流):仪表盘模式的侧栏按钮
+    // (项目/帮助/设置)也带 .studio-nav-button 类,拿任意按钮当判据会把仪表盘误判成
+    // 已进项目、漏点卡片(1125 首跑实证,探针取证的侧栏快照见任务档)。
     const cardSelector = payload.projectId ? `[data-project-card="${payload.projectId}"]` : ".dashboard-project-card";
-    const entry = await waitFor(() => document.querySelector(`${cardSelector}, .studio-nav-button`), payload.timeoutMs);
+    const entry = await waitFor(() => {
+      const card = document.querySelector(cardSelector);
+      if (card) return card;
+      const inProjectNav = [...document.querySelectorAll(".studio-nav-button")]
+        .some((node) => squash(node.textContent).includes("概览"));
+      return inProjectNav ? document.querySelector(".studio-nav-button") : null;
+    }, payload.timeoutMs);
     if (!entry) return { ok: false, reason: payload.projectId ? `找不到项目卡片 ${payload.projectId},也没有应用壳导航` : "既没有项目卡片也没有应用壳导航" };
-    const fromDashboard = entry.matches(".dashboard-project-card");
+    const fromDashboard = entry.matches(".dashboard-project-card") || entry.matches("[data-project-card]");
     if (fromDashboard) entry.click();
     return { ok: true, enteredFrom: fromDashboard ? "dashboard" : "project" };
   }
@@ -241,9 +273,9 @@ export async function pageAudit(action, payload = {}) {
         text: isControl ? squash(node.textContent).slice(0, 80) : "",
         rect: box(rect),
         clip: clips ? { x: rect.x + node.clientLeft, y: rect.y + node.clientTop, w: node.clientWidth, h: node.clientHeight } : null,
-        bg: style.backgroundColor,
+        bg: toLegacyColor(style.backgroundColor),
         opacity: style.opacity,
-        color: style.color,
+        color: toLegacyColor(style.color),
         overflowX,
         overflowY,
         ellipsis: style.textOverflow === "ellipsis",
@@ -465,6 +497,21 @@ class AuditError extends Error {
   }
 }
 
+/**
+ * 档案目录同判定:先 realpath 归一化(macOS 的 /var/folders 是 /private/var/folders 的别名,
+ * mkdtempSync 返回 /var/... 而应用经 Electron 解析汇报 /private/var/...),realpath 不可用时
+ * 退回剥 /private 前缀比较。1125 首跑实证:严格字符串相等会把这一别名误判成隔离失败。
+ */
+function isSameUserDataDir(a, b) {
+  if (a === b) return true;
+  try {
+    return realpathSync(a) === realpathSync(b);
+  } catch {
+    const stripPrivate = (p) => p.replace(/^\/private/, "");
+    return stripPrivate(a) === stripPrivate(b);
+  }
+}
+
 // ── 主流程 ─────────────────────────────────────────────────────────────────
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
@@ -682,7 +729,16 @@ async function main() {
   let isolationVerified = false;
   try {
     // 进项目:启动前在隔离档案里预建 _p 下的项目目录,应用启动后会把它恢复成一个项目。
-    mkdirSync(resolve(userDataDir, "projects", "_p", AUDIT_PROJECT_ID), { recursive: true });
+    // 种子 script 键用旧布局 v0 路径(script.json):布局 v1 激活时 ensureProjectStoreLayout
+    // 会把它迁进 store/,两条解析路都认;内容形状照 recoverProjectFromDisk 的读取处
+    // ({state:{projects:{<pid>}:{title}}}),让恢复出的项目带确定的名字(1125 首跑实证:
+    // 纯空目录依赖恢复兜底,首跑没等到卡片出现)。
+    const auditProjectDir = resolve(userDataDir, "projects", "_p", AUDIT_PROJECT_ID);
+    mkdirSync(auditProjectDir, { recursive: true });
+    writeFileSync(
+      resolve(auditProjectDir, "script.json"),
+      `${JSON.stringify({ state: { projects: { [AUDIT_PROJECT_ID]: { title: "自媒体界面审计" } } } }, null, 2)}\n`,
+    );
     const env = { ...process.env, ELECTRON_ENABLE_LOGGING: "1", MYSTUDIO_SMOKE: "1", MYSTUDIO_SMOKE_BACKGROUND: "0" };
     // 开发态的 MYSTUDIO_REMOTE_DEBUG 会把调试端口固定成 9222,不透传给审计实例。
     delete env.MYSTUDIO_REMOTE_DEBUG;
@@ -706,7 +762,7 @@ async function main() {
     // 隔离核对排在连接之后的第一件事:实例用的档案目录必须就是脚本建的那个。
     // 不等就只收自己的实例并退出,这条连接上不再发任何别的命令。
     const smoke = await readSmokeBridge(client);
-    if (!smoke?.exposed || smoke.enabled !== true || smoke.userDataDir !== userDataDir) {
+    if (!smoke?.exposed || smoke.enabled !== true || !isSameUserDataDir(smoke.userDataDir, userDataDir)) {
       throw new AuditError(
         "isolation-mismatch",
         `隔离核对不过:实例报告的档案目录是「${smoke?.userDataDir || "未暴露"}」,脚本建的是「${userDataDir}」`,
