@@ -161,6 +161,7 @@ class _SshStub:
         pull_results: dict[str, tuple[int, str]] | None = None,
         win_procs: list[str] | None = None,
         win_tags: dict[str, str] | None = None,
+        win_fallback_tags: dict[str, str] | None = None,
         on_latest_tag: bool = False,
     ) -> None:
         self.win_dirs = win_dirs
@@ -170,6 +171,7 @@ class _SshStub:
         self.pull_results = pull_results or {}
         self.win_procs = win_procs or []
         self.win_tags = win_tags or {}
+        self.win_fallback_tags = win_fallback_tags or {}
         self.on_latest_tag = on_latest_tag
         self.ledger_patches: list[str] = []
         self.commands: list[str] = []
@@ -227,6 +229,9 @@ class _SshStub:
                 head = self.win_heads[key]
                 if head:
                     tag = self.win_tags.get(key, "")
+                    if not tag:
+                        # 1125 浅克隆兜底:describe 空 → for-each-ref 按时间取最新本地 tag
+                        tag = self.win_fallback_tags.get(key, "")
                     return (0, head + "\n===V===\n" + (tag + "\n" if tag else ""))
                 return (128, "===V===\n")  # 实弹:rev-parse 失败走 2>nul,stdout 仅余分隔行
             return (128, "===V===\n")
@@ -385,6 +390,28 @@ class ManifestWinVersionTests(unittest.TestCase):
         # 引擎行不受上溯上限影响(引擎目录自身照常命中)
         self.assertEqual(by_name["ComfyUI"]["winHead"], "e" * 40)
         self.assertEqual(by_name["pluginA"]["winVersion"], "a" * 7)
+
+    def test_manifest_version_falls_back_to_local_tag_when_describe_empty(self) -> None:
+        """1125 浅克隆根修:--depth 1 里 tag 指向的提交不在本地历史图上,
+        describe 连不上线必空——同步链 fetch --tags 已把 tag 引用落本地,
+        _win_git_info 追加 for-each-ref 按时间取最新兜底(describe 在能
+        用时仍优先)。"""
+        stub = _SshStub(
+            win_dirs={"pluginA"},
+            win_heads={
+                WIN_ENGINE: "e" * 40,
+                f"{WIN_NODES}\\pluginA": "a" * 40,
+            },
+            # 引擎:describe 可用(tag==HEAD 所在)→ 仍走 describe;
+            # pluginA:describe 空 → for-each-ref 兜底亮出本地 tag
+            win_tags={WIN_ENGINE: "v0.46.3"},
+            win_fallback_tags={f"{WIN_NODES}\\pluginA": "v1.2.3"},
+        )
+        manifest = _service_with_stub(stub).get_engine_sync_manifest()
+        by_name = {item["name"]: item for item in manifest["items"]}
+        self.assertEqual(by_name["ComfyUI"]["winVersion"], "0.46.3")  # describe 优先不变
+        self.assertEqual(by_name["pluginA"]["winVersion"], "1.2.3")  # 兜底 tag,剥前导 v
+        # 两者皆空才回退短 sha(既有测试覆盖)
 
 
 class PipRunningPredicateTests(unittest.TestCase):

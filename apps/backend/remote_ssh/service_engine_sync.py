@@ -201,18 +201,24 @@ class EngineSyncMixin:
         return str(PureWindowsPath(win_path).parent)
 
     def _win_git_info(self, win_path: str) -> tuple[str | None, str | None]:
-        """SSH 读 Win 侧 git HEAD+版本(单命令双读,零额外 SSH 往返)。
+        """SSH 读 Win 侧 git HEAD+版本(单命令三读,零额外 SSH 往返)。
 
         版本口径(1122 用户令「同步面板要展示版本」):git describe 最近 tag
-        剥前导 v(引擎 v0.45.2 → 0.45.2);无 tag 的插件回退短 sha(HEAD 前
-        7 位);目录非 git/不存在/超时 → (None, None)。cmd `&` 链 exit code
-        =末命令(describe 无 tag 必非 0),故不以 code 作闸,逐段解析。
+        剥前导 v(引擎 v0.45.2 → 0.45.2);1125 补兜底:浅克隆(--depth 1)里
+        tag 指向的提交不在本地历史图上,describe 连不上线照样空——同步链
+        fetch --tags 已把 tag 引用落到本地,再追加 for-each-ref 按时间取最新
+        (不依赖图连通;describe 在能用时排前面优先);两者皆空回退短 sha
+        (HEAD 前 7 位,上游真无 tag 的诚实显示);目录非 git/不存在/超时 →
+        (None, None)。cmd `&` 链 exit code=末命令,故不以 code 作闸,逐段
+        解析(tag 段取首个非空行=describe 在前则 describe,否则兜底 tag)。
         找仓上溯上限见 _git_ceiling(非 git 插件目录不再冒出引擎 HEAD)。
         """
         _, out = self.run_remote_command(
             f'set "GIT_CEILING_DIRECTORIES={self._git_ceiling(win_path)}" & '
             f'git -C "{win_path}" rev-parse HEAD 2>nul & echo ===V=== & '
-            f'git -C "{win_path}" describe --tags --abbrev=0 2>nul', 10
+            f'git -C "{win_path}" describe --tags --abbrev=0 2>nul & '
+            f'git -C "{win_path}" for-each-ref --count=1 --sort=-creatordate '
+            f"--format=%(refname:short) refs/tags 2>nul", 10
         )
         segments = out.split("===V===", 1)
         if len(segments) < 2:
