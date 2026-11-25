@@ -127,6 +127,12 @@ def _bridge_token():
 
 env['MYSTUDIO_BRIDGE_URL'] = 'http://127.0.0.1:17595'
 env['MYSTUDIO_BRIDGE_TOKEN'] = _bridge_token()
+# 1125 引擎同步面板「workflows 幽灵」治本(用户拍板):comfyui_api_executor_nodes 的
+# 4 个 selector 导入期按 COMFY_HOME 定 workflows 家,缺省兜底 dirname 三连落到
+# custom_nodes(自建 custom_nodes/workflows 空类目=ComfyUI 当插件加载必败,删了再长)。
+# 设为 ComfyUI 根(与 MAIN 同根);盘上存量 custom_nodes/workflows 仍须删一次,
+# 此后不再复发。本文件零中文路径字面量的既有纪律沿用 \u 转义形态。
+env['COMFY_HOME'] = 'E:/IP/\u6f2b\u5f71\u5de5\u4f5c\u4f5c\u5ba4/comfyui/ComfyUI'
 
 
 def _say(msg):

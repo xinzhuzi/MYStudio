@@ -245,7 +245,8 @@ class EngineSyncMixin:
 
         数据源(1107 用户令:自愈状态要在设置 UI 看得见):
         - 引擎日志最新启动段(Total VRAM 之后)的 Cannot import 行 → 挂件+挂因;
-        - deps-install.log 尾段 → 近期依赖安装失败(pip 欠账,持续可见不再一闪而过)。
+        - deps-install.log 尾段 → 近期依赖安装失败(pip 欠账,持续可见不再一闪而过;
+          1125 销账:同包其后 OK 或 venv 运行时可导入=已还清,不再标黄)。
         loaded = Win 现存插件 ∪ 挂件之差;探针失败逐项容错(引擎未启=空图+cause)。
         """
         win_names = self._win_custom_nodes_names()
@@ -264,7 +265,11 @@ class EngineSyncMixin:
                     "depsFailures": {}, "probedAt": _utc_now_iso(),
                     "error": f"引擎日志读取失败: {str(exc)[:200]}"}
         failed = set(health)
-        # ② deps-install.log 近期安装失败(pip 欠账;>[FAIL ...]行)
+        # ② deps-install.log 近期安装失败(pip 欠账;>[FAIL ...]行)。1125 销账:
+        #    同 (插件, 包基名) 其后的 OK 行先销一遍账,余下欠账再经引擎 venv
+        #    运行时可导入性复核(triton 无 Windows 发行包但 venv 能导入 torch
+        #    自带副本=运行时用得上就算还清)——已满足者不再标黄;1107「失败
+        #    持续可见」设计不变,销的只是已还清的账。
         deps_failures: dict[str, list[str]] = {}
         try:
             code, out = self.run_remote_command(
@@ -272,10 +277,11 @@ class EngineSyncMixin:
                 "Get-Content -LiteralPath 'E:\\IP\\漫影工作室\\comfyui\\logs\\deps-install.log' "
                 "-Tail 400\"", 30)
             if code == 0 and out:
-                for ln in out.splitlines():
-                    m = re.match(r"^(\[[^\]]+\] FAIL \(([^)]+)\): .*)$", ln.strip())
-                    if m:
-                        deps_failures.setdefault(m.group(2), []).append(m.group(1)[:160])
+                debts, bases = service._collect_dep_debts(out)
+                satisfied = self._venv_import_ok(bases)
+                for (plugin, _base), raw in sorted(debts.items()):
+                    if not satisfied.get(_base):
+                        deps_failures.setdefault(plugin, []).append(raw)
         except (SSHServiceError, RuntimeError, ValueError):
             pass  # 欠账日志读失败不拦健康图
         return {
@@ -285,6 +291,46 @@ class EngineSyncMixin:
             "depsFailures": deps_failures,
             "probedAt": _utc_now_iso(),
         }
+
+    def _venv_import_ok(self, bases: list[str]) -> dict[str, bool]:
+        """引擎 venv 逐包复核:metadata 有版本或可 find_spec 即算欠账已还清(1125)。
+
+        base64 管道喂码(包名清单内嵌进码里,命令行恒 ASCII,绕 cmd/PS 引号雷);
+        复核失败/venv python 缺位=空表——欠账如实保留(fail-open 到旧行为,
+        不因销账复核失败而放大红面)。
+        """
+        if not bases:
+            return {}
+        import base64
+        import json as _json
+        code = (
+            "import importlib.util as _u, importlib.metadata as _m, json as _j\n"
+            "names = " + _json.dumps(list(bases)) + "\n"
+            "out = {}\n"
+            "for _n in names:\n"
+            "    _ok = False\n"
+            "    try:\n"
+            "        _m.version(_n)\n"
+            "        _ok = True\n"
+            "    except Exception:\n"
+            "        try:\n"
+            "            _ok = _u.find_spec(_n.replace('-', '_')) is not None\n"
+            "        except Exception:\n"
+            "            _ok = False\n"
+            "    out[_n] = _ok\n"
+            "print(_j.dumps(out))\n"
+        )
+        b64 = base64.b64encode(code.encode("utf-8")).decode("ascii")
+        cmd = ('echo ' + b64
+               + ' | "' + _WIN_VENV_PYTHON + '" -c '
+               '"import base64,sys;exec(base64.b64decode(sys.stdin.read().strip()).decode())"')
+        try:
+            rc, out = self.run_remote_command(cmd, 60)
+            if rc != 0 or not out.strip():
+                return {}
+            return _json.loads(out.strip().splitlines()[-1])
+        except (SSHServiceError, RuntimeError, ValueError):
+            return {}
 
     def get_engine_sync_manifest(self) -> dict:
         """GET /comfy/ssh/engine-sync-manifest:单真源清单 + 双侧实况。

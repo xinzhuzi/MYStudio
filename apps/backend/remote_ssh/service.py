@@ -105,6 +105,37 @@ def _parse_plugin_import_failures(log_segment: str) -> dict:
     return out
 
 
+# 1125 销账:deps-install.log 账本行「<时间>] OK|FAIL (插件): 规格」解析
+# (get_engine_plugin_health 用;规格串剥版本约束后按 (插件, 包基名) 记账)
+_DEPS_LEDGER_RE = re.compile(r"^\[[^\]]+\]\s+(OK|FAIL)\s+\(([^)]+)\):\s*(.+)$")
+
+
+def _spec_base(spec: str) -> str:
+    """依赖规格 → 包基名(`gguf>=0.13.0`→`gguf`;`requests >=2.28.0`→`requests`)。"""
+    return re.split(r"[<>=!~;\s\[]", spec.strip(), maxsplit=1)[0].strip().lower()
+
+
+def _collect_dep_debts(tail: str) -> tuple[dict, list[str]]:
+    """deps-install 尾段 → ({(插件, 包基名): 原始FAIL行}, 未销账包基名列表)。
+
+    账本序销账:同 (插件, 基名) 其后的 OK 行销掉先前 FAIL(重装装成=还清;
+    OK 后又 FAIL=重挂,按最后一条算)——1125 用户令「探针加销账机制」。
+    1107「失败持续可见不再一闪而过」的设计不变,销掉的只是已还清的账;
+    运行时可导入性复核在 get_engine_plugin_health 侧做(要 SSH)。
+    """
+    debts: dict[tuple[str, str], str] = {}
+    for ln in tail.splitlines():
+        m = _DEPS_LEDGER_RE.match(ln.strip())
+        if not m:
+            continue
+        key = (m.group(2).strip(), _spec_base(m.group(3)))
+        if m.group(1) == "FAIL":
+            debts[key] = ln.rstrip()
+        else:
+            debts.pop(key, None)
+    return debts, sorted({base for _, base in debts})
+
+
 def _utc_now_iso() -> str:
     from datetime import datetime, timezone
     return datetime.now(timezone.utc).isoformat()
