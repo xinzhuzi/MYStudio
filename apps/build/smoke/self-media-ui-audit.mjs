@@ -77,27 +77,6 @@ export async function pageAudit(action, payload = {}) {
   const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
   const squash = (text) => (text || "").replace(/\s+/g, " ").trim();
   const box = (rect) => ({ x: rect.x, y: rect.y, w: rect.width, h: rect.height });
-  // 颜色规范化:Tailwind v4 的透明度修饰符(/80 等)编译成 color-mix,Chrome 把 computed
-  // backgroundColor/color 序列化成 oklab(...)。Node 侧 parseCssColor 不认识 oklab,层会被
-  // 整个丢弃,合成背景跌到更深的底层 → 对比度被系统性算低(1125 首跑 2143 条误报的根因,
-  // 元素级探针取证:同一文字真实像素比 5.3,规则算 3.2)。canvas 的 fillStyle 对任何
-  // 现代色串都会按旧式 rgb/rgba 回读,页面侧先规范化再上送。
-  const colorCanvas = document.createElement("canvas");
-  colorCanvas.width = 1;
-  colorCanvas.height = 1;
-  const colorCtx = colorCanvas.getContext("2d");
-  const COLOR_SENTINEL = "rgb(1, 2, 3)";
-  const toLegacyColor = (value) => {
-    if (typeof value !== "string" || !value || value === "none") return value;
-    colorCtx.fillStyle = COLOR_SENTINEL;
-    try {
-      colorCtx.fillStyle = value;
-    } catch {
-      return value;
-    }
-    const normalized = colorCtx.fillStyle;
-    return normalized === COLOR_SENTINEL && value !== COLOR_SENTINEL ? value : normalized;
-  };
   const waitFor = async (probe, timeoutMs) => {
     const deadline = Date.now() + timeoutMs;
     for (;;) {
@@ -273,9 +252,9 @@ export async function pageAudit(action, payload = {}) {
         text: isControl ? squash(node.textContent).slice(0, 80) : "",
         rect: box(rect),
         clip: clips ? { x: rect.x + node.clientLeft, y: rect.y + node.clientTop, w: node.clientWidth, h: node.clientHeight } : null,
-        bg: toLegacyColor(style.backgroundColor),
+        bg: style.backgroundColor,
         opacity: style.opacity,
-        color: toLegacyColor(style.color),
+        color: style.color,
         overflowX,
         overflowY,
         ellipsis: style.textOverflow === "ellipsis",

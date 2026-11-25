@@ -65,16 +65,24 @@ export function useSelfMediaLedger(activeProjectId: string | null): string | nul
     return bridge.onProgress((event) => {
       const store = useSelfMediaStore.getState();
       const current = store.tasks.find((task) => task.id === event.taskId);
-      if (!current || current.projectId !== event.projectId) return;
-      // 只用事件里的状态和进度更新任务,保留现有的 updatedAt(不盖写)
-      const next: SelfMediaTask = { ...current, status: event.status, progress: event.progress };
-      try {
-        upsertTask(next);
-      } catch {
+      if (current && current.projectId === event.projectId) {
+        // 只用事件里的状态和进度更新任务,保留现有的 updatedAt(不盖写)
+        const next: SelfMediaTask = { ...current, status: event.status, progress: event.progress };
+        try {
+          upsertTask(next);
+        } catch {
+          return;
+        }
+        if (!TERMINAL_STATUSES.includes(event.status)) return;
+      } else if (event.projectId !== store.activeProjectId) {
+        // 别的项目的任务,与当前面板无关
         return;
       }
-      if (!TERMINAL_STATUSES.includes(event.status)) return;
-      // 终态之后防抖重取,带回 error 详情与结果链接(以主进程台账为准)
+      // 走到这里有两种情形,都防抖重取(以主进程台账为准):
+      // - 已知任务进了终态:带回 error 详情与结果链接;
+      // - store 里没有这条任务:它不是本面板建的(别的入口建的单、审计种子),事件本身无从
+      //   更新,只能重取把它收进台账。1125 界面审计 c2 状态实证:此前对未知任务直接返回,
+      //   绕过面板建的任务在面板开着时永远进不了台账,进度面板也就投影不出来。
       if (refetchTimer.current) clearTimeout(refetchTimer.current);
       const projectId = event.projectId;
       refetchTimer.current = setTimeout(() => {

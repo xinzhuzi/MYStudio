@@ -374,6 +374,63 @@ describe("SelfMediaPanel task controls", () => {
     expect(mocks.upsertTask).not.toHaveBeenCalledWith(expect.objectContaining({ updatedAt: "2026-07-26T04:00:00.000Z" }));
   });
 
+  it("refetches the ledger when an event arrives for a task this panel did not create", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mocks.tasks = [];
+      const { onProgress } = installBridge();
+      const listTasks = window.selfMedia!.listTasks as ReturnType<typeof vi.fn>;
+
+      openTasks();
+      await waitFor(() => expect(onProgress).toHaveBeenCalled());
+      await waitFor(() => expect(listTasks).toHaveBeenCalled());
+      // 挂载时的首拉台账为空;此后主进程里出现一条不是本面板建的任务(审计种子、别的入口建的单)
+      const external = createTask({
+        id: "task-external",
+        status: "failure",
+        progress: 100,
+        updatedAt: "2026-07-26T05:02:00.000Z",
+        batchId: "batch-1",
+        batchRole: "member",
+      });
+      listTasks.mockResolvedValue({ success: true, value: [external] });
+      mocks.upsertTask.mockClear();
+      const listener = mocks.progressListeners.at(-1)!;
+      listener({ projectId: "project-1", taskId: "task-external", status: "failure", progress: 100 });
+
+      // 事件本身无从更新(store 里没有这条):不写入;防抖 500ms 后重取,把外来任务收进台账
+      expect(mocks.upsertTask).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(600);
+      await waitFor(() => {
+        expect(mocks.upsertTask).toHaveBeenCalledWith(expect.objectContaining({ id: "task-external", status: "failure" }));
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ignores progress events that belong to another project", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mocks.tasks = [];
+      const { onProgress } = installBridge();
+      const listTasks = window.selfMedia!.listTasks as ReturnType<typeof vi.fn>;
+
+      openTasks();
+      await waitFor(() => expect(onProgress).toHaveBeenCalled());
+      await waitFor(() => expect(listTasks).toHaveBeenCalled());
+      const callsAfterMount = listTasks.mock.calls.length;
+
+      mocks.progressListeners.at(-1)!({ projectId: "project-2", taskId: "task-other", status: "failure", progress: 100 });
+      await vi.advanceTimersByTimeAsync(600);
+
+      expect(listTasks.mock.calls.length).toBe(callsAfterMount);
+      expect(mocks.upsertTask).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("cancels a running task through the typed bridge and writes the returned task", async () => {
     const task = createTask();
     mocks.tasks = [task];
