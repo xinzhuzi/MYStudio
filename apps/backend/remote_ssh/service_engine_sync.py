@@ -138,7 +138,13 @@ class EngineSyncMixin:
     # ── 1104 引擎同步中心(tasks/11-04-engine-sync R2)──────────────────
 
     def _win_custom_nodes_names(self) -> set[str]:
-        """SSH 读 Windows custom_nodes 目录名集合(dir /b /ad;失败回空集)。"""
+        """SSH 读 Windows custom_nodes 目录名集合(dir /b /ad;失败回空集)。
+
+        1126 全修:过滤 `__pycache__`——ComfyUI 自带示例节点
+        custom_nodes/websocket_image_save.py 每次引擎启动都会被导入,
+        Python 随之重建该缓存目录;删目录治不了本(下次启动必回),
+        扫描端过滤才是面板「Win 独有 __pycache__」行消失的根治。
+        """
         code, out = self.run_remote_command(
             f"dir /b /ad {_WIN_CUSTOM_NODES} 2>nul", 15
         )
@@ -147,7 +153,10 @@ class EngineSyncMixin:
         return {
             line.strip()
             for line in out.splitlines()
-            if line.strip() and not line.startswith("Volume") and not line.startswith("Directory of")
+            if line.strip()
+            and not line.startswith("Volume")
+            and not line.startswith("Directory of")
+            and line.strip() != "__pycache__"
         }
 
     def _win_git_head(self, win_path: str) -> str | None:

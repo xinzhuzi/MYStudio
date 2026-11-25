@@ -413,6 +413,19 @@ class ManifestWinVersionTests(unittest.TestCase):
         self.assertEqual(by_name["pluginA"]["winVersion"], "1.0.0")  # 兜底 tag,剥前导 v 及可选点
         # 两者皆空才回退短 sha(既有测试覆盖)
 
+    def test_manifest_excludes_pycache_dir_from_win_scan(self) -> None:
+        """1126 全修:Win custom_nodes 下的 __pycache__ 是 ComfyUI 启动导入
+        示例节点时 Python 自动重建的缓存目录——删了下次启动必回,扫描端
+        过滤才是面板「Win 独有 __pycache__」行消失的根治。"""
+        stub = _SshStub(
+            win_dirs={"pluginA", "__pycache__"},
+            win_heads={WIN_ENGINE: "e" * 40, f"{WIN_NODES}\\pluginA": "a" * 40},
+        )
+        manifest = _service_with_stub(stub).get_engine_sync_manifest()
+        names = [item["name"] for item in manifest["items"]]
+        self.assertNotIn("__pycache__", names)
+        self.assertIn("pluginA", names)
+
 
 class PipRunningPredicateTests(unittest.TestCase):
     """③c 变异 pip 判据(1122 同步全败根修的判据本体,纯函数零 SSH)。"""
