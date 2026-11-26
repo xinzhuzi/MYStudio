@@ -69,6 +69,7 @@ export interface StudioWorkflowActions {
   appendNovelText: (sourceText: string, sourceName?: string) => void;
   replaceNovelText: (sourceText: string, sourceName?: string) => void;
   updateNovelChapter: (id: string, updates: Partial<NovelChapter>) => void;
+  ensureNovelChapterBody: (chapterId: string) => Promise<NovelChapter | null>;
   saveSourceBible: (text: string) => void;
   setWorkflowConfig: (updates: Partial<StudioWorkflowConfig>) => void;
   startAgentRun: (input: {

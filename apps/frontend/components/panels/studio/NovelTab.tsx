@@ -58,6 +58,8 @@ export function NovelTab(props: {
   replaceNovelText: (value: string, sourceName?: string) => void;
   novelChapters: NovelChapter[];
   updateNovelChapter: (id: string, updates: Partial<NovelChapter>) => void;
+  /** 1127 正文按需装载:轻索引条目(窗口化)无 sourceText,编辑前经此读回章分片全文;缺省=不装载(旧行为) */
+  onEnsureChapterBody?: (chapterId: string) => Promise<NovelChapter | null>;
   analyzeEvents: (chapters: NovelChapter[]) => void | Promise<void>;
   sourceBible: string;
   saveSourceBible: (text: string) => void;
@@ -280,15 +282,40 @@ export function NovelTab(props: {
     toast.success("章节及其后续产物已删除");
   };
 
-  const openEdit = (chapter: NovelChapter) => {
-    setEditingChapter(chapter);
-    setEditDraft({
+  // 1127 正文按需装载:轻索引条目无 sourceText(窗口化瘦身),直接开编辑=空文假丢。
+  // 先经 onEnsureChapterBody 读回章分片全文,装载中在弹窗标题显示;失败 toast 并
+  // 以现有条目开弹窗(至少标题/卷可编辑,正文注明缺失原因)。
+  const [editLoading, setEditLoading] = useState(false);
+  const openEdit = async (chapter: NovelChapter) => {
+    const hasBody = typeof chapter.sourceText === "string" && chapter.sourceText.length > 0;
+    const baseDraft = {
       volume: chapter.volume ?? "正文卷",
       title: chapter.title,
       sourceText: chapter.sourceText ?? "",
       eventSummary: chapter.eventSummary ?? "",
       eventState: chapter.eventState ?? "",
-    });
+    };
+    if (hasBody || !props.onEnsureChapterBody) {
+      setEditingChapter(chapter);
+      setEditDraft(baseDraft);
+      return;
+    }
+    setEditingChapter(chapter);
+    setEditDraft(baseDraft);
+    setEditLoading(true);
+    try {
+      const full = await props.onEnsureChapterBody(chapter.id);
+      setEditDraft({
+        volume: (full ?? chapter).volume ?? "正文卷",
+        title: (full ?? chapter).title,
+        sourceText: (full ?? chapter).sourceText ?? "",
+        eventSummary: (full ?? chapter).eventSummary ?? "",
+        eventState: (full ?? chapter).eventState ?? "",
+      });
+      if (!full) toast.error("章节正文装载失败(分片缺失或读取失败),正文区为空——请勿直接保存覆盖");
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   const saveEdit = () => {
@@ -381,7 +408,8 @@ export function NovelTab(props: {
       <NovelEditDialog
         open={Boolean(editingChapter)}
         draft={editDraft}
-        onOpenChange={(open) => !open && setEditingChapter(null)}
+        loading={editLoading}
+        onOpenChange={(open) => !open && !editLoading && setEditingChapter(null)}
         onDraftChange={setEditDraft}
         onSave={saveEdit}
       />

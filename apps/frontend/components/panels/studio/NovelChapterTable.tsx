@@ -32,7 +32,7 @@ export function NovelChapterTable({
   allVisibleSelected: boolean;
   emptyState: ReactNode;
   onDelete: (chapter: NovelChapter) => void;
-  onEdit: (chapter: NovelChapter) => void;
+  onEdit: (chapter: NovelChapter) => void | Promise<void>;
   onToggleAllVisible: (checked: boolean) => void;
   onToggleChapter: (id: string, checked: boolean) => void;
 }) {

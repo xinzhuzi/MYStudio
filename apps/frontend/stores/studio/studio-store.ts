@@ -139,6 +139,13 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         syncNovelChapterMirrors,
         removeNovelChapterMirrors,
         syncSourceBibleMirror: syncSourceBibleMirrorForActiveProject,
+      }, async (chapterId) => {
+        // 1127 正文按需装载注入:轻索引条目编辑/展示前从章分片读回完整章。
+        // pid 缺失(无活动项目)=无法定位分片,返回 null(fail-open)。
+        const pid = useProjectStore.getState().activeProjectId;
+        if (!pid) return null;
+        const loaded = await loadStudioChapterWorkspace(pid, chapterId);
+        return (loaded?.novelChapter as NovelChapter | undefined) ?? null;
       });
       const memorySlice = createMemorySliceActions(set as never, get as never);
       const entitySlice = createEntitySliceActions(set as never);
@@ -323,6 +330,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       appendNovelText: novelSlice.appendNovelText,
       replaceNovelText: novelSlice.replaceNovelText,
       updateNovelChapter: novelSlice.updateNovelChapter,
+      ensureNovelChapterBody: novelSlice.ensureNovelChapterBody,
       saveSourceBible: novelSlice.saveSourceBible,
       setWorkflowConfig: configSlice.setWorkflowConfig,
 
