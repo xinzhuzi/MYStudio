@@ -43,6 +43,7 @@ import {
 } from "./studio-store-persistence";
 import {
   createStudioWorkflowId,
+  loadNovelChapterMirrorBodyForActiveProject,
   removeNovelChapterMirrorsForActiveProject,
   syncNovelChapterMirrorsForActiveProject,
   syncSourceBibleMirrorForActiveProject,
@@ -140,12 +141,16 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         removeNovelChapterMirrors,
         syncSourceBibleMirror: syncSourceBibleMirrorForActiveProject,
       }, async (chapterId) => {
-        // 1127 正文按需装载注入:轻索引条目编辑/展示前从章分片读回完整章。
-        // pid 缺失(无活动项目)=无法定位分片,返回 null(fail-open)。
+        // 1127 正文按需装载注入:轻索引条目编辑/展示前从章节正文镜像(novel/chapters/<章>.md,
+        // README 记载的真源)读回小说正文。注意:studio-workflow 章分片是工作区数据(内容可被
+        // 导演流程覆写为脚本稿),不是小说正文——正文真源恒为镜像。pid 缺失=fail-open 返回 null。
         const pid = useProjectStore.getState().activeProjectId;
         if (!pid) return null;
-        const loaded = await loadStudioChapterWorkspace(pid, chapterId);
-        return (loaded?.novelChapter as NovelChapter | undefined) ?? null;
+        const chapter = get().novelChapters.find((item) => item.id === chapterId);
+        if (!chapter) return null;
+        const body = await loadNovelChapterMirrorBodyForActiveProject(chapter);
+        if (body === null) return null;
+        return { ...chapter, sourceText: body };
       });
       const memorySlice = createMemorySliceActions(set as never, get as never);
       const entitySlice = createEntitySliceActions(set as never);

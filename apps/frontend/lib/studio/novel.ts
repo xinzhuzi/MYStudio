@@ -106,9 +106,35 @@ export function parseNovelChapterMirrorIdentity(markdown: string): StudioSourceI
   const revisionValue = markdown.match(/^>\s*修订：(\d+)$/m)?.[1];
   const revision = revisionValue ? Number(revisionValue) : undefined;
   return {
-    ...(sourceId ? { sourceId } : {}),
-    ...(typeof revision === "number" && Number.isInteger(revision) && revision > 0 ? { revision } : {}),
+    ...(sourceId ? { sourceId: sourceId } : {}),
+    ...(typeof revision === "number" && Number.isInteger(revision) && revision > 0 ? { revision: revision } : {}),
   };
+}
+
+/** 1127 正文按需装载：章节镜像的相对路径（与 buildNovelChapterMirror 的 key 对称，
+ *  去掉 `_p/{projectId}/` 前缀即项目根相对路径，走 projectFiles.readText）。 */
+export function novelChapterMirrorRelativePath(chapterIndex: number): string {
+  return `novel/chapters/${createChapterId(chapterIndex)}.md`;
+}
+
+/** 从镜像 Markdown 提取小说正文（剥离镜像头：`# 标题` + `> ` 元数据块 + 其后单个空行；
+ *  正文截断到 `## 事件分析` 段之前——事件分析由 chapter 字段重建，不属正文）。
+ *  无正文返回 null。镜像正文可能自带 `#` 开头的行，所以头部剥离只吃
+ *  「标题行 + 连续元数据行 + 至多一个空行」，不越界。 */
+export function parseNovelChapterMirrorBody(markdown: string): string | null {
+  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+  let cursor = 0;
+  // 镜像头：`# 标题` → 空行 → `> ` 元数据块 → 空行 → 正文（与 buildNovelChapterMirror 对称）
+  if ((lines[cursor] ?? "").startsWith("# ")) cursor += 1;
+  if (cursor < lines.length && lines[cursor]!.trim() === "" && lines[cursor + 1]?.startsWith("> ")) cursor += 1;
+  while (cursor < lines.length && lines[cursor]!.startsWith("> ")) cursor += 1;
+  if (cursor < lines.length && lines[cursor]!.trim() === "") cursor += 1;
+  let body = lines.slice(cursor).join("\n");
+  const eventIdx = body.indexOf("\n## 事件分析");
+  if (eventIdx >= 0) body = body.slice(0, eventIdx);
+  else if (body.startsWith("## 事件分析")) body = "";
+  body = body.replace(/\s+$/, "");
+  return body.length > 0 ? body : null;
 }
 
 function createChapterId(index: number) {

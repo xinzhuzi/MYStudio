@@ -391,6 +391,7 @@ export function StudioView() {
                 replaceNovelText={viewModel.replaceNovelText}
                 novelChapters={viewModel.novelChapters}
                 updateNovelChapter={viewModel.updateNovelChapter}
+                onEnsureChapterBody={viewModel.ensureNovelChapterBody}
                 analyzeEvents={viewModel.handleNovelEventAnalysis}
                 sourceBible={viewModel.sourceBible}
                 saveSourceBible={viewModel.saveSourceBible}

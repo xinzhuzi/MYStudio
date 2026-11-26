@@ -24,20 +24,28 @@ export function NovelEditDialog({
   onOpenChange,
   onDraftChange,
   onSave,
+  loading = false,
 }: {
   open: boolean;
   draft: NovelEditDraft;
   onOpenChange: (open: boolean) => void;
   onDraftChange: (draft: NovelEditDraft) => void;
   onSave: () => void;
+  /** 1127 正文按需装载中(轻索引条目开编辑时先读章分片):标题显示装载中、
+   *  保存禁用防「空文覆盖」。缺省 false=已带全文的直开路径不受影响。 */
+  loading?: boolean;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle>编辑章节</DialogTitle>
+          <DialogTitle>
+            {loading ? "编辑章节（正文装载中…）" : "编辑章节"}
+          </DialogTitle>
           <DialogDescription>
-            保存后会同步更新项目存储位置下的章节文档。
+            {loading
+              ? "正在从章节分片读回正文，装载完成前请勿保存。"
+              : "保存后会同步更新项目存储位置下的章节文档。"}
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-[160px_1fr] gap-3">
@@ -99,7 +107,7 @@ export function NovelEditDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             取消
           </Button>
-          <Button onClick={onSave}>保存</Button>
+          <Button onClick={onSave} disabled={loading}>保存</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
