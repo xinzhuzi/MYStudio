@@ -52,7 +52,7 @@ export const StatusPill = forwardRef<HTMLSpanElement, StatusPillProps>(
         <span
           ref={ref}
           className={cn(
-            "inline-flex shrink-0 items-center gap-2 rounded-full border border-destructive/25 bg-destructive/[0.08] px-3 py-1.5 text-xs font-medium text-destructive/90",
+            "inline-flex shrink-0 items-center gap-2 rounded-full border border-destructive/65 bg-destructive/[0.08] px-3 py-1.5 text-xs font-medium text-destructive/90",
             className,
           )}
           {...props}

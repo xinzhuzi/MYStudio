@@ -262,7 +262,7 @@ export function EngineSyncSection({
                                       className={cn(
                                         "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium",
                                         item.status === "mac-only"
-                                          ? "border-destructive/25 bg-destructive/[0.08] text-destructive/90"
+                                          ? "border-destructive/65 bg-destructive/[0.08] text-destructive/90"
                                           : item.status === "win-only"
                                             ? "border-border bg-muted/50 text-muted-foreground/60"
                                             : "border-success/25 bg-success/10 text-success",

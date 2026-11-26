@@ -11,6 +11,8 @@
   solve(默认) — 解析 apps/frontend/index.css 14 个主题块, 解出满足全部硬约束的新 HSL
                 (只调亮度, 不改色相/饱和度, 最小步), 输出 markdown 报告与补丁后的 css 副本。
   --verify    — 对(改后的)index.css 逐主题逐对复检, 全部达标时退出 0。
+  --verify-nontext — 非文本对比度复检(WCAG 1.4.11): 描边 /65 合成、select 高亮实底、
+                 --ring/--brand-start 与 --primary 对齐、前端源扫描(见 11-26-nontext-contrast-fix)。
 
 硬约束(每主题; 默认目标 4.65, toast 次级 4.5, 验收下限 4.6):
   A  ratio(primary-foreground, primary)                        ≥4.65 审计①主色按钮对
@@ -171,6 +173,125 @@ def parse_css(path: Path):
     for name, vals in dark_presets.items():
         themes[name] = {**dark_base, **vals}
     return themes
+
+
+# ---------------------------------------------------------------- non-text (WCAG 1.4.11)
+# --verify-nontext: 1126 §五遗留③ 收口(11-26-nontext-contrast-fix)
+#   G 描边合成比 ≥3.15: border-destructive/65 逐主题 × 5 采样面
+#   H 下拉 destructive 高亮: 实底指示 vs popover ≥3.15 + 高亮文字对(B) ≥4.65
+#   J 主题块显式覆盖的 --ring/--brand-start 必须等于该主题 --primary
+#   源扫描: 前端非测试文件不得残留 border-destructive/25; 规范化位点须为 /65
+BORDER_ALPHA = 0.65
+T_NONTEXT = 3.15  # 3.0 + 0.15 余量
+CANONICAL_65_FILES = [
+    "apps/frontend/components/ui/button.tsx",
+    "apps/frontend/components/ui/status-pill.tsx",
+    "apps/frontend/components/ui/icon-tile.tsx",
+    "apps/frontend/components/panels/settings/McpSshConnectionsSection.tsx",
+    "apps/frontend/components/panels/settings/McpRemoteEngineSection.tsx",
+    "apps/frontend/components/panels/settings/McpEngineSyncSection.tsx",
+]
+SELECT_HIGHLIGHT_CLASSES = (
+    "apps/frontend/components/ui/select.tsx",
+    "data-[highlighted]:bg-destructive data-[highlighted]:text-destructive-foreground",
+)
+
+
+def parse_explicit_tokens(css_path: Path) -> dict[str, dict[str, tuple]]:
+    """只收主题块里显式写出的 --ring/--brand-start/--timeline-video/--primary(区分继承)。"""
+    src = css_path.read_text(encoding="utf-8")
+    wanted = ("--ring", "--brand-start", "--timeline-video", "--primary")
+    out: dict[str, dict[str, tuple]] = {}
+    for sel, body in BLOCK_RE.findall(src):
+        sel = " ".join(sel.split())
+        vals = {}
+        for m in VAR_RE.finditer(body):
+            full = f"--{m.group(1)}"
+            val = m.group(2).strip()
+            if full in wanted and re.fullmatch(r"[-0-9.% ]+", val) and len(val.split()) == 3:
+                vals[full] = _parse_hsl(val)
+        if not vals:
+            continue
+        for part in [p.strip() for p in sel.split(",")]:
+            theme = None
+            if part == ":root":
+                theme = "light"
+            elif PRESET_LIGHT_RE.match(part):
+                theme = f"light-{PRESET_LIGHT_RE.match(part).group(1)}"
+            elif part in (":root.dark", ".dark"):
+                theme = "dark"
+            elif PRESET_DARK_RE.match(part):
+                m = PRESET_DARK_RE.match(part)
+                theme = f"dark-{m.group(1) or m.group(2)}"
+            if theme:
+                out.setdefault(theme, {}).update(vals)
+    return out
+
+
+def _scan_nonext_sources() -> list[str]:
+    """前端源扫描: 残留 /25、规范化位点缺 /65、select 高亮旧串 → 问题清单。"""
+    problems = []
+    fe = REPO / "apps/frontend"
+    for p in fe.rglob("*"):
+        if not p.is_file() or p.suffix not in (".tsx", ".ts", ".css") or ".test." in p.name:
+            continue
+        if any(part.startswith(".") or part in ("node_modules", "dist") for part in p.relative_to(fe).parts):
+            continue
+        try:
+            text = p.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        if "border-destructive/25" in text:
+            problems.append(f"{p.relative_to(REPO)}: 残留 border-destructive/25")
+    for rel in CANONICAL_65_FILES:
+        f = REPO / rel
+        if not f.is_file():
+            problems.append(f"{rel}: 文件不存在")
+        elif "border-destructive/65" not in f.read_text(encoding="utf-8"):
+            problems.append(f"{rel}: 缺 border-destructive/65")
+    f, needle = SELECT_HIGHLIGHT_CLASSES
+    if needle not in (REPO / f).read_text(encoding="utf-8"):
+        problems.append(f"{f}: 缺 select 高亮新串")
+    return problems
+
+
+def verify_nontext(css_path: Path) -> int:
+    themes = parse_css(css_path)
+    explicit = parse_explicit_tokens(css_path)
+    lines = ["# ui_contrast_token_fix --verify-nontext", "",
+             f"css: `{css_path}`  阈值: G/H≥{T_NONTEXT}, J 逐字相等", ""]
+    ok_all = True
+
+    lines.append("| 主题 | G 描边/65(5 面最小) | H 高亮实底/popover | H 高亮文字(B) | J ring/brand==primary | 判定 |")
+    lines.append("|---|---|---|---|---|---|")
+    for th in ALL_THEMES:
+        toks = themes[th]
+        d = hsl_to_rgb(*toks["--destructive"])
+        df = hsl_to_rgb(*toks["--destructive-foreground"])
+        g = min(ratio(mix(d, BORDER_ALPHA, hsl_to_rgb(*toks[s])), hsl_to_rgb(*toks[s]))
+                for s in SURFACE_TOKENS)
+        h_ind = ratio(d, hsl_to_rgb(*toks["--popover"]))
+        h_txt = ratio(df, d)
+        j_bad = [tok for tok in ("--ring", "--brand-start")
+                 if tok in explicit.get(th, {}) and explicit[th][tok] != toks["--primary"]]
+        row_ok = g >= T_NONTEXT and h_ind >= T_NONTEXT and h_txt >= T_SOLVE and not j_bad
+        ok_all &= row_ok
+        lines.append(
+            f"| {th} | {g:.2f} | {h_ind:.2f} | {h_txt:.2f} | "
+            f"{'✅' if not j_bad else '❌ ' + ','.join(j_bad)} | {'✅' if row_ok else '❌'} |")
+
+    src_problems = _scan_nonext_sources()
+    lines.append("")
+    lines.append("## 源扫描")
+    lines.append("- 前端非测试文件残留 `border-destructive/25`:" +
+                 (" 0 ✅" if not any("残留" in p for p in src_problems) else " 有 ❌"))
+    for p in src_problems:
+        lines.append(f"- ❌ {p}")
+    ok_all &= not src_problems
+
+    print("\n".join(lines))
+    print("VERIFY-NONTEXT:", "PASS" if ok_all else "FAIL")
+    return 0 if ok_all else 1
 
 
 # ---------------------------------------------------------------- audit input
@@ -389,12 +510,17 @@ def apply_proposals(proposals, themes):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--verify", action="store_true", help="校验(改后的)css, 全部达标退出 0")
+    ap.add_argument("--verify-nontext", action="store_true",
+                    help="非文本对比度校验(描边/高亮指示/装饰令牌对齐), 达标退出 0")
     ap.add_argument("--css", type=Path, default=CSS_PATH)
     ap.add_argument("--out", type=Path, help="markdown 输出")
     ap.add_argument("--emit-css", type=Path, help="解算: 输出补丁后的 css 副本")
     ap.add_argument("--report", type=Path, default=REPORT_PATH)
     ap.add_argument("--threshold", type=float, default=T_VERIFY)
     args = ap.parse_args()
+
+    if args.verify_nontext:
+        sys.exit(verify_nontext(args.css))
 
     themes = parse_css(args.css)
     missing = [t for t in ALL_THEMES if t not in themes]

@@ -41,7 +41,7 @@ describe("StatusPill(状态胶囊四态)", () => {
 
   it("missing:destructive 着色;checking:spinner+弱化;unknown:纯弱化", () => {
     const { container: c1 } = render(<StatusPill state="missing" />);
-    expect(c1.querySelector("span")?.className).toContain("border-destructive/25");
+    expect(c1.querySelector("span")?.className).toContain("border-destructive/65");
     const { container: c2 } = render(<StatusPill state="checking" />);
     expect(c2.querySelector("svg")).toBeTruthy();
     const { container: c3 } = render(<StatusPill state="unknown" />);

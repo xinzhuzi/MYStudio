@@ -17,7 +17,7 @@ const TONE_CLASSES: Record<NonNullable<IconTileProps["tone"]>, string> = {
   primary: "border-primary/20 bg-primary/10 text-primary",
   success: "border-success/25 bg-success/10 text-success",
   warning: "border-warning/25 bg-warning/10 text-warning",
-  destructive: "border-destructive/25 bg-destructive/[0.08] text-destructive/90",
+  destructive: "border-destructive/65 bg-destructive/[0.08] text-destructive/90",
 };
 
 /**

@@ -138,7 +138,7 @@ export function McpSshConnectionsSection({
                                     className={`inline-flex w-fit items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] ${
                                       sshStatus?.connected
                                         ? "border-success/25 bg-success/10 text-success"
-                                        : "border-destructive/25 bg-destructive/[0.08] text-destructive/90"
+                                        : "border-destructive/65 bg-destructive/[0.08] text-destructive/90"
                                     }`}
                                     data-testid="ssh-row-live-state"
                                   >

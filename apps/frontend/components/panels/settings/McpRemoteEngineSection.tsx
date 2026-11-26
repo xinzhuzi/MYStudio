@@ -85,7 +85,7 @@ export function McpRemoteEngineSection({
                 >
                   {remoteActive ? (
                     <span
-                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${remoteTest.status === "ok" || remoteEngine ? "border-success/25 bg-success/10 text-success" : "border-destructive/25 bg-destructive/[0.08] text-destructive/90"}`}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${remoteTest.status === "ok" || remoteEngine ? "border-success/25 bg-success/10 text-success" : "border-destructive/65 bg-destructive/[0.08] text-destructive/90"}`}
                     >
                       {remoteTest.status === "ok" || remoteEngine ? "✅" : "❌"}{" "}
                       远端引擎
@@ -93,7 +93,7 @@ export function McpRemoteEngineSection({
                   ) : null}
                   {sshStatus?.configured ? (
                     <span
-                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${sshStatus.connected ? "border-success/25 bg-success/10 text-success" : "border-destructive/25 bg-destructive/[0.08] text-destructive/90"}`}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${sshStatus.connected ? "border-success/25 bg-success/10 text-success" : "border-destructive/65 bg-destructive/[0.08] text-destructive/90"}`}
                     >
                       {sshStatus.connected ? "✅" : "❌"} SSH 隧道
                     </span>

@@ -112,7 +112,7 @@
   /* Borders & Inputs */
   --border: 112 12% 64%;
   --input: 112 14% 76%;
-  --ring: 212 100% 48%;
+  --ring: 212 100% 46.2%;
   
   /* Functional colors */
   --success: 142 76% 15.7%;         /* 绿色 - 成功 */
@@ -123,11 +123,11 @@
   --info-foreground: 0 0% 100%;
   
   /* Brand gradient */
-  --brand-start: 212 100% 48%;    /* 蓝色 */
+  --brand-start: 212 100% 46.2%;  /* 蓝色(随 --primary) */
   --brand-end: 262 83% 58%;       /* 紫色 */
   
   /* Timeline track colors */
-  --timeline-video: 212 100% 48%; /* 视频轨道 - 蓝色 */
+  --timeline-video: 212 100% 46.2%; /* 视频轨道 - 蓝色(随 --primary) */
   --timeline-audio: 142 76% 36%;  /* 音频轨道 - 绿色 */
   --timeline-text: 38 92% 50%;    /* 文字轨道 - 橙色 */
   --timeline-effect: 262 83% 58%; /* 特效轨道 - 紫色 */
@@ -276,9 +276,9 @@
   --accent-foreground: 190 46% 28%;
   --border: 36 10% 67%;
   --input: 36 13% 80%;
-  --ring: 199 80% 42%;
+  --ring: 199 80% 37.2%;
   --primary: 199 80% 37.2%;
-  --brand-start: 199 80% 42%;
+  --brand-start: 199 80% 37.2%;
   --brand-end: 34 56% 46%;
 }
 
@@ -442,7 +442,7 @@
   --border: 218 15% 14%;
   --input: 218 16% 14%;
   --primary: 212 85% 50.1%;
-  --brand-start: 212 85% 48%;
+  --brand-start: 212 85% 50.1%;
   --brand-end: 262 75% 62%;
 }
 
@@ -638,7 +638,7 @@
    机制(2026-08-25 统一裁定):
    1) border-border/divide-border 等走 token:--color-border 在 .dark 被覆写为微光色;
    2) 裸 border(未指定颜色的宽度类)由下面 @layer base 规则兜底——base 层整体低于
-      utilities 层,因此任何显式彩边 utility(border-paid/30、border-destructive/25、
+      utilities 层,因此任何显式彩边 utility(border-paid/30、border-destructive/65、
       border-primary/30 等)都会正确赢出,不再被旧版 .dark .border !important 吞掉。 */
 .dark {
   --color-border: hsla(0 0% 100% / 0.06);
