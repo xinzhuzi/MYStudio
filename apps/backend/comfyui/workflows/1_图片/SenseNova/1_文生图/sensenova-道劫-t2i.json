@@ -1,0 +1,1605 @@
+{
+ "last_node_id": 25,
+ "last_link_id": 34,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "MyQi21DaojieBase",
+   "pos": [
+    40,
+    100
+   ],
+   "size": [
+    420,
+    220
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "BASE",
+     "type": "STRING",
+     "slot_index": 0,
+     "links": [
+      11
+     ]
+    },
+    {
+     "name": "WIDTH",
+     "type": "INT",
+     "slot_index": 1,
+     "links": [
+      21
+     ]
+    },
+    {
+     "name": "HEIGHT",
+     "type": "INT",
+     "slot_index": 2,
+     "links": [
+      22
+     ]
+    },
+    {
+     "name": "负面词",
+     "type": "STRING",
+     "slot_index": 3,
+     "links": [
+      12
+     ]
+    },
+    {
+     "name": "透明值",
+     "type": "BOOLEAN",
+     "slot_index": 4,
+     "links": []
+    },
+    {
+     "name": "型名",
+     "type": "STRING",
+     "slot_index": 5,
+     "links": []
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "MyQi21DaojieBase"
+   },
+   "widgets_values": [
+    "人物海报",
+    false
+   ],
+   "widgets_values_named": {
+    "base": "人物海报",
+    "透明覆盖": false
+   }
+  },
+  {
+   "id": 2,
+   "type": "PrimitiveStringMultiline",
+   "pos": [
+    40,
+    370
+   ],
+   "size": [
+    440,
+    330
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "STRING",
+     "type": "STRING",
+     "links": [
+      13
+     ]
+    }
+   ],
+   "title": "主体句",
+   "properties": {
+    "Node name for S&R": "PrimitiveStringMultiline"
+   },
+   "widgets_values": [
+    "一位筑基后期的年轻女修，青玉色道袍束月白腰带，足蹬青布道履，乌黑长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门赭石石阶最上一级，身体正面朝向观者、微向左转，重心落于右腿，左脚虚点下一级石阶；左手自然垂于身侧，五指放松；右臂微屈，右手持剑鞘近柄端于身前，五指完全环扣剑鞘，剑身完整收在鞘中，鞘尖朝下、剑柄朝上，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂朱红剑穗，全身仅此一柄长剑；视线越过阶下青灰云海望向远处青绿群山，旧金色晨光自左侧斜照，衣袂被山风微微掀起。"
+   ],
+   "widgets_values_named": {
+    "value": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，足蹬青布道履，乌黑长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门赭石石阶最上一级，身体正面朝向观者、微向左转，重心落于右腿，左脚虚点下一级石阶；左手自然垂于身侧，五指放松；右臂微屈，右手持剑鞘近柄端于身前，五指完全环扣剑鞘，剑身完整收在鞘中，鞘尖朝下、剑柄朝上，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂朱红剑穗，全身仅此一柄长剑；视线越过阶下青灰云海望向远处青绿群山，旧金色晨光自左侧斜照，衣袂被山风微微掀起。"
+   },
+   "color": "#322",
+   "bgcolor": "#533"
+  },
+  {
+   "id": 3,
+   "type": "PrimitiveStringMultiline",
+   "pos": [
+    40,
+    750
+   ],
+   "size": [
+    440,
+    280
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "STRING",
+     "type": "STRING",
+     "links": [
+      14
+     ]
+    }
+   ],
+   "title": "美术风格底座",
+   "properties": {
+    "Node name for S&R": "PrimitiveStringMultiline"
+   },
+   "widgets_values": [
+    "美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。"
+   ],
+   "widgets_values_named": {
+    "value": "美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。"
+   },
+   "color": "#322",
+   "bgcolor": "#533"
+  },
+  {
+   "id": 4,
+   "type": "MyQi21PromptAssembly",
+   "pos": [
+    540,
+    100
+   ],
+   "size": [
+    460,
+    330
+   ],
+   "flags": {},
+   "order": 11,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "BASE",
+     "shape": 7,
+     "type": "STRING",
+     "widget": {
+      "name": "BASE"
+     },
+     "link": 11
+    },
+    {
+     "name": "BASE负面",
+     "shape": 7,
+     "type": "STRING",
+     "link": 12
+    },
+    {
+     "name": "主体句",
+     "shape": 7,
+     "type": "STRING",
+     "widget": {
+      "name": "主体句"
+     },
+     "link": 13
+    },
+    {
+     "name": "锁层A全文",
+     "shape": 7,
+     "type": "STRING",
+     "widget": {
+      "name": "锁层A全文"
+     },
+     "link": 14
+    }
+   ],
+   "outputs": [
+    {
+     "name": "装配全文",
+     "type": "STRING",
+     "links": [
+      15,
+      17
+     ]
+    },
+    {
+     "name": "负面词",
+     "type": "STRING",
+     "links": [
+      16,
+      19
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "MyQi21PromptAssembly"
+   },
+   "widgets_values": [
+    "",
+    "",
+    "一位筑基后期的年轻女修，青玉色道袍束月白腰带，足蹬青布道履，乌黑长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门赭石石阶最上一级，身体正面朝向观者、微向左转，重心落于右腿，左脚虚点下一级石阶；左手自然垂于身侧，五指放松；右臂微屈，右手持剑鞘近柄端于身前，五指完全环扣剑鞘，剑身完整收在鞘中，鞘尖朝下、剑柄朝上，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂朱红剑穗，全身仅此一柄长剑；视线越过阶下青灰云海望向远处青绿群山，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
+    "",
+    "美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
+    "道劫美术类型"
+   ],
+   "widgets_values_named": {
+    "BASE": "",
+    "BASE负面": "",
+    "主体句": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，足蹬青布道履，乌黑长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门赭石石阶最上一级，身体正面朝向观者、微向左转，重心落于右腿，左脚虚点下一级石阶；左手自然垂于身侧，五指放松；右臂微屈，右手持剑鞘近柄端于身前，五指完全环扣剑鞘，剑身完整收在鞘中，鞘尖朝下、剑柄朝上，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂朱红剑穗，全身仅此一柄长剑；视线越过阶下青灰云海望向远处青绿群山，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
+    "主体句负面": "",
+    "锁层A全文": "美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
+    "组装用途": "道劫美术类型"
+   }
+  },
+  {
+   "id": 5,
+   "type": "MyQi21PromptPreview",
+   "pos": [
+    540,
+    480
+   ],
+   "size": [
+    460,
+    300
+   ],
+   "flags": {},
+   "order": 17,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "正向提示词",
+     "type": "STRING",
+     "link": 15
+    },
+    {
+     "name": "负向提示词",
+     "type": "STRING",
+     "link": 16
+    }
+   ],
+   "outputs": [
+    {
+     "name": "合并预览",
+     "type": "STRING",
+     "links": []
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "MyQi21PromptPreview"
+   },
+   "widgets_values": [
+    "",
+    ""
+   ],
+   "widgets_values_named": {
+    "正向终稿": "",
+    "负向终稿": ""
+   }
+  },
+  {
+   "id": 6,
+   "type": "CLIPTextEncode",
+   "pos": [
+    1120,
+    100
+   ],
+   "size": [
+    460,
+    230
+   ],
+   "flags": {},
+   "order": 18,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 18
+    },
+    {
+     "name": "text",
+     "type": "STRING",
+     "widget": {
+      "name": "text"
+     },
+     "link": 17
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "slot_index": 0,
+     "links": [
+      26
+     ]
+    }
+   ],
+   "title": "CLIP Text Encode (正向)",
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    ""
+   ],
+   "widgets_values_named": {
+    "text": ""
+   },
+   "color": "#232",
+   "bgcolor": "#353"
+  },
+  {
+   "id": 7,
+   "type": "CLIPTextEncode",
+   "pos": [
+    1120,
+    380
+   ],
+   "size": [
+    460,
+    220
+   ],
+   "flags": {},
+   "order": 19,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 20
+    },
+    {
+     "name": "text",
+     "type": "STRING",
+     "widget": {
+      "name": "text"
+     },
+     "link": 19
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "slot_index": 0,
+     "links": [
+      27
+     ]
+    }
+   ],
+   "title": "CLIP Text Encode (负向)",
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    ""
+   ],
+   "widgets_values_named": {
+    "text": ""
+   },
+   "color": "#223",
+   "bgcolor": "#335"
+  },
+  {
+   "id": 8,
+   "type": "CheckpointLoaderSimple",
+   "pos": [
+    1720,
+    230
+   ],
+   "size": [
+    440,
+    120
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "slot_index": 0,
+     "links": [
+      1,
+      3
+     ]
+    },
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "slot_index": 1,
+     "links": [
+      18,
+      20
+     ]
+    },
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "slot_index": 2,
+     "links": [
+      33
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CheckpointLoaderSimple",
+    "models": [
+     {
+      "name": "sensenova_u1.6_8b_mot_int8_convrot.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/SenseNova-U1/resolve/main/checkpoints/sensenova_u1.6_8b_mot_int8_convrot.safetensors",
+      "directory": "checkpoints"
+     }
+    ]
+   },
+   "widgets_values": [
+    "sensenova_u1.6_8b_mot_int8_convrot.safetensors"
+   ],
+   "widgets_values_named": {
+    "ckpt_name": "sensenova_u1.6_8b_mot_int8_convrot.safetensors"
+   },
+   "color": "#223",
+   "bgcolor": "#335"
+  },
+  {
+   "id": 9,
+   "type": "LoraLoaderModelOnly",
+   "pos": [
+    1720,
+    400
+   ],
+   "size": [
+    440,
+    120
+   ],
+   "flags": {},
+   "order": 12,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 1
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "slot_index": 0,
+     "links": [
+      2
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoraLoaderModelOnly",
+    "models": [
+     {
+      "name": "sensenova_u1.6_8b_mot_8step_lora_bf16.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/SenseNova-U1/resolve/main/loras/sensenova_u1.6_8b_mot_8step_lora_bf16.safetensors",
+      "directory": "loras"
+     }
+    ]
+   },
+   "widgets_values": [
+    "sensenova_u1.6_8b_mot_8step_lora_bf16.safetensors",
+    1
+   ],
+   "widgets_values_named": {
+    "lora_name": "sensenova_u1.6_8b_mot_8step_lora_bf16.safetensors",
+    "strength_model": 1
+   },
+   "color": "#223",
+   "bgcolor": "#335"
+  },
+  {
+   "id": 10,
+   "type": "PrimitiveBoolean",
+   "pos": [
+    1720,
+    100
+   ],
+   "size": [
+    300,
+    80
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "BOOLEAN",
+     "type": "BOOLEAN",
+     "links": [
+      4,
+      7,
+      10
+     ]
+    }
+   ],
+   "title": "Turbo Mode?",
+   "properties": {
+    "Node name for S&R": "PrimitiveBoolean"
+   },
+   "widgets_values": [
+    true
+   ],
+   "widgets_values_named": {
+    "value": true
+   }
+  },
+  {
+   "id": 11,
+   "type": "PrimitiveInt",
+   "pos": [
+    1720,
+    730
+   ],
+   "size": [
+    440,
+    110
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "INT",
+     "type": "INT",
+     "links": [
+      5
+     ]
+    }
+   ],
+   "title": "Int (Steps)",
+   "properties": {
+    "Node name for S&R": "PrimitiveInt"
+   },
+   "widgets_values": [
+    8,
+    "fixed"
+   ],
+   "widgets_values_named": {
+    "value": 8,
+    "control_after_generate": "fixed"
+   }
+  },
+  {
+   "id": 12,
+   "type": "PrimitiveInt",
+   "pos": [
+    1720,
+    570
+   ],
+   "size": [
+    440,
+    110
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "INT",
+     "type": "INT",
+     "links": [
+      6
+     ]
+    }
+   ],
+   "title": "Int (Setps)",
+   "properties": {
+    "Node name for S&R": "PrimitiveInt"
+   },
+   "widgets_values": [
+    50,
+    "fixed"
+   ],
+   "widgets_values_named": {
+    "value": 50,
+    "control_after_generate": "fixed"
+   }
+  },
+  {
+   "id": 13,
+   "type": "PrimitiveFloat",
+   "pos": [
+    1720,
+    1020
+   ],
+   "size": [
+    440,
+    80
+   ],
+   "flags": {},
+   "order": 7,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "FLOAT",
+     "type": "FLOAT",
+     "links": [
+      8
+     ]
+    }
+   ],
+   "title": "Float (CFG)",
+   "properties": {
+    "Node name for S&R": "PrimitiveFloat"
+   },
+   "widgets_values": [
+    1
+   ],
+   "widgets_values_named": {
+    "value": 1
+   }
+  },
+  {
+   "id": 14,
+   "type": "PrimitiveFloat",
+   "pos": [
+    1720,
+    890
+   ],
+   "size": [
+    440,
+    80
+   ],
+   "flags": {},
+   "order": 8,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "FLOAT",
+     "type": "FLOAT",
+     "links": [
+      9
+     ]
+    }
+   ],
+   "title": "Float (CFG)",
+   "properties": {
+    "Node name for S&R": "PrimitiveFloat"
+   },
+   "widgets_values": [
+    4
+   ],
+   "widgets_values_named": {
+    "value": 4
+   }
+  },
+  {
+   "id": 15,
+   "type": "ComfySwitchNode",
+   "pos": [
+    2220,
+    230
+   ],
+   "size": [
+    340,
+    160
+   ],
+   "flags": {},
+   "order": 20,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "on_false",
+     "shape": 7,
+     "type": "MODEL",
+     "link": 3
+    },
+    {
+     "name": "on_true",
+     "shape": 7,
+     "type": "MODEL",
+     "link": 2
+    },
+    {
+     "name": "switch",
+     "type": "BOOLEAN",
+     "widget": {
+      "name": "switch"
+     },
+     "link": 4
+    }
+   ],
+   "outputs": [
+    {
+     "name": "output",
+     "type": "MODEL",
+     "links": [
+      25
+     ]
+    }
+   ],
+   "title": "If/Else Switch (Model)",
+   "properties": {
+    "Node name for S&R": "ComfySwitchNode"
+   },
+   "widgets_values": [
+    false
+   ],
+   "widgets_values_named": {
+    "switch": false
+   },
+   "color": "#223",
+   "bgcolor": "#335"
+  },
+  {
+   "id": 16,
+   "type": "ComfySwitchNode",
+   "pos": [
+    2220,
+    570
+   ],
+   "size": [
+    340,
+    160
+   ],
+   "flags": {},
+   "order": 13,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "on_false",
+     "shape": 7,
+     "type": "INT",
+     "link": 6
+    },
+    {
+     "name": "on_true",
+     "shape": 7,
+     "type": "INT",
+     "link": 5
+    },
+    {
+     "name": "switch",
+     "type": "BOOLEAN",
+     "widget": {
+      "name": "switch"
+     },
+     "link": 7
+    }
+   ],
+   "outputs": [
+    {
+     "name": "output",
+     "type": "INT",
+     "links": [
+      30
+     ]
+    }
+   ],
+   "title": "If/Else Switch (steps)",
+   "properties": {
+    "Node name for S&R": "ComfySwitchNode"
+   },
+   "widgets_values": [
+    false
+   ],
+   "widgets_values_named": {
+    "switch": false
+   }
+  },
+  {
+   "id": 17,
+   "type": "ComfySwitchNode",
+   "pos": [
+    2220,
+    890
+   ],
+   "size": [
+    340,
+    160
+   ],
+   "flags": {},
+   "order": 14,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "on_false",
+     "shape": 7,
+     "type": "FLOAT",
+     "link": 9
+    },
+    {
+     "name": "on_true",
+     "shape": 7,
+     "type": "FLOAT",
+     "link": 8
+    },
+    {
+     "name": "switch",
+     "type": "BOOLEAN",
+     "widget": {
+      "name": "switch"
+     },
+     "link": 10
+    }
+   ],
+   "outputs": [
+    {
+     "name": "output",
+     "type": "FLOAT",
+     "links": [
+      31
+     ]
+    }
+   ],
+   "title": "If/Else Switch (cfg)",
+   "properties": {
+    "Node name for S&R": "ComfySwitchNode"
+   },
+   "widgets_values": [
+    false
+   ],
+   "widgets_values_named": {
+    "switch": false
+   }
+  },
+  {
+   "id": 18,
+   "type": "ComfyMathExpression",
+   "pos": [
+    2960,
+    100
+   ],
+   "size": [
+    360,
+    190
+   ],
+   "flags": {},
+   "order": 15,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "values.a",
+     "type": "FLOAT,INT,BOOLEAN",
+     "link": 21
+    },
+    {
+     "name": "values.b",
+     "shape": 7,
+     "type": "FLOAT,INT,BOOLEAN",
+     "link": null
+    },
+    {
+     "name": "values.c",
+     "shape": 7,
+     "type": "FLOAT,INT,BOOLEAN",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "FLOAT",
+     "type": "FLOAT",
+     "slot_index": 0,
+     "links": []
+    },
+    {
+     "name": "INT",
+     "type": "INT",
+     "slot_index": 1,
+     "links": [
+      23
+     ]
+    },
+    {
+     "name": "BOOL",
+     "type": "BOOLEAN",
+     "slot_index": 2,
+     "links": []
+    }
+   ],
+   "title": "宽 32 对齐",
+   "properties": {
+    "Node name for S&R": "ComfyMathExpression"
+   },
+   "widgets_values": [
+    "floor(a / 32) * 32"
+   ],
+   "widgets_values_named": {
+    "expression": "floor(a / 32) * 32"
+   }
+  },
+  {
+   "id": 19,
+   "type": "ComfyMathExpression",
+   "pos": [
+    2960,
+    340
+   ],
+   "size": [
+    360,
+    190
+   ],
+   "flags": {},
+   "order": 16,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "values.a",
+     "type": "FLOAT,INT,BOOLEAN",
+     "link": 22
+    },
+    {
+     "name": "values.b",
+     "shape": 7,
+     "type": "FLOAT,INT,BOOLEAN",
+     "link": null
+    },
+    {
+     "name": "values.c",
+     "shape": 7,
+     "type": "FLOAT,INT,BOOLEAN",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "FLOAT",
+     "type": "FLOAT",
+     "slot_index": 0,
+     "links": []
+    },
+    {
+     "name": "INT",
+     "type": "INT",
+     "slot_index": 1,
+     "links": [
+      24
+     ]
+    },
+    {
+     "name": "BOOL",
+     "type": "BOOLEAN",
+     "slot_index": 2,
+     "links": []
+    }
+   ],
+   "title": "高 32 对齐",
+   "properties": {
+    "Node name for S&R": "ComfyMathExpression"
+   },
+   "widgets_values": [
+    "floor(a / 32) * 32"
+   ],
+   "widgets_values_named": {
+    "expression": "floor(a / 32) * 32"
+   }
+  },
+  {
+   "id": 20,
+   "type": "EmptyHiDreamO1LatentImage",
+   "pos": [
+    2960,
+    580
+   ],
+   "size": [
+    360,
+    160
+   ],
+   "flags": {},
+   "order": 21,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "width",
+     "type": "INT",
+     "widget": {
+      "name": "width"
+     },
+     "link": 23
+    },
+    {
+     "name": "height",
+     "type": "INT",
+     "widget": {
+      "name": "height"
+     },
+     "link": 24
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "slot_index": 0,
+     "links": [
+      28
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "EmptyHiDreamO1LatentImage"
+   },
+   "widgets_values": [
+    2048,
+    1152,
+    1
+   ],
+   "widgets_values_named": {
+    "width": 2048,
+    "height": 1152,
+    "batch_size": 1
+   },
+   "color": "#323",
+   "bgcolor": "#535"
+  },
+  {
+   "id": 21,
+   "type": "PrimitiveInt",
+   "pos": [
+    2960,
+    790
+   ],
+   "size": [
+    360,
+    110
+   ],
+   "flags": {},
+   "order": 9,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "INT",
+     "type": "INT",
+     "slot_index": 0,
+     "links": [
+      29
+     ]
+    }
+   ],
+   "title": "Int (Seed)",
+   "properties": {
+    "Node name for S&R": "PrimitiveInt"
+   },
+   "widgets_values": [
+    42,
+    "fixed"
+   ],
+   "widgets_values_named": {
+    "value": 42,
+    "control_after_generate": "fixed"
+   }
+  },
+  {
+   "id": 22,
+   "type": "KSampler",
+   "pos": [
+    3400,
+    100
+   ],
+   "size": [
+    340,
+    330
+   ],
+   "flags": {},
+   "order": 22,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 25
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 26
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 27
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 28
+    },
+    {
+     "name": "seed",
+     "type": "INT",
+     "widget": {
+      "name": "seed"
+     },
+     "link": 29
+    },
+    {
+     "name": "steps",
+     "type": "INT",
+     "widget": {
+      "name": "steps"
+     },
+     "link": 30
+    },
+    {
+     "name": "cfg",
+     "type": "FLOAT",
+     "widget": {
+      "name": "cfg"
+     },
+     "link": 31
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "slot_index": 0,
+     "links": [
+      32
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    42,
+    "fixed",
+    8,
+    1,
+    "euler",
+    "simple",
+    1
+   ],
+   "widgets_values_named": {
+    "seed": 42,
+    "control_after_generate": "fixed",
+    "steps": 8,
+    "cfg": 1,
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "denoise": 1
+   }
+  },
+  {
+   "id": 23,
+   "type": "VAEDecode",
+   "pos": [
+    3800,
+    100
+   ],
+   "size": [
+    260,
+    100
+   ],
+   "flags": {},
+   "order": 23,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 32
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 33
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      34
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   }
+  },
+  {
+   "id": 24,
+   "type": "SaveImage",
+   "pos": [
+    3800,
+    240
+   ],
+   "size": [
+    560,
+    700
+   ],
+   "flags": {},
+   "order": 24,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 34
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": null
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "widgets_values": [
+    "sensenova_daojie/"
+   ],
+   "widgets_values_named": {
+    "filename_prefix": "sensenova_daojie/"
+   }
+  },
+  {
+   "id": 25,
+   "type": "MarkdownNote",
+   "pos": [
+    540,
+    830
+   ],
+   "size": [
+    460,
+    470
+   ],
+   "flags": {},
+   "order": 10,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [],
+   "properties": {},
+   "widgets_values": [
+    "## SenseNova 道劫 t2i(道劫三层装配 × SenseNova-U1.6 官方采样链,1126 役)\n\n- **装配段=qi21 三件逐字复用**(零新节点、零新数据文件):`MyQi21DaojieBase`(选型→BASE/WIDTH/HEIGHT/负面词)→ `MyQi21PromptAssembly`(美术风格底座 → 类型句 → 主体句)→ 编码器 `.text`;`MyQi21PromptPreview` 出正/负终稿,可逐字对账\n- **型库=`qi21_bases.json` 现读**:美术风格底座节点默认值=`art_style_base.positive_text`;主体句默认值=`道劫_类型主体句示例.md` §1 代码块逐字\n- **双臂**:`Turbo Mode?`=true(默认)→ 8step LoRA@1.0 + 8 步 + CFG1;false → 无 LoRA + 50 步 + CFG4;模型/步数/CFG 三个 Switch 同吃这一个开关;euler / simple / denoise 1 照官方\n- **画幅**:底座 WIDTH/HEIGHT 各经 `floor(a / 32) * 32` 对齐后进 `EmptyHiDreamO1LatentImage`(step=32);已对齐的型数值不变\n- **模型**:`sensenova_u1.6_8b_mot_int8_convrot.safetensors`(ckpt 自带 CLIP 与 VAE)+ `sensenova_u1.6_8b_mot_8step_lora_bf16.safetensors`\n- **首版未接**:PE 链(会把装配文整段改写成英文,与逐字装配冲突)、自修正环;透明型不出透明(SenseNova 输出 RGB 无 alpha,型文不动)\n- 主体句纪律与发车前预检同 qi21 线(`daojie_subject_overlap.py`)\n"
+   ],
+   "widgets_values_named": {
+    "text": "## SenseNova 道劫 t2i(道劫三层装配 × SenseNova-U1.6 官方采样链,1126 役)\n\n- **装配段=qi21 三件逐字复用**(零新节点、零新数据文件):`MyQi21DaojieBase`(选型→BASE/WIDTH/HEIGHT/负面词)→ `MyQi21PromptAssembly`(美术风格底座 → 类型句 → 主体句)→ 编码器 `.text`;`MyQi21PromptPreview` 出正/负终稿,可逐字对账\n- **型库=`qi21_bases.json` 现读**:美术风格底座节点默认值=`art_style_base.positive_text`;主体句默认值=`道劫_类型主体句示例.md` §1 代码块逐字\n- **双臂**:`Turbo Mode?`=true(默认)→ 8step LoRA@1.0 + 8 步 + CFG1;false → 无 LoRA + 50 步 + CFG4;模型/步数/CFG 三个 Switch 同吃这一个开关;euler / simple / denoise 1 照官方\n- **画幅**:底座 WIDTH/HEIGHT 各经 `floor(a / 32) * 32` 对齐后进 `EmptyHiDreamO1LatentImage`(step=32);已对齐的型数值不变\n- **模型**:`sensenova_u1.6_8b_mot_int8_convrot.safetensors`(ckpt 自带 CLIP 与 VAE)+ `sensenova_u1.6_8b_mot_8step_lora_bf16.safetensors`\n- **首版未接**:PE 链(会把装配文整段改写成英文,与逐字装配冲突)、自修正环;透明型不出透明(SenseNova 输出 RGB 无 alpha,型文不动)\n- 主体句纪律与发车前预检同 qi21 线(`daojie_subject_overlap.py`)\n"
+   },
+   "color": "#222",
+   "bgcolor": "#000"
+  }
+ ],
+ "links": [
+  [
+   1,
+   8,
+   0,
+   9,
+   0,
+   "MODEL"
+  ],
+  [
+   2,
+   9,
+   0,
+   15,
+   1,
+   "MODEL"
+  ],
+  [
+   3,
+   8,
+   0,
+   15,
+   0,
+   "MODEL"
+  ],
+  [
+   4,
+   10,
+   0,
+   15,
+   2,
+   "BOOLEAN"
+  ],
+  [
+   5,
+   11,
+   0,
+   16,
+   1,
+   "INT"
+  ],
+  [
+   6,
+   12,
+   0,
+   16,
+   0,
+   "INT"
+  ],
+  [
+   7,
+   10,
+   0,
+   16,
+   2,
+   "BOOLEAN"
+  ],
+  [
+   8,
+   13,
+   0,
+   17,
+   1,
+   "FLOAT"
+  ],
+  [
+   9,
+   14,
+   0,
+   17,
+   0,
+   "FLOAT"
+  ],
+  [
+   10,
+   10,
+   0,
+   17,
+   2,
+   "BOOLEAN"
+  ],
+  [
+   11,
+   1,
+   0,
+   4,
+   0,
+   "STRING"
+  ],
+  [
+   12,
+   1,
+   3,
+   4,
+   1,
+   "STRING"
+  ],
+  [
+   13,
+   2,
+   0,
+   4,
+   2,
+   "STRING"
+  ],
+  [
+   14,
+   3,
+   0,
+   4,
+   3,
+   "STRING"
+  ],
+  [
+   15,
+   4,
+   0,
+   5,
+   0,
+   "STRING"
+  ],
+  [
+   16,
+   4,
+   1,
+   5,
+   1,
+   "STRING"
+  ],
+  [
+   17,
+   4,
+   0,
+   6,
+   1,
+   "STRING"
+  ],
+  [
+   18,
+   8,
+   1,
+   6,
+   0,
+   "CLIP"
+  ],
+  [
+   19,
+   4,
+   1,
+   7,
+   1,
+   "STRING"
+  ],
+  [
+   20,
+   8,
+   1,
+   7,
+   0,
+   "CLIP"
+  ],
+  [
+   21,
+   1,
+   1,
+   18,
+   0,
+   "INT"
+  ],
+  [
+   22,
+   1,
+   2,
+   19,
+   0,
+   "INT"
+  ],
+  [
+   23,
+   18,
+   1,
+   20,
+   0,
+   "INT"
+  ],
+  [
+   24,
+   19,
+   1,
+   20,
+   1,
+   "INT"
+  ],
+  [
+   25,
+   15,
+   0,
+   22,
+   0,
+   "MODEL"
+  ],
+  [
+   26,
+   6,
+   0,
+   22,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   27,
+   7,
+   0,
+   22,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   28,
+   20,
+   0,
+   22,
+   3,
+   "LATENT"
+  ],
+  [
+   29,
+   21,
+   0,
+   22,
+   4,
+   "INT"
+  ],
+  [
+   30,
+   16,
+   0,
+   22,
+   5,
+   "INT"
+  ],
+  [
+   31,
+   17,
+   0,
+   22,
+   6,
+   "FLOAT"
+  ],
+  [
+   32,
+   22,
+   0,
+   23,
+   0,
+   "LATENT"
+  ],
+  [
+   33,
+   8,
+   2,
+   23,
+   1,
+   "VAE"
+  ],
+  [
+   34,
+   23,
+   0,
+   24,
+   0,
+   "IMAGE"
+  ]
+ ],
+ "groups": [
+  {
+   "id": 1,
+   "title": "① 型库·三层装配(qi21_bases.json 复用)",
+   "bounding": [
+    0,
+    0,
+    1020,
+    1330
+   ],
+   "color": "#3f789e",
+   "flags": {}
+  },
+  {
+   "id": 2,
+   "title": "② 编码",
+   "bounding": [
+    1080,
+    0,
+    540,
+    640
+   ],
+   "color": "#88A",
+   "flags": {}
+  },
+  {
+   "id": 3,
+   "title": "③ 模型·双臂(Turbo 8 步 | 原生 50 步)",
+   "bounding": [
+    1680,
+    0,
+    1160,
+    1160
+   ],
+   "color": "#a33",
+   "flags": {}
+  },
+  {
+   "id": 4,
+   "title": "④ 画幅·采样·输出",
+   "bounding": [
+    2920,
+    0,
+    1500,
+    1160
+   ],
+   "color": "#4a7",
+   "flags": {}
+  }
+ ],
+ "config": {},
+ "extra": {},
+ "version": 0.4,
+ "revision": 0
+}
