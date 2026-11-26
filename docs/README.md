@@ -120,8 +120,6 @@
 | [第三方声明](./engineering/THIRD_PARTY_NOTICES.md) | 第三方组件和许可证声明 |
 | [存储与数据迁移](./engineering/STORAGE_AND_DATA.md) | 项目存储位置、导入导出、指向已有数据目录和 legacy 迁移 |
 | [文档覆盖审计](./engineering/DOCS_COVERAGE_AUDIT.md) | 当前界面、源码入口和用户文档的覆盖关系与维护方向 |
-| [架构耦合体检报告 08-31](./engineering/architecture-coupling-audit.md) | sclass→director 共享分镜域抽取后的全仓耦合体检与瘦身记录 |
-| [B5 TrackKey 运行时解析总结](./engineering/B5-trackKey-runtime-resolution-summary.md) | trackKey 从硬编码改为 ProductionTrack→VideoCandidate 运行时解析的实现记录 |
 | [文档维护清单](./engineering/DOCS_MAINTENANCE.md) | 修改 UI、TTS、打包、存储或工作流后需要同步的文档和验证命令 |
 
 ## ComfyUI 产线知识库（comfyui-kb/）
@@ -153,7 +151,8 @@
 | [K2工笔负面清单](./comfyui-kb/K2工笔负面清单.md) | 工笔对拍战役缺陷真源(09-16~17 同 seed 消融实证:布纹底/构图居中等根因与对应杠杆),后续提示词/负向/工作流修缮以此为准 |
 | [Q2-1致噪词黑名单-0925](./comfyui-kb/Q2-1致噪词黑名单-0925.md) | Qwen-Image-2.1 全线致噪词禁用清单(整幅纹理语主犯等,0925 十五臂消融+flatMAD 计量实证);起草或审校任何 Q2-1 提示词前先过本清单 |
 | [K2服饰LoRA调研_0919](./comfyui-kb/K2服饰LoRA调研_0919.md) | 中国风服饰能力路线矩阵(按路线组合非物件罗列)与本地盘点结论:K2 原生可用服饰资产 3 件+成熟换装工作流配方 1 套(09-19) |
-| [作图错题集](./comfyui-kb/作图错题集.md) | 图片生成全链路的错题本(1126 立):规格真源、参考图、提示词、配方、修件、验收看图、落库、汇报八类,每条带战例、错因、正解与出处;出图、改图、验收前对照自查;与[毁风格词错题集](./prompts/Qwen-Image-2.1/12-毁风格词错题集.md)互补(那本只收词) |
+| [作图错题集](./错题集/作图错题集.md) | 图片生成全链路的错题本(1126 立):规格真源、参考图、提示词、配方、修件、验收看图、落库、汇报八类,每条带战例、错因、正解与出处;出图、改图、验收前对照自查;与[毁风格词错题集](./错题集/12-毁风格词错题集.md)互补(那本只收词) |
+| [Agent运维错题集](./错题集/Agent运维错题集.md) | 作图之外的运维错题本(1126 立,1127 增认知取证系):并行后台(P10)、画布手术(W10)、部署装机(DEP8)、跨机远程(WIN7)、会话工具链(TOOL5)、认知与真源取证(SRC3:读README先于乱找/语义审读/真源改锚);找数据、认内容、跑长链前对照自查;总阁见[错题集README](./错题集/README.md) |
 
 > 用户操作见 [ComfyUI 引擎指南](./settings/COMFYUI_ENGINE_GUIDE.md)与[大模型页](./panels/LOCAL_MODELS_GUIDE.md)；开发运维再查定制代码地图。
 
