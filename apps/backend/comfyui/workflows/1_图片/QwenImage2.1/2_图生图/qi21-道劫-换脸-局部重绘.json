@@ -1,1614 +1,1639 @@
 {
-  "id": "qi21-daojie-face-inpaint-1023",
-  "revision": 3,
-  "last_node_id": 88,
-  "last_link_id": 30,
-  "nodes": [
+ "id": "qi21-daojie-face-inpaint-1023",
+ "revision": 3,
+ "last_node_id": 88,
+ "last_link_id": 30,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "UNETLoader",
+   "pos": [
+    80,
+    900
+   ],
+   "size": [
+    320,
+    148
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
     {
-      "id": 1,
-      "type": "UNETLoader",
-      "pos": [
-        80,
-        80
-      ],
-      "size": [
-        320,
-        148
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            16
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "UNETLoader"
-      },
-      "widgets_values": [
-        "qwen_image_2.1_bf16.safetensors",
-        "default"
-      ],
-      "title": "[1] UNET加载"
-    },
-    {
-      "id": 2,
-      "type": "CLIPLoader",
-      "pos": [
-        2600,
-        80
-      ],
-      "size": [
-        320,
-        178
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "CLIP",
-          "type": "CLIP",
-          "links": [
-            6
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "CLIPLoader"
-      },
-      "widgets_values": [
-        "qwen3vl_8b_bf16_heretic.safetensors",
-        "qwen_image",
-        "default"
-      ],
-      "title": "[2] 主TE·CLIPLoader"
-    },
-    {
-      "id": 3,
-      "type": "VAELoaderKJ",
-      "pos": [
-        3440,
-        5400
-      ],
-      "size": [
-        320,
-        226
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "vae_name",
-          "type": "COMBO",
-          "link": null,
-          "widget": {
-            "name": "vae_name"
-          }
-        },
-        {
-          "name": "device",
-          "type": "COMBO",
-          "link": null,
-          "widget": {
-            "name": "device"
-          }
-        },
-        {
-          "name": "weight_dtype",
-          "type": "COMBO",
-          "link": null,
-          "widget": {
-            "name": "weight_dtype"
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "VAE",
-          "type": "VAE",
-          "links": [
-            9,
-            17,
-            19
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "VAELoaderKJ"
-      },
-      "widgets_values": [
-        "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors",
-        "cpu",
-        "fp32"
-      ],
-      "title": "[3] 参考与解码·CPU FP32 VAE",
-      "widgets_values_named": {
-        "vae_name": "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors",
-        "device": "cpu",
-        "weight_dtype": "fp32"
-      }
-    },
-    {
-      "id": 10,
-      "type": "LoadImage",
-      "pos": [
-        80,
-        3880
-      ],
-      "size": [
-        320,
-        408
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            0,
-            1
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadImage"
-      },
-      "widgets_values": [
-        "example.png",
-        "image"
-      ],
-      "title": "[10] 身图·原样底图"
-    },
-    {
-      "id": 11,
-      "type": "LoadImage",
-      "pos": [
-        80,
-        3120
-      ],
-      "size": [
-        320,
-        432
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            25,
-            29
-          ],
-          "slot_index": 0
-        },
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": [
-            24
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoadImage"
-      },
-      "widgets_values": [
-        "example.png",
-        "image"
-      ],
-      "title": "[11] 基准脸·五官来源(不透明图)"
-    },
-    {
-      "id": 17,
-      "type": "ImageCrop",
-      "pos": [
-        920,
-        2360
-      ],
-      "size": [
-        320,
-        208
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 0,
-          "shape": 7
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            3
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ImageCrop"
-      },
-      "widgets_values": [
-        224,
-        176,
-        512,
-        96
-      ],
-      "title": "[17] 裁脸块(x/y/w/h 与[19][70]联动)"
-    },
-    {
-      "id": 18,
-      "type": "ImageResizeKJv2",
-      "pos": [
-        1760,
-        840
-      ],
-      "size": [
-        320,
-        328
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 3,
-          "shape": 7
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            4,
-            18
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ImageResizeKJv2"
-      },
-      "widgets_values": [
-        1024,
-        768,
-        "lanczos",
-        "stretch",
-        "0, 0, 0",
-        "center",
-        32,
-        "cpu"
-      ],
-      "title": "[18] 脸块放大·1024×768"
-    },
-    {
-      "id": 13,
-      "type": "ImageResizeKJv2",
-      "pos": [
-        3440,
-        4640
-      ],
-      "size": [
-        320,
-        328
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 2,
-          "shape": 7
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            5
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ImageResizeKJv2"
-      },
-      "widgets_values": [
-        1024,
-        1024,
-        "lanczos",
-        "resize",
-        "0, 0, 0",
-        "center",
-        32,
-        "cpu"
-      ],
-      "title": "[13] 基准脸缩放"
-    },
-    {
-      "id": 31,
-      "type": "TextEncodeQwenImage21",
-      "pos": [
-        4280,
-        1600
-      ],
-      "size": [
-        520,
-        322
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 6
-        },
-        {
-          "name": "prompt",
-          "type": "STRING",
-          "link": null,
-          "widget": {
-            "name": "prompt"
-          }
-        },
-        {
-          "name": "negative_prompt",
-          "type": "STRING",
-          "link": null,
-          "widget": {
-            "name": "negative_prompt"
-          }
-        },
-        {
-          "name": "resolution",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "resolution"
-          }
-        },
-        {
-          "name": "images.image_1",
-          "type": "IMAGE",
-          "link": 4,
-          "shape": 7
-        },
-        {
-          "name": "images.image_2",
-          "type": "IMAGE",
-          "link": 5,
-          "shape": 7
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 9,
-          "shape": 7
-        }
-      ],
-      "outputs": [
-        {
-          "name": "positive",
-          "type": "CONDITIONING",
-          "links": [
-            8
-          ]
-        },
-        {
-          "name": "negative",
-          "type": "CONDITIONING",
-          "links": [
-            10
-          ]
-        },
-        {
-          "name": "latent",
-          "type": "LATENT",
-          "links": []
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "TextEncodeQwenImage21"
-      },
-      "widgets_values": [
-        "保持第一张图的构图、发型与衣物原样，色彩色调与第一张图完全一致；仅将画面中人物面部的五官替换为第二张图人物的面部：眼型、眉毛、鼻型、唇形、下颌与脸型与第二张图完全一致，神情中性平和；面部肤色与第一张图一致。",
-        "",
-        0
-      ],
-      "title": "[31] 双图编码·换脸指令"
-    },
-    {
-      "id": 41,
-      "type": "VAEEncode",
-      "pos": [
-        4280,
-        2360
-      ],
-      "size": [
-        320,
-        112
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "pixels",
-          "type": "IMAGE",
-          "link": 18
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 19
-        }
-      ],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            22
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "VAEEncode"
-      },
-      "widgets_values": [],
-      "title": "[41] 脸块实图潜码·VAEEncode"
-    },
-    {
-      "id": 80,
-      "type": "LoraLoaderModelOnly",
-      "pos": [
-        920,
-        80
-      ],
-      "size": [
-        320,
-        148
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 16
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            7
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoraLoaderModelOnly"
-      },
-      "widgets_values": [
-        "bfs_head_v1.1_qwen_2.1.safetensors",
-        1.0
-      ],
-      "title": "[80] BFS换头LoRA×1.0(脸块大图条件下生效)"
-    },
-    {
-      "id": 40,
-      "type": "KSampler",
-      "pos": [
-        5960,
-        1600
-      ],
-      "size": [
-        320,
-        370
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 7
-        },
-        {
-          "name": "positive",
-          "type": "CONDITIONING",
-          "link": 8
-        },
-        {
-          "name": "negative",
-          "type": "CONDITIONING",
-          "link": 10
-        },
-        {
-          "name": "latent_image",
-          "type": "LATENT",
-          "link": 11
-        }
-      ],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            12
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "KSampler"
-      },
-      "widgets_values": [
-        42,
-        "fixed",
-        20,
-        1,
-        "euler",
-        "simple",
-        1.0
-      ],
-      "title": "[40] 采样·20步cfg1·denoise1"
-    },
-    {
-      "id": 50,
-      "type": "VAEDecode",
-      "pos": [
-        6800,
-        1600
-      ],
-      "size": [
-        320,
-        112
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "samples",
-          "type": "LATENT",
-          "link": 12
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 17
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            13
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "VAEDecode"
-      },
-      "widgets_values": [],
-      "title": "[50] 解码"
-    },
-    {
-      "id": 19,
-      "type": "ImageResizeKJv2",
-      "pos": [
-        7640,
-        1600
-      ],
-      "size": [
-        320,
-        328
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 13,
-          "shape": 7
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            14
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ImageResizeKJv2"
-      },
-      "widgets_values": [
-        224,
-        176,
-        "lanczos",
-        "stretch",
-        "0, 0, 0",
-        "center",
-        1,
-        "cpu"
-      ],
-      "title": "[19] 缩回裁片·精确尺寸",
-      "widgets_values_named": {
-        "width": 224,
-        "height": 176,
-        "upscale_method": "lanczos",
-        "keep_proportion": "stretch",
-        "pad_color": "0, 0, 0",
-        "crop_position": "center",
-        "divisible_by": 1,
-        "device": "cpu"
-      }
-    },
-    {
-      "id": 70,
-      "type": "ImageCompositeMasked",
-      "pos": [
-        8480,
-        3880
-      ],
-      "size": [
-        320,
-        298
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "destination",
-          "type": "IMAGE",
-          "link": 1
-        },
-        {
-          "name": "source",
-          "type": "IMAGE",
-          "link": 14
-        },
-        {
-          "name": "x",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "x"
-          }
-        },
-        {
-          "name": "y",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "y"
-          }
-        },
-        {
-          "name": "resize_source",
-          "type": "BOOLEAN",
-          "link": null,
-          "widget": {
-            "name": "resize_source"
-          }
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 21
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            15
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ImageCompositeMasked"
-      },
-      "widgets_values": [
-        512,
-        96,
-        false
-      ],
-      "title": "[70] 羽化贴回·保持裁片外原图",
-      "widgets_values_named": {
-        "x": 512,
-        "y": 96,
-        "resize_source": false
-      }
-    },
-    {
-      "id": 60,
-      "type": "SaveImage",
-      "pos": [
-        9320,
-        3880
-      ],
-      "size": [
-        320,
-        378
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 15
-        }
-      ],
-      "outputs": [],
-      "properties": {
-        "Node name for S&R": "SaveImage"
-      },
-      "widgets_values": [
-        "QI21换脸局部重绘_"
-      ],
-      "title": "[60] 保存"
-    },
-    {
-      "id": 81,
-      "type": "CreateShapeMask",
-      "pos": [
-        80,
-        5400
-      ],
-      "size": [
-        320,
-        550
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "shape",
-          "type": "COMBO",
-          "link": null,
-          "widget": {
-            "name": "shape"
-          }
-        },
-        {
-          "name": "frames",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "frames"
-          }
-        },
-        {
-          "name": "location_x",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "location_x"
-          }
-        },
-        {
-          "name": "location_y",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "location_y"
-          }
-        },
-        {
-          "name": "grow",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "grow"
-          }
-        },
-        {
-          "name": "frame_width",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "frame_width"
-          }
-        },
-        {
-          "name": "frame_height",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "frame_height"
-          }
-        },
-        {
-          "name": "shape_width",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "shape_width"
-          }
-        },
-        {
-          "name": "shape_height",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "shape_height"
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "mask",
-          "type": "MASK",
-          "links": [
-            20
-          ]
-        },
-        {
-          "name": "mask_inverted",
-          "type": "MASK",
-          "links": []
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "CreateShapeMask"
-      },
-      "title": "[81] Face interior ellipse (sample coordinates)",
-      "widgets_values": [
-        "circle",
-        1,
-        114,
-        80,
-        0,
-        224,
-        176,
-        66,
-        80
-      ],
-      "widgets_values_named": {
-        "shape": "circle",
-        "frames": 1,
-        "location_x": 114,
-        "location_y": 80,
-        "grow": 0,
-        "frame_width": 224,
-        "frame_height": 176,
-        "shape_width": 66,
-        "shape_height": 80
-      }
-    },
-    {
-      "id": 82,
-      "type": "GrowMaskWithBlur",
-      "pos": [
-        920,
-        5400
-      ],
-      "size": [
-        320,
-        520
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 20
-        },
-        {
-          "name": "expand",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "expand"
-          }
-        },
-        {
-          "name": "incremental_expandrate",
-          "type": "FLOAT",
-          "link": null,
-          "widget": {
-            "name": "incremental_expandrate"
-          }
-        },
-        {
-          "name": "tapered_corners",
-          "type": "BOOLEAN",
-          "link": null,
-          "widget": {
-            "name": "tapered_corners"
-          }
-        },
-        {
-          "name": "flip_input",
-          "type": "BOOLEAN",
-          "link": null,
-          "widget": {
-            "name": "flip_input"
-          }
-        },
-        {
-          "name": "blur_radius",
-          "type": "FLOAT",
-          "link": null,
-          "widget": {
-            "name": "blur_radius"
-          }
-        },
-        {
-          "name": "lerp_alpha",
-          "type": "FLOAT",
-          "link": null,
-          "widget": {
-            "name": "lerp_alpha"
-          }
-        },
-        {
-          "name": "decay_factor",
-          "type": "FLOAT",
-          "link": null,
-          "widget": {
-            "name": "decay_factor"
-          }
-        },
-        {
-          "name": "fill_holes",
-          "type": "BOOLEAN",
-          "link": null,
-          "widget": {
-            "name": "fill_holes"
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "mask",
-          "type": "MASK",
-          "links": [
-            21,
-            23
-          ]
-        },
-        {
-          "name": "mask_inverted",
-          "type": "MASK",
-          "links": []
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "GrowMaskWithBlur"
-      },
-      "title": "[82] Feather shape boundary",
-      "widgets_values": [
-        0,
-        0.0,
-        true,
-        false,
-        2.0,
-        1.0,
-        1.0,
-        false
-      ],
-      "widgets_values_named": {
-        "expand": 0,
-        "incremental_expandrate": 0.0,
-        "tapered_corners": true,
-        "flip_input": false,
-        "blur_radius": 2.0,
-        "lerp_alpha": 1.0,
-        "decay_factor": 1.0,
-        "fill_holes": false
-      }
-    },
-    {
-      "id": 83,
-      "type": "MarkdownNote",
-      "pos": [
-        80,
-        10720
-      ],
-      "size": [
-        640,
-        720
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {
-        "Node name for S&R": "MarkdownNote"
-      },
-      "widgets_values": [
-        "## 局部换脸：脸部遮罩＋透明参考处理\n\n1. [10] 选择身图，[11] 选择第二张脸参考；example.png 是占位，必须更换。参考 PNG 的透明背景由 [86] 反转 LoadImage mask 得到不透明度，[88] 读取实际尺寸，[85]→[87] 先合成白底再进编码，避免透明区黑 RGB 污染。\n2. 当前裁片坐标 x=512、y=96、宽224、高176，属于1254方图样本。更换身图后须联动 [17]/[19]/[70] 裁片尺寸与位置；[81] 椭圆中心(114,80)、宽66高80仅覆盖本样本脸内，必须随脸调整并预览，不自动定位人脸；[19] divisible_by=1 保留精确尺寸。\n3. [41] 实际裁片 VAEEncode→[84] SetLatentNoiseMask→[40]，[81]→[82] 的2px形状羽化同时用于潜空间噪声约束和 [70] 像素合成，避免整块矩形覆盖头发与背景。采样保持20步/CFG1/denoise1/seed42。\n4. [3] texture_fix VAE 固定 CPU＋FP32，参考、裁片编码与解码共用；文件名bf16不是运行dtype，UNet/TE/采样不迁CPU。\n5. 第二张参考已在真实插画试验中迁入五官；黑框与光头覆盖在遮罩版消失。面部仍可能偏平涂，必须分别验相似度、画风、肤色和边界；执行成功不等于终稿艺术质量通过，不能据此判仅支持真人。"
-      ],
-      "title": "[83] 局部换脸·输入与验证边界"
-    },
-    {
-      "id": 84,
-      "type": "SetLatentNoiseMask",
-      "pos": [
-        5120,
-        3120
-      ],
-      "size": [
-        320,
-        112
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "samples",
-          "type": "LATENT",
-          "link": 22
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 23
-        }
-      ],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            11
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "SetLatentNoiseMask"
-      },
-      "title": "[84] Noise only inside face",
-      "widgets_values": [],
-      "widgets_values_named": {}
-    },
-    {
-      "id": 85,
-      "type": "EmptyImage",
-      "pos": [
-        1760,
-        7680
-      ],
-      "size": [
-        320,
-        280
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "width",
-          "type": "INT",
-          "link": 26
-        },
-        {
-          "name": "height",
-          "type": "INT",
-          "link": 27
-        },
-        {
-          "name": "batch_size",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "batch_size"
-          }
-        },
-        {
-          "name": "color",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "color"
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            28
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "EmptyImage"
-      },
-      "title": "[85] Reference matte (white)",
-      "widgets_values": [
-        512,
-        512,
-        1,
-        16777215
-      ],
-      "widgets_values_named": {
-        "width": 512,
-        "height": 512,
-        "batch_size": 1,
-        "color": 16777215
-      }
-    },
-    {
-      "id": 86,
-      "type": "InvertMask",
-      "pos": [
-        920,
-        6920
-      ],
-      "size": [
-        320,
-        88
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 24
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MASK",
-          "type": "MASK",
-          "links": [
-            30
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "InvertMask"
-      },
-      "title": "[86] Reference opacity = 1 - LoadImage mask",
-      "widgets_values": [],
-      "widgets_values_named": {}
-    },
-    {
-      "id": 88,
-      "type": "GetImageSize",
-      "pos": [
-        920,
-        9200
-      ],
-      "size": [
-        320,
-        136
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 25
-        }
-      ],
-      "outputs": [
-        {
-          "name": "width",
-          "type": "INT",
-          "links": [
-            26
-          ]
-        },
-        {
-          "name": "height",
-          "type": "INT",
-          "links": [
-            27
-          ]
-        },
-        {
-          "name": "batch_size",
-          "type": "INT",
-          "links": []
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "GetImageSize"
-      },
-      "title": "[88] Reference dimensions",
-      "widgets_values": [],
-      "widgets_values_named": {}
-    },
-    {
-      "id": 87,
-      "type": "ImageCompositeMasked",
-      "pos": [
-        2600,
-        6160
-      ],
-      "size": [
-        320,
-        298
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "destination",
-          "type": "IMAGE",
-          "link": 28
-        },
-        {
-          "name": "source",
-          "type": "IMAGE",
-          "link": 29
-        },
-        {
-          "name": "x",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "x"
-          }
-        },
-        {
-          "name": "y",
-          "type": "INT",
-          "link": null,
-          "widget": {
-            "name": "y"
-          }
-        },
-        {
-          "name": "resize_source",
-          "type": "BOOLEAN",
-          "link": null,
-          "widget": {
-            "name": "resize_source"
-          }
-        },
-        {
-          "name": "mask",
-          "type": "MASK",
-          "link": 30
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            2
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ImageCompositeMasked"
-      },
-      "title": "[87] Composite reference alpha before encode",
-      "widgets_values": [
-        0,
-        0,
-        false
-      ],
-      "widgets_values_named": {
-        "x": 0,
-        "y": 0,
-        "resize_source": false
-      }
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      16
+     ],
+     "slot_index": 0
     }
-  ],
-  "links": [
-    [
-      0,
-      10,
-      0,
-      17,
-      0,
-      "IMAGE"
-    ],
-    [
-      1,
-      10,
-      0,
-      70,
-      0,
-      "IMAGE"
-    ],
-    [
-      2,
-      87,
-      0,
-      13,
-      0,
-      "IMAGE"
-    ],
-    [
-      3,
-      17,
-      0,
-      18,
-      0,
-      "IMAGE"
-    ],
-    [
-      4,
-      18,
-      0,
-      31,
-      4,
-      "IMAGE"
-    ],
-    [
-      5,
-      13,
-      0,
-      31,
-      5,
-      "IMAGE"
-    ],
-    [
-      6,
-      2,
-      0,
-      31,
-      0,
-      "CLIP"
-    ],
-    [
-      16,
-      1,
-      0,
-      80,
-      0,
-      "MODEL"
-    ],
-    [
-      7,
-      80,
-      0,
-      40,
-      0,
-      "MODEL"
-    ],
-    [
-      8,
-      31,
-      0,
-      40,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      9,
-      3,
-      0,
-      31,
-      6,
-      "VAE"
-    ],
-    [
-      10,
-      31,
-      1,
-      40,
-      2,
-      "CONDITIONING"
-    ],
-    [
-      11,
-      84,
-      0,
-      40,
-      3,
-      "LATENT"
-    ],
-    [
-      12,
-      40,
-      0,
-      50,
-      0,
-      "LATENT"
-    ],
-    [
-      13,
-      50,
-      0,
-      19,
-      0,
-      "IMAGE"
-    ],
-    [
-      14,
-      19,
-      0,
-      70,
-      1,
-      "IMAGE"
-    ],
-    [
-      15,
-      70,
-      0,
-      60,
-      0,
-      "IMAGE"
-    ],
-    [
-      17,
-      3,
-      0,
-      50,
-      1,
-      "VAE"
-    ],
-    [
-      18,
-      18,
-      0,
-      41,
-      0,
-      "IMAGE"
-    ],
-    [
-      19,
-      3,
-      0,
-      41,
-      1,
-      "VAE"
-    ],
-    [
-      20,
-      81,
-      0,
-      82,
-      0,
-      "MASK"
-    ],
-    [
-      21,
-      82,
-      0,
-      70,
-      5,
-      "MASK"
-    ],
-    [
-      22,
-      41,
-      0,
-      84,
-      0,
-      "LATENT"
-    ],
-    [
-      23,
-      82,
-      0,
-      84,
-      1,
-      "MASK"
-    ],
-    [
-      24,
-      11,
-      1,
-      86,
-      0,
-      "MASK"
-    ],
-    [
-      25,
-      11,
-      0,
-      88,
-      0,
-      "IMAGE"
-    ],
-    [
-      26,
-      88,
-      0,
-      85,
-      0,
-      "INT"
-    ],
-    [
-      27,
-      88,
-      1,
-      85,
-      1,
-      "INT"
-    ],
-    [
-      28,
-      85,
-      0,
-      87,
-      0,
-      "IMAGE"
-    ],
-    [
-      29,
-      11,
-      0,
-      87,
-      1,
-      "IMAGE"
-    ],
-    [
-      30,
-      86,
-      0,
-      87,
-      5,
-      "MASK"
-    ]
-  ],
-  "groups": [],
-  "definitions": {
-    "subgraphs": []
+   ],
+   "properties": {
+    "Node name for S&R": "UNETLoader"
+   },
+   "widgets_values": [
+    "qwen_image_2.1_bf16.safetensors",
+    "default"
+   ],
+   "title": "[1] UNET加载"
   },
-  "config": {},
-  "extra": {},
-  "version": 0.4
+  {
+   "id": 2,
+   "type": "CLIPLoader",
+   "pos": [
+    80,
+    1078
+   ],
+   "size": [
+    320,
+    178
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      6
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPLoader"
+   },
+   "widgets_values": [
+    "qwen3vl_8b_bf16_heretic.safetensors",
+    "qwen_image",
+    "default"
+   ],
+   "title": "[2] 主TE·CLIPLoader"
+  },
+  {
+   "id": 3,
+   "type": "VAELoaderKJ",
+   "pos": [
+    80,
+    1286
+   ],
+   "size": [
+    320,
+    226
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "vae_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "vae_name"
+     }
+    },
+    {
+     "name": "device",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "device"
+     }
+    },
+    {
+     "name": "weight_dtype",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "weight_dtype"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      9,
+      17,
+      19
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAELoaderKJ"
+   },
+   "widgets_values": [
+    "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors",
+    "cpu",
+    "fp32"
+   ],
+   "title": "[3] 参考与解码·CPU FP32 VAE",
+   "widgets_values_named": {
+    "vae_name": "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors",
+    "device": "cpu",
+    "weight_dtype": "fp32"
+   }
+  },
+  {
+   "id": 10,
+   "type": "LoadImage",
+   "pos": [
+    80,
+    1542
+   ],
+   "size": [
+    320,
+    408
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      0,
+      1
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImage"
+   },
+   "widgets_values": [
+    "example.png",
+    "image"
+   ],
+   "title": "[10] 身图·原样底图"
+  },
+  {
+   "id": 11,
+   "type": "LoadImage",
+   "pos": [
+    80,
+    1980
+   ],
+   "size": [
+    320,
+    432
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      25,
+      29
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [
+      24
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImage"
+   },
+   "widgets_values": [
+    "example.png",
+    "image"
+   ],
+   "title": "[11] 基准脸·五官来源(不透明图)"
+  },
+  {
+   "id": 17,
+   "type": "ImageCrop",
+   "pos": [
+    460,
+    900
+   ],
+   "size": [
+    320,
+    208
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 0,
+     "shape": 7
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      3
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ImageCrop"
+   },
+   "widgets_values": [
+    224,
+    176,
+    512,
+    96
+   ],
+   "title": "[17] 裁脸块(x/y/w/h 与[19][70]联动)"
+  },
+  {
+   "id": 18,
+   "type": "ImageResizeKJv2",
+   "pos": [
+    840,
+    900
+   ],
+   "size": [
+    320,
+    328
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 3,
+     "shape": 7
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      4,
+      18
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ImageResizeKJv2"
+   },
+   "widgets_values": [
+    1024,
+    768,
+    "lanczos",
+    "stretch",
+    "0, 0, 0",
+    "center",
+    32,
+    "cpu"
+   ],
+   "title": "[18] 脸块放大·1024×768"
+  },
+  {
+   "id": 13,
+   "type": "ImageResizeKJv2",
+   "pos": [
+    1600,
+    900
+   ],
+   "size": [
+    320,
+    328
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 2,
+     "shape": 7
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      5
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ImageResizeKJv2"
+   },
+   "widgets_values": [
+    1024,
+    1024,
+    "lanczos",
+    "resize",
+    "0, 0, 0",
+    "center",
+    32,
+    "cpu"
+   ],
+   "title": "[13] 基准脸缩放"
+  },
+  {
+   "id": 31,
+   "type": "TextEncodeQwenImage21",
+   "pos": [
+    1980,
+    900
+   ],
+   "size": [
+    340,
+    322
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 6
+    },
+    {
+     "name": "prompt",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "prompt"
+     }
+    },
+    {
+     "name": "negative_prompt",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "negative_prompt"
+     }
+    },
+    {
+     "name": "resolution",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "resolution"
+     }
+    },
+    {
+     "name": "images.image_1",
+     "type": "IMAGE",
+     "link": 4,
+     "shape": 7
+    },
+    {
+     "name": "images.image_2",
+     "type": "IMAGE",
+     "link": 5,
+     "shape": 7
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 9,
+     "shape": 7
+    }
+   ],
+   "outputs": [
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "links": [
+      8
+     ]
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "links": [
+      10
+     ]
+    },
+    {
+     "name": "latent",
+     "type": "LATENT",
+     "links": []
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "TextEncodeQwenImage21"
+   },
+   "widgets_values": [
+    "保持第一张图的构图、发型与衣物原样，色彩色调与第一张图完全一致；仅将画面中人物面部的五官替换为第二张图人物的面部：眼型、眉毛、鼻型、唇形、下颌与脸型与第二张图完全一致，神情中性平和；面部肤色与第一张图一致。",
+    "",
+    0
+   ],
+   "title": "[31] 双图编码·换脸指令"
+  },
+  {
+   "id": 41,
+   "type": "VAEEncode",
+   "pos": [
+    1220,
+    900
+   ],
+   "size": [
+    320,
+    112
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "pixels",
+     "type": "IMAGE",
+     "link": 18
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 19
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      22
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEEncode"
+   },
+   "widgets_values": [],
+   "title": "[41] 脸块实图潜码·VAEEncode"
+  },
+  {
+   "id": 80,
+   "type": "LoraLoaderModelOnly",
+   "pos": [
+    460,
+    1138
+   ],
+   "size": [
+    320,
+    148
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 16
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      7
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoraLoaderModelOnly"
+   },
+   "widgets_values": [
+    "bfs_head_v1.1_qwen_2.1.safetensors",
+    1.0
+   ],
+   "title": "[80] BFS换头LoRA×1.0(脸块大图条件下生效)"
+  },
+  {
+   "id": 40,
+   "type": "KSampler",
+   "pos": [
+    2360,
+    900
+   ],
+   "size": [
+    320,
+    370
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 7
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 8
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 10
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 11
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      12
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    42,
+    "fixed",
+    20,
+    1,
+    "euler",
+    "simple",
+    1.0
+   ],
+   "title": "[40] 采样·20步cfg1·denoise1"
+  },
+  {
+   "id": 50,
+   "type": "VAEDecode",
+   "pos": [
+    2740,
+    900
+   ],
+   "size": [
+    320,
+    112
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 12
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 17
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      13
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   },
+   "widgets_values": [],
+   "title": "[50] 解码"
+  },
+  {
+   "id": 19,
+   "type": "ImageResizeKJv2",
+   "pos": [
+    3120,
+    900
+   ],
+   "size": [
+    320,
+    328
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 13,
+     "shape": 7
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      14
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ImageResizeKJv2"
+   },
+   "widgets_values": [
+    224,
+    176,
+    "lanczos",
+    "stretch",
+    "0, 0, 0",
+    "center",
+    1,
+    "cpu"
+   ],
+   "title": "[19] 缩回裁片·精确尺寸",
+   "widgets_values_named": {
+    "width": 224,
+    "height": 176,
+    "upscale_method": "lanczos",
+    "keep_proportion": "stretch",
+    "pad_color": "0, 0, 0",
+    "crop_position": "center",
+    "divisible_by": 1,
+    "device": "cpu"
+   }
+  },
+  {
+   "id": 70,
+   "type": "ImageCompositeMasked",
+   "pos": [
+    3500,
+    900
+   ],
+   "size": [
+    320,
+    298
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "destination",
+     "type": "IMAGE",
+     "link": 1
+    },
+    {
+     "name": "source",
+     "type": "IMAGE",
+     "link": 14
+    },
+    {
+     "name": "x",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "x"
+     }
+    },
+    {
+     "name": "y",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "y"
+     }
+    },
+    {
+     "name": "resize_source",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "resize_source"
+     }
+    },
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 21
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      15
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ImageCompositeMasked"
+   },
+   "widgets_values": [
+    512,
+    96,
+    false
+   ],
+   "title": "[70] 羽化贴回·保持裁片外原图",
+   "widgets_values_named": {
+    "x": 512,
+    "y": 96,
+    "resize_source": false
+   }
+  },
+  {
+   "id": 60,
+   "type": "SaveImage",
+   "pos": [
+    3880,
+    900
+   ],
+   "size": [
+    320,
+    378
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 15
+    }
+   ],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "widgets_values": [
+    "QI21换脸局部重绘_"
+   ],
+   "title": "[60] 保存"
+  },
+  {
+   "id": 81,
+   "type": "CreateShapeMask",
+   "pos": [
+    80,
+    2442
+   ],
+   "size": [
+    320,
+    550
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "shape",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "shape"
+     }
+    },
+    {
+     "name": "frames",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "frames"
+     }
+    },
+    {
+     "name": "location_x",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "location_x"
+     }
+    },
+    {
+     "name": "location_y",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "location_y"
+     }
+    },
+    {
+     "name": "grow",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "grow"
+     }
+    },
+    {
+     "name": "frame_width",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "frame_width"
+     }
+    },
+    {
+     "name": "frame_height",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "frame_height"
+     }
+    },
+    {
+     "name": "shape_width",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "shape_width"
+     }
+    },
+    {
+     "name": "shape_height",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "shape_height"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "mask",
+     "type": "MASK",
+     "links": [
+      20
+     ]
+    },
+    {
+     "name": "mask_inverted",
+     "type": "MASK",
+     "links": []
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CreateShapeMask"
+   },
+   "title": "[81] Face interior ellipse (sample coordinates)",
+   "widgets_values": [
+    "circle",
+    1,
+    114,
+    80,
+    0,
+    224,
+    176,
+    66,
+    80
+   ],
+   "widgets_values_named": {
+    "shape": "circle",
+    "frames": 1,
+    "location_x": 114,
+    "location_y": 80,
+    "grow": 0,
+    "frame_width": 224,
+    "frame_height": 176,
+    "shape_width": 66,
+    "shape_height": 80
+   }
+  },
+  {
+   "id": 82,
+   "type": "GrowMaskWithBlur",
+   "pos": [
+    460,
+    1316
+   ],
+   "size": [
+    320,
+    520
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 20
+    },
+    {
+     "name": "expand",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "expand"
+     }
+    },
+    {
+     "name": "incremental_expandrate",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "incremental_expandrate"
+     }
+    },
+    {
+     "name": "tapered_corners",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "tapered_corners"
+     }
+    },
+    {
+     "name": "flip_input",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "flip_input"
+     }
+    },
+    {
+     "name": "blur_radius",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "blur_radius"
+     }
+    },
+    {
+     "name": "lerp_alpha",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "lerp_alpha"
+     }
+    },
+    {
+     "name": "decay_factor",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "decay_factor"
+     }
+    },
+    {
+     "name": "fill_holes",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "fill_holes"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "mask",
+     "type": "MASK",
+     "links": [
+      21,
+      23
+     ]
+    },
+    {
+     "name": "mask_inverted",
+     "type": "MASK",
+     "links": []
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "GrowMaskWithBlur"
+   },
+   "title": "[82] Feather shape boundary",
+   "widgets_values": [
+    0,
+    0.0,
+    true,
+    false,
+    2.0,
+    1.0,
+    1.0,
+    false
+   ],
+   "widgets_values_named": {
+    "expand": 0,
+    "incremental_expandrate": 0.0,
+    "tapered_corners": true,
+    "flip_input": false,
+    "blur_radius": 2.0,
+    "lerp_alpha": 1.0,
+    "decay_factor": 1.0,
+    "fill_holes": false
+   }
+  },
+  {
+   "id": 83,
+   "type": "MarkdownNote",
+   "pos": [
+    80,
+    120
+   ],
+   "size": [
+    640,
+    720
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "MarkdownNote"
+   },
+   "widgets_values": [
+    "## 局部换脸：脸部遮罩＋透明参考处理\n\n1. [10] 选择身图，[11] 选择第二张脸参考；example.png 是占位，必须更换。参考 PNG 的透明背景由 [86] 反转 LoadImage mask 得到不透明度，[88] 读取实际尺寸，[85]→[87] 先合成白底再进编码，避免透明区黑 RGB 污染。\n2. 当前裁片坐标 x=512、y=96、宽224、高176，属于1254方图样本。更换身图后须联动 [17]/[19]/[70] 裁片尺寸与位置；[81] 椭圆中心(114,80)、宽66高80仅覆盖本样本脸内，必须随脸调整并预览，不自动定位人脸；[19] divisible_by=1 保留精确尺寸。\n3. [41] 实际裁片 VAEEncode→[84] SetLatentNoiseMask→[40]，[81]→[82] 的2px形状羽化同时用于潜空间噪声约束和 [70] 像素合成，避免整块矩形覆盖头发与背景。采样保持20步/CFG1/denoise1/seed42。\n4. [3] texture_fix VAE 固定 CPU＋FP32，参考、裁片编码与解码共用；文件名bf16不是运行dtype，UNet/TE/采样不迁CPU。\n5. 第二张参考已在真实插画试验中迁入五官；黑框与光头覆盖在遮罩版消失。面部仍可能偏平涂，必须分别验相似度、画风、肤色和边界；执行成功不等于终稿艺术质量通过，不能据此判仅支持真人。"
+   ],
+   "title": "[83] 局部换脸·输入与验证边界"
+  },
+  {
+   "id": 84,
+   "type": "SetLatentNoiseMask",
+   "pos": [
+    1600,
+    1258
+   ],
+   "size": [
+    320,
+    112
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 22
+    },
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 23
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      11
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SetLatentNoiseMask"
+   },
+   "title": "[84] Noise only inside face",
+   "widgets_values": [],
+   "widgets_values_named": {}
+  },
+  {
+   "id": 85,
+   "type": "EmptyImage",
+   "pos": [
+    840,
+    1258
+   ],
+   "size": [
+    320,
+    280
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "width",
+     "type": "INT",
+     "link": 26
+    },
+    {
+     "name": "height",
+     "type": "INT",
+     "link": 27
+    },
+    {
+     "name": "batch_size",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "batch_size"
+     }
+    },
+    {
+     "name": "color",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "color"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      28
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "EmptyImage"
+   },
+   "title": "[85] Reference matte (white)",
+   "widgets_values": [
+    512,
+    512,
+    1,
+    16777215
+   ],
+   "widgets_values_named": {
+    "width": 512,
+    "height": 512,
+    "batch_size": 1,
+    "color": 16777215
+   }
+  },
+  {
+   "id": 86,
+   "type": "InvertMask",
+   "pos": [
+    460,
+    1866
+   ],
+   "size": [
+    320,
+    88
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 24
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [
+      30
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "InvertMask"
+   },
+   "title": "[86] Reference opacity = 1 - LoadImage mask",
+   "widgets_values": [],
+   "widgets_values_named": {}
+  },
+  {
+   "id": 88,
+   "type": "GetImageSize",
+   "pos": [
+    460,
+    1984
+   ],
+   "size": [
+    320,
+    136
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 25
+    }
+   ],
+   "outputs": [
+    {
+     "name": "width",
+     "type": "INT",
+     "links": [
+      26
+     ]
+    },
+    {
+     "name": "height",
+     "type": "INT",
+     "links": [
+      27
+     ]
+    },
+    {
+     "name": "batch_size",
+     "type": "INT",
+     "links": []
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "GetImageSize"
+   },
+   "title": "[88] Reference dimensions",
+   "widgets_values": [],
+   "widgets_values_named": {}
+  },
+  {
+   "id": 87,
+   "type": "ImageCompositeMasked",
+   "pos": [
+    1220,
+    1042
+   ],
+   "size": [
+    320,
+    298
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "destination",
+     "type": "IMAGE",
+     "link": 28
+    },
+    {
+     "name": "source",
+     "type": "IMAGE",
+     "link": 29
+    },
+    {
+     "name": "x",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "x"
+     }
+    },
+    {
+     "name": "y",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "y"
+     }
+    },
+    {
+     "name": "resize_source",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "resize_source"
+     }
+    },
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 30
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      2
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "ImageCompositeMasked"
+   },
+   "title": "[87] Composite reference alpha before encode",
+   "widgets_values": [
+    0,
+    0,
+    false
+   ],
+   "widgets_values_named": {
+    "x": 0,
+    "y": 0,
+    "resize_source": false
+   }
+  }
+ ],
+ "links": [
+  [
+   0,
+   10,
+   0,
+   17,
+   0,
+   "IMAGE"
+  ],
+  [
+   1,
+   10,
+   0,
+   70,
+   0,
+   "IMAGE"
+  ],
+  [
+   2,
+   87,
+   0,
+   13,
+   0,
+   "IMAGE"
+  ],
+  [
+   3,
+   17,
+   0,
+   18,
+   0,
+   "IMAGE"
+  ],
+  [
+   4,
+   18,
+   0,
+   31,
+   4,
+   "IMAGE"
+  ],
+  [
+   5,
+   13,
+   0,
+   31,
+   5,
+   "IMAGE"
+  ],
+  [
+   6,
+   2,
+   0,
+   31,
+   0,
+   "CLIP"
+  ],
+  [
+   16,
+   1,
+   0,
+   80,
+   0,
+   "MODEL"
+  ],
+  [
+   7,
+   80,
+   0,
+   40,
+   0,
+   "MODEL"
+  ],
+  [
+   8,
+   31,
+   0,
+   40,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   9,
+   3,
+   0,
+   31,
+   6,
+   "VAE"
+  ],
+  [
+   10,
+   31,
+   1,
+   40,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   11,
+   84,
+   0,
+   40,
+   3,
+   "LATENT"
+  ],
+  [
+   12,
+   40,
+   0,
+   50,
+   0,
+   "LATENT"
+  ],
+  [
+   13,
+   50,
+   0,
+   19,
+   0,
+   "IMAGE"
+  ],
+  [
+   14,
+   19,
+   0,
+   70,
+   1,
+   "IMAGE"
+  ],
+  [
+   15,
+   70,
+   0,
+   60,
+   0,
+   "IMAGE"
+  ],
+  [
+   17,
+   3,
+   0,
+   50,
+   1,
+   "VAE"
+  ],
+  [
+   18,
+   18,
+   0,
+   41,
+   0,
+   "IMAGE"
+  ],
+  [
+   19,
+   3,
+   0,
+   41,
+   1,
+   "VAE"
+  ],
+  [
+   20,
+   81,
+   0,
+   82,
+   0,
+   "MASK"
+  ],
+  [
+   21,
+   82,
+   0,
+   70,
+   5,
+   "MASK"
+  ],
+  [
+   22,
+   41,
+   0,
+   84,
+   0,
+   "LATENT"
+  ],
+  [
+   23,
+   82,
+   0,
+   84,
+   1,
+   "MASK"
+  ],
+  [
+   24,
+   11,
+   1,
+   86,
+   0,
+   "MASK"
+  ],
+  [
+   25,
+   11,
+   0,
+   88,
+   0,
+   "IMAGE"
+  ],
+  [
+   26,
+   88,
+   0,
+   85,
+   0,
+   "INT"
+  ],
+  [
+   27,
+   88,
+   1,
+   85,
+   1,
+   "INT"
+  ],
+  [
+   28,
+   85,
+   0,
+   87,
+   0,
+   "IMAGE"
+  ],
+  [
+   29,
+   11,
+   0,
+   87,
+   1,
+   "IMAGE"
+  ],
+  [
+   30,
+   86,
+   0,
+   87,
+   5,
+   "MASK"
+  ]
+ ],
+ "groups": [
+  {
+   "id": 1,
+   "title": "说明",
+   "bounding": [
+    60,
+    100,
+    680,
+    760
+   ],
+   "color": "#3f789e",
+   "flags": {}
+  },
+  {
+   "id": 2,
+   "title": "① 加载器+② 输入·掩膜+③ 编码·采样+④ 回贴·输出",
+   "bounding": [
+    60,
+    880,
+    4160,
+    2132
+   ],
+   "color": "#88A",
+   "flags": {}
+  }
+ ],
+ "definitions": {
+  "subgraphs": []
+ },
+ "config": {},
+ "extra": {},
+ "version": 0.4
 }

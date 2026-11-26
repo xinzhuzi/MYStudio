@@ -7,10 +7,10 @@
 任务档:.trellis/tasks/11-26-sensenova-daojie-t2i-i2i/(design §1–§3)。
 
 产物(确定性字节,重跑恒同;四件均落 apps/backend/comfyui/workflows/1_图片/SenseNova/):
-  1_文生图/sensenova-道劫-t2i.json       画布件 25 节点:选型→三层装配→编码→双臂→32 对齐画幅→采样→输出
-  1_文生图/sensenova-道劫-t2i-api.json   直投件(画布件平铺;注入锚见文件内 _doc)
-  2_图生图/sensenova-道劫-i2i.json       画布件 28 节点:指令→装配→编码→参考图链→双臂→采样→输出
-  2_图生图/sensenova-道劫-i2i-api.json   直投件(同上)
+  1_文生图/sn-道劫-t2i.json       画布件 25 节点:选型→三层装配→编码→双臂→32 对齐画幅→采样→输出
+  1_文生图/sn-道劫-t2i-api.json   直投件(画布件平铺;注入锚见文件内 _doc)
+  2_图生图/sn-道劫-i2i.json       画布件 28 节点:指令→装配→编码→参考图链→双臂→采样→输出
+  2_图生图/sn-道劫-i2i-api.json   直投件(同上)
 
 取值纪律(零手抄):
   · 采样段节点=深拷贝官方模板同类节点(输入槽/输出槽/widgets_values_named 键序/properties/
@@ -42,10 +42,10 @@ EXAMPLE_DOC = REPO / "docs/prompts/道劫_类型主体句示例.md"
 
 # 四件产物:文件名 → 真源子目录(WF_ROOT 下);--out 时按文件名平铺
 ARTIFACTS = {
-    "sensenova-道劫-t2i.json": "1_文生图",
-    "sensenova-道劫-t2i-api.json": "1_文生图",
-    "sensenova-道劫-i2i.json": "2_图生图",
-    "sensenova-道劫-i2i-api.json": "2_图生图",
+    "sn-道劫-t2i.json": "1_文生图",
+    "sn-道劫-t2i-api.json": "1_文生图",
+    "sn-道劫-i2i.json": "2_图生图",
+    "sn-道劫-i2i-api.json": "2_图生图",
 }
 
 # ── 设计点名的取值(出处=任务档 design §1–§4 / prd R5–R7;其余一律现读) ──────────
@@ -585,7 +585,7 @@ def _flatten(canvas: dict, doc: str) -> dict:
 
 
 def api_doc_t2i(facts: dict) -> str:
-    return (f"SenseNova 道劫 t2i 直投模板(=画布件 sensenova-道劫-t2i.json 的平铺,同节点表;默认臂=Turbo "
+    return (f"SenseNova 道劫 t2i 直投模板(=画布件 sn-道劫-t2i.json 的平铺,同节点表;默认臂=Turbo "
             f"{facts['turbo_steps']} 步)。注入锚:型→1.base / 主体句→2.value / seed→21.value / Turbo→10.value"
             f"(true=LoRA+{facts['turbo_steps']} 步+cfg{facts['turbo_cfg']},false={facts['native_steps']} 步+"
             f"cfg{facts['native_cfg']})。装配在引擎内按 qi21_bases.json 现读完成;预览节点 5 的 ui.positive[0] "
@@ -593,7 +593,7 @@ def api_doc_t2i(facts: dict) -> str:
 
 
 def api_doc_i2i(facts: dict) -> str:
-    return (f"SenseNova 道劫 i2i 直投模板(=画布件 sensenova-道劫-i2i.json 的平铺,同节点表;默认臂=Turbo "
+    return (f"SenseNova 道劫 i2i 直投模板(=画布件 sn-道劫-i2i.json 的平铺,同节点表;默认臂=Turbo "
             f"{facts['turbo_steps']} 步)。注入锚:指令→2.value / 组装用途→3.组装用途 / 参考图名→17.image / "
             f"seed→24.value / Turbo→9.value(true=LoRA+{facts['turbo_steps']} 步+cfg{facts['turbo_cfg']},"
             f"false={facts['native_steps']} 步+cfg{facts['native_cfg']})。装配在引擎内完成;预览节点 4 的 "
@@ -607,10 +607,10 @@ def build_all() -> list[tuple[str, dict]]:
     subject, style = read_subject_example(), read_style_base()
     t2i, i2i = build_canvas_t2i(subject, style, facts), build_canvas_i2i(style, facts)
     return [(name, obj) for name, obj in (
-        ("sensenova-道劫-t2i.json", t2i),
-        ("sensenova-道劫-t2i-api.json", _flatten(t2i, api_doc_t2i(facts))),
-        ("sensenova-道劫-i2i.json", i2i),
-        ("sensenova-道劫-i2i-api.json", _flatten(i2i, api_doc_i2i(facts))))]
+        ("sn-道劫-t2i.json", t2i),
+        ("sn-道劫-t2i-api.json", _flatten(t2i, api_doc_t2i(facts))),
+        ("sn-道劫-i2i.json", i2i),
+        ("sn-道劫-i2i-api.json", _flatten(i2i, api_doc_i2i(facts))))]
 
 
 def render(obj: dict) -> bytes:

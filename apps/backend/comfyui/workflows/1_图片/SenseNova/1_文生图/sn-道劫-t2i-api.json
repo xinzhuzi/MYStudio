@@ -279,5 +279,5 @@
    ]
   }
  },
- "_doc": "SenseNova 道劫 t2i 直投模板(=画布件 sensenova-道劫-t2i.json 的平铺,同节点表;默认臂=Turbo 8 步)。注入锚:型→1.base / 主体句→2.value / seed→21.value / Turbo→10.value(true=LoRA+8 步+cfg1,false=50 步+cfg4)。装配在引擎内按 qi21_bases.json 现读完成;预览节点 5 的 ui.positive[0] 可逐字对账。直投前须剥除本 _doc 键(非节点键,引擎不认)。"
+ "_doc": "SenseNova 道劫 t2i 直投模板(=画布件 sn-道劫-t2i.json 的平铺,同节点表;默认臂=Turbo 8 步)。注入锚:型→1.base / 主体句→2.value / seed→21.value / Turbo→10.value(true=LoRA+8 步+cfg1,false=50 步+cfg4)。装配在引擎内按 qi21_bases.json 现读完成;预览节点 5 的 ui.positive[0] 可逐字对账。直投前须剥除本 _doc 键(非节点键,引擎不认)。"
 }

@@ -2,7 +2,7 @@
 """SenseNova 道劫产线契约测试(1126 道劫范式 × SenseNova-U1.6 役)。
 
 覆盖四物(design §6 十项):
-  1. sensenova-道劫-t2i.json / -i2i.json(画布件):加载器锚/Turbo 双臂语义/
+  1. sn-道劫-t2i.json / -i2i.json(画布件):加载器锚/Turbo 双臂语义/
      32 对齐节点/装配连线契约/装配 widget 默认/零负区/例句与底座逐字真源/
      i2i 参考图链与指令反双写
   2. 两件 -api.json(直投模板):注入锚/与画布件节点集合一致(除 MarkdownNote)
@@ -29,10 +29,10 @@ GEN = REPO / "apps/build/scripts/sensenova_daojie_build_1126.py"
 WF = REPO / "apps/backend/comfyui/workflows/1_图片/SenseNova"
 MD = REPO / "docs/prompts/道劫_类型主体句示例.md"
 BASES = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
-T2I = WF / "1_文生图/sensenova-道劫-t2i.json"
-T2I_API = WF / "1_文生图/sensenova-道劫-t2i-api.json"
-I2I = WF / "2_图生图/sensenova-道劫-i2i.json"
-I2I_API = WF / "2_图生图/sensenova-道劫-i2i-api.json"
+T2I = WF / "1_文生图/sn-道劫-t2i.json"
+T2I_API = WF / "1_文生图/sn-道劫-t2i-api.json"
+I2I = WF / "2_图生图/sn-道劫-i2i.json"
+I2I_API = WF / "2_图生图/sn-道劫-i2i-api.json"
 ARTIFACTS = [T2I, T2I_API, I2I, I2I_API]
 
 CKPT = "sensenova_u1.6_8b_mot_int8_convrot.safetensors"
