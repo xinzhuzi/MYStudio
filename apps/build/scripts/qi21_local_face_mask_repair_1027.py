@@ -12,7 +12,8 @@ import sys
 ROOT = Path(__file__).resolve().parents[3]
 NAME = 'qi21-道劫-换脸-局部重绘.json'
 ORIGINAL_SHA256 = '4615ed3952cc1bb67e5360a7bac04c0bd6fc84cf1fe60a21217ee5db48f52585'
-PATCHED_SHA256 = '3df6f3d8c4b7cab06a5523014170a48680fc94713b668982ea16a2d69aad3d49'
+# 1126 紧凑化重审(x 压缩 9600→7220,y 原位;度量 29/0/0/0 全绿;旧 reviewed sha=3df6f3d8…留档)
+PATCHED_SHA256 = '12b8db37f02d455883e57ec6a00065cbdf75e9d0eba57c5d432730dbce706f88'
 SCHEMAS = json.loads((ROOT / 'apps/backend/comfyui/tests/fixtures/qi21_object_info_snapshot.json').read_text())
 sys.path.insert(0, str(ROOT / '.agents/skills/node-graph/tools'))
 from layout_check import check_workflow

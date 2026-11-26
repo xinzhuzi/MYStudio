@@ -20,7 +20,7 @@ WF = REPO / "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/2_图生图/qi
 COL_W = 380
 PAD_X = 80          # 层间列距
 PAD_X, PAD_Y = 80, 40
-ROW_GAP = 30
+ROW_GAP = 80        # est_spacing 同列纵差 ≥80
 TOP_BAND = 900       # 节点带起点(说明卡 [80,120,640x720] 之下)
 
 FUNCTION_SETS = [
@@ -77,21 +77,165 @@ def main() -> int:
 
     note_id = next((n["id"] for n in nodes if n["type"] == "MarkdownNote"), None)
     x_of, y_of = {}, {}
-    y_cursor_top = TOP_BAND
+    # 尺寸=est_size(契约 size≥est 取等;行距列距按 est 面算,治 est_spacing)
+    import sys as _s2
+    _s2.path.insert(0, str(REPO / '.agents/skills/node-graph/tools'))
+    from workflow_layout import est_size  # noqa: E402
+    for n in nodes:
+        if n["id"] == note_id:
+            continue
+        n["size"] = [max(est_size(n)[0], 240), est_size(n)[1]]
+    est_w_max = max(n["size"][0] for n in nodes if n["id"] != note_id)
+    col_pitch = est_w_max + 220
+    # 长线(跨 ≥2 层)端点进预留顶道,防贝塞尔穿越中层节点(occlusion)
+    long_eps = set()
+    for l in links:
+        if abs(depth.get(l[3], 0) - depth.get(l[1], 0)) >= 2:
+            long_eps.add(l[1]); long_eps.add(l[3])
+    lane_h = max((by_id[nid]["size"][1] for nid in long_eps if nid != note_id), default=0) + 40
+    x_of, y_of = {}, {}
+    y_cursor_top = TOP_BAND + lane_h + 90
+    # 长线 Reroute 接力:每条跨 ≥2 层的线,在每个中间层顶道放一个 Reroute(300+ 号),
+    # 原线 src→r(c1)→r(c2)…→dst;reroute 小盒 75x26+间距豁免,顶道互不遮挡
+    reroutes = []   # (nid, depth)
+    next_rid = 300
+    for l in links:
+        span = abs(depth.get(l[3], 0) - depth.get(l[1], 0))
+        if span < 2:
+            continue
+        lo, hi = min(depth[l[1]], depth[l[3]]), max(depth[l[1]], depth[l[3]])
+        for d in range(lo + 1, hi):
+            reroutes.append((next_rid, d, l[0]))
+            next_rid += 1
+    for nid, d, lid in reroutes:
+        nodes.append({"id": nid, "type": "Reroute", "flags": {}, "order": 0, "mode": 0,
+                      "inputs": [{"name": "", "type": "*", "link": None}],
+                      "outputs": [{"name": "", "type": "*", "links": []}],
+                      "pos": [PAD_X, TOP_BAND], "size": [75, 26],
+                      "properties": {"Node name for S&R": "Reroute"},
+                      "widgets_values": None})
+        by_id[nid] = nodes[-1]
+        columns.setdefault(d, []).append(nid)
+    doc["last_node_id"] = max(doc.get("last_node_id", 0), next_rid - 1)
+    _rr_of_link = {}
+    for nid, d, lid in reroutes:
+        _rr_of_link.setdefault(lid, []).append((d, nid))
     if note_id is not None:
         by_id[note_id]["pos"] = [80, 120]   # 置顶说明卡独立纵带(组框之上)
-    for d in sorted(columns):
-        col = sorted(columns[d], key=lambda nid: (nid == note_id, nid))
-        x = PAD_X + d * COL_W
-        y = y_cursor_top
-        for nid in col:
-            if nid == note_id:
-                continue   # 置顶说明卡已独立定位,不参与列堆叠
-            n = by_id[nid]
-            n["pos"] = [x, y]
-            n["size"] = [min(n["size"][0], 340), n["size"][1]]
-            y_of[nid] = y
-            y += n["size"][1] + ROW_GAP
+    for lid, hops in _rr_of_link.items():
+        hops.sort()
+        old = next(x for x in links if x[0] == lid)
+        src, sslot, dst, dslot, ltype = old[1], old[2], old[3], old[4], old[5]
+        chain = [h[1] for h in hops]
+        segs = [(src, sslot, chain[0])] + [(chain[i], 0, chain[i + 1]) for i in range(len(chain) - 1)] + [(chain[-1], 0, dst)]
+        links.remove(old)
+        out0 = by_id[src]["outputs"][sslot]
+        out0["links"] = [x for x in (out0.get("links") or []) if x != lid]
+        din = by_id[dst]["inputs"][dslot]
+        din["link"] = None
+        _type = ltype
+        for a, aslot, b in segs:
+            dn = by_id[b]
+            slot = 0 if b in [h[1] for h in hops] else dslot
+            nm = dn["inputs"][slot]["name"] if b not in [h[1] for h in hops] else ""
+            nlid = max(x[0] for x in links) + 1
+            links.append([nlid, a, aslot, b, slot, _type])
+            dn["inputs"][slot]["link"] = nlid
+            so = by_id[a]["outputs"][aslot]
+            so["links"] = (so.get("links") or []) + [nlid]
+
+    # reroute 改线后重建邻接表与分层(reroute 计一层)
+    preds = {n["id"]: set() for n in nodes}
+    succs = {n["id"]: set() for n in nodes}
+    for l in links:
+        if l[1] in by_id and l[3] in by_id:
+            preds[l[3]].add(l[1])
+            succs[l[1]].add(l[3])
+    depth = {}
+    frontier = [nid for nid, pr in preds.items() if not pr]
+    for nid in frontier:
+        depth[nid] = 0
+    while frontier:
+        nxt = []
+        for nid in frontier:
+            for x in succs[nid]:
+                cand = depth[nid] + 1
+                if x not in depth or depth[x] < cand:
+                    if all(depth.get(pp, -1) >= 0 for pp in preds[x]):
+                        depth[x] = cand
+                        nxt.append(x)
+        frontier = nxt
+    _require(len(depth) == len(nodes), "重分层不完备")
+
+    # barycenter 排序(邻层均值迭代+贪心相邻交换,压交叉数;度量=layout_check)
+    import sys as _sys
+    _sys.path.insert(0, str(REPO / '.agents/skills/node-graph/tools'))
+    from layout_check import check_workflow  # noqa: E402
+    order = {d: [nid for nid in sorted(columns[d]) if nid != note_id] for d in columns}
+
+    def apply_layout(target):
+        lane_used_prev = {}
+        for nid, d, _lid in reroutes:
+            rn = next(x for x in target["nodes"] if x["id"] == nid)
+            rn["pos"] = [PAD_X + d * col_pitch + 60, TOP_BAND]
+            rn["size"] = [75, 26]
+        for dd, col in order.items():
+            _x = PAD_X + dd * col_pitch
+            lane_used = False
+            _y = y_cursor_top
+            for nid in col:
+                if nid == note_id:
+                    continue
+                pn = next(x for x in target["nodes"] if x["id"] == nid)
+                if nid in long_eps and dd > 0:
+                    pn["pos"] = [_x, TOP_BAND]   # 顶道(排序已保证列首)
+                    pn["size"] = list(by_id[nid]["size"])
+                    continue
+                if lane_used_prev.get(dd) is None:
+                    lane_used_prev[dd] = True
+                    _y = y_cursor_top
+                pn["pos"] = [_x, _y]
+                pn["size"] = list(by_id[nid]["size"])
+                _y += pn["size"][1] + ROW_GAP
+        return target
+
+    def crossings():
+        probe = apply_layout(json.loads(json.dumps(doc)))
+        rep = check_workflow(probe)[0]
+        Path('/tmp/huanlian_probe.json').write_bytes(json.dumps(probe, ensure_ascii=False, indent=1).encode())
+        Path('/tmp/huanlian_viol.json').write_text(json.dumps(rep.get('violations', []), ensure_ascii=False), encoding='utf-8')
+        return rep['counts']
+
+    # 列序迭代(layout_polish.column_order 驱动,forward/reverse 交替;判据=layout_check)
+    from layout_polish import column_order  # noqa: E402
+    best = None
+    best_order = None
+    for _pass in range(10):
+        apply_layout(doc)   # 迭代在 doc 本体落位(column_order 读现位)
+        for d in sorted(order):
+            col = [nid for nid in order[d] if nid != note_id]
+            if len(col) > 1:
+                col = [x["id"] for x in column_order(doc, col, "forward")]
+            order[d] = col
+        apply_layout(doc)
+        for d in sorted(order, reverse=True):
+            col = [nid for nid in order[d] if nid != note_id]
+            if len(col) > 1:
+                col = [x["id"] for x in column_order(doc, col, "reverse")]
+            order[d] = col
+        apply_layout(doc)
+        counts = crossings()
+        score = (counts.get('occlusion', 0), counts.get('est_spacing', 0),
+                 counts.get('est_overlap', 0), counts.get('crossings', 0))
+        if best is None or score < best:
+            best, best_order = score, {d: list(v) for d, v in order.items()}
+        if score[0] == 0 and score[1] == 0 and score[2] == 0 and score[3] <= 29:
+            break
+    _require(best is not None and best[0] == 0 and best[1] == 0 and best[2] == 0
+             and best[3] <= 29, f"布局指标压不达标(best={best}),需手工调列")
+    for d, v in best_order.items():
+        order[d] = v
+    apply_layout(doc)
     doc["last_node_id"] = doc.get("last_node_id", 0)
 
     # ── 功能组框(包围盒;相交即合并)────────────────────────────────
