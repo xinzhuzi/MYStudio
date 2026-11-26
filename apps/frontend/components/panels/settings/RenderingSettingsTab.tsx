@@ -613,6 +613,31 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                         </Select>
                       </div>
 
+                      {/* 分镜提示词构句模式（1120 Toonflow 一期件三 A/B 并轨）：正典 vs 全文注入 */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+                        <div className="min-w-0">
+                          <h5 className="font-medium text-foreground flex items-center gap-2">
+                            <Type className="h-4 w-4" aria-hidden="true" />
+                            分镜提示词构句模式
+                          </h5>
+                          <p className="text-xs text-muted-foreground">A/B 并轨试验开关：正典=五项序构句（缺省，默认路径字节级零变化）；全文注入=设计卡身份段整段以「参考 N」注入（1126 核查：该写法未消除重复人物）。对新发起的分镜生图生效。</p>
+                        </div>
+                        <Select
+                          value={workflowConfig.storyboardPromptMode ?? "canonical"}
+                          onValueChange={(value) => {
+                            setWorkflowConfig({ storyboardPromptMode: value === "identity-injection" ? "identity-injection" : undefined });
+                          }}
+                        >
+                          <SelectTrigger className="min-w-0" aria-label="分镜提示词构句模式">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="canonical">正典五项序（缺省）</SelectItem>
+                            <SelectItem value="identity-injection">设计卡全文注入（试验）</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
                       {/* 字幕音效（08-19 音效随字幕）：文字诉说时插入克制音效 */}
                       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
                         <div className="min-w-0">

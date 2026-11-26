@@ -114,6 +114,7 @@ describe("RenderingSettingsTab", () => {
       "自定义",
       "章节色调（导演定调）",
       "氛围层",
+      "分镜提示词构句模式",
       "字幕音效",
       "章头墨线开篇",
       "章尾砂化凝聚",
@@ -507,5 +508,29 @@ describe("RenderingSettingsTab", () => {
     expect(screen.getByRole("button", { name: "重新下载" })).toHaveProperty("disabled", false);
     fireEvent.click(screen.getByRole("button", { name: "重新下载" }));
     await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe("RenderingSettingsTab 分镜提示词构句模式(1120 件三 A/B 并轨开关,1126 加 UI 入口)", () => {
+  beforeEach(() => {
+    useAppSettingsStore.setState({ renderingSettings: { renderer: "ffmpeg" } });
+    installRuntime({ state: "not-installed", remotionVersion: "4.0.499" });
+    window.localStorage.setItem("mystudio.settings.rendering.collapsedModules", "[]");
+  });
+
+  it("缺省显示正典;种 identity-injection 后触发器显示全文注入(唯 UI 入口,程序置位补齐)", async () => {
+    useStudioStore.setState((state) => ({
+      workflowConfig: { ...state.workflowConfig, storyboardPromptMode: undefined },
+    }));
+    render(<RenderingSettingsTab />);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "分镜提示词构句模式" })).toBeTruthy());
+    expect(screen.getByLabelText("分镜提示词构句模式").textContent).toContain("正典五项序");
+
+    cleanup();
+    useStudioStore.setState((state) => ({
+      workflowConfig: { ...state.workflowConfig, storyboardPromptMode: "identity-injection" },
+    }));
+    render(<RenderingSettingsTab />);
+    await waitFor(() => expect(screen.getByLabelText("分镜提示词构句模式").textContent).toContain("全文注入"));
   });
 });

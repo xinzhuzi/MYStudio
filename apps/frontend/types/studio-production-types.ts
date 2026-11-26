@@ -239,7 +239,8 @@ export interface StudioWorkflowConfig {
    * 闭集形态）："canonical"=五项序正典（缺省，默认路径字节级零变化）；
    * "identity-injection"=设计卡全文注入（主体句零身份段＋「参考 N:<身份段全文>」
    * 块，Toonflow §3.4 对应物）。按项目持久化；分镜生图发车时传输层读此开关
-   * 选构句。试验开关无 UI 入口（程序置位）；非法值按 canonical 处理。
+   * 选构句。UI 入口=渲染设置页「分镜提示词构句模式」下拉（1126 加，选 canonical 时
+   * 落 undefined）；非法值按 canonical 处理。
    */
   storyboardPromptMode?: "canonical" | "identity-injection";
   /**
