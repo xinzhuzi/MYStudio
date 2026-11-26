@@ -171,6 +171,9 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
       };
       node.addEventListener("dom-ready", inject);
       node.addEventListener("did-finish-load", inject);
+      // 1127 画布自动复活:渲染进程崩溃 → guest target 永久消失(画布永久空白)
+      // → 立即换 key 重建 webview 元素,不等周期探测。
+      node.addEventListener("crashed", () => setWebviewEpoch((n) => n + 1));
       // 1105 D3 走查 UX:装载覆盖层生命周期——起于 did-start-loading;撤于
       // did-stop-loading 后的根节点探针(ComfyUI 是 JS 应用,资源停≠界面就绪:
       // #comfy-ui/#graph-canvas 真渲染才算数),1.5s 一拍最多 30s 让步撤层。
@@ -415,6 +418,10 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
   // running 口径分叉:远端生效=远端探活 ok(本机 serviceRunning 不参与);
   // 本机模式=serviceRunning+port(现行为回归)。
   const running = remoteActive ? remoteReady : status?.serviceRunning === true && Boolean(port);
+  // 1127 画布自动复活:webview guest 偶发死亡(刷新/引擎重启窗口)→ target
+  // 永久消失 → 画布永久空白(1126 复测 3/3,与 FreeVideo 无关)。
+  const [webviewEpoch, setWebviewEpoch] = useState(0);
+  const guestDeadStreakRef = useRef(0);
   // 1125 章验收横幅联动:running 值变更才上抛(回调走 ref 保新鲜——宿主传
   // 内联箭头也不至于每渲染重触发 effect)。
   const onCanvasRunningChangeRef = useRef(onCanvasRunningChange);
@@ -432,6 +439,33 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
     const hardFallback = setTimeout(() => setWebviewLoading(false), 90_000);
     return () => clearTimeout(hardFallback);
   }, [src]);
+  // 1127 画布自动复活:界面确认渲染后启用周期探测(guest 内 1+1,8s 超时,
+  // 20s 一轮):连续 3 次失败=guest 死亡 → 换 key 重建 webview 元素(等价全新
+  // 挂载,冷启动实测 4s)。装载/重载期(webviewLoading)暂停计数不误判;探测
+  // 成功即清零。触发源:刷新竞态/引擎重启窗口(1126 复测 3/3)。
+  useEffect(() => {
+    if (!running || !src || webviewLoading) return;
+    const timer = window.setInterval(() => {
+      const w = webviewRef.current;
+      if (!w || typeof w.executeJavaScript !== "function") return;
+      let settled = false;
+      void Promise.race([
+        Promise.resolve(w.executeJavaScript("1+1")).then(() => { settled = true; }),
+        new Promise((resolve) => window.setTimeout(() => resolve("timeout"), 8000)),
+      ]).then(() => {
+        if (!settled) {
+          guestDeadStreakRef.current += 1;
+          if (guestDeadStreakRef.current >= 3) {
+            guestDeadStreakRef.current = 0;
+            setWebviewEpoch((n) => n + 1);
+          }
+        } else {
+          guestDeadStreakRef.current = 0;
+        }
+      });
+    }, 20000);
+    return () => window.clearInterval(timer);
+  }, [running, src, webviewLoading]);
   // 09-22 端口无关 scope 通道:URL 参数只在首载一瞬可靠(ComfyUI SPA 打开
   // 工作流即改写丢参),引擎侧 localStorage 兜底又按 origin(=引擎端口)隔离
   // ——引擎端口漂移(实录 17000→17001→17002)后新 origin 的 my-scope 种子
@@ -648,6 +682,7 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
       )}
       <div className="flex h-full w-full min-h-0 min-w-0 flex-col" data-comfy-canvas-live>
         <webview
+        key={webviewEpoch}
         ref={attachWebview}
         src={src ?? "about:blank"}
         // 09-12 模块分离(用户裁定):大模型模块用独立持久会话——ComfyUI
