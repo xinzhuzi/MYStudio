@@ -1,3 +1,8 @@
+# packages 必填(pnpm 10 起缺它即拒跑「packages field missing or empty」;
+# packageManager 钉 pnpm@10.26.2)。本仓单 importer=apps 自身,与 pnpm-lock.yaml
+# 的 importers: .: 一一对应;patchedDependencies 为 pnpm 10 的 patches 配置住址。
+packages:
+  - '.'
 patchedDependencies:
   '@remotion/renderer@4.0.534': patches/@remotion__renderer@4.0.534.patch
   remotion@4.0.534: patches/remotion@4.0.534.patch

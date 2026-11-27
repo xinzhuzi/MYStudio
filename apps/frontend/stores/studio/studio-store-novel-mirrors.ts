@@ -1,4 +1,9 @@
-import { buildNovelChapterMirror, novelChapterMirrorRelativePath, parseNovelChapterMirrorBody } from "@/lib/studio/novel";
+import {
+  buildNovelChapterMirror,
+  novelChapterMirrorRelativePath,
+  parseNovelChapterMirror,
+  type NovelChapterMirror,
+} from "@/lib/studio/novel";
 import { readResidentBible, sourceBibleMirrorKey } from "@/lib/studio/source-bible";
 import type { NovelChapter } from "@/types/studio";
 
@@ -56,20 +61,26 @@ export function syncSourceBibleMirror(
     });
 }
 
-/** 1127 正文按需装载：从章节正文镜像（novel/chapters/<章>.md，README 真源）读回小说正文。
- *  剥离镜像头取正文（parseNovelChapterMirrorBody）；读不到/解析不出=返回 null（fail-open，
- *  调用方按缺失处理）。raw=true 走 16MB 通道：自家写入的镜像可信，免 2MB 预览截断。 */
-export async function loadNovelChapterMirrorBody(
+/** 1127 正文真源读回：读整份正文文件（novel/chapters/<章>.md，唯一真源）并解析为
+ *  NovelChapterMirror（头部元数据+正文+事件段），供 mergeNovelChapterWithMirror 三入口
+ *  （启动对齐/切章/读回）共用。读不到/读取失败/解析不出 → null（fail-open，调用方按
+ *  缺失处理）。raw=true 走 16MB 通道：正文文件可信，免 2MB 预览截断。 */
+export async function loadNovelChapterMirror(
   projectId: string | null | undefined,
   chapter: Pick<NovelChapter, "index">,
   projectFiles: NovelMirrorFiles | undefined,
-): Promise<string | null> {
+): Promise<NovelChapterMirror | null> {
   if (!projectId || !projectFiles?.readText) return null;
   const relativePath = novelChapterMirrorRelativePath(chapter.index);
-  const result = await projectFiles.readText({ projectId, relativePath, raw: true });
+  let result: { success?: boolean; text?: string } | string | null;
+  try {
+    result = await projectFiles.readText({ projectId, relativePath, raw: true });
+  } catch {
+    return null;
+  }
   const text = typeof result === "string" ? result : result?.text;
   if (typeof text !== "string" || text.length === 0) return null;
-  return parseNovelChapterMirrorBody(text);
+  return parseNovelChapterMirror(text);
 }
 
 /** 启动/切项目治愈：store 圣经为空时只从 MEMORY.md 回读，外部编辑可被拾取。 */

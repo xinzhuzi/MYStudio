@@ -4,15 +4,18 @@ import type { NovelChapter } from "@/types/studio";
 import { useProjectStore } from "../project/project-store";
 import {
   createStudioWorkflowId,
+  loadNovelChapterMirrorForActiveProject,
   removeNovelChapterMirrorsForActiveProject,
   syncNovelChapterMirrorsForActiveProject,
 } from "./studio-store-runtime";
 import {
+  loadNovelChapterMirror,
   removeNovelChapterMirrors,
   syncNovelChapterMirrors,
 } from "./studio-store-novel-mirrors";
 
 vi.mock("./studio-store-novel-mirrors", () => ({
+  loadNovelChapterMirror: vi.fn(),
   removeNovelChapterMirrors: vi.fn(),
   syncNovelChapterMirrors: vi.fn(),
 }));
@@ -80,6 +83,30 @@ describe("studio store runtime helpers", () => {
     );
     expect(vi.mocked(syncNovelChapterMirrors).mock.calls[0]?.[2]).toBe(projectFiles);
     expect(vi.mocked(removeNovelChapterMirrors).mock.calls[0]?.[2]).toBe(projectFiles);
+  });
+
+  // 1127 正文真源读回(Task 5):活动项目包装函数按 (活动pid, chapter, 桥) 转发
+  it("forwards the active project and bridge to loadNovelChapterMirror", async () => {
+    const readText = vi.fn().mockResolvedValue({ success: true, text: "# 第1章\n\n正文" });
+    vi.stubGlobal("window", { projectFiles: { readText } });
+    useProjectStore.setState({
+      activeProjectId: "project-1",
+      activeProject: {
+        id: "project-1",
+        name: "测试项目",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+
+    const chapter: Pick<NovelChapter, "index"> = { index: 1 };
+    await loadNovelChapterMirrorForActiveProject(chapter);
+
+    expect(vi.mocked(loadNovelChapterMirror)).toHaveBeenCalledWith(
+      "project-1",
+      chapter,
+      { readText },
+    );
   });
 
   it("safely passes no bridge when window or projectFiles is unavailable", () => {

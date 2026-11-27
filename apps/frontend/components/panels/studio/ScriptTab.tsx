@@ -23,6 +23,7 @@ import "md-editor-rt/lib/style.css";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChapterSwitchSelect } from "./ChapterSwitchSelect";
 import { ScriptEditorDialog } from "./ScriptEditorDialog";
+import { useLibraryDramaScript } from "./use-library-drama-script";
 import { latestAgentWorkEntry } from "./workflow-helpers";
 
 
@@ -188,6 +189,13 @@ export function ScriptTab(props: {
       aspectRatio: aspectMatch ? aspectMatch[1] : undefined,
     });
   }, [scriptDraftData, props.styleSummary]);
+  // R10/D22 剧本库回落:本章无 App 内剧本草稿(scriptDraftData 空)时读漫剧剧本库文件
+  // (novel/drama/<章>_漫剧.md)只读展示;有草稿不读桥(省一次 IPC)。与 AssetsTab 提取
+  // 使能同输入(单源 hook 真源)。须在下方早退之前调用(hooks 恒序)。
+  const library = useLibraryDramaScript({
+    chapterId: chapter?.id,
+    enabled: !scriptDraftData,
+  });
   if (!props.novelChapters.length) {
     return (
       <div className="p-6 text-sm text-muted-foreground">
@@ -197,6 +205,8 @@ export function ScriptTab(props: {
   }
 
   const output = stageData(activeStage)?.data ?? "";
+  // R10:回落生效态=无产出(output 空)且剧本库文件读到了文本;读库失败(text null)不走回落
+  const libraryActive = !output && library.text !== null;
   const standardMessages = chapter
     ? buildStageMessages(activeStage, {
         manualContext: props.manualContext,
@@ -265,10 +275,14 @@ export function ScriptTab(props: {
     .join("\n\n");
   const skillMarkdown = skill || "# Skill 手册\n\n未找到该阶段 skill 手册。";
   const promptMarkdown = promptSource;
+  // R10:产出优先;无产出时回落剧本库文件文本(只读),仍读不到才落原空态文案
   const generatedMarkdown =
     streamingText !== null
       ? liveMd || `# ${SCRIPT_STAGE_LABEL[activeStage]}\n\n生成中...`
-      : output || `# ${SCRIPT_STAGE_LABEL[activeStage]}\n\n暂无生成内容。`;
+      : output ||
+        (libraryActive && library.text !== null
+          ? library.text
+          : `# ${SCRIPT_STAGE_LABEL[activeStage]}\n\n暂无生成内容。`);
   const reviewMarkdown =
     reviewStreaming !== null
       ? extractPartialContent(reviewStreaming) || "# 审核结果\n\n审核中..."
@@ -500,6 +514,15 @@ export function ScriptTab(props: {
                 {streamingThinking
                   ? renderThinkingPreview(streamingThinking, Boolean(streamingText))
                   : null}
+                {/* R10:回落生效时在预览上方标注只读来源(剧本库文件,非 App 内草稿) */}
+                {libraryActive && library.text !== null ? (
+                  <div
+                    data-testid="script-library-source"
+                    className="shrink-0 text-[10px] leading-none text-muted-foreground"
+                  >
+                    {`剧本库 · novel/drama/${chapter?.id}_漫剧.md · 只读`}
+                  </div>
+                ) : null}
                 {renderMarkdownPreview(generatedMarkdown, "flex-1")}
               </div>
             ) : null}

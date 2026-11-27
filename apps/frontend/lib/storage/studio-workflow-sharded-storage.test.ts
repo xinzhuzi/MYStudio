@@ -339,6 +339,17 @@ describe("createStudioWorkflowShardedStorage", () => {
     expect(hoisted.files.get("_p/proj-1/backups/README.md")).toBe(backupsTemplate);
   });
 
+  it("README 模板数据地图：novel/ 行含 drama/ 剧本库与「唯一真源」正文口径（11-27 数据对齐）", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const rootTemplate = readFileSync(
+      resolve(__dirname, "../../assets/docs/project/README.md"),
+      "utf-8",
+    );
+    expect(rootTemplate).toContain("drama/");
+    expect(rootTemplate).toContain("唯一真源");
+  });
+
   it("CPU 增量：域复用生效 + 原地突变由周期全量自愈（fullSaveEvery）", async () => {
     const live: Record<string, unknown> = {
       novelChapters: [
@@ -477,6 +488,68 @@ describe("createStudioWorkflowShardedStorage", () => {
     const restored = await storage.getItem("studio-workflow-store");
     const parsed = JSON.parse(restored!) as { state: { storyboards: Array<{ id: string; episodeId: string }> } };
     expect(parsed.state.storyboards.some((sb) => sb.id === "sb-1" && sb.episodeId === "chapter-001")).toBe(true);
+  });
+
+  it("同章正文分片不再累积：非激活章正文域重规划后旧分片名让位（清单只留新名）", async () => {
+    // 第一代：两章全量落盘 → chapter-002 的旧正文分片名进 manifest
+    const gen1 = buildPersistedValue();
+    await storage.setItem("studio-workflow-store", gen1);
+    const manifest1 = JSON.parse(hoisted.files.get("_p/proj-1/studio-workflow/manifest")!) as { shards: string[] };
+    const oldShard = manifest1.shards.find((n) => n.startsWith("chapters/chapter-002/novel-chapters-"));
+    expect(oldShard).toBeTruthy();
+
+    // 第二代：chapter-002 仍是内存完整章（带正文）但正文已改 → plan 产出新名；
+    // activeChapterId 仍指 chapter-001（非激活章带完整正文=导入后未切章形态）
+    const gen2 = JSON.parse(gen1) as {
+      state: {
+        novelChapters: Array<{ id: string; sourceText?: string }>;
+        activeChapterId?: string;
+      };
+    };
+    gen2.state.novelChapters[1]!.sourceText = "第二章正文已修订";
+    gen2.state.activeChapterId = "chapter-001";
+    await storage.setItem("studio-workflow-store", JSON.stringify(gen2));
+
+    // 旧名不再抄录：该章正文分片在清单里只有新名（11-27 同章正文分片不累积）
+    const manifest2 = JSON.parse(hoisted.files.get("_p/proj-1/studio-workflow/manifest")!) as { shards: string[] };
+    const ch2NovelShards = manifest2.shards.filter((n) => n.startsWith("chapters/chapter-002/novel-chapters-"));
+    expect(ch2NovelShards).toHaveLength(1);
+    expect(ch2NovelShards[0]).not.toBe(oldShard);
+  });
+
+  it("agent-work-data 域旧名仍抄录：非激活章该域重规划不让位（现行行为回归锚）", async () => {
+    // 第一代：两章全量 + agentWorkData 每章两条 → chapter-002 旧 agent-work-data 分片名
+    const gen1 = JSON.parse(buildPersistedValue()) as {
+      state: {
+        novelChapters: Array<Record<string, unknown>>;
+        agentWorkData?: Array<Record<string, unknown>>;
+        activeChapterId?: string;
+      };
+    };
+    gen1.state.agentWorkData = [
+      { id: "awd-1", episodeId: "chapter-001", eventSummary: "第一章事件旧" },
+      { id: "awd-2", episodeId: "chapter-002", eventSummary: "第二章事件旧-甲" },
+      { id: "awd-3", episodeId: "chapter-002", eventSummary: "第二章事件旧-乙" },
+    ];
+    gen1.state.activeChapterId = "chapter-001";
+    await storage.setItem("studio-workflow-store", JSON.stringify(gen1));
+    const manifest1 = JSON.parse(hoisted.files.get("_p/proj-1/studio-workflow/manifest")!) as { shards: string[] };
+    const oldAwd = manifest1.shards.find((n) => n.startsWith("chapters/chapter-002/agent-work-data-"));
+    expect(oldAwd).toBeTruthy();
+
+    // 第二代：chapter-002 轻索引（正文域正常窗口化），其 agentWorkData 只有 1 条
+    // 新数据（saveAgentWorkData 只写该章形态）→ plan 重规划该域产出新名
+    const gen2 = JSON.parse(JSON.stringify(gen1)) as typeof gen1;
+    gen2.state.novelChapters = gen2.state.novelChapters.map((c) => (
+      (c as { id?: string }).id === "chapter-001" ? c : { id: (c as { id?: string }).id, title: (c as { title?: unknown }).title }
+    ));
+    gen2.state.agentWorkData = [{ id: "awd-2", episodeId: "chapter-002", eventSummary: "第二章事件新" }];
+    await storage.setItem("studio-workflow-store", JSON.stringify(gen2));
+
+    // 旧名仍在清单：agent-work-data 域不让位——否则该章其余条目（awd-3）随旧分片
+    // 被孤儿清理整域删除（design §1.4 单向门）
+    const manifest2 = JSON.parse(hoisted.files.get("_p/proj-1/studio-workflow/manifest")!) as { shards: string[] };
+    expect(manifest2.shards).toContain(oldAwd!);
   });
 
   it("空态覆写守卫：读链损坏（分片缺失）后的空工作区保存被拒；健康重置放行", async () => {

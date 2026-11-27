@@ -3,6 +3,16 @@ import {
   useMemo,
   useState,
   } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import aiEventAnalysisIconUrl from "@/assets/brand/ai-event-analysis-icon.svg";
@@ -58,7 +68,7 @@ export function NovelTab(props: {
   replaceNovelText: (value: string, sourceName?: string) => void;
   novelChapters: NovelChapter[];
   updateNovelChapter: (id: string, updates: Partial<NovelChapter>) => void;
-  /** 1127 正文按需装载:轻索引条目(窗口化)无 sourceText,编辑前经此读回章分片全文;缺省=不装载(旧行为) */
+  /** 1127 正文按需装载:轻索引条目(窗口化)无 sourceText,编辑前经此读回正文文件全文;缺省=不装载(旧行为) */
   onEnsureChapterBody?: (chapterId: string) => Promise<NovelChapter | null>;
   analyzeEvents: (chapters: NovelChapter[]) => void | Promise<void>;
   sourceBible: string;
@@ -283,9 +293,16 @@ export function NovelTab(props: {
   };
 
   // 1127 正文按需装载:轻索引条目无 sourceText(窗口化瘦身),直接开编辑=空文假丢。
-  // 先经 onEnsureChapterBody 读回章分片全文,装载中在弹窗标题显示;失败 toast 并
-  // 以现有条目开弹窗(至少标题/卷可编辑,正文注明缺失原因)。
+  // 先经 onEnsureChapterBody 读回正文文件全文,装载中在弹窗标题显示;失败置
+  // editLoadFailed 锁定保存(设计 §1.2),不以空文覆盖唯一真源。
   const [editLoading, setEditLoading] = useState(false);
+  const [editLoadFailed, setEditLoadFailed] = useState(false);
+  const [emptyBodyConfirmOpen, setEmptyBodyConfirmOpen] = useState(false);
+  const closeEdit = useCallback(() => {
+    setEditingChapter(null);
+    setEditLoadFailed(false);
+    setEmptyBodyConfirmOpen(false);
+  }, []);
   const openEdit = async (chapter: NovelChapter) => {
     const hasBody = typeof chapter.sourceText === "string" && chapter.sourceText.length > 0;
     const baseDraft = {
@@ -296,6 +313,7 @@ export function NovelTab(props: {
       eventState: chapter.eventState ?? "",
     };
     if (hasBody || !props.onEnsureChapterBody) {
+      closeEdit();
       setEditingChapter(chapter);
       setEditDraft(baseDraft);
       return;
@@ -303,6 +321,8 @@ export function NovelTab(props: {
     setEditingChapter(chapter);
     setEditDraft(baseDraft);
     setEditLoading(true);
+    setEditLoadFailed(false);
+    setEmptyBodyConfirmOpen(false);
     try {
       const full = await props.onEnsureChapterBody(chapter.id);
       setEditDraft({
@@ -312,13 +332,16 @@ export function NovelTab(props: {
         eventSummary: (full ?? chapter).eventSummary ?? "",
         eventState: (full ?? chapter).eventState ?? "",
       });
-      if (!full) toast.error("章节正文装载失败(分片缺失或读取失败),正文区为空——请勿直接保存覆盖");
+      if (!full) {
+        setEditLoadFailed(true);
+        toast.error("正文文件缺失或无法读取，已锁定保存");
+      }
     } finally {
       setEditLoading(false);
     }
   };
 
-  const saveEdit = () => {
+  const writeChapterFromDraft = () => {
     if (!editingChapter) return;
     props.updateNovelChapter(editingChapter.id, {
       volume: editDraft.volume.trim() || "正文卷",
@@ -327,8 +350,18 @@ export function NovelTab(props: {
       eventSummary: editDraft.eventSummary,
       eventState: editDraft.eventState,
     });
-    setEditingChapter(null);
+    closeEdit();
     toast.success("章节已保存");
+  };
+
+  const saveEdit = () => {
+    if (!editingChapter || editLoadFailed) return;
+    if (!editDraft.sourceText.trim()) {
+      // 1127 保存守卫:空正文=清空正文文件,须二次确认(设计 §1.2)。
+      setEmptyBodyConfirmOpen(true);
+      return;
+    }
+    writeChapterFromDraft();
   };
 
   return (
@@ -409,10 +442,35 @@ export function NovelTab(props: {
         open={Boolean(editingChapter)}
         draft={editDraft}
         loading={editLoading}
-        onOpenChange={(open) => !open && !editLoading && setEditingChapter(null)}
+        loadFailed={editLoadFailed}
+        onOpenChange={(open) => {
+          if (!open && !editLoading) closeEdit();
+        }}
         onDraftChange={setEditDraft}
         onSave={saveEdit}
       />
+
+      <AlertDialog
+        open={emptyBodyConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open) setEmptyBodyConfirmOpen(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认清空该章正文？</AlertDialogTitle>
+            <AlertDialogDescription>
+              保存后该章正文文件的内容将被清空。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={writeChapterFromDraft}>
+              确认
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <NovelBibleEditorDialog
         open={bibleOpen}

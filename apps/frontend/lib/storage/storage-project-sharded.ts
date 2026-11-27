@@ -390,7 +390,9 @@ export function createStudioWorkflowShardedStorage(
             emitChapterIndex: true,
           });
           // 窗口化 v1 写：归档章分片名抄录——窗口 state 只含激活章条目，磁盘上
-          // 其他章的既有分片（stamp 命名不可变）按名并入本代 manifest，孤儿清理不误删
+          // 其他章的既有分片（stamp 命名不可变）按名并入本代 manifest，孤儿清理
+          // 不误删；例外=正文域（novel-chapters）重规划即让位（11-27 同章正文
+          // 分片不再累积，见循环内注）
           try {
             const activeId = plan.manifest.activeChapterId ?? null;
             if (plan.manifest.chapterIndex !== undefined) {
@@ -422,11 +424,15 @@ export function createStudioWorkflowShardedStorage(
                   if (!shardName.startsWith('chapters/')) continue;
                   const parts = shardName.split('/');
                   const shardChapter = parts[1] ?? '';
-                  if (shardChapter === activeId) {
-                    const slugMatch = /^(.*)-\d{3,}-[a-f0-9]{8}$/.exec((parts[2] ?? '').replace(/\.json$/, ''));
-                    const domain = `${shardChapter}/${slugMatch?.[1] ?? parts[2] ?? ''}`;
-                    if (planChapterDomains.has(domain)) continue;
-                  }
+                  const slugMatch = /^(.*)-\d{3,}-[a-f0-9]{8}$/.exec((parts[2] ?? '').replace(/\.json$/, ''));
+                  const domain = `${shardChapter}/${slugMatch?.[1] ?? parts[2] ?? ''}`;
+                  // 11-27 同章正文分片不再累积：重规划域「不抄旧名」从只对激活章
+                  // 生效扩到任何章的 novel-chapters 域——带正文的章节条目自带全部
+                  // 字段，新分片是完整替代；其余域（agent-work-data 等一次只写 1 条
+                  // 新数据的域）一律不让位，否则盘上旧分片被孤儿清理后该章其余
+                  // 条目会被整域删除。
+                  const replanned = planChapterDomains.has(domain);
+                  if (replanned && (shardChapter === activeId || slugMatch?.[1] === 'novel-chapters')) continue;
                   if (listed.has(shardName)) continue;
                   plan.manifest.shards.push(shardName);
                   listed.add(shardName);

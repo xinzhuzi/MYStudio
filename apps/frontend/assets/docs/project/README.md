@@ -20,8 +20,8 @@
 
 | 目录 | 类别 | 作用 |
 |---|---|---|
-| `store/` | 应用状态 | 全部应用数据：各域 store（剧本/配音/角色/场景/道具/媒体/剪辑/导演等单文件 JSON）+ 工作流主数据分片目录 `store/studio-workflow/`（章节/分镜/任务，详见其内部 README.md）+ `store/assets/` 资产文件库（创作内容，应用托管） |
-| `novel/` | 创作内容 | 小说域：`chapters/<章节ID>.md` 章节正文镜像；`source-memory/` 原著记忆库（MEMORY.md 常驻层 + 档案检索索引） |
+| `store/` | 应用状态 | 全部应用数据：各域 store（剧本/配音/角色/场景/道具/媒体/剪辑/导演等单文件 JSON）+ 工作流主数据分片目录 `store/studio-workflow/`（章节/分镜/任务，详见其内部 README.md）+ `store/assets/` 资产文件库（创作内容，应用托管）；App 内生成的剧本草稿/导演计划/分镜表保存在 `store/studio-workflow/`；两台机器各有一份项目库，互不同步 |
+| `novel/` | 创作内容 | 小说域：`chapters/<章节ID>.md` 章节正文文件（**小说正文唯一真源**，保存时写回同一份文件）；`drama/` 漫剧剧本库（`chapter-NNN_漫剧.md`，章节驾驶舱读取，「剧本生产」页在本章没有 App 内草稿时只读展示）；`drama-repaired/` 剧本修复稿；`source-memory/` 原著记忆库（MEMORY.md 常驻层 + 档案检索索引） |
 | `store/assets/` | 创作内容（应用托管） | 资产文件库：角色/场景/道具参考图等入库资产文件（1016 起住 `store/` 内） |
 | `remotion/` | 插件工作区 | **Remotion 渲染插件**的专属目录：章节 manifest、渲染任务、证据与成片输出（audio/ chapters/ outputs/ jobs/ evidence/） |
 | `video-use/` | 插件工作区 | **video-use 视频生成插件**的审修工件：每章每修订一目录（`<章节>/r<修订>/`） |

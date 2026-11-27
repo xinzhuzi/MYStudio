@@ -1,11 +1,77 @@
 import { describe, expect, it, vi } from "vitest";
 import type { NovelChapter } from "@/types/studio";
 import {
+  loadNovelChapterMirror,
   loadSourceBibleMirror,
   removeNovelChapterMirrors,
   syncNovelChapterMirrors,
   syncSourceBibleMirror,
 } from "./studio-store-novel-mirrors";
+
+// 1127 正文真源读回（Task 5 Step 1）：完整正文文件解析对象 / 失败与无桥 → null / 读桥参数
+const chapter2MirrorMarkdown = [
+  "# 第2章：暮色灵猫结替身",
+  "",
+  "> 卷：第一卷",
+  "> 源ID：chapter-002",
+  "> 修订：2",
+  "> 来源：2_暮色灵猫结替身.md",
+  "",
+  "正文第一段。",
+  "",
+  "## 事件分析",
+  "",
+  "摘要：灵猫替身被识破。",
+  "状态：",
+  "涉及角色：王离",
+].join("\n");
+
+describe("loadNovelChapterMirror（正文文件完整读回）", () => {
+  it("读到完整正文文件时返回解析出的完整镜像对象", async () => {
+    const readText = vi.fn().mockResolvedValue({ success: true, text: chapter2MirrorMarkdown });
+
+    const mirror = await loadNovelChapterMirror("project-1", { index: 2 }, { readText });
+
+    expect(mirror).toEqual({
+      title: "第2章：暮色灵猫结替身",
+      volume: "第一卷",
+      sourceId: "chapter-002",
+      revision: 2,
+      sourceName: "2_暮色灵猫结替身.md",
+      sourceText: "正文第一段。",
+      eventSummary: "灵猫替身被识破。",
+      eventState: "涉及角色：王离",
+    });
+  });
+
+  it("readText 失败信封、裸 reject、空文本、无桥、无项目 id 均返回 null", async () => {
+    expect(await loadNovelChapterMirror("project-1", { index: 2 }, {
+      readText: vi.fn().mockResolvedValue({ success: false }),
+    })).toBeNull();
+    expect(await loadNovelChapterMirror("project-1", { index: 2 }, {
+      readText: vi.fn().mockRejectedValue(new Error("io")),
+    })).toBeNull();
+    expect(await loadNovelChapterMirror("project-1", { index: 2 }, {
+      readText: vi.fn().mockResolvedValue({ success: true, text: "" }),
+    })).toBeNull();
+    expect(await loadNovelChapterMirror("project-1", { index: 2 }, undefined)).toBeNull();
+    expect(await loadNovelChapterMirror(null, { index: 2 }, {
+      readText: vi.fn().mockResolvedValue({ success: true, text: chapter2MirrorMarkdown }),
+    })).toBeNull();
+  });
+
+  it("调用参数为 {projectId, relativePath, raw: true}（16MB 通道）", async () => {
+    const readText = vi.fn().mockResolvedValue({ success: true, text: chapter2MirrorMarkdown });
+
+    await loadNovelChapterMirror("project-1", { index: 2 }, { readText });
+
+    expect(readText).toHaveBeenCalledWith({
+      projectId: "project-1",
+      relativePath: "novel/chapters/chapter-002.md",
+      raw: true,
+    });
+  });
+});
 
 const chapter: NovelChapter = {
   id: "chapter-source-id",

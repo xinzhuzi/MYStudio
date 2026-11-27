@@ -2192,6 +2192,462 @@ describe("switchChapter 重复行压实(P3 读侧去重)", () => {
   });
 });
 
+// ── 1127 正文真源读回(Task 5 Step 3/5/7)────────────────────────────────────
+// ensureNovelChapterBody 改完整合并(design §1.1「读回」):正文文件(novel/chapters/<章>.md)
+// 是唯一真源;轻条目 file-wins 全取文件、有正文只补事件、文件缺失 fail-open。
+// 读桥经 window.projectFiles(readText) 真身接线,activeProjectId 由 useProjectStore 提供。
+describe("ensureNovelChapterBody 正文真源读回(1127 Task 5)", () => {
+  const pid = "proj-ensure";
+  const chapter2Light: NovelChapter = {
+    id: "chapter-002",
+    index: 2,
+    title: "第2章 旧标题",
+    revision: 1,
+    importedAt: 2,
+  };
+  const mirrorMarkdown = [
+    "# 第2章：暮色灵猫结替身",
+    "",
+    "> 卷：第一卷",
+    "> 源ID：chapter-002",
+    "> 修订：2",
+    "> 来源：2_暮色灵猫结替身.md",
+    "",
+    "文件正文。",
+    "",
+    "## 事件分析",
+    "",
+    "摘要：灵猫替身被识破。",
+    "状态：",
+    "涉及角色：王离",
+  ].join("\n");
+  let originalPid: string | null = null;
+
+  beforeEach(() => {
+    originalPid = useProjectStore.getState().activeProjectId;
+    useProjectStore.setState({ activeProjectId: pid });
+  });
+
+  afterEach(() => {
+    delete (window as unknown as { projectFiles?: unknown }).projectFiles;
+    useProjectStore.setState({ activeProjectId: originalPid });
+  });
+
+  function stubMirror(readText: ReturnType<typeof vi.fn>) {
+    (window as unknown as { projectFiles?: unknown }).projectFiles = { readText };
+  }
+
+  it("轻条目+文件:正文/修订号/标题/事件全取文件并已回填 state", async () => {
+    const readText = vi.fn().mockResolvedValue({ success: true, text: mirrorMarkdown });
+    stubMirror(readText);
+    useStudioStore.setState({ novelChapters: [chapter2Light], activeChapterId: "chapter-002" });
+
+    const ensured = await useStudioStore.getState().ensureNovelChapterBody("chapter-002");
+
+    expect(ensured).toMatchObject({
+      id: "chapter-002",
+      title: "第2章：暮色灵猫结替身",
+      volume: "第一卷",
+      revision: 2,
+      sourceName: "2_暮色灵猫结替身.md",
+      sourceText: "文件正文。",
+      eventSummary: "灵猫替身被识破。",
+      eventState: "涉及角色：王离",
+    });
+    expect(useStudioStore.getState().novelChapters[0]).toMatchObject({
+      sourceText: "文件正文。",
+      revision: 2,
+      eventSummary: "灵猫替身被识破。",
+    });
+    expect(readText).toHaveBeenCalledWith({
+      projectId: pid,
+      relativePath: "novel/chapters/chapter-002.md",
+      raw: true,
+    });
+  });
+
+  it("有正文有事件:不调用读桥,返回同一对象(快路径零读盘)", async () => {
+    const full: NovelChapter = {
+      id: "chapter-002",
+      index: 2,
+      title: "第2章",
+      revision: 5,
+      sourceText: "内存正文。",
+      eventSummary: "已有摘要。",
+      importedAt: 2,
+    };
+    const readText = vi.fn();
+    stubMirror(readText);
+    useStudioStore.setState({ novelChapters: [full], activeChapterId: "chapter-002" });
+
+    const ensured = await useStudioStore.getState().ensureNovelChapterBody("chapter-002");
+
+    expect(ensured).toBe(full);
+    // 读桥可能被持久化层(清单读)共用,这里只断言「正文文件读回」路径未被触达
+    expect(readText).not.toHaveBeenCalledWith(
+      expect.objectContaining({ relativePath: "novel/chapters/chapter-002.md" }),
+    );
+  });
+
+  it("有正文无事件+文件有事件:只补事件,正文/修订号保留库内(fill-missing-events)", async () => {
+    const withBody: NovelChapter = {
+      id: "chapter-002",
+      index: 2,
+      title: "第2章",
+      revision: 3,
+      sourceText: "库内正文。",
+      importedAt: 2,
+    };
+    stubMirror(vi.fn().mockResolvedValue({ success: true, text: mirrorMarkdown }));
+    useStudioStore.setState({ novelChapters: [withBody], activeChapterId: "chapter-002" });
+
+    const ensured = await useStudioStore.getState().ensureNovelChapterBody("chapter-002");
+
+    expect(ensured).toMatchObject({
+      sourceText: "库内正文。",
+      revision: 3,
+      eventSummary: "灵猫替身被识破。",
+      eventState: "涉及角色：王离",
+    });
+  });
+
+  it("文件缺失+无正文:返回 null 且 state 不变", async () => {
+    stubMirror(vi.fn().mockResolvedValue({ success: false }));
+    useStudioStore.setState({ novelChapters: [chapter2Light], activeChapterId: "chapter-002" });
+    const before = useStudioStore.getState().novelChapters[0];
+
+    const ensured = await useStudioStore.getState().ensureNovelChapterBody("chapter-002");
+
+    expect(ensured).toBeNull();
+    expect(useStudioStore.getState().novelChapters[0]).toBe(before);
+  });
+
+  it("文件缺失+有正文:返回原条目", async () => {
+    const withBody: NovelChapter = {
+      id: "chapter-002",
+      index: 2,
+      title: "第2章",
+      revision: 3,
+      sourceText: "库内正文。",
+      importedAt: 2,
+    };
+    stubMirror(vi.fn().mockResolvedValue(null));
+    useStudioStore.setState({ novelChapters: [withBody], activeChapterId: "chapter-002" });
+
+    const ensured = await useStudioStore.getState().ensureNovelChapterBody("chapter-002");
+
+    expect(ensured).toBe(withBody);
+  });
+});
+
+// 1127 启动对齐(Task 5 Step 5):reconcileActiveChapterText 对激活章做一次 file-wins 对齐;
+// 有变化 set() 回填 + 诊断日志 chapterTextReconciled;已一致/文件缺失不动。
+describe("reconcileActiveChapterText 启动对齐(1127 Task 5)", () => {
+  const pid = "proj-reconcile";
+  const mirrorMarkdown = [
+    "# 第2章：暮色灵猫结替身",
+    "",
+    "> 卷：第一卷",
+    "> 源ID：chapter-002",
+    "> 修订：2",
+    "> 来源：2_暮色灵猫结替身.md",
+    "",
+    "文件正文。",
+    "",
+    "## 事件分析",
+    "",
+    "摘要：灵猫替身被识破。",
+    "状态：",
+    "涉及角色：王离",
+  ].join("\n");
+  let originalPid: string | null = null;
+
+  beforeEach(() => {
+    originalPid = useProjectStore.getState().activeProjectId;
+    useProjectStore.setState({ activeProjectId: pid });
+  });
+
+  afterEach(() => {
+    delete (window as unknown as { projectFiles?: unknown }).projectFiles;
+    delete (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog;
+    useProjectStore.setState({ activeProjectId: originalPid });
+  });
+
+  function stubBridge(readText: ReturnType<typeof vi.fn>) {
+    (window as unknown as { projectFiles?: unknown }).projectFiles = { readText };
+  }
+
+  it("激活章库旧(修订号 1)+文件修订号 2:state 正文变为文件正文,日志 chapterTextReconciled", async () => {
+    const stale: NovelChapter = {
+      id: "chapter-002",
+      index: 2,
+      title: "第2章 旧标题",
+      revision: 1,
+      sourceText: "库内旧正文。",
+      importedAt: 2,
+    };
+    stubBridge(vi.fn().mockResolvedValue({ success: true, text: mirrorMarkdown }));
+    const writes: Array<Record<string, unknown>> = [];
+    const write = vi.fn(async (entry: Record<string, unknown>) => { writes.push(entry); });
+    (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog = { write };
+    useStudioStore.setState({ novelChapters: [stale], activeChapterId: "chapter-002" });
+
+    const reconciled = await useStudioStore.getState().reconcileActiveChapterText();
+
+    expect(reconciled).toMatchObject({
+      id: "chapter-002",
+      sourceText: "文件正文。",
+      revision: 2,
+      title: "第2章：暮色灵猫结替身",
+    });
+    expect(useStudioStore.getState().novelChapters[0]).toMatchObject({
+      sourceText: "文件正文。",
+      revision: 2,
+    });
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toMatchObject({
+      level: "warn",
+      category: "storage",
+      operationId: "chapterTextReconciled",
+    });
+    expect((writes[0]!.context as Record<string, unknown>).chapterId).toBe("chapter-002");
+    expect((writes[0]!.context as Record<string, unknown>).changedFields).toContain("sourceText");
+  });
+
+  it("已一致:订阅者未被触发(无变化不 set)", async () => {
+    const aligned: NovelChapter = {
+      id: "chapter-002",
+      index: 2,
+      title: "第2章：暮色灵猫结替身",
+      volume: "第一卷",
+      sourceId: "chapter-002",
+      revision: 2,
+      sourceName: "2_暮色灵猫结替身.md",
+      sourceText: "文件正文。",
+      eventSummary: "灵猫替身被识破。",
+      eventState: "涉及角色：王离",
+      importedAt: 2,
+    };
+    stubBridge(vi.fn().mockResolvedValue({ success: true, text: mirrorMarkdown }));
+    useStudioStore.setState({ novelChapters: [aligned], activeChapterId: "chapter-002" });
+    const listener = vi.fn();
+    const unsubscribe = useStudioStore.subscribe(listener);
+
+    try {
+      await useStudioStore.getState().reconcileActiveChapterText();
+      expect(listener).not.toHaveBeenCalled();
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("文件缺失:state 不变", async () => {
+    const light: NovelChapter = { id: "chapter-002", index: 2, title: "第2章 旧标题", revision: 1, importedAt: 2 };
+    stubBridge(vi.fn().mockResolvedValue({ success: false }));
+    useStudioStore.setState({ novelChapters: [light], activeChapterId: "chapter-002" });
+    const before = useStudioStore.getState().novelChapters[0];
+
+    const reconciled = await useStudioStore.getState().reconcileActiveChapterText();
+
+    expect(reconciled).toBeNull();
+    expect(useStudioStore.getState().novelChapters[0]).toBe(before);
+  });
+});
+
+// 1127 切章对齐(Task 5 Step 7):装载完成后对目标章做一次 file-wins 合并(design §1.1)。
+// mock 手法沿用上方 G1 切章用例:装载器按 (pid,章id) 取夹具,正文文件经 window.projectFiles。
+describe("switchChapter 正文文件对齐(1127 Task 5)", () => {
+  const pid = "proj-align";
+  const ch1Full: NovelChapter = { id: "ch1", index: 1, title: "第1章 雨夜", sourceText: "前章正文", importedAt: 1 };
+  const ch2Light: NovelChapter = { id: "ch2", index: 2, title: "第2章 塾馆", importedAt: 2 };
+  const mirrorMarkdown = [
+    "# 第2章：暮色灵猫结替身",
+    "",
+    "> 卷：第一卷",
+    "> 源ID：ch2",
+    "> 修订：2",
+    "> 来源：2_暮色灵猫结替身.md",
+    "",
+    "文件新正文。",
+  ].join("\n");
+  let originalPid: string | null = null;
+
+  beforeEach(() => {
+    originalPid = useProjectStore.getState().activeProjectId;
+    useProjectStore.setState({ activeProjectId: pid });
+    (window as unknown as { projectFiles?: unknown }).projectFiles = {
+      readText: vi.fn().mockResolvedValue({ success: true, text: mirrorMarkdown }),
+    };
+  });
+
+  afterEach(() => {
+    loadStudioChapterWorkspaceMock.mockReset();
+    delete (window as unknown as { projectFiles?: unknown }).projectFiles;
+    useProjectStore.setState({ activeProjectId: originalPid });
+  });
+
+  it("装载条目库旧(修订号 1)、文件修订号 2:切章后该章正文=文件正文", async () => {
+    const staleDisk: NovelChapter = {
+      id: "ch2", index: 2, title: "第2章 塾馆", revision: 1, sourceText: "库内旧正文。", importedAt: 2,
+    };
+    loadStudioChapterWorkspaceMock.mockImplementation((_p: string, chapterId: string) =>
+      chapterId === "ch2" ? Promise.resolve({ novelChapter: staleDisk, domains: {} }) : Promise.resolve(null));
+    useStudioStore.setState({ novelChapters: [ch1Full, ch2Light], activeChapterId: "ch1" });
+
+    await useStudioStore.getState().switchChapter("ch2");
+
+    expect(useStudioStore.getState().activeChapterId).toBe("ch2");
+    expect(useStudioStore.getState().novelChapters.find((chapter) => chapter.id === "ch2")).toMatchObject({
+      sourceText: "文件新正文。",
+      revision: 2,
+    });
+  });
+
+  it("切章对齐取到文件正文时记 chapterTextReconciled 诊断日志(AC7/R5:切章与启动同规)", async () => {
+    const staleDisk: NovelChapter = {
+      id: "ch2", index: 2, title: "第2章 塾馆", revision: 1, sourceText: "库内旧正文。", importedAt: 2,
+    };
+    loadStudioChapterWorkspaceMock.mockImplementation((_p: string, chapterId: string) =>
+      chapterId === "ch2" ? Promise.resolve({ novelChapter: staleDisk, domains: {} }) : Promise.resolve(null));
+    const writes: Array<Record<string, unknown>> = [];
+    (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog = {
+      write: vi.fn(async (entry: Record<string, unknown>) => { writes.push(entry); }),
+    };
+    useStudioStore.setState({ novelChapters: [ch1Full, ch2Light], activeChapterId: "ch1" });
+
+    await useStudioStore.getState().switchChapter("ch2");
+
+    expect(useStudioStore.getState().novelChapters.find((chapter) => chapter.id === "ch2")).toMatchObject({
+      sourceText: "文件新正文。",
+      revision: 2,
+    });
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toMatchObject({
+      level: "warn",
+      category: "storage",
+      operationId: "chapterTextReconciled",
+    });
+    expect((writes[0]!.context as Record<string, unknown>).chapterId).toBe("ch2");
+    expect((writes[0]!.context as Record<string, unknown>).changedFields).toContain("sourceText");
+    delete (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog;
+  });
+
+  it("切章保留库内(修订号更新)时不记 chapterTextReconciled(无变化不告警)", async () => {
+    const newerDisk: NovelChapter = {
+      id: "ch2", index: 2, title: "第2章 塾馆", revision: 3, sourceText: "库内新正文。", importedAt: 2,
+    };
+    loadStudioChapterWorkspaceMock.mockImplementation((_p: string, chapterId: string) =>
+      chapterId === "ch2" ? Promise.resolve({ novelChapter: newerDisk, domains: {} }) : Promise.resolve(null));
+    const writes: Array<Record<string, unknown>> = [];
+    (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog = {
+      write: vi.fn(async (entry: Record<string, unknown>) => { writes.push(entry); }),
+    };
+    useStudioStore.setState({ novelChapters: [ch1Full, ch2Light], activeChapterId: "ch1" });
+
+    await useStudioStore.getState().switchChapter("ch2");
+
+    expect(useStudioStore.getState().novelChapters.find((chapter) => chapter.id === "ch2")).toMatchObject({
+      sourceText: "库内新正文。",
+      revision: 3,
+    });
+    expect(writes.filter((entry) => entry.operationId === "chapterTextReconciled")).toHaveLength(0);
+    delete (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog;
+  });
+
+  it("装载条目修订号 3、文件修订号 2:保留装载到的正文(App 刚保存、文件写回未落盘)", async () => {
+    const newerDisk: NovelChapter = {
+      id: "ch2", index: 2, title: "第2章 塾馆", revision: 3, sourceText: "库内新正文。", importedAt: 2,
+    };
+    loadStudioChapterWorkspaceMock.mockImplementation((_p: string, chapterId: string) =>
+      chapterId === "ch2" ? Promise.resolve({ novelChapter: newerDisk, domains: {} }) : Promise.resolve(null));
+    useStudioStore.setState({ novelChapters: [ch1Full, ch2Light], activeChapterId: "ch1" });
+
+    await useStudioStore.getState().switchChapter("ch2");
+
+    expect(useStudioStore.getState().novelChapters.find((chapter) => chapter.id === "ch2")).toMatchObject({
+      sourceText: "库内新正文。",
+      revision: 3,
+    });
+  });
+});
+
+// 1127 启动对齐·常态水合路径(复核 medium 修复):partialize 只剔 chapterSwitchLoading,
+// activeChapterId 恒持久化——App 正常重启水合后 onRehydrateStorage 回调不得因
+// activeChapterId 在场而早退,须在回调末尾对激活章做正文文件对齐并记
+// chapterTextReconciled(design §1.1 入口 1;R5/AC7)。经真实持久化(localStorage)
+// + persist.rehydrate() 走启动路径。
+describe("switchChapter 启动对齐·常态水合(1127 复核修复)", () => {
+  const pid = "proj-rehydrate";
+  const mirrorMarkdown = [
+    "# 第2章：暮色灵猫结替身",
+    "",
+    "> 卷：第一卷",
+    "> 源ID：ch2",
+    "> 修订：2",
+    "> 来源：2_暮色灵猫结替身.md",
+    "",
+    "文件新正文。",
+  ].join("\n");
+  let originalPid: string | null = null;
+
+  beforeEach(() => {
+    originalPid = useProjectStore.getState().activeProjectId;
+    useProjectStore.setState({ activeProjectId: pid });
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    delete (window as unknown as { projectFiles?: unknown }).projectFiles;
+    delete (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog;
+    window.localStorage.clear();
+    useProjectStore.setState({ activeProjectId: originalPid });
+  });
+
+  it("常态水合(activeChapterId 随盘存在):rehydrate 即对激活章做正文文件对齐并记 chapterTextReconciled", async () => {
+    const staleDisk: NovelChapter = {
+      id: "ch2", index: 2, title: "第2章 塾馆", revision: 1, sourceText: "库内旧正文。", importedAt: 2,
+    };
+    // 先不装文件桥,让 persist 真实落盘(manifest+分片进 localStorage);
+    // 装载器 mock(G1 describe 同款)按 (pid,章id) 返回空域,避免旁路装载
+    loadStudioChapterWorkspaceMock.mockImplementation(() => Promise.resolve(null));
+    useStudioStore.setState({ novelChapters: [staleDisk], activeChapterId: "ch2" });
+    await vi.waitFor(
+      () => {
+        const keys: string[] = [];
+        for (let i = 0; i < window.localStorage.length; i += 1) {
+          const key = window.localStorage.key(i);
+          if (key) keys.push(key);
+        }
+        expect(keys.some((key) => key === `_p/${pid}/studio-workflow/manifest`)).toBe(true);
+      },
+      { timeout: 5_000 },
+    );
+    // 再装文件桥(readText=镜像正文 rev2)与日志捕获——模拟重启后「正文文件比盘存新」
+    (window as unknown as { projectFiles?: unknown }).projectFiles = {
+      readText: vi.fn().mockResolvedValue({ success: true, text: mirrorMarkdown }),
+    };
+    const writes: Array<Record<string, unknown>> = [];
+    (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog = {
+      write: vi.fn(async (entry: Record<string, unknown>) => { writes.push(entry); }),
+    };
+
+    // 模拟重启:重新水合(persisted 态含 activeChapterId;修复前回调在此早退)
+    await useStudioStore.persist.rehydrate();
+    // 对齐在回调里 fire-and-forget,轮询等它完成
+    await vi.waitFor(
+      () => {
+        expect(useStudioStore.getState().novelChapters.find((chapter) => chapter.id === "ch2"))
+          .toMatchObject({ sourceText: "文件新正文。", revision: 2 });
+      },
+      { timeout: 5_000 },
+    );
+    expect(writes.some((entry) => entry.operationId === "chapterTextReconciled")).toBe(true);
+    const logged = writes.find((entry) => entry.operationId === "chapterTextReconciled") as Record<string, unknown>;
+    expect((logged.context as Record<string, unknown>).chapterId).toBe("ch2");
+    expect((logged.context as Record<string, unknown>).changedFields).toContain("sourceText");
+  }, 20_000);
+});
+
 // 1125 人审硬门:imageReview 唯一写入口 + 直写剥离
 describe("reviewStoryboardImage(图片级人审硬门)", () => {
   function addImageShot(): string {

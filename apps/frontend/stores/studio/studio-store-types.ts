@@ -70,6 +70,10 @@ export interface StudioWorkflowActions {
   replaceNovelText: (sourceText: string, sourceName?: string) => void;
   updateNovelChapter: (id: string, updates: Partial<NovelChapter>) => void;
   ensureNovelChapterBody: (chapterId: string) => Promise<NovelChapter | null>;
+  /** 1127 启动对齐:激活章与正文文件(novel/chapters/<章>.md,唯一真源)做一次 file-wins
+   *  对齐;有变化 set() 回填并写诊断日志 chapterTextReconciled,返回对齐后条目;
+   *  无变化/文件缺失返回 null(不动 state)。 */
+  reconcileActiveChapterText: () => Promise<NovelChapter | null>;
   saveSourceBible: (text: string) => void;
   setWorkflowConfig: (updates: Partial<StudioWorkflowConfig>) => void;
   startAgentRun: (input: {

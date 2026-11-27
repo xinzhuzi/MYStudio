@@ -21,7 +21,7 @@ import { useStudioStore } from "@/stores/studio/studio-store";
 import { useNovelPipelineActions } from "./useNovelPipelineActions";
 
 vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn(), loading: vi.fn() },
 }));
 
 // 注入点:readSourceMemoryActionContext 位于 handler 体内既有 try(模型调用段)
@@ -319,5 +319,176 @@ describe("useNovelPipelineActions.handleEntityExtraction · D22 输入统一(scr
     const electronApi = (window as unknown as { electronAPI?: Record<string, unknown> })
       .electronAPI as { textCompletion: ReturnType<typeof vi.fn> };
     expect(electronApi.textCompletion).not.toHaveBeenCalled();
+  });
+});
+
+// ── 1127 Task 7:事件分析先读正文(design §1.3)────────────────────────────────
+// 窗口化后非激活章在内存里是轻索引项(无 sourceText),事件分析每章必须先经
+// ensureNovelChapterBody 读回正文文件;读不到正文跳过该章(idle+正文缺失),
+// 不再拿空正文喂模型。内存已有正文的章零读盘直接分析。
+
+const EVENT_ANALYSIS_PROVIDER = {
+  id: "p1",
+  platform: "openai-compatible",
+  name: "P1",
+  baseUrl: "https://x/v1",
+  apiKey: "k",
+  model: ["m1"],
+  apiProtocol: "openai-compatible",
+};
+
+// parseNovelEventAnalysisLine 要求 7 字段表格行
+const VALID_EVENT_LINE = "| 第一章 | 林晚 | 雨夜夺剑 | 强 | 高 | 45 | 冲突+悬疑 |";
+
+describe("useNovelPipelineActions.handleNovelEventAnalysis · 事件分析先读正文(1127 Task 7)", () => {
+  let textCompletion: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    useAPIConfigStore.setState({
+      providers: [EVENT_ANALYSIS_PROVIDER],
+      featureBindings: {},
+      agentUseMode: "advanced",
+      agentDeployments: [
+        {
+          key: "eventAnalysisAgent",
+          name: "",
+          desc: "",
+          modelId: "m1",
+          vendorId: "p1",
+          temperature: 0.2,
+          maxOutputTokens: 1234,
+        },
+      ],
+    } as never);
+    vi.mocked(readSourceMemoryActionContext).mockResolvedValue({
+      success: true,
+      context: undefined,
+    } as never);
+    // 外层 beforeEach 已装 electronAPI;取其 textCompletion 引用并默认回有效事件行
+    const electronAPI = (window as unknown as { electronAPI?: Record<string, unknown> })
+      .electronAPI as { textCompletion: ReturnType<typeof vi.fn> };
+    textCompletion = electronAPI.textCompletion;
+    textCompletion.mockResolvedValue({ success: true, text: VALID_EVENT_LINE });
+  });
+
+  afterEach(() => {
+    vi.mocked(readSourceMemoryActionContext).mockImplementation(async () => {
+      throw new Error("源记忆桥模拟失败");
+    });
+    useAPIConfigStore.setState({
+      providers: [],
+      featureBindings: {},
+      agentUseMode: "advanced",
+      agentDeployments: [],
+    } as never);
+  });
+
+  function renderEventAnalysisActions(updateNovelChapter: ReturnType<typeof vi.fn>) {
+    return renderHook(() => useNovelPipelineActions({
+      activeProjectId: "project-1",
+      projectName: "测试项目",
+      saveAgentWorkData: vi.fn() as unknown as ReturnType<typeof useStudioStore.getState>["saveAgentWorkData"],
+      saveEntityExtraction: vi.fn() as unknown as ReturnType<typeof useStudioStore.getState>["saveEntityExtraction"],
+      updateNovelChapter: updateNovelChapter as unknown as ReturnType<typeof useStudioStore.getState>["updateNovelChapter"],
+    }));
+  }
+
+  function wrapUpToastTexts(): string[] {
+    return [
+      ...vi.mocked(toast.success).mock.calls,
+      ...vi.mocked(toast.error).mock.calls,
+    ].map(([msg]) => String(msg));
+  }
+
+  it("①内存无正文,读回返回带正文条目 → 模型 user 消息含读回正文", async () => {
+    const ensureNovelChapterBody = vi.fn(async () => ({
+      id: "chapter-002",
+      index: 2,
+      title: "第二章",
+      importedAt: 1,
+      sourceText: "读回正文样文:镜花水月一场空",
+    }));
+    useStudioStore.setState({
+      ensureNovelChapterBody: ensureNovelChapterBody as unknown as ReturnType<typeof useStudioStore.getState>["ensureNovelChapterBody"],
+    });
+    const updateNovelChapter = vi.fn();
+    const { result } = renderEventAnalysisActions(updateNovelChapter);
+
+    await act(async () => {
+      // 轻索引项:内存无 sourceText
+      await result.current.handleNovelEventAnalysis([{
+        id: "chapter-002",
+        index: 2,
+        title: "第二章",
+        importedAt: 1,
+      }]);
+    });
+
+    expect(ensureNovelChapterBody).toHaveBeenCalledTimes(1);
+    expect(ensureNovelChapterBody).toHaveBeenCalledWith("chapter-002");
+    const userContent = String(textCompletion.mock.calls[0]?.[0]?.messages?.[1]?.content);
+    expect(userContent).toContain("镜花水月一场空");
+  });
+
+  it("②读回返回 null → 不调模型;该章标记 idle+正文缺失;汇总提示含「跳过 1 章」", async () => {
+    const ensureNovelChapterBody = vi.fn(async () => null);
+    useStudioStore.setState({
+      ensureNovelChapterBody: ensureNovelChapterBody as unknown as ReturnType<typeof useStudioStore.getState>["ensureNovelChapterBody"],
+    });
+    const updateNovelChapter = vi.fn();
+    const { result } = renderEventAnalysisActions(updateNovelChapter);
+
+    await act(async () => {
+      await result.current.handleNovelEventAnalysis([{
+        id: "chapter-002",
+        index: 2,
+        title: "第二章",
+        importedAt: 1,
+      }]);
+    });
+
+    // 不拿空正文喂模型
+    expect(textCompletion).not.toHaveBeenCalled();
+    // 跳过章不进 running,直接 idle + 正文缺失
+    expect(updateNovelChapter).not.toHaveBeenCalledWith(
+      "chapter-002",
+      expect.objectContaining({ eventTaskState: "running" }),
+    );
+    expect(updateNovelChapter).toHaveBeenCalledWith(
+      "chapter-002",
+      expect.objectContaining({
+        eventTaskState: "idle",
+        eventErrorReason: expect.stringContaining("正文缺失"),
+      }),
+    );
+    expect(wrapUpToastTexts().some((msg) => msg.includes("跳过 1 章"))).toBe(true);
+  });
+
+  it("③内存已有正文 → 不调用读回直接分析,收口汇总用「成功 N 章，失败 M 章」新格式", async () => {
+    const ensureNovelChapterBody = vi.fn();
+    useStudioStore.setState({
+      ensureNovelChapterBody: ensureNovelChapterBody as unknown as ReturnType<typeof useStudioStore.getState>["ensureNovelChapterBody"],
+    });
+    const updateNovelChapter = vi.fn();
+    const { result } = renderEventAnalysisActions(updateNovelChapter);
+
+    await act(async () => {
+      await result.current.handleNovelEventAnalysis([{
+        id: "chapter-002",
+        index: 2,
+        title: "第二章",
+        importedAt: 1,
+        sourceText: "内存正文样文:剑光如雪",
+      }]);
+    });
+
+    expect(ensureNovelChapterBody).not.toHaveBeenCalled();
+    const userContent = String(textCompletion.mock.calls[0]?.[0]?.messages?.[1]?.content);
+    expect(userContent).toContain("剑光如雪");
+    expect(updateNovelChapter).toHaveBeenCalledWith(
+      "chapter-002",
+      expect.objectContaining({ eventTaskState: "success" }),
+    );
+    expect(wrapUpToastTexts().some((msg) => msg.includes("成功 1 章，失败 0 章"))).toBe(true);
   });
 });

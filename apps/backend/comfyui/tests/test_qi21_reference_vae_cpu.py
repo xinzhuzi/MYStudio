@@ -9,17 +9,29 @@ ROOT = Path(__file__).resolve().parents[4]
 COMFY = ROOT / 'apps/backend/comfyui'
 NAMES = ('qi21-道劫-i2i.json', 'qi21-edit.json', 'qi21-道劫-img2img.json')
 VAE = 'texture_fix_vae_for_qwen_image_2.1_bf16.safetensors'
+# 参考编码 VAE 防彩偏基准(知识源 docs/comfyui-kb/qi21-vae-cpu-fp32.md):三件恒用
+# texture_fix 件;device/dtype 默认 cpu/fp32。qi21-edit 一件经 1126 提速手术
+# (commit 04492613「VAE 上 GPU:[3] cpu/fp32 → main_device/bf16,34s 对照发证明
+# 可行,四发实弹 155.5s→25.1s」)切到 main_device/bf16——该役已重锚
+# test_qwen21_workflow_contract.py 但漏改本守卫,此处按已提交现实补齐同笔重锚;
+# 再改选型前先读 KB 页并核 live object_info。
+EXPECTED_LOADER = {
+    'qi21-道劫-i2i.json': ('cpu', 'fp32'),
+    'qi21-edit.json': ('main_device', 'bf16'),
+    'qi21-道劫-img2img.json': ('cpu', 'fp32'),
+}
 sys.path.insert(0, str(ROOT / 'apps/build/scripts'))
 from qwen21_bridge_template_build import flatten_canvas
 
 
 @pytest.mark.parametrize('name', NAMES)
-def test_reference_vae_is_shared_cpu_fp32_with_matching_widgets(name):
+def test_reference_vae_is_pinned_with_matching_widgets(name):
     graph = json.loads(next((COMFY / 'workflows').rglob(name)).read_text())
     node = next(n for n in graph['nodes'] if n['id'] == 3)
     assert node['type'] == 'VAELoaderKJ'
     assert node['properties']['Node name for S&R'] == 'VAELoaderKJ'
-    assert node['widgets_values'] == [VAE, 'cpu', 'fp32']
+    device, weight_dtype = EXPECTED_LOADER[name]
+    assert node['widgets_values'] == [VAE, device, weight_dtype]
     assert node['widgets_values_named'] == dict(zip(('vae_name', 'device', 'weight_dtype'), node['widgets_values']))
     assert [slot['name'] for slot in node['inputs']] == ['vae_name', 'device', 'weight_dtype']
     assert all(slot['link'] is None and slot['widget']['name'] == slot['name'] for slot in node['inputs'])

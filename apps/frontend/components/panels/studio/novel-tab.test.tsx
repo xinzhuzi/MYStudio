@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NovelChapterTable } from "./NovelChapterTable";
 import { NovelTab } from "./NovelTab";
+import { NovelEditDialog, type NovelEditDraft } from "./NovelEditDialog";
 import { SOURCE_BIBLE_TEMPLATE } from "@/lib/studio/source-bible";
 import type { NovelChapter } from "@/types/studio";
 
@@ -33,7 +34,9 @@ const chapter: NovelChapter = {
   importedAt: 0,
 };
 
-function renderNovelTab() {
+function renderNovelTab(
+  overrides: Partial<Parameters<typeof NovelTab>[0]> = {},
+) {
   render(
     <NovelTab
       novelDraft=""
@@ -47,6 +50,7 @@ function renderNovelTab() {
       sourceBible=""
       saveSourceBible={vi.fn()}
       generateBibleDraft={vi.fn(async () => SOURCE_BIBLE_TEMPLATE)}
+      {...overrides}
     />,
   );
 }
@@ -254,5 +258,109 @@ describe("NovelChapterTable", () => {
     fireEvent.click(screen.getByRole("button", { name: "加载更多" }));
     expect(screen.getByText("第101章 窗口化测试")).toBeTruthy();
     expect(screen.getByText("已显示 200 / 共 250 章")).toBeTruthy();
+  });
+});
+
+describe("NovelEditDialog 保存守卫与最大化(1127 役 Task 6)", () => {
+  const baseDraft: NovelEditDraft = {
+    volume: "正文卷",
+    title: "第1章 测试",
+    sourceText: "正文内容",
+    eventSummary: "",
+    eventState: "",
+  };
+
+  function renderEditDialog(
+    overrides: Partial<Parameters<typeof NovelEditDialog>[0]> = {},
+  ) {
+    render(
+      <NovelEditDialog
+        open
+        draft={baseDraft}
+        onOpenChange={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+        {...overrides}
+      />,
+    );
+  }
+
+  it("① loadFailed 时正文框只读、保存按钮禁用、说明文字含「已锁定保存」", () => {
+    renderEditDialog({ loadFailed: true });
+
+    const body = screen.getByPlaceholderText("章节内容") as HTMLTextAreaElement;
+    expect(body.readOnly).toBe(true);
+    const save = screen.getByRole("button", { name: "保存" }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    expect(screen.getByText(/已锁定保存/)).toBeTruthy();
+  });
+
+  it("② 弹窗最大化:根节点满屏减 48px 且 max-w-none,事件摘要/状态输入框 h-full", () => {
+    renderEditDialog();
+
+    const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
+    expect(dialog.className).toContain("h-[calc(100vh-48px)]");
+    expect(dialog.className).toContain("w-[calc(100vw-48px)]");
+    expect(dialog.className).toContain("max-w-none");
+    expect((screen.getByPlaceholderText("事件摘要") as HTMLElement).className).toContain("h-full");
+    expect((screen.getByPlaceholderText("事件状态") as HTMLElement).className).toContain("h-full");
+  });
+
+  it("③ 装载失败(onEnsureChapterBody 返回 null):保存禁用并出现「正文文件缺失或无法读取」", async () => {
+    const update = vi.fn();
+    const ensure = vi.fn(async () => null);
+    renderNovelTab({
+      novelChapters: [{ ...chapter, sourceText: "" }],
+      onEnsureChapterBody: ensure,
+      updateNovelChapter: update,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑" }));
+    await waitFor(() =>
+      expect(screen.getByText(/正文文件缺失或无法读取/)).toBeTruthy(),
+    );
+    const save = screen.getByRole("button", { name: "保存" }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("④ 空正文点保存弹二次确认:取消不写,确认以 sourceText 空串保存", async () => {
+    const update = vi.fn();
+    renderNovelTab({ updateNovelChapter: update });
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑" }));
+    const body = screen.getByPlaceholderText("章节内容");
+    fireEvent.change(body, { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    const alert = screen.getByRole("alertdialog");
+    expect(within(alert).getByText(/内容将被清空/)).toBeTruthy();
+    fireEvent.click(within(alert).getByRole("button", { name: "取消" }));
+    expect(update).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    fireEvent.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", { name: "确认" }),
+    );
+    await waitFor(() =>
+      expect(update).toHaveBeenCalledWith(
+        "c1",
+        expect.objectContaining({ sourceText: "" }),
+      ),
+    );
+  });
+
+  it("⑤ 正文非空白点保存:不出确认弹窗,直接保存", () => {
+    const update = vi.fn();
+    renderNovelTab({ updateNovelChapter: update });
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(update).toHaveBeenCalledWith(
+      "c1",
+      expect.objectContaining({ sourceText: "正文内容" }),
+    );
   });
 });

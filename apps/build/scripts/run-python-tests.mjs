@@ -29,6 +29,9 @@ const BUILD_SCRIPT_TEST_FILES = [
   "build/scripts/test_mix_voice_audio.py",
   "build/scripts/test_commit_gate.py",
   "build/scripts/test_preflight_gate.py",
+  "build/scripts/test_novel_text_audit.py",
+  "build/scripts/test_novel_store_align.py",
+  "build/scripts/test_novel_events_import.py",
 ];
 
 // S0 基线(2026-09-28 darwin/arm64,Python 3.14.4 / pytest 9.0.3;implement.md 执行记录)。

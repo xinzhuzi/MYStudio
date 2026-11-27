@@ -79,9 +79,19 @@ vi.mock("@/stores/studio/studio-store", () => {
   };
 });
 
-vi.mock("@/stores/project/project-store", () => ({
-  useProjectStore: { getState: () => ({ activeProjectId: "p1" }) },
-}));
+vi.mock("@/stores/project/project-store", () => {
+  // 同 G1:11-27 剧本库回落 hook(use-library-drama-script)以 hook 形态订阅
+  // activeProjectId——纯对象 mock 会在 ScriptTab 渲染期炸「useProjectStore is
+  // not a function」;mock 补 hook 调用形态,getState 保留给既有动作层调用。
+  const mockProjectState = { activeProjectId: "p1" };
+  return {
+    useProjectStore: Object.assign(
+      (selector?: (state: typeof mockProjectState) => unknown) =>
+        selector ? selector(mockProjectState) : mockProjectState,
+      { getState: () => mockProjectState },
+    ),
+  };
+});
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 

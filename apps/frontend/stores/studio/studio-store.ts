@@ -10,6 +10,7 @@ import {
 } from "@/lib/storage/studio-workflow-shards";
 import { toast } from "sonner";
 import { logEvent } from "@/lib/diagnostics/logger";
+import { mergeNovelChapterWithMirror, type NovelChapterMirror } from "@/lib/studio/novel";
 import { useProjectStore } from "@/stores/project/project-store";
 import { createMaterialSliceActions } from "./material-slice";
 import { createRunTaskSliceActions } from "./run-task-slice";
@@ -43,7 +44,7 @@ import {
 } from "./studio-store-persistence";
 import {
   createStudioWorkflowId,
-  loadNovelChapterMirrorBodyForActiveProject,
+  loadNovelChapterMirrorForActiveProject,
   removeNovelChapterMirrorsForActiveProject,
   syncNovelChapterMirrorsForActiveProject,
   syncSourceBibleMirrorForActiveProject,
@@ -140,17 +141,12 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         syncNovelChapterMirrors,
         removeNovelChapterMirrors,
         syncSourceBibleMirror: syncSourceBibleMirrorForActiveProject,
-      }, async (chapterId) => {
-        // 1127 正文按需装载注入:轻索引条目编辑/展示前从章节正文镜像(novel/chapters/<章>.md,
-        // README 记载的真源)读回小说正文。注意:studio-workflow 章分片是工作区数据(内容可被
-        // 导演流程覆写为脚本稿),不是小说正文——正文真源恒为镜像。pid 缺失=fail-open 返回 null。
-        const pid = useProjectStore.getState().activeProjectId;
-        if (!pid) return null;
-        const chapter = get().novelChapters.find((item) => item.id === chapterId);
-        if (!chapter) return null;
-        const body = await loadNovelChapterMirrorBodyForActiveProject(chapter);
-        if (body === null) return null;
-        return { ...chapter, sourceText: body };
+      }, async (chapter) => {
+        // 1127 正文真源读回注入:读整份正文文件(novel/chapters/<章>.md,唯一真源)并解析,
+        // 供 slice 按 design §1.1 与内存条目合并。注意:studio-workflow 章分片是工作区数据
+        // (内容可被导演流程覆写为剧本稿),不是小说正文——正文真源恒为正文文件。
+        // pid 缺失/读失败=fail-open 返回 null(loadNovelChapterMirror 内处理)。
+        return loadNovelChapterMirrorForActiveProject(chapter);
       });
       const memorySlice = createMemorySliceActions(set as never, get as never);
       const entitySlice = createEntitySliceActions(set as never);
@@ -231,7 +227,16 @@ export const useStudioStore = create<StudioWorkflowStore>()(
             }
           }
         }
-        // await 期间又有切章发起:本次装载已过期,不得回写(目标章+前章装载段均受此守卫)
+        // 1127 正文真源对齐（design §1.1）：两次装载之后、第一次 switchSeq 校验之前读
+        // 正文文件。多出的这一次 await 在快照 latest 与 seq 校验之前，原有竞态守卫不受
+        // 影响（镜像读取期间发起的更新切章会让本次装载在校验处过期早退）。文件读不到
+        // =null（fail-open，只按装载到的分片走）。
+        let switchMirror: NovelChapterMirror | null = null;
+        const switchTarget = current.novelChapters.find((chapter) => chapter.id === chapterId);
+        if (pid && switchTarget) {
+          switchMirror = await loadNovelChapterMirrorForActiveProject(switchTarget);
+        }
+        // await 期间又有切章发起:本次装载已过期,不得回写(目标章+前章装载段+镜像读取段均受此守卫)
         if (switchSeq !== studioChapterSwitchSeq) return;
         // R3（A批）：快照后移——state 快照（:285 的 current）早于两次 await，装载完成后
         // 若仍按过期快照整体覆盖，装载期写入（在途流式落库/用户编辑旧章字段/对目标章的
@@ -245,6 +250,25 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         const activeChapter = (loaded?.novelChapter as NovelChapter | undefined)
           ?? latest.novelChapters.find((chapter) => chapter.id === chapterId);
         if (!activeChapter) return;
+        // 1127 file-wins 对齐：装载条目与正文文件合并——轻索引条目（无正文）正文/元数据
+        // 全取文件；条目已有正文且库内修订号严格大于文件修订号（两边都有）=「App 刚保存、
+        // 文件写回未落盘」保留库内；其余以文件为准。事件字段只补库内空缺。合并后再走
+        // D1 预警（文件救回正文即不误报）与下方原有 set()。
+        const { chapter: alignedChapter, changed: switchAlignedChanged, changedFields: switchAlignedFields } = switchMirror
+          ? mergeNovelChapterWithMirror(activeChapter, switchMirror, "file-wins")
+          : { chapter: activeChapter, changed: false, changedFields: [] as string[] };
+        if (switchAlignedChanged) {
+          // R5/AC7（design §1.1 入口 2）：切章对齐与启动对齐同规——合并真取到文件内容
+          // 即记 chapterTextReconciled（category:storage / level:warn，上下文含 chapterId
+          // 与 changedFields）；「库内修订号更新保留库内」时 merge 无变化，不记日志。
+          void logEvent({
+            level: "warn",
+            category: "storage",
+            operationId: "chapterTextReconciled",
+            message: "切章对齐：目标章正文与正文文件不一致，已按正文文件回填",
+            context: { chapterId, changedFields: switchAlignedFields },
+          });
+        }
         // D1（livefire18 腿3①）：装载成功但文丢预警——R2 fail-closed 只盖「装载抛错」，
         // 这里盖「装载成功但正文空」：激活章定谳后 sourceText 空/blank，而装载前
         // 内存同章仍有非 blank 正文 → G1 类静默丢文（章会被误判「原创」照常组装）。
@@ -263,7 +287,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         const sourceTextBeforeSwitch =
           diskSourceText
           || (typeof memorySourceText === "string" && memorySourceText.trim() ? memorySourceText : "");
-        if (!activeChapter.sourceText?.trim() && sourceTextBeforeSwitch) {
+        if (!alignedChapter.sourceText?.trim() && sourceTextBeforeSwitch) {
           void logEvent({
             level: "warn",
             category: "storage",
@@ -305,7 +329,7 @@ export const useStudioStore = create<StudioWorkflowStore>()(
           activeChapterId: chapterId,
           novelChapters: latest.novelChapters.map((chapter) => (
             chapter.id === chapterId
-              ? activeChapter
+              ? alignedChapter
               : { ...chapter, sourceText: undefined }
           )),
           storyboards: mergeWindow("storyboards", loaded?.domains.storyboards) as StoryboardItem[],
@@ -331,6 +355,36 @@ export const useStudioStore = create<StudioWorkflowStore>()(
             set({ chapterSwitchLoading: false });
           }
         }
+      },
+      // 1127 启动对齐(design §1.1):激活章与正文文件做一次 file-wins 对齐。有变化 set()
+      // 回填并写诊断日志 chapterTextReconciled——随后的一次保存会把激活章的库内分片重写成
+      // 与文件一致。无变化/文件缺失/无激活章均不动(fail-open),返回 null。
+      reconcileActiveChapterText: async () => {
+        const { novelChapters, activeChapterId } = get();
+        if (!activeChapterId) return null;
+        const chapter = novelChapters.find((item) => item.id === activeChapterId);
+        if (!chapter) return null;
+        const mirror = await loadNovelChapterMirrorForActiveProject(chapter);
+        if (!mirror) return null;
+        const { chapter: merged, changed, changedFields } = mergeNovelChapterWithMirror(
+          chapter,
+          mirror,
+          "file-wins",
+        );
+        if (!changed) return null;
+        set((state) => ({
+          novelChapters: state.novelChapters.map((item) => (
+            item.id === activeChapterId ? merged : item
+          )),
+        }));
+        void logEvent({
+          level: "warn",
+          category: "storage",
+          operationId: "chapterTextReconciled",
+          message: "启动对齐：激活章正文与正文文件不一致，已按正文文件回填",
+          context: { chapterId: activeChapterId, changedFields },
+        });
+        return merged;
       },
       appendNovelText: novelSlice.appendNovelText,
       replaceNovelText: novelSlice.replaceNovelText,
@@ -666,12 +720,18 @@ export const useStudioStore = create<StudioWorkflowStore>()(
       },
       // 窗口化 v1：legacy 全量水合后锚定激活章并瘦身（下次保存即写 manifest 轻索引）
       onRehydrateStorage: () => (state) => {
-        if (!state || state.activeChapterId) return;
-        const chapters = state.novelChapters ?? [];
-        const firstFull = chapters.find((chapter) => typeof chapter.sourceText === "string");
-        if (!firstFull) return;
-        useStudioStore.setState({ activeChapterId: firstFull.id });
-        useStudioStore.getState().slimNonActiveChapters();
+        if (!state) return;
+        if (!state.activeChapterId) {
+          const chapters = state.novelChapters ?? [];
+          const firstFull = chapters.find((chapter) => typeof chapter.sourceText === "string");
+          if (!firstFull) return;
+          useStudioStore.setState({ activeChapterId: firstFull.id });
+          useStudioStore.getState().slimNonActiveChapters();
+        }
+        // 1127 启动对齐（design §1.1 入口 1）：回调末尾一律对激活章做一次正文文件
+        // 对齐——常态水合（activeChapterId 随 partialize 持久化）与 legacy 锚定两路
+        // 都覆盖（R5/AC7）；无激活章时 action 自身安全早退，零副作用。
+        void useStudioStore.getState().reconcileActiveChapterText();
       },
     },
   ),

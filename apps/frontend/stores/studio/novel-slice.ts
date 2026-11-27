@@ -7,8 +7,10 @@
 import type { NovelChapter } from "@/types/studio";
 import {
   appendNovelChapters,
+  mergeNovelChapterWithMirror,
   parseNovelChapters,
   replaceNovelChapters,
+  type NovelChapterMirror,
 } from "@/lib/studio/novel";
 
 /** Novel slice 契约。 */
@@ -19,8 +21,9 @@ export interface NovelSlice {
   appendNovelText: (sourceText: string, sourceName?: string) => void;
   replaceNovelText: (sourceText: string, sourceName?: string) => void;
   updateNovelChapter: (id: string, updates: Partial<NovelChapter>) => void;
-  /** 1127 正文按需装载:轻索引条目(窗口化瘦身,无 sourceText)打开编辑/展示前,
-   *  从章分片读回完整章并回填内存;失败返回 null(fail-open,调用方按缺失处理)。 */
+  /** 1127 正文真源读回:轻索引条目(窗口化瘦身,无 sourceText)打开编辑/展示前,
+   *  从正文文件(novel/chapters/<章>.md,唯一真源)读回并与内存条目合并(design §1.1);
+   *  文件缺失且无正文返回 null(fail-open,调用方按缺失处理)。 */
   ensureNovelChapterBody?: (chapterId: string) => Promise<NovelChapter | null>;
   saveSourceBible: (text: string) => void;
 }
@@ -70,26 +73,35 @@ export function createNovelSliceActions(
   set: SetFn,
   get: GetFn,
   mirrors: NovelMirrorDeps,
-  /** 1127 正文按需装载注入(读章分片;由 store 提供,保持 slice 无存储依赖)。 */
-  loadChapterBody?: (chapterId: string) => Promise<NovelChapter | null>,
+  /** 1127 正文真源读回注入(读整份正文文件并解析;由 store 提供,保持 slice 无存储依赖)。 */
+  loadChapterMirror?: (chapter: NovelChapter) => Promise<NovelChapterMirror | null>,
 ) {
   return {
     ensureNovelChapterBody: async (chapterId: string): Promise<NovelChapter | null> => {
       const existing = get().novelChapters.find((chapter) => chapter.id === chapterId);
-      // 已带全文(激活章/曾装载章)直接返回,不重复读盘
-      if (existing && typeof existing.sourceText === "string" && existing.sourceText.length > 0) {
-        return existing;
-      }
-      if (!loadChapterBody) return null;
-      const full = await loadChapterBody(chapterId);
-      if (!full || typeof full.sourceText !== "string" || full.sourceText.length === 0) return null;
-      // 回填内存(按 id 原位替换保序);不触发瘦身——正文就该留在内存供编辑展示
+      if (!existing) return null;
+      const hasBody = (existing.sourceText ?? "").trim() !== "";
+      const hasEvents = (existing.eventSummary ?? "").trim() !== ""
+        || (existing.eventState ?? "").trim() !== "";
+      // 已带正文且有事件:快路径零读盘(design §1.1「读回」)
+      if (hasBody && hasEvents) return existing;
+      if (!loadChapterMirror) return null;
+      const mirror = await loadChapterMirror(existing);
+      // 读正文文件失败:有正文返回原条目,无正文按缺失处理(fail-open)
+      if (!mirror) return hasBody ? existing : null;
+      const { chapter: merged, changed } = mergeNovelChapterWithMirror(
+        existing,
+        mirror,
+        hasBody ? "fill-missing-events" : "file-wins",
+      );
+      if (!changed) return existing;
+      // 原位回填(按 id 替换保序);不触发瘦身——正文就该留在内存供编辑展示
       set((state) => ({
         novelChapters: state.novelChapters.map((chapter) => (
-          chapter.id === chapterId ? { ...chapter, ...full, id: chapter.id } : chapter
+          chapter.id === chapterId ? merged : chapter
         )),
       }));
-      return get().novelChapters.find((chapter) => chapter.id === chapterId) ?? full;
+      return get().novelChapters.find((chapter) => chapter.id === chapterId) ?? merged;
     },
 
     importNovelText: (sourceText: string): void => {

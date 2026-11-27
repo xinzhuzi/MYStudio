@@ -6,10 +6,10 @@ import { useSceneStore } from "@/stores/library/scene-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { eventBus } from "@/lib/events/event-bus";
-import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { toast } from "sonner";
 import { AssetsBatchCard, type AssetType } from "./AssetsBatchCard";
 import { assetRecordMatches, nameMatches } from "./asset-matching";
+import { useLibraryDramaScript } from "./use-library-drama-script";
 import { latestAgentWorkEntry } from "./workflow-helpers";
 
 export function AssetsTab(props: {
@@ -202,31 +202,18 @@ export function AssetsTab(props: {
 
   // D22 口径落地:选中章无草稿时读漫剧剧本(novel/drama/chapter-NNN_漫剧.md)作
   // 「剧本内容」与提取使能的真源——4123 个无草稿章可看可提,与全书 runner 同输入。
-  // 桥缺席/读取失败优雅回退(脚本面保持 undefined=旧禁用态);seq 防切章竞态串章。
-  const [dramaScript, setDramaScript] = useState<string | null>(null);
+  // 桥缺席/读取失败优雅回退(脚本面保持 undefined=旧禁用态)。R10:读取收口单源
+  // useLibraryDramaScript(真源 hook,ScriptTab 只读回落共用),行为不变。
   const selectedChapterId = selectedChapter?.id;
   // 有草稿章不预读漫剧(D22 回落只在无草稿时才需要;省一次 IPC,且不干扰
   // 源记忆 readText 恰 N 次类锚)
   const selectedHasDraft = Boolean(
     props.agentWorkData.some((w) => w.key === "scriptDraft" && w.episodeId === selectedChapterId),
   );
-  useEffect(() => {
-    setDramaScript(null);
-    if (!selectedChapterId || !activeProjectId || selectedHasDraft) return;
-    const bridge = getProjectFilesBridge();
-    if (!bridge?.readText) return;
-    let seq = true;
-    const relativePath = `novel/drama/${selectedChapterId}_漫剧.md`;
-    bridge
-      .readText({ projectId: activeProjectId, relativePath })
-      .then((res) => {
-        if (seq && res.success && res.text) setDramaScript(res.text);
-      })
-      .catch(() => {});
-    return () => {
-      seq = false;
-    };
-  }, [selectedChapterId, activeProjectId, selectedHasDraft]);
+  const dramaLibrary = useLibraryDramaScript({
+    chapterId: selectedChapterId,
+    enabled: !selectedHasDraft,
+  });
 
   const run = async (id: string) => {
     setExtractingId(id);
@@ -374,7 +361,7 @@ export function AssetsTab(props: {
   // (按 updatedAt),数组序不再参与语义;无草稿回落漫剧剧本(D22,与 runner 同输入)。
   const selectedScript =
     latestAgentWorkEntry(props.agentWorkData, "scriptDraft", selectedChapter.id)
-      ?.data ?? (dramaScript ?? undefined);
+      ?.data ?? (dramaLibrary.text ?? undefined);
 
   return (
     <div className="space-y-4">

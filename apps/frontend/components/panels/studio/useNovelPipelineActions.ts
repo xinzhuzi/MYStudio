@@ -85,6 +85,7 @@ export function useNovelPipelineActions({
       try {
         let successCount = 0;
         let failedCount = 0;
+        let skippedCount = 0;
         let warningChapterCount = 0;
         // 按 index 排序后滚动注入上一章事件行；调用方传入乱序选择时仍保持章节顺序。
         const sortedChapters = [...chapters].sort((left, right) => left.index - right.index);
@@ -115,7 +116,26 @@ export function useNovelPipelineActions({
           }
         }
         let prevEventLine: string | undefined;
-        for (const [chapterIndex, chapter] of sortedChapters.entries()) {
+        for (const [chapterIndex, entry] of sortedChapters.entries()) {
+          // 1127 Task 7(design §1.3):事件分析先读正文——窗口化后非激活章在内存里是
+          // 轻索引项(无 sourceText),必须先经 ensureNovelChapterBody 读回正文文件
+          // (novel/chapters/<章>.md);读不到正文的章跳过,不再拿空正文喂模型。
+          const hasBodyInMemory = (entry.sourceText ?? "").trim() !== "";
+          const chapter = hasBodyInMemory
+            ? entry
+            : (await useStudioStore.getState().ensureNovelChapterBody?.(entry.id)) ?? null;
+          if (!chapter || (chapter.sourceText ?? "").trim() === "") {
+            skippedCount += 1;
+            toast.loading(
+              `AI 正在分析（${chapterIndex + 1}/${sortedChapters.length}）：${entry.title}（已跳过：正文缺失）`,
+              { id: NOVEL_EVENT_ANALYSIS_TOAST_ID },
+            );
+            updateNovelChapter(entry.id, {
+              eventTaskState: "idle",
+              eventErrorReason: "正文缺失：未找到该章正文文件，已跳过",
+            });
+            continue;
+          }
           toast.loading(
             `AI 正在分析（${chapterIndex + 1}/${sortedChapters.length}）：${chapter.title}`,
             { id: NOVEL_EVENT_ANALYSIS_TOAST_ID },
@@ -175,11 +195,11 @@ export function useNovelPipelineActions({
           }
         }
 
-        // 单一收口：成功/失败/人名校验警告全部汇入同一条提示，不另弹
+        // 单一收口：成功/失败/跳过/人名校验警告全部汇入同一条提示，不另弹
         const warningDescription = warningChapterCount
           ? `原著圣经人物校验：${warningChapterCount} 章出现疑似误写人名（与圣经登记名差一字），请检查事件摘要列的警告标记`
           : undefined;
-        const summary = `事件分析完成：成功 ${successCount} 章，失败 ${failedCount} 章。`;
+        const summary = `事件分析完成：成功 ${successCount} 章，失败 ${failedCount} 章${skippedCount ? `，跳过 ${skippedCount} 章` : ""}。`;
         saveAgentWorkData(
           "eventAnalysis",
           summary,
@@ -193,7 +213,7 @@ export function useNovelPipelineActions({
             description: warningDescription,
           });
         } else {
-          toast.success(`事件分析完成，共 ${successCount} 章`, {
+          toast.success(summary, {
             id: NOVEL_EVENT_ANALYSIS_TOAST_ID,
             description: warningDescription,
           });

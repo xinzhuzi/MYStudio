@@ -108,7 +108,9 @@ def flatten_canvas(workflow: dict, info: dict) -> dict:
                 continue
             schema = info[cls]
             specs = {name: spec for group in ('required', 'optional') for name, spec in schema['input'].get(group, {}).items()}
-            values = [value for value in node.get('widgets_values', []) if not (isinstance(value, str) and value in controls)]
+            # widgets_values 可为 None(GetImageSize 等零 widget 节点的仓库惯例序列化;
+            # 官方本地 H3 模板多件如此)——键存在但值为 None 时 get 的默认值不生效,须 or []
+            values = [value for value in (node.get('widgets_values') or []) if not (isinstance(value, str) and value in controls)]
             widget_names = [name for name, spec in specs.items() if (isinstance(spec[0], list) or spec[0] in scalar_types) and not (len(spec) > 1 and isinstance(spec[1], dict) and spec[1].get('forceInput'))]
             inputs = dict(zip(widget_names, values))
             if cls == 'TextGenerate':
