@@ -1,5 +1,7 @@
 # AC 验收证据(归档前补检,2026-11-27)
 
+续做后的现行口径见[测试与装机复核](research/closeout-verification-1127.md)。AC1–AC7 已登记，AC4 补有[逐件降档原因](research/ac4-rung-trace-1127.json)。AC10 的脚本命名验收通过，SenseNova 模型配置及受影响的重导出移交 GLM。尚有 AC8 的独立回归差距及 AC9 的 Windows 装机布局差异。下表保留第一次补检结果。
+
 补检人:补检员子代理(world.run 归档前一道)。口径:标注「补检 1127 实跑」的命令为本日真跑并记录退出码;其余证据为仓内在档工件(日志/报告/提交)。数字取自 `apps/output/automation/workflow-layout-report.json`——该报告由补检 1127 在终笔提交 264b0c69 之后重跑 `--check` 刷新(generatedAt 2026-11-27T15:43:26;刷新前 14:23 旧版少算 264b0c69 补写的 5 件,非不动点 11→6)。范围基数:计划口径 150 件,实际 `in_scope` **149** = `gui_total` 158 − 豁免 9 件(计划 8 件之外,`flux3-文生图.json` 于 1127 补登记——其字节被 10-16-flux3-daojie-ten-types 收据钉着,A8 口径,见 `workflow_layout_normalize_campaign.py:61-73` 注释)。
 
 | # | 验收句 | 证据(命令 + 关键输出 / 文件 + 数字) | 状态 |

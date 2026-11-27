@@ -618,11 +618,11 @@ def apply_one(path: pathlib.Path, tol=cross_tol) -> dict
   6. 规范:`docs/comfyui-kb/画布布局规范.md`、`.agents/skills/node-graph/OPTIMIZATION.md`
   (补检 1127:六笔批次提交在 git log(e9ff0760 / cb14001f / 73a4e69c / afd3a375 / 34587403 / 2be6b294),路径切分与本计划一致;证据缺口:freshness/detect-changes 当期输出未留档,呈交用户确认的对话记录不在仓库内)
 - [x] Step 8.9: 提交后复验棘轮(段 3 只有提交后才会真跑)。Run: `cd apps && npm run test:workflow; echo "exit=$?"` → Expected: 四段全 `PASSED`,退出码 0。(补检 1127 实跑(终笔提交 264b0c69 之后):汇总 GREEN——generators/contract/layout/placement 四段全 passed,exit=0)
-- [ ] Step 8.10: 打包与装机(**须用户明令「打包」才跑**;打包前用户已退出应用)。(候用户明令打包,未跑——非证据缺口)
+- [x] Step 8.10: 打包与装机(**须用户明令「打包」才跑**;打包前用户已退出应用)。1127 装机日志已记录覆盖安装、smoke 与 Launch Services 启动通过，见[续做复核](research/closeout-verification-1127.md)。
   - Run: `MANYYING_ALLOW_APP_LAUNCH=1 bash apps/build/packaging/build-mac.sh`
   - Expected: 末段打印 `Installed app verified: smoke passed and app opens via Launch Services`。
-- [ ] Step 8.11: 装机独立复核。Run: `cd apps && npm run verify:installed; echo "exit=$?"` → Expected: 退出码 0,`verify-installed-report.json` 两向 asar 哈希相等。(候装机:依赖 Step 8.10,未跑)
-- [ ] Step 8.12: 装机副本抽查三件主力件。Run: `for f in "1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json" "1_图片/QwenImage2.1/2_图生图/qi21-edit.json" "2_视频/H3视频/6_视频重制/fasth3-单镜视频-i2v.json"; do cmp "apps/backend/comfyui/workflows/$f" "/Applications/漫影工作室.app/Contents/Resources/backend/comfyui/workflows/$f" && echo "SAME $f"; done` → Expected: 三行 `SAME …`。(候装机:依赖 Step 8.10,未跑)
+- [x] Step 8.11: 装机独立复核。Run: `cd apps && npm run verify:installed; echo "exit=$?"` → Expected: 退出码 0,`verify-installed-report.json` 两向 asar 哈希相等。1127 的 17:27 回执 `ok=true`，打包与装机 asar 指纹相等，见[装机对拍](research/installed-layout-audit-1127.json)。
+- [x] Step 8.12: 装机副本抽查三件主力件。Run: `for f in "1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json" "1_图片/QwenImage2.1/2_图生图/qi21-edit.json" "2_视频/H3视频/6_视频重制/fasth3-单镜视频-i2v.json"; do cmp "apps/backend/comfyui/workflows/$f" "/Applications/漫影工作室.app/Contents/Resources/backend/comfyui/workflows/$f" && echo "SAME $f"; done` → Expected: 三行 `SAME …`。1127 以 Python `read_bytes()` 独立复核三件仓库与装机副本，退出 0，逐字节相等，见[归档预检](research/archive_precheck_20261127.md)。
 - [ ] Step 8.13: Windows(**须用户明令才跑**;前提是 Step 8.8 的提交已按用户同意推送到 origin/main——Windows 侧只拉已提交代码)。Run: `bash apps/build/packaging/deploy-dual.sh --skip-mac` → Expected: 末行 `🎉 双机部署完成`。工作树因别的会话在途文件而脏、且用户明令立即部署时,才按脚本头注用 `DEPLOY_ALLOW_DIRTY=1` 越过脏树检查。之后请用户在两台机器的应用里各打开几件工作流亲眼确认(判定权在用户)。 (AC9)(候用户明令 Windows 部署,未跑;且前提「Step 8.8 提交已推送 origin/main」尚未发生——本役提交仅在本地 main)
 
 ## 验证表(验收 ↔ 命令 ↔ 预期)
