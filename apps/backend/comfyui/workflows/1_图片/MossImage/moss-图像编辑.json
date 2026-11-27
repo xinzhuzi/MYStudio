@@ -8,8 +8,8 @@
       "id": 1,
       "type": "UNETLoader",
       "pos": [
-        160,
-        860
+        160.0,
+        820
       ],
       "size": [
         340,
@@ -46,8 +46,8 @@
       "id": 3,
       "type": "VAELoader",
       "pos": [
-        260,
-        3380
+        260.0,
+        2328
       ],
       "size": [
         340,
@@ -83,8 +83,8 @@
       "id": 4,
       "type": "CLIPLoader",
       "pos": [
-        80,
-        2630
+        80.0,
+        2028
       ],
       "size": [
         340,
@@ -124,8 +124,8 @@
       "id": 100,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        120,
-        2190
+        120.0,
+        1678
       ],
       "size": [
         340,
@@ -160,8 +160,8 @@
       "id": 101,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        1200,
-        2580
+        1020,
+        1978
       ],
       "size": [
         340,
@@ -196,8 +196,8 @@
       "id": 50,
       "type": "TextEncodeMOSSImageEdit",
       "pos": [
-        1750,
-        700
+        1570,
+        660
       ],
       "size": [
         340,
@@ -255,8 +255,8 @@
       "id": 51,
       "type": "CLIPTextEncode",
       "pos": [
-        1550,
-        1080
+        1370,
+        1040
       ],
       "size": [
         340,
@@ -298,8 +298,8 @@
       "id": 7,
       "type": "LoadImage",
       "pos": [
-        360,
-        1260
+        360.0,
+        1220
       ],
       "size": [
         340,
@@ -335,8 +335,8 @@
       "id": 12,
       "type": "ImageScaleToTotalPixels",
       "pos": [
-        2020,
-        420
+        1840,
+        380
       ],
       "size": [
         340,
@@ -381,8 +381,8 @@
       "id": 11,
       "type": "GetImageSize",
       "pos": [
-        2800,
-        520
+        2500,
+        480
       ],
       "size": [
         340,
@@ -427,8 +427,8 @@
       "id": 6,
       "type": "EmptyFlux2LatentImage",
       "pos": [
-        3600,
-        680
+        3260,
+        640
       ],
       "size": [
         340,
@@ -474,8 +474,8 @@
       "id": 20,
       "type": "SkipLayerGuidanceDiTSimple",
       "pos": [
-        2900,
-        80
+        2600,
+        80.0
       ],
       "size": [
         340,
@@ -522,8 +522,8 @@
       "id": 70,
       "type": "KSampler",
       "pos": [
-        4340,
-        780
+        3920,
+        740
       ],
       "size": [
         340,
@@ -590,8 +590,8 @@
       "id": 8,
       "type": "VAEDecode",
       "pos": [
-        4780,
-        1320
+        4360,
+        1280
       ],
       "size": [
         340,
@@ -633,8 +633,8 @@
       "id": 9,
       "type": "SaveImage",
       "pos": [
-        5340,
-        1320
+        4920,
+        1280
       ],
       "size": [
         340,
@@ -673,8 +673,8 @@
       "id": 110,
       "type": "MarkdownNote",
       "pos": [
-        80,
-        4060
+        80.0,
+        2628
       ],
       "size": [
         620,
@@ -702,8 +702,8 @@
       "id": 111,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        160,
-        680
+        160.0,
+        640
       ],
       "size": [
         440,
@@ -900,10 +900,10 @@
   "extra": {
     "mossTaskOwner": "moss-win-campaign-1025",
     "ds": {
-      "scale": 0.8,
+      "scale": 0.273,
       "offset": [
-        100,
-        100
+        71,
+        18
       ]
     }
   },

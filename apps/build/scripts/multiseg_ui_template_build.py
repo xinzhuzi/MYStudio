@@ -42,11 +42,12 @@ OUT = APPS / "frontend/lib/comfyui/h3/templates/h3-multiseg-template.json"
 FILL_POINTS = {4: "SaveVideo", 9: "LoadImage", 100: "H3Parameter", 101: "H3AutoContextSampler", 103: "MyShot"}
 # MyShot 收件箱锚的四个字段(控件序=引擎节点定义序;值取 API 模板同名键)
 MYSHOT_FIELDS = ("shot_id", "label", "description", "media_status")
-# App 专用节点在新界面图里的位置(写死,保证产物确定)。坐标按下列约束搜出来的空位(1124 视觉复检后定版):
-# ① 在各自组框内、不压组框标题带(上缘留 40)② 不压任何画布件节点(间距 30)③ pos≥80 不入负区
-# ④ 零左向线(画布件生成器同款契约:来源节点须整个在目标节点左侧)。
-# #9 与加载器同类放「① 加载模型」组;#800 须在 #5011 左侧(落 #5002 正下方);#103 须在 #4100 右侧
-# (「终档组」组框随之加宽把它罩住,见 GROUP_WIDEN)。
+# App 专用节点在新界面图里的位置。#9/#800 写死保证产物确定(坐标按下列约束搜出来的空位,
+# 1124 视觉复检后定版):① 在各自组框内、不压组框标题带(上缘留 40)② 不压任何画布件节点
+# (间距 30)③ pos≥80 不入负区 ④ 零左向线(画布件生成器同款契约:来源节点须整个在目标节点左侧)。
+# #9 与加载器同类放「① 加载模型」组;#800 须在 #5011 左侧(落 #5002 正下方)。
+# #103 的位置不再写死(1127 布局整治随迁:画布件归一后写死坐标会掉出组框)——build() 里由
+# place_shot_anchor() 按「#4100 右侧 + 终档组(组17)框内确定性扫描空位」现算(见 GROUP_WIDEN)。
 NEW_NODE_POS = {9: [440, 80], 103: [17383, 960], 800: [11300, 1130]}
 NODE_SIZE = {9: [290, 330], 103: [360, 300], 800: [340, 58]}
 # 需要加宽以罩住 App 专用节点的画布件组框:组框 id → 节点号。界面图里该组框只改宽度,其余组框原样。
@@ -166,9 +167,51 @@ def align_to_api(out: dict, api: dict) -> None:
             wv[index] = value
 
 
+def place_shot_anchor(canvas: dict) -> None:
+    """#103 收件箱锚的位置随画布布局现算(1127 布局整治随迁;写死坐标在画布件归一后
+    会掉出组框,生成器结构复核会拒写)。约束与 verify() 同口径:在 #4100 右侧
+    (零左向线)、终档组(组17)框内、不压标题带与任何节点(间距 30)、pos≥80;
+    纵向按 20px 步长确定性地扫第一个空位;组框随后按 GROUP_WIDEN 加宽罩住。"""
+    node = next((n for n in canvas["nodes"] if n["id"] == 4100), None)
+    if node is None:
+        die("画布件没有 #4100,#103 无锚可依")
+    group = next((g for g in canvas.get("groups", []) if g.get("id") == 17), None)
+    if group is None:
+        die("画布件没有组框 #17,#103 无处落位")
+    ax, ay = node["pos"]
+    aw = node.get("size", [220, 120])[0]
+    x = ax + aw + GROUP_PAD
+    bx = group["bounding"]
+    w, h = NODE_SIZE[103]
+    y0 = max(bx[1] + GROUP_TITLE_BAND + GROUP_PAD, 80)
+    y1 = bx[1] + bx[3] - GROUP_PAD - h
+
+    def clash(px, py):
+        b = (px, py, px + w, py + h)
+        for n in canvas["nodes"]:
+            if n["id"] == 4100:
+                continue
+            nx, ny = n["pos"]
+            nw, nh = n.get("size", [220, 120])
+            nb = (nx, ny, nx + nw, ny + nh)
+            if (b[0] < nb[2] + GROUP_PAD and nb[0] < b[2] + GROUP_PAD
+                    and b[1] < nb[3] + GROUP_PAD and nb[1] < b[3] + GROUP_PAD):
+                return True
+        return False
+
+    y = y0
+    while y <= y1:
+        if not clash(x, y):
+            NEW_NODE_POS[103] = [x, y]
+            return
+        y += 20
+    die(f"#103 在终档组(组17)内找不到不压节点的空位(x={x}, 纵向扫描 {y0}..{y1})")
+
+
 def build(canvas: dict, api: dict) -> dict:
     out = copy.deepcopy(canvas)
     align_to_api(out, api)
+    place_shot_anchor(canvas)
     for extra in app_nodes(api):
         if any(n["id"] == extra["id"] for n in out["nodes"]):
             die(f"画布件已占用节点号 #{extra['id']},与 App 专用针撞号(须改 App 节点号或画布件)")

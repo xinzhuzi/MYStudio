@@ -2,11 +2,12 @@
   "generatedFrom": "git show HEAD:<路径> 提取态(不取工作树态)",
   "head": "f73752b5",
   "rebuiltAt": "2026-11-19T23:19:07",
+  "ruling": "基线重锚与容差记档(2026-11-27;11-26-workflow-layout-normalize 布局整治):qi21-edit.json main 16→26/3→12 为已提交 04492613 的存量实测(本役 Δ=0),提交关卡重锚收录;t2i/i2i 各作用域按实测升降收录,升幅均在 Q3=max(3,⌈整治前×10%⌉) 内",
   "files": {
     "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json": {
       "scopes": {
         "main": {
-          "crossings": 54,
+          "crossings": 52,
           "occlusion": 12
         },
         "sub:[6] 文本提示词类型优化子图": {
@@ -14,8 +15,8 @@
           "occlusion": 0
         },
         "sub:道劫·加速子图": {
-          "crossings": 43,
-          "occlusion": 9
+          "crossings": 39,
+          "occlusion": 8
         },
         "sub:道劫·超分·SeedVR2": {
           "crossings": 0,
@@ -30,7 +31,7 @@
     "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/2_图生图/qi21-道劫-i2i.json": {
       "scopes": {
         "main": {
-          "crossings": 92,
+          "crossings": 93,
           "occlusion": 12
         },
         "sub:[6] 文本提示词类型优化子图": {
@@ -54,15 +55,15 @@
     "apps/backend/comfyui/workflows/1_图片/QwenImage2.1/2_图生图/qi21-edit.json": {
       "scopes": {
         "main": {
-          "crossings": 16,
-          "occlusion": 3
+          "crossings": 26,
+          "occlusion": 12
         },
         "sub:[6] 文本提示词类型优化子图": {
-          "crossings": 6,
+          "crossings": 0,
           "occlusion": 0
         },
         "sub:道劫·加速子图": {
-          "crossings": 60,
+          "crossings": 62,
           "occlusion": 15
         }
       }

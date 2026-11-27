@@ -136,6 +136,9 @@ def main() -> int:
     # 掩膜限噪潜进加速宿主(替换 20→宿主.slot4 原线)
     old2 = next(l for l in links if l[1] == 20 and l[3] == 7)
     links.remove(old2)
+    w20 = by_id(nodes, 20)
+    src_slot = w20["outputs"][old2[2]]
+    src_slot["links"] = [l for l in (src_slot.get("links") or []) if l != old2[0]]
     h7 = by_id(nodes, 7)
     dead = h7["inputs"][4]
     _require(dead["name"] == "latent", f"宿主 slot4 应=latent,得 {dead['name']}")
@@ -187,6 +190,9 @@ def main() -> int:
         for s in n.get("inputs", []):
             lk = s.get("link")
             _require(lk is None or lk in lids, f"[{n['id']}].{s['name']} 悬空线")
+        for s in n.get("outputs", []) or []:
+            for lk in (s.get("links") or []):
+                _require(lk in lids, f"[{n['id']}].{s.get('name')} 输出悬空线 {lk}")
         _require(n["pos"][0] >= 80 and n["pos"][1] >= 80, f"[{n['id']}] 违 W6①")
     for sg2 in doc["definitions"]["subgraphs"]:
         for l in sg2["links"]:

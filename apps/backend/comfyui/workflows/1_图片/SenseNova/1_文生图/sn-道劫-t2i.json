@@ -6,8 +6,8 @@
    "id": 1,
    "type": "MyQi21DaojieBase",
    "pos": [
-    40,
-    100
+    80,
+    100.0
    ],
    "size": [
     420,
@@ -79,8 +79,8 @@
    "id": 2,
    "type": "PrimitiveStringMultiline",
    "pos": [
-    40,
-    370
+    80,
+    370.0
    ],
    "size": [
     440,
@@ -116,8 +116,8 @@
    "id": 3,
    "type": "PrimitiveStringMultiline",
    "pos": [
-    40,
-    750
+    80,
+    750.0
    ],
    "size": [
     440,
@@ -153,8 +153,8 @@
    "id": 4,
    "type": "MyQi21PromptAssembly",
    "pos": [
-    540,
-    100
+    580,
+    100.0
    ],
    "size": [
     460,
@@ -240,8 +240,8 @@
    "id": 5,
    "type": "MyQi21PromptPreview",
    "pos": [
-    540,
-    480
+    580,
+    480.0
    ],
    "size": [
     460,
@@ -285,8 +285,8 @@
    "id": 6,
    "type": "CLIPTextEncode",
    "pos": [
-    1120,
-    100
+    1160,
+    100.0
    ],
    "size": [
     460,
@@ -337,8 +337,8 @@
    "id": 7,
    "type": "CLIPTextEncode",
    "pos": [
-    1120,
-    380
+    1160,
+    380.0
    ],
    "size": [
     460,
@@ -389,8 +389,8 @@
    "id": 8,
    "type": "CheckpointLoaderSimple",
    "pos": [
-    1720,
-    230
+    1760,
+    230.0
    ],
    "size": [
     440,
@@ -451,8 +451,8 @@
    "id": 9,
    "type": "LoraLoaderModelOnly",
    "pos": [
-    1720,
-    400
+    1760,
+    400.0
    ],
    "size": [
     440,
@@ -503,8 +503,8 @@
    "id": 10,
    "type": "PrimitiveBoolean",
    "pos": [
-    1720,
-    100
+    1760,
+    100.0
    ],
    "size": [
     300,
@@ -540,8 +540,8 @@
    "id": 11,
    "type": "PrimitiveInt",
    "pos": [
-    1720,
-    730
+    1760,
+    730.0
    ],
    "size": [
     440,
@@ -577,8 +577,8 @@
    "id": 12,
    "type": "PrimitiveInt",
    "pos": [
-    1720,
-    570
+    1760,
+    570.0
    ],
    "size": [
     440,
@@ -614,8 +614,8 @@
    "id": 13,
    "type": "PrimitiveFloat",
    "pos": [
-    1720,
-    1020
+    1760,
+    1020.0
    ],
    "size": [
     440,
@@ -649,8 +649,8 @@
    "id": 14,
    "type": "PrimitiveFloat",
    "pos": [
-    1720,
-    890
+    1760,
+    890.0
    ],
    "size": [
     440,
@@ -684,8 +684,8 @@
    "id": 15,
    "type": "ComfySwitchNode",
    "pos": [
-    2220,
-    230
+    2260,
+    230.0
    ],
    "size": [
     340,
@@ -742,8 +742,8 @@
    "id": 16,
    "type": "ComfySwitchNode",
    "pos": [
-    2220,
-    570
+    2260,
+    570.0
    ],
    "size": [
     340,
@@ -798,8 +798,8 @@
    "id": 17,
    "type": "ComfySwitchNode",
    "pos": [
-    2220,
-    890
+    2260,
+    890.0
    ],
    "size": [
     340,
@@ -854,8 +854,8 @@
    "id": 18,
    "type": "ComfyMathExpression",
    "pos": [
-    2960,
-    100
+    2920,
+    100.0
    ],
    "size": [
     360,
@@ -920,8 +920,8 @@
    "id": 19,
    "type": "ComfyMathExpression",
    "pos": [
-    2960,
-    340
+    2920,
+    340.0
    ],
    "size": [
     360,
@@ -986,8 +986,8 @@
    "id": 20,
    "type": "EmptyHiDreamO1LatentImage",
    "pos": [
-    2960,
-    580
+    2920,
+    580.0
    ],
    "size": [
     360,
@@ -1044,8 +1044,8 @@
    "id": 21,
    "type": "PrimitiveInt",
    "pos": [
-    2960,
-    790
+    2920,
+    790.0
    ],
    "size": [
     360,
@@ -1082,8 +1082,8 @@
    "id": 22,
    "type": "KSampler",
    "pos": [
-    3400,
-    100
+    3360,
+    100.0
    ],
    "size": [
     340,
@@ -1174,8 +1174,8 @@
    "id": 23,
    "type": "VAEDecode",
    "pos": [
-    3800,
-    100
+    3760,
+    100.0
    ],
    "size": [
     260,
@@ -1213,8 +1213,8 @@
    "id": 24,
    "type": "SaveImage",
    "pos": [
-    3800,
-    240
+    3760,
+    240.0
    ],
    "size": [
     560,
@@ -1251,8 +1251,8 @@
    "id": 25,
    "type": "MarkdownNote",
    "pos": [
-    540,
-    830
+    580,
+    830.0
    ],
    "size": [
     460,
@@ -1553,10 +1553,10 @@
    "id": 1,
    "title": "① 型库·三层装配(qi21_bases.json 复用)",
    "bounding": [
-    0,
-    0,
+    50,
+    50,
     1020,
-    1330
+    1280
    ],
    "color": "#3f789e",
    "flags": {}
@@ -1565,10 +1565,10 @@
    "id": 2,
    "title": "② 编码",
    "bounding": [
-    1080,
-    0,
-    540,
-    640
+    1130,
+    50,
+    520,
+    580
    ],
    "color": "#88A",
    "flags": {}
@@ -1577,10 +1577,10 @@
    "id": 3,
    "title": "③ 模型·双臂(Turbo 8 步 | 原生 50 步)",
    "bounding": [
-    1680,
-    0,
-    1160,
-    1160
+    1730,
+    50,
+    900,
+    1080
    ],
    "color": "#a33",
    "flags": {}
@@ -1589,17 +1589,25 @@
    "id": 4,
    "title": "④ 画幅·采样·输出",
    "bounding": [
-    2920,
-    0,
-    1500,
-    1160
+    2890,
+    50,
+    1460,
+    920
    ],
    "color": "#4a7",
    "flags": {}
   }
  ],
  "config": {},
- "extra": {},
+ "extra": {
+  "ds": {
+   "scale": 0.358,
+   "offset": [
+    12,
+    199
+   ]
+  }
+ },
  "version": 0.4,
  "revision": 0
 }

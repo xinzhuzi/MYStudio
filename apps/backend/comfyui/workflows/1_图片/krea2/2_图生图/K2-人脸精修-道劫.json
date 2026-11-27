@@ -4,8 +4,8 @@
       "id": 7,
       "type": "LoadImage",
       "pos": [
-        -1180,
-        20
+        80,
+        620
       ],
       "size": [
         316,
@@ -59,8 +59,8 @@
       "id": 15,
       "type": "CLIPLoader",
       "pos": [
-        -1180,
-        520
+        80,
+        1120
       ],
       "size": [
         316,
@@ -119,8 +119,8 @@
       "id": 10,
       "type": "VAELoader",
       "pos": [
-        -1180,
-        660
+        80,
+        1260
       ],
       "size": [
         316,
@@ -161,8 +161,8 @@
       "id": 21,
       "type": "UNETLoader",
       "pos": [
-        -1180,
-        780
+        80,
+        1380
       ],
       "size": [
         316,
@@ -211,8 +211,8 @@
       "id": 50,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        -800,
-        20
+        460,
+        620
       ],
       "size": [
         400,
@@ -243,8 +243,8 @@
       "id": 80,
       "type": "MyDaojieBase",
       "pos": [
-        -360,
-        20
+        900,
+        620
       ],
       "size": [
         340,
@@ -317,8 +317,8 @@
       "id": 51,
       "type": "CLIPTextEncode",
       "pos": [
-        40,
-        20
+        1300,
+        620
       ],
       "size": [
         316,
@@ -361,8 +361,8 @@
       "id": 65,
       "type": "CLIPTextEncode",
       "pos": [
-        40,
-        180
+        1300,
+        780
       ],
       "size": [
         316,
@@ -405,8 +405,8 @@
       "id": 90,
       "type": "MyDaojieLoraStack",
       "pos": [
-        40,
-        560
+        1300,
+        1160
       ],
       "size": [
         380,
@@ -484,8 +484,8 @@
       "id": 20,
       "type": "Seed (rgthree)",
       "pos": [
-        40,
-        340
+        1300,
+        940
       ],
       "size": [
         200,
@@ -528,8 +528,8 @@
       "id": 12,
       "type": "KSampler",
       "pos": [
-        440,
-        20
+        1700,
+        620
       ],
       "size": [
         315,
@@ -644,8 +644,8 @@
       "id": 11,
       "type": "VAEDecode",
       "pos": [
-        800,
-        20
+        2060,
+        620
       ],
       "size": [
         140,
@@ -685,8 +685,8 @@
       "id": 4,
       "type": "SaveImage",
       "pos": [
-        980,
-        20
+        2240,
+        620
       ],
       "size": [
         330,
@@ -721,8 +721,8 @@
       "id": 86,
       "type": "easy showAnything",
       "pos": [
-        440,
-        660
+        1700,
+        1260
       ],
       "size": [
         300,
@@ -757,8 +757,8 @@
       "id": 66,
       "type": "MarkdownNote",
       "pos": [
-        -1180,
-        -520
+        80,
+        80
       ],
       "size": [
         620,
@@ -781,8 +781,8 @@
       "id": 75,
       "type": "WASYuNetModelLoader",
       "pos": [
-        -800,
-        660
+        460,
+        1260
       ],
       "size": [
         300,
@@ -811,8 +811,8 @@
       "id": 76,
       "type": "WASImageCropFaceYuNet",
       "pos": [
-        -800,
-        300
+        460,
+        900
       ],
       "size": [
         360,
@@ -895,8 +895,8 @@
       "id": 5,
       "type": "ImageScaleToTotalPixels",
       "pos": [
-        -420,
-        300
+        840,
+        900
       ],
       "size": [
         340,
@@ -959,8 +959,8 @@
       "id": 8,
       "type": "VAEEncode",
       "pos": [
-        -420,
-        660
+        840,
+        1260
       ],
       "size": [
         140,
@@ -1171,6 +1171,14 @@
   ],
   "groups": [],
   "config": {},
-  "extra": {},
+  "extra": {
+    "ds": {
+      "scale": 0.471,
+      "offset": [
+        176,
+        3
+      ]
+    }
+  },
   "version": 0.4
 }

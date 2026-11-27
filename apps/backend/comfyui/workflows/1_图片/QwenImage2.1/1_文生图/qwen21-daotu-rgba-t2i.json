@@ -8,7 +8,7 @@
       "id": 1,
       "type": "UNETLoader",
       "pos": [
-        560.0,
+        600,
         100.0
       ],
       "size": [
@@ -45,7 +45,7 @@
       "id": 2,
       "type": "CLIPLoader",
       "pos": [
-        560.0,
+        600,
         420.0
       ],
       "size": [
@@ -84,7 +84,7 @@
       "id": 3,
       "type": "VAELoader",
       "pos": [
-        560.0,
+        600,
         740.0
       ],
       "size": [
@@ -120,7 +120,7 @@
       "id": 4,
       "type": "QwenImage21Cache",
       "pos": [
-        1040.0,
+        1080,
         100.0
       ],
       "size": [
@@ -175,7 +175,7 @@
       "id": 5,
       "type": "TextEncodeQwenImage21",
       "pos": [
-        1040.0,
+        1080,
         340.0
       ],
       "size": [
@@ -246,7 +246,7 @@
       "id": 6,
       "type": "KSampler",
       "pos": [
-        1560.0,
+        1600,
         200.0
       ],
       "size": [
@@ -314,7 +314,7 @@
       "id": 7,
       "type": "VAEDecode",
       "pos": [
-        1980.0,
+        2020,
         460.0
       ],
       "size": [
@@ -354,7 +354,7 @@
       "id": 8,
       "type": "SplitImageWithAlpha",
       "pos": [
-        2300.0,
+        2340,
         460.0
       ],
       "size": [
@@ -396,7 +396,7 @@
       "id": 9,
       "type": "SaveImageWithAlpha",
       "pos": [
-        2660.0,
+        2700,
         340.0
       ],
       "size": [
@@ -434,7 +434,7 @@
       "id": 10,
       "type": "MarkdownNote",
       "pos": [
-        40.0,
+        80,
         80.0
       ],
       "size": [
@@ -558,9 +558,9 @@
       "id": 1,
       "title": "Qwen-Image-2.1 加载器(bf16 三件套)",
       "bounding": [
-        520,
-        60,
-        460,
+        570,
+        50,
+        420,
         780
       ],
       "color": "#3f789e",
@@ -570,10 +570,10 @@
       "id": 2,
       "title": "道具透明底主链(编码→采样→解码→透明拆分→存PNG)",
       "bounding": [
-        1000,
-        60,
-        2080,
-        760
+        1050,
+        50,
+        2060,
+        660
       ],
       "color": "#3f789e",
       "flags": {}
@@ -582,7 +582,14 @@
   "config": {},
   "extra": {
     "ue_links": [],
-    "frontendVersion": "1.53.6"
+    "frontendVersion": "1.53.6",
+    "ds": {
+      "scale": 0.507,
+      "offset": [
+        -1,
+        217
+      ]
+    }
   },
   "version": 0.4
 }

@@ -668,7 +668,9 @@ def build_canvas(S: dict, src_nodes: list) -> dict:
         x2 = max(n["pos"][0] + n["size"][0] for n in ns)
         y2 = max(n["pos"][1] + n["size"][1] for n in ns)
         return {"id": gid, "title": title,
-                "bounding": [x1 - 60, y1 - 80, x2 - x1 + 60, y2 - y1 + 120],
+                # 1126 布局整治立宪组框留白(左30/上50/右30/下30):旧 [x1-60,y1-80,+60,+120]
+                # 右留白 0 违贴边判据(edge_tight),重放零改写与整治链不动点互斥。
+                "bounding": [x1 - 30, y1 - 50, x2 - x1 + 60, y2 - y1 + 80],
                 "color": color, "flags": {}, "order": order}
 
     S.setdefault("groups", []).append(group(16, GROUP_A_TITLE, GROUP_A_IDS, "#995588", 7))

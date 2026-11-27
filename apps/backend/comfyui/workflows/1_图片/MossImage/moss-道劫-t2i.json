@@ -6,8 +6,8 @@
    "id": 1,
    "type": "MyMossDaojieBase",
    "pos": [
-    0,
-    0
+    80,
+    80
    ],
    "size": [
     340,
@@ -79,8 +79,8 @@
    "id": 2,
    "type": "PrimitiveStringMultiline",
    "pos": [
-    0,
-    260
+    80,
+    340
    ],
    "size": [
     420,
@@ -114,8 +114,8 @@
    "id": 3,
    "type": "PrimitiveStringMultiline",
    "pos": [
-    0,
-    520
+    80,
+    600
    ],
    "size": [
     420,
@@ -149,8 +149,8 @@
    "id": 4,
    "type": "MyQi21PromptAssembly",
    "pos": [
-    480,
-    0
+    560,
+    80
    ],
    "size": [
     420,
@@ -215,8 +215,8 @@
    "id": 5,
    "type": "MyQi21PromptPreview",
    "pos": [
-    480,
-    300
+    560,
+    380
    ],
    "size": [
     420,
@@ -246,8 +246,8 @@
    "id": 6,
    "type": "CLIPLoader",
    "pos": [
-    480,
-    520
+    560,
+    600
    ],
    "size": [
     340,
@@ -286,8 +286,8 @@
    "id": 7,
    "type": "CLIPTextEncode",
    "pos": [
-    960,
-    520
+    1040,
+    600
    ],
    "size": [
     400,
@@ -330,8 +330,8 @@
    "id": 8,
    "type": "CLIPTextEncode",
    "pos": [
-    960,
-    760
+    1040,
+    840
    ],
    "size": [
     400,
@@ -374,8 +374,8 @@
    "id": 9,
    "type": "EmptyFlux2LatentImage",
    "pos": [
-    1440,
-    760
+    1520,
+    840
    ],
    "size": [
     300,
@@ -425,8 +425,8 @@
    "id": 10,
    "type": "UNETLoader",
    "pos": [
-    1440,
-    0
+    1520,
+    80
    ],
    "size": [
     340,
@@ -463,8 +463,8 @@
    "id": 11,
    "type": "LoraLoaderModelOnly",
    "pos": [
-    1830,
-    0
+    1910,
+    80
    ],
    "size": [
     380,
@@ -506,8 +506,8 @@
    "id": 12,
    "type": "SkipLayerGuidanceDiTSimple",
    "pos": [
-    1830,
-    150
+    1910,
+    230
    ],
    "size": [
     380,
@@ -553,8 +553,8 @@
    "id": 13,
    "type": "KSampler",
    "pos": [
-    2220,
-    0
+    2300,
+    80
    ],
    "size": [
     340,
@@ -621,8 +621,8 @@
    "id": 14,
    "type": "LoraLoaderModelOnly",
    "pos": [
-    1830,
-    340
+    1910,
+    420
    ],
    "size": [
     380,
@@ -664,8 +664,8 @@
    "id": 15,
    "type": "SkipLayerGuidanceDiTSimple",
    "pos": [
-    1830,
-    490
+    1910,
+    570
    ],
    "size": [
     380,
@@ -711,8 +711,8 @@
    "id": 16,
    "type": "KSampler",
    "pos": [
-    2220,
-    340
+    2300,
+    420
    ],
    "size": [
     340,
@@ -779,8 +779,8 @@
    "id": 17,
    "type": "PrimitiveBoolean",
    "pos": [
-    1440,
-    920
+    1520,
+    1000
    ],
    "size": [
     260,
@@ -814,8 +814,8 @@
    "id": 18,
    "type": "ComfySwitchNode",
    "pos": [
-    2620,
-    160
+    2700,
+    240
    ],
    "size": [
     260,
@@ -859,8 +859,8 @@
    "id": 20,
    "type": "VAELoader",
    "pos": [
-    2620,
-    520
+    2700,
+    600
    ],
    "size": [
     300,
@@ -894,8 +894,8 @@
    "id": 21,
    "type": "VAEDecode",
    "pos": [
-    2980,
-    160
+    3060,
+    240
    ],
    "size": [
     300,
@@ -936,8 +936,8 @@
    "id": 22,
    "type": "ColorToMask",
    "pos": [
-    2980,
-    320
+    3060,
+    400
    ],
    "size": [
     340,
@@ -987,8 +987,8 @@
    "id": 23,
    "type": "GrowMask",
    "pos": [
-    2980,
-    530
+    3060,
+    610
    ],
    "size": [
     240,
@@ -1030,8 +1030,8 @@
    "id": 24,
    "type": "GrowMask",
    "pos": [
-    2980,
-    670
+    3060,
+    750
    ],
    "size": [
     240,
@@ -1073,8 +1073,8 @@
    "id": 27,
    "type": "ImpactGaussianBlurMask",
    "pos": [
-    2980,
-    810
+    3060,
+    890
    ],
    "size": [
     280,
@@ -1116,8 +1116,8 @@
    "id": 25,
    "type": "JoinImageWithAlpha",
    "pos": [
-    2980,
-    960
+    3060,
+    1040
    ],
    "size": [
     300,
@@ -1156,8 +1156,8 @@
    "id": 26,
    "type": "ComfySwitchNode",
    "pos": [
-    3340,
-    480
+    3430,
+    560
    ],
    "size": [
     260,
@@ -1202,8 +1202,8 @@
    "id": 30,
    "type": "SeedVR2LoadDiTModel",
    "pos": [
-    3700,
-    0
+    3780,
+    80
    ],
    "size": [
     400,
@@ -1249,8 +1249,8 @@
    "id": 31,
    "type": "SeedVR2LoadVAEModel",
    "pos": [
-    3700,
-    230
+    3780,
+    310
    ],
    "size": [
     400,
@@ -1304,8 +1304,8 @@
    "id": 32,
    "type": "SeedVR2VideoUpscaler",
    "pos": [
-    4140,
-    0
+    4220,
+    80
    ],
    "size": [
     360,
@@ -1379,8 +1379,8 @@
    "id": 33,
    "type": "PrimitiveBoolean",
    "pos": [
-    3700,
-    520
+    3780,
+    600
    ],
    "size": [
     260,
@@ -1414,8 +1414,8 @@
    "id": 34,
    "type": "ComfySwitchNode",
    "pos": [
-    4560,
-    120
+    4640,
+    200
    ],
    "size": [
     260,
@@ -1459,8 +1459,8 @@
    "id": 35,
    "type": "SaveImage",
    "pos": [
-    4880,
-    120
+    4960,
+    200
    ],
    "size": [
     340,
@@ -1491,8 +1491,8 @@
    "id": 36,
    "type": "MarkdownNote",
    "pos": [
-    0,
-    780
+    80,
+    860
    ],
    "size": [
     460,
@@ -1878,9 +1878,9 @@
    "id": 1,
    "title": "① 型库·三层装配(MOSS 版 moss_bases.json)",
    "bounding": [
-    -20,
-    -60,
-    920,
+    50,
+    30,
+    960,
     800
    ],
    "color": "#3f789e",
@@ -1890,10 +1890,10 @@
    "id": 2,
    "title": "② 模型·双臂(原生50·观澜+SLG | DMD8步)",
    "bounding": [
-    1410,
-    -60,
+    1490,
+    30,
     1180,
-    1120
+    1080
    ],
    "color": "#88A",
    "flags": {}
@@ -1902,10 +1902,10 @@
    "id": 3,
    "title": "③ 解码·白底转透明腿(MOSS 无 alpha,抠图造)",
    "bounding": [
-    2590,
-    -60,
-    780,
-    1060
+    2670,
+    190,
+    760,
+    840
    ],
    "color": "#a33",
    "flags": {}
@@ -1914,17 +1914,25 @@
    "id": 4,
    "title": "④ SeedVR2 2K 尾档(默认旁路)",
    "bounding": [
-    3670,
-    -60,
-    1290,
-    660
+    3750,
+    30,
+    1180,
+    680
    ],
    "color": "#4a7",
    "flags": {}
   }
  ],
  "config": {},
- "extra": {},
+ "extra": {
+  "ds": {
+   "scale": 0.291,
+   "offset": [
+    17,
+    252
+   ]
+  }
+ },
  "version": 0.4,
  "revision": 0
 }

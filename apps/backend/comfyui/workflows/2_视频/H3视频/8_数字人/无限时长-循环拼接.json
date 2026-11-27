@@ -5,8 +5,8 @@
    "type": "LoadImage",
    "title": "参考图(人物真源)",
    "pos": [
-    80,
-    80
+    80.0,
+    80.0
    ],
    "size": [
     320,
@@ -45,8 +45,8 @@
    "type": "CLIPLoader",
    "title": "TE(nvfp4)",
    "pos": [
-    470,
-    80
+    470.0,
+    80.0
    ],
    "size": [
     330,
@@ -81,8 +81,8 @@
    "type": "VAELoader",
    "title": "视频VAE",
    "pos": [
-    860,
-    80
+    860.0,
+    80.0
    ],
    "size": [
     300,
@@ -120,8 +120,8 @@
    "type": "VAELoader",
    "title": "音频VAE",
    "pos": [
-    860,
-    200
+    860.0,
+    200.0
    ],
    "size": [
     300,
@@ -157,8 +157,8 @@
    "type": "KSamplerSelect",
    "title": "采样器",
    "pos": [
-    1220,
-    80
+    1220.0,
+    80.0
    ],
    "size": [
     250,
@@ -191,8 +191,8 @@
    "type": "ManualSigmas",
    "title": "σ=官方6-NFE七值(勿改)",
    "pos": [
-    1220,
-    210
+    1220.0,
+    210.0
    ],
    "size": [
     360,
@@ -225,8 +225,8 @@
    "type": "UNETLoader",
    "title": "底模(Cobijada int8)",
    "pos": [
-    80,
-    760
+    80.0,
+    760.0
    ],
    "size": [
     340,
@@ -258,8 +258,8 @@
    "type": "LoraLoaderModelOnly",
    "title": "LoRA(pika flex ref2va)",
    "pos": [
-    470,
-    760
+    470.0,
+    760.0
    ],
    "size": [
     340,
@@ -302,8 +302,8 @@
    "type": "PrimitiveStringMultiline",
    "title": "段0提示词",
    "pos": [
-    80,
-    920
+    80.0,
+    920.0
    ],
    "size": [
     1260,
@@ -334,8 +334,8 @@
    "type": "PrimitiveStringMultiline",
    "title": "段1提示词",
    "pos": [
-    1400,
-    920
+    1400.0,
+    920.0
    ],
    "size": [
     1260,
@@ -366,8 +366,8 @@
    "type": "PrimitiveStringMultiline",
    "title": "段2提示词",
    "pos": [
-    2720,
-    920
+    2720.0,
+    920.0
    ],
    "size": [
     1260,
@@ -398,8 +398,8 @@
    "type": "MiniMaxH3ReferenceToVideo",
    "title": "段0·参考生视频",
    "pos": [
-    80,
-    1350
+    80.0,
+    1350.0
    ],
    "size": [
     380,
@@ -482,8 +482,8 @@
    "type": "VAEDecodeAudio",
    "title": "段0·解码音频",
    "pos": [
-    520,
-    1930
+    520.0,
+    1930.0
    ],
    "size": [
     300,
@@ -529,8 +529,8 @@
    "type": "BasicGuider",
    "title": "段0·引导",
    "pos": [
-    80,
-    1820
+    80.0,
+    1820.0
    ],
    "size": [
     260,
@@ -576,8 +576,8 @@
    "type": "RandomNoise",
    "title": "段0·噪声",
    "pos": [
-    380,
-    1820
+    380.0,
+    1820.0
    ],
    "size": [
     240,
@@ -608,8 +608,8 @@
    "type": "SamplerCustomAdvanced",
    "title": "段0·采样",
    "pos": [
-    80,
-    1970
+    80.0,
+    1970.0
    ],
    "size": [
     310,
@@ -686,8 +686,8 @@
    "type": "MiniMaxH3MotionContextSaveLatent",
    "title": "段0·存桥latent",
    "pos": [
-    520,
-    2560
+    520.0,
+    2560.0
    ],
    "size": [
     330,
@@ -728,8 +728,8 @@
    "type": "VAEDecode",
    "title": "段0·解码",
    "pos": [
-    80,
-    2220
+    80.0,
+    2220.0
    ],
    "size": [
     260,
@@ -775,8 +775,8 @@
    "type": "CreateVideo",
    "title": "段0·成视频",
    "pos": [
-    80,
-    2420
+    80.0,
+    2420.0
    ],
    "size": [
     300,
@@ -828,8 +828,8 @@
    "type": "SaveVideo",
    "title": "段0·保存",
    "pos": [
-    440,
-    2420
+    440.0,
+    2420.0
    ],
    "size": [
     330,
@@ -869,8 +869,8 @@
    "type": "MiniMaxH3ReferenceToVideo",
    "title": "段1·参考生视频",
    "pos": [
-    2050,
-    1350
+    2050.0,
+    1350.0
    ],
    "size": [
     380,
@@ -954,8 +954,8 @@
    "type": "VAEDecodeAudio",
    "title": "段1·解码音频",
    "pos": [
-    2490,
-    1700
+    2490.0,
+    1700.0
    ],
    "size": [
     300,
@@ -1001,8 +1001,8 @@
    "type": "MiniMaxH3MotionContextLoadLatent",
    "title": "段1·载上段桥",
    "pos": [
-    2490,
-    1950
+    2490.0,
+    1950.0
    ],
    "size": [
     330,
@@ -1053,8 +1053,8 @@
    "type": "MiniMaxH3MotionContext",
    "title": "段1·22帧桥",
    "pos": [
-    2490,
-    2140
+    2490.0,
+    2140.0
    ],
    "size": [
     330,
@@ -1142,8 +1142,8 @@
    "type": "BasicGuider",
    "title": "段1·引导",
    "pos": [
-    2050,
-    1820
+    2050.0,
+    1820.0
    ],
    "size": [
     260,
@@ -1189,8 +1189,8 @@
    "type": "RandomNoise",
    "title": "段1·噪声",
    "pos": [
-    2350,
-    1820
+    2350.0,
+    1820.0
    ],
    "size": [
     240,
@@ -1221,8 +1221,8 @@
    "type": "SamplerCustomAdvanced",
    "title": "段1·采样",
    "pos": [
-    2050,
-    1970
+    2050.0,
+    1970.0
    ],
    "size": [
     310,
@@ -1299,8 +1299,8 @@
    "type": "MiniMaxH3MotionContextSaveLatent",
    "title": "段1·存桥latent",
    "pos": [
-    2490,
-    2680
+    2490.0,
+    2680.0
    ],
    "size": [
     330,
@@ -1341,8 +1341,8 @@
    "type": "VAEDecode",
    "title": "段1·解码",
    "pos": [
-    2050,
-    2220
+    2050.0,
+    2220.0
    ],
    "size": [
     260,
@@ -1388,8 +1388,8 @@
    "type": "MiniMaxH3MotionContextTrim",
    "title": "段1·剪桥(视频+音频)",
    "pos": [
-    2050,
-    2360
+    2050.0,
+    2360.0
    ],
    "size": [
     310,
@@ -1450,8 +1450,8 @@
    "type": "CreateVideo",
    "title": "段1·成视频",
    "pos": [
-    2050,
-    2550
+    2050.0,
+    2550.0
    ],
    "size": [
     300,
@@ -1503,8 +1503,8 @@
    "type": "SaveVideo",
    "title": "段1·保存",
    "pos": [
-    2410,
-    2550
+    2410.0,
+    2550.0
    ],
    "size": [
     330,
@@ -1544,8 +1544,8 @@
    "type": "AudioConcat",
    "title": "段1·音轨接力",
    "pos": [
-    2790,
-    2550
+    2790.0,
+    2550.0
    ],
    "size": [
     300,
@@ -1593,8 +1593,8 @@
    "type": "MiniMaxH3ReferenceToVideo",
    "title": "段2·参考生视频",
    "pos": [
-    4020,
-    1350
+    4020.0,
+    1350.0
    ],
    "size": [
     380,
@@ -1678,8 +1678,8 @@
    "type": "VAEDecodeAudio",
    "title": "段2·解码音频",
    "pos": [
-    4460,
-    1700
+    4460.0,
+    1700.0
    ],
    "size": [
     300,
@@ -1725,8 +1725,8 @@
    "type": "MiniMaxH3MotionContextLoadLatent",
    "title": "段2·载上段桥",
    "pos": [
-    4460,
-    1950
+    4460.0,
+    1950.0
    ],
    "size": [
     330,
@@ -1777,8 +1777,8 @@
    "type": "MiniMaxH3MotionContext",
    "title": "段2·22帧桥",
    "pos": [
-    4460,
-    2140
+    4460.0,
+    2140.0
    ],
    "size": [
     330,
@@ -1866,8 +1866,8 @@
    "type": "BasicGuider",
    "title": "段2·引导",
    "pos": [
-    4020,
-    1820
+    4020.0,
+    1820.0
    ],
    "size": [
     260,
@@ -1913,8 +1913,8 @@
    "type": "RandomNoise",
    "title": "段2·噪声",
    "pos": [
-    4320,
-    1820
+    4320.0,
+    1820.0
    ],
    "size": [
     240,
@@ -1945,8 +1945,8 @@
    "type": "SamplerCustomAdvanced",
    "title": "段2·采样",
    "pos": [
-    4020,
-    1970
+    4020.0,
+    1970.0
    ],
    "size": [
     310,
@@ -2023,8 +2023,8 @@
    "type": "MiniMaxH3MotionContextSaveLatent",
    "title": "段2·存桥latent",
    "pos": [
-    4460,
-    2680
+    4460.0,
+    2680.0
    ],
    "size": [
     330,
@@ -2063,8 +2063,8 @@
    "type": "VAEDecode",
    "title": "段2·解码",
    "pos": [
-    4020,
-    2220
+    4020.0,
+    2220.0
    ],
    "size": [
     260,
@@ -2110,8 +2110,8 @@
    "type": "MiniMaxH3MotionContextTrim",
    "title": "段2·剪桥(视频+音频)",
    "pos": [
-    4020,
-    2360
+    4020.0,
+    2360.0
    ],
    "size": [
     310,
@@ -2172,8 +2172,8 @@
    "type": "CreateVideo",
    "title": "段2·成视频",
    "pos": [
-    4020,
-    2550
+    4020.0,
+    2550.0
    ],
    "size": [
     300,
@@ -2225,8 +2225,8 @@
    "type": "SaveVideo",
    "title": "段2·保存",
    "pos": [
-    4380,
-    2550
+    4380.0,
+    2550.0
    ],
    "size": [
     330,
@@ -2266,8 +2266,8 @@
    "type": "AudioConcat",
    "title": "段2·音轨接力",
    "pos": [
-    4760,
-    2550
+    4760.0,
+    2550.0
    ],
    "size": [
     300,
@@ -2315,8 +2315,8 @@
    "type": "SaveAudio",
    "title": "音轨收口(模型自产)",
    "pos": [
-    4760,
-    1410
+    4760.0,
+    1410.0
    ],
    "size": [
     330,
@@ -2354,8 +2354,8 @@
    "type": "Note",
    "title": "使用说明",
    "pos": [
-    80,
-    540
+    80.0,
+    540.0
    ],
    "size": [
     1100,
@@ -3012,10 +3012,10 @@
   {
    "title": "段0(初始化)",
    "bounding": [
-    30,
-    1280,
-    1140,
-    1530
+    50,
+    1300,
+    830,
+    1420
    ],
    "color": "#3f789e",
    "locked": false
@@ -3023,10 +3023,10 @@
   {
    "title": "段1·22帧桥循环",
    "bounding": [
-    2000,
-    1280,
-    1140,
-    1660
+    2020,
+    1300,
+    1100,
+    1540
    ],
    "color": "#3f789e",
    "locked": false
@@ -3034,17 +3034,25 @@
   {
    "title": "段2·22帧桥循环",
    "bounding": [
-    3970,
-    1280,
-    1140,
-    1660
+    3990,
+    1300,
+    1130,
+    1540
    ],
    "color": "#3f789e",
    "locked": false
   }
  ],
  "config": {},
- "extra": {},
+ "extra": {
+  "ds": {
+   "scale": 0.3,
+   "offset": [
+    24,
+    16
+   ]
+  }
+ },
  "version": 0.4,
  "last_node_id": 148,
  "last_link_id": 5079

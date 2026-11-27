@@ -8,8 +8,8 @@
       "id": 1,
       "type": "FreeVideoGenerate",
       "pos": [
-        620,
-        160
+        640,
+        160.0
       ],
       "size": [
         650,
@@ -130,8 +130,8 @@
       "id": 2,
       "type": "FreeVideoMedia",
       "pos": [
-        60,
-        160
+        80,
+        160.0
       ],
       "size": [
         460,
@@ -202,10 +202,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.85,
+      "scale": 1.0,
       "offset": [
-        0,
-        0
+        115,
+        -105
       ]
     },
     "freevideo_studio": true

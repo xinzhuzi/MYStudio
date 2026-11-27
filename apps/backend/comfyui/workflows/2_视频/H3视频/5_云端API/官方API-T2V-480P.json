@@ -8,8 +8,8 @@
    "id": 8,
    "type": "SaveVideo",
    "pos": [
-    -1230,
-    220
+    510,
+    220.0
    ],
    "size": [
     540,
@@ -43,8 +43,8 @@
    "id": 23,
    "type": "MinimaxHailuo03TextToVideoNode",
    "pos": [
-    -1660,
-    220
+    80,
+    220.0
    ],
    "size": [
     400,
@@ -94,10 +94,10 @@
  "config": {},
  "extra": {
   "ds": {
-   "scale": 1.309090909090909,
+   "scale": 1.0,
    "offset": [
-    1835,
-    32.8125
+    235,
+    100
    ]
   },
   "frontendVersion": "1.47.11"

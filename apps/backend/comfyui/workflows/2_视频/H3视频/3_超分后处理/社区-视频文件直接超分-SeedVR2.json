@@ -8,8 +8,8 @@
       "id": 1,
       "type": "LoadVideo",
       "pos": [
-        60,
-        300
+        80,
+        320
       ],
       "size": [
         320,
@@ -38,8 +38,8 @@
       "id": 2,
       "type": "GetVideoComponents",
       "pos": [
-        430,
-        300
+        450,
+        320
       ],
       "size": [
         260,
@@ -90,8 +90,8 @@
       "id": 3,
       "type": "SeedVR2LoadDiTModel",
       "pos": [
-        60,
-        520
+        80,
+        540
       ],
       "size": [
         330,
@@ -134,8 +134,8 @@
       "id": 4,
       "type": "SeedVR2LoadVAEModel",
       "pos": [
-        60,
-        890
+        80,
+        910
       ],
       "size": [
         330,
@@ -182,8 +182,8 @@
       "id": 5,
       "type": "SeedVR2VideoUpscaler",
       "pos": [
-        830,
-        380
+        850,
+        400
       ],
       "size": [
         360,
@@ -242,8 +242,8 @@
       "id": 6,
       "type": "CreateVideo",
       "pos": [
-        1250,
-        380
+        1270,
+        400
       ],
       "size": [
         260,
@@ -294,8 +294,8 @@
       "id": 7,
       "type": "SaveVideo",
       "pos": [
-        1560,
-        380
+        1580,
+        400
       ],
       "size": [
         300,
@@ -333,8 +333,8 @@
       "id": 8,
       "type": "MarkdownNote",
       "pos": [
-        60,
-        60
+        80,
+        80
       ],
       "size": [
         420,
@@ -421,6 +421,14 @@
   ],
   "groups": [],
   "config": {},
-  "extra": {},
+  "extra": {
+    "ds": {
+      "scale": 0.678,
+      "offset": [
+        136,
+        -14
+      ]
+    }
+  },
   "version": 0.4
 }

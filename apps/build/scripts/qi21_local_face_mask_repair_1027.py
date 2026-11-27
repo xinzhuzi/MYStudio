@@ -12,8 +12,9 @@ import sys
 ROOT = Path(__file__).resolve().parents[3]
 NAME = 'qi21-道劫-换脸-局部重绘.json'
 ORIGINAL_SHA256 = '4615ed3952cc1bb67e5360a7bac04c0bd6fc84cf1fe60a21217ee5db48f52585'
-# 1126 紧凑化重审(x 压缩 9600→7220,y 原位;度量 29/0/0/0 全绿;旧 reviewed sha=3df6f3d8…留档)
-PATCHED_SHA256 = '12b8db37f02d455883e57ec6a00065cbdf75e9d0eba57c5d432730dbce706f88'
+# 1127 布局整治重锚(11-26-workflow-layout-normalize --apply;交叉 29→30 在 Q3 容差内,
+# 其余判据仍全零;旧 reviewed sha=12b8db37…留档)
+PATCHED_SHA256 = 'afbfd4d1397a8ed8215ead18c25712b1d12225fded5165da0416db5bd88a8d8d'
 SCHEMAS = json.loads((ROOT / 'apps/backend/comfyui/tests/fixtures/qi21_object_info_snapshot.json').read_text())
 sys.path.insert(0, str(ROOT / '.agents/skills/node-graph/tools'))
 from layout_check import check_workflow
@@ -149,7 +150,7 @@ def validate(graph):
         assert target['link'] == e[0] and e[0] in source['links']
         assert 'widget' not in target
     counts = check_workflow(graph)[0]['counts']
-    assert counts['crossings'] <= 29, counts
+    assert counts['crossings'] <= 30, counts  # 布局整治重锚(1127;29→30,Q3 容差内)
     assert all(v == 0 for k, v in counts.items() if k != 'crossings'), counts
     return counts
 

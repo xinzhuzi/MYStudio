@@ -6,8 +6,8 @@
       "id": 1,
       "type": "LoadImage",
       "pos": [
-        -1150,
-        -260
+        80,
+        80
       ],
       "size": [
         320,
@@ -45,8 +45,8 @@
       "id": 2,
       "type": "LoadImage",
       "pos": [
-        -1150,
-        220
+        80,
+        560
       ],
       "size": [
         320,
@@ -84,8 +84,8 @@
       "id": 3,
       "type": "CLIPLoaderGGUF",
       "pos": [
-        -780,
-        -260
+        450,
+        80
       ],
       "size": [
         340,
@@ -117,8 +117,8 @@
       "id": 4,
       "type": "UNETLoader",
       "pos": [
-        -780,
-        -120
+        450,
+        220
       ],
       "size": [
         340,
@@ -149,8 +149,8 @@
       "id": 5,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        -780,
-        0
+        450,
+        340
       ],
       "size": [
         340,
@@ -188,8 +188,8 @@
       "id": 6,
       "type": "ModelPreviewOverrideKJ",
       "pos": [
-        -780,
-        180
+        450,
+        520
       ],
       "size": [
         330,
@@ -236,8 +236,8 @@
       "id": 7,
       "type": "VAELoader",
       "pos": [
-        -780,
-        490
+        450,
+        830
       ],
       "size": [
         330,
@@ -269,8 +269,8 @@
       "id": 8,
       "type": "MiniMaxH3ImageToVideo",
       "pos": [
-        -380,
-        -260
+        850,
+        80
       ],
       "size": [
         420,
@@ -334,8 +334,8 @@
       "id": 9,
       "type": "KSampler",
       "pos": [
-        110,
-        -260
+        1340,
+        80
       ],
       "size": [
         315,
@@ -393,8 +393,8 @@
       "id": 10,
       "type": "VAEDecode",
       "pos": [
-        110,
-        40
+        1340,
+        380
       ],
       "size": [
         210,
@@ -433,8 +433,8 @@
       "id": 11,
       "type": "VHS_VideoCombine",
       "pos": [
-        110,
-        140
+        1340,
+        480
       ],
       "size": [
         340,
@@ -582,6 +582,14 @@
   ],
   "groups": [],
   "config": {},
-  "extra": {},
+  "extra": {
+    "ds": {
+      "scale": 0.854,
+      "offset": [
+        48,
+        -28
+      ]
+    }
+  },
   "version": 0.4
 }

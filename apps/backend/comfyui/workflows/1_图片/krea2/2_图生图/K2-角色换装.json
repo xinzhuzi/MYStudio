@@ -8,8 +8,8 @@
       "id": 55,
       "type": "UNETLoader",
       "pos": [
-        60,
-        80
+        80,
+        80.0
       ],
       "size": [
         340,
@@ -54,8 +54,8 @@
       "id": 56,
       "type": "CLIPLoader",
       "pos": [
-        60,
-        260
+        80,
+        260.0
       ],
       "size": [
         340,
@@ -102,8 +102,8 @@
       "id": 73,
       "type": "VAEEncode",
       "pos": [
-        460,
-        740
+        480,
+        730
       ],
       "size": [
         200,
@@ -150,8 +150,8 @@
       "id": 79,
       "type": "Krea2EditModelPatch",
       "pos": [
-        1280,
-        740
+        1300,
+        730
       ],
       "size": [
         340,
@@ -232,8 +232,8 @@
       "id": 82,
       "type": "EmptySD3LatentImage",
       "pos": [
-        1780,
-        740
+        1800,
+        730
       ],
       "size": [
         300,
@@ -273,8 +273,8 @@
       "id": 85,
       "type": "Krea2EditGroundedEncode",
       "pos": [
-        720,
-        1120
+        740,
+        1110
       ],
       "size": [
         480,
@@ -332,8 +332,8 @@
       "id": 100,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        640,
-        80
+        660,
+        80.0
       ],
       "size": [
         380,
@@ -378,8 +378,8 @@
       "id": 53,
       "type": "KSampler",
       "pos": [
-        2160,
-        740
+        2180,
+        730
       ],
       "size": [
         320,
@@ -443,8 +443,8 @@
       "id": 54,
       "type": "VAEDecode",
       "pos": [
-        2540,
-        740
+        2560,
+        730
       ],
       "size": [
         200,
@@ -490,8 +490,8 @@
       "id": 99,
       "type": "SaveImage",
       "pos": [
-        2540,
-        880
+        2560,
+        870
       ],
       "size": [
         620,
@@ -532,8 +532,8 @@
       "id": 84,
       "type": "Krea2EditGroundedEncode",
       "pos": [
-        720,
-        740
+        740,
+        730
       ],
       "size": [
         480,
@@ -591,8 +591,8 @@
       "id": 102,
       "type": "MarkdownNote",
       "pos": [
-        60,
-        1230
+        80,
+        1220
       ],
       "size": [
         640,
@@ -613,8 +613,8 @@
       "id": 101,
       "type": "LoadImage",
       "pos": [
-        60,
-        740
+        80,
+        730
       ],
       "size": [
         340,
@@ -661,8 +661,8 @@
       "id": 57,
       "type": "VAELoader",
       "pos": [
-        60,
-        460
+        80,
+        460.0
       ],
       "size": [
         340,
@@ -855,19 +855,19 @@
     {
       "title": "① 模型加载(底模 krea2_turbo_bf16 · TE Krea2-Engineer-V1-bf16 · VAE qwen_image_HDR_vae_fp32_comfy)",
       "bounding": [
-        20,
-        20,
+        50,
+        30,
         400,
-        560
+        550
       ],
       "color": "#4a89b8"
     },
     {
       "title": "② 换装 LoRA(Krea2-编辑outfit_transfer ×1,官方 demo 原值)",
       "bounding": [
-        620,
-        20,
-        420,
+        630,
+        30,
+        440,
         240
       ],
       "color": "#8a5fb0"
@@ -875,9 +875,9 @@
     {
       "title": "③ 服装参考图与编码(一图四用:编码/补丁像素线/正负接地;补丁 ref_boost=1/1)",
       "bounding": [
-        20,
-        700,
-        1660,
+        50,
+        680,
+        1620,
         970
       ],
       "color": "#4d9e6a"
@@ -885,10 +885,10 @@
     {
       "title": "④ 采样与输出(euler/simple · 8步 · cfg1 · 1072×1792 竖幅)",
       "bounding": [
-        1740,
-        700,
-        1500,
-        760
+        1770,
+        680,
+        1440,
+        720
       ],
       "color": "#c27a3d"
     }
@@ -903,10 +903,10 @@
     "ue_links": [],
     "links_added_by_ue": [],
     "ds": {
-      "scale": 0.53,
+      "scale": 0.49,
       "offset": [
-        80,
-        120
+        1,
+        33
       ]
     }
   },

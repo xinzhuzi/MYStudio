@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
-import json
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
@@ -157,7 +156,9 @@ def main() -> int:
     api = g._flatten(canvas, api_doc)
 
     def render(obj):
-        return (json.dumps(obj, ensure_ascii=False, indent=1) + "\n").encode("utf-8")
+        # 11-26 布局整治 P1:落盘统一走底座生成器的 render(画布件先过整理器,
+        # API 件原样),保证 sn-局部重绘 与批处理整治结果同字节。
+        return g.render(obj)
 
     if not args.dry_run:
         (OUT_DIR / "sn-局部重绘.json").write_bytes(render(canvas))

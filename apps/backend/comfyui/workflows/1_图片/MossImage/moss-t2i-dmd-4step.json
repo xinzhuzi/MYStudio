@@ -8,8 +8,8 @@
    "id": 1,
    "type": "UNETLoader",
    "pos": [
-    100,
-    100
+    100.0,
+    100.0
    ],
    "size": [
     340,
@@ -46,8 +46,8 @@
    "id": 2,
    "type": "CLIPLoader",
    "pos": [
-    100,
-    700
+    100.0,
+    700.0
    ],
    "size": [
     340,
@@ -87,8 +87,8 @@
    "id": 3,
    "type": "VAELoader",
    "pos": [
-    1930,
-    560
+    1930.0,
+    560.0
    ],
    "size": [
     340,
@@ -123,8 +123,8 @@
    "id": 10,
    "type": "LoraLoaderModelOnly",
    "pos": [
-    660,
-    100
+    660.0,
+    100.0
    ],
    "size": [
     340,
@@ -167,8 +167,8 @@
    "id": 20,
    "type": "SkipLayerGuidanceDiTSimple",
    "pos": [
-    1220,
-    100
+    1220.0,
+    100.0
    ],
    "size": [
     340,
@@ -215,8 +215,8 @@
    "id": 100,
    "type": "PrimitiveStringMultiline",
    "pos": [
-    660,
-    500
+    660.0,
+    500.0
    ],
    "size": [
     340,
@@ -251,8 +251,8 @@
    "id": 101,
    "type": "PrimitiveStringMultiline",
    "pos": [
-    660,
-    980
+    660.0,
+    980.0
    ],
    "size": [
     340,
@@ -287,8 +287,8 @@
    "id": 4,
    "type": "CLIPTextEncode",
    "pos": [
-    1370,
-    600
+    1370.0,
+    600.0
    ],
    "size": [
     340,
@@ -330,8 +330,8 @@
    "id": 5,
    "type": "CLIPTextEncode",
    "pos": [
-    1370,
-    1000
+    1370.0,
+    1000.0
    ],
    "size": [
     340,
@@ -373,8 +373,8 @@
    "id": 6,
    "type": "EmptyFlux2LatentImage",
    "pos": [
-    1370,
-    1300
+    1370.0,
+    1300.0
    ],
    "size": [
     340,
@@ -413,8 +413,8 @@
    "id": 7,
    "type": "KSampler",
    "pos": [
-    1900,
-    100
+    1900.0,
+    100.0
    ],
    "size": [
     340,
@@ -481,8 +481,8 @@
    "id": 8,
    "type": "VAEDecode",
    "pos": [
-    2460,
-    100
+    2460.0,
+    100.0
    ],
    "size": [
     340,
@@ -524,8 +524,8 @@
    "id": 9,
    "type": "SaveImage",
    "pos": [
-    3000,
-    100
+    3000.0,
+    100.0
    ],
    "size": [
     340,
@@ -564,8 +564,8 @@
    "id": 110,
    "type": "MarkdownNote",
    "pos": [
-    100,
-    1700
+    100.0,
+    1600
    ],
    "size": [
     620,
@@ -704,10 +704,10 @@
  "extra": {
   "mossTaskOwner": "moss-win-campaign-1025",
   "ds": {
-   "scale": 0.8,
+   "scale": 0.427,
    "offset": [
-    100,
-    100
+    66,
+    -3
    ]
   }
  },

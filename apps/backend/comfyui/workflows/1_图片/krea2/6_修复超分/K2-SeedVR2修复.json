@@ -4,8 +4,8 @@
       "id": 1,
       "type": "LoadImage",
       "pos": [
-        170,
-        -367
+        170.0,
+        80
       ],
       "size": [
         300,
@@ -76,8 +76,8 @@
       "id": 2,
       "type": "SeedVR2LoadDiTModel",
       "pos": [
-        121,
-        170
+        121.0,
+        617
       ],
       "size": [
         300,
@@ -205,8 +205,8 @@
       "id": 3,
       "type": "SeedVR2LoadVAEModel",
       "pos": [
-        165,
-        544
+        165.0,
+        991
       ],
       "size": [
         300,
@@ -382,8 +382,8 @@
       "id": 4,
       "type": "SeedVR2VideoUpscaler",
       "pos": [
-        700,
-        225
+        700.0,
+        672
       ],
       "size": [
         360,
@@ -580,8 +580,8 @@
       "id": 5,
       "type": "SaveImage",
       "pos": [
-        1360,
-        222
+        1360.0,
+        669
       ],
       "size": [
         300,
@@ -671,16 +671,24 @@
     {
       "title": "SeedVR2 图像修复(单步·940)",
       "bounding": [
-        -40,
-        -520,
-        2100,
-        1350
+        91,
+        30,
+        1599,
+        1357
       ],
       "color": "#88A",
       "id": 1
     }
   ],
   "config": {},
-  "extra": {},
+  "extra": {
+    "ds": {
+      "scale": 0.642,
+      "offset": [
+        228,
+        -11
+      ]
+    }
+  },
   "version": 0.4
 }

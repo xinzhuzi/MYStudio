@@ -8,8 +8,8 @@
    "id": 1,
    "type": "AICG3D_CharacterCardOneClick",
    "pos": [
-    80,
-    120
+    80.0,
+    120.0
    ],
    "size": [
     520,
@@ -98,8 +98,8 @@
    "id": 2,
    "type": "UNETLoader",
    "pos": [
-    1300,
-    100
+    920,
+    100.0
    ],
    "size": [
     430,
@@ -154,8 +154,8 @@
    "id": 3,
    "type": "CLIPLoader",
    "pos": [
-    1300,
-    270
+    920,
+    270.0
    ],
    "size": [
     430,
@@ -222,8 +222,8 @@
    "id": 4,
    "type": "VAELoader",
    "pos": [
-    1300,
-    480
+    920,
+    480.0
    ],
    "size": [
     430,
@@ -268,8 +268,8 @@
    "id": 5,
    "type": "TextEncodeQwenImage21",
    "pos": [
-    1790,
-    120
+    1410,
+    120.0
    ],
    "size": [
     420,
@@ -365,8 +365,8 @@
    "id": 6,
    "type": "EmptyLatentImage",
    "pos": [
-    1790,
-    520
+    1410,
+    520.0
    ],
    "size": [
     330,
@@ -432,8 +432,8 @@
    "id": 8,
    "type": "VAEDecode",
    "pos": [
-    3000,
-    120
+    2620,
+    120.0
    ],
    "size": [
     240,
@@ -481,8 +481,8 @@
    "id": 9,
    "type": "PreviewImage",
    "pos": [
-    3520,
-    120
+    3140,
+    120.0
    ],
    "size": [
     760,
@@ -510,8 +510,8 @@
    "id": 10,
    "type": "SaveImage",
    "pos": [
-    3900,
-    960
+    3520,
+    960.0
    ],
    "size": [
     620,
@@ -541,8 +541,8 @@
    "id": 14,
    "type": "PreviewImage",
    "pos": [
-    3180,
-    900
+    2800,
+    900.0
    ],
    "size": [
     520,
@@ -570,8 +570,8 @@
    "type": "LoraLoaderModelOnly",
    "title": "E混动·Turbo LoRA×1.0",
    "pos": [
-    2230,
-    120
+    1850,
+    120.0
    ],
    "size": [
     270,
@@ -612,8 +612,8 @@
    "type": "LazyCache",
    "title": "E混动·步跳缓存0.2/15-95%",
    "pos": [
-    2230,
-    260
+    1850,
+    260.0
    ],
    "size": [
     270,
@@ -655,8 +655,8 @@
    "type": "BasicGuider",
    "title": "E混动·BasicGuider",
    "pos": [
-    2230,
-    400
+    1850,
+    400.0
    ],
    "size": [
     270,
@@ -699,8 +699,8 @@
    "type": "BasicScheduler",
    "title": "E混动·simple 40步",
    "pos": [
-    2530,
-    260
+    2150,
+    260.0
    ],
    "size": [
     270,
@@ -741,8 +741,8 @@
    "type": "RandomNoise",
    "title": "E混动·种子42(原值)",
    "pos": [
-    2530,
-    120
+    2150,
+    120.0
    ],
    "size": [
     270,
@@ -775,8 +775,8 @@
    "type": "KSamplerSelect",
    "title": "E混动·euler",
    "pos": [
-    2530,
-    400
+    2150,
+    400.0
    ],
    "size": [
     270,
@@ -808,8 +808,8 @@
    "type": "SamplerCustomAdvanced",
    "title": "E混动·SamplerCustomAdvanced",
    "pos": [
-    2530,
-    540
+    2150,
+    540.0
    ],
    "size": [
     270,
@@ -869,8 +869,8 @@
    "id": 708,
    "type": "MarkdownNote",
    "pos": [
-    1790,
-    700
+    1410,
+    700.0
    ],
    "size": [
     300,
@@ -1068,10 +1068,10 @@
    "id": 1,
    "title": "人物提示词",
    "bounding": [
-    -300,
-    20,
-    1560,
-    680
+    50,
+    70,
+    580,
+    540
    ],
    "color": "#3f789e",
    "flags": {}
@@ -1080,10 +1080,10 @@
    "id": 2,
    "title": "千问生成",
    "bounding": [
-    1280,
-    20,
-    1250,
-    680
+    890,
+    50,
+    1260,
+    610
    ],
    "color": "#8a6d3b",
    "flags": {}
@@ -1092,10 +1092,10 @@
    "id": 3,
    "title": "自动切片与重排",
    "bounding": [
-    2940,
-    20,
-    1160,
-    1440
+    2590,
+    70,
+    1580,
+    1680
    ],
    "color": "#3f789e",
    "flags": {}
@@ -1103,7 +1103,14 @@
  ],
  "config": {},
  "extra": {
-  "frontendVersion": "1.53.6"
+  "frontendVersion": "1.53.6",
+  "ds": {
+   "scale": 0.374,
+   "offset": [
+    11,
+    110
+   ]
+  }
  },
  "version": 0.4
 }

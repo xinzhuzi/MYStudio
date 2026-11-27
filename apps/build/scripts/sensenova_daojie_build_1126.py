@@ -28,7 +28,9 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import math
 import re
+import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
@@ -613,8 +615,26 @@ def build_all() -> list[tuple[str, dict]]:
         ("sn-道劫-i2i-api.json", _flatten(i2i, api_doc_i2i(facts))))]
 
 
+# 布局归一(11-26-workflow-layout-normalize P1):画布件落盘前过整理器,判据层住
+# node-graph 技能 tools/;档位与容差和批处理 workflow_layout_normalize_campaign
+# 同式(Q4 目标档缺省值 + Q3 交叉容差),保证「生成器重导出 == 批处理整治结果」。
+sys.path.insert(0, str(REPO / ".agents" / "skills" / "node-graph" / "tools"))
+import layout_normalize as _lnorm  # noqa: E402  (技能工具,本地路径自举)
+
+
+def _layout_tol(scope, before):
+    """Q3 裁决:交叉每作用域 ≤ max(3, ⌈整治前 × 10%⌉);其余判据零增(同批处理 cross_tol)。"""
+    return {"crossings": max(3, math.ceil(float(before.get("crossings", 0)) * 0.1))}
+
+
 def render(obj: dict) -> bytes:
-    """确定性落盘字节(照 Moss 件:UTF-8、indent=1、保留非 ASCII、末尾一个换行)。"""
+    """确定性落盘字节(照 Moss 件:UTF-8、indent=1、保留非 ASCII、末尾一个换行)。
+    画布件(带非空 nodes 列表)先过布局整理器取不动点,无解用原对象;
+    API 直投件无 nodes,normalize 原样放行。"""
+    if isinstance(obj.get("nodes"), list) and obj["nodes"]:
+        doc, _rep = _lnorm.normalize(obj, params=dict(_lnorm.PARAMS), tol=_layout_tol)
+        if doc is not None:
+            obj = doc
     return (json.dumps(obj, ensure_ascii=False, indent=1) + "\n").encode("utf-8")
 
 
