@@ -142,6 +142,7 @@
 | DEP-07 | 改了真源默认「部署了就生效」，引擎家真源不随部署换新 | 三方对账（仓库/安装目录种子/引擎家）哈希归一才算到位（详见 [作图错题集](作图错题集.md) A-11） | 21afea20 |
 | DEP-08 | 没读脚本拦截逻辑就 `nohup` 后台跑打包链：装机验收死守卫（`MANYYING_ALLOW_APP_LAUNCH` 未设）快速失败，脚本又自动「整链重跑一次」白烧一轮 electron-builder | 跑长链前先读其拦截/守卫段（`grep -n "拦截\|guard\|ALLOW" 脚本`）；被守卫拒后先解锁变量重跑，不等脚本自带的盲目重试烧完。1127 再证：守卫拦截经后台包装后退出码仍是 0、完成通知只说 completed——判完成必须读日志尾验实际产物，不信包装出来的 exit 码 | 1127 小说正文役实录（85133134 打包两轮，第一轮守卫失败+自动重跑全白烧）；1127 晚 bf16 役 build-mac4/5 两犯（解锁变量弄丢，白烧一轮 electron-builder 才想起读守卫段） |
 | DEP-09 | 部署/重启前不固化运行时态：deploy 引擎重启后 history 清空，两发生图执行窗口丢失，时间账只剩产物 mtime | 每发完一发立即抓账（history/计时）不等批量收尾；部署/重启前的 history、日志窗口先落盘再动 | 1127 bf16 换装役 timing-ledger（四发两条 exec_seconds=null，不可恢复） |
+| DEP-10 | 量产装机脚本「Mac 店面镜像」每装一批就把 Windows 存盘的 `manifest.json` 整本拷来覆盖 Mac 在用存盘的清单（1127 错 11 整改上线无复核）：Win 清单里没有的 Mac 独有分片（首章 19 镜定稿版分镜表等）被应用启动存盘时按「清孤儿」删除，Win 清单里有而 Mac 盘上没有的变成「登记了、文件不在」 | Mac/Win 存盘各自独立、各有清单；对齐只按分片内容逐件受控导入（应用退出窗口+备份+按名并入+写后对账），禁整本清单互拷；会写 IP/MA 的脚本上线前过「三问」并由另一上下文读过再跑 | 1128 首章分镜表丢失事故；`IP/MA/three-artifacts/tools/deploy_one.sh:33-50`；指南 `.trellis/spec/guides/live-store-no-direct-write-guide.md` |
 
 > 部署链账自造事故（撞号清档、探针假绿、章号破千切片造假）详见 [作图错题集](作图错题集.md) G-22、G-23，不重复收录。审阅列为「等用户决定」的装机不自作主张；打包唯一入口=`apps/build/packaging/build-mac.sh`（用户点名「打包/覆盖安装」时）。
 
@@ -152,7 +153,7 @@
 | 编号 | 错题一句话 | 正解一句话 | 出处 |
 | --- | --- | --- | --- |
 | WIN-01 | `taskkill /F /T` 树杀，误杀 SSH 服务（两断实录） | Win 恒用 `Stop-Process -Id` 或 deploy-dual 通道，禁树杀 | 记忆档 win-no-taskkill-tree |
-| WIN-02 | sshd 楔死误诊成「连接数爆了」；自写探针/侧信道拼结论 | KEX 段 RST+旧连健在+数分钟自愈=上游 bug 签名；sc failure 自动拉活已配；超自愈窗走 RustDesk GUI 救场配方 | 记忆档 win-sshd-wedge-auto-restart-1114、rustdesk-gui-rescue-sshd-1124 |
+| WIN-02 | sshd 楔死误诊成「连接数爆了」；自写探针/侧信道拼结论 | KEX 段 RST+旧连健在+数分钟自愈=上游 bug 签名；sc failure 自动拉活已配；超自愈窗走 RustDesk GUI 救场配方 | 记忆档 win-sshd-wedge-auto-restart-1114、rustdesk-gui-rescue-sshd-1124。【翻案 1128】所谓「楔死/上游 bug/自愈」全是误诊：真因是 zbj 账户被锁（MYIA 定时任务每 30 分钟用错密码登录 10 次，踩满「10 次锁 10 分钟」），详见 SRC-07；本行旧签名作废，SSH 红字第一动作=查安全日志 4740/4625 |
 | WIN-03 | 中文路径 PowerShell Copy-Item=0 字节；中文文件名恒被 GBK 搞坏 | 远程传输恒 ASCII 文件名；码点拼接必配自检；中转恒 E:/IP/tmp 禁 C 盘 | 记忆档 ascii-filenames-for-windows-ssh、windows-remote-ops-recipes-1016、win-transfer-rules |
 | WIN-04 | 连 Win 没绕 Clash 两层劫持（测的是代理不是目标）；nc -z 假阳性当连通；Mac「直连」没 unset 代理=假阴性 | 连 Win 必绕两层劫持；连通判定不用 nc -z；Mac 直连必 unset 代理 | 记忆档 win-connect-direct-first-always、mac-direct-must-unset-proxy |
 | WIN-05 | SSH 直启 GUI 应用（被毙）；碰同居产品 | GUI 唯一通道=schtasks /IT；同居产品禁碰，长任务=17001 私有端口 | 记忆档 win-mystudio-single-instance-1104、win-miya-cohabitation-engine-restart-1103 |
@@ -220,6 +221,7 @@
 - **错因**：把「当下不在」直接当「从未有过/无需追」，只看现盘不查历史——盘面是「果」，去向（何时、被谁、用什么动作动的）只存在于历史里。
 - **正解**：预期数与实盘数对不上时，先疑数据被第三方动作动过，再疑预期写错；查去向必须查历史与备份——对照既有研究档/审计快照、备份目录（`backups/`，如 11-15～11-18 的 50 份清单备份就是事件字段只存过一份的实证）、git 历史与各役执行记录，确认「最后一次见到它在何时何盘、此后谁动过」再下结论；偏差如实入账，后续步骤的预期数字改按今日盘面。
 - **出处**：任务档 11-26-novel-script-data-alignment（implement.md Task 1 Step 6 执行记录 ⚠、research/01 §7「写入脚本未定位」）。
+- **〔1128 补注〕动作来源已定位**：「Mac 店被换成 Win 同盘」是量产装机脚本 `IP/MA/three-artifacts/tools/deploy_one.sh:33-50`（1127「错 11 整改·Mac 店面镜像」）每装一批就拿 Windows 存盘的 `manifest.json` 覆盖 Mac 存盘清单所致；1128 首章分镜表因此被应用「清孤儿」删除，详见本册 DEP-10。
 
 ### SRC-06 修复只补一半字段、未跑全库对账就报完成〔1127〕
 
@@ -227,6 +229,13 @@
 - **错因**：修复范围按「当时看得见的错」取，没按「字段全清单」取；报完成前没有全库对账这道门，半截修复在局部抽查里看不出来。
 - **正解**：数据修复按「每一处存放位 × 字段全清单」一次改齐（本役对齐工具的口径：分片条目与清单索引条目两处都写，字段含 sourceText/title/volume/sourceId/sourceName/revision/事件三字段/eventTaskState/updatedAt）；报「完成」前必须跑全库对账（`novel_text_audit.py` 退出码 0）并逐项核对修复报告的 after 字段；对账 0 不一致才算修复完成。
 - **出处**：任务档 11-26-novel-script-data-alignment（research/01 §3 B 类「今天回填」残迹与 §8 元数据对账表、design.md §6 对旧 refix 的覆盖说明、implement.md Task 1 Step 6 干跑实录）。
+
+### SRC-07 同一故障 8 次只加兜底层、不查根因；把没证据的归因讲成机制〔1114–1128〕【翻案】
+
+- **错在哪**：Win SSH「间歇卡死」自 11-14 起处理过 8 次，每次加一层——`sc failure` 自动重启、winremote 备用通道、RustDesk 救场、错题集条目及补强——并归因为「上游 Win32-OpenSSH 已知 bug」「KEX 段 RST」「数分钟自愈」，从未定谳。1128 又用「门卫打瞌睡、保安掐醒」的类比讲了两遍，其中「自动重启规则把它叫醒」没有证据（查重启记录的命令返回是空的，被跳过）。用户：「你这样做不是傻逼吗？反复在一件事情上面搞那么多东西」。真因不到两小时查清：MYIA 的定时任务 `linuxdo-welfare`（每 30 分钟）用错误密码登录 zbj 账户十次，踩满本机「10 次锁 10 分钟」的锁定策略；Windows 安全日志 4740 里躺着 79 条锁定记录。
+- **错因**：同一故障第二次出现仍在「怎么扛过去」上打转，没转到「谁造成的」；归因靠侧信道（RST 形态、耗时）拼故事，没有读过一次故障方自己的日志（安全日志）；无证据的说法用拟人类比包装后当成了定论。
+- **正解**：同一故障第 2 次出现=停止叠缓解层、开根因调查；归因必须有直接证据（日志行、退出码、最小变量复现），没有就写「未定谳」并列出下次要抓的证据。诊断顺序：读故障方自己的日志 → 分段复现（把一次握手拆步、两头对拍）→ 用最小变量切分（存在的用户名死/不存在的活；新进程正常/老进程异常）→ 最后才换通道。
+- **出处**：1128 实录——现场两轮（05:33:39、06:04:27 两次锁定与故障窗口逐分吻合）；安全日志 4625 caller=`AppData\Roaming\MYIA\playwright-browsers\chromium-1248\chrome.exe`；9.5 源码 `win32_groupaccess.c: ga_init → get_user_token`（`Match Group administrators` 使每条连接在首个 USERAUTH 处请求 S4U 令牌）与 `win32_usertoken_utils.c: get_user_token`（失败后假登录兜底分支无声崩溃）；记忆档 win-sshd-wedge-auto-restart-1114、recurring-fault-root-cause-not-layers-1128。
 
 ---
 
