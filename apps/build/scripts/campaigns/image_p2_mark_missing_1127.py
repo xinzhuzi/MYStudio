@@ -7,6 +7,7 @@
   python3 apps/build/scripts/campaigns/image_p2_mark_missing_1127.py --apply    # 备份后写入
 
 数据: 任务 research/p2-banners-1127.json(逐件横幅 + 处置方式 prepend/add)。
+任务归档后仍可预演；写入使用在办任务的清单和备份。
 只改两处之一:
   prepend = 宿主说明卡(指定 id、指定类型)的 widgets_values[0] 开头前置横幅;
             如果有 widgets_values_named.text，也在其原文前置同一横幅。
@@ -23,6 +24,7 @@ import hashlib
 import json
 import os
 import sys
+from pathlib import Path
 
 MARK = "【标缺·不可跑("
 NEW_NOTE_TAG = "1127"
@@ -189,7 +191,20 @@ def process(item):
 
 def main():
     apply = "--apply" in sys.argv[1:]
-    data = json.load(open(DATA, encoding="utf-8"))
+    data_path = Path(DATA)
+    if not data_path.is_file():
+        task_dir = Path(TASK)
+        if apply or task_dir.exists():
+            print(f"ERROR: 找不到在办任务清单 {data_path}", file=sys.stderr)
+            return 1
+        archive_pattern = f"*/{task_dir.name}/research/{data_path.name}"
+        archived = [path for path in (task_dir.parent / "archive").glob(archive_pattern) if path.is_file()]
+        if len(archived) != 1:
+            print(f"ERROR: 归档任务清单须唯一，实际找到 {len(archived)} 份", file=sys.stderr)
+            return 1
+        data_path, = archived
+    with data_path.open(encoding="utf-8") as handle:
+        data = json.load(handle)
     items = data["items"]
     ok, fail, results = 0, [], []
     for it in items:
