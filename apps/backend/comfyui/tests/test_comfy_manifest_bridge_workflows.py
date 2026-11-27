@@ -273,6 +273,25 @@ class TestWorkflowFileOps:
             repo_ids = [w["id"] for w in listing["workflows"] if w.get("source") == "repo"]
             assert repo_ids == ["repo:1_图片/krea2/1_文生图/K2-文生图.json"], light
 
+    def test_repo_api_flat_files_excluded_from_listing_but_readable(self, tmp_path, monkeypatch):
+        """11-27 用户令:-api.json(API 平铺件,直投 /prompt 用)不进侧栏列表
+        ——无画布 nodes/links,当画布件打开即 TypeError。文件不挪不删;
+        read_workflow 直解路径不受列表过滤影响(Yue2 模板/直投件粮道)。"""
+        _use_tmp_home(tmp_path, monkeypatch)
+        repo = tmp_path / "repo-workflows" / "1_图片" / "krea2" / "1_文生图"
+        repo.mkdir(parents=True)
+        (repo / "K2-文生图.json").write_text(json.dumps(
+            {"nodes": [{"type": "KSampler"}]}, ensure_ascii=False), encoding="utf-8")
+        (repo / "K2-文生图-api.json").write_text(json.dumps(
+            {"1": {"class_type": "KSampler", "inputs": {}}}, ensure_ascii=False), encoding="utf-8")
+        for light in (False, True):
+            listing = pm.list_workflows(light=light)
+            repo_ids = [w["id"] for w in listing["workflows"] if w.get("source") == "repo"]
+            assert repo_ids == ["repo:1_图片/krea2/1_文生图/K2-文生图.json"], light
+        # 粮道:列表过滤≠读路径断——api 平铺件仍可按 repo: id 读取
+        data = pm.read_workflow("repo:1_图片/krea2/1_文生图/K2-文生图-api.json")
+        assert "KSampler" in data["content"]
+
     def test_read_rename_move(self, tmp_path, monkeypatch):
         self._import_two(tmp_path, monkeypatch)
         content = pm.read_workflow("K2 流.json")

@@ -1454,6 +1454,11 @@ def _iter_repo_workflow_files():
     for wf in sorted(base.rglob("*.json")):
         if wf.name == ".keep.json":
             continue
+        # 11-27 用户令:-api.json(API 平铺件,直投 /prompt 用)不进侧栏——
+        # 无画布 nodes/links,当画布件打开即 TypeError;文件不挪不删,
+        # 读取走 read_workflow 直解路径,列表过滤不影响粮道。
+        if wf.name.endswith("-api.json"):
+            continue
         # 09-14 三次修订:桥模板(API 格式)归位本库后不进侧栏——画布打不开
         # schemaVersion+graph 无 nodes 的文件,漏进列表=变相误置件
         if _is_bridge_template(wf):
