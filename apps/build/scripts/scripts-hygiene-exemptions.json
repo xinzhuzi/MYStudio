@@ -209,6 +209,10 @@
     "vol8_verify_batch_1123.test.ts": "在途役占用(11-16-vol1-three-artifacts;vol1~vol5 同族 1123 役工具,役毕删;验收裁定按 vol4 同款处置。1124 补登记:这五件 11-23 12:41 新增时未随 vol5 登记,脚本卫生项因此转红)",
     "vol9_verify_batch_1123.test.ts": "在途役占用(11-16-vol1-three-artifacts;vol1~vol5 同族 1123 役工具,役毕删;验收裁定按 vol4 同款处置。1124 补登记:这五件 11-23 12:41 新增时未随 vol5 登记,脚本卫生项因此转红)",
     "vol10_verify_batch_1123.test.ts": "在途役占用(11-16-vol1-three-artifacts;vol1~vol5 同族 1123 役工具,役毕删;验收裁定按 vol4 同款处置。1124 补登记:这五件 11-23 12:41 新增时未随 vol5 登记,脚本卫生项因此转红)",
-    "win_nightbatch_guard_1028.ps1": "常驻生产守护件,被 .gitignore 白名单引用"
+    "win_nightbatch_guard_1028.ps1": "常驻生产守护件,被 .gitignore 白名单引用",
+    "qi21_edit_accel_fix_1126.py": "战役脚本日期名(2026-11-26 役产物;铁律5 顶层禁日期名的既存豁免通道,布局整治役随役登记)",
+    "qi21_local_inpaint_build_1126.py": "战役脚本日期名(2026-11-26 役产物;铁律5 顶层禁日期名的既存豁免通道,布局整治役随役登记)",
+    "sensenova_daojie_build_1126.py": "战役脚本日期名(2026-11-26 役产物;铁律5 顶层禁日期名的既存豁免通道,布局整治役随役登记)",
+    "sn_local_inpaint_build_1126.py": "战役脚本日期名(2026-11-26 役产物;铁律5 顶层禁日期名的既存豁免通道,布局整治役随役登记)"
   }
 }
