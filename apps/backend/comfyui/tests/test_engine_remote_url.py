@@ -314,7 +314,7 @@ def test_generate_remote_settings_skips_local_launch_and_probes(tmp_home, monkey
     from image_gen.pipeline import PipelineError
 
     with pytest.raises(PipelineError, match="没在运行"):
-        comfyui_bridge.generate("一只猫", "1:1", None, 8, None)
+        comfyui_bridge.generate("一只猫", "1:1", None, 8, None, template="qwen21-道劫-t2i-api")
     assert ensure_calls == []
     assert probes == [("GET", "http://192.168.0.101:17000/system_stats")]
 
@@ -335,6 +335,6 @@ def test_generate_remote_settings_unreachable_fail_fast(tmp_home, monkeypatch):
     from image_gen.pipeline import PipelineError
 
     with pytest.raises(PipelineError, match="远端引擎不可达: http://192.168.0.101:17000"):
-        comfyui_bridge.generate("一只猫", "1:1", None, 8, None)
+        comfyui_bridge.generate("一只猫", "1:1", None, 8, None, template="qwen21-道劫-t2i-api")
     assert ensure_calls == []
     assert probes == [("GET", "http://192.168.0.101:17000/system_stats")]

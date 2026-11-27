@@ -71,15 +71,14 @@ UNRESOLVED_PINS = {
         "main": {"group_overlap": 0, "node_out_of_group": 0, "edge_tight": 7}},
     "workflows/2_视频/H3视频/7_测试/社区-H3小脸修复-SAM.json": {
         "main": {"group_overlap": 0, "node_out_of_group": 2, "edge_tight": 13}},
-    # 1127 晚重跑追加:fasth3 i2v/t2v —— 整治解在 12 轮不动点迭代内不收敛,
-    # 批处理幂等闸 fail-closed 拒写(非无解,是不稳定),盘上留整治前布局。
-    # 1127b 工具加了不收敛兜底(末态再解只修组框档,rung=fallback-inf)后有解且
-    # 幂等,但本轮未 --apply 写盘,盘上仍是整治前布局;钉现状只降不升,同上;
-    # 数字 = 1127b 全库 --check 的逐作用域 before(与盘上现状一致)。
+    # 1127 晚:fasth3 i2v/t2v 已按工具级 --apply --allow-prod 收编只修组框档
+    # 稳定结果(盘上 0/0/0,inf 档幂等已验)。已知局限:缺省梯子(含压缩档)下
+    # 该件不存在不动点(normalize(盘上) ≠ 盘上),故钉册在此的职责=让不动点
+    # 检查跳过这两件;零断言由盘上实测满足。
     "workflows/2_视频/H3视频/6_视频重制/fasth3-单镜视频-i2v.json": {
-        "main": {"group_overlap": 0, "node_out_of_group": 3, "edge_tight": 1}},
+        "main": {"group_overlap": 0, "node_out_of_group": 0, "edge_tight": 0}},
     "workflows/2_视频/H3视频/6_视频重制/fasth3-单镜视频-t2v.json": {
-        "main": {"group_overlap": 0, "node_out_of_group": 3, "edge_tight": 1}},
+        "main": {"group_overlap": 0, "node_out_of_group": 0, "edge_tight": 0}},
 }
 
 
