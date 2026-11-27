@@ -8,8 +8,8 @@
       "id": 1,
       "type": "LoadImage",
       "pos": [
-        150,
-        80.0
+        80.0,
+        970
       ],
       "size": [
         340,
@@ -76,8 +76,8 @@
       "id": 2,
       "type": "FashnHumanParserMask",
       "pos": [
-        750,
-        80.0
+        680.0,
+        970
       ],
       "size": [
         400,
@@ -132,8 +132,8 @@
       "id": 3,
       "type": "MaskComposite",
       "pos": [
-        750,
-        380.0
+        680.0,
+        1270
       ],
       "size": [
         340,
@@ -211,8 +211,8 @@
       "id": 4,
       "type": "GrowMask",
       "pos": [
-        750,
-        550.0
+        680.0,
+        1440
       ],
       "size": [
         340,
@@ -276,8 +276,8 @@
       "id": 5,
       "type": "ImageScaleToTotalPixels",
       "pos": [
-        150,
-        540.0
+        80.0,
+        1430
       ],
       "size": [
         340,
@@ -343,7 +343,7 @@
       "id": 6,
       "type": "VAEEncode",
       "pos": [
-        1180,
+        1100.0,
         380.0
       ],
       "size": [
@@ -388,7 +388,7 @@
       "id": 7,
       "type": "VAELoader",
       "pos": [
-        1180,
+        1100.0,
         500.0
       ],
       "size": [
@@ -445,8 +445,8 @@
       "id": 8,
       "type": "SetLatentNoiseMask",
       "pos": [
-        1180,
-        610
+        1100.0,
+        620.0
       ],
       "size": [
         300,
@@ -490,7 +490,7 @@
       "id": 9,
       "type": "UNETLoader",
       "pos": [
-        1550,
+        1480.0,
         80.0
       ],
       "size": [
@@ -559,7 +559,7 @@
       "id": 10,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        1550,
+        1480.0,
         230.0
       ],
       "size": [
@@ -621,7 +621,7 @@
       "id": 11,
       "type": "CLIPLoader",
       "pos": [
-        1550,
+        1480.0,
         400.0
       ],
       "size": [
@@ -701,7 +701,7 @@
       "type": "PrimitiveStringMultiline",
       "pos": [
         80.0,
-        810
+        1630
       ],
       "size": [
         560,
@@ -748,7 +748,7 @@
       "type": "PrimitiveStringMultiline",
       "pos": [
         80.0,
-        1050
+        1870
       ],
       "size": [
         560,
@@ -795,7 +795,7 @@
       "type": "StringConcatenate",
       "pos": [
         700.0,
-        810
+        1630
       ],
       "size": [
         340,
@@ -858,7 +858,7 @@
       "type": "CLIPTextEncode",
       "pos": [
         1100.0,
-        810
+        1630
       ],
       "size": [
         340,
@@ -910,7 +910,7 @@
       "type": "PrimitiveStringMultiline",
       "pos": [
         700.0,
-        980
+        1800
       ],
       "size": [
         340,
@@ -957,7 +957,7 @@
       "type": "CLIPTextEncode",
       "pos": [
         1100.0,
-        980
+        1800
       ],
       "size": [
         340,
@@ -1008,7 +1008,7 @@
       "id": 18,
       "type": "KSampler",
       "pos": [
-        1550,
+        1480.0,
         560.0
       ],
       "size": [
@@ -1131,7 +1131,7 @@
       "id": 20,
       "type": "VAEDecode",
       "pos": [
-        1970,
+        1900.0,
         560.0
       ],
       "size": [
@@ -1176,7 +1176,7 @@
       "id": 23,
       "type": "ImageCompositeMasked",
       "pos": [
-        1970,
+        1900.0,
         690.0
       ],
       "size": [
@@ -1261,7 +1261,7 @@
       "id": 21,
       "type": "SaveImage",
       "pos": [
-        1970,
+        1900.0,
         930.0
       ],
       "size": [
@@ -1300,7 +1300,7 @@
       "id": 25,
       "type": "MarkdownNote",
       "pos": [
-        2410,
+        2340.0,
         80.0
       ],
       "size": [
@@ -1536,33 +1536,21 @@
   ],
   "groups": [
     {
-      "title": "① 载图定标",
+      "title": "① 载图定标 + ④ 提示词(道劫底座+修手指令) + ② 手部掩码(FASHN自动∪手涂→外扩)",
       "bounding": [
-        120,
-        30,
-        400,
-        670
+        50,
+        920,
+        1420,
+        1180
       ],
       "color": "#4a89b8",
       "bgcolor": "#22301f",
       "font_size": 24
     },
     {
-      "title": "② 手部掩码(FASHN自动∪手涂→外扩)",
-      "bounding": [
-        720,
-        30,
-        460,
-        680
-      ],
-      "color": "#4d9e6a",
-      "bgcolor": "#22301f",
-      "font_size": 24
-    },
-    {
       "title": "③ 采样修复(turbo+蒸馏,锁区重绘)",
       "bounding": [
-        1520,
+        1450,
         30,
         400,
         840
@@ -1572,21 +1560,9 @@
       "font_size": 24
     },
     {
-      "title": "④ 提示词(道劫底座+修手指令)",
-      "bounding": [
-        50,
-        760,
-        1420,
-        520
-      ],
-      "color": "#4d9e6a",
-      "bgcolor": "#22301f",
-      "font_size": 24
-    },
-    {
       "title": "⑤ 合成保存(掩码外=原图)",
       "bounding": [
-        1940,
+        1870,
         510,
         420,
         750
@@ -1600,10 +1576,10 @@
   "extra": {
     "ue_links": [],
     "ds": {
-      "scale": 0.512,
+      "scale": 0.412,
       "offset": [
-        -1,
-        110
+        170,
+        7
       ]
     }
   },

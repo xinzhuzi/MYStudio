@@ -138,7 +138,7 @@
       "id": 2001,
       "type": "MiniMaxH3ReferenceToVideo",
       "pos": [
-        3740,
+        3590,
         100.0
       ],
       "size": [
@@ -771,7 +771,7 @@
       "id": 1003,
       "type": "VAELoader",
       "pos": [
-        2570.0,
+        2420,
         1252.0
       ],
       "size": [
@@ -821,7 +821,7 @@
       "id": 1004,
       "type": "VAELoader",
       "pos": [
-        2570.0,
+        2420,
         1450.0
       ],
       "size": [
@@ -869,7 +869,7 @@
       "id": 2042,
       "type": "VAEDecodeAudio",
       "pos": [
-        4550,
+        4400,
         292.0
       ],
       "size": [
@@ -912,7 +912,7 @@
       "id": 2041,
       "type": "VAEDecode",
       "pos": [
-        4550,
+        4400,
         100.0
       ],
       "size": [
@@ -955,7 +955,7 @@
       "id": 2022,
       "type": "KSamplerSelect",
       "pos": [
-        3740,
+        3590,
         2470.0
       ],
       "size": [
@@ -992,7 +992,7 @@
       "id": 2032,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        3860,
+        3710,
         2668.0
       ],
       "size": [
@@ -1057,7 +1057,7 @@
       "id": 2031,
       "type": "BasicGuider",
       "pos": [
-        3820,
+        3670,
         1774.0
       ],
       "size": [
@@ -1098,7 +1098,7 @@
       "id": 1001,
       "type": "UNETLoader",
       "pos": [
-        1680.0,
+        1530,
         100.0
       ],
       "size": [
@@ -1146,7 +1146,7 @@
       "id": 1002,
       "type": "CLIPLoader",
       "pos": [
-        2570.0,
+        2420,
         994.0
       ],
       "size": [
@@ -1235,7 +1235,7 @@
       "id": 2051,
       "type": "CreateVideo",
       "pos": [
-        4590,
+        4440,
         484.0
       ],
       "size": [
@@ -1353,7 +1353,7 @@
       "id": 1042,
       "type": "ModelAttentionBackend",
       "pos": [
-        1840.0,
+        1690,
         1222.0
       ],
       "size": [
@@ -1391,7 +1391,7 @@
       "id": 1011,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        1720.0,
+        1570,
         328.0
       ],
       "size": [
@@ -1442,7 +1442,7 @@
       "id": 2061,
       "type": "SaveVideo",
       "pos": [
-        4630,
+        4480,
         796.0
       ],
       "size": [
@@ -1533,7 +1533,7 @@
       "id": 1061,
       "type": "PrimitiveBoolean",
       "pos": [
-        2570.0,
+        2420,
         1648.0
       ],
       "size": [
@@ -1576,7 +1576,7 @@
       "id": 2002,
       "type": "MiniMaxH3ImageToVideo",
       "pos": [
-        3740,
+        3590,
         898.0
       ],
       "size": [
@@ -1691,7 +1691,7 @@
       "id": 1012,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        1720.0,
+        1570,
         1420.0
       ],
       "size": [
@@ -1764,7 +1764,7 @@
       "id": 1041,
       "type": "ModelAttentionBackend",
       "pos": [
-        1840.0,
+        1690,
         2362.0
       ],
       "size": [
@@ -1803,7 +1803,7 @@
       "id": 1062,
       "type": "ComfySwitchNode",
       "pos": [
-        2810.0,
+        2660,
         1848.0
       ],
       "size": [
@@ -1854,7 +1854,7 @@
       "id": 2011,
       "type": "ComfySwitchNode",
       "pos": [
-        3780,
+        3630,
         1528.0
       ],
       "size": [
@@ -1905,7 +1905,7 @@
       "id": 2012,
       "type": "ComfySwitchNode",
       "pos": [
-        3780,
+        3630,
         1966.0
       ],
       "size": [
@@ -1956,7 +1956,7 @@
       "id": 1021,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        2610.0,
+        2460,
         328.0
       ],
       "size": [
@@ -2004,7 +2004,7 @@
       "id": 3021,
       "type": "MiniMaxH3SigmaShift",
       "pos": [
-        5213,
+        5063,
         1198.0
       ],
       "size": [
@@ -2051,7 +2051,7 @@
       "id": 3044,
       "type": "ModelAttentionBackend",
       "pos": [
-        5253,
+        5103,
         1684.0
       ],
       "size": [
@@ -2089,7 +2089,7 @@
       "id": 3031,
       "type": "MiniMaxH3ReferenceToVideo",
       "pos": [
-        5173,
+        5023,
         1882.0
       ],
       "size": [
@@ -2280,7 +2280,7 @@
       "id": 3001,
       "type": "LTXVSeparateAVLatent",
       "pos": [
-        5173,
+        5023,
         100.0
       ],
       "size": [
@@ -2339,7 +2339,7 @@
       "id": 3002,
       "type": "MinimaxH3LatentUpscaler3D",
       "pos": [
-        5213,
+        5063,
         292.0
       ],
       "size": [
@@ -2406,7 +2406,7 @@
       "id": 3003,
       "type": "LTXVConcatAVLatent",
       "pos": [
-        5253,
+        5103,
         778.0
       ],
       "size": [
@@ -2463,7 +2463,7 @@
       "id": 3041,
       "type": "BasicScheduler",
       "pos": [
-        5253,
+        5103,
         1426.0
       ],
       "size": [
@@ -2510,7 +2510,7 @@
       "id": 3042,
       "type": "BasicGuider",
       "pos": [
-        5893,
+        5743,
         100.0
       ],
       "size": [
@@ -2551,7 +2551,7 @@
       "id": 3043,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        5933,
+        5783,
         292.0
       ],
       "size": [
@@ -2614,7 +2614,7 @@
       "id": 3051,
       "type": "VAEDecode",
       "pos": [
-        5973,
+        5823,
         556.0
       ],
       "size": [
@@ -2657,7 +2657,7 @@
       "id": 3052,
       "type": "VAEDecodeAudio",
       "pos": [
-        5973,
+        5823,
         748.0
       ],
       "size": [
@@ -2700,7 +2700,7 @@
       "id": 3053,
       "type": "CreateVideo",
       "pos": [
-        6013,
+        5863,
         940.0
       ],
       "size": [
@@ -2749,7 +2749,7 @@
       "id": 3071,
       "type": "SaveVideo",
       "pos": [
-        6053,
+        5903,
         1252.0
       ],
       "size": [
@@ -2842,7 +2842,7 @@
       "id": 3061,
       "type": "MyShot",
       "pos": [
-        6093,
+        5943,
         1896.0
       ],
       "size": [
@@ -2875,7 +2875,7 @@
       "id": 3011,
       "type": "MiniMaxChunkFeedForward",
       "pos": [
-        5173,
+        5023,
         970.0
       ],
       "size": [
@@ -2921,7 +2921,7 @@
       "id": 2021,
       "type": "BasicScheduler",
       "pos": [
-        3740,
+        3590,
         2212.0
       ],
       "size": [
@@ -2961,7 +2961,7 @@
       "id": 1051,
       "type": "MiniMaxH3SigmaShift",
       "pos": [
-        2770.0,
+        2620,
         100.0
       ],
       "size": [
@@ -3001,7 +3001,7 @@
       "id": 1031,
       "type": "BlockSparseAttention",
       "pos": [
-        1760.0,
+        1610,
         1696.0
       ],
       "size": [
@@ -3049,7 +3049,7 @@
       "id": 1034,
       "type": "MiniMaxChunkFeedForward",
       "pos": [
-        1800.0,
+        1650,
         2134.0
       ],
       "size": [
@@ -3095,7 +3095,7 @@
       "id": 1032,
       "type": "BlockSparseAttention",
       "pos": [
-        1760.0,
+        1610,
         556.0
       ],
       "size": [
@@ -3143,7 +3143,7 @@
       "id": 1035,
       "type": "MiniMaxChunkFeedForward",
       "pos": [
-        1800.0,
+        1650,
         994.0
       ],
       "size": [
@@ -3189,7 +3189,7 @@
       "id": 1071,
       "type": "ModelPreviewOverrideKJ",
       "pos": [
-        2850.0,
+        2700,
         2094.0
       ],
       "size": [
@@ -3275,7 +3275,7 @@
       "id": 1033,
       "type": "BlockSparseAttention",
       "pos": [
-        2650.0,
+        2500,
         556.0
       ],
       "size": [
@@ -3323,7 +3323,7 @@
       "id": 4001,
       "type": "ReCaVSRLoader",
       "pos": [
-        6713,
+        6563,
         100.0
       ],
       "size": [
@@ -3368,7 +3368,7 @@
       "id": 4002,
       "type": "ReCaVSRUpscale",
       "pos": [
-        6753,
+        6603,
         298.0
       ],
       "size": [
@@ -3438,7 +3438,7 @@
       "id": 4003,
       "type": "SaveVideo",
       "pos": [
-        6793,
+        6643,
         808.0
       ],
       "size": [
@@ -3519,7 +3519,7 @@
       "id": 9999,
       "type": "MarkdownNote",
       "pos": [
-        100.0,
+        180,
         4778.0
       ],
       "size": [
@@ -3955,7 +3955,7 @@
       "id": 1072,
       "type": "MiniMaxLowVRAMAttention",
       "pos": [
-        2830.0,
+        2680,
         2520.0
       ],
       "size": [
@@ -4015,7 +4015,7 @@
         "clip_vision_g.safetensors"
       ],
       "pos": [
-        7393,
+        7243,
         6950.0
       ]
     },
@@ -4023,7 +4023,7 @@
       "id": 25,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        7983,
+        7833,
         6902.0
       ],
       "size": [
@@ -4074,7 +4074,7 @@
       "id": 1065,
       "type": "PrimitiveBoolean",
       "pos": [
-        13143,
+        12993,
         6270.0
       ],
       "size": [
@@ -4114,7 +4114,7 @@
       "id": 5002,
       "type": "GetVideoComponents",
       "pos": [
-        7383,
+        7233,
         5900.0
       ],
       "size": [
@@ -4173,7 +4173,7 @@
       "id": 5006,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        9543,
+        9393,
         5900.0
       ],
       "size": [
@@ -4239,7 +4239,7 @@
       "id": 5011,
       "type": "H3FaceTrackCrop",
       "pos": [
-        7853,
+        7703,
         5900.0
       ],
       "size": [
@@ -4341,7 +4341,7 @@
       "id": 5012,
       "type": "MiniMaxH3ReferenceToVideo",
       "pos": [
-        8413,
+        8263,
         5900.0
       ],
       "size": [
@@ -4521,7 +4521,7 @@
       "id": 5013,
       "type": "H3InjectVideoLatent",
       "pos": [
-        9013,
+        8863,
         5900.0
       ],
       "size": [
@@ -4573,7 +4573,7 @@
       "id": 5014,
       "type": "MiniMaxH3NativeAudioLock",
       "pos": [
-        10143,
+        9993,
         5900.0
       ],
       "size": [
@@ -4637,7 +4637,7 @@
       "id": 5015,
       "type": "H3PerFrameDenoise",
       "pos": [
-        10673,
+        10523,
         5900.0
       ],
       "size": [
@@ -4705,7 +4705,7 @@
       "id": 5016,
       "type": "RandomNoise",
       "pos": [
-        11203,
+        11053,
         6400.0
       ],
       "size": [
@@ -4740,7 +4740,7 @@
       "id": 5017,
       "type": "KSamplerSelect",
       "pos": [
-        11203,
+        11053,
         6820.0
       ],
       "size": [
@@ -4774,7 +4774,7 @@
       "id": 5018,
       "type": "BasicScheduler",
       "pos": [
-        11203,
+        11053,
         7018.0
       ],
       "size": [
@@ -4815,7 +4815,7 @@
       "id": 5019,
       "type": "BasicGuider",
       "pos": [
-        11203,
+        11053,
         6628.0
       ],
       "size": [
@@ -4857,7 +4857,7 @@
       "id": 5020,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        11773,
+        11623,
         5900.0
       ],
       "size": [
@@ -4918,7 +4918,7 @@
       "id": 5021,
       "type": "VAEDecode",
       "pos": [
-        12223,
+        12073,
         5900.0
       ],
       "size": [
@@ -4963,7 +4963,7 @@
       "id": 5022,
       "type": "H3FaceStitch",
       "pos": [
-        12673,
+        12523,
         5900.0
       ],
       "size": [
@@ -5024,7 +5024,7 @@
       "id": 5023,
       "type": "CreateVideo",
       "pos": [
-        13203,
+        13053,
         5900.0
       ],
       "size": [
@@ -5073,7 +5073,7 @@
       "id": 5100,
       "type": "ComfySwitchNode",
       "pos": [
-        13673,
+        13523,
         5900.0
       ],
       "size": [
@@ -5124,7 +5124,7 @@
       "id": 4100,
       "type": "SaveVideo",
       "pos": [
-        14143,
+        13993,
         5900.0
       ],
       "size": [
@@ -5230,7 +5230,7 @@
       },
       "id": 5109,
       "pos": [
-        12243,
+        12093,
         7300.0
       ],
       "size": [
@@ -5343,7 +5343,7 @@
       },
       "id": 5110,
       "pos": [
-        12603,
+        12453,
         7300.0
       ],
       "size": [
@@ -5368,7 +5368,7 @@
       "id": 5111,
       "type": "PrimitiveBoolean",
       "pos": [
-        9683,
+        9533,
         7600.0
       ],
       "size": [
@@ -5408,7 +5408,7 @@
       "id": 5113,
       "type": "ComfySwitchNode",
       "pos": [
-        13223,
+        13073,
         7960.0
       ],
       "size": [
@@ -5459,7 +5459,7 @@
       "id": 5024,
       "type": "H3FaceStitch",
       "pos": [
-        12703,
+        12553,
         7600.0
       ],
       "size": [
@@ -5520,7 +5520,7 @@
       "id": 5025,
       "type": "CreateVideo",
       "pos": [
-        13083,
+        12933,
         7600.0
       ],
       "size": [
@@ -5597,7 +5597,7 @@
         true
       ],
       "pos": [
-        3360,
+        3210,
         2870.0
       ],
       "size": [
@@ -5617,7 +5617,7 @@
       "id": 9102,
       "type": "Load LakonLab Adapter",
       "pos": [
-        2340.0,
+        2190,
         1850.0
       ],
       "size": [
@@ -5676,7 +5676,7 @@
       "id": 9103,
       "type": "MiniMaxH3SigmaShift",
       "pos": [
-        3390,
+        3240,
         3148.0
       ],
       "size": [
@@ -5716,7 +5716,7 @@
       "id": 9104,
       "type": "BlockSparseAttention",
       "pos": [
-        3430,
+        3280,
         3376.0
       ],
       "size": [
@@ -5765,7 +5765,7 @@
       "id": 9105,
       "type": "pi-Flow Scheduler",
       "pos": [
-        3470,
+        3320,
         3814.0
       ],
       "size": [
@@ -5844,7 +5844,7 @@
       "id": 9106,
       "type": "KSamplerSelect",
       "pos": [
-        3510,
+        3360,
         4198.0
       ],
       "size": [
@@ -5881,7 +5881,7 @@
       "id": 9107,
       "type": "DWD Decode",
       "pos": [
-        4130,
+        3980,
         3410.0
       ],
       "size": [
@@ -5952,7 +5952,7 @@
         false
       ],
       "pos": [
-        3790,
+        3640,
         4416.0
       ],
       "size": [
@@ -6006,7 +6006,7 @@
         false
       ],
       "pos": [
-        3790,
+        3640,
         4662.0
       ],
       "size": [
@@ -6060,7 +6060,7 @@
         false
       ],
       "pos": [
-        3790,
+        3640,
         4908.0
       ],
       "size": [
@@ -6114,7 +6114,7 @@
         false
       ],
       "pos": [
-        4570,
+        4420,
         1480.0
       ],
       "size": [
@@ -7511,7 +7511,7 @@
       "id": 100,
       "title": "加载模型",
       "bounding": [
-        1650,
+        1500,
         50,
         1630,
         2630
@@ -7524,7 +7524,7 @@
       "id": 102,
       "title": "一阶段采样(一采:H3底模+pika LoRA·8步·960×544)",
       "bounding": [
-        3330,
+        3180,
         50,
         1613,
         5008
@@ -7537,7 +7537,7 @@
       "id": 103,
       "title": "二阶段放大(二采:TaoMate LoRA 3步·1440×832)",
       "bounding": [
-        5143,
+        4993,
         50,
         1340,
         2484
@@ -7550,7 +7550,7 @@
       "id": 104,
       "title": "三采超分(ReCaVSR 主线)",
       "bounding": [
-        6683,
+        6533,
         50,
         410,
         1352
@@ -7563,7 +7563,7 @@
       "id": 105,
       "title": "四采修脸组(5000 段·远景/高清双档·默认旁路·1118→1119)",
       "bounding": [
-        7353,
+        7203,
         5850,
         6170,
         2306
@@ -7576,7 +7576,7 @@
       "id": 106,
       "title": "终档组(p-final·四采开关)",
       "bounding": [
-        13643,
+        13493,
         5850,
         813,
         644
@@ -7591,7 +7591,7 @@
     "ds": {
       "scale": 0.102,
       "offset": [
-        59,
+        67,
         30
       ]
     }

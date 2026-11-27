@@ -2234,7 +2234,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               142,
-              319
+              324
             ],
             "size": [
               340,
@@ -2286,7 +2286,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               615,
-              323
+              328
             ],
             "size": [
               340,
@@ -2338,7 +2338,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1055,
-              321
+              327
             ],
             "size": [
               340,
@@ -2390,7 +2390,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               3492,
-              316
+              321
             ],
             "size": [
               340,
@@ -2442,7 +2442,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               132,
-              534
+              575
             ],
             "size": [
               340,
@@ -2494,7 +2494,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               587,
-              525
+              566
             ],
             "size": [
               340,
@@ -2546,7 +2546,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1083,
-              519
+              561
             ],
             "size": [
               340,
@@ -2598,7 +2598,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               3497,
-              519
+              560
             ],
             "size": [
               340,
@@ -2650,7 +2650,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               111,
-              739
+              805
             ],
             "size": [
               340,
@@ -2702,7 +2702,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               585,
-              741
+              807
             ],
             "size": [
               340,
@@ -2754,7 +2754,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1073,
-              744
+              810
             ],
             "size": [
               340,
@@ -2806,7 +2806,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1508,
-              743
+              809
             ],
             "size": [
               340,
@@ -2858,7 +2858,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               2842,
-              743
+              809
             ],
             "size": [
               314.1669210335335,
@@ -2910,7 +2910,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               115,
-              957
+              1081
             ],
             "size": [
               340,
@@ -2962,7 +2962,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               580,
-              956
+              1080
             ],
             "size": [
               340,
@@ -3014,7 +3014,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1069,
-              958
+              1082
             ],
             "size": [
               340,
@@ -3066,7 +3066,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1885,
-              916
+              1040
             ],
             "size": [
               340,
@@ -3118,7 +3118,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               3508,
-              962
+              1086
             ],
             "size": [
               340,
@@ -3170,7 +3170,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               125,
-              1162
+              1323
             ],
             "size": [
               340,
@@ -3222,7 +3222,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               567,
-              1167
+              1328
             ],
             "size": [
               340,
@@ -3274,7 +3274,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1069,
-              1155
+              1316
             ],
             "size": [
               340,
@@ -3326,7 +3326,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1475,
-              1155
+              1316
             ],
             "size": [
               340,
@@ -3378,7 +3378,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1905,
-              1156
+              1317
             ],
             "size": [
               340,
@@ -3430,7 +3430,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               3491,
-              1161
+              1322
             ],
             "size": [
               340,
@@ -3482,7 +3482,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               127,
-              1379
+              1571
             ],
             "size": [
               340,
@@ -3534,7 +3534,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               569,
-              1375
+              1567
             ],
             "size": [
               340,
@@ -3586,7 +3586,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1063,
-              1372
+              1564
             ],
             "size": [
               340,
@@ -3638,7 +3638,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1453,
-              1366
+              1558
             ],
             "size": [
               340,
@@ -3690,7 +3690,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1893,
-              1373
+              1565
             ],
             "size": [
               340,
@@ -3742,7 +3742,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               3494,
-              1366
+              1558
             ],
             "size": [
               340,
@@ -3794,7 +3794,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               104,
-              1660
+              1852
             ],
             "size": [
               340,
@@ -3846,7 +3846,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               567,
-              1665
+              1857
             ],
             "size": [
               340,
@@ -3898,7 +3898,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1063,
-              1651
+              1843
             ],
             "size": [
               340,
@@ -3950,7 +3950,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1876,
-              1609
+              1801
             ],
             "size": [
               340,
@@ -4002,7 +4002,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               3492,
-              1656
+              1848
             ],
             "size": [
               340,
@@ -4054,7 +4054,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               109,
-              1875
+              2067
             ],
             "size": [
               340,
@@ -4106,7 +4106,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               542,
-              1886
+              2078
             ],
             "size": [
               340,
@@ -4158,7 +4158,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1053,
-              1874
+              2066
             ],
             "size": [
               340,
@@ -4210,7 +4210,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               3491,
-              1889
+              2081
             ],
             "size": [
               340,
@@ -4262,7 +4262,7 @@
             "type": "MyDaojieRoute",
             "pos": [
               4115,
-              895
+              1143
             ],
             "size": [
               309.1744140625,
@@ -4388,7 +4388,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               80,
-              2179
+              2371
             ],
             "size": [
               501.913671875,
@@ -4438,7 +4438,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               608,
-              2176
+              2368
             ],
             "size": [
               372.058203125,
@@ -4488,7 +4488,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1005,
-              2175
+              2367
             ],
             "size": [
               340,
@@ -4538,7 +4538,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1358,
-              2171
+              2363
             ],
             "size": [
               418.6998046875,
@@ -4588,7 +4588,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1796,
-              2169
+              2361
             ],
             "size": [
               340,
@@ -4638,7 +4638,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               2160,
-              2169
+              2361
             ],
             "size": [
               340,
@@ -4688,7 +4688,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               2532,
-              2171
+              2363
             ],
             "size": [
               340,
@@ -4738,7 +4738,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1498,
-              324
+              329
             ],
             "size": [
               340,
@@ -4790,7 +4790,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1960,
-              325
+              330
             ],
             "size": [
               340,
@@ -4842,7 +4842,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               2379,
-              325
+              330
             ],
             "size": [
               340,
@@ -4946,7 +4946,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               3490,
-              740
+              806
             ],
             "size": [
               340,
@@ -4998,7 +4998,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               2423,
-              743
+              810
             ],
             "size": [
               354.12964018912544,
@@ -5050,7 +5050,7 @@
             "type": "LoraLoaderModelOnly",
             "pos": [
               1962,
-              744
+              810
             ],
             "size": [
               361.60711339266027,
@@ -5116,7 +5116,7 @@
             "title": "② 场景 · 16:9 · 4.2MP(右对齐;左留白=该型预留位)",
             "bounding": [
               112,
-              266,
+              271,
               3750,
               189
             ],
@@ -5128,7 +5128,7 @@
             "title": "③ 道具 · 1:1 · 1.0MP(右对齐;左留白=该型预留位)",
             "bounding": [
               102,
-              469,
+              510,
               3765,
               195
             ],
@@ -5137,12 +5137,24 @@
           },
           {
             "id": 4,
-            "title": "④ 美宣 · 21:9 · 4.2MP(右对齐;左留白=该型预留位) + ⑤ 多视图 · 21:9 · 3072×1024(右对齐;左留白=该型预留位)",
+            "title": "④ 美宣 · 21:9 · 4.2MP(右对齐;左留白=该型预留位)",
             "bounding": [
               81,
-              689,
-              3797,
-              403
+              755,
+              3779,
+              185
+            ],
+            "color": "#2a3a2a",
+            "flags": {}
+          },
+          {
+            "id": 5,
+            "title": "⑤ 多视图 · 21:9 · 3072×1024(右对齐;左留白=该型预留位)",
+            "bounding": [
+              85,
+              990,
+              3793,
+              226
             ],
             "color": "#2a3a2a",
             "flags": {}
@@ -5152,7 +5164,7 @@
             "title": "⑥ 高清人头 · 1:1 · 1.0MP(右对齐;左留白=该型预留位)",
             "bounding": [
               95,
-              1105,
+              1266,
               3766,
               192
             ],
@@ -5164,7 +5176,7 @@
             "title": "⑦ 分镜剧情图 · 16:9 · 4.2MP(右对齐;左留白=该型预留位)",
             "bounding": [
               97,
-              1316,
+              1508,
               3767,
               193
             ],
@@ -5176,7 +5188,7 @@
             "title": "⑧ 表情差分 · 1:1 · 4.2MP(右对齐;左留白=该型预留位)",
             "bounding": [
               74,
-              1559,
+              1751,
               3788,
               236
             ],
@@ -5188,7 +5200,7 @@
             "title": "⑨ 概念气氛图 · 16:9 · 4.2MP(右对齐;左留白=该型预留位)",
             "bounding": [
               79,
-              1824,
+              2016,
               3782,
               195
             ],
@@ -5200,7 +5212,7 @@
             "title": "配置区·7件悬空桩(自行接线/调强度/解旁路;画风件同开≤1;淡彩线描/暗笔刷须补触发词;1.0崩点=淡彩线描/墨洗)",
             "bounding": [
               50,
-              2119,
+              2311,
               2852,
               190
             ],

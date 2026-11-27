@@ -3,7 +3,7 @@
     "my_nodes/subgraphs/qi21-提示词类型优化子图-edit.json": {
       "scopes": {
         "main": 0,
-        "sub:[6] 文本提示词类型优化子图": 6
+        "sub:[6] 文本提示词类型优化子图": 7
       }
     },
     "my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json": {
@@ -39,7 +39,7 @@
     "my_nodes/subgraphs/qi21-道劫-加速子图.json": {
       "scopes": {
         "main": 0,
-        "sub:道劫·加速子图": 23
+        "sub:道劫·加速子图": 24
       }
     },
     "my_nodes/subgraphs/qi21-道劫-洗底-透明除渣.json": {
@@ -126,7 +126,7 @@
     },
     "workflows/1_图片/MossImage/moss-漫画一键生成器.json": {
       "scopes": {
-        "main": 3
+        "main": 4
       }
     },
     "workflows/1_图片/MossImage/moss-道劫-t2i.json": {
@@ -144,7 +144,7 @@
       "scopes": {
         "main": 18,
         "sub:[6] 文本提示词类型优化子图": 0,
-        "sub:道劫·加速子图": 23,
+        "sub:道劫·加速子图": 24,
         "sub:道劫·超分·SeedVR2": 2,
         "sub:道劫·④b·洗底·透明除渣": 0
       }
@@ -177,13 +177,13 @@
     "workflows/1_图片/QwenImage2.1/1_文生图/t2i-无审查-超分.json": {
       "scopes": {
         "main": 5,
-        "sub:道劫·加速子图": 20
+        "sub:道劫·加速子图": 21
       }
     },
     "workflows/1_图片/QwenImage2.1/1_文生图/t2i-皮肤-超分.json": {
       "scopes": {
         "main": 5,
-        "sub:道劫·加速子图": 20
+        "sub:道劫·加速子图": 22
       }
     },
     "workflows/1_图片/QwenImage2.1/1_文生图/t2i-通用.json": {
@@ -201,14 +201,14 @@
     "workflows/1_图片/QwenImage2.1/2_图生图/qi21-edit.json": {
       "scopes": {
         "main": 3,
-        "sub:[6] 文本提示词类型优化子图": 0,
+        "sub:[6] 文本提示词类型优化子图": 1,
         "sub:道劫·加速子图": 15
       }
     },
     "workflows/1_图片/QwenImage2.1/2_图生图/qi21-局部重绘.json": {
       "scopes": {
         "main": 3,
-        "sub:[6] 文本提示词类型优化子图": 0,
+        "sub:[6] 文本提示词类型优化子图": 1,
         "sub:加速子图": 14
       }
     },
@@ -271,7 +271,7 @@
     },
     "workflows/1_图片/QwenImage2.1/3_社区模板/社区-局部换脸天花板-Dapao.json": {
       "scopes": {
-        "main": 3
+        "main": 4
       }
     },
     "workflows/1_图片/QwenImage2.1/3_社区模板/社区-无审查直出-t2i.json": {
@@ -290,7 +290,7 @@
     },
     "workflows/1_图片/QwenImage2.1/3_社区模板/编辑生图整合-TE.json": {
       "scopes": {
-        "main": 13
+        "main": 12
       }
     },
     "workflows/1_图片/QwenImage2.1/4_姿势编辑/qi21-道劫-人物姿势.json": {
@@ -300,7 +300,7 @@
     },
     "workflows/1_图片/QwenImage2.1/4_姿势编辑/qwen21-pose-edit.json": {
       "scopes": {
-        "main": 5
+        "main": 4
       }
     },
     "workflows/1_图片/QwenImage2.1/4_姿势编辑/官方-fisher-pose-无限姿势.json": {
@@ -325,12 +325,12 @@
     },
     "workflows/1_图片/QwenImage2.1/5_角色设定卡/道劫-角色设定卡-i2i.json": {
       "scopes": {
-        "main": 56
+        "main": 42
       }
     },
     "workflows/1_图片/QwenImage2.1/5_角色设定卡/道劫-角色设定卡-t2i.json": {
       "scopes": {
-        "main": 55
+        "main": 41
       }
     },
     "workflows/1_图片/SeeThrough/seethrough-basic.json": {
@@ -360,7 +360,7 @@
     },
     "workflows/1_图片/krea2/1_文生图/K2-NSFW专业流-旧版0901.json": {
       "scopes": {
-        "main": 8
+        "main": 9
       }
     },
     "workflows/1_图片/krea2/1_文生图/K2-多视图.json": {
@@ -669,7 +669,7 @@
     },
     "workflows/2_视频/H3视频/7_测试/单镜-pi-H3.json": {
       "scopes": {
-        "main": 77
+        "main": 74
       }
     },
     "workflows/2_视频/H3视频/7_测试/单镜-成人向.json": {
@@ -743,7 +743,7 @@
     },
     "workflows/2_视频/H3视频/7_测试/社区-H3小脸修复-矩形.json": {
       "scopes": {
-        "main": 0
+        "main": 2
       }
     },
     "workflows/2_视频/H3视频/7_测试/社区-H3终极三采v2版.json": {

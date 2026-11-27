@@ -8,7 +8,7 @@
       "id": 9,
       "type": "SaveImage",
       "pos": [
-        1436,
+        2042,
         386
       ],
       "size": [
@@ -77,7 +77,7 @@
       "id": 29,
       "type": "CLIPTextEncode",
       "pos": [
-        3512,
+        4118,
         1323
       ],
       "size": [
@@ -140,7 +140,7 @@
       "id": 30,
       "type": "CLIPLoader",
       "pos": [
-        4354,
+        4960,
         1826
       ],
       "size": [
@@ -226,7 +226,7 @@
       "id": 31,
       "type": "KSampler",
       "pos": [
-        3962,
+        4568,
         1323
       ],
       "size": [
@@ -368,7 +368,7 @@
       "id": 32,
       "type": "VAELoader",
       "pos": [
-        4354,
+        4960,
         2006
       ],
       "size": [
@@ -430,7 +430,7 @@
       "id": 35,
       "type": "EmptyFlux2LatentImage",
       "pos": [
-        3512,
+        4118,
         1623
       ],
       "size": [
@@ -511,7 +511,7 @@
       "id": 36,
       "type": "CLIPTextEncode",
       "pos": [
-        3512,
+        4118,
         1473
       ],
       "size": [
@@ -572,7 +572,7 @@
       "id": 37,
       "type": "VAEDecode",
       "pos": [
-        3530,
+        4136,
         1801
       ],
       "size": [
@@ -629,7 +629,7 @@
       "id": 38,
       "type": "SkipLayerGuidanceDiTSimple",
       "pos": [
-        4354,
+        4960,
         1626
       ],
       "size": [
@@ -723,7 +723,7 @@
       "id": 41,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        4354,
+        4960,
         1476
       ],
       "size": [
@@ -776,7 +776,7 @@
       "id": 42,
       "type": "Reroute",
       "pos": [
-        4754,
+        5360,
         1856
       ],
       "size": [
@@ -817,7 +817,7 @@
       "id": 43,
       "type": "Reroute",
       "pos": [
-        4754,
+        5360,
         2036
       ],
       "size": [
@@ -857,7 +857,7 @@
       "id": 57,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        3967,
+        4573,
         1116
       ],
       "size": [
@@ -911,7 +911,7 @@
       "id": 65,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        784,
+        1390,
         1216
       ],
       "size": [
@@ -958,7 +958,7 @@
       "id": 66,
       "type": "LoadImage",
       "pos": [
-        2401,
+        3006,
         456
       ],
       "size": [
@@ -1017,7 +1017,7 @@
       "id": 69,
       "type": "DapaoLocalH3Prompt",
       "pos": [
-        3956,
+        4562,
         457
       ],
       "size": [
@@ -1169,7 +1169,7 @@
       "id": 80,
       "type": "GoohaiRatioAndResolution",
       "pos": [
-        784,
+        1390,
         1566
       ],
       "size": [
@@ -1348,7 +1348,7 @@
       "id": 84,
       "type": "孤海注释",
       "pos": [
-        159,
+        765,
         80
       ],
       "size": [
@@ -1386,7 +1386,7 @@
       "id": 87,
       "type": "UNETLoader",
       "pos": [
-        4354,
+        4960,
         1326
       ],
       "size": [
@@ -1429,7 +1429,7 @@
       "id": 94,
       "type": "DapaoLocalModelLoader",
       "pos": [
-        3506,
+        4112,
         457
       ],
       "size": [
@@ -1495,7 +1495,7 @@
       "id": 95,
       "type": "LoadImage",
       "pos": [
-        2921,
+        3526,
         456
       ],
       "size": [
@@ -1554,7 +1554,7 @@
       "id": 96,
       "type": "LoadImage",
       "pos": [
-        2400,
+        3006,
         1034
       ],
       "size": [
@@ -1613,7 +1613,7 @@
       "id": 97,
       "type": "LoadImage",
       "pos": [
-        2916,
+        3522,
         1029
       ],
       "size": [
@@ -1672,7 +1672,7 @@
       "id": 99,
       "type": "PreviewAny",
       "pos": [
-        4587,
+        5193,
         460
       ],
       "size": [
@@ -1714,7 +1714,7 @@
       "id": 100,
       "type": "DapaoComicOptions",
       "pos": [
-        765,
+        1370,
         425
       ],
       "size": [
@@ -1916,7 +1916,7 @@
       "id": 101,
       "type": "ComfySwitchNode",
       "pos": [
-        3520,
+        4126,
         946
       ],
       "size": [
@@ -2048,7 +2048,7 @@
       "id": 104,
       "type": "LoadImage",
       "pos": [
-        2401,
+        3006,
         1614
       ],
       "size": [
@@ -2107,7 +2107,7 @@
       "id": 105,
       "type": "LoadImage",
       "pos": [
-        2921,
+        3526,
         1614
       ],
       "size": [
@@ -2166,7 +2166,7 @@
       "id": 106,
       "type": "PreviewAny",
       "pos": [
-        5261,
+        5867,
         464
       ],
       "size": [
@@ -2210,7 +2210,7 @@
       "id": 107,
       "type": "ComfySwitchNode",
       "pos": [
-        4597,
+        5203,
         490
       ],
       "size": [
@@ -2277,7 +2277,7 @@
       "id": 108,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        4609,
+        5215,
         520
       ],
       "size": [
@@ -2325,7 +2325,7 @@
       "id": 109,
       "type": "孤海注释",
       "pos": [
-        4844,
+        5450,
         1273
       ],
       "size": [
@@ -2687,7 +2687,7 @@
       "id": 1,
       "title": "① 用户需求与尺寸",
       "bounding": [
-        754,
+        1360,
         1166,
         655,
         600
@@ -2701,7 +2701,7 @@
       "id": 2,
       "title": "② 漫画理解与提示词",
       "bounding": [
-        3476,
+        4082,
         407,
         2415,
         827
@@ -2715,9 +2715,9 @@
       "id": 3,
       "title": "③ 六图参考｜1画风 · 2～6自由用途",
       "bounding": [
-        2370,
+        2976,
         406,
-        1061,
+        1060,
         1758
       ],
       "color": "#3f789e",
@@ -2729,7 +2729,7 @@
       "id": 4,
       "title": "④ MOSS模型",
       "bounding": [
-        4324,
+        4930,
         1276,
         520,
         820
@@ -2743,7 +2743,7 @@
       "id": 5,
       "title": "⑤ MOSS采样与输出",
       "bounding": [
-        3482,
+        4088,
         1273,
         810,
         628
@@ -2757,7 +2757,7 @@
       "id": 10,
       "title": "漫画选项卡｜风格・分镜・对白",
       "bounding": [
-        735,
+        1340,
         375,
         660,
         722
@@ -2785,10 +2785,10 @@
       "id": 11,
       "title": "🐧微信：paolaoshiAICG🐧",
       "bounding": [
-        -629,
-        681,
+        779,
+        1102,
         557,
-        82
+        81
       ],
       "color": "#df6c20",
       "flags": {},
@@ -2812,10 +2812,10 @@
     "frontendVersion": "1.57.6",
     "VHS_latentpreview": false,
     "ds": {
-      "scale": 0.263,
+      "scale": 0.238,
       "offset": [
-        19,
-        159
+        21,
+        187
       ]
     },
     "KKvideo_latentpreview": false,

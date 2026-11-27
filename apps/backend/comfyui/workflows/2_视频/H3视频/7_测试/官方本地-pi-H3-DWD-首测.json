@@ -9,7 +9,7 @@
       "type": "UNETLoader",
       "pos": [
         730,
-        190
+        110
       ],
       "size": [
         270,
@@ -61,7 +61,7 @@
       "type": "CLIPLoader",
       "pos": [
         730,
-        718
+        638
       ],
       "size": [
         270,
@@ -124,7 +124,7 @@
       "type": "VAELoader",
       "pos": [
         730,
-        894
+        814
       ],
       "size": [
         270,
@@ -167,7 +167,7 @@
       "type": "VAELoader",
       "pos": [
         730,
-        1022
+        942
       ],
       "size": [
         270,
@@ -210,7 +210,7 @@
       "type": "MiniMaxH3ImageToVideo",
       "pos": [
         1170,
-        608
+        528
       ],
       "size": [
         420,
@@ -316,7 +316,7 @@
       "type": "KSamplerSelect",
       "pos": [
         1670,
-        752
+        782
       ],
       "size": [
         270,
@@ -358,7 +358,7 @@
       "type": "pi-Flow Scheduler",
       "pos": [
         1670,
-        552
+        582
       ],
       "size": [
         281.62109375,
@@ -436,7 +436,7 @@
       "type": "BasicGuider",
       "pos": [
         1670,
-        1032
+        1062
       ],
       "size": [
         159.568359375,
@@ -478,7 +478,7 @@
       "type": "RandomNoise",
       "pos": [
         1670,
-        880
+        910
       ],
       "size": [
         270,
@@ -521,7 +521,7 @@
       "type": "SamplerCustomAdvanced",
       "pos": [
         2100,
-        190
+        110
       ],
       "size": [
         420,
@@ -588,7 +588,7 @@
       "type": "DWD Decode",
       "pos": [
         2100,
-        780
+        700
       ],
       "size": [
         140,
@@ -624,7 +624,7 @@
       "type": "VAEDecodeAudio",
       "pos": [
         2100,
-        876
+        796
       ],
       "size": [
         164.2388671875,
@@ -666,7 +666,7 @@
       "type": "CreateVideo",
       "pos": [
         2100,
-        992
+        912
       ],
       "size": [
         284.158203125,
@@ -765,7 +765,7 @@
       "type": "SaveVideo",
       "pos": [
         2600,
-        190
+        110
       ],
       "size": [
         420,
@@ -840,7 +840,7 @@
       "type": "LoraLoaderModelOnly",
       "pos": [
         730,
-        342
+        262
       ],
       "size": [
         270,
@@ -899,7 +899,7 @@
       "type": "MiniMaxH3SigmaShift",
       "pos": [
         1670,
-        80
+        110
       ],
       "size": [
         277.2857421875,
@@ -957,7 +957,7 @@
       "type": "BlockSparseAttention",
       "pos": [
         1670,
-        232
+        262
       ],
       "size": [
         270,
@@ -1085,8 +1085,8 @@
       "id": 21,
       "type": "LoadImage",
       "pos": [
-        1170,
-        1208
+        1060,
+        1128
       ],
       "size": [
         222.798828125,
@@ -1144,8 +1144,8 @@
       "id": 22,
       "type": "LoadImage",
       "pos": [
-        1400,
-        1208
+        1290,
+        1128
       ],
       "size": [
         222.798828125,
@@ -1203,8 +1203,8 @@
       "id": 23,
       "type": "ImageScale",
       "pos": [
-        1170,
-        1598
+        1060,
+        1518
       ],
       "size": [
         270,
@@ -1282,8 +1282,8 @@
       "id": 24,
       "type": "ImageScale",
       "pos": [
-        1400,
-        1598
+        1290,
+        1518
       ],
       "size": [
         270,
@@ -1362,7 +1362,7 @@
       "type": "ResolutionSelector",
       "pos": [
         1170,
-        190
+        110
       ],
       "size": [
         270,
@@ -1447,7 +1447,7 @@
       "type": "MarkdownNote",
       "pos": [
         80,
-        160
+        80
       ],
       "size": [
         600,
@@ -1471,7 +1471,7 @@
       "type": "356a2ff0-98d5-4fa9-9bbd-452cccf6966f",
       "pos": [
         730,
-        494
+        414
       ],
       "size": [
         270,
@@ -1556,7 +1556,7 @@
       "type": "a74d60af-3935-41b1-a4bc-a21f1fa87ceb",
       "pos": [
         1170,
-        410
+        330
       ],
       "size": [
         270,
@@ -1867,7 +1867,7 @@
       "title": "Step1 - Load models",
       "bounding": [
         700,
-        140,
+        60,
         330,
         970
       ],
@@ -1879,7 +1879,7 @@
       "title": "Step2 - Video size and duration",
       "bounding": [
         1140,
-        140,
+        60,
         330,
         358
       ],
@@ -1891,7 +1891,7 @@
       "title": "Step3 - Prompt",
       "bounding": [
         1140,
-        558,
+        478,
         480,
         540
       ],
@@ -1902,8 +1902,8 @@
       "id": 4,
       "title": "Optional - First and last frames",
       "bounding": [
-        1140,
-        1158,
+        1030,
+        1078,
         560,
         600
       ],
@@ -1915,7 +1915,7 @@
       "title": "Step4 - Sampling",
       "bounding": [
         1640,
-        30,
+        60,
         342,
         1078
       ],
@@ -2727,10 +2727,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.498,
+      "scale": 0.517,
       "offset": [
-        28,
-        0
+        -1,
+        3
       ]
     },
     "note": "1122 重建:底件=官方 piFlow main workflows/pi-H3-DWD.json;适配=prompt/seed42/2步/124帧/0.97MP/存盘前缀(params.txt 口径)"

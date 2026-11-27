@@ -8,7 +8,7 @@
       "id": 6,
       "type": "RandomNoise",
       "pos": [
-        1823,
+        1753,
         226
       ],
       "size": [
@@ -42,7 +42,7 @@
       "id": 8,
       "type": "SamplerCustomAdvanced",
       "pos": [
-        1831,
+        1762,
         476
       ],
       "size": [
@@ -106,7 +106,7 @@
       "id": 10,
       "type": "VAEDecodeAudio",
       "pos": [
-        2199,
+        2129,
         441
       ],
       "size": [
@@ -148,7 +148,7 @@
       "id": 9,
       "type": "VAEDecode",
       "pos": [
-        2199,
+        2129,
         544
       ],
       "size": [
@@ -190,7 +190,7 @@
       "id": 11,
       "type": "CreateVideo",
       "pos": [
-        2414,
+        2345,
         462
       ],
       "size": [
@@ -245,7 +245,7 @@
       "id": 25,
       "type": "RAMCleanup",
       "pos": [
-        2747,
+        2678,
         462
       ],
       "size": [
@@ -328,7 +328,7 @@
       "id": 1,
       "type": "MiniMaxH3EasyLoader",
       "pos": [
-        1060,
+        991,
         80
       ],
       "size": [
@@ -411,7 +411,7 @@
       "id": 5,
       "type": "BasicScheduler",
       "pos": [
-        1566,
+        1497,
         491
       ],
       "size": [
@@ -452,7 +452,7 @@
       "id": 7,
       "type": "KSamplerSelect",
       "pos": [
-        1853,
+        1783,
         370
       ],
       "size": [
@@ -485,7 +485,7 @@
       "id": 4,
       "type": "BasicGuider",
       "pos": [
-        1582,
+        1513,
         394
       ],
       "size": [
@@ -527,7 +527,7 @@
       "id": 13,
       "type": "MiniMaxH3EasyOutput",
       "pos": [
-        1583,
+        1514,
         222
       ],
       "size": [
@@ -598,7 +598,7 @@
       "id": 24,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        1084,
+        1015,
         383
       ],
       "size": [
@@ -638,7 +638,7 @@
       "id": 34,
       "type": "ModelAttentionBackend",
       "pos": [
-        1214,
+        1145,
         529
       ],
       "size": [
@@ -987,7 +987,7 @@
       "id": 1,
       "title": "model + Sampling + Fast Generation",
       "bounding": [
-        1030,
+        961,
         30,
         1089,
         609
@@ -999,9 +999,9 @@
       "id": 4,
       "title": "Decode & Assemble",
       "bounding": [
-        2169,
+        2099,
         391,
-        500,
+        501,
         239
       ],
       "color": "#3f789e",
@@ -1015,7 +1015,7 @@
     "ds": {
       "scale": 0.495,
       "offset": [
-        33,
+        51,
         0
       ]
     },
