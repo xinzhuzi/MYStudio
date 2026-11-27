@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""GitNexus 索引新鲜度与完整性检查器(0928 立;1123 改口径;1124 按内容判断并改刷新方式)。
+"""GitNexus 索引新鲜度与完整性检查器(0928 立;1123 改口径;1124 按内容判断并改刷新方式;1127 meta 读点跟 store.json 指针走)。
+
+1127 补记:rc.96 起索引库存 ~/.gitnexus/stores/<key>/checkouts/(store.json 的
+checkoutSlot 指过去),项目内 .gitnexus/{meta.json,lbug} 停更成旧世代死物——
+meta 读点改为先解析 store.json 指针、指针不可用回退项目内(旧架构兼容);
+完整性 COUNT 查询走 gitnexus cypher -r 经注册表,本就到全局库,不动。
 
 背景(为什么需要这个门):0928 勘案发现索引落后 HEAD 16 提交期间,AGENTS.md 强制的
 impact()/detect_changes() 门禁对最新代码全部失明(新函数 resolve_bridge_token 查无此人)——不查不知道。
@@ -202,6 +207,26 @@ def _content_drift(repo_root, meta, last_commit, head):
     return changed, deleted, added
 
 
+def _resolve_index_dir(repo_root):
+    """索引库真身目录:优先 store.json 的 checkoutSlot(全局库架构),回退项目内 .gitnexus(旧架构)。
+
+    1127 勘正:rc.96 把库存放到 ~/.gitnexus/stores/<key>/checkpoints 后,项目内
+    .gitnexus/meta.json 停更成死物(本仓库现况=03:07 旧世代 vs 全局 19:30 新世代),
+    硬编码读它把 6808 件新库误报成 250 件过期;分析器 436s「成功」写的是全局 checkout。
+    完整性 COUNT 查询走 gitnexus cypher -r(经注册表到全局库)本就对;此处只把 meta/WAL
+    两个读点对齐同一真身。
+    """
+    store = os.path.join(repo_root, ".gitnexus", "store.json")
+    try:
+        with open(store, encoding="utf-8") as f:
+            slot = json.load(f).get("checkoutSlot")
+        if slot and os.path.isfile(os.path.join(slot, "meta.json")):
+            return slot
+    except (OSError, ValueError):
+        pass
+    return os.path.join(repo_root, ".gitnexus")
+
+
 def main():
     ap = argparse.ArgumentParser(description="GitNexus 索引新鲜度与完整性检查(警告或 --strict 拦截)")
     ap.add_argument("--strict", action="store_true",
@@ -213,7 +238,8 @@ def main():
         print("⚠️ GitNexus 检查跳过:当前不在 git 仓库内")
         sys.exit(0)
 
-    meta_path = os.path.join(repo_root, ".gitnexus", "meta.json")
+    index_dir = _resolve_index_dir(repo_root)
+    meta_path = os.path.join(index_dir, "meta.json")
     if not os.path.isfile(meta_path):
         msg = "⚠️ GitNexus:本仓库未建索引(.gitnexus/meta.json 不存在)"
         print(msg + (f";门禁 impact/detect_changes 不可用 → {REFRESH_CMD}" if ns.strict else ""))
@@ -259,7 +285,7 @@ def main():
             )
             samples = (changed + deleted + added)[:5]
 
-    wal = os.path.join(repo_root, ".gitnexus", "lbug.wal")
+    wal = os.path.join(index_dir, "lbug.wal")
     wal_note = ""
     if os.path.isfile(wal):
         size = os.path.getsize(wal)
