@@ -1,0 +1,32 @@
+{
+  "state": "pending_approval",
+  "install_root": "E:\\IP\\manying-studio\\resources\\backend\\comfyui",
+  "files": {
+    "workflows/2_视频/H3视频/2_固定线/社区-480P生成-960P精修-SolAttn加速-960P直出.json": {
+      "source_sha256": "5d2cbcd70cde131fbbb7de286022373667f7e573a496163e9ddf92be1659b93b",
+      "installed_sha256_before": "4490db36c0bbe9ba7df5ca6d37c83b235c5b5ee010370de6e6eadecd8a455c39",
+      "content_check": "strip-layout-equal",
+      "source_size_bytes": 100682
+    },
+    "workflows/2_视频/H3视频/6_视频重制/fasth3-单镜视频-i2v.json": {
+      "source_sha256": "f03dfd9643b9f760e0e2ec69b6a98f29d2186a7365f6d07008bbae241cd02e4e",
+      "installed_sha256_before": "5b931d14e5a15fc18ad7f3766f19c525dc40762f56bc7ace8b23e6060ffbd73b",
+      "content_check": "strip-layout-equal",
+      "source_size_bytes": 49739
+    },
+    "workflows/2_视频/H3视频/6_视频重制/fasth3-单镜视频-t2v.json": {
+      "source_sha256": "c3baca990aeaaec05cf8bef2ed02119487066743a6e561a6bb28ef169de15acd",
+      "installed_sha256_before": "26b8fc529ed259161fb60e33837d6c8043c0dd94550de4debdf790d2d4f824fd",
+      "content_check": "strip-layout-equal",
+      "source_size_bytes": 49854
+    },
+    "workflows/2_视频/H3视频/7_测试/社区-H3终极三采v2版.json": {
+      "source_sha256": "3eeae544323dee98b8a47a082e5b7f3f6769d56671cfa0928bdb89be33c71cb4",
+      "installed_sha256_before": "e075a98e93265d52fb296ff073ff9f42a945887be80d73472d3433d6e297da45",
+      "content_check": "group-merge-guard-pass",
+      "source_size_bytes": 71279
+    }
+  },
+  "validated_again_at": "2026-11-27T18:20:00+08:00",
+  "validation": "Windows Get-FileHash and repository SHA-256 matched every recorded precondition in a second only-read probe."
+}

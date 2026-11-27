@@ -1,0 +1,8 @@
+{"file": ".trellis/tasks/11-26-workflow-layout-normalize/research/opcc-feasibility-1126.md", "reason": "核对整理器实现是否覆盖原型缺陷 a–f 与检查器缺陷 D1–D3"}
+{"file": ".trellis/tasks/11-26-workflow-layout-normalize/research/layout-pin-census-1126.md", "reason": "核对钉死面是否逐类同步完整(含更正节的前端副本与蓝图对照表)"}
+{"file": "docs/comfyui-kb/画布布局规范.md", "reason": "核对改动没有违背布局立宪的优先级序与组框公式"}
+{"file": ".trellis/spec/guides/verification-loop-guide.md", "reason": "验证闭环要求:每条验收对应真跑过的命令与原始输出"}
+{"file": ".trellis/spec/guides/development-quality-discipline-guide.md", "reason": "开发质量纪律:改动范围、提交前自检"}
+{"file": ".trellis/spec/guides/installed-app-no-direct-write-guide.md", "reason": "核对没有人直写装机 App"}
+{"file": "docs/engineering/TESTING_ENTRYPOINTS.md", "reason": "核对各验证命令确实从规定入口跑过"}
+{"file": ".agents/skills/mystudio-workflow-integrity-testing/SKILL.md", "reason": "工作流完整性测试的口径;核对整治只动了布局字段"}

@@ -1,0 +1,2623 @@
+{
+  "windowsError": null,
+  "reportGeneratedAt": "2026-11-27T16:19:48",
+  "files": {
+    "my_nodes/subgraphs/qi21-提示词类型优化子图-edit.json": {
+      "repo": "9bfcbd2fc98ad85e8204361cfbf1dd04f222756df855e554073d226cc4444796",
+      "report": "9bfcbd2fc98ad85e8204361cfbf1dd04f222756df855e554073d226cc4444796",
+      "mac": "9bfcbd2fc98ad85e8204361cfbf1dd04f222756df855e554073d226cc4444796",
+      "win": "9428bc9f17a0de15fa9538cb2f9d0426ce51a378a4c50f5f04aea60b57ed1206",
+      "win_read": true,
+      "repo_lf_sha256": "9bfcbd2fc98ad85e8204361cfbf1dd04f222756df855e554073d226cc4444796",
+      "win_lf_sha256": "9bfcbd2fc98ad85e8204361cfbf1dd04f222756df855e554073d226cc4444796",
+      "same_after_eol_normalization": true
+    },
+    "my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json": {
+      "repo": "b0c2aabc3af4f9c89e5d4eb0f1ebabe62f7d8452a0d57a2300fae81400340100",
+      "report": "b0c2aabc3af4f9c89e5d4eb0f1ebabe62f7d8452a0d57a2300fae81400340100",
+      "mac": "b0c2aabc3af4f9c89e5d4eb0f1ebabe62f7d8452a0d57a2300fae81400340100",
+      "win": "7f02972080a553bbcdaeea46def06d37e255f1ccf5b1be5c0ca7bb6024528498",
+      "win_read": true,
+      "repo_lf_sha256": "b0c2aabc3af4f9c89e5d4eb0f1ebabe62f7d8452a0d57a2300fae81400340100",
+      "win_lf_sha256": "b0c2aabc3af4f9c89e5d4eb0f1ebabe62f7d8452a0d57a2300fae81400340100",
+      "same_after_eol_normalization": true
+    },
+    "my_nodes/subgraphs/qi21-提示词类型优化子图.json": {
+      "repo": "560e27e030a0878d076d732904bb1ff8f2bc6f45d49bc5cb1c8ec5362009c3eb",
+      "report": "560e27e030a0878d076d732904bb1ff8f2bc6f45d49bc5cb1c8ec5362009c3eb",
+      "mac": "560e27e030a0878d076d732904bb1ff8f2bc6f45d49bc5cb1c8ec5362009c3eb",
+      "win": "d7d0df7e714c5744c7c1ae15e43c135de78086506bf6857f29dbb2afca69f35d",
+      "win_read": true,
+      "repo_lf_sha256": "560e27e030a0878d076d732904bb1ff8f2bc6f45d49bc5cb1c8ec5362009c3eb",
+      "win_lf_sha256": "560e27e030a0878d076d732904bb1ff8f2bc6f45d49bc5cb1c8ec5362009c3eb",
+      "same_after_eol_normalization": true
+    },
+    "my_nodes/subgraphs/qi21-道劫-二采精修子图.json": {
+      "repo": "cf250b474005a24a8d4ee6e0a9944a3afe8633460582c981c2189c68b2370e7e",
+      "report": "cf250b474005a24a8d4ee6e0a9944a3afe8633460582c981c2189c68b2370e7e",
+      "mac": "cf250b474005a24a8d4ee6e0a9944a3afe8633460582c981c2189c68b2370e7e",
+      "win": "58942d2c4549d6c75eb13e5978c857afde69c61edcf0b563b3f5d1d3dbb37968",
+      "win_read": true,
+      "repo_lf_sha256": "cf250b474005a24a8d4ee6e0a9944a3afe8633460582c981c2189c68b2370e7e",
+      "win_lf_sha256": "cf250b474005a24a8d4ee6e0a9944a3afe8633460582c981c2189c68b2370e7e",
+      "same_after_eol_normalization": true
+    },
+    "my_nodes/subgraphs/qi21-道劫-加速子图-edit.json": {
+      "repo": "9a1c55df40e4a06e4d67a74d387755fd5cd48007558c3d904bad663af318a06f",
+      "report": "9a1c55df40e4a06e4d67a74d387755fd5cd48007558c3d904bad663af318a06f",
+      "mac": "9a1c55df40e4a06e4d67a74d387755fd5cd48007558c3d904bad663af318a06f",
+      "win": "c68a87d00d4ebb82609e65afb57b4b02db3fe8631db701df26ff5c857e242da3",
+      "win_read": true,
+      "repo_lf_sha256": "9a1c55df40e4a06e4d67a74d387755fd5cd48007558c3d904bad663af318a06f",
+      "win_lf_sha256": "9a1c55df40e4a06e4d67a74d387755fd5cd48007558c3d904bad663af318a06f",
+      "same_after_eol_normalization": true
+    },
+    "my_nodes/subgraphs/qi21-道劫-加速子图-i2i.json": {
+      "repo": "3717ed7f0dd746926fea3a6d0dc123c318dc38c915b64db7f3c5ecc1fb05fc79",
+      "report": "3717ed7f0dd746926fea3a6d0dc123c318dc38c915b64db7f3c5ecc1fb05fc79",
+      "mac": "3717ed7f0dd746926fea3a6d0dc123c318dc38c915b64db7f3c5ecc1fb05fc79",
+      "win": "bfe03c01dd011b4fb7447189b68f36afca46bb3cfaf3270ce261b29583815a32",
+      "win_read": true,
+      "repo_lf_sha256": "3717ed7f0dd746926fea3a6d0dc123c318dc38c915b64db7f3c5ecc1fb05fc79",
+      "win_lf_sha256": "3717ed7f0dd746926fea3a6d0dc123c318dc38c915b64db7f3c5ecc1fb05fc79",
+      "same_after_eol_normalization": true
+    },
+    "my_nodes/subgraphs/qi21-道劫-加速子图.json": {
+      "repo": "db0d9a5235d20452f2b20318eba48a064ab85de36577422a0ea3167a0e6b058b",
+      "report": "db0d9a5235d20452f2b20318eba48a064ab85de36577422a0ea3167a0e6b058b",
+      "mac": "db0d9a5235d20452f2b20318eba48a064ab85de36577422a0ea3167a0e6b058b",
+      "win": "a322c56e207cc0e3ded1e08ddde5c13f73911af7e90f876174bb944c9d35bae5",
+      "win_read": true,
+      "repo_lf_sha256": "db0d9a5235d20452f2b20318eba48a064ab85de36577422a0ea3167a0e6b058b",
+      "win_lf_sha256": "db0d9a5235d20452f2b20318eba48a064ab85de36577422a0ea3167a0e6b058b",
+      "same_after_eol_normalization": true
+    },
+    "my_nodes/subgraphs/qi21-道劫-洗底-透明除渣.json": {
+      "repo": "88964064d823d1468dbcabb356432340d3a7cd5468a4058029bda21c03231036",
+      "report": "88964064d823d1468dbcabb356432340d3a7cd5468a4058029bda21c03231036",
+      "mac": "88964064d823d1468dbcabb356432340d3a7cd5468a4058029bda21c03231036",
+      "win": "4298da8f813ee5d71465df89ffee7cb8acdc708bb72377eae1161c948d868135",
+      "win_read": true,
+      "repo_lf_sha256": "88964064d823d1468dbcabb356432340d3a7cd5468a4058029bda21c03231036",
+      "win_lf_sha256": "88964064d823d1468dbcabb356432340d3a7cd5468a4058029bda21c03231036",
+      "same_after_eol_normalization": true
+    },
+    "my_nodes/subgraphs/qi21-道劫-超分-SeedVR2.json": {
+      "repo": "19be4f7a050675ea0a011441ce09ed8e6ce5d789216247f3607ff6c678e63a14",
+      "report": "19be4f7a050675ea0a011441ce09ed8e6ce5d789216247f3607ff6c678e63a14",
+      "mac": "19be4f7a050675ea0a011441ce09ed8e6ce5d789216247f3607ff6c678e63a14",
+      "win": "0948056cd62a8a6c5ed119840a80490cdc5bc8e509d0c9cf47598fda5881e222",
+      "win_read": true,
+      "repo_lf_sha256": "19be4f7a050675ea0a011441ce09ed8e6ce5d789216247f3607ff6c678e63a14",
+      "win_lf_sha256": "19be4f7a050675ea0a011441ce09ed8e6ce5d789216247f3607ff6c678e63a14",
+      "same_after_eol_normalization": true
+    },
+    "workflows/0_分镜/分镜工作流.json": {
+      "repo": "43f4ebb18dc4b5dd967de2bba9625722ca6cc371ed7eb50995959b0e5218ff7f",
+      "report": "43f4ebb18dc4b5dd967de2bba9625722ca6cc371ed7eb50995959b0e5218ff7f",
+      "mac": "43f4ebb18dc4b5dd967de2bba9625722ca6cc371ed7eb50995959b0e5218ff7f",
+      "win": "7e6650607544582068c2134b393cf84ce61a2b1f481cebf796bd8b8ca8ae010b",
+      "win_read": true,
+      "repo_lf_sha256": "43f4ebb18dc4b5dd967de2bba9625722ca6cc371ed7eb50995959b0e5218ff7f",
+      "win_lf_sha256": "43f4ebb18dc4b5dd967de2bba9625722ca6cc371ed7eb50995959b0e5218ff7f",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/Flux.3/flux3-图像编辑-多参考.json": {
+      "repo": "9612437f7156d6a62d57d0f0474be9b78539e2ee49cf57c8ee84c47d0f77a37f",
+      "report": "9612437f7156d6a62d57d0f0474be9b78539e2ee49cf57c8ee84c47d0f77a37f",
+      "mac": "9612437f7156d6a62d57d0f0474be9b78539e2ee49cf57c8ee84c47d0f77a37f",
+      "win": "d9d0caf8b607d8b6f34709cad05c9b78878eb5baee4dd00343760f91caafb9fe",
+      "win_read": true,
+      "repo_lf_sha256": "9612437f7156d6a62d57d0f0474be9b78539e2ee49cf57c8ee84c47d0f77a37f",
+      "win_lf_sha256": "885f93fc95aedc1b684396e0c3535411447038144d6e88027b9775f35a942a89",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 3
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 3
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/MiniMax/1_文生图/道劫-t2i.json": {
+      "repo": "973fc86d25c3282ff1ba15a9a93a9d261d5c74baa7916379579e47b764c6e203",
+      "report": "973fc86d25c3282ff1ba15a9a93a9d261d5c74baa7916379579e47b764c6e203",
+      "mac": "973fc86d25c3282ff1ba15a9a93a9d261d5c74baa7916379579e47b764c6e203",
+      "win": "9aa3c3d1e8bce6e1d2cfb703b59351d60199e740114b65c64f2428b361c6afe3",
+      "win_read": true,
+      "repo_lf_sha256": "973fc86d25c3282ff1ba15a9a93a9d261d5c74baa7916379579e47b764c6e203",
+      "win_lf_sha256": "973fc86d25c3282ff1ba15a9a93a9d261d5c74baa7916379579e47b764c6e203",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/MiniMax/2_图生图/道劫-i2i.json": {
+      "repo": "ad4be57dc8ccf3230be0955be041fa8ab8bc6ce4c73067411c6b68569e3fbe1b",
+      "report": "ad4be57dc8ccf3230be0955be041fa8ab8bc6ce4c73067411c6b68569e3fbe1b",
+      "mac": "ad4be57dc8ccf3230be0955be041fa8ab8bc6ce4c73067411c6b68569e3fbe1b",
+      "win": "a96efbe1e6fb957219e8adf62e327cdc29663592cceb38a684100c40d6f9baa0",
+      "win_read": true,
+      "repo_lf_sha256": "ad4be57dc8ccf3230be0955be041fa8ab8bc6ce4c73067411c6b68569e3fbe1b",
+      "win_lf_sha256": "ad4be57dc8ccf3230be0955be041fa8ab8bc6ce4c73067411c6b68569e3fbe1b",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/MiniMax/5_角色设定卡/道劫-角色设定卡.json": {
+      "repo": "bcad060d02db64b0d0cc687627afd7da21eb8130fa7754b0c4404e99a0fac692",
+      "report": "bcad060d02db64b0d0cc687627afd7da21eb8130fa7754b0c4404e99a0fac692",
+      "mac": "bcad060d02db64b0d0cc687627afd7da21eb8130fa7754b0c4404e99a0fac692",
+      "win": "ef766945c81d9337ed3364134119e1fd3aa0ab4c186a2e81c039cd60016a6c23",
+      "win_read": true,
+      "repo_lf_sha256": "bcad060d02db64b0d0cc687627afd7da21eb8130fa7754b0c4404e99a0fac692",
+      "win_lf_sha256": "bcad060d02db64b0d0cc687627afd7da21eb8130fa7754b0c4404e99a0fac692",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/MiniMax/官方-H3图像-图像编辑.json": {
+      "repo": "1416145bc55e25ef2c7d171ceb5c836aa4db742da008ef668a00ddbf82757bdf",
+      "report": "1416145bc55e25ef2c7d171ceb5c836aa4db742da008ef668a00ddbf82757bdf",
+      "mac": "1416145bc55e25ef2c7d171ceb5c836aa4db742da008ef668a00ddbf82757bdf",
+      "win": "eda0f71619c390c3719b5d2b647c9c6970f0c435773f9ce329a3086ad32c68f6",
+      "win_read": true,
+      "repo_lf_sha256": "1416145bc55e25ef2c7d171ceb5c836aa4db742da008ef668a00ddbf82757bdf",
+      "win_lf_sha256": "ed072f76a3b55bedf30ea70022f911b6ae6c3a856bd55a14a75a9c19941454e7",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 9
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 9
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/MiniMax/官方-H3图像-文生图.json": {
+      "repo": "06a1ea652d16a4ca009fce539fd67b3cb6a8042cc04cd24332f83ca77c800713",
+      "report": "06a1ea652d16a4ca009fce539fd67b3cb6a8042cc04cd24332f83ca77c800713",
+      "mac": "06a1ea652d16a4ca009fce539fd67b3cb6a8042cc04cd24332f83ca77c800713",
+      "win": "6281f818dee9f14d7651bac611f57d124bcc6ce99602bd8f4d8a3570f332d53a",
+      "win_read": true,
+      "repo_lf_sha256": "06a1ea652d16a4ca009fce539fd67b3cb6a8042cc04cd24332f83ca77c800713",
+      "win_lf_sha256": "f1734908dd18565fb3e420f8ec7876a319ae0ce8dd8a5825b032b272dd7bbaa2",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 0
+            },
+            {
+              "name": "sub:Text to Image (MiniMax H3 Image)",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 1
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 0
+            },
+            {
+              "name": "sub:Text to Image (MiniMax H3 Image)",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 1
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/MossImage/moss-base-t2i-版式.json": {
+      "repo": "eb4fed18264b3f4882b98525bd674f73cacf00433df003554164616816358d13",
+      "report": "eb4fed18264b3f4882b98525bd674f73cacf00433df003554164616816358d13",
+      "mac": "eb4fed18264b3f4882b98525bd674f73cacf00433df003554164616816358d13",
+      "win": "698304242be9074a3b73d13fe438493a08672d8d25a81be1b1c8cb30b17b85ad",
+      "win_read": true,
+      "repo_lf_sha256": "eb4fed18264b3f4882b98525bd674f73cacf00433df003554164616816358d13",
+      "win_lf_sha256": "719b51b5908c95d58c8b009f21ef87e19876d4af1028798ab387f60bfe423d04",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 0
+            },
+            {
+              "name": "sub:Text to Image (MOSS-Image)",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 4
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 0
+            },
+            {
+              "name": "sub:Text to Image (MOSS-Image)",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 4
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/MossImage/moss-base-t2i.json": {
+      "repo": "14b314c950174e43f252e6f280d208f81017d865db222bd2ede934fde48b7ae5",
+      "report": "14b314c950174e43f252e6f280d208f81017d865db222bd2ede934fde48b7ae5",
+      "mac": "14b314c950174e43f252e6f280d208f81017d865db222bd2ede934fde48b7ae5",
+      "win": "f463cd88863c32865d88cef5a25021eef81bc3c3b006ca9be42f8918ac1cda73",
+      "win_read": true,
+      "repo_lf_sha256": "14b314c950174e43f252e6f280d208f81017d865db222bd2ede934fde48b7ae5",
+      "win_lf_sha256": "e51db798b58afdb86a0be044ac90a18ebe1eec14a9bacdb24d88a6b527b4d907",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 0
+            },
+            {
+              "name": "sub:Text to Image (MOSS-Image)",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 4
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 0
+            },
+            {
+              "name": "sub:Text to Image (MOSS-Image)",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 4
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/MossImage/moss-t2i-dmd-4step.json": {
+      "repo": "dbb2f76a815625708956d08f26f521c6669b20a734c485cfed94ba6721c49477",
+      "report": "dbb2f76a815625708956d08f26f521c6669b20a734c485cfed94ba6721c49477",
+      "mac": "dbb2f76a815625708956d08f26f521c6669b20a734c485cfed94ba6721c49477",
+      "win": "66df59f4cab6b0e601c28c8f70f3e3d192e0395ca86fe3094028f4300bafa479",
+      "win_read": true,
+      "repo_lf_sha256": "dbb2f76a815625708956d08f26f521c6669b20a734c485cfed94ba6721c49477",
+      "win_lf_sha256": "dbb2f76a815625708956d08f26f521c6669b20a734c485cfed94ba6721c49477",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/MossImage/moss-t2i-版式.json": {
+      "repo": "cb7b27983eaac4621e3ee3035ac775acf130f17e9690c9a4717b4e65eee626a4",
+      "report": "cb7b27983eaac4621e3ee3035ac775acf130f17e9690c9a4717b4e65eee626a4",
+      "mac": "cb7b27983eaac4621e3ee3035ac775acf130f17e9690c9a4717b4e65eee626a4",
+      "win": "6618dc54d28c6bc82b3c866b4d5dfa24295c241391b53f3ef256ebf6739998da",
+      "win_read": true,
+      "repo_lf_sha256": "cb7b27983eaac4621e3ee3035ac775acf130f17e9690c9a4717b4e65eee626a4",
+      "win_lf_sha256": "b72584cb5748f10af753c4bd4ace6aa9d4059b7bc75ecd1f88eed7187a861d1e",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 0
+            },
+            {
+              "name": "sub:Text to Image (MOSS-Image)",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 4
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 0
+            },
+            {
+              "name": "sub:Text to Image (MOSS-Image)",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 4
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/MossImage/moss-t2i.json": {
+      "repo": "0e8c3442883e171bca71bc4a96839963a1503e048fddd37eaf99a6ce9942e916",
+      "report": "0e8c3442883e171bca71bc4a96839963a1503e048fddd37eaf99a6ce9942e916",
+      "mac": "0e8c3442883e171bca71bc4a96839963a1503e048fddd37eaf99a6ce9942e916",
+      "win": "a4ed9125d722dd74f026442963088f2816bb6cc6bc2dbac2d7bebb35ab501ca8",
+      "win_read": true,
+      "repo_lf_sha256": "0e8c3442883e171bca71bc4a96839963a1503e048fddd37eaf99a6ce9942e916",
+      "win_lf_sha256": "0e8c3442883e171bca71bc4a96839963a1503e048fddd37eaf99a6ce9942e916",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/MossImage/moss-图像编辑.json": {
+      "repo": "4eaac4f3c42178a57a6a9b6aef7bf7c5c97789d254da5d3ae19368717f3d75e2",
+      "report": "4eaac4f3c42178a57a6a9b6aef7bf7c5c97789d254da5d3ae19368717f3d75e2",
+      "mac": "4eaac4f3c42178a57a6a9b6aef7bf7c5c97789d254da5d3ae19368717f3d75e2",
+      "win": "c2d11ef367082c31683b2d95a3028979eb9c401fafe388f0ffea8e6823089ced",
+      "win_read": true,
+      "repo_lf_sha256": "4eaac4f3c42178a57a6a9b6aef7bf7c5c97789d254da5d3ae19368717f3d75e2",
+      "win_lf_sha256": "baffed94a48d31e2bb9275f17774191cbd4cc9589c5d21e71e1a325cc470eaf6",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 11
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 11
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/MossImage/moss-漫画一键生成器.json": {
+      "repo": "adc5896ba3d2ee5ff965c1d40ea780f8c2663f9b16fb14a1a21fbdb03bd5d8ac",
+      "report": "adc5896ba3d2ee5ff965c1d40ea780f8c2663f9b16fb14a1a21fbdb03bd5d8ac",
+      "mac": "adc5896ba3d2ee5ff965c1d40ea780f8c2663f9b16fb14a1a21fbdb03bd5d8ac",
+      "win": "0224c9f115326a94fe4daf6f0ae4470cec450ee6243ed8064371603608617340",
+      "win_read": true,
+      "repo_lf_sha256": "adc5896ba3d2ee5ff965c1d40ea780f8c2663f9b16fb14a1a21fbdb03bd5d8ac",
+      "win_lf_sha256": "2a16cbff6a31db867a951994713552fe9f4c0576b12e54d6da6d6de9a2200437",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 4
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 4
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/MossImage/moss-道劫-t2i.json": {
+      "repo": "cdcbddad4243ad8989313a118bed3e43879a3983904dd2969baa8da24788a2f7",
+      "report": "cdcbddad4243ad8989313a118bed3e43879a3983904dd2969baa8da24788a2f7",
+      "mac": "cdcbddad4243ad8989313a118bed3e43879a3983904dd2969baa8da24788a2f7",
+      "win": "44e4ec425e33a1f2577ba677ae69ae21c47f4fce6c49925509e2187aaa0b2cb6",
+      "win_read": true,
+      "repo_lf_sha256": "cdcbddad4243ad8989313a118bed3e43879a3983904dd2969baa8da24788a2f7",
+      "win_lf_sha256": "cdcbddad4243ad8989313a118bed3e43879a3983904dd2969baa8da24788a2f7",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/MossImage/moss-颜色深度控制.json": {
+      "repo": "c3d2c365335212d398c9470f7c3a05da68081b154955db4229791de57ad73eb7",
+      "report": "c3d2c365335212d398c9470f7c3a05da68081b154955db4229791de57ad73eb7",
+      "mac": "c3d2c365335212d398c9470f7c3a05da68081b154955db4229791de57ad73eb7",
+      "win": "13d506f800b8b3b14ecfc6cb281944a221d91ab5254bb45bec1d1e846668d557",
+      "win_read": true,
+      "repo_lf_sha256": "c3d2c365335212d398c9470f7c3a05da68081b154955db4229791de57ad73eb7",
+      "win_lf_sha256": "5cf8ba9e5c563ccb692910fa2bcb8fa4a5d7b91ae3224b62513f03804e44b4dc",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 11
+            },
+            {
+              "name": "sub:Geometry Estimation (MoGe 3)",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 0
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 11
+            },
+            {
+              "name": "sub:Geometry Estimation (MoGe 3)",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 0
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json": {
+      "repo": "692093663f9bcfe7914156a72c9ec4e5ee4af0662ae005b578197656887a7897",
+      "report": "692093663f9bcfe7914156a72c9ec4e5ee4af0662ae005b578197656887a7897",
+      "mac": "692093663f9bcfe7914156a72c9ec4e5ee4af0662ae005b578197656887a7897",
+      "win": "b0565d44a7e8d8064712fe47edf4e5df49ff5b57f3981c497faf1962cdf5a442",
+      "win_read": true,
+      "repo_lf_sha256": "692093663f9bcfe7914156a72c9ec4e5ee4af0662ae005b578197656887a7897",
+      "win_lf_sha256": "692093663f9bcfe7914156a72c9ec4e5ee4af0662ae005b578197656887a7897",
+      "same_after_eol_normalization": true,
+      "win_layout_sample": {
+        "main_node_positions_different": 0,
+        "main_group_bounds_different": 0,
+        "repo": {
+          "crossings": 52,
+          "occlusion": 12,
+          "est_overlap": 0,
+          "est_spacing": 11,
+          "negative_region": 0,
+          "output_rightmost": 0,
+          "leftward": 4,
+          "group_overlap": 0,
+          "node_out_of_group": 0,
+          "edge_tight": 0,
+          "spacing_far": 18
+        },
+        "installed": {
+          "crossings": 52,
+          "occlusion": 12,
+          "est_overlap": 0,
+          "est_spacing": 11,
+          "negative_region": 0,
+          "output_rightmost": 0,
+          "leftward": 4,
+          "group_overlap": 0,
+          "node_out_of_group": 0,
+          "edge_tight": 0,
+          "spacing_far": 18
+        },
+        "same_after_strip_layout": true
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/1_文生图/qwen21-daotu-rgba-t2i.json": {
+      "repo": "f2867448e506ad59283699f1e4942a9fc5886ac7588704142bdbe1099b7c1880",
+      "report": "f2867448e506ad59283699f1e4942a9fc5886ac7588704142bdbe1099b7c1880",
+      "mac": "f2867448e506ad59283699f1e4942a9fc5886ac7588704142bdbe1099b7c1880",
+      "win": "374e6963f1ef07e55c9fdf7b6be20b9eaec50ab8b2fae91587897ec69cb33dc7",
+      "win_read": true,
+      "repo_lf_sha256": "f2867448e506ad59283699f1e4942a9fc5886ac7588704142bdbe1099b7c1880",
+      "win_lf_sha256": "f2867448e506ad59283699f1e4942a9fc5886ac7588704142bdbe1099b7c1880",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/QwenImage2.1/1_文生图/qwen21-sanlian-t2i.json": {
+      "repo": "5cb2d4d9252329f0719d08808117753f28d3798a81a6a3c25ee5cdb930005244",
+      "report": "5cb2d4d9252329f0719d08808117753f28d3798a81a6a3c25ee5cdb930005244",
+      "mac": "5cb2d4d9252329f0719d08808117753f28d3798a81a6a3c25ee5cdb930005244",
+      "win": "c54cf00f8f39c9c80d7617c57fa97c46d8a5574caad319192329406c51a48506",
+      "win_read": true,
+      "repo_lf_sha256": "5cb2d4d9252329f0719d08808117753f28d3798a81a6a3c25ee5cdb930005244",
+      "win_lf_sha256": "5cb2d4d9252329f0719d08808117753f28d3798a81a6a3c25ee5cdb930005244",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/QwenImage2.1/1_文生图/qwen21-t2i-seedvr2.json": {
+      "repo": "ff926ed10ea64f2a9bf8769224cfee31e4b3126ad6c38df08deb3d56f5ee7a64",
+      "report": "ff926ed10ea64f2a9bf8769224cfee31e4b3126ad6c38df08deb3d56f5ee7a64",
+      "mac": "ff926ed10ea64f2a9bf8769224cfee31e4b3126ad6c38df08deb3d56f5ee7a64",
+      "win": "f561794e2e552488b937af9d2cf0aa0cb32c4ae13f22fa5612f0a61b0ff1ab32",
+      "win_read": true,
+      "repo_lf_sha256": "ff926ed10ea64f2a9bf8769224cfee31e4b3126ad6c38df08deb3d56f5ee7a64",
+      "win_lf_sha256": "b6224465036daa053c903c57a6c27c128fb366407ac8327fe3a5dd235be3ab96",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 3
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 3
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/1_文生图/qwen21-t2i.json": {
+      "repo": "2e2fbce91ee9bf25537a76219ba2c0b96211b27ef26568f67c539b5bab0859e3",
+      "report": "2e2fbce91ee9bf25537a76219ba2c0b96211b27ef26568f67c539b5bab0859e3",
+      "mac": "2e2fbce91ee9bf25537a76219ba2c0b96211b27ef26568f67c539b5bab0859e3",
+      "win": "e660aec8411740b5cabb769053202d274da1cec225de9f1bf21a8c7a2329b2b4",
+      "win_read": true,
+      "repo_lf_sha256": "2e2fbce91ee9bf25537a76219ba2c0b96211b27ef26568f67c539b5bab0859e3",
+      "win_lf_sha256": "2e2fbce91ee9bf25537a76219ba2c0b96211b27ef26568f67c539b5bab0859e3",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/QwenImage2.1/1_文生图/qwen21-titlecard-t2i.json": {
+      "repo": "fe09cf6b36a549c650c799f44e525f3008e8269358a8b8f2f8198e35d83faf30",
+      "report": "fe09cf6b36a549c650c799f44e525f3008e8269358a8b8f2f8198e35d83faf30",
+      "mac": "fe09cf6b36a549c650c799f44e525f3008e8269358a8b8f2f8198e35d83faf30",
+      "win": "1faa329024c80f1e53fc3aed622e7486b2bae380bd77ab842cc03fa21d42f9cf",
+      "win_read": true,
+      "repo_lf_sha256": "fe09cf6b36a549c650c799f44e525f3008e8269358a8b8f2f8198e35d83faf30",
+      "win_lf_sha256": "fe09cf6b36a549c650c799f44e525f3008e8269358a8b8f2f8198e35d83faf30",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/QwenImage2.1/1_文生图/t2i-无审查-超分.json": {
+      "repo": "a4cffde2f62bbd17a1ea2ed50721cbe2bb2c85d8b7c76ddb7f542c9b22cd947b",
+      "report": "a4cffde2f62bbd17a1ea2ed50721cbe2bb2c85d8b7c76ddb7f542c9b22cd947b",
+      "mac": "a4cffde2f62bbd17a1ea2ed50721cbe2bb2c85d8b7c76ddb7f542c9b22cd947b",
+      "win": "0727d0e8454e1a847094cbfb89dbbf0f0227b64c7b1521616fbf97bf1bf9c6ed",
+      "win_read": true,
+      "repo_lf_sha256": "a4cffde2f62bbd17a1ea2ed50721cbe2bb2c85d8b7c76ddb7f542c9b22cd947b",
+      "win_lf_sha256": "a4cffde2f62bbd17a1ea2ed50721cbe2bb2c85d8b7c76ddb7f542c9b22cd947b",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/QwenImage2.1/1_文生图/t2i-皮肤-超分.json": {
+      "repo": "373a86a67c57e7d0e47b7b32dfd6eae02cd71393aeeb8508b3f67cc76a5b30c6",
+      "report": "373a86a67c57e7d0e47b7b32dfd6eae02cd71393aeeb8508b3f67cc76a5b30c6",
+      "mac": "373a86a67c57e7d0e47b7b32dfd6eae02cd71393aeeb8508b3f67cc76a5b30c6",
+      "win": "f4306c6d415edd91c4943bbeee57fd3027f62dee69b0ffbeb0f5d40b2dd4af31",
+      "win_read": true,
+      "repo_lf_sha256": "373a86a67c57e7d0e47b7b32dfd6eae02cd71393aeeb8508b3f67cc76a5b30c6",
+      "win_lf_sha256": "373a86a67c57e7d0e47b7b32dfd6eae02cd71393aeeb8508b3f67cc76a5b30c6",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/QwenImage2.1/1_文生图/t2i-通用.json": {
+      "repo": "7fb8a792ae3647a3b7c558cd914e76fe7f8c721307dc07e6993d2083bf22f64a",
+      "report": "7fb8a792ae3647a3b7c558cd914e76fe7f8c721307dc07e6993d2083bf22f64a",
+      "mac": "7fb8a792ae3647a3b7c558cd914e76fe7f8c721307dc07e6993d2083bf22f64a",
+      "win": "6561a24a8728d124b5bc248e930bbe77060c20ec795b45ebe300f198c767554a",
+      "win_read": true,
+      "repo_lf_sha256": "7fb8a792ae3647a3b7c558cd914e76fe7f8c721307dc07e6993d2083bf22f64a",
+      "win_lf_sha256": "7a227d48f18c6dd911bbab1f4ca327ce949b1bd8c159d91f8036f4226eff2293",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 2
+            },
+            {
+              "name": "sub:道劫·加速子图",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 24
+            },
+            {
+              "name": "sub:通用·超分·SeedVR2",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 2
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 2
+            },
+            {
+              "name": "sub:道劫·加速子图",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 24
+            },
+            {
+              "name": "sub:通用·超分·SeedVR2",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 2
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/2_图生图/qi21-bfs-换头.json": {
+      "repo": "07551e2bca98e182f07615e10e6d5ff432d5f1175f1674e6123b5387d241d8a2",
+      "report": "07551e2bca98e182f07615e10e6d5ff432d5f1175f1674e6123b5387d241d8a2",
+      "mac": "07551e2bca98e182f07615e10e6d5ff432d5f1175f1674e6123b5387d241d8a2",
+      "win": "24a46a8b38a3c4227c9892d9461fb89300e507401b77aeb7f0f16578ab40f427",
+      "win_read": true,
+      "repo_lf_sha256": "07551e2bca98e182f07615e10e6d5ff432d5f1175f1674e6123b5387d241d8a2",
+      "win_lf_sha256": "e7a011753dcad1d7cf3ec2b1dc6a78cbfc09327ff35e532f97faa4b4486f32fd",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 5,
+              "edge_tight": 6,
+              "spacing_far": 8
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 5,
+              "edge_tight": 6,
+              "spacing_far": 8
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/2_图生图/qi21-edit.json": {
+      "repo": "4c6d622d5bd5d87fda622a0955ee6921ef1d1370c3d521c9b36b6aee0a8042fe",
+      "report": "4c6d622d5bd5d87fda622a0955ee6921ef1d1370c3d521c9b36b6aee0a8042fe",
+      "mac": "4c6d622d5bd5d87fda622a0955ee6921ef1d1370c3d521c9b36b6aee0a8042fe",
+      "win": "df93fd8887ce009b65cb599db9c742e6f0499e90b886a8689a71b7a99efc7c13",
+      "win_read": true,
+      "repo_lf_sha256": "4c6d622d5bd5d87fda622a0955ee6921ef1d1370c3d521c9b36b6aee0a8042fe",
+      "win_lf_sha256": "4c6d622d5bd5d87fda622a0955ee6921ef1d1370c3d521c9b36b6aee0a8042fe",
+      "same_after_eol_normalization": true,
+      "win_layout_sample": {
+        "main_node_positions_different": 0,
+        "main_group_bounds_different": 0,
+        "repo": {
+          "crossings": 26,
+          "occlusion": 12,
+          "est_overlap": 7,
+          "est_spacing": 19,
+          "negative_region": 0,
+          "output_rightmost": 0,
+          "leftward": 3,
+          "group_overlap": 0,
+          "node_out_of_group": 0,
+          "edge_tight": 0,
+          "spacing_far": 3
+        },
+        "installed": {
+          "crossings": 26,
+          "occlusion": 12,
+          "est_overlap": 7,
+          "est_spacing": 19,
+          "negative_region": 0,
+          "output_rightmost": 0,
+          "leftward": 3,
+          "group_overlap": 0,
+          "node_out_of_group": 0,
+          "edge_tight": 0,
+          "spacing_far": 3
+        },
+        "same_after_strip_layout": true
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/2_图生图/qi21-局部重绘.json": {
+      "repo": "52db9147afba603342fa3766caada02b14aa455a3ad1c66f1af75493ec4d9bab",
+      "report": "52db9147afba603342fa3766caada02b14aa455a3ad1c66f1af75493ec4d9bab",
+      "mac": "52db9147afba603342fa3766caada02b14aa455a3ad1c66f1af75493ec4d9bab",
+      "win": "a0d61dc10fe4cda354e58c757db8d5cc9a2699fd6771cd88e07db73633630409",
+      "win_read": true,
+      "repo_lf_sha256": "52db9147afba603342fa3766caada02b14aa455a3ad1c66f1af75493ec4d9bab",
+      "win_lf_sha256": "6d6c7ba1db1df1cdc20fbec2d754646e284bd425f4599a67b10cb282525bb234",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 3
+            },
+            {
+              "name": "sub:[6] 文本提示词类型优化子图",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 1
+            },
+            {
+              "name": "sub:加速子图",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 14
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 3
+            },
+            {
+              "name": "sub:[6] 文本提示词类型优化子图",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 1
+            },
+            {
+              "name": "sub:加速子图",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 14
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/2_图生图/qi21-道劫-i2i.json": {
+      "repo": "2290d7253a64e103b0c1081517fb11666d9e517e14330092e5992ac0f4cfec34",
+      "report": "2290d7253a64e103b0c1081517fb11666d9e517e14330092e5992ac0f4cfec34",
+      "mac": "2290d7253a64e103b0c1081517fb11666d9e517e14330092e5992ac0f4cfec34",
+      "win": "6ea7c7d23bedddbbb356b64072dd2a6d373ee8ee1a5a01dedfead566d2d87c1b",
+      "win_read": true,
+      "repo_lf_sha256": "2290d7253a64e103b0c1081517fb11666d9e517e14330092e5992ac0f4cfec34",
+      "win_lf_sha256": "2290d7253a64e103b0c1081517fb11666d9e517e14330092e5992ac0f4cfec34",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/QwenImage2.1/2_图生图/qi21-道劫-img2img.json": {
+      "repo": "d8de6b9a8c0deb6c51fb223932013f122d4b2bbbb980d8d7cfa22774913cd57d",
+      "report": "d8de6b9a8c0deb6c51fb223932013f122d4b2bbbb980d8d7cfa22774913cd57d",
+      "mac": "d8de6b9a8c0deb6c51fb223932013f122d4b2bbbb980d8d7cfa22774913cd57d",
+      "win": "37bd55a6de7c23295e368a99425161044897f8e4b823484713bee181f7611f6e",
+      "win_read": true,
+      "repo_lf_sha256": "d8de6b9a8c0deb6c51fb223932013f122d4b2bbbb980d8d7cfa22774913cd57d",
+      "win_lf_sha256": "d8de6b9a8c0deb6c51fb223932013f122d4b2bbbb980d8d7cfa22774913cd57d",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/QwenImage2.1/2_图生图/qi21-道劫-换脸-局部重绘.json": {
+      "repo": "2d02134928dc36a4255f04adeb69883166836da7b4239fc75d973d927a16617d",
+      "report": "2d02134928dc36a4255f04adeb69883166836da7b4239fc75d973d927a16617d",
+      "mac": "2d02134928dc36a4255f04adeb69883166836da7b4239fc75d973d927a16617d",
+      "win": "1ed21deccc0bec1b959ead281fd9b158c9241f7278b26f74f9095a72f1d9cebe",
+      "win_read": true,
+      "repo_lf_sha256": "2d02134928dc36a4255f04adeb69883166836da7b4239fc75d973d927a16617d",
+      "win_lf_sha256": "afbfd4d1397a8ed8215ead18c25712b1d12225fded5165da0416db5bd88a8d8d",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 15
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 15
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/2_图生图/qwen21-multiref-edit.json": {
+      "repo": "00c45e4145a39a5080f796503fbcf4b408860175ef783e809e1d66985839597b",
+      "report": "00c45e4145a39a5080f796503fbcf4b408860175ef783e809e1d66985839597b",
+      "mac": "00c45e4145a39a5080f796503fbcf4b408860175ef783e809e1d66985839597b",
+      "win": "0a7da1e4285f873bc10381b6f943cb2a9ab34f70148091d9a632a0b853945898",
+      "win_read": true,
+      "repo_lf_sha256": "00c45e4145a39a5080f796503fbcf4b408860175ef783e809e1d66985839597b",
+      "win_lf_sha256": "00c45e4145a39a5080f796503fbcf4b408860175ef783e809e1d66985839597b",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/QwenImage2.1/2_图生图/qwen21_Gem_Face_zoom_V1.json": {
+      "repo": "0aada4d3c9936387b2c77abd8ed7b0de7da3ea11f4b786835a7f55107ed1b05b",
+      "report": "0aada4d3c9936387b2c77abd8ed7b0de7da3ea11f4b786835a7f55107ed1b05b",
+      "mac": "0aada4d3c9936387b2c77abd8ed7b0de7da3ea11f4b786835a7f55107ed1b05b",
+      "win": "fbbe74778d8e32dfba92b4f9efb2aae4c0dd9bfd3e7c6815074e2b4817cb727d",
+      "win_read": true,
+      "repo_lf_sha256": "0aada4d3c9936387b2c77abd8ed7b0de7da3ea11f4b786835a7f55107ed1b05b",
+      "win_lf_sha256": "0aada4d3c9936387b2c77abd8ed7b0de7da3ea11f4b786835a7f55107ed1b05b",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/QwenImage2.1/3_社区模板/Qwen21-Turbo-9步-全功能.json": {
+      "repo": "886bb6bc23000af9192fcec87467f9abc235980d71e73a943a7d76ec952566d1",
+      "report": "886bb6bc23000af9192fcec87467f9abc235980d71e73a943a7d76ec952566d1",
+      "mac": "886bb6bc23000af9192fcec87467f9abc235980d71e73a943a7d76ec952566d1",
+      "win": "886bb6bc23000af9192fcec87467f9abc235980d71e73a943a7d76ec952566d1",
+      "win_read": true
+    },
+    "workflows/1_图片/QwenImage2.1/3_社区模板/skill姿态图放大-扩展整合.json": {
+      "repo": "09c8c39e54feebf8790d33ce45bebe494f824568dc9f0ebed29d81218daf300b",
+      "report": "09c8c39e54feebf8790d33ce45bebe494f824568dc9f0ebed29d81218daf300b",
+      "mac": "09c8c39e54feebf8790d33ce45bebe494f824568dc9f0ebed29d81218daf300b",
+      "win": "61191ce10ade492f9d778aa816940496c57f6a2ebb249a68d173373a2631021a",
+      "win_read": true,
+      "repo_lf_sha256": "09c8c39e54feebf8790d33ce45bebe494f824568dc9f0ebed29d81218daf300b",
+      "win_lf_sha256": "39a378f4c68da814c3fa312209cfb59e068d608676653457426a1b367d05eb49",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 8
+            },
+            {
+              "name": "sub:New Subgraph",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 0
+            },
+            {
+              "name": "sub:New Subgraph",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 0
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 8
+            },
+            {
+              "name": "sub:New Subgraph",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 0
+            },
+            {
+              "name": "sub:New Subgraph",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 0
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/3_社区模板/全能图片编辑-官方PE.json": {
+      "repo": "cabe70ac0be095a2208ce8471d05d6c3c4568aee22c2a49d1fb569c89151ae8a",
+      "report": "cabe70ac0be095a2208ce8471d05d6c3c4568aee22c2a49d1fb569c89151ae8a",
+      "mac": "cabe70ac0be095a2208ce8471d05d6c3c4568aee22c2a49d1fb569c89151ae8a",
+      "win": "0d2dab61c60fc06b59088b4124889f767226c4d4418484f2caeece8773abd27b",
+      "win_read": true,
+      "repo_lf_sha256": "cabe70ac0be095a2208ce8471d05d6c3c4568aee22c2a49d1fb569c89151ae8a",
+      "win_lf_sha256": "0d2dab61c60fc06b59088b4124889f767226c4d4418484f2caeece8773abd27b",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": false,
+        "canvas_view_equal": false,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 17
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 17
+            }
+          ]
+        },
+        "structural_reconciliation": {
+          "repo_only_main_markdown_notes": [
+            530
+          ],
+          "json_equal_after_removing_extra_note": false,
+          "geometry_equal_after_removing_extra_note": true,
+          "layout_structure_guard_accepts_after_removing_extra_note": true,
+          "scope_geometry_changes": [
+            {
+              "scope": "main",
+              "shared_node_geometry_diffs": 0,
+              "group_ids_or_bounds_differ": false,
+              "interface_geometry_differs": false
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/3_社区模板/全能文生图-官方PE.json": {
+      "repo": "074a32ceb20dbfc12a2bd00e9e2ef720b8071475c1d7812e3d840f5abaf3aaae",
+      "report": "074a32ceb20dbfc12a2bd00e9e2ef720b8071475c1d7812e3d840f5abaf3aaae",
+      "mac": "074a32ceb20dbfc12a2bd00e9e2ef720b8071475c1d7812e3d840f5abaf3aaae",
+      "win": "759e767ed32bf69518930bb4b74fdc756db69f0315609833a7fa2f65d2c18220",
+      "win_read": true,
+      "repo_lf_sha256": "074a32ceb20dbfc12a2bd00e9e2ef720b8071475c1d7812e3d840f5abaf3aaae",
+      "win_lf_sha256": "759e767ed32bf69518930bb4b74fdc756db69f0315609833a7fa2f65d2c18220",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": false,
+        "canvas_view_equal": false,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 7
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 7
+            }
+          ]
+        },
+        "structural_reconciliation": {
+          "repo_only_main_markdown_notes": [
+            516
+          ],
+          "json_equal_after_removing_extra_note": false,
+          "geometry_equal_after_removing_extra_note": true,
+          "layout_structure_guard_accepts_after_removing_extra_note": true,
+          "scope_geometry_changes": [
+            {
+              "scope": "main",
+              "shared_node_geometry_diffs": 0,
+              "group_ids_or_bounds_differ": false,
+              "interface_geometry_differs": false
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/3_社区模板/社区-四合一换装捏人-Goohai.json": {
+      "repo": "5065e04d7f2ca40cc085dc03e2a1706e849a6b16bbd09f5324aa2b2e68d6c37c",
+      "report": "5065e04d7f2ca40cc085dc03e2a1706e849a6b16bbd09f5324aa2b2e68d6c37c",
+      "mac": "5065e04d7f2ca40cc085dc03e2a1706e849a6b16bbd09f5324aa2b2e68d6c37c",
+      "win": "d234a2899c8ab427746693f670c6e91ad217946185523edf9c0d8e2ccf596177",
+      "win_read": true,
+      "repo_lf_sha256": "5065e04d7f2ca40cc085dc03e2a1706e849a6b16bbd09f5324aa2b2e68d6c37c",
+      "win_lf_sha256": "af8336c2d03b17c7b33105933fcddf9a642c23f7122210ad6abb6a356bfef0df",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": false,
+        "canvas_view_equal": false,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 1
+            },
+            {
+              "name": "sub:New Subgraph",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 3
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 1
+            },
+            {
+              "name": "sub:New Subgraph",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 3
+            }
+          ]
+        },
+        "structural_reconciliation": {
+          "repo_only_main_markdown_notes": [
+            329
+          ],
+          "json_equal_after_removing_extra_note": false,
+          "geometry_equal_after_removing_extra_note": true,
+          "layout_structure_guard_accepts_after_removing_extra_note": true,
+          "scope_geometry_changes": [
+            {
+              "scope": "main",
+              "shared_node_geometry_diffs": 0,
+              "group_ids_or_bounds_differ": false,
+              "interface_geometry_differs": false
+            },
+            {
+              "scope": "sub:New Subgraph",
+              "shared_node_geometry_diffs": 0,
+              "group_ids_or_bounds_differ": false,
+              "interface_geometry_differs": false
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/3_社区模板/社区-局部换脸天花板-Dapao.json": {
+      "repo": "0abc226f6f980b2fbe97ce0895c42af950f8b638f2a804133308d368d73ee786",
+      "report": "0abc226f6f980b2fbe97ce0895c42af950f8b638f2a804133308d368d73ee786",
+      "mac": "0abc226f6f980b2fbe97ce0895c42af950f8b638f2a804133308d368d73ee786",
+      "win": "d798c1c40db74bd9e15e16c649cca8896560dbab7f50ce06f1a60aa04385de8f",
+      "win_read": true,
+      "repo_lf_sha256": "0abc226f6f980b2fbe97ce0895c42af950f8b638f2a804133308d368d73ee786",
+      "win_lf_sha256": "d798c1c40db74bd9e15e16c649cca8896560dbab7f50ce06f1a60aa04385de8f",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 4
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 4
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/3_社区模板/社区-无审查直出-t2i.json": {
+      "repo": "444d950cdf2281439fd71e324a62631c2bc88b7266754a3f632db1c0b5019d45",
+      "report": "444d950cdf2281439fd71e324a62631c2bc88b7266754a3f632db1c0b5019d45",
+      "mac": "444d950cdf2281439fd71e324a62631c2bc88b7266754a3f632db1c0b5019d45",
+      "win": "904ec822beae4eae8b023fc0ec36a47344c1d05bdcff0350da7bcd5dafe3cf75",
+      "win_read": true,
+      "repo_lf_sha256": "444d950cdf2281439fd71e324a62631c2bc88b7266754a3f632db1c0b5019d45",
+      "win_lf_sha256": "444d950cdf2281439fd71e324a62631c2bc88b7266754a3f632db1c0b5019d45",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/QwenImage2.1/3_社区模板/社区-漫画页角色重绘-paralaif.json": {
+      "repo": "3960c6ca195920acdfe96b43f047e8ab35dcb81de86956d18e090e674951d2bd",
+      "report": "3960c6ca195920acdfe96b43f047e8ab35dcb81de86956d18e090e674951d2bd",
+      "mac": "3960c6ca195920acdfe96b43f047e8ab35dcb81de86956d18e090e674951d2bd",
+      "win": "b22a084aeea717cabc15a2528d1bd03b1c645ad29e73468c8ff79e73c8033591",
+      "win_read": true,
+      "repo_lf_sha256": "3960c6ca195920acdfe96b43f047e8ab35dcb81de86956d18e090e674951d2bd",
+      "win_lf_sha256": "49abfebba7d9da1ce85d7fae042e1f571081e81087a6a344d9e657e12d28dd3d",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 7
+            },
+            {
+              "name": "sub:Clean page & split panels",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 1
+            },
+            {
+              "name": "sub:Detect & crop characters",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 2
+            },
+            {
+              "name": "sub:Redraw (Qwen Image 2.1)",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 3
+            },
+            {
+              "name": "sub:Qwen Image 2.1 models",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 0
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 7
+            },
+            {
+              "name": "sub:Clean page & split panels",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 1
+            },
+            {
+              "name": "sub:Detect & crop characters",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 2
+            },
+            {
+              "name": "sub:Redraw (Qwen Image 2.1)",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 3
+            },
+            {
+              "name": "sub:Qwen Image 2.1 models",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 0
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/3_社区模板/编辑生图整合-TE.json": {
+      "repo": "580565f553c65e8791ae69c94219463ad7985b449cef08340ad53dd039b060fd",
+      "report": "580565f553c65e8791ae69c94219463ad7985b449cef08340ad53dd039b060fd",
+      "mac": "580565f553c65e8791ae69c94219463ad7985b449cef08340ad53dd039b060fd",
+      "win": "53e2c4c97343668b07307c2b8c304a7209f0bed0515b2dd621feccaa2a00c15c",
+      "win_read": true,
+      "repo_lf_sha256": "580565f553c65e8791ae69c94219463ad7985b449cef08340ad53dd039b060fd",
+      "win_lf_sha256": "fec3f0874ed7037d3577cba59c953c648abb1d2f6da1282550a43992779d3b72",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 12
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 12
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/4_姿势编辑/qi21-道劫-人物姿势.json": {
+      "repo": "cbdd26a853e23fe5dcdb9d6ded71ca5e2ec925b69c4c91a5273cb12d832bd285",
+      "report": "cbdd26a853e23fe5dcdb9d6ded71ca5e2ec925b69c4c91a5273cb12d832bd285",
+      "mac": "cbdd26a853e23fe5dcdb9d6ded71ca5e2ec925b69c4c91a5273cb12d832bd285",
+      "win": "fd22c31bd6eea3698b88f397bb2f621925cf54c23ab8baa50158c042b7993656",
+      "win_read": true,
+      "repo_lf_sha256": "cbdd26a853e23fe5dcdb9d6ded71ca5e2ec925b69c4c91a5273cb12d832bd285",
+      "win_lf_sha256": "cbdd26a853e23fe5dcdb9d6ded71ca5e2ec925b69c4c91a5273cb12d832bd285",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/QwenImage2.1/4_姿势编辑/qwen21-pose-edit.json": {
+      "repo": "a74432a919d7832d975d5faad63204ae378c86c80fdb479ca9dea73e7e22ff03",
+      "report": "a74432a919d7832d975d5faad63204ae378c86c80fdb479ca9dea73e7e22ff03",
+      "mac": "a74432a919d7832d975d5faad63204ae378c86c80fdb479ca9dea73e7e22ff03",
+      "win": "9f58df61dd35abfda90e33ffee8991214bee3097ff5da14c1ccc1b2d0557adfe",
+      "win_read": true,
+      "repo_lf_sha256": "a74432a919d7832d975d5faad63204ae378c86c80fdb479ca9dea73e7e22ff03",
+      "win_lf_sha256": "a74432a919d7832d975d5faad63204ae378c86c80fdb479ca9dea73e7e22ff03",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/QwenImage2.1/4_姿势编辑/官方-fisher-pose-无限姿势.json": {
+      "repo": "2b844bce7356db62601f675499551ddd95de57717500b1480ad71072b4ad91d2",
+      "report": "2b844bce7356db62601f675499551ddd95de57717500b1480ad71072b4ad91d2",
+      "mac": "2b844bce7356db62601f675499551ddd95de57717500b1480ad71072b4ad91d2",
+      "win": "89c8ed250458127d8133a2427c6c5c8979959b44f17d973775c5f5920d46cb48",
+      "win_read": true,
+      "repo_lf_sha256": "2b844bce7356db62601f675499551ddd95de57717500b1480ad71072b4ad91d2",
+      "win_lf_sha256": "014d4e508a6e0eb0621adbd636b3a5bd736903c96997b2f32756f94fa84e6678",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": true,
+        "canvas_view_equal": true,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 4
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 4
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/4_姿势编辑/社区-VNCCS姿势-PoseStudio.json": {
+      "repo": "c7d506185bff26fa24c0f3e341c1d0db9d3c18aefebde8d5379b95b65cb4b64e",
+      "report": "c7d506185bff26fa24c0f3e341c1d0db9d3c18aefebde8d5379b95b65cb4b64e",
+      "mac": "c7d506185bff26fa24c0f3e341c1d0db9d3c18aefebde8d5379b95b65cb4b64e",
+      "win": "0d2a702fc1bb4a4585f05a1b90abe57a34238c904518dfaa359a7f11b065a7a0",
+      "win_read": true,
+      "repo_lf_sha256": "c7d506185bff26fa24c0f3e341c1d0db9d3c18aefebde8d5379b95b65cb4b64e",
+      "win_lf_sha256": "c7d506185bff26fa24c0f3e341c1d0db9d3c18aefebde8d5379b95b65cb4b64e",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/QwenImage2.1/4_姿势编辑/道劫-摆姿-fisher.json": {
+      "repo": "04bcb612d6cdf7a28393be43f8563656e08577c50e295f11a05205daa3a80d17",
+      "report": "04bcb612d6cdf7a28393be43f8563656e08577c50e295f11a05205daa3a80d17",
+      "mac": "04bcb612d6cdf7a28393be43f8563656e08577c50e295f11a05205daa3a80d17",
+      "win": "e8fa0b65a365a90f8ec4239d5994074af7c483d2bab2b0e89e8d07f92656b0cc",
+      "win_read": true,
+      "repo_lf_sha256": "04bcb612d6cdf7a28393be43f8563656e08577c50e295f11a05205daa3a80d17",
+      "win_lf_sha256": "04bcb612d6cdf7a28393be43f8563656e08577c50e295f11a05205daa3a80d17",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/QwenImage2.1/5_角色设定卡/qwen21-charcard-t2i.json": {
+      "repo": "d4977e401dcd4f302aa7dda91caf52eef6547b26cc6e9b59813596df8235c324",
+      "report": "d4977e401dcd4f302aa7dda91caf52eef6547b26cc6e9b59813596df8235c324",
+      "mac": "d4977e401dcd4f302aa7dda91caf52eef6547b26cc6e9b59813596df8235c324",
+      "win": "1450b39e37295b06f35680894aee230fec27df65f74d59d64b8c8856499aeb4d",
+      "win_read": true,
+      "repo_lf_sha256": "d4977e401dcd4f302aa7dda91caf52eef6547b26cc6e9b59813596df8235c324",
+      "win_lf_sha256": "d4977e401dcd4f302aa7dda91caf52eef6547b26cc6e9b59813596df8235c324",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/QwenImage2.1/5_角色设定卡/道劫-角色设定卡-i2i.json": {
+      "repo": "f02a364da0922648c4787245f914b51946fe93e3bb0751998cf45d454db1f817",
+      "report": "f02a364da0922648c4787245f914b51946fe93e3bb0751998cf45d454db1f817",
+      "mac": "f02a364da0922648c4787245f914b51946fe93e3bb0751998cf45d454db1f817",
+      "win": "221f4170e09f091307ed12c05a1a3725716fdff550abb9ea6de718f80ef3a8bf",
+      "win_read": true,
+      "repo_lf_sha256": "f02a364da0922648c4787245f914b51946fe93e3bb0751998cf45d454db1f817",
+      "win_lf_sha256": "f02a364da0922648c4787245f914b51946fe93e3bb0751998cf45d454db1f817",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/QwenImage2.1/5_角色设定卡/道劫-角色设定卡-t2i.json": {
+      "repo": "d77cc890404ba8913dbfa3bd7650d94e2c605cff179eb8629252da70d6d3a3f4",
+      "report": "d77cc890404ba8913dbfa3bd7650d94e2c605cff179eb8629252da70d6d3a3f4",
+      "mac": "d77cc890404ba8913dbfa3bd7650d94e2c605cff179eb8629252da70d6d3a3f4",
+      "win": "36150a4f052126a05c50d5f8cb5706028a5510d486a4cfe89053b534d2dd62ac",
+      "win_read": true,
+      "repo_lf_sha256": "d77cc890404ba8913dbfa3bd7650d94e2c605cff179eb8629252da70d6d3a3f4",
+      "win_lf_sha256": "d77cc890404ba8913dbfa3bd7650d94e2c605cff179eb8629252da70d6d3a3f4",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/SeeThrough/seethrough-basic.json": {
+      "repo": "278220a7cc461396926dbe8da5ccd2b264652f0221b7f9c59bdb949ccf2e0a0c",
+      "report": "278220a7cc461396926dbe8da5ccd2b264652f0221b7f9c59bdb949ccf2e0a0c",
+      "mac": "278220a7cc461396926dbe8da5ccd2b264652f0221b7f9c59bdb949ccf2e0a0c",
+      "win": "ea7a7291d065d80db80d34a8864b61be9549359ea8b3cc3aa39b39353bece4ef",
+      "win_read": true,
+      "repo_lf_sha256": "278220a7cc461396926dbe8da5ccd2b264652f0221b7f9c59bdb949ccf2e0a0c",
+      "win_lf_sha256": "278220a7cc461396926dbe8da5ccd2b264652f0221b7f9c59bdb949ccf2e0a0c",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/SeeThrough/seethrough-layer-editor.json": {
+      "repo": "56f649921ad7da8bb4497b2ccd3f9a13b1ebb98081cc2868a84452c987a98e82",
+      "report": "56f649921ad7da8bb4497b2ccd3f9a13b1ebb98081cc2868a84452c987a98e82",
+      "mac": "56f649921ad7da8bb4497b2ccd3f9a13b1ebb98081cc2868a84452c987a98e82",
+      "win": "47b1a47c145b5d444c1b690c0053b1d71a7bb81fccb8e542b0de07d420b368c6",
+      "win_read": true,
+      "repo_lf_sha256": "56f649921ad7da8bb4497b2ccd3f9a13b1ebb98081cc2868a84452c987a98e82",
+      "win_lf_sha256": "56f649921ad7da8bb4497b2ccd3f9a13b1ebb98081cc2868a84452c987a98e82",
+      "same_after_eol_normalization": true
+    },
+    "workflows/1_图片/SenseNova/1_文生图/sn-道劫-t2i.json": {
+      "repo": "4d4eb033b2d5c0aa0813d988cedbc89ca99abc40e0b5d6418db1ee578fee1ed9",
+      "report": "6c7fa681d325651fd0c6d8a31d21c6999ed1c8c059188966543aeb9b136d5219",
+      "mac": "6c7fa681d325651fd0c6d8a31d21c6999ed1c8c059188966543aeb9b136d5219",
+      "win": "989c5345c257bd29ca99952b43b0c2cee077aec816ca8c142fbb93fac331f7bd",
+      "win_read": true,
+      "repo_lf_sha256": "4d4eb033b2d5c0aa0813d988cedbc89ca99abc40e0b5d6418db1ee578fee1ed9",
+      "win_lf_sha256": "6c7fa681d325651fd0c6d8a31d21c6999ed1c8c059188966543aeb9b136d5219",
+      "same_after_eol_normalization": false,
+      "mac_diff": "only_model_names_including_url_and_note"
+    },
+    "workflows/1_图片/SenseNova/2_图生图/sn-局部重绘.json": {
+      "repo": "cdc12a5a29bf2860fe7b148b77d21fc577e39d83047ed99dfab3010918a47ba0",
+      "report": "38fc8c9e60fb3feeaaf58343c0abba1cf6931a0153ef4a8502c77347664faf92",
+      "mac": "38fc8c9e60fb3feeaaf58343c0abba1cf6931a0153ef4a8502c77347664faf92",
+      "win": "08177ddd9135c9c15cd92d1ec8cbdd28ec9690e3ada4bfe1888856d9abe67e56",
+      "win_read": true,
+      "repo_lf_sha256": "cdc12a5a29bf2860fe7b148b77d21fc577e39d83047ed99dfab3010918a47ba0",
+      "win_lf_sha256": "38fc8c9e60fb3feeaaf58343c0abba1cf6931a0153ef4a8502c77347664faf92",
+      "same_after_eol_normalization": false,
+      "mac_diff": "only_model_names_including_url_and_note"
+    },
+    "workflows/1_图片/SenseNova/2_图生图/sn-道劫-i2i.json": {
+      "repo": "d36471f8de269e103fdcbc477e5323415ae1edfaa61bc34a60d7a4e6ec9adfc3",
+      "report": "7c8dc980c925f225182662ab26f892fb820c55611281c225cf0fe92cd7525e5f",
+      "mac": "7c8dc980c925f225182662ab26f892fb820c55611281c225cf0fe92cd7525e5f",
+      "win": "7c685f9d7c1f92be531c87b9a7297f4e62422d8017be281090d12e30759a0035",
+      "win_read": true,
+      "repo_lf_sha256": "d36471f8de269e103fdcbc477e5323415ae1edfaa61bc34a60d7a4e6ec9adfc3",
+      "win_lf_sha256": "7c8dc980c925f225182662ab26f892fb820c55611281c225cf0fe92cd7525e5f",
+      "same_after_eol_normalization": false,
+      "mac_diff": "only_model_names_including_url_and_note"
+    },
+    "workflows/1_图片/krea2/1_文生图/K2-NSFW专业流-旧版0901.json": {
+      "repo": "c135d4682b74d4e6deb7a982667669a85020e806369995b77261445522282082",
+      "report": "c135d4682b74d4e6deb7a982667669a85020e806369995b77261445522282082",
+      "mac": "c135d4682b74d4e6deb7a982667669a85020e806369995b77261445522282082",
+      "win": "1133bc1a0519d157c1edc819e23055c53077231d8359383ecfedd44eb4db58bc",
+      "win_read": true,
+      "repo_lf_sha256": "c135d4682b74d4e6deb7a982667669a85020e806369995b77261445522282082",
+      "win_lf_sha256": "1133bc1a0519d157c1edc819e23055c53077231d8359383ecfedd44eb4db58bc",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/1_文生图/K2-多视图.json": {
+      "repo": "61dad23a0e04e48307caccb0088cf97c583fb51cb8bb6de6bc5a54b599491839",
+      "report": "61dad23a0e04e48307caccb0088cf97c583fb51cb8bb6de6bc5a54b599491839",
+      "mac": "61dad23a0e04e48307caccb0088cf97c583fb51cb8bb6de6bc5a54b599491839",
+      "win": "7c8867f4cde310eacb8f093e5427cf515d94e62867aa1e0d8a110a01e68f227e",
+      "win_read": true,
+      "repo_lf_sha256": "61dad23a0e04e48307caccb0088cf97c583fb51cb8bb6de6bc5a54b599491839",
+      "win_lf_sha256": "d25a5f4582f78a4d816f2e599064ec3e5b5fc3c80fac6820e2e2faf22eee9636",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/1_文生图/K2-宫格生图.json": {
+      "repo": "621bab57d205a216bcb979e889f648be3d46605da2ab83f75a9193ac7b402842",
+      "report": "621bab57d205a216bcb979e889f648be3d46605da2ab83f75a9193ac7b402842",
+      "mac": "621bab57d205a216bcb979e889f648be3d46605da2ab83f75a9193ac7b402842",
+      "win": "d115bd213eb495794186f4baca02e23df97b9b0ad303988de111a048f83129a6",
+      "win_read": true,
+      "repo_lf_sha256": "621bab57d205a216bcb979e889f648be3d46605da2ab83f75a9193ac7b402842",
+      "win_lf_sha256": "2291c1aa76041a2af0f18311699020305f56c8a806d3945ef6117f194ec7ba9f",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/1_文生图/K2-文生图-超集.json": {
+      "repo": "9ae5415c6b2cbe579ae60edccf5d6ac2bc805f0d7730c26e141403785c58e038",
+      "report": "9ae5415c6b2cbe579ae60edccf5d6ac2bc805f0d7730c26e141403785c58e038",
+      "mac": "9ae5415c6b2cbe579ae60edccf5d6ac2bc805f0d7730c26e141403785c58e038",
+      "win": "a3b74636f73b2f6e94d7d610b745b6926e1592612b185b73b429981a1f535a33",
+      "win_read": true,
+      "repo_lf_sha256": "9ae5415c6b2cbe579ae60edccf5d6ac2bc805f0d7730c26e141403785c58e038",
+      "win_lf_sha256": "94f7ec856ef7f9951da3772488357a3a51ea05dd150ac77a92b3b747736eabdf",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/1_文生图/K2-文生图-道劫-二采版.json": {
+      "repo": "9111c81767480d208f5bc65e7c791ee1e5f53a1c23c0753dfe128fc4ced97440",
+      "report": "9111c81767480d208f5bc65e7c791ee1e5f53a1c23c0753dfe128fc4ced97440",
+      "mac": "9111c81767480d208f5bc65e7c791ee1e5f53a1c23c0753dfe128fc4ced97440",
+      "win": "c01aad7ec9b43960fc0d1e082b1e5d9b060e59f378a844382e05237c7343dd8b",
+      "win_read": true,
+      "repo_lf_sha256": "9111c81767480d208f5bc65e7c791ee1e5f53a1c23c0753dfe128fc4ced97440",
+      "win_lf_sha256": "3b0662489dc4b93708a2da2129263b77fb02cc2f4989b38a536962b0282490b5",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/1_文生图/K2-文生图-道劫.json": {
+      "repo": "f81037c5c1629247ed0ccb79ea904b3d7f5a3f2b47f66b7031a31b07e228f369",
+      "report": "f81037c5c1629247ed0ccb79ea904b3d7f5a3f2b47f66b7031a31b07e228f369",
+      "mac": "f81037c5c1629247ed0ccb79ea904b3d7f5a3f2b47f66b7031a31b07e228f369",
+      "win": "92ed544b607943fea9272322048b7cb9b63fc4e725e7cb38627ff151f6552030",
+      "win_read": true,
+      "repo_lf_sha256": "f81037c5c1629247ed0ccb79ea904b3d7f5a3f2b47f66b7031a31b07e228f369",
+      "win_lf_sha256": "eb217b4da649ca7814d08fb594727c6dc265be2efe396b537b78d184dae9362f",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/1_文生图/K2-文生图-风格参照.json": {
+      "repo": "b171739bfb0a305eddf80735777b86a5e1084ba61179fbd80fa1b3d9c7ef141b",
+      "report": "b171739bfb0a305eddf80735777b86a5e1084ba61179fbd80fa1b3d9c7ef141b",
+      "mac": "b171739bfb0a305eddf80735777b86a5e1084ba61179fbd80fa1b3d9c7ef141b",
+      "win": "4ae4011845cf3c11a469f4cde557e3073c12bedc4ff84d2d5a6aa0e30ff9f509",
+      "win_read": true,
+      "repo_lf_sha256": "b171739bfb0a305eddf80735777b86a5e1084ba61179fbd80fa1b3d9c7ef141b",
+      "win_lf_sha256": "1b02c0e3a59525a8c825e8893a058f4f21cd733dbe3fbcb65d80cb3f64b8471f",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/1_文生图/K2-文生图.json": {
+      "repo": "66df99c9a5e89f9a9221ee4576837f3143a72bfe8155a1ce8438c3951553c6c3",
+      "report": "66df99c9a5e89f9a9221ee4576837f3143a72bfe8155a1ce8438c3951553c6c3",
+      "mac": "66df99c9a5e89f9a9221ee4576837f3143a72bfe8155a1ce8438c3951553c6c3",
+      "win": "85a97707e109328d24abbaf79b603382e08cfdc1bdfea6dbd9c56ee5c68f545e",
+      "win_read": true,
+      "repo_lf_sha256": "66df99c9a5e89f9a9221ee4576837f3143a72bfe8155a1ce8438c3951553c6c3",
+      "win_lf_sha256": "68cfb009bb9076800d9934406837df98edcf18e9754f175bf33b548bf2dc368d",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/2_图生图/K2-NSFW专业流-图生图.json": {
+      "repo": "2f2f36803e05dd7f59793499e7bc5fd3e208496d677acebb2ca5d82957ce9bb2",
+      "report": "2f2f36803e05dd7f59793499e7bc5fd3e208496d677acebb2ca5d82957ce9bb2",
+      "mac": "2f2f36803e05dd7f59793499e7bc5fd3e208496d677acebb2ca5d82957ce9bb2",
+      "win": "ae0f904e76b38ab084ef75413c47819981ec04670e72f12b56df84a681e4179b",
+      "win_read": true,
+      "repo_lf_sha256": "2f2f36803e05dd7f59793499e7bc5fd3e208496d677acebb2ca5d82957ce9bb2",
+      "win_lf_sha256": "ae0f904e76b38ab084ef75413c47819981ec04670e72f12b56df84a681e4179b",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/2_图生图/K2-人脸精修-道劫.json": {
+      "repo": "cc60a713d8a8e55167ca2c2c85caceabecffc59dc0e205e00ea61648e94a7917",
+      "report": "cc60a713d8a8e55167ca2c2c85caceabecffc59dc0e205e00ea61648e94a7917",
+      "mac": "cc60a713d8a8e55167ca2c2c85caceabecffc59dc0e205e00ea61648e94a7917",
+      "win": "0446c52155a0bee20dbe17787e2639f06a8ae5c2e621ebda7fac165158a90022",
+      "win_read": true,
+      "repo_lf_sha256": "cc60a713d8a8e55167ca2c2c85caceabecffc59dc0e205e00ea61648e94a7917",
+      "win_lf_sha256": "aee8cc06edb3ea780e4eed15d1d8dc8d55a969fae6a064d6b82a8145b63c591a",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/2_图生图/K2-图生图.json": {
+      "repo": "f6ece590d8bddca0b8cc20ee8f5ffb775bb7e43d373fba4e31b38ef8a9d2765c",
+      "report": "f6ece590d8bddca0b8cc20ee8f5ffb775bb7e43d373fba4e31b38ef8a9d2765c",
+      "mac": "f6ece590d8bddca0b8cc20ee8f5ffb775bb7e43d373fba4e31b38ef8a9d2765c",
+      "win": "306ef7e3bcdd739204d6c1dbe40436940cf7848a1855cc44fe1adfa011e778b1",
+      "win_read": true,
+      "repo_lf_sha256": "f6ece590d8bddca0b8cc20ee8f5ffb775bb7e43d373fba4e31b38ef8a9d2765c",
+      "win_lf_sha256": "454d4b9575a8cca6c534cd3fd6bcfe69154e85d2a944012207e60410b68ad3b6",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/2_图生图/K2-无审查全家桶(4K放大+提示词增强).json": {
+      "repo": "73976c43b2786789edeb8e3ba5719834ff6cd1db762d16df08856df4ec9da36b",
+      "report": "73976c43b2786789edeb8e3ba5719834ff6cd1db762d16df08856df4ec9da36b",
+      "mac": "73976c43b2786789edeb8e3ba5719834ff6cd1db762d16df08856df4ec9da36b",
+      "win": "b8225c39b0be01b7e3018b635bf11c0f196700c052d0a73033416b66b2b7967e",
+      "win_read": true,
+      "repo_lf_sha256": "73976c43b2786789edeb8e3ba5719834ff6cd1db762d16df08856df4ec9da36b",
+      "win_lf_sha256": "f0e41098b3fe3f37e37eb1188f05d19b84f0ebe40f09402b0da67dbab06f7006",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/2_图生图/K2-表情差分-道劫.json": {
+      "repo": "9b174f57d057566e8df0698df70ef1892990b2b075c1315cacf91fac58b12875",
+      "report": "9b174f57d057566e8df0698df70ef1892990b2b075c1315cacf91fac58b12875",
+      "mac": "9b174f57d057566e8df0698df70ef1892990b2b075c1315cacf91fac58b12875",
+      "win": "9cc64efa6a41a7751737d3c4802bc99417e02f503fdefdcdf9190ca81320a2a6",
+      "win_read": true,
+      "repo_lf_sha256": "9b174f57d057566e8df0698df70ef1892990b2b075c1315cacf91fac58b12875",
+      "win_lf_sha256": "c464228d9fb32f8b9651fd38776a52df0b3d7fe0dc238a629ef6d5eb80cdca16",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/2_图生图/K2-角色换装.json": {
+      "repo": "2c90aa0050cb298457d24621522e1583ef0b3a501d6105078464696a8cb6ccda",
+      "report": "2c90aa0050cb298457d24621522e1583ef0b3a501d6105078464696a8cb6ccda",
+      "mac": "2c90aa0050cb298457d24621522e1583ef0b3a501d6105078464696a8cb6ccda",
+      "win": "5eb1185ada9282e1e62f303578cc0b35c30e90245f391fbcfdf76d024a91b47b",
+      "win_read": true,
+      "repo_lf_sha256": "2c90aa0050cb298457d24621522e1583ef0b3a501d6105078464696a8cb6ccda",
+      "win_lf_sha256": "2df956d3257408d3891f93b1ce5ab5c5527252581b29eb250b4accefd62b0b7a",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/2_图生图/K2-角色设定-道劫-专家模式.json": {
+      "repo": "17501f9dfc2872e853c56ae97513d6b473985ab8b1cfb322f4d3b9f77b32b082",
+      "report": "17501f9dfc2872e853c56ae97513d6b473985ab8b1cfb322f4d3b9f77b32b082",
+      "mac": "17501f9dfc2872e853c56ae97513d6b473985ab8b1cfb322f4d3b9f77b32b082",
+      "win": "e2e5e0db55a4c9fb0abcc91ec9dcb754d46224a246cf073df542dfc91ffef2f0",
+      "win_read": true,
+      "repo_lf_sha256": "17501f9dfc2872e853c56ae97513d6b473985ab8b1cfb322f4d3b9f77b32b082",
+      "win_lf_sha256": "36e89afd15d0f14b39c48aca6d138740217f82ff6d3ef1e22615731fdf39a4ee",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/2_图生图/K2-角色设定-道劫.json": {
+      "repo": "b2963dd05857fff3402fc419b0a1866911dbe08e0ff91954feb776bf5a09ac1a",
+      "report": "b2963dd05857fff3402fc419b0a1866911dbe08e0ff91954feb776bf5a09ac1a",
+      "mac": "b2963dd05857fff3402fc419b0a1866911dbe08e0ff91954feb776bf5a09ac1a",
+      "win": "14469727e405199085e36825807a993d3dd77199b5abda2644384f0142d2882a",
+      "win_read": true,
+      "repo_lf_sha256": "b2963dd05857fff3402fc419b0a1866911dbe08e0ff91954feb776bf5a09ac1a",
+      "win_lf_sha256": "15c8ed3b3febd5dfc05c111b7ace4c754ae910f387a3b81c435cb68899aabe4d",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/3_改图/K2-图像编辑-整合流.json": {
+      "repo": "ed03385c771f068ab5c901a330a47d890436ee06f5a3e99a3ee34658795783ec",
+      "report": "ed03385c771f068ab5c901a330a47d890436ee06f5a3e99a3ee34658795783ec",
+      "mac": "ed03385c771f068ab5c901a330a47d890436ee06f5a3e99a3ee34658795783ec",
+      "win": "fd78afc6e1960ce716fd872ff69b0ff97705a6263f91df7cf1eb96e81167b4f0",
+      "win_read": true,
+      "repo_lf_sha256": "ed03385c771f068ab5c901a330a47d890436ee06f5a3e99a3ee34658795783ec",
+      "win_lf_sha256": "6cbcbc005ed3536ef385b17fa40680e5ccff40b24e80b1de1e91365b051c35f6",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/3_改图/K2-无衣物-稳定.json": {
+      "repo": "7ad091b188f5a19cf1e0b8c53f191c7dd86eafaae24ba69ab82911a2f3cfe0f0",
+      "report": "7ad091b188f5a19cf1e0b8c53f191c7dd86eafaae24ba69ab82911a2f3cfe0f0",
+      "mac": "7ad091b188f5a19cf1e0b8c53f191c7dd86eafaae24ba69ab82911a2f3cfe0f0",
+      "win": "8621a7d4b67ab040855bd833713b7a2669d86605a43e418a8e8385b080580887",
+      "win_read": true,
+      "repo_lf_sha256": "7ad091b188f5a19cf1e0b8c53f191c7dd86eafaae24ba69ab82911a2f3cfe0f0",
+      "win_lf_sha256": "8c31f43854d79a07fce97f5664b4dd27e3664f41dcc07f13c368a8d66a57a547",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/3_改图/K2-无衣物-遮罩.json": {
+      "repo": "9c6b01dae68e45f47edf6490c1d3b8dcfb371d025643418bb96197dab1172481",
+      "report": "9c6b01dae68e45f47edf6490c1d3b8dcfb371d025643418bb96197dab1172481",
+      "mac": "9c6b01dae68e45f47edf6490c1d3b8dcfb371d025643418bb96197dab1172481",
+      "win": "62f8cbabf52d7beb9c2dc90029eb9e858646b6fb83209ead02b48777502c2b25",
+      "win_read": true,
+      "repo_lf_sha256": "9c6b01dae68e45f47edf6490c1d3b8dcfb371d025643418bb96197dab1172481",
+      "win_lf_sha256": "3ee3e140f1489d4cbe0ec6d4fd38b7e6975307a37447082d1d2b819a6e9a7c27",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/3_改图/K2-道劫修手.json": {
+      "repo": "906baf75e6ff7467c6fe05c5794cede543a049de55c85467eea5f7f4f190fa64",
+      "report": "906baf75e6ff7467c6fe05c5794cede543a049de55c85467eea5f7f4f190fa64",
+      "mac": "906baf75e6ff7467c6fe05c5794cede543a049de55c85467eea5f7f4f190fa64",
+      "win": "2a45054996071ee9c85518f9a7795780345aea5aeb24d064f1e33af7937a5a20",
+      "win_read": true,
+      "repo_lf_sha256": "906baf75e6ff7467c6fe05c5794cede543a049de55c85467eea5f7f4f190fa64",
+      "win_lf_sha256": "ef8288b7c18efb40e9a340513b7227e81dc6ad462032fa7cb4dd47298515ba5e",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/4_上色/K2-画稿上色-叠底.json": {
+      "repo": "04fa225e143c140c12c65c12016f0861c7094554893d4c93ecf1a69d470c5e40",
+      "report": "04fa225e143c140c12c65c12016f0861c7094554893d4c93ecf1a69d470c5e40",
+      "mac": "04fa225e143c140c12c65c12016f0861c7094554893d4c93ecf1a69d470c5e40",
+      "win": "9da62bdce04d5b4fe4a4954fa516ea3e19617fc0b99eb74a20cbef4fcc905157",
+      "win_read": true,
+      "repo_lf_sha256": "04fa225e143c140c12c65c12016f0861c7094554893d4c93ecf1a69d470c5e40",
+      "win_lf_sha256": "9da62bdce04d5b4fe4a4954fa516ea3e19617fc0b99eb74a20cbef4fcc905157",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/4_上色/K2-画稿上色-测试.json": {
+      "repo": "179f45edb49796b512a2a7965d52143b2673ce51ecea30b2bc19d16a1e74587d",
+      "report": "179f45edb49796b512a2a7965d52143b2673ce51ecea30b2bc19d16a1e74587d",
+      "mac": "179f45edb49796b512a2a7965d52143b2673ce51ecea30b2bc19d16a1e74587d",
+      "win": "cfca26244e8202b58e898e394819ac8fd632a0ee8fb0e1e436e993e04043be6f",
+      "win_read": true,
+      "repo_lf_sha256": "179f45edb49796b512a2a7965d52143b2673ce51ecea30b2bc19d16a1e74587d",
+      "win_lf_sha256": "cfca26244e8202b58e898e394819ac8fd632a0ee8fb0e1e436e993e04043be6f",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/4_上色/K2-画稿上色.json": {
+      "repo": "027b67e357a8f3b144b73e4270c447391013c764bab3a7989b64c539fe894abb",
+      "report": "027b67e357a8f3b144b73e4270c447391013c764bab3a7989b64c539fe894abb",
+      "mac": "027b67e357a8f3b144b73e4270c447391013c764bab3a7989b64c539fe894abb",
+      "win": "99d5c7af93afe09388d55fd204d86ae63b280aee2ad12f1282c2a950a5e47900",
+      "win_read": true,
+      "repo_lf_sha256": "027b67e357a8f3b144b73e4270c447391013c764bab3a7989b64c539fe894abb",
+      "win_lf_sha256": "99d5c7af93afe09388d55fd204d86ae63b280aee2ad12f1282c2a950a5e47900",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/5_风格扩展/K2-风格扩展流（3946种）.json": {
+      "repo": "dd96beac3d333f2300f89e5868b7a7f5bb54d1f79b54cb7c87acb3b719477fd4",
+      "report": "dd96beac3d333f2300f89e5868b7a7f5bb54d1f79b54cb7c87acb3b719477fd4",
+      "mac": "dd96beac3d333f2300f89e5868b7a7f5bb54d1f79b54cb7c87acb3b719477fd4",
+      "win": "11cb903b37091b0f4125c14f2291d698c09f894d16bbd8a1fe16fb4e299a70cc",
+      "win_read": true,
+      "repo_lf_sha256": "dd96beac3d333f2300f89e5868b7a7f5bb54d1f79b54cb7c87acb3b719477fd4",
+      "win_lf_sha256": "9d19f5261debb3110af055ee44c83543c1eaf16e358562f2347b18e6c30b645b",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/5_风格扩展/K2-风格扩展流（图生图版）.json": {
+      "repo": "7c37a06dc272138ef32521f83c671cb33d5335a65614cff17468ca7cb6dba732",
+      "report": "7c37a06dc272138ef32521f83c671cb33d5335a65614cff17468ca7cb6dba732",
+      "mac": "7c37a06dc272138ef32521f83c671cb33d5335a65614cff17468ca7cb6dba732",
+      "win": "60bd26aa919dbb45ece1105849bde2ab9cf47b174cbc0e3e66506693d5ccc748",
+      "win_read": true,
+      "repo_lf_sha256": "7c37a06dc272138ef32521f83c671cb33d5335a65614cff17468ca7cb6dba732",
+      "win_lf_sha256": "b73cdd9c6a2cee8e3b60add597ea8777ad4b44e33333da4248c3c31c07313390",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/6_修复超分/K2-SeedVR2修复.json": {
+      "repo": "e1d2d6c0698d247d09f3b49bff7e6b488d8c1152c4cede8ed2042d5206e7a4a0",
+      "report": "e1d2d6c0698d247d09f3b49bff7e6b488d8c1152c4cede8ed2042d5206e7a4a0",
+      "mac": "e1d2d6c0698d247d09f3b49bff7e6b488d8c1152c4cede8ed2042d5206e7a4a0",
+      "win": "4ca1033cb45d0421f3cf9f152edf8223cf655b2bcbf34bfedc032f4358d20aee",
+      "win_read": true,
+      "repo_lf_sha256": "e1d2d6c0698d247d09f3b49bff7e6b488d8c1152c4cede8ed2042d5206e7a4a0",
+      "win_lf_sha256": "5d75ecf97fbc83c0aefd3d697a25a354a16322a20bba4ff3063afc9a335dd2c6",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/6_修复超分/K2-SeedVR2降噪后4K.json": {
+      "repo": "45c34384d7cc9afbce8ca6e186bf8d5c22906d9b79619bb8eef5604beec47f14",
+      "report": "45c34384d7cc9afbce8ca6e186bf8d5c22906d9b79619bb8eef5604beec47f14",
+      "mac": "45c34384d7cc9afbce8ca6e186bf8d5c22906d9b79619bb8eef5604beec47f14",
+      "win": "100bbe11524b3a23a72a94af426874349c37b76aae41c32f3c88194bcbcb37ee",
+      "win_read": true,
+      "repo_lf_sha256": "45c34384d7cc9afbce8ca6e186bf8d5c22906d9b79619bb8eef5604beec47f14",
+      "win_lf_sha256": "5e47d3639188a98bdc57a40ef8d49d40a3bc054fdef2be7ba6a0bb6a4278e76f",
+      "same_after_eol_normalization": false
+    },
+    "workflows/1_图片/krea2/6_修复超分/K2-去噪精修.json": {
+      "repo": "ff73841098584177c4cd8d71f5674669deee1aab42550b836969ae1d1159a7a8",
+      "report": "ff73841098584177c4cd8d71f5674669deee1aab42550b836969ae1d1159a7a8",
+      "mac": "ff73841098584177c4cd8d71f5674669deee1aab42550b836969ae1d1159a7a8",
+      "win": "dac1b04245e7ef70f6eda71c54ae826e660be68d02dbfb4a441e1deb0960d31c",
+      "win_read": true,
+      "repo_lf_sha256": "ff73841098584177c4cd8d71f5674669deee1aab42550b836969ae1d1159a7a8",
+      "win_lf_sha256": "ac9d3179d2ff950550aa31a1633c75c83e1aa6a8b14efcde5efa703352fe18b8",
+      "same_after_eol_normalization": false
+    },
+    "workflows/2_视频/H3视频/1_漫影自研/一镜到底-分段.json": {
+      "repo": "cc50e28ab0fb8ff706974334b8605f36c294fed20fc2a240484abc81d7948439",
+      "report": "cc50e28ab0fb8ff706974334b8605f36c294fed20fc2a240484abc81d7948439",
+      "mac": "cc50e28ab0fb8ff706974334b8605f36c294fed20fc2a240484abc81d7948439",
+      "win": "6b88b3c0da632fc88ca7c9979c9216e7a8ccdd0e40b9fe0e68a18120f5e168d7",
+      "win_read": true,
+      "repo_lf_sha256": "cc50e28ab0fb8ff706974334b8605f36c294fed20fc2a240484abc81d7948439",
+      "win_lf_sha256": "cc50e28ab0fb8ff706974334b8605f36c294fed20fc2a240484abc81d7948439",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/1_漫影自研/单镜.json": {
+      "repo": "355194898b3b09e0a1706b572e25359801a4a581ce539ab96afa25e549243f71",
+      "report": "355194898b3b09e0a1706b572e25359801a4a581ce539ab96afa25e549243f71",
+      "mac": "355194898b3b09e0a1706b572e25359801a4a581ce539ab96afa25e549243f71",
+      "win": "5e09fd90b1dd644258d3a301ccd4f5ee87a1ccc1ff31902152dbab6b3f1ff238",
+      "win_read": true,
+      "repo_lf_sha256": "355194898b3b09e0a1706b572e25359801a4a581ce539ab96afa25e549243f71",
+      "win_lf_sha256": "355194898b3b09e0a1706b572e25359801a4a581ce539ab96afa25e549243f71",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/1_漫影自研/导演台.json": {
+      "repo": "7eaee3de941586b9c329fef2c090f9f181e71de9b3b818e4ddae58b2d25125ef",
+      "report": "7eaee3de941586b9c329fef2c090f9f181e71de9b3b818e4ddae58b2d25125ef",
+      "mac": "7eaee3de941586b9c329fef2c090f9f181e71de9b3b818e4ddae58b2d25125ef",
+      "win": "722abafeeaad56b1663569e11a3bb0f1913af5aa2f0f571adfed527eb618080b",
+      "win_read": true,
+      "repo_lf_sha256": "7eaee3de941586b9c329fef2c090f9f181e71de9b3b818e4ddae58b2d25125ef",
+      "win_lf_sha256": "7eaee3de941586b9c329fef2c090f9f181e71de9b3b818e4ddae58b2d25125ef",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/2_固定线/社区-480P生成-960P精修-SolAttn加速-960P直出.json": {
+      "repo": "5d2cbcd70cde131fbbb7de286022373667f7e573a496163e9ddf92be1659b93b",
+      "report": "5d2cbcd70cde131fbbb7de286022373667f7e573a496163e9ddf92be1659b93b",
+      "mac": "5d2cbcd70cde131fbbb7de286022373667f7e573a496163e9ddf92be1659b93b",
+      "win": "4490db36c0bbe9ba7df5ca6d37c83b235c5b5ee010370de6e6eadecd8a455c39",
+      "win_read": true,
+      "repo_lf_sha256": "5d2cbcd70cde131fbbb7de286022373667f7e573a496163e9ddf92be1659b93b",
+      "win_lf_sha256": "7d3ba4c4162e780e47e5b7ce826f507ed732a4326b8bd66fb681e0dafde53e89",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": false,
+        "canvas_view_equal": false,
+        "same_after_strip_layout": true,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 5
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 2,
+              "edge_tight": 2,
+              "spacing_far": 5
+            }
+          ]
+        }
+      }
+    },
+    "workflows/2_视频/H3视频/2_固定线/社区-480P生成-SolAttn加速-480P直出.json": {
+      "repo": "84029911d5e4ee913735f684ff378a4f5e1e97b5f0411217064508efa574fbe2",
+      "report": "84029911d5e4ee913735f684ff378a4f5e1e97b5f0411217064508efa574fbe2",
+      "mac": "84029911d5e4ee913735f684ff378a4f5e1e97b5f0411217064508efa574fbe2",
+      "win": "43350b6561ad45d78519503b7c993a526228ac6f744a93f51a73f671c01ac1d2",
+      "win_read": true,
+      "repo_lf_sha256": "84029911d5e4ee913735f684ff378a4f5e1e97b5f0411217064508efa574fbe2",
+      "win_lf_sha256": "84029911d5e4ee913735f684ff378a4f5e1e97b5f0411217064508efa574fbe2",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/3_超分后处理/社区-视频文件直接超分-SeedVR2.json": {
+      "repo": "bab69a84cefaeb01f3fcc701ebff3e126eda0056d363a2aa65b3058dc19bb2a1",
+      "report": "bab69a84cefaeb01f3fcc701ebff3e126eda0056d363a2aa65b3058dc19bb2a1",
+      "mac": "bab69a84cefaeb01f3fcc701ebff3e126eda0056d363a2aa65b3058dc19bb2a1",
+      "win": "899077fb13347c87e214f105c1a6268fc73b4f6eb3bea751318d9c20a6c72e31",
+      "win_read": true,
+      "repo_lf_sha256": "bab69a84cefaeb01f3fcc701ebff3e126eda0056d363a2aa65b3058dc19bb2a1",
+      "win_lf_sha256": "bab69a84cefaeb01f3fcc701ebff3e126eda0056d363a2aa65b3058dc19bb2a1",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/4_模板/H3-文生视频-480p.json": {
+      "repo": "eb4471d24810c57bcd6784882c8cd99d8e52ab288d16affdf2b35959439ae2c4",
+      "report": "eb4471d24810c57bcd6784882c8cd99d8e52ab288d16affdf2b35959439ae2c4",
+      "mac": "eb4471d24810c57bcd6784882c8cd99d8e52ab288d16affdf2b35959439ae2c4",
+      "win": "175c4559219a98f9f8a605e9f6e9a675160498a5dc2ffab3f5f78fd6e5f2f6d3",
+      "win_read": true,
+      "repo_lf_sha256": "eb4471d24810c57bcd6784882c8cd99d8e52ab288d16affdf2b35959439ae2c4",
+      "win_lf_sha256": "eb4471d24810c57bcd6784882c8cd99d8e52ab288d16affdf2b35959439ae2c4",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/4_模板/H3-首尾帧运镜版.json": {
+      "repo": "bb1616e6676fb97fae6cd10253ee35cc36343b97e43ed2dcbe03919c658cd349",
+      "report": "bb1616e6676fb97fae6cd10253ee35cc36343b97e43ed2dcbe03919c658cd349",
+      "mac": "bb1616e6676fb97fae6cd10253ee35cc36343b97e43ed2dcbe03919c658cd349",
+      "win": "bf247a85b5f69be9897c0eff3e8f8481d98c864dab327c75011149a0ad18ae8e",
+      "win_read": true,
+      "repo_lf_sha256": "bb1616e6676fb97fae6cd10253ee35cc36343b97e43ed2dcbe03919c658cd349",
+      "win_lf_sha256": "bb1616e6676fb97fae6cd10253ee35cc36343b97e43ed2dcbe03919c658cd349",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/4_模板/官方本地-I2V-480P.json": {
+      "repo": "e672575d8f639339c52d2d777125857955360e46c3231fd5e1be69d55a3244e2",
+      "report": "e672575d8f639339c52d2d777125857955360e46c3231fd5e1be69d55a3244e2",
+      "mac": "e672575d8f639339c52d2d777125857955360e46c3231fd5e1be69d55a3244e2",
+      "win": "4c7cab62ae63782f8e8fb53fd8d18c7ed6627c2a66d7a0e683cd7712b295007f",
+      "win_read": true,
+      "repo_lf_sha256": "e672575d8f639339c52d2d777125857955360e46c3231fd5e1be69d55a3244e2",
+      "win_lf_sha256": "e672575d8f639339c52d2d777125857955360e46c3231fd5e1be69d55a3244e2",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/4_模板/官方本地-R2V-480P-需解冻ref2va.json": {
+      "repo": "aaf29e7b33a55dca595f442e362e7612fd02dd621ac987155acbfacf132be274",
+      "report": "aaf29e7b33a55dca595f442e362e7612fd02dd621ac987155acbfacf132be274",
+      "mac": "aaf29e7b33a55dca595f442e362e7612fd02dd621ac987155acbfacf132be274",
+      "win": "ebb956b9c14f8b3a2643d6f562a1d4ac1f8f0d53d89854ba4ab27248e4c4148a",
+      "win_read": true,
+      "repo_lf_sha256": "aaf29e7b33a55dca595f442e362e7612fd02dd621ac987155acbfacf132be274",
+      "win_lf_sha256": "aaf29e7b33a55dca595f442e362e7612fd02dd621ac987155acbfacf132be274",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/4_模板/官方本地-T2V-480P.json": {
+      "repo": "6caf05c93abab8c2a0aaa8f3d085458cacc07a876a01c36e053bc90381723ba4",
+      "report": "6caf05c93abab8c2a0aaa8f3d085458cacc07a876a01c36e053bc90381723ba4",
+      "mac": "6caf05c93abab8c2a0aaa8f3d085458cacc07a876a01c36e053bc90381723ba4",
+      "win": "4a6690523cdc0b27cdedb1e6c7ff07a2c7d61ecec9d986f7951d2333f540e17d",
+      "win_read": true,
+      "repo_lf_sha256": "6caf05c93abab8c2a0aaa8f3d085458cacc07a876a01c36e053bc90381723ba4",
+      "win_lf_sha256": "6caf05c93abab8c2a0aaa8f3d085458cacc07a876a01c36e053bc90381723ba4",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/5_云端API/官方API-FLF2V-480P.json": {
+      "repo": "46cf2551f38b266c7b745de778fa0089cbc2e8129a484a8b3450fba690d42652",
+      "report": "46cf2551f38b266c7b745de778fa0089cbc2e8129a484a8b3450fba690d42652",
+      "mac": "46cf2551f38b266c7b745de778fa0089cbc2e8129a484a8b3450fba690d42652",
+      "win": "07034208c81f1978c785d714e9730b5113c13c45667d63b53bda47da6054f34b",
+      "win_read": true,
+      "repo_lf_sha256": "46cf2551f38b266c7b745de778fa0089cbc2e8129a484a8b3450fba690d42652",
+      "win_lf_sha256": "46cf2551f38b266c7b745de778fa0089cbc2e8129a484a8b3450fba690d42652",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/5_云端API/官方API-R2V-480P.json": {
+      "repo": "e58d91e6a04e0fd393e1d4f14b552c77f498bbea4052ee7a12712f6fc579ca81",
+      "report": "e58d91e6a04e0fd393e1d4f14b552c77f498bbea4052ee7a12712f6fc579ca81",
+      "mac": "e58d91e6a04e0fd393e1d4f14b552c77f498bbea4052ee7a12712f6fc579ca81",
+      "win": "150eb29e1282aaa3a045981016443fed01416e58e8e8d9d658c4000b18be154e",
+      "win_read": true,
+      "repo_lf_sha256": "e58d91e6a04e0fd393e1d4f14b552c77f498bbea4052ee7a12712f6fc579ca81",
+      "win_lf_sha256": "e58d91e6a04e0fd393e1d4f14b552c77f498bbea4052ee7a12712f6fc579ca81",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/5_云端API/官方API-T2V-480P.json": {
+      "repo": "24c1853620d9894cc4831d0362e07f2952ef0e1b37c27ec701054b68cd316dd3",
+      "report": "24c1853620d9894cc4831d0362e07f2952ef0e1b37c27ec701054b68cd316dd3",
+      "mac": "24c1853620d9894cc4831d0362e07f2952ef0e1b37c27ec701054b68cd316dd3",
+      "win": "26b549a1dce79842d5a255efb3b7152ed41ef107304a9278020ac4fa5091b04d",
+      "win_read": true,
+      "repo_lf_sha256": "24c1853620d9894cc4831d0362e07f2952ef0e1b37c27ec701054b68cd316dd3",
+      "win_lf_sha256": "24c1853620d9894cc4831d0362e07f2952ef0e1b37c27ec701054b68cd316dd3",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/6_视频重制/fasth3-单镜视频-i2v.json": {
+      "repo": "f03dfd9643b9f760e0e2ec69b6a98f29d2186a7365f6d07008bbae241cd02e4e",
+      "report": "f03dfd9643b9f760e0e2ec69b6a98f29d2186a7365f6d07008bbae241cd02e4e",
+      "mac": "f03dfd9643b9f760e0e2ec69b6a98f29d2186a7365f6d07008bbae241cd02e4e",
+      "win": "5b931d14e5a15fc18ad7f3766f19c525dc40762f56bc7ace8b23e6060ffbd73b",
+      "win_read": true,
+      "repo_lf_sha256": "f03dfd9643b9f760e0e2ec69b6a98f29d2186a7365f6d07008bbae241cd02e4e",
+      "win_lf_sha256": "27b9bb653d241264b2ae9fa0c17ed8d647c26a56077b3fcc71d83a40bc9d9bba",
+      "same_after_eol_normalization": false,
+      "win_layout_sample": {
+        "main_node_positions_different": 2,
+        "main_group_bounds_different": 6,
+        "repo": {
+          "crossings": 20,
+          "occlusion": 11,
+          "est_overlap": 20,
+          "est_spacing": 21,
+          "negative_region": 0,
+          "output_rightmost": 0,
+          "leftward": 2,
+          "group_overlap": 0,
+          "node_out_of_group": 0,
+          "edge_tight": 0,
+          "spacing_far": 7
+        },
+        "installed": {
+          "crossings": 20,
+          "occlusion": 11,
+          "est_overlap": 20,
+          "est_spacing": 21,
+          "negative_region": 0,
+          "output_rightmost": 0,
+          "leftward": 2,
+          "group_overlap": 0,
+          "node_out_of_group": 3,
+          "edge_tight": 1,
+          "spacing_far": 7
+        },
+        "same_after_strip_layout": true
+      },
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": false,
+        "canvas_view_equal": false,
+        "same_after_strip_layout": true,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 7
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 3,
+              "edge_tight": 1,
+              "spacing_far": 7
+            }
+          ]
+        }
+      }
+    },
+    "workflows/2_视频/H3视频/6_视频重制/fasth3-单镜视频-t2v.json": {
+      "repo": "c3baca990aeaaec05cf8bef2ed02119487066743a6e561a6bb28ef169de15acd",
+      "report": "c3baca990aeaaec05cf8bef2ed02119487066743a6e561a6bb28ef169de15acd",
+      "mac": "c3baca990aeaaec05cf8bef2ed02119487066743a6e561a6bb28ef169de15acd",
+      "win": "26b8fc529ed259161fb60e33837d6c8043c0dd94550de4debdf790d2d4f824fd",
+      "win_read": true,
+      "repo_lf_sha256": "c3baca990aeaaec05cf8bef2ed02119487066743a6e561a6bb28ef169de15acd",
+      "win_lf_sha256": "a6524c566bd2134d8c2726c36d7d371082ad6cf798bda0dd26aabd429d15e348",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": false,
+        "canvas_view_equal": false,
+        "same_after_strip_layout": true,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 7
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 3,
+              "edge_tight": 1,
+              "spacing_far": 7
+            }
+          ]
+        }
+      }
+    },
+    "workflows/2_视频/H3视频/6_视频重制/pika-单镜视频-fl2v.json": {
+      "repo": "5e8633778fa01b8ef79a9b3b69e28b317b6b684be031bd6a147721614fe89d98",
+      "report": "5e8633778fa01b8ef79a9b3b69e28b317b6b684be031bd6a147721614fe89d98",
+      "mac": "5e8633778fa01b8ef79a9b3b69e28b317b6b684be031bd6a147721614fe89d98",
+      "win": "9d5e2a43ba3c6e0f65bb444350bda3b666b6c54f3a36789a1dca5873d15c27af",
+      "win_read": true,
+      "repo_lf_sha256": "5e8633778fa01b8ef79a9b3b69e28b317b6b684be031bd6a147721614fe89d98",
+      "win_lf_sha256": "5e8633778fa01b8ef79a9b3b69e28b317b6b684be031bd6a147721614fe89d98",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/6_视频重制/pika-单镜视频-ref2v.json": {
+      "repo": "a8d47b9b503d97bd045d0960aee1ba50dc539c08f52f427949cc1826ab46231e",
+      "report": "a8d47b9b503d97bd045d0960aee1ba50dc539c08f52f427949cc1826ab46231e",
+      "mac": "a8d47b9b503d97bd045d0960aee1ba50dc539c08f52f427949cc1826ab46231e",
+      "win": "f3a2da013112db64fdf5e61e8d7cc8189f725a226f6a5a3372bfaf2eb339a045",
+      "win_read": true,
+      "repo_lf_sha256": "a8d47b9b503d97bd045d0960aee1ba50dc539c08f52f427949cc1826ab46231e",
+      "win_lf_sha256": "a8d47b9b503d97bd045d0960aee1ba50dc539c08f52f427949cc1826ab46231e",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/6_视频重制/viggle-remake-edit-single-ref.json": {
+      "repo": "63eb311c10df987c69379020cfcb99d39a0796a8175cc393ec6be4485ad6c189",
+      "report": "63eb311c10df987c69379020cfcb99d39a0796a8175cc393ec6be4485ad6c189",
+      "mac": "63eb311c10df987c69379020cfcb99d39a0796a8175cc393ec6be4485ad6c189",
+      "win": "07add29652ffb1869f97c7c614ed7bb9644ec48f0491b9b470d5c4c076f249fa",
+      "win_read": true,
+      "repo_lf_sha256": "63eb311c10df987c69379020cfcb99d39a0796a8175cc393ec6be4485ad6c189",
+      "win_lf_sha256": "63eb311c10df987c69379020cfcb99d39a0796a8175cc393ec6be4485ad6c189",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/6_视频重制/viggle-remake-edit.json": {
+      "repo": "76a6b07ae494b5e9748b2665f44b46b6482fac6a31949862dfa15acc5dfb5fa0",
+      "report": "76a6b07ae494b5e9748b2665f44b46b6482fac6a31949862dfa15acc5dfb5fa0",
+      "mac": "76a6b07ae494b5e9748b2665f44b46b6482fac6a31949862dfa15acc5dfb5fa0",
+      "win": "a3403a343d31b2b67d460ac704c73a8c5987e7350dad6505cebac7a142427dc6",
+      "win_read": true,
+      "repo_lf_sha256": "76a6b07ae494b5e9748b2665f44b46b6482fac6a31949862dfa15acc5dfb5fa0",
+      "win_lf_sha256": "76a6b07ae494b5e9748b2665f44b46b6482fac6a31949862dfa15acc5dfb5fa0",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/6_视频重制/viggle-remake-swap.json": {
+      "repo": "d78bf0e6c1bc1b46cf6487b6efc59beb4493cd66d0cbd0aeb7fc1658eb0cd78e",
+      "report": "d78bf0e6c1bc1b46cf6487b6efc59beb4493cd66d0cbd0aeb7fc1658eb0cd78e",
+      "mac": "d78bf0e6c1bc1b46cf6487b6efc59beb4493cd66d0cbd0aeb7fc1658eb0cd78e",
+      "win": "1b3d6e89d55deba05d2768c3af3ec6ff17c9fbbea1396863f42c2207368a0ff1",
+      "win_read": true,
+      "repo_lf_sha256": "d78bf0e6c1bc1b46cf6487b6efc59beb4493cd66d0cbd0aeb7fc1658eb0cd78e",
+      "win_lf_sha256": "d78bf0e6c1bc1b46cf6487b6efc59beb4493cd66d0cbd0aeb7fc1658eb0cd78e",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/AIMixer-external-groups-i2v.json": {
+      "repo": "7eefc01bb99c782dd64cae55168813fe8e17cbd2c40e120f449071e83ff932bb",
+      "report": "7eefc01bb99c782dd64cae55168813fe8e17cbd2c40e120f449071e83ff932bb",
+      "mac": "7eefc01bb99c782dd64cae55168813fe8e17cbd2c40e120f449071e83ff932bb",
+      "win": "7eefc01bb99c782dd64cae55168813fe8e17cbd2c40e120f449071e83ff932bb",
+      "win_read": true
+    },
+    "workflows/2_视频/H3视频/7_测试/AIMixer-r2v.json": {
+      "repo": "4927f40c584b85cf57639493e5c352f60eff00b26145a2a62926397482b3e231",
+      "report": "4927f40c584b85cf57639493e5c352f60eff00b26145a2a62926397482b3e231",
+      "mac": "4927f40c584b85cf57639493e5c352f60eff00b26145a2a62926397482b3e231",
+      "win": "74523e0dc8b5d7f4eae2e9ab0e1e43b6f1eebb7d39d636d8d2fbbdec8b025b58",
+      "win_read": true,
+      "repo_lf_sha256": "4927f40c584b85cf57639493e5c352f60eff00b26145a2a62926397482b3e231",
+      "win_lf_sha256": "4927f40c584b85cf57639493e5c352f60eff00b26145a2a62926397482b3e231",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/AIMixer-t2v.json": {
+      "repo": "674f57801be61be42679510cea7271ccae267e2218c765e12770504dc061d7d8",
+      "report": "674f57801be61be42679510cea7271ccae267e2218c765e12770504dc061d7d8",
+      "mac": "674f57801be61be42679510cea7271ccae267e2218c765e12770504dc061d7d8",
+      "win": "3e2e06c63d22553e695a86c6b493c01900ca3935f076a5d328e51de9091ed9d6",
+      "win_read": true,
+      "repo_lf_sha256": "674f57801be61be42679510cea7271ccae267e2218c765e12770504dc061d7d8",
+      "win_lf_sha256": "674f57801be61be42679510cea7271ccae267e2218c765e12770504dc061d7d8",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/AIMixer-二采-加速.json": {
+      "repo": "716b2fe683768682f3830efb6d8030be252de5402dcd1e7f7953636ab2efa123",
+      "report": "716b2fe683768682f3830efb6d8030be252de5402dcd1e7f7953636ab2efa123",
+      "mac": "716b2fe683768682f3830efb6d8030be252de5402dcd1e7f7953636ab2efa123",
+      "win": "eb557049c7e675a0ada4eb510465f77e59cf852795c74c3e90cb7df9650a2e79",
+      "win_read": true,
+      "repo_lf_sha256": "716b2fe683768682f3830efb6d8030be252de5402dcd1e7f7953636ab2efa123",
+      "win_lf_sha256": "716b2fe683768682f3830efb6d8030be252de5402dcd1e7f7953636ab2efa123",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/TESSERA-超分-1080p.json": {
+      "repo": "d903b1683477abe7f7d79391cddebf5a1ffd23d14d21acc1bbcfb67934520ab9",
+      "report": "d903b1683477abe7f7d79391cddebf5a1ffd23d14d21acc1bbcfb67934520ab9",
+      "mac": "d903b1683477abe7f7d79391cddebf5a1ffd23d14d21acc1bbcfb67934520ab9",
+      "win": "2c331b8e7e4297a5ba3967ea01849707ada112fcf71456e851d9938a9ce133cc",
+      "win_read": true,
+      "repo_lf_sha256": "d903b1683477abe7f7d79391cddebf5a1ffd23d14d21acc1bbcfb67934520ab9",
+      "win_lf_sha256": "d903b1683477abe7f7d79391cddebf5a1ffd23d14d21acc1bbcfb67934520ab9",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/一采探顶-RelayVSR-2K.json": {
+      "repo": "1b709b8fb1a46c1a20e241fcab8fe2de918b616ffc5193fb69fcdb81edc24b86",
+      "report": "1b709b8fb1a46c1a20e241fcab8fe2de918b616ffc5193fb69fcdb81edc24b86",
+      "mac": "1b709b8fb1a46c1a20e241fcab8fe2de918b616ffc5193fb69fcdb81edc24b86",
+      "win": "a7b7a6f6a880fc083f09949a428c4c0c4bdbff0b8720e63bd83f2831b7870d60",
+      "win_read": true,
+      "repo_lf_sha256": "1b709b8fb1a46c1a20e241fcab8fe2de918b616ffc5193fb69fcdb81edc24b86",
+      "win_lf_sha256": "1b709b8fb1a46c1a20e241fcab8fe2de918b616ffc5193fb69fcdb81edc24b86",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/一镜到底-分段-pi-H3.json": {
+      "repo": "3779b2bdb82b63c2f5a87c43d4a8609f4222f3cebab8f4eafd44276bd7c5f591",
+      "report": "3779b2bdb82b63c2f5a87c43d4a8609f4222f3cebab8f4eafd44276bd7c5f591",
+      "mac": "3779b2bdb82b63c2f5a87c43d4a8609f4222f3cebab8f4eafd44276bd7c5f591",
+      "win": "6c73f98da6bf794cce2679abd5a3b64e271b1b5407772248f0e5f4f7b20a9a9b",
+      "win_read": true,
+      "repo_lf_sha256": "3779b2bdb82b63c2f5a87c43d4a8609f4222f3cebab8f4eafd44276bd7c5f591",
+      "win_lf_sha256": "3779b2bdb82b63c2f5a87c43d4a8609f4222f3cebab8f4eafd44276bd7c5f591",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/三采-单镜-RelayVSR-1110.json": {
+      "repo": "28d9049f16daa5f0bd83e94f1eb66e1d20511151ee04c9a200e4f739890afdea",
+      "report": "28d9049f16daa5f0bd83e94f1eb66e1d20511151ee04c9a200e4f739890afdea",
+      "mac": "28d9049f16daa5f0bd83e94f1eb66e1d20511151ee04c9a200e4f739890afdea",
+      "win": "65a9778f1e0818d3b4633b3ea7aac11189b417e61efe83621f49e6031ea2218b",
+      "win_read": true,
+      "repo_lf_sha256": "28d9049f16daa5f0bd83e94f1eb66e1d20511151ee04c9a200e4f739890afdea",
+      "win_lf_sha256": "28d9049f16daa5f0bd83e94f1eb66e1d20511151ee04c9a200e4f739890afdea",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/三采-单镜-RelayVSR.json": {
+      "repo": "3be1fddcd0f17744aed5b61b2e65e4e95e6e0c2f5ce6bcb97f8959b7ececd734",
+      "report": "3be1fddcd0f17744aed5b61b2e65e4e95e6e0c2f5ce6bcb97f8959b7ececd734",
+      "mac": "3be1fddcd0f17744aed5b61b2e65e4e95e6e0c2f5ce6bcb97f8959b7ececd734",
+      "win": "65c8c2e5c5322e692d4dc10b5a844e8a65378ea2e6acd88f43929776e6b6d083",
+      "win_read": true,
+      "repo_lf_sha256": "3be1fddcd0f17744aed5b61b2e65e4e95e6e0c2f5ce6bcb97f8959b7ececd734",
+      "win_lf_sha256": "3be1fddcd0f17744aed5b61b2e65e4e95e6e0c2f5ce6bcb97f8959b7ececd734",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/三采-单镜-修脸.json": {
+      "repo": "119d1a933966b37d8da4f34af0006df231de156cce2750dfad93ebbcebe7b713",
+      "report": "119d1a933966b37d8da4f34af0006df231de156cce2750dfad93ebbcebe7b713",
+      "mac": "119d1a933966b37d8da4f34af0006df231de156cce2750dfad93ebbcebe7b713",
+      "win": "8012489c97f86f3e98bd32f88fa02e6cfac216a58ca285d4fe859d8244d8620b",
+      "win_read": true,
+      "repo_lf_sha256": "119d1a933966b37d8da4f34af0006df231de156cce2750dfad93ebbcebe7b713",
+      "win_lf_sha256": "119d1a933966b37d8da4f34af0006df231de156cce2750dfad93ebbcebe7b713",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/三采-单镜-小脸修复.json": {
+      "repo": "68415ed5fce11f19e4cc692aff05f0cec425715dd05e21fddb3269286b224774",
+      "report": "68415ed5fce11f19e4cc692aff05f0cec425715dd05e21fddb3269286b224774",
+      "mac": "68415ed5fce11f19e4cc692aff05f0cec425715dd05e21fddb3269286b224774",
+      "win": "5448897b1496204f20fb9d45174b530d54b200b43673fefae9365f838fef098c",
+      "win_read": true,
+      "repo_lf_sha256": "68415ed5fce11f19e4cc692aff05f0cec425715dd05e21fddb3269286b224774",
+      "win_lf_sha256": "68415ed5fce11f19e4cc692aff05f0cec425715dd05e21fddb3269286b224774",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/单镜-pi-H3.json": {
+      "repo": "5da7cd14bf7b3eac7c9264feaf049be3c39e4cde7e5d0117e0277cfa17d0dea4",
+      "report": "5da7cd14bf7b3eac7c9264feaf049be3c39e4cde7e5d0117e0277cfa17d0dea4",
+      "mac": "5da7cd14bf7b3eac7c9264feaf049be3c39e4cde7e5d0117e0277cfa17d0dea4",
+      "win": "870a26a7e49ca938248b4f1c6ff6adad0ecd902d3fafea8aca53476267df62f9",
+      "win_read": true,
+      "repo_lf_sha256": "5da7cd14bf7b3eac7c9264feaf049be3c39e4cde7e5d0117e0277cfa17d0dea4",
+      "win_lf_sha256": "5da7cd14bf7b3eac7c9264feaf049be3c39e4cde7e5d0117e0277cfa17d0dea4",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/单镜-成人向.json": {
+      "repo": "1b3905d4a59dbac6281926c771f92d174dfb470850a5269c2293176b654d2261",
+      "report": "1b3905d4a59dbac6281926c771f92d174dfb470850a5269c2293176b654d2261",
+      "mac": "1b3905d4a59dbac6281926c771f92d174dfb470850a5269c2293176b654d2261",
+      "win": "4345270759cc0d4af612da08d57370238d2fca8ecdf16c05e99b12f9d905fb92",
+      "win_read": true,
+      "repo_lf_sha256": "1b3905d4a59dbac6281926c771f92d174dfb470850a5269c2293176b654d2261",
+      "win_lf_sha256": "1b3905d4a59dbac6281926c771f92d174dfb470850a5269c2293176b654d2261",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/官方本地-PikaFlex-FL2VA首尾帧.json": {
+      "repo": "441bda369a267fcdec8ffb0bf2fb34af3705ce81316569df14e5c3e39b8fd098",
+      "report": "441bda369a267fcdec8ffb0bf2fb34af3705ce81316569df14e5c3e39b8fd098",
+      "mac": "441bda369a267fcdec8ffb0bf2fb34af3705ce81316569df14e5c3e39b8fd098",
+      "win": "94fca4b37b547c9b66fc6b6502580dba71bc195a3e6b6dd883184b7e4613649f",
+      "win_read": true,
+      "repo_lf_sha256": "441bda369a267fcdec8ffb0bf2fb34af3705ce81316569df14e5c3e39b8fd098",
+      "win_lf_sha256": "441bda369a267fcdec8ffb0bf2fb34af3705ce81316569df14e5c3e39b8fd098",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/官方本地-PikaFlex-REF2VA参考图.json": {
+      "repo": "fb3e67f3fe9b59598190812e0a5a8c2c227e44aa57f9d305f7bfcefa8df39dfd",
+      "report": "fb3e67f3fe9b59598190812e0a5a8c2c227e44aa57f9d305f7bfcefa8df39dfd",
+      "mac": "fb3e67f3fe9b59598190812e0a5a8c2c227e44aa57f9d305f7bfcefa8df39dfd",
+      "win": "1e6c8a3cebc394e7b3a0c86d8a87db075941e94869c1e1379f9a5366af9d558c",
+      "win_read": true,
+      "repo_lf_sha256": "fb3e67f3fe9b59598190812e0a5a8c2c227e44aa57f9d305f7bfcefa8df39dfd",
+      "win_lf_sha256": "fb3e67f3fe9b59598190812e0a5a8c2c227e44aa57f9d305f7bfcefa8df39dfd",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/官方本地-PikaFlex-T2V.json": {
+      "repo": "275035fb6a7141dec497c9d4f8e33c9d0e131bb79bd568ac9a282f27aa31924d",
+      "report": "275035fb6a7141dec497c9d4f8e33c9d0e131bb79bd568ac9a282f27aa31924d",
+      "mac": "275035fb6a7141dec497c9d4f8e33c9d0e131bb79bd568ac9a282f27aa31924d",
+      "win": "77508e4a9ca785ba18b786c3f02d1c3d684770cc1bf9e5ee189887c1bd2515f3",
+      "win_read": true,
+      "repo_lf_sha256": "275035fb6a7141dec497c9d4f8e33c9d0e131bb79bd568ac9a282f27aa31924d",
+      "win_lf_sha256": "275035fb6a7141dec497c9d4f8e33c9d0e131bb79bd568ac9a282f27aa31924d",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/官方本地-pi-H3-DWD-首测.json": {
+      "repo": "ef5f91f718eb88c4a8103f34ec062cd9c04e300b1fd2c38f8f0a575cd9f4b7cb",
+      "report": "ef5f91f718eb88c4a8103f34ec062cd9c04e300b1fd2c38f8f0a575cd9f4b7cb",
+      "mac": "ef5f91f718eb88c4a8103f34ec062cd9c04e300b1fd2c38f8f0a575cd9f4b7cb",
+      "win": "f5cb1fa183d583c2bebb75f4f2368f08b8180b0fe0d5dd8da7bfada449612284",
+      "win_read": true,
+      "repo_lf_sha256": "ef5f91f718eb88c4a8103f34ec062cd9c04e300b1fd2c38f8f0a575cd9f4b7cb",
+      "win_lf_sha256": "ef5f91f718eb88c4a8103f34ec062cd9c04e300b1fd2c38f8f0a575cd9f4b7cb",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/导演台-pi-H3.json": {
+      "repo": "0ad4c2746625d6c74fe4c2ad86a7b77d312627182a80b25cee9c6f16970eb76e",
+      "report": "0ad4c2746625d6c74fe4c2ad86a7b77d312627182a80b25cee9c6f16970eb76e",
+      "mac": "0ad4c2746625d6c74fe4c2ad86a7b77d312627182a80b25cee9c6f16970eb76e",
+      "win": "18cf13c332a9b93d8084c9ab6db1c5a18a5bfdc661085511a8f0bf6503404ff7",
+      "win_read": true,
+      "repo_lf_sha256": "0ad4c2746625d6c74fe4c2ad86a7b77d312627182a80b25cee9c6f16970eb76e",
+      "win_lf_sha256": "0ad4c2746625d6c74fe4c2ad86a7b77d312627182a80b25cee9c6f16970eb76e",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/社区-480P生成-960P精修-SolAttn加速-SeedVR2超分2K.json": {
+      "repo": "13a2e4c1ca560361f10328bae1af533ec30eba312bb7b9a9513f49b625374b9e",
+      "report": "13a2e4c1ca560361f10328bae1af533ec30eba312bb7b9a9513f49b625374b9e",
+      "mac": "13a2e4c1ca560361f10328bae1af533ec30eba312bb7b9a9513f49b625374b9e",
+      "win": "a761341bf7a7b2565272e1f16d2536349d4d6849b2e76b628d60df07343337ac",
+      "win_read": true,
+      "repo_lf_sha256": "13a2e4c1ca560361f10328bae1af533ec30eba312bb7b9a9513f49b625374b9e",
+      "win_lf_sha256": "13a2e4c1ca560361f10328bae1af533ec30eba312bb7b9a9513f49b625374b9e",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/社区-480P生成-潜空间放大到960P.json": {
+      "repo": "1f38d4ebfe1c2c86c0df6bafe95cf271568a5f6af2341c1f3c66486577e022c2",
+      "report": "1f38d4ebfe1c2c86c0df6bafe95cf271568a5f6af2341c1f3c66486577e022c2",
+      "mac": "1f38d4ebfe1c2c86c0df6bafe95cf271568a5f6af2341c1f3c66486577e022c2",
+      "win": "4c692a815af449cde5015a59e0b48eabfdcb1bd2ab55f59aa33a5ed812643738",
+      "win_read": true,
+      "repo_lf_sha256": "1f38d4ebfe1c2c86c0df6bafe95cf271568a5f6af2341c1f3c66486577e022c2",
+      "win_lf_sha256": "1f38d4ebfe1c2c86c0df6bafe95cf271568a5f6af2341c1f3c66486577e022c2",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/社区-Easy-一键多模式-480P.json": {
+      "repo": "5081dbb58c5d3782d3c935923e4634dc3f9f8cb0cf137c75dc4797e874d076b7",
+      "report": "5081dbb58c5d3782d3c935923e4634dc3f9f8cb0cf137c75dc4797e874d076b7",
+      "mac": "5081dbb58c5d3782d3c935923e4634dc3f9f8cb0cf137c75dc4797e874d076b7",
+      "win": "708f71bf5b88fe02af9fbc8c2362ec2b79f524623c5e79478c0923cf36690f35",
+      "win_read": true,
+      "repo_lf_sha256": "5081dbb58c5d3782d3c935923e4634dc3f9f8cb0cf137c75dc4797e874d076b7",
+      "win_lf_sha256": "5081dbb58c5d3782d3c935923e4634dc3f9f8cb0cf137c75dc4797e874d076b7",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/社区-Easy-两段精修-480P.json": {
+      "repo": "b96d42681fccf038aa36590706003c321e8270554378fd2c0b1d1ebd9414a9ae",
+      "report": "b96d42681fccf038aa36590706003c321e8270554378fd2c0b1d1ebd9414a9ae",
+      "mac": "b96d42681fccf038aa36590706003c321e8270554378fd2c0b1d1ebd9414a9ae",
+      "win": "a48796043208c88f0281a10dbf40fadadc73f2a3a2dfa50f6441d012d80dcd2b",
+      "win_read": true,
+      "repo_lf_sha256": "b96d42681fccf038aa36590706003c321e8270554378fd2c0b1d1ebd9414a9ae",
+      "win_lf_sha256": "b96d42681fccf038aa36590706003c321e8270554378fd2c0b1d1ebd9414a9ae",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/社区-FreeVideo-All-in-One-N卡专用.json": {
+      "repo": "0e994e559bda80019348b19f2b0bc75357f238d1012be2bd8718724f7bb01040",
+      "report": "0e994e559bda80019348b19f2b0bc75357f238d1012be2bd8718724f7bb01040",
+      "mac": "0e994e559bda80019348b19f2b0bc75357f238d1012be2bd8718724f7bb01040",
+      "win": "68c041a49cc77bee0a52db3fa3528c1877e82963d76c286d20454ad7fa9eb7e4",
+      "win_read": true,
+      "repo_lf_sha256": "0e994e559bda80019348b19f2b0bc75357f238d1012be2bd8718724f7bb01040",
+      "win_lf_sha256": "0e994e559bda80019348b19f2b0bc75357f238d1012be2bd8718724f7bb01040",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/社区-H3三采6步lora完美版.json": {
+      "repo": "dff5cc6991c554aae5a5e563516c43e54dc251ab5c38dece880cf0625d9ded58",
+      "report": "dff5cc6991c554aae5a5e563516c43e54dc251ab5c38dece880cf0625d9ded58",
+      "mac": "dff5cc6991c554aae5a5e563516c43e54dc251ab5c38dece880cf0625d9ded58",
+      "win": "dc765fc10f9805b7023aca151d7e8002fe19c127acb9c19dcf6addd14ea4471d",
+      "win_read": true,
+      "repo_lf_sha256": "dff5cc6991c554aae5a5e563516c43e54dc251ab5c38dece880cf0625d9ded58",
+      "win_lf_sha256": "dff5cc6991c554aae5a5e563516c43e54dc251ab5c38dece880cf0625d9ded58",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/社区-H3小脸修复-SAM.json": {
+      "repo": "ee58b7294d8649d08cd4baed62c11f6d0babd67c58cad0b38ae5e57074da1444",
+      "report": "ee58b7294d8649d08cd4baed62c11f6d0babd67c58cad0b38ae5e57074da1444",
+      "mac": "ee58b7294d8649d08cd4baed62c11f6d0babd67c58cad0b38ae5e57074da1444",
+      "win": "ee58b7294d8649d08cd4baed62c11f6d0babd67c58cad0b38ae5e57074da1444",
+      "win_read": true
+    },
+    "workflows/2_视频/H3视频/7_测试/社区-H3小脸修复-矩形.json": {
+      "repo": "a172cc726af02026324065d3a6b96ed0e9ee8d414b9170c87d64da943bbe4a8a",
+      "report": "a172cc726af02026324065d3a6b96ed0e9ee8d414b9170c87d64da943bbe4a8a",
+      "mac": "a172cc726af02026324065d3a6b96ed0e9ee8d414b9170c87d64da943bbe4a8a",
+      "win": "84e1e58d87c400350cadfb7ab6fcc84e0d2a2b3de95b917afc626d19601e4b36",
+      "win_read": true,
+      "repo_lf_sha256": "a172cc726af02026324065d3a6b96ed0e9ee8d414b9170c87d64da943bbe4a8a",
+      "win_lf_sha256": "a172cc726af02026324065d3a6b96ed0e9ee8d414b9170c87d64da943bbe4a8a",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/7_测试/社区-H3终极三采v2版.json": {
+      "repo": "3eeae544323dee98b8a47a082e5b7f3f6769d56671cfa0928bdb89be33c71cb4",
+      "report": "3eeae544323dee98b8a47a082e5b7f3f6769d56671cfa0928bdb89be33c71cb4",
+      "mac": "3eeae544323dee98b8a47a082e5b7f3f6769d56671cfa0928bdb89be33c71cb4",
+      "win": "e075a98e93265d52fb296ff073ff9f42a945887be80d73472d3433d6e297da45",
+      "win_read": true,
+      "repo_lf_sha256": "3eeae544323dee98b8a47a082e5b7f3f6769d56671cfa0928bdb89be33c71cb4",
+      "win_lf_sha256": "b525d2810d024381f08fc12673809ac7d60725f0b0c404df359b6650b973154a",
+      "same_after_eol_normalization": false,
+      "windows_layout_detail": {
+        "json_equal": false,
+        "layout_geometry_equal": false,
+        "canvas_view_equal": false,
+        "same_after_strip_layout": false,
+        "repo_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 0,
+              "edge_tight": 0,
+              "spacing_far": 5
+            }
+          ]
+        },
+        "windows_installed_metrics": {
+          "scopes": [
+            {
+              "name": "main",
+              "group_overlap": 0,
+              "node_out_of_group": 4,
+              "edge_tight": 6,
+              "spacing_far": 5
+            }
+          ]
+        },
+        "structural_reconciliation": {
+          "repo_only_main_markdown_notes": [],
+          "json_equal_after_removing_extra_note": false,
+          "geometry_equal_after_removing_extra_note": false,
+          "layout_structure_guard_accepts_after_removing_extra_note": true,
+          "scope_geometry_changes": [
+            {
+              "scope": "main",
+              "shared_node_geometry_diffs": 33,
+              "group_ids_or_bounds_differ": true,
+              "interface_geometry_differs": false
+            }
+          ]
+        }
+      }
+    },
+    "workflows/2_视频/H3视频/7_测试/社区-TTS-语音生成-480P.json": {
+      "repo": "6d3c9aae973dcc3b430606d3ca0206fed51dc0cc18d07d33ee36448b7a47fb2b",
+      "report": "6d3c9aae973dcc3b430606d3ca0206fed51dc0cc18d07d33ee36448b7a47fb2b",
+      "mac": "6d3c9aae973dcc3b430606d3ca0206fed51dc0cc18d07d33ee36448b7a47fb2b",
+      "win": "d2acc13e0444ec59fb5f43fe90e368dc2bf925ce2ee4c254d5f9bcf4e53fcad4",
+      "win_read": true,
+      "repo_lf_sha256": "6d3c9aae973dcc3b430606d3ca0206fed51dc0cc18d07d33ee36448b7a47fb2b",
+      "win_lf_sha256": "6d3c9aae973dcc3b430606d3ca0206fed51dc0cc18d07d33ee36448b7a47fb2b",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/8_数字人/数字人-音频驱动.json": {
+      "repo": "a9669351c717a72e57ea86fd63aab9f9822803d22a77c89bdb906b38720fc425",
+      "report": "a9669351c717a72e57ea86fd63aab9f9822803d22a77c89bdb906b38720fc425",
+      "mac": "a9669351c717a72e57ea86fd63aab9f9822803d22a77c89bdb906b38720fc425",
+      "win": "ae6881ddb066768864a2969032828c743553cc19e9c35c04ea570bbd7e75e654",
+      "win_read": true,
+      "repo_lf_sha256": "a9669351c717a72e57ea86fd63aab9f9822803d22a77c89bdb906b38720fc425",
+      "win_lf_sha256": "a9669351c717a72e57ea86fd63aab9f9822803d22a77c89bdb906b38720fc425",
+      "same_after_eol_normalization": true
+    },
+    "workflows/2_视频/H3视频/8_数字人/无限时长-循环拼接.json": {
+      "repo": "0a78b92cc99502e87818d126c777c25fc8ab8b0f552b867366e4a0b212a45f14",
+      "report": "0a78b92cc99502e87818d126c777c25fc8ab8b0f552b867366e4a0b212a45f14",
+      "mac": "0a78b92cc99502e87818d126c777c25fc8ab8b0f552b867366e4a0b212a45f14",
+      "win": "b8e0bf4d73a18afb00be83b99ae0543a5a9844a368890f0d79386acdd3fd4a00",
+      "win_read": true,
+      "repo_lf_sha256": "0a78b92cc99502e87818d126c777c25fc8ab8b0f552b867366e4a0b212a45f14",
+      "win_lf_sha256": "0a78b92cc99502e87818d126c777c25fc8ab8b0f552b867366e4a0b212a45f14",
+      "same_after_eol_normalization": true
+    },
+    "workflows/3_声音/Drama3/drama3-配音-多角色场景.json": {
+      "repo": "334cb11d5c843e11cab097cf9da7ef96abe6b1236c644166d314cee76c6c9c1d",
+      "report": "334cb11d5c843e11cab097cf9da7ef96abe6b1236c644166d314cee76c6c9c1d",
+      "mac": "334cb11d5c843e11cab097cf9da7ef96abe6b1236c644166d314cee76c6c9c1d",
+      "win": "90d5f3fed7b446c3e7e23603a509e320776395974445369c0fc7cab3b60c7503",
+      "win_read": true,
+      "repo_lf_sha256": "334cb11d5c843e11cab097cf9da7ef96abe6b1236c644166d314cee76c6c9c1d",
+      "win_lf_sha256": "334cb11d5c843e11cab097cf9da7ef96abe6b1236c644166d314cee76c6c9c1d",
+      "same_after_eol_normalization": true
+    },
+    "workflows/3_声音/Drama3/drama3-配音-文生语音.json": {
+      "repo": "8033d30260af58d132e7abd01b5351e8b9796187595322ed9f80dd2e30d96619",
+      "report": "8033d30260af58d132e7abd01b5351e8b9796187595322ed9f80dd2e30d96619",
+      "mac": "8033d30260af58d132e7abd01b5351e8b9796187595322ed9f80dd2e30d96619",
+      "win": "210a7e6de5626a51edb498f5ddc2076159ca5375d5d2641376b0110bd9e714cf",
+      "win_read": true,
+      "repo_lf_sha256": "8033d30260af58d132e7abd01b5351e8b9796187595322ed9f80dd2e30d96619",
+      "win_lf_sha256": "8033d30260af58d132e7abd01b5351e8b9796187595322ed9f80dd2e30d96619",
+      "same_after_eol_normalization": true
+    },
+    "workflows/3_声音/Yue2/yue2-bgm-纯音乐-lora版.json": {
+      "repo": "f5b5da4d4b7e521b7a307b716bbc819bd0422d5900fd0c1cf3f8b0e42168cf68",
+      "report": "f5b5da4d4b7e521b7a307b716bbc819bd0422d5900fd0c1cf3f8b0e42168cf68",
+      "mac": "f5b5da4d4b7e521b7a307b716bbc819bd0422d5900fd0c1cf3f8b0e42168cf68",
+      "win": "81e31bdc3d0d41f8b408a41ab9226c6109cc392bcc99214892a40668e4343417",
+      "win_read": true,
+      "repo_lf_sha256": "f5b5da4d4b7e521b7a307b716bbc819bd0422d5900fd0c1cf3f8b0e42168cf68",
+      "win_lf_sha256": "f5b5da4d4b7e521b7a307b716bbc819bd0422d5900fd0c1cf3f8b0e42168cf68",
+      "same_after_eol_normalization": true
+    },
+    "workflows/3_声音/Yue2/yue2-出谱-abc版.json": {
+      "repo": "9c05b558c144d141ea2567278c0ecf70842d7ab039d19173e08152fcc50a72d4",
+      "report": "9c05b558c144d141ea2567278c0ecf70842d7ab039d19173e08152fcc50a72d4",
+      "mac": "9c05b558c144d141ea2567278c0ecf70842d7ab039d19173e08152fcc50a72d4",
+      "win": "97f9d7b911cca5fa34d8377c76050ca3a5edde1145f987e3248beed507aa626f",
+      "win_read": true,
+      "repo_lf_sha256": "9c05b558c144d141ea2567278c0ecf70842d7ab039d19173e08152fcc50a72d4",
+      "win_lf_sha256": "9c05b558c144d141ea2567278c0ecf70842d7ab039d19173e08152fcc50a72d4",
+      "same_after_eol_normalization": true
+    },
+    "workflows/3_声音/Yue2/yue2-整曲-官方版.json": {
+      "repo": "0b964d106ffb0a8b6d23462d82799a18debe12a2e20421df46f70aa8e3bf7308",
+      "report": "0b964d106ffb0a8b6d23462d82799a18debe12a2e20421df46f70aa8e3bf7308",
+      "mac": "0b964d106ffb0a8b6d23462d82799a18debe12a2e20421df46f70aa8e3bf7308",
+      "win": "99b528167105b29352bc5e0e8395baf7c533bfefae30e17ca789d59a3d3a3241",
+      "win_read": true,
+      "repo_lf_sha256": "0b964d106ffb0a8b6d23462d82799a18debe12a2e20421df46f70aa8e3bf7308",
+      "win_lf_sha256": "0b964d106ffb0a8b6d23462d82799a18debe12a2e20421df46f70aa8e3bf7308",
+      "same_after_eol_normalization": true
+    },
+    "workflows/3_声音/Yue2/yue2-翻唱-记谱版.json": {
+      "repo": "628bd15d97685cd7e101c1aa86fce3eb1e1cc060b81ca7694d2606c5863a24f4",
+      "report": "628bd15d97685cd7e101c1aa86fce3eb1e1cc060b81ca7694d2606c5863a24f4",
+      "mac": "628bd15d97685cd7e101c1aa86fce3eb1e1cc060b81ca7694d2606c5863a24f4",
+      "win": "9c6caf487a8acc9534e6864ae39f3e8169d85b4062b5ef56e6e7239ac933d745",
+      "win_read": true,
+      "repo_lf_sha256": "628bd15d97685cd7e101c1aa86fce3eb1e1cc060b81ca7694d2606c5863a24f4",
+      "win_lf_sha256": "628bd15d97685cd7e101c1aa86fce3eb1e1cc060b81ca7694d2606c5863a24f4",
+      "same_after_eol_normalization": true
+    }
+  },
+  "comparison": {
+    "win": {
+      "raw_exact": 3,
+      "same_after_line_ending_normalization_only": 89,
+      "differs_beyond_line_endings": 57,
+      "missing": 0,
+      "geometry_files_rechecked_excluding_deferred_models": 26,
+      "geometry_matches_excluding_missing_note_only": 22,
+      "layout_differences_confirmed": 4
+    },
+    "mac": {
+      "raw_exact": 146,
+      "only_sensenova_model_name_url_and_note_different": 3,
+      "missing": 0
+    },
+    "mac_asar": {
+      "reported_at_utc": "2026-11-27T09:27:57.744Z",
+      "current_packaged_and_installed_sha256": "d4d843ff8adc8aa6582bf5af22c3bdcdad7f5b0b325bd090563bad991b00cba8"
+    }
+  }
+}

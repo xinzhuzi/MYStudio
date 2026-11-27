@@ -1,0 +1,9 @@
+{"file": ".trellis/tasks/11-26-workflow-layout-normalize/research/opcc-feasibility-1126.md", "reason": "保序压缩原型的差分约束推导、检查器两处缺陷的实证、全库批次数据与原型缺陷清单;整理器实现照此"}
+{"file": ".trellis/tasks/11-26-workflow-layout-normalize/research/layout-pin-census-1126.md", "reason": "钉死面总表与更正节:改布局会碰到哪些既有契约、各由谁钉、怎么同步"}
+{"file": ".trellis/tasks/11-26-workflow-layout-normalize/research/layout-survey-1126.md", "reason": "149 件逐件三类问题度量基线;批处理试算数字用来对账"}
+{"file": "docs/comfyui-kb/画布布局规范.md", "reason": "画布布局立宪:判据优先级序、组框公式、契约锚随行同步"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "后端 Python 质量约定"}
+{"file": ".trellis/spec/guides/file-cleanup-campaign-discipline-guide.md", "reason": "批量清理类战役的纪律:前置断言、fail-closed、逐件可回滚、报告"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "复用优先:先查已有件再新建"}
+{"file": ".trellis/spec/guides/installed-app-no-direct-write-guide.md", "reason": "装机 App 只准 build-mac.sh 整包覆盖安装,禁止直写 /Applications"}
+{"file": "docs/engineering/TESTING_ENTRYPOINTS.md", "reason": "验证入口与 preflight_gate 使用纪律;各命令从哪个目录跑"}

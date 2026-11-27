@@ -1,0 +1,29 @@
+{
+  "id": "workflow-layout-normalize",
+  "name": "workflow-layout-normalize",
+  "title": "节点图布局全量整治:分组互遮/节点出组框/间距过远",
+  "description": "全部工作流(149 件 GUI)逐作用域计算并修复三类布局问题:分组互相遮盖、节点超出分组框、节点间距过远或过近;先落方案",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "xinzhuzi",
+  "assignee": "xinzhuzi",
+  "createdAt": "2026-11-26",
+  "completedAt": "2026-11-27",
+  "branch": "main",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "blockers": "2026-11-27 续做复核：AC1–AC7、AC10 已登记。SenseNova 模型配置及相应重导出移交 GLM。AC8：Flux.3 历史指纹测试已修复并通过；已修复线模式和视频回写的 4 条旧测试；节点域余 4 条 Qwen 提示词契约失败，1 组蓝图/宿主原有结构不等（11 对 3 节点）。AC9：Mac 149 件布局一致；Windows 除模型配置等差异外，有 4 件 H3 确认实际布局不同。四件指纹已二次复核，等待定点同步授权和应用内目检。详见 research/closeout-verification-1127.md。",
+    "prior_blockers_1127": "[(2026-11-27 返工,检查员 findings 2/6 补落)B1·A14 无解件 8 件终态待用户裁定:qi21-bfs-换头/K2-无审查全家桶/K2-角色设定-道劫/K2-图像编辑-整合流/K2-风格扩展流(图生图版)/社区-480P生成-960P精修-SolAttn加速-960P直出/社区-H3小脸修复-SAM/社区-H3终极三采v2版;终态数字 overlap_after=7/out_after=26/tight_after=91/non_fixed_point=8(报告「无解未写」);门禁以 UNRESOLVED_PINS 钉现状只降不升;收编路径=用户放宽容差→--apply --only→删钉条目。B2·蓝图 my_nodes/subgraphs/qi21-提示词类型优化子图-edit.json 与宿主 qi21-edit.json 同名定义「[6] 文本提示词类型优化子图」HEAD 即不等(蓝图 11 节点完整 PE-I2I 改写组 vs 宿主 3 节点)=--sync-blueprints 实测 pre_drift;设计处置=不动、呈报用户(本役未强行同步,蓝图改动仅布局字段)。B3·workflow_layout_baseline.json ruling 键所指:qi21-edit main 交叉/线遮 16→26/3→12 系已提交 04492613 的存量漂移,非本役增量,未收录进棘轮基线。]\n\nB4·(2026-11-27 遗留排查发现;同日已修——空组框伪节点+ceiling+扫掠+冻结,重跑 139 件并重提交)间距整治未达目的、违反 R4「只收不推」:整治前后实物对拍(节点包围面积,d2e10566 vs HEAD)全库 238983→251920 万像素(+5%),缩小≥10% 仅 7 件,变大>2% 13 件,同排/同列相邻过远对 1497→1518;最重:fasth3-单镜视频-i2v/t2v 685→3164(4.6 倍)、道劫-角色设定卡-i2i 6672→19430(2.9 倍)、-t2i +82%(单节点下移 21259px)。根因(对照实验+读码定位):layout_normalize.py:642-688 线遮修补只往线下方推,且取该线在节点竖列内的最低点为落点,线端点随刚性块一起下移形成追赶(上限 12 轮);只修组框档不动、开压缩档即整块下推 5624px;守门 _gate_ok 不查包围尺寸是否变大故放行。修向:修补取上下位移小者+单次位移设上限(超限弃该档)+守门加「压缩后各轴节点包围尺寸 ≤ 只修组框档结果」+全库重跑与钉死面重同步。"
+  }
+}

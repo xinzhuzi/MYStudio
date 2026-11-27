@@ -1,0 +1,3308 @@
+{
+  "generated_from": "apps/output/automation/workflow-layout-report.json",
+  "report_generated_at": "2026-11-27T16:19:48",
+  "normalizer_sha256": "d872ae75edd740f45054a471e8bc8046a875ece861ab000fa7c5363cb60e0480",
+  "campaign_params": {
+    "mode": "check",
+    "ht": 320.0,
+    "vt": 180.0,
+    "strict": false,
+    "relax": {},
+    "only": [],
+    "allow_reformat": []
+  },
+  "files": {
+    "my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json": {
+      "input_sha256": "b0c2aabc3af4f9c89e5d4eb0f1ebabe62f7d8452a0d57a2300fae81400340100",
+      "report_sha256": "b0c2aabc3af4f9c89e5d4eb0f1ebabe62f7d8452a0d57a2300fae81400340100",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "sub:[6] 文本提示词类型优化子图": {
+          "rung": "1.5",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 1123,
+              "source": "return None",
+              "rung": "1",
+              "attempt_return_line": 1123,
+              "reason": "纵向差分约束无解"
+            }
+          ]
+        }
+      }
+    },
+    "my_nodes/subgraphs/qi21-道劫-加速子图-i2i.json": {
+      "input_sha256": "3717ed7f0dd746926fea3a6d0dc123c318dc38c915b64db7f3c5ecc1fb05fc79",
+      "report_sha256": "3717ed7f0dd746926fea3a6d0dc123c318dc38c915b64db7f3c5ecc1fb05fc79",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "sub:道劫·加速子图": {
+          "rung": "2",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 1123,
+              "source": "return None",
+              "rung": "1",
+              "attempt_return_line": 1123,
+              "reason": "纵向差分约束无解"
+            },
+            {
+              "line": 1123,
+              "source": "return None",
+              "rung": "1.5",
+              "attempt_return_line": 1123,
+              "reason": "纵向差分约束无解"
+            }
+          ]
+        }
+      }
+    },
+    "my_nodes/subgraphs/qi21-道劫-加速子图.json": {
+      "input_sha256": "db0d9a5235d20452f2b20318eba48a064ab85de36577422a0ea3167a0e6b058b",
+      "report_sha256": "db0d9a5235d20452f2b20318eba48a064ab85de36577422a0ea3167a0e6b058b",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "sub:道劫·加速子图": {
+          "rung": "1.5",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                5850.0,
+                4701.0
+              ],
+              "ceiling_px": [
+                6220.0,
+                4362.0
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            }
+          ]
+        }
+      }
+    },
+    "my_nodes/subgraphs/qi21-道劫-超分-SeedVR2.json": {
+      "input_sha256": "19be4f7a050675ea0a011441ce09ed8e6ce5d789216247f3607ff6c678e63a14",
+      "report_sha256": "19be4f7a050675ea0a011441ce09ed8e6ce5d789216247f3607ff6c678e63a14",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "sub:道劫·超分·SeedVR2": {
+          "rung": "inf",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                1570.0,
+                1486.0
+              ],
+              "ceiling_px": [
+                3060.0,
+                1028.0
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                1890.0,
+                1472.0
+              ],
+              "ceiling_px": [
+                3060.0,
+                1028.0
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                2210.0,
+                1465.0
+              ],
+              "ceiling_px": [
+                3060.0,
+                1028.0
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/MossImage/moss-base-t2i-版式.json": {
+      "input_sha256": "eb4fed18264b3f4882b98525bd674f73cacf00433df003554164616816358d13",
+      "report_sha256": "eb4fed18264b3f4882b98525bd674f73cacf00433df003554164616816358d13",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "sub:Text to Image (MOSS-Image)": {
+          "rung": "1.5",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  6,
+                  5
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/MossImage/moss-base-t2i.json": {
+      "input_sha256": "14b314c950174e43f252e6f280d208f81017d865db222bd2ede934fde48b7ae5",
+      "report_sha256": "14b314c950174e43f252e6f280d208f81017d865db222bd2ede934fde48b7ae5",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "sub:Text to Image (MOSS-Image)": {
+          "rung": "1.5",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  6,
+                  5
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/MossImage/moss-t2i-版式.json": {
+      "input_sha256": "cb7b27983eaac4621e3ee3035ac775acf130f17e9690c9a4717b4e65eee626a4",
+      "report_sha256": "cb7b27983eaac4621e3ee3035ac775acf130f17e9690c9a4717b4e65eee626a4",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "sub:Text to Image (MOSS-Image)": {
+          "rung": "1.5",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  6,
+                  5
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/1_文生图/qi21-道劫-t2i.json": {
+      "input_sha256": "692093663f9bcfe7914156a72c9ec4e5ee4af0662ae005b578197656887a7897",
+      "report_sha256": "692093663f9bcfe7914156a72c9ec4e5ee4af0662ae005b578197656887a7897",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "sub:道劫·加速子图": {
+          "rung": "1.5",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                5850.0,
+                4701.0
+              ],
+              "ceiling_px": [
+                6220.0,
+                4362.0
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            }
+          ]
+        },
+        "sub:道劫·超分·SeedVR2": {
+          "rung": "inf",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                1570.0,
+                1486.0
+              ],
+              "ceiling_px": [
+                3060.0,
+                1028.0
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                1890.0,
+                1472.0
+              ],
+              "ceiling_px": [
+                3060.0,
+                1028.0
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                2210.0,
+                1465.0
+              ],
+              "ceiling_px": [
+                3060.0,
+                1028.0
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/1_文生图/qwen21-sanlian-t2i.json": {
+      "input_sha256": "5cb2d4d9252329f0719d08808117753f28d3798a81a6a3c25ee5cdb930005244",
+      "report_sha256": "5cb2d4d9252329f0719d08808117753f28d3798a81a6a3c25ee5cdb930005244",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "inf",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 1120,
+              "source": "return None",
+              "rung": "1",
+              "attempt_return_line": 1120,
+              "reason": "横向差分约束无解"
+            },
+            {
+              "line": 1120,
+              "source": "return None",
+              "rung": "1.5",
+              "attempt_return_line": 1120,
+              "reason": "横向差分约束无解"
+            },
+            {
+              "line": 1120,
+              "source": "return None",
+              "rung": "2",
+              "attempt_return_line": 1120,
+              "reason": "横向差分约束无解"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/1_文生图/t2i-无审查-超分.json": {
+      "input_sha256": "a4cffde2f62bbd17a1ea2ed50721cbe2bb2c85d8b7c76ddb7f542c9b22cd947b",
+      "report_sha256": "a4cffde2f62bbd17a1ea2ed50721cbe2bb2c85d8b7c76ddb7f542c9b22cd947b",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "sub:道劫·加速子图": {
+          "rung": "2",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                7060.0,
+                4305.0
+              ],
+              "ceiling_px": [
+                7840.0,
+                4148.0
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                7520.0,
+                4457.0
+              ],
+              "ceiling_px": [
+                7840.0,
+                4148.0
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/1_文生图/t2i-皮肤-超分.json": {
+      "input_sha256": "373a86a67c57e7d0e47b7b32dfd6eae02cd71393aeeb8508b3f67cc76a5b30c6",
+      "report_sha256": "373a86a67c57e7d0e47b7b32dfd6eae02cd71393aeeb8508b3f67cc76a5b30c6",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "sub:道劫·加速子图": {
+          "rung": "1.5",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                6160.0,
+                4607.0
+              ],
+              "ceiling_px": [
+                6230.0,
+                4180.0
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/1_文生图/t2i-通用.json": {
+      "input_sha256": "7fb8a792ae3647a3b7c558cd914e76fe7f8c721307dc07e6993d2083bf22f64a",
+      "report_sha256": "7fb8a792ae3647a3b7c558cd914e76fe7f8c721307dc07e6993d2083bf22f64a",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "sub:道劫·加速子图": {
+          "rung": "1.5",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                5760.0,
+                4305.0
+              ],
+              "ceiling_px": [
+                6130.0,
+                4278.0
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            }
+          ]
+        },
+        "sub:通用·超分·SeedVR2": {
+          "rung": "inf",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                1570.0,
+                1486.0
+              ],
+              "ceiling_px": [
+                3060.0,
+                1028.0
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                1890.0,
+                1472.0
+              ],
+              "ceiling_px": [
+                3060.0,
+                1028.0
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                2210.0,
+                1465.0
+              ],
+              "ceiling_px": [
+                3060.0,
+                1028.0
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/2_图生图/qi21-bfs-换头.json": {
+      "input_sha256": "07551e2bca98e182f07615e10e6d5ff432d5f1175f1674e6123b5387d241d8a2",
+      "report_sha256": "07551e2bca98e182f07615e10e6d5ff432d5f1175f1674e6123b5387d241d8a2",
+      "status": "unresolved",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "inf",
+          "unresolvable": true,
+          "failed_attempts": [
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  11,
+                  10
+                ],
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                5172.454802039892,
+                1194.8540561338486
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                5172.454802039892,
+                1194.8540561338486
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                5172.454802039892,
+                1194.8540561338486
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  11,
+                  10
+                ],
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  13,
+                  10
+                ],
+                "node_out_of_group": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                5172.454802039892,
+                1194.8540561338486
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                5172.454802039892,
+                1194.8540561338486
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                5172.454802039892,
+                1194.8540561338486
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  13,
+                  10
+                ],
+                "node_out_of_group": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  11,
+                  10
+                ],
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  11,
+                  10
+                ],
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  11,
+                  10
+                ],
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  11,
+                  10
+                ],
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  11,
+                  10
+                ],
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/2_图生图/qi21-道劫-i2i.json": {
+      "input_sha256": "2290d7253a64e103b0c1081517fb11666d9e517e14330092e5992ac0f4cfec34",
+      "report_sha256": "2290d7253a64e103b0c1081517fb11666d9e517e14330092e5992ac0f4cfec34",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "2",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                11050.0,
+                5646.0
+              ],
+              "ceiling_px": [
+                11940.0,
+                4850.0
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                11530.0,
+                5593.0
+              ],
+              "ceiling_px": [
+                11940.0,
+                4850.0
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            }
+          ]
+        },
+        "sub:[6] 文本提示词类型优化子图": {
+          "rung": "1.5",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 1123,
+              "source": "return None",
+              "rung": "1",
+              "attempt_return_line": 1123,
+              "reason": "纵向差分约束无解"
+            }
+          ]
+        },
+        "sub:道劫·加速子图": {
+          "rung": "2",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 1123,
+              "source": "return None",
+              "rung": "1",
+              "attempt_return_line": 1123,
+              "reason": "纵向差分约束无解"
+            },
+            {
+              "line": 1123,
+              "source": "return None",
+              "rung": "1.5",
+              "attempt_return_line": 1123,
+              "reason": "纵向差分约束无解"
+            }
+          ]
+        },
+        "sub:道劫·超分·SeedVR2": {
+          "rung": "inf",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                1570.0,
+                1486.0
+              ],
+              "ceiling_px": [
+                3060.0,
+                1028.0
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                1890.0,
+                1472.0
+              ],
+              "ceiling_px": [
+                3060.0,
+                1028.0
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                2210.0,
+                1465.0
+              ],
+              "ceiling_px": [
+                3060.0,
+                1028.0
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/2_图生图/qi21-道劫-img2img.json": {
+      "input_sha256": "d8de6b9a8c0deb6c51fb223932013f122d4b2bbbb980d8d7cfa22774913cd57d",
+      "report_sha256": "d8de6b9a8c0deb6c51fb223932013f122d4b2bbbb980d8d7cfa22774913cd57d",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "inf",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 1123,
+              "source": "return None",
+              "rung": "1",
+              "attempt_return_line": 1123,
+              "reason": "纵向差分约束无解"
+            },
+            {
+              "line": 1123,
+              "source": "return None",
+              "rung": "1.5",
+              "attempt_return_line": 1123,
+              "reason": "纵向差分约束无解"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                6960.0,
+                6248.0
+              ],
+              "ceiling_px": [
+                10020.0,
+                6150.0
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/3_社区模板/Qwen21-Turbo-9步-全功能.json": {
+      "input_sha256": "886bb6bc23000af9192fcec87467f9abc235980d71e73a943a7d76ec952566d1",
+      "report_sha256": "886bb6bc23000af9192fcec87467f9abc235980d71e73a943a7d76ec952566d1",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "2",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  41,
+                  40
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  41,
+                  40
+                ]
+              },
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/3_社区模板/skill姿态图放大-扩展整合.json": {
+      "input_sha256": "09c8c39e54feebf8790d33ce45bebe494f824568dc9f0ebed29d81218daf300b",
+      "report_sha256": "09c8c39e54feebf8790d33ce45bebe494f824568dc9f0ebed29d81218daf300b",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "2",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  4,
+                  3
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  4,
+                  3
+                ]
+              },
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/5_角色设定卡/道劫-角色设定卡-i2i.json": {
+      "input_sha256": "f02a364da0922648c4787245f914b51946fe93e3bb0751998cf45d454db1f817",
+      "report_sha256": "f02a364da0922648c4787245f914b51946fe93e3bb0751998cf45d454db1f817",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "inf",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                6580.0,
+                9472.0
+              ],
+              "ceiling_px": [
+                6580.0,
+                9406.0
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                6580.0,
+                9537.0
+              ],
+              "ceiling_px": [
+                6580.0,
+                9406.0
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                6580.0,
+                9622.0
+              ],
+              "ceiling_px": [
+                6580.0,
+                9406.0
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/QwenImage2.1/5_角色设定卡/道劫-角色设定卡-t2i.json": {
+      "input_sha256": "d77cc890404ba8913dbfa3bd7650d94e2c605cff179eb8629252da70d6d3a3f4",
+      "report_sha256": "d77cc890404ba8913dbfa3bd7650d94e2c605cff179eb8629252da70d6d3a3f4",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "inf",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                6580.0,
+                9472.0
+              ],
+              "ceiling_px": [
+                6580.0,
+                9406.0
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                6580.0,
+                9537.0
+              ],
+              "ceiling_px": [
+                6580.0,
+                9406.0
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "extent_px": [
+                6580.0,
+                9622.0
+              ],
+              "ceiling_px": [
+                6580.0,
+                9406.0
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/SenseNova/1_文生图/sn-道劫-t2i.json": {
+      "input_sha256": "4d4eb033b2d5c0aa0813d988cedbc89ca99abc40e0b5d6418db1ee578fee1ed9",
+      "report_sha256": "6c7fa681d325651fd0c6d8a31d21c6999ed1c8c059188966543aeb9b136d5219",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {}
+    },
+    "workflows/1_图片/SenseNova/2_图生图/sn-局部重绘.json": {
+      "input_sha256": "cdc12a5a29bf2860fe7b148b77d21fc577e39d83047ed99dfab3010918a47ba0",
+      "report_sha256": "38fc8c9e60fb3feeaaf58343c0abba1cf6931a0153ef4a8502c77347664faf92",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {}
+    },
+    "workflows/1_图片/SenseNova/2_图生图/sn-道劫-i2i.json": {
+      "input_sha256": "d36471f8de269e103fdcbc477e5323415ae1edfaa61bc34a60d7a4e6ec9adfc3",
+      "report_sha256": "7c8dc980c925f225182662ab26f892fb820c55611281c225cf0fe92cd7525e5f",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {}
+    },
+    "workflows/1_图片/krea2/1_文生图/K2-NSFW专业流-旧版0901.json": {
+      "input_sha256": "c135d4682b74d4e6deb7a982667669a85020e806369995b77261445522282082",
+      "report_sha256": "c135d4682b74d4e6deb7a982667669a85020e806369995b77261445522282082",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "inf",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 1120,
+              "source": "return None",
+              "rung": "1",
+              "attempt_return_line": 1120,
+              "reason": "横向差分约束无解"
+            },
+            {
+              "line": 1120,
+              "source": "return None",
+              "rung": "1.5",
+              "attempt_return_line": 1120,
+              "reason": "横向差分约束无解"
+            },
+            {
+              "line": 1120,
+              "source": "return None",
+              "rung": "2",
+              "attempt_return_line": 1120,
+              "reason": "横向差分约束无解"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/krea2/2_图生图/K2-NSFW专业流-图生图.json": {
+      "input_sha256": "2f2f36803e05dd7f59793499e7bc5fd3e208496d677acebb2ca5d82957ce9bb2",
+      "report_sha256": "2f2f36803e05dd7f59793499e7bc5fd3e208496d677acebb2ca5d82957ce9bb2",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "2",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 1120,
+              "source": "return None",
+              "rung": "1",
+              "attempt_return_line": 1120,
+              "reason": "横向差分约束无解"
+            },
+            {
+              "line": 1120,
+              "source": "return None",
+              "rung": "1.5",
+              "attempt_return_line": 1120,
+              "reason": "横向差分约束无解"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/krea2/2_图生图/K2-无审查全家桶(4K放大+提示词增强).json": {
+      "input_sha256": "73976c43b2786789edeb8e3ba5719834ff6cd1db762d16df08856df4ec9da36b",
+      "report_sha256": "73976c43b2786789edeb8e3ba5719834ff6cd1db762d16df08856df4ec9da36b",
+      "status": "unresolved",
+      "untested_scopes_after_unresolved": [
+        "sub:New Subgraph",
+        "sub:Prompt processor",
+        "sub:ClownsharKSampler",
+        "sub:SeedVR2 Video Upscaler",
+        "sub:ClownsharKSampler",
+        "sub:Image Saver"
+      ],
+      "non_tightest": {
+        "main": {
+          "rung": "inf",
+          "unresolvable": true,
+          "failed_attempts": [
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  36,
+                  33
+                ],
+                "leftward": [
+                  4,
+                  1
+                ],
+                "node_out_of_group": [
+                  4,
+                  0
+                ],
+                "edge_tight": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 999,
+              "source": "return None              # upper bound not expressible here",
+              "rung": "1",
+              "attempt_return_line": 999,
+              "reason": "空组框分离需要求解器未表达的上界"
+            },
+            {
+              "line": 999,
+              "source": "return None              # upper bound not expressible here",
+              "rung": "1.5",
+              "attempt_return_line": 999,
+              "reason": "空组框分离需要求解器未表达的上界"
+            },
+            {
+              "line": 999,
+              "source": "return None              # upper bound not expressible here",
+              "rung": "2",
+              "attempt_return_line": 999,
+              "reason": "空组框分离需要求解器未表达的上界"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  36,
+                  33
+                ],
+                "leftward": [
+                  4,
+                  1
+                ],
+                "node_out_of_group": [
+                  4,
+                  0
+                ],
+                "edge_tight": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  34,
+                  33
+                ],
+                "leftward": [
+                  2,
+                  1
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  34,
+                  33
+                ],
+                "leftward": [
+                  2,
+                  1
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  35,
+                  33
+                ],
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 999,
+              "source": "return None              # upper bound not expressible here",
+              "rung": "1",
+              "attempt_return_line": 999,
+              "reason": "空组框分离需要求解器未表达的上界"
+            },
+            {
+              "line": 999,
+              "source": "return None              # upper bound not expressible here",
+              "rung": "1.5",
+              "attempt_return_line": 999,
+              "reason": "空组框分离需要求解器未表达的上界"
+            },
+            {
+              "line": 999,
+              "source": "return None              # upper bound not expressible here",
+              "rung": "2",
+              "attempt_return_line": 999,
+              "reason": "空组框分离需要求解器未表达的上界"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  35,
+                  33
+                ],
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  34,
+                  33
+                ],
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 999,
+              "source": "return None              # upper bound not expressible here",
+              "rung": "1",
+              "attempt_return_line": 999,
+              "reason": "空组框分离需要求解器未表达的上界"
+            },
+            {
+              "line": 999,
+              "source": "return None              # upper bound not expressible here",
+              "rung": "1.5",
+              "attempt_return_line": 999,
+              "reason": "空组框分离需要求解器未表达的上界"
+            },
+            {
+              "line": 999,
+              "source": "return None              # upper bound not expressible here",
+              "rung": "2",
+              "attempt_return_line": 999,
+              "reason": "空组框分离需要求解器未表达的上界"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  34,
+                  33
+                ],
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  40,
+                  33
+                ],
+                "est_overlap": [
+                  157,
+                  138
+                ],
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  6,
+                  0
+                ],
+                "edge_tight": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 999,
+              "source": "return None              # upper bound not expressible here",
+              "rung": "1",
+              "attempt_return_line": 999,
+              "reason": "空组框分离需要求解器未表达的上界"
+            },
+            {
+              "line": 999,
+              "source": "return None              # upper bound not expressible here",
+              "rung": "1.5",
+              "attempt_return_line": 999,
+              "reason": "空组框分离需要求解器未表达的上界"
+            },
+            {
+              "line": 999,
+              "source": "return None              # upper bound not expressible here",
+              "rung": "2",
+              "attempt_return_line": 999,
+              "reason": "空组框分离需要求解器未表达的上界"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  40,
+                  33
+                ],
+                "est_overlap": [
+                  157,
+                  138
+                ],
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  6,
+                  0
+                ],
+                "edge_tight": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  34,
+                  33
+                ],
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 999,
+              "source": "return None              # upper bound not expressible here",
+              "rung": "1",
+              "attempt_return_line": 999,
+              "reason": "空组框分离需要求解器未表达的上界"
+            },
+            {
+              "line": 999,
+              "source": "return None              # upper bound not expressible here",
+              "rung": "1.5",
+              "attempt_return_line": 999,
+              "reason": "空组框分离需要求解器未表达的上界"
+            },
+            {
+              "line": 999,
+              "source": "return None              # upper bound not expressible here",
+              "rung": "2",
+              "attempt_return_line": 999,
+              "reason": "空组框分离需要求解器未表达的上界"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  34,
+                  33
+                ],
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  34,
+                  33
+                ],
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  34,
+                  33
+                ],
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  34,
+                  33
+                ],
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  34,
+                  33
+                ],
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  35,
+                  33
+                ],
+                "est_overlap": [
+                  148,
+                  138
+                ],
+                "leftward": [
+                  2,
+                  1
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  35,
+                  33
+                ],
+                "est_overlap": [
+                  148,
+                  138
+                ],
+                "leftward": [
+                  2,
+                  1
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  2,
+                  1
+                ],
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  6,
+                  0
+                ],
+                "edge_tight": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  6,
+                  0
+                ],
+                "edge_tight": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  34,
+                  33
+                ],
+                "node_out_of_group": [
+                  3,
+                  0
+                ],
+                "edge_tight": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  34,
+                  33
+                ],
+                "node_out_of_group": [
+                  3,
+                  0
+                ],
+                "edge_tight": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                3383.7781769213057,
+                3544.311141733535
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  3,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/1_图片/krea2/5_风格扩展/K2-风格扩展流（图生图版）.json": {
+      "input_sha256": "7c37a06dc272138ef32521f83c671cb33d5335a65614cff17468ca7cb6dba732",
+      "report_sha256": "7c37a06dc272138ef32521f83c671cb33d5335a65614cff17468ca7cb6dba732",
+      "status": "unresolved",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "inf",
+          "unresolvable": true,
+          "failed_attempts": [
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  4,
+                  3
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  4,
+                  3
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  4,
+                  3
+                ]
+              },
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  4,
+                  3
+                ]
+              },
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "leftward": [
+                  4,
+                  3
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/2_视频/H3视频/1_漫影自研/单镜.json": {
+      "input_sha256": "355194898b3b09e0a1706b572e25359801a4a581ce539ab96afa25e549243f71",
+      "report_sha256": "355194898b3b09e0a1706b572e25359801a4a581ce539ab96afa25e549243f71",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "2",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "est_overlap": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "est_overlap": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/2_视频/H3视频/6_视频重制/fasth3-单镜视频-i2v.json": {
+      "input_sha256": "f03dfd9643b9f760e0e2ec69b6a98f29d2186a7365f6d07008bbae241cd02e4e",
+      "report_sha256": "f03dfd9643b9f760e0e2ec69b6a98f29d2186a7365f6d07008bbae241cd02e4e",
+      "status": "would_change",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "fallback-inf",
+          "unresolvable": false,
+          "reason": "12 iterations without a fixed point; report uses the groups-only fallback",
+          "entry_pass_failures": [],
+          "failed_attempts": []
+        }
+      }
+    },
+    "workflows/2_视频/H3视频/6_视频重制/fasth3-单镜视频-t2v.json": {
+      "input_sha256": "c3baca990aeaaec05cf8bef2ed02119487066743a6e561a6bb28ef169de15acd",
+      "report_sha256": "c3baca990aeaaec05cf8bef2ed02119487066743a6e561a6bb28ef169de15acd",
+      "status": "would_change",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "fallback-inf",
+          "unresolvable": false,
+          "reason": "12 iterations without a fixed point; report uses the groups-only fallback",
+          "entry_pass_failures": [],
+          "failed_attempts": []
+        }
+      }
+    },
+    "workflows/2_视频/H3视频/6_视频重制/pika-单镜视频-fl2v.json": {
+      "input_sha256": "5e8633778fa01b8ef79a9b3b69e28b317b6b684be031bd6a147721614fe89d98",
+      "report_sha256": "5e8633778fa01b8ef79a9b3b69e28b317b6b684be031bd6a147721614fe89d98",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "inf",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 752,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "crossings": [
+                  31,
+                  29
+                ],
+                "occlusion": [
+                  9,
+                  8
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "线遮修补达到 12 轮上限"
+            },
+            {
+              "line": 752,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  9,
+                  8
+                ]
+              },
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "线遮修补达到 12 轮上限"
+            },
+            {
+              "line": 752,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  9,
+                  8
+                ]
+              },
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "线遮修补达到 12 轮上限"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/2_视频/H3视频/7_测试/一采探顶-RelayVSR-2K.json": {
+      "input_sha256": "1b709b8fb1a46c1a20e241fcab8fe2de918b616ffc5193fb69fcdb81edc24b86",
+      "report_sha256": "1b709b8fb1a46c1a20e241fcab8fe2de918b616ffc5193fb69fcdb81edc24b86",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "2",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "est_overlap": [
+                  16,
+                  15
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "est_overlap": [
+                  16,
+                  15
+                ]
+              },
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/2_视频/H3视频/7_测试/三采-单镜-RelayVSR.json": {
+      "input_sha256": "3be1fddcd0f17744aed5b61b2e65e4e95e6e0c2f5ce6bcb97f8959b7ececd734",
+      "report_sha256": "3be1fddcd0f17744aed5b61b2e65e4e95e6e0c2f5ce6bcb97f8959b7ececd734",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "2",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "est_overlap": [
+                  16,
+                  15
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "est_overlap": [
+                  16,
+                  15
+                ]
+              },
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/2_视频/H3视频/7_测试/三采-单镜-修脸.json": {
+      "input_sha256": "119d1a933966b37d8da4f34af0006df231de156cce2750dfad93ebbcebe7b713",
+      "report_sha256": "119d1a933966b37d8da4f34af0006df231de156cce2750dfad93ebbcebe7b713",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "2",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "est_overlap": [
+                  5,
+                  4
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "est_overlap": [
+                  5,
+                  4
+                ]
+              },
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/2_视频/H3视频/7_测试/三采-单镜-小脸修复.json": {
+      "input_sha256": "68415ed5fce11f19e4cc692aff05f0cec425715dd05e21fddb3269286b224774",
+      "report_sha256": "68415ed5fce11f19e4cc692aff05f0cec425715dd05e21fddb3269286b224774",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "inf",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  69,
+                  68
+                ],
+                "est_overlap": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  69,
+                  68
+                ],
+                "est_overlap": [
+                  1,
+                  0
+                ]
+              },
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  69,
+                  68
+                ]
+              },
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/2_视频/H3视频/7_测试/单镜-成人向.json": {
+      "input_sha256": "1b3905d4a59dbac6281926c771f92d174dfb470850a5269c2293176b654d2261",
+      "report_sha256": "1b3905d4a59dbac6281926c771f92d174dfb470850a5269c2293176b654d2261",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "2",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "est_overlap": [
+                  2,
+                  1
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "est_overlap": [
+                  2,
+                  1
+                ]
+              },
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/2_视频/H3视频/7_测试/官方本地-pi-H3-DWD-首测.json": {
+      "input_sha256": "ef5f91f718eb88c4a8103f34ec062cd9c04e300b1fd2c38f8f0a575cd9f4b7cb",
+      "report_sha256": "ef5f91f718eb88c4a8103f34ec062cd9c04e300b1fd2c38f8f0a575cd9f4b7cb",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "sub:pi-H3 Adapter": {
+          "rung": "1.5",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "occlusion": [
+                  3,
+                  2
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/2_视频/H3视频/7_测试/社区-H3三采6步lora完美版.json": {
+      "input_sha256": "dff5cc6991c554aae5a5e563516c43e54dc251ab5c38dece880cf0625d9ded58",
+      "report_sha256": "dff5cc6991c554aae5a5e563516c43e54dc251ab5c38dece880cf0625d9ded58",
+      "status": "unchanged",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "1.5",
+          "unresolvable": false,
+          "failed_attempts": [
+            {
+              "line": 1120,
+              "source": "return None",
+              "rung": "1",
+              "attempt_return_line": 1120,
+              "reason": "横向差分约束无解"
+            }
+          ]
+        }
+      }
+    },
+    "workflows/2_视频/H3视频/7_测试/社区-H3小脸修复-SAM.json": {
+      "input_sha256": "ee58b7294d8649d08cd4baed62c11f6d0babd67c58cad0b38ae5e57074da1444",
+      "report_sha256": "ee58b7294d8649d08cd4baed62c11f6d0babd67c58cad0b38ae5e57074da1444",
+      "status": "unresolved",
+      "untested_scopes_after_unresolved": [],
+      "non_tightest": {
+        "main": {
+          "rung": "inf",
+          "unresolvable": true,
+          "failed_attempts": [
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                4575.0,
+                885.0
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                4575.0,
+                885.0
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                4575.0,
+                885.0
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                4575.0,
+                885.0
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                4575.0,
+                885.0
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                4575.0,
+                885.0
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                4575.0,
+                885.0
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                4575.0,
+                885.0
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                4575.0,
+                885.0
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                4575.0,
+                885.0
+              ],
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                4575.0,
+                885.0
+              ],
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 729,
+              "source": "return None",
+              "ceiling_px": [
+                4575.0,
+                885.0
+              ],
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "压缩后节点包围范围超过只修组框档"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "1",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "1.5",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 747,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "2",
+              "attempt_return_line": 1124,
+              "reason": "布局判据超限且没有可用的新线遮修补"
+            },
+            {
+              "line": 735,
+              "source": "return None",
+              "exceeded_actual_and_limit": {
+                "node_out_of_group": [
+                  2,
+                  0
+                ]
+              },
+              "rung": "inf",
+              "attempt_return_line": 932,
+              "reason": "布局判据超限且本档不执行修补"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
