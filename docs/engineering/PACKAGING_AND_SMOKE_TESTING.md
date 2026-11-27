@@ -95,10 +95,10 @@ npm run build:linux  # node ./build/packaging/build-desktop.mjs --linux
 | Mac | 调用 `build-mac.sh` 完成打包、覆盖安装与 installed smoke，随后按参数决定是否推送。 |
 | Windows 构建 | SSH 拉取源码，拉取失败时尝试用 SCP 补传变更。构建阶段在 `apps/` 增量运行 `pnpm install`，再运行 `build-desktop.mjs --win`。核对 `deploy-dual-build.log` 和 `BUILD_OK`，并比对目标源码与产物版本。 |
 | Windows 装机（B4） | 停止相关应用和引擎后，用 `robocopy /MIR` 镜像 `win-unpacked` 到应用安装目录。镜像会移除安装目录中源端没有的文件。 |
-| Windows 节点同步（B4.5） | 用 `robocopy /E` 将包内 `my_nodes` 拷到引擎的 `custom_nodes/my-nodes`。源端删改文件名后，旧节点文件可能继续被加载，部署后应核对残留。两个 `robocopy` 阶段都将退出码 0–7 视为成功，8 及以上视为失败。 |
+| Windows 节点同步（B4.5） | 用 `robocopy /E` 将包内 `my_nodes` 拷到引擎的 `custom_nodes/my-nodes`。复制成功后，对账按不区分大小写的 Windows 相对路径比较，忽略 `__pycache__` 和 `.pyc`，逐件告警并保留引擎侧多出的文件。对账失败会告警，部署继续。两个 `robocopy` 阶段都将退出码 0–7 视为成功，8 及以上视为失败。 |
 | Windows 验证 | 同步引擎侧道劫数据后重启引擎。引擎 smoke 检查 `/system_stats` 及 `MyQi21SpeedSelect`、`KSampler` 注册，再经计划任务拉起桌面应用。真实分镜生成需另行验收。 |
 
-[双机部署脚本](../../apps/build/packaging/deploy-dual.sh) · [节点同步残留的跟踪事项](../../.trellis/tasks/11-26-h3-leftover-ops/prd.md#二deploy-dualsh-同步自研节点只增不删)
+节点同步残留的验证回执见 Trellis 任务 `11-26-h3-leftover-ops`。[双机部署脚本](../../apps/build/packaging/deploy-dual.sh)
 
 ### Windows 本地准备与打包辅助脚本
 

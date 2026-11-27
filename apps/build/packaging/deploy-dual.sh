@@ -289,6 +289,46 @@ phase_b() {
     else
       die "my-nodes 同步失败(exit=$mn_code)"
     fi
+
+    # 只读对账：列出 /E 留下的引擎侧文件，供人工判断用途。
+    local mn_audit_ps mn_audit_out mn_audit_cmd
+    mn_audit_ps=$(cat <<PSEOF
+\$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new(\$false)
+\$source = '$WIN_INSTALL\resources\backend\comfyui\my_nodes'
+\$target = '$WIN_ENGINE_HOME\ComfyUI\custom_nodes\my-nodes'
+
+function Get-NodeFilePaths(\$root) {
+  \$directory = Get-Item -LiteralPath \$root -Force
+  if (-not \$directory.PSIsContainer) { throw "Not a directory: \$root" }
+  \$prefixLength = \$directory.FullName.Length + 1
+  Get-ChildItem -LiteralPath \$directory.FullName -Recurse -File -Force |
+    Where-Object { \$_.FullName -notlike '*\__pycache__\*' -and \$_.Extension -ne '.pyc' } |
+    ForEach-Object { \$_.FullName.Substring(\$prefixLength) }
+}
+
+try {
+  \$sourcePaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+  Get-NodeFilePaths \$source | ForEach-Object { [void]\$sourcePaths.Add(\$_) }
+  \$extras = @(Get-NodeFilePaths \$target | Where-Object { -not \$sourcePaths.Contains(\$_) } | Sort-Object)
+  Write-Output "额外文件数：\$(\$extras.Count)"
+  foreach (\$file in \$extras) { Write-Output "  \$file" }
+} catch {
+  Write-Output \$_.Exception.Message
+  exit 3
+}
+PSEOF
+)
+    if mn_audit_cmd=$(printf '%s' "$mn_audit_ps" | iconv -f UTF-8 -t UTF-16LE | base64 | tr -d '\n') &&
+       mn_audit_out=$(ssh_win "powershell -NoProfile -EncodedCommand $mn_audit_cmd"); then
+      if [ "$mn_audit_out" = $'额外文件数：0\r' ] || [ "$mn_audit_out" = '额外文件数：0' ]; then
+        log "✅ my-nodes 对账无额外文件"
+      else
+        log "⚠️  my-nodes 引擎侧残留：$mn_audit_out"
+      fi
+    else
+      log "⚠️  my-nodes 对账失败：${mn_audit_out:-无法执行远端检查}"
+    fi
   fi
 
   # B4.6: 同步道劫数据四件 → 引擎家 daojie-data(1123 Phase 6 补:此前部署链路无任何一处写这里——
