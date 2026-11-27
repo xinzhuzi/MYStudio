@@ -49,35 +49,33 @@ import layout_normalize as ln  # noqa: E402
 # 载入失败不在此 raise,由 _load_campaign 报给测试体,只让用到的测试失败。
 _CAMPAIGN_CACHE: dict = {}
 
-# ── 无解件钉册(2026-11-27 终态;design §5.3「由机器门和不动点检查接着盯」)──
-# 8 件无解件:档位梯子 × 四方位分离 + 并组重试后仍过不了守门(design §4 步骤 9),
+# ── 无解件钉册(2026-11-27 1127b 收编后;design §5.3「由机器门和不动点检查接着盯」)──
+# 4 件无解件:档位梯子 × 四方位分离 + 并组重试后仍过不了守门(design §4 步骤 9),
 # normalize 恒返回 None,--apply 按设计不写盘。处置=A14(grill-ledger:判定权在用户,
-# 「用户可给这类件单独放宽容差后再跑 --apply --only」),门禁不得代用户选。
+# 「用户可给这类件单独放宽容差(--relax)后再跑 --apply --only」),门禁不得代用户选。
 # 口径:零断言不适用钉册件,改按整治前实测数钉现状(只降不升)——恶化即红、改善放行;
 # 数字来源 = apps/output/automation/workflow-layout-report.json「无解未写」清单的
-# 逐作用域 before(2026-11-27 全库 --check 实测,并与当时盘上件逐一复核一致)。
+# 逐作用域 before(2026-11-27 1127b 全库 --check 实测,并与当时盘上件逐一复核一致)。
 # 钉册未列的作用域/判据按上限 0 断言(fail-closed);用户放宽容差收编某件后,
 # 该件变全 0、钉条目自然通过但已过期,应删条目回归零断言。
+# 1127b 收编对账:K2-角色设定-道劫 / K2-图像编辑-整合流 / 社区-480P…960P直出 /
+# 社区-H3终极三采v2版 四件经 --relax 收编后全零,钉条目已删;qi21-bfs-换头 与
+# 社区-H3小脸修复-SAM 经工具兜底(fallback-inf/扫掠后推开)复测仍无解,钉条目保留、
+# 数字与盘上现状一致未变。
 UNRESOLVED_PINS = {
     "workflows/1_图片/QwenImage2.1/2_图生图/qi21-bfs-换头.json": {
         "main": {"group_overlap": 0, "node_out_of_group": 5, "edge_tight": 6}},
     "workflows/1_图片/krea2/2_图生图/K2-无审查全家桶(4K放大+提示词增强).json": {
         "main": {"group_overlap": 7, "node_out_of_group": 11, "edge_tight": 32}},
-    "workflows/1_图片/krea2/2_图生图/K2-角色设定-道劫.json": {
-        "main": {"group_overlap": 0, "node_out_of_group": 2, "edge_tight": 5}},
-    "workflows/1_图片/krea2/3_改图/K2-图像编辑-整合流.json": {
-        "main": {"group_overlap": 0, "node_out_of_group": 0, "edge_tight": 20}},
     "workflows/1_图片/krea2/5_风格扩展/K2-风格扩展流（图生图版）.json": {
         "main": {"group_overlap": 0, "node_out_of_group": 0, "edge_tight": 7}},
-    "workflows/2_视频/H3视频/2_固定线/社区-480P生成-960P精修-SolAttn加速-960P直出.json": {
-        "main": {"group_overlap": 0, "node_out_of_group": 2, "edge_tight": 2}},
     "workflows/2_视频/H3视频/7_测试/社区-H3小脸修复-SAM.json": {
         "main": {"group_overlap": 0, "node_out_of_group": 2, "edge_tight": 13}},
-    "workflows/2_视频/H3视频/7_测试/社区-H3终极三采v2版.json": {
-        "main": {"group_overlap": 0, "node_out_of_group": 4, "edge_tight": 6}},
     # 1127 晚重跑追加:fasth3 i2v/t2v —— 整治解在 12 轮不动点迭代内不收敛,
     # 批处理幂等闸 fail-closed 拒写(非无解,是不稳定),盘上留整治前布局。
-    # 钉现状只降不升,同上;数字 = 重建后全库 --check 的逐作用域 before。
+    # 1127b 工具加了不收敛兜底(末态再解只修组框档,rung=fallback-inf)后有解且
+    # 幂等,但本轮未 --apply 写盘,盘上仍是整治前布局;钉现状只降不升,同上;
+    # 数字 = 1127b 全库 --check 的逐作用域 before(与盘上现状一致)。
     "workflows/2_视频/H3视频/6_视频重制/fasth3-单镜视频-i2v.json": {
         "main": {"group_overlap": 0, "node_out_of_group": 3, "edge_tight": 1}},
     "workflows/2_视频/H3视频/6_视频重制/fasth3-单镜视频-t2v.json": {

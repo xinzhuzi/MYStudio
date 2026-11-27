@@ -41,7 +41,10 @@ are independent coordinate systems, reusing layout_check._scopes()):
                    sanctioned push; cross-group pair ORDER constraints along
                    the separation axis are relaxed for interleaved groups;
                    non-overlapping pairs get a pad-sum floor so recomputed
-                   boxes cannot intersect
+                   boxes cannot intersect; AFTER the sweep the step-5
+                   push-out runs once more — groupless nodes vs the SWEPT
+                   boxes — so a node the sweep wedged into a box is pushed
+                   back out before any constraint is built
   8. solve:        per-axis difference constraints, minimal fixed point
                    (longest path with per-node lower bounds); a positive
                    cycle means the attempt fails
@@ -69,7 +72,14 @@ are independent coordinate systems, reusing layout_check._scopes()):
                    (subgraph extra.ds is untouched). The whole solve iterates
                    on its own output until it stops moving, so the returned
                    document is a fixed point of the operator (the wire repair
-                   alone can land one rung short of it).
+                   alone can land one rung short of it). A scope still moving
+                   when the 12-round cap is hit (an unbounded drift with no
+                   cycle — e.g. an empty-group pseudo-node chained to a
+                   fractional anchor makes its written box width grow +1 per
+                   round) falls back to ONE more solve at ladder=(inf,) on
+                   the final state; that groups-only rung is measured
+                   idempotent, and the report marks the scope's rung
+                   "fallback-inf" to tell it apart from a negotiated inf.
 
 survey() is read-only; strip_layout() removes exactly the layout-field paths
 (the structural-diff whitelist); normalize() never mutates its input and
@@ -142,7 +152,12 @@ def normalize(wf, params=PARAMS, ladder=LADDER, tol=None):
     1127 回归修正:容差边界件存在「双稳态振荡」(solve(A)=B、solve(B)=A;实测
     t2i-通用 子图交叉 39↔41↔44 循环)——迭代改为带环检测:检出重复态即取环上
     「质量最优态」(判据逐项最小,canonical 决胜)为代表并返回;对代表态再解
-    一次仍是原样,apply 的幂等闸与全库不动点检查才对所有件成立。"""
+    一次仍是原样,apply 的幂等闸与全库不动点检查才对所有件成立。
+
+    1127 返工兜底:罩到 12 轮上限仍未 settled(单向移动、未见环——实测空组框
+    伪节点链在分数锚点上时组宽每轮 +1、永不复现)时,不返回末态,而是对末态
+    再解一次 ladder=(float("inf"),) 的只修组框档(该档实测幂等)并返回该结
+    果;报告里该作用域 rung 标 "fallback-inf"。"""
     if not isinstance(wf, dict) or not isinstance(wf.get("nodes"), list):
         return wf, {"scopes": {}, "applied": False}
     if callable(tol):
@@ -201,7 +216,19 @@ def normalize(wf, params=PARAMS, ladder=LADDER, tol=None):
             settled = True
             break
         doc, report = doc2, rep2
-    # 未 settled = 罩到上限仍单向移动(未见环):返回末态,交由批处理幂等闸处置。
+    if not settled:
+        # 未 settled = 罩到 12 轮上限仍单向移动(未见环、未见不动点):末态本身
+        # 不可靠(实测 fasth3 两件:空组框伪节点被链在分数原位的锚节点上,组宽
+        # 写盘 ceil−floor 每轮 +1,永不复现)。兜底 = 对末态再解一次只修组框档
+        # ladder=(inf,) —— 该档实测幂等 —— 并返回该结果;报告里该作用域 rung
+        # 标 'fallback-inf' 以区分正常协商出的 inf 档。兜底也无解时保留末态
+        # (与无解路径同口径,交由批处理幂等闸 fail-closed 处置)。
+        fdoc, frep = _solve_document(doc, params, (float("inf"),), tol)
+        if fdoc is not None:
+            doc, report = fdoc, frep
+            for s, v in report["scopes"].items():
+                v["rung"] = "fallback-inf"
+                merges_total[s] = merges_total.get(s, 0) + v["merges"]
     for s in report["scopes"]:
         if s in merges_total and merges_total[s]:
             report["scopes"][s] = dict(report["scopes"][s])
@@ -764,29 +791,33 @@ def _compact_scope(name, nodes, links, sg, groups, params, ladder, tol_map, befo
                     out.append(ebox.get(si))
             return out
 
-        # step 5: push groupless nodes out of the (recomputed) boxes
-        for _ in range(4 * len(state) + 8):
-            moved = False
-            bxs = boxes_w()
-            for i in range(n):
-                if g_of[i] is not None:
-                    continue
-                vb = wbox(i)
-                for gb in bxs:
-                    if gb is None or not _intersects(vb, gb) or _fully_inside(vb, gb):
+        def _push_out():
+            # step 5: push groupless nodes out of the (recomputed) boxes —
+            # minimal displacement, four directions, net gap >= 0
+            for _ in range(4 * len(state) + 8):
+                moved = False
+                bxs = boxes_w()
+                for i in range(n):
+                    if g_of[i] is not None:
                         continue
-                    cand = [(vb[2] - gb[0], 0, 0, gb[0] - vb[2]),
-                            (gb[2] - vb[0], 1, 0, gb[2] - vb[0]),
-                            (vb[3] - gb[1], 2, 1, gb[1] - vb[3]),
-                            (gb[3] - vb[1], 3, 1, gb[3] - vb[1])]
-                    _, _, axis, delta = min(cand)
-                    wpos[i][axis] += delta
-                    moved = True
+                    vb = wbox(i)
+                    for gb in bxs:
+                        if gb is None or not _intersects(vb, gb) or _fully_inside(vb, gb):
+                            continue
+                        cand = [(vb[2] - gb[0], 0, 0, gb[0] - vb[2]),
+                                (gb[2] - vb[0], 1, 0, gb[2] - vb[0]),
+                                (vb[3] - gb[1], 2, 1, gb[1] - vb[3]),
+                                (gb[3] - vb[1], 3, 1, gb[3] - vb[1])]
+                        _, _, axis, delta = min(cand)
+                        wpos[i][axis] += delta
+                        moved = True
+                        break
+                    if moved:
+                        break
+                if not moved:
                     break
-                if moved:
-                    break
-            if not moved:
-                break
+
+        _push_out()
 
         # step 7: separate overlapping group boxes with a per-component 1-D
         # sweep (1127 rework). The recomputed boxes can form overlapping
@@ -889,6 +920,12 @@ def _compact_scope(name, nodes, links, sg, groups, params, ladder, tol_map, befo
                         continue
                     if (a, b2) not in sep_dirs:
                         return None              # separation failed this attempt
+
+        # step 5 once more (1127 rework ②): the sweep translated whole groups,
+        # so a groupless node that was clear of the ORIGINAL boxes can now sit
+        # inside a swept one — push the groupless nodes out of the post-sweep
+        # boxes before any constraint is built (N22).
+        _push_out()
 
         if math.isinf(rung):
             vals = [[wpos[i][0] for i in range(n)], [wpos[i][1] for i in range(n)]]
@@ -1644,8 +1681,65 @@ def selftest(cases=None) -> int:
         ok(after[0] < before[0],
            "compaction still compacts (width %.0f -> %.0f)" % (before[0], after[0]))
 
+    def n21():
+        # ① 不收敛兜底(1127 返工):压缩档求解里空组框伪节点被链在分数原位的
+        # 锚节点上,写盘 ceil−floor 让组宽每轮 +1、永不复现(fasth3 两件 12 轮
+        # 不收敛的实测动力学,此处是最小化夹具:分数原位节点 + 远处空组框)。
+        # 断言:缺省梯子罩到 12 轮上限后不再返回末态,而是对末态再解一次只修
+        # 组框档并返回该结果 —— rung 标 fallback-inf、结果是只修组框档的不动
+        # 点、节点包围尺寸不放大。
+        fix = {"nodes": [_mk_node(1, [95.11, 100.25], [225, 0], 0, 0, "MarkdownNote"),
+                         _mk_node(2, [362.66, 162.78], [258.67, 82], 0, 0, "RandomNoise"),
+                         _mk_node(3, [936.12, 915.1], [520, 260], 0, 0, "MarkdownNote")],
+               "links": [],
+               "groups": [{"title": "E", "bounding": [1274.86, 68.23, 300, 200]}]}
+        doc, rep = normalize(fix)
+        ok(doc is not None, "ratchet fixture returns a document")
+        if doc is None:
+            return
+        ok(rep["scopes"]["main"]["rung"] == "fallback-inf",
+           "non-converged scope lands on the fallback rung (got %s)"
+           % rep["scopes"]["main"]["rung"])
+        doc2, _ = normalize(doc, ladder=(float("inf"),))
+        ok(doc2 == doc,
+           "returned document is a fixed point of the groups-only rung")
+        e0, e1 = _node_extent(fix), _node_extent(doc)
+        ok(e1[0] <= e0[0] + _SAME and e1[1] <= e0[1] + _SAME,
+           "fallback result never enlarges the node extent (before %s, after %s)"
+           % (e0, e1))
+
+    def n22():
+        # ② 扫掠后再推开一轮(1127 返工):组分离的一维扫掠整组平移,原本不被
+        # 任何组框碰到的无组节点可能被扫进的框罩住。两个上下交叠的相邻组框,
+        # 无组 Note 夹在左侧缝里 —— 最小位移的扫掠变体把上组推上去后正好压住
+        # 它。断言:分离靠扫掠完成(不并组、两组都在),且分离后该节点不被任何
+        # 组框相交。
+        fix = {"nodes": [_mk_node(1, [900, 300], [200, 100]),
+                         _mk_node(2, [900, 370], [200, 100]),
+                         _mk_node("N", [640, 150], [240, 100], 0, 0, "MarkdownNote")],
+               "links": [],
+               "groups": [{"title": "G1", "bounding": [870, 250, 260, 180]},
+                          {"title": "G2", "bounding": [870, 320, 260, 180]}]}
+        doc, rep = normalize(fix)
+        ok(doc is not None, "sandwich fixture returns a document")
+        if doc is None:
+            return
+        ok(rep["scopes"]["main"]["merges"] == 0,
+           "separable by the sweep without merging (got %d merges)"
+           % rep["scopes"]["main"]["merges"])
+        ok(len(doc["groups"]) == 2,
+           "both groups survive separation (got %d)" % len(doc["groups"]))
+        nb = _occl_box(next(nd for nd in doc["nodes"] if nd["id"] == "N"))
+        for g in doc["groups"]:
+            b = g["bounding"]
+            gb = (float(b[0]), float(b[1]), float(b[0]) + float(b[2]),
+                  float(b[1]) + float(b[3]))
+            ok(not _intersects(nb, gb),
+               "N not intersected by group %s after separation (N %s, box %s)"
+               % (g["title"], nb, gb))
+
     for fn in (n1, n2, n3, n16, n4, n5, n6, n11, n12, n7, n8, n9, n10, n13,
-               n14, n15, n17, n18, n19, n20):
+               n14, n15, n17, n18, n19, n20, n21, n22):
         name = fn.__name__.upper()
         if selected is not None and name not in selected:
             continue

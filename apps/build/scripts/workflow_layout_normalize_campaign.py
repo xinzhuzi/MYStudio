@@ -16,6 +16,13 @@ CLI:
                             workflows/1_图片/SeeThrough/seethrough-layer-editor.json,
                             2026-11-27 裁决 A15;按缩进 2 展开写回,行尾与末尾换行照原文件)
   --ht N / --vt N           间距目标档覆盖(缺省 = Q4 裁决 横 320 / 纵 180)
+  --relax 判据=增量          放宽守门容差(可重复,如 --relax est_spacing=5;
+                            也可放宽交叉:--relax crossings=10 覆盖缺省的
+                            max(3,⌈整治前×10%⌉));解析成 {判据: 增量} 进
+                            容差计算,放宽键覆盖默认;--only 与全库模式均生效;
+                            与 --strict 互斥。可放宽判据 = crossings /
+                            occlusion / est_overlap / est_spacing /
+                            negative_region / output_rightmost / leftward
   --strict                  守门容差全 0(缺省 = Q3 裁决:交叉每作用域
                             ≤ max(3, ⌈整治前 × 10%⌉),其余判据 0)
   --json                    报告 JSON 另打到标准输出
@@ -162,7 +169,47 @@ def cross_tol(before: dict) -> dict:
     return {"crossings": max(3, math.ceil(float(before.get("crossings", 0)) * 0.1))}
 
 
-# 运行期容差(main 按 --strict 设置;模块被 import 时 = Q3 裁决缺省)。
+# --relax 可放宽的判据 = 守门里走容差的键;group_overlap / node_out_of_group /
+# edge_tight 是硬零门(R2/R3 立宪),不在其列。
+RELAXABLE_KEYS = ("crossings", "occlusion", "est_overlap", "est_spacing",
+                  "negative_region", "output_rightmost", "leftward")
+
+
+def _parse_relax(items) -> dict:
+    """--relax 判据=增量(可重复)→ {判据: 增量};后写覆盖先写。
+    形式错(缺 = / 增量非数)或判据不可放宽时抛 ValueError(main 转退出码 2)。"""
+    out = {}
+    for it in items or []:
+        key, sep, val = (it or "").partition("=")
+        key = key.strip()
+        if not sep or not key or not val.strip():
+            raise ValueError(f"--relax 形如 判据=增量(如 est_spacing=5), got: {it!r}")
+        try:
+            num = int(val.strip())
+        except ValueError:
+            try:
+                num = float(val.strip())
+            except ValueError:
+                raise ValueError(f"--relax 增量须是整数(或小数): {it!r}") from None
+        if key not in RELAXABLE_KEYS:
+            raise ValueError(
+                f"--relax 判据 {key!r} 不可放宽;可放宽: {'/'.join(RELAXABLE_KEYS)}")
+        out[key] = num
+    return out
+
+
+def _make_tol(relax: dict):
+    """cross_tol + --relax 放宽:放宽键覆盖默认(交叉的 max(3,⌈10%⌉) 也一并
+    被覆盖);空 relax 返回 cross_tol 本身。"""
+    if not relax:
+        return cross_tol
+
+    def tol(before: dict) -> dict:
+        return {**cross_tol(before), **relax}
+    return tol
+
+
+# 运行期容差(main 按 --strict/--relax 设置;模块被 import 时 = Q3 裁决缺省)。
 _ACTIVE_TOL = cross_tol
 
 
@@ -629,15 +676,30 @@ def main(argv=None) -> int:
                     help="格式特殊件经用户同意整件重排(可重复)")
     ap.add_argument("--ht", type=float, default=None, help="同排间距目标档(缺省 320)")
     ap.add_argument("--vt", type=float, default=None, help="同列间距目标档(缺省 180)")
+    ap.add_argument("--relax", action="append", default=[], metavar="判据=增量",
+                    help="放宽守门容差,可重复(如 --relax est_spacing=5 "
+                         "--relax occlusion=2);解析成 {判据: 增量} 进容差计算,"
+                         "放宽键覆盖默认(交叉缺省 max(3,⌈整治前×10%%⌉),其余 0);"
+                         "--only 与全库模式均生效;与 --strict 互斥。"
+                         "可放宽判据: crossings/occlusion/est_overlap/est_spacing/"
+                         "negative_region/output_rightmost/leftward")
     ap.add_argument("--strict", action="store_true", help="守门容差全 0")
     ap.add_argument("--json", action="store_true", help="报告 JSON 另打到标准输出")
     args = ap.parse_args(argv)
 
+    try:
+        relax = _parse_relax(args.relax)
+    except ValueError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 2
+    if args.strict and relax:
+        print("ERROR: --strict(容差全 0)与 --relax(放宽容差)互斥", file=sys.stderr)
+        return 2
     if args.ht is not None:
         ACTIVE_PARAMS["H_T"] = float(args.ht)
     if args.vt is not None:
         ACTIVE_PARAMS["V_T"] = float(args.vt)
-    _ACTIVE_TOL = None if args.strict else cross_tol
+    _ACTIVE_TOL = None if args.strict else _make_tol(relax)
     _ALLOW_REFORMAT = frozenset(args.allow_reformat)
 
     if args.sync_blueprints:
@@ -755,7 +817,8 @@ def main(argv=None) -> int:
 
     params = {"mode": "apply" if apply_mode else "check",
               "ht": ACTIVE_PARAMS["H_T"], "vt": ACTIVE_PARAMS["V_T"],
-              "strict": args.strict, "only": list(args.only),
+              "strict": args.strict, "relax": dict(relax),
+              "only": list(args.only),
               "allow_reformat": list(args.allow_reformat)}
     report = _build_report("apply" if apply_mode else "check",
                            len(scan_all), len(in_scope_keys), entries, params)
