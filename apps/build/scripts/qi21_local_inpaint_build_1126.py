@@ -162,6 +162,10 @@ def main() -> int:
     xsg["nodes"] = [n for n in xsg["nodes"] if n["id"] not in STYLE_NODES]
     xsg["links"] = [l for l in xsg["links"] if l["origin_id"] not in STYLE_NODES
                     and l["target_id"] not in STYLE_NODES]
+    xsg["inputs"][model_io]["linkIds"] = [
+        link["id"] for link in xsg["links"]
+        if link["origin_id"] == -10 and link["origin_slot"] == model_io
+    ]
     xsg["name"] = "加速子图"
 
     # ── 3. 前缀/注记/布局 ────────────────────────────────────────────
