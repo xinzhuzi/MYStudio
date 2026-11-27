@@ -22,8 +22,10 @@ are independent coordinate systems, reusing layout_check._scopes()):
                    box -> that group (smallest); else groupless. Reroute and
                    Note are ordinary members (they are exempt only in the
                    calibers)
-  4. group recompute: member bbox + GROUP_PAD; empty groups keep their box
-                   and separate as a rigid rectangle
+  4. group recompute: member bbox + GROUP_PAD; empty groups keep their box,
+                   separate as a rigid rectangle and — in a compression rung —
+                   ride along as a rigid pseudo-node in the same relative
+                   frame as the nodes (never an absolute anchor)
   5. out-of-box:   a groupless node intersecting a (recomputed) box is pushed
                    to the nearest side, net gap >= 0 — never annexed
   6. pair constraints (compression rungs only, EVERY pair of nodes):
@@ -44,10 +46,13 @@ are independent coordinate systems, reusing layout_check._scopes()):
                    (longest path with per-node lower bounds); a positive
                    cycle means the attempt fails
   9. ladder:       rungs x (1, 1.5, 2, inf) — inf means "no compression, fix
-                   groups only"; per scope the first rung passing the gate
-                   wins; single-pair conflicts also enumerate the other three
-                   separation directions; merging two groups ("A + B") is the
-                   last resort and restarts the ladder from the tightest rung
+                   groups only"; the inf candidate is solved first and is
+                   the ceiling: a compression rung is taken only when its node
+                   extent stays within it on both axes (compaction never
+                   enlarges the scope); per scope the first rung passing the
+                   gate wins; single-pair conflicts also enumerate the other
+                   three separation directions; merging two groups ("A + B") is
+                   the last resort and restarts the ladder from the tightest rung
  10. gate:         per scope, layout_check calibers may not increase (tolerance
                    via tol=); group_overlap / node_out_of_group / edge_tight
                    must be 0 after
@@ -111,6 +116,7 @@ LADDER = (1.0, 1.5, 2.0, float("inf"))
 DIRS = ("L", "R", "U", "D")            # separation-direction vote order
 _SAME = 1e-6                           # "coordinate unchanged" tolerance
 _MARGIN = OCCL_TOL + 0.5               # occlusion-repair clearance
+_GROW_SLACK = 2.0                      # px; ceiling tolerance for per-node ceil rounding
 
 
 # --- public API -------------------------------------------------------------------
@@ -545,8 +551,22 @@ def _compact_scope(name, nodes, links, sg, groups, params, ladder, tol_map, befo
         return "D" if dy > 0 else "U"
 
     # ---- finishing: origin translation, rounding, group boxes, slot re-pin -------
+    def _extent(pos):
+        """Per-axis node bounding extent of a layout: (width, height)."""
+        if not n:
+            return (0.0, 0.0)
+        return tuple(max(pos[i][ax] + vsize[i][ax] for i in range(n))
+                     - min(pos[i][ax] for i in range(n)) for ax in (0, 1))
+
+    def _grows(final, ceiling):
+        """True when the node extent exceeds `ceiling` on either axis by more
+        than rounding noise."""
+        ext = _extent(final)
+        return any(ext[ax] > ceiling[ax] + _GROW_SLACK for ax in (0, 1))
+
     def _finalize(vals, ebox):
         moved = []
+        shift = [0.0, 0.0]
         for axis in (0, 1):
             vs = list(vals[axis])
             if n:
@@ -557,6 +577,7 @@ def _compact_scope(name, nodes, links, sg, groups, params, ladder, tol_map, befo
                 tgt = om if om >= params["ORIGIN"] else params["ORIGIN"]
                 d = tgt - min(vs)
                 vs = [v + d for v in vs]
+                shift[axis] = d
             moved.append(vs)
         final = []
         for i in range(n):
@@ -581,10 +602,14 @@ def _compact_scope(name, nodes, links, sg, groups, params, ladder, tol_map, befo
                                   math.ceil(r) - math.floor(l),
                                   math.ceil(b) - math.floor(t)]
             else:
+                # empty boxes travel with the scope's translation (1127 rework:
+                # in a compression rung they are solved in the same relative
+                # frame as the nodes, so they need the same shift back)
                 eb = ebox.get(si, e["empty"])
-                g2["bounding"] = [math.floor(eb[0]), math.floor(eb[1]),
-                                  math.ceil(eb[2]) - math.floor(eb[0]),
-                                  math.ceil(eb[3]) - math.floor(eb[1])]
+                l, t_ = math.floor(eb[0] + shift[0]), math.floor(eb[1] + shift[1])
+                g2["bounding"] = [l, t_,
+                                  math.ceil(eb[2] + shift[0]) - l,
+                                  math.ceil(eb[3] + shift[1]) - t_]
             groups_out.append(g2)
         sg_out = dict(sg) if sg is not None else None
         if sg_out is not None:
@@ -657,12 +682,24 @@ def _compact_scope(name, nodes, links, sg, groups, params, ladder, tol_map, befo
                 worst = m if worst is None else max(worst, m)
         return worst
 
-    def _finish_with_gate(vals, ebox, edges, lbs, repairable):
+    def _finish_with_gate(vals, ebox, edges, lbs, repairable, emp=None,
+                          ceiling=None):
         """Gate the attempt; when a compression rung newly pushes a wire
         through a node, try the sanctioned repair — raise that node's y lower
-        bound clear below the wire and re-solve — before giving the rung up."""
+        bound clear below the wire and re-solve — before giving the rung up.
+        `emp` = [(group index, w, h)] of the empty boxes riding along as
+        pseudo-nodes after the real ones; their solved positions are written
+        back into `ebox` before every finishing pass. `ceiling` = (W, H) node
+        extent the result may not exceed on either axis (the groups-only
+        result): compaction never enlarges the scope."""
         for _it in range(12):
-            final, groups_out, sg_out, tnodes = _finalize(vals, ebox)
+            for t, (si, ew, eh) in enumerate(emp or ()):
+                ex, ey = vals[0][n + t], vals[1][n + t]
+                ebox[si] = (ex, ey, ex + ew, ey + eh)
+            final, groups_out, sg_out, tnodes = _finalize(
+                [vals[0][:n], vals[1][:n]], ebox)
+            if ceiling is not None and _grows(final, ceiling):
+                return None
             rep = _trep(final, groups_out, sg_out, tnodes)
             if _gate_ok(rep):
                 return {"final": final, "groups": groups_out, "sg": sg_out,
@@ -698,14 +735,15 @@ def _compact_scope(name, nodes, links, sg, groups, params, ladder, tol_map, befo
                 best = (v, i)
         return best[1]
 
-    def _attempt(rung, override=None):
+    def _attempt(rung, override=None, ceiling=None):
         """One solve attempt at one ladder rung. Steps 3-5 (membership is
         precomputed, box recompute, out-of-box push) then, at the inf rung,
         step-7 separation by whole-group translation; at compression rungs the
         pair constraints (every pair, both axes), the group separation edges
         with the inter-axis relaxation, the group floors and the empty-box
-        guards feed the per-axis solver. `override` fixes the separation
-        direction for specific group pairs (direction enumeration)."""
+        pseudo-nodes feed the per-axis solver. `override` fixes the separation
+        direction for specific group pairs (direction enumeration); `ceiling`
+        is the node extent a compression result may not exceed."""
         wpos = [list(p) for p in p0]
         ebox = {si: e["empty"] for si, e in enumerate(state) if not e["members"]}
         g_of = [None] * n
@@ -750,46 +788,107 @@ def _compact_scope(name, nodes, links, sg, groups, params, ladder, tol_map, befo
             if not moved:
                 break
 
-        # step 7, part one: resolve conflicts by translation where possible —
-        # empty groups translate their box (a rigid rectangle, constant during
-        # the solve); the inf rung also translates membered groups wholesale.
-        # Along the voted separation axis the two groups' relative order may
-        # change (the sanctioned relaxation); intra-group order never does.
+        # step 7: separate overlapping group boxes with a per-component 1-D
+        # sweep (1127 rework). The recomputed boxes can form overlapping
+        # chains/triangles where pairwise minimal pushes do not compose — the
+        # first version voted per pair and could end with a 95-crossing
+        # tangle. Per connected component of the overlap graph: sweep the
+        # boxes along ONE axis in their original centre order, each pushed
+        # the minimal distance that clears everything already placed (G_MIN
+        # gap); try both axes and both directions, keep the variant with the
+        # smallest total translation; apply it to members (inf) or record the
+        # per-pair directions for the solver edges (compression). An override
+        # from the direction enumeration pins the component's variant.
         sep_dirs = {}
-        for _ in range(4 * len(state) + 8):
-            moved = False
-            bxs = boxes_w()
-            for a in range(len(state)):
-                for b2 in range(a + 1, len(state)):
-                    ba, bb = bxs[a], bxs[b2]
-                    if not (ba and bb and _intersects(ba, bb)):
-                        continue
-                    d = (override or {}).get((a, b2)) or _vote(state[a], state[b2], ba, bb)
-                    pushed = a if _behind_key(ba, d) >= _behind_key(bb, d) else b2
-                    stay = b2 if pushed == a else a
-                    delta = _sep_delta(bxs[stay], bxs[pushed], d, params["G_MIN"])
-                    if not delta:
-                        continue
-                    if not state[pushed]["members"]:
-                        ebox[pushed] = _shift_box(bxs[pushed], d, delta)
-                        moved = True
-                        bxs = boxes_w()
-                    elif math.isinf(rung):
-                        axis = 0 if d in ("L", "R") else 1
-                        for m in state[pushed]["members"]:
-                            wpos[m][axis] += delta
-                        moved = True
-                        bxs = boxes_w()
-                    else:
-                        sep_dirs[(a, b2)] = d      # handled as solver edges
-            if not moved:
+        for _round in range(4 * len(state) + 8):
+            boxes0 = boxes_w()
+            pair_ov = [(a, b2) for a in range(len(state))
+                       for b2 in range(a + 1, len(state))
+                       if boxes0[a] and boxes0[b2] and _intersects(boxes0[a], boxes0[b2])]
+            if not pair_ov:
                 break
-        bxs = boxes_w()
+            adj = {}
+            for (a, b2) in pair_ov:
+                adj.setdefault(a, set()).add(b2)
+                adj.setdefault(b2, set()).add(a)
+            seen = set()
+            comps = []
+            for (a, _b2) in pair_ov:
+                if a in seen:
+                    continue
+                stack, members = [a], []
+                seen.add(a)
+                while stack:
+                    x = stack.pop()
+                    members.append(x)
+                    for y in adj.get(x, ()):
+                        if y not in seen:
+                            seen.add(y)
+                            stack.append(y)
+                comps.append(members)
+            for comp_i in comps:
+                forced = None
+                for (x, y), d in (override or {}).items():
+                    if x in comp_i and y in comp_i:
+                        forced = d
+                        break
+                variants = []
+                for axis in (0, 1):
+                    for forward in (True, False):
+                        if forced is not None:
+                            fa = 0 if forced in ("L", "R") else 1
+                            ff = forced in ("R", "D")
+                            if fa != axis or ff != forward:
+                                continue
+                        sgn = 1.0 if forward else -1.0
+                        order = sorted(comp_i, key=lambda si: (
+                            sgn * (boxes0[si][axis] + boxes0[si][axis + 2]), si))
+                        placed = []
+                        disp = {}
+                        total = 0.0
+                        for si in order:
+                            lo, hi = boxes0[si][axis], boxes0[si][axis + 2]
+                            need = 0.0
+                            for plo, phi in placed:
+                                if forward:
+                                    need = max(need, phi + params["G_MIN"] - lo)
+                                else:
+                                    need = min(need, plo - params["G_MIN"] - hi)
+                            if (forward and need > 0) or (not forward and need < 0):
+                                lo += need
+                                hi += need
+                                disp[si] = need
+                                total += abs(need)
+                            placed.append((lo, hi))
+                        # variant key = smallest total translation. A per-
+                        # component bounding-box-growth key was tried (1127
+                        # third round) and REVERTED: locally optimal per
+                        # component, globally worse (single-pi-H3 +0% -> +33%).
+                        variants.append((total, forward, axis, disp))
+                total, forward, axis, disp = min(
+                    variants, key=lambda v: (round(v[0], 6), v[1], v[2]))
+                d = ("R" if forward else "L") if axis == 0 \
+                    else ("D" if forward else "U")
+                for si in comp_i:
+                    dd = disp.get(si, 0.0)
+                    if not dd:
+                        continue
+                    if state[si]["members"]:
+                        for m in state[si]["members"]:
+                            wpos[m][axis] += dd
+                    else:
+                        ebox[si] = _shift_box(ebox[si], d, abs(dd))
+                for (x, y) in pair_ov:
+                    if x in comp_i and y in comp_i:
+                        sep_dirs[(min(x, y), max(x, y))] = d
+        boxes0 = boxes_w()
         for a in range(len(state)):
             for b2 in range(a + 1, len(state)):
-                if bxs[a] and bxs[b2] and _intersects(bxs[a], bxs[b2]) \
-                        and (a, b2) not in sep_dirs:
-                    return None              # separation failed this attempt
+                if bxs0 := boxes0[a]:
+                    if not (bxs0 and boxes0[b2] and _intersects(bxs0, boxes0[b2])):
+                        continue
+                    if (a, b2) not in sep_dirs:
+                        return None              # separation failed this attempt
 
         if math.isinf(rung):
             vals = [[wpos[i][0] for i in range(n)], [wpos[i][1] for i in range(n)]]
@@ -832,16 +931,24 @@ def _compact_scope(name, nodes, links, sg, groups, params, ladder, tol_map, befo
             target = tx if axis == 0 else ty
             return min(gap0, max(target, floor))
 
-        # separation edges between extreme members, plus the axis relaxation
+        # step 7 edges: the sweep fixed each conflicting pair's direction and
+        # pushed side; the solver keeps that separation while compacting (the
+        # swept boxes no longer touch, so this is NOT gated on intersection).
+        # Pairs whose pushed side is an EMPTY group are skipped: the swept
+        # box position is the pseudo-node's start and the clearance edges
+        # below already keep member boxes clear of it — an edge against an
+        # empty side has no extreme member to anchor to.
         for (a, b2), d in sep_dirs.items():
             axis = 0 if d in ("L", "R") else 1
             bxs = boxes_w()
             ba, bb = bxs[a], bxs[b2]
-            if not (ba and bb and _intersects(ba, bb)):
+            if not (ba and bb):
                 continue
             pushed = a if _behind_key(ba, d) >= _behind_key(bb, d) else b2
             stay = b2 if pushed == a else a
             P = state[pushed]["members"]
+            if not P:
+                continue
             S = state[stay]["members"]
             gapc = _axis_pad(axis) + params["G_MIN"]
             if not S:
@@ -914,20 +1021,62 @@ def _compact_scope(name, nodes, links, sg, groups, params, ladder, tol_map, befo
                     h = _extreme(rightm, axis, False, wpos)
                     edges[axis].append((s, h, vsize[s][axis] + gap))
 
-        # empty boxes are constants: nodes starting right of / below one must
-        # stay clear of it (the solver never moves nodes the other way)
-        for si in range(len(state)):
-            eb = ebox.get(si)
-            if state[si]["members"] or eb is None:
-                continue
+        # empty groups ride along (1127 rework): each empty box is a rigid
+        # pseudo-node in the SAME relative frame as the real nodes (index
+        # n + t, size = its box). The first version kept it as an absolute
+        # constant and anchored the nodes right of / below it with absolute
+        # lower bounds: two coordinate frames in one system — the free nodes
+        # collapsed toward ORIGIN, the anchored ones stood still, and the
+        # final translation threw the anchored side far apart (real canvases
+        # inflated up to 4.6x).
+        emp = [(si, b[2] - b[0], b[3] - b[1]) for si, b in sorted(ebox.items())]
+        for _t in emp:
+            lbs[0].append(params["ORIGIN"])
+            lbs[1].append(params["ORIGIN"])
+
+        def _order_edges(ia, pa, sa, ib, pb, sb):
+            """Order/rigid edges between two boxes (reference pos + size) —
+            the node-pair rule with a DIAG_MIN floor: projections overlap ->
+            rigid; else the one behind keeps B >= A + size_A + min(orig gap,
+            max(target, floor))."""
+            for axis in (0, 1):
+                a1 = pa[axis] + sa[axis]
+                if a1 > pb[axis] and pb[axis] + sb[axis] > pa[axis]:
+                    dd = pb[axis] - pa[axis]
+                    edges[axis].append((ia, ib, dd))
+                    edges[axis].append((ib, ia, -dd))
+                    continue
+                if pb[axis] >= a1:
+                    li, size_li, near, far = ia, sa[axis], pb[axis], a1
+                else:
+                    li, size_li, near, far = ib, sb[axis], pa[axis], pb[axis] + sb[axis]
+                edges[axis].append((li, (ib if li == ia else ia), size_li + min(
+                    near - far, max(tx if axis == 0 else ty, params["DIAG_MIN"]))))
+
+        for t, (si, ew, eh) in enumerate(emp):
+            pb, sb = (ebox[si][0], ebox[si][1]), (ew, eh)
             for i in range(n):
+                _order_edges(i, wpos[i], vsize[i], n + t, pb, sb)
+            for t2 in range(t):
+                si2, ew2, eh2 = emp[t2]
+                _order_edges(n + t2, (ebox[si2][0], ebox[si2][1]), (ew2, eh2),
+                             n + t, pb, sb)
+            # recomputed member boxes must stay clear of the empty box
+            for e in state:
+                ma = e["members"]
+                if not ma:
+                    continue
                 for axis in (0, 1):
-                    pe = (eb[0], eb[2]) if axis == 0 else (eb[1], eb[3])
-                    pi = _proj(wbox(i), axis)
-                    if pi[0] >= pe[1]:
-                        target = tx if axis == 0 else ty
-                        gap = min(pi[0] - pe[1], max(target, params["DIAG_MIN"]))
-                        lbs[axis][i] = max(lbs[axis][i], pe[1] + gap)
+                    ea = _proj(_mbox(ma, wpos), axis)
+                    eb_ = _proj(ebox[si], axis)
+                    if eb_[0] >= ea[1]:          # empty box right of the member box
+                        gap = min(eb_[0] - ea[1], max(params["G_GAP"], _axis_pad(axis)))
+                        s = _extreme(ma, axis, True, wpos)
+                        edges[axis].append((s, n + t, vsize[s][axis] + gap))
+                    elif ea[0] >= eb_[1]:        # empty box left of the member box
+                        gap = min(ea[0] - eb_[1], max(params["G_GAP"], _axis_pad(axis)))
+                        h = _extreme(ma, axis, False, wpos)
+                        edges[axis].append((n + t, h, (ew if axis == 0 else eh) + gap))
 
         vx = _solve_lb(lbs[0], edges[0])
         if vx is None:
@@ -935,7 +1084,7 @@ def _compact_scope(name, nodes, links, sg, groups, params, ladder, tol_map, befo
         vy = _solve_lb(lbs[1], edges[1])
         if vy is None:
             return None
-        return _finish_with_gate([vx, vy], ebox, edges, lbs, True)
+        return _finish_with_gate([vx, vy], ebox, edges, lbs, True, emp, ceiling)
 
     # ---- driver: ladder round, direction enumeration, merge retry -----------------
     def _static_boxes():
@@ -965,8 +1114,21 @@ def _compact_scope(name, nodes, links, sg, groups, params, ladder, tol_map, befo
         del state[j]
 
     def _ladder_round(override=None):
+        # "only compact, never push", enforced per scope (1127 rework): a
+        # compression rung is taken only when its node extent stays within the
+        # groups-only (inf) result on both axes. The inf candidate is solved
+        # first as the ceiling — its own pushes are the sanctioned group
+        # separation; when it cannot be solved the original layout is it.
+        base, ceiling = None, None
+        if any(not math.isinf(r) for r in ladder):
+            base = _attempt(float("inf"), override)
+            ceiling = _extent(base["final"]) if base is not None else _extent(p0)
         for rung in ladder:
-            cand = _attempt(rung, override)
+            if math.isinf(rung):
+                if base is None:                 # ladder without a compression rung
+                    base = _attempt(rung, override)
+                return (base, rung) if base is not None else (None, None)
+            cand = _attempt(rung, override, ceiling)
             if cand is not None:
                 return cand, rung
         return None, None
@@ -1325,16 +1487,22 @@ def selftest(cases=None) -> int:
                            {"title": "G2", "bounding": [470, 350, 1260, 180]}]}
 
     def n13():
+        # Interleaved three-wire fixture: every separation direction trips a
+        # gate caliber (left/right -> leftward wires, up/down -> a wire over a
+        # side node), so merging is the correct last resort here. The sweep
+        # handles separable pairs (N20); this one must still merge cleanly.
         fix = _fix_merge()
         b = _scope_rep(fix)["counts"]
         ok(b["crossings"] == 0 and b["occlusion"] == 0 and b["est_overlap"] == 0,
            "precondition: clean before (got %s)" % b)
+        e0 = (_max_x(fix) - _min_x(fix), _max_y(fix) - _min_y(fix))
         doc, rep = normalize(fix, ladder=(float("inf"),))
         ok(doc is not None, "merge fixture returns a document")
         if doc is None:
             return
         ok(rep["scopes"]["main"]["merges"] >= 1,
-           "at least one merge (got %s)" % rep["scopes"]["main"]["merges"])
+           "unseparable pair merges (got %d merges)"
+           % rep["scopes"]["main"]["merges"])
         ok(len(doc["groups"]) == 1 and "+" in doc["groups"][0]["title"],
            "one merged group with a '+' title (got %s)"
            % [g["title"] for g in doc["groups"]])
@@ -1345,6 +1513,33 @@ def selftest(cases=None) -> int:
                   "leftward", "negative_region"):
             ok(a["counts"][k] <= b[k],
                "%s not increased (%d -> %d)" % (k, b[k], a["counts"][k]))
+
+    def n20():
+        # Sweep minimal-push (1127 rework): two diagonally overlapping boxes,
+        # no wires. Pushing G2 down needs 70 px, right needs 80 — the sweep
+        # must take the smaller one (the pairwise vote used to always go
+        # horizontal). Compaction gaps never grow.
+        fix = {"nodes": [_mk_node(1, [100, 100], [200, 100]),
+                         _mk_node(2, [330, 260], [200, 100])],
+               "links": [],
+               "groups": [{"title": "G1", "bounding": [70, 70, 260, 180]},
+                          {"title": "G2", "bounding": [300, 230, 260, 180]}]}
+        b = _scope_rep(fix)["counts"]
+        ok(b["group_overlap"] == 1,
+           "precondition: boxes overlap (got %s)" % b)
+        e0 = _node_extent(fix)
+        doc, rep = normalize(fix, ladder=(float("inf"),))
+        ok(doc is not None, "sweep fixture returns a document")
+        if doc is None:
+            return
+        a = _scope_rep(doc)
+        ok(a["counts"]["group_overlap"] == 0,
+           "separated (got %d)" % a["counts"]["group_overlap"])
+        ok(rep["scopes"]["main"]["merges"] == 0,
+           "separable pair not merged (got %d)" % rep["scopes"]["main"]["merges"])
+        e1 = _node_extent(doc)
+        ok(e1[0] <= e0[0] + _SAME and e1[1] <= e0[1] + 70 + 2,
+           "smaller push taken: extent %s -> %s" % (e0, e1))
 
     def n14():
         doc, rep = normalize(_fix_g2(), ladder=())
@@ -1404,8 +1599,53 @@ def selftest(cases=None) -> int:
         ok(_intersects(bs[0], bs[1]),
            "p and q still visually overlap — reported, never split")
 
+    def _node_extent(doc):
+        bs = [_occl_box(nd) for nd in doc["nodes"]]
+        return (max(b[2] for b in bs) - min(b[0] for b in bs),
+                max(b[3] for b in bs) - min(b[1] for b in bs))
+
+    def _min_x(doc):
+        return min(_pos(nd)[0] for nd in doc["nodes"])
+
+    def _max_x(doc):
+        return max(_pos(nd)[0] + (_occl_box(nd)[2] - _occl_box(nd)[0])
+                   for nd in doc["nodes"])
+
+    def _min_y(doc):
+        return min(_pos(nd)[1] for nd in doc["nodes"])
+
+    def _max_y(doc):
+        return max(_pos(nd)[1] + (_occl_box(nd)[3] - _occl_box(nd)[1])
+                   for nd in doc["nodes"])
+
+    def n19():
+        # 1127 rework: compaction may never enlarge the scope, and an empty
+        # group box must ride along with the nodes. Minimized from a real
+        # canvas: the note left of an empty box collapsed toward the origin
+        # while the node right of the box stayed anchored to it, and the
+        # final translation threw that node 2.3k px further right.
+        fix = {"nodes": [_mk_node(1, [2700, 5550], [520, 300]),
+                         _mk_node(2, [4515, 5293], [283, 359])],
+               "links": [],
+               "groups": [{"title": "E", "bounding": [3475, 5033, 383, 670]}]}
+        before = _node_extent(fix)
+        doc, _ = normalize(fix)
+        ok(doc is not None, "fixture returns a document")
+        if doc is None:
+            return
+        after = _node_extent(doc)
+        ok(after[0] <= before[0] + _SAME and after[1] <= before[1] + _SAME,
+           "compaction never enlarges the node extent (before %s, after %s)"
+           % (before, after))
+        rep = _scope_rep(doc)
+        ok(rep["counts"]["group_overlap"] == 0
+           and (rep.get("layout") or {}).get("node_out_of_group", 0) == 0,
+           "still clean (got %s)" % rep)
+        ok(after[0] < before[0],
+           "compaction still compacts (width %.0f -> %.0f)" % (before[0], after[0]))
+
     for fn in (n1, n2, n3, n16, n4, n5, n6, n11, n12, n7, n8, n9, n10, n13,
-               n14, n15, n17, n18):
+               n14, n15, n17, n18, n19, n20):
         name = fn.__name__.upper()
         if selected is not None and name not in selected:
             continue

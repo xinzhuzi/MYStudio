@@ -759,18 +759,26 @@ def main(argv=None) -> int:
               "allow_reformat": list(args.allow_reformat)}
     report = _build_report("apply" if apply_mode else "check",
                            len(scan_all), len(in_scope_keys), entries, params)
-    REPORT_JSON.parent.mkdir(parents=True, exist_ok=True)
-    REPORT_JSON.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n",
-                           encoding="utf-8")
-    REPORT_MD.write_text(_report_md(report), encoding="utf-8")
-    s = report["summary"]
-    print(f"GUI 件 {s['gui_total']},范围内 {s['in_scope']};"
-          f"组遮 {s['overlap_before']}->{s['overlap_after']},"
-          f"出框 {s['out_before']}->{s['out_after']},"
-          f"贴边 {s['tight_before']}->{s['tight_after']},"
-          f"远距 {s['far_before']}->{s['far_after']},"
-          f"非不动点 {s['non_fixed_point']},写入 {s['written']}")
-    print(f"报告:{REPORT_JSON}")
+    if args.only:
+        # --only 是运维操作,不覆盖全库报告(报告的并组史/全库 summary 是役级
+        # 台账;1127 晚:单件 apply 把全库报告洗成 1 件,且 _report_md 对上一
+        # 份报告的并集键取值崩掉)。
+        s = report["summary"]
+        print(f"[--only] 单件运行,不写全库报告;本件写入 {s['written']} 件,"
+              f"非不动点 {s['non_fixed_point']}")
+    else:
+        REPORT_JSON.parent.mkdir(parents=True, exist_ok=True)
+        REPORT_JSON.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n",
+                               encoding="utf-8")
+        REPORT_MD.write_text(_report_md(report), encoding="utf-8")
+        s = report["summary"]
+        print(f"GUI 件 {s['gui_total']},范围内 {s['in_scope']};"
+              f"组遮 {s['overlap_before']}->{s['overlap_after']},"
+              f"出框 {s['out_before']}->{s['out_after']},"
+              f"贴边 {s['tight_before']}->{s['tight_after']},"
+              f"远距 {s['far_before']}->{s['far_after']},"
+              f"非不动点 {s['non_fixed_point']},写入 {s['written']}")
+        print(f"报告:{REPORT_JSON}")
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=2))
     if apply_mode and integrity_fail:
