@@ -5,7 +5,7 @@
       "type": "LoadImage",
       "pos": [
         170.0,
-        80
+        80.0
       ],
       "size": [
         300,
@@ -77,7 +77,7 @@
       "type": "SeedVR2LoadDiTModel",
       "pos": [
         121.0,
-        617
+        617.0
       ],
       "size": [
         300,
@@ -206,7 +206,7 @@
       "type": "SeedVR2LoadVAEModel",
       "pos": [
         165.0,
-        991
+        991.0
       ],
       "size": [
         300,
@@ -383,7 +383,7 @@
       "type": "SeedVR2VideoUpscaler",
       "pos": [
         700.0,
-        672
+        672.0
       ],
       "size": [
         360,
@@ -581,7 +581,7 @@
       "type": "SaveImage",
       "pos": [
         1360.0,
-        669
+        669.0
       ],
       "size": [
         300,
@@ -634,8 +634,8 @@
       "id": 6,
       "type": "MarkdownNote",
       "pos": [
-        1740,
-        80
+        1740.0,
+        80.0
       ],
       "size": [
         560,
@@ -711,7 +711,7 @@
     "ds": {
       "scale": 0.642,
       "offset": [
-        228,
+        23,
         -11
       ]
     }

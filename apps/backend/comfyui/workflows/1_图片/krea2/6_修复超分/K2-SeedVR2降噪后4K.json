@@ -8,8 +8,8 @@
       "id": 1,
       "type": "LoadImage",
       "pos": [
-        80,
-        83
+        80.0,
+        83.0
       ],
       "size": [
         300,
@@ -80,8 +80,8 @@
       "id": 2,
       "type": "SeedVR2LoadDiTModel",
       "pos": [
-        122,
-        670
+        122.0,
+        670.0
       ],
       "size": [
         300,
@@ -209,8 +209,8 @@
       "id": 3,
       "type": "SeedVR2LoadVAEModel",
       "pos": [
-        166,
-        1044
+        166.0,
+        1044.0
       ],
       "size": [
         300,
@@ -386,8 +386,8 @@
       "id": 4,
       "type": "SeedVR2VideoUpscaler",
       "pos": [
-        1026,
-        919
+        1026.0,
+        919.0
       ],
       "size": [
         360,
@@ -584,8 +584,8 @@
       "id": 5,
       "type": "SaveImage",
       "pos": [
-        2455,
-        881
+        2455.0,
+        881.0
       ],
       "size": [
         300,
@@ -638,8 +638,8 @@
       "id": 6,
       "type": "ImageScaleToTotalPixels",
       "pos": [
-        481,
-        80
+        481.0,
+        80.0
       ],
       "size": [
         225,
@@ -717,8 +717,8 @@
       "id": 7,
       "type": "SmartDeNoiseFX",
       "pos": [
-        1490,
-        916
+        1490.0,
+        916.0
       ],
       "size": [
         225,
@@ -798,8 +798,8 @@
       "id": 10,
       "type": "ImageScaleToTotalPixels",
       "pos": [
-        2035,
-        881
+        2035.0,
+        881.0
       ],
       "size": [
         225,
@@ -877,8 +877,8 @@
       "id": 11,
       "type": "MarkdownNote",
       "pos": [
-        2835,
-        80
+        2835.0,
+        80.0
       ],
       "size": [
         560,
@@ -964,10 +964,10 @@
     "ue_links": [],
     "links_added_by_ue": [],
     "ds": {
-      "scale": 0.568,
+      "scale": 0.459,
       "offset": [
-        -5,
-        27
+        2,
+        108
       ]
     }
   },

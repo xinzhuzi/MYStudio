@@ -442,12 +442,12 @@
     },
     "workflows/1_图片/krea2/2_图生图/K2-角色设定-道劫.json": {
       "scopes": {
-        "main": 34
+        "main": 35
       }
     },
     "workflows/1_图片/krea2/3_改图/K2-图像编辑-整合流.json": {
       "scopes": {
-        "main": 15
+        "main": 14
       }
     },
     "workflows/1_图片/krea2/3_改图/K2-无衣物-稳定.json": {
