@@ -85,12 +85,15 @@ RETIRED_GENERATORS: list[tuple[str, str]] = [
     ("QI21_JSON", "qi21_daojie_t2i_0923.py"),   # ⛔ 退役勿再运行(脚本已删,警示存档)
 ]
 
-# 四件契约测试(design §4.2;ls 验存在,缺失即 RED 不 spawn pytest)
+# 五件契约测试(design §4.2;ls 验存在,缺失即 RED 不 spawn pytest)。
+# 1126 布局整治役新增第五件:全库布局机器门(默认轻量档,只算组框互遮与
+# 三个新判据,详见 docs/comfyui-kb/画布布局规范.md「1126 布局整治」节)。
 CONTRACT_TESTS: list[str] = [
     "backend/comfyui/tests/test_daojie_handsfix_contract.py",
     "backend/comfyui/tests/test_daojie_workflow_contract.py",
     "backend/comfyui/tests/test_qwen21_workflow_contract.py",
     "backend/comfyui/tests/test_superset_v3_contract.py",
+    "backend/comfyui/tests/test_workflow_layout_gate.py",
 ]
 
 LAYOUT_CHECK = REPO / ".agents/skills/node-graph/tools/layout_check.py"
