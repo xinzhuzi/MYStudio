@@ -152,7 +152,17 @@
 - **对拍证据落盘**(VibeComfy):组框/摆位手术后,对拍结论(逐字节等价+只动 pos/groups)落证据文件,勿只在会话里口头绿。
 - **前端扩展 v2 API 指针(含勘正)**(artokun comfyui-frontend-extensions;涉认知集 COGNITION.md §1):该技能称 v2 扩展 API 已发布为 npm 包 `@comfyorg/extension-api`(defineNode/defineExtension/defineWidget、typed 事件、Disposable 句柄)——**2026-10-06 npm 三形状实查 404,该包名不存在**(@comfyorg 域现仅 litegraph/sdk 两包),勿按此包名引入;现行可靠路仍是 v1 `app.registerExtension`+`onExecuted` 形(本仓 my_nodes web JS 在用),v2 说法候上游真发布后再考。
 
+### ⑪ 保序压缩整理器与全库布局机器门(1126 布局整治役;与 `docs/comfyui-kb/画布布局规范.md` §六「1126 布局整治」同口径)
+
+> 出自 11-26-workflow-layout-normalize 役(用户 2026-11-27 裁决:Q1 组框修复+保序压缩不折行 / Q2 除官方件·原件·收据钉死件全纳入 / Q3 容差 / Q4 目标档 / A15 格式特殊件可重排,全按推荐值定案)。分层同 R14「通用代码入技能」:判据与整理层住本技能 `tools/`(零项目专名,参数全由调用方传入),批处理/排除清单/容差/报告住项目脚本,机器门=契约测试。
+
+- **`tools/layout_check.py` 三新判据(选开)+ 两缺陷修正**:传 `layout={"ht":…, "vt":…}` 时每作用域报告多 `layout` 键——`node_out_of_group`(出组框)/`edge_tight`(贴边,留白下限=`GROUP_PAD` 左30/上50/右30/下30)/`spacing_far`(间距过远);不传时既有 `CHECK_KEYS` 七判据与消费者逐位不变,`checks=(…)` 轻量档只算指定判据。修正=①叉积 epsilon(|d|≤1e-7 记 0,共线/端点相切不再被浮点噪声判交叉,计数只降)、②遮挡分支混合 id 排序(`sorted(hit, key=str)`)。
+- **`tools/layout_normalize.py` 保序压缩(只收不推)**:`survey / normalize / strip_layout` 纯函数;相对次序全保,组间分离的整组平移=唯一允许「推」处;组框=成员可视盒包围盒+`GROUP_PAD` 重算(松框收拢、空组保框、并组「A + B」是最后手段);间距目标档 **横 320 / 纵 180**(单源=layout_check `FAR_H_DEFAULT`/`FAR_V_DEFAULT`,Q4 裁决落点);子图边界槽重钉、主图 `extra.ds` 设「打开即见全貌」;档位梯子 目标档×(1/1.5/2/inf),`inf`=只修组框与出框;守门(交叉每作用域 ≤ max(3, ⌈前×10%⌉)、其余判据零增)不过升档,**四档全不过=无解,返回 None 不出半成品**;幂等、恒等档逐坐标恒等、只动布局字段(`strip_layout` 白名单,不剔 `size`)。间距的验收=不动点非清零(流水线长度的「远」压不掉)。CLI 默认只读,生产路径须 `--allow-prod`。
+- **全库批处理与机器门**:批处理=`apps/build/scripts/workflow_layout_normalize_campaign.py`(`--check` 只读报告 / `--apply` 原格式写回 fail-closed / `--write-far-baseline` 间距基线只降不升 / `--sync-blueprints`);门=`backend/comfyui/tests/test_workflow_layout_gate.py` 挂 `workflow_gate.py` 段 2 契约清单,默认轻量档全库数秒,全量不动点检查 `LAYOUT_GATE_FIXED_POINT=1` 开。**无解件与格式特殊件不写盘、单列呈报**,由用户在「互遮」与「线规则」之间取舍(规范 §六 6)。运维:新增/重跑生成器/改布局后跑 `--check`,红了 `--apply --only <路径>` 再 `--write-far-baseline`。
+
 ## 构建流程骨架(思想借鉴 mckruz/comfyui-expert,MIT)
+
+
 
 1. **意图解析**:输出类型(图/视频/音频)、源材料(文/图/既有图)、质量档、特殊要求。
 2. **查本机清单**:`/object_info` 实查可用节点与模型(本机事实)。调法=引擎运行时 `GET http://<host>:port>/object_info/<NodeType>`(本仓引擎恒走 **17xxx 自家端口段,禁 8188 上游默认口**;本机现值与启动法见 comfyui 技能 `machine.md`),或用 comfyui 技能的 MCP/客户端工具;模板库与节点参考亦指路 comfyui 技能,不建 inventory 新机制。
