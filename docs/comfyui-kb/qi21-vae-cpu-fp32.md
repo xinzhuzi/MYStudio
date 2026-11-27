@@ -57,7 +57,7 @@ BFS 换头输出曾出现严重棕灰浮雕纹理；保存默认的道劫 i2i �
 
 裁片换脸先修正 VAE 扇出边重复登记、CONDITIONING/IMAGE 槽类型和 `resize_source` 名称，`[41]` 改为实际裁片 VAEEncode，缩回 `divisible_by=1` 防止176被截成160。首次真实出图证明整块224×176矩形即使16px羽化，仍会覆盖头发和背景；现行修复已改为脸内椭圆 `[81]`＋2px形状羽化 `[82]`，同一 mask 同时接 `[84] SetLatentNoiseMask` 与 `[70]` 像素回贴。裁片及脸内mask坐标都须随身图调整；本流不自动定位人脸，也不承诺终稿质量。
 
-机器门：`test_qi21_reference_vae_cpu.py`、`TestQi21Img2ImgContract` 和 `test_qi21_local_face_contract.py`；现行手术入口为 `qi21_img2img_repair_1026.py` 与 `qi21_local_face_mask_repair_1027.py`（`qi21_local_face_repair_1026.py` 为前序修复，勿在新图上重跑），均位于 `apps/build/scripts/`。两条图已经通过真实前端 `loadGraphData → graphToPrompt` 与 live object_info 对拍；`apps/output/ai-workspace/ai/qi21-frontend-export-1027/` 是前序导出，最终证据以 `apps/output/ai-workspace/ai/qi21-frontend-final-export-1027/` 为准。结构、装机字节一致和真实出图质量分开验收，不以导出成功代替人脸相似度判断。
+机器门：`test_qi21_reference_vae_cpu.py`、`TestQi21Img2ImgContract` 和 `test_qi21_local_face_contract.py`；现行手术入口为 `qi21_img2img_repair_1026.py` 与 `qi21_local_face_mask_repair_1027.py`（`qi21_local_face_repair_1026.py` 为前序修复，勿在新图上重跑），均位于 `apps/build/scripts/`。两条图已经通过真实前端 `loadGraphData → graphToPrompt` 与 live object_info 对拍。结构、装机字节一致和真实出图质量分开验收，不以导出成功代替人脸相似度判断。
 
 **输入绑定也须现查：**原输出目录下的同名身图已经变更尺寸，原人脸文件已不在原路径。此次测试绑定引擎输入区的 `yl-bfs-body.png` / `yl-bfs-head.png`，SHA256分别为 `2d9a2237b9a3e2b290c250cd892735fb768e8777681c6929a1926d380753e50c` / `dcddb7bd62e0e03d2a8b80460f78b642cbaccbe9596d0d5ea7eecc6416b17d8a`，与1023原始两图证据一致。禁止只凭旧路径或同名文件复用验收结论。
 
@@ -69,7 +69,7 @@ BFS 换头输出曾出现严重棕灰浮雕纹理；保存默认的道劫 i2i �
 
 经典 img2img `3d2fe1d7-9102-45f2-9e30-06452fb972a2` 按保存的9步/denoise0.6执行，保留姿态、服装轮廓和主要构图，未见旧棕灰浮雕。它只有一张参考，不承担双图身份换脸验收。
 
-收据位于 `apps/output/ai-workspace/ai/qi21-acceptance-1027/`，每案保留请求、匹配prompt_id的history/事件、原始PNG与逐图观察。前两案验收工具因 PNG 自动缓存字段误拒，原 `failure.json` 保留，并新增 `supplemental-verification.json`：LoadImage缓存须等于绑定输入SHA；MyQi21DaojieBase缓存须等于已核数据文件mtime签名；该底座数据SHA/mtime是事后补验，原请求提交前未绑定，不能追写成提交前已核。执行输入仍逐字段严格比较，未因此重发原请求；现行验收工具已在prepare阶段绑定后续请求的底座数据SHA/mtime。中间修复的历史前端证据另存 `qi21-frontend-mask-export-1027/`，不覆盖早期导出；该版本尚未修复下述白底控件占位，最终证据以 `qi21-frontend-final-export-1027/` 为准。
+当时的验收收据(请求、history/事件、原始 PNG、逐图观察)已随 `apps/output/` 清理。前两案验收工具因 PNG 自动缓存字段误拒，原 `failure.json` 保留，并新增 `supplemental-verification.json`：LoadImage缓存须等于绑定输入SHA；MyQi21DaojieBase缓存须等于已核数据文件mtime签名；该底座数据SHA/mtime是事后补验，原请求提交前未绑定，不能追写成提交前已核。执行输入仍逐字段严格比较，未因此重发原请求；现行验收工具已在prepare阶段绑定后续请求的底座数据SHA/mtime。中间修复的历史前端证据另存 `qi21-frontend-mask-export-1027/`，不覆盖早期导出；该版本尚未修复下述白底控件占位，最终证据以 `qi21-frontend-final-export-1027/` 为准。
 
 正式保存图增加动态尺寸后执行成功：`2ee0457a-2bab-4984-8fbf-9e7226b5061c`，收据目录 `203ff4fb6e71464fb33219f737baf708`，脸内变化仍5287像素，遮罩外变化0。最终前端校验进一步抓到 `EmptyImage` 的宽/高转连线后仍占 `widgets_values` 两个位置；省略它们会使画布的 `color` 回落黑色，虽然按名转换的API仍为白色。现行存值补齐 `[512,512,1,16777215]` 占位（宽高实际由连线决定），与 named 同步。`qi21-frontend-final-export-1027/` 的真实前端执行图已与上述成功请求完全相等，仅剥离展示用 `_meta` 并统一独立输出前缀，不需要重复投同一张图。契约已加入该按位存储反例；engines最新781通过，手部离线7项和单次验收工具15项通过。
 
@@ -99,6 +99,6 @@ MPS 长期运行退化/空片是另一个问题，不能与这里同图同 VAE �
 
 最终两图源码、构建件与装机资源SHA一致；installed smoke于 `2026-10-26T18:18:43.423Z`（北京时间10月27日02:18）通过，fresh node-graph审计284路对齐、98条零回灌NOTE、零漂移。app.asar双向一致值为 `92c73f331931a9759273f3a955d892eca6ae269ec1d8f63a8d85e0abcfe83e90`。这些是本轮时点证明，后续仍须现核，不能只凭历史哈希认定最新。
 
-分发快照、独立审查与保留的首次安装失败见[1027收口报告](../../apps/output/ai-workspace/ai/qi21-closeout-1027.md)；最终分发补充收据为 `apps/output/ai-workspace/ai/qi21-final-installed-proof-1027.json`。装机后live object_info已确认两图所用节点与cpu/fp32选项齐全。最终GUI执行图导出在安装前已验且与成功请求等价；未主动重载用户已有标签页，不承诺旧画布内存已替换。
+装机后live object_info已确认两图所用节点与cpu/fp32选项齐全。最终GUI执行图导出在安装前已验且与成功请求等价；未主动重载用户已有标签页，不承诺旧画布内存已替换。
 
 Codex已新增1027记忆note，ZCode既有 `qi21-vae-cpu-fp32-1024.md` 与MEMORY索引已补最新两流、零潜码、透明参考/mask和GUI按位占位规则。**下一次选型先读本页，再核当前JSON与live object_info；旧四件通过不等于后续参考流已覆盖。** 本轮工程修复与分发完成，局部脸仍偏平涂，`visual_all_pass=false`，不把执行成功或同步完成当作终稿艺术质量通过。

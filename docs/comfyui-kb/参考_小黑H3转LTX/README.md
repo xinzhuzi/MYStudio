@@ -18,4 +18,4 @@
 2. **不要原样在引擎里跑**：这些 json 引用 `XH_Toolbox` 节点与 LTX2.5 五件权重，我方两机均无 → 物理起不来；且它们不是漫影工作流库件，不进域分类、不进 App 侧栏。
 3. **权重不分发**：链上 H3 系件受 MiniMax H3 Community License 约束（适用地域、衍生品、分发须随附 NOTICE 等），本目录只存 workflow 明文，不含任何模型权重。
 
-排查与吸收判定（可吸收矩阵 A/B/C/D 四层、C1-C15 执行门禁、合规口径）见同层 [`../参考_小黑H3转LTX可吸收排查.md`](../参考_小黑H3转LTX可吸收排查.md)；执行役档=`.trellis/tasks/11-06-xiaohei-h3ltx-absorb/`。
+排查与吸收判定（可吸收矩阵 A/B/C/D 四层、C1-C15 执行门禁、合规口径）见同层 [`../参考_小黑H3转LTX可吸收排查.md`](../参考_小黑H3转LTX可吸收排查.md)；执行役档=`.trellis/tasks/archive/2026-11/11-06-xiaohei-h3ltx-absorb/`。

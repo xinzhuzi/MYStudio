@@ -31,4 +31,4 @@ Hermes(Nous Research 本地 AI agent)的研究资料,供后续参考。两次研
 ## 出处注
 
 - 08-17 五件复制自 `.trellis/tasks/archive/2026-08/08-17-source-memory-hermes/research/`(trellis 归档原址保留不动)。
-- 10-27 终稿原件在 `apps/output/hermes-memory-study-1027/`(apps/output 有周期清场风险,以本目录为准)。
+- 10-27 终稿原件已随 `apps/output/` 清理,以本目录为准。

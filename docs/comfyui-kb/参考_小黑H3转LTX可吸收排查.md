@@ -6,7 +6,7 @@
 > **但"网盘=唯一来源"这一点已被 1106 复查推翻**：他 widget 里的目录前缀 `H3\Kijai\` 就是 HF 作者 **Kijai** 的 repo——三枚"网盘-only"件全部在 HF 正版在架(refiner rank16 / lynnreal light VAE / taeh3)，故我方一律**改指 HF 直链并核 sha256，不碰网盘**(定谳见 §二 B 层与 §四 C14-C16)。
 > 作者原环境：RTX 4060 Laptop **8GB** + `--lowvram` + ComfyUI 0.37.0。我方 Win 引擎实测=ComfyUI **0.44.0** @17000、RTX PRO 4000 Blackwell **23.9 GiB**；Mac 引擎(17001)本轮未启动，改走磁盘静态核账。
 > 最后核账：2026-11-06（Win `/object_info` 7,202,207 B 实拉；双机模型目录实列；B 件 sha256 实比对；候选实件 **safetensors 头文件 Range 实探**(B1 官方 refiner 键名域 / B3 快速 VAE 有无 encoder)；**HF repo tree API 逐个复核 16 个候选仓库**(Kijai/Efficient-Large-Model/Comfy-Org/stdstu123/madebyollin/t8star/OzgyGT 等)；MiniMax H3 Community License 原文 84 行实读——本节结论以此为准）。
-> 本档与 Trellis 役 `.trellis/tasks/11-06-xiaohei-h3ltx-absorb/prd.md` 同一口径：§三=执行分工，§四 C1-C15=冲突消解硬门禁（其中 C9/C10/C11/C12/C14/C15 推翻 grill 前我自己的推荐原文）。
+> 本档与 Trellis 役 `.trellis/tasks/archive/2026-11/11-06-xiaohei-h3ltx-absorb/prd.md` 同一口径：§三=执行分工，§四 C1-C15=冲突消解硬门禁（其中 C9/C10/C11/C12/C14/C15 推翻 grill 前我自己的推荐原文）。
 
 ## 一、资产全景定性
 
@@ -80,13 +80,13 @@
 
 ### 唯一真实空缺（记档，本役不做）
 
-**「出片即响」**——8GB 本本机跑 20-40 分钟是常态，小黑链的计时件只是画布装饰，真正缺的是**完成事件的应用侧通知**。全仓实测 `apps/frontend` + `apps/backend/electron` 零 `new Notification` / 零 `playSound` / 零 `Audio(` 命中；钩子候选=[apps/frontend/components/orbs/use-task-center.ts:188](apps/frontend/components/orbs/use-task-center.ts#L188)。已另立 Trellis 役 `11-06-render-notify`(P3)，不并入本役。
+**「出片即响」**——8GB 本本机跑 20-40 分钟是常态，小黑链的计时件只是画布装饰，真正缺的是**完成事件的应用侧通知**。全仓实测 `apps/frontend` + `apps/backend/electron` 零 `new Notification` / 零 `playSound` / 零 `Audio(` 命中；钩子候选=[任务中心完成通知](../../.trellis/tasks/archive/2026-11/11-06-render-notify/prd.md)。已另立 Trellis 役 `11-06-render-notify`(P3)，不并入本役。
 
 ## 三、执行序（1106 grill 后定稿；本役只做 P0 零下载，实件全部移交对拍役）
 
 | 档 | 做什么 | 归谁 | 门禁 |
 |---|---|---|---|
-| **P0-1 (E1)** | A1 TokenCounter 六格上限表：**payload-only 探针**(脚本现装 API prompt，run-to-node 只跑到计数件，走 TE 不采样)，测 0.4MP(864×480)/0.9MP(1280×736)/1.0MP(1376×768) × 33/96/192f，表追加进 `参数速查.md` | 本役 | **真源不加此节点**(C4/C9)；证据落 `apps/output/xiaohei-absorb-e1-1106/`(运行态不入 git)；引擎用户区零新增文件 |
+| **P0-1 (E1)** | A1 TokenCounter 六格上限表：**payload-only 探针**(脚本现装 API prompt，run-to-node 只跑到计数件，走 TE 不采样)，测 0.4MP(864×480)/0.9MP(1280×736)/1.0MP(1376×768) × 33/96/192f，表追加进 `参数速查.md` | 本役 | **真源不加此节点**(C4/C9)；引擎用户区零新增文件 |
 | **P0-2 (E2)** | A2 `MiniMaxChunkFeedForward [2,4096]` 插 `[202]→[203]` 之间，出厂旁路位、默认不生效，开启条件写死 ≥2MP×192f | 本役 | **先跑旁路位语义探针**(C10)；不动 `[219]` 扇出(C2)；位置 x∈(5703,6563)、y≈80 落"二采放大"组框内(C5)；C11 四门全过 |
 | **P0-3 (E3)** | A3 τ1.3 臂**只作候补臂行**追加进 `参数速查.md`，③组 `[313]` 现值零改动 | 本役(实跑归对拍役) | C3；`git diff` 自证 ③组未碰 |
 | **P0-4 (E4)** | B4 悬空 tiny-VAE 引用：**本役不动 json**——原推荐"六处改 `none`"的前提(无合法件可装)已被推翻，现正解=装 9.8 MB Kijai 正件(见 P3)，改 `none` 降为 fallback；两案呈用户裁(C16) | 本役定案 / 对拍役执行 | 定案后若走装件案=随 P1/P2 单次重启(C8)，若走 fallback=纯 json 值改动、零重启 |
@@ -107,7 +107,7 @@
 | **C3** | τ1.3 臂要动 `[313]`，而 `test_stage3_tessera_params_v4` 钉 ③组全员 `mode=2`+双 LMS/taomate/×1.5/σ 表现值(=1104 1080p 终裁) | 臂**不进 ③组现值**；要跑就在探针 payload 上跑；赢了再单独提契约变更理由，不与本役混 |
 | **C4** | A1 若落真源节点=与"形态③ 只做实测写表"自相矛盾，且触发契约/落位三连重跑 | **真源零改动**；App 侧机检门另立项(不在本役也不在对拍役) |
 | **C5** | 新节点破布局铁则 | 契约三钉:`pos≥80`、恒向右、三组框两两不交。E2 新节点 x∈(5703,6563)、y≈80，落"二采放大"组框内(框=5673..10493) |
-| **C6** | 说"在 Win 走 hf CLI"——Win 实探**无 huggingface-cli**(有 aria2c 1.37.0/git-lfs 3.7.1/无 HF_TOKEN)，且 `参数速查.md` 早有 1105「HF 大模型下载铁律」=优先 **Mac 直连**(unset 代理+HF_TOKEN+16 线程 curl 11-22 MB/s) | **不新造第二条下载路**：沿用 canonical `apps/build/scripts/fasth3_weights_fetch_1027.py` 口径(`curl -L -C -`→`E:\IP\tmp\…\*.part`→**体积+sha256 双门**→原子 `os.replace`→写 `.ok` 收据 JSON)，在该脚本内嵌表加行；下载在 Mac 走、Win 只收件；E: 余 931 GB。**注:`.ok` 是我方收据非 ComfyUI 加载必需**；孤儿 `.ok`(1105 归档遗留)另笔账 |
+| **C6** | 说"在 Win 走 hf CLI"——Win 实探**无 huggingface-cli**(有 aria2c 1.37.0/git-lfs 3.7.1/无 HF_TOKEN)，且 `参数速查.md` 早有 1105「HF 大模型下载铁律」=优先 **Mac 直连**(unset 代理+HF_TOKEN+16 线程 curl 11-22 MB/s) | **不新造第二条下载路**：沿用 canonical `apps/build/scripts/campaigns/fasth3_weights_fetch_1027.py` 口径(`curl -L -C -`→`E:\IP\tmp\…\*.part`→**体积+sha256 双门**→原子 `os.replace`→写 `.ok` 收据 JSON)，在该脚本内嵌表加行；下载在 Mac 走、Win 只收件；E: 余 931 GB。**注:`.ok` 是我方收据非 ComfyUI 加载必需**；孤儿 `.ok`(1105 归档遗留)另笔账 |
 | **C7** | 1105「kitchen+sol-attn 勿拆对」vs ②段现链只挂 kitchen `[215]` 无 sol-attn | 事实核清:②段现 0.92MP 实弹已过，"裸跑炸"那雷发生在 **2MP×192f 全画幅**。门禁=对拍役把 ②段推到 ≥2MP 时**必须成对补 sol-attn**，不得以"②段现在没挂"为由裸推 |
 | **C8** | "taeh3 装件并入 B3 一起重启"又把 B3 划给对拍役 | 分层:**本役 E4 只改 json 值(不需重启)**；对拍役装 B1/B3/taeh3 **合并为一次重启**(每重启=一次引擎空窗) |
 | **C9** | 推荐"E1 在引擎家用户区临时探针件上跑"——**违落位规范**：`工作流落位规范.md:8-18` 行 2 明写引擎用户区**会话禁写恒零**(只有用户画布 Save 可写)，且 `plugin_manager.py:1430/1520` 使 `repo:` 真源在引擎侧物理不可写 | **改为 payload-only 探针**(脚本现装 API prompt，不落任何工作流文件)，与"分镜域零实体"同一口径；证据落 `apps/output/`(运行态不入 git) |
@@ -153,8 +153,8 @@
 - **C10 定谳(探针前疑问由源码直接消解，无需实跑)**：`minimax_nodes.py` 的 `MiniMaxChunkFeedForward.execute` 头两行就是 `if chunks == 1: return io.NodeOutput(model)` —— 恒等返回**同一个 model 对象**，不重建、不包装。故"默认不生效"靠 **chunks=1** 表达，与 mode=4/mode=2 的旁路语义之争无关；prd C10 那条"直通 vs 整件剔除"的分支**整条作废**(不是被实测推翻，是被更简单的出厂恒等位取代)。开启条件仍是 **≥2MP×192f**(切 chunks=2)。
 - **执行期纠错 1(C5 走廊)**：文档原写"新件落 x∈(5703,6563) 组框内"，实测那条走廊只有 **220 px** 宽而新件声明宽 300 → 按原口径必压 `[203]`。正解=新件占 `[6543,6843]`，让位集 `TAIL_IDS=[203,215,210,211,212,214,4,100,213]` 整体 x+600，"二采放大"组框宽 4820→5420。
 - **执行期纠错 2(让位集不能用 x 区间自动判)**：最初用"落在 tail x 区间内"筛让位件，误吞了 y 288..930 行的 `[205][206][207][208]` —— 它们与新件**不同行**，一动就外扩三根曲线(205→206 / 205→207 / 208→210)，crossings **590→592 破棘轮**。改为脚本内**显式件号**+ `[207]` 单独向下 nudge 25 px(与新件列距 60<80 的 est 违规) → **589**。教训：让位集是拓扑判断不是几何框选，必须写死件号并可回检。
-- 门禁结果(C11 改写后的四门)：契约 `test_pika_three_stage_contract.py` **13 用例全绿**(此数=E2 当批；收口二批补第 14 例后现 14，见下条)；结构判据(负区/左向/重叠/est)**clean**；crossings **590 → 589**(不升反降 1)；`canvas_deploy.mjs --audit` 只剩"装机与真源漂移"这一条预期红(本轮打包覆盖安装即收)。改前后两份 layout_check 原文 + before/after UI json 在 `apps/output/xiaohei-absorb-e2-1106/`。
-- 脚本=`apps/build/scripts/xiaohei_absorb_e2_chunkffn_splice_1106.py`，幂等：已落位时按 `HEAD_POS + SHIFT` 回检让位量，不符**只报红不覆写**；`--check` 出 READY 摘要。
+- 门禁结果(C11 改写后的四门)：契约 `test_pika_three_stage_contract.py` **13 用例全绿**(此数=E2 当批；收口二批补第 14 例后现 14，见下条)；结构判据(负区/左向/重叠/est)**clean**；crossings **590 → 589**(不升反降 1)；`canvas_deploy.mjs --audit` 只剩"装机与真源漂移"这一条预期红(本轮打包覆盖安装即收)。
+- 脚本=`apps/build/scripts/campaigns/xiaohei_absorb_e2_chunkffn_splice_1106.py`，幂等：已落位时按 `HEAD_POS + SHIFT` 回检让位量，不符**只报红不覆写**；`--check` 出 READY 摘要。
 - **执行期纠错 8(脚本落位仓外，收口二批)**：该生成脚本初版写进了 `apps/build/scripts/campaigns/`，而 `.gitignore:165` 整目录忽略——真源 json 入库、**造它的手艺不入库**，役满即成孤儿(复现/回滚只能靠记忆)。已移到 `apps/build/scripts/`(在册)并把 `REPO` 的 `parents[4]` 改为 `parents[3]`(campaigns 那层没了)；`--check` 复跑仍出 `SKIP 已落位`(真源零改动)。教训入档：**凡被文档点名的 `apps/build/scripts/` 脚本必须实存且在册**，`campaigns/` 只放一次性战役产物。
 - **执行期纠错 9(棘轮只守几何，不守存在性)**：`test_links_bidirectional_consistency` 验的是"连线双向登记合法"，`[223]` 被日后布局手术重焊成 `202→203` 直连时它依然绿——E2 吸收件会**静默蒸发**。已补第 14 例 `test_stage2_model_mainline_passes_through_chunkffn`(钉 `[223]` 在 `MODEL` 主线 `202→223→203`、`chunks=1`、输出口单挂、`[202]` 的 MODEL 唯一去向=`{223}`)，反向验证=拿 E2 前的 88 件/134 链真源跑该例，`KeyError 223` 即红。契约数 **13 → 14 全绿**。
 - C12 口径不变：改真源只影响"手工画布直开 + 该件契约测试"，**不改逐镜产线**(内联件 `pika-ref-shot-template.json` 走构建期内联，未同步；E2 默认旁路故无须同步)。
@@ -184,7 +184,7 @@
 
 ### E1 TokenCounter 上限表 —— 十格全绿，表已入 `docs/comfyui-kb/参数速查.md`
 
-- 探针=`apps/build/scripts/xiaohei_absorb_e1_token_probe_1106.py`(payload-only，符合 C9：引擎用户区**零新增文件**，证据只落 `apps/output/xiaohei-absorb-e1-1106/`)。dry-run 实测：三段链转 API prompt **86 件**(转换器跳过 3 件纯 UI MarkdownNote)，接计数件后闭包剪枝恒 **12 件** `['9','14','16','110','111','112','113','119','120','128','900','901']`，**采样件混入=0**(这是"不会把三枚 SaveVideo 全产线跑起来"的硬证)。
+- 探针=`apps/build/scripts/campaigns/xiaohei_absorb_e1_token_probe_1106.py`(payload-only，符合 C9：引擎用户区**零新增文件**)。dry-run 实测：三段链转 API prompt **86 件**(转换器跳过 3 件纯 UI MarkdownNote)，接计数件后闭包剪枝恒 **12 件** `['9','14','16','110','111','112','113','119','120','128','900','901']`，**采样件混入=0**(这是"不会把三枚 SaveVideo 全产线跑起来"的硬证)。
 - **执行期纠错 5(两处非猜不可的技术前提)**：①`MiniMaxH3TokenCounter` **不是 OUTPUT_NODE**，直接 run-to-node 它会被 `validate_prompt` 判 `prompt_no_outputs` → 必须挂一枚 `PreviewAny` 读它的 `breakdown` 口(输出 3)作唯一出口，并用 `partial_execution_targets=[PreviewAny id]`(引擎 `server.py:1198-1204` 支持)；②客户端必须自己做闭包剪枝，否则整条产线进队。
 - **十格全绿(1106 19:18–19:21 实测，exit 0)**：0.4MP(864×480)/0.9MP(1280×736)/1.0MP(1376×768) × 33/96/192f + 2MP(1920×1056)×192f 对照，逐格 `status=success`、`WARNING` 全空，表已 `--write-doc` 追加进 `docs/comfyui-kb/参数速查.md` 末节(只追加，未碰他人 hunk)。顶格 **130,076 tokens=43.42%**，最低 8,966=2.99%；读数五条(两墙分账/帧数线性/text 项被参考占位主导/参考项≈面积×张数)写在该表下，本档不重复正文。
 - **执行期纠错 6(int32 警告线数值)**：早先笔记与脚本注释写的「`2**31 // 7168 = 268,435`」是**算错的**——`2**31//7168 = 299,593`，源码口径见 `comfyui-kjnodes/nodes/minimax_nodes.py:275-276`(`seq_len*7168 >= 2**31`)。表内百分比一律按 **299,593** 计；任何沿用 268,435 的旧账都要按新数复算(差 11.6%，不影响"从不贴顶"的结论)。

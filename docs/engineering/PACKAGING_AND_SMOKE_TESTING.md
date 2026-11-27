@@ -86,6 +86,26 @@ npm run build:linux  # node ./build/packaging/build-desktop.mjs --linux
 
 两者直接走 `build-desktop.mjs`（electron-vite build + electron-builder），**不含** macOS 链的覆盖安装与 installed smoke——安装与验收由各平台自行执行。CI 在 `vX.Y.Z` tag 流程中对 Windows x64 走同一命令产出 `setup.exe`（macOS 仍走 `build:mac` 全链）。
 
+## Mac 驱动的双机部署
+
+从仓库根运行 `bash apps/build/packaging/deploy-dual.sh` 会执行以下阶段。该入口涉及 Git、远程覆盖安装和进程启停，按部署窗口执行。脚本参数 `--skip-mac` 跳过整个 Mac 阶段（含推送），`--skip-win` 跳过 Windows 部署阶段，`--skip-push` 只跳过推送。`--dry-run` 跳过部署动作，末尾的状态汇报仍读取本地 Git 并通过 SSH 查询 Windows。汇报表含固定文案，部署结果以各阶段实际日志和两端版本检查为准。
+
+| 阶段 | 脚本行为与检查点 |
+| --- | --- |
+| Mac | 调用 `build-mac.sh` 完成打包、覆盖安装与 installed smoke，随后按参数决定是否推送。 |
+| Windows 构建 | SSH 拉取源码，拉取失败时尝试用 SCP 补传变更。构建阶段在 `apps/` 增量运行 `pnpm install`，再运行 `build-desktop.mjs --win`。核对 `deploy-dual-build.log` 和 `BUILD_OK`，并比对目标源码与产物版本。 |
+| Windows 装机（B4） | 停止相关应用和引擎后，用 `robocopy /MIR` 镜像 `win-unpacked` 到应用安装目录。镜像会移除安装目录中源端没有的文件。 |
+| Windows 节点同步（B4.5） | 用 `robocopy /E` 将包内 `my_nodes` 拷到引擎的 `custom_nodes/my-nodes`。源端删改文件名后，旧节点文件可能继续被加载，部署后应核对残留。两个 `robocopy` 阶段都将退出码 0–7 视为成功，8 及以上视为失败。 |
+| Windows 验证 | 同步引擎侧道劫数据后重启引擎。引擎 smoke 检查 `/system_stats` 及 `MyQi21SpeedSelect`、`KSampler` 注册，再经计划任务拉起桌面应用。真实分镜生成需另行验收。 |
+
+[双机部署脚本](../../apps/build/packaging/deploy-dual.sh) · [节点同步残留的跟踪事项](../../.trellis/tasks/11-26-h3-leftover-ops/prd.md#二deploy-dualsh-同步自研节点只增不删)
+
+### Windows 本地准备与打包辅助脚本
+
+- Windows 本地准备依赖时，在 `apps/` 使用 `pnpm install`。仓库的旧 `setup-win.ps1` 仍含 `npm install`，双机部署的 Windows 构建直接走 pnpm。[旧 Windows 配置脚本](../../apps/build/packaging/setup-win.ps1)
+- Windows 打包会调用 `fetch-sqlite3.mjs` 准备随包分发的 `sqlite3.exe`。优先复用现有文件或 Chocolatey 安装，走官方压缩包时校验 SHA-256。[SQLite 打包辅助脚本](../../apps/build/packaging/fetch-sqlite3.mjs)
+- Mac 覆盖安装的 `install-and-smoke.mjs` 调用 `studio-manuals-tree.mjs` 对照仓库与装机资源的手册文件树，按相对路径和内容哈希核对。[手册文件树校验](../../apps/build/packaging/studio-manuals-tree.mjs)
+
 ## macOS 打包
 
 ```bash

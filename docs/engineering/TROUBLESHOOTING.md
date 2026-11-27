@@ -141,22 +141,26 @@ pgrep -fl "漫影工作室|python.*tts" || true
 
 ## 资产库内容丢失或缩略图不显示
 
-独立资产库不在 `projects/` 里面，先检查当前存储根目录下是否存在：
+先核对 `<userData>/project-locations.json` 登记的项目位置。在解析到的项目根目录检查：
 
 ```text
-assets/assets.db
-assets/files/role/
-assets/files/scene/
-assets/files/tool/
-assets/files/clip/
-assets/files/audio/
+<项目根>/store/assets/assets.db
+<项目根>/store/assets/files/{role,scene,tool}/
+<项目根>/store/assets/files/{clip,audio}/
+<项目根>/store/assets/thumbs/
 ```
 
-图片类资产缩略图在 `assets/thumbs/`，缩略图缺失时应用会尝试异步重新生成；原文件缺失时需要从旧存储目录恢复 `assets/files/`。
+图片类资产的缩略图缺失时，应用会尝试异步重新生成。原文件缺失时，从同一项目的备份核对 `store/assets/files/` 下的原文件。未绑定项目的机器应按资产库归属规则核对兼容位置。
 
-如果刚刚更改过 `设置 -> 存储` 的存储位置，当前统一导出/导入/移动会覆盖 `projects/`、`media/`、`assets/` 和 `skills/`。`python/`、`comfyui/models/TTS/`（旧版 `model/TTS`、`tts-models/` 仅作迁移兼容）与 `TTS/runtime/`（旧版 `tts-runtime/` 仅兼容）属于运行时下载和配置目录，不随该操作复制。
+设置页的统一导出、导入和存储根移动只处理内部的 `projects/`、`media/` 与 `skills/`。外部项目的资产库和 TTS 数据随完整项目文件夹单独备份。资产库兼容位置和运行时目录见 [存储与数据迁移](./STORAGE_AND_DATA.md)。
 
 添加、批量删除、多图、重新出图和音频说话内容识别的操作说明见 [资产导入与管理](../assets/ASSET_IMPORT_AND_MANAGEMENT.md)。
+
+## 启动时提示 `assets.db` 无法打开
+
+旧版启动时可能报 `sqlite3 … assets.db … unable to open database file`。先核对报错中的数据库路径和安装版本。如果应用在资产库初始化前用相对路径 `assets.db` 建表，覆盖安装包含初始化修复的版本，再确认应用能启动且资产库能打开。若新版仍报错，按日志中的实际路径核对项目绑定和 `store/assets/` 的访问权限，保留原数据库。
+
+[打包、安装与 Smoke 测试](./PACKAGING_AND_SMOKE_TESTING.md) · [资产库与 TTS 的归属](./STORAGE_AND_DATA.md#资产库与-tts-的归属)
 
 ## 打包后不是最新版本
 

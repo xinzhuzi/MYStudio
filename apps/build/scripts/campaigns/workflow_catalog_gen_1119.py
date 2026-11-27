@@ -345,12 +345,14 @@ def _fmt_entry(entry: dict) -> list[str]:
     if groups:
         sub_names = {s.get("id"): f"⟨子图:{s['name']}⟩" for s in entry.get("subgraphs") or [] if s.get("id")}
         for t, n, flag, comp in groups:
+            # A node number followed by parentheses is plain text in a group title.
+            group_title = str(t).replace("](", r"\](")
             comp_s = ""
             if comp:
                 top = "、".join(f"{sub_names.get(ct, ct)}×{c}" for ct, c in comp[:6])
                 more = f"等{n}件" if len(comp) > 6 else f"{n}件"
                 comp_s = f":{top}({more})"
-            lines.append(f"- **分组**:{t}{flag}(罩{comp_s or n})")
+            lines.append(f"- **分组**:{group_title}{flag}(罩{comp_s or n})")
     subs = entry.get("subgraphs") or []
     if subs:
         for s in subs:

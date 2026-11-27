@@ -1,4 +1,4 @@
-> 上游官方原文/另线口径汇编,不适用本仓 1018 现行口径(见 .trellis/tasks/10-18-daojie-prompt-conflict-cleanup/design.md §7)
+> 上游官方原文/另线口径汇编,不适用本仓 1018 现行口径(见 .trellis/tasks/archive/2026-10/10-18-daojie-prompt-conflict-cleanup/design.md §7)
 # 02 · ComfyUI 侧增强与官方模板实录
 
 > **1016 范围勘正**：本文的英文 400–500 词、约 20 句与原生步数属于官方 PE-T2I 配方或历史材料，不是 Qwen-Image-2.1 的统一输入要求。道劫现行中文自定义链按 07–09 篇执行，生成只用 viggle 9 步双段。
@@ -26,7 +26,7 @@
 链路七步:
 
 1. **安装**:`git clone` 进 `custom_nodes/`,`NODE_CLASS_MAPPINGS` 注册两节点 `QwenImage21_T2IPromptRewrite` / `QwenImage21_EditPromptRewrite`(nodes.py:335-338;显示名映射 340-343),分类 `CATEGORY = "Qwen Image"`(nodes.py:157/255)。
-2. **装检查点**:插件 README 载明的 PE 检查点是 Comfy-Org 打包的 int8(`…_pe_t2i.int8_convrot.safetensors` / `…_pe_i2i.int8_convrot.safetensors`,各 9.47 GB,pe_node_readme.md:9-12)——但 int8 在 MPS 首次矩阵乘即死(`aten::_int_mm` 无 MPS 内核,09-23 实证 pe-mps-fail.txt),本机 T2I 已换自转 bf16 单件 `qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors`(约 19GB;按 int8 件 760 权重键清单从满血 bf16 原版取原值,转换脚本 `apps/build/scripts/qwen21_pe_bf16_convert_0923.py`,int8 旧件已清理)放 `models/text_encoders/`,用 ComfyUI **原生 CLIPLoader**(type=`qwen_image`)当普通文本编码器加载——零新加载器,VRAM 走原生模型管理(pe_node_readme.md:135-136)。(2026-10-10 注:pe_t2i 已于 10-08 退役删除,现行扩写链见同目录 08-AI扩写提示词优化规范.md)
+2. **装检查点**:插件 README 载明的 PE 检查点是 Comfy-Org 打包的 int8(`…_pe_t2i.int8_convrot.safetensors` / `…_pe_i2i.int8_convrot.safetensors`,各 9.47 GB,pe_node_readme.md:9-12)——但 int8 在 MPS 首次矩阵乘即死(`aten::_int_mm` 无 MPS 内核,09-23 实证 pe-mps-fail.txt),本机 T2I 已换自转 bf16 单件 `qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors`(约 19GB;按 int8 件 760 权重键清单从满血 bf16 原版取原值,转换脚本 `qwen21_pe_bf16_convert_0923.py`(已删除),int8 旧件已清理)放 `models/text_encoders/`,用 ComfyUI **原生 CLIPLoader**(type=`qwen_image`)当普通文本编码器加载——零新加载器,VRAM 走原生模型管理(pe_node_readme.md:135-136)。(2026-10-10 注:pe_t2i 已于 10-08 退役删除,现行扩写链见同目录 08-AI扩写提示词优化规范.md)
 3. **手拼 chat 模板**:节点内手工拼 Qwen 对话格式(nodes.py:24-31):
 
 ```python
@@ -52,8 +52,8 @@
 | 参数 | 官方 t2i | 官方 edit | T2I 节点(nodes.py) | Edit 节点(nodes.py) |
 |---|---|---|---|---|
 | temperature | 1.0 | 1.0 | 暴露,FLOAT default 1.0 [0,2] step0.05(L140) | 暴露,default 1.0(L239) |
-| top_p | 0.95 | 0.95 | 暴露,default 0.95 [0,1](L141) | 暴露,default 0.95(L240) |
-| top_k | 20 | 20 | 暴露,default 20 [1,200](L142) | **不暴露**,generate 硬编码 `top_k=20`(L308) |
+| top_p | 0.95 | 0.95 | 暴露,default 0.95 `[0,1]`（L141） | 暴露,default 0.95(L240) |
+| top_k | 20 | 20 | 暴露,default 20 `[1,200]`（L142） | **不暴露**,generate 硬编码 `top_k=20`(L308) |
 | presence_penalty | **1.5** | **0** | 暴露,default 1.5 [0,5],tooltip「Should be 1.5 for T2I」(L143-146) | 暴露,default 0.0,tooltip「Should be 0 for Edit」(L241-244) |
 | max tokens | 16256 | 24000 | 暴露为 `max_new_tokens` default 16256(L147-149) | 暴露为 `max_length` default 24000(L245-247) |
 | thinking | on (required) | on (required) | 硬编码 `thinking=True`(L181) | 硬编码(L301) |

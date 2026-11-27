@@ -59,28 +59,66 @@ mystudio-project-store.json
 浏览器/IndexedDB 来源迁移须先确认目标写入，再回读核对 JSON 值；写入失败或回读不一致时保留来源。冲突副本与旧名磁盘文件保留。读取失败与文件缺失分别处理：只有 ENOENT 是缺失，其他读取错误阻止对该键的保存/移除，恢复可读并重新加载后才解除保护。
 
 
-独立资产库位于同一个存储根目录下，但不在 `projects/` 里面：
+资产库不在存储根下，而是在绑定的项目文件夹里（位置怎么定见下文「资产库与 TTS 的归属」）：
 
 ```text
-<storageBasePath>/assets/assets.db
-<storageBasePath>/assets/files/{role,scene,tool,clip,audio}/
-<storageBasePath>/assets/thumbs/
+<项目根>/store/assets/assets.db
+<项目根>/store/assets/files/{role,scene,tool}/<安全资产名>/
+<项目根>/store/assets/files/{clip,audio}/
+<项目根>/store/assets/thumbs/
 ```
 
-其中 `assets.db` 是 SQLite 索引，`assets/files/` 保存角色、场景、道具、视频片段和音频原文件，`assets/thumbs/` 保存图片类资产的缩略图缓存。
+`assets.db` 是 SQLite 索引；`files/` 保存角色、场景、道具、视频片段和音频原文件，其中角色、场景、道具按资产名分子文件夹，视频片段和音频仍平铺；`thumbs/` 是图片类资产的缩略图缓存，目录结构与 `files/` 相同。
 
-## userData 目录职责与历史盘面边界
+## 资产库与 TTS 的归属
 
-2026-08-03 的只读盘面证据显示，`storage-config.json` 中 `basePath`、`projectPath`
-和 `mediaPath` 都为空，因此当时 `<storageBasePath>` 等于 `<userData>`。这是历史快照，不代表本机今天的设置；下表用于理解目录职责，迁移前需重新读取实际路径，不授权移动或删除任何条目：
+资产库和 TTS 运行库归项目所有，不归存储根。主进程每次取资产根都会按下面的顺序重新判断（`electron/storage/asset-home.ts` 的 `resolveAssetHomeRoot()`）：
+
+1. 在项目位置表 `<userData>/project-locations.json` 登记的所有项目里找 `store/assets/assets.db`。只有一个项目有，就用它，并把位置记进 `<userData>/asset-home.json`。
+2. 两个以上项目都有：报 `ASSET_HOME_MULTIPLE_CANDIDATES`，不自动挑，需要人工核对后保留一边。
+3. 一个都没有，但 `asset-home.json` 在：说明资产库原来所在的项目丢了（位置表里的条目没了，或库被挪走），报 `ASSET_HOME_ORPHANED`，提示重新绑定项目文件夹。
+4. 位置表文件存在但解析不出来：报 `ASSET_HOME_LOCATION_TABLE_CORRUPT`。
+5. 都没有，也没有 `asset-home.json`（从没绑过项目的机器）：旧存储根下有 `<storageBasePath>/assets/assets.db` 就继续用它；否则用 `<storageBasePath>/store/assets/`，第一次写资产时建库。
+
+`asset-home.json` 只是缓存，以磁盘上实际有没有 `assets.db` 为准；它和位置表固定放在 `<userData>`，不随存储根移动。第 2、3、4 种异常都不会退回去建空库：资产面板的操作直接报错，并写一条 `asset` 类别的诊断日志。
+
+TTS 用同样的思路（`resolveTtsHomeRoot()`）：项目里有 `<项目根>/TTS/runtime/tts.sqlite` 就用项目的；只有旧位置 `<storageBasePath>/TTS/runtime/tts.sqlite` 就用旧的；两边都有时用项目的；两边都没有时，已绑项目用项目根，未绑用存储根。TTS 留在 `<项目根>/TTS/`，不进 `store/`。
+
+### assets.db 里的表与初始化时机
+
+| 表 | 代码 | 内容 |
+|---|---|---|
+| `assets` | `electron/storage/assets-sqlite.ts` | 角色、场景、道具、视频片段、音频资产索引 |
+| `products` | `electron/storage/products-sqlite.ts` | 推广产品：名称、唯一 slug、封面、链接、标签、关联项目、品牌与推广设置 |
+| `promotion_templates` | `electron/storage/promotion-templates-sqlite.ts` | 推广文案模板，按产品、平台建索引 |
+
+三张表在同一个 `assets.db` 里，跟着资产库归属项目。启动时不建库：资产 IPC 每次操作前检查资产根（`ipc/assets/asset-library-ipc.ts`），产品和模板 IPC 在收到第一次请求时调用 `ensureAssetsDatabaseReady()` 初始化；资产根变了（切到另一个项目）会自动重新初始化。还没初始化就访问时，`getDbPath()` 直接报「资产库存储尚未初始化」，不会拼出相对路径去打开数据库。
+
+### 启动时的三段迁移
+
+应用启动时，在停掉本地 sidecar 之后、打开界面之前，主进程依次运行三段一次性迁移（`electron/main/main.ts`）。三段都可以重复运行，失败不阻止启动，下次启动接着跑：
+
+| 顺序 | 代码 | 做什么 | 完成判断 | 台账与备份 |
+|---|---|---|---|---|
+| 1 | `storage/asset-home-migration.ts` | 把存储根里的资产库（旧 `<storageBasePath>/assets/` 优先，其次 `<storageBasePath>/store/assets/`）和 TTS 库搬进已绑定项目的 `store/assets/` 与 `TTS/` | 新位置实际有库；`asset-home.json` 记位置 | `<项目根>/backups/asset-migration-<ts>/` |
+| 2 | `storage/asset-store-migration.ts` | 把项目根下的旧 `assets/` 整体改名进 `store/assets/`，并改写 `tts.sqlite` 里的绝对路径前缀 | `asset-home.json` 的 `assetsStoreMigrated` | `<项目根>/backups/asset-store-migration-<ts>/` |
+| 3 | `storage/asset-name-folder-migration.ts` | 把 `files/{role,scene,tool}/` 下平铺的文件挪进按资产名的子文件夹，`thumbs/` 同步；改写 `store/` 里对应的 `asset-file://` 引用 | 资产根下的 `_name-folders-v3.json` | `<项目根>/backups/asset-name-folders-<ts>/` |
+
+第 1 段两个来源都有库时不自动挑，停下并记台账。第 3 段遇到目标位置已有同名的不同文件时不挪，文件留在原路径（旧路径照样能读），并记入台账。
+
+## userData 目录职责
+
+`storage-config.json` 的 `basePath`、`projectPath`、`mediaPath` 都为空时，`<storageBasePath>` 就是 `<userData>`。下表说明各目录的职责；迁移前要重新读取本机的实际路径，本表不授权移动或删除任何条目：
 
 | 实际路径或类别 | 代码/运行时职责 | 当前 disposition |
 |---|---|---|
-| `projects/`、`media/`、`assets/`、`skills/` | 项目、媒体、canonical `assets/assets.db` 与资产文件、用户技能 | 产品数据，保留 |
+| `projects/`、`media/`、`skills/` | 内部项目数据、媒体、用户技能 | 产品数据，保留 |
+| `assets/`、`store/assets/` | 没绑定项目时的资产库；绑定后由启动迁移搬进项目（见「资产库与 TTS 的归属」） | 迁移来源，保留 |
+| `project-locations.json`、`asset-home.json` | 项目位置表（权威）与资产库位置缓存；固定在 `<userData>`，不随存储根移动 | 应用状态，保留 |
 | `python/` | 受管理的 Python runtime；内部 executable/snapshot symlink 是完整性结构 | 运行时数据，保留 |
 | `comfyui/`（09-10 起现行） | **模型/引擎统一家 + ComfyUI 引擎家**：ComfyUI 引擎源码与独立 venv、`models/<family>/`（TTS/audio/sfx/图像/视频等全部本地模型，拼装单源 `electron/storage/model-dirs.ts`）、snapshots、默认 `<源码目录>/user/default/workflows/` 用户库（可由 manifest 的 `workflowsDir` 覆盖）与只读仓库模板合并、manifest.json、engine.lock；input/output 媒体目录经官方参数注入 | 产品数据（大体积模型权重/引擎）+应用运行状态，保留 |
 | `model/`（08-19 旧规范，已退役） | 旧模型家 `<userData>/model/<family>/`（music3 权重、mlx-serve 二进制等）。09-10「模型统一家」裁定后由 `apps/build/scripts/model_dir_unify.py` 一次性迁平至 `comfyui/models/`，仅作迁移兼容来源；imagegen seg 模型例外仍留 `model/imagegen/` | 迁移兼容/残留，保留不动 |
-| `TTS/runtime/` | sidecar SQLite、生成音频、`config.json` 与 `.deps-hash` 依赖标记（旧版 `<userData>/tts-runtime` 仅作迁移兼容） | 应用运行状态，保留 |
+| `TTS/runtime/` | 没绑定项目时的 TTS 运行库：sidecar SQLite、生成音频、`config.json` 与 `.deps-hash` 依赖标记；绑定项目后改用 `<项目根>/TTS/runtime/`（旧版 `<userData>/tts-runtime` 仅作迁移兼容） | 应用运行状态，保留 |
 | `remotion-runtime/`、`remotion-studio/` | Remotion 浏览器缓存、固定 runtime manifest 与 Studio 工作区 | 应用运行状态，保留 |
 | `logs/`、`diagnostics/`、`self-media/`、`storage-config.json` | 诊断日志统一家 `logs/`(见下节)、自媒体任务/凭据边界与存储配置 | 产品或审计数据，保留 |
 | `Cache/`、`Code Cache/`、`GPUCache/`、`DawnGraphiteCache/`、`DawnWebGPUCache/` | Electron/Chromium 可重建缓存 | 可重建，但治理扫描器不自动清理；应用退出且有单独证据后再审阅 |
@@ -143,19 +181,14 @@ backup、迁移源和断链 symlink 一律保留；只有普通文件 `.DS_Store
 
 在 `设置 -> 存储 -> 存储位置` 点击 `选择`，可以选择新的数据目录。
 
-应用会尝试把现有用户数据复制到新目录、确认新根后再按现有安全策略处理旧根，并自动创建：
+应用把 `projects/`、`media/`、`skills/` 三类数据复制到新目录，再把存储根切到新位置。旧目录在 `<userData>` 之外时会删除，在 `<userData>` 之内则保留。复制失败时，目标目录恢复原有内容，存储配置也恢复原样。
 
-```text
-projects/
-media/
-assets/
-skills/
-```
+资产库不在复制范围内：它在项目文件夹里（见「资产库与 TTS 的归属」），换存储根不影响它；要挪资产库，就移动它所在的项目文件夹。
 
-当前 `设置 -> 存储` 的移动逻辑会复制 `projects/`、`media/`、`assets/` 和 `skills/` 四类用户数据，并把存储根目录切到新位置。Python runtime `python/`、TTS 模型缓存 `comfyui/models/TTS/`（旧版 `model/TTS`、`tts-models/` 仅作迁移兼容）与 Electron sidecar 的 `<storageBasePath>/TTS/runtime`（SQLite、生成音频、依赖 hash marker 与 runtime config）不属于本次复制范围；ComfyUI 引擎家固定锚在 `<userData>/comfyui/`，不随存储根迁移移动。旧版 `<userData>/tts-runtime` 仅作为迁移兼容目录保留。video-use 的独立 profile marker 也属于运行时元数据，不进入这四类用户数据复制；迁移后由 worker 环境检查决定复用当前 managed Python，冲突则恢复已验证组合并保持 `blocked`。迁移后建议重启应用，并检查：
+Python runtime `python/`、TTS 模型缓存 `comfyui/models/TTS/`（旧版 `model/TTS`、`tts-models/` 仅作迁移兼容）与 Electron sidecar 的 `<storageBasePath>/TTS/runtime`（SQLite、生成音频、依赖 hash marker 与 runtime config）不属于本次复制范围；ComfyUI 引擎家固定锚在 `<userData>/comfyui/`，不随存储根迁移移动。旧版 `<userData>/tts-runtime` 仅作为迁移兼容目录保留。video-use 的独立 profile marker 也属于运行时元数据，不进入这三类用户数据复制；迁移后由 worker 环境检查决定复用当前 managed Python，冲突则恢复已验证组合并保持 `blocked`。迁移后建议重启应用，并检查：
 
 - 项目是否能正常打开。
-- `assets/` 是否已在新存储根目录下包含原有资产库。
+- 资产面板是否正常列出资产（资产库在项目文件夹里，不随存储根移动）。
 - `设置 → 本地配置 -> Python 运行环境` 中的 Python 使用路径是否指向新存储根目录。
 - `<存储根目录>/comfyui/models/TTS` 是否需要重新下载或手动迁移（旧版 `model/TTS`、`tts-models` 仅作迁移兼容）。
 - `<storageBasePath>/TTS/runtime` 是否仍适合保留；它不等同于项目数据或 Python runtime，不能假定会随存储根目录移动。
@@ -164,7 +197,7 @@ skills/
 
 主进程以 `<userData>/project-locations.json` 中的项目位置为权威；renderer 的 `mystudio-project-store.json` / `Project.location` 用于展示。已注册项目的 `_p/<projectId>/...` 虚拟键会重定向到对应外部目录。
 
-下面的统一移动、导出、导入只处理内部 `getProjectDataRoot()` 及 media/assets/skills，**不会遍历外部项目位置，也不会自动携带 userData 下的项目位置表**。外部项目应单独备份完整项目夹和位置登记信息；恢复后核对应用打开的真实目录。只有内部四目录的导出包不能视为全项目备份。
+下面的统一移动、导出、导入只处理内部 `getProjectDataRoot()` 及 `media/`、`skills/`，**不会遍历外部项目位置，也不会自动携带 userData 下的项目位置表**。外部项目应单独备份完整项目夹和位置登记信息；恢复后核对应用打开的真实目录。只有内部三目录的导出包不能视为全项目备份。资产库（`store/assets/`）和 TTS（`TTS/`）就在项目文件夹里，备份完整项目夹即包含它们。
 
 ## 导出和导入
 
@@ -176,10 +209,9 @@ skills/
 
 - `projects/`
 - `media/`
-- `assets/`
 - `skills/`
 
-Python runtime `python/`、TTS 模型缓存 `comfyui/models/TTS/`（旧版 `model/TTS`、`tts-models/` 仅作迁移兼容）、`<storageBasePath>/TTS/runtime` 和 video-use profile marker 不在当前统一导出范围内；ComfyUI 引擎家 `<userData>/comfyui/`（引擎+模型统一家+工作流库）同样不随导出携带。
+资产库不在其中（它在项目文件夹里）。Python runtime `python/`、TTS 模型缓存 `comfyui/models/TTS/`（旧版 `model/TTS`、`tts-models/` 仅作迁移兼容）、`<storageBasePath>/TTS/runtime` 和 video-use profile marker 不在当前统一导出范围内；ComfyUI 引擎家 `<userData>/comfyui/`（引擎+模型统一家+工作流库）同样不随导出携带。
 
 ### 导入
 
@@ -187,7 +219,7 @@ Python runtime `python/`、TTS 模型缓存 `comfyui/models/TTS/`（旧版 `mode
 
 导入后应用会清理旧的浏览器存储缓存，并重新加载文件存储数据。
 
-当前统一导入会按导入来源中存在的目录类别覆盖 `projects/`、`media/`、`assets/` 和 `skills/`；来源中不存在的类别会保留当前数据。导入前会备份现有的对应类别，失败时回滚。Python runtime、模型缓存和 sidecar runtime 数据不会因导入而恢复；需要时分别在设置页重新配置或按其独立数据边界处理。
+当前统一导入会按导入来源中存在的目录类别覆盖 `projects/`、`media/` 和 `skills/`；来源中不存在的类别会保留当前数据。旧版导出包里带的 `assets/` 不会导入，只在日志里警告，需要人工核对。导入前会备份现有的对应类别，失败时回滚。Python runtime、模型缓存和 sidecar runtime 数据不会因导入而恢复；需要时分别在设置页重新配置或按其独立数据边界处理。
 
 迁移前可生成只读治理清单（输出文件必须位于 userData 之外，且不能覆盖已有文件）：
 
@@ -219,7 +251,7 @@ evidence 和 macOS Trash recovery 路径；任何证据漂移或非 Finder 元�
 设置 -> 存储 -> 数据恢复 -> 指向已有数据目录
 ```
 
-选择包含 `projects/`、`media/`、`assets/` 或 `skills/` 子目录的数据目录。操作完成后重启应用。
+选择包含 `projects/`、`media/` 或 `skills/` 子目录的数据目录；只有 `assets/` 的目录会被拒绝。操作完成后重启应用。
 
 ## 缓存管理
 
@@ -240,24 +272,23 @@ MYStudio 要区分“开发脚本 Python”和“安装后应用 Python”，并
 ```text
 <storageBasePath>/python
 <storageBasePath>/comfyui/models/TTS
-<storageBasePath>/TTS/runtime
+<项目根>/TTS/runtime            # 没绑定项目时为 <storageBasePath>/TTS/runtime
 ```
 
-2026-08-03 记录中的 macOS 开发机 `<storageBasePath>` 与 Electron `userDataPath` 相同，当时设置页下载的
-Python 目录示例为 `~/Library/Application Support/漫影工作室/python`。
-这是可迁移的历史盘面示例，不是写死给所有用户的路径；应用和 video-use 都必须通过
+没有自定义存储根的 macOS 机器上，`<storageBasePath>` 与 Electron `userDataPath` 相同，设置页下载的 Python 在 `~/Library/Application Support/漫影工作室/python`。
+这只是示例，不是写死给所有用户的路径；应用和 video-use 都必须通过
 `getStorageBasePath()`/`pythonRuntimeDir` 解析，不能把这个示例复制成固定常量。
 
 - **开发/构建 Python**：`apps/build/**/*.py`、后端 unittest 和审计脚本由开发者 shell 的 `python3`（或其自行激活的开发虚拟环境）执行。当前仓库没有提交 `apps/.venv` 或 `apps/backend/.venv`；这份 Python 只用于开发/CI，不会被 electron-builder 复制进安装包，也不是 Electron TTS 的候选路径。
 - **安装后应用 Python**：设置页首次点击 `开始配置` 时，Electron 下载并解压 CPython 3.12 到 `<storageBasePath>/python`，再把 `apps/backend/requirements.txt` 安装到该 runtime。开发模式的 Electron 也遵循这个路径启动 TTS；它不会因为 `npm run dev` 就改用 shell 的 `python3`。
 - `<storageBasePath>/python`：设置页下载的 Python 3.12 runtime；`apps/backend/requirements.txt` 的依赖安装到这里。
 - `<storageBasePath>/comfyui/models/TTS`：默认 TTS 模型缓存（09-10 模型统一家，拼装单源 `model-dirs.ts`）；旧版 `<storageBasePath>/model/TTS`、`tts-models` 仅作迁移兼容。
-- `<storageBasePath>/TTS/runtime`：Electron sidecar 的 SQLite、生成音频、依赖 hash marker 和 runtime config；旧版 `<userData>/tts-runtime` 仅作迁移兼容。
+- TTS 运行库：已绑定项目时在 `<项目根>/TTS/runtime`，否则在 `<storageBasePath>/TTS/runtime`（判断规则见「资产库与 TTS 的归属」）；放 Electron sidecar 的 SQLite、生成音频、依赖 hash marker 和 runtime config；旧版 `<userData>/tts-runtime` 仅作迁移兼容。
 - **video-use（已接入代码路径，真实生成需独立验收）**：开发态可用开发者 Python 验证 helper；应用运行态必须从同一个 `pythonRuntimeDir` 使用 `<storageBasePath>/python`（当前 macOS 示例为 `~/Library/Application Support/漫影工作室/python`）作为解释器来源。默认复用该 managed Python 3.12 的 site-packages，并使用独立 `requirements-video-use.lock`/profile marker、`pip check`、import/fixture smoke 和 TTS 全量回归；禁止创建 `video-use-runtime` venv。共享依赖发生硬冲突时，当前组合进入 `blocked` 并恢复最近一次已验证组合。video-use 依赖不得直接写入 `apps/backend/requirements.txt` 或 `<storageBasePath>/TTS/runtime`，其项目输出应写到当前 project/chapter revision 工作区，不属于 Python runtime 本体。
 
 Electron 从 `apps/backend` 或打包后的 `Resources/backend` 取得 sidecar 源码与 `PYTHONPATH`，但只使用 `<storageBasePath>/python` 启动它。`apps/backend/python` 不是正式 runtime 位置：它被 `.gitignore` 忽略并由打包规则排除；本任务没有删除或移动该本地遗留目录。
 
-因此更改存储根目录后，Python runtime、模型缓存、TTS runtime 和 video-use profile marker 会改从新根目录寻址，但当前移动/导出/导入不会自动携带它们或旧版 `<userData>/tts-runtime`。相关配置见 [Python 与本地 TTS 配置](../settings/PYTHON_TTS_SETUP.md) 和 [四个视频 Skill 与 MYStudio 融合研究](../融合/参考/四个视频Skill与MYStudio融合研究.md)。
+因此更改存储根目录后，Python runtime、模型缓存、没绑定项目时的 TTS runtime 和 video-use profile marker 会改从新根目录寻址，但当前移动/导出/导入不会自动携带它们或旧版 `<userData>/tts-runtime`。相关配置见 [Python 与本地 TTS 配置](../settings/PYTHON_TTS_SETUP.md) 和 [四个视频 Skill 与 MYStudio 融合研究](../融合/参考/四个视频Skill与MYStudio融合研究.md)。
 
 视频章节 artifact 仍写入 `<projectRoot>/video-use/<chapterId>/r<revision>/`，不写入 Python runtime。主链是 `StoryboardItem.ttsSpokenText -> managed Python TTS WAV binding -> Remotion StoryboardShot -> MLX 0.4.1 原文强制对齐 -> video-use 完整 EDL/字幕时间/调色/preview/self-eval -> 用户确认 -> editable-edl（默认）或 clean flat-shot-mp4（高级） -> HyperFrames overlay/no-op -> Remotion ChapterVideo -> final-output-qc`。每章 video-use/HyperFrames 默认启用；`preparing`、`aligning`、`editing`、`previewing`、`evaluating`、`awaiting-review`、`applying`、`ready`、`blocked` 是唯一章节状态。原始秒制 EDL 只在 evidence 保存，adapter 转换为 `TimelineTimeUs`；flat 模式必须保存独立字幕/overlay metadata，禁止二次烧录。
 
@@ -284,14 +315,17 @@ Daojie chapter-001 仅在显式设置 `MANYING_TTS_USE_HTTP=1` 时启动 HTTP TT
 进入 `设置 → 本地配置 -> Python 运行环境`，确认 `Python 使用路径` 指向新存储目录下的 Python，并刷新安装明细。
 
 
-## 项目实体目录地图（2026-08-17 全量版，权威代码锚点 chapter-paths.ts / project-storage.ts）
+## 项目文件夹目录地图（代码锚点 `lib/studio/chapter-paths.ts`、`lib/storage/project-storage.ts`、`electron/storage/project-store-layout.ts`）
 
 项目实体=注册表 `project-locations.json` location 指向的目录（如 `IP/MA/`），**懒创建**：创建项目只建根目录，其余按首次使用逐个出现。
 
-### 根目录文件（各域 zustand persist，`{state,version}` 信封，首次使用该域时创建）
+### store/ 目录（各域 zustand persist，`{state,version}` 信封，首次使用该域时创建）
+
+应用状态文件都放在项目根的 `store/` 下（`electron/storage/project-store-layout.ts`）。旧项目平铺在项目根的这些文件，会在第一次经应用访问时搬进 `store/`，并写标记 `store/_store-layout-v1.json`；`.bak-*` 备份不搬。资产库也在这里：`store/assets/`（见「资产库与 TTS 的归属」）。下表只列主要文件；时间线、总览、图片工作室等其余域的状态文件也在 `store/`。
+
 | 文件 | 作用 | 创建时机 |
 |---|---|---|
-| `studio-workflow/`（目录，见下节） | 工作流主数据的**分片持久化**（08-17 起的新布局，manifest 驱动） | 任意工作流写操作 |
+| `studio-workflow/`（目录，见下节） | 工作流主数据的**分片持久化**（manifest 驱动） | 任意工作流写操作 |
 | `studio-workflow-store.json` | （旧布局）工作流主数据单文件：章节列表、事件分析结果、原著圣经缓存、剧本计划、分镜、资产版本、媒体任务（v10）。分片化后首次写盘即改名 `*.bak-sharded-<ts>` 保留不删 | 任意工作流写操作（已停写，仅回退读取） |
 | `characters.json` | 角色库：角色卡、别名、外观设定，供剧本/生图引用 | 首次建角色条目 |
 | `scenes.json` | 场景库：场景卡与环境设定 | 首次建场景条目 |
@@ -305,7 +339,7 @@ Daojie chapter-001 仅在显式设置 `MANYING_TTS_USE_HTTP=1` 时启动 HTTP TT
 | `media.json` | 媒体库条目：导入媒体的索引与 `local-image://` 地址映射 | 首次导入媒体 |
 | `*.bak-*`（protagonist/voice/bible-* 等） | store 手术/迁移前的自动备份副本 | 确认稳定后可手动清理 |
 
-### studio-workflow/ 分片布局（08-17 起；08-18 升级为章优先目录分层，权威代码 `lib/storage/studio-workflow-shards.ts`）
+### store/studio-workflow/ 分片布局（权威代码 `lib/storage/studio-workflow-shards.ts`）
 单 JSON ≤512KB 的分片持久化投影（store 语义与 migrate(v10) 不变），**章优先目录分层**：每章数据住自己的子目录，一章的增删改只动一章的目录：
 | 路径 | 内容 |
 |---|---|
@@ -316,11 +350,11 @@ Daojie chapter-001 仅在显式设置 `MANYING_TTS_USE_HTTP=1` 时启动 HTTP TT
 | `agent-runs-*`、`assets-versions-*`、`materials-*` | 非章节数组域（项目级数据），按大小批切，单片裸名、多片 `-NNN` |
 - 每片仍是 `{state:{域子集},version}` 信封（asset inventory 的 zustand 解码器兼容），**分片与 manifest 均格式化多行存储**（2 空格缩进；512KB 预算按格式化后字节计量）
 - 文件名 stamp=内容 djb2 前 8 hex：写序=先写变化分片→manifest 最后换新→清孤儿（渲染进程用 listDirs+listKeys 嵌套扫描，未引用章目录整目录回收），进程中途死时旧 manifest 仍指向完整旧代
-- **增量写（08-18）**：渲染进程保存与上一代逐片比对「名+内容」，未变分片零重写（改一章只写一章）；完全无变化的保存零磁盘写入；重启/切项目首存退化为全量
-- **CPU 增量+窗口化（08-18 store-scale 收口）**：保存序列化=域引用 diff+条目 WeakMap 缓存（500 章 21.6→7.0ms）；启动=窗口读（manifest.chapterIndex+激活章，恒定 3 片，与总章数无关），非激活章轻索引项（无 sourceText）不落片、切章装载（switchChapter）；归档章分片名抄录保命；读链损坏空态覆写守卫（hydrationDamaged）
+- **增量写**：渲染进程保存与上一代逐片比对「名+内容」，未变分片零重写（改一章只写一章）；完全无变化的保存零磁盘写入；重启/切项目首存退化为全量
+- **CPU 增量+窗口化**：保存序列化=域引用 diff+条目 WeakMap 缓存；启动=窗口读（manifest.chapterIndex+激活章，恒定 3 片，与总章数无关），非激活章轻索引项（无 sourceText）不落片、切章装载（switchChapter）；归档章分片名抄录保命；读链损坏空态覆写守卫（hydrationDamaged）
 - 无损保证：章节域按「同章连续段(run)」切文件，manifest 顺序=数组原序，合并 concat 精确还原（章交错也保序）
 - 读端三级回退：分片 manifest → 项目级旧单文件 → 根级 legacy 键（未迁移项目/冒烟夹具零损）；旧代布局（平铺章前缀、大小批切）按旧 manifest 照常可读，下次保存自动升级为章目录布局
-- 目录自述：仓内权威模板 `apps/frontend/assets/docs/studio-workflow/README.md` 逐字分发——创建项目即写入，每次分片保存 md5 校验，缺失/被手改自动覆盖修复（08-18 四裁定；渲染进程纯 md5 实现，CLI/孪生 node:crypto）
+- 目录自述：仓内权威模板 `apps/frontend/assets/docs/studio-workflow/README.md` 逐字分发——创建项目即写入，每次分片保存 md5 校验，缺失/被手改自动覆盖修复（渲染进程纯 md5 实现，CLI/孪生 node:crypto）
 - 旧单文件迁移=改名 `studio-workflow-store.bak-sharded-<ts>`（渲染进程经 IPC 落盘为 `.../studio-workflow-store.bak-sharded-<ts>.json`，CLI 直写为 `.../studio-workflow-store.json.bak-sharded-<ts>`，两者均保留不删）
 
 ### novel/（小说域）
@@ -339,9 +373,10 @@ Daojie chapter-001 仅在显式设置 `MANYING_TTS_USE_HTTP=1` 时启动 HTTP TT
 | `hyperframes/<chapterId>/r<rev>/` | HyperFrames 特效渲染 | **HyperFrames 插件**独立工作区（08-18 起；曾寄居 video-use 修订目录）：hyperframes-request/-overlay/-artifact |
 | `remotion/{audio,chapters,outputs,jobs,evidence}/` | 渲染时 | **Remotion 渲染插件**专属工作区/manifest/成片/任务/证据 |
 | `music/` | （写入方已退役，2026-09-13 核验）原工作台「音乐生成」tab；现行音乐链=本地音频生成 sidecar（`engines/audio_engine`，设置→本地配置 音频区块）→ 章节共享音频导入 BGM，及 ComfyUI 工作流库 `漫影/3_声音/` | 历史 **MiniMax-Music3 整曲产物** WAV（`bgm3-mlxserv-*.wav`，44.1kHz 立体声，同描述+同种子=同一文件）；旧 `music3-gen-runtime-generate`/`music3-gen-music-dir` IPC 已从代码移除。存量文件保留，仍可经 视频工作台→章节共享音频→导入BGM 挂章节音轨 |
-| `assets/files/` | 资产入库 | 资产文件存储 |
+| `store/assets/` | 资产入库 | 资产库（`assets.db`、`files/`、`thumbs/`），见「资产库与 TTS 的归属」 |
+| `TTS/` | 配音 | TTS 运行库（`TTS/runtime/tts.sqlite` 等），不进 `store/` |
 | `continuity-bibles/<chapterId>/` | 视觉连续性锁定 | 章节连续性圣经 |
-| `backups/`（统一备份家，见其 README） | 关键手术前 | 七类：continuity/章节连续性快照、storyboard-flow/分镜流、visual-continuity/晋升整库快照、store/手术备份(.bak-sharded 等)、remotion/ 与 video-use/ 工作区文件备份、legacy-pipeline/旧试点管线归档（08-18 起全部写入点收口于此；旧 visual-continuity-backups/ 仍兼容识别） |
+| `backups/`（统一备份家，见其 README） | 关键手术前 | 七类：continuity/章节连续性快照、storyboard-flow/分镜流、visual-continuity/晋升整库快照、store/手术备份(.bak-sharded 等)、remotion/ 与 video-use/ 工作区文件备份、legacy-pipeline/旧试点管线归档；另有启动迁移台账 `asset-migration-<ts>/`、`asset-store-migration-<ts>/`、`asset-name-folders-<ts>/`（全部写入点收口于此；旧 visual-continuity-backups/ 仍兼容识别） |
 | `editing/` | 剪辑 | 剪辑域产物（store 侧 editing.json 见上） |
 | `scripts/` | 项目侧维护脚本 | 道劫 MA 同步/迁移脚本（个人资产，不入应用包） |
 
@@ -351,3 +386,16 @@ Daojie chapter-001 仅在显式设置 `MANYING_TTS_USE_HTTP=1` 时启动 HTTP TT
 
 ### `_p/{projectId}/` 虚拟键（非真实目录）
 IPC 四通道（file-storage、project-file 文本/二进制）统一经 `redirectProjectScopedKey` 查注册表直达项目目录；仅未注册位置的 legacy 项目回退 `userData/projects/_p/`。
+
+## 项目文件夹的移动、删除与互斥
+
+**移动**（IPC `project-folder-move`，引擎 `electron/storage/project-move-engine.ts`）：
+
+- 先检查：目标父目录必须是已存在、可写的绝对路径；目标不能和应用数据目录 `projects/` 互相包含，不能在源文件夹内部，不能和其他已登记项目重合或嵌套；目标文件夹已存在且非空时拒绝。同一个项目同时只能有一个移动任务。
+- 同一个磁盘内直接改名。跨磁盘时改为复制 → 校验（目录结构、文件元数据、文件字节）→ 删除源，进度分 `copying`、`verifying`、`finalizing` 三段推给界面，可以中途取消（`project-folder-move-cancel`）。符号链接按链接本身复制，不跟随。
+- 文件夹移好后更新位置表；位置表写入失败时，把文件夹移回原处。
+- 资产库和 TTS 在项目文件夹里，会跟着一起移动。
+
+**删除**（IPC `project-folder-remove`）：项目文件夹里的 `store/assets/`、旧 `assets/` 或 `TTS/` 有文件时，先返回 `ASSET_DELETION_UNCONFIRMED` 以及文件数和大小，界面确认后才删除整个文件夹，然后注销位置表条目。
+
+**互斥**：产物清点、产物删除和删除恢复共用主进程里的项目锁 `withProjectDeletionLock()`（`electron/storage/project-mutex.ts`）：按项目排队、先到先得，只在内存里，只管当前应用进程。拿到项目锁之后，还要再对项目根的 `.artifact-delete-project.lock` 以及要改动的文件加文件级写锁。应用本身由 Electron 单实例锁保证只开一个。

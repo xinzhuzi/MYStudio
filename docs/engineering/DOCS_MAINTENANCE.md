@@ -101,11 +101,11 @@
 
 ```bash
 python3 apps/build/scripts/docs_current_audit.py \
-  --output .trellis/tasks/09-20-docs-current-alignment/research/audit.json \
+  --output apps/output/automation/docs-current-audit.json \
   --check-links
 ```
 
-脚本使用仓库已安装的 markdown-it 解析 Markdown 与 HTML 本地链接，并输出逐篇清单、不可达文档、源码路径和 npm 命令待核项；不抓取外部链接，也不验证标题锚点。上例输出属于本轮任务，后续维护改为对应任务的 research 路径。历史路径、外部项目路径和示例命令须逐项裁定，不能一律视为坏链；旧正则会误认节点编号及含括号的图片路径，已不作为验收入口。
+脚本使用仓库已安装的 markdown-it 解析 Markdown 与 HTML 本地链接，并输出逐篇清单、不可达文档、源码路径和 npm 命令待核项；不抓取外部链接，也不验证标题锚点。`--output` 为必填项，上例写入本机忽略的自动化产物目录；需要留存任务证据时，改为对应任务的 `research/` 路径。历史路径、外部项目路径和示例命令须逐项裁定，不能一律视为坏链；旧正则会误认节点编号及含括号的图片路径，已不作为验收入口。
 
 过时关键词扫描：
 

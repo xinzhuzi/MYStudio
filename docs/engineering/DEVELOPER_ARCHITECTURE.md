@@ -59,15 +59,42 @@ ComfyUI 托管 K2 图像、H3 视频及音乐/修复等节点工作流；本地 
 | `apps/output/` | 由生成/导出工作流显式写入 | MP4、音频、图片、报告和证据等生成产物 | 由产物生成工作流及其报告验证 | 前端和后端不得 import 其中内容；不得把它作为可提交源码模块 |
 | `apps/Library/` | 不存在（本次盘面核验） | 当前没有模块责任或写入位置 | 不适用 | 不因历史习惯新建该根目录或把工具迁入其中 |
 
+### 现行子目录职责
+
+| 当前位置 | 现行职责 | 关键入口与边界 |
+|---|---|---|
+| `apps/frontend/lib/artifacts/` | 将各 store 投影为产物记录,计算删除依赖与保留/迁移范围 | `artifact-projection.ts`、`artifact-dependency-graph.ts`;纯 renderer 逻辑,不直接读写文件 |
+| `apps/frontend/lib/notifications/` | 后台出片完成系统通知与提示音 | `render-notify.ts`;前台不发,声音按设置 |
+| `apps/frontend/lib/product/` | 产品 IPC 契约、展示页纯函数与 HTML/链接安全 | `product-ipc-contract.ts`、`showcase.ts`;不碰 React/store/DOM |
+| `apps/frontend/lib/scene/` | 分镜动作到场景视角的同步关键词匹配 | `viewpoint-matcher.ts`;AI 匹配分支已移除 |
+| `apps/frontend/lib/sfx/` | 音效模型就绪探测与设置深链 | `sfx-generation-precheck.ts`;只探测,不自动下载 |
+| `apps/frontend/lib/upscale/` | 超分流程的项目文件 URL 解析与同目录输出路径辅助 | `project-file-url.ts`;不是推理引擎 |
+| `apps/frontend/lib/utils/` | 重试、JSON 清洗、图片持久化等通用工具 | `retry.ts`、`json-cleaner.ts`、`image-persist.ts`;图片持久化经媒体存储桥,不在 renderer 直写 Node 文件系统 |
+| `apps/frontend/components/panels/export/` | 剧本/导演时间线可视化、导出与进度 UI | `panels/export/index.tsx` |
+| `apps/frontend/components/panels/overview/` | SeriesMeta 展示/内联编辑,工作流与阶段导览 | `panels/overview/index.tsx` |
+| `apps/frontend/electron/ipc/files/` | 文件存储、项目文件与产物管理 IPC | `file-storage-ipc.ts`、`project-file-ipc.ts`、`artifact-management-ipc.ts`;破坏性产物操作须计划指纹与确认 |
+| `apps/frontend/electron/ipc/product/` | 产品 CRUD IPC、可信帧校验与惰性建表 | `product-ipc.ts`;首次 handler 调用才初始化资产库 |
+| `apps/frontend/electron/artifacts/` | 盘面扫描、指纹/差异计算、事务删除与恢复 | `artifact-inventory-service.ts`、`artifact-deletion-service.ts` |
+| `apps/frontend/electron/security/` | 受管路径/对话框路径守卫与外发 URL SSRF 守卫 | `managed-paths.ts`、`request-url-guard.ts` |
+| `apps/frontend/stores/artifacts/` | 产物盘点缓存、筛选选择与删除桥接 | `artifact-store.ts`;IPC 由 hook/调用方负责 |
+| `apps/frontend/stores/mcp/` | stdio/http MCP 配置 CRUD、加密持久化与 JSON 互导 | `mcp-servers-store.ts` |
+| `apps/frontend/stores/navigation/` | 面板预设、页签/历史/剧集作用域与跨面板跳转 | `panel-store.ts`、`media-panel-store.ts` |
+| `apps/frontend/stores/product/` | 跨项目产品缓存与展示配置持久化 | `product-store.ts`、`showcase-config-store.ts` |
+| `apps/backend/audio_gen/` | 音乐生成 CLI/probe/artifact 编排 | `worker.py`;推理在 `engines/audio_engine/` |
+| `apps/backend/image_gen/` | 本地生图 HTTP sidecar:图像/换装、模型管理、ComfyUI 托管与远端代理 | `server.py`;仅环回监听,按安装 token 鉴权 |
+| `apps/backend/sfx_gen/` | 音效生成 CLI/probe/artifact 编排 | `worker.py`;推理在 `engines/sfx_engine/` |
+| `apps/backend/vlm_review/` | 视觉一致性审核 worker、探针与全章审核辅助 | `worker.py`、`run_full_audit.py`;推理在 `engines/vlm_engine/` |
+
 用户数据、打包资源与源码同样是边界的一部分：
 
 | 位置 | 当前职责 | 边界 |
 |---|---|---|
-| `<storageBasePath>/projects`、`media`、`assets`、`skills` | 用户项目、媒体、资产库和技能等项目存储 | 由 Electron storage bridge 和设置页管理，不由 renderer 直接写入 |
+| `<storageBasePath>/projects`、`media`、`skills` | 内部项目数据、媒体和用户技能的默认位置 | 由 Electron storage bridge 和设置页管理，不由 renderer 直接写入 |
+| `<项目根>/store/assets/` | 已绑定项目的资产库，包含 `assets.db`、素材原文件和缩略图 | 由 `asset-home.ts` 根据项目位置解析，随该项目文件夹移动 |
 | `<storageBasePath>/python` | 设置页下载并配置的 Python 3.12 runtime | 正式 Python runtime 根目录；当前 TTS 依赖从 `apps/backend/requirements.txt` 安装到这里，video-use 只把它作为解释器来源 |
 | `<userData>/comfyui/`（可由 `MYSTUDIO_COMFYUI_HOME` 覆写） | ComfyUI 引擎家：引擎源码、独立 venv、`models/`（本地模型统一家）、snapshots、默认 `<源码目录>/user/default/workflows` 用户库（可覆写 `workflowsDir`）、manifest.json、engine.lock | 引擎运行时数据，由引擎管理器安装/升级；不进安装包，不写入 `apps/` 源码区 |
 | `<storageBasePath>/comfyui/models/TTS` | 默认 TTS 模型缓存（09-10 模型统一家；旧版 `model/TTS`、`tts-models` 仅作迁移兼容，`model-dirs.ts` 为拼装单源） | 运行时数据，不是源码或应用资源 |
-| `<storageBasePath>/TTS/runtime` | sidecar 的状态、`tts.sqlite`、生成音频和 marker | 由 sidecar 启动参数和 Electron runtime 管理，不写入 `apps/backend/`；旧版 `<userData>/tts-runtime` 仅作迁移兼容 |
+| `<项目根>/TTS/runtime` 或 `<storageBasePath>/TTS/runtime` | sidecar 的状态、`tts.sqlite`、生成音频和 marker | `resolveTtsHomeRoot()` 优先使用项目库并处理旧库回退。旧版 `<userData>/tts-runtime` 仅作迁移兼容 |
 | 安装包 `out/` 与 `Resources/backend` | 应用构建输出与打包后的 sidecar 源码 | electron-builder 把 `backend` 作为资源复制，但排除 tests、文档、`backend/python/**` 和 venv；Python runtime 不随安装包分发 |
 
 这里要明确区分两套 Python：开发/构建脚本使用开发者当前 shell 的 `python3`（或开发者自行激活的虚拟环境），安装后的 Electron 应用使用设置页下载到 `<storageBasePath>/python` 的受管理 Python 3.12。当前仓库没有提交一个可作为开发运行时的 `apps/.venv`/`apps/backend/.venv`；开发者应以当前 shell 的 `python3 --version` 检查版本；历史开发机探针不能作为产品打包依赖。
@@ -88,8 +115,9 @@ Electron `userDataPath`，`getPythonRuntimeDir()` 再拼接 `python`；`main.ts`
 
 | 当前 userData 类别 | 代码入口或所有者 | 分类与治理边界 |
 |---|---|---|
-| `projects/`、`media/`、`assets/`、`skills/`、`python/`、`comfyui/`（引擎家 + 模型统一家，含 `models/TTS` 等） | `storage-manager.ts` 与 `model-dirs.ts`；资产 DB 由 `studio-assets-storage.ts` 固定为 `assets/assets.db` | 产品/运行时数据，保留；模型和 Python 内部 symlink 不是逃逸数据 |
-| `TTS/runtime/` | `tts-runtime.ts` 以 `<storageBasePath>` 建立 sidecar 数据根，并写入 `.deps-hash` | SQLite、音频、配置和依赖标记，保留；旧版 `<userData>/tts-runtime` 仅作迁移兼容 |
+| `projects/`、`media/`、`skills/`、`python/`、`comfyui/`（引擎家 + 模型统一家，含 `models/TTS` 等） | `storage-manager.ts` 与 `model-dirs.ts` | 产品和运行时数据，保留模型和 Python 内部用于运行的 symlink |
+| `assets/`、`store/assets/`、`project-locations.json`、`asset-home.json` | 存储根与 userData 重合时，前两项是未绑定项目时的旧库兼容位置和默认建库位置。后两项是固定在 userData 的项目位置表和资产库位置缓存 | 保留资产库及位置记录。项目资产库查找与迁移规则见[资产库与 TTS 的归属](./STORAGE_AND_DATA.md#资产库与-tts-的归属) |
+| `TTS/runtime/` | `tts-runtime.ts` 使用 `resolveTtsHomeRoot()` 选定的基路径，存储根下的同名目录用于未绑定项目或旧库回退 | SQLite、音频、配置和依赖标记，保留。旧版 `<userData>/tts-runtime` 仅作迁移兼容 |
 | `remotion-runtime/`、`remotion-studio/` | `remotion-runtime-manifest.ts` 与 `main.ts` | 浏览器/Studio runtime，保留 |
 | `logs/diagnostics/`、`self-media/tasks.json`、`storage-config.json` | `main.ts`、self-media IPC、`storage-manager.ts` | 日志、任务和配置，保留 |
 | `Cache/`、`Code Cache/`、`GPUCache/`、Dawn caches | Electron/Chromium；`storage-manager.ts` 只把前三类接入设置页缓存管理 | `rebuildable-cache`，但 governance 不自动清理，运行中不得移动 |
@@ -426,21 +454,9 @@ AI/开发工具，不是产品 `skills/`。
 | `apps/frontend/stores/library/character-library-store.ts` | 角色库状态 |
 | `apps/frontend/stores/library/scene-store.ts` | 场景库状态 |
 
-项目数据保存在：
+内部项目数据默认位于 `<storageBasePath>/projects`。已登记的外部项目按 `<userData>/project-locations.json` 定位，在绑定项目的 `store/assets/` 保存资产库，在 `TTS/runtime/` 保存 TTS 运行库。
 
-```text
-<storageBasePath>/projects
-```
-
-独立资产库和运行时缓存不在项目 JSON 里：
-
-```text
-<storageBasePath>/assets
-<storageBasePath>/python
-<storageBasePath>/comfyui/models/TTS
-```
-
-当前 `设置 -> 存储` 的统一导入/导出/移动覆盖 `projects/`、`media/`、`assets/` 和 `skills/`；Python runtime 与 TTS 模型缓存会按新的 `<storageBasePath>` 重新寻址，但不随数据迁移、导入或导出自动复制。
+`设置 → 存储` 的统一移动、导出和导入仅处理内部 `projects/`、`media/` 和 `skills/`。外部项目及其位置登记须单独备份。Python runtime 和模型缓存也应按实际配置单独核对。详见[外部项目的备份边界](./STORAGE_AND_DATA.md#外部项目的备份边界)。
 
 旧 `moyin-*` 文件会在读取时迁移到 `mystudio-*` 命名。文档见 [存储与数据迁移](./STORAGE_AND_DATA.md)。
 
@@ -470,7 +486,7 @@ AI/开发工具，不是产品 `skills/`。
 - `设置 → 本地配置 -> Python 运行环境 -> 开始配置` 才会配置 Python 3.12 和依赖。
 - TTS 后端不随应用启动自动拉起。
 - 安装包不应携带大型 `backend/python`。
-- 正式 runtime 根目录只有 `<storageBasePath>/python`；Electron 以其中的平台 Python 启动 sidecar，并以 `<storageBasePath>/comfyui/models/TTS` 和 `<storageBasePath>/TTS/runtime` 管理模型与 sidecar 数据（旧版 `model/TTS`、`tts-models` 与 `<userData>/tts-runtime` 仅作迁移兼容）。
+- Electron 使用 `<storageBasePath>/python` 中的解释器启动 sidecar，模型缓存和 sidecar 数据分别解析。TTS 运行库跟随 `resolveTtsHomeRoot()`，项目库优先，旧库回退见[资产库与 TTS 的归属](./STORAGE_AND_DATA.md#资产库与-tts-的归属)。
 - 如果工作区里存在 `apps/backend/python`，它是本地/历史 runtime 残留，不是本地开发需要的第二套正式 Python，不得被源码、构建脚本或新测试当作可选 runtime；打包配置继续排除它。
 - Daojie 的显式 HTTP-TTS 直跑按 `MYSTUDIO_STORAGE_BASE_PATH`、`<userData>/storage-config.json`、macOS development fallback 的顺序解析受管理的 `<storageBasePath>/python`；默认 `video:chapter001` 自动链不会注入 `MANYING_TTS_USE_HTTP=1`，因此不会把该兼容路径当作默认视频链的一部分。
 - video-use 的开发 worker 可以使用开发者当前 Python 做本地测试，但打包应用运行期间必须从同一个 `pythonRuntimeDir` 使用受管理的 `<storageBasePath>/python`（当前 macOS 为 `~/Library/Application Support/漫影工作室/python`）作为解释器来源。当前实现目标是在准备时复用该 managed Python 的 site-packages，使用独立 `requirements-video-use.lock`、profile marker、`pip check`/import/fixture smoke、TTS 全量回归和整套 runtime 回滚；禁止创建 `video-use-runtime` venv。冲突时章节保持 `blocked` 并恢复最近一次已验证组合，不能把 video-use 依赖直接追加到 TTS requirements，也不能让现有 TTS 安装器误装 video-use。
@@ -502,7 +518,7 @@ AI/开发工具，不是产品 `skills/`。
 `apps/frontend/lib/ai/` 是前端可复用 AI 代码的唯一源码模块。旧的
 `apps/frontend/app/` 是未接线的 Next 风格残留，已删除；图片 URL 转换统一
 复用 `apps/frontend/lib/network/cors-fetch.ts` 与 `apps/frontend/lib/media/remote-image-fetch.ts`，
-不再依赖 `/api/proxy-image`。旧的 `apps/frontend/lib/api-key-manager.ts` 兼容
+不再依赖 `/api/proxy-image`。旧的 `apps/frontend/lib/ai/core/services/api-key-manager.ts` 兼容
 re-export 已移除(实现现位于 `apps/frontend/lib/ai/core/services/api-key-manager.ts`);
 新代码必须从 `apps/frontend/lib/ai/core/`
 导入 provider、模型路由和 API key 服务。
