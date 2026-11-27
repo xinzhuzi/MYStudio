@@ -1,7 +1,7 @@
 {
   "id": "ae222b86-64e1-5749-96e7-9b9d67ca7ed8",
   "revision": 1,
-  "last_node_id": 4201,
+  "last_node_id": 4202,
   "last_link_id": 21,
   "nodes": [
     {
@@ -476,6 +476,32 @@
       },
       "widgets_values": [],
       "title": "[41] FLUX.3 正负文本编码"
+    },
+    {
+      "id": 4202,
+      "type": "MarkdownNote",
+      "pos": [
+        8220,
+        1800
+      ],
+      "size": [
+        560,
+        360
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "标缺说明(P2 1127)",
+      "properties": {
+        "manying_p2_mark": "1127"
+      },
+      "widgets_values": [
+        "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:未列入 D1;Mac 未核(引擎未启动)\n- Win(1126 快照)缺模型·活跃路径:flux3_image_klein_sd_int8_convrot.safetensors、qwen3vl_4b_int8_convrot.safetensors\n- 怎么补:D4 标缺:道劫近期要用时再补模型;下载模型逐件请示(D7),装插件另行明令(D6)。"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
     }
   ],
   "links": [

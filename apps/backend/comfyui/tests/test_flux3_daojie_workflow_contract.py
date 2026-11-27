@@ -6,10 +6,88 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
 ROOT=Path(__file__).resolve().parents[4]
 SPEC=importlib.util.spec_from_file_location('flux_workflow',ROOT/'apps/build/scripts/flux3_daojie_workflow.py')
 w=importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(w)
+
+
+# Original byte anchors remain distinct from the exact 1127 note-only variants.
+FLUX_P2_SHA256 = {
+    'flux3-文生图.json': (
+        'e052bf9026d69f6fc75d394bb6f7139f7c8f81ea2a7c6fecea15e6e14e979283',
+        'f24477cd43215a946770a53db35275926342ac128654e6c23197fb9582c81de0',
+    ),
+    'flux3-道劫-t2i.json': (
+        '3f1e1350c02121d8b5c0b6a3aaaff5c75bedf8bf5cc266e1bdc4adc95a3cadab',
+        'ce594c5e583bc2336a3dc6928fad4fc1d0714a051ccbad1eabe2a7b875b1bae6',
+    ),
+}
+P2_BANNER_SHA256 = '2481601207fbd2d1a118da31cb7e9fb72ec9623afca8a895b274f86dc633b69d'
+
+
+def _before_p2_banner(content, filename):
+    """Reverse only the pinned note edit, then verify every original byte."""
+    before_sha, p2_sha = FLUX_P2_SHA256[filename]
+    current_sha = hashlib.sha256(content).hexdigest()
+    if current_sha == before_sha:
+        return content
+    assert current_sha == p2_sha, filename
+    gui = json.loads(content)
+    note_id = 20 if filename == 'flux3-文生图.json' else 4202
+    notes = [node for node in gui['nodes'] if node['id'] == note_id]
+    assert len(notes) == 1 and notes[0]['type'] == 'MarkdownNote'
+    note = notes[0]
+    if note_id == 20:
+        banner, separator, original = note['widgets_values'][0].partition('\n\n')
+        assert separator == '\n\n'
+        note['widgets_values'][0] = original
+        named_banner, separator, named_original = note['widgets_values_named']['text'].partition('\n\n')
+        assert named_banner == banner and separator == '\n\n'
+        note['widgets_values_named']['text'] = named_original
+    else:
+        banner, = note['widgets_values']
+        assert gui['nodes'][-1] is note and gui['last_node_id'] == 4202
+        gui['nodes'].pop()
+        gui['last_node_id'] = 4201
+    assert hashlib.sha256(banner.encode()).hexdigest() == P2_BANNER_SHA256
+    restored = (json.dumps(gui, ensure_ascii=False, indent=2) + '\n').encode()
+    assert hashlib.sha256(restored).hexdigest() == before_sha, filename
+    return restored
+
+
+def _before_subject_path_refresh(content):
+    """Undo only the exact line-19 dead-script clarification, never example text."""
+    current = (
+        '。生产路=每情绪独立生成再拼,单发九宫格仅作快览。原 `daojie_emotion_compose_0920.py` '
+        '九句模板已删除,当前没有唯一九句真源或逐句契约测试;恢复批量九句前须先建机读模板并逐句验证,'
+        '不得把旧脚本名当现行入口。'
+    ).encode()
+    approved = (
+        ';活模板见 apps/build/scripts/campaigns/daojie_emotion_compose_0920.py '
+        '九句(每表情独立生成再拼=生产路,单发九宫格仅作快览)。'
+    ).encode()
+    if current in content:
+        assert content.count(current) == 1
+        line = content.splitlines()[18]
+        assert line.startswith('**表情类硬规则(09-20 裁定13)**:'.encode())
+        assert line.endswith(current)
+        content = content.replace(current, approved, 1)
+    normalized = content.replace('人物海报'.encode(), '人物'.encode()).replace('高清人头'.encode(), '高清人脸'.encode())
+    assert hashlib.sha256(normalized).hexdigest() == '94a743f34cefd1975ef5cb403275ad1f18d2c74bf31fb4f49db1afa8a05e1da8'
+    return content
+
+
+@pytest.mark.parametrize('filename', tuple(FLUX_P2_SHA256))
+def test_p2_provenance_rejects_unrecorded_execution_edits(filename):
+    path = w.sources()[1].with_name(filename)
+    current = json.loads(path.read_bytes())
+    current['links'][0][4] += 1
+    modified = (json.dumps(current, ensure_ascii=False, indent=2) + '\n').encode()
+    with pytest.raises(AssertionError):
+        _before_p2_banner(modified, filename)
 
 
 def test_gui_expands_to_the_same_execution_graph_as_the_recorded_case(monkeypatch):
@@ -32,7 +110,7 @@ def test_gui_expands_to_the_same_execution_graph_as_the_recorded_case(monkeypatc
     assert human['parts'][0]['text']=='好'
     historical=w.expand_gui(json.loads((w.TASK/'artifacts/gui-template.json').read_text()))
     assert historical==w.api_graph(case)
-    source=w.resolve(ROOT, receipt['source']['path']).read_bytes()
+    source=_before_subject_path_refresh(w.resolve(ROOT, receipt['source']['path']).read_bytes())
     # Historical receipt predates the label rename; compare its unchanged payload.
     assert hashlib.sha256(source.replace('人物海报'.encode(), '人物'.encode()).replace('高清人头'.encode(), '高清人脸'.encode())).hexdigest()==receipt['source']['observed_sha256']
     blocks=re.findall(r'^## (\d+)\.[^\n]*\n.*?^```[^\n]*\n(.*?)^```',source.decode('utf-8'),re.MULTILINE|re.DOTALL)
@@ -41,8 +119,10 @@ def test_gui_expands_to_the_same_execution_graph_as_the_recorded_case(monkeypatc
     assert hashlib.sha256(subject.encode('utf-8')).hexdigest()==receipt['subject_sha256']
     path=w.sources()[1].with_name('flux3-道劫-t2i.json')
     assert path==ROOT/receipt['gui']['path']
-    assert hashlib.sha256(path.read_bytes().replace('人物海报'.encode(), '人物'.encode())).hexdigest()==receipt['gui']['sha256']
-    current_gui=json.loads(path.read_text())
+    current_bytes=path.read_bytes()
+    before_p2=_before_p2_banner(current_bytes, path.name)
+    assert hashlib.sha256(before_p2.replace('人物海报'.encode(), '人物'.encode())).hexdigest()==receipt['gui']['sha256']
+    current_gui=json.loads(current_bytes)
     subjects=[node for node in current_gui['nodes'] if node['id']==400]
     assert len(subjects)==1
     assert subjects[0]['widgets_values_named']['value']==subject
@@ -51,6 +131,9 @@ def test_gui_expands_to_the_same_execution_graph_as_the_recorded_case(monkeypatc
     current_case['subject']=subject
     current_case['type']='人物海报'
     graph=w.expand_gui(current_gui)
+    if current_bytes!=before_p2:
+        # expand_gui also emits frontend notes; exclude only the verified P2 card.
+        assert graph.pop('4202')=={'class_type':'MarkdownNote','inputs':{}}
     assert graph==w.api_graph(current_case)
     restored=copy.deepcopy(graph)
     restored['400']['inputs']['value']=case['subject']
@@ -148,6 +231,10 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     assert snapshot[base]==revision['original_sha256']
     for name,digest in snapshot.items():
         content=(ROOT/name).read_bytes()
+        if Path(name).name in FLUX_P2_SHA256:
+            content=_before_p2_banner(content, Path(name).name)
+        if name==subject:
+            content=_before_subject_path_refresh(content)
         if name in (base,subject):
             content=content.replace('人物海报'.encode(), '人物'.encode())
             # 1120 改名随迁:高清人脸→高清人头(现文还原为冻结时旧名比对)

@@ -1,7 +1,7 @@
 {
   "id": "16273505-0941-460a-a0fb-b2675c614fc5",
   "revision": 0,
-  "last_node_id": 328,
+  "last_node_id": 329,
   "last_link_id": 739,
   "nodes": [
     {
@@ -901,6 +901,32 @@
       "widgets_values_named": {
         "seed": 186704429484741
       }
+    },
+    {
+      "id": 329,
+      "type": "MarkdownNote",
+      "pos": [
+        2640,
+        1760
+      ],
+      "size": [
+        560,
+        360
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "标缺说明(P2 1127)",
+      "properties": {
+        "manying_p2_mark": "1127"
+      },
+      "widgets_values": [
+        "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:Mac 或不保证(D1 社区件);Mac 未核(引擎未启动)\n- Win 缺节点类:DF_Text_Box\n- Win 缺节点类·旁路:孤海注释\n- 怎么补:D6 社区件标缺;下载模型逐件请示(D7),装插件另行明令(D6)。"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
     }
   ],
   "links": [

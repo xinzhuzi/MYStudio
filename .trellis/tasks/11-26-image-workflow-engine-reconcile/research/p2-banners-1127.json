@@ -1,0 +1,352 @@
+{
+ "schema": "p2-banners-1127/v1",
+ "task": "11-26-image-workflow-engine-reconcile",
+ "source": "research/image-reconcile-rows-1126.json + research/audit-win-current-1127.json(1127 复扫与 1126 逐件一致)",
+ "items": [
+  {
+   "file": "1_图片/Flux.3/flux3-图像编辑-多参考.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:未列入 D1;Mac 未核(引擎未启动)\n- Win(1126 快照)缺模型·活跃路径:flux3_image_klein_sd_int8_convrot.safetensors、qwen3vl_4b_int8_convrot.safetensors\n- 怎么补:D4 标缺:道劫近期要用时再补模型;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 10,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/Flux.3/flux3-文生图.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:未列入 D1;Mac 未核(引擎未启动)\n- Win(1126 快照)缺模型·活跃路径:flux3_image_klein_sd_int8_convrot.safetensors、qwen3vl_4b_int8_convrot.safetensors\n- 怎么补:D4 标缺:道劫近期要用时再补模型;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 20,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/Flux.3/flux3-道劫-t2i.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:未列入 D1;Mac 未核(引擎未启动)\n- Win(1126 快照)缺模型·活跃路径:flux3_image_klein_sd_int8_convrot.safetensors、qwen3vl_4b_int8_convrot.safetensors\n- 怎么补:D4 标缺:道劫近期要用时再补模型;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "add"
+  },
+  {
+   "file": "1_图片/MiniMax/官方-H3图像-图像编辑.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:未列入 D1;Mac 未核(引擎未启动)\n- Win(1126 快照)缺模型·活跃路径:qwen3vl_32b_minimax_h3_int8_convrot.safetensors\n- 怎么补:D5 标缺;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 27,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/MiniMax/官方-H3图像-文生图.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:未列入 D1;Mac 未核(引擎未启动)\n- Win(1126 快照)缺模型·活跃路径:qwen3vl_32b_minimax_h3_int8_convrot.safetensors\n- 怎么补:D5 标缺;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 27,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/MossImage/moss-base-t2i-版式.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:未列入 D1(非道劫件);Mac 未核(引擎未启动)\n- Win(1126 快照)缺模型·活跃路径:flux2-vae_small.safetensors\n- 怎么补:D5 标缺;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 20,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/MossImage/moss-base-t2i.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:未列入 D1(非道劫件);Mac 未核(引擎未启动)\n- Win(1126 快照)缺模型·活跃路径:flux2-vae_small.safetensors\n- 怎么补:D5 标缺;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 30,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/MossImage/moss-t2i-版式.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:未列入 D1(非道劫件);Mac 未核(引擎未启动)\n- Win(1126 快照)缺模型·活跃路径:flux2-vae_small.safetensors、moss_image_sft_int8_convrot.safetensors\n- 怎么补:D5 标缺;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 20,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/MossImage/moss-图像编辑.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:未列入 D1(非道劫件);Mac 未核(引擎未启动)\n- Win(1126 快照)缺模型·活跃路径:moss_image_edit_lora_rank_64_bf16.safetensors\n- 怎么补:D5 标缺;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 110,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/MossImage/moss-漫画一键生成器.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:未列入 D1(非道劫件);Mac 未核(引擎未启动)\n- Win 缺节点类·旁路:Note Plus (mtb)、孤海注释\n- 怎么补:D5 标缺;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 102,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/MossImage/moss-颜色深度控制.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:未列入 D1(非道劫件);Mac 未核(引擎未启动)\n- Win(1126 快照)缺模型·活跃路径:moge_3_vitg_fp16.safetensors、moss_image_color_depth_control.safetensors\n- 怎么补:D5 标缺;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 83,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/QwenImage2.1/1_文生图/qwen21-t2i-seedvr2.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:Win+Mac(D1 qi21 线);Mac 未核(引擎未启动)\n- 控件值不在 Win 选项:#9(SeedVR2LoadDiTModel)=mps(mps=Mac 专用设备值,Win 应为 cuda)\n- 怎么补:按上列缺项补齐后两台各实跑一次;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 10,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/QwenImage2.1/1_文生图/t2i-通用.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:Win+Mac(D1 qi21 线);Mac 未核(引擎未启动)\n- 控件值不在 Win 选项:(子图内)=mps(mps=Mac 专用设备值,Win 应为 cuda)\n- 怎么补:按上列缺项补齐后两台各实跑一次;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 402,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/QwenImage2.1/2_图生图/qi21-bfs-换头.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:未列入 D1;Mac 未核(引擎未启动)\n- Win(1126 快照)缺模型·活跃路径:bfs_head_v1.1_qwen_2.1.safetensors\n- 怎么补:D5 换头换脸件标缺;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 463,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/QwenImage2.1/2_图生图/qi21-道劫-换脸-局部重绘.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:Win+Mac(D1 道劫正典);Mac 未核(引擎未启动)\n- Win(1126 快照)缺模型·活跃路径:bfs_head_v1.1_qwen_2.1.safetensors\n- 怎么补:按上列缺项补齐后两台各实跑一次;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 83,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/QwenImage2.1/3_社区模板/skill姿态图放大-扩展整合.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:Mac 或不保证(D1 社区件);Mac 未核(引擎未启动)\n- 控件值不在 Win 选项:mps\n- 输出节点默认全部旁路:先按下方 1123 D13 说明打开所需组\n- 怎么补:D6 社区件标缺;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 286,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/QwenImage2.1/3_社区模板/全能图片编辑-官方PE.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:Mac 或不保证(D1 社区件);Mac 未核(引擎未启动)\n- Win(1126 快照)缺模型·活跃路径:qwen3.5_qwen_image_2.1_pe_i2i.int8_convrot.safetensors\n- Win 缺模型·可选/旁路支路:seedvr2_ema_7b-Q8_0.gguf\n- 怎么补:D6 社区件标缺;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "add"
+  },
+  {
+   "file": "1_图片/QwenImage2.1/3_社区模板/全能文生图-官方PE.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:Mac 或不保证(D1 社区件);Mac 未核(引擎未启动)\n- Win(1126 快照)缺模型·活跃路径:qwen3.5_qwen_image_2.1_pe_t2i.int8_convrot.safetensors\n- Win 缺模型·可选/旁路支路:seedvr2_ema_7b-Q8_0.gguf\n- 怎么补:D6 社区件标缺;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "add"
+  },
+  {
+   "file": "1_图片/QwenImage2.1/3_社区模板/社区-四合一换装捏人-Goohai.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:Mac 或不保证(D1 社区件);Mac 未核(引擎未启动)\n- Win 缺节点类:DF_Text_Box\n- Win 缺节点类·旁路:孤海注释\n- 怎么补:D6 社区件标缺;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "add"
+  },
+  {
+   "file": "1_图片/QwenImage2.1/3_社区模板/社区-局部换脸天花板-Dapao.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:Mac 或不保证(D1 社区件);Mac 未核(引擎未启动)\n- Win(1126 快照)缺模型·活跃路径:Qwen-Image-2.1-outfit-swap.safetensors、bbox/face_yolov8n_v2.pt、bfs_head_v1.1_alternative_qwen_2.1.safetensors、qwen3vl_8b_bf16.safetensors\n- Win 缺节点类:DapaoFaceHarmonize、DapaoFaceSwapRegion\n- Win 缺节点类·旁路:Note Plus (mtb)、孤海注释\n- 怎么补:D6 社区件标缺;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 550,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/QwenImage2.1/3_社区模板/社区-漫画页角色重绘-paralaif.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:Mac 或不保证(D1 社区件);Mac 未核(引擎未启动)\n- Win 缺模型·可选/旁路支路:segm/manga_panel.pt\n- 怎么补:D6 社区件标缺;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 66,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/QwenImage2.1/3_社区模板/编辑生图整合-TE.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:Mac 或不保证(D1 社区件);Mac 未核(引擎未启动)\n- Win 缺模型·可选/旁路支路:Qwen\\Qwen-Image-2.1-viggle-turbo-4step-lora-r64.safetensors\n- 怎么补:D6 社区件标缺;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 671,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/QwenImage2.1/4_姿势编辑/官方-fisher-pose-无限姿势.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:Win+Mac(D1 qi21 线);Mac 未核(引擎未启动)\n- Win 缺模型·可选/旁路支路:QI2.1_AnyAngle.safetensors、birefnet.safetensors、dino_v3_vit_h.safetensors、triposplat_fp16.safetensors、triposplat_vae_decoder_fp16.safetensors\n- 怎么补:按上列缺项补齐后两台各实跑一次;下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 36,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/1_文生图/K2-NSFW专业流-旧版0901.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 真实断链:top #76(ConditioningKrea2Rebalance).conditioning\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 48,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/1_文生图/K2-多视图.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 控件值不在 Win 选项:#60(easy stylesSelector)=manying_漫影风格(风格库条目 Win 引擎侧未登记)\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 42,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/1_文生图/K2-宫格生图.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 控件值不在 Win 选项:#60(easy stylesSelector)=manying_漫影风格(风格库条目 Win 引擎侧未登记)\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 42,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/1_文生图/K2-文生图-超集.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- Win 缺模型·可选/旁路支路:Krea2-光影/Afterlight_v1.safetensors、Krea2-画风/Krea2-暗笔刷darkbrush.safetensors、Krea2-画风/Krea2-电影感CinematicShot_K2.safetensors、Krea2-画风/Krea2-美学Masterpiece_v51.safetensors\n- 控件值不在 Win 选项:#60(MyStylesLibrary)=2D工笔风(风格库条目 Win 引擎侧未登记)\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 66,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/1_文生图/K2-文生图-道劫-二采版.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、Krea2-光影/Afterlight_v1.safetensors、Krea2-功能/Krea2-服从度ProjectorScale.safetensors、Krea2-画风/Krea2-水彩湿画wash_v1.safetensors、Krea2-画风/Krea2-美学Masterpiece_v51.safetensors、Krea2-画风/金雾仙侠GoldenMisty.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- Win 缺模型·可选/旁路支路:Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors、Krea2-画风/Krea2-墨洗淡彩SumiWash_v1.safetensors、Krea2-画风/Krea2-暗笔刷darkbrush.safetensors、Krea2-画风/Krea2-淡彩线描插画_v1.safetensors、Krea2-画风/Krea2-电影感CinematicShot_K2.safetensors\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 66,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/1_文生图/K2-文生图-道劫.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、Krea2-光影/Afterlight_v1.safetensors、Krea2-功能/Krea2-服从度ProjectorScale.safetensors、Krea2-画风/Krea2-水彩湿画wash_v1.safetensors、Krea2-画风/Krea2-美学Masterpiece_v51.safetensors、Krea2-画风/金雾仙侠GoldenMisty.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- Win 缺模型·可选/旁路支路:Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors、Krea2-画风/Krea2-墨洗淡彩SumiWash_v1.safetensors、Krea2-画风/Krea2-暗笔刷darkbrush.safetensors、Krea2-画风/Krea2-淡彩线描插画_v1.safetensors、Krea2-画风/Krea2-电影感CinematicShot_K2.safetensors\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 66,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/1_文生图/K2-文生图-风格参照.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors、Krea2-画风/Krea2-风格参照style_reference.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- Win 缺模型·可选/旁路支路:Krea2-光影/Afterlight_v1.safetensors、Krea2-画风/Krea2-暗笔刷darkbrush.safetensors\n- 控件值不在 Win 选项:#60(MyStylesLibrary)=2D工笔风(风格库条目 Win 引擎侧未登记)\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 66,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/1_文生图/K2-文生图.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 控件值不在 Win 选项:#52(MyStylesLibrary)=2D工笔风(风格库条目 Win 引擎侧未登记)\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 62,
+   "host_type": "Note"
+  },
+  {
+   "file": "1_图片/krea2/2_图生图/K2-NSFW专业流-图生图.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 真实断链:top #76(ConditioningKrea2Rebalance).conditioning\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 48,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/2_图生图/K2-人脸精修-道劫.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 66,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/2_图生图/K2-图生图.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 控件值不在 Win 选项:#38(MyStylesLibrary)=2D水彩(风格库条目 Win 引擎侧未登记)\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 42,
+   "host_type": "Note"
+  },
+  {
+   "file": "1_图片/krea2/2_图生图/K2-无审查全家桶(4K放大+提示词增强).json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win 缺模型·可选/旁路支路:Krea2-Engineer-V1-bf16.safetensors、Krea2\\krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- Win 缺节点类:Civitai Hash Fetcher (Image Saver)、ClownsharKSampler_Beta、Image Saver、Workflow Input Value (Image Saver)\n- Win 缺节点类·旁路:ComfyUI-Krea2T-Enhancer\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 72,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/2_图生图/K2-表情差分-道劫.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 66,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/2_图生图/K2-角色换装.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、Krea2-功能/Krea2-编辑outfit_transfer.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 102,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/2_图生图/K2-角色设定-道劫-专家模式.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、QuadView_krea2_v1.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- Win 缺模型·可选/旁路支路:Krea2-光影/Afterlight_v1.safetensors、Krea2-画风/Krea2-暗笔刷darkbrush.safetensors、Krea2-画风/Krea2-电影感CinematicShot_K2.safetensors、Krea2-画风/Krea2-美学Masterpiece_v51.safetensors\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 301,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/2_图生图/K2-角色设定-道劫.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、QuadView_krea2_v1.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 301,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/3_改图/K2-图像编辑-整合流.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 58,
+   "host_type": "Note"
+  },
+  {
+   "file": "1_图片/krea2/3_改图/K2-无衣物-稳定.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 42,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/3_改图/K2-无衣物-遮罩.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 2,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/3_改图/K2-道劫修手.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 25,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/4_上色/K2-画稿上色-叠底.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 42,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/4_上色/K2-画稿上色-测试.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 42,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/4_上色/K2-画稿上色.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 42,
+   "host_type": "MarkdownNote"
+  },
+  {
+   "file": "1_图片/krea2/5_风格扩展/K2-风格扩展流（3946种）.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 控件值不在 Win 选项:#52(easy stylesSelector)=krea2_397styles-3d_render_3D渲染(风格库条目 Win 引擎侧未登记)\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 62,
+   "host_type": "Note"
+  },
+  {
+   "file": "1_图片/krea2/5_风格扩展/K2-风格扩展流（图生图版）.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 控件值不在 Win 选项:#38(easy stylesSelector)=krea2_anime_动漫_styles(风格库条目 Win 引擎侧未登记)\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 42,
+   "host_type": "Note"
+  },
+  {
+   "file": "1_图片/krea2/6_修复超分/K2-SeedVR2修复.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- 控件值不在 Win 选项:#2(SeedVR2LoadDiTModel)=mps(mps=Mac 专用设备值,Win 应为 cuda)\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "add"
+  },
+  {
+   "file": "1_图片/krea2/6_修复超分/K2-SeedVR2降噪后4K.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- 控件值不在 Win 选项:#2(SeedVR2LoadDiTModel)=mps(mps=Mac 专用设备值,Win 应为 cuda)\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "add"
+  },
+  {
+   "file": "1_图片/krea2/6_修复超分/K2-去噪精修.json",
+   "banner": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。",
+   "mode": "prepend",
+   "host_id": 58,
+   "host_type": "Note"
+  }
+ ]
+}

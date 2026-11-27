@@ -15,6 +15,8 @@ ORIGINAL_SHA256 = '4615ed3952cc1bb67e5360a7bac04c0bd6fc84cf1fe60a21217ee5db48f52
 # 1127 布局整治重锚(11-26-workflow-layout-normalize --apply;交叉 29→30 在 Q3 容差内,
 # 其余判据仍全零;旧 reviewed sha=12b8db37…留档)
 PATCHED_SHA256 = 'afbfd4d1397a8ed8215ead18c25712b1d12225fded5165da0416db5bd88a8d8d'
+# 1127 P2: verified node83 note prefix only; historical repair output stays pinned above.
+P2_BANNER_SHA256 = '2d02134928dc36a4255f04adeb69883166836da7b4239fc75d973d927a16617d'
 SCHEMAS = json.loads((ROOT / 'apps/backend/comfyui/tests/fixtures/qi21_object_info_snapshot.json').read_text())
 sys.path.insert(0, str(ROOT / '.agents/skills/node-graph/tools'))
 from layout_check import check_workflow
@@ -157,7 +159,7 @@ def validate(graph):
 
 def patched_bytes(raw):
     digest = hashlib.sha256(raw).hexdigest()
-    if PATCHED_SHA256 and digest == PATCHED_SHA256:
+    if digest in (PATCHED_SHA256, P2_BANNER_SHA256):
         validate(json.loads(raw)); return raw
     if digest in ('6ae18482d1ac0d16283ecc3614d0ec3dfa64bee1175be8fd5baea2c6c0fff3c0',
                   '2e984f83f54fbc9a61ac0287fbeb8bdc88a758aa6492738a0de3be7041c86ea8'):

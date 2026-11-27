@@ -2255,7 +2255,7 @@
       "title": "[36] 官方参照·Fisher-Pose 须知(换机位分支未装)",
       "properties": {},
       "widgets_values": [
-        "## 官方参照件 · Fisher-Pose 无限姿势(支持双人)\n\n- **来源**:Work-Fisher/ComfyUI-Fisher-Pose @ c1d9e65f(钉版 commit;官方工作流入库,除下列改线外零改动)\n- **改线口径(1010 装机适配,恰两节点四处)**:主模型 int8_convrot 版→漫影在装 bf16 底模版;文本编码器 qwen3vl→heretic 版(clip type=qwen_image 不变);VAE 与姿势 LoRA 原名保留(装机已在)。\n- **姿势驱动三层**:A 固定姿势零交互可跑(pose_json 内置人偶图,无需拷作者 input);B 任意新姿势需浏览器 WebGL 编辑器(headless Chrome+SwiftShader 可程序化驱动,暂未接);C 纯 Python 离线渲染不存在(服务端无渲染器)。\n- ⚠️ **换机位分支警示**:无限视角分支所需六件模型(点云扩散主模型及其 VAE 解码器、重建用 VAE、任意视角 LoRA、视觉编码权重、背景移除权重)本机未装——**该分支不可跑,仅姿势分支可用**;双人照片输入=LoadImage 两口。\n- 82MB 人体数据包随插件走(web 资产),插件卸载即失效;LoRA 详情见漫影工作流清单台账行。"
+        "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:Win+Mac(D1 qi21 线);Mac 未核(引擎未启动)\n- Win 缺模型·可选/旁路支路:QI2.1_AnyAngle.safetensors、birefnet.safetensors、dino_v3_vit_h.safetensors、triposplat_fp16.safetensors、triposplat_vae_decoder_fp16.safetensors\n- 怎么补:按上列缺项补齐后两台各实跑一次;下载模型逐件请示(D7),装插件另行明令(D6)。\n\n## 官方参照件 · Fisher-Pose 无限姿势(支持双人)\n\n- **来源**:Work-Fisher/ComfyUI-Fisher-Pose @ c1d9e65f(钉版 commit;官方工作流入库,除下列改线外零改动)\n- **改线口径(1010 装机适配,恰两节点四处)**:主模型 int8_convrot 版→漫影在装 bf16 底模版;文本编码器 qwen3vl→heretic 版(clip type=qwen_image 不变);VAE 与姿势 LoRA 原名保留(装机已在)。\n- **姿势驱动三层**:A 固定姿势零交互可跑(pose_json 内置人偶图,无需拷作者 input);B 任意新姿势需浏览器 WebGL 编辑器(headless Chrome+SwiftShader 可程序化驱动,暂未接);C 纯 Python 离线渲染不存在(服务端无渲染器)。\n- ⚠️ **换机位分支警示**:无限视角分支所需六件模型(点云扩散主模型及其 VAE 解码器、重建用 VAE、任意视角 LoRA、视觉编码权重、背景移除权重)本机未装——**该分支不可跑,仅姿势分支可用**;双人照片输入=LoadImage 两口。\n- 82MB 人体数据包随插件走(web 资产),插件卸载即失效;LoRA 详情见漫影工作流清单台账行。"
       ]
     }
   ],

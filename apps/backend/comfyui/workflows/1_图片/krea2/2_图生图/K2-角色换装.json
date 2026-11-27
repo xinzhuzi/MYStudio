@@ -605,7 +605,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "输入与用法:[101]=服装参考图,本流唯一图输入(官方建议干净的正/背面服装照,示例库=huggingface.co/datasets/AliveAi/outfits);官方 t2i 版角色图不设输入位,角色在 [84] 用文字描述(现含官方示例句,换成自己的角色即可),句末触发短语 transfer the outfit 不能删——换装指令全靠它;「角色图+服装参考图」两张图保脸换装走下方双 LoRA 升级路径。已知限制:LoRA 主要按女装训练(男装/中性装贴合度会降);偶发双人→[53] 种子改 randomize 重抽,或在正向里写 single person。保脸升级路径:要用已有角色图保脸时,在 [100] 后同挂 Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors ×0.5(社区配方面:两件 LoRA 各 ×0.5 + [79] ref_boost 首数拉 10,见 docs/comfyui-kb/K2服饰LoRA调研_0919.md §三)。前置:节点包 comfyui-krea2edit;权重均在引擎在位(底模 krea2_turbo_bf16/TE Krea2-Engineer-V1-bf16/VAE qwen_image_HDR_vae_fp32_comfy/换装 LoRA)。"
+        "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、Krea2-功能/Krea2-编辑outfit_transfer.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。\n\n输入与用法:[101]=服装参考图,本流唯一图输入(官方建议干净的正/背面服装照,示例库=huggingface.co/datasets/AliveAi/outfits);官方 t2i 版角色图不设输入位,角色在 [84] 用文字描述(现含官方示例句,换成自己的角色即可),句末触发短语 transfer the outfit 不能删——换装指令全靠它;「角色图+服装参考图」两张图保脸换装走下方双 LoRA 升级路径。已知限制:LoRA 主要按女装训练(男装/中性装贴合度会降);偶发双人→[53] 种子改 randomize 重抽,或在正向里写 single person。保脸升级路径:要用已有角色图保脸时,在 [100] 后同挂 Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors ×0.5(社区配方面:两件 LoRA 各 ×0.5 + [79] ref_boost 首数拉 10,见 docs/comfyui-kb/K2服饰LoRA调研_0919.md §三)。前置:节点包 comfyui-krea2edit;权重均在引擎在位(底模 krea2_turbo_bf16/TE Krea2-Engineer-V1-bf16/VAE qwen_image_HDR_vae_fp32_comfy/换装 LoRA)。"
       ],
       "title": "使用说明"
     },

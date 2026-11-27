@@ -1013,10 +1013,10 @@
       "title": "注释",
       "properties": {},
       "widgets_values": [
-        "▶ 漫影 K2 通用文生图(Krea2 Turbo 8步)\n① 「提示词」只写画面内容(人物/场景/光线/氛围),不写风格词——风格引导在风格节点里,切风格自动跟随,提示词不用改。\n② 「风格选择」预设「2D工笔风」;下拉可切漫影风格库全部 57 风格(2D/3D/真人/定格);要 Krea 官方 3946 社区库=用 5_风格扩展流,画风+引导+负面全链自动换。\n③ 分辨率默认 1:1 方图(1024²),可切 9:16/16:9;Krea2 Turbo 采样配方(8步/euler/simple/cfg1)勿改。\n④ 输出前缀 K2-文生图,图落在引擎 output/。\n- **LoRA 尺度栈默认旁路**:要放开尺度=取消两个 LoRA 节点旁路(Mystic ×2 + pussy ×0.15),或直接用同夹「K2-文生图-超集」流(默认激活)"
+        "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 控件值不在 Win 选项:#52(MyStylesLibrary)=2D工笔风(风格库条目 Win 引擎侧未登记)\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。\n\n▶ 漫影 K2 通用文生图(Krea2 Turbo 8步)\n① 「提示词」只写画面内容(人物/场景/光线/氛围),不写风格词——风格引导在风格节点里,切风格自动跟随,提示词不用改。\n② 「风格选择」预设「2D工笔风」;下拉可切漫影风格库全部 57 风格(2D/3D/真人/定格);要 Krea 官方 3946 社区库=用 5_风格扩展流,画风+引导+负面全链自动换。\n③ 分辨率默认 1:1 方图(1024²),可切 9:16/16:9;Krea2 Turbo 采样配方(8步/euler/simple/cfg1)勿改。\n④ 输出前缀 K2-文生图,图落在引擎 output/。\n- **LoRA 尺度栈默认旁路**:要放开尺度=取消两个 LoRA 节点旁路(Mystic ×2 + pussy ×0.15),或直接用同夹「K2-文生图-超集」流(默认激活)"
       ],
       "widgets_values_named": {
-        "text": "◀选择添加通配符-选择“ray外卡/krea2外卡_3k”（1-7共2.1万种随机提示词，尽量一次选一个）"
+        "text": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 控件值不在 Win 选项:#52(MyStylesLibrary)=2D工笔风(风格库条目 Win 引擎侧未登记)\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。\n\n◀选择添加通配符-选择“ray外卡/krea2外卡_3k”（1-7共2.1万种随机提示词，尽量一次选一个）"
       },
       "color": "#432",
       "bgcolor": "#653"

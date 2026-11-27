@@ -4565,7 +4565,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "# 社区·编辑生图整合流（本地化入库）\n\n- 来源：黑鹤001 BV1Kwht6eEGd 配套《▶▷Qwen-image21-图像编辑+生图流（整合）》（73 节点）\n- 本地化改造（2026-10-01）：\n  1. 移除 `TESpeedQwenImage21` ×2（Windows-only 加速件，macOS 无编译件）：MODEL 链改为上游直连下游（LoRA→QwenImage21Cache、LoRA→KSampler）。\n  2. `TE_Qwen_Image_2_1_Prompt_Enhancer` ×2 → 官方 `TextGenerate`（llama-TE 未装）：原提示词文本已迁入 prompt 槽；clip 接同支线 CLIPLoader（qwen3vl_8b_int8_convrot）；图生图侧原 8 图槽收窄为 image 单槽（保留图一）。\n  3. `TE_text_display` ×2 → `easy showAnything`（TE_MAN 未装）。\n- 其余节点（rgthree / Switch / LoRA / QwenImage21Cache 等）原样未动。"
+        "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:Mac 或不保证(D1 社区件);Mac 未核(引擎未启动)\n- Win 缺模型·可选/旁路支路:Qwen\\Qwen-Image-2.1-viggle-turbo-4step-lora-r64.safetensors\n- 怎么补:D6 社区件标缺;下载模型逐件请示(D7),装插件另行明令(D6)。\n\n# 社区·编辑生图整合流（本地化入库）\n\n- 来源：黑鹤001 BV1Kwht6eEGd 配套《▶▷Qwen-image21-图像编辑+生图流（整合）》（73 节点）\n- 本地化改造（2026-10-01）：\n  1. 移除 `TESpeedQwenImage21` ×2（Windows-only 加速件，macOS 无编译件）：MODEL 链改为上游直连下游（LoRA→QwenImage21Cache、LoRA→KSampler）。\n  2. `TE_Qwen_Image_2_1_Prompt_Enhancer` ×2 → 官方 `TextGenerate`（llama-TE 未装）：原提示词文本已迁入 prompt 槽；clip 接同支线 CLIPLoader（qwen3vl_8b_int8_convrot）；图生图侧原 8 图槽收窄为 image 单槽（保留图一）。\n  3. `TE_text_display` ×2 → `easy showAnything`（TE_MAN 未装）。\n- 其余节点（rgthree / Switch / LoRA / QwenImage21Cache 等）原样未动。"
       ]
     }
   ],

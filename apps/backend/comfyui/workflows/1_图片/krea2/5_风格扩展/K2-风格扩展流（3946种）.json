@@ -1144,10 +1144,10 @@
       "title": "注释",
       "properties": {},
       "widgets_values": [
-        "◀选择添加通配符-选择“ray外卡/krea2外卡_3k”（1-7共2.1万种随机提示词，尽量一次选一个）"
+        "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 控件值不在 Win 选项:#52(easy stylesSelector)=krea2_397styles-3d_render_3D渲染(风格库条目 Win 引擎侧未登记)\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。\n\n◀选择添加通配符-选择“ray外卡/krea2外卡_3k”（1-7共2.1万种随机提示词，尽量一次选一个）"
       ],
       "widgets_values_named": {
-        "text": "◀选择添加通配符-选择“ray外卡/krea2外卡_3k”（1-7共2.1万种随机提示词，尽量一次选一个）"
+        "text": "【标缺·不可跑(1127 P2;依据 .trellis/tasks/11-26-image-workflow-engine-reconcile/research/image-reconcile-1126.md)】\n- 目标引擎:D1 批 Mac,但 Krea2 已于 09-24 在 Mac 退役、权重已删(见 .agents/skills/comfyui/machine.md),两台现均不可跑;按 D3 搁置\n- Win(1126 快照)缺模型·活跃路径:Krea2-Engineer-V1-bf16.safetensors、krea2_turbo_bf16.safetensors、qwen_image_HDR_vae_fp32_comfy.safetensors\n- 控件值不在 Win 选项:#52(easy stylesSelector)=krea2_397styles-3d_render_3D渲染(风格库条目 Win 引擎侧未登记)\n- 怎么补:要用时再恢复(Mac 按 machine.md 从外置盘恢复;Win 需补上列模型并改分隔符);下载模型逐件请示(D7),装插件另行明令(D6)。\n\n◀选择添加通配符-选择“ray外卡/krea2外卡_3k”（1-7共2.1万种随机提示词，尽量一次选一个）"
       },
       "color": "#432",
       "bgcolor": "#653"
