@@ -432,17 +432,17 @@
     "Node name for S&R": "CheckpointLoaderSimple",
     "models": [
      {
-      "name": "sensenova_u1.6_8b_mot_int8_convrot.safetensors",
-      "url": "https://huggingface.co/Comfy-Org/SenseNova-U1/resolve/main/checkpoints/sensenova_u1.6_8b_mot_int8_convrot.safetensors",
+      "name": "sensenova_u1.6_8b_mot_bf16.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/SenseNova-U1/resolve/main/checkpoints/sensenova_u1.6_8b_mot_bf16.safetensors",
       "directory": "checkpoints"
      }
     ]
    },
    "widgets_values": [
-    "sensenova_u1.6_8b_mot_int8_convrot.safetensors"
+    "sensenova_u1.6_8b_mot_bf16.safetensors"
    ],
    "widgets_values_named": {
-    "ckpt_name": "sensenova_u1.6_8b_mot_int8_convrot.safetensors"
+    "ckpt_name": "sensenova_u1.6_8b_mot_bf16.safetensors"
    },
    "color": "#223",
    "bgcolor": "#335"
@@ -1265,10 +1265,10 @@
    "outputs": [],
    "properties": {},
    "widgets_values": [
-    "## SenseNova 道劫 t2i(道劫三层装配 × SenseNova-U1.6 官方采样链,1126 役)\n\n- **装配段=qi21 三件逐字复用**(零新节点、零新数据文件):`MyQi21DaojieBase`(选型→BASE/WIDTH/HEIGHT/负面词)→ `MyQi21PromptAssembly`(美术风格底座 → 类型句 → 主体句)→ 编码器 `.text`;`MyQi21PromptPreview` 出正/负终稿,可逐字对账\n- **型库=`qi21_bases.json` 现读**:美术风格底座节点默认值=`art_style_base.positive_text`;主体句默认值=`道劫_类型主体句示例.md` §1 代码块逐字\n- **双臂**:`Turbo Mode?`=true(默认)→ 8step LoRA@1.0 + 8 步 + CFG1;false → 无 LoRA + 50 步 + CFG4;模型/步数/CFG 三个 Switch 同吃这一个开关;euler / simple / denoise 1 照官方\n- **画幅**:底座 WIDTH/HEIGHT 各经 `floor(a / 32) * 32` 对齐后进 `EmptyHiDreamO1LatentImage`(step=32);已对齐的型数值不变\n- **模型**:`sensenova_u1.6_8b_mot_int8_convrot.safetensors`(ckpt 自带 CLIP 与 VAE)+ `sensenova_u1.6_8b_mot_8step_lora_bf16.safetensors`\n- **首版未接**:PE 链(会把装配文整段改写成英文,与逐字装配冲突)、自修正环;透明型不出透明(SenseNova 输出 RGB 无 alpha,型文不动)\n- 主体句纪律与发车前预检同 qi21 线(`daojie_subject_overlap.py`)\n"
+    "## SenseNova 道劫 t2i(道劫三层装配 × SenseNova-U1.6 官方采样链,1126 役)\n\n- **装配段=qi21 三件逐字复用**(零新节点、零新数据文件):`MyQi21DaojieBase`(选型→BASE/WIDTH/HEIGHT/负面词)→ `MyQi21PromptAssembly`(美术风格底座 → 类型句 → 主体句)→ 编码器 `.text`;`MyQi21PromptPreview` 出正/负终稿,可逐字对账\n- **型库=`qi21_bases.json` 现读**:美术风格底座节点默认值=`art_style_base.positive_text`;主体句默认值=`道劫_类型主体句示例.md` §1 代码块逐字\n- **双臂**:`Turbo Mode?`=true(默认)→ 8step LoRA@1.0 + 8 步 + CFG1;false → 无 LoRA + 50 步 + CFG4;模型/步数/CFG 三个 Switch 同吃这一个开关;euler / simple / denoise 1 照官方\n- **画幅**:底座 WIDTH/HEIGHT 各经 `floor(a / 32) * 32` 对齐后进 `EmptyHiDreamO1LatentImage`(step=32);已对齐的型数值不变\n- **模型**:`sensenova_u1.6_8b_mot_bf16.safetensors`(ckpt 自带 CLIP 与 VAE)+ `sensenova_u1.6_8b_mot_8step_lora_bf16.safetensors`\n- **首版未接**:PE 链(会把装配文整段改写成英文,与逐字装配冲突)、自修正环;透明型不出透明(SenseNova 输出 RGB 无 alpha,型文不动)\n- 主体句纪律与发车前预检同 qi21 线(`daojie_subject_overlap.py`)\n"
    ],
    "widgets_values_named": {
-    "text": "## SenseNova 道劫 t2i(道劫三层装配 × SenseNova-U1.6 官方采样链,1126 役)\n\n- **装配段=qi21 三件逐字复用**(零新节点、零新数据文件):`MyQi21DaojieBase`(选型→BASE/WIDTH/HEIGHT/负面词)→ `MyQi21PromptAssembly`(美术风格底座 → 类型句 → 主体句)→ 编码器 `.text`;`MyQi21PromptPreview` 出正/负终稿,可逐字对账\n- **型库=`qi21_bases.json` 现读**:美术风格底座节点默认值=`art_style_base.positive_text`;主体句默认值=`道劫_类型主体句示例.md` §1 代码块逐字\n- **双臂**:`Turbo Mode?`=true(默认)→ 8step LoRA@1.0 + 8 步 + CFG1;false → 无 LoRA + 50 步 + CFG4;模型/步数/CFG 三个 Switch 同吃这一个开关;euler / simple / denoise 1 照官方\n- **画幅**:底座 WIDTH/HEIGHT 各经 `floor(a / 32) * 32` 对齐后进 `EmptyHiDreamO1LatentImage`(step=32);已对齐的型数值不变\n- **模型**:`sensenova_u1.6_8b_mot_int8_convrot.safetensors`(ckpt 自带 CLIP 与 VAE)+ `sensenova_u1.6_8b_mot_8step_lora_bf16.safetensors`\n- **首版未接**:PE 链(会把装配文整段改写成英文,与逐字装配冲突)、自修正环;透明型不出透明(SenseNova 输出 RGB 无 alpha,型文不动)\n- 主体句纪律与发车前预检同 qi21 线(`daojie_subject_overlap.py`)\n"
+    "text": "## SenseNova 道劫 t2i(道劫三层装配 × SenseNova-U1.6 官方采样链,1126 役)\n\n- **装配段=qi21 三件逐字复用**(零新节点、零新数据文件):`MyQi21DaojieBase`(选型→BASE/WIDTH/HEIGHT/负面词)→ `MyQi21PromptAssembly`(美术风格底座 → 类型句 → 主体句)→ 编码器 `.text`;`MyQi21PromptPreview` 出正/负终稿,可逐字对账\n- **型库=`qi21_bases.json` 现读**:美术风格底座节点默认值=`art_style_base.positive_text`;主体句默认值=`道劫_类型主体句示例.md` §1 代码块逐字\n- **双臂**:`Turbo Mode?`=true(默认)→ 8step LoRA@1.0 + 8 步 + CFG1;false → 无 LoRA + 50 步 + CFG4;模型/步数/CFG 三个 Switch 同吃这一个开关;euler / simple / denoise 1 照官方\n- **画幅**:底座 WIDTH/HEIGHT 各经 `floor(a / 32) * 32` 对齐后进 `EmptyHiDreamO1LatentImage`(step=32);已对齐的型数值不变\n- **模型**:`sensenova_u1.6_8b_mot_bf16.safetensors`(ckpt 自带 CLIP 与 VAE)+ `sensenova_u1.6_8b_mot_8step_lora_bf16.safetensors`\n- **首版未接**:PE 链(会把装配文整段改写成英文,与逐字装配冲突)、自修正环;透明型不出透明(SenseNova 输出 RGB 无 alpha,型文不动)\n- 主体句纪律与发车前预检同 qi21 线(`daojie_subject_overlap.py`)\n"
    },
    "color": "#222",
    "bgcolor": "#000"

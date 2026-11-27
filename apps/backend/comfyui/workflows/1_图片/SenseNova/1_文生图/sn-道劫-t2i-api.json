@@ -85,7 +85,7 @@
  "8": {
   "class_type": "CheckpointLoaderSimple",
   "inputs": {
-   "ckpt_name": "sensenova_u1.6_8b_mot_int8_convrot.safetensors"
+   "ckpt_name": "sensenova_u1.6_8b_mot_bf16.safetensors"
   }
  },
  "9": {

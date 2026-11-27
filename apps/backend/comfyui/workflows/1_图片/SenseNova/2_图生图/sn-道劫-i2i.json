@@ -383,17 +383,17 @@
     "Node name for S&R": "CheckpointLoaderSimple",
     "models": [
      {
-      "name": "sensenova_u1.6_8b_mot_int8_convrot.safetensors",
-      "url": "https://huggingface.co/Comfy-Org/SenseNova-U1/resolve/main/checkpoints/sensenova_u1.6_8b_mot_int8_convrot.safetensors",
+      "name": "sensenova_u1.6_8b_mot_bf16.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/SenseNova-U1/resolve/main/checkpoints/sensenova_u1.6_8b_mot_bf16.safetensors",
       "directory": "checkpoints"
      }
     ]
    },
    "widgets_values": [
-    "sensenova_u1.6_8b_mot_int8_convrot.safetensors"
+    "sensenova_u1.6_8b_mot_bf16.safetensors"
    ],
    "widgets_values_named": {
-    "ckpt_name": "sensenova_u1.6_8b_mot_int8_convrot.safetensors"
+    "ckpt_name": "sensenova_u1.6_8b_mot_bf16.safetensors"
    },
    "color": "#223",
    "bgcolor": "#335"
@@ -1397,10 +1397,10 @@
    "outputs": [],
    "properties": {},
    "widgets_values": [
-    "## SenseNova 道劫 i2i(道劫装配 × SenseNova-U1.6 官方图像编辑链,1126 役)\n\n- **装配段=qi21 三件逐字复用**:指令(唯一手写位)→ `MyQi21PromptAssembly` → 编码器 `.text`;`MyQi21PromptPreview` 出正/负终稿,可逐字对账\n- **组装用途**:默认「道劫美术风格转换」=指令 + 画法(画法=装配节点「锁层A全文」);画布可切「自由出图」(仅指令);切「道劫美术类型」=型层+画法、底座节点选型生效,但须把「指令」改写成带发色的 t2i 主体句(该档走 t2i 全量门,画风转换句会被「发色必写」拦下)\n- **参考图链照官方**:LoadImage → 总量 4MP → 32 倍数 → 画幅随参考图(GetImageSize)+ `HiDreamO1ReferenceImages.image_1`;条件走 `SenseNovaConditioning`(task=image)直采\n- **双臂**:同 t2i 件(`Turbo Mode?` 一个开关同吃模型/步数/CFG)\n- **模型**:`sensenova_u1.6_8b_mot_int8_convrot.safetensors`(ckpt 自带 CLIP 与 VAE)+ `sensenova_u1.6_8b_mot_8step_lora_bf16.safetensors`\n- **指令写法**:`docs/prompts/Qwen-Image-2.1/09-图生图指令写作规范.md`(单图自然指称、肯定式、操作段+保真段);cfg=1 下负向不参与采样\n- **首版未接**:PE 链、自修正环\n"
+    "## SenseNova 道劫 i2i(道劫装配 × SenseNova-U1.6 官方图像编辑链,1126 役)\n\n- **装配段=qi21 三件逐字复用**:指令(唯一手写位)→ `MyQi21PromptAssembly` → 编码器 `.text`;`MyQi21PromptPreview` 出正/负终稿,可逐字对账\n- **组装用途**:默认「道劫美术风格转换」=指令 + 画法(画法=装配节点「锁层A全文」);画布可切「自由出图」(仅指令);切「道劫美术类型」=型层+画法、底座节点选型生效,但须把「指令」改写成带发色的 t2i 主体句(该档走 t2i 全量门,画风转换句会被「发色必写」拦下)\n- **参考图链照官方**:LoadImage → 总量 4MP → 32 倍数 → 画幅随参考图(GetImageSize)+ `HiDreamO1ReferenceImages.image_1`;条件走 `SenseNovaConditioning`(task=image)直采\n- **双臂**:同 t2i 件(`Turbo Mode?` 一个开关同吃模型/步数/CFG)\n- **模型**:`sensenova_u1.6_8b_mot_bf16.safetensors`(ckpt 自带 CLIP 与 VAE)+ `sensenova_u1.6_8b_mot_8step_lora_bf16.safetensors`\n- **指令写法**:`docs/prompts/Qwen-Image-2.1/09-图生图指令写作规范.md`(单图自然指称、肯定式、操作段+保真段);cfg=1 下负向不参与采样\n- **首版未接**:PE 链、自修正环\n"
    ],
    "widgets_values_named": {
-    "text": "## SenseNova 道劫 i2i(道劫装配 × SenseNova-U1.6 官方图像编辑链,1126 役)\n\n- **装配段=qi21 三件逐字复用**:指令(唯一手写位)→ `MyQi21PromptAssembly` → 编码器 `.text`;`MyQi21PromptPreview` 出正/负终稿,可逐字对账\n- **组装用途**:默认「道劫美术风格转换」=指令 + 画法(画法=装配节点「锁层A全文」);画布可切「自由出图」(仅指令);切「道劫美术类型」=型层+画法、底座节点选型生效,但须把「指令」改写成带发色的 t2i 主体句(该档走 t2i 全量门,画风转换句会被「发色必写」拦下)\n- **参考图链照官方**:LoadImage → 总量 4MP → 32 倍数 → 画幅随参考图(GetImageSize)+ `HiDreamO1ReferenceImages.image_1`;条件走 `SenseNovaConditioning`(task=image)直采\n- **双臂**:同 t2i 件(`Turbo Mode?` 一个开关同吃模型/步数/CFG)\n- **模型**:`sensenova_u1.6_8b_mot_int8_convrot.safetensors`(ckpt 自带 CLIP 与 VAE)+ `sensenova_u1.6_8b_mot_8step_lora_bf16.safetensors`\n- **指令写法**:`docs/prompts/Qwen-Image-2.1/09-图生图指令写作规范.md`(单图自然指称、肯定式、操作段+保真段);cfg=1 下负向不参与采样\n- **首版未接**:PE 链、自修正环\n"
+    "text": "## SenseNova 道劫 i2i(道劫装配 × SenseNova-U1.6 官方图像编辑链,1126 役)\n\n- **装配段=qi21 三件逐字复用**:指令(唯一手写位)→ `MyQi21PromptAssembly` → 编码器 `.text`;`MyQi21PromptPreview` 出正/负终稿,可逐字对账\n- **组装用途**:默认「道劫美术风格转换」=指令 + 画法(画法=装配节点「锁层A全文」);画布可切「自由出图」(仅指令);切「道劫美术类型」=型层+画法、底座节点选型生效,但须把「指令」改写成带发色的 t2i 主体句(该档走 t2i 全量门,画风转换句会被「发色必写」拦下)\n- **参考图链照官方**:LoadImage → 总量 4MP → 32 倍数 → 画幅随参考图(GetImageSize)+ `HiDreamO1ReferenceImages.image_1`;条件走 `SenseNovaConditioning`(task=image)直采\n- **双臂**:同 t2i 件(`Turbo Mode?` 一个开关同吃模型/步数/CFG)\n- **模型**:`sensenova_u1.6_8b_mot_bf16.safetensors`(ckpt 自带 CLIP 与 VAE)+ `sensenova_u1.6_8b_mot_8step_lora_bf16.safetensors`\n- **指令写法**:`docs/prompts/Qwen-Image-2.1/09-图生图指令写作规范.md`(单图自然指称、肯定式、操作段+保真段);cfg=1 下负向不参与采样\n- **首版未接**:PE 链、自修正环\n"
    },
    "color": "#222",
    "bgcolor": "#000"

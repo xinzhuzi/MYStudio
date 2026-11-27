@@ -183,17 +183,17 @@
     "Node name for S&R": "CheckpointLoaderSimple",
     "models": [
      {
-      "name": "sensenova_u1.6_8b_mot_int8_convrot.safetensors",
-      "url": "https://huggingface.co/Comfy-Org/SenseNova-U1/resolve/main/checkpoints/sensenova_u1.6_8b_mot_int8_convrot.safetensors",
+      "name": "sensenova_u1.6_8b_mot_bf16.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/SenseNova-U1/resolve/main/checkpoints/sensenova_u1.6_8b_mot_bf16.safetensors",
       "directory": "checkpoints"
      }
     ]
    },
    "widgets_values": [
-    "sensenova_u1.6_8b_mot_int8_convrot.safetensors"
+    "sensenova_u1.6_8b_mot_bf16.safetensors"
    ],
    "widgets_values_named": {
-    "ckpt_name": "sensenova_u1.6_8b_mot_int8_convrot.safetensors"
+    "ckpt_name": "sensenova_u1.6_8b_mot_bf16.safetensors"
    },
    "color": "#223",
    "bgcolor": "#335"
